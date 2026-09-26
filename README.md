@@ -241,6 +241,11 @@ yarn web
 yarn build
 ```
 
+On Linux, `yarn build` requires you to pick the packages: `--bundles appimage`
+(or `deb`, `rpm`, comma-separated for several), `--bundles all`, or `--no-bundle`
+for the binary alone. `src-tauri/tauri.linux.conf.json` sets no default bundle
+targets, so a bare `yarn tauri build` on Linux builds the binary and no packages.
+
 ### Check formatting, types, and lints
 
 ```bash

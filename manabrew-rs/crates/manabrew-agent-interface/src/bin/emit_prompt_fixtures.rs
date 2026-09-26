@@ -199,6 +199,7 @@ fn main() {
             },
             confirm_label: "Pay Buyback".to_string(),
             deny_label: "No".to_string(),
+            kind: Some(choose_boolean::BooleanChoiceKind::ConfirmPayment),
         }),
         ChooseFromSelection(choose_from_selection::ChooseFromSelectionInput {
             presentation: common::PromptPresentation {
@@ -212,15 +213,20 @@ fn main() {
                     label: "Destroy target artifact".to_string(),
                     weight: 1,
                     can_repeat: false,
+                    cost: None,
+                    affordable: None,
                 },
                 choose_from_selection::SelectionOption {
                     label: "Destroy target enchantment".to_string(),
                     weight: 1,
                     can_repeat: false,
+                    cost: None,
+                    affordable: None,
                 },
             ],
             min_total: 1,
             max_total: 2,
+            kind: Some(choose_from_selection::SelectionKind::Mode),
         }),
         DiceRolled(dice_rolled::DiceRolledInput {
             presentation: common::PromptPresentation {

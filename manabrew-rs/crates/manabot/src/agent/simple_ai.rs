@@ -4,6 +4,8 @@ use manabrew_agent_interface::game_view_dto::{
     CardDto, CardView, GameViewDto, StepKind, TargetingIntent, ZoneKind,
 };
 use manabrew_agent_interface::prompt::*;
+use manabrew_protocol::prompts::choose_boolean::BooleanChoiceKind;
+use manabrew_protocol::prompts::choose_from_selection::SelectionKind;
 
 use super::BotAgent;
 
@@ -1418,6 +1420,8 @@ impl BotAgent for SimpleAi {
                 presentation,
                 confirm_label,
                 deny_label,
+                kind,
+                ..
             }) => {
                 let signature = format!(
                     "bool:{prompt_source_id}|{}|{confirm_label}|{deny_label}",
@@ -1462,7 +1466,18 @@ impl BotAgent for SimpleAi {
                     || title.contains("sacrifice strip mine")
                     || title.contains("exile simian spirit guide")
                     || title.starts_with("use triggered ability");
-                let value = always_accept || (accept_once && !repeated);
+                let own_source = self
+                    .card(&prompt_source_id)
+                    .is_some_and(|card| card.controller_id == deciding_player_id);
+                let value = match kind {
+                    Some(BooleanChoiceKind::OptionalTrigger | BooleanChoiceKind::StaticApplication) => {
+                        !repeated
+                    }
+                    Some(BooleanChoiceKind::ReplacementEffect) => own_source && !repeated,
+                    Some(BooleanChoiceKind::MulliganScry) => true,
+                    Some(BooleanChoiceKind::PutOnTop) => false,
+                    _ => always_accept || (accept_once && !repeated),
+                };
                 Some(PromptOutput::ChooseBoolean(ChooseBooleanOutput::Decision { value }))
             }
             PromptInput::ChooseFromSelection(manabrew_protocol::prompts::choose_from_selection::ChooseFromSelectionInput {
@@ -1470,7 +1485,20 @@ impl BotAgent for SimpleAi {
                 options,
                 min_total,
                 max_total,
+                kind,
             }) => {
+                if kind == Some(SelectionKind::OptionalCost) {
+                    let chosen_indices = options
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, option)| option.affordable == Some(true))
+                        .map(|(index, _)| index)
+                        .take(max_total)
+                        .collect();
+                    return Some(PromptOutput::ChooseFromSelection(
+                        ChooseFromSelectionOutput::SelectionDecision { chosen_indices },
+                    ));
+                }
                 let signature =
                     format!("select:{}|{min_total}|{max_total}|{}", presentation.title, options.len());
                 let search = presentation.title.to_ascii_lowercase().contains("search");

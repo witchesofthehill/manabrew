@@ -74,6 +74,7 @@ public final class ManaBrewInteractiveSession {
         return sessionId;
     }
 
+
     public static void setBridge(final InteractiveBridge value) {
         bridge = value;
     }
@@ -1120,12 +1121,36 @@ public final class ManaBrewInteractiveSession {
 
     List<Integer> awaitModeChoice(
             final int playerId,
+            final List<String> options,
+            final int min,
+            final int max,
+            final String sourceName,
+            final SelectionKind kind
+    ) {
+        return awaitModeChoice(playerId, unweightedOptions(options), min, max, sourceName, null, null, kind);
+    }
+
+    List<Integer> awaitModeChoice(
+            final int playerId,
             final List<SelectionOption> options,
             final int min,
             final int max,
             final String sourceName,
             final String description,
             final String sourceCardId
+    ) {
+        return awaitModeChoice(playerId, options, min, max, sourceName, description, sourceCardId, null);
+    }
+
+    List<Integer> awaitModeChoice(
+            final int playerId,
+            final List<SelectionOption> options,
+            final int min,
+            final int max,
+            final String sourceName,
+            final String description,
+            final String sourceCardId,
+            final SelectionKind kind
     ) {
         requireAttached();
         if (options.isEmpty() && min > 0) {
@@ -1139,7 +1164,7 @@ public final class ManaBrewInteractiveSession {
         final PromptPresentation presentation =
                 new PromptPresentation(title, description, null, java.util.List.of());
         publishAgentPrompt("player-" + playerId, sourceCardId,
-                new ChooseFromSelectionInput(presentation, options, clampedMin, clampedMax));
+                new ChooseFromSelectionInput(presentation, options, clampedMin, clampedMax, kind));
         while (!closed && !game.isGameOver()) {
             final JsonObject action = takeActionOrNull();
             if (action == null) {
@@ -1171,7 +1196,7 @@ public final class ManaBrewInteractiveSession {
     private static List<SelectionOption> unweightedOptions(final List<String> labels, final boolean canRepeat) {
         final List<SelectionOption> options = new ArrayList<>();
         for (final String label : labels) {
-            options.add(new SelectionOption(label, 1, canRepeat));
+            options.add(new SelectionOption(label, 1, canRepeat, null, null));
         }
         return options;
     }
@@ -2106,7 +2131,8 @@ public final class ManaBrewInteractiveSession {
                 new PromptPresentation(title, null, null, java.util.List.of());
         publishAgentPrompt(
                 "player-" + playerId, sourceCardId,
-                new ChooseFromSelectionInput(presentation, unweightedOptions(options), min, max));
+                new ChooseFromSelectionInput(presentation, unweightedOptions(options), min, max,
+                        "choose_type".equals(kind) ? SelectionKind.TYPE : null));
     }
 
     private void publishBooleanPrompt(
@@ -2158,7 +2184,28 @@ public final class ManaBrewInteractiveSession {
         }
         final PromptPresentation presentation = new PromptPresentation(title, bodyText, text, targets);
         publishAgentPrompt("player-" + playerId, sourceCardId,
-                new ChooseBooleanInput(presentation, confirmLabel, denyLabel));
+                new ChooseBooleanInput(presentation, confirmLabel, denyLabel, booleanKind(promptKind)));
+    }
+
+    private static BooleanChoiceKind booleanKind(final String promptKind) {
+        if (promptKind == null) {
+            return null;
+        }
+        switch (promptKind) {
+            case "optional_trigger": return BooleanChoiceKind.OPTIONAL_TRIGGER;
+            case "replacement_effect": return BooleanChoiceKind.REPLACEMENT_EFFECT;
+            case "static_application": return BooleanChoiceKind.STATIC_APPLICATION;
+            case "confirm_action": return BooleanChoiceKind.CONFIRM_ACTION;
+            case "confirm_payment": return BooleanChoiceKind.CONFIRM_PAYMENT;
+            case "pay_cost_to_prevent_effect": return BooleanChoiceKind.PAY_COST_TO_PREVENT_EFFECT;
+            case "pay_cost_during_roll": return BooleanChoiceKind.PAY_COST_DURING_ROLL;
+            case "binary": return BooleanChoiceKind.BINARY;
+            case "flip_coin": return BooleanChoiceKind.FLIP_COIN;
+            case "put_on_top": return BooleanChoiceKind.PUT_ON_TOP;
+            case "confirm_bid": return BooleanChoiceKind.BID;
+            case "confirm_mulligan_scry": return BooleanChoiceKind.MULLIGAN_SCRY;
+            default: return null;
+        }
     }
 
     private void publishRevealCardsPrompt(

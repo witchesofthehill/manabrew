@@ -29,6 +29,7 @@
     "AttackerOptionDto",
     "AvailableAction",
     "BlockableAttackerDto",
+    "BooleanChoiceKind",
     "DiceRollEntry",
     "PaymentAction",
     "PaymentResourceKind",
@@ -36,6 +37,7 @@
     "PromptPresentation",
     "ReorderItem",
     "ScryDestination",
+    "SelectionKind",
     "SelectionOption",
     "TargetKind",
     "TargetRef",
@@ -125,6 +127,11 @@
       "rust": "#[serde(rename_all = \"camelCase\")]\npub struct BlockableAttackerDto {\n    pub attacker_id: String,\n    pub valid_blocker_ids: Vec<String>,\n    pub min_blockers: u32,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub max_blockers: Option<u32>,\n    pub must_be_blocked: bool,\n}",
       "refs": []
     },
+    "BooleanChoiceKind": {
+      "ts": "type BooleanChoiceKind =\n  | \"optionalTrigger\"\n  | \"replacementEffect\"\n  | \"staticApplication\"\n  | \"confirmAction\"\n  | \"confirmPayment\"\n  | \"payCostToPreventEffect\"\n  | \"payCostDuringRoll\"\n  | \"binary\"\n  | \"flipCoin\"\n  | \"putOnTop\"\n  | \"bid\"\n  | \"mulliganScry\";",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub enum BooleanChoiceKind {\n    OptionalTrigger,\n    ReplacementEffect,\n    StaticApplication,\n    ConfirmAction,\n    ConfirmPayment,\n    PayCostToPreventEffect,\n    PayCostDuringRoll,\n    Binary,\n    FlipCoin,\n    PutOnTop,\n    Bid,\n    MulliganScry,\n}",
+      "refs": []
+    },
     "CardBackFaceSummary": {
       "ts": "interface CardBackFaceSummary {\n  name: string;\n  manaCost: string;\n  typeLine: string;\n  oracleText: string;\n  power?: string;\n  toughness?: string;\n  uris: CardImageUris;\n}",
       "rust": "#[serde(rename_all = \"camelCase\")]\npub struct CardBackFaceSummary {\n    pub name: String,\n    #[serde(default)]\n    pub mana_cost: String,\n    #[serde(default)]\n    pub type_line: String,\n    #[serde(default)]\n    pub oracle_text: String,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub power: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub toughness: Option<String>,\n    #[serde(default)]\n    pub uris: CardImageUris,\n}",
@@ -191,9 +198,9 @@
       "refs": ["PromptPresentation", "TargetRef", "TargetingIntent"]
     },
     "ChooseBooleanInput": {
-      "ts": "interface ChooseBooleanInput {\n  presentation: PromptPresentation;\n  confirmLabel: string;\n  denyLabel: string;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct ChooseBooleanInput {\n    pub presentation: PromptPresentation,\n    pub confirm_label: String,\n    pub deny_label: String,\n}",
-      "refs": ["PromptPresentation"]
+      "ts": "interface ChooseBooleanInput {\n  presentation: PromptPresentation;\n  confirmLabel: string;\n  denyLabel: string;\n  kind?: BooleanChoiceKind;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct ChooseBooleanInput {\n    pub presentation: PromptPresentation,\n    pub confirm_label: String,\n    pub deny_label: String,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub kind: Option<BooleanChoiceKind>,\n}",
+      "refs": ["BooleanChoiceKind", "PromptPresentation"]
     },
     "ChooseCardsInput": {
       "ts": "interface ChooseCardsInput {\n  presentation: PromptPresentation;\n  cards: Array<CardDto>;\n  min: number;\n  max: number;\n}",
@@ -216,9 +223,9 @@
       "refs": ["CardDto"]
     },
     "ChooseFromSelectionInput": {
-      "ts": "interface ChooseFromSelectionInput {\n  presentation: PromptPresentation;\n  options: Array<SelectionOption>;\n  minTotal: number;\n  maxTotal: number;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct ChooseFromSelectionInput {\n    pub presentation: PromptPresentation,\n    pub options: Vec<SelectionOption>,\n    pub min_total: usize,\n    pub max_total: usize,\n}",
-      "refs": ["PromptPresentation", "SelectionOption"]
+      "ts": "interface ChooseFromSelectionInput {\n  presentation: PromptPresentation;\n  options: Array<SelectionOption>;\n  minTotal: number;\n  maxTotal: number;\n  kind?: SelectionKind;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct ChooseFromSelectionInput {\n    pub presentation: PromptPresentation,\n    pub options: Vec<SelectionOption>,\n    pub min_total: usize,\n    pub max_total: usize,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub kind: Option<SelectionKind>,\n}",
+      "refs": ["PromptPresentation", "SelectionKind", "SelectionOption"]
     },
     "ChooseNumberInput": {
       "ts": "interface ChooseNumberInput {\n  presentation: PromptPresentation;\n  min: number;\n  max: number;\n}",
@@ -496,9 +503,14 @@
       "rust": "#[serde(rename_all = \"camelCase\")]\npub struct ScryInput {\n    pub presentation: PromptPresentation,\n    pub cards: Vec<CardDto>,\n    pub zones: Vec<ScryDestination>,\n}",
       "refs": ["CardDto", "PromptPresentation", "ScryDestination"]
     },
+    "SelectionKind": {
+      "ts": "type SelectionKind =\n  | \"mode\"\n  | \"optionalCost\"\n  | \"ability\"\n  | \"number\"\n  | \"type\"\n  | \"counterType\"\n  | \"cardState\"\n  | \"colors\"\n  | \"pile\"\n  | \"replacementEffect\"\n  | \"stackTarget\"\n  | \"entity\"\n  | \"player\"\n  | \"vote\"\n  | \"shield\"\n  | \"startingHand\"\n  | \"dice\";",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub enum SelectionKind {\n    Mode,\n    OptionalCost,\n    Ability,\n    Number,\n    Type,\n    CounterType,\n    CardState,\n    Colors,\n    Pile,\n    ReplacementEffect,\n    StackTarget,\n    Entity,\n    Player,\n    Vote,\n    Shield,\n    StartingHand,\n    Dice,\n}",
+      "refs": []
+    },
     "SelectionOption": {
-      "ts": "interface SelectionOption {\n  label: string;\n  weight: number;\n  canRepeat: boolean;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct SelectionOption {\n    pub label: String,\n    pub weight: usize,\n    pub can_repeat: bool,\n}",
+      "ts": "interface SelectionOption {\n  label: string;\n  weight: number;\n  canRepeat: boolean;\n  cost?: string;\n  affordable?: boolean;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct SelectionOption {\n    pub label: String,\n    pub weight: usize,\n    pub can_repeat: bool,\n    // what taking this option costs on top of the base cost (optional costs)\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub cost: Option<String>,\n    // whether the deciding player can pay the base cost plus this one right now\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub affordable: Option<bool>,\n}",
       "refs": []
     },
     "StackObjectDto": {

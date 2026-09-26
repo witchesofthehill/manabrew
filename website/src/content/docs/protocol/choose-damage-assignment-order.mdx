@@ -5,10 +5,8 @@ description: Ask the attacking player to order multiple blockers for damage assi
 
 import ProtocolType from "../../../components/ProtocolType.astro";
 
-Sent when an attacker is blocked by two or more creatures and the attacking
-player must choose the order in which those blockers receive combat damage - for
-example, ordering two blockers so that a 3/3 attacker can put lethal on the
-smaller one first.
+Sent when two or more creatures block one attacker and the attacking player
+orders them for damage.
 
 ## Arguments
 
@@ -25,8 +23,7 @@ type ChooseDamageAssignmentOrderOutput = {
 };
 ```
 
-Return all of `blockerIds`, reordered front-to-back: damage will be assigned to
-the blockers in this order.
+All of `blockerIds` in the chosen order. Damage is assigned in this order.
 
 ## Example
 

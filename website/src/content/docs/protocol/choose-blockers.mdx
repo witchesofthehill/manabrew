@@ -5,10 +5,9 @@ description: Ask the defending player to declare which creatures block which att
 
 import ProtocolType from "../../../components/ProtocolType.astro";
 
-Sent during the declare-blockers step of combat. The engine tells the client
-which attackers may be blocked, which of the defender's creatures can block, and
-any constraints - for example, an attacker with menace that must be blocked by
-two or more creatures, or a creature that must be blocked if able.
+Sent in the declare-blockers step. The engine lists which attackers can be
+blocked, which creatures can block, and any constraints: menace needs two
+blockers, some attackers must be blocked if able.
 
 ![The chooseBlockers prompt in the Manabrew client](/protocol/declare-blockers.webp)
 
@@ -25,9 +24,9 @@ type ChooseBlockersOutput = { type: "declareBlockers"; assignments: BlockAssignm
 type BlockAssignment = { blockerId: string; attackerId: string };
 ```
 
-Return one `BlockAssignment` for each blocking creature, naming the attacker it
-blocks. A single blocker may block one attacker; to gang-block, return multiple
-assignments that share the same `attackerId`. Creatures left back are omitted.
+One `BlockAssignment` per blocker, naming the attacker it blocks. A blocker
+blocks one attacker. Several assignments with the same `attackerId` make a
+gang block. Creatures that do not block are left out.
 
 ## Example
 

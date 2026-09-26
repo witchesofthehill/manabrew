@@ -5,9 +5,8 @@ description: Inform a player of the result of one or more dice rolls.
 
 import ProtocolType from "../../../components/ProtocolType.astro";
 
-Sent after dice are rolled - spinning the planar die, or a "roll a d20" effect
-like The Deck of Many Things. Informational only; the player acknowledges the
-result to continue.
+Sent after dice are rolled: the planar die, or a d20 for The Deck of Many
+Things. Nothing to decide. The player acknowledges it.
 
 ![The diceRolled prompt in the Manabrew client](/protocol/roll.webp)
 
@@ -26,7 +25,7 @@ Each entry in `rolls` is a `DiceRollEntry`:
 | `naturalResults` | `number[]` | The raw rolls before any modifiers.             |
 | `finalResults`   | `number[]` | The results after modifiers are applied.        |
 | `ignoredRolls`   | `number[]` | Rolls that were discarded, e.g. from advantage. |
-| `highlighted`    | `boolean`  | Whether to visually emphasize this entry.       |
+| `highlighted`    | `boolean`  | Whether to emphasise this entry.                |
 
 ## Response
 
@@ -34,7 +33,7 @@ Each entry in `rolls` is a `DiceRollEntry`:
 type DiceRolledOutput = { type: "diceRolledAcknowledged" };
 ```
 
-This prompt is read-only - acknowledge to continue.
+Acknowledge to continue.
 
 ## Example
 

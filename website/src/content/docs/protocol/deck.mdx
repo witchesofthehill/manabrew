@@ -5,22 +5,22 @@ description: The deck shape exchanged with the engine when a game is set up.
 
 import ProtocolType from "../../../components/ProtocolType.astro";
 
-The whole deck - its identity, the maindeck and sideboard, the supplementary
-zones, and the preserved client-side metadata.
+The whole deck: identity, maindeck, sideboard, extra zones, and client-side
+metadata that travels with it.
 
 <ProtocolType type="Deck" />
 
 ## DeckCard
 
-One entry in a deck: a nested `identity` (which card and printing) plus a
-flattened rules summary and the UI-only `uris`.
+One entry: `identity` (card and printing), a rules summary, and `uris` for
+the UI.
 
 <ProtocolType type="DeckCard" />
 
 ## DeckCardIdentity
 
-Which card a `DeckCard` is - name, printing (`setCode`/`cardNumber`), and an
-optional `foil` flag. `id` is a client-side instance id.
+Which card a `DeckCard` is: name, printing (`setCode`/`cardNumber`), optional
+`foil`. `id` is a client-side instance id.
 
 <ProtocolType type="DeckCardIdentity" />
 

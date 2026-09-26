@@ -5,9 +5,9 @@ description: Show a player a set of revealed cards to acknowledge.
 
 import ProtocolType from "../../../components/ProtocolType.astro";
 
-Sent when cards are revealed to a player and no decision is required - resolving
-a Demonic Tutor reveal, or revealing your hand to Thoughtseize. The player simply
-acknowledges that they have seen the cards.
+Sent when cards are revealed to a player and there is nothing to decide: a
+Demonic Tutor reveal, a hand shown to Thoughtseize. The player acknowledges
+them.
 
 ![The revealCards prompt in the Manabrew client](/protocol/reveal.webp)
 
@@ -23,7 +23,7 @@ acknowledges that they have seen the cards.
 type RevealCardsOutput = { type: "revealCardsAcknowledged" };
 ```
 
-This prompt is read-only - acknowledge to continue.
+Acknowledge to continue.
 
 ## Example
 
@@ -44,8 +44,7 @@ This prompt is read-only - acknowledge to continue.
 }
 ```
 
-Each card's `id` is what a response would reference, but this prompt has nothing
-to choose:
+Nothing to choose:
 
 ```json
 {

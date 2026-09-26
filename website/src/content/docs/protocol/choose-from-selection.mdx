@@ -5,14 +5,12 @@ description: Ask the deciding player to choose from a list of options.
 
 import ProtocolType from "../../../components/ProtocolType.astro";
 
-Sent when the player must choose modes of a modal spell - for example, picking
-"choose one or both" on a charm, or selecting the modes of a Command.
+Sent to choose the modes of a modal spell: a charm, a Command.
 
-Each option carries a `weight`, and the selection is constrained by total
-weight: the sum of the chosen options' weights must land within
-`minTotal`–`maxTotal`. For ordinary modal choices every weight is 1, so the
-totals are simply choice counts. Pawprint cards ("choose up to five \{P\} worth
-of modes") use the weights as pawprint costs. An option with `canRepeat` may be
+Each option has a `weight`. The weights of the chosen options must sum to
+between `minTotal` and `maxTotal`. For an ordinary modal spell every weight is
+1, so the totals are counts. Pawprint cards ("choose up to five \{P\} worth of
+modes") use the weights as pawprint costs. An option with `canRepeat` can be
 chosen more than once.
 
 ## Arguments
@@ -23,13 +21,12 @@ chosen more than once.
 
 ## Rendering
 
-The control depends on how many options may be chosen.
+The control depends on `maxTotal`.
 
 <figure class="prompt-figure">
   <img src="/protocol/choose-from-selection.webp" alt="A list of single-choice option buttons" />
   <div class="prompt-figure__caption">
-    For a single choice (`maxTotal` of 1) the options are plain buttons - clicking one sends it
-    immediately.
+    One choice: buttons. Clicking one sends it.
   </div>
 </figure>
 
@@ -39,8 +36,8 @@ The control depends on how many options may be chosen.
     alt="Option rows with checkboxes and a confirm button"
   />
   <div class="prompt-figure__caption">
-    For multiple choices each option gets a checkbox and a counter; the player selects within
-    `minTotal`–`maxTotal`, then confirms.
+    Several choices: a checkbox per option and a counter. The player picks between `minTotal`
+    and `maxTotal` and confirms.
   </div>
 </figure>
 
@@ -50,16 +47,15 @@ The control depends on how many options may be chosen.
     alt="Mode rows prefixed with pawprint pips and a running total against a budget"
   />
   <div class="prompt-figure__caption">
-      For more complex situations, it is possible to use the additional fields `canRepeat` and `weight` to properly prompt for a response.
+    Weighted modes with `canRepeat`: pawprint pips and a running total against the budget.
   </div>
 </figure>
 
-Clicking a `canRepeat` option adds another copy of it and its row shows the
-count with a stepper to remove copies; the counter tracks the running weight
-total against `maxTotal`.
+Clicking a `canRepeat` option adds a copy. Its row shows the count and a
+stepper to remove copies. The counter shows the weight total against
+`maxTotal`.
 
-Beyond six options the list collapses into a type-to-filter field (search and
-pick), keeping long lists manageable.
+Past six options the list becomes a type-to-filter field.
 
 ## Response
 
@@ -67,9 +63,9 @@ pick), keeping long lists manageable.
 type ChooseFromSelectionOutput = { type: "selectionDecision"; chosenIndices: number[] };
 ```
 
-Return the indices (into `options`) of the chosen modes. An index may appear
-more than once only when its option has `canRepeat`, and the summed weights of
-the chosen options must be within `minTotal`–`maxTotal`.
+The indices into `options` of the chosen modes. An index repeats only when
+its option has `canRepeat`. The weights sum to between `minTotal` and
+`maxTotal`.
 
 ## Example
 

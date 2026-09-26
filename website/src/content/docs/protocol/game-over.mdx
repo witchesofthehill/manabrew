@@ -5,25 +5,18 @@ description: Notify the client that the game has ended; no response is expected.
 
 import ProtocolType from "../../../components/ProtocolType.astro";
 
-Sent when the game has ended - a player has won, lost, or the game has drawn.
-This is a terminal, informational prompt: it announces the result so the client
-can tear down the board and show the outcome.
-
-:::note[This is a terminal prompt]
-There is no output to this prompt. The manabrew client will display an end-of-game view
-:::
+Sent when the game has ended: a win, a loss, or a draw. It is the last
+prompt. The client takes down the board and shows the result.
 
 ## Arguments
 
-`input.type` is `"gameOver"`. There are no other fields - `input` is just
-`{ "type": "gameOver" }`.
+`input.type` is `"gameOver"`. There are no other fields.
 
 <ProtocolType slug="game-over" />
 
 ## Response
 
-None. The game is over, so the client does not reply to this prompt - there is
-no output message.
+None.
 
 ## Example
 

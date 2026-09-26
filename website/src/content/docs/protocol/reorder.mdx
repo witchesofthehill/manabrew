@@ -5,13 +5,12 @@ description: Arrange a group of cards or simultaneous triggers into a chosen ord
 
 import ProtocolType from "../../../components/ProtocolType.astro";
 
-Sent when a player arranges a group of things in an order they choose - putting the
-two cards from Brainstorm back on top of the library, ordering the cards a scry-style
-effect leaves on top, or stacking several abilities that triggered at the same time.
+Sent when a player puts things in order: the two cards going back on top
+after Brainstorm, the cards a scry leaves on top, or several abilities that
+triggered at once.
 
-Each `ReorderItem` carries an optional `oracle` string. This is useful, for example, when calling
-reorder to decide which triggers resolves first. The oracle text can be used
-as a textual cue to the player about which trigger this is referring to.
+Each `ReorderItem` may carry an `oracle` string. When ordering triggers it
+tells the player which trigger is which.
 
 ![The reorder prompt in the Manabrew client](/protocol/reorder.webp)
 
@@ -27,7 +26,7 @@ as a textual cue to the player about which trigger this is referring to.
 type ReorderOutput = { type: "reorderDecision"; orderedIds: string[] };
 ```
 
-Return the `items` ids in their final order - the first id ends up on top.
+The `items` ids in final order. The first ends up on top.
 
 ## Example
 
@@ -48,7 +47,7 @@ Putting two cards back on top of the library after Brainstorm:
 }
 ```
 
-The response lists the same card `id`s in the desired draw order:
+The response lists the same `id`s in draw order:
 
 ```json
 {
@@ -64,13 +63,12 @@ The response lists the same card `id`s in the desired draw order:
 }
 ```
 
-## Example - ordering triggers
+## Example: ordering triggers
 
-The deciding player is piloting a Teval, the Balanced Scale deck. A card leaves their
-graveyard (they reanimated a creature), and both Teval and Teval's Judgment carry the
-same "whenever one or more cards leave your graveyard" trigger - so both go on the
-stack and the player orders them. `oracle` carries each trigger's text; the first id
-in the response resolves first (on top of the stack).
+A card leaves the graveyard of a player running Teval, the Balanced Scale.
+Teval and Teval's Judgment both trigger on it, so the player orders them.
+`oracle` carries each trigger's text. The first id in the response resolves
+first.
 
 ```json
 {
@@ -99,7 +97,7 @@ in the response resolves first (on top of the stack).
 }
 ```
 
-Resolving Teval's token before the Judgment's mode choice:
+Teval's token first, then the Judgment's mode:
 
 ```json
 {

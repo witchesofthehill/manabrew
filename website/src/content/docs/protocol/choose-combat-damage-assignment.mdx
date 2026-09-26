@@ -5,11 +5,9 @@ description: Ask the attacking player how to split a creature's combat damage am
 
 import ProtocolType from "../../../components/ProtocolType.astro";
 
-Sent when an attacker's combat damage must be divided among its blockers - and
-possibly the defending player or planeswalker if the attacker has trample. For
-example, a 4/4 trampler blocked by a 2/2 may assign 2 to the blocker and let the
-remaining 2 trample through.
-
+Sent when an attacker's damage is split among its blockers, and the defender
+too if it has trample. A 4/4 trampler blocked by a 2/2 can put 2 on the
+blocker and 2 on the player.
 
 ## Arguments
 
@@ -27,10 +25,9 @@ type ChooseCombatDamageAssignmentOutput = {
 type CombatDamageAssignmentEntry = { assigneeId: string; damage: number };
 ```
 
-Return one entry per assignee (each blocker, and `defenderId` if damage tramples
-through). The `damage` values must sum to `totalDamage`. With
-`attackerHasDeathtouch`, a single point of damage counts as lethal, so as little
-as 1 may be assigned to a blocker before moving on.
+One entry per assignee: each blocker, and `defenderId` if damage tramples
+over. The `damage` values sum to `totalDamage`. With `attackerHasDeathtouch`,
+1 damage is lethal, so 1 per blocker is enough before moving on.
 
 ## Example
 

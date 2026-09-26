@@ -5,8 +5,7 @@ description: Ask the deciding player to make a yes/no decision.
 
 import ProtocolType from "../../../components/ProtocolType.astro";
 
-Sent when the engine needs a yes/no decision from the player - for example,
-whether to pay an optional cost such as buyback when casting a spell.
+Sent for a yes/no decision, such as whether to pay buyback.
 
 ## Arguments
 
@@ -19,8 +18,7 @@ whether to pay an optional cost such as buyback when casting a spell.
 <figure class="prompt-figure">
   <img src="/protocol/choose-boolean.webp" alt="A yes/no prompt with two labelled buttons" />
   <div class="prompt-figure__caption">
-    A two-button prompt - the button text comes straight from `confirmLabel` and `denyLabel`, so the
-    wording matches the effect (here, "Pay Buyback" / "No").
+    Two buttons, labelled from `confirmLabel` and `denyLabel`. Here, "Pay Buyback" / "No".
   </div>
 </figure>
 
@@ -30,7 +28,7 @@ whether to pay an optional cost such as buyback when casting a spell.
 type ChooseBooleanOutput = { type: "decision"; value: boolean };
 ```
 
-Return `true` to accept and `false` to decline.
+`true` accepts, `false` declines.
 
 ## Example
 

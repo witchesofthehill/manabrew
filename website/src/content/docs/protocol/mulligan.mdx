@@ -5,9 +5,9 @@ description: Ask the deciding player to keep or mulligan their opening hand.
 
 import ProtocolType from "../../../components/ProtocolType.astro";
 
-Sent at the start of the game (and after each mulligan) to ask whether the
-player keeps their opening hand. Unlike the modal prompts, the reference client
-renders this in the bottom action slot as **Keep** / **Mulligan** buttons.
+Sent at the start of the game, and after each mulligan, to ask whether the
+player keeps the hand. The reference client shows Keep and Mulligan buttons in
+the bottom action slot, not a dialog.
 
 ![The mulligan prompt in the Manabrew client](/protocol/mulligan.webp)
 
@@ -18,8 +18,8 @@ renders this in the bottom action slot as **Keep** / **Mulligan** buttons.
 <ProtocolType slug="mulligan" />
 
 :::note[London mulligan]
-After keeping, a player who mulliganed `n` times puts `n` cards back. That
-second step is a separate prompt (`mulliganPutBack`), not part of this one.
+A player who mulliganed `n` times puts `n` cards back after keeping. That is
+a separate prompt, `mulliganPutBack`.
 :::
 
 ## Response
@@ -28,7 +28,7 @@ second step is a separate prompt (`mulliganPutBack`), not part of this one.
 type MulliganOutput = { type: "mulliganDecision"; keep: boolean };
 ```
 
-`keep: true` to keep the hand, `false` to mulligan and draw a new one.
+`keep: true` keeps the hand, `false` draws a new one.
 
 ## Example
 

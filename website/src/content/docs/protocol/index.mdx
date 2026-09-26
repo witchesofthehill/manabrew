@@ -1,68 +1,61 @@
 ---
 title: The Manabrew Protocol
-description: How a Manabrew engine talks to a client - the prompt protocol for implementers.
+description: How a Manabrew engine talks to a client.
 ---
 
 {/* SPDX-License-Identifier: CC-BY-4.0 - see the License section below. */}
 
 import { Card, CardGrid } from "@astrojs/starlight/components";
 
-Manabrew separates the **engine** (the rules) from the **client** (the UI). Any
-engine that speaks this protocol can drive the a Manabrew client, and any client
-that implements it can host a Manabrew compatible engine.
+Manabrew splits the engine (the rules) from the client (the UI). An engine
+that speaks this protocol can drive the Manabrew client. A client that speaks
+it can run any Manabrew engine.
 
 > What we hope to achieve by putting effort and love into the spec, is that more people and projects start adopting it.
 > We see huge potential in a truly open-standard for online card gaming, and we dream of a day where UIs and Engines for all sorts of games will be able to be inter-changed for a superior community driven ecosystem.
 >
 > *- Witches of the Hill*
 
-## The protocol ensures:
-
-- A **transport-agnostic JSON message format** - a client written against this
-  spec can talk to any conforming engine.
-- **Complete enough to drive interactive play**: priority, targeting, combat,
-  cost payment, library manipulation, dice, and the opening-hand procedure.
-
-Enforcing the rules is up to the particular engine implementing the protocol.
+The messages are JSON and do not depend on the transport. They cover what a
+game needs: priority, targeting, combat, cost payment, library manipulation,
+dice and the opening hand. The engine enforces the rules. The protocol does
+not.
 
 ## Message families
 
-The engine → client channel carries **four separate kinds of message**:
+Engine to client, four kinds:
 
 <CardGrid>
   <Card title="state" icon="seti:db">
-    A `StateUpdate` carrying the full [`gameView`](/protocol/game-view/) - the **only** carrier of
-    game state. The client re-renders the board from it.
+    A `StateUpdate` with the full [`gameView`](/protocol/game-view/). This is the only
+    message that carries game state. The client redraws the board from it.
   </Card>
   <Card title="display" icon="sparkles">
-    [**⚠️ Work in Progress**] A `DisplayEvent` - a transient, potentially very frequent UI display
-    information. Carries no authoritative state. This could be used to sync up the fields, as well
-    as the cursors positions of the players for multiplayer "livelyness".
+    Work in progress. A `DisplayEvent`: transient, possibly frequent, no game state. Meant for
+    things like other players' cursors.
   </Card>
   <Card title="prompt" icon="comment">
-    An `AgentPrompt` - a **call to action**. The engine has paused and needs a decision from a
-    specific player.
+    An `AgentPrompt`. The engine has stopped and needs a decision from one player.
   </Card>
   <Card title="error" icon="warning">
-    A `ProtocolError` - the engine **rejected** the last response. See [Errors](#errors).
+    A `ProtocolError`. The engine rejected the last response. See [Errors](#errors).
   </Card>
 </CardGrid>
 
-The client → engine channel carries **two**:
+Client to engine, two kinds:
 
 <CardGrid>
   <Card title="response" icon="approve-check">
-    A `PromptOutput` answering the open prompt, echoing its `promptId`. Strictly paired: one
-    response per prompt. See [Answering a prompt](#answering-a-prompt).
+    A `PromptOutput` answering the open prompt, with its `promptId`. One response per prompt.
+    See [Answering a prompt](#answering-a-prompt).
   </Card>
   <Card title="directive" icon="right-arrow">
-    A `DirectiveInput` - **out-of-band and fire-and-forget**, never paired with a prompt. Currently
-    only `concede`, legal at any time.
+    A `DirectiveInput`. Not tied to a prompt, no reply. Only `concede` for now, legal at any
+    time.
   </Card>
 </CardGrid>
 
-Prompts deliberately carry no `gameView`: the client already has the latest
-state from the most recent `StateUpdate` message.
+Prompts carry no `gameView`. The client has it from the last `StateUpdate`.
 
 ## The prompt envelope
 
@@ -85,7 +78,7 @@ type ClientToServerMessage =
   | { kind: "directive"; directive: DirectiveInput }; // out-of-band; currently { type: "concede" }
 ```
 
-It is important `promptId` is always the same as the last `promptId` emitted by the engine.
+`promptId` must match the last prompt the engine sent.
 
 ```ts
 // engine → client
@@ -112,13 +105,12 @@ type ProtocolErrorCode =
 ## The prompt catalogue
 
 :::note[Careful about the type blocks]
-For language convenience, we show the type blocks in multiple languages.
-Be mindful that the correct protocol on the wire is **camelCase**.
-Follow the **TypeScript** type definitions for the exact protocol.
+Type blocks are shown in several languages. The wire format is camelCase.
+The TypeScript definitions are the exact ones.
 :::
 
-Every prompt the engine can send. Each links to its arguments, response shape,
-and a wire example.
+Every prompt the engine can send, with its arguments, response and a wire
+example.
 
 **Choices & information**
 
@@ -156,11 +148,10 @@ and a wire example.
 
 ## License
 
-This protocol specification - every page under **/protocol/** - is licensed
-**[Creative Commons Attribution 4.0 International (CC-BY-4.0)](https://creativecommons.org/licenses/by/4.0/)**,
-deliberately separate from the reference implementation, so that anyone may
-describe or implement the same wire format without depending on this repository.
+Every page under /protocol/ is licensed
+[CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/), separately from
+the reference implementation, so anyone can implement the wire format without
+depending on this repository.
 
-The reference implementation (the rest of the project) is **AGPL-3.0-or-later**.
-Independent re-implementations of this protocol under any license are explicitly
-invited.
+The rest of the project is AGPL-3.0-or-later. Independent implementations of
+the protocol under any license are welcome.

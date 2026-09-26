@@ -5,8 +5,8 @@ description: Ask the deciding player to choose one or more colors.
 
 import ProtocolType from "../../../components/ProtocolType.astro";
 
-Sent when an effect asks the player to choose a color - for example, the color
-named by Painter's Servant, or the color half of a hybrid mana payment.
+Sent when an effect asks for a color: Painter's Servant, or the color half of
+a hybrid payment.
 
 ## Arguments
 
@@ -16,13 +16,12 @@ named by Painter's Servant, or the color half of a hybrid mana payment.
 
 ## Rendering
 
-The control depends on how many picks are needed.
+The control depends on `amount`.
 
 <figure class="prompt-figure">
   <img src="/protocol/choose-color.webp" alt="A single color picked from coloured tiles" />
   <div class="prompt-figure__caption">
-    For a single pick (`amount` of 1) the colors are tiles - click one and the choice is sent
-    immediately.
+    One pick: tiles. Clicking one sends it.
   </div>
 </figure>
 
@@ -32,8 +31,8 @@ The control depends on how many picks are needed.
     alt="Per-color counters distributing several picks"
   />
   <div class="prompt-figure__caption">
-    For multiple picks (`amount` &gt; 1 with `repeatAllowed`) it becomes a per-color counter - the
-    player spreads `amount` across the colors, then confirms.
+    Several picks (`amount` &gt; 1 with `repeatAllowed`): a counter per color. The player
+    spreads `amount` over the colors and confirms.
   </div>
 </figure>
 
@@ -43,7 +42,7 @@ The control depends on how many picks are needed.
 type ChooseColorOutput = { type: "colorDecision"; chosenColors: { [color: string]: number } };
 ```
 
-Return a map of color → number of times chosen, with the counts summing to `amount`.
+A map from color to times chosen. The counts sum to `amount`.
 
 ## Example
 

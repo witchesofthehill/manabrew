@@ -5,9 +5,8 @@ description: Ask the deciding player to pick a number within a range.
 
 import ProtocolType from "../../../components/ProtocolType.astro";
 
-Sent when the engine needs the player to choose an integer - for example, how
-many times to replicate a spell, or a value for an "X" choice that isn't part of
-a mana cost.
+Sent when the player picks an integer: how many times to replicate, or an X
+that is not part of a mana cost.
 
 ## Arguments
 
@@ -17,22 +16,20 @@ a mana cost.
 
 ## Rendering
 
-How the field is presented depends on the size of the range - both forms send
-the same `numberDecision` response.
+The control depends on the size of the range. Both send the same
+`numberDecision`.
 
 <figure class="prompt-figure">
   <img src="/protocol/choose-number.webp" alt="A row of number buttons from 4 to 12" />
   <div class="prompt-figure__caption">
-    For a small range the client enumerates every legal value as a button. The player taps one and
-    the choice is sent immediately - no confirm step.
+    A small range: a button per value. Tapping one sends it.
   </div>
 </figure>
 
 <figure class="prompt-figure">
   <img src="/protocol/choose-number-large.webp" alt="A number stepper with a free-entry field" />
   <div class="prompt-figure__caption">
-    For a large range it falls back to a free-entry stepper: the player types or steps to a value
-    within `[min, max]`, then confirms.
+    A large range: a stepper. The player types or steps to a value in `[min, max]` and confirms.
   </div>
 </figure>
 
@@ -42,8 +39,8 @@ the same `numberDecision` response.
 type ChooseNumberOutput = { type: "numberDecision"; chosenNumber: number | null };
 ```
 
-`chosenNumber` is `null` only if the choice is cancelled where cancelling is
-legal; otherwise return the chosen integer in `[min, max]`.
+The chosen integer in `[min, max]`. `null` only when cancelling is legal and
+the player cancelled.
 
 ## Example
 

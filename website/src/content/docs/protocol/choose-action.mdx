@@ -5,10 +5,9 @@ description: Offer the deciding player their legal actions while they hold prior
 
 import ProtocolType from "../../../components/ProtocolType.astro";
 
-Sent whenever the player has priority and may take a legal action or pass - cast
-a spell, play a land, activate an ability, or do nothing. Unlike the modal
-prompts, the reference client doesn't show a dialog for this: it **highlights the
-available actions directly on the board**.
+Sent when the player has priority: cast a spell, play a land, activate an
+ability, or pass. The reference client shows no dialog for it. It highlights
+the actions on the board.
 
 ## Arguments
 
@@ -18,15 +17,13 @@ available actions directly on the board**.
 
 ## Rendering
 
-There's no dialog - while you hold priority, each entry in `actions` is
-highlighted in place.
+Each entry in `actions` is highlighted where it sits.
 
 <figure class="prompt-figure">
   <img src="/protocol/choose-action.webp" alt="A board with playable cards and phase steps highlighted" />
   <div class="prompt-figure__caption">
-    Available actions glow on the board: castable cards in hand, activatable
-    permanents, and the steps on the phase strip. Clicking a highlight sends
-    `{ type: "act", actionId }` for the matching action.
+    Castable cards in hand, permanents with abilities, and the steps on the phase strip.
+    Clicking one sends `{ type: "act", actionId }`.
   </div>
 </figure>
 
@@ -36,8 +33,7 @@ highlighted in place.
     alt="A card with a picker listing two abilities"
   />
   <div class="prompt-figure__caption">
-    When one card offers several abilities, selecting it opens a small picker to choose which
-    `activateAbility` to use - here, Sunken Hollow's two mana abilities.
+    A card with several abilities opens a picker. Here, Sunken Hollow's two mana abilities.
   </div>
 </figure>
 
@@ -52,18 +48,17 @@ type ChooseActionOutput =
 type PassUntil = { playerId: string; phase: StepKind };
 ```
 
-Send `{ type: "act", actionId }` to perform an action by its `id` - including
-tapping a mana source or untapping one (`undoMana`), which appear in `actions`
-like any other entry. `actionId` MUST be an `id` advertised in this prompt's
-`actions`; anything else is [rejected](/protocol/#errors).
-Send `pass` to pass priority; the optional `until` asks the engine to keep
-auto-passing until `playerId` reaches `phase` (a [`StepKind`](/protocol/game-view/)).
-`exhaustStack: true` asks the engine to keep auto-passing until every object
-currently on the stack has resolved; the fast-forward ends early - priority
-comes back with a fresh prompt - as soon as any new object (a spell, an
-activated ability, or a trigger) is put on the stack, so the passing player
-can respond to it.
-Conceding is **not** a response - it is the out-of-band `directive` message
+`act` performs the action with that `id`. Tapping a mana source and untapping
+one (`undoMana`) are actions like any other. `actionId` must be an `id` from
+this prompt's `actions`, or the engine [rejects it](/protocol/#errors).
+
+`pass` passes priority. With `until`, the engine keeps passing for this player
+until `playerId` reaches `phase` (a [`StepKind`](/protocol/game-view/)). With
+`exhaustStack: true`, it keeps passing until the stack is empty. Either way
+it stops early and sends a new prompt as soon as anything new goes on the
+stack, so the player can respond.
+
+Conceding is not a response. It is the `directive` message
 (see [Answering a prompt](/protocol/#answering-a-prompt)), legal at any time.
 
 ## Example

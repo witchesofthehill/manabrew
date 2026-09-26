@@ -5,10 +5,10 @@ description: Ask the deciding player to put a number of cards on the bottom of t
 
 import ProtocolType from "../../../components/ProtocolType.astro";
 
-Sent during the London-mulligan put-back step: after a player keeps, anyone who
-mulliganed `n` times must put `n` cards from their hand on the bottom of their
-library. The reference client renders this in the bottom action slot as a
-**confirm** control while the player picks cards in their hand.
+Sent for the London mulligan put-back: after keeping, a player who mulliganed
+`n` times puts `n` cards from hand on the bottom of the library. The reference
+client shows a confirm button in the bottom action slot while the player picks
+cards in hand.
 
 ![The mulliganPutBack prompt in the Manabrew client](/protocol/mulligan-back.webp)
 
@@ -24,7 +24,7 @@ library. The reference client renders this in the bottom action slot as a
 type MulliganPutBackOutput = { type: "mulliganPutBackDecision"; cardIds: string[] };
 ```
 
-Return exactly `count` card ids - the cards to put on the bottom of the library.
+Exactly `count` card ids, the cards to put on the bottom.
 
 ## Example
 

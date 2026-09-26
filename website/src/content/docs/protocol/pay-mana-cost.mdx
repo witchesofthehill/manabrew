@@ -5,12 +5,11 @@ description: Drive interactive payment of a spell or ability's mana cost.
 
 import ProtocolType from "../../../components/ProtocolType.astro";
 
-Sent while the player pays a spell or ability's mana cost interactively -
-tapping lands, activating mana abilities, spending from the floating pool, or
-paying alternative costs such as delve. Every available step is one entry in
-`actions`; the client sends **incremental** actions by echoing an entry's `id`
-and the engine re-sends an updated `payManaCost` prompt until the cost is met,
-then the client sends a final `pay`.
+Sent while the player pays a mana cost: tapping lands, activating mana
+abilities, spending from the pool, delve and the like. Each step is an entry
+in `actions`. The client sends one step at a time by its `id`, the engine
+answers with an updated `payManaCost`, and when the cost is met the client
+sends `pay`.
 
 ![The payManaCost prompt in the Manabrew client](/protocol/pay-mana.webp)
 
@@ -29,16 +28,14 @@ type PayManaCostOutput =
   | { type: "cancel" };
 ```
 
-Sending `{ type: "act", actionId }` will take an incremental step towards the payment. This can be something like tapping (or untapping) a land for mana,
-delving, convoking, or paying life for a Phyrexian cost.
-The engine answers with an updated `payManaCost` prompt, which will include the updated leftover price to pay. 
-`actionId` must always be chosen from the ids provided in the prompt.
+`act` takes one step: tap or untap a land, delve, convoke, pay life for a
+Phyrexian cost. The engine answers with a new `payManaCost` showing what is
+left. `actionId` must be an id from the prompt.
 
-Sending `{ type: "pay", auto }` will let the engine auto-tap resources to match the cost.
+`pay` with `auto: true` lets the engine tap for the rest. `pay` with nothing
+left to pay confirms.
 
-Sending `{ type: "pay" }` when the remaining cost is 0 will confirm the payment. 
-
-Sending `{ type: "cancel" }` will abort the payment, and with it, the cast or activation.
+`cancel` aborts the payment and the cast or activation with it.
 
 ## Example
 

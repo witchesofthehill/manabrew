@@ -341,6 +341,8 @@ The iOS app ships as an **unsigned IPA** sideloaded via [SideStore](https://side
 
 **How it's published.** `publish.yml`'s `ios-ipa` job builds the IPA on `macos-latest` with `yarn tauri ios build --no-sign`, and the `deploy-sidestore` job (after the web deploy) regenerates `apps.json` (`scripts/gen-sidestore-source.mjs`) and rsyncs it plus `Manabrew-<version>.ipa` and `icon.png` to the host's `ops/sidestore/`. That dir is bind-mounted into the caddy container at `/srv/manabrew/sidestore` and served under `play.manabrew.app/sidestore/`.
 
+Unreferenced `Manabrew-*.ipa` files older than 30 days are removed after a successful upload. Installers referenced by `apps.json` are always retained; cleanup refuses to run if any referenced installer is missing.
+
 **Add the source in SideStore:** Sources → **+** → `https://play.manabrew.app/sidestore/apps.json` → Browse → **Manabrew** → Install.
 
 **Build one locally** (macOS + Xcode required):

@@ -237,7 +237,7 @@ export function reportOfflineGame(meta: {
       engine: game.engine,
       startingLife: game.startingLife,
       endReason: meta.engineError ? "engine_error" : meta.gameOver ? "game_over" : "abandoned",
-      gameOver: meta.gameOver,
+      gameOver: meta.gameOver && !meta.engineError,
       winner: meta.winner ?? undefined,
       engineError: meta.engineError ?? undefined,
       conceded: meta.seats.filter((seat) => seat.conceded).map((seat) => seat.username),

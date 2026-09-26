@@ -1,6 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, type RefObject } from "react";
 import { useKeybindingsStore, resolveCombo } from "@/stores/useKeybindingsStore";
-import { KEYBINDINGS, comboFromEvent, combosMatch } from "@/lib/keybindings";
+import {
+  KEYBINDINGS,
+  comboFromEvent,
+  combosMatch,
+  hasActiveVirtualTextInput,
+} from "@/lib/keybindings";
 import { topModal } from "@/lib/modalStack";
 
 function isEditableTarget(target: EventTarget | null): boolean {
@@ -42,7 +47,7 @@ export function useKeybindings(
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if (e.defaultPrevented || e.isComposing) return;
+      if (e.defaultPrevented || e.isComposing || hasActiveVirtualTextInput()) return;
       if (preservesNativeInteraction(e)) return;
       const editableTarget = isEditableTarget(e.target);
       const pressed = comboFromEvent(e);

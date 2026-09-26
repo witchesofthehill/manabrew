@@ -43,6 +43,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
                 execute_svar: "ControlPlayerCleanup".to_string(),
                 controller,
                 source_card: sa.source.unwrap_or(crate::ids::CardId(0)),
+                source_zone_timestamp: None,
                 created_turn: ctx.game.turn.turn_number,
                 created_phase: ctx.game.turn.phase,
                 target_card: None,

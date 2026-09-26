@@ -39,6 +39,7 @@ pub struct DelayedTrigger {
     pub execute_svar: String,
     pub controller: PlayerId,
     pub source_card: CardId,
+    pub source_zone_timestamp: Option<u64>,
     /// Turn number when this delayed trigger was registered.
     pub created_turn: u32,
     /// Phase during which this delayed trigger was registered.
@@ -75,6 +76,17 @@ pub struct DelayedTrigger {
 }
 
 impl DelayedTrigger {
+    fn matches_source_identity(&self, game: &GameState) -> bool {
+        self.source_zone_timestamp.is_none_or(|timestamp| {
+            game.card(self.source_card).zone_timestamp == timestamp
+                || !["IsPresent", "IsPresent2"].iter().any(|key| {
+                    self.params
+                        .get(key)
+                        .is_some_and(|filter| filter.contains("StrictlySelf"))
+                })
+        })
+    }
+
     /// Build a temporary `Trigger` wrapper for calling `TriggerBehavior` trait methods
     /// that require a `&Trigger` reference (Java's `this`).
     pub fn as_trigger(&self, _game: &crate::game::GameState) -> crate::trigger::Trigger {
@@ -708,6 +720,14 @@ impl TriggerHandler {
                 {
                     continue;
                 }
+                if !delayed.matches_source_identity(game) {
+                    continue;
+                }
+                if !tmp_trigger.phases_check(game, delayed.source_card, event_payload.phase)
+                    || !tmp_trigger.requirements_check(game, delayed.source_card)
+                {
+                    continue;
+                }
                 let mut sa = build_spell_ability(
                     game,
                     delayed.source_card,
@@ -749,13 +769,7 @@ impl TriggerHandler {
                     );
                     sa.trigger_objects.insert(
                         crate::ability::AbilityKey::RememberedLKI,
-                        delayed
-                            .remembered_lki_cards
-                            .iter()
-                            .map(|card_id| card_id.0.to_string())
-                            .collect::<Vec<_>>()
-                            .join(",")
-                            .into(),
+                        crate::event::AbilityValue::Cards(delayed.remembered_lki_cards.clone()),
                     );
                 }
 
@@ -914,6 +928,13 @@ impl TriggerHandler {
             if delayed.mode != TriggerType::Immediate {
                 continue;
             }
+            if !delayed.matches_source_identity(game) {
+                continue;
+            }
+            let trigger = delayed.as_trigger(game);
+            if !trigger.requirements_check(game, delayed.source_card) {
+                continue;
+            }
             // Look up the Execute SVar on the source card
             let svar_text = game
                 .card(delayed.source_card)
@@ -937,13 +958,7 @@ impl TriggerHandler {
                     );
                     sa.trigger_objects.insert(
                         crate::ability::AbilityKey::RememberedLKI,
-                        delayed
-                            .remembered_lki_cards
-                            .iter()
-                            .map(|card_id| card_id.0.to_string())
-                            .collect::<Vec<_>>()
-                            .join(",")
-                            .into(),
+                        crate::event::AbilityValue::Cards(delayed.remembered_lki_cards.clone()),
                     );
                 }
 

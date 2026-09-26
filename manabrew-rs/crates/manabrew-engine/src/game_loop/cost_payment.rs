@@ -2955,6 +2955,7 @@ impl GameLoop {
                     execute_svar: "TrigEnlist".to_string(),
                     controller: player,
                     source_card: source,
+                    source_zone_timestamp: None,
                     created_turn: game.turn.turn_number,
                     created_phase: game.turn.phase,
                     target_card: None,

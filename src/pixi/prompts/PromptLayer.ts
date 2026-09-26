@@ -23,7 +23,12 @@ import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { type PromptActionViewKey, useGameDevStore } from "@/stores/useGameDevStore";
 import { resolveCombo, useKeybindingsStore } from "@/stores/useKeybindingsStore";
-import { comboSymbols, formatCombo, normalizeCombo } from "@/lib/keybindings";
+import {
+  comboSymbols,
+  formatCombo,
+  normalizeCombo,
+  setVirtualTextInputActive,
+} from "@/lib/keybindings";
 import { isCoarsePointer } from "@/lib/responsive";
 import {
   ATTACK_DRAG_HINT,
@@ -178,6 +183,7 @@ export class PromptLayer extends PromptModalLayer {
   }
 
   destroy(): void {
+    setVirtualTextInputActive(this, false);
     window.removeEventListener("keydown", this.keyListener);
     window.removeEventListener("keydown", this.onModifierEvent);
     window.removeEventListener("keyup", this.onModifierEvent);
@@ -281,6 +287,7 @@ export class PromptLayer extends PromptModalLayer {
     this.actionGlow = null;
     this.actionPulseNodes = [];
     this.modalOpen = false;
+    setVirtualTextInputActive(this, false);
     this.modalBody = null;
     this.container.removeChildren().forEach((child) => child.destroy({ children: true }));
     if (!this.spec || this.viewportWidth <= 0 || this.viewportHeight <= 0) {
@@ -302,6 +309,10 @@ export class PromptLayer extends PromptModalLayer {
       !this.spec.modalHidden &&
       !this.spec.action.isWaitingForResponse
     ) {
+      setVirtualTextInputActive(
+        this,
+        input.type === "chooseFromSelection" && input.options.length > 5,
+      );
       this.modalOpen = true;
       this.renderModal();
       this.presentPrompt(this.spec.currentPrompt);
@@ -1518,10 +1529,16 @@ export class PromptLayer extends PromptModalLayer {
     button.accessible = true;
     button.accessibleTitle = "Open game menu";
     button.tabIndex = 0;
-    if (minimal) {
-      button.on("pointerdown", (event: FederatedPointerEvent) => event.stopPropagation());
-    }
-    button.on("pointertap", () => this.spec!.action.onToggleBoardMenu());
+    let activatedPointerId: number | null = null;
+    button.on("pointerdown", (event: FederatedPointerEvent) => {
+      activatedPointerId = event.pointerId;
+      event.stopPropagation();
+      this.spec!.action.onToggleBoardMenu();
+    });
+    button.on("pointertap", (event: FederatedPointerEvent) => {
+      if (activatedPointerId === event.pointerId) return;
+      this.spec!.action.onToggleBoardMenu();
+    });
     return { container: button, width: size, height: size };
   }
 

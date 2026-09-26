@@ -13,6 +13,18 @@ export interface KeybindingDef {
   defaultCombo: KeyCombo;
   allowInEditable?: boolean;
 }
+
+const virtualTextInputOwners = new Set<object>();
+
+export function setVirtualTextInputActive(owner: object, active: boolean): void {
+  if (active) virtualTextInputOwners.add(owner);
+  else virtualTextInputOwners.delete(owner);
+}
+
+export function hasActiveVirtualTextInput(): boolean {
+  return virtualTextInputOwners.size > 0;
+}
+
 function defineKeybindings<const T extends readonly KeybindingDef[]>(
   definitions: T,
 ): readonly (T[number] & KeybindingDef)[] {

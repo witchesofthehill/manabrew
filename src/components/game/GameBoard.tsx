@@ -1801,8 +1801,11 @@ export function GameBoard({
           opponentLayout={opponentLayout}
           focusLocked={
             !!sheetPlayerId ||
-            promptType === "chooseAttackers" ||
-            promptType === "chooseBlockers" ||
+            pendingAttackers.length > 0 ||
+            !!pendingAttacker ||
+            !!pendingBlocker ||
+            !!dragAttackerId ||
+            !!dragBlockerId ||
             !!draggingCardId
           }
           arrowSpecs={arrowSpecs ?? []}

@@ -109,13 +109,7 @@ pub(super) fn resolve_hidden_origin(
             defined_ref,
             Some(DefinedRef::DelayTriggerRememberedLki | DefinedRef::RememberedLki)
         ) {
-            sa.trigger_objects
-                .get(&crate::ability::AbilityKey::RememberedLKI)
-                .into_iter()
-                .flat_map(|value| value.split(','))
-                .filter_map(|part| part.trim().parse::<u32>().ok())
-                .map(crate::ids::CardId)
-                .collect()
+            sa.get_triggering_cards(crate::ability::AbilityKey::RememberedLKI)
         } else {
             // Unknown defined type — fall through to search
             Vec::new()

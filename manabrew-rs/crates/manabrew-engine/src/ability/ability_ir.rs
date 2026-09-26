@@ -277,17 +277,6 @@ pub struct SpellAbilityIr {
     pub replace_dying_zone_text: Option<String>,
     pub replace_dying_zone: Option<ZoneType>,
     pub remember_objects: Option<String>,
-    /// `RememberObjects$ Remembered` — lowered from the `" & "`-separated list
-    /// (Java splits on `" & "`) so runtime sites read a bool instead of
-    /// re-splitting the raw string.
-    pub remember_objects_remembered: bool,
-    /// `RememberObjects$ RememberedController` (Arcane Denial, Sudden
-    /// Substitution).
-    pub remember_objects_remembered_controller: bool,
-    /// `RememberObjects$ RememberedLKI`.
-    pub remember_objects_remembered_lki: bool,
-    /// `RememberObjects$ TriggeredAttackerLKICopy` (Teferi's Veil).
-    pub remember_objects_triggered_attacker_lki_copy: bool,
     pub remember_number: bool,
     pub remember_svar_amount: Option<String>,
     pub remember_exiled: bool,
@@ -816,16 +805,6 @@ impl SpellAbilityIr {
             replace_dying_zone_text: params.get("ReplaceDyingZone").map(str::to_string),
             replace_dying_zone: parsed_zone_type(params.get("ReplaceDyingZone")),
             remember_objects: params.get(keys::REMEMBER_OBJECTS).map(str::to_string),
-            remember_objects_remembered: has_remember_objects_token(params, "Remembered"),
-            remember_objects_remembered_controller: has_remember_objects_token(
-                params,
-                "RememberedController",
-            ),
-            remember_objects_remembered_lki: has_remember_objects_token(params, "RememberedLKI"),
-            remember_objects_triggered_attacker_lki_copy: has_remember_objects_token(
-                params,
-                "TriggeredAttackerLKICopy",
-            ),
             remember_number: params.has(keys::REMEMBER_NUMBER),
             remember_svar_amount: params.get(keys::REMEMBER_SVAR_AMOUNT).map(str::to_string),
             remember_exiled: params.has("RememberExiled"),
@@ -1388,13 +1367,6 @@ fn parsed_bool_default(value: Option<&str>, default: bool) -> bool {
 fn parsed_true(value: Option<&str>) -> bool {
     value.is_some_and(|value| value.eq_ignore_ascii_case("True"))
 }
-
-fn has_remember_objects_token(params: &ParsedParams<'_>, token: &str) -> bool {
-    params
-        .get(keys::REMEMBER_OBJECTS)
-        .is_some_and(|raw| raw.split(" & ").any(|t| t.trim() == token))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -33,6 +33,8 @@ PascalCase → snake_case, keep the `_effect` suffix. Don't drop or rename. If t
 - **Don't bypass replacements.** Damage, zone changes, life loss, counters — every mutation that has a replacement type must go through the corresponding `replacement/` callsite. See `replacement/replacement_handler.rs`.
 - **Mirror Java's branching.** Even when it looks redundant. See `docs/agents/PARITY_PHILOSOPHY.md`.
 
+Delayed `RememberObjects$` captures the typed entities resolved at registration. `AbilityKey::RememberedLKI` carries `AbilityValue::Cards`, consumed by both known- and hidden-origin `ChangeZone`; a string of card IDs silently yields no cards. `IsPresent$ Card.StrictlySelf` also requires the source's original zone timestamp at the end step, so leaving and returning cannot satisfy it.
+
 ## Where things live
 
 | Concern                | File                                                                                         |

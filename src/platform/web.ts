@@ -73,6 +73,7 @@ import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import {
   FORGE_LAUNCHER_URL,
   FORGE_WASM_URL,
+  forgeWasmGate,
   isForgeWasmHostingEnabled,
   setForgeWasmActive,
 } from "@/lib/forgeWasm";
@@ -1011,6 +1012,7 @@ class WebServerApi implements IServerApi {
           identity: proof,
           client_platform: getClientPlatform(),
           client_version: APP_VERSION,
+          engine_gate: forgeWasmGate(),
         });
         this.startKeepalive();
         resolve();

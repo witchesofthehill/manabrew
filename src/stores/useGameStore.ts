@@ -42,7 +42,7 @@ import {
   isForgeWasmSupported,
   recordForgeWasmVerdict,
 } from "@/lib/forgeWasm";
-import { withForgeStartTimeout } from "@/game/forgeWasmValidation";
+import { FORGE_START_TIMEOUT_MESSAGE, withForgeStartTimeout } from "@/game/forgeWasmValidation";
 import { getPlatform } from "@/platform";
 import { applyPrompt } from "./gameStore.constants";
 import { DEFAULT_STARTING_LIFE, useServerStore } from "./useServerStore";
@@ -304,7 +304,12 @@ async function initializeGame({
       isHostedEngineAvailable() &&
       !(error instanceof GameLaunchCancelledError)
     ) {
-      recordForgeWasmVerdict(false, error instanceof Error ? error.message : String(error));
+      const message = error instanceof Error ? error.message : String(error);
+      recordForgeWasmVerdict(
+        false,
+        message === FORGE_START_TIMEOUT_MESSAGE ? "timeout" : "engine",
+        message,
+      );
       return initializeGame({
         deck,
         opponentDecks,

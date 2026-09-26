@@ -719,29 +719,49 @@ public final class HarnessCostPlumbing {
             if (amount <= 0) {
                 return null;
             }
-            CardCollectionView list = player.getCardsIn(ZoneType.Battlefield);
-            list = CardLists.getValidCards(list, cost.getType().split(";"), player, source, ability);
-            if (list.isEmpty()) {
-                return null;
-            }
+            final CardCollection candidates = cost.payCostFromSource()
+                    ? new CardCollection(source)
+                    : new CardCollection(CardLists.getValidCards(
+                            player.getCardsIn(ZoneType.Battlefield),
+                            cost.getType().split(";"), player, source, ability));
             final GameEntityCounterTable table = new GameEntityCounterTable();
-            int remaining = amount;
-            for (final Card card : list) {
-                for (final com.google.common.collect.Multiset.Entry<CounterType> e : card.getCounters().entrySet()) {
-                    if (remaining <= 0) {
-                        break;
+            for (int remaining = amount; remaining > 0; remaining--) {
+                final CardCollection available = new CardCollection(CardLists.filter(candidates, card -> {
+                    for (final com.google.common.collect.Multiset.Entry<CounterType> entry : card.getCounters().entrySet()) {
+                        if ((cost.counter == null || cost.counter == entry.getElement())
+                                && card.canRemoveCounters(entry.getElement())
+                                && entry.getCount() > table.get(null, card, entry.getElement())) {
+                            return true;
+                        }
                     }
-                    final int remove = Math.min(remaining, e.getCount());
-                    if (remove > 0) {
-                        table.put(null, card, e.getElement(), remove);
-                        remaining -= remove;
+                    return false;
+                }));
+                if (available.isEmpty()) {
+                    return null;
+                }
+                final CardCollectionView selected = controller.chooseCardsForEffect(
+                        available, ability, "Remove a counter for cost", 1, 1, true, null);
+                if (selected == null || selected.size() != 1 || !available.contains(selected.get(0))) {
+                    return null;
+                }
+                final Card card = selected.get(0);
+                final List<CounterType> types = new ArrayList<>();
+                for (final com.google.common.collect.Multiset.Entry<CounterType> entry : card.getCounters().entrySet()) {
+                    if ((cost.counter == null || cost.counter == entry.getElement())
+                            && card.canRemoveCounters(entry.getElement())
+                            && entry.getCount() > table.get(null, card, entry.getElement())) {
+                        types.add(entry.getElement());
                     }
                 }
-                if (remaining <= 0) {
-                    break;
+                final CounterType chosen = types.size() == 1
+                        ? types.get(0)
+                        : controller.chooseCounterType(types, ability, "Choose a counter to remove", null);
+                if (!types.contains(chosen)) {
+                    return null;
                 }
+                table.put(null, card, chosen, 1);
             }
-            return remaining > 0 ? null : PaymentDecision.counters(table);
+            return PaymentDecision.counters(table);
         }
 
         @Override

@@ -643,13 +643,12 @@ export class BoardScene {
       for (const id of this.combatFocusIds) ids.add(id);
       if (ids.size > 0) return [...ids];
     }
+    if (!this.focusLocked && this.hoveredOpponentId) return [this.hoveredOpponentId];
     return this.combatFocusIds.length > 0
       ? this.combatFocusIds
-      : !this.focusLocked && this.hoveredOpponentId
-        ? [this.hoveredOpponentId]
-        : this.focusPlayerId
-          ? [this.focusPlayerId]
-          : [];
+      : this.focusPlayerId
+        ? [this.focusPlayerId]
+        : [];
   }
 
   private recomputeDelimTarget(): void {

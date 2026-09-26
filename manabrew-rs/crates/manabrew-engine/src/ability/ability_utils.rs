@@ -656,7 +656,11 @@ pub fn resolve_defined_players_with_sa(
             push_unique_player(&mut players, defending);
             players
         }
-        _ => resolve_defined_players(key, controller, game),
+        "Each" | "All" => game.alive_players(),
+        "OpponentCtrl" => vec![game.opponent_of(controller)],
+        _ => resolve_defined_player(key, controller, game)
+            .into_iter()
+            .collect(),
     }
 }
 

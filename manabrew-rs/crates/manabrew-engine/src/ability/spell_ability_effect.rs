@@ -294,7 +294,11 @@ fn resolve_defined_cards_for_sa_ref(
 /// Resolve a `Defined$` string to card IDs in the context of a spell ability.
 /// Handles SA-specific defined values like "Targeted", "ParentTarget",
 /// "TriggeredCard", etc., in addition to the base AbilityUtils definitions.
-fn resolve_defined_cards_for_sa(game: &GameState, sa: &SpellAbility, defined: &str) -> Vec<CardId> {
+pub(crate) fn resolve_defined_cards_for_sa(
+    game: &GameState,
+    sa: &SpellAbility,
+    defined: &str,
+) -> Vec<CardId> {
     let defined_ref = DefinedRef::parse(defined);
     resolve_defined_cards_for_sa_ref_inner(game, sa, &defined_ref)
 }
@@ -338,7 +342,8 @@ fn resolve_defined_cards_for_sa_ref_inner(
                 cards
             }
         }
-        DefinedRef::TriggeredNewCard | DefinedRef::TriggeredNewCardLkiCopy => {
+        DefinedRef::TriggeredNewCardLkiCopy => sa.get_triggering_cards(AbilityKey::NewCard),
+        DefinedRef::TriggeredNewCard => {
             let cards = sa.get_triggering_cards(AbilityKey::NewCard);
             if cards.is_empty() {
                 sa.trigger_source.into_iter().collect()
@@ -356,6 +361,28 @@ fn resolve_defined_cards_for_sa_ref_inner(
         // `GameState.last_sacrificed_card`.
         DefinedRef::Discarded => sa.discarded_cost_cards.clone(),
         DefinedRef::Sacrificed => game.last_sacrificed_card.into_iter().collect(),
+        DefinedRef::RememberedLki => sa
+            .source
+            .map(|source| game.card(source).remembered_cards.clone())
+            .unwrap_or_default(),
+        DefinedRef::DelayTriggerRemembered | DefinedRef::DelayTriggerRememberedLki => sa
+            .trigger_remembered
+            .iter()
+            .flat_map(|value| match value {
+                crate::event::AbilityValue::Card(card) => vec![*card],
+                crate::event::AbilityValue::Cards(cards) => cards.clone(),
+                _ => Vec::new(),
+            })
+            .collect(),
+        DefinedRef::Unsupported(raw) if raw.starts_with("Triggered") => {
+            let triggered_key = raw.strip_prefix("Triggered").unwrap_or(raw);
+            let key = triggered_key
+                .strip_suffix("LKICopy")
+                .unwrap_or(triggered_key);
+            crate::ability::ability_key::from_string(key)
+                .map(|key| sa.get_triggering_cards(key))
+                .unwrap_or_default()
+        }
         _ => ability_utils::get_defined_cards(
             game,
             sa.source,
@@ -805,6 +832,7 @@ pub fn register_at_eot(
         execute_svar,
         controller: sa.activating_player,
         source_card: sa.source.unwrap_or(remembered[0]),
+        source_zone_timestamp: None,
         created_turn: game.turn.turn_number,
         created_phase: game.turn.phase,
         target_card: None,

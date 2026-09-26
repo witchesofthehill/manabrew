@@ -1,4 +1,6 @@
+use crate::ability::ability_utils::resolve_defined_players_with_sa;
 use crate::ability::effects::{evaluate_svar, resolve_defined_player, EffectContext};
+use crate::ability::spell_ability_effect::resolve_defined_cards_for_sa;
 use crate::parsing::Params;
 use crate::spellability::SpellAbility;
 use crate::trigger::trigger::parse_trigger;
@@ -54,51 +56,23 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         sa.activating_player
     };
     let mut remembered_lki_cards = Vec::new();
-    if sa.ir.remember_objects_remembered_lki {
-        remembered_lki_cards = ctx.game.card(source_id).remembered_cards.clone();
-    }
-    // `RememberObjects$ Remembered` — snapshot the source card's current
-    // remembered_cards into the delayed trigger so the executed ability sees
-    // them later via `SpellAbility::trigger_remembered`. Ashling uses this to
-    // track the token copy it created for its end-step sacrifice clause.
-    let mut remembered_cards: Vec<crate::ids::CardId> = if sa.ir.remember_objects_remembered {
-        ctx.game.card(source_id).remembered_cards.clone()
-    } else {
-        Vec::new()
-    };
-    // `RememberObjects$ RememberedController` — snapshot the controllers of
-    // the source's remembered cards. Arcane Denial uses this to remember the
-    // controller of the countered spell so its delayed "may draw up to two
-    // cards" trigger fires for the right player. Mirrors Java's
-    // `DelayedTriggerEffect.resolve` registration of remembered objects.
-    let mut remembered_players: Vec<crate::ids::PlayerId> = Vec::new();
-    if sa.ir.remember_objects_remembered_controller {
-        for cid in ctx.game.card(source_id).remembered_cards.clone() {
-            let controller = ctx.game.card(cid).controller;
-            if !remembered_players.contains(&controller) {
-                remembered_players.push(controller);
-            }
-        }
-    }
-
-    // `RememberObjects$ TriggeredAttackerLKICopy` — snapshot the attacker
-    // that fired the parent trigger so the delayed trigger's effect can
-    // phase it out / operate on it at a later phase. Teferi's Veil uses
-    // this to remember each attacker and phase them out at end of combat.
-    // The attacker id is populated into both `remembered_cards` (so
-    // `Defined$ DelayTriggerRememberedLKI` resolves via `trigger_remembered`)
-    // and `remembered_lki_cards` (for the trigger_objects string lookup).
-    if sa.ir.remember_objects_triggered_attacker_lki_copy {
-        // The Attacker triggering object is stored as `AbilityValue::Card`
-        // (since the kaalia parity refactor in trigger_attacks.rs); query it
-        // through the typed accessor. The string-based `get_triggering_object`
-        // returns `None` for non-String variants, which would silently drop
-        // the LKI snapshot and break Teferi's Veil-style phase-out triggers.
-        if let Some(cid) = sa.get_triggering_card(crate::ability::AbilityKey::Attacker) {
-            remembered_lki_cards.push(cid);
-            if !remembered_cards.contains(&cid) {
-                remembered_cards.push(cid);
-            }
+    let mut remembered_cards = Vec::new();
+    let mut remembered_players = Vec::new();
+    if let Some(definitions) = sa.ir.remember_objects.as_deref() {
+        for definition in definitions.split(" & ").map(str::trim) {
+            let cards = resolve_defined_cards_for_sa(ctx.game, sa, definition);
+            let destination = if definition.ends_with("LKICopy") || definition == "RememberedLKI" {
+                &mut remembered_lki_cards
+            } else {
+                &mut remembered_cards
+            };
+            destination.extend(cards);
+            remembered_players.extend(resolve_defined_players_with_sa(
+                definition,
+                sa,
+                sa.activating_player,
+                ctx.game,
+            ));
         }
     }
 
@@ -109,6 +83,11 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         execute_svar,
         controller,
         source_card: source_id,
+        source_zone_timestamp: Some(
+            sa.trigger_source_zone_timestamp
+                .or(sa.source_zone_timestamp)
+                .unwrap_or_else(|| ctx.game.card(source_id).zone_timestamp),
+        ),
         created_turn: ctx.game.turn.turn_number,
         created_phase: ctx.game.turn.phase,
         target_card: None,

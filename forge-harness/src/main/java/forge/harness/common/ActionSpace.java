@@ -6,6 +6,7 @@ import forge.card.mana.ManaAtom;
 import forge.card.mana.ManaCost;
 import forge.card.mana.ManaCostShard;
 import forge.game.Game;
+import forge.game.GameActionUtil;
 import forge.game.GameEntity;
 import forge.game.GameObject;
 import forge.game.ability.AbilityUtils;
@@ -192,16 +193,128 @@ public final class ActionSpace {
             sa.setHostCard(probeHost);
         }
         try {
-            return lifePaymentFallback
-                    ? canPayManaCostWithLifeFallback(sa, player, reservedSacrifices)
-                    : (reservedSacrifices.isEmpty()
-                    ? ComputerUtilMana.canPayManaCost(sa, player, 0, false)
-                    : canPayManaCostWithReservedSacrifices(sa, player, reservedSacrifices));
+            if (canPayCurrentManaCost(sa, player, lifePaymentFallback, reservedSacrifices)) {
+                return true;
+            }
+            if (!lifePaymentFallback) {
+                return false;
+            }
+            if (canPayManaWithAnnouncedX(sa, player, reservedSacrifices)) {
+                return true;
+            }
+            if (sa.hasParam("ReduceCost")) {
+                return canPayManaWithTargets(sa, sa, player, reservedSacrifices);
+            }
+            return false;
         } finally {
             if (probeHost != null) {
                 sa.setHostCard(host);
             }
         }
+    }
+
+    private static boolean canPayCurrentManaCost(
+            final SpellAbility sa,
+            final Player player,
+            final boolean lifePaymentFallback,
+            final Set<Card> reservedSacrifices
+    ) {
+        return lifePaymentFallback
+                ? canPayManaCostWithLifeFallback(sa, player, reservedSacrifices)
+                : (reservedSacrifices.isEmpty()
+                ? ComputerUtilMana.canPayManaCost(sa, player, 0, false)
+                : canPayManaCostWithReservedSacrifices(sa, player, reservedSacrifices));
+    }
+
+    private static boolean canPayManaWithAnnouncedX(
+            final SpellAbility sa,
+            final Player player,
+            final Set<Card> reservedSacrifices
+    ) {
+        if (sa.getXManaCostPaid() != null) {
+            return false;
+        }
+        int max = Integer.MAX_VALUE;
+        boolean hasVariableAmount = false;
+        for (final CostPart part : sa.getPayCosts().getCostParts()) {
+            if (!"X".equals(part.getAmount())) {
+                continue;
+            }
+            final Integer partMax = part.getMaxAmountX(sa, player, false);
+            if (partMax != null) {
+                max = Math.min(max, partMax);
+                hasVariableAmount = true;
+            }
+        }
+        if (!hasVariableAmount) {
+            return false;
+        }
+        try {
+            for (int amount = 1; amount <= max; amount++) {
+                sa.setXManaCostPaid(amount);
+                if (canPayCurrentManaCost(sa, player, true, reservedSacrifices)) {
+                    return true;
+                }
+            }
+        } finally {
+            sa.setXManaCostPaid(null);
+        }
+        return false;
+    }
+
+    private static boolean canPayManaWithTargets(
+            final SpellAbility sa,
+            final SpellAbility current,
+            final Player player,
+            final Set<Card> reservedSacrifices
+    ) {
+        if (current == null) {
+            return canPayCurrentManaCost(sa, player, true, reservedSacrifices);
+        }
+        if (!current.usesTargeting()) {
+            return canPayManaWithTargets(sa, current.getSubAbility(), player, reservedSacrifices);
+        }
+        current.resetTargets();
+        final List<GameObject> candidates = new ArrayList<>(
+                current.getTargetRestrictions().getAllCandidates(current, false));
+        for (final Pair<GameEntity, GameObject> stackCandidate : getStackTargetCandidates(current)) {
+            candidates.add(stackCandidate.getRight());
+        }
+        try {
+            return canPayManaWithTargetChoices(sa, current, player, reservedSacrifices, candidates, 0);
+        } finally {
+            current.resetTargets();
+        }
+    }
+
+    private static boolean canPayManaWithTargetChoices(
+            final SpellAbility sa,
+            final SpellAbility current,
+            final Player player,
+            final Set<Card> reservedSacrifices,
+            final List<GameObject> candidates,
+            final int firstCandidate
+    ) {
+        final int count = current.getTargets().size();
+        if (count >= current.getMinTargets()
+                && canPayManaWithTargets(sa, current.getSubAbility(), player, reservedSacrifices)) {
+            return true;
+        }
+        if (count >= current.getMaxTargets()) {
+            return false;
+        }
+        for (int i = firstCandidate; i < candidates.size(); i++) {
+            final GameObject candidate = candidates.get(i);
+            if (current.getTargets().contains(candidate) || !current.canTarget(candidate)) {
+                continue;
+            }
+            current.getTargets().add(candidate);
+            if (canPayManaWithTargetChoices(sa, current, player, reservedSacrifices, candidates, i + 1)) {
+                return true;
+            }
+            current.getTargets().remove(candidate);
+        }
+        return false;
     }
 
     private static void applyStackStatics(final Game game, final Collection<Card> spellHosts) {
@@ -649,13 +762,15 @@ public final class ActionSpace {
             for (final String colorName : forge.game.card.CardUtil.getReflectableManaColors(manaAbility)) {
                 mask |= ManaAtom.fromName(colorName);
             }
-            if (mask != 0) {
+            for (int i = 0; i < manaAbility.amountOfManaGenerated(false) && mask != 0; i++) {
                 masks.add(mask);
             }
             return masks;
         }
 
-        final String produced = manaPart.mana(manaAbility);
+        final String produced = manaPart.isComboMana()
+                ? manaPart.mana(manaAbility)
+                : GameActionUtil.generatedTotalMana(manaAbility);
         int comboMask = 0;
         for (final String token : produced.split(" ")) {
             final String t = token.trim();

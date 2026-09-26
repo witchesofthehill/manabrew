@@ -107,9 +107,14 @@ To get started visit our [landing page](https://manabrew.app)
 - Node.js 22.12+ recommended
 - Yarn v1
 - Rust stable
-- JDK 18–21 and Maven for the Java Forge harness / parity runs. Newer JDKs
-  (e.g. 26) currently fail to compile Forge; if `/usr/libexec/java_home`
-  resolves to one, pin an older one: `JAVA_HOME="$(/usr/libexec/java_home -v 21)"`.
+- JDK 17+ and Maven for the Java Forge harness / parity runs. CI builds on
+  JDK 21; newer JDKs (e.g. 26) currently fail to compile Forge. The harness
+  build uses `JAVA_HOME` when it is set and the `java` on `PATH` otherwise, so
+  set `JAVA_HOME` if your default JDK is not the one to build with (on macOS:
+  `JAVA_HOME="$(/usr/libexec/java_home -v 21)"`).
+- GraalVM for JDK 21, only for the native Forge library (`yarn dev:forge`,
+  release builds): set `GRAALVM_HOME` to the directory containing
+  `bin/native-image`. See `forge-harness/native/README.md`.
 - Platform prerequisites for [Tauri](https://tauri.app/start/prerequisites/)
 
 ### Clone with submodules
@@ -176,6 +181,19 @@ export GRAALVM_HOME=/path/to/graalvm-jdk-21  # the dir containing bin/native-ima
 Run `direnv allow` once in the repo root. Without direnv, export the same
 variables in your shell; nothing in the build requires direnv.
 
+### Build the Java harness
+
+```bash
+yarn build:harness
+```
+
+Always build the harness through `yarn build:harness` (or `node scripts/harness.mjs`),
+never by calling Maven directly. The harness's `forge.harness.protocol.*` sources
+are generated from the Rust protocol crate and gitignored, and `scripts/harness.mjs`
+generates them before it runs Maven; a bare `mvn -pl forge-harness …` on a fresh
+checkout fails with `cannot find symbol` errors against those classes. The script
+also checks the JDK and Maven up front and names what is missing.
+
 ### Bump the Forge submodule
 
 Do this only when you intentionally want **newer** Forge — not to fix an
@@ -192,20 +210,18 @@ Then **clean-rebuild** so the new Forge is actually picked up — the Java harne
 the WASM engine, and the bundled card archives all build from `forge/`:
 
 ```bash
-# Clean rebuild — a plain build reuses stale .class files compiled against the
-# old Forge and silently ships a broken jar. Pin a JDK Forge can compile with.
-JAVA_HOME="$(/usr/libexec/java_home -v 21)" \
-  mvn -pl forge-harness -am clean package -DskipTests
-yarn ensure:harness   # restages the Tauri card bundle + updates the build checksum
-yarn web              # rebuilds the WASM engine and card archive (yarn dev does too)
+# --clean makes Maven run `clean package`: a plain build reuses stale .class
+# files compiled against the old Forge and silently ships a broken jar.
+yarn build:harness --clean   # also restages the Tauri card bundle + updates the checksum
+yarn web                     # rebuilds the WASM engine and card archive (yarn dev does too)
 ```
 
 Two gotchas this avoids:
 
 - `yarn build:harness` / `yarn ensure:harness` run an **incremental** Maven build.
-  After a Forge bump they may reuse stale classes, so do the `mvn … clean package`
-  above at least once; the symptoms are deck cards stripped, `No enum constant …`,
-  or a `NoClassDefFoundError` at runtime.
+  After a Forge bump they may reuse stale classes, so pass `--clean` at least
+  once; the symptoms are deck cards stripped, `No enum constant …`, or a
+  `NoClassDefFoundError` at runtime.
 - `cargo run -p self-hosted-node` does **not** rebuild the harness; it loads the
   prebuilt jar from `forge-harness/target/`. Rebuild the harness yourself after
   any Forge change.

@@ -10,7 +10,7 @@ set -euo pipefail
 HARNESS_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$HARNESS_DIR/.." && pwd)"
 
-GRAALVM_HOME="${GRAALVM_HOME:-$HOME/.local/graalvm/graalvm-community-openjdk-21.0.2+13.1/Contents/Home}"
+: "${GRAALVM_HOME:?GRAALVM_HOME is not set. Point it at a GraalVM for JDK 21 install (the dir containing bin/native-image).}"
 JAVAC="$GRAALVM_HOME/bin/javac"
 NATIVE_IMAGE="$GRAALVM_HOME/bin/native-image"
 

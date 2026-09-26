@@ -29,6 +29,7 @@ const runtimeHarnessJar = join(runtimeDir, "forge-harness.jar");
 const runtimeStamp = join(runtimeDir, ".stage-stamp");
 const sourceResDir = join(forgeRoot, "forge-gui", "res");
 const sourceCardsfolderDir = join(sourceResDir, "cardsfolder");
+const minJavaVersion = 17;
 
 const stagedResDirs = new Set([
   "editions",
@@ -163,9 +164,10 @@ function isStale() {
   return false;
 }
 
-function canRun(command, args) {
+function canRun(command, args, env = process.env) {
   const result = spawnSync(command, args, {
     cwd: root,
+    env,
     stdio: "ignore",
     shell: process.platform === "win32" && command.toLowerCase().endsWith(".cmd"),
   });
@@ -173,15 +175,15 @@ function canRun(command, args) {
   return !result.error && result.status === 0;
 }
 
-function resolveMaven() {
+function resolveMaven(env) {
   // The harness builds from the repo root via the aggregator pom, so the forge
   // submodule's mvnw wrapper can't be used (its basedir is forge/). Use a
   // system Maven, which is what CI and the Docker images use too.
-  if (process.platform === "win32" && canRun("mvn.cmd", ["-version"])) {
+  if (process.platform === "win32" && canRun("mvn.cmd", ["-version"], env)) {
     return "mvn.cmd";
   }
 
-  if (canRun("mvn", ["-version"])) {
+  if (canRun("mvn", ["-version"], env)) {
     return "mvn";
   }
 
@@ -196,31 +198,72 @@ function resolveJar() {
   return null;
 }
 
+function resolveJdk() {
+  const java = process.env.JAVA_HOME ? join(process.env.JAVA_HOME, "bin", "java") : "java";
+  const result = spawnSync(java, ["-XshowSettings:properties", "-version"], {
+    cwd: root,
+    encoding: "utf8",
+  });
+  if (result.error || result.status !== 0) {
+    return null;
+  }
+
+  const home = result.stderr.match(/^\s*java\.home = (.+)$/m)?.[1].trim();
+  const version = Number(
+    result.stderr.match(/^\s*java\.specification\.version = (?:1\.)?(\d+)/m)?.[1],
+  );
+  if (!home || !version) {
+    return null;
+  }
+
+  // A JRE has bin/java but no compiler, which Maven would only trip over
+  // mid-build, so check for a working javac in the same installation.
+  const hasJavac = canRun(join(home, "bin", "javac"), ["-version"]);
+  return { home, version, hasJavac };
+}
+
 function assertPrereqs() {
-  const missing = [];
+  const problems = [];
+  const jdk = resolveJdk();
 
-  if (!canRun("java", ["-version"])) {
-    missing.push("Java 18+");
+  if (!jdk) {
+    problems.push(
+      process.env.JAVA_HOME
+        ? `JAVA_HOME=${process.env.JAVA_HOME} does not contain a runnable bin/java`
+        : "no JAVA_HOME set and no java on PATH",
+    );
+  } else if (jdk.version < minJavaVersion) {
+    problems.push(
+      `JDK ${jdk.version} at ${jdk.home} is older than Forge's minimum (${minJavaVersion})`,
+    );
+  } else if (!jdk.hasJavac) {
+    problems.push(`${jdk.home} has no runnable bin/javac (is it a JRE rather than a JDK?)`);
   }
 
-  if (!resolveMaven()) {
-    missing.push("Maven");
+  const env = jdk && { ...process.env, JAVA_HOME: jdk.home };
+  const maven = env && resolveMaven(env);
+  if (env && !maven) {
+    problems.push("Maven not found on PATH");
   }
 
-  if (missing.length === 0) {
-    return;
+  if (problems.length === 0) {
+    console.log(`harness: using JDK ${jdk.version} at ${jdk.home}`);
+    return { jdk, maven, env };
   }
 
-  console.error(`harness: missing prerequisites: ${missing.join(", ")}`);
+  console.error("harness: the build environment is not usable:");
+  for (const problem of problems) {
+    console.error(`  - ${problem}`);
+  }
+  console.error(
+    `Install a JDK ${minJavaVersion}+ (CI builds on 21) and Maven, and point JAVA_HOME at the JDK`,
+  );
+  console.error("if the java on PATH is a different one. Verify with:");
+  console.error("  java -version");
+  console.error("  javac -version");
+  console.error("  mvn -version");
   if (process.platform === "win32") {
-    console.error("Windows setup:");
-    console.error("  1. Install a JDK and verify with: java -version");
-    console.error("  2. Install Maven and verify with: mvn -version");
-    console.error("  3. Restart PowerShell so PATH changes are picked up");
-  } else {
-    console.error("Install Java 18+ and Maven, then verify with:");
-    console.error("  java -version");
-    console.error("  mvn -version");
+    console.error("Restart PowerShell after changing PATH or JAVA_HOME.");
   }
   process.exit(1);
 }
@@ -245,17 +288,18 @@ function generateProtocolSources() {
   }
 }
 
-function rebuild() {
+function rebuild({ clean = false } = {}) {
+  const { jdk, maven, env } = assertPrereqs();
   generateProtocolSources();
-  assertPrereqs();
-  const maven = resolveMaven();
 
   console.log("harness: rebuilding JAR...");
   // Build from the repo root via the aggregator pom so forge-harness and the
   // engine modules it depends on share one reactor (resolves the engine's
   // ${revision} version without cross-reactor install/flatten).
-  const result = spawnSync(maven, ["-pl", "forge-harness", "-am", "package", "-DskipTests"], {
+  const goals = clean ? ["clean", "package"] : ["package"];
+  const result = spawnSync(maven, ["-pl", "forge-harness", "-am", ...goals, "-DskipTests"], {
     cwd: root,
+    env,
     stdio: "inherit",
     shell: process.platform === "win32" && maven.toLowerCase().endsWith(".cmd"),
   });
@@ -280,7 +324,8 @@ function rebuild() {
     "forge.harness.common.HarnessPlayPlumbingTest",
     "forge.harness.common.ActionSpaceTest",
   ]) {
-    const regression = spawnSync("java", ["-cp", regressionClasspath, regressionClass], {
+    const java = join(jdk.home, "bin", "java");
+    const regression = spawnSync(java, ["-cp", regressionClasspath, regressionClass], {
       cwd: root,
       stdio: "inherit",
     });
@@ -381,19 +426,21 @@ function stageRuntime({ force = false } = {}) {
   console.log(`harness: staged Tauri runtime at ${relative(root, runtimeDir)}`);
 }
 
-const mode = process.argv[2] ?? "ensure";
+const args = process.argv.slice(2);
+const clean = args.includes("--clean");
+const mode = args.find((arg) => !arg.startsWith("--")) ?? "ensure";
 
 switch (mode) {
   case "build":
-    rebuild();
+    rebuild({ clean });
     stageRuntime({ force: true });
     break;
   case "test":
-    rebuild();
+    rebuild({ clean });
     break;
   case "ensure":
     if (isStale()) {
-      rebuild();
+      rebuild({ clean });
     } else {
       console.log("harness: JAR is up-to-date");
     }
@@ -416,7 +463,7 @@ switch (mode) {
     break;
   default:
     console.error(
-      "Usage: node scripts/harness.mjs <build|test|ensure|stage|check|update-checksum|checksum|native-checksum>",
+      "Usage: node scripts/harness.mjs <build|test|ensure|stage|check|update-checksum|checksum|native-checksum> [--clean]",
     );
     process.exit(1);
 }

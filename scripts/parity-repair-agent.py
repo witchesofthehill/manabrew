@@ -32,7 +32,6 @@ from pathlib import Path
 PARITY_API = "https://manabrewparity.federicovivaldo.com"
 PARITY_AUTH = "manabrew-parity-api:trOlTk8DGl80YTUogWsgU43EA1ySI7QtblGbUVMEZSbdv9pgHmd9MjcLaxYa"
 REPO_ROOT = Path(__file__).resolve().parent.parent
-JAVA_HOME = "/Library/Java/JavaVirtualMachines/zulu-18.jdk/Contents/Home"
 JAVA_JAR = REPO_ROOT / "forge-harness" / "target" / "forge-harness-jar-with-dependencies.jar"
 CARDS_DIR = REPO_ROOT / "forge" / "forge-gui" / "res" / "cardsfolder"
 MAX_ATTEMPTS = 3  # retries per cluster with error feedback
@@ -271,11 +270,10 @@ def run_parity_test(deck1: str, deck2: str, seed: int, cwd=None, timeout: int = 
         "--java-jar", str(JAVA_JAR),
         "--cards-dir", str(CARDS_DIR),
     ]
-    env = {**os.environ, "JAVA_HOME": JAVA_HOME}
     try:
         result = subprocess.run(
             cmd, cwd=cwd or REPO_ROOT, capture_output=True, text=True,
-            timeout=timeout, env=env
+            timeout=timeout
         )
         # Check exit code: 0 = all passed, non-zero = at least one failure
         passed = result.returncode == 0
@@ -535,12 +533,12 @@ Treat this as a hint, NOT as ground truth. Verify all file paths and claims inde
 5. **Fix**: Fix the code where the bug actually is.
    - If the bug is in the Rust engine, fix the engine code.
    - If the bug is in the Java harness, fix the harness code AND rebuild the JAR:
-     `JAVA_HOME={JAVA_HOME} mvn -pl forge-harness -am -DskipTests package`
+     `yarn build:harness`
    - If the bug is in the Rust parity agent, fix the agent code.
 6. **Verify compilation**: Run `cargo check -pmanabrew-engine ` to ensure it compiles.
 7. **Verify parity**: Run this exact command to test:
    ```
-   JAVA_HOME={JAVA_HOME} cargo run -p parity --bin parity -- \\
+   cargo run -p parity --bin parity -- \\
      --deck1 {samples[0]['deck1']} --deck2 {samples[0]['deck2']} --seed {samples[0]['seed']} \\
      --java-jar {JAVA_JAR} \\
      --cards-dir {CARDS_DIR}
@@ -599,7 +597,7 @@ def invoke_claude(prompt: str, cwd=None, dry_run: bool = False) -> dict:
     _log(f"{'─'*60}")
     start = time.time()
 
-    env = {**os.environ, "JAVA_HOME": JAVA_HOME}
+    env = dict(os.environ)
     env.pop("CLAUDECODE", None)
 
     process = subprocess.Popen(
@@ -952,10 +950,9 @@ def attempt_repair(cluster: dict, dry_run: bool = False) -> bool:
         if "forge-harness/" in full_diff.stdout or "forge-harness/" in diff.stdout:
             _log("  Java harness modified — rebuilding JAR...")
             jar_build = subprocess.run(
-                ["mvn", "-pl", "forge-harness", "-am", "-DskipTests", "package", "-q"],
+                ["node", "scripts/harness.mjs", "test"],
                 cwd=REPO_ROOT,
                 capture_output=True, text=True,
-                env={**os.environ, "JAVA_HOME": JAVA_HOME},
             )
             if jar_build.returncode != 0:
                 error_msg = f"JAR rebuild failed: {jar_build.stderr[:300]}"
@@ -1238,7 +1235,7 @@ def main():
 
     if not JAVA_JAR.exists():
         print(f"  ✗ Java harness JAR not found: {JAVA_JAR}")
-        print(f"    Build with: yarn build:harness  (or: mvn -pl forge-harness -am -DskipTests package)")
+        print(f"    Build with: yarn build:harness")
         sys.exit(1)
     print(f"  ✓ Java JAR: {JAVA_JAR.name}")
 

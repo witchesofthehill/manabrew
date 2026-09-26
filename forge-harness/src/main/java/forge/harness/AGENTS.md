@@ -97,3 +97,7 @@ javac -d /tmp/out -cp target/forge-harness-jar-with-dependencies.jar $(find src/
 ```
 
 **After a `forge` submodule bump, do a _clean_ rebuild** (`mvn -pl forge-harness -am clean package -DskipTests`). `ensure`/`package` are incremental and key off source mtime, not the classpath — so a Forge change recompiles `forge/` but reuses the harness `.class` files compiled against the **old** Forge, silently shipping a broken jar (missing newer card enums like `CardSplitType.Prepare`, or synthetic `switch`-map classes like `SnapshotExtractor$1` → deck-load failures or a runtime `NoClassDefFoundError`). A Forge API change may also require updating the `PlayerController` overrides in `host/ManaBrewInteractiveController` + `parity/DeterministicController` (and call sites in `common/HarnessPlayPlumbing`) before it compiles. Keep the submodule pinned to the recorded gitlink with `git submodule update --init forge`; only `--remote` advances it. Build with JDK 18–21 — newer JDKs (e.g. 26) fail to compile Forge.
+
+## Combat damage assignment
+
+Combat damage assignment uses `Card.getLethalDamage()` with deathtouch, matching Forge’s assignment rules. `ComputerUtilCombat.getEnoughDamageToKill` predicts damage after prevention and indestructibility and is not an assignment validator; using it rejects legal trample and can crash the session.

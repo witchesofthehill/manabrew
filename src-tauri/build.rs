@@ -22,8 +22,15 @@ fn emit_forge_native_rpath() {
             .to_string()
     });
     println!("cargo:rustc-link-arg=-Wl,-rpath,{lib_dir}");
-    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("macos") {
-        println!("cargo:rustc-link-arg=-Wl,-rpath,@executable_path/../Resources");
+    match std::env::var("CARGO_CFG_TARGET_OS").as_deref() {
+        Ok("macos") => {
+            println!("cargo:rustc-link-arg=-Wl,-rpath,@executable_path/../Resources");
+        }
+        // Tauri's Linux resource dir is usr/lib/<productName>; keep in sync with tauri.conf.json.
+        Ok("linux") => {
+            println!("cargo:rustc-link-arg=-Wl,-rpath,$ORIGIN/../lib/Manabrew");
+        }
+        _ => {}
     }
     println!("cargo:rerun-if-env-changed=FORGE_NATIVE_LIB_DIR");
 }

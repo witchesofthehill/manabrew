@@ -2,7 +2,8 @@
   "bundle": {
     "resources": {
       "resources/forge-runtime": "engine/forge",
-      "resources/cardset.rkyv": "cardset.rkyv"
+      "resources/cardset.rkyv": "cardset.rkyv",
+      "../forge-harness/native/build/lib*.so": ""
     }
   }
 }

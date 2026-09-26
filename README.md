@@ -241,6 +241,33 @@ yarn web
 yarn build
 ```
 
+### Clean rebuild
+
+Every build step caches its output, and each cache can go stale on its own: the
+harness jar, the generated protocol sources, the WASM engine and card archive,
+the staged Tauri runtime, and the bundled frontend. When the app misbehaves
+after a pull, a branch switch, or a Forge bump, reset them all and rebuild in
+dependency order:
+
+```bash
+git submodule update --init forge
+yarn install
+
+yarn clean           # deletes every generated output listed in scripts/clean.mjs
+yarn build:harness   # regenerates the protocol sources, rebuilds Forge + harness, restages the runtime
+yarn ensure:wasm     # rebuilds the WASM engine and card archive
+yarn build           # or `yarn dev` / `yarn web`
+```
+
+`yarn clean` only deletes gitignored build output. Deleting the Maven `target/`
+directories is what makes the harness build clean: `yarn build:harness` is
+otherwise incremental.
+
+Browser-hosted Forge games (`./dev start`) run the separate Web Image in
+`packages/forge-wasm/`; rebuild it with `yarn build:forge-wasm`. If Rust builds
+still misbehave, `yarn clean --cargo` also runs `cargo clean` — the next build
+recompiles every crate.
+
 ### Check formatting, types, and lints
 
 ```bash
@@ -256,6 +283,7 @@ yarn lint:all
 | `yarn build`           | Build the desktop app                                  |
 | `yarn build:web`       | Build the web app                                      |
 | `yarn build:harness`   | Build the Java Forge parity harness                    |
+| `yarn clean`           | Delete generated build outputs (see Clean rebuild)     |
 | `yarn parity`          | Run named parity scenarios                             |
 | `yarn parity:test --`  | Run the parity binary with custom arguments            |
 | `yarn parity:gui`      | Start the engine debugger                              |

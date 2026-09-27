@@ -161,6 +161,21 @@ or a `NoClassDefFoundError` at runtime. When in doubt, re-sync and rebuild.
 yarn install
 ```
 
+### Optional: per-checkout environment with direnv
+
+If you use [direnv](https://direnv.net/), the committed `.envrc` loads a
+gitignored `.envrc.local` from the repo root. Put machine-specific settings
+there, such as the JDK and GraalVM the harness builds should use:
+
+```bash
+# .envrc.local
+export JAVA_HOME=/path/to/jdk-21             # on macOS: "$(/usr/libexec/java_home -v 21)"
+export GRAALVM_HOME=/path/to/graalvm-jdk-21  # the dir containing bin/native-image
+```
+
+Run `direnv allow` once in the repo root. Without direnv, export the same
+variables in your shell; nothing in the build requires direnv.
+
 ### Bump the Forge submodule
 
 Do this only when you intentionally want **newer** Forge — not to fix an

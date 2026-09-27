@@ -63,12 +63,19 @@ interface CardDetailModalProps {
   onClose: () => void;
   deckEditorActions?: DeckEditorActions;
   readOnly?: boolean;
+  navigation?: {
+    position: number;
+    total: number;
+    onPrevious?: () => void;
+    onNext?: () => void;
+  };
 }
 export function CardDetailModal({
   card: initialCard,
   onClose,
   deckEditorActions,
   readOnly = false,
+  navigation,
 }: CardDetailModalProps) {
   const [showPrints, setShowPrints] = useState(false);
   const [showDeckPicker, setShowDeckPicker] = useState(false);
@@ -221,6 +228,30 @@ export function CardDetailModal({
             {manaCost && <ManaSymbols cost={manaCost} size="sm" className="shrink-0" />}
           </div>
         </Modal.Header>
+
+        {navigation && (
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b px-4 py-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!navigation.onPrevious}
+              onClick={navigation.onPrevious}
+            >
+              Previous card
+            </Button>
+            <span className="text-xs text-muted-foreground">
+              {navigation.position} / {navigation.total}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!navigation.onNext}
+              onClick={navigation.onNext}
+            >
+              Next card
+            </Button>
+          </div>
+        )}
 
         <Modal.Body className="p-0">
           <ScrollArea className="h-full">

@@ -22,6 +22,8 @@ import { toast } from "sonner";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { CardDetailModal } from "@/components/editor/CardDetailModal";
 import { CardThumbnail } from "@/components/editor/deckEditor.primitives";
+import { CARD_WIDTH_MAP, DEFAULT_CARD_SIZE } from "@/components/editor/deckBuilder.utils";
+import { SetStudyToolbar } from "@/components/editor/SetStudyToolbar";
 import { SetSelect } from "@/components/editor/SetSelect";
 import { deckCardToPreviewDto, scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { manaSymbolUrl } from "@/api/scryfall";
@@ -693,6 +695,18 @@ function DraggableCardGrid({
     data: { card },
     disabled: dragDisabled,
   });
+  if (standalone) {
+    return (
+      <button
+        type="button"
+        onClick={onMoreInfo}
+        title={`Inspect ${card.identity.name}`}
+        className="block aspect-[5/7] w-full cursor-zoom-in rounded-lg text-left motion-safe:transition-transform motion-safe:hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <CardThumbnail card={card} loading="lazy" />
+      </button>
+    );
+  }
   return (
     <div
       ref={dragDisabled ? undefined : setNodeRef}
@@ -820,6 +834,8 @@ function DraggableCardRow({
 }
 interface CardSearchProps {
   standalone?: boolean;
+  initialSet?: string;
+  onSetChange?: (code: string) => void;
   onClose?: () => void;
   previewController?: ReturnType<typeof useCardPreview>;
   /** Shared rail slot — when provided, the hover preview portals into it
@@ -830,6 +846,8 @@ interface CardSearchProps {
 }
 export function CardSearch({
   standalone,
+  initialSet = "",
+  onSetChange,
   onClose,
   previewController,
   previewSlot,
@@ -848,9 +866,14 @@ export function CardSearch({
   const [activeTypes, setActiveTypes] = useState<Set<string>>(new Set());
   const [activeCmc, setActiveCmc] = useState<CmcId>("any");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [cardSize, setCardSize] = useState(DEFAULT_CARD_SIZE);
   const [detailCard, setDetailCard] = useState<ScryfallCard | null>(null);
   const [showFilters, setShowFilters] = useState(false);
-  const [advanced, setAdvanced] = useState<AdvancedFilters>(INITIAL_ADVANCED);
+  const [advanced, setAdvanced] = useState<AdvancedFilters>(() => ({
+    ...INITIAL_ADVANCED,
+    set: initialSet,
+    sort: initialSet ? "color" : "",
+  }));
   const advCount = countAdvancedFilters(advanced);
   const basicCount = activeColors.size + activeTypes.size + (activeCmc !== "any" ? 1 : 0);
   const hasActiveFilters = basicCount > 0 || advCount > 0;
@@ -919,6 +942,7 @@ export function CardSearch({
   }
   function setAdv<K extends keyof AdvancedFilters>(key: K, value: AdvancedFilters[K]) {
     setAdvanced((prev) => ({ ...prev, [key]: value }));
+    if (key === "set") onSetChange?.(String(value));
   }
   function toggleAdvString(key: keyof AdvancedFilters, value: string) {
     setAdvanced((prev) => ({ ...prev, [key]: prev[key] === value ? "" : value }));
@@ -926,14 +950,51 @@ export function CardSearch({
   // Keep both DeckCard and raw ScryfallCard arrays in sync
   const rawCards: ScryfallCard[] = data?.pages.flatMap((p) => p.data) ?? [];
   const allCards: DeckCard[] = rawCards.map(scryfallToDeckCard);
+  const detailIndex = detailCard ? rawCards.findIndex((card) => card.id === detailCard.id) : -1;
+  useEffect(() => {
+    if (
+      detailIndex >= 0 &&
+      detailIndex >= rawCards.length - 3 &&
+      hasNextPage &&
+      !isFetchingNextPage
+    ) {
+      void fetchNextPage();
+    }
+  }, [detailIndex, rawCards.length, hasNextPage, isFetchingNextPage, fetchNextPage]);
   return (
     <div className="flex flex-col h-full w-full">
       <div
         className={cn(
-          "max-h-[60%] shrink-0 space-y-2 overflow-y-auto border-b py-3",
+          "max-h-[60%] shrink-0 space-y-3 overflow-y-auto border-b py-3",
           standalone ? "px-4 sm:px-6 lg:px-8" : "px-3",
         )}
       >
+        {standalone && (
+          <SetStudyToolbar
+            setCode={advanced.set}
+            onSetChange={(code) => setAdv("set", code)}
+            colors={COLOR_FILTERS}
+            activeColors={activeColors}
+            onColorToggle={toggleColor}
+            onClearColors={() => setActiveColors(new Set())}
+            rarities={advanced.rarity}
+            onRaritiesChange={(rarities) => setAdv("rarity", rarities)}
+            sort={advanced.sort}
+            onSortChange={(sort) => setAdv("sort", sort)}
+            sortOptions={SORT_OPTIONS}
+            cardSize={cardSize}
+            onCardSizeChange={setCardSize}
+            grid={viewMode === "grid"}
+            onReset={() => {
+              setText("");
+              setDebouncedText("");
+              setActiveColors(new Set());
+              setActiveTypes(new Set());
+              setActiveCmc("any");
+              setAdvanced({ ...INITIAL_ADVANCED, set: advanced.set, sort: "color" });
+            }}
+          />
+        )}
         <div className="flex gap-2">
           {onClose && (
             <Button
@@ -1345,8 +1406,13 @@ export function CardSearch({
         )}
       </div>
 
-      <ScrollArea className="flex-1">
+      <ScrollArea className="min-h-0 flex-1">
         <div className={cn("py-3", standalone ? "px-4 sm:px-6 lg:px-8" : "px-3")}>
+          {data && (
+            <p className="mb-3 text-xs text-muted-foreground">
+              {rawCards.length} of {data.pages[0].total_cards} cards
+            </p>
+          )}
           {status === "pending" && effectiveQuery && (
             <div className="flex justify-center p-8">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -1359,17 +1425,24 @@ export function CardSearch({
           )}
           {!effectiveQuery && (
             <p className="text-center text-sm text-muted-foreground py-12">
-              Enter a card name or select filters to search.
+              {standalone
+                ? "Choose a set to start studying, or search for any card."
+                : "Enter a card name or select filters to search."}
+            </p>
+          )}
+          {status === "success" && effectiveQuery && rawCards.length === 0 && (
+            <p className="py-12 text-center text-sm text-muted-foreground">
+              No cards match these filters. Try another color or reset your filters.
             </p>
           )}
 
           {viewMode === "grid" ? (
-            <div className="flex flex-wrap gap-3 pb-4">
+            <div className="flex flex-wrap justify-center gap-3 pb-4 sm:justify-start">
               {allCards.map((card, i) => (
                 <div
                   key={card.identity.id}
-                  className="shrink-0"
-                  style={{ width: standalone ? 130 : 110 }}
+                  className="max-w-full shrink-0"
+                  style={{ width: standalone ? CARD_WIDTH_MAP[cardSize] : 110 }}
                 >
                   <DraggableCardGrid
                     card={card}
@@ -1410,7 +1483,26 @@ export function CardSearch({
         </div>
       </ScrollArea>
 
-      {detailCard && <CardDetailModal card={detailCard} onClose={() => setDetailCard(null)} />}
+      {detailCard && (
+        <CardDetailModal
+          card={detailCard}
+          onClose={() => setDetailCard(null)}
+          navigation={
+            standalone && detailIndex >= 0
+              ? {
+                  position: detailIndex + 1,
+                  total: data?.pages[0].total_cards ?? rawCards.length,
+                  onPrevious:
+                    detailIndex > 0 ? () => setDetailCard(rawCards[detailIndex - 1]) : undefined,
+                  onNext:
+                    detailIndex < rawCards.length - 1
+                      ? () => setDetailCard(rawCards[detailIndex + 1])
+                      : undefined,
+                }
+              : undefined
+          }
+        />
+      )}
       {!previewController && (
         <HoverCardPreview preview={preview} slot={previewSlot} pinned imageSize="normal" />
       )}

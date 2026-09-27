@@ -53,6 +53,7 @@ src-tauri/target/
 **/.env
 **/.env.*
 !**/.env.example
+.envrc.local
 
 public/status.json
 

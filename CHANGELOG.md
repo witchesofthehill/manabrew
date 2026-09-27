@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.50.1](https://github.com/witchesofthehill/manabrew/compare/v3.50.0...v3.50.1) (2026-09-26)
+
+### Fixes
+
+* **forge:** restore submodule pin rolled back in #948 ([#993](https://github.com/witchesofthehill/manabrew/issues/993)) ([48076b4](https://github.com/witchesofthehill/manabrew/commit/48076b40682e08663d19dcd7e94c732be62b34de))
+
+## [3.50.0](https://github.com/witchesofthehill/manabrew/compare/v3.49.6...v3.50.0) (2026-09-26)
+
+### Features
+
+* **ui:** add set study tools for draft preparation ([#983](https://github.com/witchesofthehill/manabrew/issues/983)) ([0f2e788](https://github.com/witchesofthehill/manabrew/commit/0f2e788b191d87c25c2dd1e30d3ccf68b60bc6c1))
+
 ## [3.49.6](https://github.com/witchesofthehill/manabrew/compare/v3.49.5...v3.49.6) (2026-09-24)
 
 ### Fixes

@@ -95,6 +95,11 @@ const stackKeyCache = new WeakMap<CardDto, string>();
 
 const SCRATCH_POINT = new PixiPoint();
 
+function replaceMap<K, V>(target: Map<K, V>, source: Map<K, V>): void {
+  target.clear();
+  for (const [key, value] of source) target.set(key, value);
+}
+
 /** Derived from the whole engine DTO rather than a hand-picked field list, so
  *  every property the engine reports splits the stack automatically. Only `id`
  *  (always unique) is excluded. */
@@ -115,6 +120,11 @@ export class BoardRegion {
   private clipWidth: number | null = null;
   private gridBandX: number | null = null;
   private gridBandWidth = 0;
+  private unbandedLayout: {
+    userSlots: Map<string, { col: number; row: number }>;
+    zoneSlots: Map<string, { col: number; row: number }>;
+    uiParent: Map<string, string>;
+  } | null = null;
   private cardScale: number;
   private overview = false;
   private seatColor: string;
@@ -398,6 +408,21 @@ export class BoardRegion {
 
   setGridBand(x: number | null, width: number): void {
     if (this.gridBandX === x && this.gridBandWidth === width) return;
+    if (x !== null && this.unbandedLayout === null) {
+      this.unbandedLayout = {
+        userSlots: new Map(this.userSlots),
+        zoneSlots: new Map(this.zoneSlots),
+        uiParent: new Map(
+          [...this.uiParent].filter(([childId]) => !this.nameGroupChildren.has(childId)),
+        ),
+      };
+    } else if (x === null && this.unbandedLayout !== null) {
+      replaceMap(this.userSlots, this.unbandedLayout.userSlots);
+      replaceMap(this.zoneSlots, this.unbandedLayout.zoneSlots);
+      replaceMap(this.uiParent, this.unbandedLayout.uiParent);
+      this.nameGroupChildren.clear();
+      this.unbandedLayout = null;
+    }
     this.gridBandX = x;
     this.gridBandWidth = width;
     if (this.lastState) this.updateBattlefield(this.lastState);

@@ -51,6 +51,7 @@ export class CardPreviewMachine {
   private snapshot: PreviewSnapshot = HIDDEN;
   private listeners = new Set<() => void>();
   private showTimer: ReturnType<typeof setTimeout> | null = null;
+  private pendingShow: { card: PreviewCard; options: PreviewShowOptions } | null = null;
   private graceTimer: ReturnType<typeof setTimeout> | null = null;
   private exitTimer: ReturnType<typeof setTimeout> | null = null;
   private pointerOnPreview = false;
@@ -64,6 +65,10 @@ export class CardPreviewMachine {
   getSnapshot = (): PreviewSnapshot => this.snapshot;
 
   hoverStart(card: PreviewCard, options: PreviewShowOptions = {}): void {
+    if (this.pendingShow?.card.id === card.id) {
+      this.pendingShow = { card, options };
+      return;
+    }
     this.clearShowTimer();
     this.clearGraceTimer();
     if (this.snapshot.sticky) return;
@@ -83,9 +88,12 @@ export class CardPreviewMachine {
       this.open(card, options, false);
       return;
     }
+    this.pendingShow = { card, options };
     this.showTimer = setTimeout(() => {
+      const pending = this.pendingShow!;
       this.showTimer = null;
-      this.open(card, options, false);
+      this.pendingShow = null;
+      this.open(pending.card, pending.options, false);
     }, delayMs);
   }
 
@@ -173,6 +181,7 @@ export class CardPreviewMachine {
   }
 
   private clearShowTimer(): void {
+    this.pendingShow = null;
     if (this.showTimer !== null) {
       clearTimeout(this.showTimer);
       this.showTimer = null;

@@ -23,7 +23,9 @@ import forge.game.spellability.AlternativeCost;
 import forge.game.spellability.SpellAbility;
 import forge.game.spellability.SpellAbilityStackInstance;
 import forge.game.spellability.TargetRestrictions;
+import forge.game.staticability.StaticAbility;
 import forge.game.staticability.StaticAbilityLayer;
+import forge.game.staticability.StaticAbilityMode;
 import forge.game.cost.Cost;
 import forge.game.cost.CostAdjustment;
 import forge.game.cost.CostPart;
@@ -202,7 +204,7 @@ public final class ActionSpace {
             if (canPayManaWithAnnouncedX(sa, player, reservedSacrifices)) {
                 return true;
             }
-            if (sa.hasParam("ReduceCost")) {
+            if (costDependsOnTargets(sa)) {
                 return canPayManaWithTargets(sa, sa, player, reservedSacrifices);
             }
             return false;
@@ -258,6 +260,28 @@ public final class ActionSpace {
             }
         } finally {
             sa.setXManaCostPaid(null);
+        }
+        return false;
+    }
+
+    private static boolean costDependsOnTargets(final SpellAbility sa) {
+        if (sa.hasParam("ReduceCost")) {
+            return true;
+        }
+        final Card host = sa.getHostCard();
+        final Game game = host.getGame();
+        final CardCollection cards = new CardCollection(game.getCardsIn(ZoneType.Battlefield));
+        cards.addAll(game.getCardsIn(ZoneType.Stack));
+        cards.addAll(game.getCardsIn(ZoneType.Command));
+        cards.add(host);
+        for (final Card card : cards) {
+            for (final StaticAbility st : card.getStaticAbilities()) {
+                if ((st.checkMode(StaticAbilityMode.ReduceCost) || st.checkMode(StaticAbilityMode.RaiseCost))
+                        && st.hasParam("ValidTarget")
+                        && st.matchesValidParam("ValidCard", host)) {
+                    return true;
+                }
+            }
         }
         return false;
     }

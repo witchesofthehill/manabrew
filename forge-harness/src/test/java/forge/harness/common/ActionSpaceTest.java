@@ -36,7 +36,36 @@ public final class ActionSpaceTest {
         stackGrantedAffinityIsOffered();
         stackGrantedAffinityNeedsTheGrant();
         stackGrantedAffinityLeavesNoResidue();
+        targetDiscountedSpellIsOffered();
+        targetDiscountedSpellNeedsTheDiscountTarget();
         System.exit(0);
+    }
+
+    private static void targetDiscountedSpellIsOffered() {
+        final Game game = newGame();
+        final Player p = game.getPlayers().get(1);
+        add("Island", p, ZoneType.Battlefield);
+        add("Llanowar Elves", game.getPlayers().get(0), ZoneType.Battlefield);
+        add("Roadside Blowout", p, ZoneType.Hand);
+        game.getAction().checkStaticAbilities();
+
+        if (!offered(p, true).contains("Roadside Blowout")) {
+            throw new AssertionError(
+                    "Roadside Blowout castable for {U} by targeting Llanowar Elves was not offered");
+        }
+    }
+
+    private static void targetDiscountedSpellNeedsTheDiscountTarget() {
+        final Game game = newGame();
+        final Player p = game.getPlayers().get(1);
+        add("Island", p, ZoneType.Battlefield);
+        add("Grizzly Bears", game.getPlayers().get(0), ZoneType.Battlefield);
+        add("Roadside Blowout", p, ZoneType.Hand);
+        game.getAction().checkStaticAbilities();
+
+        if (offered(p, true).contains("Roadside Blowout")) {
+            throw new AssertionError("Roadside Blowout offered with one Island and no mana value 1 target");
+        }
     }
 
     private static void stackGrantedAffinityIsOffered() {

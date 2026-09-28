@@ -303,7 +303,6 @@ export default function Gauntlet() {
               <LimitedDeckBuilder
                 pool={[...matchDecks.humanMain, ...matchDecks.humanSideboard]}
                 initialMain={matchDecks.humanMain}
-                initialSideboard={matchDecks.humanSideboard}
                 defaultDeckName={matchDecks.humanDeckName}
                 format={activeGauntlet.kind === "sealed" ? "sealed" : "draft"}
                 requireCompleteToSave

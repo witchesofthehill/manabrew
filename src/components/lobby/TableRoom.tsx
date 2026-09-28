@@ -47,7 +47,13 @@ export function TableRoom({
   const isLimitedRoom = !!(room.draft_config || room.sealed_config);
   const needsFormat = room.format === "Any" && !isLimitedRoom;
   const isOpenFormat = room.format === "Any" || isLimitedRoom;
-  const minReady = isOpenFormat ? 1 : 2;
+  const minReady = room.draft_config
+    ? room.draft_config.fill_with_bots
+      ? 1
+      : room.max_players
+    : isOpenFormat
+      ? 1
+      : 2;
   const allOtherPlayersReady =
     room.players.length >= minReady &&
     room.players

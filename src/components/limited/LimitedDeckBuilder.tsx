@@ -54,21 +54,19 @@ import {
   groupByRarity,
   indexPool,
   isSynthBasic,
-  type LimitedZone,
   makeBasicLand,
   type PoolEntry,
   refToDeckCard,
   resolveDeckCards,
-  unusedIndices,
   validateLimitedDeck,
 } from "@/lib/limited.utils";
 import { effectiveRarity, RARITY_LABEL, type UIRarity } from "@/lib/cardRarity";
 import { cn } from "@/lib/utils";
 import type { DraftCard } from "@/types/limited";
 import type { Deck, DeckFormat } from "@/protocol/deck";
+type LimitedZone = "main" | "sideboard";
 type GroupMode = "rarity" | "name" | "cmc" | "color";
 const ZONE_DROP_ID: Record<LimitedZone, string> = {
-  pool: "limited-zone-pool",
   main: "limited-zone-main",
   sideboard: "limited-zone-sideboard",
 };
@@ -142,7 +140,7 @@ function passesColorFilter(
 export interface LimitedDeckBuilderProps {
   pool: DraftCard[];
   initialMain?: DraftCard[];
-  initialSideboard?: DraftCard[];
+  suggestedMain?: DraftCard[];
   targetMainSize?: number;
   defaultDeckName?: string;
   format?: DeckFormat;
@@ -155,7 +153,7 @@ export interface LimitedDeckBuilderProps {
 export default function LimitedDeckBuilder({
   pool,
   initialMain,
-  initialSideboard,
+  suggestedMain,
   targetMainSize = 40,
   defaultDeckName = "Limited Deck",
   format = "draft",
@@ -170,15 +168,19 @@ export default function LimitedDeckBuilder({
   const entries = useMemo(() => indexPool(fullPool), [fullPool]);
   const scryfallCache = useScryfallStore((s) => s.cards);
   const [main, setMain] = useState<number[]>(() => matchInitial(fullPool, initialMain ?? []));
-  const [sideboard, setSideboard] = useState<number[]>(() =>
-    matchInitial(fullPool, initialSideboard ?? []),
+  const sideboard = useMemo(
+    () =>
+      entries
+        .filter((entry) => !main.includes(entry.index) && !isSynthBasic(entry.card))
+        .map((entry) => entry.index),
+    [entries, main],
   );
   const [groupMode, setGroupMode] = useState<GroupMode>("rarity");
   const [poolColorFilter, setPoolColorFilter] = useState<PoolColorFilter>(() => new Set());
   const shortScreen = useIsShortScreen();
   const isTouch = useIsTouch();
   const shortTouch = shortScreen && isTouch;
-  const [mobileZone, setMobileZone] = useState<LimitedZone>("pool");
+  const [mobileZone, setMobileZone] = useState<LimitedZone>("sideboard");
   const togglePoolColor = useCallback((key: PoolColorChip) => {
     setPoolColorFilter((prev) => {
       const next = new Set(prev);
@@ -203,41 +205,30 @@ export default function LimitedDeckBuilder({
       sideboard: sideboard.map((i) => fullPool[i]).filter(Boolean),
     });
   }, [main, sideboard, fullPool, onChange]);
-  const unused = useMemo(
-    () => unusedIndices(fullPool.length, main, sideboard),
-    [fullPool.length, main, sideboard],
-  );
   const validationIssues = useMemo(() => {
     const mainCards = main.map((i) => fullPool[i]).filter(Boolean);
     return validateLimitedDeck(mainCards, targetMainSize);
   }, [main, fullPool, targetMainSize]);
   const moveTo = useCallback((idx: number, target: LimitedZone) => {
     setMain((m) => (target === "main" ? addUnique(m, idx) : m.filter((i) => i !== idx)));
-    setSideboard((s) => (target === "sideboard" ? addUnique(s, idx) : s.filter((i) => i !== idx)));
   }, []);
   const cycleZone = useCallback(
     (idx: number, currentZone: LimitedZone) => {
-      const next: LimitedZone =
-        currentZone === "pool" ? "main" : currentZone === "main" ? "sideboard" : "pool";
+      const next: LimitedZone = currentZone === "main" ? "sideboard" : "main";
       moveTo(idx, next);
     },
     [moveTo],
   );
   const addBasic = useCallback(
     (name: BasicLandName) => {
-      setExtraBasics((b) => {
-        const idx = fullPool.length;
-        const next = [...b, makeBasicLand(name, b.length)];
-        setMain((m) => [...m, idx]);
-        return next;
-      });
+      setExtraBasics((basics) => [...basics, makeBasicLand(name, basics.length)]);
+      setMain((current) => [...current, fullPool.length]);
     },
     [fullPool.length],
   );
   const fixManaBase = useCallback(() => {
     const cache = useScryfallStore.getState().cards;
     const mainCards = main.map((i) => fullPool[i]).filter(Boolean);
-    const sideboardCards = sideboard.map((i) => fullPool[i]).filter(Boolean);
     const basicNames = new Set<string>(BASIC_LAND_NAMES);
     const nonLand = mainCards.filter(
       (c) =>
@@ -250,7 +241,10 @@ export default function LimitedDeckBuilder({
           }),
         ) !== "land",
     );
-    const targetLands = Math.max(0, targetMainSize - nonLand.length);
+    const targetLands = Math.max(
+      0,
+      targetMainSize - mainCards.filter((card) => !basicNames.has(card.name)).length,
+    );
     if (targetLands === 0) {
       toast.info(`No room for basics \u2014 main deck is already at target size.`);
       return;
@@ -269,8 +263,7 @@ export default function LimitedDeckBuilder({
       R: "Mountain",
       G: "Forest",
     };
-    const cardsForPipCount = nonLand.concat(sideboardCards);
-    for (const card of cardsForPipCount) {
+    for (const card of nonLand) {
       const cost = peekCard(cache, {
         name: card.name,
         setCode: card.setCode,
@@ -319,43 +312,49 @@ export default function LimitedDeckBuilder({
         allocation[f.key as BasicLandName] = f.count;
       }
     }
-    // Strip existing user-added basics from main + sideboard so we
-    // don't double-count, then push fresh ones.
-    setMain((m) => m.filter((idx) => !basicNames.has(fullPool[idx]?.name ?? "")));
-    setSideboard((s) => s.filter((idx) => !basicNames.has(fullPool[idx]?.name ?? "")));
-    setExtraBasics(() => {
-      const fresh: DraftCard[] = [];
-      const newMainIndices: number[] = [];
-      let nextIndex = pool.length; // basics live above the original pool size
-      for (const name of BASIC_LAND_NAMES) {
-        const count = allocation[name];
-        for (let i = 0; i < count; i++) {
-          fresh.push(makeBasicLand(name, fresh.length));
-          newMainIndices.push(nextIndex++);
-        }
+    const fresh: DraftCard[] = [];
+    for (const name of BASIC_LAND_NAMES) {
+      for (let i = 0; i < allocation[name]; i++) {
+        fresh.push(makeBasicLand(name, fresh.length));
       }
-      setMain((m) => [...m, ...newMainIndices]);
-      return fresh;
-    });
+    }
+    setMain([
+      ...main.filter((idx) => idx < pool.length && !basicNames.has(fullPool[idx]?.name ?? "")),
+      ...fresh.map((_, idx) => pool.length + idx),
+    ]);
+    setExtraBasics(fresh);
     toast.success(
       `Mana base reset · ${(Object.entries(allocation) as Array<[string, number]>)
         .filter(([, n]) => n > 0)
         .map(([k, n]) => `${n} ${k.slice(0, 1)}`)
         .join(" · ")}`,
     );
-  }, [fullPool, main, sideboard, pool, targetMainSize]);
+  }, [fullPool, main, pool, targetMainSize]);
   const handleConfirm = () => {
     onConfirm?.({
       main: main.map((i) => fullPool[i]).filter(Boolean),
       sideboard: sideboard.map((i) => fullPool[i]).filter(Boolean),
     });
   };
-  const hasSuggestion = (initialMain && initialMain.length > 0) || false;
-  const resetToSuggested = useCallback(() => {
-    setMain(matchInitial(fullPool, initialMain ?? []));
-    setSideboard(matchInitial(fullPool, initialSideboard ?? []));
+  const hasSuggestion = Boolean(suggestedMain?.length);
+  const applySuggestion = useCallback(() => {
+    const suggested = suggestedMain ?? [];
+    const matched = matchInitial(pool, suggested);
+    const matchedCards = matched.map((idx) => pool[idx]);
+    const matchedSuggestion = new Set(matchInitial(suggested, matchedCards));
+    const basics = suggested
+      .filter(
+        (card, idx) =>
+          !matchedSuggestion.has(idx) && BASIC_LAND_NAMES.includes(card.name as BasicLandName),
+      )
+      .map((card, idx) => makeBasicLand(card.name as BasicLandName, idx));
+    setExtraBasics(basics);
+    setMain([...matched, ...basics.map((_, idx) => pool.length + idx)]);
+  }, [pool, suggestedMain]);
+  const clearMain = useCallback(() => {
+    setMain([]);
     setExtraBasics([]);
-  }, [fullPool, initialMain, initialSideboard]);
+  }, []);
   const preview = useCardPreview();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
   const handleDragStart = (event: DragStartEvent) => {
@@ -380,8 +379,7 @@ export default function LimitedDeckBuilder({
     const overId = event.over?.id;
     if (!data || !overId) return;
     let target: LimitedZone | null = null;
-    if (overId === ZONE_DROP_ID.pool) target = "pool";
-    else if (overId === ZONE_DROP_ID.main) target = "main";
+    if (overId === ZONE_DROP_ID.main) target = "main";
     else if (overId === ZONE_DROP_ID.sideboard) target = "sideboard";
     if (!target || target === data.fromZone) return;
     moveTo(data.index, target);
@@ -413,12 +411,9 @@ export default function LimitedDeckBuilder({
         );
         return;
       }
-      const leftoverCards = unused
-        .map((i) => fullPool[i])
-        .filter((c): c is DraftCard => Boolean(c) && !isSynthBasic(c));
       const [resolvedMain, resolvedSide] = await Promise.all([
         resolveDeckCards(mainCards),
-        resolveDeckCards([...sideboardCards, ...leftoverCards]),
+        resolveDeckCards(sideboardCards),
       ]);
       const deck: Deck = {
         name,
@@ -442,12 +437,9 @@ export default function LimitedDeckBuilder({
     try {
       const mainCards = main.map((i) => fullPool[i]).filter(Boolean);
       const sideboardCards = sideboard.map((i) => fullPool[i]).filter(Boolean);
-      const leftoverCards = unused
-        .map((i) => fullPool[i])
-        .filter((c): c is DraftCard => Boolean(c) && !isSynthBasic(c));
       const [resolvedMain, resolvedSide] = await Promise.all([
         resolveDeckCards(mainCards),
-        resolveDeckCards([...sideboardCards, ...leftoverCards]),
+        resolveDeckCards(sideboardCards),
       ]);
       await navigator.clipboard.writeText(
         exportToArena({ name: defaultDeckName, cards: resolvedMain, sideboard: resolvedSide }),
@@ -478,10 +470,10 @@ export default function LimitedDeckBuilder({
           mainCount={main.length}
           sideboardCount={sideboard.length}
           targetMainSize={targetMainSize}
-          unusedCount={unused.length}
           onAddBasic={addBasic}
           onFixManaBase={fixManaBase}
-          onReset={hasSuggestion ? resetToSuggested : undefined}
+          onSuggestion={hasSuggestion ? applySuggestion : undefined}
+          onClearMain={clearMain}
           onCompare={() => setCompareDialogOpen(true)}
           confirmLabel={confirmLabel}
           onConfirm={onConfirm ? handleConfirm : undefined}
@@ -491,28 +483,27 @@ export default function LimitedDeckBuilder({
 
         <div
           className={cn(
-            "grid flex-1 grid-cols-1 gap-3 overflow-hidden md:grid-cols-2 md:grid-rows-2 lg:grid-cols-[1.4fr_1fr_0.7fr_minmax(0,326px)] lg:grid-rows-1",
+            "grid min-h-0 flex-1 grid-cols-1 grid-rows-2 gap-3 overflow-hidden md:grid-cols-2 md:grid-rows-1 lg:grid-cols-[1.4fr_1fr_minmax(0,326px)]",
             shortTouch && "block",
           )}
         >
           <Zone
             className={cn(
-              "md:row-span-2 lg:row-span-1",
               shortTouch && "h-full",
-              shortTouch && mobileZone !== "pool" && "hidden",
+              shortTouch && mobileZone !== "sideboard" && "hidden",
             )}
-            title={`Pool (${unused.length})`}
-            entries={pickEntries(entries, unused).filter((e) =>
+            title={`Sideboard (${sideboard.length})`}
+            entries={pickEntries(entries, sideboard).filter((e) =>
               passesColorFilter(e.card, poolColorFilter, scryfallCache),
             )}
             groupMode={groupMode}
-            zone="pool"
+            zone="sideboard"
             emptyMessage={
               poolColorFilter.size > 0
                 ? `No cards match the colour filter.`
-                : `Every card is in the deck or sideboard.`
+                : `All opened cards are in your main deck.`
             }
-            onCardClick={(idx) => cycleZone(idx, "pool")}
+            onCardClick={(idx) => cycleZone(idx, "sideboard")}
             preview={preview}
           />
           <Zone
@@ -521,23 +512,10 @@ export default function LimitedDeckBuilder({
             entries={pickEntries(entries, main)}
             groupMode={groupMode}
             zone="main"
-            emptyMessage={`Drag cards here, or click pool cards to add.`}
+            emptyMessage={`Drag cards here, or click sideboard cards to add.`}
             highlight={main.length >= targetMainSize ? "border-primary" : "border-border/70"}
             warnOnDrop={null}
             onCardClick={(idx) => cycleZone(idx, "main")}
-            preview={preview}
-          />
-          <Zone
-            title={`Sideboard (${sideboard.length})`}
-            className={cn(
-              shortTouch && "h-full",
-              shortTouch && mobileZone !== "sideboard" && "hidden",
-            )}
-            entries={pickEntries(entries, sideboard)}
-            groupMode={groupMode}
-            zone="sideboard"
-            emptyMessage={`Cards parked here aren't in the main deck.`}
-            onCardClick={(idx) => cycleZone(idx, "sideboard")}
             preview={preview}
           />
           <div className="hidden min-h-0 flex-col gap-3 lg:flex">
@@ -639,10 +617,10 @@ interface ToolbarProps {
   mainCount: number;
   sideboardCount: number;
   targetMainSize: number;
-  unusedCount: number;
   onAddBasic: (name: BasicLandName) => void;
   onFixManaBase?: () => void;
-  onReset?: () => void;
+  onSuggestion?: () => void;
+  onClearMain: () => void;
   onCompare?: () => void;
   confirmLabel: string;
   onConfirm?: () => void;
@@ -661,10 +639,10 @@ function Toolbar({
   mainCount,
   sideboardCount,
   targetMainSize,
-  unusedCount,
   onAddBasic,
   onFixManaBase,
-  onReset,
+  onSuggestion,
+  onClearMain,
   onCompare,
   confirmLabel,
   onConfirm,
@@ -681,9 +659,8 @@ function Toolbar({
       <div className="flex shrink-0 items-center gap-2 overflow-x-auto rounded-md border border-border/70 bg-card/40 p-1.5 text-sm no-scrollbar touch-scroll-fade">
         {(
           [
-            ["pool", `Pool ${unusedCount}`],
-            ["main", `Main ${mainCount}`],
             ["sideboard", `Sideboard ${sideboardCount}`],
+            ["main", `Main ${mainCount}`],
           ] as const
         ).map(([zone, label]) => (
           <Button
@@ -864,22 +841,24 @@ function Toolbar({
         )}
       </div>
 
-      <div className="ml-auto flex items-center gap-3 text-xs">
+      <div className="ml-auto flex flex-wrap items-center gap-3 text-xs">
         <span className={mainShortBy === 0 ? "text-primary" : "text-muted-foreground"}>
           Main {mainCount}/{targetMainSize}
         </span>
         <span className="text-muted-foreground">SB {sideboardCount}</span>
-        <span className="text-muted-foreground">Pool {unusedCount}</span>
-        {onReset && (
+        {onSuggestion && (
           <Button
             size="xs"
             variant="ghost"
-            onClick={onReset}
-            title={`Reset main + sideboard to the suggested deck`}
+            onClick={onSuggestion}
+            title={`Replace your main deck with the AI suggestion for this pool`}
           >
-            Reset
+            Use suggested deck
           </Button>
         )}
+        <Button size="xs" variant="outline" onClick={onClearMain} disabled={mainCount === 0}>
+          Move all to sideboard
+        </Button>
         {onCompare && (
           <Button size="xs" variant="ghost" onClick={onCompare} title={`Compare with a saved deck`}>
             Compare

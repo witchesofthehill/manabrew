@@ -599,6 +599,20 @@ fn deploy(root: &Path, opts: &Opts) -> Result<()> {
         &opts.host,
         &compose(&opts.path, &opts.tag, "up -d --no-deps coturn"),
     )?;
+    // ops/Caddyfile is bind-mounted into ingress and not watched by caddy;
+    // ingress is never recreated, so the reload is the only way its config
+    // changes ever apply. Apply it before rolling out the upstreams so the
+    // retry policy covers this deployment too.
+    ssh_streamed(
+        root,
+        &opts.host,
+        &compose(
+            &opts.path,
+            &opts.tag,
+            "exec -T ingress caddy reload --config - --adapter caddyfile < ops/Caddyfile",
+        ),
+    )?;
+
     let mut services = vec!["manabrew"];
     let mut relay_note = String::new();
     if !web_only {
@@ -659,20 +673,6 @@ fn deploy(root: &Path, opts: &Opts) -> Result<()> {
             ),
         }
     }
-
-    // ops/Caddyfile is bind-mounted into ingress and not watched by caddy;
-    // ingress is never recreated, so the reload is the only way its config
-    // changes ever apply. (The web container's ops/web.Caddyfile needs no
-    // reload — the web recreate above picks it up.)
-    ssh_streamed(
-        root,
-        &opts.host,
-        &compose(
-            &opts.path,
-            &opts.tag,
-            "exec -T ingress caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile",
-        ),
-    )?;
 
     let mut obs_note = String::new();
     if !web_only {

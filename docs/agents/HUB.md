@@ -45,3 +45,7 @@ The crate owns its REST DTOs in `src/dto.rs`, exported to `src/api/hubTypes.ts` 
 ## Deck Hub flag
 
 Publication writes require `SessionAccount`. The Hub service's `DECK_HUB` flag defaults off and blocks publication creation, publication updates, and favorite mutations when disabled; public reads and authenticated removal of existing publications remain available. Wire the same value into the web and Hub containers so UI exposure and server enforcement cannot drift.
+
+## Deploy continuity
+
+Production has one Hub container. Ingress waits up to 30 seconds for a reachable Hub and checks health every second during recreation. Keep the retry policy loaded before restarting Hub. Connection failures can be retried before a request is delivered; do not enable blanket POST retries after delivery, because code exchange and other writes may not be repeatable. A prolonged outage still returns an error.

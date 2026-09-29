@@ -16,9 +16,9 @@ use manabrew_agent_interface::agent_impl::Responder;
 use manabrew_agent_interface::ids_codec::{parse_player_slot, player_slot};
 use manabrew_agent_interface::prompt::{AgentMessage, ClientToServerMessage, PromptOutput};
 use manabrew_agent_interface::protocol::{
-    identity_token, ClientMessage, ClientPlatform, EngineKind, GameFormat, GameOutcomeReport,
-    IdentityProof, PlayerDeckInfo, ResumeRoomRequest, RoomInfo, RoomStatus, ServerMessage,
-    StateEnvelope, PROTOCOL_VERSION,
+    identity_token, ClientMessage, ClientPlatform, EngineGate, EngineKind, GameFormat,
+    GameOutcomeReport, IdentityProof, PlayerDeckInfo, ResumeRoomRequest, RoomInfo, RoomStatus,
+    ServerMessage, StateEnvelope, PROTOCOL_VERSION,
 };
 use manabrew_protocol::deck_dto::Deck;
 use manabrew_protocol::game::{GameViewDto, PlayerStatus};
@@ -2700,6 +2700,7 @@ impl RelayClient {
                 }),
                 client_platform: ClientPlatform::Unknown,
                 client_version: None,
+                engine_gate: EngineGate::Unknown,
             })
             .await?;
         client.wait_for_auth().await?;

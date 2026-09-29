@@ -6,6 +6,7 @@ import { usePresetDecksStore } from "@/stores/usePresetDecksStore";
 import { DEFAULT_STARTING_LIFE } from "@/stores/useServerStore";
 
 export const FORGE_START_TIMEOUT_MS = 3 * 60_000;
+export const FORGE_START_TIMEOUT_MESSAGE = "engine did not start in time";
 
 export function withForgeStartTimeout<T>(start: Promise<T>): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -13,7 +14,7 @@ export function withForgeStartTimeout<T>(start: Promise<T>): Promise<T> {
     start,
     new Promise<never>((_, reject) => {
       timer = setTimeout(
-        () => reject(new Error("engine did not start in time")),
+        () => reject(new Error(FORGE_START_TIMEOUT_MESSAGE)),
         FORGE_START_TIMEOUT_MS,
       );
     }),
@@ -43,7 +44,7 @@ export async function validateForgeWasm(): Promise<boolean> {
     .getState()
     .decks.filter((preset) => presetSupportsEngine(preset, "Forge"));
   if (!deck || !opponent) {
-    recordForgeWasmVerdict(false, "no Forge preset decks to start a trial game with");
+    recordForgeWasmVerdict(false, "engine", "no Forge preset decks to start a trial game with");
     return false;
   }
   const runtime = getSelectedGameRuntime();
@@ -64,7 +65,12 @@ export async function validateForgeWasm(): Promise<boolean> {
     recordForgeWasmVerdict(true);
     return true;
   } catch (error) {
-    recordForgeWasmVerdict(false, error instanceof Error ? error.message : String(error));
+    const message = error instanceof Error ? error.message : String(error);
+    recordForgeWasmVerdict(
+      false,
+      message === FORGE_START_TIMEOUT_MESSAGE ? "timeout" : "engine",
+      message,
+    );
     return false;
   } finally {
     stop();

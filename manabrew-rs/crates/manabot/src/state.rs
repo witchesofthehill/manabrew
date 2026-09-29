@@ -2,8 +2,8 @@ use manabrew_agent_interface::game_view_dto::GameViewDto;
 use manabrew_agent_interface::ids_codec::player_slot;
 use manabrew_agent_interface::prompt::AgentPrompt;
 use manabrew_agent_interface::protocol::{
-    identity_token, ClientMessage, ClientPlatform, IdentityProof, RoomStatus, ServerMessage,
-    StateEnvelope,
+    identity_token, ClientMessage, ClientPlatform, EngineGate, IdentityProof, RoomStatus,
+    ServerMessage, StateEnvelope,
 };
 use manabrew_protocol::deck_dto::Deck;
 use manabrew_relay_protocol::state_delta;
@@ -139,6 +139,7 @@ impl BotState {
             }),
             client_platform: ClientPlatform::Unknown,
             client_version: None,
+            engine_gate: EngineGate::Unknown,
         }]
     }
 

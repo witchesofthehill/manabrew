@@ -1001,3 +1001,27 @@ jobs:
           rsync -az --chmod=F644 \
             -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes" \
             sidestore-out/ "$USER@$HOST:$DEPLOY_PATH/ops/sidestore/"
+          printf -v prune_command 'python3 - %q' "$DEPLOY_PATH/ops/sidestore"
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "$USER@$HOST" "$prune_command" <<'PY'
+          import json
+          import pathlib
+          import sys
+          import time
+          from urllib.parse import urlparse
+
+          root = pathlib.Path(sys.argv[1])
+          source = json.loads((root / "apps.json").read_text())
+          keep = set()
+          for app in source["apps"]:
+              for entry in [app, *app.get("versions", [])]:
+                  if entry.get("downloadURL"):
+                      keep.add(pathlib.PurePosixPath(urlparse(entry["downloadURL"]).path).name)
+          if not keep or not all((root / name).is_file() for name in keep):
+              raise SystemExit("SideStore manifest has missing installers; refusing cleanup")
+          reclaimed = 0
+          for path in root.glob("Manabrew-*.ipa"):
+              if path.name not in keep and path.stat().st_mtime < time.time() - 30 * 86400:
+                  reclaimed += path.stat().st_size
+                  path.unlink()
+          print(f"Reclaimed {reclaimed} bytes of unreferenced SideStore installers older than 30 days")
+          PY

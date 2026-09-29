@@ -154,7 +154,12 @@ public final class ManaBrewEngineAdapter {
     }
 
     public String getGameOver(final String sessionId) {
-        return String.valueOf(getSession(sessionId).isGameOver());
+        final ManaBrewInteractiveSession session = getSession(sessionId);
+        final String error = session.getEngineError();
+        if (error != null) {
+            throw new IllegalStateException(error);
+        }
+        return String.valueOf(session.isGameOver());
     }
 
     public String getEngineError(final String sessionId) {

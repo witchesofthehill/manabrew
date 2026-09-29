@@ -26,8 +26,9 @@ export function ChooseNumberModal({
   const [inputValue, setInputValue] = useState(String(min));
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const parsed = parseInt(inputValue, 10);
-  const isValid = !isNaN(parsed) && parsed >= min && parsed <= max;
+  const parsed = Number(inputValue);
+  const isValid =
+    inputValue.trim() !== "" && Number.isInteger(parsed) && parsed >= min && parsed <= max;
   const showError = inputValue.trim() !== "" && !isValid;
 
   const confirm = useCallback(
@@ -144,6 +145,14 @@ export function ChooseNumberModal({
       <div className="flex flex-col items-center gap-5 p-6">
         <PromptPresentation presentation={presentation} sourceCard={inlineSourceCard} />
         {controls}
+        {input.cancellable && (
+          <Button
+            variant="outline"
+            onClick={() => respond({ type: "numberDecision", chosenNumber: null })}
+          >
+            Cancel
+          </Button>
+        )}
       </div>
     </Modal>
   );

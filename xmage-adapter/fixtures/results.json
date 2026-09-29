@@ -1,0 +1,353 @@
+{
+  "serverVersion": "1.4.61-V1 (build: 2026-08-12 12:28)",
+  "agent": "manabot protocol-agent (SimpleAi, single-step passes; blocking seat 1 holds attackers)",
+  "runs": [
+    {
+      "answered": 102,
+      "rejected": 405,
+      "superseded": 0,
+      "states": 361,
+      "result": {
+        "gameId": "5e0ee791-2023-4b43-bd49-2a09f625a6ec",
+        "won": false,
+        "gameInfo": "You lost the game on turn 8.",
+        "playerId": "046bb7b8-b628-424e-88ff-fbb8304d92fc",
+        "players": [
+          {
+            "id": "70a2e047-1e9d-4547-bf38-611158995cd4",
+            "life": 5,
+            "libraryCount": 0
+          },
+          {
+            "id": "046bb7b8-b628-424e-88ff-fbb8304d92fc",
+            "life": 5,
+            "libraryCount": 0
+          }
+        ]
+      },
+      "mechanics": {
+        "chooseFromSelection": 1,
+        "chooseBoolean": 2,
+        "chooseAction": 79,
+        "chooseObject:unknown": 10,
+        "payManaCost": 10
+      },
+      "combatAssignmentsObserved": 0,
+      "minimumLife": 5,
+      "cardsObserved": ["Lightning Bolt", "Mountain"],
+      "findings": [],
+      "capture": "xmage-1.4.61-bolt.jsonl.gz",
+      "sha256Uncompressed": "a4e7ad2d0beafde8e894dae15e4cffcd456dcc63b0c154fe37d50685cc347bab",
+      "scenario": "bolt"
+    },
+    {
+      "answered": 150,
+      "rejected": 597,
+      "superseded": 0,
+      "states": 488,
+      "result": {
+        "gameId": "b4c213e2-81b3-48fe-84b0-d06c58c5b587",
+        "won": false,
+        "gameInfo": "You lost the game on turn 8.",
+        "playerId": "637b7abf-4497-4cd8-b87a-3658d414cdbd",
+        "players": [
+          {
+            "id": "8359a3e8-9437-4982-9071-39b1b86be3f1",
+            "life": 11,
+            "libraryCount": 0
+          },
+          {
+            "id": "637b7abf-4497-4cd8-b87a-3658d414cdbd",
+            "life": 6,
+            "libraryCount": 0
+          }
+        ]
+      },
+      "mechanics": {
+        "chooseFromSelection": 1,
+        "chooseBoolean": 2,
+        "chooseAction": 107,
+        "payManaCost": 10,
+        "chooseObject:attack": 30
+      },
+      "combatAssignmentsObserved": 0,
+      "minimumLife": 6,
+      "cardsObserved": ["Mountain", "Raging Goblin"],
+      "findings": [],
+      "capture": "xmage-1.4.61-combat.jsonl.gz",
+      "sha256Uncompressed": "cc659c3c823a87ce153558798947198c3a8b395fcdc136c5d0e00e3143759fc2",
+      "scenario": "combat"
+    },
+    {
+      "answered": 136,
+      "rejected": 541,
+      "superseded": 0,
+      "states": 439,
+      "result": {
+        "gameId": "6c07c46f-9221-42a7-ac0a-626c15b5aa5d",
+        "won": true,
+        "gameInfo": "You won the game on turn 8.",
+        "playerId": "86a8f3af-d9ef-4e9c-be1d-6bc7d5a4937e",
+        "players": [
+          {
+            "id": "86a8f3af-d9ef-4e9c-be1d-6bc7d5a4937e",
+            "life": 17,
+            "libraryCount": 0
+          },
+          {
+            "id": "fc877062-1fb8-4237-b2d4-0331bbafb68d",
+            "life": 20,
+            "libraryCount": 0
+          }
+        ]
+      },
+      "mechanics": {
+        "chooseFromSelection": 1,
+        "chooseBoolean": 2,
+        "chooseAction": 91,
+        "payManaCost": 10,
+        "chooseObject:attack": 13,
+        "chooseObject:block": 9,
+        "chooseObject:unknown": 5,
+        "chooseNumber": 5
+      },
+      "combatAssignmentsObserved": 86,
+      "minimumLife": 17,
+      "cardsObserved": ["Mountain", "Raging Goblin"],
+      "findings": [],
+      "capture": "xmage-1.4.61-blocking.jsonl.gz",
+      "sha256Uncompressed": "2f40e0f51c3e9a8e6f1935b87f9836be9b9e4acf6dc57747b70ecf322137b3a1",
+      "scenario": "blocking"
+    },
+    {
+      "answered": 138,
+      "rejected": 549,
+      "superseded": 0,
+      "states": 499,
+      "result": {
+        "gameId": "8f5d771f-e2b5-4e72-9099-f16ccdfa070e",
+        "won": true,
+        "gameInfo": "You won the game on turn 11.",
+        "playerId": "a64e318b-a975-423f-bff8-6950f0975ac6",
+        "players": [
+          {
+            "id": "a64e318b-a975-423f-bff8-6950f0975ac6",
+            "life": 2,
+            "libraryCount": 18
+          },
+          {
+            "id": "c46ef76a-a601-461e-954f-eb361ee40b8a",
+            "life": -1,
+            "libraryCount": 0
+          }
+        ]
+      },
+      "mechanics": {
+        "chooseFromSelection": 1,
+        "chooseBoolean": 2,
+        "chooseAction": 109,
+        "chooseObject:unknown": 13,
+        "payManaCost": 13
+      },
+      "combatAssignmentsObserved": 0,
+      "minimumLife": -1,
+      "cardsObserved": ["Lightning Bolt", "Mountain"],
+      "findings": [],
+      "capture": "xmage-1.4.61-lethal.jsonl.gz",
+      "sha256Uncompressed": "0288a1762040fb8e8ec901a2a78062117fc7796c7d7b81cb105849d4aae6e9d8",
+      "scenario": "lethal"
+    },
+    {
+      "answered": 57,
+      "rejected": 225,
+      "superseded": 0,
+      "states": 224,
+      "result": null,
+      "mechanics": {
+        "chooseFromSelection": 1,
+        "chooseBoolean": 2,
+        "chooseAction": 48,
+        "payManaCost": 6
+      },
+      "combatAssignmentsObserved": 0,
+      "minimumLife": 20,
+      "cardsObserved": ["Mountain", "Prodigal Pyromancer"],
+      "findings": [
+        {
+          "classification": "adapterGap",
+          "code": "unclassified-priority-abilities",
+          "evidence": {
+            "callback": "GAME_SELECT",
+            "messageId": 115,
+            "objectId": "08c1e45e-208c-480a-b8dc-107aab3af1a1",
+            "message": "Play spells and abilities",
+            "options": {
+              "queryType": "SELECT"
+            },
+            "min": 0,
+            "max": 0,
+            "required": false,
+            "playableObjects": {
+              "objects": {
+                "f8618208-d973-4770-aee6-bdeaa3f3cd86": {
+                  "basicManaAbilities": [],
+                  "basicPlayAbilities": [
+                    {
+                      "id": "c6b04ec0-e000-4c34-8da5-99292ccf82a0",
+                      "value": "Play Mountain"
+                    }
+                  ],
+                  "basicCastAbilities": [],
+                  "other": []
+                },
+                "23bd486e-22f8-4fd5-9c46-8bf5982ff9c5": {
+                  "basicManaAbilities": [],
+                  "basicPlayAbilities": [],
+                  "basicCastAbilities": [
+                    {
+                      "id": "aa357546-162c-416d-8fa0-a18952a33622",
+                      "value": "Cast Prodigal Pyromancer"
+                    }
+                  ],
+                  "other": []
+                },
+                "c89734ad-3bfe-412c-8d98-743d7c14e1f0": {
+                  "basicManaAbilities": [],
+                  "basicPlayAbilities": [],
+                  "basicCastAbilities": [
+                    {
+                      "id": "ac74f9e5-d28b-4462-b873-5d3767edee0d",
+                      "value": "Cast Prodigal Pyromancer"
+                    }
+                  ],
+                  "other": []
+                },
+                "4d281036-a86e-475c-8d80-31c66b7a1afa": {
+                  "basicManaAbilities": [],
+                  "basicPlayAbilities": [],
+                  "basicCastAbilities": [
+                    {
+                      "id": "49bd85cc-6f28-42f9-9b68-454d2eced8ec",
+                      "value": "Cast Prodigal Pyromancer"
+                    }
+                  ],
+                  "other": []
+                },
+                "5e44aa77-2940-4706-a9f6-ea1deb508254": {
+                  "basicManaAbilities": [],
+                  "basicPlayAbilities": [
+                    {
+                      "id": "6f051935-7cd7-4fb1-8ba3-b3eceef79b64",
+                      "value": "Play Mountain"
+                    }
+                  ],
+                  "basicCastAbilities": [],
+                  "other": []
+                },
+                "cdc68b98-ba9c-4350-bd4f-dfa60aea84fb": {
+                  "basicManaAbilities": [
+                    {
+                      "id": "03ca32bb-c630-4c3d-b5fd-f033da484e2d",
+                      "value": "{T}: Add {R}."
+                    }
+                  ],
+                  "basicPlayAbilities": [],
+                  "basicCastAbilities": [],
+                  "other": []
+                },
+                "f79bb766-ce62-4ab0-9dd1-c747ae5268e0": {
+                  "basicManaAbilities": [
+                    {
+                      "id": "7f5485c3-7876-4b3d-a11f-544701ddc4ca",
+                      "value": "{T}: Add {R}."
+                    }
+                  ],
+                  "basicPlayAbilities": [],
+                  "basicCastAbilities": [],
+                  "other": []
+                },
+                "4eb7f73f-7114-4249-93c1-1b1dd5a61251": {
+                  "basicManaAbilities": [],
+                  "basicPlayAbilities": [],
+                  "basicCastAbilities": [
+                    {
+                      "id": "1112a41e-c922-4711-bb19-8c3e634b0240",
+                      "value": "Cast Prodigal Pyromancer"
+                    }
+                  ],
+                  "other": []
+                },
+                "151c9d85-e9d8-47ff-945e-19f46800642b": {
+                  "basicManaAbilities": [
+                    {
+                      "id": "94b6b721-090e-4527-a009-3dc31d51b811",
+                      "value": "{T}: Add {R}."
+                    }
+                  ],
+                  "basicPlayAbilities": [],
+                  "basicCastAbilities": [],
+                  "other": []
+                },
+                "2249e660-15b0-407c-98d4-084e901ccd5c": {
+                  "basicManaAbilities": [],
+                  "basicPlayAbilities": [],
+                  "basicCastAbilities": [],
+                  "other": [
+                    {
+                      "id": "6a0d37b9-f015-43f1-9c6b-ca232f31b264",
+                      "value": "{T}: {this} deals 1 damage to any target."
+                    }
+                  ]
+                }
+              }
+            },
+            "step": "Precombat Main"
+          }
+        }
+      ],
+      "capture": "xmage-1.4.61-activated.jsonl.gz",
+      "sha256Uncompressed": "439795b6ac1430161d08249501d1ebaea3440300fda5524bf0e513ee281797e3",
+      "scenario": "activated"
+    },
+    {
+      "answered": 112,
+      "rejected": 445,
+      "superseded": 0,
+      "states": 384,
+      "result": {
+        "gameId": "7d126c38-1409-45d5-9ca3-f34e6449f4fb",
+        "won": false,
+        "gameInfo": "You lost the game on turn 8.",
+        "playerId": "44c87768-6705-4fd5-ad06-737d561234cb",
+        "players": [
+          {
+            "id": "0349a6cf-6074-4727-83c2-4a8d74749e72",
+            "life": 5,
+            "libraryCount": 0
+          },
+          {
+            "id": "44c87768-6705-4fd5-ad06-737d561234cb",
+            "life": 5,
+            "libraryCount": 0
+          }
+        ]
+      },
+      "mechanics": {
+        "chooseFromSelection": 1,
+        "chooseBoolean": 2,
+        "chooseAction": 79,
+        "chooseObject:unknown": 10,
+        "payManaCost": 20,
+        "payment:activateManaAbility": 26,
+        "payment:spendMana": 10
+      },
+      "combatAssignmentsObserved": 0,
+      "minimumLife": 5,
+      "cardsObserved": ["Lightning Bolt", "Mountain"],
+      "findings": [],
+      "capture": "xmage-1.4.61-manual-pool.jsonl.gz",
+      "sha256Uncompressed": "ccf436758f71bd967638545bdb46161dc518e213f06f5885e2d8086d2a1ec145",
+      "scenario": "manual-pool"
+    }
+  ]
+}

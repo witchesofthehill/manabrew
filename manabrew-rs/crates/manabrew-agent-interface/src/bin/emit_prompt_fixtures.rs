@@ -156,6 +156,7 @@ fn main() {
             },
             min: 0,
             max: 5,
+            cancellable: true,
         }),
         ChooseDamageAssignmentOrder(
             choose_damage_assignment_order::ChooseDamageAssignmentOrderInput {
@@ -180,10 +181,11 @@ fn main() {
                 text: None,
                 targets: Vec::new(),
             },
-            card_id: String::new(),
-            card_name: String::new(),
+            card_id: Some(String::new()),
+            card_name: Some(String::new()),
             mana_cost: String::new(),
             can_confirm_from_pool: false,
+            auto_pay_available: true,
             actions: vec![],
         }),
         ChooseBoolean(choose_boolean::ChooseBooleanInput {

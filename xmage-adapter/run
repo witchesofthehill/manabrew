@@ -1,0 +1,36 @@
+#!/usr/bin/env python3
+import os
+import argparse
+from pathlib import Path
+import subprocess
+import sys
+
+root = Path(__file__).resolve().parent
+parser = argparse.ArgumentParser()
+mode = parser.add_mutually_exclusive_group()
+mode.add_argument("--build-only", action="store_true")
+mode.add_argument("--no-build", action="store_true")
+args = parser.parse_args()
+runtime = Path(os.environ["XMAGE_HOME"]).resolve()
+jars = sorted((runtime / "mage-client" / "lib").glob("*.jar"))
+if not jars:
+    sys.exit("XMAGE_HOME must contain mage-client/lib from the XMage release")
+build = root / "build"
+build.mkdir(exist_ok=True)
+classpath = os.pathsep.join(map(str, jars))
+if not args.no_build:
+    subprocess.run([
+        "javac", "--release", "17", "-cp", classpath, "-d", str(build),
+        *map(str, sorted((root / "src").rglob("*.java"))),
+    ], check=True)
+if args.build_only:
+    sys.exit(0)
+os.execvp("java", [
+    "java", "-Djava.awt.headless=true",
+    "--add-opens=java.base/java.io=ALL-UNNAMED",
+    "--add-opens=java.base/java.lang=ALL-UNNAMED",
+    "--add-opens=java.base/java.util=ALL-UNNAMED",
+    "--add-opens=java.base/java.net=ALL-UNNAMED",
+    "-cp", str(build) + os.pathsep + classpath,
+    "design.manabrew.xmage.Main",
+])

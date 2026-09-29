@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::game::{Mana, TargetingIntent};
+use crate::game::{Mana, ManaColor, TargetingIntent};
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -101,6 +101,10 @@ pub struct ActivatableAbilityInfo {
 )]
 #[ts(export, export_to = "prompts/common.ts")]
 pub enum AvailableActionKind {
+    Unclassified {
+        card_id: String,
+        label: String,
+    },
     Cast {
         card_id: String,
         mode: PlayCardMode,
@@ -139,6 +143,13 @@ pub enum PaymentResourceKind {
 )]
 #[ts(export, export_to = "prompts/common.ts")]
 pub enum PaymentActionKind {
+    Unclassified {
+        label: String,
+    },
+    SpendMana {
+        player_id: String,
+        color: ManaColor,
+    },
     ActivateManaAbility(ActivatableAbilityInfo),
     UndoMana {
         card_id: String,

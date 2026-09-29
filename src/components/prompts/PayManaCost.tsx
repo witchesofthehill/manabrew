@@ -78,12 +78,14 @@ export function PayManaCost({
         />
       )}
       <div className={"flex flex-row flex-wrap items-center justify-center gap-3"}>
-        <PromptActionButton
-          label={primaryLabel}
-          icon={primaryIcon}
-          onClick={primaryAction}
-          disabled={isWaitingForResponse}
-        />
+        {(canConfirmFromPool || payManaCostInfo?.autoPayAvailable !== false) && (
+          <PromptActionButton
+            label={primaryLabel}
+            icon={primaryIcon}
+            onClick={primaryAction}
+            disabled={isWaitingForResponse}
+          />
+        )}
         {payManaCostInfo?.delveAvailable && payManaCostInfo.onOpenDelve && (
           <PromptActionButton
             label="Delve"

@@ -1,0 +1,68 @@
+{
+  "answered": 112,
+  "rejected": 445,
+  "superseded": 0,
+  "states": 383,
+  "result": {
+    "gameId": "d37caf52-11b4-4ba3-848e-23ba7cbbc078",
+    "won": true,
+    "gameInfo": "You won the game on turn 8.",
+    "playerId": "cf834c4f-98bc-4dd5-ac95-1789c0ad7295",
+    "players": [
+      {
+        "id": "cf834c4f-98bc-4dd5-ac95-1789c0ad7295",
+        "life": 5,
+        "libraryCount": 0
+      },
+      {
+        "id": "64111ffe-e36b-4817-8fb5-eb24d533b6ca",
+        "life": 5,
+        "libraryCount": 0
+      }
+    ]
+  },
+  "mechanics": {
+    "chooseFromSelection": 1,
+    "chooseBoolean": 2,
+    "chooseAction": 79,
+    "submitted:cast": 17,
+    "chooseObject:unknown": 10,
+    "payManaCost": 20,
+    "payment:activateManaAbility": 26,
+    "submitted:activateManaAbility": 10,
+    "payment:spendMana": 10,
+    "submitted:spendMana": 10
+  },
+  "nativeCallbacks": {
+    "JOINED_TABLE": 2,
+    "START_GAME": 2,
+    "CHATMESSAGE": 1,
+    "GAME_INIT": 2,
+    "GAME_UPDATE_AND_INFORM": 112,
+    "GAME_TARGET": 11,
+    "GAME_ASK": 2,
+    "GAME_UPDATE": 154,
+    "GAME_SELECT": 79,
+    "GAME_PLAY_MANA": 20,
+    "GAME_OVER": 2,
+    "END_GAME_INFO": 1
+  },
+  "combatAssignmentsObserved": 0,
+  "minimumLife": 5,
+  "cardsObserved": ["Lightning Bolt", "Mountain"],
+  "graveyardCardsObserved": ["Lightning Bolt"],
+  "findings": [],
+  "capture": "xmage-1.4.61-browser.jsonl.gz",
+  "sha256Uncompressed": "b9f523aeed6a7a4f76aaafe377994b8e85df3170f3cf06ecb103ae237f073511",
+  "scenario": "manual-pool",
+  "browser": {
+    "finished": true,
+    "counts": {
+      "chooseBoolean": 1,
+      "chooseAction": 39,
+      "chooseObject": 5,
+      "payManaCost": 10
+    },
+    "errors": []
+  }
+}

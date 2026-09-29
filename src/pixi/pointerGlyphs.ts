@@ -64,6 +64,7 @@ export const FRIENDLY_INTENT_GLYPHS: Partial<Record<TargetingIntent, string>> = 
 };
 
 export const INTENT_GLYPH_SVG: Record<TargetingIntent, string | null> = {
+  unknown: null,
   ...HOSTILE_INTENT_GLYPHS,
   ...FRIENDLY_INTENT_GLYPHS,
   attack: null,

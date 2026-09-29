@@ -1,0 +1,57 @@
+{
+  "answered": 74,
+  "rejected": 441,
+  "superseded": 0,
+  "states": 287,
+  "result": {
+    "gameId": "5f71ef22-429e-4fc4-96ed-fc700764ad37",
+    "won": true,
+    "gameInfo": "You won the game on turn 8.",
+    "playerId": "84c17fde-71ee-4cfb-8431-3ae3e25b53e3",
+    "players": [
+      {
+        "id": "84c17fde-71ee-4cfb-8431-3ae3e25b53e3",
+        "life": 20,
+        "libraryCount": 0
+      },
+      {
+        "id": "b34a5ff3-e7f3-4269-9663-c8163060c642",
+        "life": 19,
+        "libraryCount": 0
+      }
+    ]
+  },
+  "mechanics": {
+    "chooseFromSelection": 1,
+    "chooseBoolean": 2,
+    "chooseAction": 61,
+    "submitted:cast": 10,
+    "payManaCost": 9,
+    "payment:activateManaAbility": 18,
+    "submitted:activateManaAbility": 9,
+    "submitted:unclassified": 1,
+    "chooseObject:unknown": 1
+  },
+  "nativeCallbacks": {
+    "JOINED_TABLE": 2,
+    "START_GAME": 2,
+    "GAME_INIT": 2,
+    "GAME_UPDATE_AND_INFORM": 75,
+    "GAME_TARGET": 2,
+    "GAME_ASK": 2,
+    "GAME_UPDATE": 132,
+    "GAME_SELECT": 61,
+    "GAME_PLAY_MANA": 9,
+    "GAME_CHOOSE_ABILITY": 1,
+    "GAME_OVER": 2,
+    "END_GAME_INFO": 1
+  },
+  "combatAssignmentsObserved": 0,
+  "minimumLife": 19,
+  "cardsObserved": ["Mountain", "Prodigal Pyromancer"],
+  "graveyardCardsObserved": [],
+  "findings": [],
+  "capture": "xmage-1.4.61-typed-responses.jsonl.gz",
+  "scenario": "activated",
+  "sha256Uncompressed": "ef6bca592c1d68af9801ad94f120e170422f399ad2c56bfc4d16c06f4aa5e4e0"
+}

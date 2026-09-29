@@ -1,4 +1,7 @@
 import { Fragment, useState, type ReactNode } from "react";
+import { AvailableActionsModal } from "./AvailableActionsModal";
+import { ManualManaModal } from "./ManualManaModal";
+import { ChooseObjectModal } from "./ChooseObjectModal";
 import { ChooseColorModal } from "./ChooseColorModal";
 import { ChooseNumberModal } from "./ChooseNumberModal";
 import { ChooseCardsModal } from "./ChooseCardsModal";
@@ -30,6 +33,20 @@ export interface PromptComponentProps<T extends PromptType> {
 type PromptComponent<T extends PromptType> = (props: PromptComponentProps<T>) => ReactNode;
 
 const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
+  chooseAction: ({ prompt, respond, ctx }) => (
+    <AvailableActionsModal input={prompt.input} respond={respond} gameView={ctx.gameView} />
+  ),
+  payManaCost: ({ prompt, respond, ctx }) => (
+    <ManualManaModal input={prompt.input} respond={respond} sourceCard={ctx.sourceDeckCard} />
+  ),
+  chooseObject: ({ prompt, respond, ctx }) => (
+    <ChooseObjectModal
+      input={prompt.input}
+      respond={respond}
+      sourceCard={ctx.sourceDeckCard}
+      gameView={ctx.gameView}
+    />
+  ),
   revealCards: ({ prompt, respond, ctx }) => (
     <ChooseCardsModal
       cards={prompt.input.cards}
@@ -113,9 +130,16 @@ export function PromptModalHost({
   const respond = useGameStore((s) => s.respond);
   const gameView = useGameStore((s) => s.gameView);
   const input = currentPrompt?.input;
-  const entry = (input ? PROMPT_MODALS[input.type] : undefined) as
-    | PromptComponent<PromptType>
-    | undefined;
+  const entry = (
+    input &&
+    !(input.type === "payManaCost" && input.autoPayAvailable !== false) &&
+    !(
+      input.type === "chooseAction" &&
+      !input.actions.some((action) => action.type === "unclassified")
+    )
+      ? PROMPT_MODALS[input.type]
+      : undefined
+  ) as PromptComponent<PromptType> | undefined;
 
   const [promptSeq, setPromptSeq] = useState(0);
   const [prevPrompt, setPrevPrompt] = useState(currentPrompt);

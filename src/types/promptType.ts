@@ -12,6 +12,7 @@
  * https://docs.manabrew.app/protocol/shared-types/#targetingintent.
  */
 export const TargetingIntent = {
+  Unknown: "unknown",
   Damage: "damage",
   Destroy: "destroy",
   Sacrifice: "sacrifice",

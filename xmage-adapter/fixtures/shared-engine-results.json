@@ -1,0 +1,278 @@
+{
+  "forgeRevision": "192b5eab000069bbb8917a5df9d60d4a9128aa07",
+  "xmageVersion": "1.4.61-V1",
+  "runs": [
+    {
+      "answered": 117,
+      "rejected": 694,
+      "superseded": 0,
+      "states": 409,
+      "result": {
+        "gameId": "df967d3a-68b9-42c4-b7fc-e1e6a3796378",
+        "won": true,
+        "gameInfo": "You won the game on turn 6.",
+        "playerId": "7f977aa9-da4b-454b-9782-e3f0ca28d756",
+        "players": [
+          {
+            "id": "b5291da4-081a-4e01-acd2-594e72e6462f",
+            "life": -1,
+            "libraryCount": 0
+          },
+          {
+            "id": "7f977aa9-da4b-454b-9782-e3f0ca28d756",
+            "life": 2,
+            "libraryCount": 0
+          }
+        ]
+      },
+      "mechanics": {
+        "chooseFromSelection": 4,
+        "chooseBoolean": 4,
+        "chooseAction": 91,
+        "submitted:cast": 15,
+        "chooseObject:unknown": 9,
+        "payManaCost": 9,
+        "payment:unclassified": 16,
+        "submitted:unclassified": 12
+      },
+      "nativeCallbacks": {
+        "JOINED_TABLE": 2,
+        "START_GAME": 2,
+        "CHATMESSAGE": 1,
+        "GAME_INIT": 2,
+        "GAME_TARGET": 10,
+        "GAME_UPDATE_AND_INFORM": 117,
+        "GAME_ASK": 4,
+        "GAME_UPDATE": 170,
+        "GAME_SELECT": 91,
+        "GAME_PLAY_MANA": 9,
+        "GAME_CHOOSE_CHOICE": 3,
+        "GAME_OVER": 2,
+        "END_GAME_INFO": 1
+      },
+      "combatAssignmentsObserved": 0,
+      "minimumLife": -1,
+      "cardsObserved": ["City of Brass", "Lightning Bolt"],
+      "graveyardCardsObserved": ["Lightning Bolt"],
+      "findings": [],
+      "capture": "xmage-1.4.61-any-mana-shared.jsonl.gz",
+      "engine": "xmage",
+      "scenario": "any-mana",
+      "sha256Uncompressed": "d5e96ff7c96a96b9ca4a236b9b0178022cb3813bc4f2b40385492552963e58c6",
+      "validation": "Validated 117 prompts, 117 accepted responses, 460 contract rejections, 409 states and 1 game results"
+    },
+    {
+      "answered": 114,
+      "rejected": 679,
+      "superseded": 0,
+      "states": 393,
+      "result": {
+        "gameId": "5a718487-2dd3-4ae5-9a56-e63085521a9a",
+        "won": true,
+        "gameInfo": "You won the game on turn 8.",
+        "playerId": "cfbd3f64-de7a-4822-a880-ae62d24224c8",
+        "players": [
+          {
+            "id": "cfbd3f64-de7a-4822-a880-ae62d24224c8",
+            "life": 16,
+            "libraryCount": 0
+          },
+          {
+            "id": "89997e06-265f-47f6-b58f-9e371c117bc0",
+            "life": 10,
+            "libraryCount": 0
+          }
+        ]
+      },
+      "mechanics": {
+        "chooseFromSelection": 1,
+        "chooseBoolean": 4,
+        "chooseAction": 85,
+        "submitted:cast": 11,
+        "payManaCost": 12,
+        "payment:activateManaAbility": 20,
+        "submitted:activateManaAbility": 12,
+        "chooseObject:attack": 12,
+        "payment:without-source": 4
+      },
+      "nativeCallbacks": {
+        "JOINED_TABLE": 2,
+        "START_GAME": 2,
+        "GAME_INIT": 2,
+        "GAME_UPDATE_AND_INFORM": 114,
+        "GAME_TARGET": 1,
+        "GAME_ASK": 4,
+        "GAME_UPDATE": 160,
+        "GAME_SELECT": 97,
+        "GAME_PLAY_MANA": 12,
+        "GAME_OVER": 2,
+        "END_GAME_INFO": 1
+      },
+      "combatAssignmentsObserved": 0,
+      "minimumLife": 10,
+      "cardsObserved": ["Goblin War Buggy", "Mountain"],
+      "graveyardCardsObserved": [],
+      "findings": [],
+      "capture": "xmage-1.4.61-echo-shared.jsonl.gz",
+      "engine": "xmage",
+      "scenario": "echo",
+      "sha256Uncompressed": "6c0dddd6d2c05294b76e1d4c57e1cf2e8ce2b96e5fd8bbd47f823d70825a07c6",
+      "validation": "Validated 114 prompts, 114 accepted responses, 451 contract rejections, 393 states and 1 game results"
+    },
+    {
+      "answered": 136,
+      "rejected": 818,
+      "superseded": 0,
+      "states": 439,
+      "result": {
+        "gameId": "0336a782-ae56-4180-ad6e-51d310f332d7",
+        "won": false,
+        "gameInfo": "You lost the game on turn 8.",
+        "playerId": "ab38c08b-2046-4d9a-a0f6-cdfee7ef4e5b",
+        "players": [
+          {
+            "id": "73d5f42c-a122-4aed-be1d-4bc236c15333",
+            "life": 17,
+            "libraryCount": 0
+          },
+          {
+            "id": "ab38c08b-2046-4d9a-a0f6-cdfee7ef4e5b",
+            "life": 20,
+            "libraryCount": 0
+          }
+        ]
+      },
+      "mechanics": {
+        "chooseFromSelection": 1,
+        "chooseBoolean": 2,
+        "chooseAction": 91,
+        "submitted:cast": 17,
+        "payManaCost": 10,
+        "payment:activateManaAbility": 15,
+        "submitted:activateManaAbility": 10,
+        "chooseObject:attack": 13,
+        "chooseObject:block": 9,
+        "chooseObject:unknown": 5,
+        "chooseNumber": 5
+      },
+      "nativeCallbacks": {
+        "JOINED_TABLE": 2,
+        "START_GAME": 2,
+        "GAME_INIT": 2,
+        "GAME_UPDATE_AND_INFORM": 133,
+        "GAME_TARGET": 6,
+        "GAME_ASK": 2,
+        "GAME_UPDATE": 168,
+        "GAME_SELECT": 113,
+        "GAME_PLAY_MANA": 10,
+        "GAME_GET_MULTI_AMOUNT": 2,
+        "GAME_OVER": 2,
+        "END_GAME_INFO": 1
+      },
+      "combatAssignmentsObserved": 86,
+      "minimumLife": 17,
+      "cardsObserved": ["Mountain", "Raging Goblin"],
+      "graveyardCardsObserved": ["Raging Goblin"],
+      "findings": [],
+      "capture": "xmage-1.4.61-blocking-shared.jsonl.gz",
+      "engine": "xmage",
+      "scenario": "blocking",
+      "sha256Uncompressed": "57d3eb6df276b2b6d66397b511b49d6d8e4cdf54d953f807b736e4bf74f87616",
+      "validation": "Validated 136 prompts, 136 accepted responses, 546 contract rejections, 439 states and 1 game results"
+    },
+    {
+      "answered": 406,
+      "rejected": 2461,
+      "superseded": 0,
+      "states": 1285,
+      "result": {
+        "gameId": "bf8d4cb8-41ad-4844-8e16-b46315dcadba",
+        "won": true,
+        "gameInfo": "You won the game on turn 28.",
+        "playerId": "e9f55147-d268-4f5a-87d9-be282c4f5e7d",
+        "players": [
+          {
+            "id": "e9f55147-d268-4f5a-87d9-be282c4f5e7d",
+            "life": 12,
+            "libraryCount": 0
+          },
+          {
+            "id": "c5cd8b2e-0dc2-4e1a-b359-680823f553ba",
+            "life": 12,
+            "libraryCount": 0
+          }
+        ]
+      },
+      "mechanics": {
+        "chooseFromSelection": 1,
+        "chooseBoolean": 2,
+        "chooseAction": 220,
+        "submitted:cast": 42,
+        "chooseNumber": 28,
+        "chooseObject:unknown": 68,
+        "payManaCost": 87,
+        "payment:activateManaAbility": 173,
+        "submitted:activateManaAbility": 67
+      },
+      "nativeCallbacks": {
+        "JOINED_TABLE": 2,
+        "START_GAME": 2,
+        "CHATMESSAGE": 1,
+        "GAME_INIT": 2,
+        "GAME_UPDATE_AND_INFORM": 406,
+        "GAME_TARGET": 69,
+        "GAME_ASK": 2,
+        "GAME_UPDATE": 468,
+        "GAME_SELECT": 220,
+        "GAME_GET_AMOUNT": 28,
+        "GAME_PLAY_MANA": 87,
+        "GAME_OVER": 2,
+        "END_GAME_INFO": 1
+      },
+      "combatAssignmentsObserved": 0,
+      "minimumLife": 12,
+      "cardsObserved": ["Fireball", "Mountain"],
+      "graveyardCardsObserved": ["Fireball"],
+      "findings": [],
+      "capture": "xmage-1.4.61-x-cost-shared.jsonl.gz",
+      "engine": "xmage",
+      "scenario": "x-cost",
+      "sha256Uncompressed": "82e22aa662e215c833fe7b5837d6267ee56c27c13678671aa56264719903e97b",
+      "validation": "Validated 406 prompts, 406 accepted responses, 1649 contract rejections, 1285 states and 1 game results"
+    },
+    {
+      "mechanics": {
+        "chooseAction": 88,
+        "chooseBoardTargets": 8,
+        "diceRolled": 1,
+        "mulligan": 2,
+        "payManaCost": 16
+      },
+      "completed": true,
+      "answered": 115,
+      "engine": "forge",
+      "scenario": "bolt",
+      "capture": "forge-bolt-shared.jsonl.gz",
+      "sha256Uncompressed": "f6f07ebafedcc080336120431ed46206dae7610188f24632f16145235a0e8a0b",
+      "validation": "Validated 115 prompts, 115 accepted responses, 0 contract rejections, 115 states and 1 game results"
+    },
+    {
+      "scenario": "x-cost",
+      "completed": true,
+      "mechanics": {
+        "chooseAction": 470,
+        "chooseBoardTargets": 46,
+        "chooseNumber": 19,
+        "diceRolled": 1,
+        "mulligan": 2,
+        "payManaCost": 46
+      },
+      "answered": 584,
+      "minimumLife": 1,
+      "engine": "forge",
+      "capture": "forge-x-cost-shared.jsonl.gz",
+      "sha256Uncompressed": "d7750a1ebc1a856031879a4988972ba137a2c37f1db3c3e54efa9fc0d6ba296c",
+      "validation": "Validated 584 prompts, 584 accepted responses, 0 contract rejections, 584 states and 1 game results"
+    }
+  ]
+}

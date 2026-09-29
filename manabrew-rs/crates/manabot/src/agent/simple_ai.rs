@@ -20,11 +20,19 @@ fn bot_warn(msg: &str) {
 #[derive(Default)]
 pub struct SimpleAi {
     recent_prompts: VecDeque<String>,
+    single_step_passes: bool,
 }
 
 impl SimpleAi {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn with_single_step_passes() -> Self {
+        Self {
+            single_step_passes: true,
+            ..Self::default()
+        }
     }
 
     /// Detects infinite response loops from the bot
@@ -47,6 +55,22 @@ impl SimpleAi {
 impl BotAgent for SimpleAi {
     fn decide(&mut self, prompt: AgentPrompt) -> Option<PromptOutput> {
         match prompt.input {
+            PromptInput::ChooseObject(input) => {
+                let unselected = |target: &&TargetRef| !input.selected.iter().any(|selected| selected.id == target.id && selected.kind == target.kind);
+                let candidate = input.candidates.iter().filter(unselected)
+                    .find(|target| target.kind == TargetKind::Player && target.id != prompt.deciding_player_id)
+                    .or_else(|| input.candidates.iter().find(unselected));
+                let answer = if let Some(target) = candidate {
+                    ChooseObjectOutput::Select { target: target.clone() }
+                } else if input.can_finish {
+                    ChooseObjectOutput::Finish
+                } else if input.cancellable {
+                    ChooseObjectOutput::Cancel
+                } else {
+                    return None;
+                };
+                Some(PromptOutput::ChooseObject(answer))
+            }
         PromptInput::Mulligan(manabrew_protocol::prompts::mulligan::MulliganInput { .. }) => {
                 Some(PromptOutput::Mulligan(MulliganOutput::MulliganDecision { keep: true }))
             }
@@ -78,11 +102,11 @@ impl BotAgent for SimpleAi {
                 Some(PromptOutput::ChooseAction(match pick {
                     Some(action_id) => ChooseActionOutput::Act { action_id },
                     None => ChooseActionOutput::Pass {
-                        until: Some(PassUntil {
+                        until: (!self.single_step_passes).then(|| PassUntil {
                             player_id: prompt.deciding_player_id.clone(),
                             phase: manabrew_protocol::game::StepKind::Main1,
                         }),
-                        exhaust_stack: true,
+                        exhaust_stack: !self.single_step_passes,
                     },
                 }))
             }
@@ -234,6 +258,12 @@ impl BotAgent for SimpleAi {
                 Some(PromptOutput::ChooseCombatDamageAssignment(ChooseCombatDamageAssignmentOutput::CombatDamageAssignmentDecision { assignments }))
             }
             PromptInput::PayManaCost(input) => {
+                if !input.auto_pay_available && !input.can_confirm_from_pool {
+                    return Some(PromptOutput::PayManaCost(match input.actions.first() {
+                        Some(action) => PayManaCostOutput::Act { action_id: action.id.clone() },
+                        None => PayManaCostOutput::Cancel,
+                    }));
+                }
                 let waterbend = input.actions.iter().find(|action| {
                     matches!(
                         &action.kind,
@@ -253,7 +283,7 @@ impl BotAgent for SimpleAi {
                 } else {
                     let signature = format!(
                         "pay:{}|{}|{}",
-                        input.card_id,
+                        input.card_id.as_deref().unwrap_or_default(),
                         input.mana_cost,
                         input
                             .actions

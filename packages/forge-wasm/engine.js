@@ -1,5 +1,5 @@
 import {
-  createDirectiveLanes,
+  createDirectiveLane,
   createSeat,
   pollSeat,
   writeDirectiveLane,
@@ -53,7 +53,7 @@ export class ForgeEngine {
           this.attachSeat(message.payload.playerSlot, message.payload.buffer);
         }
         if (message.event === "game:directive_lanes") {
-          this.directiveLanes = createDirectiveLanes(message.payload.buffers);
+          this.directiveLanes = message.payload.buffers.map(createDirectiveLane);
           this.localSeatIndex = message.payload.localSeat;
         }
         if (message.event === "game:seat_state") {
@@ -128,7 +128,7 @@ export class ForgeEngine {
     if (!this.directiveLanes) throw new Error("Forge engine has no game running.");
     const seatIndex =
       playerSlot === LOCAL_SEAT ? this.localSeatIndex : Number(playerSlot.slice("player-".length));
-    writeDirectiveLane(this.directiveLanes, seatIndex, directive);
+    writeDirectiveLane(this.directiveLanes[seatIndex], directive);
   }
 
   seat(playerSlot) {

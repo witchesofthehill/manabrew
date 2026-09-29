@@ -130,6 +130,9 @@ export interface IGameApi {
   /** Fire-and-forget out-of-band player instruction (concede, …). */
   sendDirective(params: SendDirectiveParams): Promise<void>;
 
+  /** An instruction from the tab that runs the engine, such as snapshot recording. */
+  sendHostDirective(directive: DirectiveInput): Promise<void>;
+
   endGame(): Promise<void>;
 
   getPrompt(): Promise<Prompt | null>;

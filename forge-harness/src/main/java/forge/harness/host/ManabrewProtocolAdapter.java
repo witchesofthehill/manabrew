@@ -216,6 +216,10 @@ final class ManabrewProtocolAdapter {
                 flat.addProperty("voteId", directive.get("voteId").getAsInt());
                 flat.addProperty("accept", directive.get("accept").getAsBoolean());
                 break;
+            case "setSnapshotRecording":
+                flat.addProperty("kind", "set_snapshot_recording");
+                flat.addProperty("enabled", directive.get("enabled").getAsBoolean());
+                break;
             default:
                 throw new UnsupportedOperationException("unsupported directive: " + kind);
         }

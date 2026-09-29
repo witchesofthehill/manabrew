@@ -2185,6 +2185,9 @@ fn route_remote_directive(
                 ClientToServerMessage::Directive { directive },
             )
         }
+        DirectiveInput::SetSnapshotRecording { .. } => {
+            warn!(claimed_slot, "only the engine host sets snapshot recording");
+        }
     }
 }
 

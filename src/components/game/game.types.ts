@@ -55,6 +55,9 @@ export interface RightActionPanelProps {
   checkpoints: CheckpointDto[];
   canRequestRestore: boolean;
   onRequestRestore: (checkpoint: CheckpointDto) => void;
+  snapshotRecording: boolean;
+  hostsEngine: boolean;
+  onSnapshotRecordingChange: (enabled: boolean) => void;
 }
 
 export interface PromptActionSpec {

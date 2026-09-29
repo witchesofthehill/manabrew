@@ -73,17 +73,16 @@ export function writeSeatMessage(seat, message) {
 const LANE_EMPTY = 0;
 const LANE_FULL = 1;
 
-export function createDirectiveLanes(buffers) {
-  return buffers.map((buffer) => ({
+export function createDirectiveLane(buffer) {
+  return {
     signal: new Int32Array(buffer, 0, 2),
     data: new Uint8Array(buffer, HEADER_BYTES),
     queue: [],
     flushScheduled: false,
-  }));
+  };
 }
 
-export function writeDirectiveLane(lanes, seatIndex, directive) {
-  const lane = lanes[seatIndex];
+export function writeDirectiveLane(lane, directive) {
   lane.queue.push(directive);
   if (!lane.flushScheduled) flushDirectiveLane(lane);
 }

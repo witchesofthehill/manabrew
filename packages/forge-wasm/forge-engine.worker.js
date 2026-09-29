@@ -96,8 +96,10 @@ function shareDirectiveLanes(seatCount, localSeat) {
     { length: seatCount },
     () => new SharedArrayBuffer(DIRECTIVE_LANE_BYTES),
   );
+  const hostBuffer = new SharedArrayBuffer(DIRECTIVE_LANE_BYTES);
   self.__forgeDirectiveLanes = buffers;
-  postEvent("game:directive_lanes", { buffers, localSeat });
+  self.__forgeHostLane = hostBuffer;
+  postEvent("game:directive_lanes", { buffers, hostBuffer, localSeat });
 }
 
 async function startGame(requestId, args) {
@@ -140,6 +142,7 @@ async function startGame(requestId, args) {
     variant,
     startingLife: (args && args.startingLife) || (commanderGame ? 40 : 20),
     seed: gameSeed(args),
+    snapshotRecording: !args || args.snapshotRecording !== false,
     players: [
       {
         name: "You",
@@ -230,6 +233,7 @@ async function startMultiplayerGame(requestId, args) {
     variant,
     startingLife: (args && args.startingLife) || (commanderGame ? 40 : 20),
     seed: gameSeed(args),
+    snapshotRecording: !args || args.snapshotRecording !== false,
     players: decks.map((deck, index) => ({
       name: playerNames[index] || `Player ${index + 1}`,
       ai: forgeAiSeats.has(index),
@@ -272,6 +276,7 @@ self.onmessage = (e) => {
     gameRunning = false;
     self.__forgeSeatSabs = null;
     self.__forgeDirectiveLanes = null;
+    self.__forgeHostLane = null;
     return postResponse(msg.requestId, null);
   }
   if (

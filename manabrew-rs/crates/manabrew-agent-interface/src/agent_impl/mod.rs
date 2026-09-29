@@ -219,7 +219,9 @@ impl<R: Responder> PromptAgent<R> {
     fn handle_directive(&mut self, directive: DirectiveInput) {
         match directive {
             DirectiveInput::Concede => self.conceded = true,
-            DirectiveInput::RequestRestore { .. } | DirectiveInput::RestoreVote { .. } => {}
+            DirectiveInput::RequestRestore { .. }
+            | DirectiveInput::RestoreVote { .. }
+            | DirectiveInput::SetSnapshotRecording { .. } => {}
         }
     }
 
@@ -653,7 +655,9 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
             } => return EnginePlayerAction::Concede,
             ClientToServerMessage::Directive {
                 directive:
-                    DirectiveInput::RequestRestore { .. } | DirectiveInput::RestoreVote { .. },
+                    DirectiveInput::RequestRestore { .. }
+                    | DirectiveInput::RestoreVote { .. }
+                    | DirectiveInput::SetSnapshotRecording { .. },
             } => Self::default_pass(),
         };
         match action {

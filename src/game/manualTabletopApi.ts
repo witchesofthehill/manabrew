@@ -6,7 +6,7 @@ import type {
   StartMultiplayerGameParams,
 } from "@/platform";
 import type { CardDto } from "@/protocol/game";
-import type { Prompt } from "@/protocol";
+import type { DirectiveInput, Prompt } from "@/protocol";
 import type { ClientCardDto, ClientGameView, ClientPlayerDto } from "@/stores/gameStore.types";
 import type { ManualTabletopApi, ManualTabletopAction } from "./runtime.types";
 
@@ -139,6 +139,7 @@ function createInitialGameView(params: StartGameParams): ClientGameView {
     dayTime: "neither",
     checkpoints: [],
     restoreVote: null,
+    snapshotRecording: false,
   };
 }
 
@@ -244,6 +245,10 @@ export class ManualTabletopGameApi implements ManualTabletopApi {
   }
 
   async sendDirective(_params: SendDirectiveParams): Promise<void> {
+    throw new Error("Manual tabletop has no engine to direct.");
+  }
+
+  async sendHostDirective(_directive: DirectiveInput): Promise<void> {
     throw new Error("Manual tabletop has no engine to direct.");
   }
 

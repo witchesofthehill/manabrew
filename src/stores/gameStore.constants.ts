@@ -86,6 +86,7 @@ function normalizeGameView(
     checkpoints: Array.isArray(incoming.checkpoints)
       ? incoming.checkpoints
       : (current?.checkpoints ?? []),
+    snapshotRecording: incoming.snapshotRecording ?? current?.snapshotRecording ?? false,
     restoreVote: Array.isArray(incoming.checkpoints)
       ? (incoming.restoreVote ?? null)
       : (current?.restoreVote ?? null),

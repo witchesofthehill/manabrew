@@ -21,6 +21,7 @@ import { GameLoadingScreen } from "@/components/game/GameLoadingScreen";
 import { GameFailedScreen } from "@/components/game/GameFailedScreen";
 import { WaitingForPlayerScreen } from "@/components/game/WaitingForPlayerScreen";
 import { DevViewportFrame } from "@/components/dev/DevViewportFrame";
+import { isForgeWasmActive } from "@/lib/forgeWasm";
 import { ManualTabletopControls } from "@/components/game/ManualTabletopControls";
 import { MiddleBarDock, RightActionPanel } from "@/components/game/panels";
 import {
@@ -278,13 +279,22 @@ export default function Game({ exitTo }: GameProps = {}) {
   const hostingForgeRoom = useServerStore((s) => s.hostingForgeRoom);
   const selectedRuntime = getSelectedGameRuntime();
   const manualApi = isManualTabletopApi(selectedRuntime) ? selectedRuntime.api : null;
-  const { respond, concede, endGame, requestRestore, voteRestore, gameDecks } = useGameStore(
+  const {
+    respond,
+    concede,
+    endGame,
+    requestRestore,
+    voteRestore,
+    setSnapshotRecording,
+    gameDecks,
+  } = useGameStore(
     useShallow((s) => ({
       respond: s.respond,
       concede: s.concede,
       endGame: s.endGame,
       requestRestore: s.requestRestore,
       voteRestore: s.voteRestore,
+      setSnapshotRecording: s.setSnapshotRecording,
       gameDecks: s.gameDecks,
     })),
   );
@@ -2454,6 +2464,9 @@ export default function Game({ exitTo }: GameProps = {}) {
         checkpoints={gameView.checkpoints}
         canRequestRestore={!iAmEliminated && !gameView.gameOver}
         onRequestRestore={setRestoreTarget}
+        snapshotRecording={gameView.snapshotRecording}
+        hostsEngine={isForgeWasmActive() && (!isMultiplayer || isHost)}
+        onSnapshotRecordingChange={(enabled) => void setSnapshotRecording(enabled)}
       />
 
       {boardSurfaceEl &&

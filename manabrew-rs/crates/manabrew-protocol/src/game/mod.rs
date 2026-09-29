@@ -150,6 +150,8 @@ pub struct GameViewDto {
     pub checkpoints: Vec<CheckpointDto>,
     #[serde(default)]
     pub restore_vote: Option<RestoreVoteDto>,
+    #[serde(default)]
+    pub snapshot_recording: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

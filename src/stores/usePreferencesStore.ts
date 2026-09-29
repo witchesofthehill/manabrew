@@ -99,6 +99,9 @@ export interface PreferencesState {
   inGameAnimations: boolean;
   setInGameAnimations: (value: boolean) => void;
 
+  snapshotRecording: boolean;
+  setSnapshotRecording: (value: boolean) => void;
+
   chooseOrderOnMultipleTriggers: boolean;
   setChooseOrderOnMultipleTriggers: (value: boolean) => void;
 
@@ -180,6 +183,7 @@ const PERSISTED_PREFERENCE_KEYS = [
   "battlefieldCardStyle",
   "boardBackgroundId",
   "inGameAnimations",
+  "snapshotRecording",
   "chooseOrderOnMultipleTriggers",
   "ironsmithRuntimeEnabled",
   "directTransport",
@@ -327,6 +331,8 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           inGameAnimations: true,
           setInGameAnimations: (inGameAnimations) => set({ inGameAnimations }),
+          snapshotRecording: true,
+          setSnapshotRecording: (snapshotRecording) => set({ snapshotRecording }),
 
           chooseOrderOnMultipleTriggers: true,
           setChooseOrderOnMultipleTriggers: (chooseOrderOnMultipleTriggers) =>

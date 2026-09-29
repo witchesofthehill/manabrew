@@ -1062,6 +1062,7 @@ impl GameViewDtoExt for GameViewDto {
             active_plane_names: (!active_plane_names.is_empty()).then_some(active_plane_names),
             checkpoints: Vec::new(),
             restore_vote: None,
+            snapshot_recording: false,
         }
     }
 

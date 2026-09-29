@@ -28,12 +28,8 @@ export interface ForgeDirectiveLane {
   flushScheduled: boolean;
 }
 
-export declare function createDirectiveLanes(buffers: SharedArrayBuffer[]): ForgeDirectiveLane[];
-export declare function writeDirectiveLane(
-  lanes: ForgeDirectiveLane[],
-  seatIndex: number,
-  directive: unknown,
-): void;
+export declare function createDirectiveLane(buffer: SharedArrayBuffer): ForgeDirectiveLane;
+export declare function writeDirectiveLane(lane: ForgeDirectiveLane, directive: unknown): void;
 export declare function noteSeatMessage(seat: ForgeSeat, message: unknown): void;
 export declare function pollSeat<T = unknown>(
   seat: ForgeSeat,

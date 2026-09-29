@@ -32,6 +32,7 @@ pub enum DirectiveInput {
     Concede,
     RequestRestore { checkpoint_id: u32 },
     RestoreVote { vote_id: u32, accept: bool },
+    SetSnapshotRecording { enabled: bool },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

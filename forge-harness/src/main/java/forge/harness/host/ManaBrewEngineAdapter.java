@@ -125,7 +125,7 @@ public final class ManaBrewEngineAdapter {
 
         final Match match = new Match(rules, registeredPlayers, "ManaBrew");
         final Game game = match.createGame();
-        session.attach(match, game, botSeats);
+        session.attach(match, game, botSeats, request.isSnapshotRecording());
         sessions.put(session.getSessionId(), session);
         session.start(rng);
 
@@ -367,6 +367,7 @@ public final class ManaBrewEngineAdapter {
         String variant = optionalString(root, "variant");
         int startingLife = root.has("startingLife") ? root.get("startingLife").getAsInt() : 20;
         long seed = root.has("seed") ? root.get("seed").getAsLong() : 42L;
+        boolean snapshotRecording = !root.has("snapshotRecording") || root.get("snapshotRecording").getAsBoolean();
         JsonArray playerValues = root.getAsJsonArray("players");
         if (playerValues == null) {
             throw new IllegalArgumentException("players is required");
@@ -410,7 +411,7 @@ public final class ManaBrewEngineAdapter {
                     && playerObject.get("bot").getAsBoolean();
             players.add(new PlayerConfig(name, deck, commanderNames, ai, bot));
         }
-        return new StartGameRequest(gameId, variant, startingLife, seed, players);
+        return new StartGameRequest(gameId, variant, startingLife, seed, snapshotRecording, players);
     }
 
     private static String requiredString(final JsonObject object, final String key) {
@@ -433,6 +434,7 @@ public final class ManaBrewEngineAdapter {
         private final String variant;
         private final int startingLife;
         private final long seed;
+        private final boolean snapshotRecording;
         private final List<PlayerConfig> players;
 
         public StartGameRequest(
@@ -440,6 +442,7 @@ public final class ManaBrewEngineAdapter {
                 final String variant,
                 final int startingLife,
                 final long seed,
+                final boolean snapshotRecording,
                 final List<PlayerConfig> players
         ) {
             if (gameId == null || gameId.isBlank()) {
@@ -452,7 +455,12 @@ public final class ManaBrewEngineAdapter {
             this.variant = variant;
             this.startingLife = startingLife;
             this.seed = seed;
+            this.snapshotRecording = snapshotRecording;
             this.players = List.copyOf(players);
+        }
+
+        public boolean isSnapshotRecording() {
+            return snapshotRecording;
         }
 
         public String getGameId() {

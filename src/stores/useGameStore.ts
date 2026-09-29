@@ -739,6 +739,17 @@ export const useGameStore = create<GameState>()(
           directive: { type: "requestRestore", checkpointId },
         });
       },
+      setSnapshotRecording: async (enabled) => {
+        usePreferencesStore.getState().setSnapshotRecording(enabled);
+        try {
+          await getSelectedGameRuntime().api.sendHostDirective({
+            type: "setSnapshotRecording",
+            enabled,
+          });
+        } catch (error) {
+          toast.error(error instanceof Error ? error.message : String(error));
+        }
+      },
       voteRestore: async (voteId, accept) => {
         const { myPlayerSlot } = get();
         if (!myPlayerSlot) throw new Error("No local player is available to vote.");

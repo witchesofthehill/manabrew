@@ -80,7 +80,7 @@ import forgeWorkerUrl from "@forge-wasm/forge-engine.worker.js?url";
 // The seat protocol lives with @manabrew/forge-wasm, which drives the same
 // worker, so there is one implementation rather than one per consumer.
 import {
-  createDirectiveLanes,
+  createDirectiveLane,
   createSeat,
   deliverSeatDirective,
   noteSeatMessage,
@@ -252,7 +252,11 @@ class WorkerBridge {
   private localBotWorkers = new Map<string, Worker>();
   // Only the Forge worker has directive lanes; the Rust worker still takes a
   // directive through the seat buffer.
-  private directiveLanes: { lanes: ForgeDirectiveLane[]; localSeat: number } | null = null;
+  private directiveLanes: {
+    lanes: ForgeDirectiveLane[];
+    host: ForgeDirectiveLane;
+    localSeat: number;
+  } | null = null;
 
   get gameBuffer(): SharedArrayBuffer | null {
     return this.localSeat?.buffer ?? null;
@@ -311,11 +315,12 @@ class WorkerBridge {
       );
     });
 
-    eventBus.on<{ buffers: SharedArrayBuffer[]; localSeat: number }>(
+    eventBus.on<{ buffers: SharedArrayBuffer[]; hostBuffer: SharedArrayBuffer; localSeat: number }>(
       "game:directive_lanes",
       (payload) => {
         this.directiveLanes = {
-          lanes: createDirectiveLanes(payload.buffers),
+          lanes: payload.buffers.map(createDirectiveLane),
+          host: createDirectiveLane(payload.hostBuffer),
           localSeat: payload.localSeat,
         };
       },
@@ -486,10 +491,15 @@ class WorkerBridge {
     directive: DirectiveInput,
   ): void {
     if (this.directiveLanes && seatIndex !== undefined) {
-      writeDirectiveLane(this.directiveLanes.lanes, seatIndex, directive);
+      writeDirectiveLane(this.directiveLanes.lanes[seatIndex]!, directive);
     } else {
       deliverSeatDirective(seat, directive);
     }
+  }
+
+  deliverHostDirective(directive: DirectiveInput): void {
+    if (!this.directiveLanes) throw new Error("This tab does not host the engine.");
+    writeDirectiveLane(this.directiveLanes.host, directive);
   }
 
   hasRemoteSeat(playerSlot: string): boolean {
@@ -746,6 +756,7 @@ class WebGameApi implements IGameApi {
       opponentDecks: params.opponentDecks,
       engine: params.engine,
       forgeAi: params.aiController === "forge",
+      snapshotRecording: usePreferencesStore.getState().snapshotRecording,
     });
   }
 
@@ -768,6 +779,7 @@ class WebGameApi implements IGameApi {
         playerNames: params.playerNames,
         enginePlayerIndex: params.enginePlayerIndex,
         botSeats: (params.botPlayerSlots ?? []).map(seatIndexOf),
+        snapshotRecording: usePreferencesStore.getState().snapshotRecording,
         startingLife: params.startingLife,
         engine: params.engine,
       });
@@ -818,6 +830,10 @@ class WebGameApi implements IGameApi {
       // Host or single-player conceding the local seat.
       this.bridge.deliverLocalDirective(params.directive);
     }
+  }
+
+  async sendHostDirective(directive: DirectiveInput): Promise<void> {
+    this.bridge.deliverHostDirective(directive);
   }
 
   async endGame(): Promise<void> {

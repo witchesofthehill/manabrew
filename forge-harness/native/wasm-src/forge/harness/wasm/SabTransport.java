@@ -92,9 +92,15 @@ public final class SabTransport implements InteractiveBridge {
     static native int seatCount();
 
     @JS.Coerce
-    @JS("globalThis.__mbLanes = (globalThis.__forgeDirectiveLanes || []).map((lane) => ({"
+    @JS("const seats = globalThis.__forgeDirectiveLanes || [];"
+        + "const host = globalThis.__forgeHostLane;"
+        + "globalThis.__mbLanes = (host ? [...seats, host] : seats).map((lane) => ({"
         + "  sig: new Int32Array(lane, 0, 2), data: new Uint8Array(lane, 8) }));")
     static native void bindDirectiveLanes();
+
+    @JS.Coerce
+    @JS("return globalThis.__forgeHostLane ? globalThis.__mbLanes.length - 1 : -1;")
+    static native int hostDirectiveLane();
 
     @JS.Coerce
     @JS("return globalThis.__mbLanes.findIndex((lane) => Atomics.load(lane.sig, 0) === 1);")
@@ -189,7 +195,7 @@ public final class SabTransport implements InteractiveBridge {
             if (lane >= 0) {
                 final JsonObject message = new JsonObject();
                 message.add("directive", JsonParser.parseString(takeDirective(lane)));
-                return decodeMessage(lane, message);
+                return decodeMessage(lane == hostDirectiveLane() ? HOST_SEAT : lane, message);
             }
         }
         openPrompt = null;

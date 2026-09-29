@@ -105,12 +105,14 @@ public final class InteractiveSnapshotExtractor {
             final int viewer,
             final SecretChoiceVisibility secretChoiceVisibility,
             final List<Map<String, Object>> checkpoints,
-            final Map<String, Object> restoreVote
+            final Map<String, Object> restoreVote,
+            final boolean snapshotRecording
     ) {
         ParityCardMap.beginSnapshot(game);
         try {
             return GSON.toJson(buildGameView(
-                    game, castingAbility, gameId, viewer, secretChoiceVisibility, checkpoints, restoreVote));
+                    game, castingAbility, gameId, viewer, secretChoiceVisibility, checkpoints, restoreVote,
+                    snapshotRecording));
         } finally {
             ParityCardMap.endSnapshot();
         }
@@ -123,7 +125,8 @@ public final class InteractiveSnapshotExtractor {
             final int viewer,
             final SecretChoiceVisibility secretChoiceVisibility,
             final List<Map<String, Object>> checkpoints,
-            final Map<String, Object> restoreVote
+            final Map<String, Object> restoreVote,
+            final boolean snapshotRecording
     ) {
         final Map<String, Object> base = SnapshotExtractor.extractSnapshot(game);
 
@@ -216,6 +219,7 @@ public final class InteractiveSnapshotExtractor {
         view.put("gameOver", base.get("game_over"));
         view.put("dayTime", dayTime(game));
         view.put("checkpoints", checkpoints);
+        view.put("snapshotRecording", snapshotRecording);
         if (restoreVote != null) {
             view.put("restoreVote", restoreVote);
         }

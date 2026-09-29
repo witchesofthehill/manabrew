@@ -81,6 +81,7 @@ public final class ManaBrewInteractiveSession {
     private int restoreVoteCount;
     private volatile Map<String, Object> restoreVoteView;
     private volatile long stateRevision;
+    private volatile boolean snapshotRecording;
     private boolean priorityPromptOpen;
     private Set<Integer> botSeats = Set.of();
 
@@ -130,10 +131,11 @@ public final class ManaBrewInteractiveSession {
         this.sessionId = Objects.requireNonNull(sessionId, "sessionId");
     }
 
-    void attach(final Match match, final Game game, final Set<Integer> botSeats) {
+    void attach(final Match match, final Game game, final Set<Integer> botSeats, final boolean snapshotRecording) {
         this.match = Objects.requireNonNull(match, "match");
         this.game = Objects.requireNonNull(game, "game");
         this.botSeats = Set.copyOf(botSeats);
+        this.snapshotRecording = snapshotRecording;
         game.subscribeToEvents(new Object() {
             @Subscribe
             public void onPriority(final GameEventPlayerPriority event) {
@@ -222,7 +224,7 @@ public final class ManaBrewInteractiveSession {
         requireAttached();
         return InteractiveSnapshotExtractor.snapshotJson(
                 game, castingAbility, sessionId, viewer, secretChoiceVisibility, checkpointViews,
-                restoreVoteView);
+                restoreVoteView, snapshotRecording);
     }
 
     void rememberSecretNumberViewer(final String sourceCardId, final Player viewer) {
@@ -1964,9 +1966,13 @@ public final class ManaBrewInteractiveSession {
                 if (priorityPromptOpen && restoreApproved()) {
                     return action;
                 }
-                stateRevision++;
-                if (bridge != null) {
-                    bridge.publishState();
+                announceState();
+                continue;
+            }
+            if ("set_snapshot_recording".equals(kind)) {
+                if (action.get("player").getAsInt() == InteractiveBridge.HOST_SEAT) {
+                    setSnapshotRecording(action.get("enabled").getAsBoolean());
+                    announceState();
                 }
                 continue;
             }
@@ -2019,6 +2025,21 @@ public final class ManaBrewInteractiveSession {
         return true;
     }
 
+    private void announceState() {
+        stateRevision++;
+        if (bridge != null) {
+            bridge.publishState();
+        }
+    }
+
+    private void setSnapshotRecording(final boolean enabled) {
+        snapshotRecording = enabled;
+        if (!enabled) {
+            checkpoints.clear();
+            publishCheckpointViews();
+        }
+    }
+
     private static boolean isRestoreDirective(final JsonObject action) {
         final String kind = action.has("kind") ? action.get("kind").getAsString() : "";
         return "request_restore".equals(kind) || "restore_vote".equals(kind);
@@ -2039,7 +2060,7 @@ public final class ManaBrewInteractiveSession {
         }
         checkpointTurn = handler.getTurn();
         checkpointPhase = handler.getPhase();
-        if (!game.getStack().isEmpty() || game.getStack().hasSimultaneousStackEntries()) {
+        if (!snapshotRecording || !game.getStack().isEmpty() || game.getStack().hasSimultaneousStackEntries()) {
             return;
         }
         final GameSnapshot snapshot = new GameSnapshot(game);

@@ -226,6 +226,10 @@ export class IronsmithTrustedGameApi implements IGameApi {
     await this.applyResponse(playerSlot, params.promptId, action);
   }
 
+  async sendHostDirective(_directive: DirectiveInput): Promise<void> {
+    throw new Error("The Ironsmith runtime takes no host directives.");
+  }
+
   async sendDirective(params: SendDirectiveParams): Promise<void> {
     const playerSlot = params.playerSlot ?? this.localPlayerSlot ?? "player-0";
     if (this.isMultiplayer && !this.isHost) {

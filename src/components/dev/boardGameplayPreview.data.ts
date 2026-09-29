@@ -88,5 +88,6 @@ export function playgroundGameView(table: PlaygroundTable, zones: ZoneDto[]): Cl
     dayTime: "neither",
     checkpoints: [],
     restoreVote: null,
+    snapshotRecording: false,
   };
 }

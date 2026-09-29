@@ -131,4 +131,5 @@ export interface GameState {
   ) => void;
   requestRestore: (checkpointId: number) => Promise<void>;
   voteRestore: (voteId: number, accept: boolean) => Promise<void>;
+  setSnapshotRecording: (enabled: boolean) => Promise<void>;
 }

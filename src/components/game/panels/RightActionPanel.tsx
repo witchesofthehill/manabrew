@@ -19,6 +19,9 @@ export function RightActionPanel({
   checkpoints,
   canRequestRestore,
   onRequestRestore,
+  snapshotRecording,
+  hostsEngine,
+  onSnapshotRecordingChange,
   onLeftEdgeChange,
 }: RightActionPanelProps) {
   const visibleLog = gameLog.filter((entry) => entry.entryType !== "rule");
@@ -124,6 +127,9 @@ export function RightActionPanel({
             canRequestRestore={canRequestRestore}
             onRequestRestore={onRequestRestore}
             resolvePlayerName={resolvePlayerName}
+            snapshotRecording={snapshotRecording}
+            hostsEngine={hostsEngine}
+            onSnapshotRecordingChange={onSnapshotRecordingChange}
           />
         ) : (
           <GameDevPanel />

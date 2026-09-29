@@ -1,3 +1,4 @@
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import type { CheckpointDto } from "@/protocol/game";
 import { stepLabel } from "../game.utils";
@@ -6,6 +7,9 @@ interface CheckpointsPanelProps {
   canRequestRestore: boolean;
   onRequestRestore: (checkpoint: CheckpointDto) => void;
   resolvePlayerName: (playerId: string) => string;
+  snapshotRecording: boolean;
+  hostsEngine: boolean;
+  onSnapshotRecordingChange: (enabled: boolean) => void;
 }
 function groupByTurn(checkpoints: CheckpointDto[]): [number, CheckpointDto[]][] {
   const turns = new Map<number, CheckpointDto[]>();
@@ -19,12 +23,30 @@ export function CheckpointsPanel({
   canRequestRestore,
   onRequestRestore,
   resolvePlayerName,
+  snapshotRecording,
+  hostsEngine,
+  onSnapshotRecordingChange,
 }: CheckpointsPanelProps) {
   return (
     <div className="rounded-lg p-2.5 min-h-0 flex-1 flex flex-col bg-muted/20">
       <p className="text-xs font-semibold text-muted-foreground mb-2">Snapshots</p>
+      <label className="flex items-center gap-2 text-xs mb-1">
+        <Checkbox
+          checked={snapshotRecording}
+          disabled={!hostsEngine}
+          onCheckedChange={(checked) => onSnapshotRecordingChange(checked === true)}
+        />
+        Take snapshots
+      </label>
+      {!hostsEngine && (
+        <p className="text-[10px] text-muted-foreground mb-2">
+          Only the engine host can change this.
+        </p>
+      )}
       {checkpoints.length === 0 ? (
-        <p className="text-xs text-muted-foreground italic">No snapshots yet.</p>
+        <p className="text-xs text-muted-foreground italic mt-1">
+          {snapshotRecording ? `No snapshots yet.` : `Snapshots are off.`}
+        </p>
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto pr-1 flex flex-col gap-2">
           {groupByTurn(checkpoints).map(([turn, steps]) => (

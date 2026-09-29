@@ -368,8 +368,8 @@
       "refs": ["DiceRollEntry", "PromptPresentation"]
     },
     "DirectiveInput": {
-      "ts": "type DirectiveInput =\n  | { type: \"concede\" }\n  | { type: \"requestRestore\"; checkpointId: number }\n  | { type: \"restoreVote\"; voteId: number; accept: boolean };",
-      "rust": "#[serde(\n    tag = \"type\",\n    rename_all = \"camelCase\",\n    rename_all_fields = \"camelCase\"\n)]\npub enum DirectiveInput {\n    Concede,\n    RequestRestore { checkpoint_id: u32 },\n    RestoreVote { vote_id: u32, accept: bool },\n}",
+      "ts": "type DirectiveInput =\n  | { type: \"concede\" }\n  | { type: \"requestRestore\"; checkpointId: number }\n  | { type: \"restoreVote\"; voteId: number; accept: boolean }\n  | { type: \"setSnapshotRecording\"; enabled: boolean };",
+      "rust": "#[serde(\n    tag = \"type\",\n    rename_all = \"camelCase\",\n    rename_all_fields = \"camelCase\"\n)]\npub enum DirectiveInput {\n    Concede,\n    RequestRestore { checkpoint_id: u32 },\n    RestoreVote { vote_id: u32, accept: bool },\n    SetSnapshotRecording { enabled: bool },\n}",
       "refs": []
     },
     "DungeonStateDto": {
@@ -393,8 +393,8 @@
       "refs": []
     },
     "GameViewDto": {
-      "ts": "interface GameViewDto {\n  gameId: string;\n  turn: number;\n  step: StepKind;\n  combatAssignments: Array<CombatAssignmentDto>;\n  activePlayerId: string;\n  priorityPlayerId: string;\n  players: Array<PlayerDto>;\n  zones: Array<ZoneDto>;\n  stack: Array<StackObjectDto>;\n  gameOver: boolean;\n  winnerId: string | null;\n  monarchId: string | null;\n  initiativeHolderId: string | null;\n  dayTime: DayTime;\n  activePlaneNames?: Array<string>;\n  checkpoints: Array<CheckpointDto>;\n  restoreVote: RestoreVoteDto | null;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct GameViewDto {\n    pub game_id: String,\n    pub turn: u32,\n    pub step: StepKind,\n    pub combat_assignments: Vec<CombatAssignmentDto>,\n    pub active_player_id: String,\n    pub priority_player_id: String,\n    pub players: Vec<PlayerDto>,\n    pub zones: Vec<ZoneDto>,\n    pub stack: Vec<StackObjectDto>,\n    pub game_over: bool,\n    pub winner_id: Option<String>,\n    pub monarch_id: Option<String>,\n    pub initiative_holder_id: Option<String>,\n    pub day_time: DayTime,\n    pub active_plane_names: Option<Vec<String>>,\n    #[serde(default)]\n    pub checkpoints: Vec<CheckpointDto>,\n    #[serde(default)]\n    pub restore_vote: Option<RestoreVoteDto>,\n}",
+      "ts": "interface GameViewDto {\n  gameId: string;\n  turn: number;\n  step: StepKind;\n  combatAssignments: Array<CombatAssignmentDto>;\n  activePlayerId: string;\n  priorityPlayerId: string;\n  players: Array<PlayerDto>;\n  zones: Array<ZoneDto>;\n  stack: Array<StackObjectDto>;\n  gameOver: boolean;\n  winnerId: string | null;\n  monarchId: string | null;\n  initiativeHolderId: string | null;\n  dayTime: DayTime;\n  activePlaneNames?: Array<string>;\n  checkpoints: Array<CheckpointDto>;\n  restoreVote: RestoreVoteDto | null;\n  snapshotRecording: boolean;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct GameViewDto {\n    pub game_id: String,\n    pub turn: u32,\n    pub step: StepKind,\n    pub combat_assignments: Vec<CombatAssignmentDto>,\n    pub active_player_id: String,\n    pub priority_player_id: String,\n    pub players: Vec<PlayerDto>,\n    pub zones: Vec<ZoneDto>,\n    pub stack: Vec<StackObjectDto>,\n    pub game_over: bool,\n    pub winner_id: Option<String>,\n    pub monarch_id: Option<String>,\n    pub initiative_holder_id: Option<String>,\n    pub day_time: DayTime,\n    pub active_plane_names: Option<Vec<String>>,\n    #[serde(default)]\n    pub checkpoints: Vec<CheckpointDto>,\n    #[serde(default)]\n    pub restore_vote: Option<RestoreVoteDto>,\n    #[serde(default)]\n    pub snapshot_recording: bool,\n}",
       "refs": [
         "CheckpointDto",
         "CombatAssignmentDto",

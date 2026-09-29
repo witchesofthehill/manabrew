@@ -1,5 +1,28 @@
 # Changelog
 
+## [3.51.2](https://github.com/witchesofthehill/manabrew/compare/v3.51.1...v3.51.2) (2026-09-29)
+
+### Other
+
+* Update index.mdx ([d8b0e10](https://github.com/witchesofthehill/manabrew/commit/d8b0e1047f19d9063af44664cf61fbf5c3f01978))
+* Update index.mdx ([c5aefbe](https://github.com/witchesofthehill/manabrew/commit/c5aefbef0d48c8f9ca34ec44bf7ae46c9e374914))
+
+## [3.51.1](https://github.com/witchesofthehill/manabrew/compare/v3.51.0...v3.51.1) (2026-09-29)
+
+### Other
+
+* Update index.mdx ([abbd837](https://github.com/witchesofthehill/manabrew/commit/abbd837a8314feecd1f3e17c2764f64ec5edebc0))
+
+## [3.51.0](https://github.com/witchesofthehill/manabrew/compare/v3.50.2...v3.51.0) (2026-09-28)
+
+### Features
+
+* **forge-wasm:** report the engine gate and retry timed-out trials ([#989](https://github.com/witchesofthehill/manabrew/issues/989)) ([8f1d454](https://github.com/witchesofthehill/manabrew/commit/8f1d4547f5bc7c10d862f0fe6083fbec66c23c03))
+
+### Fixes
+
+* protect hub deploys and correct engine health reporting ([#988](https://github.com/witchesofthehill/manabrew/issues/988)) ([d48d4eb](https://github.com/witchesofthehill/manabrew/commit/d48d4eba55635b5e4b3c65eb3bd03ae7b9ae7c25))
+
 ## [3.50.2](https://github.com/witchesofthehill/manabrew/compare/v3.50.1...v3.50.2) (2026-09-27)
 
 ### Fixes

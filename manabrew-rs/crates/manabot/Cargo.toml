@@ -1,6 +1,6 @@
 [package]
 name = "manabot"
-version = "0.14.3"
+version = "0.15.0"
 edition = "2021"
 license.workspace = true
 description = "AI bot player for the manabrew engine"
@@ -10,10 +10,10 @@ default = ["native"]
 native = ["dep:tokio", "dep:tokio-tungstenite", "dep:futures-util"]
 
 [dependencies]
-manabrew-agent-interface = { path = "../manabrew-agent-interface", version = "0.13.4" }
+manabrew-agent-interface = { path = "../manabrew-agent-interface", version = "0.13.5" }
 manabrew-engine = { path = "../manabrew-engine", version = "0.10.1" }
 manabrew-protocol = { path = "../manabrew-protocol", version = "5.11.2" }
-manabrew-relay-protocol = { path = "../manabrew-relay-protocol", version = "5.14.3" }
+manabrew-relay-protocol = { path = "../manabrew-relay-protocol", version = "5.15.0" }
 bitflags = "2"
 serde = { workspace = true }
 serde_json = { workspace = true }

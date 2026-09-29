@@ -1,12 +1,13 @@
 //! What the client on the far end of a session can be trusted to understand.
 //!
-//! The relay learns two things at `Authenticate` time: the platform the client
-//! runs on, and the app version it was built from. Platform is for analytics.
+//! The relay learns three things at `Authenticate` time: the platform the
+//! client runs on, the app version it was built from, and whether it is
+//! running the engine itself. Platform and engine gate are for analytics.
 //! Version is load-bearing: it decides which wire features the relay may use
 //! against that seat, because installed desktop builds lag the server by
 //! however long it takes the player to relaunch the app.
 
-use crate::protocol::ClientPlatform;
+use crate::protocol::{ClientPlatform, EngineGate};
 
 /// Cap on the version string a client may report. Anything can open a socket
 /// and send anything, and this string reaches the analytics log.
@@ -37,12 +38,17 @@ impl Version {
 #[derive(Debug, Clone, Default)]
 pub struct ClientBuild {
     pub platform: ClientPlatform,
+    pub engine_gate: EngineGate,
     version: Option<Version>,
     raw_version: Option<String>,
 }
 
 impl ClientBuild {
-    pub fn new(platform: ClientPlatform, raw_version: Option<String>) -> Self {
+    pub fn new(
+        platform: ClientPlatform,
+        raw_version: Option<String>,
+        engine_gate: EngineGate,
+    ) -> Self {
         let raw_version = raw_version.map(|raw| {
             if raw.chars().count() > MAX_VERSION_CHARS {
                 raw.chars().take(MAX_VERSION_CHARS).collect()
@@ -52,6 +58,7 @@ impl ClientBuild {
         });
         Self {
             platform,
+            engine_gate,
             version: raw_version.as_deref().and_then(Version::parse),
             raw_version,
         }
@@ -76,7 +83,11 @@ mod tests {
     use super::*;
 
     fn build(version: &str) -> ClientBuild {
-        ClientBuild::new(ClientPlatform::Desktop, Some(version.to_string()))
+        ClientBuild::new(
+            ClientPlatform::Desktop,
+            Some(version.to_string()),
+            EngineGate::Unknown,
+        )
     }
 
     #[test]
@@ -113,12 +124,19 @@ mod tests {
     fn unknown_clients_get_full_states() {
         assert!(!ClientBuild::default().applies_state_patches());
         assert!(!build("who knows").applies_state_patches());
-        assert!(!ClientBuild::new(ClientPlatform::Web, None).applies_state_patches());
+        assert!(
+            !ClientBuild::new(ClientPlatform::Web, None, EngineGate::Unknown)
+                .applies_state_patches()
+        );
     }
 
     #[test]
     fn caps_the_reported_string() {
-        let build = ClientBuild::new(ClientPlatform::Web, Some("9".repeat(500)));
+        let build = ClientBuild::new(
+            ClientPlatform::Web,
+            Some("9".repeat(500)),
+            EngineGate::Unknown,
+        );
         assert_eq!(build.version().map(str::len), Some(MAX_VERSION_CHARS));
         assert!(!build.applies_state_patches());
     }

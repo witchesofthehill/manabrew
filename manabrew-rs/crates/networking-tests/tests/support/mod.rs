@@ -22,8 +22,8 @@ use manabot::{BotAgent, SimpleAi};
 use manabrew_agent_interface::ids_codec::player_slot;
 use manabrew_agent_interface::prompt::AgentPrompt;
 use manabrew_agent_interface::protocol::{
-    ClientMessage, ClientPlatform, EngineKind, GameFormat, IdentityProof, PlayerInfo, RoomInfo,
-    RoomStatus, ServerMessage, StateEnvelope, TransportEndpoint, PROTOCOL_VERSION,
+    ClientMessage, ClientPlatform, EngineGate, EngineKind, GameFormat, IdentityProof, PlayerInfo,
+    RoomInfo, RoomStatus, ServerMessage, StateEnvelope, TransportEndpoint, PROTOCOL_VERSION,
 };
 use serde_json::{json, Value};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -379,6 +379,7 @@ impl Client {
                 identity,
                 client_platform: ClientPlatform::Unknown,
                 client_version: version.map(str::to_string),
+                engine_gate: EngineGate::Unknown,
             },
         )
         .await?;

@@ -234,6 +234,10 @@ def open_db(path: Path) -> sqlite3.Connection:
     # when none did. Compare with player_count for the room's shape.
     ensure_column(db, "games", "direct_seats", "INTEGER")
     db.execute("UPDATE games SET source = 'relay' WHERE source IS NULL")
+    db.execute(
+        "UPDATE games SET game_over = 0 "
+        "WHERE end_reason IN ('engine_error', 'engine_fatal') AND game_over != 0"
+    )
     ensure_column(db, "events", "event_id", "TEXT")
     db.execute("CREATE INDEX IF NOT EXISTS idx_events_event_id ON events(event_id)")
     backfill_event_ids(db)
@@ -326,7 +330,10 @@ def ingest_game_ended(db, ev):
             ev.get("ts"),
             ev.get("duration_s"),
             ev.get("reason"),
-            int(bool(ev.get("game_over"))),
+            int(
+                bool(ev.get("game_over"))
+                and ev.get("reason") not in ("engine_error", "engine_fatal")
+            ),
             ev.get("winner"),
             None if reported is None else int(bool(reported)),
             ev.get("turns"),
@@ -610,7 +617,7 @@ def sync_offline_games(db, hub) -> int:
                     starting_life,
                     seat_count,
                     end_reason,
-                    game_over,
+                    int(bool(game_over) and end_reason not in ("engine_error", "engine_fatal")),
                     winner,
                     reported_at,
                 ),

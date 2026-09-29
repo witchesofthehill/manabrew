@@ -24,7 +24,8 @@ use manabot::{BotAgent, SimpleAi};
 use manabrew_agent_interface::ids_codec::player_slot;
 use manabrew_agent_interface::prompt::AgentPrompt;
 use manabrew_agent_interface::protocol::{
-    ClientMessage, ClientPlatform, GameFormat, RoomInfo, RoomStatus, ServerMessage, StateEnvelope,
+    ClientMessage, ClientPlatform, EngineGate, GameFormat, RoomInfo, RoomStatus, ServerMessage,
+    StateEnvelope,
 };
 use serde_json::{json, Value};
 use tokio::net::TcpStream;
@@ -628,6 +629,7 @@ async fn authenticate(
             identity: None,
             client_platform: ClientPlatform::Web,
             client_version: Some(var("CLIENT_VERSION", "3.17.3")),
+            engine_gate: EngineGate::Unknown,
         },
     )
     .await?;

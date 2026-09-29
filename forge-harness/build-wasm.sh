@@ -70,6 +70,7 @@ echo "    embedding assets: $(du -k resources/assets-framed.txt | cut -f1) KiB"
 "$NATIVE_IMAGE" \
   --tool:svm-wasm \
   -H:WasmComments=NONE \
+  -H:+DebugNames \
   -H:Name=forgeharness \
   -cp "$CP" \
   -H:IncludeResourceBundles=en-US \

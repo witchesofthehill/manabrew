@@ -696,9 +696,9 @@ public final class ManaBrewInteractiveSession {
                 payingFor != null ? InteractiveSnapshotExtractor.normalizeCardName(payingFor.getName()) : "";
         publishAgentPrompt("player-" + playerId, payCardId.isEmpty() ? null : payCardId, new PayManaCostInput(
                 presentation(payCardName, null),
-                payCardId, payCardName,
+                payCardId.isEmpty() ? null : payCardId, payingFor == null ? null : payCardName,
                 remainingCost != null ? remainingCost : "",
-                canConfirm, actionList));
+                canConfirm, true, actionList));
     }
 
     List<String> awaitManaCombo(
@@ -2235,7 +2235,7 @@ public final class ManaBrewInteractiveSession {
         final String title = description != null && !description.trim().isEmpty()
                 ? description : "Choose a number";
         publishAgentPrompt("player-" + playerId, sourceCardId,
-                new ChooseNumberInput(presentation(title, null), min, max));
+                new ChooseNumberInput(presentation(title, null), min, max, canCancel));
     }
 
     private void publishReorderZonePrompt(

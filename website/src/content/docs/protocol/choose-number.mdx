@@ -43,7 +43,8 @@ type ChooseNumberOutput = { type: "numberDecision"; chosenNumber: number | null 
 ```
 
 `chosenNumber` is `null` only if the choice is cancelled where cancelling is
-legal; otherwise return the chosen integer in `[min, max]`.
+`cancellable` is true; otherwise return the chosen integer in `[min, max]`.
+The field defaults to true when omitted by a legacy producer.
 
 ## Example
 
@@ -60,7 +61,8 @@ legal; otherwise return the chosen integer in `[min, max]`.
       "targets": []
     },
     "min": 0,
-    "max": 5
+    "max": 5,
+    "cancellable": true
   }
 }
 ```

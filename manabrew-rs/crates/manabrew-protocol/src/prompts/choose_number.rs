@@ -10,6 +10,12 @@ pub struct ChooseNumberInput {
     pub presentation: PromptPresentation,
     pub min: i32,
     pub max: i32,
+    #[serde(default = "cancellable_default")]
+    pub cancellable: bool,
+}
+
+fn cancellable_default() -> bool {
+    true
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

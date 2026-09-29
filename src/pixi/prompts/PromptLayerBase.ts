@@ -34,7 +34,7 @@ import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { type PromptActionViewKey } from "@/stores/useGameDevStore";
 import { resolveCombo, useKeybindingsStore } from "@/stores/useKeybindingsStore";
 import { comboFromEvent, combosMatch, formatCombo } from "@/lib/keybindings";
-import type { CardDto } from "@/protocol";
+import type { CardDto, PromptInput } from "@/protocol";
 import { PromptButton, type PromptButtonOptions } from "./PromptButton";
 import { PromptGlow } from "./PromptGlow";
 import { LongPressGesture } from "@/pixi/LongPressGesture";
@@ -51,6 +51,7 @@ import { type RollTokenVisual } from "./dice/DiceGeometry";
 import { type RollTrajectory } from "./dice/DiceAnimation";
 
 export const MODAL_TYPES = new Set([
+  "chooseObject",
   "chooseBoolean",
   "chooseFromSelection",
   "revealCards",
@@ -63,6 +64,15 @@ export const MODAL_TYPES = new Set([
   "reorder",
   "diceRolled",
 ]);
+export function usesPromptModal(input: PromptInput): boolean {
+  return (
+    MODAL_TYPES.has(input.type) ||
+    (input.type === "payManaCost" && input.autoPayAvailable === false) ||
+    (input.type === "chooseAction" &&
+      input.actions.some((action) => action.type === "unclassified"))
+  );
+}
+
 const FONT = "Inter, system-ui, sans-serif";
 export const PANEL_PADDING = 8;
 export const ROW_GAP = 10;
@@ -360,6 +370,7 @@ function samePayManaInfo(
     left.description === right.description &&
     sameRecord(left.manaPool, right.manaPool) &&
     left.canConfirmFromPool === right.canConfirmFromPool &&
+    left.autoPayAvailable === right.autoPayAvailable &&
     left.delveCount === right.delveCount &&
     left.delveAvailable === right.delveAvailable &&
     !!left.onOpenDelve === !!right.onOpenDelve &&

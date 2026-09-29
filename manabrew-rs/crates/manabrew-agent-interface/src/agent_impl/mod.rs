@@ -170,6 +170,19 @@ impl<R: Responder> PromptAgent<R> {
                     }
                     match prompt.input.validate_response(&action) {
                         Ok(()) => return action,
+                        Err(
+                            error @ (ResponseViolation::NumberOutOfRange
+                            | ResponseViolation::InvalidSelection
+                            | ResponseViolation::PaymentNotAvailable
+                            | ResponseViolation::FinishNotAllowed
+                            | ResponseViolation::UnknownObjectId(_)),
+                        ) => {
+                            self.reject(
+                                &prompt,
+                                ProtocolErrorCode::InvalidShape,
+                                format!("{error:?}"),
+                            );
+                        }
                         Err(ResponseViolation::WrongPromptType) => {
                             self.reject(
                                 &prompt,
@@ -232,8 +245,10 @@ impl<R: Responder> PromptAgent<R> {
 
     pub(crate) fn emit_state(&mut self) {
         let game_view = self.view();
-        self.responder
-            .present(&AgentMessage::State(StateUpdate { game_view }));
+        self.responder.present(&AgentMessage::State(StateUpdate {
+            game_view,
+            unavailable_fields: None,
+        }));
     }
 
     pub(crate) fn emit_display(&mut self, event: DisplayEvent) {
@@ -703,7 +718,7 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                 self.pass_until = until.and_then(|u| {
                     Some(manabrew_engine::agent::PassUntilTarget {
                         player: crate::ids_codec::parse_player_id(&u.player_id)?,
-                        phase: crate::game_view_dto::step_to_phase(u.phase),
+                        phase: crate::game_view_dto::step_to_phase(u.phase)?,
                         through_combat: u.through_combat,
                     })
                 });

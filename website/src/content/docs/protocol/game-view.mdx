@@ -5,10 +5,19 @@ description: The game-state snapshot the engine sends in every StateUpdate.
 
 import ProtocolType from "../../../components/ProtocolType.astro";
 
-A [`StateUpdate`](/protocol/#message-families) carries one field, `gameView` - a complete
+A [`StateUpdate`](/protocol/#message-families) carries `gameView` - a
 `GameViewDto` snapshot of the game. It is the **only** carrier of authoritative
 game state: the client throws away its previous view and re-renders the board
 from each one.
+
+Optional `unavailableFields` identifies paths the producer cannot project, such
+as `gameView.zones.command` or `gameView.players.*.commanderDamage`. `*` covers
+each element. Values at those paths are placeholders, not assertions that a
+mechanic is absent. This is coverage metadata; consumers must explicitly honor
+it when making decisions. Omission preserves the existing producer contract.
+The current client store does not enforce this metadata.
+
+The `pregame` step represents snapshots before a turn phase exists.
 
 ## GameViewDto
 

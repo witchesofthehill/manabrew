@@ -924,6 +924,7 @@ pub(super) fn choose_number<T: Responder>(
                 },
                 min,
                 max,
+                cancellable: true,
             },
         ),
         source,

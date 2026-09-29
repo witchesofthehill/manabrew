@@ -43,7 +43,7 @@ import type { PromptLayerCallbacks, PromptOverlaySpec } from "./prompt.types";
 import {
   type ActionViewLayout,
   FILTER_CARET_PERIOD_MS,
-  MODAL_TYPES,
+  usesPromptModal,
   type WaitingHourglassVisual,
   actionTitle,
   actionViewKey,
@@ -154,7 +154,7 @@ export class PromptLayer extends PromptModalLayer {
     const presentationChanged = promptChanged || !samePromptPresentation(previousSpec, spec);
     if (promptChanged) {
       this.resetLocalState(spec);
-      if (spec?.currentPrompt && MODAL_TYPES.has(spec.currentPrompt.input.type)) {
+      if (spec?.currentPrompt && usesPromptModal(spec.currentPrompt.input)) {
         spec.onShowModal();
       }
     }
@@ -305,7 +305,7 @@ export class PromptLayer extends PromptModalLayer {
     const input = this.spec.currentPrompt?.input;
     if (
       input &&
-      MODAL_TYPES.has(input.type) &&
+      usesPromptModal(input) &&
       !this.spec.modalHidden &&
       !this.spec.action.isWaitingForResponse
     ) {
@@ -1331,17 +1331,20 @@ export class PromptLayer extends PromptModalLayer {
     const action = this.spec!.action;
     const info = action.payManaCostInfo;
     const container = new Container();
-    const buttons = [
-      this.makeActionButton(
-        info?.canConfirmFromPool ? "Confirm" : "Auto",
-        info?.canConfirmFromPool ? "lucide-check" : "lucide-wand-sparkles",
-        info?.canConfirmFromPool ? action.onPayManaCost : action.onAutoManaCost,
-        "priority",
-        disabled,
-        minimal,
-        touch,
-      ),
-    ];
+    const buttons =
+      info?.canConfirmFromPool || info?.autoPayAvailable !== false
+        ? [
+            this.makeActionButton(
+              info?.canConfirmFromPool ? "Confirm" : "Auto",
+              info?.canConfirmFromPool ? "lucide-check" : "lucide-wand-sparkles",
+              info?.canConfirmFromPool ? action.onPayManaCost : action.onAutoManaCost,
+              "priority",
+              disabled,
+              minimal,
+              touch,
+            ),
+          ]
+        : [];
     if (info?.delveAvailable && info.onOpenDelve) {
       buttons.push(
         this.makeActionButton(

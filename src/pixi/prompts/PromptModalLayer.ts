@@ -23,6 +23,7 @@ import {
 import { centeredCardRowOffset } from "@/components/game/game.utils";
 import type {
   CardDto,
+  PromptOutput,
   ChooseCombatDamageAssignmentInput,
   PromptPresentation,
   ReorderItem,
@@ -85,6 +86,66 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     backdrop.hitArea = new Rectangle(0, 0, this.viewportWidth, this.viewportHeight);
     this.container.addChild(backdrop);
     switch (input.type) {
+      case "chooseObject": {
+        const view = this.spec!.gameView;
+        const commands = input.candidates.map((target, index) => {
+          const card = view.zones
+            .flatMap((zone) => zone.cards)
+            .find((card) => card.id === target.id);
+          const name =
+            view.players.find((player) => player.id === target.id)?.name ??
+            (card?.visibility === "visible" ? card.identity.name : undefined) ??
+            `Unknown ${target.kind} ${index + 1}`;
+          const selected = input.selected.some(
+            (item) => item.id === target.id && item.kind === target.kind,
+          );
+          return {
+            label: `${selected ? "Selected: " : ""}${name}`,
+            output: { type: "select", target } as const,
+          };
+        });
+        this.renderCommands(input.presentation, [
+          ...commands,
+          ...(input.canFinish ? [{ label: "Done", output: { type: "finish" } as const }] : []),
+          ...(input.cancellable ? [{ label: "Cancel", output: { type: "cancel" } as const }] : []),
+        ]);
+        break;
+      }
+      case "chooseAction":
+        this.renderCommands({ title: "Choose an action", targets: [] }, [
+          ...input.actions.map((action) => ({
+            label:
+              "label" in action
+                ? action.label
+                : "description" in action
+                  ? action.description
+                  : "Undo mana",
+            output: { type: "act", actionId: action.id } as const,
+          })),
+          { label: "Pass", output: { type: "pass", exhaustStack: false } },
+        ]);
+        break;
+      case "payManaCost":
+        this.renderCommands(input.presentation, [
+          ...input.actions.map((action) => ({
+            label:
+              action.type === "spendMana"
+                ? `Spend {${action.color}}`
+                : "label" in action
+                  ? action.label
+                  : "description" in action
+                    ? action.description
+                    : action.type === "payLife"
+                      ? `Pay ${action.amount} life`
+                      : "Pay cost",
+            output: { type: "act", actionId: action.id } as const,
+          })),
+          ...(input.canConfirmFromPool
+            ? [{ label: "Confirm", output: { type: "pay", auto: false } as const }]
+            : []),
+          { label: "Cancel", output: { type: "cancel" } },
+        ]);
+        break;
       case "chooseBoolean":
         this.renderBoolean(input.presentation, input.denyLabel, input.confirmLabel);
         break;
@@ -101,7 +162,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
         this.renderColors(input.presentation, input.validColors, input.amount, input.repeatAllowed);
         break;
       case "chooseNumber":
-        this.renderNumber(input.presentation, input.min, input.max);
+        this.renderNumber(input.presentation, input.min, input.max, input.cancellable);
         break;
       case "reorder":
         this.renderReorder(input.presentation, input.items);
@@ -1263,7 +1324,35 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     footer.addChild(confirm);
   }
 
-  protected renderNumber(presentation: PromptPresentation, min: number, max: number): void {
+  protected renderCommands(
+    presentation: PromptPresentation,
+    commands: { label: string; output: PromptOutput["output"] }[],
+  ): void {
+    const width = this.modalPromptWidth(CHOICE_MODAL_WIDTH);
+    const { body } = this.createModalShell(
+      width,
+      Math.min(560, this.viewportHeight - 24),
+      presentation,
+      true,
+      0,
+    );
+    commands.forEach((command, index) => {
+      const button = this.makeButton(command.label, () => this.spec!.respond(command.output), {
+        outline: true,
+        width: width - PANEL_PADDING * 2,
+        height: 44,
+      });
+      button.position.set(0, index * 54);
+      body.addChild(button);
+    });
+  }
+
+  protected renderNumber(
+    presentation: PromptPresentation,
+    min: number,
+    max: number,
+    cancellable: boolean,
+  ): void {
     const range = max - min + 1;
     const width = this.modalPromptWidth(520);
     const height = Math.min(range <= 10 ? 250 : 275, this.viewportHeight - 24);
@@ -1272,9 +1361,17 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       height,
       presentation,
       true,
-      range <= 10 ? 0 : 60,
+      range <= 10 && !cancellable ? 0 : 60,
     );
     const availableWidth = width - PANEL_PADDING * 2;
+    const cancel = cancellable
+      ? this.makeButton(
+          "CANCEL",
+          () => this.spec!.respond({ type: "numberDecision", chosenNumber: null }),
+          { outline: true, width: 110 },
+        )
+      : null;
+    if (cancel) footer.addChild(cancel);
     if (range <= 10) {
       const buttons = Array.from({ length: range }, (_, index) => {
         const value = min + index;
@@ -1406,9 +1503,13 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       `Whole number from ${min} to ${max}`,
       11,
       showInvalid ? this.theme.appTheme.destructive : this.theme.appTheme["muted-foreground"],
-      { weight: showInvalid ? "600" : "500", width: availableWidth - 140, truncate: true },
+      {
+        weight: showInvalid ? "600" : "500",
+        width: availableWidth - (cancel ? 260 : 140),
+        truncate: true,
+      },
     );
-    rangeText.position.set(0, 11);
+    rangeText.position.set(cancel ? 120 : 0, 11);
     footer.addChild(rangeText);
     const confirm = this.makeButton(
       "CONFIRM",

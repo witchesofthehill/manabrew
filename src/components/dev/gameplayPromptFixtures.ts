@@ -30,9 +30,9 @@ export function previewInput(preview: DevDialogPreview, fixtures: DevDialogFixtu
         repeatAllowed: true,
       };
     case "choose-number-buttons":
-      return { type: "chooseNumber", presentation, min: 0, max: 5 };
+      return { type: "chooseNumber", presentation, min: 0, max: 5, cancellable: true };
     case "choose-number-input":
-      return { type: "chooseNumber", presentation, min: 0, max: 99 };
+      return { type: "chooseNumber", presentation, min: 0, max: 99, cancellable: false };
     case "choose-cards":
       return { type: "chooseCards", presentation, cards, min: 1, max: 2 };
     case "reveal-cards":

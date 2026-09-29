@@ -16,6 +16,16 @@ that implements it can host a Manabrew compatible engine.
 >
 > *- Witches of the Hill*
 
+The incremental object prompt, unknown semantics and payment capabilities were
+motivated by [XMage integration research](https://github.com/witchesofthehill/manabrew/pull/1017).
+The shared schema serves both Forge and engines that expose different interaction
+models; the XMage adapter is separate from this protocol package.
+
+New prompt/action variants and optional payment source fields require a coordinated
+client/host protocol release. Defaults preserve decoding of older payloads; they
+do not make new variants readable by older clients. Relay compatibility must also
+be advanced before deploying engines that emit the new wire shapes.
+
 ## The protocol ensures:
 
 - A **transport-agnostic JSON message format** - a client written against this
@@ -148,6 +158,7 @@ and a wire example.
 - [chooseBlockers](/protocol/choose-blockers/) - declare blockers.
 - [chooseDamageAssignmentOrder](/protocol/choose-damage-assignment-order/) - order multiple blockers.
 - [chooseCombatDamageAssignment](/protocol/choose-combat-damage-assignment/) - assign combat damage.
+- [chooseObject](/protocol/choose-object/) - select one offered object at a time; the engine validates completion.
 - [chooseBoardTargets](/protocol/choose-board-targets/) - choose targets on the board.
 
 **End**

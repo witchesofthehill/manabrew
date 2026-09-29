@@ -14,6 +14,7 @@ pub mod choose_combat_damage_assignment;
 pub mod choose_damage_assignment_order;
 pub mod choose_from_selection;
 pub mod choose_number;
+pub mod choose_object;
 pub mod dice_rolled;
 pub mod game_over;
 pub mod mulligan;
@@ -40,6 +41,7 @@ pub use choose_from_selection::{
     ChooseFromSelectionInput, ChooseFromSelectionOutput, SelectionOption,
 };
 pub use choose_number::{ChooseNumberInput, ChooseNumberOutput};
+pub use choose_object::{ChooseObjectInput, ChooseObjectOutput};
 pub use common::{
     ActivatableAbilityInfo, AlternativeCostKind, AvailableAction, AvailableActionKind,
     PaymentAction, PaymentActionKind, PaymentResourceKind, PlayCardMode,
@@ -70,6 +72,7 @@ pub enum PromptInput {
     Scry(scry::ScryInput),
     ChooseColor(choose_color::ChooseColorInput),
     ChooseNumber(choose_number::ChooseNumberInput),
+    ChooseObject(choose_object::ChooseObjectInput),
     ChooseDamageAssignmentOrder(choose_damage_assignment_order::ChooseDamageAssignmentOrderInput),
     ChooseCombatDamageAssignment(
         choose_combat_damage_assignment::ChooseCombatDamageAssignmentInput,
@@ -96,6 +99,7 @@ pub enum PromptOutput {
     Scry(scry::ScryOutput),
     ChooseColor(choose_color::ChooseColorOutput),
     ChooseNumber(choose_number::ChooseNumberOutput),
+    ChooseObject(choose_object::ChooseObjectOutput),
     ChooseDamageAssignmentOrder(choose_damage_assignment_order::ChooseDamageAssignmentOrderOutput),
     ChooseCombatDamageAssignment(
         choose_combat_damage_assignment::ChooseCombatDamageAssignmentOutput,
@@ -111,6 +115,11 @@ pub enum ResponseViolation {
     WrongPromptType,
     UnknownActionId(String),
     CancelNotAllowed,
+    FinishNotAllowed,
+    PaymentNotAvailable,
+    UnknownObjectId(String),
+    NumberOutOfRange,
+    InvalidSelection,
 }
 
 impl PromptInput {
@@ -121,6 +130,56 @@ impl PromptInput {
         use PromptInput as I;
         use PromptOutput as O;
         match (self, output) {
+            (
+                I::ChooseNumber(input),
+                O::ChooseNumber(ChooseNumberOutput::NumberDecision { chosen_number }),
+            ) => match chosen_number {
+                None if !input.cancellable => Err(ResponseViolation::CancelNotAllowed),
+                Some(value) if *value < input.min || *value > input.max => {
+                    Err(ResponseViolation::NumberOutOfRange)
+                }
+                _ => Ok(()),
+            },
+            (
+                I::ChooseFromSelection(input),
+                O::ChooseFromSelection(ChooseFromSelectionOutput::SelectionDecision {
+                    chosen_indices,
+                }),
+            ) => {
+                let mut seen = std::collections::HashSet::new();
+                let mut total = 0usize;
+                for index in chosen_indices {
+                    let Some(option) = input.options.get(*index) else {
+                        return Err(ResponseViolation::InvalidSelection);
+                    };
+                    if !seen.insert(index) && !option.can_repeat {
+                        return Err(ResponseViolation::InvalidSelection);
+                    }
+                    total = total
+                        .checked_add(option.weight)
+                        .ok_or(ResponseViolation::InvalidSelection)?;
+                }
+                if total < input.min_total || total > input.max_total {
+                    return Err(ResponseViolation::InvalidSelection);
+                }
+                Ok(())
+            }
+            (I::ChooseObject(input), O::ChooseObject(out)) => match out {
+                ChooseObjectOutput::Select { target }
+                    if !input.candidates.iter().any(|candidate| {
+                        candidate.id == target.id && candidate.kind == target.kind
+                    }) =>
+                {
+                    Err(ResponseViolation::UnknownObjectId(target.id.clone()))
+                }
+                ChooseObjectOutput::Finish if !input.can_finish => {
+                    Err(ResponseViolation::FinishNotAllowed)
+                }
+                ChooseObjectOutput::Cancel if !input.cancellable => {
+                    Err(ResponseViolation::CancelNotAllowed)
+                }
+                _ => Ok(()),
+            },
             (I::ChooseAction(input), O::ChooseAction(out)) => match out {
                 ChooseActionOutput::Act { action_id }
                     if !input.actions.iter().any(|a| a.id == *action_id) =>
@@ -130,6 +189,12 @@ impl PromptInput {
                 _ => Ok(()),
             },
             (I::PayManaCost(input), O::PayManaCost(out)) => match out {
+                PayManaCostOutput::Pay { auto }
+                    if (*auto && !input.auto_pay_available)
+                        || (!*auto && !input.can_confirm_from_pool) =>
+                {
+                    Err(ResponseViolation::PaymentNotAvailable)
+                }
                 PayManaCostOutput::Act { action_id }
                     if !input.actions.iter().any(|a| a.id == *action_id) =>
                 {
@@ -148,11 +213,9 @@ impl PromptInput {
             | (I::ChooseAttackers(_), O::ChooseAttackers(_))
             | (I::ChooseBlockers(_), O::ChooseBlockers(_))
             | (I::ChooseBoolean(_), O::ChooseBoolean(_))
-            | (I::ChooseFromSelection(_), O::ChooseFromSelection(_))
             | (I::RevealCards(_), O::RevealCards(_))
             | (I::Scry(_), O::Scry(_))
             | (I::ChooseColor(_), O::ChooseColor(_))
-            | (I::ChooseNumber(_), O::ChooseNumber(_))
             | (I::ChooseDamageAssignmentOrder(_), O::ChooseDamageAssignmentOrder(_))
             | (I::ChooseCombatDamageAssignment(_), O::ChooseCombatDamageAssignment(_))
             | (I::ChooseCards(_), O::ChooseCards(_))

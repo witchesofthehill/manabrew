@@ -11,6 +11,7 @@
     "choose-damage-assignment-order": "ChooseDamageAssignmentOrderInput",
     "choose-from-selection": "ChooseFromSelectionInput",
     "choose-number": "ChooseNumberInput",
+    "choose-object": "ChooseObjectInput",
     "dice-rolled": "DiceRolledInput",
     "directive": "DirectiveInput",
     "game-over": "GameOverInput",
@@ -116,7 +117,7 @@
       "refs": []
     },
     "AvailableAction": {
-      "ts": "type AvailableAction = { id: string } & (\n  | { type: \"cast\"; cardId: string; mode: PlayCardMode; label: string }\n  | ({ type: \"activateAbility\" } & ActivatableAbilityInfo)\n  | { type: \"undoMana\"; cardId: string }\n);",
+      "ts": "type AvailableAction = { id: string } & (\n  | { type: \"unclassified\"; cardId: string; label: string }\n  | { type: \"cast\"; cardId: string; mode: PlayCardMode; label: string }\n  | ({ type: \"activateAbility\" } & ActivatableAbilityInfo)\n  | { type: \"undoMana\"; cardId: string }\n);",
       "rust": "pub struct AvailableAction {\n    pub id: String,\n    #[serde(flatten)]\n    pub kind: AvailableActionKind,\n}",
       "refs": ["ActivatableAbilityInfo", "PlayCardMode"]
     },
@@ -221,9 +222,14 @@
       "refs": ["PromptPresentation", "SelectionOption"]
     },
     "ChooseNumberInput": {
-      "ts": "interface ChooseNumberInput {\n  presentation: PromptPresentation;\n  min: number;\n  max: number;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct ChooseNumberInput {\n    pub presentation: PromptPresentation,\n    pub min: i32,\n    pub max: i32,\n}",
+      "ts": "interface ChooseNumberInput {\n  presentation: PromptPresentation;\n  min: number;\n  max: number;\n  cancellable: boolean;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct ChooseNumberInput {\n    pub presentation: PromptPresentation,\n    pub min: i32,\n    pub max: i32,\n    #[serde(default = \"cancellable_default\")]\n    pub cancellable: bool,\n}",
       "refs": ["PromptPresentation"]
+    },
+    "ChooseObjectInput": {
+      "ts": "interface ChooseObjectInput {\n  presentation: PromptPresentation;\n  candidates: Array<TargetRef>;\n  selected: Array<TargetRef>;\n  intent: TargetingIntent;\n  canFinish: boolean;\n  cancellable: boolean;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct ChooseObjectInput {\n    pub presentation: PromptPresentation,\n    pub candidates: Vec<TargetRef>,\n    pub selected: Vec<TargetRef>,\n    pub intent: TargetingIntent,\n    pub can_finish: bool,\n    pub cancellable: bool,\n}",
+      "refs": ["PromptPresentation", "TargetRef", "TargetingIntent"]
     },
     "ClassLevelDto": {
       "ts": "interface ClassLevelDto {\n  level: number;\n  oracle: string;\n  cost?: string;\n}",
@@ -417,14 +423,14 @@
       "refs": ["CardDto"]
     },
     "PayManaCostInput": {
-      "ts": "interface PayManaCostInput {\n  presentation: PromptPresentation;\n  cardId: string;\n  cardName: string;\n  manaCost: string;\n  canConfirmFromPool: boolean;\n  actions: Array<PaymentAction>;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct PayManaCostInput {\n    pub presentation: PromptPresentation,\n    pub card_id: String,\n    pub card_name: String,\n    pub mana_cost: String,\n    pub can_confirm_from_pool: bool,\n    pub actions: Vec<PaymentAction>,\n}",
+      "ts": "interface PayManaCostInput {\n  presentation: PromptPresentation;\n  cardId?: string;\n  cardName?: string;\n  manaCost: string;\n  canConfirmFromPool: boolean;\n  autoPayAvailable: boolean;\n  actions: Array<PaymentAction>;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct PayManaCostInput {\n    pub presentation: PromptPresentation,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub card_id: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub card_name: Option<String>,\n    pub mana_cost: String,\n    pub can_confirm_from_pool: bool,\n    #[serde(default = \"auto_pay_default\")]\n    pub auto_pay_available: bool,\n    pub actions: Vec<PaymentAction>,\n}",
       "refs": ["PaymentAction", "PromptPresentation"]
     },
     "PaymentAction": {
-      "ts": "type PaymentAction = { id: string } & (\n  | ({ type: \"activateManaAbility\" } & ActivatableAbilityInfo)\n  | { type: \"undoMana\"; cardId: string }\n  | { type: \"useResource\"; cardId: string; resource: PaymentResourceKind }\n  | { type: \"releaseResource\"; cardId: string; resource: PaymentResourceKind }\n  | { type: \"payLife\"; amount: number }\n);",
+      "ts": "type PaymentAction = { id: string } & (\n  | { type: \"unclassified\"; label: string }\n  | { type: \"spendMana\"; playerId: string; color: ManaColor }\n  | ({ type: \"activateManaAbility\" } & ActivatableAbilityInfo)\n  | { type: \"undoMana\"; cardId: string }\n  | { type: \"useResource\"; cardId: string; resource: PaymentResourceKind }\n  | { type: \"releaseResource\"; cardId: string; resource: PaymentResourceKind }\n  | { type: \"payLife\"; amount: number }\n);",
       "rust": "pub struct PaymentAction {\n    pub id: String,\n    #[serde(flatten)]\n    pub kind: PaymentActionKind,\n}",
-      "refs": ["ActivatableAbilityInfo", "PaymentResourceKind"]
+      "refs": ["ActivatableAbilityInfo", "ManaColor", "PaymentResourceKind"]
     },
     "PaymentResourceKind": {
       "ts": "type PaymentResourceKind = \"convoke\" | \"improvise\" | \"delve\" | \"waterbend\";",
@@ -507,8 +513,8 @@
       "refs": ["CardIdentity", "TargetRef"]
     },
     "StepKind": {
-      "ts": "type StepKind =\n  | \"untap\"\n  | \"upkeep\"\n  | \"draw\"\n  | \"main1\"\n  | \"combatBegin\"\n  | \"combatDeclareAttackers\"\n  | \"combatDeclareBlockers\"\n  | \"combatFirstStrikeDamage\"\n  | \"combatDamage\"\n  | \"combatEnd\"\n  | \"main2\"\n  | \"endOfTurn\"\n  | \"cleanup\";",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub enum StepKind {\n    #[default]\n    Untap,\n    Upkeep,\n    Draw,\n    Main1,\n    CombatBegin,\n    CombatDeclareAttackers,\n    CombatDeclareBlockers,\n    CombatFirstStrikeDamage,\n    CombatDamage,\n    CombatEnd,\n    Main2,\n    EndOfTurn,\n    Cleanup,\n}",
+      "ts": "type StepKind =\n  | \"pregame\"\n  | \"untap\"\n  | \"upkeep\"\n  | \"draw\"\n  | \"main1\"\n  | \"combatBegin\"\n  | \"combatDeclareAttackers\"\n  | \"combatDeclareBlockers\"\n  | \"combatFirstStrikeDamage\"\n  | \"combatDamage\"\n  | \"combatEnd\"\n  | \"main2\"\n  | \"endOfTurn\"\n  | \"cleanup\";",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub enum StepKind {\n    Pregame,\n    #[default]\n    Untap,\n    Upkeep,\n    Draw,\n    Main1,\n    CombatBegin,\n    CombatDeclareAttackers,\n    CombatDeclareBlockers,\n    CombatFirstStrikeDamage,\n    CombatDamage,\n    CombatEnd,\n    Main2,\n    EndOfTurn,\n    Cleanup,\n}",
       "refs": []
     },
     "TargetKind": {
@@ -522,8 +528,8 @@
       "refs": ["TargetKind", "TargetingIntent"]
     },
     "TargetingIntent": {
-      "ts": "type TargetingIntent =\n  | \"damage\"\n  | \"destroy\"\n  | \"sacrifice\"\n  | \"exile\"\n  | \"bounce\"\n  | \"mill\"\n  | \"discard\"\n  | \"counter\"\n  | \"tap\"\n  | \"untap\"\n  | \"copy\"\n  | \"buff\"\n  | \"debuff\"\n  | \"heal\"\n  | \"loseLife\"\n  | \"reveal\"\n  | \"draw\"\n  | \"fetch\"\n  | \"gainControl\"\n  | \"fight\"\n  | \"attach\"\n  | \"attack\"\n  | \"block\"\n  | \"hostile\"\n  | \"friendly\";",
-      "rust": "    Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS, strum_macros::Display,\n)]\n#[serde(rename_all = \"camelCase\")]\npub enum TargetingIntent {\n    #[default]\n    Damage,\n    Destroy,\n    Sacrifice,\n    Exile,\n    Bounce,\n    Mill,\n    Discard,\n    Counter,\n    Tap,\n    Untap,\n    Copy,\n    Buff,\n    Debuff,\n    Heal,\n    LoseLife,\n    Reveal,\n    Draw,\n    Fetch,\n    GainControl,\n    Fight,\n    Attach,\n    Attack,\n    Block,\n    Hostile,\n    Friendly,\n}",
+      "ts": "type TargetingIntent =\n  | \"unknown\"\n  | \"damage\"\n  | \"destroy\"\n  | \"sacrifice\"\n  | \"exile\"\n  | \"bounce\"\n  | \"mill\"\n  | \"discard\"\n  | \"counter\"\n  | \"tap\"\n  | \"untap\"\n  | \"copy\"\n  | \"buff\"\n  | \"debuff\"\n  | \"heal\"\n  | \"loseLife\"\n  | \"reveal\"\n  | \"draw\"\n  | \"fetch\"\n  | \"gainControl\"\n  | \"fight\"\n  | \"attach\"\n  | \"attack\"\n  | \"block\"\n  | \"hostile\"\n  | \"friendly\";",
+      "rust": "    Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS, strum_macros::Display,\n)]\n#[serde(rename_all = \"camelCase\")]\npub enum TargetingIntent {\n    Unknown,\n    #[default]\n    Damage,\n    Destroy,\n    Sacrifice,\n    Exile,\n    Bounce,\n    Mill,\n    Discard,\n    Counter,\n    Tap,\n    Untap,\n    Copy,\n    Buff,\n    Debuff,\n    Heal,\n    LoseLife,\n    Reveal,\n    Draw,\n    Fetch,\n    GainControl,\n    Fight,\n    Attach,\n    Attack,\n    Block,\n    Hostile,\n    Friendly,\n}",
       "refs": []
     },
     "TokenScript": {

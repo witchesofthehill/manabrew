@@ -1601,6 +1601,22 @@ fn run_hosted_engine_game_inner(
                             }
                             match prompt.input.validate_response(&action) {
                                 Ok(()) => {}
+                                Err(
+                                    error @ (ResponseViolation::NumberOutOfRange
+                                    | ResponseViolation::InvalidSelection
+                                    | ResponseViolation::PaymentNotAvailable
+                                    | ResponseViolation::FinishNotAllowed
+                                    | ResponseViolation::UnknownObjectId(_)),
+                                ) => {
+                                    reject_response(
+                                        &remote_prompt_tx,
+                                        *player_index,
+                                        Some(prompt),
+                                        ProtocolErrorCode::InvalidShape,
+                                        format!("{error:?}"),
+                                    );
+                                    continue;
+                                }
                                 Err(ResponseViolation::WrongPromptType) => {
                                     reject_response(
                                         &remote_prompt_tx,
@@ -1886,7 +1902,10 @@ fn state_via_handle(
 ) -> Result<StateUpdate, String> {
     let game_view: GameViewDto = serde_json::from_str(&engine.get_snapshot(session_id, viewer)?)
         .map_err(|err| format!("failed to parse java snapshot: {err}"))?;
-    Ok(StateUpdate { game_view })
+    Ok(StateUpdate {
+        game_view,
+        unavailable_fields: None,
+    })
 }
 
 #[cfg(forge_backend)]

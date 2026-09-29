@@ -74,6 +74,7 @@ pub enum ZoneKind {
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "game/index.ts")]
 pub enum StepKind {
+    Pregame,
     #[default]
     Untap,
     Upkeep,
@@ -423,6 +424,7 @@ mod stack_object_tests {
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "game/index.ts")]
 pub enum TargetingIntent {
+    Unknown,
     #[default]
     Damage,
     Destroy,

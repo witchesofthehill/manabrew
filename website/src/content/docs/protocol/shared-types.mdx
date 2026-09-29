@@ -22,6 +22,9 @@ A typed reference to a player, card, or spell. `intent` and `oracle` are hints f
 
 <ProtocolType type="TargetRef" />
 
+`TargetingIntent.unknown` means the engine did not supply semantic intent.
+Clients must not infer damage, healing or other intent from presentation text.
+
 ## TargetKind
 
 Which id space a [`TargetRef`](#targetref) points into - a player, a card, or a
@@ -44,7 +47,9 @@ One player's dice result.
 ## AvailableAction
 
 One legal action. Offered by [chooseAction](/protocol/choose-action/): cast a
-spell, activate an ability, or undo a mana activation.
+spell, activate an ability, undo a mana activation, or select an `unclassified`
+entry by its advertised ID. An unclassified entry supplies a source card and
+label without making a claim about the rules category.
 
 <ProtocolType type="AvailableAction" />
 

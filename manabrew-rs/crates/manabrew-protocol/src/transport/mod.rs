@@ -19,6 +19,9 @@ pub enum AgentMessage {
 #[ts(export, export_to = "transport/messages.ts")]
 pub struct StateUpdate {
     pub game_view: GameViewDto,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub unavailable_fields: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]

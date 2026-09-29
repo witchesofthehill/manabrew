@@ -351,9 +351,10 @@ fn phase_to_step(phase: forge_foundation::PhaseType) -> StepKind {
     }
 }
 
-pub(crate) fn step_to_phase(step: StepKind) -> forge_foundation::PhaseType {
+pub(crate) fn step_to_phase(step: StepKind) -> Option<forge_foundation::PhaseType> {
     use forge_foundation::PhaseType::*;
-    match step {
+    Some(match step {
+        StepKind::Pregame => return None,
         StepKind::Untap => Untap,
         StepKind::Upkeep => Upkeep,
         StepKind::Draw => Draw,
@@ -367,7 +368,7 @@ pub(crate) fn step_to_phase(step: StepKind) -> forge_foundation::PhaseType {
         StepKind::Main2 => Main2,
         StepKind::EndOfTurn => EndOfTurn,
         StepKind::Cleanup => Cleanup,
-    }
+    })
 }
 
 pub fn zone_kind_of(zone: ZoneType) -> ZoneKind {

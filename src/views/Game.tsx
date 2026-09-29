@@ -962,7 +962,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     if (promptType !== "payManaCost") return;
     if (activePrompt?.input.canConfirmFromPool) {
       respond({ type: "pay", auto: false });
-    } else {
+    } else if (activePrompt?.input.autoPayAvailable !== false) {
       respond({ type: "pay", auto: true });
     }
   };
@@ -2179,12 +2179,13 @@ export default function Game({ exitTo }: GameProps = {}) {
       step: gameView.step,
       payManaCostInfo: payManaCostInput
         ? {
-            cardName: payManaCostInput.cardName,
+            cardName: payManaCostInput.cardName ?? payManaCostInput.presentation.title,
             sourceCard: promptSourceDeckCard,
             manaCost: payManaCostInput.manaCost,
             description: payManaCostInput.presentation.text,
             manaPool: gameView.players.find((player) => player.isHuman)?.manaPool ?? {},
             canConfirmFromPool: payManaCostInput.canConfirmFromPool,
+            autoPayAvailable: payManaCostInput.autoPayAvailable,
             delveCount: delvedCardIds.length,
             delveAvailable: delveSourceIds.length > 0,
             onOpenDelve: openDelveZone,
@@ -2195,7 +2196,9 @@ export default function Game({ exitTo }: GameProps = {}) {
           }
         : null,
       onPayManaCost: () => void respond({ type: "pay", auto: false }),
-      onAutoManaCost: () => void respond({ type: "pay", auto: true }),
+      onAutoManaCost: () => {
+        if (payManaCostInput?.autoPayAvailable !== false) void respond({ type: "pay", auto: true });
+      },
       onCancelManaCost: () => void respond({ type: "cancel" }),
       mulliganCount: mulliganInput?.mulliganCount ?? 0,
       onMulliganKeep: () => void respond({ type: "mulliganDecision", keep: true }),

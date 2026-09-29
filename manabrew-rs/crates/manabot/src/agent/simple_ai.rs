@@ -194,6 +194,7 @@ impl SimpleAi {
                 format!("ability:{}:{}", info.card_id, info.description)
             }
             AvailableActionKind::UndoMana { card_id } => format!("undo:{card_id}"),
+            AvailableActionKind::Unclassified { .. } => action.id.clone(),
         }
     }
 
@@ -1212,6 +1213,23 @@ impl BotAgent for SimpleAi {
             .unwrap_or_default()
             .to_ascii_lowercase();
         match prompt.input {
+            PromptInput::ChooseObject(input) => {
+                let unselected = |target: &&TargetRef| !input.selected.iter().any(|selected| selected.id == target.id && selected.kind == target.kind);
+                let candidate = input.candidates.iter().filter(unselected)
+                    .find(|target| target.kind == TargetKind::Player && target.id != prompt.deciding_player_id)
+                    .or_else(|| input.candidates.iter().find(unselected));
+                let answer = if let Some(target) = candidate {
+                    ChooseObjectOutput::Select { target: target.clone() }
+                } else if input.can_finish {
+                    ChooseObjectOutput::Finish
+                } else if input.cancellable {
+                    ChooseObjectOutput::Cancel
+                } else {
+                    return None;
+                };
+                Some(PromptOutput::ChooseObject(answer))
+            }
+
         PromptInput::Mulligan(manabrew_protocol::prompts::mulligan::MulliganInput {
                 hand_card_ids,
                 mulligan_count,
@@ -1547,7 +1565,7 @@ impl BotAgent for SimpleAi {
                     chosen_colors: chosen,
                 }))
             }
-            PromptInput::ChooseNumber(manabrew_protocol::prompts::choose_number::ChooseNumberInput { presentation, min, max }) => {
+            PromptInput::ChooseNumber(manabrew_protocol::prompts::choose_number::ChooseNumberInput { presentation, min, max, .. }) => {
                 let x_cost = presentation.title.to_ascii_lowercase().ends_with("for x");
                 let chosen = if x_cost {
                     let fixed = prompt.source_card.as_ref().map_or(0, |card| card.cmc);
@@ -1612,6 +1630,12 @@ impl BotAgent for SimpleAi {
                 Some(PromptOutput::ChooseCombatDamageAssignment(ChooseCombatDamageAssignmentOutput::CombatDamageAssignmentDecision { assignments }))
             }
             PromptInput::PayManaCost(input) => {
+                if !input.auto_pay_available && !input.can_confirm_from_pool {
+                    return Some(PromptOutput::PayManaCost(match input.actions.first() {
+                        Some(action) => PayManaCostOutput::Act { action_id: action.id.clone() },
+                        None => PayManaCostOutput::Cancel,
+                    }));
+                }
                 let manual_action = input.actions.iter().find(|action| {
                     matches!(
                         &action.kind,
@@ -1639,13 +1663,13 @@ impl BotAgent for SimpleAi {
                     }
                 } else {
                     if input.actions.is_empty()
-                        || self.payment_attempt.as_deref() == Some(input.card_id.as_str())
+                        || input.card_id.as_ref().is_some_and(|id| self.payment_attempt.as_ref() == Some(id))
                     {
-                        self.fail_attack_target(&input.card_id);
+                        if let Some(id) = &input.card_id { self.fail_attack_target(id); }
                         self.payment_attempt = None;
                         PayManaCostOutput::Cancel
                     } else {
-                        self.payment_attempt = Some(input.card_id.clone());
+                        self.payment_attempt = input.card_id.clone();
                         PayManaCostOutput::Pay { auto: true }
                     }
                 };

@@ -1,0 +1,35 @@
+---
+title: "chooseObject"
+description: Select an offered object in an incremental engine interaction.
+---
+
+import ProtocolType from "../../../components/ProtocolType.astro";
+
+An engine may request one object at a time during targeting or combat
+declaration. XMage integration motivated this prompt: its callbacks do not
+provide the aggregate assignment constraints assumed by the existing combat
+prompts. The engine remains responsible for legality and completion.
+
+<ProtocolType slug="choose-object" />
+
+![Incremental object selection in the client](/protocol/choose-object.png)
+
+`candidates` lists offered `TargetRef` interactions. `selected` describes the
+current selection; selecting an already-selected object can toggle it according
+to the engine interaction. A candidate is not a guarantee that it extends to a
+legal complete assignment. `intent` may be `unknown`.
+
+```ts
+type ChooseObjectOutput =
+  | { type: "select"; target: TargetRef }
+  | { type: "finish" }
+  | { type: "cancel" };
+```
+
+Echo both the candidate ID and kind. Send `finish` only when `canFinish` is
+true, and `cancel` only when `cancellable` is true. The engine may reject an
+incomplete declaration and offer another prompt after Finish.
+
+Use the existing aggregate targeting/combat prompts when the producer can
+provide their required semantics. Clients must support this new variant before
+an engine can send it; it is not a wire-compatible addition for older consumers.

@@ -132,6 +132,8 @@ public final class SabTransport implements InteractiveBridge {
      * discarded unread.
      */
     private final java.util.Set<Integer> botSeats;
+    private final java.util.function.Supplier<String> checkpointMetrics;
+    private long checkpointNanosSinceRecv;
     private long checkpoint;
     /** When a person's answer last landed; bot answers do not move it. */
     private long lastRecvAt;
@@ -161,13 +163,15 @@ public final class SabTransport implements InteractiveBridge {
     }
 
     public SabTransport(final java.util.function.IntFunction<String> snapshots) {
-        this(snapshots, java.util.Collections.emptySet());
+        this(snapshots, java.util.Collections.emptySet(), () -> "[]");
     }
 
     public SabTransport(final java.util.function.IntFunction<String> snapshots,
-            final java.util.Set<Integer> botSeats) {
+            final java.util.Set<Integer> botSeats,
+            final java.util.function.Supplier<String> checkpointMetrics) {
         this.snapshots = snapshots;
         this.botSeats = botSeats;
+        this.checkpointMetrics = checkpointMetrics;
     }
 
     @Override
@@ -207,6 +211,7 @@ public final class SabTransport implements InteractiveBridge {
         } else {
             lastRecvAt = System.currentTimeMillis();
             botMsSinceRecv = 0;
+            checkpointNanosSinceRecv = 0;
         }
         return decodeMessage(seat, message);
     }
@@ -232,10 +237,13 @@ public final class SabTransport implements InteractiveBridge {
         // zero means the opponents took their turns in it, which is most of
         // what a large reading is: this is not one decision being slow.
         // `bot` is the part of the window spent on bot prompts.
+        final long promptReadyAt = System.currentTimeMillis();
+        publishCheckpointMetrics();
         if (!bot) {
             if (lastRecvAt > 0) {
                 final int turns = turnAtLastPrompt < 0 ? 0 : Math.max(0, turnNow - turnAtLastPrompt);
-                post("forge:decision", "{\"ms\":" + (System.currentTimeMillis() - lastRecvAt)
+                post("forge:decision", "{\"ms\":" + (promptReadyAt - lastRecvAt)
+                        + ",\"checkpointMs\":" + (checkpointNanosSinceRecv / 1_000_000.0)
                         + ",\"bot\":" + botMsSinceRecv
                         + ",\"turns\":" + turns
                         + ",\"type\":\"" + type + "\"}");
@@ -263,6 +271,7 @@ public final class SabTransport implements InteractiveBridge {
         }
         lastRecvAt = System.currentTimeMillis();
         botMsSinceRecv = 0;
+        checkpointNanosSinceRecv = 0;
         return result;
     }
 
@@ -341,7 +350,17 @@ public final class SabTransport implements InteractiveBridge {
                 + ",\"timestampMs\":" + System.currentTimeMillis() + "}";
     }
 
+    private void publishCheckpointMetrics() {
+        final String samples = checkpointMetrics.get();
+        for (final com.google.gson.JsonElement sample : JsonParser.parseString(samples).getAsJsonArray()) {
+            final com.google.gson.JsonArray timing = sample.getAsJsonArray();
+            checkpointNanosSinceRecv += timing.get(0).getAsLong() + timing.get(1).getAsLong();
+        }
+        post("forge:checkpoints", samples);
+    }
+
     public void publishGameOver(final String engineError) {
+        publishCheckpointMetrics();
         final int seats = Math.max(1, seatCount());
         for (int seat = 0; seat < seats; seat++) {
             if (engineError != null && !engineError.isEmpty()) {

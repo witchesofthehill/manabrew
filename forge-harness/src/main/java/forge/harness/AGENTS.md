@@ -71,7 +71,7 @@ Concede mirrors native Forge's out-of-band contract: `player.concede()` sets the
 
 ### Restore points and the restore vote (directives, never prompts)
 
-The node can opt into `checkpointMetrics` on its internal start request. `recordCheckpoint` records copy and bookkeeping nanoseconds only for successful checkpoints. The session owns the samples; `drainCheckpointMetrics` serializes and clears them under the same lock used to append. Browser sessions leave collection disabled. Keep checkpoint instrumentation separate from per-viewer board snapshot timing.
+The node can opt into `checkpointMetrics` on its internal start request. `recordCheckpoint` records copy and bookkeeping nanoseconds only for successful checkpoints. The session owns the samples; `drainCheckpointMetrics` serializes and clears them under the same lock used to append. WASM games also enable collection: `WasmMain` supplies a session drain to `SabTransport`, which posts `forge:checkpoints` before each new prompt and at game end. `forge:decision.checkpointMs` accumulates checkpoints across bot prompts within the same human-response window. Keep checkpoint instrumentation separate from per-viewer board snapshot timing.
 
 
 The session records a restore point (a Forge `GameSnapshot`) at the first priority of each step, and only when the stack is empty. Forge's snapshot restores spells on the stack but not abilities or triggers, and it does not remove stack entries created after it was taken, so every restore starts from an empty stack and `restore` clears the live stack first. The last 32 points go out in `GameViewDto.checkpoints`; a restore drops the points after it.

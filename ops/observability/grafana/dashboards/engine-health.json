@@ -1200,6 +1200,76 @@
         "overrides": []
       },
       "options": {}
+    },
+    {
+      "id": 248,
+      "type": "table",
+      "title": "WASM checkpoint cost",
+      "description": "Weighted means from direct engine timers. Decision windows include intervening bot turns. Hidden and capped samples are excluded; later GC is not attributed.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 110,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT client_version, seats, count(*) AS games, sum(json_extract(checkpoints, '$.total.n')) AS checkpoints, round(sum(json_extract(checkpoints, '$.copy.sumUs')) / 1000.0 / nullif(sum(json_extract(checkpoints, '$.copy.n')), 0), 3) AS mean_copy_ms, round(sum(json_extract(checkpoints, '$.bookkeeping.sumUs')) / 1000.0 / nullif(sum(json_extract(checkpoints, '$.bookkeeping.n')), 0), 3) AS mean_bookkeeping_ms, round(sum(json_extract(checkpoints, '$.decision.sumUs')) / 1000.0 / nullif(sum(json_extract(checkpoints, '$.decision.n')), 0), 3) AS mean_per_window_ms, sum(json_extract(checkpoints, '$.hidden')) AS hidden, sum(json_extract(checkpoints, '$.dropped')) AS capped FROM engine_stats WHERE engine = 'forge-wasm' AND checkpoints IS NOT NULL AND CAST(strftime('%s', ts) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', ts) AS INTEGER) <= $__to / 1000 GROUP BY client_version, seats ORDER BY client_version DESC, seats",
+          "rawQueryText": "SELECT client_version, seats, count(*) AS games, sum(json_extract(checkpoints, '$.total.n')) AS checkpoints, round(sum(json_extract(checkpoints, '$.copy.sumUs')) / 1000.0 / nullif(sum(json_extract(checkpoints, '$.copy.n')), 0), 3) AS mean_copy_ms, round(sum(json_extract(checkpoints, '$.bookkeeping.sumUs')) / 1000.0 / nullif(sum(json_extract(checkpoints, '$.bookkeeping.n')), 0), 3) AS mean_bookkeeping_ms, round(sum(json_extract(checkpoints, '$.decision.sumUs')) / 1000.0 / nullif(sum(json_extract(checkpoints, '$.decision.n')), 0), 3) AS mean_per_window_ms, sum(json_extract(checkpoints, '$.hidden')) AS hidden, sum(json_extract(checkpoints, '$.dropped')) AS capped FROM engine_stats WHERE engine = 'forge-wasm' AND checkpoints IS NOT NULL AND CAST(strftime('%s', ts) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', ts) AS INTEGER) <= $__to / 1000 GROUP BY client_version, seats ORDER BY client_version DESC, seats",
+          "rawQuerySql": "SELECT client_version, seats, count(*) AS games, sum(json_extract(checkpoints, '$.total.n')) AS checkpoints, round(sum(json_extract(checkpoints, '$.copy.sumUs')) / 1000.0 / nullif(sum(json_extract(checkpoints, '$.copy.n')), 0), 3) AS mean_copy_ms, round(sum(json_extract(checkpoints, '$.bookkeeping.sumUs')) / 1000.0 / nullif(sum(json_extract(checkpoints, '$.bookkeeping.n')), 0), 3) AS mean_bookkeeping_ms, round(sum(json_extract(checkpoints, '$.decision.sumUs')) / 1000.0 / nullif(sum(json_extract(checkpoints, '$.decision.n')), 0), 3) AS mean_per_window_ms, sum(json_extract(checkpoints, '$.hidden')) AS hidden, sum(json_extract(checkpoints, '$.dropped')) AS capped FROM engine_stats WHERE engine = 'forge-wasm' AND checkpoints IS NOT NULL AND CAST(strftime('%s', ts) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', ts) AS INTEGER) <= $__to / 1000 GROUP BY client_version, seats ORDER BY client_version DESC, seats",
+          "queryType": "table",
+          "timeColumns": [],
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "events-sqlite"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 249,
+      "type": "table",
+      "title": "WASM checkpoint tails per game",
+      "description": "Per-game percentiles of successful checkpoint creation, in milliseconds. These are not pooled fleet percentiles.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 118,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT ts, client_version, seats, json_extract(checkpoints, '$.total.n') AS checkpoints, json_extract(checkpoints, '$.total.p95Us') / 1000.0 AS p95_ms, json_extract(checkpoints, '$.total.p99Us') / 1000.0 AS p99_ms, json_extract(checkpoints, '$.total.maxUs') / 1000.0 AS max_ms FROM engine_stats WHERE engine = 'forge-wasm' AND checkpoints IS NOT NULL AND CAST(strftime('%s', ts) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', ts) AS INTEGER) <= $__to / 1000 AND json_extract(checkpoints, '$.total.n') > 0 ORDER BY ts DESC LIMIT 100",
+          "rawQueryText": "SELECT ts, client_version, seats, json_extract(checkpoints, '$.total.n') AS checkpoints, json_extract(checkpoints, '$.total.p95Us') / 1000.0 AS p95_ms, json_extract(checkpoints, '$.total.p99Us') / 1000.0 AS p99_ms, json_extract(checkpoints, '$.total.maxUs') / 1000.0 AS max_ms FROM engine_stats WHERE engine = 'forge-wasm' AND checkpoints IS NOT NULL AND CAST(strftime('%s', ts) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', ts) AS INTEGER) <= $__to / 1000 AND json_extract(checkpoints, '$.total.n') > 0 ORDER BY ts DESC LIMIT 100",
+          "rawQuerySql": "SELECT ts, client_version, seats, json_extract(checkpoints, '$.total.n') AS checkpoints, json_extract(checkpoints, '$.total.p95Us') / 1000.0 AS p95_ms, json_extract(checkpoints, '$.total.p99Us') / 1000.0 AS p99_ms, json_extract(checkpoints, '$.total.maxUs') / 1000.0 AS max_ms FROM engine_stats WHERE engine = 'forge-wasm' AND checkpoints IS NOT NULL AND CAST(strftime('%s', ts) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', ts) AS INTEGER) <= $__to / 1000 AND json_extract(checkpoints, '$.total.n') > 0 ORDER BY ts DESC LIMIT 100",
+          "queryType": "table",
+          "timeColumns": [],
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "events-sqlite"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
     }
   ]
 }

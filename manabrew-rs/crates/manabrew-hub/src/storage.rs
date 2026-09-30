@@ -480,10 +480,10 @@ impl Storage {
                  game_id, reply_wait_p50, reply_wait_p90, reply_wait_max,
                  client_work_p50, client_work_p90, client_work_max,
                  engine_bot_p50, engine_bot_p90, engine_bot_max,
-                 engine_rules_p50, engine_rules_p90, engine_rules_max)
+                 engine_rules_p50, engine_rules_p90, engine_rules_max, checkpoints)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18,
                      ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32,
-                     ?33, ?34, ?35, ?36, ?37, ?38)",
+                     ?33, ?34, ?35, ?36, ?37, ?38, ?39)",
             params![
                 report.report_id,
                 reported_at,
@@ -523,6 +523,7 @@ impl Storage {
                 report.engine_think_rules.as_ref().map(|t| t.p50),
                 report.engine_think_rules.as_ref().map(|t| t.p90),
                 report.engine_think_rules.as_ref().map(|t| t.max),
+                report.checkpoints.as_ref().map(|stats| serde_json::to_string(stats).expect("integer checkpoint statistics")),
             ],
         )?;
         Ok(inserted > 0)
@@ -4086,6 +4087,7 @@ mod tests {
             engine_think_same_turn: None,
             engine_think_bot: None,
             engine_think_rules: None,
+            checkpoints: None,
             engine_think_cross_turn: None,
             think_samples_hidden: 0,
             by_type: vec![manabrew_protocol::telemetry::EngineTypeTurnaround {

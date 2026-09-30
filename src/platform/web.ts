@@ -8,6 +8,7 @@
 import type { EngineGameStats } from "@/lib/engineTelemetry";
 import {
   noteEngineThinkTime,
+  noteCheckpointTimings,
   noteReplyFrameArrived,
   noteReplyFrameHandled,
 } from "@/lib/engineTelemetry";
@@ -547,7 +548,16 @@ class WorkerBridge {
         if (forgeWasm) {
           const w = window as unknown as { __forgeLog?: string[] };
           w.__forgeLog = w.__forgeLog ?? [];
-          type Decision = { ms: number; type: string; turns?: number; bot?: number };
+          type Decision = {
+            ms: number;
+            type: string;
+            turns?: number;
+            bot?: number;
+            checkpointMs?: number;
+          };
+          this.eventBus.on<Array<[number, number]>>("forge:checkpoints", (samples) => {
+            if (samples) noteCheckpointTimings(samples);
+          });
           const dec = window as unknown as { __engineDecisions?: Decision[] };
           dec.__engineDecisions = dec.__engineDecisions ?? [];
           this.eventBus.on<Decision>("forge:decision", (p) => {
@@ -556,7 +566,7 @@ class WorkerBridge {
             // The engine's own measure of itself, which no other engine
             // reports: the interval from the answer landing to the next
             // prompt being ready, with no client polling in it.
-            noteEngineThinkTime(p.ms, p.turns ?? 0, p.bot);
+            noteEngineThinkTime(p.ms, p.turns ?? 0, p.bot, p.checkpointMs);
           });
           // Forge prints Java stack traces a line at a time, which is hundreds
           // of console entries for one message. Every line is kept for the

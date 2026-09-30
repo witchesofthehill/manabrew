@@ -1,4 +1,10 @@
-import { createSeat, deliverSeatDirective, pollSeat, writeSeatMessage } from "./seat.js";
+import {
+  createDirectiveLane,
+  createSeat,
+  pollSeat,
+  writeDirectiveLane,
+  writeSeatMessage,
+} from "./seat.js";
 
 const LOCAL_SEAT = "local";
 
@@ -17,6 +23,8 @@ export class ForgeEngine {
     this.requestId = 0;
     this.pending = new Map();
     this.seats = new Map();
+    this.directiveLanes = null;
+    this.localSeatIndex = 0;
   }
 
   async init() {
@@ -43,6 +51,17 @@ export class ForgeEngine {
         if (message.event === "game:sab") this.attachSeat(LOCAL_SEAT, message.payload.buffer);
         if (message.event === "game:remote_sab") {
           this.attachSeat(message.payload.playerSlot, message.payload.buffer);
+        }
+        if (message.event === "game:directive_lanes") {
+          this.directiveLanes = message.payload.buffers.map(createDirectiveLane);
+          this.localSeatIndex = message.payload.localSeat;
+        }
+        if (message.event === "game:seat_state") {
+          const { seat, state } = message.payload;
+          this.dispatchMessage(
+            { kind: "state", state },
+            seat === this.localSeatIndex ? LOCAL_SEAT : `player-${seat}`,
+          );
         }
         this.options.onEvent?.(message.event, message.payload);
       });
@@ -104,10 +123,12 @@ export class ForgeEngine {
     writeSeatMessage(seat, { kind: "response", promptId, action });
   }
 
-  /** Delivered at once if the engine is blocked there, otherwise at that
-   *  seat's next prompt. A concession between prompts is not dropped. */
+  /** Written to the seat's directive lane, which the engine reads while it waits on any prompt. */
   directive(directive, playerSlot = LOCAL_SEAT) {
-    deliverSeatDirective(this.seat(playerSlot), directive);
+    if (!this.directiveLanes) throw new Error("Forge engine has no game running.");
+    const seatIndex =
+      playerSlot === LOCAL_SEAT ? this.localSeatIndex : Number(playerSlot.slice("player-".length));
+    writeDirectiveLane(this.directiveLanes[seatIndex], directive);
   }
 
   seat(playerSlot) {

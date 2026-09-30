@@ -46,6 +46,7 @@
     "CardDto",
     "CardIdentity",
     "CardView",
+    "CheckpointDto",
     "ClassLevelDto",
     "CombatAssignmentDto",
     "DayTime",
@@ -59,6 +60,8 @@
     "PlayerDto",
     "PlayerStatus",
     "PlaymatSettings",
+    "RestoreVoteDto",
+    "RestoreVoteStatus",
     "SagaChapterDto",
     "StackObjectDto",
     "StepKind",
@@ -169,6 +172,11 @@
       "ts": "type CardView =\n  | ({ visibility: \"visible\" } & CardDto)\n  | { visibility: \"hidden\"; id: string };",
       "rust": "#[allow(clippy::large_enum_variant)]\n#[serde(\n    tag = \"visibility\",\n    rename_all = \"camelCase\",\n    rename_all_fields = \"camelCase\"\n)]\npub enum CardView {\n    Visible(CardDto),\n    Hidden { id: String },\n}",
       "refs": ["CardDto"]
+    },
+    "CheckpointDto": {
+      "ts": "interface CheckpointDto {\n  checkpointId: number;\n  turn: number;\n  step: StepKind;\n  activePlayerId: string;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct CheckpointDto {\n    pub checkpoint_id: u32,\n    pub turn: u32,\n    pub step: StepKind,\n    pub active_player_id: String,\n}",
+      "refs": ["StepKind"]
     },
     "ChooseActionInput": {
       "ts": "interface ChooseActionInput {\n  actions: Array<AvailableAction>;\n}",
@@ -360,8 +368,8 @@
       "refs": ["DiceRollEntry", "PromptPresentation"]
     },
     "DirectiveInput": {
-      "ts": "interface DirectiveInput {\n  type: \"concede\";\n}",
-      "rust": "#[serde(tag = \"type\", rename_all = \"camelCase\")]\npub enum DirectiveInput {\n    Concede,\n}",
+      "ts": "type DirectiveInput =\n  | { type: \"concede\" }\n  | { type: \"requestRestore\"; checkpointId: number }\n  | { type: \"restoreVote\"; voteId: number; accept: boolean }\n  | { type: \"setSnapshotRecording\"; enabled: boolean };",
+      "rust": "#[serde(\n    tag = \"type\",\n    rename_all = \"camelCase\",\n    rename_all_fields = \"camelCase\"\n)]\npub enum DirectiveInput {\n    Concede,\n    RequestRestore { checkpoint_id: u32 },\n    RestoreVote { vote_id: u32, accept: bool },\n    SetSnapshotRecording { enabled: bool },\n}",
       "refs": []
     },
     "DungeonStateDto": {
@@ -385,12 +393,14 @@
       "refs": []
     },
     "GameViewDto": {
-      "ts": "interface GameViewDto {\n  gameId: string;\n  turn: number;\n  step: StepKind;\n  combatAssignments: Array<CombatAssignmentDto>;\n  activePlayerId: string;\n  priorityPlayerId: string;\n  players: Array<PlayerDto>;\n  zones: Array<ZoneDto>;\n  stack: Array<StackObjectDto>;\n  gameOver: boolean;\n  winnerId: string | null;\n  monarchId: string | null;\n  initiativeHolderId: string | null;\n  dayTime: DayTime;\n  activePlaneNames?: Array<string>;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct GameViewDto {\n    pub game_id: String,\n    pub turn: u32,\n    pub step: StepKind,\n    pub combat_assignments: Vec<CombatAssignmentDto>,\n    pub active_player_id: String,\n    pub priority_player_id: String,\n    pub players: Vec<PlayerDto>,\n    pub zones: Vec<ZoneDto>,\n    pub stack: Vec<StackObjectDto>,\n    pub game_over: bool,\n    pub winner_id: Option<String>,\n    pub monarch_id: Option<String>,\n    pub initiative_holder_id: Option<String>,\n    pub day_time: DayTime,\n    pub active_plane_names: Option<Vec<String>>,\n}",
+      "ts": "interface GameViewDto {\n  gameId: string;\n  turn: number;\n  step: StepKind;\n  combatAssignments: Array<CombatAssignmentDto>;\n  activePlayerId: string;\n  priorityPlayerId: string;\n  players: Array<PlayerDto>;\n  zones: Array<ZoneDto>;\n  stack: Array<StackObjectDto>;\n  gameOver: boolean;\n  winnerId: string | null;\n  monarchId: string | null;\n  initiativeHolderId: string | null;\n  dayTime: DayTime;\n  activePlaneNames?: Array<string>;\n  checkpoints: Array<CheckpointDto>;\n  restoreVote: RestoreVoteDto | null;\n  snapshotRecording: boolean;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct GameViewDto {\n    pub game_id: String,\n    pub turn: u32,\n    pub step: StepKind,\n    pub combat_assignments: Vec<CombatAssignmentDto>,\n    pub active_player_id: String,\n    pub priority_player_id: String,\n    pub players: Vec<PlayerDto>,\n    pub zones: Vec<ZoneDto>,\n    pub stack: Vec<StackObjectDto>,\n    pub game_over: bool,\n    pub winner_id: Option<String>,\n    pub monarch_id: Option<String>,\n    pub initiative_holder_id: Option<String>,\n    pub day_time: DayTime,\n    pub active_plane_names: Option<Vec<String>>,\n    #[serde(default)]\n    pub checkpoints: Vec<CheckpointDto>,\n    #[serde(default)]\n    pub restore_vote: Option<RestoreVoteDto>,\n    #[serde(default)]\n    pub snapshot_recording: bool,\n}",
       "refs": [
+        "CheckpointDto",
         "CombatAssignmentDto",
         "DayTime",
         "PlayerDto",
+        "RestoreVoteDto",
         "StackObjectDto",
         "StepKind",
         "ZoneDto"
@@ -475,6 +485,16 @@
       "ts": "interface ReorderItem {\n  id: string;\n  card: CardDto;\n  oracle?: string;\n}",
       "rust": "#[serde(rename_all = \"camelCase\")]\npub struct ReorderItem {\n    pub id: String,\n    pub card: CardDto,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub oracle: Option<String>,\n}",
       "refs": ["CardDto"]
+    },
+    "RestoreVoteDto": {
+      "ts": "interface RestoreVoteDto {\n  voteId: number;\n  checkpoint: CheckpointDto;\n  requestedByPlayerId: string;\n  awaitingPlayerIds: Array<string>;\n  status: RestoreVoteStatus;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct RestoreVoteDto {\n    pub vote_id: u32,\n    pub checkpoint: CheckpointDto,\n    pub requested_by_player_id: String,\n    pub awaiting_player_ids: Vec<String>,\n    pub status: RestoreVoteStatus,\n}",
+      "refs": ["CheckpointDto", "RestoreVoteStatus"]
+    },
+    "RestoreVoteStatus": {
+      "ts": "type RestoreVoteStatus =\n  | { type: \"pending\" }\n  | { type: \"approved\" }\n  | { type: \"declined\"; playerId: string }\n  | { type: \"unavailable\" };",
+      "rust": "#[serde(\n    tag = \"type\",\n    rename_all = \"camelCase\",\n    rename_all_fields = \"camelCase\"\n)]\npub enum RestoreVoteStatus {\n    Pending,\n    Approved,\n    Declined { player_id: String },\n    Unavailable,\n}",
+      "refs": []
     },
     "RevealCardsInput": {
       "ts": "interface RevealCardsInput {\n  presentation: PromptPresentation;\n  cards: Array<CardDto>;\n  zone: ZoneKind;\n  ownerPlayerId: string;\n}",

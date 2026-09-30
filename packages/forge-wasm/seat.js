@@ -70,6 +70,41 @@ export function writeSeatMessage(seat, message) {
   Atomics.notify(seat.signal, 0);
 }
 
+const LANE_EMPTY = 0;
+const LANE_FULL = 1;
+
+export function createDirectiveLane(buffer) {
+  return {
+    signal: new Int32Array(buffer, 0, 2),
+    data: new Uint8Array(buffer, HEADER_BYTES),
+    queue: [],
+    flushScheduled: false,
+  };
+}
+
+export function writeDirectiveLane(lane, directive) {
+  lane.queue.push(directive);
+  if (!lane.flushScheduled) flushDirectiveLane(lane);
+}
+
+function flushDirectiveLane(lane) {
+  lane.flushScheduled = false;
+  while (lane.queue.length > 0) {
+    if (Atomics.load(lane.signal, 0) !== LANE_EMPTY) {
+      lane.flushScheduled = true;
+      schedule(() => flushDirectiveLane(lane));
+      return;
+    }
+    const bytes = new TextEncoder().encode(JSON.stringify(lane.queue.shift()));
+    if (bytes.length > lane.data.length) {
+      throw new Error("Forge directive exceeds its lane.");
+    }
+    lane.data.set(bytes, 0);
+    Atomics.store(lane.signal, 1, bytes.length);
+    Atomics.store(lane.signal, 0, LANE_FULL);
+  }
+}
+
 /**
  * The seat holds one message slot, so a directive written while the engine is
  * not waiting would be overwritten before it read it. Hold it until it blocks.

@@ -151,6 +151,9 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     @Override
     public List<SpellAbility> chooseSpellAbilityToPlay() {
+        if (session.restoreIfApproved()) {
+            return new ArrayList<>();
+        }
         if (exhaustStackIds != null) {
             if (PriorityFastForward.exhaustEnded(game, exhaustStackIds)) {
                 exhaustStackIds = null;
@@ -197,6 +200,12 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                 undoManaSource(choice.untapCard());
                 continue;
             }
+            if (choice.kind() == ManaBrewInteractiveSession.PriorityActionKind.RESTORE) {
+                if (session.restoreIfApproved()) {
+                    return new ArrayList<>();
+                }
+                continue;
+            }
             passUntilPlayer = choice.untilPlayer();
             passUntilPhase = choice.untilPhase();
             passUntilThroughCombat = choice.throughCombat();
@@ -214,6 +223,13 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             }
             return selected == null ? null : Lists.newArrayList(selected);
         }
+    }
+
+    void clearHeldPass() {
+        passUntilPlayer = null;
+        passUntilPhase = null;
+        passUntilThroughCombat = false;
+        exhaustStackIds = null;
     }
 
     private List<Card> undoableManaSources() {

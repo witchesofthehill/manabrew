@@ -86,5 +86,8 @@ export function playgroundGameView(table: PlaygroundTable, zones: ZoneDto[]): Cl
     initiativeHolderId:
       table.players.find((player) => table.playerStates[player.id]?.hasInitiative)?.id ?? null,
     dayTime: "neither",
+    checkpoints: [],
+    restoreVote: null,
+    snapshotRecording: false,
   };
 }

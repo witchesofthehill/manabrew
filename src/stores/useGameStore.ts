@@ -165,7 +165,6 @@ async function initializeGame({
       currentPrompt: null,
       gameLog: [],
       protocolError: null,
-      snapshots: [],
       deferredQueue: [],
       isFlashing: false,
       isWaitingForResponse: false,
@@ -256,7 +255,6 @@ async function initializeGame({
     currentPrompt: null,
     gameLog: [],
     protocolError: null,
-    snapshots: [],
     deferredQueue: [],
     isFlashing: false,
     isWaitingForResponse: false,
@@ -332,7 +330,6 @@ export const useGameStore = create<GameState>()(
       currentPrompt: null,
       gameLog: [],
       protocolError: null,
-      snapshots: [],
       isGameActive: false,
       debugInfo: "",
       fatalError: null,
@@ -533,7 +530,6 @@ export const useGameStore = create<GameState>()(
             currentPrompt: null,
             gameLog: [],
             protocolError: null,
-            snapshots: [],
             deferredQueue: [],
             isFlashing: false,
             isWaitingForResponse: false,
@@ -695,7 +691,6 @@ export const useGameStore = create<GameState>()(
           currentPrompt: null,
           gameLog: [],
           protocolError: null,
-          snapshots: [],
           deferredQueue: [],
           isFlashing: false,
           isWaitingForResponse: false,
@@ -745,28 +740,32 @@ export const useGameStore = create<GameState>()(
       setMultiplayerState: (isMultiplayer, isHost, myPlayerSlot) => {
         set({ isMultiplayer, isHost, myPlayerSlot });
       },
-      restoreSnapshot: async (checkpointId) => {
-        const { isMultiplayer, isHost } = get();
-        if (isMultiplayer && !isHost) return;
-        const promptType = get().currentPrompt?.input.type;
-        if (promptType !== "chooseAction") {
-          set({
-            debugInfo: "Snapshot restore is only available during priority prompts.",
-          });
-          return;
-        }
-        const runtime = getSelectedGameRuntime();
+      requestRestore: async (checkpointId) => {
+        const { myPlayerSlot } = get();
+        if (!myPlayerSlot) throw new Error("No local player is available to request a restore.");
+        await getSelectedGameRuntime().api.sendDirective({
+          playerSlot: myPlayerSlot,
+          directive: { type: "requestRestore", checkpointId },
+        });
+      },
+      setSnapshotRecording: async (enabled) => {
+        usePreferencesStore.getState().setSnapshotRecording(enabled);
         try {
-          await runtime.api.restoreSnapshot({ checkpointId });
-          set({ debugInfo: `Requested snapshot restore: #${checkpointId}` });
-        } catch (error) {
-          // Not every engine can rewind: the browser Forge build rejects it
-          // outright. Say so rather than leaving the click looking successful
-          // or throwing out of a handler.
-          set({
-            debugInfo: `Snapshot restore is not available on this engine (${String(error)}).`,
+          await getSelectedGameRuntime().api.sendHostDirective({
+            type: "setSnapshotRecording",
+            enabled,
           });
+        } catch (error) {
+          toast.error(error instanceof Error ? error.message : String(error));
         }
+      },
+      voteRestore: async (voteId, accept) => {
+        const { myPlayerSlot } = get();
+        if (!myPlayerSlot) throw new Error("No local player is available to vote.");
+        await getSelectedGameRuntime().api.sendDirective({
+          playerSlot: myPlayerSlot,
+          directive: { type: "restoreVote", voteId, accept },
+        });
       },
     }),
     { name: "game", enabled: import.meta.env.DEV },

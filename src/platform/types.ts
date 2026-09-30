@@ -46,10 +46,6 @@ export interface SendDirectiveParams {
   directive: DirectiveInput;
 }
 
-export interface RestoreSnapshotParams {
-  checkpointId: number;
-}
-
 export interface ServerConnectParams {
   host: string;
   port: number;
@@ -134,9 +130,10 @@ export interface IGameApi {
   /** Fire-and-forget out-of-band player instruction (concede, …). */
   sendDirective(params: SendDirectiveParams): Promise<void>;
 
-  endGame(): Promise<void>;
+  /** An instruction from the tab that runs the engine, such as snapshot recording. */
+  sendHostDirective(directive: DirectiveInput): Promise<void>;
 
-  restoreSnapshot(params: RestoreSnapshotParams): Promise<void>;
+  endGame(): Promise<void>;
 
   getPrompt(): Promise<Prompt | null>;
 }

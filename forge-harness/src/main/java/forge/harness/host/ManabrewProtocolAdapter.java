@@ -192,8 +192,6 @@ final class ManabrewProtocolAdapter {
                     flat.addProperty("exhaustStack", true);
                 }
                 return flat;
-            case "restoreSnapshot":
-                throw new UnsupportedOperationException("unsupported canonical action type: restoreSnapshot");
             default:
                 throw new UnsupportedOperationException("unsupported chooseAction output: " + kind);
         }
@@ -204,11 +202,27 @@ final class ManabrewProtocolAdapter {
                 ? canonical.getAsJsonObject("directive")
                 : new JsonObject();
         final String kind = directive.has("type") ? directive.get("type").getAsString() : "";
-        if (!"concede".equals(kind)) {
-            throw new UnsupportedOperationException("unsupported directive: " + kind);
-        }
         final JsonObject flat = new JsonObject();
-        flat.addProperty("kind", "concede");
+        switch (kind) {
+            case "concede":
+                flat.addProperty("kind", "concede");
+                break;
+            case "requestRestore":
+                flat.addProperty("kind", "request_restore");
+                flat.addProperty("checkpointId", directive.get("checkpointId").getAsInt());
+                break;
+            case "restoreVote":
+                flat.addProperty("kind", "restore_vote");
+                flat.addProperty("voteId", directive.get("voteId").getAsInt());
+                flat.addProperty("accept", directive.get("accept").getAsBoolean());
+                break;
+            case "setSnapshotRecording":
+                flat.addProperty("kind", "set_snapshot_recording");
+                flat.addProperty("enabled", directive.get("enabled").getAsBoolean());
+                break;
+            default:
+                throw new UnsupportedOperationException("unsupported directive: " + kind);
+        }
         flat.addProperty("player", canonical.get("player").getAsInt());
         return flat;
     }

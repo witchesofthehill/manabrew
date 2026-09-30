@@ -15,7 +15,6 @@ export type ConcedeBehavior = "send-action" | "end-session";
 
 export interface GameRuntimeCapabilities {
   multiplayer: boolean;
-  snapshots: boolean;
   deckAvailabilityCheck: boolean;
   manualTabletop: boolean;
   concedeBehavior: ConcedeBehavior;

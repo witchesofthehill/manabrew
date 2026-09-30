@@ -979,6 +979,135 @@
         "graphMode": "area",
         "justifyMode": "auto"
       }
+    },
+    {
+      "id": 28,
+      "type": "timeseries",
+      "title": "Checkpoint creation mean",
+      "description": "Successful restore-checkpoint creation, split into copying and retention/metadata work. Excludes later GC and board-state output.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 64,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (stage, seats) (rate(manabrew_node_forge_checkpoint_seconds_sum[5m])) / sum by (stage, seats) (rate(manabrew_node_forge_checkpoint_seconds_count[5m]))",
+          "legendFormat": "{{stage}}, {{seats}} seats"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 29,
+      "type": "timeseries",
+      "title": "Checkpoint creation p95 / p99",
+      "description": "Fleet histogram of total synchronous time per successful checkpoint.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 64,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le, seats) (rate(manabrew_node_forge_checkpoint_seconds_bucket{stage=\"total\"}[5m])))",
+          "legendFormat": "p95, {{seats}} seats"
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.99, sum by (le, seats) (rate(manabrew_node_forge_checkpoint_seconds_bucket{stage=\"total\"}[5m])))",
+          "legendFormat": "p99, {{seats}} seats"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 30,
+      "type": "timeseries",
+      "title": "Checkpoint time per decision",
+      "description": "Mean accumulated checkpoint time between prompts for measured decisions, including zero when no checkpoint was created. Startup and final samples contribute only to creation metrics.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 72,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (seats) (rate(manabrew_node_forge_checkpoint_decision_seconds_sum[5m])) / sum by (seats) (rate(manabrew_node_forge_checkpoint_decision_seconds_count[5m]))",
+          "legendFormat": "{{seats}} seats"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 31,
+      "type": "timeseries",
+      "title": "Checkpoint share of decision time",
+      "description": "Ratio of checkpoint time to total time for completed decisions. Requires healthy checkpoint telemetry; compare observation counts during mixed-version rollouts. This is wall time and does not attribute later GC.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 72,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (seats) (rate(manabrew_node_forge_checkpoint_decision_seconds_sum[5m])) / sum by (seats) (rate(manabrew_node_forge_decision_seconds_sum[5m]))",
+          "legendFormat": "{{seats}} seats"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {}
     }
   ]
 }

@@ -86,6 +86,9 @@ pub struct EnginePlayStats {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub engine_think_rules: Option<EngineTurnaround>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub checkpoints: Option<EngineCheckpointStats>,
     /// Windows dropped because the tab was backgrounded for part of them: the
     /// engine times itself in wall clock, which keeps running while the worker
     /// is descheduled.
@@ -116,6 +119,58 @@ pub struct EngineTypeTurnaround {
     pub max: u32,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "telemetry.ts")]
+pub struct EngineCheckpointTiming {
+    pub n: u32,
+    #[ts(type = "number")]
+    pub sum_us: u64,
+    #[ts(type = "number")]
+    pub p50_us: u64,
+    #[ts(type = "number")]
+    pub p95_us: u64,
+    #[ts(type = "number")]
+    pub p99_us: u64,
+    #[ts(type = "number")]
+    pub max_us: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "telemetry.ts")]
+pub struct EngineCheckpointStats {
+    pub copy: EngineCheckpointTiming,
+    pub bookkeeping: EngineCheckpointTiming,
+    pub total: EngineCheckpointTiming,
+    pub decision: EngineCheckpointTiming,
+    pub hidden: u32,
+    pub dropped: u32,
+}
+
+impl EngineCheckpointTiming {
+    fn is_plausible(&self) -> bool {
+        self.n <= 4000
+            && self.p50_us <= self.p95_us
+            && self.p95_us <= self.p99_us
+            && self.p99_us <= self.max_us
+            && self.max_us <= self.sum_us
+            && self.sum_us <= 86_400_000_000
+            && (self.n > 0 || self.sum_us == 0)
+    }
+}
+
+impl EngineCheckpointStats {
+    fn is_plausible(&self) -> bool {
+        [&self.copy, &self.bookkeeping, &self.total, &self.decision]
+            .iter()
+            .all(|timing| timing.is_plausible())
+            && self.copy.n == self.bookkeeping.n
+            && self.copy.n == self.total.n
+            && self.total.sum_us == self.copy.sum_us + self.bookkeeping.sum_us
+    }
+}
+
 impl EnginePlayStats {
     /// Whether this is worth storing. Rejects the shapes a mistake or a hostile
     /// client produces: an unparseable id, empty or oversized text, a table
@@ -131,6 +186,10 @@ impl EnginePlayStats {
             && (1..=8).contains(&self.seats)
             && self.by_type.len() <= 32
             && self.turnaround.n > 0
+            && self
+                .checkpoints
+                .as_ref()
+                .is_none_or(EngineCheckpointStats::is_plausible)
     }
 
     /// The game this report belongs to, when the id is one a store can key on.
@@ -300,6 +359,7 @@ mod tests {
             engine_think_cross_turn: None,
             engine_think_bot: None,
             engine_think_rules: None,
+            checkpoints: None,
             think_samples_hidden: 0,
             by_type: vec![],
         }

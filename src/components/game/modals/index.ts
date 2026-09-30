@@ -4,4 +4,6 @@ export { EliminatedModal } from "./EliminatedModal";
 export { GameSettingsModal } from "./GameSettingsModal";
 export { LeaveGameModal } from "./LeaveGameModal";
 export { Modal } from "./Modal";
+export { RestoreRequestModal } from "./RestoreRequestModal";
+export { RestoreVoteModal } from "./RestoreVoteModal";
 export { ZoneViewer } from "./ZoneViewer";

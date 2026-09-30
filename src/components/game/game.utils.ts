@@ -1,4 +1,10 @@
-import type { CardChoiceDto, CardDto, ManaColor, StackObjectDto } from "@/protocol/game";
+import type {
+  CardChoiceDto,
+  CardDto,
+  CheckpointDto,
+  ManaColor,
+  StackObjectDto,
+} from "@/protocol/game";
 import type { CardRulesSummary } from "@/types/manabrew";
 import type { AvailableAction, PaymentAction } from "@/protocol/prompts/common";
 import type { ClientCardDto } from "@/stores/gameStore.types";
@@ -8,6 +14,7 @@ import {
   CARD_H,
   CARD_W,
   GAME_CARD_SIZES,
+  PHASES,
   PROMPT_LABELS,
   PROMPT_MODAL_VIEWPORT_MARGIN,
 } from "./game.constants";
@@ -215,4 +222,12 @@ export function deriveCardChoiceIndicators(card: Pick<CardDto, "choices">): Card
         };
     }
   });
+}
+
+export function stepLabel(step: CheckpointDto["step"]): string {
+  return PHASES.find((phase) => phase.id === step)?.label ?? step;
+}
+
+export function checkpointLabel(checkpoint: CheckpointDto): string {
+  return `turn ${checkpoint.turn}, ${stepLabel(checkpoint.step)}`;
 }

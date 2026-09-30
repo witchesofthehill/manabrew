@@ -457,11 +457,6 @@ async function handleCommand(command: string, args?: Record<string, unknown>): P
       return null;
     }
 
-    case "restore_snapshot": {
-      console.log("[GameWorker] Restore snapshot:", args?.checkpointId);
-      return null;
-    }
-
     case "is_card_supported": {
       // Answering this would cost the whole archive download, which a player
       // on the Forge engine never otherwise pays. `null` means "no answer",

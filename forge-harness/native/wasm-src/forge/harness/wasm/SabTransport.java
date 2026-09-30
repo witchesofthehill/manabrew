@@ -91,6 +91,38 @@ public final class SabTransport implements InteractiveBridge {
     @JS("return (globalThis.__mbSeats || []).length;")
     static native int seatCount();
 
+    @JS.Coerce
+    @JS("const seats = globalThis.__forgeDirectiveLanes || [];"
+        + "const host = globalThis.__forgeHostLane;"
+        + "globalThis.__mbLanes = (host ? [...seats, host] : seats).map((lane) => ({"
+        + "  sig: new Int32Array(lane, 0, 2), data: new Uint8Array(lane, 8) }));")
+    static native void bindDirectiveLanes();
+
+    @JS.Coerce
+    @JS("return globalThis.__forgeHostLane ? globalThis.__mbLanes.length - 1 : -1;")
+    static native int hostDirectiveLane();
+
+    @JS.Coerce
+    @JS("return globalThis.__mbLanes.findIndex((lane) => Atomics.load(lane.sig, 0) === 1);")
+    static native int fullDirectiveLane();
+
+    @JS.Coerce
+    @JS("const lane = globalThis.__mbLanes[index];"
+        + "const directive = new TextDecoder().decode(lane.data.slice(0, Atomics.load(lane.sig, 1)));"
+        + "Atomics.store(lane.sig, 0, 0);"
+        + "return directive;")
+    static native String takeDirective(int index);
+
+    @JS.Coerce
+    @JS("const sig = globalThis.__mbSeats[globalThis.__mbSeatOf(seat)].sig;"
+        + "const cur = Atomics.load(sig, 0);"
+        + "if (cur === 2) return true;"
+        + "Atomics.wait(sig, 0, cur, timeoutMs);"
+        + "return Atomics.load(sig, 0) === 2;")
+    static native boolean awaitAnswer(int seat, int timeoutMs);
+
+    private static final int LANE_POLL_MS = 25;
+
     private final java.util.function.IntFunction<String> snapshots;
     /**
      * Seats a Manabot plays. A bot reads one board, the one it is prompted
@@ -100,6 +132,8 @@ public final class SabTransport implements InteractiveBridge {
      * discarded unread.
      */
     private final java.util.Set<Integer> botSeats;
+    private final java.util.function.Supplier<String> checkpointMetrics;
+    private long checkpointNanosSinceRecv;
     private long checkpoint;
     /** When a person's answer last landed; bot answers do not move it. */
     private long lastRecvAt;
@@ -114,6 +148,9 @@ public final class SabTransport implements InteractiveBridge {
     private int turnAtLastPrompt = -1;
     /** Kept clear of the in-game sequence, which the session owns. */
     private long finalPromptId = 1_000_000;
+    /** The prompt a seat holds and has not answered; a directive leaves it open. */
+    private String openPrompt;
+    private int openSeat = -1;
 
     private static String inputType(final String promptJson) {
         try {
@@ -126,13 +163,15 @@ public final class SabTransport implements InteractiveBridge {
     }
 
     public SabTransport(final java.util.function.IntFunction<String> snapshots) {
-        this(snapshots, java.util.Collections.emptySet());
+        this(snapshots, java.util.Collections.emptySet(), () -> "[]");
     }
 
     public SabTransport(final java.util.function.IntFunction<String> snapshots,
-            final java.util.Set<Integer> botSeats) {
+            final java.util.Set<Integer> botSeats,
+            final java.util.function.Supplier<String> checkpointMetrics) {
         this.snapshots = snapshots;
         this.botSeats = botSeats;
+        this.checkpointMetrics = checkpointMetrics;
     }
 
     @Override
@@ -146,11 +185,43 @@ public final class SabTransport implements InteractiveBridge {
         final String type = inputType(promptJson);
         final boolean dice = "diceRolled".equals(type);
         final boolean bot = !dice && botSeats.contains(seat);
+        final long botStartedAt = bot ? System.currentTimeMillis() : 0;
+        if (seat != openSeat || !promptJson.equals(openPrompt)) {
+            publishPrompt(seat, promptJson, type, dice, bot);
+            if (dice) {
+                return exchangeWithAllSeats(promptJson);
+            }
+            openSeat = seat;
+            openPrompt = promptJson;
+        }
+        while (!awaitAnswer(seat, LANE_POLL_MS)) {
+            final int lane = fullDirectiveLane();
+            if (lane >= 0) {
+                final JsonObject message = new JsonObject();
+                message.add("directive", JsonParser.parseString(takeDirective(lane)));
+                return decodeMessage(lane == hostDirectiveLane() ? HOST_SEAT : lane, message);
+            }
+        }
+        openPrompt = null;
+        openSeat = -1;
+
+        final JsonObject message = JsonParser.parseString(recv(seat)).getAsJsonObject();
+        if (bot) {
+            botMsSinceRecv += System.currentTimeMillis() - botStartedAt;
+        } else {
+            lastRecvAt = System.currentTimeMillis();
+            botMsSinceRecv = 0;
+            checkpointNanosSinceRecv = 0;
+        }
+        return decodeMessage(seat, message);
+    }
+
+    private void publishPrompt(
+            final int seat, final String promptJson, final String type, final boolean dice, final boolean bot) {
         // Broadcast before the telemetry post so `turnNow` is the turn this
         // prompt belongs to. A bot's prompt updates the bot alone: the people
         // at the table see the board on their own next prompt, as they did
         // when Forge's AI held these seats.
-        final long botStartedAt = bot ? System.currentTimeMillis() : 0;
         if (bot) {
             sendState(seat);
         } else {
@@ -166,29 +237,22 @@ public final class SabTransport implements InteractiveBridge {
         // zero means the opponents took their turns in it, which is most of
         // what a large reading is: this is not one decision being slow.
         // `bot` is the part of the window spent on bot prompts.
+        final long promptReadyAt = System.currentTimeMillis();
+        publishCheckpointMetrics();
         if (!bot) {
             if (lastRecvAt > 0) {
                 final int turns = turnAtLastPrompt < 0 ? 0 : Math.max(0, turnNow - turnAtLastPrompt);
-                post("forge:decision", "{\"ms\":" + (System.currentTimeMillis() - lastRecvAt)
+                post("forge:decision", "{\"ms\":" + (promptReadyAt - lastRecvAt)
+                        + ",\"checkpointMs\":" + (checkpointNanosSinceRecv / 1_000_000.0)
                         + ",\"bot\":" + botMsSinceRecv
                         + ",\"turns\":" + turns
                         + ",\"type\":\"" + type + "\"}");
             }
             turnAtLastPrompt = turnNow;
         }
-        if (dice) {
-            return exchangeWithAllSeats(promptJson);
+        if (!dice) {
+            sendTagged(seat, "prompt", "prompt", promptJson);
         }
-        sendTagged(seat, "prompt", "prompt", promptJson);
-
-        final JsonObject message = JsonParser.parseString(recv(seat)).getAsJsonObject();
-        if (bot) {
-            botMsSinceRecv += System.currentTimeMillis() - botStartedAt;
-        } else {
-            lastRecvAt = System.currentTimeMillis();
-            botMsSinceRecv = 0;
-        }
-        return decodeMessage(seat, message);
     }
 
     private String exchangeWithAllSeats(final String promptJson) {
@@ -207,6 +271,7 @@ public final class SabTransport implements InteractiveBridge {
         }
         lastRecvAt = System.currentTimeMillis();
         botMsSinceRecv = 0;
+        checkpointNanosSinceRecv = 0;
         return result;
     }
 
@@ -263,14 +328,39 @@ public final class SabTransport implements InteractiveBridge {
         if (turn >= 0) {
             turnNow = turn;
         }
-        // The client reads state.gameView, matching GameSnapshotEventDto on
-        // the Rust side; a bare game view leaves the board unmounted.
-        sendTagged(viewer, "state", "state", "{\"checkpointId\":" + (++checkpoint)
+        sendTagged(viewer, "state", "state", stateFrame(view));
+    }
+
+    @Override
+    public void publishState() {
+        final int seats = Math.max(1, seatCount());
+        for (int viewer = 0; viewer < seats; viewer++) {
+            if (!botSeats.contains(viewer)) {
+                post("game:seat_state", "{\"seat\":" + viewer + ",\"state\":"
+                        + stateFrame(snapshots.apply(viewer)) + "}");
+            }
+        }
+    }
+
+    // The client reads state.gameView, matching GameSnapshotEventDto on
+    // the Rust side; a bare game view leaves the board unmounted.
+    private String stateFrame(final String view) {
+        return "{\"checkpointId\":" + (++checkpoint)
                 + ",\"label\":\"forge\",\"gameView\":" + view
-                + ",\"timestampMs\":" + System.currentTimeMillis() + "}");
+                + ",\"timestampMs\":" + System.currentTimeMillis() + "}";
+    }
+
+    private void publishCheckpointMetrics() {
+        final String samples = checkpointMetrics.get();
+        for (final com.google.gson.JsonElement sample : JsonParser.parseString(samples).getAsJsonArray()) {
+            final com.google.gson.JsonArray timing = sample.getAsJsonArray();
+            checkpointNanosSinceRecv += timing.get(0).getAsLong() + timing.get(1).getAsLong();
+        }
+        post("forge:checkpoints", samples);
     }
 
     public void publishGameOver(final String engineError) {
+        publishCheckpointMetrics();
         final int seats = Math.max(1, seatCount());
         for (int seat = 0; seat < seats; seat++) {
             if (engineError != null && !engineError.isEmpty()) {
@@ -279,9 +369,7 @@ public final class SabTransport implements InteractiveBridge {
             }
             final String view = snapshots == null ? null : snapshots.apply(seat);
             if (view != null && !view.isEmpty()) {
-                sendTagged(seat, "state", "state", "{\"checkpointId\":" + (++checkpoint)
-                        + ",\"label\":\"forge\",\"gameView\":" + view
-                        + ",\"timestampMs\":" + System.currentTimeMillis() + "}");
+                sendTagged(seat, "state", "state", stateFrame(view));
             }
             sendTagged(seat, "prompt", "prompt", "{\"promptId\":" + (++finalPromptId)
                     + ",\"decidingPlayerId\":\"player-" + seat

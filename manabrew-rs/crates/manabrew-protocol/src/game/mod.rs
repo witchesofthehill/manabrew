@@ -146,6 +146,47 @@ pub struct GameViewDto {
     pub day_time: DayTime,
     #[ts(optional)]
     pub active_plane_names: Option<Vec<String>>,
+    #[serde(default)]
+    pub checkpoints: Vec<CheckpointDto>,
+    #[serde(default)]
+    pub restore_vote: Option<RestoreVoteDto>,
+    #[serde(default)]
+    pub snapshot_recording: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "game/index.ts")]
+pub struct RestoreVoteDto {
+    pub vote_id: u32,
+    pub checkpoint: CheckpointDto,
+    pub requested_by_player_id: String,
+    pub awaiting_player_ids: Vec<String>,
+    pub status: RestoreVoteStatus,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(
+    tag = "type",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+#[ts(export, export_to = "game/index.ts")]
+pub enum RestoreVoteStatus {
+    Pending,
+    Approved,
+    Declined { player_id: String },
+    Unavailable,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "game/index.ts")]
+pub struct CheckpointDto {
+    pub checkpoint_id: u32,
+    pub turn: u32,
+    pub step: StepKind,
+    pub active_player_id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

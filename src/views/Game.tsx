@@ -1,6 +1,5 @@
 import { CombatBreakdownModal } from "@/components/game/modals/CombatBreakdownModal";
 import { locateVisibleZone, visibleZoneCards, zoneLocationKey } from "@/lib/zoneView";
-import { isForgeWasmActive } from "@/lib/forgeWasm";
 import { useGameStore } from "@/stores/useGameStore";
 import { useServerStore } from "@/stores/useServerStore";
 import { asDeckCard } from "@/lib/decks";
@@ -13,7 +12,7 @@ import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
 import { useAutoResolvePrompt } from "@/components/prompts/internal/useAutoResolvePrompt";
 import { useShallow } from "zustand/react/shallow";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { CardChoiceDto, CardDto, StackObjectDto } from "@/protocol/game";
+import type { CardChoiceDto, CardDto, CheckpointDto, StackObjectDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
 import type { ClientCardDto, ClientPlayerDto } from "@/stores/gameStore.types";
 import { GameModals } from "@/components/game/GameModals";
@@ -22,10 +21,13 @@ import { GameLoadingScreen } from "@/components/game/GameLoadingScreen";
 import { GameFailedScreen } from "@/components/game/GameFailedScreen";
 import { WaitingForPlayerScreen } from "@/components/game/WaitingForPlayerScreen";
 import { DevViewportFrame } from "@/components/dev/DevViewportFrame";
+import { isForgeWasmActive } from "@/lib/forgeWasm";
 import { ManualTabletopControls } from "@/components/game/ManualTabletopControls";
 import { MiddleBarDock, RightActionPanel } from "@/components/game/panels";
 import {
   ConcedeGameModal,
+  RestoreRequestModal,
+  RestoreVoteModal,
   EliminatedModal,
   GameSettingsModal,
   LeaveGameModal,
@@ -260,7 +262,6 @@ export default function Game({ exitTo }: GameProps = {}) {
   const isWaitingForResponse = useGameStore((s) => s.isWaitingForResponse);
   const relinquishedPriority = useGameStore((s) => s.relinquishedPriority);
   const gameLog = useGameStore((s) => s.gameLog);
-  const snapshots = useGameStore((s) => s.snapshots);
   const debugInfo = useGameStore((s) => s.debugInfo);
   const fatalError = useGameStore((s) => s.fatalError);
   const engineCrash = useGameStore((s) => s.engineCrash);
@@ -292,12 +293,22 @@ export default function Game({ exitTo }: GameProps = {}) {
   const hostingForgeRoom = useServerStore((s) => s.hostingForgeRoom);
   const selectedRuntime = getSelectedGameRuntime();
   const manualApi = isManualTabletopApi(selectedRuntime) ? selectedRuntime.api : null;
-  const { respond, concede, endGame, restoreSnapshot, gameDecks } = useGameStore(
+  const {
+    respond,
+    concede,
+    endGame,
+    requestRestore,
+    voteRestore,
+    setSnapshotRecording,
+    gameDecks,
+  } = useGameStore(
     useShallow((s) => ({
       respond: s.respond,
       concede: s.concede,
       endGame: s.endGame,
-      restoreSnapshot: s.restoreSnapshot,
+      requestRestore: s.requestRestore,
+      voteRestore: s.voteRestore,
+      setSnapshotRecording: s.setSnapshotRecording,
       gameDecks: s.gameDecks,
     })),
   );
@@ -335,6 +346,8 @@ export default function Game({ exitTo }: GameProps = {}) {
   const eliminatedModalShownRef = useRef(false);
   const [leaveGameModalOpen, setLeaveGameModalOpen] = useState(false);
   const [concedeModalOpen, setConcedeModalOpen] = useState(false);
+  const [restoreTarget, setRestoreTarget] = useState<CheckpointDto | null>(null);
+  const closeRestoreModal = useCallback(() => setRestoreTarget(null), []);
   const [combatDetailsOpen, setCombatDetailsOpen] = useState(false);
   const [introDone, setIntroDone] = useState(false);
   const handleLoadingComplete = useCallback(() => setIntroDone(true), []);
@@ -2351,6 +2364,12 @@ export default function Game({ exitTo }: GameProps = {}) {
     onHideModal: hidePromptModal,
     onShowModal: showPromptModal,
   };
+  const openRestoreVote =
+    gameView.restoreVote?.status.type === "pending" &&
+    myPlayerSlot &&
+    gameView.restoreVote.awaitingPlayerIds.includes(myPlayerSlot)
+      ? gameView.restoreVote
+      : null;
 
   const ZonePreviewCanvas = isMobileGame ? MobileBoardOverlayCanvas : DesktopBoardOverlayCanvas;
 
@@ -2551,14 +2570,12 @@ export default function Game({ exitTo }: GameProps = {}) {
         onHoverLogCard={handleLogCardHover}
         resolveCardName={(cardId) => cardNameById.get(cardId) ?? cardId}
         resolvePlayerName={(playerId) => playerNameById.get(playerId) ?? playerId}
-        snapshots={snapshots}
-        // The browser Forge engine cannot rewind — the harness rejects
-        // restoreSnapshot outright — so the control is offered only by an
-        // engine that can honour it.
-        canRestoreSnapshots={
-          (!isMultiplayer || isHost) && promptType === "chooseAction" && !isForgeWasmActive()
-        }
-        onRestoreSnapshot={restoreSnapshot}
+        checkpoints={gameView.checkpoints}
+        canRequestRestore={!iAmEliminated && !gameView.gameOver}
+        onRequestRestore={setRestoreTarget}
+        snapshotRecording={gameView.snapshotRecording}
+        hostsEngine={isForgeWasmActive() && (!isMultiplayer || isHost)}
+        onSnapshotRecordingChange={(enabled) => void setSnapshotRecording(enabled)}
       />
 
       {boardSurfaceEl &&
@@ -2625,6 +2642,25 @@ export default function Game({ exitTo }: GameProps = {}) {
           endsWithConcede={leaveEndsWithConcede}
           onStay={handleStay}
           onLeave={leaveEndsWithConcede ? handleLeaveConcede : handleLeaveConfirm}
+        />
+      )}
+      {openRestoreVote && (
+        <RestoreVoteModal
+          key={openRestoreVote.voteId}
+          restoreVote={openRestoreVote}
+          resolvePlayerName={(playerId) => playerNameById.get(playerId) ?? playerId}
+          onVote={(accept) => voteRestore(openRestoreVote.voteId, accept)}
+        />
+      )}
+      {restoreTarget && myPlayerSlot && (
+        <RestoreRequestModal
+          checkpoint={restoreTarget}
+          localPlayerId={myPlayerSlot}
+          multiplayer={isMultiplayer}
+          restoreVote={gameView.restoreVote}
+          resolvePlayerName={(playerId) => playerNameById.get(playerId) ?? playerId}
+          onConfirm={() => requestRestore(restoreTarget.checkpointId)}
+          onClose={closeRestoreModal}
         />
       )}
       {concedeModalOpen && (

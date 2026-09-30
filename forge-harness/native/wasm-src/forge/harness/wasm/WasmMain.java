@@ -104,13 +104,16 @@ public final class WasmMain {
                 } else {
                     SabTransport.bind();
                 }
+                SabTransport.bindDirectiveLanes();
                 final com.google.gson.JsonObject start = com.google.gson.JsonParser
                         .parseString(requestJson).getAsJsonObject();
+                start.addProperty("checkpointMetrics", true);
                 final String gameId = start.get("gameId").getAsString();
                 final SabTransport transport = new SabTransport(
-                        viewer -> adapter.getSnapshot(gameId, viewer), botSeats(start));
+                        viewer -> adapter.getSnapshot(gameId, viewer), botSeats(start),
+                        () -> adapter.drainCheckpointMetrics(gameId));
                 ManaBrewInteractiveSession.setBridge(transport);
-                final String result = adapter.startGameJson(requestJson);
+                final String result = adapter.startGameJson(start.toString());
                 // startGameJson blocks for the whole game, so reaching this
                 // line means the game is over and every seat is still waiting
                 // on an answer that will never come.

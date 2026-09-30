@@ -50,6 +50,8 @@ export interface ForgeStartGameOptions {
   forgeAi?: boolean;
   /** Pins the shuffle. Omitted, the engine seeds from the clock. */
   seed?: number;
+  /** Off, the engine takes no restore snapshots. Defaults to on. */
+  snapshotRecording?: boolean;
 }
 
 export interface ForgeStartMultiplayerGameOptions {
@@ -68,6 +70,8 @@ export interface ForgeStartMultiplayerGameOptions {
   startingLife?: number;
   /** Pins the shuffle. Omitted, the engine seeds from the clock. */
   seed?: number;
+  /** Off, the engine takes no restore snapshots. Defaults to on. */
+  snapshotRecording?: boolean;
 }
 
 /**

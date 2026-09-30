@@ -1,7 +1,6 @@
-import type { CardDto } from "@/protocol/game";
+import type { CardDto, CheckpointDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
 import type { GameLogEntry } from "@/types/gameLog";
-import type { GameSnapshotEntry } from "@/types/gameSnapshot";
 import type { PromptType } from "@/protocol";
 import type { DevPromptActionOverride } from "@/stores/useGameDevStore";
 import type { HoverOptions } from "@/hooks/useCardPreview";
@@ -53,9 +52,12 @@ export interface RightActionPanelProps {
   ) => void;
   resolveCardName: (cardId: string) => string;
   resolvePlayerName: (playerId: string) => string;
-  snapshots: GameSnapshotEntry[];
-  canRestoreSnapshots: boolean;
-  onRestoreSnapshot: (checkpointId: number) => void;
+  checkpoints: CheckpointDto[];
+  canRequestRestore: boolean;
+  onRequestRestore: (checkpoint: CheckpointDto) => void;
+  snapshotRecording: boolean;
+  hostsEngine: boolean;
+  onSnapshotRecordingChange: (enabled: boolean) => void;
 }
 
 export interface PromptActionSpec {

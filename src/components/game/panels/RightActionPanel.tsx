@@ -8,7 +8,7 @@ import { useLayoutEffect, useRef } from "react";
 import type { RightActionPanelProps } from "../game.types";
 import { TAB_BUTTON_BASE, TAB_ACTIVE, TAB_INACTIVE } from "../game.styles";
 import { ActionLog } from "./ActionLog";
-import { SnapshotsPanel } from "./SnapshotsPanel";
+import { CheckpointsPanel } from "./CheckpointsPanel";
 import { GameDevPanel } from "@/components/dev/GameDevPanel";
 export function RightActionPanel({
   collapsed,
@@ -17,9 +17,12 @@ export function RightActionPanel({
   onHoverLogCard,
   resolveCardName,
   resolvePlayerName,
-  snapshots,
-  canRestoreSnapshots,
-  onRestoreSnapshot,
+  checkpoints,
+  canRequestRestore,
+  onRequestRestore,
+  snapshotRecording,
+  hostsEngine,
+  onSnapshotRecordingChange,
   onLeftEdgeChange,
 }: RightActionPanelProps) {
   const mobile = useIsMobileGame();
@@ -112,7 +115,7 @@ export function RightActionPanel({
               className={cn(TAB_BUTTON_BASE, activeTab === "snapshots" ? TAB_ACTIVE : TAB_INACTIVE)}
               onClick={() => setActiveTab("snapshots")}
             >
-              Snapshots ({snapshots.length})
+              Snapshots ({checkpoints.length})
             </button>
             {import.meta.env.DEV ? (
               <button
@@ -142,10 +145,14 @@ export function RightActionPanel({
             onHoverLogCard={onHoverLogCard}
           />
         ) : activeTab === "snapshots" ? (
-          <SnapshotsPanel
-            snapshots={snapshots}
-            canRestoreSnapshots={canRestoreSnapshots}
-            onRestoreSnapshot={onRestoreSnapshot}
+          <CheckpointsPanel
+            checkpoints={checkpoints}
+            canRequestRestore={canRequestRestore}
+            onRequestRestore={onRequestRestore}
+            resolvePlayerName={resolvePlayerName}
+            snapshotRecording={snapshotRecording}
+            hostsEngine={hostsEngine}
+            onSnapshotRecordingChange={onSnapshotRecordingChange}
           />
         ) : (
           <GameDevPanel />

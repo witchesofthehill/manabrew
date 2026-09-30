@@ -89,7 +89,7 @@ Pass whole decks, not just the maindeck. Every zone above is read when the game 
 
 Call `dispose()` to terminate the worker. A running Forge game is synchronous inside the worker, so terminating the worker is the only immediate cancellation mechanism.
 
-`directive()` sends an out-of-band instruction such as a concession. The engine can only read it while blocked on that seat, so a directive raised between prompts is held and delivered at the seat's next prompt.
+`directive()` sends an out-of-band instruction such as a concession or a restore request. Each seat has its own directive lane, apart from its prompt buffer, and the engine reads every lane while it waits on any prompt, so a directive lands at once, even while another seat is deciding.
 
 ## Types
 

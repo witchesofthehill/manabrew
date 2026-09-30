@@ -12,7 +12,6 @@ function getPlatformGameCapabilities(): GameRuntimeCapabilities {
   const platform = getPlatform();
   return {
     multiplayer: platform.isSupported("multiplayer"),
-    snapshots: true,
     deckAvailabilityCheck: true,
     manualTabletop: false,
     concedeBehavior: "send-action",
@@ -33,7 +32,6 @@ const manualTabletopRuntime: GameRuntime = {
   label: `Manual tabletop`,
   capabilities: {
     multiplayer: false,
-    snapshots: false,
     deckAvailabilityCheck: false,
     manualTabletop: true,
     concedeBehavior: "end-session",
@@ -45,7 +43,6 @@ const ironsmithRuntime: GameRuntime = {
   label: `Ironsmith trusted`,
   capabilities: {
     multiplayer: true,
-    snapshots: false,
     deckAvailabilityCheck: false,
     manualTabletop: false,
     concedeBehavior: "send-action",

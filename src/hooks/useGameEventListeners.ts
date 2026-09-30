@@ -17,7 +17,6 @@ import { useServerStore } from "@/stores/useServerStore";
 import { SELF_RECONNECT_WINDOW_S } from "@/hooks/useMultiplayerInterruption";
 import { clearActiveGameSession, peekActiveGameSession } from "@/lib/activeGameSession";
 import { FORETELL_LOG_PREFIX, normalizeGameLogPayload, type GameLogEntry } from "@/types/gameLog";
-import { normalizeSnapshotPayload } from "@/types/gameSnapshot";
 import {
   applyDisplay,
   applyPrompt,
@@ -319,20 +318,6 @@ export function useGameEventListeners() {
           toastOpponentPublicAction(entry);
         }),
       );
-      unsubscribers.push(
-        platform.events.on<unknown>("game:snapshot", (payload) => {
-          const snapshot = normalizeSnapshotPayload(payload);
-          if (!snapshot.gameView) return;
-          setState((state) => ({
-            snapshots: [
-              ...state.snapshots
-                .filter((s) => s.checkpointId !== snapshot.checkpointId)
-                .slice(-199),
-              snapshot,
-            ],
-          }));
-        }),
-      );
       // Relay (non-host) seats receive state/display/prompt addressed per player.
       unsubscribers.push(
         platform.events.on<{
@@ -451,7 +436,6 @@ export function useGameEventListeners() {
             isMultiplayer: false,
             isHost: false,
             myPlayerSlot: null,
-            snapshots: [],
             debugInfo: `Game ended: ${message}`,
           });
           // Without EndGame the relay room stays InGame and every rematch

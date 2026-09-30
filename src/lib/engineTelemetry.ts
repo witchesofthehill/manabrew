@@ -8,6 +8,24 @@
  * measured the same way. This is that number, summarised once per game rather
  * than streamed: one report, no per-decision traffic, nothing about the cards.
  */
+interface EngineCheckpointTiming {
+  n: number;
+  sumUs: number;
+  p50Us: number;
+  p95Us: number;
+  p99Us: number;
+  maxUs: number;
+}
+
+interface EngineCheckpointStats {
+  copy: EngineCheckpointTiming;
+  bookkeeping: EngineCheckpointTiming;
+  total: EngineCheckpointTiming;
+  decision: EngineCheckpointTiming;
+  hidden: number;
+  dropped: number;
+}
+
 export interface Turnaround {
   n: number;
   p50: number;
@@ -81,6 +99,7 @@ export interface EngineGameStats {
   engineThinkRules: Turnaround | null;
   /** Windows dropped for being measured across a backgrounded tab. */
   thinkSamplesHidden: number;
+  checkpoints: EngineCheckpointStats | null;
   /** Turnaround per prompt type, biggest first, capped so a report stays small. */
   byType: Array<{ type: string; n: number; p50: number; max: number }>;
 }
@@ -109,6 +128,13 @@ let engineThinkRules: number[] = [];
 /** Samples thrown away because the tab was backgrounded for part of the window. */
 let engineThinkHidden = 0;
 let hiddenSinceLastSample = false;
+let hiddenSinceCheckpointSample = false;
+let checkpointCopy: number[] = [];
+let checkpointBookkeeping: number[] = [];
+let checkpointDecisions: number[] = [];
+let checkpointSamplesHidden = 0;
+let checkpointSamplesDropped = 0;
+let checkpointTelemetrySeen = false;
 let answeredAt: number | null = null;
 /** When the frame this client is handling right now arrived, while a window is open. */
 let frameArrivedAt: number | null = null;
@@ -125,7 +151,10 @@ let engineLabel = "unknown";
 // maximum, which is what it was doing.
 if (typeof document !== "undefined") {
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "hidden") hiddenSinceLastSample = true;
+    if (document.visibilityState === "hidden") {
+      hiddenSinceLastSample = true;
+      hiddenSinceCheckpointSample = true;
+    }
   });
 }
 
@@ -180,6 +209,13 @@ export function beginGame(engine: string): void {
   engineThinkRules = [];
   engineThinkHidden = 0;
   hiddenSinceLastSample = false;
+  hiddenSinceCheckpointSample = false;
+  checkpointCopy = [];
+  checkpointBookkeeping = [];
+  checkpointDecisions = [];
+  checkpointSamplesHidden = 0;
+  checkpointSamplesDropped = 0;
+  checkpointTelemetrySeen = false;
   answeredAt = null;
   frameArrivedAt = null;
   frameWorkMs = 0;
@@ -248,7 +284,12 @@ export function notePromptArrived(promptType: string): void {
  * @param botMs how much of the window went to bot prompts. Undefined from an
  *   engine that does not tag its windows, which leaves the split unreported.
  */
-export function noteEngineThinkTime(ms: number, turns = 0, botMs?: number): void {
+export function noteEngineThinkTime(
+  ms: number,
+  turns = 0,
+  botMs?: number,
+  checkpointMs?: number,
+): void {
   const wasHidden =
     hiddenSinceLastSample ||
     (typeof document !== "undefined" && document.visibilityState === "hidden");
@@ -259,12 +300,49 @@ export function noteEngineThinkTime(ms: number, turns = 0, botMs?: number): void
   }
   if (engineThink.length >= MAX_SAMPLES) return;
   engineThink.push(ms);
+  if (checkpointMs !== undefined && Number.isFinite(checkpointMs) && checkpointMs >= 0) {
+    checkpointDecisions.push(Math.round(checkpointMs * 1000));
+  }
   (turns > 0 ? engineThinkCrossTurn : engineThinkSameTurn).push(ms);
   if (botMs !== undefined) {
     const bot = Math.min(Math.max(0, botMs), ms);
     engineThinkBot.push(bot);
     engineThinkRules.push(ms - bot);
   }
+}
+
+export function noteCheckpointTimings(timings: Array<[number, number]>): void {
+  if (startedAtMs === null) return;
+  checkpointTelemetrySeen = true;
+  const hidden =
+    hiddenSinceCheckpointSample ||
+    (typeof document !== "undefined" && document.visibilityState === "hidden");
+  hiddenSinceCheckpointSample = false;
+  for (const [copy, bookkeeping] of timings) {
+    if (!Number.isFinite(copy) || !Number.isFinite(bookkeeping) || copy < 0 || bookkeeping < 0)
+      continue;
+    if (hidden) {
+      checkpointSamplesHidden += 1;
+    } else if (checkpointCopy.length >= MAX_SAMPLES) {
+      checkpointSamplesDropped += 1;
+    } else {
+      checkpointCopy.push(Math.round(copy / 1000));
+      checkpointBookkeeping.push(Math.round(bookkeeping / 1000));
+    }
+  }
+}
+
+function summariseCheckpoints(values: number[]): EngineCheckpointTiming {
+  const sorted = [...values].sort((a, b) => a - b);
+  const at = (q: number) => sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))] ?? 0;
+  return {
+    n: values.length,
+    sumUs: values.reduce((sum, value) => sum + value, 0),
+    p50Us: at(0.5),
+    p95Us: at(0.95),
+    p99Us: at(0.99),
+    maxUs: sorted[sorted.length - 1] ?? 0,
+  };
 }
 
 export function summariseGame(meta: {
@@ -299,6 +377,18 @@ export function summariseGame(meta: {
     engineThinkBot: engineThinkBot.length ? summarise(engineThinkBot) : null,
     engineThinkRules: engineThinkRules.length ? summarise(engineThinkRules) : null,
     thinkSamplesHidden: engineThinkHidden,
+    checkpoints: checkpointTelemetrySeen
+      ? {
+          copy: summariseCheckpoints(checkpointCopy),
+          bookkeeping: summariseCheckpoints(checkpointBookkeeping),
+          total: summariseCheckpoints(
+            checkpointCopy.map((copy, i) => copy + checkpointBookkeeping[i]),
+          ),
+          decision: summariseCheckpoints(checkpointDecisions),
+          hidden: checkpointSamplesHidden,
+          dropped: checkpointSamplesDropped,
+        }
+      : null,
     byType: byPromptType(samples),
   };
   startedAtMs = null;

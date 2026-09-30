@@ -87,7 +87,6 @@ pub struct PromptAgent<R: Responder> {
     pending_prompt: Option<AgentPrompt>,
     pub(crate) latest_view: Option<GameViewDto>,
     source_cards: HashMap<CardId, CardDto>,
-    pub(crate) pending_restore_checkpoint: Option<u64>,
     pub pass_until: Option<manabrew_engine::agent::PassUntilTarget>,
     conceded: bool,
     next_prompt_id: u32,
@@ -104,7 +103,6 @@ impl<R: Responder> PromptAgent<R> {
             pending_prompt: None,
             latest_view: None,
             source_cards: HashMap::new(),
-            pending_restore_checkpoint: None,
             pass_until: None,
             conceded: false,
             next_prompt_id: 0,
@@ -221,6 +219,9 @@ impl<R: Responder> PromptAgent<R> {
     fn handle_directive(&mut self, directive: DirectiveInput) {
         match directive {
             DirectiveInput::Concede => self.conceded = true,
+            DirectiveInput::RequestRestore { .. }
+            | DirectiveInput::RestoreVote { .. }
+            | DirectiveInput::SetSnapshotRecording { .. } => {}
         }
     }
 
@@ -652,6 +653,12 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
             ClientToServerMessage::Directive {
                 directive: DirectiveInput::Concede,
             } => return EnginePlayerAction::Concede,
+            ClientToServerMessage::Directive {
+                directive:
+                    DirectiveInput::RequestRestore { .. }
+                    | DirectiveInput::RestoreVote { .. }
+                    | DirectiveInput::SetSnapshotRecording { .. },
+            } => Self::default_pass(),
         };
         match action {
             PromptOutput::ChooseAction(ChooseActionOutput::Act { action_id }) => {
@@ -707,10 +714,6 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                         through_combat: u.through_combat,
                     })
                 });
-                EnginePlayerAction::PassPriority
-            }
-            PromptOutput::ChooseAction(ChooseActionOutput::RestoreSnapshot { checkpoint_id }) => {
-                self.pending_restore_checkpoint = Some(checkpoint_id);
                 EnginePlayerAction::PassPriority
             }
             _ => EnginePlayerAction::PassPriority,
@@ -1528,9 +1531,5 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                 self.emit_state();
             }
         }
-    }
-
-    fn take_restore_request(&mut self) -> Option<u64> {
-        self.pending_restore_checkpoint.take()
     }
 }

@@ -36,10 +36,6 @@ pub enum ChooseActionOutput {
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         exhaust_stack: bool,
     },
-    RestoreSnapshot {
-        #[ts(type = "number")]
-        checkpoint_id: u64,
-    },
     Act {
         action_id: String,
     },

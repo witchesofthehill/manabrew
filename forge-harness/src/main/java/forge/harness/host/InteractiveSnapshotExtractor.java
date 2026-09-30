@@ -35,6 +35,7 @@ import forge.game.combat.Combat;
 import forge.game.cost.Cost;
 import forge.game.cost.CostAdjustment;
 import forge.game.keyword.KeywordInterface;
+import forge.game.phase.PhaseType;
 import forge.game.player.Player;
 import forge.game.spellability.SpellAbility;
 import forge.game.spellability.SpellAbilityStackInstance;
@@ -102,12 +103,16 @@ public final class InteractiveSnapshotExtractor {
             final SpellAbility castingAbility,
             final String gameId,
             final int viewer,
-            final SecretChoiceVisibility secretChoiceVisibility
+            final SecretChoiceVisibility secretChoiceVisibility,
+            final List<Map<String, Object>> checkpoints,
+            final Map<String, Object> restoreVote,
+            final boolean snapshotRecording
     ) {
         ParityCardMap.beginSnapshot(game);
         try {
-            return GSON.toJson(
-                    buildGameView(game, castingAbility, gameId, viewer, secretChoiceVisibility));
+            return GSON.toJson(buildGameView(
+                    game, castingAbility, gameId, viewer, secretChoiceVisibility, checkpoints, restoreVote,
+                    snapshotRecording));
         } finally {
             ParityCardMap.endSnapshot();
         }
@@ -118,7 +123,10 @@ public final class InteractiveSnapshotExtractor {
             final SpellAbility castingAbility,
             final String gameId,
             final int viewer,
-            final SecretChoiceVisibility secretChoiceVisibility
+            final SecretChoiceVisibility secretChoiceVisibility,
+            final List<Map<String, Object>> checkpoints,
+            final Map<String, Object> restoreVote,
+            final boolean snapshotRecording
     ) {
         final Map<String, Object> base = SnapshotExtractor.extractSnapshot(game);
 
@@ -210,6 +218,11 @@ public final class InteractiveSnapshotExtractor {
         view.put("stack", snapshotStack(game, castingAbility, activePlayerId));
         view.put("gameOver", base.get("game_over"));
         view.put("dayTime", dayTime(game));
+        view.put("checkpoints", checkpoints);
+        view.put("snapshotRecording", snapshotRecording);
+        if (restoreVote != null) {
+            view.put("restoreVote", restoreVote);
+        }
         final List<String> activePlaneNames = activePlaneNames(game);
         if (!activePlaneNames.isEmpty()) {
             view.put("activePlaneNames", activePlaneNames);
@@ -226,6 +239,21 @@ public final class InteractiveSnapshotExtractor {
         if (initiative != null) {
             view.put("initiativeHolderId", "player-" + SnapshotExtractor.playerIndex(game, initiative));
         }
+        return view;
+    }
+
+    static Map<String, Object> checkpointView(
+            final Game game,
+            final int checkpointId,
+            final int turn,
+            final PhaseType phase,
+            final Player activePlayer
+    ) {
+        final Map<String, Object> view = new LinkedHashMap<>();
+        view.put("checkpointId", checkpointId);
+        view.put("turn", turn);
+        view.put("step", normalizeStep(SnapshotExtractor.phaseToRustName(phase)));
+        view.put("activePlayerId", "player-" + SnapshotExtractor.playerIndex(game, activePlayer));
         return view;
     }
 

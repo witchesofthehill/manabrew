@@ -1060,6 +1060,9 @@ impl GameViewDtoExt for GameViewDto {
             initiative_holder_id: game.initiative_holder.map(player_id_str),
             day_time: day_time_of(game),
             active_plane_names: (!active_plane_names.is_empty()).then_some(active_plane_names),
+            checkpoints: Vec::new(),
+            restore_vote: None,
+            snapshot_recording: false,
         }
     }
 

@@ -197,6 +197,8 @@ pub enum AnalyticsEvent {
         engine_rules_p90: Option<u32>,
         #[serde(skip_serializing_if = "Option::is_none")]
         engine_rules_max: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        checkpoints: Option<manabrew_protocol::telemetry::EngineCheckpointStats>,
     },
 
     DeckSelected {

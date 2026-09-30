@@ -1674,13 +1674,18 @@ fn maybe_start_hosted_engine(
     let mut ordered_decks = Vec::with_capacity(num_players);
     let mut commander_names = Vec::with_capacity(num_players);
     let mut ai_player_indices = Vec::new();
+    let mut bot_player_indices = Vec::new();
     for (index, username) in player_order.iter().enumerate() {
         let Some(deck) = deck_map.remove(username) else {
             warn!(username, "missing deck for player; not starting engine");
             return;
         };
-        if forge_ai && bot_usernames.contains(username) {
-            ai_player_indices.push(index);
+        if bot_usernames.contains(username) {
+            if forge_ai {
+                ai_player_indices.push(index);
+            } else {
+                bot_player_indices.push(index);
+            }
         }
         ordered_decks.push(deck.deck);
         commander_names.push(deck.commander_name);
@@ -1838,6 +1843,7 @@ fn maybe_start_hosted_engine(
                         game_variant,
                         local_player_index,
                         ai_player_indices,
+                        bot_player_indices,
                         starting_life,
                         remote_prompt_tx,
                         remote_response_rxs,
@@ -2172,6 +2178,16 @@ fn route_remote_directive(
     info!(claimed_slot, player_index, ?directive, "routing directive");
     match directive {
         DirectiveInput::Concede => concede_seat(engine_session, player_index),
+        DirectiveInput::RequestRestore { .. } | DirectiveInput::RestoreVote { .. } => {
+            send_seat_message(
+                engine_session,
+                player_index,
+                ClientToServerMessage::Directive { directive },
+            )
+        }
+        DirectiveInput::SetSnapshotRecording { .. } => {
+            warn!(claimed_slot, "only the engine host sets snapshot recording");
+        }
     }
 }
 

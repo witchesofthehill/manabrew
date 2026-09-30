@@ -83,6 +83,13 @@ function normalizeGameView(
     monarchId: incoming.monarchId ?? current?.monarchId ?? null,
     initiativeHolderId: incoming.initiativeHolderId ?? current?.initiativeHolderId ?? null,
     dayTime: incoming.dayTime ?? current?.dayTime ?? "neither",
+    checkpoints: Array.isArray(incoming.checkpoints)
+      ? incoming.checkpoints
+      : (current?.checkpoints ?? []),
+    snapshotRecording: incoming.snapshotRecording ?? current?.snapshotRecording ?? false,
+    restoreVote: Array.isArray(incoming.checkpoints)
+      ? (incoming.restoreVote ?? null)
+      : (current?.restoreVote ?? null),
     activePlaneNames: Array.isArray(incoming.activePlaneNames)
       ? incoming.activePlaneNames
       : hasView

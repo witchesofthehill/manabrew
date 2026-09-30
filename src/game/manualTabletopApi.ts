@@ -1,13 +1,12 @@
 import { getPlatform } from "@/platform";
 import type {
   RespondParams,
-  RestoreSnapshotParams,
   SendDirectiveParams,
   StartGameParams,
   StartMultiplayerGameParams,
 } from "@/platform";
 import type { CardDto } from "@/protocol/game";
-import type { Prompt } from "@/protocol";
+import type { DirectiveInput, Prompt } from "@/protocol";
 import type { ClientCardDto, ClientGameView, ClientPlayerDto } from "@/stores/gameStore.types";
 import type { ManualTabletopApi, ManualTabletopAction } from "./runtime.types";
 
@@ -138,6 +137,9 @@ function createInitialGameView(params: StartGameParams): ClientGameView {
     monarchId: null,
     initiativeHolderId: null,
     dayTime: "neither",
+    checkpoints: [],
+    restoreVote: null,
+    snapshotRecording: false,
   };
 }
 
@@ -246,14 +248,14 @@ export class ManualTabletopGameApi implements ManualTabletopApi {
     throw new Error("Manual tabletop has no engine to direct.");
   }
 
+  async sendHostDirective(_directive: DirectiveInput): Promise<void> {
+    throw new Error("Manual tabletop has no engine to direct.");
+  }
+
   async endGame(): Promise<void> {
     this.gameView = null;
     this.latestPrompt = null;
     this.libraries = {};
-  }
-
-  async restoreSnapshot(_params: RestoreSnapshotParams): Promise<void> {
-    throw new Error("Manual tabletop snapshots are not implemented yet.");
   }
 
   async getPrompt(): Promise<Prompt | null> {

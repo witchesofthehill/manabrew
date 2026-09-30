@@ -10,16 +10,18 @@ const STUCK_HINT_AFTER_MS = 10_000;
 const STEP_MIN_MS = 200;
 const STEPS = [
   `Start the game engine`,
-  `Load card images`,
   `Take your seat`,
   `Receive the first game state`,
+  `Load card images`,
 ];
+const LOAD_CARD_IMAGES_STEP = STEPS.length - 1;
 interface GameLoadingScreenProps {
   debugInfo: string;
   onComplete?: () => void;
 }
 export function GameLoadingScreen({ debugInfo, onComplete }: GameLoadingScreenProps) {
   const isPrefetchingCards = useGameStore((s) => s.isPrefetchingCards);
+  const cardPrefetchProgress = useGameStore((s) => s.cardPrefetchProgress);
   const hasGameView = useGameStore((s) => s.gameView !== null);
   const seated = useGameStore((s) => (s.gameView?.players?.length ?? 0) > 0);
   const endGame = useGameStore((s) => s.endGame);
@@ -28,8 +30,9 @@ export function GameLoadingScreen({ debugInfo, onComplete }: GameLoadingScreenPr
   const [slow, setSlow] = useState(false);
   const [copied, setCopied] = useState(false);
   let target = 0;
-  if (/started/i.test(debugInfo)) target = STEPS.length - 1;
-  if (hasGameView && !isPrefetchingCards && seated) target = STEPS.length;
+  if (/started/i.test(debugInfo)) target = 1;
+  if (hasGameView && seated) target = LOAD_CARD_IMAGES_STEP;
+  if (hasGameView && seated && !isPrefetchingCards) target = STEPS.length;
   useEffect(() => {
     lastAdvanceAt.current = Date.now();
     const timer = setTimeout(() => setSlow(true), STUCK_HINT_AFTER_MS);
@@ -90,24 +93,29 @@ export function GameLoadingScreen({ debugInfo, onComplete }: GameLoadingScreenPr
               const done = index < stage;
               const active = index === stage;
               return (
-                <li key={label} className="flex items-center gap-3">
-                  {done ? (
-                    <Check className="h-5 w-5 shrink-0 text-success" />
-                  ) : active ? (
-                    <Loader2 className="h-5 w-5 shrink-0 animate-spin text-primary" />
-                  ) : (
-                    <Circle className="h-5 w-5 shrink-0 text-muted-foreground/40" />
-                  )}
-                  <span
-                    className={cn(
-                      "text-base transition-colors",
-                      done && "text-success",
-                      active && "text-foreground",
-                      !done && !active && "text-muted-foreground/60",
+                <li key={label} className="space-y-2">
+                  <div className="flex items-center gap-3">
+                    {done ? (
+                      <Check className="h-5 w-5 shrink-0 text-success" />
+                    ) : active ? (
+                      <Loader2 className="h-5 w-5 shrink-0 animate-spin text-primary" />
+                    ) : (
+                      <Circle className="h-5 w-5 shrink-0 text-muted-foreground/40" />
                     )}
-                  >
-                    {label}
-                  </span>
+                    <span
+                      className={cn(
+                        "text-base transition-colors",
+                        done && "text-success",
+                        active && "text-foreground",
+                        !done && !active && "text-muted-foreground/60",
+                      )}
+                    >
+                      {label}
+                    </span>
+                  </div>
+                  {active && index === LOAD_CARD_IMAGES_STEP && cardPrefetchProgress && (
+                    <CardPrefetchBar {...cardPrefetchProgress} />
+                  )}
                 </li>
               );
             })}
@@ -124,6 +132,30 @@ export function GameLoadingScreen({ debugInfo, onComplete }: GameLoadingScreenPr
       <Button variant="outline" onClick={() => void endGame()}>
         Leave game
       </Button>
+    </div>
+  );
+}
+
+function CardPrefetchBar({ loaded, total }: { loaded: number; total: number }) {
+  const percent = total > 0 ? (loaded / total) * 100 : 100;
+  return (
+    <div className="flex items-center gap-3 pl-8">
+      <div
+        role="progressbar"
+        aria-label={`Card images loaded`}
+        aria-valuemin={0}
+        aria-valuemax={total}
+        aria-valuenow={loaded}
+        className="h-2 flex-1 overflow-hidden rounded-full bg-muted"
+      >
+        <div
+          className="h-full rounded-full bg-primary transition-[width] duration-200 ease-out"
+          style={{ width: `${percent}%` }}
+        />
+      </div>
+      <span className="text-xs tabular-nums text-muted-foreground">
+        {loaded}/{total}
+      </span>
     </div>
   );
 }

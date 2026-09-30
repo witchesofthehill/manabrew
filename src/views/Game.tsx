@@ -302,6 +302,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   const zonePanelOrder = usePreferencesStore((s) => s.zonePanelOrder);
   const inGameCardPreviewStyle = usePreferencesStore((s) => s.inGameCardPreviewStyle);
   const cardPreviewMode = usePreferencesStore((s) => s.cardPreviewMode);
+  const preloadCardImages = usePreferencesStore((s) => s.preloadCardImages);
   const vScale = useHandScale();
   const themeColors = useTheme().gameTheme;
   const location = useLocation();
@@ -1095,7 +1096,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     return () => clearTimeout(timer);
   }, [gameView?.priorityPlayerId, priorityHighlightPlayerId]);
   useGameEventListeners();
-  useGamePrefetch();
+  useGamePrefetch(preloadCardImages ? "full" : "visible");
   useKeybindings({
     "open-settings": () => setGameSettingsOpen(true),
     "toggle-stack": () => useStackUIStore.getState().toggleCollapsed(),

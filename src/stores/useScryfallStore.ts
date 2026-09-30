@@ -990,13 +990,17 @@ const EMPTY_RULINGS: ScryfallRulingsResponse = { object: "list", has_more: false
 export async function prefetchCards(
   cards: DeckCard[],
   variant: CardTextureVariant = "full",
+  onSettled?: () => void,
 ): Promise<void> {
   const state = useScryfallStore.getState();
   await Promise.all(
     cards.map((c) =>
-      state.getCardTexture(c, variant).catch((err) => {
-        console.warn(`[scryfall] ${variant} prefetch failed for ${c.identity.name}:`, err);
-      }),
+      state
+        .getCardTexture(c, variant)
+        .catch((err) => {
+          console.warn(`[scryfall] ${variant} prefetch failed for ${c.identity.name}:`, err);
+        })
+        .finally(onSettled),
     ),
   );
 }

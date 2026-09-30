@@ -783,6 +783,28 @@ export default function Settings() {
               </div>
             </PreferenceCard>
 
+            <PreferenceCard
+              title={`Preload Card Images`}
+              description={`Loads every card image of every deck before the game starts, so cards never appear blank mid-game. On a slow connection, it might be worth turning this off.`}
+            >
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={prefs.preloadCardImages ? "selected" : "outline"}
+                  size="sm"
+                  onClick={() => prefs.setPreloadCardImages(true)}
+                >
+                  On
+                </Button>
+                <Button
+                  variant={!prefs.preloadCardImages ? "selected" : "outline"}
+                  size="sm"
+                  onClick={() => prefs.setPreloadCardImages(false)}
+                >
+                  Off
+                </Button>
+              </div>
+            </PreferenceCard>
+
             {isFeatureEnabled("ironsmithRuntime") && IRONSMITH_WASM_AVAILABLE && (
               <PreferenceCard
                 title={`Ironsmith engine (experimental)`}

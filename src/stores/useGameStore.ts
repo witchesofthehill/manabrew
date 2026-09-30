@@ -172,6 +172,7 @@ async function initializeGame({
       relinquishedPriority: false,
       gameConfig: { formatId: selectedFormatId, startingLife },
       isPrefetchingCards: true,
+      cardPrefetchProgress: null,
       debugInfo: "Starting Forge engine...",
     });
     let hosted: Awaited<ReturnType<typeof launchForge>> | null = null;
@@ -227,7 +228,7 @@ async function initializeGame({
         await hostedRuntime.api.endGame();
         throw new GameLaunchCancelledError();
       }
-      set({ debugInfo: "Forge game started.", isPrefetchingCards: false });
+      set({ debugInfo: "Forge game started." });
       return;
     } catch (error) {
       if (hosted) {
@@ -264,6 +265,7 @@ async function initializeGame({
     gameConfig: { formatId: selectedFormatId, startingLife },
     gameDecks,
     isPrefetchingCards: true,
+    cardPrefetchProgress: null,
     debugInfo: "Starting engine...",
   });
   const engineLabel = engine === "Forge" ? "forge-wasm" : localEngineLabel();
@@ -334,6 +336,7 @@ export const useGameStore = create<GameState>()(
       engineCrash: null,
       ironsmithDeckError: null,
       isPrefetchingCards: false,
+      cardPrefetchProgress: null,
       deferredQueue: [],
       isFlashing: false,
       isWaitingForResponse: false,
@@ -535,6 +538,7 @@ export const useGameStore = create<GameState>()(
             selfConceded: false,
             debugInfo: "Starting multiplayer game...",
             isPrefetchingCards: true,
+            cardPrefetchProgress: null,
             gameDecks,
           });
           const runtime =
@@ -564,7 +568,7 @@ export const useGameStore = create<GameState>()(
             await runtime.api.endGame();
             return false;
           }
-          set({ debugInfo: "Multiplayer game started.", isPrefetchingCards: false });
+          set({ debugInfo: "Multiplayer game started." });
           return true;
         } catch (e) {
           if (launchGeneration !== gameLaunchGeneration) return false;

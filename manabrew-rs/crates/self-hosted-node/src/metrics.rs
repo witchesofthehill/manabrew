@@ -8,6 +8,8 @@ const ROOMS_HOSTED: &str = "manabrew_node_rooms_hosted";
 const GAMES_ACTIVE: &str = "manabrew_node_games_active";
 const GAME_DURATION_SECONDS: &str = "manabrew_node_game_duration_seconds";
 const FORGE_DECISION_STAGE_SECONDS: &str = "manabrew_node_forge_decision_stage_seconds";
+const FORGE_CHECKPOINT_SECONDS: &str = "manabrew_node_forge_checkpoint_seconds";
+const FORGE_CHECKPOINT_DECISION_SECONDS: &str = "manabrew_node_forge_checkpoint_decision_seconds";
 const FORGE_DECISION_SECONDS: &str = "manabrew_node_forge_decision_seconds";
 const ENGINE_ERRORS: &str = "manabrew_node_engine_errors_total";
 const RELAY_RECONNECTS: &str = "manabrew_node_relay_reconnects_total";
@@ -114,15 +116,20 @@ pub fn init_from_env() {
         .ok()
         .filter(|v| !v.is_empty());
     let _ = rustls::crypto::ring::default_provider().install_default();
-    // Only this metric gets explicit buckets. Everything else stays a summary,
-    // whose quantiles are per process and cannot be aggregated across the fleet
-    // — which is why a fleet-wide p99 was never really a fleet-wide p99.
     let builder = match PrometheusBuilder::new()
         .set_buckets_for_metric(
             Matcher::Full(FORGE_DECISION_SECONDS.to_string()),
             DECISION_BUCKETS,
         )
         .expect("decision buckets are a non-empty literal")
+        .set_buckets_for_metric(
+            Matcher::Prefix("manabrew_node_forge_checkpoint".to_string()),
+            &[
+                0.00001, 0.00005, 0.0001, 0.0005, 0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1,
+                0.25, 0.5, 1.0, 2.5, 5.0, 10.0,
+            ],
+        )
+        .expect("checkpoint buckets are a non-empty literal")
         .with_push_gateway(&url, PUSH_INTERVAL, username, password, false)
     {
         Ok(builder) => builder,
@@ -209,6 +216,22 @@ pub fn record_engine_stall(stalled_millis: u64, max_stall_millis: u64, long_stal
 
 pub fn record_relay_reconnect() {
     counter!(RELAY_RECONNECTS).increment(1);
+}
+
+pub fn record_forge_checkpoint(seats: usize, copy: Duration, bookkeeping: Duration) {
+    for (stage, elapsed) in [
+        ("copy", copy),
+        ("bookkeeping", bookkeeping),
+        ("total", copy + bookkeeping),
+    ] {
+        histogram!(FORGE_CHECKPOINT_SECONDS, LABEL_STAGE => stage, LABEL_SEATS => seats.to_string())
+            .record(elapsed.as_secs_f64());
+    }
+}
+
+pub fn record_forge_checkpoint_decision(seats: usize, elapsed: Duration) {
+    histogram!(FORGE_CHECKPOINT_DECISION_SECONDS, LABEL_SEATS => seats.to_string())
+        .record(elapsed.as_secs_f64());
 }
 
 pub fn record_forge_decision_stage(stage: &'static str, elapsed: Duration) {

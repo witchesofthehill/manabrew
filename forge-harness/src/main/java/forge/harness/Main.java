@@ -367,6 +367,9 @@ public final class Main {
                         case "getGameOver":
                             sendOk(adapter.getGameOver(requireString(request, "sessionId")));
                             break;
+                        case "drainCheckpointMetrics":
+                            sendOk(adapter.drainCheckpointMetrics(requireString(request, "sessionId")));
+                            break;
                         case "getStateRevision":
                             sendOk(adapter.getStateRevision(requireString(request, "sessionId")));
                             break;

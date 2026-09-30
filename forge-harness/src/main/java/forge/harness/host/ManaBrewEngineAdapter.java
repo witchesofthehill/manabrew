@@ -126,6 +126,9 @@ public final class ManaBrewEngineAdapter {
         final Match match = new Match(rules, registeredPlayers, "ManaBrew");
         final Game game = match.createGame();
         session.attach(match, game, botSeats, request.isSnapshotRecording());
+        if (request.checkpointMetrics) {
+            session.enableCheckpointMetrics();
+        }
         sessions.put(session.getSessionId(), session);
         session.start(rng);
 
@@ -164,6 +167,10 @@ public final class ManaBrewEngineAdapter {
             throw new IllegalStateException(error);
         }
         return String.valueOf(session.isGameOver());
+    }
+
+    public String drainCheckpointMetrics(final String sessionId) {
+        return getSession(sessionId).drainCheckpointMetrics();
     }
 
     public String getStateRevision(final String sessionId) {
@@ -411,7 +418,10 @@ public final class ManaBrewEngineAdapter {
                     && playerObject.get("bot").getAsBoolean();
             players.add(new PlayerConfig(name, deck, commanderNames, ai, bot));
         }
-        return new StartGameRequest(gameId, variant, startingLife, seed, snapshotRecording, players);
+        final StartGameRequest request = new StartGameRequest(
+                gameId, variant, startingLife, seed, snapshotRecording, players);
+        request.checkpointMetrics = root.has("checkpointMetrics") && root.get("checkpointMetrics").getAsBoolean();
+        return request;
     }
 
     private static String requiredString(final JsonObject object, final String key) {
@@ -435,6 +445,7 @@ public final class ManaBrewEngineAdapter {
         private final int startingLife;
         private final long seed;
         private final boolean snapshotRecording;
+        private boolean checkpointMetrics;
         private final List<PlayerConfig> players;
 
         public StartGameRequest(

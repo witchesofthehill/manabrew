@@ -82,6 +82,8 @@ public final class ManaBrewInteractiveSession {
     private volatile Map<String, Object> restoreVoteView;
     private volatile long stateRevision;
     private volatile boolean snapshotRecording;
+    private boolean checkpointMetricsEnabled;
+    private final List<long[]> checkpointTimings = new ArrayList<>();
     private boolean priorityPromptOpen;
     private Set<Integer> botSeats = Set.of();
 
@@ -2053,6 +2055,18 @@ public final class ManaBrewInteractiveSession {
         return restoreVote.awaiting.isEmpty();
     }
 
+    void enableCheckpointMetrics() {
+        checkpointMetricsEnabled = true;
+    }
+
+    String drainCheckpointMetrics() {
+        synchronized (checkpointTimings) {
+            final String result = GSON.toJson(checkpointTimings);
+            checkpointTimings.clear();
+            return result;
+        }
+    }
+
     private void recordCheckpoint() {
         final PhaseHandler handler = game.getPhaseHandler();
         if (handler.getTurn() == checkpointTurn && handler.getPhase() == checkpointPhase) {
@@ -2063,8 +2077,10 @@ public final class ManaBrewInteractiveSession {
         if (!snapshotRecording || !game.getStack().isEmpty() || game.getStack().hasSimultaneousStackEntries()) {
             return;
         }
+        final long started = checkpointMetricsEnabled ? System.nanoTime() : 0;
         final GameSnapshot snapshot = new GameSnapshot(game);
         snapshot.makeCopy();
+        final long copied = checkpointMetricsEnabled ? System.nanoTime() : 0;
         checkpoints.addLast(new Checkpoint(
                 nextCheckpointId++, handler.getTurn(), handler.getPhase(), handler.getPlayerTurn(),
                 handler.getPriorityPlayer(), snapshot));
@@ -2072,6 +2088,12 @@ public final class ManaBrewInteractiveSession {
             checkpoints.removeFirst();
         }
         publishCheckpointViews();
+        if (checkpointMetricsEnabled) {
+            final long finished = System.nanoTime();
+            synchronized (checkpointTimings) {
+                checkpointTimings.add(new long[] { copied - started, finished - copied });
+            }
+        }
     }
 
     private void publishCheckpointViews() {

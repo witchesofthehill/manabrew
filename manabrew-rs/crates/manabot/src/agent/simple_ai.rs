@@ -1637,17 +1637,15 @@ impl BotAgent for SimpleAi {
                     PayManaCostOutput::Act {
                         action_id: action.id.clone(),
                     }
+                } else if input.actions.is_empty()
+                    || self.payment_attempt.as_deref() == Some(input.card_id.as_str())
+                {
+                    self.fail_attack_target(&input.card_id);
+                    self.payment_attempt = None;
+                    PayManaCostOutput::Cancel
                 } else {
-                    if input.actions.is_empty()
-                        || self.payment_attempt.as_deref() == Some(input.card_id.as_str())
-                    {
-                        self.fail_attack_target(&input.card_id);
-                        self.payment_attempt = None;
-                        PayManaCostOutput::Cancel
-                    } else {
-                        self.payment_attempt = Some(input.card_id.clone());
-                        PayManaCostOutput::Pay { auto: true }
-                    }
+                    self.payment_attempt = Some(input.card_id.clone());
+                    PayManaCostOutput::Pay { auto: true }
                 };
                 Some(PromptOutput::PayManaCost(payment))
             }

@@ -62,7 +62,7 @@ The legacy per-player canvases (`PixiGameCanvas` / `PixiGameScene` / `PixiArrows
 
 `GameLoadingScreen` keeps setup progress centered on desktop and portrait screens. Compact touch landscapes use a two-column layout with the status and exit action beside the progress card so the attached `GameLoadingTip` remains visible at short viewport heights. Configure copy, audience, keybinding IDs, cadence, and transition duration in `gameLoadingTips.ts`; keybinding tips render the player's persisted shortcuts, while touch loading screens exclude desktop-only entries.
 
-`useGamePrefetch` blocks board reveal only on immediately visible printed-card textures. It warms the complete deck pool's printed textures in the background, then lazily warms the same pool's `art_crop` textures without extending the loading screen.
+`useGamePrefetch(mode)` owns `isPrefetchingCards` once the first game view arrives; start flows set it and never clear it on success. `visible` blocks board reveal only on immediately visible printed-card textures, then warms the complete deck pool's printed and `art_crop` textures in the background. `full` also blocks board reveal on every printed and `art_crop` texture of every seat's deck pool, for at most `FULL_PREFETCH_WAIT_CAP_MS` (image fetches have no timeout, so one stalled request must not hold the table), and publishes `cardPrefetchProgress` for the loading screen's "Load card images" bar. `Game.tsx` picks `full` when the `preloadCardImages` preference (default on) is set. Card prefetch starts only after the first game state arrives, so that step is the last one on the loading screen.
 
 ## Modal pattern
 

@@ -5,6 +5,10 @@ import { asDeckCard, getDeckCardPool } from "@/lib/decks";
 import type { ClientGameView } from "@/stores/gameStore.types";
 import type { Deck, DeckCard } from "@/protocol/deck";
 
+export type GamePrefetchMode = "visible" | "full";
+
+const FULL_PREFETCH_WAIT_CAP_MS = 10_000;
+
 function cardsToPrefetchImmediately(
   view: ClientGameView,
   gameDecks: Record<string, Deck>,
@@ -52,7 +56,20 @@ function scheduleIdle(work: () => void): () => void {
   return () => globalThis.clearTimeout(id);
 }
 
-export function useGamePrefetch(): void {
+async function prefetchAllCards(visibleCards: DeckCard[], deckCards: DeckCard[]): Promise<void> {
+  const printedCards = [...visibleCards, ...deckCards];
+  const total = printedCards.length + deckCards.length;
+  let loaded = 0;
+  useGameStore.setState({ cardPrefetchProgress: { loaded, total } });
+  const onSettled = () => {
+    loaded += 1;
+    useGameStore.setState({ cardPrefetchProgress: { loaded, total } });
+  };
+  await prefetchCards(printedCards, "full", onSettled);
+  await prefetchCards(deckCards, "art", onSettled);
+}
+
+export function useGamePrefetch(mode: GamePrefetchMode): void {
   const gameView = useGameStore((s) => s.gameView);
   const isPrefetchingCards = useGameStore((s) => s.isPrefetchingCards);
   const startedRef = useRef(false);
@@ -70,9 +87,17 @@ export function useGamePrefetch(): void {
     let cancelled = false;
     let cancelIdle = () => {};
     const deckCards = Object.values(decks).flatMap(getDeckCardPool);
-    void prefetchCards(cardsToPrefetchImmediately(gameView, decks)).finally(() => {
-      useGameStore.setState({ isPrefetchingCards: false });
-    });
+    const visibleCards = cardsToPrefetchImmediately(gameView, decks);
+    const finish = () => useGameStore.setState({ isPrefetchingCards: false });
+    if (mode === "full") {
+      const cap = new Promise<void>((resolve) => setTimeout(resolve, FULL_PREFETCH_WAIT_CAP_MS));
+      void Promise.all([
+        prefetchCards(visibleCards),
+        Promise.race([prefetchAllCards(visibleCards, deckCards), cap]),
+      ]).finally(finish);
+      return;
+    }
+    void prefetchCards(visibleCards).finally(finish);
     void prefetchCards(likelyCards).then(() => {
       if (cancelled) return;
       cancelIdle = scheduleIdle(() => {
@@ -86,5 +111,5 @@ export function useGamePrefetch(): void {
       cancelled = true;
       cancelIdle();
     };
-  }, [gameView, isPrefetchingCards]);
+  }, [gameView, isPrefetchingCards, mode]);
 }

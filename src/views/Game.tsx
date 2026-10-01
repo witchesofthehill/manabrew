@@ -321,6 +321,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   const backgroundId = roomTableStyle ?? boardBackgroundId;
   const backgroundUrl = boardBackgroundUrl(backgroundId);
   const backgroundDarken = boardBackgroundDarken(backgroundId);
+  const preloadCardImages = usePreferencesStore((s) => s.preloadCardImages);
   const vScale = useHandScale();
   const isMobileGame = useIsMobileGame();
   const themeColors = useTheme().gameTheme;
@@ -1142,7 +1143,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     return () => clearTimeout(timer);
   }, [gameView?.priorityPlayerId, priorityHighlightPlayerId]);
   useGameEventListeners();
-  useGamePrefetch();
+  useGamePrefetch(preloadCardImages ? "full" : "visible");
   useKeybindings({
     "open-settings": () => setGameSettingsOpen(true),
     "toggle-stack": () => useStackUIStore.getState().toggleCollapsed(),

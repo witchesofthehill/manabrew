@@ -6,14 +6,12 @@ import forge.harness.common.ParityCardMap;
 import forge.harness.common.ParityOrder;
 import forge.harness.common.SnapshotExtractor;
 
-import com.google.common.eventbus.Subscribe;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import forge.harness.protocol.*;
 import forge.game.Game;
 import forge.game.GameSnapshot;
-import forge.game.event.GameEventPlayerPriority;
 import forge.game.ability.ApiType;
 import forge.game.GameEntity;
 import forge.game.Match;
@@ -138,12 +136,6 @@ public final class ManaBrewInteractiveSession {
         this.game = Objects.requireNonNull(game, "game");
         this.botSeats = Set.copyOf(botSeats);
         this.snapshotRecording = snapshotRecording;
-        game.subscribeToEvents(new Object() {
-            @Subscribe
-            public void onPriority(final GameEventPlayerPriority event) {
-                recordCheckpoint();
-            }
-        });
     }
 
     public String getSessionId() {
@@ -352,6 +344,9 @@ public final class ManaBrewInteractiveSession {
             final List<Card> untappableCards
     ) {
         requireAttached();
+        if (!botSeats.contains(playerId)) {
+            recordCheckpoint();
+        }
         publishPriorityPrompt(playerId, actionsForPrompt, untappableCards);
         while (!closed && !game.isGameOver()) {
             final JsonObject action;
@@ -2072,11 +2067,11 @@ public final class ManaBrewInteractiveSession {
         if (handler.getTurn() == checkpointTurn && handler.getPhase() == checkpointPhase) {
             return;
         }
-        checkpointTurn = handler.getTurn();
-        checkpointPhase = handler.getPhase();
         if (!snapshotRecording || !game.getStack().isEmpty() || game.getStack().hasSimultaneousStackEntries()) {
             return;
         }
+        checkpointTurn = handler.getTurn();
+        checkpointPhase = handler.getPhase();
         final long started = checkpointMetricsEnabled ? System.nanoTime() : 0;
         final GameSnapshot snapshot = new GameSnapshot(game);
         snapshot.makeCopy();

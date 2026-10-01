@@ -86,12 +86,14 @@ export function LimitedDeckStats({ cards, className, compact = false }: Props) {
           {stats.curve.map((count, i) => {
             const heightPct = (count / stats.curveMax) * 100;
             return (
-              <div key={`cmc-${i}`} className="flex flex-1 flex-col items-center gap-1">
+              <div key={`cmc-${i}`} className="flex h-full flex-1 flex-col items-center gap-1">
                 <span className="text-[10px] text-muted-foreground/80">{count || ""}</span>
-                <div
-                  className="w-full rounded-sm bg-primary/60"
-                  style={{ height: `${heightPct}%`, minHeight: count > 0 ? 2 : 0 }}
-                />
+                <div className="flex w-full flex-1 items-end">
+                  <div
+                    className="w-full rounded-sm bg-primary/60"
+                    style={{ height: `${heightPct}%`, minHeight: count > 0 ? 2 : 0 }}
+                  />
+                </div>
                 <span className="text-[10px] text-muted-foreground">{i === 6 ? "6+" : i}</span>
               </div>
             );

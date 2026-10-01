@@ -237,7 +237,6 @@ export default function LimitedDeckBuilder({
   const fixManaBase = useCallback(() => {
     const cache = useScryfallStore.getState().cards;
     const mainCards = main.map((i) => fullPool[i]).filter(Boolean);
-    const sideboardCards = sideboard.map((i) => fullPool[i]).filter(Boolean);
     const basicNames = new Set<string>(BASIC_LAND_NAMES);
     const nonLand = mainCards.filter(
       (c) =>
@@ -269,8 +268,7 @@ export default function LimitedDeckBuilder({
       R: "Mountain",
       G: "Forest",
     };
-    const cardsForPipCount = nonLand.concat(sideboardCards);
-    for (const card of cardsForPipCount) {
+    for (const card of nonLand) {
       const cost = peekCard(cache, {
         name: card.name,
         setCode: card.setCode,
@@ -343,7 +341,7 @@ export default function LimitedDeckBuilder({
         .map(([k, n]) => `${n} ${k.slice(0, 1)}`)
         .join(" · ")}`,
     );
-  }, [fullPool, main, sideboard, pool, targetMainSize]);
+  }, [fullPool, main, pool, targetMainSize]);
   const handleConfirm = () => {
     onConfirm?.({
       main: main.map((i) => fullPool[i]).filter(Boolean),

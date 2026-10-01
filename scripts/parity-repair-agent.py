@@ -30,7 +30,7 @@ from pathlib import Path
 # ── Config ──────────────────────────────────────────────────────────────────
 
 PARITY_API = "https://manabrewparity.federicovivaldo.com"
-PARITY_AUTH = "manabrew-parity-api:trOlTk8DGl80YTUogWsgU43EA1ySI7QtblGbUVMEZSbdv9pgHmd9MjcLaxYa"
+PARITY_AUTH = os.environ.get("PARITY_AUTH")
 REPO_ROOT = Path(__file__).resolve().parent.parent
 JAVA_HOME = "/Library/Java/JavaVirtualMachines/zulu-18.jdk/Contents/Home"
 JAVA_JAR = REPO_ROOT / "forge-harness" / "target" / "forge-harness-jar-with-dependencies.jar"
@@ -58,6 +58,8 @@ def _apply_config(model: str, budget: float, recency: int):
 
 def api_get(endpoint: str, params: dict | None = None) -> dict | list:
     """GET from parity dashboard API with basic auth via curl."""
+    if not PARITY_AUTH:
+        raise RuntimeError("Set PARITY_AUTH to the parity API username:password")
     url = f"{PARITY_API}{endpoint}"
     if params:
         qs = "&".join(f"{k}={v}" for k, v in params.items())

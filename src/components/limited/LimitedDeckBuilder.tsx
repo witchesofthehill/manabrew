@@ -743,7 +743,12 @@ function Toolbar({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {onReset && <DropdownMenuItem onSelect={onReset}>Reset suggestion</DropdownMenuItem>}
+            {onSuggestion && (
+              <DropdownMenuItem onSelect={onSuggestion}>Use suggested deck</DropdownMenuItem>
+            )}
+            <DropdownMenuItem onSelect={onClearMain} disabled={mainCount === 0}>
+              Move all to sideboard
+            </DropdownMenuItem>
             {onCompare && (
               <DropdownMenuItem onSelect={onCompare}>Compare with saved deck</DropdownMenuItem>
             )}

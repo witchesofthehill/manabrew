@@ -23,6 +23,23 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         }
     }
 
+    // Snapshot `RememberObjects$` into the trigger so the executed ability
+    // sees them via `DelayTriggerRemembered[LKI]`/`TriggerRemembered`, as Java's
+    // `ImmediateTriggerEffect` does with `addRemembered`. Taken now because a
+    // following `DB$ Cleanup | ClearRemembered$ True` empties the host.
+    let mut remembered_cards: Vec<crate::ids::CardId> = Vec::new();
+    if let (Some(remember_def), Some(source_id)) = (sa.ir.remember_objects.as_deref(), sa.source) {
+        match remember_def {
+            "Remembered" | "RememberedLKI" => {
+                remembered_cards = ctx.game.card(source_id).remembered_cards.clone();
+            }
+            "ParentTarget" | "Targeted" => {
+                remembered_cards.extend(sa.target_chosen.target_card);
+            }
+            _ => {}
+        }
+    }
+
     if let Some(execute_name) = sa.ir.execute.as_deref() {
         if let Some(source_id) = sa.source {
             let svar_text = ctx
@@ -45,7 +62,9 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
                     remembered_amount: 0,
                     remembered_cards: Vec::new(),
                     remembered_players: Vec::new(),
-                    remembered_lki_cards: Vec::new(),
+                    // Immediate triggers fire via
+                    // `fire_immediate_delayed_triggers`, which reads this list.
+                    remembered_lki_cards: remembered_cards,
                     sort_after_active: false,
                     trigger_order: None,
                 };

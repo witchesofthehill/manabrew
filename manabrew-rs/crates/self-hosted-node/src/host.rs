@@ -2477,7 +2477,10 @@ fn spawn_remote_prompt_forwarder(
             let target_player = if per_seat
                 && matches!(
                     message,
-                    AgentMessage::State(_) | AgentMessage::Prompt(_) | AgentMessage::Error(_)
+                    AgentMessage::State(_)
+                        | AgentMessage::Display(_)
+                        | AgentMessage::Prompt(_)
+                        | AgentMessage::Error(_)
                 ) {
                 let Some(target_player) = seat_usernames
                     .as_ref()
@@ -2603,7 +2606,10 @@ fn spawn_game_over_forwarder(
                 let target_player = if per_seat
                     && matches!(
                         message,
-                        AgentMessage::State(_) | AgentMessage::Prompt(_) | AgentMessage::Error(_)
+                        AgentMessage::State(_)
+                            | AgentMessage::Display(_)
+                            | AgentMessage::Prompt(_)
+                            | AgentMessage::Error(_)
                     ) {
                     let Some(target_player) = seat_usernames
                         .as_ref()

@@ -195,16 +195,15 @@ the WASM engine, and the bundled card archives all build from `forge/`:
 # Clean rebuild — a plain build reuses stale .class files compiled against the
 # old Forge and silently ships a broken jar. Pin a JDK Forge can compile with.
 JAVA_HOME="$(/usr/libexec/java_home -v 21)" \
-  mvn -pl forge-harness -am clean package -DskipTests
-yarn ensure:harness   # restages the Tauri card bundle + updates the build checksum
-yarn web              # rebuilds the WASM engine and card archive (yarn dev does too)
+  yarn build:harness --clean   # also regenerates the protocol sources and restages the Tauri card bundle
+yarn web                       # rebuilds the WASM engine and card archive (yarn dev does too)
 ```
 
 Two gotchas this avoids:
 
 - `yarn build:harness` / `yarn ensure:harness` run an **incremental** Maven build.
-  After a Forge bump they may reuse stale classes, so do the `mvn … clean package`
-  above at least once; the symptoms are deck cards stripped, `No enum constant …`,
+  After a Forge bump they may reuse stale classes, so run `yarn build:harness --clean`
+  at least once; the symptoms are deck cards stripped, `No enum constant …`,
   or a `NoClassDefFoundError` at runtime.
 - `cargo run -p self-hosted-node` does **not** rebuild the harness; it loads the
   prebuilt jar from `forge-harness/target/`. Rebuild the harness yourself after

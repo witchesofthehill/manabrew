@@ -10,6 +10,7 @@ import forge.harness.common.HarnessPlayHooks;
 import forge.harness.common.HarnessPlayPlumbing;
 import forge.harness.common.ParityOrder;
 import forge.harness.common.SnapshotExtractor;
+import forge.harness.protocol.SelectionKind;
 import forge.harness.protocol.SelectionOption;
 
 import com.google.common.collect.ListMultimap;
@@ -369,7 +370,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         for (final SpellAbility sa : abilities) {
             labels.add(sa == null ? "Ability" : sa.toString());
         }
-        final List<Integer> chosen = session.awaitModeChoice(me(), labels, 0, 1, hostCard == null ? null : hostCard.getName());
+        final List<Integer> chosen = session.awaitModeChoice(me(), labels, 0, 1, hostCard == null ? null : hostCard.getName(), SelectionKind.ABILITY);
         if (chosen.isEmpty()) {
             return null;
         }
@@ -720,7 +721,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         for (final Pair<SpellAbilityStackInstance, GameObject> pair : allTargets) {
             labels.add(String.valueOf(pair.getRight()));
         }
-        final List<Integer> chosen = session.awaitModeChoice(me(), labels, 1, 1, sourceName(sa));
+        final List<Integer> chosen = session.awaitModeChoice(me(), labels, 1, 1, sourceName(sa), SelectionKind.STACK_TARGET);
         final int idx = chosen.isEmpty() ? 0 : chosen.get(0);
         return idx >= 0 && idx < allTargets.size() ? allTargets.get(idx) : allTargets.get(0);
     }
@@ -1057,7 +1058,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         final List<SelectionOption> options = new ArrayList<>();
         for (final AbilitySub mode : possible) {
             if (mode == null) {
-                options.add(new SelectionOption("Mode", 1, allowRepeat));
+                options.add(new SelectionOption("Mode", 1, allowRepeat, null, null));
                 continue;
             }
             final int weight = mode.hasParam("Pawprint")
@@ -1066,7 +1067,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             final String label = mode.hasParam("Pawprint")
                     ? "{P}".repeat(weight) + " — " + mode
                     : mode.toString();
-            options.add(new SelectionOption(label, weight, allowRepeat));
+            options.add(new SelectionOption(label, weight, allowRepeat, null, null));
         }
         final String description;
         if (sa.hasParam("Pawprint")) {
@@ -1075,8 +1076,8 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         } else {
             description = null;
         }
-        final List<Integer> chosen =
-                session.awaitModeChoice(me(), options, min, num, sourceName(sa), description, sourceCardId(sa));
+        final List<Integer> chosen = session.awaitModeChoice(
+                me(), options, min, num, sourceName(sa), description, sourceCardId(sa), SelectionKind.MODE);
         return EngineHandler.selectModes(possible, chosen, allowRepeat);
     }
 
@@ -1090,7 +1091,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         for (final SpellAbility spell : spells) {
             labels.add(spell == null ? "Ability" : spell.toString());
         }
-        final List<Integer> chosen = session.awaitModeChoice(me(), labels, num, num, sourceName(sa));
+        final List<Integer> chosen = session.awaitModeChoice(me(), labels, num, num, sourceName(sa), SelectionKind.ABILITY);
         final List<SpellAbility> selected = new ArrayList<>();
         for (final Integer index : chosen) {
             if (index != null && index >= 0 && index < spells.size()) {
@@ -1119,7 +1120,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         for (final SpellAbility sa : usableFromOpeningHand) {
             labels.add(sa == null ? "Ability" : sa.toString());
         }
-        final List<Integer> chosen = session.awaitModeChoice(me(), labels, 0, usableFromOpeningHand.size(), null);
+        final List<Integer> chosen = session.awaitModeChoice(me(), labels, 0, usableFromOpeningHand.size(), null, SelectionKind.ABILITY);
         final List<SpellAbility> selected = new ArrayList<>();
         for (final Integer index : chosen) {
             if (index != null && index >= 0 && index < usableFromOpeningHand.size()) {
@@ -1153,7 +1154,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         for (final ReplacementEffect replacer : possibleReplacers) {
             labels.add(replacer == null ? "Replacement effect" : replacer.getDescription());
         }
-        final List<Integer> chosen = session.awaitModeChoice(me(), labels, 1, 1, null);
+        final List<Integer> chosen = session.awaitModeChoice(me(), labels, 1, 1, null, SelectionKind.REPLACEMENT_EFFECT);
         final int index = chosen.isEmpty() ? 0 : chosen.get(0);
         return index >= 0 && index < possibleReplacers.size() ? possibleReplacers.get(index) : possibleReplacers.get(0);
     }
@@ -1316,7 +1317,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         final List<String> labels = new ArrayList<>();
         labels.add(pileLabel(1, pile1, "False".equals(faceUp)));
         labels.add(pileLabel(2, pile2, !"True".equals(faceUp)));
-        final List<Integer> chosen = session.awaitModeChoice(me(), labels, 1, 1, sourceName(sa));
+        final List<Integer> chosen = session.awaitModeChoice(me(), labels, 1, 1, sourceName(sa), SelectionKind.PILE);
         final int idx = chosen.isEmpty() ? 0 : chosen.get(0);
         return idx == 0;
     }
@@ -1459,7 +1460,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         for (final Integer value : values) {
             labels.add(String.valueOf(value));
         }
-        final List<Integer> chosen = session.awaitModeChoice(me(), labels, 1, 1, sourceName(sa));
+        final List<Integer> chosen = session.awaitModeChoice(me(), labels, 1, 1, sourceName(sa), SelectionKind.NUMBER);
         final int idx = chosen.isEmpty() ? 0 : chosen.get(0);
         final int result = idx >= 0 && idx < values.size() ? values.get(idx) : values.get(0);
         rememberSecretNumberViewer(sa);
@@ -1567,7 +1568,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             }
             return ColorSet.fromMask(mask);
         }
-        final List<Integer> chosen = session.awaitModeChoice(me(), labels, min, max, sourceName(sa));
+        final List<Integer> chosen = session.awaitModeChoice(me(), labels, min, max, sourceName(sa), SelectionKind.COLORS);
         int mask = 0;
         for (final Integer index : chosen) {
             if (index != null && index >= 0 && index < atoms.size()) {
@@ -1582,7 +1583,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             final String kindOfType, final SpellAbility sa, final Collection<String> validTypes, final boolean isOptional) {
         final List<String> typeOptions = validTypes == null ? new ArrayList<>() : new ArrayList<>(validTypes);
         if (isOptional) {
-            final List<Integer> chosen = session.awaitModeChoice(me(), typeOptions, 0, 1, sourceName(sa));
+            final List<Integer> chosen = session.awaitModeChoice(me(), typeOptions, 0, 1, sourceName(sa), SelectionKind.TYPE);
             if (chosen.isEmpty()) {
                 return null;
             }
@@ -1643,7 +1644,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         for (final CounterType type : options) {
             labels.add(type == null ? "Counter" : type.toString());
         }
-        final List<Integer> chosen = session.awaitModeChoice(me(), labels, 1, 1, sourceName(sa));
+        final List<Integer> chosen = session.awaitModeChoice(me(), labels, 1, 1, sourceName(sa), SelectionKind.COUNTER_TYPE);
         final int idx = chosen.isEmpty() ? 0 : chosen.get(0);
         return idx >= 0 && idx < options.size() ? options.get(idx) : options.get(0);
     }
@@ -1706,7 +1707,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         for (final CardState state : states) {
             labels.add(state == null ? "Face" : state.toString());
         }
-        final List<Integer> chosen = session.awaitModeChoice(me(), labels, 1, 1, sourceName(sa));
+        final List<Integer> chosen = session.awaitModeChoice(me(), labels, 1, 1, sourceName(sa), SelectionKind.CARD_STATE);
         final int idx = chosen.isEmpty() ? 0 : chosen.get(0);
         return idx >= 0 && idx < states.size() ? states.get(idx) : states.get(0);
     }
@@ -1718,11 +1719,26 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         if (optionalCostValues == null || optionalCostValues.isEmpty()) {
             return new ArrayList<>();
         }
-        final List<String> labels = new ArrayList<>();
+        final List<SelectionOption> options = new ArrayList<>();
         for (final OptionalCostValue value : optionalCostValues) {
-            labels.add(value == null ? "Optional cost" : value.toString());
+            if (value == null || value.getCost() == null) {
+                options.add(new SelectionOption("Optional cost", 1, false, null, null));
+                continue;
+            }
+            final Cost full = chosen.getPayCosts() == null ? new Cost("", false) : chosen.getPayCosts().copy();
+            full.add(value.getCost());
+            probingPayability = true;
+            final boolean affordable;
+            try {
+                affordable = ActionSpace.canPayCost(full, chosen.copyWithDefinedCost(full), player, false);
+            } finally {
+                probingPayability = false;
+            }
+            options.add(new SelectionOption(value.toString(), 1, false, value.getCost().toSimpleString(), affordable));
         }
-        final List<Integer> chosenIndices = session.awaitModeChoice(me(), labels, 0, optionalCostValues.size(), sourceName(chosen));
+        final List<Integer> chosenIndices = session.awaitModeChoice(
+                me(), options, 0, optionalCostValues.size(), sourceName(chosen), null, sourceCardId(chosen),
+                SelectionKind.OPTIONAL_COST);
         final List<OptionalCostValue> selected = new ArrayList<>();
         for (final Integer index : chosenIndices) {
             if (index != null && index >= 0 && index < optionalCostValues.size()) {
@@ -2324,7 +2340,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         for (final Object option : options) {
             labels.add(String.valueOf(option));
         }
-        final List<Integer> chosen = session.awaitModeChoice(me(), labels, optional ? 0 : 1, 1, sourceName(sa));
+        final List<Integer> chosen = session.awaitModeChoice(me(), labels, optional ? 0 : 1, 1, sourceName(sa), SelectionKind.VOTE);
         if (chosen.isEmpty()) {
             return null;
         }
@@ -2351,7 +2367,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             for (final GameEntity entity : pool) {
                 labels.add(entity.getName());
             }
-            final List<Integer> chosen = session.awaitModeChoice(me(), labels, 1, 1, effectSource == null ? null : effectSource.getName());
+            final List<Integer> chosen = session.awaitModeChoice(me(), labels, 1, 1, effectSource == null ? null : effectSource.getName(), SelectionKind.SHIELD);
             final int idx = chosen.isEmpty() ? 0 : chosen.get(0);
             final GameEntity entity = pool.get(idx >= 0 && idx < pool.size() ? idx : 0);
             final int current = out.getOrDefault(entity, 0);
@@ -2419,7 +2435,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         for (final Player p : players) {
             labels.add(p.getName());
         }
-        final List<Integer> chosen = session.awaitModeChoice(me(), labels, 0, 1, sourceName(sa));
+        final List<Integer> chosen = session.awaitModeChoice(me(), labels, 0, 1, sourceName(sa), SelectionKind.PLAYER);
         if (chosen.isEmpty()) {
             return null;
         }
@@ -2445,7 +2461,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         for (final PlayerZone zone : zones) {
             labels.add(zone == null ? "Hand" : zone.toString());
         }
-        final List<Integer> chosen = session.awaitModeChoice(me(), labels, 1, 1, null);
+        final List<Integer> chosen = session.awaitModeChoice(me(), labels, 1, 1, null, SelectionKind.STARTING_HAND);
         final int idx = chosen.isEmpty() ? 0 : chosen.get(0);
         return idx >= 0 && idx < zones.size() ? zones.get(idx) : zones.get(0);
     }
@@ -2471,7 +2487,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         for (final Integer roll : rolls) {
             labels.add(String.valueOf(roll));
         }
-        final List<Integer> chosen = session.awaitModeChoice(me(), labels, 0, rolls.size(), null);
+        final List<Integer> chosen = session.awaitModeChoice(me(), labels, 0, rolls.size(), null, SelectionKind.DICE);
         final List<Integer> out = new ArrayList<>();
         for (final Integer index : chosen) {
             if (index != null && index >= 0 && index < rolls.size()) {
@@ -2628,7 +2644,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         for (final T option : opts) {
             labels.add(option == null ? "?" : option.toString());
         }
-        final List<Integer> chosen = session.awaitModeChoice(me(), labels, isOptional ? 0 : 1, 1, sourceName(sa));
+        final List<Integer> chosen = session.awaitModeChoice(me(), labels, isOptional ? 0 : 1, 1, sourceName(sa), SelectionKind.ENTITY);
         if (chosen.isEmpty()) {
             return null;
         }
@@ -2646,7 +2662,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         for (final T option : opts) {
             labels.add(option == null ? "?" : option.toString());
         }
-        final List<Integer> chosen = session.awaitModeChoice(me(), labels, min, max, sourceName(sa));
+        final List<Integer> chosen = session.awaitModeChoice(me(), labels, min, max, sourceName(sa), SelectionKind.ENTITY);
         final List<T> out = new ArrayList<>();
         for (final Integer index : chosen) {
             if (index != null && index >= 0 && index < opts.size()) {

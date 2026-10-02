@@ -52,6 +52,9 @@ pub struct Room {
     pub replay: Option<GameReplayCache>,
     pub resume_token: String,
     pub humanless_since: Option<Instant>,
+    pub limited_session_id: Option<String>,
+    pub parent_limited_room: Option<String>,
+    pub limited_matches: Vec<String>,
     /// Announced endpoints by player id. Only the relay binds one to a username.
     pub transports: HashMap<String, TransportEndpoint>,
     pub chat: ChatHistory,
@@ -124,6 +127,9 @@ impl Room {
             replay: None,
             resume_token: String::new(),
             humanless_since: None,
+            limited_session_id: None,
+            parent_limited_room: None,
+            limited_matches: Vec::new(),
             transports: HashMap::new(),
             chat: ChatHistory::default(),
         }
@@ -208,8 +214,7 @@ impl Room {
     pub fn remove_player(&mut self, player_id: &str) -> Option<RoomSlot> {
         if let Some(idx) = self.players.iter().position(|p| p.player_id == player_id) {
             let slot = self.players.remove(idx);
-            // If the host left, promote the first remaining player
-            if self.host_player_id == player_id {
+            if self.host_player_id == player_id && self.limited_session_id.is_none() {
                 if let Some(new_host) = self.players.first() {
                     self.host_player_id = new_host.player_id.clone();
                     self.host_username = new_host.username.clone();

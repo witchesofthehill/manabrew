@@ -1,104 +1,88 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+import { useParams } from "react-router-dom";
 import LimitedDeckBuilder from "@/components/limited/LimitedDeckBuilder";
+import { LimitedPackOpening } from "@/components/limited/LimitedPackOpening";
+import { LimitedPlayAction } from "@/components/limited/LimitedPlayAction";
+import { LimitedTableSurface } from "@/components/limited/LimitedTableSurface";
 import { useLimitedStore } from "@/stores/useLimitedStore";
 import type { DraftCard } from "@/types/limited";
 export default function Sealed() {
   const { id } = useParams<{
     id: string;
   }>();
-  const navigate = useNavigate();
   const activeSealed = useLimitedStore((s) => s.activeSealed);
   const refresh = useLimitedStore((s) => s.refreshSealedPool);
-  const startGauntlet = useLimitedStore((s) => s.startGauntletFromSealed);
-  const isStarting = useLimitedStore((s) => s.isStarting);
   const lastError = useLimitedStore((s) => s.lastError);
   const [builtDeck, setBuiltDeck] = useState<{
+    sessionId: string | null;
     main: DraftCard[];
     sideboard: DraftCard[];
   }>({
+    sessionId: null,
     main: [],
     sideboard: [],
   });
-  const TARGET_MAIN_SIZE = 40;
-  const mainShortBy = Math.max(0, TARGET_MAIN_SIZE - builtDeck.main.length);
+  const [openedSession, setOpenedSession] = useState<string | null>(null);
   useEffect(() => {
     if (!id) return;
     if (!activeSealed || activeSealed.sessionId !== id) {
       refresh(id);
     }
   }, [id, activeSealed, refresh]);
+
   if (!activeSealed || activeSealed.sessionId !== id) {
     return (
-      <div className="flex h-full items-center justify-center">
+      <LimitedTableSurface className="items-center justify-center">
         {lastError ? (
           <p className="text-destructive">{lastError}</p>
         ) : (
           <p className="text-muted-foreground">Loading sealed pool…</p>
         )}
-      </div>
+      </LimitedTableSurface>
     );
   }
   return (
-    <div className="flex h-full flex-col gap-4 px-4 py-6 sm:px-6 lg:px-8">
+    <LimitedTableSurface className="gap-2 px-4 py-3 sm:px-6 lg:px-8">
       <header className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <p className="font-semibold text-foreground">{activeSealed.deckName}</p>
-          <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span>
-              {activeSealed.cards.length} cards opened · {activeSealed.aiDecks.length} AI opponents
-              ready for the gauntlet
-            </span>
-            <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[11px] font-medium text-primary">
-              Pool ready
-            </span>
+          <p className="text-sm text-muted-foreground">
+            {activeSealed.packs.length} packs · {activeSealed.cards.length} cards ·{" "}
+            {activeSealed.aiDecks.length} AI opponents ready for the gauntlet
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="primary"
-            disabled={isStarting || !id || activeSealed.aiDecks.length === 0 || mainShortBy > 0}
-            title={
-              mainShortBy > 0
-                ? mainShortBy === 1
-                  ? `Main deck needs one more card to start`
-                  : `Main deck needs ${mainShortBy} more cards to start`
-                : undefined
+        {openedSession === activeSealed.sessionId && (
+          <LimitedPlayAction
+            sessionId={activeSealed.sessionId}
+            kind="sealed"
+            rounds={activeSealed.aiDecks.length}
+            deck={
+              builtDeck.sessionId === activeSealed.sessionId
+                ? builtDeck
+                : { main: [], sideboard: [] }
             }
-            onClick={async () => {
-              if (!id) return;
-              try {
-                const g = await startGauntlet(
-                  id,
-                  activeSealed.aiDecks.length,
-                  builtDeck.main,
-                  builtDeck.sideboard,
-                );
-                navigate(`/gauntlet/${g.gauntletId}`);
-              } catch {
-                /* surfaced via lastError */
-              }
-            }}
-          >
-            {isStarting
-              ? `Setting up\u2026`
-              : mainShortBy > 0
-                ? `Need ${mainShortBy} more card${mainShortBy === 1 ? "" : "s"}`
-                : `Start Gauntlet`}
-          </Button>
-        </div>
+          />
+        )}
       </header>
 
       <div className="min-h-0 flex-1">
-        <LimitedDeckBuilder
-          pool={activeSealed.cards}
-          key={activeSealed.sessionId}
-          suggestedMain={activeSealed.suggestedDeck?.main}
-          defaultDeckName={activeSealed.deckName}
-          format="sealed"
-          onChange={setBuiltDeck}
-        />
+        {openedSession !== activeSealed.sessionId ? (
+          <LimitedPackOpening
+            key={activeSealed.sessionId}
+            sessionKey={activeSealed.sessionId}
+            packs={activeSealed.packs}
+            onComplete={() => setOpenedSession(activeSealed.sessionId)}
+          />
+        ) : (
+          <LimitedDeckBuilder
+            key={activeSealed.sessionId}
+            sessionKey={activeSealed.sessionId}
+            pool={activeSealed.cards}
+            suggestedMain={activeSealed.suggestedDeck?.main}
+            defaultDeckName={activeSealed.deckName}
+            format="sealed"
+            onChange={(deck) => setBuiltDeck({ sessionId: activeSealed.sessionId, ...deck })}
+          />
+        )}
       </div>
 
       {lastError && (
@@ -106,6 +90,6 @@ export default function Sealed() {
           {lastError}
         </p>
       )}
-    </div>
+    </LimitedTableSurface>
   );
 }

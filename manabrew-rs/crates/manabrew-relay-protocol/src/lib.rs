@@ -690,6 +690,7 @@ pub const FEATURE_CHAT: &str = "chat";
 pub const FEATURE_ROOM_INVITES: &str = "room_invites";
 /// Names [`ClientMessage::ReportGameOutcome`] in `AuthResult::features`.
 pub const FEATURE_GAME_OUTCOME: &str = "game_outcome";
+pub const FEATURE_LIMITED_SESSIONS: &str = "limited_sessions";
 
 /// Names [`ClientMessage::AnnounceTransport`] in `AuthResult::features`.
 pub const FEATURE_ROOM_TRANSPORT: &str = "room_transport";
@@ -708,6 +709,7 @@ pub const FEATURES: &[&str] = &[
     FEATURE_CHAT,
     FEATURE_ROOM_INVITES,
     FEATURE_GAME_OUTCOME,
+    FEATURE_LIMITED_SESSIONS,
 ];
 
 /// Largest signalling blob the relay forwards.

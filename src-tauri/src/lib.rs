@@ -123,6 +123,8 @@ pub fn run() {
             limited_commands::limited_import_cube,
             limited_commands::limited_list_chaos_themes,
             limited_commands::limited_start_gauntlet_from_sealed,
+            limited_commands::limited_start_gauntlet_from_draft,
+            limited_commands::limited_get_draft_ai_decks,
             limited_commands::limited_record_gauntlet_outcome,
             limited_commands::limited_get_gauntlet_match_decks,
             limited_commands::limited_update_gauntlet_human_deck,

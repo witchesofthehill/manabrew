@@ -5,7 +5,7 @@ use std::sync::Arc;
 use forge_foundation::sealed_product::{PaperCard, Rarity, SealedTemplate};
 use forge_foundation::ColorSet;
 use forge_limited::{
-    BoosterDraft, CardRanker, CubeImporter, DraftPack, DraftRankCache, GauntletKind, GauntletMini,
+    BoosterDraft, CardRanker, CubeImporter, DraftRankCache, GauntletKind, GauntletMini,
     GauntletOutcome, IBoosterDraft, LimitedDeck, LimitedPoolType, LimitedWinLoseController,
     PassDirection, SealedCardPoolGenerator, SealedDeckGroup, ThemedChaosDraft, TickOutcome,
     WinstonDraft, WinstonOutcome, CONSPIRACY_HOOKS,
@@ -118,10 +118,103 @@ impl From<&LimitedDeck> for LimitedDeckDto {
     fn from(d: &LimitedDeck) -> Self {
         Self {
             name: d.name.clone(),
-            main: d.main.iter().map(paper_card_to_identity).collect(),
-            sideboard: d.sideboard.iter().map(paper_card_to_identity).collect(),
+            main: d
+                .main
+                .iter()
+                .enumerate()
+                .map(|(i, c)| {
+                    let mut card = paper_card_to_identity(c);
+                    card.id = format!("{}:main:{i}", d.name);
+                    card
+                })
+                .collect(),
+            sideboard: d
+                .sideboard
+                .iter()
+                .enumerate()
+                .map(|(i, c)| {
+                    let mut card = paper_card_to_identity(c);
+                    card.id = format!("{}:sideboard:{i}", d.name);
+                    card
+                })
+                .collect(),
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SealedPackDto {
+    pub id: String,
+    pub set_code: String,
+    pub cards: Vec<DeckCardIdentity>,
+}
+
+fn deck_with_pool_ids(deck: &LimitedDeck, pool: &[DeckCardIdentity]) -> LimitedDeckDto {
+    let mut dto = LimitedDeckDto::from(deck);
+    let mut remaining: Vec<&DeckCardIdentity> = pool.iter().collect();
+    for card in dto.main.iter_mut().chain(dto.sideboard.iter_mut()) {
+        if let Some(index) = remaining.iter().position(|source| {
+            source.name == card.name
+                && source.set_code == card.set_code
+                && source.card_number == card.card_number
+                && source.foil == card.foil
+        }) {
+            card.id = remaining.remove(index).id.clone();
+        }
+    }
+    dto.sideboard.extend(remaining.into_iter().cloned());
+    dto
+}
+
+fn draft_picked_cards(
+    session_id: &str,
+    draft: &BoosterDraft,
+    seat_idx: usize,
+) -> Vec<DeckCardIdentity> {
+    draft
+        .seat(seat_idx)
+        .map(|seat| {
+            seat.picked
+                .iter()
+                .zip(draft.picked_ids_for_seat(seat_idx))
+                .map(|(c, (pack, id))| {
+                    let mut card = paper_card_to_identity(c);
+                    card.id = format!("{session_id}:{pack}:{id}");
+                    card
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn submit_occurrence_pick(
+    draft: &mut BoosterDraft,
+    session_id: &str,
+    seat: usize,
+    card_id: &str,
+) -> Result<(), String> {
+    let suffix = card_id
+        .strip_prefix(session_id)
+        .and_then(|s| s.strip_prefix(':'))
+        .ok_or_else(|| "card occurrence belongs to another session".to_string())?;
+    let (pack, card) = suffix
+        .split_once(':')
+        .ok_or_else(|| "invalid card occurrence".to_string())?;
+    let pack = pack
+        .parse()
+        .map_err(|_| "invalid pack occurrence".to_string())?;
+    let card = card
+        .parse()
+        .map_err(|_| "invalid card occurrence".to_string())?;
+    draft.submit_human_pick_id_for(seat, pack, card)
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DraftAiDeckDto {
+    pub seat: u32,
+    pub deck: LimitedDeckDto,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -131,25 +224,49 @@ pub struct SealedPoolDto {
     pub deck_name: String,
     pub land_set_code: Option<String>,
     pub cards: Vec<DeckCardIdentity>,
+    pub packs: Vec<SealedPackDto>,
     pub suggested_deck: Option<LimitedDeckDto>,
     pub ai_decks: Vec<LimitedDeckDto>,
 }
 
 impl SealedPoolDto {
     fn from_group(session_id: String, group: &SealedDeckGroup) -> Self {
+        let packs: Vec<SealedPackDto> = group
+            .human_packs
+            .iter()
+            .enumerate()
+            .map(|(pack_index, cards)| {
+                let id = format!("{session_id}:{pack_index}");
+                SealedPackDto {
+                    set_code: group.pack_set_code.clone(),
+                    cards: cards
+                        .iter()
+                        .enumerate()
+                        .map(|(card_index, c)| {
+                            let mut card = paper_card_to_identity(c);
+                            card.id = format!("{id}:{card_index}");
+                            card
+                        })
+                        .collect(),
+                    id,
+                }
+            })
+            .collect();
+        let cards: Vec<DeckCardIdentity> = packs
+            .iter()
+            .flat_map(|pack| pack.cards.iter().cloned())
+            .collect();
+        let suggested_deck = group
+            .suggested_human_deck
+            .as_ref()
+            .map(|deck| deck_with_pool_ids(deck, &cards));
         Self {
             session_id,
             deck_name: group.deck_name.clone(),
             land_set_code: group.land_set_code.clone(),
-            cards: group
-                .human_pool
-                .iter()
-                .map(paper_card_to_identity)
-                .collect(),
-            suggested_deck: group
-                .suggested_human_deck
-                .as_ref()
-                .map(LimitedDeckDto::from),
+            cards,
+            packs,
+            suggested_deck,
             ai_decks: group.ai_decks.iter().map(LimitedDeckDto::from).collect(),
         }
     }
@@ -227,7 +344,17 @@ impl DraftStateDto {
         let viewer = draft.seat(seat_idx);
         let pack: Vec<DeckCardIdentity> = draft
             .current_pack_for_seat(seat_idx)
-            .map(|p| p.cards().iter().map(paper_card_to_identity).collect())
+            .map(|p| {
+                p.cards()
+                    .iter()
+                    .zip(p.card_ids())
+                    .map(|(c, id)| {
+                        let mut card = paper_card_to_identity(c);
+                        card.id = format!("{session_id}:{}:{id}", p.id());
+                        card
+                    })
+                    .collect()
+            })
             .unwrap_or_default();
         let pick_number = viewer.map(|s| s.picked.len() + 1).unwrap_or(1) as u32;
         let mut seat_summaries: Vec<DraftSeatDto> = (0..draft.pod_size())
@@ -237,7 +364,11 @@ impl DraftStateDto {
                 name: p.name.clone(),
                 is_human: p.is_human,
                 picks_made: p.picked.len() as u32,
-                last_pick_name: p.last_pick.as_ref().map(|c| c.name.clone()),
+                last_pick_name: p
+                    .last_pick
+                    .as_ref()
+                    .filter(|_| p.seat == seat_idx)
+                    .map(|c| c.name.clone()),
                 current_pack_size: p.current_pack().map(|pack| pack.len()).unwrap_or(0) as u32,
                 packs_waiting: p
                     .pack_queue
@@ -264,9 +395,7 @@ impl DraftStateDto {
             .current_pack_for_seat(seat_idx)
             .map(|p| p.picks_remaining())
             .unwrap_or(0);
-        let picked_pile = viewer
-            .map(|s| s.picked.iter().map(paper_card_to_identity).collect())
-            .unwrap_or_default();
+        let picked_pile = draft_picked_cards(&session_id, draft, seat_idx);
         Self {
             session_id,
             round: draft.round(),
@@ -310,7 +439,27 @@ impl WinstonStateDto {
         let piles: Vec<Vec<DeckCardIdentity>> = draft
             .piles()
             .iter()
-            .map(|p| p.iter().map(paper_card_to_identity).collect())
+            .zip(draft.pile_ids())
+            .map(|(pile, ids)| {
+                pile.iter()
+                    .zip(ids)
+                    .map(|(c, id)| {
+                        let mut card = paper_card_to_identity(c);
+                        card.id = format!("{session_id}:{id}");
+                        card
+                    })
+                    .collect()
+            })
+            .collect();
+        let picked_pile = draft
+            .human_picked()
+            .iter()
+            .zip(draft.human_picked_ids())
+            .map(|(c, id)| {
+                let mut card = paper_card_to_identity(c);
+                card.id = format!("{session_id}:{id}");
+                card
+            })
             .collect();
         Self {
             session_id,
@@ -318,11 +467,7 @@ impl WinstonStateDto {
             current_pile: draft.current_pile() as u32,
             piles,
             deck_size: draft.deck_size() as u32,
-            picked_pile: draft
-                .human_picked()
-                .iter()
-                .map(paper_card_to_identity)
-                .collect(),
+            picked_pile,
             ai_pick_count: draft.ai_picked_count() as u32,
             awaiting_human: draft.is_human_turn() && !draft.is_complete(),
             is_complete: draft.is_complete(),
@@ -473,8 +618,8 @@ struct WasmLimitedState {
     drafts: HashMap<String, BoosterDraft>,
     winston: HashMap<String, WinstonDraft>,
     gauntlets: HashMap<String, GauntletMini>,
+    gauntlet_decks: HashMap<String, Vec<LimitedDeckDto>>,
     rank_cache: Arc<DraftRankCache>,
-    next_id: u64,
 }
 
 impl WasmLimitedState {
@@ -484,14 +629,13 @@ impl WasmLimitedState {
             drafts: HashMap::new(),
             winston: HashMap::new(),
             gauntlets: HashMap::new(),
+            gauntlet_decks: HashMap::new(),
             rank_cache: Arc::new(DraftRankCache::new()),
-            next_id: 0,
         }
     }
 
-    fn fresh_id(&mut self, prefix: &str) -> String {
-        self.next_id += 1;
-        format!("{prefix}-{:x}", self.next_id)
+    fn fresh_id(&self, prefix: &str) -> String {
+        format!("{prefix}-{:032x}", rand::random::<u128>())
     }
 }
 
@@ -693,30 +837,14 @@ pub fn limited_start_booster_draft(setup_json: JsValue) -> Result<JsValue, JsErr
 }
 
 #[wasm_bindgen]
-pub fn limited_pick_card(
-    session_id: String,
-    card_name: String,
-    set_code: String,
-    card_number: String,
-) -> Result<JsValue, JsError> {
+pub fn limited_pick_card(session_id: String, card_id: String) -> Result<JsValue, JsError> {
     STATE.with(|cell| {
         let mut state = cell.borrow_mut();
         let draft = state
             .drafts
             .get_mut(&session_id)
             .ok_or_else(|| JsError::new(&format!("no draft session for id {session_id}")))?;
-        let pack_card = draft
-            .current_pack_for_human()
-            .and_then(|p: &DraftPack| {
-                p.cards()
-                    .iter()
-                    .find(|c| card_identity_matches(c, &card_name, &set_code, &card_number))
-                    .cloned()
-            })
-            .ok_or_else(|| JsError::new(&format!("card {card_name:?} not in current pack")))?;
-        draft
-            .submit_human_pick(pack_card)
-            .map_err(|e| JsError::new(&e))?;
+        submit_occurrence_pick(draft, &session_id, 0, &card_id).map_err(|e| JsError::new(&e))?;
         loop {
             match draft.tick() {
                 TickOutcome::Progress => continue,
@@ -819,9 +947,7 @@ pub fn limited_start_multiplayer_draft(
 pub fn limited_submit_pick(
     session_id: String,
     seat_idx: u32,
-    card_name: String,
-    set_code: String,
-    card_number: String,
+    card_id: String,
 ) -> Result<JsValue, JsError> {
     STATE.with(|cell| {
         let mut state = cell.borrow_mut();
@@ -836,20 +962,7 @@ pub fn limited_submit_pick(
                 draft.pod_size()
             )));
         }
-        let pack_card = draft
-            .current_pack_for_seat(seat)
-            .and_then(|p: &DraftPack| {
-                p.cards()
-                    .iter()
-                    .find(|c| card_identity_matches(c, &card_name, &set_code, &card_number))
-                    .cloned()
-            })
-            .ok_or_else(|| {
-                JsError::new(&format!("card {card_name:?} not in seat {seat}'s pack"))
-            })?;
-        draft
-            .submit_human_pick_for(seat, pack_card)
-            .map_err(|e| JsError::new(&e))?;
+        submit_occurrence_pick(draft, &session_id, seat, &card_id).map_err(|e| JsError::new(&e))?;
         loop {
             match draft.tick() {
                 TickOutcome::Progress => continue,
@@ -938,12 +1051,6 @@ pub fn limited_start_winston(setup_json: JsValue) -> Result<JsValue, JsError> {
         state.winston.insert(session_id, draft);
         serde_wasm_bindgen::to_value(&dto).map_err(|e| JsError::new(&e.to_string()))
     })
-}
-
-fn card_identity_matches(card: &PaperCard, name: &str, set_code: &str, card_number: &str) -> bool {
-    card.name == name
-        && (set_code.is_empty() || card.set_code.eq_ignore_ascii_case(set_code))
-        && (card_number.is_empty() || card.collector_number == card_number)
 }
 
 fn template_for_pool(pool: &[PaperCard], variant: Option<&str>) -> SealedTemplate {
@@ -1040,8 +1147,94 @@ pub fn limited_start_gauntlet_from_sealed(
             .map_err(|e| JsError::new(&e))?;
         let gauntlet_id = state.fresh_id("gauntlet");
         let dto = GauntletStateDto::from_engine(gauntlet_id.clone(), &gauntlet);
+        let mut decks = vec![LimitedDeckDto {
+            name: gauntlet.human_deck.name.clone(),
+            main,
+            sideboard,
+        }];
+        decks.extend(gauntlet.ai_decks.iter().map(LimitedDeckDto::from));
+        state.gauntlet_decks.insert(gauntlet_id.clone(), decks);
         state.gauntlets.insert(gauntlet_id, gauntlet);
         serde_wasm_bindgen::to_value(&dto).map_err(|e| JsError::new(&e.to_string()))
+    })
+}
+
+#[wasm_bindgen]
+pub fn limited_start_gauntlet_from_draft(
+    session_id: String,
+    rounds: u32,
+    main_json: JsValue,
+    sideboard_json: JsValue,
+) -> Result<JsValue, JsError> {
+    let main: Vec<DeckCardIdentity> =
+        serde_wasm_bindgen::from_value(main_json).map_err(|e| JsError::new(&e.to_string()))?;
+    let sideboard: Vec<DeckCardIdentity> =
+        serde_wasm_bindgen::from_value(sideboard_json).map_err(|e| JsError::new(&e.to_string()))?;
+    STATE.with(|cell| {
+        let mut state = cell.borrow_mut();
+        let draft = state
+            .drafts
+            .get(&session_id)
+            .ok_or_else(|| JsError::new(&format!("no draft session for id {session_id}")))?;
+        let ai_decks = draft.build_ai_decks().map_err(|e| JsError::new(&e))?;
+        if main.len() < 40 {
+            return Err(JsError::new(
+                "draft main deck must contain at least 40 cards",
+            ));
+        }
+        let human_deck = LimitedDeck {
+            name: "Draft Deck".to_string(),
+            main: main.iter().map(identity_to_paper_card).collect(),
+            sideboard: sideboard.iter().map(identity_to_paper_card).collect(),
+        };
+        let gauntlet = GauntletMini::new(GauntletKind::BoosterDraft, rounds, human_deck, ai_decks)
+            .map_err(|e| JsError::new(&e))?;
+        let mut decks = vec![LimitedDeckDto {
+            name: gauntlet.human_deck.name.clone(),
+            main,
+            sideboard,
+        }];
+        for (deck, seat) in gauntlet.ai_decks.iter().zip(
+            (0..draft.pod_size())
+                .filter_map(|i| draft.seat(i))
+                .filter(|seat| !seat.is_human),
+        ) {
+            let pool = draft_picked_cards(&session_id, draft, seat.seat);
+            decks.push(deck_with_pool_ids(deck, &pool));
+        }
+        let gauntlet_id = state.fresh_id("gauntlet");
+        state.gauntlet_decks.insert(gauntlet_id.clone(), decks);
+        let dto = GauntletStateDto::from_engine(gauntlet_id.clone(), &gauntlet);
+        state.gauntlets.insert(gauntlet_id, gauntlet);
+        serde_wasm_bindgen::to_value(&dto).map_err(|e| JsError::new(&e.to_string()))
+    })
+}
+
+#[wasm_bindgen]
+pub fn limited_get_draft_ai_decks(session_id: String) -> Result<JsValue, JsError> {
+    STATE.with(|cell| {
+        let state = cell.borrow();
+        let draft = state
+            .drafts
+            .get(&session_id)
+            .ok_or_else(|| JsError::new(&format!("no draft session for id {session_id}")))?;
+        let decks = draft.build_ai_decks().map_err(|e| JsError::new(&e))?;
+        let result: Vec<DraftAiDeckDto> = decks
+            .iter()
+            .zip(
+                (0..draft.pod_size())
+                    .filter_map(|i| draft.seat(i))
+                    .filter(|seat| !seat.is_human),
+            )
+            .map(|(deck, seat)| {
+                let pool = draft_picked_cards(&session_id, draft, seat.seat);
+                DraftAiDeckDto {
+                    seat: seat.seat as u32,
+                    deck: deck_with_pool_ids(deck, &pool),
+                }
+            })
+            .collect();
+        serde_wasm_bindgen::to_value(&result).map_err(|e| JsError::new(&e.to_string()))
     })
 }
 
@@ -1112,30 +1305,21 @@ pub fn limited_get_gauntlet_match_decks(gauntlet_id: String) -> Result<JsValue, 
             .gauntlets
             .get(&gauntlet_id)
             .ok_or_else(|| JsError::new(&format!("no gauntlet for id {gauntlet_id}")))?;
-        let opponent = g
-            .current_opponent()
+        g.current_opponent()
             .ok_or_else(|| JsError::new("gauntlet has no current opponent"))?;
+        let decks = state
+            .gauntlet_decks
+            .get(&gauntlet_id)
+            .expect("gauntlet deck identities");
+        let human = &decks[0];
+        let opponent = &decks[g.current_round as usize];
         let dto = GauntletMatchDecksDto {
-            human_deck_name: g.human_deck.name.clone(),
-            human_main: g
-                .human_deck
-                .main
-                .iter()
-                .map(paper_card_to_identity)
-                .collect(),
-            human_sideboard: g
-                .human_deck
-                .sideboard
-                .iter()
-                .map(paper_card_to_identity)
-                .collect(),
+            human_deck_name: human.name.clone(),
+            human_main: human.main.clone(),
+            human_sideboard: human.sideboard.clone(),
             opponent_name: opponent.name.clone(),
-            opponent_main: opponent.main.iter().map(paper_card_to_identity).collect(),
-            opponent_sideboard: opponent
-                .sideboard
-                .iter()
-                .map(paper_card_to_identity)
-                .collect(),
+            opponent_main: opponent.main.clone(),
+            opponent_sideboard: opponent.sideboard.clone(),
         };
         serde_wasm_bindgen::to_value(&dto).map_err(|e| JsError::new(&e.to_string()))
     })
@@ -1157,7 +1341,13 @@ pub fn limited_update_gauntlet_human_deck(update_json: JsValue) -> Result<JsValu
             .iter()
             .map(identity_to_paper_card)
             .collect();
-        let dto = GauntletStateDto::from_engine(update.gauntlet_id, g);
+        let dto = GauntletStateDto::from_engine(update.gauntlet_id.clone(), g);
+        let human = &mut state
+            .gauntlet_decks
+            .get_mut(&update.gauntlet_id)
+            .expect("gauntlet deck identities")[0];
+        human.main = update.main;
+        human.sideboard = update.sideboard;
         serde_wasm_bindgen::to_value(&dto).map_err(|e| JsError::new(&e.to_string()))
     })
 }
@@ -1170,7 +1360,10 @@ pub fn limited_drop_session(kind: String, session_id: String) -> Result<bool, Js
             "sealed" => state.sessions.remove(&session_id).is_some(),
             "draft" => state.drafts.remove(&session_id).is_some(),
             "winston" => state.winston.remove(&session_id).is_some(),
-            "gauntlet" => state.gauntlets.remove(&session_id).is_some(),
+            "gauntlet" => {
+                state.gauntlet_decks.remove(&session_id);
+                state.gauntlets.remove(&session_id).is_some()
+            }
             other => return Err(JsError::new(&format!("unknown session kind {other:?}"))),
         })
     })

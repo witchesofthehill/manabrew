@@ -205,6 +205,7 @@ export const RELAY_FEATURE = {
   Chat: "chat",
   RoomInvites: "room_invites",
   GameOutcome: "game_outcome",
+  LimitedSessions: "limited_sessions",
 } as const;
 export type RelayFeature = (typeof RELAY_FEATURE)[keyof typeof RELAY_FEATURE];
 /** Engine slots, not names: the relay maps them to seats itself. */

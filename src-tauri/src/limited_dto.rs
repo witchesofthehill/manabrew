@@ -109,10 +109,103 @@ impl From<&LimitedDeck> for LimitedDeckDto {
     fn from(d: &LimitedDeck) -> Self {
         Self {
             name: d.name.clone(),
-            main: d.main.iter().map(paper_card_to_identity).collect(),
-            sideboard: d.sideboard.iter().map(paper_card_to_identity).collect(),
+            main: d
+                .main
+                .iter()
+                .enumerate()
+                .map(|(i, c)| {
+                    let mut card = paper_card_to_identity(c);
+                    card.id = format!("{}:main:{i}", d.name);
+                    card
+                })
+                .collect(),
+            sideboard: d
+                .sideboard
+                .iter()
+                .enumerate()
+                .map(|(i, c)| {
+                    let mut card = paper_card_to_identity(c);
+                    card.id = format!("{}:sideboard:{i}", d.name);
+                    card
+                })
+                .collect(),
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SealedPackDto {
+    pub id: String,
+    pub set_code: String,
+    pub cards: Vec<DeckCardIdentity>,
+}
+
+pub fn deck_with_pool_ids(deck: &LimitedDeck, pool: &[DeckCardIdentity]) -> LimitedDeckDto {
+    let mut dto = LimitedDeckDto::from(deck);
+    let mut remaining: Vec<&DeckCardIdentity> = pool.iter().collect();
+    for card in dto.main.iter_mut().chain(dto.sideboard.iter_mut()) {
+        if let Some(index) = remaining.iter().position(|source| {
+            source.name == card.name
+                && source.set_code == card.set_code
+                && source.card_number == card.card_number
+                && source.foil == card.foil
+        }) {
+            card.id = remaining.remove(index).id.clone();
+        }
+    }
+    dto.sideboard.extend(remaining.into_iter().cloned());
+    dto
+}
+
+pub fn draft_picked_cards(
+    session_id: &str,
+    draft: &BoosterDraft,
+    seat_idx: usize,
+) -> Vec<DeckCardIdentity> {
+    draft
+        .seat(seat_idx)
+        .map(|seat| {
+            seat.picked
+                .iter()
+                .zip(draft.picked_ids_for_seat(seat_idx))
+                .map(|(c, (pack, id))| {
+                    let mut card = paper_card_to_identity(c);
+                    card.id = format!("{session_id}:{pack}:{id}");
+                    card
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+pub fn submit_occurrence_pick(
+    draft: &mut BoosterDraft,
+    session_id: &str,
+    seat: usize,
+    card_id: &str,
+) -> Result<(), String> {
+    let suffix = card_id
+        .strip_prefix(session_id)
+        .and_then(|s| s.strip_prefix(':'))
+        .ok_or_else(|| "card occurrence belongs to another session".to_string())?;
+    let (pack, card) = suffix
+        .split_once(':')
+        .ok_or_else(|| "invalid card occurrence".to_string())?;
+    let pack = pack
+        .parse()
+        .map_err(|_| "invalid pack occurrence".to_string())?;
+    let card = card
+        .parse()
+        .map_err(|_| "invalid card occurrence".to_string())?;
+    draft.submit_human_pick_id_for(seat, pack, card)
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DraftAiDeckDto {
+    pub seat: u32,
+    pub deck: LimitedDeckDto,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -122,25 +215,49 @@ pub struct SealedPoolDto {
     pub deck_name: String,
     pub land_set_code: Option<String>,
     pub cards: Vec<DeckCardIdentity>,
+    pub packs: Vec<SealedPackDto>,
     pub suggested_deck: Option<LimitedDeckDto>,
     pub ai_decks: Vec<LimitedDeckDto>,
 }
 
 impl SealedPoolDto {
     pub fn from_group(session_id: String, group: &SealedDeckGroup) -> Self {
+        let packs: Vec<SealedPackDto> = group
+            .human_packs
+            .iter()
+            .enumerate()
+            .map(|(pack_index, cards)| {
+                let id = format!("{session_id}:{pack_index}");
+                SealedPackDto {
+                    set_code: group.pack_set_code.clone(),
+                    cards: cards
+                        .iter()
+                        .enumerate()
+                        .map(|(card_index, c)| {
+                            let mut card = paper_card_to_identity(c);
+                            card.id = format!("{id}:{card_index}");
+                            card
+                        })
+                        .collect(),
+                    id,
+                }
+            })
+            .collect();
+        let cards: Vec<DeckCardIdentity> = packs
+            .iter()
+            .flat_map(|pack| pack.cards.iter().cloned())
+            .collect();
+        let suggested_deck = group
+            .suggested_human_deck
+            .as_ref()
+            .map(|deck| deck_with_pool_ids(deck, &cards));
         Self {
             session_id,
             deck_name: group.deck_name.clone(),
             land_set_code: group.land_set_code.clone(),
-            cards: group
-                .human_pool
-                .iter()
-                .map(paper_card_to_identity)
-                .collect(),
-            suggested_deck: group
-                .suggested_human_deck
-                .as_ref()
-                .map(LimitedDeckDto::from),
+            cards,
+            packs,
+            suggested_deck,
             ai_decks: group.ai_decks.iter().map(LimitedDeckDto::from).collect(),
         }
     }
@@ -191,6 +308,8 @@ pub struct BoosterDraftSetupDto {
     pub seed: Option<u64>,
     #[serde(default)]
     pub picks_per_pass: Option<u32>,
+    #[serde(default)]
+    pub custom_pool: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -201,6 +320,9 @@ pub struct DraftSeatDto {
     pub is_human: bool,
     pub picks_made: u32,
     pub last_pick_name: Option<String>,
+    pub current_pack_size: u32,
+    pub packs_waiting: u32,
+    pub awaiting_pick: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -220,6 +342,7 @@ pub struct DraftStateDto {
     pub human_conspiracies: Vec<String>,
     pub picks_per_pass: u32,
     pub picks_remaining_in_pack: u32,
+    pub pass_direction: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -241,7 +364,27 @@ impl WinstonStateDto {
         let piles: Vec<Vec<DeckCardIdentity>> = draft
             .piles()
             .iter()
-            .map(|p| p.iter().map(paper_card_to_identity).collect())
+            .zip(draft.pile_ids())
+            .map(|(pile, ids)| {
+                pile.iter()
+                    .zip(ids)
+                    .map(|(c, id)| {
+                        let mut card = paper_card_to_identity(c);
+                        card.id = format!("{session_id}:{id}");
+                        card
+                    })
+                    .collect()
+            })
+            .collect();
+        let picked_pile = draft
+            .human_picked()
+            .iter()
+            .zip(draft.human_picked_ids())
+            .map(|(c, id)| {
+                let mut card = paper_card_to_identity(c);
+                card.id = format!("{session_id}:{id}");
+                card
+            })
             .collect();
         Self {
             session_id,
@@ -249,11 +392,7 @@ impl WinstonStateDto {
             current_pile: draft.current_pile() as u32,
             piles,
             deck_size: draft.deck_size() as u32,
-            picked_pile: draft
-                .human_picked()
-                .iter()
-                .map(paper_card_to_identity)
-                .collect(),
+            picked_pile,
             ai_pick_count: draft.ai_picked_count() as u32,
             awaiting_human: draft.is_human_turn() && !draft.is_complete(),
             is_complete: draft.is_complete(),
@@ -270,6 +409,8 @@ pub struct WinstonSetupDto {
     pub variant: Option<String>,
     #[serde(default)]
     pub seed: Option<u64>,
+    #[serde(default)]
+    pub custom_pool: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -403,7 +544,17 @@ impl DraftStateDto {
         let viewer = draft.seat(seat_idx);
         let pack: Vec<DeckCardIdentity> = draft
             .current_pack_for_seat(seat_idx)
-            .map(|p| p.cards().iter().map(paper_card_to_identity).collect())
+            .map(|p| {
+                p.cards()
+                    .iter()
+                    .zip(p.card_ids())
+                    .map(|(c, id)| {
+                        let mut card = paper_card_to_identity(c);
+                        card.id = format!("{session_id}:{}:{id}", p.id());
+                        card
+                    })
+                    .collect()
+            })
             .unwrap_or_default();
         let pick_number = viewer.map(|s| s.picked.len() + 1).unwrap_or(1) as u32;
         let mut seat_summaries: Vec<DraftSeatDto> = (0..draft.pod_size())
@@ -413,7 +564,21 @@ impl DraftStateDto {
                 name: p.name.clone(),
                 is_human: p.is_human,
                 picks_made: p.picked.len() as u32,
-                last_pick_name: p.last_pick.as_ref().map(|c| c.name.clone()),
+                last_pick_name: p
+                    .last_pick
+                    .as_ref()
+                    .filter(|_| p.seat == seat_idx)
+                    .map(|c| c.name.clone()),
+                current_pack_size: p.current_pack().map(|pack| pack.len()).unwrap_or(0) as u32,
+                packs_waiting: p
+                    .pack_queue
+                    .len()
+                    .saturating_sub(usize::from(p.current_pack().is_some()))
+                    as u32,
+                awaiting_pick: p
+                    .current_pack()
+                    .map(|pack| !pack.is_empty())
+                    .unwrap_or(false),
             })
             .collect();
         seat_summaries.sort_by_key(|s| s.seat);
@@ -430,9 +595,7 @@ impl DraftStateDto {
             .current_pack_for_seat(seat_idx)
             .map(|p| p.picks_remaining())
             .unwrap_or(0);
-        let picked_pile = viewer
-            .map(|s| s.picked.iter().map(paper_card_to_identity).collect())
-            .unwrap_or_default();
+        let picked_pile = draft_picked_cards(&session_id, draft, seat_idx);
         Self {
             session_id,
             round: draft.round(),
@@ -448,6 +611,11 @@ impl DraftStateDto {
             human_conspiracies,
             picks_per_pass: draft.picks_per_pass(),
             picks_remaining_in_pack,
+            pass_direction: match draft.current_direction() {
+                forge_limited::PassDirection::Left => "left",
+                forge_limited::PassDirection::Right => "right",
+            }
+            .to_string(),
         }
     }
 }

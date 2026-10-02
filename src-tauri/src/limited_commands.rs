@@ -77,9 +77,9 @@ pub async fn limited_start_booster_draft(
 pub async fn limited_pick_card(
     lm: State<'_, LimitedManager>,
     session_id: String,
-    card_name: String,
+    card_id: String,
 ) -> Result<DraftStateDto, String> {
-    lm.submit_human_pick(&session_id, &card_name)
+    lm.submit_human_pick(&session_id, &card_id)
 }
 
 #[tauri::command]
@@ -121,9 +121,9 @@ pub async fn limited_submit_pick(
     lm: State<'_, LimitedManager>,
     session_id: String,
     seat_idx: u32,
-    card_name: String,
+    card_id: String,
 ) -> Result<DraftStateDto, String> {
-    lm.submit_pick_for_seat(&session_id, seat_idx as usize, &card_name)
+    lm.submit_pick_for_seat(&session_id, seat_idx as usize, &card_id)
 }
 
 #[tauri::command]
@@ -145,7 +145,7 @@ pub async fn limited_start_winston(
     if card_pool.is_empty() {
         return Err(empty_pool_error(setup.pool.len()));
     }
-    lm.start_winston(setup.pool_packs, card_pool, setup.variant.as_deref())
+    lm.start_winston(&setup, card_pool)
 }
 
 #[tauri::command]
@@ -225,12 +225,26 @@ pub async fn limited_start_gauntlet_from_sealed(
     main: Vec<DeckCardIdentity>,
     sideboard: Vec<DeckCardIdentity>,
 ) -> Result<GauntletStateDto, String> {
-    lm.start_gauntlet_from_sealed(
-        &session_id,
-        rounds,
-        main.iter().map(identity_to_paper_card).collect(),
-        sideboard.iter().map(identity_to_paper_card).collect(),
-    )
+    lm.start_gauntlet_from_sealed(&session_id, rounds, main, sideboard)
+}
+
+#[tauri::command]
+pub async fn limited_start_gauntlet_from_draft(
+    lm: State<'_, LimitedManager>,
+    session_id: String,
+    rounds: u32,
+    main: Vec<DeckCardIdentity>,
+    sideboard: Vec<DeckCardIdentity>,
+) -> Result<GauntletStateDto, String> {
+    lm.start_gauntlet_from_draft(&session_id, rounds, main, sideboard)
+}
+
+#[tauri::command]
+pub async fn limited_get_draft_ai_decks(
+    lm: State<'_, LimitedManager>,
+    session_id: String,
+) -> Result<Vec<crate::limited_dto::DraftAiDeckDto>, String> {
+    lm.get_draft_ai_decks(&session_id)
 }
 
 #[tauri::command]
@@ -268,9 +282,7 @@ pub async fn limited_update_gauntlet_human_deck(
     main: Vec<DeckCardIdentity>,
     sideboard: Vec<DeckCardIdentity>,
 ) -> Result<GauntletStateDto, String> {
-    let main_cards = main.iter().map(identity_to_paper_card).collect();
-    let sideboard_cards = sideboard.iter().map(identity_to_paper_card).collect();
-    lm.update_gauntlet_human_deck(&gauntlet_id, main_cards, sideboard_cards)
+    lm.update_gauntlet_human_deck(&gauntlet_id, main, sideboard)
 }
 
 #[tauri::command]

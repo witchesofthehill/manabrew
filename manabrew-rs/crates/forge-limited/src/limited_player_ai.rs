@@ -32,6 +32,22 @@ impl LimitedPlayerAI {
     pub fn observed_pile(&self) -> &[PaperCard] {
         &self.pile
     }
+    pub fn build_deck(
+        &self,
+        name: &str,
+        pool: &[PaperCard],
+    ) -> Result<crate::limited_deck_builder::LimitedDeck, String> {
+        let color_of = self.color_of.clone();
+        crate::limited_deck_builder::LimitedDeckBuilder::new(
+            pool.to_vec(),
+            self.colors.clone(),
+            self.ranker.clone(),
+            move |card| color_of(card),
+            |card| card.rarity == forge_foundation::sealed_product::Rarity::BasicLand,
+        )
+        .build_deck(name, None)
+        .map_err(|error| error.to_string())
+    }
 }
 
 impl LimitedAgent for LimitedPlayerAI {

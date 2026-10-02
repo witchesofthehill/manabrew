@@ -1,5 +1,7 @@
 // @refresh reset
 import { topModal } from "@/lib/modalStack";
+import type { PreviewFlipOptions } from "@/lib/cardPreview";
+import { CARD_PREVIEW_EVENT_HANDLERS, isCardPreviewTarget } from "@/lib/cardPreviewEvents";
 
 import { useEffect, useRef, useState } from "react";
 import { Application, Graphics } from "pixi.js";
@@ -44,7 +46,7 @@ import { usePreferencesStore, type InGameCardPreviewStyle } from "@/stores/usePr
 import { hexToNum } from "./colorUtils";
 
 export interface BoardOverlayPreviewSpec {
-  card: ClientCardDto;
+  card: CardDto;
   phase: "open" | "closing";
   sticky: boolean;
   placement: "auto" | "top-center" | "pinned";
@@ -111,15 +113,24 @@ export interface BoardOverlayCanvasProps {
   onPreviewPointerLeave?: () => void;
   onSelectPreviewAction?: (action: HandActionOption) => void;
   onDismissPreview?: () => void;
-  onFlipPreview?: () => void;
+  onFlipPreview?: (options?: PreviewFlipOptions) => void;
   onTogglePreviewView?: () => void;
   onLongPressCard?: (card: CardDto, anchor: DOMRect) => void;
 }
 type PromptLayerFactory = (app: Application, callbacks: PromptLayerCallbacks) => PromptLayer;
 
-interface BoardOverlayCanvasSurfaceProps extends BoardOverlayCanvasProps {
-  createPromptLayer: PromptLayerFactory;
-  compactStack: boolean;
+interface BoardOverlayCanvasSurfaceProps extends Omit<
+  BoardOverlayCanvasProps,
+  "scene" | "stackSpec" | "onTargetSpell" | "onHoverStack" | "onToggleStack" | "promptSpec"
+> {
+  scene?: BoardScene | null;
+  stackSpec?: StackSpec;
+  onTargetSpell?: BoardOverlayCanvasProps["onTargetSpell"];
+  onHoverStack?: BoardOverlayCanvasProps["onHoverStack"];
+  onToggleStack?: BoardOverlayCanvasProps["onToggleStack"];
+  promptSpec?: PromptOverlaySpec | null;
+  createPromptLayer?: PromptLayerFactory;
+  compactStack?: boolean;
 }
 function syncPromptViewport(
   prompt: PromptLayer,
@@ -243,7 +254,7 @@ function syncRulesPreviewActionGlow(
 }
 
 export function BoardOverlayCanvasSurface({
-  scene,
+  scene = null,
   stackSpec,
   onTargetSpell,
   onHoverStack,
@@ -264,7 +275,7 @@ export function BoardOverlayCanvasSurface({
   onTogglePreviewView,
   onLongPressCard,
   createPromptLayer,
-  compactStack,
+  compactStack = false,
 }: BoardOverlayCanvasSurfaceProps) {
   const theme = useTheme();
   const { i18n } = useLingui();
@@ -455,14 +466,21 @@ export function BoardOverlayCanvasSurface({
         app.stage.hitArea = {
           contains: (x, y) => {
             const modal = topModal();
-            return app.screen.contains(x, y) && (!modal || modal.contains(canvas));
+            const target = app.renderer.events.pointer.nativeEvent?.target;
+            return (
+              app.screen.contains(x, y) &&
+              (!modal || modal.contains(canvas)) &&
+              (!isCardPreviewTarget(target) || target === canvas)
+            );
           },
         };
 
-        arrow = new ArrowLayer();
-        arrow.setTheme(themeRef.current);
-        arrow.graphics.eventMode = "none";
-        arrowRef.current = arrow;
+        if (sceneRef.current) {
+          arrow = new ArrowLayer();
+          arrow.setTheme(themeRef.current);
+          arrow.graphics.eventMode = "none";
+          arrowRef.current = arrow;
+        }
 
         const showLongPressCard = (card: CardDto, bounds: ScreenBounds) => {
           const canvasBounds = canvas.getBoundingClientRect();
@@ -477,26 +495,28 @@ export function BoardOverlayCanvasSurface({
           );
         };
 
-        stack = new StackLayer(
-          themeRef.current,
-          {
-            onTargetSpell: (id) => cbRef.current.onTargetSpell(id),
-            onHover: (id) => {
-              setHoveredStackObjectId(id);
-              cbRef.current.onHoverStack(id);
+        if (stackSpecRef.current) {
+          stack = new StackLayer(
+            themeRef.current,
+            {
+              onTargetSpell: (id) => cbRef.current.onTargetSpell?.(id),
+              onHover: (id) => {
+                setHoveredStackObjectId(id);
+                cbRef.current.onHoverStack?.(id);
+              },
+              onToggleCollapsed: () => cbRef.current.onToggleStack?.(),
+              onRenderRequested: () => scheduler?.request(),
+              onLongPressCard: showLongPressCard,
             },
-            onToggleCollapsed: () => cbRef.current.onToggleStack(),
-            onRenderRequested: () => scheduler?.request(),
-            onLongPressCard: showLongPressCard,
-          },
-          compactStack,
-        );
-        stackRef.current = stack;
-        stack.setViewport(width, height);
-        stack.setSpec(stackSpecRef.current);
-        stack.setRulesViewDefault(stackCardStyleRef.current === "rules");
+            compactStack,
+          );
+          stackRef.current = stack;
+          stack.setViewport(width, height);
+          stack.setSpec(stackSpecRef.current);
+          stack.setRulesViewDefault(stackCardStyleRef.current === "rules");
+        }
 
-        const promptLayer = createPromptLayer(app, {
+        const promptLayer = createPromptLayer?.(app, {
           onReferenceChange: (target: TargetRef | null) => {
             const sceneTarget = target?.kind === "spell" ? null : target;
             sceneRef.current?.setPromptReference(sceneTarget);
@@ -516,10 +536,12 @@ export function BoardOverlayCanvasSurface({
           onRenderRequested: () => scheduler?.request(),
           onLongPressCard: showLongPressCard,
         });
-        prompt = promptLayer;
-        promptRef.current = promptLayer;
-        syncPromptViewport(promptLayer, canvas, width, height, promptViewportRightRef.current);
-        promptLayer.setSpec(promptSpecRef.current);
+        prompt = promptLayer ?? null;
+        promptRef.current = promptLayer ?? null;
+        if (promptLayer) {
+          syncPromptViewport(promptLayer, canvas, width, height, promptViewportRightRef.current);
+          promptLayer.setSpec(promptSpecRef.current ?? null);
+        }
 
         const backdrop = new Graphics();
         backdrop.eventMode = "none";
@@ -536,7 +558,7 @@ export function BoardOverlayCanvasSurface({
           onRenderRequested: () => scheduler?.request(),
           onSelectAction: (action) => cbRef.current.onSelectPreviewAction?.(action),
           onDismiss: () => cbRef.current.onDismissPreview?.(),
-          onFlip: () => cbRef.current.onFlipPreview?.(),
+          onFlip: (options) => cbRef.current.onFlipPreview?.(options),
           onToggleView: () => cbRef.current.onTogglePreviewView?.(),
         });
         previewLayer.container.zIndex = 10_001;
@@ -559,13 +581,13 @@ export function BoardOverlayCanvasSurface({
         commandPreview = commandPreviewLayer;
         commandPreviewRef.current = commandPreviewLayer;
 
-        app.stage.addChild(stack.container);
-        app.stage.addChild(arrow.graphics);
+        if (stack) app.stage.addChild(stack.container);
+        if (arrow) app.stage.addChild(arrow.graphics);
         app.stage.addChild(backdrop);
         app.stage.addChild(previewLayer.container);
         app.stage.addChild(commandPreviewLayer.container);
         app.renderer.resize(width, height);
-        if (promptLayer.blocksBoard) canvas.style.pointerEvents = "auto";
+        if (promptLayer?.blocksBoard) canvas.style.pointerEvents = "auto";
 
         updateRulesPreviewBackdrop(
           backdrop,
@@ -592,6 +614,13 @@ export function BoardOverlayCanvasSurface({
             registeredScene?.setOverlayHitTest(null);
             registeredScene?.setPromptReference(null);
             registeredScene = currentScene;
+            if (currentScene && !arrow) {
+              arrow = new ArrowLayer();
+              arrow.setTheme(themeRef.current);
+              arrow.graphics.eventMode = "none";
+              arrowRef.current = arrow;
+              app.stage.addChild(arrow.graphics);
+            }
             registeredScene?.setStackAnchorProvider(stack);
             registeredScene?.setOverlayInvalidation(() => scheduler?.request());
             registeredScene?.setOverlayHitTest(
@@ -599,12 +628,12 @@ export function BoardOverlayCanvasSurface({
                 hasRulesPreviewBackdrop(previewSpecRef.current) ||
                 previewLayer.hitTestHover(x, y) ||
                 commandPreviewLayer.hitTest(x, y) ||
-                promptLayer.hitTest(x, y) ||
+                promptLayer?.hitTest(x, y) === true ||
                 stack?.hitTest(x, y) === true,
             );
           }
 
-          promptLayer.update(deltaMs);
+          promptLayer?.update(deltaMs);
 
           const definitions = currentScene?.getArrowDefs() ?? [];
           arrow?.update(definitions, deltaMs);
@@ -614,7 +643,7 @@ export function BoardOverlayCanvasSurface({
             stack?.isAnimating() === true ||
             previewLayer.container.visible ||
             commandPreviewLayer.container.visible ||
-            promptLayer.container.visible
+            promptLayer?.container.visible === true
           );
         });
         schedulerRef.current = scheduler;
@@ -636,7 +665,7 @@ export function BoardOverlayCanvasSurface({
 
   useEffect(() => {
     stackSpecRef.current = stackSpec;
-    stackRef.current?.setSpec(stackSpec);
+    if (stackSpec) stackRef.current?.setSpec(stackSpec);
     schedulerRef.current?.request();
   }, [stackSpec]);
   useEffect(() => {
@@ -674,7 +703,7 @@ export function BoardOverlayCanvasSurface({
 
   useEffect(() => {
     const prompt = promptRef.current;
-    prompt?.setSpec(promptSpec);
+    prompt?.setSpec(promptSpec ?? null);
     const canvas = canvasRef.current;
     if (canvas && prompt) {
       canvas.style.pointerEvents = prompt.blocksBoard ? "auto" : "none";
@@ -749,6 +778,7 @@ export function BoardOverlayCanvasSurface({
         prompt: promptRef.current?.hitTest(x, y) ?? false,
         rulesPreview,
         preview: rulesPreview || commandPreview,
+        previewHover: previewRef.current?.hitTestHover(x, y) ?? false,
       };
     };
     const unbindPreviewScroll = bindPreviewScroll(
@@ -789,10 +819,14 @@ export function BoardOverlayCanvasSurface({
     let pointerX = 0;
     let pointerY = 0;
     let hasPointer = false;
+    let pointerTarget: EventTarget | null = null;
     const syncPointer = () => {
       if (!hasPointer) return;
       const modal = topModal();
-      if (modal && !modal.contains(canvas)) {
+      if (
+        (modal && !modal.contains(canvas)) ||
+        (isCardPreviewTarget(pointerTarget) && pointerTarget !== canvas)
+      ) {
         previewRef.current?.clearHover();
         commandPreviewRef.current?.clearHover();
         canvas.style.pointerEvents = "none";
@@ -802,7 +836,8 @@ export function BoardOverlayCanvasSurface({
       const rect = canvas.getBoundingClientRect();
       const x = pointerX - rect.left;
       const y = pointerY - rect.top;
-      const rulesPreview = previewRef.current?.updateHover(x, y) ?? false;
+      const rulesPreview = previewRef.current?.hitTestHover(x, y) ?? false;
+      previewRef.current?.updateHover(x, y);
       const commandPreview = commandPreviewRef.current?.updateHover(x, y) ?? false;
       const prompt = promptRef.current;
       canvas.style.pointerEvents =
@@ -821,7 +856,19 @@ export function BoardOverlayCanvasSurface({
       if (!hasPointer) return;
       pointerX = event.clientX;
       pointerY = event.clientY;
+      pointerTarget = event.target;
       syncPointer();
+    };
+    const onOver = (event: PointerEvent) => {
+      if (event.pointerType === "touch" || event.buttons !== 0) return;
+      const modal = topModal();
+      if (modal && !modal.contains(canvas)) return;
+      const rect = canvas.getBoundingClientRect();
+      if (!previewRef.current?.hitTestHover(event.clientX - rect.left, event.clientY - rect.top)) {
+        return;
+      }
+      onMove(event);
+      if (!event.composedPath().includes(canvas)) event.stopImmediatePropagation();
     };
     const onWindowLeave = (event: PointerEvent) => {
       if (event.relatedTarget !== null) return;
@@ -883,7 +930,8 @@ export function BoardOverlayCanvasSurface({
       event.preventDefault();
       event.stopImmediatePropagation();
     };
-    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointermove", onMove, true);
+    window.addEventListener("pointerover", onOver, true);
     window.addEventListener("pointerout", onWindowLeave);
     window.addEventListener("pointerdown", onDown, true);
     window.addEventListener("pointerup", onUp, true);
@@ -893,7 +941,7 @@ export function BoardOverlayCanvasSurface({
       canvas,
       hitTest: (clientX, clientY) => {
         const hit = hitAt(clientX, clientY);
-        return hit.stack || hit.prompt || hit.preview;
+        return hit.stack || hit.prompt || hit.preview || hit.previewHover;
       },
       onActivity: () => schedulerRef.current?.request(),
       onOverlayCancel: (pointerId) => stackRef.current?.cancelPointer(pointerId),
@@ -902,7 +950,8 @@ export function BoardOverlayCanvasSurface({
       syncPreviewPointerRef.current = null;
       unbindPreviewScroll();
       uninstallPointerRouting();
-      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointermove", onMove, true);
+      window.removeEventListener("pointerover", onOver, true);
       window.removeEventListener("pointerout", onWindowLeave);
       window.removeEventListener("pointerdown", onDown, true);
       window.removeEventListener("pointerup", onUp, true);
@@ -936,7 +985,7 @@ export function BoardOverlayCanvasSurface({
     schedulerRef.current?.request();
   }, [locale, theme]);
 
-  const hoveredStackCard = stackSpec.cards.find((card) => card.id === hoveredStackObjectId);
+  const hoveredStackCard = stackSpec?.cards.find((card) => card.id === hoveredStackObjectId);
   const rulesPreviewOpen = previewSpec?.phase === "open" && !previewSpec.suppressed;
   const commandPreviewOpen = commandPreviewSpec?.phase === "open" && !commandPreviewSpec.suppressed;
 
@@ -1011,6 +1060,8 @@ export function BoardOverlayCanvasSurface({
     <>
       <canvas
         ref={canvasRef}
+        {...CARD_PREVIEW_EVENT_HANDLERS}
+        data-card-preview={rulesPreviewOpen || commandPreviewOpen ? "" : undefined}
         className={className}
         style={{
           width: "100%",
@@ -1019,7 +1070,10 @@ export function BoardOverlayCanvasSurface({
           pointerEvents: "none",
           touchAction: "none",
         }}
-        onContextMenu={(e) => e.preventDefault()}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+        }}
       />
       <div
         ref={previewGlowRef}

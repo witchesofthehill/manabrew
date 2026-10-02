@@ -12,6 +12,16 @@ The relay is the multiplayer trust boundary. Only the room's engine host may emi
 
 Per-seat `State`, `Prompt`, and `Error` envelopes can contain hidden information. A hosted node must set `BroadcastState.target_player` for all three; `forPlayer` inside the envelope is for client dispatch and replay indexing, not transport privacy.
 
+## Limited sessions
+
+`AuthResult.features` advertises `limited_sessions`; clients require it before creating multiplayer Draft or Sealed sessions. `src/game/limitedSession.ts` coordinates the `limited-session-v1` room relay. The original room host owns generation and validates each build against its seat's acquired occurrence IDs, printing and finish. Every acquired card must appear exactly once across Main and Sideboard; added basics require real Scryfall printings, and readiness requires at least 40 main cards.
+
+Pool snapshots, Sealed pack contents and builds are targeted to their owner through `BroadcastState.target_player`. Public statuses contain readiness and series scores, not picked cards or deck contents. Both relay and clients check the authenticated sender, original room, session and target; envelope claims are not authorization.
+
+The relay retains the original Limited room while moving participants into private two-seat match rooms. The match host receives both decks to run the engine. Other seats receive only their own deck; opponent cards and sideboards are empty in both `GameStarted` and replay. Return is an authenticated transaction back to the original room, preserving the acquired pool and local build, clearing readiness and allowing BO1/BO3 sideboarding.
+
+A guest can request its private snapshot while the original host tab remains alive. Reloading or closing that host loses the generation/session map; retain the local build and report that the session cannot resume rather than pretending to recover it. Limited session recovery does not inherit the engine-room relay-restart guarantee below.
+
 ## Replay cache and resync
 
 In-game state is cached per room (`replay.rs`) so reconnecting clients can pull a `RequestResync` replay: GameStarted + the reconnecting seat's last state + its pending prompt. States arrive per-seat via `BroadcastState.target_player` — an address the relay routes on without reading `state` — and are cached per slot with an untargeted public fallback for observers. The room's `reconnect_timeout_s` is clamped ≤ 90s to stay under the engine's 120s auto-pass (`manabrew-game-runtime/src/mpsc_transport.rs`).

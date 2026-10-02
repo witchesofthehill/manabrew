@@ -3,8 +3,11 @@ import { useParams } from "react-router-dom";
 import LimitedDeckBuilder from "@/components/limited/LimitedDeckBuilder";
 import { DraftStatusBar } from "@/components/limited/DraftStatusBar";
 import { DraftWorkspace } from "@/components/limited/DraftWorkspace";
+import { LimitedTableSurface } from "@/components/limited/LimitedTableSurface";
 import type { LimitedDraftMode } from "@/components/limited/LimitedModeToggle";
 import { useLimitedStore } from "@/stores/useLimitedStore";
+import { useLimitedBuildStore } from "@/components/limited/useLimitedBuildStore";
+import { LimitedPlayAction } from "@/components/limited/LimitedPlayAction";
 import type { DraftCard } from "@/types/limited";
 type DraftMode = LimitedDraftMode;
 export default function Draft() {
@@ -18,6 +21,15 @@ export default function Draft() {
   const conspiracyHooks = useLimitedStore((s) => s.conspiracyHooks);
   const fetchConspiracyHooks = useLimitedStore((s) => s.fetchConspiracyHooks);
   const lastError = useLimitedStore((s) => s.lastError);
+  const [builtDeck, setBuiltDeck] = useState<{
+    sessionId: string | null;
+    main: DraftCard[];
+    sideboard: DraftCard[];
+  }>({
+    sessionId: null,
+    main: [],
+    sideboard: [],
+  });
   const [userMode, setUserMode] = useState<DraftMode>("drafting");
   const [picking, setPicking] = useState(false);
   const pickingRef = useRef(false);
@@ -32,19 +44,16 @@ export default function Draft() {
       fetchConspiracyHooks();
     }
   }, [conspiracyHooks.length, fetchConspiracyHooks]);
-  // Derive the effective mode — the draft being complete forces the
-  // builder, otherwise the user's selection wins. Computed in render
-  // so we avoid the setState-in-effect anti-pattern.
   const mode: DraftMode = activeDraft?.isComplete ? "building" : userMode;
-  if (!activeDraft) {
+  if (!activeDraft || activeDraft.sessionId !== draftId) {
     return (
-      <div className="flex h-full items-center justify-center">
+      <LimitedTableSurface className="items-center justify-center">
         {lastError ? (
           <p className="text-destructive">{lastError}</p>
         ) : (
           <p className="text-muted-foreground">Loading draft…</p>
         )}
-      </div>
+      </LimitedTableSurface>
     );
   }
   const handlePick = async (card: DraftCard) => {
@@ -53,8 +62,6 @@ export default function Draft() {
     setPicking(true);
     try {
       await pick(draftId, card);
-    } catch {
-      /* surfaced via lastError */
     } finally {
       pickingRef.current = false;
       setPicking(false);
@@ -63,14 +70,15 @@ export default function Draft() {
   const handleUndo = async () => {
     if (!draftId) return;
     try {
-      await undo(draftId);
+      const state = await undo(draftId);
+      useLimitedBuildStore.getState().reconcilePool(draftId, state.pickedPile);
     } catch {
       /* surfaced via lastError */
     }
   };
   const canBuild = activeDraft.pickedPile.length >= 1;
   return (
-    <div className="flex h-full flex-col gap-4 px-4 py-6 sm:px-6 lg:px-8">
+    <LimitedTableSurface className="gap-2 px-4 py-3 sm:px-6 lg:px-8">
       <DraftStatusBar
         draft={activeDraft}
         mode={mode}
@@ -79,19 +87,40 @@ export default function Draft() {
         canBuild={canBuild}
       />
 
+      {activeDraft.isComplete && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">
+            Your pool is complete. Build your deck, then play against the decks drafted at this
+            table.
+          </p>
+          <LimitedPlayAction
+            sessionId={activeDraft.sessionId}
+            kind="draft"
+            rounds={Math.max(0, activeDraft.seatSummaries.length - 1)}
+            deck={
+              builtDeck.sessionId === activeDraft.sessionId
+                ? builtDeck
+                : { main: [], sideboard: [] }
+            }
+          />
+        </div>
+      )}
+
       {mode === "building" ? (
         <div className="min-h-0 flex-1">
           <LimitedDeckBuilder
+            key={activeDraft.sessionId}
+            sessionKey={activeDraft.sessionId}
             pool={activeDraft.pickedPile}
             defaultDeckName="Booster Draft Deck"
             format="draft"
+            onChange={(deck) => setBuiltDeck({ sessionId: activeDraft.sessionId, ...deck })}
           />
         </div>
       ) : (
         <DraftWorkspace
           draft={activeDraft}
           onPick={handlePick}
-          onBuild={canBuild ? () => setUserMode("building") : undefined}
           conspiracyHooks={conspiracyHooks}
           pickPending={picking}
         />
@@ -102,6 +131,6 @@ export default function Draft() {
           {lastError}
         </p>
       )}
-    </div>
+    </LimitedTableSurface>
   );
 }

@@ -47,6 +47,8 @@ pub struct BoosterDraft {
     pick_history: Vec<DraftSnapshot>,
     picks_per_pass: u32,
     pool_limited: bool,
+    picked_ids: Vec<Vec<(u32, u32)>>,
+    pending_pick_ids: Vec<Option<u32>>,
 }
 
 #[derive(Debug, Clone)]
@@ -57,6 +59,7 @@ struct DraftSnapshot {
     pool: Vec<PaperCard>,
     rng: StdRng,
     seats: Vec<SeatSnapshot>,
+    picked_ids: Vec<Vec<(u32, u32)>>,
 }
 
 #[derive(Debug, Clone)]
@@ -136,6 +139,8 @@ impl BoosterDraft {
             pick_history: Vec::new(),
             picks_per_pass: PICKS_PER_PASS_DEFAULT,
             pool_limited: false,
+            picked_ids: vec![Vec::new(); pod_size],
+            pending_pick_ids: vec![None; pod_size],
         }
     }
 
@@ -168,6 +173,8 @@ impl BoosterDraft {
         self.next_pack_id = snap.next_pack_id;
         self.pool = snap.pool;
         self.rng = snap.rng;
+        self.picked_ids = snap.picked_ids;
+        self.pending_pick_ids.fill(None);
         for (seat, snap) in self.seats.iter_mut().zip(snap.seats) {
             seat.picked = snap.picked;
             seat.last_pick = snap.last_pick;
@@ -192,6 +199,7 @@ impl BoosterDraft {
             next_pack_id: self.next_pack_id,
             pool: self.pool.clone(),
             rng: self.rng.clone(),
+            picked_ids: self.picked_ids.clone(),
             seats: self
                 .seats
                 .iter()
@@ -245,6 +253,47 @@ impl BoosterDraft {
 
     pub fn submit_human_pick(&mut self, card: PaperCard) -> Result<(), String> {
         self.submit_human_pick_for(0, card)
+    }
+    pub fn submit_human_pick_id_for(
+        &mut self,
+        seat_idx: usize,
+        pack_id: u32,
+        card_id: u32,
+    ) -> Result<(), String> {
+        let pack = self
+            .current_pack_for_seat(seat_idx)
+            .filter(|pack| pack.id() == pack_id)
+            .ok_or_else(|| "pack is no longer current".to_string())?;
+        let index = pack
+            .card_ids()
+            .iter()
+            .position(|id| *id == card_id)
+            .ok_or_else(|| "card occurrence is not in the current pack".to_string())?;
+        let card = pack.cards()[index].clone();
+        self.submit_human_pick_for(seat_idx, card)?;
+        self.pending_pick_ids[seat_idx] = Some(card_id);
+        Ok(())
+    }
+
+    pub fn picked_ids_for_seat(&self, seat_idx: usize) -> &[(u32, u32)] {
+        &self.picked_ids[seat_idx]
+    }
+    pub fn build_ai_decks(&self) -> Result<Vec<crate::limited_deck_builder::LimitedDeck>, String> {
+        if self.has_next_choice() || self.current_round < self.rounds {
+            return Err("draft is not complete".to_string());
+        }
+        self.seats
+            .iter()
+            .filter(|seat| !seat.is_human)
+            .map(|seat| {
+                let ai = seat
+                    .agent
+                    .as_any()
+                    .downcast_ref::<crate::limited_player_ai::LimitedPlayerAI>()
+                    .ok_or_else(|| "draft seat is not an AI player".to_string())?;
+                ai.build_deck(&seat.name, &seat.picked)
+            })
+            .collect()
     }
 
     pub fn current_pack_for_seat(&self, seat_idx: usize) -> Option<&DraftPack> {
@@ -330,25 +379,24 @@ impl BoosterDraft {
                         self.seats[seat_idx].pack_queue.push_front(pack);
                         return TickOutcome::AwaitingHuman;
                     };
-                    let actual_pick = if !pack.remove_card(&pick) {
-                        if let Some(first) = pack.cards().first().cloned() {
-                            pack.cards_mut().remove(0);
-                            Some(first)
-                        } else {
-                            None
-                        }
-                    } else {
-                        Some(pick)
-                    };
-                    if let Some(card) = actual_pick {
-                        self.seats[seat_idx].picked.push(card.clone());
-                        self.seats[seat_idx].last_pick = Some(card.clone());
-                        crate::conspiracy_hooks::apply_pick_trigger(
-                            &card.name,
-                            &mut self.seats[seat_idx].flags,
-                        );
-                        anyone_picked = true;
-                    }
+                    let index = self.pending_pick_ids[seat_idx]
+                        .take()
+                        .and_then(|id| {
+                            pack.card_ids()
+                                .iter()
+                                .position(|candidate| *candidate == id)
+                        })
+                        .or_else(|| pack.cards().iter().position(|card| *card == pick))
+                        .unwrap_or(0);
+                    let (card, card_id) = pack.remove_at(index);
+                    self.picked_ids[seat_idx].push((pack.id(), card_id));
+                    self.seats[seat_idx].picked.push(card.clone());
+                    self.seats[seat_idx].last_pick = Some(card.clone());
+                    crate::conspiracy_hooks::apply_pick_trigger(
+                        &card.name,
+                        &mut self.seats[seat_idx].flags,
+                    );
+                    anyone_picked = true;
                     pack.decrement_picks_remaining();
                 }
 

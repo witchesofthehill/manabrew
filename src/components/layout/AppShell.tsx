@@ -52,17 +52,18 @@ export function AppShell() {
   const isGameRoute =
     pathname.startsWith(ROUTES.GAME) || (isGameActive && pathname.startsWith(ROUTES.PLAY));
   const isCompanionRoute = pathname.startsWith(ROUTES.COMPANION);
-  const isImmersiveRoute = isGameRoute || isCompanionRoute;
+  const isLimitedTableRoute =
+    pathname.startsWith(ROUTES.DRAFT) ||
+    pathname.startsWith(ROUTES.SEALED) ||
+    pathname.startsWith(ROUTES.WINSTON) ||
+    pathname.startsWith(ROUTES.GAUNTLET);
+  const isImmersiveRoute = isGameRoute || isCompanionRoute || isLimitedTableRoute;
   const isPlayHome = pathname === ROUTES.PLAY;
   const usesSubtleBackdrop =
     pathname.startsWith(ROUTES.SEARCH) ||
     pathname.startsWith(ROUTES.DECK_EDITOR) ||
     pathname.startsWith(ROUTES.MY_COLLECTION) ||
     pathname.startsWith(ROUTES.HUB) ||
-    pathname.startsWith(ROUTES.DRAFT) ||
-    pathname.startsWith(ROUTES.SEALED) ||
-    pathname.startsWith(ROUTES.WINSTON) ||
-    pathname.startsWith(ROUTES.GAUNTLET) ||
     pathname.startsWith(ROUTES.DESIGN_SYSTEM) ||
     pathname === "/card-mock";
   const hideNavChrome = isGameRoute;

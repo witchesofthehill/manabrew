@@ -5,9 +5,15 @@ interface LongPressPreviewOptions<T> {
   resolve: (e: React.PointerEvent) => { item: T; anchor: HTMLElement } | null;
   show: (item: T, anchorRect: DOMRect) => void;
   hide: () => void;
+  hideOnRelease?: boolean;
 }
 
-export function useLongPressPreview<T>({ resolve, show, hide }: LongPressPreviewOptions<T>) {
+export function useLongPressPreview<T>({
+  resolve,
+  show,
+  hide,
+  hideOnRelease = true,
+}: LongPressPreviewOptions<T>) {
   const timerRef = useRef<LongPressTimer | null>(null);
   const pointerIdRef = useRef<number | null>(null);
   const firedRef = useRef(false);
@@ -37,7 +43,7 @@ export function useLongPressPreview<T>({ resolve, show, hide }: LongPressPreview
     if (pointerIdRef.current !== e.pointerId) return;
     timer().cancel();
     pointerIdRef.current = null;
-    if (firedRef.current) hide();
+    if (firedRef.current && hideOnRelease) hide();
   };
 
   const onPointerCancel = (e: React.PointerEvent) => {

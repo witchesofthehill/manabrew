@@ -1,339 +1,224 @@
-import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useTopBarOverride } from "@/components/layout/TopBarOverride";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import LimitedDeckBuilder from "@/components/limited/LimitedDeckBuilder";
+import { LimitedTableSurface } from "@/components/limited/LimitedTableSurface";
 import { useGameStore } from "@/stores/useGameStore";
 import { useLimitedStore } from "@/stores/useLimitedStore";
 import { ROUTES } from "@/lib/constants";
-import { cn } from "@/lib/utils";
-import { arm as armGauntletReturn, clear as clearGauntletReturn } from "@/lib/gauntletReturn";
-import type { DraftCard, GauntletMatchDecks } from "@/types/limited";
+import {
+  advanceGauntletProgress,
+  arm as armGauntletReturn,
+  clear as clearGauntletReturn,
+  gauntletProgress,
+  gauntletScore,
+} from "@/lib/gauntletReturn";
 import { resolveDeckCards } from "@/lib/limited.utils";
+import type { DraftCard, GauntletMatchDecks } from "@/types/limited";
 import type { Deck, DeckFormat } from "@/protocol/deck";
+
 async function buildGauntletDeck(
   name: string,
   main: DraftCard[],
   sideboard: DraftCard[],
   format: DeckFormat,
 ): Promise<Deck> {
-  const [resolvedMain, resolvedSide] = await Promise.all([
+  const [cards, resolvedSideboard] = await Promise.all([
     resolveDeckCards(main),
     resolveDeckCards(sideboard),
   ]);
-  return {
-    name,
-    format,
-    cards: resolvedMain,
-    sideboard: resolvedSide,
-  };
+  return { name, format, cards, sideboard: resolvedSideboard };
 }
+
 export default function Gauntlet() {
-  const { gauntletId } = useParams<{
-    gauntletId: string;
-  }>();
+  const { gauntletId } = useParams<{ gauntletId: string }>();
   const navigate = useNavigate();
-  const activeGauntlet = useLimitedStore((s) => s.activeGauntlet);
-  const refresh = useLimitedStore((s) => s.refreshGauntletState);
-  const recordOutcome = useLimitedStore((s) => s.recordGauntletOutcome);
-  const advanceRound = useLimitedStore((s) => s.advanceGauntletRound);
-  const fetchMatchDecks = useLimitedStore((s) => s.fetchGauntletMatchDecks);
-  const updateHumanDeck = useLimitedStore((s) => s.updateGauntletHumanDeck);
-  const lastError = useLimitedStore((s) => s.lastError);
-  const startGame = useGameStore((s) => s.startGame);
-  const [pendingMessage, setPendingMessage] = useState<string | null>(null);
-  const [launchingMatch, setLaunchingMatch] = useState(false);
-  const [sideboardOpen, setSideboardOpen] = useState(false);
-  const [matchDecks, setMatchDecks] = useState<GauntletMatchDecks | null>(null);
+  const location = useLocation();
+  const activeGauntlet = useLimitedStore((state) => state.activeGauntlet);
+  const refresh = useLimitedStore((state) => state.refreshGauntletState);
+  const advanceRound = useLimitedStore((state) => state.advanceGauntletRound);
+  const fetchMatchDecks = useLimitedStore((state) => state.fetchGauntletMatchDecks);
+  const updateHumanDeck = useLimitedStore((state) => state.updateGauntletHumanDeck);
+  const lastError = useLimitedStore((state) => state.lastError);
+  const startGame = useGameStore((state) => state.startGame);
+  const [loadedDecks, setLoadedDecks] = useState<{
+    gauntletId: string;
+    decks: GauntletMatchDecks;
+  } | null>(null);
+  const matchDecks =
+    loadedDecks && loadedDecks.gauntletId === gauntletId ? loadedDecks.decks : null;
+  const [builtDeck, setBuiltDeck] = useState<{
+    gauntletId: string;
+    main: DraftCard[];
+    sideboard: DraftCard[];
+  } | null>(null);
+  const [launching, setLaunching] = useState(false);
+  const launched = useRef<string | null>(null);
+  const launchPending = useRef(false);
+  const gauntlet = activeGauntlet?.gauntletId === gauntletId ? activeGauntlet : null;
+  const currentRound = gauntlet?.currentRound;
+
   useTopBarOverride({
     onBack: () => navigate(ROUTES.PLAY_OFFLINE_LIMITED),
     onHome: () => navigate(ROUTES.PLAY),
   });
   useEffect(() => {
-    if (!gauntletId) return;
-    if (!activeGauntlet || activeGauntlet.gauntletId !== gauntletId) {
-      refresh(gauntletId);
-    }
-  }, [gauntletId, activeGauntlet, refresh]);
-  if (!activeGauntlet) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        {lastError ? (
-          <p className="text-destructive">{lastError}</p>
-        ) : (
-          <p className="text-muted-foreground">Loading gauntlet…</p>
-        )}
-      </div>
+    if (gauntletId && !gauntlet) void refresh(gauntletId);
+  }, [gauntletId, gauntlet, refresh]);
+  useEffect(() => {
+    if (!gauntletId || currentRound === undefined) return;
+    let active = true;
+    void fetchMatchDecks(gauntletId).then(
+      (decks) => {
+        if (active) setLoadedDecks({ gauntletId, decks });
+      },
+      (error: unknown) => {
+        if (active) toast.error(`Failed to load pool: ${String(error)}`);
+      },
     );
-  }
-  const handleManualOutcome = async (won: boolean) => {
-    if (!gauntletId) return;
+    return () => {
+      active = false;
+    };
+  }, [gauntletId, currentRound, fetchMatchDecks]);
+
+  const play = useCallback(async () => {
+    if (
+      !gauntlet ||
+      !builtDeck ||
+      builtDeck.gauntletId !== gauntlet.gauntletId ||
+      builtDeck.main.length < 40 ||
+      launchPending.current
+    )
+      return;
+    launchPending.current = true;
+    setLaunching(true);
     try {
-      const out = await recordOutcome(gauntletId, won, true, won);
-      setPendingMessage(outcomeMessage(out.outcome, out.nextRoundIndex));
-    } catch {
-      /* surfaced via lastError */
-    }
-  };
-  const handleAdvance = async () => {
-    if (!gauntletId) return;
-    try {
-      await advanceRound(gauntletId);
-      setPendingMessage(null);
-    } catch {
-      /* surfaced via lastError */
-    }
-  };
-  const handlePlayMatch = async () => {
-    if (!gauntletId || launchingMatch) return;
-    setLaunchingMatch(true);
-    try {
-      const decks = await fetchMatchDecks(gauntletId);
-      setMatchDecks(decks);
-      const formatId = activeGauntlet.kind === "sealed" ? "sealed" : "draft";
+      await updateHumanDeck(gauntlet.gauntletId, builtDeck.main, builtDeck.sideboard);
+      const decks = await fetchMatchDecks(gauntlet.gauntletId);
+      const format = gauntlet.kind === "sealed" ? "sealed" : "draft";
       const [human, opponent] = await Promise.all([
-        buildGauntletDeck("Gauntlet Deck", decks.humanMain, decks.humanSideboard, formatId),
+        buildGauntletDeck(decks.humanDeckName, decks.humanMain, decks.humanSideboard, format),
         buildGauntletDeck(
-          activeGauntlet.currentOpponent?.deckName ?? "Gauntlet Opponent",
+          gauntlet.currentOpponent?.deckName ?? "Draft opponent",
           decks.opponentMain,
           decks.opponentSideboard,
-          formatId,
+          format,
         ),
       ]);
-      armGauntletReturn(gauntletId, activeGauntlet.currentRound);
-      const started = await startGame(human, formatId, undefined, [opponent]);
-      if (!started) {
+      armGauntletReturn(gauntlet);
+      const started = startGame(human, format, undefined, [opponent], "Forge");
+      navigate(ROUTES.PLAY, { state: { exitTo: `/gauntlet/${gauntlet.gauntletId}` } });
+      if (!(await started)) {
         clearGauntletReturn();
-        return;
+        navigate(`/gauntlet/${gauntlet.gauntletId}`, { replace: true });
       }
-      navigate(ROUTES.PLAY);
-    } catch (err) {
-      toast.error(`Failed to launch match: ${String(err)}`);
+    } catch (error) {
+      clearGauntletReturn();
+      toast.error(`Failed to launch game: ${String(error)}`);
     } finally {
-      setLaunchingMatch(false);
+      launchPending.current = false;
+      setLaunching(false);
     }
-  };
-  const handleOpenSideboard = async () => {
-    if (!gauntletId) return;
+  }, [gauntlet, builtDeck, updateHumanDeck, fetchMatchDecks, startGame, navigate]);
+
+  useEffect(() => {
+    if (
+      !(location.state as { launch?: boolean } | null)?.launch ||
+      !builtDeck ||
+      builtDeck.gauntletId !== gauntletId ||
+      launched.current === gauntletId
+    )
+      return;
+    launched.current = gauntletId ?? null;
+    navigate(location.pathname, { replace: true, state: null });
+    void play();
+  }, [location.state, location.pathname, builtDeck, gauntletId, navigate, play]);
+
+  const advance = async () => {
+    if (!gauntletId || launching) return;
+    setLaunching(true);
     try {
-      const decks = await fetchMatchDecks(gauntletId);
-      setMatchDecks(decks);
-      setSideboardOpen(true);
-    } catch (err) {
-      toast.error(`Failed to load decks: ${String(err)}`);
+      const state = await advanceRound(gauntletId);
+      advanceGauntletProgress(state);
+    } catch (error) {
+      toast.error(`Failed to advance round: ${String(error)}`);
+    } finally {
+      setLaunching(false);
     }
   };
-  const handleSaveSideboard = async (deck: { main: DraftCard[]; sideboard: DraftCard[] }) => {
-    if (!gauntletId) return;
-    try {
-      await updateHumanDeck(gauntletId, deck.main, deck.sideboard);
-      toast.success(`Sideboard updated.`);
-      setSideboardOpen(false);
-    } catch (err) {
-      toast.error(`Failed to save sideboard: ${String(err)}`);
-    }
-  };
-  return (
-    <div className="flex h-full flex-col gap-4 px-4 py-6 sm:px-6 lg:px-8">
-      <header className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-sm">
-          <p className="font-semibold text-foreground">
-            {activeGauntlet.kind === "sealed" ? `Sealed gauntlet` : `Draft gauntlet`}
-          </p>
-          <p className="text-muted-foreground">
-            Round {activeGauntlet.currentRound} / {activeGauntlet.rounds} · Wins{" "}
-            {activeGauntlet.wins} · Losses {activeGauntlet.losses}
-            {activeGauntlet.completed ? ` · Complete` : null}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {!activeGauntlet.completed && (
-            <Button variant="outline" onClick={handleOpenSideboard}>
-              Sideboard
-            </Button>
-          )}
-        </div>
-      </header>
 
-      <div className="grid flex-1 grid-cols-1 gap-4 overflow-hidden lg:grid-cols-[1fr_320px]">
-        <section className="overflow-y-auto rounded-md border border-border/70 p-4">
-          <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Current Opponent
-          </h2>
-          {activeGauntlet.currentOpponent ? (
-            <div className="space-y-2 text-sm">
-              <p className="font-semibold">
-                Round {activeGauntlet.currentOpponent.round} —{" "}
-                {activeGauntlet.currentOpponent.deckName}
-              </p>
-              <p className="text-muted-foreground">
-                {activeGauntlet.currentOpponent.mainCount} main /{" "}
-                {activeGauntlet.currentOpponent.sideboardCount} sideboard
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Button variant="primary" onClick={handlePlayMatch} disabled={launchingMatch}>
-                  {launchingMatch ? `Launching\u2026` : `Play Match`}
-                </Button>
-                <Button variant="outline" onClick={() => handleManualOutcome(true)}>
-                  Mark Win
-                </Button>
-                <Button variant="outline" onClick={() => handleManualOutcome(false)}>
-                  Mark Loss
-                </Button>
-              </div>
-              <p className="mt-3 text-xs text-muted-foreground">
-                "Play Match" launches the in-app game board with the current decks. Report the
-                outcome here once the match completes.
-              </p>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">No opponent — gauntlet finished.</p>
-          )}
-
-          {pendingMessage && (
-            <div className="mt-4 rounded border border-primary/60 bg-primary/5 p-3 text-sm">
-              <p>{pendingMessage}</p>
-              {!activeGauntlet.completed && (
-                <div className="mt-2 flex gap-2">
-                  <Button onClick={handleOpenSideboard} variant="outline">
-                    Sideboard before next round
-                  </Button>
-                  <Button variant="primary" onClick={handleAdvance}>
-                    Next Round
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
-        </section>
-
-        <aside className="flex flex-col gap-4 overflow-y-auto">
-          <section className="rounded-md border border-border/70 p-4">
-            <div className="mb-2 flex items-baseline justify-between">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                Bracket
-              </h2>
-              <div className="flex items-center gap-1.5 text-[11px]">
-                <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-emerald-300">
-                  {activeGauntlet.wins}W
-                </span>
-                <span className="rounded bg-destructive/15 px-1.5 py-0.5 text-destructive">
-                  {activeGauntlet.losses}L
-                </span>
-              </div>
-            </div>
-            <ul className="space-y-1 text-sm">
-              {activeGauntlet.opponents.map((o) => {
-                const isCurrent =
-                  o.round === activeGauntlet.currentRound && !activeGauntlet.completed;
-                const isPast = o.round < activeGauntlet.currentRound;
-                const isFuture = o.round > activeGauntlet.currentRound;
-                const isLossRound =
-                  activeGauntlet.completed &&
-                  activeGauntlet.losses > 0 &&
-                  o.round === activeGauntlet.currentRound;
-                return (
-                  <li
-                    key={o.round}
-                    className={cn(
-                      "flex items-center gap-2 rounded px-2 py-1",
-                      isCurrent && "bg-primary/10 font-medium",
-                      isPast && "text-muted-foreground",
-                      isFuture && "opacity-60",
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold",
-                        isPast && "bg-emerald-500/20 text-emerald-300",
-                        isCurrent && "bg-primary/20 text-primary",
-                        isLossRound && "bg-destructive/20 text-destructive",
-                        isFuture && "bg-muted/40 text-muted-foreground",
-                      )}
-                      aria-label={
-                        isPast
-                          ? "Won"
-                          : isLossRound
-                            ? "Lost"
-                            : isCurrent
-                              ? "In progress"
-                              : "Pending"
-                      }
-                    >
-                      {isPast ? "W" : isLossRound ? "L" : o.round}
-                    </span>
-                    <span className="flex-1 truncate">{o.deckName}</span>
-                    <span className="text-[10px] text-muted-foreground">
-                      {o.mainCount}/{o.sideboardCount}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-
-          {lastError && (
-            <p className="rounded border border-destructive/70 bg-destructive/10 p-3 text-sm text-destructive">
-              {lastError}
-            </p>
-          )}
-        </aside>
-      </div>
-
-      <Dialog open={sideboardOpen} onOpenChange={setSideboardOpen}>
-        <DialogContent className="max-w-[min(95vw,1400px)] sm:rounded-lg">
-          <DialogHeader>
-            <DialogTitle>Sideboard for round {activeGauntlet.currentRound}</DialogTitle>
-            <DialogDescription>
-              Swap cards between your main deck and sideboard. Saved changes apply to subsequent
-              gauntlet matches.
-            </DialogDescription>
-          </DialogHeader>
-          {matchDecks ? (
-            <div className="h-[70dvh] min-h-[400px]">
-              <LimitedDeckBuilder
-                pool={[...matchDecks.humanMain, ...matchDecks.humanSideboard]}
-                initialMain={matchDecks.humanMain}
-                defaultDeckName={matchDecks.humanDeckName}
-                format={activeGauntlet.kind === "sealed" ? "sealed" : "draft"}
-                requireCompleteToSave
-                confirmLabel={`Save sideboard`}
-                onConfirm={handleSaveSideboard}
-              />
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">Loading decks…</p>
-          )}
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setSideboardOpen(false)}>
-              Cancel
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-function outcomeMessage(kind: string, nextRound: number | null): string {
-  switch (kind) {
-    case "matchInProgress":
-      return `Match still in progress \u2014 record the next game.`;
-    case "advanceNextRound":
-      return `Match won! Advance to round ${nextRound!}.`;
-    case "wonTournament":
-      return `Tournament won \u2014 congrats.`;
-    case "lostRound":
-      return `Match lost \u2014 gauntlet over.`;
-    default:
-      return kind;
+  if (!gauntlet) {
+    return (
+      <LimitedTableSurface className="items-center justify-center text-muted-foreground">
+        {lastError ?? "Loading Limited session…"}
+      </LimitedTableSurface>
+    );
   }
+  const progress = gauntletProgress(gauntlet);
+  const score = gauntletScore(gauntlet);
+  return (
+    <LimitedTableSurface className="gap-2 px-4 py-3 sm:px-6 lg:px-8">
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-card px-3 py-2">
+        <div>
+          <p className="text-sm font-semibold">
+            Round {gauntlet.currentRound} of {gauntlet.rounds} · {score.wins}–{score.losses} · Best
+            of {progress.bestOf}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {gauntlet.completed
+              ? "Session complete. Your pool and builds remain available."
+              : score.matchOver
+                ? "Match won. Adjust your build before the next opponent."
+                : `Against ${gauntlet.currentOpponent?.deckName ?? "AI"}. Edit your deck between games.`}
+          </p>
+        </div>
+        {!gauntlet.completed &&
+          (score.matchOver ? (
+            <Button variant="primary" onClick={() => void advance()} disabled={launching}>
+              Next round
+            </Button>
+          ) : (
+            <Button
+              variant="primary"
+              onClick={() => void play()}
+              disabled={
+                launching ||
+                !builtDeck ||
+                builtDeck.gauntletId !== gauntletId ||
+                builtDeck.main.length < 40
+              }
+            >
+              {launching
+                ? "Launching…"
+                : score.wins + score.losses > 0
+                  ? "Play next game"
+                  : "Play game"}
+            </Button>
+          ))}
+      </header>
+      <div className="min-h-0 flex-1">
+        {matchDecks ? (
+          <LimitedDeckBuilder
+            key={progress.sessionKey}
+            sessionKey={progress.sessionKey}
+            pool={[...matchDecks.humanMain, ...matchDecks.humanSideboard]}
+            initialMain={matchDecks.humanMain}
+            initialSideboard={matchDecks.humanSideboard}
+            defaultDeckName={matchDecks.humanDeckName}
+            format={gauntlet.kind === "sealed" ? "sealed" : "draft"}
+            onChange={(deck) => setBuiltDeck({ gauntletId: gauntlet.gauntletId, ...deck })}
+          />
+        ) : (
+          <p className="text-sm text-muted-foreground">Loading card pool…</p>
+        )}
+      </div>
+      {lastError && (
+        <p className="shrink-0 text-sm text-destructive" role="alert">
+          {lastError}
+        </p>
+      )}
+    </LimitedTableSurface>
+  );
 }

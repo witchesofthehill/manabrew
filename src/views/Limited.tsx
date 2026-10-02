@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { Boxes, Crown, Dice5, Hourglass, Layers, Shuffle, Swords, Wand2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,15 +7,24 @@ import { Input } from "@/components/ui/input";
 import { SetPicker } from "@/components/limited/SetPicker";
 import { DRAFTABLE_SET_TYPES } from "@/components/limited/setFilters";
 import { SetSymbol } from "@/components/limited/SetSymbol";
+import { TablePickerDialog } from "@/components/lobby/TablePickerDialog";
 import { useLimitedStore } from "@/stores/useLimitedStore";
 import { useScryfallStore } from "@/stores/useScryfallStore";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { fetchEditionInfo, fetchSetPool, type EditionInfo } from "@/api/limitedEdition";
 import { cn } from "@/lib/utils";
 import type { DraftCard } from "@/types/limited";
 import type { ScryfallSet } from "@/types/scryfall";
+import type { RoomPlayerInfo } from "@/types/server";
 
 interface LimitedProps {
   leadingControl?: ReactNode;
+}
+
+interface PendingDraftStart {
+  format: "Booster Draft" | "Winston Draft" | "Chaos Draft";
+  seatCount: number;
+  start: () => Promise<void>;
 }
 
 export default function Limited({ leadingControl }: LimitedProps) {
@@ -33,6 +42,8 @@ export default function Limited({ leadingControl }: LimitedProps) {
   const lastImportedCube = useLimitedStore((s) => s.lastImportedCube);
   const allSets = useScryfallStore((s) => s.sets);
   const prefetchSet = useScryfallStore((s) => s.prefetchSet);
+  const boardBackground = usePreferencesStore((s) => s.boardBackgroundId);
+  const setBoardBackground = usePreferencesStore((s) => s.setBoardBackgroundId);
   const draftableSets = useMemo(
     () =>
       [...(allSets ?? [])]
@@ -53,6 +64,28 @@ export default function Limited({ leadingControl }: LimitedProps) {
   const [seedInput, setSeedInput] = useState("");
   const [picksPerPass, setPicksPerPass] = useState(1);
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [pendingDraftStart, setPendingDraftStart] = useState<PendingDraftStart | null>(null);
+  const draftStartConfirmed = useRef(false);
+  const draftSeats = useMemo<RoomPlayerInfo[]>(
+    () =>
+      Array.from({ length: pendingDraftStart?.seatCount ?? 2 }, (_, index) => ({
+        username: index === 0 ? "You" : `AI ${index}`,
+        ready: true,
+        connected: true,
+        is_bot: index > 0,
+      })),
+    [pendingDraftStart?.seatCount],
+  );
+  const chooseDraftTable = (pending: PendingDraftStart) => {
+    draftStartConfirmed.current = false;
+    setPendingDraftStart(pending);
+  };
+  const confirmDraftTable = () => {
+    if (!pendingDraftStart || draftStartConfirmed.current) return;
+    draftStartConfirmed.current = true;
+    setPendingDraftStart(null);
+    void pendingDraftStart.start();
+  };
   const seedOpt = useMemo(() => {
     const trimmed = seedInput.trim();
     if (!trimmed) return undefined;
@@ -272,7 +305,13 @@ export default function Limited({ leadingControl }: LimitedProps) {
             description={`Pod draft against AI seats \u2014 3 packs each.`}
             ctaLabel={ctaLabel(fetchingPool, isStarting, `Open packs`, `Start Draft`)}
             disabled={startBlocked}
-            onStart={handleStartDraft}
+            onStart={() =>
+              chooseDraftTable({
+                format: "Booster Draft",
+                seatCount: podSize,
+                start: handleStartDraft,
+              })
+            }
           >
             <NumberField
               id="podSize"
@@ -290,7 +329,13 @@ export default function Limited({ leadingControl }: LimitedProps) {
             description={`2-player pile draft against the AI.`}
             ctaLabel={ctaLabel(fetchingPool, isStarting, `Shuffle`, `Start Winston`)}
             disabled={startBlocked}
-            onStart={handleStartWinston}
+            onStart={() =>
+              chooseDraftTable({
+                format: "Winston Draft",
+                seatCount: 2,
+                start: handleStartWinston,
+              })
+            }
           >
             <NumberField
               id="winstonPacks"
@@ -366,34 +411,46 @@ export default function Limited({ leadingControl }: LimitedProps) {
               /* surfaced via lastError */
             }
           }}
-          onStartDraft={async () => {
-            try {
-              const state = await startBoosterDraft({
-                podSize,
-                rounds: 3,
-                pool: lastImportedCube.pool!,
-                seed: seedOpt,
-                picksPerPass,
-                customPool: true,
-              });
-              navigate(`/draft/${state.sessionId}`);
-            } catch {
-              /* surfaced via lastError */
-            }
-          }}
-          onStartWinston={async () => {
-            try {
-              const state = await startWinston({
-                poolPacks: winstonPacks,
-                pool: lastImportedCube.pool!,
-                seed: seedOpt,
-                customPool: true,
-              });
-              navigate(`/winston/${state.sessionId}`);
-            } catch {
-              /* surfaced via lastError */
-            }
-          }}
+          onStartDraft={() =>
+            chooseDraftTable({
+              format: "Booster Draft",
+              seatCount: podSize,
+              start: async () => {
+                try {
+                  const state = await startBoosterDraft({
+                    podSize,
+                    rounds: 3,
+                    pool: lastImportedCube.pool!,
+                    seed: seedOpt,
+                    picksPerPass,
+                    customPool: true,
+                  });
+                  navigate(`/draft/${state.sessionId}`);
+                } catch {
+                  /* surfaced via lastError */
+                }
+              },
+            })
+          }
+          onStartWinston={() =>
+            chooseDraftTable({
+              format: "Winston Draft",
+              seatCount: 2,
+              start: async () => {
+                try {
+                  const state = await startWinston({
+                    poolPacks: winstonPacks,
+                    pool: lastImportedCube.pool!,
+                    seed: seedOpt,
+                    customPool: true,
+                  });
+                  navigate(`/winston/${state.sessionId}`);
+                } catch {
+                  /* surfaced via lastError */
+                }
+              },
+            })
+          }
         />
       )}
 
@@ -438,27 +495,33 @@ export default function Limited({ leadingControl }: LimitedProps) {
                 <button
                   type="button"
                   disabled={isStarting || fetchingPool || matched.length === 0}
-                  onClick={async () => {
-                    try {
-                      setFetchingPool(true);
-                      const merged: DraftCard[] = [];
-                      for (const s of matched) {
-                        merged.push(...(await fetchSetPool(s.code)));
-                      }
-                      const state = await startBoosterDraft({
-                        podSize,
-                        rounds: 3,
-                        pool: merged,
-                        seed: seedOpt,
-                        picksPerPass,
-                      });
-                      navigate(`/draft/${state.sessionId}`);
-                    } catch {
-                      /* surfaced via lastError */
-                    } finally {
-                      setFetchingPool(false);
-                    }
-                  }}
+                  onClick={() =>
+                    chooseDraftTable({
+                      format: "Chaos Draft",
+                      seatCount: podSize,
+                      start: async () => {
+                        try {
+                          setFetchingPool(true);
+                          const merged: DraftCard[] = [];
+                          for (const s of matched) {
+                            merged.push(...(await fetchSetPool(s.code)));
+                          }
+                          const state = await startBoosterDraft({
+                            podSize,
+                            rounds: 3,
+                            pool: merged,
+                            seed: seedOpt,
+                            picksPerPass,
+                          });
+                          navigate(`/draft/${state.sessionId}`);
+                        } catch {
+                          /* surfaced via lastError */
+                        } finally {
+                          setFetchingPool(false);
+                        }
+                      },
+                    })
+                  }
                   className="group flex w-full items-center justify-between gap-2 rounded border border-border/40 bg-card/30 px-3 py-2 text-left transition hover:border-primary/50 hover:bg-card/60 disabled:cursor-not-allowed disabled:opacity-60"
                   title={
                     matched.length === 0
@@ -482,6 +545,30 @@ export default function Limited({ leadingControl }: LimitedProps) {
           })}
         </ul>
       </CollapsibleSection>
+      <TablePickerDialog
+        open={pendingDraftStart !== null}
+        background={boardBackground}
+        onBackgroundChange={setBoardBackground}
+        onStart={confirmDraftTable}
+        onCancel={() => setPendingDraftStart(null)}
+        startLabel={pendingDraftStart?.format === "Winston Draft" ? "Start Winston" : "Start Draft"}
+        description="Choose the table for your draft."
+        players={draftSeats}
+        maxPlayers={pendingDraftStart?.seatCount ?? 2}
+        centerContent={
+          pendingDraftStart && (
+            <div className="space-y-1 rounded-md bg-card/80 px-3 py-2">
+              <span className="font-serif text-lg font-light text-foreground/90">
+                {pendingDraftStart.format}
+              </span>
+              <p className="text-xs text-muted-foreground">
+                You + {pendingDraftStart.seatCount - 1} AI{" "}
+                {pendingDraftStart.seatCount === 2 ? "seat" : "seats"}
+              </p>
+            </div>
+          )
+        }
+      />
     </div>
   );
 }

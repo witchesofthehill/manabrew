@@ -78,7 +78,7 @@ import { commanderSlotFor } from "./deckEditor.utils";
 import { DeckListView } from "./DeckListView";
 import { DeckHero } from "./DeckHero";
 import { CardPreviewRail } from "@/components/game/CardPreviewRail";
-import { useCardPreview } from "@/hooks/useCardPreview";
+import { useCardPreview, type CardPreviewController } from "@/hooks/useCardPreview";
 import { CardDetailModal } from "./CardDetailModal";
 import { DeckLabelsModal } from "./DeckLabelsModal";
 import { DeckValidationPanel } from "./DeckValidationPanel";
@@ -195,7 +195,7 @@ export function DeckBuilder({
   onResumedPublicationClose?: () => void;
   onSelectionChange?: (selectedCards: ReadonlySet<string>) => void;
   onReadOnlyDeckImported?: (deckId: string) => void;
-  previewController?: ReturnType<typeof useCardPreview>;
+  previewController?: CardPreviewController;
   onDeckDeleted?: () => void;
 } = {}) {
   const navigate = useNavigate();

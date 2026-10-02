@@ -3,6 +3,7 @@ use forge_foundation::sealed_product::PaperCard;
 #[derive(Debug, Clone)]
 pub struct DraftPack {
     cards: Vec<PaperCard>,
+    card_ids: Vec<u32>,
     id: u32,
     passed_from: Option<usize>,
     awaiting_guess: Option<(usize, PaperCard)>,
@@ -12,6 +13,7 @@ pub struct DraftPack {
 impl DraftPack {
     pub fn new(cards: Vec<PaperCard>, id: u32) -> Self {
         Self {
+            card_ids: (0..cards.len() as u32).collect(),
             cards,
             id,
             passed_from: None,
@@ -28,8 +30,12 @@ impl DraftPack {
         &self.cards
     }
 
-    pub fn cards_mut(&mut self) -> &mut Vec<PaperCard> {
-        &mut self.cards
+    pub fn card_ids(&self) -> &[u32] {
+        &self.card_ids
+    }
+
+    pub fn remove_at(&mut self, index: usize) -> (PaperCard, u32) {
+        (self.cards.remove(index), self.card_ids.remove(index))
     }
 
     pub fn len(&self) -> usize {
@@ -50,7 +56,7 @@ impl DraftPack {
 
     pub fn remove_card(&mut self, card: &PaperCard) -> bool {
         if let Some(pos) = self.cards.iter().position(|c| c == card) {
-            self.cards.remove(pos);
+            self.remove_at(pos);
             true
         } else {
             false

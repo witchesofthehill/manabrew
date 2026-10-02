@@ -1,13 +1,5 @@
-import {
-  Application,
-  Container,
-  FillGradient,
-  Graphics,
-  Point,
-  Text,
-  type FederatedPointerEvent,
-} from "pixi.js";
-import { withAlpha } from "@/themes/gameTheme";
+import { Application, Container, Graphics, Point, Text, type FederatedPointerEvent } from "pixi.js";
+import { isCardPreviewTarget } from "@/lib/cardPreviewEvents";
 import type { CardDto, PlaymatSettings } from "@/protocol/game";
 import type { AttackTargetDto, TargetRef } from "@/protocol/prompts/common";
 import {
@@ -32,8 +24,9 @@ import { DragHandler } from "../DragHandler";
 import { dropCellFromPoint, type GridCell } from "../GridLayout";
 import { prewarmManaSymbols } from "../manaSymbolCache";
 import { lerp, setFrameRatio } from "./pixiHelpers";
+import { BattlefieldDividers } from "./BattlefieldDividers";
+import { DELIMITER_EASE } from "./boardLayout";
 import { animationsEnabled } from "../effects/enabled";
-import { gsap } from "../effects/gsap";
 import { LongPressGesture } from "../LongPressGesture";
 import { PREVIEW_TIMING, type PreviewPointerInput } from "@/lib/cardPreview";
 import { topModal } from "@/lib/modalStack";
@@ -96,11 +89,6 @@ export interface BoardPlayerSpec {
   color?: string;
 }
 
-/** Delimiter auto-focus easing (tweak freely). `FACTOR` is the fraction of the
- *  remaining distance closed each frame; `SNAP` is the width-fraction threshold
- *  at which the ease finishes and pins to the target. */
-const DELIMITER_EASE = { FACTOR: 0.25, SNAP: 0.0005 } as const;
-
 const RECT_SCRATCH_A = new Point();
 const RECT_SCRATCH_B = new Point();
 const BOARD_ZOOM_MAX = 2.25;
@@ -109,57 +97,6 @@ const ATTACK_ARROW_LANE_PX = 18;
 /** Extra px around a planeswalker/battle card that still counts as targeting it
  *  while dragging an attacker — makes small opponent permanents easy to hit. */
 const ATTACK_TARGET_HIT_PAD = 44;
-
-const DIVIDER = {
-  shadowAlpha: 0.62,
-  baseFadeWidthPx: 14,
-  collapseFadeWidthPx: 38,
-  barWidthPx: 2,
-  auraAlpha: 0.16,
-  auraWidthRatio: 0.62,
-} as const;
-
-const VOID_AURA = {
-  idleAlpha: 0.78,
-  minAlpha: 0.68,
-  maxAlpha: 0.88,
-  durationSeconds: 5.2,
-} as const;
-
-const FOG_PARTICLE_ALPHA = {
-  idle: 0.22,
-  min: 0.16,
-  max: 0.34,
-} as const;
-
-const FOG_PARTICLE_COUNT = 7;
-
-interface FogParticleSpec {
-  x: number;
-  y: number;
-  radius: number;
-  driftX: number;
-  driftY: number;
-  duration: number;
-  delay: number;
-}
-
-function randomBetween(min: number, max: number): number {
-  return min + Math.random() * (max - min);
-}
-
-function randomFogParticleSpec(index: number): FogParticleSpec {
-  const duration = randomBetween(5.4, 8.2);
-  return {
-    x: randomBetween(-14, 14),
-    y: (index + randomBetween(0.3, 0.7)) / FOG_PARTICLE_COUNT,
-    radius: randomBetween(0.9, 1.8),
-    driftX: randomBetween(-5, 5),
-    driftY: randomBetween(7, 13),
-    duration,
-    delay: -Math.random() * duration,
-  };
-}
 
 /** `count - 1` evenly-spaced delimiter positions (fractions of width). */
 function evenDelimiters(count: number): number[] {
@@ -170,18 +107,6 @@ interface RegionRecord {
   region: BoardRegion;
   zone: PlayZoneRect;
   isLocal: boolean;
-}
-
-interface FogParticle {
-  anchor: Container;
-  dot: Graphics;
-  spec: FogParticleSpec;
-  animated: boolean | null;
-}
-
-interface FogParticleGroup {
-  container: Container;
-  particles: FogParticle[];
 }
 
 export class BoardScene {
@@ -302,15 +227,7 @@ export class BoardScene {
   private targetingFocusIds: string[] | null = null;
   private manualFocusId: string | null = null;
   private hoveredOpponentId: string | null = null;
-  private fogGfx: Graphics;
-  private fogGradRight: FillGradient | null = null;
-  private fogGradLeft: FillGradient | null = null;
-  private fogAuraGfx: Graphics;
-  private fogAuraGradRight: FillGradient | null = null;
-  private fogAuraGradLeft: FillGradient | null = null;
-  private fogAnimationEnabled: boolean | null = null;
-  private fogParticleLayer: Container;
-  private fogParticleGroups: FogParticleGroup[] = [];
+  private readonly dividers: BattlefieldDividers;
   private playerBars: PlayerHudLayer;
   private barsEnabled = false;
 
@@ -348,6 +265,7 @@ export class BoardScene {
     app.stage.hitArea = {
       contains: (x, y) =>
         !topModal() &&
+        !isCardPreviewTarget(app.renderer.events.pointer.nativeEvent?.target) &&
         x >= 0 &&
         x <= this.canvasW &&
         y >= 0 &&
@@ -365,23 +283,9 @@ export class BoardScene {
     this.collapseVeil.zIndex = 5550;
     this.root.addChild(this.collapseVeil);
 
-    this.fogGfx = new Graphics();
-    this.fogGfx.eventMode = "none";
-    this.fogGfx.zIndex = 5560;
-    this.root.addChild(this.fogGfx);
-
-    this.fogAuraGfx = new Graphics();
-    this.fogAuraGfx.eventMode = "none";
-    this.fogAuraGfx.zIndex = 5561;
-    this.fogAuraGfx.blendMode = "screen";
-    this.root.addChild(this.fogAuraGfx);
-
-    this.fogParticleLayer = new Container();
-    this.fogParticleLayer.eventMode = "none";
-    this.fogParticleLayer.zIndex = 5562;
-    this.fogParticleLayer.blendMode = "screen";
-    this.root.addChild(this.fogParticleLayer);
-    this.syncDelimiterFogAnimation();
+    this.dividers = new BattlefieldDividers(this.theme, () => this.overlayInvalidation?.());
+    this.dividers.root.zIndex = 5560;
+    this.root.addChild(this.dividers.root);
 
     this.playerBars = new PlayerHudLayer(
       this.theme,
@@ -705,8 +609,7 @@ export class BoardScene {
     const playerHudHeight = this.presentation.opponentHudHeight;
     this.collapseVeil.clear();
     if (this.overview) {
-      this.fogGfx.clear();
-      this.fogAuraGfx.clear();
+      this.dividers.clear();
       for (const id of this.opponentIds) {
         const rec = this.regions.get(id);
         if (!rec) continue;
@@ -832,201 +735,18 @@ export class BoardScene {
   }
 
   private drawDelimiterFog(): void {
-    const shadow = this.fogGfx;
-    const aura = this.fogAuraGfx;
-    shadow.clear();
-    aura.clear();
-    const n = this.opponentIds.length;
-    const width = this.boardWidth;
-    if (this.overview || n <= 1 || width <= 0) {
-      this.layoutFogParticleGroups(0, 0);
-      return;
-    }
-    const height = this.topHeight + this.stripBandPx / 2;
-    const collapsedWidth = collapsedOpponentWidth(width, n);
-    const leftEdge = (index: number) =>
-      Math.round((index === 0 ? 0 : this.delimCurrent[index - 1]!) * width);
-    const rightEdge = (index: number) =>
-      Math.round((index === n - 1 ? 1 : this.delimCurrent[index]!) * width);
-    const widthOf = (index: number) => rightEdge(index) - leftEdge(index);
-    const span = width - n * collapsedWidth;
-    const collapseAmount = (index: number) =>
-      span <= 0 ? 0 : Math.min(1, Math.max(0, 1 - (widthOf(index) - collapsedWidth) / span));
-    const focusedIds = new Set(this.focusedOpponentIds());
-    const gradients = this.fogGradients();
-    this.layoutFogParticleGroups(n - 1, height);
-    for (let index = 0; index < n - 1; index += 1) {
-      const x = Math.round(this.delimCurrent[index]! * width);
-      const leftWidth =
-        DIVIDER.baseFadeWidthPx + DIVIDER.collapseFadeWidthPx * collapseAmount(index);
-      const rightWidth =
-        DIVIDER.baseFadeWidthPx + DIVIDER.collapseFadeWidthPx * collapseAmount(index + 1);
-      const leftAuraWidth = leftWidth * DIVIDER.auraWidthRatio;
-      const rightAuraWidth = rightWidth * DIVIDER.auraWidthRatio;
-      const focusAdjacent =
-        focusedIds.has(this.opponentIds[index]!) || focusedIds.has(this.opponentIds[index + 1]!);
-      const particleGroup = this.fogParticleGroups[index]!;
-      particleGroup.container.position.x = x;
-      particleGroup.container.alpha =
-        0.62 +
-        0.24 * Math.max(collapseAmount(index), collapseAmount(index + 1)) +
-        (focusAdjacent ? 0.12 : 0);
-      particleGroup.container.scale.x = focusAdjacent ? 1.28 : 1;
-      shadow.rect(x - leftWidth, 0, leftWidth, height).fill(gradients.shadowLeft);
-      shadow.rect(x, 0, rightWidth, height).fill(gradients.shadowRight);
-      aura.rect(x - leftAuraWidth, 0, leftAuraWidth, height).fill(gradients.auraLeft);
-      aura.rect(x, 0, rightAuraWidth, height).fill(gradients.auraRight);
-      shadow
-        .rect(x - DIVIDER.barWidthPx / 2, 0, DIVIDER.barWidthPx, height)
-        .fill({ color: hexToNum(this.theme.gameTheme.canvas.shadow), alpha: 0.9 });
-      aura.rect(x - 0.5, 0, 1, height).fill({
-        color: hexToNum(this.theme.appTheme.primary),
-        alpha: focusAdjacent ? 0.52 : 0.24,
-      });
-    }
-  }
-
-  private fogGradients(): {
-    shadowLeft: FillGradient;
-    shadowRight: FillGradient;
-    auraLeft: FillGradient;
-    auraRight: FillGradient;
-  } {
-    if (
-      !this.fogGradRight ||
-      !this.fogGradLeft ||
-      !this.fogAuraGradRight ||
-      !this.fogAuraGradLeft
-    ) {
-      const linear = (stops: { offset: number; color: string }[]) =>
-        new FillGradient({
-          type: "linear",
-          start: { x: 0, y: 0 },
-          end: { x: 1, y: 0 },
-          textureSpace: "local",
-          colorStops: stops,
-        });
-      const shadow = withAlpha(this.theme.gameTheme.canvas.shadow, DIVIDER.shadowAlpha);
-      const shadowClear = withAlpha(this.theme.gameTheme.canvas.shadow, 0);
-      const aura = withAlpha(this.theme.appTheme.primary, DIVIDER.auraAlpha);
-      const auraClear = withAlpha(this.theme.appTheme.primary, 0);
-      this.fogGradRight = linear([
-        { offset: 0, color: shadow },
-        { offset: 1, color: shadowClear },
-      ]);
-      this.fogGradLeft = linear([
-        { offset: 0, color: shadowClear },
-        { offset: 1, color: shadow },
-      ]);
-      this.fogAuraGradRight = linear([
-        { offset: 0, color: aura },
-        { offset: 1, color: auraClear },
-      ]);
-      this.fogAuraGradLeft = linear([
-        { offset: 0, color: auraClear },
-        { offset: 1, color: aura },
-      ]);
-    }
-    return {
-      shadowLeft: this.fogGradLeft,
-      shadowRight: this.fogGradRight,
-      auraLeft: this.fogAuraGradLeft,
-      auraRight: this.fogAuraGradRight,
-    };
-  }
-
-  private layoutFogParticleGroups(count: number, height: number): void {
-    while (this.fogParticleGroups.length < count) {
-      const container = new Container();
-      const particles = Array.from({ length: FOG_PARTICLE_COUNT }, (_, index) => {
-        const spec = randomFogParticleSpec(index);
-        const anchor = new Container();
-        const dot = new Graphics();
-        anchor.position.x = spec.x;
-        anchor.addChild(dot);
-        container.addChild(anchor);
-        const particle: FogParticle = { anchor, dot, spec, animated: null };
-        this.paintFogParticle(particle);
-        this.setFogParticleAnimation(particle, this.fogAnimationEnabled === true);
-        return particle;
-      });
-      this.fogParticleLayer.addChild(container);
-      this.fogParticleGroups.push({ container, particles });
-    }
-    this.fogParticleGroups.forEach((group, groupIndex) => {
-      const visible = groupIndex < count;
-      if (group.container.visible !== visible) {
-        group.container.visible = visible;
-        for (const particle of group.particles) {
-          this.setFogParticleAnimation(particle, visible && this.fogAnimationEnabled === true);
-        }
-      }
-      if (!visible) return;
-      group.particles.forEach((particle) => {
-        particle.anchor.position.y = particle.spec.y * height;
-      });
-    });
-  }
-
-  private paintFogParticle(particle: FogParticle): void {
-    particle.dot
-      .clear()
-      .circle(0, 0, particle.spec.radius)
-      .fill({ color: hexToNum(this.theme.appTheme.primary) });
-  }
-
-  private setFogParticleAnimation(particle: FogParticle, animated: boolean): void {
-    if (particle.animated === animated) return;
-    particle.animated = animated;
-    gsap.killTweensOf(particle.dot);
-    particle.dot.position.set(-particle.spec.driftX / 2, particle.spec.driftY / 2);
-    particle.dot.alpha = FOG_PARTICLE_ALPHA.idle;
-    if (!animated) return;
-    gsap.fromTo(
-      particle.dot,
-      {
-        x: -particle.spec.driftX / 2,
-        y: particle.spec.driftY / 2,
-        alpha: FOG_PARTICLE_ALPHA.min,
-      },
-      {
-        x: particle.spec.driftX / 2,
-        y: -particle.spec.driftY / 2,
-        alpha: FOG_PARTICLE_ALPHA.max,
-        duration: particle.spec.duration,
-        delay: particle.spec.delay,
-        ease: "sine.inOut",
-        repeat: -1,
-        yoyo: true,
-      },
+    this.dividers.draw(
+      this.boardWidth,
+      this.topHeight + this.stripBandPx / 2,
+      this.delimCurrent,
+      this.focusedOpponentIds().map((id) => this.opponentIds.indexOf(id)),
+      collapsedOpponentWidth(this.boardWidth, this.opponentIds.length),
     );
   }
 
   private syncDelimiterFogAnimation(): void {
-    const shouldAnimate =
-      animationsEnabled() && !this.overview && this.opponentIds.length > 1 && this.boardWidth > 0;
-    if (this.fogAnimationEnabled === shouldAnimate) return;
-    this.fogAnimationEnabled = shouldAnimate;
-    gsap.killTweensOf(this.fogAuraGfx);
-    for (const group of this.fogParticleGroups) {
-      for (const particle of group.particles) {
-        this.setFogParticleAnimation(particle, shouldAnimate && group.container.visible);
-      }
-    }
-    if (!shouldAnimate) {
-      this.fogAuraGfx.alpha = VOID_AURA.idleAlpha;
-      return;
-    }
-    gsap.fromTo(
-      this.fogAuraGfx,
-      { alpha: VOID_AURA.minAlpha },
-      {
-        alpha: VOID_AURA.maxAlpha,
-        duration: VOID_AURA.durationSeconds,
-        ease: "sine.inOut",
-        repeat: -1,
-        yoyo: true,
-      },
+    this.dividers.setAnimated(
+      animationsEnabled() && !this.overview && this.opponentIds.length > 1 && this.boardWidth > 0,
     );
   }
 
@@ -1580,10 +1300,7 @@ export class BoardScene {
   setTheme(theme: Theme): void {
     if (this.destroyed) return;
     this.theme = theme;
-    this.fogGradRight = this.fogGradLeft = this.fogAuraGradRight = this.fogAuraGradLeft = null;
-    for (const group of this.fogParticleGroups) {
-      for (const particle of group.particles) this.paintFogParticle(particle);
-    }
+    this.dividers.setTheme(theme);
     setCardSpriteTheme(theme);
     this.hand?.restyle();
     this.phaseStrip.setTheme(theme);
@@ -2650,10 +2367,7 @@ export class BoardScene {
     if (this.destroyed) return;
     this.destroyed = true;
     this.overlayInvalidation = null;
-    gsap.killTweensOf(this.fogAuraGfx);
-    for (const group of this.fogParticleGroups) {
-      for (const particle of group.particles) gsap.killTweensOf(particle.dot);
-    }
+    this.dividers.destroy();
     this.overlayHitTest = null;
     if (import.meta.env.DEV) useGameDevStore.getState().setPixiPerfStats(null);
     this.cancelHoverClear();

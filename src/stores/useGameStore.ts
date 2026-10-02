@@ -44,8 +44,10 @@ import {
 } from "@/lib/forgeWasm";
 import { FORGE_START_TIMEOUT_MESSAGE, withForgeStartTimeout } from "@/game/forgeWasmValidation";
 import { getPlatform } from "@/platform";
+import { peek as peekGauntletMatch, clear as clearGauntletMatch } from "@/lib/gauntletReturn";
 import { applyPrompt } from "./gameStore.constants";
 import { DEFAULT_STARTING_LIFE, useServerStore } from "./useServerStore";
+import { useMultiplayerLimitedStore } from "./useMultiplayerLimitedStore";
 import { isTauriForgeRoomAvailable } from "./useForgeRoomAvailabilityStore";
 import { usePreferencesStore } from "./usePreferencesStore";
 import type { ClientCardDto, ClientGameView, GameState } from "./gameStore.types";
@@ -544,6 +546,12 @@ export const useGameStore = create<GameState>()(
             cardPrefetchProgress: null,
             gameDecks,
           });
+          const limited = useMultiplayerLimitedStore.getState();
+          if (limited.matchReturn && limited.matchReturn.roomId === server.currentRoom?.room_id) {
+            useMultiplayerLimitedStore.setState({
+              matchReturn: { ...limited.matchReturn, started: true },
+            });
+          }
           const runtime =
             engine === "Ironsmith" ? selectGameRuntime("ironsmith") : resetSelectedGameRuntime();
           set({ debugInfo: "Starting engine..." });
@@ -670,6 +678,7 @@ export const useGameStore = create<GameState>()(
         clearActiveGameSession();
         const runtime = getSelectedGameRuntime();
         const wasMultiplayer = get().isMultiplayer;
+        if (peekGauntletMatch() && !get().gameView?.gameOver) clearGauntletMatch();
         // Before the state is cleared: how the engine performed. A game the
         // relay knows about is reported to it; anything else goes to the hub.
         // Never throws, never blocks the teardown.
@@ -721,7 +730,7 @@ export const useGameStore = create<GameState>()(
           });
           return Promise.race([promise, timeout]).finally(clearTimer);
         };
-        if (wasMultiplayer) {
+        if (wasMultiplayer && !useMultiplayerLimitedStore.getState().matchReturn) {
           try {
             await withTimeout(useServerStore.getState().leaveRoom(), "leaveRoom()");
           } catch (e) {

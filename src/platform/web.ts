@@ -235,7 +235,7 @@ class WorkerBridge {
   private worker: Worker | null = null;
   private pendingRequests = new Map<
     string,
-    { resolve: (value: unknown) => void; reject: (error: Error) => void }
+    { resolve: (value: unknown) => void; reject: (error: Error) => void; worker: Worker }
   >();
   private eventBus: WebEventBus;
   private initPromise: Promise<void> | null = null;
@@ -651,30 +651,25 @@ class WorkerBridge {
    */
   async invoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
     const startsGame = command === "start_game" || command === "start_multiplayer_game";
-    let forgeWasm = this.worker ? this.workerIsForgeWasm : isForgeWasmHostingEnabled();
-    if (startsGame) forgeWasm = args?.engine === "Forge";
-    if (startsGame && this.worker && this.workerIsForgeWasm !== forgeWasm) {
-      this.terminate();
+    let target: Worker;
+    if (command.startsWith("limited_")) {
+      target = this.queryWorker();
+    } else {
+      let forgeWasm = this.worker ? this.workerIsForgeWasm : isForgeWasmHostingEnabled();
+      if (startsGame) forgeWasm = args?.engine === "Forge";
+      if (startsGame && this.worker && this.workerIsForgeWasm !== forgeWasm) {
+        this.terminate();
+      }
+      await this.init(forgeWasm);
+      if (startsGame && this.workerIsForgeWasm) {
+        args = { ...args, forgeLauncherUrl: FORGE_LAUNCHER_URL, forgeWasmUrl: FORGE_WASM_URL };
+      }
+      if (!this.worker) throw new Error("Worker not initialized");
+      target =
+        this.workerIsForgeWasm && !FORGE_ENGINE_COMMANDS.has(command)
+          ? this.queryWorker()
+          : this.worker;
     }
-    await this.init(forgeWasm);
-
-    if (startsGame && this.workerIsForgeWasm) {
-      args = { ...args, forgeLauncherUrl: FORGE_LAUNCHER_URL, forgeWasmUrl: FORGE_WASM_URL };
-    }
-
-    if (!this.worker) {
-      throw new Error("Worker not initialized");
-    }
-
-    // Forge answers the game itself. It has no implementation of the card
-    // database queries or the limited/draft surface, and answering those with
-    // `null` is what took the Limited page down with "Cannot read properties
-    // of null": route them to the Rust worker instead, which is the same
-    // engine that answers them when Forge is off.
-    const target =
-      this.workerIsForgeWasm && !FORGE_ENGINE_COMMANDS.has(command)
-        ? this.queryWorker()
-        : this.worker;
 
     const requestId = crypto.randomUUID();
 
@@ -682,6 +677,7 @@ class WorkerBridge {
       this.pendingRequests.set(requestId, {
         resolve: resolve as (value: unknown) => void,
         reject,
+        worker: target,
       });
 
       const message: WorkerCommand = {
@@ -726,11 +722,11 @@ class WorkerBridge {
     this.stopLocalBots();
     // Response listener stays installed — terminate() is per-game, and a
     // second game on this (singleton) bridge still needs it.
-    this.pendingRequests.clear();
+    for (const [requestId, pending] of this.pendingRequests) {
+      if (pending.worker !== this.fallbackWorker) this.pendingRequests.delete(requestId);
+    }
     this.initPromise = null;
     setForgeWasmActive(false);
-    // The query worker holds no game state, so it survives a game ending and
-    // is only torn down with the bridge itself.
   }
 }
 
@@ -1396,7 +1392,7 @@ class WebServerApi implements IServerApi {
   }
 
   async sendRoomMessage(message: RoomRelayEnvelope): Promise<void> {
-    this.send({ type: "BroadcastState", state: message });
+    this.send({ type: "BroadcastState", state: message, target_player: message.targetPlayer });
   }
 
   async spawnAiBot(params: SpawnAiBotParams): Promise<void> {

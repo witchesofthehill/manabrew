@@ -8,6 +8,7 @@ import {
 import { getPlatform } from "@/platform";
 import { useMultiplayerDraftStore } from "@/stores/useMultiplayerDraftStore";
 import { useServerStore } from "@/stores/useServerStore";
+import { attachLimitedSessionPeer } from "@/game/limitedSession";
 import type { DraftCard } from "@/types/limited";
 import type { RoomRelayEnvelope } from "@/types/server";
 
@@ -21,6 +22,7 @@ export function attachDraftPeer(myPlayerSlot: string): () => void {
     active.unsubscribe();
   }
   const platform = getPlatform();
+  attachLimitedSessionPeer();
   const off = platform.events.on<{
     from_player: string;
     state: RoomRelayEnvelope;
@@ -47,30 +49,28 @@ function onRelay(
 ): void {
   if (!isDraftRelay(payload.state)) return;
   const env = payload.state;
-  if (!env.roomId || env.roomId !== useServerStore.getState().currentRoom?.room_id) return;
+  const room = useServerStore.getState().currentRoom;
+  if (
+    !room ||
+    env.roomId !== room.room_id ||
+    env.fromPlayer !== payload.from_player ||
+    payload.from_player !== room.host ||
+    room.host === myPlayerSlot
+  )
+    return;
+  if (env.targetPlayer && env.targetPlayer !== myPlayerSlot) return;
   const msg = env.payload;
-  const store = useMultiplayerDraftStore.getState();
 
   switch (msg.type) {
     case "start":
       handleStart(msg, env, myPlayerSlot);
       return;
     case "stateUpdate":
-      if (env.targetPlayer && env.targetPlayer !== myPlayerSlot) return;
+      if (env.targetPlayer !== myPlayerSlot) return;
       handleStateUpdate(msg);
       return;
-    case "complete":
-      store.complete(
-        msg.picks.map((p) => ({
-          seat: p.seat,
-          playerSlot: p.playerSlot,
-          displayName: p.displayName,
-          isHuman: p.isHuman,
-          pool: p.pool,
-        })),
-      );
-      return;
     case "pick":
+    case "resync":
       return;
   }
 }
@@ -81,6 +81,7 @@ function handleStart(msg: DraftStartMessage, env: RoomRelayEnvelope, myPlayerSlo
     return;
   }
   const store = useMultiplayerDraftStore.getState();
+  if (store.mode !== "idle") return;
   store.enterAsPeer({
     sessionId: msg.sessionId,
     roomId: env.roomId ?? "",
@@ -113,7 +114,7 @@ function handleStart(msg: DraftStartMessage, env: RoomRelayEnvelope, myPlayerSlo
 
 function handleStateUpdate(msg: DraftStateBroadcastMessage): void {
   const store = useMultiplayerDraftStore.getState();
-  if (store.sessionId !== msg.sessionId) return;
+  if (store.sessionId !== msg.sessionId || msg.state.sessionId !== msg.sessionId) return;
   if (store.mySeat !== msg.seat) return;
   store.setLocalState(msg.state);
 }
@@ -121,7 +122,7 @@ function handleStateUpdate(msg: DraftStateBroadcastMessage): void {
 export async function submitPeerPick(card: DraftCard): Promise<void> {
   const store = useMultiplayerDraftStore.getState();
   if (!store.sessionId || store.mySeat == null || store.amHost) return;
-  if (store.pickPending) return;
+  if (store.pickPending || !store.state?.awaitingHuman) return;
   const platform = getPlatform();
   const server = platform.server;
   if (!server) return;
@@ -133,11 +134,9 @@ export async function submitPeerPick(card: DraftCard): Promise<void> {
   const msg: DraftPickMessage = {
     type: "pick",
     sessionId: store.sessionId,
-    cardName: card.name,
-    setCode: card.setCode,
-    cardNumber: card.cardNumber,
-    round: store.state?.round,
-    pickNumber: store.state?.pickNumber,
+    cardId: card.id,
+    round: store.state!.round,
+    pickNumber: store.state!.pickNumber,
   };
   store.setPickPending(true);
   try {
@@ -152,4 +151,20 @@ export async function submitPeerPick(card: DraftCard): Promise<void> {
     store.setPickPending(false);
     throw err;
   }
+}
+
+export async function requestDraftResync(): Promise<void> {
+  const server = useServerStore.getState();
+  const draft = useMultiplayerDraftStore.getState();
+  const room = server.currentRoom;
+  if (!room?.draft_config || !server.username || room.host === server.username) return;
+  await getPlatform().server?.sendRoomMessage(
+    makeDraftRelay(
+      {
+        type: "resync",
+        sessionId: draft.sessionId ?? undefined,
+      },
+      { fromPlayer: server.username, targetPlayer: room.host, roomId: room.room_id },
+    ),
+  );
 }

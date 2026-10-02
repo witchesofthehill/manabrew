@@ -19,6 +19,7 @@ pub struct SealedCardPoolGenerator {
     card_pool: Vec<PaperCard>,
     products: Vec<UnOpenedProduct>,
     land_set_code: Option<String>,
+    product_set_code: String,
     pool_limited: bool,
 }
 
@@ -27,17 +28,33 @@ pub struct SealedDeckGroup {
     pub deck_name: String,
     pub land_set_code: Option<String>,
     pub human_pool: Vec<PaperCard>,
+    pub human_packs: Vec<Vec<PaperCard>>,
+    pub pack_set_code: String,
     pub suggested_human_deck: Option<LimitedDeck>,
     pub ai_decks: Vec<LimitedDeck>,
 }
 
 impl SealedCardPoolGenerator {
     pub fn new(pool_type: LimitedPoolType, card_pool: Vec<PaperCard>) -> Self {
+        let product_set_code = if pool_type == LimitedPoolType::Custom {
+            String::new()
+        } else {
+            card_pool
+                .first()
+                .filter(|first| {
+                    card_pool
+                        .iter()
+                        .all(|card| card.set_code.eq_ignore_ascii_case(&first.set_code))
+                })
+                .map(|card| card.set_code.clone())
+                .unwrap_or_default()
+        };
         Self {
             pool_type,
             card_pool,
             products: Vec::new(),
             land_set_code: None,
+            product_set_code,
             pool_limited: false,
         }
     }
@@ -76,7 +93,7 @@ impl SealedCardPoolGenerator {
     }
 
     pub fn with_edition_variant(
-        self,
+        mut self,
         editions: &EditionsRegistry,
         edition_code: &str,
         variant: Option<&str>,
@@ -84,13 +101,21 @@ impl SealedCardPoolGenerator {
     ) -> Self {
         let template = editions
             .get(edition_code)
-            .and_then(|e| e.to_sealed_template_named(variant))
-            .unwrap_or_else(SealedTemplate::generic_draft_booster);
-        self.with_template(template, num_boosters)
+            .and_then(|e| e.to_sealed_template_named(variant));
+        self.product_set_code = if template.is_some() {
+            edition_code.to_string()
+        } else {
+            String::new()
+        };
+        self.with_template(
+            template.unwrap_or_else(SealedTemplate::generic_draft_booster),
+            num_boosters,
+        )
     }
 
     pub fn with_custom(mut self, cube: &CustomLimited) -> Self {
         self.land_set_code = cube.land_set_code.clone();
+        self.product_set_code.clear();
         let template = cube.template.clone();
         self.products = (0..cube.num_packs as usize)
             .map(|_| UnOpenedProduct::new(template.clone(), self.card_pool.clone()))
@@ -134,6 +159,7 @@ impl SealedCardPoolGenerator {
         let land_set_code = self.land_set_code.clone();
 
         let mut human_pool: Vec<PaperCard> = Vec::new();
+        let mut human_packs = Vec::with_capacity(self.products.len());
         let mut products = std::mem::take(&mut self.products);
         if self.pool_limited {
             if let Some(first) = products.first() {
@@ -141,12 +167,16 @@ impl SealedCardPoolGenerator {
                     UnOpenedProduct::new(first.template().clone(), self.card_pool.clone());
                 product.set_limited_pool(true);
                 for _ in 0..products.len() {
-                    human_pool.extend(product.open(rng));
+                    let cards = product.open(rng);
+                    human_pool.extend_from_slice(&cards);
+                    human_packs.push(cards);
                 }
             }
         } else {
             for prod in &mut products {
-                human_pool.extend(prod.open(rng));
+                let cards = prod.open(rng);
+                human_pool.extend_from_slice(&cards);
+                human_packs.push(cards);
             }
         }
 
@@ -226,6 +256,8 @@ impl SealedCardPoolGenerator {
             deck_name,
             land_set_code,
             human_pool,
+            human_packs,
+            pack_set_code: self.product_set_code.clone(),
             suggested_human_deck,
             ai_decks,
         }

@@ -27,6 +27,9 @@ pub struct WinstonDraft {
     seats: Vec<WinstonSeat>,
     deck: VecDeque<PaperCard>,
     piles: Vec<Vec<PaperCard>>,
+    deck_ids: VecDeque<u32>,
+    pile_ids: Vec<Vec<u32>>,
+    picked_ids: Vec<Vec<u32>>,
     active_seat: usize,
     /// Index of the pile currently offered to the active seat (0..3).
     /// When the active seat passes pile 2, the loop offers top-of-deck
@@ -72,14 +75,19 @@ impl WinstonDraft {
         use rand::seq::SliceRandom;
         deck.shuffle(&mut rng);
         let mut deck: VecDeque<PaperCard> = deck.into();
+        let mut deck_ids: VecDeque<u32> = (0..deck.len() as u32).collect();
+        let mut pile_ids = Vec::with_capacity(NUM_PILES);
 
         let mut piles = Vec::with_capacity(NUM_PILES);
         for _ in 0..NUM_PILES {
             let mut pile = Vec::new();
+            let mut ids = Vec::new();
             if let Some(c) = deck.pop_front() {
                 pile.push(c);
+                ids.push(deck_ids.pop_front().expect("deck occurrence"));
             }
             piles.push(pile);
+            pile_ids.push(ids);
         }
 
         Self {
@@ -99,6 +107,9 @@ impl WinstonDraft {
             ],
             deck,
             piles,
+            deck_ids,
+            pile_ids,
+            picked_ids: vec![Vec::new(); NUM_PLAYERS],
             active_seat: 0,
             current_pile: 0,
             ai: WinstonDraftAI::new(),
@@ -114,6 +125,12 @@ impl WinstonDraft {
     }
     pub fn piles(&self) -> &[Vec<PaperCard>] {
         &self.piles
+    }
+    pub fn pile_ids(&self) -> &[Vec<u32>] {
+        &self.pile_ids
+    }
+    pub fn human_picked_ids(&self) -> &[u32] {
+        &self.picked_ids[0]
     }
     pub fn deck_size(&self) -> usize {
         self.deck.len()
@@ -180,6 +197,7 @@ impl WinstonDraft {
     pub(crate) fn take_active_pile(&mut self) -> Vec<PaperCard> {
         let pile_idx = self.current_pile;
         let cards = std::mem::take(&mut self.piles[pile_idx]);
+        self.picked_ids[self.active_seat].append(&mut self.pile_ids[pile_idx]);
         self.refill_pile(pile_idx);
         self.current_pile = 0;
         cards
@@ -189,11 +207,14 @@ impl WinstonDraft {
         let pile_idx = self.current_pile;
         if let Some(c) = self.deck.pop_front() {
             self.piles[pile_idx].push(c);
+            self.pile_ids[pile_idx].push(self.deck_ids.pop_front().expect("deck occurrence"));
         }
         self.current_pile += 1;
         if self.current_pile >= NUM_PILES {
             self.current_pile = 0;
             if let Some(c) = self.deck.pop_front() {
+                self.picked_ids[self.active_seat]
+                    .push(self.deck_ids.pop_front().expect("deck occurrence"));
                 Some(vec![c])
             } else {
                 Some(Vec::new())
@@ -206,6 +227,7 @@ impl WinstonDraft {
     fn refill_pile(&mut self, pile_idx: usize) {
         if let Some(c) = self.deck.pop_front() {
             self.piles[pile_idx].push(c);
+            self.pile_ids[pile_idx].push(self.deck_ids.pop_front().expect("deck occurrence"));
         }
     }
 

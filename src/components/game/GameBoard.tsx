@@ -4,7 +4,7 @@ import type { CardDto, DayTime } from "@/protocol/game";
 import type { ClientPlayerDto } from "@/stores/gameStore.types";
 import type { Prompt, StepKind } from "@/protocol";
 import { validCardIdsInCards, type BoardTargetBuckets } from "@/lib/boardTargets";
-import type { PreviewPointerInput } from "@/lib/cardPreview";
+import type { PreviewFlipOptions, PreviewPointerInput } from "@/lib/cardPreview";
 import { stripUsernameTag } from "@/lib/username";
 import { nextHandOrderMode } from "@/lib/handOrder";
 import { type ZonePanelItem } from "@/stores/usePreferencesStore";
@@ -171,7 +171,7 @@ interface GameBoardProps {
   onHandHoverChange?: (hovering: boolean) => void;
   getHandActions?: (card: CardDto) => HandActionOption[];
   onSelectHandAction?: (action: HandActionOption) => void;
-  onFlipCard: () => void;
+  onFlipCard: (options?: PreviewFlipOptions) => void;
   onBattlefieldClick: (card: CardDto) => void;
   onAttackerClick: (card: CardDto) => void;
   onAssignBlock: (blockerId: string, attackerId: string) => void;

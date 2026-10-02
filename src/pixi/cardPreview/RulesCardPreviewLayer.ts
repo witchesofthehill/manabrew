@@ -11,7 +11,7 @@ import {
 import type { CardDto } from "@/protocol/game";
 import type { ScryfallCard } from "@/types/scryfall";
 import { resolveCardFaces } from "@/lib/cardFaces";
-import type { PreviewPhase } from "@/lib/cardPreview";
+import type { PreviewFlipOptions, PreviewPhase } from "@/lib/cardPreview";
 import { isCoarsePointer } from "@/lib/responsive";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import type { Theme } from "@/hooks/useTheme";
@@ -102,7 +102,7 @@ export interface RulesCardPreviewCallbacks {
   onRenderRequested: () => void;
   onSelectAction: (action: HandActionOption) => void;
   onDismiss: () => void;
-  onFlip: () => void;
+  onFlip: (options?: PreviewFlipOptions) => void;
   onToggleView: () => void;
 }
 
@@ -845,7 +845,7 @@ export class RulesCardPreviewLayer {
     if (display.flippable) {
       controls.push({
         label: display.faceIndex === 0 ? i18n._(msg`Flip back · F`) : i18n._(msg`Flip front · F`),
-        activate: () => this.callbacks.onFlip(),
+        activate: () => this.callbacks.onFlip({ sticky: true }),
       });
     }
     this.controls.setContent({

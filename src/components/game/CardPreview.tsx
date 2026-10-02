@@ -21,7 +21,8 @@ import { useTheme } from "@/hooks/useTheme";
 import { isHorizontalGameCard } from "@/lib/horizontalGameCard";
 import { cn } from "@/lib/utils";
 import { GHOST_CLICK_ARM_MS } from "@/lib/responsive";
-import { PREVIEW_TIMING } from "@/lib/cardPreview";
+import { PREVIEW_TIMING, type PreviewFlipOptions } from "@/lib/cardPreview";
+import { CARD_PREVIEW_EVENT_HANDLERS } from "@/lib/cardPreviewEvents";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
@@ -32,6 +33,7 @@ import { useKeybindings } from "@/hooks/useKeybindings";
 import { deriveCardRailEffects, deriveCardRailState } from "@/components/game/cardRailState";
 import { cardTypeLine, replaceCardName } from "@/components/game/cardPresentation";
 import { localizeRulesPreviewText } from "@/pixi/cardPreview/rulesCardPreviewPresentation";
+import { CardPreviewHoverArea } from "./CardPreviewHoverArea";
 interface CardPreviewProps {
   card: CardDto;
   mouseX: number;
@@ -46,7 +48,7 @@ interface CardPreviewProps {
   actions?: HandActionOption[];
   onSelectAction?: (action: HandActionOption) => void;
   onDismiss?: () => void;
-  onFlip?: () => void;
+  onFlip?: (options?: PreviewFlipOptions) => void;
   onToggleView?: () => void;
   onNavigatePrevious?: () => void;
   onNavigateNext?: () => void;
@@ -210,6 +212,7 @@ export function CardPreview({
   const swipeRef = useRef<{ pointerId: number; x: number; y: number } | null>(null);
   const [panelHeight, setPanelHeight] = useState(0);
   const [, setLayoutVersion] = useState(0);
+  const [slotBounds, setSlotBounds] = useState<DOMRect | null>(null);
   // The hero zoom travels across the hovered card; an interactive preview
   // passing under the cursor steals pointer events from the canvas and kills
   // the sprite's hover state. Stay pointer-transparent until the enter lands.
@@ -221,22 +224,29 @@ export function CardPreview({
     return () => clearTimeout(timer);
   }, [skipEnterAnimation]);
   useLayoutEffect(() => {
-    const update = () => setLayoutVersion((version) => version + 1);
+    const update = () => {
+      if (slot) {
+        setSlotBounds(rootRef.current?.getBoundingClientRect() ?? slot.getBoundingClientRect());
+      }
+      setLayoutVersion((version) => version + 1);
+    };
     const observer = new ResizeObserver(update);
     if (slot) observer.observe(slot);
+    if (slot) update();
     window.addEventListener("resize", update);
+    if (slot) window.addEventListener("scroll", update, true);
     return () => {
       observer.disconnect();
       window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
     };
   }, [slot]);
   useLayoutEffect(() => {
     const measure = () => setPanelHeight(panelRef.current?.offsetHeight ?? 0);
     const observer = new ResizeObserver(measure);
     if (panelRef.current) observer.observe(panelRef.current);
-    const frame = requestAnimationFrame(measure);
+    measure();
     return () => {
-      cancelAnimationFrame(frame);
       observer.disconnect();
     };
   }, [showSidePanel, card.id]);
@@ -270,7 +280,7 @@ export function CardPreview({
         )
       : card.counters;
   useKeybindings(
-    onFlip && hasFlippableFaces ? { "flip-card": onFlip } : {},
+    onFlip && hasFlippableFaces ? { "flip-card": () => onFlip() } : {},
     portalTarget ? rootRef : undefined,
   );
   useEffect(() => {
@@ -377,11 +387,13 @@ export function CardPreview({
   const cardLookupPending = !isDebugCard && cardFaces.faces.length === 0;
   const hasPreviewControls = Boolean(onToggleView || (hasDoubleFace && onFlip) || isSticky);
   const handlePreviewPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    event.stopPropagation();
     if (!isSticky || event.pointerType !== "touch") return;
     swipeRef.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
     event.currentTarget.setPointerCapture(event.pointerId);
   };
   const handlePreviewPointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    event.stopPropagation();
     const start = swipeRef.current;
     swipeRef.current = null;
     if (!start || start.pointerId !== event.pointerId) return;
@@ -413,8 +425,31 @@ export function CardPreview({
           onClick={onDismiss}
         />
       )}
+      {phase === "open" && !suppressed && placement !== "pinned" && (
+        <CardPreviewHoverArea
+          source={anchorRect ?? null}
+          cardLeft={
+            slot
+              ? (slotBounds?.left ?? slot.getBoundingClientRect().left) + layout.slotMarginLeft
+              : cardLeft
+          }
+          cardTop={slot ? (slotBounds?.top ?? slot.getBoundingClientRect().top) : top}
+          cardWidth={cardWidth}
+          cardHeight={cardHeight}
+          panelWidth={showSidePanel ? sidePanelWidth * layout.panelScale : 0}
+          panelHeight={panelHeight * layout.panelScale}
+          panelSide={panelSide}
+          sticky={isSticky}
+          contentInteractive={Boolean(slot) && interactive}
+          debugColor={showHoverAreas ? withAlpha(themeColors.success, 0.28) : undefined}
+          portalTarget={portalTarget}
+          onMouseEnter={onMouseEnter}
+          onMouseLeave={onMouseLeave}
+        />
+      )}
       <div
         ref={rootRef}
+        {...CARD_PREVIEW_EVENT_HANDLERS}
         data-card-preview
         className={cn(
           "select-none transition-opacity duration-150",
@@ -433,11 +468,18 @@ export function CardPreview({
         }
         onPointerDown={handlePreviewPointerDown}
         onPointerUp={handlePreviewPointerUp}
-        onPointerCancel={() => {
+        onPointerCancel={(event) => {
+          event.stopPropagation();
           swipeRef.current = null;
         }}
-        onMouseEnter={onMouseEnter}
-        onMouseLeave={onMouseLeave}
+        onMouseEnter={(event) => {
+          event.stopPropagation();
+          if (placement === "pinned") onMouseEnter?.();
+        }}
+        onMouseLeave={(event) => {
+          event.stopPropagation();
+          if (placement === "pinned") onMouseLeave?.();
+        }}
       >
         <div
           className={cn(
@@ -456,6 +498,7 @@ export function CardPreview({
               width: cardWidth,
               height: cardHeight,
               marginLeft: slot ? layout.slotMarginLeft : undefined,
+              pointerEvents: slot ? (interactive ? "auto" : "none") : undefined,
             } as CSSProperties
           }
         >
@@ -514,7 +557,7 @@ export function CardPreview({
                         type="button"
                         onClick={(event) => {
                           event.stopPropagation();
-                          onFlip();
+                          onFlip({ sticky: true });
                         }}
                         className={cn(
                           "inline-flex min-h-8 items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white shadow hover:bg-black/85 pointer-coarse:min-h-11 pointer-coarse:px-3",
@@ -614,23 +657,9 @@ export function CardPreview({
                 width: sidePanelWidth,
                 transform: `scale(${layout.panelScale})`,
                 transformOrigin: panelSide === "right" ? "top left" : "top right",
+                pointerEvents: interactive ? "auto" : "none",
               }}
             >
-              <div
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  ...(panelSide === "right"
-                    ? { left: -10 - cardWidth, borderBottomRightRadius: "100%" }
-                    : { right: -10 - cardWidth, borderBottomLeftRadius: "100%" }),
-                  width: cardWidth + 10 + sidePanelWidth,
-                  height: cardHeight,
-                  backgroundColor: showHoverAreas
-                    ? withAlpha(themeColors.success, 0.28)
-                    : "transparent",
-                  zIndex: -1,
-                }}
-              />
               {hasMainActions && (
                 <CardPreviewActions
                   actions={mainActions}

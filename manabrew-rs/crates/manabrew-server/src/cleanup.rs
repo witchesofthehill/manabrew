@@ -315,6 +315,34 @@ fn mark_disconnected_inner(state: &Arc<ServerState>, player_id: &str, our_genera
             return;
         }
     };
+    let parent_id = room_id.as_ref().and_then(|id| {
+        state
+            .rooms
+            .get(id)
+            .and_then(|room| room.parent_limited_room.clone())
+    });
+    if let Some(parent_id) = parent_id {
+        let lost_host = state
+            .rooms
+            .get_mut(&parent_id)
+            .map(|mut room| {
+                room.set_connected(player_id, false);
+                room.is_host(player_id)
+            })
+            .unwrap_or(false);
+        if let Some(room) = state.rooms.get(&parent_id) {
+            broadcast_to_room(
+                state,
+                &parent_id,
+                &ServerMessage::RoomUpdate {
+                    room: room.to_room_info(),
+                },
+            );
+        }
+        if lost_host {
+            schedule_peer_host_loss(state.clone(), parent_id, player_id.to_string());
+        }
+    }
 
     if let Some(rid) = &room_id {
         let room_status = state.rooms.get(rid).map(|r| r.status.clone());

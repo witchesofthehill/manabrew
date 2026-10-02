@@ -44,6 +44,8 @@ commands.allow = [
   "limited_import_cube",
   "limited_list_chaos_themes",
   "limited_start_gauntlet_from_sealed",
+  "limited_start_gauntlet_from_draft",
+  "limited_get_draft_ai_decks",
   "limited_record_gauntlet_outcome",
   "limited_get_gauntlet_match_decks",
   "limited_update_gauntlet_human_deck",

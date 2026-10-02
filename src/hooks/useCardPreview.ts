@@ -1,8 +1,14 @@
 import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import type { CardDto } from "@/protocol/game";
-import { CardPreviewMachine, type PreviewPointerInput } from "@/lib/cardPreview";
+import {
+  CardPreviewMachine,
+  type PreviewFlipOptions,
+  type PreviewPointerInput,
+  type PreviewSnapshot,
+} from "@/lib/cardPreview";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { MODAL_OPEN_EVENT, topModal } from "@/lib/modalStack";
+import { isCardPreviewTarget } from "@/lib/cardPreviewEvents";
 
 const ignorePreviewUpdates = () => () => undefined;
 
@@ -18,10 +24,33 @@ export interface StickyPreviewOptions {
   allowOverModal?: boolean;
 }
 
+export interface CardPreviewController extends Omit<PreviewSnapshot, "card" | "sticky"> {
+  hoveredCard: PreviewSnapshot["card"];
+  isSticky: boolean;
+  subscribe: (listener: () => void) => () => void;
+  getSnapshot: () => PreviewSnapshot;
+  dismiss: () => void;
+  flipCard: (options?: PreviewFlipOptions) => void;
+  setSequence: (cards: readonly CardDto[]) => void;
+  navigatePrevious: () => void;
+  navigateNext: () => void;
+  handleMouseEnter: (card: CardDto, event?: React.MouseEvent, options?: HoverOptions) => void;
+  handleMouseLeave: () => void;
+  onMouseEnterPreview: () => void;
+  onMouseLeavePreview: () => void;
+  showSticky: (
+    card: CardDto,
+    x?: number,
+    y?: number,
+    anchor?: HTMLElement | DOMRect,
+    options?: StickyPreviewOptions,
+  ) => void;
+}
+
 export function useCardPreview(
   dismissDeps: unknown[] = [],
   hookOptions: { subscribe?: boolean; useTriggerPreference?: boolean } = {},
-) {
+): CardPreviewController {
   const machineRef = useRef<CardPreviewMachine | null>(null);
   machineRef.current ??= new CardPreviewMachine();
   const machine = machineRef.current;
@@ -40,6 +69,7 @@ export function useCardPreview(
 
   const handleMouseEnter = useCallback(
     (card: CardDto, e?: React.MouseEvent, options: HoverOptions = {}) => {
+      if (e && isCardPreviewTarget(e.target)) return;
       if (hookOptions.useTriggerPreference && topModal()) return;
       const trigger = options.trigger ?? e;
       if (trigger && trigger.buttons !== 0) {
@@ -70,7 +100,7 @@ export function useCardPreview(
   const onMouseEnterPreview = useCallback(() => machine.pointerEnterPreview(), [machine]);
   const onMouseLeavePreview = useCallback(() => machine.pointerLeavePreview(), [machine]);
   const dismiss = useCallback(() => machine.dismiss(), [machine]);
-  const flipCard = useCallback(() => machine.flip(), [machine]);
+  const flipCard = useCallback((options?: PreviewFlipOptions) => machine.flip(options), [machine]);
   const setSequence = useCallback(
     (cards: readonly CardDto[]) => machine.setSequence(cards),
     [machine],

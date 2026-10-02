@@ -18,6 +18,7 @@ import type {
 } from "@/types/limited";
 import { fetchCubeMetadata } from "@/api/limitedEdition";
 import { getPlatform } from "@/platform";
+import { resolveSealedPool } from "@/lib/limited.utils";
 
 function invoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
   return getPlatform().invoke<T>(command, args);
@@ -58,6 +59,12 @@ interface LimitedStore {
     main: DraftCard[],
     sideboard: DraftCard[],
   ) => Promise<GauntletState>;
+  startGauntletFromDraft: (
+    sessionId: string,
+    rounds: number,
+    main: DraftCard[],
+    sideboard: DraftCard[],
+  ) => Promise<GauntletState>;
   recordGauntletOutcome: (
     gauntletId: string,
     wonGame: boolean,
@@ -92,7 +99,9 @@ export const useLimitedStore = create<LimitedStore>((set) => ({
   startSealed: async (setup) => {
     set({ isStarting: true, lastError: null });
     try {
-      const pool = await invoke<SealedPool>("limited_start_sealed", { setup });
+      const pool = await resolveSealedPool(
+        await invoke<SealedPool>("limited_start_sealed", { setup }),
+      );
       set({ activeSealed: pool, isStarting: false });
       return pool;
     } catch (err) {
@@ -104,9 +113,11 @@ export const useLimitedStore = create<LimitedStore>((set) => ({
 
   refreshSealedPool: async (sessionId) => {
     try {
-      const pool = await invoke<SealedPool>("limited_get_sealed_pool", {
-        sessionId,
-      });
+      const pool = await resolveSealedPool(
+        await invoke<SealedPool>("limited_get_sealed_pool", {
+          sessionId,
+        }),
+      );
       set({ activeSealed: pool, lastError: null });
     } catch (err) {
       set({ lastError: String(err) });
@@ -139,9 +150,7 @@ export const useLimitedStore = create<LimitedStore>((set) => ({
     try {
       const state = await invoke<DraftState>("limited_pick_card", {
         sessionId,
-        cardName: card.name,
-        setCode: card.setCode,
-        cardNumber: card.cardNumber,
+        cardId: card.id,
       });
       set({ activeDraft: state, lastError: null });
       return state;
@@ -247,6 +256,24 @@ export const useLimitedStore = create<LimitedStore>((set) => ({
     set({ isStarting: true, lastError: null });
     try {
       const state = await invoke<GauntletState>("limited_start_gauntlet_from_sealed", {
+        sessionId,
+        rounds,
+        main,
+        sideboard,
+      });
+      set({ activeGauntlet: state, isStarting: false });
+      return state;
+    } catch (err) {
+      const msg = String(err);
+      set({ isStarting: false, lastError: msg });
+      throw new Error(msg);
+    }
+  },
+
+  startGauntletFromDraft: async (sessionId, rounds, main, sideboard) => {
+    set({ isStarting: true, lastError: null });
+    try {
+      const state = await invoke<GauntletState>("limited_start_gauntlet_from_draft", {
         sessionId,
         rounds,
         main,

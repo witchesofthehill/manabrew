@@ -26,11 +26,17 @@ export interface LimitedDeck {
   sideboard: DraftCard[];
 }
 
+export interface DraftAiDeck {
+  seat: number;
+  deck: LimitedDeck;
+}
+
 export interface SealedPool {
   sessionId: string;
   deckName: string;
   landSetCode: string | null;
   cards: DraftCard[];
+  packs: Array<{ id: string; setCode: string; cards: DraftCard[] }>;
   suggestedDeck: LimitedDeck | null;
   aiDecks: LimitedDeck[];
 }

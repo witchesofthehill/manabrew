@@ -25,6 +25,7 @@ export interface BoardLayout {
 export const STRIP_BAND_PX = 30;
 
 export const COLLAPSED_OPPONENT_WIDTH_PX = 112;
+export const DELIMITER_EASE = { FACTOR: 0.25, SNAP: 0.0005 } as const;
 
 export function collapsedOpponentWidth(width: number, opponentCount: number): number {
   return Math.min(COLLAPSED_OPPONENT_WIDTH_PX, width / (opponentCount + 1));

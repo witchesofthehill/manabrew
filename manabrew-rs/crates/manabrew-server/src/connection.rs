@@ -79,6 +79,65 @@ fn authorize_game_message(
         }
         "roomRelay" => {
             let protocol = state.get("protocol").and_then(serde_json::Value::as_str)?;
+            if protocol == "draft-v1" || protocol == "limited-session-v1" {
+                if state.get("roomId").and_then(serde_json::Value::as_str)
+                    != Some(room.room_id.as_str())
+                    || state.get("fromPlayer").and_then(serde_json::Value::as_str) != Some(username)
+                {
+                    return None;
+                }
+                let payload = state.get("payload")?;
+                let kind = payload.get("type").and_then(serde_json::Value::as_str)?;
+                let session = payload.get("sessionId").and_then(serde_json::Value::as_str);
+                if kind != "register"
+                    && kind != "start"
+                    && kind != "resync"
+                    && session != room.limited_session_id.as_deref()
+                {
+                    return None;
+                }
+                let output = matches!(
+                    kind,
+                    "start"
+                        | "stateUpdate"
+                        | "register"
+                        | "snapshot"
+                        | "statuses"
+                        | "rejected"
+                        | "pairMatches"
+                );
+                if output {
+                    if !room.is_host(player_id) {
+                        return None;
+                    }
+                    if matches!(kind, "stateUpdate" | "snapshot" | "rejected")
+                        && state
+                            .get("targetPlayer")
+                            .and_then(serde_json::Value::as_str)
+                            .is_none()
+                    {
+                        return None;
+                    }
+                } else if matches!(
+                    kind,
+                    "pick" | "resync" | "build" | "opened" | "returnToSession" | "result"
+                ) {
+                    if !room
+                        .players
+                        .iter()
+                        .any(|seat| seat.player_id == player_id && !seat.is_bot)
+                        || state
+                            .get("targetPlayer")
+                            .and_then(serde_json::Value::as_str)
+                            != Some(room.host_username.as_str())
+                    {
+                        return None;
+                    }
+                } else {
+                    return None;
+                }
+                return Some(GameMessageSource::RoomRelay);
+            }
             if protocol != SELF_HOSTED_NODE_PROTOCOL {
                 return Some(GameMessageSource::RoomRelay);
             }
@@ -110,6 +169,233 @@ fn authorize_game_message(
         }
         _ => None,
     }
+}
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct LimitedPairPlayer {
+    username: String,
+    deck: manabrew_protocol::deck_dto::Deck,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct LimitedPair {
+    players: Vec<LimitedPairPlayer>,
+}
+
+fn pair_limited_matches(
+    state: &Arc<ServerState>,
+    room_id: &str,
+    payload: &serde_json::Value,
+) -> Option<()> {
+    let pairs: Vec<LimitedPair> = serde_json::from_value(payload.get("pairs")?.clone()).ok()?;
+    if pairs.is_empty() || pairs.len() > 4 || state.rooms.len() + pairs.len() > state.max_rooms {
+        return None;
+    }
+    let mut parent = state.rooms.get_mut(room_id)?;
+    if !parent.limited_matches.is_empty() || !parent.is_limited_session() {
+        return None;
+    }
+    let session_id = parent.limited_session_id.clone()?;
+    let mut seen = std::collections::HashSet::new();
+    for pair in &pairs {
+        if pair.players.len() != 2 {
+            return None;
+        }
+        for player in &pair.players {
+            if !seen.insert(player.username.clone()) || player.deck.cards.len() < 40 {
+                return None;
+            }
+            if !parent
+                .players
+                .iter()
+                .any(|seat| seat.username == player.username && seat.connected)
+                && !player
+                    .username
+                    .starts_with(&format!("limited-ai-{session_id}-"))
+            {
+                return None;
+            }
+        }
+        if !parent
+            .players
+            .iter()
+            .any(|seat| seat.username == pair.players[0].username && !seat.is_bot)
+        {
+            return None;
+        }
+    }
+    let mut rooms = Vec::with_capacity(pairs.len());
+    for pair in pairs {
+        let first = parent
+            .players
+            .iter()
+            .find(|seat| seat.username == pair.players[0].username)?
+            .clone();
+        let id = uuid::Uuid::new_v4().to_string();
+        let mut room = Room::new(
+            id.clone(),
+            format!("{} match", parent.room_name),
+            parent.protocol_version,
+            first.player_id.clone(),
+            first.username.clone(),
+            2,
+            parent.format.clone(),
+            parent.engine,
+            true,
+            None,
+            None,
+            false,
+            Some(uuid::Uuid::new_v4().to_string()),
+            parent.reconnect_timeout_s,
+            parent.table_style.clone(),
+        );
+        room.players = pair
+            .players
+            .into_iter()
+            .map(|player| {
+                let original = parent
+                    .players
+                    .iter()
+                    .find(|seat| seat.username == player.username);
+                crate::room::RoomSlot {
+                    player_id: original
+                        .map(|seat| seat.player_id.clone())
+                        .unwrap_or_else(|| format!("virtual-{}", uuid::Uuid::new_v4())),
+                    username: player.username,
+                    ready: true,
+                    connected: true,
+                    is_bot: original.is_none_or(|seat| seat.is_bot),
+                    selected_deck_name: Some(player.deck.name.clone()),
+                    selected_deck: Some(player.deck),
+                    published_deck_id: None,
+                    selected_commander_name: None,
+                    avatar_url: original.and_then(|seat| seat.avatar_url.clone()),
+                }
+            })
+            .collect();
+        room.parent_limited_room = Some(room_id.to_string());
+        room.limited_session_id = Some(session_id.clone());
+        parent.limited_matches.push(id);
+        rooms.push(room);
+    }
+    let host_name = parent.host_username.clone();
+    drop(parent);
+    for room in rooms {
+        let info = room.to_room_info();
+        let participants: Vec<_> = room
+            .players
+            .iter()
+            .filter(|seat| !seat.is_bot)
+            .map(|seat| (seat.player_id.clone(), seat.username.clone()))
+            .collect();
+        state.rooms.insert(room.room_id.clone(), room);
+        for (id, username) in participants {
+            if let Some(mut player) = state.players.get_mut(&id) {
+                player.room_id = Some(info.room_id.clone());
+            }
+            let message = ServerMessage::StateUpdate {
+                from_player: host_name.clone(),
+                state: serde_json::json!({
+                    "kind": "roomRelay", "protocol": "limited-session-v1", "version": 1, "messageId": uuid::Uuid::new_v4().to_string(),
+                    "fromPlayer": host_name, "targetPlayer": username, "roomId": room_id,
+                    "payload": { "type": "matchAssigned", "sessionId": session_id, "room": info }
+                }),
+            };
+            if let Ok(json) = serde_json::to_string(&message) {
+                emit_to(state, &id, &message, &json);
+            }
+        }
+    }
+    Some(())
+}
+
+fn return_to_limited_session(
+    state: &Arc<ServerState>,
+    room_id: &str,
+    player_id: &str,
+    username: &str,
+) -> Option<()> {
+    let current_id = state.players.get(player_id)?.room_id.clone()?;
+    if current_id != room_id {
+        let match_room = state.rooms.get(&current_id)?;
+        if match_room.parent_limited_room.as_deref() != Some(room_id) {
+            return None;
+        }
+    }
+    let mut parent = state.rooms.get_mut(room_id)?;
+    let session_id = parent.limited_session_id.clone()?;
+    let seat = parent
+        .players
+        .iter_mut()
+        .find(|seat| seat.player_id == player_id)?;
+    seat.ready = false;
+    let info = parent.to_room_info();
+    let host_name = parent.host_username.clone();
+    drop(parent);
+    if let Some(mut player) = state.players.get_mut(player_id) {
+        player.room_id = Some(room_id.to_string());
+    }
+    let all_returned = state.rooms.get(&current_id).is_some_and(|room| {
+        room.players.iter().filter(|seat| !seat.is_bot).all(|seat| {
+            state
+                .players
+                .get(&seat.player_id)
+                .is_none_or(|player| player.room_id.as_deref() != Some(current_id.as_str()))
+        })
+    });
+    if current_id != room_id && all_returned {
+        state.rooms.remove(&current_id);
+        if let Some(mut parent) = state.rooms.get_mut(room_id) {
+            parent.limited_matches.retain(|id| id != &current_id);
+        }
+    }
+    let message = ServerMessage::StateUpdate {
+        from_player: host_name.clone(),
+        state: serde_json::json!({
+            "kind": "roomRelay", "protocol": "limited-session-v1", "version": 1, "messageId": uuid::Uuid::new_v4().to_string(),
+            "fromPlayer": host_name, "targetPlayer": username, "roomId": room_id,
+            "payload": { "type": "returned", "sessionId": session_id, "room": info }
+        }),
+    };
+    if let Some(player) = state.players.get(player_id) {
+        send_msg(&player.sender, &message);
+    }
+    let returned = ServerMessage::StateUpdate {
+        from_player: host_name.clone(),
+        state: serde_json::json!({
+            "kind": "roomRelay", "protocol": "limited-session-v1", "version": 1, "messageId": uuid::Uuid::new_v4().to_string(),
+            "fromPlayer": host_name, "targetPlayer": host_name, "roomId": room_id,
+            "payload": { "type": "seatReturned", "sessionId": session_id, "username": username }
+        }),
+    };
+    send_to_room_player(state, room_id, &host_name, &returned);
+    Some(())
+}
+
+fn limited_visible_decks(
+    room: &Room,
+    username: &str,
+    decks: &[crate::protocol::PlayerDeckInfo],
+) -> Vec<crate::protocol::PlayerDeckInfo> {
+    if room.parent_limited_room.is_none() || room.host_username == username {
+        return decks.to_vec();
+    }
+    decks
+        .iter()
+        .map(|entry| {
+            let mut visible = entry.clone();
+            if entry.username != username {
+                visible.deck = manabrew_protocol::deck_dto::Deck {
+                    name: entry.deck_name.clone(),
+                    format: entry.deck.format.clone(),
+                    ..Default::default()
+                };
+            }
+            visible
+        })
+        .collect()
 }
 
 /// Background task: drains channel and writes to the WebSocket sink.
@@ -1107,6 +1393,24 @@ fn reclaim_session(
         if let Some(mut room) = state.rooms.get_mut(rid) {
             room.set_connected(existing_pid, true);
         }
+        let parent_id = state
+            .rooms
+            .get(rid)
+            .and_then(|room| room.parent_limited_room.clone());
+        if let Some(parent_id) = parent_id {
+            if let Some(mut parent) = state.rooms.get_mut(&parent_id) {
+                parent.set_connected(existing_pid, true);
+            }
+            if let Some(parent) = state.rooms.get(&parent_id) {
+                broadcast_to_room(
+                    state,
+                    &parent_id,
+                    &ServerMessage::RoomUpdate {
+                        room: parent.to_room_info(),
+                    },
+                );
+            }
+        }
 
         broadcast_to_room_except(
             state,
@@ -1580,17 +1884,40 @@ fn handle_client_message(
                             room: started.room_info,
                         },
                     );
-                    broadcast_to_room(
-                        state,
-                        &started.room_id,
-                        &ServerMessage::GameStarted {
-                            room_id: started.room_id.clone(),
-                            game_id: started.game_id,
-                            player_order: started.player_order,
-                            player_decks: started.player_decks,
-                            starting_life: started.starting_life,
-                        },
-                    );
+                    let room = state.rooms.get(&started.room_id);
+                    if let Some(room) = room
+                        .as_ref()
+                        .filter(|room| room.parent_limited_room.is_some())
+                    {
+                        for seat in room.players.iter().filter(|seat| !seat.is_bot) {
+                            let message = ServerMessage::GameStarted {
+                                room_id: started.room_id.clone(),
+                                game_id: started.game_id.clone(),
+                                player_order: started.player_order.clone(),
+                                player_decks: limited_visible_decks(
+                                    room,
+                                    &seat.username,
+                                    &started.player_decks,
+                                ),
+                                starting_life: started.starting_life,
+                            };
+                            if let Ok(json) = serde_json::to_string(&message) {
+                                emit_to(state, &seat.player_id, &message, &json);
+                            }
+                        }
+                    } else {
+                        broadcast_to_room(
+                            state,
+                            &started.room_id,
+                            &ServerMessage::GameStarted {
+                                room_id: started.room_id.clone(),
+                                game_id: started.game_id,
+                                player_order: started.player_order,
+                                player_decks: started.player_decks,
+                                starting_life: started.starting_life,
+                            },
+                        );
+                    }
                 }
                 Err(e) => {
                     warn!("[game] '{}' start game failed: {}", username, e);
@@ -1724,7 +2051,7 @@ fn handle_client_message(
                     room_id: rid.clone(),
                     game_id: replay.game_id.clone(),
                     player_order: replay.player_order.clone(),
-                    player_decks: replay.player_decks.clone(),
+                    player_decks: limited_visible_decks(&room, username, &replay.player_decks),
                     starting_life: replay.starting_life,
                 }];
                 let seat_state = replay
@@ -1767,7 +2094,40 @@ fn handle_client_message(
             target_player,
         } => {
             let handling_started = Instant::now();
-            let room_id = { state.players.get(player_id).and_then(|p| p.room_id.clone()) };
+            let current_room = state.players.get(player_id).and_then(|p| p.room_id.clone());
+            let limited = game_state.get("kind").and_then(serde_json::Value::as_str)
+                == Some("roomRelay")
+                && matches!(
+                    game_state
+                        .get("protocol")
+                        .and_then(serde_json::Value::as_str),
+                    Some("draft-v1" | "limited-session-v1")
+                );
+            let room_id = if limited {
+                let requested = game_state.get("roomId").and_then(serde_json::Value::as_str);
+                current_room.as_ref().and_then(|current| {
+                    let room = state.rooms.get(current)?;
+                    if game_state["payload"]["type"].as_str() == Some("result") {
+                        let payload = &game_state["payload"];
+                        if !room.is_host(player_id)
+                            || room.parent_limited_room.is_none()
+                            || !room.replay.as_ref().is_some_and(|replay| {
+                                Some(replay.game_id.as_str()) == payload["gameId"].as_str()
+                            })
+                            || payload["winner"].as_str().is_some_and(|winner| {
+                                !room.players.iter().any(|seat| seat.username == winner)
+                            })
+                        {
+                            return None;
+                        }
+                    }
+                    let allowed = requested == Some(current.as_str())
+                        || requested == room.parent_limited_room.as_deref();
+                    allowed.then(|| requested.map(str::to_string)).flatten()
+                })
+            } else {
+                current_room
+            };
             if let Some(rid) = room_id {
                 let Some(mut room) = state.rooms.get_mut(&rid) else {
                     return;
@@ -1777,6 +2137,55 @@ fn handle_client_message(
                     warn!(username, "rejected unauthorized game envelope");
                     return;
                 };
+                if limited {
+                    let inner_target = game_state
+                        .get("targetPlayer")
+                        .and_then(serde_json::Value::as_str);
+                    if inner_target != target_player.as_deref() {
+                        return;
+                    }
+                    let payload = &game_state["payload"];
+                    let kind = payload.get("type").and_then(serde_json::Value::as_str);
+                    if matches!(kind, Some("register" | "start")) {
+                        if !room.is_limited_session() || room.status != RoomStatus::InGame {
+                            return;
+                        }
+                        let Some(session) =
+                            payload.get("sessionId").and_then(serde_json::Value::as_str)
+                        else {
+                            return;
+                        };
+                        if room
+                            .limited_session_id
+                            .as_deref()
+                            .is_some_and(|id| id != session)
+                        {
+                            return;
+                        }
+                        room.limited_session_id = Some(session.to_string());
+                        if kind == Some("register") {
+                            return;
+                        }
+                    } else if kind == Some("pairMatches") {
+                        drop(room);
+                        if pair_limited_matches(state, &rid, payload).is_none() {
+                            let rejected = ServerMessage::StateUpdate {
+                                from_player: username.to_string(),
+                                state: serde_json::json!({
+                                    "kind": "roomRelay", "protocol": "limited-session-v1", "version": 1, "messageId": uuid::Uuid::new_v4().to_string(),
+                                    "fromPlayer": username, "targetPlayer": username, "roomId": rid,
+                                    "payload": { "type": "rejected", "sessionId": payload["sessionId"], "message": "Pairing was refused. Wait for every match to return, check connected seats, then try again." }
+                                }),
+                            };
+                            send_msg(sender, &rejected);
+                        }
+                        return;
+                    } else if kind == Some("returnToSession") {
+                        drop(room);
+                        let _ = return_to_limited_session(state, &rid, player_id, username);
+                        return;
+                    }
+                }
                 if source != GameMessageSource::RoomRelay && room.status != RoomStatus::InGame {
                     return;
                 }

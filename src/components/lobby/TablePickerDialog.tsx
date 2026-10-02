@@ -28,6 +28,10 @@ interface TablePickerDialogProps {
   onStart: () => void;
   onCancel: () => void;
   centerContent?: ReactNode;
+  startLabel?: ReactNode;
+  description?: ReactNode;
+  players?: readonly RoomPlayerInfo[];
+  maxPlayers?: number;
 }
 
 export function TablePickerDialog({
@@ -37,6 +41,10 @@ export function TablePickerDialog({
   onStart,
   onCancel,
   centerContent,
+  startLabel = "Fight",
+  description = "The felt you'll play this game on.",
+  players = SEATS,
+  maxPlayers = 2,
 }: TablePickerDialogProps) {
   return (
     <Dialog
@@ -48,13 +56,13 @@ export function TablePickerDialog({
       <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>Choose your table</DialogTitle>
-          <DialogDescription>The felt you'll play this game on.</DialogDescription>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
           <div className="flex items-center justify-center sm:pr-2">
             <OpenTableSeats
-              players={SEATS}
-              maxPlayers={2}
+              players={players}
+              maxPlayers={maxPlayers}
               showSeatLabels
               youUsername="You"
               size="card"
@@ -101,7 +109,7 @@ export function TablePickerDialog({
             Back
           </Button>
           <Button variant="primary" onClick={onStart}>
-            Fight
+            {startLabel}
           </Button>
         </div>
       </DialogContent>

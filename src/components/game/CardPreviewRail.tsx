@@ -10,7 +10,7 @@ import { ChevronLeft, ChevronRight, GripVertical, Image as ImageIcon } from "luc
 
 import { HoverCardPreview } from "@/components/game/HoverCardPreview";
 import { GAME_CARD_SIZES } from "@/components/game/game.constants";
-import type { useCardPreview } from "@/hooks/useCardPreview";
+import type { CardPreviewController } from "@/hooks/useCardPreview";
 import type { PreviewCard } from "@/lib/cardPreview";
 import { cn } from "@/lib/utils";
 
@@ -20,7 +20,7 @@ const DEFAULT_MAX_WIDTH = 600;
 const DEFAULT_WIDTH = Math.max(DEFAULT_MIN_WIDTH + 80, 360);
 
 export interface CardPreviewRailProps {
-  preview: ReturnType<typeof useCardPreview>;
+  preview: CardPreviewController;
   collapsed?: boolean;
   defaultCollapsed?: boolean;
   onCollapsedChange?: (collapsed: boolean) => void;

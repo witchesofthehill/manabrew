@@ -1,4 +1,4 @@
-import type { DraftCard, DraftState } from "@/types/limited";
+import type { DraftState } from "@/types/limited";
 import type { RoomRelayEnvelope } from "@/types/server";
 
 export const DRAFT_RELAY_PROTOCOL = "draft-v1";
@@ -38,35 +38,31 @@ export interface DraftStateBroadcastMessage {
 export interface DraftPickMessage {
   type: "pick";
   sessionId: string;
-  cardName: string;
-  setCode?: string;
-  cardNumber?: string;
-  round?: number;
-  pickNumber?: number;
+  cardId: string;
+  round: number;
+  pickNumber: number;
 }
 
-export interface DraftCompleteMessage {
-  type: "complete";
-  sessionId: string;
-  picks: Array<{
-    seat: number;
-    playerSlot: string | null;
-    displayName: string;
-    isHuman: boolean;
-    pool: DraftCard[];
-  }>;
+export interface DraftResyncMessage {
+  type: "resync";
+  sessionId?: string;
 }
 
 export type DraftRelayPayload =
   | DraftStartMessage
   | DraftStateBroadcastMessage
   | DraftPickMessage
-  | DraftCompleteMessage;
+  | DraftResyncMessage;
 
 export type DraftRelayEnvelope = RoomRelayEnvelope<DraftRelayPayload>;
 
 export function isDraftRelay(env: RoomRelayEnvelope): env is DraftRelayEnvelope {
-  return env.protocol === DRAFT_RELAY_PROTOCOL;
+  return (
+    env.protocol === DRAFT_RELAY_PROTOCOL &&
+    env.version === 1 &&
+    typeof env.payload === "object" &&
+    env.payload !== null
+  );
 }
 
 export function makeDraftRelay(

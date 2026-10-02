@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import type { DraftCard } from "@/types/limited";
 
-export type MpSealedMode = "idle" | "building" | "complete";
+export type MpSealedMode = "idle" | "building";
 
 interface MpSealedState {
   mode: MpSealedMode;
@@ -13,7 +13,6 @@ interface MpSealedState {
   lastError: string | null;
 
   enter: (args: { roomId: string; setCode: string; pool: DraftCard[]; sessionId: string }) => void;
-  complete: () => void;
   setError: (msg: string | null) => void;
   clear: () => void;
 }
@@ -37,7 +36,6 @@ export const useMultiplayerSealedStore = create<MpSealedState>()(
           sessionId,
           lastError: null,
         }),
-      complete: () => set({ mode: "complete", lastError: null }),
       setError: (msg) => set({ lastError: msg }),
       clear: () =>
         set({

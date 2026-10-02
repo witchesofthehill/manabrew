@@ -1,3 +1,5 @@
+import { isCardPreviewTarget } from "@/lib/cardPreviewEvents";
+
 interface PointerRoutingOptions {
   canvas: HTMLCanvasElement;
   hitTest: (clientX: number, clientY: number) => boolean;
@@ -79,11 +81,20 @@ export function installOverlayPointerRouting({
       refreshInteractivity();
       return;
     }
-    const wasMouseInteractive = mouseInteractive;
+    if (isCardPreviewTarget(event.target) && !event.composedPath().includes(canvas)) {
+      mouseInteractive = false;
+      refreshInteractivity();
+      return;
+    }
     mouseInteractive = hitTest(event.clientX, event.clientY);
     refreshInteractivity();
-    if (mouseInteractive && !wasMouseInteractive && !event.composedPath().includes(canvas)) {
+    if (
+      mouseInteractive &&
+      !event.composedPath().includes(canvas) &&
+      document.elementFromPoint(event.clientX, event.clientY) === canvas
+    ) {
       dispatchReplay(canvas, "pointermove", eventInit(event));
+      stopOriginal(event);
     }
     onActivity();
   };
@@ -143,13 +154,13 @@ export function installOverlayPointerRouting({
   const onUp = (event: PointerEvent): void => finishTouch("pointerup", event);
   const onCancel = (event: PointerEvent): void => finishTouch("pointercancel", event);
 
-  window.addEventListener("pointermove", onMove);
+  window.addEventListener("pointermove", onMove, true);
   window.addEventListener("pointerdown", onDown, true);
   window.addEventListener("pointerup", onUp, true);
   window.addEventListener("pointercancel", onCancel, true);
 
   return () => {
-    window.removeEventListener("pointermove", onMove);
+    window.removeEventListener("pointermove", onMove, true);
     window.removeEventListener("pointerdown", onDown, true);
     window.removeEventListener("pointerup", onUp, true);
     window.removeEventListener("pointercancel", onCancel, true);

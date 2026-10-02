@@ -13,6 +13,7 @@ import { useServerStore } from "@/stores/useServerStore";
 import { useInviteStore } from "@/stores/useInviteStore";
 import { useMultiplayerDraftStore } from "@/stores/useMultiplayerDraftStore";
 import { useMultiplayerSealedStore } from "@/stores/useMultiplayerSealedStore";
+import { useMultiplayerLimitedStore } from "@/stores/useMultiplayerLimitedStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { relayUsername } from "@/lib/relayUsername";
@@ -20,6 +21,7 @@ import { useOwnedDecks } from "@/hooks/useOwnedDecks";
 import { startDraftAsHost, type DraftHostParticipant } from "@/game/draftHost";
 import { buildEngineGameRouteState } from "@/game/engineGameLaunch";
 import { startMpSealed } from "@/game/sealedStart";
+import { limitedGameLaunch } from "@/game/limitedSession";
 import { getDeckFingerprint } from "@/lib/decks";
 import { ROUTES } from "@/lib/constants";
 import { stripUsernameTag } from "@/lib/username";
@@ -190,17 +192,22 @@ export default function Lobby() {
   };
   const draftMode = useMultiplayerDraftStore((s) => s.mode);
   const draftSessionId = useMultiplayerDraftStore((s) => s.sessionId);
+  const retainedKind = useMultiplayerLimitedStore((s) => s.kind);
+  const retainedPhase = useMultiplayerLimitedStore((s) => s.phase);
   useEffect(() => {
-    if (draftMode === "drafting" && draftSessionId) {
+    if (
+      (draftMode === "drafting" && draftSessionId) ||
+      (retainedKind === "draft" && retainedPhase !== "idle")
+    ) {
       navigate(`${ROUTES.DRAFT}/multiplayer`);
     }
-  }, [draftMode, draftSessionId, navigate]);
+  }, [draftMode, draftSessionId, retainedKind, retainedPhase, navigate]);
   const sealedMode = useMultiplayerSealedStore((s) => s.mode);
   useEffect(() => {
-    if (sealedMode === "building") {
+    if (sealedMode === "building" || (retainedKind === "sealed" && retainedPhase !== "idle")) {
       navigate(`${ROUTES.SEALED}/multiplayer`);
     }
-  }, [sealedMode, navigate]);
+  }, [sealedMode, retainedKind, retainedPhase, navigate]);
   // Nobody answered where we were told to look. Somebody on this network may be
   // hosting, and if not, we can. Either way what comes back is an ordinary
   // relay and the rest of the lobby never learns which one it got.
@@ -238,6 +245,17 @@ export default function Lobby() {
     if (!gameStarted || playerOrder.length === 0) return;
     if (!currentRoom) return;
     if (gameRoomId !== currentRoom.room_id) return;
+    const limitedLaunch = limitedGameLaunch({
+      room_id: gameRoomId,
+      game_id: useServerStore.getState().gameId,
+      player_order: playerOrder,
+      player_decks: playerDecks,
+      starting_life: startingLife,
+    });
+    if (limitedLaunch) {
+      navigate(ROUTES.PLAY, { replace: true, state: limitedLaunch });
+      return;
+    }
     if (currentRoom?.draft_config) {
       useServerStore.setState({ gameStarted: false });
       return;
@@ -365,7 +383,7 @@ export default function Lobby() {
     try {
       const participants: DraftHostParticipant[] = room.players
         .filter((p) => p.username !== username)
-        .map((p) => ({ playerSlot: p.username, displayName: p.username }));
+        .map((p) => ({ playerSlot: p.username, displayName: p.username, isBot: p.is_bot }));
       const ackPromise = awaitGameStartedAck(room.room_id);
       ackPromise.catch(() => {});
       try {

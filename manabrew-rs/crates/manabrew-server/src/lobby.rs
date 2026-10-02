@@ -362,6 +362,23 @@ pub fn leave_room_sync(state: &Arc<ServerState>, player_id: &str) -> Result<(), 
             .and_then(|p| p.room_id.clone())
             .ok_or(ServerError::NotInRoom)?
     };
+    let parent_id = state
+        .rooms
+        .get(&room_id)
+        .and_then(|room| room.parent_limited_room.clone());
+    if let Some(parent_id) = parent_id {
+        let info = state.rooms.get_mut(&parent_id).map(|mut parent| {
+            parent.remove_participant(player_id);
+            parent.to_room_info()
+        });
+        if let Some(info) = info {
+            crate::connection::broadcast_to_room(
+                state,
+                &parent_id,
+                &crate::protocol::ServerMessage::RoomUpdate { room: info },
+            );
+        }
+    }
 
     let (room_empty, no_connected_players) = {
         let mut room = state
@@ -701,20 +718,34 @@ pub fn reset_room_to_lobby(
     room_id: &str,
     reason: GameEndReason,
 ) -> Option<(RoomInfo, Vec<String>)> {
-    let (info, cleared) = {
+    let (info, cleared, paired_limited) = {
         let mut room = state.rooms.get_mut(room_id)?;
         if let Some(replay) = room.replay.take() {
             analytics::emit_game_ended(&state.analytics, &room, &replay, reason);
         }
         let cleared: Vec<String> = room.players.iter().map(|p| p.player_id.clone()).collect();
         room.status = RoomStatus::Lobby;
-        room.players.clear();
-        room.reset_lobby_settings();
-        (room.to_room_info(), cleared)
+        let paired_limited = room.parent_limited_room.is_some();
+        if paired_limited {
+            for seat in &mut room.players {
+                seat.ready = false;
+            }
+        } else {
+            room.players.clear();
+            room.limited_session_id = None;
+        }
+        if !paired_limited {
+            room.reset_lobby_settings();
+        }
+        (room.to_room_info(), cleared, paired_limited)
     };
 
     let mut notify = Vec::new();
     for pid in cleared {
+        if paired_limited {
+            notify.push(pid);
+            continue;
+        }
         match state.players.get(&pid).map(|p| p.disconnected_at.is_some()) {
             Some(true) => {
                 state.players.remove(&pid);

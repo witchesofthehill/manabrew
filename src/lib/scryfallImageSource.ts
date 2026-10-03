@@ -74,9 +74,7 @@ export function localCardArtRouteAvailable(): Promise<boolean> {
 // the non-CORS display <img> cache entry for the same URL.
 /**
  * Nearest source first: this machine's own cache, then a host on this network
- * that already downloaded it, then the CDN. The first two are plain same-scheme
- * http and need no CORS dance; the CDN sends no `access-control-allow-origin`,
- * which is why it goes through the native fetch.
+ * that already downloaded it, then the CDN.
  */
 async function fetchImageBytes(url: string): Promise<Blob> {
   const key = cacheKeyForImage(url);
@@ -93,7 +91,7 @@ async function fetchImageBytes(url: string): Promise<Blob> {
     }
   }
   // cache: "reload" bypasses any non-CORS entry the display <img> cached for
-  // this URL — a plain fetch would reuse it and CORS-fail (no ACAO header).
+  // this URL — a plain fetch would reuse it and CORS-fail.
   const res = await platformFetch(url, { cache: "reload" });
   if (!res.ok) throw new Error(`scryfall image ${url}: HTTP ${res.status}`);
   return await res.blob();

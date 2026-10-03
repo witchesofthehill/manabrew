@@ -1,5 +1,4 @@
 import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
-import { getHubApiUrl } from "@/config/webRuntimeConfig";
 import { getPlatformType } from "@/platform";
 
 /**
@@ -14,8 +13,5 @@ export function platformFetch(input: string, init?: RequestInit): Promise<Respon
   if (getPlatformType() === "tauri") {
     return tauriFetch(input, { ...merged, maxRedirections: 10 }) as Promise<Response>;
   }
-  const browserInput = input.startsWith("https://api.scryfall.com/")
-    ? input.replace("https://api.scryfall.com", `${getHubApiUrl()}/api/scryfall`)
-    : input;
-  return fetch(browserInput, merged);
+  return fetch(input, merged);
 }

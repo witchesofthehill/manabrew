@@ -34,3 +34,4 @@ aws-lc-rs = "1"
 base64 = "0.22"
 minisign-verify = "0.2"
 sha2 = "0.10"
+rusqlite = { version = "0.31", features = ["bundled"] }

@@ -18,6 +18,10 @@ Under the `java-forge` backend, `SubprocessBridge::spawn` sizes the engine JVM e
 
 A background `updater` monitor (`updater.rs`) polls the version manifest (default `play.manabrew.app/manifest.json`) and compares its own `CARGO_PKG_VERSION` against `packages["self-hosted-node"]`; when behind it logs a warning, or — with `--shutdown-on-stale` / `SELF_HOSTED_NODE_SHUTDOWN_ON_STALE` — gracefully cancels its rooms (relay sockets get a proper WebSocket close) and `exit(0)`s once idle (no `engine_session` active in any room) so a pull-on-restart supervisor respawns it updated. SIGTERM/SIGINT trigger the same graceful room shutdown. Do not enable the flag under plain `restart: unless-stopped` (re-runs the same image → crash loop); it needs a supervisor that pulls latest on restart.
 
+## Checkpoints and takeovers
+
+Only when the relay advertises `host_handoff` (`MANABREW_HOST_HANDOFF=1`) does a non-journal node start games with `checkpointExport: true` and forward each turn-start `GameCheckpoint` as `ReportCheckpoint`. A `HostHandoff` spawns `host_taken_over_room` on a fresh `<node>-h<room>` session, which claims the room, reseats the old host's bots and restores the checkpoint from a `startGameHook`. The restore is lossy and the Rust engine refuses it; `checkpoint_round_trip` and `dead_host_game_is_handed_to_an_idle_pod` cover it.
+
 ## The direct data plane
 
 A headless node offers no plane; its rooms stay on the relay. Under `forge-room` a desktop host
@@ -30,3 +34,11 @@ The relay no longer reads how a game ended off the state stream (`docs/agents/RE
 Hosted Forge sessions opt into `checkpointMetrics` in the internal start request. The Java session times successful restore-point creation with `System.nanoTime()`: `copy` covers `GameSnapshot` construction and `makeCopy`; `bookkeeping` covers retention/eviction and checkpoint-view rebuilding. Samples are drained per session through `drainCheckpointMetrics` (JVM command or `forge_drain_checkpoint_metrics` in Graal) once per new prompt and at normal game end. Polling the same prompt does not count samples twice. Browser sessions drain the same timers through `SabTransport` into their per-game engine report; benchmarks leave collection disabled.
 
 `manabrew_node_forge_checkpoint_seconds{stage,seats}` is a histogram with `copy`, `bookkeeping`, and `total` stages, in seconds. Each stage has one observation per successful checkpoint; use `stage="total"` for checkpoint counts and total cost, rather than summing stages. `manabrew_node_forge_checkpoint_decision_seconds{seats}` records the accumulated checkpoint time for each measured decision, including zero-cost decisions. Startup and terminal checkpoint samples enter the creation histogram only. A killed or aborted session can lose unreported samples. Decision elapsed time is sampled before draining telemetry so that the metrics round trip does not inflate that observation. The Live Ops dashboard charts means, p95/p99, time per decision and its fraction of decision time. These timers measure synchronous wall time, including pauses during copying, but cannot attribute later GC to retained checkpoints.
+
+## Decision journal
+
+`SELF_HOSTED_NODE_DECISION_JOURNAL=1` (official non-playing Forge hosts only, off by default) starts games with `decisionJournal` and `decisionJournalCommitBarrier`. The node hashes the harness jar or loaded native library and the `res/` tree at boot, commits each harness batch through the relay with one pending request per game, and acknowledges the engine only on a matching append receipt. Missing replies retry, a reconnect opens a new writer epoch, and 60 seconds without delivery ends the session. Journal hosts record no UI snapshots and export no checkpoints; batches never enter metrics or analytics.
+
+A journal takeover reads the whole durable prefix with the handoff token, checks it (`JournalHistory::recover`), and replays it in a fresh engine (`replay_journal`), requiring each recorded prompt and entry. Any failure declines without `ResumeRoom`, so seats see nothing. Only then does it claim the room and a new writer epoch, replay anything the old host committed meanwhile, and go live. `GameCheckpoint` has no RNG state, so it cannot serve as a replay base yet.
+
+`yarn bench:hosted-journal` covers delivery faults, relay restart, declined and successful takeovers, and invalidation; add `--engine-artifact <library> --jvm-node <jvm-node>` for a Graal node.

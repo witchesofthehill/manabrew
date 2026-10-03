@@ -46,6 +46,9 @@
     "fix:all": "eslint . --fix && prettier --write src && cargo fmt --all && yarn typecheck",
     "preview": "vite preview",
     "build:harness": "node scripts/harness.mjs build",
+    "bench:relay-journal-wire": "node scripts/engine-bench/relay-journal-wire.mjs",
+    "bench:relay-journal": "node scripts/engine-bench/relay-journal.mjs",
+    "bench:forge-journal": "node scripts/engine-bench/forge-decision-journal.mjs",
     "bench:stress": "node scripts/engine-bench/stress.mjs",
     "bench:manabot": "node scripts/engine-bench/manabot-game.mjs",
     "bench:manabot-pop": "node scripts/engine-bench/manabot-pop.mjs",
@@ -73,7 +76,9 @@
     "test:watch": "vitest",
     "test:e2e:ironsmith": "node tests/e2e-ironsmith/ironsmith-multiplayer.mjs",
     "test:e2e:ironsmith:pair": "node tests/e2e-ironsmith/ironsmith-two-clients.mjs",
-    "test:e2e:engines": "node tests/e2e-ironsmith/other-engines-smoke.mjs"
+    "test:e2e:engines": "node tests/e2e-ironsmith/other-engines-smoke.mjs",
+    "bench:hosted-journal": "node scripts/engine-bench/hosted-journal.mjs",
+    "bench:verify-relay-journal": "node scripts/engine-bench/verify-relay-journal.mjs"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [
@@ -169,7 +174,8 @@
     "typescript-eslint": "^8.48.0",
     "unplugin-icons": "^23.0.1",
     "vite": "^7.3.5",
-    "vitest": "^3.2.6"
+    "vitest": "^3.2.6",
+    "ws": "^8.18.0"
   },
   "resolutions": {
     "js-yaml": "^4.2.0",

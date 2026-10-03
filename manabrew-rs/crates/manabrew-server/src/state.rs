@@ -1,5 +1,5 @@
 use dashmap::DashMap;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use tokio::sync::mpsc;
 use tokio_tungstenite::tungstenite::Message;
@@ -82,9 +82,11 @@ pub struct ServerState {
     pub max_rooms: usize,
     pub official_key: Option<String>,
     pub analytics: AnalyticsHandle,
+    pub journal: Option<Arc<crate::journal_transport::JournalService>>,
     pub identity: IdentityVerifier,
     /// See `ServerConfig::direct_transport`. Fails closed.
     pub direct_transport: bool,
+    pub host_handoff: bool,
     /// See `ServerConfig::ice_servers`.
     pub ice_servers: Vec<crate::protocol::IceServer>,
     pub lobby_chat: Mutex<ChatHistory>,
@@ -109,13 +111,32 @@ impl ServerState {
             max_rooms,
             official_key,
             analytics,
+            journal: None,
             identity: IdentityVerifier::new(hub_jwks_url),
             direct_transport: false,
+            host_handoff: false,
             ice_servers: Vec::new(),
             lobby_chat: Mutex::new(ChatHistory::default()),
             seal,
             art_base_url: None,
         }
+    }
+
+    pub fn with_journal(mut self, path: Option<&str>) -> Result<Self, String> {
+        if let Some(path) = path {
+            if self.official_key.is_none() {
+                return Err("MANABREW_JOURNAL_DB requires SECRET_MANABREW_KEY".into());
+            }
+            self.journal = Some(Arc::new(crate::journal_transport::JournalService::open(
+                path,
+            )?));
+        }
+        Ok(self)
+    }
+
+    pub fn with_host_handoff(mut self, enabled: bool) -> Self {
+        self.host_handoff = enabled;
+        self
     }
 
     pub fn with_direct_transport(

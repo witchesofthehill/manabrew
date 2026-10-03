@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 #[cfg(forge_backend)]
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::env;
 #[cfg(feature = "java-forge")]
 use std::io::{BufRead, BufReader, BufWriter, Write};
@@ -47,7 +47,7 @@ use tracing::warn;
 #[cfg(forge_backend)]
 use tracing::{debug, info};
 
-use super::HostedGameOver;
+use super::{HostedCheckpoint, HostedGameOver};
 use crate::config::workspace_root;
 
 pub fn unsupported_message() -> &'static str {
@@ -527,6 +527,34 @@ impl JavaEngineHandle {
         guard.is_game_over(session_id)
     }
 
+    pub fn read_decision_journal(&self, session_id: &str) -> Result<String, String> {
+        let bridge = self.bridge_for(session_id)?;
+        let mut guard = bridge
+            .lock()
+            .map_err(|_| "java subprocess mutex poisoned".to_string())?;
+        guard.read_decision_journal(session_id)
+    }
+
+    pub fn acknowledge_decision_journal(
+        &self,
+        session_id: &str,
+        sequence: i64,
+    ) -> Result<String, String> {
+        let bridge = self.bridge_for(session_id)?;
+        let mut guard = bridge
+            .lock()
+            .map_err(|_| "java subprocess mutex poisoned".to_string())?;
+        guard.acknowledge_decision_journal(session_id, sequence)
+    }
+
+    pub fn drain_decision_journal(&self, session_id: &str) -> Result<String, String> {
+        let bridge = self.bridge_for(session_id)?;
+        let mut guard = bridge
+            .lock()
+            .map_err(|_| "java subprocess mutex poisoned".to_string())?;
+        guard.drain_decision_journal(session_id)
+    }
+
     pub fn drain_checkpoint_metrics(&self, session_id: &str) -> Result<String, String> {
         let bridge = self.bridge_for(session_id)?;
         let mut guard = bridge
@@ -549,6 +577,14 @@ impl JavaEngineHandle {
             .lock()
             .map_err(|_| "java subprocess mutex poisoned".to_string())?;
         guard.get_snapshot(session_id, viewer)
+    }
+
+    pub fn get_checkpoint(&self, session_id: &str) -> Result<Option<String>, String> {
+        let bridge = self.bridge_for(session_id)?;
+        let mut guard = bridge
+            .lock()
+            .map_err(|_| "java subprocess mutex poisoned".to_string())?;
+        guard.get_checkpoint(session_id)
     }
 
     pub fn end_game(&self, session_id: &str) -> Result<(), String> {
@@ -639,6 +675,48 @@ pub fn init_engine() -> Result<(), String> {
     Ok(())
 }
 
+#[cfg(forge_backend)]
+pub(crate) fn init_decision_journal() -> Result<(), String> {
+    #[cfg(any(feature = "java-forge", unix))]
+    let config = JavaRuntimeConfig::from_env();
+    #[cfg(feature = "java-forge")]
+    let artifact = {
+        if !config.extra_classpath.is_empty() || !config.extra_jvm_args.is_empty() {
+            return Err("decision journal identity requires an unmodified harness classpath and JVM options".into());
+        }
+        config.harness_jar.clone()
+    };
+    #[cfg(all(feature = "graal-forge", not(feature = "java-forge"), unix))]
+    let artifact = unsafe {
+        let mut info: libc::Dl_info = std::mem::zeroed();
+        if libc::dladdr(
+            graal_ffi::forge_read_decision_journal as *const () as *const libc::c_void,
+            &mut info,
+        ) == 0
+            || info.dli_fname.is_null()
+        {
+            return Err("cannot locate the loaded Forge library for journal identity".into());
+        }
+        use std::os::unix::ffi::OsStrExt;
+        PathBuf::from(std::ffi::OsStr::from_bytes(
+            std::ffi::CStr::from_ptr(info.dli_fname).to_bytes(),
+        ))
+    };
+    #[cfg(any(feature = "java-forge", unix))]
+    {
+        crate::journal::init_artifacts(&artifact, &config.assets_dir.join("res"))
+    }
+    #[cfg(all(not(feature = "java-forge"), not(unix)))]
+    {
+        Err("native journal artifact identity is only supported on Unix".into())
+    }
+}
+
+#[cfg(not(forge_backend))]
+pub(crate) fn init_decision_journal() -> Result<(), String> {
+    Err(unsupported_message().into())
+}
+
 #[cfg(not(forge_backend))]
 pub fn init_engine() -> Result<(), String> {
     Err(
@@ -719,11 +797,28 @@ mod graal_ffi {
             thread: *mut graal_isolatethread_t,
             session_id: *const c_char,
         ) -> *mut c_char;
+        pub fn forge_read_decision_journal(
+            thread: *mut graal_isolatethread_t,
+            session_id: *const c_char,
+        ) -> *mut c_char;
+        pub fn forge_acknowledge_decision_journal(
+            thread: *mut graal_isolatethread_t,
+            session_id: *const c_char,
+            sequence: i64,
+        ) -> *mut c_char;
+        pub fn forge_drain_decision_journal(
+            thread: *mut graal_isolatethread_t,
+            session_id: *const c_char,
+        ) -> *mut c_char;
         pub fn forge_drain_checkpoint_metrics(
             thread: *mut graal_isolatethread_t,
             session_id: *const c_char,
         ) -> *mut c_char;
         pub fn forge_get_state_revision(
+            thread: *mut graal_isolatethread_t,
+            session_id: *const c_char,
+        ) -> *mut c_char;
+        pub fn forge_get_checkpoint(
             thread: *mut graal_isolatethread_t,
             session_id: *const c_char,
         ) -> *mut c_char;
@@ -999,6 +1094,35 @@ impl GraalEngineHandle {
         Ok(value.trim() == "true")
     }
 
+    fn read_decision_journal(&self, session_id: &str) -> Result<String, String> {
+        let session = cstring(session_id)?;
+        self.bridge.decode(unsafe {
+            graal_ffi::forge_read_decision_journal(self.bridge.thread, session.as_ptr())
+        })
+    }
+
+    fn acknowledge_decision_journal(
+        &self,
+        session_id: &str,
+        sequence: i64,
+    ) -> Result<String, String> {
+        let session = cstring(session_id)?;
+        self.bridge.decode(unsafe {
+            graal_ffi::forge_acknowledge_decision_journal(
+                self.bridge.thread,
+                session.as_ptr(),
+                sequence,
+            )
+        })
+    }
+
+    fn drain_decision_journal(&self, session_id: &str) -> Result<String, String> {
+        let session = cstring(session_id)?;
+        self.bridge.decode(unsafe {
+            graal_ffi::forge_drain_decision_journal(self.bridge.thread, session.as_ptr())
+        })
+    }
+
     fn drain_checkpoint_metrics(&self, session_id: &str) -> Result<String, String> {
         let session = cstring(session_id)?;
         self.bridge.decode(unsafe {
@@ -1020,6 +1144,14 @@ impl GraalEngineHandle {
         self.bridge.decode(unsafe {
             graal_ffi::forge_get_snapshot(self.bridge.thread, session.as_ptr(), viewer)
         })
+    }
+
+    fn get_checkpoint(&self, session_id: &str) -> Result<Option<String>, String> {
+        let session = cstring(session_id)?;
+        let checkpoint = self.bridge.decode(unsafe {
+            graal_ffi::forge_get_checkpoint(self.bridge.thread, session.as_ptr())
+        })?;
+        Ok((!checkpoint.is_empty()).then_some(checkpoint))
     }
 
     fn end_game(&self, session_id: &str) -> Result<(), String> {
@@ -1410,7 +1542,7 @@ impl JavaRuntimeConfig {
 
 #[cfg(forge_backend)]
 #[allow(clippy::too_many_arguments)]
-pub fn run_hosted_engine_game(
+pub(crate) fn run_hosted_engine_game(
     game_id: String,
     player_names: Vec<String>,
     decks: Vec<Deck>,
@@ -1421,10 +1553,14 @@ pub fn run_hosted_engine_game(
     ai_player_indices: Vec<usize>,
     bot_player_indices: Vec<usize>,
     starting_life: i32,
+    checkpoint: Option<String>,
     remote_prompt_tx: std_mpsc::Sender<(usize, AgentMessage)>,
     remote_response_rxs: Vec<(usize, std_mpsc::Receiver<ClientToServerMessage>)>,
     game_over_tx: std_mpsc::Sender<HostedGameOver>,
+    checkpoint_tx: Option<std_mpsc::Sender<HostedCheckpoint>>,
     cancel: Arc<AtomicBool>,
+    journal: Option<Arc<crate::journal::JournalDelivery>>,
+    recovery: Option<crate::journal::JournalRecovery>,
 ) -> Result<(), String> {
     run_hosted_engine_game_inner(
         game_id,
@@ -1437,16 +1573,20 @@ pub fn run_hosted_engine_game(
         ai_player_indices,
         bot_player_indices,
         starting_life,
+        checkpoint,
         remote_prompt_tx,
         remote_response_rxs,
         game_over_tx,
+        checkpoint_tx,
         cancel,
+        journal,
+        recovery,
     )
 }
 
 #[cfg(not(forge_backend))]
 #[allow(clippy::too_many_arguments)]
-pub fn run_hosted_engine_game(
+pub(crate) fn run_hosted_engine_game(
     _game_id: String,
     _player_names: Vec<String>,
     _decks: Vec<Deck>,
@@ -1457,10 +1597,14 @@ pub fn run_hosted_engine_game(
     _ai_player_indices: Vec<usize>,
     _bot_player_indices: Vec<usize>,
     _starting_life: i32,
+    _checkpoint: Option<String>,
     _remote_prompt_tx: std_mpsc::Sender<(usize, AgentMessage)>,
     _remote_response_rxs: Vec<(usize, std_mpsc::Receiver<ClientToServerMessage>)>,
     _game_over_tx: std_mpsc::Sender<HostedGameOver>,
+    _checkpoint_tx: Option<std_mpsc::Sender<HostedCheckpoint>>,
     _cancel: Arc<AtomicBool>,
+    _journal: Option<Arc<crate::journal::JournalDelivery>>,
+    _recovery: Option<crate::journal::JournalRecovery>,
 ) -> Result<(), String> {
     Err(unsupported_message().to_string())
 }
@@ -1548,10 +1692,14 @@ fn run_hosted_engine_game_inner(
     ai_player_indices: Vec<usize>,
     bot_player_indices: Vec<usize>,
     starting_life: i32,
+    checkpoint: Option<String>,
     remote_prompt_tx: std_mpsc::Sender<(usize, AgentMessage)>,
     remote_response_rxs: Vec<(usize, std_mpsc::Receiver<ClientToServerMessage>)>,
     game_over_tx: std_mpsc::Sender<HostedGameOver>,
+    checkpoint_tx: Option<std_mpsc::Sender<HostedCheckpoint>>,
     cancel: Arc<AtomicBool>,
+    journal: Option<Arc<crate::journal::JournalDelivery>>,
+    recovery: Option<crate::journal::JournalRecovery>,
 ) -> Result<(), String> {
     let engine = obtain_engine()?;
 
@@ -1579,16 +1727,34 @@ fn run_hosted_engine_game_inner(
             player.bot = true;
         }
     }
-    let mut request = StartGameRequest::new(
-        game_id.clone(),
-        game_variant,
-        starting_life,
-        rand::random(),
-        players,
+    let restored = checkpoint.is_some() || recovery.is_some();
+    if recovery.is_some() && (journal.is_none() || checkpoint.is_some()) {
+        return Err("journal recovery requires journal delivery and no checkpoint".into());
+    }
+    let start_request = match &recovery {
+        Some(recovery) => recovery.journal.start_request.clone(),
+        None => {
+            let mut request = StartGameRequest::new(
+                game_id.clone(),
+                game_variant,
+                starting_life,
+                rand::random(),
+                players,
+            )
+            .with_checkpoint(checkpoint);
+            request.checkpoint_metrics = true;
+            request.checkpoint_export = checkpoint_tx.is_some();
+            request.decision_journal = journal.is_some();
+            request.decision_journal_commit_barrier = journal.is_some();
+            request.snapshot_recording = journal.as_ref().map(|_| false);
+            request.to_json().map_err(|err| err.to_string())?
+        }
+    };
+    let session_id = engine.start_game(&start_request)?;
+    info!(
+        game_id,
+        session_id, restored, "hosted java-forge session started"
     );
-    request.checkpoint_metrics = true;
-    let session_id = engine.start_game(&request.to_json().map_err(|err| err.to_string())?)?;
-    info!(game_id, session_id, "hosted java-forge session started");
 
     struct SessionGuard {
         engine: ForgeEngine,
@@ -1610,16 +1776,92 @@ fn run_hosted_engine_game_inner(
         armed: std::cell::Cell::new(true),
     };
 
+    let mut journal = match (journal, recovery) {
+        (Some(delivery), Some(recovery)) => {
+            let replayed = replay_journal(&engine, &session_id, &recovery.journal);
+            let failed = replayed.as_ref().err().cloned();
+            let _ = recovery.replayed.send(replayed);
+            if let Some(error) = failed {
+                return Err(error);
+            }
+            loop {
+                if cancel.load(std::sync::atomic::Ordering::Relaxed) {
+                    return Ok(());
+                }
+                match recovery.live.recv_timeout(Duration::from_millis(100)) {
+                    Ok(()) => break,
+                    Err(std_mpsc::RecvTimeoutError::Timeout) => {}
+                    Err(std_mpsc::RecvTimeoutError::Disconnected) => {
+                        return Err("journal takeover was abandoned".into())
+                    }
+                }
+            }
+            let mut writer =
+                crate::journal::JournalWriter::new(delivery, &recovery.journal.start_request)?;
+            let replayed = recovery.journal.sequence();
+            let durable = match writer.claim(&cancel) {
+                Ok(sequence) => sequence,
+                Err(_) if cancel.load(std::sync::atomic::Ordering::Relaxed) => return Ok(()),
+                Err(error) => return Err(error),
+            };
+            if durable < replayed {
+                return Err("durable journal is shorter than the replayed prefix".into());
+            }
+            if durable > replayed {
+                let mut history = crate::journal::JournalHistory::default();
+                while !history.complete() {
+                    history.add_page(&writer.read_after(history.after(), &cancel)?)?;
+                }
+                let suffix = history.recover(&game_id)?;
+                if suffix.start_request != recovery.journal.start_request
+                    || suffix.entries[..replayed as usize] != recovery.journal.entries[..]
+                {
+                    return Err("durable journal changed under the takeover".into());
+                }
+                replay_entries(&engine, &session_id, &suffix.entries[replayed as usize..])?;
+                info!(
+                    game_id,
+                    replayed,
+                    suffix = durable - replayed,
+                    "replayed decisions committed after the takeover read"
+                );
+            }
+            info!(game_id, decisions = durable, "journal takeover is live");
+            Some(writer)
+        }
+        (Some(delivery), None) => {
+            let batch = engine.read_decision_journal(&session_id)?;
+            let manifest: serde_json::Value = serde_json::from_str(&batch)
+                .map_err(|_| "engine did not retain its journal manifest".to_string())?;
+            let recorded_start = manifest
+                .get("startRequest")
+                .and_then(|value| value.as_str())
+                .ok_or("engine journal manifest is missing its start request")?;
+            let mut writer = crate::journal::JournalWriter::new(delivery, recorded_start)?;
+            let sequence = match writer.commit(batch, &cancel) {
+                Ok(sequence) => sequence,
+                Err(_) if cancel.load(std::sync::atomic::Ordering::Relaxed) => return Ok(()),
+                Err(error) => return Err(error),
+            };
+            engine.acknowledge_decision_journal(&session_id, sequence)?;
+            Some(writer)
+        }
+        (None, _) => None,
+    };
+
     let mut remote_response_rxs: HashMap<usize, std_mpsc::Receiver<ClientToServerMessage>> =
         remote_response_rxs.into_iter().collect();
     let mut last_prompt: Option<AgentPrompt> = None;
     let mut pending_roll_acks: usize = 0;
+    let mut roll_acknowledged = HashSet::new();
+    let mut answered_prompt = None;
     let mut decision_received: Option<Instant> = None;
     let mut decision_submitted: Option<Instant> = None;
     // The last time an answer went in or a prompt came out. The loop polls
     // hot for a moment after either, which is when the next is due.
     let mut last_activity = Instant::now();
     let mut state_revision = 0;
+    let mut last_checkpoint_seq: Option<u64> = None;
 
     loop {
         if cancel.load(std::sync::atomic::Ordering::Relaxed) {
@@ -1634,8 +1876,16 @@ fn run_hosted_engine_game_inner(
                 match rx.try_recv() {
                     Ok(ClientToServerMessage::Response {
                         action: PromptOutput::DiceRolled(DiceRolledOutput::DiceRolledAcknowledged),
-                        ..
+                        prompt_id,
                     }) => {
+                        if journal.is_some()
+                            && (!last_prompt.as_ref().is_some_and(|prompt| {
+                                matches!(prompt.input, PromptInput::DiceRolled(_))
+                                    && (prompt_id == 0 || prompt.prompt_id == prompt_id)
+                            }) || !roll_acknowledged.insert(*player_index))
+                        {
+                            continue;
+                        }
                         if pending_roll_acks > 0 {
                             pending_roll_acks -= 1;
                             if pending_roll_acks == 0 {
@@ -1715,6 +1965,14 @@ fn run_hosted_engine_game_inner(
                                 }
                             }
                         }
+                        let effective_prompt = last_prompt.as_ref().map(|prompt| prompt.prompt_id);
+                        if journal.is_some()
+                            && effective_prompt.is_some()
+                            && answered_prompt == effective_prompt
+                        {
+                            continue;
+                        }
+                        answered_prompt = effective_prompt;
                         decision_received = Some(Instant::now());
                         let action_json = serde_json::to_string(&action).map_err(|err| {
                             format!(
@@ -1744,6 +2002,17 @@ fn run_hosted_engine_game_inner(
             }
         }
 
+        if let Some(journal) = journal.as_mut() {
+            let batch = engine.read_decision_journal(&session_id)?;
+            if !batch.is_empty() {
+                let sequence = match journal.commit(batch, &cancel) {
+                    Ok(sequence) => sequence,
+                    Err(_) if cancel.load(std::sync::atomic::Ordering::Relaxed) => return Ok(()),
+                    Err(error) => return Err(error),
+                };
+                engine.acknowledge_decision_journal(&session_id, sequence)?;
+            }
+        }
         let revision = engine.state_revision(&session_id)?;
         if revision != state_revision {
             state_revision = revision;
@@ -1795,6 +2064,15 @@ fn run_hosted_engine_game_inner(
                     report_engine_gc(&engine);
                 }
                 last_prompt = Some(prompt.clone());
+                if let Some(checkpoint_tx) = &checkpoint_tx {
+                    forward_checkpoint(
+                        &engine,
+                        &session_id,
+                        &game_id,
+                        &mut last_checkpoint_seq,
+                        checkpoint_tx,
+                    );
+                }
                 let player = player_index(&prompt.deciding_player_id);
                 debug!(player, "forwarding java prompt to remote");
                 if matches!(prompt.input, PromptInput::DiceRolled(_)) {
@@ -1810,6 +2088,7 @@ fn run_hosted_engine_game_inner(
                         let _ = remote_prompt_tx.send((agent_index, prompt_msg.clone()));
                     }
                     send_observer_state(&engine, &session_id, &remote_prompt_tx);
+                    roll_acknowledged.clear();
                     pending_roll_acks = remote_response_rxs.len();
                     if pending_roll_acks == 0 {
                         let ack = serde_json::to_string(&PromptOutput::DiceRolled(
@@ -1894,6 +2173,104 @@ fn run_hosted_engine_game_inner(
     }
 }
 
+/// Each entry must meet the recorded prompt and be re-recorded identically; it
+/// is already durable, so the commit barrier is released locally.
+#[cfg(forge_backend)]
+fn replay_journal(
+    engine: &ForgeEngine,
+    session_id: &str,
+    journal: &crate::journal::RecoveredJournal,
+) -> Result<(), String> {
+    let manifest: serde_json::Value =
+        serde_json::from_str(&engine.read_decision_journal(session_id)?)
+            .map_err(|_| "replay engine did not journal its start".to_string())?;
+    if manifest
+        .get("startRequest")
+        .and_then(|value| value.as_str())
+        != Some(journal.start_request.as_str())
+        || manifest
+            .get("nextSequence")
+            .and_then(|value| value.as_i64())
+            != Some(1)
+        || manifest
+            .get("commitBarrier")
+            .and_then(|value| value.as_bool())
+            != Some(true)
+        || manifest.get("unavailableReason").is_some()
+    {
+        return Err("replay engine start does not match the journal manifest".into());
+    }
+    engine.acknowledge_decision_journal(session_id, 0)?;
+    replay_entries(engine, session_id, &journal.entries)
+}
+
+#[cfg(forge_backend)]
+fn replay_entries(
+    engine: &ForgeEngine,
+    session_id: &str,
+    entries: &[serde_json::Value],
+) -> Result<(), String> {
+    const REPLAY_STEP: Duration = Duration::from_secs(30);
+    for entry in entries {
+        let sequence = entry
+            .get("sequence")
+            .and_then(|value| value.as_i64())
+            .ok_or("journal entry has no sequence")?;
+        let expected = entry.get("prompt").unwrap_or(&serde_json::Value::Null);
+        if !expected.is_null() {
+            let started = Instant::now();
+            loop {
+                let current = engine
+                    .get_prompt(session_id, 0)?
+                    .map(|raw| serde_json::from_str::<serde_json::Value>(&raw))
+                    .transpose()
+                    .map_err(|err| format!("replay prompt is not JSON: {err}"))?;
+                if current.as_ref() == Some(expected) {
+                    break;
+                }
+                if engine.is_game_over(session_id)? {
+                    return Err(format!("replay ended before decision {sequence}"));
+                }
+                if started.elapsed() >= REPLAY_STEP {
+                    return Err(format!("prompt divergence at decision {sequence}"));
+                }
+                std::thread::sleep(Duration::from_millis(2));
+            }
+        }
+        let action = entry.get("action").ok_or("journal entry has no action")?;
+        engine.submit_action(session_id, &action.to_string())?;
+        let started = Instant::now();
+        let batch = loop {
+            let raw = engine.read_decision_journal(session_id)?;
+            if !raw.is_empty() {
+                let batch: serde_json::Value = serde_json::from_str(&raw)
+                    .map_err(|_| "replay journal batch is not JSON".to_string())?;
+                if batch.get("unavailableReason").is_some()
+                    || batch
+                        .get("entries")
+                        .and_then(|entries| entries.as_array())
+                        .is_some_and(|entries| !entries.is_empty())
+                {
+                    break batch;
+                }
+            }
+            if started.elapsed() >= REPLAY_STEP {
+                return Err(format!("decision {sequence} was not consumed in replay"));
+            }
+            std::thread::sleep(Duration::from_millis(1));
+        };
+        if batch.get("unavailableReason").is_some()
+            || batch.get("nextSequence").and_then(|value| value.as_i64()) != Some(sequence + 1)
+            || batch.get("entries").and_then(|entries| entries.as_array())
+                != Some(&vec![entry.clone()])
+        {
+            return Err(format!("consumption divergence at decision {sequence}"));
+        }
+        engine.acknowledge_decision_journal(session_id, sequence)?;
+    }
+    Ok(())
+}
+
 #[cfg(feature = "java-forge")]
 fn wait_for_prompt<B: JavaBridge>(
     session: &mut JavaForgeSession<B>,
@@ -1906,6 +2283,48 @@ fn wait_for_prompt<B: JavaBridge>(
         std::thread::sleep(Duration::from_millis(50));
     }
     Ok(None)
+}
+
+#[cfg(forge_backend)]
+#[derive(serde::Deserialize)]
+struct CheckpointHeader {
+    seq: u64,
+    turn: u32,
+}
+
+#[cfg(forge_backend)]
+fn forward_checkpoint(
+    engine: &ForgeEngine,
+    session_id: &str,
+    game_id: &str,
+    last_seq: &mut Option<u64>,
+    checkpoint_tx: &std_mpsc::Sender<HostedCheckpoint>,
+) {
+    let checkpoint = match engine.get_checkpoint(session_id) {
+        Ok(Some(checkpoint)) => checkpoint,
+        Ok(None) => return,
+        Err(error) => {
+            warn!(%error, session_id, "checkpoint unavailable");
+            return;
+        }
+    };
+    let header: CheckpointHeader = match serde_json::from_str(&checkpoint) {
+        Ok(header) => header,
+        Err(error) => {
+            warn!(%error, session_id, "checkpoint header unreadable");
+            return;
+        }
+    };
+    if *last_seq == Some(header.seq) {
+        return;
+    }
+    *last_seq = Some(header.seq);
+    let _ = checkpoint_tx.send(HostedCheckpoint {
+        game_id: game_id.to_string(),
+        seq: header.seq,
+        turn: header.turn,
+        checkpoint,
+    });
 }
 
 #[cfg(forge_backend)]
@@ -2605,7 +3024,15 @@ pub trait JavaBridge {
         player_index: usize,
     ) -> Result<Option<String>, String>;
     fn get_snapshot(&mut self, session_id: &str, viewer: Option<usize>) -> Result<String, String>;
+    fn get_checkpoint(&mut self, session_id: &str) -> Result<Option<String>, String>;
     fn is_game_over(&mut self, session_id: &str) -> Result<bool, String>;
+    fn read_decision_journal(&mut self, session_id: &str) -> Result<String, String>;
+    fn acknowledge_decision_journal(
+        &mut self,
+        session_id: &str,
+        sequence: i64,
+    ) -> Result<String, String>;
+    fn drain_decision_journal(&mut self, session_id: &str) -> Result<String, String>;
     fn drain_checkpoint_metrics(&mut self, session_id: &str) -> Result<String, String>;
     fn state_revision(&mut self, session_id: &str) -> Result<u64, String>;
     fn end_game(&mut self, session_id: &str) -> Result<(), String>;
@@ -2651,6 +3078,11 @@ impl<B: JavaBridge> JavaForgeSession<B> {
     pub fn get_snapshot(&mut self, viewer: Option<usize>) -> Result<String, String> {
         let session_id = self.require_session_id()?.to_string();
         self.bridge.get_snapshot(&session_id, viewer)
+    }
+
+    pub fn get_checkpoint(&mut self) -> Result<Option<String>, String> {
+        let session_id = self.require_session_id()?.to_string();
+        self.bridge.get_checkpoint(&session_id)
     }
 
     pub fn is_game_over(&mut self) -> Result<bool, String> {
@@ -2703,7 +3135,27 @@ impl JavaBridge for UnavailableJavaBridge {
         Err(unsupported_message().to_string())
     }
 
+    fn get_checkpoint(&mut self, _session_id: &str) -> Result<Option<String>, String> {
+        Err(unsupported_message().to_string())
+    }
+
     fn is_game_over(&mut self, _session_id: &str) -> Result<bool, String> {
+        Err(unsupported_message().to_string())
+    }
+
+    fn read_decision_journal(&mut self, _session_id: &str) -> Result<String, String> {
+        Err(unsupported_message().to_string())
+    }
+
+    fn acknowledge_decision_journal(
+        &mut self,
+        _session_id: &str,
+        _sequence: i64,
+    ) -> Result<String, String> {
+        Err(unsupported_message().to_string())
+    }
+
+    fn drain_decision_journal(&mut self, _session_id: &str) -> Result<String, String> {
         Err(unsupported_message().to_string())
     }
 
@@ -2969,10 +3421,35 @@ impl JavaBridge for SubprocessBridge {
         self.call(&body.to_string())
     }
 
+    fn get_checkpoint(&mut self, session_id: &str) -> Result<Option<String>, String> {
+        let body = json!({ "command": "getCheckpoint", "sessionId": session_id });
+        let checkpoint = self.call(&body.to_string())?;
+        Ok((!checkpoint.is_empty()).then_some(checkpoint))
+    }
+
     fn is_game_over(&mut self, session_id: &str) -> Result<bool, String> {
         let body = json!({ "command": "getGameOver", "sessionId": session_id });
         let value = self.call(&body.to_string())?;
         Ok(value.trim() == "true")
+    }
+
+    fn read_decision_journal(&mut self, session_id: &str) -> Result<String, String> {
+        let body = json!({ "command": "readDecisionJournal", "sessionId": session_id });
+        self.call(&body.to_string())
+    }
+
+    fn acknowledge_decision_journal(
+        &mut self,
+        session_id: &str,
+        sequence: i64,
+    ) -> Result<String, String> {
+        let body = json!({ "command": "acknowledgeDecisionJournal", "sessionId": session_id, "sequence": sequence });
+        self.call(&body.to_string())
+    }
+
+    fn drain_decision_journal(&mut self, session_id: &str) -> Result<String, String> {
+        let body = json!({ "command": "drainDecisionJournal", "sessionId": session_id });
+        self.call(&body.to_string())
     }
 
     fn drain_checkpoint_metrics(&mut self, session_id: &str) -> Result<String, String> {
@@ -3036,6 +3513,14 @@ pub struct StartGameRequest {
     seed: u64,
     players: Vec<PlayerConfig>,
     checkpoint_metrics: bool,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    checkpoint_export: bool,
+    decision_journal: bool,
+    decision_journal_commit_barrier: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    snapshot_recording: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    checkpoint: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -3080,7 +3565,17 @@ impl StartGameRequest {
             seed,
             players,
             checkpoint_metrics: false,
+            checkpoint_export: false,
+            decision_journal: false,
+            decision_journal_commit_barrier: false,
+            snapshot_recording: None,
+            checkpoint: None,
         }
+    }
+
+    pub fn with_checkpoint(mut self, checkpoint: Option<String>) -> Self {
+        self.checkpoint = checkpoint;
+        self
     }
 
     pub fn to_json(&self) -> Result<String, serde_json::Error> {
@@ -3273,5 +3768,120 @@ mod gc_log_tests {
         assert!(json.contains(
             r#""deck":[{"name":"Forest","setCode":"EOE","collectorNumber":"266","foil":true}]"#
         ));
+    }
+}
+
+#[cfg(all(test, feature = "java-forge"))]
+mod checkpoint_tests {
+    use super::*;
+    use crate::config::SelfPlayConfig;
+    use manabot::{BotAgent, SimpleAi};
+
+    /// Plays bot answers until the harness has exported a checkpoint at or
+    /// past `target_turn`.
+    fn play_until_checkpoint<B: JavaBridge>(
+        session: &mut JavaForgeSession<B>,
+        target_turn: u32,
+        max_prompts: usize,
+    ) -> Result<String, String> {
+        let mut bots: HashMap<usize, SimpleAi> = HashMap::new();
+        let mut last_prompt: Option<String> = None;
+        let mut acted = 0usize;
+        for _ in 0..max_prompts.saturating_mul(200) {
+            if let Some(checkpoint) = session.get_checkpoint()? {
+                let header: CheckpointHeader = serde_json::from_str(&checkpoint)
+                    .map_err(|err| format!("checkpoint header: {err}"))?;
+                if header.turn >= target_turn {
+                    return Ok(checkpoint);
+                }
+            }
+            if session.is_game_over()? {
+                return Err("game over before the target turn".to_string());
+            }
+            let Some(prompt_json) = session.get_prompt(0)? else {
+                std::thread::sleep(Duration::from_millis(20));
+                continue;
+            };
+            if last_prompt.as_deref() == Some(prompt_json.as_str()) {
+                std::thread::sleep(Duration::from_millis(20));
+                continue;
+            }
+            let prompt: AgentPrompt =
+                serde_json::from_str(&prompt_json).map_err(|err| format!("prompt: {err}"))?;
+            let player = player_index(&prompt.deciding_player_id);
+            if let Some(action) = bots.entry(player).or_default().decide(prompt) {
+                submit_player_action(session, &action)?;
+                acted += 1;
+                if acted >= max_prompts {
+                    return Err(format!(
+                        "no checkpoint at turn {target_turn} within {max_prompts} decisions"
+                    ));
+                }
+            }
+            last_prompt = Some(prompt_json);
+        }
+        Err("iteration cap".to_string())
+    }
+
+    /// Needs a JVM and the built harness jar:
+    /// `cargo test -p self-hosted-node --features java-forge checkpoint_round_trip -- --ignored --nocapture`
+    #[test]
+    #[ignore = "needs a JVM and forge-harness/target/forge-harness-jar-with-dependencies.jar"]
+    fn checkpoint_round_trip() {
+        let config = JavaRuntimeConfig::from_env();
+        let assets_dir = config.assets_dir.to_string_lossy().to_string();
+        let bridge = SubprocessBridge::spawn(&config).expect("java subprocess");
+        let mut session = JavaForgeSession::new(bridge);
+        session.initialize(&assets_dir).expect("initialize");
+        let seats = SelfPlayConfig::from_env().seats;
+        let players: Vec<PlayerConfig> = seats
+            .iter()
+            .enumerate()
+            .map(|(index, seat)| {
+                PlayerConfig::new(
+                    format!("Seat {}", index + 1),
+                    &deck_card_identities(&seat.deck),
+                    commander_names_for_java(&seat.deck, seat.commander_name.as_deref()),
+                )
+            })
+            .collect();
+
+        let mut source = StartGameRequest::new(
+            "checkpoint-source".to_string(),
+            String::new(),
+            20,
+            7,
+            players.clone(),
+        );
+        source.checkpoint_export = true;
+        session.start_game(&source).expect("source game");
+        let checkpoint =
+            play_until_checkpoint(&mut session, 3, 600).expect("a checkpoint at turn 3");
+        session.end_game().expect("end source game");
+        let header: CheckpointHeader = serde_json::from_str(&checkpoint).unwrap();
+
+        let mut restored = StartGameRequest::new(
+            "checkpoint-restored".to_string(),
+            String::new(),
+            20,
+            8,
+            players,
+        )
+        .with_checkpoint(Some(checkpoint));
+        restored.checkpoint_export = true;
+        session.start_game(&restored).expect("restored game");
+        let continued = play_until_checkpoint(&mut session, header.turn + 1, 600)
+            .expect("play past the restored turn");
+        let continued: CheckpointHeader = serde_json::from_str(&continued).unwrap();
+        assert_eq!(continued.turn, header.turn + 1);
+        let view: GameViewDto =
+            serde_json::from_str(&session.get_snapshot(None).unwrap()).expect("snapshot");
+        assert!(
+            view.turn >= header.turn,
+            "turn {} did not continue from {}",
+            view.turn,
+            header.turn
+        );
+        session.end_game().unwrap();
     }
 }

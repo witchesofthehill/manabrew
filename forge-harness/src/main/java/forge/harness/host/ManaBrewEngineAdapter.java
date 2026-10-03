@@ -81,6 +81,10 @@ public final class ManaBrewEngineAdapter {
         Objects.requireNonNull(request, "request");
         requireInitialized();
 
+        if (request.journalStart != null && (request.getCheckpoint() != null || request.checkpointExport
+                || request.getPlayers().stream().anyMatch(PlayerConfig::isAi))) {
+            throw new IllegalArgumentException("decision journal requires a seeded game with external decisions");
+        }
         final CountingRandom rng = new CountingRandom(request.getSeed(), "hosted");
 
         final int playerCount = request.getPlayers().size();
@@ -105,6 +109,10 @@ public final class ManaBrewEngineAdapter {
         }
         final ManaBrewInteractiveSession session =
                 new ManaBrewInteractiveSession(request.getGameId());
+        final GameCheckpoint.Restore restore = request.getCheckpoint() == null
+                ? null
+                : GameCheckpoint.parse(request.getCheckpoint(), playerCount);
+        session.setRestore(restore);
         final List<RegisteredPlayer> registeredPlayers = new ArrayList<>();
         final Set<Integer> botSeats = new HashSet<>();
         for (PlayerConfig playerConfig : request.getPlayers()) {
@@ -114,6 +122,9 @@ public final class ManaBrewEngineAdapter {
             Deck deck = buildDeck(playerConfig);
             RegisteredPlayer registeredPlayer = RegisteredPlayer.forVariants(
                     playerCount, variants, deck, null, false, null, null);
+            if (restore != null) {
+                registeredPlayer.setStartingHand(0);
+            }
             if (playerConfig.isAi()) {
                 registeredPlayer.setPlayer(new LobbyPlayerAi(playerConfig.getName(), null));
             } else {
@@ -128,6 +139,12 @@ public final class ManaBrewEngineAdapter {
         session.attach(match, game, botSeats, request.isSnapshotRecording());
         if (request.checkpointMetrics) {
             session.enableCheckpointMetrics();
+        }
+        if (request.checkpointExport) {
+            session.enableCheckpointExport();
+        }
+        if (request.journalStart != null) {
+            session.enableDecisionJournal(request.journalStart, request.journalCommitBarrier);
         }
         sessions.put(session.getSessionId(), session);
         session.start(rng);
@@ -169,6 +186,18 @@ public final class ManaBrewEngineAdapter {
         return String.valueOf(session.isGameOver());
     }
 
+    public String readDecisionJournal(final String sessionId) {
+        return getSession(sessionId).readDecisionJournal();
+    }
+
+    public String acknowledgeDecisionJournal(final String sessionId, final long sequence) {
+        return getSession(sessionId).acknowledgeDecisionJournal(sequence);
+    }
+
+    public String drainDecisionJournal(final String sessionId) {
+        return getSession(sessionId).drainDecisionJournal();
+    }
+
     public String drainCheckpointMetrics(final String sessionId) {
         return getSession(sessionId).drainCheckpointMetrics();
     }
@@ -180,6 +209,11 @@ public final class ManaBrewEngineAdapter {
     public String getEngineError(final String sessionId) {
         final String error = getSession(sessionId).getEngineError();
         return error == null ? "" : error;
+    }
+
+    public String getCheckpoint(final String sessionId) {
+        final String checkpoint = getSession(sessionId).getLatestCheckpointJson();
+        return checkpoint == null ? "" : checkpoint;
     }
 
     public String endGameJson(final String sessionId) {
@@ -419,8 +453,17 @@ public final class ManaBrewEngineAdapter {
             players.add(new PlayerConfig(name, deck, commanderNames, ai, bot));
         }
         final StartGameRequest request = new StartGameRequest(
-                gameId, variant, startingLife, seed, snapshotRecording, players);
+                gameId, variant, startingLife, seed, snapshotRecording, players, optionalString(root, "checkpoint"));
         request.checkpointMetrics = root.has("checkpointMetrics") && root.get("checkpointMetrics").getAsBoolean();
+        request.checkpointExport = root.has("checkpointExport") && root.get("checkpointExport").getAsBoolean();
+        if (root.has("decisionJournal") && root.get("decisionJournal").getAsBoolean()) {
+            request.journalStart = root.toString();
+        }
+        request.journalCommitBarrier = root.has("decisionJournalCommitBarrier")
+                && root.get("decisionJournalCommitBarrier").getAsBoolean();
+        if (request.journalCommitBarrier && request.journalStart == null) {
+            throw new IllegalArgumentException("journal commit barrier requires decisionJournal");
+        }
         return request;
     }
 
@@ -446,7 +489,11 @@ public final class ManaBrewEngineAdapter {
         private final long seed;
         private final boolean snapshotRecording;
         private boolean checkpointMetrics;
+        private boolean checkpointExport;
+        private String journalStart;
+        private boolean journalCommitBarrier;
         private final List<PlayerConfig> players;
+        private final String checkpoint;
 
         public StartGameRequest(
                 final String gameId,
@@ -455,6 +502,18 @@ public final class ManaBrewEngineAdapter {
                 final long seed,
                 final boolean snapshotRecording,
                 final List<PlayerConfig> players
+        ) {
+            this(gameId, variant, startingLife, seed, snapshotRecording, players, null);
+        }
+
+        public StartGameRequest(
+                final String gameId,
+                final String variant,
+                final int startingLife,
+                final long seed,
+                final boolean snapshotRecording,
+                final List<PlayerConfig> players,
+                final String checkpoint
         ) {
             if (gameId == null || gameId.isBlank()) {
                 throw new IllegalArgumentException("gameId is required");
@@ -468,6 +527,11 @@ public final class ManaBrewEngineAdapter {
             this.seed = seed;
             this.snapshotRecording = snapshotRecording;
             this.players = List.copyOf(players);
+            this.checkpoint = checkpoint;
+        }
+
+        public String getCheckpoint() {
+            return checkpoint;
         }
 
         public boolean isSnapshotRecording() {

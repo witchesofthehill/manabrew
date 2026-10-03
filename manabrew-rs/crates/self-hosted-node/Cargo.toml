@@ -27,6 +27,8 @@ manabrew-engine = { path = "../manabrew-engine", version = "0.10.1" }
 forge-foundation = { path = "../forge-foundation", version = "0.3.3" }
 manabrew_game_runtime = { path = "../manabrew-game-runtime", version = "0.3.59" }
 memmap2 = "0.9"
+sha2 = "0.10"
+libc = "0.2"
 tokio = { version = "1", features = ["full"] }
 tokio-tungstenite = { version = "0.24", features = ["native-tls"] }
 futures-util = "0.3"

@@ -8,6 +8,13 @@ pub struct HostedGameOver {
     pub messages: Vec<(usize, AgentMessage)>,
 }
 
+pub struct HostedCheckpoint {
+    pub game_id: String,
+    pub seq: u64,
+    pub turn: u32,
+    pub checkpoint: String,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EngineBackendKind {
     Manabrew,

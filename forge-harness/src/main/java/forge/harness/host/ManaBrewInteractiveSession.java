@@ -69,7 +69,7 @@ public final class ManaBrewInteractiveSession {
     private volatile String engineError;
     private final InteractiveSnapshotExtractor.SecretChoiceVisibility secretChoiceVisibility =
             new InteractiveSnapshotExtractor.SecretChoiceVisibility();
-    private static final int MAX_CHECKPOINTS = 32;
+    private static final int CHECKPOINT_TURNS = 3;
     private final Deque<Checkpoint> checkpoints = new ArrayDeque<>();
     private volatile List<Map<String, Object>> checkpointViews = List.of();
     private int nextCheckpointId = 1;
@@ -2079,7 +2079,7 @@ public final class ManaBrewInteractiveSession {
         checkpoints.addLast(new Checkpoint(
                 nextCheckpointId++, handler.getTurn(), handler.getPhase(), handler.getPlayerTurn(),
                 handler.getPriorityPlayer(), snapshot));
-        while (checkpoints.size() > MAX_CHECKPOINTS) {
+        while (checkpoints.peekFirst().turn < handler.getTurn() - CHECKPOINT_TURNS) {
             checkpoints.removeFirst();
         }
         publishCheckpointViews();

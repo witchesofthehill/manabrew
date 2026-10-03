@@ -842,6 +842,16 @@ export const useScryfallStore = create<ScryfallState>()(
         if (/(?:^|\s)lang:/i.test(query)) return response;
         const localized = await localizeScryfallCards(response.data, locale, () => false);
         if (get().locale !== locale) return get().searchCards(query, page, order, dir);
+        set((state) => {
+          for (const card of localized) {
+            const uris = chooseImageUrisForCard(card, { frontOnly: true });
+            if (!uris) continue;
+            const wrapper: ScryfallEntry = {
+              card: { info: card, texture: Texture.EMPTY, uris },
+            };
+            for (const k of mirrorCardKeys(wrapper)) state.cards[k] ??= wrapper;
+          }
+        });
         return { ...response, data: localized };
       },
       fetchCardsBySet: async (setCode) => {

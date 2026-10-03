@@ -45,7 +45,7 @@ export const BOARD_BACKGROUNDS: readonly BoardBackgroundOption[] = [
   { id: "refined_stone", label: "Refined stone", url: refinedStone, darken: 0 },
   { id: "refined_wood", label: "Refined wood", url: refinedWood, darken: 0 },
   { id: "stone_slate", label: "Stone slate", url: stoneSlate, darken: 0 },
-  { id: "tavern_table", label: "Tavern table", url: tavernTable, darken: 0.3 },
+  { id: "tavern_table", label: "Tavern table", url: tavernTable, darken: 0 },
   { id: "volcanic_stone", label: "Volcanic stone", url: volcanicStone, darken: 0 },
 ];
 

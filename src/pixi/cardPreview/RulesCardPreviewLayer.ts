@@ -9,6 +9,7 @@ import {
   Texture,
 } from "pixi.js";
 import type { CardDto } from "@/protocol/game";
+import type { DeckCard } from "@/protocol/deck";
 import type { ScryfallCard } from "@/types/scryfall";
 import { resolveCardFaces } from "@/lib/cardFaces";
 import type { PreviewPhase } from "@/lib/cardPreview";
@@ -49,7 +50,7 @@ import { peekCard, useScryfallStore } from "@/stores/useScryfallStore";
 import { useGameStore } from "@/stores/useGameStore";
 import { asGameDeckCard } from "@/lib/decks";
 import { isFacelessCard } from "@/lib/gameCard";
-import { deckCardToPreviewDto } from "@/lib/scryfall.utils";
+import { deckCardToPreviewDto, previewDtoDeckCard } from "@/lib/scryfall.utils";
 import { gsap } from "@/pixi/effects/gsap";
 import { animationsEnabled } from "@/pixi/effects/enabled";
 import { PREVIEW_TIMING } from "@/lib/cardPreview";
@@ -137,6 +138,10 @@ function prefersReducedMotion(): boolean {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
+function previewDeckCard(card: CardDto): DeckCard {
+  return previewDtoDeckCard(card) ?? asGameDeckCard(useGameStore.getState().gameDecks, card);
+}
+
 function textStyle(
   fill: string,
   fontSize: number,
@@ -186,6 +191,8 @@ export class RulesCardPreviewLayer {
   private background = new Graphics();
   private artwork = new RulesPreviewArtwork();
   private artFaces = new Container<Sprite>();
+  private artFailed = false;
+  private artStatus = new Text({ style: textStyle("#000", 12, "500") });
   private artMask = new Graphics();
   private chrome = new Container();
   private bodyScroller = new Container();
@@ -290,6 +297,7 @@ export class RulesCardPreviewLayer {
     this.artwork.addTo(this.fieldFace);
     this.fieldFace.addChild(
       this.artFaces,
+      this.artStatus,
       this.artMask,
       this.chrome,
       this.bodyScroller,
@@ -367,7 +375,7 @@ export class RulesCardPreviewLayer {
       this.artwork.texture = Texture.EMPTY;
       this.cardInfoGeneration += 1;
       const identity = spec.card.identity.isToken
-        ? asGameDeckCard(useGameStore.getState().gameDecks, spec.card).identity
+        ? previewDeckCard(spec.card).identity
         : spec.card.identity;
       const lookup = {
         name: identity.name,
@@ -569,7 +577,7 @@ export class RulesCardPreviewLayer {
     this.bodyContent.removeChildren().forEach((child) => child.destroy({ children: true }));
     this.footer.removeChildren().forEach((child) => child.destroy({ children: true }));
 
-    const deckCard = asGameDeckCard(useGameStore.getState().gameDecks, spec.card);
+    const deckCard = previewDeckCard(spec.card);
     const presentationCard =
       spec.card.types.length === 0 && spec.card.text.length === 0
         ? deckCardToPreviewDto(deckCard)
@@ -1399,7 +1407,7 @@ export class RulesCardPreviewLayer {
     }
     try {
       const identity = spec.card.identity.isToken
-        ? asGameDeckCard(useGameStore.getState().gameDecks, spec.card).identity
+        ? previewDeckCard(spec.card).identity
         : spec.card.identity;
       const lookup = {
         name: identity.name,
@@ -1427,7 +1435,8 @@ export class RulesCardPreviewLayer {
     const spec = this.spec;
     if (!spec) return;
     const generation = ++this.artGeneration;
-    const deckCard = asGameDeckCard(useGameStore.getState().gameDecks, spec.card);
+    this.artFailed = false;
+    const deckCard = previewDeckCard(spec.card);
     try {
       const faces = resolveCardFaces(this.scryfallInfo ?? undefined);
       const faceIndex: 0 | 1 = spec.showBackFace && faces.isFlippable ? 1 : 0;
@@ -1436,12 +1445,14 @@ export class RulesCardPreviewLayer {
         : await useScryfallStore.getState().getCardTexture(deckCard, "art", faceIndex);
       if (!this.spec || generation !== this.artGeneration || this.artwork.destroyed) return;
       this.artwork.texture = texture;
+      this.artFailed = texture === Texture.EMPTY;
       this.displayedBackFace = faceIndex === 1;
       this.rebuild();
       this.callbacks.onRenderRequested();
     } catch {
       if (generation === this.artGeneration && !this.artwork.destroyed) {
         this.artwork.texture = Texture.EMPTY;
+        this.artFailed = true;
         this.displayedBackFace = spec.showBackFace;
         this.rebuild();
         this.callbacks.onRenderRequested();
@@ -1453,8 +1464,16 @@ export class RulesCardPreviewLayer {
     const texture = this.artwork.texture;
     this.artwork.hide();
     this.artFaces.visible = this.faceCount > 1;
+    this.artStatus.visible = false;
     if (texture === Texture.EMPTY || texture.width <= 0 || texture.height <= 0) {
       this.clearArtFaces();
+      if (this.artFailed) {
+        this.artStatus.text = i18n._(msg`Art unavailable`);
+        this.artStatus.style.fill = this.frame.mutedInk;
+        this.artStatus.anchor.set(0.5);
+        this.artStatus.position.set(this.artX + this.artWidth / 2, this.artY + this.artHeight / 2);
+        this.artStatus.visible = true;
+      }
       return;
     }
     if (this.faceCount > 1) {

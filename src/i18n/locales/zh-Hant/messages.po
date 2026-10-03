@@ -14,21 +14,25 @@ msgstr ""
 "Plural-Forms: \n"
 
 #. placeholder {0}: stats.damage
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1147
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1155
 msgid "{0} damage"
 msgstr "{0} 點傷害"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:713
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:721
 msgid "↑↓ select · Enter activate · 1–9"
 msgstr "↑↓ 選擇 · Enter 啟動 · 1–9"
 
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1471
+msgid "Art unavailable"
+msgstr "卡圖無法使用"
+
 #. placeholder {0}: indexedActions.length
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:726
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:734
 msgid "Available actions · {0}"
 msgstr "可用操作 · {0}"
 
 #. placeholder {0}: indexedActions.length
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:725
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:733
 msgid "Available on current face · {0}"
 msgstr "目前牌面可用 · {0}"
 
@@ -40,7 +44,7 @@ msgstr "等待第一章"
 msgid "Awaiting first level"
 msgstr "等待第一級"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:791
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:799
 msgid "Card identity and rules are hidden."
 msgstr "牌張資訊與規則文字已隱藏。"
 
@@ -59,7 +63,7 @@ msgstr "第 {0} 章，共 {1} 章"
 msgid "CLASS LEVELS"
 msgstr "職業等級"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1144
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1152
 msgid "Defense"
 msgstr "防禦"
 
@@ -75,19 +79,19 @@ msgstr "牌面朝下的牌"
 msgid "Face-down permanent"
 msgstr "牌面朝下的永久物"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:818
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:826
 msgid "Flavor text"
 msgstr "背景敘述"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:847
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:855
 msgid "Flip back · F"
 msgstr "翻到背面 · F"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:847
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:855
 msgid "Flip front · F"
 msgstr "翻到正面 · F"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:744
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:752
 msgid "Keywords, costs & counters"
 msgstr "關鍵字、費用與指示物"
 
@@ -106,14 +110,14 @@ msgstr "第 {0} 級，共 {1} 級"
 msgid "LORE CHAPTERS"
 msgstr "傳世章節"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1143
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1151
 msgid "Loyalty"
 msgstr "忠誠"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:767
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:775
 msgid "Progression"
 msgstr "進程"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:793
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:801
 msgid "Rules text"
 msgstr "規則文字"

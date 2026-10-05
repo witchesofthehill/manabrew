@@ -105,7 +105,7 @@ export function buildPlaygroundSpecs(
       ? tiles.filter((tile) => tile.key === ZONE_TILE_KEY.command)
       : tiles;
     const badges = buildPlayerHudBadges(
-      { ...table.playerStates[player.id]!, handCount },
+      { ...table.playerStates[player.id]!, handCount, revealedHand: [] },
       theme.badges,
     );
     for (const [cardId, damage] of Object.entries(table.commanderDamage[player.id]!)) {

@@ -24,6 +24,10 @@ import { loadAvatarTexture } from "./avatarTextureCache";
 import type { PlayerHudSpec, PlayerHudTooltipContent } from "./playerHud.types";
 import type { ScreenBounds, ScreenPos } from "@/pixi/types";
 import { loadCardBack } from "@/pixi/cardBackTexture";
+import type { CardDto } from "@/protocol/game";
+import { useScryfallStore } from "@/stores/useScryfallStore";
+import { useGameStore } from "@/stores/useGameStore";
+import { asGameDeckCard } from "@/lib/decks";
 import { RING_ABILITIES, zoneBadgeId } from "@/components/game/game.constants";
 import { intentIsHostile } from "@/types/promptType";
 
@@ -139,6 +143,8 @@ export class PlayerHudCapsule {
   private handCount: Text;
   private handFan = new Container();
   private handBacks: Sprite[] = [];
+  private handBackTexture: Texture = Texture.EMPTY;
+  private handFaceIds: (string | null)[] = [];
   private overflow: Text;
   private emptyStateText: Text;
   private overflowHit = new Graphics();
@@ -270,11 +276,15 @@ export class PlayerHudCapsule {
       back.rotation = (i - 1) * 0.16;
       this.handFan.addChild(back);
       this.handBacks.push(back);
+      this.handFaceIds.push(null);
     }
     loadCardBack()
       .then((texture) => {
         if (this.container.destroyed) return;
-        for (const back of this.handBacks) back.texture = texture;
+        this.handBackTexture = texture;
+        this.handBacks.forEach((back, i) => {
+          if (this.handFaceIds[i] === null) back.texture = texture;
+        });
         this.render();
       })
       .catch((error) => console.warn("[hud] hand card back load failed", error));
@@ -922,7 +932,9 @@ export class PlayerHudCapsule {
   }
 
   private makeHandItem(unit: number): ContentItem {
-    const count = this.spec.badges.find((badge) => badge.id === "hand")?.count ?? 0;
+    const handBadge = this.spec.badges.find((badge) => badge.id === "hand");
+    const count = handBadge?.count ?? 0;
+    const revealed = handBadge?.revealedCards ?? [];
     const height = Math.round(unit * 0.42);
     const width = height * 0.71;
     this.handCount.text = String(count);
@@ -934,6 +946,7 @@ export class PlayerHudCapsule {
     const fanWidth = width + 10;
     for (let i = 0; i < this.handBacks.length; i++) {
       const back = this.handBacks[i]!;
+      this.applyHandFace(i, revealed[i]);
       back.width = width;
       back.height = height;
       back.visible = i < count;
@@ -947,6 +960,30 @@ export class PlayerHudCapsule {
         this.handCount.position.set(x + fanWidth + 5, y);
       },
     };
+  }
+
+  private applyHandFace(index: number, card: CardDto | undefined): void {
+    const id = card?.id ?? null;
+    if (this.handFaceIds[index] === id) return;
+    this.handFaceIds[index] = id;
+    const sprite = this.handBacks[index]!;
+    if (!card) {
+      sprite.texture = this.handBackTexture;
+      return;
+    }
+    useScryfallStore
+      .getState()
+      .getCardTexture(
+        asGameDeckCard(useGameStore.getState().gameDecks, card),
+        "full",
+        card.isTransformed ? 1 : 0,
+      )
+      .then((texture) => {
+        if (this.container.destroyed || this.handFaceIds[index] !== id) return;
+        sprite.texture = texture;
+        this.render();
+      })
+      .catch((error) => console.warn("[hud] revealed hand card load failed", error));
   }
 
   private layoutFloatingMana(x: number, cy: number): void {

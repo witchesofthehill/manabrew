@@ -6,6 +6,7 @@ import type { Prompt, StepKind } from "@/protocol";
 import { validCardIdsInCards, type BoardTargetBuckets } from "@/lib/boardTargets";
 import type { PreviewPointerInput } from "@/lib/cardPreview";
 import { stripUsernameTag } from "@/lib/username";
+import { hiddenZoneCard } from "@/lib/gameCard";
 import { nextHandOrderMode } from "@/lib/handOrder";
 import { type ZonePanelItem } from "@/stores/usePreferencesStore";
 import { type BoardCanvasLayout, type BoardCanvasRegion } from "@/pixi/BoardCanvas";
@@ -1077,6 +1078,7 @@ export function GameBoard({
             ringLevel: dev.ringLevel ?? player.ringLevel,
             speed: dev.speed ?? player.speed,
             handCount: dev.handCount ?? player.handCount,
+            revealedHand: isSelf ? [] : player.hand,
           },
           gameTheme.badges,
         ),
@@ -1632,8 +1634,20 @@ export function GameBoard({
                     color: sheetHandActionable ? gameTheme.cardRing : badge.color,
                     actionable: sheetHandActionable,
                     onTap:
-                      sheetPlayer && sheetPlayer.hand.length > 0
-                        ? () => onOpenZone(`${sheetPlayer.name}'s visible hand`, sheetPlayer.hand)
+                      sheetPlayer && sheetPlayer.handCount > 0
+                        ? () =>
+                            onOpenZone(`${sheetPlayer.name}'s hand`, [
+                              ...sheetPlayer.hand,
+                              ...Array.from(
+                                { length: sheetPlayer.handCount - sheetPlayer.hand.length },
+                                (_, index) =>
+                                  hiddenZoneCard(
+                                    `${sheetPlayer.id}-hand-hidden-${index}`,
+                                    sheetPlayer.id,
+                                    "hand",
+                                  ),
+                              ),
+                            ])
                         : badge.onTap,
                   }
                 : badge,

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { CardsInHandIcon } from "@/components/game/panels/CardsInHandIcon";
+import { HandCardStrip } from "@/components/game/panels/HandCardStrip";
 import { DialogCardInspector } from "@/components/game/modals/DialogCardInspector";
 import { useCardInspection } from "@/components/game/modals/cardInspection";
 import { GameIcon } from "@/components/game/GameIcon";
@@ -12,6 +13,7 @@ import { MANA_LETTERS, readableTextColor, withAlpha } from "@/themes/gameTheme";
 import type { GameIconName } from "@/components/game/GameIcon";
 import { PlayerRuleFacts } from "@/components/game/panels/PlayerRuleFacts";
 import type { PlayerHudBadge, PlayerHudSpec } from "@/pixi/hud/playerHud.types";
+import type { CardDto } from "@/protocol/game";
 
 interface PlayerSheetModalProps {
   spec: PlayerHudSpec;
@@ -105,6 +107,7 @@ export function PlayerSheetModal({ spec, onClose }: PlayerSheetModalProps) {
             <div className="grid grid-cols-2 gap-2">
               <HandSummary
                 count={hand?.count ?? 0}
+                revealedCards={hand?.revealedCards ?? []}
                 onView={hand?.onTap}
                 actionable={hand?.actionable ?? false}
                 actionColor={hand?.color}
@@ -172,11 +175,13 @@ export function PlayerSheetModal({ spec, onClose }: PlayerSheetModalProps) {
 
 function HandSummary({
   count,
+  revealedCards,
   onView,
   actionable,
   actionColor,
 }: {
   count: number;
+  revealedCards: CardDto[];
   onView?: () => void;
   actionable: boolean;
   actionColor?: string;
@@ -186,7 +191,7 @@ function HandSummary({
   return (
     <Element
       onClick={onView}
-      aria-label={onView ? "View permitted hand cards" : "Cards in hand"}
+      aria-label={onView ? "View hand" : "Cards in hand"}
       className={cn(
         "col-span-2 flex min-h-16 items-center gap-3 rounded-md border bg-muted/25 px-3 py-2 text-left",
         onView &&
@@ -202,11 +207,15 @@ function HandSummary({
           : undefined
       }
     >
-      <CardsInHandIcon count={visibleCards} className="h-12 w-16" />
-      <div className="min-w-0">
+      {revealedCards.length > 0 ? (
+        <HandCardStrip cards={revealedCards} count={count} />
+      ) : (
+        <CardsInHandIcon count={visibleCards} className="h-12 w-16" />
+      )}
+      <div className="min-w-0 shrink-0">
         <p className="text-xs text-muted-foreground">Cards in hand</p>
         <p className="font-mono text-xl font-bold tabular-nums">{count}</p>
-        {onView && <span className="text-xs text-muted-foreground">View visible cards</span>}
+        {onView && <span className="text-xs text-muted-foreground">View</span>}
       </div>
     </Element>
   );

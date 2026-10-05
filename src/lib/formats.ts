@@ -431,6 +431,8 @@ export function isCommanderEligible(card?: DeckCard): boolean {
   if (!card) return false;
   const isLegendary = card.supertypes.includes("Legendary");
   if (isLegendary && card.types.includes("Creature")) return true;
+  if (isLegendary && /isn't on the battlefield, it's an? [^.]*\bcreature\b/i.test(card.text))
+    return true;
   if (
     isLegendary &&
     card.subtypes?.some((s) => ["vehicle", "spacecraft"].includes(s.toLowerCase()))

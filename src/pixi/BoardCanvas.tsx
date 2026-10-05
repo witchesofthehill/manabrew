@@ -55,6 +55,7 @@ export interface BoardCanvasRegion {
   playerId: string;
   isLocal: boolean;
   state: BattlefieldState;
+  hand?: CardDto[];
   playmat?: string;
   playmatSettings?: PlaymatSettings;
   color?: string;
@@ -309,6 +310,7 @@ export function BoardCanvasSurface({
           onAttackDragChange: (...a) => callbacksRef.current.onAttackDragChange?.(...a),
           onTargetPlayer: (...a) => callbacksRef.current.onTargetPlayer?.(...a),
           onShowPlayerSheet: (...a) => callbacksRef.current.onShowPlayerSheet?.(...a),
+          onInspectCard: (...a) => callbacksRef.current.onInspectCard?.(...a),
           onHoverOpponent: (...a) => callbacksRef.current.onHoverOpponent?.(...a),
           onStartDrag: (...a) => callbacksRef.current.onStartDrag?.(...a),
           onReorderHand: (...a) => callbacksRef.current.onReorderHand?.(...a),
@@ -470,17 +472,23 @@ export function BoardCanvasSurface({
   // re-create the `regions` array on unrelated renders); reset on a new scene so
   // it gets fully seeded.
   const lastRegionStateRef = useRef(new Map<string, BattlefieldState>());
+  const lastRegionHandRef = useRef(new Map<string, CardDto[]>());
   const lastRegionSceneRef = useRef<BoardScene | null>(null);
   useEffect(() => {
     if (!scene) return;
     const seeding = lastRegionSceneRef.current !== scene;
     if (seeding) {
       lastRegionStateRef.current.clear();
+      lastRegionHandRef.current.clear();
       lastRegionSceneRef.current = scene;
     }
     const liveIds = new Set<string>();
     for (const r of regions) for (const c of r.state.cards) liveIds.add(c.id);
     for (const r of regions) {
+      if (r.hand && lastRegionHandRef.current.get(r.playerId) !== r.hand) {
+        lastRegionHandRef.current.set(r.playerId, r.hand);
+        scene.setOpponentHand(r.playerId, r.hand);
+      }
       if (!seeding && lastRegionStateRef.current.get(r.playerId) === r.state) continue;
       lastRegionStateRef.current.set(r.playerId, r.state);
       scene.updateRegionState(r.playerId, r.state);

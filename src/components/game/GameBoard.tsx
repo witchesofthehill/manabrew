@@ -23,6 +23,7 @@ import type { PromptOverlaySpec } from "@/pixi/prompts/prompt.types";
 import type { PhaseStripCallbacks, PhaseStripState } from "@/pixi/PhaseStripLayer";
 import { buildPlayerHudBadges, buildZoneBadges } from "@/components/game/panels/playerHudBadges";
 import { PlayerSheetModal } from "@/components/game/panels/PlayerSheetModal";
+import { CardInspectModal } from "@/components/game/modals/CardInspectModal";
 import { GlobalStateRail } from "@/components/game/panels/GlobalStateRail";
 import { DesktopGameScene } from "@/components/game/DesktopGameScene";
 import { MobileGameScene } from "@/components/game/MobileGameScene";
@@ -83,6 +84,15 @@ const GRAVEYARD_CARD_TYPES = new Set([
   "Planeswalker",
   "Sorcery",
 ]);
+
+function handWithHiddenCards(player: ClientPlayerDto): CardDto[] {
+  return [
+    ...player.hand,
+    ...Array.from({ length: player.handCount - player.hand.length }, (_, index) =>
+      hiddenZoneCard(`${player.id}-hand-hidden-${index}`, player.id, "hand"),
+    ),
+  ];
+}
 
 function graveyardCardTypeCount(cards: CardDto[]): number {
   const present = new Set<string>();
@@ -328,6 +338,7 @@ export function GameBoard({
   const [dragBlockerId, setDragBlockerId] = useState<string | null>(null);
   const [dragAttackerId, setDragAttackerId] = useState<string | null>(null);
   const [sheetPlayerId, setSheetPlayerId] = useState<string | null>(null);
+  const [inspectedHandCard, setInspectedHandCard] = useState<CardDto | null>(null);
   const closePlayerSheet = useCallback(() => setSheetPlayerId(null), [setSheetPlayerId]);
   const gameOver = useGameStore((state) => state.gameView?.gameOver);
 
@@ -629,6 +640,7 @@ export function GameBoard({
       },
       onTargetPlayer,
       onShowPlayerSheet: setSheetPlayerId,
+      onInspectCard: setInspectedHandCard,
       onHoverHandCard: onHandHoverChange ? (card) => onHandHoverChange(!!card) : undefined,
       onLongPressCard: onLongPressCard
         ? (card, bounds) =>
@@ -661,6 +673,7 @@ export function GameBoard({
       setDragBlockerId,
       setDragAttackerId,
       setSheetPlayerId,
+      setInspectedHandCard,
       setStickyOpponentId,
       isSelfTurn,
       isTargetingPrompt,
@@ -1515,6 +1528,19 @@ export function GameBoard({
     openExile,
     openLibrary,
   ]);
+  const opponentHandFan = usePreferencesStore((s) => s.opponentHandFan);
+  const opponentHands = useMemo(
+    () =>
+      new Map(
+        opponents.map((op) => [
+          op.id,
+          opponentHandFan === "always" || (opponentHandFan === "revealed" && op.hand.length > 0)
+            ? handWithHiddenCards(op)
+            : [],
+        ]),
+      ),
+    [opponents, opponentHandFan],
+  );
   const unifiedRegions = useMemo((): BoardCanvasRegion[] => {
     const rowFields = (combatRow?: CombatRow): Partial<BattlefieldState> => ({
       combatRowAttackerIds: combatRow?.attackerIds,
@@ -1589,6 +1615,7 @@ export function GameBoard({
           ...oppState(cardsByController.get(op.id) ?? [], combatRowByDefender.get(op.id)),
           ownerRingByCard,
         },
+        hand: opponentHands.get(op.id),
         playmat: hiddenPlaymats.has(op.id) ? undefined : gameDecks[op.id]?.playmatUrl,
         playmatSettings: hiddenPlaymats.has(op.id) ? undefined : gameDecks[op.id]?.playmatSettings,
         color: playerColors[OPPONENT_SEATS[i] ?? "opponent1"],
@@ -1597,6 +1624,7 @@ export function GameBoard({
   }, [
     me.id,
     opponents,
+    opponentHands,
     opponentPermanentsByPlayer,
     battlefield,
     combatRows,
@@ -1636,18 +1664,10 @@ export function GameBoard({
                     onTap:
                       sheetPlayer && sheetPlayer.handCount > 0
                         ? () =>
-                            onOpenZone(`${sheetPlayer.name}'s hand`, [
-                              ...sheetPlayer.hand,
-                              ...Array.from(
-                                { length: sheetPlayer.handCount - sheetPlayer.hand.length },
-                                (_, index) =>
-                                  hiddenZoneCard(
-                                    `${sheetPlayer.id}-hand-hidden-${index}`,
-                                    sheetPlayer.id,
-                                    "hand",
-                                  ),
-                              ),
-                            ])
+                            onOpenZone(
+                              `${sheetPlayer.name}'s hand`,
+                              handWithHiddenCards(sheetPlayer),
+                            )
                         : badge.onTap,
                   }
                 : badge,
@@ -1899,6 +1919,9 @@ export function GameBoard({
         />
       )}
       {sheetSpec && <PlayerSheetModal spec={sheetSpec} onClose={closePlayerSheet} />}
+      {inspectedHandCard && (
+        <CardInspectModal card={inspectedHandCard} onClose={() => setInspectedHandCard(null)} />
+      )}
     </div>
   );
 }

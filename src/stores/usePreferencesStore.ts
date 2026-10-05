@@ -18,6 +18,7 @@ export type CardPreviewMode = "hover" | "right-click";
 export type BattlefieldCardStyle = "realistic" | "art" | "frame";
 export type InGameCardPreviewStyle = "printed" | "rules";
 export type InlineCardStyle = "printed" | "rules";
+export type OpponentHandFanMode = "always" | "revealed" | "never";
 export type RulesPreviewSectionId = "actions" | "rules" | "progression" | "details" | "flavor";
 
 export interface LastRoomSetup {
@@ -70,6 +71,8 @@ export interface PreferencesState {
   setHandOrderMode: (mode: HandOrderMode) => void;
   opponentLayout: "focused" | "overview";
   setOpponentLayout: (layout: "focused" | "overview") => void;
+  opponentHandFan: OpponentHandFanMode;
+  setOpponentHandFan: (mode: OpponentHandFanMode) => void;
 
   // One knob for card size: battlefield cards on ALL fields plus the hand
   // fan. 1 = the classic 3-row board; 1.5 = the 2-row fill that is the
@@ -185,6 +188,7 @@ const PERSISTED_PREFERENCE_KEYS = [
   "battlefieldAutoSort",
   "handOrderMode",
   "opponentLayout",
+  "opponentHandFan",
   "cardSizeMultiplier",
   "lockZoneTiles",
   "battlefieldCardStyle",
@@ -367,6 +371,9 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           opponentLayout: "focused",
           setOpponentLayout: (opponentLayout) => set({ opponentLayout }),
+
+          opponentHandFan: "revealed",
+          setOpponentHandFan: (opponentHandFan) => set({ opponentHandFan }),
 
           hapticFeedback: true,
           setHapticFeedback: (hapticFeedback) => set({ hapticFeedback }),

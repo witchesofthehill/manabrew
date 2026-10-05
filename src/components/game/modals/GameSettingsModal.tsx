@@ -187,6 +187,16 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
             onChange={prefs.setOpponentLayout}
           />
           <Choice
+            label="Show opponent hand fan"
+            value={prefs.opponentHandFan}
+            options={[
+              { value: "always", label: "Always" },
+              { value: "revealed", label: "Only when revealed" },
+              { value: "never", label: "Never" },
+            ]}
+            onChange={prefs.setOpponentHandFan}
+          />
+          <Choice
             label="Preferred hand"
             value={prefs.mobileHandedness}
             options={[

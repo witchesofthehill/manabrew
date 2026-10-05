@@ -14,6 +14,7 @@ export interface BoardScenePresentation {
   readonly hudMaxWidth: number;
   readonly hudMinWidth: number;
   readonly cardHeight: number;
+  readonly showsOpponentHands: boolean;
   configurePlayerBars(layer: PlayerHudLayer): void;
   configurePhaseStrip(layer: PhaseStripLayer): void;
   configureHand(hand: HandController): void;

@@ -26,6 +26,7 @@ export class DesktopBoardScenePresentation implements BoardScenePresentation {
   readonly hudMaxWidth = SELF_PLAYER_HUD_MAX_WIDTH_PX;
   readonly hudMinWidth = SELF_PLAYER_HUD_MIN_WIDTH_PX;
   readonly cardHeight = CARD_H;
+  readonly showsOpponentHands = true;
 
   configurePlayerBars(layer: PlayerHudLayer): void {
     layer.setCompact(false);

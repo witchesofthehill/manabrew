@@ -67,7 +67,7 @@ import {
   getFormat,
   validateDeckSections,
   canHaveAnyNumberOf,
-  isCommanderEligible,
+  isLegalCommander,
   canBePartners,
   canBePartnerCommander,
   canBeOathbreaker,
@@ -930,7 +930,7 @@ export function DeckBuilder({
       executeDeckEdit(`Set ${card.identity.name} in the command zone`, () => setCommander(card));
       return;
     }
-    if (!isCommanderEligible(card)) {
+    if (!isLegalCommander(card, currentDeck.format)) {
       toast.warning(`"${card.identity.name}" is not a legal commander`);
       return;
     }

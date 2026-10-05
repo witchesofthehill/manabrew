@@ -60,7 +60,7 @@ import { useNavigate } from "react-router";
 import type { SavedDeck } from "@/stores/useDeckStore";
 import { DeckHubEntryCard } from "@/components/deck/DeckHubEntryCard";
 import { HubDeckPreviewDialog } from "@/components/deck/HubDeckPreviewDialog";
-import { isCommanderEligible, canBeOathbreaker, canBeSignatureSpell } from "@/lib/formats";
+import { isLegalCommander, canBeOathbreaker, canBeSignatureSpell } from "@/lib/formats";
 import {
   executeDeckEdit,
   resetDeckHistory,
@@ -553,7 +553,7 @@ export default function DeckEditor() {
       const eligible =
         currentDeck.format === "oathbreaker"
           ? canBeOathbreaker(card) || canBeSignatureSpell(card)
-          : isCommanderEligible(card);
+          : isLegalCommander(card, currentDeck.format);
       if (!eligible) {
         toast.error(`${card.identity.name} is not eligible for the command zone`);
         return;

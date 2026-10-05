@@ -15,7 +15,7 @@ import {
   canBeSignatureSpell,
   commanderSlotBadge,
   formatRequiresCommander,
-  isCommanderEligible,
+  isLegalCommander,
 } from "@/lib/formats";
 import type { DeckCard, DeckFormat } from "@/protocol/deck";
 import { CARD_WIDTH_MAP, DEFAULT_CARD_SIZE } from "./deckBuilder.utils";
@@ -181,7 +181,7 @@ export function CommanderSlots({
       if (oathbreakerTarget === "partner") return canBePartners(oathbreakers[0], card);
       return oathbreakerTarget === "oathbreaker" && canBeOathbreaker(card);
     }
-    if (!isCommanderEligible(card)) return false;
+    if (!isLegalCommander(card, format)) return false;
     return commanders.length === 0 || canBePartners(commanders[0], card);
   });
   const canAddAnother =

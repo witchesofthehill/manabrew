@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.54.5](https://github.com/witchesofthehill/manabrew/compare/v3.54.4...v3.54.5) (2026-10-05)
+
+### Fixes
+
+* planeswalkers not valid commanders in brawl is wrong ([#1035](https://github.com/witchesofthehill/manabrew/issues/1035)) ([01cebe0](https://github.com/witchesofthehill/manabrew/commit/01cebe05f259bdbc9c7b3d5ce92ed6b3dd00d96d))
+
 ## [3.54.4](https://github.com/witchesofthehill/manabrew/compare/v3.54.3...v3.54.4) (2026-10-05)
 
 ### Fixes

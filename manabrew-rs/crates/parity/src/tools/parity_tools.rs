@@ -63,12 +63,6 @@ pub async fn run_parity_test(
         cards_dir,
     ]);
 
-    // Set JAVA_HOME for zulu-18 (critical for Java harness)
-    let java_home = std::env::var("JAVA_HOME").unwrap_or_else(|_| {
-        "/Library/Java/JavaVirtualMachines/zulu-18.jdk/Contents/Home".to_string()
-    });
-    cmd.env("JAVA_HOME", &java_home);
-
     cmd.current_dir(&config.project_root);
     cmd.stdout(std::process::Stdio::piped());
     cmd.stderr(std::process::Stdio::piped());

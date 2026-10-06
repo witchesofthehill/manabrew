@@ -10,7 +10,7 @@ set -euo pipefail
 HARNESS_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$HARNESS_DIR/.." && pwd)"
 
-GRAALVM_HOME="${GRAALVM_HOME:-$HOME/.local/graalvm/graalvm-community-openjdk-21.0.2+13.1/Contents/Home}"
+: "${GRAALVM_HOME:?GRAALVM_HOME is not set. Point it at a GraalVM for JDK 21 install (the dir containing bin/native-image).}"
 JAVAC="$GRAALVM_HOME/bin/javac"
 NATIVE_IMAGE="$GRAALVM_HOME/bin/native-image"
 
@@ -58,8 +58,9 @@ echo "==> native-image --shared → libforgeharness"
 rm -rf "$OUT"; mkdir -p "$OUT"
 cd "$OUT"
 EXTRA="$HARNESS_DIR/native/extra-config"
-CONFIG_ARG=""
-[ -d "$CFG" ] && CONFIG_ARG="-H:ConfigurationFileDirectories=$CFG,$EXTRA,$GEN"
+if [ -d "$CFG" ]; then
+  set -- "-H:ConfigurationFileDirectories=$CFG,$EXTRA,$GEN" "$@"
+fi
 "$NATIVE_IMAGE" \
   --shared \
   -H:Name=forgeharness \
@@ -71,7 +72,6 @@ CONFIG_ARG=""
   -H:+ReportExceptionStackTraces \
   --initialize-at-run-time=org.tinylog,org.slf4j,io.netty,forge,org.apache.commons.lang3 \
   -Djava.awt.headless=true \
-  $CONFIG_ARG \
   "$@"
 
 # Rust links `-l forgeharness`, which resolves to the lib-prefixed name.

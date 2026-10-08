@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { AppSelect, AppSelectOption } from "@/components/ui/AppSelect";
 import {
   GAMEPLAY_PREVIEW_ACTIONS,
   type GameplayPreviewAction,
@@ -33,18 +34,18 @@ export function BoardGameplayPreviewControls({
   return (
     <div className="min-w-0 space-y-1">
       <div className="flex flex-wrap items-center gap-1.5">
-        <select
+        <AppSelect
           aria-label="Gameplay action preview"
           value={mode}
-          onChange={(event) => onModeChange(event.target.value as GameplayPreviewAction)}
+          onValueChange={(value) => onModeChange(value as GameplayPreviewAction)}
           className="h-8 min-w-0 rounded-md border border-input bg-background px-2 text-xs"
         >
           {GAMEPLAY_PREVIEW_ACTIONS.map((option) => (
-            <option key={option.id} value={option.id}>
+            <AppSelectOption key={option.id} value={option.id}>
               {option.label}
-            </option>
+            </AppSelectOption>
           ))}
-        </select>
+        </AppSelect>
         <Button
           size="sm"
           variant={stackVisible ? "secondary" : "outline"}

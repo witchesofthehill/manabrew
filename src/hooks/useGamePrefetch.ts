@@ -9,10 +9,6 @@ export type GamePrefetchMode = "visible" | "full";
 
 const FULL_PREFETCH_WAIT_CAP_MS = 10_000;
 
-/** Cards whose printed textures must be decoded before the game UI flips on:
- *  hand, both command zones, and a small head-start of each deck list for
- *  early draws. `getCardTexture` is idempotent so duplicate entries aren't
- *  re-fetched. */
 function cardsToPrefetchImmediately(
   view: ClientGameView,
   gameDecks: Record<string, Deck>,
@@ -30,6 +26,35 @@ function cardsToPrefetchImmediately(
   }
   return cards;
 }
+function cardsToPrefetchNext(view: ClientGameView, gameDecks: Record<string, Deck>): DeckCard[] {
+  const cards: DeckCard[] = [];
+  const visible = [
+    ...view.battlefield,
+    ...view.players.flatMap((player) => [
+      ...player.graveyard.slice(-4),
+      ...player.exile.slice(-4),
+      ...player.library.slice(0, 2),
+    ]),
+  ].filter((card) => !card.isFaceDown && card.identity.name !== "Hidden Card");
+  for (const card of visible) {
+    const deck = gameDecks[card.ownerId];
+    if (deck) cards.push(asDeckCard(deck, card));
+  }
+  return cards;
+}
+
+function scheduleIdle(work: () => void): () => void {
+  const idleWindow = window as Window & {
+    requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number;
+    cancelIdleCallback?: (handle: number) => void;
+  };
+  if (idleWindow.requestIdleCallback && idleWindow.cancelIdleCallback) {
+    const id = idleWindow.requestIdleCallback(work, { timeout: 3000 });
+    return () => idleWindow.cancelIdleCallback?.(id);
+  }
+  const id = globalThis.setTimeout(work, 800);
+  return () => globalThis.clearTimeout(id);
+}
 
 async function prefetchAllCards(visibleCards: DeckCard[], deckCards: DeckCard[]): Promise<void> {
   const printedCards = [...visibleCards, ...deckCards];
@@ -44,9 +69,6 @@ async function prefetchAllCards(visibleCards: DeckCard[], deckCards: DeckCard[])
   await prefetchCards(deckCards, "art", onSettled);
 }
 
-/** When the first `gameView` arrives at game start, prefetch per `mode`,
- *  then flip `isPrefetchingCards` off so the loading screen yields to the
- *  board. */
 export function useGamePrefetch(mode: GamePrefetchMode): void {
   const gameView = useGameStore((s) => s.gameView);
   const isPrefetchingCards = useGameStore((s) => s.isPrefetchingCards);
@@ -61,6 +83,9 @@ export function useGamePrefetch(mode: GamePrefetchMode): void {
     startedRef.current = true;
 
     const decks = useGameStore.getState().gameDecks;
+    const likelyCards = cardsToPrefetchNext(gameView, decks);
+    let cancelled = false;
+    let cancelIdle = () => {};
     const deckCards = Object.values(decks).flatMap(getDeckCardPool);
     const visibleCards = cardsToPrefetchImmediately(gameView, decks);
     const finish = () => useGameStore.setState({ isPrefetchingCards: false });
@@ -73,6 +98,18 @@ export function useGamePrefetch(mode: GamePrefetchMode): void {
       return;
     }
     void prefetchCards(visibleCards).finally(finish);
-    void prefetchCards(deckCards).then(() => prefetchCards(deckCards, "art"));
+    void prefetchCards(likelyCards).then(() => {
+      if (cancelled) return;
+      cancelIdle = scheduleIdle(() => {
+        void prefetchCards(deckCards).then(() => {
+          if (cancelled) return;
+          cancelIdle = scheduleIdle(() => void prefetchCards(deckCards, "art"));
+        });
+      });
+    });
+    return () => {
+      cancelled = true;
+      cancelIdle();
+    };
   }, [gameView, isPrefetchingCards, mode]);
 }

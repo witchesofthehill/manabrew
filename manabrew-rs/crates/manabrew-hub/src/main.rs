@@ -4,7 +4,6 @@ mod config;
 mod preset_decks;
 mod rate_limit;
 mod routes;
-mod scryfall_api;
 mod scryfall_bulk;
 mod seal;
 mod storage;
@@ -22,7 +21,6 @@ use crate::assets::AssetService;
 use crate::config::HubConfig;
 use crate::rate_limit::RateLimiter;
 use crate::routes::{build_router, AppState};
-use crate::scryfall_api::ScryfallApi;
 use crate::scryfall_bulk::ScryfallBulkIndex;
 use crate::storage::{AnalyticsImportOutcome, ReplaceSnapshotOutcome, Storage};
 
@@ -120,7 +118,6 @@ async fn main() {
         auth: config.auth.clone(),
         http: http.clone(),
         scryfall_bulk: Arc::clone(&scryfall_bulk),
-        scryfall_api: ScryfallApi::new(),
         identity: auth::IdentityKeys::load_or_generate(&config.jwt_key_path)
             .expect("load jwt signing key"),
         assets: config.assets.as_ref().map(AssetService::new),

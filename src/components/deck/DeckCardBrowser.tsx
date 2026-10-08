@@ -30,8 +30,11 @@ import {
   type ViewMode,
 } from "@/components/editor/deckBuilder.utils";
 import { useCardPreview } from "@/hooks/useCardPreview";
+import { useIsMobileGame } from "@/hooks/useBreakpoints";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useLongPressPreview } from "@/hooks/useLongPressPreview";
 import { cn } from "@/lib/utils";
+import { PORTRAIT_QUERY } from "@/lib/responsive";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import type { CardDto } from "@/protocol/game";
 import type { Deck, DeckCard } from "@/protocol/deck";
@@ -247,10 +250,14 @@ function BrowserSection({
   );
 }
 export function DeckCardBrowser({ deck }: { deck: Deck }) {
+  const shortTouch = useIsMobileGame();
+  const portrait = useMediaQuery(PORTRAIT_QUERY);
+  const shortLandscape = shortTouch && !portrait;
   const [search, setSearch] = useState("");
   const [zone, setZone] = useState<BrowserZoneFilter>("all");
   const [groupBy, setGroupBy] = useState<GroupByMode>("type");
-  const [viewMode, setViewMode] = useState<ViewMode>("visual");
+  const [selectedViewMode, setSelectedViewMode] = useState<ViewMode | null>(null);
+  const viewMode = selectedViewMode ?? (shortLandscape ? "list" : "visual");
   const [cardSize, setCardSize] = useState(4);
   const [colorFilters, setColorFilters] = useState<string[]>([]);
   const [cardTypeFilter, setCardTypeFilter] = useState<BrowserCardTypeFilter>("all");
@@ -476,22 +483,27 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
   }
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
-      <div className="shrink-0 space-y-2 border-b bg-background/95 px-3 py-2 backdrop-blur sm:px-4">
-        <div className="flex min-w-0 items-center gap-2">
+      <div
+        className={cn(
+          "shrink-0 space-y-2 border-b bg-background/95 px-3 py-2 backdrop-blur sm:px-4",
+          shortLandscape && "flex items-center gap-2 space-y-0 py-1.5",
+        )}
+      >
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           <div className="relative min-w-0 flex-1 sm:max-w-xs">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              aria-label={`Search card names, types, and rules text`}
-              placeholder={`Search cards\u2026`}
-              className="h-8 pl-8 pr-8 text-xs pointer-coarse:h-10 pointer-coarse:text-base"
+              aria-label="Search card names, types, and rules text"
+              placeholder="Search cards…"
+              className="h-8 pl-8 pr-8 text-xs pointer-coarse:h-11 pointer-coarse:text-base"
             />
             {search && (
               <button
                 type="button"
-                aria-label={`Clear card search`}
-                className="absolute right-1 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground pointer-coarse:p-2"
+                aria-label="Clear card search"
+                className="absolute right-0 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded text-muted-foreground hover:text-foreground pointer-coarse:h-11 pointer-coarse:w-11"
                 onClick={() => setSearch("")}
               >
                 <X className="h-3 w-3" />
@@ -516,7 +528,7 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
           colors={colorFilters}
           onColorToggle={toggleColorFilter}
           viewMode={viewMode}
-          onViewModeChange={setViewMode}
+          onViewModeChange={setSelectedViewMode}
           cardSize={cardSize}
           onCardSizeChange={setCardSize}
           hasFilters={hasFilters}
@@ -525,7 +537,10 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
       </div>
 
       <div className="flex min-h-0 flex-1">
-        <div className="min-w-0 flex-1 overflow-y-auto px-4 py-4" {...longPress}>
+        <div
+          className={cn("min-w-0 flex-1 overflow-y-auto px-4 py-4", shortTouch && "py-2")}
+          {...longPress}
+        >
           {shownCount === 0 ? (
             <div className="grid min-h-48 place-items-center text-center">
               <div>
@@ -678,7 +693,7 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
             </div>
           )}
         </div>
-        <div className="hidden min-h-0 lg:contents">
+        <div className={cn("hidden min-h-0 lg:contents", shortTouch && "lg:hidden")}>
           <CardPreviewRail
             preview={preview}
             title={`Card preview`}

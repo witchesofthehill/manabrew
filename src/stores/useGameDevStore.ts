@@ -61,6 +61,9 @@ interface PixiPerfStats {
   minFps: number;
   maxFps: number;
   deltaMs: number;
+  sessionFps: number;
+  sessionMinutes: number;
+  jankPercent: number;
 }
 
 export interface DevPlayerOverrides {

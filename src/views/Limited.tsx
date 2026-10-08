@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { Boxes, Crown, Dice5, Hourglass, Layers, Shuffle, Swords, Wand2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AppSelect, AppSelectOption } from "@/components/ui/AppSelect";
 import { Input } from "@/components/ui/input";
 import { SetPicker } from "@/components/limited/SetPicker";
 import { DRAFTABLE_SET_TYPES } from "@/components/limited/setFilters";
@@ -12,7 +13,12 @@ import { fetchEditionInfo, fetchSetPool, type EditionInfo } from "@/api/limitedE
 import { cn } from "@/lib/utils";
 import type { DraftCard } from "@/types/limited";
 import type { ScryfallSet } from "@/types/scryfall";
-export default function Limited() {
+
+interface LimitedProps {
+  leadingControl?: ReactNode;
+}
+
+export default function Limited({ leadingControl }: LimitedProps) {
   const navigate = useNavigate();
   const startSealed = useLimitedStore((s) => s.startSealed);
   const startBoosterDraft = useLimitedStore((s) => s.startBoosterDraft);
@@ -180,7 +186,8 @@ export default function Limited() {
   const selectedSet = draftableSets.find((s) => s.code === selectedSetCode) ?? null;
   return (
     <div className="flex h-full flex-col gap-6 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8">
-      <header className="flex items-end justify-between gap-4">
+      <header className="flex items-center justify-between gap-4">
+        {leadingControl}
         <p className="max-w-2xl text-sm text-muted-foreground">
           Open packs, build a deck on the fly, then play a quick gauntlet against AI opponents.
         </p>
@@ -598,18 +605,19 @@ function SelectedSetSummary({
             Booster variant
           </div>
           {info && info.variants.length > 0 ? (
-            <select
+            <AppSelect
               value={selectedVariant}
-              onChange={(e) => onVariantChange(e.target.value)}
+              onValueChange={onVariantChange}
+              aria-label="Booster variant"
               className="w-full rounded border border-border/70 bg-background px-2 py-1 text-xs pointer-coarse:text-base"
             >
-              <option value="">Default</option>
+              <AppSelectOption value="">Default</AppSelectOption>
               {info.variants.map((v) => (
-                <option key={v} value={v}>
+                <AppSelectOption key={v} value={v}>
                   {v}
-                </option>
+                </AppSelectOption>
               ))}
-            </select>
+            </AppSelect>
           ) : (
             <div className="text-xs text-muted-foreground">Single recipe</div>
           )}

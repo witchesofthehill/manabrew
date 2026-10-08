@@ -1,5 +1,6 @@
 import { Grid3X3, Layers3, List, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AppSelect, AppSelectOption } from "@/components/ui/AppSelect";
 import {
   Sheet,
   SheetClose,
@@ -15,6 +16,7 @@ import {
   type GroupByMode,
   type ViewMode,
 } from "@/components/editor/deckBuilder.utils";
+import { useIsMobileGame } from "@/hooks/useBreakpoints";
 import { cn } from "@/lib/utils";
 import { MANA_LETTERS } from "@/themes/gameTheme";
 export type BrowserZoneFilter = "all" | "main" | "side" | "maybe";
@@ -148,7 +150,7 @@ function ViewControl({
             aria-label={`${option.label} view`}
             aria-pressed={value === option.value}
             className={cn(
-              "flex h-8 w-8 items-center justify-center border-r text-muted-foreground transition-colors last:border-r-0 pointer-coarse:h-10 pointer-coarse:w-10",
+              "flex h-8 w-8 items-center justify-center border-r text-muted-foreground transition-colors last:border-r-0 pointer-coarse:h-11 pointer-coarse:w-11",
               value === option.value ? "bg-selection text-selection-foreground" : "hover:bg-muted",
             )}
             onClick={() => onChange(option.value)}
@@ -177,7 +179,7 @@ function ColorControl({
           aria-label={`Filter by ${COLOR_LABELS[color]} identity`}
           aria-pressed={colors.includes(color)}
           className={cn(
-            "flex h-8 w-8 items-center justify-center rounded opacity-45 transition-opacity hover:opacity-80 pointer-coarse:h-10 pointer-coarse:w-10",
+            "flex h-8 w-8 items-center justify-center rounded opacity-45 transition-opacity hover:opacity-80 pointer-coarse:h-11 pointer-coarse:w-11",
             colors.includes(color) && "bg-selection/15 opacity-100 ring-1 ring-selection",
           )}
           onClick={() => onToggle(color)}
@@ -207,6 +209,7 @@ export function DeckCardBrowserFilters({
   hasFilters,
   onClear,
 }: DeckCardBrowserFiltersProps) {
+  const shortTouch = useIsMobileGame();
   const activeFilterCount =
     Number(zone !== "all") +
     Number(cardType !== "all") +
@@ -230,50 +233,52 @@ export function DeckCardBrowserFilters({
     </div>
   );
   const groupControl = (
-    <select
+    <AppSelect
       value={groupBy}
       aria-label={`Group cards by`}
       className="h-9 rounded-md border border-input bg-background px-2 text-sm pointer-coarse:h-10 pointer-coarse:text-base"
-      onChange={(event) => onGroupByChange(event.target.value as GroupByMode)}
+      onValueChange={(value) => onGroupByChange(value as GroupByMode)}
     >
       {GROUP_BY_OPTIONS.filter((option) => option.value !== "custom").map((option) => (
-        <option key={option.value} value={option.value}>
+        <AppSelectOption key={option.value} value={option.value}>
           Group: {option.label}
-        </option>
+        </AppSelectOption>
       ))}
-    </select>
+    </AppSelect>
   );
   const typeControl = (
-    <select
+    <AppSelect
       value={cardType}
       aria-label={`Filter by card type`}
       className="h-9 rounded-md border border-input bg-background px-2 text-sm pointer-coarse:h-10 pointer-coarse:text-base"
-      onChange={(event) => onCardTypeChange(event.target.value as BrowserCardTypeFilter)}
+      onValueChange={(value) => onCardTypeChange(value as BrowserCardTypeFilter)}
     >
       {CARD_TYPE_OPTIONS.map((option) => (
-        <option key={option.value} value={option.value}>
+        <AppSelectOption key={option.value} value={option.value}>
           {option.label}
-        </option>
+        </AppSelectOption>
       ))}
-    </select>
+    </AppSelect>
   );
   const manaControl = (
-    <select
+    <AppSelect
       value={manaValue}
       aria-label={`Filter by mana value`}
       className="h-9 rounded-md border border-input bg-background px-2 text-sm pointer-coarse:h-10 pointer-coarse:text-base"
-      onChange={(event) => onManaValueChange(event.target.value as BrowserManaValueFilter)}
+      onValueChange={(value) => onManaValueChange(value as BrowserManaValueFilter)}
     >
       {MANA_VALUE_OPTIONS.map((value) => (
-        <option key={value} value={value}>
+        <AppSelectOption key={value} value={value}>
           {value === "all" ? `Any mana value` : `Mana value: ${value}`}
-        </option>
+        </AppSelectOption>
       ))}
-    </select>
+    </AppSelect>
   );
   return (
     <>
-      <div className="flex items-center justify-between gap-2 sm:hidden">
+      <div
+        className={cn("flex items-center justify-between gap-2 sm:hidden", shortTouch && "sm:flex")}
+      >
         <ViewControl value={viewMode} onChange={onViewModeChange} />
         <Sheet>
           <SheetTrigger asChild>
@@ -335,7 +340,12 @@ export function DeckCardBrowserFilters({
         </Sheet>
       </div>
 
-      <div className="-mx-1 hidden items-center gap-1 overflow-x-auto px-1 pb-1 no-scrollbar sm:flex">
+      <div
+        className={cn(
+          "-mx-1 hidden items-center gap-1 overflow-x-auto px-1 pb-1 no-scrollbar sm:flex",
+          shortTouch && "sm:hidden",
+        )}
+      >
         {zoneControl}
         <div className="mx-1 h-5 w-px shrink-0 bg-border" />
         {groupControl}

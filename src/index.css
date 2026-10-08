@@ -476,6 +476,18 @@
   }
 }
 
+@utility touch-scroll-fade {
+  @media (pointer: coarse) {
+    -webkit-mask-image: linear-gradient(
+      to right,
+      black 0,
+      black calc(100% - 1.5rem),
+      transparent 100%
+    );
+    mask-image: linear-gradient(to right, black 0, black calc(100% - 1.5rem), transparent 100%);
+  }
+}
+
 /* Always-visible (classic) scrollbar, overriding macOS overlay auto-hide.
    Do NOT set scrollbar-width/scrollbar-color: in Chrome/WebKit that switches
    to the standardized auto-hiding scrollbar and ignores ::-webkit-scrollbar. */

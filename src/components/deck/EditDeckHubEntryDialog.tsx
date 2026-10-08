@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AppSelect, AppSelectOption } from "@/components/ui/AppSelect";
 import {
   Dialog,
   DialogContent,
@@ -139,19 +140,19 @@ export function EditDeckHubEntryDialog({
             <label htmlFor="deckhub-entry-cover" className="text-sm font-medium">
               Cover card
             </label>
-            <select
+            <AppSelect
               id="deckhub-entry-cover"
               value={coverCardName}
               className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm pointer-coarse:text-base"
-              onChange={(event) => setCoverCardName(event.target.value)}
+              onValueChange={setCoverCardName}
             >
-              <option value="">Automatic cover</option>
+              <AppSelectOption value="">Automatic cover</AppSelectOption>
               {coverCards.map((card) => (
-                <option key={card.identity.name} value={card.identity.name}>
+                <AppSelectOption key={card.identity.name} value={card.identity.name}>
                   {card.identity.name}
-                </option>
+                </AppSelectOption>
               ))}
-            </select>
+            </AppSelect>
           </div>
         </div>
         <DialogFooter className="gap-2">

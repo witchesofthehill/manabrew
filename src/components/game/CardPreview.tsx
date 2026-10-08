@@ -1,6 +1,6 @@
 import { topModal } from "@/lib/modalStack";
 import { createPortal } from "react-dom";
-import { Loader2, RotateCw } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, RotateCw } from "lucide-react";
 import type { CardDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
 import { CounterDisplay } from "@/components/game/CounterBadge";
@@ -38,6 +38,7 @@ interface CardPreviewProps {
   mouseY: number;
   anchorRect?: DOMRect | null;
   placement?: "auto" | "top-center" | "pinned";
+  viewportRight?: number;
   phase?: "open" | "closing";
   suppressed?: boolean;
   showBackFace?: boolean;
@@ -47,10 +48,13 @@ interface CardPreviewProps {
   onDismiss?: () => void;
   onFlip?: () => void;
   onToggleView?: () => void;
+  onNavigatePrevious?: () => void;
+  onNavigateNext?: () => void;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
   isSticky?: boolean;
   slot?: HTMLElement | null;
+  portalTarget?: HTMLElement | null;
   imageSize?: "normal" | "large";
 }
 const IMG_VERTICAL = "absolute inset-0 w-full h-full object-cover";
@@ -122,6 +126,7 @@ export function CardPreview({
   mouseY,
   anchorRect,
   placement = "auto",
+  viewportRight,
   phase = "open",
   suppressed = false,
   skipEnterAnimation = false,
@@ -131,11 +136,14 @@ export function CardPreview({
   onDismiss,
   onFlip,
   onToggleView,
+  onNavigatePrevious,
+  onNavigateNext,
   onMouseEnter,
   onMouseLeave,
   isSticky = false,
   slot,
   imageSize = "large",
+  portalTarget,
 }: CardPreviewProps) {
   const resolvedGameCard = useResolvedGameCard(card);
   const hasActions = Boolean(actions?.length && onSelectAction);
@@ -198,6 +206,8 @@ export function CardPreview({
   const previewFaceIndex = showBackFace ? 1 : 0;
   const railEffects = rail ? deriveCardRailEffects(card, rail) : [];
   const panelRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const swipeRef = useRef<{ pointerId: number; x: number; y: number } | null>(null);
   const [panelHeight, setPanelHeight] = useState(0);
   const [, setLayoutVersion] = useState(0);
   // The hero zoom travels across the hovered card; an interactive preview
@@ -260,17 +270,19 @@ export function CardPreview({
         )
       : card.counters;
   useKeybindings(
-    onFlip && hasFlippableFaces
-      ? {
-          "flip-card": onFlip,
-        }
-      : {},
+    onFlip && hasFlippableFaces ? { "flip-card": onFlip } : {},
+    portalTarget ? rootRef : undefined,
   );
   useEffect(() => {
     if (!onDismiss) return;
     function handleKey(e: KeyboardEvent) {
-      if (topModal() || e.defaultPrevented || e.isComposing) return;
+      const modal = topModal();
+      if (e.defaultPrevented || e.isComposing || (modal && modal !== portalTarget)) return;
       if (e.key === "Escape") {
+        if (modal) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+        }
         onDismiss!();
         return;
       }
@@ -289,22 +301,33 @@ export function CardPreview({
         onSelectAction!(action);
       }
     }
-    function handleClick(e: PointerEvent) {
-      const target = e.target as HTMLElement;
-      if (!target.closest("[data-card-preview]")) {
-        onDismiss!();
+    function handleOutsidePointerDown(e: PointerEvent) {
+      const target = e.target;
+      if (target instanceof Element && target.closest("[data-card-preview]")) return;
+      if (e.pointerType === "touch") {
+        const pointerId = e.pointerId;
+        const suppressClick = (click: MouseEvent) => {
+          if (click.detail === 0) return;
+          if (click instanceof PointerEvent && click.pointerId !== pointerId) return;
+          click.preventDefault();
+          click.stopImmediatePropagation();
+          window.removeEventListener("click", suppressClick, true);
+        };
+        window.addEventListener("click", suppressClick, true);
+        window.setTimeout(() => window.removeEventListener("click", suppressClick, true), 500);
+        e.preventDefault();
+        e.stopImmediatePropagation();
       }
+      onDismiss!();
     }
-    window.addEventListener("keydown", handleKey);
+    window.addEventListener("keydown", handleKey, { capture: !!portalTarget });
     const timer = setTimeout(() => {
-      if (isSticky) {
-        window.addEventListener("pointerdown", handleClick);
-      }
+      if (isSticky) window.addEventListener("pointerdown", handleOutsidePointerDown, true);
     }, GHOST_CLICK_ARM_MS);
     return () => {
-      window.removeEventListener("keydown", handleKey);
+      window.removeEventListener("keydown", handleKey, { capture: !!portalTarget });
       clearTimeout(timer);
-      window.removeEventListener("pointerdown", handleClick);
+      window.removeEventListener("pointerdown", handleOutsidePointerDown, true);
     };
   }, [
     hasActions,
@@ -314,6 +337,7 @@ export function CardPreview({
     actions,
     integratedClassLevelUpIndex,
     nextClassLevel,
+    portalTarget,
   ]);
   const horizontal = horizontalCard;
   const layout = computePreviewLayout({
@@ -324,6 +348,7 @@ export function CardPreview({
     horizontal,
     hasPanel: showSidePanel,
     panelHeight,
+    viewportRight,
     slot: slot ?? null,
   });
   const { cardLeft, top, cardWidth, cardHeight, sidePanelWidth, panelSide } = layout;
@@ -350,7 +375,36 @@ export function CardPreview({
           : doubleFacedData.frontImageUrlLow
         : resolveImageUrl(0, "normal");
   const cardLookupPending = !isDebugCard && cardFaces.faces.length === 0;
-  const hasPreviewControls = Boolean(onToggleView || (hasDoubleFace && onFlip));
+  const hasPreviewControls = Boolean(onToggleView || (hasDoubleFace && onFlip) || isSticky);
+  const handlePreviewPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!isSticky || event.pointerType !== "touch") return;
+    swipeRef.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+  const handlePreviewPointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    const start = swipeRef.current;
+    swipeRef.current = null;
+    if (!start || start.pointerId !== event.pointerId) return;
+    const dx = event.clientX - start.x;
+    const dy = event.clientY - start.y;
+    const horizontal = Math.abs(dx) > Math.abs(dy);
+    if (horizontal && Math.abs(dx) >= 48) {
+      if (dx > 0) onNavigatePrevious?.();
+      else onNavigateNext?.();
+      event.preventDefault();
+      return;
+    }
+    if (!horizontal && dy >= 64) {
+      onDismiss?.();
+      event.preventDefault();
+      return;
+    }
+    if (!horizontal && dy <= -64) {
+      if (hasDoubleFace && onFlip) onFlip();
+      else onToggleView?.();
+      event.preventDefault();
+    }
+  };
   return createPortal(
     <>
       {hasActions && isSticky && !suppressed && (
@@ -360,6 +414,7 @@ export function CardPreview({
         />
       )}
       <div
+        ref={rootRef}
         data-card-preview
         className={cn(
           "select-none transition-opacity duration-150",
@@ -367,13 +422,20 @@ export function CardPreview({
           slot
             ? "relative w-full h-full flex items-start justify-start pointer-events-none"
             : cn(
-                "fixed z-[9999]",
+                "fixed z-[10001]",
                 placement !== "pinned" && interactive && (showSidePanel || hasPreviewControls)
                   ? "pointer-events-auto"
                   : "pointer-events-none",
               ),
         )}
-        style={slot ? undefined : { left: cardLeft, top }}
+        style={
+          slot ? undefined : { left: cardLeft, top, touchAction: isSticky ? "none" : undefined }
+        }
+        onPointerDown={handlePreviewPointerDown}
+        onPointerUp={handlePreviewPointerUp}
+        onPointerCancel={() => {
+          swipeRef.current = null;
+        }}
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
       >
@@ -438,7 +500,7 @@ export function CardPreview({
                           onToggleView();
                         }}
                         className={cn(
-                          "inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/65 text-white shadow hover:bg-black/85 pointer-coarse:h-9 pointer-coarse:w-9",
+                          "inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/65 text-white shadow hover:bg-black/85 pointer-coarse:h-11 pointer-coarse:w-11",
                           interactive ? "pointer-events-auto" : "pointer-events-none",
                         )}
                         aria-label={`Show rules`}
@@ -455,7 +517,7 @@ export function CardPreview({
                           onFlip();
                         }}
                         className={cn(
-                          "inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white shadow hover:bg-black/85 pointer-coarse:px-3 pointer-coarse:py-2",
+                          "inline-flex min-h-8 items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white shadow hover:bg-black/85 pointer-coarse:min-h-11 pointer-coarse:px-3",
                           interactive ? "pointer-events-auto" : "pointer-events-none",
                         )}
                         title={`Flip card (F) — ${showBackFace ? doubleFacedData.frontName : doubleFacedData.backName}`}
@@ -464,6 +526,34 @@ export function CardPreview({
                         {showBackFace ? `Front` : `Back`}
                       </button>
                     )}
+                  </div>
+                )}
+                {isSticky && (onNavigatePrevious || onNavigateNext) && (
+                  <div className="absolute inset-x-2 bottom-2 z-20 flex items-center justify-between">
+                    <button
+                      type="button"
+                      aria-label="Previous card"
+                      disabled={!onNavigatePrevious}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onNavigatePrevious?.();
+                      }}
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/65 text-white shadow disabled:opacity-30"
+                    >
+                      <ChevronLeft className="h-5 w-5" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Next card"
+                      disabled={!onNavigateNext}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onNavigateNext?.();
+                      }}
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/65 text-white shadow disabled:opacity-30"
+                    >
+                      <ChevronRight className="h-5 w-5" />
+                    </button>
                   </div>
                 )}
               </>
@@ -581,6 +671,6 @@ export function CardPreview({
         </div>
       </div>
     </>,
-    slot ?? document.body,
+    slot ?? portalTarget ?? document.body,
   );
 }

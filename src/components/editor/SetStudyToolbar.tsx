@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { AppSelect, AppSelectOption } from "@/components/ui/AppSelect";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { SetStudyPicker } from "@/components/editor/SetStudyPicker";
@@ -125,17 +126,17 @@ export function SetStudyToolbar({
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 sm:gap-x-5">
         <label className="flex items-center gap-2 text-xs text-muted-foreground">
           Sort
-          <select
+          <AppSelect
             value={sort || "cmc"}
-            onChange={(event) => onSortChange(event.target.value)}
+            onValueChange={onSortChange}
             className="h-8 w-28 rounded-md border bg-background px-2 text-xs text-foreground pointer-coarse:h-10 pointer-coarse:text-base"
           >
             {sortOptions.map(({ id, label }) => (
-              <option key={id} value={id}>
+              <AppSelectOption key={id} value={id}>
                 {label}
-              </option>
+              </AppSelectOption>
             ))}
-          </select>
+          </AppSelect>
         </label>
         {grid && (
           <label className="flex items-center gap-2 text-xs text-muted-foreground">

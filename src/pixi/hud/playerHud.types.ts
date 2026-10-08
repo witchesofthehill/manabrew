@@ -14,7 +14,9 @@ export interface PlayerHudBadge {
   count?: number;
   lethal?: boolean;
   onTap?: () => void;
+  actionable?: boolean;
   referenceCard?: CardDto;
+  revealedCards?: CardDto[];
   /** Compact-mode zone pill (library/graveyard/exile): renders in a vertical
    *  column anchored to the avatar instead of the badge rows. */
   zone?: boolean;

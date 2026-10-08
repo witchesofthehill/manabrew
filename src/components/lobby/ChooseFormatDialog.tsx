@@ -18,6 +18,14 @@ const SELECTABLE_FORMATS: GameFormat[] = [
 ];
 const PICKER_FORMATS = GAME_FORMATS.filter((f) =>
   SELECTABLE_FORMATS.some((s) => s.toLowerCase() === f.id),
+).map((format) =>
+  format.id === "draft" || format.id === "sealed"
+    ? {
+        ...format,
+        name: `${format.name} — use saved decks`,
+        description: "Play with an existing deck. To open packs, create a Limited table.",
+      }
+    : format,
 );
 interface ChooseFormatDialogProps {
   room: RoomInfo | null;

@@ -8,6 +8,7 @@ interface GameModalsProps {
   abilityPickerState: AbilityPickerState | null;
   onSelectAbility: (ability: HandActionOption) => void;
   onCancelAbilityPicker: () => void;
+  onLongPressCard: NonNullable<ZoneViewerProps["onLongPressCard"]>;
 }
 
 export function GameModals({
@@ -16,6 +17,7 @@ export function GameModals({
   abilityPickerState,
   onSelectAbility,
   onCancelAbilityPicker,
+  onLongPressCard,
 }: GameModalsProps) {
   return (
     <>
@@ -25,6 +27,7 @@ export function GameModals({
         abilityPickerState={abilityPickerState}
         onSelectAbility={onSelectAbility}
         onCancelAbilityPicker={onCancelAbilityPicker}
+        onLongPressCard={onLongPressCard}
       />
     </>
   );

@@ -1,3 +1,4 @@
+import type { CardDto } from "@/protocol/game";
 import type { GameThemeColors } from "@/themes/gameTheme";
 import type { PlayerHudBadge } from "@/pixi/hud/playerHud.types";
 import type { ZoneTileSpec } from "@/pixi/board/BoardZoneTiles";
@@ -15,6 +16,7 @@ export interface PlayerHudBadgeFlags {
   ringLevel: number;
   speed: number;
   handCount: number;
+  revealedHand: CardDto[];
 }
 /** Mirrors the legacy React `PlayerPanel` badge list: which player/game badges
  *  surface, in what order, with which theme colour. Pure — no React, no theme
@@ -30,6 +32,7 @@ export function buildPlayerHudBadges(
     color: badges.hand,
     label: `Cards in Hand`,
     count: f.handCount,
+    revealedCards: f.revealedHand,
   });
   if (f.isMonarch)
     out.push({
@@ -129,6 +132,7 @@ export function buildZoneBadges(tiles: ZoneTileSpec[], fallbackColor: string): P
             label: badge.label,
             count: t.count,
             onTap: t.onOpen,
+            actionable: t.highlightColor != null,
             zone: true,
           },
         ]

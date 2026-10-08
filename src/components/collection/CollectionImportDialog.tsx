@@ -3,6 +3,7 @@ import { CheckCircle2, ClipboardPaste, FileUp, Loader2, TriangleAlert } from "lu
 import { toast } from "sonner";
 import { verifyCardPrintings } from "@/api/hub";
 import { Button } from "@/components/ui/button";
+import { AppSelect, AppSelectOption } from "@/components/ui/AppSelect";
 import {
   Dialog,
   DialogContent,
@@ -512,20 +513,18 @@ function ColumnPicker({
   return (
     <label className="space-y-1.5 text-xs font-medium">
       {label} {required && <span className="text-destructive">*</span>}
-      <select
+      <AppSelect
         className="h-9 w-full rounded-md border bg-background px-3 text-sm"
         value={value ?? ""}
-        onChange={(event) =>
-          onChange(event.target.value === "" ? null : Number(event.target.value))
-        }
+        onValueChange={(selected) => onChange(selected === "" ? null : Number(selected))}
       >
-        <option value="">{noneLabel}</option>
+        <AppSelectOption value="">{noneLabel}</AppSelectOption>
         {headers.map((header, index) => (
-          <option key={`${header}-${index}`} value={index}>
+          <AppSelectOption key={`${header}-${index}`} value={index}>
             {header || `Column ${index + 1}`}
-          </option>
+          </AppSelectOption>
         ))}
-      </select>
+      </AppSelect>
     </label>
   );
 }

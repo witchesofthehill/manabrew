@@ -10,6 +10,13 @@ export const HAND_FAN_PARAMS = {
   minSpread: 38,
   spreadWidth: 900,
 } as const;
+export const COMPACT_HAND_FAN_PARAMS = {
+  hoverLift: 82,
+  neighborPush: 88,
+  maxSpread: 104,
+  minSpread: 48,
+  spreadWidth: 1080,
+} as const;
 
 export interface BaseCardLayout {
   x: number;

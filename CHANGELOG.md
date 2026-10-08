@@ -1,5 +1,72 @@
 # Changelog
 
+## [3.54.6](https://github.com/witchesofthehill/manabrew/compare/v3.54.5...v3.54.6) (2026-10-06)
+
+### Fixes
+
+* telepathy ([#1036](https://github.com/witchesofthehill/manabrew/issues/1036)) ([4ad1dbd](https://github.com/witchesofthehill/manabrew/commit/4ad1dbdadfd3757846d7b60fa6976bb725140237))
+
+## [3.54.5](https://github.com/witchesofthehill/manabrew/compare/v3.54.4...v3.54.5) (2026-10-05)
+
+### Fixes
+
+* planeswalkers not valid commanders in brawl is wrong ([#1035](https://github.com/witchesofthehill/manabrew/issues/1035)) ([01cebe0](https://github.com/witchesofthehill/manabrew/commit/01cebe05f259bdbc9c7b3d5ce92ed6b3dd00d96d))
+
+## [3.54.4](https://github.com/witchesofthehill/manabrew/compare/v3.54.3...v3.54.4) (2026-10-05)
+
+### Fixes
+
+* grist can now be a commander ([#1034](https://github.com/witchesofthehill/manabrew/issues/1034)) ([0cd1548](https://github.com/witchesofthehill/manabrew/commit/0cd1548740a526f747a3010aa6e35185fb5a5799))
+
+## [3.54.3](https://github.com/witchesofthehill/manabrew/compare/v3.54.2...v3.54.3) (2026-10-04)
+
+### Fixes
+
+* terrible fetching logic on deckeditor ([#1032](https://github.com/witchesofthehill/manabrew/issues/1032)) ([6b8058a](https://github.com/witchesofthehill/manabrew/commit/6b8058a6ced261e1758c5336c549a48e7a974c86))
+
+## [3.54.2](https://github.com/witchesofthehill/manabrew/compare/v3.54.1...v3.54.2) (2026-10-03)
+
+### Fixes
+
+* reduce memory pressure due to snapshots ([#1031](https://github.com/witchesofthehill/manabrew/issues/1031)) ([c64b41c](https://github.com/witchesofthehill/manabrew/commit/c64b41c49a9003c2752dbf28bcc71ee1d4d98e00))
+
+## [3.54.1](https://github.com/witchesofthehill/manabrew/compare/v3.54.0...v3.54.1) (2026-10-01)
+
+### Fixes
+
+* **ui:** simplify sealed deck building and clarify draft setup ([#1015](https://github.com/witchesofthehill/manabrew/issues/1015)) ([5b90e1c](https://github.com/witchesofthehill/manabrew/commit/5b90e1cec1bb46bf297151ec578d20520fbf9cc3))
+
+## [3.54.0](https://github.com/witchesofthehill/manabrew/compare/v3.53.2...v3.54.0) (2026-10-01)
+
+### Features
+
+* **ui:** redesign mobile interface ([#931](https://github.com/witchesofthehill/manabrew/issues/931)) ([074774d](https://github.com/witchesofthehill/manabrew/commit/074774d1d460f25ee82bc4e486cbecc7ee386f81))
+
+## Unreleased
+
+### Fixes
+* **ui:** move the mobile stack below opponent fields and let touches outside its cards switch fields
+* **ui:** cover full battlefield cards with mana-tap actions on mobile and desktop
+* **ui:** filter card-choice prompts by name on mobile and desktop without losing selected cards
+* **ui:** grow compact stack cards while keeping short-screen controls clear
+* **ui:** return to the battlefield after casting from the command zone
+* **ui:** dismiss touch card previews with one outside tap without activating the card beneath
+
+* **ui:** keep printed and rules card inspection above stacked zone viewers
+* **ui:** keep the mobile account avatar circular at touch-target size
+* **ui:** reclaim card browsing space in Community deck previews on mobile portrait and landscape
+* **ui:** stop compact prompt card-row tweens when their Pixi modal is rebuilt
+* **ui:** expose all mobile combat stops and restore taps after cancelled hand peeks
+* **ui:** fit compact square cards to bottom-anchored fields and retain accessible overflow stacks
+* **ui:** fit two opponent rows and two or three local rows in compact square-card fields
+* **ui:** fill compact tap and untap overlays while preserving card dragging
+* **ui:** expand mobile choice prompts with readable rows and a scrollable option list
+* **ui:** fit mobile Pass, turn-skip, autopass, and settings into one short action row
+* **ui:** update live zone locks and keep narrow desktop source-card prompts usable
+* **ui:** use the deck editor menu style for landscape offline modes and app select controls
+* **ui:** match rules-preview view controls to printed previews
+* **ui:** remove synthesized game sounds, sound settings, and unused volume preferences
+
 ## [3.53.2](https://github.com/witchesofthehill/manabrew/compare/v3.53.1...v3.53.2) (2026-09-30)
 
 ### Fixes

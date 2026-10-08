@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { AppSelect, AppSelectOption } from "@/components/ui/AppSelect";
 import {
   Dialog,
   DialogContent,
@@ -49,19 +50,19 @@ export function LimitedCompareDialog({ current, open, onOpenChange }: Props) {
           <div className="grid gap-3">
             <label className="flex items-center gap-2 text-sm">
               <span className="text-muted-foreground">Saved deck</span>
-              <select
+              <AppSelect
                 value={selectedId}
-                onChange={(e) => setSelectedId(e.target.value)}
+                onValueChange={setSelectedId}
                 className="flex-1 rounded border border-border/70 bg-background px-2 py-1 text-sm pointer-coarse:text-base"
               >
-                <option value="">Choose…</option>
+                <AppSelectOption value="">Choose…</AppSelectOption>
                 {limitedDecks.map((d) => (
-                  <option key={d.id} value={d.id}>
+                  <AppSelectOption key={d.id} value={d.id}>
                     {d.deck.name} ({d.deck.format ?? "draft"} · {d.deck.cards.length}/
                     {d.deck.sideboard.length})
-                  </option>
+                  </AppSelectOption>
                 ))}
-              </select>
+              </AppSelect>
             </label>
 
             <div className="grid gap-3 md:grid-cols-2">

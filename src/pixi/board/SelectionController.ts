@@ -73,9 +73,7 @@ export class SelectionController {
     this.badge.text = `${this.selected.size} selected`;
     this.badge.visible = true;
     const zone = this.host.getPlayZone();
-    this.badge.x = this.host.isCompact()
-      ? zone.x + zone.width / 2 - this.badge.width / 2
-      : zone.x + zone.width - this.badge.width - 8;
+    this.badge.x = this.host.getBadgeX(this.badge.width);
     this.badge.y = zone.y + 6;
   }
 

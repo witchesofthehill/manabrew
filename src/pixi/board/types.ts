@@ -93,14 +93,15 @@ export interface OverlayHost {
   getSelectedCardIds(): ReadonlySet<string>;
   getLastState(): BattlefieldState | null;
   getEntries(): ReadonlyMap<string, SpriteEntry>;
-  isJustDragged(cardId: string): boolean;
-  startCardDrag(sprite: CardSprite, e: FederatedPointerEvent): void;
+  consumeCardTap(cardId: string): boolean;
+  startCardPress(sprite: CardSprite, e: FederatedPointerEvent): void;
   cancelHoverClear(): void;
   setCardHovered(sprite: CardSprite, force?: boolean, trigger?: PreviewPointerInput): void;
   rightClickCard(sprite: CardSprite): void;
   scheduleHoverClear(cardId: string): void;
   getCardScale(): number;
-  isCompact(): boolean;
+  getCardHeight(): number;
+  usesManaGrid(): boolean;
 }
 
 /** Narrow seam a `BoardRegion` uses to reach orchestrator-level services
@@ -153,7 +154,7 @@ export interface SelectionHost {
   getEntries(): ReadonlyMap<string, SpriteEntry>;
   applyRing(sprite: CardSprite): void;
   canRefreshRings(): boolean;
-  isCompact(): boolean;
+  getBadgeX(badgeWidth: number): number;
 }
 
 /** Narrow seam the `HandController` uses to read scene geometry/state and

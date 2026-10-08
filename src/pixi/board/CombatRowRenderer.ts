@@ -1,4 +1,4 @@
-import { Container, Graphics } from "pixi.js";
+import { Container, Graphics, Text } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
 import { hexToNum } from "../colorUtils";
 import { Z_COMBAT_STAGED } from "../constants";
@@ -16,6 +16,9 @@ export interface CombatRowRenderSpec {
   stripTop: number;
   stripWidth: number;
   stripHeight: number;
+  cardWidth: number;
+  direction: -1 | 1;
+  attackerXs: number[];
   connectors: CombatRowConnector[];
 }
 
@@ -25,14 +28,19 @@ interface RenderSnapshot {
   stripTop: number;
   stripWidth: number;
   stripHeight: number;
+  cardWidth: number;
+  direction: -1 | 1;
   attackColor: string;
   defenseColor: string;
+  textColor: string;
   connectors: readonly number[];
+  attackerXs: readonly number[];
 }
 
 export class CombatRowRenderer {
   private graphics = new Graphics();
   private pressure = new Graphics();
+  private assignmentLabels = new Container();
   private snapshot: RenderSnapshot | null = null;
   private container: Container;
 
@@ -45,6 +53,9 @@ export class CombatRowRenderer {
     this.pressure.zIndex = Z_COMBAT_STAGED - 4;
     this.pressure.blendMode = "screen";
     this.pressure.visible = false;
+    this.assignmentLabels.eventMode = "none";
+    this.assignmentLabels.zIndex = Z_COMBAT_STAGED + 10;
+    this.container.addChild(this.assignmentLabels);
     this.container.addChild(this.pressure);
   }
 
@@ -53,6 +64,7 @@ export class CombatRowRenderer {
     this.snapshot = null;
     this.graphics.clear();
     this.pressure.clear();
+    this.clearAssignmentLabels();
     this.pressure.visible = false;
   }
 
@@ -61,6 +73,7 @@ export class CombatRowRenderer {
     const colors = theme.gameTheme;
     this.captureSnapshot(spec, theme);
     this.graphics.clear();
+    this.clearAssignmentLabels();
     this.pressure.clear();
     this.pressure.visible = true;
 
@@ -69,6 +82,14 @@ export class CombatRowRenderer {
     this.graphics.fill({ color: attackColor, alpha: 0.22 });
     this.graphics.roundRect(spec.stripLeft, spec.stripTop, spec.stripWidth, spec.stripHeight, 10);
     this.graphics.stroke({ color: attackColor, width: 1.5, alpha: 0.6 });
+
+    const edgeY = spec.direction > 0 ? spec.stripTop + spec.stripHeight - 1 : spec.stripTop + 1;
+    for (const x of spec.attackerXs) {
+      this.graphics.moveTo(x - 8, edgeY - spec.direction * 5);
+      this.graphics.lineTo(x, edgeY);
+      this.graphics.lineTo(x + 8, edgeY - spec.direction * 5);
+    }
+    this.graphics.stroke({ color: attackColor, width: 2, alpha: 0.9 });
 
     if (spec.connectors.length > 0) {
       for (const connector of spec.connectors) {
@@ -87,6 +108,37 @@ export class CombatRowRenderer {
       this.pressure.stroke({ color: attackColor, width: 5, alpha: 0.28 });
     }
 
+    const assignments = new Map<number, number>();
+    for (const connector of spec.connectors) {
+      assignments.set(connector.ax, (assignments.get(connector.ax) ?? 0) + 1);
+    }
+    for (const [x, count] of assignments) {
+      if (count < 2) continue;
+      const badge = new Container();
+      const background = new Graphics()
+        .circle(0, 0, 10)
+        .fill({ color: hexToNum(colors.promptAction.defenseAction), alpha: 0.95 })
+        .circle(0, 0, 10)
+        .stroke({ color: hexToNum(colors.textOnTinted), width: 1, alpha: 0.75 });
+      const text = new Text({
+        text: String(count),
+        style: {
+          fontFamily: "system-ui, sans-serif",
+          fontSize: 11,
+          fontWeight: "800",
+          fill: hexToNum(colors.textOnTinted),
+        },
+      });
+      text.resolution = 2;
+      text.anchor.set(0.5);
+      badge.position.set(
+        x + spec.cardWidth / 2 - 8,
+        spec.stripTop + Math.min(12, spec.stripHeight / 2),
+      );
+      badge.addChild(background, text);
+      this.assignmentLabels.addChild(badge);
+    }
+
     this.pressure
       .roundRect(
         spec.stripLeft + 1,
@@ -103,6 +155,10 @@ export class CombatRowRenderer {
     this.pressure.alpha = motionEnabled ? pulse(now, 1250, 0.28, 0.9) : 0.58;
   }
 
+  private clearAssignmentLabels(): void {
+    this.assignmentLabels.removeChildren().forEach((child) => child.destroy({ children: true }));
+  }
+
   private matchesSnapshot(spec: CombatRowRenderSpec, theme: Theme): boolean {
     const snapshot = this.snapshot;
     if (!snapshot) return false;
@@ -112,11 +168,18 @@ export class CombatRowRenderer {
       spec.stripLeft !== snapshot.stripLeft ||
       spec.stripTop !== snapshot.stripTop ||
       spec.stripWidth !== snapshot.stripWidth ||
+      spec.cardWidth !== snapshot.cardWidth ||
+      spec.direction !== snapshot.direction ||
       spec.stripHeight !== snapshot.stripHeight ||
       colors.promptAction.attackAction !== snapshot.attackColor ||
+      colors.textOnTinted !== snapshot.textColor ||
       colors.promptAction.defenseAction !== snapshot.defenseColor
     ) {
       return false;
+    }
+    if (spec.attackerXs.length !== snapshot.attackerXs.length) return false;
+    for (let index = 0; index < spec.attackerXs.length; index++) {
+      if (spec.attackerXs[index] !== snapshot.attackerXs[index]) return false;
     }
     if (spec.connectors.length * 3 !== snapshot.connectors.length) return false;
     for (let index = 0; index < spec.connectors.length; index++) {
@@ -145,9 +208,13 @@ export class CombatRowRenderer {
       stripLeft: spec.stripLeft,
       stripTop: spec.stripTop,
       stripWidth: spec.stripWidth,
+      cardWidth: spec.cardWidth,
+      direction: spec.direction,
       stripHeight: spec.stripHeight,
       attackColor: colors.promptAction.attackAction,
       defenseColor: colors.promptAction.defenseAction,
+      textColor: colors.textOnTinted,
+      attackerXs: [...spec.attackerXs],
       connectors,
     };
   }

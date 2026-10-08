@@ -9,9 +9,11 @@ import {
   Texture,
 } from "pixi.js";
 import type { CardDto } from "@/protocol/game";
+import type { DeckCard } from "@/protocol/deck";
 import type { ScryfallCard } from "@/types/scryfall";
 import { resolveCardFaces } from "@/lib/cardFaces";
 import type { PreviewPhase } from "@/lib/cardPreview";
+import { isCoarsePointer } from "@/lib/responsive";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import type { Theme } from "@/hooks/useTheme";
 import {
@@ -48,7 +50,7 @@ import { peekCard, useScryfallStore } from "@/stores/useScryfallStore";
 import { useGameStore } from "@/stores/useGameStore";
 import { asGameDeckCard } from "@/lib/decks";
 import { isFacelessCard } from "@/lib/gameCard";
-import { deckCardToPreviewDto } from "@/lib/scryfall.utils";
+import { deckCardToPreviewDto, previewDtoDeckCard } from "@/lib/scryfall.utils";
 import { gsap } from "@/pixi/effects/gsap";
 import { animationsEnabled } from "@/pixi/effects/enabled";
 import { PREVIEW_TIMING } from "@/lib/cardPreview";
@@ -63,8 +65,8 @@ import {
 } from "./RulesPreviewSectionHeader";
 import { parseManaCost } from "@/pixi/manaSymbols";
 import {
-  CARD_PREVIEW_ANCHOR_GAP as PANEL_GAP,
   CARD_PREVIEW_EDGE_PAD as EDGE_PAD,
+  computePreviewLayout,
 } from "@/components/game/cardPreviewLayout";
 import { GAME_CARD_SIZES } from "@/components/game/game.constants";
 
@@ -73,10 +75,12 @@ export interface RulesCardPreviewSpec {
   phase: Exclude<PreviewPhase, "hidden">;
   sticky: boolean;
   showBackFace: boolean;
+  placement: "auto" | "top-center" | "pinned";
   suppressed: boolean;
   skipEnterAnimation: boolean;
   actions: HandActionOption[];
   anchor: { x: number; y: number; width: number; height: number } | null;
+  reserveSidePanel: boolean;
   pointer: { x: number; y: number };
   slot: { x: number; y: number; width: number; height: number } | null;
   embedded?: boolean;
@@ -108,6 +112,8 @@ const PORTRAIT_HEIGHT: number = RULES_CARD_CONSTRAINTS.height;
 const LANDSCAPE_WIDTH = PORTRAIT_HEIGHT;
 const LANDSCAPE_HEIGHT = PORTRAIT_WIDTH;
 const MAX_PREVIEW_SCALE = GAME_CARD_SIZES.preview.width / PORTRAIT_WIDTH;
+const PREVIEW_CONTROL_SIZE = 32;
+const TOUCH_PREVIEW_CONTROL_SIZE = 44;
 const PORTRAIT_HEADER_HEIGHT = 52;
 const LANDSCAPE_HEADER_HEIGHT = 48;
 const PORTRAIT_ART_HEIGHT = 184;
@@ -130,6 +136,10 @@ const STACK_RULES_PULSE_S = 0.9;
 
 function prefersReducedMotion(): boolean {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function previewDeckCard(card: CardDto): DeckCard {
+  return previewDtoDeckCard(card) ?? asGameDeckCard(useGameStore.getState().gameDecks, card);
 }
 
 function textStyle(
@@ -181,6 +191,8 @@ export class RulesCardPreviewLayer {
   private background = new Graphics();
   private artwork = new RulesPreviewArtwork();
   private artFaces = new Container<Sprite>();
+  private artFailed = false;
+  private artStatus = new Text({ style: textStyle("#000", 12, "500") });
   private artMask = new Graphics();
   private chrome = new Container();
   private bodyScroller = new Container();
@@ -233,7 +245,10 @@ export class RulesCardPreviewLayer {
     this.theme = theme;
     this.frame = resolveRulesPreviewFrame(theme);
     this.callbacks = callbacks;
-    this.viewControls = new HandCardControls(theme);
+    this.viewControls = new HandCardControls(
+      theme,
+      isCoarsePointer() ? TOUCH_PREVIEW_CONTROL_SIZE : PREVIEW_CONTROL_SIZE,
+    );
     this.container.visible = false;
     this.container.sortableChildren = true;
     this.container.eventMode = "static";
@@ -282,6 +297,7 @@ export class RulesCardPreviewLayer {
     this.artwork.addTo(this.fieldFace);
     this.fieldFace.addChild(
       this.artFaces,
+      this.artStatus,
       this.artMask,
       this.chrome,
       this.bodyScroller,
@@ -359,7 +375,7 @@ export class RulesCardPreviewLayer {
       this.artwork.texture = Texture.EMPTY;
       this.cardInfoGeneration += 1;
       const identity = spec.card.identity.isToken
-        ? asGameDeckCard(useGameStore.getState().gameDecks, spec.card).identity
+        ? previewDeckCard(spec.card).identity
         : spec.card.identity;
       const lookup = {
         name: identity.name,
@@ -561,7 +577,7 @@ export class RulesCardPreviewLayer {
     this.bodyContent.removeChildren().forEach((child) => child.destroy({ children: true }));
     this.footer.removeChildren().forEach((child) => child.destroy({ children: true }));
 
-    const deckCard = asGameDeckCard(useGameStore.getState().gameDecks, spec.card);
+    const deckCard = previewDeckCard(spec.card);
     const presentationCard =
       spec.card.types.length === 0 && spec.card.text.length === 0
         ? deckCardToPreviewDto(deckCard)
@@ -1176,48 +1192,42 @@ export class RulesCardPreviewLayer {
   private layoutPanel(): void {
     const spec = this.spec;
     if (!spec || this.viewportWidth <= 0 || this.viewportHeight <= 0) return;
-    const scale = spec.slot
-      ? Math.min(
-          MAX_PREVIEW_SCALE,
-          spec.slot.width / this.panelWidth,
-          spec.slot.height / this.widgetHeight,
-        )
-      : Math.min(
-          MAX_PREVIEW_SCALE,
-          (this.viewportWidth - EDGE_PAD * 2) / this.panelWidth,
-          (this.viewportHeight - EDGE_PAD * 2) / this.widgetHeight,
-        );
-    const width = this.panelWidth * scale;
-    const height = this.widgetHeight * scale;
-    this.container.scale.set(scale);
-
+    let scale: number;
     let x: number;
     let y: number;
     if (spec.slot) {
+      scale = Math.min(
+        MAX_PREVIEW_SCALE,
+        spec.slot.width / this.panelWidth,
+        spec.slot.height / this.widgetHeight,
+      );
+      const width = this.panelWidth * scale;
+      const height = this.widgetHeight * scale;
       x = spec.slot.x + (spec.slot.width - width) / 2;
       y = spec.slot.y + (spec.slot.height - height) / 2;
-    } else if (spec.sticky && spec.anchor == null) {
-      x = (this.viewportWidth - width) / 2;
-      y = (this.viewportHeight - height) / 2;
-    } else if (spec.anchor) {
-      const right = spec.anchor.x + spec.anchor.width + PANEL_GAP;
-      const left = spec.anchor.x - width - PANEL_GAP;
-      x = right + width <= this.viewportWidth - EDGE_PAD ? right : Math.max(EDGE_PAD, left);
-      y = spec.anchor.y + spec.anchor.height / 2 - height / 2;
     } else {
-      x = spec.pointer.x + PANEL_GAP;
-      if (x + width > this.viewportWidth - EDGE_PAD) x = spec.pointer.x - width - PANEL_GAP;
-      y = spec.pointer.y - height / 2;
+      const anchorRect = spec.anchor
+        ? new DOMRect(spec.anchor.x, spec.anchor.y, spec.anchor.width, spec.anchor.height)
+        : null;
+      const layout = computePreviewLayout({
+        placement: spec.placement,
+        anchorRect,
+        mouseX: spec.pointer.x,
+        mouseY: spec.pointer.y,
+        horizontal: this.panelWidth === LANDSCAPE_WIDTH,
+        hasPanel: spec.reserveSidePanel,
+        panelHeight: this.controls.panelHeight * MAX_PREVIEW_SCALE,
+        slot: null,
+        viewportRight: this.viewportWidth,
+        viewportBottom: this.viewportHeight,
+      });
+      scale = layout.cardWidth / this.panelWidth;
+      x = layout.cardLeft;
+      y = layout.top;
     }
+    this.container.scale.set(scale);
 
-    if (spec.embedded) {
-      this.container.position.set(x, y);
-    } else {
-      this.container.position.set(
-        Math.max(EDGE_PAD, Math.min(x, this.viewportWidth - width - EDGE_PAD)),
-        Math.max(EDGE_PAD, Math.min(y, this.viewportHeight - height - EDGE_PAD)),
-      );
-    }
+    this.container.position.set(x, y);
     this.layoutX = this.container.x;
     this.layoutY = this.container.y;
     this.layoutScale = scale;
@@ -1226,7 +1236,16 @@ export class RulesCardPreviewLayer {
     const anchorY = spec.anchor?.y ?? spec.pointer.y;
     const anchorWidth = spec.anchor?.width ?? 0;
     const anchorHeight = spec.anchor?.height ?? 0;
-    this.controls.position.set(0, this.panelHeight + ACTION_PANEL_GAP);
+    const controlsBelow = this.panelHeight + ACTION_PANEL_GAP;
+    const controlsAbove = -ACTION_PANEL_GAP - this.controls.panelHeight;
+    const controlsY =
+      !spec.slot &&
+      this.controls.visible &&
+      y + (controlsBelow + this.controls.panelHeight) * scale > this.viewportHeight - EDGE_PAD &&
+      y + controlsAbove * scale >= EDGE_PAD
+        ? controlsAbove
+        : controlsBelow;
+    this.controls.position.set(0, controlsY);
     this.cardBounds.x = 0;
     this.cardBounds.width = this.panelWidth;
     this.cardBounds.height = this.panelHeight;
@@ -1388,7 +1407,7 @@ export class RulesCardPreviewLayer {
     }
     try {
       const identity = spec.card.identity.isToken
-        ? asGameDeckCard(useGameStore.getState().gameDecks, spec.card).identity
+        ? previewDeckCard(spec.card).identity
         : spec.card.identity;
       const lookup = {
         name: identity.name,
@@ -1416,7 +1435,8 @@ export class RulesCardPreviewLayer {
     const spec = this.spec;
     if (!spec) return;
     const generation = ++this.artGeneration;
-    const deckCard = asGameDeckCard(useGameStore.getState().gameDecks, spec.card);
+    this.artFailed = false;
+    const deckCard = previewDeckCard(spec.card);
     try {
       const faces = resolveCardFaces(this.scryfallInfo ?? undefined);
       const faceIndex: 0 | 1 = spec.showBackFace && faces.isFlippable ? 1 : 0;
@@ -1425,12 +1445,14 @@ export class RulesCardPreviewLayer {
         : await useScryfallStore.getState().getCardTexture(deckCard, "art", faceIndex);
       if (!this.spec || generation !== this.artGeneration || this.artwork.destroyed) return;
       this.artwork.texture = texture;
+      this.artFailed = texture === Texture.EMPTY;
       this.displayedBackFace = faceIndex === 1;
       this.rebuild();
       this.callbacks.onRenderRequested();
     } catch {
       if (generation === this.artGeneration && !this.artwork.destroyed) {
         this.artwork.texture = Texture.EMPTY;
+        this.artFailed = true;
         this.displayedBackFace = spec.showBackFace;
         this.rebuild();
         this.callbacks.onRenderRequested();
@@ -1442,8 +1464,16 @@ export class RulesCardPreviewLayer {
     const texture = this.artwork.texture;
     this.artwork.hide();
     this.artFaces.visible = this.faceCount > 1;
+    this.artStatus.visible = false;
     if (texture === Texture.EMPTY || texture.width <= 0 || texture.height <= 0) {
       this.clearArtFaces();
+      if (this.artFailed) {
+        this.artStatus.text = i18n._(msg`Art unavailable`);
+        this.artStatus.style.fill = this.frame.mutedInk;
+        this.artStatus.anchor.set(0.5);
+        this.artStatus.position.set(this.artX + this.artWidth / 2, this.artY + this.artHeight / 2);
+        this.artStatus.visible = true;
+      }
       return;
     }
     if (this.faceCount > 1) {

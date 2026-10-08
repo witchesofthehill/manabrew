@@ -210,7 +210,7 @@ export interface PlaygroundTable {
   cards: ClientCardDto[];
   life: Record<string, number>;
   manaPools: Record<string, Partial<Record<ManaLetter, number>>>;
-  playerStates: Record<string, Omit<PlayerHudBadgeFlags, "handCount">>;
+  playerStates: Record<string, Omit<PlayerHudBadgeFlags, "handCount" | "revealedHand">>;
   commanderDamage: Record<string, Record<string, number>>;
   activePlayerId: string;
   priorityPlayerId: string;

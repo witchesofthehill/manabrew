@@ -87,6 +87,11 @@ export function buildPlaygroundSpecs(
         topCard,
         back: zone === "library",
         commander: zone === "command" ? colors[seat] : undefined,
+        highlightColor:
+          zone === "graveyard" &&
+          cards.some((card) => table.actionableGraveyardIds.includes(card.id))
+            ? theme.cardRing
+            : undefined,
         commanderTax:
           zone === "command"
             ? table.scenario === "crowded" || table.scenario === "combat"
@@ -100,7 +105,7 @@ export function buildPlaygroundSpecs(
       ? tiles.filter((tile) => tile.key === ZONE_TILE_KEY.command)
       : tiles;
     const badges = buildPlayerHudBadges(
-      { ...table.playerStates[player.id]!, handCount },
+      { ...table.playerStates[player.id]!, handCount, revealedHand: [] },
       theme.badges,
     );
     for (const [cardId, damage] of Object.entries(table.commanderDamage[player.id]!)) {

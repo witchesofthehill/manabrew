@@ -46,6 +46,7 @@ import { FORGE_START_TIMEOUT_MESSAGE, withForgeStartTimeout } from "@/game/forge
 import { getPlatform } from "@/platform";
 import { applyPrompt } from "./gameStore.constants";
 import { DEFAULT_STARTING_LIFE, useServerStore } from "./useServerStore";
+import { isTauriForgeRoomAvailable } from "./useForgeRoomAvailabilityStore";
 import { usePreferencesStore } from "./usePreferencesStore";
 import type { ClientCardDto, ClientGameView, GameState } from "./gameStore.types";
 import type { Prompt, PromptOutput } from "@/protocol";
@@ -150,14 +151,12 @@ async function initializeGame({
   const format = getFormat(selectedFormatId);
   const startingLife = format?.deckRules.startingLife ?? DEFAULT_STARTING_LIFE;
   const platformType = getPlatform().type;
-  const useHostedBrowserForge =
-    platformType === "web" && !isForgeWasmSupported() && isHostedEngineAvailable();
-  if (
-    engine === "Forge" &&
-    opponentDecks?.length &&
-    (platformType === "tauri" || useHostedBrowserForge)
-  ) {
-    const launchForge = platformType === "tauri" ? startTauriForgeAiGame : startHostedAiGame;
+  const tauriForgeRoomAvailable = platformType === "tauri" && isTauriForgeRoomAvailable();
+  const useHostedForge =
+    (platformType === "tauri" && !tauriForgeRoomAvailable) ||
+    (platformType === "web" && !isForgeWasmSupported() && isHostedEngineAvailable());
+  if (engine === "Forge" && opponentDecks?.length && (tauriForgeRoomAvailable || useHostedForge)) {
+    const launchForge = tauriForgeRoomAvailable ? startTauriForgeAiGame : startHostedAiGame;
     set({
       isGameActive: true,
       fatalError: null,
@@ -165,6 +164,7 @@ async function initializeGame({
       gameView: null,
       currentPrompt: null,
       gameLog: [],
+      protocolError: null,
       deferredQueue: [],
       isFlashing: false,
       isWaitingForResponse: false,
@@ -215,7 +215,7 @@ async function initializeGame({
       // Forge runs on the node, or in the desktop app's own host — never in
       // this tab, and never under a "forge" runtime, so the launch is the only
       // place that can name it.
-      beginGame(forgeHostLabel(platformType === "tauri"));
+      beginGame(forgeHostLabel(tauriForgeRoomAvailable));
       await hostedRuntime.api.startMultiplayerGame({
         playerNames: hostedLaunch.playerOrder,
         decks: hostedLaunch.decks,
@@ -255,6 +255,7 @@ async function initializeGame({
     gameView: null,
     currentPrompt: null,
     gameLog: [],
+    protocolError: null,
     deferredQueue: [],
     isFlashing: false,
     isWaitingForResponse: false,
@@ -330,6 +331,7 @@ export const useGameStore = create<GameState>()(
       gameView: null,
       currentPrompt: null,
       gameLog: [],
+      protocolError: null,
       isGameActive: false,
       debugInfo: "",
       fatalError: null,
@@ -530,6 +532,7 @@ export const useGameStore = create<GameState>()(
             gameView: null,
             currentPrompt: null,
             gameLog: [],
+            protocolError: null,
             deferredQueue: [],
             isFlashing: false,
             isWaitingForResponse: false,
@@ -594,6 +597,10 @@ export const useGameStore = create<GameState>()(
         }
       },
       respond: async (output) => {
+        if (get().isMultiplayer && useServerStore.getState().reconnect.phase !== "idle") {
+          console.warn(`[store] respond(${output.type}) ignored — reconnecting`);
+          return;
+        }
         const promptType = get().currentPrompt?.input.type;
         if (!promptType) {
           console.warn("[store] respond() called with no active prompt");
@@ -620,6 +627,7 @@ export const useGameStore = create<GameState>()(
         try {
           noteAnswerSent();
           set({
+            protocolError: null,
             isWaitingForResponse: true,
             relinquishedPriority,
             debugInfo: `Responding: ${output.type}`,
@@ -686,6 +694,7 @@ export const useGameStore = create<GameState>()(
           gameView: null,
           currentPrompt: null,
           gameLog: [],
+          protocolError: null,
           deferredQueue: [],
           isFlashing: false,
           isWaitingForResponse: false,

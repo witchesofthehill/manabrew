@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { ArrowLeft, CheckCircle2, ClipboardPaste, Download } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { AppSelect, AppSelectOption } from "@/components/ui/AppSelect";
 import {
   Dialog,
   DialogContent,
@@ -251,23 +252,24 @@ export function ImportDeckTextDialog({
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium">Format</label>
-                    <select
+                    <label htmlFor="import-deck-format" className="text-xs font-medium">
+                      Format
+                    </label>
+                    <AppSelect
+                      id="import-deck-format"
                       value={formatId}
-                      onChange={(e) =>
-                        setFormatId(
-                          IMPORT_FORMATS.find((format) => format.id === e.target.value)?.id ?? "",
-                        )
+                      onValueChange={(value) =>
+                        setFormatId(IMPORT_FORMATS.find((format) => format.id === value)?.id ?? "")
                       }
                       className="h-9 w-full cursor-pointer rounded-md border bg-background px-2 text-xs pointer-coarse:text-base"
                     >
-                      <option value="">Auto-detect</option>
+                      <AppSelectOption value="">Auto-detect</AppSelectOption>
                       {IMPORT_FORMATS.map((format) => (
-                        <option key={format.id} value={format.id}>
+                        <AppSelectOption key={format.id} value={format.id}>
                           {format.name}
-                        </option>
+                        </AppSelectOption>
                       ))}
-                    </select>
+                    </AppSelect>
                   </div>
                 </div>
               )}

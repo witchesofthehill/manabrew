@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { usePresetDecks } from "@/stores/usePresetDecksStore";
 import { Button } from "@/components/ui/button";
+import { AppSelect, AppSelectOption } from "@/components/ui/AppSelect";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
@@ -503,18 +504,19 @@ export function CreateGameDialog({
                           </p>
                         )}
                         {legendaryCreatures.length > 0 ? (
-                          <select
+                          <AppSelect
                             className="w-full rounded border border-border bg-background px-2 py-1.5 text-xs pointer-coarse:text-base"
                             value={selectedCommander}
-                            onChange={(event) => setSelectedCommander(event.target.value)}
+                            onValueChange={setSelectedCommander}
+                            aria-label="Commander"
                           >
-                            <option value="">— Choose —</option>
+                            <AppSelectOption value="">— Choose —</AppSelectOption>
                             {legendaryCreatures.map((name) => (
-                              <option key={name} value={name}>
+                              <AppSelectOption key={name} value={name}>
                                 {name}
-                              </option>
+                              </AppSelectOption>
                             ))}
-                          </select>
+                          </AppSelect>
                         ) : (
                           <input
                             className="w-full rounded border border-border bg-background px-2 py-1.5 text-xs pointer-coarse:text-base"

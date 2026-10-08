@@ -62,15 +62,10 @@ export function AccountMenu({ disabled = false }: AccountMenuProps) {
   const isSettingsRoute =
     location.pathname === ROUTES.SETTINGS || location.pathname.startsWith(`${ROUTES.SETTINGS}/`);
 
-  function renderAvatar(sizeClass: string, initialClass: string) {
+  function renderAvatar(initialClass: string) {
     if (customAvatar) {
       return (
-        <img
-          src={customAvatar}
-          crossOrigin="anonymous"
-          alt=""
-          className={cn("size-full object-cover", sizeClass)}
-        />
+        <img src={customAvatar} crossOrigin="anonymous" alt="" className="size-full object-cover" />
       );
     }
     if (initial) {
@@ -79,7 +74,6 @@ export function AccountMenu({ disabled = false }: AccountMenuProps) {
           aria-hidden
           className={cn(
             "flex size-full items-center justify-center bg-primary/15 font-semibold text-primary",
-            sizeClass,
             initialClass,
           )}
         >
@@ -99,14 +93,14 @@ export function AccountMenu({ disabled = false }: AccountMenuProps) {
           aria-label={signedInAccount ? `Account: @${signedInAccount.handle}` : `Account menu`}
           title={signedInAccount ? `@${signedInAccount.handle}` : displayName || `Account`}
           className={cn(
-            "relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border/70 bg-muted",
+            "relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border/70 bg-muted pointer-coarse:h-11 pointer-coarse:w-11",
             "motion-safe:transition-[border-color,box-shadow] hover:border-primary/40 hover:shadow-sm",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
             "data-[state=open]:border-primary/50 data-[state=open]:ring-2 data-[state=open]:ring-ring",
             isSettingsRoute && "border-primary/50",
           )}
         >
-          {renderAvatar("h-8 w-8", "text-sm")}
+          {renderAvatar("text-sm pointer-coarse:text-base")}
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -117,7 +111,7 @@ export function AccountMenu({ disabled = false }: AccountMenuProps) {
       >
         <div className="flex items-center gap-3 px-2 pb-2.5 pt-1.5">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border/70 bg-muted">
-            {renderAvatar("h-11 w-11", "text-base")}
+            {renderAvatar("text-base")}
           </span>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold leading-tight">{displayName || `Guest`}</p>

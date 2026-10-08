@@ -1,6 +1,7 @@
 import { useState, type ReactNode, type RefObject } from "react";
-import { ChevronDown, Search, SlidersHorizontal, X } from "lucide-react";
+import { Search, SlidersHorizontal, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AppSelect, AppSelectOption } from "@/components/ui/AppSelect";
 import { Input } from "@/components/ui/input";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { ANY_COLOR_LETTERS } from "@/components/game/manaUtils";
@@ -39,16 +40,15 @@ function FilterSelect({
   children: ReactNode;
 }) {
   return (
-    <div className="relative min-w-32 flex-1">
-      <select
+    <div className="min-w-32 flex-1">
+      <AppSelect
         aria-label={label}
         value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="h-9 w-full appearance-none rounded-md border bg-background pl-2 pr-7 text-sm pointer-coarse:text-base"
+        onValueChange={onChange}
+        className="h-9 w-full rounded-md border bg-background pl-2 pr-2 text-sm pointer-coarse:text-base"
       >
         {children}
-      </select>
-      <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+      </AppSelect>
     </div>
   );
 }
@@ -129,9 +129,11 @@ export function DialogCardBrowserToolbar({
             value={state.type}
             onChange={(type) => onFilter({ type })}
           >
-            <option value="">All types</option>
+            <AppSelectOption value="">All types</AppSelectOption>
             {types.map((type) => (
-              <option key={type}>{type}</option>
+              <AppSelectOption key={type} value={type}>
+                {type}
+              </AppSelectOption>
             ))}
           </FilterSelect>
           <div
@@ -167,9 +169,9 @@ export function DialogCardBrowserToolbar({
             value={state.sort}
             onChange={(sort) => onFilter({ sort: sort as CardBrowserState["sort"] })}
           >
-            <option value="zone">Zone order</option>
-            <option value="name">Name</option>
-            <option value="mana">Mana value</option>
+            <AppSelectOption value="zone">Zone order</AppSelectOption>
+            <AppSelectOption value="name">Name</AppSelectOption>
+            <AppSelectOption value="mana">Mana value</AppSelectOption>
           </FilterSelect>
           <Button
             variant="ghost"

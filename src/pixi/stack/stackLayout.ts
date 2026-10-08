@@ -6,6 +6,9 @@ export const STACK_RIGHT_MARGIN = 10;
 export const STACK_CENTER_OFFSET_Y = -60;
 export const STACK_PEEK_W = 16;
 
+export const STACK_COMPACT_TOP_INSET = 16;
+export const STACK_COMPACT_BOTTOM_RESERVE = 104;
+
 export interface StackLayoutCard {
   width: number;
   height: number;
@@ -23,6 +26,7 @@ export interface StackLayoutInput {
   hoverScale: number;
   buttonWidth: number;
   buttonGap: number;
+  compact?: boolean;
 }
 
 export interface StackLayoutResult {
@@ -81,7 +85,12 @@ export function computeStackLayout(input: StackLayoutInput): StackLayoutResult {
   const pileHeight = cardHeight + Math.max(0, n - 1) * STACK_OFFSET_Y;
   const pileWidth = spanX + 2 * STACK_HOVER_PUSH_X + cardWidth;
   const panelLeft = input.viewWidth - STACK_RIGHT_MARGIN - pileWidth;
-  const panelTop = input.viewHeight / 2 - pileHeight / 2 + STACK_CENTER_OFFSET_Y;
+  const panelTop = input.compact
+    ? Math.max(
+        STACK_COMPACT_TOP_INSET,
+        input.viewHeight - STACK_COMPACT_BOTTOM_RESERVE - pileHeight,
+      )
+    : input.viewHeight / 2 - pileHeight / 2 + STACK_CENTER_OFFSET_Y;
   const centerY = panelTop + pileHeight / 2;
   const peekLeft = input.viewWidth - STACK_PEEK_W - STACK_HOVER_PUSH_X;
   const drawLeft = input.fanOut ? panelLeft : peekLeft;

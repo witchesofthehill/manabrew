@@ -28,7 +28,6 @@ use crate::assets::AssetService;
 use crate::auth;
 use crate::config::AuthConfig;
 use crate::rate_limit::RateLimiter;
-use crate::scryfall_api::ScryfallApi;
 use crate::scryfall_bulk::ScryfallBulkIndex;
 use crate::seal::{chat_seal_aad, presence_seal_aad, SealOpener};
 use crate::storage::{
@@ -63,7 +62,6 @@ pub struct AppState {
     pub auth_code_limiter: RateLimiter,
     pub http: reqwest::Client,
     pub scryfall_bulk: Arc<ScryfallBulkIndex>,
-    pub scryfall_api: ScryfallApi,
     pub identity: auth::IdentityKeys,
     pub assets: Option<AssetService>,
 }
@@ -121,10 +119,6 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route(
             "/api/cards/verify",
             post(verify_card_printings_handler).layer(DefaultBodyLimit::max(MAX_VERIFY_BODY_BYTES)),
-        )
-        .route(
-            "/api/scryfall/*path",
-            get(crate::scryfall_api::handler).post(crate::scryfall_api::handler),
         )
         .route(
             "/api/decks",
@@ -1451,7 +1445,6 @@ mod tests {
                 ("Blind Obedience", "rvr", "303"),
                 ("Delver of Secrets", "isd", "51"),
             ])),
-            scryfall_api: ScryfallApi::new(),
             identity: auth::token_tests::ephemeral(),
             assets: None,
         })

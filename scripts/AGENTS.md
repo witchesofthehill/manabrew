@@ -66,3 +66,5 @@ Never use `--no-verify` to bypass the commit-msg or pre-commit hooks. If a hook 
 - **If you give `build-native.{sh,ps1}` a new input, add it to `computeNativeChecksum()`.** CI keys the `forge-harness/native/build` cache on that hash and skips native-image on a hit. Nothing revalidates the restored library, so an input missing from the hash ships a stale `libforgeharness` in a release build. The jar cache is safer — `ensure:harness` re-checks its checksum at runtime — but the native one has no second guard.
 
 `ingest-events.py` normalizes `engine_error` and `engine_fatal` to `games.game_over = 0`, including existing analytics rows when opening the database. Offline clients can report these terminal failures with `game_over = 1`; that source flag must not turn crashes into successful completions.
+
+`parity-repair-agent.py` requires `PARITY_AUTH` in the environment as `username:password`. Supply it through local secrets or CI secrets. The previously committed dashboard credential must be rotated because it remains in Git history.

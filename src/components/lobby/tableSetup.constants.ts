@@ -69,13 +69,13 @@ export const FORMATS: {
   },
   {
     value: "Draft",
-    label: `Draft`,
-    description: `40-card decks built from a draft`,
+    label: `Draft — use saved decks`,
+    description: `Play with existing draft decks. To draft new cards, choose Limited.`,
   },
   {
     value: "Sealed",
-    label: `Sealed`,
-    description: `40-card decks built from a sealed pool`,
+    label: `Sealed — use saved decks`,
+    description: `Play with existing sealed decks. To open packs, choose Limited.`,
   },
 ];
 export const LIMITED_KINDS: LimitedKindMeta[] = [

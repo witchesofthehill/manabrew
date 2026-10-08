@@ -427,10 +427,22 @@ export function canBePartnerCommander(card?: DeckCard): boolean {
     isTimeLordDoctor(card)
   );
 }
+function canBeCreature(card: DeckCard): boolean {
+  if (card.types.includes("Creature")) return true;
+  return /isn't on the battlefield, it's an? [^.]*\bcreature\b/i.test(card.text);
+}
+export function isLegalCommander(card: DeckCard, formatId?: string): boolean {
+  if (formatId === "brawl") return canBeBrawlCommander(card);
+  return isCommanderEligible(card);
+}
+function canBeBrawlCommander(card: DeckCard): boolean {
+  if (!card.supertypes.includes("Legendary")) return false;
+  return canBeCreature(card) || card.types.includes("Planeswalker");
+}
 export function isCommanderEligible(card?: DeckCard): boolean {
   if (!card) return false;
   const isLegendary = card.supertypes.includes("Legendary");
-  if (isLegendary && card.types.includes("Creature")) return true;
+  if (isLegendary && canBeCreature(card)) return true;
   if (
     isLegendary &&
     card.subtypes?.some((s) => ["vehicle", "spacecraft"].includes(s.toLowerCase()))
@@ -577,7 +589,7 @@ export function validateDeckSections(
         errors.push(`Deck can have at most 2 commanders (has ${commanders.length})`);
       }
       for (const cmd of commanders) {
-        if (!isCommanderEligible(cmd)) {
+        if (!isLegalCommander(cmd, format.id)) {
           errors.push(`"${cmd.identity.name}" is not a legal commander`);
         }
       }

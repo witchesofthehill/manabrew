@@ -445,8 +445,11 @@ export class PromptButton extends Container {
   }
 
   private syncVisual(): void {
-    const scale =
-      this.options.flat || this.options.pressOffsetY != null
+    const scale = this.options.compact
+      ? this.pressed
+        ? 0.965
+        : 1
+      : this.options.flat || this.options.pressOffsetY != null
         ? 1
         : this.pressed
           ? 0.985

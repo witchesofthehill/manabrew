@@ -1,5 +1,6 @@
 import { useState, type Dispatch, type SetStateAction } from "react";
 import { Button } from "@/components/ui/button";
+import { AppSelect, AppSelectOption } from "@/components/ui/AppSelect";
 import { PHASES } from "@/components/game/game.constants";
 import {
   PLAYGROUND_SCENARIOS,
@@ -48,17 +49,17 @@ export function BoardPlaygroundControls({
       <div className="flex flex-wrap items-end gap-3">
         <label className="grid gap-1 text-xs text-muted-foreground">
           Scenario
-          <select
+          <AppSelect
             className={SELECT_CLASS}
             value={table.scenario}
-            onChange={(event) => loadScenario(event.target.value as PlaygroundScenarioId)}
+            onValueChange={(value) => loadScenario(value as PlaygroundScenarioId)}
           >
             {PLAYGROUND_SCENARIOS.map((scenario) => (
-              <option key={scenario.id} value={scenario.id}>
+              <AppSelectOption key={scenario.id} value={scenario.id}>
                 {scenario.label}
-              </option>
+              </AppSelectOption>
             ))}
-          </select>
+          </AppSelect>
         </label>
         <Button variant="outline" size="sm" onClick={() => loadScenario(table.scenario)}>
           Reset scenario
@@ -73,67 +74,67 @@ export function BoardPlaygroundControls({
         </Button>
         <label className="grid gap-1 text-xs text-muted-foreground">
           Focus seat
-          <select
+          <AppSelect
             className={SELECT_CLASS}
             value={focusedPlayerId}
-            onChange={(event) => setFocusedPlayerId(event.target.value)}
+            onValueChange={setFocusedPlayerId}
           >
             {table.players.slice(1).map((player) => (
-              <option key={player.id} value={player.id}>
+              <AppSelectOption key={player.id} value={player.id}>
                 {player.name}
-              </option>
+              </AppSelectOption>
             ))}
-          </select>
+          </AppSelect>
         </label>
       </div>
       <div className="flex flex-wrap items-end gap-3">
         <label className="grid gap-1 text-xs text-muted-foreground">
           Turn {table.turn}
-          <select
+          <AppSelect
             className={SELECT_CLASS}
             value={table.activePlayerId}
-            onChange={(event) =>
-              setTable((current) => ({ ...current, activePlayerId: event.target.value }))
+            onValueChange={(value) =>
+              setTable((current) => ({ ...current, activePlayerId: value }))
             }
           >
             {table.players.map((player) => (
-              <option key={player.id} value={player.id}>
+              <AppSelectOption key={player.id} value={player.id}>
                 {player.name}
-              </option>
+              </AppSelectOption>
             ))}
-          </select>
+          </AppSelect>
         </label>
         <label className="grid gap-1 text-xs text-muted-foreground">
           Priority
-          <select
+          <AppSelect
             className={SELECT_CLASS}
             value={table.priorityPlayerId}
-            onChange={(event) =>
-              setTable((current) => ({ ...current, priorityPlayerId: event.target.value }))
+            onValueChange={(value) =>
+              setTable((current) => ({ ...current, priorityPlayerId: value }))
             }
           >
             {table.players.map((player) => (
-              <option key={player.id} value={player.id}>
+              <AppSelectOption key={player.id} value={player.id}>
                 {player.name}
-              </option>
+              </AppSelectOption>
             ))}
-          </select>
+          </AppSelect>
         </label>
         <label className="grid gap-1 text-xs text-muted-foreground">
           Step
-          <select
+          <AppSelect
             className={SELECT_CLASS}
             value={table.step}
-            onChange={(event) =>
-              setTable((current) => ({ ...current, step: event.target.value as StepKind }))
+            onValueChange={(value) =>
+              setTable((current) => ({ ...current, step: value as StepKind }))
             }
           >
             {PHASES.map((phase) => (
-              <option key={phase.id} value={phase.id}>
+              <AppSelectOption key={phase.id} value={phase.id}>
                 {phase.label}
-              </option>
+              </AppSelectOption>
             ))}
-          </select>
+          </AppSelect>
         </label>
         <Button
           variant="outline"

@@ -1,4 +1,5 @@
 import { PreferenceCard } from "@/components/settings/PreferenceCard";
+import { AppSelect, AppSelectOption } from "@/components/ui/AppSelect";
 import { APP_LOCALES, resolveLanguagePreference, type AppLanguagePreference } from "@/i18n/locales";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 
@@ -13,19 +14,19 @@ export function LanguagePreferenceCard() {
       description={`Changes menus and card printings when a translation is available.`}
       value={APP_LOCALES[activeLocale].label}
     >
-      <select
+      <AppSelect
         value={appLanguage}
-        onChange={(event) => setAppLanguage(event.target.value as AppLanguagePreference)}
-        aria-label={`Application language`}
+        onValueChange={(value) => setAppLanguage(value as AppLanguagePreference)}
+        aria-label="Application language"
         className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm pointer-coarse:h-10 pointer-coarse:text-base"
       >
-        <option value="system">{`Use system language`}</option>
+        <AppSelectOption value="system">Use system language</AppSelectOption>
         {Object.entries(APP_LOCALES).map(([locale, { label }]) => (
-          <option key={locale} value={locale}>
+          <AppSelectOption key={locale} value={locale}>
             {label}
-          </option>
+          </AppSelectOption>
         ))}
-      </select>
+      </AppSelect>
       {appLanguage === "system" && (
         <p className="text-xs text-muted-foreground">
           Currently using {APP_LOCALES[activeLocale].label}

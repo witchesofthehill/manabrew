@@ -1,6 +1,7 @@
 import { Bookmark, Plus, X } from "lucide-react";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { Button } from "@/components/ui/button";
+import { AppSelect, AppSelectOption } from "@/components/ui/AppSelect";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -91,18 +92,18 @@ export function DeckQuickAddOptions({
           />
           ×
         </label>
-        <select
+        <AppSelect
           value={destination}
           className="h-7 shrink-0 rounded border bg-background px-1 text-xs outline-none focus:ring-1 focus:ring-ring"
           title={`Deck section`}
-          onChange={(event) =>
-            onDestinationChange(event.target.value as DeckQuickAddRequest["destination"])
+          onValueChange={(value) =>
+            onDestinationChange(value as DeckQuickAddRequest["destination"])
           }
         >
-          <option value="main">Main</option>
-          <option value="side">Side</option>
-          <option value="maybe">Maybe</option>
-        </select>
+          <AppSelectOption value="main">Main</AppSelectOption>
+          <AppSelectOption value="side">Side</AppSelectOption>
+          <AppSelectOption value="maybe">Maybe</AppSelectOption>
+        </AppSelect>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button

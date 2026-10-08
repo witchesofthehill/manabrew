@@ -18,6 +18,7 @@ export type CardPreviewMode = "hover" | "right-click";
 export type BattlefieldCardStyle = "realistic" | "art" | "frame";
 export type InGameCardPreviewStyle = "printed" | "rules";
 export type InlineCardStyle = "printed" | "rules";
+export type OpponentHandFanMode = "always" | "revealed" | "never";
 export type RulesPreviewSectionId = "actions" | "rules" | "progression" | "details" | "flavor";
 
 export interface LastRoomSetup {
@@ -80,6 +81,8 @@ export interface PreferencesState {
   setHandOrderMode: (mode: HandOrderMode) => void;
   opponentLayout: "focused" | "overview";
   setOpponentLayout: (layout: "focused" | "overview") => void;
+  opponentHandFan: OpponentHandFanMode;
+  setOpponentHandFan: (mode: OpponentHandFanMode) => void;
 
   // One knob for card size: battlefield cards on ALL fields plus the hand
   // fan. 1 = the classic 3-row board; 1.5 = the 2-row fill that is the
@@ -172,7 +175,11 @@ export interface PreferencesState {
   lastRoomSetup: LastRoomSetup | null;
   setLastRoomSetup: (setup: LastRoomSetup) => void;
   tableBackground: BoardBackgroundId;
+  mobileHandedness: "right" | "left";
   setTableBackground: (background: BoardBackgroundId) => void;
+  hapticFeedback: boolean;
+  setHapticFeedback: (enabled: boolean) => void;
+  setMobileHandedness: (handedness: "right" | "left") => void;
 }
 
 const PERSISTED_PREFERENCE_KEYS = [
@@ -193,11 +200,14 @@ const PERSISTED_PREFERENCE_KEYS = [
   "battlefieldAutoSort",
   "handOrderMode",
   "opponentLayout",
+  "opponentHandFan",
   "cardSizeMultiplier",
   "lockZoneTiles",
   "battlefieldCardStyle",
   "boardBackgroundId",
   "inGameAnimations",
+  "mobileHandedness",
+  "hapticFeedback",
   "preloadCardImages",
   "snapshotRecording",
   "chooseOrderOnMultipleTriggers",
@@ -363,7 +373,7 @@ export const usePreferencesStore = create<PreferencesState>()(
           lockZoneTiles: false,
           setLockZoneTiles: (lockZoneTiles) => set({ lockZoneTiles }),
 
-          battlefieldCardStyle: "realistic",
+          battlefieldCardStyle: "art",
           setBattlefieldCardStyle: (battlefieldCardStyle) => set({ battlefieldCardStyle }),
 
           boardBackgroundId: DEFAULT_BOARD_BACKGROUND_ID,
@@ -397,6 +407,15 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           opponentLayout: "focused",
           setOpponentLayout: (opponentLayout) => set({ opponentLayout }),
+
+          opponentHandFan: "revealed",
+          setOpponentHandFan: (opponentHandFan) => set({ opponentHandFan }),
+
+          hapticFeedback: true,
+          setHapticFeedback: (hapticFeedback) => set({ hapticFeedback }),
+
+          mobileHandedness: "right",
+          setMobileHandedness: (mobileHandedness) => set({ mobileHandedness }),
 
           cardHoverDelayMs: 350,
           setCardHoverDelayMs: (ms) => set({ cardHoverDelayMs: ms }),
@@ -465,7 +484,15 @@ export const usePreferencesStore = create<PreferencesState>()(
       },
       {
         name: STORAGE_KEYS.PREFERENCES,
-        version: 1,
+        version: 2,
+        migrate: (persistedState, version) => {
+          if (!persistedState || typeof persistedState !== "object") return {};
+          const persisted = persistedState as Record<string, unknown>;
+          if (version < 2 && persisted.battlefieldCardStyle === "realistic") {
+            persisted.battlefieldCardStyle = "art";
+          }
+          return persisted;
+        },
         merge: (persistedState, currentState) => ({
           ...currentState,
           ...pickPersistedPreferences(persistedState),

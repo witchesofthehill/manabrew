@@ -65,6 +65,10 @@ interface GameUIState {
   rightPanelTab: "log" | "snapshots" | "dev";
   promptModalHidden: boolean;
   zoneBrowserStates: Record<string, CardBrowserState>;
+  mobileHandState: { promptId: Prompt["promptId"] | null; open: boolean };
+  mobilePanel: "phases" | null;
+  setMobileHandState: (state: { promptId: Prompt["promptId"] | null; open: boolean }) => void;
+  setMobilePanel: (panel: "phases" | null) => void;
   saveZoneBrowserState: (key: string, state: CardBrowserState) => void;
 
   openAbilityPicker: (state: AbilityPickerState) => void;
@@ -92,6 +96,10 @@ export const useGameUIStore = create<GameUIState>()(
       rightPanelTab: "log",
       promptModalHidden: false,
       zoneBrowserStates: {},
+      mobileHandState: { promptId: null, open: false },
+      mobilePanel: null,
+      setMobileHandState: (mobileHandState) => set({ mobileHandState }),
+      setMobilePanel: (mobilePanel) => set({ mobilePanel }),
       saveZoneBrowserState: (key, state) =>
         set((current) => ({ zoneBrowserStates: { ...current.zoneBrowserStates, [key]: state } })),
 
@@ -127,6 +135,8 @@ export const useGameUIStore = create<GameUIState>()(
           isActionPanelCollapsed: true,
           promptModalHidden: false,
           zoneBrowserStates: {},
+          mobileHandState: { promptId: null, open: false },
+          mobilePanel: null,
         }),
     }),
     { name: "gameUI", enabled: import.meta.env.DEV },

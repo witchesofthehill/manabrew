@@ -4398,7 +4398,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew"
-version = "3.53.2"
+version = "3.54.6"
 dependencies = [
  "flate2",
  "forge-carddb",
@@ -4416,6 +4416,7 @@ dependencies = [
  "memmap2",
  "rand 0.8.6",
  "reqwest 0.12.28",
+ "rustls 0.23.37",
  "self-hosted-node",
  "serde",
  "serde_json",
@@ -4496,7 +4497,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew-hub"
-version = "0.21.0"
+version = "0.21.1"
 dependencies = [
  "aws-lc-rs",
  "aws-sdk-s3",
@@ -7088,7 +7089,7 @@ dependencies = [
 
 [[package]]
 name = "self-hosted-node"
-version = "0.38.1"
+version = "0.38.2"
 dependencies = [
  "forge-carddb",
  "forge-foundation",

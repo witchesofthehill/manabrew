@@ -171,6 +171,18 @@ export function TableSetupGameCard({
             <p className="text-xs text-muted-foreground">
               {FORMATS.find((option) => option.value === format)?.description}
             </p>
+            {(format === "Draft" || format === "Sealed") && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  onLimitedKindChange(format === "Draft" ? "draft" : "sealed");
+                  onKindChange("limited");
+                }}
+              >
+                Open packs instead
+              </Button>
+            )}
           </div>
         )}
 

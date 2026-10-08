@@ -2,8 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ClientCardDto } from "@/stores/gameStore.types";
 import type { CardDto, ZoneKind } from "@/protocol/game";
 import { GAME_CARD_DEFAULTS, isFacelessCard } from "@/lib/gameCard";
-import { BoardCanvas } from "@/pixi/BoardCanvas";
-import { BoardOverlayCanvas, type BoardOverlayPreviewSpec } from "@/pixi/BoardOverlayCanvas";
+import { DesktopBoardCanvas, type DesktopBoardCanvasProps } from "@/pixi/DesktopBoardCanvas";
+import { GAP } from "@/pixi/constants";
+import type { BoardOverlayCanvasProps, BoardOverlayPreviewSpec } from "@/pixi/BoardOverlayCanvas";
+import { DesktopBoardOverlayCanvas } from "@/pixi/DesktopBoardOverlayCanvas";
+import { MobileBoardCanvas, type MobileBoardCanvasProps } from "@/pixi/MobileBoardCanvas";
+import { MobileBoardOverlayCanvas } from "@/pixi/MobileBoardOverlayCanvas";
 import type { BoardScene } from "@/pixi/board/BoardScene";
 import type { PhaseStripState } from "@/pixi/PhaseStripLayer";
 import type { PlayerHudSpec } from "@/pixi/hud/playerHud.types";
@@ -15,12 +19,14 @@ import { useTheme } from "@/hooks/useTheme";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import { HoverCardPreview } from "@/components/game/HoverCardPreview";
 import { Button } from "@/components/ui/button";
+import { AppSelect, AppSelectOption } from "@/components/ui/AppSelect";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { PlayerSheetModal } from "@/components/game/panels/PlayerSheetModal";
+import { MobileHandControl } from "@/components/game/panels/MobileHandControl";
 import { BoardPlaygroundControls } from "@/components/dev/BoardPlaygroundControls";
 import { buildPlaygroundSpecs } from "@/components/dev/boardPlayground.specs";
-import { parsePrintedCardRailMetadata } from "@/components/game/cardRailState";
+import { deriveCardRailState, parsePrintedCardRailMetadata } from "@/components/game/cardRailState";
 import { resolveCardFaces } from "@/lib/cardFaces";
 import { scryfallToSampleGameCard } from "@/lib/sampleGameCard";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
@@ -38,6 +44,38 @@ import { PREVIEW_SCENARIOS } from "./devPreviewScenarios";
 import { BoardGameplayPreviewControls } from "./BoardGameplayPreviewControls";
 import { useBoardGameplayPreview } from "./useBoardGameplayPreview";
 import { BoardPlaygroundZone } from "./BoardPlaygroundZone";
+type PlaygroundBoardCanvasProps = DesktopBoardCanvasProps &
+  Pick<MobileBoardCanvasProps, "mobileHandOpen" | "mobileHandControlBounds"> & {
+    compact: boolean;
+  };
+
+function PlaygroundBoardCanvas({
+  compact,
+  mobileHandOpen,
+  mobileHandControlBounds,
+  ...props
+}: PlaygroundBoardCanvasProps) {
+  return compact ? (
+    <MobileBoardCanvas
+      {...props}
+      mobileHandOpen={mobileHandOpen}
+      mobileHandControlBounds={mobileHandControlBounds}
+    />
+  ) : (
+    <DesktopBoardCanvas {...props} />
+  );
+}
+
+function PlaygroundBoardOverlayCanvas({
+  compact,
+  ...props
+}: BoardOverlayCanvasProps & { compact: boolean }) {
+  return compact ? (
+    <MobileBoardOverlayCanvas {...props} />
+  ) : (
+    <DesktopBoardOverlayCanvas {...props} />
+  );
+}
 
 const DEV_MANA_ACTION_ID = "dev-mana";
 const PREVIEW_VIEWPORTS = [
@@ -89,6 +127,10 @@ export function BoardPlayground({ themeEditor = false }: { themeEditor?: boolean
   const triggerEtbGlow = useGameDevStore((state) => state.triggerEtbGlow);
   const preview = useCardPreview([], { useTriggerPreference: true });
   const compact = useIsMobileGame();
+  const [mobileHandOpen, setMobileHandOpen] = useState(false);
+  const [mobileHandControlBounds, setMobileHandControlBounds] = useState<DOMRect | null>(null);
+  const selfBottomReserve =
+    compact && mobileHandControlBounds ? mobileHandControlBounds.height + GAP : 0;
   const theme = useTheme().gameTheme;
   const previewStyle = usePreferencesStore((state) => state.inGameCardPreviewStyle);
   const setPreviewStyle = usePreferencesStore((state) => state.setInGameCardPreviewStyle);
@@ -96,14 +138,20 @@ export function BoardPlayground({ themeEditor = false }: { themeEditor?: boolean
   const viewport = PREVIEW_VIEWPORTS[viewportIndex]!;
   const showSticky = preview.showSticky;
   const inspect = useCallback(
-    (card: CardDto, bounds?: { x: number; y: number; width: number; height: number }) => {
+    (
+      card: CardDto,
+      bounds?: { x: number; y: number; width: number; height: number },
+      allowOverModal = false,
+    ) => {
       if (isFacelessCard(card)) return;
       setSelectedId(card.id);
       if (bounds) {
         const rect = new DOMRect(bounds.x, bounds.y, bounds.width, bounds.height);
-        showSticky(card, bounds.x + bounds.width / 2, bounds.y + bounds.height / 2, rect);
+        showSticky(card, bounds.x + bounds.width / 2, bounds.y + bounds.height / 2, rect, {
+          allowOverModal,
+        });
       } else {
-        showSticky(card);
+        showSticky(card, undefined, undefined, undefined, { allowOverModal });
       }
     },
     [showSticky],
@@ -352,12 +400,14 @@ export function BoardPlayground({ themeEditor = false }: { themeEditor?: boolean
           card: previewCard,
           phase: preview.phase === "closing" ? "closing" : "open",
           sticky: preview.isSticky,
+          placement: preview.placement,
           showBackFace: preview.showBackFace,
           suppressed: false,
           skipEnterAnimation: skipPreviewEnterAnimation,
           actions: previewActions,
           mousePos: preview.mousePos,
           anchorRect: preview.anchorRect,
+          reserveSidePanel: previewActions.length > 0 || deriveCardRailState(previewCard) != null,
         }
       : null;
   const externalPreviewActive = previewCard !== null && preview.phase === "open";
@@ -441,18 +491,18 @@ export function BoardPlayground({ themeEditor = false }: { themeEditor?: boolean
               <label className="text-sm font-medium" htmlFor="preview-scenario">
                 Preview scenario
               </label>
-              <select
+              <AppSelect
                 id="preview-scenario"
                 className="h-9 max-w-full rounded-md border border-input bg-background px-2 text-sm"
                 value={scenarioIndex}
-                onChange={(event) => void openPreviewScenario(Number(event.target.value))}
+                onValueChange={(value) => void openPreviewScenario(Number(value))}
               >
                 {PREVIEW_SCENARIOS.map((scenario, index) => (
-                  <option key={scenario.label} value={index}>
+                  <AppSelectOption key={scenario.label} value={index}>
                     {scenario.label}
-                  </option>
+                  </AppSelectOption>
                 ))}
-              </select>
+              </AppSelect>
               <Button
                 size="sm"
                 variant="outline"
@@ -508,33 +558,33 @@ export function BoardPlayground({ themeEditor = false }: { themeEditor?: boolean
               </Button>
               <label className="flex items-center gap-2 text-sm">
                 Test actions
-                <select
+                <AppSelect
                   aria-label="Test action count"
                   className="h-9 rounded-md border border-input bg-background px-2"
                   value={actionCount}
-                  onChange={(event) => setActionCount(Number(event.target.value))}
+                  onValueChange={(value) => setActionCount(Number(value))}
                 >
                   {[0, 2, 9].map((count) => (
-                    <option key={count} value={count}>
+                    <AppSelectOption key={count} value={count}>
                       {count}
-                    </option>
+                    </AppSelectOption>
                   ))}
-                </select>
+                </AppSelect>
               </label>
               <label className="flex items-center gap-2 text-sm">
                 Viewport
-                <select
+                <AppSelect
                   aria-label="Preview viewport"
                   className="h-9 rounded-md border border-input bg-background px-2"
                   value={viewportIndex}
-                  onChange={(event) => setViewportIndex(Number(event.target.value))}
+                  onValueChange={(value) => setViewportIndex(Number(value))}
                 >
                   {PREVIEW_VIEWPORTS.map((size, index) => (
-                    <option key={size.label} value={index}>
+                    <AppSelectOption key={size.label} value={index}>
                       {size.label}
-                    </option>
+                    </AppSelectOption>
                   ))}
-                </select>
+                </AppSelect>
               </label>
             </form>
             <p className="text-xs text-muted-foreground">
@@ -732,7 +782,8 @@ export function BoardPlayground({ themeEditor = false }: { themeEditor?: boolean
           themeEditor ? "min-h-0 flex-1" : "min-h-80",
         )}
       >
-        <BoardCanvas
+        <PlaygroundBoardCanvas
+          compact={compact}
           regions={regions}
           hand={{ cards: hand }}
           arrowSpecs={gameplay.arrowSpecs}
@@ -761,7 +812,9 @@ export function BoardPlayground({ themeEditor = false }: { themeEditor?: boolean
                 return next;
               }),
           }}
-          compact={compact}
+          selfBottomReserve={selfBottomReserve}
+          mobileHandOpen={compact && mobileHandOpen}
+          mobileHandControlBounds={mobileHandControlBounds}
           opponentLayout={overview ? "overview" : "focused"}
           focusedOpponentId={focusedPlayerId}
           manualFocusId={focusedPlayerId}
@@ -775,7 +828,7 @@ export function BoardPlayground({ themeEditor = false }: { themeEditor?: boolean
             onTargetPlayer: gameplay.setSelectedTarget,
             onHoverCard: hover,
             onHoverHandCard: hover,
-            onLongPressCard: (card, bounds) => inspect(card, bounds),
+            onLongPressCard: (card, bounds) => inspect(card, bounds, true),
             onRightClickCard:
               previewMode === "right-click"
                 ? (card, bounds) => {
@@ -790,14 +843,17 @@ export function BoardPlayground({ themeEditor = false }: { themeEditor?: boolean
                 : undefined,
             onShowPlayerSheet: (playerId) => {
               preview.dismiss();
+              setMobileHandOpen(false);
               setSheetPlayerId(playerId);
             },
+            onMobileHandOpenChange: setMobileHandOpen,
             onFlipCard: preview.flipCard,
             onDismissHoverPreview: preview.dismiss,
           }}
         />
         <div className="pointer-events-none absolute inset-0 z-40">
-          <BoardOverlayCanvas
+          <PlaygroundBoardOverlayCanvas
+            compact={compact}
             scene={overlayScene}
             stackSpec={gameplay.stackSpec}
             onTargetSpell={gameplay.selectSpell}
@@ -812,7 +868,18 @@ export function BoardPlayground({ themeEditor = false }: { themeEditor?: boolean
             onDismissPreview={preview.dismiss}
             onFlipPreview={preview.flipCard}
             onTogglePreviewView={togglePreviewView}
+            onLongPressCard={(card, anchor) => inspect(card, anchor, true)}
           />
+          {compact && (
+            <MobileHandControl
+              count={hand.length}
+              open={mobileHandOpen}
+              locked={false}
+              actionable={false}
+              onToggle={() => setMobileHandOpen((open) => !open)}
+              onBoundsChange={setMobileHandControlBounds}
+            />
+          )}
         </div>
       </div>
       {visibleZone && (

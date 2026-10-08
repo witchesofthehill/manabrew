@@ -10,8 +10,10 @@ interface HoverCardPreviewProps {
   skipEnterAnimation?: boolean;
   pinned?: boolean;
   onToggleView?: () => void;
+  viewportRight?: number;
   slot?: HTMLElement | null;
   imageSize?: "normal" | "large";
+  portalTarget?: HTMLElement | null;
 }
 
 export function HoverCardPreview({
@@ -22,8 +24,10 @@ export function HoverCardPreview({
   skipEnterAnimation,
   pinned,
   onToggleView,
+  viewportRight,
   slot,
   imageSize,
+  portalTarget,
 }: HoverCardPreviewProps) {
   if (!preview.hoveredCard || (pinned && preview.phase === "closing")) return null;
   if (pinned && !slot) return null;
@@ -35,6 +39,7 @@ export function HoverCardPreview({
       mouseY={preview.mousePos.y}
       anchorRect={preview.anchorRect}
       placement={pinned ? "pinned" : preview.placement}
+      viewportRight={viewportRight}
       phase={preview.phase === "closing" ? "closing" : "open"}
       suppressed={suppressed}
       skipEnterAnimation={skipEnterAnimation}
@@ -44,11 +49,14 @@ export function HoverCardPreview({
       onSelectAction={onSelectAction}
       onDismiss={preview.dismiss}
       onFlip={preview.flipCard}
+      onNavigatePrevious={preview.canNavigatePrevious ? preview.navigatePrevious : undefined}
+      onNavigateNext={preview.canNavigateNext ? preview.navigateNext : undefined}
       onToggleView={onToggleView}
       onMouseEnter={preview.onMouseEnterPreview}
       onMouseLeave={preview.onMouseLeavePreview}
       slot={slot}
       imageSize={imageSize}
+      portalTarget={portalTarget}
     />
   );
 }

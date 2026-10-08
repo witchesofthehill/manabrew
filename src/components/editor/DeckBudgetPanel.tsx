@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { CircleDollarSign } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { AppSelect, AppSelectOption } from "@/components/ui/AppSelect";
 import { scryfallCardKey } from "@/api/scryfall";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { EDITOR_PANEL_CLASS } from "./deckEditor.styles";
@@ -113,21 +114,21 @@ export function DeckBudgetPanel() {
         <div className="flex items-center gap-3">
           <label className="flex items-center gap-2 text-xs text-muted-foreground">
             Provider
-            <select
+            <AppSelect
               value={provider}
               className="h-8 rounded-md border bg-background px-2 text-xs"
-              onChange={(event) =>
+              onValueChange={(value) =>
                 executeDeckEdit(`Change price provider`, () =>
-                  updateEditorMetadata({ priceProvider: event.target.value as PriceProvider }),
+                  updateEditorMetadata({ priceProvider: value as PriceProvider }),
                 )
               }
             >
               {Object.entries(PRICE_PROVIDERS).map(([id, option]) => (
-                <option key={id} value={id}>
+                <AppSelectOption key={id} value={id}>
                   {option.label}
-                </option>
+                </AppSelectOption>
               ))}
-            </select>
+            </AppSelect>
           </label>
           <label className="flex items-center gap-2 text-xs text-muted-foreground">
             Limit

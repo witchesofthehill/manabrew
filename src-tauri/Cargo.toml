@@ -1,6 +1,6 @@
 [package]
 name = "manabrew"
-version = "3.53.2"
+version = "3.54.6"
 edition = "2021"
 publish = false
 
@@ -49,6 +49,7 @@ reqwest = { version = "0.12", default-features = false, features = [
 flate2 = "1"
 futures-util = "0.3"
 tauri-plugin-updater = "2"
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
 tauri-plugin-process = "2"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

@@ -11,7 +11,7 @@ export interface OpponentRegion {
 
 /**
  * Computed region rectangles for the unified board canvas. All rects are
- * canvas-local. A fixed center band carries the phase strip (no grip).
+ * canvas-local.
  */
 export interface BoardLayout {
   self: PlayZoneRect;
@@ -23,8 +23,6 @@ export interface BoardLayout {
 
 /** Fixed vertical band, in px, reserved at the center for the phase strip. */
 export const STRIP_BAND_PX = 30;
-
-export const STRIP_BAND_COMPACT_PX = 32;
 
 export const COLLAPSED_OPPONENT_WIDTH_PX = 112;
 
@@ -38,16 +36,22 @@ export function computeBoardLayout(
   opponentCount: number,
   selfBottomReserve = 0,
   compact = false,
+  selfFieldShare = 0.5,
   opponentLayout: "focused" | "overview" = "focused",
 ): BoardLayout {
   const count = Math.max(1, opponentCount);
-  const bandPx = compact ? STRIP_BAND_COMPACT_PX : STRIP_BAND_PX;
+  const bandPx = compact ? 0 : STRIP_BAND_PX;
   const band = Math.min(bandPx, Math.max(0, height - 2));
   const usable = Math.max(0, height - band);
   const fraction =
-    usable > 0 ? Math.min(0.8, Math.max(0.2, 0.5 + selfBottomReserve / (2 * usable))) : 0.5;
+    usable > 0
+      ? Math.min(0.8, Math.max(0.2, selfFieldShare + selfBottomReserve / (2 * usable)))
+      : selfFieldShare;
+  const requestedSelfHeight = Math.round(usable * fraction);
   const minimumTop = Math.min(176, usable * 0.55);
-  const selfHeight = Math.min(Math.round(usable * fraction), Math.floor(usable - minimumTop));
+  const selfHeight = compact
+    ? requestedSelfHeight
+    : Math.min(requestedSelfHeight, Math.floor(usable - minimumTop));
   const topHeight = usable - selfHeight;
   const dividerY = topHeight + band / 2;
   const overview = opponentLayout === "overview" && !compact && opponentCount > 1;

@@ -3,6 +3,7 @@ import { Heart, Search, X } from "lucide-react";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AppSelect, AppSelectOption } from "@/components/ui/AppSelect";
 import type { DeckHubDiscoveryFilters } from "@/components/deck/deckHub.types";
 import type { DeckHubFacets } from "@/api/hubTypes";
 import { FORMAT_DISPLAY } from "@/lib/constants";
@@ -105,32 +106,28 @@ export function DeckHubFilterPanel({
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        <select
+        <AppSelect
           value={filters.sort}
           aria-label={`Sort Community decks`}
           className="h-9 min-w-0 rounded-md border border-input bg-background px-2 text-sm pointer-coarse:text-base"
-          onChange={(event) =>
-            onChange({ sort: event.target.value as DeckHubDiscoveryFilters["sort"] })
-          }
+          onValueChange={(value) => onChange({ sort: value as DeckHubDiscoveryFilters["sort"] })}
         >
-          <option value="newest">Newest</option>
-          <option value="name">Name</option>
-          <option value="favorites">Favorites</option>
-        </select>
-        <select
+          <AppSelectOption value="newest">Newest</AppSelectOption>
+          <AppSelectOption value="name">Name</AppSelectOption>
+          <AppSelectOption value="favorites">Favorites</AppSelectOption>
+        </AppSelect>
+        <AppSelect
           value={filters.group}
           aria-label={`Group Community results`}
           className="h-9 min-w-0 rounded-md border border-input bg-background px-2 text-sm pointer-coarse:text-base"
-          onChange={(event) =>
-            onChange({ group: event.target.value as DeckHubDiscoveryFilters["group"] })
-          }
+          onValueChange={(value) => onChange({ group: value as DeckHubDiscoveryFilters["group"] })}
         >
-          <option value="none">No groups</option>
-          <option value="source">By source</option>
-          <option value="format">By format</option>
-          <option value="color">By color</option>
-          <option value="tag">By tag</option>
-        </select>
+          <AppSelectOption value="none">No groups</AppSelectOption>
+          <AppSelectOption value="source">By source</AppSelectOption>
+          <AppSelectOption value="format">By format</AppSelectOption>
+          <AppSelectOption value="color">By color</AppSelectOption>
+          <AppSelectOption value="tag">By tag</AppSelectOption>
+        </AppSelect>
       </div>
 
       <div className="space-y-2">
@@ -185,17 +182,17 @@ export function DeckHubFilterPanel({
             </Button>
           ))}
         </div>
-        <select
+        <AppSelect
           value={filters.colorMatch}
           aria-label={`Color identity match`}
           className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm pointer-coarse:text-base"
-          onChange={(event) =>
-            onChange({ colorMatch: event.target.value as DeckHubDiscoveryFilters["colorMatch"] })
+          onValueChange={(value) =>
+            onChange({ colorMatch: value as DeckHubDiscoveryFilters["colorMatch"] })
           }
         >
-          <option value="exact">Exact colors</option>
-          <option value="includes">Includes colors</option>
-        </select>
+          <AppSelectOption value="exact">Exact colors</AppSelectOption>
+          <AppSelectOption value="includes">Includes colors</AppSelectOption>
+        </AppSelect>
       </div>
 
       <div className="grid gap-3">

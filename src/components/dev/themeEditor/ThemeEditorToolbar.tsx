@@ -2,6 +2,7 @@ import { useRef } from "react";
 import { Redo2, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AppSelect, AppSelectOption } from "@/components/ui/AppSelect";
 import { THEME_PRESETS } from "@/themes";
 import type { ThemeDraftController } from "./useThemeDraft";
 
@@ -25,19 +26,19 @@ export function ThemeEditorToolbar({
           maxLength={80}
           onChange={(event) => update((current) => ({ ...current, name: event.target.value }))}
         />
-        <select
+        <AppSelect
           aria-label="Base preset"
           className="h-8 w-36 shrink-0 rounded-md border border-input bg-background px-2 text-xs"
           value={draft.presetId}
-          onChange={(event) => update((current) => ({ ...current, presetId: event.target.value }))}
+          onValueChange={(value) => update((current) => ({ ...current, presetId: value }))}
           title="Change the inherited palette. Your overrides stay in the draft."
         >
           {THEME_PRESETS.map((preset) => (
-            <option key={preset.id} value={preset.id}>
+            <AppSelectOption key={preset.id} value={preset.id}>
               {preset.name}
-            </option>
+            </AppSelectOption>
           ))}
-        </select>
+        </AppSelect>
         <div className="flex shrink-0 gap-1" aria-label="Draft color mode">
           {(["light", "dark"] as const).map((mode) => (
             <Button

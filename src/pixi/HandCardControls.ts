@@ -16,7 +16,6 @@ import { hexToNum } from "./colorUtils";
 const CONTROL_SIZE = 20;
 const CONTROL_GAP = 4;
 const CONTROL_INSET = 5;
-const CONTROL_RADIUS = CONTROL_SIZE / 2;
 const ICON_SIZE = 12;
 const TOOLTIP_GAP = 4;
 const TOOLTIP_HEIGHT = 20;
@@ -36,10 +35,12 @@ export interface HandCardControlsSpec {
 export class HandCardControls extends Container {
   private spec: HandCardControlsSpec | null = null;
   private theme: Theme;
+  private readonly controlSize: number;
 
-  constructor(theme: Theme) {
+  constructor(theme: Theme, controlSize = CONTROL_SIZE) {
     super();
     this.theme = theme;
+    this.controlSize = controlSize;
     this.eventMode = "passive";
     this.visible = false;
   }
@@ -102,12 +103,12 @@ export class HandCardControls extends Container {
       this.createButton(icon, label, activate, tooltip),
     );
     const totalWidth =
-      buttons.length * CONTROL_SIZE + CONTROL_GAP * Math.max(0, buttons.length - 1);
+      buttons.length * this.controlSize + CONTROL_GAP * Math.max(0, buttons.length - 1);
     let x = -totalWidth;
     for (const button of buttons) {
       button.position.set(x, 0);
       this.addChild(button);
-      x += CONTROL_SIZE + CONTROL_GAP;
+      x += this.controlSize + CONTROL_GAP;
     }
     this.addChild(tooltip.container);
     this.visible = true;
@@ -123,19 +124,20 @@ export class HandCardControls extends Container {
     const background = new Graphics();
     const icon = new Sprite(Texture.EMPTY);
     icon.anchor.set(0.5);
-    icon.position.set(CONTROL_SIZE / 2);
+    icon.position.set(this.controlSize / 2);
+    const iconSize = this.controlSize === CONTROL_SIZE ? ICON_SIZE : 14;
     applyIcon(
       icon,
       iconName,
       this.theme.appTheme["popover-foreground"],
       undefined,
-      ICON_SIZE,
-      ICON_SIZE,
+      iconSize,
+      iconSize,
     );
     const paint = (hovered: boolean) => {
       background
         .clear()
-        .circle(CONTROL_RADIUS, CONTROL_RADIUS, CONTROL_RADIUS)
+        .circle(this.controlSize / 2, this.controlSize / 2, this.controlSize / 2)
         .fill({
           color: hexToNum(hovered ? this.theme.appTheme.muted : this.theme.appTheme.popover),
           alpha: 0.94,
@@ -150,13 +152,13 @@ export class HandCardControls extends Container {
     button.hitArea = new Rectangle(
       -hitPad,
       -hitPad,
-      CONTROL_SIZE + hitPad * 2,
-      CONTROL_SIZE + hitPad * 2,
+      this.controlSize + hitPad * 2,
+      this.controlSize + hitPad * 2,
     );
     button.on("pointerenter", (event: FederatedPointerEvent) => {
       if (event.pointerType === "touch") return;
       paint(true);
-      this.showTooltip(tooltip, tooltipLabel, button.x + CONTROL_SIZE / 2);
+      this.showTooltip(tooltip, tooltipLabel, button.x + this.controlSize / 2);
     });
     button.on("pointerleave", () => {
       paint(false);
@@ -212,7 +214,7 @@ export class HandCardControls extends Container {
       .stroke({ color: hexToNum(this.theme.appTheme.border), width: 0.75 });
     tooltip.container.position.set(
       Math.min(centerX - width / 2, -width),
-      CONTROL_SIZE + TOOLTIP_GAP,
+      this.controlSize + TOOLTIP_GAP,
     );
     tooltip.container.visible = true;
   }

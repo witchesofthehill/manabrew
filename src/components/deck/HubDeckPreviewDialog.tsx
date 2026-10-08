@@ -24,6 +24,7 @@ import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { removeDeckHubEntry } from "@/api/hub";
 import { useMyDeckHubEntries } from "@/hooks/useMyDeckHubEntries";
 import { useAccountDecks } from "@/hooks/useAccountDecks";
+import { useIsMobileGame } from "@/hooks/useBreakpoints";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { useAccountDecksStore } from "@/stores/useAccountDecksStore";
 import { useHubStore } from "@/stores/useHubStore";
@@ -33,6 +34,7 @@ import type { EditorDeck } from "@/types/manabrew";
 import { ROUTES } from "@/lib/constants";
 import { savePresetToAccountOnUse } from "@/lib/presetDeckAccount";
 import { isFeatureEnabled } from "@/featureFlags";
+import { cn } from "@/lib/utils";
 interface HubDeckPreviewDialogProps {
   deckId: string | null;
   onClose: () => void;
@@ -54,6 +56,7 @@ export function HubDeckPreviewDialog({
   onUnpublished,
   onViewSnapshot,
 }: HubDeckPreviewDialogProps) {
+  const shortTouch = useIsMobileGame();
   const hubEnabled = isFeatureEnabled("deckHub");
   const navigate = useNavigate();
   const {
@@ -229,18 +232,34 @@ export function HubDeckPreviewDialog({
         open={hubEnabled && deckId !== null}
         onOpenChange={(open) => !open && !routeLaunchRef.current && onClose()}
       >
-        <DialogContent className="flex h-[calc(100dvh-1rem-var(--safe-area-inset-top)-var(--safe-area-inset-bottom))] w-[calc(100vw-1rem)] max-w-7xl flex-col gap-0 overflow-hidden p-0 sm:h-[90dvh] sm:w-[94vw]">
-          <DialogHeader className="shrink-0 border-b px-4 py-3 pr-12 text-left sm:px-5">
+        <DialogContent
+          className={cn(
+            "flex h-[calc(100dvh-1rem-var(--safe-area-inset-top)-var(--safe-area-inset-bottom))] max-h-[calc(100dvh-1rem-var(--safe-area-inset-top)-var(--safe-area-inset-bottom))] w-[calc(100vw-1rem)] max-w-7xl flex-col gap-0 overflow-hidden p-0 sm:h-[90dvh] sm:w-[94vw]",
+            shortTouch &&
+              "sm:h-[calc(100dvh-1rem-var(--safe-area-inset-top)-var(--safe-area-inset-bottom))]",
+          )}
+        >
+          <DialogHeader
+            className={cn(
+              "shrink-0 border-b px-4 py-3 pr-12 text-left sm:px-5",
+              shortTouch && "space-y-0.5 py-1.5 sm:pl-4 sm:pr-12",
+            )}
+          >
             <DialogTitle className="truncate">
               {detail?.name ?? (error ? `Deck unavailable` : `Loading\u2026`)}
             </DialogTitle>
-            <DialogDescription className="line-clamp-2">
+            <DialogDescription className={cn("line-clamp-2", shortTouch && "line-clamp-1")}>
               {detail
                 ? `by ${detail.author ?? "Deleted user"}${detail.description ? ` — ${detail.description}` : ""}`
                 : (error ?? `Fetching deck from Community\u2026`)}
             </DialogDescription>
             {detail && (
-              <div className="flex flex-wrap items-center gap-2 pt-0.5 text-xs text-muted-foreground">
+              <div
+                className={cn(
+                  "flex flex-wrap items-center gap-2 pt-0.5 text-xs text-muted-foreground",
+                  shortTouch && "no-scrollbar flex-nowrap overflow-x-auto whitespace-nowrap",
+                )}
+              >
                 <FormatBadge formatId={detail.format ?? detail.deck.format ?? "commander"} />
                 {colorCost && <ManaSymbols cost={colorCost} size="sm" className="m-0" />}
                 <span>{visibleCardCount} cards</span>
@@ -320,10 +339,10 @@ export function HubDeckPreviewDialog({
                 </Button>
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
+              <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] gap-2 sm:flex sm:flex-wrap sm:justify-end">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="primary" size="sm" disabled={!detail} className="col-span-2">
+                    <Button variant="primary" size="sm" disabled={!detail}>
                       Play
                       <ChevronDown className="h-3.5 w-3.5" />
                     </Button>
@@ -346,6 +365,7 @@ export function HubDeckPreviewDialog({
                   onClick={
                     mine || linkedAccountDeck ? handleOpenAccountDeck : () => void handleSave()
                   }
+                  className="min-w-0 px-2 sm:px-3"
                 >
                   {linkedAccountDeck && !mine
                     ? `Open My Copy`
@@ -355,9 +375,9 @@ export function HubDeckPreviewDialog({
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" className="min-w-11 px-2 sm:px-3">
                       <MoreHorizontal className="h-3.5 w-3.5" />
-                      More
+                      <span className="sr-only sm:not-sr-only">More</span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">

@@ -3,7 +3,9 @@ import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { DeckHubFilters } from "@/components/deck/DeckHubFilters";
 import { DeckHubResults } from "@/components/deck/DeckHubResults";
+import { useIsMobileGame } from "@/hooks/useBreakpoints";
 import { availableEngines, hubEntryEngines, supportsAvailableEngine } from "@/lib/engines";
+import { cn } from "@/lib/utils";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import type { DeckHubDiscoveryFilters } from "@/components/deck/deckHub.types";
 import type { DeckHubEntrySummary } from "@/api/hubTypes";
@@ -25,6 +27,7 @@ function csv(value: string | null) {
 }
 
 export function DeckHubDiscover({ onOpen }: DeckHubDiscoverProps) {
+  const shortTouch = useIsMobileGame();
   const ironsmithRuntimeOn = usePreferencesStore((state) => state.ironsmithRuntimeEnabled);
   const accountsEnabled = isFeatureEnabled("accounts");
   const [searchParams, setSearchParams] = useSearchParams();
@@ -234,12 +237,14 @@ export function DeckHubDiscover({ onOpen }: DeckHubDiscoverProps) {
   const total = entries?.total ?? 0;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+    <div className={cn("flex min-h-0 flex-1 flex-col lg:flex-row", shortTouch && "lg:flex-col")}>
       <DeckHubFilters
         filters={filters}
         facets={facets}
         facetsLoading={facetsLoading}
         activeFilterCount={activeFilterCount}
+        total={total}
+        loaded={entries !== null}
         favoritesEnabled={accountsEnabled}
         onChange={changeFilters}
         onClear={clearFilters}

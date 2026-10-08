@@ -1,4 +1,4 @@
-import type { Prompt, PromptOutput } from "@/protocol";
+import type { Prompt, PromptOutput, ProtocolError } from "@/protocol";
 import type { DisplayEvent } from "@/protocol/display";
 import type { CardDto, GameViewDto, PlayerDto } from "@/protocol/game";
 import type { Deck } from "@/protocol/deck";
@@ -55,6 +55,7 @@ export interface GameState {
   gameView: ClientGameView | null;
   currentPrompt: Prompt | null;
   gameLog: GameLogEntry[];
+  protocolError: ProtocolError | null;
   isGameActive: boolean;
   debugInfo: string;
   /** Set when the host engine fails fatally (crash / invalid deck / can't

@@ -180,6 +180,14 @@ public final class SabTransport implements InteractiveBridge {
     }
 
     @Override
+    public void publishDisplay(final int playerIndex, final String displayEventJson) {
+        if (playerIndex < 0 || playerIndex >= seatCount()) {
+            return;
+        }
+        sendTagged(playerIndex, "display", "event", displayEventJson);
+    }
+
+    @Override
     public String exchange(final int playerIndex, final String promptJson) {
         final int seat = playerIndex < 0 ? 0 : playerIndex;
         final String type = inputType(promptJson);

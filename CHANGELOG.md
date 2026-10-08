@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.54.7](https://github.com/witchesofthehill/manabrew/compare/v3.54.6...v3.54.7) (2026-10-08)
+
+### Fixes
+
+* **engine:** offscreen info and misc gameplay bugs ([#1040](https://github.com/witchesofthehill/manabrew/issues/1040)) ([dfdc4bc](https://github.com/witchesofthehill/manabrew/commit/dfdc4bc9a472a0d65c4c96630efb5bf022b5c904))
+
 ## [3.54.6](https://github.com/witchesofthehill/manabrew/compare/v3.54.5...v3.54.6) (2026-10-06)
 
 ### Fixes

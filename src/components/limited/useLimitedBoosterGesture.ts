@@ -1,11 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { MouseEvent, PointerEvent, RefObject } from "react";
 import { LIMITED_DRAG_THRESHOLD } from "@/pixi/limited/limitedLayout";
-import type {
-  LimitedBoosterReveal,
-  BoosterTearDirection,
-} from "@/pixi/limited/LimitedBoosterReveal";
+import type { BoosterTearDirection } from "@/pixi/limited/LimitedBoosterReveal";
 import { haptic } from "@/lib/haptics";
+import type { LimitedBoosterDragEffects } from "@/pixi/limited/LimitedBoosterDragEffects";
 
 interface PackGesture {
   pointerId: number;
@@ -13,74 +11,108 @@ interface PackGesture {
   startX: number;
   startY: number;
   x: number;
+  y: number;
+  distance: number;
   dragged: boolean;
   ids: Set<string>;
   bounds: Map<string, DOMRect>;
-  laneY: number;
 }
 
 export function useLimitedBoosterGesture(
-  buttons: RefObject<Map<string, HTMLButtonElement>>,
+  buttonsRef: RefObject<Map<string, HTMLButtonElement>>,
   disabled: boolean,
   onOpen: (ids: string[], direction?: BoosterTearDirection) => void,
+  onTear: (id: string, progress: number, direction?: BoosterTearDirection) => void,
+  effectsRef: RefObject<LimitedBoosterDragEffects | null>,
 ) {
-  const packets = useRef(new Map<string, LimitedBoosterReveal>());
   const gesture = useRef<PackGesture | null>(null);
+  const callbacks = useRef({ onOpen, onTear });
+  useLayoutEffect(() => {
+    callbacks.current = { onOpen, onTear };
+  });
   const suppressClick = useRef<{ pointerId: number; until: number } | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const reset = useCallback((restoreTears = true) => {
-    const current = gesture.current;
-    gesture.current = null;
-    if (current?.target.hasPointerCapture(current.pointerId))
-      current.target.releasePointerCapture(current.pointerId);
-    if (restoreTears) for (const packet of packets.current.values()) packet.tear(0);
-    setSelectedIds([]);
-  }, []);
+  const reset = useCallback(
+    (restoreTears = true) => {
+      const current = gesture.current;
+      gesture.current = null;
+      if (current?.target.hasPointerCapture(current.pointerId))
+        current.target.releasePointerCapture(current.pointerId);
+      if (restoreTears) {
+        if (current)
+          suppressClick.current = { pointerId: current.pointerId, until: performance.now() + 500 };
+        for (const id of buttonsRef.current.keys()) callbacks.current.onTear(id, 0);
+      }
+      effectsRef.current?.stop(!restoreTears && Boolean(current?.dragged));
+      setSelectedIds([]);
+    },
+    [buttonsRef, effectsRef],
+  );
   useEffect(() => {
     const blur = () => reset();
     window.addEventListener("blur", blur);
-    return () => window.removeEventListener("blur", blur);
+    return () => {
+      window.removeEventListener("blur", blur);
+      reset();
+    };
   }, [reset]);
   const move = (event: PointerEvent<HTMLDivElement>) => {
     const current = gesture.current;
-    if (!current || current.pointerId !== event.pointerId) return;
+    if (!current) {
+      const target = (event.target as HTMLElement).closest<HTMLButtonElement>(
+        "button[data-limited-pack-id]",
+      );
+      if (
+        !disabled &&
+        event.pointerType === "mouse" &&
+        target &&
+        buttonsRef.current.get(target.dataset.limitedPackId!) === target
+      )
+        effectsRef.current?.update(event.clientX, event.clientY, "hover");
+      else effectsRef.current?.stop();
+      return;
+    }
+    if (current.pointerId !== event.pointerId) return;
     if (
       !current.dragged &&
       Math.hypot(event.clientX - current.startX, event.clientY - current.startY) <
         LIMITED_DRAG_THRESHOLD
-    )
+    ) {
+      effectsRef.current?.update(event.clientX, event.clientY, "armed");
       return;
+    }
     const started = !current.dragged;
     current.dragged = true;
     const count = current.ids.size;
-    const direction = event.clientX < current.x ? "left" : "right";
-    const steps = Math.ceil(Math.abs(event.clientX - current.x) / LIMITED_DRAG_THRESHOLD);
+    const direction = event.clientX < current.startX ? "left" : "right";
+    const dx = event.clientX - current.x;
+    const dy = event.clientY - current.y;
+    const distance = Math.hypot(dx, dy);
+    current.distance += distance;
+    const steps = Math.ceil(distance / LIMITED_DRAG_THRESHOLD);
     for (let step = 0; steps && step <= steps; step++) {
-      const x = current.x + ((event.clientX - current.x) * step) / steps;
+      const x = current.x + (dx * step) / steps;
+      const y = current.y + (dy * step) / steps;
       const target = document
-        .elementFromPoint(x, current.laneY)
+        .elementFromPoint(x, y)
         ?.closest<HTMLButtonElement>("button[data-limited-pack-id]");
       const id = target?.dataset.limitedPackId;
-      if (id && buttons.current.get(id) === target) current.ids.add(id);
+      if (id && buttonsRef.current.get(id) === target) current.ids.add(id);
     }
     for (const id of current.ids) {
       const rect = current.bounds.get(id)!;
-      const progress = Math.max(
-        direction === "right"
-          ? (event.clientX - rect.left) / rect.width
-          : (rect.right - event.clientX) / rect.width,
-        Math.abs(event.clientY - current.startY) / rect.height,
-      );
-      packets.current.get(id)?.tear(Math.min(0.99, Math.max(0.15, progress)), direction);
+      const progress = current.distance / rect.width;
+      callbacks.current.onTear(id, Math.min(0.99, Math.max(0.15, progress)), direction);
     }
     current.x = event.clientX;
+    current.y = event.clientY;
+    effectsRef.current?.update(event.clientX, event.clientY, "drag");
     if (current.ids.size !== count || started) {
       setSelectedIds([...current.ids]);
       haptic("select");
     }
   };
   return {
-    packets,
     selectedIds,
     gesture,
     reset,
@@ -105,40 +137,41 @@ export function useLimitedBoosterGesture(
           return;
         target.setPointerCapture(event.pointerId);
         const bounds = new Map(
-          [...buttons.current].map(([id, button]) => [id, button.getBoundingClientRect()]),
+          [...buttonsRef.current].map(([id, button]) => [id, button.getBoundingClientRect()]),
         );
-        let top = -Infinity;
-        let bottom = Infinity;
-        for (const rect of bounds.values()) {
-          top = Math.max(top, rect.top + LIMITED_DRAG_THRESHOLD);
-          bottom = Math.min(bottom, rect.bottom - LIMITED_DRAG_THRESHOLD);
-        }
         gesture.current = {
           pointerId: event.pointerId,
           target,
           startX: event.clientX,
           startY: event.clientY,
           x: event.clientX,
+          y: event.clientY,
+          distance: 0,
           dragged: false,
           ids: new Set([target.dataset.limitedPackId!]),
           bounds,
-          laneY: Math.max(top, Math.min(bottom, event.clientY)),
         };
+        effectsRef.current?.update(event.clientX, event.clientY, "armed");
       },
       onPointerMove: move,
+      onPointerLeave: () => {
+        if (!gesture.current) effectsRef.current?.stop();
+      },
       onPointerUp: (event: PointerEvent<HTMLDivElement>) => {
         if (gesture.current?.pointerId !== event.pointerId) return;
         move(event);
         const current = gesture.current;
         const ids = [...current.ids];
         const direction = event.clientX < current.startX ? "left" : "right";
-        reset(!current.dragged);
+        reset(false);
         if (current.dragged) {
           suppressClick.current = { pointerId: event.pointerId, until: performance.now() + 500 };
-          onOpen(ids, direction);
+          callbacks.current.onOpen(ids, direction);
         }
       },
-      onPointerCancel: () => reset(),
+      onPointerCancel: (event: PointerEvent<HTMLDivElement>) => {
+        if (gesture.current?.pointerId === event.pointerId) reset();
+      },
       onLostPointerCapture: (event: PointerEvent<HTMLDivElement>) => {
         if (gesture.current?.pointerId === event.pointerId) reset();
       },

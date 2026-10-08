@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { RefObject } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { LimitedBoosterControl } from "@/components/limited/LimitedBoosterControl";
 import type { LimitedBoosterControlHandle } from "@/components/limited/LimitedBoosterControl";
@@ -11,6 +12,7 @@ import { cn } from "@/lib/utils";
 
 interface LimitedBoosterOverlayProps {
   state: BoosterOpeningState | null;
+  effectsHost: RefObject<HTMLDivElement | null>;
   onOpen: () => void;
   onTear: (progress: number, direction?: BoosterTearDirection) => void;
   onSkip: () => void;
@@ -19,6 +21,7 @@ interface LimitedBoosterOverlayProps {
 
 export function LimitedBoosterOverlay({
   state,
+  effectsHost,
   onOpen,
   onTear,
   onSkip,
@@ -26,6 +29,7 @@ export function LimitedBoosterOverlay({
 }: LimitedBoosterOverlayProps) {
   const control = useRef<LimitedBoosterControlHandle>(null);
   const content = useRef<HTMLDivElement>(null);
+  const buttons = useRef(new Map<string, HTMLButtonElement>());
   const [previousFocus] = useState(() => document.activeElement);
   const ready = state !== null;
   useEffect(() => {
@@ -70,13 +74,40 @@ export function LimitedBoosterOverlay({
           </DialogPrimitive.Title>
           <DialogPrimitive.Description className="sr-only">
             {state && state.packCount > 1
-              ? `Tap the grouped packets or drag their glowing seam to open all ${state.packCount} boosters together.`
-              : "Drag horizontally across the glowing seam, or tap the packet to open it."}{" "}
+              ? `Tap the grouped packets or drag to open all ${state.packCount} boosters together.`
+              : "Drag to tear, then release, or tap the packet to open it."}{" "}
             Arrow keys tear gradually. Enter or Space opens the focused packet. Escape resets an
             unfinished tear and can skip the animation only after opening.
           </DialogPrimitive.Description>
           {state ? (
-            <LimitedBoosterControl ref={control} state={state} onOpen={onOpen} onTear={onTear} />
+            <LimitedBoosterControl
+              ref={control}
+              effectsHost={effectsHost}
+              buttons={buttons}
+              disabled={!state.waiting}
+              onOpen={() => onOpen()}
+              onTear={(_id, progress, direction) => onTear(progress, direction)}
+              label="Unopened boosters"
+              className="absolute inset-0"
+              targets={[
+                ...(state.packetBounds ?? []).map((bounds, index) => ({
+                  id: `packet-${index}`,
+                  label: `Open all ${state.packCount} boosters`,
+                  style: {
+                    left: bounds.x,
+                    top: bounds.y,
+                    width: bounds.width,
+                    height: bounds.height,
+                  },
+                })),
+                {
+                  id: "front",
+                  label:
+                    state.packCount > 1 ? `Open all ${state.packCount} boosters` : "Open booster",
+                  style: { left: state.x, top: state.y, width: state.width, height: state.height },
+                },
+              ]}
+            />
           ) : (
             <div
               role="status"

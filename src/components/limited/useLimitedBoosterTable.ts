@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { Container } from "pixi.js";
 import { LimitedBoosterReveal } from "@/pixi/limited/LimitedBoosterReveal";
 import type {
@@ -11,8 +11,7 @@ import { animationsEnabled } from "@/pixi/effects/enabled";
 import { gsap } from "@/pixi/effects/gsap";
 import { subscribeTheme } from "@/hooks/useTheme";
 import { useScryfallStore } from "@/stores/useScryfallStore";
-import { useLimitedBoosterGesture } from "@/components/limited/useLimitedBoosterGesture";
-import { haptic } from "@/lib/haptics";
+import type { LimitedBoosterControlHandle } from "@/components/limited/LimitedBoosterControl";
 import type { SealedPool } from "@/types/limited";
 
 export function useLimitedBoosterTable(
@@ -27,6 +26,14 @@ export function useLimitedBoosterTable(
   ) => void,
 ) {
   const host = useRef<HTMLDivElement>(null);
+  const control = useRef<LimitedBoosterControlHandle>(null);
+  const packets = useRef(new Map<string, LimitedBoosterReveal>());
+  const reset = useCallback(() => control.current?.reset(), []);
+  const onTear = useCallback(
+    (id: string, progress: number, direction?: BoosterTearDirection) =>
+      packets.current.get(id)?.tear(progress, direction),
+    [],
+  );
   const buttons = useRef(new Map<string, HTMLButtonElement>());
   const stages = useRef(new Map<string, Container>());
   const hidden = useRef(openingIds);
@@ -48,7 +55,6 @@ export function useLimitedBoosterTable(
     request.current?.();
   }, [openingIds]);
   const open = (ids: string[], direction?: BoosterTearDirection) => {
-    haptic("confirm");
     onOpen(ids, direction, () =>
       unopened
         .filter(({ pack }) => ids.includes(pack.id))
@@ -73,11 +79,6 @@ export function useLimitedBoosterTable(
         }),
     );
   };
-  const { packets, gesture, reset, selectedIds, handlers } = useLimitedBoosterGesture(
-    buttons,
-    disabled,
-    open,
-  );
   useLayoutEffect(() => {
     if (!disabled) return;
     for (const [id, stage] of stages.current) {
@@ -176,7 +177,7 @@ export function useLimitedBoosterTable(
   const hover = (id: string, active: boolean) => {
     const stage = stages.current.get(id);
     const button = buttons.current.get(id);
-    if (!stage || !button || disabled || gesture.current) return;
+    if (!stage || !button || disabled || control.current?.dragging()) return;
     packets.current.get(id)?.tear(active ? 0.08 : 0);
     gsap.killTweensOf(stage);
     if (!animationsEnabled()) {
@@ -195,12 +196,11 @@ export function useLimitedBoosterTable(
     host,
     buttons,
     unopened,
-    open: (ids: string[], direction?: BoosterTearDirection) => {
-      reset();
-      open(ids, direction);
-    },
+    control,
+    onOpen: open,
+    onTear,
+    open: (ids: string[], direction?: BoosterTearDirection) =>
+      control.current?.open(ids, direction),
     hover,
-    selectedIds,
-    handlers,
   };
 }

@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { LimitedModeSelector } from "@/components/limited/LimitedModeSelector";
 import { LimitedSetupDialog } from "@/components/limited/LimitedSetupDialog";
+import { LimitedSetupOptions } from "@/components/limited/LimitedSetupOptions";
 import { LimitedSetConfiguration } from "@/components/limited/LimitedSetConfiguration";
 import { LimitedCubeSource } from "@/components/limited/LimitedCubeSource";
 import { LimitedReferenceButton } from "@/components/limited/LimitedReferenceButton";
@@ -53,7 +54,7 @@ export default function Limited({ leadingControl }: LimitedProps) {
       ? `${setup.numBoosters} packs`
       : setup.mode === "draft"
         ? `${setup.podSize} players · 3 packs each · ${setup.picksPerPass} ${setup.picksPerPass === 1 ? "pick" : "picks"} per pass`
-        : `${setup.winstonPacks} shared packs · 2 players`,
+        : `${setup.winstonPacks} packs per player · 2 players`,
     setup.source === "set" && selection.selectedVariant
       ? `${selection.selectedVariant} boosters`
       : null,
@@ -68,7 +69,6 @@ export default function Limited({ leadingControl }: LimitedProps) {
     <div className="flex h-full flex-col gap-8 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8">
       <header className="flex flex-wrap items-center gap-x-4 gap-y-2">
         {leadingControl}
-        <LimitedModeSelector mode={setup.mode} onChange={setup.setMode} disabled={setup.busy} />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -105,6 +105,30 @@ export default function Limited({ leadingControl }: LimitedProps) {
         </DropdownMenu>
       </header>
       <section aria-label={`${modeTitle} setup`} className="space-y-5">
+        <LimitedModeSelector mode={setup.mode} onChange={setup.setMode} disabled={setup.busy} />
+        <div className="rounded-lg border border-border/60 bg-card/40 p-4 sm:p-5">
+          <LimitedSetupOptions
+            mode={setup.mode}
+            numBoosters={setup.numBoosters}
+            onNumBoostersChange={setup.setNumBoosters}
+            podSize={setup.podSize}
+            onPodSizeChange={setup.setPodSize}
+            winstonPacks={setup.winstonPacks}
+            onWinstonPacksChange={setup.setWinstonPacks}
+            seed={setup.seed}
+            onSeedChange={setup.setSeed}
+            picksPerPass={setup.picksPerPass}
+            onPicksPerPassChange={setup.setPicksPerPass}
+            pickSeconds={setup.pickSeconds}
+            onPickSecondsChange={setup.setPickSeconds}
+            variants={
+              setup.source === "set" && !selection.loading ? (selection.info?.variants ?? []) : []
+            }
+            selectedVariant={selection.selectedVariant}
+            onVariantChange={selection.onVariantChange}
+            disabled={setup.busy}
+          />
+        </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-serif text-lg">Choose cards</h2>
           <AppSelect
@@ -144,14 +168,6 @@ export default function Limited({ leadingControl }: LimitedProps) {
         )}
         <p className="text-sm leading-relaxed text-muted-foreground">{summary}</p>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Button
-            variant="ghost"
-            onClick={(event) => openPanel("customize", event.currentTarget)}
-            disabled={setup.busy}
-            className="text-muted-foreground"
-          >
-            Customize
-          </Button>
           <LimitedReferenceButton
             cards={[]}
             setCodes={setup.source === "set" ? [selection.selectedCode] : undefined}
@@ -174,7 +190,8 @@ export default function Limited({ leadingControl }: LimitedProps) {
         onClose={() => setPanel(null)}
         triggerRef={dialogTrigger}
         setup={setup}
-        selection={selection}
+        sets={selection.sets}
+        restoreFocus={!setup.pendingDraftStart}
       />
       <TablePickerDialog
         open={setup.pendingDraftStart !== null}

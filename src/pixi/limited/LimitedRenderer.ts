@@ -71,6 +71,7 @@ export class LimitedRenderer {
   private readonly flightsLayer = new Container();
   private readonly motionLayer = new Container();
   private readonly openingLayer = new Container();
+  private readonly openingFeedbackLayer = new Container();
   private readonly openings = new Map<LimitedPane, Container>();
   private readonly liftedCards = new Map<Container, LiftedCard>();
   private readonly dragGroups = new Map<Container, DragFollower[]>();
@@ -133,12 +134,14 @@ export class LimitedRenderer {
     this.decorationLayer.eventMode = "none";
     this.motionLayer.eventMode = "none";
     this.openingLayer.eventMode = "none";
+    this.openingFeedbackLayer.eventMode = "none";
     this.app.stage.addChild(
       this.cardsLayer,
       this.flightsLayer,
       this.decorationLayer,
       this.motionLayer,
       this.openingLayer,
+      this.openingFeedbackLayer,
     );
     for (const { pane, mask } of this.panes.values())
       (pane.layer === "decoration" ? this.decorationLayer : this.cardsLayer).addChild(
@@ -251,8 +254,8 @@ export class LimitedRenderer {
     this.request();
     return true;
   }
-  addOverlay(root: Container): void {
-    this.motionLayer.addChild(root);
+  addOverlay(root: Container, layer: "motion" | "opening" = "motion"): void {
+    (layer === "opening" ? this.openingFeedbackLayer : this.motionLayer).addChild(root);
     this.request();
   }
   marqueePositions(pane: LimitedPane): Map<string, MarqueeCardPosition> {

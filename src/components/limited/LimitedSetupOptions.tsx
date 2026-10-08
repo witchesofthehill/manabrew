@@ -1,5 +1,6 @@
 import { useId } from "react";
 import { Input } from "@/components/ui/input";
+import { AppSelect, AppSelectOption } from "@/components/ui/AppSelect";
 import { LimitedPickClockSetting } from "@/components/limited/LimitedPickClockSetting";
 import type { LimitedSetupMode } from "@/components/limited/limitedSetup.types";
 
@@ -17,9 +18,11 @@ interface LimitedSetupOptionsProps {
   onPicksPerPassChange: (n: number) => void;
   pickSeconds?: number;
   onPickSecondsChange: (seconds: number | undefined) => void;
+  variants: readonly string[];
+  selectedVariant: string;
+  onVariantChange: (variant: string) => void;
   disabled?: boolean;
 }
-
 interface NumberFieldProps {
   id: string;
   label: string;
@@ -28,7 +31,6 @@ interface NumberFieldProps {
   max: number;
   onChange: (n: number) => void;
 }
-
 function NumberField({ id, label, value, min, max, onChange }: NumberFieldProps) {
   return (
     <label htmlFor={id} className="flex flex-col gap-2 text-sm font-medium text-foreground">
@@ -44,100 +46,111 @@ function NumberField({ id, label, value, min, max, onChange }: NumberFieldProps)
           const next = event.currentTarget.valueAsNumber;
           onChange(Number.isFinite(next) ? Math.max(min, Math.min(max, Math.trunc(next))) : min);
         }}
-        className="w-full sm:w-32"
+        className="w-full"
       />
     </label>
   );
 }
-
-export function LimitedSetupOptions({
-  mode,
-  numBoosters,
-  onNumBoostersChange,
-  podSize,
-  onPodSizeChange,
-  winstonPacks,
-  onWinstonPacksChange,
-  seed,
-  onSeedChange,
-  picksPerPass,
-  onPicksPerPassChange,
-  pickSeconds,
-  onPickSecondsChange,
-  disabled = false,
-}: LimitedSetupOptionsProps) {
+export function LimitedSetupOptions(props: LimitedSetupOptionsProps) {
   const id = useId();
-
+  const variants = [...new Set(props.variants.filter((variant) => variant.trim()))];
+  const modeTitle =
+    props.mode === "sealed" ? "Sealed" : props.mode === "draft" ? "Booster Draft" : "Winston";
   return (
-    <fieldset disabled={disabled} className="min-w-0 space-y-4">
-      <legend className="sr-only">Mode settings</legend>
-      <div className="grid gap-4 sm:grid-cols-2">
-        {mode === "sealed" && (
+    <fieldset disabled={props.disabled} className="min-w-0 space-y-4">
+      <legend className="mb-3 font-serif text-lg text-foreground">{modeTitle} options</legend>
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+        {props.mode === "sealed" && (
           <NumberField
             id={`${id}-sealed-packs`}
-            label="Packs"
-            value={numBoosters}
+            label="Boosters"
+            value={props.numBoosters}
             min={3}
             max={12}
-            onChange={onNumBoostersChange}
+            onChange={props.onNumBoostersChange}
           />
         )}
-        {mode === "draft" && (
-          <NumberField
-            id={`${id}-pod-size`}
-            label="Players"
-            value={podSize}
-            min={2}
-            max={8}
-            onChange={onPodSizeChange}
-          />
+        {props.mode === "draft" && (
+          <>
+            <NumberField
+              id={`${id}-pod-size`}
+              label="Players"
+              value={props.podSize}
+              min={2}
+              max={8}
+              onChange={props.onPodSizeChange}
+            />
+            <NumberField
+              id={`${id}-picks`}
+              label="Picks per pass"
+              value={props.picksPerPass}
+              min={1}
+              max={4}
+              onChange={props.onPicksPerPassChange}
+            />
+          </>
         )}
-        {mode === "winston" && (
+        {props.mode === "winston" && (
           <NumberField
             id={`${id}-winston-packs`}
-            label="Packs"
-            value={winstonPacks}
+            label="Boosters per player"
+            value={props.winstonPacks}
             min={2}
             max={12}
-            onChange={onWinstonPacksChange}
+            onChange={props.onWinstonPacksChange}
           />
         )}
-      </div>
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
-          <label htmlFor={`${id}-seed`} className="block text-sm font-medium text-foreground">
-            Seed
-          </label>
+        <label
+          htmlFor={`${id}-seed`}
+          className="flex flex-col gap-2 text-sm font-medium text-foreground"
+        >
+          Seed (optional)
           <Input
             id={`${id}-seed`}
             type="text"
             inputMode="numeric"
-            value={seed}
-            onChange={(event) => onSeedChange(event.currentTarget.value)}
+            value={props.seed}
+            onChange={(event) => props.onSeedChange(event.currentTarget.value)}
             placeholder="Random"
             className="font-mono"
           />
-        </div>
-        {mode === "draft" && (
+        </label>
+        {variants.length > 0 && (
           <div className="space-y-2">
-            <NumberField
-              id={`${id}-picks`}
-              label="Picks per pass"
-              value={picksPerPass}
-              min={1}
-              max={4}
-              onChange={onPicksPerPassChange}
-            />
+            <span id={`${id}-variant-label`} className="block text-sm font-medium">
+              Booster variant
+            </span>
+            <AppSelect
+              aria-labelledby={`${id}-variant-label`}
+              value={props.selectedVariant}
+              onValueChange={props.onVariantChange}
+              disabled={props.disabled}
+              className="w-full"
+            >
+              <AppSelectOption value="">Default</AppSelectOption>
+              {variants.map((variant) => (
+                <AppSelectOption key={variant} value={variant}>
+                  {variant}
+                </AppSelectOption>
+              ))}
+            </AppSelect>
           </div>
         )}
       </div>
-      {mode === "draft" && (
+      {props.mode === "draft" && (
         <LimitedPickClockSetting
-          pickSeconds={pickSeconds}
-          onPickSecondsChange={onPickSecondsChange}
-          disabled={disabled}
+          pickSeconds={props.pickSeconds}
+          onPickSecondsChange={props.onPickSecondsChange}
+          disabled={props.disabled}
         />
       )}
+      <p className="text-xs leading-relaxed text-muted-foreground">
+        {props.mode === "sealed"
+          ? "Build from your boosters. Your opponent opens a separate pool."
+          : props.mode === "draft"
+            ? "Players includes you and the AI seats. Each player opens three boosters."
+            : "Each player contributes boosters to three shared piles. Draft against one AI; basic lands are excluded."}
+      </p>
     </fieldset>
   );
 }

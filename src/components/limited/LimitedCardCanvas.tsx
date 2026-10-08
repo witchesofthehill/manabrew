@@ -450,6 +450,7 @@ export function LimitedCardCanvas({
       {openingActive && !openingPackets && (
         <LimitedBoosterOverlay
           key={arrivalKey}
+          effectsHost={canvasHost}
           state={openingState}
           onOpen={openBooster}
           onTear={tearBooster}

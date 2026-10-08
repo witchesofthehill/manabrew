@@ -11,6 +11,9 @@ const FORGE_DECISION_STAGE_SECONDS: &str = "manabrew_node_forge_decision_stage_s
 const FORGE_CHECKPOINT_SECONDS: &str = "manabrew_node_forge_checkpoint_seconds";
 const FORGE_CHECKPOINT_DECISION_SECONDS: &str = "manabrew_node_forge_checkpoint_decision_seconds";
 const FORGE_DECISION_SECONDS: &str = "manabrew_node_forge_decision_seconds";
+const JOURNAL_COMMIT_SECONDS: &str = "manabrew_node_forge_journal_commit_seconds";
+const JOURNAL_RETRIES: &str = "manabrew_node_forge_journal_retries_total";
+const JOURNAL_TAKEOVERS: &str = "manabrew_node_journal_takeovers_total";
 const ENGINE_ERRORS: &str = "manabrew_node_engine_errors_total";
 const RELAY_RECONNECTS: &str = "manabrew_node_relay_reconnects_total";
 const BUILD_INFO: &str = "manabrew_node_build_info";
@@ -54,6 +57,7 @@ const DECISION_BUCKETS: &[f64] = &[
 pub enum PoolKind {
     Solo,
     Pod,
+    Takeover,
 }
 
 impl PoolKind {
@@ -61,6 +65,7 @@ impl PoolKind {
         match self {
             Self::Solo => "solo",
             Self::Pod => "pod",
+            Self::Takeover => "takeover",
         }
     }
 }
@@ -130,6 +135,13 @@ pub fn init_from_env() {
             ],
         )
         .expect("checkpoint buckets are a non-empty literal")
+        .set_buckets_for_metric(
+            Matcher::Full(JOURNAL_COMMIT_SECONDS.to_string()),
+            &[
+                0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0, 60.0,
+            ],
+        )
+        .expect("journal buckets are a non-empty literal")
         .with_push_gateway(&url, PUSH_INTERVAL, username, password, false)
     {
         Ok(builder) => builder,
@@ -216,6 +228,19 @@ pub fn record_engine_stall(stalled_millis: u64, max_stall_millis: u64, long_stal
 
 pub fn record_relay_reconnect() {
     counter!(RELAY_RECONNECTS).increment(1);
+}
+
+pub(crate) fn record_journal_commit(startup: bool, elapsed: Duration) {
+    histogram!(JOURNAL_COMMIT_SECONDS, LABEL_STAGE => if startup { "startup" } else { "decision" })
+        .record(elapsed.as_secs_f64());
+}
+
+pub(crate) fn record_journal_takeover(result: &'static str) {
+    counter!(JOURNAL_TAKEOVERS, "result" => result).increment(1);
+}
+
+pub(crate) fn record_journal_retry() {
+    counter!(JOURNAL_RETRIES).increment(1);
 }
 
 pub fn record_forge_checkpoint(seats: usize, copy: Duration, bookkeeping: Duration) {

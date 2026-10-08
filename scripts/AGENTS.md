@@ -68,3 +68,5 @@ Never use `--no-verify` to bypass the commit-msg or pre-commit hooks. If a hook 
 `ingest-events.py` normalizes `engine_error` and `engine_fatal` to `games.game_over = 0`, including existing analytics rows when opening the database. Offline clients can report these terminal failures with `game_over = 1`; that source flag must not turn crashes into successful completions.
 
 `parity-repair-agent.py` requires `PARITY_AUTH` in the environment as `username:password`. Supply it through local secrets or CI secrets. The previously committed dashboard credential must be rotated because it remains in Git history.
+
+The decision journal probes are `bench:relay-journal` (SQLite store), `bench:relay-journal-wire` (relay WebSockets), `bench:forge-journal` (harness), `bench:hosted-journal` (real node and relay, including takeovers) and `bench:verify-relay-journal` (fresh-JVM check of a stored journal). They need Node 24 and use only temporary local state; see `scripts/engine-bench/README.md`.

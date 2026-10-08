@@ -52,6 +52,7 @@ Sub-AGENTS.md files are not auto-discovered by Codex or by Claude Code's parent-
 | `manabrew-rs/crates/manabrew-engine/src/ability/effects/AGENTS.md` | Adding or modifying a `*_effect.rs` (most parity work)                           |
 | `manabrew-rs/crates/parity/AGENTS.md`                              | Investigating a parity divergence or editing `regression.json`                   |
 | `forge-harness/src/main/java/forge/harness/AGENTS.md`              | Any change under `forge-harness/` (parity/host/common package boundaries)        |
+| `packages/forge-wasm/AGENTS.md`                                    | Any Forge WASM package runtime or decision journal change                        |
 | `scripts/AGENTS.md`                                                | Adding or running a build/parity script                                          |
 | `website/AGENTS.md`                                                | Any change under `website/` (landing at manabrew.app, docs at docs.manabrew.app) |
 

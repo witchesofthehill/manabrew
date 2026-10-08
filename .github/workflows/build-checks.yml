@@ -442,6 +442,18 @@ jobs:
       - name: Build manabrew-server (release)
         run: cargo build --release -p manabrew-server
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Verify durable journal recovery
+        run: |
+          cargo build --release -p manabrew-server --example journal_store
+          node scripts/engine-bench/relay-journal.mjs --binary target/release/examples/journal_store
+
+      - name: Verify journal authorization and reconnect
+        run: node scripts/engine-bench/relay-journal-wire.mjs --binary target/release/manabrew-server
+
   multiplayer-regression:
     name: Multiplayer zombie regression
     runs-on: ubuntu-latest
@@ -757,8 +769,22 @@ jobs:
           java-version: "21"
           cache: maven
 
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
       - name: Build and test forge-harness
         run: node scripts/harness.mjs test
+
+      - name: Verify consumed decision replay
+        run: >-
+          node scripts/engine-bench/forge-decision-journal.mjs
+          --jar forge-harness/target/forge-harness-jar-with-dependencies.jar
+          --forge-home forge/forge-gui
+
+      - name: Verify hosted journal commit and recovery
+        run: |
+          cargo build --release -p manabrew-server -p self-hosted-node --features self-hosted-node/java-forge
+          yarn bench:hosted-journal --node target/release/self-hosted-node --relay target/release/manabrew-server --jar forge-harness/target/forge-harness-jar-with-dependencies.jar --forge-home forge/forge-gui
 
   forge-room-graalvm-windows:
     name: GraalVM build (Windows)

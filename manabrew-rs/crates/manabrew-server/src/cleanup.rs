@@ -6,7 +6,8 @@ use tracing::{info, warn};
 use crate::analytics::{self, GameEndReason};
 use crate::connection::{broadcast_room_transport, broadcast_to_room, emit_to};
 use crate::lobby;
-use crate::protocol::{RoomStatus, ServerMessage};
+use crate::metrics;
+use crate::protocol::{RoomStatus, ServerMessage, FEATURE_HOST_HANDOFF, FEATURE_JOURNAL_HANDOFF};
 use crate::room::Room;
 use crate::state::ServerState;
 
@@ -14,6 +15,17 @@ const CLEANUP_INTERVAL: Duration = Duration::from_secs(60);
 const STALE_CONNECTED_TIMEOUT: Duration = Duration::from_secs(180);
 const IN_GAME_DISCONNECTED_GRACE: Duration = Duration::from_secs(3600);
 const RECONNECT_ABORT_MARGIN: Duration = Duration::from_secs(5);
+/// How long a hosted room waits for its own host before offering the game to
+/// another session. A node that only lost its socket is back well inside it.
+const HOST_HANDOFF_GRACE: Duration = Duration::from_secs(20);
+/// Time for the asked session to load the checkpoint and claim the room.
+const HOST_HANDOFF_WINDOW: Duration = Duration::from_secs(45);
+/// A journal taker replays every decision in a fresh engine before it claims.
+const JOURNAL_HANDOFF_WINDOW: Duration = Duration::from_secs(120);
+const HOST_HANDOFF_ATTEMPTS: usize = 3;
+/// How long after the first offer a declined or unclaimed game may still be
+/// offered to another pod.
+const HOST_HANDOFF_SEARCH: Duration = Duration::from_secs(90);
 
 pub async fn cleanup_loop(state: Arc<ServerState>) {
     let mut ticker = tokio::time::interval(CLEANUP_INTERVAL);
@@ -127,24 +139,51 @@ pub fn schedule_host_resume_abort(
     else {
         return;
     };
-    let timeout = Duration::from_secs(timeout_s as u64);
+    let timeout = Duration::from_secs(timeout_s as u64) + RECONNECT_ABORT_MARGIN;
 
     tokio::spawn(async move {
-        tokio::time::sleep(timeout + RECONNECT_ABORT_MARGIN).await;
-
-        // ResumeRoom rotates host_player_id and session reclaim flips the
-        // player back to connected; either one disarms this abort.
-        let host_still_gone = state
-            .rooms
-            .get(&room_id)
-            .map(|room| room.status == RoomStatus::InGame && room.host_player_id == host_player_id)
-            .unwrap_or(false)
-            && state
-                .players
-                .get(&host_player_id)
-                .map(|player| !player.connected)
-                .unwrap_or(true);
-        if !host_still_gone {
+        let started = Instant::now();
+        let handoff_after = HOST_HANDOFF_GRACE.min(timeout);
+        tokio::time::sleep(handoff_after).await;
+        let mut tried = Vec::new();
+        let mut candidate_missing = false;
+        while tried.len() < HOST_HANDOFF_ATTEMPTS
+            && (tried.is_empty() || started.elapsed() < handoff_after + HOST_HANDOFF_SEARCH)
+            && host_still_gone(&state, &room_id, &host_player_id)
+        {
+            let offer = match offer_host_handoff(&state, &room_id, &host_player_id, &tried).await {
+                HandoffAttempt::Offered(offer) => offer,
+                HandoffAttempt::NoCandidate => {
+                    if !candidate_missing {
+                        metrics::record_host_handoff(metrics::HANDOFF_NO_CANDIDATE);
+                        candidate_missing = true;
+                    }
+                    if started.elapsed() >= timeout {
+                        break;
+                    }
+                    tokio::time::sleep(Duration::from_secs(1)).await;
+                    continue;
+                }
+                HandoffAttempt::Impossible => break,
+            };
+            candidate_missing = false;
+            let deadline = Instant::now() + offer.window;
+            while Instant::now() < deadline
+                && host_still_gone(&state, &room_id, &host_player_id)
+                && offer_open(&state, &room_id, &offer.token)
+            {
+                tokio::time::sleep(Duration::from_millis(250)).await;
+            }
+            if let Some(mut room) = state.rooms.get_mut(&room_id) {
+                if room.resume_token == offer.token && room.host_player_id == host_player_id {
+                    room.resume_token = uuid::Uuid::new_v4().to_string();
+                    metrics::record_host_handoff(metrics::HANDOFF_UNCLAIMED);
+                }
+            }
+            tried.push(offer.candidate);
+        }
+        tokio::time::sleep(timeout.saturating_sub(started.elapsed())).await;
+        if !host_still_gone(&state, &room_id, &host_player_id) {
             return;
         }
 
@@ -209,6 +248,162 @@ pub fn schedule_peer_host_loss(state: Arc<ServerState>, room_id: String, player_
             }
         }
     });
+}
+
+/// ResumeRoom rotates host_player_id and session reclaim flips the player
+/// back to connected; either one means the game has a host again.
+fn host_still_gone(state: &Arc<ServerState>, room_id: &str, host_player_id: &str) -> bool {
+    state
+        .rooms
+        .get(room_id)
+        .map(|room| room.status == RoomStatus::InGame && room.host_player_id == host_player_id)
+        .unwrap_or(false)
+        && state
+            .players
+            .get(host_player_id)
+            .map(|player| !player.connected)
+            .unwrap_or(true)
+}
+
+enum HandoffAttempt {
+    Offered(HandoffOffer),
+    NoCandidate,
+    Impossible,
+}
+
+struct HandoffOffer {
+    candidate: String,
+    token: String,
+    window: Duration,
+}
+
+fn offer_open(state: &Arc<ServerState>, room_id: &str, token: &str) -> bool {
+    state
+        .rooms
+        .get(room_id)
+        .is_some_and(|room| room.resume_token == token)
+}
+
+/// Offers the game to an idle pod, from its journal if it has one, else from a
+/// checkpoint. The fresh resume token is the only authorisation.
+async fn offer_host_handoff(
+    state: &Arc<ServerState>,
+    room_id: &str,
+    old_host_pid: &str,
+    tried: &[String],
+) -> HandoffAttempt {
+    let Some(game_id) = state
+        .rooms
+        .get(room_id)
+        .and_then(|room| room.replay.as_ref().map(|replay| replay.game_id.clone()))
+    else {
+        return HandoffAttempt::Impossible;
+    };
+    let journal = match crate::journal_transport::handoff_status(state, room_id, &game_id).await {
+        Ok(Some(position)) if position.unavailable_reason.is_some() => {
+            metrics::record_host_handoff(metrics::HANDOFF_JOURNAL_UNAVAILABLE);
+            return HandoffAttempt::Impossible;
+        }
+        Ok(position) => position.is_some(),
+        Err(error) => {
+            warn!("[handoff] journal status for room {room_id} unavailable: {error}");
+            metrics::record_host_handoff(metrics::HANDOFF_JOURNAL_UNAVAILABLE);
+            return HandoffAttempt::Impossible;
+        }
+    };
+    if !journal && !state.host_handoff {
+        return HandoffAttempt::Impossible;
+    }
+    let feature = if journal {
+        FEATURE_JOURNAL_HANDOFF
+    } else {
+        FEATURE_HOST_HANDOFF
+    };
+    let Some(candidate) = handoff_candidate(state, room_id, old_host_pid, feature, tried) else {
+        return HandoffAttempt::NoCandidate;
+    };
+    let token = uuid::Uuid::new_v4().to_string();
+    let offer = {
+        let Some(mut room) = state.rooms.get_mut(room_id) else {
+            return HandoffAttempt::Impossible;
+        };
+        let Some(replay) = room
+            .replay
+            .as_ref()
+            .filter(|replay| replay.game_id == game_id)
+        else {
+            return HandoffAttempt::Impossible;
+        };
+        let request =
+            lobby::handoff_request(&room, replay, token.clone(), state.official_key.clone());
+        let offer = if journal {
+            ServerMessage::HostHandoff {
+                request,
+                turn: 0,
+                checkpoint: String::new(),
+                journal: true,
+            }
+        } else {
+            let Some(held) = replay.checkpoint.as_ref() else {
+                metrics::record_host_handoff(metrics::HANDOFF_NO_CHECKPOINT);
+                return HandoffAttempt::Impossible;
+            };
+            ServerMessage::HostHandoff {
+                request,
+                turn: held.turn,
+                checkpoint: held.checkpoint.clone(),
+                journal: false,
+            }
+        };
+        room.resume_token = token.clone();
+        offer
+    };
+    let Ok(json) = serde_json::to_string(&offer) else {
+        return HandoffAttempt::Impossible;
+    };
+    info!(
+        "[handoff] room {} offered to session {} (journal: {})",
+        &room_id[..8.min(room_id.len())],
+        &candidate[..8.min(candidate.len())],
+        journal
+    );
+    emit_to(state, &candidate, &offer, &json);
+    metrics::record_host_handoff(metrics::HANDOFF_OFFERED);
+    HandoffAttempt::Offered(HandoffOffer {
+        candidate,
+        token,
+        window: if journal {
+            JOURNAL_HANDOFF_WINDOW
+        } else {
+            HOST_HANDOFF_WINDOW
+        },
+    })
+}
+
+/// A connected service session hosting an empty lobby table that said it can
+/// take this kind of game over and has not been asked already.
+fn handoff_candidate(
+    state: &Arc<ServerState>,
+    room_id: &str,
+    old_host_pid: &str,
+    feature: &str,
+    tried: &[String],
+) -> Option<String> {
+    state.rooms.iter().find_map(|entry| {
+        let room = entry.value();
+        if entry.key() == room_id
+            || !room.hosted
+            || room.status != RoomStatus::Lobby
+            || !room.players.is_empty()
+            || room.host_player_id == old_host_pid
+            || tried.contains(&room.host_player_id)
+        {
+            return None;
+        }
+        let host = state.players.get(&room.host_player_id)?;
+        (host.connected && host.is_service && host.client.supports(feature))
+            .then(|| host.player_id.clone())
+    })
 }
 
 pub fn schedule_seat_forfeit(state: Arc<ServerState>, room_id: String, player_id: String) {

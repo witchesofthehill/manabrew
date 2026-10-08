@@ -27,7 +27,15 @@ import type { Prompt, StateUpdate, ProtocolError } from "@/protocol";
 import type { DisplayEvent } from "@/protocol/display";
 import type { GameViewDto } from "@/protocol/game";
 import { RELAY_FEATURE, SERVER_ERROR_CODE } from "@/types/server";
-import type { AuthResultPayload, GameAbortedPayload, RoomMessagePayload } from "@/types/server";
+import type {
+  AuthResultPayload,
+  GameAbortedPayload,
+  HostChangedPayload,
+  RoomMessagePayload,
+} from "@/types/server";
+import { useGameUIStore } from "@/stores/useGameUIStore";
+import { useStackUIStore } from "@/stores/useStackUIStore";
+
 type SelfHostedNodeRoomPayload = {
   type?: unknown;
   gameId?: unknown;
@@ -418,11 +426,35 @@ export function useGameEventListeners() {
         }),
       );
       unsubscribers.push(
-        platform.events.on<{
-          reason: string;
-          message: string;
-        }>("game:forced_end", (payload) => {
-          const message = payload?.message ?? `Forced game exit`;
+        platform.events.on<HostChangedPayload>("server:host_changed", (payload) => {
+          const state = getState();
+          if (!state.isMultiplayer || !state.isGameActive) return;
+          const roomId =
+            peekActiveGameSession()?.roomId ?? useServerStore.getState().currentRoom?.room_id;
+          if (roomId && payload.room_id !== roomId) return;
+          setState({
+            gameView: null,
+            currentPrompt: null,
+            deferredQueue: [],
+            isFlashing: false,
+            isWaitingForResponse: false,
+            relinquishedPriority: false,
+            seatAddressedStates: false,
+            debugInfo: `Host changed to ${payload.host}`,
+          });
+          useGameUIStore.getState().resetAll();
+          useStackUIStore.getState().reset();
+          toast.info(
+            payload.turn > 0
+              ? `The table moved to a new host. Play resumes from the start of turn ${payload.turn}.`
+              : "The table moved to a new host. Play resumes where it stopped.",
+          );
+        }),
+      );
+
+      unsubscribers.push(
+        platform.events.on<{ reason: string; message: string }>("game:forced_end", (payload) => {
+          const message = payload?.message ?? "Forced game exit";
           const { isMultiplayer, isHost } = getState();
           const activeSession = peekActiveGameSession();
           clearActiveGameSession();

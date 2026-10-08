@@ -1,6 +1,7 @@
 pub mod config;
 pub mod engine_backend;
 pub mod host;
+mod journal;
 pub mod logs;
 pub mod metrics;
 pub mod shell_bridge;

@@ -24,6 +24,10 @@ Rooms survive relay restarts: `RoomCreated` returns a random `resume_token` (gua
 
 The relay is the single owner of the reconnect window: a disconnected in-game seat is forfeited (removed + broadcast like a leave) once its grace expires (`schedule_seat_forfeit`), so hosts never time disconnects themselves. A non-playing host disconnect gets the same reconnect grace as players instead of killing the room. The cleanup sweep resets any in-game room that has had no connected human participant (bot seats and the hosted node's observer don't count) for `reconnect_timeout_s` + margin back to Lobby — otherwise abandoned hosted games would sit `InGame` forever and skew the live-ops gauges. Room teardown funnels through exactly two primitives — `reset_room_to_lobby` (room survives) and `remove_room_and_clear_sessions` (room dies) — sharing one session rule: disconnected sessions are removed with the room, connected ones return to the lobby; never inline a third copy.
 
+## Host handoff
+
+When a non-playing host stays gone for `HOST_HANDOFF_GRACE`, `offer_host_handoff` sends an idle pod `HostHandoff` with a fresh `resume_token`; the taker claims the room with an ordinary `ResumeRoom` and seats get `HostChanged`, which voids every engine id they hold. A game with a durable journal is offered with `journal: true` to `journal_handoff` sessions; otherwise the relay needs `MANABREW_HOST_HANDOFF=1` and a turn-start checkpoint, which is lossy and never forwarded to seats. A decline or unclaimed window rotates the token and moves to the next pod, up to `HOST_HANDOFF_ATTEMPTS`; then the game ends as `host_lost`.
+
 ## Identity and usernames
 
 `Authenticate` carries an optional identity proof (`identity.rs`): a hub-minted EdDSA token verified against `MANABREW_HUB_JWKS_URL`, and/or an opaque client device secret stored as its sha256. The session keeps every identity it resolves; a connection proving one of them takes its own live session over (the displaced socket gets `SessionTakenOver`, then a close; the `generation` guard makes its later cleanup a no-op), and a session that has an identity can only be reclaimed by that owner.
@@ -69,3 +73,9 @@ An unknown `ClientMessage` is answered with a parse error rather than a disconne
 `SetDeckSelection.avatar_url` and `Deck.playmat_url` carry the image URL the hub handed the uploader, and the relay passes them through untouched — it holds no bucket configuration, resolves nothing, and validates nothing. That is the same trust level the deck's card art already travels at: `Deck.cards[].uris` reaches `useScryfallStore` and renders unvalidated, so a cosmetic URL is not a new surface and a relay-side allowlist would only have covered half of one. Whether a URL is worth loading is the receiving client's call. `Deck.playmat_asset_id` rides along for the hub's foreign key and means nothing to the relay.
 
 The inline `data:image/webp;base64,` encoding these fields used to carry is gone, not deprecated — the fields are URLs and nothing accepts a blob any more.
+
+## Durable decision journal
+
+`MANABREW_JOURNAL_DB` opts the relay into a SQLite journal (`journal.rs`, served by `journal_transport.rs` as `decision_journal_v1`); it requires `SECRET_MANABREW_KEY` and no deployment sets it. The manifest pins engine and asset hashes and the exact start request. Appends are atomic, contiguous and idempotent, conflicting retries fail, and an invalidation is permanent. Each `open` from a new session, reconnect or relay restart raises the writer epoch, which fences older writers. Durability covers process crashes on one volume only.
+
+Only the connected service session hosting that official game may open, append or read; a `handoff` read with the room's current resume token lets a taker replay before it claims, without changing the epoch. Replies go to the requesting socket only and never reach seats, caches or analytics. Release an engine prefix only on a matching `append` receipt. Storage holds room guards across the transaction, so disk stalls delay room changes. `yarn bench:relay-journal` and `yarn bench:relay-journal-wire` cover the store and the wire.

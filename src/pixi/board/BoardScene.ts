@@ -1646,6 +1646,7 @@ export class BoardScene {
     this.dragHandler.setContainerSize(width, height);
     this.canvasW = width;
     this.canvasH = height;
+    this.playerBars.setViewport(width, height);
     this.pinchPointers.clear();
     this.resetBoardZoom();
     this.syncHandPresentation();

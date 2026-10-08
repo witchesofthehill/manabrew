@@ -1737,14 +1737,14 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         return costs;
     }
 
-    private static String describePayCost(final Cost cost) {
+    private static String describePayCost(final Cost cost, final SpellAbility sa) {
         final StringBuilder sb = new StringBuilder("Pay ");
         boolean first = true;
         for (final CostPart part : cost.getCostParts()) {
             if (!first) {
                 sb.append(", ");
             }
-            sb.append(part.toString().replaceFirst("^Pay ", ""));
+            sb.append(HarnessCostPlumbing.describeCostPart(part, sa).replaceFirst("^Pay ", ""));
             first = false;
         }
         return sb.append("?").toString();
@@ -1773,7 +1773,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         final boolean accept = session.awaitBooleanChoice(
                 "pay_cost_to_prevent_effect",
                 me(),
-                cost == null ? "Pay cost?" : describePayCost(cost),
+                cost == null ? "Pay cost?" : describePayCost(cost, sa),
                 sourceCardId(sa),
                 "pay_cost_to_prevent_effect",
                 cost == null ? null : cost.getClass().getSimpleName(),
@@ -1803,7 +1803,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         final boolean accept = session.awaitBooleanChoice(
                 "pay_cost_to_prevent_effect",
                 me(),
-                cost == null ? "Pay cost?" : describePayCost(cost),
+                cost == null ? "Pay cost?" : describePayCost(cost, sa),
                 sourceCardId(sa),
                 "pay_cost_during_roll",
                 cost == null ? null : cost.getClass().getSimpleName(),

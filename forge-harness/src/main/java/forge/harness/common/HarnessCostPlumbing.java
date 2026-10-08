@@ -768,10 +768,8 @@ public final class HarnessCostPlumbing {
         public PaymentDecision visit(final CostRemoveCounter cost) {
             final boolean shouldAsk = !(source != null && source.isPlaneswalker());
             if (!confirm(cost, shouldAsk)) return null;
+            final boolean all = "All".equals(cost.getAmount());
             final int amount = cost.getAbilityAmount(ability);
-            if (amount <= 0) {
-                return null;
-            }
 
             final CardCollection candidates = new CardCollection();
             if (cost.payCostFromSource()) {
@@ -795,8 +793,9 @@ public final class HarnessCostPlumbing {
             for (final Card card : candidates) {
                 if (cost.counter != null) {
                     final int available = card.getCounters(cost.counter);
-                    if (available >= amount) {
-                        table.put(null, card, cost.counter, amount);
+                    final int removed = all ? available : amount;
+                    if (available >= removed) {
+                        table.put(null, card, cost.counter, removed);
                         return PaymentDecision.counters(table);
                     }
                 } else {

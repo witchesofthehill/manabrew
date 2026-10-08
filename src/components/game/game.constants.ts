@@ -1,5 +1,6 @@
 import type { StepKind } from "@/protocol";
 import { scryfallAssetUrl } from "@/lib/scryfallAssets";
+import type { InGameCardPreviewSize } from "@/stores/usePreferencesStore";
 /** The single UI-side list of turn steps, ordered to match the engine's turn
  *  structure. Ids are protocol `StepKind` values — never restate them elsewhere. */
 export const PHASES: readonly {
@@ -211,6 +212,11 @@ export const GAME_CARD_SIZES = {
   },
   preview: PREVIEW_CARD_SIZE,
 } as const;
+export const IN_GAME_CARD_PREVIEW_SCALES = {
+  small: 0.75,
+  medium: 1,
+  large: 1.25,
+} as const satisfies Record<InGameCardPreviewSize, number>;
 export const CARD_W = GAME_CARD_SIZES.battlefield.width;
 export const CARD_H = GAME_CARD_SIZES.battlefield.height;
 export const CARD_GAP = 8;

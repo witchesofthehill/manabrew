@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DraftPodButton } from "@/components/limited/DraftPodButton";
@@ -15,6 +16,7 @@ interface DraftStatusBarProps {
   waitingLabel?: string;
   viewerSeat?: number;
   clockControls?: boolean;
+  settings?: ReactNode;
 }
 export function DraftStatusBar({
   draft,
@@ -27,6 +29,7 @@ export function DraftStatusBar({
   waitingLabel = "AI thinking…",
   viewerSeat = 0,
   clockControls = isHost || !seatLabel,
+  settings,
 }: DraftStatusBarProps) {
   const PassIcon = draft.passDirection === "right" ? ArrowRight : ArrowLeft;
   const packsWaiting =
@@ -93,6 +96,7 @@ export function DraftStatusBar({
             disableDrafting={draft.isComplete}
           />
         )}
+        {settings}
       </div>
     </header>
   );

@@ -9,10 +9,11 @@ import {
 import { ChevronLeft, ChevronRight, GripVertical, Image as ImageIcon } from "lucide-react";
 
 import { HoverCardPreview } from "@/components/game/HoverCardPreview";
-import { GAME_CARD_SIZES } from "@/components/game/game.constants";
+import { GAME_CARD_SIZES, IN_GAME_CARD_PREVIEW_SCALES } from "@/components/game/game.constants";
 import type { CardPreviewController } from "@/hooks/useCardPreview";
 import type { PreviewCard } from "@/lib/cardPreview";
 import { cn } from "@/lib/utils";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
 
 const RAIL_CHROME_PX = 25;
 const DEFAULT_MIN_WIDTH = GAME_CARD_SIZES.preview.width + RAIL_CHROME_PX;
@@ -49,6 +50,7 @@ export function CardPreviewRail({
   className,
 }: CardPreviewRailProps) {
   const snapshot = useSyncExternalStore(preview.subscribe, preview.getSnapshot);
+  const previewSize = usePreferencesStore((state) => state.inGameCardPreviewSize);
   const currentPreview = {
     ...preview,
     hoveredCard: snapshot.card,
@@ -122,11 +124,9 @@ export function CardPreviewRail({
     );
   }
 
-  const cardWidth = Math.min(GAME_CARD_SIZES.preview.width, width - 24);
-  const cardHeight = Math.min(
-    GAME_CARD_SIZES.preview.height,
-    (cardWidth * GAME_CARD_SIZES.preview.height) / GAME_CARD_SIZES.preview.width,
-  );
+  const previewScale = IN_GAME_CARD_PREVIEW_SCALES[previewSize];
+  const cardWidth = Math.min(GAME_CARD_SIZES.preview.width * previewScale, width - 24);
+  const cardHeight = (cardWidth * GAME_CARD_SIZES.preview.height) / GAME_CARD_SIZES.preview.width;
 
   return (
     <aside

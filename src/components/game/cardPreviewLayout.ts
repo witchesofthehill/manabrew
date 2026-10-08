@@ -1,4 +1,5 @@
-import { GAME_CARD_SIZES } from "./game.constants";
+import { GAME_CARD_SIZES, IN_GAME_CARD_PREVIEW_SCALES } from "./game.constants";
+import type { InGameCardPreviewSize } from "@/stores/usePreferencesStore";
 import { getSafeAreaInsets } from "@/lib/safeArea";
 
 const { width: CARD_W, height: CARD_H } = GAME_CARD_SIZES.preview;
@@ -17,6 +18,7 @@ export interface PreviewLayoutInput {
   slot: HTMLElement | null;
   viewportRight?: number;
   viewportBottom?: number;
+  size?: InGameCardPreviewSize;
 }
 
 export interface PreviewLayout {
@@ -34,18 +36,18 @@ export interface PreviewCardDimensionsInput {
   usableHeight: number;
   horizontal: boolean;
   reservedWidth?: number;
+  size?: InGameCardPreviewSize;
 }
 
 export function computePreviewCardDimensions(input: PreviewCardDimensionsInput): {
   width: number;
   height: number;
 } {
-  const naturalWidth = input.horizontal ? CARD_H : CARD_W;
-  const naturalHeight = input.horizontal ? CARD_W : CARD_H;
-  const horizontalScale = Math.max(
-    0.1,
-    (input.usableWidth - (input.reservedWidth ?? 0) - 16) / naturalWidth,
-  );
+  const sizeScale = IN_GAME_CARD_PREVIEW_SCALES[input.size ?? "medium"];
+  const naturalWidth = (input.horizontal ? CARD_H : CARD_W) * sizeScale;
+  const naturalHeight = (input.horizontal ? CARD_W : CARD_H) * sizeScale;
+  const horizontalScale =
+    Math.max(1, input.usableWidth - (input.reservedWidth ?? 0) - 16) / naturalWidth;
   const verticalScale = Math.max(1, input.usableHeight - 16) / naturalHeight;
   const scale = Math.min(1, horizontalScale, verticalScale);
   return {
@@ -68,12 +70,18 @@ export function computePreviewLayout(input: PreviewLayoutInput): PreviewLayout {
     window.innerHeight - safe.bottom,
     input.viewportBottom ?? Number.POSITIVE_INFINITY,
   );
-  const naturalCardWidth = horizontal ? CARD_H : CARD_W;
-  const usableHeight = slot ? slot.clientHeight : viewBottom - viewTop;
-  const usableWidth = slot ? slot.clientWidth : viewRight - viewLeft;
+  const sizeScale = IN_GAME_CARD_PREVIEW_SCALES[input.size ?? "medium"];
+  const naturalCardWidth = (horizontal ? CARD_H : CARD_W) * sizeScale;
+  const slotRect = slot?.getBoundingClientRect();
+  const usableHeight = slot
+    ? Math.min(slot.clientHeight, Math.max(1, viewBottom - Math.max(viewTop, slotRect!.top)))
+    : viewBottom - viewTop;
+  const usableWidth = slot
+    ? Math.min(slot.clientWidth, Math.max(1, viewRight - Math.max(viewLeft, slotRect!.left)))
+    : viewRight - viewLeft;
   const maxPanelWidth = usableWidth - naturalCardWidth * 0.1 - 10 - 16;
   const sidePanelWidth = hasPanel
-    ? Math.max(48, Math.min(ACTIONS_PANEL_W, usableWidth * 0.4, maxPanelWidth))
+    ? Math.max(48, Math.min(ACTIONS_PANEL_W * sizeScale, usableWidth * 0.4, maxPanelWidth))
     : 0;
   const panelSpace = hasPanel ? sidePanelWidth + 10 : 0;
   const { width: cardWidth, height: cardHeight } = computePreviewCardDimensions({
@@ -81,6 +89,7 @@ export function computePreviewLayout(input: PreviewLayoutInput): PreviewLayout {
     usableHeight,
     horizontal,
     reservedWidth: panelSpace,
+    size: input.size,
   });
   const availableHeight = Math.max(1, usableHeight - 16);
   let panelScale = hasPanel && panelHeight > 0 ? Math.min(1, availableHeight / panelHeight) : 1;

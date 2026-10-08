@@ -107,7 +107,6 @@ export function useDraftPick({ draft, onPick, pickPending = false, viewerSeat }:
     clock,
     submitting,
     disabled,
-    quickPick,
     workspaceRef,
     builderRef,
     pickTarget,

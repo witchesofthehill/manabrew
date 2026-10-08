@@ -4,6 +4,7 @@ import LimitedDeckBuilder from "@/components/limited/LimitedDeckBuilder";
 import { LimitedPackOpening } from "@/components/limited/LimitedPackOpening";
 import { LimitedPlayAction } from "@/components/limited/LimitedPlayAction";
 import { LimitedTableSurface } from "@/components/limited/LimitedTableSurface";
+import { LimitedSettingsButton } from "@/components/limited/LimitedSettingsButton";
 import { useLimitedStore } from "@/stores/useLimitedStore";
 import { useLimitedSessionSource } from "@/components/limited/useLimitedSavedSession";
 import type { DraftCard } from "@/types/limited";
@@ -45,26 +46,31 @@ export default function Sealed() {
   }
   return (
     <LimitedTableSurface className="gap-2 px-4 py-3 sm:px-6 lg:px-8">
-      {openedSession === activeSealed.sessionId && (
-        <header className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <p className="text-sm text-muted-foreground">
-              {activeSealed.packs.length} packs · {activeSealed.cards.length} cards ·{" "}
-              {activeSealed.aiDecks.length} AI opponents ready for the gauntlet
-            </p>
-          </div>
-          <LimitedPlayAction
-            sessionId={activeSealed.sessionId}
-            kind="sealed"
-            rounds={activeSealed.aiDecks.length}
-            deck={
-              builtDeck.sessionId === activeSealed.sessionId
-                ? builtDeck
-                : { main: [], sideboard: [] }
-            }
-          />
-        </header>
-      )}
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="text-sm text-muted-foreground">
+            {activeSealed.packs.length} packs · {activeSealed.cards.length} cards ·{" "}
+            {openedSession === activeSealed.sessionId
+              ? `${activeSealed.aiDecks.length} AI opponents ready for the gauntlet`
+              : "Open your packs to reveal your pool"}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {openedSession === activeSealed.sessionId && (
+            <LimitedPlayAction
+              sessionId={activeSealed.sessionId}
+              kind="sealed"
+              rounds={activeSealed.aiDecks.length}
+              deck={
+                builtDeck.sessionId === activeSealed.sessionId
+                  ? builtDeck
+                  : { main: [], sideboard: [] }
+              }
+            />
+          )}
+          <LimitedSettingsButton sessionKey={activeSealed.sessionId} />
+        </div>
+      </header>
 
       <div className="min-h-0 flex-1">
         {openedSession !== activeSealed.sessionId ? (

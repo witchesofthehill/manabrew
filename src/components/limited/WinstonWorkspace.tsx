@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useIsDesktop, useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 import { LimitedCardCanvas } from "@/components/limited/LimitedCardCanvas";
 import LimitedDeckBuilder from "@/components/limited/LimitedDeckBuilder";
+import { useLimitedBuildStore } from "@/components/limited/useLimitedBuildStore";
 import { cn } from "@/lib/utils";
 import { LimitedReferenceButton } from "@/components/limited/LimitedReferenceButton";
 import type { LimitedReferenceFormat } from "@/components/limited/LimitedSetReference";
@@ -29,6 +30,10 @@ export function WinstonWorkspace({
   const isTouch = useIsTouch();
   const showBoth = desktop && !(shortScreen && isTouch);
   const [tab, setTab] = useState<"piles" | "deck">("piles");
+  const cardSize = useLimitedBuildStore(
+    (state) =>
+      state.sessions[activeWinston.sessionId]?.cardSize ?? state.displayPreferences.cardSize,
+  );
   const activePile = activeWinston.piles[activeIdx] ?? [];
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
@@ -72,6 +77,7 @@ export function WinstonWorkspace({
             </header>
             <LimitedCardCanvas
               cards={activePile}
+              cardSize={cardSize}
               presentation="spread"
               arrivalKey={`${activeWinston.sessionId}:${activeIdx}:${activePile.map((card) => card.id).join(",")}`}
               className="min-h-0 flex-1"

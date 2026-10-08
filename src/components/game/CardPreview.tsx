@@ -34,6 +34,7 @@ import { deriveCardRailEffects, deriveCardRailState } from "@/components/game/ca
 import { cardTypeLine, replaceCardName } from "@/components/game/cardPresentation";
 import { localizeRulesPreviewText } from "@/pixi/cardPreview/rulesCardPreviewPresentation";
 import { CardPreviewHoverArea } from "./CardPreviewHoverArea";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
 interface CardPreviewProps {
   card: CardDto;
   mouseX: number;
@@ -148,6 +149,7 @@ export function CardPreview({
   portalTarget,
 }: CardPreviewProps) {
   const resolvedGameCard = useResolvedGameCard(card);
+  const previewSize = usePreferencesStore((state) => state.inGameCardPreviewSize);
   const hasActions = Boolean(actions?.length && onSelectAction);
   const themeColors = useTheme().gameTheme;
   const showHoverAreas = useGameDevStore((s) => s.showHoverAreas);
@@ -360,6 +362,7 @@ export function CardPreview({
     panelHeight,
     viewportRight,
     slot: slot ?? null,
+    size: previewSize,
   });
   const { cardLeft, top, cardWidth, cardHeight, sidePanelWidth, panelSide } = layout;
   const cardCornerRadius = (Math.min(cardWidth, cardHeight) * CARD_RADIUS) / CARD_W;

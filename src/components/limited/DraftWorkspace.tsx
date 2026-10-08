@@ -33,7 +33,6 @@ export function DraftWorkspace({
     selected,
     submitting,
     disabled,
-    quickPick,
     workspaceRef,
     builderRef,
     pickTarget,
@@ -44,6 +43,9 @@ export function DraftWorkspace({
     nominate,
   } = useDraftPick({ draft, onPick, pickPending, viewerSeat });
   const acquiredIds = useMemo(() => draft.pickedPile.map((card) => card.id), [draft.pickedPile]);
+  const cardSize = useLimitedBuildStore(
+    (state) => state.sessions[draft.sessionId]?.cardSize ?? state.displayPreferences.cardSize,
+  );
   const referenceCards = useMemo(
     () => [...draft.currentPack, ...draft.pickedPile],
     [draft.currentPack, draft.pickedPile],
@@ -109,16 +111,6 @@ export function DraftWorkspace({
                 {draft.currentPack.length}
               </span>
             </h2>
-            <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded bg-card/70 px-2 text-xs">
-              <input
-                type="checkbox"
-                checked={quickPick}
-                onChange={(event) =>
-                  useLimitedBuildStore.getState().setQuickPick(event.target.checked)
-                }
-              />
-              Quick pick
-            </label>
             <LimitedReferenceButton cards={referenceCards} format={referenceFormat} />
             {clock.clock && (
               <LimitedDraftFallback
@@ -136,6 +128,7 @@ export function DraftWorkspace({
             onActivate={(card) => void submit(card)}
             onDrop={dropPick}
             disabled={disabled}
+            cardSize={cardSize}
             presentation="spread"
             arrivalDirection={draft.passDirection === "left" ? "right" : "left"}
             acquiredIds={acquiredIds}

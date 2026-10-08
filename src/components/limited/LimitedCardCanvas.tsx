@@ -57,7 +57,7 @@ export function LimitedCardCanvas({
   onActivate,
   onDrop,
   disabled = false,
-  cardSize = GAME_CARD_SIZES.hand.width,
+  cardSize,
   groupBy = "none",
   className,
   arrivalKey,
@@ -160,7 +160,8 @@ export function LimitedCardCanvas({
       limitedLayout(
         cards,
         viewport.width,
-        presentation === "spread" ? Math.max(cardSize, GAME_CARD_SIZES.prompt.width) : cardSize,
+        cardSize ??
+          (presentation === "spread" ? GAME_CARD_SIZES.prompt.width : GAME_CARD_SIZES.hand.width),
         groupBy,
         (card) =>
           peekCard(bucket, {

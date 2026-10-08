@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useTopBarOverride } from "@/components/layout/TopBarOverride";
 import LimitedDeckBuilder from "@/components/limited/LimitedDeckBuilder";
 import { LimitedTableSurface } from "@/components/limited/LimitedTableSurface";
+import { LimitedSettingsButton } from "@/components/limited/LimitedSettingsButton";
 import { useGameStore } from "@/stores/useGameStore";
 import { useLimitedStore } from "@/stores/useLimitedStore";
 import { useLimitedBuildStore } from "@/components/limited/useLimitedBuildStore";
@@ -180,29 +181,35 @@ export default function Gauntlet() {
                 : `Against ${gauntlet.currentOpponent?.deckName ?? "AI"}. Edit your deck between games.`}
           </p>
         </div>
-        {!gauntlet.completed &&
-          (score.matchOver ? (
-            <Button variant="primary" onClick={() => void advance()} disabled={launching}>
-              Next round
-            </Button>
-          ) : (
-            <Button
-              variant="primary"
-              onClick={() => void play()}
-              disabled={
-                launching ||
-                !builtDeck ||
-                builtDeck.gauntletId !== gauntletId ||
-                builtDeck.main.length < 40
-              }
-            >
-              {launching
-                ? "Launching…"
-                : score.wins + score.losses > 0
-                  ? "Play next game"
-                  : "Play game"}
-            </Button>
-          ))}
+        <div className="flex items-center gap-2">
+          {!gauntlet.completed &&
+            (score.matchOver ? (
+              <Button variant="primary" onClick={() => void advance()} disabled={launching}>
+                Next round
+              </Button>
+            ) : (
+              <Button
+                variant="primary"
+                onClick={() => void play()}
+                disabled={
+                  launching ||
+                  !builtDeck ||
+                  builtDeck.gauntletId !== gauntletId ||
+                  builtDeck.main.length < 40
+                }
+              >
+                {launching
+                  ? "Launching…"
+                  : score.wins + score.losses > 0
+                    ? "Play next game"
+                    : "Play game"}
+              </Button>
+            ))}
+          <LimitedSettingsButton
+            sessionKey={progress.sessionKey}
+            quickPick={gauntlet.kind === "draft"}
+          />
+        </div>
       </header>
       <div className="min-h-0 flex-1">
         {matchDecks ? (

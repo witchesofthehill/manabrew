@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import LimitedDeckBuilder from "@/components/limited/LimitedDeckBuilder";
 import { LimitedPackOpening } from "@/components/limited/LimitedPackOpening";
 import { LimitedTableSurface } from "@/components/limited/LimitedTableSurface";
+import { LimitedSettingsButton } from "@/components/limited/LimitedSettingsButton";
 import { Button } from "@/components/ui/button";
 import { AppSelect, AppSelectOption } from "@/components/ui/AppSelect";
 import { useMultiplayerLimitedStore } from "@/stores/useMultiplayerLimitedStore";
@@ -145,8 +146,12 @@ export default function MultiplayerLimitedBuild() {
     return (
       <LimitedTableSurface
         backgroundId={session.originalRoom.table_style}
-        className="px-4 py-3 sm:px-6 lg:px-8"
+        className="gap-2 px-4 py-3 sm:px-6 lg:px-8"
       >
+        <header className="flex shrink-0 flex-wrap items-center justify-between gap-2">
+          <p className="text-sm text-muted-foreground">Open your packs to reveal your pool.</p>
+          <LimitedSettingsButton sessionKey={session.sessionId} sharedTable />
+        </header>
         <LimitedPackOpening
           key={session.sessionId}
           sessionKey={session.sessionId}
@@ -164,7 +169,7 @@ export default function MultiplayerLimitedBuild() {
         <p className="rounded bg-card/70 px-2 py-1 text-xs text-muted-foreground">
           Your pool stays here after each game. Edit your deck, then ready for a casual pairing.
         </p>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="outline"
             onClick={() =>
@@ -202,6 +207,11 @@ export default function MultiplayerLimitedBuild() {
               {starting ? "Pairing…" : "Play paired games"}
             </Button>
           )}
+          <LimitedSettingsButton
+            sessionKey={session.sessionId}
+            quickPick={session.kind === "draft"}
+            sharedTable
+          />
         </div>
       </header>
       <ul className="flex shrink-0 flex-wrap gap-2 text-sm" aria-label="Deck readiness">

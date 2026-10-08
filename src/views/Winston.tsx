@@ -14,6 +14,7 @@ import LimitedDeckBuilder from "@/components/limited/LimitedDeckBuilder";
 import { LimitedModeToggle, type LimitedDraftMode } from "@/components/limited/LimitedModeToggle";
 import { WinstonWorkspace } from "@/components/limited/WinstonWorkspace";
 import { LimitedTableSurface } from "@/components/limited/LimitedTableSurface";
+import { LimitedSettingsButton } from "@/components/limited/LimitedSettingsButton";
 import { useLimitedStore } from "@/stores/useLimitedStore";
 import { useLimitedSessionSource } from "@/components/limited/useLimitedSavedSession";
 type WinstonMode = LimitedDraftMode;
@@ -106,6 +107,7 @@ export default function Winston() {
               disableDrafting={activeWinston.isComplete}
             />
           )}
+          <LimitedSettingsButton sessionKey={activeWinston.sessionId} />
         </div>
       </header>
 

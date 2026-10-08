@@ -213,7 +213,6 @@ export default function LimitedDeckBuilder({
           onChange={setFilters}
           session={session}
           presentation={showUtilities ? "toolbar" : "dialog"}
-          onPreferences={(prefs) => useLimitedBuildStore.getState().preferences(sessionKey, prefs)}
         />
         {availableSelection.length > 0 && (
           <LimitedBuildSelection

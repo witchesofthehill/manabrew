@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { boardBackgroundDarken, boardBackgroundUrl } from "@/pixi/board/boardBackgrounds";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { cn } from "@/lib/utils";
 import { CardPreviewOwnershipContext } from "@/hooks/useCardPreview";
+import { setAnimationsEnabled } from "@/pixi/effects/enabled";
 
 interface LimitedTableSurfaceProps {
   children: ReactNode;
@@ -18,6 +19,10 @@ export function LimitedTableSurface({
 }: LimitedTableSurfaceProps) {
   const [previewOwners] = useState(() => new Set<() => void>());
   const personalBackground = usePreferencesStore((state) => state.boardBackgroundId);
+  const inGameAnimations = usePreferencesStore((state) => state.inGameAnimations);
+  useEffect(() => {
+    setAnimationsEnabled(inGameAnimations);
+  }, [inGameAnimations]);
   const selectedBackground = backgroundId ?? personalBackground;
   const backgroundUrl = boardBackgroundUrl(selectedBackground);
   const darken = boardBackgroundDarken(selectedBackground);

@@ -4,6 +4,7 @@ import LimitedDeckBuilder from "@/components/limited/LimitedDeckBuilder";
 import { DraftStatusBar } from "@/components/limited/DraftStatusBar";
 import { DraftWorkspace } from "@/components/limited/DraftWorkspace";
 import { LimitedTableSurface } from "@/components/limited/LimitedTableSurface";
+import { LimitedSettingsButton } from "@/components/limited/LimitedSettingsButton";
 import type { LimitedDraftMode } from "@/components/limited/LimitedModeToggle";
 import { useLimitedStore } from "@/stores/useLimitedStore";
 import { useLimitedSessionSource } from "@/components/limited/useLimitedSavedSession";
@@ -85,6 +86,7 @@ export default function Draft() {
         onModeChange={setUserMode}
         onUndo={!activeDraft.isComplete ? handleUndo : undefined}
         canBuild={canBuild}
+        settings={<LimitedSettingsButton sessionKey={activeDraft.sessionId} quickPick />}
       />
 
       {activeDraft.isComplete && (

@@ -5,6 +5,7 @@ import { useTopBarOverride } from "@/components/layout/TopBarOverride";
 import { DraftStatusBar } from "@/components/limited/DraftStatusBar";
 import { DraftWorkspace } from "@/components/limited/DraftWorkspace";
 import { LimitedTableSurface } from "@/components/limited/LimitedTableSurface";
+import { LimitedSettingsButton } from "@/components/limited/LimitedSettingsButton";
 import MultiplayerLimitedBuild from "@/views/MultiplayerLimitedBuild";
 import { hasLiveDraftHost, submitHostPick, teardownHost } from "@/game/draftHost";
 import { requestDraftResync, submitPeerPick } from "@/game/draftPeer";
@@ -72,6 +73,9 @@ export default function MultiplayerDraft() {
         isHost={draft.amHost}
         waitingLabel="Waiting for the pod…"
         viewerSeat={draft.mySeat ?? undefined}
+        settings={
+          <LimitedSettingsButton sessionKey={draft.state.sessionId} quickPick sharedTable />
+        }
       />
       <DraftWorkspace
         draft={draft.state}

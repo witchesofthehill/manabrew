@@ -1,5 +1,4 @@
-import { useId } from "react";
-import { Search, SlidersHorizontal, X } from "lucide-react";
+import { ChartColumn, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AppSelect, AppSelectOption } from "@/components/ui/AppSelect";
@@ -12,13 +11,12 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
-import { GAME_CARD_SIZES } from "@/components/game/game.constants";
 import { CMC_BUCKET_LABELS } from "@/components/editor/deckBuilder.utils";
 import { cn } from "@/lib/utils";
 import { MANA_LETTERS } from "@/themes/gameTheme";
 import { LimitedDeckStats } from "@/components/limited/LimitedDeckStats";
 import { buildDeck } from "@/components/limited/useLimitedBuildStore";
-import type { BuildGroup, BuildSession } from "@/components/limited/useLimitedBuildStore";
+import type { BuildSession } from "@/components/limited/useLimitedBuildStore";
 export interface BuildFilters {
   search: string;
   colors: string[];
@@ -29,20 +27,15 @@ interface Props {
   filters: BuildFilters;
   onChange: (filters: BuildFilters) => void;
   session: BuildSession;
-  onPreferences: (prefs: Partial<Pick<BuildSession, "group" | "cardSize" | "mode">>) => void;
   presentation?: "dialog" | "toolbar";
 }
 export function LimitedBuildFilters({
   filters,
   onChange,
   session,
-  onPreferences,
   presentation = "dialog",
 }: Props) {
   const deck = buildDeck(session);
-  const cardHeightId = useId();
-  const cardAspect = GAME_CARD_SIZES.hand.height / GAME_CARD_SIZES.hand.width;
-  const cardHeight = session.cardSize * cardAspect;
   const sideboardCount = session.allocation.sideboardIds.length;
   const maybeCount = session.allocation.maybeIds.length;
   const toolbar = presentation === "toolbar";
@@ -157,78 +150,23 @@ export function LimitedBuildFilters({
           <Button
             variant="ghost"
             size="sm"
-            aria-label={
-              toolbar
-                ? "Display settings and deck statistics"
-                : "Filters, display settings and deck statistics"
-            }
+            aria-label={toolbar ? "Deck statistics" : "Filters and deck statistics"}
           >
-            {toolbar && <SlidersHorizontal className="h-3.5 w-3.5" />}
-            {toolbar ? "Display" : "Filters"}
+            {toolbar && <ChartColumn className="h-3.5 w-3.5" />}
+            {toolbar ? "Statistics" : "Filters"}
             {!toolbar && hasFilters && " · Active"}
           </Button>
         </DialogTrigger>
         <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-xl">
           <DialogHeader>
-            <DialogTitle>{toolbar ? "Display & statistics" : "Filters & display"}</DialogTitle>
+            <DialogTitle>{toolbar ? "Deck statistics" : "Filters & statistics"}</DialogTitle>
             <DialogDescription>
               {toolbar
-                ? "Arrange the table or review your mainboard."
-                : "Search your acquired cards, arrange the table, or review your mainboard."}
+                ? "Review your mainboard."
+                : "Search your acquired cards or review your mainboard."}
             </DialogDescription>
           </DialogHeader>
-          <div className="grid grid-cols-2 items-center gap-2">
-            {!toolbar && quickFilters}
-            <AppSelect
-              aria-label="Group cards"
-              value={session.group}
-              onValueChange={(group) => onPreferences({ group: group as BuildGroup })}
-              className="h-9"
-            >
-              <AppSelectOption value="none">No grouping</AppSelectOption>
-              <AppSelectOption value="color">Color</AppSelectOption>
-              <AppSelectOption value="cmc">Mana value</AppSelectOption>
-              <AppSelectOption value="type">Type</AppSelectOption>
-              <AppSelectOption value="rarity">Rarity</AppSelectOption>
-            </AppSelect>
-            <label htmlFor={cardHeightId} className="col-span-2 grid gap-1 text-sm">
-              <span className="flex items-center justify-between gap-2">
-                Card height
-                <output htmlFor={cardHeightId} className="tabular-nums text-muted-foreground">
-                  {Math.round(cardHeight)} px
-                </output>
-              </span>
-              <input
-                id={cardHeightId}
-                type="range"
-                min={126}
-                max={480}
-                step={1}
-                value={cardHeight}
-                aria-valuetext={`${Math.round(cardHeight)} pixels`}
-                onChange={(event) =>
-                  onPreferences({ cardSize: Number(event.target.value) / cardAspect })
-                }
-                className="h-9 w-full cursor-pointer accent-primary pointer-coarse:h-11"
-              />
-            </label>
-            <Button
-              variant={session.mode === "gallery" ? "selected" : "outline"}
-              size="sm"
-              aria-pressed={session.mode === "gallery"}
-              onClick={() => onPreferences({ mode: "gallery" })}
-            >
-              Gallery
-            </Button>
-            <Button
-              variant={session.mode === "list" ? "selected" : "outline"}
-              size="sm"
-              aria-pressed={session.mode === "list"}
-              onClick={() => onPreferences({ mode: "list" })}
-            >
-              List
-            </Button>
-          </div>
+          <div className="grid grid-cols-2 items-center gap-2">{!toolbar && quickFilters}</div>
           <section className="space-y-2 border-t border-border pt-3">
             <h3 className="text-sm font-medium">Mainboard statistics</h3>
             <p className="text-xs tabular-nums text-muted-foreground">

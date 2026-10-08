@@ -6,6 +6,11 @@ import { limitedStateStorage, LIMITED_STORE_NAMES } from "@/game/limitedStorage"
 
 export type BuildGroup = "none" | "color" | "cmc" | "type" | "rarity";
 export type BuildZone = "pool" | "main" | "sideboard" | "maybe";
+export interface LimitedDisplayPreferences {
+  group: BuildGroup;
+  cardSize: number;
+  mode: "gallery" | "list";
+}
 export interface BuildAllocation {
   mainIds: string[];
   sideboardIds: string[];
@@ -16,15 +21,12 @@ export interface NamedBuild extends BuildAllocation {
   id: string;
   name: string;
 }
-export interface BuildSession {
+export interface BuildSession extends LimitedDisplayPreferences {
   pool: DraftCard[];
   allocation: BuildAllocation;
   undo: BuildAllocation[];
   redo: BuildAllocation[];
   builds: NamedBuild[];
-  group: BuildGroup;
-  cardSize: number;
-  mode: "gallery" | "list";
 }
 interface PendingPick {
   id: string;
@@ -32,6 +34,7 @@ interface PendingPick {
 }
 interface BuildStore {
   sessions: Record<string, BuildSession>;
+  displayPreferences: LimitedDisplayPreferences;
   pendingPicks: Record<string, PendingPick>;
   queuePick: (key: string, id: string, zone: PendingPick["zone"]) => void;
   cancelPick: (key: string, id: string) => void;
@@ -49,10 +52,7 @@ interface BuildStore {
   move: (key: string, ids: readonly string[], zone: BuildZone) => void;
   undo: (key: string) => void;
   redo: (key: string) => void;
-  preferences: (
-    key: string,
-    prefs: Partial<Pick<BuildSession, "group" | "cardSize" | "mode">>,
-  ) => void;
+  preferences: (key: string, prefs: Partial<LimitedDisplayPreferences>) => void;
   saveBuild: (key: string, name: string) => void;
   loadBuild: (key: string, id: string) => void;
   deleteBuild: (key: string, id: string) => void;
@@ -150,6 +150,7 @@ export const useLimitedBuildStore = create<BuildStore>()(
   persist(
     (set, get) => ({
       sessions: {},
+      displayPreferences: { group: "none", cardSize: 130, mode: "gallery" },
       pendingPicks: {},
       queuePick: (key, id, zone) =>
         set((state) => ({ pendingPicks: { ...state.pendingPicks, [key]: { id, zone } } })),
@@ -190,9 +191,7 @@ export const useLimitedBuildStore = create<BuildStore>()(
                     undo: [],
                     redo: [],
                     builds: [],
-                    group: "none",
-                    cardSize: 130,
-                    mode: "gallery",
+                    ...state.displayPreferences,
                   },
             },
           };
@@ -263,7 +262,10 @@ export const useLimitedBuildStore = create<BuildStore>()(
         }),
       preferences: (key, prefs) =>
         set((state) => ({
-          sessions: { ...state.sessions, [key]: { ...state.sessions[key], ...prefs } },
+          displayPreferences: { ...state.displayPreferences, ...prefs },
+          sessions: state.sessions[key]
+            ? { ...state.sessions, [key]: { ...state.sessions[key], ...prefs } }
+            : state.sessions,
         })),
       saveBuild: (key, name) =>
         set((state) => {
@@ -313,7 +315,11 @@ export const useLimitedBuildStore = create<BuildStore>()(
         }
         return state;
       },
-      partialize: (state) => ({ sessions: state.sessions, quickPick: state.quickPick }),
+      partialize: (state) => ({
+        sessions: state.sessions,
+        quickPick: state.quickPick,
+        displayPreferences: state.displayPreferences,
+      }),
     },
   ),
 );

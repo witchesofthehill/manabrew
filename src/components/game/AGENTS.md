@@ -128,6 +128,8 @@ Four renderers draw cards. `components/game/cardPresentation.ts` provides shared
 
 The app has one preview state machine. Games and Limited share the persisted printed-card and Pixi Rules renderers. Limited's `CardHoverPreview` composes `HoverCardPreview` and `CardPreviewOverlayCanvas`; the latter reuses `BoardOverlayCanvasSurface` without a game scene, fake stack or no-op game callbacks. Deck and editor previews keep the DOM renderer. Consumer contracts import the named `CardPreviewController` from `hooks/useCardPreview.ts`.
 
+`inGameCardPreviewSize` persists Small/Medium/Large in `usePreferencesStore`; Medium preserves `GAME_CARD_SIZES.preview`. `cardPreviewLayout` applies the shared scales to printed and Rules inspection, then fits the safe viewport or slot. Open previews subscribe and relayout immediately. Embedded hand, stack and prompt rules faces keep their owner's sizing rather than applying the inspection scale twice.
+
 The rules-backed option is labeled **Rules** because it represents current game state, not only Oracle text. Keep **Hand default view**, **Stack default view**, **Prompt and dialog default view**, and **Board hover preview view** adjacent in Board settings.
 
 In-game preview triggers are **Hover**, **Right click**, and **touch long-press**. Right click and long-press pass the source-card rectangle through the same preview state used by hover; long-press opens it sticky, changing dismissal rather than placement. Persisted modifier-trigger values normalize to Hover. Realistic and Rules placement share `CARD_PREVIEW_ANCHOR_GAP` and `CARD_PREVIEW_EDGE_PAD`, so switching with `R` does not move the card.

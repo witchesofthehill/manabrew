@@ -3,6 +3,7 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import { LimitedCardCanvas } from "@/components/limited/LimitedCardCanvas";
 import { LimitedBoosterTable } from "@/components/limited/LimitedBoosterTable";
 import { useLimitedPackOpening } from "@/components/limited/useLimitedPackOpening";
+import { useLimitedBuildStore } from "@/components/limited/useLimitedBuildStore";
 import { Button } from "@/components/ui/button";
 import { useIsMobileGame } from "@/hooks/useBreakpoints";
 import { peekCard, useScryfallStore } from "@/stores/useScryfallStore";
@@ -22,6 +23,9 @@ export function LimitedPackOpening({
 }) {
   const compact = useIsMobileGame();
   const [viewPool, setViewPool] = useState(false);
+  const cardSize = useLimitedBuildStore(
+    (state) => state.sessions[sessionKey]?.cardSize ?? state.displayPreferences.cardSize,
+  );
   const sets = useScryfallStore((state) => state.sets);
   const bucket = useScryfallStore((state) => state.cards);
   const {
@@ -143,7 +147,7 @@ export function LimitedPackOpening({
             </p>
             <LimitedCardCanvas
               cards={showingPool ? poolCards : latestCards}
-              cardSize={compact ? 160 : 230}
+              cardSize={cardSize}
               presentation="grid"
               arrivalKey={`${sessionKey}:${arrival}`}
               opening={revealing}

@@ -17,6 +17,19 @@ export interface RevealCard {
   scaleY: number;
 }
 export type BoosterTearDirection = "left" | "right";
+export interface BoosterOpeningOrigin {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: number;
+}
+export interface BoosterOpeningPacket {
+  packId: string;
+  cardIds: readonly string[];
+  setCode?: string;
+  origin: BoosterOpeningOrigin;
+}
 export interface BoosterOpeningState {
   x: number;
   y: number;
@@ -31,6 +44,9 @@ interface BoosterOpeningOptions {
   packCount?: number;
   setCode?: string;
   set?: ScryfallSet;
+  backdrop?: boolean;
+  cardCount?: number;
+  origin?: BoosterOpeningOrigin;
   onChange?: (state: BoosterOpeningState | null) => void;
   onComplete?: () => void;
 }
@@ -64,6 +80,7 @@ export class LimitedBoosterReveal {
   private tearStrip: Container | null = null;
   private tearGlint: Graphics | null = null;
   private tearDirection: BoosterTearDirection = "right";
+  private restTilt = REST_TILT;
   private onChange: BoosterOpeningOptions["onChange"];
   private onComplete: BoosterOpeningOptions["onComplete"];
   private readonly stage: Container;
@@ -95,27 +112,33 @@ export class LimitedBoosterReveal {
     this.packCount = packCount;
     const stackWidth = grouped ? 1.64 : 1;
     const stackHeight = grouped ? 1.28 : 1;
-    const wrapperScale = Math.min(
-      1.08,
-      (width * 0.76) / (preview.width * stackWidth),
-      (height * 0.72) / (preview.height * stackHeight),
-    );
+    const origin = options.origin;
+    const wrapperScale = origin
+      ? Math.min(origin.width / preview.width, origin.height / preview.height)
+      : Math.min(
+          1.08,
+          (width * 0.76) / (preview.width * stackWidth),
+          (height * 0.72) / (preview.height * stackHeight),
+        );
     const wrapperWidth = preview.width * wrapperScale;
     const wrapperHeight = preview.height * wrapperScale;
     this.wrapperWidth = wrapperWidth;
     this.wrapperHeight = wrapperHeight;
-    const centerX = width / 2;
-    const centerY = height / 2;
-    const backdrop = new Graphics()
-      .rect(0, 0, width, height)
-      .fill({ color: hexToNum(theme.appTheme.background), alpha: 0.92 });
-    backdrop.eventMode = "none";
-    this.backdrop = backdrop;
-    this.stage.addChildAt(backdrop, 0);
+    this.restTilt = origin?.rotation ?? REST_TILT;
+    const centerX = origin?.x ?? width / 2;
+    const centerY = origin?.y ?? height / 2;
+    if (options.backdrop !== false) {
+      const backdrop = new Graphics()
+        .rect(0, 0, width, height)
+        .fill({ color: hexToNum(theme.appTheme.background), alpha: 0.92 });
+      backdrop.eventMode = "none";
+      this.backdrop = backdrop;
+      this.stage.addChildAt(backdrop, 0);
+    }
     const wrapper = new Container();
     wrapper.eventMode = "none";
     wrapper.position.set(centerX, centerY);
-    wrapper.rotation = REST_TILT;
+    wrapper.rotation = this.restTilt;
     wrapper.scale.set(0.92);
     wrapper.alpha = 0;
     wrapper.zIndex = 2;
@@ -241,7 +264,9 @@ export class LimitedBoosterReveal {
     setName.anchor.set(0.5);
     setName.position.set(0, bottom - wrapperHeight * 0.26);
     const packType = new Text({
-      text: grouped ? `${packCount} PACKS\n${cards.length} CARDS` : `${cards.length}-CARD BOOSTER`,
+      text: grouped
+        ? `${packCount} PACKS\n${cards.length} CARDS`
+        : `${options.cardCount ?? cards.length}-CARD BOOSTER`,
       style: {
         fontFamily: "Alegreya Sans",
         fontSize: grouped ? Math.max(9, wrapperWidth * 0.08) : Math.max(7, wrapperWidth * 0.055),
@@ -253,7 +278,7 @@ export class LimitedBoosterReveal {
     });
     packType.anchor.set(0.5);
     packType.position.set(0, bottom - wrapperHeight * (grouped ? 0.105 : 0.065));
-    if (grouped) packType.scale.set(Math.min(1, (wrapperWidth - 24) / packType.width));
+    packType.scale.set(Math.min(1, (wrapperWidth * 0.82) / packType.width));
     lower.addChild(new Graphics(bodyDetail), symbol, symbolCode, setName, packType);
     this.symbol = symbol;
     this.symbolCode = symbolCode;
@@ -336,7 +361,7 @@ export class LimitedBoosterReveal {
       wrapper,
       {
         y: centerY,
-        rotation: REST_TILT,
+        rotation: this.restTilt,
         alpha: 1,
         duration: LAND_DURATION,
         ease: "power2.out",
@@ -385,7 +410,12 @@ export class LimitedBoosterReveal {
     );
     timeline.to([...seams, tear], { alpha: 0, duration: 0.12 }, peelStart);
     const flightStart = extractStart + EXTRACT_DURATION + FAN_DURATION;
-    timeline.to(backdrop, { alpha: 0, duration: SETTLE_DURATION, ease: "power1.out" }, flightStart);
+    if (this.backdrop)
+      timeline.to(
+        this.backdrop,
+        { alpha: 0, duration: SETTLE_DURATION, ease: "power1.out" },
+        flightStart,
+      );
     cards.forEach(
       ({ motion, x, y, width: cardWidth, height: cardHeight, scaleX, scaleY }, index) => {
         const offset = index - (cards.length - 1) / 2;
@@ -537,7 +567,7 @@ export class LimitedBoosterReveal {
     if (this.waiting && animationsEnabled() && (this.timeline?.time() ?? 0) >= LAND_DURATION) {
       const flex = Math.sin(tearProgress * Math.PI);
       const direction = this.tearDirection === "left" ? -1 : 1;
-      wrapper.rotation = REST_TILT + direction * flex * 0.025;
+      wrapper.rotation = this.restTilt + direction * flex * 0.025;
       wrapper.skew.x = direction * flex * 0.018;
     } else wrapper.skew.x = 0;
     const cos = Math.abs(Math.cos(wrapper.rotation));

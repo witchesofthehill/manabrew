@@ -45,14 +45,14 @@ export default function Sealed() {
   }
   return (
     <LimitedTableSurface className="gap-2 px-4 py-3 sm:px-6 lg:px-8">
-      <header className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <p className="text-sm text-muted-foreground">
-            {activeSealed.packs.length} packs · {activeSealed.cards.length} cards ·{" "}
-            {activeSealed.aiDecks.length} AI opponents ready for the gauntlet
-          </p>
-        </div>
-        {openedSession === activeSealed.sessionId && (
+      {openedSession === activeSealed.sessionId && (
+        <header className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <p className="text-sm text-muted-foreground">
+              {activeSealed.packs.length} packs · {activeSealed.cards.length} cards ·{" "}
+              {activeSealed.aiDecks.length} AI opponents ready for the gauntlet
+            </p>
+          </div>
           <LimitedPlayAction
             sessionId={activeSealed.sessionId}
             kind="sealed"
@@ -63,8 +63,8 @@ export default function Sealed() {
                 : { main: [], sideboard: [] }
             }
           />
-        )}
-      </header>
+        </header>
+      )}
 
       <div className="min-h-0 flex-1">
         {openedSession !== activeSealed.sessionId ? (

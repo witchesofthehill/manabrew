@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { LimitedCardScene } from "@/pixi/limited/LimitedCardScene";
 import type {
   BoosterOpeningState,
+  BoosterOpeningPacket,
   BoosterTearDirection,
 } from "@/pixi/limited/LimitedBoosterReveal";
 import {
@@ -36,6 +37,8 @@ export interface LimitedCardCanvasProps {
   openingPackCount?: number;
   openingSetCode?: string;
   openingCardIds?: readonly string[];
+  openingPackets?: readonly BoosterOpeningPacket[];
+  openingTearDirection?: BoosterTearDirection;
   onOpeningComplete?: () => void;
   onSkipOpening?: () => void;
   presentation?: LimitedLayoutOptions["presentation"];
@@ -62,6 +65,8 @@ export function LimitedCardCanvas({
   openingPackCount = 1,
   openingSetCode,
   openingCardIds,
+  openingPackets,
+  openingTearDirection,
   onOpeningComplete,
   onSkipOpening,
   presentation = "grid",
@@ -202,6 +207,8 @@ export function LimitedCardCanvas({
     openingSetCode: packSetCode,
     openingSet,
     openingCardIds,
+    openingPackets,
+    openingTearDirection,
     onOpeningChange: handleOpeningChange,
     onOpeningComplete: handleOpeningComplete,
     arrivalDirection,
@@ -440,7 +447,7 @@ export function LimitedCardCanvas({
           )}
         </div>
       </div>
-      {openingActive && (
+      {openingActive && !openingPackets && (
         <LimitedBoosterOverlay
           key={arrivalKey}
           state={openingState}

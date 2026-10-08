@@ -21,6 +21,7 @@ import { useScryfallStore } from "@/stores/useScryfallStore";
 import {
   LimitedBoosterReveal,
   type BoosterOpeningState,
+  type BoosterOpeningPacket,
   type BoosterTearDirection,
   type RevealCard,
 } from "@/pixi/limited/LimitedBoosterReveal";
@@ -48,6 +49,8 @@ export interface LimitedSceneProps {
   openingSetCode?: string;
   openingSet?: ScryfallSet;
   openingCardIds?: readonly string[];
+  openingPackets?: readonly BoosterOpeningPacket[];
+  openingTearDirection?: BoosterTearDirection;
   onOpeningChange?: (state: BoosterOpeningState | null) => void;
   onOpeningComplete?: () => void;
   onSelect?: (card: DraftCard, additive: boolean) => void;
@@ -115,6 +118,7 @@ export class LimitedCardScene implements LimitedPane {
   private readonly longPress = new LongPressGesture();
   private readonly renderer: LimitedRenderer;
   private readonly reveal: LimitedBoosterReveal;
+  private readonly packetReveals: LimitedBoosterReveal[] = [];
   private readonly openingLayer = new Container();
   private readonly openingEntries = new Set<CardEntry>();
   private unsubscribeTheme: (() => void) | null = null;
@@ -184,11 +188,11 @@ export class LimitedCardScene implements LimitedPane {
       this.abort();
     if (!animationsEnabled()) this.finishAnimations();
     this.updateDragMotion(deltaMs);
-    if (this.revealing && !this.reveal.active) {
+    if (this.revealing && !this.openingActive) {
       for (const entry of this.entries.values()) this.updatePose(entry);
     }
-    this.revealing = this.reveal.active;
-    if (this.reveal.animating) return true;
+    this.revealing = this.openingActive;
+    if (this.reveal.animating || this.packetReveals.some((reveal) => reveal.animating)) return true;
     for (const entry of this.entries.values()) {
       if (entry.layoutTimeline || entry.motionTimeline || entry.poseTimeline) return true;
     }
@@ -238,10 +242,10 @@ export class LimitedCardScene implements LimitedPane {
         return !previous || this.cellChanged(previous, cell);
       });
     let restartOpening = false;
-    if (newArrival || !props.opening) this.reveal.finish();
+    if (newArrival || !props.opening) this.finishOpening();
     else if (scrollChanged || viewportChanged || layoutChanged) {
-      restartOpening = this.reveal.active && this.reveal.awaitingInput;
-      this.reveal.finish(!restartOpening);
+      restartOpening = this.openingActive && this.reveal.awaitingInput;
+      this.finishOpening(!restartOpening);
     }
     if (
       props.disabled ||
@@ -330,7 +334,7 @@ export class LimitedCardScene implements LimitedPane {
     if ((newArrival || restartOpening) && validArrival) {
       this.arrivalKey = props.arrivalKey;
       if (props.opening) this.startOpening();
-      this.revealing = this.reveal.active;
+      this.revealing = this.openingActive;
     }
     this.reveal.setIdentity(props.openingSetCode, props.openingSet);
     this.knownIds = allIds;
@@ -340,6 +344,15 @@ export class LimitedCardScene implements LimitedPane {
     }
     this.hasLayout ||= validArrival;
     this.request();
+  }
+  private get openingActive(): boolean {
+    return this.reveal.active || this.packetReveals.some((reveal) => reveal.active);
+  }
+  private finishOpening(complete = false): void {
+    this.reveal.finish(complete);
+    for (const reveal of this.packetReveals) reveal.finish(complete);
+    this.packetReveals.length = 0;
+    if (this.openingEntries.size) this.restoreOpening();
   }
   private startOpening(): void {
     const props = this.props;
@@ -352,6 +365,47 @@ export class LimitedCardScene implements LimitedPane {
     this.hoveredId = null;
     this.props.onInspect(null, false);
     this.renderer.mountOpening(this, this.openingLayer);
+    if (props.openingPackets) {
+      for (const packet of props.openingPackets) {
+        const cards: RevealCard[] = [];
+        for (const entry of entries) {
+          if (!packet.cardIds.includes(entry.cell.card.id)) continue;
+          this.finishEntry(entry);
+          if (!this.renderer.liftCard(this, entry.root, this.openingLayer)) continue;
+          entry.root.zIndex = 1;
+          this.openingEntries.add(entry);
+          cards.push({
+            motion: entry.root,
+            x: entry.root.x,
+            y: entry.root.y,
+            width: entry.cell.width * entry.root.scale.x,
+            height: entry.cell.height * entry.root.scale.y,
+            scaleX: entry.root.scale.x,
+            scaleY: entry.root.scale.y,
+          });
+        }
+        if (!cards.length) continue;
+        const reveal = new LimitedBoosterReveal(this.openingLayer, this.request);
+        this.packetReveals.push(reveal);
+        reveal.play(cards, window.innerWidth, window.innerHeight, {
+          origin: packet.origin,
+          backdrop: false,
+          setCode: packet.setCode,
+          set: useScryfallStore
+            .getState()
+            .sets.find((set) => set.code === packet.setCode?.toLowerCase()),
+          onComplete: () => {
+            if (this.openingActive) return;
+            this.restoreOpening();
+            if (!this.disposed && this.props.opening && this.props.arrivalKey === props.arrivalKey)
+              this.props.onOpeningComplete?.();
+          },
+        });
+      }
+      this.revealing = this.openingActive;
+      for (const reveal of this.packetReveals) reveal.tear(1, props.openingTearDirection);
+      return;
+    }
     const cards: RevealCard[] = [];
     for (const entry of entries) {
       this.finishEntry(entry);
@@ -385,7 +439,7 @@ export class LimitedCardScene implements LimitedPane {
           this.props.onOpeningComplete?.();
       },
     });
-    this.revealing = this.reveal.active;
+    this.revealing = this.openingActive;
   }
   private restoreOpening(): void {
     for (const entry of this.openingEntries) this.renderer.restoreCard(this, entry.root);
@@ -618,6 +672,7 @@ export class LimitedCardScene implements LimitedPane {
   }
   private finishAnimations(): void {
     if (this.reveal.active) this.reveal.reduceMotion();
+    for (const reveal of this.packetReveals) reveal.reduceMotion();
     this.finishSettling();
     for (const entry of this.entries.values()) {
       if (entry.layoutTimeline || entry.motionTimeline || entry.poseTimeline)
@@ -1012,11 +1067,11 @@ export class LimitedCardScene implements LimitedPane {
     this.request();
   };
   private readonly viewportChanged = (): void => {
-    if (this.reveal.active) {
+    if (this.openingActive) {
       if (this.reveal.awaitingInput) {
-        this.reveal.finish();
+        this.finishOpening();
         this.startOpening();
-      } else this.reveal.finish(true);
+      } else this.finishOpening(true);
     }
     this.abort();
   };
@@ -1034,7 +1089,7 @@ export class LimitedCardScene implements LimitedPane {
     if (this.disposed) return;
     this.disposed = true;
     this.abort();
-    this.reveal.finish();
+    this.finishOpening();
     this.restoreOpening();
     this.openingLayer.destroy({ children: true, texture: false, textureSource: false });
     this.marquee.destroy();

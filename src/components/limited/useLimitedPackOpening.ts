@@ -3,6 +3,10 @@ import { useLimitedOpeningStore } from "@/components/limited/limitedOpeningStore
 import { refToDeckCard } from "@/lib/limited.utils";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import type { SealedPool } from "@/types/limited";
+import type {
+  BoosterOpeningPacket,
+  BoosterTearDirection,
+} from "@/pixi/limited/LimitedBoosterReveal";
 
 const NO_OPENED_PACKS: string[] = [];
 
@@ -19,6 +23,8 @@ export function useLimitedPackOpening(
   const [arrival, setArrival] = useState(0);
   const [preparing, setPreparing] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [tearDirection, setTearDirection] = useState<BoosterTearDirection>();
+  const [openingPackets, setOpeningPackets] = useState<BoosterOpeningPacket[]>([]);
   const generation = useRef(0);
   const pendingReveal = useRef<{ generation: number; packIds: string[] } | null>(null);
   const callback = useRef(onComplete);
@@ -26,12 +32,15 @@ export function useLimitedPackOpening(
     callback.current = onComplete;
   }, [onComplete]);
   const delivered = useRef<string | null>(null);
-  const nextPack = packs.find((pack) => !openedIds.includes(pack.id));
+  const unopenedPacks = useMemo(
+    () => packs.filter((pack) => !openedIds.includes(pack.id)),
+    [packs, openedIds],
+  );
   const activePacks = useMemo(
     () =>
       selectedPackIds.length > 0
         ? packs.filter((pack) => selectedPackIds.includes(pack.id))
-        : packs.filter((pack) => openedIds.includes(pack.id)).slice(0, 1),
+        : packs.filter((pack) => pack.id === openedIds.at(-1)),
     [packs, selectedPackIds, openedIds],
   );
   const activePack = activePacks.length === 1 ? activePacks[0] : undefined;
@@ -52,10 +61,6 @@ export function useLimitedPackOpening(
     () => activePacks.flatMap((pack) => pack.cards.map((card) => card.id)),
     [activePacks],
   );
-  const openingPackCount = activePacks.length || 1;
-  const openingSetCode = activePacks.every((pack) => pack.setCode === activePacks[0]?.setCode)
-    ? activePacks[0]?.setCode
-    : undefined;
   const cancel = useCallback(() => {
     generation.current += 1;
     pendingReveal.current = null;
@@ -67,13 +72,19 @@ export function useLimitedPackOpening(
     setRevealing(false);
     open(sessionKey, pending.packIds);
   }, [open, sessionKey]);
-  const revealPacks = async (remainingPacks: SealedPool["packs"]) => {
-    if (remainingPacks.length === 0) return;
+  const reveal = async (
+    requestedIds: string[],
+    direction: BoosterTearDirection | undefined,
+    capture: () => BoosterOpeningPacket[],
+  ) => {
+    const remainingPacks = unopenedPacks.filter((pack) => requestedIds.includes(pack.id));
+    if (remainingPacks.length === 0 || preparing || revealing) return;
     cancel();
     const current = generation.current;
     setRevealing(false);
     setPreparing(true);
     setImageError(false);
+    setTearDirection(direction);
     const results = await Promise.allSettled(
       remainingPacks.flatMap((pack) =>
         pack.cards.map(async (card) => {
@@ -91,20 +102,13 @@ export function useLimitedPackOpening(
     );
     if (generation.current !== current) return;
     const packIds = remainingPacks.map((pack) => pack.id);
+    setOpeningPackets(capture());
     pendingReveal.current = { generation: current, packIds };
     setImageError(results.some((result) => result.status === "rejected"));
     setPreparing(false);
     setSelectedPackIds(packIds);
     setArrival((value) => value + 1);
     setRevealing(true);
-  };
-  const reveal = (pack: SealedPool["packs"][number]) => revealPacks([pack]);
-  const openRemaining = () => revealPacks(packs.filter((pack) => !openedIds.includes(pack.id)));
-  const review = (id: string) => {
-    cancel();
-    setPreparing(false);
-    setSelectedPackIds([id]);
-    setRevealing(false);
   };
   const complete = () => {
     cancel();
@@ -126,20 +130,18 @@ export function useLimitedPackOpening(
   return {
     openedIds,
     openedCount,
-    nextPack,
+    unopenedPacks,
     activePack,
     preparing,
     revealing,
     poolCards,
     openingCardIds,
-    openingPackCount,
-    openingSetCode,
     imageError,
+    tearDirection,
+    openingPackets,
     arrival,
     reveal,
     finishReveal,
-    openRemaining,
-    review,
     complete,
   };
 }

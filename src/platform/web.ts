@@ -235,7 +235,7 @@ class WorkerBridge {
   private worker: Worker | null = null;
   private pendingRequests = new Map<
     string,
-    { resolve: (value: unknown) => void; reject: (error: Error) => void }
+    { resolve: (value: unknown) => void; reject: (error: Error) => void; worker: Worker }
   >();
   private eventBus: WebEventBus;
   private initPromise: Promise<void> | null = null;
@@ -651,30 +651,25 @@ class WorkerBridge {
    */
   async invoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
     const startsGame = command === "start_game" || command === "start_multiplayer_game";
-    let forgeWasm = this.worker ? this.workerIsForgeWasm : isForgeWasmHostingEnabled();
-    if (startsGame) forgeWasm = args?.engine === "Forge";
-    if (startsGame && this.worker && this.workerIsForgeWasm !== forgeWasm) {
-      this.terminate();
+    let target: Worker;
+    if (command.startsWith("limited_")) {
+      target = this.queryWorker();
+    } else {
+      let forgeWasm = this.worker ? this.workerIsForgeWasm : isForgeWasmHostingEnabled();
+      if (startsGame) forgeWasm = args?.engine === "Forge";
+      if (startsGame && this.worker && this.workerIsForgeWasm !== forgeWasm) {
+        this.terminate();
+      }
+      await this.init(forgeWasm);
+      if (startsGame && this.workerIsForgeWasm) {
+        args = { ...args, forgeLauncherUrl: FORGE_LAUNCHER_URL, forgeWasmUrl: FORGE_WASM_URL };
+      }
+      if (!this.worker) throw new Error("Worker not initialized");
+      target =
+        this.workerIsForgeWasm && !FORGE_ENGINE_COMMANDS.has(command)
+          ? this.queryWorker()
+          : this.worker;
     }
-    await this.init(forgeWasm);
-
-    if (startsGame && this.workerIsForgeWasm) {
-      args = { ...args, forgeLauncherUrl: FORGE_LAUNCHER_URL, forgeWasmUrl: FORGE_WASM_URL };
-    }
-
-    if (!this.worker) {
-      throw new Error("Worker not initialized");
-    }
-
-    // Forge answers the game itself. It has no implementation of the card
-    // database queries or the limited/draft surface, and answering those with
-    // `null` is what took the Limited page down with "Cannot read properties
-    // of null": route them to the Rust worker instead, which is the same
-    // engine that answers them when Forge is off.
-    const target =
-      this.workerIsForgeWasm && !FORGE_ENGINE_COMMANDS.has(command)
-        ? this.queryWorker()
-        : this.worker;
 
     const requestId = crypto.randomUUID();
 
@@ -682,6 +677,7 @@ class WorkerBridge {
       this.pendingRequests.set(requestId, {
         resolve: resolve as (value: unknown) => void,
         reject,
+        worker: target,
       });
 
       const message: WorkerCommand = {
@@ -726,11 +722,11 @@ class WorkerBridge {
     this.stopLocalBots();
     // Response listener stays installed — terminate() is per-game, and a
     // second game on this (singleton) bridge still needs it.
-    this.pendingRequests.clear();
+    for (const [requestId, pending] of this.pendingRequests) {
+      if (pending.worker !== this.fallbackWorker) this.pendingRequests.delete(requestId);
+    }
     this.initPromise = null;
     setForgeWasmActive(false);
-    // The query worker holds no game state, so it survives a game ending and
-    // is only torn down with the bridge itself.
   }
 }
 
@@ -936,6 +932,9 @@ const KEEPALIVE_INTERVAL_MS = 4_000;
 // silence is the only signal the connection is gone. The relay answers every Ping.
 const KEEPALIVE_SILENCE_MS = 10_000;
 
+const ROOM_RESUME_TOKEN_PREFIX = "manabrew.roomResume:";
+const ROOM_RECOVERY_STORAGE_ERROR = "room_recovery_storage_failed";
+
 class WebServerApi implements IServerApi {
   private ws: WebSocket | null = null;
   private eventBus: WebEventBus;
@@ -961,7 +960,6 @@ class WebServerApi implements IServerApi {
   private relayStateSequence = 0;
   private deltaBases = new Map<string, { state: StateUpdate; fingerprint: string }>();
   private lastRelayDisplay: string | null = null;
-  private resumeToken: string | null = null;
   private pendingRelayPrompts = new Map<string, Record<string, unknown>>();
   private enginePlayerNames: string[] = [];
   private webrtc: WebRtcPlane | null = null;
@@ -1319,11 +1317,13 @@ class WebServerApi implements IServerApi {
   }
 
   async resumeRoom(params: ResumeRoomParams): Promise<void> {
-    if (!this.resumeToken) {
-      console.warn("[WebServerApi] Cannot resume room: no resume token");
-      return;
+    const token = localStorage.getItem(
+      `${ROOM_RESUME_TOKEN_PREFIX}${this.relayUrl}:${params.room_id}`,
+    );
+    if (!token) {
+      throw new Error("No saved recovery credential for this room. Rejoin its host instead.");
     }
-    this.send({ type: "ResumeRoom", ...params, resume_token: this.resumeToken });
+    this.send({ type: "ResumeRoom", ...params, resume_token: token });
   }
 
   async leaveRoom(): Promise<void> {
@@ -1396,7 +1396,7 @@ class WebServerApi implements IServerApi {
   }
 
   async sendRoomMessage(message: RoomRelayEnvelope): Promise<void> {
-    this.send({ type: "BroadcastState", state: message });
+    this.send({ type: "BroadcastState", state: message, target_player: message.targetPlayer });
   }
 
   async spawnAiBot(params: SpawnAiBotParams): Promise<void> {
@@ -1852,10 +1852,22 @@ class WebServerApi implements IServerApi {
     }
 
     if (type === "RoomCreated") {
-      this.resumeToken = typeof msg.resume_token === "string" ? msg.resume_token : null;
       const room = msg.room as { room_id?: string } | undefined;
       const roomId = String(room?.room_id ?? msg.room_id ?? "");
-      if (roomId) this.currentRoomId = roomId;
+      if (roomId) {
+        this.currentRoomId = roomId;
+        const key = `${ROOM_RESUME_TOKEN_PREFIX}${this.relayUrl}:${roomId}`;
+        try {
+          if (typeof msg.resume_token === "string") localStorage.setItem(key, msg.resume_token);
+          else localStorage.removeItem(key);
+        } catch {
+          this.eventBus.emit("server:error", {
+            code: ROOM_RECOVERY_STORAGE_ERROR,
+            message:
+              "The room recovery credential could not be saved. This room cannot recover after an app restart.",
+          });
+        }
+      }
       this.announceTransport(roomId);
     }
 

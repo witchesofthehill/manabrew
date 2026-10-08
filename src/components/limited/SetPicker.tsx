@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AppSelect, AppSelectOption } from "@/components/ui/AppSelect";
@@ -14,6 +15,8 @@ interface SetPickerProps {
   prefetching: string | null;
   onSelect: (code: string) => void;
   variant?: "inline" | "column";
+  renderSelected?: (set: ScryfallSet, onChange: () => void) => ReactNode;
+  resultsClassName?: string;
 }
 export function SetPicker({
   sets,
@@ -21,6 +24,8 @@ export function SetPicker({
   prefetching,
   onSelect,
   variant = "inline",
+  renderSelected,
+  resultsClassName,
 }: SetPickerProps) {
   const isTouch = useIsTouch();
   const [query, setQuery] = useState("");
@@ -41,6 +46,7 @@ export function SetPicker({
     setChanging(false);
   };
   if (variant === "inline" && selected && !changing) {
+    if (renderSelected) return renderSelected(selected, () => setChanging(true));
     return (
       <section className="flex items-center gap-2 rounded-lg border border-border/70 bg-card/40 p-2">
         <div className="min-w-0 flex-1">
@@ -149,6 +155,7 @@ export function SetPicker({
         className={cn(
           variant === "inline" && "mt-3",
           variant === "column" && "px-4 pb-4 md:min-h-0 md:flex-1 md:overflow-y-auto",
+          resultsClassName,
         )}
       >
         {!query && typeFilter === "all" && (

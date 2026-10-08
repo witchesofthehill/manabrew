@@ -1,12 +1,13 @@
 use crate::limited_deck_builder::LimitedDeck;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum GauntletKind {
     Sealed,
     BoosterDraft,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GauntletMini {
     pub kind: GauntletKind,
     pub rounds: u32,

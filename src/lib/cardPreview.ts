@@ -27,6 +27,10 @@ export interface PreviewShowOptions {
   delayMs?: number;
 }
 
+export interface PreviewFlipOptions {
+  sticky?: boolean;
+}
+
 export interface PreviewSnapshot {
   phase: PreviewPhase;
   card: PreviewCard | null;
@@ -133,9 +137,17 @@ export class CardPreviewMachine {
     this.hoverEnd();
   }
 
-  flip(): void {
+  flip(options?: PreviewFlipOptions): void {
     if (!this.snapshot.card) return;
-    this.emit({ ...this.snapshot, showBackFace: !this.snapshot.showBackFace });
+    if (options?.sticky) {
+      this.clearShowTimer();
+      this.clearGraceTimer();
+    }
+    this.emit({
+      ...this.snapshot,
+      sticky: this.snapshot.sticky || !!options?.sticky,
+      showBackFace: !this.snapshot.showBackFace,
+    });
   }
 
   setSequence(cards: readonly PreviewCard[]): void {

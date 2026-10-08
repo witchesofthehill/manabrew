@@ -643,6 +643,9 @@ pub struct DraftConfig {
     pub rounds: u8,
     pub picks_per_pass: u8,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub pick_seconds: Option<u16>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional, type = "number")]
     pub seed: Option<u64>,
     pub fill_with_bots: bool,
@@ -690,6 +693,9 @@ pub const FEATURE_CHAT: &str = "chat";
 pub const FEATURE_ROOM_INVITES: &str = "room_invites";
 /// Names [`ClientMessage::ReportGameOutcome`] in `AuthResult::features`.
 pub const FEATURE_GAME_OUTCOME: &str = "game_outcome";
+pub const FEATURE_LIMITED_SESSIONS: &str = "limited_sessions";
+pub const FEATURE_LIMITED_DRAFT_CLOCKS: &str = "limited_draft_clocks";
+pub const FEATURE_LIMITED_SESSION_RECOVERY: &str = "limited_session_recovery";
 
 /// Names [`ClientMessage::AnnounceTransport`] in `AuthResult::features`.
 pub const FEATURE_ROOM_TRANSPORT: &str = "room_transport";
@@ -708,6 +714,9 @@ pub const FEATURES: &[&str] = &[
     FEATURE_CHAT,
     FEATURE_ROOM_INVITES,
     FEATURE_GAME_OUTCOME,
+    FEATURE_LIMITED_SESSIONS,
+    FEATURE_LIMITED_DRAFT_CLOCKS,
+    FEATURE_LIMITED_SESSION_RECOVERY,
 ];
 
 /// Largest signalling blob the relay forwards.

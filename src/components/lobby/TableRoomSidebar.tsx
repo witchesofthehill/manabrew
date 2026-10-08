@@ -185,6 +185,14 @@ export function TableRoomSidebar({
                 <dd className="font-medium">{room.draft_config.picks_per_pass}</dd>
               </div>
               <div className="flex items-center justify-between gap-3">
+                <dt className="text-muted-foreground">Pick clock</dt>
+                <dd className="font-medium">
+                  {room.draft_config.pick_seconds
+                    ? `${room.draft_config.pick_seconds}s`
+                    : "Untimed"}
+                </dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
                 <dt className="text-muted-foreground">Empty seats</dt>
                 <dd className="text-right font-medium">
                   {room.draft_config.fill_with_bots ? `Fill with bots` : `Humans only`}

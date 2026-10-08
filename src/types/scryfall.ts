@@ -40,6 +40,7 @@ export interface ScryfallCard {
     printed_text?: string;
     oracle_text?: string;
     mana_cost?: string;
+    colors?: string[];
     flavor_text?: string;
     power?: string;
     toughness?: string;

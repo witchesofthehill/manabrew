@@ -15,8 +15,7 @@ import {
   getRulings,
   searchCards,
 } from "@/api/scryfall";
-import { getPlatformType } from "@/platform";
-import { loadScryfallImage, clearScryfallImageCache } from "@/lib/scryfallImageSource";
+import { clearScryfallImageCache } from "@/lib/scryfallImageSource";
 import type {
   ScryfallCard,
   ScryfallImageUris,
@@ -27,7 +26,7 @@ import type {
 import type { DeckCard } from "@/protocol/deck";
 import { Texture, ImageSource } from "pixi.js";
 import { useEffect, useState } from "react";
-import { frontFaceName } from "@/lib/scryfall.utils";
+import { frontFaceName, scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { cardFaceImageUris, localizedDeckCardImageUris } from "@/lib/cardImage";
 import { DEFAULT_SCRYFALL_LANGUAGE, type ScryfallLanguage } from "@/i18n/locales";
 
@@ -578,6 +577,10 @@ const createTextureFromImage = (img: HTMLImageElement): Texture => {
 const textureCache = new Map<string, Texture>();
 const pendingTexturePromises = new Map<string, Promise<Texture>>();
 let textureCacheGeneration = 0;
+const SET_TEXTURE_PREFETCH_BATCH_SIZE = 6;
+const pendingSetPrefetches = new Map<string, Promise<void>>();
+let setTexturePrefetchQueue = Promise.resolve();
+let setPrefetchGeneration = 0;
 
 const getCachedTexture = (url: string): Texture | undefined => {
   const texture = textureCache.get(url);
@@ -617,6 +620,8 @@ export const useScryfallStore = create<ScryfallState>()(
       setLocale: (locale) => {
         if (get().locale === locale) return;
         printingsByOracleId.clear();
+        setPrefetchGeneration += 1;
+        pendingSetPrefetches.clear();
         set((state) => {
           state.locale = locale;
           state.cards = {};
@@ -863,40 +868,84 @@ export const useScryfallStore = create<ScryfallState>()(
       fetchSets,
       prefetchSet: async (setCode) => {
         const code = setCode.toLowerCase();
-        if (!get().hydratedSets[code]) {
-          // Mark hydrated only *after* the fetch lands. Setting it
-          // up-front means a single failed call (network blip, 429,
-          // Scryfall outage) sticks for the rest of the session and
-          // every subsequent caller silently sees an empty set —
-          // which propagates to "supplied 0 cards" in WASM.
-          const cards = await get().fetchCardsBySet(code);
-          set((state) => {
-            state.hydratedSets[code] = true;
-          });
-          set((state) => {
-            for (const card of cards) {
-              const uris = chooseImageUrisForCard(card, { frontOnly: true });
-              if (!uris) continue;
-              const wrapper: ScryfallEntry = {
-                card: { info: card, texture: Texture.EMPTY, uris },
-              };
-              for (const k of mirrorCardKeys(wrapper)) state.cards[k] = wrapper;
-            }
-          });
-        }
-        if (typeof Image === "undefined") return;
-        for (const entry of Object.values(get().cards)) {
-          const info = entry.card?.info;
-          if (!info || info.set?.toLowerCase() !== code) continue;
-          const uris = entry.card?.uris;
-          if (!uris?.normal) continue;
-          if (getPlatformType() === "tauri") {
-            void loadScryfallImage(uris.normal).catch(() => {});
-          } else {
-            const img = new Image();
-            img.crossOrigin = "anonymous";
-            img.src = uris.normal;
+        const locale = get().locale;
+        const generation = setPrefetchGeneration;
+        const key = `${locale}:${code}`;
+        const existing = pendingSetPrefetches.get(key);
+        if (existing) return existing;
+        const pending = (async () => {
+          if (!get().hydratedSets[code]) {
+            const cards = await get().fetchCardsBySet(code);
+            if (generation !== setPrefetchGeneration) return;
+            set((state) => {
+              for (const card of cards) {
+                const uris = chooseImageUrisForCard(card, { frontOnly: true });
+                if (!uris) continue;
+                const exactKey = cardKey({
+                  setCode: card.set,
+                  collectorNumber: card.collector_number,
+                });
+                const cached = get().cards[exactKey];
+                const wrapper: ScryfallEntry = cached?.card
+                  ? cached
+                  : { card: { info: card, texture: Texture.EMPTY, uris } };
+                for (const k of mirrorCardKeys(wrapper)) {
+                  const existingId = state.cards[k]?.card?.info.id;
+                  if (existingId == null || existingId === wrapper.card?.info.id) {
+                    state.cards[k] = wrapper;
+                  }
+                }
+              }
+              state.hydratedSets[code] = true;
+            });
           }
+          if (typeof Image === "undefined" || generation !== setPrefetchGeneration) return;
+          const cards = [
+            ...new Map(
+              Object.values(get().cards).flatMap((entry) =>
+                entry.card?.info.set.toLowerCase() === code
+                  ? [[entry.card.info.id, entry.card.info] as const]
+                  : [],
+              ),
+            ).values(),
+          ];
+          for (let offset = 0; offset < cards.length; offset += SET_TEXTURE_PREFETCH_BATCH_SIZE) {
+            const batch = cards.slice(offset, offset + SET_TEXTURE_PREFETCH_BATCH_SIZE);
+            const warming = setTexturePrefetchQueue.then(async () => {
+              if (generation !== setPrefetchGeneration) return;
+              const results = await Promise.allSettled(
+                batch.map(async (card) => {
+                  const entry = await get().getCard({
+                    setCode: card.set,
+                    collectorNumber: card.collector_number,
+                  });
+                  if (generation !== setPrefetchGeneration) return;
+                  await get().getCardTexture(
+                    scryfallToDeckCard({
+                      ...entry.info,
+                      image_uris: entry.info.image_uris ?? entry.uris,
+                    }),
+                    "full",
+                    0,
+                  );
+                }),
+              );
+              const failed = results.find((result) => result.status === "rejected");
+              if (failed?.status === "rejected") throw failed.reason;
+            });
+            setTexturePrefetchQueue = warming.then(
+              () => undefined,
+              () => undefined,
+            );
+            await warming;
+            if (generation !== setPrefetchGeneration) return;
+          }
+        })();
+        pendingSetPrefetches.set(key, pending);
+        try {
+          await pending;
+        } finally {
+          if (pendingSetPrefetches.get(key) === pending) pendingSetPrefetches.delete(key);
         }
       },
       updatePrinting: (print) => {

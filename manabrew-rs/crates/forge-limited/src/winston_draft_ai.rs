@@ -1,9 +1,11 @@
-use rand::rngs::StdRng;
 use rand::Rng;
 use rand::SeedableRng;
+use rand_chacha::ChaCha12Rng;
+use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WinstonDraftAI {
-    rng: StdRng,
+    rng: ChaCha12Rng,
 }
 
 impl Default for WinstonDraftAI {
@@ -15,8 +17,12 @@ impl Default for WinstonDraftAI {
 impl WinstonDraftAI {
     pub fn new() -> Self {
         Self {
-            rng: StdRng::from_entropy(),
+            rng: ChaCha12Rng::from_entropy(),
         }
+    }
+
+    pub fn with_rng(rng: ChaCha12Rng) -> Self {
+        Self { rng }
     }
 
     pub fn roll_take(&mut self, pile_size: i32) -> bool {

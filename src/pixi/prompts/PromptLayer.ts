@@ -113,11 +113,17 @@ export class PromptLayer extends PromptModalLayer {
     this.unsubscribePreferences = usePreferencesStore.subscribe((state, previous) => {
       if (
         state.promptCardStyle === previous.promptCardStyle &&
-        state.mobileHandedness === previous.mobileHandedness
+        state.mobileHandedness === previous.mobileHandedness &&
+        state.inGameCardPreviewSize === previous.inGameCardPreviewSize
       ) {
         return;
       }
-      this.promptCardStates.clear();
+      if (
+        state.promptCardStyle !== previous.promptCardStyle ||
+        state.mobileHandedness !== previous.mobileHandedness
+      ) {
+        this.promptCardStates.clear();
+      }
       this.rebuild();
     });
     this.unsubscribeKeybindings = useKeybindingsStore.subscribe(() => this.rebuild());

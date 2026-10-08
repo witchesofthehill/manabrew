@@ -5,9 +5,16 @@ import { toast } from "sonner";
 import { getPlatform } from "@/platform";
 import { findLanRelay, type LanTarget } from "@/lib/lanRelay";
 import { setLanCacheHost, setRelayCacheBase } from "@/lib/lanCache";
-import { attachDraftPeer, detachDraftPeer } from "@/game/draftPeer";
+import { attachDraftPeer, detachDraftPeer, requestDraftResync } from "@/game/draftPeer";
 import { teardownHost as teardownDraftHost } from "@/game/draftHost";
 import { useMultiplayerDraftStore } from "@/stores/useMultiplayerDraftStore";
+import {
+  attachLimitedSessionPeer,
+  clearLimitedSession,
+  requestLimitedResync,
+} from "@/game/limitedSession";
+import { clearSealedStart } from "@/game/sealedStart";
+import { useMultiplayerLimitedStore } from "@/stores/useMultiplayerLimitedStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { assetUrlById } from "@/stores/useAssetStore";
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -272,6 +279,9 @@ export const useServerStore = create<ServerState>()(
         releaseTabSession();
         const platform = getPlatform();
         if (!platform.server) return;
+        teardownDraftHost();
+        clearLimitedSession();
+        clearSealedStart();
         await platform.server.disconnect();
         get().adoptLanTarget(null);
         setRelayCacheBase(null);
@@ -385,6 +395,8 @@ export const useServerStore = create<ServerState>()(
         }
         teardownDraftHost();
         useMultiplayerDraftStore.getState().clear();
+        clearLimitedSession();
+        clearSealedStart();
         set({
           currentRoom: null,
           roomPassword: null,
@@ -498,6 +510,7 @@ export const useServerStore = create<ServerState>()(
               const username = get().username;
               if (username) {
                 attachDraftPeer(username);
+                attachLimitedSessionPeer();
               }
             } else {
               set({ connecting: false, error: payload.error ?? "Authentication failed" });
@@ -547,11 +560,28 @@ export const useServerStore = create<ServerState>()(
             // LeaveRoom was in flight must not re-enroll us in the room.
             const inRoom = get().currentRoom?.room_id === payload.room.room_id;
             const joining = pendingJoin?.roomId === payload.room.room_id;
+            const limited = useMultiplayerLimitedStore.getState();
+            const draft = useMultiplayerDraftStore.getState();
             const reclaiming =
               !isActiveGameSessionAbandonmentPending() &&
-              peekActiveGameSession()?.roomId === payload.room.room_id;
+              (peekActiveGameSession()?.roomId === payload.room.room_id ||
+                limited.originalRoom?.room_id === payload.room.room_id ||
+                limited.matchReturn?.roomId === payload.room.room_id ||
+                draft.roomId === payload.room.room_id);
             if (inRoom || joining || reclaiming) {
-              set({ currentRoom: payload.room });
+              if (!limited.matchReturn || limited.matchReturn.roomId === payload.room.room_id)
+                set({ currentRoom: payload.room });
+              if (limited.originalRoom?.room_id === payload.room.room_id) {
+                useMultiplayerLimitedStore.setState({ originalRoom: payload.room });
+              }
+              if (
+                payload.room.status === "InGame" &&
+                (payload.room.draft_config || payload.room.sealed_config) &&
+                payload.room.host !== get().username
+              ) {
+                void requestDraftResync();
+                void requestLimitedResync();
+              }
             }
             settlePendingJoin(null, payload.room.room_id);
           }),

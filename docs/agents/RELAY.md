@@ -12,6 +12,24 @@ The relay is the multiplayer trust boundary. Only the room's engine host may emi
 
 Per-seat `State`, `Prompt`, and `Error` envelopes can contain hidden information. A hosted node must set `BroadcastState.target_player` for all three; `forPlayer` inside the envelope is for client dispatch and replay indexing, not transport privacy.
 
+## Limited sessions
+
+`AuthResult.features` advertises `limited_sessions` and `limited_session_recovery`; clients require both before creating durable multiplayer Draft or Sealed sessions. `src/game/limitedSession.ts` coordinates the `limited-session-v1` room relay. The original room host owns generation and validates each build against its seat's acquired occurrence IDs, printing and finish. Every acquired card must appear exactly once across Main and Sideboard; added basics require real Scryfall printings, and readiness requires at least 40 main cards.
+
+Pool snapshots, Sealed pack contents and builds are targeted to their owner through `BroadcastState.target_player`. Public statuses contain readiness and series scores, not picked cards or deck contents. Both relay and clients check the authenticated sender, original room, session and target; envelope claims are not authorization.
+
+The relay retains the original Limited room while moving participants into private two-seat match rooms. The match host receives both decks to run the engine. Other seats receive only their own deck; opponent cards and sideboards are empty in both `GameStarted` and replay. Return is an authenticated transaction back to the original room, preserving the acquired pool and local build, clearing readiness and allowing BO1/BO3 sideboarding.
+
+Paired match rooms retain authenticated human seats through reconnect grace even after `EndGame` returns the child to Lobby. Repeated disconnects invalidate earlier expiry timers; returning to the original room also disarms child-seat forfeiture. Virtual AI slots are not connections and cannot retain an abandoned child. Every child teardown unlinks its ID from the original room's match registry; resetting or removing the original room tears down its children.
+
+The original host durably saves its native checkpoint, all seat pools/builds, accepted requests and recorded results on that device. Guests save only their own visible state/build and connection metadata. Host reload restores the engine/session map and authenticated original room via its saved recovery credential; after relay restart it re-registers the draft/session before targeted snapshots or clocks. Original Limited slots survive non-playing disconnect grace so the same authenticated seat can recover without surrendering its build. This does not recover a dead child gameplay engine.
+
+Child assignment is installed only after its return marker commits. A guest then requests actual `RequestResync` replay so `GameStarted` or private prompts arriving during that write are not lost. A viable authenticated child remains the recovery target; after its seat is forfeited, only child-unavailable join errors permit fallback to the retained original room and saved password. Recovery validates the original host and connected human identity and never invents a result.
+
+Match results are idempotent by relay game ID. The original host saves the result before sending targeted `resultAck`; the match host durably records acknowledgement before local/relay `EndGame`. Failed return retries skip already-acknowledged submissions and retain the marker until authenticated `returned` confirmation commits.
+
+`limited_draft_clocks` advertises optional 5–600-second Booster Draft deadlines. Only the original host publishes `clockSync`; the relay sees opaque per-seat decision revisions and remaining time, not packs. It sends `clockExpired` to that host, which selects a valid nominated occurrence or invokes native AI selection and commits before publication. Host disconnect pauses deadlines; restored clocks remain paused until explicitly resumed. Fallback nominations are private and distinct from picks. Manual decisions, timeout decisions and resync snapshots share the same durable session queue.
+
 ## Replay cache and resync
 
 In-game state is cached per room (`replay.rs`) so reconnecting clients can pull a `RequestResync` replay: GameStarted + the reconnecting seat's last state + its pending prompt. States arrive per-seat via `BroadcastState.target_player` — an address the relay routes on without reading `state` — and are cached per slot with an untargeted public fallback for observers. The room's `reconnect_timeout_s` is clamped ≤ 90s to stay under the engine's 120s auto-pass (`manabrew-game-runtime/src/mpsc_transport.rs`).

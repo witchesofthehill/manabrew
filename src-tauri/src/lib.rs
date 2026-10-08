@@ -123,6 +123,8 @@ pub fn run() {
             limited_commands::limited_import_cube,
             limited_commands::limited_list_chaos_themes,
             limited_commands::limited_start_gauntlet_from_sealed,
+            limited_commands::limited_start_gauntlet_from_draft,
+            limited_commands::limited_get_draft_ai_decks,
             limited_commands::limited_record_gauntlet_outcome,
             limited_commands::limited_get_gauntlet_match_decks,
             limited_commands::limited_update_gauntlet_human_deck,
@@ -130,6 +132,10 @@ pub fn run() {
             limited_commands::limited_get_gauntlet_state,
             limited_commands::limited_list_conspiracy_hooks,
             limited_commands::limited_drop_session,
+            limited_commands::limited_export_session,
+            limited_commands::limited_import_session,
+            limited_commands::limited_get_draft_review,
+            limited_commands::limited_auto_pick,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

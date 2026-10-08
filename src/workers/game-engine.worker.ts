@@ -35,6 +35,8 @@ import init, {
   limited_winston_pass,
   limited_get_winston_state,
   limited_start_gauntlet_from_sealed,
+  limited_start_gauntlet_from_draft,
+  limited_get_draft_ai_decks,
   limited_record_gauntlet_outcome,
   limited_advance_gauntlet_round,
   limited_get_gauntlet_state,
@@ -43,6 +45,10 @@ import init, {
   limited_cubecobra_url,
   limited_import_cube,
   limited_drop_session,
+  limited_export_session,
+  limited_import_session,
+  limited_get_draft_review,
+  limited_auto_pick,
 } from "../wasm/wasm";
 import type { Deck } from "@/protocol/deck";
 
@@ -492,19 +498,12 @@ async function handleCommand(command: string, args?: Record<string, unknown>): P
     case "limited_start_multiplayer_draft":
       return limited_start_multiplayer_draft(args?.setup as object, args?.humans as object);
     case "limited_pick_card":
-      return limited_pick_card(
-        args?.sessionId as string,
-        args?.cardName as string,
-        args?.setCode as string,
-        args?.cardNumber as string,
-      );
+      return limited_pick_card(args?.sessionId as string, args?.cardId as string);
     case "limited_submit_pick":
       return limited_submit_pick(
         args?.sessionId as string,
         args?.seatIdx as number,
-        args?.cardName as string,
-        args?.setCode as string,
-        args?.cardNumber as string,
+        args?.cardId as string,
       );
     case "limited_get_seat_state":
       return limited_get_seat_state(args?.sessionId as string, args?.seatIdx as number);
@@ -527,6 +526,15 @@ async function handleCommand(command: string, args?: Record<string, unknown>): P
         args?.main as object,
         args?.sideboard as object,
       );
+    case "limited_start_gauntlet_from_draft":
+      return limited_start_gauntlet_from_draft(
+        args?.sessionId as string,
+        args?.rounds as number,
+        args?.main as object,
+        args?.sideboard as object,
+      );
+    case "limited_get_draft_ai_decks":
+      return limited_get_draft_ai_decks(args?.sessionId as string);
     case "limited_record_gauntlet_outcome":
       return limited_record_gauntlet_outcome(
         args?.gauntletId as string,
@@ -552,6 +560,22 @@ async function handleCommand(command: string, args?: Record<string, unknown>): P
       return limited_import_cube(args?.request as object, args?.body as string);
     case "limited_drop_session":
       return limited_drop_session(args?.kind as string, args?.sessionId as string);
+    case "limited_export_session":
+      return limited_export_session(args?.kind as string, args?.sessionId as string);
+    case "limited_import_session":
+      return limited_import_session(args?.checkpoint as object);
+    case "limited_get_draft_review":
+      return limited_get_draft_review(
+        args?.kind as string,
+        args?.sessionId as string,
+        args?.seat as number | undefined,
+      );
+    case "limited_auto_pick":
+      return limited_auto_pick(
+        args?.sessionId as string,
+        args?.seat as number | undefined,
+        args?.cardId as string | undefined,
+      );
 
     default:
       throw new Error(`Unknown command: ${command}`);

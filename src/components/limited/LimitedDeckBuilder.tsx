@@ -1,1210 +1,257 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  DndContext,
-  DragOverlay,
-  PointerSensor,
-  pointerWithin,
-  useDraggable,
-  useDroppable,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-  type DragStartEvent,
-} from "@dnd-kit/core";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { AppSelect, AppSelectOption } from "@/components/ui/AppSelect";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { CardThumbnail } from "@/components/editor/deckEditor.primitives";
-import { exportToArena } from "@/components/editor/deckExport";
-import { ManaSymbols } from "@/components/game/ManaSymbols";
-import { DraftCardTile } from "@/components/limited/DraftCardTile";
-import { LimitedCompareDialog } from "@/components/limited/LimitedCompareDialog";
-import { LimitedDeckStats } from "@/components/limited/LimitedDeckStats";
-import { LimitedHoverPreviewPane } from "@/components/limited/LimitedHoverPreviewPane";
-import { RaritySetSymbol } from "@/components/limited/RaritySetSymbol";
-import { peekCard, useCard, useScryfallStore, type ScryfallEntry } from "@/stores/useScryfallStore";
-import { useCardPreview } from "@/hooks/useCardPreview";
-import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
-import { useDeckStore } from "@/stores/useDeckStore";
-import {
-  BASIC_LAND_MANA,
-  BASIC_LAND_NAMES,
-  type BasicLandName,
-  countManaPips,
-  groupByName,
-  groupByRarity,
-  indexPool,
-  isSynthBasic,
-  makeBasicLand,
-  type PoolEntry,
-  refToDeckCard,
-  resolveDeckCards,
-  validateLimitedDeck,
-} from "@/lib/limited.utils";
-import { effectiveRarity, RARITY_LABEL, type UIRarity } from "@/lib/cardRarity";
-import { cn } from "@/lib/utils";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { LimitedBuildBoard } from "@/components/limited/LimitedBuildBoard";
+import { LimitedBuildFilters, type BuildFilters } from "@/components/limited/LimitedBuildFilters";
+import { buildDeck, useLimitedBuildStore } from "@/components/limited/useLimitedBuildStore";
+import type { BuildZone } from "@/components/limited/useLimitedBuildStore";
+import { LimitedBuildActions } from "@/components/limited/LimitedBuildActions";
+import { LimitedBuildSelection } from "@/components/limited/LimitedBuildSelection";
+import { useLimitedBuildCards } from "@/components/limited/useLimitedBuildCards";
+import { useLimitedBoardLayout } from "@/components/limited/useLimitedBoardLayout";
+import { LimitedBuildUtilities } from "@/components/limited/LimitedBuildUtilities";
+import { useIsDesktop, useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 import type { DraftCard } from "@/types/limited";
-import type { Deck, DeckFormat } from "@/protocol/deck";
-type LimitedZone = "main" | "sideboard";
-type GroupMode = "rarity" | "name" | "cmc" | "color";
-const ZONE_DROP_ID: Record<LimitedZone, string> = {
-  main: "limited-zone-main",
-  sideboard: "limited-zone-sideboard",
-};
-type PoolColorChip = "W" | "U" | "B" | "R" | "G" | "C" | "M";
-type PoolColorFilter = Set<PoolColorChip>;
-const POOL_COLOR_CHIPS: Array<{
-  key: PoolColorChip;
-  symbol: string | null;
-  fallback: string;
-  label: string;
-}> = [
-  {
-    key: "W",
-    symbol: "W",
-    fallback: "W",
-    label: `White`,
-  },
-  {
-    key: "U",
-    symbol: "U",
-    fallback: "U",
-    label: `Blue`,
-  },
-  {
-    key: "B",
-    symbol: "B",
-    fallback: "B",
-    label: `Black`,
-  },
-  {
-    key: "R",
-    symbol: "R",
-    fallback: "R",
-    label: `Red`,
-  },
-  {
-    key: "G",
-    symbol: "G",
-    fallback: "G",
-    label: `Green`,
-  },
-  {
-    key: "C",
-    symbol: "C",
-    fallback: "C",
-    label: `Colourless`,
-  },
-  {
-    key: "M",
-    symbol: null,
-    fallback: "★",
-    label: `Multicolour`,
-  },
-];
-function passesColorFilter(
-  card: DraftCard,
-  filter: PoolColorFilter,
-  cache: Record<string, ScryfallEntry>,
-): boolean {
-  if (filter.size === 0) return true;
-  const scry = peekCard(cache, {
-    name: card.name,
-    setCode: card.setCode,
-    cardNumber: card.cardNumber,
-  });
-  const colors = (scry?.colors ?? []).map((c) => c.toUpperCase());
-  if (filter.has("M") && colors.length >= 2) return true;
-  if (filter.has("C") && colors.length === 0) return true;
-  return colors.some((c) => filter.has(c as PoolColorChip));
-}
+import type { DeckFormat } from "@/protocol/deck";
+import type { LimitedReferenceFormat } from "@/components/limited/LimitedSetReference";
 export interface LimitedDeckBuilderProps {
+  sessionKey: string;
   pool: DraftCard[];
   initialMain?: DraftCard[];
+  initialSideboard?: DraftCard[];
   suggestedMain?: DraftCard[];
   targetMainSize?: number;
   defaultDeckName?: string;
   format?: DeckFormat;
   requireCompleteToSave?: boolean;
+  showUtilities?: boolean;
   onChange?: (deck: { main: DraftCard[]; sideboard: DraftCard[] }) => void;
   confirmLabel?: string;
   onConfirm?: (deck: { main: DraftCard[]; sideboard: DraftCard[] }) => void;
   onSaved?: (deckName: string) => void;
+  reviewSessionId?: string;
+  referenceFormat?: LimitedReferenceFormat;
 }
 export default function LimitedDeckBuilder({
+  sessionKey,
   pool,
   initialMain,
+  initialSideboard,
   suggestedMain,
   targetMainSize = 40,
   defaultDeckName = "Limited Deck",
   format = "draft",
   requireCompleteToSave = false,
+  showUtilities = true,
   onChange,
   confirmLabel = "Save Deck",
   onConfirm,
   onSaved,
+  reviewSessionId = sessionKey,
+  referenceFormat,
 }: LimitedDeckBuilderProps) {
-  const [extraBasics, setExtraBasics] = useState<DraftCard[]>([]);
-  const fullPool = useMemo(() => [...pool, ...extraBasics], [pool, extraBasics]);
-  const entries = useMemo(() => indexPool(fullPool), [fullPool]);
-  const scryfallCache = useScryfallStore((s) => s.cards);
-  const [main, setMain] = useState<number[]>(() => matchInitial(fullPool, initialMain ?? []));
-  const sideboard = useMemo(
-    () =>
-      entries
-        .filter((entry) => !main.includes(entry.index) && !isSynthBasic(entry.card))
-        .map((entry) => entry.index),
-    [entries, main],
-  );
-  const [groupMode, setGroupMode] = useState<GroupMode>("rarity");
-  const [poolColorFilter, setPoolColorFilter] = useState<PoolColorFilter>(() => new Set());
+  const session = useLimitedBuildStore((state) => state.sessions[sessionKey]);
+  const [filters, setFilters] = useState<BuildFilters>({ search: "", colors: [], type: "all" });
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const { mobileZone, visibleZones, expandedZone, showZone, toggleZone } = useLimitedBoardLayout();
   const shortScreen = useIsShortScreen();
   const isTouch = useIsTouch();
+  const isDesktop = useIsDesktop();
   const shortTouch = shortScreen && isTouch;
-  const [mobileZone, setMobileZone] = useState<LimitedZone>("sideboard");
-  const togglePoolColor = useCallback((key: PoolColorChip) => {
-    setPoolColorFilter((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  }, []);
-  const resetPoolColors = useCallback(() => setPoolColorFilter(new Set()), []);
-  const [activeDrag, setActiveDrag] = useState<{
-    index: number;
-    card: DraftCard;
-  } | null>(null);
-  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
-  const [compareDialogOpen, setCompareDialogOpen] = useState(false);
-  const [saveDeckName, setSaveDeckName] = useState(defaultDeckName);
-  const [savingDeck, setSavingDeck] = useState(false);
-  const savingDeckRef = useRef(false);
+  const acquired = session?.pool;
+  const allocation = session?.allocation;
+  const basics = allocation?.basics;
+  const group = session?.group;
+  const initialized = !!session;
+  const changeRef = useRef(onChange);
+  const builderRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    changeRef.current = onChange;
+  }, [onChange]);
   useEffect(() => {
-    onChange?.({
-      main: main.map((i) => fullPool[i]).filter(Boolean),
-      sideboard: sideboard.map((i) => fullPool[i]).filter(Boolean),
-    });
-  }, [main, sideboard, fullPool, onChange]);
-  const validationIssues = useMemo(() => {
-    const mainCards = main.map((i) => fullPool[i]).filter(Boolean);
-    return validateLimitedDeck(mainCards, targetMainSize);
-  }, [main, fullPool, targetMainSize]);
-  const moveTo = useCallback((idx: number, target: LimitedZone) => {
-    setMain((m) => (target === "main" ? addUnique(m, idx) : m.filter((i) => i !== idx)));
+    useLimitedBuildStore.getState().sync(sessionKey, pool, initialMain, initialSideboard);
+  }, [sessionKey, pool, initialMain, initialSideboard]);
+  const cards = useMemo(
+    () => (acquired && basics ? [...acquired, ...basics] : []),
+    [acquired, basics],
+  );
+  const acquiredIds = useMemo(() => cards.map((card) => card.id), [cards]);
+  const deck = useMemo(
+    () =>
+      acquired && allocation
+        ? buildDeck({ pool: acquired, allocation })
+        : { main: [], sideboard: [] },
+    [acquired, allocation],
+  );
+  useEffect(() => {
+    if (initialized) changeRef.current?.(deck);
+  }, [deck, initialized]);
+  const filtered = useLimitedBuildCards(cards, filters, group);
+  const select = useCallback((card: DraftCard, additive: boolean) => {
+    setSelectedIds((current) =>
+      additive
+        ? current.includes(card.id)
+          ? current.filter((id) => id !== card.id)
+          : [...current, card.id]
+        : [card.id],
+    );
   }, []);
-  const cycleZone = useCallback(
-    (idx: number, currentZone: LimitedZone) => {
-      const next: LimitedZone = currentZone === "main" ? "sideboard" : "main";
-      moveTo(idx, next);
+  const move = useCallback(
+    (ids: string[], zone: BuildZone) => {
+      useLimitedBuildStore.getState().move(sessionKey, ids, zone);
     },
-    [moveTo],
+    [sessionKey],
   );
-  const addBasic = useCallback(
-    (name: BasicLandName) => {
-      setExtraBasics((basics) => [...basics, makeBasicLand(name, basics.length)]);
-      setMain((current) => [...current, fullPool.length]);
-    },
-    [fullPool.length],
-  );
-  const fixManaBase = useCallback(() => {
-    const cache = useScryfallStore.getState().cards;
-    const mainCards = main.map((i) => fullPool[i]).filter(Boolean);
-    const basicNames = new Set<string>(BASIC_LAND_NAMES);
-    const nonLand = mainCards.filter(
-      (c) =>
-        !basicNames.has(c.name) &&
-        effectiveRarity(
-          peekCard(cache, {
-            name: c.name,
-            setCode: c.setCode,
-            cardNumber: c.cardNumber,
-          }),
-        ) !== "land",
-    );
-    const targetLands = Math.max(
-      0,
-      targetMainSize - mainCards.filter((card) => !basicNames.has(card.name)).length,
-    );
-    if (targetLands === 0) {
-      toast.info(`No room for basics \u2014 main deck is already at target size.`);
-      return;
-    }
-    const pips: Record<BasicLandName, number> = {
-      Plains: 0,
-      Island: 0,
-      Swamp: 0,
-      Mountain: 0,
-      Forest: 0,
-    };
-    const colorToBasic: Record<string, BasicLandName> = {
-      W: "Plains",
-      U: "Island",
-      B: "Swamp",
-      R: "Mountain",
-      G: "Forest",
-    };
-    for (const card of nonLand) {
-      const cost = peekCard(cache, {
-        name: card.name,
-        setCode: card.setCode,
-        cardNumber: card.cardNumber,
-      })?.mana_cost;
-      if (!cost) continue;
-      for (const letter of ["W", "U", "B", "R", "G"]) {
-        pips[colorToBasic[letter]] += countManaPips(cost, letter);
-      }
-    }
-    const totalPips = (Object.values(pips) as number[]).reduce((a, b) => a + b, 0);
-    let allocation: Record<BasicLandName, number>;
-    if (totalPips === 0) {
-      // No castable spells / unknown costs — split evenly across
-      // the player's drafted colours, falling back to all five.
-      const usedColors = (Object.entries(pips) as Array<[BasicLandName, number]>)
-        .filter(([, n]) => n > 0)
-        .map(([k]) => k);
-      const colors =
-        usedColors.length > 0 ? usedColors : (BASIC_LAND_NAMES as readonly BasicLandName[]).slice();
-      const each = Math.floor(targetLands / colors.length);
-      const remainder = targetLands - each * colors.length;
-      allocation = { Plains: 0, Island: 0, Swamp: 0, Mountain: 0, Forest: 0 };
-      colors.forEach((c, i) => {
-        allocation[c] = each + (i < remainder ? 1 : 0);
-      });
-    } else {
-      // Largest-remainder rounding so the totals add up exactly.
-      const raw = (Object.entries(pips) as Array<[BasicLandName, number]>).map(([k, n]) => ({
-        key: k,
-        ratio: (n / totalPips) * targetLands,
-      }));
-      const floors = raw.map((r) => ({
-        key: r.key,
-        count: Math.floor(r.ratio),
-        frac: r.ratio - Math.floor(r.ratio),
-      }));
-      let leftover = targetLands - floors.reduce((acc, f) => acc + f.count, 0);
-      floors.sort((a, b) => b.frac - a.frac);
-      for (let i = 0; i < floors.length && leftover > 0; i++) {
-        floors[i].count += 1;
-        leftover -= 1;
-      }
-      allocation = { Plains: 0, Island: 0, Swamp: 0, Mountain: 0, Forest: 0 };
-      for (const f of floors) {
-        allocation[f.key as BasicLandName] = f.count;
-      }
-    }
-    const fresh: DraftCard[] = [];
-    for (const name of BASIC_LAND_NAMES) {
-      for (let i = 0; i < allocation[name]; i++) {
-        fresh.push(makeBasicLand(name, fresh.length));
-      }
-    }
-    setMain([
-      ...main.filter((idx) => idx < pool.length && !basicNames.has(fullPool[idx]?.name ?? "")),
-      ...fresh.map((_, idx) => pool.length + idx),
-    ]);
-    setExtraBasics(fresh);
-    toast.success(
-      `Mana base reset · ${(Object.entries(allocation) as Array<[string, number]>)
-        .filter(([, n]) => n > 0)
-        .map(([k, n]) => `${n} ${k.slice(0, 1)}`)
-        .join(" · ")}`,
-    );
-  }, [fullPool, main, pool, targetMainSize]);
-  const handleConfirm = () => {
-    onConfirm?.({
-      main: main.map((i) => fullPool[i]).filter(Boolean),
-      sideboard: sideboard.map((i) => fullPool[i]).filter(Boolean),
-    });
-  };
-  const hasSuggestion = Boolean(suggestedMain?.length);
-  const applySuggestion = useCallback(() => {
-    const suggested = suggestedMain ?? [];
-    const matched = matchInitial(pool, suggested);
-    const matchedCards = matched.map((idx) => pool[idx]);
-    const matchedSuggestion = new Set(matchInitial(suggested, matchedCards));
-    const basics = suggested
-      .filter(
-        (card, idx) =>
-          !matchedSuggestion.has(idx) && BASIC_LAND_NAMES.includes(card.name as BasicLandName),
+  const drop = useCallback(
+    (card: DraftCard, x: number, y: number) => {
+      const root = builderRef.current;
+      const destination = document
+        .elementFromPoint(x, y)
+        ?.closest<HTMLElement>("[data-limited-zone]");
+      if (
+        !root ||
+        !destination ||
+        !root.contains(destination) ||
+        destination.closest("[data-limited-builder]") !== root ||
+        root.dataset.limitedBuilder !== sessionKey
       )
-      .map((card, idx) => makeBasicLand(card.name as BasicLandName, idx));
-    setExtraBasics(basics);
-    setMain([...matched, ...basics.map((_, idx) => pool.length + idx)]);
-  }, [pool, suggestedMain]);
-  const clearMain = useCallback(() => {
-    setMain([]);
-    setExtraBasics([]);
-  }, []);
-  const preview = useCardPreview();
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
-  const handleDragStart = (event: DragStartEvent) => {
-    const data = event.active.data.current as
-      | {
-          index: number;
-        }
-      | undefined;
-    if (!data) return;
-    const card = fullPool[data.index];
-    if (card) setActiveDrag({ index: data.index, card });
-    preview.dismiss();
-  };
-  const handleDragEnd = (event: DragEndEvent) => {
-    setActiveDrag(null);
-    const data = event.active.data.current as
-      | {
-          index: number;
-          fromZone: LimitedZone;
-        }
-      | undefined;
-    const overId = event.over?.id;
-    if (!data || !overId) return;
-    let target: LimitedZone | null = null;
-    if (overId === ZONE_DROP_ID.main) target = "main";
-    else if (overId === ZONE_DROP_ID.sideboard) target = "sideboard";
-    if (!target || target === data.fromZone) return;
-    moveTo(data.index, target);
-  };
-  const addSavedDeck = useDeckStore((s) => s.addSavedDeck);
-  const openSaveDialog = () => {
-    setSaveDeckName(defaultDeckName);
-    setSaveDialogOpen(true);
-  };
-  const handleSaveToMyDecks = async () => {
-    if (savingDeckRef.current) return;
-    savingDeckRef.current = true;
-    setSavingDeck(true);
-    try {
-      const name = saveDeckName.trim();
-      if (!name) {
-        toast.error(`Deck name cannot be empty.`);
         return;
+      const zone = destination.dataset.limitedZone;
+      if (zone === "main" || zone === "pool" || zone === "sideboard" || zone === "maybe") {
+        move(selectedIds.includes(card.id) ? selectedIds : [card.id], zone);
+        if (!isDesktop || shortTouch) showZone(zone);
       }
-      const mainCards = main.map((i) => fullPool[i]).filter(Boolean);
-      const sideboardCards = sideboard.map((i) => fullPool[i]).filter(Boolean);
-      if (mainCards.length === 0 && sideboardCards.length === 0) {
-        toast.error(`Add some cards before saving.`);
-        return;
-      }
-      if (requireCompleteToSave && mainCards.length < targetMainSize) {
-        toast.error(
-          `Main deck needs ${targetMainSize - mainCards.length} more card${targetMainSize - mainCards.length === 1 ? "" : "s"}.`,
-        );
-        return;
-      }
-      const [resolvedMain, resolvedSide] = await Promise.all([
-        resolveDeckCards(mainCards),
-        resolveDeckCards(sideboardCards),
-      ]);
-      const deck: Deck = {
-        name,
-        format,
-        cards: resolvedMain,
-        sideboard: resolvedSide,
-        draft: resolvedMain.length < targetMainSize,
-      };
-      addSavedDeck(deck);
-      setSaveDialogOpen(false);
-      toast.success(`Saved "${name}" to My Decks.`);
-      onSaved?.(name);
-    } catch {
-      toast.error(`Couldn't save the deck. Try again.`);
-    } finally {
-      savingDeckRef.current = false;
-      setSavingDeck(false);
-    }
-  };
-  const handleExport = async () => {
-    try {
-      const mainCards = main.map((i) => fullPool[i]).filter(Boolean);
-      const sideboardCards = sideboard.map((i) => fullPool[i]).filter(Boolean);
-      const [resolvedMain, resolvedSide] = await Promise.all([
-        resolveDeckCards(mainCards),
-        resolveDeckCards(sideboardCards),
-      ]);
-      await navigator.clipboard.writeText(
-        exportToArena({ name: defaultDeckName, cards: resolvedMain, sideboard: resolvedSide }),
-      );
-      toast.success(`Deck copied to clipboard.`);
-    } catch {
-      toast.error(`Couldn't copy the deck. Try again.`);
-    }
-  };
-  return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={pointerWithin}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-      onDragCancel={() => setActiveDrag(null)}
-    >
-      <div className="flex h-full flex-col gap-3 overflow-hidden">
-        <Toolbar
-          compact={shortTouch}
-          mobileZone={mobileZone}
-          onMobileZoneChange={setMobileZone}
-          groupMode={groupMode}
-          onGroupModeChange={setGroupMode}
-          colorFilter={poolColorFilter}
-          onColorFilterToggle={togglePoolColor}
-          onColorFilterReset={resetPoolColors}
-          mainCount={main.length}
-          sideboardCount={sideboard.length}
-          targetMainSize={targetMainSize}
-          onAddBasic={addBasic}
-          onFixManaBase={fixManaBase}
-          onSuggestion={hasSuggestion ? applySuggestion : undefined}
-          onClearMain={clearMain}
-          onCompare={() => setCompareDialogOpen(true)}
-          confirmLabel={confirmLabel}
-          onConfirm={onConfirm ? handleConfirm : undefined}
-          onSaveToMyDecks={openSaveDialog}
-          onExport={handleExport}
-        />
-
-        <div
-          className={cn(
-            "grid min-h-0 flex-1 grid-cols-1 grid-rows-2 gap-3 overflow-hidden md:grid-cols-2 md:grid-rows-1 lg:grid-cols-[1.4fr_1fr_minmax(0,326px)]",
-            shortTouch && "block",
-          )}
-        >
-          <Zone
-            className={cn(
-              shortTouch && "h-full",
-              shortTouch && mobileZone !== "sideboard" && "hidden",
-            )}
-            title={`Sideboard (${sideboard.length})`}
-            entries={pickEntries(entries, sideboard).filter((e) =>
-              passesColorFilter(e.card, poolColorFilter, scryfallCache),
-            )}
-            groupMode={groupMode}
-            zone="sideboard"
-            emptyMessage={
-              poolColorFilter.size > 0
-                ? `No cards match the colour filter.`
-                : `All opened cards are in your main deck.`
-            }
-            onCardClick={(idx) => cycleZone(idx, "sideboard")}
-            preview={preview}
-          />
-          <Zone
-            className={cn(shortTouch && "h-full", shortTouch && mobileZone !== "main" && "hidden")}
-            title={`Main (${main.length}/${targetMainSize})`}
-            entries={pickEntries(entries, main)}
-            groupMode={groupMode}
-            zone="main"
-            emptyMessage={`Drag cards here, or click sideboard cards to add.`}
-            highlight={main.length >= targetMainSize ? "border-primary" : "border-border/70"}
-            warnOnDrop={null}
-            onCardClick={(idx) => cycleZone(idx, "main")}
-            preview={preview}
-          />
-          <div className="hidden min-h-0 flex-col gap-3 lg:flex">
-            <LimitedHoverPreviewPane preview={preview} />
-            {validationIssues.length > 0 && (
-              <ul className="rounded-md border border-warning/40 bg-warning/10 p-2 text-[11px] text-warning">
-                {validationIssues.map((issue) => (
-                  <li key={`${issue.kind}-${issue.message}`}>⚠ {issue.message}</li>
-                ))}
-              </ul>
-            )}
-            <LimitedDeckStats
-              cards={main.map((i) => fullPool[i]).filter(Boolean)}
-              className="flex-1 overflow-y-auto"
-            />
-          </div>
-        </div>
-      </div>
-
-      <DragOverlay dropAnimation={null}>
-        {activeDrag && <DragPreview card={activeDrag.card} index={activeDrag.index} />}
-      </DragOverlay>
-
-      <Dialog
-        open={saveDialogOpen}
-        onOpenChange={(open) => {
-          if (!savingDeck) setSaveDialogOpen(open);
-        }}
-      >
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Save to My Decks</DialogTitle>
-            <DialogDescription>
-              Saved decks live in your browser and appear in the Decks section.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-2">
-            <Label htmlFor="limited-save-name">Deck name</Label>
-            <Input
-              id="limited-save-name"
-              value={saveDeckName}
-              onChange={(e) => setSaveDeckName(e.target.value)}
-              disabled={savingDeck}
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !savingDeck) {
-                  e.preventDefault();
-                  handleSaveToMyDecks();
-                }
-              }}
-            />
-            <p className="text-xs text-muted-foreground">
-              Main: {main.length} · Sideboard: {sideboard.length}
-            </p>
-            {main.length < targetMainSize && (
-              <p
-                className={cn(
-                  "rounded border p-2 text-xs",
-                  requireCompleteToSave
-                    ? "border-destructive/60 bg-destructive/10 text-destructive"
-                    : "border-warning/40 bg-warning/10 text-warning",
-                )}
-              >
-                {requireCompleteToSave
-                  ? `✗ Main deck is ${targetMainSize - main.length} cards short of the ${targetMainSize}-card target. Saving is blocked until the deck is legal.`
-                  : `⚠ Main deck is ${targetMainSize - main.length} cards short of the ${targetMainSize}-card target. Saving will flag the deck as a draft.`}
-              </p>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setSaveDialogOpen(false)} disabled={savingDeck}>
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              onClick={handleSaveToMyDecks}
-              disabled={savingDeck || (requireCompleteToSave && main.length < targetMainSize)}
-            >
-              {savingDeck ? `Saving...` : `Save`}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <LimitedCompareDialog
-        current={main.map((i) => fullPool[i]).filter(Boolean)}
-        open={compareDialogOpen}
-        onOpenChange={setCompareDialogOpen}
-      />
-    </DndContext>
+    },
+    [move, selectedIds, sessionKey, showZone, isDesktop, shortTouch],
   );
-}
-interface ToolbarProps {
-  groupMode: GroupMode;
-  onGroupModeChange: (m: GroupMode) => void;
-  colorFilter: PoolColorFilter;
-  onColorFilterToggle: (key: PoolColorChip) => void;
-  onColorFilterReset: () => void;
-  mainCount: number;
-  sideboardCount: number;
-  targetMainSize: number;
-  onAddBasic: (name: BasicLandName) => void;
-  onFixManaBase?: () => void;
-  onSuggestion?: () => void;
-  onClearMain: () => void;
-  onCompare?: () => void;
-  confirmLabel: string;
-  onConfirm?: () => void;
-  onSaveToMyDecks: () => void;
-  onExport: () => void;
-  compact: boolean;
-  mobileZone: LimitedZone;
-  onMobileZoneChange: (zone: LimitedZone) => void;
-}
-function Toolbar({
-  groupMode,
-  onGroupModeChange,
-  colorFilter,
-  onColorFilterToggle,
-  onColorFilterReset,
-  mainCount,
-  sideboardCount,
-  targetMainSize,
-  onAddBasic,
-  onFixManaBase,
-  onSuggestion,
-  onClearMain,
-  onCompare,
-  confirmLabel,
-  onConfirm,
-  onSaveToMyDecks,
-  onExport,
-  compact,
-  mobileZone,
-  onMobileZoneChange,
-}: ToolbarProps) {
-  const mainShortBy = targetMainSize - mainCount;
-  const filterActive = colorFilter.size > 0;
-  if (compact) {
+  if (!session)
     return (
-      <div className="flex shrink-0 items-center gap-2 overflow-x-auto rounded-md border border-border/70 bg-card/40 p-1.5 text-sm no-scrollbar touch-scroll-fade">
-        {(
-          [
-            ["sideboard", `Sideboard ${sideboardCount}`],
-            ["main", `Main ${mainCount}`],
-          ] as const
-        ).map(([zone, label]) => (
-          <Button
-            key={zone}
-            size="sm"
-            variant={mobileZone === zone ? "selected" : "ghost"}
-            onClick={() => onMobileZoneChange(zone)}
-            className="shrink-0 px-2 text-xs"
-          >
-            {label}
-          </Button>
-        ))}
-
-        <AppSelect
-          value={groupMode}
-          onValueChange={(value) => onGroupModeChange(value as GroupMode)}
-          aria-label="Group pool cards"
-          className="h-11 shrink-0 rounded-md border border-input bg-background px-2 text-base capitalize"
-        >
-          {(["rarity", "name", "cmc", "color"] as GroupMode[]).map((mode) => (
-            <AppSelectOption key={mode} value={mode}>
-              {mode}
-            </AppSelectOption>
-          ))}
-        </AppSelect>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm">
-              Colors{filterActive ? ` (${colorFilter.size})` : ""}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            <DropdownMenuLabel>Pool colors</DropdownMenuLabel>
-            {POOL_COLOR_CHIPS.map((chip) => (
-              <DropdownMenuCheckboxItem
-                key={chip.key}
-                checked={colorFilter.has(chip.key)}
-                onCheckedChange={() => onColorFilterToggle(chip.key)}
-                onSelect={(event) => event.preventDefault()}
-              >
-                {chip.label}
-              </DropdownMenuCheckboxItem>
-            ))}
-            {filterActive && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={onColorFilterReset}>Clear colors</DropdownMenuItem>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm">
-              Lands
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            <DropdownMenuLabel>Add a basic land</DropdownMenuLabel>
-            {BASIC_LAND_NAMES.map((name) => (
-              <DropdownMenuItem key={name} onSelect={() => onAddBasic(name)}>
-                {name}
-              </DropdownMenuItem>
-            ))}
-            {onFixManaBase && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={onFixManaBase}>Fix mana base</DropdownMenuItem>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm">
-              Actions
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {onSuggestion && (
-              <DropdownMenuItem onSelect={onSuggestion}>Use suggested deck</DropdownMenuItem>
-            )}
-            <DropdownMenuItem onSelect={onClearMain} disabled={mainCount === 0}>
-              Move all to sideboard
-            </DropdownMenuItem>
-            {onCompare && (
-              <DropdownMenuItem onSelect={onCompare}>Compare with saved deck</DropdownMenuItem>
-            )}
-            <DropdownMenuItem onSelect={onSaveToMyDecks}>Save to My Decks</DropdownMenuItem>
-            <DropdownMenuItem onSelect={onExport}>Copy decklist</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        {onConfirm && (
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={onConfirm}
-            disabled={mainCount < targetMainSize}
-          >
-            {confirmLabel}
-          </Button>
-        )}
-      </div>
+      <p role="status" className="p-3 text-sm text-muted-foreground">
+        Restoring your build...
+      </p>
     );
-  }
-
-  return (
-    <div className="flex flex-wrap items-center gap-3 rounded-md border border-border/70 bg-card/40 p-3 text-sm">
-      <div className="flex items-center gap-2">
-        <span className="text-muted-foreground">Group by</span>
-        {(["rarity", "name", "cmc", "color"] as GroupMode[]).map((m) => (
-          <Button
-            key={m}
-            size="sm"
-            variant={groupMode === m ? "secondary" : "ghost"}
-            onClick={() => onGroupModeChange(m)}
-            className="h-7 px-2 text-xs capitalize"
-          >
-            {m}
-          </Button>
-        ))}
-      </div>
-
-      <div className="flex items-center gap-1">
-        <span className="text-muted-foreground">Filter:</span>
-        {POOL_COLOR_CHIPS.map((chip) => (
-          <Button
-            key={chip.key}
-            size="sm"
-            variant={colorFilter.has(chip.key) ? "secondary" : "outline"}
-            onClick={() => onColorFilterToggle(chip.key)}
-            title={chip.label}
-            aria-label={chip.label}
-            className="h-7 px-2"
-          >
-            {chip.symbol ? (
-              <ManaSymbols cost={`{${chip.symbol}}`} size="sm" />
-            ) : (
-              <span className="text-[10px] font-bold">{chip.fallback}</span>
-            )}
-          </Button>
-        ))}
-        {filterActive && (
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={onColorFilterReset}
-            className="h-7 px-2 text-[10px] text-muted-foreground"
-          >
-            Clear
-          </Button>
-        )}
-      </div>
-
-      <div className="flex items-center gap-1">
-        <span className="text-muted-foreground">Add basic:</span>
-        {BASIC_LAND_NAMES.map((name) => (
-          <Button
-            key={name}
-            size="sm"
-            variant="outline"
-            onClick={() => onAddBasic(name)}
-            title={name}
-            aria-label={`Add ${name}`}
-            className="h-7 px-2"
-          >
-            <ManaSymbols cost={`{${BASIC_LAND_MANA[name]}}`} size="sm" />
-          </Button>
-        ))}
-        {onFixManaBase && (
-          <Button
-            size="xs"
-            variant="ghost"
-            onClick={onFixManaBase}
-            title={`Auto-fill basics proportional to your colour pips`}
-          >
-            Fix mana base
-          </Button>
-        )}
-      </div>
-
-      <div className="ml-auto flex flex-wrap items-center gap-3 text-xs">
-        <span className={mainShortBy === 0 ? "text-primary" : "text-muted-foreground"}>
-          Main {mainCount}/{targetMainSize}
-        </span>
-        <span className="text-muted-foreground">SB {sideboardCount}</span>
-        {onSuggestion && (
-          <Button
-            size="xs"
-            variant="ghost"
-            onClick={onSuggestion}
-            title={`Replace your main deck with the AI suggestion for this pool`}
-          >
-            Use suggested deck
-          </Button>
-        )}
-        <Button size="xs" variant="outline" onClick={onClearMain} disabled={mainCount === 0}>
-          Move all to sideboard
-        </Button>
-        {onCompare && (
-          <Button size="xs" variant="ghost" onClick={onCompare} title={`Compare with a saved deck`}>
-            Compare
-          </Button>
-        )}
-        <Button size="sm" variant="outline" onClick={onSaveToMyDecks}>
-          Save to My Decks
-        </Button>
-        <Button size="sm" variant="outline" onClick={onExport}>
-          Copy decklist
-        </Button>
-        {onConfirm && (
-          <Button variant="primary" onClick={onConfirm} disabled={mainCount < targetMainSize}>
-            {confirmLabel}
-          </Button>
-        )}
-      </div>
-    </div>
-  );
-}
-interface ZoneProps {
-  title: string;
-  entries: PoolEntry[];
-  groupMode: GroupMode;
-  zone: LimitedZone;
-  emptyMessage: string;
-  highlight?: string;
-  warnOnDrop?: string | null;
-  onCardClick: (idx: number) => void;
-  preview: ReturnType<typeof useCardPreview>;
-  className?: string;
-}
-function Zone({
-  title,
-  entries,
-  groupMode,
-  zone,
-  emptyMessage,
-  highlight,
-  warnOnDrop,
-  onCardClick,
-  preview,
-  className,
-}: ZoneProps) {
-  const cache = useScryfallStore((s) => s.cards);
-  const groups = useMemo(() => {
-    switch (groupMode) {
-      case "rarity":
-        return renderByRarity(entries, cache);
-      case "name":
-        return renderByName(entries);
-      case "cmc":
-        return renderByCmc(entries, cache);
-      case "color":
-        return renderByColor(entries, cache);
-    }
-  }, [entries, groupMode, cache]);
-  const { setNodeRef, isOver } = useDroppable({ id: ZONE_DROP_ID[zone] });
-  return (
-    <section
-      ref={setNodeRef}
-      className={cn(
-        "flex h-full min-h-0 flex-col overflow-hidden rounded-md border bg-card/30 transition-colors",
-        highlight ?? "border-border/70",
-        isOver && (warnOnDrop ? "border-destructive bg-destructive/10" : "bg-primary/5"),
-        className,
-      )}
-    >
-      <header className="flex items-center justify-between border-b border-border/40 px-3 py-2 text-sm font-semibold">
-        <span>{title}</span>
-        {isOver && warnOnDrop && (
-          <span className="rounded bg-destructive/20 px-1.5 py-0.5 text-[10px] font-bold uppercase text-destructive">
-            {warnOnDrop}
-          </span>
-        )}
-      </header>
-      <div className="flex-1 overflow-y-auto p-3">
-        {entries.length === 0 ? (
-          <p className="text-xs text-muted-foreground">{emptyMessage}</p>
-        ) : (
-          <div className="flex flex-col gap-3">
-            {groups.map((g) => (
-              <GroupSection
-                key={g.label}
-                label={g.label}
-                count={g.entries.length}
-                icon={
-                  g.rarity ? (
-                    <RaritySetSymbol
-                      rarity={g.rarity}
-                      setCode={g.entries[0]?.card.setCode}
-                      className="h-3 w-3"
-                    />
-                  ) : null
-                }
-              >
-                <CardGrid
-                  entries={g.entries}
-                  zone={zone}
-                  onCardClick={onCardClick}
-                  preview={preview}
-                />
-              </GroupSection>
-            ))}
-          </div>
-        )}
-      </div>
-    </section>
-  );
-}
-function GroupSection({
-  label,
-  count,
-  icon,
-  children,
-}: {
-  label: string;
-  count: number;
-  icon?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <div>
-      <h3 className="mb-1 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-        {icon}
-        <span>{label}</span>
-        <span className="text-muted-foreground/60">({count})</span>
-      </h3>
-      {children}
-    </div>
-  );
-}
-function CardGrid({
-  entries,
-  zone,
-  onCardClick,
-  preview,
-}: {
-  entries: PoolEntry[];
-  zone: LimitedZone;
-  onCardClick: (idx: number) => void;
-  preview: ReturnType<typeof useCardPreview>;
-}) {
-  return (
-    <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4">
-      {entries.map((e) => (
-        <DraggableTile
-          key={e.index}
-          entry={e}
-          zone={zone}
-          onCardClick={onCardClick}
-          preview={preview}
-        />
-      ))}
-    </div>
-  );
-}
-function DraggableTile({
-  entry,
-  zone,
-  onCardClick,
-  preview,
-}: {
-  entry: PoolEntry;
-  zone: LimitedZone;
-  onCardClick: (idx: number) => void;
-  preview: ReturnType<typeof useCardPreview>;
-}) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: `tile-${entry.index}`,
-    data: { index: entry.index, fromZone: zone },
-  });
+  const mainIds = new Set(session.allocation.mainIds);
+  const sideboardIds = new Set(session.allocation.sideboardIds);
+  const maybeIds = new Set(session.allocation.maybeIds);
+  const availableSelection = selectedIds.filter((id) => cards.some((card) => card.id === id));
+  const zones = [
+    {
+      id: "pool",
+      title: "Pool",
+      cards: filtered.filter(
+        (card) => !mainIds.has(card.id) && !sideboardIds.has(card.id) && !maybeIds.has(card.id),
+      ),
+      total: cards.filter(
+        (card) => !mainIds.has(card.id) && !sideboardIds.has(card.id) && !maybeIds.has(card.id),
+      ).length,
+    },
+    {
+      id: "main",
+      title: "Mainboard",
+      cards: filtered.filter((card) => mainIds.has(card.id)),
+      total: deck.main.length,
+    },
+    {
+      id: "sideboard",
+      title: "Sideboard",
+      cards: filtered.filter((card) => sideboardIds.has(card.id)),
+      total: cards.filter((card) => sideboardIds.has(card.id)).length,
+    },
+    {
+      id: "maybe",
+      title: "Maybeboard",
+      cards: filtered.filter((card) => maybeIds.has(card.id)),
+      total: cards.filter((card) => maybeIds.has(card.id)).length,
+    },
+  ] as const;
   return (
     <div
-      ref={setNodeRef}
-      {...attributes}
-      {...listeners}
-      className={cn(
-        "touch-none cursor-grab rounded-lg active:cursor-grabbing",
-        isDragging && "opacity-30 ring-2 ring-selection/50",
-      )}
-    >
-      <DraftCardTile
-        card={entry.card}
-        index={entry.index}
-        onClick={() => onCardClick(entry.index)}
-        preview={preview}
-      />
-    </div>
-  );
-}
-function DragPreview({ card, index }: { card: DraftCard; index: number }) {
-  const scry = useCard({
-    name: card.name,
-    setCode: card.setCode,
-    cardNumber: card.cardNumber,
-  });
-  if (!scry) {
-    return (
-      <div className="pointer-events-none w-24 rotate-3 rounded-lg opacity-90 shadow-2xl ring-2 ring-selection">
-        <div className="aspect-[5/7] w-full animate-pulse rounded-lg border border-border/50 bg-muted/40" />
-      </div>
-    );
-  }
-  return (
-    <div className="pointer-events-none w-24 rotate-3 rounded-lg opacity-90 shadow-2xl ring-2 ring-selection">
-      <CardThumbnail card={refToDeckCard(card, scry, index)} />
-    </div>
-  );
-}
-function pickEntries(all: PoolEntry[], indices: number[]): PoolEntry[] {
-  return indices.map((i) => all[i]).filter((e): e is PoolEntry => Boolean(e));
-}
-function addUnique(arr: number[], v: number): number[] {
-  return arr.includes(v) ? arr : [...arr, v];
-}
-interface RenderedGroup {
-  label: string;
-  entries: PoolEntry[];
-  rarity?: UIRarity;
-}
-function renderByRarity(
-  entries: PoolEntry[],
-  cache: Record<string, ScryfallEntry>,
-): RenderedGroup[] {
-  return groupByRarity(entries, (ref) =>
-    effectiveRarity(
-      peekCard(cache, {
-        name: ref.name,
-        setCode: ref.setCode,
-        cardNumber: ref.cardNumber,
-      }),
-    ),
-  ).map((g) => ({
-    label: RARITY_LABEL[g.rarity],
-    entries: g.entries,
-    rarity: g.rarity,
-  }));
-}
-function renderByName(entries: PoolEntry[]): RenderedGroup[] {
-  return groupByName(entries).map((g) => ({ label: g.name, entries: g.entries }));
-}
-function renderByColor(
-  entries: PoolEntry[],
-  cache: Record<string, ScryfallEntry>,
-): RenderedGroup[] {
-  const white = `White`;
-  const blue = `Blue`;
-  const black = `Black`;
-  const red = `Red`;
-  const green = `Green`;
-  const multicolour = `Multicolour`;
-  const colourless = `Colourless`;
-  const lands = `Lands`;
-  const buckets: Record<string, PoolEntry[]> = {
-    [white]: [],
-    [blue]: [],
-    [black]: [],
-    [red]: [],
-    [green]: [],
-    [multicolour]: [],
-    [colourless]: [],
-    [lands]: [],
-  };
-  const colorLabel: Record<string, string> = {
-    W: white,
-    U: blue,
-    B: black,
-    R: red,
-    G: green,
-  };
-  for (const entry of entries) {
-    const scry = peekCard(cache, {
-      name: entry.card.name,
-      setCode: entry.card.setCode,
-      cardNumber: entry.card.cardNumber,
-    });
-    if (effectiveRarity(scry) === "land") {
-      buckets[lands]!.push(entry);
-      continue;
-    }
-    const cs = (scry?.colors ?? []).map((c) => c.toUpperCase());
-    if (cs.length === 0) buckets[colourless]!.push(entry);
-    else if (cs.length >= 2) buckets[multicolour]!.push(entry);
-    else buckets[colorLabel[cs[0]] ?? colourless]!.push(entry);
-  }
-  return Object.entries(buckets)
-    .filter(([, list]) => list.length > 0)
-    .map(([label, list]) => ({ label, entries: list }));
-}
-function renderByCmc(entries: PoolEntry[], cache: Record<string, ScryfallEntry>): RenderedGroup[] {
-  const buckets: PoolEntry[][] = [[], [], [], [], [], [], [], []]; // 0..6, 7 = unknown
-  for (const e of entries) {
-    const scry = peekCard(cache, {
-      name: e.card.name,
-      setCode: e.card.setCode,
-      cardNumber: e.card.cardNumber,
-    });
-    if (effectiveRarity(scry) === "land") {
-      buckets[7].push(e);
-      continue;
-    }
-    const cmc = typeof scry?.cmc === "number" ? scry.cmc : null;
-    if (cmc == null) {
-      buckets[7].push(e);
-      continue;
-    }
-    const idx = Math.max(0, Math.min(6, Math.round(cmc)));
-    buckets[idx].push(e);
-  }
-  const labels = ["0", "1", "2", "3", "4", "5", "6+", `Land / Unknown`];
-  return buckets
-    .map((list, i) => ({ label: labels[i], entries: list }))
-    .filter((g) => g.entries.length > 0);
-}
-function matchInitial(pool: DraftCard[], initial: DraftCard[]): number[] {
-  const used = new Set<number>();
-  const out: number[] = [];
-  for (const want of initial) {
-    let foundIdx = -1;
-    for (let i = 0; i < pool.length; i++) {
-      if (used.has(i)) continue;
-      const p = pool[i];
-      if (p.name === want.name && p.setCode === want.setCode && p.cardNumber === want.cardNumber) {
-        foundIdx = i;
-        break;
-      }
-    }
-    if (foundIdx === -1) {
-      for (let i = 0; i < pool.length; i++) {
-        if (used.has(i)) continue;
-        if (pool[i].name === want.name) {
-          foundIdx = i;
-          break;
+      ref={builderRef}
+      data-limited-table
+      data-limited-builder={sessionKey}
+      className="flex h-full min-h-0 flex-col gap-2 overflow-hidden"
+      onKeyDown={(event) => {
+        if (
+          !builderRef.current?.contains(event.target as Node) ||
+          (event.target instanceof HTMLElement &&
+            event.target.closest("input, textarea, [contenteditable=true]"))
+        )
+          return;
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "a") {
+          event.preventDefault();
+          setSelectedIds(
+            zones
+              .filter((zone) =>
+                isDesktop && !shortTouch
+                  ? visibleZones.includes(zone.id) && (!expandedZone || expandedZone === zone.id)
+                  : zone.id === mobileZone,
+              )
+              .flatMap((zone) => zone.cards.map((card) => card.id)),
+          );
         }
-      }
-    }
-    if (foundIdx !== -1) {
-      used.add(foundIdx);
-      out.push(foundIdx);
-    }
-  }
-  return out;
+        if (event.key === "Escape") setSelectedIds([]);
+      }}
+    >
+      <div className="flex shrink-0 flex-wrap items-center gap-1">
+        <LimitedBuildActions
+          sessionKey={sessionKey}
+          session={session}
+          deck={deck}
+          shortTouch={shortTouch}
+          suggestedMain={suggestedMain ?? initialMain}
+          suggestedSideboard={suggestedMain ? undefined : initialSideboard}
+          defaultDeckName={defaultDeckName}
+          targetMainSize={targetMainSize}
+          requireCompleteToSave={requireCompleteToSave}
+          format={format}
+          onSaved={onSaved}
+          onConfirm={onConfirm}
+          confirmLabel={confirmLabel}
+          reviewSessionId={reviewSessionId}
+          referenceFormat={referenceFormat}
+        />
+        <LimitedBuildFilters
+          filters={filters}
+          onChange={setFilters}
+          session={session}
+          presentation={showUtilities ? "toolbar" : "dialog"}
+        />
+        {availableSelection.length > 0 && (
+          <LimitedBuildSelection
+            availableSelection={availableSelection}
+            move={move}
+            setSelectedIds={setSelectedIds}
+          />
+        )}
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col">
+        <LimitedBuildBoard
+          zones={zones}
+          mobileZone={mobileZone}
+          onZoneChange={showZone}
+          compact={!isDesktop || shortTouch}
+          visibleZones={visibleZones}
+          expandedZone={expandedZone}
+          onToggleZone={toggleZone}
+          acquiredIds={acquiredIds}
+          selectedIds={availableSelection}
+          onSelect={select}
+          onSelectMany={setSelectedIds}
+          onMove={move}
+          onDrop={drop}
+          group={session.group}
+          cardSize={session.cardSize}
+          mode={session.mode}
+        />
+        {showUtilities && (
+          <LimitedBuildUtilities
+            sessionKey={sessionKey}
+            pool={session.pool}
+            deck={deck}
+            cardSize={session.cardSize}
+            activeManaValue={filters.manaValue ?? null}
+            onManaValueChange={(manaValue) => setFilters((current) => ({ ...current, manaValue }))}
+          />
+        )}
+      </div>
+    </div>
+  );
 }

@@ -35,6 +35,14 @@ pub fn create_room_sync(
     table_style: Option<String>,
 ) -> Result<(RoomInfo, String), ServerError> {
     if let Some(cfg) = &draft_config {
+        if cfg
+            .pick_seconds
+            .is_some_and(|seconds| !(5..=600).contains(&seconds))
+        {
+            return Err(ServerError::InvalidDraftConfig(
+                "pick_seconds must be between 5 and 600".into(),
+            ));
+        }
         match (cfg.set_code.as_ref(), cfg.cube_id.as_ref()) {
             (Some(_), Some(_)) => {
                 return Err(ServerError::InvalidDraftConfig(
@@ -139,7 +147,11 @@ pub fn resume_room_sync(
             .get(player_id)
             .ok_or_else(|| ServerError::AuthFailed("Player not found".into()))?;
         if let Some(rid) = &player.room_id {
-            if rid != &spec.room_id {
+            if rid != &spec.room_id
+                && !state.rooms.get(rid).is_some_and(|room| {
+                    room.parent_limited_room.as_deref() == Some(spec.room_id.as_str())
+                })
+            {
                 return Err(ServerError::AlreadyInRoom(rid.clone()));
             }
         }
@@ -149,6 +161,19 @@ pub fn resume_room_sync(
     if let Some(mut room) = state.rooms.get_mut(&spec.room_id) {
         if room.resume_token != spec.resume_token {
             return Err(ServerError::InvalidResumeToken);
+        }
+        if room.is_limited_session() && room.host_username != username {
+            return Err(ServerError::InvalidResumeToken);
+        }
+        if room.is_limited_session() && room.status == RoomStatus::Lobby {
+            room.players = resumed_slots(&spec, player_id, &username);
+            room.status = RoomStatus::InGame;
+            room.replay = Some(GameReplayCache::new(
+                spec.game_id.clone(),
+                spec.player_order.clone(),
+                spec.player_decks.clone(),
+                spec.starting_life,
+            ));
         }
 
         let old_host_pid = room.host_player_id.clone();
@@ -176,7 +201,14 @@ pub fn resume_room_sync(
             state.players.remove(&old_host_pid);
         }
         if let Some(mut player) = state.players.get_mut(player_id) {
-            player.room_id = Some(spec.room_id);
+            let attached_child = player.room_id.as_ref().is_some_and(|id| {
+                state.rooms.get(id).is_some_and(|room| {
+                    room.parent_limited_room.as_deref() == Some(spec.room_id.as_str())
+                })
+            });
+            if !attached_child {
+                player.room_id = Some(spec.room_id);
+            }
         }
         return Ok(resumed);
     }
@@ -195,6 +227,7 @@ pub fn resume_room_sync(
         None => false,
     };
 
+    let restored_players = resumed_slots(&spec, player_id, &username);
     let mut room = Room::new(
         spec.room_id.clone(),
         spec.room_name,
@@ -216,34 +249,7 @@ pub fn resume_room_sync(
     );
     room.resume_token = spec.resume_token;
     room.status = RoomStatus::InGame;
-    room.players = spec
-        .player_order
-        .iter()
-        .map(|seat_username| {
-            let deck = spec
-                .player_decks
-                .iter()
-                .find(|deck| &deck.username == seat_username);
-            let is_bot = spec.bot_players.contains(seat_username);
-            let is_requester = !spec.hosted && seat_username == &username;
-            RoomSlot {
-                player_id: if is_requester {
-                    player_id.to_string()
-                } else {
-                    format!("pending-rejoin-{}", uuid::Uuid::new_v4())
-                },
-                username: seat_username.clone(),
-                ready: true,
-                connected: is_requester,
-                is_bot,
-                selected_deck_name: deck.map(|d| d.deck_name.clone()),
-                selected_deck: deck.map(|d| d.deck.clone()),
-                published_deck_id: deck.and_then(|d| d.published_deck_id.clone()),
-                selected_commander_name: deck.and_then(|d| d.commander_name.clone()),
-                avatar_url: deck.and_then(|d| d.avatar_url.clone()),
-            }
-        })
-        .collect();
+    room.players = restored_players;
     room.replay = Some(GameReplayCache::new(
         spec.game_id,
         spec.player_order,
@@ -271,6 +277,36 @@ pub fn resume_room_sync(
     }
 
     Ok(resumed)
+}
+
+fn resumed_slots(spec: &ResumeRoomRequest, player_id: &str, username: &str) -> Vec<RoomSlot> {
+    spec.player_order
+        .iter()
+        .map(|seat_username| {
+            let deck = spec
+                .player_decks
+                .iter()
+                .find(|deck| &deck.username == seat_username);
+            let is_bot = spec.bot_players.contains(seat_username);
+            let is_requester = !spec.hosted && seat_username == username;
+            RoomSlot {
+                player_id: if is_requester {
+                    player_id.to_string()
+                } else {
+                    format!("pending-rejoin-{}", uuid::Uuid::new_v4())
+                },
+                username: seat_username.clone(),
+                ready: true,
+                connected: is_requester,
+                is_bot,
+                selected_deck_name: deck.map(|d| d.deck_name.clone()),
+                selected_deck: deck.map(|d| d.deck.clone()),
+                published_deck_id: deck.and_then(|d| d.published_deck_id.clone()),
+                selected_commander_name: deck.and_then(|d| d.commander_name.clone()),
+                avatar_url: deck.and_then(|d| d.avatar_url.clone()),
+            }
+        })
+        .collect()
 }
 
 fn awaiting_rejoin(room: &Room) -> Vec<String> {
@@ -362,6 +398,25 @@ pub fn leave_room_sync(state: &Arc<ServerState>, player_id: &str) -> Result<(), 
             .and_then(|p| p.room_id.clone())
             .ok_or(ServerError::NotInRoom)?
     };
+    let parent_id = state
+        .rooms
+        .get(&room_id)
+        .and_then(|room| room.parent_limited_room.clone());
+    let mut parent_empty = false;
+    if let Some(parent_id) = &parent_id {
+        let info = state.rooms.get_mut(parent_id).map(|mut parent| {
+            parent.remove_participant(player_id);
+            parent_empty = parent.is_empty();
+            parent.to_room_info()
+        });
+        if let Some(info) = info {
+            crate::connection::broadcast_to_room(
+                state,
+                parent_id,
+                &crate::protocol::ServerMessage::RoomUpdate { room: info },
+            );
+        }
+    }
 
     let (room_empty, no_connected_players) = {
         let mut room = state
@@ -371,7 +426,11 @@ pub fn leave_room_sync(state: &Arc<ServerState>, player_id: &str) -> Result<(), 
 
         room.remove_participant(player_id);
         let empty = room.is_empty();
-        let no_connected = room.connected_player_ids().is_empty();
+        let no_connected = if room.parent_limited_room.is_some() {
+            !crate::cleanup::paired_room_has_participants(state, &room, std::time::Instant::now())
+        } else {
+            room.all_disconnected()
+        };
         if !empty && !no_connected && room.players.is_empty() {
             room.reset_lobby_settings();
         }
@@ -384,6 +443,15 @@ pub fn leave_room_sync(state: &Arc<ServerState>, player_id: &str) -> Result<(), 
 
     if let Some(mut player) = state.players.get_mut(player_id) {
         player.room_id = None;
+    }
+    if parent_empty {
+        if let Some(parent_id) = parent_id {
+            crate::cleanup::remove_room_and_clear_sessions(
+                state,
+                &parent_id,
+                GameEndReason::Abandoned,
+            );
+        }
     }
 
     Ok(())
@@ -701,20 +769,42 @@ pub fn reset_room_to_lobby(
     room_id: &str,
     reason: GameEndReason,
 ) -> Option<(RoomInfo, Vec<String>)> {
-    let (info, cleared) = {
+    let (info, cleared, paired_limited, children) = {
         let mut room = state.rooms.get_mut(room_id)?;
         if let Some(replay) = room.replay.take() {
             analytics::emit_game_ended(&state.analytics, &room, &replay, reason);
         }
         let cleared: Vec<String> = room.players.iter().map(|p| p.player_id.clone()).collect();
         room.status = RoomStatus::Lobby;
-        room.players.clear();
-        room.reset_lobby_settings();
-        (room.to_room_info(), cleared)
+        let paired_limited = room.parent_limited_room.is_some();
+        let children = if paired_limited {
+            for seat in &mut room.players {
+                seat.ready = false;
+            }
+            Vec::new()
+        } else {
+            std::mem::take(&mut room.limited_matches)
+        };
+        if !paired_limited {
+            room.players.clear();
+            room.limited_session_id = None;
+            room.draft_clock = None;
+        }
+        if !paired_limited {
+            room.reset_lobby_settings();
+        }
+        (room.to_room_info(), cleared, paired_limited, children)
     };
+    for child_id in children {
+        crate::cleanup::remove_room_and_clear_sessions(state, &child_id, reason);
+    }
 
     let mut notify = Vec::new();
     for pid in cleared {
+        if paired_limited {
+            notify.push(pid);
+            continue;
+        }
         match state.players.get(&pid).map(|p| p.disconnected_at.is_some()) {
             Some(true) => {
                 state.players.remove(&pid);

@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useDeckStore } from "@/stores/useDeckStore";
 import { cn } from "@/lib/utils";
 import { isLand } from "@/lib/mana";
 import type { DeckCard } from "@/protocol/deck";
@@ -19,13 +18,21 @@ const BUCKET_BARS = [
 const BAR_MAX_PX = 140;
 const TOOLTIP_MAX_NAMES = 10;
 interface DeckStatsProps {
+  cards: DeckCard[];
+  compact?: boolean;
+  showHeader?: boolean;
   activeBucket?: number | null;
   onBucketClick?: (bucket: number | null) => void;
 }
-export function DeckStats({ activeBucket = null, onBucketClick }: DeckStatsProps) {
-  const { currentDeck } = useDeckStore();
-  const cards = currentDeck.cards;
+export function DeckStats({
+  cards,
+  compact = false,
+  showHeader = true,
+  activeBucket = null,
+  onBucketClick,
+}: DeckStatsProps) {
   const [hoveredBucket, setHoveredBucket] = useState<number | null>(null);
+  const barMaxPx = compact ? BAR_MAX_PX / 2 : BAR_MAX_PX;
   const lands: DeckCard[] = [];
   const unknown: DeckCard[] = [];
   const spells: {
@@ -52,9 +59,9 @@ export function DeckStats({ activeBucket = null, onBucketClick }: DeckStatsProps
   const max = Math.max(...counts, 1);
   const hasAnything = spells.length > 0;
   return (
-    <section className={EDITOR_PANEL_CLASS}>
-      <div className="mb-5 flex items-baseline gap-2.5">
-        <h3 className="text-base font-semibold">Mana Curve</h3>
+    <section className={cn(EDITOR_PANEL_CLASS, compact && "px-3 py-3 sm:px-3")}>
+      <div className={cn("flex items-baseline gap-2.5", compact ? "mb-3" : "mb-5")}>
+        {showHeader && <h3 className="text-base font-semibold">Mana Curve</h3>}
         <span className="text-xs text-muted-foreground/70">
           {spells.length} spells &middot; {lands.length} lands
         </span>
@@ -83,7 +90,7 @@ export function DeckStats({ activeBucket = null, onBucketClick }: DeckStatsProps
             ))}
           </div>
 
-          <div className="flex items-end gap-1.5" style={{ height: BAR_MAX_PX }}>
+          <div className="flex items-end gap-1.5" style={{ height: barMaxPx }}>
             {counts.map((count, i) => {
               const entries = [...bucketCards[i].entries()].sort(
                 (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
@@ -95,17 +102,18 @@ export function DeckStats({ activeBucket = null, onBucketClick }: DeckStatsProps
                 ((hoveredBucket !== null && hoveredBucket !== i) ||
                   (hoveredBucket === null && activeBucket !== null));
               return (
-                <div
+                <button
+                  type="button"
                   key={i}
-                  className={cn(
-                    "relative flex h-full flex-1 items-end",
-                    onBucketClick && count > 0 && "cursor-pointer",
-                  )}
+                  className="relative flex h-full min-w-0 flex-1 items-end rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  disabled={!onBucketClick || (count === 0 && !isActive)}
+                  aria-label={`${CMC_BUCKET_LABELS[i]} mana: ${count} cards`}
+                  aria-pressed={isActive}
                   onMouseEnter={() => setHoveredBucket(count > 0 ? i : null)}
                   onMouseLeave={() => setHoveredBucket(null)}
-                  onClick={() => {
-                    if (count > 0) onBucketClick?.(isActive ? null : i);
-                  }}
+                  onFocus={() => setHoveredBucket(count > 0 ? i : null)}
+                  onBlur={() => setHoveredBucket(null)}
+                  onClick={() => onBucketClick?.(isActive ? null : i)}
                 >
                   <div
                     className={cn(
@@ -117,7 +125,7 @@ export function DeckStats({ activeBucket = null, onBucketClick }: DeckStatsProps
                       isActive && "ring-2 ring-selection ring-offset-2 ring-offset-card",
                     )}
                     style={{
-                      height: count > 0 ? `${Math.max((count / max) * BAR_MAX_PX, 4)}px` : "4px",
+                      height: count > 0 ? `${Math.max((count / max) * barMaxPx, 4)}px` : "4px",
                     }}
                   />
                   {hoveredBucket === i && (
@@ -125,9 +133,9 @@ export function DeckStats({ activeBucket = null, onBucketClick }: DeckStatsProps
                       <p className="mb-1.5 text-xs font-semibold">
                         {count} card{count === 1 ? "" : "s"} at {CMC_BUCKET_LABELS[i]} mana
                       </p>
-                      <ul className="space-y-0.5">
+                      <div className="space-y-0.5">
                         {entries.slice(0, TOOLTIP_MAX_NAMES).map(([name, n]) => (
-                          <li
+                          <div
                             key={name}
                             className="flex items-baseline gap-1.5 text-xs text-muted-foreground"
                           >
@@ -135,14 +143,14 @@ export function DeckStats({ activeBucket = null, onBucketClick }: DeckStatsProps
                               {n}
                             </span>
                             <span className="truncate">{name}</span>
-                          </li>
+                          </div>
                         ))}
                         {entries.length > TOOLTIP_MAX_NAMES && (
-                          <li className="pt-0.5 text-[10px] text-muted-foreground/60">
+                          <p className="pt-0.5 text-[10px] text-muted-foreground/60">
                             +{entries.length - TOOLTIP_MAX_NAMES} more
-                          </li>
+                          </p>
                         )}
-                      </ul>
+                      </div>
                       {onBucketClick && (
                         <p className="mt-1.5 border-t border-border/40 pt-1.5 text-[10px] text-muted-foreground/60">
                           {isActive ? `Click to clear the filter` : `Click to filter the deck`}
@@ -150,7 +158,7 @@ export function DeckStats({ activeBucket = null, onBucketClick }: DeckStatsProps
                       )}
                     </div>
                   )}
-                </div>
+                </button>
               );
             })}
           </div>

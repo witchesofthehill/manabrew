@@ -1,7 +1,8 @@
 use forge_foundation::sealed_product::PaperCard;
 use forge_foundation::ColorSet;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeckColors {
     chosen: ColorSet,
     locked: bool,

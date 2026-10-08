@@ -12,15 +12,32 @@ use rand::rngs::StdRng;
 use rand::SeedableRng;
 
 use crate::limited_dto::{
-    BoosterDraftSetupDto, DraftStateDto, GauntletOutcomeDto, GauntletStateDto, SealedPoolDto,
-    SealedSetupDto, WinstonStateDto,
+    identity_to_paper_card, BoosterDraftSetupDto, DraftStateDto, GauntletOutcomeDto,
+    GauntletStateDto, LimitedDeckDto, SealedPoolDto, SealedSetupDto, WinstonStateDto,
 };
+use manabrew_protocol::deck_dto::DeckCardIdentity;
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct LimitedEngineCheckpointRef<'a, T> {
+    schema_version: u32,
+    kind: &'a str,
+    session_id: &'a str,
+    state: T,
+}
+
+#[derive(serde::Serialize)]
+struct GauntletCheckpointRef<'a> {
+    engine: &'a GauntletMini,
+    decks: &'a [LimitedDeckDto],
+}
 
 pub struct LimitedManager {
     sessions: Mutex<HashMap<String, SealedDeckGroup>>,
     drafts: Mutex<HashMap<String, BoosterDraft>>,
     winston: Mutex<HashMap<String, WinstonDraft>>,
     gauntlets: Mutex<HashMap<String, GauntletMini>>,
+    gauntlet_decks: Mutex<HashMap<String, Vec<LimitedDeckDto>>>,
     rank_cache: Arc<DraftRankCache>,
 }
 
@@ -37,8 +54,178 @@ impl LimitedManager {
             drafts: Mutex::new(HashMap::new()),
             winston: Mutex::new(HashMap::new()),
             gauntlets: Mutex::new(HashMap::new()),
+            gauntlet_decks: Mutex::new(HashMap::new()),
             rank_cache: Arc::new(DraftRankCache::new()),
         }
+    }
+
+    pub fn export_session(&self, kind: &str, session_id: &str) -> Result<String, String> {
+        match kind {
+            "draft" => {
+                let drafts = lock_recover(&self.drafts);
+                let draft = drafts
+                    .get(session_id)
+                    .ok_or_else(|| format!("no draft session for id {session_id}"))?;
+                serialize_checkpoint(kind, session_id, draft.export_checkpoint())
+            }
+            "winston" => {
+                let drafts = lock_recover(&self.winston);
+                let draft = drafts
+                    .get(session_id)
+                    .ok_or_else(|| format!("no Winston session for id {session_id}"))?;
+                serialize_checkpoint(kind, session_id, draft)
+            }
+            "sealed" => {
+                let sessions = lock_recover(&self.sessions);
+                let group = sessions
+                    .get(session_id)
+                    .ok_or_else(|| format!("no sealed session for id {session_id}"))?;
+                serialize_checkpoint(kind, session_id, group)
+            }
+            "gauntlet" => {
+                let gauntlets = lock_recover(&self.gauntlets);
+                let engine = gauntlets
+                    .get(session_id)
+                    .ok_or_else(|| format!("no gauntlet session for id {session_id}"))?;
+                let decks = lock_recover(&self.gauntlet_decks);
+                let decks = decks
+                    .get(session_id)
+                    .ok_or_else(|| "gauntlet deck identities are missing".to_string())?;
+                serialize_checkpoint(kind, session_id, GauntletCheckpointRef { engine, decks })
+            }
+            _ => Err(format!("unknown Limited session kind: {kind}")),
+        }
+    }
+
+    pub fn import_session(
+        &self,
+        checkpoint: crate::limited_dto::LimitedEngineCheckpointDto,
+    ) -> Result<crate::limited_dto::LimitedSessionImportDto, String> {
+        checkpoint.validate()?;
+        let session_id = checkpoint.session_id;
+        let state = match checkpoint.kind.as_str() {
+            "draft" => {
+                let saved = serde_json::from_value(checkpoint.state)
+                    .map_err(|error| format!("invalid draft checkpoint: {error}"))?;
+                let draft = BoosterDraft::import_checkpoint(saved)?;
+                let awaiting = !draft.is_round_over() && draft.has_next_choice();
+                let state = serde_json::to_value(DraftStateDto::from_engine(
+                    session_id.clone(),
+                    &draft,
+                    awaiting,
+                ))
+                .map_err(|error| error.to_string())?;
+                lock_recover(&self.drafts).insert(session_id.clone(), draft);
+                state
+            }
+            "winston" => {
+                let draft: WinstonDraft = serde_json::from_value(checkpoint.state)
+                    .map_err(|error| format!("invalid Winston checkpoint: {error}"))?;
+                draft.validate_checkpoint()?;
+                let state =
+                    serde_json::to_value(WinstonStateDto::from_engine(session_id.clone(), &draft))
+                        .map_err(|error| error.to_string())?;
+                lock_recover(&self.winston).insert(session_id.clone(), draft);
+                state
+            }
+            "sealed" => {
+                let group: SealedDeckGroup = serde_json::from_value(checkpoint.state)
+                    .map_err(|error| format!("invalid sealed checkpoint: {error}"))?;
+                let state =
+                    serde_json::to_value(SealedPoolDto::from_group(session_id.clone(), &group))
+                        .map_err(|error| error.to_string())?;
+                lock_recover(&self.sessions).insert(session_id.clone(), group);
+                state
+            }
+            "gauntlet" => {
+                let saved: crate::limited_dto::GauntletCheckpointDto =
+                    serde_json::from_value(checkpoint.state)
+                        .map_err(|error| format!("invalid gauntlet checkpoint: {error}"))?;
+                if saved.engine.rounds == 0
+                    || saved.engine.current_round == 0
+                    || saved.engine.current_round > saved.engine.rounds
+                    || saved.engine.rounds as usize > saved.engine.ai_decks.len()
+                    || saved.decks.len() != saved.engine.ai_decks.len() + 1
+                {
+                    return Err("incompatible gauntlet checkpoint state".into());
+                }
+                let state = serde_json::to_value(GauntletStateDto::from_engine(
+                    session_id.clone(),
+                    &saved.engine,
+                ))
+                .map_err(|error| error.to_string())?;
+                let mut gauntlets = lock_recover(&self.gauntlets);
+                let mut decks = lock_recover(&self.gauntlet_decks);
+                gauntlets.insert(session_id.clone(), saved.engine);
+                decks.insert(session_id.clone(), saved.decks);
+                state
+            }
+            kind => return Err(format!("unknown Limited session kind: {kind}")),
+        };
+        Ok(crate::limited_dto::LimitedSessionImportDto {
+            kind: checkpoint.kind,
+            session_id,
+            state,
+        })
+    }
+
+    pub fn get_draft_review(
+        &self,
+        kind: &str,
+        session_id: &str,
+        seat: usize,
+    ) -> Result<Vec<crate::limited_dto::LimitedDraftDecisionDto>, String> {
+        let decisions = match kind {
+            "draft" => lock_recover(&self.drafts)
+                .get(session_id)
+                .ok_or_else(|| format!("no draft session for id {session_id}"))?
+                .decisions_for_seat(seat)?,
+            "winston" => lock_recover(&self.winston)
+                .get(session_id)
+                .ok_or_else(|| format!("no Winston session for id {session_id}"))?
+                .decisions_for_seat(seat)?,
+            _ => return Err("draft review requires draft or Winston kind".into()),
+        };
+        Ok(decisions
+            .into_iter()
+            .map(|decision| {
+                crate::limited_dto::LimitedDraftDecisionDto::from_engine(session_id, kind, decision)
+            })
+            .collect())
+    }
+
+    pub fn auto_pick(
+        &self,
+        session_id: &str,
+        seat: usize,
+        card_id: Option<&str>,
+    ) -> Result<DraftStateDto, String> {
+        let mut drafts = lock_recover(&self.drafts);
+        let draft = drafts
+            .get_mut(session_id)
+            .ok_or_else(|| format!("no draft session for id {session_id}"))?;
+        let nominated =
+            card_id.and_then(|id| crate::limited_dto::parse_occurrence_id(session_id, id).ok());
+        draft.submit_auto_pick_for(seat, nominated)?;
+        loop {
+            match draft.tick() {
+                TickOutcome::Progress => continue,
+                TickOutcome::AwaitingHuman => break,
+                TickOutcome::RoundOver => {
+                    if !draft.start_round() {
+                        break;
+                    }
+                }
+                TickOutcome::Complete => break,
+            }
+        }
+        let awaiting = !draft.is_round_over() && draft.has_next_choice();
+        Ok(DraftStateDto::from_engine_for_seat(
+            session_id.to_string(),
+            draft,
+            seat,
+            awaiting,
+        ))
     }
 
     fn template_for_pool(&self, pool: &[PaperCard], variant: Option<&str>) -> SealedTemplate {
@@ -129,8 +316,20 @@ impl LimitedManager {
         let color_of: Arc<dyn Fn(&PaperCard) -> ColorSet + Send + Sync> =
             Arc::new(|c: &PaperCard| c.colors);
 
-        let template = self.template_for_pool(&card_pool, setup.variant.as_deref());
+        let required_cards = pod_size * rounds as usize * 15;
+        if setup.custom_pool && card_pool.len() < required_cards {
+            return Err(format!("cube has {} cards but {required_cards} are required for {pod_size} players and {rounds} rounds", card_pool.len()));
+        }
+        let template = if setup.custom_pool {
+            SealedTemplate::generic_no_slot_booster()
+        } else {
+            self.template_for_pool(&card_pool, setup.variant.as_deref())
+        };
         let mut draft = BoosterDraft::new(pod_size, rounds, template, card_pool, ranker, color_of);
+        draft.set_limited_pool(setup.custom_pool);
+        if let Some(seed) = setup.seed {
+            draft.set_seed(seed);
+        }
         if let Some(picks) = setup.picks_per_pass {
             draft.set_picks_per_pass(picks);
         }
@@ -147,17 +346,13 @@ impl LimitedManager {
     pub fn submit_human_pick(
         &self,
         session_id: &str,
-        card_name: &str,
+        card_id: &str,
     ) -> Result<DraftStateDto, String> {
         let mut drafts = lock_recover(&self.drafts);
         let draft = drafts
             .get_mut(session_id)
             .ok_or_else(|| format!("no draft session for id {session_id}"))?;
-        let pack_card = draft
-            .current_pack_for_human()
-            .and_then(|p| p.cards().iter().find(|c| c.name == card_name).cloned())
-            .ok_or_else(|| format!("card {card_name:?} not in current pack"))?;
-        draft.submit_human_pick(pack_card)?;
+        crate::limited_dto::submit_occurrence_pick(draft, session_id, 0, card_id)?;
         loop {
             match draft.tick() {
                 TickOutcome::Progress => continue,
@@ -217,10 +412,22 @@ impl LimitedManager {
         let ranker = Arc::new(CardRanker::new(self.rank_cache.clone()));
         let color_of: Arc<dyn Fn(&PaperCard) -> ColorSet + Send + Sync> =
             Arc::new(|c: &PaperCard| c.colors);
-        let template = self.template_for_pool(&card_pool, setup.variant.as_deref());
+        let required_cards = pod_size * rounds as usize * 15;
+        if setup.custom_pool && card_pool.len() < required_cards {
+            return Err(format!("cube has {} cards but {required_cards} are required for {pod_size} players and {rounds} rounds", card_pool.len()));
+        }
+        let template = if setup.custom_pool {
+            SealedTemplate::generic_no_slot_booster()
+        } else {
+            self.template_for_pool(&card_pool, setup.variant.as_deref())
+        };
         let mut draft = BoosterDraft::with_human_seats(
             pod_size, rounds, template, card_pool, ranker, color_of, &humans,
         );
+        draft.set_limited_pool(setup.custom_pool);
+        if let Some(seed) = setup.seed {
+            draft.set_seed(seed);
+        }
         if let Some(picks) = setup.picks_per_pass {
             draft.set_picks_per_pass(picks);
         }
@@ -237,17 +444,13 @@ impl LimitedManager {
         &self,
         session_id: &str,
         seat_idx: usize,
-        card_name: &str,
+        card_id: &str,
     ) -> Result<DraftStateDto, String> {
         let mut drafts = lock_recover(&self.drafts);
         let draft = drafts
             .get_mut(session_id)
             .ok_or_else(|| format!("no draft session for id {session_id}"))?;
-        let pack_card = draft
-            .current_pack_for_seat(seat_idx)
-            .and_then(|p| p.cards().iter().find(|c| c.name == card_name).cloned())
-            .ok_or_else(|| format!("card {card_name:?} not in seat {seat_idx}'s pack"))?;
-        draft.submit_human_pick_for(seat_idx, pack_card)?;
+        crate::limited_dto::submit_occurrence_pick(draft, session_id, seat_idx, card_id)?;
         loop {
             match draft.tick() {
                 TickOutcome::Progress => continue,
@@ -279,13 +482,26 @@ impl LimitedManager {
 
     pub fn start_winston(
         &self,
-        pool_packs: u32,
+        setup: &crate::limited_dto::WinstonSetupDto,
         card_pool: Vec<PaperCard>,
-        variant: Option<&str>,
     ) -> Result<WinstonStateDto, String> {
-        let pool_packs = pool_packs.clamp(2, 12) as usize;
-        let template = self.template_for_pool(&card_pool, variant);
-        let draft = WinstonDraft::new(template, card_pool, pool_packs);
+        let pool_packs = setup.pool_packs.clamp(2, 12) as usize;
+        let required_cards = pool_packs * 2 * 15;
+        if setup.custom_pool && card_pool.len() < required_cards {
+            return Err(format!("cube has {} cards but {required_cards} are required for {pool_packs} packs per player", card_pool.len()));
+        }
+        let template = if setup.custom_pool {
+            SealedTemplate::generic_no_slot_booster()
+        } else {
+            self.template_for_pool(&card_pool, setup.variant.as_deref())
+        };
+        let draft = WinstonDraft::new_with_seed(
+            template,
+            card_pool,
+            pool_packs,
+            setup.custom_pool,
+            setup.seed,
+        );
         let session_id = format!("winston-{}", uuid_like());
         let dto = WinstonStateDto::from_engine(session_id.clone(), &draft);
         lock_recover(&self.winston).insert(session_id, draft);
@@ -328,8 +544,8 @@ impl LimitedManager {
         &self,
         session_id: &str,
         rounds: u32,
-        main: Vec<PaperCard>,
-        sideboard: Vec<PaperCard>,
+        main: Vec<DeckCardIdentity>,
+        sideboard: Vec<DeckCardIdentity>,
     ) -> Result<GauntletStateDto, String> {
         let sessions = lock_recover(&self.sessions);
         let group = sessions
@@ -340,15 +556,87 @@ impl LimitedManager {
         }
         let human_deck = LimitedDeck {
             name: group.deck_name.clone(),
-            main,
-            sideboard,
+            main: main.iter().map(identity_to_paper_card).collect(),
+            sideboard: sideboard.iter().map(identity_to_paper_card).collect(),
         };
         let ai_decks: Vec<LimitedDeck> = group.ai_decks.clone();
         let gauntlet = GauntletMini::new(GauntletKind::Sealed, rounds, human_deck, ai_decks)?;
         let gauntlet_id = format!("gauntlet-{}", uuid_like());
         let dto = GauntletStateDto::from_engine(gauntlet_id.clone(), &gauntlet);
+        let mut decks = vec![LimitedDeckDto {
+            name: gauntlet.human_deck.name.clone(),
+            main,
+            sideboard,
+        }];
+        decks.extend(gauntlet.ai_decks.iter().map(LimitedDeckDto::from));
+        lock_recover(&self.gauntlet_decks).insert(gauntlet_id.clone(), decks);
         lock_recover(&self.gauntlets).insert(gauntlet_id, gauntlet);
         Ok(dto)
+    }
+    pub fn start_gauntlet_from_draft(
+        &self,
+        session_id: &str,
+        rounds: u32,
+        main: Vec<DeckCardIdentity>,
+        sideboard: Vec<DeckCardIdentity>,
+    ) -> Result<GauntletStateDto, String> {
+        let drafts = lock_recover(&self.drafts);
+        let draft = drafts
+            .get(session_id)
+            .ok_or_else(|| format!("no draft session for id {session_id}"))?;
+        let ai_decks = draft.build_ai_decks()?;
+        if main.len() < 40 {
+            return Err("draft main deck must contain at least 40 cards".to_string());
+        }
+        let human_deck = LimitedDeck {
+            name: "Draft Deck".to_string(),
+            main: main.iter().map(identity_to_paper_card).collect(),
+            sideboard: sideboard.iter().map(identity_to_paper_card).collect(),
+        };
+        let gauntlet = GauntletMini::new(GauntletKind::BoosterDraft, rounds, human_deck, ai_decks)?;
+        let gauntlet_id = format!("gauntlet-{}", uuid_like());
+        let mut decks = vec![LimitedDeckDto {
+            name: gauntlet.human_deck.name.clone(),
+            main,
+            sideboard,
+        }];
+        for (deck, seat) in gauntlet.ai_decks.iter().zip(
+            (0..draft.pod_size())
+                .filter_map(|i| draft.seat(i))
+                .filter(|seat| !seat.is_human),
+        ) {
+            let pool = crate::limited_dto::draft_picked_cards(session_id, draft, seat.seat);
+            decks.push(crate::limited_dto::deck_with_pool_ids(deck, &pool));
+        }
+        lock_recover(&self.gauntlet_decks).insert(gauntlet_id.clone(), decks);
+        let dto = GauntletStateDto::from_engine(gauntlet_id.clone(), &gauntlet);
+        lock_recover(&self.gauntlets).insert(gauntlet_id, gauntlet);
+        Ok(dto)
+    }
+    pub fn get_draft_ai_decks(
+        &self,
+        session_id: &str,
+    ) -> Result<Vec<crate::limited_dto::DraftAiDeckDto>, String> {
+        let drafts = lock_recover(&self.drafts);
+        let draft = drafts
+            .get(session_id)
+            .ok_or_else(|| format!("no draft session for id {session_id}"))?;
+        let decks = draft.build_ai_decks()?;
+        Ok(decks
+            .iter()
+            .zip(
+                (0..draft.pod_size())
+                    .filter_map(|i| draft.seat(i))
+                    .filter(|seat| !seat.is_human),
+            )
+            .map(|(deck, seat)| {
+                let pool = crate::limited_dto::draft_picked_cards(session_id, draft, seat.seat);
+                crate::limited_dto::DraftAiDeckDto {
+                    seat: seat.seat as u32,
+                    deck: crate::limited_dto::deck_with_pool_ids(deck, &pool),
+                }
+            })
+            .collect())
     }
 
     pub fn record_gauntlet_outcome(
@@ -403,31 +691,21 @@ impl LimitedManager {
         &self,
         gauntlet_id: &str,
     ) -> Option<crate::limited_dto::GauntletMatchDecksDto> {
-        use crate::limited_dto::{paper_card_to_identity, GauntletMatchDecksDto};
+        use crate::limited_dto::GauntletMatchDecksDto;
         let gauntlets = lock_recover(&self.gauntlets);
         let g = gauntlets.get(gauntlet_id)?;
-        let opponent = g.current_opponent()?;
+        g.current_opponent()?;
+        let decks = lock_recover(&self.gauntlet_decks);
+        let decks = decks.get(gauntlet_id)?;
+        let human = &decks[0];
+        let opponent = &decks[g.current_round as usize];
         Some(GauntletMatchDecksDto {
-            human_main: g
-                .human_deck
-                .main
-                .iter()
-                .map(paper_card_to_identity)
-                .collect(),
-            human_sideboard: g
-                .human_deck
-                .sideboard
-                .iter()
-                .map(paper_card_to_identity)
-                .collect(),
-            human_deck_name: g.human_deck.name.clone(),
+            human_main: human.main.clone(),
+            human_sideboard: human.sideboard.clone(),
+            human_deck_name: human.name.clone(),
             opponent_name: opponent.name.clone(),
-            opponent_main: opponent.main.iter().map(paper_card_to_identity).collect(),
-            opponent_sideboard: opponent
-                .sideboard
-                .iter()
-                .map(paper_card_to_identity)
-                .collect(),
+            opponent_main: opponent.main.clone(),
+            opponent_sideboard: opponent.sideboard.clone(),
         })
     }
 
@@ -444,23 +722,45 @@ impl LimitedManager {
     }
 
     pub fn drop_gauntlet(&self, gauntlet_id: &str) -> bool {
-        lock_recover(&self.gauntlets).remove(gauntlet_id).is_some()
+        let removed = lock_recover(&self.gauntlets).remove(gauntlet_id).is_some();
+        lock_recover(&self.gauntlet_decks).remove(gauntlet_id);
+        removed
     }
 
     pub fn update_gauntlet_human_deck(
         &self,
         gauntlet_id: &str,
-        main: Vec<PaperCard>,
-        sideboard: Vec<PaperCard>,
+        main: Vec<DeckCardIdentity>,
+        sideboard: Vec<DeckCardIdentity>,
     ) -> Result<GauntletStateDto, String> {
         let mut gauntlets = lock_recover(&self.gauntlets);
         let g = gauntlets
             .get_mut(gauntlet_id)
             .ok_or_else(|| format!("no gauntlet for id {gauntlet_id}"))?;
-        g.human_deck.main = main;
-        g.human_deck.sideboard = sideboard;
+        g.human_deck.main = main.iter().map(identity_to_paper_card).collect();
+        g.human_deck.sideboard = sideboard.iter().map(identity_to_paper_card).collect();
+        let mut decks = lock_recover(&self.gauntlet_decks);
+        let human = &mut decks
+            .get_mut(gauntlet_id)
+            .expect("gauntlet deck identities")[0];
+        human.main = main;
+        human.sideboard = sideboard;
         Ok(GauntletStateDto::from_engine(gauntlet_id.to_string(), g))
     }
+}
+
+fn serialize_checkpoint<T: serde::Serialize>(
+    kind: &str,
+    session_id: &str,
+    state: T,
+) -> Result<String, String> {
+    serde_json::to_string(&LimitedEngineCheckpointRef {
+        schema_version: 1,
+        kind,
+        session_id,
+        state,
+    })
+    .map_err(|error| error.to_string())
 }
 
 fn lock_recover<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {

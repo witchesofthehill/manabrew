@@ -2691,6 +2691,7 @@ dependencies = [
  "bitflags 2.11.0",
  "forge-foundation",
  "rand 0.8.6",
+ "rand_chacha 0.3.1",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
@@ -6351,6 +6352,7 @@ checksum = "e6c10a63a0fa32252be49d21e7709d4d4baf8d231c2dbce1eaa8141b9b127d88"
 dependencies = [
  "ppv-lite86",
  "rand_core 0.6.4",
+ "serde",
 ]
 
 [[package]]

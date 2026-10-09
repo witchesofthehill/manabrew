@@ -14,6 +14,7 @@ import { IronsmithUnsupportedDeckModal } from "@/components/IronsmithUnsupported
 import { GuestNameConflictModal } from "@/components/GuestNameConflictModal";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { BreweryBackdrop } from "@/components/BreweryBackdrop";
+import { TermsNotice } from "@/components/TermsNotice";
 import { StatusBanner } from "./StatusBanner";
 import { TopBar } from "./TopBar";
 import { TopBarOverrideContext, type TopBarOverride } from "./TopBarOverride";
@@ -156,6 +157,7 @@ export function AppShell() {
           {/* Play cancels in-flight launches on unmount, so keep the outlet stable here. */}
           <Outlet />
         </main>
+        {!isImmersiveRoute && <TermsNotice />}
       </div>
     </TopBarOverrideContext.Provider>
   );

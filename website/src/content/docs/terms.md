@@ -7,10 +7,14 @@ Manabrew is free, open-source software licensed under GPL-3.0-or-later; the
 full licence and third-party notices ship with the source at
 [github.com/witchesofthehill/manabrew](https://github.com/witchesofthehill/manabrew).
 
+Version 1.6.0. Last updated 2026-10-09.
+
 ## 1. Acceptance
 
-By clicking Accept you confirm that you have read, understood, and agreed to
-be bound by these terms. If you do not agree, please close the application.
+By using Manabrew you agree to be bound by these terms. If you do not agree,
+please stop using the application. When you create an account, you also
+confirm at sign-up that you accept these terms and the
+[privacy policy](/privacy/).
 
 ## 2. Who can use Manabrew
 
@@ -65,8 +69,8 @@ service at any time.
 
 ## 8. Local data and privacy
 
-Your local decks, preferences, and this acknowledgement are stored on your
-device - in your browser's local storage on the web build, and in the
+Your local decks, preferences, and whether you have seen these terms are
+stored on your device - in your browser's local storage on the web build, and in the
 operating system's application data directory on desktop. Accounts are
 optional and store your handle, linked sign-in identities, sessions, decks you
 explicitly save to your account, their version history, public Community
@@ -110,6 +114,6 @@ email the maintainers via the
 ## 13. Changes
 
 We may revise these terms. Material changes are signalled by a new version
-number; when that happens, you will be asked to acknowledge the new terms on
-next launch. Non-material edits (typos, formatting) do not trigger
-re-acknowledgement.
+number; when that happens, the app shows a notice on next launch, and
+continued use means you accept the new terms. Non-material edits (typos,
+formatting) do not trigger a notice.

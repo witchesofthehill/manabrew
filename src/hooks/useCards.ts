@@ -9,6 +9,7 @@ interface CardSearchData {
 }
 
 export function useCardSearch(query: string, order?: string, dir?: string) {
+  const locale = useScryfallStore((state) => state.locale);
   const requestIdRef = useRef(0);
   const [pages, setPages] = useState<ScryfallListResponse[]>([]);
   const [status, setStatus] = useState<CardSearchStatus>("pending");
@@ -45,7 +46,7 @@ export function useCardSearch(query: string, order?: string, dir?: string) {
         if (requestId !== requestIdRef.current) return;
         setIsFetchingNextPage(false);
       });
-  }, [query, order, dir]);
+  }, [query, order, dir, locale]);
 
   const hasNextPage = pages.at(-1)?.has_more ?? false;
 

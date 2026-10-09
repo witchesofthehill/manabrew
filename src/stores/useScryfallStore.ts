@@ -30,6 +30,7 @@ import { useEffect, useState } from "react";
 import { frontFaceName } from "@/lib/scryfall.utils";
 import { cardFaceImageUris, localizedDeckCardImageUris } from "@/lib/cardImage";
 import { DEFAULT_SCRYFALL_LANGUAGE, type ScryfallLanguage } from "@/i18n/locales";
+import { shouldLocalizeScryfallSearchResults } from "@/lib/scryfallSearch";
 
 export interface ScryfallCardLookup {
   id?: string;
@@ -839,7 +840,7 @@ export const useScryfallStore = create<ScryfallState>()(
       searchCards: async (query, page, order, dir) => {
         const locale = get().locale;
         const response = await searchCards(query, page, order, dir);
-        if (/(?:^|\s)lang:/i.test(query)) return response;
+        if (!shouldLocalizeScryfallSearchResults(query)) return response;
         const localized = await localizeScryfallCards(response.data, locale, () => false);
         if (get().locale !== locale) return get().searchCards(query, page, order, dir);
         set((state) => {
@@ -1020,3 +1021,4 @@ export function useSetLookup(): Map<string, ScryfallSet> {
   if (!sets) return new Map();
   return new Map(sets.map((s) => [s.code, s]));
 }
+

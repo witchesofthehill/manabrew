@@ -7,7 +7,7 @@ Manabrew is free, open-source software licensed under AGPL-3.0-or-later; the
 full licence and third-party notices ship with the source at
 [github.com/witchesofthehill/manabrew](https://github.com/witchesofthehill/manabrew).
 
-Version 1.7.0. Last updated 2026-10-10.
+Version 1.6.0. Last updated 2026-10-10.
 
 ## 1. Acceptance
 

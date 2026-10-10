@@ -1,18 +1,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useAppInitStore } from "@/stores/useAppInitStore";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { useAcknowledgement } from "@/hooks/useAcknowledgement";
 import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
-import { OnboardingWelcome, ONBOARDING_GUIDE_VERSION } from "@/components/OnboardingWelcome";
-import { OnboardingGuide } from "@/components/OnboardingGuide";
 import { BreweryBackdrop } from "@/components/BreweryBackdrop";
-import { TERMS_AND_CONDITIONS } from "@/lib/termsContent";
 import { cn } from "@/lib/utils";
-import { useAuthStore } from "@/stores/useAuthStore";
-const TERMS_STORAGE_KEY = "manabrew.termsAcceptance";
-const ONBOARDING_STORAGE_KEY = "manabrew.onboarding";
 const BAR_FILL_MS = 200;
 // Minimum dwell at the initial `idle` stage. Without it, a cache hit can
 // flash through every milestone in a single frame; a brief hold gives the
@@ -36,48 +26,13 @@ const STAGE_TITLE: Record<string, string> = {
   decks: `Loading decks`,
   ready: `Ready`,
 };
-const TERMS_LINK = /((?:github\.com|docs\.manabrew\.app|scryfall\.com)(?:[^\s,)]*[^\s,).])?)/g;
-function linkifyTerms(body: string) {
-  return body.split(TERMS_LINK).map((part, index) =>
-    index % 2 === 1 ? (
-      <a
-        key={part + index}
-        href={`https://${part}`}
-        target="_blank"
-        rel="noreferrer"
-        className="underline underline-offset-2"
-      >
-        {part}
-      </a>
-    ) : (
-      part
-    ),
-  );
-}
 // Prevents reanimating on re-mount
 let hasReleasedOnce = false;
 export function AppInitGate({ children }: { children: ReactNode }) {
   const rawStage = useAppInitStore((s) => s.stage);
-  const { accepted: termsAccepted, accept: acceptTerms } = useAcknowledgement(
-    TERMS_STORAGE_KEY,
-    TERMS_AND_CONDITIONS.version,
-  );
-  const { accepted: onboardingDone, accept: completeOnboarding } = useAcknowledgement(
-    ONBOARDING_STORAGE_KEY,
-    ONBOARDING_GUIDE_VERSION,
-  );
-  const authStatus = useAuthStore((s) => s.status);
-  const handlePending = useAuthStore((s) => s.account?.handlePending ?? false);
-  const claimed = authStatus === "signedIn" && !handlePending;
-  const onboardingSatisfied = onboardingDone || claimed;
-  const [consent, setConsent] = useState(false);
   const shortScreen = useIsShortScreen();
   const isTouch = useIsTouch();
   const shortTouch = shortScreen && isTouch;
-
-  useEffect(() => {
-    if (claimed && !onboardingDone) completeOnboarding();
-  }, [claimed, onboardingDone, completeOnboarding]);
 
   const [minHoldPassed, setMinHoldPassed] = useState(hasReleasedOnce);
   useEffect(() => {
@@ -98,7 +53,6 @@ export function AppInitGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (phase === "done") return;
     if (stage !== "ready") return;
-    if (!termsAccepted || !onboardingSatisfied) return;
     const release = window.setTimeout(() => setPhase("releasing"), RELEASE_DELAY_MS);
     const done = window.setTimeout(() => {
       setPhase("done");
@@ -108,14 +62,14 @@ export function AppInitGate({ children }: { children: ReactNode }) {
       window.clearTimeout(release);
       window.clearTimeout(done);
     };
-  }, [stage, phase, termsAccepted, onboardingSatisfied, RELEASE_DELAY_MS, EXIT_MS]);
+  }, [stage, phase, RELEASE_DELAY_MS, EXIT_MS]);
 
   // The companion is pure UI with no engine dependency, so never block it behind
   // the worker boot — which can't initialise without cross-origin isolation
   // (e.g. an iOS PWA served over plain http). Render it immediately when it's
   // the entry route. The auth callback must also never be gated: an OAuth
-  // redirect can return while terms or onboarding are still pending, and the
-  // callback route is what exchanges the code.
+  // redirect must reach the route that exchanges the code without waiting on
+  // the engine boot.
   if (
     typeof window !== "undefined" &&
     (window.location.pathname.startsWith("/companion") ||
@@ -125,8 +79,6 @@ export function AppInitGate({ children }: { children: ReactNode }) {
   }
   const title = STAGE_TITLE[stage] ?? `Loading`;
   const pct = Math.round(target);
-  const showTerms = stage === "ready" && !termsAccepted;
-  const showOnboarding = stage === "ready" && termsAccepted && !onboardingSatisfied;
 
   const welcomeHeader = (
     <div className={cn("flex flex-col items-center gap-2 text-center", shortTouch && "gap-0.5")}>
@@ -198,195 +150,57 @@ export function AppInitGate({ children }: { children: ReactNode }) {
                 "h-full min-h-0 gap-3 py-2 [padding-bottom:max(0.5rem,var(--safe-area-inset-bottom))] [padding-left:max(1rem,var(--safe-area-inset-left))] [padding-right:max(1rem,var(--safe-area-inset-right))] [padding-top:max(0.5rem,var(--safe-area-inset-top))]",
             )}
           >
-            {/* No `filter` here: Firefox (ESR 140 and older, bug 2011747) drops
-                any descendant that uses `backdrop-filter`, which hid the
-                onboarding card. The card carries its own `shadow-2xl`. */}
             <div
               className={cn(
-                "flex w-full flex-col items-center gap-10",
-                showOnboarding || (showTerms && shortTouch) ? "max-w-5xl" : "max-w-2xl",
+                "flex w-full max-w-2xl flex-col items-center gap-10",
                 isTouch && "gap-6",
-                shortTouch && "h-full min-h-0 gap-3",
-                shortTouch && !showTerms && !showOnboarding && "max-w-xl justify-center",
+                shortTouch && "h-full min-h-0 max-w-xl justify-center gap-3",
               )}
             >
-              {showTerms ? (
-                <>
-                  {!shortTouch && welcomeHeader}
-                  <div
-                    className={cn(
-                      "w-full space-y-5",
-                      shortTouch &&
-                        "grid min-h-0 flex-1 gap-4 space-y-0 min-[600px]:grid-cols-[minmax(0,1fr)_minmax(17rem,0.72fr)]",
-                    )}
-                  >
-                    <div
-                      className={cn(
-                        "space-y-5",
-                        shortTouch && "flex min-h-0 flex-col gap-2 space-y-0",
-                      )}
-                    >
-                      <div className={cn("space-y-1 text-center", shortTouch && "text-left")}>
-                        <p className="font-mono text-[0.6rem] uppercase tracking-[0.45em] text-muted-foreground/80">
-                          {TERMS_AND_CONDITIONS.title}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {linkifyTerms(TERMS_AND_CONDITIONS.intro)}
-                        </p>
-                      </div>
-
-                      <ScrollArea
-                        className={cn(
-                          "h-[38dvh] max-h-[360px]",
-                          shortTouch && "h-auto min-h-0 max-h-none flex-1",
-                        )}
-                      >
-                        <div className="space-y-4 pr-4 text-sm leading-relaxed">
-                          {TERMS_AND_CONDITIONS.sections.map((section) => (
-                            <section key={section.heading} className="space-y-1.5">
-                              <h3 className="text-sm font-semibold text-foreground">
-                                {section.heading}
-                              </h3>
-                              <p className="text-sm text-muted-foreground">
-                                {linkifyTerms(section.body)}
-                              </p>
-                            </section>
-                          ))}
-                        </div>
-                      </ScrollArea>
-                    </div>
-
-                    <div
-                      className={cn(
-                        "space-y-5",
-                        shortTouch &&
-                          "flex flex-col justify-center gap-3 rounded-xl border border-border/60 bg-background/80 p-4 space-y-0",
-                      )}
-                    >
-                      <label className="flex min-h-11 cursor-pointer select-none items-center justify-center gap-2.5 text-sm">
-                        <Checkbox
-                          checked={consent}
-                          onCheckedChange={(value) => setConsent(value === true)}
-                        />
-                        <span className="text-foreground">
-                          I have read and agree to these terms
-                        </span>
-                      </label>
-
-                      <div className="flex flex-col items-center gap-3">
-                        <Button
-                          variant="primary"
-                          size="lg"
-                          disabled={!consent}
-                          onClick={acceptTerms}
-                          className="min-w-[200px]"
-                        >
-                          Accept and continue
-                        </Button>
-                        <p className="text-center font-mono text-[0.55rem] uppercase tracking-[0.4em] text-muted-foreground/70">
-                          Version {TERMS_AND_CONDITIONS.version} · Updated{" "}
-                          {TERMS_AND_CONDITIONS.lastUpdated}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </>
-              ) : showOnboarding ? (
+              {welcomeHeader}
+              <div className={cn("w-full space-y-5", shortTouch && "space-y-2.5")}>
                 <div
                   className={cn(
-                    "flex w-full flex-col gap-10",
-                    isTouch && "gap-6",
-                    shortTouch && "h-full min-h-0 gap-3",
+                    "flex items-baseline justify-between font-mono text-[0.65rem] uppercase tracking-[0.4em] text-muted-foreground",
+                    shortTouch && "text-[0.6rem] tracking-[0.3em]",
                   )}
                 >
-                  {isTouch && !shortTouch && welcomeHeader}
+                  <span className="truncate text-foreground/80">{title}</span>
+                  <span className="tabular-nums">{pct.toString().padStart(3, "0")}%</span>
+                </div>
+
+                <div
+                  className={cn(
+                    "relative h-3.5 w-full overflow-hidden rounded-full border border-border/80 bg-muted/40",
+                    shortTouch && "h-3",
+                  )}
+                >
                   <div
-                    className={cn(
-                      "grid w-full gap-10 lg:grid-cols-[1.15fr_1fr] lg:gap-0",
-                      shortTouch &&
-                        "h-full min-h-0 gap-4 min-[600px]:grid-cols-[minmax(17rem,0.9fr)_minmax(0,1.1fr)]",
-                    )}
+                    className="relative h-full overflow-hidden rounded-full bg-gradient-to-r from-primary/70 via-primary to-primary/70 shadow-[inset_0_0_8px] shadow-primary/40 transition-[width] duration-200 ease-out"
+                    style={{ width: `${target}%` }}
                   >
                     <div
-                      className={cn(
-                        "flex flex-col items-center justify-center gap-8 lg:order-1 lg:pr-14",
-                        isTouch && "order-2 gap-4",
-                        shortTouch && "min-h-0 justify-start gap-2 overflow-y-auto",
-                      )}
-                    >
-                      {!isTouch && welcomeHeader}
-                      <div className="space-y-1 text-center">
-                        <p className="font-mono text-[0.6rem] uppercase tracking-[0.45em] text-muted-foreground/80">
-                          Getting started
-                        </p>
-                      </div>
-                      <OnboardingGuide compact={shortTouch} />
-                    </div>
-                    <div
-                      className={cn(
-                        "order-1 flex items-center lg:order-2 lg:border-l lg:border-border/60 lg:pl-14",
-                        shortTouch && "min-h-0",
-                      )}
-                    >
-                      <div
-                        className={cn(
-                          "w-full rounded-2xl border border-border/60 bg-background/80 p-8 shadow-2xl backdrop-blur-md",
-                          shortTouch && "p-4",
-                        )}
-                      >
-                        <OnboardingWelcome onComplete={completeOnboarding} />
-                      </div>
-                    </div>
+                      aria-hidden
+                      className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/45 to-transparent"
+                      style={{ animation: "manabrew-shimmer 2.2s linear infinite" }}
+                    />
                   </div>
+                  <div
+                    aria-hidden
+                    className="pointer-events-none absolute top-1/2 size-4 -translate-y-1/2 rounded-full bg-primary blur-md transition-[left] duration-200 ease-out"
+                    style={{ left: `calc(${target}% - 0.5rem)` }}
+                  />
                 </div>
-              ) : (
-                <>
-                  {welcomeHeader}
-                  <div className={cn("w-full space-y-5", shortTouch && "space-y-2.5")}>
-                    <div
-                      className={cn(
-                        "flex items-baseline justify-between font-mono text-[0.65rem] uppercase tracking-[0.4em] text-muted-foreground",
-                        shortTouch && "text-[0.6rem] tracking-[0.3em]",
-                      )}
-                    >
-                      <span className="truncate text-foreground/80">{title}</span>
-                      <span className="tabular-nums">{pct.toString().padStart(3, "0")}%</span>
-                    </div>
 
-                    <div
-                      className={cn(
-                        "relative h-3.5 w-full overflow-hidden rounded-full border border-border/80 bg-muted/40",
-                        shortTouch && "h-3",
-                      )}
-                    >
-                      <div
-                        className="relative h-full overflow-hidden rounded-full bg-gradient-to-r from-primary/70 via-primary to-primary/70 shadow-[inset_0_0_8px] shadow-primary/40 transition-[width] duration-200 ease-out"
-                        style={{ width: `${target}%` }}
-                      >
-                        <div
-                          aria-hidden
-                          className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/45 to-transparent"
-                          style={{ animation: "manabrew-shimmer 2.2s linear infinite" }}
-                        />
-                      </div>
-                      <div
-                        aria-hidden
-                        className="pointer-events-none absolute top-1/2 size-4 -translate-y-1/2 rounded-full bg-primary blur-md transition-[left] duration-200 ease-out"
-                        style={{ left: `calc(${target}% - 0.5rem)` }}
-                      />
-                    </div>
-
-                    <p
-                      className={cn(
-                        "text-center font-mono text-[0.6rem] uppercase tracking-[0.45em] text-muted-foreground/80",
-                        shortTouch && "text-[0.55rem] tracking-[0.35em]",
-                      )}
-                    >
-                      Connecting
-                    </p>
-                  </div>
-                </>
-              )}
+                <p
+                  className={cn(
+                    "text-center font-mono text-[0.6rem] uppercase tracking-[0.45em] text-muted-foreground/80",
+                    shortTouch && "text-[0.55rem] tracking-[0.35em]",
+                  )}
+                >
+                  Connecting
+                </p>
+              </div>
             </div>
           </div>
         </div>

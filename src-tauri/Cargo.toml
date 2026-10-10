@@ -1,7 +1,8 @@
 [package]
 name = "manabrew"
-version = "3.54.8"
+version = "3.55.2"
 edition = "2021"
+license = "AGPL-3.0-or-later"
 publish = false
 
 [features]

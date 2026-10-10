@@ -228,7 +228,7 @@ pub fn run_self_play(
                 &identities,
                 commander_names_for_java(&seat.deck, seat.commander_name.as_deref()),
             )
-            .with_attractions(&seat.deck),
+            .with_deck_sections(&seat.deck),
         );
     }
 
@@ -1100,7 +1100,7 @@ pub fn run_concurrent_self_play(
                 &identities,
                 commander_names_for_java(&seat.deck, seat.commander_name.as_deref()),
             )
-            .with_attractions(&seat.deck),
+            .with_deck_sections(&seat.deck),
         );
     }
 
@@ -1571,7 +1571,7 @@ fn run_hosted_engine_game_inner(
         };
         players.push(
             PlayerConfig::new(name.clone(), &identities, seat_commander_names)
-                .with_attractions(&decks[index]),
+                .with_deck_sections(&decks[index]),
         );
     }
     for &idx in &ai_player_indices {
@@ -3048,6 +3048,7 @@ pub struct StartGameRequest {
 pub struct PlayerConfig {
     name: String,
     deck: Vec<CardIdentityForJava>,
+    sideboard: Vec<CardIdentityForJava>,
     attractions: Vec<CardIdentityForJava>,
     commander_names: Vec<String>,
     ai: bool,
@@ -3099,6 +3100,7 @@ impl PlayerConfig {
         Self {
             name,
             deck: deck.iter().map(CardIdentityForJava::from).collect(),
+            sideboard: Vec::new(),
             attractions: Vec::new(),
             commander_names,
             ai: false,
@@ -3106,7 +3108,12 @@ impl PlayerConfig {
         }
     }
 
-    pub fn with_attractions(mut self, deck: &Deck) -> Self {
+    pub fn with_deck_sections(mut self, deck: &Deck) -> Self {
+        self.sideboard = deck
+            .sideboard
+            .iter()
+            .map(|card| CardIdentityForJava::from(&card.identity))
+            .collect();
         self.attractions = deck
             .attractions
             .iter()

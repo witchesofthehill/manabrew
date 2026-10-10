@@ -251,6 +251,12 @@ public final class ManaBrewEngineAdapter {
             main.remove(commander, 1);
             deck.getOrCreate(DeckSection.Commander).add(commander, 1);
         }
+        if (!playerConfig.getSideboard().isEmpty()) {
+            CardPool sideboard = deck.getOrCreate(DeckSection.Sideboard);
+            for (CardIdentity card : playerConfig.getSideboard()) {
+                sideboard.add(cardRequest(card), 1);
+            }
+        }
         if (!playerConfig.getAttractions().isEmpty()) {
             CardPool attractions = deck.getOrCreate(DeckSection.Attractions);
             for (CardIdentity card : playerConfig.getAttractions()) {
@@ -408,6 +414,9 @@ public final class ManaBrewEngineAdapter {
                 throw new IllegalArgumentException("player deck is required");
             }
             List<CardIdentity> deck = parseCardIdentities(cardValues);
+            List<CardIdentity> sideboard = playerObject.has("sideboard")
+                    ? parseCardIdentities(playerObject.getAsJsonArray("sideboard"))
+                    : List.of();
             List<CardIdentity> attractions = playerObject.has("attractions")
                     ? parseCardIdentities(playerObject.getAsJsonArray("attractions"))
                     : List.of();
@@ -417,7 +426,7 @@ public final class ManaBrewEngineAdapter {
             boolean bot = playerObject.has("bot")
                     && !playerObject.get("bot").isJsonNull()
                     && playerObject.get("bot").getAsBoolean();
-            players.add(new PlayerConfig(name, deck, attractions, commanderNames, ai, bot));
+            players.add(new PlayerConfig(name, deck, sideboard, attractions, commanderNames, ai, bot));
         }
         final StartGameRequest request = new StartGameRequest(
                 gameId, variant, startingLife, seed, snapshotRecording, players);
@@ -512,6 +521,7 @@ public final class ManaBrewEngineAdapter {
     public static final class PlayerConfig {
         private final String name;
         private final List<CardIdentity> deck;
+        private final List<CardIdentity> sideboard;
         private final List<CardIdentity> attractions;
         private final List<String> commanderNames;
         private final boolean ai;
@@ -520,6 +530,7 @@ public final class ManaBrewEngineAdapter {
         public PlayerConfig(
                 final String name,
                 final List<CardIdentity> deck,
+                final List<CardIdentity> sideboard,
                 final List<CardIdentity> attractions,
                 final List<String> commanderNames,
                 final boolean ai,
@@ -533,6 +544,7 @@ public final class ManaBrewEngineAdapter {
             }
             this.name = name;
             this.deck = List.copyOf(deck);
+            this.sideboard = sideboard == null ? List.of() : List.copyOf(sideboard);
             this.attractions = attractions == null ? List.of() : List.copyOf(attractions);
             this.commanderNames = commanderNames == null ? List.of() : List.copyOf(commanderNames);
             this.ai = ai;
@@ -545,6 +557,10 @@ public final class ManaBrewEngineAdapter {
 
         public List<CardIdentity> getDeck() {
             return deck;
+        }
+
+        public List<CardIdentity> getSideboard() {
+            return sideboard;
         }
 
         public List<CardIdentity> getAttractions() {

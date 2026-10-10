@@ -788,6 +788,7 @@ fn card_to_dto_for_viewer(game: &GameState, cid: CardId, viewer: Option<PlayerId
         // Combat death prediction is computed by the Forge harness only; the
         // Rust engine doesn't surface it yet.
         would_die_in_combat: false,
+        zone: None,
     }
 }
 

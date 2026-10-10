@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.55.1](https://github.com/witchesofthehill/manabrew/compare/v3.55.0...v3.55.1) (2026-10-10)
+
+### Fixes
+
+* **legal:** align terms and licence metadata with AGPL-3.0-or-later ([#1049](https://github.com/witchesofthehill/manabrew/issues/1049)) ([49663af](https://github.com/witchesofthehill/manabrew/commit/49663af5e83c02cfbfb3020633c225a211262622))
+
 ## [3.55.0](https://github.com/witchesofthehill/manabrew/compare/v3.54.8...v3.55.0) (2026-10-10)
 
 ### Features

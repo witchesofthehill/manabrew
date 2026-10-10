@@ -44,20 +44,15 @@ export async function controls(page) {
   });
 }
 
-/** Accept the first-run terms and set a nickname. Idempotent. */
+/** Set the guest nickname from the Play home nudge. Idempotent. */
 export async function onboard(page, nickname) {
   await page.goto(BASE() + "/", { waitUntil: "networkidle" });
   await page.waitForTimeout(1200);
-  const agree = page.locator("text=I have read and agree").first();
-  if (await agree.count()) {
-    await agree.click();
-    await page.getByRole("button", { name: /Accept and continue/i }).click();
-    await page.locator('input[placeholder*="StormCrow"]').first().waitFor({ timeout: 10000 });
-  }
-  const nick = page.locator('input[placeholder*="StormCrow"]').first();
-  if (await nick.count()) {
-    await nick.fill(nickname);
-    await page.getByRole("button", { name: /Let's brew/i }).click();
+  const rename = page.getByRole("button", { name: /Change name/i }).first();
+  if (await rename.count()) {
+    await rename.click();
+    await page.fill("#guest-username", nickname);
+    await page.locator("#guest-username").press("Enter");
     await page.waitForTimeout(1200);
   }
 }

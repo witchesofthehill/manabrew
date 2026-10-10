@@ -1467,6 +1467,8 @@ export default function Game({ exitTo }: GameProps = {}) {
             exile: [],
             commandZone: [],
             libraryCount: 40,
+            attractionsCount: 0,
+            junkyard: [],
             handCount: 7,
             manaPool: {} as Record<string, number>,
             counters: {},
@@ -1568,6 +1570,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       for (const c of p.graveyard) map.set(c.id, { playerId: p.id, key: ZONE_TILE_KEY.graveyard });
       for (const c of p.exile) map.set(c.id, { playerId: p.id, key: ZONE_TILE_KEY.exile });
       for (const c of p.commandZone) map.set(c.id, { playerId: p.id, key: ZONE_TILE_KEY.command });
+      for (const c of p.junkyard) map.set(c.id, { playerId: p.id, key: ZONE_TILE_KEY.junkyard });
     }
     return map;
   }, [gameView?.players]);

@@ -87,6 +87,8 @@ export const ZONE_TILE_KEY = {
   graveyard: "gy",
   exile: "ex",
   command: "cmd",
+  attractions: "attr",
+  junkyard: "junk",
 } as const;
 export const zoneBadgeId = (zoneKey: string): string => `zone-${zoneKey}`;
 
@@ -95,6 +97,8 @@ export const ZONE_BADGES: Record<string, { icon: string; label: string }> = {
   [ZONE_TILE_KEY.graveyard]: { icon: "graveyard", label: "Graveyard" },
   [ZONE_TILE_KEY.exile]: { icon: "exile", label: "Exile" },
   [ZONE_TILE_KEY.command]: { icon: "overlord-helm", label: "Command zone" },
+  [ZONE_TILE_KEY.attractions]: { icon: "carousel", label: "Attraction deck" },
+  [ZONE_TILE_KEY.junkyard]: { icon: "trash-can", label: "Junkyard" },
 };
 /** Standard MTG card back image, served by Scryfall's canonical backs CDN.
  *  UUID `0aeebaf5-8c7d-4636-9e82-8c27447861f7` is the default `card_back_id`

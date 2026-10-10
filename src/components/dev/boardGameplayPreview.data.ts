@@ -69,6 +69,8 @@ export function playgroundGameView(table: PlaygroundTable, zones: ZoneDto[]): Cl
         commandZone: cards("command"),
         library: cards("library"),
         libraryCount: 60,
+        attractionsCount: 0,
+        junkyard: [],
         handCount: cards("hand").length,
         poison: flags.poison,
         energyCounters: flags.energy,

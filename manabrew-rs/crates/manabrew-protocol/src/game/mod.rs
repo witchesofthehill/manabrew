@@ -68,6 +68,8 @@ pub enum ZoneKind {
     Graveyard,
     Exile,
     Command,
+    Attractions,
+    Junkyard,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, TS)]

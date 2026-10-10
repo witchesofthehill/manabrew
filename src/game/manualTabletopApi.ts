@@ -43,6 +43,8 @@ function createPlayer(
     exile: [],
     commandZone: [],
     libraryCount,
+    attractionsCount: 0,
+    junkyard: [],
     handCount: 0,
     manaPool: {},
     counters: {},

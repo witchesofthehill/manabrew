@@ -222,11 +222,14 @@ pub fn run_self_play(
     let mut players = Vec::with_capacity(seats.len());
     for (i, seat) in seats.iter().enumerate() {
         let identities = deck_card_identities(&seat.deck);
-        players.push(PlayerConfig::new(
-            format!("Self-Play {}", i + 1),
-            &identities,
-            commander_names_for_java(&seat.deck, seat.commander_name.as_deref()),
-        ));
+        players.push(
+            PlayerConfig::new(
+                format!("Self-Play {}", i + 1),
+                &identities,
+                commander_names_for_java(&seat.deck, seat.commander_name.as_deref()),
+            )
+            .with_attractions(&seat.deck),
+        );
     }
 
     for game_index in 0..games.max(1) {
@@ -1091,11 +1094,14 @@ pub fn run_concurrent_self_play(
     let mut players = Vec::with_capacity(seats.len());
     for (i, seat) in seats.iter().enumerate() {
         let identities = deck_card_identities(&seat.deck);
-        players.push(PlayerConfig::new(
-            format!("Self-Play {}", i + 1),
-            &identities,
-            commander_names_for_java(&seat.deck, seat.commander_name.as_deref()),
-        ));
+        players.push(
+            PlayerConfig::new(
+                format!("Self-Play {}", i + 1),
+                &identities,
+                commander_names_for_java(&seat.deck, seat.commander_name.as_deref()),
+            )
+            .with_attractions(&seat.deck),
+        );
     }
 
     let mut joins = Vec::with_capacity(concurrency.max(1));
@@ -1563,11 +1569,10 @@ fn run_hosted_engine_game_inner(
         } else {
             Vec::new()
         };
-        players.push(PlayerConfig::new(
-            name.clone(),
-            &identities,
-            seat_commander_names,
-        ));
+        players.push(
+            PlayerConfig::new(name.clone(), &identities, seat_commander_names)
+                .with_attractions(&decks[index]),
+        );
     }
     for &idx in &ai_player_indices {
         if let Some(player) = players.get_mut(idx) {
@@ -3043,6 +3048,7 @@ pub struct StartGameRequest {
 pub struct PlayerConfig {
     name: String,
     deck: Vec<CardIdentityForJava>,
+    attractions: Vec<CardIdentityForJava>,
     commander_names: Vec<String>,
     ai: bool,
     bot: bool,
@@ -3093,10 +3099,21 @@ impl PlayerConfig {
         Self {
             name,
             deck: deck.iter().map(CardIdentityForJava::from).collect(),
+            attractions: Vec::new(),
             commander_names,
             ai: false,
             bot: false,
         }
+    }
+
+    pub fn with_attractions(mut self, deck: &Deck) -> Self {
+        self.attractions = deck
+            .attractions
+            .iter()
+            .flatten()
+            .map(|card| CardIdentityForJava::from(&card.identity))
+            .collect();
+        self
     }
 }
 

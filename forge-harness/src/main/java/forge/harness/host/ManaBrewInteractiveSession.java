@@ -2490,6 +2490,10 @@ public final class ManaBrewInteractiveSession {
                 return ZoneKind.EXILE;
             case Command:
                 return ZoneKind.COMMAND;
+            case AttractionDeck:
+                return ZoneKind.ATTRACTIONS;
+            case Junkyard:
+                return ZoneKind.JUNKYARD;
             default:
                 return ZoneKind.LIBRARY;
         }

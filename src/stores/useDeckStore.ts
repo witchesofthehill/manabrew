@@ -73,13 +73,23 @@ function isSchemeCard(card: DeckCard): boolean {
 function isPlaneCard(card: DeckCard): boolean {
   return card.types?.some((type) => type.toLowerCase() === "plane") ?? false;
 }
-function normalizeDeck(deck: EditorDeck): EditorDeck {
-  const main = [...(deck.cards ?? [])];
-  const sideboard = [...(deck.sideboard ?? [])];
+export function normalizeDeck(deck: EditorDeck): EditorDeck {
   const attractions = [...(deck.attractions ?? [])];
   const contraptions = [...(deck.contraptions ?? [])];
   const schemes = [...(deck.schemes ?? [])];
   const planes = [...(deck.planes ?? [])];
+  const routeSpecialCards = (cards: DeckCard[]): DeckCard[] =>
+    cards.filter((card) => {
+      if (isAttractionCard(card)) attractions.push(card);
+      else if (isContraptionCard(card)) contraptions.push(card);
+      else if (isSchemeCard(card)) schemes.push(card);
+      else if (isPlaneCard(card)) planes.push(card);
+      else return true;
+      return false;
+    });
+  const main = routeSpecialCards(deck.cards ?? []);
+  const sideboard = routeSpecialCards(deck.sideboard ?? []);
+  const maybeboard = deck.maybeboard && routeSpecialCards(deck.maybeboard);
   // Migrate legacy single-commander to commanders array
   const commanders = [...(deck.commanders ?? [])];
   const legacy = (
@@ -94,26 +104,13 @@ function normalizeDeck(deck: EditorDeck): EditorDeck {
     const idx = main.findIndex((card) => card.identity.name === cmd.identity.name);
     if (idx !== -1) main.splice(idx, 1);
   }
-  const remainingSideboard: DeckCard[] = [];
-  for (const card of sideboard) {
-    if (isAttractionCard(card)) {
-      attractions.push(card);
-    } else if (isContraptionCard(card)) {
-      contraptions.push(card);
-    } else if (isSchemeCard(card)) {
-      schemes.push(card);
-    } else if (isPlaneCard(card)) {
-      planes.push(card);
-    } else {
-      remainingSideboard.push(card);
-    }
-  }
   const normalized: EditorDeck = {
     ...deck,
     name: resolveDeckName(deck.name, commanders),
     format: migrateFormatId(deck.format ?? (commanders.length > 0 ? "commander" : "standard")),
     cards: main,
-    sideboard: remainingSideboard,
+    sideboard,
+    ...(maybeboard && { maybeboard }),
     attractions,
     contraptions,
     schemes,
@@ -395,42 +392,25 @@ export const useDeckStore = create<DeckState>()(
               }
             }
             return {
-              currentDeck: { ...state.currentDeck, cards: [...state.currentDeck.cards, card] },
+              currentDeck: normalizeDeck({
+                ...state.currentDeck,
+                cards: [...state.currentDeck.cards, card],
+              }),
             };
           }),
         addToSide: (card) =>
-          set((state) => {
-            const deck = normalizeDeck(state.currentDeck);
-            if (isAttractionCard(card)) {
-              return {
-                currentDeck: { ...deck, attractions: [...(deck.attractions ?? []), card] },
-              };
-            }
-            if (isContraptionCard(card)) {
-              return {
-                currentDeck: { ...deck, contraptions: [...(deck.contraptions ?? []), card] },
-              };
-            }
-            if (isSchemeCard(card)) {
-              return {
-                currentDeck: { ...deck, schemes: [...(deck.schemes ?? []), card] },
-              };
-            }
-            if (isPlaneCard(card)) {
-              return {
-                currentDeck: { ...deck, planes: [...(deck.planes ?? []), card] },
-              };
-            }
-            return {
-              currentDeck: { ...deck, sideboard: [...deck.sideboard, card] },
-            };
-          }),
+          set((state) => ({
+            currentDeck: normalizeDeck({
+              ...state.currentDeck,
+              sideboard: [...state.currentDeck.sideboard, card],
+            }),
+          })),
         addToMaybe: (card) =>
           set((state) => ({
-            currentDeck: {
+            currentDeck: normalizeDeck({
               ...state.currentDeck,
               maybeboard: [...(state.currentDeck.maybeboard ?? []), card],
-            },
+            }),
           })),
         removeFromMaybe: (cardId) =>
           set((state) => {
@@ -962,7 +942,7 @@ export const useDeckStore = create<DeckState>()(
                 ? s
                 : {
                     ...s,
-                    deck: { ...normalizeDeck(s.deck), cards: [...s.deck.cards, card] },
+                    deck: normalizeDeck({ ...s.deck, cards: [...s.deck.cards, card] }),
                     savedAt: Date.now(),
                   },
             ),

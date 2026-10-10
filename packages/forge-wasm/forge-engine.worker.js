@@ -39,13 +39,16 @@ function boot() {
   return booting;
 }
 
+function flatten(deck) {
+  return identities([...((deck && deck.cards) || []), ...((deck && deck.commanders) || [])]);
+}
+
 /**
  * Deck.cards is already one entry per copy, and the printing lives under
  * identity. Older shapes carried a bare name plus a count, so accept both.
  */
-function flatten(deck) {
+function identities(cards) {
   const out = [];
-  const cards = [...((deck && deck.cards) || []), ...((deck && deck.commanders) || [])];
   for (const card of cards) {
     const identity = card.identity || card;
     const name = identity.name;
@@ -148,6 +151,7 @@ async function startGame(requestId, args) {
         name: "You",
         ai: false,
         deck: flatten(humanDeck),
+        attractions: identities(humanDeck.attractions || []),
         commanderNames: commanderGame ? commanderNames(humanDeck, args && args.commanderName) : [],
       },
       ...aiDecks.map((deck, i) => ({
@@ -163,6 +167,7 @@ async function startGame(requestId, args) {
         // it to this seat only then.
         bot: !forgeAi,
         deck: flatten(deck),
+        attractions: identities(deck.attractions || []),
         commanderNames: commanderGame ? commanderNames(deck, null) : [],
       })),
     ],
@@ -239,6 +244,7 @@ async function startMultiplayerGame(requestId, args) {
       ai: forgeAiSeats.has(index),
       bot: !forgeAiSeats.has(index) && botSeats.has(index),
       deck: flatten(deck),
+      attractions: identities(deck.attractions || []),
       commanderNames: commanderGame ? commanderNames(deck, commanders[index] ?? null) : [],
     })),
   };

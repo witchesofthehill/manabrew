@@ -7,7 +7,7 @@ import { resolveDeckName } from "@/lib/deckName";
 import { getFormat, isCommanderEligible } from "@/lib/formats";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import { scryfallToDeckCard } from "@/lib/scryfall.utils";
-import { useDeckStore } from "@/stores/useDeckStore";
+import { normalizeDeck, useDeckStore } from "@/stores/useDeckStore";
 import { showAccountSaveNudge } from "@/components/auth/accountSaveNudge";
 import type { DeckCard, DeckFormat } from "@/protocol/deck";
 import { executeDeckEdit } from "./deckEditor.history";
@@ -139,19 +139,22 @@ export function useDeckTextImport() {
       const keepsCommanders = format?.deckRules.requiresCommander ?? false;
       const importedCards = keepsCommanders ? cards : [...cards, ...commanders];
       const importedCommanders = keepsCommanders ? commanders : [];
-      const id = useDeckStore.getState().addSavedDeck({
+      const deck = normalizeDeck({
         name: deckName,
         format: importedFormat,
         cards: importedCards,
         sideboard,
         maybeboard,
         commanders: importedCommanders,
-        draft:
-          importedCards.length + importedCommanders.length < (format?.deckRules.minDeckSize ?? 0),
         attractions: [],
         contraptions: [],
         schemes: [],
         planes: [],
+      });
+      const id = useDeckStore.getState().addSavedDeck({
+        ...deck,
+        draft:
+          deck.cards.length + (deck.commanders?.length ?? 0) < (format?.deckRules.minDeckSize ?? 0),
       });
       showAccountSaveNudge();
       onProgress(1);

@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.55.2](https://github.com/witchesofthehill/manabrew/compare/v3.55.1...v3.55.2) (2026-10-10)
+
+### Fixes
+
+* **ui:** render limited mana curve bars at their real height ([#1010](https://github.com/witchesofthehill/manabrew/issues/1010)) ([80f4b71](https://github.com/witchesofthehill/manabrew/commit/80f4b71afbf723a245a3f67a9703f34e9223020e))
+
 ## [3.55.1](https://github.com/witchesofthehill/manabrew/compare/v3.55.0...v3.55.1) (2026-10-10)
 
 ### Fixes

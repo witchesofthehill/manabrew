@@ -36,11 +36,11 @@ function addCard(card: DeckCard, zone: EditableDeckZone) {
 
 export function moveCardCopies(
   cardName: string,
-  source: DeckSourceZone,
+  source: EditableDeckZone,
   destination: EditableDeckZone,
   quantity: "one" | "all",
 ): number {
-  if (source === destination || (source === "special" && destination === "side")) return 0;
+  if (source === destination) return 0;
   const matches = zoneCards(source).filter(
     (card) => card.identity.name.toLowerCase() === cardName.toLowerCase(),
   );
@@ -71,8 +71,8 @@ export function moveSelectedCards(
 ): number {
   const names = new Set([...cardNames].map((name) => name.toLowerCase()));
   let moved = 0;
-  for (const source of ["main", "side", "maybe", "special"] as const) {
-    if (source === destination || (source === "special" && destination === "side")) continue;
+  for (const source of ["main", "side", "maybe"] as const) {
+    if (source === destination) continue;
     const cards = zoneCards(source).filter((card) => names.has(card.identity.name.toLowerCase()));
     for (const card of cards) {
       removeCard(card, source);

@@ -557,8 +557,8 @@
       "refs": ["CardView", "ZoneKind"]
     },
     "ZoneKind": {
-      "ts": "type ZoneKind =\n  | \"battlefield\"\n  | \"hand\"\n  | \"library\"\n  | \"graveyard\"\n  | \"exile\"\n  | \"command\";",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub enum ZoneKind {\n    Battlefield,\n    Hand,\n    Library,\n    Graveyard,\n    Exile,\n    Command,\n}",
+      "ts": "type ZoneKind =\n  | \"battlefield\"\n  | \"hand\"\n  | \"library\"\n  | \"graveyard\"\n  | \"exile\"\n  | \"command\"\n  | \"attractions\"\n  | \"junkyard\";",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub enum ZoneKind {\n    Battlefield,\n    Hand,\n    Library,\n    Graveyard,\n    Exile,\n    Command,\n    Attractions,\n    Junkyard,\n}",
       "refs": []
     }
   }

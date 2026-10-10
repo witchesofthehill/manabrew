@@ -2,12 +2,12 @@ import type { CardDto } from "@/protocol/game";
 import type { ClientCardDto, ClientGameView } from "@/stores/gameStore.types";
 
 export type ZoneViewMode = "browse" | "cast" | "target" | "cost" | "manual";
-export type ViewableZone = "hand" | "graveyard" | "exile" | "commandZone" | "library";
+export type ViewableZone = "hand" | "graveyard" | "exile" | "commandZone" | "library" | "junkyard";
 export interface ZoneLocation {
   playerId: string;
   zone: ViewableZone;
 }
-const ZONES: ViewableZone[] = ["hand", "graveyard", "exile", "commandZone", "library"];
+const ZONES: ViewableZone[] = ["hand", "graveyard", "exile", "commandZone", "library", "junkyard"];
 
 export function locateVisibleZone(
   cards: CardDto[],

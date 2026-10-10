@@ -1426,6 +1426,17 @@ export function GameBoard({
         commanderTax: top(myCommandZone!)?.commanderTax,
       });
     }
+    if (me.attractionsCount > 0) {
+      self.push({ key: ZONE_TILE_KEY.attractions, count: me.attractionsCount, back: true });
+    }
+    if (me.junkyard.length > 0) {
+      self.push({
+        key: ZONE_TILE_KEY.junkyard,
+        count: me.junkyard.length,
+        topCard: top(me.junkyard),
+        onOpen: () => onOpenZone("Your Junkyard", me.junkyard),
+      });
+    }
     const byPlayer: Record<string, ZoneTileSpec[]> = { [me.id]: self };
     const opZoneTargetIds = (zone: string, cards: CardDto[]): string[] =>
       isTargetingPrompt && boardTargets?.zone?.zone === zone
@@ -1497,12 +1508,25 @@ export function GameBoard({
           commanderTax: top(op.commandZone)?.commanderTax,
         });
       }
+      if (op.attractionsCount > 0) {
+        tiles.push({ key: ZONE_TILE_KEY.attractions, count: op.attractionsCount, back: true });
+      }
+      if (op.junkyard.length > 0) {
+        tiles.push({
+          key: ZONE_TILE_KEY.junkyard,
+          count: op.junkyard.length,
+          topCard: top(op.junkyard),
+          onOpen: () => onOpenZone(`${stripUsernameTag(op.name)}'s Junkyard`, op.junkyard),
+        });
+      }
       byPlayer[op.id] = tiles;
     }
     return byPlayer;
   }, [
     me.id,
     me.libraryCount,
+    me.attractionsCount,
+    me.junkyard,
     opponents,
     gameTheme,
     playerColors,

@@ -17,6 +17,10 @@ use crate::error::ServerError;
 use crate::identity::{self, SessionIdentity};
 use crate::lobby;
 use crate::metrics;
+
+/// A four-seat Commander board is tens of kilobytes of state text. Anything
+/// near this is not a checkpoint.
+const MAX_CHECKPOINT_BYTES: usize = 2 * 1024 * 1024;
 use crate::protocol::{
     ChatMessage, ChatScope, ClientMessage, RoomStatus, ServerMessage, CHAT_MESSAGE_MAX_CHARS,
     CHAT_MIN_INTERVAL_MS,
@@ -205,6 +209,8 @@ fn broadcast_to_lobby(state: &Arc<ServerState>, msg: &ServerMessage) {
 fn advertised_features(state: &Arc<ServerState>) -> Vec<String> {
     crate::protocol::FEATURES
         .iter()
+        .filter(|f| state.journal.is_some() || **f != crate::protocol::FEATURE_DECISION_JOURNAL)
+        .filter(|f| state.host_handoff || **f != crate::protocol::FEATURE_HOST_HANDOFF)
         .filter(|f| {
             state.direct_transport
                 || (**f != crate::protocol::FEATURE_ROOM_TRANSPORT
@@ -758,9 +764,14 @@ pub async fn handle_connection(
         };
 
         if let Some(mut player) = state.players.get_mut(&player_id) {
-            if player.generation == generation {
-                player.last_seen = Instant::now();
+            if player.generation != generation {
+                disconnect_reason = "session_replaced";
+                break;
             }
+            player.last_seen = Instant::now();
+        } else {
+            disconnect_reason = "session_removed";
+            break;
         }
 
         metrics::record_socket_read(frame.len());
@@ -786,7 +797,29 @@ pub async fn handle_connection(
                     }
                 };
                 debug!("[recv] '{}' -> {}", username, client_msg_type(&client_msg));
-                handle_client_message(&state, &player_id, &username, &tx, client_msg);
+                match client_msg {
+                    ClientMessage::DecisionJournal {
+                        game_id,
+                        request_id,
+                        official_key,
+                        request,
+                        handoff,
+                    } => {
+                        let response = crate::journal_transport::handle(
+                            state.clone(),
+                            player_id.clone(),
+                            generation,
+                            game_id,
+                            request_id,
+                            official_key,
+                            request,
+                            handoff,
+                        )
+                        .await;
+                        send_msg(&tx, &response);
+                    }
+                    other => handle_client_message(&state, &player_id, &username, &tx, other),
+                }
             }
             Message::Close(_) => {
                 disconnect_reason = "client_close";
@@ -872,8 +905,10 @@ async fn authenticate(
             client_platform,
             client_version,
             engine_gate,
+            features,
         } => {
-            let client = ClientBuild::new(client_platform, client_version, engine_gate);
+            let client =
+                ClientBuild::with_features(client_platform, client_version, engine_gate, features);
             if password != state.server_key {
                 let reply = ServerMessage::AuthResult {
                     success: false,
@@ -1373,6 +1408,35 @@ fn handle_client_message(
                             room: resumed.room_info,
                         },
                     );
+                    if let Some(change) = resumed.host_change {
+                        info!(
+                            "[handoff] room {} now hosted by '{}' (was '{}', turn {})",
+                            &room_id[..8],
+                            username,
+                            change.previous_host,
+                            change.turn
+                        );
+                        metrics::record_host_handoff(metrics::HANDOFF_CLAIMED);
+                        broadcast_to_room_except(
+                            state,
+                            player_id,
+                            &room_id,
+                            &ServerMessage::HostChanged {
+                                room_id: room_id.clone(),
+                                game_id: change.game_id.clone(),
+                                host: username.to_string(),
+                                turn: change.turn,
+                            },
+                        );
+                        state.analytics.emit(AnalyticsEvent::HostChanged {
+                            ts: analytics::now_ts(),
+                            room_id: room_id.clone(),
+                            game_id: change.game_id,
+                            previous_host: change.previous_host,
+                            host: username.to_string(),
+                            turn: change.turn,
+                        });
+                    }
                 }
                 Err(e) => {
                     warn!("[lobby] '{}' resume room failed: {}", username, e);
@@ -1707,6 +1771,66 @@ fn handle_client_message(
             if !recorded {
                 debug!(
                     "[analytics] '{}' filed an outcome for a game it does not host",
+                    username
+                );
+            }
+        }
+
+        ClientMessage::DecisionJournal { .. } => {
+            unreachable!("journal requests use the ordered storage handler")
+        }
+
+        ClientMessage::DeclineHostHandoff {
+            room_id,
+            resume_token,
+            reason,
+        } => {
+            let is_service = state.players.get(player_id).is_some_and(|p| p.is_service);
+            let declined = is_service
+                && state.rooms.get_mut(&room_id).is_some_and(|mut room| {
+                    room.status == RoomStatus::InGame && room.decline_handoff(&resume_token)
+                });
+            if declined {
+                let reason: String = reason.chars().take(200).collect();
+                warn!(
+                    "[handoff] '{}' declined room {}: {}",
+                    username,
+                    &room_id[..8.min(room_id.len())],
+                    reason
+                );
+                metrics::record_host_handoff(metrics::HANDOFF_DECLINED);
+            }
+        }
+
+        ClientMessage::ReportCheckpoint {
+            game_id,
+            seq,
+            turn,
+            checkpoint,
+        } => {
+            let room_id = state.players.get(player_id).and_then(|p| p.room_id.clone());
+            let recorded = state.host_handoff
+                && checkpoint.len() <= MAX_CHECKPOINT_BYTES
+                && room_id
+                    .and_then(|room_id| state.rooms.get_mut(&room_id))
+                    .filter(|room| room.is_host(player_id))
+                    .and_then(|mut room| {
+                        room.replay
+                            .as_mut()
+                            .filter(|replay| replay.game_id == game_id)
+                            .map(|replay| {
+                                replay.record_checkpoint(player_id, seq, turn, checkpoint)
+                            })
+                    })
+                    .unwrap_or(false);
+            metrics::record_checkpoint(if recorded {
+                metrics::CHECKPOINT_ACCEPTED
+            } else {
+                metrics::CHECKPOINT_REJECTED
+            });
+            if !recorded {
+                debug!(
+                    "[handoff] '{}' filed a checkpoint for a game it does not host",
                     username
                 );
             }
@@ -2113,6 +2237,9 @@ fn msg_type_of(msg: &ServerMessage) -> &'static str {
         ServerMessage::PlayerList { .. } => "PlayerList",
         ServerMessage::RoomCreated { .. } => "RoomCreated",
         ServerMessage::RoomResumed { .. } => "RoomResumed",
+        ServerMessage::DecisionJournalResult { .. } => "DecisionJournalResult",
+        ServerMessage::HostHandoff { .. } => "HostHandoff",
+        ServerMessage::HostChanged { .. } => "HostChanged",
         ServerMessage::PlayerJoined { .. } => "PlayerJoined",
         ServerMessage::PlayerLeft { .. } => "PlayerLeft",
         ServerMessage::PlayerConnected { .. } => "PlayerConnected",
@@ -2151,6 +2278,9 @@ fn client_msg_type(msg: &ClientMessage) -> &'static str {
         ClientMessage::StartGame { .. } => "StartGame",
         ClientMessage::EndGame { .. } => "EndGame",
         ClientMessage::ReportGameOutcome { .. } => "ReportGameOutcome",
+        ClientMessage::DecisionJournal { .. } => "DecisionJournal",
+        ClientMessage::DeclineHostHandoff { .. } => "DeclineHostHandoff",
+        ClientMessage::ReportCheckpoint { .. } => "ReportCheckpoint",
         ClientMessage::ReportEngineStats { .. } => "ReportEngineStats",
         ClientMessage::RequestResync => "RequestResync",
         ClientMessage::BroadcastState { .. } => "BroadcastState",

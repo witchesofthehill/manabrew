@@ -6,6 +6,8 @@ pub mod config;
 pub mod connection;
 pub mod error;
 pub mod identity;
+pub mod journal;
+pub mod journal_transport;
 pub mod lobby;
 pub mod metrics;
 pub mod protocol;

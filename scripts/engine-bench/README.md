@@ -230,3 +230,7 @@ Everything is behind `-Dforge.engineCounters=true`, a static final read at class
 init, so it folds away when it is off. An earlier round of this used atomics and
 two `nanoTime` calls on every `checkStaticAbilities` and had to be reverted
 (forge `9d14d1511bf`).
+
+## Decision journal
+
+`bench:forge-journal --jar <jar> --forge-home <forge-gui>` replays a JVM game's journal in a fresh JVM and checks barriers, acknowledgements and invalidation. `bench:relay-journal` and `bench:relay-journal-wire [--binary <relay>]` cover the SQLite store and the relay protocol. `bench:hosted-journal --node <node> --relay <relay> --jar <jar> --forge-home <forge-gui>` drives a real host through delivery faults, relay restart and takeovers; add `--engine-artifact <library> --jvm-node <jvm-node>` for Graal. `bench:verify-relay-journal --database <db> --journal-key <key> --jar <jar> --forge-home <forge-gui>` replays a stored JVM journal in a fresh JVM.

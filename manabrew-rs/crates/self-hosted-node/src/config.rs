@@ -27,6 +27,7 @@ pub struct Config {
     pub engine_enabled: bool,
     pub host_plays: bool,
     pub official_key: Option<String>,
+    pub decision_journal: bool,
     pub room_password: Option<String>,
     pub bot_enabled: bool,
     pub bot_username: String,
@@ -91,6 +92,7 @@ impl Config {
             .and_then(|value| parse_format(&value))
             .unwrap_or(GameFormat::Any);
         Self {
+            decision_journal: crate::journal::enabled(),
             backend: EngineBackendKind::from_env(),
             relay_url: env_first("SELF_HOSTED_NODE_RELAY_URL", "FORGE_RELAY_URL")
                 .unwrap_or_else(|| "ws://127.0.0.1:9443".to_string()),
@@ -186,6 +188,7 @@ impl Config {
             engine_enabled: true,
             host_plays: false,
             official_key: None,
+            decision_journal: false,
             room_password,
             bot_enabled: false,
             bot_username,

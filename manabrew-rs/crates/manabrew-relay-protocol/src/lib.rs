@@ -227,6 +227,10 @@ pub enum ClientMessage {
         client_version: Option<String>,
         #[serde(default)]
         engine_gate: EngineGate,
+        /// What this client understands beyond the base protocol, named like
+        /// `AuthResult::features`. Empty from clients that predate the field.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        features: Vec<String>,
     },
 
     Ping,
@@ -328,6 +332,34 @@ pub enum ClientMessage {
 
     RequestResync,
 
+    DecisionJournal {
+        game_id: String,
+        request_id: String,
+        official_key: String,
+        request: DecisionJournalRequest,
+        /// Lets the session offered a [`ServerMessage::HostHandoff`] read the
+        /// durable journal before it claims the room. Reads only.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        handoff: Option<JournalHandoff>,
+    },
+
+    /// The offered session cannot continue the game. The relay offers it to
+    /// another session, or ends it as `host_lost`.
+    DeclineHostHandoff {
+        room_id: String,
+        resume_token: String,
+        reason: String,
+    },
+
+    /// The host's latest turn-start checkpoint. Hidden information: the relay
+    /// keeps the newest per game for a handoff and never forwards it.
+    ReportCheckpoint {
+        game_id: String,
+        seq: u64,
+        turn: u32,
+        checkpoint: String,
+    },
+
     BroadcastState {
         state: serde_json::Value,
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -414,6 +446,31 @@ pub enum ServerMessage {
 
     RoomResumed {
         room: RoomInfo,
+    },
+    /// Asks this session to continue a game whose host is gone. The token in
+    /// `request` is the only authorisation.
+    HostHandoff {
+        request: ResumeRoomRequest,
+        turn: u32,
+        checkpoint: String,
+        /// The game is recovered from its durable decision journal, not from
+        /// `checkpoint`, which is empty.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        journal: bool,
+    },
+    DecisionJournalResult {
+        game_id: String,
+        request_id: String,
+        result: Result<String, String>,
+    },
+
+    /// A different session now runs the engine. Every earlier engine id is
+    /// void; the next `state` from `host` is a whole board.
+    HostChanged {
+        room_id: String,
+        game_id: String,
+        host: String,
+        turn: u32,
     },
 
     PlayerJoined {
@@ -700,6 +757,30 @@ pub const FEATURE_PEER_SIGNAL: &str = "peer_signal";
 /// Names [`ClientMessage::ReportPlaneQuality`] in `AuthResult::features`.
 pub const FEATURE_PLANE_QUALITY: &str = "plane_quality";
 
+/// A relay that keeps checkpoints, or a session that can take a checkpoint
+/// game over.
+pub const FEATURE_HOST_HANDOFF: &str = "host_handoff";
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "operation", rename_all = "snake_case")]
+pub enum DecisionJournalRequest {
+    Open { manifest: String },
+    Append { epoch: i64, batch: String },
+    Read { after: i64, limit: u32 },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct JournalHandoff {
+    pub room_id: String,
+    pub resume_token: String,
+}
+
+pub const FEATURE_DECISION_JOURNAL: &str = "decision_journal_v1";
+
+/// Named in `Authenticate::features` by a session that can continue a game by
+/// replaying its durable decision journal.
+pub const FEATURE_JOURNAL_HANDOFF: &str = "journal_handoff";
+
 pub const FEATURES: &[&str] = &[
     FEATURE_LOCAL_GAME,
     FEATURE_ROOM_TRANSPORT,
@@ -708,6 +789,8 @@ pub const FEATURES: &[&str] = &[
     FEATURE_CHAT,
     FEATURE_ROOM_INVITES,
     FEATURE_GAME_OUTCOME,
+    FEATURE_HOST_HANDOFF,
+    FEATURE_DECISION_JOURNAL,
 ];
 
 /// Largest signalling blob the relay forwards.

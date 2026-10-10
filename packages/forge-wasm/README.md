@@ -91,6 +91,10 @@ Call `dispose()` to terminate the worker. A running Forge game is synchronous in
 
 `directive()` sends an out-of-band instruction such as a concession or a restore request. Each seat has its own directive lane, apart from its prompt buffer, and the engine reads every lane while it waits on any prompt, so a directive lands at once, even while another seat is deciding.
 
+## Experimental engine decision journal
+
+`decisionJournal: true` emits `forge:journal` batches (`ForgeDecisionJournalBatch`) through `onEvent`: the exact start request as a string, then each consumed input with its sequence, seat and prompt. Batches hold hidden information, so keep them with trusted hosts. Overflow or a snapshot restore sets a permanent `unavailableReason`.
+
 ## Types
 
 Messages are typed by [`@manabrew/protocol`](https://www.npmjs.com/package/@manabrew/protocol), which the package depends on: `onState` hands you a `StateUpdate`, `onPrompt` a `Prompt`, `onDisplay` a `DisplayEvent`, and `respond` takes a `PromptOutput`. The range tracks the protocol's major version, which is the wire compatibility boundary.

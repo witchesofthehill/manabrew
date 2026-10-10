@@ -129,6 +129,14 @@ impl Room {
         }
     }
 
+    pub fn decline_handoff(&mut self, token: &str) -> bool {
+        if self.resume_token.is_empty() || self.resume_token != token {
+            return false;
+        }
+        self.resume_token = uuid::Uuid::new_v4().to_string();
+        true
+    }
+
     pub fn is_full(&self) -> bool {
         self.players.len() >= self.max_players as usize
     }

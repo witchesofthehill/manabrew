@@ -8,10 +8,13 @@ import forge.game.spellability.SpellAbility;
 import forge.game.zone.ZoneType;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.function.Function;
 
 /**
@@ -23,6 +26,7 @@ import java.util.function.Function;
  * produce identical parity IDs as long as they encounter cards in the same order.
  */
 public final class ParityCardMap {
+    private static final Set<Game> NATIVE_ID_GAMES = Collections.newSetFromMap(new WeakHashMap<>());
     private static final Map<Integer, Integer> CARD_TO_PARITY = new HashMap<>();
     private static int nextParityId = 1;
     private static boolean initialized = false;
@@ -37,6 +41,10 @@ public final class ParityCardMap {
             ThreadLocal.withInitial(() -> Boolean.FALSE);
 
     private ParityCardMap() {}
+
+    public static synchronized void useNativeIds(final Game game) {
+        NATIVE_ID_GAMES.add(game);
+    }
 
     /**
      * Syncs once for a snapshot and holds the map still until {@link #endSnapshot}.
@@ -85,7 +93,7 @@ public final class ParityCardMap {
      * especially tokens).
      */
     public static synchronized void syncWithGame(final Game game) {
-        if (game == null) {
+        if (game == null || NATIVE_ID_GAMES.contains(game)) {
             return;
         }
         final List<Player> players = new ArrayList<>(game.getRegisteredPlayers());
@@ -109,6 +117,9 @@ public final class ParityCardMap {
     public static synchronized int parityId(final Card c) {
         if (c == null) {
             return Integer.MAX_VALUE;
+        }
+        if (NATIVE_ID_GAMES.contains(c.getGame())) {
+            return c.getId();
         }
         if (!SNAPSHOT_SYNCED.get()) {
             syncWithGame(c.getGame());

@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.54.8](https://github.com/witchesofthehill/manabrew/compare/v3.54.7...v3.54.8) (2026-10-10)
+
+### Fixes
+
+* attractions ([#1045](https://github.com/witchesofthehill/manabrew/issues/1045)) ([56d84b8](https://github.com/witchesofthehill/manabrew/commit/56d84b8b46d019c487173f9b86b31168fa6ab8e2))
+
 ## [3.54.7](https://github.com/witchesofthehill/manabrew/compare/v3.54.6...v3.54.7) (2026-10-08)
 
 ### Fixes

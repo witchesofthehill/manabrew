@@ -22,8 +22,8 @@ this project uses it.
 2. **Custom harness.** `forge-harness/` (at the repository root) is a
    project-local Java module that does **not** exist upstream. It imports and
    orchestrates classes from upstream Forge to expose a JSON adapter consumed by
-   the Tauri Java backend. As an aggregate that imports GPL-3.0-or-later Forge
-   classes, the harness is itself GPL-3.0-or-later.
+   the Tauri Java backend. It is licensed AGPL-3.0-or-later, which GPLv3 §13
+   allows to combine with the GPL-3.0-or-later Forge classes it imports.
 
 3. **Card data.** The Tauri desktop bundle and the web bundle include card
    script files (`forge/forge-gui/res/cardsfolder/`), token scripts
@@ -35,7 +35,8 @@ this project uses it.
    Java rules engine in `forge/forge-game/`. The port maintains file-level
    and interface-level parity with the Java source per the project's
    contribution conventions. The Rust engine is therefore a derivative work
-   of upstream Forge and is licensed GPL-3.0-or-later.
+   of upstream Forge and is licensed AGPL-3.0-or-later, which GPLv3 §13
+   allows to combine with GPL-3.0-or-later code.
 
 5. **Card script DSL.** `manabrew-rs/crates/forge-card-script/` and
    `manabrew-rs/crates/forge-carddb/` parse and execute Forge's card-script
@@ -53,7 +54,7 @@ this project uses it.
 > any later version.
 
 The full text of GPL-3.0-or-later is in `LICENSE-GPL-3.0-or-later` at the
-repository root.
+repository root. Manabrew's own licence is described in `LICENSE.md`.
 
 ## Magic: The Gathering — name, rules, card content
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.55.3](https://github.com/witchesofthehill/manabrew/compare/v3.55.2...v3.55.3) (2026-10-10)
+
+### Fixes
+
+* learn ([#1046](https://github.com/witchesofthehill/manabrew/issues/1046)) ([161e7ca](https://github.com/witchesofthehill/manabrew/commit/161e7ca2f8475f092e5bfd94122676bc362d21d4))
+
 ## [3.55.2](https://github.com/witchesofthehill/manabrew/compare/v3.55.1...v3.55.2) (2026-10-10)
 
 ### Fixes

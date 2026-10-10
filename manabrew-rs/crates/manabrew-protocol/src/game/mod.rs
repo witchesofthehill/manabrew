@@ -70,6 +70,7 @@ pub enum ZoneKind {
     Command,
     Attractions,
     Junkyard,
+    Sideboard,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, TS)]
@@ -393,6 +394,9 @@ pub struct CardDto {
     pub foil: bool,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub would_die_in_combat: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub zone: Option<ZoneKind>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]

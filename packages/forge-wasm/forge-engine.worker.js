@@ -151,6 +151,7 @@ async function startGame(requestId, args) {
         name: "You",
         ai: false,
         deck: flatten(humanDeck),
+        sideboard: identities(humanDeck.sideboard || []),
         attractions: identities(humanDeck.attractions || []),
         commanderNames: commanderGame ? commanderNames(humanDeck, args && args.commanderName) : [],
       },
@@ -167,6 +168,7 @@ async function startGame(requestId, args) {
         // it to this seat only then.
         bot: !forgeAi,
         deck: flatten(deck),
+        sideboard: identities(deck.sideboard || []),
         attractions: identities(deck.attractions || []),
         commanderNames: commanderGame ? commanderNames(deck, null) : [],
       })),
@@ -244,6 +246,7 @@ async function startMultiplayerGame(requestId, args) {
       ai: forgeAiSeats.has(index),
       bot: !forgeAiSeats.has(index) && botSeats.has(index),
       deck: flatten(deck),
+      sideboard: identities(deck.sideboard || []),
       attractions: identities(deck.attractions || []),
       commanderNames: commanderGame ? commanderNames(deck, commanders[index] ?? null) : [],
     })),

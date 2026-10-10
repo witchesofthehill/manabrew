@@ -62,9 +62,11 @@ import {
   promptText,
   PromptLayerBase,
 } from "./PromptLayerBase";
+import { promptCardSections } from "./promptCardSections";
 
 const CHOICE_MODAL_WIDTH = 560;
 const CARD_PROMPT_MIN_WIDTH = 360;
+const CARD_SECTION_HEADER_HEIGHT = 46;
 const SCRY_POOL_DRAG_SCALE = 0.5;
 const MODAL_SCROLL_HALF_LIFE_MS = 28;
 const MODAL_SCROLL_SNAP_PIXELS = 0.5;
@@ -1056,6 +1058,10 @@ export abstract class PromptModalLayer extends PromptLayerBase {
         }, [])
       : null;
     const visibleCount = visibleIndices?.length ?? cards.length;
+    const sections = promptCardSections(cards, visibleIndices ?? cards.map((_, index) => index));
+    const sectionHeaderHeight = sections.some((section) => section.label !== null)
+      ? CARD_SECTION_HEADER_HEIGHT
+      : 0;
     const horizontalScroll = this.layerPresentation.cardLayout === "horizontal-scroll";
     const { width: preferredCardWidth } = this.promptCardDimensions(
       this.layerPresentation.cardMaxHeight(this.viewportHeight),
@@ -1091,7 +1097,12 @@ export abstract class PromptModalLayer extends PromptLayerBase {
             Math.floor((cardAreaWidth + PROMPT_CARD_GAP) / (cardWidth + PROMPT_CARD_GAP)),
           ),
         );
-    const rows = horizontalScroll ? Math.min(1, visibleCount) : Math.ceil(visibleCount / columns);
+    const rows = horizontalScroll
+      ? Math.min(1, visibleCount)
+      : sections.reduce((total, section) => total + Math.ceil(section.indices.length / columns), 0);
+    const headersHeight = horizontalScroll
+      ? sectionHeaderHeight
+      : sectionHeaderHeight * sections.length;
     const compactScrollRow = horizontalScroll;
     const compactCardSpacing =
       visibleCount <= 1
@@ -1104,7 +1115,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
             );
     const height = Math.min(
       this.viewportHeight - 24,
-      244 + rows * (cardHeight + PROMPT_CARD_ROW_GAP),
+      244 + rows * (cardHeight + PROMPT_CARD_ROW_GAP) + headersHeight,
     );
     const { panel, body, footer } = this.createModalShell(
       width,
@@ -1157,49 +1168,86 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       cardRow.once("destroyed", () => gsap.killTweensOf(cardRow));
       body.addChild(cardRow);
     }
-    for (let position = 0; position < visibleCount; position++) {
-      const index = visibleIndices?.[position] ?? position;
-      const card = cards[index]!;
-      const selected = this.selectedIds.has(card.id);
-      const disabled = !reveal && max !== 1 && this.selectedIds.size >= max && !selected;
-      const cardSize = cardSizes[index]!;
-      const tile = this.createCardTile(
-        card,
-        selected,
-        disabled,
-        cardSize.width,
-        cardSize.height,
-        reveal
-          ? undefined
-          : () => {
-              if (disabled) return;
-              if (selected) {
-                this.selectedIds.delete(card.id);
-              } else {
-                if (max === 1) this.selectedIds.clear();
-                this.selectedIds.add(card.id);
-              }
-              this.rebuild();
-            },
-      );
-      const row = horizontalScroll ? 0 : Math.floor(position / columns);
-      const column = horizontalScroll ? position : position % columns;
-      const cardsInRow = Math.min(columns, visibleCount - row * columns);
+    const rowX = (cardsInRow: number) => {
       const rowWidth = horizontalScroll
         ? cardWidth + compactCardSpacing * Math.max(0, visibleCount - 1)
         : cardsInRow * cardWidth + Math.max(0, cardsInRow - 1) * PROMPT_CARD_GAP;
-      const rowX = CARD_TILE_EDGE_INSET + Math.max(0, (cardAreaWidth - rowWidth) / 2);
-      tile.position.set(
-        rowX +
-          column * (horizontalScroll ? compactCardSpacing : cardWidth + PROMPT_CARD_GAP) +
-          (cardWidth - cardSize.width) / 2,
-        startY + row * (cardHeight + PROMPT_CARD_ROW_GAP) + (cardHeight - cardSize.height) / 2,
-      );
-      (cardRow ?? body).addChild(tile);
-    }
+      return CARD_TILE_EDGE_INSET + Math.max(0, (cardAreaWidth - rowWidth) / 2);
+    };
+    let position = 0;
+    let sectionTop = startY;
+    sections.forEach((section, sectionIndex) => {
+      if (section.label !== null) {
+        const lastSection = sectionIndex === sections.length - 1;
+        const headerX = horizontalScroll
+          ? rowX(visibleCount) + position * compactCardSpacing
+          : CARD_TILE_EDGE_INSET;
+        const headerWidth = horizontalScroll
+          ? Math.max(
+              1,
+              (section.indices.length - 1) * compactCardSpacing +
+                (lastSection ? cardWidth : compactCardSpacing - PROMPT_CARD_GAP),
+            )
+          : cardAreaWidth;
+        const header = promptText(
+          section.label,
+          this.viewportWidth < 760 ? 18 : 22,
+          this.theme.appTheme.foreground,
+          { weight: "800", truncate: true, width: headerWidth },
+        );
+        header.position.set(headerX, sectionTop);
+        const ruleY = sectionTop + header.height + 6;
+        const rule = new Graphics()
+          .moveTo(headerX, ruleY)
+          .lineTo(headerX + headerWidth, ruleY)
+          .stroke({ color: hexToNum(this.theme.appTheme.border), width: 2 });
+        (cardRow ?? body).addChild(header, rule);
+        if (!horizontalScroll) sectionTop += sectionHeaderHeight;
+      }
+      const cardsTop = horizontalScroll ? startY + sectionHeaderHeight : sectionTop;
+      section.indices.forEach((index, sectionPosition) => {
+        const card = cards[index]!;
+        const selected = this.selectedIds.has(card.id);
+        const disabled = !reveal && max !== 1 && this.selectedIds.size >= max && !selected;
+        const cardSize = cardSizes[index]!;
+        const tile = this.createCardTile(
+          card,
+          selected,
+          disabled,
+          cardSize.width,
+          cardSize.height,
+          reveal
+            ? undefined
+            : () => {
+                if (disabled) return;
+                if (selected) {
+                  this.selectedIds.delete(card.id);
+                } else {
+                  if (max === 1) this.selectedIds.clear();
+                  this.selectedIds.add(card.id);
+                }
+                this.rebuild();
+              },
+        );
+        const row = horizontalScroll ? 0 : Math.floor(sectionPosition / columns);
+        const column = horizontalScroll ? position : sectionPosition % columns;
+        const cardsInRow = Math.min(columns, section.indices.length - row * columns);
+        tile.position.set(
+          rowX(cardsInRow) +
+            column * (horizontalScroll ? compactCardSpacing : cardWidth + PROMPT_CARD_GAP) +
+            (cardWidth - cardSize.width) / 2,
+          cardsTop + row * (cardHeight + PROMPT_CARD_ROW_GAP) + (cardHeight - cardSize.height) / 2,
+        );
+        (cardRow ?? body).addChild(tile);
+        position++;
+      });
+      if (!horizontalScroll)
+        sectionTop +=
+          Math.ceil(section.indices.length / columns) * (cardHeight + PROMPT_CARD_ROW_GAP);
+    });
     if (cardRow) {
       const panLimit = cardAreaWidth - compactScrollRowWidth;
-      const rowsHeight = rows * (cardHeight + PROMPT_CARD_ROW_GAP);
+      const rowsHeight = rows * (cardHeight + PROMPT_CARD_ROW_GAP) + sectionHeaderHeight;
       const pitch = cardWidth + compactCardSpacing;
       const promptId = this.spec?.currentPrompt?.promptId ?? null;
       if (this.compactScrollPan?.promptId !== promptId) {

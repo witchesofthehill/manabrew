@@ -928,10 +928,14 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         if (!isOptional && fetchList.size() == 1) {
             return fetchList.get(0);
         }
+        final String description = sa != null && sa.getApi() == ApiType.Learn ? LEARN_REMINDER : selectPrompt;
         final CardCollection selected = session.awaitCardChoice(
-                "choose_cards_for_effect", me(), fetchList, 1, 1, sourceName(sa), sourceCardId(sa), selectPrompt, isOptional);
+                "choose_cards_for_effect", me(), fetchList, 1, 1, sourceName(sa), sourceCardId(sa), description, isOptional);
         return selected.isEmpty() ? null : selected.get(0);
     }
+
+    private static final String LEARN_REMINDER =
+            "Reveal a Lesson card you own from outside the game and put it into your hand, or discard a card to draw a card.";
 
     @Override
     public List<Card> chooseCardsForZoneChange(

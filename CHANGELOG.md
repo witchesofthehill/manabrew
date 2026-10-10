@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.55.0](https://github.com/witchesofthehill/manabrew/compare/v3.54.8...v3.55.0) (2026-10-10)
+
+### Features
+
+* **web:** drop the first-run terms and nickname gate ([#1041](https://github.com/witchesofthehill/manabrew/issues/1041)) ([0a54d47](https://github.com/witchesofthehill/manabrew/commit/0a54d47087c1ebfe0dc2b3a218ddc1aa3c849a45))
+
 ## [3.54.8](https://github.com/witchesofthehill/manabrew/compare/v3.54.7...v3.54.8) (2026-10-10)
 
 ### Fixes

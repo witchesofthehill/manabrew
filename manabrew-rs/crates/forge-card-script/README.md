@@ -47,4 +47,4 @@ of every Forge parameter. Treat `Raw` as the always-correct fallback.
 
 ## License
 
-GPL-3.0-or-later. See the repository for details.
+AGPL-3.0-or-later. See the repository for details.

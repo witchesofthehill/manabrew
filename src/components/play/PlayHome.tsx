@@ -2,6 +2,7 @@ import { LibraryBig, Swords, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { UpdateCallout } from "@/components/layout/UpdateCallout";
 import { FeatureTile } from "@/components/play/FeatureTile";
+import { GuestNudge } from "@/components/play/GuestNudge";
 import { PlayDeckShelf } from "@/components/play/PlayDeckShelf";
 import { PlayHomeLinks } from "@/components/play/PlayHomeLinks";
 import { RejoinMatchCard } from "@/components/play/RejoinMatchCard";
@@ -110,6 +111,8 @@ export function PlayHome() {
           </header>
 
           <UpdateCallout />
+
+          {!resumePending && <GuestNudge />}
 
           {resumeSession && (
             <RejoinMatchCard session={resumeSession} onAbandoned={() => setResumeSession(null)} />

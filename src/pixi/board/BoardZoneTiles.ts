@@ -448,8 +448,10 @@ export class BoardZoneTiles {
     const gt = this.theme.gameTheme;
     switch (tile.spec.key) {
       case ZONE_TILE_KEY.library:
+      case ZONE_TILE_KEY.attractions:
         return gt.zone.library;
       case ZONE_TILE_KEY.graveyard:
+      case ZONE_TILE_KEY.junkyard:
         return gt.zone.graveyard;
       case ZONE_TILE_KEY.exile:
         return gt.zone.exile;
@@ -687,12 +689,14 @@ export class BoardZoneTiles {
       tile.container.hitArea = new Rectangle(-padX, -padY, cardW + padX * 2, cardH + padY * 2);
       const hl = spec.highlightColor ? hexToNum(spec.highlightColor) : null;
       const hasContent = spec.count > 0;
-      const isLibrary = spec.key === ZONE_TILE_KEY.library;
+      const isDeck = spec.key === ZONE_TILE_KEY.library || spec.key === ZONE_TILE_KEY.attractions;
       const isCommand = spec.key === ZONE_TILE_KEY.command;
       const hasEmptySkeleton =
         !hasContent && (spec.key === ZONE_TILE_KEY.graveyard || spec.key === ZONE_TILE_KEY.exile);
       const iconColor =
-        spec.key === ZONE_TILE_KEY.graveyard || spec.key === ZONE_TILE_KEY.exile
+        spec.key === ZONE_TILE_KEY.graveyard ||
+        spec.key === ZONE_TILE_KEY.exile ||
+        spec.key === ZONE_TILE_KEY.junkyard
           ? this.zoneColor(tile)
           : (spec.commander ?? gt.textMuted);
       const color = hl ?? hexToNum(iconColor);
@@ -702,7 +706,7 @@ export class BoardZoneTiles {
       tile.stack.clear();
       this.drawTileEffects(tile, k, radius, hl);
 
-      if (hasContent && isLibrary) {
+      if (hasContent && isDeck) {
         const layers = Math.min(4, Math.ceil(spec.count / 20));
         for (let layer = layers; layer > 0; layer--) {
           const offset = layer * 1.8 * k;
@@ -727,7 +731,7 @@ export class BoardZoneTiles {
         tile.face.scale.set(cardW / CARD_W);
         tile.face.position.set(cardW / 2, cardH / 2);
       }
-      tile.iconSprite.visible = !!iconKey && (!hasContent || !isLibrary);
+      tile.iconSprite.visible = !!iconKey && (!hasContent || !isDeck);
       if (iconKey) {
         applyIcon(tile.iconSprite, iconKey, iconColor, 64, iconSize, iconSize);
         tile.iconSprite.alpha = hasContent || hl !== null ? 1 : 0.7;
@@ -737,7 +741,7 @@ export class BoardZoneTiles {
         );
       }
 
-      if ((hasContent && !isLibrary) || hl !== null || isCommand) {
+      if ((hasContent && !isDeck) || hl !== null || isCommand) {
         tile.outline.roundRect(0, 0, cardW, cardH, radius);
         tile.outline.stroke({
           color: hl ?? (isCommand ? color : neutral),

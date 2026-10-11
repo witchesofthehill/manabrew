@@ -163,6 +163,10 @@ public final class InteractiveSnapshotExtractor {
                         game, library.get(0), index, true, viewerPlayer, secretChoiceVisibility)));
             }
             zones.add(zoneEntry("library", ownerId, libraryCards, library.size()));
+            zones.add(zoneEntry("attractions", ownerId, List.of(),
+                    player.getCardsIn(ZoneType.AttractionDeck).size()));
+            zones.add(visibleZone("junkyard", ownerId, game, player.getCardsIn(ZoneType.Junkyard),
+                    index, false, viewerPlayer, secretChoiceVisibility));
         }
         final Map<String, List<JsonObject>> battlefieldByController = new LinkedHashMap<>();
         for (final Player player : game.getRegisteredPlayers()) {

@@ -1,5 +1,41 @@
 # Changelog
 
+## [3.55.3](https://github.com/witchesofthehill/manabrew/compare/v3.55.2...v3.55.3) (2026-10-10)
+
+### Fixes
+
+* learn ([#1046](https://github.com/witchesofthehill/manabrew/issues/1046)) ([161e7ca](https://github.com/witchesofthehill/manabrew/commit/161e7ca2f8475f092e5bfd94122676bc362d21d4))
+
+## [3.55.2](https://github.com/witchesofthehill/manabrew/compare/v3.55.1...v3.55.2) (2026-10-10)
+
+### Fixes
+
+* **ui:** render limited mana curve bars at their real height ([#1010](https://github.com/witchesofthehill/manabrew/issues/1010)) ([80f4b71](https://github.com/witchesofthehill/manabrew/commit/80f4b71afbf723a245a3f67a9703f34e9223020e))
+
+## [3.55.1](https://github.com/witchesofthehill/manabrew/compare/v3.55.0...v3.55.1) (2026-10-10)
+
+### Fixes
+
+* **legal:** align terms and licence metadata with AGPL-3.0-or-later ([#1049](https://github.com/witchesofthehill/manabrew/issues/1049)) ([49663af](https://github.com/witchesofthehill/manabrew/commit/49663af5e83c02cfbfb3020633c225a211262622))
+
+## [3.55.0](https://github.com/witchesofthehill/manabrew/compare/v3.54.8...v3.55.0) (2026-10-10)
+
+### Features
+
+* **web:** drop the first-run terms and nickname gate ([#1041](https://github.com/witchesofthehill/manabrew/issues/1041)) ([0a54d47](https://github.com/witchesofthehill/manabrew/commit/0a54d47087c1ebfe0dc2b3a218ddc1aa3c849a45))
+
+## [3.54.8](https://github.com/witchesofthehill/manabrew/compare/v3.54.7...v3.54.8) (2026-10-10)
+
+### Fixes
+
+* attractions ([#1045](https://github.com/witchesofthehill/manabrew/issues/1045)) ([56d84b8](https://github.com/witchesofthehill/manabrew/commit/56d84b8b46d019c487173f9b86b31168fa6ab8e2))
+
+## [3.54.7](https://github.com/witchesofthehill/manabrew/compare/v3.54.6...v3.54.7) (2026-10-08)
+
+### Fixes
+
+* **engine:** offscreen info and misc gameplay bugs ([#1040](https://github.com/witchesofthehill/manabrew/issues/1040)) ([dfdc4bc](https://github.com/witchesofthehill/manabrew/commit/dfdc4bc9a472a0d65c4c96630efb5bf022b5c904))
+
 ## [3.54.6](https://github.com/witchesofthehill/manabrew/compare/v3.54.5...v3.54.6) (2026-10-06)
 
 ### Fixes

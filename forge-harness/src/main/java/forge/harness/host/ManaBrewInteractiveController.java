@@ -928,10 +928,14 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         if (!isOptional && fetchList.size() == 1) {
             return fetchList.get(0);
         }
+        final String description = sa != null && sa.getApi() == ApiType.Learn ? LEARN_REMINDER : selectPrompt;
         final CardCollection selected = session.awaitCardChoice(
-                "choose_cards_for_effect", me(), fetchList, 1, 1, sourceName(sa), sourceCardId(sa), selectPrompt, isOptional);
+                "choose_cards_for_effect", me(), fetchList, 1, 1, sourceName(sa), sourceCardId(sa), description, isOptional);
         return selected.isEmpty() ? null : selected.get(0);
     }
+
+    private static final String LEARN_REMINDER =
+            "Reveal a Lesson card you own from outside the game and put it into your hand, or discard a card to draw a card.";
 
     @Override
     public List<Card> chooseCardsForZoneChange(
@@ -1737,14 +1741,14 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         return costs;
     }
 
-    private static String describePayCost(final Cost cost) {
+    private static String describePayCost(final Cost cost, final SpellAbility sa) {
         final StringBuilder sb = new StringBuilder("Pay ");
         boolean first = true;
         for (final CostPart part : cost.getCostParts()) {
             if (!first) {
                 sb.append(", ");
             }
-            sb.append(part.toString().replaceFirst("^Pay ", ""));
+            sb.append(HarnessCostPlumbing.describeCostPart(part, sa).replaceFirst("^Pay ", ""));
             first = false;
         }
         return sb.append("?").toString();
@@ -1773,7 +1777,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         final boolean accept = session.awaitBooleanChoice(
                 "pay_cost_to_prevent_effect",
                 me(),
-                cost == null ? "Pay cost?" : describePayCost(cost),
+                cost == null ? "Pay cost?" : describePayCost(cost, sa),
                 sourceCardId(sa),
                 "pay_cost_to_prevent_effect",
                 cost == null ? null : cost.getClass().getSimpleName(),
@@ -1803,7 +1807,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         final boolean accept = session.awaitBooleanChoice(
                 "pay_cost_to_prevent_effect",
                 me(),
-                cost == null ? "Pay cost?" : describePayCost(cost),
+                cost == null ? "Pay cost?" : describePayCost(cost, sa),
                 sourceCardId(sa),
                 "pay_cost_during_roll",
                 cost == null ? null : cost.getClass().getSimpleName(),

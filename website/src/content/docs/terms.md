@@ -3,14 +3,18 @@ title: Terms & Conditions
 description: What Manabrew is, what it isn't, and the licence it ships under.
 ---
 
-Manabrew is free, open-source software licensed under GPL-3.0-or-later; the
+Manabrew is free, open-source software licensed under AGPL-3.0-or-later; the
 full licence and third-party notices ship with the source at
 [github.com/witchesofthehill/manabrew](https://github.com/witchesofthehill/manabrew).
 
+Version 1.6.0. Last updated 2026-10-10.
+
 ## 1. Acceptance
 
-By clicking Accept you confirm that you have read, understood, and agreed to
-be bound by these terms. If you do not agree, please close the application.
+By using Manabrew you agree to be bound by these terms. If you do not agree,
+please stop using the application. When you create an account, you also
+confirm at sign-up that you accept these terms and the
+[privacy policy](/privacy/).
 
 ## 2. Who can use Manabrew
 
@@ -28,7 +32,9 @@ games. It is built on an open-source port of the Forge rules engine
 ([github.com/Card-Forge/forge](https://github.com/Card-Forge/forge)). The
 complete source code for Manabrew is published at
 [github.com/witchesofthehill/manabrew](https://github.com/witchesofthehill/manabrew)
-under the GNU General Public License, version 3 or later.
+under the GNU Affero General Public License, version 3 or later
+(AGPL-3.0-or-later). The vendored Forge code stays under its upstream licence,
+the GNU General Public License, version 3 or later.
 
 ## 4. Not affiliated with Wizards of the Coast
 
@@ -65,8 +71,8 @@ service at any time.
 
 ## 8. Local data and privacy
 
-Your local decks, preferences, and this acknowledgement are stored on your
-device - in your browser's local storage on the web build, and in the
+Your local decks, preferences, and whether you have seen these terms are
+stored on your device - in your browser's local storage on the web build, and in the
 operating system's application data directory on desktop. Accounts are
 optional and store your handle, linked sign-in identities, sessions, decks you
 explicitly save to your account, their version history, public Community
@@ -75,18 +81,21 @@ recorded for reliability, debugging, and aggregate statistics. See the
 [privacy page](/privacy/) for the full detail, including how to export or
 delete your account.
 
-## 9. Your rights under GPL-3.0-or-later
+## 9. Your rights under AGPL-3.0-or-later
 
-Because Manabrew is GPL-3.0-or-later, you are free to run, study, modify, and
-redistribute the software under the terms of that licence. The complete
-corresponding source code is available at the GitHub repository linked above.
-The full licence text is included as LICENSE-GPL-3.0-or-later in that
-repository.
+Because Manabrew is AGPL-3.0-or-later, you are free to run, study, modify, and
+redistribute the software under the terms of that licence. The licence also
+covers network use: if you run a modified version as a service that other
+people use over a network, you must offer those users its source code. The
+complete corresponding source code of the public service is available at the
+GitHub repository linked above. The full licence text is included as
+LICENSE-AGPL-3.0-or-later in that repository, and the GPL text for the
+vendored Forge code as LICENSE-GPL-3.0-or-later.
 
 ## 10. No warranty, no liability
 
 The software is provided 'as is', without warranty of any kind, in line with
-sections 15 and 16 of the GNU GPL v3. To the maximum extent permitted by law,
+sections 15 and 16 of the GNU AGPL v3. To the maximum extent permitted by law,
 the maintainers are not liable for any direct, indirect, incidental, or
 consequential damages arising from your use of the software, including loss of
 data. Nothing in these terms limits any non-waivable consumer-protection
@@ -110,6 +119,6 @@ email the maintainers via the
 ## 13. Changes
 
 We may revise these terms. Material changes are signalled by a new version
-number; when that happens, you will be asked to acknowledge the new terms on
-next launch. Non-material edits (typos, formatting) do not trigger
-re-acknowledgement.
+number; when that happens, the app shows a notice on next launch, and
+continued use means you accept the new terms. Non-material edits (typos,
+formatting) do not trigger a notice.

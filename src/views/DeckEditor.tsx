@@ -66,11 +66,7 @@ import {
   resetDeckHistory,
   undoDeckEdit,
 } from "@/components/editor/deckEditor.history";
-import {
-  moveCardCopies,
-  moveSelectedCards,
-  type DeckSourceZone,
-} from "@/components/editor/deckEditor.actions";
+import { moveCardCopies, moveSelectedCards } from "@/components/editor/deckEditor.actions";
 const DRAG_TRAY_MAIN = "drag-tray-main";
 const DRAG_TRAY_SIDE = "drag-tray-side";
 const DRAG_TRAY_MAYBE = "drag-tray-maybe";
@@ -621,8 +617,8 @@ export default function DeckEditor() {
           : overId === DROP_ZONE.SIDE || overId === DRAG_TRAY_SIDE
             ? "side"
             : "maybe";
-      const sourceZone = source === "side" || source === "special" ? "side" : source;
-      if (draggedNames.length === 1 && sourceZone === dest) return;
+      if (source === "special") return;
+      if (draggedNames.length === 1 && source === dest) return;
       if (source === "commander") {
         if (dest === "main") {
           executeDeckEdit(`Return ${card.identity.name} to main deck`, () => removeCommander(card));
@@ -646,7 +642,7 @@ export default function DeckEditor() {
       }
       executeDeckEdit(`Move ${cardName} to ${dest}`, () => {
         if (sourceTag) untagCard(cardName, sourceTag);
-        moveCardCopies(cardName, source as DeckSourceZone, dest, "one");
+        moveCardCopies(cardName, source, dest, "one");
       });
       toast.success(`Moved ${cardName} to ${dest}`, {
         action: {

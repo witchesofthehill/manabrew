@@ -181,6 +181,7 @@ What this means for your PR:
 ## License
 
 By contributing, you agree that your contribution is licensed under the same
-license as the file you changed. Most of the repository is GPL-3.0-or-later. The
+license as the file you changed. Most of the repository is AGPL-3.0-or-later. The
+vendored `forge/` tree stays GPL-3.0-or-later. The
 protocol specification under `website/src/content/docs/protocol/`
 ([docs.manabrew.app/protocol](https://docs.manabrew.app/protocol/)) is CC-BY-4.0.

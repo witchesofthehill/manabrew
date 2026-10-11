@@ -551,6 +551,23 @@ export function validateDeckSections(
       `Sideboard must have at most ${format.deckRules.sideboardMax} cards (has ${sideboard.length})`,
     );
   }
+  const attractions = deck.attractions ?? [];
+  if (attractions.length > 0) {
+    const limited = format.id === "draft" || format.id === "sealed";
+    const minAttractions = limited ? 3 : 10;
+    if (attractions.length < minAttractions) {
+      errors.push(
+        `Attraction deck must have at least ${minAttractions} cards, or none (has ${attractions.length})`,
+      );
+    }
+    const duplicate = attractions.find(
+      (card, index) =>
+        attractions.findIndex((other) => other.identity.name === card.identity.name) !== index,
+    );
+    if (!limited && duplicate) {
+      errors.push(`Attraction deck can have only one copy of ${duplicate.identity.name}`);
+    }
+  }
   if (format.deckRules.requiresCommander) {
     const expectedMainSize = format.deckRules.minDeckSize - commanders.length;
     if (mainDeck.length !== expectedMainSize) {

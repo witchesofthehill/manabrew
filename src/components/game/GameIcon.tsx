@@ -43,7 +43,9 @@ export type GameIconName =
   | "beer-stein"
   | "deck"
   | "graveyard"
-  | "exile";
+  | "exile"
+  | "carousel"
+  | "trash-can";
 
 interface GameIconProps {
   name: GameIconName;

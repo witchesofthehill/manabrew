@@ -2560,6 +2560,7 @@ export function DeckListView({
                     {section.groups.map((g) => (
                       <div
                         key={g.key}
+                        data-card-name={g.card.identity.name}
                         className="flex items-center gap-1 group hover:bg-muted/40 rounded px-1 py-0.5"
                       >
                         <span className="text-xs font-mono w-4 text-right text-muted-foreground shrink-0">

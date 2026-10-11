@@ -170,7 +170,7 @@ export function SignInFlow({ prefill, deferHandleStep = false, onComplete }: Sig
     <div className="animate-onboard-fade-up space-y-4">
       <div className="space-y-1.5">
         <h2 className="text-lg font-semibold leading-none tracking-tight text-foreground">
-          {step === "handle" ? "Pick your handle" : "Sign in to Manabrew"}
+          {step === "handle" ? "Pick your handle" : "Sign in or create an account"}
         </h2>
         <p className="text-sm text-muted-foreground">
           {step === "handle"

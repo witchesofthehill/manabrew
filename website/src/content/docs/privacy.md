@@ -208,5 +208,6 @@ Spellbook receive card queries rather than anything about you as a person.
 This page describes what the code does as of when it was written, and we put
 effort into keeping it up to date. If you have more doubts, or are curious
 about the details, have a look at the code! It's
-[all open](https://github.com/witchesofthehill/manabrew), and questions are
-welcome on [Discord](https://discord.gg/NqrKpbhtcd).
+[all open](https://github.com/witchesofthehill/manabrew) under
+AGPL-3.0-or-later, which also covers the code running the public relay and
+Hub, and questions are welcome on [Discord](https://discord.gg/NqrKpbhtcd).

@@ -56,6 +56,8 @@ function normalizeGameView(
     commandZone: cardsOf(player.id, "command"),
     library: cardsOf(player.id, "library"),
     libraryCount: zoneOf(player.id, "library")?.count ?? 0,
+    attractionsCount: zoneOf(player.id, "attractions")?.count ?? 0,
+    junkyard: cardsOf(player.id, "junkyard"),
     poison: player.counters.poison ?? 0,
     energyCounters: player.counters.energy ?? 0,
     radiationCounters: player.counters.radiation ?? 0,

@@ -43,4 +43,4 @@ document-symbol, or semantic-tokens support yet.
 
 ## License
 
-GPL-3.0-or-later. See the repository for details.
+AGPL-3.0-or-later. See the repository for details.

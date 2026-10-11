@@ -59,6 +59,17 @@ public final class HarnessCostPlumbing {
         return rootHost != null && (rootHost.isInstant() || rootHost.isSorcery());
     }
 
+    public static String describeCostPart(final CostPart part, final SpellAbility ability) {
+        if (part instanceof CostPayEnergy) {
+            return "Pay " + "{E}".repeat(part.getAbilityAmount(ability));
+        }
+        final String amount = part.getAmount();
+        if (amount == null || part.convertAmount() != null) {
+            return part.toString();
+        }
+        return part.toString().replace(amount, String.valueOf(part.getAbilityAmount(ability)));
+    }
+
     public boolean payWithControllerDecision(final Cost cost, final SpellAbility sa, final boolean effect) {
         return payWithControllerDecision(cost, sa, effect, new CostPayment(cost, sa));
     }
@@ -113,15 +124,7 @@ public final class HarnessCostPlumbing {
             if (!shouldAsk || ability == null || isSpellPaymentContext(ability)) {
                 return true;
             }
-            return controller.confirmPayment(part, describePayment(part), ability);
-        }
-
-        private String describePayment(final CostPart part) {
-            final String amount = part.getAmount();
-            if (amount == null || part.convertAmount() != null) {
-                return part.toString();
-            }
-            return part.toString().replace(amount, String.valueOf(part.getAbilityAmount(ability)));
+            return controller.confirmPayment(part, describeCostPart(part, ability), ability);
         }
 
         private CardCollectionView chooseCards(final CardCollectionView pool, final int amount, final String title) {
@@ -768,10 +771,8 @@ public final class HarnessCostPlumbing {
         public PaymentDecision visit(final CostRemoveCounter cost) {
             final boolean shouldAsk = !(source != null && source.isPlaneswalker());
             if (!confirm(cost, shouldAsk)) return null;
+            final boolean all = "All".equals(cost.getAmount());
             final int amount = cost.getAbilityAmount(ability);
-            if (amount <= 0) {
-                return null;
-            }
 
             final CardCollection candidates = new CardCollection();
             if (cost.payCostFromSource()) {
@@ -795,8 +796,9 @@ public final class HarnessCostPlumbing {
             for (final Card card : candidates) {
                 if (cost.counter != null) {
                     final int available = card.getCounters(cost.counter);
-                    if (available >= amount) {
-                        table.put(null, card, cost.counter, amount);
+                    final int removed = all ? available : amount;
+                    if (available >= removed) {
+                        table.put(null, card, cost.counter, removed);
                         return PaymentDecision.counters(table);
                     }
                 } else {

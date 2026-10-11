@@ -24,6 +24,8 @@ export type ClientPlayerDto = PlayerDto & {
   /** Visible library cards only (e.g. a revealed top card); the bulk is libraryCount. */
   library: ClientCardDto[];
   libraryCount: number;
+  attractionsCount: number;
+  junkyard: ClientCardDto[];
   handCount: number;
   poison: number;
   energyCounters: number;

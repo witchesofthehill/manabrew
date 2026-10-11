@@ -2474,9 +2474,11 @@ public final class ManaBrewInteractiveSession {
     }
 
     private static ZoneKind zoneKind(final ZoneType zone) {
-        if (zone == null) {
-            return ZoneKind.LIBRARY;
-        }
+        final ZoneKind kind = zone == null ? null : cardZoneKind(zone);
+        return kind == null ? ZoneKind.LIBRARY : kind;
+    }
+
+    private static ZoneKind cardZoneKind(final ZoneType zone) {
         switch (zone) {
             case Hand:
                 return ZoneKind.HAND;
@@ -2490,8 +2492,16 @@ public final class ManaBrewInteractiveSession {
                 return ZoneKind.EXILE;
             case Command:
                 return ZoneKind.COMMAND;
-            default:
+            case AttractionDeck:
+                return ZoneKind.ATTRACTIONS;
+            case Junkyard:
+                return ZoneKind.JUNKYARD;
+            case Library:
                 return ZoneKind.LIBRARY;
+            case Sideboard:
+                return ZoneKind.SIDEBOARD;
+            default:
+                return null;
         }
     }
 
@@ -2942,7 +2952,9 @@ public final class ManaBrewInteractiveSession {
     private List<CardDto> richCards(final List<Card> cards, final boolean castable) {
         final List<CardDto> out = new java.util.ArrayList<>();
         for (final Card card : cards) {
-            out.add(InteractiveSnapshotExtractor.cardDto(game, card, castable));
+            final CardDto dto = InteractiveSnapshotExtractor.cardDto(game, card, castable);
+            dto.zone = card.getZone() == null ? null : cardZoneKind(card.getZone().getZoneType());
+            out.add(dto);
         }
         return out;
     }

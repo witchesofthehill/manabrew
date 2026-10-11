@@ -58,7 +58,14 @@ export default function Play() {
       return;
     }
     if (isGameActive) return;
-    if (peekLimitedMatchReturn()) return;
+    const limited = peekLimitedMatchReturn();
+    if (limited) {
+      if (limited.started || gameWasActive.current) {
+        gameWasActive.current = false;
+        navigate(limited.route, { replace: true });
+      }
+      return;
+    }
     if (gameWasActive.current && mpState?.multiplayer) {
       gameWasActive.current = false;
       multiplayerStarted.current = false;
@@ -86,12 +93,18 @@ export default function Play() {
     }
   }, [isGameActive, gameView, mpState, navigate, exitTo]);
   useEffect(() => {
-    if (!mpState?.multiplayer || multiplayerStarted.current) return;
+    const active = useGameStore.getState().isGameActive;
+    if (
+      !mpState?.multiplayer ||
+      multiplayerStarted.current ||
+      (peekLimitedMatchReturn()?.started && !active)
+    )
+      return;
     multiplayerStarted.current = true;
     // A re-mount on a live game (browser forward back onto this entry) must
     // not relaunch it: the store refuses the duplicate, and that refusal used
     // to read as a failed start, which ended the table for everyone.
-    if (useGameStore.getState().isGameActive) return;
+    if (active) return;
 
     const {
       playerOrder,

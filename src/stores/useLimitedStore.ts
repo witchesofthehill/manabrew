@@ -40,7 +40,11 @@ import {
   reconcileLimitedBuildPool,
 } from "@/components/limited/useLimitedBuildStore";
 import type { DraftClockSnapshot } from "@/game/limitedDraftClock";
-import { peek as peekGauntletMatch, restoreGauntletProgress } from "@/lib/gauntletReturn";
+import {
+  gauntletProgress,
+  peek as peekGauntletMatch,
+  restoreGauntletProgress,
+} from "@/lib/gauntletReturn";
 
 const commandKinds: Record<string, LimitedSessionKind> = {
   limited_start_sealed: "sealed",
@@ -185,6 +189,16 @@ async function invoke<T>(
                 useLimitedBuildStore.getState().sessions[sessionId],
                 (state as DraftState).pickedPile,
               ),
+            }
+          : {}),
+        ...(command === "limited_advance_gauntlet_round"
+          ? {
+              gauntletProgress: {
+                ...(previous?.gauntletProgress ?? gauntletProgress(state as GauntletState)),
+                round: (state as GauntletState).currentRound,
+                baselineWins: (state as GauntletState).wins,
+                baselineLosses: (state as GauntletState).losses,
+              },
             }
           : {}),
         ...(resultRequest
@@ -368,7 +382,11 @@ export const useLimitedStore = create<LimitedStore>((set) => ({
       revision,
       clockSequence,
     });
-    set({ activeDraft: state, lastError: null });
+    if (
+      useLimitedStore.getState().activeDraft?.sessionId === sessionId &&
+      (!revision || exportDraftClock(sessionId))
+    )
+      set({ activeDraft: state, lastError: null });
     return state;
   },
 

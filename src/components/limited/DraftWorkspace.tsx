@@ -153,7 +153,7 @@ export function DraftWorkspace({
               variant="primary"
               size="sm"
               disabled={!selected || disabled}
-              className="shrink-0 data-[limited-drop-active=true]:ring-2 data-[limited-drop-active=true]:ring-card-ring"
+              className="shrink-0 disabled:pointer-events-auto data-[limited-drop-active=true]:ring-2 data-[limited-drop-active=true]:ring-card-ring"
               onClick={() => {
                 if (selected) void submit(selected);
               }}
@@ -165,7 +165,7 @@ export function DraftWorkspace({
               variant="secondary"
               size="sm"
               disabled={!selected || disabled}
-              className="shrink-0 data-[limited-drop-active=true]:ring-2 data-[limited-drop-active=true]:ring-card-ring"
+              className="shrink-0 disabled:pointer-events-auto data-[limited-drop-active=true]:ring-2 data-[limited-drop-active=true]:ring-card-ring"
               onClick={() => {
                 if (selected) void submit(selected, "main");
               }}

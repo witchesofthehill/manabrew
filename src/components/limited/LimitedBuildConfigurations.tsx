@@ -70,7 +70,7 @@ export function LimitedBuildConfigurations({ sessionKey, session, onClose }: Pro
             if (!name.trim()) return;
             const store = useLimitedBuildStore.getState();
             store.saveBuild(sessionKey, name.trim());
-            setSelectedId(store.sessions[sessionKey].builds.at(-1)!.id);
+            setSelectedId(useLimitedBuildStore.getState().sessions[sessionKey].builds.at(-1)!.id);
             setName("");
           }}
         >

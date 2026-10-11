@@ -33,7 +33,7 @@ function groupLabel(info: ScryfallCard | null, groupBy: LimitedGrouping): string
   if (groupBy === "cmc") return `${info.cmc} mana`;
   if (groupBy === "rarity") return info.rarity.charAt(0).toUpperCase() + info.rarity.slice(1);
   if (groupBy === "type") return (info.type_line.split(" — ")[0] ?? info.type_line).trim();
-  const colors = info.colors ?? info.color_identity;
+  const colors = info.colors ?? info.card_faces?.[0]?.colors ?? [];
   if (!colors.length) return "Colorless";
   if (colors.length > 1) return "Multicolor";
   const names: Record<string, string> = {

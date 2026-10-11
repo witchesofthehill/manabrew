@@ -22,7 +22,7 @@ import {
   requestLimitedResync,
   recoverLimitedMatchReturn,
 } from "@/game/limitedSession";
-import { syncDraftClocks, publishDraftClocks } from "@/game/limitedDraftClock";
+import { disposeDraftClock, syncDraftClocks, publishDraftClocks } from "@/game/limitedDraftClock";
 import { resolveSealedPool } from "@/lib/limited.utils";
 import { restoreGauntletProgress } from "@/lib/gauntletReturn";
 import { useGameStore } from "@/stores/useGameStore";
@@ -226,6 +226,9 @@ export async function resumeLimitedSession(sessionId: string): Promise<LimitedSa
       throw new Error(
         "Imported reviews are read-only. Their named builds and card printings remain available in Review.",
       );
+    const activeDraft = useLimitedStore.getState().activeDraft;
+    if (activeDraft && activeDraft.sessionId !== sessionId)
+      disposeDraftClock(activeDraft.sessionId);
     if (saved.role !== "peer") await restoreLimitedEngine(sessionId, saved.kind);
     if (saved.role === "solo") {
       if (saved.kind === "draft") {

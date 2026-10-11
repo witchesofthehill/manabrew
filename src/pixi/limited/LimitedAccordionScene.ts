@@ -70,14 +70,12 @@ export class LimitedAccordionScene implements LimitedPane {
   }
   readonly layout = (deltaMs: number): boolean => {
     setFrameRatio(deltaMs);
+    const animated = animationsEnabled();
     let moving = false;
     for (let index = 0; index < this.target.length; index++) {
-      const next = lerp(
-        this.current[index],
-        this.target[index],
-        animationsEnabled() ? DELIMITER_EASE.FACTOR : 1,
-        DELIMITER_EASE.SNAP,
-      );
+      const next = animated
+        ? lerp(this.current[index], this.target[index], DELIMITER_EASE.FACTOR, DELIMITER_EASE.SNAP)
+        : this.target[index];
       moving ||= next !== this.current[index];
       this.current[index] = next;
     }

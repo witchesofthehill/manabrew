@@ -12,7 +12,6 @@ import { useLimitedBuildStore } from "@/components/limited/useLimitedBuildStore"
 import { useLimitedSessionSource } from "@/components/limited/useLimitedSavedSession";
 import { ROUTES } from "@/lib/constants";
 import {
-  advanceGauntletProgress,
   arm as armGauntletReturn,
   clear as clearGauntletReturn,
   gauntletProgress,
@@ -148,8 +147,7 @@ export default function Gauntlet() {
     if (!gauntletId || launching) return;
     setLaunching(true);
     try {
-      const state = await advanceRound(gauntletId);
-      await advanceGauntletProgress(state);
+      await advanceRound(gauntletId);
     } catch (error) {
       toast.error(`Failed to advance round: ${String(error)}`);
     } finally {

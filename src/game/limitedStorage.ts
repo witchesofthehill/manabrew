@@ -97,20 +97,64 @@ export async function updateLimitedSave(
   change: (previous: LimitedSavedSession | null) => LimitedSavedSession | null,
 ): Promise<LimitedSavedSession | null> {
   await writes;
-  return transaction("readwrite", (tx, result) => {
-    const store = tx.objectStore(SESSIONS_STORE);
-    const request = store.get(sessionId);
-    request.onsuccess = () => {
-      try {
-        const next = change(request.result ?? null);
-        if (next) store.put(next);
-        else store.delete(sessionId);
-        result(next);
-      } catch {
-        tx.abort();
-      }
-    };
-  });
+  let previousProgress: string | null = null;
+  let progressValue: string | undefined;
+  try {
+    return await transaction("readwrite", (tx, result) => {
+      const store = tx.objectStore(SESSIONS_STORE);
+      const request = store.get(sessionId);
+      request.onsuccess = () => {
+        try {
+          const previous = request.result as LimitedSavedSession | undefined;
+          const next = change(previous ?? null);
+          if (!next) {
+            store.delete(sessionId);
+            result(null);
+            return;
+          }
+          result(next);
+          const progress = next.gauntletProgress;
+          if (!progress || progress === previous?.gauntletProgress) {
+            store.put(next);
+            return;
+          }
+          previousProgress = localStorage.getItem(LIMITED_STORE_NAMES.gauntletProgress);
+          progressValue = JSON.stringify({
+            ...JSON.parse(previousProgress ?? "{}"),
+            [sessionId]: progress,
+          });
+          localStorage.setItem(LIMITED_STORE_NAMES.gauntletProgress, progressValue);
+          tx.objectStore(STATE_STORE).put(progressValue, LIMITED_STORE_NAMES.gauntletProgress);
+          const source = store.get(progress.sessionKey);
+          source.onsuccess = () => {
+            try {
+              const saved = {
+                ...next,
+                sourceSessionId: progress.sessionKey,
+                build: (source.result as LimitedSavedSession | undefined)?.build ?? next.build,
+                setup: (source.result as LimitedSavedSession | undefined)?.setup ?? next.setup,
+              };
+              store.put(saved);
+              result(saved);
+            } catch {
+              tx.abort();
+            }
+          };
+        } catch {
+          tx.abort();
+        }
+      };
+    });
+  } catch (error) {
+    if (
+      progressValue !== undefined &&
+      localStorage.getItem(LIMITED_STORE_NAMES.gauntletProgress) === progressValue
+    ) {
+      if (previousProgress === null) localStorage.removeItem(LIMITED_STORE_NAMES.gauntletProgress);
+      else localStorage.setItem(LIMITED_STORE_NAMES.gauntletProgress, previousProgress);
+    }
+    throw error;
+  }
 }
 
 export function flushLimitedStorage(): Promise<unknown> {

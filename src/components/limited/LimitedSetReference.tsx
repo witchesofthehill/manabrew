@@ -17,7 +17,7 @@ import {
 import { LimitedGuideSection } from "@/components/limited/LimitedGuideSection";
 import { useCardPreview } from "@/hooks/useCardPreview";
 import { refToDeckCard } from "@/lib/limited.utils";
-import { deckCardToPreviewDto, scryfallToDeckCard } from "@/lib/scryfall.utils";
+import { deckCardToPreviewDto, frontFaceName, scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import type { DraftCard } from "@/types/limited";
 
@@ -72,9 +72,12 @@ export function LimitedSetReference({
     const revision = ++request.current;
     const stillOwned = preview.claimOwnership();
     setInspection({ name, error: false });
+    const canonicalName = frontFaceName(name);
     const exact =
-      cards.find((card) => card.name === name && card.setCode.toLowerCase() === selectedCode) ??
-      cards.find((card) => card.name === name);
+      cards.find(
+        (card) =>
+          frontFaceName(card.name) === canonicalName && card.setCode.toLowerCase() === selectedCode,
+      ) ?? cards.find((card) => frontFaceName(card.name) === canonicalName);
     try {
       const entry = await useScryfallStore
         .getState()

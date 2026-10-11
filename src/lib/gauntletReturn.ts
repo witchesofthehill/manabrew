@@ -70,11 +70,6 @@ export function gauntletScore(state: GauntletState) {
   return { wins, losses, matchOver: wins >= required || losses >= required };
 }
 
-export async function advanceGauntletProgress(state: GauntletState): Promise<void> {
-  const progress = gauntletProgress(state);
-  await configureGauntlet(state, progress.sessionKey, progress.bestOf);
-}
-
 export async function arm(state: GauntletState): Promise<void> {
   const progress = gauntletProgress(state);
   const score = gauntletScore(state);

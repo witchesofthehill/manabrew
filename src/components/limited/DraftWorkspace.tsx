@@ -5,7 +5,6 @@ import LimitedDeckBuilder from "@/components/limited/LimitedDeckBuilder";
 import { useLimitedBuildStore } from "@/components/limited/useLimitedBuildStore";
 import { useDraftPick, type DraftPickOptions } from "@/components/limited/useDraftPick";
 import { useLimitedOpeningStore } from "@/components/limited/limitedOpeningStore";
-import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 import { cn } from "@/lib/utils";
 import { LimitedReferenceButton } from "@/components/limited/LimitedReferenceButton";
 import { LimitedDraftFallback } from "@/components/limited/LimitedDraftFallback";
@@ -28,7 +27,7 @@ export function DraftWorkspace({
   referenceFormat,
   pickSeconds,
 }: DraftWorkspaceProps) {
-  const [mobileTab, setMobileTab] = useState<"pack" | "build">("pack");
+  const [workspaceTab, setWorkspaceTab] = useState<"pack" | "build">("pack");
   const {
     selected,
     submitting,
@@ -56,27 +55,20 @@ export function DraftWorkspace({
   );
   const timed = (pickSeconds ?? clock.clock?.pickSeconds ?? 0) > 0;
   const opening = draft.currentPack.length > 0 && !roundOpened && !timed;
-  const activeTab = opening ? "pack" : mobileTab;
-  const shortScreen = useIsShortScreen();
-  const isTouch = useIsTouch();
-  const shortTouch = shortScreen && isTouch;
+  const activeTab = opening ? "pack" : workspaceTab;
   return (
     <div
       ref={workspaceRef}
       data-limited-table
       className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden"
     >
-      <div
-        role="tablist"
-        aria-label="Draft workspace"
-        className={cn("flex shrink-0 gap-1 lg:hidden", shortTouch && "lg:flex")}
-      >
+      <div role="tablist" aria-label="Draft workspace" className="flex shrink-0 gap-1">
         <Button
           role="tab"
           aria-selected={activeTab === "pack"}
           variant={activeTab === "pack" ? "selected" : "ghost"}
           size="sm"
-          onClick={() => setMobileTab("pack")}
+          onClick={() => setWorkspaceTab("pack")}
         >
           Pack · {draft.currentPack.length}
         </Button>
@@ -85,23 +77,14 @@ export function DraftWorkspace({
           aria-selected={activeTab === "build"}
           variant={activeTab === "build" ? "selected" : "ghost"}
           size="sm"
-          onClick={() => setMobileTab("build")}
+          onClick={() => setWorkspaceTab("build")}
         >
           Pool / build · {draft.pickedPile.length}
         </Button>
       </div>
-      <div
-        className={cn(
-          "grid min-h-0 flex-1 grid-cols-1 gap-2 overflow-hidden lg:grid-rows-[minmax(0,min(42%,24rem))_minmax(0,1fr)]",
-          shortTouch && "lg:grid-rows-1",
-        )}
-      >
+      <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-1 gap-2 overflow-hidden">
         <section
-          className={cn(
-            "flex min-h-0 flex-col overflow-hidden",
-            activeTab !== "pack" && "hidden lg:flex",
-            shortTouch && activeTab !== "pack" && "lg:hidden",
-          )}
+          className={cn("flex min-h-0 flex-col overflow-hidden", activeTab !== "pack" && "hidden")}
           aria-label="Current booster"
         >
           <header className="flex shrink-0 flex-wrap items-center justify-center gap-x-4 gap-y-1 px-3">
@@ -137,7 +120,7 @@ export function DraftWorkspace({
             opening={opening}
             openingSetCode={openingSetCode}
             onOpeningComplete={() => {
-              setMobileTab("pack");
+              setWorkspaceTab("pack");
               useLimitedOpeningStore.getState().open(draft.sessionId, [roundKey]);
             }}
             emptyMessage={
@@ -176,11 +159,7 @@ export function DraftWorkspace({
         </section>
         <section
           ref={builderRef}
-          className={cn(
-            "flex min-h-0 min-w-0 flex-col gap-2",
-            activeTab !== "build" && "hidden lg:flex",
-            shortTouch && activeTab !== "build" && "lg:hidden",
-          )}
+          className={cn("flex min-h-0 min-w-0 flex-col gap-2", activeTab !== "build" && "hidden")}
           aria-label="Your acquired pool and deck"
         >
           {!!draft.humanConspiracies?.length && (

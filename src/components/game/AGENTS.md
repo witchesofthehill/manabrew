@@ -145,6 +145,8 @@ Outside touch dismissal consumes the pointerdown and its click before the battle
 
 `CardPreviewHoverArea` and `RulesCardPreviewLayer` share the curved bridge geometry in `previewHoverArea.ts`. Protect the source-to-preview and card-to-controls corridors before entry animation becomes interactive, so crossing an underlying card cannot replace the preview. Keep the source-card rectangle selectable.
 
+Dialog-hosted Printed previews fit the dialog's visible client bounds and position relative to its scrolled padding box. Keep hover geometry in viewport coordinates; the SVG viewBox converts it into the same portal space. Resize and scroll must relayout both the card and its hover shield.
+
 Flip-button clicks pin the current preview without reopening it. Portrait/landscape face changes can move the controls away from the pointer; that reflow must not dismiss a clicked preview. Keyboard flips retain ordinary hover dismissal.
 
 DOM previews, SVG hover shields and Rules canvases use the shared `lib/cardPreviewEvents.ts` event boundary. Mark preview surfaces with `data-card-preview` and keep child controls functional while stopping input bubbling. Pixi listens for pointer movement during document capture, so board and overlay hit tests must exclude input owned by another preview. React enter events run ancestor-first across portals; source hover handlers must ignore preview targets too. Keep native overlay routing in capture phase so the bubbling boundary does not interrupt preview gestures.

@@ -234,15 +234,16 @@ export function CardPreview({
     };
     const observer = new ResizeObserver(update);
     if (slot) observer.observe(slot);
-    if (slot) update();
+    if (portalTarget) observer.observe(portalTarget);
+    if (slot || portalTarget) update();
     window.addEventListener("resize", update);
-    if (slot) window.addEventListener("scroll", update, true);
+    if (slot || portalTarget) window.addEventListener("scroll", update, true);
     return () => {
       observer.disconnect();
       window.removeEventListener("resize", update);
       window.removeEventListener("scroll", update, true);
     };
-  }, [slot]);
+  }, [slot, portalTarget]);
   useLayoutEffect(() => {
     const measure = () => setPanelHeight(panelRef.current?.offsetHeight ?? 0);
     const observer = new ResizeObserver(measure);
@@ -352,6 +353,11 @@ export function CardPreview({
     portalTarget,
   ]);
   const horizontal = horizontalCard;
+  const portalBounds = portalTarget?.getBoundingClientRect();
+  const portalLeft = portalBounds ? portalBounds.left + portalTarget!.clientLeft : 0;
+  const portalTop = portalBounds ? portalBounds.top + portalTarget!.clientTop : 0;
+  const portalOriginLeft = portalLeft - (portalTarget?.scrollLeft ?? 0);
+  const portalOriginTop = portalTop - (portalTarget?.scrollTop ?? 0);
   const layout = computePreviewLayout({
     placement,
     anchorRect: anchorRect ?? null,
@@ -360,7 +366,12 @@ export function CardPreview({
     horizontal,
     hasPanel: showSidePanel,
     panelHeight,
-    viewportRight,
+    viewportLeft: portalBounds ? portalLeft : undefined,
+    viewportTop: portalBounds ? portalTop : undefined,
+    viewportRight: portalBounds
+      ? Math.min(viewportRight ?? Infinity, portalLeft + portalTarget!.clientWidth)
+      : viewportRight,
+    viewportBottom: portalBounds ? portalTop + portalTarget!.clientHeight : undefined,
     slot: slot ?? null,
     size: previewSize,
   });
@@ -446,6 +457,8 @@ export function CardPreview({
           contentInteractive={Boolean(slot) && interactive}
           debugColor={showHoverAreas ? withAlpha(themeColors.success, 0.28) : undefined}
           portalTarget={portalTarget}
+          portalOriginLeft={portalOriginLeft}
+          portalOriginTop={portalOriginTop}
           onMouseEnter={onMouseEnter}
           onMouseLeave={onMouseLeave}
         />
@@ -460,14 +473,20 @@ export function CardPreview({
           slot
             ? "relative w-full h-full flex items-start justify-start pointer-events-none"
             : cn(
-                "fixed z-[10001]",
+                portalTarget ? "absolute z-[10001]" : "fixed z-[10001]",
                 placement !== "pinned" && interactive && (showSidePanel || hasPreviewControls)
                   ? "pointer-events-auto"
                   : "pointer-events-none",
               ),
         )}
         style={
-          slot ? undefined : { left: cardLeft, top, touchAction: isSticky ? "none" : undefined }
+          slot
+            ? undefined
+            : {
+                left: cardLeft - portalOriginLeft,
+                top: top - portalOriginTop,
+                touchAction: isSticky ? "none" : undefined,
+              }
         }
         onPointerDown={handlePreviewPointerDown}
         onPointerUp={handlePreviewPointerUp}

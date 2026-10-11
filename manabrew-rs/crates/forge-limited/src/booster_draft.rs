@@ -373,8 +373,13 @@ impl BoosterDraft {
                                             .card_ids()
                                             .iter()
                                             .position(|candidate| *candidate == id)
-                                            .is_none_or(|position| &pack.cards()[position] != card),
-                                        None => !pack.cards().contains(card),
+                                            .is_none_or(|position| {
+                                                let candidate = &pack.cards()[position];
+                                                candidate.name != card.name || candidate != card
+                                            }),
+                                        None => !pack.cards().iter().any(|candidate| {
+                                            candidate.name == card.name && candidate == card
+                                        }),
                                     }
                                 }),
                                 None => snapshot.pending_pick_ids[index].is_some(),
@@ -505,7 +510,7 @@ impl BoosterDraft {
             let index = pack
                 .cards()
                 .iter()
-                .position(|candidate| candidate == card)
+                .position(|candidate| candidate.name == card.name && candidate == card)
                 .ok_or_else(|| "ranked card is not in pack".to_string())?;
             pack.card_ids()[index]
         };
@@ -598,7 +603,7 @@ impl BoosterDraft {
         seat_idx: usize,
         card: PaperCard,
     ) -> Result<(), String> {
-        {
+        let card_id = {
             let seat = self
                 .seats
                 .get(seat_idx)
@@ -609,13 +614,14 @@ impl BoosterDraft {
             if !self.awaiting_pick_for_seat(seat_idx) {
                 return Err("seat has no actionable pack".into());
             }
-            if !seat
-                .current_pack()
-                .is_some_and(|pack| pack.cards().contains(&card))
-            {
-                return Err("card is not in the current pack".into());
-            }
-        }
+            let pack = seat.current_pack().expect("actionable pack");
+            let index = pack
+                .cards()
+                .iter()
+                .position(|candidate| candidate.name == card.name && candidate == &card)
+                .ok_or_else(|| "card is not in the current pack".to_string())?;
+            pack.card_ids()[index]
+        };
         let snap = self.snapshot();
         if self.pick_history.len() >= 20 {
             self.pick_history.remove(0);
@@ -626,6 +632,7 @@ impl BoosterDraft {
         let agent = seat.agent.as_mut();
         if let Some(human) = downcast_human(agent) {
             human.submit_pick(card);
+            self.pending_pick_ids[seat_idx] = Some(card_id);
             self.revision += 1;
             Ok(())
         } else {
@@ -774,7 +781,11 @@ impl BoosterDraft {
                                 .iter()
                                 .position(|candidate| *candidate == id)
                         })
-                        .or_else(|| pack.cards().iter().position(|card| *card == pick))
+                        .or_else(|| {
+                            pack.cards()
+                                .iter()
+                                .position(|card| card.name == pick.name && *card == pick)
+                        })
                         .expect("chosen card remains in the current pack");
                     let (card, card_id) = pack.remove_at(index);
                     self.revision += 1;

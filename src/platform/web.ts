@@ -70,6 +70,7 @@ import {
 } from "@/game/webrtcPlane";
 import { ForgeHostBridge } from "@/game/forgeHostBridge";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { useMultiplayerLimitedStore } from "@/stores/useMultiplayerLimitedStore";
 import {
   FORGE_LAUNCHER_URL,
   FORGE_WASM_URL,
@@ -773,10 +774,19 @@ class WebGameApi implements IGameApi {
 
     if (params.localIsHost) {
       this.serverApi?.setEnginePlayerNames(params.playerNames);
-      // Every seat here is a person or a Forge AI; a Manabot slot left over
-      // from a solo game (the engine validation plays one) would take a
-      // guest's seat.
-      this.bridge.setLocalBotSlots([]);
+      const limited = useMultiplayerLimitedStore.getState();
+      const virtualBotNames = new Set(
+        limited.matchReturn
+          ? limited.seats
+              .filter((seat) => !seat.isHuman && seat.playerSlot === null)
+              .map((seat) => `limited-ai-${limited.matchReturn!.sessionId}-${seat.seat}`)
+          : [],
+      );
+      this.bridge.setLocalBotSlots(
+        (params.botPlayerSlots ?? []).filter((slot) =>
+          virtualBotNames.has(params.playerNames[seatIndexOf(slot)]),
+        ),
+      );
       // Host runs the engine; the worker posts back one SAB per remote
       // seat (see the game:remote_sab handler in WorkerBridge).
       await this.bridge.invoke("start_multiplayer_game", {

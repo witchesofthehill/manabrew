@@ -72,19 +72,7 @@ fn cleanup_stale_state(state: &Arc<ServerState>) {
     let rooms_to_remove = state
         .rooms
         .iter()
-        .filter_map(|entry| {
-            let room = entry.value();
-            if room.parent_limited_room.is_some() {
-                return (!paired_room_has_participants(state, room, now))
-                    .then(|| entry.key().clone());
-            }
-            match room.status {
-                RoomStatus::Lobby => room.all_disconnected().then(|| entry.key().clone()),
-                RoomStatus::InGame => {
-                    in_game_room_expired(state, room, now).then(|| entry.key().clone())
-                }
-            }
-        })
+        .filter_map(|entry| room_is_stale(state, entry.value(), now).then(|| entry.key().clone()))
         .collect::<Vec<_>>();
 
     for room_id in rooms_to_remove {
@@ -93,6 +81,16 @@ fn cleanup_stale_state(state: &Arc<ServerState>) {
             &room_id[..8.min(room_id.len())]
         );
         remove_room_and_clear_sessions(state, &room_id, GameEndReason::StaleExpired);
+    }
+}
+
+fn room_is_stale(state: &Arc<ServerState>, room: &Room, now: Instant) -> bool {
+    if room.parent_limited_room.is_some() {
+        return !paired_room_has_participants(state, room, now);
+    }
+    match room.status {
+        RoomStatus::Lobby => room.all_disconnected(),
+        RoomStatus::InGame => in_game_room_expired(state, room, now),
     }
 }
 
@@ -380,14 +378,9 @@ fn mark_disconnected_inner(state: &Arc<ServerState>, player_id: &str, our_genera
                 room.is_host(player_id)
             })
             .unwrap_or(false);
-        if let Some(room) = state.rooms.get(&parent_id) {
-            broadcast_to_room(
-                state,
-                &parent_id,
-                &ServerMessage::RoomUpdate {
-                    room: room.to_room_info(),
-                },
-            );
+        let info = state.rooms.get(&parent_id).map(|room| room.to_room_info());
+        if let Some(room) = info {
+            broadcast_to_room(state, &parent_id, &ServerMessage::RoomUpdate { room });
         }
         if lost_host {
             schedule_peer_host_loss(state.clone(), parent_id, player_id.to_string());
@@ -482,14 +475,9 @@ fn mark_disconnected_inner(state: &Arc<ServerState>, player_id: &str, our_genera
                     },
                 );
 
-                if let Some(room) = state.rooms.get(rid) {
-                    broadcast_to_room(
-                        state,
-                        rid,
-                        &ServerMessage::RoomUpdate {
-                            room: room.to_room_info(),
-                        },
-                    );
+                let info = state.rooms.get(rid).map(|room| room.to_room_info());
+                if let Some(room) = info {
+                    broadcast_to_room(state, rid, &ServerMessage::RoomUpdate { room });
                 }
             }
             Some(RoomStatus::Lobby) => {
@@ -598,20 +586,29 @@ pub fn remove_room_and_clear_sessions(
     room_id: &str,
     reason: GameEndReason,
 ) {
-    if let Some((_, room)) = state.rooms.remove(room_id) {
-        if let Some(replay) = room.replay.as_ref() {
-            analytics::emit_game_ended(&state.analytics, &room, replay, reason);
-        }
-        if let Some(parent_id) = &room.parent_limited_room {
-            if let Some(mut parent) = state.rooms.get_mut(parent_id) {
-                parent.limited_matches.retain(|id| id != room_id);
-            }
-        }
-        for child_id in &room.limited_matches {
-            remove_room_and_clear_sessions(state, child_id, reason);
+    let Some((_, room)) = state.rooms.remove_if(room_id, |_, room| {
+        reason != GameEndReason::StaleExpired || room_is_stale(state, room, Instant::now())
+    }) else {
+        return;
+    };
+    clear_removed_room(state, room, reason);
+}
+
+fn clear_removed_room(state: &Arc<ServerState>, room: Room, reason: GameEndReason) {
+    if let Some(replay) = room.replay.as_ref() {
+        analytics::emit_game_ended(&state.analytics, &room, replay, reason);
+    }
+    if let Some(parent_id) = &room.parent_limited_room {
+        if let Some(mut parent) = state.rooms.get_mut(parent_id) {
+            parent.limited_matches.retain(|id| id != &room.room_id);
         }
     }
-    release_room_sessions(state, room_id);
+    for child_id in &room.limited_matches {
+        if let Some((_, child)) = state.rooms.remove(child_id) {
+            clear_removed_room(state, child, reason);
+        }
+    }
+    release_room_sessions(state, &room.room_id);
 }
 
 fn release_room_sessions(state: &Arc<ServerState>, room_id: &str) {
@@ -628,17 +625,16 @@ fn release_room_sessions(state: &Arc<ServerState>, room_id: &str) {
         })
         .collect::<Vec<_>>();
     for player_id in player_ids {
-        let connected = state
-            .players
-            .get(&player_id)
-            .map(|player| player.connected)
-            .unwrap_or(false);
-        if connected {
-            if let Some(mut player) = state.players.get_mut(&player_id) {
-                player.room_id = None;
+        state.players.remove_if_mut(&player_id, |_, player| {
+            if player.room_id.as_deref() != Some(room_id) {
+                return false;
             }
-        } else {
-            state.players.remove(&player_id);
-        }
+            if player.connected {
+                player.room_id = None;
+                false
+            } else {
+                true
+            }
+        });
     }
 }

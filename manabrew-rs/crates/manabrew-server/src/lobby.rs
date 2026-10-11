@@ -99,7 +99,7 @@ pub fn create_room_sync(
     };
 
     let room_id = uuid::Uuid::new_v4().to_string();
-    let mut room = Room::new(
+    let room = Room::new(
         room_id.clone(),
         room_name,
         protocol_version,
@@ -118,7 +118,6 @@ pub fn create_room_sync(
             .clamp(MIN_RECONNECT_TIMEOUT_S, MAX_RECONNECT_TIMEOUT_S),
         table_style,
     );
-    room.resume_token = uuid::Uuid::new_v4().to_string();
     let info = room.to_room_info();
     let resume_token = room.resume_token.clone();
 
@@ -141,25 +140,25 @@ pub fn resume_room_sync(
     player_id: &str,
     spec: ResumeRoomRequest,
 ) -> Result<ResumedRoom, ServerError> {
-    let username = {
+    let (username, current_room_id) = {
         let player = state
             .players
             .get(player_id)
             .ok_or_else(|| ServerError::AuthFailed("Player not found".into()))?;
-        if let Some(rid) = &player.room_id {
-            if rid != &spec.room_id
-                && !state.rooms.get(rid).is_some_and(|room| {
-                    room.parent_limited_room.as_deref() == Some(spec.room_id.as_str())
-                })
-            {
-                return Err(ServerError::AlreadyInRoom(rid.clone()));
-            }
-        }
-        player.username.clone()
+        (player.username.clone(), player.room_id.clone())
     };
+    if let Some(rid) = &current_room_id {
+        if rid != &spec.room_id
+            && !state.rooms.get(rid).is_some_and(|room| {
+                room.parent_limited_room.as_deref() == Some(spec.room_id.as_str())
+            })
+        {
+            return Err(ServerError::AlreadyInRoom(rid.clone()));
+        }
+    }
 
     if let Some(mut room) = state.rooms.get_mut(&spec.room_id) {
-        if room.resume_token != spec.resume_token {
+        if room.parent_limited_room.is_some() || room.resume_token != spec.resume_token {
             return Err(ServerError::InvalidResumeToken);
         }
         if room.is_limited_session() && room.host_username != username {
@@ -200,13 +199,17 @@ pub fn resume_room_sync(
         if old_host_pid != player_id {
             state.players.remove(&old_host_pid);
         }
+        let current_room_id = state
+            .players
+            .get(player_id)
+            .and_then(|player| player.room_id.clone());
+        let attached_child = current_room_id.as_ref().is_some_and(|id| {
+            state.rooms.get(id).is_some_and(|room| {
+                room.parent_limited_room.as_deref() == Some(spec.room_id.as_str())
+            })
+        });
         if let Some(mut player) = state.players.get_mut(player_id) {
-            let attached_child = player.room_id.as_ref().is_some_and(|id| {
-                state.rooms.get(id).is_some_and(|room| {
-                    room.parent_limited_room.as_deref() == Some(spec.room_id.as_str())
-                })
-            });
-            if !attached_child {
+            if !attached_child && player.room_id == current_room_id {
                 player.room_id = Some(spec.room_id);
             }
         }

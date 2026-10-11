@@ -116,9 +116,10 @@ async function generateHostPools(room: RoomInfo): Promise<SealedPool> {
       seat: seat.seat,
       pool: sealed.cards,
       sealed: { ...sealed, aiDecks: [] },
-      build: sealed.suggestedDeck
-        ? { main: sealed.suggestedDeck.main, sideboard: sealed.suggestedDeck.sideboard }
-        : null,
+      build:
+        !seat.isHuman && sealed.suggestedDeck
+          ? { main: sealed.suggestedDeck.main, sideboard: sealed.suggestedDeck.sideboard }
+          : null,
     });
   }
   const own = generated[0].sealed;

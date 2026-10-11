@@ -43,6 +43,8 @@ Dependency direction: `foundation`, `card-script`, `cardset-archive` ← `carddb
 
 `forge-limited` owns serializable Limited engines, physical occurrence IDs and own-seat decision history. Versioned checkpoint export/import is exposed by `src-tauri/src/limited_commands.rs` and `crates/wasm/src/limited_api.rs`; it preserves pending multiplayer submissions, undo state, ChaCha12 RNG continuation, AI/rank state and Gauntlet progress. Serialize borrowed state rather than cloning the engine or materializing an intermediate JSON tree. A complete native draft still needs its durable pool-registration handoff before the frontend marks the host complete.
 
+Limited selection resolves cards to physical pack IDs. `PaperCard` equality compares set, collector number and foil, but omits name; name-only cube imports can therefore make unlike cards equal. When resolving a ranked or submitted card, match its name as well as `PaperCard` equality. An explicit pending occurrence ID takes priority so identical copies remain independently selectable.
+
 ## `manabrew-engine` crate — module map
 
 The engine itself lives at `manabrew-rs/crates/manabrew-engine/src/`. Each module mirrors a Java package under `forge/forge-game/src/main/java/forge/game/`.

@@ -22,6 +22,10 @@ import {
 import { cn } from "@/lib/utils";
 import { ROUTES } from "@/lib/constants";
 import type { DraftCard } from "@/types/limited";
+import {
+  activeGameSessionAtPageLoad,
+  isActiveGameSessionAtPageLoadCurrent,
+} from "@/lib/activeGameSession";
 
 export default function MultiplayerLimitedBuild() {
   const navigate = useNavigate();
@@ -87,6 +91,14 @@ export default function MultiplayerLimitedBuild() {
       );
   }, [session.sessionId, session.phase, session.matchReturn]);
   useEffect(() => {
+    const recovering = activeGameSessionAtPageLoad();
+    if (
+      recovering &&
+      !recovering.isHost &&
+      recovering.roomId === session.matchReturn?.roomId &&
+      isActiveGameSessionAtPageLoadCurrent()
+    )
+      return;
     if (
       !session.matchReturn?.started ||
       gameActive ||
@@ -276,6 +288,7 @@ export default function MultiplayerLimitedBuild() {
             pool={session.pool}
             initialMain={session.build?.main}
             initialSideboard={session.build?.sideboard}
+            suggestedMain={session.sealed?.suggestedDeck?.main}
             defaultDeckName={`Multiplayer ${session.kind}`}
             format={session.kind ?? "draft"}
             referenceFormat={referenceFormat}

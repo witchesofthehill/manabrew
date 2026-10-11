@@ -126,7 +126,7 @@ impl Room {
             reconnect_timeout_s,
             table_style,
             replay: None,
-            resume_token: String::new(),
+            resume_token: uuid::Uuid::new_v4().to_string(),
             humanless_since: None,
             limited_session_id: None,
             draft_clock: None,

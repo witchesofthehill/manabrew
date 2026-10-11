@@ -636,6 +636,7 @@ async function startLimitedMatchesNow() {
     session.pairing = false;
     for (const held of session.held.values()) held.playing = false;
     useMultiplayerLimitedStore.setState({ statuses: statuses(session) });
+    await persistHostSession(session);
     throw error;
   }
 }
@@ -673,11 +674,12 @@ async function returnLimitedMatch(recordResult = true): Promise<string | null> {
   let marker = pendingReturn;
   const game = useGameStore.getState();
   const server = useServerStore.getState();
-  if (recordResult && marker.host === server.username && !marker.result) {
-    const winnerIndex =
-      game.gameView?.gameOver && game.gameView.winnerId
-        ? Number(game.gameView.winnerId.replace("player-", ""))
-        : -1;
+  const completed =
+    !game.engineCrash && (game.gameView?.gameOver || game.currentPrompt?.input.type === "gameOver");
+  if (recordResult && completed && marker.host === server.username && !marker.result) {
+    const winnerIndex = game.gameView?.winnerId
+      ? Number(game.gameView.winnerId.replace("player-", ""))
+      : -1;
     marker = {
       ...marker,
       result: { gameId: server.gameId, winner: server.playerOrder[winnerIndex] ?? null },
@@ -881,6 +883,7 @@ function enqueueLimitedHost<T>(operation: () => Promise<T>, sessionId?: string):
     try {
       return await operation();
     } catch (error) {
+      if (operation === startLimitedMatchesNow) throw error;
       const saved = await readLimitedSave(id).catch(() => null);
       if (saved?.hostSession) {
         const snapshot = saved.hostSession as Omit<

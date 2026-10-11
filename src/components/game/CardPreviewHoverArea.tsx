@@ -19,6 +19,8 @@ interface CardPreviewHoverAreaProps {
   contentInteractive: boolean;
   debugColor?: string;
   portalTarget?: HTMLElement | null;
+  portalOriginLeft?: number;
+  portalOriginTop?: number;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
 }
@@ -36,6 +38,8 @@ export function CardPreviewHoverArea({
   contentInteractive,
   debugColor,
   portalTarget,
+  portalOriginLeft = 0,
+  portalOriginTop = 0,
   onMouseEnter,
   onMouseLeave,
 }: CardPreviewHoverAreaProps) {
@@ -114,7 +118,16 @@ export function CardPreviewHoverArea({
   return createPortal(
     <svg
       aria-hidden
-      className="pointer-events-none fixed inset-0 z-[10000] h-full w-full overflow-visible pointer-coarse:hidden"
+      className={
+        portalTarget
+          ? "pointer-events-none absolute inset-0 z-[10000] h-full w-full overflow-visible pointer-coarse:hidden"
+          : "pointer-events-none fixed inset-0 z-[10000] h-full w-full overflow-visible pointer-coarse:hidden"
+      }
+      viewBox={
+        portalTarget
+          ? `${portalOriginLeft} ${portalOriginTop} ${portalTarget.clientWidth} ${portalTarget.clientHeight}`
+          : undefined
+      }
       clipPath={contentInteractive ? `url(#${contentClipId})` : undefined}
       {...CARD_PREVIEW_EVENT_HANDLERS}
       data-card-preview

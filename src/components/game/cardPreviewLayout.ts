@@ -18,6 +18,8 @@ export interface PreviewLayoutInput {
   slot: HTMLElement | null;
   viewportRight?: number;
   viewportBottom?: number;
+  viewportLeft?: number;
+  viewportTop?: number;
   size?: InGameCardPreviewSize;
 }
 
@@ -60,12 +62,12 @@ export function computePreviewLayout(input: PreviewLayoutInput): PreviewLayout {
   const { placement, anchorRect, mouseX, mouseY, horizontal, hasPanel, panelHeight, slot } = input;
 
   const safe = getSafeAreaInsets();
-  const viewLeft = safe.left;
+  const viewLeft = Math.max(safe.left, input.viewportLeft ?? 0);
   const viewRight = Math.min(
     window.innerWidth - safe.right,
     input.viewportRight ?? Number.POSITIVE_INFINITY,
   );
-  const viewTop = safe.top;
+  const viewTop = Math.max(safe.top, input.viewportTop ?? 0);
   const viewBottom = Math.min(
     window.innerHeight - safe.bottom,
     input.viewportBottom ?? Number.POSITIVE_INFINITY,
@@ -141,7 +143,7 @@ export function computePreviewLayout(input: PreviewLayoutInput): PreviewLayout {
       );
     } else {
       cardLeft = (anchorLeft + anchorRight) / 2 - cardWidth / 2;
-      const spaceAbove = anchorTop - 16;
+      const spaceAbove = anchorTop - viewTop - 16;
       const spaceBelow = viewBottom - anchorBottom - 16;
       const below = spaceBelow >= spaceAbove;
       top = below

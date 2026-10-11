@@ -13,6 +13,13 @@ import { resolveOfflineEngine } from "@/lib/offlineEngine";
 import Limited from "./Limited";
 import { completeLimitedMatch, peekLimitedMatchReturn } from "@/game/limitedSession";
 import { useMultiplayerLimitedStore } from "@/stores/useMultiplayerLimitedStore";
+import {
+  activeGameSessionAtPageLoad,
+  isActiveGameSessionAtPageLoadCurrent,
+} from "@/lib/activeGameSession";
+
+const consumedMultiplayerLaunches = new Set<string>();
+
 export default function Play() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -53,14 +60,27 @@ export default function Play() {
   // Route state outlives the game; without this, ending a multiplayer game
   // falls back to the "Starting multiplayer game..." waiting screen.
   useEffect(() => {
-    if (isGameActive && gameView) {
+    if (isGameActive) {
       gameWasActive.current = true;
       return;
     }
-    if (isGameActive) return;
     const limited = peekLimitedMatchReturn();
     if (limited) {
-      if (limited.started || gameWasActive.current) {
+      const recovering = activeGameSessionAtPageLoad();
+      if (
+        !mpState &&
+        recovering &&
+        !recovering.isHost &&
+        recovering.roomId === limited.roomId &&
+        isActiveGameSessionAtPageLoadCurrent()
+      )
+        return;
+      if (
+        gameWasActive.current ||
+        (limited.started &&
+          (!mpState ||
+            (consumedMultiplayerLaunches.has(location.key) && !multiplayerStarted.current)))
+      ) {
         gameWasActive.current = false;
         navigate(limited.route, { replace: true });
       }
@@ -91,16 +111,19 @@ export default function Play() {
       gameWasActive.current = false;
       navigate(exitTo, { replace: true });
     }
-  }, [isGameActive, gameView, mpState, navigate, exitTo]);
+  }, [isGameActive, gameView, mpState, navigate, exitTo, location.key]);
   useEffect(() => {
     const active = useGameStore.getState().isGameActive;
     if (
       !mpState?.multiplayer ||
       multiplayerStarted.current ||
-      (peekLimitedMatchReturn()?.started && !active)
+      (!active &&
+        peekLimitedMatchReturn()?.started &&
+        consumedMultiplayerLaunches.has(location.key))
     )
       return;
     multiplayerStarted.current = true;
+    consumedMultiplayerLaunches.add(location.key);
     // A re-mount on a live game (browser forward back onto this entry) must
     // not relaunch it: the store refuses the duplicate, and that refusal used
     // to read as a failed start, which ended the table for everyone.
@@ -171,7 +194,7 @@ export default function Play() {
     ).then((started) => {
       if (!started) void recoverFromFailedStart();
     });
-  }, [mpState, navigate, setMultiplayerState, startMultiplayerGame]);
+  }, [mpState, navigate, setMultiplayerState, startMultiplayerGame, location.key]);
   if (isGameActive) {
     return (
       <div className="h-full min-h-0 no-scrollbar">

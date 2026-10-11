@@ -301,11 +301,28 @@ fn pair_limited_matches(
             .filter(|seat| !seat.is_bot)
             .map(|seat| (seat.player_id.clone(), seat.username.clone()))
             .collect();
-        state.rooms.insert(room.room_id.clone(), room);
-        for (id, username) in participants {
-            if let Some(mut player) = state.players.get_mut(&id) {
-                player.room_id = Some(info.room_id.clone());
+        let room = state.rooms.entry(room.room_id.clone()).insert(room);
+        for (id, _) in &participants {
+            if let Some(mut player) = state.players.get_mut(id) {
+                if player.room_id.as_deref() == Some(room_id) {
+                    player.room_id = Some(info.room_id.clone());
+                }
             }
+        }
+        drop(room);
+        let parent_active = state.rooms.get(room_id).is_some_and(|parent| {
+            parent.limited_session_id.as_deref() == Some(session_id.as_str())
+                && parent.limited_matches.contains(&info.room_id)
+        });
+        if !parent_active {
+            crate::cleanup::remove_room_and_clear_sessions(
+                state,
+                &info.room_id,
+                analytics::GameEndReason::HostEnded,
+            );
+            return None;
+        }
+        for (id, username) in participants {
             let message = ServerMessage::StateUpdate {
                 from_player: host_name.clone(),
                 state: serde_json::json!({
@@ -676,13 +693,16 @@ fn send_room_chat_history(state: &Arc<ServerState>, player_id: &str, room_id: &s
 }
 
 fn player_in_game(state: &Arc<ServerState>, player_id: &str) -> bool {
-    let Some(player) = state.players.get(player_id) else {
-        return false;
+    let room_id = {
+        let Some(player) = state.players.get(player_id) else {
+            return false;
+        };
+        if player.local_game.is_some() {
+            return true;
+        }
+        player.room_id.clone()
     };
-    if player.local_game.is_some() {
-        return true;
-    }
-    player.room_id.as_ref().is_some_and(|room_id| {
+    room_id.as_ref().is_some_and(|room_id| {
         state
             .rooms
             .get(room_id)
@@ -1413,14 +1433,9 @@ fn reclaim_session(
             if let Some(mut parent) = state.rooms.get_mut(&parent_id) {
                 parent.set_connected(existing_pid, true);
             }
-            if let Some(parent) = state.rooms.get(&parent_id) {
-                broadcast_to_room(
-                    state,
-                    &parent_id,
-                    &ServerMessage::RoomUpdate {
-                        room: parent.to_room_info(),
-                    },
-                );
+            let info = state.rooms.get(&parent_id).map(|room| room.to_room_info());
+            if let Some(room) = info {
+                broadcast_to_room(state, &parent_id, &ServerMessage::RoomUpdate { room });
             }
         }
 
@@ -1433,14 +1448,9 @@ fn reclaim_session(
             },
         );
 
-        if let Some(room) = state.rooms.get(rid) {
-            broadcast_to_room(
-                state,
-                rid,
-                &ServerMessage::RoomUpdate {
-                    room: room.to_room_info(),
-                },
-            );
+        let info = state.rooms.get(rid).map(|room| room.to_room_info());
+        if let Some(room) = info {
+            broadcast_to_room(state, rid, &ServerMessage::RoomUpdate { room });
         }
 
         let queued = state.rooms.get_mut(rid).and_then(|mut room| {

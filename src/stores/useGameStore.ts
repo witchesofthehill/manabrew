@@ -531,6 +531,7 @@ export const useGameStore = create<GameState>()(
             isHost: localIsHost,
             myPlayerSlot: `player-${enginePlayerIndex}`,
             ironsmithDeckError: null,
+            engineCrash: null,
             gameView: null,
             currentPrompt: null,
             gameLog: [],

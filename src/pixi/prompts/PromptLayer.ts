@@ -200,9 +200,9 @@ export class PromptLayer extends PromptModalLayer {
   }
 
   destroy(): void {
-    this.mobileCardSearchInput?.blur();
-    this.mobileCardSearchInput?.remove();
-    this.mobileCardSearchInput = null;
+    this.choiceSearchInput?.blur();
+    this.choiceSearchInput?.remove();
+    this.choiceSearchInput = null;
     setVirtualTextInputActive(this, false);
     window.removeEventListener("keydown", this.keyListener);
     window.removeEventListener("keydown", this.onModifierEvent);
@@ -242,8 +242,8 @@ export class PromptLayer extends PromptModalLayer {
     this.activePromptCardId = null;
     this.selectedIds.clear();
     this.counts.clear();
-    this.mobileCardSearchInput?.blur();
-    if (this.mobileCardSearchInput) this.mobileCardSearchInput.value = "";
+    this.choiceSearchInput?.blur();
+    if (this.choiceSearchInput) this.choiceSearchInput.value = "";
     this.selectionFilter = "";
     this.selectionFilterFocused = false;
     this.numberInputFocused = false;
@@ -315,12 +315,13 @@ export class PromptLayer extends PromptModalLayer {
     this.actionPulseNodes = [];
     this.modalOpen = false;
     if (
-      this.mobileCardSearchInput &&
-      (this.spec?.currentPrompt?.input.type !== "chooseCards" ||
+      this.choiceSearchInput &&
+      ((this.spec?.currentPrompt?.input.type !== "chooseCards" &&
+        this.spec?.currentPrompt?.input.type !== "chooseFromSelection") ||
         this.spec?.modalHidden ||
         this.spec?.action.isWaitingForResponse)
     )
-      this.mobileCardSearchInput.blur();
+      this.choiceSearchInput.blur();
     setVirtualTextInputActive(this, false);
     this.modalBody = null;
     this.container.removeChildren().forEach((child) => child.destroy({ children: true }));
@@ -2173,7 +2174,7 @@ export class PromptLayer extends PromptModalLayer {
     if ((modal && !modal.contains(this.app.canvas)) || event.defaultPrevented || event.isComposing)
       return;
     if (!this.spec || !this.modalOpen) return;
-    if (event.target === this.mobileCardSearchInput) return;
+    if (event.target === this.choiceSearchInput) return;
     const primaryActionKey = event.key === "Enter" || event.code === "Space";
     if (
       !this.selectionFilterFocused &&

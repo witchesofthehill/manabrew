@@ -641,23 +641,19 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     let y = 4;
 
     if (showFilter) {
-      const filterParent = compactSelection ? panel : body;
-      if (compactSelection) {
-        const state = this.modalBody!;
-        state.bodyTop += 52;
-        this.resizeModalShell(state, state.height);
-        body.position.set(PANEL_PADDING, state.bodyTop);
-      }
+      const state = this.modalBody!;
+      state.bodyTop += 52;
+      this.resizeModalShell(state, state.height);
+      body.position.set(PANEL_PADDING, state.bodyTop);
       this.renderChoiceFilter(
-        filterParent,
+        panel,
         availableWidth,
-        compactSelection ? this.modalBody!.bodyTop - 52 : y,
+        state.bodyTop - 52,
         visibleOptions.length,
         "Search choices",
         compactSelection,
-        compactSelection ? PANEL_PADDING : 0,
+        PANEL_PADDING,
       );
-      if (!compactSelection) y += 52;
     }
 
     if (visibleOptions.length === 0) {
@@ -837,7 +833,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       optionPosition += 1;
     }
     y += Math.ceil(optionPosition / selectionColumns) * optionRowPitch;
-    if (compactSelection) {
+    {
       let touchId: number | null = null;
       let touchStartY = 0;
       let scrollStart = 0;
@@ -862,7 +858,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
         touchStartY = event.global.y;
         scrollStart = this.modalScrollOffset;
       });
-      panel.on("pointermove", (event: FederatedPointerEvent) => {
+      panel.on("globalpointermove", (event: FederatedPointerEvent) => {
         if (touchId !== event.pointerId) return;
         const delta = event.global.y - touchStartY;
         if (!didScroll && Math.abs(delta) < 8) return;
@@ -880,10 +876,12 @@ export abstract class PromptModalLayer extends PromptLayerBase {
         if (touchId === event.pointerId) touchId = null;
         if (scrolledTouchId === event.pointerId) scrolledTouchId = null;
       });
-      panel.on("pointercancel", (event: FederatedPointerEvent) => {
+      const cancelTouch = (event: PointerEvent) => {
         if (touchId === event.pointerId) touchId = null;
         if (scrolledTouchId === event.pointerId) scrolledTouchId = null;
-      });
+      };
+      window.addEventListener("pointercancel", cancelTouch, true);
+      panel.once("destroyed", () => window.removeEventListener("pointercancel", cancelTouch, true));
       panel.on("pointertapcapture", (event: FederatedPointerEvent) => {
         if (event.pointerType === "touch" && event.pointerId === scrolledTouchId) {
           event.stopImmediatePropagation();
@@ -954,37 +952,47 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     background.tabIndex = 0;
     background.on("focusin", () => this.setSelectionFilterFocused(true));
     background.on("focusout", () => this.setSelectionFilterFocused(false));
-    if (compact && this.spec?.currentPrompt?.input.type === "chooseCards") {
-      if (!this.mobileCardSearchInput) {
-        const input = document.createElement("input");
-        input.type = "search";
-        input.setAttribute("aria-label", placeholder);
-        input.autocomplete = "off";
-        input.autocapitalize = "off";
-        input.spellcheck = false;
-        input.style.cssText =
-          "position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none;font-size:16px";
-        input.addEventListener("input", () => {
-          this.selectionFilter = input.value;
-          this.selectionFilterFocused = true;
-          this.modalScrollOffset = 0;
-          this.modalScrollTarget = 0;
-          this.rebuild();
-        });
-        input.addEventListener("blur", () => this.setSelectionFilterFocused(false));
-        input.addEventListener("keydown", (event) => {
-          if (event.key === "Enter") {
-            event.preventDefault();
+    if (!this.choiceSearchInput) {
+      const input = document.createElement("input");
+      input.type = "search";
+      input.setAttribute("aria-label", placeholder);
+      input.autocomplete = "off";
+      input.autocapitalize = "off";
+      input.spellcheck = false;
+      input.style.cssText =
+        "position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none;font-size:16px";
+      input.addEventListener("focus", () => this.setSelectionFilterFocused(true));
+      input.addEventListener("input", () => {
+        this.selectionFilter = input.value;
+        this.selectionFilterFocused = true;
+        this.modalScrollOffset = 0;
+        this.modalScrollTarget = 0;
+        this.rebuild();
+      });
+      input.addEventListener("blur", () => this.setSelectionFilterFocused(false));
+      input.addEventListener("keydown", (event) => {
+        if (event.isComposing) return;
+        if (event.key === "Enter") {
+          event.preventDefault();
+          input.blur();
+        }
+        if (event.key === "Escape") {
+          event.preventDefault();
+          if (input.value) {
+            input.value = "";
+            input.dispatchEvent(new Event("input"));
+          } else {
             input.blur();
           }
-        });
-        document.body.append(input);
-        this.mobileCardSearchInput = input;
-      }
-      if (this.mobileCardSearchInput.value !== this.selectionFilter)
-        this.mobileCardSearchInput.value = this.selectionFilter;
-      background.on("pointerdown", () => this.mobileCardSearchInput?.focus());
+        }
+      });
+      document.body.append(input);
+      this.choiceSearchInput = input;
     }
+    this.choiceSearchInput.setAttribute("aria-label", placeholder);
+    if (this.choiceSearchInput.value !== this.selectionFilter)
+      this.choiceSearchInput.value = this.selectionFilter;
+    background.on("pointerdown", () => this.choiceSearchInput?.focus({ preventScroll: true }));
     const searchIcon = this.makeIcon(
       "lucide-search",
       15,
@@ -1025,6 +1033,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
           this.modalScrollOffset = 0;
           this.modalScrollTarget = 0;
           this.rebuild();
+          this.choiceSearchInput?.focus({ preventScroll: true });
         },
         {
           title: "Clear filter",

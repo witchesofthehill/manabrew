@@ -60,6 +60,8 @@ pub enum StateEnvelope {
         emit_ms: Option<u32>,
     },
     Display {
+        #[serde(rename = "forPlayer", default, skip_serializing_if = "Option::is_none")]
+        for_player: Option<String>,
         event: Value,
     },
     /// Engine asks a player for a decision. `prompt` is `AgentPrompt` for the
@@ -158,6 +160,7 @@ impl StateEnvelope {
                 emit_ms: None,
             },
             AgentMessage::Display(event) => StateEnvelope::Display {
+                for_player: Some(for_player),
                 event: serde_json::to_value(event).unwrap_or(Value::Null),
             },
             AgentMessage::Prompt(prompt) => StateEnvelope::Prompt {

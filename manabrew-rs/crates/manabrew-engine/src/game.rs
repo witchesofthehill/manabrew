@@ -112,6 +112,14 @@ impl CardDatabaseRegistry {
         Some(database)
     }
 }
+#[derive(Debug, Default)]
+struct PendingNotifications(Vec<crate::agent::notification::GameNotification>);
+
+impl Clone for PendingNotifications {
+    fn clone(&self) -> Self {
+        Self::default()
+    }
+}
 
 /// The complete, serializable game state.
 /// All game entities live here — nothing holds references, everything uses IDs.
@@ -221,6 +229,8 @@ pub struct GameState {
     pub last_sacrificed_card: Option<CardId>,
     #[serde(skip)]
     pub counter_added_this_turn: BTreeMap<(GameEntity, Option<u64>, CounterType), i32>,
+    #[serde(skip)]
+    pending_notifications: PendingNotifications,
 }
 
 impl GameState {
@@ -266,7 +276,24 @@ impl GameState {
             pre_sba_battlefield: Vec::new(),
             last_sacrificed_card: None,
             counter_added_this_turn: BTreeMap::new(),
+            pending_notifications: PendingNotifications::default(),
         }
+    }
+    pub(crate) fn queue_notification(
+        &mut self,
+        notification: crate::agent::notification::GameNotification,
+    ) {
+        self.pending_notifications.0.push(notification);
+    }
+
+    pub(crate) fn take_notifications(
+        &mut self,
+    ) -> Vec<crate::agent::notification::GameNotification> {
+        std::mem::take(&mut self.pending_notifications.0)
+    }
+
+    pub(crate) fn clear_notifications(&mut self) {
+        self.pending_notifications.0.clear();
     }
 
     /// Create a new card instance and return its ID. Does NOT place it in a zone.
@@ -528,6 +555,11 @@ impl GameState {
         rng: &mut dyn crate::game_rng::GameRng,
     ) {
         self.zones.shuffle_cards(zone_type, owner, rng);
+        if zone_type == ZoneType::Library {
+            self.queue_notification(
+                crate::agent::notification::GameNotification::LibraryShuffled { player: owner },
+            );
+        }
     }
 
     pub fn shuffle_zone_cards_with_rand<R: rand::Rng + ?Sized>(
@@ -537,6 +569,11 @@ impl GameState {
         rng: &mut R,
     ) {
         self.zones.shuffle_cards_with_rand(zone_type, owner, rng);
+        if zone_type == ZoneType::Library {
+            self.queue_notification(
+                crate::agent::notification::GameNotification::LibraryShuffled { player: owner },
+            );
+        }
     }
 
     pub(crate) fn save_zone_lki(

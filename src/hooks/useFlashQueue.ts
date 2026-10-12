@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useGameStore } from "@/stores/useGameStore";
 import type { FlashItem } from "@/components/game/game.types";
 import type { GameViewDto } from "@/protocol/game";
+import { isCardPlayDisplayEvent, isTurnStartDisplayEvent } from "@/lib/displayEvents";
 
 export function useFlashQueue(flashDurationMs: number) {
   const deferredQueue = useGameStore((s) => s.deferredQueue);
@@ -61,18 +62,18 @@ export function useFlashQueue(flashDurationMs: number) {
     deferredStateRef.current = { gameView: snapshot.gameView, prompt: snapshot.prompt };
 
     for (const evt of snapshot.displayEvents) {
-      if (evt.kind === "cardPlayed") {
+      if (isCardPlayDisplayEvent(evt)) {
         flashQueueRef.current.push({
           kind: "card",
-          cardId: evt.cardId!,
-          cardName: evt.cardName!,
-          setCode: evt.setCode ?? "",
+          cardId: evt.origin.cardId,
+          cardName: evt.context.cardName,
+          setCode: evt.context.setCode,
         });
-      } else if (evt.kind === "turnChanged") {
+      } else if (isTurnStartDisplayEvent(evt)) {
         flashQueueRef.current.push({
           kind: "turn",
-          playerId: evt.activePlayerId!,
-          playerName: evt.activePlayerName!,
+          playerId: evt.origin.playerId,
+          playerName: evt.context.activePlayerName,
         });
       }
     }

@@ -109,6 +109,8 @@ const EMPTY_PREVIEW_STACK: StackSpec = {
 };
 const NO_PREVIEW_ACTION = () => undefined;
 const HOVER_ALLOWED_PROMPTS = new Set<PromptType>([
+  "mulligan",
+  "mulliganPutBack",
   "chooseAction",
   "chooseAttackers",
   "chooseBlockers",

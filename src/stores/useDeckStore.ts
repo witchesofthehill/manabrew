@@ -1177,7 +1177,7 @@ export const useDeckStore = create<DeckState>()(
           };
         },
         merge: (persisted, current) => {
-          const p = persisted as Partial<DeckState>;
+          const p = (persisted ?? {}) as Partial<DeckState>;
           const merged = { ...current, ...p } as DeckState;
           merged.isReadOnly = false;
           merged.readOnlySource = null;

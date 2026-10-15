@@ -968,7 +968,9 @@ export class CardSprite extends Container {
     this.foilSheen.setExclusion(
       this.handRulesFace?.visible ? this.handRulesFace.foilExclusion : null,
     );
-    this.contentContainer.setChildIndex(this.foilSheen, this.contentContainer.children.length - 1);
+    if (this.contentContainer.children.at(-1) !== this.foilSheen) {
+      this.contentContainer.addChild(this.foilSheen);
+    }
   }
   setHandControls(spec: HandCardControlsSpec | null): void {
     if (this.kind !== "hand") return;

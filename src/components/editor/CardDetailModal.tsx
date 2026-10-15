@@ -85,6 +85,7 @@ export function CardDetailModal({
   const [selectedPrint, setSelectedPrint] = useState<ScryfallCard | null>(null);
   const [faceIndex, setFaceIndex] = useState<0 | 1>(0);
   const presentation = usePreferencesStore((state) => state.inGameCardPreviewStyle);
+  const animatedFoil = usePreferencesStore((state) => state.inGameAnimations);
   const setPresentation = usePreferencesStore((state) => state.setInGameCardPreviewStyle);
   const generated = presentation === "rules";
   const rulingsData = useCardRulings(initialCard);
@@ -111,7 +112,6 @@ export function CardDetailModal({
     setFaceIndex(0);
   }
   const card = selectedPrint ?? initialCard;
-  const renderCard = useMemo(() => scryfallToDeckCard(card), [card]);
   const deckCardName = frontFaceName(card.name);
   const deckCards = [
     ...currentDeck.cards,
@@ -120,6 +120,14 @@ export function CardDetailModal({
     ...(currentDeck.commanders ?? []),
   ];
   const matchingDeckCard = deckCards.find((candidate) => candidate.identity.name === deckCardName);
+  const foil =
+    (deckEditorActions?.token?.identity.foil ??
+      deckEditorActions?.printing?.foil ??
+      (deckEditorActions ? matchingDeckCard?.identity.foil : false)) === true;
+  const renderCard = useMemo(() => {
+    const rendered = scryfallToDeckCard(card);
+    return { ...rendered, identity: { ...rendered.identity, foil } };
+  }, [card, foil]);
   const unsupported = useIsUnsupported(deckCardName);
   const owned = collectionQuantityForName(collectionQuantities, deckCardName);
   const exactOwnership = matchingDeckCard
@@ -287,21 +295,28 @@ export function CardDetailModal({
                       />
                     </div>
                   ) : imageUrl ? (
-                    isHorizontalActiveFace ? (
-                      <HorizontalCardImage
-                        src={imageUrl}
-                        alt={displayName}
-                        className="w-full aspect-[7/5] rounded-lg shadow-lg"
-                      />
-                    ) : (
-                      <div className="relative aspect-[5/7] w-full overflow-hidden rounded-lg shadow-lg">
+                    <div
+                      className={cn(
+                        "relative w-full overflow-hidden rounded-lg shadow-lg",
+                        isHorizontalActiveFace ? "aspect-[7/5]" : "aspect-[5/7]",
+                        foil && "draft-tile-foil",
+                      )}
+                      data-foil-animated={animatedFoil}
+                    >
+                      {isHorizontalActiveFace ? (
+                        <HorizontalCardImage
+                          src={imageUrl}
+                          alt={displayName}
+                          className="h-full w-full"
+                        />
+                      ) : (
                         <ScryfallImg
                           src={imageUrl}
                           alt={displayName}
                           className="absolute inset-0 h-full w-full object-contain"
                         />
-                      </div>
-                    )
+                      )}
+                    </div>
                   ) : (
                     <div
                       className={cn(
@@ -623,8 +638,8 @@ export function CardDetailModal({
                     <Button
                       size="icon"
                       variant="ghost"
-                      className={cn("h-7 w-7", matchingDeckCard?.identity.foil && "text-warning")}
-                      title={matchingDeckCard?.identity.foil ? `Remove foil` : `Make foil`}
+                      className={cn("h-7 w-7", foil && "text-warning")}
+                      title={foil ? `Remove foil` : `Make foil`}
                       onClick={() => deckEditorActions.onToggleFoil?.(deckCardName)}
                     >
                       <Sparkles className="h-3.5 w-3.5" />

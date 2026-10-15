@@ -4,6 +4,7 @@ import type { DeckCard } from "@/protocol/deck";
 import { renderMseCard } from "@/lib/mseCardRenderer";
 import { cn } from "@/lib/utils";
 import { useScryfallStore } from "@/stores/useScryfallStore";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { CARD_BACK_IMAGE_URL } from "./game.constants";
 
@@ -17,16 +18,24 @@ interface MseCardImageProps {
 }
 
 export function MseCardImage(props: MseCardImageProps) {
-  const hidden = props.card ? props.card.isFaceDown || !props.card.identity.name : false;
+  const hidden = props.card
+    ? props.card.isFaceDown ||
+      !props.card.identity.name ||
+      ("visibility" in props.card && props.card.visibility === "hidden")
+    : false;
   const identity = props.card?.id ?? (props.deckCard?.identity.id || props.deckCard?.identity.name);
   const faceIndex = props.faceIndex ?? (props.card?.isTransformed ? 1 : 0);
-  return (
-    <MseCardCanvas
-      key={hidden ? "hidden" : `${identity}:${faceIndex}`}
-      {...props}
-      hidden={hidden}
-    />
-  );
+  const locale = useScryfallStore((store) => store.locale);
+  const printingKey = JSON.stringify([
+    identity,
+    props.card?.identity,
+    props.deckCard?.identity,
+    props.deckCard?.uris.normal,
+    props.deckCard?.backFace?.uris.normal,
+    faceIndex,
+    locale,
+  ]);
+  return <MseCardCanvas key={hidden ? "hidden" : printingKey} {...props} hidden={hidden} />;
 }
 
 function MseCardCanvas({
@@ -50,6 +59,8 @@ function MseCardCanvas({
   }>();
   const [hasImage, setHasImage] = useState(false);
   const locale = useScryfallStore((store) => store.locale);
+  const animatedFoil = usePreferencesStore((store) => store.inGameAnimations);
+  const foil = !hidden && (card ? card.foil : deckCard?.identity.foil);
   const state =
     result?.card === card &&
     result?.deckCard === deckCard &&
@@ -93,6 +104,7 @@ function MseCardCanvas({
       })
       .catch(() => {
         if (!controller.signal.aborted) {
+          setHasImage(false);
           setResult({ card, deckCard, faceIndex, locale, state: "error" });
         }
       });
@@ -102,7 +114,12 @@ function MseCardCanvas({
   return (
     <div
       ref={hostRef}
-      className={cn("relative block aspect-[5/7] overflow-hidden", className)}
+      className={cn(
+        "relative block aspect-[5/7] overflow-hidden",
+        foil && "draft-tile-foil",
+        className,
+      )}
+      data-foil-animated={animatedFoil}
       data-mse-state={hidden ? undefined : state}
       role="img"
       aria-label={name}

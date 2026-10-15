@@ -37,7 +37,7 @@ export function CardThumbnail({
   const { name, foil } = card.identity;
   const imageUrl = card.uris?.[imageSize];
   return (
-    <div className={cn("relative w-full", foil && "draft-tile-foil")}>
+    <div className="relative w-full">
       <MseCardImage
         deckCard={card}
         loading={loading}

@@ -1,7 +1,7 @@
 import { Container, Graphics, Rectangle, Text, TextStyle } from "pixi.js";
 import type { FederatedPointerEvent } from "pixi.js";
 import { hexToNum } from "@/pixi/colorUtils";
-import { RULES_BODY_FONT, type RulesPreviewFrameStyle } from "./rulesPreviewFrame";
+import type { RulesPreviewFrameStyle } from "./rulesPreviewFrame";
 
 export const PREVIEW_SECTION_HEADER_HEIGHT = 32;
 const DRAG_SLOP = 5;
@@ -38,7 +38,7 @@ export class RulesPreviewSectionHeader extends Container {
       text: title,
       style: new TextStyle({
         fill: frame.ink,
-        fontFamily: RULES_BODY_FONT,
+        fontFamily: frame.bodyFont,
         fontSize: options.fontSize ?? 14,
         fontWeight: "700",
       }),
@@ -102,9 +102,15 @@ export class RulesPreviewSectionHeader extends Container {
   private drawBackground(hovered: boolean): void {
     const { width, collapsed, frame } = this.options;
     const height = this.options.height ?? PREVIEW_SECTION_HEADER_HEIGHT;
-    this.background.clear().rect(0, 0, width, height).fill(hexToNum(frame.paper));
+    this.background.clear();
+    if (!frame.textured) {
+      this.background.rect(0, 0, width, height).fill(hexToNum(frame.paper));
+    }
     if (!collapsed || hovered) {
-      this.background.rect(0, 0, width, height).fill(hexToNum(frame.raised));
+      this.background.rect(0, 0, width, height).fill({
+        color: hexToNum(frame.textured ? frame.ink : frame.raised),
+        alpha: frame.textured ? (hovered ? 0.08 : 0.025) : 1,
+      });
     }
   }
 }

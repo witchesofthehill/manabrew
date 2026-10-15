@@ -770,7 +770,7 @@
 }
 
 .draft-tile-foil {
-  position: relative;
+  isolation: isolate;
 }
 
 .draft-tile-foil::before {
@@ -781,9 +781,9 @@
   background: linear-gradient(
     115deg,
     transparent 30%,
-    rgba(255, 255, 255, 0.45) 45%,
-    rgba(252, 213, 53, 0.35) 50%,
-    rgba(118, 211, 240, 0.35) 55%,
+    color-mix(in srgb, var(--canvas-neutral) 26%, transparent) 45%,
+    color-mix(in srgb, var(--rarity-rare) 22%, transparent) 50%,
+    color-mix(in srgb, var(--mana-u) 20%, transparent) 55%,
     transparent 70%
   );
   background-size: 250% 100%;
@@ -792,6 +792,18 @@
   mix-blend-mode: screen;
   pointer-events: none;
   z-index: 1;
+}
+
+.draft-tile-foil[data-foil-animated="false"]::before {
+  animation: none;
+  background-position: 50% 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .draft-tile-foil::before {
+    animation: none !important;
+    background-position: 50% 0;
+  }
 }
 
 @keyframes foil-shimmer {

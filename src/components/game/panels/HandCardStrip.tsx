@@ -37,6 +37,7 @@ function HandCardThumb({ card }: { card: CardDto }) {
   const resolvedUrl = useResolvedGameCard(card).imageUrl(card.isTransformed ? 1 : 0, "small");
   const url = card.isFaceDown || !card.identity.name ? CARD_BACK_IMAGE_URL : resolvedUrl;
   const presentation = usePreferencesStore((state) => state.handCardStyle);
+  const animatedFoil = usePreferencesStore((state) => state.inGameAnimations);
   if (presentation === "rules") {
     return (
       <MseCardImage
@@ -51,5 +52,16 @@ function HandCardThumb({ card }: { card: CardDto }) {
     );
   }
   if (!url) return <span className={cn(THUMB_CLASS, "bg-muted")} />;
-  return <ScryfallImg src={url} alt="" loading="eager" className={THUMB_CLASS} />;
+  return (
+    <span
+      className={cn(
+        THUMB_CLASS,
+        "relative overflow-hidden",
+        card.foil && !card.isFaceDown && card.identity.name && "draft-tile-foil",
+      )}
+      data-foil-animated={animatedFoil}
+    >
+      <ScryfallImg src={url} alt="" loading="eager" className="h-full w-full object-cover" />
+    </span>
+  );
 }

@@ -60,6 +60,7 @@ export interface MseFaceSnapshot {
   colors?: string[];
   color_indicator?: string[];
   color_identity?: string[];
+  produced_mana?: string[];
   power?: string;
   toughness?: string;
   loyalty?: string;
@@ -269,6 +270,7 @@ function faceSnapshot(
     color_identity:
       stringList(face, "color_identity") ??
       (index === 0 ? deckCard?.colorIdentity && [...deckCard.colorIdentity] : undefined),
+    produced_mana: stringList(face, "produced_mana"),
     power: face?.power ?? back?.power ?? (index === 0 ? deckCard?.power : undefined),
     toughness:
       face?.toughness ?? back?.toughness ?? (index === 0 ? deckCard?.toughness : undefined),
@@ -347,6 +349,7 @@ export async function prepareMseCard(input: MseCardInput): Promise<PreparedMseCa
         .getCard({ id: meldResult.id })
         .catch(() => undefined)
     : undefined;
+  if (meldResult && !reverse) throw new Error("The meld result metadata is unavailable");
   const faceInfo = reverse && info ? { ...info, card_faces: [info, reverse.info] } : info;
   const resolved = resolveCardFaces(faceInfo);
   const combined =
@@ -407,6 +410,7 @@ export async function prepareMseCard(input: MseCardInput): Promise<PreparedMseCa
     if (face.colors) Object.freeze(face.colors);
     if (face.color_indicator) Object.freeze(face.color_indicator);
     if (face.color_identity) Object.freeze(face.color_identity);
+    if (face.produced_mana) Object.freeze(face.produced_mana);
     Object.freeze(face);
   }
   Object.freeze(faces);
@@ -433,7 +437,9 @@ export async function prepareMseCard(input: MseCardInput): Promise<PreparedMseCa
     frame: info?.frame,
     frame_effects: stringList(info, "frame_effects"),
     border_color: info?.border_color,
+    security_stamp: stringField(info, "security_stamp"),
     full_art: info?.full_art,
+    textless: info?.textless,
     promo_types: stringList(info, "promo_types"),
     lang: info?.lang ?? deckCard?.imageLanguage ?? input.locale,
     released_at: info?.released_at,

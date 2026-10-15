@@ -15,6 +15,10 @@ export interface MseCardArtwork {
   width: number;
   height: number;
   angle: number;
+  fontFamily?: string;
+  fontWeight?: string;
+  fontStyle?: string;
+  inkColor: string;
 }
 
 const rulesBounds = new WeakMap<MseCanvas, readonly MseCardArtwork[]>();
@@ -114,12 +118,7 @@ export function normalizeMseCanvas(result: MseRenderResult): MseCanvas {
     drawing.drawImage(result.canvas, 0, 0, canvas.width, canvas.height);
   }
   const rules: MseCardArtwork[] = [];
-  for (const name of context.template.layouts.keys()) {
-    const type = context.cells.card.get(name)?.definition?.record.text("type");
-    const isRules =
-      type === "text" &&
-      /^(?:(?:(?:rule|flavor|chapter)_)?text(?:_\d+)?|level_\d+_text)$/.test(name);
-    if (!isRules || !context.fieldVisible(name)) continue;
+  for (const { name, ...typography } of result.rulesFields) {
     const x = Number(context.property(name, "left", "card"));
     const y = Number(context.property(name, "top", "card"));
     const w = Number(context.property(name, "width", "card"));
@@ -150,6 +149,7 @@ export function normalizeMseCanvas(result: MseRenderResult): MseCanvas {
       width: right - left,
       height: bottom - top,
       angle: (((angle - (landscape ? 90 : 0)) % 360) + 360) % 360,
+      ...typography,
     });
     rules.push(bounds);
   }

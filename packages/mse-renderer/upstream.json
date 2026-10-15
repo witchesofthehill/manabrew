@@ -6,7 +6,15 @@
   "localModifications": [
     {
       "file": "lib/mse/engine-card.mjs",
-      "change": "Link Battle and resolved meld faces with their native relations; render unrelated reversible faces without transform links."
+      "change": "Link Battle and resolved meld faces with their native relations; render unrelated reversible faces without transform links; include produced mana in land frame colors and use solid gold for three-or-more-color lands."
+    },
+    {
+      "file": "lib/mse/printing-style.mjs",
+      "change": "Select Universes Beyond frames and triangular stamps from printing metadata; distinguish unsupported or ambiguous treatments from ordinary frames, including Secret Lair, textless and unknown frame effects."
+    },
+    {
+      "file": "lib/mse/style-selection.mjs",
+      "change": "Preserve explicit unsupported-printing results and unavailable requested templates rather than falling through to a generic modern frame."
     },
     {
       "file": "lib/mse/browser-corpus-index.mjs",
@@ -38,7 +46,11 @@
     },
     {
       "file": "lib/mse/card-renderer.mjs",
-      "change": "Share the artwork provider with the generated-image renderer."
+      "change": "Share the artwork provider with the generated-image renderer; pass rules-text painting options and separate cached render variants."
+    },
+    {
+      "file": "lib/mse/card-painter.mjs",
+      "change": "Expose native rules-field geometry metadata, loaded CSS fonts and ink colors; optionally omit rules glyph painting after unchanged text layout preparation."
     }
   ],
   "files": [

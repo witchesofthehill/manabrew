@@ -24,6 +24,7 @@ import { getTheme } from "@/hooks/useTheme";
 import { hexToNum } from "./colorUtils";
 import { DOOMED_FILL_ALPHA } from "./constants";
 import { PulseRing } from "./effects/PulseRing";
+import { CardFoil } from "./effects/CardFoil";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import { useGameStore } from "@/stores/useGameStore";
 import { usePreferencesStore, type BattlefieldCardStyle } from "@/stores/usePreferencesStore";
@@ -421,6 +422,7 @@ export class CardSprite extends Container {
   private nameText: Text;
   private foilRing: Graphics;
   private foilStar: Text;
+  private readonly foilSheen: CardFoil;
   private ringBearerGfx: Graphics;
   private ringBearerIcon: Sprite;
   private mustAttackGfx: Graphics;
@@ -656,6 +658,8 @@ export class CardSprite extends Container {
         this.printedFaceContainer.addChild(child);
       }
     }
+    this.foilSheen = new CardFoil(() => this.onVisualChange?.());
+    this.contentContainer.addChild(this.foilSheen);
     this.addChild(this.pulseRing.gfx);
     this.pivot.set(this.cw / 2, this.ch / 2);
     CardSprite.instances.add(this);
@@ -865,8 +869,14 @@ export class CardSprite extends Container {
         card.identity.name,
         error,
       );
-      if (fallback) await fallback;
-      texture = Texture.EMPTY;
+      texture = fallback
+        ? await fallback
+        : custom
+          ? await useScryfallStore
+              .getState()
+              .getCardTexture(deckCard!, "full", faceIndex)
+              .catch(() => Texture.EMPTY)
+          : Texture.EMPTY;
     }
     if (this.destroyed || generation !== this.loadGeneration) {
       if (owned) texture.destroy(true);
@@ -874,6 +884,16 @@ export class CardSprite extends Container {
     }
     this._imageSettled = true;
     if (texture === Texture.EMPTY) {
+      this.imageSpr.texture = Texture.EMPTY;
+      this.ownedImageTexture?.destroy(true);
+      this.ownedImageTexture = null;
+      this.imageIsArtwork = false;
+      this._imageLoaded = false;
+      this.imageSpr.visible = false;
+      this.imageMask.visible = false;
+      this.placeholderGfx.visible = true;
+      this.nameText.visible = !hidden;
+      this.syncHandFaceVisibility();
       this.onVisualChange?.();
       return;
     }
@@ -945,6 +965,7 @@ export class CardSprite extends Container {
     if (this.handRulesFace) {
       this.handRulesFace.visible = !hidden && (this.handRulesView || (!this._imageLoaded && ready));
     }
+    this.contentContainer.setChildIndex(this.foilSheen, this.contentContainer.children.length - 1);
   }
   setHandControls(spec: HandCardControlsSpec | null): void {
     if (this.kind !== "hand") return;
@@ -1224,7 +1245,7 @@ export class CardSprite extends Container {
       }
     }
     if (keywordsChanged || card.id !== previous.id) this.updateKeywords();
-    if (card.foil !== previous.foil) this.updateFoil();
+    if (card.foil !== previous.foil || imageChanged) this.updateFoil();
     if (card.isRingBearer !== previous.isRingBearer) this.updateRingBearer();
     if (card.manaCost !== previous.manaCost || frameChanged) this.updateMana();
     if (filterChanged) this.updateCardFilter();
@@ -1335,6 +1356,7 @@ export class CardSprite extends Container {
     }
     this.shadowGfx.destroy({ context: false });
     this.foilRing.destroy({ context: false });
+    this.foilSheen.destroy();
     this.pulseRing.destroy();
     gsap.killTweensOf(this.promptReferenceGfx);
     if (this.sickFilter) {
@@ -1535,9 +1557,11 @@ export class CardSprite extends Container {
     this.orderBadgeContainer.y = 4;
   }
   private updateFoil(): void {
-    const isFoil = !!this.card.foil;
+    const isFoil = !!this.card.foil && !this.card.isFaceDown && !!this.card.identity.name;
     this.foilStar.visible = isFoil;
     this.foilRing.visible = isFoil;
+    if (isFoil) this.foilSheen.setSurface(this.cw, this.ch, this.cardRadius(), activeTheme);
+    this.foilSheen.setEnabled(isFoil);
   }
   private updatePT(): void {
     const card = this.card;
@@ -2010,6 +2034,7 @@ export class CardSprite extends Container {
     return this.usesHandRulesView ? rulesCardRadius(this.cw, this.ch) : CARD_RADIUS;
   }
   private refreshCardRadiusChrome(): void {
+    this.updateFoil();
     if (this.lastRing) {
       this.ringGfx.clear();
       this.drawRingStroke(this.lastRing.color, this.lastRing.alpha);

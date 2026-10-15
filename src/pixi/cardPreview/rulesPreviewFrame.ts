@@ -3,6 +3,7 @@ import type { Theme } from "@/hooks/useTheme";
 import { hexToNum } from "@/pixi/colorUtils";
 import { ensureTextContrast } from "@/themes/gameTheme";
 import type { CardStatPresentation } from "@/components/game/cardPresentation";
+import type { MseCardArtwork } from "@/lib/mseCardRenderer";
 
 export const RULES_BODY_FONT = "Georgia, Cambria, Times New Roman, serif";
 export const RULES_TITLE_FONT = "Cormorant Garamond, Georgia, serif";
@@ -27,19 +28,28 @@ export interface RulesPreviewFrameStyle {
   ink: string;
   mutedInk: string;
   border: string;
+  bodyFont: string;
+  textured: boolean;
 }
 
-export function resolveRulesPreviewFrame(theme: Theme): RulesPreviewFrameStyle {
+export function resolveRulesPreviewFrame(
+  theme: Theme,
+  native?: MseCardArtwork,
+): RulesPreviewFrameStyle {
   const palette = theme.gameTheme.cardPaper;
   const paper = palette.background;
-  const ink = palette.ink;
-  const mutedInk = ensureTextContrast(palette.mutedInk, paper, ink, RULES_TEXT_MIN_CONTRAST);
+  const ink = native?.inkColor ?? palette.ink;
+  const mutedInk = native
+    ? ink
+    : ensureTextContrast(palette.mutedInk, paper, ink, RULES_TEXT_MIN_CONTRAST);
   return {
     paper,
     raised: palette.raised,
     ink,
     mutedInk,
     border: palette.border,
+    bodyFont: native?.fontFamily ?? RULES_BODY_FONT,
+    textured: native !== undefined,
   };
 }
 

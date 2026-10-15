@@ -2,7 +2,7 @@
 // are from the pinned Full Magic Pack. A match selects a treatment, not a claim
 // of pixel-perfect reproduction of every printing using that treatment.
 export const MSE_PRINTING_FIELDS = ['set', 'collector_number', 'frame', 'frame_effects',
-  'border_color', 'full_art', 'promo_types', 'lang', 'released_at', 'artist'];
+  'border_color', 'security_stamp', 'full_art', 'textless', 'promo_types', 'lang', 'released_at', 'artist'];
 
 const packageName = name => `${name}.mse-style`;
 const choice = (name, styling = {}) => ({style: packageName(name), styling});
@@ -12,7 +12,9 @@ export function printingMseCardFields(snapshot, printing) {
   const border = metadata.border_color;
   // These names are native Magic game color choices. "borderless" is a style
   // option, not a color value, and must never be sent to the color parser.
-  return ['black', 'white', 'silver', 'gold'].includes(border) ? {border_color: border} : {};
+  const fields = ['black', 'white', 'silver', 'gold'].includes(border) ? {border_color: border} : {};
+  if (metadata.security_stamp === 'triangle') fields.card_stamp = 'universes beyond';
+  return fields;
 }
 
 // The footer credits the displayed printing: its artist, rarity, collector
@@ -69,6 +71,13 @@ const showcaseSets = {
   mkm: 'ravnica-dossier', dsk: 'duskmourn-paranormal',
 };
 
+const unsupported = () => ({style: null, styling: {}});
+const standardEffects = new Set([
+  'legendary', 'miracle', 'enchantment', 'draft', 'devoid', 'tombstone',
+  'sunmoondfc', 'compasslanddfc', 'originpwdfc', 'mooneldrazidfc',
+  'waxingandwaningmoondfc', 'reversemoondfc', 'fandfc', 'companion', 'snow', 'lesson', 'spree',
+]);
+
 export function printingMseTreatment(snapshot, {printing, faceIndex = 0} = {}) {
   // Resolved metadata belongs to the displayed image and wins over cached card
   // metadata, including the absence of optional fields such as frame_effects.
@@ -82,42 +91,44 @@ export function printingMseTreatment(snapshot, {printing, faceIndex = 0} = {}) {
   const frame = String(metadata.frame ?? '');
   const walker = /\bPlaneswalker\b/.test(type);
   const saga = /\bSaga\b/.test(type);
-  // A decorative single-face package cannot replace a multipart layout. DFCs
-  // also require linked-face support, which varies between package families.
-  if (layout && !['normal', 'leveler'].includes(layout)) return null;
-  if (/\bBattle\b/.test(type)) return null;
+  const decorative = effects.has('showcase') || metadata.full_art ||
+    metadata.border_color === 'borderless' || effects.has('borderless') || effects.has('extendedart');
+  if (metadata.textless || metadata.promo_types?.includes('playtest')) return unsupported();
+  if (frame && !['1993', '1997', '2003', '2015', 'future'].includes(frame)) return unsupported();
+  if (set === 'sld' && (!frame || frame === '2015') && !effects.has('extendedart'))
+    return unsupported();
+  const ordinary = (!layout || layout === 'normal') && !walker && !saga &&
+    !/\b(?:Battle|Class)\b/.test(type);
+  if (ordinary) {
+    if (set === 'mps') return choice('magic-m15-Kaladesh');
+    if (set === 'mp2') return choice('magic-m15-invocation');
+    if (set === 'exp') return choice('magic-m15-expedition');
+    if (set === 'sta')
+      return metadata.lang && metadata.lang !== 'ja' ? choice('magic-m15-showcase-strixhaven') : unsupported();
+    if (effects.has('showcase') && Object.hasOwn(showcaseSets, set))
+      return choice(`magic-m15-showcase-${showcaseSets[set]}`);
+  }
+  if ([...effects].some(effect => effect !== 'extendedart' && !standardEffects.has(effect)))
+    return unsupported();
+  if (effects.has('showcase') || metadata.full_art || metadata.border_color === 'borderless')
+    return unsupported();
+  if (decorative && !ordinary) return unsupported();
+  if (effects.has('extendedart'))
+    return choice('magic-m15-altered', {frames: 'frameless art'});
+  if (layout && !['normal', 'saga'].includes(layout)) return null;
+  if (/\b(?:Battle|Class)\b/.test(type)) return null;
   if (walker || saga) {
-    if (effects.has('showcase') || metadata.full_art || metadata.border_color === 'borderless'
-      || effects.has('extendedart')) return null;
     if (['1993', '1997'].includes(frame)) return choice(walker ? 'magic-old-planeswalker' : 'magic-old-saga');
     if (walker && frame === '2003') return choice('magic-new-planeswalker');
     return null;
   }
-  if (layout === 'leveler') return null;
-
-  // Dedicated bonus-sheet set codes identify these frames without guessing a
-  // collector-number range. Japanese-language Archives have multiple art
-  // treatments, so language alone is insufficient to choose their template.
-  if (set === 'mps') return choice('magic-m15-Kaladesh');
-  if (set === 'mp2') return choice('magic-m15-invocation');
-  if (set === 'exp') return choice('magic-m15-expedition');
-  if (set === 'sta' && metadata.lang !== 'ja') return choice('magic-m15-showcase-strixhaven');
-  if (effects.has('showcase') && Object.hasOwn(showcaseSets, set))
-    return choice(`magic-m15-showcase-${showcaseSets[set]}`);
-
-  // Unknown showcase/full-art designs must not be misidentified as ordinary
-  // era frames. Generic borderless/extended-art modes remain usable, however.
-  if (effects.has('showcase')) return null;
-  if (metadata.border_color === 'borderless' || effects.has('borderless'))
-    return choice('magic-m15-altered', {frames: 'borderless art'});
-  if (effects.has('extendedart'))
-    return choice('magic-m15-altered', {frames: 'frameless art'});
-  if (metadata.full_art) return null;
   if (frame === 'future') return choice('magic-future');
   if (frame === '2003') return choice('magic-new');
   if (['1993', '1997'].includes(frame)) {
     if (['lea', 'leb', '2ed', 'ced', 'cei'].includes(set)) return choice('magic-old-abu');
     return choice('magic-old');
   }
+  if (frame === '2015' && metadata.promo_types?.includes('universesbeyond'))
+    return choice('magic-m15-altered', {frames: 'universes beyond'});
   return null;
 }

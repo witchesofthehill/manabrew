@@ -56,7 +56,7 @@ export class MseCardRenderer{
     return card;
   }
   async render(request,options={}){
-    const key=options.cache===false?null:JSON.stringify(request);
+    const key=options.cache===false?null:JSON.stringify([request,options.rulesText!==false]);
     const cached=key&&this.results.get(key);
     if(cached){
       this.check(options.signal);
@@ -71,14 +71,14 @@ export class MseCardRenderer{
     }
     return result;
   }
-  has(request){return this.results.has(JSON.stringify(request));}
-  async renderContext(context,{signal,onFieldDrawn}={}){
+  has(request,{rulesText=true}={}){return this.results.has(JSON.stringify([request,rulesText]));}
+  async renderContext(context,{signal,onFieldDrawn,rulesText=true}={}){
     this.check(signal);
     const width=Number(context.template.style.text('card width')),height=Number(context.template.style.text('card height'));
     if(!Number.isSafeInteger(width)||!Number.isSafeInteger(height)||width<1||height<1||width*height>(this.images.maxPixels??16777216))throw new MseError('card-size','Invalid card canvas dimensions');
     const canvas=this.createCanvas(width,height);
     const result=await paintMseCard(canvas.getContext('2d'),context,this.fonts,this.images,{
-      createCanvas:this.createCanvas,loadCardImage:this.loadCardImage,
+      createCanvas:this.createCanvas,loadCardImage:this.loadCardImage,rulesText,
       onFieldDrawn:async info=>{this.check(signal);if(onFieldDrawn)await onFieldDrawn(info);},
     });
     this.check(signal);

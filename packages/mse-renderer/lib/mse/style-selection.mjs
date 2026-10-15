@@ -7,7 +7,7 @@ export function selectMsePresentation(snapshot,{style,defaultStyle='auto',faceIn
   if(defaultStyle&&defaultStyle!=='auto')return {style:defaultStyle,styling:{},source:'explicit'};
   const available=availableStyles==null?null:new Set(availableStyles);
   const treatment=printingMseTreatment(snapshot,{printing,faceIndex});
-  if(treatment&&(!available||available.has(treatment.style)))return {...treatment,source:'printing'};
+  if(treatment)return {...treatment,style:!available||available.has(treatment.style)?treatment.style:null,source:'printing'};
   const general=generalMseStyle(snapshot,{faceIndex});
   return {style:!available||available.has(general)?general:null,styling:{},source:'general'};
 }

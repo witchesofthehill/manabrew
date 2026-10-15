@@ -13,6 +13,7 @@ import { deriveCardRailState } from "@/components/game/cardRailState";
 import { isCreature, isLethalDamage } from "@/components/game/game.utils";
 import { cardTypeLine } from "@/components/game/cardPresentation";
 import { battlefieldKeywords } from "@/lib/battlefieldKeywords";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
 
 export type BattlefieldCardFaceVariant = "frame" | "art";
 
@@ -33,6 +34,7 @@ export function BattlefieldCardFace({
   width = 70,
 }: BattlefieldCardFaceProps) {
   const theme = useTheme().gameTheme;
+  const animatedFoil = usePreferencesStore((state) => state.inGameAnimations);
   const { imageUrl } = useResolvedGameCard(card);
   if (card.isFaceDown || !card.identity.name) {
     return (
@@ -42,6 +44,7 @@ export function BattlefieldCardFace({
     );
   }
   const artworkUrl = imageUrl(card.isTransformed ? 1 : 0, "art_crop") || artCrop;
+  const fallbackUrl = imageUrl(card.isTransformed ? 1 : 0, "normal");
   const artwork = artworkUrl ? (
     <ScryfallImg
       src={artworkUrl}
@@ -192,8 +195,9 @@ export function BattlefieldCardFace({
         card.tapped && "rotate-90",
         card.phasedOut && "opacity-30 grayscale",
         summoned && "opacity-80 grayscale-[0.85]",
-        card.foil && "draft-tile-foil",
+        card.foil && variant === "art" && "draft-tile-foil",
       )}
+      data-foil-animated={animatedFoil}
       style={
         {
           ["--card-rail-width" as string]: CARD_RAIL_WIDTH,
@@ -207,7 +211,20 @@ export function BattlefieldCardFace({
       {variant === "art" ? (
         artwork
       ) : (
-        <MseCardImage card={card} className="absolute inset-0 h-full w-full" fallback={artwork} />
+        <MseCardImage
+          card={card}
+          className="absolute inset-0 h-full w-full"
+          fallback={
+            fallbackUrl ? (
+              <ScryfallImg
+                src={fallbackUrl}
+                alt=""
+                className="absolute inset-0 h-full w-full object-contain"
+                draggable={false}
+              />
+            ) : undefined
+          }
+        />
       )}
       {variant === "frame" && (
         <div

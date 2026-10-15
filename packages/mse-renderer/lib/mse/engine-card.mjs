@@ -46,7 +46,7 @@ function textManaColors(text){
   return Object.keys(colorNames).filter(code=>found.has(code));
 }
 function frameColor(colors,type){
-  const choices=colors.map(code=>colorNames[code]);
+  const choices=/\bLand\b/.test(type)&&colors.length>2?[]:colors.map(code=>colorNames[code]);
   if(/\bArtifact\b/.test(type))choices.push('artifact');
   if(/\bLand\b/.test(type))choices.push('land');
   if(colors.length>1)choices.push('multicolor');
@@ -132,20 +132,11 @@ export function engineCardToMse(snapshot,{faceIndex=null,rulesText,nativeCard={}
     if(indicator!==null)put('indicator',frameColor(indicator,''));
     const signature=String(face.characteristic_signature??'').match(/^colors:([^\n]*)/m);
     let colors=printableColors(signature?signature[1]:face.colors)??indicator;
-    // A nonbasic land with no colors of its own (Dryad Arbor when the
-    // snapshot drops its indicator) takes its frame from its color identity
-    // plus the intrinsic mana of its current basic land types (Yavimaya makes
-    // itself a Forest); the template already infers basics. Identity is a
-    // whole-card value, so only single-faced snapshots use it. Without one
-    // (custom cards, older snapshots), intrinsic mana joins the symbols in the
-    // rules text instead (Fiery Islet stays U/R). The template does not infer
-    // colors from rules text, so a land without basic land types (Spirebluff
-    // Canal) needs them too.
     const listed=value=>value==null?[]:Array.isArray(value)?value:String(value).split(/[,\s]+/);
     const intrinsic=face===snapshot?listed(snapshot.intrinsic_mana):[];
     const printedIdentity=face===snapshot?snapshot.color_identity??snapshot.colorIdentity:null;
-    const identity=printableColors([...(printedIdentity==null?textManaColors(face.oracle_text):listed(printedIdentity)),...intrinsic]);
-    if(/\bLand\b/.test(canonicalType)&&!/\bBasic\b/.test(canonicalType)&&!colors?.length&&identity?.length)colors=identity;
+    const landColors=printableColors([...(printedIdentity==null?textManaColors(face.oracle_text):listed(printedIdentity)),...listed(face.produced_mana),...intrinsic]);
+    if(/\bLand\b/.test(canonicalType)&&!/\bBasic\b/.test(canonicalType)&&!colors?.length&&landColors?.length)colors=landColors;
     const costColors=Object.keys(colorNames).filter(code=>String(face.mana_cost??'').includes(code));
     // Preserve template-specific hybrid/land/artifact inference when its mana
     // colors agree. Explicit live colors and indicators can override that

@@ -2,6 +2,7 @@ import {
   Container,
   FederatedPointerEvent,
   Graphics,
+  Point,
   Rectangle,
   Sprite,
   Text,
@@ -70,6 +71,7 @@ import {
   type MseCardArtwork,
 } from "@/lib/mseCardRenderer";
 import { createMseCardTexture } from "@/pixi/mseCardTexture";
+import { CardFoil } from "@/pixi/effects/CardFoil";
 
 export interface RulesCardPreviewSpec {
   card: CardDto;
@@ -118,6 +120,7 @@ const TOUCH_PREVIEW_CONTROL_SIZE = 44;
 const PORTRAIT_HEADER_HEIGHT = 52;
 const FOOTER_HEIGHT = 40;
 const FRAME_BOTTOM_PAD = 16;
+const FALLBACK_DETAILS_HEIGHT = 146;
 const CONTENT_PAD = 16;
 const ORACLE_LINE_HEIGHT = 20;
 const FLAVOR_FONT_SIZE = 13;
@@ -126,6 +129,7 @@ const FLAVOR_MANA_SIZE = 15;
 const ABILITY_GAP = 12;
 const ENTRY_INTERACTION_PAD_MS = 80;
 const STACK_RULES_PULSE_S = 0.9;
+const SCROLL_DRAG_SLOP = 5;
 
 function prefersReducedMotion(): boolean {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -144,10 +148,10 @@ function textStyle(
   return new TextStyle({ fill, fontSize, fontWeight, fontFamily, lineHeight: fontSize * 1.3 });
 }
 
-function oracleTextStyle(fill: string, italic = false): TextStyle {
+function oracleTextStyle(fill: string, italic = false, fontFamily = RULES_BODY_FONT): TextStyle {
   return new TextStyle({
     fill,
-    fontFamily: RULES_BODY_FONT,
+    fontFamily,
     fontSize: 15,
     fontWeight: "400",
     fontStyle: italic ? "italic" : "normal",
@@ -155,10 +159,10 @@ function oracleTextStyle(fill: string, italic = false): TextStyle {
   });
 }
 
-function flavorTextStyle(fill: string): TextStyle {
+function flavorTextStyle(fill: string, fontFamily = RULES_BODY_FONT): TextStyle {
   return new TextStyle({
     fill,
-    fontFamily: RULES_BODY_FONT,
+    fontFamily,
     fontSize: FLAVOR_FONT_SIZE,
     fontWeight: "400",
     fontStyle: "italic",
@@ -178,6 +182,11 @@ export class RulesCardPreviewLayer {
   private rulesRegion = new Rectangle();
   private fallbackFace = new Container();
   private faceTexture: Texture | null = null;
+  private rulesBackground = new Sprite(Texture.EMPTY);
+  private rulesBackgroundMask = new Graphics();
+  private rulesBackgroundTexture: Texture | null = null;
+  private rulesBackgroundAbort: AbortController | null = null;
+  private foil: CardFoil | null = null;
   private renderAbort: AbortController | null = null;
   private unsubscribeLocale: () => void;
   private renderState: "loading" | "ready" | "error" = "loading";
@@ -226,9 +235,14 @@ export class RulesCardPreviewLayer {
   private canFlip = false;
   private interactiveReady = false;
   private interactionTimer: number | null = null;
-  private dragStartY: number | null = null;
   private dragPointerId: number | null = null;
-  private dragStartScroll = 0;
+  private bodyPointerId: number | null = null;
+  private dragStart = new Point();
+  private dragPrevious = new Point();
+  private dragLocal = new Point();
+  private dragMoved = false;
+  private bodyTapCancelled = false;
+  private revealHighlightedEffect = false;
   private highlightedEffectTween: gsap.core.Tween | null = null;
   private highlightedRows: Container[] = [];
   private highlightedRowTop: number | null = null;
@@ -246,7 +260,11 @@ export class RulesCardPreviewLayer {
     this.container.eventMode = "static";
     this.container.cursor = "default";
     this.container.on("pointerdown", (event: FederatedPointerEvent) => {
+      if (event.pointerId === this.bodyPointerId) this.bodyPointerId = null;
       if (!this.spec?.embedded) event.stopPropagation();
+    });
+    this.container.on("pointertap", (event: FederatedPointerEvent) => {
+      if (event.pointerId === this.bodyPointerId) event.stopPropagation();
     });
     this.container.hitArea = {
       contains: (x, y) => this.interactiveReady && this.containsHoverArea(x, y),
@@ -263,26 +281,40 @@ export class RulesCardPreviewLayer {
     this.bodyScroller.eventMode = "static";
     this.bodyScroller.on("pointerdown", (event: FederatedPointerEvent) => {
       event.stopPropagation();
-      if (event.pointerType !== "touch" || this.dragPointerId !== null) return;
+      if (this.dragPointerId !== null) return;
+      this.bodyPointerId = event.pointerId;
+      this.bodyTapCancelled = false;
+      if (event.pointerType !== "touch") return;
       this.dragPointerId = event.pointerId;
-      this.dragStartY = event.global.y;
-      this.dragStartScroll = this.scrollOffset;
+      this.dragStart.copyFrom(event.global);
+      this.dragPrevious.copyFrom(event.global);
+      this.dragMoved = false;
     });
     this.bodyScroller.on("globalpointermove", (event: FederatedPointerEvent) => {
-      if (this.dragStartY == null || event.pointerId !== this.dragPointerId) return;
-      const delta = event.global.y - this.dragStartY;
-      this.setScroll(
-        this.dragStartScroll - delta / (this.container.scale.y * this.detailsContainer.scale.y),
-      );
+      if (event.pointerId !== this.dragPointerId) return;
+      this.dragMoved ||=
+        Math.hypot(event.global.x - this.dragStart.x, event.global.y - this.dragStart.y) >
+        SCROLL_DRAG_SLOP;
+      if (!this.dragMoved) return;
+      this.bodyTapCancelled = true;
+      this.revealHighlightedEffect = false;
+      this.bodyScroller.toLocal(this.dragPrevious, undefined, this.dragLocal);
+      const previousY = this.dragLocal.y;
+      this.bodyScroller.toLocal(event.global, undefined, this.dragLocal);
+      this.setScroll(this.scrollOffset + previousY - this.dragLocal.y);
+      this.dragPrevious.copyFrom(event.global);
     });
     const endDrag = (event: FederatedPointerEvent) => {
       if (event.pointerId !== this.dragPointerId) return;
-      this.dragStartY = null;
+      this.bodyTapCancelled ||= this.dragMoved || event.type === "pointercancel";
       this.dragPointerId = null;
     };
     this.bodyScroller.on("pointerup", endDrag);
     this.bodyScroller.on("pointerupoutside", endDrag);
     this.bodyScroller.on("pointercancel", endDrag);
+    this.bodyScroller.on("pointertapcapture", (event: FederatedPointerEvent) => {
+      if (this.bodyTapCancelled) event.stopImmediatePropagation();
+    });
     this.bodyScroller.on("pointertap", (event: FederatedPointerEvent) => {
       event.stopPropagation();
     });
@@ -293,6 +325,8 @@ export class RulesCardPreviewLayer {
     this.controls.on("pointerout", requestRender);
 
     this.faceSprite.eventMode = "none";
+    this.rulesBackground.eventMode = "none";
+    this.rulesBackground.mask = this.rulesBackgroundMask;
     this.fieldFace.addChild(this.faceSprite, this.fallbackFace);
     this.detailsContainer.addChild(
       this.background,
@@ -304,7 +338,7 @@ export class RulesCardPreviewLayer {
       this.scrollThumb,
       this.scrollFade,
     );
-    this.cardContainer.addChild(this.fieldFace);
+    this.cardContainer.addChild(this.fieldFace, this.rulesBackground, this.rulesBackgroundMask);
     this.container.addChild(this.cardContainer, this.detailsContainer, this.viewControls);
   }
   get artworkTop(): number {
@@ -338,6 +372,7 @@ export class RulesCardPreviewLayer {
     if (!spec || this.viewportWidth <= EDGE_PAD * 2 || this.viewportHeight <= EDGE_PAD * 2) {
       this.spec = null;
       this.renderAbort?.abort();
+      this.rulesBackgroundAbort?.abort();
       this.hide(
         preserveHover && this.viewportWidth > EDGE_PAD * 2 && this.viewportHeight > EDGE_PAD * 2,
       );
@@ -375,6 +410,7 @@ export class RulesCardPreviewLayer {
       this.faceTexture?.destroy(true);
       this.faceTexture = null;
       this.rulesRegions = [];
+      this.clearRulesBackground();
     }
     if (lookupChanged || visibilityChanged) {
       this.cardInfoGeneration += 1;
@@ -394,7 +430,12 @@ export class RulesCardPreviewLayer {
     }
     if (lookupChanged || faceChanged || visibilityChanged) {
       this.scrollOffset = 0;
+      this.dragPointerId = null;
+      this.bodyTapCancelled = true;
       this.actions.reset();
+    }
+    if (lookupChanged || faceChanged || visibilityChanged || highlightChanged) {
+      this.revealHighlightedEffect = !!spec.highlightedEffect;
     }
     if (contentChanged || faceChanged || visibilityChanged) void this.loadFace();
     if (
@@ -546,20 +587,25 @@ export class RulesCardPreviewLayer {
   }
 
   scrollBy(delta: number, mode: number, _x: number, _y: number): void {
+    this.bodyTapCancelled = true;
+    this.revealHighlightedEffect = false;
     this.actions.cancelPress();
     this.controls.cancelPress();
     if (!this.detailsOpen && !this.spec?.actions.length) {
       this.detailsOpen = true;
       this.rebuild();
     }
+    const transform = this.bodyScroller.worldTransform;
+    const scale = Math.hypot(transform.c, transform.d);
     const unit =
-      mode === 1 ? ORACLE_LINE_HEIGHT : mode === 2 ? this.bodyHeight : 1 / this.container.scale.y;
+      mode === 1 ? ORACLE_LINE_HEIGHT : mode === 2 ? this.bodyHeight : scale > 0 ? 1 / scale : 0;
     this.setScroll(this.scrollOffset + delta * unit);
   }
 
   private rebuild(): void {
     const spec = this.spec;
     if (!spec || this.viewportWidth <= 0 || this.viewportHeight <= 0) return;
+    this.bodyTapCancelled = true;
     this.highlightedEffectTween?.kill();
     this.highlightedEffectTween = null;
     this.highlightedRows = [];
@@ -637,10 +683,16 @@ export class RulesCardPreviewLayer {
       1,
     );
     this.background.clear();
-    this.frame = resolveRulesPreviewFrame(this.theme);
+    this.frame = resolveRulesPreviewFrame(
+      this.theme,
+      this.rulesBackgroundTexture ? this.rulesRegions[0] : undefined,
+    );
 
     const showingBody =
       this.detailsOpen || indexedActions.length > 0 || this.renderState === "error";
+    if (!display.faceless && this.renderState === "ready" && !this.rulesBackgroundAbort) {
+      void this.loadRulesBackground();
+    }
     const detailsHeader = new RulesPreviewSectionHeader({
       title:
         this.renderState === "error"
@@ -668,6 +720,20 @@ export class RulesCardPreviewLayer {
     this.bodyScroller.visible = showingBody;
     this.footer.visible = showingBody;
     this.fitFace();
+    const showFoil = !spec.embedded && !display.faceless && spec.card.foil;
+    if (showFoil) {
+      if (!this.foil) {
+        this.foil = new CardFoil(() => this.callbacks.onRenderRequested());
+        this.container.addChildAt(this.foil, 1);
+      }
+      this.foil.setSurface(
+        this.panelWidth,
+        this.panelHeight,
+        rulesCardRadius(this.panelWidth, this.panelHeight),
+        this.theme,
+      );
+    }
+    this.foil?.setEnabled(showFoil);
     this.bodyScroller.position.set(this.contentX, this.bodyTop);
     let y = 2;
     this.actions.setContent({
@@ -819,9 +885,12 @@ export class RulesCardPreviewLayer {
     this.bodyScroller.hitArea = new Rectangle(0, 0, this.contentWidth, this.bodyHeight);
     this.drawFooter(display.stats, display.loyalty, display.defense);
     this.widgetHeight = this.panelHeight;
-    this.setScroll(
-      this.highlightedRowTop == null ? this.scrollOffset : Math.max(0, this.highlightedRowTop - 8),
-    );
+    if (this.revealHighlightedEffect && this.highlightedRowTop !== null) {
+      this.setScroll(Math.max(0, this.highlightedRowTop - 8));
+      this.revealHighlightedEffect = false;
+    } else {
+      this.setScroll(this.scrollOffset);
+    }
     if (this.highlightedRows.length > 0 && animationsEnabled()) {
       this.highlightedEffectTween = gsap.to(this.highlightedRows, {
         alpha: 0.72,
@@ -964,7 +1033,10 @@ export class RulesCardPreviewLayer {
       const chip = new Container();
       const background = new Graphics();
       background.roundRect(0, 0, width, height, 10.5);
-      background.fill({ color: hexToNum(this.frame.paper) });
+      background.fill({
+        color: hexToNum(this.frame.textured ? this.frame.ink : this.frame.paper),
+        alpha: this.frame.textured ? 0.035 : 1,
+      });
       background.roundRect(0, 0, width, height, 10.5);
       background.fill({ color: hexToNum(item.color), alpha: 0.14 });
       background.stroke({ color: hexToNum(item.color), alpha: 0.7, width: 1 });
@@ -979,7 +1051,7 @@ export class RulesCardPreviewLayer {
   }
 
   private addStaticAbilityRow(text: string, y: number): number {
-    const style = oracleTextStyle(this.frame.ink);
+    const style = oracleTextStyle(this.frame.ink, false, this.frame.bodyFont);
     style.fontWeight = "700";
     return this.addOracleAbilityRow(text, y, false, this.bodyContent, style);
   }
@@ -989,7 +1061,7 @@ export class RulesCardPreviewLayer {
     y: number,
     planeswalker: boolean,
     parent = this.bodyContent,
-    style = oracleTextStyle(this.frame.ink),
+    style = oracleTextStyle(this.frame.ink, false, this.frame.bodyFont),
   ): number {
     const loyalty = planeswalker ? /^([+\-−]?\d+):\s*(.+)$/.exec(text) : null;
     const content = loyalty?.[2] ?? text;
@@ -997,7 +1069,7 @@ export class RulesCardPreviewLayer {
     const row = new Container();
     const rich = new PixiRichText();
     const textHeight = rich.setContent(content, style, this.contentWidth - contentX, 17, 3, {
-      parentheticalStyle: oracleTextStyle(this.frame.mutedInk, true),
+      parentheticalStyle: oracleTextStyle(this.frame.mutedInk, true, this.frame.bodyFont),
     });
     const height = Math.max(loyalty ? 34 : 0, textHeight + 4);
     rich.position.set(contentX, 2);
@@ -1044,7 +1116,7 @@ export class RulesCardPreviewLayer {
     const rich = new PixiRichText();
     const height = rich.setContent(
       text,
-      flavorTextStyle(this.frame.mutedInk),
+      flavorTextStyle(this.frame.mutedInk, this.frame.bodyFont),
       width,
       FLAVOR_MANA_SIZE,
       4,
@@ -1100,9 +1172,12 @@ export class RulesCardPreviewLayer {
     }
     const measured = groups.sort((a, b) => b.width * b.height - a.width * a.height)[0];
     this.rulesRegion.copyFrom(
-      measured ?? (landscape ? new Rectangle(264, 74, 214, 250) : new Rectangle(24, 326, 312, 146)),
+      measured ??
+        (landscape
+          ? new Rectangle(264, 74, 214, 250)
+          : new Rectangle(24, 326, 312, FALLBACK_DETAILS_HEIGHT)),
     );
-    if (!landscape && this.faceTexture && footerHeight === FOOTER_HEIGHT) {
+    if (measured && !landscape && this.faceTexture && footerHeight === FOOTER_HEIGHT) {
       this.rulesRegion.height = Math.min(
         this.rulesRegion.height,
         this.panelHeight - FOOTER_HEIGHT - this.rulesRegion.y,
@@ -1216,7 +1291,7 @@ export class RulesCardPreviewLayer {
     const anchorHeight = spec.anchor?.height ?? 0;
     this.cardBounds.x = 0;
     this.cardBounds.width = this.panelWidth;
-    this.cardBounds.height = this.panelHeight;
+    this.cardBounds.height = this.widgetHeight;
     this.anchorBounds.x = (anchorX - this.container.x) / scale;
     this.anchorBounds.y = (anchorY - this.container.y) / scale;
     this.anchorBounds.width = anchorWidth / scale;
@@ -1231,10 +1306,19 @@ export class RulesCardPreviewLayer {
       this.rulesRegion.x,
       expanded ? this.rulesRegion.y : this.rulesRegion.bottom - height,
     );
-    this.background
+    this.rulesBackground.visible = this.detailsContainer.visible && !!this.rulesBackgroundTexture;
+    this.rulesBackground.anchor.copyFrom(this.faceSprite.anchor);
+    this.rulesBackground.position.copyFrom(this.faceSprite.position);
+    this.rulesBackground.scale.copyFrom(this.faceSprite.scale);
+    this.rulesBackground.rotation = this.faceSprite.rotation;
+    this.rulesBackgroundMask
       .clear()
-      .rect(0, 0, this.rulesRegion.width, height)
+      .rect(this.detailsContainer.x, this.detailsContainer.y, this.rulesRegion.width, height)
       .fill(hexToNum(this.frame.paper));
+    this.background.clear();
+    if (!this.rulesBackground.visible) {
+      this.background.rect(0, 0, this.rulesRegion.width, height).fill(hexToNum(this.frame.paper));
+    }
     this.bodyMask
       .clear()
       .rect(this.contentX, this.bodyTop, this.contentWidth, this.bodyHeight)
@@ -1303,6 +1387,7 @@ export class RulesCardPreviewLayer {
 
   private animateOut(): void {
     const spec = this.spec;
+    this.foil?.setEnabled(false);
     this.interactiveReady = false;
     if (!spec || !animationsEnabled() || prefersReducedMotion()) {
       this.container.visible = false;
@@ -1344,6 +1429,7 @@ export class RulesCardPreviewLayer {
     this.bodyContent.y = -this.scrollOffset;
     this.drawScrollAffordance(maxScroll);
     if (this.scrollOffset !== previousOffset) {
+      this.bodyTapCancelled = true;
       this.actions.cancelPress();
       this.controls.cancelPress();
       this.callbacks.onRenderRequested();
@@ -1381,7 +1467,10 @@ export class RulesCardPreviewLayer {
         this.contentWidth,
         12,
       );
-      this.scrollFade.fill({ color: hexToNum(this.frame.paper), alpha: 0.45 });
+      this.scrollFade.fill({
+        color: hexToNum(this.frame.textured ? this.frame.ink : this.frame.paper),
+        alpha: this.frame.textured ? 0.04 : 0.45,
+      });
     }
   }
 
@@ -1409,7 +1498,6 @@ export class RulesCardPreviewLayer {
       });
       if (!this.spec || generation !== this.cardInfoGeneration) return;
       this.scryfallInfo = entry.info;
-      this.scrollOffset = 0;
       this.rebuild();
       this.callbacks.onRenderRequested();
     } catch {
@@ -1421,6 +1509,8 @@ export class RulesCardPreviewLayer {
     const spec = this.spec;
     if (!spec) return;
     this.renderAbort?.abort();
+    this.rulesBackgroundAbort?.abort();
+    this.rulesBackgroundAbort = null;
     const controller = new AbortController();
     this.renderAbort = controller;
     const generation = ++this.artGeneration;
@@ -1483,9 +1573,75 @@ export class RulesCardPreviewLayer {
         return;
       this.renderState = "error";
       this.faceSprite.label = "mse-error";
+      this.clearRulesBackground();
+      this.rulesRegions = [];
+      if (this.faceTexture) {
+        this.faceSprite.texture = Texture.EMPTY;
+        this.faceTexture.destroy(true);
+        this.faceTexture = null;
+      }
       this.rebuild();
       this.callbacks.onRenderRequested();
+      if (deckCard) {
+        const texture = await useScryfallStore
+          .getState()
+          .getCardTexture(deckCard, "full", spec.showBackFace ? 1 : 0)
+          .catch(() => Texture.EMPTY);
+        if (
+          controller.signal.aborted ||
+          generation !== this.artGeneration ||
+          this.container.destroyed
+        )
+          return;
+        this.faceSprite.texture = texture;
+        this.rebuild();
+        this.callbacks.onRenderRequested();
+      }
     }
+  }
+
+  private async loadRulesBackground(): Promise<void> {
+    const spec = this.spec;
+    if (!spec || this.rulesRegions.length === 0) return;
+    const controller = new AbortController();
+    this.rulesBackgroundAbort = controller;
+    const generation = this.artGeneration;
+    try {
+      const canvas = await renderMseCard(
+        {
+          card: spec.card,
+          deckCard: previewDeckCard(spec.card),
+          faceIndex: spec.showBackFace ? 1 : 0,
+        },
+        controller.signal,
+        { rulesText: false },
+      );
+      if (
+        controller.signal.aborted ||
+        generation !== this.artGeneration ||
+        this.container.destroyed
+      )
+        return;
+      const texture = createMseCardTexture(canvas);
+      const previous = this.rulesBackgroundTexture;
+      this.rulesBackgroundTexture = texture;
+      this.rulesBackground.texture = texture;
+      previous?.destroy(true);
+      this.rebuild();
+      this.callbacks.onRenderRequested();
+    } catch {
+      if (!controller.signal.aborted && generation === this.artGeneration) {
+        this.callbacks.onRenderRequested();
+      }
+    }
+  }
+
+  private clearRulesBackground(): void {
+    this.rulesBackgroundAbort?.abort();
+    this.rulesBackgroundAbort = null;
+    this.rulesBackground.texture = Texture.EMPTY;
+    this.rulesBackgroundTexture?.destroy(true);
+    this.rulesBackgroundTexture = null;
   }
 
   private fitFace(): void {
@@ -1525,6 +1681,7 @@ export class RulesCardPreviewLayer {
   }
 
   private hide(preserveHover = false): void {
+    this.foil?.setEnabled(false);
     gsap.killTweensOf(this.container);
     gsap.killTweensOf(this.container.scale);
     this.highlightedEffectTween?.kill();
@@ -1535,7 +1692,6 @@ export class RulesCardPreviewLayer {
     }
     this.interactiveReady = false;
     if (!preserveHover && !this.spec) this.clearHover();
-    this.dragStartY = null;
     this.dragPointerId = null;
     this.actions.reset();
     this.controls.reset();
@@ -1551,6 +1707,7 @@ export class RulesCardPreviewLayer {
     this.renderAbort?.abort();
     this.unsubscribeLocale();
     this.faceTexture?.destroy(true);
+    this.clearRulesBackground();
     this.actions.destroy();
     this.controls.destroy();
     this.container.destroy({ children: true });

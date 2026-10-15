@@ -8,6 +8,8 @@ export interface MsePrinting {
   frame_effects?: string[];
   border_color?: string;
   full_art?: boolean;
+  textless?: boolean;
+  security_stamp?: string;
   promo_types?: string[];
   lang?: string;
   released_at?: string;
@@ -32,6 +34,7 @@ export interface MseCardSnapshot extends MsePrinting {
   color_identity?: string[] | string;
   colorIdentity?: string[] | string;
   intrinsic_mana?: string[] | string;
+  produced_mana?: string[] | string;
   characteristic_signature?: string;
   power?: string | number;
   toughness?: string | number;
@@ -96,6 +99,13 @@ export interface MseRenderResult {
   canvas: MseCanvas;
   width: number;
   height: number;
+  rulesFields: {
+    name: string;
+    fontFamily?: string;
+    fontWeight?: string;
+    fontStyle?: string;
+    inkColor: string;
+  }[];
   context: MseTemplateContext;
   diagnostics: unknown[];
 }
@@ -103,6 +113,7 @@ export interface MseRenderResult {
 export interface MseRenderOptions {
   signal?: AbortSignal;
   cache?: boolean;
+  rulesText?: boolean;
 }
 
 export interface MseSession {

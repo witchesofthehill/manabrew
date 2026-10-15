@@ -16,11 +16,22 @@ import { drawCombinedLayer } from './field-blend.mjs';
 // magic-modules corners fields: "corners", then "corners 2"/"corners 3" per face.
 const CORNER_FIELD=/^corners(?:[ _]\d+)?$/;
 
+function isRulesField(context,name){
+  return context.cells.card.get(name)?.definition?.record.text('type')==='text'&&
+    /^(?:(?:(?:rule|flavor|chapter)_)?text(?:_\d+)?|level_\d+_text)$/.test(name);
+}
+
 // Draw into a private surface so a failed field never commits a partial card.
 // Unsupported drawing paths remain explicit until their native behavior exists.
-export async function paintMseCard(target,context,fonts,renderer,{createCanvas=(w,h)=>new OffscreenCanvas(w,h),loadCardImage,onFieldDrawn}={}) {
+export async function paintMseCard(target,context,fonts,renderer,{createCanvas=(w,h)=>new OffscreenCanvas(w,h),loadCardImage,onFieldDrawn,rulesText=true}={}) {
   const preparation=await context.prepareTextLayouts(fonts,renderer);
   const revision=context.layoutRevision;
+  const rulesFields=[];
+  for(const name of context.template.layouts.keys()){
+    if(!isRulesField(context,name)||!context.fieldVisible(name))continue;
+    const font=context.font(name),face=fonts.cssFace?.(font);
+    rulesFields.push({name,fontFamily:face?.family,fontWeight:face?.weight,fontStyle:face?.style,inkColor:cssColor(font.color)});
+  }
   const width=Number(context.template.style.text('card width')),height=Number(context.template.style.text('card height'));
   if(!Number.isSafeInteger(width)||!Number.isSafeInteger(height)||width<1||height<1||width*height>(renderer.maxPixels||16777216))throw new MseError('card-size','Invalid card canvas dimensions');
   const surface=createCanvas(width,height),base=surface.getContext('2d');
@@ -41,6 +52,7 @@ export async function paintMseCard(target,context,fonts,renderer,{createCanvas=(
     try{const value=context.property(name,key,group);if(value!==null&&value!=='')renderer.prefetch(mseImage(value,context.template.name));}catch{/* drawn below */}
   }
   for(const {group,name,layout} of fields){
+    if(!rulesText&&group==='card'&&isRulesField(context,name))continue;
     try{
       const get=(key,fallback)=>layout.programs.has(key)?context.property(name,key,group):fallback;
       const type=context.cells[group].get(name)?.definition?.record.text('type');
@@ -171,5 +183,5 @@ export async function paintMseCard(target,context,fonts,renderer,{createCanvas=(
   }
   if(revision!==context.layoutRevision)throw new MseError('layout-stale','Card changed while it was being drawn');
   target.drawImage(surface,0,0);
-  return {width,height,fields:fields.length,preparation:preparation?{passes:preparation.passes,fields:preparation.fields,reprepared:preparation.reprepared}:null,nativeParityVerified:false};
+  return {width,height,rulesFields,fields:fields.length,preparation:preparation?{passes:preparation.passes,fields:preparation.fields,reprepared:preparation.reprepared}:null,nativeParityVerified:false};
 }

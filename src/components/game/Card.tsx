@@ -83,6 +83,7 @@ function CardComponent({
   const imageUrl = faceless ? CARD_BACK_IMAGE_URL : resolveImageUrl(faceIndex, resolution);
   const hasError = imageUrl === failedUrl;
   const defaultPresentation = usePreferencesStore((state) => state.promptCardStyle);
+  const animatedFoil = usePreferencesStore((state) => state.inGameAnimations);
   const generated = !faceless && (presentation ?? defaultPresentation) === "rules";
   const displayName = faceless ? "Face-down card" : card.identity.name;
   const themeColors = useTheme().gameTheme;
@@ -132,9 +133,10 @@ function CardComponent({
           onBattlefield &&
           "outline-2 outline-dashed outline-card-status-summoning-sick -outline-offset-2",
         card.phasedOut && "opacity-30 grayscale",
-        card.foil && "draft-tile-foil",
+        card.foil && !faceless && !generated && "draft-tile-foil",
         className,
       )}
+      data-foil-animated={animatedFoil}
       onClick={onClick}
       style={
         {

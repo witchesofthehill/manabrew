@@ -148,6 +148,7 @@ export function CardPreview({
   imageSize = "large",
   portalTarget,
 }: CardPreviewProps) {
+  const animatedFoil = usePreferencesStore((state) => state.inGameAnimations);
   const resolvedGameCard = useResolvedGameCard(card);
   const preferredView = usePreferencesStore((state) => state.inGameCardPreviewStyle);
   const [viewOverride, setViewOverride] = useState<boolean | null>(null);
@@ -492,8 +493,9 @@ export function CardPreview({
             className={cn(
               "w-full h-full shadow-2xl overflow-hidden bg-black relative",
               hasActions && ACTIONABLE_CARD_GLOW_CLASS,
-              card.foil && "draft-tile-foil",
+              card.foil && !faceless && !generatedView && "draft-tile-foil",
             )}
+            data-foil-animated={animatedFoil}
             style={{
               borderRadius: cardCornerRadius,
               ...(hasActions ? actionableCardGlowStyle(ringColor) : {}),

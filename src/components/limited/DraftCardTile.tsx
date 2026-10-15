@@ -1,6 +1,5 @@
 import { memo } from "react";
 import { CardThumbnail } from "@/components/editor/deckEditor.primitives";
-import { FoilBadge } from "@/components/limited/FoilBadge";
 import type { useCardPreview } from "@/hooks/useCardPreview";
 import { useLongPressPreview } from "@/hooks/useLongPressPreview";
 import { useDeckCard } from "@/lib/limited.utils";
@@ -50,7 +49,6 @@ function DraftCardTileImpl({
       {...longPress}
       className={cn(
         "group relative w-full text-left transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary/60 disabled:cursor-not-allowed disabled:opacity-60",
-        card.foil && "draft-tile-foil",
         selected && "z-10 ring-2 ring-selection",
         selected && pickPending && "animate-draft-card-pick",
       )}
@@ -61,7 +59,6 @@ function DraftCardTileImpl({
           DFC
         </span>
       )}
-      {card.foil && <FoilBadge />}
       {overlay}
     </button>
   );

@@ -15,51 +15,51 @@ msgstr ""
 
 #. placeholder {0}: display.stats.damage
 #. placeholder {0}: stats.damage
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:816
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1133
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:882
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1208
 msgid "{0} damage"
 msgstr "{0} blessures"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:693
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:759
 msgid "Actions apply to the current face."
 msgstr ""
 
-#: src/pixi/cardPreview/PixiCardRailPreview.ts:90
+#: src/pixi/cardPreview/PixiCardRailPreview.ts:91
 msgid "Awaiting first chapter"
 msgstr "En attente du premier chapitre"
 
-#: src/pixi/cardPreview/PixiCardRailPreview.ts:93
+#: src/pixi/cardPreview/PixiCardRailPreview.ts:94
 msgid "Awaiting first level"
 msgstr "En attente du premier niveau"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:754
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:820
 msgid "Card identity and rules are hidden."
 msgstr "L'identité de la carte et ses règles sont masquées."
 
 #. placeholder {0}: notch.label
-#: src/pixi/cardPreview/PixiCardRailPreview.ts:117
+#: src/pixi/cardPreview/PixiCardRailPreview.ts:118
 msgid "CHAPTER {0}"
 msgstr "CHAPITRE {0}"
 
 #. placeholder {0}: state.current
 #. placeholder {1}: state.max
-#: src/pixi/cardPreview/PixiCardRailPreview.ts:89
+#: src/pixi/cardPreview/PixiCardRailPreview.ts:90
 msgid "Chapter {0} of {1}"
 msgstr "Chapitre {0} sur {1}"
 
-#: src/pixi/cardPreview/PixiCardRailPreview.ts:80
+#: src/pixi/cardPreview/PixiCardRailPreview.ts:81
 msgid "CLASS LEVELS"
 msgstr "NIVEAUX DE CLASSE"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1130
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1205
 msgid "Defense"
 msgstr "Défense"
 
-#: src/pixi/cardPreview/PixiCardRailPreview.ts:151
+#: src/pixi/cardPreview/PixiCardRailPreview.ts:152
 msgid "Effect text unavailable"
 msgstr "Texte de l’effet indisponible"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1510
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1666
 msgid "Face down"
 msgstr ""
 
@@ -71,67 +71,67 @@ msgstr "Carte face cachée"
 msgid "Face-down permanent"
 msgstr "Permanent face cachée"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:776
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:842
 msgid "Flavor text"
 msgstr "Texte d'ambiance"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:791
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:857
 msgid "Flip back · F"
 msgstr "Retourner au verso · F"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:791
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:857
 msgid "Flip front · F"
 msgstr "Retourner au recto · F"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:647
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:699
 msgid "Generated unavailable · details"
 msgstr ""
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:707
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:773
 msgid "Keywords, costs & counters"
 msgstr "Capacités, coûts et compteurs"
 
 #. placeholder {0}: notch.label
-#: src/pixi/cardPreview/PixiCardRailPreview.ts:118
+#: src/pixi/cardPreview/PixiCardRailPreview.ts:119
 msgid "LEVEL {0}"
 msgstr "NIVEAU {0}"
 
 #. placeholder {0}: state.current
 #. placeholder {1}: state.max
-#: src/pixi/cardPreview/PixiCardRailPreview.ts:92
+#: src/pixi/cardPreview/PixiCardRailPreview.ts:93
 msgid "Level {0} of {1}"
 msgstr "Niveau {0} sur {1}"
 
-#: src/pixi/cardPreview/PixiCardRailPreview.ts:80
+#: src/pixi/cardPreview/PixiCardRailPreview.ts:81
 msgid "LORE CHAPTERS"
 msgstr "CHAPITRES DE SAGA"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1129
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1204
 msgid "Loyalty"
 msgstr "Loyauté"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:805
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:871
 msgid "Printed face · live state belongs to the other face"
 msgstr ""
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:730
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:796
 msgid "Progression"
 msgstr "Progression"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:652
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:704
 msgid "Rules & details"
 msgstr ""
 
 #. placeholder {0}: indexedActions.length
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:651
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:703
 msgid "Rules & details · {0} actions"
 msgstr ""
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:756
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:822
 msgid "Rules text"
 msgstr "Texte de règles"
 
 #. placeholder {0}: indexedActions.length
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:650
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:702
 msgid "Show actions · {0}"
 msgstr ""

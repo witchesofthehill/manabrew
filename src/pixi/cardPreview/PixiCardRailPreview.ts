@@ -31,10 +31,11 @@ function style(
   fill: string,
   fontSize: number,
   fontWeight: "400" | "500" | "600" | "700" = "400",
+  fontFamily = RULES_BODY_FONT,
 ): TextStyle {
   return new TextStyle({
     fill,
-    fontFamily: RULES_BODY_FONT,
+    fontFamily,
     fontSize,
     fontWeight,
     lineHeight: fontSize * 1.3,
@@ -78,7 +79,7 @@ export class PixiCardRailPreview extends Container {
       .catch(() => undefined);
     const title = new Text({
       text: state.kind === "saga" ? i18n._(msg`LORE CHAPTERS`) : i18n._(msg`CLASS LEVELS`),
-      style: style(muted, 10, "700"),
+      style: style(muted, 10, "700", frame.bodyFont),
     });
     title.resolution = 2;
     title.position.set(39, 2);
@@ -91,7 +92,7 @@ export class PixiCardRailPreview extends Container {
           : state.current > 0
             ? i18n._(msg`Level ${state.current} of ${state.max}`)
             : i18n._(msg`Awaiting first level`),
-      style: style(foreground, 12, "600"),
+      style: style(foreground, 12, "600", frame.bodyFont),
     });
     summaryText.resolution = 2;
     summaryText.position.set(39, 19);
@@ -116,7 +117,7 @@ export class PixiCardRailPreview extends Container {
           state.kind === "saga"
             ? i18n._(msg`CHAPTER ${notch.label}`)
             : i18n._(msg`LEVEL ${notch.label}`),
-        style: style(muted, 10, "700"),
+        style: style(muted, 10, "700", frame.bodyFont),
       });
       meta.resolution = 2;
       meta.position.set(CONTENT_LEFT, 9);
@@ -124,7 +125,7 @@ export class PixiCardRailPreview extends Container {
 
       if (effect?.cost) {
         const cost = new PixiRichText();
-        cost.setContent(effect.cost, style(foreground, 11, "600"), 90, 14, 1);
+        cost.setContent(effect.cost, style(foreground, 11, "600", frame.bodyFont), 90, 14, 1);
         cost.position.set(width - CONTENT_RIGHT - cost.width, 7);
         row.addChild(cost);
       }
@@ -134,7 +135,7 @@ export class PixiCardRailPreview extends Container {
         const label = new PixiRichText();
         const labelHeight = label.setContent(
           effect.label,
-          style(foreground, 14, "700"),
+          style(foreground, 14, "700", frame.bodyFont),
           width - CONTENT_LEFT - CONTENT_RIGHT,
           16,
           2,
@@ -145,11 +146,11 @@ export class PixiCardRailPreview extends Container {
       }
 
       const effectText = new PixiRichText();
-      const reminderStyle = style(muted, 14);
+      const reminderStyle = style(muted, 14, "400", frame.bodyFont);
       reminderStyle.fontStyle = "italic";
       const effectHeight = effectText.setContent(
         effect?.text || i18n._(msg`Effect text unavailable`),
-        style(foreground, 14),
+        style(foreground, 14, "400", frame.bodyFont),
         width - CONTENT_LEFT - CONTENT_RIGHT,
         16,
         2,
@@ -188,6 +189,7 @@ export class PixiCardRailPreview extends Container {
             : foreground,
           9,
           "700",
+          frame.bodyFont,
         ),
       });
       nodeLabel.resolution = 2;

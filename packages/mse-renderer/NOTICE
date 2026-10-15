@@ -15,14 +15,29 @@ The runtime retains upstream source except the local modifications recorded
 in upstream.json. They cover failed-font cache eviction, fixed-paragraph
 text fitting, artwork values in generated image expressions, linked Battle
 and meld faces, unrelated reversible faces, and expansion-symbol transport
-and absence handling. General modern planeswalkers use the
+and absence handling. Text-free rules backings retain native layout and frame
+painting while omitting only rules, flavor, chapter and level text glyphs.
+Both modes expose the same rules fields with their loaded CSS fonts and ink.
+Render caches distinguish the two modes. General modern planeswalkers use the
 pack's mainframe template so ability text and stripe geometry remain aligned.
+Land frames also use printing mana-production metadata; three-or-more-color
+lands select solid gold rather than a multicolor gradient. Universes Beyond
+promo metadata selects the native frame, and triangular security stamps map
+to its native stamp.
 No native MSE executable or Ironsmith host JSX is included.
 
 Plane chaos fields include the pinned Planechase template's native
 <margin:900:0:0> tag before initialization. Native combined text is evaluated
 before its level fields; supplying the encoded margin preserves its symbol
 clearance without changing the upstream ordered initialization semantics.
+
+Printing selection rejects unsupported or ambiguous treatments instead of
+substituting a generic frame. This includes modern Secret Lair records whose
+metadata cannot distinguish conventional layouts from artwork-integrated text.
+Identified retro and extended-art families remain eligible. Unknown layouts,
+unavailable requested templates and incomplete multipart records use the
+application's original-scan fallback; native templates do not guarantee exact
+reproduction of every printing.
 
 Corpus assets are separate from the renderer's software license.
 The default source is MagicSetEditorPacks/Full-Magic-Pack at revision

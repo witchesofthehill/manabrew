@@ -21,6 +21,10 @@ interface MseEnvironment {
   session: MseSession;
 }
 
+export interface MseCardRenderOptions {
+  rulesText?: boolean;
+}
+
 const MAX_FINISHED_CARDS = 128;
 const MAX_FINISHED_BYTES = 96 * 1024 * 1024;
 const finished = new Map<string, MseCanvas>();
@@ -51,6 +55,7 @@ function getEnvironment(): Promise<MseEnvironment> {
 function composeCard(
   prepared: PreparedMseCard,
   { runtime, session }: MseEnvironment,
+  rulesText: boolean,
 ): Promise<MseCanvas> {
   const presentation = runtime.selectMsePresentation(prepared.snapshot, {
     faceIndex: prepared.faceIndex,
@@ -66,7 +71,7 @@ function composeCard(
       set?.icon_svg_uri ?? `https://svgs.scryfall.io/sets/${encodeURIComponent(setCode)}.svg`;
     setFields.symbol = scryfallAssetUrl(symbol);
   }
-  const key = JSON.stringify([prepared, presentation, setFields]);
+  const key = JSON.stringify([prepared, presentation, setFields, rulesText]);
   const cached = finished.get(key);
   if (cached) {
     finished.delete(key);
@@ -102,7 +107,7 @@ function composeCard(
             styling: presentation.styling,
           },
         },
-        { cache: false },
+        { cache: false, rulesText },
       );
       const canvas = normalizeMseCanvas(result);
       const bytes = canvas.width * canvas.height * 4;
@@ -150,18 +155,30 @@ function waitForConsumer(pending: Promise<MseCanvas>, signal?: AbortSignal): Pro
   });
 }
 
-export function renderMseCard(request: MseCardRequest, signal?: AbortSignal): Promise<MseCanvas> {
+export function renderMseCard(
+  request: MseCardRequest,
+  signal?: AbortSignal,
+  { rulesText = true }: MseCardRenderOptions = {},
+): Promise<MseCanvas> {
   if (signal?.aborted)
     return Promise.reject(
       signal.reason ?? new DOMException("Card rendering cancelled", "AbortError"),
     );
   try {
     const input = captureMseCardInput(request);
-    const key = JSON.stringify(input);
+    const key = JSON.stringify([input, rulesText]);
     let pending = pendingCards.get(key);
     if (!pending) {
-      pending = Promise.all([prepareMseCard(input), getEnvironment()])
-        .then(([prepared, runtime]) => composeCard(prepared, runtime))
+      pending = Promise.all([prepareMseCard(input), import("@mse-renderer")])
+        .then(async ([prepared, runtime]) => {
+          if (
+            !runtime.selectMsePresentation(prepared.snapshot, { faceIndex: prepared.faceIndex })
+              .style
+          ) {
+            throw new Error("No MSE template supports this card layout and printing");
+          }
+          return composeCard(prepared, await getEnvironment(), rulesText);
+        })
         .then((canvas) => {
           if (useScryfallStore.getState().locale !== input.locale) {
             throw new DOMException("Card language changed during rendering", "AbortError");

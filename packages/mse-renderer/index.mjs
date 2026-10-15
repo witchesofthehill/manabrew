@@ -38,20 +38,68 @@ const layoutStyles = {
   vanguard: "magic-vanguard.mse-style",
 };
 
+const supportedLayouts = new Set([
+  "normal",
+  "split",
+  "flip",
+  "transform",
+  "modal_dfc",
+  "meld",
+  "leveler",
+  "class",
+  "case",
+  "saga",
+  "adventure",
+  "prepare",
+  "mutate",
+  "prototype",
+  "battle",
+  "planar",
+  "scheme",
+  "vanguard",
+  "token",
+  "double_faced_token",
+  "emblem",
+  "room",
+  "aftermath",
+]);
+
 export function selectMsePresentation(snapshot, options = {}) {
   const face = snapshot.card_faces?.[options.faceIndex ?? 0] ?? snapshot;
   const layout =
-    snapshot.layout === "reversible_card" ? (face.layout ?? "normal") : snapshot.layout;
+    snapshot.layout === "reversible_card" ? face.layout : (snapshot.layout ?? "normal");
   const presentation = selectPresentation(
     layout === snapshot.layout ? snapshot : { ...snapshot, layout },
     options,
   );
   if (presentation.source === "explicit") return presentation;
+  const unavailable = { style: null, styling: {}, source: "general" };
+  if (!supportedLayouts.has(layout)) return unavailable;
+  const faces = snapshot.card_faces;
+  const multipart = ["split", "room", "aftermath", "adventure", "prepare", "flip"].includes(layout);
+  const doubleFaced = ["transform", "modal_dfc", "double_faced_token", "battle"].includes(layout);
+  if ((multipart || doubleFaced || snapshot.layout === "reversible_card") && faces?.length !== 2)
+    return unavailable;
+  if (faces?.length && (faces.length > 2 || (options.faceIndex ?? 0) >= faces.length))
+    return unavailable;
+  if (
+    faces?.length > 1 &&
+    !multipart &&
+    !doubleFaced &&
+    snapshot.layout !== "reversible_card" &&
+    layout !== "meld"
+  )
+    return unavailable;
+  if (presentation.source === "printing" && !presentation.style) return presentation;
   const rules = String(face.oracle_text ?? face.effect_text ?? face.ability_text ?? "");
   const type = String(face.type_line ?? "");
+  if (/\b(?:Dungeon|Attraction|Contraption|Sticker)\b/.test(type)) return unavailable;
   const classCard = /\bClass\b/.test(type);
   const prototype = prototypeFields(rules);
   const mutate = prototype ? null : mutateFields(rules);
+  if ((layout === "prototype" && !prototype) || (layout === "mutate" && !mutate))
+    return unavailable;
+  if (presentation.source === "printing" && (classCard || prototype || mutate)) return unavailable;
   if (presentation.source === "printing" && !classCard && !prototype && !mutate) {
     return presentation;
   }
@@ -77,10 +125,9 @@ export function selectMsePresentation(snapshot, options = {}) {
     fields = classFields(rules);
   } else if (layout === "leveler") {
     const levels = levelerFields(rules);
-    if (levels) {
-      style = "magic-m15-leveler.mse-style";
-      fields = levels;
-    }
+    if (!levels) return unavailable;
+    style = "magic-m15-leveler.mse-style";
+    fields = levels;
   } else if (prototype || mutate) {
     style = "magic-m15-altered.mse-style";
     fields = prototype ?? mutate;

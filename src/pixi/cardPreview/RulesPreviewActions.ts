@@ -35,11 +35,16 @@ const SCROLL_GUTTER = 8;
 const LINE_HEIGHT = 18;
 const DRAG_SLOP = 5;
 
-function textStyle(fill: string, fontSize = 13, bold = false): TextStyle {
+function textStyle(
+  fill: string,
+  fontSize = 13,
+  bold = false,
+  fontFamily = RULES_BODY_FONT,
+): TextStyle {
   return new TextStyle({
     fill,
     fontSize,
-    fontFamily: RULES_BODY_FONT,
+    fontFamily,
     fontWeight: bold ? "700" : "400",
     lineHeight: fontSize * 1.3,
   });
@@ -81,6 +86,7 @@ export class RulesPreviewActions extends Container {
   private rows: ActionRow[] = [];
   private focusedIndex: number | null = null;
   private hoveredIndex: number | null = null;
+  private hoveredControl: Graphics | null = null;
   private contentWidth = 0;
   private contentInset = PAD;
   private contentHeight = 0;
@@ -142,6 +148,7 @@ export class RulesPreviewActions extends Container {
   cancelPress(): void {
     this.pointerId = this.tapPointerId = null;
     this.dragMoved = true;
+    this.clearHover();
   }
 
   get focusedActionBounds(): { top: number; height: number } | null {
@@ -179,7 +186,7 @@ export class RulesPreviewActions extends Container {
         const background = new Graphics();
         const key = new Text({
           text: String(entry.shortcut),
-          style: textStyle(spec.frame.mutedInk, 12),
+          style: textStyle(spec.frame.mutedInk, 12, false, spec.frame.bodyFont),
         });
         key.resolution = 2;
         key.anchor.set(0.5);
@@ -187,11 +194,11 @@ export class RulesPreviewActions extends Container {
         const label = new PixiRichText();
         const labelHeight = label.setContent(
           actionText(entry.action, entry.displayLabel),
-          textStyle(spec.frame.ink, 15),
+          textStyle(spec.frame.ink, 15, false, spec.frame.bodyFont),
           Math.max(1, this.contentWidth - 32),
           15,
           3,
-          { parentheticalStyle: textStyle(spec.frame.mutedInk, 15) },
+          { parentheticalStyle: textStyle(spec.frame.mutedInk, 15, false, spec.frame.bodyFont) },
         );
         const rowPadding = spec.compact ? 4 : 8;
         const height = Math.max(spec.compact ? 32 : 48, labelHeight + rowPadding * 2);
@@ -263,6 +270,7 @@ export class RulesPreviewActions extends Container {
       .clear()
       .rect(this.contentInset, this.contentInset, this.contentWidth, this.viewportHeight)
       .fill(hexToNum(spec.frame.paper));
+    this.setScroll(this.scrollOffset);
     this.drawFocus();
   }
 
@@ -305,6 +313,7 @@ export class RulesPreviewActions extends Container {
   }
 
   scrollBy(delta: number, mode: number, scale: number): void {
+    this.cancelPress();
     const unit =
       mode === 1 ? LINE_HEIGHT : mode === 2 ? this.viewportHeight : scale > 0 ? 1 / scale : 0;
     this.setScroll(this.scrollOffset + delta * unit);
@@ -339,7 +348,7 @@ export class RulesPreviewActions extends Container {
   }
 
   private addText(value: string, y: number, color: string, size: number, bold = false): number {
-    const style = textStyle(color, size, bold);
+    const style = textStyle(color, size, bold, this.spec!.frame.bodyFont);
     style.wordWrap = true;
     style.breakWords = true;
     style.wordWrapWidth = this.contentWidth;
@@ -356,7 +365,12 @@ export class RulesPreviewActions extends Container {
     let rowHeight = 0;
     for (const status of this.spec!.statuses) {
       const color = this.statusColor(status.tone);
-      const style = textStyle(this.spec!.theme.gameTheme.textOnTinted, 10, true);
+      const style = textStyle(
+        this.spec!.theme.gameTheme.textOnTinted,
+        10,
+        true,
+        this.spec!.frame.bodyFont,
+      );
       style.wordWrap = true;
       style.breakWords = true;
       style.wordWrapWidth = Math.max(1, this.contentWidth - 16);
@@ -388,7 +402,7 @@ export class RulesPreviewActions extends Container {
     let y = 0;
     let rowHeight = 0;
     for (const control of spec.controls) {
-      const style = textStyle(spec.frame.ink, 13);
+      const style = textStyle(spec.frame.ink, 13, false, spec.frame.bodyFont);
       style.wordWrap = true;
       style.breakWords = true;
       style.wordWrapWidth = Math.max(1, this.contentWidth - 16);
@@ -411,12 +425,19 @@ export class RulesPreviewActions extends Container {
       button.hitArea = new Rectangle(0, 0, width, height);
       button.on("pointerenter", (event: FederatedPointerEvent) => {
         if (event.pointerType === "touch") return;
+        this.hoveredControl = background;
         background
           .clear()
           .roundRect(0, 0, width, height, 6)
-          .fill({ color: hexToNum(spec.frame.raised), alpha: 0.65 });
+          .fill({
+            color: hexToNum(spec.frame.textured ? spec.frame.ink : spec.frame.raised),
+            alpha: spec.frame.textured ? 0.08 : 0.65,
+          });
       });
-      button.on("pointerleave", () => background.clear());
+      button.on("pointerleave", () => {
+        background.clear();
+        if (this.hoveredControl === background) this.hoveredControl = null;
+      });
       button.on("pointertap", (event: FederatedPointerEvent) => {
         if (this.consumeTap(event)) control.activate();
       });
@@ -445,14 +466,22 @@ export class RulesPreviewActions extends Container {
 
   private drawFocus(): void {
     const color = hexToNum(this.spec!.theme.gameTheme.activeAction.active);
+    const frame = this.spec!.frame;
     this.rows.forEach((row, index) => {
       const focused = index === this.focusedIndex;
       const hovered = index === this.hoveredIndex;
       row.background.clear();
       row.background
         .roundRect(0, 0, this.contentWidth, row.height, 4)
-        .fill(hexToNum(this.spec!.frame.raised))
-        .stroke({ color: hexToNum(this.spec!.frame.border), width: 1, alpha: 0.6 });
+        .fill({
+          color: hexToNum(frame.textured ? frame.ink : frame.raised),
+          alpha: frame.textured ? 0.035 : 1,
+        })
+        .stroke({
+          color: hexToNum(frame.textured ? frame.ink : frame.border),
+          width: 1,
+          alpha: frame.textured ? 0.24 : 0.6,
+        });
       if (focused || hovered) {
         row.background
           .roundRect(0, 0, this.contentWidth, row.height, 4)
@@ -463,7 +492,9 @@ export class RulesPreviewActions extends Container {
 
   private setScroll(offset: number): void {
     const maxScroll = Math.max(0, this.contentHeight - this.viewportHeight);
-    this.scrollOffset = Math.max(0, Math.min(offset, maxScroll));
+    const nextOffset = Math.max(0, Math.min(offset, maxScroll));
+    if (nextOffset !== this.scrollOffset) this.clearHover();
+    this.scrollOffset = nextOffset;
     this.content.y = -this.scrollOffset;
     this.scrollbar.clear();
     if (!this.spec || maxScroll <= 0 || this.viewportHeight <= 0) return;
@@ -497,9 +528,17 @@ export class RulesPreviewActions extends Container {
     return true;
   }
 
-  private clearInput(): void {
-    this.pointerId = this.tapPointerId = null;
+  private clearHover(): void {
+    this.hoveredControl?.clear();
+    this.hoveredControl = null;
+    if (this.hoveredIndex === null) return;
     this.hoveredIndex = null;
+    this.drawFocus();
+  }
+
+  private clearInput(): void {
+    this.clearHover();
+    this.pointerId = this.tapPointerId = null;
     this.pressX = this.pressY = this.pressScroll = 0;
     this.touchPress = this.dragMoved = false;
   }

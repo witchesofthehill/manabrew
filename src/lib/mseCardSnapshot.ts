@@ -8,7 +8,8 @@ import { cardFaceImageUris } from "@/lib/cardImage";
 import { resolveCardFaces } from "@/lib/cardFaces";
 import { isTwoHalfLayout } from "@/lib/cardLayout";
 import { MSE_ARTWORK_FACE_FRAGMENT } from "@/lib/mseCardArtwork";
-import { MseCardRenderError } from "@/lib/mseCardDecision";
+import { MseCardArtworkError, MseCardRenderError } from "@/lib/mseCardDecision";
+import { hasIntegratedArtwork } from "@/lib/mseCardArtworkPrinting";
 import { previewDtoDeckCard } from "@/lib/scryfall.utils";
 import { localizeRulesPreviewText } from "@/pixi/cardPreview/rulesCardPreviewPresentation";
 import {
@@ -485,6 +486,9 @@ export async function prepareMseCard(input: MseCardInput): Promise<PreparedMseCa
       (index === 1 && reverse ? artUris(reverse, undefined, 0) : artUris(entry, deckCard, index))
         ?.art_crop || undefined,
   );
+  if (info && hasIntegratedArtwork(info)) {
+    throw new MseCardArtworkError(layout, faceIndex);
+  }
   if (isTwoHalfLayout(layout) && artUrls[0] && artUrls[0] === artUrls[1]) {
     const source = artUrls[0];
     artUrls[0] = `${source}${MSE_ARTWORK_FACE_FRAGMENT}0`;

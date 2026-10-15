@@ -61,9 +61,12 @@ import { parseManaCost } from "@/pixi/manaSymbols";
 import {
   CARD_PREVIEW_EDGE_PAD as EDGE_PAD,
   computePreviewLayout,
+  type PreviewLayout,
 } from "@/components/game/cardPreviewLayout";
 import { GAME_CARD_SIZES } from "@/components/game/game.constants";
 import { renderMseCard } from "@/lib/mseCardRenderer";
+import { MseCardArtworkError } from "@/lib/mseCardDecision";
+import { hasIntegratedArtwork } from "@/lib/mseCardArtworkPrinting";
 import {
   getMseCardGeometry,
   getMseInteractionRegion,
@@ -120,6 +123,11 @@ const TOUCH_PREVIEW_CONTROL_SIZE = 44;
 const PORTRAIT_HEADER_HEIGHT = 52;
 const FOOTER_HEIGHT = 40;
 const FRAME_BOTTOM_PAD = 16;
+const SCAN_OVERLAY_TOP_FRACTION = 0.62;
+const SCAN_OVERLAY_INSET = 8;
+const SCAN_OVERLAY_OPACITY = 0.94;
+const SCAN_COST_SYMBOL_SIZE = 22;
+const SCAN_COST_PADDING = 6;
 const CONTENT_PAD = 16;
 const ORACLE_LINE_HEIGHT = 20;
 const FLAVOR_FONT_SIZE = 13;
@@ -176,6 +184,7 @@ export class RulesCardPreviewLayer {
   private detailsContainer = new Container();
   private detailsHeight = PORTRAIT_HEIGHT;
   private faceSprite = new Sprite(Texture.EMPTY);
+  private faceMask = new Graphics();
   private faceGeometry: MseCardGeometry | undefined;
   private rulesRegion = new Rectangle();
   private fallbackFace = new Container();
@@ -188,6 +197,8 @@ export class RulesCardPreviewLayer {
   private renderAbort: AbortController | null = null;
   private unsubscribeLocale: () => void;
   private renderState: "loading" | "ready" | "error" = "loading";
+  private preserveArtwork = false;
+  private scanOverlay = false;
   private cardBounds = new Rectangle();
   private anchorBounds = new Rectangle();
   private pointerOnPreview = false;
@@ -325,7 +336,8 @@ export class RulesCardPreviewLayer {
     this.faceSprite.eventMode = "none";
     this.rulesBackground.eventMode = "none";
     this.rulesBackground.mask = this.rulesBackgroundMask;
-    this.fieldFace.addChild(this.faceSprite, this.fallbackFace);
+    this.faceSprite.mask = this.faceMask;
+    this.fieldFace.addChild(this.fallbackFace, this.faceSprite);
     this.detailsContainer.addChild(
       this.background,
       this.chrome,
@@ -336,7 +348,12 @@ export class RulesCardPreviewLayer {
       this.scrollThumb,
       this.scrollFade,
     );
-    this.cardContainer.addChild(this.fieldFace, this.rulesBackground, this.rulesBackgroundMask);
+    this.cardContainer.addChild(
+      this.fieldFace,
+      this.faceMask,
+      this.rulesBackground,
+      this.rulesBackgroundMask,
+    );
     this.container.addChild(this.cardContainer, this.detailsContainer, this.viewControls);
   }
   get artworkTop(): number {
@@ -417,6 +434,7 @@ export class RulesCardPreviewLayer {
       this.faceTexture?.destroy(true);
       this.faceTexture = null;
       this.faceGeometry = undefined;
+      this.preserveArtwork = false;
       this.clearRulesBackground();
     }
     if (lookupChanged || visibilityChanged) {
@@ -617,6 +635,32 @@ export class RulesCardPreviewLayer {
     this.setScroll(this.scrollOffset + delta * unit);
   }
 
+  private drawScanManaCost(cost: string): void {
+    const symbols = parseManaCost(cost);
+    if (symbols.length === 0) return;
+    const mana = new PixiRichText();
+    mana.setContent(
+      symbols.map((symbol) => `{${symbol}}`).join(""),
+      textStyle(this.frame.ink, SCAN_COST_SYMBOL_SIZE, "600"),
+      Number.MAX_SAFE_INTEGER,
+      SCAN_COST_SYMBOL_SIZE,
+    );
+    mana.scale.set(
+      Math.min(1, (this.panelWidth - CONTENT_PAD * 2 - SCAN_COST_PADDING * 2) / mana.width),
+    );
+    const width = mana.width + SCAN_COST_PADDING * 2;
+    const height = mana.height + SCAN_COST_PADDING * 2;
+    const x = this.panelWidth - CONTENT_PAD - width - this.rulesRegion.x;
+    const y = CONTENT_PAD - this.rulesRegion.y;
+    const background = new Graphics()
+      .roundRect(x, y, width, height, RULES_CARD_CONSTRAINTS.radius)
+      .fill({ color: hexToNum(this.frame.paper), alpha: SCAN_OVERLAY_OPACITY });
+    mana.position.set(x + SCAN_COST_PADDING, y + SCAN_COST_PADDING);
+    background.eventMode = "none";
+    mana.eventMode = "none";
+    this.chrome.addChild(background, mana);
+  }
+
   private rebuild(): void {
     const spec = this.spec;
     if (!spec || this.viewportWidth <= 0 || this.viewportHeight <= 0) return;
@@ -701,46 +745,71 @@ export class RulesCardPreviewLayer {
     this.frame = resolveRulesPreviewFrame(
       this.theme,
       this.rulesBackgroundTexture ? this.faceGeometry?.rules[0] : undefined,
+      this.scanOverlay,
     );
 
-    if (!display.faceless && this.renderState === "ready" && !this.rulesBackgroundAbort) {
+    if (
+      !this.scanOverlay &&
+      !display.faceless &&
+      this.renderState === "ready" &&
+      !this.rulesBackgroundAbort
+    ) {
       void this.loadRulesBackground();
     }
     const detailsHeader = new Text({
       text:
-        indexedActions.length > 0
-          ? i18n._(msg`Rules & details · ${indexedActions.length} actions`)
-          : i18n._(msg`Rules & details`),
+        this.scanOverlay && display.typeLine
+          ? display.typeLine
+          : indexedActions.length > 0
+            ? i18n._(msg`Rules & details · ${indexedActions.length} actions`)
+            : i18n._(msg`Rules & details`),
       style: new TextStyle({
         fontFamily: this.frame.bodyFont,
         fontSize: 14,
         fontWeight: "700",
         fill: this.frame.ink,
+        wordWrap: this.scanOverlay,
+        wordWrapWidth: this.contentWidth,
       }),
     });
     detailsHeader.resolution = 2;
-    detailsHeader.scale.x = Math.min(
-      1,
-      Math.max(1, this.rulesRegion.width - 16) / detailsHeader.width,
-    );
-    detailsHeader.position.set(8, (this.headerHeight - detailsHeader.height) / 2);
+    if (this.scanOverlay) {
+      this.headerHeight = Math.max(this.headerHeight, detailsHeader.height + 12);
+      this.bodyTop = this.headerHeight + 8;
+      this.bodyHeight = Math.max(1, this.detailsHeight - this.bodyTop - this.footerHeight - 8);
+    } else {
+      detailsHeader.scale.x = Math.min(
+        1,
+        Math.max(1, this.rulesRegion.width - this.contentX * 2) / detailsHeader.width,
+      );
+    }
+    detailsHeader.position.set(this.contentX, (this.headerHeight - detailsHeader.height) / 2);
     detailsHeader.on("pointerdown", (event: FederatedPointerEvent) => event.stopPropagation());
     this.chrome.addChild(detailsHeader);
+    if (this.scanOverlay && !display.faceless) this.drawScanManaCost(display.manaCost);
     this.detailsContainer.visible = !display.faceless;
     this.bodyScroller.visible = true;
     this.footer.visible = true;
     this.fitFace();
     const showFoil = !spec.embedded && !display.faceless && spec.card.foil;
+    const faceWidth =
+      this.faceSprite.rotation === 0 ? this.faceSprite.width : this.faceSprite.height;
+    const faceHeight =
+      this.faceSprite.rotation === 0 ? this.faceSprite.height : this.faceSprite.width;
     if (showFoil) {
       if (!this.foil) {
         this.foil = new CardFoil(() => this.callbacks.onRenderRequested());
         this.container.addChildAt(this.foil, 1);
       }
       this.foil.setSurface(
-        this.panelWidth,
-        this.panelHeight,
-        rulesCardRadius(this.panelWidth, this.panelHeight),
+        this.scanOverlay ? faceWidth : this.panelWidth,
+        this.scanOverlay ? faceHeight : this.panelHeight,
+        rulesCardRadius(this.faceWidth, this.panelHeight),
         this.theme,
+      );
+      this.foil.position.set(
+        this.scanOverlay ? (this.faceWidth - faceWidth) / 2 : 0,
+        this.scanOverlay ? (this.panelHeight - faceHeight) / 2 : 0,
       );
       this.foil.setExclusion(this.rulesRegion);
     }
@@ -876,7 +945,7 @@ export class RulesCardPreviewLayer {
       statuses: display.faceless ? [] : presentation.statuses,
       hint: display.otherFace
         ? i18n._(msg`Printed face · live state belongs to the other face`)
-        : this.renderState === "error"
+        : this.renderState === "error" && !this.scanOverlay
           ? i18n._(msg`Original printing · generated frame unavailable`)
           : "",
       label: "",
@@ -1140,7 +1209,13 @@ export class RulesCardPreviewLayer {
   }
 
   private configureGeometry(landscape: boolean, footerHeight: number): void {
-    this.footerHeight = this.faceTexture ? 0 : footerHeight;
+    this.scanOverlay =
+      this.preserveArtwork ||
+      (this.renderState === "error" &&
+        !!this.scryfallInfo &&
+        hasIntegratedArtwork(this.scryfallInfo)) ||
+      (this.renderState === "loading" && !this.faceTexture);
+    this.footerHeight = this.faceTexture && !this.scanOverlay ? 0 : footerHeight;
     this.panelWidth = landscape ? LANDSCAPE_WIDTH : PORTRAIT_WIDTH;
     this.panelHeight = landscape ? LANDSCAPE_HEIGHT : PORTRAIT_HEIGHT;
     this.faceWidth = this.panelWidth;
@@ -1152,12 +1227,27 @@ export class RulesCardPreviewLayer {
     this.rulesRegion.y = region.y * scale;
     this.rulesRegion.width = region.width * scale;
     this.rulesRegion.height = region.height * scale;
+    if (this.scanOverlay) {
+      const top = this.panelHeight * SCAN_OVERLAY_TOP_FRACTION;
+      this.rulesRegion.set(
+        SCAN_OVERLAY_INSET,
+        top,
+        this.panelWidth - SCAN_OVERLAY_INSET * 2,
+        this.panelHeight - top - SCAN_OVERLAY_INSET,
+      );
+    }
     this.detailsHeight = this.rulesRegion.height;
     this.headerHeight = Math.min(PREVIEW_SECTION_HEADER_HEIGHT, this.detailsHeight / 3);
-    this.contentX = 4;
-    this.contentWidth = Math.max(1, this.rulesRegion.width - this.contentX * 2 - 4);
-    this.bodyTop = this.headerHeight;
-    this.bodyHeight = Math.max(1, this.detailsHeight - this.bodyTop - this.footerHeight);
+    this.contentX = this.scanOverlay ? CONTENT_PAD : 4;
+    this.contentWidth = Math.max(
+      1,
+      this.rulesRegion.width - this.contentX * 2 - (this.scanOverlay ? 0 : 4),
+    );
+    this.bodyTop = this.headerHeight + (this.scanOverlay ? 8 : 0);
+    this.bodyHeight = Math.max(
+      1,
+      this.detailsHeight - this.bodyTop - this.footerHeight - (this.scanOverlay ? 8 : 0),
+    );
   }
 
   private drawFooter(
@@ -1211,6 +1301,24 @@ export class RulesCardPreviewLayer {
     this.footer.addChild(badge, labelText, valueText);
   }
 
+  private previewLayout(horizontal: boolean): PreviewLayout {
+    const spec = this.spec!;
+    return computePreviewLayout({
+      placement: spec.placement,
+      anchorRect: spec.anchor
+        ? new DOMRect(spec.anchor.x, spec.anchor.y, spec.anchor.width, spec.anchor.height)
+        : null,
+      mouseX: spec.pointer.x,
+      mouseY: spec.pointer.y,
+      horizontal,
+      hasPanel: !this.scanOverlay && spec.reserveSidePanel,
+      panelHeight: 0,
+      slot: null,
+      viewportRight: this.viewportWidth,
+      viewportBottom: this.viewportHeight,
+    });
+  }
+
   private layoutPanel(): void {
     const spec = this.spec;
     if (!spec || this.viewportWidth <= 0 || this.viewportHeight <= 0) return;
@@ -1228,21 +1336,7 @@ export class RulesCardPreviewLayer {
       x = spec.slot.x + (spec.slot.width - width) / 2;
       y = spec.slot.y + (spec.slot.height - height) / 2;
     } else {
-      const anchorRect = spec.anchor
-        ? new DOMRect(spec.anchor.x, spec.anchor.y, spec.anchor.width, spec.anchor.height)
-        : null;
-      const layout = computePreviewLayout({
-        placement: spec.placement,
-        anchorRect,
-        mouseX: spec.pointer.x,
-        mouseY: spec.pointer.y,
-        horizontal: this.panelWidth === LANDSCAPE_WIDTH,
-        hasPanel: spec.reserveSidePanel,
-        panelHeight: 0,
-        slot: null,
-        viewportRight: this.viewportWidth,
-        viewportBottom: this.viewportHeight,
-      });
+      const layout = this.previewLayout(this.panelWidth === LANDSCAPE_WIDTH);
       scale = layout.cardWidth / this.panelWidth;
       x = layout.cardLeft;
       y = layout.top;
@@ -1258,8 +1352,8 @@ export class RulesCardPreviewLayer {
     const anchorY = spec.anchor?.y ?? spec.pointer.y;
     const anchorWidth = spec.anchor?.width ?? 0;
     const anchorHeight = spec.anchor?.height ?? 0;
-    this.cardBounds.x = 0;
-    this.cardBounds.width = this.panelWidth;
+    this.cardBounds.x = Math.min(0, this.rulesRegion.x);
+    this.cardBounds.width = Math.max(this.panelWidth, this.rulesRegion.right) - this.cardBounds.x;
     this.cardBounds.height = this.widgetHeight;
     this.anchorBounds.x = (anchorX - this.container.x) / scale;
     this.anchorBounds.y = (anchorY - this.container.y) / scale;
@@ -1275,7 +1369,8 @@ export class RulesCardPreviewLayer {
       this.rulesRegion.x,
       expanded ? this.rulesRegion.y : this.rulesRegion.bottom - height,
     );
-    this.rulesBackground.visible = this.detailsContainer.visible && !!this.rulesBackgroundTexture;
+    this.rulesBackground.visible =
+      !this.scanOverlay && this.detailsContainer.visible && !!this.rulesBackgroundTexture;
     this.rulesBackground.anchor.copyFrom(this.faceSprite.anchor);
     this.rulesBackground.position.copyFrom(this.faceSprite.position);
     this.rulesBackground.scale.copyFrom(this.faceSprite.scale);
@@ -1285,7 +1380,11 @@ export class RulesCardPreviewLayer {
       .rect(this.detailsContainer.x, this.detailsContainer.y, this.rulesRegion.width, height)
       .fill(hexToNum(this.frame.paper));
     this.background.clear();
-    if (!this.rulesBackground.visible) {
+    if (this.scanOverlay) {
+      this.background
+        .roundRect(0, 0, this.rulesRegion.width, height, RULES_CARD_CONSTRAINTS.radius)
+        .fill({ color: hexToNum(this.frame.paper), alpha: SCAN_OVERLAY_OPACITY });
+    } else if (!this.rulesBackground.visible) {
       this.background.rect(0, 0, this.rulesRegion.width, height).fill(hexToNum(this.frame.paper));
     }
     this.bodyMask
@@ -1527,6 +1626,7 @@ export class RulesCardPreviewLayer {
       }
       const previous = this.faceTexture;
       this.faceGeometry = canvas ? getMseCardGeometry(canvas) : undefined;
+      this.preserveArtwork = false;
       this.faceTexture = hidden ? null : texture;
       this.faceSprite.texture = texture;
       previous?.destroy(true);
@@ -1534,7 +1634,7 @@ export class RulesCardPreviewLayer {
       this.faceSprite.label = hidden ? "card-back" : "mse-ready";
       this.rebuild();
       this.callbacks.onRenderRequested();
-    } catch {
+    } catch (cause: unknown) {
       if (
         controller.signal.aborted ||
         generation !== this.artGeneration ||
@@ -1542,6 +1642,9 @@ export class RulesCardPreviewLayer {
       )
         return;
       this.renderState = "error";
+      this.preserveArtwork =
+        cause instanceof MseCardArtworkError ||
+        (!!this.scryfallInfo && hasIntegratedArtwork(this.scryfallInfo));
       this.faceSprite.label = "mse-error";
       this.clearRulesBackground();
       this.faceGeometry = undefined;
@@ -1623,31 +1726,44 @@ export class RulesCardPreviewLayer {
         .roundRect(
           0,
           0,
-          this.panelWidth,
+          this.faceWidth,
           this.panelHeight,
-          rulesCardRadius(this.panelWidth, this.panelHeight),
+          rulesCardRadius(this.faceWidth, this.panelHeight),
         )
-        .fill(hexToNum(this.frame.paper))
-        .stroke({ color: hexToNum(this.frame.border), width: 2 });
+        .fill(hexToNum(this.frame.paper));
+      if (!this.scanOverlay) background.stroke({ color: hexToNum(this.frame.border), width: 2 });
+      this.fallbackFace.addChild(background);
       const style = textStyle(this.frame.ink, 22, "700", RULES_TITLE_FONT);
       style.wordWrap = true;
-      style.wordWrapWidth = this.panelWidth - CONTENT_PAD * 2;
+      style.wordWrapWidth = this.faceWidth - CONTENT_PAD * 2;
       const title = new Text({
         text: this.spec.card.isFaceDown ? i18n._(msg`Face down`) : this.spec.card.identity.name,
         style,
       });
       title.position.set(CONTENT_PAD, CONTENT_PAD);
-      this.fallbackFace.addChild(background, title);
+      this.fallbackFace.addChild(title);
     }
     if (texture === Texture.EMPTY) return;
     this.faceSprite.anchor.set(0.5);
-    this.faceSprite.position.set(this.panelWidth / 2, this.panelHeight / 2);
+    this.faceSprite.position.set(this.faceWidth / 2, this.panelHeight / 2);
     const landscape = this.panelWidth > this.panelHeight;
     const rotate = landscape && texture.width < texture.height;
     this.faceSprite.rotation = rotate ? Math.PI / 2 : 0;
     const width = rotate ? texture.height : texture.width;
     const height = rotate ? texture.width : texture.height;
-    this.faceSprite.scale.set(Math.min(this.panelWidth / width, this.panelHeight / height));
+    this.faceSprite.scale.set(Math.min(this.faceWidth / width, this.panelHeight / height));
+    const faceWidth = rotate ? this.faceSprite.height : this.faceSprite.width;
+    const faceHeight = rotate ? this.faceSprite.width : this.faceSprite.height;
+    this.faceMask
+      .clear()
+      .roundRect(
+        (this.faceWidth - faceWidth) / 2,
+        (this.panelHeight - faceHeight) / 2,
+        faceWidth,
+        faceHeight,
+        rulesCardRadius(faceWidth, faceHeight),
+      )
+      .fill(hexToNum(this.theme.gameTheme.canvas.shadow));
   }
 
   private hide(preserveHover = false): void {

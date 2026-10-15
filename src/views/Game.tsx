@@ -1814,6 +1814,10 @@ export default function Game({ exitTo }: GameProps = {}) {
     () => setCommandPreviewSequence(commandPreviewCards),
     [commandPreviewCards, setCommandPreviewSequence],
   );
+  const singleCommandPreviewCard =
+    commandZonePreview.phase !== "hidden" && commandPreviewCards.length === 1
+      ? commandPreviewCards[0]!
+      : null;
 
   const previewCardId = preview.hoveredCard?.id ?? null;
   const livePreviewCard = useMemo(() => {
@@ -1824,24 +1828,25 @@ export default function Game({ exitTo }: GameProps = {}) {
       (preview.hoveredCard ? { ...preview.hoveredCard, zoneId: "prompt" } : null)
     );
   }, [preview.hoveredCard, previewCardId, stackCardsBySourceId, visibleCardsById]);
+  const previewFaceCard = singleCommandPreviewCard ?? livePreviewCard;
   const [previewFaceOverride, setPreviewFaceOverride] = useState<{
     cardId: string;
     showBackFace: boolean;
   } | null>(null);
   useEffect(() => {
     setPreviewFaceOverride(null);
-  }, [previewCardId]);
+  }, [previewCardId, singleCommandPreviewCard?.id]);
   const previewShowBackFace =
-    previewFaceOverride && previewFaceOverride.cardId === livePreviewCard?.id
+    previewFaceOverride && previewFaceOverride.cardId === previewFaceCard?.id
       ? previewFaceOverride.showBackFace
-      : (livePreviewCard?.isTransformed ?? false);
+      : (previewFaceCard?.isTransformed ?? false);
   const handleFlipPreview = () => {
-    if (!livePreviewCard) return;
+    if (!previewFaceCard) return;
     const showBackFace = !previewShowBackFace;
     setPreviewFaceOverride(
-      showBackFace === livePreviewCard.isTransformed
+      showBackFace === previewFaceCard.isTransformed
         ? null
-        : { cardId: livePreviewCard.id, showBackFace },
+        : { cardId: previewFaceCard.id, showBackFace },
     );
   };
   const hoveredCardActions = useMemo(
@@ -2212,7 +2217,9 @@ export default function Game({ exitTo }: GameProps = {}) {
   };
   const boardViewportRight = isActionPanelCollapsed ? undefined : rightPanelLeft;
   const commandPreview: BoardOverlayCommandPreviewSpec | null =
-    commandPreviewSource && showCommandZonePreview
+    commandPreviewSource &&
+    showCommandZonePreview &&
+    !(inGameCardPreviewStyle === "rules" && singleCommandPreviewCard)
       ? {
           cards: commandPreviewCards,
           castableCardIds: commandPreviewCards
@@ -2226,24 +2233,46 @@ export default function Game({ exitTo }: GameProps = {}) {
         }
       : null;
   const rulesPreview: BoardOverlayPreviewSpec | null =
-    !commandPreview && inGameCardPreviewStyle === "rules" && showInGamePreview && livePreviewCard
+    inGameCardPreviewStyle === "rules" &&
+    showCommandZonePreview &&
+    singleCommandPreviewCard &&
+    commandPreviewSource
       ? {
-          card: livePreviewCard,
-          phase: preview.phase === "closing" ? "closing" : "open",
-          placement: preview.placement,
-          sticky: preview.isSticky,
+          card: singleCommandPreviewCard,
+          phase: commandZonePreview.phase === "closing" ? "closing" : "open",
+          placement: "auto",
+          sticky: false,
           showBackFace: previewShowBackFace,
           suppressed: previewSuppressed,
-          skipEnterAnimation: skipPreviewEnterAnimation,
-          actions: hoveredCardActions,
-          reserveSidePanel:
-            hoveredCardActions.length > 0 || deriveCardRailState(livePreviewCard) != null,
-          mousePos: preview.mousePos,
-          anchorRect: preview.anchorRect,
+          skipEnterAnimation: true,
+          actions: getCardActions(singleCommandPreviewCard),
+          reserveSidePanel: false,
+          mousePos: commandZonePreview.mousePos,
+          anchorRect: commandPreviewSource.anchorRect,
           slotRect: null,
           viewportRight: boardViewportRight,
         }
-      : null;
+      : !commandPreview &&
+          inGameCardPreviewStyle === "rules" &&
+          showInGamePreview &&
+          livePreviewCard
+        ? {
+            card: livePreviewCard,
+            phase: preview.phase === "closing" ? "closing" : "open",
+            placement: preview.placement,
+            sticky: preview.isSticky,
+            showBackFace: previewShowBackFace,
+            suppressed: previewSuppressed,
+            skipEnterAnimation: skipPreviewEnterAnimation,
+            actions: hoveredCardActions,
+            reserveSidePanel:
+              hoveredCardActions.length > 0 || deriveCardRailState(livePreviewCard) != null,
+            mousePos: preview.mousePos,
+            anchorRect: preview.anchorRect,
+            slotRect: null,
+            viewportRight: boardViewportRight,
+          }
+        : null;
 
   const promptOverlaySpec: PromptOverlaySpec = {
     currentPrompt: activePrompt,

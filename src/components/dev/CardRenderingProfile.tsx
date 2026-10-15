@@ -1,8 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { selectMsePresentation } from "@mse-renderer";
 import { Button } from "@/components/ui/button";
-import { captureMseCardInput, prepareMseCard, type MseCardRequest } from "@/lib/mseCardSnapshot";
-import { clearMseRenderCache, getMseRenderStats, renderMseCard } from "@/lib/mseCardRenderer";
+import type { MseCardRequest } from "@/lib/mseCardSnapshot";
+import {
+  clearMseRenderCache,
+  getMseRenderDecision,
+  getMseRenderStats,
+  renderMseCard,
+} from "@/lib/mseCardRenderer";
 import { MseCardRenderError } from "@/lib/mseCardDecision";
 
 interface Sample {
@@ -33,9 +37,9 @@ export function CardRenderingProfile({
   }, []);
   useEffect(() => {
     let cancelled = false;
-    void prepareMseCard(captureMseCardInput(request))
-      .then(({ snapshot, faceIndex }) => {
-        const next = selectMsePresentation(snapshot, { faceIndex }).decision;
+    void renderMseCard(request)
+      .then((canvas) => {
+        const next = getMseRenderDecision(canvas);
         if (!cancelled) setDecision(JSON.stringify(next));
       })
       .catch((cause: unknown) => {
@@ -43,7 +47,7 @@ export function CardRenderingProfile({
           setDecision(
             cause instanceof MseCardRenderError
               ? JSON.stringify(cause.decision)
-              : `Preparation failed: ${cause instanceof Error ? cause.message : String(cause)}`,
+              : `Rendering failed: ${cause instanceof Error ? cause.message : String(cause)}`,
           );
       });
     return () => {

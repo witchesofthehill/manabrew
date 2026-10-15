@@ -12,3 +12,13 @@ export class MseCardRenderError extends Error {
     this.decision = decision;
   }
 }
+
+export class MseCardArtworkError extends MseCardRenderError {
+  constructor(layout: string, faceIndex: number) {
+    super(
+      { mode: "original", reason: "unrepresentable-fields", layout, faceIndex },
+      "Selected artwork requires the original printing layout",
+    );
+    this.name = "MseCardArtworkError";
+  }
+}

@@ -35,7 +35,22 @@ export interface RulesPreviewFrameStyle {
 export function resolveRulesPreviewFrame(
   theme: Theme,
   native?: MseCardRegion,
+  scanOverlay = false,
 ): RulesPreviewFrameStyle {
+  if (scanOverlay) {
+    const game = theme.gameTheme;
+    const paper = game.cardPlaceholder.fill;
+    const ink = game.canvas.neutral;
+    return {
+      paper,
+      raised: game.canvas.background,
+      ink,
+      mutedInk: ensureTextContrast(game.textMuted, paper, ink, RULES_TEXT_MIN_CONTRAST),
+      border: game.cardPlaceholder.stroke,
+      bodyFont: RULES_BODY_FONT,
+      textured: false,
+    };
+  }
   const palette = theme.gameTheme.cardPaper;
   const paper = palette.background;
   const ink = native?.inkColor ?? palette.ink;

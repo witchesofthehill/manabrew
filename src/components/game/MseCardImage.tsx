@@ -135,7 +135,7 @@ function MseCardCanvas({
   return (
     <div
       ref={hostRef}
-      className={cn("relative block aspect-[5/7] overflow-hidden", className)}
+      className={cn("relative @container aspect-[5/7] overflow-hidden", className)}
       data-mse-state={hidden ? undefined : state}
       data-mse-template={
         state === "ready" && result?.decision?.mode === "native"

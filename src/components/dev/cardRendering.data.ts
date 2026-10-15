@@ -74,6 +74,11 @@ export const CARD_RENDERING_FIXTURES: CardRenderingFixture[] = [
     lookup: { setCode: "sld", collectorNumber: "2125" },
   },
   {
+    id: "poster",
+    label: "Poster / original artwork with details",
+    lookup: { setCode: "ltr", collectorNumber: "744" },
+  },
+  {
     id: "long-text",
     label: "Long rules / internal scroll",
     lookup: { name: "Questing Beast", setCode: "eld" },

@@ -15,12 +15,12 @@ msgstr ""
 
 #. placeholder {0}: display.stats.damage
 #. placeholder {0}: stats.damage
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:891
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1177
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:960
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1267
 msgid "{0} damage"
 msgstr "{0} 點傷害"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:770
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:839
 msgid "Actions apply to the current face."
 msgstr ""
 
@@ -32,7 +32,7 @@ msgstr "等待第一章"
 msgid "Awaiting first level"
 msgstr "等待第一級"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:827
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:896
 msgid "Card identity and rules are hidden."
 msgstr "牌張資訊與規則文字已隱藏。"
 
@@ -51,7 +51,7 @@ msgstr "第 {0} 章，共 {1} 章"
 msgid "CLASS LEVELS"
 msgstr "職業等級"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1174
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1264
 msgid "Defense"
 msgstr "防禦"
 
@@ -59,7 +59,7 @@ msgstr "防禦"
 msgid "Effect text unavailable"
 msgstr "無法取得效應文字"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1636
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1740
 msgid "Face down"
 msgstr ""
 
@@ -71,19 +71,19 @@ msgstr "牌面朝下的牌"
 msgid "Face-down permanent"
 msgstr "牌面朝下的永久物"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:849
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:918
 msgid "Flavor text"
 msgstr "背景敘述"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:864
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:933
 msgid "Flip back · F"
 msgstr "翻到背面 · F"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:864
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:933
 msgid "Flip front · F"
 msgstr "翻到正面 · F"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:780
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:849
 msgid "Keywords, costs & counters"
 msgstr "關鍵字、費用與指示物"
 
@@ -102,31 +102,31 @@ msgstr "第 {0} 級，共 {1} 級"
 msgid "LORE CHAPTERS"
 msgstr "傳世章節"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1173
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1263
 msgid "Loyalty"
 msgstr "忠誠"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:880
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:949
 msgid "Original printing · generated frame unavailable"
 msgstr ""
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:878
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:947
 msgid "Printed face · live state belongs to the other face"
 msgstr ""
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:803
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:872
 msgid "Progression"
 msgstr "進程"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:713
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:765
 msgid "Rules & details"
 msgstr ""
 
 #. placeholder {0}: indexedActions.length
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:712
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:764
 msgid "Rules & details · {0} actions"
 msgstr ""
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:829
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:898
 msgid "Rules text"
 msgstr "規則文字"

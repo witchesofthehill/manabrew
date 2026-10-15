@@ -15,12 +15,12 @@ msgstr ""
 
 #. placeholder {0}: display.stats.damage
 #. placeholder {0}: stats.damage
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:891
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1177
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:960
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1267
 msgid "{0} damage"
 msgstr "{0} ダメージ"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:770
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:839
 msgid "Actions apply to the current face."
 msgstr ""
 
@@ -32,7 +32,7 @@ msgstr "最初の章を待機中"
 msgid "Awaiting first level"
 msgstr "最初のレベルを待機中"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:827
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:896
 msgid "Card identity and rules are hidden."
 msgstr "カードの正体とルールテキストは非表示です。"
 
@@ -51,7 +51,7 @@ msgstr "章 {0} / {1}"
 msgid "CLASS LEVELS"
 msgstr "クラスのレベル"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1174
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1264
 msgid "Defense"
 msgstr "防衛"
 
@@ -59,7 +59,7 @@ msgstr "防衛"
 msgid "Effect text unavailable"
 msgstr "効果テキストを利用できません"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1636
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1740
 msgid "Face down"
 msgstr ""
 
@@ -71,19 +71,19 @@ msgstr "裏向きのカード"
 msgid "Face-down permanent"
 msgstr "裏向きのパーマネント"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:849
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:918
 msgid "Flavor text"
 msgstr "フレーバーテキスト"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:864
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:933
 msgid "Flip back · F"
 msgstr "裏面に切替 · F"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:864
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:933
 msgid "Flip front · F"
 msgstr "表面に切替 · F"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:780
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:849
 msgid "Keywords, costs & counters"
 msgstr "キーワード・コスト・カウンター"
 
@@ -102,31 +102,31 @@ msgstr "レベル {0} / {1}"
 msgid "LORE CHAPTERS"
 msgstr "サーガの章"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1173
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1263
 msgid "Loyalty"
 msgstr "忠誠度"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:880
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:949
 msgid "Original printing · generated frame unavailable"
 msgstr ""
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:878
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:947
 msgid "Printed face · live state belongs to the other face"
 msgstr ""
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:803
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:872
 msgid "Progression"
 msgstr "進行"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:713
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:765
 msgid "Rules & details"
 msgstr ""
 
 #. placeholder {0}: indexedActions.length
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:712
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:764
 msgid "Rules & details · {0} actions"
 msgstr ""
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:829
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:898
 msgid "Rules text"
 msgstr "ルールテキスト"

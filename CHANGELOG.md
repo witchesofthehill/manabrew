@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.55.4](https://github.com/witchesofthehill/manabrew/compare/v3.55.3...v3.55.4) (2026-10-14)
+
+### Fixes
+
+* normalization serde ([#1057](https://github.com/witchesofthehill/manabrew/issues/1057)) ([0e2b786](https://github.com/witchesofthehill/manabrew/commit/0e2b7860f9f074ffcf9fe439615b7d3ff84769cf))
+
 ## [3.55.3](https://github.com/witchesofthehill/manabrew/compare/v3.55.2...v3.55.3) (2026-10-10)
 
 ### Fixes

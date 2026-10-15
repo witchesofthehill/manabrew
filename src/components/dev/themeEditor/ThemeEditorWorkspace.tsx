@@ -1,4 +1,6 @@
 import { useCallback, useState, type ReactNode } from "react";
+import { useSearchParams } from "react-router-dom";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -93,11 +95,17 @@ function AppElementPreview() {
 export function ThemeEditorWorkspace({
   children,
   specimens,
+  rendering,
+  controls,
 }: {
   children: ReactNode;
   specimens: ReactNode;
+  rendering: ReactNode;
+  controls: ReactNode;
 }) {
   const editor = useThemeDraft();
+  const [params, setParams] = useSearchParams();
+  const comparing = params.get("tab") === "rendering";
   const [invalidTokens, setInvalidTokens] = useState<Set<string>>(() => new Set());
   const onValidityChange = useCallback((token: string, invalid: boolean) => {
     setInvalidTokens((current) => {
@@ -111,6 +119,31 @@ export function ThemeEditorWorkspace({
   return (
     <div className="flex h-full min-h-0 flex-col gap-2 overflow-hidden px-4 py-3 sm:px-6 lg:px-8">
       <ThemeEditorToolbar editor={editor} hasInvalidColors={invalidTokens.size > 0} />
+      <div className="flex shrink-0 flex-wrap items-center gap-3">
+        <nav aria-label="Lab workspace" className="flex gap-1">
+          {[
+            { id: "board", label: "Board & theme" },
+            { id: "rendering", label: "Card rendering" },
+          ].map(({ id, label }) => (
+            <Button
+              key={id}
+              size="sm"
+              variant={comparing === (id === "rendering") ? "selected" : "outline"}
+              aria-pressed={comparing === (id === "rendering")}
+              onClick={() =>
+                setParams((current) => {
+                  const next = new URLSearchParams(current);
+                  next.set("tab", id);
+                  return next;
+                })
+              }
+            >
+              {label}
+            </Button>
+          ))}
+        </nav>
+        {controls}
+      </div>
       {editor.error && (
         <p role="alert" className="shrink-0 text-xs text-destructive">
           {editor.error}
@@ -126,7 +159,12 @@ export function ThemeEditorWorkspace({
           {editor.status}
         </p>
       )}
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden md:flex-row">
+      <div
+        className={cn(
+          "min-h-0 flex-1 flex-col gap-3 overflow-hidden md:flex-row",
+          comparing ? "hidden" : "flex",
+        )}
+      >
         <ThemeTokenRail editor={editor} onValidityChange={onValidityChange} />
         <div className="order-1 flex h-[52%] min-h-0 min-w-0 shrink-0 flex-col gap-2 md:order-2 md:h-auto md:flex-1">
           <div className="min-h-0 min-w-0 flex-1 overflow-hidden">{children}</div>
@@ -138,7 +176,10 @@ export function ThemeEditorWorkspace({
           </details>
         </div>
       </div>
-      <AppElementPreview />
+      {comparing && (
+        <div className="min-h-0 flex-1 overflow-auto overscroll-contain">{rendering}</div>
+      )}
+      {!comparing && <AppElementPreview />}
     </div>
   );
 }

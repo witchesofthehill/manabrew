@@ -10,7 +10,8 @@ import {
 import type { Theme } from "@/hooks/useTheme";
 import type { ClientCardDto } from "@/stores/gameStore.types";
 import type { InGameCardPreviewStyle } from "@/stores/usePreferencesStore";
-import { CARD_H, CARD_W, GAME_CARD_SIZES } from "@/components/game/game.constants";
+import { CARD_H, CARD_W } from "@/components/game/game.constants";
+import { computePreviewCardDimensions } from "@/components/game/cardPreviewLayout";
 import { CardSprite } from "@/pixi/CardSprite";
 import { hexToNum } from "@/pixi/colorUtils";
 import { gsap } from "@/pixi/effects/gsap";
@@ -107,10 +108,14 @@ export class CommandZonePreviewLayer {
     }
     if (spec) {
       for (const entry of this.entries) {
+        const card = entry.sprite.card;
+        const castable = spec.castableCardIds.includes(card.id);
         entry.sprite.setHandRulesView(spec.style === "rules");
-      }
-      for (const entry of this.entries) {
-        entry.castButton.visible = spec.castableCardIds.includes(entry.sprite.card.id);
+        entry.sprite.setHandRulesActions(
+          castable ? [{ kind: "cast", cardId: card.id, label: `Cast ${card.identity.name}` }] : [],
+          (action) => this.callbacks.onCastCard(action.cardId),
+        );
+        entry.castButton.visible = castable && spec.style !== "rules";
       }
     }
     this.layout();
@@ -132,6 +137,18 @@ export class CommandZonePreviewLayer {
     const localX = x - this.container.x;
     const localY = y - this.container.y;
     return localX >= 0 && localX <= this.groupWidth && localY >= 0 && localY <= this.groupHeight;
+  }
+
+  hitTestRules(x: number, y: number): boolean {
+    return this.spec?.style === "rules" && this.hitTest(x, y);
+  }
+
+  scrollRulesAt(x: number, y: number, delta: number, mode: number): void {
+    if (!this.hitTestRules(x, y)) return;
+    const localX = x - this.container.x;
+    const localY = y - this.container.y;
+    const entry = this.entries.find((entry) => entry.bounds.contains(localX, localY));
+    if (entry?.sprite.scrollHandRules(delta, mode)) this.callbacks.onRenderRequested();
   }
 
   updateHover(x: number, y: number): boolean {
@@ -251,8 +268,14 @@ export class CommandZonePreviewLayer {
     );
     const maxBaseHeight = Math.max(...baseHeights);
     const idealScale = Math.min(
-      GAME_CARD_SIZES.preview.width / CARD_W,
-      (this.viewportHeight - EDGE_PAD * 2) / maxBaseHeight,
+      ...this.entries.map((entry, index) => {
+        const dimensions = computePreviewCardDimensions({
+          usableWidth: viewportRight,
+          usableHeight: this.viewportHeight,
+          horizontal: entry.sprite.horizontalFrame,
+        });
+        return dimensions.width / baseWidths[index]!;
+      }),
     );
     const widthWithoutGaps = baseWidths.reduce((sum, width) => sum + width, 0);
     const availableWidth = Math.max(1, viewportRight - EDGE_PAD * 2);

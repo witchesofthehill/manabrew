@@ -8,6 +8,7 @@ import { cardFaceImageUris } from "@/lib/cardImage";
 import { resolveCardFaces } from "@/lib/cardFaces";
 import { isTwoHalfLayout } from "@/lib/cardLayout";
 import { MSE_ARTWORK_FACE_FRAGMENT } from "@/lib/mseCardArtwork";
+import { MseCardRenderError } from "@/lib/mseCardDecision";
 import { previewDtoDeckCard } from "@/lib/scryfall.utils";
 import { localizeRulesPreviewText } from "@/pixi/cardPreview/rulesCardPreviewPresentation";
 import {
@@ -349,7 +350,11 @@ export async function prepareMseCard(input: MseCardInput): Promise<PreparedMseCa
         .getCard({ id: meldResult.id })
         .catch(() => undefined)
     : undefined;
-  if (meldResult && !reverse) throw new Error("The meld result metadata is unavailable");
+  if (meldResult && !reverse)
+    throw new MseCardRenderError(
+      { mode: "original", reason: "invalid-faces", layout, faceIndex: input.faceIndex ?? 0 },
+      "The meld result metadata is unavailable",
+    );
   const faceInfo = reverse && info ? { ...info, card_faces: [info, reverse.info] } : info;
   const resolved = resolveCardFaces(faceInfo);
   const combined =
@@ -360,12 +365,22 @@ export async function prepareMseCard(input: MseCardInput): Promise<PreparedMseCa
     input.card?.isDoubleFaced ||
     deckCard?.isDoubleFaced;
   const faceIndex = combined ? 0 : (input.faceIndex ?? (input.card?.isTransformed ? 1 : 0));
-  if (faceIndex === 1 && !flippable) throw new Error("This card has no reverse face");
+  if (faceIndex === 1 && !flippable)
+    throw new MseCardRenderError(
+      { mode: "original", reason: "invalid-faces", layout, faceIndex },
+      "This card has no reverse face",
+    );
   if (input.card?.isTransformed && faceIndex === 0 && !info && !deckCard) {
-    throw new Error("The original face is unavailable");
+    throw new MseCardRenderError(
+      { mode: "original", reason: "invalid-faces", layout, faceIndex },
+      "The original face is unavailable",
+    );
   }
   if (layout === "art_series" || layout === "front_card") {
-    throw new Error(`Generated rendering does not support the ${layout} layout`);
+    throw new MseCardRenderError(
+      { mode: "original", reason: "unknown-layout", layout, faceIndex },
+      `Generated rendering does not support the ${layout} layout`,
+    );
   }
   const faces = (
     faceInfo?.card_faces?.length
@@ -374,9 +389,16 @@ export async function prepareMseCard(input: MseCardInput): Promise<PreparedMseCa
         ? [undefined, undefined]
         : [info]
   ).map((face, index) => faceSnapshot(face, deckCard, index));
-  if (combined && faces.length < 2) throw new Error("Multipart card metadata is unavailable");
+  if (combined && faces.length < 2)
+    throw new MseCardRenderError(
+      { mode: "original", reason: "invalid-faces", layout, faceIndex },
+      "Multipart card metadata is unavailable",
+    );
   if (faces.length > 2 || (faces.length > 1 && !combined && !flippable)) {
-    throw new Error(`Generated rendering cannot represent all parts of the ${layout} layout`);
+    throw new MseCardRenderError(
+      { mode: "original", reason: "invalid-faces", layout, faceIndex },
+      `Generated rendering cannot represent all parts of the ${layout} layout`,
+    );
   }
   const selectedLayout = faces[faceIndex]?.layout;
   if (
@@ -386,12 +408,24 @@ export async function prepareMseCard(input: MseCardInput): Promise<PreparedMseCa
       selectedLayout === "prepare" ||
       selectedLayout === "flip")
   ) {
-    throw new Error("The reversible face is missing its multipart card metadata");
+    throw new MseCardRenderError(
+      {
+        mode: "original",
+        reason: "unrepresentable-fields",
+        layout: selectedLayout ?? layout,
+        faceIndex,
+      },
+      "The reversible face is missing its multipart card metadata",
+    );
   }
   if (faceIndex >= faces.length) {
     if (input.card?.isTransformed && faceIndex === 1)
       faces.push(faceSnapshot(undefined, undefined, 1));
-    else throw new Error("The requested card face is unavailable");
+    else
+      throw new MseCardRenderError(
+        { mode: "original", reason: "invalid-faces", layout, faceIndex },
+        "The requested card face is unavailable",
+      );
   }
   if (input.card) {
     const liveIndex = input.card.isTransformed ? 1 : 0;

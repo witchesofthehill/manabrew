@@ -42,6 +42,7 @@ import {
 import { cn } from "@/lib/utils";
 import { usePreferencesStore, type InGameCardPreviewStyle } from "@/stores/usePreferencesStore";
 import { hexToNum } from "./colorUtils";
+import { RulesPreviewAccessibility } from "@/components/game/RulesPreviewAccessibility";
 
 export interface BoardOverlayPreviewSpec {
   card: ClientCardDto;
@@ -768,6 +769,7 @@ export function BoardOverlayCanvasSurface({
         if (prompt?.hitTest(x, y)) return prompt.hitTestRules(x, y);
         return (
           (previewRef.current?.hitTest(x, y) ?? false) ||
+          (commandPreviewRef.current?.hitTestRules(x, y) ?? false) ||
           (stackRef.current?.hitTestRules(x, y) ?? false)
         );
       },
@@ -780,6 +782,8 @@ export function BoardOverlayCanvasSurface({
           prompt.scrollRulesAt(x, y, delta, mode);
         } else if (previewRef.current?.hitTest(x, y)) {
           previewRef.current.scrollBy(delta, mode, x, y);
+        } else if (commandPreviewRef.current?.hitTestRules(x, y)) {
+          commandPreviewRef.current.scrollRulesAt(x, y, delta, mode);
         } else {
           stackRef.current?.scrollRulesAt(x, y, delta, mode);
         }
@@ -1007,6 +1011,34 @@ export function BoardOverlayCanvasSurface({
     return () => window.removeEventListener("keydown", onKeyDown, { capture: true });
   }, [rulesPreviewOpen]);
 
+  const previewControlBounds = (index?: number) => {
+    const canvas = canvasRef.current;
+    const preview = previewRef.current;
+    const app = appRef.current;
+    const modal = topModal();
+    if (
+      !canvas ||
+      !preview ||
+      !app ||
+      promptRef.current?.blocksBoard ||
+      (modal && !modal.contains(canvas))
+    )
+      return null;
+    if (index !== undefined) preview.focusActionAt(index);
+    const bounds =
+      index === undefined ? preview.getCardScreenBounds() : preview.getActionScreenBounds(index);
+    if (!bounds) return null;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = rect.width / app.screen.width;
+    const scaleY = rect.height / app.screen.height;
+    return {
+      x: rect.x + bounds.x * scaleX,
+      y: rect.y + bounds.y * scaleY,
+      width: bounds.width * scaleX,
+      height: bounds.height * scaleY,
+    };
+  };
+
   return (
     <>
       <canvas
@@ -1030,6 +1062,41 @@ export function BoardOverlayCanvasSurface({
           willChange: "transform, width, height, opacity",
         }}
       />
+      {rulesPreviewOpen && (
+        <RulesPreviewAccessibility
+          key={`${previewSpec.card.id}-${previewSpec.showBackFace}`}
+          card={previewSpec.card}
+          actions={previewSpec.actions}
+          onFocusAction={previewControlBounds}
+          cardBounds={() => previewControlBounds()}
+          onSelect={(action) => {
+            if (previewControlBounds()) onSelectPreviewAction?.(action);
+          }}
+          onHold={() => onPreviewPointerEnter?.()}
+          onRelease={() => onPreviewPointerLeave?.()}
+          onOriginal={
+            onTogglePreviewView
+              ? () => {
+                  if (previewControlBounds()) onTogglePreviewView();
+                }
+              : undefined
+          }
+          onFlip={
+            onFlipPreview
+              ? () => {
+                  if (previewControlBounds()) onFlipPreview();
+                }
+              : undefined
+          }
+          onDismiss={
+            onDismissPreview
+              ? () => {
+                  if (previewControlBounds()) onDismissPreview();
+                }
+              : undefined
+          }
+        />
+      )}
     </>
   );
 }

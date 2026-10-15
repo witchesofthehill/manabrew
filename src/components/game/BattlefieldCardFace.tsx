@@ -13,7 +13,7 @@ import { deriveCardRailState } from "@/components/game/cardRailState";
 import { isCreature, isLethalDamage } from "@/components/game/game.utils";
 import { cardTypeLine } from "@/components/game/cardPresentation";
 import { battlefieldKeywords } from "@/lib/battlefieldKeywords";
-import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { CardFoilOverlay } from "@/components/game/CardFoilOverlay";
 
 export type BattlefieldCardFaceVariant = "frame" | "art";
 
@@ -34,7 +34,6 @@ export function BattlefieldCardFace({
   width = 70,
 }: BattlefieldCardFaceProps) {
   const theme = useTheme().gameTheme;
-  const animatedFoil = usePreferencesStore((state) => state.inGameAnimations);
   const { imageUrl } = useResolvedGameCard(card);
   if (card.isFaceDown || !card.identity.name) {
     return (
@@ -195,9 +194,7 @@ export function BattlefieldCardFace({
         card.tapped && "rotate-90",
         card.phasedOut && "opacity-30 grayscale",
         summoned && "opacity-80 grayscale-[0.85]",
-        card.foil && variant === "art" && "draft-tile-foil",
       )}
-      data-foil-animated={animatedFoil}
       style={
         {
           ["--card-rail-width" as string]: CARD_RAIL_WIDTH,
@@ -226,6 +223,7 @@ export function BattlefieldCardFace({
           }
         />
       )}
+      <CardFoilOverlay enabled={!!card.foil && variant === "art"} />
       {variant === "frame" && (
         <div
           className="pointer-events-none absolute inset-0 rounded-[inherit]"

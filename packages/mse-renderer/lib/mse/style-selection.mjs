@@ -3,13 +3,14 @@ import {printingMseTreatment} from './printing-style.mjs';
 // Automatic defaults are a presentation policy, not a list of supported styles.
 // A requested package always wins, including packages outside the bundled pack.
 export function selectMsePresentation(snapshot,{style,defaultStyle='auto',faceIndex=0,printing,availableStyles}={}){
-  if(style&&style!=='auto')return {style,styling:{},source:'explicit'};
-  if(defaultStyle&&defaultStyle!=='auto')return {style:defaultStyle,styling:{},source:'explicit'};
   const available=availableStyles==null?null:new Set(availableStyles);
+  const requested=style&&style!=='auto'?style:defaultStyle&&defaultStyle!=='auto'?defaultStyle:null;
+  const select=(presentation)=>presentation.style&&available&&!available.has(presentation.style)
+    ? {...presentation,requestedTemplate:presentation.style,style:null,reason:'missing-template'}:presentation;
+  if(requested)return select({style:requested,styling:{},source:'explicit'});
   const treatment=printingMseTreatment(snapshot,{printing,faceIndex});
-  if(treatment)return {...treatment,style:!available||available.has(treatment.style)?treatment.style:null,source:'printing'};
-  const general=generalMseStyle(snapshot,{faceIndex});
-  return {style:!available||available.has(general)?general:null,styling:{},source:'general'};
+  if(treatment)return select({...treatment,source:'printing'});
+  return select({style:generalMseStyle(snapshot,{faceIndex}),styling:{},source:'general'});
 }
 
 export function selectMseStyle(snapshot,options){

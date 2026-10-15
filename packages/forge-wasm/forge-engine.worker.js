@@ -53,7 +53,7 @@ function identities(cards) {
     const identity = card.identity || card;
     const name = identity.name;
     if (!name) continue;
-    const entry = { name: frontFace(name) };
+    const entry = { name: frontFace(name), foil: identity.foil ?? false };
     if (identity.setCode) entry.setCode = identity.setCode;
     if (identity.cardNumber) entry.collectorNumber = identity.cardNumber;
     for (let i = 0; i < (card.count ?? 1); i++) out.push(entry);

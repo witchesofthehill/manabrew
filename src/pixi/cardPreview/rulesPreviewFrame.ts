@@ -3,7 +3,7 @@ import type { Theme } from "@/hooks/useTheme";
 import { hexToNum } from "@/pixi/colorUtils";
 import { ensureTextContrast } from "@/themes/gameTheme";
 import type { CardStatPresentation } from "@/components/game/cardPresentation";
-import type { MseCardArtwork } from "@/lib/mseCardRenderer";
+import type { MseCardRegion } from "@/lib/mseCardGeometry";
 
 export const RULES_BODY_FONT = "Georgia, Cambria, Times New Roman, serif";
 export const RULES_TITLE_FONT = "Cormorant Garamond, Georgia, serif";
@@ -34,7 +34,7 @@ export interface RulesPreviewFrameStyle {
 
 export function resolveRulesPreviewFrame(
   theme: Theme,
-  native?: MseCardArtwork,
+  native?: MseCardRegion,
 ): RulesPreviewFrameStyle {
   const palette = theme.gameTheme.cardPaper;
   const paper = palette.background;

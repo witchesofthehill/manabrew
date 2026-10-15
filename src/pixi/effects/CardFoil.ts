@@ -1,19 +1,26 @@
-import { Container, FillGradient, Graphics, type DestroyOptions } from "pixi.js";
+import {
+  Color,
+  Container,
+  Mesh,
+  type DestroyOptions,
+  type MeshGeometry,
+  type Shader,
+} from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
+import { DEFAULT_CARD_FOIL_MODE } from "@/lib/cardFinish";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
-import { withAlpha } from "@/themes/gameTheme";
+import { useCardFinishPreview } from "@/stores/useCardFinishPreview";
+import { createCardFoilShader, type CardFoilShader } from "./cardFoilShader";
 import { animationsEnabled } from "./enabled";
-
-const FOIL_PERIOD_MS = 6400;
-const FOIL_TRAVEL = 0.65;
+import { gsap } from "./gsap";
 
 export class CardFoil extends Container {
-  private readonly sheen = new Graphics();
-  private readonly clip = new Graphics();
-  private gradient: FillGradient | null = null;
-  private surfaceKey = "";
-  private surfaceWidth = 0;
+  private finish: CardFoilShader | null = null;
+  private sheen: Mesh<MeshGeometry, Shader> | null = null;
+  private sweep: gsap.core.Tween | null = null;
   private readonly unsubscribePreferences: () => void;
+  private readonly unsubscribeFinish: () => void;
+  private enabled = false;
   private readonly reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   private readonly requestRender: () => void;
 
@@ -23,67 +30,118 @@ export class CardFoil extends Container {
     this.eventMode = "none";
     this.interactiveChildren = false;
     this.visible = false;
-    this.sheen.blendMode = "screen";
-    this.addChild(this.sheen, this.clip);
-    this.sheen.mask = this.clip;
     this.unsubscribePreferences = usePreferencesStore.subscribe((state, previous) => {
-      if (state.inGameAnimations !== previous.inGameAnimations) this.requestRender();
+      if (state.inGameAnimations !== previous.inGameAnimations) this.syncAnimation();
     });
-    this.reducedMotion.addEventListener("change", this.requestRender);
-    this.onRender = () => {
-      if (this.destroyed || !this.visible || !this.renderable || document.hidden) return;
-      const animated = animationsEnabled() && usePreferencesStore.getState().inGameAnimations;
-      for (let ancestor = this.parent; ancestor; ancestor = ancestor.parent) {
-        if (!ancestor.visible || !ancestor.renderable || ancestor.alpha <= 0) return;
-      }
-      const shift = animated
-        ? Math.sin((performance.now() / FOIL_PERIOD_MS) * Math.PI * 2) * FOIL_TRAVEL
-        : 0;
-      this.sheen.x = this.surfaceWidth * (shift - 1);
-      if (animated) this.requestRender();
-    };
+    this.unsubscribeFinish = useCardFinishPreview.subscribe((state, previous) => {
+      if (state.mode !== previous.mode) this.syncFinish();
+    });
+    this.reducedMotion.addEventListener("change", this.syncAnimation);
+    document.addEventListener("visibilitychange", this.syncAnimation);
+    this.on("removed", this.syncAnimation);
+    this.onRender = this.syncAnimation;
   }
 
+  private canAnimate(): boolean {
+    if (
+      !this.visible ||
+      !this.parent ||
+      document.hidden ||
+      !animationsEnabled() ||
+      !usePreferencesStore.getState().inGameAnimations
+    )
+      return false;
+    for (let ancestor: Container | null = this.parent; ancestor; ancestor = ancestor.parent) {
+      if (!ancestor.visible || !ancestor.renderable || ancestor.alpha <= 0) return false;
+    }
+    return true;
+  }
+
+  private readonly syncAnimation = (): void => {
+    if (!this.finish) return;
+    if (!this.canAnimate()) {
+      this.sweep?.pause();
+      if (
+        (!animationsEnabled() || !usePreferencesStore.getState().inGameAnimations) &&
+        this.finish.uniforms.uPhase !== 0.5
+      ) {
+        this.finish.uniforms.uPhase = 0.5;
+        this.sweep?.kill();
+        this.sweep = null;
+        this.requestRender();
+      }
+      return;
+    }
+    if (this.sweep) {
+      this.sweep.resume();
+      return;
+    }
+    this.sweep = gsap.fromTo(
+      this.finish.uniforms,
+      { uPhase: -1 },
+      {
+        uPhase: 2,
+        duration: 3.2,
+        ease: "sine.inOut",
+        repeat: -1,
+        immediateRender: false,
+        onUpdate: () => {
+          if (this.canAnimate()) this.requestRender();
+          else this.syncAnimation();
+        },
+      },
+    );
+  };
+
   setSurface(width: number, height: number, radius: number, theme: Theme): void {
-    const colors = theme.gameTheme;
-    const key = `${width}:${height}:${radius}:${colors.canvas.neutral}:${colors.rarity.rare}:${colors.mana.U}:${colors.rarity.special}`;
-    if (key === this.surfaceKey) return;
-    this.surfaceKey = key;
-    this.surfaceWidth = width;
-    this.sheen.clear();
-    this.gradient?.destroy();
-    this.gradient = new FillGradient({
-      type: "linear",
-      start: { x: 0, y: 0 },
-      end: { x: 1, y: 0.45 },
-      colorStops: [
-        { offset: 0, color: withAlpha(colors.mana.U, 0.03) },
-        { offset: 0.3, color: withAlpha(colors.rarity.special, 0.06) },
-        { offset: 0.42, color: withAlpha(colors.mana.U, 0.2) },
-        { offset: 0.5, color: withAlpha(colors.canvas.neutral, 0.26) },
-        { offset: 0.58, color: withAlpha(colors.rarity.rare, 0.22) },
-        { offset: 0.7, color: withAlpha(colors.rarity.special, 0.08) },
-        { offset: 1, color: withAlpha(colors.mana.U, 0.03) },
-      ],
-    });
-    this.sheen.rect(0, 0, width * 3, height).fill(this.gradient);
-    this.sheen.x = -width;
-    this.clip.clear().roundRect(0, 0, width, height, radius).fill(colors.canvas.neutral);
-    this.requestRender();
+    if (!this.finish) {
+      this.finish = createCardFoilShader();
+      this.sheen = new Mesh({ geometry: this.finish.geometry, shader: this.finish.shader });
+      this.sheen.blendMode = "screen";
+      this.addChild(this.sheen);
+    }
+    this.sheen!.scale.set(width, height);
+    const uniforms = this.finish.uniforms;
+    uniforms.uSize[0] = width;
+    uniforms.uSize[1] = height;
+    uniforms.uRadius = radius;
+    Color.shared.setValue(theme.gameTheme.rarity.rare).toRgbArray(uniforms.uWarm);
+    Color.shared.setValue(theme.gameTheme.mana.U).toRgbArray(uniforms.uCool);
+    Color.shared.setValue(theme.gameTheme.canvas.neutral).toRgbArray(uniforms.uNeutral);
+    this.syncFinish();
+  }
+
+  setExclusion(region: { x: number; y: number; width: number; height: number } | null): void {
+    const exclusion = this.finish?.uniforms.uExclusion;
+    if (!exclusion) return;
+    exclusion[0] = region?.x ?? 0;
+    exclusion[1] = region?.y ?? 0;
+    exclusion[2] = region?.width ?? 0;
+    exclusion[3] = region?.height ?? 0;
   }
 
   setEnabled(enabled: boolean): void {
-    if (this.visible === enabled) return;
-    this.visible = enabled;
+    if (this.enabled === enabled) return;
+    this.enabled = enabled;
+    this.syncFinish();
+  }
+
+  private syncFinish(): void {
+    const mode = useCardFinishPreview.getState().mode ?? DEFAULT_CARD_FOIL_MODE;
+    this.visible = this.enabled && mode !== "regular";
+    this.syncAnimation();
     this.requestRender();
   }
 
   override destroy(_options?: DestroyOptions): void {
     this.onRender = null;
-    super.destroy({ children: true });
-    this.gradient?.destroy();
-    this.gradient = null;
+    this.sweep?.kill();
     this.unsubscribePreferences();
-    this.reducedMotion.removeEventListener("change", this.requestRender);
+    this.unsubscribeFinish();
+    this.reducedMotion.removeEventListener("change", this.syncAnimation);
+    document.removeEventListener("visibilitychange", this.syncAnimation);
+    super.destroy({ children: true });
+    this.finish?.destroy();
+    this.finish = null;
   }
 }

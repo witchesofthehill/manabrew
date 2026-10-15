@@ -326,6 +326,10 @@ export class BoardZoneTiles {
       if (tile.spec.onOpen) this.setHovered(tile, true);
       if (tile.spec.previewCards?.length) this.showPreviewCards(tile);
     });
+    container.on("pointermove", (event: FederatedPointerEvent) => {
+      if (event.pointerType === "touch" || event.buttons !== 0 || this.drag?.moved) return;
+      if (tile.spec.previewCards?.length) this.showPreviewCards(tile);
+    });
     container.on("pointerleave", () => {
       this.setHovered(tile, false);
       if (tile.spec.previewCards?.length) this.host.onPreviewCards(null);

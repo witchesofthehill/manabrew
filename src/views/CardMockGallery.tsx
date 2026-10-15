@@ -11,6 +11,10 @@ import {
 import { BoardPlayground } from "@/components/dev/BoardPlayground";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { ThemeEditorWorkspace } from "@/components/dev/themeEditor/ThemeEditorWorkspace";
+import CardRenderingLab from "@/components/dev/CardRenderingLab";
+import { CardFoilControls } from "@/components/dev/CardFoilControls";
+import { CardFoilOverlay } from "@/components/game/CardFoilOverlay";
+import { useCardFinishPreview } from "@/stores/useCardFinishPreview";
 
 type GalleryVariant = BattlefieldCardFaceVariant | "realistic";
 const VARIANT_LABELS: Record<GalleryVariant, string> = {
@@ -104,6 +108,7 @@ function GalleryRow({
   showReal: boolean;
 }) {
   const entry = useCard({ name: spec.name });
+  const foilAll = useCardFinishPreview((state) => state.foilAll);
   if (!entry) {
     return (
       <div
@@ -114,17 +119,22 @@ function GalleryRow({
       </div>
     );
   }
-  const card = scryfallToSampleGameCard(entry.info, spec.overrides);
+  const card = scryfallToSampleGameCard(entry.info, {
+    ...spec.overrides,
+    foil: foilAll || spec.overrides?.foil,
+  });
   const size = { width, height: width * (98 / 70) };
   return (
     <div className="flex items-start gap-2">
       {variant === "realistic" ? (
-        <ScryfallImg
-          src={entry.uris.normal}
-          alt={card.identity.name}
-          style={size}
-          className="rounded object-contain"
-        />
+        <div className="relative overflow-hidden rounded" style={size}>
+          <ScryfallImg
+            src={entry.uris.normal}
+            alt={card.identity.name}
+            className="h-full w-full object-contain"
+          />
+          <CardFoilOverlay enabled={!!card.foil} />
+        </div>
       ) : (
         <BattlefieldCardFace
           card={card}
@@ -135,12 +145,14 @@ function GalleryRow({
         />
       )}
       {showReal && variant !== "realistic" && (
-        <ScryfallImg
-          src={entry.uris.normal}
-          alt={card.identity.name}
-          style={size}
-          className="rounded object-contain opacity-90"
-        />
+        <div className="relative overflow-hidden rounded" style={size}>
+          <ScryfallImg
+            src={entry.uris.normal}
+            alt={card.identity.name}
+            className="h-full w-full object-contain opacity-90"
+          />
+          <CardFoilOverlay enabled={!!card.foil} />
+        </div>
       )}
     </div>
   );
@@ -217,7 +229,11 @@ function CardSpecimens() {
 
 export default function CardMockGallery() {
   return (
-    <ThemeEditorWorkspace specimens={<CardSpecimens />}>
+    <ThemeEditorWorkspace
+      specimens={<CardSpecimens />}
+      rendering={<CardRenderingLab />}
+      controls={<CardFoilControls />}
+    >
       <BoardPlayground themeEditor />
     </ThemeEditorWorkspace>
   );

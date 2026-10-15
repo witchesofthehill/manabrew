@@ -1,6 +1,7 @@
 import { createBrowserMseSession as createSession } from "./lib/mse/browser-session.mjs";
 import upstream from "./lib/mse/upstream.mjs";
 import corpus from "./corpus-index.json" with { type: "json" };
+import { createCorpusFetcher, resolveCorpusUrl } from "./corpus-source.mjs";
 import { selectMsePresentation as selectPresentation } from "./lib/mse/style-selection.mjs";
 import { printingMseSetFields as printingSetFields } from "./lib/mse/printing-style.mjs";
 import {
@@ -64,7 +65,7 @@ const supportedLayouts = new Set([
   "aftermath",
 ]);
 
-export function selectMsePresentation(snapshot, options = {}) {
+function resolveMsePresentation(snapshot, options = {}) {
   const face = snapshot.card_faces?.[options.faceIndex ?? 0] ?? snapshot;
   const layout =
     snapshot.layout === "reversible_card" ? face.layout : (snapshot.layout ?? "normal");
@@ -73,15 +74,15 @@ export function selectMsePresentation(snapshot, options = {}) {
     options,
   );
   if (presentation.source === "explicit") return presentation;
-  const unavailable = { style: null, styling: {}, source: "general" };
-  if (!supportedLayouts.has(layout)) return unavailable;
+  const unavailable = (reason) => ({ style: null, styling: {}, source: "general", reason });
+  if (!supportedLayouts.has(layout)) return unavailable("unknown-layout");
   const faces = snapshot.card_faces;
   const multipart = ["split", "room", "aftermath", "adventure", "prepare", "flip"].includes(layout);
   const doubleFaced = ["transform", "modal_dfc", "double_faced_token", "battle"].includes(layout);
   if ((multipart || doubleFaced || snapshot.layout === "reversible_card") && faces?.length !== 2)
-    return unavailable;
-  if (faces?.length && (faces.length > 2 || (options.faceIndex ?? 0) >= faces.length))
-    return unavailable;
+    return unavailable("invalid-faces");
+  if ((options.faceIndex ?? 0) >= (faces?.length || 1) || faces?.length > 2)
+    return unavailable("invalid-faces");
   if (
     faces?.length > 1 &&
     !multipart &&
@@ -89,17 +90,19 @@ export function selectMsePresentation(snapshot, options = {}) {
     snapshot.layout !== "reversible_card" &&
     layout !== "meld"
   )
-    return unavailable;
+    return unavailable("invalid-faces");
   if (presentation.source === "printing" && !presentation.style) return presentation;
   const rules = String(face.oracle_text ?? face.effect_text ?? face.ability_text ?? "");
   const type = String(face.type_line ?? "");
-  if (/\b(?:Dungeon|Attraction|Contraption|Sticker)\b/.test(type)) return unavailable;
+  if (/\b(?:Dungeon|Attraction|Contraption|Sticker)\b/.test(type))
+    return unavailable("unsupported-card-type");
   const classCard = /\bClass\b/.test(type);
   const prototype = prototypeFields(rules);
   const mutate = prototype ? null : mutateFields(rules);
   if ((layout === "prototype" && !prototype) || (layout === "mutate" && !mutate))
-    return unavailable;
-  if (presentation.source === "printing" && (classCard || prototype || mutate)) return unavailable;
+    return unavailable("unrepresentable-fields");
+  if (presentation.source === "printing" && (classCard || prototype || mutate))
+    return unavailable("unsupported-treatment");
   if (presentation.source === "printing" && !classCard && !prototype && !mutate) {
     return presentation;
   }
@@ -125,7 +128,7 @@ export function selectMsePresentation(snapshot, options = {}) {
     fields = classFields(rules);
   } else if (layout === "leveler") {
     const levels = levelerFields(rules);
-    if (!levels) return unavailable;
+    if (!levels) return unavailable("unrepresentable-fields");
     style = "magic-m15-leveler.mse-style";
     fields = levels;
   } else if (prototype || mutate) {
@@ -137,10 +140,32 @@ export function selectMsePresentation(snapshot, options = {}) {
   if (!style) return presentation;
   const available = options.availableStyles;
   return {
-    style: available == null || new Set(available).has(style) ? style : null,
+    ...(available == null || new Set(available).has(style)
+      ? { style }
+      : { style: null, requestedTemplate: style, reason: "missing-template" }),
     ...fields,
     source: "general",
   };
+}
+
+export function selectMsePresentation(snapshot, options = {}) {
+  const faceIndex = options.faceIndex ?? 0;
+  const face = snapshot.card_faces?.[faceIndex] ?? snapshot;
+  const layout =
+    snapshot.layout === "reversible_card"
+      ? (face.layout ?? "unknown")
+      : (snapshot.layout ?? "normal");
+  const { reason, requestedTemplate, ...presentation } = resolveMsePresentation(snapshot, options);
+  const decision = presentation.style
+    ? { mode: "native", template: presentation.style, layout, faceIndex }
+    : {
+        mode: "original",
+        reason,
+        layout,
+        faceIndex,
+        ...(requestedTemplate ? { template: requestedTemplate } : {}),
+      };
+  return { ...presentation, decision };
 }
 
 export function selectMseStyle(snapshot, options) {
@@ -159,33 +184,16 @@ export function createBrowserMseSession(options = {}) {
   const configured = options.corpusUrl ?? import.meta.env?.VITE_MSE_CORPUS_URL;
   const corpusUrl = configured || MSE_DEFAULT_CORPUS_URL;
   const fetcher = options.fetcher ?? globalThis.fetch;
-  const source = new URL(corpusUrl, globalThis.location?.href);
-  const isPinnedSource = source.href === MSE_DEFAULT_CORPUS_URL;
-  const fetchResource = (input, init) => {
-    const url = String(input);
-    if (isPinnedSource && url === new URL("upstream-tree.json", source).href) {
-      return Promise.resolve(
-        Response.json({
-          sha: corpus.revision,
-          truncated: false,
-          tree: corpus.files.map((path) => ({ path, type: "blob" })),
-        }),
-      );
-    }
-    if (isPinnedSource && url === new URL("runtime-index.json", source).href) {
-      return Promise.resolve(
-        Response.json({
-          revision: corpus.revision,
-          fonts: corpus.fonts,
-          textPackages: [],
-        }),
-      );
-    }
-    return fetcher(input, { ...init, mode: "cors", credentials: "omit" });
-  };
+  const source = resolveCorpusUrl(corpusUrl);
+  const fetchResource = createCorpusFetcher({
+    source,
+    pinnedSource: MSE_DEFAULT_CORPUS_URL,
+    corpus,
+    fetcher,
+  });
   return createSession({
     ...options,
-    corpusUrl,
+    corpusUrl: source.href,
     expectedRevision: MSE_CORPUS_REVISION,
     fetcher: fetchResource,
     createCanvas: options.createCanvas ?? createCanvas,

@@ -1,3 +1,4 @@
+import { CardFoilOverlay } from "@/components/game/CardFoilOverlay";
 import { useMemo, useState } from "react";
 import { Modal } from "@/components/game/modals/Modal";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
@@ -85,7 +86,6 @@ export function CardDetailModal({
   const [selectedPrint, setSelectedPrint] = useState<ScryfallCard | null>(null);
   const [faceIndex, setFaceIndex] = useState<0 | 1>(0);
   const presentation = usePreferencesStore((state) => state.inGameCardPreviewStyle);
-  const animatedFoil = usePreferencesStore((state) => state.inGameAnimations);
   const setPresentation = usePreferencesStore((state) => state.setInGameCardPreviewStyle);
   const generated = presentation === "rules";
   const rulingsData = useCardRulings(initialCard);
@@ -299,9 +299,7 @@ export function CardDetailModal({
                       className={cn(
                         "relative w-full overflow-hidden rounded-lg shadow-lg",
                         isHorizontalActiveFace ? "aspect-[7/5]" : "aspect-[5/7]",
-                        foil && "draft-tile-foil",
                       )}
-                      data-foil-animated={animatedFoil}
                     >
                       {isHorizontalActiveFace ? (
                         <HorizontalCardImage
@@ -316,6 +314,7 @@ export function CardDetailModal({
                           className="absolute inset-0 h-full w-full object-contain"
                         />
                       )}
+                      <CardFoilOverlay enabled={!!foil} />
                     </div>
                   ) : (
                     <div

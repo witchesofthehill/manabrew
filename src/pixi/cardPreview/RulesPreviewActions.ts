@@ -293,6 +293,17 @@ export class RulesPreviewActions extends Container {
     }
   }
 
+  focusActionAt(index: number): void {
+    if (!this.rows[index]) return;
+    this.focusedIndex = index;
+    this.focusAction(0);
+  }
+
+  getActionScreenBounds(index: number) {
+    const bounds = this.rows[index]?.background.getBounds();
+    return bounds ? { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height } : null;
+  }
+
   activateFocusedAction(): void {
     if (this.focusedIndex !== null) {
       this.activateAction(this.focusedIndex);

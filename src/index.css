@@ -769,15 +769,13 @@
   }
 }
 
-.draft-tile-foil {
-  isolation: isolate;
-}
-
-.draft-tile-foil::before {
-  content: "";
+.card-foil-overlay {
   position: absolute;
+  z-index: 1;
   inset: 0;
   border-radius: inherit;
+  pointer-events: none;
+  mix-blend-mode: screen;
   background: linear-gradient(
     115deg,
     transparent 30%,
@@ -789,21 +787,11 @@
   background-size: 250% 100%;
   background-position: -100% 0;
   animation: foil-shimmer 3.2s ease-in-out infinite;
-  mix-blend-mode: screen;
-  pointer-events: none;
-  z-index: 1;
 }
 
-.draft-tile-foil[data-foil-animated="false"]::before {
+.card-foil-overlay[data-foil-animated="false"] {
   animation: none;
   background-position: 50% 0;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .draft-tile-foil::before {
-    animation: none !important;
-    background-position: 50% 0;
-  }
 }
 
 @keyframes foil-shimmer {
@@ -812,6 +800,13 @@
   }
   100% {
     background-position: 200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-foil-overlay {
+    animation: none !important;
+    background-position: 50% 0;
   }
 }
 

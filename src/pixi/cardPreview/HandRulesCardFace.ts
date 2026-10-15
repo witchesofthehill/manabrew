@@ -40,6 +40,9 @@ export class HandRulesCardFace extends Container {
   get imageReady(): boolean {
     return this.preview.imageReady;
   }
+  get foilExclusion(): { x: number; y: number; width: number; height: number } | null {
+    return this.preview.foilExclusion;
+  }
 
   onRenderRequested?: () => void;
 

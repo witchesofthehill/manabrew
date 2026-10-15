@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { CardDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
-import { renderMseCard } from "@/lib/mseCardRenderer";
+import { getMseRenderDecision, renderMseCard } from "@/lib/mseCardRenderer";
+import { MseCardRenderError } from "@/lib/mseCardDecision";
+import type { MseRenderDecision } from "@mse-renderer";
 import { cn } from "@/lib/utils";
 import { useScryfallStore } from "@/stores/useScryfallStore";
-import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { CardFoilOverlay } from "@/components/game/CardFoilOverlay";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { CARD_BACK_IMAGE_URL } from "./game.constants";
 
@@ -56,10 +58,11 @@ function MseCardCanvas({
     faceIndex: 0 | 1;
     locale: string;
     state: "ready" | "error";
+    decision?: MseRenderDecision;
+    failure?: string;
   }>();
   const [hasImage, setHasImage] = useState(false);
   const locale = useScryfallStore((store) => store.locale);
-  const animatedFoil = usePreferencesStore((store) => store.inGameAnimations);
   const foil = !hidden && (card ? card.foil : deckCard?.identity.foil);
   const state =
     result?.card === card &&
@@ -100,12 +103,30 @@ function MseCardCanvas({
         canvas.height = image.height;
         context.drawImage(image, 0, 0);
         setHasImage(true);
-        setResult({ card, deckCard, faceIndex, locale, state: "ready" });
+        setResult({
+          card,
+          deckCard,
+          faceIndex,
+          locale,
+          state: "ready",
+          decision: getMseRenderDecision(image),
+        });
       })
-      .catch(() => {
+      .catch((cause: unknown) => {
         if (!controller.signal.aborted) {
           setHasImage(false);
-          setResult({ card, deckCard, faceIndex, locale, state: "error" });
+          setResult({
+            card,
+            deckCard,
+            faceIndex,
+            locale,
+            state: "error",
+            decision: cause instanceof MseCardRenderError ? cause.decision : undefined,
+            failure:
+              cause instanceof MseCardRenderError && cause.decision.mode === "original"
+                ? cause.decision.reason
+                : "render-error",
+          });
         }
       });
     return () => controller.abort();
@@ -114,13 +135,14 @@ function MseCardCanvas({
   return (
     <div
       ref={hostRef}
-      className={cn(
-        "relative block aspect-[5/7] overflow-hidden",
-        foil && "draft-tile-foil",
-        className,
-      )}
-      data-foil-animated={animatedFoil}
+      className={cn("relative block aspect-[5/7] overflow-hidden", className)}
       data-mse-state={hidden ? undefined : state}
+      data-mse-template={
+        state === "ready" && result?.decision?.mode === "native"
+          ? result.decision.template
+          : undefined
+      }
+      data-mse-fallback={state === "error" ? result?.failure : undefined}
       role="img"
       aria-label={name}
       aria-busy={!hidden && state === "loading"}
@@ -156,6 +178,7 @@ function MseCardCanvas({
               !hasImage && "invisible",
             )}
           />
+          <CardFoilOverlay enabled={!!foil} />
         </>
       )}
     </div>

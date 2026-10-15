@@ -95,17 +95,25 @@ export interface MseRenderRequest {
   context?: MseCardValues;
 }
 
+export interface MseLayoutField {
+  name: string;
+  role: "rules" | "artwork" | "title" | "stats";
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  angle: number;
+  fontFamily?: string;
+  fontWeight?: string;
+  fontStyle?: string;
+  inkColor?: string;
+}
+
 export interface MseRenderResult {
   canvas: MseCanvas;
   width: number;
   height: number;
-  rulesFields: {
-    name: string;
-    fontFamily?: string;
-    fontWeight?: string;
-    fontStyle?: string;
-    inkColor: string;
-  }[];
+  layoutFields: MseLayoutField[];
   context: MseTemplateContext;
   diagnostics: unknown[];
 }
@@ -146,11 +154,31 @@ export interface MsePresentationOptions {
   availableStyles?: Iterable<string>;
 }
 
+export type MseOriginalReason =
+  | "unknown-layout"
+  | "ambiguous-treatment"
+  | "unsupported-treatment"
+  | "unsupported-card-type"
+  | "invalid-faces"
+  | "unrepresentable-fields"
+  | "missing-template";
+
+export type MseRenderDecision =
+  | { mode: "native"; template: string; layout: string; faceIndex: number }
+  | {
+      mode: "original";
+      reason: MseOriginalReason;
+      layout: string;
+      faceIndex: number;
+      template?: string;
+    };
+
 export interface MsePresentation {
   style: string | null;
   styling: MseFields;
   nativeCard?: MseFields;
   source: "explicit" | "printing" | "general";
+  decision: MseRenderDecision;
 }
 
 export function createBrowserMseSession(options?: MseSessionOptions): Promise<MseSession>;

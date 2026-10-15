@@ -17,7 +17,7 @@ text fitting, artwork values in generated image expressions, linked Battle
 and meld faces, unrelated reversible faces, and expansion-symbol transport
 and absence handling. Text-free rules backings retain native layout and frame
 painting while omitting only rules, flavor, chapter and level text glyphs.
-Both modes expose the same rules fields with their loaded CSS fonts and ink.
+Both modes expose measured rules, artwork, title and stat fields with loaded CSS fonts and ink.
 Render caches distinguish the two modes. General modern planeswalkers use the
 pack's mainframe template so ability text and stripe geometry remain aligned.
 Land frames also use printing mana-production metadata; three-or-more-color
@@ -50,12 +50,12 @@ availability does not establish redistribution rights. This package does
 not grant rights to those assets or to Magic: The Gathering artwork.
 
 VITE_MSE_CORPUS_URL may point to an independently authorized hosted corpus.
-It must end with a slash and contain data/, Magic - Fonts/,
-upstream-tree.json, and optionally runtime-index.json plus packages/.
-The tree must be complete and match the pinned corpus revision. The optional
-runtime index uses Ironsmith's deployment format. Cross-origin hosts must
-allow CORS requests. Manabrew retains its require-corp isolation policy;
-resource requests use CORS rather than bypassing that policy.
+Use HTTPS with a trailing slash, without credentials, query or fragment.
+HTTP is accepted only on loopback. The host must serve raw data/ and
+Magic - Fonts/ files and upstream-tree.json with the exact pinned revision
+and complete file inventory. Runtime package bundles are not used.
+Cross-origin hosts must allow CORS requests. Redirects are rejected for
+corpus resources. Manabrew retains its require-corp isolation policy.
 
 Default rendering needs network access. Cached original scans remain
 available according to Manabrew's existing image cache policy, but this
@@ -66,3 +66,53 @@ Regenerate metadata with yarn mse:corpus-index. This retrieves a blobless
 Git tree and reads font files solely to extract family names; it does not
 install or redistribute the corpus. Normal development, production, and
 Tauri builds use the committed metadata and require no asset-install step.
+
+Provenance review
+
+Ironsmith's pinned upstream.mjs names CajunAvenger/MagicSetEditor2 at
+05ea3bfb372cfa8bdac6c8de48a4920d9991c996 (version 2.6.4), and the legacy
+twanvl/MagicSetEditor2 at f9d9356d51f28210ccf0c0dda508502f222e1def.
+Both repositories' pinned COPYING files contain GPL version 2 text.
+This establishes reference license evidence, not whether the JavaScript
+implementation is a derivative or whether all applicable terms are satisfied.
+The Full-Magic-Pack root has no blanket license; its README credits
+CardConjurer. Individual fonts, templates, frames and symbols require their
+own rights review. Do not infer redistribution rights from a source URL.
+Release clearance for reference derivation and corpus assets remains unresolved.
+upstream.json records the reference revisions and license-file hashes.
+
+Verification and updates
+
+Run yarn mse:verify to check local vendored hashes, documented patches and
+corpus pins without network access. Run yarn mse:verify:upstream to compare
+every original renderer file and reference license against its pinned source
+and check the corpus tree. Network failure is an error, not a successful audit.
+Run yarn mse:corpus-check to reproduce the corpus index without overwriting it.
+After reviewing a local renderer patch, update its localModifications
+description and run yarn mse:verify --record-local, then yarn mse:verify.
+This records reviewed current bytes; it is not a substitute for reviewing them.
+
+For an upstream update, update the source revision and original file hashes,
+reapply and review local modifications, and update corpus/reference pins
+together. Regenerate the index only when changing the corpus revision.
+Run both verification modes and /card-mock's Card rendering workspace before
+accepting the update. Check both card faces, unsupported scan fallbacks, rules
+scrolling, live actions, foil, reduced motion, and mobile widths.
+
+For an authorized raw asset host, generate its inventory with
+yarn mse:verify --host-manifest <output/upstream-tree.json>, then verify its
+actual bytes and CORS using yarn mse:verify --host https://host/corpus/ --origin
+https://app.example. Only set VITE_MSE_CORPUS_URL after that check passes.
+The runtime inventory check detects missing paths or mismatched revisions;
+the explicit host check also verifies every raw asset's Git blob hash.
+No asset mirror, persistent corpus download or offline bundle is installed
+by this integration.
+
+Foil optics
+
+Foil reuses Manabrew's historical draft-tile CSS treatment from commit
+beaae8d95: a 115-degree white/gold/blue shimmer with a 3.2-second sweep.
+CardFoilOverlay applies the CSS treatment; cardFoilShader.ts matches its stops
+and geometry in Pixi. Colors remain theme-driven. Reduced motion and disabled
+animations use a static centered sheen; interactive Pixi rules remain excluded.
+No external finish runtime or artwork-derived masks are required.

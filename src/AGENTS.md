@@ -64,7 +64,9 @@ Read first: `/AGENTS.md`, `docs/STYLE_GUIDELINES.md`, `docs/agents/UI_THEME_RULE
 
 ## Dev reference routes
 
-`/card-mock` (`views/CardMockGallery.tsx`) is the development-only theme editor and card playground. Keep its Pixi board mounted in a bounded pane while color controls scroll independently. Draft changes use `setThemePreview`; only Save writes preferences. Leaving the editor restores the saved theme. `components/dev/themeEditor/` owns the editor controls and the always-visible app-element preview strip at the bottom; `BoardPlayground` owns local gameplay previews.
+`/card-mock` (`views/CardMockGallery.tsx`) is the development-only card lab. Its Board & theme workspace keeps the local playground beside independently scrolling color controls; Card rendering embeds `components/dev/CardRenderingLab.tsx` for printing comparisons. `?tab=rendering&fixture=<id>` links directly to a comparison. Draft colors use `setThemePreview`; only Save writes preferences. Leaving the lab restores the saved theme. `components/dev/themeEditor/` owns editor controls and the Board workspace's app-element preview strip.
+
+The Card rendering workspace uses the Scryfall store and production Original, `MseCardImage`, and `DesktopBoardOverlayCanvas` views. Controls cover faces, locale, live stats, granted abilities, actions, and narrow widths. Diagnostics show native/fallback decisions and cold finished-card versus warm-request measurements. Use the Board workspace's crowded scenario for full-scene work. Shared foil controls use transient `useCardFinishPreview` state: modes update existing shader uniforms, and Foil lab cards changes only fixture copies. Leaving the lab resets both overrides; saved card metadata and preferences stay unchanged.
 
 The editor's `theme` table scenario includes summoning sickness, tapped/damaged and counter-buffed creatures, plus mixed graveyard action availability. `BoardPlaygroundZone` embeds the real `DialogCardBrowser` picker beside the theme controls without a modal focus trap. Its action clicks toggle local selection for color comparison; they do not cast spells or change zones.
 
@@ -91,6 +93,14 @@ A cosmetic field always holds something an `<img>` can load: the hub joins `Deck
 ## Card data — Scryfall store
 
 Generated card faces use `lib/mseCardRenderer.ts` in both React (`MseCardImage`) and Pixi. The shared service owns immutable canvas caching and effective-card adaptation; Scryfall lookups still go through the store. Preserve original scans for printed/realistic views and exact-printing selection. `packages/mse-renderer/NOTICE` records the pinned browser runtime, separate external template/font rights, and corpus configuration. A cold offline browser cannot generate a face without cached or locally hosted MSE resources; retain the original scan or explicit loading/error presentation rather than labeling it a successful generated render.
+
+`lib/mseCardGeometry.ts` owns normalized native field geometry and conservative scan-fallback interaction bounds. `MseCardRenderError.decision` carries deliberate original-scan reasons; `MseCardImage` exposes `data-mse-state`, `data-mse-template`, and `data-mse-fallback`. Native selection describes eligibility, not successful asset loading or exact historical-printing fidelity.
+
+Interactive Pixi previews opt into `standardFrameFallback` for unsupported or ambiguous printing treatments, keeping their generated frame and measured rules box consistent. It changes frame selection only, not card semantics or the Original scan. Strict DOM printing renderers retain their original-scan rejection policy.
+
+`lib/mseRenderQueue.ts` serializes composition, prioritizes previews, deduplicates consumers, and removes queued work when its last consumer aborts. An active composition finishes safely and can populate the bounded canvas cache. `getMseRenderStats` reports preparation, queue, composition and cache counters; cancellation counts queued subscribers, not requests aborted during preparation. Cold gallery measurements clear finished canvases only, not fonts, downloaded resources or browser caches.
+
+Run `yarn mse:verify` for local provenance and `yarn mse:verify:upstream` plus `yarn mse:corpus-check` when reviewing upstream changes. Asset-host verification and unresolved redistribution/reference-license boundaries are documented in `packages/mse-renderer/NOTICE`. A valid inventory does not grant asset rights.
 
 Standalone Card Search supports set study at `/search?set=<code>`, linked from Limited. `SetStudyToolbar` and `SetStudyPicker` expose draft-prep controls; card sizing uses the existing editor size map, and the detail reader prefetches the next search page near its end. Set study shows Scryfall's set listing, which can include cards outside draft boosters.
 

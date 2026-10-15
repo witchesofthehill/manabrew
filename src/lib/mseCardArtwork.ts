@@ -1,31 +1,12 @@
 import type { MseCanvas, MseRaster, MseRenderResult } from "@mse-renderer";
 import { loadScryfallImage } from "@/lib/scryfallImageSource";
+import { attachMseCardGeometry, MSE_CARD_WIDTH, MSE_CARD_HEIGHT } from "@/lib/mseCardGeometry";
 
-export const MSE_CARD_WIDTH = 375;
-export const MSE_CARD_HEIGHT = 525;
 export const MSE_ARTWORK_FACE_FRAGMENT = "#manabrew-mse-art-face=";
 const MAX_ARTWORK_BYTES = 32 * 1024 * 1024;
 const artwork = new Map<string, MseRaster>();
 const pendingArtwork = new Map<string, Promise<MseRaster>>();
 let artworkBytes = 0;
-
-export interface MseCardArtwork {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  angle: number;
-  fontFamily?: string;
-  fontWeight?: string;
-  fontStyle?: string;
-  inkColor: string;
-}
-
-const rulesBounds = new WeakMap<MseCanvas, readonly MseCardArtwork[]>();
-
-export function getMseCardRules(canvas: MseCanvas): readonly MseCardArtwork[] {
-  return rulesBounds.get(canvas) ?? [];
-}
 
 export function createMseCanvas(width: number, height: number): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
@@ -105,7 +86,7 @@ export function loadMseCardArtwork(url: string): Promise<MseRaster> {
 }
 
 export function normalizeMseCanvas(result: MseRenderResult): MseCanvas {
-  const { width, height, context } = result;
+  const { width, height } = result;
   const landscape = width > height;
   const canvas = createMseCanvas(MSE_CARD_WIDTH, MSE_CARD_HEIGHT);
   const drawing = canvas.getContext("2d");
@@ -117,42 +98,6 @@ export function normalizeMseCanvas(result: MseRenderResult): MseCanvas {
   } else {
     drawing.drawImage(result.canvas, 0, 0, canvas.width, canvas.height);
   }
-  const rules: MseCardArtwork[] = [];
-  for (const { name, ...typography } of result.rulesFields) {
-    const x = Number(context.property(name, "left", "card"));
-    const y = Number(context.property(name, "top", "card"));
-    const w = Number(context.property(name, "width", "card"));
-    const h = Number(context.property(name, "height", "card"));
-    const angle = -Number(context.property(name, "angle", "card")) || 0;
-    if (![x, y, w, h, angle].every(Number.isFinite) || w <= 0 || h <= 0) continue;
-    const radians = (angle * Math.PI) / 180;
-    const corners = [
-      [0, 0],
-      [w, 0],
-      [0, h],
-      [w, h],
-    ].map(([dx = 0, dy = 0]) => {
-      const nativeX = x + dx * Math.cos(radians) - dy * Math.sin(radians);
-      const nativeY = y + dx * Math.sin(radians) + dy * Math.cos(radians);
-      return landscape
-        ? [(nativeY * canvas.width) / height, ((width - nativeX) * canvas.height) / width]
-        : [(nativeX * canvas.width) / width, (nativeY * canvas.height) / height];
-    });
-    const left = Math.max(0, Math.min(...corners.map((point) => point[0]!)));
-    const top = Math.max(0, Math.min(...corners.map((point) => point[1]!)));
-    const right = Math.min(canvas.width, Math.max(...corners.map((point) => point[0]!)));
-    const bottom = Math.min(canvas.height, Math.max(...corners.map((point) => point[1]!)));
-    if (right <= left || bottom <= top) continue;
-    const bounds = Object.freeze({
-      x: left,
-      y: top,
-      width: right - left,
-      height: bottom - top,
-      angle: (((angle - (landscape ? 90 : 0)) % 360) + 360) % 360,
-      ...typography,
-    });
-    rules.push(bounds);
-  }
-  rulesBounds.set(canvas, Object.freeze(rules));
+  attachMseCardGeometry(canvas, result);
   return canvas;
 }

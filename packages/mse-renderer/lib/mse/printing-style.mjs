@@ -71,7 +71,7 @@ const showcaseSets = {
   mkm: 'ravnica-dossier', dsk: 'duskmourn-paranormal',
 };
 
-const unsupported = () => ({style: null, styling: {}});
+const unsupported = (reason = 'unsupported-treatment') => ({style: null, styling: {}, reason});
 const standardEffects = new Set([
   'legendary', 'miracle', 'enchantment', 'draft', 'devoid', 'tombstone',
   'sunmoondfc', 'compasslanddfc', 'originpwdfc', 'mooneldrazidfc',
@@ -96,7 +96,7 @@ export function printingMseTreatment(snapshot, {printing, faceIndex = 0} = {}) {
   if (metadata.textless || metadata.promo_types?.includes('playtest')) return unsupported();
   if (frame && !['1993', '1997', '2003', '2015', 'future'].includes(frame)) return unsupported();
   if (set === 'sld' && (!frame || frame === '2015') && !effects.has('extendedart'))
-    return unsupported();
+    return unsupported('ambiguous-treatment');
   const ordinary = (!layout || layout === 'normal') && !walker && !saga &&
     !/\b(?:Battle|Class)\b/.test(type);
   if (ordinary) {
@@ -104,12 +104,12 @@ export function printingMseTreatment(snapshot, {printing, faceIndex = 0} = {}) {
     if (set === 'mp2') return choice('magic-m15-invocation');
     if (set === 'exp') return choice('magic-m15-expedition');
     if (set === 'sta')
-      return metadata.lang && metadata.lang !== 'ja' ? choice('magic-m15-showcase-strixhaven') : unsupported();
+      return metadata.lang && metadata.lang !== 'ja' ? choice('magic-m15-showcase-strixhaven') : unsupported('ambiguous-treatment');
     if (effects.has('showcase') && Object.hasOwn(showcaseSets, set))
       return choice(`magic-m15-showcase-${showcaseSets[set]}`);
   }
   if ([...effects].some(effect => effect !== 'extendedart' && !standardEffects.has(effect)))
-    return unsupported();
+    return unsupported(effects.has('showcase') ? 'ambiguous-treatment' : 'unsupported-treatment');
   if (effects.has('showcase') || metadata.full_art || metadata.border_color === 'borderless')
     return unsupported();
   if (decorative && !ordinary) return unsupported();

@@ -3,54 +3,91 @@
   "revision": "04f9864e93ed1550c563d0198564ad686e61d202",
   "license": "AGPL-3.0-or-later",
   "licenseDeclaration": "web/ui/package.json",
+  "licenseReview": {
+    "status": "unresolved-reference-and-asset-rights",
+    "evidenceDate": "2026-10-15",
+    "referenceRelationshipDeclaration": "web/ui/src/lib/mse/upstream.mjs",
+    "limitations": "Ironsmith declares AGPL-3.0-or-later; both pinned MSE reference COPYING files state GPL version 2. No conclusion is made about derivation, compatibility or legal clearance. Asset permissions require a separate review."
+  },
+  "referenceImplementations": [
+    {
+      "repository": "CajunAvenger/MagicSetEditor2",
+      "revision": "05ea3bfb372cfa8bdac6c8de48a4920d9991c996",
+      "role": "referenceImplementation",
+      "version": "2.6.4",
+      "licenseDeclaration": "COPYING",
+      "declaredLicense": "GPL version 2",
+      "licenseBlobSha1": "c48d55b1c759ea2d95614088641e63657bdc5214"
+    },
+    {
+      "repository": "twanvl/MagicSetEditor2",
+      "revision": "f9d9356d51f28210ccf0c0dda508502f222e1def",
+      "role": "legacyReferenceImplementation",
+      "licenseDeclaration": "COPYING",
+      "declaredLicense": "GPL version 2",
+      "licenseBlobSha1": "c48d55b1c759ea2d95614088641e63657bdc5214"
+    }
+  ],
   "localModifications": [
     {
       "file": "lib/mse/engine-card.mjs",
+      "localSha256": "5be32c22a54d50f4c5a0d9b77f3e9b188bd2ebffa662e5bb25fdd6d2630ad339",
       "change": "Link Battle and resolved meld faces with their native relations; render unrelated reversible faces without transform links; include produced mana in land frame colors and use solid gold for three-or-more-color lands."
     },
     {
       "file": "lib/mse/printing-style.mjs",
+      "localSha256": "b8f28d021b3df8d47236b73a0f888e96c67195eeebb5eb7efc723e8f05a528db",
       "change": "Select Universes Beyond frames and triangular stamps from printing metadata; distinguish unsupported or ambiguous treatments from ordinary frames, including Secret Lair, textless and unknown frame effects."
     },
     {
       "file": "lib/mse/style-selection.mjs",
-      "change": "Preserve explicit unsupported-printing results and unavailable requested templates rather than falling through to a generic modern frame."
+      "localSha256": "e78857a89be6194403aa2f3383b41040c7c46d1a51cc435bf51c987cc8ce1d16",
+      "change": "Preserve explicit unsupported-printing results and unavailable requested templates with machine-readable fallback reasons rather than falling through to a generic modern frame."
     },
     {
       "file": "lib/mse/browser-corpus-index.mjs",
+      "localSha256": "04eb37ffc2c2b82fe862705001fcf82e1ab0a896872402887831fab7794b61a5",
       "change": "Evict rejected lazy font promises so later requests can recover from transient fetch failures."
     },
     {
       "file": "lib/mse/text-wrap.mjs",
+      "localSha256": "b2b475802902bc885d9522714f55e832ed83fc9ce7500d09140c5bfd41a652f7",
       "change": "Keep fixed-paragraph fitting height separate from actual line positions."
     },
     {
       "file": "lib/mse/text-scale.mjs",
+      "localSha256": "f3cbed37a33d55aace6156ae74972c6cfe7a86aa42365b31f5f734ad115e1f43",
       "change": "Use the separate fixed-paragraph fitting height for scale search bounds."
     },
     {
       "file": "lib/mse/browser-symbols.mjs",
+      "localSha256": "dea45a9c3ab9dbaa1b9d845094b8c35b97ab5a20007b81731168813dc9810d3b",
       "change": "Render absent expansion symbols transparently and accept HTTP(S) or same-origin SVG asset URLs."
     },
     {
       "file": "lib/mse/browser-session.mjs",
+      "localSha256": "c1aea94070e4579e8acec94305fd328d872209aec9507805633eb08b731e04f1",
       "change": "Pass the session resource transport to SVG symbols and the artwork provider to generated image expressions."
     },
     {
       "file": "lib/mse/image-builtins.mjs",
+      "localSha256": "116928a303ea69efc8cefda4d5ae06add8c4f1dfb9caede07da162cefa481bda",
       "change": "Recognize browser artwork URLs as artwork values rather than corpus-relative asset paths."
     },
     {
       "file": "lib/mse/image-renderer.mjs",
+      "localSha256": "5b5e7bb1fa020c78ada5af19d3d857e7a394ab1aa27e1ffb4440d42519722935",
       "change": "Evaluate artwork image nodes using the injected artwork provider."
     },
     {
       "file": "lib/mse/card-renderer.mjs",
+      "localSha256": "f44e350391f7e26ad819566eeecf698351c2a4a2a8dc217847c49b3decb6206d",
       "change": "Share the artwork provider with the generated-image renderer; pass rules-text painting options and separate cached render variants."
     },
     {
       "file": "lib/mse/card-painter.mjs",
-      "change": "Expose native rules-field geometry metadata, loaded CSS fonts and ink colors; optionally omit rules glyph painting after unchanged text layout preparation."
+      "localSha256": "b3df7942dbf891a683a415fd8a4c7aee0a24e5dc7d27151e7abfd25bdc29f04a",
+      "change": "Expose measured native rules, artwork, title and stat geometry with loaded CSS fonts and ink colors; optionally omit rules glyph painting after unchanged text layout preparation."
     }
   ],
   "files": [
@@ -463,6 +500,12 @@
   "corpus": {
     "repository": "https://github.com/MagicSetEditorPacks/Full-Magic-Pack",
     "revision": "16f1d13bb7f5924613fc1ddc25da582beccfefb6",
+    "indexSha256": "6c33734222610e20fc773e9ed076ff1b46bac6d1075dd362fee732c4caded91d",
+    "licenseStatus": "No blanket license file in the pinned root; README installation instructions and CardConjurer credits do not establish asset redistribution rights.",
+    "evidence": [
+      "https://api.github.com/repos/MagicSetEditorPacks/Full-Magic-Pack/git/trees/16f1d13bb7f5924613fc1ddc25da582beccfefb6",
+      "https://github.com/MagicSetEditorPacks/Full-Magic-Pack/blob/16f1d13bb7f5924613fc1ddc25da582beccfefb6/README.md"
+    ],
     "bundled": "file paths and font-family metadata only"
   }
 }

@@ -26,11 +26,21 @@ function isRulesField(context,name){
 export async function paintMseCard(target,context,fonts,renderer,{createCanvas=(w,h)=>new OffscreenCanvas(w,h),loadCardImage,onFieldDrawn,rulesText=true}={}) {
   const preparation=await context.prepareTextLayouts(fonts,renderer);
   const revision=context.layoutRevision;
-  const rulesFields=[];
+  const layoutFields=[];
   for(const name of context.template.layouts.keys()){
-    if(!isRulesField(context,name)||!context.fieldVisible(name))continue;
-    const font=context.font(name),face=fonts.cssFace?.(font);
-    rulesFields.push({name,fontFamily:face?.family,fontWeight:face?.weight,fontStyle:face?.style,inkColor:cssColor(font.color)});
+    if(!context.fieldVisible(name))continue;
+    const type=context.cells.card.get(name)?.definition?.record.text('type');
+    const role=isRulesField(context,name)?'rules'
+      :type==='image'&&/^image(?:_\d+)?$/.test(name)?'artwork'
+      :type==='text'&&/^name(?:_\d+)?$/.test(name)?'title'
+      :type==='text'&&/^(?:power|toughness|loyalty|defense|hand_mod|life_mod)(?:_\d+)?$/.test(name)?'stats':null;
+    if(!role)continue;
+    const geometry={x:Number(context.property(name,'left','card')),y:Number(context.property(name,'top','card')),
+      width:Number(context.property(name,'width','card')),height:Number(context.property(name,'height','card')),
+      angle:-Number(context.property(name,'angle','card'))};
+    if(!Object.values(geometry).every(Number.isFinite)||geometry.width<=0||geometry.height<=0)continue;
+    const font=type==='text'?context.font(name):null,face=font?fonts.cssFace?.(font):null;
+    layoutFields.push({name,role,...geometry,...(font?{fontFamily:face?.family,fontWeight:face?.weight,fontStyle:face?.style,inkColor:cssColor(font.color)}:{})});
   }
   const width=Number(context.template.style.text('card width')),height=Number(context.template.style.text('card height'));
   if(!Number.isSafeInteger(width)||!Number.isSafeInteger(height)||width<1||height<1||width*height>(renderer.maxPixels||16777216))throw new MseError('card-size','Invalid card canvas dimensions');
@@ -183,5 +193,5 @@ export async function paintMseCard(target,context,fonts,renderer,{createCanvas=(
   }
   if(revision!==context.layoutRevision)throw new MseError('layout-stale','Card changed while it was being drawn');
   target.drawImage(surface,0,0);
-  return {width,height,rulesFields,fields:fields.length,preparation:preparation?{passes:preparation.passes,fields:preparation.fields,reprepared:preparation.reprepared}:null,nativeParityVerified:false};
+  return {width,height,layoutFields,fields:fields.length,preparation:preparation?{passes:preparation.passes,fields:preparation.fields,reprepared:preparation.reprepared}:null,nativeParityVerified:false};
 }

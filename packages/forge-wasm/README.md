@@ -75,13 +75,18 @@ await engine.startGame({
 });
 ```
 
-A deck has `cards` plus optional `commanders`, `sideboard`, `attractions`, `contraptions`, `schemes`, `planes` and `companion`. Each entry can carry its printing under `identity` and is repeated according to `count`:
+A deck has `cards` plus optional `commanders`, `sideboard`, `attractions`, `contraptions`, `schemes`, `planes` and `companion`. Each entry can carry its printing under `identity` and is repeated according to `count`. Set `identity.foil` to `true` for a foil copy; omitted or `false` means nonfoil. The selected finish is passed to Forge for commanders and other deck cards:
 
 ```js
 const deck = {
   format: "commander",
   commanders: [{ identity: { name: "Najeela, the Blade-Blossom" }, count: 1 }],
-  cards: [{ identity: { name: "Lightning Bolt", setCode: "M11", cardNumber: "149" }, count: 1 }],
+  cards: [
+    {
+      identity: { name: "Lightning Bolt", setCode: "M11", cardNumber: "149", foil: true },
+      count: 1,
+    },
+  ],
 };
 ```
 

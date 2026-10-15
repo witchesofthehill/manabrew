@@ -178,5 +178,13 @@ export function applyPrompt(
     console.log(`[prompt:${source}] ${prompt.input.type}`, JSON.stringify(prompt, null, 2));
   }
   notePromptArrived(prompt.input.type);
-  route({ displayEvents: [], gameView: null, prompt }, `${source}: ${prompt.input.type}`, set, get);
+  const normalized = prompt.sourceCard
+    ? { ...prompt, sourceCard: { ...GAME_CARD_DEFAULTS, ...prompt.sourceCard } }
+    : prompt;
+  route(
+    { displayEvents: [], gameView: null, prompt: normalized },
+    `${source}: ${prompt.input.type}`,
+    set,
+    get,
+  );
 }

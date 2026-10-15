@@ -288,16 +288,20 @@ pub fn schedule_seat_forfeit(state: Arc<ServerState>, room_id: String, player_id
 }
 
 fn forfeit_seat(state: &Arc<ServerState>, room_id: &str, player_id: &str) {
-    let (username, info) = {
+    let (username, info, parent_id) = {
         let Some(mut room) = state.rooms.get_mut(room_id) else {
             return;
         };
         let Some(slot) = room.remove_player(player_id) else {
             return;
         };
-        (slot.username, room.to_room_info())
+        (
+            slot.username,
+            room.to_room_info(),
+            room.parent_limited_room.clone(),
+        )
     };
-    state.players.remove(player_id);
+    release_room_session(state, room_id, player_id, parent_id.as_deref());
     let abandoned = state.rooms.get(room_id).is_some_and(|room| {
         room.parent_limited_room.is_some()
             && !paired_room_has_participants(state, &room, Instant::now())
@@ -608,10 +612,10 @@ fn clear_removed_room(state: &Arc<ServerState>, room: Room, reason: GameEndReaso
             clear_removed_room(state, child, reason);
         }
     }
-    release_room_sessions(state, &room.room_id);
+    release_room_sessions(state, &room.room_id, room.parent_limited_room.as_deref());
 }
 
-fn release_room_sessions(state: &Arc<ServerState>, room_id: &str) {
+fn release_room_sessions(state: &Arc<ServerState>, room_id: &str, parent_id: Option<&str>) {
     let player_ids = state
         .players
         .iter()
@@ -625,16 +629,31 @@ fn release_room_sessions(state: &Arc<ServerState>, room_id: &str) {
         })
         .collect::<Vec<_>>();
     for player_id in player_ids {
-        state.players.remove_if_mut(&player_id, |_, player| {
-            if player.room_id.as_deref() != Some(room_id) {
-                return false;
-            }
-            if player.connected {
-                player.room_id = None;
-                false
-            } else {
-                true
-            }
-        });
+        release_room_session(state, room_id, &player_id, parent_id);
     }
+}
+
+fn release_room_session(
+    state: &Arc<ServerState>,
+    room_id: &str,
+    player_id: &str,
+    parent_id: Option<&str>,
+) {
+    let parent = parent_id.and_then(|id| state.rooms.get(id)).filter(|room| {
+        room.is_limited_session() && room.players.iter().any(|seat| seat.player_id == player_id)
+    });
+    state.players.remove_if_mut(player_id, |_, player| {
+        if player.room_id.as_deref() != Some(room_id) {
+            return false;
+        }
+        if let Some(parent) = &parent {
+            player.room_id = Some(parent.room_id.clone());
+            false
+        } else if player.connected {
+            player.room_id = None;
+            false
+        } else {
+            true
+        }
+    });
 }

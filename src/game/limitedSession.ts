@@ -642,7 +642,12 @@ async function startLimitedMatchesNow() {
 }
 export function limitedGameLaunch(payload: GameStartedPayload): EngineGameRouteState | null {
   const local = useMultiplayerLimitedStore.getState();
-  if (!local.matchReturn || payload.room_id !== local.matchReturn.roomId) return null;
+  if (
+    !local.matchReturn ||
+    local.matchReturn.returning ||
+    payload.room_id !== local.matchReturn.roomId
+  )
+    return null;
   const server = useServerStore.getState();
   const result = buildEngineGameRouteState(
     server.username,
@@ -711,6 +716,10 @@ async function returnLimitedMatch(recordResult = true): Promise<string | null> {
     await saveLocalLimitedState({ matchReturn: marker });
     useMultiplayerLimitedStore.setState({ matchReturn: marker });
   }
+  marker = { ...marker, returning: true };
+  await saveLocalLimitedState({ matchReturn: marker });
+  useMultiplayerLimitedStore.setState({ matchReturn: marker });
+  useServerStore.setState({ gameStarted: false });
   if (game.isGameActive) await game.endGame();
   if (
     marker.host === server.username &&

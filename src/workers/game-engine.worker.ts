@@ -92,7 +92,7 @@ const LEGACY_CARD_ARCHIVE_CACHES = ["manabrew-card-archive-v4"];
 // unknown-command throw, and none of those may trigger a 29 MB download.
 // `start_game` / `start_multiplayer_game` ensure the archive themselves.
 function needsCardData(command: string): boolean {
-  return command.startsWith("limited_");
+  return command.startsWith("limited_") || command === "card_roles";
 }
 
 interface CardArchiveManifest {

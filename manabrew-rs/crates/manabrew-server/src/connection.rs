@@ -298,7 +298,7 @@ fn pair_limited_matches(
         let participants: Vec<_> = room
             .players
             .iter()
-            .filter(|seat| !seat.is_bot)
+            .filter(|seat| state.players.contains_key(&seat.player_id))
             .map(|seat| (seat.player_id.clone(), seat.username.clone()))
             .collect();
         let room = state.rooms.entry(room.room_id.clone()).insert(room);
@@ -1912,7 +1912,11 @@ fn handle_client_message(
                         .as_ref()
                         .filter(|room| room.parent_limited_room.is_some())
                     {
-                        for seat in room.players.iter().filter(|seat| !seat.is_bot) {
+                        for seat in room
+                            .players
+                            .iter()
+                            .filter(|seat| state.players.contains_key(&seat.player_id))
+                        {
                             let message = ServerMessage::GameStarted {
                                 room_id: started.room_id.clone(),
                                 game_id: started.game_id.clone(),

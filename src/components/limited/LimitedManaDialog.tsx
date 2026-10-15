@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { getScryfallManaCost } from "@/api/scryfall";
 import {
   Dialog,
   DialogContent,
@@ -72,7 +73,7 @@ export function LimitedManaDialog({ sessionKey, session, main, targetMainSize, o
             sources[name]++;
         }
       } else {
-        const cost = info.card_faces?.[0]?.mana_cost ?? info.mana_cost ?? "";
+        const cost = getScryfallManaCost(info) ?? "";
         for (const name of BASIC_LAND_NAMES)
           pips[name] += countManaPips(cost, BASIC_LAND_MANA[name]);
       }

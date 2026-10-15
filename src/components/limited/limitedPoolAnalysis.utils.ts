@@ -1,3 +1,4 @@
+import { getScryfallManaCost } from "@/api/scryfall";
 import { countColorPips, isLand, type ManaColor } from "@/lib/mana";
 import { countManaPips } from "@/lib/limited.utils";
 import { MANA_LETTERS } from "@/themes/gameTheme";
@@ -44,7 +45,7 @@ export function analyzeLimitedCards(
       metadata?.card_faces?.map((entry) => entry.oracle_text ?? "").join("\n") ??
       metadata?.oracle_text ??
       "";
-    const cost = face?.mana_cost ?? "";
+    const cost = metadata ? (getScryfallManaCost(metadata) ?? "") : "";
     const land = isLand(types);
     const source = metadata
       ? limitedManaSource(metadata)

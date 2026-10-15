@@ -1209,6 +1209,7 @@ export class RulesCardPreviewLayer {
     let scale: number;
     let x: number;
     let y: number;
+    let controlsY = this.panelHeight + ACTION_PANEL_GAP;
     if (spec.slot) {
       const safe = spec.embedded ? { left: 0, right: 0, top: 0, bottom: 0 } : getSafeAreaInsets();
       const slotLeft = Math.max(safe.left, spec.slot.x);
@@ -1227,6 +1228,9 @@ export class RulesCardPreviewLayer {
       x = slotLeft + (slotWidth - width) / 2;
       y = slotTop + (slotHeight - height) / 2;
     } else {
+      const safe = getSafeAreaInsets();
+      const viewTop = safe.top + EDGE_PAD;
+      const viewBottom = Math.min(this.viewportHeight, window.innerHeight - safe.bottom) - EDGE_PAD;
       const anchorRect = spec.anchor
         ? new DOMRect(spec.anchor.x, spec.anchor.y, spec.anchor.width, spec.anchor.height)
         : null;
@@ -1242,10 +1246,21 @@ export class RulesCardPreviewLayer {
         viewportRight: this.viewportWidth,
         viewportBottom: this.viewportHeight,
         size: this.previewSize,
+        maxCardHeight: (Math.max(1, viewBottom - viewTop) * this.panelHeight) / this.widgetHeight,
       });
       scale = layout.cardWidth / this.panelWidth;
       x = layout.cardLeft;
       y = layout.top;
+      if (this.controls.visible) {
+        const controlsAbove = -ACTION_PANEL_GAP - this.controls.panelHeight;
+        if (y + this.widgetHeight * scale > viewBottom && y + controlsAbove * scale >= viewTop) {
+          controlsY = controlsAbove;
+        }
+        const topOffset = Math.min(0, controlsY) * scale;
+        const bottomOffset =
+          Math.max(this.panelHeight, controlsY + this.controls.panelHeight) * scale;
+        y = Math.max(viewTop - topOffset, Math.min(y, viewBottom - bottomOffset));
+      }
     }
     this.container.scale.set(scale);
 
@@ -1258,15 +1273,6 @@ export class RulesCardPreviewLayer {
     const anchorY = spec.anchor?.y ?? spec.pointer.y;
     const anchorWidth = spec.anchor?.width ?? 0;
     const anchorHeight = spec.anchor?.height ?? 0;
-    const controlsBelow = this.panelHeight + ACTION_PANEL_GAP;
-    const controlsAbove = -ACTION_PANEL_GAP - this.controls.panelHeight;
-    const controlsY =
-      !spec.slot &&
-      this.controls.visible &&
-      y + (controlsBelow + this.controls.panelHeight) * scale > this.viewportHeight - EDGE_PAD &&
-      y + controlsAbove * scale >= EDGE_PAD
-        ? controlsAbove
-        : controlsBelow;
     this.controls.position.set(0, controlsY);
     this.cardBounds.x = 0;
     this.cardBounds.width = this.panelWidth;

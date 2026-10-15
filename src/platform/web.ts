@@ -653,7 +653,11 @@ class WorkerBridge {
   async invoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
     const startsGame = command === "start_game" || command === "start_multiplayer_game";
     let target: Worker;
-    if (command.startsWith("limited_")) {
+    if (
+      command.startsWith("limited_") ||
+      command === "card_roles" ||
+      command === "is_card_supported"
+    ) {
       target = this.queryWorker();
     } else {
       let forgeWasm = this.worker ? this.workerIsForgeWasm : isForgeWasmHostingEnabled();

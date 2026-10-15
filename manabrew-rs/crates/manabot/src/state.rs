@@ -197,7 +197,10 @@ impl BotState {
             (Phase::AwaitingRoomJoin, ServerMessage::Error { message, .. }) => {
                 self.fail(format!("room join failed: {message}"))
             }
-            (Phase::AwaitingGameStart, ServerMessage::GameStarted { player_order, .. }) => {
+            (
+                Phase::AwaitingGameStart | Phase::Playing { .. },
+                ServerMessage::GameStarted { player_order, .. },
+            ) => {
                 match player_order
                     .iter()
                     .position(|player| player == &self.config.username)
@@ -205,6 +208,8 @@ impl BotState {
                 {
                     Some(slot) => {
                         debug!(player_slot = %slot, "bot entering Playing phase");
+                        self.board = None;
+                        self.resync_pending = false;
                         self.phase = Phase::Playing { player_slot: slot };
                         Vec::new()
                     }

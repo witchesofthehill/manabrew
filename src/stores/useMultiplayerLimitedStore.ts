@@ -28,6 +28,7 @@ export interface LimitedMatchReturn {
   result?: { gameId: string; winner: string | null };
   resultAcknowledged?: boolean;
   started?: boolean;
+  returning?: boolean;
 }
 export interface MultiplayerLimitedState {
   kind: "draft" | "sealed" | null;

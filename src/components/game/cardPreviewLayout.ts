@@ -21,6 +21,7 @@ export interface PreviewLayoutInput {
   viewportLeft?: number;
   viewportTop?: number;
   size?: InGameCardPreviewSize;
+  maxCardHeight?: number;
 }
 
 export interface PreviewLayout {
@@ -39,6 +40,7 @@ export interface PreviewCardDimensionsInput {
   horizontal: boolean;
   reservedWidth?: number;
   size?: InGameCardPreviewSize;
+  maxCardHeight?: number;
 }
 
 export function computePreviewCardDimensions(input: PreviewCardDimensionsInput): {
@@ -51,7 +53,12 @@ export function computePreviewCardDimensions(input: PreviewCardDimensionsInput):
   const horizontalScale =
     Math.max(1, input.usableWidth - (input.reservedWidth ?? 0) - 16) / naturalWidth;
   const verticalScale = Math.max(1, input.usableHeight - 16) / naturalHeight;
-  const scale = Math.min(1, horizontalScale, verticalScale);
+  const scale = Math.min(
+    1,
+    horizontalScale,
+    verticalScale,
+    (input.maxCardHeight ?? Number.POSITIVE_INFINITY) / naturalHeight,
+  );
   return {
     width: naturalWidth * scale,
     height: naturalHeight * scale,
@@ -92,6 +99,7 @@ export function computePreviewLayout(input: PreviewLayoutInput): PreviewLayout {
     horizontal,
     reservedWidth: panelSpace,
     size: input.size,
+    maxCardHeight: input.maxCardHeight,
   });
   const availableHeight = Math.max(1, usableHeight - 16);
   let panelScale = hasPanel && panelHeight > 0 ? Math.min(1, availableHeight / panelHeight) : 1;

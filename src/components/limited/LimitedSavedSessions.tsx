@@ -2,15 +2,15 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { LimitedDraftReview } from "@/components/limited/LimitedDraftReview";
 import { listLimitedSaves, subscribeLimitedSaves, updateLimitedSave } from "@/game/limitedStorage";
-import { resumeLimitedSession } from "@/game/limitedRecovery";
 import { exportLimitedReview, importLimitedReview } from "@/game/limitedReview";
 import type { LimitedSavedSession } from "@/game/limitedPersistence.types";
 
 interface LimitedSavedSessionsProps {
-  onResume?: (saved: LimitedSavedSession) => void | Promise<void>;
+  disabled: boolean;
+  onResume: (sessionId: string) => Promise<void>;
 }
 
-export function LimitedSavedSessions({ onResume }: LimitedSavedSessionsProps) {
+export function LimitedSavedSessions({ disabled, onResume }: LimitedSavedSessionsProps) {
   const [sessions, setSessions] = useState<LimitedSavedSession[]>([]);
   const [showArchived, setShowArchived] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -124,12 +124,9 @@ export function LimitedSavedSessions({ onResume }: LimitedSavedSessionsProps) {
                   <Button
                     variant="primary"
                     size="sm"
-                    disabled={busy !== null}
+                    disabled={disabled || busy !== null}
                     onClick={() => {
-                      void run(session.sessionId, async () => {
-                        const restored = await resumeLimitedSession(session.sessionId);
-                        await onResume?.(restored);
-                      });
+                      void run(session.sessionId, () => onResume(session.sessionId));
                     }}
                   >
                     {busy === session.sessionId ? "Resuming..." : "Resume"}

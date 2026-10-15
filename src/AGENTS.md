@@ -136,6 +136,8 @@ Forge token editions reuse their parent set code and collector numbers in game s
 
 `views/Limited.tsx` orders setup as format, cards, then launch. Sealed, Booster Draft and Winston use compact native radios with one selected-format description. Desktop keeps `LimitedSetupOptions` and the launch summary in a narrow side column; mobile puts options after card selection and reserves a non-scrolling summary/Start footer. Counts, pick clock and meaningful booster variants remain visible; seed and Draft picks per pass live under Advanced. Format switching retains entered values; picks per pass and pick clocks belong only to Booster Draft. Card selection stays inline: `LimitedSetConfiguration` reuses `SetPicker` for browsing and one selected-set identity, with Change set, View cards and collapsed booster inspection. CubeCobra and saved pools are card sources, not modes. Templates and Chaos share the format header's overflow menu and `LimitedSetupDialog`. Keep one start action and visible errors and import warnings. Set-based start payloads omit `singleton` and `customPool`; passing `undefined` for these defaulted boolean fields produces a serde-wasm-bindgen unit-value error.
 
+`useLimitedSetup` owns both new-session launch and saved-session resume. Their shared busy state disables competing actions through pool fetching, engine startup and recovery; `LimitedSavedSessions` delegates resume to that hook.
+
 Winston's booster count is per player: the engine opens that many packs for each of two seats and excludes basic lands from the shared deck. Label the field and launch summary accordingly.
 
 Selected sets warm the exact front-face full textures used by Limited, through the store's shared caches and bounded prefetch queue. Warming runs in the background; starting a session does not wait for every printing. Locale invalidation discards stale hydration, and late selections must not overwrite current preparation status or errors.
@@ -176,7 +178,7 @@ Card-role and support queries use the persistent Rust query worker too; role que
 
 Query-worker module and WASM initialization failures reject that worker's requests and discard the failed instance so retry creates a fresh worker. Authenticated Limited returns restore the parent's game identity and launch metadata in both live server state and the saved connection.
 
-Retained parent roster updates also reach seats playing child matches. Keep the web transport's active child ID until an authenticated room transition; treating a parent roster update as a room switch can stop bots owned by the parent when only a child ends.
+Retained room rosters reach seats outside that room: parent updates reach active child matches, and child updates reach players already returned to the parent. During a Limited session, roster updates only refresh the web transport's active room; authenticated match assignments and returns change it. Use the transport's committed room before the asynchronously persisted return marker so stale rosters cannot change bot teardown ownership.
 
 A supplemental Limited multiplayer concession probe during startup (`Remote:diceRolled`) timed out before game over. It does not verify normal result acknowledgement.
 

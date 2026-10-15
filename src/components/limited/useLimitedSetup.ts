@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchSetPool } from "@/api/limitedEdition";
 import { useLimitedStore } from "@/stores/useLimitedStore";
+import { limitedSessionRoute, resumeLimitedSession } from "@/game/limitedRecovery";
 import type { DraftCard } from "@/types/limited";
 import type { RoomPlayerInfo } from "@/types/server";
 import type { LimitedSetupMode, LimitedSetupSource } from "./limitedSetup.types";
@@ -33,6 +34,7 @@ export function useLimitedSetup(selectedCode: string, selectedVariant: string) {
   const [pickSeconds, setPickSeconds] = useState<number | undefined>();
   const [cubeInput, setCubeInput] = useState("");
   const [fetchingPool, setFetchingPool] = useState(false);
+  const [resuming, setResuming] = useState(false);
   const [pendingDraftStart, setPendingDraftStart] = useState<PendingDraftStart | null>(null);
   const draftStartConfirmed = useRef(false);
   useEffect(() => {
@@ -44,8 +46,18 @@ export function useLimitedSetup(selectedCode: string, selectedVariant: string) {
     seed.trim() && Number.isFinite(parsedSeed) && parsedSeed >= 0
       ? Math.floor(parsedSeed)
       : undefined;
-  const busy = isStarting || fetchingPool;
+  const busy = isStarting || fetchingPool || resuming;
   const startBlocked = busy || (source === "set" ? !selectedCode : !cube?.pool?.length);
+  const resume = async (sessionId: string) => {
+    if (busy || pendingDraftStart) return;
+    setResuming(true);
+    try {
+      const saved = await resumeLimitedSession(sessionId);
+      navigate(limitedSessionRoute(saved));
+    } finally {
+      setResuming(false);
+    }
+  };
   const chooseDraftTable = (pending: PendingDraftStart) => {
     draftStartConfirmed.current = false;
     setPendingDraftStart(pending);
@@ -208,6 +220,7 @@ export function useLimitedSetup(selectedCode: string, selectedVariant: string) {
     isStarting,
     startBlocked,
     lastError,
+    resume,
     start,
     startChaos,
     onImport,

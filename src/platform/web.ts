@@ -1946,10 +1946,9 @@ class WebServerApi implements IServerApi {
       const room = msg.room as { room_id?: string } | undefined;
       const roomId = String(room?.room_id ?? "");
       const limited = useMultiplayerLimitedStore.getState();
-      const activeRoomId = limited.matchReturn?.roomId ?? this.currentRoomId;
-      const parentRosterUpdate =
-        roomId === limited.originalRoom?.room_id && activeRoomId && activeRoomId !== roomId;
-      if (roomId && !parentRosterUpdate) {
+      const activeRoomId = this.currentRoomId ?? limited.matchReturn?.roomId;
+      const inactiveLimitedRoom = limited.originalRoom && activeRoomId && activeRoomId !== roomId;
+      if (roomId && !inactiveLimitedRoom) {
         this.currentRoomId = roomId;
         this.announceTransport(roomId);
       }

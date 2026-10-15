@@ -18,7 +18,6 @@ import { LimitedReferenceButton } from "@/components/limited/LimitedReferenceBut
 import { useLimitedSetSelection } from "@/components/limited/useLimitedSetSelection";
 import { useLimitedSetup } from "@/components/limited/useLimitedSetup";
 import { LimitedSavedSessions } from "@/components/limited/LimitedSavedSessions";
-import { limitedSessionRoute } from "@/game/limitedRecovery";
 import { TablePickerDialog } from "@/components/lobby/TablePickerDialog";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import type { ReactNode } from "react";
@@ -163,7 +162,10 @@ export default function Limited({ leadingControl }: LimitedProps) {
             setCodes={setup.source === "set" ? [selection.selectedCode] : undefined}
             format={setup.source === "set" ? "set" : "cube"}
           />
-          <LimitedSavedSessions onResume={(saved) => navigate(limitedSessionRoute(saved))} />
+          <LimitedSavedSessions
+            disabled={setup.busy || setup.pendingDraftStart !== null}
+            onResume={setup.resume}
+          />
         </section>
         <section
           aria-label={`${modeTitle} options`}

@@ -66,11 +66,14 @@ import { promptCardSections } from "./promptCardSections";
 
 const CHOICE_MODAL_WIDTH = 560;
 const CARD_PROMPT_MIN_WIDTH = 360;
+const CHOICE_SEARCH_HEIGHT = 52;
+const CHOICE_TOOLBAR_CONFIRM_WIDTH = 160;
+const CHOICE_SEARCH_COUNT_MIN_WIDTH = 240;
 const CARD_SECTION_HEADER_HEIGHT = 46;
 const SCRY_POOL_DRAG_SCALE = 0.5;
 const MODAL_SCROLL_HALF_LIFE_MS = 28;
 const MODAL_SCROLL_SNAP_PIXELS = 0.5;
-type PromptModalHeaderLayout = "stacked" | "inline-guidance";
+type PromptModalHeaderLayout = "stacked" | "inline-guidance" | "choice-search";
 
 export abstract class PromptModalLayer extends PromptLayerBase {
   protected renderModal(): void {
@@ -142,6 +145,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     bodyTop: number;
     footer: Container;
     footerHintWidth: number;
+    searchToolbar: boolean;
   } {
     const sourceCard = this.promptSourceCard();
     const modalHeight = this.layerPresentation.modalHeight(
@@ -152,7 +156,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     const scaleModal = this.layerPresentation.modalBodyFit === "scale";
     const sourceSize = this.promptSourceCardDisplayDimensions();
     const clusterWidth = width + SOURCE_CARD_GAP + sourceSize.width;
-    const externalSource =
+    let externalSource =
       !!sourceCard &&
       sourceSize.width > 0 &&
       clusterWidth <= this.layoutWidth - 24 &&
@@ -214,6 +218,8 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     }
     const inlineSource = !!sourceSprite && !externalSource;
     const inlineGuidance = scaleModal && headerLayout === "inline-guidance" && !inlineSource;
+    const header = new Container();
+    panel.addChild(header);
     const titleX = PANEL_PADDING;
     const titleWidth = inlineSource
       ? Math.max(120, width - PANEL_PADDING * 2 - sourceWidth - 16)
@@ -226,7 +232,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       { weight: "700" },
     );
     title.position.set(titleX, 16);
-    panel.addChild(title);
+    header.addChild(title);
     let bodyTop = 16 + title.height + 8;
     if (sourceSprite && placeSourceSprite) {
       if (externalSource) {
@@ -259,7 +265,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
         );
         guidance.alpha = 0.9;
         guidance.position.set(guidanceX, 16);
-        panel.addChild(guidance);
+        header.addChild(guidance);
         bodyTop = Math.max(bodyTop, 16 + guidance.height + 8);
       }
     } else {
@@ -272,7 +278,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
         );
         description.alpha = 0.9;
         description.position.set(PANEL_PADDING, bodyTop);
-        panel.addChild(description);
+        header.addChild(description);
         bodyTop += description.height + 6;
       }
       if (presentation.text) {
@@ -283,7 +289,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
           width - PANEL_PADDING * 2,
         );
         rules.position.set(PANEL_PADDING, bodyTop);
-        panel.addChild(rules);
+        header.addChild(rules);
         bodyTop += rules.height + 8;
       }
     }
@@ -311,13 +317,29 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       minimize.accessibleTitle = "Minimize prompt";
       minimize.tabIndex = 0;
       minimize.position.set(width - PANEL_PADDING - 6, 20);
-      panel.addChild(minimize);
+      header.addChild(minimize);
     }
 
     bodyTop = Math.round(bodyTop);
+    const searchToolbar =
+      headerLayout === "choice-search" &&
+      modalHeight - bodyTop - CHOICE_SEARCH_HEIGHT - footerHeight - MODAL_BODY_BOTTOM_PADDING <
+        this.layerPresentation.selectionRowPitch;
+    if (searchToolbar) {
+      header.visible = false;
+      bodyTop = PANEL_PADDING;
+      if (sourceSprite && !externalSource) {
+        width = Math.max(0, this.layoutWidth - 24 - sourceWidth - SOURCE_CARD_GAP);
+        externalSource = true;
+        sourceX = width + SOURCE_CARD_GAP;
+        sourceY = 0;
+        panel.x = Math.round((this.layoutWidth - width - SOURCE_CARD_GAP - sourceWidth) / 2);
+        placeSourceSprite?.();
+      }
+    }
     const viewportHeight = Math.max(
       0,
-      modalHeight - bodyTop - footerHeight - MODAL_BODY_BOTTOM_PADDING,
+      modalHeight - bodyTop - (searchToolbar ? 0 : footerHeight) - MODAL_BODY_BOTTOM_PADDING,
     );
     const mask = new Graphics()
       .rect(PANEL_PADDING, bodyTop, width - PANEL_PADDING * 2, viewportHeight)
@@ -367,6 +389,10 @@ export abstract class PromptModalLayer extends PromptLayerBase {
         }
       }
       panel.addChild(footerBackground, footer);
+      if (searchToolbar) {
+        footerBackground.visible = false;
+        footer.position.set(PANEL_PADDING, PANEL_PADDING + 2);
+      }
     }
 
     panel.on("wheel", (event: FederatedWheelEvent) => this.scrollModal(event));
@@ -377,19 +403,19 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       bodyTop,
       width,
       height: modalHeight,
-      hitWidth: externalSource ? sourceLeft + sourceWidth : width,
+      hitWidth: externalSource ? width + SOURCE_CARD_GAP + sourceWidth : width,
       externalSourceHeight: externalSource ? sourceHeight : 0,
-      footerHeight,
+      footerHeight: searchToolbar ? 0 : footerHeight,
       footerContentHeight,
       footer,
-      footerBackground,
+      footerBackground: searchToolbar ? null : footerBackground,
       mask,
       viewportHeight,
       scrollTrack,
       scrollThumb,
     };
     this.container.addChild(panel);
-    return { panel, body, bodyTop, footer, footerHintWidth };
+    return { panel, body, bodyTop, footer, footerHintWidth, searchToolbar };
   }
 
   protected resizeModalShell(
@@ -630,25 +656,40 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       : indexedOptions;
     const compactSelection = this.layerPresentation.modalBodyFit === "scale";
     const visibleRowCount = Math.max(1, Math.min(visibleOptions.length, 7));
-    const width = this.modalPromptWidth(CHOICE_MODAL_WIDTH);
+    let width = this.modalPromptWidth(CHOICE_MODAL_WIDTH);
     const height = Math.min(
       Math.max(260, 132 + visibleRowCount * 66 + (showFilter ? 48 : 0) + 52),
       this.viewportHeight - 24,
     );
-    const { panel, body, footer } = this.createModalShell(width, height, presentation, true, 60);
+    const { panel, body, footer, searchToolbar } = this.createModalShell(
+      width,
+      height,
+      presentation,
+      true,
+      60,
+      36,
+      false,
+      showFilter ? "choice-search" : "stacked",
+    );
+    width = this.modalBody!.width;
     const availableWidth = Math.round(width - PANEL_PADDING * 2);
+    const confirmWidth = searchToolbar
+      ? Math.min(CHOICE_TOOLBAR_CONFIRM_WIDTH, availableWidth * 0.4)
+      : compactSelection
+        ? 112
+        : 130;
     const showWeights = options.some((option) => option.weight !== 1);
     let y = 4;
 
     if (showFilter) {
       const state = this.modalBody!;
-      state.bodyTop += 52;
+      state.bodyTop += CHOICE_SEARCH_HEIGHT;
       this.resizeModalShell(state, state.height);
       body.position.set(PANEL_PADDING, state.bodyTop);
       this.renderChoiceFilter(
         panel,
-        availableWidth,
-        state.bodyTop - 52,
+        availableWidth - (searchToolbar ? confirmWidth + ROW_GAP : 0),
+        state.bodyTop - CHOICE_SEARCH_HEIGHT,
         visibleOptions.length,
         "Search choices",
         compactSelection,
@@ -899,17 +940,21 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       : minTotal === maxTotal
         ? `${selectedTotal} of ${maxTotal} points selected`
         : `${selectedTotal} points selected · choose ${minTotal}–${maxTotal}`;
-    const confirmWidth = compactSelection ? 112 : 130;
-    const status = promptText(
-      requirement,
-      compactSelection ? 13 : 11,
-      canConfirm ? this.theme.gameTheme.success : this.theme.appTheme["muted-foreground"],
-      { weight: "600", width: availableWidth - confirmWidth - 20, truncate: true },
-    );
-    status.position.set(2, 10);
-    footer.addChild(status);
+    if (!searchToolbar) {
+      const status = promptText(
+        requirement,
+        compactSelection ? 13 : 11,
+        canConfirm ? this.theme.gameTheme.success : this.theme.appTheme["muted-foreground"],
+        { weight: "600", width: availableWidth - confirmWidth - 20, truncate: true },
+      );
+      status.position.set(2, 10);
+      footer.addChild(status);
+    }
+    const confirmLabel = minTotal === 0 && selectedTotal === 0 ? "SKIP" : "CONFIRM";
     const confirm = this.makeButton(
-      minTotal === 0 && selectedTotal === 0 ? "SKIP" : "CONFIRM",
+      searchToolbar
+        ? `${selectedTotal}/${maxTotal}${confirmWidth === CHOICE_TOOLBAR_CONFIRM_WIDTH ? ` · ${confirmLabel}` : ""}`
+        : confirmLabel,
       () => {
         const chosenIndices = [...this.counts.entries()]
           .sort(([left], [right]) => Number(left) - Number(right))
@@ -918,7 +963,13 @@ export abstract class PromptModalLayer extends PromptLayerBase {
           );
         this.spec!.respond({ type: "selectionDecision", chosenIndices });
       },
-      { disabled: !canConfirm, width: confirmWidth },
+      {
+        disabled: !canConfirm,
+        width: confirmWidth,
+        icon:
+          searchToolbar && confirmWidth < CHOICE_TOOLBAR_CONFIRM_WIDTH ? "lucide-check" : undefined,
+        title: searchToolbar ? `${confirmLabel}. ${requirement}` : confirmLabel,
+      },
     );
     confirm.position.set(availableWidth - confirm.buttonWidth, 0);
     footer.addChild(confirm);
@@ -992,7 +1043,10 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     this.choiceSearchInput.setAttribute("aria-label", placeholder);
     if (this.choiceSearchInput.value !== this.selectionFilter)
       this.choiceSearchInput.value = this.selectionFilter;
-    background.on("pointerdown", () => this.choiceSearchInput?.focus({ preventScroll: true }));
+    background.on("pointerdown", (event: FederatedPointerEvent) => {
+      event.preventDefault();
+      this.choiceSearchInput?.focus({ preventScroll: true });
+    });
     const searchIcon = this.makeIcon(
       "lucide-search",
       15,
@@ -1001,13 +1055,14 @@ export abstract class PromptModalLayer extends PromptLayerBase {
         : this.theme.appTheme["muted-foreground"],
     );
     searchIcon.position.set(16, 20);
+    const showResultCount = width >= CHOICE_SEARCH_COUNT_MIN_WIDTH;
     const searchText = promptText(
       this.selectionFilter || placeholder,
       compact ? 15 : 12,
       this.selectionFilter
         ? this.theme.appTheme.foreground
         : this.theme.appTheme["muted-foreground"],
-      { width: width - 132, truncate: true },
+      { width: Math.max(1, width - (showResultCount ? 132 : 74)), truncate: true },
     );
     searchText.position.set(30, 12);
     const countText = promptText(
@@ -1018,6 +1073,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     );
     countText.anchor.set(1, 0.5);
     countText.position.set(width - (this.selectionFilter ? 42 : 10), 20);
+    countText.visible = showResultCount;
     const caret = new Graphics()
       .rect(searchText.x + (this.selectionFilter ? searchText.width + 2 : 0), 12, 1.5, 16)
       .fill({ color: hexToNum(this.theme.gameTheme.cardRing) });

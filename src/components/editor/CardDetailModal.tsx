@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Modal } from "@/components/game/modals/Modal";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,8 @@ import { useCard, useCardRulings, useScryfallStore } from "@/stores/useScryfallS
 import { isHorizontalCard } from "@/lib/cardLayout";
 import { HorizontalCardImage } from "@/components/game/HorizontalCardImage";
 import { ScryfallImg } from "@/components/ScryfallImg";
+import { MseCardImage } from "@/components/game/MseCardImage";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { usePreferredPrintsStore } from "@/stores/usePreferredPrintsStore";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { PrintPickerModal } from "@/components/editor/PrintPickerModal";
@@ -82,6 +84,9 @@ export function CardDetailModal({
   const [newTagInput, setNewTagInput] = useState("");
   const [selectedPrint, setSelectedPrint] = useState<ScryfallCard | null>(null);
   const [faceIndex, setFaceIndex] = useState<0 | 1>(0);
+  const presentation = usePreferencesStore((state) => state.inGameCardPreviewStyle);
+  const setPresentation = usePreferencesStore((state) => state.setInGameCardPreviewStyle);
+  const generated = presentation === "rules";
   const rulingsData = useCardRulings(initialCard);
   const updatePrinting = useScryfallStore((s) => s.updatePrinting);
   const rulingsLoading = !rulingsData;
@@ -106,6 +111,7 @@ export function CardDetailModal({
     setFaceIndex(0);
   }
   const card = selectedPrint ?? initialCard;
+  const renderCard = useMemo(() => scryfallToDeckCard(card), [card]);
   const deckCardName = frontFaceName(card.name);
   const deckCards = [
     ...currentDeck.cards,
@@ -263,7 +269,24 @@ export function CardDetailModal({
                     isHorizontalActiveFace ? "max-w-96 sm:w-96" : "max-w-64 sm:w-64",
                   )}
                 >
-                  {imageUrl ? (
+                  {generated ? (
+                    <div
+                      className={cn(
+                        "relative w-full overflow-hidden rounded-lg shadow-lg",
+                        isHorizontalActiveFace ? "aspect-[7/5]" : "aspect-[5/7]",
+                      )}
+                    >
+                      <MseCardImage
+                        deckCard={renderCard}
+                        faceIndex={faceIndex}
+                        className={
+                          isHorizontalActiveFace
+                            ? "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-90 origin-center h-[calc(100%*7/5)] aspect-[5/7]"
+                            : "absolute inset-0 h-full w-full"
+                        }
+                      />
+                    </div>
+                  ) : imageUrl ? (
                     isHorizontalActiveFace ? (
                       <HorizontalCardImage
                         src={imageUrl}
@@ -271,11 +294,13 @@ export function CardDetailModal({
                         className="w-full aspect-[7/5] rounded-lg shadow-lg"
                       />
                     ) : (
-                      <ScryfallImg
-                        src={imageUrl}
-                        alt={displayName}
-                        className="w-full rounded-lg shadow-lg"
-                      />
+                      <div className="relative aspect-[5/7] w-full overflow-hidden rounded-lg shadow-lg">
+                        <ScryfallImg
+                          src={imageUrl}
+                          alt={displayName}
+                          className="absolute inset-0 h-full w-full object-contain"
+                        />
+                      </div>
                     )
                   ) : (
                     <div
@@ -287,6 +312,14 @@ export function CardDetailModal({
                       <span className="text-muted-foreground text-sm">No Image</span>
                     </div>
                   )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-2 w-full"
+                    onClick={() => setPresentation(generated ? "printed" : "rules")}
+                  >
+                    {generated ? "Show original printing" : "Show generated card"}
+                  </Button>
 
                   {isDoubleFaced && (
                     <Button

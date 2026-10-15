@@ -53,6 +53,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "@mse-renderer": path.resolve(__dirname, "./packages/mse-renderer/index.mjs"),
       // The client shares the Forge seat and card-selection modules with the
       // published @manabrew/forge-wasm package rather than keeping a copy.
       "@forge-wasm": path.resolve(__dirname, "./packages/forge-wasm"),

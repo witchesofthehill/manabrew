@@ -38,29 +38,6 @@ function DraftCardTileImpl({
       }),
     hide: () => preview?.dismiss(),
   });
-  const hasImage = !deckCard.uris.normal.startsWith("data:");
-  if (!hasImage) {
-    return (
-      <button
-        type="button"
-        onClick={onClick}
-        disabled={disabled}
-        className={cn(
-          "relative aspect-[5/7] w-full rounded-lg border border-border/70 bg-card p-2 text-left text-xs font-medium shadow-sm disabled:cursor-not-allowed disabled:opacity-60",
-          selected && "ring-2 ring-selection",
-          selected && pickPending && "animate-draft-card-pick",
-        )}
-      >
-        <span className="break-words">{card.name}</span>
-        {card.setCode && (
-          <span className="absolute bottom-2 left-2 font-mono text-[10px] uppercase text-muted-foreground">
-            {card.setCode}
-          </span>
-        )}
-        {overlay}
-      </button>
-    );
-  }
   return (
     <button
       type="button"

@@ -13,28 +13,16 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
+#. placeholder {0}: display.stats.damage
 #. placeholder {0}: stats.damage
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1155
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:816
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1133
 msgid "{0} damage"
 msgstr "{0} de dano"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:721
-msgid "↑↓ select · Enter activate · 1–9"
-msgstr "↑↓ selecionar · Enter ativar · 1–9"
-
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1471
-msgid "Art unavailable"
-msgstr "Ilustração indisponível"
-
-#. placeholder {0}: indexedActions.length
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:734
-msgid "Available actions · {0}"
-msgstr "Ações disponíveis · {0}"
-
-#. placeholder {0}: indexedActions.length
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:733
-msgid "Available on current face · {0}"
-msgstr "Disponível na face atual · {0}"
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:693
+msgid "Actions apply to the current face."
+msgstr ""
 
 #: src/pixi/cardPreview/PixiCardRailPreview.ts:90
 msgid "Awaiting first chapter"
@@ -44,7 +32,7 @@ msgstr "Aguardando o primeiro capítulo"
 msgid "Awaiting first level"
 msgstr "Aguardando o primeiro nível"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:799
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:754
 msgid "Card identity and rules are hidden."
 msgstr "A identidade do card e as regras estão ocultas."
 
@@ -63,13 +51,17 @@ msgstr "Capítulo {0} de {1}"
 msgid "CLASS LEVELS"
 msgstr "NÍVEIS DE CLASSE"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1152
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1130
 msgid "Defense"
 msgstr "Defesa"
 
 #: src/pixi/cardPreview/PixiCardRailPreview.ts:151
 msgid "Effect text unavailable"
 msgstr "Texto do efeito indisponível"
+
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1510
+msgid "Face down"
+msgstr ""
 
 #: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:373
 msgid "Face-down card"
@@ -79,19 +71,23 @@ msgstr "Card virado para baixo"
 msgid "Face-down permanent"
 msgstr "Permanente virado para baixo"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:826
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:776
 msgid "Flavor text"
 msgstr "Texto de sabor"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:855
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:791
 msgid "Flip back · F"
 msgstr "Virar para o verso · F"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:855
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:791
 msgid "Flip front · F"
 msgstr "Virar para a face · F"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:752
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:647
+msgid "Generated unavailable · details"
+msgstr ""
+
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:707
 msgid "Keywords, costs & counters"
 msgstr "Habilidades, custos e marcadores"
 
@@ -110,14 +106,32 @@ msgstr "Nível {0} de {1}"
 msgid "LORE CHAPTERS"
 msgstr "CAPÍTULOS DA SAGA"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1151
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1129
 msgid "Loyalty"
 msgstr "Lealdade"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:775
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:805
+msgid "Printed face · live state belongs to the other face"
+msgstr ""
+
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:730
 msgid "Progression"
 msgstr "Progressão"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:801
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:652
+msgid "Rules & details"
+msgstr ""
+
+#. placeholder {0}: indexedActions.length
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:651
+msgid "Rules & details · {0} actions"
+msgstr ""
+
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:756
 msgid "Rules text"
 msgstr "Texto de regras"
+
+#. placeholder {0}: indexedActions.length
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:650
+msgid "Show actions · {0}"
+msgstr ""

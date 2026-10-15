@@ -28,6 +28,9 @@ import type { CardDto } from "@/protocol/game";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import { useGameStore } from "@/stores/useGameStore";
 import { asGameDeckCard } from "@/lib/decks";
+import { renderMseCard } from "@/lib/mseCardRenderer";
+import { createMseCardTexture } from "@/pixi/mseCardTexture";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { RING_ABILITIES, zoneBadgeId } from "@/components/game/game.constants";
 import { intentIsHostile } from "@/types/promptType";
 
@@ -145,6 +148,11 @@ export class PlayerHudCapsule {
   private handBacks: Sprite[] = [];
   private handBackTexture: Texture = Texture.EMPTY;
   private handFaceIds: (string | null)[] = [];
+  private handFaceCards: (CardDto | undefined)[] = [];
+  private handFaceRequests: (AbortController | undefined)[] = [];
+  private handFaceTextures: (Texture | undefined)[] = [];
+  private unsubscribeHandStyle: (() => void) | null = null;
+  private unsubscribeLocale: (() => void) | null = null;
   private overflow: Text;
   private emptyStateText: Text;
   private overflowHit = new Graphics();
@@ -278,6 +286,12 @@ export class PlayerHudCapsule {
       this.handBacks.push(back);
       this.handFaceIds.push(null);
     }
+    this.unsubscribeHandStyle = usePreferencesStore.subscribe((state, previous) => {
+      if (state.handCardStyle !== previous.handCardStyle) this.render();
+    });
+    this.unsubscribeLocale = useScryfallStore.subscribe((state, previous) => {
+      if (state.locale !== previous.locale) this.render();
+    });
     loadCardBack()
       .then((texture) => {
         if (this.container.destroyed) return;
@@ -946,7 +960,7 @@ export class PlayerHudCapsule {
     const fanWidth = width + 10;
     for (let i = 0; i < this.handBacks.length; i++) {
       const back = this.handBacks[i]!;
-      this.applyHandFace(i, revealed[i]);
+      void this.applyHandFace(i, revealed[i]);
       back.width = width;
       back.height = height;
       back.visible = i < count;
@@ -962,28 +976,74 @@ export class PlayerHudCapsule {
     };
   }
 
-  private applyHandFace(index: number, card: CardDto | undefined): void {
-    const id = card?.id ?? null;
-    if (this.handFaceIds[index] === id) return;
+  private async applyHandFace(index: number, card: CardDto | undefined): Promise<void> {
+    const visible = card && !card.isFaceDown && !!card.identity.name;
+    const generated = usePreferencesStore.getState().handCardStyle === "rules";
+    const locale = useScryfallStore.getState().locale;
+    const id = visible ? `${card.id}:${generated}:${locale}` : null;
+    if (this.handFaceIds[index] === id && this.handFaceCards[index] === card) return;
     this.handFaceIds[index] = id;
+    this.handFaceCards[index] = card;
+    this.handFaceRequests[index]?.abort();
+    const controller = new AbortController();
+    this.handFaceRequests[index] = controller;
     const sprite = this.handBacks[index]!;
-    if (!card) {
+    if (!visible) {
       sprite.texture = this.handBackTexture;
+      this.handFaceTextures[index]?.destroy(true);
+      this.handFaceTextures[index] = undefined;
       return;
     }
-    useScryfallStore
-      .getState()
-      .getCardTexture(
-        asGameDeckCard(useGameStore.getState().gameDecks, card),
-        "full",
-        card.isTransformed ? 1 : 0,
-      )
-      .then((texture) => {
-        if (this.container.destroyed || this.handFaceIds[index] !== id) return;
-        sprite.texture = texture;
-        this.render();
-      })
-      .catch((error) => console.warn("[hud] revealed hand card load failed", error));
+    const deckCard = asGameDeckCard(useGameStore.getState().gameDecks, card);
+    const faceIndex = card.isTransformed ? 1 : 0;
+    if (
+      generated &&
+      (sprite.texture === this.handBackTexture || sprite.texture === Texture.EMPTY)
+    ) {
+      void useScryfallStore
+        .getState()
+        .getCardTexture(deckCard, "full", faceIndex)
+        .then((scan) => {
+          if (
+            this.container.destroyed ||
+            controller.signal.aborted ||
+            (sprite.texture !== this.handBackTexture && sprite.texture !== Texture.EMPTY)
+          )
+            return;
+          sprite.texture = scan;
+          this.render();
+        })
+        .catch((error: unknown) => {
+          if (!this.container.destroyed && !controller.signal.aborted) {
+            console.warn("[hud] revealed hand scan load failed", card.identity.name, error);
+          }
+        });
+    }
+    let texture: Texture;
+    let owned = false;
+    try {
+      if (generated) {
+        const canvas = await renderMseCard({ card, deckCard, faceIndex }, controller.signal);
+        if (this.container.destroyed || controller.signal.aborted) return;
+        texture = createMseCardTexture(canvas);
+        owned = true;
+      } else {
+        texture = await useScryfallStore.getState().getCardTexture(deckCard, "full", faceIndex);
+      }
+    } catch (error) {
+      if (this.container.destroyed || controller.signal.aborted) return;
+      console.warn("[hud] revealed hand card render failed", card.identity.name, error);
+      return;
+    }
+    if (this.container.destroyed || controller.signal.aborted) {
+      if (owned) texture.destroy(true);
+      return;
+    }
+    const previous = this.handFaceTextures[index];
+    this.handFaceTextures[index] = owned ? texture : undefined;
+    sprite.texture = texture;
+    previous?.destroy(true);
+    this.render();
   }
 
   private layoutFloatingMana(x: number, cy: number): void {
@@ -1643,6 +1703,11 @@ export class PlayerHudCapsule {
   }
 
   destroy(): void {
+    this.unsubscribeHandStyle?.();
+    this.unsubscribeLocale?.();
+    for (const request of this.handFaceRequests) request?.abort();
+    for (const sprite of this.handBacks) sprite.texture = Texture.EMPTY;
+    for (const texture of this.handFaceTextures) texture?.destroy(true);
     this.combatPulse?.kill();
     this.targetTween?.kill();
     this.flashTween?.kill();

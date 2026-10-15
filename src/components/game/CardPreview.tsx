@@ -15,7 +15,6 @@ import { computePreviewLayout } from "./cardPreviewLayout";
 import { getPreviewActionShortcut } from "./game.utils";
 import { CARD_W, CARD_RADIUS } from "./game.constants";
 import { CARD_BACK_IMAGE_URL } from "./game.constants";
-import { isFacelessCard } from "@/lib/gameCard";
 import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
 import { isHorizontalGameCard } from "@/lib/horizontalGameCard";
@@ -32,6 +31,8 @@ import { useKeybindings } from "@/hooks/useKeybindings";
 import { deriveCardRailEffects, deriveCardRailState } from "@/components/game/cardRailState";
 import { cardTypeLine, replaceCardName } from "@/components/game/cardPresentation";
 import { localizeRulesPreviewText } from "@/pixi/cardPreview/rulesCardPreviewPresentation";
+import { MseCardImage } from "@/components/game/MseCardImage";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
 interface CardPreviewProps {
   card: CardDto;
   mouseX: number;
@@ -39,6 +40,7 @@ interface CardPreviewProps {
   anchorRect?: DOMRect | null;
   placement?: "auto" | "top-center" | "pinned";
   viewportRight?: number;
+  viewportBounds?: DOMRect;
   phase?: "open" | "closing";
   suppressed?: boolean;
   showBackFace?: boolean;
@@ -127,6 +129,7 @@ export function CardPreview({
   anchorRect,
   placement = "auto",
   viewportRight,
+  viewportBounds,
   phase = "open",
   suppressed = false,
   skipEnterAnimation = false,
@@ -146,6 +149,10 @@ export function CardPreview({
   portalTarget,
 }: CardPreviewProps) {
   const resolvedGameCard = useResolvedGameCard(card);
+  const preferredView = usePreferencesStore((state) => state.inGameCardPreviewStyle);
+  const [viewOverride, setViewOverride] = useState<boolean | null>(null);
+  const generatedView = !onToggleView && (viewOverride ?? preferredView === "rules");
+  const toggleView = onToggleView ?? (() => setViewOverride(!generatedView));
   const hasActions = Boolean(actions?.length && onSelectAction);
   const themeColors = useTheme().gameTheme;
   const showHoverAreas = useGameDevStore((s) => s.showHoverAreas);
@@ -204,6 +211,7 @@ export function CardPreview({
   const front = cardFaces.faces[0];
   const back = cardFaces.faces[1];
   const previewFaceIndex = showBackFace ? 1 : 0;
+  const showsCurrentFace = previewFaceIndex === (card.isTransformed ? 1 : 0);
   const railEffects = rail ? deriveCardRailEffects(card, rail) : [];
   const panelRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -240,11 +248,11 @@ export function CardPreview({
       observer.disconnect();
     };
   }, [showSidePanel, card.id]);
-  const faceless = isFacelessCard(card);
+  const faceless = card.isFaceDown || !card.identity.name;
   const imageUrl = faceless ? CARD_BACK_IMAGE_URL : resolveImageUrl(0, imageSize);
   const frontImageUrl = resolveImageUrl(0, imageSize);
   const backImageUrl = resolveImageUrl(1, imageSize);
-  const hasFlippableFaces = cardFaces.isFlippable && !!frontImageUrl && !!backImageUrl;
+  const hasFlippableFaces = !faceless && cardFaces.isFlippable && !!frontImageUrl && !!backImageUrl;
   const doubleFacedData = hasFlippableFaces
     ? {
         frontImageUrl: frontImageUrl!,
@@ -255,14 +263,15 @@ export function CardPreview({
         backName: back!.name,
       }
     : null;
-  const horizontalCard = isDebugCard
-    ? false
-    : isHorizontalGameCard(
-        card,
-        deckCard.layout,
-        previewFaceIndex,
-        cardFaces.faces[previewFaceIndex]?.typeLine,
-      );
+  const horizontalCard =
+    isDebugCard || faceless
+      ? false
+      : isHorizontalGameCard(
+          card,
+          deckCard.layout,
+          previewFaceIndex,
+          cardFaces.faces[previewFaceIndex]?.typeLine,
+        );
   const fallbackCounters =
     rail?.kind === "saga" && card.counters
       ? Object.fromEntries(
@@ -270,7 +279,10 @@ export function CardPreview({
         )
       : card.counters;
   useKeybindings(
-    onFlip && hasFlippableFaces ? { "flip-card": onFlip } : {},
+    {
+      ...(onFlip && hasFlippableFaces ? { "flip-card": onFlip } : {}),
+      ...(!onToggleView ? { "toggle-card-view": toggleView } : {}),
+    },
     portalTarget ? rootRef : undefined,
   );
   useEffect(() => {
@@ -340,18 +352,33 @@ export function CardPreview({
     portalTarget,
   ]);
   const horizontal = horizontalCard;
+  const viewportLeft = viewportBounds?.left ?? 0;
+  const viewportTop = viewportBounds?.top ?? 0;
   const layout = computePreviewLayout({
     placement,
-    anchorRect: anchorRect ?? null,
-    mouseX,
-    mouseY,
+    anchorRect: anchorRect
+      ? new DOMRect(
+          anchorRect.x - viewportLeft,
+          anchorRect.y - viewportTop,
+          anchorRect.width,
+          anchorRect.height,
+        )
+      : null,
+    mouseX: mouseX - viewportLeft,
+    mouseY: mouseY - viewportTop,
     horizontal,
     hasPanel: showSidePanel,
     panelHeight,
-    viewportRight,
+    viewportRight:
+      viewportRight == null
+        ? viewportBounds?.width
+        : Math.min(viewportBounds?.width ?? Number.POSITIVE_INFINITY, viewportRight - viewportLeft),
+    viewportBottom: viewportBounds?.height,
     slot: slot ?? null,
   });
-  const { cardLeft, top, cardWidth, cardHeight, sidePanelWidth, panelSide } = layout;
+  const { cardWidth, cardHeight, sidePanelWidth, panelSide } = layout;
+  const cardLeft = layout.cardLeft + viewportLeft;
+  const top = layout.top + viewportTop;
   const cardCornerRadius = (Math.min(cardWidth, cardHeight) * CARD_RADIUS) / CARD_W;
   const anchorCenterX = anchorRect ? anchorRect.left + anchorRect.width / 2 : mouseX;
   const anchorCenterY = anchorRect ? anchorRect.top + anchorRect.height / 2 : mouseY;
@@ -364,8 +391,11 @@ export function CardPreview({
       : 0.5;
   const hasDoubleFace = !!doubleFacedData;
   const currentImageUrl = hasDoubleFace && showBackFace ? doubleFacedData.backImageUrl : imageUrl;
-  const currentCardName =
-    hasDoubleFace && showBackFace ? doubleFacedData.backName : card.identity.name;
+  const currentCardName = faceless
+    ? "Face-down card"
+    : hasDoubleFace && showBackFace
+      ? doubleFacedData.backName
+      : card.identity.name;
   const currentLowResUrl =
     imageSize !== "large"
       ? null
@@ -375,7 +405,6 @@ export function CardPreview({
           : doubleFacedData.frontImageUrlLow
         : resolveImageUrl(0, "normal");
   const cardLookupPending = !isDebugCard && cardFaces.faces.length === 0;
-  const hasPreviewControls = Boolean(onToggleView || (hasDoubleFace && onFlip) || isSticky);
   const handlePreviewPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!isSticky || event.pointerType !== "touch") return;
     swipeRef.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
@@ -401,7 +430,7 @@ export function CardPreview({
     }
     if (!horizontal && dy <= -64) {
       if (hasDoubleFace && onFlip) onFlip();
-      else onToggleView?.();
+      else toggleView();
       event.preventDefault();
     }
   };
@@ -423,7 +452,7 @@ export function CardPreview({
             ? "relative w-full h-full flex items-start justify-start pointer-events-none"
             : cn(
                 "fixed z-[10001]",
-                placement !== "pinned" && interactive && (showSidePanel || hasPreviewControls)
+                placement !== "pinned" && interactive
                   ? "pointer-events-auto"
                   : "pointer-events-none",
               ),
@@ -470,63 +499,39 @@ export function CardPreview({
               ...(hasActions ? actionableCardGlowStyle(ringColor) : {}),
             }}
           >
-            {currentImageUrl ? (
+            {currentImageUrl || generatedView ? (
               <>
-                <PreviewImageStack
-                  targetUrl={currentImageUrl}
-                  lowResUrl={currentLowResUrl ?? null}
-                  horizontal={horizontal}
-                  cardName={currentCardName}
-                />
-                <CardPreviewOverlay
-                  card={card}
-                  horizontal={horizontal}
-                  rail={rail}
-                  compactRail={false}
-                />
+                {currentImageUrl && (
+                  <PreviewImageStack
+                    key={faceless ? "hidden" : "visible"}
+                    targetUrl={currentImageUrl}
+                    lowResUrl={currentLowResUrl ?? null}
+                    horizontal={horizontal}
+                    cardName={currentCardName}
+                  />
+                )}
+                {generatedView && !faceless && (
+                  <MseCardImage
+                    card={card}
+                    deckCard={deckCard}
+                    faceIndex={previewFaceIndex}
+                    className={horizontal ? IMG_HORIZONTAL : IMG_VERTICAL}
+                    fallback={currentImageUrl ? <></> : undefined}
+                  />
+                )}
+                {!faceless && showsCurrentFace && (
+                  <CardPreviewOverlay
+                    card={card}
+                    horizontal={horizontal}
+                    rail={rail}
+                    compactRail={false}
+                  />
+                )}
                 {showHoverAreas && (
                   <div
                     className="pointer-events-none absolute inset-0 z-30"
                     style={{ backgroundColor: withAlpha(themeColors.success, 0.28) }}
                   />
-                )}
-                {hasPreviewControls && (
-                  <div className="absolute top-[12%] right-2 z-20 flex items-center gap-1">
-                    {onToggleView && (
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onToggleView();
-                        }}
-                        className={cn(
-                          "inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/65 text-white shadow hover:bg-black/85 pointer-coarse:h-11 pointer-coarse:w-11",
-                          interactive ? "pointer-events-auto" : "pointer-events-none",
-                        )}
-                        aria-label={`Show rules`}
-                        title={`Show rules (R)`}
-                      >
-                        <GameIcon name="spell-book" className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                    {hasDoubleFace && onFlip && (
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onFlip();
-                        }}
-                        className={cn(
-                          "inline-flex min-h-8 items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white shadow hover:bg-black/85 pointer-coarse:min-h-11 pointer-coarse:px-3",
-                          interactive ? "pointer-events-auto" : "pointer-events-none",
-                        )}
-                        title={`Flip card (F) — ${showBackFace ? doubleFacedData.frontName : doubleFacedData.backName}`}
-                      >
-                        <RotateCw className="h-3 w-3" />
-                        {showBackFace ? `Front` : `Back`}
-                      </button>
-                    )}
-                  </div>
                 )}
                 {isSticky && (onNavigatePrevious || onNavigateNext) && (
                   <div className="absolute inset-x-2 bottom-2 z-20 flex items-center justify-between">
@@ -603,6 +608,40 @@ export function CardPreview({
                 </div>
               </div>
             )}
+            <div className="absolute top-[12%] right-2 z-20 flex items-center gap-1">
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  toggleView();
+                }}
+                className={cn(
+                  "inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/65 text-white shadow hover:bg-black/85 pointer-coarse:h-11 pointer-coarse:w-11",
+                  interactive ? "pointer-events-auto" : "pointer-events-none",
+                )}
+                aria-label={generatedView ? "Show printed card" : "Show generated card"}
+                title={generatedView ? "Show printed card (R)" : "Show generated card (R)"}
+              >
+                <GameIcon name="spell-book" className="h-3.5 w-3.5" />
+              </button>
+              {hasDoubleFace && onFlip && (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onFlip();
+                  }}
+                  className={cn(
+                    "inline-flex min-h-8 items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white shadow hover:bg-black/85 pointer-coarse:min-h-11 pointer-coarse:px-3",
+                    interactive ? "pointer-events-auto" : "pointer-events-none",
+                  )}
+                  title={`Flip card (F) — ${showBackFace ? doubleFacedData.frontName : doubleFacedData.backName}`}
+                >
+                  <RotateCw className="h-3 w-3" />
+                  {showBackFace ? `Front` : `Back`}
+                </button>
+              )}
+            </div>
           </div>
 
           {showSidePanel && (

@@ -50,13 +50,14 @@ export interface BasePalette {
 }
 
 import type { GameThemeColorMap } from "./gameTheme";
-import { contrastRatio, withAlpha } from "./themeColor";
+import { contrastRatio, darken, ensureTextContrast, withAlpha } from "./themeColor";
 
 export function buildGameColors(p: BasePalette): GameThemeColorMap {
   const promptForeground = (background: string): string =>
     contrastRatio(p.foreground, background) >= contrastRatio(p.canvasBackground, background)
       ? p.foreground
       : p.canvasBackground;
+  const cardInk = promptForeground(p.paper);
   return {
     "activeAction.active": p.amber,
 
@@ -78,6 +79,12 @@ export function buildGameColors(p: BasePalette): GameThemeColorMap {
     "zone.graveyard": p.slate,
     "zone.exile": p.purple,
     "zone.command": p.amber,
+
+    "cardPaper.background": p.paper,
+    "cardPaper.raised": darken(p.paper, 0.04),
+    "cardPaper.ink": cardInk,
+    "cardPaper.mutedInk": ensureTextContrast(p.slate, p.paper, cardInk, 4.5),
+    "cardPaper.border": p.slate,
 
     "mana.W": p.manaW,
     "mana.U": p.manaU,

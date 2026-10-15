@@ -24,6 +24,7 @@
     "build": "tauri build --config src-tauri/tauri.dev.conf.json",
     "web": "yarn gen:types && node scripts/ensure-wasm.mjs && vite",
     "ensure:wasm": "node scripts/ensure-wasm.mjs",
+    "mse:corpus-index": "node scripts/mse-corpus-index.mjs",
     "ensure:harness": "node scripts/harness.mjs ensure",
     "gen:types": "cargo xtask gen-types && prettier --write src/protocol src/api/hubTypes.ts src/api/authTypes.ts",
     "gen:protocol-docs": "yarn gen:types && node scripts/gen-protocol-doc-types.mjs",

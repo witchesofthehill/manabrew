@@ -893,6 +893,7 @@ export function BoardPlayground({ themeEditor = false }: { themeEditor?: boolean
       {previewStyle === "printed" && (
         <HoverCardPreview
           preview={{ ...preview, hoveredCard: previewCard }}
+          viewportBounds={boardRef.current?.querySelector("canvas")?.getBoundingClientRect()}
           actions={previewActions}
           onSelectAction={handlePreviewAction}
           skipEnterAnimation={skipPreviewEnterAnimation}

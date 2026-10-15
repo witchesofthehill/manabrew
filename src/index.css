@@ -55,6 +55,11 @@
   --color-zone-graveyard: var(--zone-graveyard);
   --color-zone-exile: var(--zone-exile);
   --color-zone-command: var(--zone-command);
+  --color-card-paper-background: var(--card-paper-background);
+  --color-card-paper-raised: var(--card-paper-raised);
+  --color-card-paper-ink: var(--card-paper-ink);
+  --color-card-paper-muted-ink: var(--card-paper-muted-ink);
+  --color-card-paper-border: var(--card-paper-border);
   --color-mana-w: var(--mana-w);
   --color-mana-u: var(--mana-u);
   --color-mana-b: var(--mana-b);

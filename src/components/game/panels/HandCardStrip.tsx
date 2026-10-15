@@ -1,5 +1,7 @@
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { CARD_BACK_IMAGE_URL } from "@/components/game/game.constants";
+import { MseCardImage } from "@/components/game/MseCardImage";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useResolvedGameCard } from "@/hooks/useResolvedGameCard";
 import { cn } from "@/lib/utils";
 import type { CardDto } from "@/protocol/game";
@@ -32,7 +34,22 @@ export function HandCardStrip({ cards, count }: HandCardStripProps) {
 }
 
 function HandCardThumb({ card }: { card: CardDto }) {
-  const url = useResolvedGameCard(card).imageUrl(card.isTransformed ? 1 : 0, "small");
+  const resolvedUrl = useResolvedGameCard(card).imageUrl(card.isTransformed ? 1 : 0, "small");
+  const url = card.isFaceDown || !card.identity.name ? CARD_BACK_IMAGE_URL : resolvedUrl;
+  const presentation = usePreferencesStore((state) => state.handCardStyle);
+  if (presentation === "rules") {
+    return (
+      <MseCardImage
+        card={card}
+        className={THUMB_CLASS}
+        fallback={
+          url ? (
+            <ScryfallImg src={url} alt="" className="h-full w-full object-contain" />
+          ) : undefined
+        }
+      />
+    );
+  }
   if (!url) return <span className={cn(THUMB_CLASS, "bg-muted")} />;
   return <ScryfallImg src={url} alt="" loading="eager" className={THUMB_CLASS} />;
 }

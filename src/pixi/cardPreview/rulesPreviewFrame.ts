@@ -1,12 +1,11 @@
-import { FillGradient, Graphics, Text, TextStyle, type Container } from "pixi.js";
+import { Graphics, Text, TextStyle, type Container } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
 import { hexToNum } from "@/pixi/colorUtils";
-import { cardFrameTints, contrastRatio, ensureTextContrast } from "@/themes/gameTheme";
+import { ensureTextContrast } from "@/themes/gameTheme";
 import type { CardStatPresentation } from "@/components/game/cardPresentation";
 
 export const RULES_BODY_FONT = "Georgia, Cambria, Times New Roman, serif";
 export const RULES_TITLE_FONT = "Cormorant Garamond, Georgia, serif";
-export const RULES_TITLE_ART_RADIUS = 7;
 
 export const RULES_CARD_CONSTRAINTS = {
   width: 360,
@@ -21,27 +20,6 @@ export function rulesCardRadius(width: number, height: number): number {
     Math.min(RULES_CARD_CONSTRAINTS.width, RULES_CARD_CONSTRAINTS.height)
   );
 }
-export function drawTopSquareBottomRoundedRect(
-  target: Graphics,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  radius: number,
-): void {
-  const right = x + width;
-  const bottom = y + height;
-  const cornerY = bottom - radius;
-  target
-    .moveTo(x, y)
-    .lineTo(right, y)
-    .lineTo(right, cornerY)
-    .arc(right - radius, cornerY, radius, 0, Math.PI / 2)
-    .lineTo(x + radius, bottom)
-    .arc(x + radius, cornerY, radius, Math.PI / 2, Math.PI)
-    .lineTo(x, y)
-    .closePath();
-}
 
 export interface RulesPreviewFrameStyle {
   paper: string;
@@ -49,81 +27,19 @@ export interface RulesPreviewFrameStyle {
   ink: string;
   mutedInk: string;
   border: string;
-  title: string;
-  titleInk: string;
-  titleGradient: FillGradient | null;
 }
 
-interface RulesPreviewFrameGeometry {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  headerHeight: number;
-  artInset: number;
-  artY: number;
-  artHeight: number;
-  typeY: number;
-  typeHeight: number;
-}
-
-export function resolveRulesPreviewFrame(
-  theme: Theme,
-  colorIdentity?: string[],
-): RulesPreviewFrameStyle {
-  const { primary, secondary } = cardFrameTints(colorIdentity, theme.gameTheme.mana);
-  const paper = theme.appTheme.popover;
-  const ink = theme.appTheme["popover-foreground"];
-  const mutedInk = ensureTextContrast(
-    theme.appTheme["muted-foreground"],
-    paper,
-    ink,
-    RULES_TEXT_MIN_CONTRAST,
-  );
-  const darkTitleInk = theme.gameTheme.canvas.shadow;
-  const lightTitleInk = theme.gameTheme.textOnTinted;
-  const darkTitleContrast = Math.min(
-    contrastRatio(darkTitleInk, primary),
-    secondary ? contrastRatio(darkTitleInk, secondary) : Number.POSITIVE_INFINITY,
-  );
-  const lightTitleContrast = Math.min(
-    contrastRatio(lightTitleInk, primary),
-    secondary ? contrastRatio(lightTitleInk, secondary) : Number.POSITIVE_INFINITY,
-  );
-  const titleInk = darkTitleContrast >= lightTitleContrast ? darkTitleInk : lightTitleInk;
-  const titleBackgroundFallback = titleInk === darkTitleInk ? lightTitleInk : darkTitleInk;
-  const title = ensureTextContrast(
-    primary,
-    titleInk,
-    titleBackgroundFallback,
-    RULES_TEXT_MIN_CONTRAST,
-  );
-  const secondaryTitle = secondary
-    ? ensureTextContrast(secondary, titleInk, titleBackgroundFallback, RULES_TEXT_MIN_CONTRAST)
-    : null;
-  const titleGradient = secondaryTitle
-    ? new FillGradient({
-        type: "linear",
-        start: { x: 0, y: 0 },
-        end: { x: 1, y: 0 },
-        colorStops: [
-          { offset: 0, color: title },
-          { offset: 0.42, color: title },
-          { offset: 0.58, color: secondaryTitle },
-          { offset: 1, color: secondaryTitle },
-        ],
-        textureSpace: "local",
-      })
-    : null;
+export function resolveRulesPreviewFrame(theme: Theme): RulesPreviewFrameStyle {
+  const palette = theme.gameTheme.cardPaper;
+  const paper = palette.background;
+  const ink = palette.ink;
+  const mutedInk = ensureTextContrast(palette.mutedInk, paper, ink, RULES_TEXT_MIN_CONTRAST);
   return {
     paper,
-    raised: theme.appTheme.muted,
+    raised: palette.raised,
     ink,
     mutedInk,
-    border: primary,
-    title,
-    titleInk,
-    titleGradient,
+    border: palette.border,
   };
 }
 
@@ -173,36 +89,4 @@ export function drawRulesStatBadge(
     right -= base.width + 10;
   }
   return right;
-}
-
-export function drawRulesPreviewFrame(
-  graphics: Graphics,
-  style: RulesPreviewFrameStyle,
-  geometry: RulesPreviewFrameGeometry,
-): void {
-  const { x, y, width, height, headerHeight, artInset, artY, artHeight, typeY, typeHeight } =
-    geometry;
-  const insetX = x + artInset;
-  const innerWidth = width - artInset * 2;
-  const titleTopInset = 11;
-  const titleY = y + titleTopInset;
-  const titleHeight = headerHeight - titleTopInset - 4;
-  const border = hexToNum(style.border);
-  const surface = hexToNum(style.paper);
-  const raised = hexToNum(style.raised);
-
-  graphics
-    .roundRect(x, y, width, height, rulesCardRadius(width, height))
-    .fill(surface)
-    .stroke({ color: border, width: 1.25 });
-  graphics
-    .roundRect(
-      insetX,
-      titleY,
-      innerWidth,
-      artHeight > 0 ? artY + artHeight - titleTopInset : titleHeight,
-      RULES_TITLE_ART_RADIUS,
-    )
-    .fill(style.titleGradient ?? hexToNum(style.title));
-  graphics.roundRect(insetX, y + typeY, innerWidth, typeHeight, 5).fill(raised);
 }

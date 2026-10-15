@@ -37,6 +37,9 @@ export class HandRulesCardFace extends Container {
   get artworkTop(): number {
     return this.preview.artworkTop;
   }
+  get imageReady(): boolean {
+    return this.preview.imageReady;
+  }
 
   onRenderRequested?: () => void;
 

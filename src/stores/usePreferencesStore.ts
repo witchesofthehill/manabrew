@@ -21,6 +21,14 @@ export type InlineCardStyle = "printed" | "rules";
 export type OpponentHandFanMode = "always" | "revealed" | "never";
 export type RulesPreviewSectionId = "actions" | "rules" | "progression" | "details" | "flavor";
 
+const GENERATED_CARD_DEFAULTS = {
+  battlefieldCardStyle: "frame",
+  inGameCardPreviewStyle: "rules",
+  handCardStyle: "rules",
+  stackCardStyle: "rules",
+  promptCardStyle: "rules",
+} as const;
+
 export interface LastRoomSetup {
   kind: "match" | "limited";
   limitedKind: "draft" | "sealed" | "winston" | "cube";
@@ -275,6 +283,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       (set) => {
         const serverDefaults = getServerConnectionDefaults();
         return {
+          ...GENERATED_CARD_DEFAULTS,
           appThemePreset: "default",
           setAppThemePreset: (appThemePreset) =>
             set({
@@ -337,7 +346,6 @@ export const usePreferencesStore = create<PreferencesState>()(
           lockZoneTiles: false,
           setLockZoneTiles: (lockZoneTiles) => set({ lockZoneTiles }),
 
-          battlefieldCardStyle: "art",
           setBattlefieldCardStyle: (battlefieldCardStyle) => set({ battlefieldCardStyle }),
 
           boardBackgroundId: DEFAULT_BOARD_BACKGROUND_ID,
@@ -383,13 +391,9 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           cardHoverDelayMs: 350,
           setCardHoverDelayMs: (ms) => set({ cardHoverDelayMs: ms }),
-          inGameCardPreviewStyle: "printed",
           setInGameCardPreviewStyle: (inGameCardPreviewStyle) => set({ inGameCardPreviewStyle }),
-          handCardStyle: "printed",
           setHandCardStyle: (handCardStyle) => set({ handCardStyle }),
-          stackCardStyle: "printed",
           setStackCardStyle: (stackCardStyle) => set({ stackCardStyle }),
-          promptCardStyle: "printed",
           setPromptCardStyle: (promptCardStyle) => set({ promptCardStyle }),
           collapsedRulesPreviewSections: [],
           setRulesPreviewSectionCollapsed: (section, collapsed) =>
@@ -448,13 +452,11 @@ export const usePreferencesStore = create<PreferencesState>()(
       },
       {
         name: STORAGE_KEYS.PREFERENCES,
-        version: 2,
+        version: 3,
         migrate: (persistedState, version) => {
           if (!persistedState || typeof persistedState !== "object") return {};
           const persisted = persistedState as Record<string, unknown>;
-          if (version < 2 && persisted.battlefieldCardStyle === "realistic") {
-            persisted.battlefieldCardStyle = "art";
-          }
+          if (version < 3) return { ...persisted, ...GENERATED_CARD_DEFAULTS };
           return persisted;
         },
         merge: (persistedState, currentState) => ({

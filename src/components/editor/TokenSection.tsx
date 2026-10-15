@@ -1,7 +1,7 @@
 import { type MouseEvent } from "react";
 import { ChevronDown, Palette, X } from "lucide-react";
 import { CARD_WIDTH_MAP, DEFAULT_CARD_SIZE } from "./deckBuilder.utils";
-import { ScryfallImg } from "@/components/ScryfallImg";
+import { CardThumbnail } from "./deckEditor.primitives";
 import type { DeckCard } from "@/protocol/deck";
 import { tokenIdentityKey } from "@/stores/useScryfallStore";
 import { cn } from "@/lib/utils";
@@ -87,7 +87,6 @@ function TokenGridCard({
   onHover?: (token: DeckCard, e: MouseEvent) => void;
   onLeave?: () => void;
 }) {
-  const { name } = token.identity;
   return (
     <div
       className="relative group cursor-pointer"
@@ -95,12 +94,7 @@ function TokenGridCard({
       onMouseEnter={(e) => onHover?.(token, e)}
       onMouseLeave={() => onLeave?.()}
     >
-      <ScryfallImg
-        src={token.uris.normal}
-        alt={name}
-        className="w-full rounded-lg border border-border/50 shadow-sm"
-        draggable={false}
-      />
+      <CardThumbnail card={token} />
 
       <div className="absolute top-1 right-1 z-20 flex gap-1 opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100 transition-opacity">
         {onPickPrint && (

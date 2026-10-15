@@ -19,7 +19,7 @@ import { CARD_W, CARD_H, CARD_RADIUS } from "@/components/game/game.constants";
 import { deriveCardChoiceIndicators } from "@/components/game/game.utils";
 import { isHorizontalGameCard } from "@/lib/horizontalGameCard";
 import type { Theme } from "@/hooks/useTheme";
-import { cardFrameTintHex, readableTextColor, withAlpha } from "@/themes/gameTheme";
+import { cardFrameTintHex, withAlpha } from "@/themes/gameTheme";
 import { getTheme } from "@/hooks/useTheme";
 import { hexToNum } from "./colorUtils";
 import { DOOMED_FILL_ALPHA } from "./constants";
@@ -30,7 +30,8 @@ import { usePreferencesStore, type BattlefieldCardStyle } from "@/stores/usePref
 import { battlefieldKeywords } from "@/lib/battlefieldKeywords";
 import { applyManaSymbol, parseManaCost } from "./manaSymbols";
 import { asGameDeckCard } from "@/lib/decks";
-import { isFacelessCard } from "@/lib/gameCard";
+import { renderMseCard } from "@/lib/mseCardRenderer";
+import { createMseCardTexture } from "./mseCardTexture";
 import { loadCardBack } from "./cardBackTexture";
 import { DEBUG_KEYWORD_CARD_ID, useGameDevStore } from "@/stores/useGameDevStore";
 import { applyIcon } from "./panelIcons";
@@ -345,6 +346,7 @@ const resolvePTBgColor = (card: CardDto): number => {
 
 export class CardSprite extends Container {
   private static readonly instances = new Set<CardSprite>();
+  private static unsubscribeLocale: (() => void) | null = null;
 
   static refreshTheme(): void {
     for (const sprite of CardSprite.instances) sprite.redrawTheme();
@@ -443,8 +445,12 @@ export class CardSprite extends Container {
   onVisualChange?: () => void;
   private previewFace: 0 | 1 | null = null;
   private loadGeneration = 0;
+  private imageAbort: AbortController | null = null;
+  private ownedImageTexture: Texture | null = null;
+  private imageIsArtwork = false;
   private readonly kind: "battlefield" | "hand" | "zone";
   private handRulesFace: HandRulesCardFace | null = null;
+  private handRulesView = false;
   private handRulesActions: HandActionOption[] = [];
   private onSelectHandRulesAction: ((action: HandActionOption) => void) | null = null;
   private handRulesHighlight = "";
@@ -653,6 +659,12 @@ export class CardSprite extends Container {
     this.addChild(this.pulseRing.gfx);
     this.pivot.set(this.cw / 2, this.ch / 2);
     CardSprite.instances.add(this);
+    if (!CardSprite.unsubscribeLocale) {
+      CardSprite.unsubscribeLocale = useScryfallStore.subscribe((state, previous) => {
+        if (state.locale === previous.locale) return;
+        for (const sprite of CardSprite.instances) void sprite.loadImage();
+      });
+    }
     this.rebuildDecorations(true);
     this.loadImage();
   }
@@ -692,10 +704,7 @@ export class CardSprite extends Container {
     if (compactSquare === this.compactSquare) return;
     this.compactSquare = compactSquare;
     if (!this.reapplyOrientation()) return;
-    if (this._imageLoaded) {
-      if (activeStyle === "realistic") this.fitImageToSlot();
-      else this.fitArtCover();
-    }
+    if (this._imageLoaded) this.fitImageToSlot();
     if (this.mustAttackActive) {
       this.mustAttackActive = false;
       this.setMustAttack(true);
@@ -744,6 +753,10 @@ export class CardSprite extends Container {
     return true;
   }
   private fitImageToSlot(): void {
+    if (this.imageIsArtwork) {
+      this.fitArtCover();
+      return;
+    }
     if (this.compactSquare) {
       this.fitPrintedSquare();
       return;
@@ -780,44 +793,107 @@ export class CardSprite extends Container {
   }
   private async loadImage(): Promise<void> {
     const generation = ++this.loadGeneration;
-    this._imageLoaded = false;
+    this.imageAbort?.abort();
+    const controller = new AbortController();
+    this.imageAbort = controller;
     this._imageSettled = false;
-    this.imageSpr.visible = false;
-    this.imageMask.visible = false;
-    this.imageSpr.texture = Texture.EMPTY;
-    this.placeholderGfx.visible = true;
-    this.nameText.visible = true;
-    this.nameText.text = this.card.identity.name;
+    const hidden = this.card.isFaceDown || !this.card.identity.name;
+    if (hidden) {
+      this.imageSpr.texture = Texture.EMPTY;
+      this.ownedImageTexture?.destroy(true);
+      this.ownedImageTexture = null;
+      this.imageIsArtwork = false;
+      this._imageLoaded = false;
+      this.imageSpr.visible = false;
+      this.imageMask.visible = false;
+      this.syncHandFaceVisibility();
+    }
+    this.placeholderGfx.visible = !this._imageLoaded;
+    this.nameText.visible = !hidden && !this._imageLoaded;
+    this.nameText.text = hidden ? "" : this.card.identity.name;
     if (this.reapplyOrientation()) this.rebuildDecorations(true);
 
-    const deckCard = this.deckCard();
-    const custom = this.isBattlefield && activeStyle !== "realistic";
-    const faceIndex = this.previewFace ?? (this.card.isTransformed ? 1 : 0);
-    let texture: Texture;
-    try {
-      texture = isFacelessCard(this.card)
-        ? await loadCardBack()
-        : await useScryfallStore
+    const card = this.card;
+    const deckCard = hidden ? undefined : this.deckCard();
+    const custom = this.isBattlefield && activeStyle !== "realistic" && !hidden;
+    const faceIndex = this.previewFace ?? (card.isTransformed ? 1 : 0);
+    const fallback =
+      custom && !this._imageLoaded
+        ? useScryfallStore
             .getState()
-            .getCardTexture(deckCard, custom ? "art" : "full", faceIndex);
-    } catch {
+            .getCardTexture(deckCard!, "full", faceIndex)
+            .then((scan) => {
+              if (
+                !this.destroyed &&
+                generation === this.loadGeneration &&
+                !this._imageLoaded &&
+                scan !== Texture.EMPTY
+              )
+                this.showImage(scan);
+              return scan;
+            })
+            .catch((error: unknown) => {
+              if (!this.destroyed && generation === this.loadGeneration) {
+                console.warn("[pixi] card scan load failed", card.identity.name, error);
+              }
+              return Texture.EMPTY;
+            })
+        : null;
+    let texture: Texture;
+    let owned = false;
+    let artwork = false;
+    try {
+      if (hidden) {
+        texture = await loadCardBack();
+      } else if (custom && activeStyle === "art") {
+        texture = await useScryfallStore.getState().getCardTexture(deckCard!, "art", faceIndex);
+        artwork = true;
+      } else if (custom) {
+        const canvas = await renderMseCard({ card, deckCard, faceIndex }, controller.signal);
+        if (this.destroyed || generation !== this.loadGeneration) return;
+        texture = createMseCardTexture(canvas);
+        owned = true;
+      } else {
+        texture = await useScryfallStore.getState().getCardTexture(deckCard!, "full", faceIndex);
+      }
+    } catch (error) {
+      if (this.destroyed || generation !== this.loadGeneration) return;
+      console.warn(
+        custom && activeStyle !== "art"
+          ? "[pixi] generated card render failed"
+          : "[pixi] card image load failed",
+        card.identity.name,
+        error,
+      );
+      if (fallback) await fallback;
       texture = Texture.EMPTY;
     }
-    if (this.destroyed || generation !== this.loadGeneration) return;
+    if (this.destroyed || generation !== this.loadGeneration) {
+      if (owned) texture.destroy(true);
+      return;
+    }
     this._imageSettled = true;
     if (texture === Texture.EMPTY) {
       this.onVisualChange?.();
       return;
     }
-
+    this.showImage(texture, owned, artwork);
+  }
+  private showImage(texture: Texture, owned = false, artwork = false): void {
+    const previous = this.ownedImageTexture;
+    this.ownedImageTexture = owned ? texture : null;
+    this.imageIsArtwork = artwork;
     this.imageSpr.texture = texture;
+    previous?.destroy(true);
     this.imageSpr.visible = true;
     this.imageMask.visible = true;
-    if (custom) this.fitArtCover();
-    else this.fitImageToSlot();
+    this.fitImageToSlot();
     this.placeholderGfx.visible = false;
     this.nameText.visible = false;
     this._imageLoaded = true;
+    this.renderFrame();
+    this.updateMana();
+    this.syncHandFaceVisibility();
     this.onVisualChange?.();
   }
   setPreviewFace(face: 0 | 1 | null): void {
@@ -828,7 +904,7 @@ export class CardSprite extends Container {
     this.updateHandControls();
   }
   get usesHandRulesView(): boolean {
-    return this.handRulesFace?.visible === true;
+    return this.handRulesView;
   }
   get previewControlArtTop(): number {
     return this.usesHandRulesView && this.handRulesFace
@@ -837,6 +913,7 @@ export class CardSprite extends Container {
   }
   setHandRulesView(active: boolean): void {
     if (this.kind !== "hand" || this.usesHandRulesView === active) return;
+    this.handRulesView = active;
     if (!this.handRulesFace) {
       const faceIndex = this.previewFace ?? (this.card.isTransformed ? 1 : 0);
       this.handRulesFace = new HandRulesCardFace(
@@ -847,16 +924,27 @@ export class CardSprite extends Container {
         activeTheme,
       );
       this.contentContainer.addChild(this.handRulesFace);
-      this.handRulesFace.onRenderRequested = () => this.onVisualChange?.();
+      this.handRulesFace.onRenderRequested = () => {
+        this.syncHandFaceVisibility();
+        this.onVisualChange?.();
+      };
       this.handRulesFace.setActions(this.handRulesActions, this.onSelectHandRulesAction);
       this.handRulesFace.setHighlightedEffect(this.handRulesHighlight);
     } else {
       this.handRulesFace.visible = active;
       if (active) this.updateHandRulesFace();
     }
-    this.printedFaceContainer.visible = !active;
+    this.syncHandFaceVisibility();
     this.updateHandControls();
     this.refreshCardRadiusChrome();
+  }
+  private syncHandFaceVisibility(): void {
+    const hidden = this.card.isFaceDown || !this.card.identity.name;
+    const ready = !hidden && this.handRulesFace?.imageReady === true;
+    this.printedFaceContainer.visible = hidden || !this.handRulesView || !ready;
+    if (this.handRulesFace) {
+      this.handRulesFace.visible = !hidden && (this.handRulesView || (!this._imageLoaded && ready));
+    }
   }
   setHandControls(spec: HandCardControlsSpec | null): void {
     if (this.kind !== "hand") return;
@@ -911,21 +999,26 @@ export class CardSprite extends Container {
   }
 
   private updateHandRulesFace(): void {
-    if (!this.handRulesFace?.visible) return;
+    if (!this.handRulesFace || (!this.handRulesFace.visible && !this.handRulesView)) return;
     const faceIndex = this.previewFace ?? (this.card.isTransformed ? 1 : 0);
     this.handRulesFace.setContent(this.card, faceIndex, this.cw, this.ch);
   }
   private fitArtCover(): void {
-    const tex = this.imageSpr.texture;
-    if (tex.width === 0 || tex.height === 0) return;
+    const texture = this.imageSpr.texture;
+    if (texture.width === 0 || texture.height === 0) return;
+    const scale = Math.max(this.cw / texture.width, this.ch / texture.height);
     this.imageSpr.anchor.set(0.5, 0.5);
     this.imageSpr.rotation = 0;
-    this.imageSpr.x = this.cw / 2;
-    this.imageSpr.y = this.ch / 2;
-    const ar = tex.width / tex.height;
-    const cardAR = this.cw / this.ch;
-    if (ar > cardAR) this.imageSpr.setSize(this.ch * ar, this.ch);
-    else this.imageSpr.setSize(this.cw, this.cw / ar);
+    this.imageSpr.position.set(this.cw / 2, this.ch / 2);
+    this.imageSpr.setSize(texture.width * scale, texture.height * scale);
+  }
+  private usesArtFrame(): boolean {
+    return (
+      this.isBattlefield &&
+      this.imageIsArtwork &&
+      !this.card.isFaceDown &&
+      !!this.card.identity.name
+    );
   }
 
   private rebuildDecorations(forceRail: boolean): void {
@@ -973,7 +1066,7 @@ export class CardSprite extends Container {
 
   private updateMana(): void {
     this.manaContainer.removeChildren().forEach((c) => c.destroy());
-    if (!this.isBattlefield || activeStyle === "realistic") return;
+    if (!this.usesArtFrame()) return;
     const codes = parseManaCost(this.card.manaCost);
     if (codes.length === 0) return;
     const size = MANA_PIP_SIZE;
@@ -991,7 +1084,7 @@ export class CardSprite extends Container {
     }
   }
   private renderFrame(): void {
-    if (!this.isBattlefield || activeStyle === "realistic") {
+    if (!this.usesArtFrame()) {
       this.frameContainer.visible = false;
       this.frameTypeBandH = 0;
       this.frameNameBandH = 0;
@@ -1010,46 +1103,21 @@ export class CardSprite extends Container {
     this.frameTypeBandH = 0;
     this.frameNameBandH = 0;
     this.frameCounterReserve = 0;
-    if (activeStyle === "art") {
-      this.frameNameText.style.fill = lightText;
-      this.frameTypeText.style.fill = lightText;
-      this.frameTypeText.anchor.set(0, 1);
-      this.frameTypeText.alpha = 0.78;
-      this.frameTypeText.x = pad;
-      this.frameTypeText.y = this.ch - pad;
-      this.frameNameText.anchor.set(0, 1);
-      this.frameNameText.alpha = 1;
-      this.frameNameText.x = pad;
-      this.frameNameText.y = this.frameTypeText.y - this.frameTypeText.height - 1;
-      const captionTop = this.frameNameText.y - this.frameNameText.height;
-      this.frameCounterReserve = this.ch - captionTop;
-      const scrimTop = captionTop - 8;
-      this.frameGfx.rect(0, scrimTop, this.cw, this.ch - scrimTop);
-      this.frameGfx.fill(this.scrimGradient(scrimTop, shadowHex));
-    } else {
-      const barText = readableTextColor(tintHex, shadowHex, lightText);
-      this.frameNameText.style.fill = barText;
-      this.frameTypeText.style.fill = barText;
-      this.frameNameText.anchor.set(0, 0);
-      this.frameNameText.alpha = 1;
-      this.frameNameText.x = pad;
-      this.frameNameText.y = 2.5;
-      const nameBandH = this.frameNameText.height + 5;
-      this.frameTypeText.anchor.set(0, 1);
-      this.frameTypeText.alpha = 1;
-      this.frameTypeText.x = pad;
-      this.frameTypeText.y = this.ch - 2.5;
-      const typeBandH = this.frameTypeText.height + 5;
-      this.frameTypeBandH = typeBandH;
-      this.frameNameBandH = nameBandH;
-      this.frameCounterReserve = typeBandH;
-      this.frameGfx.rect(0, 0, this.cw, nameBandH);
-      this.frameGfx.fill({ color: tintNum, alpha: 0.92 });
-      this.frameGfx.rect(0, this.ch - typeBandH, this.cw, typeBandH);
-      this.frameGfx.fill({ color: tintNum, alpha: 0.85 });
-      this.frameGfx.roundRect(2.6, 2.6, this.cw - 5.2, this.ch - 5.2, CARD_RADIUS - 2.6);
-      this.frameGfx.stroke({ color: hexToNum(shadowHex), width: 0.6, alpha: 0.4 });
-    }
+    this.frameNameText.style.fill = lightText;
+    this.frameTypeText.style.fill = lightText;
+    this.frameTypeText.anchor.set(0, 1);
+    this.frameTypeText.alpha = 0.78;
+    this.frameTypeText.x = pad;
+    this.frameTypeText.y = this.ch - pad;
+    this.frameNameText.anchor.set(0, 1);
+    this.frameNameText.alpha = 1;
+    this.frameNameText.x = pad;
+    this.frameNameText.y = this.frameTypeText.y - this.frameTypeText.height - 1;
+    const captionTop = this.frameNameText.y - this.frameNameText.height;
+    this.frameCounterReserve = this.ch - captionTop;
+    const scrimTop = captionTop - 8;
+    this.frameGfx.rect(0, scrimTop, this.cw, this.ch - scrimTop);
+    this.frameGfx.fill(this.scrimGradient(scrimTop, shadowHex));
     this.frameGfx.roundRect(0.75, 0.75, this.cw - 1.5, this.ch - 1.5, CARD_RADIUS - 0.75);
     this.frameGfx.stroke({ color: tintNum, width: 1.5 });
   }
@@ -1099,6 +1167,7 @@ export class CardSprite extends Container {
       card.identity.name !== previous.identity.name ||
       card.identity.setCode !== previous.identity.setCode ||
       card.identity.cardNumber !== previous.identity.cardNumber ||
+      card.identity.isToken !== previous.identity.isToken ||
       card.isFaceDown !== previous.isFaceDown ||
       card.isTransformed !== previous.isTransformed;
     const typesChanged = !sameStrings(card.types, previous.types);
@@ -1125,7 +1194,19 @@ export class CardSprite extends Container {
       card.isAttacking !== previous.isAttacking;
 
     this.card = card;
-    if (imageChanged) this.loadImage();
+    if (
+      imageChanged ||
+      (this.isBattlefield &&
+        activeStyle !== "realistic" &&
+        (frameChanged ||
+          statsChanged ||
+          keywordsChanged ||
+          countersChanged ||
+          card.text !== previous.text ||
+          card.color !== previous.color ||
+          card.manaCost !== previous.manaCost))
+    )
+      this.loadImage();
     if (frameChanged) this.renderFrame();
     const previousRail = this.railState;
     this.updateRail();
@@ -1234,6 +1315,12 @@ export class CardSprite extends Container {
     }
   }
   destroy(options?: DestroyOptions): void {
+    this.loadGeneration++;
+    this.imageAbort?.abort();
+    this.imageAbort = null;
+    this.imageSpr.texture = Texture.EMPTY;
+    this.ownedImageTexture?.destroy(true);
+    this.ownedImageTexture = null;
     // If the card is removed mid-stomp the GSAP tween would keep mutating a
     // destroyed sprite's fxScale forever; kill it before teardown.
     gsap.killTweensOf(this.fxScale);
@@ -1242,6 +1329,10 @@ export class CardSprite extends Container {
     gsap.killTweensOf(this.railMarkerGfx.position);
     gsap.killTweensOf(this.railMarkerGfx.scale);
     CardSprite.instances.delete(this);
+    if (CardSprite.instances.size === 0) {
+      CardSprite.unsubscribeLocale?.();
+      CardSprite.unsubscribeLocale = null;
+    }
     this.shadowGfx.destroy({ context: false });
     this.foilRing.destroy({ context: false });
     this.pulseRing.destroy();

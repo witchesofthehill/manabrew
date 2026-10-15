@@ -702,7 +702,7 @@ export default function Settings() {
 
             <PreferenceCard
               title={`Battlefield Card Style`}
-              description={`"Realistic" uses the full printed card image. "Art-forward" shows the art with a crisp name/type overlay. "Mini-frame" frames the art with name and type bars. This setting only affects battlefield cards.`}
+              description={`Generated uses an MSE card frame with current game information. Original uses the printed scan. Art-forward crops the generated artwork and adds compact labels. This setting only affects battlefield cards.`}
             >
               <div className="flex items-start gap-4">
                 <div className="flex-1 flex flex-wrap content-start gap-2">
@@ -711,7 +711,7 @@ export default function Settings() {
                     size="sm"
                     onClick={() => prefs.setBattlefieldCardStyle("realistic")}
                   >
-                    Realistic
+                    Original
                   </Button>
                   <Button
                     variant={prefs.battlefieldCardStyle === "art" ? "selected" : "outline"}
@@ -725,7 +725,7 @@ export default function Settings() {
                     size="sm"
                     onClick={() => prefs.setBattlefieldCardStyle("frame")}
                   >
-                    Mini-frame
+                    Generated
                   </Button>
                 </div>
                 <BattlefieldStylePreview style={prefs.battlefieldCardStyle} />
@@ -868,7 +868,7 @@ export default function Settings() {
 
             <PreferenceCard
               title={`Hand Card Style`}
-              description={`Printed card shows the card image. Dynamic view uses the card's current rules and game state; each card can still be switched.`}
+              description={`Generated cards use MSE frames with current game information. Original shows the printed scan. Each card can still be switched.`}
             >
               <div className="flex flex-wrap gap-2">
                 {INLINE_CARD_STYLE_OPTIONS.map((option) => (
@@ -886,7 +886,7 @@ export default function Settings() {
 
             <PreferenceCard
               title={`Default Stack Card View`}
-              description={`Choose which face stack cards show when they appear. You can still switch individual cards.`}
+              description={`Choose the initial generated or original view for stack cards. Switching views does not flip the card's front/back face.`}
             >
               <div className="flex flex-wrap gap-2">
                 {INLINE_CARD_STYLE_OPTIONS.map((option) => (
@@ -904,7 +904,7 @@ export default function Settings() {
 
             <PreferenceCard
               title={`Card Preview Style`}
-              description={`Printed card shows the full card image. Dynamic view prioritizes current rules, actions, costs, counters, and other game state.`}
+              description={`Generated shows an MSE card face with current rules and game information. Original shows the printed scan. Front/back face selection stays independent.`}
             >
               <div className="flex flex-wrap gap-2">
                 {IN_GAME_CARD_PREVIEW_STYLE_OPTIONS.map((option) => (

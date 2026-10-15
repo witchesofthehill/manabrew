@@ -89,6 +89,13 @@ export interface GameThemeColors {
     fill: string;
     stroke: string;
   };
+  cardPaper: {
+    background: string;
+    raised: string;
+    ink: string;
+    mutedInk: string;
+    border: string;
+  };
   pt: {
     neutral: string;
     lethal: string;

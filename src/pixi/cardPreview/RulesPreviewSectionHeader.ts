@@ -1,7 +1,7 @@
 import { Container, Graphics, Rectangle, Text, TextStyle } from "pixi.js";
 import type { FederatedPointerEvent } from "pixi.js";
 import { hexToNum } from "@/pixi/colorUtils";
-import type { RulesPreviewFrameStyle } from "./rulesPreviewFrame";
+import { RULES_BODY_FONT, type RulesPreviewFrameStyle } from "./rulesPreviewFrame";
 
 export const PREVIEW_SECTION_HEADER_HEIGHT = 32;
 const DRAG_SLOP = 5;
@@ -9,6 +9,7 @@ const DRAG_SLOP = 5;
 interface SectionHeaderOptions {
   title: string;
   width: number;
+  height?: number;
   collapsed: boolean;
   frame: RulesPreviewFrameStyle;
   collapsedAccent?: string;
@@ -28,24 +29,27 @@ export class RulesPreviewSectionHeader extends Container {
   constructor(options: SectionHeaderOptions) {
     super();
     const { title, width, collapsed, collapsedAccent, frame } = options;
+    const height = options.height ?? PREVIEW_SECTION_HEADER_HEIGHT;
     this.options = options;
     this.eventMode = "static";
     this.cursor = "pointer";
-    this.hitArea = new Rectangle(0, 0, width, PREVIEW_SECTION_HEADER_HEIGHT);
+    this.hitArea = new Rectangle(0, 0, width, height);
     const label = new Text({
       text: title,
       style: new TextStyle({
         fill: frame.ink,
-        fontFamily: "Inter, system-ui, sans-serif",
-        fontSize: options.fontSize ?? 12,
+        fontFamily: RULES_BODY_FONT,
+        fontSize: options.fontSize ?? 14,
         fontWeight: "700",
       }),
     });
     label.resolution = 2;
-    label.position.set(18, (PREVIEW_SECTION_HEADER_HEIGHT - label.height) / 2);
+    label.scale.x = Math.min(1, Math.max(1, width - 28) / label.width);
+    label.position.set(18, (height - label.height) / 2);
     const chevron = new Graphics();
     if (collapsed) chevron.moveTo(4, 12).lineTo(8, 16).lineTo(4, 20);
     else chevron.moveTo(2, 14).lineTo(6, 18).lineTo(10, 14);
+    chevron.y = (height - PREVIEW_SECTION_HEADER_HEIGHT) / 2;
     chevron.stroke({
       color: hexToNum(collapsed && collapsedAccent ? collapsedAccent : frame.ink),
       width: 1.5,
@@ -53,7 +57,7 @@ export class RulesPreviewSectionHeader extends Container {
     this.addChild(this.background, chevron, label);
     if (collapsed && collapsedAccent) {
       const cue = new Graphics();
-      cue.circle(width - 7, PREVIEW_SECTION_HEADER_HEIGHT / 2, 3);
+      cue.circle(width - 7, height / 2, 3);
       cue.fill(hexToNum(collapsedAccent));
       this.addChild(cue);
     }
@@ -97,12 +101,10 @@ export class RulesPreviewSectionHeader extends Container {
 
   private drawBackground(hovered: boolean): void {
     const { width, collapsed, frame } = this.options;
-    this.background
-      .clear()
-      .rect(0, 0, width, PREVIEW_SECTION_HEADER_HEIGHT)
-      .fill(hexToNum(frame.paper));
+    const height = this.options.height ?? PREVIEW_SECTION_HEADER_HEIGHT;
+    this.background.clear().rect(0, 0, width, height).fill(hexToNum(frame.paper));
     if (!collapsed || hovered) {
-      this.background.rect(0, 0, width, PREVIEW_SECTION_HEADER_HEIGHT).fill(hexToNum(frame.raised));
+      this.background.rect(0, 0, width, height).fill(hexToNum(frame.raised));
     }
   }
 }

@@ -13,28 +13,16 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
+#. placeholder {0}: display.stats.damage
 #. placeholder {0}: stats.damage
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1155
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:816
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1133
 msgid "{0} damage"
 msgstr "{0} урона"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:721
-msgid "↑↓ select · Enter activate · 1–9"
-msgstr "↑↓ выбор · Enter активировать · 1–9"
-
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1471
-msgid "Art unavailable"
-msgstr "Иллюстрация недоступна"
-
-#. placeholder {0}: indexedActions.length
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:734
-msgid "Available actions · {0}"
-msgstr "Доступные действия · {0}"
-
-#. placeholder {0}: indexedActions.length
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:733
-msgid "Available on current face · {0}"
-msgstr "Доступно на текущей стороне · {0}"
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:693
+msgid "Actions apply to the current face."
+msgstr ""
 
 #: src/pixi/cardPreview/PixiCardRailPreview.ts:90
 msgid "Awaiting first chapter"
@@ -44,7 +32,7 @@ msgstr "Ожидание первой главы"
 msgid "Awaiting first level"
 msgstr "Ожидание первого уровня"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:799
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:754
 msgid "Card identity and rules are hidden."
 msgstr "Личность карты и её правила скрыты."
 
@@ -63,13 +51,17 @@ msgstr "Глава {0} из {1}"
 msgid "CLASS LEVELS"
 msgstr "УРОВНИ КЛАССА"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1152
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1130
 msgid "Defense"
 msgstr "Защита"
 
 #: src/pixi/cardPreview/PixiCardRailPreview.ts:151
 msgid "Effect text unavailable"
 msgstr "Текст эффекта недоступен"
+
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1510
+msgid "Face down"
+msgstr ""
 
 #: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:373
 msgid "Face-down card"
@@ -79,19 +71,23 @@ msgstr "Карта рубашкой вверх"
 msgid "Face-down permanent"
 msgstr "Постоянство рубашкой вверх"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:826
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:776
 msgid "Flavor text"
 msgstr "Художественный текст"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:855
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:791
 msgid "Flip back · F"
 msgstr "Оборотная сторона · F"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:855
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:791
 msgid "Flip front · F"
 msgstr "Лицевая сторона · F"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:752
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:647
+msgid "Generated unavailable · details"
+msgstr ""
+
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:707
 msgid "Keywords, costs & counters"
 msgstr "Ключевые слова, стоимости и жетоны"
 
@@ -110,14 +106,32 @@ msgstr "Уровень {0} из {1}"
 msgid "LORE CHAPTERS"
 msgstr "ГЛАВЫ САГИ"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1151
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1129
 msgid "Loyalty"
 msgstr "Верность"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:775
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:805
+msgid "Printed face · live state belongs to the other face"
+msgstr ""
+
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:730
 msgid "Progression"
 msgstr "Прогресс"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:801
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:652
+msgid "Rules & details"
+msgstr ""
+
+#. placeholder {0}: indexedActions.length
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:651
+msgid "Rules & details · {0} actions"
+msgstr ""
+
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:756
 msgid "Rules text"
 msgstr "Текст правил"
+
+#. placeholder {0}: indexedActions.length
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:650
+msgid "Show actions · {0}"
+msgstr ""

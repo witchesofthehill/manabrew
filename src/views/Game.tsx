@@ -315,6 +315,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   const flashDurationMs = usePreferencesStore((s) => s.flashDurationMs);
   const zonePanelOrder = usePreferencesStore((s) => s.zonePanelOrder);
   const inGameCardPreviewStyle = usePreferencesStore((s) => s.inGameCardPreviewStyle);
+  const handCardStyle = usePreferencesStore((s) => s.handCardStyle);
   const cardPreviewMode = usePreferencesStore((s) => s.cardPreviewMode);
   const roomTableStyle = useServerStore((s) => s.currentRoom?.table_style);
   const boardBackgroundId = usePreferencesStore((s) => s.boardBackgroundId);
@@ -2758,6 +2759,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           >
             <Card
               card={draggingHandCard}
+              presentation={handCardStyle}
               className={cn("shadow-2xl ring-2 ring-primary playable-card")}
               style={{ width: ghostCardW, height: ghostCardH }}
             />

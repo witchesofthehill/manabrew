@@ -5,11 +5,13 @@ import type { Theme } from "@/hooks/useTheme";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { hexToNum } from "@/pixi/colorUtils";
 import { PixiRichText } from "./PixiRichText";
+import { RULES_BODY_FONT, type RulesPreviewFrameStyle } from "./rulesPreviewFrame";
 
 interface ActionsContent {
   width: number;
   maxHeight: number;
   theme: Theme;
+  frame: RulesPreviewFrameStyle;
   actions: Array<{ action: HandActionOption; shortcut: number; displayLabel?: string }>;
   controls: Array<{ label: string; activate: () => void }>;
   statuses: CardStatusPresentation[];
@@ -18,6 +20,7 @@ interface ActionsContent {
   onSelectAction: (action: HandActionOption) => void;
   embedded?: boolean;
   ownsScroll?: boolean;
+  compact?: boolean;
 }
 
 interface ActionRow {
@@ -36,7 +39,7 @@ function textStyle(fill: string, fontSize = 13, bold = false): TextStyle {
   return new TextStyle({
     fill,
     fontSize,
-    fontFamily: "Inter, system-ui, sans-serif",
+    fontFamily: RULES_BODY_FONT,
     fontWeight: bold ? "700" : "400",
     lineHeight: fontSize * 1.3,
   });
@@ -59,7 +62,9 @@ function sameAction(left: HandActionOption, right: HandActionOption): boolean {
 }
 
 function actionText(action: HandActionOption, displayLabel?: string): string {
-  const label = displayLabel ?? action.label;
+  const symbols = action.displayManaLetters?.map((letter) => `{${letter}}`).join("") ?? "";
+  const baseLabel = action.isManaAbility && symbols ? action.label : (displayLabel ?? action.label);
+  const label = symbols && !baseLabel.includes(symbols) ? `${baseLabel} ${symbols}` : baseLabel;
   const cost = action.cost?.trim();
   if (!cost || label.toLowerCase().startsWith(cost.toLowerCase())) return label;
   return `${cost}: ${label}`;
@@ -134,6 +139,11 @@ export class RulesPreviewActions extends Container {
     return this.heightValue;
   }
 
+  cancelPress(): void {
+    this.pointerId = this.tapPointerId = null;
+    this.dragMoved = true;
+  }
+
   get focusedActionBounds(): { top: number; height: number } | null {
     if (this.focusedIndex === null) return null;
     const row = this.rows[this.focusedIndex];
@@ -162,29 +172,30 @@ export class RulesPreviewActions extends Container {
     let y = 0;
     if (spec.actions.length > 0) {
       if (spec.label) {
-        y = this.addText(spec.label, y, spec.theme.appTheme["muted-foreground"], 11, true);
+        y = this.addText(spec.label, y, spec.frame.mutedInk, 11, true);
       }
       for (const [index, entry] of spec.actions.entries()) {
         const row = new Container();
         const background = new Graphics();
         const key = new Text({
           text: String(entry.shortcut),
-          style: textStyle(spec.theme.appTheme["muted-foreground"], 11),
+          style: textStyle(spec.frame.mutedInk, 12),
         });
         key.resolution = 2;
         key.anchor.set(0.5);
-        key.position.set(12, 18);
+        key.position.set(12, spec.compact ? 14 : 18);
         const label = new PixiRichText();
         const labelHeight = label.setContent(
           actionText(entry.action, entry.displayLabel),
-          textStyle(spec.theme.appTheme["popover-foreground"]),
+          textStyle(spec.frame.ink, 15),
           Math.max(1, this.contentWidth - 32),
           15,
           3,
-          { parentheticalStyle: textStyle(spec.theme.appTheme["muted-foreground"]) },
+          { parentheticalStyle: textStyle(spec.frame.mutedInk, 15) },
         );
-        const height = Math.max(40, labelHeight + 16);
-        label.position.set(26, 8);
+        const rowPadding = spec.compact ? 4 : 8;
+        const height = Math.max(spec.compact ? 32 : 48, labelHeight + rowPadding * 2);
+        label.position.set(26, rowPadding);
         row.position.set(0, y);
         row.addChild(background, key, label);
         row.hitArea = new Rectangle(0, 0, this.contentWidth, height);
@@ -209,7 +220,7 @@ export class RulesPreviewActions extends Container {
       }
     }
     if (spec.statuses.length > 0) y = this.addChips(y > 0 ? y + GAP : y);
-    if (spec.hint) y = this.addText(spec.hint, y, spec.theme.appTheme["muted-foreground"], 10);
+    if (spec.hint) y = this.addText(spec.hint, y, spec.frame.mutedInk, 11);
     this.contentHeight = Math.max(0, y - GAP);
     const utilityHeight = this.addControls();
     const sectionGap = this.contentHeight > 0 && utilityHeight > 0 ? GAP * 2 : 0;
@@ -239,19 +250,19 @@ export class RulesPreviewActions extends Container {
     if (!spec.embedded) {
       this.background
         .roundRect(0, 0, spec.width, this.heightValue, 10)
-        .fill(hexToNum(spec.theme.appTheme.popover));
+        .fill(hexToNum(spec.frame.paper));
     }
     if (sectionGap > 0) {
       const dividerY = this.contentInset + this.viewportHeight + GAP;
       this.background
         .moveTo(this.contentInset, dividerY)
         .lineTo(spec.width - this.contentInset, dividerY)
-        .stroke({ color: hexToNum(spec.theme.appTheme.border), width: 1, alpha: 0.45 });
+        .stroke({ color: hexToNum(spec.frame.border), width: 1, alpha: 0.45 });
     }
     this.clip
       .clear()
       .rect(this.contentInset, this.contentInset, this.contentWidth, this.viewportHeight)
-      .fill(hexToNum(spec.theme.appTheme.popover));
+      .fill(hexToNum(spec.frame.paper));
     this.drawFocus();
   }
 
@@ -377,7 +388,7 @@ export class RulesPreviewActions extends Container {
     let y = 0;
     let rowHeight = 0;
     for (const control of spec.controls) {
-      const style = textStyle(spec.theme.appTheme["muted-foreground"], 11);
+      const style = textStyle(spec.frame.ink, 13);
       style.wordWrap = true;
       style.breakWords = true;
       style.wordWrapWidth = Math.max(1, this.contentWidth - 16);
@@ -403,7 +414,7 @@ export class RulesPreviewActions extends Container {
         background
           .clear()
           .roundRect(0, 0, width, height, 6)
-          .fill({ color: hexToNum(spec.theme.appTheme.muted), alpha: 0.65 });
+          .fill({ color: hexToNum(spec.frame.raised), alpha: 0.65 });
       });
       button.on("pointerleave", () => background.clear());
       button.on("pointertap", (event: FederatedPointerEvent) => {
@@ -438,6 +449,10 @@ export class RulesPreviewActions extends Container {
       const focused = index === this.focusedIndex;
       const hovered = index === this.hoveredIndex;
       row.background.clear();
+      row.background
+        .roundRect(0, 0, this.contentWidth, row.height, 4)
+        .fill(hexToNum(this.spec!.frame.raised))
+        .stroke({ color: hexToNum(this.spec!.frame.border), width: 1, alpha: 0.6 });
       if (focused || hovered) {
         row.background
           .roundRect(0, 0, this.contentWidth, row.height, 4)
@@ -461,10 +476,8 @@ export class RulesPreviewActions extends Container {
     const y = this.contentInset + ((trackHeight - thumbHeight) * this.scrollOffset) / maxScroll;
     this.scrollbar
       .roundRect(x, this.contentInset, 2, trackHeight, 1)
-      .fill({ color: hexToNum(this.spec.theme.appTheme.muted), alpha: 0.8 });
-    this.scrollbar
-      .roundRect(x - 1, y, 4, thumbHeight, 2)
-      .fill(hexToNum(this.spec.theme.appTheme["muted-foreground"]));
+      .fill({ color: hexToNum(this.spec.frame.border), alpha: 0.5 });
+    this.scrollbar.roundRect(x - 1, y, 4, thumbHeight, 2).fill(hexToNum(this.spec.frame.mutedInk));
   }
 
   private endPress(event: FederatedPointerEvent, cancelled: boolean): void {

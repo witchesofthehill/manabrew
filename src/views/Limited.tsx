@@ -47,7 +47,7 @@ export default function Limited({ leadingControl }: LimitedProps) {
     ? "Fetching cards…"
     : setup.isStarting
       ? "Starting…"
-      : `Start ${modeTitle}`;
+      : `Start ${setup.mode === "draft" ? "Draft" : setup.mode === "winston" ? "Winston" : "Sealed"}`;
   const parsedSeed = Number(setup.seed.trim());
   const summary = [
     setup.mode === "sealed"
@@ -65,48 +65,110 @@ export default function Limited({ leadingControl }: LimitedProps) {
   ]
     .filter(Boolean)
     .join(" · ");
+  const selectedSet = selection.sets.find((set) => set.code === selection.selectedCode);
+  const sourceTitle =
+    setup.source === "set"
+      ? (selectedSet?.name ?? "Choose a set")
+      : (setup.cube?.name ?? "Choose a cube or pool");
   return (
-    <div className="flex h-full flex-col gap-8 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8">
-      <header className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        {leadingControl}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              ref={moreTrigger}
-              variant="ghost"
-              size="icon"
-              aria-label="More Limited options"
+    <div className="flex h-full min-h-0 flex-col overflow-hidden px-4 pt-4 sm:px-6 lg:grid lg:grid-cols-[minmax(0,1fr)_18rem] lg:grid-rows-[auto_minmax(0,1fr)_auto] lg:gap-x-8 lg:px-8">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain lg:contents">
+        <header className="mb-5 lg:col-span-2">
+          <LimitedModeSelector
+            mode={setup.mode}
+            onChange={setup.setMode}
+            disabled={setup.busy}
+            leadingControl={leadingControl}
+            actions={
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    ref={moreTrigger}
+                    variant="ghost"
+                    size="icon"
+                    aria-label="More Limited options"
+                    disabled={setup.busy}
+                    className="ml-auto"
+                  >
+                    <MoreHorizontal className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  onCloseAutoFocus={(event) => {
+                    if (panel) event.preventDefault();
+                  }}
+                >
+                  <DropdownMenuItem onSelect={() => openPanel("templates", moreTrigger.current)}>
+                    <Hourglass className="mr-2 h-4 w-4" />
+                    Sealed templates
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      setup.setMode("draft");
+                      openPanel("chaos", moreTrigger.current);
+                    }}
+                  >
+                    <Shuffle className="mr-2 h-4 w-4" />
+                    Themed Chaos Draft
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            }
+          />
+        </header>
+        <section
+          aria-label={`${modeTitle} cards`}
+          className="min-w-0 space-y-4 pb-5 lg:col-start-1 lg:row-span-2 lg:row-start-2 lg:min-h-0 lg:overflow-y-auto lg:pr-2"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="font-serif text-lg">Choose cards</h2>
+            <AppSelect
+              aria-label="Card source"
+              value={setup.source}
+              onValueChange={(value) => setup.setSource(value === "custom" ? "custom" : "set")}
               disabled={setup.busy}
-              className="ml-auto"
+              className="w-44"
             >
-              <MoreHorizontal className="h-5 w-5" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="end"
-            onCloseAutoFocus={(event) => {
-              if (panel) event.preventDefault();
-            }}
-          >
-            <DropdownMenuItem onSelect={() => openPanel("templates", moreTrigger.current)}>
-              <Hourglass className="mr-2 h-4 w-4" />
-              Sealed templates
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onSelect={() => {
-                setup.setMode("draft");
-                openPanel("chaos", moreTrigger.current);
-              }}
-            >
-              <Shuffle className="mr-2 h-4 w-4" />
-              Themed Chaos Draft
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </header>
-      <section aria-label={`${modeTitle} setup`} className="space-y-5">
-        <LimitedModeSelector mode={setup.mode} onChange={setup.setMode} disabled={setup.busy} />
-        <div className="rounded-lg border border-border/60 bg-card/40 p-4 sm:p-5">
+              <AppSelectOption value="set">Set boosters</AppSelectOption>
+              <AppSelectOption value="custom">Cube / saved pool</AppSelectOption>
+            </AppSelect>
+          </div>
+          {setup.source === "set" ? (
+            <LimitedSetConfiguration
+              sets={selection.sets}
+              selectedCode={selection.selectedCode}
+              prefetching={selection.prefetching}
+              onSelect={selection.onSelect}
+              info={selection.info}
+              loading={selection.loading}
+              selectedVariant={selection.selectedVariant}
+              onViewCards={() =>
+                navigate(`/search?set=${encodeURIComponent(selection.selectedCode)}`)
+              }
+              disabled={setup.busy}
+            />
+          ) : (
+            <LimitedCubeSource
+              input={setup.cubeInput}
+              onInputChange={setup.setCubeInput}
+              onImport={setup.onImport}
+              onLoadFile={setup.onLoadFile}
+              cube={setup.cube}
+              busy={setup.busy}
+            />
+          )}
+          <LimitedReferenceButton
+            cards={[]}
+            setCodes={setup.source === "set" ? [selection.selectedCode] : undefined}
+            format={setup.source === "set" ? "set" : "cube"}
+          />
+          <LimitedSavedSessions onResume={(saved) => navigate(limitedSessionRoute(saved))} />
+        </section>
+        <section
+          aria-label={`${modeTitle} options`}
+          className="min-w-0 border-t border-border/60 py-4 lg:col-start-2 lg:row-start-2 lg:min-h-0 lg:overflow-y-auto lg:border-t-0 lg:py-0 lg:pb-4"
+        >
           <LimitedSetupOptions
             mode={setup.mode}
             numBoosters={setup.numBoosters}
@@ -128,63 +190,37 @@ export default function Limited({ leadingControl }: LimitedProps) {
             onVariantChange={selection.onVariantChange}
             disabled={setup.busy}
           />
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-serif text-lg">Choose cards</h2>
-          <AppSelect
-            aria-label="Card source"
-            value={setup.source}
-            onValueChange={(value) => setup.setSource(value === "custom" ? "custom" : "set")}
-            disabled={setup.busy}
-            className="w-48"
+        </section>
+      </div>
+      <footer className="shrink-0 border-t border-border/60 bg-background pt-3 pb-[max(0.75rem,var(--safe-area-inset-bottom))] lg:col-start-2 lg:row-start-3">
+        <div className="flex items-center gap-3 lg:flex-col lg:items-stretch">
+          <div className="min-w-0 flex-1" aria-live="polite">
+            <p className="truncate font-serif text-base text-foreground" title={sourceTitle}>
+              {sourceTitle}
+            </p>
+            <p
+              className="line-clamp-2 text-xs leading-relaxed text-muted-foreground lg:line-clamp-none"
+              title={summary}
+            >
+              {summary}
+            </p>
+          </div>
+          <Button
+            variant="primary"
+            onClick={setup.start}
+            disabled={setup.startBlocked}
+            className="min-h-11 shrink-0"
           >
-            <AppSelectOption value="set">Set boosters</AppSelectOption>
-            <AppSelectOption value="custom">Cube / saved pool</AppSelectOption>
-          </AppSelect>
-        </div>
-        {setup.source === "set" ? (
-          <LimitedSetConfiguration
-            sets={selection.sets}
-            selectedCode={selection.selectedCode}
-            prefetching={selection.prefetching}
-            onSelect={selection.onSelect}
-            info={selection.info}
-            loading={selection.loading}
-            selectedVariant={selection.selectedVariant}
-            onViewCards={() =>
-              navigate(`/search?set=${encodeURIComponent(selection.selectedCode)}`)
-            }
-            disabled={setup.busy}
-          />
-        ) : (
-          <LimitedCubeSource
-            input={setup.cubeInput}
-            onInputChange={setup.setCubeInput}
-            onImport={setup.onImport}
-            onLoadFile={setup.onLoadFile}
-            cube={setup.cube}
-            busy={setup.busy}
-          />
-        )}
-        <p className="text-sm leading-relaxed text-muted-foreground">{summary}</p>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <LimitedReferenceButton
-            cards={[]}
-            setCodes={setup.source === "set" ? [selection.selectedCode] : undefined}
-            format={setup.source === "set" ? "set" : "cube"}
-          />
-          <Button variant="primary" onClick={setup.start} disabled={setup.startBlocked}>
             {startLabel}
-            <ArrowRight className="ml-2 h-4 w-4" />
+            <ArrowRight aria-hidden="true" className="ml-2 h-4 w-4" />
           </Button>
         </div>
         {!panel && setup.lastError && (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="mt-2 max-h-20 overflow-y-auto text-sm text-destructive">
             {setup.lastError}
           </p>
         )}
-      </section>
-      <LimitedSavedSessions onResume={(saved) => navigate(limitedSessionRoute(saved))} />
+      </footer>
       <LimitedSetupDialog
         panel={panel}
         onClose={() => setPanel(null)}

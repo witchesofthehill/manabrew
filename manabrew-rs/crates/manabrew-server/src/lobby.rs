@@ -799,6 +799,19 @@ pub fn reset_room_to_lobby(
         (room.to_room_info(), cleared, paired_limited, children)
     };
     for child_id in children {
+        let active = state
+            .rooms
+            .get(&child_id)
+            .is_some_and(|child| child.status == RoomStatus::InGame);
+        if active {
+            crate::connection::broadcast_to_room(
+                state,
+                &child_id,
+                &crate::protocol::ServerMessage::GameAborted {
+                    room_id: child_id.clone(),
+                },
+            );
+        }
         crate::cleanup::remove_room_and_clear_sessions(state, &child_id, reason);
     }
 

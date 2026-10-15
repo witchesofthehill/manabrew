@@ -84,7 +84,7 @@ type SessionPayload =
   | { type: "result"; sessionId: string; gameId: string; winner: string | null }
   | { type: "resultAck"; sessionId: string; gameId: string }
   | { type: "seatReturned"; sessionId: string; username: string }
-  | { type: "returned"; sessionId: string; room: RoomInfo };
+  | { type: "returned"; sessionId: string; room: RoomInfo; game: GameStartedPayload };
 let host: HostSession | null = null;
 let offSession: (() => void) | null = null;
 let returnJob: Promise<string | null> | null = null;
@@ -336,9 +336,8 @@ export function attachLimitedSessionPeer(): () => void {
       return;
     const server = useServerStore.getState();
     const local = useMultiplayerLimitedStore.getState();
-    const room =
-      local.originalRoom?.room_id === env.roomId ? local.originalRoom : server.currentRoom;
-    if (!room || room.room_id !== env.roomId) return;
+    const room = local.originalRoom ?? server.currentRoom;
+    if (!room || room.room_id !== env.roomId || (!room.draft_config && !room.sealed_config)) return;
     if (env.targetPlayer && env.targetPlayer !== server.username) return;
     const msg = env.payload;
     if (!msg || typeof msg !== "object") return;
@@ -411,6 +410,14 @@ export function attachLimitedSessionPeer(): () => void {
     void enqueueLimitedHost(async () => {
       const local = useMultiplayerLimitedStore.getState();
       const server = useServerStore.getState();
+      const room = local.originalRoom ?? server.currentRoom;
+      if (
+        !room ||
+        room.room_id !== env.roomId ||
+        (!room.draft_config && !room.sealed_config) ||
+        event.from_player !== room.host
+      )
+        return;
       if (env.targetPlayer && env.targetPlayer !== server.username) return;
       if (
         msg.type === "rejected" &&
@@ -424,6 +431,7 @@ export function attachLimitedSessionPeer(): () => void {
         if (
           env.targetPlayer !== server.username ||
           msg.room.room_id !== env.roomId ||
+          msg.room.host !== room.host ||
           msg.seats.find((s) => s.seat === msg.seat)?.playerSlot !== server.username
         )
           return;
@@ -495,9 +503,7 @@ export function attachLimitedSessionPeer(): () => void {
         if (msg.room.host === server.username) void getPlatform().server?.startGame();
         else await getPlatform().server?.requestResync();
       } else if (msg.type === "returned" && env.targetPlayer === server.username) {
-        await saveLocalLimitedState({ phase: "building", matchReturn: null });
-        useServerStore.setState({ currentRoom: msg.room, gameStarted: false });
-        useMultiplayerLimitedStore.setState({ phase: "building", matchReturn: null });
+        await acceptLimitedReturn(msg);
         void requestLimitedResync();
       }
     }, msg.sessionId).catch((error) =>
@@ -505,6 +511,26 @@ export function attachLimitedSessionPeer(): () => void {
     );
   });
   return offSession;
+}
+async function acceptLimitedReturn(msg: Extract<SessionPayload, { type: "returned" }>) {
+  await saveLocalLimitedState(
+    { phase: "building", matchReturn: null, originalRoom: msg.room },
+    msg.game,
+  );
+  useServerStore.setState({
+    currentRoom: msg.room,
+    gameStarted: false,
+    gameRoomId: msg.game.room_id,
+    gameId: msg.game.game_id,
+    playerOrder: msg.game.player_order,
+    playerDecks: msg.game.player_decks,
+    startingLife: msg.game.starting_life,
+  });
+  useMultiplayerLimitedStore.setState({
+    phase: "building",
+    matchReturn: null,
+    originalRoom: msg.room,
+  });
 }
 export async function requestLimitedResync() {
   const local = useMultiplayerLimitedStore.getState();
@@ -721,12 +747,6 @@ async function returnLimitedMatch(recordResult = true): Promise<string | null> {
   useMultiplayerLimitedStore.setState({ matchReturn: marker });
   useServerStore.setState({ gameStarted: false });
   if (game.isGameActive) await game.endGame();
-  if (
-    marker.host === server.username &&
-    server.currentRoom?.room_id === marker.roomId &&
-    server.currentRoom.status === "InGame"
-  )
-    await server.endGame();
   let resolve!: () => void;
   let reject!: (error: unknown) => void;
   const promise = new Promise<void>((onResolve, onReject) => {
@@ -753,14 +773,7 @@ async function returnLimitedMatch(recordResult = true): Promise<string | null> {
       return;
     clearTimeout(timeout);
     off();
-    const room = event.state.payload.room;
-    void saveLocalLimitedState({ phase: "building", matchReturn: null })
-      .then(() => {
-        useServerStore.setState({ currentRoom: room, gameStarted: false });
-        useMultiplayerLimitedStore.setState({ phase: "building", matchReturn: null });
-        resolve();
-      })
-      .catch(reject);
+    void acceptLimitedReturn(event.state.payload).then(resolve).catch(reject);
   });
   try {
     await send(
@@ -852,33 +865,48 @@ export async function restoreLimitedHostSession(saved: LimitedSavedSession): Pro
   if (own) await deliverSnapshot(host, own);
 }
 
-async function saveLocalLimitedState(change: Partial<MultiplayerLimitedState>): Promise<void> {
+async function saveLocalLimitedState(
+  change: Partial<MultiplayerLimitedState>,
+  parentGame?: GameStartedPayload,
+): Promise<void> {
   const local = { ...useMultiplayerLimitedStore.getState(), ...change };
   if (!local.sessionId || !local.kind || !local.originalRoom || local.mySeat === null) return;
   await flushLimitedStorage();
   const peerSession = JSON.parse(JSON.stringify(local));
-  await updateLimitedSave(local.sessionId, (previous) => ({
-    schemaVersion: 1,
-    title: local.kind === "draft" ? "Booster Draft" : "Sealed",
-    createdAt: Date.now(),
-    archived: false,
-    checkpoint: null,
-    history: [],
-    ...previous,
-    sessionId: local.sessionId!,
-    kind: local.kind!,
-    seat: local.mySeat!,
-    role: local.originalRoom!.host === useServerStore.getState().username ? "host" : "peer",
-    complete: true,
-    state: local.sealed ?? previous?.state ?? null,
-    peerSession,
-    connection: captureLimitedConnection(
+  await updateLimitedSave(local.sessionId, (previous) => {
+    const connection = captureLimitedConnection(
       local.originalRoom!,
       local.sessionId!,
-      previous?.connection?.resume.game_id,
-    ),
-    updatedAt: Date.now(),
-  }));
+      parentGame?.game_id ?? previous?.connection?.resume.game_id,
+    );
+    const game = parentGame ?? previous?.connection?.resume;
+    if (game)
+      connection.resume = {
+        ...connection.resume,
+        game_id: game.game_id,
+        player_order: game.player_order,
+        player_decks: game.player_decks,
+        starting_life: game.starting_life,
+      };
+    return {
+      schemaVersion: 1,
+      title: local.kind === "draft" ? "Booster Draft" : "Sealed",
+      createdAt: Date.now(),
+      archived: false,
+      checkpoint: null,
+      history: [],
+      ...previous,
+      sessionId: local.sessionId!,
+      kind: local.kind!,
+      seat: local.mySeat!,
+      role: local.originalRoom!.host === useServerStore.getState().username ? "host" : "peer",
+      complete: true,
+      state: local.sealed ?? previous?.state ?? null,
+      peerSession,
+      connection,
+      updatedAt: Date.now(),
+    };
+  });
 }
 
 function enqueueLimitedHost<T>(operation: () => Promise<T>, sessionId?: string): Promise<T> {

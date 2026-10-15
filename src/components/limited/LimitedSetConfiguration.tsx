@@ -41,13 +41,14 @@ export function LimitedSetConfiguration({
         prefetching={prefetching}
         onSelect={onSelect}
         renderSelected={(set, onChange) => (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
-            <div className="flex min-w-0 flex-1 items-center gap-3">
-              <div className="shrink-0 rounded-md border border-border/60 bg-muted/40 p-2.5">
-                <SetSymbol setCode={set.code} className="h-8 w-8 text-foreground/80" />
-              </div>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-3 py-2">
+            <div className="flex min-w-0 basis-full items-center gap-4 sm:flex-1 sm:basis-auto">
+              <SetSymbol
+                setCode={set.code}
+                className="h-12 w-12 shrink-0 text-foreground/80 sm:h-16 sm:w-16"
+              />
               <div className="min-w-0">
-                <h3 className="break-words font-serif text-xl leading-tight text-foreground">
+                <h3 className="break-words font-serif text-2xl leading-tight text-foreground sm:text-3xl">
                   {set.name}
                 </h3>
                 <p className="mt-1 text-xs text-muted-foreground">
@@ -66,7 +67,7 @@ export function LimitedSetConfiguration({
             </div>
           </div>
         )}
-        resultsClassName="max-h-64 overflow-y-auto overscroll-contain pr-1"
+        resultsClassName="max-h-80 overflow-y-auto overscroll-contain pr-1 lg:max-h-none lg:overflow-visible"
       />
       {selectedSet && (
         <>

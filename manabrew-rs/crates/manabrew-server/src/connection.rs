@@ -80,8 +80,9 @@ fn authorize_game_message(
         "roomRelay" => {
             let protocol = state.get("protocol").and_then(serde_json::Value::as_str)?;
             if protocol == "draft-v1" || protocol == "limited-session-v1" {
-                if state.get("roomId").and_then(serde_json::Value::as_str)
-                    != Some(room.room_id.as_str())
+                if room.parent_limited_room.is_some()
+                    || state.get("roomId").and_then(serde_json::Value::as_str)
+                        != Some(room.room_id.as_str())
                     || state.get("fromPlayer").and_then(serde_json::Value::as_str) != Some(username)
                 {
                     return None;
@@ -346,12 +347,15 @@ fn return_to_limited_session(
     username: &str,
 ) -> Option<()> {
     let current_id = state.players.get(player_id)?.room_id.clone()?;
-    if current_id != room_id {
+    let end_child = if current_id != room_id {
         let match_room = state.rooms.get(&current_id)?;
         if match_room.parent_limited_room.as_deref() != Some(room_id) {
             return None;
         }
-    }
+        match_room.is_host(player_id) && match_room.status == RoomStatus::InGame
+    } else {
+        false
+    };
     let mut parent = state.rooms.get_mut(room_id)?;
     let session_id = parent.limited_session_id.clone()?;
     let seat = parent
@@ -361,7 +365,37 @@ fn return_to_limited_session(
     seat.ready = false;
     let info = parent.to_room_info();
     let host_name = parent.host_username.clone();
+    let replay = parent.replay.as_ref()?;
+    let payload = serde_json::json!({
+        "type": "returned",
+        "sessionId": session_id,
+        "room": info,
+        "game": {
+            "room_id": room_id,
+            "game_id": replay.game_id,
+            "player_order": replay.player_order,
+            "player_decks": replay.player_decks,
+            "starting_life": replay.starting_life
+        }
+    });
     drop(parent);
+    if end_child {
+        let (child_info, notify) =
+            lobby::reset_room_to_lobby(state, &current_id, analytics::GameEndReason::HostEnded)?;
+        broadcast_to_room(
+            state,
+            &current_id,
+            &ServerMessage::RoomUpdate { room: child_info },
+        );
+        let aborted = ServerMessage::GameAborted {
+            room_id: current_id.clone(),
+        };
+        if let Ok(json) = serde_json::to_string(&aborted) {
+            for pid in notify.iter().filter(|pid| pid.as_str() != player_id) {
+                emit_to(state, pid, &aborted, &json);
+            }
+        }
+    }
     if let Some(mut player) = state.players.get_mut(player_id) {
         player.room_id = Some(room_id.to_string());
     }
@@ -385,7 +419,7 @@ fn return_to_limited_session(
         state: serde_json::json!({
             "kind": "roomRelay", "protocol": "limited-session-v1", "version": 1, "messageId": uuid::Uuid::new_v4().to_string(),
             "fromPlayer": host_name, "targetPlayer": username, "roomId": room_id,
-            "payload": { "type": "returned", "sessionId": session_id, "room": info }
+            "payload": payload
         }),
     };
     if let Some(player) = state.players.get(player_id) {

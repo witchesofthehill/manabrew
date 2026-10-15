@@ -608,6 +608,19 @@ fn clear_removed_room(state: &Arc<ServerState>, room: Room, reason: GameEndReaso
         }
     }
     for child_id in &room.limited_matches {
+        let active = state
+            .rooms
+            .get(child_id)
+            .is_some_and(|child| child.status == RoomStatus::InGame);
+        if active {
+            broadcast_to_room(
+                state,
+                child_id,
+                &ServerMessage::GameAborted {
+                    room_id: child_id.clone(),
+                },
+            );
+        }
         if let Some((_, child)) = state.rooms.remove(child_id) {
             clear_removed_room(state, child, reason);
         }

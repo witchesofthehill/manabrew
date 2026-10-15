@@ -97,6 +97,7 @@ export function SetPicker({
             <Search className="absolute left-2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
               type="search"
+              aria-label="Search sets"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={`Search ${sets.length} sets…`}

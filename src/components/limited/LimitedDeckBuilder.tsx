@@ -74,6 +74,10 @@ export default function LimitedDeckBuilder({
     [acquired, basics],
   );
   const acquiredIds = useMemo(() => cards.map((card) => card.id), [cards]);
+  const availableSelection = useMemo(
+    () => selectedIds.filter((id) => cards.some((card) => card.id === id)),
+    [selectedIds, cards],
+  );
   const deck = useMemo(
     () =>
       acquired && allocation
@@ -116,11 +120,11 @@ export default function LimitedDeckBuilder({
         return;
       const zone = destination.dataset.limitedZone;
       if (zone === "main" || zone === "pool" || zone === "sideboard" || zone === "maybe") {
-        move(selectedIds.includes(card.id) ? selectedIds : [card.id], zone);
+        move(availableSelection.includes(card.id) ? availableSelection : [card.id], zone);
         if (!isDesktop || shortTouch) showZone(zone);
       }
     },
-    [move, selectedIds, sessionKey, showZone, isDesktop, shortTouch],
+    [move, availableSelection, sessionKey, showZone, isDesktop, shortTouch],
   );
   if (!session)
     return (
@@ -131,7 +135,6 @@ export default function LimitedDeckBuilder({
   const mainIds = new Set(session.allocation.mainIds);
   const sideboardIds = new Set(session.allocation.sideboardIds);
   const maybeIds = new Set(session.allocation.maybeIds);
-  const availableSelection = selectedIds.filter((id) => cards.some((card) => card.id === id));
   const zones = [
     {
       id: "pool",

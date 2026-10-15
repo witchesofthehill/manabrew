@@ -1,6 +1,7 @@
 import { useId } from "react";
 import { Check, Layers3, PackageOpen, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import type { LimitedSetupMode } from "@/components/limited/limitedSetup.types";
 
@@ -8,30 +9,53 @@ interface LimitedModeSelectorProps {
   mode: LimitedSetupMode;
   onChange: (mode: LimitedSetupMode) => void;
   disabled?: boolean;
+  leadingControl?: ReactNode;
+  actions?: ReactNode;
 }
 
 const MODES: { value: LimitedSetupMode; title: string; description: string; icon: LucideIcon }[] = [
-  { value: "sealed", title: "Sealed", description: "Open packs, build a deck", icon: PackageOpen },
-  { value: "draft", title: "Booster Draft", description: "Pick cards, pass packs", icon: Users },
-  { value: "winston", title: "Winston", description: "Draft from shared piles", icon: Layers3 },
+  {
+    value: "sealed",
+    title: "Sealed",
+    description: "Open boosters and build a deck. Your opponent opens a separate pool.",
+    icon: PackageOpen,
+  },
+  {
+    value: "draft",
+    title: "Draft",
+    description: "Pick cards and pass packs with AI players. Each player opens three boosters.",
+    icon: Users,
+  },
+  {
+    value: "winston",
+    title: "Winston",
+    description: "Draft three shared piles against one AI. Basic lands are excluded.",
+    icon: Layers3,
+  },
 ];
 
 export function LimitedModeSelector({
   mode,
   onChange,
   disabled = false,
+  leadingControl,
+  actions,
 }: LimitedModeSelectorProps) {
   const groupId = useId();
 
   return (
     <fieldset disabled={disabled} className="min-w-0">
-      <legend className="mb-3 font-serif text-xl text-foreground">Choose a format</legend>
-      <div className="grid grid-cols-3 gap-2 sm:gap-3">
-        {MODES.map(({ value, title, description, icon: Icon }) => (
+      <legend className="sr-only">Choose a format</legend>
+      <div className="mb-2 flex min-h-9 items-center justify-between gap-3">
+        {leadingControl ?? <h2 className="font-serif text-lg">Choose a format</h2>}
+        {actions}
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        {MODES.map(({ value, title, icon: Icon }) => (
           <label
             key={value}
             className={cn(
-              "relative flex min-h-32 cursor-pointer flex-col gap-2 rounded-lg border p-3 transition-colors focus-within:ring-2 focus-within:ring-ring sm:p-4",
+              "relative flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-md border px-2 py-2 transition-colors focus-within:ring-2 focus-within:ring-ring motion-reduce:transition-none",
               mode === value
                 ? "border-selection bg-selection/10 text-foreground"
                 : "border-border/80 bg-card/40 text-muted-foreground hover:border-foreground/30 hover:bg-muted/50",
@@ -43,34 +67,26 @@ export function LimitedModeSelector({
               name={groupId}
               value={value}
               aria-label={title}
-              aria-describedby={`${groupId}-${value}-description`}
+              aria-describedby={mode === value ? `${groupId}-description` : undefined}
               checked={mode === value}
               onChange={() => onChange(value)}
               className="peer sr-only"
             />
-            <div aria-hidden="true" className="flex items-center justify-between">
-              <Icon className="h-5 w-5" />
-              <span
-                className={cn(
-                  "flex h-4 w-4 items-center justify-center rounded-full border",
-                  mode === value ? "border-selection text-selection" : "border-border",
-                )}
-              >
-                {mode === value && <Check className="h-3 w-3" />}
-              </span>
-            </div>
-            <span className="font-serif text-base leading-tight text-foreground sm:text-lg">
-              {title}
-            </span>
-            <span
-              id={`${groupId}-${value}-description`}
-              className="text-xs leading-relaxed text-muted-foreground"
-            >
-              {description}
-            </span>
+            {mode === value ? (
+              <Check aria-hidden="true" className="h-4 w-4 shrink-0" />
+            ) : (
+              <Icon aria-hidden="true" className="h-4 w-4 shrink-0" />
+            )}
+            <span className="font-serif text-base text-foreground">{title}</span>
           </label>
         ))}
       </div>
+      <p
+        id={`${groupId}-description`}
+        className="mt-2 text-sm leading-relaxed text-muted-foreground"
+      >
+        {MODES.find(({ value }) => value === mode)?.description}
+      </p>
     </fieldset>
   );
 }

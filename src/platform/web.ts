@@ -43,7 +43,7 @@ import {
   type GameOutcomeReport,
   type LocalGameKind,
 } from "@/types/server";
-import type { RoomRelayEnvelope, StateEnvelope } from "@/types/server";
+import type { RoomInfo, RoomRelayEnvelope, StateEnvelope } from "@/types/server";
 import { PROTOCOL_VERSION } from "@/protocol";
 import type {
   ClientToServerMessage,
@@ -56,7 +56,12 @@ import { APP_VERSION } from "@/lib/constants";
 import { logComms } from "@/lib/commsLog";
 import { resolveRelayIdentity, type RelayIdentity } from "@/lib/relayIdentity";
 import { getClientPlatform } from "./clientPlatform";
-import { rememberSpawnedBot, forgetSpawnedBot, clearSpawnedBots } from "@/lib/spawnedBots";
+import {
+  rememberSpawnedBot,
+  forgetSpawnedBot,
+  clearSpawnedBots,
+  peekSpawnedBots,
+} from "@/lib/spawnedBots";
 import { isPromptLoggingEnabled } from "@/lib/debugPrompts";
 import { applyStateDelta, diffStateDelta } from "@/lib/stateDelta";
 import {
@@ -640,9 +645,28 @@ class WorkerBridge {
     const worker = new Worker(new URL("../workers/game-engine.worker.ts", import.meta.url), {
       type: "module",
     });
-    worker.onmessage = (e: MessageEvent<WorkerMessage>) => {
-      if (e.data?.type === "response") this.handleMessage(e);
+    const fail = (error: Error) => {
+      if (this.fallbackWorker !== worker) return;
+      this.fallbackWorker = null;
+      worker.onmessage = null;
+      worker.onerror = null;
+      worker.terminate();
+      for (const [requestId, pending] of this.pendingRequests) {
+        if (pending.worker !== worker) continue;
+        this.pendingRequests.delete(requestId);
+        pending.reject(error);
+      }
     };
+    worker.onmessage = (e: MessageEvent<WorkerMessage>) => {
+      const message = e.data;
+      if (message.type === "response") {
+        this.handleMessage(e);
+      } else if (message.type === "event" && message.event === "worker:init") {
+        const payload = message.payload as { stage?: string; message?: string };
+        if (payload?.stage === "error") fail(new Error(payload.message ?? "Worker init failed"));
+      }
+    };
+    worker.onerror = (event) => fail(new Error(`Worker error: ${event.message}`));
     this.fallbackWorker = worker;
     return worker;
   }
@@ -934,6 +958,7 @@ class WebEventBus implements IEventBus {
 // Web Server API (WebSocket-based multiplayer)
 
 interface BotEntry {
+  roomId: string;
   ws: WebSocket | null;
   stopped: boolean;
   attempt: number;
@@ -1344,8 +1369,7 @@ class WebServerApi implements IServerApi {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       throw new Error("Cannot leave room while disconnected.");
     }
-    this.stopAllBots();
-    clearSpawnedBots();
+    this.stopRoomBots(this.currentRoomId);
     this.announcedRoom = null;
     this.currentRoomId = null;
     this.dropWebRtcPlane();
@@ -1380,8 +1404,7 @@ class WebServerApi implements IServerApi {
   }
 
   async endGame(gameId: string): Promise<void> {
-    this.stopAllBots();
-    clearSpawnedBots();
+    this.stopRoomBots(this.currentRoomId);
     this.send({ type: "EndGame", game_id: gameId });
   }
 
@@ -1432,6 +1455,7 @@ class WebServerApi implements IServerApi {
       agent: params.agent ?? "simple",
     });
     const entry: BotEntry = {
+      roomId: params.roomId,
       ws: null,
       stopped: false,
       attempt: 0,
@@ -1526,6 +1550,39 @@ class WebServerApi implements IServerApi {
     for (const username of [...this.bots.keys()]) {
       void this.removeAiBot(username);
     }
+  }
+
+  private stopRoomBots(roomId: string | null): void {
+    if (!roomId) return;
+    for (const [username, bot] of this.bots) {
+      if (bot.roomId === roomId) void this.removeAiBot(username);
+    }
+    if (peekSpawnedBots(roomId).length > 0) clearSpawnedBots();
+  }
+
+  private onLimitedRoomTransition(envelope: RoomRelayEnvelope, fromPlayer: unknown): void {
+    const limited = useMultiplayerLimitedStore.getState();
+    const parent = limited.originalRoom;
+    const transition = envelope.payload as {
+      type?: string;
+      sessionId?: string;
+      room?: RoomInfo;
+    } | null;
+    if (
+      !parent ||
+      envelope.protocol !== "limited-session-v1" ||
+      envelope.version !== 1 ||
+      envelope.roomId !== parent.room_id ||
+      fromPlayer !== parent.host ||
+      envelope.fromPlayer !== fromPlayer ||
+      envelope.targetPlayer !== this.authedUsername ||
+      transition?.sessionId !== limited.sessionId ||
+      (transition?.type !== "matchAssigned" && transition?.type !== "returned") ||
+      !transition.room?.players.some((player) => player.username === this.authedUsername) ||
+      (transition.type === "returned" && transition.room.room_id !== parent.room_id)
+    )
+      return;
+    this.currentRoomId = transition.room.room_id;
   }
 
   /** The host's advertised kinds decide the room's plane. */
@@ -1731,8 +1788,7 @@ class WebServerApi implements IServerApi {
       }
     }
     if (type === "GameAborted") {
-      this.stopAllBots();
-      clearSpawnedBots();
+      this.stopRoomBots(typeof msg.room_id === "string" ? msg.room_id : null);
     }
 
     if (type === "ServerShuttingDown") {
@@ -1806,6 +1862,7 @@ class WebServerApi implements IServerApi {
           });
           return;
         case "roomRelay":
+          this.onLimitedRoomTransition(envelope, msg.from_player);
           this.eventBus.emit("server:room_message", {
             from_player: msg.from_player,
             state: envelope,
@@ -1885,12 +1942,17 @@ class WebServerApi implements IServerApi {
       this.announceTransport(roomId);
     }
 
-    // RoomUpdate reaches members only, so this never announces into a foreign room.
-    if (type === "RoomUpdate") {
+    if (type === "RoomUpdate" || type === "RoomResumed") {
       const room = msg.room as { room_id?: string } | undefined;
       const roomId = String(room?.room_id ?? "");
-      if (roomId) this.currentRoomId = roomId;
-      this.announceTransport(roomId);
+      const limited = useMultiplayerLimitedStore.getState();
+      const activeRoomId = limited.matchReturn?.roomId ?? this.currentRoomId;
+      const parentRosterUpdate =
+        roomId === limited.originalRoom?.room_id && activeRoomId && activeRoomId !== roomId;
+      if (roomId && !parentRosterUpdate) {
+        this.currentRoomId = roomId;
+        this.announceTransport(roomId);
+      }
     }
 
     if (type === "GameStarted") {

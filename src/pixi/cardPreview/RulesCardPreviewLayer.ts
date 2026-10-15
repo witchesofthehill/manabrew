@@ -1210,11 +1210,7 @@ export class RulesCardPreviewLayer {
 
   private configureGeometry(landscape: boolean, footerHeight: number): void {
     this.scanOverlay =
-      this.preserveArtwork ||
-      (this.renderState === "error" &&
-        !!this.scryfallInfo &&
-        hasIntegratedArtwork(this.scryfallInfo)) ||
-      (this.renderState === "loading" && !this.faceTexture);
+      this.preserveArtwork || (!!this.scryfallInfo && hasIntegratedArtwork(this.scryfallInfo));
     this.footerHeight = this.faceTexture && !this.scanOverlay ? 0 : footerHeight;
     this.panelWidth = landscape ? LANDSCAPE_WIDTH : PORTRAIT_WIDTH;
     this.panelHeight = landscape ? LANDSCAPE_HEIGHT : PORTRAIT_HEIGHT;

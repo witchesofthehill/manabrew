@@ -304,33 +304,7 @@ export function getCardRenderGeometry(canvas: CardCanvas): CardRenderGeometry | 
 export function getCardInteractionRegion(
   geometry: CardRenderGeometry | undefined,
   landscape: boolean,
-  includeStats = false,
 ): CardInteractionRegion {
   const orientation = landscape ? "landscape" : "portrait";
-  const region = geometry?.interaction[orientation] ?? FALLBACK_INTERACTION[orientation];
-  if (!includeStats || !geometry || region.width <= 0 || region.height <= 0) return region;
-  let left = region.x;
-  let right = region.x + region.width;
-  let bottom = region.y + region.height;
-  for (const field of geometry.stats) {
-    const stat = orientCardRegion(field, landscape);
-    if (
-      stat.x >= region.x + region.width ||
-      stat.x + stat.width <= region.x ||
-      stat.y < region.y ||
-      stat.y > region.y + region.height + REGION_GAP_TOLERANCE
-    ) {
-      continue;
-    }
-    left = Math.min(left, stat.x);
-    right = Math.max(right, stat.x + stat.width);
-    bottom = Math.max(bottom, stat.y + stat.height);
-  }
-  return {
-    x: left,
-    y: region.y,
-    width: right - left,
-    height: bottom - region.y,
-    source: region.source,
-  };
+  return geometry?.interaction[orientation] ?? FALLBACK_INTERACTION[orientation];
 }

@@ -35,6 +35,7 @@ interface LiveCard {
   isCopy: boolean;
   isTransformed: boolean;
   isDoubleFaced: boolean;
+  hasCharacteristics: boolean;
   manaCost: string;
   typeLine: string;
   rulesText: string;
@@ -130,6 +131,7 @@ export function captureCardInput(request: CardRenderRequest): CardRenderInput {
           isCopy: card.isCopy,
           isTransformed: card.isTransformed,
           isDoubleFaced: card.isDoubleFaced,
+          hasCharacteristics: card.types.length > 0 || card.text.length > 0,
           manaCost: normalizedManaCost(card.effectiveManaCost ?? card.manaCost),
           typeLine: cardTypeLine(card),
           rulesText: replaceCardName(card.text, card.identity.name),
@@ -435,7 +437,7 @@ export async function prepareCard(input: CardRenderInput): Promise<PreparedCard>
         "The requested card face is unavailable",
       );
   }
-  if (input.card) {
+  if (input.card?.hasCharacteristics) {
     const liveIndex = input.card.isTransformed ? 1 : 0;
     if (combined) {
       const selected =

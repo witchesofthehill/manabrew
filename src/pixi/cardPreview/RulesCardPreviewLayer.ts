@@ -123,7 +123,6 @@ const TOUCH_PREVIEW_CONTROL_SIZE = 44;
 const PORTRAIT_HEADER_HEIGHT = 52;
 const STAT_BADGE_HEIGHT = 40;
 const RULES_INSET = 4;
-const MAX_RULES_ART_OVERLAP = 0.03;
 const SCAN_OVERLAY_TOP_FRACTION = 0.62;
 const SCAN_OVERLAY_INSET = 8;
 const SCAN_OVERLAY_OPACITY = 0.94;
@@ -939,40 +938,28 @@ export class RulesCardPreviewLayer {
     if (display.stats?.damage) {
       y = this.addStaticAbilityRow(i18n._(msg`${display.stats.damage} damage`), y);
     }
-    if (
-      y + 8 > this.bodyHeight &&
-      !this.scanOverlay &&
-      !landscape &&
-      !display.multipart &&
-      !progression &&
-      this.faceGeometry?.rules.length === 1
-    ) {
-      const type = this.faceGeometry.regions.find(
-        (region) => region.role === "type" && region.angle === 0,
-      );
-      const renderScale = PORTRAIT_WIDTH / CARD_RENDER_WIDTH;
-      if (type && type.y + type.height <= this.rulesRegion.y / renderScale) {
-        let titleBottom = 0;
-        for (const title of this.faceGeometry.title) {
-          titleBottom = Math.max(titleBottom, (title.y + title.height) * renderScale);
-        }
-        const top = Math.max(
-          titleBottom,
-          type.y * renderScale - this.panelHeight * MAX_RULES_ART_OVERLAP,
-        );
-        this.rulesRegion.height += this.rulesRegion.y - top;
-        this.rulesRegion.y = top;
-        this.detailsHeight = this.rulesRegion.height;
-        this.addTypeHeading(display.typeLine);
-      }
-    }
     this.bodyScroller.position.set(this.contentX, this.bodyTop);
     this.drawFooter(display.stats, display.loyalty, display.defense);
-    const badgePadding =
-      this.footer.visible && y + 8 > this.statBounds.y - this.bodyTop
-        ? this.detailsHeight - this.statBounds.y + 8
-        : 8;
-    this.contentHeight = y + badgePadding;
+    const contentBounds = this.bodyContent.getLocalBounds();
+    const contentBottom = contentBounds.y + contentBounds.height;
+    const overlapsStats =
+      this.footer.visible &&
+      this.bodyContent.children.some((child) => {
+        const bounds = child.getBounds();
+        const local = this.bodyContent.toLocal({
+          x: bounds.x + bounds.width,
+          y: bounds.y + bounds.height,
+        });
+        return (
+          local.x + this.contentX > this.statBounds.x && local.y + this.bodyTop > this.statBounds.y
+        );
+      });
+    const badgePadding = overlapsStats
+      ? this.detailsHeight - this.statBounds.y + RULES_INSET
+      : contentBottom > this.bodyHeight
+        ? RULES_INSET
+        : 0;
+    this.contentHeight = contentBottom + badgePadding;
     this.widgetHeight = this.panelHeight;
     if (this.revealHighlightedEffect && this.highlightedRowTop !== null) {
       this.setScroll(Math.max(0, this.highlightedRowTop - 8));
@@ -1196,7 +1183,7 @@ export class RulesCardPreviewLayer {
     this.headerHeight = 0;
     this.artY = PORTRAIT_HEADER_HEIGHT;
     const scale = PORTRAIT_WIDTH / CARD_RENDER_WIDTH;
-    const region = getCardInteractionRegion(this.faceGeometry, landscape, true);
+    const region = getCardInteractionRegion(this.faceGeometry, landscape);
     this.rulesRegion.x = region.x * scale;
     this.rulesRegion.y = region.y * scale;
     this.rulesRegion.width = region.width * scale;
@@ -1253,7 +1240,8 @@ export class RulesCardPreviewLayer {
     }
     if (loyalty != null) this.drawShieldValue(loyalty, i18n._(msg`Loyalty`), right);
     else if (defense != null) this.drawShieldValue(defense, i18n._(msg`Defense`), right);
-    this.footer.visible = this.footer.children.length > 0;
+    this.footer.visible =
+      this.footer.children.length > 0 && (this.scanOverlay || !this.faceTexture);
     if (this.footer.visible) {
       const bounds = this.footer.getLocalBounds();
       this.statBounds.set(
@@ -1355,19 +1343,10 @@ export class RulesCardPreviewLayer {
     this.detailsContainer.position.set(this.rulesRegion.x, this.rulesRegion.y);
     this.rulesBackground.visible =
       !this.scanOverlay && this.detailsContainer.visible && !!this.rulesBackgroundTexture;
-    this.rulesBackground.anchor.set(0.5);
-    this.rulesBackground.position.set(
-      this.rulesRegion.x + this.rulesRegion.width / 2,
-      this.rulesRegion.y + height / 2,
-    );
-    const landscape = this.panelWidth > this.panelHeight;
-    this.rulesBackground.rotation = landscape ? Math.PI / 2 : 0;
-    if (this.rulesBackgroundTexture) {
-      this.rulesBackground.scale.set(
-        (landscape ? height : this.rulesRegion.width) / this.rulesBackgroundTexture.width,
-        (landscape ? this.rulesRegion.width : height) / this.rulesBackgroundTexture.height,
-      );
-    }
+    this.rulesBackground.anchor.copyFrom(this.faceSprite.anchor);
+    this.rulesBackground.position.copyFrom(this.faceSprite.position);
+    this.rulesBackground.scale.copyFrom(this.faceSprite.scale);
+    this.rulesBackground.rotation = this.faceSprite.rotation;
     this.rulesBackgroundMask
       .clear()
       .rect(this.detailsContainer.x, this.detailsContainer.y, this.rulesRegion.width, height)
@@ -1706,16 +1685,7 @@ export class RulesCardPreviewLayer {
         this.container.destroyed
       )
         return;
-      const region = getCardInteractionRegion(this.faceGeometry, false);
-      const texture = createGeneratedCardTexture(
-        canvas,
-        new Rectangle(
-          region.x + RULES_INSET,
-          region.y + RULES_INSET,
-          Math.max(1, region.width - RULES_INSET * 2),
-          Math.max(1, region.height - RULES_INSET * 2),
-        ),
-      );
+      const texture = createGeneratedCardTexture(canvas);
       const previous = this.rulesBackgroundTexture;
       this.rulesBackgroundTexture = texture;
       this.rulesBackground.texture = texture;

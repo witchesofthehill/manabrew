@@ -1,97 +1,90 @@
-import { useId, useRef, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { Modal } from "@/components/game/modals/Modal";
 import { Button } from "@/components/ui/button";
-import { AppSelect, AppSelectOption } from "@/components/ui/AppSelect";
+import { Input } from "@/components/ui/input";
 import { CardGlintInspect } from "@/components/editor/CardGlintInspect";
+import { CardCustomizerCopies } from "@/components/editor/CardCustomizerCopies";
+import { CardCustomizerControls } from "@/components/editor/CardCustomizerControls";
+import { useCardCustomizerDraft } from "@/components/editor/useCardCustomizerDraft";
+import { useCardCustomizerEligibility } from "@/components/editor/useCardCustomizerEligibility";
+import { customizationSourceChanged } from "@/components/editor/cardCustomizerDraft";
 import { executeDeckEdit } from "@/components/editor/deckEditor.history";
-import { normalizeCardCosmetics } from "@/lib/cardCosmetics";
-import {
-  CARD_FINISH_PRESETS,
-  CARD_FRAME_PRESETS,
-  CARD_BORDER_PRESETS,
-  CARD_WEAR_PRESETS,
-} from "@/lib/cardFinish";
-import { supportsRetroCardFrame } from "@/lib/cardRenderDecision";
-import { useDeckStore } from "@/stores/useDeckStore";
-import { resolveTokenCustomizationScript, useCard } from "@/stores/useScryfallStore";
-import { isTwoFaceLayout } from "@/lib/cardLayout";
-import type { DeckCard } from "@/protocol/deck";
+import { deriveTokens } from "@/lib/decks";
+import { getCardCustomizationCopies, useDeckStore } from "@/stores/useDeckStore";
+import { resolveTokenCustomizationScript, tokenIdentityKey } from "@/stores/useScryfallStore";
+import type { CardFinish, DeckCard } from "@/protocol/deck";
+import type { EditorDeck } from "@/types/manabrew";
+
+function getTokenCustomizationCopy(deck: EditorDeck, card: DeckCard): DeckCard | undefined {
+  const key = tokenIdentityKey(card);
+  const produced = deriveTokens(deck).find((copy) => tokenIdentityKey(copy) === key);
+  if (!produced) return undefined;
+  return deck.tokens?.find((copy) => tokenIdentityKey(copy) === key) ?? produced;
+}
+
 export function CardCustomizerModal({
   card,
   token = false,
+  initialFinish,
   onClose,
 }: {
   card: DeckCard;
   token?: boolean;
+  initialFinish?: CardFinish;
   onClose: () => void;
 }) {
-  const [draft, setDraft] = useState(() => normalizeCardCosmetics(card.identity.cosmetics));
-  const wearSeed = useRef(card.identity.cosmetics?.wearSeed);
   const labelId = useId();
   const isReadOnly = useDeckStore((state) => state.isReadOnly);
   const editorSessionId = useDeckStore((state) => state.editorSessionId);
-  const [sessionId] = useState(editorSessionId);
-  const canEdit = !isReadOnly && sessionId === editorSessionId;
-  const tokenSupported = !token || !!resolveTokenCustomizationScript(card);
-  const printing = useCard({
-    name: card.identity.name,
-    setCode: card.identity.setCode || undefined,
-    cardNumber: card.identity.cardNumber || undefined,
-  });
-  const layout = printing?.info.layout ?? card.layout;
-  const faces =
-    printing?.info.card_faces ??
-    (card.backFace
-      ? [{ type_line: card.backFace.typeLine, oracle_text: card.backFace.oracleText }]
-      : []);
-  const needsBack = card.isDoubleFaced || isTwoFaceLayout(layout);
-  const retroCompatible =
-    supportsRetroCardFrame(card) &&
-    (!needsBack || !!card.backFace || (printing?.info.card_faces?.length ?? 0) > 1) &&
-    faces.every((face) =>
-      supportsRetroCardFrame({
-        layout,
-        types: (face.type_line ?? "").split(/[^A-Za-z]+/),
-        subtypes: [],
-        text: face.oracle_text ?? "",
-      }),
-    );
+  const currentDeck = useDeckStore((state) => state.currentDeck);
+  const [opening] = useState({ sessionId: editorSessionId, cardId: card.identity.id });
+  const tokenCopy = useMemo(
+    () => (token ? getTokenCustomizationCopy(currentDeck, card) : undefined),
+    [currentDeck, card, token],
+  );
+  const editor = useCardCustomizerDraft(currentDeck, tokenCopy ?? card, initialFinish, token);
+  const retroIds = useCardCustomizerEligibility(editor.copies);
+  const sessionValid = opening.sessionId === editorSessionId && opening.cardId === card.identity.id;
+  const available = token ? Number(!!tokenCopy) : editor.copies.length;
+  const canEdit = !isReadOnly && sessionValid && available > 0 && !editor.stale;
+  const tokenSupported = !token || !!resolveTokenCustomizationScript(tokenCopy ?? card);
+  const selectedRetroCompatible =
+    editor.selected.length > 0 && editor.selected.every((copy) => retroIds?.has(copy.identity.id));
+  const pendingRetroCompatible = editor.pending.every(
+    ([id, draft]) => draft.cosmetics?.frame !== "retro" || retroIds?.has(id),
+  );
   const canSave =
-    canEdit && (tokenSupported || !draft) && (draft?.frame !== "retro" || retroCompatible);
-  const preview = { ...card, identity: { ...card.identity, cosmetics: draft } };
-  const update = (field: "finish" | "frame" | "border" | "wear", value: string) => {
-    if (field === "wear" && value !== "fresh" && wearSeed.current === undefined) {
-      wearSeed.current = crypto.getRandomValues(new Uint32Array(1))[0];
-    }
-    setDraft((current) =>
-      normalizeCardCosmetics({
-        ...current,
-        [field]: value === "printing" ? undefined : value,
-        ...(field === "wear" ? { wearSeed: value === "fresh" ? undefined : wearSeed.current } : {}),
-      }),
-    );
+    canEdit &&
+    !!editor.active &&
+    editor.pending.length > 0 &&
+    pendingRetroCompatible &&
+    (tokenSupported || editor.pending.every(([, draft]) => !draft.cosmetics));
+  const save = () => {
+    if (!canSave) return;
+    const state = useDeckStore.getState();
+    if (state.isReadOnly || state.editorSessionId !== opening.sessionId) return;
+    const currentToken = token ? getTokenCustomizationCopy(state.currentDeck, card) : undefined;
+    const current = token
+      ? currentToken
+        ? [currentToken]
+        : []
+      : getCardCustomizationCopies(state.currentDeck, card);
+    if (
+      editor.pending.some(([id, draft]) => {
+        const copy = current.find((candidate) => candidate.identity.id === id);
+        return !copy || customizationSourceChanged(draft.source, copy);
+      })
+    )
+      return;
+    executeDeckEdit(`Customize ${card.identity.name}`, () => {
+      if (token) state.setTokenCosmetics(current[0]!, editor.pending[0]![1].cosmetics);
+      else
+        state.setCardCosmetics(
+          editor.pending.map(([cardId, draft]) => ({ cardId, cosmetics: draft.cosmetics })),
+        );
+    });
+    onClose();
   };
-  const controls = [
-    {
-      field: "finish",
-      label: "Finish",
-      presets: CARD_FINISH_PRESETS,
-      value: draft?.finish ?? "printing",
-    },
-    {
-      field: "frame",
-      label: "Frame",
-      presets: CARD_FRAME_PRESETS,
-      value: draft?.frame ?? "printing",
-    },
-    {
-      field: "border",
-      label: "Border",
-      presets: CARD_BORDER_PRESETS,
-      value: draft?.border ?? "printing",
-    },
-    { field: "wear", label: "Wear", presets: CARD_WEAR_PRESETS, value: draft?.wear ?? "fresh" },
-  ] as const;
 
   return (
     <Modal onClose={onClose} maxWidth="max-w-3xl" ariaLabel={`Customize ${card.identity.name}`}>
@@ -103,55 +96,84 @@ export function CardCustomizerModal({
       </Modal.Header>
       <Modal.Body className="overflow-y-auto">
         <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,0.7fr)]">
-          <CardGlintInspect
-            card={preview}
-            className="min-h-64 rounded-lg border bg-muted/20 sm:min-h-96"
-          />
+          <div className="min-w-0">
+            <CardGlintInspect
+              card={editor.preview}
+              className="min-h-64 rounded-lg border bg-muted/20 sm:min-h-96"
+            />
+            <p className="mt-2 text-xs text-muted-foreground">
+              {editor.preview.identity.setCode.toUpperCase()} #{editor.preview.identity.cardNumber}
+              {editor.preview.identity.foil ? " · Physical foil" : " · Physical nonfoil"}
+            </p>
+          </div>
           <div className="space-y-4">
-            <div className="rounded-lg border bg-muted/20 p-3 text-sm">
+            <div className="rounded-lg border bg-muted/20 p-3 text-sm" aria-live="polite">
               <p className="font-medium">
-                {token ? "This deck's token appearance" : "This copy only"}
+                {token
+                  ? "This deck's token appearance"
+                  : `${editor.selected.length} selected · ${editor.pending.length} pending`}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
                 {token
                   ? "Applies to this token type produced by this deck. Other token types stay unchanged."
-                  : "Saves one copy from this tile. Other copies and printings stay unchanged."}
-              </p>
-              <p className="mt-2 text-xs text-muted-foreground">
-                {card.identity.setCode.toUpperCase()} #{card.identity.cardNumber}
-                {card.identity.foil ? " · Physical foil" : " · Physical nonfoil"}
+                  : "Click a copy to inspect and select it. Check copies to edit them together. Pending changes stay when you switch copies."}
               </p>
             </div>
-            {controls.map(({ field, label, presets, value }) => (
-              <div key={field} className="space-y-1.5">
-                <label id={`${labelId}-${field}`} className="block text-sm font-medium">
-                  {label}
+            {!token && editor.copies.length > 1 && (
+              <div className="space-y-1.5">
+                <label htmlFor={`${labelId}-copies`} className="block text-sm font-medium">
+                  Select number of copies
                 </label>
-                <AppSelect
-                  value={value}
-                  onValueChange={(next) => update(field, next)}
-                  aria-labelledby={`${labelId}-${field}`}
-                  disabled={!canEdit || !tokenSupported}
-                  className="w-full"
-                >
-                  {field === "finish" && (
-                    <AppSelectOption value="printing">Printing default</AppSelectOption>
-                  )}
-                  {presets.map(({ id, label: presetLabel }) => (
-                    <AppSelectOption
-                      key={id}
-                      value={id}
-                      disabled={field === "frame" && id === "retro" && !retroCompatible}
-                    >
-                      {presetLabel}
-                    </AppSelectOption>
-                  ))}
-                </AppSelect>
+                <Input
+                  id={`${labelId}-copies`}
+                  type="number"
+                  min={0}
+                  max={available}
+                  step={1}
+                  value={editor.selected.length}
+                  disabled={!canEdit}
+                  className="h-8 w-24 text-right font-mono"
+                  onChange={(event) =>
+                    editor.selectQuantity(
+                      Math.max(0, Math.min(available, Math.trunc(Number(event.target.value)) || 0)),
+                    )
+                  }
+                />
+                <p className="text-xs text-muted-foreground">
+                  Selects the inspected copy first, then deck order. Does not change appearances.
+                </p>
               </div>
-            ))}
-            {!retroCompatible && (
+            )}
+            <CardCustomizerControls
+              selected={editor.selected}
+              drafts={editor.drafts}
+              disabled={!canEdit || !editor.active || !tokenSupported}
+              retroCompatible={selectedRetroCompatible}
+              onChange={(field, value) => {
+                if (canEdit && (field !== "frame" || value !== "retro" || selectedRetroCompatible))
+                  editor.editSelected(field, value);
+              }}
+            />
+            {(!sessionValid || editor.stale || !available || !editor.active) && (
+              <p role="status" className="text-xs text-warning">
+                {!sessionValid
+                  ? "The deck session changed. Close and reopen this customizer."
+                  : editor.stale
+                    ? "A pending copy changed or was removed. Close and reopen to edit the current deck."
+                    : "This copy is no longer available in the deck."}
+              </p>
+            )}
+            {!selectedRetroCompatible && (
               <p className="text-xs text-muted-foreground">
-                Retro frames are unavailable for this card's layout.
+                {!retroIds
+                  ? "Checking frame compatibility…"
+                  : "Retro frames are unavailable for one or more selected copies or faces."}
+              </p>
+            )}
+            {!pendingRetroCompatible && (
+              <p role="status" className="text-xs text-warning">
+                A pending retro frame is not supported by its copy. Select that copy and choose
+                another frame before saving.
               </p>
             )}
             {!tokenSupported && (
@@ -171,27 +193,37 @@ export function CardCustomizerModal({
             </p>
           </div>
         </div>
+        {!token && (
+          <CardCustomizerCopies
+            deck={currentDeck}
+            copies={editor.copies}
+            activeId={editor.activeId}
+            selectedIds={editor.selectedIds}
+            pendingIds={editor.pendingIds}
+            drafts={editor.drafts}
+            disabled={isReadOnly || !sessionValid}
+            onSelect={editor.selectCopy}
+            onToggle={editor.toggleCopy}
+          />
+        )}
       </Modal.Body>
-      <Modal.Footer>
-        <Button variant="outline" disabled={!canEdit} onClick={() => setDraft(undefined)}>
+      <Modal.Footer className="flex-wrap gap-2">
+        <Button
+          variant="outline"
+          disabled={!canEdit || editor.selected.length === 0}
+          onClick={editor.resetSelected}
+        >
           Reset to printing
         </Button>
         <div className="ml-auto flex gap-2">
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button
-            variant="primary"
-            disabled={!canSave}
-            onClick={() => {
-              if (!canSave) return;
-              executeDeckEdit(`Customize ${card.identity.name}`, () => {
-                useDeckStore.getState().setCardCosmetics(card, draft, token);
-              });
-              onClose();
-            }}
-          >
+          <Button variant="primary" disabled={!canSave} onClick={save}>
             Save
+            {!token && editor.pending.length > 0
+              ? ` ${editor.pending.length} ${editor.pending.length === 1 ? "change" : "changes"}`
+              : ""}
           </Button>
         </div>
       </Modal.Footer>

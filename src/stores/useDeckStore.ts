@@ -212,20 +212,44 @@ function patchDeckCardById(deck: EditorDeck, cardId: string, patch: CardPatch): 
         : normalized.companion,
   };
 }
+function matchesPrintingVariant(card: DeckCard, printing: DeckCardIdentity): boolean {
+  return (
+    card.identity.name === printing.name &&
+    card.identity.setCode === printing.setCode &&
+    card.identity.cardNumber === printing.cardNumber &&
+    !!card.identity.foil === !!printing.foil &&
+    cardCosmeticsKey(card.identity.cosmetics) === cardCosmeticsKey(printing.cosmetics)
+  );
+}
+export function getCardCustomizationCopies(deck: EditorDeck, card: DeckCard): DeckCard[] {
+  const cards = [
+    ...deck.cards,
+    ...deck.sideboard,
+    ...(deck.maybeboard ?? []),
+    ...(deck.attractions ?? []),
+    ...(deck.contraptions ?? []),
+    ...(deck.schemes ?? []),
+    ...(deck.planes ?? []),
+    ...(deck.commanders ?? []),
+    ...(deck.companion ? [deck.companion] : []),
+  ];
+  const copies = cards.filter((candidate) => candidate.identity.name === card.identity.name);
+  const selectedIndex = copies.findIndex((candidate) => candidate.identity.id === card.identity.id);
+  if (selectedIndex <= 0) return copies;
+  return [
+    copies[selectedIndex]!,
+    ...copies.slice(0, selectedIndex),
+    ...copies.slice(selectedIndex + 1),
+  ];
+}
 function patchDeckPrintingVariant(
   deck: EditorDeck,
   printing: DeckCardIdentity,
   patch: CardPatch,
 ): EditorDeck {
   const normalized = normalizeDeck(deck);
-  const matches = (card: DeckCard) =>
-    card.identity.name === printing.name &&
-    card.identity.setCode === printing.setCode &&
-    card.identity.cardNumber === printing.cardNumber &&
-    !!card.identity.foil === !!printing.foil &&
-    cardCosmeticsKey(card.identity.cosmetics) === cardCosmeticsKey(printing.cosmetics);
   const patchCards = (cards: DeckCard[]) =>
-    cards.map((card) => (matches(card) ? applyPatch(card, patch) : card));
+    cards.map((card) => (matchesPrintingVariant(card, printing) ? applyPatch(card, patch) : card));
   return {
     ...normalized,
     cards: patchCards(normalized.cards),
@@ -237,7 +261,7 @@ function patchDeckPrintingVariant(
     planes: normalized.planes ? patchCards(normalized.planes) : undefined,
     commanders: normalized.commanders ? patchCards(normalized.commanders) : undefined,
     companion:
-      normalized.companion && matches(normalized.companion)
+      normalized.companion && matchesPrintingVariant(normalized.companion, printing)
         ? applyPatch(normalized.companion, patch)
         : normalized.companion,
   };
@@ -332,7 +356,10 @@ interface DeckState {
   updateCardPrint: (cardId: string, scryfallCard: ScryfallCard, foil?: boolean) => void;
   updatePrintingVariant: (printing: DeckCardIdentity, scryfallCard: ScryfallCard) => void;
   setCardFoil: (cardId: string, foil: boolean) => void;
-  setCardCosmetics: (card: DeckCard, cosmetics: CardCosmetics | undefined, token?: boolean) => void;
+  setCardCosmetics: (
+    changes: readonly { cardId: string; cosmetics: CardCosmetics | undefined }[],
+  ) => void;
+  setTokenCosmetics: (card: DeckCard, cosmetics: CardCosmetics | undefined) => void;
   updateTokenPrint: (token: DeckCard, scryfallCard: ScryfallCard) => void;
   toggleFoil: (cardName: string) => void;
   resetTokenPrint: (token: DeckCard) => void;
@@ -741,17 +768,41 @@ export const useDeckStore = create<DeckState>()(
           set((state) => ({
             currentDeck: patchDeckCardById(state.currentDeck, cardId, { identity: { foil } }),
           })),
-        setCardCosmetics: (card, value, token = false) =>
+        setCardCosmetics: (changes) =>
+          set((state) => {
+            if (state.isReadOnly || changes.length === 0) return state;
+            const updates = new Map<string, CardPatch>();
+            for (const { cardId, cosmetics } of changes) {
+              updates.set(cardId, {
+                identity: { cosmetics: normalizeCardCosmetics(cosmetics) },
+              });
+            }
+            let changed = false;
+            const customize = (card: DeckCard) => {
+              const patch = updates.get(card.identity.id);
+              if (!patch) return card;
+              changed = true;
+              return applyPatch(card, patch);
+            };
+            const deck = state.currentDeck;
+            const currentDeck = {
+              ...deck,
+              cards: deck.cards.map(customize),
+              sideboard: deck.sideboard.map(customize),
+              maybeboard: deck.maybeboard?.map(customize),
+              attractions: deck.attractions?.map(customize),
+              contraptions: deck.contraptions?.map(customize),
+              schemes: deck.schemes?.map(customize),
+              planes: deck.planes?.map(customize),
+              commanders: deck.commanders?.map(customize),
+              companion: deck.companion ? customize(deck.companion) : undefined,
+            };
+            return changed ? { currentDeck } : state;
+          }),
+        setTokenCosmetics: (card, value) =>
           set((state) => {
             if (state.isReadOnly) return state;
             const cosmetics = normalizeCardCosmetics(value);
-            if (!token) {
-              return {
-                currentDeck: patchDeckCardById(state.currentDeck, card.identity.id, {
-                  identity: { cosmetics },
-                }),
-              };
-            }
             const tokens = state.currentDeck.tokens ?? [];
             const key = tokenIdentityKey(card);
             const tokenScript = resolveTokenCustomizationScript(card);

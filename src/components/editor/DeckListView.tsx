@@ -47,7 +47,7 @@ import { GameIcon } from "@/components/game/GameIcon";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { cn } from "@/lib/utils";
 import { formatRequiresCommander } from "@/lib/formats";
-import type { DeckCard } from "@/protocol/deck";
+import type { CardFinish, DeckCard } from "@/protocol/deck";
 import type { CardGroup, ViewMode, SectionDefinition } from "./deckBuilder.utils";
 import { CARD_WIDTH_MAP, DEFAULT_CARD_SIZE, getTaggedGroups } from "./deckBuilder.utils";
 import { CARD_RING } from "@/components/game/game.styles";
@@ -74,6 +74,7 @@ import { useCardCollectionOwnership, useDeckCardOwnership } from "./useCardColle
 import { CollectionOwnershipTooltip } from "./CollectionOwnershipTooltip";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { CardCustomizerModal } from "@/components/editor/CardCustomizerModal";
+import { DEFAULT_CARD_FINISH } from "@/lib/cardFinish";
 function ownershipHighlight(ownership: "exact" | "other" | "none", surface: "stack" | "grid") {
   return cn(
     ownership === "exact" && "outline outline-2 outline-legality-legal/60",
@@ -453,7 +454,7 @@ export function CardContextMenu({
   onRemoveCustomTag,
   onCreateTag,
 }: CardContextMenuProps) {
-  const [customizing, setCustomizing] = useState(false);
+  const [customizing, setCustomizing] = useState<{ initialFinish?: CardFinish } | null>(null);
   const isReadOnly = useDeckStore((state) => state.isReadOnly);
   const showTagSubmenu = !!onApplyTag && ((customTags && customTags.length > 0) || !!onCreateTag);
   const commanderHandler = isCommander ? onRemoveCommander : onSetCommander;
@@ -577,12 +578,17 @@ export function CardContextMenu({
             </>
           )}
           {!isReadOnly && (
-            <ContextMenuItem onSelect={() => setCustomizing(true)}>
+            <ContextMenuItem onSelect={() => setCustomizing({})}>
               <Palette className="mr-2 h-3.5 w-3.5" /> Customize card…
             </ContextMenuItem>
           )}
-          {onToggleFoil && (
-            <ContextMenuItem onSelect={onToggleFoil}>
+          {!isReadOnly && onToggleFoil && (
+            <ContextMenuItem
+              onSelect={() => {
+                if (isFoil) onToggleFoil();
+                else setCustomizing({ initialFinish: DEFAULT_CARD_FINISH });
+              }}
+            >
               <Sparkles
                 className={cn(
                   "mr-2 h-3.5 w-3.5",
@@ -595,7 +601,12 @@ export function CardContextMenu({
         </ContextMenuContent>
       </ContextMenu>
       {customizing && !isReadOnly && (
-        <CardCustomizerModal card={card} token={token} onClose={() => setCustomizing(false)} />
+        <CardCustomizerModal
+          card={card}
+          token={token}
+          initialFinish={customizing.initialFinish}
+          onClose={() => setCustomizing(null)}
+        />
       )}
     </>
   );

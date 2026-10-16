@@ -176,8 +176,11 @@ export class CardLiveHighlight extends Container {
   private readonly surfaceRendered = (): void => {
     let root = this.parent;
     while (root?.parent) root = root.parent;
+    if (this.renderRoot === root) return;
     this.renderRoot = root;
-    this.syncAnimation();
+    queueMicrotask(() => {
+      if (!this.destroyed) this.syncAnimation();
+    });
   };
 
   private readonly clearSource = (): void => {
@@ -268,6 +271,7 @@ export class CardLiveHighlight extends Container {
           this.syncAnimation();
           return;
         }
+        this.syncTransform();
         for (let index = 0; index < this.inks.length; index++) {
           const ink = this.inks[index]!;
           const region = this.layers!.regions[index]!;

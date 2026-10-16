@@ -978,7 +978,7 @@ export class CardSprite extends Container {
     const ready = !hidden && this.handRulesFace?.imageReady === true;
     this.printedFaceContainer.visible = hidden || !this.handRulesView || !ready;
     if (this.handRulesFace) {
-      this.handRulesFace.visible = !hidden && (this.handRulesView || (!this._imageLoaded && ready));
+      this.handRulesFace.visible = !hidden && ready && (this.handRulesView || !this._imageLoaded);
     }
     this.foilSheen.setExclusion(
       this.handRulesFace?.visible ? this.handRulesFace.foilExclusion : null,

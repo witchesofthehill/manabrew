@@ -26,6 +26,7 @@ import type { CardCanvas } from "@/lib/cardRenderTypes";
 import { cardCosmeticsKey } from "@/lib/cardCosmetics";
 import { registerCardOpticalSource } from "@/lib/cardOpticalLayers";
 import { getCardLiveHighlights, registerCardLiveHighlights } from "@/lib/cardLiveHighlights";
+import { getCardRenderGeometry } from "@/lib/cardRenderGeometry";
 
 export type { CardRenderRequest } from "@/lib/cardRenderSnapshot";
 
@@ -214,4 +215,22 @@ export async function renderCard(
     if (!signal?.aborted) counters.failures += 1;
     throw error;
   }
+}
+
+export async function renderRulesCard(
+  request: CardRenderRequest,
+  signal?: AbortSignal,
+): Promise<{ face: CardCanvas; rulesBackground: CardCanvas | null }> {
+  const face = await renderCard(request, signal, {
+    priority: "preview",
+    standardFrameFallback: true,
+  });
+  const rulesBackground = getCardRenderGeometry(face)?.rules.length
+    ? await renderCard(request, signal, {
+        rulesText: false,
+        priority: "preview",
+        standardFrameFallback: true,
+      })
+    : null;
+  return { face, rulesBackground };
 }

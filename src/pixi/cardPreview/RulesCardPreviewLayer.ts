@@ -59,7 +59,7 @@ import {
   type PreviewLayout,
 } from "@/components/game/cardPreviewLayout";
 import { GAME_CARD_SIZES } from "@/components/game/game.constants";
-import { renderCard } from "@/lib/cardRenderer";
+import { renderRulesCard } from "@/lib/cardRenderer";
 import { CardArtworkError } from "@/lib/cardRenderDecision";
 import { hasIntegratedArtwork } from "@/lib/cardArtworkPrinting";
 import {
@@ -193,7 +193,6 @@ export class RulesCardPreviewLayer {
   private rulesBackground = new Sprite(Texture.EMPTY);
   private rulesBackgroundMask = new Graphics();
   private rulesBackgroundTexture: Texture | null = null;
-  private rulesBackgroundAbort: AbortController | null = null;
   private foil: CardFoil | null = null;
   private readonly liveHighlight: CardLiveHighlight;
   private readonly foilUvs = new Float32Array(8);
@@ -371,7 +370,10 @@ export class RulesCardPreviewLayer {
     return this.container.y + this.artY * this.container.scale.y;
   }
   get imageReady(): boolean {
-    return this.faceSprite.texture !== Texture.EMPTY;
+    return (
+      this.faceSprite.texture !== Texture.EMPTY &&
+      (this.faceTexture !== null || this.renderState === "error")
+    );
   }
   get liveHighlights(): CardLiveHighlight {
     return this.liveHighlight;
@@ -406,7 +408,6 @@ export class RulesCardPreviewLayer {
     this.theme = theme;
     this.viewControls.setTheme(theme);
     if (this.spec) {
-      this.clearRulesBackground();
       void this.loadFace();
       this.rebuild();
     }
@@ -426,7 +427,6 @@ export class RulesCardPreviewLayer {
     if (!spec || this.viewportWidth <= EDGE_PAD * 2 || this.viewportHeight <= EDGE_PAD * 2) {
       this.spec = null;
       this.renderAbort?.abort();
-      this.rulesBackgroundAbort?.abort();
       this.hide(
         preserveHover && this.viewportWidth > EDGE_PAD * 2 && this.viewportHeight > EDGE_PAD * 2,
       );
@@ -773,14 +773,6 @@ export class RulesCardPreviewLayer {
       this.scanOverlay,
     );
 
-    if (
-      !this.scanOverlay &&
-      !display.faceless &&
-      this.renderState === "ready" &&
-      !this.rulesBackgroundAbort
-    ) {
-      void this.loadRulesBackground();
-    }
     if (this.scanOverlay && display.typeLine) this.addTypeHeading(display.typeLine);
     if (this.scanOverlay && !display.faceless) this.drawScanManaCost(display.manaCost);
     this.detailsContainer.visible = !display.faceless;
@@ -1586,13 +1578,13 @@ export class RulesCardPreviewLayer {
     const spec = this.spec;
     if (!spec) return;
     this.renderAbort?.abort();
-    this.rulesBackgroundAbort?.abort();
-    this.rulesBackgroundAbort = null;
     const controller = new AbortController();
     this.renderAbort = controller;
     const generation = ++this.artGeneration;
-    this.renderState = "loading";
-    this.faceSprite.label = "card-glint-loading";
+    if (!this.imageReady) {
+      this.renderState = "loading";
+      this.faceSprite.label = "card-glint-loading";
+    }
     const hidden = spec.card.isFaceDown || !spec.card.identity.name;
     const deckCard = hidden ? undefined : previewDeckCard(spec.card);
     if (!hidden && this.faceSprite.texture === Texture.EMPTY && deckCard) {
@@ -1613,37 +1605,44 @@ export class RulesCardPreviewLayer {
         .catch(() => undefined);
     }
     try {
-      const canvas = hidden
+      const rendered = hidden
         ? null
-        : await renderCard(
+        : await renderRulesCard(
             {
               card: spec.card,
               deckCard,
               faceIndex: spec.showBackFace ? 1 : 0,
             },
             controller.signal,
-            { priority: "preview", standardFrameFallback: true },
           );
-      const texture = canvas ? createGeneratedCardTexture(canvas) : await loadCardBack();
+      const canvas = rendered?.face ?? null;
+      if (canvas && this.faceTexture?.source.resource === canvas) return;
+      const geometry = canvas ? getCardRenderGeometry(canvas) : undefined;
+      const background = rendered?.rulesBackground ?? null;
+      const cardBack = hidden ? await loadCardBack() : null;
       if (
         controller.signal.aborted ||
         generation !== this.artGeneration ||
         this.container.destroyed
-      ) {
-        if (!hidden) texture.destroy(true);
+      )
         return;
-      }
+      const texture = canvas ? createGeneratedCardTexture(canvas) : cardBack!;
+      const backgroundTexture = background ? createGeneratedCardTexture(background) : null;
       const previous = this.faceTexture;
+      const previousBackground = this.rulesBackgroundTexture;
       this.foil?.setTexture(null);
-      this.faceGeometry = canvas ? getCardRenderGeometry(canvas) : undefined;
+      this.faceGeometry = geometry;
       this.preserveArtwork = false;
       this.faceTexture = hidden ? null : texture;
       this.faceSprite.texture = texture;
+      this.rulesBackgroundTexture = backgroundTexture;
+      this.rulesBackground.texture = backgroundTexture ?? Texture.EMPTY;
       this.renderState = "ready";
       this.faceSprite.label = hidden ? "card-back" : "card-glint-ready";
       this.rebuild();
       this.callbacks.onRenderRequested();
       previous?.destroy(true);
+      previousBackground?.destroy(true);
     } catch (cause: unknown) {
       if (
         controller.signal.aborted ||
@@ -1679,42 +1678,6 @@ export class RulesCardPreviewLayer {
     }
   }
 
-  private async loadRulesBackground(): Promise<void> {
-    const spec = this.spec;
-    if (!spec || !this.faceGeometry?.rules.length) return;
-    const controller = new AbortController();
-    this.rulesBackgroundAbort = controller;
-    const generation = this.artGeneration;
-    try {
-      const canvas = await renderCard(
-        {
-          card: spec.card,
-          deckCard: previewDeckCard(spec.card),
-          faceIndex: spec.showBackFace ? 1 : 0,
-        },
-        controller.signal,
-        { rulesText: false, priority: "preview", standardFrameFallback: true },
-      );
-      if (
-        controller.signal.aborted ||
-        generation !== this.artGeneration ||
-        this.container.destroyed
-      )
-        return;
-      const texture = createGeneratedCardTexture(canvas);
-      const previous = this.rulesBackgroundTexture;
-      this.rulesBackgroundTexture = texture;
-      this.rulesBackground.texture = texture;
-      previous?.destroy(true);
-      this.rebuild();
-      this.callbacks.onRenderRequested();
-    } catch {
-      if (!controller.signal.aborted && generation === this.artGeneration) {
-        this.callbacks.onRenderRequested();
-      }
-    }
-  }
-
   private clearFaceTexture(): void {
     this.faceSprite.texture = Texture.EMPTY;
     this.foil?.setTexture(null);
@@ -1725,8 +1688,6 @@ export class RulesCardPreviewLayer {
   }
 
   private clearRulesBackground(): void {
-    this.rulesBackgroundAbort?.abort();
-    this.rulesBackgroundAbort = null;
     this.rulesBackground.texture = Texture.EMPTY;
     this.rulesBackgroundTexture?.destroy(true);
     this.rulesBackgroundTexture = null;

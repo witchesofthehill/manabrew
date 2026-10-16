@@ -70,8 +70,13 @@ export const CARD_RENDERING_FIXTURES: CardRenderingFixture[] = [
   { id: "full-art", label: "Full-art land", query: '!"Island" set:unf is:fullart unique:prints' },
   {
     id: "secret-lair",
-    label: "Secret Lair / artwork-integrated text",
+    label: "Secret Lair / standard Manabrew rendering",
     lookup: { setCode: "sld", collectorNumber: "2125" },
+  },
+  {
+    id: "secret-lair-framed-land",
+    label: "Secret Lair / framed land without scan overlay",
+    lookup: { setCode: "sld", collectorNumber: "132" },
   },
   {
     id: "poster",

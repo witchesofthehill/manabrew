@@ -6,12 +6,19 @@ import { CardRenderError } from "@/lib/cardRenderDecision";
 import type { CardRenderDecision } from "@/lib/cardRenderDecision";
 import { getCardArtWindows, type CardArtWindow } from "@/lib/cardRenderGeometry";
 import { copyCardOpticalSource } from "@/lib/cardOpticalLayers";
+import {
+  copyCardLiveHighlights,
+  getCardLiveHighlights,
+  type CardLiveHighlightLayers,
+} from "@/lib/cardLiveHighlights";
 import { cn } from "@/lib/utils";
 import { useCard, useScryfallStore } from "@/stores/useScryfallStore";
 import { isEtchedOnlyPrinting } from "@/lib/cardFinish";
 import { CardFoilOverlay } from "@/components/game/CardFoilOverlay";
+import { CardLiveHighlightOverlay } from "@/components/game/CardLiveHighlightOverlay";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { CARD_BACK_IMAGE_URL } from "./game.constants";
+import { useTheme, type Theme } from "@/hooks/useTheme";
 
 interface GeneratedCardImageProps {
   card?: CardDto;
@@ -60,13 +67,16 @@ function GeneratedCardCanvas({
     deckCard?: DeckCard;
     faceIndex: 0 | 1;
     locale: string;
+    theme: Theme;
     state: "ready" | "error";
     decision?: CardRenderDecision;
     artWindows?: readonly CardArtWindow[];
+    liveHighlights?: CardLiveHighlightLayers;
     failure?: string;
   }>();
   const [hasImage, setHasImage] = useState(false);
   const locale = useScryfallStore((store) => store.locale);
+  const theme = useTheme();
   const foil = !hidden && (card ? card.foil : deckCard?.identity.foil);
   const cosmetics = hidden ? undefined : card ? card.cosmetics : deckCard?.identity.cosmetics;
   const identity = deckCard?.identity ?? card?.identity;
@@ -83,7 +93,8 @@ function GeneratedCardCanvas({
     result?.card === card &&
     result?.deckCard === deckCard &&
     result?.faceIndex === faceIndex &&
-    result?.locale === locale
+    result?.locale === locale &&
+    result?.theme === theme
       ? result.state
       : "loading";
   const name = hidden
@@ -118,15 +129,18 @@ function GeneratedCardCanvas({
         canvas.height = image.height;
         context.drawImage(image, 0, 0);
         copyCardOpticalSource(image, canvas);
+        copyCardLiveHighlights(image, canvas);
         setHasImage(true);
         setResult({
           card,
           deckCard,
           faceIndex,
           locale,
+          theme,
           state: "ready",
           decision: getCardRenderDecision(image),
           artWindows: getCardArtWindows(image),
+          liveHighlights: getCardLiveHighlights(canvas),
         });
       })
       .catch((cause: unknown) => {
@@ -137,6 +151,7 @@ function GeneratedCardCanvas({
             deckCard,
             faceIndex,
             locale,
+            theme,
             state: "error",
             decision: cause instanceof CardRenderError ? cause.decision : undefined,
             failure:
@@ -147,7 +162,7 @@ function GeneratedCardCanvas({
         }
       });
     return () => controller.abort();
-  }, [card, deckCard, faceIndex, hidden, locale, loading, visible]);
+  }, [card, deckCard, faceIndex, hidden, locale, loading, visible, theme]);
 
   return (
     <div
@@ -203,6 +218,10 @@ function GeneratedCardCanvas({
             etched={isEtchedOnlyPrinting(printing?.info.finishes)}
             source={hasImage ? canvasRef.current : undefined}
             artWindows={hasImage ? result?.artWindows : undefined}
+          />
+          <CardLiveHighlightOverlay
+            enabled={!hidden && visible && hasImage}
+            layers={hasImage ? result?.liveHighlights : undefined}
           />
         </>
       )}

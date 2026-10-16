@@ -25,6 +25,7 @@ import { hexToNum } from "./colorUtils";
 import { DOOMED_FILL_ALPHA } from "./constants";
 import { PulseRing } from "./effects/PulseRing";
 import { CardFoil } from "./effects/CardFoil";
+import { CardLiveHighlight } from "./effects/CardLiveHighlight";
 import { peekCard, useScryfallStore } from "@/stores/useScryfallStore";
 import { isEtchedOnlyPrinting } from "@/lib/cardFinish";
 import { useGameStore } from "@/stores/useGameStore";
@@ -425,6 +426,7 @@ export class CardSprite extends Container {
   private foilRing: Graphics;
   private foilStar: Text;
   private readonly foilSheen: CardFoil;
+  private readonly liveHighlight: CardLiveHighlight;
   private readonly foilUvs = new Float32Array(8);
   private readonly foilSurface = new Rectangle();
   private ringBearerGfx: Graphics;
@@ -517,6 +519,8 @@ export class CardSprite extends Container {
     this.imageSpr.setSize(this.cw, this.ch);
     this.imageSpr.mask = this.imageMask;
     this.addChild(this.imageSpr);
+    this.liveHighlight = new CardLiveHighlight(() => this.onVisualChange?.());
+    this.addChild(this.liveHighlight);
     this.fitImageToSlot();
     this.frameContainer = new Container();
     this.frameContainer.visible = false;
@@ -664,6 +668,7 @@ export class CardSprite extends Container {
     }
     this.foilSheen = new CardFoil(() => this.onVisualChange?.());
     this.contentContainer.addChild(this.foilSheen);
+    this.contentContainer.addChild(this.liveHighlight);
     this.addChild(this.pulseRing.gfx);
     this.pivot.set(this.cw / 2, this.ch / 2);
     CardSprite.instances.add(this);
@@ -763,13 +768,9 @@ export class CardSprite extends Container {
   private fitImageToSlot(): void {
     if (this.imageIsArtwork) {
       this.fitArtCover();
-      return;
-    }
-    if (this.compactSquare) {
+    } else if (this.compactSquare) {
       this.fitPrintedSquare();
-      return;
-    }
-    if (this.isHorizontal() && this.imageSpr.texture.width < this.imageSpr.texture.height) {
+    } else if (this.isHorizontal() && this.imageSpr.texture.width < this.imageSpr.texture.height) {
       this.imageSpr.anchor.set(0.5, 0.5);
       this.imageSpr.x = this.cw / 2;
       this.imageSpr.y = this.ch / 2;
@@ -782,6 +783,11 @@ export class CardSprite extends Container {
       this.imageSpr.y = 0;
       this.imageSpr.setSize(this.cw, this.ch);
     }
+    this.liveHighlight.setSource(
+      this.card.isFaceDown || !this.card.identity.name || this.imageIsArtwork
+        ? null
+        : this.imageSpr,
+    );
   }
   private fitPrintedSquare(): void {
     const texture = this.imageSpr.texture;
@@ -810,6 +816,7 @@ export class CardSprite extends Container {
     if (hidden) {
       this.imageSpr.texture = Texture.EMPTY;
       this.foilSheen.setTexture(null);
+      this.liveHighlight.setSource(null);
       this.ownedImageTexture?.destroy(true);
       this.ownedImageTexture = null;
       this.imageIsArtwork = false;
@@ -892,6 +899,7 @@ export class CardSprite extends Container {
     if (texture === Texture.EMPTY) {
       this.imageSpr.texture = Texture.EMPTY;
       this.foilSheen.setTexture(null);
+      this.liveHighlight.setSource(null);
       this.ownedImageTexture?.destroy(true);
       this.ownedImageTexture = null;
       this.imageIsArtwork = false;
@@ -976,8 +984,12 @@ export class CardSprite extends Container {
       this.handRulesFace?.visible ? this.handRulesFace.foilExclusion : null,
     );
     this.syncFoilTexture();
-    if (this.contentContainer.children.at(-1) !== this.foilSheen) {
+    const highlights = this.handRulesFace?.liveHighlights;
+    const top = highlights ?? this.liveHighlight;
+    if (this.contentContainer.children.at(-1) !== top) {
       this.contentContainer.addChild(this.foilSheen);
+      this.contentContainer.addChild(this.liveHighlight);
+      if (highlights) this.contentContainer.addChild(highlights);
     }
   }
   private syncFoilTexture(): void {
@@ -1130,6 +1142,8 @@ export class CardSprite extends Container {
       mask.roundRect(0, 0, this.cw, this.ch, CARD_RADIUS).fill(neutral);
     }
     this.rebuildDecorations(true);
+    if (this.isBattlefield && activeStyle !== "realistic" && activeStyle !== "art")
+      void this.loadImage();
     this.redrawHoverDebug();
   }
 
@@ -1243,6 +1257,7 @@ export class CardSprite extends Container {
       card.identity.cardNumber !== previous.identity.cardNumber ||
       card.identity.isToken !== previous.identity.isToken ||
       card.isFaceDown !== previous.isFaceDown ||
+      card.isCopy !== previous.isCopy ||
       card.cosmetics?.frame !== previous.cosmetics?.frame ||
       card.cosmetics?.border !== previous.cosmetics?.border ||
       card.isTransformed !== previous.isTransformed;
@@ -1398,6 +1413,9 @@ export class CardSprite extends Container {
     if (this.handRulesFace) this.handRulesFace.onRenderRequested = undefined;
     this.foilSheen.setTexture(null);
     this.foilSheen.destroy();
+    this.handRulesFace?.destroy({ children: true });
+    this.handRulesFace = null;
+    this.liveHighlight.destroy();
     this.imageSpr.texture = Texture.EMPTY;
     this.ownedImageTexture?.destroy(true);
     this.ownedImageTexture = null;

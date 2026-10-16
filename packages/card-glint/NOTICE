@@ -40,6 +40,18 @@ Local modifications:
   semantic bounds. Art Series and Front Card remain scan-backed.
 - patches/integration-exports.patch exposes the semantic layout helpers and
   source corner geometry used by the host's flat and full 3D renderers.
+- patches/zz-live-changes.patch adds optional host-resolved live-state ink.
+  Native power/toughness values and added type words are tinted independently;
+  removed-only type changes tint the remaining type line. Text shaping, frame
+  bounds and unannotated painting stay unchanged. Recursive face cache keys
+  and optical printing retain the annotations.
+  Manabrew supplies its invariant gameTheme.cardChange palette without glow
+  or brightness adjustment. The optional omitInk pass retains native paper
+  and unselected text while omitting only live-highlighted glyphs.
+  The host caches cropped native paper and transparent word/stat ink layers.
+  Pixi uses GSAP to scale and float only that ink; DOM uses matching transform
+  animation. Paper, frames and art remain stationary. Animation never
+  recomposes the card, and disabled motion retains the complete static face.
 - patches/offline-assets.patch provides one host asset resolver for Canvas2D,
   historical SVG preparation and the full 3D renderer's AssetStore. Its public
   magic/offline-assets entry enumerates actual per-face resources and all 13

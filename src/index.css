@@ -60,6 +60,10 @@
   --color-card-paper-ink: var(--card-paper-ink);
   --color-card-paper-muted-ink: var(--card-paper-muted-ink);
   --color-card-paper-border: var(--card-paper-border);
+  --color-card-change-buffed: var(--card-change-buffed);
+  --color-card-change-debuffed: var(--card-change-debuffed);
+  --color-card-change-changed: var(--card-change-changed);
+  --color-card-change-removed: var(--card-change-removed);
   --color-mana-w: var(--mana-w);
   --color-mana-u: var(--mana-u);
   --color-mana-b: var(--mana-b);
@@ -777,6 +781,29 @@
   pointer-events: none;
   width: 100%;
   height: 100%;
+}
+
+.card-live-highlight-overlay {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  visibility: hidden;
+  pointer-events: none;
+  mix-blend-mode: normal;
+}
+
+.card-live-highlight-surface {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.card-live-highlight-surface > canvas {
+  position: absolute;
+  transform-origin: center;
 }
 
 .podium-frame {

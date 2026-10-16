@@ -2,6 +2,7 @@ import {
   composeCardTexture,
   composeSemanticCardTexture,
   isSemanticLayout,
+  type RenderedCardInput,
 } from "card-glint/magic/presentation";
 import { ensureCardGlintFonts } from "@/lib/cardGlintAssets";
 import type { ScryfallLanguage } from "@/i18n/locales";
@@ -24,6 +25,7 @@ import {
 import type { CardCanvas } from "@/lib/cardRenderTypes";
 import { cardCosmeticsKey } from "@/lib/cardCosmetics";
 import { registerCardOpticalSource } from "@/lib/cardOpticalLayers";
+import { getCardLiveHighlights, registerCardLiveHighlights } from "@/lib/cardLiveHighlights";
 
 export type { CardRenderRequest } from "@/lib/cardRenderSnapshot";
 
@@ -35,7 +37,7 @@ export interface CardRenderOptions {
 
 const MAX_FINISHED_CARDS = 128;
 const MAX_FINISHED_BYTES = 96 * 1024 * 1024;
-const finished = new Map<string, CardCanvas>();
+const finished = new Map<string, { canvas: CardCanvas; bytes: number }>();
 const decisions = new WeakMap<CardCanvas, CardRenderDecision>();
 let finishedBytes = 0;
 let preparing = 0;
@@ -68,6 +70,25 @@ export function clearCardRenderCache(): boolean {
   return true;
 }
 
+function withoutLiveInk<T extends RenderedCardInput>(face: T, colors: Set<string>): T {
+  const faces = face.faces?.map((child) => withoutLiveInk(child, colors));
+  if (!face.liveChanges && (!faces || faces.every((child, index) => child === face.faces![index])))
+    return face;
+  if (face.liveChanges) {
+    for (const color of [
+      face.liveChanges.power,
+      face.liveChanges.toughness,
+      face.liveChanges.typeLine?.color,
+    ])
+      if (color) colors.add(color);
+  }
+  return {
+    ...face,
+    liveChanges: face.liveChanges ? { ...face.liveChanges, omitInk: true } : undefined,
+    faces,
+  };
+}
+
 function composeCard(
   prepared: PreparedCard,
   rulesText: boolean,
@@ -88,7 +109,7 @@ function composeCard(
     counters.cacheHits += 1;
     finished.delete(key);
     finished.set(key, cached);
-    return Promise.resolve(cached);
+    return Promise.resolve(cached.canvas);
   }
   return enqueueCardRender(
     key,
@@ -97,22 +118,39 @@ function composeCard(
         await ensureCardGlintFonts();
         const compositionSignal = new AbortController().signal;
         const loadImages = cardImageLoader(prepared.artUrls);
-        const source = isSemanticLayout(face)
-          ? await composeSemanticCardTexture(face, "inspect", compositionSignal, {
-              rulesText,
-              loadImages,
-              loadFonts: ensureCardGlintFonts,
-            })
-          : await composeCardTexture(
-              { face, printingId: null, printedImage: null, rulesText },
-              "inspect",
-              compositionSignal,
-              { loadImages },
-            );
-        const canvas = normalizeCardCanvas(source, face);
+        const paint = (input: typeof face) =>
+          isSemanticLayout(input)
+            ? composeSemanticCardTexture(input, "inspect", compositionSignal, {
+                rulesText,
+                loadImages,
+                loadFonts: ensureCardGlintFonts,
+              })
+            : composeCardTexture(
+                { face: input, printingId: null, printedImage: null, rulesText },
+                "inspect",
+                compositionSignal,
+                { loadImages },
+              );
+        const canvas = normalizeCardCanvas(await paint(face), face);
+        const colors = new Set<string>();
+        const backingFace = withoutLiveInk(face, colors);
+        if (backingFace !== face) {
+          const backing = normalizeCardCanvas(await paint(backingFace), backingFace);
+          registerCardLiveHighlights(canvas, backing, [...colors]);
+          backing.width = backing.height = 0;
+        }
         registerCardOpticalSource(canvas, face, prepared.artUrls, rulesText);
         decisions.set(canvas, decision);
-        const bytes = canvas.width * canvas.height * 4;
+        const highlights = getCardLiveHighlights(canvas);
+        const highlightPixels =
+          highlights?.regions.reduce(
+            (total, region) =>
+              total +
+              region.ink.width * region.ink.height +
+              region.paper.width * region.paper.height,
+            0,
+          ) ?? 0;
+        const bytes = (canvas.width * canvas.height + highlightPixels) * 4;
         if (bytes <= MAX_FINISHED_BYTES) {
           while (
             finished.size >= MAX_FINISHED_CARDS ||
@@ -120,11 +158,11 @@ function composeCard(
           ) {
             const oldest = finished.entries().next().value;
             if (!oldest) break;
-            finishedBytes -= oldest[1].width * oldest[1].height * 4;
+            finishedBytes -= oldest[1].bytes;
             finished.delete(oldest[0]);
             counters.evictions += 1;
           }
-          finished.set(key, canvas);
+          finished.set(key, { canvas, bytes });
           finishedBytes += bytes;
         }
         return canvas;

@@ -228,8 +228,8 @@ Always use `@/` path aliases. Never use `../../` relative paths that escape the 
 
 **All colours must be theme-driven.** No hex / rgb / rgba / hsl
 literals anywhere in component or Pixi code. Every colour the user sees
-comes from a preset file under `src/themes/` and flows through the
-resolution pipeline.
+comes from shared semantic colors or a preset under `src/themes/` and
+flows through the resolution pipeline.
 
 ### Architecture overview
 
@@ -246,6 +246,12 @@ BasePalette (~30 raw hues per preset)
 | ------------------------- | -------------------------------------------------------- | -------------------------------------------------------------- |
 | App chrome (Radix/shadcn) | `ThemePreset.light` / `.dark` with mode-scoped overrides | `useTheme()`                                                   |
 | Game board / Pixi canvas  | `ThemePreset.gameColors: GameThemeColorMap`              | `useTheme().gameTheme` (React) / `getTheme().gameTheme` (Pixi) |
+
+Native live-card highlights use the fixed `cardChange.*` family from
+`CARD_CHANGE_COLORS` in `buildGameColors.ts`. Its readable saturated hues
+are identical across presets and overrides, without glow or blur. These tokens flow
+through the resolved game theme and generated CSS, but are excluded from
+editable color paths and Settings defaults. Reserve them for changed card text.
 
 ### Where colours live
 

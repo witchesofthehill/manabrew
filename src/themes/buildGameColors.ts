@@ -52,6 +52,13 @@ export interface BasePalette {
 import type { GameThemeColorMap } from "./gameTheme";
 import { contrastRatio, darken, ensureTextContrast, withAlpha } from "./themeColor";
 
+export const CARD_CHANGE_COLORS = {
+  buffed: "#229c3c",
+  debuffed: "#bb365d",
+  changed: "#1685ad",
+  removed: "#b27a18",
+} as const;
+
 export function buildGameColors(p: BasePalette): GameThemeColorMap {
   const promptForeground = (background: string): string =>
     contrastRatio(p.foreground, background) >= contrastRatio(p.canvasBackground, background)
@@ -85,6 +92,11 @@ export function buildGameColors(p: BasePalette): GameThemeColorMap {
     "cardPaper.ink": cardInk,
     "cardPaper.mutedInk": ensureTextContrast(p.slate, p.paper, cardInk, 4.5),
     "cardPaper.border": p.slate,
+
+    "cardChange.buffed": CARD_CHANGE_COLORS.buffed,
+    "cardChange.debuffed": CARD_CHANGE_COLORS.debuffed,
+    "cardChange.changed": CARD_CHANGE_COLORS.changed,
+    "cardChange.removed": CARD_CHANGE_COLORS.removed,
 
     "mana.W": p.manaW,
     "mana.U": p.manaU,

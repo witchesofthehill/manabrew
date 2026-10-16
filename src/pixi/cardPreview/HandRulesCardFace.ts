@@ -3,6 +3,7 @@ import type { Theme } from "@/hooks/useTheme";
 import type { CardDto } from "@/protocol/game";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { RulesCardPreviewLayer } from "./RulesCardPreviewLayer";
+import type { CardLiveHighlight } from "@/pixi/effects/CardLiveHighlight";
 
 export class HandRulesCardFace extends Container {
   private readonly preview: RulesCardPreviewLayer;
@@ -39,6 +40,9 @@ export class HandRulesCardFace extends Container {
   }
   get imageReady(): boolean {
     return this.preview.imageReady;
+  }
+  get liveHighlights(): CardLiveHighlight {
+    return this.preview.liveHighlights;
   }
   get foilTexture(): Texture | null {
     return this.preview.foilTexture;

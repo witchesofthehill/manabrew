@@ -5,7 +5,8 @@ import {
   type SecurityStamp,
   type SemanticCardInput,
 } from "card-glint/magic/presentation";
-import type { CardFaceSnapshot, PreparedCard } from "@/lib/cardRenderSnapshot";
+import type { CardFaceLiveChanges, CardFaceSnapshot, PreparedCard } from "@/lib/cardRenderSnapshot";
+import { getTheme } from "@/hooks/useTheme";
 import {
   CardRenderError,
   supportsRetroCardFrame,
@@ -60,6 +61,30 @@ function frameColors(colors: readonly string[] | undefined): FrameColor[] {
   return [
     ...new Set(colors?.filter((color): color is FrameColor => /^[WUBRG]$/.test(color)) ?? []),
   ];
+}
+
+function resolveLiveChanges(
+  changes: CardFaceLiveChanges,
+): NonNullable<SemanticCardInput["liveChanges"]> {
+  const colors = getTheme().gameTheme.cardChange;
+  const tones: Record<NonNullable<CardFaceLiveChanges["power"]>, string> = {
+    buffed: colors.buffed,
+    debuffed: colors.debuffed,
+    added: colors.buffed,
+    changed: colors.changed,
+  };
+  return {
+    ...(changes.power ? { power: tones[changes.power] } : {}),
+    ...(changes.toughness ? { toughness: tones[changes.toughness] } : {}),
+    ...(changes.addedTypes
+      ? {
+          typeLine: {
+            added: changes.addedTypes,
+            color: changes.addedTypes.length ? colors.buffed : colors.removed,
+          },
+        }
+      : {}),
+  };
 }
 
 export function cardGlintFace(
@@ -179,6 +204,7 @@ export function cardGlintFace(
       artist: part.artist ?? snapshot.artist,
       collectorNumber: snapshot.collector_number,
     };
+    if (part.liveChanges) result.liveChanges = resolveLiveChanges(part.liveChanges);
     if (faceLayout === "flip") result.frameTemplate = "flip";
     else if (/\bBattle\b/i.test(canonicalType)) result.frameTemplate = "battle";
     else if (

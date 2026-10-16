@@ -74,6 +74,7 @@ import {
 } from "@/pixi/generatedCardTexture";
 import { writeCardTextureUvs } from "@/pixi/cardTextureUvs";
 import { CardFoil } from "@/pixi/effects/CardFoil";
+import { CardLiveHighlight } from "@/pixi/effects/CardLiveHighlight";
 import { isEtchedOnlyPrinting } from "@/lib/cardFinish";
 
 export interface RulesCardPreviewSpec {
@@ -194,6 +195,7 @@ export class RulesCardPreviewLayer {
   private rulesBackgroundTexture: Texture | null = null;
   private rulesBackgroundAbort: AbortController | null = null;
   private foil: CardFoil | null = null;
+  private readonly liveHighlight: CardLiveHighlight;
   private readonly foilUvs = new Float32Array(8);
   private readonly foilSurface = new Rectangle();
   private readonly foilRulesExclusion = new Rectangle();
@@ -340,6 +342,7 @@ export class RulesCardPreviewLayer {
     this.rulesBackground.eventMode = "none";
     this.rulesBackground.mask = this.rulesBackgroundMask;
     this.faceSprite.mask = this.faceMask;
+    this.liveHighlight = new CardLiveHighlight(requestRender);
     this.fieldFace.addChild(this.fallbackFace, this.faceSprite);
     this.detailsContainer.addChild(
       this.background,
@@ -357,13 +360,21 @@ export class RulesCardPreviewLayer {
       this.rulesBackground,
       this.rulesBackgroundMask,
     );
-    this.container.addChild(this.cardContainer, this.detailsContainer, this.viewControls);
+    this.container.addChild(
+      this.cardContainer,
+      this.liveHighlight,
+      this.detailsContainer,
+      this.viewControls,
+    );
   }
   get artworkTop(): number {
     return this.container.y + this.artY * this.container.scale.y;
   }
   get imageReady(): boolean {
     return this.faceSprite.texture !== Texture.EMPTY;
+  }
+  get liveHighlights(): CardLiveHighlight {
+    return this.liveHighlight;
   }
   get foilTexture(): Texture | null {
     return this.spec &&
@@ -391,9 +402,14 @@ export class RulesCardPreviewLayer {
   }
 
   setTheme(theme: Theme): void {
+    if (this.theme === theme) return;
     this.theme = theme;
     this.viewControls.setTheme(theme);
-    if (this.spec) this.rebuild();
+    if (this.spec) {
+      this.clearRulesBackground();
+      void this.loadFace();
+      this.rebuild();
+    }
   }
 
   setViewport(width: number, height: number): void {
@@ -1702,6 +1718,7 @@ export class RulesCardPreviewLayer {
   private clearFaceTexture(): void {
     this.faceSprite.texture = Texture.EMPTY;
     this.foil?.setTexture(null);
+    this.liveHighlight.setSource(null);
     this.callbacks.onRenderRequested();
     this.faceTexture?.destroy(true);
     this.faceTexture = null;
@@ -1741,7 +1758,10 @@ export class RulesCardPreviewLayer {
       title.position.set(CONTENT_PAD, CONTENT_PAD);
       this.fallbackFace.addChild(title);
     }
-    if (texture === Texture.EMPTY) return;
+    if (texture === Texture.EMPTY) {
+      this.liveHighlight.setSource(null);
+      return;
+    }
     this.faceSprite.anchor.set(0.5);
     this.faceSprite.position.set(this.faceWidth / 2, this.panelHeight / 2);
     const landscape = this.panelWidth > this.panelHeight;
@@ -1762,6 +1782,11 @@ export class RulesCardPreviewLayer {
         rulesCardRadius(faceWidth, faceHeight),
       )
       .fill(hexToNum(this.theme.gameTheme.canvas.shadow));
+    this.liveHighlight.setSource(
+      this.renderState === "ready" && !this.spec?.card.isFaceDown && this.spec?.card.identity.name
+        ? this.faceSprite
+        : null,
+    );
   }
 
   private hide(preserveHover = false): void {
@@ -1792,6 +1817,7 @@ export class RulesCardPreviewLayer {
     this.unsubscribeLocale();
     this.clearFaceTexture();
     this.clearRulesBackground();
+    this.liveHighlight.destroy();
     this.actions.destroy();
     this.controls.destroy();
     this.container.destroy({ children: true });

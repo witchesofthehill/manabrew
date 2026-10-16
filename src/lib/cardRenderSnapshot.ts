@@ -39,10 +39,12 @@ interface LiveCard {
   manaCost: string;
   typeLine: string;
   rulesText: string;
-  colors: string[];
-  keywords: string[];
+  colors: readonly string[];
+  keywords: readonly string[];
   power?: string;
   toughness?: string;
+  basePower?: number;
+  baseToughness?: number;
   loyalty?: string;
   defense?: string;
 }
@@ -53,6 +55,14 @@ export interface CardRenderInput {
   readonly faceIndex?: 0 | 1;
   readonly locale: ScryfallLanguage;
   readonly cosmetics?: CardCosmetics;
+}
+
+type CardStatChange = "buffed" | "debuffed" | "added" | "changed";
+
+export interface CardFaceLiveChanges {
+  readonly power?: CardStatChange;
+  readonly toughness?: CardStatChange;
+  readonly addedTypes?: readonly string[];
 }
 
 export interface CardFaceSnapshot {
@@ -74,6 +84,7 @@ export interface CardFaceSnapshot {
   hand_modifier?: string;
   artist?: string;
   life_modifier?: string;
+  liveChanges?: CardFaceLiveChanges;
 }
 
 export interface PreparedCard {
@@ -135,10 +146,12 @@ export function captureCardInput(request: CardRenderRequest): CardRenderInput {
           manaCost: normalizedManaCost(card.effectiveManaCost ?? card.manaCost),
           typeLine: cardTypeLine(card),
           rulesText: replaceCardName(card.text, card.identity.name),
-          colors: colorCodes(card.color),
-          keywords: [...card.keywords],
+          colors: Object.freeze(colorCodes(card.color)),
+          keywords: Object.freeze([...card.keywords]),
           power: card.power ?? undefined,
           toughness: card.toughness ?? undefined,
+          basePower: card.basePower,
+          baseToughness: card.baseToughness,
           loyalty: card.counters.Loyalty == null ? emptyCounter : String(card.counters.Loyalty),
           defense: card.counters.Defense == null ? emptyCounter : String(card.counters.Defense),
         }
@@ -292,13 +305,111 @@ function faceSnapshot(
   };
 }
 
+function sameName(name: string, printedName: string | undefined): boolean {
+  return printedName != null && name.trim().toLowerCase() === printedName.trim().toLowerCase();
+}
+
+function hasPrintedBaseline(
+  face: CardFaceSnapshot,
+  card: LiveCard,
+  info: ScryfallCard | undefined,
+  deckCard: DeckCard | undefined,
+  index: number,
+): boolean {
+  // A copy's printing may still identify the original physical card, not its copied traits.
+  if (card.isCopy || !face.type_line) return false;
+  const printed = info?.card_faces?.length
+    ? info.card_faces[index]
+    : index === 0
+      ? info
+      : undefined;
+  const name = printed?.name ?? (index === 1 ? deckCard?.backFace?.name : deckCard?.identity.name);
+  if (sameName(card.name, name) || sameName(card.name, printed?.printed_name)) return true;
+  if (info?.card_faces?.length && sameName(card.name, info.name)) return true;
+  return (
+    index === 1 &&
+    card.isTransformed &&
+    sameName(card.name, info?.card_faces?.[0]?.name ?? deckCard?.identity.name)
+  );
+}
+
+function signedInteger(value: string | undefined): number | undefined {
+  if (value == null || !/^[+-]?\d+$/.test(value.trim())) return undefined;
+  const result = Number(value);
+  return Number.isSafeInteger(result) ? result : undefined;
+}
+
+function statChange(
+  current: string | undefined,
+  engineBase: number | undefined,
+  printed: string | undefined,
+  printedBaseline: boolean,
+): CardStatChange | undefined {
+  if (current == null) return undefined;
+  const value = signedInteger(current);
+  const baseline = Number.isSafeInteger(engineBase)
+    ? engineBase
+    : printedBaseline
+      ? signedInteger(printed)
+      : undefined;
+  if (value != null && baseline != null) {
+    if (value > baseline) return "buffed";
+    if (value < baseline) return "debuffed";
+    return printedBaseline && printed == null ? "added" : undefined;
+  }
+  if (printedBaseline && printed == null) return "added";
+  return printedBaseline && printed != null && current.trim() !== printed.trim()
+    ? "changed"
+    : undefined;
+}
+
+function liveFaceChanges(
+  face: CardFaceSnapshot,
+  card: LiveCard,
+  printedBaseline: boolean,
+): CardFaceLiveChanges | undefined {
+  const power = statChange(card.power, card.basePower, face.power, printedBaseline);
+  const toughness = statChange(card.toughness, card.baseToughness, face.toughness, printedBaseline);
+  let addedTypes: readonly string[] | undefined;
+  if (printedBaseline) {
+    const printedTypes = new Set(
+      face.type_line
+        .split(/[\s—–]+/)
+        .filter(Boolean)
+        .map((token) => token.toLowerCase()),
+    );
+    const tokens = card.typeLine.split(/[\s—–]+/).filter(Boolean);
+    const currentTypes = new Set(tokens.map((token) => token.toLowerCase()));
+    const added = [...new Set(tokens.filter((token) => !printedTypes.has(token.toLowerCase())))];
+    if (added.length || [...printedTypes].some((token) => !currentTypes.has(token))) {
+      addedTypes = Object.freeze(added);
+    }
+  }
+  if (!power && !toughness && !addedTypes) return undefined;
+  return Object.freeze({
+    ...(power ? { power } : {}),
+    ...(toughness ? { toughness } : {}),
+    ...(addedTypes ? { addedTypes } : {}),
+  });
+}
+
 function applyLiveFace(
   face: CardFaceSnapshot,
   card: LiveCard,
   info: ScryfallCard | undefined,
+  deckCard: DeckCard | undefined,
   index: number,
 ): CardFaceSnapshot {
-  const printed = info?.card_faces?.[index] ?? info;
+  const printed = info?.card_faces?.length
+    ? info.card_faces[index]
+    : index === 0
+      ? info
+      : undefined;
+  const liveChanges = liveFaceChanges(
+    face,
+    card,
+    hasPrintedBaseline(face, card, info, deckCard, index),
+  );
   return {
     ...face,
     name:
@@ -321,6 +432,7 @@ function applyLiveFace(
     toughness: card.toughness,
     loyalty: /\bPlaneswalker\b/i.test(card.typeLine) ? (card.loyalty ?? face.loyalty) : undefined,
     defense: /\bBattle\b/i.test(card.typeLine) ? (card.defense ?? face.defense) : undefined,
+    ...(liveChanges ? { liveChanges } : {}),
   };
 }
 
@@ -445,9 +557,15 @@ export async function prepareCard(input: CardRenderInput): Promise<PreparedCard>
           (face) => normalized(face.name) === normalized(input.card!.name),
         ) ?? -1;
       if (selected >= 0)
-        faces[selected] = applyLiveFace(faces[selected]!, input.card, faceInfo, selected);
+        faces[selected] = applyLiveFace(faces[selected]!, input.card, faceInfo, deckCard, selected);
     } else if (faces[liveIndex]) {
-      faces[liveIndex] = applyLiveFace(faces[liveIndex]!, input.card, faceInfo, liveIndex);
+      faces[liveIndex] = applyLiveFace(
+        faces[liveIndex]!,
+        input.card,
+        faceInfo,
+        deckCard,
+        liveIndex,
+      );
     }
   }
   for (const face of faces) {

@@ -19,7 +19,6 @@ export type BattlefieldCardStyle = "realistic" | "art" | "frame";
 export type InGameCardPreviewStyle = "printed" | "rules";
 export type InlineCardStyle = "printed" | "rules";
 export type OpponentHandFanMode = "always" | "revealed" | "never";
-export type RulesPreviewSectionId = "actions" | "rules" | "progression" | "details" | "flavor";
 
 const GENERATED_CARD_DEFAULTS = {
   battlefieldCardStyle: "frame",
@@ -149,8 +148,6 @@ export interface PreferencesState {
   setStackCardStyle: (style: InlineCardStyle) => void;
   promptCardStyle: InlineCardStyle;
   setPromptCardStyle: (style: InlineCardStyle) => void;
-  collapsedRulesPreviewSections: RulesPreviewSectionId[];
-  setRulesPreviewSectionCollapsed: (section: RulesPreviewSectionId, collapsed: boolean) => void;
 
   appThemeColorOverrides: Record<ThemeMode, Partial<ThemeColors>>;
   setAppThemeColorOverride: (mode: ThemeMode, key: keyof ThemeColors, color: string) => void;
@@ -217,7 +214,6 @@ const PERSISTED_PREFERENCE_KEYS = [
   "handCardStyle",
   "stackCardStyle",
   "promptCardStyle",
-  "collapsedRulesPreviewSections",
   "appThemeColorOverrides",
   "gameThemeColorOverrides",
   "lastPlayedDeckId",
@@ -395,15 +391,6 @@ export const usePreferencesStore = create<PreferencesState>()(
           setHandCardStyle: (handCardStyle) => set({ handCardStyle }),
           setStackCardStyle: (stackCardStyle) => set({ stackCardStyle }),
           setPromptCardStyle: (promptCardStyle) => set({ promptCardStyle }),
-          collapsedRulesPreviewSections: [],
-          setRulesPreviewSectionCollapsed: (section, collapsed) =>
-            set((state) => ({
-              collapsedRulesPreviewSections: collapsed
-                ? state.collapsedRulesPreviewSections.includes(section)
-                  ? state.collapsedRulesPreviewSections
-                  : [...state.collapsedRulesPreviewSections, section]
-                : state.collapsedRulesPreviewSections.filter((id) => id !== section),
-            })),
 
           appThemeColorOverrides: { light: {}, dark: {} },
           setAppThemeColorOverride: (mode, key, color) =>

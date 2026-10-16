@@ -109,7 +109,7 @@ Saved card customization lives in `DeckCard.identity.cosmetics`, separate from p
 
 Settings → Cache → Generated cards offline downloads a saved deck's resources after explicit permission acknowledgement. `cardGlintOffline.ts` records completeness only after all assets decode; cancellation during shared metadata preparation must settle without cancelling other consumers. The cache includes both faces, localized records, fonts, frames, scans and symbols, not the application shell or engines. External asset availability is not a redistribution license.
 
-Ironsmith uses the checksum-pinned local `packages/ironsmith-wasm` build so its producer can bind appearance before shuffling. Same-session peer reconnection retains pinned keys; a hard page reload currently loses the guest's private key and cannot replace the host's pinned key. Exact token overrides are unavailable without a canonical token-definition association. `NOTICE` records the upstream license gap; obtain redistribution permission before publishing modified artifacts.
+Ironsmith remains a supported optional engine using the published `ironsmith-wasm` npm package. Its renderer integration is a reference for Card Glint work, not a reason to build or patch the Ironsmith engine locally. Keep installation and development hooks free of Ironsmith source builds.
 
 Standalone Card Search supports set study at `/search?set=<code>`, linked from Limited. `SetStudyToolbar` and `SetStudyPicker` expose draft-prep controls; card sizing uses the existing editor size map, and the detail reader prefetches the next search page near its end. Set study shows Scryfall's set listing, which can include cards outside draft boosters.
 

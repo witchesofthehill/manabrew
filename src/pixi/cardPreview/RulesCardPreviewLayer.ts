@@ -50,13 +50,8 @@ import { animationsEnabled } from "@/pixi/effects/enabled";
 import { PREVIEW_TIMING } from "@/lib/cardPreview";
 import { HandCardControls } from "@/pixi/HandCardControls";
 import { containsPreviewHoverBridge } from "@/pixi/cardPreview/previewHoverArea";
-import { usePreferencesStore, type RulesPreviewSectionId } from "@/stores/usePreferencesStore";
 import { msg } from "@lingui/core/macro";
 import { i18n } from "@/i18n/i18n";
-import {
-  RulesPreviewSectionHeader,
-  PREVIEW_SECTION_HEADER_HEIGHT,
-} from "./RulesPreviewSectionHeader";
 import { parseManaCost } from "@/pixi/manaSymbols";
 import {
   CARD_PREVIEW_EDGE_PAD as EDGE_PAD,
@@ -126,8 +121,9 @@ const MAX_PREVIEW_SCALE = GAME_CARD_SIZES.preview.width / PORTRAIT_WIDTH;
 const PREVIEW_CONTROL_SIZE = 32;
 const TOUCH_PREVIEW_CONTROL_SIZE = 44;
 const PORTRAIT_HEADER_HEIGHT = 52;
-const FOOTER_HEIGHT = 40;
-const FRAME_BOTTOM_PAD = 16;
+const STAT_BADGE_HEIGHT = 40;
+const RULES_INSET = 4;
+const MAX_RULES_ART_OVERLAP = 0.03;
 const SCAN_OVERLAY_TOP_FRACTION = 0.62;
 const SCAN_OVERLAY_INSET = 8;
 const SCAN_OVERLAY_OPACITY = 0.94;
@@ -236,10 +232,10 @@ export class RulesCardPreviewLayer {
   private panelHeight = PORTRAIT_HEIGHT;
   private widgetHeight = PORTRAIT_HEIGHT;
   private faceWidth = PORTRAIT_WIDTH;
-  private headerHeight = PREVIEW_SECTION_HEADER_HEIGHT;
-  private bodyTop = PREVIEW_SECTION_HEADER_HEIGHT + 8;
+  private headerHeight = 0;
+  private bodyTop = RULES_INSET;
   private bodyHeight = 0;
-  private footerHeight = FOOTER_HEIGHT;
+  private readonly statBounds = new Rectangle();
   private contentX = CONTENT_PAD;
   private contentWidth = PORTRAIT_WIDTH - CONTENT_PAD * 2;
   private artY = PORTRAIT_HEADER_HEIGHT;
@@ -351,10 +347,10 @@ export class RulesCardPreviewLayer {
       this.chrome,
       this.bodyScroller,
       this.bodyMask,
-      this.footer,
       this.scrollTrack,
       this.scrollThumb,
       this.scrollFade,
+      this.footer,
     );
     this.cardContainer.addChild(
       this.fieldFace,
@@ -387,9 +383,7 @@ export class RulesCardPreviewLayer {
       x: this.container.x + this.detailsContainer.x * this.container.scale.x,
       y: this.container.y + this.detailsContainer.y * this.container.scale.y,
       width: this.rulesRegion.width * this.container.scale.x,
-      height:
-        (this.bodyScroller.visible ? this.detailsHeight : this.headerHeight) *
-        this.container.scale.y,
+      height: this.detailsHeight * this.container.scale.y,
     };
   }
 
@@ -441,12 +435,6 @@ export class RulesCardPreviewLayer {
       previous.actions.some((action, index) => action !== spec.actions[index]);
     const embeddedChanged = previous?.embedded !== spec.embedded;
     const highlightChanged = previous?.highlightedEffect !== spec.highlightedEffect;
-    if (
-      spec.actions.length === 0 &&
-      (!previous || previous.actions.length > 0 || previous.card.id !== spec.card.id)
-    ) {
-      usePreferencesStore.getState().setRulesPreviewSectionCollapsed("rules", false);
-    }
     this.displayedBackFace = spec.showBackFace;
     if (lookupChanged || faceChanged || visibilityChanged) {
       this.clearFaceTexture();
@@ -609,7 +597,10 @@ export class RulesCardPreviewLayer {
     const x = Math.max(bounds.x, clip.x);
     const y = Math.max(bounds.y, clip.y);
     const right = Math.min(bounds.x + bounds.width, clip.x + clip.width);
-    const bottom = Math.min(bounds.y + bounds.height, clip.y + clip.height);
+    const statTop = this.footer.visible
+      ? this.detailsContainer.toGlobal({ x: 0, y: this.statBounds.y }).y
+      : clip.y + clip.height;
+    const bottom = Math.min(bounds.y + bounds.height, clip.y + clip.height, statTop);
     return right > x && bottom > y ? { x, y, width: right - x, height: bottom - y } : null;
   }
 
@@ -630,9 +621,12 @@ export class RulesCardPreviewLayer {
   }
 
   private scrollIntoView(top: number, height: number): void {
+    const visibleHeight = this.footer.visible
+      ? Math.max(1, Math.min(this.bodyHeight, this.statBounds.y - this.bodyTop))
+      : this.bodyHeight;
     if (top < this.scrollOffset) this.setScroll(top);
-    else if (top + height > this.scrollOffset + this.bodyHeight) {
-      this.setScroll(height > this.bodyHeight ? top : top + height - this.bodyHeight);
+    else if (top + height > this.scrollOffset + visibleHeight) {
+      this.setScroll(height > visibleHeight ? top : top + height - visibleHeight);
     }
   }
 
@@ -740,8 +734,7 @@ export class RulesCardPreviewLayer {
     }));
     this.canFlip = display.flippable;
     const landscape = display.horizontal;
-    const hasFooterValue = display.stats || display.loyalty != null || display.defense != null;
-    this.configureGeometry(landscape, hasFooterValue ? FOOTER_HEIGHT : FRAME_BOTTOM_PAD);
+    this.configureGeometry(landscape);
     this.viewControls.setSpec(
       spec.embedded
         ? null
@@ -773,40 +766,10 @@ export class RulesCardPreviewLayer {
     ) {
       void this.loadRulesBackground();
     }
-    const detailsHeader = new Text({
-      text:
-        this.scanOverlay && display.typeLine
-          ? display.typeLine
-          : indexedActions.length > 0
-            ? i18n._(msg`Rules & details · ${indexedActions.length} actions`)
-            : i18n._(msg`Rules & details`),
-      style: new TextStyle({
-        fontFamily: this.frame.bodyFont,
-        fontSize: 14,
-        fontWeight: "700",
-        fill: this.frame.ink,
-        wordWrap: this.scanOverlay,
-        wordWrapWidth: this.contentWidth,
-      }),
-    });
-    detailsHeader.resolution = 2;
-    if (this.scanOverlay) {
-      this.headerHeight = Math.max(this.headerHeight, detailsHeader.height + 12);
-      this.bodyTop = this.headerHeight + 8;
-      this.bodyHeight = Math.max(1, this.detailsHeight - this.bodyTop - this.footerHeight - 8);
-    } else {
-      detailsHeader.scale.x = Math.min(
-        1,
-        Math.max(1, this.rulesRegion.width - this.contentX * 2) / detailsHeader.width,
-      );
-    }
-    detailsHeader.position.set(this.contentX, (this.headerHeight - detailsHeader.height) / 2);
-    detailsHeader.on("pointerdown", (event: FederatedPointerEvent) => event.stopPropagation());
-    this.chrome.addChild(detailsHeader);
+    if (this.scanOverlay && display.typeLine) this.addTypeHeading(display.typeLine);
     if (this.scanOverlay && !display.faceless) this.drawScanManaCost(display.manaCost);
     this.detailsContainer.visible = !display.faceless;
     this.bodyScroller.visible = true;
-    this.footer.visible = true;
     this.fitFace();
     const showFoil = !spec.embedded && !display.faceless && !spec.suppressed && this.imageReady;
     const faceWidth =
@@ -873,6 +836,7 @@ export class RulesCardPreviewLayer {
       progression?.rail.kind === "saga"
         ? presentation.counters.filter((counter) => counter.type !== "Lore")
         : presentation.counters;
+    if (display.keywords.length > 0) y = this.addKeywordChips(display.keywords, y);
     if (indexedActions.length > 0) {
       if (display.otherFace) {
         y = this.addStaticAbilityRow(i18n._(msg`Actions apply to the current face.`), y);
@@ -882,51 +846,36 @@ export class RulesCardPreviewLayer {
       this.bodyContent.addChild(this.actions);
       y += this.actions.panelHeight + 4;
     }
-    if (display.keywords.length > 0 || display.costs.length > 0 || visibleCounters.length > 0) {
-      y = this.addSectionHeader(
-        "details",
-        i18n._(msg`Keywords, costs & counters`),
-        y,
-        this.bodyContent,
-        display.keywords.length > 0 ? this.theme.gameTheme.cardRing : undefined,
-      );
-      if (!this.isCollapsed("details")) {
-        if (display.keywords.length > 0) y = this.addKeywordChips(display.keywords, y);
-        for (const cost of display.costs) {
-          y = this.addStaticAbilityRow(`${cost.label} ${cost.cost}`, y);
-        }
-        if (visibleCounters.length > 0) {
-          y =
-            this.addChips(
-              visibleCounters.map((counter) => ({
-                label: `${counter.type} ×${counter.count}`,
-                color: this.theme.gameTheme.counter[counter.colorKey],
-              })),
-              y + 6,
-            ) + 8;
-        }
-      }
+    for (const cost of display.costs) {
+      y = this.addStaticAbilityRow(`${cost.label} ${cost.cost}`, y);
+    }
+    if (visibleCounters.length > 0) {
+      y =
+        this.addChips(
+          visibleCounters.map((counter) => ({
+            label: `${counter.type} ×${counter.count}`,
+            color: this.theme.gameTheme.counter[counter.colorKey],
+          })),
+          y + 4,
+        ) + 8;
     }
     if (progression) {
-      y = this.addSectionHeader("progression", i18n._(msg`Progression`), y);
-      if (!this.isCollapsed("progression")) {
-        const railY = y;
-        const rail = new PixiCardRailPreview({
-          state: progression.rail,
-          effects: progression.effects,
-          width: this.contentWidth,
-          theme: this.theme,
-          frame: this.frame,
-          highlightedEffect: spec.highlightedEffect,
-        });
-        rail.position.set(0, railY);
-        this.bodyContent.addChild(rail);
-        this.highlightedRows.push(...rail.highlightedRows);
-        if (rail.highlightedRowTop != null) {
-          this.highlightedRowTop ??= railY + rail.highlightedRowTop;
-        }
-        y += rail.contentHeight + 8;
+      const railY = y;
+      const rail = new PixiCardRailPreview({
+        state: progression.rail,
+        effects: progression.effects,
+        width: this.contentWidth,
+        theme: this.theme,
+        frame: this.frame,
+        highlightedEffect: spec.highlightedEffect,
+      });
+      rail.position.set(0, railY);
+      this.bodyContent.addChild(rail);
+      this.highlightedRows.push(...rail.highlightedRows);
+      if (rail.highlightedRowTop != null) {
+        this.highlightedRowTop ??= railY + rail.highlightedRowTop;
       }
+      y += rail.contentHeight + 8;
     }
     const rulesEntries = display.sections.map((section) =>
       rulesTextEntries(section.rulesText, progression, section.canonicalRulesText),
@@ -934,36 +883,28 @@ export class RulesCardPreviewLayer {
     if (display.faceless) {
       y = this.addStaticAbilityRow(i18n._(msg`Card identity and rules are hidden.`), y);
     } else if (rulesEntries.some((entries) => entries.length > 0)) {
-      y = this.addSectionHeader("rules", i18n._(msg`Rules text`), y);
-      if (!this.isCollapsed("rules")) {
-        for (const [sectionIndex, section] of display.sections.entries()) {
-          let sectionY = y;
-          if (display.multipart) {
-            sectionY = this.addFaceHeading(
-              section.name,
-              section.manaCost,
-              section.typeLine,
-              sectionY,
-            );
-          }
-          for (const text of rulesEntries[sectionIndex]!) {
-            sectionY = this.addOracleAbilityRow(text, sectionY, section.planeswalker);
-          }
-          y = sectionY;
+      for (const [sectionIndex, section] of display.sections.entries()) {
+        let sectionY = y;
+        if (display.multipart) {
+          sectionY = this.addFaceHeading(
+            section.name,
+            section.manaCost,
+            section.typeLine,
+            sectionY,
+          );
         }
+        for (const text of rulesEntries[sectionIndex]!) {
+          sectionY = this.addOracleAbilityRow(text, sectionY, section.planeswalker);
+        }
+        y = sectionY;
       }
     }
-    if (display.sections.some((section) => section.flavorText)) {
-      y = this.addSectionHeader("flavor", i18n._(msg`Flavor text`), y);
-      if (!this.isCollapsed("flavor")) {
-        for (const section of display.sections) {
-          if (!section.flavorText) continue;
-          if (display.multipart) {
-            y = this.addFaceHeading(section.name, section.manaCost, section.typeLine, y);
-          }
-          y = this.addFlavorText(section.flavorText, y);
-        }
+    for (const section of display.sections) {
+      if (!section.flavorText) continue;
+      if (display.multipart) {
+        y = this.addFaceHeading(section.name, section.manaCost, section.typeLine, y);
       }
+      y = this.addFlavorText(section.flavorText, y);
     }
 
     const controls: Array<{ label: string; activate: () => void }> = [];
@@ -998,9 +939,40 @@ export class RulesCardPreviewLayer {
     if (display.stats?.damage) {
       y = this.addStaticAbilityRow(i18n._(msg`${display.stats.damage} damage`), y);
     }
-    this.contentHeight = y + 8;
-    this.bodyScroller.hitArea = new Rectangle(0, 0, this.contentWidth, this.bodyHeight);
+    if (
+      y + 8 > this.bodyHeight &&
+      !this.scanOverlay &&
+      !landscape &&
+      !display.multipart &&
+      !progression &&
+      this.faceGeometry?.rules.length === 1
+    ) {
+      const type = this.faceGeometry.regions.find(
+        (region) => region.role === "type" && region.angle === 0,
+      );
+      const renderScale = PORTRAIT_WIDTH / CARD_RENDER_WIDTH;
+      if (type && type.y + type.height <= this.rulesRegion.y / renderScale) {
+        let titleBottom = 0;
+        for (const title of this.faceGeometry.title) {
+          titleBottom = Math.max(titleBottom, (title.y + title.height) * renderScale);
+        }
+        const top = Math.max(
+          titleBottom,
+          type.y * renderScale - this.panelHeight * MAX_RULES_ART_OVERLAP,
+        );
+        this.rulesRegion.height += this.rulesRegion.y - top;
+        this.rulesRegion.y = top;
+        this.detailsHeight = this.rulesRegion.height;
+        this.addTypeHeading(display.typeLine);
+      }
+    }
+    this.bodyScroller.position.set(this.contentX, this.bodyTop);
     this.drawFooter(display.stats, display.loyalty, display.defense);
+    const badgePadding =
+      this.footer.visible && y + 8 > this.statBounds.y - this.bodyTop
+        ? this.detailsHeight - this.statBounds.y + 8
+        : 8;
+    this.contentHeight = y + badgePadding;
     this.widgetHeight = this.panelHeight;
     if (this.revealHighlightedEffect && this.highlightedRowTop !== null) {
       this.setScroll(Math.max(0, this.highlightedRowTop - 8));
@@ -1018,38 +990,6 @@ export class RulesCardPreviewLayer {
       });
     }
     this.layoutPanel();
-  }
-
-  private isCollapsed(id: RulesPreviewSectionId): boolean {
-    return usePreferencesStore.getState().collapsedRulesPreviewSections.includes(id);
-  }
-
-  private toggleSection(id: RulesPreviewSectionId): void {
-    usePreferencesStore.getState().setRulesPreviewSectionCollapsed(id, !this.isCollapsed(id));
-    this.rebuild();
-    this.callbacks.onRenderRequested();
-  }
-
-  private addSectionHeader(
-    id: RulesPreviewSectionId,
-    title: string,
-    y: number,
-    parent = this.bodyContent,
-    collapsedAccent?: string,
-  ): number {
-    const header = new RulesPreviewSectionHeader({
-      title,
-      width: this.contentWidth,
-      collapsed: this.isCollapsed(id),
-      frame: this.frame,
-      collapsedAccent,
-      onToggle: () => this.toggleSection(id),
-      onRenderRequested: () => this.callbacks.onRenderRequested(),
-    });
-    header.label = id;
-    header.position.set(0, y);
-    parent.addChild(header);
-    return y + PREVIEW_SECTION_HEADER_HEIGHT + 4;
   }
 
   private addFaceHeading(name: string, manaCost: string, typeLine: string, y: number): number {
@@ -1247,17 +1187,16 @@ export class RulesCardPreviewLayer {
     return y + height + 8 + ABILITY_GAP;
   }
 
-  private configureGeometry(landscape: boolean, footerHeight: number): void {
+  private configureGeometry(landscape: boolean): void {
     this.scanOverlay =
       this.preserveArtwork || (!!this.scryfallInfo && hasIntegratedArtwork(this.scryfallInfo));
-    this.footerHeight = this.faceTexture && !this.scanOverlay ? 0 : footerHeight;
     this.panelWidth = landscape ? LANDSCAPE_WIDTH : PORTRAIT_WIDTH;
     this.panelHeight = landscape ? LANDSCAPE_HEIGHT : PORTRAIT_HEIGHT;
     this.faceWidth = this.panelWidth;
-    this.headerHeight = PREVIEW_SECTION_HEADER_HEIGHT;
+    this.headerHeight = 0;
     this.artY = PORTRAIT_HEADER_HEIGHT;
     const scale = PORTRAIT_WIDTH / CARD_RENDER_WIDTH;
-    const region = getCardInteractionRegion(this.faceGeometry, landscape);
+    const region = getCardInteractionRegion(this.faceGeometry, landscape, true);
     this.rulesRegion.x = region.x * scale;
     this.rulesRegion.y = region.y * scale;
     this.rulesRegion.width = region.width * scale;
@@ -1272,17 +1211,34 @@ export class RulesCardPreviewLayer {
       );
     }
     this.detailsHeight = this.rulesRegion.height;
-    this.headerHeight = Math.min(PREVIEW_SECTION_HEADER_HEIGHT, this.detailsHeight / 3);
     this.contentX = this.scanOverlay ? CONTENT_PAD : 4;
     this.contentWidth = Math.max(
       1,
       this.rulesRegion.width - this.contentX * 2 - (this.scanOverlay ? 0 : 4),
     );
-    this.bodyTop = this.headerHeight + (this.scanOverlay ? 8 : 0);
-    this.bodyHeight = Math.max(
-      1,
-      this.detailsHeight - this.bodyTop - this.footerHeight - (this.scanOverlay ? 8 : 0),
-    );
+    this.bodyTop = this.scanOverlay ? 8 : RULES_INSET;
+    this.bodyHeight = Math.max(1, this.detailsHeight - this.bodyTop - RULES_INSET);
+  }
+
+  private addTypeHeading(typeLine: string): void {
+    const heading = new Text({
+      text: typeLine,
+      style: new TextStyle({
+        fontFamily: this.frame.bodyFont,
+        fontSize: 14,
+        fontWeight: "700",
+        fill: this.frame.ink,
+        wordWrap: true,
+        wordWrapWidth: this.contentWidth,
+      }),
+    });
+    heading.resolution = 2;
+    heading.position.set(this.contentX, RULES_INSET);
+    heading.eventMode = "none";
+    this.chrome.addChild(heading);
+    this.headerHeight = heading.height + RULES_INSET * 2;
+    this.bodyTop = this.headerHeight + RULES_INSET;
+    this.bodyHeight = Math.max(1, this.detailsHeight - this.bodyTop - RULES_INSET);
   }
 
   private drawFooter(
@@ -1290,26 +1246,23 @@ export class RulesCardPreviewLayer {
     loyalty: number | null,
     defense: number | null,
   ): void {
-    this.footer.position.set(0, this.detailsHeight - this.footerHeight);
+    this.footer.position.set(0, this.detailsHeight - STAT_BADGE_HEIGHT);
     let right = this.rulesRegion.width - CONTENT_PAD;
     if (stats) {
       right = drawRulesStatBadge(this.footer, stats, right, 3, this.frame, this.theme);
     }
     if (loyalty != null) this.drawShieldValue(loyalty, i18n._(msg`Loyalty`), right);
     else if (defense != null) this.drawShieldValue(defense, i18n._(msg`Defense`), right);
-    if (stats?.damage) {
-      const damage = new Text({
-        text: i18n._(msg`${stats.damage} damage`),
-        style: textStyle(this.frame.ink, 11, "700"),
-      });
-      damage.resolution = 2;
-      const badge = new Graphics();
-      badge.roundRect(CONTENT_PAD, 7, damage.width + 16, 22, 5);
-      badge.fill(hexToNum(this.frame.paper));
-      badge.stroke({ color: hexToNum(this.theme.gameTheme.pt.lethal), width: 2 });
-      damage.position.set(CONTENT_PAD + 8, 11);
-      this.footer.addChild(badge, damage);
-    }
+    this.footer.visible = this.footer.children.length > 0;
+    if (this.footer.visible) {
+      const bounds = this.footer.getLocalBounds();
+      this.statBounds.set(
+        Math.max(this.contentX, bounds.x - RULES_INSET),
+        Math.max(this.bodyTop, this.footer.y + bounds.y - RULES_INSET),
+        bounds.width + RULES_INSET * 2,
+        bounds.height + RULES_INSET * 2,
+      );
+    } else this.statBounds.set(0, this.detailsHeight, 0, 0);
   }
 
   private drawShieldValue(value: number, label: string, right: number): void {
@@ -1398,18 +1351,23 @@ export class RulesCardPreviewLayer {
   }
 
   private layoutDetails(): void {
-    const expanded = this.bodyScroller.visible;
-    const height = expanded ? this.detailsHeight : this.headerHeight;
-    this.detailsContainer.position.set(
-      this.rulesRegion.x,
-      expanded ? this.rulesRegion.y : this.rulesRegion.bottom - height,
-    );
+    const height = this.detailsHeight;
+    this.detailsContainer.position.set(this.rulesRegion.x, this.rulesRegion.y);
     this.rulesBackground.visible =
       !this.scanOverlay && this.detailsContainer.visible && !!this.rulesBackgroundTexture;
-    this.rulesBackground.anchor.copyFrom(this.faceSprite.anchor);
-    this.rulesBackground.position.copyFrom(this.faceSprite.position);
-    this.rulesBackground.scale.copyFrom(this.faceSprite.scale);
-    this.rulesBackground.rotation = this.faceSprite.rotation;
+    this.rulesBackground.anchor.set(0.5);
+    this.rulesBackground.position.set(
+      this.rulesRegion.x + this.rulesRegion.width / 2,
+      this.rulesRegion.y + height / 2,
+    );
+    const landscape = this.panelWidth > this.panelHeight;
+    this.rulesBackground.rotation = landscape ? Math.PI / 2 : 0;
+    if (this.rulesBackgroundTexture) {
+      this.rulesBackground.scale.set(
+        (landscape ? height : this.rulesRegion.width) / this.rulesBackgroundTexture.width,
+        (landscape ? this.rulesRegion.width : height) / this.rulesBackgroundTexture.height,
+      );
+    }
     this.rulesBackgroundMask
       .clear()
       .rect(this.detailsContainer.x, this.detailsContainer.y, this.rulesRegion.width, height)
@@ -1422,13 +1380,34 @@ export class RulesCardPreviewLayer {
     } else if (!this.rulesBackground.visible) {
       this.background.rect(0, 0, this.rulesRegion.width, height).fill(hexToNum(this.frame.paper));
     }
-    this.bodyMask
-      .clear()
-      .rect(this.contentX, this.bodyTop, this.contentWidth, this.bodyHeight)
-      .fill(hexToNum(this.frame.paper));
-    this.bodyScroller.hitArea = new Rectangle(0, 0, this.contentWidth, this.bodyHeight);
-    this.footer.y = this.detailsHeight - this.footerHeight;
-    this.footer.visible = expanded && this.footerHeight > 0;
+    this.bodyMask.clear();
+    const clearHeight = this.footer.visible
+      ? Math.max(0, Math.min(this.bodyHeight, this.statBounds.y - this.bodyTop))
+      : this.bodyHeight;
+    this.bodyMask.rect(this.contentX, this.bodyTop, this.contentWidth, clearHeight);
+    if (clearHeight < this.bodyHeight) {
+      this.bodyMask.rect(
+        this.contentX,
+        this.bodyTop + clearHeight,
+        Math.max(0, this.statBounds.x - this.contentX),
+        this.bodyHeight - clearHeight,
+      );
+    }
+    this.bodyMask.fill(hexToNum(this.frame.paper));
+    this.bodyScroller.hitArea = {
+      contains: (x, y) =>
+        x >= 0 &&
+        x <= this.contentWidth &&
+        y >= 0 &&
+        y <= this.bodyHeight &&
+        (!this.footer.visible ||
+          x + this.contentX < this.statBounds.x ||
+          y + this.bodyTop < this.statBounds.y),
+    };
+    this.foilRulesExclusion.copyFrom(this.rulesRegion);
+    this.foilRulesExclusion.x -= this.foilSurface.x;
+    this.foilRulesExclusion.y -= this.foilSurface.y;
+    this.foil?.setExclusion(this.foilRulesExclusion);
     this.setScroll(this.scrollOffset);
   }
 
@@ -1727,7 +1706,16 @@ export class RulesCardPreviewLayer {
         this.container.destroyed
       )
         return;
-      const texture = createGeneratedCardTexture(canvas);
+      const region = getCardInteractionRegion(this.faceGeometry, false);
+      const texture = createGeneratedCardTexture(
+        canvas,
+        new Rectangle(
+          region.x + RULES_INSET,
+          region.y + RULES_INSET,
+          Math.max(1, region.width - RULES_INSET * 2),
+          Math.max(1, region.height - RULES_INSET * 2),
+        ),
+      );
       const previous = this.rulesBackgroundTexture;
       this.rulesBackgroundTexture = texture;
       this.rulesBackground.texture = texture;

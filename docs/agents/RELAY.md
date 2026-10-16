@@ -72,4 +72,4 @@ The inline `data:image/webp;base64,` encoding these fields used to carry is gone
 
 Card appearance uses `DeckCardIdentity.cosmetics`, not image URLs: closed finish/frame/border/wear values and a uint32 wear seed, separate from physical foil. Relays advertise `card_cosmetics`; clients refuse customized deck selection on older relays instead of silently dropping fields. Preserve the typed payload through account saves, selection, host/node launch and resync.
 
-Engine producers bind physical entries before shuffle and attach appearance only to visible card/stack DTOs and explicitly authorized prompt cards. Receivers never infer a hidden or remote copy's customization from deck names. Ironsmith's encrypted transport retains the same visibility boundary; same-session peer hello republishes the current state, but replacing a guest's pinned crypto key after a hard reload is not supported.
+Engine producers bind physical entries before shuffle and attach appearance only to visible card/stack DTOs and explicitly authorized prompt cards. Receivers never infer a hidden or remote copy's customization from deck names.

@@ -48,8 +48,6 @@ Card Glint's source build needs Node 24, Rust 1.98 with the WASM target, and was
 
 `bundle-card-glint.mjs` keeps renderer/pixel WASM imports external and maps them to the copied files beside the emitted JavaScript. An import that retains the source-tree `packages/browser/generated/` path breaks the full 3D renderer even when Canvas2D cards work.
 
-`yarn ensure:ironsmith` builds `packages/ironsmith-wasm` from its checksum-pinned source and local presentation patch, with private pinned toolchains. The package exports `dist` artifacts. Restart a running Vite after switching the npm dependency to this linked package; its old resolution can otherwise request a missing root WASM file and receive HTML. The upstream source lacks a declared license; the local build is not redistribution permission.
-
 `CardCosmetics.wearSeed` is a Rust uint32 and must generate Java `Long`, not `Integer`. `gen-harness-prompts.mjs` owns that field override. Protocol documentation also reads the shared cosmetic value types from `forge-foundation`; the rules engine must not depend on the protocol crate to carry them.
 
 ## Lint and format (yarn)

@@ -190,9 +190,6 @@ export class RulesCardPreviewLayer {
   private rulesRegion = new Rectangle();
   private fallbackFace = new Container();
   private faceTexture: Texture | null = null;
-  private rulesBackground = new Sprite(Texture.EMPTY);
-  private rulesBackgroundMask = new Graphics();
-  private rulesBackgroundTexture: Texture | null = null;
   private foil: CardFoil | null = null;
   private readonly liveHighlight: CardLiveHighlight;
   private readonly foilUvs = new Float32Array(8);
@@ -220,7 +217,6 @@ export class RulesCardPreviewLayer {
   private bodyMask = new Graphics();
   private scrollTrack = new Graphics();
   private scrollThumb = new Graphics();
-  private scrollFade = new Graphics();
   private footer = new Container();
   private actions = new RulesPreviewActions();
   private controls = new RulesPreviewActions();
@@ -338,8 +334,6 @@ export class RulesCardPreviewLayer {
     this.controls.on("pointerout", requestRender);
 
     this.faceSprite.eventMode = "none";
-    this.rulesBackground.eventMode = "none";
-    this.rulesBackground.mask = this.rulesBackgroundMask;
     this.faceSprite.mask = this.faceMask;
     this.liveHighlight = new CardLiveHighlight(requestRender);
     this.fieldFace.addChild(this.fallbackFace, this.faceSprite);
@@ -350,15 +344,9 @@ export class RulesCardPreviewLayer {
       this.bodyMask,
       this.scrollTrack,
       this.scrollThumb,
-      this.scrollFade,
       this.footer,
     );
-    this.cardContainer.addChild(
-      this.fieldFace,
-      this.faceMask,
-      this.rulesBackground,
-      this.rulesBackgroundMask,
-    );
+    this.cardContainer.addChild(this.fieldFace, this.faceMask);
     this.container.addChild(
       this.cardContainer,
       this.liveHighlight,
@@ -455,7 +443,6 @@ export class RulesCardPreviewLayer {
       this.clearFaceTexture();
       this.faceGeometry = undefined;
       this.preserveArtwork = false;
-      this.clearRulesBackground();
     }
     if (lookupChanged || visibilityChanged) {
       this.cardInfoGeneration += 1;
@@ -769,7 +756,7 @@ export class RulesCardPreviewLayer {
     this.background.clear();
     this.frame = resolveRulesPreviewFrame(
       this.theme,
-      this.rulesBackgroundTexture ? this.faceGeometry?.rules[0] : undefined,
+      this.faceGeometry?.rules[0],
       this.scanOverlay,
     );
 
@@ -1349,22 +1336,12 @@ export class RulesCardPreviewLayer {
   private layoutDetails(): void {
     const height = this.detailsHeight;
     this.detailsContainer.position.set(this.rulesRegion.x, this.rulesRegion.y);
-    this.rulesBackground.visible =
-      !this.scanOverlay && this.detailsContainer.visible && !!this.rulesBackgroundTexture;
-    this.rulesBackground.anchor.copyFrom(this.faceSprite.anchor);
-    this.rulesBackground.position.copyFrom(this.faceSprite.position);
-    this.rulesBackground.scale.copyFrom(this.faceSprite.scale);
-    this.rulesBackground.rotation = this.faceSprite.rotation;
-    this.rulesBackgroundMask
-      .clear()
-      .rect(this.detailsContainer.x, this.detailsContainer.y, this.rulesRegion.width, height)
-      .fill(hexToNum(this.frame.paper));
     this.background.clear();
     if (this.scanOverlay) {
       this.background
         .roundRect(0, 0, this.rulesRegion.width, height, RULES_CARD_CONSTRAINTS.radius)
         .fill({ color: hexToNum(this.frame.paper), alpha: SCAN_OVERLAY_OPACITY });
-    } else if (!this.rulesBackground.visible) {
+    } else if (!this.faceGeometry?.rules.length) {
       this.background.rect(0, 0, this.rulesRegion.width, height).fill(hexToNum(this.frame.paper));
     }
     this.bodyMask.clear();
@@ -1508,7 +1485,6 @@ export class RulesCardPreviewLayer {
   private drawScrollAffordance(maxScroll: number): void {
     this.scrollTrack.clear();
     this.scrollThumb.clear();
-    this.scrollFade.clear();
     if (!this.bodyScroller.visible || maxScroll <= 0 || this.bodyHeight <= 0) return;
     const trackX = this.rulesRegion.width - 3;
     const trackY = this.bodyTop + 5;
@@ -1529,18 +1505,6 @@ export class RulesCardPreviewLayer {
       color: hexToNum(this.frame.mutedInk),
       alpha: 0.85,
     });
-    if (this.scrollOffset < maxScroll - 1) {
-      this.scrollFade.rect(
-        this.contentX,
-        this.bodyTop + this.bodyHeight - 12,
-        this.contentWidth,
-        12,
-      );
-      this.scrollFade.fill({
-        color: hexToNum(this.frame.textured ? this.frame.ink : this.frame.paper),
-        alpha: this.frame.textured ? 0.04 : 0.45,
-      });
-    }
   }
 
   private async loadCardInfo(): Promise<void> {
@@ -1615,10 +1579,9 @@ export class RulesCardPreviewLayer {
             },
             controller.signal,
           );
-      const canvas = rendered?.face ?? null;
+      const canvas = rendered?.rulesBackground ?? rendered?.face ?? null;
       if (canvas && this.faceTexture?.source.resource === canvas) return;
       const geometry = canvas ? getCardRenderGeometry(canvas) : undefined;
-      const background = rendered?.rulesBackground ?? null;
       const cardBack = hidden ? await loadCardBack() : null;
       if (
         controller.signal.aborted ||
@@ -1627,22 +1590,17 @@ export class RulesCardPreviewLayer {
       )
         return;
       const texture = canvas ? createGeneratedCardTexture(canvas) : cardBack!;
-      const backgroundTexture = background ? createGeneratedCardTexture(background) : null;
       const previous = this.faceTexture;
-      const previousBackground = this.rulesBackgroundTexture;
       this.foil?.setTexture(null);
       this.faceGeometry = geometry;
       this.preserveArtwork = false;
       this.faceTexture = hidden ? null : texture;
       this.faceSprite.texture = texture;
-      this.rulesBackgroundTexture = backgroundTexture;
-      this.rulesBackground.texture = backgroundTexture ?? Texture.EMPTY;
       this.renderState = "ready";
       this.faceSprite.label = hidden ? "card-back" : "card-glint-ready";
       this.rebuild();
       this.callbacks.onRenderRequested();
       previous?.destroy(true);
-      previousBackground?.destroy(true);
     } catch (cause: unknown) {
       if (
         controller.signal.aborted ||
@@ -1655,7 +1613,6 @@ export class RulesCardPreviewLayer {
         cause instanceof CardArtworkError ||
         (!!this.scryfallInfo && hasIntegratedArtwork(this.scryfallInfo));
       this.faceSprite.label = "card-glint-original";
-      this.clearRulesBackground();
       this.faceGeometry = undefined;
       if (this.faceTexture) this.clearFaceTexture();
       this.rebuild();
@@ -1685,12 +1642,6 @@ export class RulesCardPreviewLayer {
     this.callbacks.onRenderRequested();
     this.faceTexture?.destroy(true);
     this.faceTexture = null;
-  }
-
-  private clearRulesBackground(): void {
-    this.rulesBackground.texture = Texture.EMPTY;
-    this.rulesBackgroundTexture?.destroy(true);
-    this.rulesBackgroundTexture = null;
   }
 
   private fitFace(): void {
@@ -1777,7 +1728,6 @@ export class RulesCardPreviewLayer {
     this.renderAbort?.abort();
     this.unsubscribeLocale();
     this.clearFaceTexture();
-    this.clearRulesBackground();
     this.liveHighlight.destroy();
     this.actions.destroy();
     this.controls.destroy();

@@ -128,7 +128,7 @@ Four renderers draw cards. `components/game/cardPresentation.ts` provides shared
 
 The app has one preview state machine. Games can use the persisted printed-card renderer or the Pixi rules renderer. Deck, editor, limited, and modal views always use the DOM renderer.
 
-The rules-backed option is labeled **Generated** and represents current game state, not only Oracle text. Keep **Hand default view**, **Stack default view**, **Prompt and dialog default view**, and **Board hover preview view** adjacent in Board settings.
+The interactive card view is labeled **Manabrew**; the original printed scan is **Realistic**. Manabrew represents current game state, not only Oracle text. Keep these labels consistent across settings, toggles, tooltips and accessibility text. Internal `rules`, `frame` and `printed` preference values remain unchanged.
 
 In-game preview triggers are **Hover**, **Right click**, and **touch long-press**. Right click and long-press pass the source-card rectangle through the same preview state used by hover; long-press opens it sticky, changing dismissal rather than placement. Persisted modifier-trigger values normalize to Hover. Realistic and Rules placement share `CARD_PREVIEW_ANCHOR_GAP` and `CARD_PREVIEW_EDGE_PAD`, so switching with `R` does not move the card.
 
@@ -191,7 +191,7 @@ Detach a foil shader from a texture before destroying that texture's source. Pix
 
 Use `/card-mock` for theme/game scenarios and its Card rendering workspace for printing comparisons. The lab shares all nine finish presets and a fixture-only Foil lab cards toggle. Overrides reset on exit without changing saved metadata. Strict printing renderers keep original-scan fallbacks for unsupported treatments; interactive generated previews retain the standard-frame policy below.
 
-Generated rendering is the gameplay default. The preference migration switches existing profiles once; subsequent Original selections remain persisted user choices. Keep the stored `rules` and `frame` values mapped to the user-facing Generated label. Standalone DOM previews follow the preview preference; DOM previews with an external view-toggle callback remain the original half of the shared React/Pixi switch.
+Manabrew rendering is the gameplay default. The preference migration switches existing profiles once; subsequent Realistic selections remain persisted user choices. Map stored `rules` and `frame` values to Manabrew, and `printed` to Realistic. Standalone DOM previews follow the preview preference; DOM previews with an external view-toggle callback remain the Realistic half of the shared React/Pixi switch.
 
 Mana headers omit Forge's exact `no cost` sentinel while retaining an actual zero mana cost. `cardRenderSnapshot.ts` normalizes live, deck, and per-face costs before Card Glint's symbol fields. Preserve hybrid, Phyrexian, variable, snow, and colorless costs rather than suppressing costs by card type.
 

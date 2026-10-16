@@ -49,7 +49,7 @@ export function RulesPreviewAccessibility({
       actionIndex: index,
     })),
     ...[
-      { key: "original", label: "Show original printing", activate: onOriginal },
+      { key: "original", label: "Show Realistic card", activate: onOriginal },
       { key: "flip", label: "Flip card face", activate: card.isDoubleFaced ? onFlip : undefined },
       { key: "dismiss", label: "Close card preview", activate: onDismiss },
     ]

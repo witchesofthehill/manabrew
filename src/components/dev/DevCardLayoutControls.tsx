@@ -30,8 +30,8 @@ export function DevCardLayoutControls() {
     "Card layouts and previews",
     "Card layouts",
     "Scryfall layout",
-    "Rules preview",
-    "Printed preview",
+    "Manabrew preview",
+    "Realistic preview",
     "Open preview playground",
   );
   const visibleLayoutCases = PREVIEW_SCENARIOS.filter((layoutCase) =>
@@ -99,14 +99,14 @@ export function DevCardLayoutControls() {
             variant={previewStyle === "rules" ? "selected" : "outline"}
             onClick={() => setPreviewStyle("rules")}
           >
-            Rules preview
+            Manabrew preview
           </Button>
           <Button
             size="sm"
             variant={previewStyle === "printed" ? "selected" : "outline"}
             onClick={() => setPreviewStyle("printed")}
           >
-            Printed preview
+            Realistic preview
           </Button>
           {import.meta.env.DEV && (
             <Button size="sm" variant="outline" asChild>

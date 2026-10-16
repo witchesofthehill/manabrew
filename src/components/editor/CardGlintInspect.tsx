@@ -176,7 +176,7 @@ export function CardGlintInspect({ card, className }: { card: DeckCard; classNam
           onClick={() => setOriginal((value) => !value)}
           aria-pressed={original}
         >
-          {original ? "Show generated" : "Show original"}
+          {original ? "Show Manabrew" : "Show Realistic"}
         </Button>
         {hasBack && (
           <Button

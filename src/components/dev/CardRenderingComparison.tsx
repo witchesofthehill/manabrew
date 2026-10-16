@@ -127,7 +127,7 @@ export function CardRenderingComparison({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-semibold">Interactive Pixi</h2>
           <Button variant="outline" size="sm" onClick={() => setGenerated((value) => !value)}>
-            {generated ? "Show original" : "Show generated"}
+            {generated ? "Show Realistic" : "Show Manabrew"}
           </Button>
         </div>
         <div ref={host} className="relative h-[440px]" data-testid="interactive-card">

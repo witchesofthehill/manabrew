@@ -626,8 +626,8 @@ export function CardPreview({
                   "inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/65 text-white shadow hover:bg-black/85 pointer-coarse:h-11 pointer-coarse:w-11",
                   interactive ? "pointer-events-auto" : "pointer-events-none",
                 )}
-                aria-label={generatedView ? "Show printed card" : "Show generated card"}
-                title={generatedView ? "Show printed card (R)" : "Show generated card (R)"}
+                aria-label={generatedView ? "Show Realistic card" : "Show Manabrew card"}
+                title={generatedView ? "Show Realistic card (R)" : "Show Manabrew card (R)"}
               >
                 <GameIcon name="spell-book" className="h-3.5 w-3.5" />
               </button>

@@ -2,7 +2,7 @@ import type { BattlefieldCardStyle } from "@/stores/usePreferencesStore";
 export const BATTLEFIELD_CARD_STYLE_OPTIONS = [
   {
     value: "realistic",
-    label: `Original`,
+    label: `Realistic`,
   },
   {
     value: "art",
@@ -10,7 +10,7 @@ export const BATTLEFIELD_CARD_STYLE_OPTIONS = [
   },
   {
     value: "frame",
-    label: `Generated`,
+    label: `Manabrew`,
   },
 ] as const satisfies ReadonlyArray<{
   value: BattlefieldCardStyle;

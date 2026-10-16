@@ -365,7 +365,7 @@ export function CardDetailModal({
                     className="mt-2 w-full"
                     onClick={() => setPresentation(generated ? "printed" : "rules")}
                   >
-                    {generated ? "Show original printing" : "Show generated card"}
+                    {generated ? "Show Realistic card" : "Show Manabrew card"}
                   </Button>
 
                   {isDoubleFaced && (

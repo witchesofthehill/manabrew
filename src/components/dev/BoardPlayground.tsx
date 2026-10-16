@@ -730,14 +730,14 @@ export function BoardPlayground({
               variant={previewStyle === "printed" ? "selected" : "outline"}
               onClick={() => setPreviewStyle("printed")}
             >
-              Printed preview
+              Realistic preview
             </Button>
             <Button
               size="sm"
               variant={previewStyle === "rules" ? "selected" : "outline"}
               onClick={() => setPreviewStyle("rules")}
             >
-              Rules preview
+              Manabrew preview
             </Button>
             <Button size="sm" variant="outline" onClick={showSelectedPreview} disabled={!targetId}>
               Open selected preview

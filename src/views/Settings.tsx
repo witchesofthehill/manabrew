@@ -704,7 +704,7 @@ export default function Settings() {
 
             <PreferenceCard
               title={`Battlefield Card Style`}
-              description={`Generated uses an MSE card frame with current game information. Original uses the printed scan. Art-forward crops the generated artwork and adds compact labels. This setting only affects battlefield cards.`}
+              description={`Manabrew shows a composed card with current game information. Realistic shows the printed scan. Art-forward uses artwork with compact labels. This setting only affects battlefield cards.`}
             >
               <div className="flex items-start gap-4">
                 <div className="flex-1 flex flex-wrap content-start gap-2">
@@ -713,7 +713,7 @@ export default function Settings() {
                     size="sm"
                     onClick={() => prefs.setBattlefieldCardStyle("realistic")}
                   >
-                    Original
+                    Realistic
                   </Button>
                   <Button
                     variant={prefs.battlefieldCardStyle === "art" ? "selected" : "outline"}
@@ -727,7 +727,7 @@ export default function Settings() {
                     size="sm"
                     onClick={() => prefs.setBattlefieldCardStyle("frame")}
                   >
-                    Generated
+                    Manabrew
                   </Button>
                 </div>
                 <BattlefieldStylePreview style={prefs.battlefieldCardStyle} />
@@ -870,7 +870,7 @@ export default function Settings() {
 
             <PreferenceCard
               title={`Hand Card Style`}
-              description={`Generated cards use MSE frames with current game information. Original shows the printed scan. Each card can still be switched.`}
+              description={`Manabrew cards show current game information. Realistic shows the printed scan. Each card can still be switched.`}
             >
               <div className="flex flex-wrap gap-2">
                 {INLINE_CARD_STYLE_OPTIONS.map((option) => (
@@ -888,7 +888,7 @@ export default function Settings() {
 
             <PreferenceCard
               title={`Default Stack Card View`}
-              description={`Choose the initial generated or original view for stack cards. Switching views does not flip the card's front/back face.`}
+              description={`Choose the initial Manabrew or Realistic view for stack cards. Switching views does not flip the card's front/back face.`}
             >
               <div className="flex flex-wrap gap-2">
                 {INLINE_CARD_STYLE_OPTIONS.map((option) => (
@@ -906,7 +906,7 @@ export default function Settings() {
 
             <PreferenceCard
               title={`Card Preview Style`}
-              description={`Generated shows an MSE card face with current rules and game information. Original shows the printed scan. Front/back face selection stays independent.`}
+              description={`Manabrew shows current rules and game information. Realistic shows the printed scan. Front/back face selection stays independent.`}
             >
               <div className="flex flex-wrap gap-2">
                 {IN_GAME_CARD_PREVIEW_STYLE_OPTIONS.map((option) => (

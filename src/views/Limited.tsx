@@ -71,7 +71,7 @@ export default function Limited({ leadingControl }: LimitedProps) {
       : (setup.cube?.name ?? "Choose a cube or pool");
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden px-4 pt-4 sm:px-6 lg:grid lg:grid-cols-[minmax(0,1fr)_18rem] lg:grid-rows-[auto_minmax(0,1fr)_auto] lg:gap-x-8 lg:px-8">
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain lg:contents">
+      <div className="-mx-1 min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 lg:contents">
         <header className="mb-5 lg:col-span-2">
           <LimitedModeSelector
             mode={setup.mode}
@@ -118,7 +118,7 @@ export default function Limited({ leadingControl }: LimitedProps) {
         </header>
         <section
           aria-label={`${modeTitle} cards`}
-          className="min-w-0 space-y-4 pb-5 lg:col-start-1 lg:row-span-2 lg:row-start-2 lg:min-h-0 lg:overflow-y-auto lg:pr-2"
+          className="min-w-0 space-y-4 pb-5 lg:-ml-1 lg:col-start-1 lg:row-span-2 lg:row-start-2 lg:min-h-0 lg:overflow-y-auto lg:pl-1 lg:pr-2"
         >
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="font-serif text-lg">Choose cards</h2>
@@ -169,7 +169,7 @@ export default function Limited({ leadingControl }: LimitedProps) {
         </section>
         <section
           aria-label={`${modeTitle} options`}
-          className="min-w-0 border-t border-border/60 py-4 lg:col-start-2 lg:row-start-2 lg:min-h-0 lg:overflow-y-auto lg:border-t-0 lg:py-0 lg:pb-4"
+          className="min-w-0 border-t border-border/60 py-4 lg:-mx-1 lg:col-start-2 lg:row-start-2 lg:min-h-0 lg:overflow-y-auto lg:border-t-0 lg:px-1 lg:py-0 lg:pb-4"
         >
           <LimitedSetupOptions
             mode={setup.mode}

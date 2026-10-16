@@ -23,7 +23,6 @@ interface Props {
   onZoneChange: (zone: BuildZone) => void;
   compact: boolean;
   visibleZones: readonly BuildZone[];
-  expandedZone: BuildZone | null;
   onToggleZone: (zone: BuildZone) => void;
   acquiredIds: readonly string[];
   selectedIds: string[];
@@ -41,7 +40,6 @@ export function LimitedBuildBoard({
   onZoneChange,
   compact,
   visibleZones,
-  expandedZone,
   onToggleZone,
   acquiredIds,
   selectedIds,
@@ -57,9 +55,7 @@ export function LimitedBuildBoard({
   const host = useRef<HTMLDivElement>(null);
   const scene = useRef<LimitedAccordionScene | null>(null);
   const open = zones.map((zone) =>
-    compact
-      ? zone.id === mobileZone
-      : visibleZones.includes(zone.id) && (!expandedZone || expandedZone === zone.id),
+    compact ? zone.id === mobileZone : visibleZones.includes(zone.id),
   );
   useEffect(() => {
     if (compact || !host.current) return;
@@ -102,7 +98,6 @@ export function LimitedBuildBoard({
         {zones.map((zone, index) => {
           const shown = open[index];
           const Icon = shown ? Minimize2 : Maximize2;
-          const toggle = () => (shown ? onToggleZone(zone.id) : onZoneChange(zone.id));
           return (
             <div
               key={zone.id}
@@ -122,27 +117,20 @@ export function LimitedBuildBoard({
                     className="min-w-0 flex-1 justify-start gap-1 px-0 font-serif"
                     aria-expanded={shown}
                     aria-controls={`${boardId}-${zone.id}`}
-                    title={zone.title}
-                    onClick={toggle}
+                    aria-label={`${shown ? "Collapse" : "Expand"} ${zone.title}`}
+                    title={`${shown ? "Collapse" : "Expand"} ${zone.title}`}
+                    onClick={() => onToggleZone(zone.id)}
                     disabled={shown && visibleZones.length === 1}
                   >
                     <span className="truncate">{zone.title}</span>
                     <span className="shrink-0 font-sans text-xs tabular-nums text-muted-foreground">
                       {zone.total}
                     </span>
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-6 shrink-0 text-muted-foreground"
-                    aria-label={`${shown ? "Minify" : "Expand"} ${zone.title}`}
-                    title={`${shown ? "Minify" : "Expand"} ${zone.title}`}
-                    aria-expanded={shown}
-                    aria-controls={`${boardId}-${zone.id}`}
-                    disabled={shown && visibleZones.length === 1}
-                    onClick={toggle}
-                  >
-                    <Icon size={12} />
+                    <Icon
+                      size={12}
+                      aria-hidden="true"
+                      className="ml-auto shrink-0 text-muted-foreground"
+                    />
                   </Button>
                 </header>
               )}

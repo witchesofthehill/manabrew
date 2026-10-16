@@ -51,7 +51,7 @@ export default function LimitedDeckBuilder({
   const session = useLimitedBuildStore((state) => state.sessions[sessionKey]);
   const [filters, setFilters] = useState<BuildFilters>({ search: "", colors: [], type: "all" });
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const { mobileZone, visibleZones, expandedZone, showZone, toggleZone } = useLimitedBoardLayout();
+  const { mobileZone, visibleZones, showZone, toggleZone } = useLimitedBoardLayout();
   const shortScreen = useIsShortScreen();
   const isTouch = useIsTouch();
   const isDesktop = useIsDesktop();
@@ -183,9 +183,7 @@ export default function LimitedDeckBuilder({
           setSelectedIds(
             zones
               .filter((zone) =>
-                isDesktop && !shortTouch
-                  ? visibleZones.includes(zone.id) && (!expandedZone || expandedZone === zone.id)
-                  : zone.id === mobileZone,
+                isDesktop && !shortTouch ? visibleZones.includes(zone.id) : zone.id === mobileZone,
               )
               .flatMap((zone) => zone.cards.map((card) => card.id)),
           );
@@ -232,7 +230,6 @@ export default function LimitedDeckBuilder({
           onZoneChange={showZone}
           compact={!isDesktop || shortTouch}
           visibleZones={visibleZones}
-          expandedZone={expandedZone}
           onToggleZone={toggleZone}
           acquiredIds={acquiredIds}
           selectedIds={availableSelection}

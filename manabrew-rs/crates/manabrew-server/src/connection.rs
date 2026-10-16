@@ -452,7 +452,7 @@ fn limited_visible_decks(
             if entry.username != username {
                 visible.deck = manabrew_protocol::deck_dto::Deck {
                     name: entry.deck_name.clone(),
-                    format: entry.deck.format.clone(),
+                    format: entry.deck.format,
                     ..Default::default()
                 };
             }

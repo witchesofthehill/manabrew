@@ -80,7 +80,7 @@ export class LimitedAccordionScene implements LimitedPane {
       this.current[index] = next;
     }
     if (moving) this.paint();
-    return moving;
+    return moving || this.current.some((edge, index) => edge !== this.target[index]);
   };
   readonly frame = (): boolean => {
     this.dividers.setAnimated(animationsEnabled() && this.width > 0);

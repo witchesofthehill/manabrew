@@ -58,6 +58,7 @@ async function ensureIronsmith(): Promise<void> {
 }
 
 type IronsmithWasmGame = InstanceType<typeof WasmGame> & {
+  manabrewCosmeticsVersion: () => number;
   validateManabrewMatchConfig: (config: unknown) => {
     valid?: boolean;
     issues?: IronsmithDeckIssue[];
@@ -280,6 +281,15 @@ export class IronsmithTrustedGameApi implements IGameApi {
     await ensureIronsmith();
     await this.endHostOnly();
     const game = new WasmGame() as IronsmithWasmGame;
+    if (
+      typeof game.manabrewCosmeticsVersion !== "function" ||
+      game.manabrewCosmeticsVersion() !== 1
+    ) {
+      game.free();
+      throw new Error(
+        "Ironsmith requires the local card-presentation build. Run yarn ensure:ironsmith.",
+      );
+    }
     this.game = game;
     this.isHost = true;
     this.localPlayerSlot = `player-${params.enginePlayerIndex}`;
@@ -481,10 +491,13 @@ export class IronsmithTrustedGameApi implements IGameApi {
         return;
       }
       const changed = await this.rememberPeerKey(relayPayload.seat, relayPayload.publicKey);
-      if (changed) {
-        await this.sendRelayHello();
-        if (this.isHost && this.game) await this.publish();
+      if (
+        this.peerKeyFingerprints.get(relayPayload.seat) !== JSON.stringify(relayPayload.publicKey)
+      ) {
+        return;
       }
+      if (changed || this.isHost) await this.sendRelayHello();
+      if (this.isHost && this.game) await this.publish();
       return;
     }
 

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { DeckCard } from "@/protocol/deck";
 
 import { CardContextMenu } from "./DeckListView";
 
@@ -22,13 +23,16 @@ export interface CommandZoneCardMenuActions {
 
 export function CommandZoneCardMenu({
   children,
+  card,
   actions,
 }: {
   children: ReactNode;
+  card: DeckCard;
   actions: CommandZoneCardMenuActions;
 }) {
   return (
     <CardContextMenu
+      card={card}
       count={1}
       location="main"
       onShowInfo={actions.onShowInfo}

@@ -26,6 +26,7 @@ import { KeybindingsPanel } from "@/components/settings/KeybindingsPanel";
 import { AccountSection } from "@/components/settings/AccountSection";
 import { MyAssetsSection } from "@/components/settings/MyAssetsSection";
 import { CardArtDownloadSection } from "@/components/settings/CardArtDownloadSection";
+import { CardGlintOfflineSection } from "@/components/settings/CardGlintOfflineSection";
 import { PreferenceCard } from "@/components/settings/PreferenceCard";
 import { LanguagePreferenceCard } from "@/components/settings/LanguagePreferenceCard";
 import { toPickerHexColor, parseThemeColor, formatThemeColor } from "@/themes/gameTheme";
@@ -311,6 +312,7 @@ export default function Settings() {
       {activeTab === "keybindings" && <KeybindingsPanel />}
 
       {activeTab === "cache" && <CardArtDownloadSection />}
+      {activeTab === "cache" && <CardGlintOfflineSection />}
 
       {activeTab === "cache" && (
         <section className="space-y-4">

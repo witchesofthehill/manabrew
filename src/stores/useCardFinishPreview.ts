@@ -1,10 +1,10 @@
 import { create } from "zustand";
-import type { CardFoilMode } from "@/lib/cardFinish";
+import type { CardFinish } from "@/protocol/deck";
 
 interface CardFinishPreview {
-  mode: CardFoilMode | null;
+  mode: CardFinish | null;
   foilAll: boolean;
-  setMode: (mode: CardFoilMode) => void;
+  setMode: (mode: CardFinish) => void;
   setFoilAll: (foilAll: boolean) => void;
   reset: () => void;
 }

@@ -5,6 +5,7 @@ import type { ScryfallLanguage } from "@/i18n/locales";
 import { getScryfallManaCost } from "@/api/scryfall";
 import { chooseImageUrisForCard } from "@/stores/useScryfallStore";
 import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
+import { normalizeCardCosmetics } from "@/lib/cardCosmetics";
 
 export const MTG_SUPERTYPES = new Set(["Basic", "Legendary", "Snow", "World", "Ongoing"]);
 
@@ -150,6 +151,7 @@ export function deckCardToPreviewDto(card: DeckCard): CardDto {
     choices: [],
     keywords: card.keywords ?? [],
     foil: card.identity.foil ?? false,
+    cosmetics: normalizeCardCosmetics(card.identity.cosmetics),
   };
   previewDtoByDeckCard.set(card, preview);
   deckCardByPreviewDto.set(preview, card);

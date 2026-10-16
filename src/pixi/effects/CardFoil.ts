@@ -1,13 +1,16 @@
 import {
-  Color,
   Container,
   Mesh,
+  Point,
   type DestroyOptions,
+  type FederatedPointerEvent,
   type MeshGeometry,
   type Shader,
+  type Texture,
 } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
-import { DEFAULT_CARD_FOIL_MODE } from "@/lib/cardFinish";
+import { CARD_WEAR_AMOUNTS, resolveCardFinish, type CardFoilRegion } from "@/lib/cardFinish";
+import type { CardCosmetics } from "@/protocol/deck";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useCardFinishPreview } from "@/stores/useCardFinishPreview";
 import { createCardFoilShader, type CardFoilShader } from "./cardFoilShader";
@@ -18,9 +21,19 @@ export class CardFoil extends Container {
   private finish: CardFoilShader | null = null;
   private sheen: Mesh<MeshGeometry, Shader> | null = null;
   private sweep: gsap.core.Tween | null = null;
+  private readonly pose = { phase: 0 };
+  private readonly localPointer = new Point();
+  private pointerParent: Container | null = null;
+  private hovered = false;
   private readonly unsubscribePreferences: () => void;
   private readonly unsubscribeFinish: () => void;
   private enabled = false;
+  private hasTexture = false;
+  private texture: Texture | null = null;
+  private textureUvs?: Float32Array;
+  private physicalFoil = false;
+  private cosmetics?: CardCosmetics;
+  private etched = false;
   private readonly reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   private readonly requestRender: () => void;
 
@@ -38,36 +51,74 @@ export class CardFoil extends Container {
     });
     this.reducedMotion.addEventListener("change", this.syncAnimation);
     document.addEventListener("visibilitychange", this.syncAnimation);
-    this.on("removed", this.syncAnimation);
-    this.onRender = this.syncAnimation;
+    this.on("added", this.bindPointer);
+    this.on("removed", this.bindPointer);
+    this.onRender = () => {
+      this.syncAnimation();
+      this.finish?.update(this.canAnimate() ? performance.now() / 1000 : 0, this.hovered);
+    };
   }
 
-  private canAnimate(): boolean {
-    if (
-      !this.visible ||
-      !this.parent ||
-      document.hidden ||
-      !animationsEnabled() ||
-      !usePreferencesStore.getState().inGameAnimations
-    )
-      return false;
+  private readonly bindPointer = (): void => {
+    this.pointerParent?.off("pointermove", this.movePointer);
+    this.pointerParent?.off("pointerleave", this.leavePointer);
+    this.pointerParent = this.parent;
+    this.pointerParent?.on("pointermove", this.movePointer);
+    this.pointerParent?.on("pointerleave", this.leavePointer);
+    this.hovered = false;
+    this.syncAnimation();
+  };
+
+  private readonly movePointer = (event: FederatedPointerEvent): void => {
+    if (!this.finish || !this.canAnimate()) return;
+    event.getLocalPosition(this, this.localPointer);
+    const { uSize, pointer } = this.finish.uniforms;
+    this.hovered =
+      this.localPointer.x >= 0 &&
+      this.localPointer.y >= 0 &&
+      this.localPointer.x <= uSize[0] &&
+      this.localPointer.y <= uSize[1];
+    if (!this.hovered) {
+      this.syncAnimation();
+      return;
+    }
+    pointer[0] = this.localPointer.x / uSize[0];
+    pointer[1] = this.localPointer.y / uSize[1];
+    this.requestRender();
+  };
+
+  private readonly leavePointer = (): void => {
+    this.hovered = false;
+    this.syncAnimation();
+  };
+
+  private surfaceVisible(): boolean {
+    if (!this.visible || !this.parent || document.hidden) return false;
+    if (!this.renderable || this.alpha <= 0) return false;
     for (let ancestor: Container | null = this.parent; ancestor; ancestor = ancestor.parent) {
       if (!ancestor.visible || !ancestor.renderable || ancestor.alpha <= 0) return false;
     }
     return true;
   }
 
+  private canAnimate(): boolean {
+    return (
+      this.surfaceVisible() &&
+      animationsEnabled() &&
+      usePreferencesStore.getState().inGameAnimations
+    );
+  }
+
   private readonly syncAnimation = (): void => {
     if (!this.finish) return;
+    this.finish.setTexture(this.surfaceVisible() ? this.texture : null, this.textureUvs);
     if (!this.canAnimate()) {
       this.sweep?.pause();
       if (
         (!animationsEnabled() || !usePreferencesStore.getState().inGameAnimations) &&
-        this.finish.uniforms.uPhase !== 0.5
+        (this.finish.uniforms.pointer[0] !== 0.5 || this.finish.uniforms.pointer[1] !== 0.5)
       ) {
-        this.finish.uniforms.uPhase = 0.5;
-        this.sweep?.kill();
-        this.sweep = null;
+        this.finish.uniforms.pointer.fill(0.5);
         this.requestRender();
       }
       return;
@@ -76,48 +127,53 @@ export class CardFoil extends Container {
       this.sweep.resume();
       return;
     }
-    this.sweep = gsap.fromTo(
-      this.finish.uniforms,
-      { uPhase: -1 },
-      {
-        uPhase: 2,
-        duration: 3.2,
-        ease: "sine.inOut",
-        repeat: -1,
-        immediateRender: false,
-        onUpdate: () => {
-          if (this.canAnimate()) this.requestRender();
-          else this.syncAnimation();
-        },
+    this.sweep = gsap.to(this.pose, {
+      phase: Math.PI * 2,
+      duration: 6.4,
+      ease: "none",
+      repeat: -1,
+      onUpdate: () => {
+        if (!this.canAnimate()) {
+          this.syncAnimation();
+          return;
+        }
+        const pointer = this.finish!.uniforms.pointer;
+        if (!this.hovered) {
+          pointer[0] = 0.5 + Math.sin(this.pose.phase) * 0.18;
+          pointer[1] = 0.5 + Math.sin(this.pose.phase * 2) * 0.12;
+        }
+        this.requestRender();
       },
-    );
+    });
   };
 
-  setSurface(width: number, height: number, radius: number, theme: Theme): void {
+  setSurface(width: number, height: number, radius: number, _theme: Theme): void {
     if (!this.finish) {
-      this.finish = createCardFoilShader();
+      this.finish = createCardFoilShader(this.requestRender);
       this.sheen = new Mesh({ geometry: this.finish.geometry, shader: this.finish.shader });
-      this.sheen.blendMode = "screen";
       this.addChild(this.sheen);
     }
     this.sheen!.scale.set(width, height);
-    const uniforms = this.finish.uniforms;
-    uniforms.uSize[0] = width;
-    uniforms.uSize[1] = height;
-    uniforms.uRadius = radius;
-    Color.shared.setValue(theme.gameTheme.rarity.rare).toRgbArray(uniforms.uWarm);
-    Color.shared.setValue(theme.gameTheme.mana.U).toRgbArray(uniforms.uCool);
-    Color.shared.setValue(theme.gameTheme.canvas.neutral).toRgbArray(uniforms.uNeutral);
+    this.finish.uniforms.uSize.set([width, height]);
+    this.finish.uniforms.uRadius = radius;
     this.syncFinish();
   }
 
-  setExclusion(region: { x: number; y: number; width: number; height: number } | null): void {
-    const exclusion = this.finish?.uniforms.uExclusion;
-    if (!exclusion) return;
-    exclusion[0] = region?.x ?? 0;
-    exclusion[1] = region?.y ?? 0;
-    exclusion[2] = region?.width ?? 0;
-    exclusion[3] = region?.height ?? 0;
+  setTexture(texture: Texture | null, uvs?: Float32Array): void {
+    this.hasTexture = !!texture && !texture.destroyed;
+    this.texture = this.hasTexture ? texture : null;
+    this.textureUvs = uvs;
+    this.syncFinish();
+  }
+
+  setArtWindows(regions: readonly CardFoilRegion[]): void {
+    this.finish?.setArtWindows(regions);
+  }
+
+  setExclusion(region: CardFoilRegion | null): void {
+    this.finish?.uniforms.uExclusion.set(
+      region ? [region.x, region.y, region.width, region.height] : [0, 0, 0, 0],
+    );
   }
 
   setEnabled(enabled: boolean): void {
@@ -126,9 +182,22 @@ export class CardFoil extends Container {
     this.syncFinish();
   }
 
+  setAppearance(foil: boolean, cosmetics?: CardCosmetics, etched = false): void {
+    this.physicalFoil = foil;
+    this.cosmetics = cosmetics;
+    this.etched = etched;
+    this.syncFinish();
+  }
+
   private syncFinish(): void {
-    const mode = useCardFinishPreview.getState().mode ?? DEFAULT_CARD_FOIL_MODE;
-    this.visible = this.enabled && mode !== "regular";
+    const mode =
+      useCardFinishPreview.getState().mode ??
+      resolveCardFinish(this.physicalFoil, this.cosmetics, this.etched);
+    this.finish?.setMode(mode, this.cosmetics);
+    this.visible =
+      this.enabled &&
+      this.hasTexture &&
+      (mode !== "regular" || CARD_WEAR_AMOUNTS[this.cosmetics?.wear ?? "fresh"] > 0);
     this.syncAnimation();
     this.requestRender();
   }
@@ -136,6 +205,10 @@ export class CardFoil extends Container {
   override destroy(_options?: DestroyOptions): void {
     this.onRender = null;
     this.sweep?.kill();
+    this.pointerParent?.off("pointermove", this.movePointer);
+    this.pointerParent?.off("pointerleave", this.leavePointer);
+    this.off("added", this.bindPointer);
+    this.off("removed", this.bindPointer);
     this.unsubscribePreferences();
     this.unsubscribeFinish();
     this.reducedMotion.removeEventListener("change", this.syncAnimation);

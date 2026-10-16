@@ -75,7 +75,7 @@ import {
   copyLimitFromText,
 } from "@/lib/formats";
 import { commanderSlotFor } from "./deckEditor.utils";
-import { DeckListView } from "./DeckListView";
+import { CardContextMenu, CardMenuButton, DeckListView } from "./DeckListView";
 import { DeckHero } from "./DeckHero";
 import { CardPreviewRail } from "@/components/game/CardPreviewRail";
 import { useCardPreview } from "@/hooks/useCardPreview";
@@ -2113,6 +2113,31 @@ export function DeckBuilder({
                     };
                   }}
                 />
+                {currentDeck.companion && (
+                  <section className="mx-4 mb-4 rounded-lg border p-3">
+                    <h3 className="mb-2 text-sm font-semibold">Companion</h3>
+                    <CardContextMenu
+                      card={currentDeck.companion}
+                      count={1}
+                      location="side"
+                      onShowInfo={() => handleShowInfo(currentDeck.companion!)}
+                      onPickPrint={
+                        isReadOnly ? undefined : () => setPrintPickerCard(currentDeck.companion!)
+                      }
+                    >
+                      <div className="group flex items-center gap-2 rounded-md hover:bg-muted/40">
+                        <button
+                          type="button"
+                          className="min-w-0 flex-1 truncate p-2 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          onClick={() => handleShowInfo(currentDeck.companion!)}
+                        >
+                          {currentDeck.companion.identity.name}
+                        </button>
+                        <CardMenuButton />
+                      </div>
+                    </CardContextMenu>
+                  </section>
+                )}
                 <div
                   ref={setMainDropRef}
                   className={cn("transition-colors", isOverMain && !isOverSide && "bg-primary/5")}

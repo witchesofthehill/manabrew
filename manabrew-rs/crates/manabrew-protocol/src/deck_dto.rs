@@ -5,6 +5,9 @@ use std::fmt::Write;
 use ts_rs::TS;
 
 use crate::{game::PlaymatSettings, TokenScript};
+pub use forge_foundation::sealed_product::card_cosmetics::{
+    CardBorderPreset, CardCosmetics, CardFinish, CardFramePreset, CardWearPreset,
+};
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -24,6 +27,13 @@ pub struct DeckCardIdentity {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub foil: Option<bool>,
+    #[serde(
+        default,
+        deserialize_with = "CardCosmetics::deserialize_optional",
+        skip_serializing_if = "Option::is_none"
+    )]
+    #[ts(optional)]
+    pub cosmetics: Option<CardCosmetics>,
 }
 
 /// Mirror of `manabrew.ts:CardRulesSummary`. The engine derives most

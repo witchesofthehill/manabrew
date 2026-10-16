@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { useMemo } from "react";
-import { MseCardImage } from "@/components/game/MseCardImage";
+import { GeneratedCardImage } from "@/components/game/GeneratedCardImage";
 import { parseTypeLine } from "@/lib/scryfall.utils";
 import type { DeckCard } from "@/protocol/deck";
 import { ExternalLink, Sparkles } from "lucide-react";
@@ -68,7 +68,7 @@ export function ComboDetailModal({
             <div className="flex flex-wrap gap-3">
               {cards.map((card) => (
                 <div key={card.identity.name} className="w-32 shrink-0">
-                  <MseCardImage
+                  <GeneratedCardImage
                     deckCard={card}
                     className="w-full rounded-lg border border-border/50 shadow-sm"
                   />

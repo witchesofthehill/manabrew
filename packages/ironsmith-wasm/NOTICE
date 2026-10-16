@@ -1,0 +1,33 @@
+Ironsmith WASM local integration
+
+Source: https://github.com/Chiplis/ironsmith
+Pinned commit: f45c15660a975f37fac62c7780af69785ec26296
+Published package: ironsmith-wasm 0.1.2
+Source association: https://registry.npmjs.org/ironsmith-wasm/0.1.2 (gitHead)
+
+The source archive checksum is recorded in upstream.json. Generated artifacts
+are built from that source and its Cargo.lock, not edited npm binaries.
+
+card-presentation.patch binds printing, physical foil and validated cosmetic
+settings by player, section and entry position at physical object creation,
+before library shuffling. A stable-instance table survives zone changes and
+checkpoints. Created copies have new stable identifiers and use defaults.
+Visible Manabrew DTOs read that table; hidden and face-down cards never receive
+presentation metadata. Redacted checkpoints omit hidden associations.
+The existing private encrypted room transport and public-state paths are used.
+Stack appearance uses stable source identifiers and visibility-filtered source
+objects, not card names. Token overrides are not supported: the pinned engine
+does not expose an authoritative association to Forge token-script identities.
+Same-session reconnect can resend state with pinned peer keys; a hard-reloaded
+guest cannot replace its old pinned key through this integration.
+Build with node scripts/build-ironsmith.mjs. Requires rustup, Cargo, Git, tar
+and network access on first build. The script installs pinned Rust and wasm-pack
+tools into its build environment. Unchanged source, patch and script inputs
+reuse generated output.
+No upstream tests or verification scripts run as part of this package build.
+
+The pinned upstream tree and npm manifest do not declare a source-code license
+or contain a root license file. This package records provenance, not a license
+grant. Confirm upstream redistribution permission before publishing modified
+engine artifacts. The local integration is private and does not vendor the
+upstream source. Card data and artwork retain their separate rights.

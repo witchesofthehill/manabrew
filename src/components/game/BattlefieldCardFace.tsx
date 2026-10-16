@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/useTheme";
 import { useResolvedGameCard } from "@/hooks/useResolvedGameCard";
 import { cardFrameTints, withAlpha } from "@/themes/gameTheme";
-import { MseCardImage } from "@/components/game/MseCardImage";
+import { GeneratedCardImage } from "@/components/game/GeneratedCardImage";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { CounterDisplay } from "@/components/game/CounterBadge";
 import { CardChoiceIndicators } from "@/components/game/CardChoiceIndicators";
@@ -14,6 +14,7 @@ import { isCreature, isLethalDamage } from "@/components/game/game.utils";
 import { cardTypeLine } from "@/components/game/cardPresentation";
 import { battlefieldKeywords } from "@/lib/battlefieldKeywords";
 import { CardFoilOverlay } from "@/components/game/CardFoilOverlay";
+import { isEtchedOnlyPrinting } from "@/lib/cardFinish";
 
 export type BattlefieldCardFaceVariant = "frame" | "art";
 
@@ -34,11 +35,11 @@ export function BattlefieldCardFace({
   width = 70,
 }: BattlefieldCardFaceProps) {
   const theme = useTheme().gameTheme;
-  const { imageUrl } = useResolvedGameCard(card);
+  const { imageUrl, info } = useResolvedGameCard(card);
   if (card.isFaceDown || !card.identity.name) {
     return (
       <div style={{ width, height: width * (98 / 70) }}>
-        <MseCardImage card={card} className="h-full w-full" />
+        <GeneratedCardImage card={card} className="h-full w-full" />
       </div>
     );
   }
@@ -208,7 +209,7 @@ export function BattlefieldCardFace({
       {variant === "art" ? (
         artwork
       ) : (
-        <MseCardImage
+        <GeneratedCardImage
           card={card}
           className="absolute inset-0 h-full w-full"
           fallback={
@@ -223,7 +224,12 @@ export function BattlefieldCardFace({
           }
         />
       )}
-      <CardFoilOverlay enabled={!!card.foil && variant === "art"} />
+      <CardFoilOverlay
+        enabled={variant === "art"}
+        foil={!!card.foil}
+        cosmetics={card.cosmetics}
+        etched={isEtchedOnlyPrinting(info?.finishes)}
+      />
       {variant === "frame" && (
         <div
           className="pointer-events-none absolute inset-0 rounded-[inherit]"

@@ -1,4 +1,4 @@
-import { Container, type DestroyOptions } from "pixi.js";
+import { Container, type DestroyOptions, type Rectangle, type Texture } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
 import type { CardDto } from "@/protocol/game";
 import type { HandActionOption } from "@/stores/useGameUIStore";
@@ -39,6 +39,12 @@ export class HandRulesCardFace extends Container {
   }
   get imageReady(): boolean {
     return this.preview.imageReady;
+  }
+  get foilTexture(): Texture | null {
+    return this.preview.foilTexture;
+  }
+  writeFoilTextureUvs(relativeTo: Container, surface: Rectangle, output: Float32Array): void {
+    this.preview.writeFoilTextureUvs(relativeTo, surface, output);
   }
   get foilExclusion(): { x: number; y: number; width: number; height: number } | null {
     return this.preview.foilExclusion;

@@ -1,11 +1,16 @@
 import path from "path";
 import { readFileSync } from "fs";
+import { execFileSync } from "node:child_process";
 import { defineConfig } from "vite";
 import type { Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import { lingui } from "@lingui/vite-plugin";
 import tailwindcss from "@tailwindcss/vite";
 import Icons from "unplugin-icons/vite";
+
+execFileSync(process.execPath, [path.resolve(__dirname, "scripts/ensure-card-glint.mjs")], {
+  stdio: "inherit",
+});
 
 const host = process.env.TAURI_DEV_HOST;
 const hubApiTarget = process.env.VITE_HUB_API_URL || "https://api.manabrew.app";
@@ -36,6 +41,28 @@ function crossOriginIsolation(): Plugin {
   };
 }
 
+function cardGlintNotices(): Plugin {
+  return {
+    name: "card-glint-notices",
+    generateBundle() {
+      for (const file of [
+        "LICENSE-MIT",
+        "LICENSE-APACHE",
+        "NOTICE",
+        "UPSTREAM-NOTICE",
+        "MAGIC-NOTICE",
+        "dist/provenance.json",
+      ]) {
+        this.emitFile({
+          type: "asset",
+          fileName: `card-glint-licenses/${path.basename(file)}`,
+          source: readFileSync(path.resolve(__dirname, "packages/card-glint", file)),
+        });
+      }
+    },
+  };
+}
+
 export default defineConfig({
   plugins: [
     react({
@@ -49,11 +76,11 @@ export default defineConfig({
       compiler: "raw",
     }),
     crossOriginIsolation(),
+    cardGlintNotices(),
   ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      "@mse-renderer": path.resolve(__dirname, "./packages/mse-renderer/index.mjs"),
       // The client shares the Forge seat and card-selection modules with the
       // published @manabrew/forge-wasm package rather than keeping a copy.
       "@forge-wasm": path.resolve(__dirname, "./packages/forge-wasm"),
@@ -120,7 +147,7 @@ export default defineConfig({
     format: "es",
   },
   optimizeDeps: {
-    exclude: ["@/wasm/wasm", "ironsmith-wasm"],
+    exclude: ["@/wasm/wasm", "ironsmith-wasm", "card-glint"],
   },
   assetsInclude: ["**/*.wasm"],
   build: {

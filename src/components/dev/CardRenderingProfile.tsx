@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import type { MseCardRequest } from "@/lib/mseCardSnapshot";
+import type { CardRenderRequest } from "@/lib/cardRenderSnapshot";
 import {
-  clearMseRenderCache,
-  getMseRenderDecision,
-  getMseRenderStats,
-  renderMseCard,
-} from "@/lib/mseCardRenderer";
-import { MseCardRenderError } from "@/lib/mseCardDecision";
+  clearCardRenderCache,
+  getCardRenderDecision,
+  getCardRenderStats,
+  renderCard,
+} from "@/lib/cardRenderer";
+import { CardRenderError } from "@/lib/cardRenderDecision";
 
 interface Sample {
   mode: "cold" | "warm";
@@ -19,17 +19,17 @@ export function CardRenderingProfile({
   request,
   onRemount,
 }: {
-  request: MseCardRequest;
+  request: CardRenderRequest;
   onRemount: () => void;
 }) {
-  const [stats, setStats] = useState(getMseRenderStats);
+  const [stats, setStats] = useState(getCardRenderStats);
   const [decision, setDecision] = useState("Preparing presentation decision…");
   const [samples, setSamples] = useState<Sample[]>([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const controller = useRef<AbortController | null>(null);
   useEffect(() => {
-    const timer = window.setInterval(() => setStats(getMseRenderStats()), 500);
+    const timer = window.setInterval(() => setStats(getCardRenderStats()), 500);
     return () => {
       window.clearInterval(timer);
       controller.current?.abort();
@@ -37,15 +37,15 @@ export function CardRenderingProfile({
   }, []);
   useEffect(() => {
     let cancelled = false;
-    void renderMseCard(request)
+    void renderCard(request)
       .then((canvas) => {
-        const next = getMseRenderDecision(canvas);
+        const next = getCardRenderDecision(canvas);
         if (!cancelled) setDecision(JSON.stringify(next));
       })
       .catch((cause: unknown) => {
         if (!cancelled)
           setDecision(
-            cause instanceof MseCardRenderError
+            cause instanceof CardRenderError
               ? JSON.stringify(cause.decision)
               : `Rendering failed: ${cause instanceof Error ? cause.message : String(cause)}`,
           );
@@ -56,7 +56,7 @@ export function CardRenderingProfile({
     };
   }, [request]);
   const measure = async (mode: "cold" | "warm") => {
-    if (mode === "cold" && !clearMseRenderCache()) {
+    if (mode === "cold" && !clearCardRenderCache()) {
       setMessage(
         "Renderer busy. Wait for queued work to finish before clearing finished-card caches.",
       );
@@ -70,7 +70,7 @@ export function CardRenderingProfile({
     const start = performance.now();
     let outcome = "generated";
     try {
-      await renderMseCard(request, abort.signal);
+      await renderCard(request, abort.signal);
     } catch (cause) {
       outcome = cause instanceof Error ? cause.message : String(cause);
     }
@@ -82,21 +82,22 @@ export function CardRenderingProfile({
       ...current.slice(-11),
       { mode, durationMs: performance.now() - start, outcome },
     ]);
-    setStats(getMseRenderStats());
+    setStats(getCardRenderStats());
     setBusy(false);
     onRemount();
   };
   return (
     <section
       className="space-y-3 rounded-lg border border-border bg-card p-4"
-      aria-label="Renderer diagnostics"
+      aria-label="Card Glint diagnostics"
+      data-card-renderer="card-glint"
     >
       <h2 className="font-semibold">Presentation decision and measured cache behavior</h2>
       <output data-testid="render-decision" className="block break-all font-mono text-xs">
         {decision}
       </output>
       <p className="text-xs text-muted-foreground">
-        Native template selection is not a promise of exact printing fidelity. A cold sample clears
+        Card Glint composes generated frames, not exact historical printings. A cold sample clears
         finished generated cards, not downloaded assets, fonts, or browser caches. Timings measure
         this renderer request, not GPU presentation.
       </p>

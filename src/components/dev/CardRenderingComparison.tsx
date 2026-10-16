@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ScryfallImg } from "@/components/ScryfallImg";
-import { MseCardImage } from "@/components/game/MseCardImage";
+import { GeneratedCardImage } from "@/components/game/GeneratedCardImage";
 import { Button } from "@/components/ui/button";
 import { DesktopBoardOverlayCanvas } from "@/pixi/DesktopBoardOverlayCanvas";
 import type { BoardOverlayPreviewSpec } from "@/pixi/BoardOverlayCanvas";
@@ -9,6 +9,8 @@ import type { HandActionOption } from "@/stores/useGameUIStore";
 import type { DeckCard } from "@/protocol/deck";
 import { GAME_CARD_SIZES } from "@/components/game/game.constants";
 import { CardFoilOverlay } from "@/components/game/CardFoilOverlay";
+import { isEtchedOnlyPrinting } from "@/lib/cardFinish";
+import { useResolvedGameCard } from "@/hooks/useResolvedGameCard";
 
 const EMPTY_STACK = { cards: [], flash: null, showPreStackFlash: false, collapsed: true };
 const ignore = () => undefined;
@@ -33,6 +35,8 @@ export function CardRenderingComparison({
   const host = useRef<HTMLDivElement>(null);
   const [bounds, setBounds] = useState<DOMRect | null>(null);
   const [generated, setGenerated] = useState(true);
+  const { info } = useResolvedGameCard(card);
+  const hidden = card.isFaceDown || !card.identity.name;
   useEffect(() => {
     const node = host.current!;
     const update = () => setBounds(node.getBoundingClientRect());
@@ -79,19 +83,25 @@ export function CardRenderingComparison({
               alt={`Original ${card.identity.name}`}
               className="h-full w-full object-contain"
             />
-            <CardFoilOverlay enabled={!!card.foil} />
+            <CardFoilOverlay
+              enabled={!hidden}
+              foil={!hidden && !!card.foil}
+              cosmetics={hidden ? undefined : card.cosmetics}
+              etched={!hidden && isEtchedOnlyPrinting(info?.finishes)}
+            />
           </div>
         </div>
         <p className="text-xs text-muted-foreground">Selected printing, unchanged scan.</p>
       </section>
       <section
         className="min-w-0 space-y-3 rounded-lg border border-border bg-card p-3"
-        aria-label="Generated DOM card"
+        aria-label="Card Glint generated DOM card"
+        data-card-renderer="card-glint"
       >
-        <h2 className="font-semibold">Generated DOM</h2>
+        <h2 className="font-semibold">Card Glint DOM</h2>
         <div className="flex min-h-[440px] items-center justify-center">
           <div className="w-full" style={{ maxWidth: GAME_CARD_SIZES.preview.width }}>
-            <MseCardImage
+            <GeneratedCardImage
               card={card}
               deckCard={deckCard}
               faceIndex={face}
@@ -106,7 +116,8 @@ export function CardRenderingComparison({
           </div>
         </div>
         <p className="text-xs text-muted-foreground">
-          Production MseCardImage. Loading and fallback states stay inspectable on the element.
+          Production GeneratedCardImage. Loading and fallback states stay inspectable on the
+          element.
         </p>
       </section>
       <section
@@ -142,7 +153,12 @@ export function CardRenderingComparison({
                 alt={card.identity.name}
                 className="h-full w-full object-contain"
               />
-              <CardFoilOverlay enabled={!!card.foil} />
+              <CardFoilOverlay
+                enabled={!hidden}
+                foil={!hidden && !!card.foil}
+                cosmetics={hidden ? undefined : card.cosmetics}
+                etched={!hidden && isEtchedOnlyPrinting(info?.finishes)}
+              />
             </div>
           )}
         </div>

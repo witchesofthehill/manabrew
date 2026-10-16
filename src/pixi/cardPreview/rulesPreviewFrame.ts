@@ -3,7 +3,7 @@ import type { Theme } from "@/hooks/useTheme";
 import { hexToNum } from "@/pixi/colorUtils";
 import { ensureTextContrast } from "@/themes/gameTheme";
 import type { CardStatPresentation } from "@/components/game/cardPresentation";
-import type { MseCardRegion } from "@/lib/mseCardGeometry";
+import type { CardRenderRegion } from "@/lib/cardRenderGeometry";
 
 export const RULES_BODY_FONT = "Georgia, Cambria, Times New Roman, serif";
 export const RULES_TITLE_FONT = "Cormorant Garamond, Georgia, serif";
@@ -34,7 +34,7 @@ export interface RulesPreviewFrameStyle {
 
 export function resolveRulesPreviewFrame(
   theme: Theme,
-  native?: MseCardRegion,
+  native?: CardRenderRegion,
   scanOverlay = false,
 ): RulesPreviewFrameStyle {
   if (scanOverlay) {
@@ -53,7 +53,7 @@ export function resolveRulesPreviewFrame(
   }
   const palette = theme.gameTheme.cardPaper;
   const paper = palette.background;
-  const ink = native?.inkColor ?? palette.ink;
+  const ink = native?.inkTone === "light" ? theme.gameTheme.canvas.neutral : palette.ink;
   const mutedInk = native
     ? ink
     : ensureTextContrast(palette.mutedInk, paper, ink, RULES_TEXT_MIN_CONTRAST);

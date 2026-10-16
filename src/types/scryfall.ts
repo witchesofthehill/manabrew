@@ -40,6 +40,8 @@ export interface ScryfallCard {
     printed_text?: string;
     oracle_text?: string;
     mana_cost?: string;
+    colors?: string[];
+    color_indicator?: string[];
     flavor_text?: string;
     power?: string;
     toughness?: string;
@@ -66,6 +68,7 @@ export interface ScryfallCard {
   power?: string;
   toughness?: string;
   colors?: string[];
+  color_indicator?: string[];
   color_identity: string[];
   keywords: string[];
   legalities: Record<string, "legal" | "not_legal" | "restricted" | "banned">;

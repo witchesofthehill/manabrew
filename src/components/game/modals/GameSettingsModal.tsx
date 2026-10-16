@@ -110,7 +110,7 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
             value={prefs.promptCardStyle}
             options={INLINE_CARD_STYLE_OPTIONS}
             onChange={prefs.setPromptCardStyle}
-            hint="Generated cards use MSE frames with current game information. Original shows the printed scan. Individual cards can still be switched."
+            hint="Generated cards use Card Glint frames with current game information. Original shows the printed scan. Individual cards can still be switched."
           />
           <Choice
             label="Board hover preview view"

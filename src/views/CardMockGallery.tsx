@@ -15,6 +15,7 @@ import CardRenderingLab from "@/components/dev/CardRenderingLab";
 import { CardFoilControls } from "@/components/dev/CardFoilControls";
 import { CardFoilOverlay } from "@/components/game/CardFoilOverlay";
 import { useCardFinishPreview } from "@/stores/useCardFinishPreview";
+import { isEtchedOnlyPrinting } from "@/lib/cardFinish";
 
 type GalleryVariant = BattlefieldCardFaceVariant | "realistic";
 const VARIANT_LABELS: Record<GalleryVariant, string> = {
@@ -133,7 +134,14 @@ function GalleryRow({
             alt={card.identity.name}
             className="h-full w-full object-contain"
           />
-          <CardFoilOverlay enabled={!!card.foil} />
+          <CardFoilOverlay
+            enabled={!card.isFaceDown && !!card.identity.name}
+            foil={!card.isFaceDown && !!card.identity.name && !!card.foil}
+            cosmetics={card.isFaceDown || !card.identity.name ? undefined : card.cosmetics}
+            etched={
+              !card.isFaceDown && !!card.identity.name && isEtchedOnlyPrinting(entry.info.finishes)
+            }
+          />
         </div>
       ) : (
         <BattlefieldCardFace
@@ -151,7 +159,14 @@ function GalleryRow({
             alt={card.identity.name}
             className="h-full w-full object-contain opacity-90"
           />
-          <CardFoilOverlay enabled={!!card.foil} />
+          <CardFoilOverlay
+            enabled={!card.isFaceDown && !!card.identity.name}
+            foil={!card.isFaceDown && !!card.identity.name && !!card.foil}
+            cosmetics={card.isFaceDown || !card.identity.name ? undefined : card.cosmetics}
+            etched={
+              !card.isFaceDown && !!card.identity.name && isEtchedOnlyPrinting(entry.info.finishes)
+            }
+          />
         </div>
       )}
     </div>

@@ -1,6 +1,6 @@
 import { Loader2, Search, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { MseCardImage } from "@/components/game/MseCardImage";
+import { GeneratedCardImage } from "@/components/game/GeneratedCardImage";
 import { scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -153,7 +153,7 @@ export function DevCardSearch({ value, onSelect }: DevCardSearchProps) {
                 onPointerEnter={() => setActiveIndex(index)}
                 onClick={() => selectCard(card)}
               >
-                <MseCardImage
+                <GeneratedCardImage
                   deckCard={scryfallToDeckCard(card)}
                   className="h-14 w-10 shrink-0 rounded"
                 />

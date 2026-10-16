@@ -1,0 +1,190 @@
+--- /dev/null
++++ b/games/magic/src/presentation/semantic-layout.ts
+@@ -0,0 +1,187 @@
++import { cardStock, faceStats, FACE_WIDTH, FACE_HEIGHT, FACE_CORNER_RADIUS, type FaceRect, type RenderedCardInput } from './face-layout.js';
++import { loadCanvasFonts, loadCanvasImages, type CanvasImages } from './canvas-assets.js';
++import { faceManaAssets } from './mana-assets.js';
++import { paintFittedText, paintMana } from './canvas-text.js';
++import { paintIllustration } from './illustration-paint.js';
++import { layoutRules } from './rules-layout.js';
++import { paintRulesLayout } from './rules-paint.js';
++
++export interface SemanticCardInput extends RenderedCardInput {
++  handModifier?: string;
++  lifeModifier?: string;
++  scanBorder?: boolean;
++}
++type Role = 'rules' | 'stats' | 'artwork' | 'title' | 'type';
++interface Region {
++  role: Role;
++  rect: FaceRect;
++  faceIndex: number;
++}
++const LAYOUTS = new Set(['room', 'planar', 'scheme', 'vanguard', 'art_series', 'front_card']);
++export function isSemanticLayout(face: RenderedCardInput): boolean {
++  return LAYOUTS.has(face.layout ?? '');
++}
++function scanBacked(face: RenderedCardInput): boolean {
++  return face.layout === 'art_series' || face.layout === 'front_card';
++}
++function parts(face: SemanticCardInput): SemanticCardInput[] {
++  if (face.layout !== 'room') return [face];
++  if (face.faces?.length !== 2) throw Error('Room composition requires both doors.');
++  return face.faces;
++}
++function roomRules(face: SemanticCardInput): FaceRect {
++  return [32, 280, 616, parts(face).some(part => faceStats(part)) ? 128 : 160];
++}
++export function semanticCardAssetUrls(face: SemanticCardInput): (string | null | undefined)[] {
++  return parts(face).flatMap(part => [part.illustration, ...faceManaAssets(part)]);
++}
++function regions(face: SemanticCardInput): Region[] {
++  if (scanBacked(face)) return [{ role: 'artwork', rect: face.scanBorder ? [12, 12, FACE_WIDTH - 24, FACE_HEIGHT - 24] : [0, 0, FACE_WIDTH, FACE_HEIGHT], faceIndex: 0 }];
++  const result: Region[] = [];
++  const add = (role: Role, rect: FaceRect, faceIndex = 0) => result.push({ role, rect, faceIndex });
++  if (face.layout === 'room') {
++    for (let i = 0; i < 2; i++) {
++      const x = 24 + i * 330;
++      add('title', [x, 24, 302, 30], i);
++      add('artwork', [x, 62, 302, 174], i);
++      add('type', [x, 244, 302, 24], i);
++      add('rules', [x + 8, 280, 286, roomRules(face)[3]], i);
++      if (faceStats(parts(face)[i]!)) add('stats', [x + 194, 420, 108, 24], i);
++    }
++  } else if (face.layout === 'planar') {
++    add('title', [26, 22, 628, 34]);
++    add('artwork', [26, 65, 628, 194]);
++    add('type', [26, 266, 628, 28]);
++    add('rules', [36, 305, 608, faceStats(face) ? 101 : 137]);
++    if (faceStats(face)) add('stats', [524, 418, 130, 26]);
++  } else {
++    const vanguard = face.layout === 'vanguard';
++    add('title', [28, 28, 432, 34]);
++    add('artwork', [28, 72, 432, vanguard ? 250 : 260]);
++    add('type', [28, vanguard ? 332 : 342, 432, 30]);
++    add('rules', [38, vanguard ? 374 : 384, 412, vanguard ? 204 : faceStats(face) ? 202 : 238]);
++    if (vanguard) add('stats', [28, 590, 432, 40]);
++    else if (faceStats(face)) add('stats', [330, 600, 130, 28]);
++  }
++  return result;
++}
++export function semanticLayoutRegions(face: SemanticCardInput): readonly {
++  name: string; role: Role; rect: FaceRect; angle: number;
++}[] {
++  const sideways = face.layout === 'room' || face.layout === 'planar';
++  const drawn = regions(face);
++  const interaction = face.layout === 'room'
++    ? [...drawn.filter(region => region.role !== 'rules'), { role: 'rules' as const, rect: roomRules(face), faceIndex: 0 }]
++    : drawn;
++  return interaction.map(({ role, rect: [x, y, w, h], faceIndex }) => ({
++    name: `${role}_${faceIndex}`,
++    role,
++    rect: (sideways
++      ? [y / FACE_WIDTH, 1 - (x + w) / FACE_HEIGHT, h / FACE_WIDTH, w / FACE_HEIGHT]
++      : [x / FACE_WIDTH, y / FACE_HEIGHT, w / FACE_WIDTH, h / FACE_HEIGHT]) as FaceRect,
++    angle: sideways ? 270 : 0,
++  }));
++}
++function paintRegion(
++  c: CanvasRenderingContext2D,
++  face: SemanticCardInput,
++  region: Region,
++  images: CanvasImages,
++  rulesText: boolean,
++  paintLayer?: 'artwork' | 'printing',
++) {
++  const [x, y, w, h] = region.rect;
++  if (region.role === 'artwork') {
++    if (!images.has(face.illustration ?? '')) throw Error('Selected artwork is unavailable.');
++    paintIllustration(c, face, images, region.rect, paintLayer);
++    return;
++  }
++  if (paintLayer === 'artwork') return;
++  c.fillStyle = '#e4decb';
++  c.fillRect(x - 4, y - 4, w + 8, h + 8);
++  c.fillStyle = '#17140f';
++  c.textBaseline = 'middle';
++  c.textAlign = 'left';
++  if (region.role === 'title') {
++    const symbols = face.manaSymbols ?? [];
++    const size = Math.min(24, h - 4);
++    const manaWidth = symbols.length * (size + 2);
++    paintFittedText(c, face.name, x + 4, y + h / 2, w - manaWidth - 12, h * 0.75, true);
++    symbols.forEach((symbol, i) => paintMana(c, symbol, x + w - manaWidth + i * (size + 2), y + (h - size) / 2, size, images));
++  } else if (region.role === 'type') {
++    paintFittedText(c, face.typeLine ?? '', x + 4, y + h / 2, w - 8, h * 0.72);
++  } else if (region.role === 'stats') {
++    const text = face.layout === 'vanguard'
++      ? `Hand ${face.handModifier}     Life ${face.lifeModifier}`
++      : faceStats(face)?.text ?? '';
++    paintFittedText(c, text, x + 8, y + h / 2, w - 16, 23, true);
++  } else if (rulesText) {
++    const paragraphs = face.rulesParagraphs ?? (face.rulesText ?? '').split('\n').filter(Boolean).map(text => ({ role: 'rules' as const, runs: [{ text }] }));
++    const layout = layoutRules(c, paragraphs, { x, y, width: w, height: h }, 22, 8);
++    paintRulesLayout(c, layout, images);
++  }
++}
++export async function composeSemanticCardTexture(
++  face: SemanticCardInput,
++  tier: 'table' | 'inspect',
++  signal: AbortSignal,
++  options: { rulesText?: boolean; paintLayer?: 'artwork' | 'printing'; loadImages?: typeof loadCanvasImages; loadFonts?: () => Promise<void> } = {},
++): Promise<HTMLCanvasElement> {
++  if (!isSemanticLayout(face)) throw Error('Not a semantic card layout.');
++  const faces = parts(face);
++  if (face.layout === 'vanguard' && (face.handModifier == null || face.lifeModifier == null))
++    throw Error('Vanguard composition requires hand and life modifiers.');
++  if (!scanBacked(face)) await (options.loadFonts ?? loadCanvasFonts)();
++  signal.throwIfAborted();
++  const loaded = await (options.loadImages ?? loadCanvasImages)(semanticCardAssetUrls(face), signal);
++  const canvas = document.createElement('canvas');
++  canvas.width = tier === 'table' ? 244 : 732;
++  canvas.height = tier === 'table' ? 340 : 1020;
++  try {
++    signal.throwIfAborted();
++    const c = canvas.getContext('2d');
++    if (!c) throw Error('Card composition needs Canvas2D.');
++    c.scale(canvas.width / FACE_WIDTH, canvas.height / FACE_HEIGHT);
++    c.imageSmoothingEnabled = true;
++    c.imageSmoothingQuality = 'high';
++    c.fillStyle = cardStock(face.setCode, face.borderColor).border;
++    c.fillRect(0, 0, FACE_WIDTH, FACE_HEIGHT);
++    if (scanBacked(face)) {
++      const scan = loaded.images.get(face.illustration ?? '');
++      if (!scan) throw Error('The complete selected scan is unavailable.');
++      if (options.paintLayer === 'printing') c.clearRect(...regions(face)[0]!.rect);
++      else c.drawImage(scan, ...regions(face)[0]!.rect);
++    } else {
++      const sideways = face.layout === 'room' || face.layout === 'planar';
++      if (sideways) { c.translate(0, FACE_HEIGHT); c.rotate(-Math.PI / 2); }
++      const width = sideways ? FACE_HEIGHT : FACE_WIDTH;
++      const height = sideways ? FACE_WIDTH : FACE_HEIGHT;
++      c.fillStyle = '#746c60';
++      c.fillRect(16, 16, width - 32, height - 32);
++      if (face.layout === 'room') {
++        c.fillStyle = '#e4decb';
++        const [x, y, w, h] = roomRules(face);
++        c.fillRect(x - 4, y - 4, w + 8, h + 8);
++      }
++      for (const region of regions(face)) paintRegion(c, faces[region.faceIndex]!, region, loaded.images, options.rulesText !== false, options.paintLayer);
++      c.fillStyle = '#fff';
++      c.textBaseline = 'middle';
++      const artists = [...new Set(faces.map(part => part.artist).filter(Boolean))].join(' / ');
++      const footer = [face.collectorNumber, face.rarity, face.setCode?.toUpperCase(), artists].filter(Boolean).join(' · ');
++      if (options.paintLayer !== 'artwork')
++        paintFittedText(c, footer, 28, height - 24, width - 56, 12, false, 1, 'CardRenderer MTG MPlantin');
++    }
++    c.setTransform(canvas.width / FACE_WIDTH, 0, 0, canvas.height / FACE_HEIGHT, 0, 0);
++    c.globalCompositeOperation = 'destination-in';
++    c.fillStyle = '#000';
++    c.beginPath();
++    c.roundRect(0, 0, FACE_WIDTH, FACE_HEIGHT, FACE_CORNER_RADIUS * FACE_WIDTH);
++    c.fill();
++    return canvas;
++  } catch (error) {
++    canvas.width = canvas.height = 0;
++    throw error;
++  } finally {
++    loaded.dispose();
++  }
++}

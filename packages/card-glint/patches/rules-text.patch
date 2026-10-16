@@ -1,0 +1,209 @@
+--- a/games/magic/src/presentation/canvas-face.ts
++++ b/games/magic/src/presentation/canvas-face.ts
+@@ -1,3 +1,4 @@
++import { withRulesInk } from './rules-visibility.js';
+ import { withPrintingOmissions } from './printing-omissions.js';
+ import { paintPlaneswalkerLoyalty } from './planeswalker-loyalty.js';
+ import { paintModernFooter } from './modern-footer.js';
+@@ -93,6 +94,7 @@
+   };
+   layer?: 'face' | 'etching';
+   paintLayer?: PaintLayer;
++  rulesText?: boolean;
+   etchThreshold?: number;
+   /** Null denotes generated presentation with no official printing. */
+   printingId: string | null;
+@@ -135,6 +137,7 @@
+     CONJURER_ROOT,
+     'canvas-face-v126',
+     input.paintLayer ?? null,
++    input.rulesText !== false,
+     tier,
+     input.printingId,
+     input.layer === 'etching' ? null : input.printedImage,
+@@ -360,7 +363,7 @@
+       await hooks?.beforePaint?.();
+       signal.throwIfAborted();
+       const paintingImages = numerals.images;
+-      withPrintingOmissions(context, input.face, () =>
++      withRulesInk(context, input.rulesText !== false, () => withPrintingOmissions(context, input.face, () =>
+         paintAssembledFace(
+           context,
+           input.face,
+@@ -370,7 +373,7 @@
+           hooks?.underArt,
+           input.paintLayer,
+         ),
+-      );
++      ));
+       if (
+         input.paintLayer !== 'artwork' &&
+         input.face.blackBorderLift &&
+--- a/games/magic/src/presentation/rules-paint.ts
++++ b/games/magic/src/presentation/rules-paint.ts
+@@ -1,3 +1,4 @@
++import { rulesInkVisible } from './rules-visibility.js';
+ import type { CanvasImages } from './canvas-assets.js';
+ import { paintMana } from './canvas-text.js';
+ import { FACE_HEIGHT, FACE_WIDTH, type RenderedCardInput } from './face-layout.js';
+@@ -102,6 +103,7 @@
+   inkInsetEm = 0,
+   color = '#17140f',
+ ) {
++  if (!rulesInkVisible(context)) return;
+   if (layout.overflow) throw Error('Magic rules text does not fit the available area.');
+   context.save();
+   context.textAlign = 'left';
+--- a/games/magic/src/presentation/canvas-text.ts
++++ b/games/magic/src/presentation/canvas-text.ts
+@@ -1,3 +1,4 @@
++import { rulesInkVisible } from './rules-visibility.js';
+ import { paintOriginalWhite } from './historical-white.js';
+ import { colorGlyphTransform } from './symbol-adjustment.js';
+ import { MANA_COLORS, GENERIC_MANA_COLOR } from './mana-colors.js';
+@@ -158,6 +159,7 @@
+   font: number | { size: number; italic: boolean },
+   images: CanvasImages,
+ ) {
++  if (!rulesInkVisible(context)) return;
+   const size = typeof font === 'number' ? font : font.size;
+   context.font = `${typeof font !== 'number' && font.italic ? 'italic ' : ''}${size}px "CardRenderer MTG MPlantin", Georgia`;
+   const paragraphs = text
+--- a/games/magic/src/presentation/special-rule-paint.ts
++++ b/games/magic/src/presentation/special-rule-paint.ts
+@@ -1,3 +1,4 @@
++import { rulesInkVisible } from './rules-visibility.js';
+ import { resolveCardProfile } from './profile.js';
+ import { componentAsset } from './assets.js';
+ import { FACE_WIDTH, FACE_HEIGHT, type RenderedCardInput } from './face-layout.js';
+@@ -91,6 +92,7 @@
+   const box = sagaTextbox(face, resolveCardProfile(face).boxes);
+   const paper = box ? images.get(box) : undefined;
+   if (paper) context.drawImage(paper, x, y, w, h);
++  if (!rulesInkVisible(context)) return;
+   const rows: (ReturnType<typeof specialRuleRows>[number] & { layout?: RulesLayout })[] = saga
+     ? specialRuleRows(face)
+     : planeswalkerRuleRows(context, face);
+--- a/games/magic/src/presentation/extra-rule-paint.ts
++++ b/games/magic/src/presentation/extra-rule-paint.ts
+@@ -1,3 +1,4 @@
++import { rulesInkVisible } from './rules-visibility.js';
+ import { extraRuleBlocks } from './extra-rules.js';
+ import { FACE_TEXT, type RenderedCardInput } from './face-layout.js';
+ import { paintRules, rulesLines } from './canvas-text.js';
+@@ -9,6 +10,7 @@
+   images: CanvasImages,
+ ) {
+   for (const block of extraRuleBlocks(face)) {
++    if (!rulesInkVisible(context) && block.kind !== 'band' && block.kind !== 'stats') continue;
+     const { x, y, width, height, font } = block;
+     context.save();
+     context.textAlign = 'left';
+--- a/games/magic/src/presentation/plate-basic-land.ts
++++ b/games/magic/src/presentation/plate-basic-land.ts
+@@ -1,3 +1,4 @@
++import { rulesInkVisible } from './rules-visibility.js';
+ import manifest from '../../assets.json' with { type: 'json' };
+ import type { RenderedCardInput } from './face-layout.js';
+ 
+@@ -53,6 +54,7 @@
+   face: RenderedCardInput,
+   images: ReadonlyMap<string, ImageBitmap>,
+ ): boolean {
++  if (!rulesInkVisible(c)) return true;
+   const url = plateBasicSymbol(face);
+   if (!url) return false;
+   const glyph = images.get(url);
+--- a/games/magic/src/presentation/template-typography.ts
++++ b/games/magic/src/presentation/template-typography.ts
+@@ -1,3 +1,4 @@
++import { rulesInkVisible } from './rules-visibility.js';
+ import type { CanvasImages } from './canvas-assets.js';
+ import type { RenderedCardInput, FaceRect } from './face-layout.js';
+ import { paintFittedText, paintMana } from './canvas-text.js';
+@@ -54,6 +55,7 @@
+   min: number,
+   color = '#17140f',
+ ) {
++  if (!rulesInkVisible(c)) return;
+   const [x, y, width, height] = rect;
+   const paragraphs =
+     face.rulesParagraphs ??
+--- a/games/magic/src/presentation/saga-paint.ts
++++ b/games/magic/src/presentation/saga-paint.ts
+@@ -1,3 +1,4 @@
++import { rulesInkVisible } from './rules-visibility.js';
+ import { SECURITY_STAMP_RECTS } from './security-stamp-geometry.js';
+ import { hasOvalSecurityStamp } from './security-stamp-policy.js';
+ import { paintSagaColors } from './saga-colors.js';
+@@ -95,20 +96,22 @@
+     c.textAlign = 'left';
+     c.fillText(`${face.reverseStats.power}/${face.reverseStats.toughness}`, 41, 553);
+   }
+-  const rules = sagaRuleLayout(c, face);
+-  paintRulesLayout(c, rules.reminder, images);
+-  for (const row of rules.rows) {
+-    c.drawImage(required(SAGA_DIVIDER), 48.8, row.top - 1, 192.6, 2);
+-    paintRulesLayout(c, row.layout, images);
+-    row.badges.forEach((badge, index) => {
+-      const center = row.top + row.height / 2 + (index - (row.badges.length - 1) / 2) * 49;
+-      c.drawImage(required(SAGA_CHAPTER), 18.8, center - 21.4, 38.4, 42.8);
+-      c.fillStyle = '#17140f';
+-      c.textAlign = 'center';
+-      c.textBaseline = 'middle';
+-      c.font = '550 22px "CardRenderer MTG Chapter", Georgia';
+-      c.fillText(badge, 38.1, center + 0.7);
+-    });
++  if (rulesInkVisible(c)) {
++    const rules = sagaRuleLayout(c, face);
++    paintRulesLayout(c, rules.reminder, images);
++    for (const row of rules.rows) {
++      c.drawImage(required(SAGA_DIVIDER), 48.8, row.top - 1, 192.6, 2);
++      paintRulesLayout(c, row.layout, images);
++      row.badges.forEach((badge, index) => {
++        const center = row.top + row.height / 2 + (index - (row.badges.length - 1) / 2) * 49;
++        c.drawImage(required(SAGA_CHAPTER), 18.8, center - 21.4, 38.4, 42.8);
++        c.fillStyle = '#17140f';
++        c.textAlign = 'center';
++        c.textBaseline = 'middle';
++        c.font = '550 22px "CardRenderer MTG Chapter", Georgia';
++        c.fillText(badge, 38.1, center + 0.7);
++      });
++    }
+   }
+   if (hasOvalSecurityStamp(face)) c.drawImage(required(SAGA_STAMP), ...SECURITY_STAMP_RECTS.saga);
+   c.fillStyle = '#fff';
+--- /dev/null
++++ b/games/magic/src/presentation/rules-visibility.ts
+@@ -0,0 +1,15 @@
++const hidden = new WeakSet<CanvasRenderingContext2D>();
++
++export function rulesInkVisible(context: CanvasRenderingContext2D): boolean {
++  return !hidden.has(context);
++}
++
++export function withRulesInk(context: CanvasRenderingContext2D, visible: boolean, paint: () => void): void {
++  const wasHidden = hidden.has(context);
++  if (!visible) hidden.add(context);
++  try {
++    paint();
++  } finally {
++    if (!wasHidden) hidden.delete(context);
++  }
++}
+--- a/games/magic/src/presentation/retro-paint.ts
++++ b/games/magic/src/presentation/retro-paint.ts
+@@ -1,3 +1,4 @@
++import { rulesInkVisible } from './rules-visibility.js';
+ import {
+   adjustedSymbolBounds,
+   paintAdjustedSymbols,
+@@ -301,7 +302,7 @@
+   const [rx, ry, rw, rh] = retroPx(rect.rules);
+   c.fillStyle = '#17140f';
+   const basic = images.get(retroBasicSymbol(face) ?? '');
+-  if (basic) {
++  if (basic && rulesInkVisible(c)) {
+     const scale = Math.min((rw * 0.4) / basic.width, (rh * 0.75) / basic.height);
+     c.drawImage(
+       basic,

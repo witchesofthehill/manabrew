@@ -1,4 +1,5 @@
 import { CardFoilOverlay } from "@/components/game/CardFoilOverlay";
+import { isEtchedOnlyPrinting } from "@/lib/cardFinish";
 import type { CardDto } from "@/protocol/game";
 import { cn } from "@/lib/utils";
 import { memo, useState, useMemo, type CSSProperties } from "react";
@@ -17,7 +18,7 @@ import { deriveCardRailState } from "@/components/game/cardRailState";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { useResolvedGameCard } from "@/hooks/useResolvedGameCard";
 import { isHorizontalGameCard } from "@/lib/horizontalGameCard";
-import { MseCardImage } from "./MseCardImage";
+import { GeneratedCardImage } from "./GeneratedCardImage";
 import { usePreferencesStore, type InlineCardStyle } from "@/stores/usePreferencesStore";
 const TOKEN_LABELS: Record<string, string> = {
   get "Blood Token"() {
@@ -78,7 +79,7 @@ function CardComponent({
   presentation,
 }: CardProps) {
   const [failedUrl, setFailedUrl] = useState<string>();
-  const { deckCard, cardFaces, imageUrl: resolveImageUrl } = useResolvedGameCard(card);
+  const { deckCard, cardFaces, info, imageUrl: resolveImageUrl } = useResolvedGameCard(card);
   const faceIndex = showBackFace ? 1 : 0;
   const faceless = card.isFaceDown || !card.identity.name;
   const imageUrl = faceless ? CARD_BACK_IMAGE_URL : resolveImageUrl(faceIndex, resolution);
@@ -144,11 +145,16 @@ function CardComponent({
         } as CSSProperties
       }
     >
-      <CardFoilOverlay enabled={!!card.foil && !faceless && !generated} />
+      <CardFoilOverlay
+        enabled={!faceless && !generated}
+        foil={!faceless && !!card.foil}
+        cosmetics={faceless ? undefined : card.cosmetics}
+        etched={!faceless && isEtchedOnlyPrinting(info?.finishes)}
+      />
       {generated || (imageUrl && !hasError) ? (
         <>
           {generated ? (
-            <MseCardImage
+            <GeneratedCardImage
               card={card}
               deckCard={deckCard}
               faceIndex={faceIndex}

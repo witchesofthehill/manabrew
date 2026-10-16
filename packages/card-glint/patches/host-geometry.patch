@@ -1,0 +1,85 @@
+--- a/games/magic/src/presentation/adventure-rules.ts
++++ b/games/magic/src/presentation/adventure-rules.ts
+@@ -2,6 +2,11 @@
+ import { layoutRules } from './rules-layout.js';
+ import { wordingParagraphs } from './wording.js';
+ import { shortCenteredRules } from './short-centered-rules.js';
++
++export const ADVENTURE_RULE_BOUNDS = {
++  permanent: { x: 261, y: 438, width: 189, height: 178 },
++  spell: { x: 41.7, y: 499, width: 191, height: 122 },
++} as const;
+ 
+ export function adventureRuleLayouts(c: CanvasRenderingContext2D, face: RenderedCardInput) {
+   const spell = face.faces?.[1];
+@@ -18,10 +23,7 @@
+   const typography = { leading: 1, paragraphGap: 0.4, flavorGap: 0.75, flavorSeparator: true };
+   const permanentParagraphs = paragraphs(face),
+     bounds = {
+-      x: 261,
+-      y: 438,
+-      width: 189,
+-      height: 178,
++      ...ADVENTURE_RULE_BOUNDS.permanent,
+       exclusions: face.power != null && face.toughness != null ? [[368, 601, 94, 51] as const] : [],
+     };
+   // Single-keyword permanent pages center in the scan; two-line rules such as
+@@ -35,7 +37,7 @@
+       ? shortCenteredRules(c, permanentParagraphs, reference, bounds, 22.5, 9, 1, typography)
+       : null;
+   const spellParagraphs = paragraphs(spell),
+-    spellBounds = { x: 41.7, y: 499, width: 191, height: 122 };
++    spellBounds = ADVENTURE_RULE_BOUNDS.spell;
+   // Short spells use a nominal size instead of expanding into the spare page.
+   // Measure actual lines (including italic runs and symbols), not characters.
+   // ELD selected this shared four-line policy; later sets are transfer checks.
+--- a/games/magic/src/presentation/flip-template-paint.ts
++++ b/games/magic/src/presentation/flip-template-paint.ts
+@@ -11,6 +11,11 @@
+   templateStats,
+   templateFooter,
+ } from './template-typography.js';
++
++export const FLIP_PANEL_RECTS = [
++  { title: [32, 30, 311, 23], rules: [37, 59, 302, 67], type: [33, 134, 310, 18], stats: [290, 130, 60, 28] },
++  { title: [32, 49, 311, 23], rules: [37, 80, 302, 67], type: [33, 155, 310, 18], stats: [290, 150, 60, 28] },
++] as const;
+ 
+ export function paintFlipTemplate(
+   c: CanvasRenderingContext2D,
+@@ -84,11 +89,12 @@
+     templateRules(c, f, images, rules, 14, 8);
+     templateStats(c, f, stats, 17, family);
+   };
+-  panel(front, [32, 30, 311, 23], [37, 59, 302, 67], [33, 134, 310, 18], [290, 130, 60, 28]);
++  const a = FLIP_PANEL_RECTS[0], b = FLIP_PANEL_RECTS[1];
++  panel(front, a.title, a.rules, a.type, a.stats);
+   c.save();
+   c.translate(375, 523);
+   c.rotate(Math.PI);
+-  panel(back, [32, 49, 311, 23], [37, 80, 302, 67], [33, 155, 310, 18], [290, 150, 60, 28]);
++  panel(back, b.title, b.rules, b.type, b.stats);
+   c.restore();
+   const icon = images.get(faceSetSymbol(face) ?? '');
+   if (icon) {
+--- a/games/magic/src/presentation.ts
++++ b/games/magic/src/presentation.ts
+@@ -37,3 +37,7 @@
+ 
+ export { hasOvalSecurityStamp } from './presentation/security-stamp-policy.js';
+ export { mountedSecurityStamp } from './presentation/security-stamp-paint.js';
++
++export { ADVENTURE_RULE_BOUNDS } from './presentation/adventure-rules.js';
++export { PREPARE_SPELL_RECTS } from './presentation/prepare-frame.js';
++export { FLIP_PANEL_RECTS } from './presentation/flip-template-paint.js';
+--- a/games/magic/src/presentation/saga-paint.ts
++++ b/games/magic/src/presentation/saga-paint.ts
+@@ -89,7 +89,7 @@
+     if (isStyledSetSymbol(url) || face.setSymbol) c.drawImage(icon, ...bounds);
+     else paintSetSymbol(c, icon, face.setCode, face.rarity, ...bounds, crop);
+   }
+-  if (face.reverseStats && face.layout === 'transform') {
++  if (face.reverseStats) {
+     c.fillStyle = '#65605a';
+     c.font = 'italic 20px "CardRenderer MTG MPlantin", Georgia';
+     c.textAlign = 'left';

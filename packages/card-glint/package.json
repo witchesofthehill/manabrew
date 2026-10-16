@@ -1,0 +1,46 @@
+{
+  "name": "card-glint",
+  "version": "0.3.10-manabrew.b541b67",
+  "private": true,
+  "type": "module",
+  "license": "MIT OR Apache-2.0",
+  "repository": "https://github.com/vishvananda/card-glint.git",
+  "exports": {
+    ".": {
+      "types": "./dist/types/packages/browser/src/index.d.ts",
+      "import": "./dist/lib/browser.js"
+    },
+    "./magic": {
+      "types": "./dist/types/games/magic/src/index.d.ts",
+      "import": "./dist/lib/magic.js"
+    },
+    "./magic/presentation": {
+      "types": "./dist/types/games/magic/src/presentation.d.ts",
+      "import": "./dist/lib/magic-presentation.js"
+    },
+    "./magic/offline-assets": {
+      "types": "./dist/types/games/magic/src/offline-assets.d.ts",
+      "import": "./dist/lib/magic-offline-assets.js"
+    },
+    "./magic/fonts.css": "./dist/lib/magic.css",
+    "./finish": {
+      "types": "./dist/types/packages/browser/src/finish.d.ts",
+      "import": "./dist/lib/finish.js"
+    },
+    "./kernels": {
+      "types": "./dist/types/packages/browser/src/kernels.d.ts",
+      "import": "./dist/lib/kernels.js"
+    },
+    "./renderer.wasm": "./dist/lib/renderer_bg.wasm",
+    "./pixels.wasm": "./dist/lib/pixels_bg.wasm"
+  },
+  "files": [
+    "dist",
+    "LICENSE-*",
+    "NOTICE",
+    "UPSTREAM-NOTICE",
+    "MAGIC-NOTICE",
+    "upstream.json",
+    "patches"
+  ]
+}

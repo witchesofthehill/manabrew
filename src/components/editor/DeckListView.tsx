@@ -72,6 +72,8 @@ import { useIsUnsupported } from "@/stores/useCardSupportStore";
 import { useIsComboCard, useIsGameChangerCard } from "@/stores/useDeckAnalysisStore";
 import { useCardCollectionOwnership, useDeckCardOwnership } from "./useCardCollectionOwnership";
 import { CollectionOwnershipTooltip } from "./CollectionOwnershipTooltip";
+import { useDeckStore } from "@/stores/useDeckStore";
+import { CardCustomizerModal } from "@/components/editor/CardCustomizerModal";
 function ownershipHighlight(ownership: "exact" | "other" | "none", surface: "stack" | "grid") {
   return cn(
     ownership === "exact" && "outline outline-2 outline-legality-legal/60",
@@ -94,12 +96,12 @@ function openCardContextMenu(event: React.MouseEvent<HTMLButtonElement>) {
     }),
   );
 }
-function CardMenuButton({ className }: { className?: string }) {
+export function CardMenuButton({ className }: { className?: string }) {
   return (
     <button
       type="button"
       className={cn(
-        "flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-colors hover:bg-muted hover:text-foreground group-hover:opacity-100 pointer-coarse:opacity-100",
+        "flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-colors hover:bg-muted hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover:opacity-100 pointer-coarse:opacity-100",
         className,
       )}
       title={`Card actions`}
@@ -285,6 +287,8 @@ export interface CardContextActions {
   onCreateTag?: (tag: string) => void;
 }
 interface CardContextMenuProps extends CardContextActions {
+  card: DeckCard;
+  token?: boolean;
   children: React.ReactNode;
   count: number;
   location: CardLocation;
@@ -417,6 +421,8 @@ function TagsSubmenu({
   );
 }
 export function CardContextMenu({
+  card,
+  token,
   children,
   count,
   location,
@@ -447,6 +453,8 @@ export function CardContextMenu({
   onRemoveCustomTag,
   onCreateTag,
 }: CardContextMenuProps) {
+  const [customizing, setCustomizing] = useState(false);
+  const isReadOnly = useDeckStore((state) => state.isReadOnly);
   const showTagSubmenu = !!onApplyTag && ((customTags && customTags.length > 0) || !!onCreateTag);
   const commanderHandler = isCommander ? onRemoveCommander : onSetCommander;
   const showAll = count > 1;
@@ -455,126 +463,141 @@ export function CardContextMenu({
     (location !== "side" && (onMoveOneToSide || onMoveAllToSide)) ||
     (location !== "maybe" && (onMoveOneToMaybe || onMoveAllToMaybe));
   return (
-    <ContextMenu>
-      <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
-      <ContextMenuContent className="w-52">
-        {onShowInfo && (
-          <>
-            <ContextMenuItem onSelect={onShowInfo}>
-              <Info className="mr-2 h-3.5 w-3.5" /> Card info
+    <>
+      <ContextMenu>
+        <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
+        <ContextMenuContent
+          className="w-52"
+          onCloseAutoFocus={(event) => {
+            if (customizing) event.preventDefault();
+          }}
+        >
+          {onShowInfo && (
+            <>
+              <ContextMenuItem onSelect={onShowInfo}>
+                <Info className="mr-2 h-3.5 w-3.5" /> Card info
+              </ContextMenuItem>
+              <ContextMenuSeparator />
+            </>
+          )}
+          {onAddOne && (
+            <ContextMenuItem
+              onSelect={(e: Event) => {
+                e.preventDefault();
+                onAddOne();
+              }}
+            >
+              <Plus className="mr-2 h-3.5 w-3.5" /> Add 1
             </ContextMenuItem>
-            <ContextMenuSeparator />
-          </>
-        )}
-        {onAddOne && (
-          <ContextMenuItem
-            onSelect={(e: Event) => {
-              e.preventDefault();
-              onAddOne();
-            }}
-          >
-            <Plus className="mr-2 h-3.5 w-3.5" /> Add 1
-          </ContextMenuItem>
-        )}
-        {onRemoveOne && (
-          <ContextMenuItem
-            onSelect={(e: Event) => {
-              e.preventDefault();
-              onRemoveOne();
-            }}
-          >
-            <Minus className="mr-2 h-3.5 w-3.5" /> Remove 1
-          </ContextMenuItem>
-        )}
-        {onRemoveAll && showAll && (
-          <ContextMenuItem onSelect={onRemoveAll} className="text-destructive">
-            <Trash2 className="mr-2 h-3.5 w-3.5" /> Remove all ({count})
-          </ContextMenuItem>
-        )}
-        {hasMoveActions && <ContextMenuSeparator />}
-        {location !== "main" && (
-          <MoveDestination
-            label={`Move to main`}
-            icon={ArrowUpToLine}
-            count={count}
-            onMoveOne={onMoveOneToMain}
-            onMoveAll={onMoveAllToMain}
-          />
-        )}
-        {location !== "side" && (
-          <MoveDestination
-            label={`Move to sideboard`}
-            icon={ArrowDownToLine}
-            count={count}
-            onMoveOne={onMoveOneToSide}
-            onMoveAll={onMoveAllToSide}
-          />
-        )}
-        {location !== "maybe" && (
-          <MoveDestination
-            label={`Move to maybeboard`}
-            icon={HelpCircle}
-            count={count}
-            onMoveOne={onMoveOneToMaybe}
-            onMoveAll={onMoveAllToMaybe}
-          />
-        )}
-        {(commanderHandler || onSetCover || onSetCoverBack) && <ContextMenuSeparator />}
-        {commanderHandler && (
-          <ContextMenuItem onSelect={commanderHandler}>
-            <GameIcon name={commanderSlot.icon} className="mr-2 h-3.5 w-3.5" />
-            {isCommander ? `Remove ${commanderSlot.noun}` : `Set as ${commanderSlot.noun}`}
-          </ContextMenuItem>
-        )}
-        {onSetCover && (
-          <ContextMenuItem onSelect={onSetCover}>
-            <GameIcon name="book-cover" className="mr-2 h-3.5 w-3.5" />
-            {isCover ? `Remove deck cover` : `Set as deck cover`}
-          </ContextMenuItem>
-        )}
-        {onSetCoverBack && (
-          <ContextMenuItem onSelect={onSetCoverBack}>
-            <GameIcon
-              name="book-cover"
-              className="mr-2 h-3.5 w-3.5"
-              style={{ transform: "scaleX(-1)" }}
-            />
-            {isCoverBack ? `Remove back face cover` : `Set back face as cover`}
-          </ContextMenuItem>
-        )}
-        {showTagSubmenu && (
-          <>
-            <ContextMenuSeparator />
-            <TagsSubmenu
-              customTags={customTags}
-              appliedTags={appliedTags}
-              onApplyTag={onApplyTag!}
-              onRemoveCustomTag={onRemoveCustomTag}
-              onCreateTag={onCreateTag}
-            />
-          </>
-        )}
-        {onPickPrint && (
-          <>
-            <ContextMenuSeparator />
-            <ContextMenuItem onSelect={onPickPrint}>
-              <ImageIcon className="mr-2 h-3.5 w-3.5" /> Choose printing…
+          )}
+          {onRemoveOne && (
+            <ContextMenuItem
+              onSelect={(e: Event) => {
+                e.preventDefault();
+                onRemoveOne();
+              }}
+            >
+              <Minus className="mr-2 h-3.5 w-3.5" /> Remove 1
             </ContextMenuItem>
-          </>
-        )}
-        {onToggleFoil && (
-          <ContextMenuItem onSelect={onToggleFoil}>
-            <Sparkles
-              className={cn(
-                "mr-2 h-3.5 w-3.5",
-                isFoil ? "text-yellow-300" : "text-muted-foreground",
-              )}
+          )}
+          {onRemoveAll && showAll && (
+            <ContextMenuItem onSelect={onRemoveAll} className="text-destructive">
+              <Trash2 className="mr-2 h-3.5 w-3.5" /> Remove all ({count})
+            </ContextMenuItem>
+          )}
+          {hasMoveActions && <ContextMenuSeparator />}
+          {location !== "main" && (
+            <MoveDestination
+              label={`Move to main`}
+              icon={ArrowUpToLine}
+              count={count}
+              onMoveOne={onMoveOneToMain}
+              onMoveAll={onMoveAllToMain}
             />
-            {isFoil ? `Remove foil` : `Make foil`}
-          </ContextMenuItem>
-        )}
-      </ContextMenuContent>
-    </ContextMenu>
+          )}
+          {location !== "side" && (
+            <MoveDestination
+              label={`Move to sideboard`}
+              icon={ArrowDownToLine}
+              count={count}
+              onMoveOne={onMoveOneToSide}
+              onMoveAll={onMoveAllToSide}
+            />
+          )}
+          {location !== "maybe" && (
+            <MoveDestination
+              label={`Move to maybeboard`}
+              icon={HelpCircle}
+              count={count}
+              onMoveOne={onMoveOneToMaybe}
+              onMoveAll={onMoveAllToMaybe}
+            />
+          )}
+          {(commanderHandler || onSetCover || onSetCoverBack) && <ContextMenuSeparator />}
+          {commanderHandler && (
+            <ContextMenuItem onSelect={commanderHandler}>
+              <GameIcon name={commanderSlot.icon} className="mr-2 h-3.5 w-3.5" />
+              {isCommander ? `Remove ${commanderSlot.noun}` : `Set as ${commanderSlot.noun}`}
+            </ContextMenuItem>
+          )}
+          {onSetCover && (
+            <ContextMenuItem onSelect={onSetCover}>
+              <GameIcon name="book-cover" className="mr-2 h-3.5 w-3.5" />
+              {isCover ? `Remove deck cover` : `Set as deck cover`}
+            </ContextMenuItem>
+          )}
+          {onSetCoverBack && (
+            <ContextMenuItem onSelect={onSetCoverBack}>
+              <GameIcon
+                name="book-cover"
+                className="mr-2 h-3.5 w-3.5"
+                style={{ transform: "scaleX(-1)" }}
+              />
+              {isCoverBack ? `Remove back face cover` : `Set back face as cover`}
+            </ContextMenuItem>
+          )}
+          {showTagSubmenu && (
+            <>
+              <ContextMenuSeparator />
+              <TagsSubmenu
+                customTags={customTags}
+                appliedTags={appliedTags}
+                onApplyTag={onApplyTag!}
+                onRemoveCustomTag={onRemoveCustomTag}
+                onCreateTag={onCreateTag}
+              />
+            </>
+          )}
+          {onPickPrint && (
+            <>
+              <ContextMenuSeparator />
+              <ContextMenuItem onSelect={onPickPrint}>
+                <ImageIcon className="mr-2 h-3.5 w-3.5" /> Choose printing…
+              </ContextMenuItem>
+            </>
+          )}
+          {!isReadOnly && (
+            <ContextMenuItem onSelect={() => setCustomizing(true)}>
+              <Palette className="mr-2 h-3.5 w-3.5" /> Customize card…
+            </ContextMenuItem>
+          )}
+          {onToggleFoil && (
+            <ContextMenuItem onSelect={onToggleFoil}>
+              <Sparkles
+                className={cn(
+                  "mr-2 h-3.5 w-3.5",
+                  isFoil ? "text-yellow-300" : "text-muted-foreground",
+                )}
+              />
+              {isFoil ? `Remove foil` : `Make foil`}
+            </ContextMenuItem>
+          )}
+        </ContextMenuContent>
+      </ContextMenu>
+      {customizing && !isReadOnly && (
+        <CardCustomizerModal card={card} token={token} onClose={() => setCustomizing(false)} />
+      )}
+    </>
   );
 }
 function DraggableStackCard({
@@ -696,7 +719,12 @@ function DraggableStackCard({
   );
   if (!contextActions || !contextLocation) return content;
   return (
-    <CardContextMenu count={group.count} location={contextLocation} {...contextActions}>
+    <CardContextMenu
+      card={group.card}
+      count={group.count}
+      location={contextLocation}
+      {...contextActions}
+    >
       {content}
     </CardContextMenu>
   );
@@ -962,7 +990,12 @@ function CardVisual({
   );
   if (!contextActions || !contextLocation) return visualContent;
   return (
-    <CardContextMenu count={group.count} location={contextLocation} {...contextActions}>
+    <CardContextMenu
+      card={group.card}
+      count={group.count}
+      location={contextLocation}
+      {...contextActions}
+    >
       {visualContent}
     </CardContextMenu>
   );
@@ -1121,7 +1154,7 @@ function CardRow({
   );
   if (!contextActions) return rowContent;
   return (
-    <CardContextMenu count={group.count} location="main" {...contextActions}>
+    <CardContextMenu card={group.card} count={group.count} location="main" {...contextActions}>
       {rowContent}
     </CardContextMenu>
   );
@@ -2110,6 +2143,13 @@ export function DeckListView({
             onRemoveOne={onRemoveFromSide}
             onPickPrint={onPickPrint}
             dragHandleProps={dhProps}
+            contextMenuFor={(group) => ({
+              location: "side",
+              actions: {
+                onShowInfo: onShowInfo ? () => onShowInfo(group.card) : undefined,
+                onPickPrint: () => onPickPrint(group.card),
+              },
+            })}
           />
         </div>
       );
@@ -2322,6 +2362,7 @@ export function DeckListView({
               <div className="space-y-0.5 pb-1">
                 {sideboardGroups.map((g) => (
                   <CardContextMenu
+                    card={g.card}
                     key={g.key}
                     count={g.count}
                     location="side"
@@ -2438,6 +2479,7 @@ export function DeckListView({
               <div className="space-y-0.5 pb-1">
                 {maybeboardGroups.map((g) => (
                   <CardContextMenu
+                    card={g.card}
                     key={g.key}
                     count={g.count}
                     location="maybe"
@@ -2558,28 +2600,38 @@ export function DeckListView({
                 {!open ? null : viewMode === "list" ? (
                   <div className="space-y-0.5 pb-1">
                     {section.groups.map((g) => (
-                      <div
+                      <CardContextMenu
                         key={g.key}
-                        data-card-name={g.card.identity.name}
-                        className="flex items-center gap-1 group hover:bg-muted/40 rounded px-1 py-0.5"
+                        card={g.card}
+                        count={g.count}
+                        location="side"
+                        onShowInfo={onShowInfo ? () => onShowInfo(g.card) : undefined}
+                        onPickPrint={() => onPickPrint(g.card)}
                       >
-                        <span className="text-xs font-mono w-4 text-right text-muted-foreground shrink-0">
-                          {g.count}
-                        </span>
-                        <span className="text-sm flex-1 truncate">{g.card.identity.name}</span>
-                        {g.card.manaCost && (
-                          <ManaSymbols cost={g.card.manaCost} size="sm" className="shrink-0" />
-                        )}
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-5 w-5 text-destructive shrink-0"
-                          title={`Remove`}
-                          onClick={() => onRemoveFromSide(g.card.identity.name)}
+                        <div
+                          key={g.key}
+                          data-card-name={g.card.identity.name}
+                          className="flex items-center gap-1 group hover:bg-muted/40 rounded px-1 py-0.5"
                         >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
+                          <span className="text-xs font-mono w-4 text-right text-muted-foreground shrink-0">
+                            {g.count}
+                          </span>
+                          <span className="text-sm flex-1 truncate">{g.card.identity.name}</span>
+                          {g.card.manaCost && (
+                            <ManaSymbols cost={g.card.manaCost} size="sm" className="shrink-0" />
+                          )}
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-5 w-5 text-destructive shrink-0"
+                            title={`Remove`}
+                            onClick={() => onRemoveFromSide(g.card.identity.name)}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                          <CardMenuButton />
+                        </div>
+                      </CardContextMenu>
                     ))}
                   </div>
                 ) : (
@@ -2597,6 +2649,11 @@ export function DeckListView({
                           }
                           onRemoveOne={() => onRemoveFromSide(g.card.identity.name)}
                           onPickPrint={() => onPickPrint(g.card)}
+                          contextLocation="side"
+                          contextActions={{
+                            onShowInfo: onShowInfo ? () => onShowInfo(g.card) : undefined,
+                            onPickPrint: () => onPickPrint(g.card),
+                          }}
                         />
                       </div>
                     ))}

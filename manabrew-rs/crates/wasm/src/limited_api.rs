@@ -41,6 +41,7 @@ fn paper_card_to_identity(c: &PaperCard) -> DeckCardIdentity {
         set_code: c.set_code.clone(),
         card_number: c.collector_number.clone(),
         foil: if c.foil { Some(true) } else { None },
+        cosmetics: c.cosmetics,
     }
 }
 
@@ -55,6 +56,7 @@ fn identity_to_paper_card(c: &DeckCardIdentity) -> PaperCard {
     .with_colors(colors)
     .with_double_faced(dual_faced);
     pc.foil = c.foil.unwrap_or(false);
+    pc.cosmetics = c.cosmetics;
     pc
 }
 
@@ -522,6 +524,7 @@ pub fn limited_get_set_pool(set_code: String) -> Result<JsValue, JsError> {
             set_code: edition.code.clone(),
             card_number: entry.collector_number.clone(),
             foil: None,
+            cosmetics: None,
         })
         .collect();
 
@@ -1200,6 +1203,7 @@ pub fn limited_import_cube(request_json: JsValue, body: String) -> Result<JsValu
                 set_code: entry.set_code.clone().unwrap_or_default(),
                 card_number: String::new(),
                 foil: None,
+                cosmetics: None,
             });
         }
     }

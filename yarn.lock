@@ -2386,6 +2386,10 @@ caniuse-lite@^1.0.30001759, caniuse-lite@^1.0.30001766:
   resolved "https://registry.npmjs.org/caniuse-lite/-/caniuse-lite-1.0.30001770.tgz"
   integrity sha512-x/2CLQ1jHENRbHg5PSId2sXq1CIO1CISvwWAj027ltMVG2UNgW+w9oH2+HzgEIRFembL8bUlXtfbBHR1fCg2xw==
 
+"card-glint@link:packages/card-glint":
+  version "0.0.0"
+  uid ""
+
 chai@^5.2.0:
   version "5.3.3"
   resolved "https://registry.yarnpkg.com/chai/-/chai-5.3.3.tgz#dd3da955e270916a4bd3f625f4b919996ada7e06"
@@ -3183,10 +3187,9 @@ ini@6.0.0:
   resolved "https://registry.yarnpkg.com/ini/-/ini-6.0.0.tgz#efc7642b276f6a37d22fdf56ef50889d7146bf30"
   integrity sha512-IBTdIkzZNOpqm7q3dRqJvMaldXjDHWkEDfrwGEQTs5eaQMWV+djAhR+wahyNNMAa+qpbDUhBMVt4ZKNwpPm7xQ==
 
-ironsmith-wasm@^0.1.2:
-  version "0.1.2"
-  resolved "https://registry.yarnpkg.com/ironsmith-wasm/-/ironsmith-wasm-0.1.2.tgz#4f95d9aeccd01cb738d1e335bcbf07bd8270a823"
-  integrity sha512-vE91LJZGCIpixTHJtk0StxhGDr+VaYbDcYTicHNPQm+VonYBXwF83iCz90kFouS76QnuMn/I0QmjqwllXEsA8A==
+"ironsmith-wasm@link:packages/ironsmith-wasm":
+  version "0.0.0"
+  uid ""
 
 is-arrayish@^0.2.1:
   version "0.2.1"

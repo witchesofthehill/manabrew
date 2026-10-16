@@ -96,6 +96,8 @@ export function buildDevDialogFixtures(
           controllerId: index === 0 ? me.id : targetPlayer.id,
           ownerId: index === 0 ? me.id : targetPlayer.id,
           identity: card.identity,
+          foil: card.foil,
+          cosmetics: card.cosmetics,
           text: index === 0 ? "Counter target spell." : "Draw two cards.",
           isPermanentSpell: index === 1,
           isCasting: index === 0,

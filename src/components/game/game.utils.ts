@@ -123,6 +123,8 @@ export function stackObjectToCardStub(obj: StackObjectDto): ClientCardDto {
     ...GAME_CARD_DEFAULTS,
     id: obj.sourceId,
     identity: obj.identity,
+    foil: obj.foil,
+    cosmetics: obj.cosmetics,
     text: "",
     controllerId: obj.controllerId,
     ownerId: obj.ownerId,

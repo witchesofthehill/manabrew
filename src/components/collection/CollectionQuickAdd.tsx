@@ -1,6 +1,6 @@
 import { Loader2, Minus, Plus, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
-import { MseCardImage } from "@/components/game/MseCardImage";
+import { GeneratedCardImage } from "@/components/game/GeneratedCardImage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -194,7 +194,7 @@ export function CollectionQuickAdd({
                   title={`Add one ${displayName}`}
                   onClick={() => add(card)}
                 >
-                  <MseCardImage
+                  <GeneratedCardImage
                     deckCard={scryfallToDeckCard(card)}
                     className="h-11 w-8 shrink-0 rounded"
                   />

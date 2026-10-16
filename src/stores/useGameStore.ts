@@ -53,6 +53,7 @@ import type { Prompt, PromptOutput } from "@/protocol";
 import type { Deck, DeckCard } from "@/protocol/deck";
 import type { EngineKind } from "@/types/server";
 import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
+import { normalizeCardCosmetics } from "@/lib/cardCosmetics";
 import type { GameRuntime, ManualTabletopApi } from "@/game";
 import { withResolvedDeckName } from "@/lib/deckName";
 export type { GameConfig, GameState, DisplayEvent, DeferredSnapshot } from "./gameStore.types";
@@ -80,6 +81,7 @@ function manualZoneCard(card: DeckCard, playerId: string, zoneId: string): Clien
       isToken: false,
     },
     foil: identity.foil ?? false,
+    cosmetics: normalizeCardCosmetics(identity.cosmetics),
     controllerId: playerId,
     ownerId: playerId,
     zoneId,

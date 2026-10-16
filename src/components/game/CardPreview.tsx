@@ -1,4 +1,5 @@
 import { CardFoilOverlay } from "@/components/game/CardFoilOverlay";
+import { isEtchedOnlyPrinting } from "@/lib/cardFinish";
 import { topModal } from "@/lib/modalStack";
 import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, Loader2, RotateCw } from "lucide-react";
@@ -32,7 +33,7 @@ import { useKeybindings } from "@/hooks/useKeybindings";
 import { deriveCardRailEffects, deriveCardRailState } from "@/components/game/cardRailState";
 import { cardTypeLine, replaceCardName } from "@/components/game/cardPresentation";
 import { localizeRulesPreviewText } from "@/pixi/cardPreview/rulesCardPreviewPresentation";
-import { MseCardImage } from "@/components/game/MseCardImage";
+import { GeneratedCardImage } from "@/components/game/GeneratedCardImage";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 interface CardPreviewProps {
   card: CardDto;
@@ -511,7 +512,7 @@ export function CardPreview({
                   />
                 )}
                 {generatedView && !faceless && (
-                  <MseCardImage
+                  <GeneratedCardImage
                     card={card}
                     deckCard={deckCard}
                     faceIndex={previewFaceIndex}
@@ -519,7 +520,12 @@ export function CardPreview({
                     fallback={currentImageUrl ? <></> : undefined}
                   />
                 )}
-                <CardFoilOverlay enabled={!!card.foil && !faceless && !generatedView} />
+                <CardFoilOverlay
+                  enabled={!faceless && !generatedView && !suppressed}
+                  foil={!faceless && !!card.foil}
+                  cosmetics={faceless ? undefined : card.cosmetics}
+                  etched={!faceless && isEtchedOnlyPrinting(resolvedGameCard.info?.finishes)}
+                />
                 {!faceless && showsCurrentFace && (
                   <CardPreviewOverlay
                     card={card}

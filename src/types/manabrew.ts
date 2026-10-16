@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import type {
+  CardCosmetics,
   Deck as DeckDto,
   DeckEditorGoals as DeckEditorGoalsDto,
   DeckEditorGroup as DeckEditorGroupDto,
@@ -16,6 +17,7 @@ export interface CardIdentity {
   setCode: string;
   cardNumber: string;
   foil?: boolean;
+  cosmetics?: CardCosmetics;
 }
 
 export interface CardRulesSummary {

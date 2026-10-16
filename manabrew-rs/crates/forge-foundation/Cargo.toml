@@ -7,4 +7,5 @@ description = "Core Magic types for the manabrew engine: colors, mana, card type
 
 [dependencies]
 serde = { workspace = true }
+ts-rs = { workspace = true }
 rand = "0.8"

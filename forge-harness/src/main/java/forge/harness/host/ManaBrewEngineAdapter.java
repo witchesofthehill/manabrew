@@ -3,6 +3,11 @@ package forge.harness.host;
 import forge.harness.common.CountingRandom;
 import forge.harness.common.HeadlessGuiBase;
 import forge.harness.common.ForgeEngineReset;
+import forge.harness.protocol.CardCosmetics;
+import forge.harness.protocol.CardFinish;
+import forge.harness.protocol.CardFramePreset;
+import forge.harness.protocol.CardBorderPreset;
+import forge.harness.protocol.CardWearPreset;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -21,6 +26,7 @@ import forge.game.GameRules;
 import forge.game.GameType;
 import forge.game.Match;
 import forge.game.player.RegisteredPlayer;
+import forge.game.zone.ZoneType;
 import forge.gui.GuiBase;
 import forge.item.PaperCard;
 import forge.localinstance.properties.ForgePreferences;
@@ -28,7 +34,6 @@ import forge.model.FModel;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -47,6 +52,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class ManaBrewEngineAdapter {
     private static final Gson GSON = new Gson();
+    private static final Set<String> COSMETIC_FIELDS = Set.of("finish", "frame", "border", "wear", "wearSeed");
     private final Map<String, ManaBrewInteractiveSession> sessions = new ConcurrentHashMap<>();
     private volatile boolean initialized;
 
@@ -106,12 +112,15 @@ public final class ManaBrewEngineAdapter {
         final ManaBrewInteractiveSession session =
                 new ManaBrewInteractiveSession(request.getGameId());
         final List<RegisteredPlayer> registeredPlayers = new ArrayList<>();
+        final List<List<CardCosmeticBindings.DeckEntry>> deckEntries = new ArrayList<>();
         final Set<Integer> botSeats = new HashSet<>();
         for (PlayerConfig playerConfig : request.getPlayers()) {
             if (playerConfig.isBot()) {
                 botSeats.add(registeredPlayers.size());
             }
-            Deck deck = buildDeck(playerConfig);
+            final List<CardCosmeticBindings.DeckEntry> entries = new ArrayList<>();
+            Deck deck = buildDeck(playerConfig, entries);
+            deckEntries.add(entries);
             RegisteredPlayer registeredPlayer = RegisteredPlayer.forVariants(
                     playerCount, variants, deck, null, false, null, null);
             if (playerConfig.isAi()) {
@@ -126,6 +135,7 @@ public final class ManaBrewEngineAdapter {
         final Match match = new Match(rules, registeredPlayers, "ManaBrew");
         final Game game = match.createGame();
         session.attach(match, game, botSeats, request.isSnapshotRecording());
+        new CardCosmeticBindings(game, deckEntries, request.getPlayers());
         if (request.checkpointMetrics) {
             session.enableCheckpointMetrics();
         }
@@ -217,15 +227,13 @@ public final class ManaBrewEngineAdapter {
         return session;
     }
 
-    private static Deck buildDeck(final PlayerConfig playerConfig) {
+    private static Deck buildDeck(final PlayerConfig playerConfig,
+            final List<CardCosmeticBindings.DeckEntry> entries) {
         Deck deck = new Deck(playerConfig.getName());
         CardPool main = deck.getOrCreate(DeckSection.Main);
-        Map<String, PaperCard> mainByName = new HashMap<>();
+        final CardPool resolved = new CardPool();
         for (CardIdentity card : playerConfig.getDeck()) {
-            main.add(cardRequest(card), 1);
-        }
-        for (PaperCard card : main.toFlatList()) {
-            mainByName.putIfAbsent(card.getName().toLowerCase(Locale.ROOT), card);
+            addDeckEntry(main, resolved, card, ZoneType.Library, entries);
         }
         List<String> uniqueCommanders = new ArrayList<>();
         Set<String> seenCommanders = new HashSet<>();
@@ -238,32 +246,52 @@ public final class ManaBrewEngineAdapter {
             }
         }
         for (String commanderName : uniqueCommanders) {
-            PaperCard commander = mainByName.get(commanderName.toLowerCase(Locale.ROOT));
-            if (commander == null && commanderName.contains(" // ")) {
-                // Forge keys DFCs by front face; mirrors CardDatabase::get_by_card_name.
-                String frontFace = commanderName.substring(0, commanderName.indexOf(" // "));
-                commander = mainByName.get(frontFace.toLowerCase(Locale.ROOT));
+            String name = commanderName;
+            if (name.contains(" // ")) {
+                name = name.substring(0, name.indexOf(" // "));
+            }
+            CardCosmeticBindings.DeckEntry commander = null;
+            for (final CardCosmeticBindings.DeckEntry entry : entries) {
+                if (entry.zone == ZoneType.Library && entry.paper.getName().equalsIgnoreCase(name)
+                        && (commander == null || entry.identity.commander)) {
+                    commander = entry;
+                    if (entry.identity.commander) {
+                        break;
+                    }
+                }
             }
             if (commander == null) {
                 throw new IllegalArgumentException("commander was not found in main deck: "
                         + commanderName);
             }
-            main.remove(commander, 1);
-            deck.getOrCreate(DeckSection.Commander).add(commander, 1);
+            main.remove(commander.paper, 1);
+            deck.getOrCreate(DeckSection.Commander).add(commander.paper, 1);
+            commander.zone = ZoneType.Command;
         }
         if (!playerConfig.getSideboard().isEmpty()) {
             CardPool sideboard = deck.getOrCreate(DeckSection.Sideboard);
             for (CardIdentity card : playerConfig.getSideboard()) {
-                sideboard.add(cardRequest(card), 1);
+                addDeckEntry(sideboard, resolved, card, ZoneType.Sideboard, entries);
             }
         }
         if (!playerConfig.getAttractions().isEmpty()) {
             CardPool attractions = deck.getOrCreate(DeckSection.Attractions);
             for (CardIdentity card : playerConfig.getAttractions()) {
-                attractions.add(cardRequest(card), 1);
+                addDeckEntry(attractions, resolved, card, ZoneType.AttractionDeck, entries);
             }
         }
         return deck;
+    }
+
+    private static void addDeckEntry(final CardPool pool, final CardPool resolved,
+            final CardIdentity identity, final ZoneType zone,
+            final List<CardCosmeticBindings.DeckEntry> entries) {
+        resolved.clear();
+        resolved.add(cardRequest(identity), 1);
+        for (final Map.Entry<PaperCard, Integer> entry : resolved) {
+            pool.add(entry.getKey(), entry.getValue());
+            entries.add(new CardCosmeticBindings.DeckEntry(entry.getKey(), identity, zone));
+        }
     }
 
     static String cardRequest(final CardIdentity card) {
@@ -426,7 +454,11 @@ public final class ManaBrewEngineAdapter {
             boolean bot = playerObject.has("bot")
                     && !playerObject.get("bot").isJsonNull()
                     && playerObject.get("bot").getAsBoolean();
-            players.add(new PlayerConfig(name, deck, sideboard, attractions, commanderNames, ai, bot));
+            final PlayerConfig player = new PlayerConfig(name, deck, sideboard, attractions, commanderNames, ai, bot);
+            if (playerObject.has("tokens")) {
+                player.tokens = parseCardIdentities(playerObject.getAsJsonArray("tokens"));
+            }
+            players.add(player);
         }
         final StartGameRequest request = new StartGameRequest(
                 gameId, variant, startingLife, seed, snapshotRecording, players);
@@ -438,13 +470,81 @@ public final class ManaBrewEngineAdapter {
         List<CardIdentity> cards = new ArrayList<>();
         for (JsonElement cardValue : cardValues) {
             JsonObject cardObject = cardValue.getAsJsonObject();
-            cards.add(new CardIdentity(
+            final CardIdentity card = new CardIdentity(
                     requiredString(cardObject, "name"),
                     optionalString(cardObject, "setCode"),
                     optionalString(cardObject, "collectorNumber"),
-                    cardObject.has("foil") && cardObject.get("foil").getAsBoolean()));
+                    cardObject.has("foil") && cardObject.get("foil").getAsBoolean());
+            card.cosmetics = parseCosmetics(cardObject.get("cosmetics"));
+            card.tokenScript = optionalString(cardObject, "tokenScript");
+            card.commander = cardObject.has("commander") && cardObject.get("commander").getAsBoolean();
+            cards.add(card);
         }
         return cards;
+    }
+
+    private static CardCosmetics parseCosmetics(final JsonElement value) {
+        if (value == null || value.isJsonNull()) {
+            return null;
+        }
+        if (!value.isJsonObject()) {
+            throw new IllegalArgumentException("cosmetics must be an object");
+        }
+        final JsonObject object = value.getAsJsonObject();
+        for (final String key : object.keySet()) {
+            if (!COSMETIC_FIELDS.contains(key)) {
+                throw new IllegalArgumentException("unknown cosmetics field: " + key);
+            }
+        }
+        final CardFinish finish = cosmeticEnum(object, "finish", CardFinish.class);
+        CardFramePreset frame = cosmeticEnum(object, "frame", CardFramePreset.class);
+        CardBorderPreset border = cosmeticEnum(object, "border", CardBorderPreset.class);
+        CardWearPreset wear = cosmeticEnum(object, "wear", CardWearPreset.class);
+        Long wearSeed = null;
+        final JsonElement seed = object.get("wearSeed");
+        if (seed != null && !seed.isJsonNull()) {
+            if (!seed.isJsonPrimitive() || !seed.getAsJsonPrimitive().isNumber()) {
+                throw new IllegalArgumentException("cosmetics wearSeed must be a uint32");
+            }
+            try {
+                wearSeed = seed.getAsBigDecimal().longValueExact();
+            } catch (ArithmeticException invalid) {
+                throw new IllegalArgumentException("cosmetics wearSeed must be a uint32", invalid);
+            }
+            if (wearSeed < 0 || wearSeed > 0xffffffffL) {
+                throw new IllegalArgumentException("cosmetics wearSeed must be a uint32");
+            }
+        }
+        if (frame == CardFramePreset.PRINTING) {
+            frame = null;
+        }
+        if (border == CardBorderPreset.PRINTING) {
+            border = null;
+        }
+        if (wear == CardWearPreset.FRESH) {
+            wear = null;
+        }
+        if (wear == null || Long.valueOf(0).equals(wearSeed)) {
+            wearSeed = null;
+        }
+        return finish == null && frame == null && border == null && wear == null
+                ? null : new CardCosmetics(finish, frame, border, wear, wearSeed);
+    }
+
+    private static <T extends Enum<T>> T cosmeticEnum(final JsonObject object,
+            final String key, final Class<T> type) {
+        final JsonElement value = object.get(key);
+        if (value == null || value.isJsonNull()) {
+            return null;
+        }
+        if (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isString()) {
+            throw new IllegalArgumentException("invalid cosmetics " + key);
+        }
+        final T parsed = GSON.fromJson(value, type);
+        if (parsed == null) {
+            throw new IllegalArgumentException("invalid cosmetics " + key);
+        }
+        return parsed;
     }
 
     private static String requiredString(final JsonObject object, final String key) {
@@ -523,6 +623,7 @@ public final class ManaBrewEngineAdapter {
         private final List<CardIdentity> deck;
         private final List<CardIdentity> sideboard;
         private final List<CardIdentity> attractions;
+        private List<CardIdentity> tokens = List.of();
         private final List<String> commanderNames;
         private final boolean ai;
         private final boolean bot;
@@ -567,6 +668,10 @@ public final class ManaBrewEngineAdapter {
             return attractions;
         }
 
+        List<CardIdentity> getTokens() {
+            return tokens;
+        }
+
         public List<String> getCommanderNames() {
             return commanderNames;
         }
@@ -585,6 +690,9 @@ public final class ManaBrewEngineAdapter {
         private final String setCode;
         private final String collectorNumber;
         private final boolean foil;
+        private CardCosmetics cosmetics;
+        private String tokenScript;
+        private boolean commander;
 
         public CardIdentity(
                 final String name,
@@ -615,6 +723,14 @@ public final class ManaBrewEngineAdapter {
 
         public boolean isFoil() {
             return foil;
+        }
+
+        CardCosmetics getCosmetics() {
+            return cosmetics;
+        }
+
+        String getTokenScript() {
+            return tokenScript;
         }
     }
 

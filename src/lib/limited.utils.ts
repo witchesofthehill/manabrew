@@ -6,6 +6,7 @@ import type { ScryfallCard } from "@/types/scryfall";
 import { frontFaceName, parseTypeLine } from "@/lib/scryfall.utils";
 import { cardKey, peekCard, useCard, useScryfallStore } from "@/stores/useScryfallStore";
 import { effectiveRarity, RARITY_ORDER, type UIRarity } from "@/lib/cardRarity";
+import { normalizeCardCosmetics } from "@/lib/cardCosmetics";
 
 export type LimitedZone = "pool" | "main" | "sideboard";
 
@@ -23,13 +24,14 @@ export function countManaPips(cost: string, letter: string): number {
 }
 
 export function deckCardToDraftCard(card: DeckCard): DraftCard {
-  const { name, setCode, cardNumber, foil } = card.identity;
+  const { name, setCode, cardNumber, foil, cosmetics } = card.identity;
   return {
     id: "",
     name,
     setCode,
     cardNumber,
     foil,
+    cosmetics: normalizeCardCosmetics(cosmetics),
   };
 }
 
@@ -74,6 +76,7 @@ export function refToDeckCard(
       cardNumber: info?.collector_number ?? ref.cardNumber,
       oracleId: info?.oracle_id,
       foil: ref.foil,
+      cosmetics: normalizeCardCosmetics(ref.cosmetics),
     },
     color: (info?.colors ?? []).join(""),
     manaCost: info?.mana_cost ?? "",

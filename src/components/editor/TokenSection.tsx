@@ -7,6 +7,7 @@ import { tokenIdentityKey } from "@/stores/useScryfallStore";
 import { cn } from "@/lib/utils";
 import { useDeckSectionOpen } from "./deckSectionExpansion";
 import { EDITOR_PANEL_CLASS } from "./deckEditor.styles";
+import { CardContextMenu, CardMenuButton } from "@/components/editor/DeckListView";
 export interface TokenSectionProps {
   tokens: DeckCard[];
   customizedTokens?: DeckCard[];
@@ -88,42 +89,52 @@ function TokenGridCard({
   onLeave?: () => void;
 }) {
   return (
-    <div
-      className="relative group cursor-pointer"
-      onClick={() => onShowInfo?.(token)}
-      onMouseEnter={(e) => onHover?.(token, e)}
-      onMouseLeave={() => onLeave?.()}
+    <CardContextMenu
+      card={token}
+      token
+      count={1}
+      location="main"
+      onShowInfo={onShowInfo ? () => onShowInfo(token) : undefined}
+      onPickPrint={onPickPrint ? () => onPickPrint(token) : undefined}
     >
-      <CardThumbnail card={token} />
+      <div
+        className="relative group cursor-pointer"
+        onClick={() => onShowInfo?.(token)}
+        onMouseEnter={(e) => onHover?.(token, e)}
+        onMouseLeave={() => onLeave?.()}
+      >
+        <CardThumbnail card={token} />
 
-      <div className="absolute top-1 right-1 z-20 flex gap-1 opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100 transition-opacity">
-        {onPickPrint && (
-          <button
-            type="button"
-            className="rounded-full p-0.5 shadow bg-overlay/70 text-muted-foreground hover:text-foreground transition-colors"
-            title={`Change printing`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onPickPrint(token);
-            }}
-          >
-            <Palette className="h-3.5 w-3.5" />
-          </button>
-        )}
-        {customized && onReset && (
-          <button
-            type="button"
-            className="rounded-full p-0.5 shadow bg-overlay/70 text-muted-foreground hover:text-destructive transition-colors"
-            title={`Reset printing`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onReset(token);
-            }}
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        )}
+        <div className="absolute top-1 right-1 z-20 flex gap-1 opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100 transition-opacity">
+          {onPickPrint && (
+            <button
+              type="button"
+              className="rounded-full p-0.5 shadow bg-overlay/70 text-muted-foreground hover:text-foreground transition-colors"
+              title={`Change printing`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onPickPrint(token);
+              }}
+            >
+              <Palette className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {customized && onReset && (
+            <button
+              type="button"
+              className="rounded-full p-0.5 shadow bg-overlay/70 text-muted-foreground hover:text-destructive transition-colors"
+              title={`Reset printing`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onReset(token);
+              }}
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+        <CardMenuButton className="absolute bottom-1 right-1 z-20" />
       </div>
-    </div>
+    </CardContextMenu>
   );
 }

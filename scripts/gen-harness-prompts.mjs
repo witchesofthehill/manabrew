@@ -149,10 +149,14 @@ const emitStringEnum = (name, body) => {
 
 const parentOf = new Map(); // variant class name -> interface it implements
 
+const JAVA_FIELD_TYPES = { "CardCosmetics.wearSeed": "Long" };
+
 const emitClass = (name, discriminator, fields, tag) => {
   const baked = tag ? { key: "type", value: tag } : discriminator;
-  const decls = fields.map((f) => `  public ${javaType(f.ts, f.optional)} ${f.name};`);
-  const params = fields.map((f) => `${javaType(f.ts, f.optional)} ${f.name}`).join(", ");
+  const fieldType = (field) =>
+    JAVA_FIELD_TYPES[`${name}.${field.name}`] ?? javaType(field.ts, field.optional);
+  const decls = fields.map((f) => `  public ${fieldType(f)} ${f.name};`);
+  const params = fields.map((f) => `${fieldType(f)} ${f.name}`).join(", ");
   const assigns = fields.map((f) => `    this.${f.name} = ${f.name};`);
   const discDecl = baked ? `  public final String ${baked.key} = "${baked.value}";\n` : "";
   const impl = parentOf.has(name) ? ` implements ${parentOf.get(name)}` : "";

@@ -25,14 +25,16 @@ import { hexToNum } from "./colorUtils";
 import { DOOMED_FILL_ALPHA } from "./constants";
 import { PulseRing } from "./effects/PulseRing";
 import { CardFoil } from "./effects/CardFoil";
-import { useScryfallStore } from "@/stores/useScryfallStore";
+import { peekCard, useScryfallStore } from "@/stores/useScryfallStore";
+import { isEtchedOnlyPrinting } from "@/lib/cardFinish";
 import { useGameStore } from "@/stores/useGameStore";
 import { usePreferencesStore, type BattlefieldCardStyle } from "@/stores/usePreferencesStore";
 import { battlefieldKeywords } from "@/lib/battlefieldKeywords";
 import { applyManaSymbol, parseManaCost } from "./manaSymbols";
 import { asGameDeckCard } from "@/lib/decks";
-import { renderMseCard } from "@/lib/mseCardRenderer";
-import { createMseCardTexture } from "./mseCardTexture";
+import { renderCard } from "@/lib/cardRenderer";
+import { createGeneratedCardTexture, getGeneratedCardArtWindows } from "./generatedCardTexture";
+import { writeCardTextureUvs } from "./cardTextureUvs";
 import { loadCardBack } from "./cardBackTexture";
 import { DEBUG_KEYWORD_CARD_ID, useGameDevStore } from "@/stores/useGameDevStore";
 import { applyIcon } from "./panelIcons";
@@ -423,6 +425,8 @@ export class CardSprite extends Container {
   private foilRing: Graphics;
   private foilStar: Text;
   private readonly foilSheen: CardFoil;
+  private readonly foilUvs = new Float32Array(8);
+  private readonly foilSurface = new Rectangle();
   private ringBearerGfx: Graphics;
   private ringBearerIcon: Sprite;
   private mustAttackGfx: Graphics;
@@ -765,7 +769,7 @@ export class CardSprite extends Container {
       this.fitPrintedSquare();
       return;
     }
-    if (this.isHorizontal()) {
+    if (this.isHorizontal() && this.imageSpr.texture.width < this.imageSpr.texture.height) {
       this.imageSpr.anchor.set(0.5, 0.5);
       this.imageSpr.x = this.cw / 2;
       this.imageSpr.y = this.ch / 2;
@@ -783,16 +787,17 @@ export class CardSprite extends Container {
     const texture = this.imageSpr.texture;
     if (texture.width === 0 || texture.height === 0) return;
     const horizontal = this.isHorizontal();
-    const sourceW = horizontal ? texture.height : texture.width;
-    const sourceH = horizontal ? texture.width : texture.height;
+    const rotate = horizontal && texture.width < texture.height;
+    const sourceW = rotate ? texture.height : texture.width;
+    const sourceH = rotate ? texture.width : texture.height;
     const scale = Math.max(this.cw / sourceW, this.ch / sourceH);
     const visualW = sourceW * scale;
     const visualH = sourceH * scale;
     this.imageSpr.anchor.set(0.5, 0.5);
-    this.imageSpr.rotation = horizontal ? Math.PI / 2 : 0;
+    this.imageSpr.rotation = rotate ? Math.PI / 2 : 0;
     this.imageSpr.x = this.cw / 2;
     this.imageSpr.y = this.ch / 2 + (horizontal ? 0 : Math.max(0, visualH - this.ch) / 2);
-    if (horizontal) this.imageSpr.setSize(visualH, visualW);
+    if (rotate) this.imageSpr.setSize(visualH, visualW);
     else this.imageSpr.setSize(visualW, visualH);
   }
   private async loadImage(): Promise<void> {
@@ -804,6 +809,7 @@ export class CardSprite extends Container {
     const hidden = this.card.isFaceDown || !this.card.identity.name;
     if (hidden) {
       this.imageSpr.texture = Texture.EMPTY;
+      this.foilSheen.setTexture(null);
       this.ownedImageTexture?.destroy(true);
       this.ownedImageTexture = null;
       this.imageIsArtwork = false;
@@ -853,9 +859,9 @@ export class CardSprite extends Container {
         texture = await useScryfallStore.getState().getCardTexture(deckCard!, "art", faceIndex);
         artwork = true;
       } else if (custom) {
-        const canvas = await renderMseCard({ card, deckCard, faceIndex }, controller.signal);
+        const canvas = await renderCard({ card, deckCard, faceIndex }, controller.signal);
         if (this.destroyed || generation !== this.loadGeneration) return;
-        texture = createMseCardTexture(canvas);
+        texture = createGeneratedCardTexture(canvas);
         owned = true;
       } else {
         texture = await useScryfallStore.getState().getCardTexture(deckCard!, "full", faceIndex);
@@ -885,6 +891,7 @@ export class CardSprite extends Container {
     this._imageSettled = true;
     if (texture === Texture.EMPTY) {
       this.imageSpr.texture = Texture.EMPTY;
+      this.foilSheen.setTexture(null);
       this.ownedImageTexture?.destroy(true);
       this.ownedImageTexture = null;
       this.imageIsArtwork = false;
@@ -904,7 +911,6 @@ export class CardSprite extends Container {
     this.ownedImageTexture = owned ? texture : null;
     this.imageIsArtwork = artwork;
     this.imageSpr.texture = texture;
-    previous?.destroy(true);
     this.imageSpr.visible = true;
     this.imageMask.visible = true;
     this.fitImageToSlot();
@@ -914,6 +920,7 @@ export class CardSprite extends Container {
     this.renderFrame();
     this.updateMana();
     this.syncHandFaceVisibility();
+    previous?.destroy(true);
     this.onVisualChange?.();
   }
   setPreviewFace(face: 0 | 1 | null): void {
@@ -968,9 +975,49 @@ export class CardSprite extends Container {
     this.foilSheen.setExclusion(
       this.handRulesFace?.visible ? this.handRulesFace.foilExclusion : null,
     );
+    this.syncFoilTexture();
     if (this.contentContainer.children.at(-1) !== this.foilSheen) {
       this.contentContainer.addChild(this.foilSheen);
     }
+  }
+  private syncFoilTexture(): void {
+    const hidden = this.card.isFaceDown || !this.card.identity.name;
+    const identity = hidden ? undefined : this.deckCard().identity;
+    const printing = identity
+      ? peekCard(useScryfallStore.getState().cards, {
+          name: identity.name,
+          setCode: identity.setCode || undefined,
+          cardNumber: identity.cardNumber || undefined,
+        })
+      : null;
+    this.foilSheen.setAppearance(
+      !hidden && !!this.card.foil,
+      hidden ? undefined : this.card.cosmetics,
+      !hidden && isEtchedOnlyPrinting(printing?.finishes),
+    );
+    this.foilSheen.setEnabled(!hidden);
+    if (hidden) {
+      this.foilSheen.setTexture(null);
+      return;
+    }
+    const embedded = this.handRulesFace?.visible ? this.handRulesFace : null;
+    const texture = embedded
+      ? embedded.foilTexture
+      : this._imageLoaded
+        ? this.imageSpr.texture
+        : null;
+    if (!texture || texture === Texture.EMPTY) {
+      this.foilSheen.setTexture(null);
+      return;
+    }
+    this.foilSurface.set(0, 0, this.cw, this.ch);
+    if (embedded) {
+      embedded.writeFoilTextureUvs(this.contentContainer, this.foilSurface, this.foilUvs);
+    } else {
+      writeCardTextureUvs(this.imageSpr, this.contentContainer, this.foilSurface, this.foilUvs);
+    }
+    this.foilSheen.setTexture(texture, this.foilUvs);
+    this.foilSheen.setArtWindows(getGeneratedCardArtWindows(texture));
   }
   setHandControls(spec: HandCardControlsSpec | null): void {
     if (this.kind !== "hand") return;
@@ -1028,6 +1075,7 @@ export class CardSprite extends Container {
     if (!this.handRulesFace || (!this.handRulesFace.visible && !this.handRulesView)) return;
     const faceIndex = this.previewFace ?? (this.card.isTransformed ? 1 : 0);
     this.handRulesFace.setContent(this.card, faceIndex, this.cw, this.ch);
+    this.syncHandFaceVisibility();
   }
   private fitArtCover(): void {
     const texture = this.imageSpr.texture;
@@ -1195,6 +1243,8 @@ export class CardSprite extends Container {
       card.identity.cardNumber !== previous.identity.cardNumber ||
       card.identity.isToken !== previous.identity.isToken ||
       card.isFaceDown !== previous.isFaceDown ||
+      card.cosmetics?.frame !== previous.cosmetics?.frame ||
+      card.cosmetics?.border !== previous.cosmetics?.border ||
       card.isTransformed !== previous.isTransformed;
     const typesChanged = !sameStrings(card.types, previous.types);
     const subtypesChanged = !sameStrings(card.subtypes, previous.subtypes);
@@ -1250,7 +1300,8 @@ export class CardSprite extends Container {
       }
     }
     if (keywordsChanged || card.id !== previous.id) this.updateKeywords();
-    if (card.foil !== previous.foil || imageChanged) this.updateFoil();
+    if (card.foil !== previous.foil || card.cosmetics !== previous.cosmetics || imageChanged)
+      this.updateFoil();
     if (card.isRingBearer !== previous.isRingBearer) this.updateRingBearer();
     if (card.manaCost !== previous.manaCost || frameChanged) this.updateMana();
     if (filterChanged) this.updateCardFilter();
@@ -1344,6 +1395,9 @@ export class CardSprite extends Container {
     this.loadGeneration++;
     this.imageAbort?.abort();
     this.imageAbort = null;
+    if (this.handRulesFace) this.handRulesFace.onRenderRequested = undefined;
+    this.foilSheen.setTexture(null);
+    this.foilSheen.destroy();
     this.imageSpr.texture = Texture.EMPTY;
     this.ownedImageTexture?.destroy(true);
     this.ownedImageTexture = null;
@@ -1361,7 +1415,6 @@ export class CardSprite extends Container {
     }
     this.shadowGfx.destroy({ context: false });
     this.foilRing.destroy({ context: false });
-    this.foilSheen.destroy();
     this.pulseRing.destroy();
     gsap.killTweensOf(this.promptReferenceGfx);
     if (this.sickFilter) {
@@ -1565,8 +1618,9 @@ export class CardSprite extends Container {
     const isFoil = !!this.card.foil && !this.card.isFaceDown && !!this.card.identity.name;
     this.foilStar.visible = isFoil;
     this.foilRing.visible = isFoil;
-    if (isFoil) this.foilSheen.setSurface(this.cw, this.ch, this.cardRadius(), activeTheme);
-    this.foilSheen.setEnabled(isFoil);
+    if (!this.card.isFaceDown && this.card.identity.name)
+      this.foilSheen.setSurface(this.cw, this.ch, this.cardRadius(), activeTheme);
+    this.syncFoilTexture();
   }
   private updatePT(): void {
     const card = this.card;

@@ -2682,6 +2682,7 @@ version = "0.3.3"
 dependencies = [
  "rand 0.8.6",
  "serde",
+ "ts-rs",
 ]
 
 [[package]]
@@ -4536,6 +4537,7 @@ dependencies = [
 name = "manabrew-protocol"
 version = "5.13.2"
 dependencies = [
+ "forge-foundation",
  "serde",
  "serde_json",
  "sha2 0.10.9",

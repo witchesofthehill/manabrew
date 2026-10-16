@@ -21,7 +21,12 @@ export function scryfallToSampleGameCard(
 ): ClientCardDto {
   const face = sc.card_faces?.[overrides.isTransformed ? 1 : 0] ?? sc;
   const { supertypes, types, subtypes } = parseTypeLine(face.type_line ?? "");
-  const colors = "colors" in face && Array.isArray(face.colors) ? face.colors : [];
+  const colors =
+    face.colors ??
+    face.color_indicator ??
+    (/^Devoid\b/m.test(face.oracle_text ?? "")
+      ? []
+      : [...new Set(face.mana_cost?.match(/[WUBRG]/g) ?? [])]);
   const keywordLines = (face.oracle_text ?? "")
     .split(/[\n,]/)
     .map((line) => line.trim().toLowerCase());

@@ -28,8 +28,8 @@ import type { CardDto } from "@/protocol/game";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import { useGameStore } from "@/stores/useGameStore";
 import { asGameDeckCard } from "@/lib/decks";
-import { renderMseCard } from "@/lib/mseCardRenderer";
-import { createMseCardTexture } from "@/pixi/mseCardTexture";
+import { renderCard } from "@/lib/cardRenderer";
+import { createGeneratedCardTexture } from "@/pixi/generatedCardTexture";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { RING_ABILITIES, zoneBadgeId } from "@/components/game/game.constants";
 import { intentIsHostile } from "@/types/promptType";
@@ -1023,9 +1023,9 @@ export class PlayerHudCapsule {
     let owned = false;
     try {
       if (generated) {
-        const canvas = await renderMseCard({ card, deckCard, faceIndex }, controller.signal);
+        const canvas = await renderCard({ card, deckCard, faceIndex }, controller.signal);
         if (this.container.destroyed || controller.signal.aborted) return;
-        texture = createMseCardTexture(canvas);
+        texture = createGeneratedCardTexture(canvas);
         owned = true;
       } else {
         texture = await useScryfallStore.getState().getCardTexture(deckCard, "full", faceIndex);

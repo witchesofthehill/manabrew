@@ -2,7 +2,7 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { ScryfallImg } from "@/components/ScryfallImg";
-import { MseCardImage } from "./MseCardImage";
+import { GeneratedCardImage } from "./GeneratedCardImage";
 import { useLongPressPreview } from "@/hooks/useLongPressPreview";
 import type { DeckCard } from "@/protocol/deck";
 
@@ -69,7 +69,7 @@ export function CardImageThumbnail({ card, className }: CardImageThumbnailProps)
         onClickCapture={longPress.onClickCapture}
         onContextMenu={longPress.onContextMenu}
       >
-        <MseCardImage deckCard={card} className="h-full w-full" />
+        <GeneratedCardImage deckCard={card} className="h-full w-full" />
       </div>
       {hovered &&
         createPortal(

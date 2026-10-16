@@ -1,5 +1,5 @@
 import { MoreHorizontal, Plus } from "lucide-react";
-import { MseCardImage } from "@/components/game/MseCardImage";
+import { GeneratedCardImage } from "@/components/game/GeneratedCardImage";
 import { cn } from "@/lib/utils";
 import { scryfallDisplayName, scryfallToDeckCard } from "@/lib/scryfall.utils";
 import type { ScryfallCard } from "@/types/scryfall";
@@ -44,7 +44,7 @@ export function DeckQuickAddResults({
               title={`Add one ${displayName} to main deck`}
               onClick={() => onQuickAdd(card)}
             >
-              <MseCardImage
+              <GeneratedCardImage
                 deckCard={scryfallToDeckCard(card)}
                 className="h-11 w-8 shrink-0 rounded"
               />

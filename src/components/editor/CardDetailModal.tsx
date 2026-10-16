@@ -1,5 +1,7 @@
 import { CardFoilOverlay } from "@/components/game/CardFoilOverlay";
-import { useMemo, useState } from "react";
+import { CardCustomizerModal } from "@/components/editor/CardCustomizerModal";
+import { isEtchedOnlyPrinting } from "@/lib/cardFinish";
+import { useState } from "react";
 import { Modal } from "@/components/game/modals/Modal";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { Button } from "@/components/ui/button";
@@ -18,14 +20,20 @@ import {
   Sparkles,
   AlertTriangle,
   LibraryBig,
+  Palette,
 } from "lucide-react";
 import { GameIcon } from "@/components/game/GameIcon";
 import { Input } from "@/components/ui/input";
-import { useCard, useCardRulings, useScryfallStore } from "@/stores/useScryfallStore";
+import {
+  useCard,
+  useCardRulings,
+  useScryfallStore,
+  tokenIdentityKey,
+} from "@/stores/useScryfallStore";
 import { isHorizontalCard } from "@/lib/cardLayout";
 import { HorizontalCardImage } from "@/components/game/HorizontalCardImage";
 import { ScryfallImg } from "@/components/ScryfallImg";
-import { MseCardImage } from "@/components/game/MseCardImage";
+import { GeneratedCardImage } from "@/components/game/GeneratedCardImage";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { usePreferredPrintsStore } from "@/stores/usePreferredPrintsStore";
 import { useDeckStore } from "@/stores/useDeckStore";
@@ -81,6 +89,7 @@ export function CardDetailModal({
   navigation,
 }: CardDetailModalProps) {
   const [showPrints, setShowPrints] = useState(false);
+  const [customizing, setCustomizing] = useState(false);
   const [showDeckPicker, setShowDeckPicker] = useState(false);
   const [newTagInput, setNewTagInput] = useState("");
   const [selectedPrint, setSelectedPrint] = useState<ScryfallCard | null>(null);
@@ -109,6 +118,7 @@ export function CardDetailModal({
     setSelectedPrint(null);
     setShowPrints(false);
     setShowDeckPicker(false);
+    setCustomizing(false);
     setFaceIndex(0);
   }
   const card = selectedPrint ?? initialCard;
@@ -118,16 +128,34 @@ export function CardDetailModal({
     ...currentDeck.sideboard,
     ...(currentDeck.maybeboard ?? []),
     ...(currentDeck.commanders ?? []),
+    ...(currentDeck.attractions ?? []),
+    ...(currentDeck.contraptions ?? []),
+    ...(currentDeck.schemes ?? []),
+    ...(currentDeck.planes ?? []),
+    ...(currentDeck.companion ? [currentDeck.companion] : []),
   ];
-  const matchingDeckCard = deckCards.find((candidate) => candidate.identity.name === deckCardName);
-  const foil =
-    (deckEditorActions?.token?.identity.foil ??
-      deckEditorActions?.printing?.foil ??
-      (deckEditorActions ? matchingDeckCard?.identity.foil : false)) === true;
-  const renderCard = useMemo(() => {
-    const rendered = scryfallToDeckCard(card);
-    return { ...rendered, identity: { ...rendered.identity, foil } };
-  }, [card, foil]);
+  const exactDeckCard = deckEditorActions?.printing
+    ? deckCards.find((candidate) => candidate.identity.id === deckEditorActions.printing?.id)
+    : undefined;
+  const token = deckEditorActions?.token;
+  const customizationCard = token
+    ? (currentDeck.tokens?.find(
+        (candidate) => tokenIdentityKey(candidate) === tokenIdentityKey(token),
+      ) ?? token)
+    : exactDeckCard;
+  const matchingDeckCard =
+    exactDeckCard ?? deckCards.find((candidate) => candidate.identity.name === deckCardName);
+  const foil = !!(
+    customizationCard?.identity.foil ??
+    deckEditorActions?.printing?.foil ??
+    (deckEditorActions ? matchingDeckCard?.identity.foil : false)
+  );
+  const cosmetics = customizationCard?.identity.cosmetics;
+  const renderedCard = scryfallToDeckCard(card);
+  const renderCard = {
+    ...renderedCard,
+    identity: { ...renderedCard.identity, foil, cosmetics },
+  };
   const unsupported = useIsUnsupported(deckCardName);
   const owned = collectionQuantityForName(collectionQuantities, deckCardName);
   const exactOwnership = matchingDeckCard
@@ -218,7 +246,7 @@ export function CardDetailModal({
     if (deckEditorActions?.token && deckEditorActions.onUpdateTokenPrint) {
       deckEditorActions.onUpdateTokenPrint(deckCardName, print);
     } else if (deckEditorActions?.printing) {
-      updatePrintingVariant(deckEditorActions.printing, print);
+      updatePrintingVariant(exactDeckCard?.identity ?? deckEditorActions.printing, print);
     } else if (deckEditorActions) {
       updatePrint(deckCardName, print);
     }
@@ -284,7 +312,7 @@ export function CardDetailModal({
                         isHorizontalActiveFace ? "aspect-[7/5]" : "aspect-[5/7]",
                       )}
                     >
-                      <MseCardImage
+                      <GeneratedCardImage
                         deckCard={renderCard}
                         faceIndex={faceIndex}
                         className={
@@ -314,7 +342,12 @@ export function CardDetailModal({
                           className="absolute inset-0 h-full w-full object-contain"
                         />
                       )}
-                      <CardFoilOverlay enabled={!!foil} />
+                      <CardFoilOverlay
+                        enabled
+                        foil={foil}
+                        cosmetics={cosmetics}
+                        etched={isEtchedOnlyPrinting(card.finishes)}
+                      />
                     </div>
                   ) : (
                     <div
@@ -597,6 +630,17 @@ export function CardDetailModal({
                   >
                     <ImageIcon className="h-3.5 w-3.5" />
                   </Button>
+                  {customizationCard && (
+                    <Button
+                      size="icon-sm"
+                      variant="ghost"
+                      title="Customize card"
+                      aria-label="Customize card"
+                      onClick={() => setCustomizing(true)}
+                    >
+                      <Palette className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
                   {isDoubleFaced && (
                     <Button
                       size="icon-sm"
@@ -789,6 +833,13 @@ export function CardDetailModal({
           onClose={() => setShowPrints(false)}
           onSelect={handleSelectPrint}
           token={deckEditorActions?.token}
+        />
+      )}
+      {customizing && customizationCard && !readOnly && (
+        <CardCustomizerModal
+          card={customizationCard}
+          token={!!token}
+          onClose={() => setCustomizing(false)}
         />
       )}
     </>

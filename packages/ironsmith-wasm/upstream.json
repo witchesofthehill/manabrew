@@ -1,0 +1,10 @@
+{
+  "repository": "https://github.com/Chiplis/ironsmith",
+  "npmVersion": "0.1.2",
+  "commit": "f45c15660a975f37fac62c7780af69785ec26296",
+  "archiveUrl": "https://codeload.github.com/Chiplis/ironsmith/tar.gz/f45c15660a975f37fac62c7780af69785ec26296",
+  "rust": "1.98.0",
+  "wasmPack": "0.13.1",
+  "archiveSha256": "93716f023f40b7fb0be176f5a0e635556174a6fdfe47504b259661fd89aa654d",
+  "patches": ["patches/card-presentation.patch"]
+}

@@ -19,7 +19,6 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      "@mse-renderer": path.resolve(__dirname, "./packages/mse-renderer/index.mjs"),
       // Kept in step with vite.config.ts and tsconfig.app.json.
       "@forge-wasm": path.resolve(__dirname, "./packages/forge-wasm"),
     },

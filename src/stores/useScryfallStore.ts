@@ -30,6 +30,7 @@ import { useEffect, useState } from "react";
 import { frontFaceName } from "@/lib/scryfall.utils";
 import { cardFaceImageUris, localizedDeckCardImageUris } from "@/lib/cardImage";
 import { DEFAULT_SCRYFALL_LANGUAGE, type ScryfallLanguage } from "@/i18n/locales";
+import { installedCardRecord } from "@/lib/cardGlintAssetCache";
 
 export interface ScryfallCardLookup {
   id?: string;
@@ -411,6 +412,19 @@ export function tokenIdentityKey(token: DeckCard): string {
   return oracleId ? `oracle:${oracleId}` : `name:${token.identity.name.toLowerCase()}`;
 }
 
+export function resolveTokenCustomizationScript(token: DeckCard): string | undefined {
+  if (token.identity.tokenScript) return token.identity.tokenScript;
+  const archived =
+    loadedTokenArchive?.byId.get(token.identity.id) ??
+    loadedTokenArchive?.byExactSetAndNumber.get(
+      cardKey({ setCode: token.identity.setCode, collectorNumber: token.identity.cardNumber }),
+    );
+  const scripts =
+    loadedTokenArchive?.tokenScriptsById.get(token.identity.id) ??
+    (archived ? loadedTokenArchive?.tokenScriptsById.get(archived.identity.id) : undefined);
+  return scripts?.length === 1 ? scripts[0] : undefined;
+}
+
 export function getCardTokenScripts(cardName: string): string[] {
   return loadedTokenArchive?.cardTokenScripts[frontFaceName(cardName).toLowerCase()] ?? [];
 }
@@ -629,14 +643,17 @@ export const useScryfallStore = create<ScryfallState>()(
       _fetchCardLookup: async (lookup) => {
         const key = cardKey(lookup);
         const locale = get().locale;
-        const archivedToken = await lookupArchivedToken(lookup);
-        const card = archivedToken
-          ? tokenToScryfallCard(localizedArchivedToken(archivedToken, locale))
-          : await fetchScryfallCard(lookup, locale);
+        const installed = await installedCardRecord(lookup, locale);
+        const archivedToken = installed ? null : await lookupArchivedToken(lookup);
+        const card =
+          installed?.info ??
+          (archivedToken
+            ? tokenToScryfallCard(localizedArchivedToken(archivedToken, locale))
+            : await fetchScryfallCard(lookup, locale));
         if (get().locale !== locale) return get()._fetchCardLookup(lookup);
 
-        let imageInfo: ScryfallCard | undefined;
-        let imageResolved = card.image_status !== "placeholder";
+        let imageInfo: ScryfallCard | undefined = installed?.imageInfo;
+        let imageResolved = installed?.imageResolved ?? card.image_status !== "placeholder";
         if (!imageResolved) {
           try {
             imageInfo = await imagePrintingFor(card);

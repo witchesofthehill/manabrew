@@ -7,7 +7,7 @@ import { ChevronDown, Gem, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FoilBadge } from "@/components/limited/FoilBadge";
 import { ScryfallImg } from "@/components/ScryfallImg";
-import { MseCardImage } from "@/components/game/MseCardImage";
+import { GeneratedCardImage } from "@/components/game/GeneratedCardImage";
 import type { OverlayAction } from "./deckEditor.utils";
 import type { DeckCard } from "@/protocol/deck";
 export type { OverlayAction } from "./deckEditor.utils";
@@ -38,7 +38,7 @@ export function CardThumbnail({
   const imageUrl = card.uris?.[imageSize];
   return (
     <div className="relative w-full">
-      <MseCardImage
+      <GeneratedCardImage
         deckCard={card}
         loading={loading}
         className="w-full rounded-lg border border-border/50 shadow-sm"

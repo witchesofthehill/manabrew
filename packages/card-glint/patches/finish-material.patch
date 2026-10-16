@@ -1,0 +1,202 @@
+--- a/packages/browser/src/finish.ts
++++ b/packages/browser/src/finish.ts
+@@ -1,3 +1,6 @@
+ /** Shader functions for a host-owned depth pass; see docs/host-integration.md. */
+ export { foilShader } from './gpu/foil-preview-shader.js';
+ export { FOIL_REFLECTION_GLSL } from './gpu/foil-reflection-shader.js';
++export { modernSurfaceShader, FinishResources } from './finish-material.js';
++export { SurfaceMotion } from './surface-motion.js';
++export { surfaceSeed } from './deformation.js';
+--- /dev/null
++++ b/packages/browser/src/finish-material.ts
+@@ -0,0 +1,128 @@
++import { foilShader } from './gpu/foil-preview-shader.js';
++import { SURFACE_GLSL } from './gpu/surface-shader.js';
++import { WORN_GLSL } from './gpu/worn-shader.js';
++import { GpuEtcher, program } from './gpu/etcher.js';
++import { Caustics } from './gpu/caustics.js';
++
++export function modernSurfaceShader(): string {
++  const foil = foilShader().replaceAll('texture2D(face,', 'finishFace(')
++    .replaceAll('texture2D(mask,', 'finishMask(');
++  const surface = SURFACE_GLSL.replaceAll('flat in ', 'uniform ')
++    .replaceAll('texture(face,', 'finishFace(');
++  return `${foil}
++${surface}
++${WORN_GLSL}
++
++vec3 modernSurface(vec2 uv,vec3 normal,vec3 view,vec2 wear,vec2 pixel) {
++  vec3 color=previewKind>=5. && previewKind<8. ? animatedSurface(uv,normal) : previewFoil(uv,normal,view);
++  vec3 base=finishFace(uv).rgb;
++  if(hasPrinting>0.){
++    vec4 top=finishPrinting(uv);
++    vec3 under=mix(base,previewLinear(color),finishCoverage(uv));
++    vec3 printing=top.rgb;
++    if(top.a>0.)printing=mix(printing,previewLinear(satin(uv,previewInk(printing),normal,view,2.,0.)),.75);
++    color=previewInk(mix(under,printing,top.a));
++    base=mix(base,top.rgb,top.a);
++  }
++  if(wear.x>0.)color=wornSurface(uv,previewInk(base),color,normal,view,wear.y,wear.x,
++    step(.5,previewKind)*(1.-step(4.5,previewKind)),pixel);
++  return color;
++}`;
++}
++
++const copyFragment = `#version 300 es
++precision highp float;
++uniform sampler2D source;
++uniform vec2 size;
++out vec4 color;
++void main(){color=vec4(texture(source,gl_FragCoord.xy/size).rrr,1.);}`;
++
++export class FinishResources {
++  private canvas = document.createElement('canvas');
++  private poolCanvas = document.createElement('canvas');
++  private gl: WebGL2RenderingContext;
++  private etcher?: GpuEtcher;
++  private pool?: Caustics;
++  private copy?: WebGLProgram;
++  private vao?: WebGLVertexArrayObject;
++  private poolTime = NaN;
++  private disposed = false;
++  constructor() {
++    const gl = this.canvas.getContext('webgl2', { alpha: false, antialias: false, preserveDrawingBuffer: true });
++    if (!gl) throw Error('WebGL2 is required for finish resources');
++    this.gl = gl;
++    this.canvas.addEventListener('webglcontextlost', this.lost);
++    this.canvas.addEventListener('webglcontextrestored', this.restored);
++  }
++  private lost = (event: Event) => { event.preventDefault(); };
++  private restored = () => {
++    this.etcher = undefined;
++    this.pool = undefined;
++    this.copy = undefined;
++    this.vao = undefined;
++    this.poolTime = NaN;
++  };
++  private draw(map: WebGLTexture, width: number, height: number, target: HTMLCanvasElement) {
++    if (this.disposed || this.gl.isContextLost()) throw Error('Finish resources unavailable');
++    const gl = this.gl;
++    const copy: WebGLProgram = this.copy ??= program(gl, copyFragment)!;
++    this.vao ??= gl.createVertexArray()!;
++    this.canvas.width = width;
++    this.canvas.height = height;
++    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
++    gl.bindVertexArray(this.vao);
++    gl.viewport(0, 0, width, height);
++    gl.disable(gl.BLEND);
++    gl.disable(gl.DEPTH_TEST);
++    gl.disable(gl.SCISSOR_TEST);
++    gl.disable(gl.CULL_FACE);
++    gl.colorMask(true, true, true, true);
++    gl.useProgram(copy);
++    gl.activeTexture(gl.TEXTURE0);
++    gl.bindTexture(gl.TEXTURE_2D, map);
++    gl.uniform1i(gl.getUniformLocation(copy, 'source'), 0);
++    gl.uniform2f(gl.getUniformLocation(copy, 'size'), width, height);
++    gl.drawArrays(gl.TRIANGLES, 0, 3);
++    if (target.width !== width || target.height !== height) {
++      target.width = width;
++      target.height = height;
++    }
++    const context = target.getContext('2d');
++    if (!context) throw Error('Finish resource canvas unavailable');
++    context.drawImage(this.canvas, 0, 0);
++  }
++  mask(source: TexImageSource, width: number, height: number): HTMLCanvasElement {
++    if (this.disposed || this.gl.isContextLost()) throw Error('Finish resources unavailable');
++    this.etcher ??= new GpuEtcher(this.gl);
++    const map = this.etcher.run(source, width, height);
++    try {
++      const result = document.createElement('canvas');
++      this.draw(map, width, height, result);
++      return result;
++    } finally {
++      this.gl.deleteTexture(map);
++    }
++  }
++  caustics(time: number): HTMLCanvasElement {
++    if (this.disposed || this.gl.isContextLost()) throw Error('Finish resources unavailable');
++    this.pool ??= new Caustics(this.gl);
++    if (this.poolTime !== time) {
++      this.pool.prepare(time);
++      this.draw(this.pool.map, 512, 512, this.poolCanvas);
++      this.poolTime = time;
++    }
++    return this.poolCanvas;
++  }
++  dispose() {
++    if (this.disposed) return;
++    this.disposed = true;
++    this.canvas.removeEventListener('webglcontextlost', this.lost);
++    this.canvas.removeEventListener('webglcontextrestored', this.restored);
++    this.etcher?.dispose();
++    this.pool?.dispose();
++    this.gl.deleteProgram(this.copy ?? null);
++    this.gl.deleteVertexArray(this.vao ?? null);
++    this.gl.getExtension('WEBGL_lose_context')?.loseContext();
++    this.canvas.width = this.canvas.height = 1;
++  }
++}
+--- a/packages/browser/src/gpu/shaders.ts
++++ b/packages/browser/src/gpu/shaders.ts
+@@ -82,7 +82,3 @@
+- if(wearInfo.x>0.) {
+-   float foilSubstrate=step(.5,previewKind)*(1.-step(4.5,previewKind));
+-   shaded=previewLinear(wornSurface(uv,previewInk(base),previewInk(shaded),normalize(v_normal),view,wearInfo.y,wearInfo.x,foilSubstrate,wearPixel));
+- }
+  vec4 c=texture(coverage,uv),top=texture(overlay,uv);
+  vec3 under=mix(base,shaded,max(finishBase,c.r)*(1.-c.g));
+  // Printing stays at the original UV, above all optical effects. The same
+@@ -99,6 +95,10 @@
+    printing=mix(printing,reflected,overlayFoil.y);
+  }
+  vec3 printed=previewInk(mix(under,printing,top.a));
++ if(wearInfo.x>0.) {
++   float foilSubstrate=step(.5,previewKind)*(1.-step(4.5,previewKind));
++   printed=wornSurface(uv,previewInk(mix(base,top.rgb,top.a)),printed,normalize(v_normal),view,wearInfo.y,wearInfo.x,foilSubstrate,wearPixel);
++ }
+ #ifdef LOCAL_HOLOGRAM
+  out_color=vec4(localHologram(uv,printed,normalize(v_normal),view,grainFilter),1.);
+ #else
+--- a/games/magic/src/index.ts
++++ b/games/magic/src/index.ts
+@@ -1,3 +1,5 @@
++import { isSemanticLayout, composeSemanticCardTexture, semanticLayoutRegions } from './presentation/semantic-layout.js';
++import { FACE_CORNER_RADIUS } from './presentation/face-layout.js';
+ import type {
+   GamePack,
+   CardDocument,
+@@ -163,15 +165,23 @@
+   value: RenderedCardInput,
+   tone: 'gold' | 'silver' | 'prismatic',
+   tier: Tier = 'inspect',
++  rulesText = true,
+ ): CardDocument {
+   const face = structuredClone({ ...value, setCode: value.setCode ?? 'GLINT' });
+   const recipe = mtg.describe(face, tier);
++  if (isSemanticLayout(face)) {
++    recipe.artWindows = semanticLayoutRegions(face).filter(region => region.role === 'artwork').map(region => region.rect);
++    recipe.cornerRadius = FACE_CORNER_RADIUS;
++    recipe.hologram = undefined;
++  }
+   const raster = (paintLayer: 'artwork' | 'printing') => {
+-    const input = { face, printingId: null, printedImage: null, paintLayer };
++    const input = { face, printingId: null, printedImage: null, paintLayer, rulesText };
+     return {
+       key: cardTextureKey(input, tier),
+       size: recipe.color.size,
+       paint: (host: RasterHost, signal: AbortSignal) =>
+-        composeCardTexture(input, tier, signal, { loadImages: loader(host) }),
++        isSemanticLayout(face)
++          ? composeSemanticCardTexture(face, tier, signal, { paintLayer, rulesText, loadImages: loader(host) })
++          : composeCardTexture(input, tier, signal, { loadImages: loader(host) }),
+     };
+   };
+--- a/games/magic/src/presentation.ts
++++ b/games/magic/src/presentation.ts
+@@ -1,3 +1,4 @@
++export { faceCornerRadius } from './presentation/face-silhouette.js';
+ /** Shared layout and raster painting for hosts that own their scene and editing DOM. */
+ export * from './presentation/art-apertures.js';
+ export * from './presentation/assets.js';

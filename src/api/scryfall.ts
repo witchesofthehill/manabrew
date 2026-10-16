@@ -10,6 +10,7 @@ import {
 import { platformFetch } from "@/lib/platformFetch";
 import { getPlatformType } from "@/platform";
 import { loadScryfallImage } from "@/lib/scryfallImageSource";
+import { cachedCardGlintAsset } from "@/lib/cardGlintAssetCache";
 import {
   localCardNames,
   localCardRecord,
@@ -370,6 +371,8 @@ export async function fetchCardsBySet(setCode: string): Promise<ScryfallCard[]> 
 const SCRYFALL_IMAGE_MAX_RETRIES = 3;
 
 async function fetchImageBlob(url: string, cache: RequestCache): Promise<string> {
+  const installed = await cachedCardGlintAsset(url).catch(() => undefined);
+  if (installed) return URL.createObjectURL(await installed.blob());
   const response = await fetch(url, {
     cache,
     credentials: "omit",

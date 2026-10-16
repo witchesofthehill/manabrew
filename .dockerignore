@@ -18,6 +18,10 @@ forge-harness/native/gen-config-wasm/
 # Node / Tauri dev artifacts
 node_modules/
 dist/
+packages/card-glint/dist/
+packages/card-glint/.dist-staging/
+packages/ironsmith-wasm/dist/
+packages/ironsmith-wasm/.dist-staging/
 
 # IDE & OS
 .DS_Store

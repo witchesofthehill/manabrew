@@ -64,17 +64,22 @@ import {
   type PreviewLayout,
 } from "@/components/game/cardPreviewLayout";
 import { GAME_CARD_SIZES } from "@/components/game/game.constants";
-import { renderMseCard } from "@/lib/mseCardRenderer";
-import { MseCardArtworkError } from "@/lib/mseCardDecision";
-import { hasIntegratedArtwork } from "@/lib/mseCardArtworkPrinting";
+import { renderCard } from "@/lib/cardRenderer";
+import { CardArtworkError } from "@/lib/cardRenderDecision";
+import { hasIntegratedArtwork } from "@/lib/cardArtworkPrinting";
 import {
-  getMseCardGeometry,
-  getMseInteractionRegion,
-  MSE_CARD_WIDTH,
-  type MseCardGeometry,
-} from "@/lib/mseCardGeometry";
-import { createMseCardTexture } from "@/pixi/mseCardTexture";
+  getCardRenderGeometry,
+  getCardInteractionRegion,
+  CARD_RENDER_WIDTH,
+  type CardRenderGeometry,
+} from "@/lib/cardRenderGeometry";
+import {
+  createGeneratedCardTexture,
+  getGeneratedCardArtWindows,
+} from "@/pixi/generatedCardTexture";
+import { writeCardTextureUvs } from "@/pixi/cardTextureUvs";
 import { CardFoil } from "@/pixi/effects/CardFoil";
+import { isEtchedOnlyPrinting } from "@/lib/cardFinish";
 
 export interface RulesCardPreviewSpec {
   card: CardDto;
@@ -185,7 +190,7 @@ export class RulesCardPreviewLayer {
   private detailsHeight = PORTRAIT_HEIGHT;
   private faceSprite = new Sprite(Texture.EMPTY);
   private faceMask = new Graphics();
-  private faceGeometry: MseCardGeometry | undefined;
+  private faceGeometry: CardRenderGeometry | undefined;
   private rulesRegion = new Rectangle();
   private fallbackFace = new Container();
   private faceTexture: Texture | null = null;
@@ -194,6 +199,9 @@ export class RulesCardPreviewLayer {
   private rulesBackgroundTexture: Texture | null = null;
   private rulesBackgroundAbort: AbortController | null = null;
   private foil: CardFoil | null = null;
+  private readonly foilUvs = new Float32Array(8);
+  private readonly foilSurface = new Rectangle();
+  private readonly foilRulesExclusion = new Rectangle();
   private renderAbort: AbortController | null = null;
   private unsubscribeLocale: () => void;
   private renderState: "loading" | "ready" | "error" = "loading";
@@ -362,6 +370,17 @@ export class RulesCardPreviewLayer {
   get imageReady(): boolean {
     return this.faceSprite.texture !== Texture.EMPTY;
   }
+  get foilTexture(): Texture | null {
+    return this.spec &&
+      !this.spec.card.isFaceDown &&
+      this.spec.card.identity.name &&
+      this.imageReady
+      ? this.faceSprite.texture
+      : null;
+  }
+  writeFoilTextureUvs(relativeTo: Container, surface: Rectangle, output: Float32Array): void {
+    writeCardTextureUvs(this.faceSprite, relativeTo, surface, output);
+  }
   get foilExclusion(): { x: number; y: number; width: number; height: number } | null {
     if (!this.detailsContainer.visible) return null;
     return {
@@ -430,9 +449,7 @@ export class RulesCardPreviewLayer {
     }
     this.displayedBackFace = spec.showBackFace;
     if (lookupChanged || faceChanged || visibilityChanged) {
-      this.faceSprite.texture = Texture.EMPTY;
-      this.faceTexture?.destroy(true);
-      this.faceTexture = null;
+      this.clearFaceTexture();
       this.faceGeometry = undefined;
       this.preserveArtwork = false;
       this.clearRulesBackground();
@@ -791,7 +808,7 @@ export class RulesCardPreviewLayer {
     this.bodyScroller.visible = true;
     this.footer.visible = true;
     this.fitFace();
-    const showFoil = !spec.embedded && !display.faceless && spec.card.foil;
+    const showFoil = !spec.embedded && !display.faceless && !spec.suppressed && this.imageReady;
     const faceWidth =
       this.faceSprite.rotation === 0 ? this.faceSprite.width : this.faceSprite.height;
     const faceHeight =
@@ -801,19 +818,41 @@ export class RulesCardPreviewLayer {
         this.foil = new CardFoil(() => this.callbacks.onRenderRequested());
         this.container.addChildAt(this.foil, 1);
       }
-      this.foil.setSurface(
+      this.foilSurface.set(
+        this.scanOverlay ? (this.faceWidth - faceWidth) / 2 : 0,
+        this.scanOverlay ? (this.panelHeight - faceHeight) / 2 : 0,
         this.scanOverlay ? faceWidth : this.panelWidth,
         this.scanOverlay ? faceHeight : this.panelHeight,
+      );
+      this.foil.setSurface(
+        this.foilSurface.width,
+        this.foilSurface.height,
         rulesCardRadius(this.faceWidth, this.panelHeight),
         this.theme,
       );
-      this.foil.position.set(
-        this.scanOverlay ? (this.faceWidth - faceWidth) / 2 : 0,
-        this.scanOverlay ? (this.panelHeight - faceHeight) / 2 : 0,
-      );
-      this.foil.setExclusion(this.rulesRegion);
+      this.foil.position.set(this.foilSurface.x, this.foilSurface.y);
+      this.foilRulesExclusion.copyFrom(this.rulesRegion);
+      this.foilRulesExclusion.x -= this.foilSurface.x;
+      this.foilRulesExclusion.y -= this.foilSurface.y;
+      this.foil.setExclusion(this.foilRulesExclusion);
+      this.writeFoilTextureUvs(this.container, this.foilSurface, this.foilUvs);
+      this.foil.setTexture(this.faceSprite.texture, this.foilUvs);
+      this.foil.setArtWindows(getGeneratedCardArtWindows(this.faceSprite.texture));
     }
+    this.foil?.setAppearance(
+      !display.faceless && !!spec.card.foil,
+      display.faceless ? undefined : spec.card.cosmetics,
+      !display.faceless &&
+        isEtchedOnlyPrinting(
+          peekCard(useScryfallStore.getState().cards, {
+            name: deckCard.identity.name,
+            setCode: deckCard.identity.setCode || undefined,
+            cardNumber: deckCard.identity.cardNumber || undefined,
+          })?.finishes,
+        ),
+    );
     this.foil?.setEnabled(showFoil);
+    if (!showFoil) this.foil?.setTexture(null);
     this.bodyScroller.position.set(this.contentX, this.bodyTop);
     let y = 2;
     this.actions.setContent({
@@ -1217,8 +1256,8 @@ export class RulesCardPreviewLayer {
     this.faceWidth = this.panelWidth;
     this.headerHeight = PREVIEW_SECTION_HEADER_HEIGHT;
     this.artY = PORTRAIT_HEADER_HEIGHT;
-    const scale = PORTRAIT_WIDTH / MSE_CARD_WIDTH;
-    const region = getMseInteractionRegion(this.faceGeometry, landscape);
+    const scale = PORTRAIT_WIDTH / CARD_RENDER_WIDTH;
+    const region = getCardInteractionRegion(this.faceGeometry, landscape);
     this.rulesRegion.x = region.x * scale;
     this.rulesRegion.y = region.y * scale;
     this.rulesRegion.width = region.width * scale;
@@ -1579,7 +1618,7 @@ export class RulesCardPreviewLayer {
     this.renderAbort = controller;
     const generation = ++this.artGeneration;
     this.renderState = "loading";
-    this.faceSprite.label = "mse-loading";
+    this.faceSprite.label = "card-glint-loading";
     const hidden = spec.card.isFaceDown || !spec.card.identity.name;
     const deckCard = hidden ? undefined : previewDeckCard(spec.card);
     if (!hidden && this.faceSprite.texture === Texture.EMPTY && deckCard) {
@@ -1602,7 +1641,7 @@ export class RulesCardPreviewLayer {
     try {
       const canvas = hidden
         ? null
-        : await renderMseCard(
+        : await renderCard(
             {
               card: spec.card,
               deckCard,
@@ -1611,7 +1650,7 @@ export class RulesCardPreviewLayer {
             controller.signal,
             { priority: "preview", standardFrameFallback: true },
           );
-      const texture = canvas ? createMseCardTexture(canvas) : await loadCardBack();
+      const texture = canvas ? createGeneratedCardTexture(canvas) : await loadCardBack();
       if (
         controller.signal.aborted ||
         generation !== this.artGeneration ||
@@ -1621,15 +1660,16 @@ export class RulesCardPreviewLayer {
         return;
       }
       const previous = this.faceTexture;
-      this.faceGeometry = canvas ? getMseCardGeometry(canvas) : undefined;
+      this.foil?.setTexture(null);
+      this.faceGeometry = canvas ? getCardRenderGeometry(canvas) : undefined;
       this.preserveArtwork = false;
       this.faceTexture = hidden ? null : texture;
       this.faceSprite.texture = texture;
-      previous?.destroy(true);
       this.renderState = "ready";
-      this.faceSprite.label = hidden ? "card-back" : "mse-ready";
+      this.faceSprite.label = hidden ? "card-back" : "card-glint-ready";
       this.rebuild();
       this.callbacks.onRenderRequested();
+      previous?.destroy(true);
     } catch (cause: unknown) {
       if (
         controller.signal.aborted ||
@@ -1639,16 +1679,12 @@ export class RulesCardPreviewLayer {
         return;
       this.renderState = "error";
       this.preserveArtwork =
-        cause instanceof MseCardArtworkError ||
+        cause instanceof CardArtworkError ||
         (!!this.scryfallInfo && hasIntegratedArtwork(this.scryfallInfo));
-      this.faceSprite.label = "mse-error";
+      this.faceSprite.label = "card-glint-original";
       this.clearRulesBackground();
       this.faceGeometry = undefined;
-      if (this.faceTexture) {
-        this.faceSprite.texture = Texture.EMPTY;
-        this.faceTexture.destroy(true);
-        this.faceTexture = null;
-      }
+      if (this.faceTexture) this.clearFaceTexture();
       this.rebuild();
       this.callbacks.onRenderRequested();
       if (deckCard) {
@@ -1676,7 +1712,7 @@ export class RulesCardPreviewLayer {
     this.rulesBackgroundAbort = controller;
     const generation = this.artGeneration;
     try {
-      const canvas = await renderMseCard(
+      const canvas = await renderCard(
         {
           card: spec.card,
           deckCard: previewDeckCard(spec.card),
@@ -1691,7 +1727,7 @@ export class RulesCardPreviewLayer {
         this.container.destroyed
       )
         return;
-      const texture = createMseCardTexture(canvas);
+      const texture = createGeneratedCardTexture(canvas);
       const previous = this.rulesBackgroundTexture;
       this.rulesBackgroundTexture = texture;
       this.rulesBackground.texture = texture;
@@ -1703,6 +1739,14 @@ export class RulesCardPreviewLayer {
         this.callbacks.onRenderRequested();
       }
     }
+  }
+
+  private clearFaceTexture(): void {
+    this.faceSprite.texture = Texture.EMPTY;
+    this.foil?.setTexture(null);
+    this.callbacks.onRenderRequested();
+    this.faceTexture?.destroy(true);
+    this.faceTexture = null;
   }
 
   private clearRulesBackground(): void {
@@ -1788,7 +1832,7 @@ export class RulesCardPreviewLayer {
     this.cardInfoGeneration += 1;
     this.renderAbort?.abort();
     this.unsubscribeLocale();
-    this.faceTexture?.destroy(true);
+    this.clearFaceTexture();
     this.clearRulesBackground();
     this.actions.destroy();
     this.controls.destroy();

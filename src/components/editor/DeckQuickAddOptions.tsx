@@ -1,5 +1,5 @@
 import { Bookmark, Plus, X } from "lucide-react";
-import { MseCardImage } from "@/components/game/MseCardImage";
+import { GeneratedCardImage } from "@/components/game/GeneratedCardImage";
 import { Button } from "@/components/ui/button";
 import { AppSelect, AppSelectOption } from "@/components/ui/AppSelect";
 import {
@@ -51,7 +51,10 @@ export function DeckQuickAddOptions({
   return (
     <div className="absolute left-0 top-full z-50 mt-1 min-w-80 rounded-md border bg-popover p-2 text-popover-foreground shadow-lg">
       <div className="mb-2 flex items-center gap-2">
-        <MseCardImage deckCard={scryfallToDeckCard(card)} className="h-9 w-7 shrink-0 rounded" />
+        <GeneratedCardImage
+          deckCard={scryfallToDeckCard(card)}
+          className="h-9 w-7 shrink-0 rounded"
+        />
         <div className="min-w-0 flex-1">
           <div className="truncate text-xs font-medium">{displayName}</div>
           <div className="text-[10px] text-muted-foreground">Configure addition</div>

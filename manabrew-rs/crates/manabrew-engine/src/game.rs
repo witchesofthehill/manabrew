@@ -120,6 +120,11 @@ pub struct GameState {
     // Arenas
     pub cards: Vec<Card>,
     pub players: Vec<PlayerState>,
+    #[serde(default)]
+    pub token_cosmetics: BTreeMap<
+        PlayerId,
+        BTreeMap<String, Option<forge_foundation::sealed_product::card_cosmetics::CardCosmetics>>,
+    >,
 
     // Zones: keyed by (ZoneType, PlayerId)
     #[serde(skip)]
@@ -239,6 +244,7 @@ impl GameState {
         GameState {
             cards: Vec::new(),
             players,
+            token_cosmetics: BTreeMap::new(),
             zones,
             stack: MagicStack::new(),
             cost_payment_stack: CostPaymentStack::new(),
@@ -271,6 +277,21 @@ impl GameState {
 
     /// Create a new card instance and return its ID. Does NOT place it in a zone.
     pub fn create_card(&mut self, mut card: Card) -> CardId {
+        if card.is_token {
+            card.cosmetics = card.get_s_var("TokenScript").and_then(|script| {
+                let overrides = self.token_cosmetics.get(&card.owner)?;
+                overrides
+                    .get(script)
+                    .or_else(|| {
+                        overrides
+                            .iter()
+                            .find(|(key, _)| key.eq_ignore_ascii_case(script))
+                            .map(|(_, cosmetics)| cosmetics)
+                    })
+                    .copied()
+                    .flatten()
+            });
+        }
         let id = CardId(self.next_card_id);
         self.next_card_id += 1;
         card.id = id;

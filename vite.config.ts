@@ -1,16 +1,12 @@
 import path from "path";
 import { readFileSync } from "fs";
-import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import type { Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import { lingui } from "@lingui/vite-plugin";
 import tailwindcss from "@tailwindcss/vite";
 import Icons from "unplugin-icons/vite";
-
-execFileSync(process.execPath, [path.resolve(__dirname, "scripts/ensure-card-glint.mjs")], {
-  stdio: "inherit",
-});
 
 const host = process.env.TAURI_DEV_HOST;
 const hubApiTarget = process.env.VITE_HUB_API_URL || "https://api.manabrew.app";
@@ -45,18 +41,12 @@ function cardGlintNotices(): Plugin {
   return {
     name: "card-glint-notices",
     generateBundle() {
-      for (const file of [
-        "LICENSE-MIT",
-        "LICENSE-APACHE",
-        "NOTICE",
-        "UPSTREAM-NOTICE",
-        "MAGIC-NOTICE",
-        "dist/provenance.json",
-      ]) {
+      const packageRoot = fileURLToPath(new URL("../../", import.meta.resolve("card-glint")));
+      for (const file of ["LICENSE-MIT", "LICENSE-APACHE", "NOTICE.md", "games/magic/NOTICE.md"]) {
         this.emitFile({
           type: "asset",
-          fileName: `card-glint-licenses/${path.basename(file)}`,
-          source: readFileSync(path.resolve(__dirname, "packages/card-glint", file)),
+          fileName: `card-glint-licenses/${file.replaceAll("/", "-")}`,
+          source: readFileSync(path.resolve(packageRoot, file)),
         });
       }
     },

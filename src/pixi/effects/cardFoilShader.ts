@@ -1,6 +1,11 @@
-import { modernSurfaceShader, SurfaceMotion, surfaceSeed } from "card-glint/finish";
+import { foilShader, SURFACE_GLSL, WORN_GLSL, SurfaceMotion, surfaceSeed } from "card-glint/finish";
 import { GlProgram, MeshGeometry, Shader, Texture, UniformGroup } from "pixi.js";
-import { CARD_FINISH_KINDS, CARD_WEAR_AMOUNTS, type CardFoilRegion } from "@/lib/cardFinish";
+import {
+  CARD_FINISH_KINDS,
+  CARD_WEAR_AMOUNTS,
+  resolveCardRainFog,
+  type CardFoilRegion,
+} from "@/lib/cardFinish";
 import type { CardCosmetics, CardFinish } from "@/protocol/deck";
 import {
   acquireCardOpticalLayers,
@@ -35,6 +40,7 @@ export interface CardFoilUniforms {
   cornerRadius: number;
   finishBase: number;
   surfaceTime: number;
+  rainFogDensity: number;
   surfaceInfo: Float32Array;
   ripple0: Float32Array;
   ripple1: Float32Array;
@@ -53,6 +59,35 @@ export interface CardFoilShader {
   setExclusions(regions: readonly CardFoilRegion[]): void;
   update(time: number, hovering: boolean): void;
   destroy(): void;
+}
+
+function modernSurfaceShader(): string {
+  const foil = foilShader()
+    .replaceAll("texture2D(face,", "finishFace(")
+    .replaceAll("texture2D(mask,", "finishMask(");
+  const surface = SURFACE_GLSL.replaceAll("flat in ", "uniform ").replaceAll(
+    "texture(face,",
+    "finishFace(",
+  );
+  return `${foil}
+${surface}
+${WORN_GLSL}
+
+vec3 modernSurface(vec2 uv,vec3 normal,vec3 view,vec2 wear,vec2 pixel) {
+  vec3 color=previewKind>=5. && previewKind<8. ? animatedSurface(uv,normal) : previewFoil(uv,normal,view);
+  vec3 base=finishFace(uv).rgb;
+  if(hasPrinting>0.){
+    vec4 top=finishPrinting(uv);
+    vec3 under=mix(base,previewLinear(color),finishCoverage(uv));
+    vec3 printing=top.rgb;
+    if(top.a>0.)printing=mix(printing,previewLinear(satin(uv,previewInk(printing),normal,view,2.,0.)),.75);
+    color=previewInk(mix(under,printing,top.a));
+    base=mix(base,top.rgb,top.a);
+  }
+  if(wear.x>0.)color=wornSurface(uv,previewInk(base),color,normal,view,wear.y,wear.x,
+    step(.5,previewKind)*(1.-step(4.5,previewKind)),pixel);
+  return color;
+}`;
 }
 
 const vertex = `#version 300 es
@@ -178,6 +213,7 @@ export function createCardFoilShader(invalidate: () => void): CardFoilShader {
     cornerRadius: { value: 0.035, type: "f32" },
     finishBase: { value: 1, type: "f32" },
     surfaceTime: { value: 0, type: "f32" },
+    rainFogDensity: { value: 1, type: "f32" },
     surfaceInfo: { value: new Float32Array(4), type: "vec4<f32>" },
     ripple0: { value: new Float32Array([0, 0, -100, 0]), type: "vec4<f32>" },
     ripple1: { value: new Float32Array([0, 0, -100, 0]), type: "vec4<f32>" },
@@ -326,6 +362,7 @@ export function createCardFoilShader(invalidate: () => void): CardFoilShader {
       if (mode !== value) motion.clear();
       mode = value;
       group.uniforms.previewKind = CARD_FINISH_KINDS[mode];
+      group.uniforms.rainFogDensity = resolveCardRainFog(cosmetics);
       group.uniforms.wearInfo[0] = CARD_WEAR_AMOUNTS[cosmetics?.wear ?? "fresh"];
       group.uniforms.wearInfo[1] = surfaceSeed(cosmetics?.wearSeed ?? 0);
       group.uniforms.surfaceInfo[2] = surfaceSeed(cosmetics?.wearSeed ?? 0);

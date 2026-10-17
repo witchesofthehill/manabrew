@@ -1,9 +1,11 @@
 import {
+  canvasAssetUrls,
+  canvasFontAssets,
   decodeCanvasImage,
-  MAGIC_FONT_ASSETS,
-  magicAssetUrls,
-} from "card-glint/magic/offline-assets";
-import { isSemanticLayout, semanticCardAssetUrls } from "card-glint/magic/presentation";
+  PLAIN_SECURITY_STAMP,
+  type RenderedCardInput,
+} from "card-glint/magic/presentation";
+import { isSemanticLayout, semanticCardAssetUrls } from "@/lib/cardSemanticLayout";
 import type { ScryfallImageUris } from "@/types/scryfall";
 import { MANA_CODES } from "@/types/scryfall";
 import { manaSymbolUrl } from "@/api/scryfall";
@@ -142,6 +144,21 @@ function waitForInstall<T>(operation: Promise<T>, signal: AbortSignal): Promise<
   });
 }
 
+function magicAssetUrls(face: RenderedCardInput): string[] {
+  const common = (value: RenderedCardInput): RenderedCardInput => ({
+    ...value,
+    rarity: "common",
+    faces: value.faces?.map(common),
+  });
+  return [
+    ...new Set(
+      [...canvasAssetUrls(face), ...canvasAssetUrls(common(face)), PLAIN_SECURITY_STAMP].filter(
+        (url): url is string => Boolean(url),
+      ),
+    ),
+  ];
+}
+
 async function install(deck: Deck, signal: AbortSignal): Promise<void> {
   if (!offlineCacheAvailable())
     throw new Error("Persistent storage requires a secure browser context");
@@ -151,7 +168,7 @@ async function install(deck: Deck, signal: AbortSignal): Promise<void> {
   const manifests = await caches.open(CARD_GLINT_MANIFEST_CACHE);
   await manifests.delete(offlineCacheKey("manifest", key));
   update({ phase: "preparing", done: 0, total: 0, bytes: 0 });
-  const urls = new Set<string>(MAGIC_FONT_ASSETS.map((font) => font.url));
+  const urls = new Set<string>(canvasFontAssets.map((font) => font.url));
   for (const code of MANA_CODES) urls.add(manaSymbolUrl(code));
   urls.add(CARD_BACK_IMAGE_URL);
   const records = new Set<string>();
@@ -166,14 +183,13 @@ async function install(deck: Deck, signal: AbortSignal): Promise<void> {
   for (const card of unique.values()) {
     signal.throwIfAborted();
     update({ ...state, message: card.identity.name });
-    const lookup =
-      card.identity.setCode && card.identity.cardNumber
-        ? {
-            name: card.identity.name,
-            setCode: card.identity.setCode,
-            collectorNumber: card.identity.cardNumber,
-          }
-        : { id: card.identity.id, name: card.identity.name };
+    const lookup = card.identity.id
+      ? { id: card.identity.id }
+      : {
+          name: card.identity.name,
+          setCode: card.identity.setCode || undefined,
+          collectorNumber: card.identity.cardNumber || undefined,
+        };
     const entry = await waitForInstall(useScryfallStore.getState().getCard(lookup), signal);
     signal.throwIfAborted();
     if (useScryfallStore.getState().locale !== locale)
@@ -232,7 +248,7 @@ async function install(deck: Deck, signal: AbortSignal): Promise<void> {
     const blob = await response.blob();
     if (blob.size === 0 || blob.type.includes("text/html"))
       throw new Error(`Invalid renderer asset: ${url}`);
-    const font = MAGIC_FONT_ASSETS.find((candidate) => candidate.url === url);
+    const font = canvasFontAssets.find((candidate) => candidate.url === url);
     if (font) {
       await new FontFace(font.family, await blob.arrayBuffer(), {
         weight: font.weight,

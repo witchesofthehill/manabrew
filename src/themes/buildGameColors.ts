@@ -59,6 +59,13 @@ export const CARD_CHANGE_COLORS = {
   removed: "#b27a18",
 } as const;
 
+export const CARD_PRINTING_COLORS = {
+  paper: "#e4decb",
+  ink: "#17140f",
+  frame: "#746c60",
+  footer: "#fff",
+} as const;
+
 export function buildGameColors(p: BasePalette): GameThemeColorMap {
   const promptForeground = (background: string): string =>
     contrastRatio(p.foreground, background) >= contrastRatio(p.canvasBackground, background)
@@ -97,6 +104,11 @@ export function buildGameColors(p: BasePalette): GameThemeColorMap {
     "cardChange.debuffed": CARD_CHANGE_COLORS.debuffed,
     "cardChange.changed": CARD_CHANGE_COLORS.changed,
     "cardChange.removed": CARD_CHANGE_COLORS.removed,
+
+    "cardPrinting.paper": CARD_PRINTING_COLORS.paper,
+    "cardPrinting.ink": CARD_PRINTING_COLORS.ink,
+    "cardPrinting.frame": CARD_PRINTING_COLORS.frame,
+    "cardPrinting.footer": CARD_PRINTING_COLORS.footer,
 
     "mana.W": p.manaW,
     "mana.U": p.manaU,

@@ -66,9 +66,11 @@ impl PartialEq for PaperCard {
             && self.foil == other.foil
             && self
                 .cosmetics
+                .clone()
                 .and_then(super::card_cosmetics::CardCosmetics::normalize)
                 == other
                     .cosmetics
+                    .clone()
                     .and_then(super::card_cosmetics::CardCosmetics::normalize)
     }
 }
@@ -81,6 +83,7 @@ impl std::hash::Hash for PaperCard {
         self.collector_number.hash(state);
         self.foil.hash(state);
         self.cosmetics
+            .clone()
             .and_then(super::card_cosmetics::CardCosmetics::normalize)
             .hash(state);
     }

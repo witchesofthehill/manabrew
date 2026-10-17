@@ -1,15 +1,16 @@
-import { opticalDocument } from "card-glint/magic";
-import type { RasterHost } from "card-glint";
+import { magic } from "card-glint/magic";
+import type { CardDocument, RasterHost, Rect } from "card-glint";
 import {
   faceCornerRadius,
   FACE_CORNER_RADIUS,
-  isSemanticLayout,
   type RenderedCardInput,
 } from "card-glint/magic/presentation";
 import { CanvasSource, Texture } from "pixi.js";
 import { cardImageLoader } from "@/lib/cardRenderArtwork";
 import { ensureCardGlintFonts } from "@/lib/cardGlintAssets";
 import type { CardFoilRegion } from "@/lib/cardFinish";
+import { getCardArtWindows } from "@/lib/cardRenderGeometry";
+import { cardOpticalDocument, isSemanticLayout } from "@/lib/cardSemanticLayout";
 
 export interface CardOpticalLayers {
   artwork: Texture;
@@ -24,6 +25,8 @@ export interface CardOpticalLease extends CardOpticalLayers {
 }
 
 interface OpticalSource {
+  canvas: HTMLCanvasElement;
+  id: number;
   face: RenderedCardInput;
   artUrls: readonly (string | undefined)[];
   rulesText: boolean;
@@ -31,6 +34,7 @@ interface OpticalSource {
   height: number;
   cornerRadius: number;
   entry?: OpticalEntry;
+  finish?: CardFinishSource;
 }
 
 interface OpticalEntry {
@@ -40,7 +44,14 @@ interface OpticalEntry {
   layers?: CardOpticalLayers;
 }
 
+export interface CardFinishSource {
+  kind: "native" | "raster";
+  key: string;
+  document: CardDocument;
+  host: RasterHost;
+}
 const sources = new WeakMap<object, OpticalSource>();
+let sourceId = 0;
 
 export function registerCardOpticalSource(
   canvas: HTMLCanvasElement,
@@ -49,6 +60,8 @@ export function registerCardOpticalSource(
   rulesText: boolean,
 ): void {
   sources.set(canvas, {
+    canvas,
+    id: ++sourceId,
     face,
     artUrls,
     rulesText,
@@ -67,6 +80,140 @@ export function copyCardOpticalSource(from: HTMLCanvasElement, to: HTMLCanvasEle
 export function getCardSourceCornerRadius(texture: Texture): number {
   return sources.get(texture.source.resource as object)?.cornerRadius ?? 0.035;
 }
+export function cardRasterHost(artUrls: readonly (string | undefined)[]): RasterHost {
+  const loadImages = cardImageLoader(artUrls);
+  return {
+    async images(requests, signal) {
+      const lease = await loadImages(
+        requests.map(({ url }) => url),
+        signal,
+      );
+      const resized: ImageBitmap[] = [];
+      const images = new Map<string, ImageBitmap>();
+      try {
+        for (const request of requests) {
+          signal.throwIfAborted();
+          const image = lease.images.get(request.url);
+          if (!image) continue;
+          if (request.width && image.width !== request.width) {
+            const bitmap = await createImageBitmap(image, {
+              resizeWidth: request.width,
+              resizeQuality: "high",
+            });
+            resized.push(bitmap);
+            images.set(request.url, bitmap);
+          } else images.set(request.url, image);
+        }
+        signal.throwIfAborted();
+        let released = false;
+        return {
+          value: images,
+          release() {
+            if (released) return;
+            released = true;
+            for (const bitmap of resized) bitmap.close();
+            images.clear();
+            lease.dispose();
+          },
+        };
+      } catch (error) {
+        for (const bitmap of resized) bitmap.close();
+        lease.dispose();
+        throw error;
+      }
+    },
+  };
+}
+
+export function getCardFinishSource(texture: Texture): CardFinishSource | null {
+  const source = sources.get(texture.source.resource as object);
+  if (!source) return null;
+  if (!source.finish) {
+    if (isSemanticLayout(source.face)) {
+      const key = `manabrew-semantic-finish:${source.id}`;
+      const size = [source.width, source.height] as const;
+      const artWindows: Rect[] = getCardArtWindows(source.canvas).map(({ x, y, width, height }) => [
+        x,
+        y,
+        width,
+        height,
+      ]);
+      source.finish = {
+        kind: "raster",
+        key,
+        document: {
+          id: 0,
+          revision: 0,
+          recipe: {
+            pack: "manabrew-semantic",
+            color: {
+              key,
+              size,
+              async paint(_host, signal) {
+                signal.throwIfAborted();
+                const canvas = document.createElement("canvas");
+                [canvas.width, canvas.height] = size;
+                const context = canvas.getContext("2d");
+                if (!context) throw new Error("Card finish requires a 2D canvas context");
+                context.drawImage(source.canvas, 0, 0, ...size);
+                return canvas;
+              },
+            },
+            edges: artWindows.map((rect) => ({
+              key: JSON.stringify([key, rect]),
+              asset: { url: key, width: 512 },
+              crop: rect,
+              destination: rect,
+              clip: rect,
+              threshold: 20,
+            })),
+            artWindows,
+            cornerRadius: source.cornerRadius,
+            regions: [],
+          },
+        },
+        host: {
+          async images(requests, signal) {
+            const images = new Map<string, ImageBitmap>();
+            try {
+              for (const request of requests) {
+                if (images.has(request.url)) continue;
+                signal.throwIfAborted();
+                images.set(
+                  request.url,
+                  await createImageBitmap(source.canvas, {
+                    resizeWidth: request.width ?? source.width,
+                    resizeQuality: "high",
+                  }),
+                );
+              }
+              signal.throwIfAborted();
+              return {
+                value: images,
+                release() {
+                  for (const image of images.values()) image.close();
+                  images.clear();
+                },
+              };
+            } catch (error) {
+              for (const image of images.values()) image.close();
+              throw error;
+            }
+          },
+        },
+      };
+      return source.finish;
+    }
+    const recipe = magic.describe(source.face, "inspect");
+    source.finish = {
+      kind: "native",
+      key: JSON.stringify([recipe.pack, recipe.color.size, recipe.edges, recipe.stamp?.key]),
+      document: { id: 0, revision: 0, recipe },
+      host: cardRasterHost(source.artUrls),
+    };
+  }
+  return source.finish;
+}
 
 function disposeLayers(layers: CardOpticalLayers): void {
   for (const texture of [layers.artwork, layers.printing, layers.coverage]) {
@@ -82,20 +229,11 @@ async function composeLayers(
 ): Promise<CardOpticalLayers> {
   await ensureCardGlintFonts();
   signal.throwIfAborted();
-  const document = opticalDocument(0, 0, source.face, "prismatic", "inspect", source.rulesText);
+  const document = cardOpticalDocument(0, 0, source.face, "prismatic", "inspect", source.rulesText);
   const printing = document.layers?.[0];
   const coverage = printing?.finishCoverage?.add;
   if (!printing || !coverage) throw new Error("Card Glint optical printing layers are unavailable");
-  const loadImages = cardImageLoader(source.artUrls);
-  const host: RasterHost = {
-    async images(requests, paintSignal) {
-      const lease = await loadImages(
-        requests.map(({ url }) => url),
-        paintSignal,
-      );
-      return { value: lease.images, release: lease.dispose };
-    },
-  };
+  const host = cardRasterHost(source.artUrls);
   const textures: Texture[] = [];
   try {
     for (const raster of [document.recipe.color, printing.raster, coverage]) {

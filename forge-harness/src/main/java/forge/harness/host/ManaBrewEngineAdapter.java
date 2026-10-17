@@ -4,10 +4,6 @@ import forge.harness.common.CountingRandom;
 import forge.harness.common.HeadlessGuiBase;
 import forge.harness.common.ForgeEngineReset;
 import forge.harness.protocol.CardCosmetics;
-import forge.harness.protocol.CardFinish;
-import forge.harness.protocol.CardFramePreset;
-import forge.harness.protocol.CardBorderPreset;
-import forge.harness.protocol.CardWearPreset;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -52,7 +48,6 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class ManaBrewEngineAdapter {
     private static final Gson GSON = new Gson();
-    private static final Set<String> COSMETIC_FIELDS = Set.of("finish", "frame", "border", "wear", "wearSeed");
     private final Map<String, ManaBrewInteractiveSession> sessions = new ConcurrentHashMap<>();
     private volatile boolean initialized;
 
@@ -475,7 +470,7 @@ public final class ManaBrewEngineAdapter {
                     optionalString(cardObject, "setCode"),
                     optionalString(cardObject, "collectorNumber"),
                     cardObject.has("foil") && cardObject.get("foil").getAsBoolean());
-            card.cosmetics = parseCosmetics(cardObject.get("cosmetics"));
+            card.cosmetics = CardCosmeticsCodec.parse(cardObject.get("cosmetics"));
             card.tokenScript = optionalString(cardObject, "tokenScript");
             card.commander = cardObject.has("commander") && cardObject.get("commander").getAsBoolean();
             cards.add(card);
@@ -483,69 +478,6 @@ public final class ManaBrewEngineAdapter {
         return cards;
     }
 
-    private static CardCosmetics parseCosmetics(final JsonElement value) {
-        if (value == null || value.isJsonNull()) {
-            return null;
-        }
-        if (!value.isJsonObject()) {
-            throw new IllegalArgumentException("cosmetics must be an object");
-        }
-        final JsonObject object = value.getAsJsonObject();
-        for (final String key : object.keySet()) {
-            if (!COSMETIC_FIELDS.contains(key)) {
-                throw new IllegalArgumentException("unknown cosmetics field: " + key);
-            }
-        }
-        final CardFinish finish = cosmeticEnum(object, "finish", CardFinish.class);
-        CardFramePreset frame = cosmeticEnum(object, "frame", CardFramePreset.class);
-        CardBorderPreset border = cosmeticEnum(object, "border", CardBorderPreset.class);
-        CardWearPreset wear = cosmeticEnum(object, "wear", CardWearPreset.class);
-        Long wearSeed = null;
-        final JsonElement seed = object.get("wearSeed");
-        if (seed != null && !seed.isJsonNull()) {
-            if (!seed.isJsonPrimitive() || !seed.getAsJsonPrimitive().isNumber()) {
-                throw new IllegalArgumentException("cosmetics wearSeed must be a uint32");
-            }
-            try {
-                wearSeed = seed.getAsBigDecimal().longValueExact();
-            } catch (ArithmeticException invalid) {
-                throw new IllegalArgumentException("cosmetics wearSeed must be a uint32", invalid);
-            }
-            if (wearSeed < 0 || wearSeed > 0xffffffffL) {
-                throw new IllegalArgumentException("cosmetics wearSeed must be a uint32");
-            }
-        }
-        if (frame == CardFramePreset.PRINTING) {
-            frame = null;
-        }
-        if (border == CardBorderPreset.PRINTING) {
-            border = null;
-        }
-        if (wear == CardWearPreset.FRESH) {
-            wear = null;
-        }
-        if (wear == null || Long.valueOf(0).equals(wearSeed)) {
-            wearSeed = null;
-        }
-        return finish == null && frame == null && border == null && wear == null
-                ? null : new CardCosmetics(finish, frame, border, wear, wearSeed);
-    }
-
-    private static <T extends Enum<T>> T cosmeticEnum(final JsonObject object,
-            final String key, final Class<T> type) {
-        final JsonElement value = object.get(key);
-        if (value == null || value.isJsonNull()) {
-            return null;
-        }
-        if (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isString()) {
-            throw new IllegalArgumentException("invalid cosmetics " + key);
-        }
-        final T parsed = GSON.fromJson(value, type);
-        if (parsed == null) {
-            throw new IllegalArgumentException("invalid cosmetics " + key);
-        }
-        return parsed;
-    }
 
     private static String requiredString(final JsonObject object, final String key) {
         String value = optionalString(object, key);

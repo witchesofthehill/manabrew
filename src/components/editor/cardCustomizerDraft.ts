@@ -1,5 +1,5 @@
 import { cardCosmeticsKey, normalizeCardCosmetics } from "@/lib/cardCosmetics";
-import type { CardCosmetics, DeckCard } from "@/protocol/deck";
+import type { CardCosmetics, CardPrintingFace, DeckCard } from "@/protocol/deck";
 
 export type CosmeticField = "finish" | "frame" | "border" | "wear";
 export interface CardCustomizationDraft {
@@ -13,6 +13,18 @@ export function createCustomizationDraft(card: DeckCard): CardCustomizationDraft
   return { source: card, cosmetics, wearSeed: cosmetics?.wearSeed };
 }
 
+function resetPrintingFrame(layer: CardPrintingFace): CardPrintingFace {
+  return {
+    ...layer,
+    preset: undefined,
+    overrides: layer.overrides ? { ...layer.overrides, futureTreatment: undefined } : undefined,
+    art:
+      layer.art?.mode === "behind-text"
+        ? { ...layer.art, mode: "window", paperOpacity: undefined }
+        : layer.art,
+  };
+}
+
 export function changeCustomizationField(
   draft: CardCustomizationDraft,
   field: CosmeticField,
@@ -22,12 +34,23 @@ export function changeCustomizationField(
     field === "wear" && value !== "fresh"
       ? (draft.wearSeed ?? (crypto.getRandomValues(new Uint32Array(1))[0] || 1))
       : draft.wearSeed;
+  const printing = draft.cosmetics?.printing;
   return {
     ...draft,
     wearSeed,
     cosmetics: normalizeCardCosmetics({
       ...draft.cosmetics,
       [field]: value === "printing" ? undefined : value,
+      ...(field === "frame" && printing
+        ? {
+            printing: {
+              ...resetPrintingFrame(printing),
+              version: printing.version,
+              preset: "match",
+              faces: printing.faces?.map(resetPrintingFrame),
+            },
+          }
+        : {}),
       ...(field === "wear" ? { wearSeed: value === "fresh" ? undefined : wearSeed } : {}),
     }),
   };

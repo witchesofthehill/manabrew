@@ -29,7 +29,11 @@ pub fn deck_to_identities(deck: &Deck) -> Vec<DeckCardIdentity> {
                 card_number: c.identity.card_number.clone(),
                 section: Some(section.to_string()),
                 foil: c.identity.foil.unwrap_or(false),
-                cosmetics: c.identity.cosmetics.and_then(CardCosmetics::normalize),
+                cosmetics: c
+                    .identity
+                    .cosmetics
+                    .clone()
+                    .and_then(CardCosmetics::normalize),
             });
         }
     };
@@ -95,7 +99,11 @@ pub fn prepare_players(
                         .token_cosmetics
                         .entry(script.0.to_ascii_lowercase())
                         .or_insert_with(|| {
-                            token.identity.cosmetics.and_then(CardCosmetics::normalize)
+                            token
+                                .identity
+                                .cosmetics
+                                .clone()
+                                .and_then(CardCosmetics::normalize)
                         });
                 }
             }
@@ -125,7 +133,7 @@ pub fn prepare_cards_from_identities(
                 card.card_number = Some(identity.card_number.clone());
             }
             card.paper_foil = identity.foil;
-            card.cosmetics = identity.cosmetics;
+            card.cosmetics = identity.cosmetics.clone();
             let destination = deck_zone_for_identity(identity.section.as_deref(), &card);
             register_card_name(registered, &card.card_name, destination);
             cards.push((card, destination));

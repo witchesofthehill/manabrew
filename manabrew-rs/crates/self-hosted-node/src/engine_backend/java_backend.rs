@@ -3150,6 +3150,7 @@ impl From<&DeckCardIdentity> for CardIdentityForJava {
             foil: identity.foil.unwrap_or(false),
             cosmetics: identity
                 .cosmetics
+                .clone()
                 .and_then(|cosmetics| cosmetics.normalize()),
             commander: false,
             token_script: identity

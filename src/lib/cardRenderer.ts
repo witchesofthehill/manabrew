@@ -1,9 +1,5 @@
-import {
-  composeCardTexture,
-  composeSemanticCardTexture,
-  isSemanticLayout,
-  type RenderedCardInput,
-} from "card-glint/magic/presentation";
+import { composeCardTexture, type RenderedCardInput } from "card-glint/magic/presentation";
+import { composeSemanticCardTexture, isSemanticLayout } from "@/lib/cardSemanticLayout";
 import { ensureCardGlintFonts } from "@/lib/cardGlintAssets";
 import type { ScryfallLanguage } from "@/i18n/locales";
 import { useScryfallStore } from "@/stores/useScryfallStore";
@@ -23,12 +19,14 @@ import {
   type CardRenderPriority,
 } from "@/lib/cardRenderQueue";
 import type { CardCanvas } from "@/lib/cardRenderTypes";
-import { cardCosmeticsKey } from "@/lib/cardCosmetics";
 import { registerCardOpticalSource } from "@/lib/cardOpticalLayers";
 import { getCardLiveHighlights, registerCardLiveHighlights } from "@/lib/cardLiveHighlights";
-import { getCardRenderGeometry } from "@/lib/cardRenderGeometry";
 
 export type { CardRenderRequest } from "@/lib/cardRenderSnapshot";
+
+export function cardRenderInputKey(request: CardRenderRequest): string {
+  return JSON.stringify(captureCardInput(request));
+}
 
 export interface CardRenderOptions {
   rulesText?: boolean;
@@ -73,19 +71,15 @@ export function clearCardRenderCache(): boolean {
 
 function withoutLiveInk<T extends RenderedCardInput>(face: T, colors: Set<string>): T {
   const faces = face.faces?.map((child) => withoutLiveInk(child, colors));
-  if (!face.liveChanges && (!faces || faces.every((child, index) => child === face.faces![index])))
+  if (!face.textInk && (!faces || faces.every((child, index) => child === face.faces![index])))
     return face;
-  if (face.liveChanges) {
-    for (const color of [
-      face.liveChanges.power,
-      face.liveChanges.toughness,
-      face.liveChanges.typeLine?.color,
-    ])
-      if (color) colors.add(color);
+  if (face.textInk) {
+    for (const spans of [face.textInk.stats, face.textInk.typeLine])
+      for (const span of spans ?? []) colors.add(span.color);
   }
   return {
     ...face,
-    liveChanges: face.liveChanges ? { ...face.liveChanges, omitInk: true } : undefined,
+    textInk: face.textInk ? { ...face.textInk, omitInk: true } : undefined,
     faces,
   };
 }
@@ -100,10 +94,10 @@ function composeCard(
   const { face, decision } = cardGlintFace(prepared, standardFrameFallback);
   const key = JSON.stringify([
     prepared.locale,
+    prepared.printing.map((printing) => printing.id),
     face,
     decision,
     rulesText,
-    cardCosmeticsKey(prepared.cosmetics),
   ]);
   const cached = finished.get(key);
   if (cached) {
@@ -127,7 +121,12 @@ function composeCard(
                 loadFonts: ensureCardGlintFonts,
               })
             : composeCardTexture(
-                { face: input, printingId: null, printedImage: null, rulesText },
+                {
+                  face: input,
+                  printingId: prepared.printing[prepared.faceIndex]?.id ?? null,
+                  printedImage: null,
+                  rulesText,
+                },
                 "inspect",
                 compositionSignal,
                 { loadImages },
@@ -221,20 +220,13 @@ export async function renderCard(
   }
 }
 
-export async function renderRulesCard(
+export function renderRulesCard(
   request: CardRenderRequest,
   signal?: AbortSignal,
-): Promise<{ face: CardCanvas; rulesBackground: CardCanvas | null }> {
-  const face = await renderCard(request, signal, {
+): Promise<CardCanvas> {
+  return renderCard(request, signal, {
+    rulesText: false,
     priority: "preview",
     standardFrameFallback: true,
   });
-  const rulesBackground = getCardRenderGeometry(face)?.rules.length
-    ? await renderCard(request, signal, {
-        rulesText: false,
-        priority: "preview",
-        standardFrameFallback: true,
-      })
-    : null;
-  return { face, rulesBackground };
 }

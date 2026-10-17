@@ -18,8 +18,6 @@ forge-harness/native/gen-config-wasm/
 # Node / Tauri dev artifacts
 node_modules/
 dist/
-packages/card-glint/dist/
-packages/card-glint/.dist-staging/
 
 # IDE & OS
 .DS_Store

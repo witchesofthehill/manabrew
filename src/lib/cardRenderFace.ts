@@ -3,8 +3,10 @@ import {
   type RenderedCardInput,
   type FrameColor,
   type SecurityStamp,
-  type SemanticCardInput,
+  type CardTextInk,
+  type TextInkSpan,
 } from "card-glint/magic/presentation";
+import type { SemanticCardInput } from "@/lib/cardSemanticLayout";
 import type { CardFaceLiveChanges, CardFaceSnapshot, PreparedCard } from "@/lib/cardRenderSnapshot";
 import { getTheme } from "@/hooks/useTheme";
 import {
@@ -12,6 +14,7 @@ import {
   supportsRetroCardFrame,
   type CardRenderDecision,
 } from "@/lib/cardRenderDecision";
+import { resolveCardPrinting } from "@/lib/cardPrinting";
 
 const SUPPORTED_LAYOUTS: Record<string, true> = {
   normal: true,
@@ -63,9 +66,7 @@ function frameColors(colors: readonly string[] | undefined): FrameColor[] {
   ];
 }
 
-function resolveLiveChanges(
-  changes: CardFaceLiveChanges,
-): NonNullable<SemanticCardInput["liveChanges"]> {
+function resolveLiveChanges(changes: CardFaceLiveChanges, face: RenderedCardInput): CardTextInk {
   const colors = getTheme().gameTheme.cardChange;
   const tones: Record<NonNullable<CardFaceLiveChanges["power"]>, string> = {
     buffed: colors.buffed,
@@ -73,21 +74,29 @@ function resolveLiveChanges(
     added: colors.buffed,
     changed: colors.changed,
   };
-  return {
-    ...(changes.power ? { power: tones[changes.power] } : {}),
-    ...(changes.toughness ? { toughness: tones[changes.toughness] } : {}),
-    ...(changes.addedTypes
-      ? {
-          typeLine: {
-            added: changes.addedTypes,
-            color: changes.addedTypes.length ? colors.buffed : colors.removed,
-          },
-        }
-      : {}),
-  };
+  const stats: TextInkSpan[] = [];
+  if (face.power != null && face.toughness != null) {
+    const slash = String(face.power).length;
+    if (changes.power) stats.push({ start: 0, end: slash, color: tones[changes.power] });
+    if (changes.toughness) stats.push({ start: slash + 1, color: tones[changes.toughness] });
+  }
+  let typeLine: TextInkSpan[] | undefined;
+  if (changes.addedTypes) {
+    const added = new Set(changes.addedTypes.map((word) => word.toLocaleLowerCase("en-US")));
+    typeLine = added.size
+      ? [...(face.typeLine ?? "").matchAll(/[\p{L}\p{N}]+(?:[-'’][\p{L}\p{N}]+)*/gu)]
+          .filter((match) => added.has(match[0].toLocaleLowerCase("en-US")))
+          .map((match) => ({
+            start: match.index,
+            end: match.index + match[0].length,
+            color: colors.buffed,
+          }))
+      : [{ start: 0, color: colors.removed }];
+  }
+  return { ...(stats.length ? { stats } : {}), ...(typeLine?.length ? { typeLine } : {}) };
 }
 
-export function cardGlintFace(
+export function cardGlintBaseline(
   prepared: PreparedCard,
   standardFrameFallback: boolean,
 ): { face: SemanticCardInput; decision: CardRenderDecision } {
@@ -113,9 +122,13 @@ export function cardGlintFace(
       ),
     );
   const scanBacked = layout === "art_series" || layout === "front_card";
+  const selectedPreset =
+    prepared.cosmetics?.printing?.faces?.[prepared.faceIndex]?.preset ??
+    prepared.cosmetics?.printing?.preset;
+  const concretePreset = selectedPreset !== undefined && selectedPreset !== "match";
   const frameOverride =
     prepared.cosmetics?.frame === "modern" || prepared.cosmetics?.frame === "retro";
-  const allowStandardFrame = standardFrameFallback || frameOverride;
+  const allowStandardFrame = standardFrameFallback || frameOverride || concretePreset;
   if (unsupportedTreatment && !allowStandardFrame && !scanBacked) original("unsupported-treatment");
   const fallbackTreatment = Boolean(unsupportedTreatment && allowStandardFrame);
   const parts = snapshot.card_faces ?? [snapshot];
@@ -136,6 +149,8 @@ export function cardGlintFace(
     const colors = part.colors ??
       part.color_indicator ?? [...new Set(part.mana_cost.match(/[WUBRG]/g) ?? [])];
     const cosmetics = prepared.cosmetics;
+    const preset = cosmetics?.printing?.faces?.[index]?.preset ?? cosmetics?.printing?.preset;
+    const legacyFrame = preset && preset !== "match" ? undefined : cosmetics?.frame;
     const borderColor =
       cosmetics?.border && cosmetics.border !== "printing"
         ? cosmetics.border
@@ -146,10 +161,13 @@ export function cardGlintFace(
       subtypes: [],
       text: part.oracle_text,
     });
-    if (cosmetics?.frame === "retro" && !retroCompatible) original("incompatible-frame");
+    if (legacyFrame === "retro" && !retroCompatible) original("incompatible-frame");
     const stamp = snapshot.security_stamp as SecurityStamp | undefined;
+    const provider = prepared.printing[index]?.provider;
+    const matchFrame = !legacyFrame || legacyFrame === "printing";
     const result: SemanticCardInput = {
       name: part.name,
+      canonicalTypeLine: canonicalType,
       typeLine: part.type_line_display,
       artifact: /\bArtifact\b/i.test(canonicalType),
       creature: /\bCreature\b/i.test(canonicalType),
@@ -180,37 +198,51 @@ export function cardGlintFace(
       lifeModifier: part.life_modifier,
       scanBorder:
         scanBacked &&
-        (cosmetics?.frame === "modern" ||
+        (legacyFrame === "modern" ||
           (cosmetics?.border != null && cosmetics.border !== "printing")),
       layout: semanticLayout ?? faceLayout,
       frameStyle:
-        cosmetics?.frame === "modern"
+        legacyFrame === "modern"
           ? "modern"
           : retroCompatible &&
-              (cosmetics?.frame === "retro" ||
+              (legacyFrame === "retro" ||
                 (!fallbackTreatment && snapshot.frame && Number(snapshot.frame) < 2003))
             ? "retro"
             : "modern",
       borderColor: borderColor === "white" || borderColor === "silver" ? borderColor : "black",
       wordingMode: "oracle",
       symbolStyle: "modern",
-      securityStamp: stamp && STAMPS[stamp] === true ? stamp : "none",
+      securityStamp: provider?.securityStamp ?? (stamp && STAMPS[stamp] === true ? stamp : "none"),
       securityStampEffect: "static",
-      setCode: snapshot.set,
+      setCode: provider?.setCode ?? snapshot.set,
       rarity:
         snapshot.rarity && RARITIES[snapshot.rarity] === true
           ? (snapshot.rarity as RenderedCardInput["rarity"])
           : "common",
-      artist: part.artist ?? snapshot.artist,
-      collectorNumber: snapshot.collector_number,
+      artist: prepared.printing[index]?.artist ?? part.artist ?? snapshot.artist,
+      collectorNumber: provider?.collectorNumber ?? snapshot.collector_number,
+      collectorLanguage: provider?.collectorLanguage ?? snapshot.lang,
+      ...(matchFrame && !fallbackTreatment && provider
+        ? {
+            frameStyle: provider.frameStyle,
+            frameTemplate: provider.frameTemplate,
+            frameAssetFamily: provider.frameAssetFamily,
+            frameTreatment: provider.frameTreatment,
+            futureTreatment: provider.futureTreatment,
+            ...(provider.frameColors && !prepared.gameplay
+              ? { frameColors: provider.frameColors }
+              : {}),
+            watermark: provider.watermark,
+          }
+        : {}),
     };
-    if (part.liveChanges) result.liveChanges = resolveLiveChanges(part.liveChanges);
+    if (part.liveChanges) result.textInk = resolveLiveChanges(part.liveChanges, result);
     if (faceLayout === "flip") result.frameTemplate = "flip";
     else if (/\bBattle\b/i.test(canonicalType)) result.frameTemplate = "battle";
     else if (
       !fallbackTreatment &&
       snapshot.frame === "future" &&
-      (!cosmetics?.frame || cosmetics.frame === "printing")
+      (!legacyFrame || legacyFrame === "printing")
     )
       result.frameTemplate = "future";
     return result;
@@ -246,6 +278,21 @@ export function cardGlintFace(
       faceIndex: prepared.faceIndex,
       template: `card-glint:${scanBacked ? `${layout}-scan` : ["room", "planar", "scheme", "vanguard"].includes(layout) ? layout : (face.frameTemplate ?? (face.frameStyle === "retro" ? "retro" : faceFrame(face)))}`,
       engine: "card-glint",
+    }),
+  };
+}
+
+export function cardGlintFace(
+  prepared: PreparedCard,
+  standardFrameFallback: boolean,
+): { face: SemanticCardInput; decision: CardRenderDecision } {
+  const { face: baseline, decision } = cardGlintBaseline(prepared, standardFrameFallback);
+  const face = resolveCardPrinting(baseline, prepared);
+  return {
+    face,
+    decision: Object.freeze({
+      ...decision,
+      template: `card-glint:${face.layout === "art_series" || face.layout === "front_card" ? `${face.layout}-scan` : ["room", "planar", "scheme", "vanguard"].includes(face.layout ?? "") ? face.layout : (face.frameTemplate ?? (face.frameStyle === "retro" ? "retro" : faceFrame(face)))}`,
     }),
   };
 }

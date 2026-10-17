@@ -6,7 +6,11 @@ use ts_rs::TS;
 
 use crate::{game::PlaymatSettings, TokenScript};
 pub use forge_foundation::sealed_product::card_cosmetics::{
-    CardBorderPreset, CardCosmetics, CardFinish, CardFramePreset, CardWearPreset,
+    CardArtMode, CardArtPlacement, CardBorderPreset, CardCollectorFormat, CardCosmetics,
+    CardFinish, CardFramePreset, CardFutureTreatment, CardPrintingBorder, CardPrintingColor,
+    CardPrintingElementOverride, CardPrintingElements, CardPrintingFace, CardPrintingOverrides,
+    CardPrintingPreset, CardPrintingSelection, CardSecurityStamp, CardSetSymbolMask,
+    CardSymbolStyle, CardWearPreset, CardWordingMode,
 };
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]

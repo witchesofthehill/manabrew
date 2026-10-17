@@ -48,8 +48,6 @@ FROM base AS builder
 
 # Install JS deps first for layer caching
 COPY package.json yarn.lock ./
-COPY packages/card-glint/ ./packages/card-glint/
-COPY scripts/ensure-card-glint.mjs scripts/bundle-card-glint.mjs ./scripts/
 RUN corepack enable && yarn install --frozen-lockfile
 
 # Cook the dependency graph for each compile `yarn build:web` performs: the

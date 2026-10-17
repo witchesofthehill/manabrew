@@ -33,7 +33,7 @@ import { usePreferencesStore, type BattlefieldCardStyle } from "@/stores/usePref
 import { battlefieldKeywords } from "@/lib/battlefieldKeywords";
 import { applyManaSymbol, parseManaCost } from "./manaSymbols";
 import { asGameDeckCard } from "@/lib/decks";
-import { renderCard } from "@/lib/cardRenderer";
+import { cardRenderInputKey, renderCard } from "@/lib/cardRenderer";
 import { createGeneratedCardTexture, getGeneratedCardArtWindows } from "./generatedCardTexture";
 import { writeCardTextureUvs } from "./cardTextureUvs";
 import { loadCardBack } from "./cardBackTexture";
@@ -455,6 +455,7 @@ export class CardSprite extends Container {
   private previewFace: 0 | 1 | null = null;
   private loadGeneration = 0;
   private imageAbort: AbortController | null = null;
+  private imageRequestKey: string | null = null;
   private ownedImageTexture: Texture | null = null;
   private imageIsArtwork = false;
   private readonly kind: "battlefield" | "hand" | "zone";
@@ -688,12 +689,33 @@ export class CardSprite extends Container {
     this.hoverDebugGfx.roundRect(0, 0, this.cw, this.ch, CARD_RADIUS);
     this.hoverDebugGfx.fill({ color: hexToNum(activeTheme.gameTheme.success), alpha: 0.28 });
   }
-  private deckCard() {
-    if (this.card.id === DEBUG_KEYWORD_CARD_ID) {
+  private deckCard(card = this.card) {
+    if (card.id === DEBUG_KEYWORD_CARD_ID) {
       const definition = useGameDevStore.getState().debugCardDefinition;
       if (definition) return definition;
     }
-    return asGameDeckCard(useGameStore.getState().gameDecks, this.card);
+    return asGameDeckCard(useGameStore.getState().gameDecks, card);
+  }
+
+  private hasHiddenIdentity(card = this.card): boolean {
+    return (
+      card.isFaceDown ||
+      !card.identity.name ||
+      ("visibility" in card && card.visibility === "hidden")
+    );
+  }
+
+  private imageKey(card = this.card): string {
+    if (this.hasHiddenIdentity(card)) return "hidden";
+    const deckCard = this.deckCard(card);
+    const faceIndex = this.previewFace ?? (card.isTransformed ? 1 : 0);
+    const style = this.isBattlefield ? activeStyle : "realistic";
+    return JSON.stringify([
+      style,
+      style !== "realistic" && style !== "art"
+        ? cardRenderInputKey({ card, deckCard, faceIndex })
+        : [useScryfallStore.getState().locale, deckCard, faceIndex],
+    ]);
   }
 
   private displayDimensions(): { width: number; height: number } {
@@ -785,9 +807,7 @@ export class CardSprite extends Container {
       this.imageSpr.setSize(this.cw, this.ch);
     }
     this.liveHighlight.setSource(
-      this.card.isFaceDown || !this.card.identity.name || this.imageIsArtwork
-        ? null
-        : this.imageSpr,
+      this.hasHiddenIdentity() || this.imageIsArtwork ? null : this.imageSpr,
     );
   }
   private fitPrintedSquare(): void {
@@ -807,13 +827,15 @@ export class CardSprite extends Container {
     if (rotate) this.imageSpr.setSize(visualH, visualW);
     else this.imageSpr.setSize(visualW, visualH);
   }
-  private async loadImage(): Promise<void> {
+  private async loadImage(key = this.imageKey()): Promise<void> {
+    if (key === this.imageRequestKey) return;
+    this.imageRequestKey = key;
     const generation = ++this.loadGeneration;
     this.imageAbort?.abort();
     const controller = new AbortController();
     this.imageAbort = controller;
     this._imageSettled = false;
-    const hidden = this.card.isFaceDown || !this.card.identity.name;
+    const hidden = this.hasHiddenIdentity();
     if (hidden) {
       this.imageSpr.texture = Texture.EMPTY;
       this.foilSheen.setTexture(null);
@@ -975,7 +997,7 @@ export class CardSprite extends Container {
     this.refreshCardRadiusChrome();
   }
   private syncHandFaceVisibility(): void {
-    const hidden = this.card.isFaceDown || !this.card.identity.name;
+    const hidden = this.hasHiddenIdentity();
     const ready = !hidden && this.handRulesFace?.imageReady === true;
     this.printedFaceContainer.visible = hidden || !this.handRulesView || !ready;
     if (this.handRulesFace) {
@@ -994,7 +1016,7 @@ export class CardSprite extends Container {
     }
   }
   private syncFoilTexture(): void {
-    const hidden = this.card.isFaceDown || !this.card.identity.name;
+    const hidden = this.hasHiddenIdentity();
     const identity = hidden ? undefined : this.deckCard().identity;
     const printing = identity
       ? peekCard(useScryfallStore.getState().cards, {
@@ -1106,12 +1128,7 @@ export class CardSprite extends Container {
     this.imageSpr.setSize(texture.width * scale, texture.height * scale);
   }
   private usesArtFrame(): boolean {
-    return (
-      this.isBattlefield &&
-      this.imageIsArtwork &&
-      !this.card.isFaceDown &&
-      !!this.card.identity.name
-    );
+    return this.isBattlefield && this.imageIsArtwork && !this.hasHiddenIdentity();
   }
 
   private rebuildDecorations(forceRail: boolean): void {
@@ -1256,18 +1273,8 @@ export class CardSprite extends Container {
     const previous = this.card;
     if (card === previous) return;
 
-    const imageChanged =
-      card.id !== previous.id ||
-      card.ownerId !== previous.ownerId ||
-      card.identity.name !== previous.identity.name ||
-      card.identity.setCode !== previous.identity.setCode ||
-      card.identity.cardNumber !== previous.identity.cardNumber ||
-      card.identity.isToken !== previous.identity.isToken ||
-      card.isFaceDown !== previous.isFaceDown ||
-      card.isCopy !== previous.isCopy ||
-      card.cosmetics?.frame !== previous.cosmetics?.frame ||
-      card.cosmetics?.border !== previous.cosmetics?.border ||
-      card.isTransformed !== previous.isTransformed;
+    const imageKey = this.imageKey(card);
+    const imageChanged = imageKey !== this.imageRequestKey;
     const typesChanged = !sameStrings(card.types, previous.types);
     const subtypesChanged = !sameStrings(card.subtypes, previous.subtypes);
     const supertypesChanged = !sameStrings(card.supertypes, previous.supertypes);
@@ -1292,19 +1299,7 @@ export class CardSprite extends Container {
       card.isAttacking !== previous.isAttacking;
 
     this.card = card;
-    if (
-      imageChanged ||
-      (this.isBattlefield &&
-        activeStyle !== "realistic" &&
-        (frameChanged ||
-          statsChanged ||
-          keywordsChanged ||
-          countersChanged ||
-          card.text !== previous.text ||
-          card.color !== previous.color ||
-          card.manaCost !== previous.manaCost))
-    )
-      this.loadImage();
+    if (imageChanged) this.loadImage(imageKey);
     if (frameChanged) this.renderFrame();
     const previousRail = this.railState;
     this.updateRail();

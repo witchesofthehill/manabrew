@@ -49,8 +49,8 @@ const splitTopLevel = (s, sep) => {
   let cur = "";
   for (let i = 0; i < s.length; i++) {
     const c = s[i];
-    if (c === "{" || c === "<") depth++;
-    else if (c === "}" || c === ">") depth--;
+    if (c === "{" || c === "<" || c === "[") depth++;
+    else if (c === "}" || c === ">" || c === "]") depth--;
     if (depth === 0 && s.startsWith(sep, i)) {
       out.push(cur);
       cur = "";
@@ -109,6 +109,8 @@ const javaType = (ts, optional) => {
   if (record) return `java.util.Map<String, ${javaType(record[1], true)}>`;
   const arr = ts.match(/^Array<(.+)>$/);
   if (arr) return `java.util.List<${javaType(arr[1], true)}>`;
+  if (/^\[\s*number(?:,\s*number)*\s*\]$/.test(ts)) return "java.util.List<Double>";
+  if (/^\d+$/.test(ts)) return opt ? "Integer" : "int";
   // A #[serde(transparent)] newtype exports as `export type X = string;`, which
   // carries no fields. Emitting a class for it would compile to an empty
   // wrapper that silently drops the value on the wire, so follow the alias to
@@ -136,7 +138,8 @@ const constName = (v) =>
   v
     .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
     .toUpperCase()
-    .replace(/[^A-Z0-9]/g, "_");
+    .replace(/[^A-Z0-9]/g, "_")
+    .replace(/^(?=\d)/, "_");
 
 const emitStringEnum = (name, body) => {
   const consts = body
@@ -149,7 +152,12 @@ const emitStringEnum = (name, body) => {
 
 const parentOf = new Map(); // variant class name -> interface it implements
 
-const JAVA_FIELD_TYPES = { "CardCosmetics.wearSeed": "Long" };
+const JAVA_FIELD_TYPES = {
+  "CardCosmetics.wearSeed": "Long",
+  "CardCosmetics.rainFog": "Double",
+  "CardArtPlacement.zoom": "Double",
+  "CardArtPlacement.paperOpacity": "Double",
+};
 
 const emitClass = (name, discriminator, fields, tag) => {
   const baked = tag ? { key: "type", value: tag } : discriminator;

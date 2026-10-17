@@ -29,11 +29,27 @@
     "AttackerOptionDto",
     "AvailableAction",
     "BlockableAttackerDto",
+    "CardArtMode",
+    "CardArtPlacement",
     "CardBorderPreset",
+    "CardCollectorFormat",
     "CardCosmetics",
     "CardFinish",
     "CardFramePreset",
+    "CardFutureTreatment",
+    "CardPrintingBorder",
+    "CardPrintingColor",
+    "CardPrintingElementOverride",
+    "CardPrintingElements",
+    "CardPrintingFace",
+    "CardPrintingOverrides",
+    "CardPrintingPreset",
+    "CardPrintingSelection",
+    "CardSecurityStamp",
+    "CardSetSymbolMask",
+    "CardSymbolStyle",
     "CardWearPreset",
+    "CardWordingMode",
     "DiceRollEntry",
     "PaymentAction",
     "PaymentResourceKind",
@@ -133,6 +149,16 @@
       "rust": "#[serde(rename_all = \"camelCase\")]\npub struct BlockableAttackerDto {\n    pub attacker_id: String,\n    pub valid_blocker_ids: Vec<String>,\n    pub min_blockers: u32,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub max_blockers: Option<u32>,\n    pub must_be_blocked: bool,\n}",
       "refs": []
     },
+    "CardArtMode": {
+      "ts": "type CardArtMode = \"window\" | \"behind-text\";",
+      "rust": "pub enum CardArtMode {\n    #[serde(rename = \"window\")]\n    Window,\n    #[serde(rename = \"behind-text\")]\n    BehindText,\n}",
+      "refs": []
+    },
+    "CardArtPlacement": {
+      "ts": "interface CardArtPlacement {\n  mode: CardArtMode;\n  focalPoint?: [number, number];\n  zoom?: number;\n  paperOpacity?: number;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\", deny_unknown_fields)]\npub struct CardArtPlacement {\n    pub mode: CardArtMode,\n    #[serde(\n        default,\n        skip_serializing_if = \"Option::is_none\",\n        deserialize_with = \"focal_point\"\n    )]\n    pub focal_point: Option<[CardCosmeticNumber; 2]>,\n    #[serde(\n        default,\n        skip_serializing_if = \"Option::is_none\",\n        deserialize_with = \"zoom\"\n    )]\n    pub zoom: Option<CardCosmeticNumber>,\n    #[serde(\n        default,\n        skip_serializing_if = \"Option::is_none\",\n        deserialize_with = \"paper_opacity\"\n    )]\n    pub paper_opacity: Option<CardCosmeticNumber>,\n}",
+      "refs": ["CardArtMode"]
+    },
     "CardBackFaceSummary": {
       "ts": "interface CardBackFaceSummary {\n  name: string;\n  manaCost: string;\n  typeLine: string;\n  oracleText: string;\n  power?: string;\n  toughness?: string;\n  uris: CardImageUris;\n}",
       "rust": "#[serde(rename_all = \"camelCase\")]\npub struct CardBackFaceSummary {\n    pub name: String,\n    #[serde(default)]\n    pub mana_cost: String,\n    #[serde(default)]\n    pub type_line: String,\n    #[serde(default)]\n    pub oracle_text: String,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub power: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub toughness: Option<String>,\n    #[serde(default)]\n    pub uris: CardImageUris,\n}",
@@ -148,19 +174,26 @@
       "rust": "#[serde(\n    tag = \"kind\",\n    rename_all = \"camelCase\",\n    rename_all_fields = \"camelCase\"\n)]\npub enum CardChoiceDto {\n    Color { colors: Vec<ManaColor> },\n    Type { values: Vec<String> },\n    NamedCard { names: Vec<String> },\n    ChosenCard { count: usize },\n    Number { value: i32 },\n    Mode { value: String },\n    Player { player_id: String, name: String },\n}",
       "refs": ["ManaColor"]
     },
+    "CardCollectorFormat": {
+      "ts": "type CardCollectorFormat = \"number-first\" | \"rarity-first\";",
+      "rust": "pub enum CardCollectorFormat {\n    #[serde(rename = \"number-first\")]\n    NumberFirst,\n    #[serde(rename = \"rarity-first\")]\n    RarityFirst,\n}",
+      "refs": []
+    },
     "CardCosmetics": {
-      "ts": "interface CardCosmetics {\n  finish?: CardFinish;\n  frame?: CardFramePreset;\n  border?: CardBorderPreset;\n  wear?: CardWearPreset;\n  wearSeed?: number;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\", deny_unknown_fields)]\npub struct CardCosmetics {\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub finish: Option<CardFinish>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub frame: Option<CardFramePreset>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub border: Option<CardBorderPreset>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub wear: Option<CardWearPreset>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub wear_seed: Option<u32>,\n}",
+      "ts": "interface CardCosmetics {\n  finish?: CardFinish;\n  frame?: CardFramePreset;\n  border?: CardBorderPreset;\n  wear?: CardWearPreset;\n  wearSeed?: number;\n  rainFog?: number;\n  wording?: CardWordingMode;\n  printing?: CardPrintingSelection;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\", deny_unknown_fields)]\npub struct CardCosmetics {\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub finish: Option<CardFinish>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub frame: Option<CardFramePreset>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub border: Option<CardBorderPreset>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub wear: Option<CardWearPreset>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub wear_seed: Option<u32>,\n    #[serde(\n        default,\n        skip_serializing_if = \"Option::is_none\",\n        deserialize_with = \"rain_fog\"\n    )]\n    pub rain_fog: Option<CardCosmeticNumber>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub wording: Option<CardWordingMode>,\n    #[serde(\n        default,\n        skip_serializing_if = \"Option::is_none\",\n        deserialize_with = \"printing\"\n    )]\n    pub printing: Option<Arc<CardPrintingSelection>>,\n}",
       "refs": [
         "CardBorderPreset",
         "CardFinish",
         "CardFramePreset",
-        "CardWearPreset"
+        "CardPrintingSelection",
+        "CardWearPreset",
+        "CardWordingMode"
       ]
     },
     "CardDto": {
       "ts": "interface CardDto {\n  id: string;\n  identity: CardIdentity;\n  cosmetics?: CardCosmetics;\n  color: string;\n  manaCost: string;\n  cmc: number;\n  types: Array<string>;\n  subtypes: Array<string>;\n  supertypes: Array<string>;\n  power: string | null;\n  toughness: string | null;\n  basePower?: number;\n  baseToughness?: number;\n  finalChapter?: number;\n  classLevel?: number;\n  classLevels: Array<ClassLevelDto>;\n  sagaChapters: Array<SagaChapterDto>;\n  text: string;\n  choices: Array<CardChoiceDto>;\n  controllerId: string;\n  ownerId: string;\n  tapped: boolean;\n  isCrewed: boolean;\n  isAttacking: boolean;\n  attackingPlayerId?: string;\n  attackTargetId?: string;\n  keywords: Array<string>;\n  counters: Record<string, number>;\n  damage: number;\n  summoningSick: boolean;\n  isCopy: boolean;\n  isDoubleFaced: boolean;\n  isTransformed: boolean;\n  isFaceDown: boolean;\n  isBestowed: boolean;\n  phasedOut: boolean;\n  exerted: boolean;\n  isRingBearer: boolean;\n  attachedTo?: string;\n  attachmentIds: Array<string>;\n  mergedCardIds: Array<string>;\n  flashbackCost?: string;\n  kickerCost?: string;\n  effectiveManaCost?: string;\n  commanderTax?: number;\n  madnessCost?: string;\n  isMadnessExiled: boolean;\n  isPlotted: boolean;\n  isWarpExiled: boolean;\n  foil: boolean;\n  wouldDieInCombat: boolean;\n  zone?: ZoneKind;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\", default)]\npub struct CardDto {\n    pub id: String,\n    pub identity: CardIdentity,\n    #[serde(default, deserialize_with = \"crate::deck_dto::CardCosmetics::deserialize_optional\", skip_serializing_if = \"Option::is_none\")]\n    pub cosmetics: Option<crate::deck_dto::CardCosmetics>,\n    pub color: String,\n    pub mana_cost: String,\n    pub cmc: i32,\n    pub types: Vec<String>,\n    pub subtypes: Vec<String>,\n    pub supertypes: Vec<String>,\n    pub power: Option<String>,\n    pub toughness: Option<String>,\n    #[serde(skip_serializing_if = \"Option::is_none\")]\n    pub base_power: Option<i32>,\n    #[serde(skip_serializing_if = \"Option::is_none\")]\n    pub base_toughness: Option<i32>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub final_chapter: Option<i32>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub class_level: Option<i32>,\n    pub class_levels: Vec<ClassLevelDto>,\n    pub saga_chapters: Vec<SagaChapterDto>,\n    pub text: String,\n    #[serde(default)]\n    pub choices: Vec<CardChoiceDto>,\n    pub controller_id: String,\n    pub owner_id: String,\n    pub tapped: bool,\n    #[serde(default, skip_serializing_if = \"std::ops::Not::not\")]\n    pub is_crewed: bool,\n    #[serde(default, skip_serializing_if = \"std::ops::Not::not\")]\n    pub is_attacking: bool,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub attacking_player_id: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub attack_target_id: Option<String>,\n    pub keywords: Vec<String>,\n    // Keyed by the engine's canonical `CounterType` display form (\"P1P1\",\n    // \"Loyalty\", one-off counter names uppercase); both producers must match it.\n    pub counters: BTreeMap<String, u32>,\n    pub damage: i32,\n    pub summoning_sick: bool,\n    #[serde(default, skip_serializing_if = \"std::ops::Not::not\")]\n    pub is_copy: bool,\n    pub is_double_faced: bool,\n    pub is_transformed: bool,\n    pub is_face_down: bool,\n    pub is_bestowed: bool,\n    pub phased_out: bool,\n    pub exerted: bool,\n    #[serde(default, skip_serializing_if = \"std::ops::Not::not\")]\n    pub is_ring_bearer: bool,\n    #[serde(skip_serializing_if = \"Option::is_none\")]\n    pub attached_to: Option<String>,\n    #[serde(default, skip_serializing_if = \"Vec::is_empty\")]\n    pub attachment_ids: Vec<String>,\n    // Mutate pile: the card ids merged under this top card.\n    #[serde(default, skip_serializing_if = \"Vec::is_empty\")]\n    pub merged_card_ids: Vec<String>,\n    #[serde(skip_serializing_if = \"Option::is_none\")]\n    pub flashback_cost: Option<String>,\n    #[serde(skip_serializing_if = \"Option::is_none\")]\n    pub kicker_cost: Option<String>,\n    #[serde(skip_serializing_if = \"Option::is_none\")]\n    pub effective_mana_cost: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub commander_tax: Option<i32>,\n    #[serde(skip_serializing_if = \"Option::is_none\")]\n    pub madness_cost: Option<String>,\n    #[serde(default, skip_serializing_if = \"std::ops::Not::not\")]\n    pub is_madness_exiled: bool,\n    #[serde(default, skip_serializing_if = \"std::ops::Not::not\")]\n    pub is_plotted: bool,\n    #[serde(default, skip_serializing_if = \"std::ops::Not::not\")]\n    pub is_warp_exiled: bool,\n    #[serde(default, skip_serializing_if = \"std::ops::Not::not\")]\n    pub foil: bool,\n    #[serde(default, skip_serializing_if = \"std::ops::Not::not\")]\n    pub would_die_in_combat: bool,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub zone: Option<ZoneKind>,\n}",
+      "rust": "#[serde(rename_all = \"camelCase\", default)]\npub struct CardDto {\n    pub id: String,\n    pub identity: CardIdentity,\n    #[serde(\n        default,\n        deserialize_with = \"crate::deck_dto::CardCosmetics::deserialize_optional\",\n        skip_serializing_if = \"Option::is_none\"\n    )]\n    pub cosmetics: Option<crate::deck_dto::CardCosmetics>,\n    pub color: String,\n    pub mana_cost: String,\n    pub cmc: i32,\n    pub types: Vec<String>,\n    pub subtypes: Vec<String>,\n    pub supertypes: Vec<String>,\n    pub power: Option<String>,\n    pub toughness: Option<String>,\n    #[serde(skip_serializing_if = \"Option::is_none\")]\n    pub base_power: Option<i32>,\n    #[serde(skip_serializing_if = \"Option::is_none\")]\n    pub base_toughness: Option<i32>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub final_chapter: Option<i32>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub class_level: Option<i32>,\n    pub class_levels: Vec<ClassLevelDto>,\n    pub saga_chapters: Vec<SagaChapterDto>,\n    pub text: String,\n    #[serde(default)]\n    pub choices: Vec<CardChoiceDto>,\n    pub controller_id: String,\n    pub owner_id: String,\n    pub tapped: bool,\n    #[serde(default, skip_serializing_if = \"std::ops::Not::not\")]\n    pub is_crewed: bool,\n    #[serde(default, skip_serializing_if = \"std::ops::Not::not\")]\n    pub is_attacking: bool,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub attacking_player_id: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub attack_target_id: Option<String>,\n    pub keywords: Vec<String>,\n    // Keyed by the engine's canonical `CounterType` display form (\"P1P1\",\n    // \"Loyalty\", one-off counter names uppercase); both producers must match it.\n    pub counters: BTreeMap<String, u32>,\n    pub damage: i32,\n    pub summoning_sick: bool,\n    #[serde(default, skip_serializing_if = \"std::ops::Not::not\")]\n    pub is_copy: bool,\n    pub is_double_faced: bool,\n    pub is_transformed: bool,\n    pub is_face_down: bool,\n    pub is_bestowed: bool,\n    pub phased_out: bool,\n    pub exerted: bool,\n    #[serde(default, skip_serializing_if = \"std::ops::Not::not\")]\n    pub is_ring_bearer: bool,\n    #[serde(skip_serializing_if = \"Option::is_none\")]\n    pub attached_to: Option<String>,\n    #[serde(default, skip_serializing_if = \"Vec::is_empty\")]\n    pub attachment_ids: Vec<String>,\n    // Mutate pile: the card ids merged under this top card.\n    #[serde(default, skip_serializing_if = \"Vec::is_empty\")]\n    pub merged_card_ids: Vec<String>,\n    #[serde(skip_serializing_if = \"Option::is_none\")]\n    pub flashback_cost: Option<String>,\n    #[serde(skip_serializing_if = \"Option::is_none\")]\n    pub kicker_cost: Option<String>,\n    #[serde(skip_serializing_if = \"Option::is_none\")]\n    pub effective_mana_cost: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub commander_tax: Option<i32>,\n    #[serde(skip_serializing_if = \"Option::is_none\")]\n    pub madness_cost: Option<String>,\n    #[serde(default, skip_serializing_if = \"std::ops::Not::not\")]\n    pub is_madness_exiled: bool,\n    #[serde(default, skip_serializing_if = \"std::ops::Not::not\")]\n    pub is_plotted: bool,\n    #[serde(default, skip_serializing_if = \"std::ops::Not::not\")]\n    pub is_warp_exiled: bool,\n    #[serde(default, skip_serializing_if = \"std::ops::Not::not\")]\n    pub foil: bool,\n    #[serde(default, skip_serializing_if = \"std::ops::Not::not\")]\n    pub would_die_in_combat: bool,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub zone: Option<ZoneKind>,\n}",
       "refs": [
         "CardChoiceDto",
         "CardCosmetics",
@@ -178,6 +211,11 @@
     "CardFramePreset": {
       "ts": "type CardFramePreset = \"printing\" | \"modern\" | \"retro\";",
       "rust": "#[serde(rename_all = \"camelCase\")]\npub enum CardFramePreset {\n    Printing,\n    Modern,\n    Retro,\n}",
+      "refs": []
+    },
+    "CardFutureTreatment": {
+      "ts": "type CardFutureTreatment = \"regular\" | \"full-art\" | \"clear\";",
+      "rust": "pub enum CardFutureTreatment {\n    #[serde(rename = \"regular\")]\n    Regular,\n    #[serde(rename = \"full-art\")]\n    FullArt,\n    #[serde(rename = \"clear\")]\n    Clear,\n}",
       "refs": []
     },
     "CardIdentity": {
@@ -200,6 +238,79 @@
       "rust": "#[serde(rename_all = \"snake_case\")]\npub enum CardPartComponent {\n    Token,\n    ComboPiece,\n    MeldPart,\n    MeldResult,\n}",
       "refs": []
     },
+    "CardPrintingBorder": {
+      "ts": "type CardPrintingBorder = \"black\" | \"white\" | \"silver\";",
+      "rust": "pub enum CardPrintingBorder {\n    #[serde(rename = \"black\")]\n    Black,\n    #[serde(rename = \"white\")]\n    White,\n    #[serde(rename = \"silver\")]\n    Silver,\n}",
+      "refs": []
+    },
+    "CardPrintingColor": {
+      "ts": "type CardPrintingColor = \"W\" | \"U\" | \"B\" | \"R\" | \"G\";",
+      "rust": "pub enum CardPrintingColor {\n    #[serde(rename = \"W\")]\n    W,\n    #[serde(rename = \"U\")]\n    U,\n    #[serde(rename = \"B\")]\n    B,\n    #[serde(rename = \"R\")]\n    R,\n    #[serde(rename = \"G\")]\n    G,\n}",
+      "refs": []
+    },
+    "CardPrintingElementOverride": {
+      "ts": "interface CardPrintingElementOverride {\n  hidden?: boolean;\n  offset?: [number, number];\n}",
+      "rust": "#[serde(rename_all = \"camelCase\", deny_unknown_fields)]\npub struct CardPrintingElementOverride {\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub hidden: Option<bool>,\n    #[serde(\n        default,\n        skip_serializing_if = \"Option::is_none\",\n        deserialize_with = \"offset\"\n    )]\n    pub offset: Option<[CardCosmeticNumber; 2]>,\n}",
+      "refs": []
+    },
+    "CardPrintingElements": {
+      "ts": "interface CardPrintingElements {\n  artist?: CardPrintingElementOverride;\n  legal?: CardPrintingElementOverride;\n  collector?: CardPrintingElementOverride;\n  manaCost?: CardPrintingElementOverride;\n  setSymbol?: CardPrintingElementOverride;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\", deny_unknown_fields)]\npub struct CardPrintingElements {\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub artist: Option<CardPrintingElementOverride>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub legal: Option<CardPrintingElementOverride>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub collector: Option<CardPrintingElementOverride>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub mana_cost: Option<CardPrintingElementOverride>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub set_symbol: Option<CardPrintingElementOverride>,\n}",
+      "refs": ["CardPrintingElementOverride"]
+    },
+    "CardPrintingFace": {
+      "ts": "interface CardPrintingFace {\n  preset?: CardPrintingPreset;\n  overrides?: CardPrintingOverrides;\n  art?: CardArtPlacement;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\", deny_unknown_fields)]\npub struct CardPrintingFace {\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub preset: Option<CardPrintingPreset>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub overrides: Option<CardPrintingOverrides>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub art: Option<CardArtPlacement>,\n}",
+      "refs": [
+        "CardArtPlacement",
+        "CardPrintingOverrides",
+        "CardPrintingPreset"
+      ]
+    },
+    "CardPrintingOverrides": {
+      "ts": "interface CardPrintingOverrides {\n  artist?: string;\n  legalText?: string;\n  collectorNumber?: string;\n  collectorTotal?: number;\n  collectorFormat?: CardCollectorFormat;\n  collectorLanguage?: string;\n  collectorSetCode?: string;\n  styleSetCode?: string;\n  frameColors?: Array<CardPrintingColor>;\n  futureTreatment?: CardFutureTreatment;\n  setSymbolCode?: string;\n  setSymbolMask?: CardSetSymbolMask;\n  symbolStyle?: CardSymbolStyle;\n  borderColor?: CardPrintingBorder;\n  securityStamp?: CardSecurityStamp;\n  elements?: CardPrintingElements;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\", deny_unknown_fields)]\npub struct CardPrintingOverrides {\n    #[serde(\n        default,\n        skip_serializing_if = \"Option::is_none\",\n        deserialize_with = \"text\"\n    )]\n    pub artist: Option<String>,\n    #[serde(\n        default,\n        skip_serializing_if = \"Option::is_none\",\n        deserialize_with = \"text\"\n    )]\n    pub legal_text: Option<String>,\n    #[serde(\n        default,\n        skip_serializing_if = \"Option::is_none\",\n        deserialize_with = \"text\"\n    )]\n    pub collector_number: Option<String>,\n    #[serde(\n        default,\n        skip_serializing_if = \"Option::is_none\",\n        deserialize_with = \"collector_total\"\n    )]\n    pub collector_total: Option<u32>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub collector_format: Option<CardCollectorFormat>,\n    #[serde(\n        default,\n        skip_serializing_if = \"Option::is_none\",\n        deserialize_with = \"language\"\n    )]\n    pub collector_language: Option<String>,\n    #[serde(\n        default,\n        skip_serializing_if = \"Option::is_none\",\n        deserialize_with = \"set_code\"\n    )]\n    pub collector_set_code: Option<String>,\n    #[serde(\n        default,\n        skip_serializing_if = \"Option::is_none\",\n        deserialize_with = \"set_code\"\n    )]\n    pub style_set_code: Option<String>,\n    #[serde(\n        default,\n        skip_serializing_if = \"Option::is_none\",\n        deserialize_with = \"frame_colors\"\n    )]\n    pub frame_colors: Option<Vec<CardPrintingColor>>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub future_treatment: Option<CardFutureTreatment>,\n    #[serde(\n        default,\n        skip_serializing_if = \"Option::is_none\",\n        deserialize_with = \"set_code\"\n    )]\n    pub set_symbol_code: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub set_symbol_mask: Option<CardSetSymbolMask>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub symbol_style: Option<CardSymbolStyle>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub border_color: Option<CardPrintingBorder>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub security_stamp: Option<CardSecurityStamp>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub elements: Option<CardPrintingElements>,\n}",
+      "refs": [
+        "CardCollectorFormat",
+        "CardFutureTreatment",
+        "CardPrintingBorder",
+        "CardPrintingColor",
+        "CardPrintingElements",
+        "CardSecurityStamp",
+        "CardSetSymbolMask",
+        "CardSymbolStyle"
+      ]
+    },
+    "CardPrintingPreset": {
+      "ts": "type CardPrintingPreset =\n  | \"match\"\n  | \"lea\"\n  | \"leb\"\n  | \"2ed\"\n  | \"3ed\"\n  | \"4ed\"\n  | \"leg\"\n  | \"mir\"\n  | \"7ed\"\n  | \"8ed\"\n  | \"plc\"\n  | \"plc-colorshifted\"\n  | \"fut-regular\"\n  | \"fut\"\n  | \"m15\"\n  | \"m21\";",
+      "rust": "pub enum CardPrintingPreset {\n    #[serde(rename = \"match\")]\n    Match,\n    #[serde(rename = \"lea\")]\n    Lea,\n    #[serde(rename = \"leb\")]\n    Leb,\n    #[serde(rename = \"2ed\")]\n    Second,\n    #[serde(rename = \"3ed\")]\n    Third,\n    #[serde(rename = \"4ed\")]\n    Fourth,\n    #[serde(rename = \"leg\")]\n    Leg,\n    #[serde(rename = \"mir\")]\n    Mir,\n    #[serde(rename = \"7ed\")]\n    Seventh,\n    #[serde(rename = \"8ed\")]\n    Eighth,\n    #[serde(rename = \"plc\")]\n    Plc,\n    #[serde(rename = \"plc-colorshifted\")]\n    PlcColorshifted,\n    #[serde(rename = \"fut-regular\")]\n    FutRegular,\n    #[serde(rename = \"fut\")]\n    Fut,\n    #[serde(rename = \"m15\")]\n    M15,\n    #[serde(rename = \"m21\")]\n    M21,\n}",
+      "refs": []
+    },
+    "CardPrintingSelection": {
+      "ts": "interface CardPrintingSelection {\n  version: 1;\n  preset: CardPrintingPreset;\n  overrides?: CardPrintingOverrides;\n  art?: CardArtPlacement;\n  faces?: Array<CardPrintingFace>;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\", deny_unknown_fields)]\npub struct CardPrintingSelection {\n    #[serde(deserialize_with = \"version\")]\n    pub version: u8,\n    pub preset: CardPrintingPreset,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub overrides: Option<CardPrintingOverrides>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub art: Option<CardArtPlacement>,\n    #[serde(\n        default,\n        skip_serializing_if = \"Option::is_none\",\n        deserialize_with = \"faces\"\n    )]\n    pub faces: Option<Vec<CardPrintingFace>>,\n}",
+      "refs": [
+        "CardArtPlacement",
+        "CardPrintingFace",
+        "CardPrintingOverrides",
+        "CardPrintingPreset"
+      ]
+    },
+    "CardSecurityStamp": {
+      "ts": "type CardSecurityStamp =\n  | \"none\"\n  | \"oval\"\n  | \"triangle\"\n  | \"acorn\"\n  | \"circle\"\n  | \"arena\"\n  | \"heart\";",
+      "rust": "pub enum CardSecurityStamp {\n    #[serde(rename = \"none\")]\n    None,\n    #[serde(rename = \"oval\")]\n    Oval,\n    #[serde(rename = \"triangle\")]\n    Triangle,\n    #[serde(rename = \"acorn\")]\n    Acorn,\n    #[serde(rename = \"circle\")]\n    Circle,\n    #[serde(rename = \"arena\")]\n    Arena,\n    #[serde(rename = \"heart\")]\n    Heart,\n}",
+      "refs": []
+    },
+    "CardSetSymbolMask": {
+      "ts": "type CardSetSymbolMask = \"auto\" | \"alpha\" | \"ink\";",
+      "rust": "pub enum CardSetSymbolMask {\n    #[serde(rename = \"auto\")]\n    Auto,\n    #[serde(rename = \"alpha\")]\n    Alpha,\n    #[serde(rename = \"ink\")]\n    Ink,\n}",
+      "refs": []
+    },
+    "CardSymbolStyle": {
+      "ts": "type CardSymbolStyle = \"original\" | \"modern\";",
+      "rust": "pub enum CardSymbolStyle {\n    #[serde(rename = \"original\")]\n    Original,\n    #[serde(rename = \"modern\")]\n    Modern,\n}",
+      "refs": []
+    },
     "CardView": {
       "ts": "type CardView =\n  | ({ visibility: \"visible\" } & CardDto)\n  | { visibility: \"hidden\"; id: string };",
       "rust": "#[allow(clippy::large_enum_variant)]\n#[serde(\n    tag = \"visibility\",\n    rename_all = \"camelCase\",\n    rename_all_fields = \"camelCase\"\n)]\npub enum CardView {\n    Visible(CardDto),\n    Hidden { id: String },\n}",
@@ -208,6 +319,11 @@
     "CardWearPreset": {
       "ts": "type CardWearPreset = \"fresh\" | \"light\" | \"played\" | \"heavy\";",
       "rust": "#[serde(rename_all = \"camelCase\")]\npub enum CardWearPreset {\n    Fresh,\n    Light,\n    Played,\n    Heavy,\n}",
+      "refs": []
+    },
+    "CardWordingMode": {
+      "ts": "type CardWordingMode = \"original\" | \"oracle\";",
+      "rust": "pub enum CardWordingMode {\n    #[serde(rename = \"original\")]\n    Original,\n    #[serde(rename = \"oracle\")]\n    Oracle,\n}",
       "refs": []
     },
     "CheckpointDto": {
@@ -308,7 +424,7 @@
     },
     "DeckCardIdentity": {
       "ts": "interface DeckCardIdentity {\n  id: string;\n  name: string;\n  setCode: string;\n  cardNumber: string;\n  oracleId?: string;\n  tokenScript?: TokenScript;\n  foil?: boolean;\n  cosmetics?: CardCosmetics;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct DeckCardIdentity {\n    #[serde(default, skip_serializing_if = \"String::is_empty\")]\n    pub id: String,\n    pub name: String,\n    pub set_code: String,\n    pub card_number: String,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub oracle_id: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub token_script: Option<TokenScript>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub foil: Option<bool>,\n    #[serde(default, deserialize_with = \"CardCosmetics::deserialize_optional\", skip_serializing_if = \"Option::is_none\")]\n    pub cosmetics: Option<CardCosmetics>,\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct DeckCardIdentity {\n    #[serde(default, skip_serializing_if = \"String::is_empty\")]\n    pub id: String,\n    pub name: String,\n    pub set_code: String,\n    pub card_number: String,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub oracle_id: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub token_script: Option<TokenScript>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub foil: Option<bool>,\n    #[serde(\n        default,\n        deserialize_with = \"CardCosmetics::deserialize_optional\",\n        skip_serializing_if = \"Option::is_none\"\n    )]\n    pub cosmetics: Option<CardCosmetics>,\n}",
       "refs": ["CardCosmetics", "TokenScript"]
     },
     "DeckEditorCollectionFilter": {
@@ -560,7 +676,7 @@
     },
     "StackObjectDto": {
       "ts": "interface StackObjectDto {\n  id: string;\n  sourceId: string;\n  controllerId: string;\n  ownerId: string;\n  identity: CardIdentity;\n  foil: boolean;\n  cosmetics?: CardCosmetics;\n  text: string;\n  sourceAbilityText?: string;\n  isPermanentSpell: boolean;\n  isCasting: boolean;\n  isDoubleFaced: boolean;\n  faceIndex: number;\n  targets: Array<TargetRef>;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\", default)]\npub struct StackObjectDto {\n    pub id: String,\n    pub source_id: String,\n    pub controller_id: String,\n    pub owner_id: String,\n    pub identity: CardIdentity,\n    #[serde(default)]\n    pub foil: bool,\n    #[serde(default, deserialize_with = \"crate::deck_dto::CardCosmetics::deserialize_optional\", skip_serializing_if = \"Option::is_none\")]\n    pub cosmetics: Option<crate::deck_dto::CardCosmetics>,\n    pub text: String,\n    #[serde(skip_serializing_if = \"Option::is_none\")]\n    pub source_ability_text: Option<String>,\n    pub is_permanent_spell: bool,\n    pub is_casting: bool,\n    pub is_double_faced: bool,\n    pub face_index: u8,\n    pub targets: Vec<TargetRef>,\n}",
+      "rust": "#[serde(rename_all = \"camelCase\", default)]\npub struct StackObjectDto {\n    pub id: String,\n    pub source_id: String,\n    pub controller_id: String,\n    pub owner_id: String,\n    pub identity: CardIdentity,\n    #[serde(default)]\n    pub foil: bool,\n    #[serde(\n        default,\n        deserialize_with = \"crate::deck_dto::CardCosmetics::deserialize_optional\",\n        skip_serializing_if = \"Option::is_none\"\n    )]\n    pub cosmetics: Option<crate::deck_dto::CardCosmetics>,\n    pub text: String,\n    #[serde(skip_serializing_if = \"Option::is_none\")]\n    pub source_ability_text: Option<String>,\n    pub is_permanent_spell: bool,\n    pub is_casting: bool,\n    pub is_double_faced: bool,\n    pub face_index: u8,\n    pub targets: Vec<TargetRef>,\n}",
       "refs": ["CardCosmetics", "CardIdentity", "TargetRef"]
     },
     "StepKind": {

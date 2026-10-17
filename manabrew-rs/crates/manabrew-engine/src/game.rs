@@ -288,7 +288,7 @@ impl GameState {
                             .find(|(key, _)| key.eq_ignore_ascii_case(script))
                             .map(|(_, cosmetics)| cosmetics)
                     })
-                    .copied()
+                    .cloned()
                     .flatten()
             });
         }

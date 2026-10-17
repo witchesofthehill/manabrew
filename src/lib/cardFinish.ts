@@ -54,6 +54,13 @@ export function resolveCardFinish(
   return cosmetics?.finish ?? (foil ? (etched ? "etched" : DEFAULT_CARD_FINISH) : "regular");
 }
 
+export function resolveCardRainFog(cosmetics?: CardCosmetics): number {
+  const density = cosmetics?.rainFog;
+  return typeof density === "number" && Number.isFinite(density)
+    ? Math.max(0, Math.min(2, density))
+    : 1;
+}
+
 export function isEtchedOnlyPrinting(finishes?: readonly string[]): boolean {
   return !!finishes?.includes("etched") && !finishes.includes("foil");
 }

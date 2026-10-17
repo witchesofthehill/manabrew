@@ -1,7 +1,5 @@
 import {
   faceRects,
-  isSemanticLayout,
-  semanticLayoutRegions,
   faceFrame,
   extraRuleBlocks,
   CLASS_LEVEL_ASSET,
@@ -26,8 +24,10 @@ import {
   resolveCardProfile,
   resolveFrameColors,
   type RenderedCardInput,
+  visibleArt,
   type FaceRect,
 } from "card-glint/magic/presentation";
+import { isSemanticLayout, semanticLayoutRegions } from "@/lib/cardSemanticLayout";
 import type { CardCanvas } from "@/lib/cardRenderTypes";
 
 export const CARD_RENDER_WIDTH = 375;
@@ -357,7 +357,13 @@ export function attachCardRenderGeometry(
       if (leveler && (key === "rules" || key === "stats")) continue;
       if (key === "stats" && part.power == null && part.loyalty == null && part.defense == null)
         continue;
-      add(`${key}_${index}`, role, transform(rects[key]), angle, index);
+      add(
+        `${key}_${index}`,
+        role,
+        transform(key === "art" ? visibleArt(part) : rects[key]),
+        angle,
+        index,
+      );
     }
   };
   if (isSemanticLayout(face))

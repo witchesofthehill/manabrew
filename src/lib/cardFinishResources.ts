@@ -1,6 +1,9 @@
 import { FinishResources } from "card-glint/finish";
 import { CanvasSource, Texture } from "pixi.js";
 import type { TextureSource } from "pixi.js";
+import { ensureCardGlintFonts } from "@/lib/cardGlintAssets";
+import { getCardFinishSource } from "@/lib/cardOpticalLayers";
+import type { CardFinishSource } from "@/lib/cardOpticalLayers";
 
 export interface CardFinishMaskLease {
   texture: Texture;
@@ -24,6 +27,7 @@ interface MaskEntry {
   artwork: ArtworkMasks;
   key: string;
   revision: number;
+  generation: number;
   imageUrl: string;
   width: number;
   height: number;
@@ -33,6 +37,8 @@ interface MaskEntry {
   canvas: HTMLCanvasElement | null;
   ready: Promise<Texture>;
   disposed: boolean;
+  controller: AbortController;
+  native: CardFinishSource | null;
 }
 
 interface CausticsEntry {
@@ -49,6 +55,7 @@ const artworkMasks = new WeakMap<ArtworkSource, ArtworkMasks>();
 const idleMasks = new Set<MaskEntry>();
 let idleMaskBytes = 0;
 let leaseCount = 0;
+let maskGeneration = 0;
 let resources: FinishResources | null = null;
 let caustics: CausticsEntry | null = null;
 
@@ -94,6 +101,7 @@ function removeIdleMask(entry: MaskEntry): void {
 function destroyMask(entry: MaskEntry): void {
   if (entry.disposed) return;
   entry.disposed = true;
+  entry.controller.abort();
   removeIdleMask(entry);
   entry.artwork.entries.delete(entry.key);
   entry.texture?.destroy(true);
@@ -150,7 +158,7 @@ function canvasTexture(canvas: HTMLCanvasElement, repeat = false): Texture {
   return new Texture({ source });
 }
 
-function createMask(entry: MaskEntry): Texture {
+async function createMask(entry: MaskEntry): Promise<Texture> {
   if (entry.disposed || !entry.refs) {
     throw new DOMException("Card finish mask acquisition cancelled", "AbortError");
   }
@@ -167,6 +175,46 @@ function createMask(entry: MaskEntry): Texture {
     url !== entry.imageUrl
   ) {
     throw new Error("Card artwork changed before its finish mask was generated");
+  }
+  if (entry.native) {
+    await ensureCardGlintFonts();
+    entry.controller.signal.throwIfAborted();
+    const document =
+      entry.native.kind === "raster"
+        ? {
+            ...entry.native.document,
+            recipe: {
+              ...entry.native.document.recipe,
+              edges: entry.native.document.recipe.edges.map((edge) => ({
+                ...edge,
+                asset: { ...edge.asset, revision: String(entry.generation) },
+              })),
+            },
+          }
+        : entry.native.document;
+    const canvas = await finishResources().documentMask(
+      document,
+      entry.native.host,
+      entry.controller.signal,
+    );
+    try {
+      entry.controller.signal.throwIfAborted();
+      if (
+        artwork.revision !== entry.revision ||
+        (image ? image.naturalWidth : resource.width) !== entry.width ||
+        (image ? image.naturalHeight : resource.height) !== entry.height ||
+        (image ? image.currentSrc || image.src : "") !== entry.imageUrl
+      ) {
+        throw new Error("Card artwork changed before its finish mask was generated");
+      }
+      entry.texture = canvasTexture(canvas);
+      entry.canvas = canvas;
+      entry.bytes = canvas.width * canvas.height * MASK_BYTES_PER_PIXEL;
+      return entry.texture;
+    } catch (error) {
+      canvas.width = canvas.height = 0;
+      throw error;
+    }
   }
   const scale = Math.min(1, MAX_MASK_EDGE / Math.max(width, height));
   const maskWidth = Math.max(1, Math.round(width * scale));
@@ -216,6 +264,7 @@ export async function acquireCardFinishMask(
   if (!width || !height || (image && !image.complete)) {
     throw new Error("Card artwork must be loaded before generating a finish mask");
   }
+  const native = getCardFinishSource(texture);
   let artwork = artworkMasks.get(resource);
   if (!artwork) {
     artwork = { resource, revision: 0, sources: new Map(), entries: new Map() };
@@ -223,13 +272,22 @@ export async function acquireCardFinishMask(
   }
   watchSource(artwork, source);
   const url = image ? image.currentSrc || image.src : "";
-  const key = `${width}:${height}:${source.pixelWidth}:${source.pixelHeight}:${artwork.revision}:${url}`;
+  const key = JSON.stringify([
+    width,
+    height,
+    source.pixelWidth,
+    source.pixelHeight,
+    artwork.revision,
+    url,
+    native?.key,
+  ]);
   let entry = artwork.entries.get(key);
   if (!entry) {
     const pending: MaskEntry = {
       artwork,
       key,
       revision: artwork.revision,
+      generation: ++maskGeneration,
       imageUrl: url,
       width,
       height,
@@ -239,6 +297,8 @@ export async function acquireCardFinishMask(
       canvas: null,
       ready: Promise.resolve().then(() => createMask(pending)),
       disposed: false,
+      controller: new AbortController(),
+      native,
     };
     artwork.entries.set(key, pending);
     entry = pending;

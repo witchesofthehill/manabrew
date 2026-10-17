@@ -58,6 +58,13 @@ export class HandRulesCardFace extends Container {
   onRenderRequested?: () => void;
 
   setContent(card: CardDto, faceIndex: 0 | 1, width: number, height: number): void {
+    if (
+      this.card === card &&
+      this.faceIndex === faceIndex &&
+      this.slotWidth === width &&
+      this.slotHeight === height
+    )
+      return;
     this.card = card;
     this.faceIndex = faceIndex;
     this.slotWidth = width;
@@ -72,8 +79,13 @@ export class HandRulesCardFace extends Container {
     actions: HandActionOption[],
     onSelectAction: ((action: HandActionOption) => void) | null,
   ): void {
-    this.actions = actions;
     this.onSelectAction = onSelectAction;
+    if (
+      this.actions.length === actions.length &&
+      this.actions.every((action, index) => action === actions[index])
+    )
+      return;
+    this.actions = actions;
     this.sync();
   }
   setHighlightedEffect(text: string): void {

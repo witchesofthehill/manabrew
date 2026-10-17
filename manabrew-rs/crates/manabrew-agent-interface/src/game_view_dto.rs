@@ -714,6 +714,7 @@ fn card_to_dto_with_face_visibility(
         },
         cosmetics: if face_visible {
             card.cosmetics
+                .clone()
                 .and_then(manabrew_protocol::deck_dto::CardCosmetics::normalize)
         } else {
             None
@@ -1063,7 +1064,7 @@ impl GameViewDtoExt for GameViewDto {
                     identity,
                     foil: visible_source.is_some_and(|card| card.paper_foil),
                     cosmetics: visible_source
-                        .and_then(|card| card.cosmetics)
+                        .and_then(|card| card.cosmetics.clone())
                         .and_then(manabrew_protocol::deck_dto::CardCosmetics::normalize),
                     text: entry.spell_ability.ability_text.clone(),
                     source_ability_text: visible_source

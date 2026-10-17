@@ -97,6 +97,10 @@ To get started visit our [landing page](https://manabrew.app)
   in progress.
 - Engine work is driven by parity testing against Java Forge.
 - Packaging, contributor onboarding, and release-readiness work are ongoing.
+- The deck editor's **Customize card** action adjusts finish, frame, border and
+  wear for selected physical copies. Art and printing selection use the existing
+  deck-editor actions. Customization is saved with the deck and carried into
+  multiplayer; gameplay rules stay unchanged.
 
 ---
 
@@ -104,9 +108,9 @@ To get started visit our [landing page](https://manabrew.app)
 
 ### Prerequisites
 
-- Node.js 22.12+ recommended
+- Node.js 24.x
 - Yarn v1
-- Rust stable
+- Rust stable managed by rustup, plus native compiler/linker tools
 - JDK 18–21 and Maven for the Java Forge harness / parity runs. Newer JDKs
   (e.g. 26) currently fail to compile Forge; if `/usr/libexec/java_home`
   resolves to one, pin an older one: `JAVA_HOME="$(/usr/libexec/java_home -v 21)"`.
@@ -160,6 +164,14 @@ or a `NoClassDefFoundError` at runtime. When in doubt, re-sync and rebuild.
 ```bash
 yarn install
 ```
+
+Card rendering uses a commit-pinned public fork of
+[Card Glint](https://github.com/witchesofthehill/card-glint/tree/manabrew-integration).
+On the first uncached install, the package builds its JavaScript, declarations
+and WASM from source, provisioning Rust 1.98 and wasm-bindgen 0.2.127 through its
+own build lifecycle. Keep install scripts enabled. No private registry, access
+token or separate Manabrew renderer-build command is needed; the engine's default
+Rust toolchain is unchanged.
 
 ### Optional: per-checkout environment with direnv
 

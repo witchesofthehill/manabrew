@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import type { CardDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
-import { getCardRenderDecision, renderCard } from "@/lib/cardRenderer";
+import { cardRenderInputKey, getCardRenderDecision, renderCard } from "@/lib/cardRenderer";
+import type { CardRenderRequest } from "@/lib/cardRenderer";
 import { CardRenderError } from "@/lib/cardRenderDecision";
 import type { CardRenderDecision } from "@/lib/cardRenderDecision";
 import { getCardArtWindows, type CardArtWindow } from "@/lib/cardRenderGeometry";
@@ -18,7 +19,6 @@ import { CardFoilOverlay } from "@/components/game/CardFoilOverlay";
 import { CardLiveHighlightOverlay } from "@/components/game/CardLiveHighlightOverlay";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { CARD_BACK_IMAGE_URL } from "./game.constants";
-import { useTheme, type Theme } from "@/hooks/useTheme";
 
 interface GeneratedCardImageProps {
   card?: CardDto;
@@ -61,13 +61,14 @@ function GeneratedCardCanvas({
 }: GeneratedCardImageProps & { hidden: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
+  const requestRef = useRef<CardRenderRequest>({ card, deckCard, faceIndex });
+  const renderKey =
+    hidden || (!card?.identity.name && !deckCard?.identity.name)
+      ? null
+      : cardRenderInputKey({ card, deckCard, faceIndex });
   const [visible, setVisible] = useState(loading !== "lazy");
   const [result, setResult] = useState<{
-    card?: CardDto;
-    deckCard?: DeckCard;
-    faceIndex: 0 | 1;
-    locale: string;
-    theme: Theme;
+    key: string | null;
     state: "ready" | "error";
     decision?: CardRenderDecision;
     artWindows?: readonly CardArtWindow[];
@@ -75,8 +76,6 @@ function GeneratedCardCanvas({
     failure?: string;
   }>();
   const [hasImage, setHasImage] = useState(false);
-  const locale = useScryfallStore((store) => store.locale);
-  const theme = useTheme();
   const foil = !hidden && (card ? card.foil : deckCard?.identity.foil);
   const cosmetics = hidden ? undefined : card ? card.cosmetics : deckCard?.identity.cosmetics;
   const identity = deckCard?.identity ?? card?.identity;
@@ -89,18 +88,15 @@ function GeneratedCardCanvas({
           cardNumber: identity.cardNumber || undefined,
         },
   );
-  const state =
-    result?.card === card &&
-    result?.deckCard === deckCard &&
-    result?.faceIndex === faceIndex &&
-    result?.locale === locale &&
-    result?.theme === theme
-      ? result.state
-      : "loading";
+  const state = result?.key === renderKey ? result.state : "loading";
   const name = hidden
     ? "Face-down card"
     : (card?.identity.name ?? deckCard?.identity.name ?? "Card");
   const fallbackUrl = faceIndex === 1 ? deckCard?.backFace?.uris.normal : deckCard?.uris?.normal;
+
+  useLayoutEffect(() => {
+    requestRef.current = { card, deckCard, faceIndex };
+  }, [card, deckCard, faceIndex]);
 
   useEffect(() => {
     if (visible || loading !== "lazy") return;
@@ -119,7 +115,7 @@ function GeneratedCardCanvas({
   useEffect(() => {
     if (hidden || (!visible && loading === "lazy")) return;
     const controller = new AbortController();
-    void renderCard({ card, deckCard, faceIndex }, controller.signal)
+    void renderCard(requestRef.current, controller.signal)
       .then((image) => {
         if (controller.signal.aborted) return;
         const canvas = canvasRef.current;
@@ -132,11 +128,7 @@ function GeneratedCardCanvas({
         copyCardLiveHighlights(image, canvas);
         setHasImage(true);
         setResult({
-          card,
-          deckCard,
-          faceIndex,
-          locale,
-          theme,
+          key: renderKey,
           state: "ready",
           decision: getCardRenderDecision(image),
           artWindows: getCardArtWindows(image),
@@ -147,11 +139,7 @@ function GeneratedCardCanvas({
         if (!controller.signal.aborted) {
           setHasImage(false);
           setResult({
-            card,
-            deckCard,
-            faceIndex,
-            locale,
-            theme,
+            key: renderKey,
             state: "error",
             decision: cause instanceof CardRenderError ? cause.decision : undefined,
             failure:
@@ -162,7 +150,7 @@ function GeneratedCardCanvas({
         }
       });
     return () => controller.abort();
-  }, [card, deckCard, faceIndex, hidden, locale, loading, visible, theme]);
+  }, [renderKey, hidden, loading, visible]);
 
   return (
     <div

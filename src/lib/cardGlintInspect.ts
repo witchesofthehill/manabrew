@@ -5,9 +5,10 @@ import {
   type Instance,
   type Renderer,
   type Rect,
+  type RasterHost,
 } from "card-glint";
-import { magic, opticalDocument } from "card-glint/magic";
-import { isSemanticLayout } from "card-glint/magic/presentation";
+import { magic } from "card-glint/magic";
+import { cardOpticalDocument, isSemanticLayout } from "@/lib/cardSemanticLayout";
 import type { DeckCard, CardFinish } from "@/protocol/deck";
 import { captureCardInput, prepareCard } from "@/lib/cardRenderSnapshot";
 import { cardGlintFace } from "@/lib/cardRenderFace";
@@ -16,7 +17,8 @@ import { renderCard } from "@/lib/cardRenderer";
 import { getCardArtWindows } from "@/lib/cardRenderGeometry";
 import { loadScryfallImage } from "@/lib/scryfallImageSource";
 import { ensureCardGlintFonts } from "@/lib/cardGlintAssets";
-import { CARD_WEAR_AMOUNTS } from "@/lib/cardFinish";
+import { CARD_WEAR_AMOUNTS, resolveCardRainFog } from "@/lib/cardFinish";
+import { cardRasterHost } from "@/lib/cardOpticalLayers";
 import { cardFaceImageUris, localizedDeckCardImageUris } from "@/lib/cardImage";
 import { peekCard, useScryfallStore } from "@/stores/useScryfallStore";
 
@@ -38,6 +40,7 @@ interface InspectDocument {
   document: CardDocument;
   original: boolean;
   release?: () => void;
+  rasterHost?: RasterHost;
 }
 
 async function imageDocument(
@@ -113,9 +116,10 @@ async function inspectDocument(
       if (!isSemanticLayout(face) || OPTICAL_FINISHES[finish]) {
         return {
           document: OPTICAL_FINISHES[finish]
-            ? opticalDocument(CARD_ID, revision, face, "prismatic")
+            ? cardOpticalDocument(CARD_ID, revision, face, "prismatic")
             : { id: CARD_ID, revision, recipe: magic.describe(face, "inspect") },
           original: false,
+          rasterHost: cardRasterHost(prepared.artUrls),
         };
       }
       const canvas = await renderCard({ deckCard: card, faceIndex }, signal, {
@@ -184,6 +188,7 @@ export class CardGlintInspectScene {
   private controller?: AbortController;
   private preparation?: AbortController;
   private current?: InspectDocument;
+  private documentKey?: string;
   private disposed = false;
   private ready = false;
   private contextLost = false;
@@ -207,6 +212,7 @@ export class CardGlintInspectScene {
     card: CARD_ID,
     transform: this.transform,
     normal: this.normal,
+    rainFog: 1,
   };
   private readonly instances = [this.instance];
   private readonly frame: Frame = { viewProjection: this.projection, time: 0, clear: [0, 0, 0, 0] };
@@ -214,6 +220,7 @@ export class CardGlintInspectScene {
   private readonly visibility: IntersectionObserver;
   private readonly canvas: HTMLCanvasElement;
   private readonly renderer: Renderer;
+  private rasterHost = cardRasterHost([]);
   private readonly onState: (state: CardInspectState) => void;
 
   private constructor(
@@ -245,6 +252,14 @@ export class CardGlintInspectScene {
     const state: { scene?: CardGlintInspectScene } = {};
     const renderer = await createRenderer({
       canvas,
+      rasterHost: {
+        images: (requests, signal) => {
+          signal.throwIfAborted();
+          const scene = state.scene;
+          if (!scene) throw new Error("Card inspector is not initialized");
+          return scene.rasterHost.images(requests, signal);
+        },
+      },
       invalidate: () => state.scene?.invalidate(),
       onError: (error) => state.scene?.failRenderer(error),
     });
@@ -261,6 +276,26 @@ export class CardGlintInspectScene {
     landscape: boolean,
   ) {
     if (this.disposed) return;
+    this.instance.rainFog = resolveCardRainFog(card.identity.cosmetics);
+    const key = JSON.stringify([
+      {
+        ...card,
+        identity: {
+          ...card.identity,
+          cosmetics: { ...card.identity.cosmetics, rainFog: undefined },
+        },
+      },
+      faceIndex,
+      finish,
+      original,
+      landscape,
+      useScryfallStore.getState().locale,
+    ]);
+    if (this.documentKey === key && (this.ready || this.controller)) {
+      this.invalidate();
+      return;
+    }
+    this.documentKey = key;
     this.controller?.abort();
     this.preparation?.abort();
     this.ready = false;
@@ -282,6 +317,7 @@ export class CardGlintInspectScene {
         controller.signal,
       );
       controller.signal.throwIfAborted();
+      this.rasterHost = prepared.rasterHost ?? cardRasterHost([]);
       this.renderer.upsertCards([prepared.document]);
       this.current = prepared;
       prepared = undefined;

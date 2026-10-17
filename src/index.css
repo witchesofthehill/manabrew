@@ -64,6 +64,10 @@
   --color-card-change-debuffed: var(--card-change-debuffed);
   --color-card-change-changed: var(--card-change-changed);
   --color-card-change-removed: var(--card-change-removed);
+  --color-card-printing-paper: var(--card-printing-paper);
+  --color-card-printing-ink: var(--card-printing-ink);
+  --color-card-printing-frame: var(--card-printing-frame);
+  --color-card-printing-footer: var(--card-printing-footer);
   --color-mana-w: var(--mana-w);
   --color-mana-u: var(--mana-u);
   --color-mana-b: var(--mana-b);

@@ -1,9 +1,0 @@
-diff --git a/games/magic/src/presentation.ts b/games/magic/src/presentation.ts
---- a/games/magic/src/presentation.ts
-+++ b/games/magic/src/presentation.ts
-@@ -2,4 +2,5 @@
- /** Shared layout and raster painting for hosts that own their scene and editing DOM. */
-+export * from './presentation/semantic-layout.js';
- export * from './presentation/art-apertures.js';
- export * from './presentation/assets.js';
- export * from './presentation/canvas-ability-emblem.js';

@@ -1,4 +1,4 @@
-import { MAGIC_FONT_ASSETS, setAssetFetcher } from "card-glint/magic/offline-assets";
+import { canvasFontAssets, setAssetFetcher } from "card-glint/magic/presentation";
 import { cachedCardGlintAsset } from "@/lib/cardGlintAssetCache";
 import { platformFetch } from "@/lib/platformFetch";
 import { loadScryfallImage } from "@/lib/scryfallImageSource";
@@ -59,7 +59,7 @@ setAssetFetcher(resolveCardGlintAsset);
 
 export function ensureCardGlintFonts(): Promise<void> {
   fonts ??= Promise.all(
-    MAGIC_FONT_ASSETS.map(async ({ family, url, weight, style }) => {
+    canvasFontAssets.map(async ({ family, url, weight, style }) => {
       if (loadedFonts.has(url)) return;
       const response = await resolveCardGlintAsset(url);
       const font = await new FontFace(family, await response.arrayBuffer(), {

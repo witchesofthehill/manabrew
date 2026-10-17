@@ -1,4 +1,5 @@
 import type { CardCosmetics, CardFinish, Deck } from "@/protocol/deck";
+import { cosmeticRecord, normalizeCardPrintingSelection } from "@/lib/cardPrintingCosmetics";
 
 const FINISHES: Record<CardFinish, true> = {
   regular: true,
@@ -14,8 +15,8 @@ const FINISHES: Record<CardFinish, true> = {
 const MAX_WEAR_SEED = 0xffffffff;
 
 export function normalizeCardCosmetics(value: unknown): CardCosmetics | undefined {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
-  const input = value as Record<string, unknown>;
+  const input = cosmeticRecord(value);
+  if (!input) return undefined;
   const result: CardCosmetics = {};
   if (typeof input.finish === "string" && Object.hasOwn(FINISHES, input.finish)) {
     result.finish = input.finish as CardFinish;
@@ -35,19 +36,28 @@ export function normalizeCardCosmetics(value: unknown): CardCosmetics | undefine
       result.wearSeed = input.wearSeed;
     }
   }
+  if (
+    typeof input.rainFog === "number" &&
+    Number.isFinite(input.rainFog) &&
+    input.rainFog >= 0 &&
+    input.rainFog <= 2 &&
+    input.rainFog !== 1
+  ) {
+    result.rainFog = input.rainFog;
+  }
+  if (input.wording === "original") result.wording = "original";
+  const printing = normalizeCardPrintingSelection(input.printing);
+  if (printing) {
+    result.printing = printing;
+    if (printing.preset !== "match") delete result.frame;
+  }
   return Object.keys(result).length ? result : undefined;
 }
 
 export function cardCosmeticsKey(cosmetics?: CardCosmetics): string {
   const value = normalizeCardCosmetics(cosmetics);
   if (!value) return "";
-  return [
-    value.finish ?? "",
-    value.frame ?? "",
-    value.border ?? "",
-    value.wear ?? "",
-    value.wearSeed ?? 0,
-  ].join(":");
+  return JSON.stringify(value);
 }
 
 export function deckHasCardCosmetics(deck: Deck): boolean {

@@ -89,6 +89,7 @@ function computeChecksum() {
     .sort();
 
   const protocolFiles = [
+    join(root, "manabrew-rs", "crates", "forge-foundation", "src"),
     join(root, "manabrew-rs", "crates", "manabrew-protocol", "src"),
     join(root, "manabrew-rs", "crates", "manabrew-relay-protocol", "src"),
   ]

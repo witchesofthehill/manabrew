@@ -9,7 +9,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use manabrew_protocol::deck_dto::Deck;
+use manabrew_protocol::deck_dto::{CardPrintingSelection, Deck};
 use manabrew_protocol::display::DisplayEvent;
 use manabrew_protocol::prompts::{PromptInput, PromptOutput};
 use manabrew_protocol::transport::{
@@ -59,6 +59,7 @@ fn main() {
     ProtocolError::export_all_to(&out).expect("export ProtocolError");
     DisplayEvent::export_all_to(&out).expect("export DisplayEvent");
     Deck::export_all_to(&out).expect("export Deck");
+    CardPrintingSelection::export_all_to(&out).expect("export CardPrintingSelection");
     ResumeRoomRequest::export_all_to(&out).expect("export ResumeRoomRequest");
 
     let prompts_dir = out.join("prompts");

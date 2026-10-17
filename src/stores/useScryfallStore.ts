@@ -127,7 +127,7 @@ export function cardKey(lookup: ScryfallCardLookup): string {
 function mirrorCardKeys(entry: ScryfallEntry): string[] {
   const info = entry.card?.info;
   if (!info) return [];
-  const keys: string[] = [];
+  const keys: string[] = info.id ? [cardKey({ id: info.id })] : [];
   if (info.set && info.collector_number) {
     keys.push(cardKey({ setCode: info.set, collectorNumber: info.collector_number }));
   }

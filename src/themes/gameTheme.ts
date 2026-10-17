@@ -1,7 +1,7 @@
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { THEME_PRESETS, DEFAULT_GAME_FONT_SIZES, type GameFontSizes } from "./presets";
 import { darken, relativeLuminance } from "./themeColor";
-import { CARD_CHANGE_COLORS } from "./buildGameColors";
+import { CARD_CHANGE_COLORS, CARD_PRINTING_COLORS } from "./buildGameColors";
 
 export {
   parseThemeColor,
@@ -32,6 +32,7 @@ export const MANA_BG_CLASS: Record<ManaLetter, string> = {
 
 export interface GameThemeColors {
   cardChange: typeof CARD_CHANGE_COLORS;
+  cardPrinting: typeof CARD_PRINTING_COLORS;
   activeAction: {
     active: string;
   };
@@ -231,7 +232,7 @@ const DEFAULT_PRESET_GAME_COLORS: GameThemeColorMap = (() => {
 
 export function getGameThemeColorPaths(): GameThemeColorKey[] {
   return Object.keys(DEFAULT_PRESET_GAME_COLORS).filter(
-    (key) => !key.startsWith("cardChange."),
+    (key) => !key.startsWith("cardChange.") && !key.startsWith("cardPrinting."),
   ) as GameThemeColorKey[];
 }
 
@@ -256,7 +257,11 @@ export function resolveGameThemeColors(
     ...filterFlatMap(overrides as Record<string, string>, GAME_THEME_COLOR_PATHS),
   } as GameThemeColorMap;
 
-  return { ...flatToGameTheme(merged), cardChange: CARD_CHANGE_COLORS };
+  return {
+    ...flatToGameTheme(merged),
+    cardChange: CARD_CHANGE_COLORS,
+    cardPrinting: CARD_PRINTING_COLORS,
+  };
 }
 
 export function flattenGameThemeToCssVars(theme: GameThemeColors): Record<string, string> {

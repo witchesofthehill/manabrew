@@ -65,7 +65,8 @@ import {
 import { GAME_CARD_SIZES, IN_GAME_CARD_PREVIEW_SCALES } from "@/components/game/game.constants";
 import { getSafeAreaInsets } from "@/lib/safeArea";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
-import { renderRulesCard } from "@/lib/cardRenderer";
+import { cardRenderInputKey, renderRulesCard } from "@/lib/cardRenderer";
+import type { CardRenderRequest } from "@/lib/cardRenderSnapshot";
 import { CardArtworkError } from "@/lib/cardRenderDecision";
 import { hasIntegratedArtwork } from "@/lib/cardArtworkPrinting";
 import {
@@ -192,7 +193,6 @@ export class RulesCardPreviewLayer {
   private faceSprite = new Sprite(Texture.EMPTY);
   private faceMask = new Graphics();
   private faceGeometry: CardRenderGeometry | undefined;
-  private fallbackFace = new Container();
   private faceTexture: Texture | null = null;
   private foil: CardFoil | null = null;
   private readonly liveHighlight: CardLiveHighlight;
@@ -201,6 +201,8 @@ export class RulesCardPreviewLayer {
   private readonly foilRulesExclusions: Rectangle[] = [];
   private readonly screenFoilExclusions: Rectangle[] = [];
   private renderAbort: AbortController | null = null;
+  private faceInputKey: string | null = null;
+  private completedFaceInputKey: string | null = null;
   private unsubscribeLocale: () => void;
   private renderState: "loading" | "ready" | "error" = "loading";
   private preserveArtwork = false;
@@ -223,6 +225,7 @@ export class RulesCardPreviewLayer {
   private controls = new RulesPreviewActions();
   private viewControls: HandCardControls;
   private spec: RulesCardPreviewSpec | null = null;
+  private cardContentKey: string | null = null;
   private viewportWidth = 0;
   private viewportHeight = 0;
   private panelWidth = PORTRAIT_WIDTH;
@@ -237,6 +240,8 @@ export class RulesCardPreviewLayer {
   private canFlip = false;
   private interactiveReady = false;
   private interactionTimer: number | null = null;
+  private pendingEntry = false;
+  private readonly entrance = { progress: 1, x: 0, y: 0, scale: 1 };
   private revealHighlightedEffect = false;
   private highlightedEffectTween: gsap.core.Tween | null = null;
   private highlightedRows: Container[] = [];
@@ -281,7 +286,7 @@ export class RulesCardPreviewLayer {
     this.faceSprite.eventMode = "none";
     this.faceSprite.mask = this.faceMask;
     this.liveHighlight = new CardLiveHighlight(requestRender);
-    this.fieldFace.addChild(this.fallbackFace, this.faceSprite);
+    this.fieldFace.addChild(this.faceSprite);
     this.cardContainer.addChild(this.fieldFace, this.faceMask);
     this.container.addChild(
       this.cardContainer,
@@ -354,7 +359,6 @@ export class RulesCardPreviewLayer {
     this.theme = theme;
     this.viewControls.setTheme(theme);
     if (this.spec) {
-      void this.loadFace();
       this.rebuild();
     }
   }
@@ -389,7 +393,9 @@ export class RulesCardPreviewLayer {
     const hidden = spec.card.isFaceDown || !spec.card.identity.name;
     const visibilityChanged =
       !previous || (previous.card.isFaceDown || !previous.card.identity.name) !== hidden;
-    const contentChanged = !previous || previous.card !== spec.card;
+    const cardContentKey = JSON.stringify(spec.card);
+    const contentChanged = !previous || this.cardContentKey !== cardContentKey;
+    this.cardContentKey = cardContentKey;
     const actionsChanged =
       !previous ||
       previous.actions.length !== spec.actions.length ||
@@ -398,9 +404,21 @@ export class RulesCardPreviewLayer {
     const highlightChanged = previous?.highlightedEffect !== spec.highlightedEffect;
     this.displayedBackFace = spec.showBackFace;
     if (lookupChanged || faceChanged || visibilityChanged) {
-      this.clearFaceTexture();
-      this.faceGeometry = undefined;
-      this.preserveArtwork = false;
+      const retainFace =
+        !hidden &&
+        this.faceTexture !== null &&
+        this.renderState === "ready" &&
+        this.completedFaceInputKey ===
+          cardRenderInputKey({
+            card: spec.card,
+            deckCard: previewDeckCard(spec.card),
+            faceIndex: spec.showBackFace ? 1 : 0,
+          });
+      if (!retainFace) {
+        this.clearFaceTexture();
+        this.faceGeometry = undefined;
+        this.preserveArtwork = false;
+      }
     }
     if (lookupChanged || visibilityChanged) {
       this.cardInfoGeneration += 1;
@@ -450,15 +468,21 @@ export class RulesCardPreviewLayer {
       return;
     }
 
-    if (!previous || previous.phase !== spec.phase || previous.suppressed) {
+    if (
+      !previous ||
+      previous.phase !== spec.phase ||
+      previous.suppressed ||
+      lookupChanged ||
+      faceChanged ||
+      visibilityChanged
+    ) {
       if (spec.phase === "closing") {
         if (spec.slot) this.hide();
         else this.animateOut();
       } else if (spec.skipEnterAnimation || spec.slot) this.showImmediately();
       else this.animateIn(previous == null);
-    } else if (spec.phase === "open") {
+    } else if (spec.phase === "open" && !this.pendingEntry) {
       this.container.visible = true;
-      this.container.alpha = 1;
     }
   }
 
@@ -623,7 +647,8 @@ export class RulesCardPreviewLayer {
     this.highlightedEffectTween?.kill();
     this.highlightedEffectTween = null;
     this.highlightedRows = [];
-    this.fieldFace.visible = true;
+    this.fieldFace.visible =
+      this.faceSprite.texture !== Texture.EMPTY && this.renderState !== "loading";
     this.actions.removeFromParent();
     this.controls.removeFromParent();
     for (const body of this.bodies) {
@@ -680,9 +705,11 @@ export class RulesCardPreviewLayer {
     }));
     this.canFlip = display.flippable;
     const landscape = display.horizontal;
-    const panels = this.configureGeometry(landscape, display.faceIndex);
+    const measuredPanels = this.configureGeometry(landscape, display.faceIndex);
+    const detailsReady = this.imageReady || this.renderState === "error";
+    const panels = detailsReady ? measuredPanels : [];
     this.viewControls.setSpec(
-      spec.embedded
+      spec.embedded || !this.imageReady
         ? null
         : {
             rulesView: true,
@@ -725,7 +752,7 @@ export class RulesCardPreviewLayer {
       this.bodies[0] ??
       null;
     this.frame = this.primaryBody?.frame ?? resolveRulesPreviewFrame(this.theme);
-    this.detailsContainer.visible = !display.faceless;
+    this.detailsContainer.visible = !display.faceless && detailsReady;
     this.fitFace();
     const showFoil = !spec.embedded && !display.faceless && !spec.suppressed && this.imageReady;
     const faceWidth =
@@ -942,7 +969,7 @@ export class RulesCardPreviewLayer {
         body.setScroll(Math.max(0, body.highlightedRowTop - 8));
       } else body.setScroll(body.scrollOffset);
     }
-    this.revealHighlightedEffect = false;
+    if (detailsReady) this.revealHighlightedEffect = false;
     this.widgetHeight = this.panelHeight;
     if (this.highlightedRows.length > 0 && animationsEnabled()) {
       this.highlightedEffectTween = gsap.to(this.highlightedRows, {
@@ -954,6 +981,15 @@ export class RulesCardPreviewLayer {
       });
     }
     this.layoutPanel();
+    if (
+      this.pendingEntry &&
+      spec.phase === "open" &&
+      !spec.suppressed &&
+      (this.faceSprite.texture !== Texture.EMPTY || this.renderState === "error") &&
+      this.renderState !== "loading"
+    ) {
+      this.animateIn(true);
+    }
   }
 
   private addKeywordChips(body: RulesPreviewBody, keywords: string[], y: number): number {
@@ -1145,7 +1181,8 @@ export class RulesCardPreviewLayer {
     faceIndex: number,
   ): readonly CardInteractionPanel[] {
     this.scanOverlay =
-      this.preserveArtwork || (!!this.scryfallInfo && hasIntegratedArtwork(this.scryfallInfo));
+      this.preserveArtwork ||
+      (!this.faceGeometry && !!this.scryfallInfo && hasIntegratedArtwork(this.scryfallInfo));
     this.panelWidth = landscape ? LANDSCAPE_WIDTH : PORTRAIT_WIDTH;
     this.panelHeight = landscape ? LANDSCAPE_HEIGHT : PORTRAIT_HEIGHT;
     this.faceWidth = this.panelWidth;
@@ -1311,11 +1348,8 @@ export class RulesCardPreviewLayer {
       x = layout.cardLeft;
       y = layout.top;
     }
-    this.container.scale.set(scale);
-
-    this.container.position.set(x, y);
-    this.layoutX = this.container.x;
-    this.layoutY = this.container.y;
+    this.layoutX = x;
+    this.layoutY = y;
     this.layoutScale = scale;
     this.viewControls.setParentScale(scale, scale, this.panelWidth, this.artY);
     const anchorX = spec.anchor?.x ?? spec.pointer.x;
@@ -1325,11 +1359,12 @@ export class RulesCardPreviewLayer {
     this.cardBounds.x = 0;
     this.cardBounds.width = this.panelWidth;
     this.cardBounds.height = this.widgetHeight;
-    this.anchorBounds.x = (anchorX - this.container.x) / scale;
-    this.anchorBounds.y = (anchorY - this.container.y) / scale;
+    this.anchorBounds.x = (anchorX - x) / scale;
+    this.anchorBounds.y = (anchorY - y) / scale;
     this.anchorBounds.width = anchorWidth / scale;
     this.anchorBounds.height = anchorHeight / scale;
     this.layoutDetails();
+    if (spec.phase === "open" && !spec.suppressed) this.applyEntrancePose();
   }
 
   private layoutDetails(): void {
@@ -1351,13 +1386,7 @@ export class RulesCardPreviewLayer {
         exclusion.copyFrom(region);
         exclusion.x -= this.foilSurface.x;
         exclusion.y -= this.foilSurface.y;
-        const screen = (this.screenFoilExclusions[exclusionIndex] ??= new Rectangle());
-        screen.set(
-          this.container.x + region.x * this.container.scale.x,
-          this.container.y + region.y * this.container.scale.y,
-          region.width * this.container.scale.x,
-          region.height * this.container.scale.y,
-        );
+        this.screenFoilExclusions[exclusionIndex] ??= new Rectangle();
         exclusionIndex += 1;
       }
     }
@@ -1366,52 +1395,75 @@ export class RulesCardPreviewLayer {
     this.foil?.setExclusions(this.foilRulesExclusions);
   }
 
+  private applyEntrancePose(): void {
+    const remaining = 1 - this.entrance.progress;
+    this.container.position.set(
+      this.layoutX + (this.entrance.x - this.layoutX) * remaining,
+      this.layoutY + (this.entrance.y - this.layoutY) * remaining,
+    );
+    this.container.scale.set(
+      this.layoutScale + (this.entrance.scale - this.layoutScale) * remaining,
+    );
+    this.container.alpha = this.entrance.progress;
+    for (let index = 0; index < this.foilRulesExclusions.length; index += 1) {
+      const region = this.foilRulesExclusions[index];
+      this.screenFoilExclusions[index].set(
+        this.container.x + (region.x + this.foilSurface.x) * this.container.scale.x,
+        this.container.y + (region.y + this.foilSurface.y) * this.container.scale.y,
+        region.width * this.container.scale.x,
+        region.height * this.container.scale.y,
+      );
+    }
+  }
+
   private animateIn(fromHidden: boolean): void {
     const spec = this.spec;
     if (!spec) return;
+    if (
+      this.renderState === "loading" ||
+      (this.faceSprite.texture === Texture.EMPTY && this.renderState !== "error")
+    ) {
+      this.hide(true);
+      this.pendingEntry = true;
+      return;
+    }
+    this.pendingEntry = false;
     this.container.visible = true;
     gsap.killTweensOf(this.container);
     gsap.killTweensOf(this.container.scale);
+    gsap.killTweensOf(this.entrance);
+    this.entrance.progress = 1;
     this.armInteraction();
     if (!fromHidden || !animationsEnabled() || prefersReducedMotion()) {
-      this.container.alpha = 1;
+      this.applyEntrancePose();
       return;
     }
 
-    const finalX = this.container.x;
-    const finalY = this.container.y;
-    const finalScale = this.container.scale.x;
-    const anchorCenterX = spec.anchor ? spec.anchor.x + spec.anchor.width / 2 : spec.pointer.x;
-    const anchorCenterY = spec.anchor ? spec.anchor.y + spec.anchor.height / 2 : spec.pointer.y;
-    const startScale = spec.anchor
+    this.entrance.x = spec.anchor ? spec.anchor.x + spec.anchor.width / 2 : spec.pointer.x;
+    this.entrance.y = spec.anchor ? spec.anchor.y + spec.anchor.height / 2 : spec.pointer.y;
+    this.entrance.scale = spec.anchor
       ? Math.max(0.25, Math.min(0.85, spec.anchor.width / this.panelWidth))
       : 0.5;
-    gsap.fromTo(
-      this.container,
-      { x: anchorCenterX, y: anchorCenterY, alpha: 0 },
-      {
-        x: finalX,
-        y: finalY,
-        alpha: 1,
-        duration: PREVIEW_TIMING.enterMs / 1000,
-        ease: "power3.out",
+    this.entrance.progress = 0;
+    this.applyEntrancePose();
+    gsap.to(this.entrance, {
+      progress: 1,
+      duration: PREVIEW_TIMING.enterMs / 1000,
+      ease: "power3.out",
+      onUpdate: () => {
+        this.applyEntrancePose();
+        this.callbacks.onRenderRequested();
       },
-    );
-    gsap.fromTo(
-      this.container.scale,
-      { x: startScale, y: startScale },
-      {
-        x: finalScale,
-        y: finalScale,
-        duration: PREVIEW_TIMING.enterMs / 1000,
-        ease: "power3.out",
-      },
-    );
+    });
   }
 
   private showImmediately(): void {
     gsap.killTweensOf(this.container);
     gsap.killTweensOf(this.container.scale);
+    gsap.killTweensOf(this.entrance);
+    this.pendingEntry = false;
+    this.entrance.progress = 1;
+    this.applyEntrancePose();
     if (this.interactionTimer != null) {
       window.clearTimeout(this.interactionTimer);
       this.interactionTimer = null;
@@ -1424,6 +1476,8 @@ export class RulesCardPreviewLayer {
 
   private animateOut(): void {
     const spec = this.spec;
+    this.pendingEntry = false;
+    gsap.killTweensOf(this.entrance);
     this.foil?.setEnabled(false);
     this.interactiveReady = false;
     if (!spec || !animationsEnabled() || prefersReducedMotion()) {
@@ -1493,6 +1547,22 @@ export class RulesCardPreviewLayer {
   private async loadFace(): Promise<void> {
     const spec = this.spec;
     if (!spec) return;
+    const hidden = spec.card.isFaceDown || !spec.card.identity.name;
+    const deckCard = hidden ? undefined : previewDeckCard(spec.card);
+    const request: CardRenderRequest = {
+      card: spec.card,
+      deckCard,
+      faceIndex: spec.showBackFace ? 1 : 0,
+    };
+    const inputKey = hidden ? "hidden" : cardRenderInputKey(request);
+    if (
+      inputKey === this.faceInputKey &&
+      ((inputKey === this.completedFaceInputKey && this.imageReady) ||
+        (this.renderAbort && !this.renderAbort.signal.aborted)) &&
+      this.renderState !== "error"
+    )
+      return;
+    this.faceInputKey = inputKey;
     this.renderAbort?.abort();
     const controller = new AbortController();
     this.renderAbort = controller;
@@ -1501,38 +1571,8 @@ export class RulesCardPreviewLayer {
       this.renderState = "loading";
       this.faceSprite.label = "card-glint-loading";
     }
-    const hidden = spec.card.isFaceDown || !spec.card.identity.name;
-    const deckCard = hidden ? undefined : previewDeckCard(spec.card);
-    if (!hidden && this.faceSprite.texture === Texture.EMPTY && deckCard) {
-      void useScryfallStore
-        .getState()
-        .getCardTexture(deckCard, "full", spec.showBackFace ? 1 : 0)
-        .then((texture) => {
-          if (
-            controller.signal.aborted ||
-            generation !== this.artGeneration ||
-            this.renderState === "ready"
-          )
-            return;
-          this.faceSprite.texture = texture;
-          this.rebuild();
-          this.callbacks.onRenderRequested();
-        })
-        .catch(() => undefined);
-    }
     try {
-      const rendered = hidden
-        ? null
-        : await renderRulesCard(
-            {
-              card: spec.card,
-              deckCard,
-              faceIndex: spec.showBackFace ? 1 : 0,
-            },
-            controller.signal,
-          );
-      const canvas = rendered?.rulesBackground ?? rendered?.face ?? null;
-      if (canvas && this.faceTexture?.source.resource === canvas) return;
+      const canvas = hidden ? null : await renderRulesCard(request, controller.signal);
       const geometry = canvas ? getCardRenderGeometry(canvas) : undefined;
       const cardBack = hidden ? await loadCardBack() : null;
       if (
@@ -1541,6 +1581,8 @@ export class RulesCardPreviewLayer {
         this.container.destroyed
       )
         return;
+      this.completedFaceInputKey = inputKey;
+      if (canvas && this.faceTexture?.source.resource === canvas) return;
       const texture = canvas ? createGeneratedCardTexture(canvas) : cardBack!;
       const previous = this.faceTexture;
       this.foil?.setTexture(null);
@@ -1560,34 +1602,34 @@ export class RulesCardPreviewLayer {
         this.container.destroyed
       )
         return;
+      const texture = deckCard
+        ? await useScryfallStore
+            .getState()
+            .getCardTexture(deckCard, "full", spec.showBackFace ? 1 : 0)
+            .catch(() => Texture.EMPTY)
+        : Texture.EMPTY;
+      if (
+        controller.signal.aborted ||
+        generation !== this.artGeneration ||
+        this.container.destroyed
+      )
+        return;
+      if (this.faceTexture) this.clearFaceTexture();
       this.renderState = "error";
       this.preserveArtwork =
         cause instanceof CardArtworkError ||
         (!!this.scryfallInfo && hasIntegratedArtwork(this.scryfallInfo));
       this.faceSprite.label = "card-glint-original";
       this.faceGeometry = undefined;
-      if (this.faceTexture) this.clearFaceTexture();
+      this.faceSprite.texture = texture;
       this.rebuild();
       this.callbacks.onRenderRequested();
-      if (deckCard) {
-        const texture = await useScryfallStore
-          .getState()
-          .getCardTexture(deckCard, "full", spec.showBackFace ? 1 : 0)
-          .catch(() => Texture.EMPTY);
-        if (
-          controller.signal.aborted ||
-          generation !== this.artGeneration ||
-          this.container.destroyed
-        )
-          return;
-        this.faceSprite.texture = texture;
-        this.rebuild();
-        this.callbacks.onRenderRequested();
-      }
     }
   }
 
   private clearFaceTexture(): void {
+    this.faceInputKey = null;
+    this.completedFaceInputKey = null;
     this.faceSprite.texture = Texture.EMPTY;
     this.foil?.setTexture(null);
     this.liveHighlight.setSource(null);
@@ -1598,30 +1640,6 @@ export class RulesCardPreviewLayer {
 
   private fitFace(): void {
     const texture = this.faceSprite.texture;
-    this.fallbackFace.removeChildren().forEach((child) => child.destroy({ children: true }));
-    this.fallbackFace.visible = texture === Texture.EMPTY;
-    if (texture === Texture.EMPTY && this.spec) {
-      const background = new Graphics()
-        .roundRect(
-          0,
-          0,
-          this.faceWidth,
-          this.panelHeight,
-          rulesCardRadius(this.faceWidth, this.panelHeight),
-        )
-        .fill(hexToNum(this.frame.paper));
-      if (!this.scanOverlay) background.stroke({ color: hexToNum(this.frame.border), width: 2 });
-      this.fallbackFace.addChild(background);
-      const style = textStyle(this.frame.ink, 22, "700", RULES_TITLE_FONT);
-      style.wordWrap = true;
-      style.wordWrapWidth = this.faceWidth - CONTENT_PAD * 2;
-      const title = new Text({
-        text: this.spec.card.isFaceDown ? i18n._(msg`Face down`) : this.spec.card.identity.name,
-        style,
-      });
-      title.position.set(CONTENT_PAD, CONTENT_PAD);
-      this.fallbackFace.addChild(title);
-    }
     if (texture === Texture.EMPTY) {
       this.liveHighlight.setSource(null);
       return;
@@ -1657,6 +1675,9 @@ export class RulesCardPreviewLayer {
     this.foil?.setEnabled(false);
     gsap.killTweensOf(this.container);
     gsap.killTweensOf(this.container.scale);
+    gsap.killTweensOf(this.entrance);
+    this.pendingEntry = false;
+    this.entrance.progress = 1;
     this.highlightedEffectTween?.kill();
     this.highlightedEffectTween = null;
     if (this.interactionTimer != null) {

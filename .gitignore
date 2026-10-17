@@ -12,7 +12,6 @@ node_modules
 .yarnrc.yml
 dist
 dist-ssr
-/packages/card-glint/.dist-staging/
 *.local
 
 # Generated wire protocol

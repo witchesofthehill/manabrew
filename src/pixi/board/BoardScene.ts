@@ -1027,6 +1027,9 @@ export class BoardScene {
   handUsesRulesView(cardId: string): boolean {
     return this.hand?.usesRulesView(cardId) === true;
   }
+  get handRulesKeyboardTarget() {
+    return this.hand?.handRulesKeyboardTarget ?? null;
+  }
   hitTestHandRules(x: number, y: number): boolean {
     return this.hand?.hitTestRules(x, y) === true;
   }

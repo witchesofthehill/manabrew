@@ -425,6 +425,19 @@ export class HandController {
   usesRulesView(cardId: string): boolean {
     return this.sprites.get(cardId)?.usesHandRulesView === true;
   }
+
+  get handRulesKeyboardTarget() {
+    if (
+      this.host.isDestroyed() ||
+      !this.container.visible ||
+      this.lastState?.selectionMode ||
+      this.isDraggingFromHand() ||
+      this.hoveredCardId === null
+    )
+      return null;
+    const sprite = this.sprites.get(this.hoveredCardId);
+    return sprite?.visible && sprite.alpha > 0 ? sprite.handRulesKeyboardTarget : null;
+  }
   hitTestRules(x: number, y: number): boolean {
     return this.rulesSpriteAt(x, y) !== null;
   }

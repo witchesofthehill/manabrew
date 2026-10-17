@@ -84,6 +84,13 @@ export class HandRulesCardFace extends Container {
     this.preview.scrollBy(delta, mode, 0, 0);
   }
 
+  get keyboardTarget(): Pick<
+    RulesCardPreviewLayer,
+    "focusAction" | "activateFocusedAction" | "activateShortcut"
+  > | null {
+    return this.actions.length > 0 ? this.preview : null;
+  }
+
   private sync(): void {
     this.preview.setViewport(this.slotWidth, this.slotHeight);
     this.preview.setSpec({

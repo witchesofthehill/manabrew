@@ -1083,6 +1083,12 @@ export class CardSprite extends Container {
     return true;
   }
 
+  get handRulesKeyboardTarget() {
+    return this.usesHandRulesView && this.handRulesFace?.visible
+      ? this.handRulesFace.keyboardTarget
+      : null;
+  }
+
   private updateHandRulesFace(): void {
     if (!this.handRulesFace || (!this.handRulesFace.visible && !this.handRulesView)) return;
     const faceIndex = this.previewFace ?? (this.card.isTransformed ? 1 : 0);

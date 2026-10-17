@@ -1,9 +1,11 @@
+use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::RwLock;
 
 use crate::read_draft_rankings::ReadDraftRankings;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Serialize)]
+#[serde(transparent)]
 pub struct DraftRankCache {
     by_set: RwLock<HashMap<String, HashMap<String, u32>>>,
 }
@@ -11,6 +13,16 @@ pub struct DraftRankCache {
 impl DraftRankCache {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn export_state(&self) -> HashMap<String, HashMap<String, u32>> {
+        self.by_set.read().expect("DraftRankCache poisoned").clone()
+    }
+
+    pub fn from_state(by_set: HashMap<String, HashMap<String, u32>>) -> Self {
+        Self {
+            by_set: RwLock::new(by_set),
+        }
     }
 
     pub fn register_set(&self, set_code: impl Into<String>, ranks: HashMap<String, u32>) {

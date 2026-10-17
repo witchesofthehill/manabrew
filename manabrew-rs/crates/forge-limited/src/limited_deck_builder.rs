@@ -2,22 +2,16 @@ use std::sync::Arc;
 
 use forge_foundation::sealed_product::{PaperCard, Rarity};
 use forge_foundation::ColorSet;
-use thiserror::Error;
+use serde::{Deserialize, Serialize};
 
 use crate::card_ranker::CardRanker;
 use crate::deck_colors::DeckColors;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LimitedDeck {
     pub name: String,
     pub main: Vec<PaperCard>,
     pub sideboard: Vec<PaperCard>,
-}
-
-#[derive(Debug, Error)]
-pub enum DeckBuildError {
-    #[error("not enough cards in pool: needed {needed}, have {have}")]
-    InsufficientPool { needed: usize, have: usize },
 }
 
 pub struct LimitedDeckBuilder {
@@ -56,7 +50,7 @@ impl LimitedDeckBuilder {
         &mut self,
         deck_name: impl Into<String>,
         land_set_code: Option<&str>,
-    ) -> Result<LimitedDeck, DeckBuildError> {
+    ) -> LimitedDeck {
         let chosen_colors = self.deck_colors.chosen();
         let target_lands = (Self::DECK_SIZE as f32 * Self::LAND_PERCENTAGE).round() as usize;
 
@@ -76,7 +70,7 @@ impl LimitedDeckBuilder {
 
         let spell_target = Self::DECK_SIZE - target_lands;
         let mut main: Vec<PaperCard> = scored.iter().take(spell_target).cloned().collect();
-        let sideboard: Vec<PaperCard> = scored.into_iter().skip(spell_target).collect();
+        let mut sideboard: Vec<PaperCard> = scored.into_iter().skip(spell_target).collect();
 
         let mut lands: Vec<PaperCard> = self
             .available
@@ -91,36 +85,27 @@ impl LimitedDeckBuilder {
                 (!is_basic, !matches)
             });
         }
-        let mut land_picks: Vec<PaperCard> = lands.into_iter().take(target_lands).collect();
+        let lands_needed = Self::DECK_SIZE - main.len();
+        let mut lands = lands.into_iter();
+        main.extend(lands.by_ref().take(lands_needed));
+        sideboard.extend(lands);
 
-        if land_picks.len() < target_lands {
-            let needed = target_lands - land_picks.len();
-            let set_for_basics = land_set_code.unwrap_or("");
-            for i in 0..needed {
-                land_picks.push(PaperCard::new(
-                    synthetic_basic_name(i, chosen_colors),
-                    set_for_basics,
-                    format!("basic{i}"),
-                    Rarity::BasicLand,
-                ));
-            }
+        let needed = Self::DECK_SIZE - main.len();
+        let set_for_basics = land_set_code.unwrap_or("");
+        for i in 0..needed {
+            main.push(PaperCard::new(
+                synthetic_basic_name(i, chosen_colors),
+                set_for_basics,
+                format!("basic{i}"),
+                Rarity::BasicLand,
+            ));
         }
 
-        if main.len() + land_picks.len() < Self::DECK_SIZE {
-            return Err(DeckBuildError::InsufficientPool {
-                needed: Self::DECK_SIZE,
-                have: main.len() + land_picks.len(),
-            });
-        }
-
-        main.extend(land_picks);
-        main.truncate(Self::DECK_SIZE);
-
-        Ok(LimitedDeck {
+        LimitedDeck {
             name: deck_name.into(),
             main,
             sideboard,
-        })
+        }
     }
 }
 
@@ -185,7 +170,7 @@ mod tests {
             |_| ColorSet::COLORLESS,
             |c| c.rarity == Rarity::BasicLand,
         );
-        let deck = builder.build_deck("test", Some("TST")).unwrap();
+        let deck = builder.build_deck("test", Some("TST"));
         assert_eq!(deck.main.len(), LimitedDeckBuilder::DECK_SIZE);
         let lands = deck
             .main
@@ -215,7 +200,7 @@ mod tests {
             |_| ColorSet::COLORLESS,
             |_| false,
         );
-        let deck = builder.build_deck("test", Some("M21")).unwrap();
+        let deck = builder.build_deck("test", Some("M21"));
         assert_eq!(deck.main.len(), 40);
         let basics = deck.main.iter().filter(|c| c.set_code == "M21").count();
         assert!(basics >= 17, "basics = {basics}");

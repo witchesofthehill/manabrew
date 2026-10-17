@@ -108,7 +108,11 @@ export function DeckInsightsPanel({
           )}
           {id === "mana" && (
             <>
-              <DeckStats activeBucket={activeBucket} onBucketClick={onBucketClick} />
+              <DeckStats
+                cards={deck.cards}
+                activeBucket={activeBucket}
+                onBucketClick={onBucketClick}
+              />
               <ManaProbabilityPanel deck={deck} />
             </>
           )}

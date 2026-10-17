@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { LimitedPickClockSetting } from "@/components/limited/LimitedPickClockSetting";
 import { fetchCubeMetadata } from "@/api/limitedEdition";
 import { FormatBadge } from "@/components/game/FormatBadge";
 import {
@@ -39,6 +40,9 @@ interface TableSetupGameCardProps {
   onDraftRoundsChange: (rounds: number) => void;
   draftPicksPerPass: number;
   onDraftPicksPerPassChange: (picks: number) => void;
+  draftPickSeconds?: number;
+  onDraftPickSecondsChange: (seconds: number | undefined) => void;
+  draftClockSupported: boolean;
   draftSeed: string;
   onDraftSeedChange: (seed: string) => void;
   draftFillWithBots: boolean;
@@ -69,6 +73,9 @@ export function TableSetupGameCard({
   onDraftRoundsChange,
   draftPicksPerPass,
   onDraftPicksPerPassChange,
+  draftPickSeconds,
+  onDraftPickSecondsChange,
+  draftClockSupported,
   draftSeed,
   onDraftSeedChange,
   draftFillWithBots,
@@ -355,6 +362,11 @@ export function TableSetupGameCard({
                 />
               </div>
             </div>
+            <LimitedPickClockSetting
+              pickSeconds={draftPickSeconds}
+              onPickSecondsChange={onDraftPickSecondsChange}
+              supported={draftClockSupported}
+            />
             <label className="flex items-center gap-2 text-xs">
               <input
                 type="checkbox"

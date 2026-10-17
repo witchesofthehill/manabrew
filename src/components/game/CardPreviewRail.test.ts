@@ -4,7 +4,7 @@ import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { describe, expect, it, vi } from "vitest";
 
-import type { useCardPreview } from "@/hooks/useCardPreview";
+import type { CardPreviewController } from "@/hooks/useCardPreview";
 import { CardPreviewMachine, type PreviewCard } from "@/lib/cardPreview";
 
 vi.mock("./HoverCardPreview", () => ({ HoverCardPreview: () => null }));
@@ -38,7 +38,7 @@ describe("CardPreviewRail", () => {
       onMouseEnterPreview: () => undefined,
       onMouseLeavePreview: () => undefined,
       showSticky: () => undefined,
-    } as ReturnType<typeof useCardPreview>;
+    } as CardPreviewController;
     const card = {
       identity: { id: "card-1", name: "Lightning Bolt" },
     } as unknown as PreviewCard;

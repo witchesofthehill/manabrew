@@ -42,8 +42,7 @@ import type {
   BoardOverlayCommandPreviewSpec,
   BoardOverlayPreviewSpec,
 } from "@/pixi/BoardOverlayCanvas";
-import { DesktopBoardOverlayCanvas } from "@/pixi/DesktopBoardOverlayCanvas";
-import { MobileBoardOverlayCanvas } from "@/pixi/MobileBoardOverlayCanvas";
+import { CardPreviewOverlayCanvas } from "@/pixi/CardPreviewOverlayCanvas";
 import { buildArrowSpecs } from "@/components/game/arrowSpecs";
 import { getDisplayedManaAbilities } from "@/components/game/manaUtils";
 import { PlayModePicker } from "@/components/game/PlayModePicker";
@@ -53,11 +52,10 @@ import { useHandScale } from "@/hooks/useHandScale";
 import { useFlashQueue } from "@/hooks/useFlashQueue";
 import { useHandDrag, type HandDragStart } from "@/hooks/useHandDrag";
 import { useCardPreview } from "@/hooks/useCardPreview";
-import type { PreviewPointerInput } from "@/lib/cardPreview";
+import type { PreviewFlipOptions, PreviewPointerInput } from "@/lib/cardPreview";
 import { MODAL_OPEN_EVENT, topModal } from "@/lib/modalStack";
 import { useMulliganSelection } from "@/hooks/useMulliganSelection";
 import { HoverCardPreview } from "@/components/game/HoverCardPreview";
-import { useIsMobileGame } from "@/hooks/useBreakpoints";
 import { usePromptEffects } from "@/hooks/usePromptEffects";
 import { useCombatState } from "@/hooks/useCombatState";
 import { useGameEventListeners } from "@/hooks/useGameEventListeners";
@@ -69,9 +67,11 @@ import { buildCombatRows } from "@/components/game/combatRows";
 import { readableTextColor, withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
 import { boardBackgroundDarken, boardBackgroundUrl } from "@/pixi/board/boardBackgrounds";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
-import { useLimitedStore } from "@/stores/useLimitedStore";
-import { peek as peekGauntletMatch, tryConsumeGauntletMatch } from "@/lib/gauntletReturn";
+import { Navigate, useLocation } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { useLimitedGameReturn } from "@/hooks/useLimitedGameReturn";
+import { peek as peekGauntletMatch } from "@/lib/gauntletReturn";
+import { peekLimitedMatchReturn } from "@/game/limitedSession";
 import { intentIsHostile, intentPrefersArrow } from "@/types/promptType";
 import type { PromptType } from "@/protocol";
 import { declareAttackersOutput } from "@/components/prompts/internal/playerActions";
@@ -101,13 +101,6 @@ import { peekCard, useScryfallStore } from "@/stores/useScryfallStore";
 import { scryfallToSampleGameCard } from "@/lib/sampleGameCard";
 import { haptic } from "@/lib/haptics";
 import type { GameRuntime, ManualTabletopApi } from "@/game";
-const EMPTY_PREVIEW_STACK: StackSpec = {
-  cards: [],
-  flash: null,
-  showPreStackFlash: false,
-  collapsed: true,
-};
-const NO_PREVIEW_ACTION = () => undefined;
 const HOVER_ALLOWED_PROMPTS = new Set<PromptType>([
   "mulligan",
   "mulliganPutBack",
@@ -326,7 +319,6 @@ export default function Game({ exitTo }: GameProps = {}) {
   const backgroundDarken = boardBackgroundDarken(backgroundId);
   const preloadCardImages = usePreferencesStore((s) => s.preloadCardImages);
   const vScale = useHandScale();
-  const isMobileGame = useIsMobileGame();
   const themeColors = useTheme().gameTheme;
   const location = useLocation();
   const devExtraOpponents =
@@ -1840,8 +1832,10 @@ export default function Game({ exitTo }: GameProps = {}) {
     previewFaceOverride && previewFaceOverride.cardId === previewFaceCard?.id
       ? previewFaceOverride.showBackFace
       : (previewFaceCard?.isTransformed ?? false);
-  const handleFlipPreview = () => {
+  const handleFlipPreview = (options?: PreviewFlipOptions) => {
     if (!previewFaceCard) return;
+    if (singleCommandPreviewCard) commandZonePreview.flipCard(options);
+    else preview.flipCard(options);
     const showBackFace = !previewShowBackFace;
     setPreviewFaceOverride(
       showBackFace === previewFaceCard.isTransformed
@@ -2055,7 +2049,9 @@ export default function Game({ exitTo }: GameProps = {}) {
     !abilityPickerState &&
     commandZonePreview.phase !== "hidden";
   const previewSuppressed =
-    !preview.isSticky && !!promptType && !HOVER_ALLOWED_PROMPTS.has(promptType);
+    !(showCommandZonePreview ? commandZonePreview.isSticky : preview.isSticky) &&
+    !!promptType &&
+    !HOVER_ALLOWED_PROMPTS.has(promptType);
   const externalPreviewActive =
     !previewSuppressed &&
     ((showInGamePreview && preview.phase === "open") ||
@@ -2088,26 +2084,31 @@ export default function Game({ exitTo }: GameProps = {}) {
   );
   useEffect(() => {
     if (!gameView?.gameOver && activePrompt?.input.type !== "gameOver") return;
-    if (peekGauntletMatch()) return;
+    if (peekGauntletMatch() || peekLimitedMatchReturn()) return;
     const timer = setTimeout(() => endGame(), 3000);
     return () => clearTimeout(timer);
   }, [gameView?.gameOver, activePrompt?.input.type, endGame]);
-  const navigate = useNavigate();
-  useEffect(() => {
-    if (!gameView?.gameOver) return;
-    const pending = tryConsumeGauntletMatch();
-    if (!pending) return;
-    const humanWon = gameView.winnerId != null && gameView.winnerId === myPlayerSlot;
-    void (async () => {
-      await useLimitedStore
-        .getState()
-        .recordGauntletOutcome(pending.gauntletId, humanWon, true, humanWon)
-        .catch(() => undefined);
-      await endGame();
-      navigate(`/gauntlet/${pending.gauntletId}`);
-    })();
-  }, [gameView?.gameOver, gameView?.winnerId, myPlayerSlot, navigate, endGame]);
-  if (!isGameActive) return <Navigate to={exitTo ?? "/lobby"} replace />;
+  const limitedReturn = useLimitedGameReturn({
+    gameOver: (gameView?.gameOver ?? false) || activePrompt?.input.type === "gameOver",
+    winnerId: gameView?.winnerId ?? null,
+    playerSlot: myPlayerSlot,
+    endGame,
+  });
+  if (!isGameActive)
+    return <Navigate to={limitedReturn.destination ?? exitTo ?? "/lobby"} replace />;
+  if (limitedReturn.error) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 px-4">
+        <p className="font-semibold">Game finished. Your Limited session could not be updated.</p>
+        <p className="text-sm text-destructive" role="alert">
+          {limitedReturn.error}
+        </p>
+        <Button variant="primary" onClick={() => void limitedReturn.retry()}>
+          Retry returning to pool
+        </Button>
+      </div>
+    );
+  }
   if (fatalError) {
     return <GameFailedScreen message={fatalError} onLeave={endGame} />;
   }
@@ -2241,7 +2242,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           card: singleCommandPreviewCard,
           phase: commandZonePreview.phase === "closing" ? "closing" : "open",
           placement: "auto",
-          sticky: false,
+          sticky: commandZonePreview.isSticky,
           showBackFace: previewShowBackFace,
           suppressed: previewSuppressed,
           skipEnterAnimation: true,
@@ -2406,8 +2407,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     gameView.restoreVote.awaitingPlayerIds.includes(myPlayerSlot)
       ? gameView.restoreVote
       : null;
-
-  const ZonePreviewCanvas = isMobileGame ? MobileBoardOverlayCanvas : DesktopBoardOverlayCanvas;
 
   return (
     <div
@@ -2827,13 +2826,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         rulesPreview &&
         createPortal(
           <div className="pointer-events-none fixed inset-0 z-[10001]">
-            <ZonePreviewCanvas
-              scene={null}
-              stackSpec={EMPTY_PREVIEW_STACK}
-              onTargetSpell={NO_PREVIEW_ACTION}
-              onHoverStack={NO_PREVIEW_ACTION}
-              onToggleStack={NO_PREVIEW_ACTION}
-              promptSpec={null}
+            <CardPreviewOverlayCanvas
               previewSpec={rulesPreview}
               externalPreviewActive={externalPreviewActive}
               onPreviewPointerEnter={preview.onMouseEnterPreview}

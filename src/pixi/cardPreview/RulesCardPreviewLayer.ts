@@ -12,7 +12,7 @@ import {
 import type { CardDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
 import type { ScryfallCard } from "@/types/scryfall";
-import type { PreviewPhase } from "@/lib/cardPreview";
+import type { PreviewFlipOptions, PreviewPhase } from "@/lib/cardPreview";
 import { isCoarsePointer } from "@/lib/responsive";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import type { Theme } from "@/hooks/useTheme";
@@ -58,7 +58,9 @@ import {
   computePreviewLayout,
   type PreviewLayout,
 } from "@/components/game/cardPreviewLayout";
-import { GAME_CARD_SIZES } from "@/components/game/game.constants";
+import { GAME_CARD_SIZES, IN_GAME_CARD_PREVIEW_SCALES } from "@/components/game/game.constants";
+import { getSafeAreaInsets } from "@/lib/safeArea";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { renderRulesCard } from "@/lib/cardRenderer";
 import { CardArtworkError } from "@/lib/cardRenderDecision";
 import { hasIntegratedArtwork } from "@/lib/cardArtworkPrinting";
@@ -110,7 +112,7 @@ export interface RulesCardPreviewCallbacks {
   onRenderRequested: () => void;
   onSelectAction: (action: HandActionOption) => void;
   onDismiss: () => void;
-  onFlip: () => void;
+  onFlip: (options?: PreviewFlipOptions) => void;
   onToggleView: () => void;
 }
 
@@ -256,6 +258,8 @@ export class RulesCardPreviewLayer {
   private highlightedRows: Container[] = [];
   private highlightedRowTop: number | null = null;
 
+  private previewSize = usePreferencesStore.getState().inGameCardPreviewSize;
+  private readonly unsubscribePreferences: () => void;
   constructor(theme: Theme, callbacks: RulesCardPreviewCallbacks) {
     this.theme = theme;
     this.frame = resolveRulesPreviewFrame(theme);
@@ -353,6 +357,15 @@ export class RulesCardPreviewLayer {
       this.detailsContainer,
       this.viewControls,
     );
+    this.unsubscribePreferences = usePreferencesStore.subscribe((state, previous) => {
+      if (state.inGameCardPreviewSize === previous.inGameCardPreviewSize) return;
+      this.previewSize = state.inGameCardPreviewSize;
+      if (!this.spec || this.spec.embedded || this.spec.phase !== "open") return;
+      gsap.killTweensOf(this.container);
+      gsap.killTweensOf(this.container.scale);
+      this.layoutPanel();
+      this.callbacks.onRenderRequested();
+    });
   }
   get artworkTop(): number {
     return this.container.y + this.artY * this.container.scale.y;
@@ -905,7 +918,7 @@ export class RulesCardPreviewLayer {
     if (display.flippable && !spec.embedded) {
       controls.push({
         label: display.faceIndex === 0 ? i18n._(msg`Flip back · F`) : i18n._(msg`Flip front · F`),
-        activate: () => this.callbacks.onFlip(),
+        activate: () => this.callbacks.onFlip({ sticky: true }),
       });
     }
     this.controls.setContent({
@@ -1287,25 +1300,35 @@ export class RulesCardPreviewLayer {
       slot: null,
       viewportRight: this.viewportWidth,
       viewportBottom: this.viewportHeight,
+      size: this.previewSize,
     });
   }
 
   private layoutPanel(): void {
     const spec = this.spec;
     if (!spec || this.viewportWidth <= 0 || this.viewportHeight <= 0) return;
+    const previewScale =
+      MAX_PREVIEW_SCALE * (spec.embedded ? 1 : IN_GAME_CARD_PREVIEW_SCALES[this.previewSize]);
     let scale: number;
     let x: number;
     let y: number;
     if (spec.slot) {
-      scale = Math.min(
-        MAX_PREVIEW_SCALE,
-        spec.slot.width / this.panelWidth,
-        spec.slot.height / this.widgetHeight,
+      const safe = spec.embedded ? { left: 0, right: 0, top: 0, bottom: 0 } : getSafeAreaInsets();
+      const slotLeft = Math.max(safe.left, spec.slot.x);
+      const slotTop = Math.max(safe.top, spec.slot.y);
+      const slotWidth = Math.max(
+        1,
+        Math.min(spec.slot.width, this.viewportWidth - safe.right - slotLeft),
       );
+      const slotHeight = Math.max(
+        1,
+        Math.min(spec.slot.height, this.viewportHeight - safe.bottom - slotTop),
+      );
+      scale = Math.min(previewScale, slotWidth / this.panelWidth, slotHeight / this.widgetHeight);
       const width = this.panelWidth * scale;
       const height = this.widgetHeight * scale;
-      x = spec.slot.x + (spec.slot.width - width) / 2;
-      y = spec.slot.y + (spec.slot.height - height) / 2;
+      x = slotLeft + (slotWidth - width) / 2;
+      y = slotTop + (slotHeight - height) / 2;
     } else {
       const layout = this.previewLayout(this.panelWidth === LANDSCAPE_WIDTH);
       scale = layout.cardWidth / this.panelWidth;
@@ -1721,6 +1744,7 @@ export class RulesCardPreviewLayer {
   }
 
   destroy(): void {
+    this.unsubscribePreferences();
     this.clearHover();
     this.hide();
     this.artGeneration += 1;

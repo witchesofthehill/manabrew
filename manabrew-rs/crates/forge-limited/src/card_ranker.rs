@@ -2,11 +2,20 @@ use std::sync::Arc;
 
 use forge_foundation::sealed_product::{PaperCard, Rarity};
 use forge_foundation::ColorSet;
+use serde::{Deserialize, Serialize};
 
 use crate::card_ranking_comparator::CardRankingComparator;
 use crate::draft_rank_cache::DraftRankCache;
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CardRankerState {
+    by_set: std::collections::HashMap<String, std::collections::HashMap<String, u32>>,
+    custom_rankings: Option<std::collections::HashMap<String, u32>>,
+}
+
+#[derive(Serialize)]
 pub struct CardRanker {
+    #[serde(rename = "by_set")]
     rank_cache: Arc<DraftRankCache>,
     custom_rankings: Option<std::collections::HashMap<String, u32>>,
 }
@@ -18,6 +27,20 @@ impl CardRanker {
         Self {
             rank_cache,
             custom_rankings: None,
+        }
+    }
+
+    pub fn export_state(&self) -> CardRankerState {
+        CardRankerState {
+            by_set: self.rank_cache.export_state(),
+            custom_rankings: self.custom_rankings.clone(),
+        }
+    }
+
+    pub fn from_state(state: CardRankerState) -> Self {
+        Self {
+            rank_cache: Arc::new(DraftRankCache::from_state(state.by_set)),
+            custom_rankings: state.custom_rankings,
         }
     }
 

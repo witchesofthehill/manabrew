@@ -31,7 +31,7 @@ import { manaSymbolUrl } from "@/api/scryfall";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { GeneratedCardImage } from "@/components/game/GeneratedCardImage";
 import { HoverCardPreview } from "@/components/game/HoverCardPreview";
-import { useCardPreview } from "@/hooks/useCardPreview";
+import { useCardPreview, type CardPreviewController } from "@/hooks/useCardPreview";
 import type { ManaCode } from "@/types/scryfall";
 const COLOR_FILTERS = [
   {
@@ -834,7 +834,7 @@ interface CardSearchProps {
   initialSet?: string;
   onSetChange?: (code: string) => void;
   onClose?: () => void;
-  previewController?: ReturnType<typeof useCardPreview>;
+  previewController?: CardPreviewController;
   /** Shared rail slot — when provided, the hover preview portals into it
    *  (pinned). When absent, the search panel renders no preview of its own. */
   previewSlot?: HTMLElement | null;

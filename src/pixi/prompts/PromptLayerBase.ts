@@ -777,6 +777,7 @@ export abstract class PromptLayerBase {
       usableWidth: this.layoutWidth - safe.left - safe.right,
       usableHeight: this.viewportHeight - safe.top - safe.bottom,
       horizontal: naturalSize.width > naturalSize.height,
+      size: usePreferencesStore.getState().inGameCardPreviewSize,
     });
   }
 

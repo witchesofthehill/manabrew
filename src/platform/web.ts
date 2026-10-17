@@ -44,7 +44,7 @@ import {
   type GameOutcomeReport,
   type LocalGameKind,
 } from "@/types/server";
-import type { RoomRelayEnvelope, StateEnvelope } from "@/types/server";
+import type { RoomInfo, RoomRelayEnvelope, StateEnvelope } from "@/types/server";
 import { PROTOCOL_VERSION } from "@/protocol";
 import type {
   ClientToServerMessage,
@@ -57,7 +57,12 @@ import { APP_VERSION } from "@/lib/constants";
 import { logComms } from "@/lib/commsLog";
 import { resolveRelayIdentity, type RelayIdentity } from "@/lib/relayIdentity";
 import { getClientPlatform } from "./clientPlatform";
-import { rememberSpawnedBot, forgetSpawnedBot, clearSpawnedBots } from "@/lib/spawnedBots";
+import {
+  rememberSpawnedBot,
+  forgetSpawnedBot,
+  clearSpawnedBots,
+  peekSpawnedBots,
+} from "@/lib/spawnedBots";
 import { isPromptLoggingEnabled } from "@/lib/debugPrompts";
 import { applyStateDelta, diffStateDelta } from "@/lib/stateDelta";
 import {
@@ -71,6 +76,7 @@ import {
 } from "@/game/webrtcPlane";
 import { ForgeHostBridge } from "@/game/forgeHostBridge";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { useMultiplayerLimitedStore } from "@/stores/useMultiplayerLimitedStore";
 import {
   FORGE_LAUNCHER_URL,
   FORGE_WASM_URL,
@@ -236,7 +242,7 @@ class WorkerBridge {
   private worker: Worker | null = null;
   private pendingRequests = new Map<
     string,
-    { resolve: (value: unknown) => void; reject: (error: Error) => void }
+    { resolve: (value: unknown) => void; reject: (error: Error) => void; worker: Worker }
   >();
   private eventBus: WebEventBus;
   private initPromise: Promise<void> | null = null;
@@ -640,9 +646,28 @@ class WorkerBridge {
     const worker = new Worker(new URL("../workers/game-engine.worker.ts", import.meta.url), {
       type: "module",
     });
-    worker.onmessage = (e: MessageEvent<WorkerMessage>) => {
-      if (e.data?.type === "response") this.handleMessage(e);
+    const fail = (error: Error) => {
+      if (this.fallbackWorker !== worker) return;
+      this.fallbackWorker = null;
+      worker.onmessage = null;
+      worker.onerror = null;
+      worker.terminate();
+      for (const [requestId, pending] of this.pendingRequests) {
+        if (pending.worker !== worker) continue;
+        this.pendingRequests.delete(requestId);
+        pending.reject(error);
+      }
     };
+    worker.onmessage = (e: MessageEvent<WorkerMessage>) => {
+      const message = e.data;
+      if (message.type === "response") {
+        this.handleMessage(e);
+      } else if (message.type === "event" && message.event === "worker:init") {
+        const payload = message.payload as { stage?: string; message?: string };
+        if (payload?.stage === "error") fail(new Error(payload.message ?? "Worker init failed"));
+      }
+    };
+    worker.onerror = (event) => fail(new Error(`Worker error: ${event.message}`));
     this.fallbackWorker = worker;
     return worker;
   }
@@ -652,30 +677,29 @@ class WorkerBridge {
    */
   async invoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
     const startsGame = command === "start_game" || command === "start_multiplayer_game";
-    let forgeWasm = this.worker ? this.workerIsForgeWasm : isForgeWasmHostingEnabled();
-    if (startsGame) forgeWasm = args?.engine === "Forge";
-    if (startsGame && this.worker && this.workerIsForgeWasm !== forgeWasm) {
-      this.terminate();
+    let target: Worker;
+    if (
+      command.startsWith("limited_") ||
+      command === "card_roles" ||
+      command === "is_card_supported"
+    ) {
+      target = this.queryWorker();
+    } else {
+      let forgeWasm = this.worker ? this.workerIsForgeWasm : isForgeWasmHostingEnabled();
+      if (startsGame) forgeWasm = args?.engine === "Forge";
+      if (startsGame && this.worker && this.workerIsForgeWasm !== forgeWasm) {
+        this.terminate();
+      }
+      await this.init(forgeWasm);
+      if (startsGame && this.workerIsForgeWasm) {
+        args = { ...args, forgeLauncherUrl: FORGE_LAUNCHER_URL, forgeWasmUrl: FORGE_WASM_URL };
+      }
+      if (!this.worker) throw new Error("Worker not initialized");
+      target =
+        this.workerIsForgeWasm && !FORGE_ENGINE_COMMANDS.has(command)
+          ? this.queryWorker()
+          : this.worker;
     }
-    await this.init(forgeWasm);
-
-    if (startsGame && this.workerIsForgeWasm) {
-      args = { ...args, forgeLauncherUrl: FORGE_LAUNCHER_URL, forgeWasmUrl: FORGE_WASM_URL };
-    }
-
-    if (!this.worker) {
-      throw new Error("Worker not initialized");
-    }
-
-    // Forge answers the game itself. It has no implementation of the card
-    // database queries or the limited/draft surface, and answering those with
-    // `null` is what took the Limited page down with "Cannot read properties
-    // of null": route them to the Rust worker instead, which is the same
-    // engine that answers them when Forge is off.
-    const target =
-      this.workerIsForgeWasm && !FORGE_ENGINE_COMMANDS.has(command)
-        ? this.queryWorker()
-        : this.worker;
 
     const requestId = crypto.randomUUID();
 
@@ -683,6 +707,7 @@ class WorkerBridge {
       this.pendingRequests.set(requestId, {
         resolve: resolve as (value: unknown) => void,
         reject,
+        worker: target,
       });
 
       const message: WorkerCommand = {
@@ -727,11 +752,11 @@ class WorkerBridge {
     this.stopLocalBots();
     // Response listener stays installed — terminate() is per-game, and a
     // second game on this (singleton) bridge still needs it.
-    this.pendingRequests.clear();
+    for (const [requestId, pending] of this.pendingRequests) {
+      if (pending.worker !== this.fallbackWorker) this.pendingRequests.delete(requestId);
+    }
     this.initPromise = null;
     setForgeWasmActive(false);
-    // The query worker holds no game state, so it survives a game ending and
-    // is only torn down with the bridge itself.
   }
 }
 
@@ -778,10 +803,19 @@ class WebGameApi implements IGameApi {
 
     if (params.localIsHost) {
       this.serverApi?.setEnginePlayerNames(params.playerNames);
-      // Every seat here is a person or a Forge AI; a Manabot slot left over
-      // from a solo game (the engine validation plays one) would take a
-      // guest's seat.
-      this.bridge.setLocalBotSlots([]);
+      const limited = useMultiplayerLimitedStore.getState();
+      const virtualBotNames = new Set(
+        limited.matchReturn
+          ? limited.seats
+              .filter((seat) => !seat.isHuman && seat.playerSlot === null)
+              .map((seat) => `limited-ai-${limited.matchReturn!.sessionId}-${seat.seat}`)
+          : [],
+      );
+      this.bridge.setLocalBotSlots(
+        (params.botPlayerSlots ?? []).filter((slot) =>
+          virtualBotNames.has(params.playerNames[seatIndexOf(slot)]),
+        ),
+      );
       // Host runs the engine; the worker posts back one SAB per remote
       // seat (see the game:remote_sab handler in WorkerBridge).
       await this.bridge.invoke("start_multiplayer_game", {
@@ -925,6 +959,7 @@ class WebEventBus implements IEventBus {
 // Web Server API (WebSocket-based multiplayer)
 
 interface BotEntry {
+  roomId: string;
   ws: WebSocket | null;
   stopped: boolean;
   attempt: number;
@@ -936,6 +971,9 @@ const KEEPALIVE_INTERVAL_MS = 4_000;
 // A half-open socket (peer reset seen only by the relay) stays writable here, so
 // silence is the only signal the connection is gone. The relay answers every Ping.
 const KEEPALIVE_SILENCE_MS = 10_000;
+
+const ROOM_RESUME_TOKEN_PREFIX = "manabrew.roomResume:";
+const ROOM_RECOVERY_STORAGE_ERROR = "room_recovery_storage_failed";
 
 class WebServerApi implements IServerApi {
   private ws: WebSocket | null = null;
@@ -962,7 +1000,6 @@ class WebServerApi implements IServerApi {
   private relayStateSequence = 0;
   private deltaBases = new Map<string, { state: StateUpdate; fingerprint: string }>();
   private lastRelayDisplay: string | null = null;
-  private resumeToken: string | null = null;
   private pendingRelayPrompts = new Map<string, Record<string, unknown>>();
   private enginePlayerNames: string[] = [];
   private webrtc: WebRtcPlane | null = null;
@@ -1321,19 +1358,20 @@ class WebServerApi implements IServerApi {
   }
 
   async resumeRoom(params: ResumeRoomParams): Promise<void> {
-    if (!this.resumeToken) {
-      console.warn("[WebServerApi] Cannot resume room: no resume token");
-      return;
+    const token = localStorage.getItem(
+      `${ROOM_RESUME_TOKEN_PREFIX}${this.relayUrl}:${params.room_id}`,
+    );
+    if (!token) {
+      throw new Error("No saved recovery credential for this room. Rejoin its host instead.");
     }
-    this.send({ type: "ResumeRoom", ...params, resume_token: this.resumeToken });
+    this.send({ type: "ResumeRoom", ...params, resume_token: token });
   }
 
   async leaveRoom(): Promise<void> {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       throw new Error("Cannot leave room while disconnected.");
     }
-    this.stopAllBots();
-    clearSpawnedBots();
+    this.stopRoomBots(this.currentRoomId);
     this.announcedRoom = null;
     this.currentRoomId = null;
     this.dropWebRtcPlane();
@@ -1373,8 +1411,7 @@ class WebServerApi implements IServerApi {
   }
 
   async endGame(gameId: string): Promise<void> {
-    this.stopAllBots();
-    clearSpawnedBots();
+    this.stopRoomBots(this.currentRoomId);
     this.send({ type: "EndGame", game_id: gameId });
   }
 
@@ -1403,7 +1440,7 @@ class WebServerApi implements IServerApi {
   }
 
   async sendRoomMessage(message: RoomRelayEnvelope): Promise<void> {
-    this.send({ type: "BroadcastState", state: message });
+    this.send({ type: "BroadcastState", state: message, target_player: message.targetPlayer });
   }
 
   async spawnAiBot(params: SpawnAiBotParams): Promise<void> {
@@ -1425,6 +1462,7 @@ class WebServerApi implements IServerApi {
       agent: params.agent ?? "simple",
     });
     const entry: BotEntry = {
+      roomId: params.roomId,
       ws: null,
       stopped: false,
       attempt: 0,
@@ -1519,6 +1557,39 @@ class WebServerApi implements IServerApi {
     for (const username of [...this.bots.keys()]) {
       void this.removeAiBot(username);
     }
+  }
+
+  private stopRoomBots(roomId: string | null): void {
+    if (!roomId) return;
+    for (const [username, bot] of this.bots) {
+      if (bot.roomId === roomId) void this.removeAiBot(username);
+    }
+    if (peekSpawnedBots(roomId).length > 0) clearSpawnedBots();
+  }
+
+  private onLimitedRoomTransition(envelope: RoomRelayEnvelope, fromPlayer: unknown): void {
+    const limited = useMultiplayerLimitedStore.getState();
+    const parent = limited.originalRoom;
+    const transition = envelope.payload as {
+      type?: string;
+      sessionId?: string;
+      room?: RoomInfo;
+    } | null;
+    if (
+      !parent ||
+      envelope.protocol !== "limited-session-v1" ||
+      envelope.version !== 1 ||
+      envelope.roomId !== parent.room_id ||
+      fromPlayer !== parent.host ||
+      envelope.fromPlayer !== fromPlayer ||
+      envelope.targetPlayer !== this.authedUsername ||
+      transition?.sessionId !== limited.sessionId ||
+      (transition?.type !== "matchAssigned" && transition?.type !== "returned") ||
+      !transition.room?.players.some((player) => player.username === this.authedUsername) ||
+      (transition.type === "returned" && transition.room.room_id !== parent.room_id)
+    )
+      return;
+    this.currentRoomId = transition.room.room_id;
   }
 
   /** The host's advertised kinds decide the room's plane. */
@@ -1726,8 +1797,7 @@ class WebServerApi implements IServerApi {
       }
     }
     if (type === "GameAborted") {
-      this.stopAllBots();
-      clearSpawnedBots();
+      this.stopRoomBots(typeof msg.room_id === "string" ? msg.room_id : null);
     }
 
     if (type === "ServerShuttingDown") {
@@ -1801,6 +1871,7 @@ class WebServerApi implements IServerApi {
           });
           return;
         case "roomRelay":
+          this.onLimitedRoomTransition(envelope, msg.from_player);
           this.eventBus.emit("server:room_message", {
             from_player: msg.from_player,
             state: envelope,
@@ -1861,19 +1932,35 @@ class WebServerApi implements IServerApi {
     }
 
     if (type === "RoomCreated") {
-      this.resumeToken = typeof msg.resume_token === "string" ? msg.resume_token : null;
       const room = msg.room as { room_id?: string } | undefined;
       const roomId = String(room?.room_id ?? msg.room_id ?? "");
-      if (roomId) this.currentRoomId = roomId;
+      if (roomId) {
+        this.currentRoomId = roomId;
+        const key = `${ROOM_RESUME_TOKEN_PREFIX}${this.relayUrl}:${roomId}`;
+        try {
+          if (typeof msg.resume_token === "string") localStorage.setItem(key, msg.resume_token);
+          else localStorage.removeItem(key);
+        } catch {
+          this.eventBus.emit("server:error", {
+            code: ROOM_RECOVERY_STORAGE_ERROR,
+            message:
+              "The room recovery credential could not be saved. This room cannot recover after an app restart.",
+          });
+        }
+      }
       this.announceTransport(roomId);
     }
 
-    // RoomUpdate reaches members only, so this never announces into a foreign room.
-    if (type === "RoomUpdate") {
+    if (type === "RoomUpdate" || type === "RoomResumed") {
       const room = msg.room as { room_id?: string } | undefined;
       const roomId = String(room?.room_id ?? "");
-      if (roomId) this.currentRoomId = roomId;
-      this.announceTransport(roomId);
+      const limited = useMultiplayerLimitedStore.getState();
+      const activeRoomId = this.currentRoomId ?? limited.matchReturn?.roomId;
+      const inactiveLimitedRoom = limited.originalRoom && activeRoomId && activeRoomId !== roomId;
+      if (roomId && !inactiveLimitedRoom) {
+        this.currentRoomId = roomId;
+        this.announceTransport(roomId);
+      }
     }
 
     if (type === "GameStarted") {

@@ -32,6 +32,7 @@ import { forgeWasmNeedsValidation, useForgeWasmHostingEnabled } from "@/lib/forg
 import { validateForgeWasm } from "@/game/forgeWasmValidation";
 import { cn } from "@/lib/utils";
 import { IRONSMITH_WASM_AVAILABLE } from "@/game/ironsmithWasmAvailable";
+import { DRAFT_CLOCK_FEATURE } from "@/game/limitedDraftClock";
 import { DEFAULT_RECONNECT_TIMEOUT_S } from "@/types/server";
 import type {
   DraftConfig,
@@ -80,6 +81,8 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
   const [draftSet, setDraftSet] = useState("");
   const [draftRounds, setDraftRounds] = useState(3);
   const [draftPicksPerPass, setDraftPicksPerPass] = useState(1);
+  const [draftPickSeconds, setDraftPickSeconds] = useState<number | undefined>();
+  const draftClockSupported = useServerStore((state) => state.hasRelayFeature(DRAFT_CLOCK_FEATURE));
   const [draftSeed, setDraftSeed] = useState("");
   const [draftFillWithBots, setDraftFillWithBots] = useState(true);
   const [sealedSet, setSealedSet] = useState("");
@@ -132,7 +135,11 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
     (!isCube || !!importedCube) &&
     (!isSealed ||
       (sealedUseCube ? !!importedCube : !!sealedSet && sealedPool.unsupported !== sealedSet));
-  const canSubmit = connected && limitedKindEnabled && draftConfigReady;
+  const canSubmit =
+    connected &&
+    limitedKindEnabled &&
+    draftConfigReady &&
+    (!(isBoosterDraft || isCube) || draftPickSeconds === undefined || draftClockSupported);
   const playerOptions = kind === "limited" ? PLAYER_OPTIONS_LIMITED : PLAYER_OPTIONS_MATCH;
   const matchPlayers = matchPlayersOverride ?? defaultMatchPlayers(format);
   const maxPlayers = kind === "limited" ? limitedPlayers : matchPlayers;
@@ -193,6 +200,7 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
           cube_name: isCube ? importedCube!.name : undefined,
           rounds: draftRounds,
           picks_per_pass: draftPicksPerPass,
+          pick_seconds: draftPickSeconds,
           seed: Number.isFinite(parsedSeed) ? parsedSeed : undefined,
           fill_with_bots: draftFillWithBots,
         };
@@ -353,6 +361,9 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
               onDraftRoundsChange={setDraftRounds}
               draftPicksPerPass={draftPicksPerPass}
               onDraftPicksPerPassChange={setDraftPicksPerPass}
+              draftPickSeconds={draftPickSeconds}
+              onDraftPickSecondsChange={setDraftPickSeconds}
+              draftClockSupported={draftClockSupported}
               draftSeed={draftSeed}
               onDraftSeedChange={setDraftSeed}
               draftFillWithBots={draftFillWithBots}

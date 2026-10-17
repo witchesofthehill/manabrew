@@ -15,6 +15,7 @@ import { isPromptLoggingEnabled } from "@/lib/debugPrompts";
 import { useGameStore } from "@/stores/useGameStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useServerStore } from "@/stores/useServerStore";
+import { useMultiplayerLimitedStore } from "@/stores/useMultiplayerLimitedStore";
 const NO_GAME_FOUND_AFTER_MS = 5000;
 const rlog = (...args: unknown[]) => {
   if (isPromptLoggingEnabled()) console.log("[resume]", ...args);
@@ -27,6 +28,10 @@ export function useGameSessionResume() {
   const gameStarted = useServerStore((s) => s.gameStarted);
   const gameRoomId = useServerStore((s) => s.gameRoomId);
   const session = activeGameSessionAtPageLoad();
+  const limitedMatchReturn = useMultiplayerLimitedStore((state) => state.matchReturn);
+  const recoveringLimitedHost = Boolean(
+    session?.isHost && limitedMatchReturn?.roomId === session.roomId,
+  );
   const settled = useRef(false);
   const resyncRequested = useRef(false);
   const respawnedBots = useRef(new Set<string>());
@@ -35,7 +40,7 @@ export function useGameSessionResume() {
     rlog("mount: session marker =", session);
   }, [session]);
   useEffect(() => {
-    if (!session || !isActiveGameSessionAtPageLoadCurrent()) return;
+    if (!session || recoveringLimitedHost || !isActiveGameSessionAtPageLoadCurrent()) return;
     let cancelled = false;
     void (async () => {
       if (getPlatform().type === "tauri" && (session.ownsForgeHost || session.relayHost)) {
@@ -93,7 +98,7 @@ export function useGameSessionResume() {
     return () => {
       cancelled = true;
     };
-  }, [session, navigate]);
+  }, [session, navigate, recoveringLimitedHost]);
   useEffect(() => {
     if (!session) return;
     rlog(
@@ -115,7 +120,7 @@ export function useGameSessionResume() {
     }
   }, [session, connected, currentRoom, gameStarted]);
   useEffect(() => {
-    if (!session || settled.current || !connected || !currentRoom) return;
+    if (!session || recoveringLimitedHost || settled.current || !connected || !currentRoom) return;
     if (isActiveGameSessionAbandonmentPending()) return;
     if (!isActiveGameSessionAtPageLoadCurrent()) return;
     if (useGameStore.getState().isGameActive) return;
@@ -145,7 +150,7 @@ export function useGameSessionResume() {
     rlog(`resync-effect: reseated as '${me}', requesting resync`);
     resyncRequested.current = true;
     void getPlatform().server?.requestResync();
-  }, [session, connected, currentRoom, username, navigate]);
+  }, [session, connected, currentRoom, username, navigate, recoveringLimitedHost]);
   useEffect(() => {
     if (!session || session.isHost) return;
     if (isActiveGameSessionAbandonmentPending()) return;
@@ -206,7 +211,7 @@ export function useGameSessionResume() {
     navigate("/play", { state: launch.state });
   }, [session, gameStarted, gameRoomId, currentRoom, navigate]);
   useEffect(() => {
-    if (!session || settled.current || !connected) return;
+    if (!session || recoveringLimitedHost || settled.current || !connected) return;
     if (isActiveGameSessionAbandonmentPending()) return;
     if (!isActiveGameSessionAtPageLoadCurrent()) return;
     rlog(`fallback-timer: armed, will check in ${NO_GAME_FOUND_AFTER_MS}ms`);
@@ -237,5 +242,5 @@ export function useGameSessionResume() {
       navigate("/lobby", { replace: true });
     }, NO_GAME_FOUND_AFTER_MS);
     return () => clearTimeout(timer);
-  }, [session, connected, navigate]);
+  }, [session, connected, navigate, recoveringLimitedHost]);
 }

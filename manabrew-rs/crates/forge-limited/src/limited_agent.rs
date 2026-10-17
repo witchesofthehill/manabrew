@@ -1,6 +1,7 @@
 use std::any::Any;
 
 use forge_foundation::sealed_product::PaperCard;
+use serde::{Deserialize, Serialize};
 
 use crate::draft_pack::DraftPack;
 
@@ -11,7 +12,7 @@ pub trait LimitedAgent: Send + Any {
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct HumanLimitedAgent {
     pending_pick: Option<PaperCard>,
 }
@@ -27,6 +28,10 @@ impl HumanLimitedAgent {
 
     pub fn has_pending(&self) -> bool {
         self.pending_pick.is_some()
+    }
+
+    pub fn pending_pick(&self) -> Option<&PaperCard> {
+        self.pending_pick.as_ref()
     }
 
     pub fn clear_pending(&mut self) {

@@ -17,6 +17,7 @@ export type ZonePanelItem = "library" | "graveyard" | "exile";
 export type CardPreviewMode = "hover" | "right-click";
 export type BattlefieldCardStyle = "realistic" | "art" | "frame";
 export type InGameCardPreviewStyle = "printed" | "rules";
+export type InGameCardPreviewSize = "small" | "medium" | "large";
 export type InlineCardStyle = "printed" | "rules";
 export type OpponentHandFanMode = "always" | "revealed" | "never";
 
@@ -142,6 +143,8 @@ export interface PreferencesState {
   setCardHoverDelayMs: (ms: number) => void;
   inGameCardPreviewStyle: InGameCardPreviewStyle;
   setInGameCardPreviewStyle: (style: InGameCardPreviewStyle) => void;
+  inGameCardPreviewSize: InGameCardPreviewSize;
+  setInGameCardPreviewSize: (size: InGameCardPreviewSize) => void;
   handCardStyle: InlineCardStyle;
   setHandCardStyle: (style: InlineCardStyle) => void;
   stackCardStyle: InlineCardStyle;
@@ -211,6 +214,7 @@ const PERSISTED_PREFERENCE_KEYS = [
   "cardPreviewMode",
   "cardHoverDelayMs",
   "inGameCardPreviewStyle",
+  "inGameCardPreviewSize",
   "handCardStyle",
   "stackCardStyle",
   "promptCardStyle",
@@ -388,6 +392,8 @@ export const usePreferencesStore = create<PreferencesState>()(
           cardHoverDelayMs: 350,
           setCardHoverDelayMs: (ms) => set({ cardHoverDelayMs: ms }),
           setInGameCardPreviewStyle: (inGameCardPreviewStyle) => set({ inGameCardPreviewStyle }),
+          inGameCardPreviewSize: "medium",
+          setInGameCardPreviewSize: (inGameCardPreviewSize) => set({ inGameCardPreviewSize }),
           setHandCardStyle: (handCardStyle) => set({ handCardStyle }),
           setStackCardStyle: (stackCardStyle) => set({ stackCardStyle }),
           setPromptCardStyle: (promptCardStyle) => set({ promptCardStyle }),

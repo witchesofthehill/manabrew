@@ -1,9 +1,9 @@
 import { CardPreview } from "./CardPreview";
-import type { useCardPreview } from "@/hooks/useCardPreview";
+import type { CardPreviewController } from "@/hooks/useCardPreview";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 
 interface HoverCardPreviewProps {
-  preview: ReturnType<typeof useCardPreview>;
+  preview: CardPreviewController;
   actions?: HandActionOption[];
   onSelectAction?: (action: HandActionOption) => void;
   suppressed?: boolean;

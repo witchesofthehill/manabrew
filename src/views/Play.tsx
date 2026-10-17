@@ -11,6 +11,15 @@ import { isLiveEngineGameRouteState } from "@/game/engineGameLaunch";
 import { ROUTES } from "@/lib/constants";
 import { resolveOfflineEngine } from "@/lib/offlineEngine";
 import Limited from "./Limited";
+import { completeLimitedMatch, peekLimitedMatchReturn } from "@/game/limitedSession";
+import { useMultiplayerLimitedStore } from "@/stores/useMultiplayerLimitedStore";
+import {
+  activeGameSessionAtPageLoad,
+  isActiveGameSessionAtPageLoadCurrent,
+} from "@/lib/activeGameSession";
+
+const consumedMultiplayerLaunches = new Set<string>();
+
 export default function Play() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -21,6 +30,13 @@ export default function Play() {
   const pathname =
     location.pathname.length > 1 ? location.pathname.replace(/\/+$/, "") : location.pathname;
   const routeState = location.state;
+  const exitTo =
+    routeState &&
+    typeof routeState === "object" &&
+    "exitTo" in routeState &&
+    typeof routeState.exitTo === "string"
+      ? routeState.exitTo
+      : ROUTES.PLAY;
   const deckRoute = matchPath(`${ROUTES.PLAY_DECK}/:localSavedDeckId`, pathname);
   const preSelectedDeckId =
     routeState &&
@@ -44,11 +60,32 @@ export default function Play() {
   // Route state outlives the game; without this, ending a multiplayer game
   // falls back to the "Starting multiplayer game..." waiting screen.
   useEffect(() => {
-    if (isGameActive && gameView) {
+    if (isGameActive) {
       gameWasActive.current = true;
       return;
     }
-    if (isGameActive) return;
+    const limited = peekLimitedMatchReturn();
+    if (limited) {
+      const recovering = activeGameSessionAtPageLoad();
+      if (
+        !mpState &&
+        recovering &&
+        !recovering.isHost &&
+        recovering.roomId === limited.roomId &&
+        isActiveGameSessionAtPageLoadCurrent()
+      )
+        return;
+      if (
+        gameWasActive.current ||
+        (limited.started &&
+          (!mpState ||
+            (consumedMultiplayerLaunches.has(location.key) && !multiplayerStarted.current)))
+      ) {
+        gameWasActive.current = false;
+        navigate(limited.route, { replace: true });
+      }
+      return;
+    }
     if (gameWasActive.current && mpState?.multiplayer) {
       gameWasActive.current = false;
       multiplayerStarted.current = false;
@@ -72,16 +109,25 @@ export default function Play() {
     }
     if (gameWasActive.current) {
       gameWasActive.current = false;
-      navigate(ROUTES.PLAY, { replace: true });
+      navigate(exitTo, { replace: true });
     }
-  }, [isGameActive, gameView, mpState, navigate]);
+  }, [isGameActive, gameView, mpState, navigate, exitTo, location.key]);
   useEffect(() => {
-    if (!mpState?.multiplayer || multiplayerStarted.current) return;
+    const active = useGameStore.getState().isGameActive;
+    if (
+      !mpState?.multiplayer ||
+      multiplayerStarted.current ||
+      (!active &&
+        peekLimitedMatchReturn()?.started &&
+        consumedMultiplayerLaunches.has(location.key))
+    )
+      return;
     multiplayerStarted.current = true;
+    consumedMultiplayerLaunches.add(location.key);
     // A re-mount on a live game (browser forward back onto this entry) must
     // not relaunch it: the store refuses the duplicate, and that refusal used
     // to read as a failed start, which ended the table for everyone.
-    if (useGameStore.getState().isGameActive) return;
+    if (active) return;
 
     const {
       playerOrder,
@@ -97,6 +143,17 @@ export default function Play() {
     const recoverFromFailedStart = async () => {
       if (!multiplayerStarted.current) return;
       multiplayerStarted.current = false;
+      const limited = peekLimitedMatchReturn();
+      if (limited) {
+        let destination = limited.route;
+        try {
+          destination = (await completeLimitedMatch()) ?? destination;
+        } catch (error) {
+          useMultiplayerLimitedStore.getState().setError(String(error));
+        }
+        navigate(destination, { replace: true });
+        return;
+      }
       const server = useServerStore.getState();
       if (isHost) await server.endGame().catch(() => undefined);
       else await server.leaveRoom();
@@ -137,11 +194,11 @@ export default function Play() {
     ).then((started) => {
       if (!started) void recoverFromFailedStart();
     });
-  }, [mpState, navigate, setMultiplayerState, startMultiplayerGame]);
+  }, [mpState, navigate, setMultiplayerState, startMultiplayerGame, location.key]);
   if (isGameActive) {
     return (
       <div className="h-full min-h-0 no-scrollbar">
-        <Game exitTo={ROUTES.PLAY} />
+        <Game exitTo={exitTo} />
       </div>
     );
   }

@@ -550,7 +550,9 @@ export class IronsmithTrustedGameApi implements IGameApi {
       createRoomRelayEnvelope({
         protocol: IRONSMITH_RELAY_PROTOCOL,
         fromPlayer,
-        targetPlayer,
+        targetPlayer: targetPlayer
+          ? this.playerNames[this.playerSlots.indexOf(targetPlayer)]
+          : undefined,
         payload,
       }),
     );

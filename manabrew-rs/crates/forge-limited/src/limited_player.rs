@@ -1,12 +1,13 @@
 use std::collections::VecDeque;
 
 use forge_foundation::sealed_product::PaperCard;
+use serde::{Deserialize, Serialize};
 
 use crate::draft_pack::DraftPack;
 use crate::limited_agent::LimitedAgent;
 
 bitflags::bitflags! {
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
     pub struct PlayerFlags: u32 {
         const AGENT_ACQUISITIONS_CAN_DRAFT_ALL    = 1 << 0;
         const AGENT_ACQUISITIONS_IS_DRAFTING_ALL  = 1 << 1;

@@ -9,10 +9,11 @@ import {
 } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
 import type { ClientCardDto } from "@/stores/gameStore.types";
-import type { InGameCardPreviewStyle } from "@/stores/usePreferencesStore";
+import { usePreferencesStore, type InGameCardPreviewStyle } from "@/stores/usePreferencesStore";
 import { CARD_H, CARD_W } from "@/components/game/game.constants";
 import { computePreviewCardDimensions } from "@/components/game/cardPreviewLayout";
 import { CardSprite } from "@/pixi/CardSprite";
+import { getSafeAreaInsets } from "@/lib/safeArea";
 import { hexToNum } from "@/pixi/colorUtils";
 import { gsap } from "@/pixi/effects/gsap";
 import { animationsEnabled } from "@/pixi/effects/enabled";
@@ -74,12 +75,22 @@ export class CommandZonePreviewLayer {
   private hoveredIndex = -1;
   private interactiveReady = false;
   private interactionTimer: number | null = null;
+  private previewSize = usePreferencesStore.getState().inGameCardPreviewSize;
+  private readonly unsubscribePreferences: () => void;
 
   constructor(theme: Theme, callbacks: CommandZonePreviewLayerCallbacks) {
     this.theme = theme;
     this.callbacks = callbacks;
     this.container.visible = false;
     this.container.eventMode = "passive";
+    this.unsubscribePreferences = usePreferencesStore.subscribe((state, previous) => {
+      if (state.inGameCardPreviewSize === previous.inGameCardPreviewSize) return;
+      this.previewSize = state.inGameCardPreviewSize;
+      if (!this.spec || this.spec.phase !== "open") return;
+      gsap.killTweensOf(this.container);
+      this.layout();
+      this.callbacks.onRenderRequested();
+    });
   }
 
   setTheme(theme: Theme): void {
@@ -184,6 +195,7 @@ export class CommandZonePreviewLayer {
   }
 
   destroy(): void {
+    this.unsubscribePreferences();
     this.clearInteractionTimer();
     gsap.killTweensOf(this.container);
     gsap.killTweensOf(this.container.scale);
@@ -259,7 +271,14 @@ export class CommandZonePreviewLayer {
     const spec = this.spec;
     if (!spec || this.entries.length === 0 || this.viewportWidth <= 0 || this.viewportHeight <= 0)
       return;
-    const viewportRight = Math.min(this.viewportWidth, spec.viewportRight ?? this.viewportWidth);
+    const safe = getSafeAreaInsets();
+    const viewportLeft = safe.left;
+    const viewportTop = safe.top;
+    const viewportBottom = this.viewportHeight - safe.bottom;
+    const viewportRight = Math.min(
+      this.viewportWidth - safe.right,
+      spec.viewportRight ?? this.viewportWidth,
+    );
     const baseWidths = this.entries.map((entry) =>
       entry.sprite.horizontalFrame ? CARD_H : CARD_W,
     );
@@ -270,15 +289,16 @@ export class CommandZonePreviewLayer {
     const idealScale = Math.min(
       ...this.entries.map((entry, index) => {
         const dimensions = computePreviewCardDimensions({
-          usableWidth: viewportRight,
-          usableHeight: this.viewportHeight,
+          usableWidth: viewportRight - viewportLeft,
+          usableHeight: viewportBottom - viewportTop,
           horizontal: entry.sprite.horizontalFrame,
+          size: this.previewSize,
         });
         return dimensions.width / baseWidths[index]!;
       }),
     );
     const widthWithoutGaps = baseWidths.reduce((sum, width) => sum + width, 0);
-    const availableWidth = Math.max(1, viewportRight - EDGE_PAD * 2);
+    const availableWidth = Math.max(1, viewportRight - viewportLeft - EDGE_PAD * 2);
     const scale = Math.max(
       0.1,
       Math.min(
@@ -308,17 +328,17 @@ export class CommandZonePreviewLayer {
     const targetX =
       right + this.groupWidth <= viewportRight - EDGE_PAD
         ? right
-        : left >= EDGE_PAD
+        : left >= viewportLeft + EDGE_PAD
           ? left
           : spec.anchor.x + spec.anchor.width / 2 - this.groupWidth / 2;
     this.container.x = Math.max(
-      EDGE_PAD,
+      viewportLeft + EDGE_PAD,
       Math.min(targetX, viewportRight - EDGE_PAD - this.groupWidth),
     );
     const targetY = spec.anchor.y + spec.anchor.height / 2 - this.groupHeight / 2;
     this.container.y = Math.max(
-      EDGE_PAD,
-      Math.min(targetY, this.viewportHeight - EDGE_PAD - this.groupHeight),
+      viewportTop + EDGE_PAD,
+      Math.min(targetY, viewportBottom - EDGE_PAD - this.groupHeight),
     );
   }
 

@@ -9,9 +9,15 @@ import { useScryfallStore } from "@/stores/useScryfallStore";
 import { useGameStore } from "@/stores/useGameStore";
 import { asGameDeckCard } from "@/lib/decks";
 import { isFacelessCard } from "@/lib/gameCard";
-import { CARD_W, CARD_H, GAME_CARD_SIZES } from "@/components/game/game.constants";
+import {
+  CARD_W,
+  CARD_H,
+  GAME_CARD_SIZES,
+  IN_GAME_CARD_PREVIEW_SCALES,
+} from "@/components/game/game.constants";
 import { animationsEnabled } from "@/pixi/effects/enabled";
 import type { CardInspectionState } from "./cardInspection";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
 
 installPixiPatches();
 
@@ -30,6 +36,12 @@ export function DialogCardCanvas(props: Props) {
     latest.current = props;
   }, [props]);
   const theme = useTheme();
+  const previewSize = usePreferencesStore((state) => state.inGameCardPreviewSize);
+  const previewSizeRef = useRef(previewSize);
+  useLayoutEffect(() => {
+    previewSizeRef.current = previewSize;
+    updateRef.current?.();
+  }, [previewSize]);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     setCardSpriteTheme(theme);
@@ -57,13 +69,14 @@ export function DialogCardCanvas(props: Props) {
       const rotated = horizontal && state.rotated;
       const width = horizontal && !rotated ? CARD_H : CARD_W;
       const height = horizontal && !rotated ? CARD_W : CARD_H;
+      const previewScale = IN_GAME_CARD_PREVIEW_SCALES[previewSizeRef.current];
       const maxWidth =
         horizontal && !rotated ? GAME_CARD_SIZES.preview.height : GAME_CARD_SIZES.preview.width;
       const maxHeight =
         horizontal && !rotated ? GAME_CARD_SIZES.preview.width : GAME_CARD_SIZES.preview.height;
       const scale = Math.min(
-        maxWidth / width,
-        maxHeight / height,
+        (maxWidth * previewScale) / width,
+        (maxHeight * previewScale) / height,
         (host.clientWidth - 20) / width,
         (host.clientHeight - 20) / height,
       );

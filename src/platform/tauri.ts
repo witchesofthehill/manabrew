@@ -17,6 +17,7 @@ import type {
   ServerConnectParams,
   CreateRoomParams,
   JoinRoomParams,
+  ResumeRoomParams,
   SetReadyParams,
   SetDeckSelectionParams,
   StartServerGameParams,
@@ -93,6 +94,9 @@ class TauriServerApi implements IServerApi {
   }
   joinRoom(params: JoinRoomParams): Promise<void> {
     return this.inner.joinRoom(params);
+  }
+  resumeRoom(params: ResumeRoomParams): Promise<void> {
+    return this.inner.resumeRoom!(params);
   }
   leaveRoom(): Promise<void> {
     return this.inner.leaveRoom();

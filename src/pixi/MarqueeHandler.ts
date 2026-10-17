@@ -4,6 +4,11 @@ import { getTheme } from "@/hooks/useTheme";
 import { hexToNum } from "./colorUtils";
 import type { ScreenPos } from "./types";
 
+export interface MarqueeCardPosition extends ScreenPos {
+  width?: number;
+  height?: number;
+}
+
 const MIN_MARQUEE_SIZE = 4;
 const MARQUEE_CORNER_RADIUS = 3;
 const MARQUEE_STROKE_WIDTH = 2;
@@ -62,7 +67,10 @@ export class MarqueeHandler {
     this.redraw();
   }
 
-  end(cardPositions: Map<string, ScreenPos>, existingSelection: Set<string>): Set<string> {
+  end(
+    cardPositions: Map<string, MarqueeCardPosition>,
+    existingSelection: Set<string>,
+  ): Set<string> {
     this.active = false;
     this.gfx.visible = false;
     this.gfx.clear();
@@ -78,12 +86,14 @@ export class MarqueeHandler {
     }
 
     for (const [id, pos] of cardPositions) {
-      const left = pos.x - CARD_W / 2;
-      const top = pos.y - CARD_H / 2;
+      const width = pos.width ?? CARD_W;
+      const height = pos.height ?? CARD_H;
+      const left = pos.x - width / 2;
+      const top = pos.y - height / 2;
       if (
-        rect.x < left + CARD_W &&
+        rect.x < left + width &&
         rect.x + rect.width > left &&
-        rect.y < top + CARD_H &&
+        rect.y < top + height &&
         rect.y + rect.height > top
       ) {
         selected.add(id);

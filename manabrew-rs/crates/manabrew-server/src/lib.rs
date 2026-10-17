@@ -4,6 +4,7 @@ pub mod cleanup;
 pub mod client_build;
 pub mod config;
 pub mod connection;
+pub mod draft_clock;
 pub mod error;
 pub mod identity;
 pub mod lobby;

@@ -20,10 +20,42 @@ export interface GauntletMatchDecks {
 
 export type DraftCard = CardIdentity;
 
+export type LimitedSessionKind = "draft" | "winston" | "sealed" | "gauntlet";
+
+export interface LimitedEngineCheckpoint {
+  schemaVersion: 1;
+  kind: LimitedSessionKind;
+  sessionId: string;
+  state: unknown;
+}
+
+export type LimitedSessionImport =
+  | { kind: "draft"; sessionId: string; state: DraftState }
+  | { kind: "winston"; sessionId: string; state: WinstonState }
+  | { kind: "sealed"; sessionId: string; state: SealedPool }
+  | { kind: "gauntlet"; sessionId: string; state: GauntletState };
+
+export interface LimitedDraftDecision {
+  revision: number;
+  seat: number;
+  round: number;
+  pickNumber: number;
+  action: "pick" | "take" | "pass";
+  packId: string;
+  visibleCards: DraftCard[];
+  selectedIds: string[];
+  automatic: boolean;
+}
+
 export interface LimitedDeck {
   name: string;
   main: DraftCard[];
   sideboard: DraftCard[];
+}
+
+export interface DraftAiDeck {
+  seat: number;
+  deck: LimitedDeck;
 }
 
 export interface SealedPool {
@@ -31,6 +63,7 @@ export interface SealedPool {
   deckName: string;
   landSetCode: string | null;
   cards: DraftCard[];
+  packs: Array<{ id: string; setCode: string; cards: DraftCard[] }>;
   suggestedDeck: LimitedDeck | null;
   aiDecks: LimitedDeck[];
 }
@@ -64,6 +97,7 @@ export interface DraftSeat {
 
 export interface DraftState {
   sessionId: string;
+  revision: number;
   round: number;
   totalRounds: number;
   pickNumber: number;
@@ -87,6 +121,7 @@ export interface BoosterDraftSetup {
   variant?: string;
   seed?: number;
   picksPerPass?: number;
+  pickSeconds?: number;
   customPool?: boolean;
 }
 
@@ -100,6 +135,7 @@ export interface WinstonSetup {
 
 export interface WinstonState {
   sessionId: string;
+  revision: number;
   activeSeat: number;
   currentPile: number;
   piles: DraftCard[][];

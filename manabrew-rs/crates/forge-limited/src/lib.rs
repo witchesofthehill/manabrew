@@ -29,7 +29,10 @@ pub mod winston_draft;
 pub mod winston_draft_ai;
 
 pub use booster_deck_builder::BoosterDeckBuilder;
-pub use booster_draft::{BoosterDraft, PassDirection, TickOutcome};
+pub use booster_draft::{
+    BoosterDraft, BoosterDraftCheckpoint, DraftDecision, DraftDecisionAction, PassDirection,
+    TickOutcome,
+};
 pub use booster_draft_ai::BoosterDraftAI;
 pub use card_ranker::CardRanker;
 pub use card_ranking_comparator::CardRankingComparator;
@@ -44,7 +47,7 @@ pub use gauntlet_mini::{GauntletKind, GauntletMini};
 pub use i_booster_draft::IBoosterDraft;
 pub use i_draft_log::{IDraftLog, VecDraftLog};
 pub use limited_agent::{HumanLimitedAgent, LimitedAgent};
-pub use limited_deck_builder::{DeckBuildError, LimitedDeck, LimitedDeckBuilder};
+pub use limited_deck_builder::{LimitedDeck, LimitedDeckBuilder};
 pub use limited_deck_evaluator::LimitedDeckEvaluator;
 pub use limited_player::{LimitedPlayer, PlayerFlags};
 pub use limited_player_ai::LimitedPlayerAI;

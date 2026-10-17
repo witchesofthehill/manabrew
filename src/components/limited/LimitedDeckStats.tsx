@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { getScryfallManaCost } from "@/api/scryfall";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { peekCard, useScryfallStore } from "@/stores/useScryfallStore";
 import { countManaPips } from "@/lib/limited.utils";
@@ -28,7 +29,7 @@ export function LimitedDeckStats({ cards, className, compact = false }: Props) {
         cardNumber: card.cardNumber,
       });
       if (!cached) continue;
-      const types = cached.type_line ?? "";
+      const types = cached.card_faces?.[0]?.type_line ?? cached.type_line ?? "";
       const isLand = /\bLand\b/i.test(types);
       const isCreature = /\bCreature\b/i.test(types);
       if (isLand) lands += 1;
@@ -39,7 +40,7 @@ export function LimitedDeckStats({ cards, className, compact = false }: Props) {
         const cmc = Math.max(0, Math.min(6, Math.round(cached.cmc ?? 0)));
         curve[cmc] += 1;
         curveSampleSize += 1;
-        const cost = cached.mana_cost ?? "";
+        const cost = getScryfallManaCost(cached) ?? "";
         for (const key of COLOR_KEYS) {
           colors[key] += countManaPips(cost, key);
         }

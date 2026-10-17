@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.56.0](https://github.com/witchesofthehill/manabrew/compare/v3.55.4...v3.56.0) (2026-10-16)
+
+### Features
+
+* **limited:** add shared pixi workspace and multiplayer matches ([#1029](https://github.com/witchesofthehill/manabrew/issues/1029)) ([b3128f3](https://github.com/witchesofthehill/manabrew/commit/b3128f3b03a8f3d4b1cf517a639b2c44912f6923))
+
 ## [3.55.4](https://github.com/witchesofthehill/manabrew/compare/v3.55.3...v3.55.4) (2026-10-14)
 
 ### Fixes

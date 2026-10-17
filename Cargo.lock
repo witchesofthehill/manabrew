@@ -2687,11 +2687,12 @@ dependencies = [
 
 [[package]]
 name = "forge-limited"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "bitflags 2.11.0",
  "forge-foundation",
  "rand 0.8.6",
+ "rand_chacha 0.3.1",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
@@ -4296,7 +4297,7 @@ checksum = "11d3d7f243d5c5a8b9bb5d6dd2b1602c0cb0b9db1621bafc7ed66e35ff9fe092"
 
 [[package]]
 name = "loadgen"
-version = "0.3.5"
+version = "0.3.6"
 dependencies = [
  "futures-util",
  "manabot",
@@ -4380,7 +4381,7 @@ dependencies = [
 
 [[package]]
 name = "manabot"
-version = "0.16.3"
+version = "0.17.0"
 dependencies = [
  "bitflags 2.11.0",
  "futures-util",
@@ -4399,7 +4400,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew"
-version = "3.55.4"
+version = "3.56.0"
 dependencies = [
  "flate2",
  "forge-carddb",
@@ -4438,7 +4439,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew-agent-interface"
-version = "0.14.4"
+version = "0.14.5"
 dependencies = [
  "forge-foundation",
  "manabrew-engine",
@@ -4547,7 +4548,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew-relay-protocol"
-version = "5.15.4"
+version = "5.16.0"
 dependencies = [
  "base64 0.22.1",
  "manabrew-protocol",
@@ -4558,7 +4559,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew-server"
-version = "0.38.2"
+version = "0.39.0"
 dependencies = [
  "aws-lc-rs",
  "axum",
@@ -4588,7 +4589,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew_game_runtime"
-version = "0.3.62"
+version = "0.3.63"
 dependencies = [
  "forge-carddb",
  "forge-foundation",
@@ -6353,6 +6354,7 @@ checksum = "e6c10a63a0fa32252be49d21e7709d4d4baf8d231c2dbce1eaa8141b9b127d88"
 dependencies = [
  "ppv-lite86",
  "rand_core 0.6.4",
+ "serde",
 ]
 
 [[package]]
@@ -7091,7 +7093,7 @@ dependencies = [
 
 [[package]]
 name = "self-hosted-node"
-version = "0.38.6"
+version = "0.38.7"
 dependencies = [
  "forge-carddb",
  "forge-foundation",
@@ -9269,7 +9271,7 @@ dependencies = [
 
 [[package]]
 name = "wasm"
-version = "0.10.19"
+version = "0.11.0"
 dependencies = [
  "console_error_panic_hook",
  "forge-carddb",

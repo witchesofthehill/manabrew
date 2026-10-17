@@ -116,9 +116,6 @@ function deriveStatuses(card: CardDto): CardStatusPresentation[] {
     statuses.push({ id, label, tone });
   if (card.wouldDieInCombat) add("doomed", "Dies in combat", "danger");
   if (card.isAttacking) add("attacking", "Attacking", "danger");
-  if (card.summoningSick && isCreature(card))
-    add("summoning-sick", "Summoning sick", "summoningSick");
-  if (card.tapped) add("tapped", "Tapped", "neutral");
   if (card.isCrewed) add("crewed", "Crewed", "positive");
   if (card.phasedOut) add("phased-out", "Phased out", "neutral");
   if (card.exerted) add("exerted", "Exerted", "exerted");
@@ -131,7 +128,6 @@ function deriveStatuses(card: CardDto): CardStatusPresentation[] {
   if (card.isCopy) add("copy", "Copy", "copy");
   if (card.identity.isToken) add("token", "Token", "token");
   if (card.isRingBearer) add("ring-bearer", "Ring-bearer", "ring");
-  if (card.foil) add("foil", "Foil", "accent");
   if (card.attachedTo) add("attached", "Attached", "neutral");
   if (card.attachmentIds.length > 0) {
     add("attachments", `Attachments ×${card.attachmentIds.length}`, "neutral");

@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { useCardFinishPreview } from "@/stores/useCardFinishPreview";
 import { useSearchParams } from "react-router-dom";
-import { AppSelect, AppSelectOption } from "@/components/ui/AppSelect";
-import { Button } from "@/components/ui/button";
+import { CardRenderingFixtureControls } from "@/components/dev/CardRenderingFixtureControls";
+import { CardRenderingStateControls } from "@/components/dev/CardRenderingStateControls";
 import { CardRenderingComparison } from "@/components/dev/CardRenderingComparison";
 import { CardRenderingProfile } from "@/components/dev/CardRenderingProfile";
+import { CARD_RENDERING_FIXTURES } from "@/components/dev/cardRendering.data";
 import {
-  CARD_RENDERING_FIXTURES,
-  CARD_RENDERING_WIDTHS,
-} from "@/components/dev/cardRendering.data";
+  applyCardRenderingOverrides,
+  type CardRenderingOverrides,
+} from "@/components/dev/cardRenderingOverrides";
 import { useCardRenderingFixture } from "@/components/dev/useCardRenderingFixture";
 import { parsePrintedCardRailMetadata } from "@/components/game/cardRailState";
 import { useScryfallStore } from "@/stores/useScryfallStore";
@@ -17,7 +18,6 @@ import { scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { cardFaceImageUris } from "@/lib/cardImage";
 import { resolveCardFaces } from "@/lib/cardFaces";
 import type { HandActionOption } from "@/stores/useGameUIStore";
-import type { ScryfallLanguage } from "@/i18n/locales";
 
 export default function CardRenderingLab() {
   const [params, setParams] = useSearchParams();
@@ -25,6 +25,8 @@ export default function CardRenderingLab() {
     CARD_RENDERING_FIXTURES.find((item) => item.id === params.get("fixture")) ??
     CARD_RENDERING_FIXTURES[0]!;
   const [face, setFace] = useState<0 | 1>(0);
+  const [overrides, setOverrides] = useState<CardRenderingOverrides>({});
+  const [previousFixture, setPreviousFixture] = useState(fixture.id);
   const foil = useCardFinishPreview((state) => state.foilAll);
   const [live, setLive] = useState(false);
   const [granted, setGranted] = useState(false);
@@ -34,6 +36,12 @@ export default function CardRenderingLab() {
   const [lastAction, setLastAction] = useState("");
   const [initialLocale] = useState(() => useScryfallStore.getState().locale);
   const locale = useScryfallStore((state) => state.locale);
+  if (previousFixture !== fixture.id) {
+    setPreviousFixture(fixture.id);
+    setFace(0);
+    setOverrides({});
+    setLastAction("");
+  }
   useEffect(() => () => useScryfallStore.getState().setLocale(initialLocale), [initialLocale]);
   useEffect(() => {
     useScryfallStore.getState().setLocale(fixture.locale ?? "en");
@@ -69,8 +77,8 @@ export default function CardRenderingLab() {
         "\nLifelink\n{2}, {T}: Draw a card. This ability was granted by another permanent.";
       next.keywords = [...next.keywords, "Lifelink"];
     }
-    return next;
-  }, [entry, foil, effectiveFace, live, granted]);
+    return applyCardRenderingOverrides(next, overrides);
+  }, [entry, foil, effectiveFace, live, granted, overrides]);
   const deckCard = useMemo(() => (entry ? scryfallToDeckCard(entry.info) : undefined), [entry]);
   const actions = useMemo<HandActionOption[]>(
     () =>
@@ -92,6 +100,7 @@ export default function CardRenderingLab() {
   );
   const selectFixture = (id: string) => {
     setFace(0);
+    setOverrides({});
     setLastAction("");
     setParams((current) => {
       const next = new URLSearchParams(current);
@@ -99,87 +108,33 @@ export default function CardRenderingLab() {
       return next;
     });
   };
+  const flipFace = () => {
+    setFace((value) => (value === 0 ? 1 : 0));
+    setOverrides({});
+  };
   return (
     <section
       className="space-y-5 p-3"
       data-testid="card-rendering-gallery"
       data-fixture={fixture.id}
     >
-      <section
-        className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-4"
-        aria-label="Fixture controls"
-      >
-        <AppSelect
-          aria-label="Rendering fixture"
-          value={fixture.id}
-          onValueChange={selectFixture}
-          className="min-w-64"
-        >
-          {CARD_RENDERING_FIXTURES.map((item) => (
-            <AppSelectOption key={item.id} value={item.id}>
-              {item.label}
-            </AppSelectOption>
-          ))}
-        </AppSelect>
-        <Button
-          variant="outline"
-          disabled={!flippable}
-          onClick={() => setFace((value) => (value === 0 ? 1 : 0))}
-        >
-          Face: {effectiveFace === 0 ? "front" : "back"}
-        </Button>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={live}
-            onChange={(event) => setLive(event.target.checked)}
-          />
-          Live stats / counters
-        </label>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={granted}
-            onChange={(event) => setGranted(event.target.checked)}
-          />
-          Granted abilities
-        </label>
-        <AppSelect
-          aria-label="Action count"
-          value={String(actionCount)}
-          onValueChange={(value) => setActionCount(Number(value))}
-        >
-          {[0, 2, 12].map((count) => (
-            <AppSelectOption key={count} value={String(count)}>
-              {count} actions
-            </AppSelectOption>
-          ))}
-        </AppSelect>
-        <AppSelect
-          aria-label="Comparison viewport width"
-          value={String(width)}
-          onValueChange={(value) => setWidth(Number(value))}
-        >
-          {CARD_RENDERING_WIDTHS.map((value) => (
-            <AppSelectOption key={value} value={String(value)}>
-              {value}px viewport
-            </AppSelectOption>
-          ))}
-        </AppSelect>
-        <AppSelect
-          aria-label="Card language"
-          value={locale}
-          onValueChange={(value) =>
-            useScryfallStore.getState().setLocale(value as ScryfallLanguage)
-          }
-        >
-          {["en", "it", "ja", "de", "fr"].map((value) => (
-            <AppSelectOption key={value} value={value}>
-              {value}
-            </AppSelectOption>
-          ))}
-        </AppSelect>
-      </section>
+      <CardRenderingFixtureControls
+        fixtureId={fixture.id}
+        onSelectFixture={selectFixture}
+        flippable={flippable}
+        face={effectiveFace}
+        onFlip={flipFace}
+        live={live}
+        onLiveChange={setLive}
+        granted={granted}
+        onGrantedChange={setGranted}
+        actionCount={actionCount}
+        onActionCountChange={setActionCount}
+        width={width}
+        onWidthChange={setWidth}
+        locale={locale}
+        onLocaleChange={(value) => useScryfallStore.getState().setLocale(value)}
+      />
       <p role="status" className="text-sm text-muted-foreground">
         {lastAction ||
           (entry
@@ -191,6 +146,12 @@ export default function CardRenderingLab() {
           {result.error}
         </p>
       )}
+      <CardRenderingStateControls
+        card={card}
+        value={overrides}
+        onChange={setOverrides}
+        onReset={() => setOverrides({})}
+      />
       {entry && card && deckCard && (
         <>
           <div
@@ -209,7 +170,7 @@ export default function CardRenderingLab() {
                 ""
               }
               actions={actions}
-              onFlip={() => setFace((value) => (value === 0 ? 1 : 0))}
+              onFlip={flipFace}
               onAction={(action) => setLastAction(`Executed local fixture action: ${action.label}`)}
             />
           </div>

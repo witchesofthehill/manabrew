@@ -163,6 +163,8 @@ Keep the native measured textbox bounds unchanged. Do not widen, shorten or lift
 
 Rules-body overflow uses only the vertical scrollbar. Keep the native paper unobscured by horizontal fade or tint overlays.
 
+Tapped and summoning-sick states remain battlefield cues; do not repeat them as status badges inside card previews. Foil uses its visual finish rather than a status badge.
+
 `cardRenderSnapshot.ts` retains identity, face selection and cosmetics for stack stubs, but applies live characteristic overrides only when type or rules data exists. Empty stub defaults are not a live colorless card with no cost or type. Let the shared printing lookup supply those characteristics so stack, hand and other Manabrew faces use the same frame selection. Real live cards, including colorless cards and vanilla creatures, still override printed characteristics.
 
 Live characteristic highlights belong to the shared native painter, not extra stat badges. `cardRenderSnapshot.ts` compares reliable engine bases before printed characteristics, independently for each P/T value. Newly gained P/T and added type words use green; decreases use red-pink, other changes cyan, and removed-only type changes amber. Read this dimmer saturated ink from the invariant `gameTheme.cardChange` family, never ordinary P/T badges or app accents. Keep it unchanged across presets, overrides and card-paper colors. Missing printed P/T is not an invented zero, and copies skip unrelated printing/type comparisons. Preserve native geometry and Realistic scans; damage stays separate from toughness.

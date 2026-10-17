@@ -186,25 +186,38 @@ export class RulesPreviewActions extends Container {
         const background = new Graphics();
         const key = new Text({
           text: String(entry.shortcut),
-          style: textStyle(spec.frame.mutedInk, 12, false, spec.frame.bodyFont),
+          style: textStyle(
+            spec.theme.appTheme["popover-foreground"],
+            12,
+            true,
+            "Inter, system-ui, sans-serif",
+          ),
         });
         key.resolution = 2;
         key.anchor.set(0.5);
-        key.position.set(12, spec.compact ? 14 : 18);
+        const keyTop = spec.compact ? 4 : 8;
+        const keyWidth = Math.max(22, key.width + 8);
+        const keyBackground = new Graphics()
+          .roundRect(4, keyTop, keyWidth, 20, 4)
+          .fill(hexToNum(spec.theme.appTheme.muted))
+          .stroke({ color: hexToNum(spec.theme.appTheme.border), width: 1 });
+        keyBackground.eventMode = key.eventMode = "none";
+        key.position.set(4 + keyWidth / 2, keyTop + 10);
+        const labelLeft = keyWidth + 10;
         const label = new PixiRichText();
         const labelHeight = label.setContent(
           actionText(entry.action, entry.displayLabel),
           textStyle(spec.frame.ink, 15, false, spec.frame.bodyFont),
-          Math.max(1, this.contentWidth - 32),
+          Math.max(1, this.contentWidth - labelLeft - 6),
           15,
           3,
           { parentheticalStyle: textStyle(spec.frame.mutedInk, 15, false, spec.frame.bodyFont) },
         );
         const rowPadding = spec.compact ? 4 : 8;
         const height = Math.max(spec.compact ? 32 : 48, labelHeight + rowPadding * 2);
-        label.position.set(26, rowPadding);
+        label.position.set(labelLeft, rowPadding);
         row.position.set(0, y);
-        row.addChild(background, key, label);
+        row.addChild(background, keyBackground, key, label);
         row.hitArea = new Rectangle(0, 0, this.contentWidth, height);
         row.eventMode = "static";
         row.cursor = "pointer";

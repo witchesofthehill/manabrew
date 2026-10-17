@@ -109,6 +109,8 @@ Resolve reviewed historical wording only for non-gameplay original-wording reque
 
 Interactive geometry preserves every native rules panel with explicit face ownership, rotation and stat exclusions. `RulesPreviewBody` owns each panel's clipping and scroll position; simultaneous Split/Aftermath, Adventure/Prepare, Flip and Room parts are not reversible card faces. Leveler panels use their native band text. Layouts absent from the pinned painter, including Prototype, retain the explicit original-scan fallback rather than claiming native support.
 
+Manabrew preview action shortcuts use the realistic preview's app-themed keycap treatment: muted fill, border, popover foreground and bold UI text. Keep shortcut numbering and keyboard dispatch unchanged when adjusting their presentation.
+
 Saga panel metadata includes the painter-owned chapter-strip and text-column geometry. Keep those coordinates separate from the panel's unchanged native rules bounds. Preserve the physical `transform` layout in native Saga inputs; the canonical type identifies the Saga frame, while the transform flag selects its DFC plate and reverse-face P/T reminder. The card lab's `saga-merged` fixture covers shared chapter effects and a transforming creature back face.
 
 Class panels expose the native level-band asset and measurements from `extraRuleBlocks`. Interactive level bands scroll with their ability rows inside unchanged rules bounds; battlefield sprite rails remain independent. The `class-dice` lab fixture covers Barbarian Class's longer dice abilities.

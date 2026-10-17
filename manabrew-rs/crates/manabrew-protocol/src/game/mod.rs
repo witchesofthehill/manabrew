@@ -352,6 +352,9 @@ pub struct CardDto {
     #[ts(optional)]
     pub attack_target_id: Option<String>,
     pub keywords: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub keyword_labels: Option<BTreeMap<String, String>>,
     // Keyed by the engine's canonical `CounterType` display form ("P1P1",
     // "Loyalty", one-off counter names uppercase); both producers must match it.
     #[ts(type = "Record<string, number>")]

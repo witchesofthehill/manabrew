@@ -158,6 +158,8 @@ Flip-button clicks pin the current preview without reopening it. Portrait/landsc
 
 View-mode and physical-face switches share the GSAP edge-on flip timing in `PREVIEW_TIMING.flipHalfMs` and a constant angular turn. Start closing immediately, swap at the edge, then open when the incoming surface is ready. The incoming renderer owns preparation; do not issue a duplicate `renderRulesCard` request from the view-toggle handler. DOM readiness reports after parent layout; Pixi reports after applying its new spec, not from its previous face. Preserve the current angle on interruption and scale the remaining duration accordingly. Animate only the card surface, not side actions. Cancel transitions on dismissal, navigation, disposal or disabled/reduced motion; animation frames must not compose card rasters.
 
+A successful original-scan fallback is presentation-ready even when native composition fails. Disposing an old generated texture must not erase the requested face key before fallback completion. Revealed-hand replacement clears the previous identity and loads the replacement's scan; shared scan textures remain store-owned. Stack geometry, hit areas and layout update from committed reorientation, not only the initiating flip request.
+
 A cancelled close must not replay the printed preview's entrance zoom once it has entered. That zoom can cross the source card, steal its hover and repeatedly invalidate an otherwise stationary flip.
 
 `cardTextureUvs.ts` maps sprites to ancestor surfaces using only local transforms below that ancestor. World-space round trips lose precision when a shared flip ancestor reaches zero width, collapsing UV corners and leaving finish shaders sampling one texture column after the card opens.
@@ -171,6 +173,8 @@ DOM previews, SVG hover shields and Rules canvases use the shared `lib/cardPrevi
 Keep the native measured textbox bounds unchanged. Do not widen, shorten or lift the panel, infer its edges from title bounds, or expand it through native stat boxes. Artwork-integrated scan overlays retain their separate inset layout. Derive overflow from rendered content bounds, not accumulated row gaps; fitting content has no scrollbar. Use internal padding without changing frame geometry.
 
 `CardRenderGeometry.panels` and `RulesPreviewSection.faceIndex` associate content with native textboxes. `RulesPreviewBody` keeps separate rotated masks, scroll offsets and stat cutouts for each panel; do not collapse them into one bounding rectangle. Keep card-level actions and shortcuts in the designated primary panel until authoritative panel ownership exists. Forward Pixi-global pointer coordinates through embedded hand, stack, prompt and command scrolling. Derive screen clip bounds from the local mask and its global transform, not assigned-mask `getBounds()`. Foil uses all disjoint exclusions, and accessibility exposes all face sections.
+
+Pixi accessibility buttons can be one-pixel DOM proxies rather than pointer targets. Browser probes should use keyboard activation or the painted canvas control, not pointer clicks on those proxy rectangles.
 
 Rules typography uses native-relative font sizing, 1× leading and no extra rich-text line gap. Preserve the native text area's width with minimal safety padding; use paragraph spacing instead of padding every line. Separate major content sections with an 8px gap without loosening paragraph leading. Long content still scrolls rather than shrinking to fit.
 

@@ -854,7 +854,7 @@ export function CardSearch({
   const preview = previewController ?? internalPreview;
   const addToMain = useDeckStore((s) => s.addToMain);
   const addCard = (card: DeckCard) => {
-    addToMain({ ...card, identity: { ...card.identity, id: crypto.randomUUID() } });
+    addToMain(card);
     toast.success(`Added ${card.identity.name}`);
   };
   const [text, setText] = useState("");

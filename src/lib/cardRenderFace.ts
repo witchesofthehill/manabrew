@@ -1,5 +1,6 @@
 import {
   faceFrame,
+  splitPanels,
   type RenderedCardInput,
   type FrameColor,
   type SecurityStamp,
@@ -15,6 +16,7 @@ import {
   type CardRenderDecision,
 } from "@/lib/cardRenderDecision";
 import { resolveCardPrinting } from "@/lib/cardPrinting";
+import { isTwoFaceLayout } from "@/lib/cardLayout";
 
 export interface CardGlintFace {
   face: SemanticCardInput;
@@ -151,6 +153,12 @@ export function cardGlintBaseline(
             : undefined;
     const faceLayout = part.layout ?? (child ? "normal" : layout);
     if (SUPPORTED_LAYOUTS[faceLayout] !== true) original("unknown-layout");
+    const painterLayout =
+      isTwoFaceLayout(faceLayout) && !/\bBattle\b/i.test(canonicalType)
+        ? faceLayout === "double_faced_token"
+          ? "token"
+          : "normal"
+        : faceLayout;
     const colors = part.colors ??
       part.color_indicator ?? [...new Set(part.mana_cost.match(/[WUBRG]/g) ?? [])];
     const cosmetics = prepared.cosmetics;
@@ -208,7 +216,7 @@ export function cardGlintBaseline(
       layout:
         semanticLayout === "saga" && layout === "transform"
           ? "transform"
-          : (semanticLayout ?? faceLayout),
+          : (semanticLayout ?? painterLayout),
       frameStyle:
         legacyFrame === "modern"
           ? "modern"
@@ -267,6 +275,19 @@ export function cardGlintBaseline(
     face.faces = parts.map((part, index) => convert(part, index, true));
     face.layout = layout;
     if (layout === "split" && snapshot.keywords?.includes("Aftermath")) face.layout = "aftermath";
+    if (
+      (face.layout === "split" || face.layout === "aftermath") &&
+      prepared.artUrls[0] === prepared.artUrls[1]
+    ) {
+      const panels = splitPanels({
+        ...face,
+        faces: face.faces.map((part) => ({ ...part, illustration: null })),
+      });
+      face.faces = face.faces.map((part, index) => ({
+        ...part,
+        illustrationCrop: panels[index]!.face.illustrationCrop,
+      }));
+    }
   }
   const reverse = parts[1];
   if (

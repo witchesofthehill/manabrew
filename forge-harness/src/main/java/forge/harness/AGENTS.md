@@ -100,6 +100,8 @@ Per-copy appearance is bound by `host/CardCosmeticBindings` during initial zone 
 
 Visible card and stack-source projections read the same bindings; hidden redaction clears foil and cosmetics. Prompt-card disclosure is explicit, not spectator visibility. Preserve bindings across checkpoints without rewinding the live card-ID counter. Rebuild the browser Web Image as well as the harness after changing this producer.
 
+`CardDto.keywords` retains raw engine identifiers. Visible cards also emit `keywordLabels`, keyed by the original string and formatted with `KeywordInterface.getTitle()`. Generated rules use those labels without duplicating printed keyword lines; never expose cost DSL as rules text or parse it in the renderer. Hidden redaction clears the label map.
+
 ## Boundary API discipline
 
 `common` types are `public` only where genuinely consumed across a package boundary. `HarnessCostPlumbing` / `HarnessPlayPlumbing` / `AutoPay` expose **only** the constructor + methods the two controllers call (`payWithControllerDecision`, `isSpellPaymentContext`, `currentReservedSacrifices`, `playNoStack`, `handlePlayingSpellAbility`, `prepareSingleSa`, `orderAndPlaySimultaneousSa`, `playSaFromPlayEffect`, `payManaCost(WithTrace)`, `manaSources`, `floatManaFromSource`, `floatManaForCost`, `PayManaCostResult.paid/steps`); everything else stays package-private. When adding a member, keep it package-private unless a controller in `parity`/`host` needs it — don't widen the surface by default.

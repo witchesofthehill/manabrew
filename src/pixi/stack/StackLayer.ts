@@ -42,6 +42,7 @@ export class StackLayer implements StackAnchorProvider {
   private faceOverrides = new Map<string, boolean>();
   private rulesViewOverrides = new Map<string, boolean>();
   private rulesViewDefault = false;
+  private updatingSpec = false;
   private spec: StackSpec = {
     cards: [],
     flash: null,
@@ -171,6 +172,7 @@ export class StackLayer implements StackAnchorProvider {
   }
 
   setSpec(spec: StackSpec): void {
+    this.updatingSpec = true;
     const previousCardWidth = this.cardWidth();
     this.spec = spec;
     if (this.sprites.size > 0 && this.cardWidth() !== this.builtCardWidth) {
@@ -229,6 +231,11 @@ export class StackLayer implements StackAnchorProvider {
           (id) => this.toggleFace(id),
           (card, bounds) => this.callbacks.onLongPressCard?.(card, bounds),
           transformed === undefined ? undefined : transformed ? 1 : 0,
+          () => {
+            if (this.updatingSpec) return;
+            this.layout();
+            this.callbacks.onRenderRequested?.();
+          },
         );
         this.container.addChild(sprite.container);
         this.sprites.set(card.id, sprite);
@@ -272,6 +279,7 @@ export class StackLayer implements StackAnchorProvider {
 
     this.syncFlash();
     this.setPromptReference(this.promptReferenceId, this.promptReferenceColor);
+    this.updatingSpec = false;
     this.layout();
   }
 

@@ -110,7 +110,7 @@ export function CombosPanel() {
     try {
       const sc = await useScryfallStore.getState().getCard({ name: frontFaceName(name) });
       const base = scryfallToDeckCard(sc.info);
-      addToMain({ ...base, identity: { ...base.identity, id: crypto.randomUUID() } });
+      addToMain(base);
       toast.success(`Added ${name}`);
     } catch {
       toast.error(`Couldn't add ${name}`);

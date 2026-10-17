@@ -14,7 +14,7 @@ export function createCustomizationDraft(card: DeckCard): CardCustomizationDraft
   return {
     source: card,
     cosmetics,
-    foil: cosmetics?.finish ? cosmetics.finish !== "regular" : !!card.identity.foil,
+    foil: !!card.identity.foil,
     wearSeed: cosmetics?.wearSeed,
   };
 }
@@ -28,6 +28,13 @@ function resetPrintingFrame(layer: CardPrintingFace): CardPrintingFace {
       layer.art?.mode === "behind-text"
         ? { ...layer.art, mode: "window", paperOpacity: undefined }
         : layer.art,
+  };
+}
+
+function resetPrintingBorder(layer: CardPrintingFace): CardPrintingFace {
+  return {
+    ...layer,
+    overrides: layer.overrides ? { ...layer.overrides, borderColor: undefined } : undefined,
   };
 }
 
@@ -60,6 +67,16 @@ export function changeCustomizationField(
               version: printing.version,
               preset: "match",
               faces: printing.faces?.map(resetPrintingFrame),
+            },
+          }
+        : {}),
+      ...(field === "border" && printing
+        ? {
+            printing: {
+              ...resetPrintingBorder(printing),
+              version: printing.version,
+              preset: printing.preset,
+              faces: printing.faces?.map(resetPrintingBorder),
             },
           }
         : {}),

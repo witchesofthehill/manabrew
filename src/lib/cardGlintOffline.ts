@@ -11,7 +11,11 @@ import { MANA_CODES } from "@/types/scryfall";
 import { manaSymbolUrl } from "@/api/scryfall";
 import { CARD_BACK_IMAGE_URL } from "@/components/game/game.constants";
 import type { Deck, DeckCard } from "@/protocol/deck";
-import { useScryfallStore } from "@/stores/useScryfallStore";
+import {
+  peekArchivedToken,
+  prefetchTokenArchive,
+  useScryfallStore,
+} from "@/stores/useScryfallStore";
 import { captureCardInput, prepareCard } from "@/lib/cardRenderSnapshot";
 import { cardGlintFace } from "@/lib/cardRenderFace";
 import { CardArtworkError } from "@/lib/cardRenderDecision";
@@ -183,13 +187,27 @@ async function install(deck: Deck, signal: AbortSignal): Promise<void> {
   for (const card of unique.values()) {
     signal.throwIfAborted();
     update({ ...state, message: card.identity.name });
-    const lookup = card.identity.id
-      ? { id: card.identity.id }
-      : {
-          name: card.identity.name,
-          setCode: card.identity.setCode || undefined,
-          collectorNumber: card.identity.cardNumber || undefined,
-        };
+    let printing = card.identity;
+    if (card.identity.tokenScript || card.layout?.includes("token")) {
+      await waitForInstall(
+        prefetchTokenArchive().catch(() => undefined),
+        signal,
+      );
+      const archived =
+        peekArchivedToken({ id: card.identity.id }) ??
+        peekArchivedToken({ tokenScript: card.identity.tokenScript }) ??
+        peekArchivedToken({
+          setCode: card.identity.setCode,
+          cardNumber: card.identity.cardNumber,
+        }) ??
+        peekArchivedToken({ name: card.identity.name });
+      printing = archived?.identity ?? printing;
+    }
+    const lookup = {
+      name: printing.name,
+      setCode: printing.setCode || undefined,
+      collectorNumber: printing.cardNumber || undefined,
+    };
     const entry = await waitForInstall(useScryfallStore.getState().getCard(lookup), signal);
     signal.throwIfAborted();
     if (useScryfallStore.getState().locale !== locale)

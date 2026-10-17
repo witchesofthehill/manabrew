@@ -634,10 +634,9 @@ export function DeckBuilder({
           (candidate) => candidate.identity.name.toLowerCase() === name,
         );
         if (!card) continue;
-        const copy = { ...card, identity: { ...card.identity, id: crypto.randomUUID() } };
-        if (currentDeck.sideboard.includes(card)) store.addToSide(copy);
-        else if ((currentDeck.maybeboard ?? []).includes(card)) store.addToMaybe(copy);
-        else store.addToMain(copy);
+        if (currentDeck.sideboard.includes(card)) store.addToSide(card);
+        else if ((currentDeck.maybeboard ?? []).includes(card)) store.addToMaybe(card);
+        else store.addToMain(card);
         added += 1;
       }
     });
@@ -973,9 +972,7 @@ export function DeckBuilder({
       );
       return;
     }
-    executeDeckEdit(`Add ${group.card.identity.name}`, () =>
-      addToMain({ ...group.card, identity: { ...group.card.identity, id: crypto.randomUUID() } }),
-    );
+    executeDeckEdit(`Add ${group.card.identity.name}`, () => addToMain(group.card));
   }
   function handleAddOneToMainByName(cardName: string) {
     if (isAtCopyLimit(cardName)) {
@@ -988,9 +985,7 @@ export function DeckBuilder({
     }
     const existing = currentDeck.cards.find((c) => c.identity.name === cardName);
     if (existing) {
-      executeDeckEdit(`Add ${cardName}`, () =>
-        addToMain({ ...existing, identity: { ...existing.identity, id: crypto.randomUUID() } }),
-      );
+      executeDeckEdit(`Add ${cardName}`, () => addToMain(existing));
     }
   }
   function handleExport() {
@@ -1786,13 +1781,9 @@ export function DeckBuilder({
                   }
                   executeDeckEdit(`Add ${quantity} ${sc.name} to ${request.destination}`, () => {
                     for (let index = 0; index < quantity; index += 1) {
-                      const copy = {
-                        ...card,
-                        identity: { ...card.identity, id: crypto.randomUUID() },
-                      };
-                      if (request.destination === "side") addToSide(copy);
-                      else if (request.destination === "maybe") addToMaybe(copy);
-                      else addToMain(copy);
+                      if (request.destination === "side") addToSide(card);
+                      else if (request.destination === "maybe") addToMaybe(card);
+                      else addToMain(card);
                     }
                     for (const tag of request.tags) {
                       addCustomTag(tag);

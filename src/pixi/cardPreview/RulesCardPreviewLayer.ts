@@ -1674,6 +1674,7 @@ export class RulesCardPreviewLayer {
       )
         return;
       if (this.faceTexture) this.clearFaceTexture();
+      this.faceInputKey = inputKey;
       this.renderState = "error";
       this.preserveArtwork =
         cause instanceof CardArtworkError ||

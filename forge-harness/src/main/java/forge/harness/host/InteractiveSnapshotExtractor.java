@@ -495,6 +495,7 @@ public final class InteractiveSnapshotExtractor {
         dto.cosmetics = null;
         dto.foil = false;
         dto.text = "";
+        dto.keywordLabels = null;
         dto.manaCost = "";
         dto.flashbackCost = null;
         dto.kickerCost = null;
@@ -737,7 +738,7 @@ public final class InteractiveSnapshotExtractor {
             dto.commanderTax = 2 * owner.getCommanderCast(card);
         }
         dto.tapped = card.isTapped();
-        dto.keywords = keywords(card);
+        keywords(card, dto);
         dto.counters = counterMap(card);
         dto.mergedCardIds = mergedCardIds(card);
         dto.damage = card.getDamage();
@@ -1020,12 +1021,14 @@ public final class InteractiveSnapshotExtractor {
         return out;
     }
 
-    private static List<String> keywords(final Card card) {
-        final List<String> out = new ArrayList<>();
+    private static void keywords(final Card card, final CardDto dto) {
+        dto.keywords = new ArrayList<>();
+        dto.keywordLabels = new TreeMap<>();
         for (final KeywordInterface keyword : card.getKeywords()) {
-            out.add(keyword.getOriginal());
+            final String original = keyword.getOriginal();
+            dto.keywords.add(original);
+            dto.keywordLabels.put(original, keyword.getTitle());
         }
-        return out;
     }
 
     private static Map<String, Integer> counterMap(final Card card) {

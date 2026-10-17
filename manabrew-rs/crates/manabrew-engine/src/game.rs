@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, VecDeque};
 use std::sync::{Arc, Once, OnceLock};
 
 use forge_carddb::CardDatabase;
+use forge_foundation::sealed_product::card_cosmetics::CardCosmetics;
 use forge_foundation::ZoneType;
 use serde::{Deserialize, Serialize};
 
@@ -113,6 +114,12 @@ impl CardDatabaseRegistry {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TokenCosmeticBinding {
+    pub foil: bool,
+    pub cosmetics: Option<CardCosmetics>,
+}
+
 /// The complete, serializable game state.
 /// All game entities live here — nothing holds references, everything uses IDs.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -121,10 +128,7 @@ pub struct GameState {
     pub cards: Vec<Card>,
     pub players: Vec<PlayerState>,
     #[serde(default)]
-    pub token_cosmetics: BTreeMap<
-        PlayerId,
-        BTreeMap<String, Option<forge_foundation::sealed_product::card_cosmetics::CardCosmetics>>,
-    >,
+    pub token_cosmetics: BTreeMap<PlayerId, BTreeMap<String, TokenCosmeticBinding>>,
 
     // Zones: keyed by (ZoneType, PlayerId)
     #[serde(skip)]
@@ -278,19 +282,19 @@ impl GameState {
     /// Create a new card instance and return its ID. Does NOT place it in a zone.
     pub fn create_card(&mut self, mut card: Card) -> CardId {
         if card.is_token {
-            card.cosmetics = card.get_s_var("TokenScript").and_then(|script| {
+            let binding = card.get_s_var("TokenScript").and_then(|script| {
                 let overrides = self.token_cosmetics.get(&card.owner)?;
-                overrides
-                    .get(script)
-                    .or_else(|| {
-                        overrides
-                            .iter()
-                            .find(|(key, _)| key.eq_ignore_ascii_case(script))
-                            .map(|(_, cosmetics)| cosmetics)
-                    })
-                    .cloned()
-                    .flatten()
+                overrides.get(script).or_else(|| {
+                    overrides
+                        .iter()
+                        .find(|(key, _)| key.eq_ignore_ascii_case(script))
+                        .map(|(_, binding)| binding)
+                })
             });
+            card.cosmetics = binding.and_then(|binding| binding.cosmetics.clone());
+            if let Some(binding) = binding {
+                card.paper_foil = binding.foil;
+            }
         }
         let id = CardId(self.next_card_id);
         self.next_card_id += 1;

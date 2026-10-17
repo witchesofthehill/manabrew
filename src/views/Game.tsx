@@ -171,11 +171,7 @@ function buildDebugKeywordCard(
       : null;
   const face = info?.card_faces?.[1];
   if (info && face) {
-    const selected = scryfallToSampleGameCard({
-      ...info,
-      ...face,
-      type_line: face.type_line ?? info.type_line,
-    });
+    const selected = scryfallToSampleGameCard(info, { isTransformed: true });
     base.types = selected.types;
     base.subtypes = selected.subtypes;
     base.supertypes = selected.supertypes;

@@ -757,6 +757,7 @@ fn card_to_dto_with_face_visibility(
             }
             all_kw
         },
+        keyword_labels: None,
         counters,
         damage: card.damage,
         summoning_sick: card.summoning_sick && !card.has_haste(),

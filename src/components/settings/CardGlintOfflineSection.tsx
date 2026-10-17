@@ -91,7 +91,7 @@ export function CardGlintOfflineSection() {
         {" · "}
         <a
           className="underline"
-          href="/card-glint-licenses/NOTICE"
+          href="/card-glint-licenses/games-magic-NOTICE.md"
           target="_blank"
           rel="noreferrer"
         >

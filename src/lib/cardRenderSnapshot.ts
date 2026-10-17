@@ -47,6 +47,7 @@ interface LiveCard {
   rulesText: string;
   colors: readonly string[];
   keywords: readonly string[];
+  keywordLabels?: Readonly<Record<string, string | undefined>>;
   power?: string;
   toughness?: string;
   basePower?: number;
@@ -168,6 +169,7 @@ export function captureCardInput(request: CardRenderRequest): CardRenderInput {
           rulesText: replaceCardName(card.text, card.identity.name),
           colors: Object.freeze(colorCodes(card.color)),
           keywords: Object.freeze([...card.keywords]),
+          keywordLabels: card.keywordLabels && Object.freeze({ ...card.keywordLabels }),
           power: card.power ?? undefined,
           toughness: card.toughness ?? undefined,
           basePower: card.basePower,
@@ -220,16 +222,11 @@ async function printingFor(input: CardRenderInput): Promise<{
   }
   const printing = copiedToken ? identity : (deckCard?.identity ?? identity);
   try {
-    const id = !copiedToken ? deckCard?.identity.id : undefined;
-    const entry = await useScryfallStore.getState().getCard(
-      id
-        ? { id }
-        : {
-            name: printing.name,
-            setCode: copiedToken ? undefined : printing.setCode || undefined,
-            collectorNumber: copiedToken ? undefined : printing.cardNumber || undefined,
-          },
-    );
+    const entry = await useScryfallStore.getState().getCard({
+      name: printing.name,
+      setCode: copiedToken ? undefined : printing.setCode || undefined,
+      collectorNumber: copiedToken ? undefined : printing.cardNumber || undefined,
+    });
     return { entry, deckCard };
   } catch {
     return { deckCard };
@@ -277,9 +274,10 @@ function liveRules(card: LiveCard, info: ScryfallCard | undefined, index: number
     .split(/[\n,;•]/)
     .map((line) => normalized(line).replace(/[.\s]+$/, ""));
   for (const keyword of card.keywords) {
-    const label = normalized(keyword).replace(/[.\s]+$/, "");
+    const display = replaceCardName(card.keywordLabels?.[keyword] ?? keyword, card.name);
+    const label = normalized(display).replace(/[.\s]+$/, "");
     if (label && !visible.includes(label) && !rules.some((line) => normalized(line) === label)) {
-      rules.push(keyword);
+      rules.push(display);
     }
   }
   return rules.join("\n");
@@ -634,7 +632,7 @@ export async function prepareCard(input: CardRenderInput): Promise<PreparedCard>
   const printing = faces.map((_, index) => {
     const record = index === 1 && reverse ? reverse.info : info;
     const printed = record?.card_faces?.[index === 1 && reverse ? 0 : index] ?? record;
-    const id = record?.id ?? deckCard?.identity.id;
+    const id = record?.id;
     const canonicalArtist = stringField(printed, "artist") ?? record?.artist;
     const artist = id
       ? (resolvePrintingArtist(id, canonicalArtist).artist ?? undefined)
@@ -692,7 +690,7 @@ export async function prepareCard(input: CardRenderInput): Promise<PreparedCard>
   if (info && hasIntegratedArtwork(info)) {
     throw new CardArtworkError(layout, faceIndex);
   }
-  if (isTwoHalfLayout(layout) && artUrls[0] && artUrls[0] === artUrls[1]) {
+  if (layout === "room" && artUrls[0] && artUrls[0] === artUrls[1]) {
     const source = artUrls[0];
     artUrls[0] = `${source}${CARD_ARTWORK_FACE_FRAGMENT}0`;
     artUrls[1] = `${source}${CARD_ARTWORK_FACE_FRAGMENT}1`;

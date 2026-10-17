@@ -980,18 +980,31 @@ export class PlayerHudCapsule {
     const visible = card && !card.isFaceDown && !!card.identity.name;
     const generated = usePreferencesStore.getState().handCardStyle === "rules";
     const locale = useScryfallStore.getState().locale;
-    const id = visible ? `${card.id}:${generated}:${locale}` : null;
+    const id = visible
+      ? JSON.stringify([
+          card.id,
+          card.identity.name,
+          card.identity.setCode,
+          card.identity.cardNumber,
+          card.isTransformed,
+          generated,
+          locale,
+        ])
+      : null;
     if (this.handFaceIds[index] === id && this.handFaceCards[index] === card) return;
+    const identityChanged = this.handFaceIds[index] !== id;
     this.handFaceIds[index] = id;
     this.handFaceCards[index] = card;
     this.handFaceRequests[index]?.abort();
     const controller = new AbortController();
     this.handFaceRequests[index] = controller;
     const sprite = this.handBacks[index]!;
-    if (!visible) {
+    if (!visible || identityChanged) {
       sprite.texture = this.handBackTexture;
       this.handFaceTextures[index]?.destroy(true);
       this.handFaceTextures[index] = undefined;
+    }
+    if (!visible) {
       return;
     }
     const deckCard = asGameDeckCard(useGameStore.getState().gameDecks, card);

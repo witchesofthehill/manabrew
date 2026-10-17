@@ -60,6 +60,7 @@ export class StackCardSprite {
     onFlip: (id: string) => void,
     onLongPressCard?: (card: StackCardSpec["card"], bounds: ScreenBounds) => void,
     faceIndex?: 0 | 1,
+    onGeometryChange?: () => void,
   ) {
     this.theme = theme;
     this.spec = spec;
@@ -160,6 +161,13 @@ export class StackCardSprite {
     );
     this.syncControls();
     this.redraw();
+    this.face.onReorient = () => {
+      if (!this.syncGeometry()) return;
+      this.syncControls();
+      this.redraw();
+      onGeometryChange?.();
+      onRenderRequested?.();
+    };
   }
 
   scrollRules(delta: number, mode: number, x: number, y: number): boolean {
@@ -189,20 +197,23 @@ export class StackCardSprite {
     this.container.cursor = spec.isValidTarget ? "pointer" : "default";
     this.face.updateCardContent(spec.card);
     this.face.setPreviewFace(faceIndex ?? null);
-    const horizontal = this.face.horizontalFrame;
-    const width = (horizontal ? CARD_H : CARD_W) * this.faceScale;
-    const height = (horizontal ? CARD_W : CARD_H) * this.faceScale;
-    const resized = width !== this.width || height !== this.height;
-    this.width = width;
-    this.height = height;
-    if (resized) {
-      this.container.hitArea = new Rectangle(-width / 2, -height / 2, width, height);
-      if (this.promptReferenceColor != null) this.setPromptReference(this.promptReferenceColor);
-    }
+    const resized = this.syncGeometry();
     this.face.setHandRulesHighlight(spec.sourceAbilityText ?? "");
     if (controlsChanged || resized) this.syncControls();
     if (dimChanged) this.container.alpha = spec.isDimmed ? 0.6 : 1;
     if (ringChanged || resized) this.redraw();
+  }
+
+  private syncGeometry(): boolean {
+    const horizontal = this.face.horizontalFrame;
+    const width = (horizontal ? CARD_H : CARD_W) * this.faceScale;
+    const height = (horizontal ? CARD_W : CARD_H) * this.faceScale;
+    if (width === this.width && height === this.height) return false;
+    this.width = width;
+    this.height = height;
+    this.container.hitArea = new Rectangle(-width / 2, -height / 2, width, height);
+    if (this.promptReferenceColor != null) this.setPromptReference(this.promptReferenceColor);
+    return true;
   }
 
   setPromptReference(color: number | null): void {

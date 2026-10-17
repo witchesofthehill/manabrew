@@ -83,6 +83,9 @@ function normalizeCardAppearance(card: DeckCard): DeckCard {
   const cosmetics = normalizeCardCosmetics(card.identity.cosmetics);
   return { ...card, identity: { ...card.identity, cosmetics } };
 }
+function createCardOccurrence(card: DeckCard): DeckCard {
+  return { ...card, identity: { ...card.identity, id: crypto.randomUUID() } };
+}
 export function normalizeDeck(deck: EditorDeck): EditorDeck {
   const attractions = [...(deck.attractions ?? [])];
   const contraptions = [...(deck.contraptions ?? [])];
@@ -109,24 +112,55 @@ export function normalizeDeck(deck: EditorDeck): EditorDeck {
   ).commander;
   if (legacy && !commanders.some((c) => c.identity.name === legacy.identity.name)) {
     commanders.push(legacy);
-  }
-  for (const cmd of commanders) {
-    const idx = main.findIndex((card) => card.identity.name === cmd.identity.name);
+    const idx = main.findIndex((card) => card.identity.name === legacy.identity.name);
     if (idx !== -1) main.splice(idx, 1);
   }
+  const sections = [
+    main,
+    sideboard,
+    maybeboard ?? [],
+    attractions,
+    contraptions,
+    schemes,
+    planes,
+    commanders,
+    deck.companion ? [deck.companion] : [],
+  ];
+  const reservedIds = new Set<string>();
+  for (const cards of sections) {
+    for (const card of cards) reservedIds.add(card.identity.id);
+  }
+  const seenIds = new Set<string>();
+  const copyCounts = new Map<string, number>();
+  const normalizeOccurrence = (card: DeckCard): DeckCard => {
+    const normalized = normalizeCardAppearance(card);
+    const id = card.identity.id;
+    if (!seenIds.has(id)) {
+      seenIds.add(id);
+      return normalized;
+    }
+    let count = copyCounts.get(id) ?? 0;
+    let occurrenceId: string;
+    do {
+      occurrenceId = `${id}:copy:${++count}`;
+    } while (reservedIds.has(occurrenceId));
+    copyCounts.set(id, count);
+    reservedIds.add(occurrenceId);
+    return { ...normalized, identity: { ...normalized.identity, id: occurrenceId } };
+  };
   const normalized: EditorDeck = {
     ...deck,
     name: resolveDeckName(deck.name, commanders),
     format: migrateFormatId(deck.format ?? (commanders.length > 0 ? "commander" : "standard")),
-    cards: main.map(normalizeCardAppearance),
-    sideboard: sideboard.map(normalizeCardAppearance),
-    ...(maybeboard && { maybeboard: maybeboard.map(normalizeCardAppearance) }),
-    attractions: attractions.map(normalizeCardAppearance),
-    contraptions: contraptions.map(normalizeCardAppearance),
-    schemes: schemes.map(normalizeCardAppearance),
-    planes: planes.map(normalizeCardAppearance),
-    commanders: commanders.length > 0 ? commanders.map(normalizeCardAppearance) : undefined,
-    companion: deck.companion ? normalizeCardAppearance(deck.companion) : undefined,
+    cards: main.map(normalizeOccurrence),
+    sideboard: sideboard.map(normalizeOccurrence),
+    ...(maybeboard && { maybeboard: maybeboard.map(normalizeOccurrence) }),
+    attractions: attractions.map(normalizeOccurrence),
+    contraptions: contraptions.map(normalizeOccurrence),
+    schemes: schemes.map(normalizeOccurrence),
+    planes: planes.map(normalizeOccurrence),
+    commanders: commanders.length > 0 ? commanders.map(normalizeOccurrence) : undefined,
+    companion: deck.companion ? normalizeOccurrence(deck.companion) : undefined,
     tokens: deck.tokens?.map(normalizeCardAppearance),
     editor: normalizeEditorMetadata(deck),
   };
@@ -435,7 +469,7 @@ export const useDeckStore = create<DeckState>()(
             return {
               currentDeck: normalizeDeck({
                 ...state.currentDeck,
-                cards: [...state.currentDeck.cards, card],
+                cards: [...state.currentDeck.cards, createCardOccurrence(card)],
               }),
             };
           }),
@@ -443,14 +477,14 @@ export const useDeckStore = create<DeckState>()(
           set((state) => ({
             currentDeck: normalizeDeck({
               ...state.currentDeck,
-              sideboard: [...state.currentDeck.sideboard, card],
+              sideboard: [...state.currentDeck.sideboard, createCardOccurrence(card)],
             }),
           })),
         addToMaybe: (card) =>
           set((state) => ({
             currentDeck: normalizeDeck({
               ...state.currentDeck,
-              maybeboard: [...(state.currentDeck.maybeboard ?? []), card],
+              maybeboard: [...(state.currentDeck.maybeboard ?? []), createCardOccurrence(card)],
             }),
           })),
         removeFromMaybe: (cardId) =>
@@ -617,7 +651,9 @@ export const useDeckStore = create<DeckState>()(
               (entry) => entry.identity.id === card.identity.id,
             );
             const selectedCard =
-              selectedIndex !== -1 ? nextMain.splice(selectedIndex, 1)[0] : { ...card };
+              selectedIndex !== -1
+                ? nextMain.splice(selectedIndex, 1)[0]
+                : createCardOccurrence(card);
             let commanders = [...(deck.commanders ?? [])];
             const returnToMain = (c: DeckCard) =>
               nextMain.push({ ...c, identity: { ...c.identity, id: crypto.randomUUID() } });
@@ -1019,7 +1055,10 @@ export const useDeckStore = create<DeckState>()(
                 ? s
                 : {
                     ...s,
-                    deck: normalizeDeck({ ...s.deck, cards: [...s.deck.cards, card] }),
+                    deck: normalizeDeck({
+                      ...s.deck,
+                      cards: [...s.deck.cards, createCardOccurrence(card)],
+                    }),
                     savedAt: Date.now(),
                   },
             ),
@@ -1236,7 +1275,7 @@ export const useDeckStore = create<DeckState>()(
         }),
         // Bump on any persisted-deck shape change so `migrate` runs over existing
         // users' decks — a shape change without a bump never migrates.
-        version: 7,
+        version: 8,
         migrate: (persistedState: unknown) => {
           if (!persistedState || typeof persistedState !== "object")
             return persistedState as DeckState;
@@ -1258,6 +1297,10 @@ export const useDeckStore = create<DeckState>()(
           const merged = { ...current, ...p } as DeckState;
           merged.isReadOnly = false;
           merged.readOnlySource = null;
+          merged.savedDecks = merged.savedDecks.map((saved) => ({
+            ...saved,
+            deck: normalizeDeck(dropInlinePlaymat(migrateDeck(saved.deck))),
+          }));
           if (p.currentDeck && hasPendingEditorPublication()) {
             merged.currentDeck = normalizeDeck(dropInlinePlaymat(migrateDeck(p.currentDeck)));
             merged.currentDeckId = p.currentDeckId ?? null;

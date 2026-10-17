@@ -28,10 +28,9 @@ function removeCard(card: DeckCard, zone: DeckSourceZone) {
 
 function addCard(card: DeckCard, zone: EditableDeckZone) {
   const store = useDeckStore.getState();
-  const moved = { ...card, identity: { ...card.identity, id: crypto.randomUUID() } };
-  if (zone === "main") store.addToMain(moved);
-  else if (zone === "side") store.addToSide(moved);
-  else store.addToMaybe(moved);
+  if (zone === "main") store.addToMain(card);
+  else if (zone === "side") store.addToSide(card);
+  else store.addToMaybe(card);
 }
 
 export function moveCardCopies(

@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use forge_carddb::{CardDatabase, CardRules};
 use forge_foundation::{CoreType, ZoneType};
 use manabrew_engine::card::{Card, CardInstance};
-use manabrew_engine::game::GameState;
+use manabrew_engine::game::{GameState, TokenCosmeticBinding};
 use manabrew_engine::ids::PlayerId;
 use manabrew_engine::player::RegisteredPlayer;
 use manabrew_protocol::deck_dto::{CardCosmetics, Deck, DeckCard as WireDeckCard};
@@ -61,7 +61,7 @@ pub fn deck_to_identities(deck: &Deck) -> Vec<DeckCardIdentity> {
 pub struct PreparedRegisteredPlayer {
     pub registered: RegisteredPlayer,
     pub cards: Vec<(CardInstance, ZoneType)>,
-    pub token_cosmetics: BTreeMap<String, Option<CardCosmetics>>,
+    pub token_cosmetics: BTreeMap<String, TokenCosmeticBinding>,
 }
 
 pub fn prepare_registered_player(
@@ -98,12 +98,13 @@ pub fn prepare_players(
                     prepared
                         .token_cosmetics
                         .entry(script.0.to_ascii_lowercase())
-                        .or_insert_with(|| {
-                            token
+                        .or_insert_with(|| TokenCosmeticBinding {
+                            foil: token.identity.foil.unwrap_or(false),
+                            cosmetics: token
                                 .identity
                                 .cosmetics
                                 .clone()
-                                .and_then(CardCosmetics::normalize)
+                                .and_then(CardCosmetics::normalize),
                         });
                 }
             }

@@ -132,11 +132,15 @@ function composeCard(
                 compositionSignal,
                 { loadImages },
               );
-        const canvas = normalizeCardCanvas(await paint(face), face);
+        const canvas = normalizeCardCanvas(await paint(face), face, prepared.faceIndex);
         const colors = new Set<string>();
         const backingFace = withoutLiveInk(face, colors);
         if (backingFace !== face) {
-          const backing = normalizeCardCanvas(await paint(backingFace), backingFace);
+          const backing = normalizeCardCanvas(
+            await paint(backingFace),
+            backingFace,
+            prepared.faceIndex,
+          );
           registerCardLiveHighlights(canvas, backing, [...colors]);
           backing.width = backing.height = 0;
         }

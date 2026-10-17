@@ -170,10 +170,8 @@ export class CardFoil extends Container {
     this.finish?.setArtWindows(regions);
   }
 
-  setExclusion(region: CardFoilRegion | null): void {
-    this.finish?.uniforms.uExclusion.set(
-      region ? [region.x, region.y, region.width, region.height] : [0, 0, 0, 0],
-    );
+  setExclusions(regions: readonly CardFoilRegion[]): void {
+    this.finish?.setExclusions(regions);
   }
 
   setEnabled(enabled: boolean): void {

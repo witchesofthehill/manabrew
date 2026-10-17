@@ -1153,6 +1153,7 @@ export function BoardOverlayCanvasSurface({
         <RulesPreviewAccessibility
           key={`${previewSpec.card.id}-${previewSpec.showBackFace}`}
           card={previewSpec.card}
+          showBackFace={previewSpec.showBackFace}
           actions={previewSpec.actions}
           onFocusAction={previewControlBounds}
           cardBounds={() => previewControlBounds()}

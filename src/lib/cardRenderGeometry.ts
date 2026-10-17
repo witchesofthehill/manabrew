@@ -27,6 +27,7 @@ const RULES_FONT_FAMILY = rulesFont(1).replace(/^1px\s+/, "");
 export interface CardRenderRegion {
   readonly name: string;
   readonly role: "rules" | "stats" | "artwork" | "title" | "type";
+  readonly faceIndex: number;
   readonly x: number;
   readonly y: number;
   readonly width: number;
@@ -48,12 +49,17 @@ export function getCardArtWindows(canvas: CardCanvas): readonly CardArtWindow[] 
   return artWindowsByCanvas.get(canvas) ?? NO_ART_WINDOWS;
 }
 
-export interface CardInteractionRegion {
-  readonly x: number;
-  readonly y: number;
-  readonly width: number;
-  readonly height: number;
-  readonly source: "native" | "conservative";
+export interface CardInteractionPanel {
+  readonly id: string;
+  readonly faceIndex: number;
+  readonly kind: "face" | "level";
+  readonly region: CardRenderRegion;
+  readonly exclusions: readonly CardRenderRegion[];
+  readonly level?: {
+    readonly rulesText: string;
+    readonly range: string;
+    readonly statsText: string;
+  };
 }
 
 export interface CardRenderGeometry {
@@ -66,32 +72,40 @@ export interface CardRenderGeometry {
   readonly artwork: readonly CardRenderRegion[];
   readonly title: readonly CardRenderRegion[];
   readonly stats: readonly CardRenderRegion[];
-  readonly interaction: {
-    readonly portrait: CardInteractionRegion;
-    readonly landscape: CardInteractionRegion;
-  };
+  readonly panels: readonly CardInteractionPanel[];
 }
 
 const geometryByCanvas = new WeakMap<CardCanvas, CardRenderGeometry>();
-const FALLBACK_INTERACTION = Object.freeze({
-  portrait: Object.freeze({
-    x: 25,
-    y: 340,
-    width: 325,
-    height: 160,
-    source: "conservative" as const,
+const FALLBACK_PANELS: readonly CardInteractionPanel[] = Object.freeze([
+  Object.freeze({
+    id: "fallback",
+    faceIndex: 0,
+    kind: "face",
+    region: Object.freeze({
+      name: "rules_0",
+      role: "rules",
+      faceIndex: 0,
+      x: 25,
+      y: 340,
+      width: 325,
+      height: 160,
+      angle: 0,
+    }),
+    exclusions: Object.freeze([]),
   }),
-  landscape: Object.freeze({
-    x: 275,
-    y: 77,
-    width: 223,
-    height: 260,
-    source: "conservative" as const,
+]);
+const FALLBACK_LANDSCAPE_PANELS: readonly CardInteractionPanel[] = Object.freeze([
+  Object.freeze({
+    ...FALLBACK_PANELS[0]!,
+    region: Object.freeze({
+      ...FALLBACK_PANELS[0]!.region,
+      x: 275,
+      y: 77,
+      width: 223,
+      height: 260,
+    }),
   }),
-});
-const REGION_ALIGNMENT_TOLERANCE = 16;
-const REGION_WIDTH_TOLERANCE = 32;
-const REGION_GAP_TOLERANCE = 24;
+]);
 
 export function orientCardRegion(region: CardRenderRegion, landscape: boolean): CardRenderRegion {
   return landscape
@@ -106,54 +120,16 @@ export function orientCardRegion(region: CardRenderRegion, landscape: boolean): 
     : region;
 }
 
-function interactionRegion(
-  rules: readonly CardRenderRegion[],
-  stats: readonly CardRenderRegion[],
-  landscape: boolean,
-): CardInteractionRegion {
-  const groups: { x: number; y: number; width: number; height: number }[] = [];
-  const regions = rules
-    .map((region) => orientCardRegion(region, landscape))
-    .sort((a, b) => a.y - b.y);
-  for (const region of regions) {
-    const group = groups.find(
-      (candidate) =>
-        Math.abs(candidate.x - region.x) < REGION_ALIGNMENT_TOLERANCE &&
-        Math.abs(candidate.width - region.width) < REGION_WIDTH_TOLERANCE &&
-        region.y <= candidate.y + candidate.height + REGION_GAP_TOLERANCE,
-    );
-    if (group) {
-      const right = Math.max(group.x + group.width, region.x + region.width);
-      const bottom = Math.max(group.y + group.height, region.y + region.height);
-      group.x = Math.min(group.x, region.x);
-      group.y = Math.min(group.y, region.y);
-      group.width = right - group.x;
-      group.height = bottom - group.y;
-    } else groups.push({ x: region.x, y: region.y, width: region.width, height: region.height });
-  }
-  for (const group of groups) {
-    for (const field of stats) {
-      const stat = orientCardRegion(field, landscape);
-      if (
-        stat.x < group.x + group.width &&
-        stat.x + stat.width > group.x &&
-        stat.y > group.y &&
-        stat.y < group.y + group.height
-      ) {
-        group.height = stat.y - group.y;
-      }
-    }
-  }
-  const largest = groups.sort((a, b) => b.width * b.height - a.width * a.height)[0];
-  return largest
-    ? Object.freeze({ ...largest, source: "native" })
-    : Object.freeze({ x: 0, y: 0, width: 0, height: 0, source: "native" });
-}
-
-export function attachCardRenderGeometry(canvas: CardCanvas, face: RenderedCardInput): void {
+export function attachCardRenderGeometry(
+  canvas: CardCanvas,
+  face: RenderedCardInput,
+  selectedFaceIndex: number,
+): void {
   const panels = splitPanels(face);
   const regions: CardRenderRegion[] = [];
   const leveler = faceFrame(face) === "leveler";
+  const levelBlocks = leveler ? extraRuleBlocks(face) : [];
+  const levelContent = new Map<string, NonNullable<CardInteractionPanel["level"]>>();
   const palette = resolveFrameColors(face);
   const inkTone =
     face.frameTemplate === "future" &&
@@ -162,12 +138,19 @@ export function attachCardRenderGeometry(canvas: CardCanvas, face: RenderedCardI
     !palette.includes("W")
       ? "light"
       : "dark";
-  const add = (name: string, role: CardRenderRegion["role"], rect: FaceRect, angle: number) => {
+  const add = (
+    name: string,
+    role: CardRenderRegion["role"],
+    rect: FaceRect,
+    angle: number,
+    faceIndex: number,
+  ) => {
     const [x, y, width, height] = rect;
     regions.push(
       Object.freeze({
         name,
         role,
+        faceIndex,
         x: x * CARD_RENDER_WIDTH,
         y: y * CARD_RENDER_HEIGHT,
         width: width * CARD_RENDER_WIDTH,
@@ -196,18 +179,24 @@ export function attachCardRenderGeometry(canvas: CardCanvas, face: RenderedCardI
       if (leveler && (key === "rules" || key === "stats")) continue;
       if (key === "stats" && part.power == null && part.loyalty == null && part.defense == null)
         continue;
-      add(`${key}_${index}`, role, transform(rects[key]), angle);
+      add(`${key}_${index}`, role, transform(rects[key]), angle, index);
     }
   };
   if (isSemanticLayout(face))
     semanticLayoutRegions(face).forEach((region) =>
-      add(region.name, region.role, region.rect, region.angle),
+      add(
+        region.name,
+        region.role,
+        region.rect,
+        region.angle,
+        region.faceIndex + selectedFaceIndex,
+      ),
     );
   else if (panels.length)
     panels.forEach((panel, index) =>
       append(panel.face, index, (rect) => panelRect(panel, rect), (panel.rotation + 360) % 360),
     );
-  else append(face, 0, (rect) => rect, face.frameTemplate === "battle" ? 270 : 0);
+  else append(face, selectedFaceIndex, (rect) => rect, face.frameTemplate === "battle" ? 270 : 0);
   if (face.frameTemplate === "flip") {
     const [width, height] = STANDARD_TEMPLATE_DEFAULTS.flip.size;
     FLIP_PANEL_RECTS.forEach((rects, index) => {
@@ -221,6 +210,7 @@ export function attachCardRenderGeometry(canvas: CardCanvas, face: RenderedCardI
             ? [x / width, y / height, w / width, h / height]
             : [1 - (x + w) / width, 1 - (y + h) / height, w / width, h / height],
           index * 180,
+          index,
         );
       }
     });
@@ -232,15 +222,16 @@ export function attachCardRenderGeometry(canvas: CardCanvas, face: RenderedCardI
         "rules",
         [x / FACE_WIDTH, y / FACE_HEIGHT, width / FACE_WIDTH, height / FACE_HEIGHT],
         0,
+        index,
       ),
     );
   }
   if (face.layout === "prepare") {
     for (const key of ["rules", "title", "type"] as const)
-      add(`${key}_1`, key, PREPARE_SPELL_RECTS[key], 0);
+      add(`${key}_1`, key, PREPARE_SPELL_RECTS[key], 0, 1);
   }
   if (leveler) {
-    extraRuleBlocks(face).forEach((block, index) => {
+    levelBlocks.forEach((block, index) => {
       if (block.kind !== "rules" && block.kind !== "stats") return;
       add(
         `${block.kind}_${index}`,
@@ -252,12 +243,44 @@ export function attachCardRenderGeometry(canvas: CardCanvas, face: RenderedCardI
           block.height / FACE_HEIGHT,
         ],
         0,
+        selectedFaceIndex,
       );
+      if (block.kind === "rules") {
+        const band = levelBlocks.slice(index + 1).findIndex((next) => next.kind === "rules");
+        const fields = levelBlocks.slice(index + 1, band < 0 ? undefined : index + 1 + band);
+        levelContent.set(`rules_${index}`, {
+          rulesText: block.text,
+          range: fields.find((field) => field.kind === "level")?.text.replace(/^LEVEL\n/, "") ?? "",
+          statsText: fields.find((field) => field.kind === "stats")?.text ?? "",
+        });
+      }
     });
   }
   const rules = Object.freeze(regions.filter((region) => region.role === "rules"));
   const stats = Object.freeze(regions.filter((region) => region.role === "stats"));
   const artwork = Object.freeze(regions.filter((region) => region.role === "artwork"));
+  const interactionPanels = Object.freeze(
+    rules.map((region) => {
+      const level = levelContent.get(region.name);
+      return Object.freeze({
+        id: region.name,
+        faceIndex: region.faceIndex,
+        kind: level ? ("level" as const) : ("face" as const),
+        region,
+        exclusions: Object.freeze(
+          stats.filter(
+            (stat) =>
+              stat.faceIndex === region.faceIndex &&
+              stat.x < region.x + region.width &&
+              stat.x + stat.width > region.x &&
+              stat.y < region.y + region.height &&
+              stat.y + stat.height > region.y,
+          ),
+        ),
+        ...(level ? { level } : {}),
+      });
+    }),
+  );
   artWindowsByCanvas.set(
     canvas,
     Object.freeze(
@@ -289,10 +312,7 @@ export function attachCardRenderGeometry(canvas: CardCanvas, face: RenderedCardI
       artwork,
       title: Object.freeze(regions.filter((region) => region.role === "title")),
       stats,
-      interaction: Object.freeze({
-        portrait: interactionRegion(rules, stats, false),
-        landscape: interactionRegion(rules, stats, true),
-      }),
+      panels: interactionPanels,
     }),
   );
 }
@@ -301,10 +321,17 @@ export function getCardRenderGeometry(canvas: CardCanvas): CardRenderGeometry | 
   return geometryByCanvas.get(canvas);
 }
 
-export function getCardInteractionRegion(
+export function getCardInteractionPanels(
   geometry: CardRenderGeometry | undefined,
   landscape: boolean,
-): CardInteractionRegion {
-  const orientation = landscape ? "landscape" : "portrait";
-  return geometry?.interaction[orientation] ?? FALLBACK_INTERACTION[orientation];
+): readonly CardInteractionPanel[] {
+  if (!geometry) return landscape ? FALLBACK_LANDSCAPE_PANELS : FALLBACK_PANELS;
+  const panels = geometry.panels;
+  return landscape
+    ? panels.map((panel) => ({
+        ...panel,
+        region: orientCardRegion(panel.region, true),
+        exclusions: panel.exclusions.map((region) => orientCardRegion(region, true)),
+      }))
+    : panels;
 }

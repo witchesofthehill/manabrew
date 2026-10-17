@@ -349,7 +349,7 @@ export class StackLayer implements StackAnchorProvider {
   }
 
   scrollRulesAt(x: number, y: number, delta: number, mode: number): boolean {
-    return this.rulesSpriteAt(x, y)?.scrollRules(delta, mode) ?? false;
+    return this.rulesSpriteAt(x, y)?.scrollRules(delta, mode, x, y) ?? false;
   }
 
   private rulesSpriteAt(x: number, y: number): StackCardSprite | null {

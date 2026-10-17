@@ -155,12 +155,13 @@ export function cardImageLoader(artUrls: readonly (string | undefined)[]): typeo
 export function normalizeCardCanvas(
   source: HTMLCanvasElement,
   face: RenderedCardInput,
+  faceIndex: number,
 ): HTMLCanvasElement {
   const canvas = createCardCanvas(CARD_RENDER_WIDTH, CARD_RENDER_HEIGHT);
   const drawing = canvas.getContext("2d");
   if (!drawing) throw new Error("Card rendering requires a 2D canvas context");
   drawing.drawImage(source, 0, 0, canvas.width, canvas.height);
-  attachCardRenderGeometry(canvas, face);
+  attachCardRenderGeometry(canvas, face, faceIndex);
   source.width = source.height = 0;
   return canvas;
 }

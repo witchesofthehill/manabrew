@@ -95,7 +95,7 @@
    images: CanvasImages,
  ) {
    for (const block of extraRuleBlocks(face)) {
-+    if (!rulesInkVisible(context) && block.kind !== 'band' && block.kind !== 'stats') continue;
++    if (!rulesInkVisible(context) && block.kind !== 'band' && block.kind !== 'stats' && block.kind !== 'level') continue;
      const { x, y, width, height, font } = block;
      context.save();
      context.textAlign = 'left';

@@ -162,8 +162,8 @@ export class StackCardSprite {
     this.redraw();
   }
 
-  scrollRules(delta: number, mode: number): boolean {
-    return this.face.scrollHandRules(delta, mode);
+  scrollRules(delta: number, mode: number, x: number, y: number): boolean {
+    return this.face.scrollHandRules(delta, mode, x, y);
   }
 
   setTheme(theme: Theme): void {

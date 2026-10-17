@@ -61,6 +61,7 @@ import { HandCardControls, type HandCardControlsSpec } from "./HandCardControls"
 let activeTheme: Theme = getTheme();
 const TINTED_TEXT_STYLES: TextStyle[] = [];
 const SHADOW_CONTEXTS: { width: number; height: number; context: GraphicsContext }[] = [];
+const NO_FOIL_EXCLUSIONS = [] as const;
 
 function drawShadowContext(context: GraphicsContext, width: number, height: number): void {
   context.clear();
@@ -980,8 +981,8 @@ export class CardSprite extends Container {
     if (this.handRulesFace) {
       this.handRulesFace.visible = !hidden && ready && (this.handRulesView || !this._imageLoaded);
     }
-    this.foilSheen.setExclusion(
-      this.handRulesFace?.visible ? this.handRulesFace.foilExclusion : null,
+    this.foilSheen.setExclusions(
+      this.handRulesFace?.visible ? this.handRulesFace.foilExclusions : NO_FOIL_EXCLUSIONS,
     );
     this.syncFoilTexture();
     const highlights = this.handRulesFace?.liveHighlights;
@@ -1077,9 +1078,9 @@ export class CardSprite extends Container {
     this.handRulesHighlight = text;
     this.handRulesFace?.setHighlightedEffect(text);
   }
-  scrollHandRules(delta: number, mode: number): boolean {
+  scrollHandRules(delta: number, mode: number, x: number, y: number): boolean {
     if (!this.handRulesFace?.visible) return false;
-    this.handRulesFace.scrollBy(delta, mode);
+    this.handRulesFace.scrollBy(delta, mode, x, y);
     return true;
   }
 

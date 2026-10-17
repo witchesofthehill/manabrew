@@ -161,6 +161,10 @@ DOM previews, SVG hover shields and Rules canvases use the shared `lib/cardPrevi
 
 Keep the native measured textbox bounds unchanged. Do not widen, shorten or lift the panel, infer its edges from title bounds, or expand it through native stat boxes. Artwork-integrated scan overlays retain their separate inset layout. Derive overflow from rendered content bounds, not accumulated row gaps; fitting content has no scrollbar. Use internal padding without changing frame geometry.
 
+`CardRenderGeometry.panels` and `RulesPreviewSection.faceIndex` associate content with native textboxes. `RulesPreviewBody` keeps separate rotated masks, scroll offsets and stat cutouts for each panel; do not collapse them into one bounding rectangle. Keep card-level actions and shortcuts in the designated primary panel until authoritative panel ownership exists. Forward Pixi-global pointer coordinates through embedded hand, stack, prompt and command scrolling. Derive screen clip bounds from the local mask and its global transform, not assigned-mask `getBounds()`. Foil uses all disjoint exclusions, and accessibility exposes all face sections.
+
+Rules typography uses native-relative font sizing, 1× leading and no extra rich-text line gap. Preserve the native text area's width with minimal safety padding; use paragraph spacing instead of padding every line. Separate major content sections with an 8px gap without loosening paragraph leading. Long content still scrolls rather than shrinking to fit.
+
 Rules-body overflow uses only the vertical scrollbar. Keep the native paper unobscured by horizontal fade or tint overlays.
 
 Tapped and summoning-sick states remain battlefield cues; do not repeat them as status badges inside card previews. Foil uses its visual finish rather than a status badge.

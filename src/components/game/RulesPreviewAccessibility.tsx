@@ -2,6 +2,9 @@ import { useState } from "react";
 import type { CardDto } from "@/protocol/game";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { cn } from "@/lib/utils";
+import { useResolvedGameCard } from "@/hooks/useResolvedGameCard";
+import { deriveCardPresentation } from "@/components/game/cardPresentation";
+import { resolveRulesPreviewDisplay } from "@/pixi/cardPreview/rulesCardPreviewPresentation";
 
 interface Bounds {
   x: number;
@@ -11,6 +14,7 @@ interface Bounds {
 }
 interface Props {
   card: CardDto;
+  showBackFace: boolean;
   actions: HandActionOption[];
   onFocusAction: (index: number) => Bounds | null;
   cardBounds: () => Bounds | null;
@@ -22,8 +26,33 @@ interface Props {
   onDismiss?: () => void;
 }
 
+function RulesPreviewOracleText({ card, showBackFace }: Pick<Props, "card" | "showBackFace">) {
+  const { info, deckCard } = useResolvedGameCard(card);
+  const display = resolveRulesPreviewDisplay({
+    card,
+    presentation: deriveCardPresentation(card),
+    info,
+    deckLayout: deckCard.layout,
+    showBackFace,
+    faceless: false,
+  });
+  return (
+    <div className="sr-only">
+      {display.sections.map((section, index) => (
+        <section key={index} aria-label={section.name}>
+          <h3>{section.name}</h3>
+          <p>{section.typeLine}</p>
+          <p>{section.rulesText}</p>
+          {section.flavorText && <p>{section.flavorText}</p>}
+        </section>
+      ))}
+    </div>
+  );
+}
+
 export function RulesPreviewAccessibility({
   card,
+  showBackFace,
   actions,
   onFocusAction,
   cardBounds,
@@ -67,7 +96,7 @@ export function RulesPreviewAccessibility({
         }
       }}
     >
-      <p className="sr-only">{card.text}</p>
+      <RulesPreviewOracleText card={card} showBackFace={showBackFace} />
       {controls.map((control) => {
         const focused = focus?.key === control.key;
         return (

@@ -54,6 +54,11 @@ export const CARD_RENDERING_FIXTURES: CardRenderingFixture[] = [
   { id: "aftermath", label: "Aftermath", lookup: { name: "Cut // Ribbons", setCode: "akh" } },
   { id: "adventure", label: "Adventure", lookup: { name: "Brazen Borrower", setCode: "eld" } },
   {
+    id: "prepare",
+    label: "Prepare / spell inset",
+    lookup: { id: "24f888dd-785c-4089-a89c-03f9080130ed" },
+  },
+  {
     id: "battle",
     label: "Battle / reverse creature",
     lookup: { name: "Invasion of Zendikar", setCode: "mom" },

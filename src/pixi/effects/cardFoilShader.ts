@@ -14,10 +14,13 @@ import {
   type CardFinishCausticsLease,
 } from "@/lib/cardFinishResources";
 
+export const MAX_CARD_FOIL_EXCLUSIONS = 8;
+
 export interface CardFoilUniforms {
   uSize: Float32Array;
   uRadius: number;
-  uExclusion: Float32Array;
+  uExclusions: Float32Array;
+  uExclusionCount: number;
   uUvTop: Float32Array;
   uUvBottom: Float32Array;
   pointer: Float32Array;
@@ -47,6 +50,7 @@ export interface CardFoilShader {
   setTexture(texture: Texture | null, uvs?: Float32Array): void;
   setMode(mode: CardFinish, cosmetics?: CardCosmetics): void;
   setArtWindows(regions: readonly CardFoilRegion[]): void;
+  setExclusions(regions: readonly CardFoilRegion[]): void;
   update(time: number, hovering: boolean): void;
   destroy(): void;
 }
@@ -71,7 +75,8 @@ out vec4 finalColor;
 uniform vec4 uColor;
 uniform vec2 uSize;
 uniform float uRadius;
-uniform vec4 uExclusion;
+uniform vec4 uExclusions[${MAX_CARD_FOIL_EXCLUSIONS}];
+uniform int uExclusionCount;
 uniform vec4 uUvTop;
 uniform vec4 uUvBottom;
 uniform sampler2D face;
@@ -113,8 +118,12 @@ void main() {
   vec2 point=vUV*uSize;
   vec2 corner=abs(point-uSize*.5)-(uSize*.5-uRadius);
   if(length(max(corner,0.))+min(max(corner.x,corner.y),0.)>uRadius) discard;
-  if(uExclusion.z>0. && point.x>=uExclusion.x && point.y>=uExclusion.y
-      && point.x<=uExclusion.x+uExclusion.z && point.y<=uExclusion.y+uExclusion.w) discard;
+  for(int index=0; index<${MAX_CARD_FOIL_EXCLUSIONS}; index++) {
+    if(index>=uExclusionCount) break;
+    vec4 exclusion=uExclusions[index];
+    if(exclusion.z>0. && point.x>=exclusion.x && point.y>=exclusion.y
+        && point.x<=exclusion.x+exclusion.z && point.y<=exclusion.y+exclusion.w) discard;
+  }
   if(any(lessThan(sourceUv,vec2(0.))) || any(greaterThan(sourceUv,vec2(1.)))) discard;
   vec2 sourceCorner=abs((uv-.5)*vec2(1.,aspect))-(vec2(.5,aspect*.5)-cornerRadius);
   if(length(max(sourceCorner,0.))+min(max(sourceCorner.x,sourceCorner.y),0.)>cornerRadius) discard;
@@ -149,7 +158,12 @@ export function createCardFoilShader(invalidate: () => void): CardFoilShader {
   const group = new UniformGroup({
     uSize: { value: new Float32Array([1, 1]), type: "vec2<f32>" },
     uRadius: { value: 0, type: "f32" },
-    uExclusion: { value: new Float32Array(4), type: "vec4<f32>" },
+    uExclusions: {
+      value: new Float32Array(MAX_CARD_FOIL_EXCLUSIONS * 4),
+      type: "vec4<f32>",
+      size: MAX_CARD_FOIL_EXCLUSIONS,
+    },
+    uExclusionCount: { value: 0, type: "i32" },
     uUvTop: { value: new Float32Array([0, 0, 1, 0]), type: "vec4<f32>" },
     uUvBottom: { value: new Float32Array([0, 1, 1, 1]), type: "vec4<f32>" },
     pointer: { value: new Float32Array([0.5, 0.5]), type: "vec2<f32>" },
@@ -325,6 +339,20 @@ export function createCardFoilShader(invalidate: () => void): CardFoilShader {
     setArtWindows(regions: readonly CardFoilRegion[]) {
       artWindows = regions;
       if (!opticalLease) setArtWindows(regions);
+    },
+    setExclusions(regions: readonly CardFoilRegion[]) {
+      if (regions.length > MAX_CARD_FOIL_EXCLUSIONS)
+        throw new RangeError(`Card foil supports at most ${MAX_CARD_FOIL_EXCLUSIONS} exclusions`);
+      const exclusions = group.uniforms.uExclusions;
+      for (let index = 0; index < regions.length; index++) {
+        const region = regions[index];
+        const offset = index * 4;
+        exclusions[offset] = region.x;
+        exclusions[offset + 1] = region.y;
+        exclusions[offset + 2] = region.width;
+        exclusions[offset + 3] = region.height;
+      }
+      group.uniforms.uExclusionCount = regions.length;
     },
     update(time: number, hovering: boolean) {
       time = Math.floor(time * 30) / 30;

@@ -159,7 +159,7 @@ export class CommandZonePreviewLayer {
     const localX = x - this.container.x;
     const localY = y - this.container.y;
     const entry = this.entries.find((entry) => entry.bounds.contains(localX, localY));
-    if (entry?.sprite.scrollHandRules(delta, mode)) this.callbacks.onRenderRequested();
+    if (entry?.sprite.scrollHandRules(delta, mode, x, y)) this.callbacks.onRenderRequested();
   }
 
   updateHover(x: number, y: number): boolean {

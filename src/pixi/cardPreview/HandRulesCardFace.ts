@@ -4,6 +4,7 @@ import type { CardDto } from "@/protocol/game";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { RulesCardPreviewLayer } from "./RulesCardPreviewLayer";
 import type { CardLiveHighlight } from "@/pixi/effects/CardLiveHighlight";
+import type { CardFoilRegion } from "@/lib/cardFinish";
 
 export class HandRulesCardFace extends Container {
   private readonly preview: RulesCardPreviewLayer;
@@ -50,8 +51,8 @@ export class HandRulesCardFace extends Container {
   writeFoilTextureUvs(relativeTo: Container, surface: Rectangle, output: Float32Array): void {
     this.preview.writeFoilTextureUvs(relativeTo, surface, output);
   }
-  get foilExclusion(): { x: number; y: number; width: number; height: number } | null {
-    return this.preview.foilExclusion;
+  get foilExclusions(): readonly CardFoilRegion[] {
+    return this.preview.foilExclusions;
   }
 
   onRenderRequested?: () => void;
@@ -80,8 +81,8 @@ export class HandRulesCardFace extends Container {
     this.highlightedEffect = text;
     this.sync();
   }
-  scrollBy(delta: number, mode: number): void {
-    this.preview.scrollBy(delta, mode, 0, 0);
+  scrollBy(delta: number, mode: number, x: number, y: number): void {
+    this.preview.scrollBy(delta, mode, x, y);
   }
 
   get keyboardTarget(): Pick<

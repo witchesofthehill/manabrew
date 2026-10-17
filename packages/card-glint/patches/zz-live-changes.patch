@@ -666,7 +666,7 @@
  ) {
 +  let firstStats = true;
    for (const block of extraRuleBlocks(face)) {
-     if (!rulesInkVisible(context) && block.kind !== 'band' && block.kind !== 'stats') continue;
+     if (!rulesInkVisible(context) && block.kind !== 'band' && block.kind !== 'stats' && block.kind !== 'level') continue;
      const { x, y, width, height, font } = block;
 @@ -40,13 +42,17 @@
        context.textBaseline = 'middle';

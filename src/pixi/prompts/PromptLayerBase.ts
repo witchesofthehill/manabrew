@@ -976,7 +976,7 @@ export abstract class PromptLayerBase {
   }
 
   scrollRulesAt(x: number, y: number, delta: number, mode: number): boolean {
-    return this.rulesSpriteAt(x, y)?.scrollHandRules(delta, mode) ?? false;
+    return this.rulesSpriteAt(x, y)?.scrollHandRules(delta, mode, x, y) ?? false;
   }
 
   private rulesSpriteAt(x: number, y: number): CardSprite | null {

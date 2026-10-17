@@ -1,6 +1,6 @@
 --- /dev/null
 +++ b/games/magic/src/presentation/semantic-layout.ts
-@@ -0,0 +1,187 @@
+@@ -0,0 +1,185 @@
 +import { cardStock, faceStats, FACE_WIDTH, FACE_HEIGHT, FACE_CORNER_RADIUS, type FaceRect, type RenderedCardInput } from './face-layout.js';
 +import { loadCanvasFonts, loadCanvasImages, type CanvasImages } from './canvas-assets.js';
 +import { faceManaAssets } from './mana-assets.js';
@@ -69,16 +69,14 @@
 +  return result;
 +}
 +export function semanticLayoutRegions(face: SemanticCardInput): readonly {
-+  name: string; role: Role; rect: FaceRect; angle: number;
++  name: string; role: Role; rect: FaceRect; angle: number; faceIndex: number;
 +}[] {
 +  const sideways = face.layout === 'room' || face.layout === 'planar';
 +  const drawn = regions(face);
-+  const interaction = face.layout === 'room'
-+    ? [...drawn.filter(region => region.role !== 'rules'), { role: 'rules' as const, rect: roomRules(face), faceIndex: 0 }]
-+    : drawn;
-+  return interaction.map(({ role, rect: [x, y, w, h], faceIndex }) => ({
++  return drawn.map(({ role, rect: [x, y, w, h], faceIndex }) => ({
 +    name: `${role}_${faceIndex}`,
 +    role,
++    faceIndex,
 +    rect: (sideways
 +      ? [y / FACE_WIDTH, 1 - (x + w) / FACE_HEIGHT, h / FACE_WIDTH, w / FACE_HEIGHT]
 +      : [x / FACE_WIDTH, y / FACE_HEIGHT, w / FACE_WIDTH, h / FACE_HEIGHT]) as FaceRect,

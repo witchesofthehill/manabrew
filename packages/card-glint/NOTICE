@@ -25,6 +25,7 @@ Local modifications:
   Its default preserves upstream painting. false suppresses rules, flavor and
   embedded rules symbols without changing face input, frame choice or layout.
   Manabrew uses this backing under its interactive rules layer.
+  Native Leveler level labels remain painted when rules ink is omitted.
 - patches/host-geometry.patch exposes the painter's existing Adventure rules,
   Prepared spell and Flip panel rectangles through the public presentation
   entry. It preserves paint geometry and lets host interactions use the same
@@ -37,7 +38,8 @@ Local modifications:
   all nine finishes; generated artwork and printing remain separate so optical
   distortion does not blur rules text. Wear composites above finished printing.
 - patches/special-layout.patch paints Room, Planar, Scheme and Vanguard with
-  semantic bounds. Art Series and Front Card remain scan-backed.
+  semantic bounds with explicit face ownership and separate Room door rules.
+  Art Series and Front Card remain scan-backed.
 - patches/integration-exports.patch exposes the semantic layout helpers and
   source corner geometry used by the host's flat and full 3D renderers.
 - patches/zz-live-changes.patch adds optional host-resolved live-state ink.

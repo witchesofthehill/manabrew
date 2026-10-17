@@ -47,7 +47,7 @@ import { GameIcon } from "@/components/game/GameIcon";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { cn } from "@/lib/utils";
 import { formatRequiresCommander } from "@/lib/formats";
-import type { CardFinish, DeckCard } from "@/protocol/deck";
+import type { DeckCard } from "@/protocol/deck";
 import type { CardGroup, ViewMode, SectionDefinition } from "./deckBuilder.utils";
 import { CARD_WIDTH_MAP, DEFAULT_CARD_SIZE, getTaggedGroups } from "./deckBuilder.utils";
 import { CARD_RING } from "@/components/game/game.styles";
@@ -74,7 +74,6 @@ import { useCardCollectionOwnership, useDeckCardOwnership } from "./useCardColle
 import { CollectionOwnershipTooltip } from "./CollectionOwnershipTooltip";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { CardCustomizerModal } from "@/components/editor/CardCustomizerModal";
-import { DEFAULT_CARD_FINISH } from "@/lib/cardFinish";
 function ownershipHighlight(ownership: "exact" | "other" | "none", surface: "stack" | "grid") {
   return cn(
     ownership === "exact" && "outline outline-2 outline-legality-legal/60",
@@ -271,8 +270,6 @@ export interface CardContextActions {
   onMoveAllToMaybe?: () => void;
   onShowInfo?: () => void;
   onPickPrint?: () => void;
-  onToggleFoil?: () => void;
-  isFoil?: boolean;
   isCommander?: boolean;
   commanderSlot?: CommanderSlot;
   onSetCommander?: () => void;
@@ -438,8 +435,6 @@ export function CardContextMenu({
   onMoveAllToMaybe,
   onShowInfo,
   onPickPrint,
-  onToggleFoil,
-  isFoil,
   isCommander,
   commanderSlot = DEFAULT_COMMANDER_SLOT,
   onSetCommander,
@@ -454,7 +449,7 @@ export function CardContextMenu({
   onRemoveCustomTag,
   onCreateTag,
 }: CardContextMenuProps) {
-  const [customizing, setCustomizing] = useState<{ initialFinish?: CardFinish } | null>(null);
+  const [customizing, setCustomizing] = useState(false);
   const isReadOnly = useDeckStore((state) => state.isReadOnly);
   const showTagSubmenu = !!onApplyTag && ((customTags && customTags.length > 0) || !!onCreateTag);
   const commanderHandler = isCommander ? onRemoveCommander : onSetCommander;
@@ -578,35 +573,14 @@ export function CardContextMenu({
             </>
           )}
           {!isReadOnly && (
-            <ContextMenuItem onSelect={() => setCustomizing({})}>
+            <ContextMenuItem onSelect={() => setCustomizing(true)}>
               <Palette className="mr-2 h-3.5 w-3.5" /> Customize card…
-            </ContextMenuItem>
-          )}
-          {!isReadOnly && onToggleFoil && (
-            <ContextMenuItem
-              onSelect={() => {
-                if (isFoil) onToggleFoil();
-                else setCustomizing({ initialFinish: DEFAULT_CARD_FINISH });
-              }}
-            >
-              <Sparkles
-                className={cn(
-                  "mr-2 h-3.5 w-3.5",
-                  isFoil ? "text-yellow-300" : "text-muted-foreground",
-                )}
-              />
-              {isFoil ? `Remove foil` : `Make foil`}
             </ContextMenuItem>
           )}
         </ContextMenuContent>
       </ContextMenu>
       {customizing && !isReadOnly && (
-        <CardCustomizerModal
-          card={card}
-          token={token}
-          initialFinish={customizing.initialFinish}
-          onClose={() => setCustomizing(null)}
-        />
+        <CardCustomizerModal card={card} token={token} onClose={() => setCustomizing(false)} />
       )}
     </>
   );
@@ -1188,7 +1162,6 @@ interface CardSectionProps {
   onMoveOneToMaybe: (name: string) => void;
   onMoveAllToMaybe: (name: string) => void;
   onPickPrint: (card: DeckCard) => void;
-  onToggleFoil?: (name: string) => void;
   selectedCards?: Set<string>;
   onSelectCard?: (cardName: string, addToSelection: boolean) => void;
   onShowInfo?: (card: DeckCard) => void;
@@ -1224,7 +1197,6 @@ function CardSection({
   onMoveOneToMaybe,
   onMoveAllToMaybe,
   onPickPrint,
-  onToggleFoil,
   selectedCards,
   onSelectCard,
   onShowInfo,
@@ -1263,8 +1235,6 @@ function CardSection({
       onMoveAllToMaybe: () => onMoveAllToMaybe(name),
       onShowInfo: onShowInfo ? () => onShowInfo(group.card) : undefined,
       onPickPrint: () => onPickPrint(group.card),
-      onToggleFoil: onToggleFoil ? () => onToggleFoil(name) : undefined,
-      isFoil: !!group.card.identity.foil,
       isCommander: commanderNames?.has(name) ?? false,
       commanderSlot: commanderSlotFor(group.card, deckFormat),
       onSetCommander: formatRequiresCommander(deckFormat)
@@ -1527,7 +1497,6 @@ export interface DeckListViewProps {
   onMoveOneFromMaybeToSide: (name: string) => void;
   onMoveAllFromMaybeToSide: (name: string) => void;
   onPickPrint: (card: DeckCard) => void;
-  onToggleFoil?: (name: string) => void;
   onAddToSide: (card: DeckCard) => void;
   onRemoveFromSide: (name: string) => void;
   onAddToMaybe: (card: DeckCard) => void;
@@ -1601,7 +1570,6 @@ export function DeckListView({
   onMoveOneFromMaybeToSide,
   onMoveAllFromMaybeToSide,
   onPickPrint,
-  onToggleFoil,
   onAddToSide,
   onRemoveFromSide,
   onAddToMaybe,
@@ -1812,7 +1780,6 @@ export function DeckListView({
     onMoveOneToMaybe,
     onMoveAllToMaybe,
     onPickPrint,
-    onToggleFoil,
     selectedCards,
     onSelectCard,
     onShowInfo,
@@ -1964,8 +1931,6 @@ export function DeckListView({
           onMoveAllToMaybe: () => onMoveAllToMaybe(name),
           onShowInfo: onShowInfo ? () => onShowInfo(group.card) : undefined,
           onPickPrint: () => onPickPrint(group.card),
-          onToggleFoil: onToggleFoil ? () => onToggleFoil(name) : undefined,
-          isFoil: !!group.card.identity.foil,
           isCommander: commanders.some((card) => card.identity.name === name),
           commanderSlot: commanderSlotFor(group.card, deckFormat),
           onSetCommander: formatRequiresCommander(deckFormat)
@@ -2034,8 +1999,6 @@ export function DeckListView({
                   onMoveAllToMaybe: () => onMoveAllFromSideToMaybe(g.card.identity.name),
                   onShowInfo: onShowInfo ? () => onShowInfo(g.card) : undefined,
                   onPickPrint: () => onPickPrint(g.card),
-                  onToggleFoil: onToggleFoil ? () => onToggleFoil(g.card.identity.name) : undefined,
-                  isFoil: !!g.card.identity.foil,
                   customTags,
                   appliedTags: cardTags?.[g.card.identity.name.toLowerCase()],
                   onApplyTag: (t) => applyCardTag(g.card.identity.name, t),
@@ -2095,8 +2058,6 @@ export function DeckListView({
                   onMoveAllToSide: () => onMoveAllFromMaybeToSide(g.card.identity.name),
                   onShowInfo: onShowInfo ? () => onShowInfo(g.card) : undefined,
                   onPickPrint: () => onPickPrint(g.card),
-                  onToggleFoil: onToggleFoil ? () => onToggleFoil(g.card.identity.name) : undefined,
-                  isFoil: !!g.card.identity.foil,
                   customTags,
                   appliedTags: cardTags?.[g.card.identity.name.toLowerCase()],
                   onApplyTag: (t) => applyCardTag(g.card.identity.name, t),
@@ -2390,10 +2351,6 @@ export function DeckListView({
                     onMoveAllToMaybe={() => onMoveAllFromSideToMaybe(g.card.identity.name)}
                     onShowInfo={onShowInfo ? () => onShowInfo(g.card) : undefined}
                     onPickPrint={() => onPickPrint(g.card)}
-                    onToggleFoil={
-                      onToggleFoil ? () => onToggleFoil(g.card.identity.name) : undefined
-                    }
-                    isFoil={!!g.card.identity.foil}
                     customTags={customTags}
                     appliedTags={cardTags?.[g.card.identity.name.toLowerCase()]}
                     onApplyTag={(t) => applyCardTag(g.card.identity.name, t)}
@@ -2445,10 +2402,6 @@ export function DeckListView({
                         onMoveAllToMaybe: () => onMoveAllFromSideToMaybe(g.card.identity.name),
                         onShowInfo: onShowInfo ? () => onShowInfo(g.card) : undefined,
                         onPickPrint: () => onPickPrint(g.card),
-                        onToggleFoil: onToggleFoil
-                          ? () => onToggleFoil(g.card.identity.name)
-                          : undefined,
-                        isFoil: !!g.card.identity.foil,
                         customTags,
                         appliedTags: cardTags?.[g.card.identity.name.toLowerCase()],
                         onApplyTag: (t) => applyCardTag(g.card.identity.name, t),
@@ -2507,10 +2460,6 @@ export function DeckListView({
                     onMoveAllToSide={() => onMoveAllFromMaybeToSide(g.card.identity.name)}
                     onShowInfo={onShowInfo ? () => onShowInfo(g.card) : undefined}
                     onPickPrint={() => onPickPrint(g.card)}
-                    onToggleFoil={
-                      onToggleFoil ? () => onToggleFoil(g.card.identity.name) : undefined
-                    }
-                    isFoil={!!g.card.identity.foil}
                     customTags={customTags}
                     appliedTags={cardTags?.[g.card.identity.name.toLowerCase()]}
                     onApplyTag={(t) => applyCardTag(g.card.identity.name, t)}
@@ -2568,10 +2517,6 @@ export function DeckListView({
                         onMoveAllToSide: () => onMoveAllFromMaybeToSide(g.card.identity.name),
                         onShowInfo: onShowInfo ? () => onShowInfo(g.card) : undefined,
                         onPickPrint: () => onPickPrint(g.card),
-                        onToggleFoil: onToggleFoil
-                          ? () => onToggleFoil(g.card.identity.name)
-                          : undefined,
-                        isFoil: !!g.card.identity.foil,
                         customTags,
                         appliedTags: cardTags?.[g.card.identity.name.toLowerCase()],
                         onApplyTag: (t) => applyCardTag(g.card.identity.name, t),

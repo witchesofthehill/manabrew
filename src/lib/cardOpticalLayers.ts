@@ -229,7 +229,7 @@ async function composeLayers(
 ): Promise<CardOpticalLayers> {
   await ensureCardGlintFonts();
   signal.throwIfAborted();
-  const document = cardOpticalDocument(0, 0, source.face, "prismatic", "inspect", source.rulesText);
+  const document = cardOpticalDocument(0, 0, source.face, "inspect", source.rulesText);
   const printing = document.layers?.[0];
   const coverage = printing?.finishCoverage?.add;
   if (!printing || !coverage) throw new Error("Card Glint optical printing layers are unavailable");

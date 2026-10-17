@@ -116,7 +116,7 @@ async function inspectDocument(
       if (!isSemanticLayout(face) || OPTICAL_FINISHES[finish]) {
         return {
           document: OPTICAL_FINISHES[finish]
-            ? cardOpticalDocument(CARD_ID, revision, face, "prismatic")
+            ? cardOpticalDocument(CARD_ID, revision, face)
             : { id: CARD_ID, revision, recipe: magic.describe(face, "inspect") },
           original: false,
           rasterHost: cardRasterHost(prepared.artUrls),

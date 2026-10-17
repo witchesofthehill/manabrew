@@ -357,11 +357,10 @@ interface DeckState {
   updatePrintingVariant: (printing: DeckCardIdentity, scryfallCard: ScryfallCard) => void;
   setCardFoil: (cardId: string, foil: boolean) => void;
   setCardCosmetics: (
-    changes: readonly { cardId: string; cosmetics: CardCosmetics | undefined }[],
+    changes: readonly { cardId: string; cosmetics: CardCosmetics | undefined; foil: boolean }[],
   ) => void;
-  setTokenCosmetics: (card: DeckCard, cosmetics: CardCosmetics | undefined) => void;
+  setTokenCosmetics: (card: DeckCard, cosmetics: CardCosmetics | undefined, foil: boolean) => void;
   updateTokenPrint: (token: DeckCard, scryfallCard: ScryfallCard) => void;
-  toggleFoil: (cardName: string) => void;
   resetTokenPrint: (token: DeckCard) => void;
   enrichDeckCards: (updates: Map<string, CardPatch>) => void;
   addCardToSavedDeck: (id: string, card: DeckCard) => void;
@@ -772,9 +771,9 @@ export const useDeckStore = create<DeckState>()(
           set((state) => {
             if (state.isReadOnly || changes.length === 0) return state;
             const updates = new Map<string, CardPatch>();
-            for (const { cardId, cosmetics } of changes) {
+            for (const { cardId, cosmetics, foil } of changes) {
               updates.set(cardId, {
-                identity: { cosmetics: normalizeCardCosmetics(cosmetics) },
+                identity: { cosmetics: normalizeCardCosmetics(cosmetics), foil },
               });
             }
             let changed = false;
@@ -799,7 +798,7 @@ export const useDeckStore = create<DeckState>()(
             };
             return changed ? { currentDeck } : state;
           }),
-        setTokenCosmetics: (card, value) =>
+        setTokenCosmetics: (card, value, foil) =>
           set((state) => {
             if (state.isReadOnly) return state;
             const cosmetics = normalizeCardCosmetics(value);
@@ -815,6 +814,7 @@ export const useDeckStore = create<DeckState>()(
                 ...source.identity,
                 tokenScript,
                 cosmetics,
+                foil,
               },
             };
             return {
@@ -856,48 +856,6 @@ export const useDeckStore = create<DeckState>()(
                       tokenIdentityKey(candidate) === key ? customized : candidate,
                     )
                   : [...existing, customized],
-              },
-            };
-          }),
-        toggleFoil: (cardName) =>
-          set((state) => {
-            const deck = normalizeDeck(state.currentDeck);
-            const allCopies: DeckCard[] = [
-              ...deck.cards,
-              ...deck.sideboard,
-              ...(deck.maybeboard ?? []),
-              ...(deck.attractions ?? []),
-              ...(deck.contraptions ?? []),
-              ...(deck.schemes ?? []),
-              ...(deck.planes ?? []),
-              ...(deck.commanders ?? []),
-            ];
-            const matches = allCopies.filter((c) => c.identity.name === cardName);
-            const targetFoil = !matches.every((c) => c.identity.foil);
-            const flip = (cards: DeckCard[]): DeckCard[] =>
-              cards.map((c) =>
-                c.identity.name === cardName
-                  ? { ...c, identity: { ...c.identity, foil: targetFoil } }
-                  : c,
-              );
-            return {
-              currentDeck: {
-                ...deck,
-                cards: flip(deck.cards),
-                sideboard: flip(deck.sideboard),
-                attractions: deck.attractions ? flip(deck.attractions) : deck.attractions,
-                contraptions: deck.contraptions ? flip(deck.contraptions) : deck.contraptions,
-                schemes: deck.schemes ? flip(deck.schemes) : deck.schemes,
-                planes: deck.planes ? flip(deck.planes) : deck.planes,
-                commanders: deck.commanders ? flip(deck.commanders) : deck.commanders,
-                companion:
-                  deck.companion && deck.companion.identity.name === cardName
-                    ? {
-                        ...deck.companion,
-                        identity: { ...deck.companion.identity, foil: targetFoil },
-                      }
-                    : deck.companion,
-                maybeboard: deck.maybeboard ? flip(deck.maybeboard) : deck.maybeboard,
               },
             };
           }),

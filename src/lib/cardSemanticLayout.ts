@@ -302,11 +302,14 @@ export function cardOpticalDocument(
   id: number,
   revision: number,
   value: SemanticCardInput,
-  tone: "gold" | "silver" | "prismatic",
   tier: Tier = "inspect",
   rulesText = true,
 ): CardDocument {
-  if (!isSemanticLayout(value)) return opticalDocument(id, revision, value, tone, tier, rulesText);
+  if (!isSemanticLayout(value)) {
+    const document = opticalDocument(id, revision, value, "prismatic", tier, rulesText);
+    delete document.recipe.overlayFoil;
+    return document;
+  }
   const face = structuredClone({ ...value, setCode: value.setCode ?? "GLINT" });
   const size = (tier === "table" ? [244, 340] : [732, 1020]) as readonly [number, number];
   const layout = semanticLayoutRegions(face);
@@ -343,7 +346,6 @@ export function cardOpticalDocument(
       cornerRadius: FACE_CORNER_RADIUS,
       regions: layout.map((region) => ({ id: region.name, rect: region.rect })),
       finishCoverageBase: 0,
-      overlayFoil: { tone, strength: { gold: 0.7, silver: 0.6, prismatic: 0.75 }[tone] },
     },
     layers: [
       {

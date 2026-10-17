@@ -1,6 +1,6 @@
 import { CardFoilOverlay } from "@/components/game/CardFoilOverlay";
 import { CardCustomizerModal } from "@/components/editor/CardCustomizerModal";
-import { DEFAULT_CARD_FINISH, isEtchedOnlyPrinting } from "@/lib/cardFinish";
+import { isEtchedOnlyPrinting } from "@/lib/cardFinish";
 import { useState } from "react";
 import { Modal } from "@/components/game/modals/Modal";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
@@ -17,7 +17,6 @@ import {
   Tag,
   Check,
   RotateCcw,
-  Sparkles,
   AlertTriangle,
   LibraryBig,
   Palette,
@@ -47,7 +46,7 @@ import { formatRequiresCommander } from "@/lib/formats";
 import { DEFAULT_COMMANDER_SLOT, type CommanderSlot } from "@/components/editor/deckEditor.utils";
 import { toast } from "sonner";
 import type { ScryfallCard } from "@/types/scryfall";
-import type { CardFinish, DeckCard, DeckCardIdentity } from "@/protocol/deck";
+import type { DeckCard, DeckCardIdentity } from "@/protocol/deck";
 import { useCollectionStore } from "@/stores/useCollectionStore";
 import { collectionOwnership, collectionQuantityForName } from "@/lib/collection";
 import { useIsUnsupported } from "@/stores/useCardSupportStore";
@@ -63,7 +62,6 @@ interface DeckEditorActions {
   onTagCard?: (cardName: string, tag: string) => void;
   onUntagCard?: (cardName: string, tag: string) => void;
   onAddTag?: (tag: string) => void;
-  onToggleFoil?: (cardName: string) => void;
   onSetCover?: (cardName: string, face: 0 | 1) => void;
   token?: DeckCard;
   printing?: DeckCardIdentity;
@@ -89,7 +87,7 @@ export function CardDetailModal({
   navigation,
 }: CardDetailModalProps) {
   const [showPrints, setShowPrints] = useState(false);
-  const [customizing, setCustomizing] = useState<{ initialFinish?: CardFinish } | null>(null);
+  const [customizing, setCustomizing] = useState(false);
   const [showDeckPicker, setShowDeckPicker] = useState(false);
   const [newTagInput, setNewTagInput] = useState("");
   const [selectedPrint, setSelectedPrint] = useState<ScryfallCard | null>(null);
@@ -118,7 +116,7 @@ export function CardDetailModal({
     setSelectedPrint(null);
     setShowPrints(false);
     setShowDeckPicker(false);
-    setCustomizing(null);
+    setCustomizing(false);
     setFaceIndex(0);
   }
   const card = selectedPrint ?? initialCard;
@@ -636,7 +634,7 @@ export function CardDetailModal({
                       variant="ghost"
                       title="Customize card"
                       aria-label="Customize card"
-                      onClick={() => setCustomizing({})}
+                      onClick={() => setCustomizing(true)}
                     >
                       <Palette className="h-3.5 w-3.5" />
                     </Button>
@@ -675,21 +673,6 @@ export function CardDetailModal({
                       }}
                     >
                       <GameIcon name={commanderSlot.icon} className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
-                  {deckEditorActions.onToggleFoil && (
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className={cn("h-7 w-7", foil && "text-warning")}
-                      title={foil ? `Remove foil` : `Make foil`}
-                      disabled={!foil && !customizationCard}
-                      onClick={() => {
-                        if (foil) deckEditorActions.onToggleFoil?.(deckCardName);
-                        else setCustomizing({ initialFinish: DEFAULT_CARD_FINISH });
-                      }}
-                    >
-                      <Sparkles className="h-3.5 w-3.5" />
                     </Button>
                   )}
                   {deckEditorActions.onSetCover && (
@@ -843,8 +826,7 @@ export function CardDetailModal({
         <CardCustomizerModal
           card={customizationCard}
           token={!!token}
-          initialFinish={customizing.initialFinish}
-          onClose={() => setCustomizing(null)}
+          onClose={() => setCustomizing(false)}
         />
       )}
     </>

@@ -79,9 +79,7 @@ vec3 modernSurface(vec2 uv,vec3 normal,vec3 view,vec2 wear,vec2 pixel) {
   if(hasPrinting>0.){
     vec4 top=finishPrinting(uv);
     vec3 under=mix(base,previewLinear(color),finishCoverage(uv));
-    vec3 printing=top.rgb;
-    if(top.a>0.)printing=mix(printing,previewLinear(satin(uv,previewInk(printing),normal,view,2.,0.)),.75);
-    color=previewInk(mix(under,printing,top.a));
+    color=previewInk(mix(under,top.rgb,top.a));
     base=mix(base,top.rgb,top.a);
   }
   if(wear.x>0.)color=wornSurface(uv,previewInk(base),color,normal,view,wear.y,wear.x,

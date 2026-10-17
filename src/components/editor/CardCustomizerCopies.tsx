@@ -98,7 +98,7 @@ export function CardCustomizerCopies({
                 </span>
                 <span className="block text-xs text-muted-foreground">
                   {copy.identity.setCode.toUpperCase()} #{copy.identity.cardNumber} ·{" "}
-                  {copy.identity.foil ? "Physical foil" : "Physical nonfoil"}
+                  {preview.identity.foil ? "Foil" : "Nonfoil"}
                 </span>
                 <span className="block text-xs text-muted-foreground">{settings}</span>
                 <span

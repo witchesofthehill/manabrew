@@ -5,12 +5,18 @@ export type CosmeticField = "finish" | "frame" | "border" | "wear";
 export interface CardCustomizationDraft {
   source: DeckCard;
   cosmetics: CardCosmetics | undefined;
+  foil: boolean;
   wearSeed: number | undefined;
 }
 
 export function createCustomizationDraft(card: DeckCard): CardCustomizationDraft {
   const cosmetics = normalizeCardCosmetics(card.identity.cosmetics);
-  return { source: card, cosmetics, wearSeed: cosmetics?.wearSeed };
+  return {
+    source: card,
+    cosmetics,
+    foil: cosmetics?.finish ? cosmetics.finish !== "regular" : !!card.identity.foil,
+    wearSeed: cosmetics?.wearSeed,
+  };
 }
 
 function resetPrintingFrame(layer: CardPrintingFace): CardPrintingFace {
@@ -38,6 +44,12 @@ export function changeCustomizationField(
   return {
     ...draft,
     wearSeed,
+    foil:
+      field === "finish"
+        ? value === "printing"
+          ? !!draft.source.identity.foil
+          : value !== "regular"
+        : draft.foil,
     cosmetics: normalizeCardCosmetics({
       ...draft.cosmetics,
       [field]: value === "printing" ? undefined : value,
@@ -57,7 +69,10 @@ export function changeCustomizationField(
 }
 
 export function customizationDraftChanged(draft: CardCustomizationDraft): boolean {
-  return cardCosmeticsKey(draft.cosmetics) !== cardCosmeticsKey(draft.source.identity.cosmetics);
+  return (
+    draft.foil !== !!draft.source.identity.foil ||
+    cardCosmeticsKey(draft.cosmetics) !== cardCosmeticsKey(draft.source.identity.cosmetics)
+  );
 }
 
 export function customizationSourceChanged(source: DeckCard, current: DeckCard): boolean {
@@ -76,14 +91,13 @@ export function customizationFieldValue(
   drafts: ReadonlyMap<string, CardCustomizationDraft>,
   field: CosmeticField,
 ): string {
+  const fallback = field === "wear" ? "fresh" : "printing";
   const values = copies.map((copy) => {
     const draft = drafts.get(copy.identity.id);
     const cosmetics = draft ? draft.cosmetics : copy.identity.cosmetics;
-    return cosmetics?.[field] ?? (field === "wear" ? "fresh" : "printing");
+    return cosmetics?.[field] ?? fallback;
   });
-  return values.some((value) => value !== values[0])
-    ? "mixed"
-    : (values[0] ?? (field === "wear" ? "fresh" : "printing"));
+  return values.some((value) => value !== values[0]) ? "mixed" : (values[0] ?? fallback);
 }
 
 export function customizationPreview(
@@ -91,5 +105,7 @@ export function customizationPreview(
   drafts: ReadonlyMap<string, CardCustomizationDraft>,
 ): DeckCard {
   const draft = drafts.get(copy.identity.id);
-  return draft ? { ...copy, identity: { ...copy.identity, cosmetics: draft.cosmetics } } : copy;
+  return draft
+    ? { ...copy, identity: { ...copy.identity, foil: draft.foil, cosmetics: draft.cosmetics } }
+    : copy;
 }

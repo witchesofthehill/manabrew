@@ -1,7 +1,7 @@
-import { useId, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Modal } from "@/components/game/modals/Modal";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { CardCustomizerQuantity } from "@/components/editor/CardCustomizerQuantity";
 import { CardGlintInspect } from "@/components/editor/CardGlintInspect";
 import { CardCustomizerCopies } from "@/components/editor/CardCustomizerCopies";
 import { CardCustomizerControls } from "@/components/editor/CardCustomizerControls";
@@ -12,7 +12,7 @@ import { executeDeckEdit } from "@/components/editor/deckEditor.history";
 import { deriveTokens } from "@/lib/decks";
 import { getCardCustomizationCopies, useDeckStore } from "@/stores/useDeckStore";
 import { resolveTokenCustomizationScript, tokenIdentityKey } from "@/stores/useScryfallStore";
-import type { CardFinish, DeckCard } from "@/protocol/deck";
+import type { DeckCard } from "@/protocol/deck";
 import type { EditorDeck } from "@/types/manabrew";
 
 function getTokenCustomizationCopy(deck: EditorDeck, card: DeckCard): DeckCard | undefined {
@@ -25,15 +25,12 @@ function getTokenCustomizationCopy(deck: EditorDeck, card: DeckCard): DeckCard |
 export function CardCustomizerModal({
   card,
   token = false,
-  initialFinish,
   onClose,
 }: {
   card: DeckCard;
   token?: boolean;
-  initialFinish?: CardFinish;
   onClose: () => void;
 }) {
-  const labelId = useId();
   const isReadOnly = useDeckStore((state) => state.isReadOnly);
   const editorSessionId = useDeckStore((state) => state.editorSessionId);
   const currentDeck = useDeckStore((state) => state.currentDeck);
@@ -42,7 +39,7 @@ export function CardCustomizerModal({
     () => (token ? getTokenCustomizationCopy(currentDeck, card) : undefined),
     [currentDeck, card, token],
   );
-  const editor = useCardCustomizerDraft(currentDeck, tokenCopy ?? card, initialFinish, token);
+  const editor = useCardCustomizerDraft(currentDeck, tokenCopy ?? card, token);
   const retroIds = useCardCustomizerEligibility(editor.copies);
   const sessionValid = opening.sessionId === editorSessionId && opening.cardId === card.identity.id;
   const available = token ? Number(!!tokenCopy) : editor.copies.length;
@@ -77,10 +74,16 @@ export function CardCustomizerModal({
     )
       return;
     executeDeckEdit(`Customize ${card.identity.name}`, () => {
-      if (token) state.setTokenCosmetics(current[0]!, editor.pending[0]![1].cosmetics);
-      else
+      if (token) {
+        const draft = editor.pending[0]![1];
+        state.setTokenCosmetics(current[0]!, draft.cosmetics, draft.foil);
+      } else
         state.setCardCosmetics(
-          editor.pending.map(([cardId, draft]) => ({ cardId, cosmetics: draft.cosmetics })),
+          editor.pending.map(([cardId, draft]) => ({
+            cardId,
+            cosmetics: draft.cosmetics,
+            foil: draft.foil,
+          })),
         );
     });
     onClose();
@@ -103,7 +106,7 @@ export function CardCustomizerModal({
             />
             <p className="mt-2 text-xs text-muted-foreground">
               {editor.preview.identity.setCode.toUpperCase()} #{editor.preview.identity.cardNumber}
-              {editor.preview.identity.foil ? " · Physical foil" : " · Physical nonfoil"}
+              {editor.preview.identity.foil ? " · Foil" : " · Nonfoil"}
             </p>
           </div>
           <div className="space-y-4">
@@ -120,29 +123,12 @@ export function CardCustomizerModal({
               </p>
             </div>
             {!token && editor.copies.length > 1 && (
-              <div className="space-y-1.5">
-                <label htmlFor={`${labelId}-copies`} className="block text-sm font-medium">
-                  Select number of copies
-                </label>
-                <Input
-                  id={`${labelId}-copies`}
-                  type="number"
-                  min={0}
-                  max={available}
-                  step={1}
-                  value={editor.selected.length}
-                  disabled={!canEdit}
-                  className="h-8 w-24 text-right font-mono"
-                  onChange={(event) =>
-                    editor.selectQuantity(
-                      Math.max(0, Math.min(available, Math.trunc(Number(event.target.value)) || 0)),
-                    )
-                  }
-                />
-                <p className="text-xs text-muted-foreground">
-                  Selects the inspected copy first, then deck order. Does not change appearances.
-                </p>
-              </div>
+              <CardCustomizerQuantity
+                value={editor.selected.length}
+                max={available}
+                disabled={!canEdit}
+                onChange={editor.selectQuantity}
+              />
             )}
             <CardCustomizerControls
               selected={editor.selected}
@@ -189,7 +175,7 @@ export function CardCustomizerModal({
               </p>
             )}
             <p className="text-xs text-muted-foreground">
-              Appearance only. Your printing, physical foil, and card rules do not change.
+              Foil state follows the selected finish. Your printing and card rules do not change.
             </p>
           </div>
         </div>

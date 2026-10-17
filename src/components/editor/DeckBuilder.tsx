@@ -256,7 +256,6 @@ export function DeckBuilder({
     setStackPositions,
     updatePrintingVariant,
     updateTokenPrint,
-    toggleFoil,
     resetTokenPrint,
     updateAccountDeckVersion,
     linkSavedDeckToAccount,
@@ -380,9 +379,6 @@ export function DeckBuilder({
     },
     "deck-editor-move-maybe": () => {
       if (selectedCards.size > 0 && !isReadOnly) handleMoveSelectedToMaybe();
-    },
-    "deck-editor-toggle-foil-selection": () => {
-      if (selectedCards.size > 0 && !isReadOnly) toggleSelectedFoil();
     },
     "deck-editor-remove-one-selection": () => {
       if (selectedCards.size > 0 && !isReadOnly) removeOneEachSelected();
@@ -659,11 +655,6 @@ export function DeckBuilder({
       }
     });
     toast.success(`Removed one copy of ${selectedCards.size} cards`);
-  }
-  function toggleSelectedFoil() {
-    bulkAction(`Toggled foil for ${selectedCards.size} cards`, () => {
-      for (const name of selectedCards) toggleFoil(name);
-    });
   }
   const handleTagSelected = (tag: string) =>
     bulkAction(`Tagged ${selectedCards.size} cards with "${tag}"`, () => {
@@ -1499,13 +1490,6 @@ export function DeckBuilder({
       run: removeOneEachSelected,
     },
     {
-      id: "foil-selection",
-      label: `Toggle foil for selected cards`,
-      disabled: selectedCards.size === 0 || isReadOnly,
-      disabledReason: selectedCards.size === 0 ? "No selection" : "Read only",
-      run: toggleSelectedFoil,
-    },
-    {
       id: "manage-tags",
       label: `Manage deck tags`,
       keywords: ["rename", "reorder", "delete", "groups"],
@@ -2077,15 +2061,12 @@ export function DeckBuilder({
                       commanderLabel: label,
                       customTags: currentDeck.customTags ?? [],
                       appliedTags: currentDeck.cardTags?.[name.toLowerCase()] ?? [],
-                      isFoil: !!card.identity.foil,
                       isCover,
                       isCoverBack,
                       hasBackFace: !!card.backFace,
                       onShowInfo: () => handleShowInfo(card),
                       onRemoveCommander: () => handleRemoveCommander(card),
                       onPickPrint: () => setPrintPickerCard(card),
-                      onToggleFoil: () =>
-                        executeDeckEdit(`Toggle foil for ${name}`, () => toggleFoil(name)),
                       onSetCover: () => {
                         executeDeckEdit(`Change deck cover`, () =>
                           setCoverCard(isCover ? undefined : name, 0),
@@ -2176,9 +2157,6 @@ export function DeckBuilder({
                     onMoveOneFromMaybeToSide={handleMoveOneFromMaybeToSide}
                     onMoveAllFromMaybeToSide={handleMoveAllFromMaybeToSide}
                     onPickPrint={setPrintPickerCard}
-                    onToggleFoil={(name) =>
-                      executeDeckEdit(`Toggle foil for ${name}`, () => toggleFoil(name))
-                    }
                     onHover={(card, e) =>
                       preview.handleMouseEnter(deckCardToPreviewDto(card), e, { useDelay: true })
                     }
@@ -2366,7 +2344,6 @@ export function DeckBuilder({
             onMoveToMaybe={handleMoveSelectedToMaybe}
             onAddCopy={addOneEachSelected}
             onRemoveCopy={removeOneEachSelected}
-            onToggleFoil={toggleSelectedFoil}
             onCopy={() => void copySelectedCards()}
             onTag={handleTagSelected}
             onUntag={handleUntagSelected}
@@ -2448,8 +2425,6 @@ export function DeckBuilder({
               onUntagCard: (name, tag) =>
                 executeDeckEdit(`Remove ${tag} from ${name}`, () => untagCard(name, tag)),
               onAddTag: (tag) => executeDeckEdit(`Create ${tag} tag`, () => addCustomTag(tag)),
-              onToggleFoil: (name) =>
-                executeDeckEdit(`Toggle foil for ${name}`, () => toggleFoil(name)),
               onSetCover: (name, face) => {
                 const isCurrent =
                   currentDeck.coverCardName === name && (currentDeck.coverCardFace ?? 0) === face;

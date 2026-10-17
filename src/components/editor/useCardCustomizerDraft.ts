@@ -8,33 +8,18 @@ import {
   type CardCustomizationDraft,
   type CosmeticField,
 } from "@/components/editor/cardCustomizerDraft";
-import type { CardFinish, DeckCard } from "@/protocol/deck";
+import type { DeckCard } from "@/protocol/deck";
 import { getCardCustomizationCopies } from "@/stores/useDeckStore";
 import type { EditorDeck } from "@/types/manabrew";
 
-export function useCardCustomizerDraft(
-  deck: EditorDeck,
-  clicked: DeckCard,
-  initialFinish?: CardFinish,
-  token = false,
-) {
+export function useCardCustomizerDraft(deck: EditorDeck, clicked: DeckCard, token = false) {
   const [activeId, setActiveId] = useState(clicked.identity.id);
   const [selectedIds, setSelectedIds] = useState(() => new Set([clicked.identity.id]));
   const copies = useMemo(
     () => (token ? [clicked] : getCardCustomizationCopies(deck, clicked)),
     [deck, clicked, token],
   );
-  const [drafts, setDrafts] = useState(() => {
-    const initial = new Map<string, CardCustomizationDraft>();
-    const source = copies.find((copy) => copy.identity.id === clicked.identity.id);
-    if (source && initialFinish) {
-      initial.set(
-        source.identity.id,
-        changeCustomizationField(createCustomizationDraft(source), "finish", initialFinish),
-      );
-    }
-    return initial;
-  });
+  const [drafts, setDrafts] = useState(() => new Map<string, CardCustomizationDraft>());
   const active = copies.find((copy) => copy.identity.id === activeId);
   const selected = copies.filter((copy) => selectedIds.has(copy.identity.id));
   const pending = [...drafts.entries()].filter(([, draft]) => customizationDraftChanged(draft));
@@ -66,6 +51,7 @@ export function useCardCustomizerDraft(
         next.set(id, {
           ...(current.get(id) ?? createCustomizationDraft(copy)),
           cosmetics: undefined,
+          foil: !!copy.identity.foil,
         });
       }
       return next;

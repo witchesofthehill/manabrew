@@ -8,7 +8,6 @@ import {
   Images,
   Minus,
   Plus,
-  Sparkles,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -27,7 +26,6 @@ interface DeckSelectionTrayProps {
   onMoveToMaybe: () => void;
   onAddCopy: () => void;
   onRemoveCopy: () => void;
-  onToggleFoil: () => void;
   onCopy: () => void;
   onTag: (tag: string) => void;
   onUntag: (tag: string) => void;
@@ -44,7 +42,6 @@ export function DeckSelectionTray({
   onMoveToMaybe,
   onAddCopy,
   onRemoveCopy,
-  onToggleFoil,
   onCopy,
   onTag,
   onUntag,
@@ -140,9 +137,6 @@ export function DeckSelectionTray({
         )}
         <Button size="sm" variant="outline" className="h-10 shrink-0 sm:h-8" onClick={onPrinting}>
           <Images className="mr-1 h-3 w-3" /> Printing
-        </Button>
-        <Button size="sm" variant="outline" className="h-10 shrink-0 sm:h-8" onClick={onToggleFoil}>
-          <Sparkles className="mr-1 h-3 w-3" /> Foil
         </Button>
         <Button size="sm" variant="outline" className="h-10 shrink-0 sm:h-8" onClick={onCopy}>
           <ClipboardCopy className="mr-1 h-3 w-3" /> Copy

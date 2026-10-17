@@ -38,7 +38,7 @@ export function useMarquee({
       if (e.button !== 0) return;
 
       const el = containerRef.current;
-      if (!el) return;
+      if (!el || !el.contains(e.target as Node)) return;
 
       e.preventDefault();
       const rect = el.getBoundingClientRect();

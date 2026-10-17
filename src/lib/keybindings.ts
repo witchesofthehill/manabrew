@@ -172,12 +172,6 @@ export const KEYBINDINGS = defineKeybindings([
     defaultCombo: { key: "b" },
   },
   {
-    id: "deck-editor-toggle-foil-selection",
-    label: `Toggle foil for selected cards`,
-    category: "Deck editor",
-    defaultCombo: { key: "f" },
-  },
-  {
     id: "deck-editor-remove-one-selection",
     label: `Remove one copy of selected cards`,
     category: "Deck editor",

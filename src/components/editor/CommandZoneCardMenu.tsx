@@ -7,14 +7,12 @@ export interface CommandZoneCardMenuActions {
   commanderLabel: string;
   customTags: string[];
   appliedTags: string[];
-  isFoil: boolean;
   isCover: boolean;
   isCoverBack: boolean;
   hasBackFace: boolean;
   onShowInfo: () => void;
   onRemoveCommander: () => void;
   onPickPrint: () => void;
-  onToggleFoil: () => void;
   onSetCover: () => void;
   onSetCoverBack: () => void;
   onApplyTag: (tag: string) => void;
@@ -48,8 +46,6 @@ export function CommandZoneCardMenu({
       onApplyTag={actions.onApplyTag}
       onCreateTag={actions.onCreateTag}
       onPickPrint={actions.onPickPrint}
-      onToggleFoil={actions.onToggleFoil}
-      isFoil={actions.isFoil}
     >
       {children}
     </CardContextMenu>

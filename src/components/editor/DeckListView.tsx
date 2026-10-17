@@ -649,6 +649,7 @@ function DraggableStackCard({
       )}
       style={{ top: topOffset, width: cardWidth, zIndex: index + 1 }}
       data-card-name={name}
+      data-card-id={group.card.identity.id}
       data-card-supported={unsupported ? "false" : undefined}
       data-card-ownership={ownership}
       aria-label={group.count === 1 ? `${name}, one copy` : `${name}, ${group.count} copies`}
@@ -929,6 +930,7 @@ function CardVisual({
         ownershipSummary?.status === "partial" && "rounded-lg outline outline-2 outline-warning/70",
       )}
       data-card-name={name}
+      data-card-id={group.card.identity.id}
       data-card-supported={unsupported ? "false" : undefined}
       data-card-ownership={ownership}
       aria-label={group.count === 1 ? `${name}, one copy` : `${name}, ${group.count} copies`}
@@ -1017,6 +1019,7 @@ const DraggableMiniRow = forwardRef<
         isDragging && "opacity-30",
       )}
       data-card-name={card.identity.name}
+      data-card-id={card.identity.id}
     >
       {children}
       <CardMenuButton />
@@ -1066,6 +1069,7 @@ function CardRow({
         ownershipSummary?.status === "partial" && "border-l-2 border-warning bg-warning/10",
       )}
       data-card-name={name}
+      data-card-id={group.card.identity.id}
       data-card-supported={unsupported ? "false" : undefined}
       data-card-ownership={ownership}
       aria-label={group.count === 1 ? `${name}, one copy` : `${name}, ${group.count} copies`}
@@ -1533,7 +1537,6 @@ export interface DeckListViewProps {
       }
     >,
   ) => void;
-  /** Hover preview wiring (event-delegated via `data-card-name` on the scroll container). */
   onHover?: (card: DeckCard, e: React.MouseEvent) => void;
   onLeave?: () => void;
 }
@@ -1612,19 +1615,16 @@ export function DeckListView({
   const sideboardCount = sideboardGroups.reduce((s, g) => s + g.count, 0);
   const maybeboardCount = maybeboardGroups.reduce((s, g) => s + g.count, 0);
   const containerRef = useRef<HTMLDivElement>(null);
-  // Build a name → DeckCard index so the delegated pointer-over handler
-  // can resolve the hovered element back to a full card object without
-  // every card-render site having to thread an onHover prop.
-  const cardsByName = useMemo(() => {
+  const cardsById = useMemo(() => {
     const m = new Map<string, DeckCard>();
-    for (const c of commanders) m.set(c.identity.name, c);
-    for (const sec of mainSections) for (const g of sec.groups) m.set(g.card.identity.name, g.card);
-    for (const g of otherGroups) m.set(g.card.identity.name, g.card);
-    for (const g of sideboardGroups) m.set(g.card.identity.name, g.card);
-    for (const g of maybeboardGroups) m.set(g.card.identity.name, g.card);
+    for (const c of commanders) m.set(c.identity.id, c);
+    for (const sec of mainSections) for (const g of sec.groups) m.set(g.card.identity.id, g.card);
+    for (const g of otherGroups) m.set(g.card.identity.id, g.card);
+    for (const g of sideboardGroups) m.set(g.card.identity.id, g.card);
+    for (const g of maybeboardGroups) m.set(g.card.identity.id, g.card);
     for (const sec of specialSections)
-      for (const g of sec.groups) m.set(g.card.identity.name, g.card);
-    for (const sec of stackColumns) for (const g of sec.groups) m.set(g.card.identity.name, g.card);
+      for (const g of sec.groups) m.set(g.card.identity.id, g.card);
+    for (const sec of stackColumns) for (const g of sec.groups) m.set(g.card.identity.id, g.card);
     return m;
   }, [
     commanders,
@@ -1638,22 +1638,22 @@ export function DeckListView({
   const handleContainerPointerOver = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       if (!onHover || e.pointerType === "touch") return;
-      const el = (e.target as HTMLElement).closest("[data-card-name]");
-      if (!el) return;
-      const previous = (e.relatedTarget as HTMLElement | null)?.closest?.("[data-card-name]");
+      const el = (e.target as HTMLElement).closest("[data-card-id]");
+      if (!el || !e.currentTarget.contains(el)) return;
+      const previous = (e.relatedTarget as HTMLElement | null)?.closest?.("[data-card-id]");
       if (previous === el) return;
-      const name = el.getAttribute("data-card-name");
-      if (!name) return;
-      const card = cardsByName.get(name);
+      const id = el.getAttribute("data-card-id");
+      if (!id) return;
+      const card = cardsById.get(id);
       if (card) onHover(card, e as unknown as React.MouseEvent);
     },
-    [onHover, cardsByName],
+    [onHover, cardsById],
   );
   const handleContainerPointerOut = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       if (!onLeave || e.pointerType === "touch") return;
-      const from = (e.target as HTMLElement).closest("[data-card-name]");
-      const to = (e.relatedTarget as HTMLElement | null)?.closest?.("[data-card-name]");
+      const from = (e.target as HTMLElement).closest("[data-card-id]");
+      const to = (e.relatedTarget as HTMLElement | null)?.closest?.("[data-card-id]");
       if (from && from !== to) onLeave();
     },
     [onLeave],
@@ -2567,6 +2567,7 @@ export function DeckListView({
                         <div
                           key={g.key}
                           data-card-name={g.card.identity.name}
+                          data-card-id={g.card.identity.id}
                           className="flex items-center gap-1 group hover:bg-muted/40 rounded px-1 py-0.5"
                         >
                           <span className="text-xs font-mono w-4 text-right text-muted-foreground shrink-0">

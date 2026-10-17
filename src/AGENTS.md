@@ -181,6 +181,8 @@ Use these store APIs rather than importing card-data fetchers from `api/scryfall
 
 Deck-editor card groups use name, set code, collector number, physical foil and normalized cosmetics as their identity. Customizing one tile copy splits that entry from otherwise identical copies. Keep per-tile printing actions on `DeckCardIdentity`; name-only updates are reserved for explicit bulk operations. Game previews use authoritative `CardDto.cosmetics` and stack source metadata, never a matching deck name or printing's customization.
 
+Deck-editor delegated hover resolves `data-card-id` to the exact displayed `DeckCard` by copy ID across list, grid and stack layouts and every section. Keep `data-card-name` for name-based selection and bulk operations, not preview identity. Same-name appearance variants must retain their own printing, foil and cosmetics through `deckCardToPreviewDto`; ignore portaled hover targets outside the actual deck container.
+
 Lookup keys are normalized internally (`id:` / `set:…::cn:…` / `name:…[::set:…]`); always pass structured args, never assemble keys yourself. Token cards resolve through the same store from `public/token_archive.json`; do not add per-component token fetch/discovery hooks. A failed archive download must not prevent ordinary exact-printing card lookups from reaching Scryfall.
 
 Read existing cached entries through `get().cards` when prefetching printings. Immer's mapped draft type drops Pixi `Texture` private members; preserve the store-owned texture rather than casting a draft to `ScryfallEntry`.

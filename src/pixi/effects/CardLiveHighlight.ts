@@ -176,8 +176,9 @@ export class CardLiveHighlight extends Container {
   private readonly surfaceRendered = (): void => {
     let root = this.parent;
     while (root?.parent) root = root.parent;
-    if (this.renderRoot === root) return;
+    const rootChanged = this.renderRoot !== root;
     this.renderRoot = root;
+    if (!rootChanged && this.surface.visible === this.canAnimate()) return;
     queueMicrotask(() => {
       if (!this.destroyed) this.syncAnimation();
     });

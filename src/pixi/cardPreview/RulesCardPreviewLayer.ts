@@ -18,9 +18,11 @@ import type { Theme } from "@/hooks/useTheme";
 import {
   deriveCardPresentation,
   type CardStatPresentation,
+  type CardCounterPresentation,
 } from "@/components/game/cardPresentation";
 import { getPreviewActionShortcut } from "@/components/game/game.utils";
 import { hexToNum } from "@/pixi/colorUtils";
+import { gameIconTexture } from "@/pixi/gameIconCache";
 import { PixiRichText } from "@/pixi/cardPreview/PixiRichText";
 import { RulesPreviewBody, RULES_PREVIEW_FONT_SIZE } from "@/pixi/cardPreview/RulesPreviewBody";
 import { PixiCardRailPreview } from "@/pixi/cardPreview/PixiCardRailPreview";
@@ -811,15 +813,7 @@ export class RulesCardPreviewLayer {
         for (const cost of display.costs)
           y = this.addStaticAbilityRow(body, `${cost.label} ${cost.cost}`, y);
         if (visibleCounters.length > 0) {
-          y =
-            this.addChips(
-              body,
-              visibleCounters.map((counter) => ({
-                label: `${counter.type} ×${counter.count}`,
-                color: this.theme.gameTheme.counter[counter.colorKey],
-              })),
-              y + 4,
-            ) + 8;
+          y = this.addChips(body, visibleCounters, y + 4) + 8;
         }
         if (progression) {
           for (const text of progressionOpening) {
@@ -987,21 +981,41 @@ export class RulesCardPreviewLayer {
     return y + rowHeight;
   }
 
-  private addChips(
-    body: RulesPreviewBody,
-    items: Array<{ label: string; color: string }>,
-    y: number,
-  ): number {
+  private addChips(body: RulesPreviewBody, items: CardCounterPresentation[], y: number): number {
     let x = 0;
     let rowHeight = 0;
     for (const item of items) {
-      const label = new Text({
-        text: item.label,
-        style: textStyle(this.frame.ink, 11, "600"),
-      });
-      label.resolution = 2;
-      label.scale.x = Math.min(1, (body.contentWidth - 14) / label.width);
-      const width = Math.min(body.contentWidth, label.width + 14);
+      const foreground = this.theme.gameTheme.textOnTinted;
+      const content = new Container();
+      const iconSize = 14;
+      if (item.iconName) {
+        const icon = new Sprite(Texture.EMPTY);
+        icon.setSize(iconSize, iconSize);
+        icon.tint = hexToNum(foreground);
+        content.addChild(icon);
+        void gameIconTexture(item.iconName)
+          .then((texture) => {
+            if (icon.destroyed) return;
+            icon.texture = texture;
+            icon.setSize(iconSize, iconSize);
+            this.callbacks.onRenderRequested();
+          })
+          .catch(() => undefined);
+      }
+      const text = item.iconName
+        ? (item.displayCount?.toString() ?? "")
+        : `${item.label}${item.displayCount == null ? "" : ` ${item.displayCount}`}`;
+      if (text) {
+        const label = new Text({
+          text,
+          style: textStyle(foreground, 11, "600"),
+          resolution: 2,
+        });
+        label.position.set(item.iconName ? iconSize + 3 : 0, (iconSize - label.height) / 2);
+        content.addChild(label);
+      }
+      content.scale.x = Math.min(1, (body.contentWidth - 14) / content.width);
+      const width = Math.min(body.contentWidth, content.width + 14);
       const height = 21;
       if (x > 0 && x + width > body.contentWidth) {
         x = 0;
@@ -1011,16 +1025,10 @@ export class RulesCardPreviewLayer {
       const chip = new Container();
       const background = new Graphics();
       background.roundRect(0, 0, width, height, 10.5);
-      background.fill({
-        color: hexToNum(this.frame.textured ? this.frame.ink : this.frame.paper),
-        alpha: this.frame.textured ? 0.035 : 1,
-      });
-      background.roundRect(0, 0, width, height, 10.5);
-      background.fill({ color: hexToNum(item.color), alpha: 0.14 });
-      background.stroke({ color: hexToNum(item.color), alpha: 0.7, width: 1 });
-      label.position.set(7, 3);
+      background.fill(hexToNum(this.theme.gameTheme.counter[item.colorKey]));
+      content.position.set(7, (height - iconSize) / 2);
       chip.position.set(x, y);
-      chip.addChild(background, label);
+      chip.addChild(background, content);
       body.content.addChild(chip);
       x += width + 5;
       rowHeight = Math.max(rowHeight, height);

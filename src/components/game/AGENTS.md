@@ -207,6 +207,10 @@ Native Saga previews place chapter badges in the printed gutter, separately clip
 
 Class active-level header tints composite above the native band image and below mana/level labels. Class and Saga active ability backgrounds share the same opacity and stack pulse timing. Pulse only their background graphics so ability text stays fully opaque; resolving rows retain the existing stack treatment without a second nested pulse. Respect disabled animation and release the tween on rebuild or dismissal.
 
+Counter metadata lives in `cardPresentation.ts`: shared color keys, icons, labels and aggregate stat-counter formatting feed React `CounterBadge` and Pixi rules previews. Render preview counters as solid theme-colored pills with `textOnTinted` foreground; named counters use the shared icon, and stat counters display `+N/+N` or `−N/−N`. Unknown counters retain the generic color and abbreviated label. Keep loyalty/defense stat exclusions and the Saga Lore rail exclusion.
+
+Inline rules-text P/T modifiers are separate from counter badges. React `DynamicTextRender` and `PixiRichText` share recognition through `lib/dynamicText.ts`; signed modifiers use `pt.buffed`/`pt.debuffed` ink and a faint matching pill. Pixi measures each modifier as one padded token for wrapping, preserving parenthetical styling and adjacent mana symbols. Unsigned printed stats such as `0/0` remain ordinary text.
+
 `previewHoverArea.ts` defines curved transfer areas from the source card to the preview and between the preview and its controls. Cover diagonal departures above and below the source, not only the gap between facing edges. `BoardOverlayCanvas` derives enter and leave callbacks from pointer position so crossing a gap cancels dismissal immediately. Returning to the source keeps the preview open without intercepting the card. Use these curves only for hover; wheel routing and sticky-touch dismissal use visible panel bounds.
 
 Printed and Rules window-exit `pointerout` listeners run in capture phase, with matching capture cleanup. Preview event isolation stops bubbling; it must not hide `relatedTarget === null` exits from hover dismissal.

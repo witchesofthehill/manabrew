@@ -1,11 +1,17 @@
-import { CanvasTextMetrics, Container, Sprite, Text, Texture, TextStyle } from "pixi.js";
+import { CanvasTextMetrics, Container, Graphics, Sprite, Text, Texture, TextStyle } from "pixi.js";
 import { getManaSymbolTextureSync, loadManaSymbolTexture } from "@/pixi/manaSymbolCache";
+import { DYNAMIC_TEXT_TOKEN, ptModifierTone } from "@/lib/dynamicText";
+import { getTheme } from "@/hooks/useTheme";
+import { hexToNum } from "@/pixi/colorUtils";
+
+const MODIFIER_INSET = 4;
 
 interface RichToken {
-  kind: "text" | "symbol";
+  kind: "text" | "symbol" | "modifier";
   value: string;
   width: number;
   style?: TextStyle;
+  color?: string;
 }
 
 export interface PixiRichTextOptions {
@@ -31,7 +37,9 @@ export class PixiRichText extends Container {
     this.removeChildren().forEach((child) => child.destroy());
     if (!content) return 0;
 
-    const rawTokens = content.match(TOKEN_PATTERN) ?? [];
+    const rawTokens = content
+      .split(DYNAMIC_TEXT_TOKEN)
+      .flatMap((part) => (ptModifierTone(part) ? [part] : (part.match(TOKEN_PATTERN) ?? [])));
     const lines: RichToken[][] = [[]];
     const maxLines =
       options.maxLines == null ? Number.POSITIVE_INFINITY : Math.max(1, options.maxLines);
@@ -51,17 +59,28 @@ export class PixiRichText extends Container {
       }
 
       const symbolMatch = /^\{([^}]+)\}$/.exec(raw);
-      const tokenStyle =
+      const modifierTone = ptModifierTone(raw);
+      let tokenStyle =
         options.parentheticalStyle && (parentheticalDepth > 0 || raw.includes("("))
           ? options.parentheticalStyle
           : style;
+      let modifierColor: string | undefined;
+      if (modifierTone) {
+        modifierColor = getTheme().gameTheme.pt[modifierTone];
+        tokenStyle = tokenStyle.clone();
+        tokenStyle.fill = modifierColor;
+        tokenStyle.fontWeight = "600";
+      }
       const token: RichToken = symbolMatch
         ? { kind: "symbol", value: symbolMatch[1]!, width: symbolSize }
         : {
-            kind: "text",
+            kind: modifierTone ? "modifier" : "text",
             value: raw,
-            width: CanvasTextMetrics.measureText(raw, tokenStyle, undefined, false).width,
+            width:
+              CanvasTextMetrics.measureText(raw, tokenStyle, undefined, false).width +
+              (modifierTone ? MODIFIER_INSET * 2 : 0),
             style: tokenStyle,
+            color: modifierColor,
           };
       if (!symbolMatch) {
         parentheticalDepth += (raw.match(/\(/g) ?? []).length;
@@ -137,6 +156,18 @@ export class PixiRichText extends Container {
       };
 
       for (const token of line) {
+        if (token.kind === "modifier") {
+          flushText();
+          const top = lineIndex * (lineHeight + lineGap);
+          const background = new Graphics()
+            .roundRect(x, top, token.width, lineHeight, 3)
+            .fill({ color: hexToNum(token.color!), alpha: 0.15 });
+          const text = new Text({ text: token.value, style: token.style, resolution: 2 });
+          text.position.set(x + MODIFIER_INSET, top);
+          this.addChild(background, text);
+          x += token.width;
+          continue;
+        }
         if (token.kind === "text") {
           const nextStyle = token.style ?? style;
           if (textRun && nextStyle !== textRunStyle) flushText();

@@ -3,6 +3,7 @@ import { composeSemanticCardTexture, isSemanticLayout } from "@/lib/cardSemantic
 import { ensureCardGlintFonts } from "@/lib/cardGlintAssets";
 import type { ScryfallLanguage } from "@/i18n/locales";
 import { useScryfallStore } from "@/stores/useScryfallStore";
+import { getTheme } from "@/hooks/useTheme";
 import {
   captureCardInput,
   prepareCard,
@@ -11,7 +12,7 @@ import {
 } from "@/lib/cardRenderSnapshot";
 import { cardImageLoader, normalizeCardCanvas } from "@/lib/cardRenderArtwork";
 import { CardRenderError, type CardRenderDecision } from "@/lib/cardRenderDecision";
-import { cardGlintFace } from "@/lib/cardRenderFace";
+import { cardGlintFace, type CardGlintFace } from "@/lib/cardRenderFace";
 import {
   enqueueCardRender,
   cardQueueStats,
@@ -38,6 +39,10 @@ const MAX_FINISHED_CARDS = 128;
 const MAX_FINISHED_BYTES = 96 * 1024 * 1024;
 const finished = new Map<string, { canvas: CardCanvas; bytes: number }>();
 const decisions = new WeakMap<CardCanvas, CardRenderDecision>();
+const compositions = new WeakMap<
+  PreparedCard,
+  CardGlintFace & { optionsKey: string; key: string }
+>();
 let finishedBytes = 0;
 let preparing = 0;
 const counters = { requests: 0, cacheHits: 0, failures: 0, evictions: 0 };
@@ -91,14 +96,23 @@ function composeCard(
   standardFrameFallback: boolean,
   signal?: AbortSignal,
 ): Promise<CardCanvas> {
-  const { face, decision } = cardGlintFace(prepared, standardFrameFallback);
-  const key = JSON.stringify([
-    prepared.locale,
-    prepared.printing.map((printing) => printing.id),
-    face,
-    decision,
-    rulesText,
-  ]);
+  const { cardChange, cardPrinting } = getTheme().gameTheme;
+  const optionsKey = JSON.stringify([rulesText, standardFrameFallback, cardChange, cardPrinting]);
+  let composition = compositions.get(prepared);
+  if (!composition || composition.optionsKey !== optionsKey) {
+    const { face, decision } = cardGlintFace(prepared, standardFrameFallback);
+    const key = JSON.stringify([
+      prepared.locale,
+      prepared.printing.map((printing) => printing.id),
+      face,
+      decision,
+      rulesText,
+      isSemanticLayout(face) ? cardPrinting : undefined,
+    ]);
+    composition = { optionsKey, key, face, decision };
+    compositions.set(prepared, composition);
+  }
+  const { face, decision, key } = composition;
   const cached = finished.get(key);
   if (cached) {
     counters.cacheHits += 1;

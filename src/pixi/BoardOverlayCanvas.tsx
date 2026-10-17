@@ -46,6 +46,7 @@ import { cn } from "@/lib/utils";
 import { usePreferencesStore, type InGameCardPreviewStyle } from "@/stores/usePreferencesStore";
 import { hexToNum } from "./colorUtils";
 import { RulesPreviewAccessibility } from "@/components/game/RulesPreviewAccessibility";
+import type { GamePreviewFlipBinding } from "@/hooks/useGamePreviewFlip";
 
 export interface BoardOverlayPreviewSpec {
   card: CardDto;
@@ -61,6 +62,7 @@ export interface BoardOverlayPreviewSpec {
   anchorRect: DOMRect | null;
   viewportRight?: number;
   slotRect?: DOMRect | null;
+  flip?: GamePreviewFlipBinding;
 }
 
 export interface BoardOverlayCommandPreviewSpec {
@@ -71,6 +73,8 @@ export interface BoardOverlayCommandPreviewSpec {
   suppressed: boolean;
   anchorRect: DOMRect;
   viewportRight?: number;
+  showBackFace?: boolean;
+  flip?: GamePreviewFlipBinding;
 }
 const PREVIEW_BACKDROP_ALPHA = 0.3;
 
@@ -162,6 +166,7 @@ function toRulesPreviewSpec(
     reserveSidePanel: spec.reserveSidePanel,
     skipEnterAnimation: spec.skipEnterAnimation,
     actions: spec.actions,
+    flip: spec.flip,
     anchor: spec.anchorRect
       ? {
           x: spec.anchorRect.x - canvasRect.left,
@@ -195,6 +200,8 @@ function toCommandPreviewSpec(
     style: spec.style,
     phase: spec.phase,
     suppressed: spec.suppressed,
+    flip: spec.flip,
+    showBackFace: spec.showBackFace,
     anchor: {
       x: spec.anchorRect.x - canvasRect.left,
       y: spec.anchorRect.y - canvasRect.top,
@@ -421,6 +428,14 @@ export function BoardOverlayCanvasSurface({
     const teardown = (): void => {
       if (destroyed) return;
       destroyed = true;
+      if (schedulerRef.current === scheduler) schedulerRef.current = null;
+      if (arrowRef.current === arrow) arrowRef.current = null;
+      if (stackRef.current === stack) stackRef.current = null;
+      if (promptRef.current === prompt) promptRef.current = null;
+      if (previewRef.current === preview) previewRef.current = null;
+      if (commandPreviewRef.current === commandPreview) commandPreviewRef.current = null;
+      if (previewBackdropRef.current === previewBackdrop) previewBackdropRef.current = null;
+      if (appRef.current === app) appRef.current = null;
       scheduler?.dispose();
       registeredScene?.setStackAnchorProvider(null);
       registeredScene?.setOverlayInvalidation(null);
@@ -433,14 +448,6 @@ export function BoardOverlayCanvasSurface({
       preview?.destroy();
       commandPreview?.destroy();
       previewBackdrop?.destroy();
-      if (schedulerRef.current === scheduler) schedulerRef.current = null;
-      if (arrowRef.current === arrow) arrowRef.current = null;
-      if (stackRef.current === stack) stackRef.current = null;
-      if (promptRef.current === prompt) promptRef.current = null;
-      if (previewRef.current === preview) previewRef.current = null;
-      if (commandPreviewRef.current === commandPreview) commandPreviewRef.current = null;
-      if (previewBackdropRef.current === previewBackdrop) previewBackdropRef.current = null;
-      if (appRef.current === app) appRef.current = null;
       destroyPixiApp(app);
     };
 
@@ -578,6 +585,8 @@ export function BoardOverlayCanvasSurface({
             cbRef.current.onCastCommandCard?.(cardId);
           },
           onRenderRequested: () => scheduler?.request(),
+          onFlip: () => cbRef.current.onFlipPreview?.(),
+          onToggleView: () => cbRef.current.onTogglePreviewView?.(),
         });
         commandPreviewLayer.container.zIndex = 10_001;
         commandPreview = commandPreviewLayer;
@@ -1030,11 +1039,12 @@ export function BoardOverlayCanvasSurface({
             },
           }
         : {}),
-      ...(rulesPreviewOpen
+      ...(rulesPreviewOpen || commandPreviewOpen
         ? {
             "flip-card": () => {
               if (promptRef.current?.blocksBoard) return false;
-              previewRef.current?.activatePrimaryTransform();
+              if (rulesPreviewOpen) previewRef.current?.activatePrimaryTransform();
+              else commandPreviewRef.current?.activatePrimaryTransform();
             },
           }
         : hoveredStackObjectId && hoveredStackCard?.card.isDoubleFaced

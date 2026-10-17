@@ -1,6 +1,7 @@
 import { CardPreview } from "./CardPreview";
 import type { CardPreviewController } from "@/hooks/useCardPreview";
 import type { HandActionOption } from "@/stores/useGameUIStore";
+import type { GamePreviewFlipBinding } from "@/hooks/useGamePreviewFlip";
 
 interface HoverCardPreviewProps {
   preview: CardPreviewController;
@@ -15,6 +16,7 @@ interface HoverCardPreviewProps {
   slot?: HTMLElement | null;
   imageSize?: "normal" | "large";
   portalTarget?: HTMLElement | null;
+  flip?: GamePreviewFlipBinding;
 }
 
 export function HoverCardPreview({
@@ -30,6 +32,7 @@ export function HoverCardPreview({
   slot,
   imageSize,
   portalTarget,
+  flip,
 }: HoverCardPreviewProps) {
   if (!preview.hoveredCard || (pinned && preview.phase === "closing")) return null;
   if (pinned && !slot) return null;
@@ -60,6 +63,9 @@ export function HoverCardPreview({
       slot={slot}
       imageSize={imageSize}
       portalTarget={portalTarget}
+      flipHandleRef={flip?.handleRef}
+      flipClosed={flip?.closed}
+      onPresentationReady={flip?.onReady}
     />
   );
 }

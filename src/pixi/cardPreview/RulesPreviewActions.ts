@@ -343,6 +343,12 @@ export class RulesPreviewActions extends Container {
     this.setScroll(this.scrollOffset + delta * unit);
   }
 
+  cancelInteraction(): void {
+    this.clearInput();
+    this.focusedIndex = null;
+    this.drawFocus();
+  }
+
   reset(): void {
     this.clearInput();
     this.spec = null;
@@ -489,6 +495,7 @@ export class RulesPreviewActions extends Container {
   }
 
   private drawFocus(): void {
+    if (this.rows.length === 0) return;
     const color = hexToNum(this.spec!.theme.gameTheme.activeAction.active);
     const frame = this.spec!.frame;
     this.rows.forEach((row, index) => {

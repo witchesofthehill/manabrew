@@ -113,6 +113,12 @@ export interface PreparedCard {
 type CardEntry = NonNullable<ScryfallEntry["card"]>;
 type PrintedFace = ScryfallCard | NonNullable<ScryfallCard["card_faces"]>[number];
 
+const MAX_PREPARED_CARDS = 128;
+const preparedCards = new Map<
+  string,
+  { entry?: CardEntry; reverse?: CardEntry; prepared: PreparedCard }
+>();
+
 function typeLine(card: DeckCard): string {
   const main = [...(card.supertypes ?? []), ...(card.types ?? [])].join(" ");
   return card.subtypes?.length ? `${main} — ${card.subtypes.join(" ")}` : main;
@@ -494,6 +500,13 @@ export async function prepareCard(input: CardRenderInput): Promise<PreparedCard>
       { mode: "original", reason: "invalid-faces", layout, faceIndex: input.faceIndex ?? 0 },
       "The meld result metadata is unavailable",
     );
+  const key = JSON.stringify([input, deckCard === input.deckCard ? null : deckCard]);
+  const cached = preparedCards.get(key);
+  if (cached && cached.entry === entry && cached.reverse === reverse) {
+    preparedCards.delete(key);
+    preparedCards.set(key, cached);
+    return cached.prepared;
+  }
   const faceInfo = reverse && info ? { ...info, card_faces: [info, reverse.info] } : info;
   const resolved = resolveCardFaces(faceInfo);
   const combined =
@@ -684,7 +697,8 @@ export async function prepareCard(input: CardRenderInput): Promise<PreparedCard>
     artUrls[0] = `${source}${CARD_ARTWORK_FACE_FRAGMENT}0`;
     artUrls[1] = `${source}${CARD_ARTWORK_FACE_FRAGMENT}1`;
   }
-  return {
+  Object.freeze(artUrls);
+  const prepared: PreparedCard = Object.freeze({
     snapshot: Object.freeze(snapshot),
     artUrls,
     faceIndex,
@@ -693,5 +707,13 @@ export async function prepareCard(input: CardRenderInput): Promise<PreparedCard>
     gameplay: input.card != null,
     printing: Object.freeze(printing),
     cosmetics: input.cosmetics,
-  };
+  });
+  preparedCards.delete(key);
+  while (preparedCards.size >= MAX_PREPARED_CARDS) {
+    const oldest = preparedCards.keys().next().value;
+    if (oldest === undefined) break;
+    preparedCards.delete(oldest);
+  }
+  preparedCards.set(key, { entry, reverse, prepared });
+  return prepared;
 }

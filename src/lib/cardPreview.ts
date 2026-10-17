@@ -17,6 +17,7 @@ export const PREVIEW_TIMING = {
   leaveGraceMs: 120,
   enterMs: 220,
   exitMs: 130,
+  flipHalfMs: 140,
   battlefieldHoverOutHoldMs: 60,
 } as const;
 

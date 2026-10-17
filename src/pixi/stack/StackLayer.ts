@@ -413,7 +413,7 @@ export class StackLayer implements StackAnchorProvider {
   toggleRulesView(stackObjectId: string): void {
     const sprite = this.sprites.get(stackObjectId);
     if (!sprite) return;
-    const active = !sprite.usesRulesView;
+    const active = !(this.rulesViewOverrides.get(stackObjectId) ?? sprite.usesRulesView);
     this.rulesViewOverrides.set(stackObjectId, active);
     sprite.setRulesView(active);
   }

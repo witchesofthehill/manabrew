@@ -16,6 +16,11 @@ import {
 } from "@/lib/cardRenderDecision";
 import { resolveCardPrinting } from "@/lib/cardPrinting";
 
+export interface CardGlintFace {
+  face: SemanticCardInput;
+  decision: CardRenderDecision;
+}
+
 const SUPPORTED_LAYOUTS: Record<string, true> = {
   normal: true,
   token: true,
@@ -99,7 +104,7 @@ function resolveLiveChanges(changes: CardFaceLiveChanges, face: RenderedCardInpu
 export function cardGlintBaseline(
   prepared: PreparedCard,
   standardFrameFallback: boolean,
-): { face: SemanticCardInput; decision: CardRenderDecision } {
+): CardGlintFace {
   const snapshot = prepared.snapshot;
   const layout = snapshot.layout ?? "normal";
   const original = (reason: string): never => {
@@ -288,7 +293,7 @@ export function cardGlintBaseline(
 export function cardGlintFace(
   prepared: PreparedCard,
   standardFrameFallback: boolean,
-): { face: SemanticCardInput; decision: CardRenderDecision } {
+): CardGlintFace {
   const { face: baseline, decision } = cardGlintBaseline(prepared, standardFrameFallback);
   const face = resolveCardPrinting(baseline, prepared);
   return {

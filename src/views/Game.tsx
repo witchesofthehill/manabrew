@@ -52,6 +52,7 @@ import { useHandScale } from "@/hooks/useHandScale";
 import { useFlashQueue } from "@/hooks/useFlashQueue";
 import { useHandDrag, type HandDragStart } from "@/hooks/useHandDrag";
 import { useCardPreview } from "@/hooks/useCardPreview";
+import { useGamePreviewFlip } from "@/hooks/useGamePreviewFlip";
 import type { PreviewFlipOptions, PreviewPointerInput } from "@/lib/cardPreview";
 import { MODAL_OPEN_EVENT, topModal } from "@/lib/modalStack";
 import { useMulliganSelection } from "@/hooks/useMulliganSelection";
@@ -1832,17 +1833,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     previewFaceOverride && previewFaceOverride.cardId === previewFaceCard?.id
       ? previewFaceOverride.showBackFace
       : (previewFaceCard?.isTransformed ?? false);
-  const handleFlipPreview = (options?: PreviewFlipOptions) => {
-    if (!previewFaceCard) return;
-    if (singleCommandPreviewCard) commandZonePreview.flipCard(options);
-    else preview.flipCard(options);
-    const showBackFace = !previewShowBackFace;
-    setPreviewFaceOverride(
-      showBackFace === previewFaceCard.isTransformed
-        ? null
-        : { cardId: previewFaceCard.id, showBackFace },
-    );
-  };
   const hoveredCardActions = useMemo(
     () => (livePreviewCard ? getCardActions(livePreviewCard) : []),
     [getCardActions, livePreviewCard],
@@ -2063,14 +2053,56 @@ export default function Game({ exitTo }: GameProps = {}) {
     preview.phase === "open" &&
     livePreviewCard != null &&
     previewViewSwitchCardIdRef.current === livePreviewCard.id;
-  const togglePreviewView = useCallback(() => {
-    if (!livePreviewCard && !commandPreviewSource) return;
+  const previewFlipIdentity = showCommandZonePreview
+    ? commandPreviewCards.map((card) => card.id).join(":")
+    : (livePreviewCard?.id ?? null);
+  const previewPresentation = `${inGameCardPreviewStyle}:${previewFlipIdentity}:${previewShowBackFace}`;
+  const previewFlip = useGamePreviewFlip(
+    previewFlipIdentity,
+    externalPreviewActive,
+    previewPresentation,
+  );
+  const requestedPreview = useRef({
+    style: inGameCardPreviewStyle,
+    showBackFace: previewShowBackFace,
+  });
+  useEffect(() => {
+    requestedPreview.current = {
+      style: inGameCardPreviewStyle,
+      showBackFace: previewShowBackFace,
+    };
+  }, [previewFlipIdentity, inGameCardPreviewStyle, previewShowBackFace, externalPreviewActive]);
+  const currentPreviewFaceCard = useRef(previewFaceCard);
+  currentPreviewFaceCard.current = previewFaceCard;
+  const requestPreviewPresentation = () => {
+    if (!previewFlipIdentity) return;
+    const target = { ...requestedPreview.current };
     if (livePreviewCard) previewViewSwitchCardIdRef.current = livePreviewCard.id;
-    const preferences = usePreferencesStore.getState();
-    preferences.setInGameCardPreviewStyle(
-      preferences.inGameCardPreviewStyle === "printed" ? "rules" : "printed",
-    );
-  }, [commandPreviewSource, livePreviewCard]);
+    previewFlip.request(`${target.style}:${previewFlipIdentity}:${target.showBackFace}`, () => {
+      usePreferencesStore.getState().setInGameCardPreviewStyle(target.style);
+      const card = currentPreviewFaceCard.current;
+      if (card) {
+        setPreviewFaceOverride(
+          target.showBackFace === card.isTransformed
+            ? null
+            : { cardId: card.id, showBackFace: target.showBackFace },
+        );
+      }
+    });
+  };
+  const togglePreviewView = () => {
+    if (!livePreviewCard && !commandPreviewSource) return;
+    requestedPreview.current.style =
+      requestedPreview.current.style === "printed" ? "rules" : "printed";
+    requestPreviewPresentation();
+  };
+  const handleFlipPreview = (options?: PreviewFlipOptions) => {
+    if (!previewFaceCard) return;
+    if (singleCommandPreviewCard) commandZonePreview.flipCard(options);
+    else preview.flipCard(options);
+    requestedPreview.current.showBackFace = !requestedPreview.current.showBackFace;
+    requestPreviewPresentation();
+  };
   useKeybindings(
     externalPreviewActive
       ? {
@@ -2231,6 +2263,8 @@ export default function Game({ exitTo }: GameProps = {}) {
           suppressed: previewSuppressed,
           anchorRect: commandPreviewSource.anchorRect,
           viewportRight: boardViewportRight,
+          flip: previewFlip.command,
+          showBackFace: singleCommandPreviewCard ? previewShowBackFace : undefined,
         }
       : null;
   const rulesPreview: BoardOverlayPreviewSpec | null =
@@ -2252,6 +2286,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           anchorRect: commandPreviewSource.anchorRect,
           slotRect: null,
           viewportRight: boardViewportRight,
+          flip: previewFlip.rules,
         }
       : !commandPreview &&
           inGameCardPreviewStyle === "rules" &&
@@ -2272,6 +2307,7 @@ export default function Game({ exitTo }: GameProps = {}) {
             anchorRect: preview.anchorRect,
             slotRect: null,
             viewportRight: boardViewportRight,
+            flip: previewFlip.rules,
           }
         : null;
 
@@ -2853,6 +2889,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           suppressed={previewSuppressed}
           skipEnterAnimation={skipPreviewEnterAnimation}
           onToggleView={togglePreviewView}
+          flip={previewFlip.printed}
           viewportRight={boardViewportRight}
           portalTarget={zoneCardPreview ? zonePreviewPanel : null}
         />

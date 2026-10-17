@@ -19,6 +19,8 @@ import { gsap } from "@/pixi/effects/gsap";
 import { animationsEnabled } from "@/pixi/effects/enabled";
 import { PREVIEW_TIMING } from "@/lib/cardPreview";
 import { applyIcon } from "@/pixi/panelIcons";
+import type { GamePreviewFlipBinding } from "@/hooks/useGamePreviewFlip";
+import { PreviewFlipAnimation } from "@/pixi/cardPreview/PreviewFlipAnimation";
 
 export interface CommandZonePreviewLayerSpec {
   cards: ClientCardDto[];
@@ -28,6 +30,8 @@ export interface CommandZonePreviewLayerSpec {
   suppressed: boolean;
   anchor: { x: number; y: number; width: number; height: number };
   viewportRight?: number;
+  showBackFace?: boolean;
+  flip?: GamePreviewFlipBinding;
 }
 
 interface PreviewEntry {
@@ -37,6 +41,7 @@ interface PreviewEntry {
   castButtonBackground: Graphics;
   castButtonIcon: Sprite;
   castButtonLabel: Text;
+  face: 0 | 1 | null;
 }
 
 interface CommandZonePreviewLayerCallbacks {
@@ -45,6 +50,8 @@ interface CommandZonePreviewLayerCallbacks {
   onInteractionReady: () => void;
   onCastCard: (cardId: string) => void;
   onRenderRequested: () => void;
+  onFlip: () => void;
+  onToggleView: () => void;
 }
 
 const PREVIEW_GAP = 12;
@@ -77,6 +84,17 @@ export class CommandZonePreviewLayer {
   private interactionTimer: number | null = null;
   private previewSize = usePreferencesStore.getState().inGameCardPreviewSize;
   private readonly unsubscribePreferences: () => void;
+  private layoutX = 0;
+  private readonly flip = new PreviewFlipAnimation(
+    (scale) => {
+      this.container.scale.set(scale, 1);
+      this.container.x = this.layoutX + (this.groupWidth * (1 - scale)) / 2;
+      this.callbacks.onRenderRequested();
+    },
+    () =>
+      this.entries.length > 0 &&
+      this.entries.every((entry) => entry.sprite.previewPresentationReady),
+  );
 
   constructor(theme: Theme, callbacks: CommandZonePreviewLayerCallbacks) {
     this.theme = theme;
@@ -107,7 +125,14 @@ export class CommandZonePreviewLayer {
 
   setSpec(spec: CommandZonePreviewLayerSpec | null): void {
     const previous = this.spec;
+    if (previous?.flip?.handleRef !== spec?.flip?.handleRef && previous?.flip) {
+      previous.flip.handleRef.current = null;
+    }
     this.spec = spec;
+    if (spec?.flip) {
+      spec.flip.handleRef.current = this.flip;
+      if (spec.flip.closed && !previous?.flip?.closed) this.flip.setClosed();
+    }
     const sameCards =
       spec?.cards.length === this.entries.length &&
       spec.cards.every((card, index) => this.entries[index]?.sprite.card.id === card.id);
@@ -122,6 +147,17 @@ export class CommandZonePreviewLayer {
         const card = entry.sprite.card;
         const castable = spec.castableCardIds.includes(card.id);
         entry.sprite.setHandRulesView(spec.style === "rules");
+        if (this.entries.length === 1 && spec.showBackFace != null) {
+          entry.sprite.setPreviewFace(spec.showBackFace ? 1 : 0, false);
+        }
+        entry.sprite.setHandControls({
+          rulesView: spec.style === "rules",
+          horizontal: entry.sprite.horizontalFrame && !card.isDoubleFaced,
+          alternateFace: entry.face === 1,
+          showFaceControl: card.isDoubleFaced,
+          onToggleRules: () => this.callbacks.onToggleView(),
+          onToggleFace: () => this.flipEntry(entry),
+        });
         entry.sprite.setHandRulesActions(
           castable ? [{ kind: "cast", cardId: card.id, label: `Cast ${card.identity.name}` }] : [],
           (action) => this.callbacks.onCastCard(action.cardId),
@@ -132,7 +168,8 @@ export class CommandZonePreviewLayer {
     this.layout();
     if (spec?.phase === "open" && !spec.suppressed) {
       if (!previous || previous.phase !== "open" || previous.suppressed) {
-        this.animateIn(previous == null);
+        if (spec.flip?.closed) this.showImmediately();
+        else this.animateIn(previous == null);
       } else {
         this.container.visible = true;
       }
@@ -141,6 +178,7 @@ export class CommandZonePreviewLayer {
     } else {
       this.hide();
     }
+    if (this.flip.isReady()) spec?.flip?.onReady();
   }
 
   hitTest(x: number, y: number): boolean {
@@ -193,9 +231,25 @@ export class CommandZonePreviewLayer {
     this.pointerInside = false;
     this.setHoveredIndex(-1);
   }
+  activatePrimaryTransform(): void {
+    const entry =
+      this.entries[this.hoveredIndex] ?? (this.entries.length === 1 ? this.entries[0] : null);
+    if (entry?.sprite.card.isDoubleFaced) this.flipEntry(entry);
+  }
+
+  private flipEntry(entry: PreviewEntry): void {
+    if (this.entries.length === 1) {
+      this.callbacks.onFlip();
+      return;
+    }
+    entry.face = (entry.face ?? (entry.sprite.card.isTransformed ? 1 : 0)) === 0 ? 1 : 0;
+    entry.sprite.setPreviewFace(entry.face);
+  }
 
   destroy(): void {
     this.unsubscribePreferences();
+    if (this.spec?.flip) this.spec.flip.handleRef.current = null;
+    this.flip.cancel();
     this.clearInteractionTimer();
     gsap.killTweensOf(this.container);
     gsap.killTweensOf(this.container.scale);
@@ -214,7 +268,10 @@ export class CommandZonePreviewLayer {
     }
     this.entries = cards.map((card) => {
       const sprite = new CardSprite(card, "hand");
-      sprite.onVisualChange = this.callbacks.onRenderRequested;
+      sprite.onVisualChange = () => {
+        this.callbacks.onRenderRequested();
+        if (this.flip.isReady()) this.spec?.flip?.onReady();
+      };
       const castButton = new Container();
       const castButtonBackground = new Graphics();
       const castButtonIcon = new Sprite(Texture.EMPTY);
@@ -250,6 +307,7 @@ export class CommandZonePreviewLayer {
         castButtonBackground,
         castButtonIcon,
         castButtonLabel,
+        face: null,
       };
       castButton.on("pointerenter", (event: FederatedPointerEvent) => {
         if (event.pointerType !== "touch") this.paintCastButton(entry, true);
@@ -340,6 +398,9 @@ export class CommandZonePreviewLayer {
       viewportTop + EDGE_PAD,
       Math.min(targetY, viewportBottom - EDGE_PAD - this.groupHeight),
     );
+    this.layoutX = this.container.x;
+    this.container.x += (this.groupWidth * (1 - this.flip.scale)) / 2;
+    this.container.scale.x = this.flip.scale;
   }
 
   private animateIn(fromHidden: boolean): void {
@@ -414,7 +475,7 @@ export class CommandZonePreviewLayer {
     this.clearInteractionTimer();
     this.container.visible = true;
     this.container.alpha = 1;
-    this.container.scale.set(1);
+    this.container.scale.set(this.flip.scale, 1);
     this.interactiveReady = true;
     this.callbacks.onInteractionReady();
   }
@@ -433,6 +494,7 @@ export class CommandZonePreviewLayer {
 
   private hide(): void {
     gsap.killTweensOf(this.container);
+    this.flip.cancel();
     gsap.killTweensOf(this.container.scale);
     this.clearInteractionTimer();
     this.clearHover();

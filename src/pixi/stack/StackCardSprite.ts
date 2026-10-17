@@ -324,8 +324,7 @@ export class StackCardSprite {
   }
 
   setRulesView(active: boolean): void {
-    if (this.face.usesHandRulesView === active) return;
-    this.face.setHandRulesView(active);
+    this.face.setHandRulesView(active, true);
     this.syncControls();
     this.redraw();
     if (this.promptReferenceColor != null) this.setPromptReference(this.promptReferenceColor);

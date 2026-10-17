@@ -468,9 +468,7 @@ export class HandController {
     if (this.hoveredCardId === null) return null;
     const sprite = this.sprites.get(this.hoveredCardId);
     if (!sprite) return null;
-    const active = !sprite.usesHandRulesView;
-    sprite.setHandRulesView(active);
-    return active;
+    return sprite.toggleHandRulesView();
   }
   setHoveredRulesActions(
     actions: HandActionOption[],

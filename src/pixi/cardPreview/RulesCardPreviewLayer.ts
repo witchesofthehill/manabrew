@@ -84,6 +84,8 @@ import { writeCardTextureUvs } from "@/pixi/cardTextureUvs";
 import { CardFoil } from "@/pixi/effects/CardFoil";
 import { CardLiveHighlight } from "@/pixi/effects/CardLiveHighlight";
 import { isEtchedOnlyPrinting } from "@/lib/cardFinish";
+import type { GamePreviewFlipBinding } from "@/hooks/useGamePreviewFlip";
+import { PreviewFlipAnimation } from "@/pixi/cardPreview/PreviewFlipAnimation";
 
 export interface RulesCardPreviewSpec {
   card: CardDto;
@@ -100,6 +102,7 @@ export interface RulesCardPreviewSpec {
   slot: { x: number; y: number; width: number; height: number } | null;
   embedded?: boolean;
   highlightedEffect?: string;
+  flip?: GamePreviewFlipBinding;
 }
 
 export interface RulesPreviewActionGlowBounds {
@@ -225,6 +228,8 @@ export class RulesCardPreviewLayer {
   private controls = new RulesPreviewActions();
   private viewControls: HandCardControls;
   private spec: RulesCardPreviewSpec | null = null;
+  // Hidden presentations keep their scene objects, but never remain interactive.
+  private retainedSpec: RulesCardPreviewSpec | null = null;
   private cardContentKey: string | null = null;
   private viewportWidth = 0;
   private viewportHeight = 0;
@@ -242,6 +247,16 @@ export class RulesCardPreviewLayer {
   private interactionTimer: number | null = null;
   private pendingEntry = false;
   private readonly entrance = { progress: 1, x: 0, y: 0, scale: 1 };
+  private readonly flip = new PreviewFlipAnimation(
+    () => {
+      this.applyEntrancePose();
+      this.callbacks.onRenderRequested();
+    },
+    () =>
+      this.imageReady &&
+      this.completedFaceInputKey === this.faceInputKey &&
+      this.renderState !== "loading",
+  );
   private revealHighlightedEffect = false;
   private highlightedEffectTween: gsap.core.Tween | null = null;
   private highlightedRows: Container[] = [];
@@ -271,8 +286,10 @@ export class RulesCardPreviewLayer {
       contains: (x, y) => this.interactiveReady && this.containsHoverArea(x, y),
     };
     this.unsubscribeLocale = useScryfallStore.subscribe((state, previous) => {
-      if (state.locale === previous.locale || !this.spec) return;
+      if (state.locale === previous.locale) return;
+      this.retainedSpec = null;
       this.scryfallInfo = null;
+      if (!this.spec) return;
       void this.loadCardInfo();
       void this.loadFace();
     });
@@ -312,6 +329,9 @@ export class RulesCardPreviewLayer {
       this.faceSprite.texture !== Texture.EMPTY &&
       (this.faceTexture !== null || this.renderState === "error")
     );
+  }
+  get presentationReady(): boolean {
+    return this.flip.isReady();
   }
   get liveHighlights(): CardLiveHighlight {
     return this.liveHighlight;
@@ -357,6 +377,7 @@ export class RulesCardPreviewLayer {
   setTheme(theme: Theme): void {
     if (this.theme === theme) return;
     this.theme = theme;
+    this.retainedSpec = null;
     this.viewControls.setTheme(theme);
     if (this.spec) {
       this.rebuild();
@@ -372,7 +393,13 @@ export class RulesCardPreviewLayer {
   }
 
   setSpec(spec: RulesCardPreviewSpec | null, preserveHover = false): void {
-    const previous = this.spec;
+    const activePrevious = this.spec;
+    const previous = activePrevious ?? this.retainedSpec;
+    const returning = activePrevious === null;
+    if (activePrevious?.flip?.handleRef !== spec?.flip?.handleRef && activePrevious?.flip) {
+      activePrevious.flip.handleRef.current = null;
+    }
+    this.retainedSpec = spec ? null : previous;
     this.spec = spec;
     if (!spec || this.viewportWidth <= EDGE_PAD * 2 || this.viewportHeight <= EDGE_PAD * 2) {
       this.spec = null;
@@ -403,7 +430,16 @@ export class RulesCardPreviewLayer {
     const embeddedChanged = previous?.embedded !== spec.embedded;
     const highlightChanged = previous?.highlightedEffect !== spec.highlightedEffect;
     this.displayedBackFace = spec.showBackFace;
-    if (lookupChanged || faceChanged || visibilityChanged) {
+    if (spec.flip) {
+      spec.flip.handleRef.current = this.flip;
+      if (
+        spec.flip.closed &&
+        (returning || !previous?.flip?.closed || faceChanged || lookupChanged)
+      ) {
+        this.flip.setClosed();
+      }
+    }
+    if (lookupChanged || visibilityChanged) {
       const retainFace =
         !hidden &&
         this.faceTexture !== null &&
@@ -420,7 +456,8 @@ export class RulesCardPreviewLayer {
         this.preserveArtwork = false;
       }
     }
-    if (lookupChanged || visibilityChanged) {
+    const previousInfo = this.scryfallInfo;
+    if (lookupChanged || visibilityChanged || returning) {
       this.cardInfoGeneration += 1;
       const identity = spec.card.identity.isToken
         ? previewDeckCard(spec.card).identity
@@ -447,9 +484,13 @@ export class RulesCardPreviewLayer {
     if (lookupChanged || faceChanged || visibilityChanged || highlightChanged) {
       this.revealHighlightedEffect = !!spec.highlightedEffect;
     }
-    if (contentChanged || faceChanged || visibilityChanged) void this.loadFace();
+    const previousFaceInputKey = this.faceInputKey;
+    if (contentChanged || faceChanged || visibilityChanged || returning)
+      void this.loadFace(returning && !hidden);
     if (
       contentChanged ||
+      this.scryfallInfo !== previousInfo ||
+      this.faceInputKey !== previousFaceInputKey ||
       actionsChanged ||
       faceChanged ||
       previous?.sticky !== spec.sticky ||
@@ -468,8 +509,12 @@ export class RulesCardPreviewLayer {
       return;
     }
 
+    this.foil?.setEnabled(!spec.embedded && !hidden && this.imageReady);
+    this.startHighlightedEffect();
+
     if (
       !previous ||
+      returning ||
       previous.phase !== spec.phase ||
       previous.suppressed ||
       lookupChanged ||
@@ -480,10 +525,11 @@ export class RulesCardPreviewLayer {
         if (spec.slot) this.hide();
         else this.animateOut();
       } else if (spec.skipEnterAnimation || spec.slot) this.showImmediately();
-      else this.animateIn(previous == null);
+      else this.animateIn(returning);
     } else if (spec.phase === "open" && !this.pendingEntry) {
       this.container.visible = true;
     }
+    if (this.flip.isReady()) spec.flip?.onReady();
   }
 
   hitTest(x: number, y: number): boolean {
@@ -577,6 +623,7 @@ export class RulesCardPreviewLayer {
   }
 
   getActionScreenBounds(index: number) {
+    if (!this.spec || this.spec.suppressed || !this.container.visible) return null;
     const bounds = this.actions.getActionScreenBounds(index);
     const body = this.primaryBody;
     if (!bounds || !body?.scroller.visible) return null;
@@ -595,6 +642,7 @@ export class RulesCardPreviewLayer {
   }
 
   activateFocusedAction(): void {
+    if (!this.spec?.actions.length || this.spec.suppressed) return;
     this.actions.activateFocusedAction();
     this.callbacks.onRenderRequested();
   }
@@ -971,15 +1019,7 @@ export class RulesCardPreviewLayer {
     }
     if (detailsReady) this.revealHighlightedEffect = false;
     this.widgetHeight = this.panelHeight;
-    if (this.highlightedRows.length > 0 && animationsEnabled()) {
-      this.highlightedEffectTween = gsap.to(this.highlightedRows, {
-        alpha: 0.72,
-        duration: STACK_RULES_PULSE_S,
-        ease: "sine.inOut",
-        yoyo: true,
-        repeat: -1,
-      });
-    }
+    this.startHighlightedEffect();
     this.layoutPanel();
     if (
       this.pendingEntry &&
@@ -990,6 +1030,18 @@ export class RulesCardPreviewLayer {
     ) {
       this.animateIn(true);
     }
+  }
+
+  private startHighlightedEffect(): void {
+    if (this.highlightedEffectTween || this.highlightedRows.length === 0 || !animationsEnabled())
+      return;
+    this.highlightedEffectTween = gsap.to(this.highlightedRows, {
+      alpha: 0.72,
+      duration: STACK_RULES_PULSE_S,
+      ease: "sine.inOut",
+      yoyo: true,
+      repeat: -1,
+    });
   }
 
   private addKeywordChips(body: RulesPreviewBody, keywords: string[], y: number): number {
@@ -1401,9 +1453,9 @@ export class RulesCardPreviewLayer {
       this.layoutX + (this.entrance.x - this.layoutX) * remaining,
       this.layoutY + (this.entrance.y - this.layoutY) * remaining,
     );
-    this.container.scale.set(
-      this.layoutScale + (this.entrance.scale - this.layoutScale) * remaining,
-    );
+    const scale = this.layoutScale + (this.entrance.scale - this.layoutScale) * remaining;
+    this.container.x += (this.panelWidth * scale * (1 - this.flip.scale)) / 2;
+    this.container.scale.set(scale * this.flip.scale, scale);
     this.container.alpha = this.entrance.progress;
     for (let index = 0; index < this.foilRulesExclusions.length; index += 1) {
       const region = this.foilRulesExclusions[index];
@@ -1544,7 +1596,8 @@ export class RulesCardPreviewLayer {
     }
   }
 
-  private async loadFace(): Promise<void> {
+  private async loadFace(refreshMetadata = false): Promise<void> {
+    // Input keys omit mutable metadata; revalidate it when resuming a retained face.
     const spec = this.spec;
     if (!spec) return;
     const hidden = spec.card.isFaceDown || !spec.card.identity.name;
@@ -1556,6 +1609,7 @@ export class RulesCardPreviewLayer {
     };
     const inputKey = hidden ? "hidden" : cardRenderInputKey(request);
     if (
+      !refreshMetadata &&
       inputKey === this.faceInputKey &&
       ((inputKey === this.completedFaceInputKey && this.imageReady) ||
         (this.renderAbort && !this.renderAbort.signal.aborted)) &&
@@ -1582,7 +1636,11 @@ export class RulesCardPreviewLayer {
       )
         return;
       this.completedFaceInputKey = inputKey;
-      if (canvas && this.faceTexture?.source.resource === canvas) return;
+      if (canvas && this.faceTexture?.source.resource === canvas) {
+        this.spec?.flip?.onReady();
+        this.callbacks.onRenderRequested();
+        return;
+      }
       const texture = canvas ? createGeneratedCardTexture(canvas) : cardBack!;
       const previous = this.faceTexture;
       this.foil?.setTexture(null);
@@ -1593,6 +1651,7 @@ export class RulesCardPreviewLayer {
       this.renderState = "ready";
       this.faceSprite.label = hidden ? "card-back" : "card-glint-ready";
       this.rebuild();
+      this.spec?.flip?.onReady();
       this.callbacks.onRenderRequested();
       previous?.destroy(true);
     } catch (cause: unknown) {
@@ -1622,7 +1681,9 @@ export class RulesCardPreviewLayer {
       this.faceSprite.label = "card-glint-original";
       this.faceGeometry = undefined;
       this.faceSprite.texture = texture;
+      this.completedFaceInputKey = inputKey;
       this.rebuild();
+      if (texture !== Texture.EMPTY) this.spec?.flip?.onReady();
       this.callbacks.onRenderRequested();
     }
   }
@@ -1673,6 +1734,7 @@ export class RulesCardPreviewLayer {
 
   private hide(preserveHover = false): void {
     this.foil?.setEnabled(false);
+    this.flip.cancel();
     gsap.killTweensOf(this.container);
     gsap.killTweensOf(this.container.scale);
     gsap.killTweensOf(this.entrance);
@@ -1680,6 +1742,7 @@ export class RulesCardPreviewLayer {
     this.entrance.progress = 1;
     this.highlightedEffectTween?.kill();
     this.highlightedEffectTween = null;
+    for (const row of this.highlightedRows) row.alpha = 1;
     if (this.interactionTimer != null) {
       window.clearTimeout(this.interactionTimer);
       this.interactionTimer = null;
@@ -1687,14 +1750,16 @@ export class RulesCardPreviewLayer {
     this.interactiveReady = false;
     if (!preserveHover && !this.spec) this.clearHover();
     this.bodyPointerId = null;
-    this.actions.reset();
-    this.controls.reset();
+    for (const body of this.bodies) body.cancelInteraction();
+    this.actions.cancelInteraction();
+    this.controls.cancelInteraction();
     this.container.visible = false;
     this.container.alpha = 0;
   }
 
   destroy(): void {
     this.unsubscribePreferences();
+    if (this.spec?.flip) this.spec.flip.handleRef.current = null;
     this.clearHover();
     this.hide();
     this.artGeneration += 1;

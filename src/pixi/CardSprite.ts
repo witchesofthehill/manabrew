@@ -58,6 +58,7 @@ import {
 import { HandRulesCardFace } from "./cardPreview/HandRulesCardFace";
 import { rulesCardRadius } from "./cardPreview/rulesPreviewFrame";
 import { HandCardControls, type HandCardControlsSpec } from "./HandCardControls";
+import { PreviewFlipAnimation } from "@/pixi/cardPreview/PreviewFlipAnimation";
 let activeTheme: Theme = getTheme();
 const TINTED_TEXT_STYLES: TextStyle[] = [];
 const SHADOW_CONTEXTS: { width: number; height: number; context: GraphicsContext }[] = [];
@@ -466,6 +467,19 @@ export class CardSprite extends Container {
   private handRulesHighlight = "";
   private handControls: HandCardControls | null = null;
   private handControlsSpec: HandCardControlsSpec | null = null;
+  private previewFlipGeneration = 0;
+  private previewFlipPhase: "idle" | "closing" | "waiting" = "idle";
+  private requestedFace: 0 | 1 | null = null;
+  private requestedRulesView = false;
+  private previewOrientationCommit: (() => void) | null = null;
+  private readonly previewFlip = new PreviewFlipAnimation(
+    (scale) => {
+      this.contentContainer.scale.x = scale;
+      this.contentContainer.x = (this.cw * (1 - scale)) / 2;
+      this.onVisualChange?.();
+    },
+    () => this.previewPresentationReady,
+  );
   constructor(card: CardDto, kind: "battlefield" | "hand" | "zone" = "battlefield") {
     super();
     this.card = card;
@@ -953,24 +967,105 @@ export class CardSprite extends Container {
     this.syncHandFaceVisibility();
     previous?.destroy(true);
     this.onVisualChange?.();
+    this.finishPreviewFlip();
   }
-  setPreviewFace(face: 0 | 1 | null): void {
-    if (this.previewFace === face) return;
+  setPreviewFace(face: 0 | 1 | null, animate = true): void {
+    if (face === null && animate) {
+      this.previewFlipGeneration += 1;
+      this.previewFlipPhase = "idle";
+      this.previewOrientationCommit = null;
+      this.previewFlip.cancel();
+    }
+    if (this.previewFace === face && this.previewFlipPhase === "idle") return;
+    if (animate && face !== null && this.kind === "hand") {
+      this.requestPreviewChange(
+        face,
+        this.previewFlipPhase === "idle" ? this.handRulesView : this.requestedRulesView,
+      );
+      return;
+    }
     this.previewFace = face;
     this.loadImage();
     this.updateHandRulesFace();
     this.updateHandControls();
   }
+  get previewPresentationReady(): boolean {
+    return this.handRulesView
+      ? this.handRulesFace?.presentationReady === true
+      : this._imageLoaded && this._imageSettled;
+  }
+  private requestPreviewChange(face: 0 | 1 | null, rulesView: boolean): void {
+    this.requestedFace = face;
+    this.requestedRulesView = rulesView;
+    if (this.previewFlipPhase === "closing") return;
+    if (this.previewFlipPhase === "waiting") {
+      this.commitPreviewChange();
+      return;
+    }
+    const currentFace = this.previewFace ?? (this.card.isTransformed ? 1 : 0);
+    if (
+      !this.previewOrientationCommit &&
+      (face ?? (this.card.isTransformed ? 1 : 0)) === currentFace &&
+      rulesView === this.handRulesView
+    )
+      return;
+    if (!animationsEnabled() || !this.previewPresentationReady) {
+      this.commitPreviewChange();
+      return;
+    }
+    this.previewFlipPhase = "closing";
+    const generation = ++this.previewFlipGeneration;
+    void this.previewFlip.close().then(() => {
+      if (this.destroyed || generation !== this.previewFlipGeneration) return;
+      this.previewFlipPhase = "waiting";
+      this.commitPreviewChange();
+    });
+  }
+  private commitPreviewChange(): void {
+    const orientation = this.previewOrientationCommit;
+    this.previewOrientationCommit = null;
+    orientation?.();
+    this.setPreviewFace(this.requestedFace, false);
+    this.setHandRulesView(this.requestedRulesView);
+    this.finishPreviewFlip();
+  }
+  private finishPreviewFlip(): void {
+    if (this.previewFlipPhase !== "waiting" || !this.previewPresentationReady) return;
+    this.previewFlipPhase = "idle";
+    this.previewFlip.open();
+  }
   get usesHandRulesView(): boolean {
     return this.handRulesView;
+  }
+  toggleHandRulesView(): boolean {
+    const active = !(this.previewFlipPhase === "idle"
+      ? this.handRulesView
+      : this.requestedRulesView);
+    this.setHandRulesView(active, true);
+    return active;
+  }
+  flipPreviewOrientation(commit: () => void): void {
+    this.previewOrientationCommit = commit;
+    this.requestPreviewChange(
+      this.previewFlipPhase === "idle" ? this.previewFace : this.requestedFace,
+      this.previewFlipPhase === "idle" ? this.handRulesView : this.requestedRulesView,
+    );
   }
   get previewControlArtTop(): number {
     return this.usesHandRulesView && this.handRulesFace
       ? this.handRulesFace.artworkTop
       : this.ch * PRINTED_ART_TOP_FRAC;
   }
-  setHandRulesView(active: boolean): void {
-    if (this.kind !== "hand" || this.usesHandRulesView === active) return;
+  setHandRulesView(active: boolean, animate = false): void {
+    if (this.kind !== "hand") return;
+    if (animate) {
+      this.requestPreviewChange(
+        this.previewFlipPhase === "idle" ? this.previewFace : this.requestedFace,
+        active,
+      );
+      return;
+    }
+    if (this.usesHandRulesView === active) return;
     this.handRulesView = active;
     if (!this.handRulesFace) {
       const faceIndex = this.previewFace ?? (this.card.isTransformed ? 1 : 0);
@@ -985,6 +1080,7 @@ export class CardSprite extends Container {
       this.handRulesFace.onRenderRequested = () => {
         this.syncHandFaceVisibility();
         this.onVisualChange?.();
+        this.finishPreviewFlip();
       };
       this.handRulesFace.setActions(this.handRulesActions, this.onSelectHandRulesAction);
       this.handRulesFace.setHighlightedEffect(this.handRulesHighlight);
@@ -1298,6 +1394,16 @@ export class CardSprite extends Container {
       card.summoningSick !== previous.summoningSick ||
       card.isAttacking !== previous.isAttacking;
 
+    if (
+      card.id !== previous.id ||
+      card.isFaceDown !== previous.isFaceDown ||
+      card.identity.name !== previous.identity.name
+    ) {
+      this.previewFlipGeneration += 1;
+      this.previewFlipPhase = "idle";
+      this.previewOrientationCommit = null;
+      this.previewFlip.cancel();
+    }
     this.card = card;
     if (imageChanged) this.loadImage(imageKey);
     if (frameChanged) this.renderFrame();
@@ -1410,6 +1516,8 @@ export class CardSprite extends Container {
   }
   destroy(options?: DestroyOptions): void {
     this.loadGeneration++;
+    this.previewFlipGeneration += 1;
+    this.previewFlip.cancel();
     this.imageAbort?.abort();
     this.imageAbort = null;
     if (this.handRulesFace) this.handRulesFace.onRenderRequested = undefined;

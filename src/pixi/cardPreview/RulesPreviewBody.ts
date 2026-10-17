@@ -422,6 +422,12 @@ export class RulesPreviewBody {
     }
   }
 
+  cancelInteraction(): void {
+    this.pointerId = null;
+    this.dragMoved = false;
+    this.tapCancelled = true;
+  }
+
   destroy(): void {
     this.container.destroy({ children: true });
   }

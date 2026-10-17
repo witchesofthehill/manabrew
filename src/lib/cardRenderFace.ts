@@ -200,7 +200,10 @@ export function cardGlintBaseline(
         scanBacked &&
         (legacyFrame === "modern" ||
           (cosmetics?.border != null && cosmetics.border !== "printing")),
-      layout: semanticLayout ?? faceLayout,
+      layout:
+        semanticLayout === "saga" && layout === "transform"
+          ? "transform"
+          : (semanticLayout ?? faceLayout),
       frameStyle:
         legacyFrame === "modern"
           ? "modern"

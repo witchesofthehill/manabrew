@@ -76,14 +76,13 @@ ${WORN_GLSL}
 vec3 modernSurface(vec2 uv,vec3 normal,vec3 view,vec2 wear,vec2 pixel) {
   vec3 color=previewKind>=5. && previewKind<8. ? animatedSurface(uv,normal) : previewFoil(uv,normal,view);
   vec3 base=finishFace(uv).rgb;
+  if(wear.x>0.)color=wornSurface(uv,previewInk(base),color,normal,view,wear.y,wear.x,
+    step(.5,previewKind)*(1.-step(4.5,previewKind)),pixel);
   if(hasPrinting>0.){
     vec4 top=finishPrinting(uv);
     vec3 under=mix(base,previewLinear(color),finishCoverage(uv));
     color=previewInk(mix(under,top.rgb,top.a));
-    base=mix(base,top.rgb,top.a);
   }
-  if(wear.x>0.)color=wornSurface(uv,previewInk(base),color,normal,view,wear.y,wear.x,
-    step(.5,previewKind)*(1.-step(4.5,previewKind)),pixel);
   return color;
 }`;
 }

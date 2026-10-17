@@ -1,6 +1,5 @@
-import { Container, Graphics, Sprite, Text } from "pixi.js";
+import { Container, Graphics, Text } from "pixi.js";
 import { getTheme, subscribeTheme } from "@/hooks/useTheme";
-import { scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { hexToNum } from "@/pixi/colorUtils";
 import {
   DRAG_LIFT_SCALE,
@@ -12,12 +11,14 @@ import { animationsEnabled } from "@/pixi/effects/enabled";
 import { gsap } from "@/pixi/effects/gsap";
 import { LongPressGesture } from "@/pixi/LongPressGesture";
 import { MarqueeHandler, type MarqueeCardPosition } from "@/pixi/MarqueeHandler";
+import { LimitedCardFace } from "@/pixi/limited/LimitedCardFace";
 import {
   acquireLimitedRenderer,
   type LimitedPane,
   type LimitedRenderer,
 } from "@/pixi/limited/LimitedRenderer";
 import { useScryfallStore } from "@/stores/useScryfallStore";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import {
   LimitedBoosterReveal,
   type BoosterOpeningState,
@@ -64,11 +65,8 @@ interface CardEntry {
   root: Container;
   motion: Container;
   pose: Container;
-  image: Sprite;
+  face: LimitedCardFace;
   frame: Graphics;
-  label: Text;
-  locale: string;
-  loading: boolean;
   layoutTimeline: gsap.core.Timeline | null;
   motionTimeline: gsap.core.Timeline | null;
   poseTimeline: gsap.core.Timeline | null;
@@ -123,6 +121,7 @@ export class LimitedCardScene implements LimitedPane {
   private readonly openingEntries = new Set<CardEntry>();
   private unsubscribeTheme: (() => void) | null = null;
   private unsubscribeStore: (() => void) | null = null;
+  private unsubscribePreferences: (() => void) | null = null;
   private readonly reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   private initialized = false;
   private disposed = false;
@@ -161,6 +160,10 @@ export class LimitedCardScene implements LimitedPane {
       this.unsubscribeTheme = subscribeTheme(() => this.update(this.props));
       this.unsubscribeStore = useScryfallStore.subscribe((state, previous) => {
         if (state.locale !== previous.locale) this.update(this.props);
+      });
+      this.unsubscribePreferences = usePreferencesStore.subscribe((state, previous) => {
+        if (state.inGameCardPreviewStyle !== previous.inGameCardPreviewStyle)
+          this.update(this.props);
       });
       window.addEventListener("pointermove", this.move);
       window.addEventListener("pointerup", this.release);
@@ -262,9 +265,10 @@ export class LimitedCardScene implements LimitedPane {
         !allIds.has(id) &&
         acquiredIds.has(id) &&
         this.acceptedIds.has(id) &&
+        entry.face.imageReady &&
         props.departureTarget
       )
-        this.renderer.flyCard(this, entry.image, props.departureTarget);
+        this.renderer.flyCard(this, entry.face, props.departureTarget);
       if (this.drag?.entry === entry || this.settling?.entry === entry) this.abort();
       else if (this.renderer.isLifted(entry.root)) this.renderer.restoreCard(this, entry.root);
       this.killEntry(entry);
@@ -293,11 +297,7 @@ export class LimitedCardScene implements LimitedPane {
         cell,
         created || scrollChanged || freshDeal || (newArrival && props.opening),
       );
-      entry.image.width = cell.width;
-      entry.image.height = cell.height;
-      entry.label.style.fill = theme.appTheme.foreground;
-      entry.label.style.wordWrapWidth = cell.width - 12;
-      entry.label.position.set(6, cell.height / 2 - entry.label.height / 2);
+      entry.face.setContent(cell.card, cell.width, cell.height);
       const selected = props.selectedIds.includes(cell.card.id);
       entry.frame
         .clear()
@@ -307,14 +307,12 @@ export class LimitedCardScene implements LimitedPane {
           color: hexToNum(selected ? theme.gameTheme.cardSelection : theme.appTheme.border),
           width: selected ? 4 : 1,
         });
-      entry.image.alpha =
+      entry.face.alpha =
         props.disabled && !(props.opening && openingIds.has(cell.card.id)) ? 0.65 : 1;
       if (!props.opening && freshDeal && props.arrivalKey) this.deal(entry, index);
       else if (!props.opening && !props.arrivalKey && created && addedIds.has(cell.card.id))
         this.settle(entry, index);
       this.updatePose(entry);
-      if (entry.locale !== useScryfallStore.getState().locale && !entry.loading)
-        void this.load(entry);
     }
     for (const child of this.headings.removeChildren()) child.destroy();
     for (const header of props.layout.headers) {
@@ -465,38 +463,23 @@ export class LimitedCardScene implements LimitedPane {
     const root = new Container();
     const motion = new Container();
     const pose = new Container();
-    const image = new Sprite();
+    const face = new LimitedCardFace(this.request);
     const frame = new Graphics()
       .roundRect(0, 0, cell.width, cell.height, 6)
       .fill(hexToNum(theme.appTheme.muted))
       .stroke({ color: hexToNum(theme.gameTheme.cardSelection), width: 4 });
-    const label = new Text({
-      text: cell.card.name,
-      style: {
-        fontFamily: "Alegreya Sans",
-        fontSize: 13,
-        fill: theme.appTheme.foreground,
-        wordWrap: true,
-        wordWrapWidth: cell.width - 12,
-      },
-    });
     root.addChild(motion);
     motion.addChild(pose);
-    pose.addChild(frame, image, label);
+    pose.addChild(frame, face);
     this.root.addChild(root);
-    image.width = cell.width;
-    image.height = cell.height;
-    label.position.set(6, cell.height / 2 - label.height / 2);
+    face.setContent(cell.card, cell.width, cell.height);
     const entry: CardEntry = {
       cell,
       root,
       motion,
       pose,
-      image,
+      face,
       frame,
-      label,
-      locale: "",
-      loading: false,
       layoutTimeline: null,
       motionTimeline: null,
       poseTimeline: null,
@@ -680,34 +663,6 @@ export class LimitedCardScene implements LimitedPane {
     }
     this.renderer.cancelFlights(this);
   }
-  private async load(entry: CardEntry): Promise<void> {
-    entry.loading = true;
-    const locale = useScryfallStore.getState().locale;
-    entry.locale = locale;
-    try {
-      const { info, uris } = await useScryfallStore.getState().getCard({
-        name: entry.cell.card.name,
-        setCode: entry.cell.card.setCode,
-        collectorNumber: entry.cell.card.cardNumber,
-      });
-      const deckCard = scryfallToDeckCard({ ...info, image_uris: info.image_uris ?? uris });
-      deckCard.identity = { ...deckCard.identity, ...entry.cell.card };
-      const texture = await useScryfallStore.getState().getCardTexture(deckCard, "full", 0);
-      if (this.disposed || entry.root.destroyed || locale !== useScryfallStore.getState().locale)
-        return;
-      entry.image.texture = texture;
-      entry.image.width = entry.cell.width;
-      entry.image.height = entry.cell.height;
-      entry.label.visible = texture.width <= 1;
-    } catch {
-      if (!entry.root.destroyed) entry.label.text = `${entry.cell.card.name}\nImage unavailable`;
-    } finally {
-      entry.loading = false;
-      this.request();
-      if (!this.disposed && !entry.root.destroyed && locale !== useScryfallStore.getState().locale)
-        void this.load(entry);
-    }
-  }
   pressMarquee(event: PointerEvent): void {
     if (
       !this.props.onSelectMany ||
@@ -755,7 +710,6 @@ export class LimitedCardScene implements LimitedPane {
         const cell = this.props.layout.cells.find((candidate) => candidate.card.id === id);
         if (!cell) continue;
         entry = this.createEntry(cell);
-        void this.load(entry);
       }
       if (this.renderer.isLifted(entry.root)) continue;
       this.finishEntry(entry);
@@ -1096,6 +1050,7 @@ export class LimitedCardScene implements LimitedPane {
     for (const entry of this.entries.values()) this.killEntry(entry);
     this.unsubscribeTheme?.();
     this.unsubscribeStore?.();
+    this.unsubscribePreferences?.();
     window.removeEventListener("pointermove", this.move);
     window.removeEventListener("pointerup", this.release);
     window.removeEventListener("pointercancel", this.cancelPointer);

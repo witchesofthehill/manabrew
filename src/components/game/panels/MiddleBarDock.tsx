@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import {
+  Circle,
   Flag,
   Image as ImageIcon,
   LogOut,
@@ -7,7 +8,9 @@ import {
   Minimize2,
   PanelRightClose,
   PanelRightOpen,
+  Repeat,
   Settings2,
+  Square,
   Swords,
 } from "lucide-react";
 import {
@@ -25,6 +28,9 @@ import {
 import { useGameStore } from "@/stores/useGameStore";
 import { getPlatformType } from "@/platform";
 import { useKeybindings } from "@/hooks/useKeybindings";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
+import type { RecordingStatus } from "@/protocol";
 interface MiddleBarDockProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -35,6 +41,11 @@ interface MiddleBarDockProps {
   onLeave: () => void;
   sidePanelCollapsed: boolean;
   onToggleSidePanel: () => void;
+  recording: RecordingStatus["type"];
+  canRecord: boolean;
+  canRepeat: boolean;
+  onToggleRecording: () => void;
+  onRepeat: () => void;
   /** Every seat, for the per-player playmat show/hide toggles. `color` is the
    *  player's seat colour (full opacity, matching their Pixi avatar ring) used as
    *  the row's hover background; `textColor` is the readable text over it. */
@@ -56,6 +67,11 @@ export function MiddleBarDock({
   onLeave,
   sidePanelCollapsed,
   onToggleSidePanel,
+  recording,
+  canRecord,
+  canRepeat,
+  onToggleRecording,
+  onRepeat,
   players,
 }: MiddleBarDockProps) {
   const isWeb = getPlatformType() === "web";
@@ -79,6 +95,29 @@ export function MiddleBarDock({
   useKeybindings({ "toggle-fullscreen": toggleFullscreen });
   const FullscreenIcon = isFullscreen ? Minimize2 : Maximize2;
   const PanelIcon = sidePanelCollapsed ? PanelRightOpen : PanelRightClose;
+  const repeatHint = canRepeat
+    ? null
+    : recording === "ready"
+      ? `You can repeat when you have priority and the stack is empty.`
+      : recording === "recording"
+        ? `Stop recording to replay the actions.`
+        : `You need to record some actions to replay them.`;
+  const repeatItem = (
+    <DropdownMenuItem
+      aria-disabled={!canRepeat}
+      className={cn(!canRepeat && "text-muted-foreground opacity-60")}
+      onSelect={(e) => {
+        if (!canRepeat) {
+          e.preventDefault();
+          return;
+        }
+        onRepeat();
+      }}
+    >
+      <Repeat className="mr-2 h-4 w-4" />
+      Repeat recorded actions
+    </DropdownMenuItem>
+  );
   return (
     <DropdownMenu open={open} onOpenChange={onOpenChange}>
       <DropdownMenuTrigger asChild>
@@ -108,6 +147,30 @@ export function MiddleBarDock({
             <Swords className="mr-2 h-4 w-4" />
             Combat breakdown
           </DropdownMenuItem>
+        )}
+        {(recording === "recording" || canRecord) && (
+          <DropdownMenuItem
+            disabled={!canRecord}
+            onSelect={(e) => {
+              if (recording === "recording") e.preventDefault();
+              onToggleRecording();
+            }}
+          >
+            {recording === "recording" ? (
+              <Square className="mr-2 h-4 w-4 fill-current" />
+            ) : (
+              <Circle className="mr-2 h-4 w-4 fill-current text-destructive" />
+            )}
+            {recording === "recording" ? `Stop recording` : `Record actions`}
+          </DropdownMenuItem>
+        )}
+        {repeatHint ? (
+          <Tooltip>
+            <TooltipTrigger asChild>{repeatItem}</TooltipTrigger>
+            <TooltipContent side="left">{repeatHint}</TooltipContent>
+          </Tooltip>
+        ) : (
+          repeatItem
         )}
         {players.length > 0 && (
           <DropdownMenuSub>

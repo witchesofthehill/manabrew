@@ -111,6 +111,8 @@ pub enum ResponseViolation {
     WrongPromptType,
     UnknownActionId(String),
     CancelNotAllowed,
+    RepeatNotOffered,
+    InvalidRepeatCount,
 }
 
 impl PromptInput {
@@ -126,6 +128,14 @@ impl PromptInput {
                     if !input.actions.iter().any(|a| a.id == *action_id) =>
                 {
                     Err(ResponseViolation::UnknownActionId(action_id.clone()))
+                }
+                ChooseActionOutput::Repeat { .. } if input.repeat_limit == 0 => {
+                    Err(ResponseViolation::RepeatNotOffered)
+                }
+                ChooseActionOutput::Repeat { iterations }
+                    if *iterations == 0 || *iterations > input.repeat_limit =>
+                {
+                    Err(ResponseViolation::InvalidRepeatCount)
                 }
                 _ => Ok(()),
             },

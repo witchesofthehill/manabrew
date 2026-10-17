@@ -27,4 +27,6 @@ public interface InteractiveBridge {
     }
 
     void publishState();
+
+    void publishDirective(int playerIndex, String directiveJson);
 }

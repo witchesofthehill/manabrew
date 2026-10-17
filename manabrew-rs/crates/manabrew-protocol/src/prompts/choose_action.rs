@@ -9,6 +9,10 @@ use crate::prompts::common::AvailableAction;
 #[ts(export, export_to = "prompts/chooseAction.ts")]
 pub struct ChooseActionInput {
     pub actions: Vec<AvailableAction>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub recordable: bool,
+    #[serde(default)]
+    pub repeat_limit: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -38,5 +42,8 @@ pub enum ChooseActionOutput {
     },
     Act {
         action_id: String,
+    },
+    Repeat {
+        iterations: u32,
     },
 }

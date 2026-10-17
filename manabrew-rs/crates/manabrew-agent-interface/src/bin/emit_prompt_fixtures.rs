@@ -83,6 +83,8 @@ fn main() {
                     },
                 },
             ],
+            recordable: true,
+            repeat_limit: 50,
         }),
         ChooseAttackers(choose_attackers::ChooseAttackersInput {
             attackers: vec![],

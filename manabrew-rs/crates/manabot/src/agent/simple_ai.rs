@@ -1248,7 +1248,7 @@ impl BotAgent for SimpleAi {
                     card_ids: hand_card_ids.into_iter().take(count).collect(),
                 }))
             }
-            PromptInput::ChooseAction(manabrew_protocol::prompts::choose_action::ChooseActionInput { actions }) => {
+            PromptInput::ChooseAction(manabrew_protocol::prompts::choose_action::ChooseActionInput { actions, .. }) => {
                 let pick = actions
                     .iter()
                     .filter(|action| {

@@ -46,8 +46,8 @@ highlighted in place.
 ```ts
 type ChooseActionOutput =
   | { type: "pass"; until?: PassUntil; exhaustStack: boolean }
-  | { type: "restoreSnapshot"; checkpointId: number }
-  | { type: "act"; actionId: string };
+  | { type: "act"; actionId: string }
+  | { type: "repeat"; iterations: number };
 
 type PassUntil = { playerId: string; phase: StepKind };
 ```
@@ -63,6 +63,16 @@ currently on the stack has resolved; the fast-forward ends early - priority
 comes back with a fresh prompt - as soon as any new object (a spell, an
 activated ability, or a trigger) is put on the stack, so the passing player
 can respond to it.
+Send `{ type: "repeat", iterations }` to repeat the player's recorded actions
+`iterations` times. It is legal only when the prompt's `repeatLimit` is above
+0, and `iterations` must be between 1 and `repeatLimit`. Every other player must accept the repeat
+through the `repeatVote` directive. While the repeat runs, the `repeatVote`
+engine directive reports `running` with the number of completed iterations.
+If a recorded answer does not fit a later prompt, the engine restores the game
+to the state before the repeat. The same directive reports the result.
+`recordable` tells the client that the player can now send the
+`startRecording` or `stopRecording` directive. A recording starts and stops
+while the player holds priority with an empty stack.
 Conceding is **not** a response - it is the out-of-band `directive` message
 (see [Answering a prompt](/protocol/#answering-a-prompt)), legal at any time.
 

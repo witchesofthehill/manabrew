@@ -182,6 +182,10 @@ final class ManabrewProtocolAdapter {
         switch (kind) {
             case "act":
                 return parseActionId(asString(output, "actionId"));
+            case "repeat":
+                flat.addProperty("kind", "repeat");
+                flat.addProperty("iterations", output.get("iterations").getAsInt());
+                return flat;
             case "pass":
                 flat.addProperty("kind", "pass");
                 if (output.has("until") && output.get("until").isJsonObject()) {
@@ -219,6 +223,17 @@ final class ManabrewProtocolAdapter {
             case "setSnapshotRecording":
                 flat.addProperty("kind", "set_snapshot_recording");
                 flat.addProperty("enabled", directive.get("enabled").getAsBoolean());
+                break;
+            case "startRecording":
+                flat.addProperty("kind", "start_recording");
+                break;
+            case "stopRecording":
+                flat.addProperty("kind", "stop_recording");
+                break;
+            case "repeatVote":
+                flat.addProperty("kind", "repeat_vote");
+                flat.addProperty("voteId", directive.get("voteId").getAsInt());
+                flat.addProperty("accept", directive.get("accept").getAsBoolean());
                 break;
             default:
                 throw new UnsupportedOperationException("unsupported directive: " + kind);

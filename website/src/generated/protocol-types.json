@@ -180,8 +180,8 @@
       "refs": ["StepKind"]
     },
     "ChooseActionInput": {
-      "ts": "interface ChooseActionInput {\n  actions: Array<AvailableAction>;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct ChooseActionInput {\n    pub actions: Vec<AvailableAction>,\n}",
+      "ts": "interface ChooseActionInput {\n  actions: Array<AvailableAction>;\n  recordable: boolean;\n  repeatLimit: number;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct ChooseActionInput {\n    pub actions: Vec<AvailableAction>,\n    #[serde(default, skip_serializing_if = \"std::ops::Not::not\")]\n    pub recordable: bool,\n    #[serde(default)]\n    pub repeat_limit: u32,\n}",
       "refs": ["AvailableAction"]
     },
     "ChooseAttackersInput": {
@@ -369,8 +369,8 @@
       "refs": ["DiceRollEntry", "PromptPresentation"]
     },
     "DirectiveInput": {
-      "ts": "type DirectiveInput =\n  | { type: \"concede\" }\n  | { type: \"requestRestore\"; checkpointId: number }\n  | { type: \"restoreVote\"; voteId: number; accept: boolean }\n  | { type: \"setSnapshotRecording\"; enabled: boolean };",
-      "rust": "#[serde(\n    tag = \"type\",\n    rename_all = \"camelCase\",\n    rename_all_fields = \"camelCase\"\n)]\npub enum DirectiveInput {\n    Concede,\n    RequestRestore { checkpoint_id: u32 },\n    RestoreVote { vote_id: u32, accept: bool },\n    SetSnapshotRecording { enabled: bool },\n}",
+      "ts": "type DirectiveInput =\n  | { type: \"concede\" }\n  | { type: \"requestRestore\"; checkpointId: number }\n  | { type: \"restoreVote\"; voteId: number; accept: boolean }\n  | { type: \"setSnapshotRecording\"; enabled: boolean }\n  | { type: \"startRecording\" }\n  | { type: \"stopRecording\" }\n  | { type: \"repeatVote\"; voteId: number; accept: boolean };",
+      "rust": "#[serde(\n    tag = \"type\",\n    rename_all = \"camelCase\",\n    rename_all_fields = \"camelCase\"\n)]\npub enum DirectiveInput {\n    Concede,\n    RequestRestore { checkpoint_id: u32 },\n    RestoreVote { vote_id: u32, accept: bool },\n    SetSnapshotRecording { enabled: bool },\n    StartRecording,\n    StopRecording,\n    RepeatVote { vote_id: u32, accept: bool },\n}",
       "refs": []
     },
     "DungeonStateDto": {

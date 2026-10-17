@@ -74,9 +74,8 @@ fn authorize_game_message(
                 .ok()
                 .map(|_| GameMessageSource::Player)
         }
-        "state" | "stateDelta" | "display" | "prompt" | "error" | "log" | "snapshot" | "fatal" => {
-            room.is_host(player_id).then_some(GameMessageSource::Engine)
-        }
+        "state" | "stateDelta" | "display" | "prompt" | "engineDirective" | "error" | "log"
+        | "snapshot" | "fatal" => room.is_host(player_id).then_some(GameMessageSource::Engine),
         "roomRelay" => {
             let protocol = state.get("protocol").and_then(serde_json::Value::as_str)?;
             if protocol == "draft-v1" || protocol == "limited-session-v1" {
@@ -2133,6 +2132,16 @@ fn handle_client_message(
                         from_player: room.host_username(),
                         state: prompt,
                     });
+                }
+                if let Some(slot) = replay.slot_for(username) {
+                    for ((directive_slot, _), directive) in &replay.pending_directives {
+                        if *directive_slot == slot {
+                            messages.push(ServerMessage::StateUpdate {
+                                from_player: room.host_username(),
+                                state: directive.clone(),
+                            });
+                        }
+                    }
                 }
                 Some(messages)
             });

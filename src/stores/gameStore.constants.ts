@@ -6,7 +6,7 @@ import type {
   ClientGameView,
   ClientPlayerDto,
 } from "./gameStore.types";
-import type { Prompt, ProtocolError } from "@/protocol";
+import type { EngineDirective, Prompt, ProtocolError } from "@/protocol";
 import type { DisplayEvent } from "@/protocol/display";
 import type { GameViewDto, ZoneDto, ZoneKind } from "@/protocol/game";
 import { isPromptLoggingEnabled } from "@/lib/debugPrompts";
@@ -165,6 +165,20 @@ export function applyProtocolError(
 ) {
   console.warn(`[protocol-error:${source}]`, error.code, error.promptId, error.message);
   set({ protocolError: error, isWaitingForResponse: false, relinquishedPriority: false });
+}
+
+export function applyEngineDirective(
+  directive: EngineDirective,
+  set: (partial: Partial<GameState>) => void,
+) {
+  switch (directive.type) {
+    case "recording":
+      set({ recording: directive.status });
+      break;
+    case "repeatVote":
+      set({ repeatVote: directive.vote });
+      break;
+  }
 }
 
 // A pure call-to-action: it carries no game view (state arrives via applyState).

@@ -3050,6 +3050,7 @@ pub struct PlayerConfig {
     deck: Vec<CardIdentityForJava>,
     sideboard: Vec<CardIdentityForJava>,
     attractions: Vec<CardIdentityForJava>,
+    tokens: Vec<CardIdentityForJava>,
     commander_names: Vec<String>,
     ai: bool,
     bot: bool,
@@ -3062,6 +3063,11 @@ pub struct CardIdentityForJava {
     set_code: Option<String>,
     collector_number: Option<String>,
     foil: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    cosmetics: Option<manabrew_protocol::deck_dto::CardCosmetics>,
+    commander: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    token_script: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -3102,6 +3108,7 @@ impl PlayerConfig {
             deck: deck.iter().map(CardIdentityForJava::from).collect(),
             sideboard: Vec::new(),
             attractions: Vec::new(),
+            tokens: Vec::new(),
             commander_names,
             ai: false,
             bot: false,
@@ -3109,6 +3116,9 @@ impl PlayerConfig {
     }
 
     pub fn with_deck_sections(mut self, deck: &Deck) -> Self {
+        for card in self.deck.iter_mut().skip(deck.cards.len()) {
+            card.commander = true;
+        }
         self.sideboard = deck
             .sideboard
             .iter()
@@ -3116,6 +3126,12 @@ impl PlayerConfig {
             .collect();
         self.attractions = deck
             .attractions
+            .iter()
+            .flatten()
+            .map(|card| CardIdentityForJava::from(&card.identity))
+            .collect();
+        self.tokens = deck
+            .tokens
             .iter()
             .flatten()
             .map(|card| CardIdentityForJava::from(&card.identity))
@@ -3132,6 +3148,15 @@ impl From<&DeckCardIdentity> for CardIdentityForJava {
             collector_number: (!identity.card_number.is_empty())
                 .then(|| identity.card_number.clone()),
             foil: identity.foil.unwrap_or(false),
+            cosmetics: identity
+                .cosmetics
+                .clone()
+                .and_then(|cosmetics| cosmetics.normalize()),
+            commander: false,
+            token_script: identity
+                .token_script
+                .as_ref()
+                .map(|script| script.0.clone()),
         }
     }
 }

@@ -1,5 +1,9 @@
+import { CardFoilOverlay } from "@/components/game/CardFoilOverlay";
+import { isEtchedOnlyPrinting } from "@/lib/cardFinish";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { CARD_BACK_IMAGE_URL } from "@/components/game/game.constants";
+import { GeneratedCardImage } from "@/components/game/GeneratedCardImage";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useResolvedGameCard } from "@/hooks/useResolvedGameCard";
 import { cn } from "@/lib/utils";
 import type { CardDto } from "@/protocol/game";
@@ -32,7 +36,34 @@ export function HandCardStrip({ cards, count }: HandCardStripProps) {
 }
 
 function HandCardThumb({ card }: { card: CardDto }) {
-  const url = useResolvedGameCard(card).imageUrl(card.isTransformed ? 1 : 0, "small");
+  const resolved = useResolvedGameCard(card);
+  const resolvedUrl = resolved.imageUrl(card.isTransformed ? 1 : 0, "small");
+  const hidden = card.isFaceDown || !card.identity.name;
+  const url = hidden ? CARD_BACK_IMAGE_URL : resolvedUrl;
+  const presentation = usePreferencesStore((state) => state.handCardStyle);
+  if (presentation === "rules") {
+    return (
+      <GeneratedCardImage
+        card={card}
+        className={THUMB_CLASS}
+        fallback={
+          url ? (
+            <ScryfallImg src={url} alt="" className="h-full w-full object-contain" />
+          ) : undefined
+        }
+      />
+    );
+  }
   if (!url) return <span className={cn(THUMB_CLASS, "bg-muted")} />;
-  return <ScryfallImg src={url} alt="" loading="eager" className={THUMB_CLASS} />;
+  return (
+    <span className={cn(THUMB_CLASS, "relative overflow-hidden")}>
+      <ScryfallImg src={url} alt="" loading="eager" className="h-full w-full object-cover" />
+      <CardFoilOverlay
+        enabled={!hidden}
+        foil={!hidden && !!card.foil}
+        cosmetics={hidden ? undefined : card.cosmetics}
+        etched={!hidden && isEtchedOnlyPrinting(resolved.info?.finishes)}
+      />
+    </span>
+  );
 }

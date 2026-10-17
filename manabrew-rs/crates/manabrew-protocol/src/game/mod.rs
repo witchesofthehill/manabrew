@@ -306,6 +306,13 @@ pub struct SagaChapterDto {
 pub struct CardDto {
     pub id: String,
     pub identity: CardIdentity,
+    #[serde(
+        default,
+        deserialize_with = "crate::deck_dto::CardCosmetics::deserialize_optional",
+        skip_serializing_if = "Option::is_none"
+    )]
+    #[ts(optional)]
+    pub cosmetics: Option<crate::deck_dto::CardCosmetics>,
     pub color: String,
     pub mana_cost: String,
     pub cmc: i32,
@@ -408,6 +415,15 @@ pub struct StackObjectDto {
     pub controller_id: String,
     pub owner_id: String,
     pub identity: CardIdentity,
+    #[serde(default)]
+    pub foil: bool,
+    #[serde(
+        default,
+        deserialize_with = "crate::deck_dto::CardCosmetics::deserialize_optional",
+        skip_serializing_if = "Option::is_none"
+    )]
+    #[ts(optional)]
+    pub cosmetics: Option<crate::deck_dto::CardCosmetics>,
     pub text: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
@@ -431,6 +447,8 @@ mod stack_object_tests {
             controller_id: "player-0".into(),
             owner_id: "player-1".into(),
             identity: CardIdentity::default(),
+            foil: false,
+            cosmetics: None,
             text: String::new(),
             source_ability_text: Some("When this enters, draw a card.".into()),
             is_permanent_spell: true,

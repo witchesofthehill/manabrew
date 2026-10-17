@@ -1,5 +1,6 @@
 import { updateLimitedSave } from "@/game/limitedStorage";
 import type { BuildSession } from "@/components/limited/useLimitedBuildStore";
+import { normalizeCardCosmetics } from "@/lib/cardCosmetics";
 import type {
   DraftCard,
   DraftState,
@@ -72,6 +73,7 @@ function card(value: unknown): DraftCard {
     setCode: row.setCode,
     cardNumber: row.cardNumber,
     ...(row.foil === undefined ? {} : { foil: row.foil }),
+    cosmetics: normalizeCardCosmetics(row.cosmetics),
   };
 }
 

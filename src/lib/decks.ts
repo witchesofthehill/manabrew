@@ -1,6 +1,7 @@
 import type { CardDto } from "@/protocol/game";
 import type { Deck, DeckCard } from "@/protocol/deck";
 import { resolveDeckName } from "@/lib/deckName";
+import { cardCosmeticsKey, normalizeCardCosmetics } from "@/lib/cardCosmetics";
 import {
   getCardTokenScripts,
   peekArchivedToken,
@@ -12,18 +13,32 @@ function normalizeTokenName(name: string): string {
 }
 
 export function asDeckCard(deck: Deck | undefined, gameCard: CardDto): DeckCard {
-  return resolveDeckCard(deck, gameCard) ?? missingDeckCard(gameCard);
+  return withInstanceCosmetics(
+    resolveDeckCard(deck, gameCard) ?? missingDeckCard(gameCard),
+    gameCard,
+  );
 }
 
 export function asGameDeckCard(gameDecks: Record<string, Deck>, gameCard: CardDto): DeckCard {
   const ownerMatch = resolveDeckCard(gameDecks[gameCard.ownerId], gameCard);
-  if (ownerMatch) return ownerMatch;
+  if (ownerMatch) return withInstanceCosmetics(ownerMatch, gameCard);
   for (const [playerId, deck] of Object.entries(gameDecks)) {
     if (playerId === gameCard.ownerId) continue;
     const match = resolveDeckCard(deck, gameCard);
-    if (match) return match;
+    if (match) return withInstanceCosmetics(match, gameCard);
   }
-  return missingDeckCard(gameCard);
+  return withInstanceCosmetics(missingDeckCard(gameCard), gameCard);
+}
+
+function withInstanceCosmetics(card: DeckCard, gameCard: CardDto): DeckCard {
+  return {
+    ...card,
+    identity: {
+      ...card.identity,
+      foil: gameCard.foil,
+      cosmetics: gameCard.isFaceDown ? undefined : normalizeCardCosmetics(gameCard.cosmetics),
+    },
+  };
 }
 
 function missingDeckCard(gameCard: CardDto): DeckCard {
@@ -153,7 +168,17 @@ export function deriveTokens(deck: Deck): DeckCard[] {
 
 export function getDeckFingerprint(deck: Deck): string {
   const tag = (section: string, list: DeckCard[]) =>
-    list.map((c) => `${section}:${c.identity.name}:${c.identity.setCode}`);
+    list.map((card) => {
+      const { name, setCode, cardNumber, foil, cosmetics } = card.identity;
+      return JSON.stringify([
+        section,
+        name,
+        setCode,
+        cardNumber,
+        !!foil,
+        cardCosmeticsKey(cosmetics),
+      ]);
+    });
   const serialized = [
     ...tag("main", deck.cards),
     ...tag("sideboard", deck.sideboard),
@@ -162,6 +187,8 @@ export function getDeckFingerprint(deck: Deck): string {
     ...tag("schemes", deck.schemes ?? []),
     ...tag("planes", deck.planes ?? []),
     ...tag("commander", deck.commanders ?? []),
+    ...tag("companion", deck.companion ? [deck.companion] : []),
+    ...tag("tokens", deck.tokens ?? []),
   ].sort();
   return JSON.stringify({
     name: resolveDeckName(deck.name, deck.commanders),

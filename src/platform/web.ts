@@ -5,6 +5,7 @@
  * The game engine runs in a Web Worker for non-blocking UI.
  */
 
+import { deckHasCardCosmetics } from "@/lib/cardCosmetics";
 import type { EngineGameStats } from "@/lib/engineTelemetry";
 import {
   noteEngineThinkTime,
@@ -1007,6 +1008,7 @@ class WebServerApi implements IServerApi {
   private announcedRoom: string | null = null;
   private relayRttMs: number | null = null;
   private planeQualityReporting = false;
+  private cardCosmetics = false;
   private pingSentAt: number | null = null;
   private directTransportOptIn = usePreferencesStore.getState().directTransport;
   private roomTransport = false;
@@ -1381,6 +1383,11 @@ class WebServerApi implements IServerApi {
   }
 
   async setDeckSelection(params: SetDeckSelectionParams): Promise<void> {
+    if (!this.cardCosmetics && deckHasCardCosmetics(params.deck)) {
+      throw new Error(
+        "This server does not support customized cards. Update the server before selecting this deck.",
+      );
+    }
     this.send({
       type: "SetDeckSelection",
       deck_name: params.deckName,
@@ -1762,6 +1769,8 @@ class WebServerApi implements IServerApi {
         Array.isArray(msg.features) && (msg.features as string[]).includes("room_transport");
       this.planeQualityReporting =
         Array.isArray(msg.features) && (msg.features as string[]).includes("plane_quality");
+      this.cardCosmetics =
+        Array.isArray(msg.features) && (msg.features as string[]).includes("card_cosmetics");
     }
     if (DEBUG_TRANSPORT) console.log("[transport←ws] received:", JSON.stringify(msg));
     if (isPromptLoggingEnabled()) {

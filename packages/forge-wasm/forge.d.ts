@@ -11,6 +11,7 @@ export interface ForgeCardIdentity {
   name: string;
   setCode?: string;
   cardNumber?: string;
+  foil?: boolean;
 }
 
 export interface ForgeDeckCard {
@@ -18,6 +19,7 @@ export interface ForgeDeckCard {
   name?: string;
   setCode?: string;
   cardNumber?: string;
+  foil?: boolean;
   count?: number;
 }
 

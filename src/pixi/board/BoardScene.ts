@@ -961,6 +961,7 @@ export class BoardScene {
       },
       this.root,
     );
+    fan.setRulesViewDefault(this.handRulesViewDefault);
     fan.setCards(cards);
     this.opponentHands.set(playerId, fan);
     this.applyDelimiters();
@@ -1018,10 +1019,16 @@ export class BoardScene {
   setHandCardStyle(style: InlineCardStyle): void {
     this.handRulesViewDefault = style === "rules";
     this.hand?.setRulesViewDefault(this.handRulesViewDefault);
+    for (const fan of this.opponentHands.values()) {
+      fan.setRulesViewDefault(this.handRulesViewDefault);
+    }
   }
 
   handUsesRulesView(cardId: string): boolean {
     return this.hand?.usesRulesView(cardId) === true;
+  }
+  get handRulesKeyboardTarget() {
+    return this.hand?.handRulesKeyboardTarget ?? null;
   }
   hitTestHandRules(x: number, y: number): boolean {
     return this.hand?.hitTestRules(x, y) === true;

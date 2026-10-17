@@ -1,5 +1,6 @@
 import path from "path";
 import { readFileSync } from "fs";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import type { Plugin } from "vite";
 import react from "@vitejs/plugin-react";
@@ -36,6 +37,22 @@ function crossOriginIsolation(): Plugin {
   };
 }
 
+function cardGlintNotices(): Plugin {
+  return {
+    name: "card-glint-notices",
+    generateBundle() {
+      const packageRoot = fileURLToPath(new URL("../../", import.meta.resolve("card-glint")));
+      for (const file of ["LICENSE-MIT", "LICENSE-APACHE", "NOTICE.md", "games/magic/NOTICE.md"]) {
+        this.emitFile({
+          type: "asset",
+          fileName: `card-glint-licenses/${file.replaceAll("/", "-")}`,
+          source: readFileSync(path.resolve(packageRoot, file)),
+        });
+      }
+    },
+  };
+}
+
 export default defineConfig({
   plugins: [
     react({
@@ -49,6 +66,7 @@ export default defineConfig({
       compiler: "raw",
     }),
     crossOriginIsolation(),
+    cardGlintNotices(),
   ],
   resolve: {
     alias: {
@@ -119,7 +137,7 @@ export default defineConfig({
     format: "es",
   },
   optimizeDeps: {
-    exclude: ["@/wasm/wasm", "ironsmith-wasm"],
+    exclude: ["@/wasm/wasm", "ironsmith-wasm", "card-glint"],
   },
   assetsInclude: ["**/*.wasm"],
   build: {

@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist, devtools, createJSONStorage } from "zustand/middleware";
 import { toast } from "sonner";
-import type { DeckCard, DeckCardIdentity, DeckFormat } from "@/protocol/deck";
+import type { CardCosmetics, DeckCard, DeckCardIdentity, DeckFormat } from "@/protocol/deck";
 import type { PlaymatSettings } from "@/protocol/game";
 import type { DeckEditorMetadata, EditorDeck } from "@/types/manabrew";
 import type { ScryfallCard } from "@/types/scryfall";
@@ -17,8 +17,13 @@ import {
   canHaveAnyNumberOf,
   copyLimitFromText,
 } from "@/lib/formats";
-import { chooseImageUrisForCard, tokenIdentityKey } from "@/stores/useScryfallStore";
-import { collectProducedTokenKeys } from "@/lib/decks";
+import {
+  chooseImageUrisForCard,
+  resolveTokenCustomizationScript,
+  tokenIdentityKey,
+} from "@/stores/useScryfallStore";
+import { collectProducedTokenKeys, deriveTokens } from "@/lib/decks";
+import { cardCosmeticsKey, normalizeCardCosmetics } from "@/lib/cardCosmetics";
 import { resolveDeckName } from "@/lib/deckName";
 import { mergeDeckImportIntoDeck } from "@/lib/deckImport";
 /** Migrate legacy "constructed" format id to "standard". */
@@ -73,6 +78,11 @@ function isSchemeCard(card: DeckCard): boolean {
 function isPlaneCard(card: DeckCard): boolean {
   return card.types?.some((type) => type.toLowerCase() === "plane") ?? false;
 }
+function normalizeCardAppearance(card: DeckCard): DeckCard {
+  if (card.identity.cosmetics === undefined) return card;
+  const cosmetics = normalizeCardCosmetics(card.identity.cosmetics);
+  return { ...card, identity: { ...card.identity, cosmetics } };
+}
 export function normalizeDeck(deck: EditorDeck): EditorDeck {
   const attractions = [...(deck.attractions ?? [])];
   const contraptions = [...(deck.contraptions ?? [])];
@@ -108,14 +118,16 @@ export function normalizeDeck(deck: EditorDeck): EditorDeck {
     ...deck,
     name: resolveDeckName(deck.name, commanders),
     format: migrateFormatId(deck.format ?? (commanders.length > 0 ? "commander" : "standard")),
-    cards: main,
-    sideboard,
-    ...(maybeboard && { maybeboard }),
-    attractions,
-    contraptions,
-    schemes,
-    planes,
-    commanders: commanders.length > 0 ? commanders : undefined,
+    cards: main.map(normalizeCardAppearance),
+    sideboard: sideboard.map(normalizeCardAppearance),
+    ...(maybeboard && { maybeboard: maybeboard.map(normalizeCardAppearance) }),
+    attractions: attractions.map(normalizeCardAppearance),
+    contraptions: contraptions.map(normalizeCardAppearance),
+    schemes: schemes.map(normalizeCardAppearance),
+    planes: planes.map(normalizeCardAppearance),
+    commanders: commanders.length > 0 ? commanders.map(normalizeCardAppearance) : undefined,
+    companion: deck.companion ? normalizeCardAppearance(deck.companion) : undefined,
+    tokens: deck.tokens?.map(normalizeCardAppearance),
     editor: normalizeEditorMetadata(deck),
   };
   delete (
@@ -193,11 +205,42 @@ function patchDeckCardById(deck: EditorDeck, cardId: string, patch: CardPatch): 
     schemes: normalized.schemes ? patchCards(normalized.schemes) : undefined,
     planes: normalized.planes ? patchCards(normalized.planes) : undefined,
     commanders: normalized.commanders ? patchCards(normalized.commanders) : undefined,
+    tokens: normalized.tokens ? patchCards(normalized.tokens) : undefined,
     companion:
       normalized.companion?.identity.id === cardId
         ? applyPatch(normalized.companion, patch)
         : normalized.companion,
   };
+}
+function matchesPrintingVariant(card: DeckCard, printing: DeckCardIdentity): boolean {
+  return (
+    card.identity.name === printing.name &&
+    card.identity.setCode === printing.setCode &&
+    card.identity.cardNumber === printing.cardNumber &&
+    !!card.identity.foil === !!printing.foil &&
+    cardCosmeticsKey(card.identity.cosmetics) === cardCosmeticsKey(printing.cosmetics)
+  );
+}
+export function getCardCustomizationCopies(deck: EditorDeck, card: DeckCard): DeckCard[] {
+  const cards = [
+    ...deck.cards,
+    ...deck.sideboard,
+    ...(deck.maybeboard ?? []),
+    ...(deck.attractions ?? []),
+    ...(deck.contraptions ?? []),
+    ...(deck.schemes ?? []),
+    ...(deck.planes ?? []),
+    ...(deck.commanders ?? []),
+    ...(deck.companion ? [deck.companion] : []),
+  ];
+  const copies = cards.filter((candidate) => candidate.identity.name === card.identity.name);
+  const selectedIndex = copies.findIndex((candidate) => candidate.identity.id === card.identity.id);
+  if (selectedIndex <= 0) return copies;
+  return [
+    copies[selectedIndex]!,
+    ...copies.slice(0, selectedIndex),
+    ...copies.slice(selectedIndex + 1),
+  ];
 }
 function patchDeckPrintingVariant(
   deck: EditorDeck,
@@ -205,13 +248,8 @@ function patchDeckPrintingVariant(
   patch: CardPatch,
 ): EditorDeck {
   const normalized = normalizeDeck(deck);
-  const matches = (card: DeckCard) =>
-    card.identity.name === printing.name &&
-    card.identity.setCode === printing.setCode &&
-    card.identity.cardNumber === printing.cardNumber &&
-    !!card.identity.foil === !!printing.foil;
   const patchCards = (cards: DeckCard[]) =>
-    cards.map((card) => (matches(card) ? applyPatch(card, patch) : card));
+    cards.map((card) => (matchesPrintingVariant(card, printing) ? applyPatch(card, patch) : card));
   return {
     ...normalized,
     cards: patchCards(normalized.cards),
@@ -223,7 +261,7 @@ function patchDeckPrintingVariant(
     planes: normalized.planes ? patchCards(normalized.planes) : undefined,
     commanders: normalized.commanders ? patchCards(normalized.commanders) : undefined,
     companion:
-      normalized.companion && matches(normalized.companion)
+      normalized.companion && matchesPrintingVariant(normalized.companion, printing)
         ? applyPatch(normalized.companion, patch)
         : normalized.companion,
   };
@@ -318,8 +356,11 @@ interface DeckState {
   updateCardPrint: (cardId: string, scryfallCard: ScryfallCard, foil?: boolean) => void;
   updatePrintingVariant: (printing: DeckCardIdentity, scryfallCard: ScryfallCard) => void;
   setCardFoil: (cardId: string, foil: boolean) => void;
+  setCardCosmetics: (
+    changes: readonly { cardId: string; cosmetics: CardCosmetics | undefined; foil: boolean }[],
+  ) => void;
+  setTokenCosmetics: (card: DeckCard, cosmetics: CardCosmetics | undefined, foil: boolean) => void;
   updateTokenPrint: (token: DeckCard, scryfallCard: ScryfallCard) => void;
-  toggleFoil: (cardName: string) => void;
   resetTokenPrint: (token: DeckCard) => void;
   enrichDeckCards: (updates: Map<string, CardPatch>) => void;
   addCardToSavedDeck: (id: string, card: DeckCard) => void;
@@ -647,6 +688,22 @@ export const useDeckStore = create<DeckState>()(
             const tokens = (state.currentDeck.tokens ?? []).filter(
               (candidate) => tokenIdentityKey(candidate) !== key,
             );
+            const cosmetics = normalizeCardCosmetics(token.identity.cosmetics);
+            const defaultToken = cosmetics
+              ? deriveTokens(state.currentDeck).find(
+                  (candidate) => tokenIdentityKey(candidate) === key,
+                )
+              : undefined;
+            if (defaultToken) {
+              tokens.push({
+                ...defaultToken,
+                identity: {
+                  ...defaultToken.identity,
+                  tokenScript: resolveTokenCustomizationScript(token),
+                  cosmetics,
+                },
+              });
+            }
             return {
               currentDeck: {
                 ...state.currentDeck,
@@ -710,15 +767,78 @@ export const useDeckStore = create<DeckState>()(
           set((state) => ({
             currentDeck: patchDeckCardById(state.currentDeck, cardId, { identity: { foil } }),
           })),
+        setCardCosmetics: (changes) =>
+          set((state) => {
+            if (state.isReadOnly || changes.length === 0) return state;
+            const updates = new Map<string, CardPatch>();
+            for (const { cardId, cosmetics, foil } of changes) {
+              updates.set(cardId, {
+                identity: { cosmetics: normalizeCardCosmetics(cosmetics), foil },
+              });
+            }
+            let changed = false;
+            const customize = (card: DeckCard) => {
+              const patch = updates.get(card.identity.id);
+              if (!patch) return card;
+              changed = true;
+              return applyPatch(card, patch);
+            };
+            const deck = state.currentDeck;
+            const currentDeck = {
+              ...deck,
+              cards: deck.cards.map(customize),
+              sideboard: deck.sideboard.map(customize),
+              maybeboard: deck.maybeboard?.map(customize),
+              attractions: deck.attractions?.map(customize),
+              contraptions: deck.contraptions?.map(customize),
+              schemes: deck.schemes?.map(customize),
+              planes: deck.planes?.map(customize),
+              commanders: deck.commanders?.map(customize),
+              companion: deck.companion ? customize(deck.companion) : undefined,
+            };
+            return changed ? { currentDeck } : state;
+          }),
+        setTokenCosmetics: (card, value, foil) =>
+          set((state) => {
+            if (state.isReadOnly) return state;
+            const cosmetics = normalizeCardCosmetics(value);
+            const tokens = state.currentDeck.tokens ?? [];
+            const key = tokenIdentityKey(card);
+            const tokenScript = resolveTokenCustomizationScript(card);
+            if (cosmetics && !tokenScript) return state;
+            const existing = tokens.find((candidate) => tokenIdentityKey(candidate) === key);
+            const source = existing ?? card;
+            const customized = {
+              ...source,
+              identity: {
+                ...source.identity,
+                tokenScript,
+                cosmetics,
+                foil,
+              },
+            };
+            return {
+              currentDeck: {
+                ...state.currentDeck,
+                tokens: existing
+                  ? tokens.map((candidate) => (candidate === existing ? customized : candidate))
+                  : [...tokens, customized],
+              },
+            };
+          }),
         updateTokenPrint: (token, scryfallCard) =>
           set((state) => {
             const uris = chooseImageUrisForCard(scryfallCard, { frontOnly: true });
             if (!uris) throw new Error(`Scryfall card has no image uris: ${scryfallCard.name}`);
             const key = tokenIdentityKey(token);
+            const existing = state.currentDeck.tokens ?? [];
+            const source =
+              existing.find((candidate) => tokenIdentityKey(candidate) === key) ?? token;
             const customized: DeckCard = {
-              ...token,
+              ...source,
               identity: {
-                ...token.identity,
+                ...source.identity,
+                tokenScript: resolveTokenCustomizationScript(token),
                 id: `token:${scryfallCard.id}`,
                 setCode: scryfallCard.set,
                 cardNumber: scryfallCard.collector_number,
@@ -727,7 +847,6 @@ export const useDeckStore = create<DeckState>()(
               uris,
               imageLanguage: scryfallCard.lang,
             };
-            const existing = state.currentDeck.tokens ?? [];
             const replaced = existing.some((candidate) => tokenIdentityKey(candidate) === key);
             return {
               currentDeck: {
@@ -737,48 +856,6 @@ export const useDeckStore = create<DeckState>()(
                       tokenIdentityKey(candidate) === key ? customized : candidate,
                     )
                   : [...existing, customized],
-              },
-            };
-          }),
-        toggleFoil: (cardName) =>
-          set((state) => {
-            const deck = normalizeDeck(state.currentDeck);
-            const allCopies: DeckCard[] = [
-              ...deck.cards,
-              ...deck.sideboard,
-              ...(deck.maybeboard ?? []),
-              ...(deck.attractions ?? []),
-              ...(deck.contraptions ?? []),
-              ...(deck.schemes ?? []),
-              ...(deck.planes ?? []),
-              ...(deck.commanders ?? []),
-            ];
-            const matches = allCopies.filter((c) => c.identity.name === cardName);
-            const targetFoil = !matches.every((c) => c.identity.foil);
-            const flip = (cards: DeckCard[]): DeckCard[] =>
-              cards.map((c) =>
-                c.identity.name === cardName
-                  ? { ...c, identity: { ...c.identity, foil: targetFoil } }
-                  : c,
-              );
-            return {
-              currentDeck: {
-                ...deck,
-                cards: flip(deck.cards),
-                sideboard: flip(deck.sideboard),
-                attractions: deck.attractions ? flip(deck.attractions) : deck.attractions,
-                contraptions: deck.contraptions ? flip(deck.contraptions) : deck.contraptions,
-                schemes: deck.schemes ? flip(deck.schemes) : deck.schemes,
-                planes: deck.planes ? flip(deck.planes) : deck.planes,
-                commanders: deck.commanders ? flip(deck.commanders) : deck.commanders,
-                companion:
-                  deck.companion && deck.companion.identity.name === cardName
-                    ? {
-                        ...deck.companion,
-                        identity: { ...deck.companion.identity, foil: targetFoil },
-                      }
-                    : deck.companion,
-                maybeboard: deck.maybeboard ? flip(deck.maybeboard) : deck.maybeboard,
               },
             };
           }),
@@ -1177,7 +1254,7 @@ export const useDeckStore = create<DeckState>()(
           };
         },
         merge: (persisted, current) => {
-          const p = persisted as Partial<DeckState>;
+          const p = (persisted ?? {}) as Partial<DeckState>;
           const merged = { ...current, ...p } as DeckState;
           merged.isReadOnly = false;
           merged.readOnlySource = null;

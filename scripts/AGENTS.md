@@ -42,6 +42,12 @@ A `#[serde(transparent)]` newtype (`pub struct TokenScript(pub String)`) exports
 
 Protocol generators replace their output directories. Do not run `yarn gen:types`, `yarn gen:protocol-docs`, `yarn build:harness`, or commands that invoke them concurrently; one process can delete files while another is exporting them.
 
+Card Glint is installed from its public Git fork; its package-owned `prepare` builds JavaScript, declarations and WASM. First uncached installation needs Node 24, Git, rustup and native compiler/linker tools. The package provisions its pinned Rust/WASM and wasm-bindgen tools without changing the engine's default toolchain. Do not add application-side download, patch or renderer-build scripts. The development web image supplies the native build prerequisites; restart the web service after dependency changes so its separate node-modules volume reruns installation.
+
+Card Glint's fork must provision rustup with the caller's `CARGO_HOME`, not its package-private Cargo build cache. Official Rust container images fail self-update when the private cache replaces the rustup installation path; provisioning disables self-update and keeps the environments separate.
+
+`gen-harness-prompts.mjs` maps `CardCosmetics.wearSeed` to Java `Long`, rain density/artwork scalars to `Double`, and numeric coordinate tuples to `List<Double>`; integer conversion loses custom artwork positions. Keep generated Java derived from fresh protocol bindings. Harness input checksums include `forge-foundation` because cosmetic wire types live there, not in the protocol crate. Protocol documentation reads that shared source too.
+
 ## Lint and format (yarn)
 
 The pre-commit hook runs `lint-staged` only. Full TypeScript and Rust gates run in `build-checks.yml`; Clippy is conditional on Rust-affecting changes. Use the full local gate when explicitly requested or when reproducing a CI failure.

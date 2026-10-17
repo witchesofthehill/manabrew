@@ -7,6 +7,7 @@ import { msg } from "@lingui/core/macro";
 import { i18n } from "@/i18n/i18n";
 
 export interface RulesPreviewSection {
+  faceIndex: number;
   name: string;
   manaCost: string;
   typeLine: string;
@@ -244,9 +245,14 @@ export function localizeRulesPreviewText(
     .join("\n");
 }
 
-function sectionFromFace(face: CardFace, localized: LocalizedFaceText | null): RulesPreviewSection {
+function sectionFromFace(
+  face: CardFace,
+  localized: LocalizedFaceText | null,
+  faceIndex: number,
+): RulesPreviewSection {
   const typeLine = localized?.displayTypeLine ?? face.typeLine ?? "";
   return {
+    faceIndex,
     name: localized?.displayName ?? face.name,
     manaCost: face.manaCost ?? "",
     typeLine,
@@ -357,7 +363,9 @@ export function resolveRulesPreviewDisplay(options: {
   const { card, presentation, info, deckLayout, showBackFace, faceless } = options;
   const resolved = resolveCardFaces(info ?? undefined);
   const layout = deckLayout ?? info?.layout;
-  const flippable = resolved.isFlippable && !faceless;
+  const simultaneous =
+    isTwoHalfLayout(layout) || layout === "adventure" || layout === "prepare" || layout === "flip";
+  const flippable = resolved.isFlippable && !simultaneous && !faceless;
   const faceIndex: 0 | 1 = showBackFace && flippable ? 1 : 0;
   const currentFaceIndex: 0 | 1 = card.isTransformed && flippable ? 1 : 0;
   const currentFace = faceIndex === currentFaceIndex;
@@ -392,7 +400,7 @@ export function resolveRulesPreviewDisplay(options: {
 
   if (!flippable && resolved.isMultiFaced) {
     const sections = resolved.faces.map((part, index) =>
-      sectionFromFace(part, localizedFaceText(info, index)),
+      sectionFromFace(part, localizedFaceText(info, index), index),
     );
     const name =
       info?.printed_name ??
@@ -455,6 +463,7 @@ export function resolveRulesPreviewDisplay(options: {
       : presentation.manaCost || face?.manaCost || ""
     : (face?.manaCost ?? "");
   const section: RulesPreviewSection = {
+    faceIndex,
     name,
     manaCost,
     typeLine,

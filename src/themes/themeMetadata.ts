@@ -92,6 +92,11 @@ export const GAME_THEME_COLOR_DESCRIPTIONS: Partial<Record<GameThemeColorKey, st
   "phaseStrip.background": "Raised charcoal surface behind phase-strip cells.",
   "cardPlaceholder.fill": "Loading-state card sprite fill.",
   "cardPlaceholder.stroke": "Loading-state card sprite border.",
+  "cardPaper.background": "Paper behind interactive rules inside generated cards.",
+  "cardPaper.raised": "Pressed and hovered in-card action surface.",
+  "cardPaper.ink": "Primary rules and action text on card paper.",
+  "cardPaper.mutedInk": "Secondary labels on card paper.",
+  "cardPaper.border": "Rules dividers and action outlines on card paper.",
   textOnTinted: "Text colour placed on tinted chips and badges.",
   textMuted: "Subdued label colour on empty-zone placeholders.",
   textGhost: "Ghost card-name colour shown while art loads.",
@@ -176,6 +181,11 @@ export const GAME_THEME_GROUPS: {
     heading: "Prompt buttons",
     description: "Attack, defense, cancel, and related prompt action buttons.",
     prefixes: ["promptAction.", "promptForeground."],
+  },
+  {
+    heading: "Card paper",
+    description: "In-card rules and actions, independent of app light or dark mode.",
+    prefixes: ["cardPaper."],
   },
   {
     heading: "Targeting",

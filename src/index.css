@@ -55,6 +55,19 @@
   --color-zone-graveyard: var(--zone-graveyard);
   --color-zone-exile: var(--zone-exile);
   --color-zone-command: var(--zone-command);
+  --color-card-paper-background: var(--card-paper-background);
+  --color-card-paper-raised: var(--card-paper-raised);
+  --color-card-paper-ink: var(--card-paper-ink);
+  --color-card-paper-muted-ink: var(--card-paper-muted-ink);
+  --color-card-paper-border: var(--card-paper-border);
+  --color-card-change-buffed: var(--card-change-buffed);
+  --color-card-change-debuffed: var(--card-change-debuffed);
+  --color-card-change-changed: var(--card-change-changed);
+  --color-card-change-removed: var(--card-change-removed);
+  --color-card-printing-paper: var(--card-printing-paper);
+  --color-card-printing-ink: var(--card-printing-ink);
+  --color-card-printing-frame: var(--card-printing-frame);
+  --color-card-printing-footer: var(--card-printing-footer);
   --color-mana-w: var(--mana-w);
   --color-mana-u: var(--mana-u);
   --color-mana-b: var(--mana-b);
@@ -764,38 +777,37 @@
   }
 }
 
-.draft-tile-foil {
-  position: relative;
-}
-
-.draft-tile-foil::before {
-  content: "";
+.card-foil-overlay {
   position: absolute;
+  z-index: 1;
   inset: 0;
   border-radius: inherit;
-  background: linear-gradient(
-    115deg,
-    transparent 30%,
-    rgba(255, 255, 255, 0.45) 45%,
-    rgba(252, 213, 53, 0.35) 50%,
-    rgba(118, 211, 240, 0.35) 55%,
-    transparent 70%
-  );
-  background-size: 250% 100%;
-  background-position: -100% 0;
-  animation: foil-shimmer 3.2s ease-in-out infinite;
-  mix-blend-mode: screen;
   pointer-events: none;
-  z-index: 1;
+  width: 100%;
+  height: 100%;
 }
 
-@keyframes foil-shimmer {
-  0% {
-    background-position: -100% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
+.card-live-highlight-overlay {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  visibility: hidden;
+  pointer-events: none;
+  mix-blend-mode: normal;
+}
+
+.card-live-highlight-surface {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.card-live-highlight-surface > canvas {
+  position: absolute;
+  transform-origin: center;
 }
 
 .podium-frame {

@@ -1,5 +1,6 @@
 import { Texture } from "pixi.js";
 import { platformFetch } from "@/lib/platformFetch";
+import { cachedCardGlintAsset } from "@/lib/cardGlintAssetCache";
 import { manaSymbolUrl, normalizeManaCode } from "@/api/scryfall";
 import { rasterizeSvgTexture } from "./assets/rasterizeSvgTexture";
 // Rasterize SVGs into a fixed-size canvas so Pixi gets a concrete texture
@@ -14,7 +15,8 @@ async function fetchSvgText(symbol: string): Promise<string> {
   const code = normalizeManaCode(symbol);
   if (!code) throw new Error(`unsupported mana symbol: ${symbol}`);
   const url = manaSymbolUrl(code);
-  const response = await platformFetch(url);
+  const response =
+    (await cachedCardGlintAsset(url).catch(() => undefined)) ?? (await platformFetch(url));
   if (!response.ok) throw new Error(`HTTP ${response.status} for ${url}`);
   return await response.text();
 }

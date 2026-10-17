@@ -1,6 +1,7 @@
 import { Loader2, Search, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ScryfallImg } from "@/components/ScryfallImg";
+import { GeneratedCardImage } from "@/components/game/GeneratedCardImage";
+import { scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useScryfallStore } from "@/stores/useScryfallStore";
@@ -138,7 +139,6 @@ export function DevCardSearch({ value, onSelect }: DevCardSearchProps) {
             Select a card to stage it on the battlefield
           </div>
           {results.map((card, index) => {
-            const thumbnail = card.image_uris?.small ?? card.card_faces?.[0]?.image_uris?.small;
             return (
               <button
                 key={card.id}
@@ -153,13 +153,10 @@ export function DevCardSearch({ value, onSelect }: DevCardSearchProps) {
                 onPointerEnter={() => setActiveIndex(index)}
                 onClick={() => selectCard(card)}
               >
-                {thumbnail ? (
-                  <ScryfallImg
-                    src={thumbnail}
-                    alt=""
-                    className="h-14 w-10 shrink-0 rounded object-cover object-top"
-                  />
-                ) : null}
+                <GeneratedCardImage
+                  deckCard={scryfallToDeckCard(card)}
+                  className="h-14 w-10 shrink-0 rounded"
+                />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium">{card.name}</span>
                   <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">

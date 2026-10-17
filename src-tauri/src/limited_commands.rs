@@ -35,6 +35,7 @@ pub async fn limited_get_set_pool(set_code: String) -> Result<Vec<DeckCardIdenti
             set_code: edition.code.clone(),
             card_number: entry.collector_number.clone(),
             foil: None,
+            cosmetics: None,
         })
         .collect();
     Ok(pool)
@@ -198,6 +199,7 @@ pub async fn limited_import_cube(
                 set_code: entry.set_code.clone().unwrap_or_default(),
                 card_number: String::new(),
                 foil: None,
+                cosmetics: None,
             });
         }
     }

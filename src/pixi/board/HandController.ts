@@ -425,12 +425,25 @@ export class HandController {
   usesRulesView(cardId: string): boolean {
     return this.sprites.get(cardId)?.usesHandRulesView === true;
   }
+
+  get handRulesKeyboardTarget() {
+    if (
+      this.host.isDestroyed() ||
+      !this.container.visible ||
+      this.lastState?.selectionMode ||
+      this.isDraggingFromHand() ||
+      this.hoveredCardId === null
+    )
+      return null;
+    const sprite = this.sprites.get(this.hoveredCardId);
+    return sprite?.visible && sprite.alpha > 0 ? sprite.handRulesKeyboardTarget : null;
+  }
   hitTestRules(x: number, y: number): boolean {
     return this.rulesSpriteAt(x, y) !== null;
   }
 
   scrollRulesAt(x: number, y: number, delta: number, mode: number): boolean {
-    return this.rulesSpriteAt(x, y)?.scrollHandRules(delta, mode) ?? false;
+    return this.rulesSpriteAt(x, y)?.scrollHandRules(delta, mode, x, y) ?? false;
   }
 
   private rulesSpriteAt(x: number, y: number): CardSprite | null {
@@ -455,9 +468,7 @@ export class HandController {
     if (this.hoveredCardId === null) return null;
     const sprite = this.sprites.get(this.hoveredCardId);
     if (!sprite) return null;
-    const active = !sprite.usesHandRulesView;
-    sprite.setHandRulesView(active);
-    return active;
+    return sprite.toggleHandRulesView();
   }
   setHoveredRulesActions(
     actions: HandActionOption[],

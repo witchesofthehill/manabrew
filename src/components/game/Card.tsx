@@ -1,3 +1,5 @@
+import { CardFoilOverlay } from "@/components/game/CardFoilOverlay";
+import { isEtchedOnlyPrinting } from "@/lib/cardFinish";
 import type { CardDto } from "@/protocol/game";
 import { cn } from "@/lib/utils";
 import { memo, useState, useMemo, type CSSProperties } from "react";
@@ -11,12 +13,13 @@ import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
 import { isCreature, isLethalDamage, type ScryfallImageSize } from "./game.utils";
 import { CARD_BADGES, CARD_BACK_IMAGE_URL, GAME_CARD_SIZES } from "./game.constants";
-import { isFacelessCard } from "@/lib/gameCard";
 import { CARD_BANNER_CONTAINER, CARD_BANNER_TEXT } from "./game.styles";
 import { deriveCardRailState } from "@/components/game/cardRailState";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { useResolvedGameCard } from "@/hooks/useResolvedGameCard";
 import { isHorizontalGameCard } from "@/lib/horizontalGameCard";
+import { GeneratedCardImage } from "./GeneratedCardImage";
+import { usePreferencesStore, type InlineCardStyle } from "@/stores/usePreferencesStore";
 const TOKEN_LABELS: Record<string, string> = {
   get "Blood Token"() {
     return `BLOOD`;
@@ -59,6 +62,7 @@ interface CardProps {
   onFlip?: () => void;
   showBackFace?: boolean;
   resolution?: ScryfallImageSize;
+  presentation?: InlineCardStyle;
   /** Render just the printed card image — no game-state overlays (keyword chips,
    * counters, badges, P/T). For pickers showing library/hidden-zone cards. */
   bare?: boolean;
@@ -72,12 +76,16 @@ function CardComponent({
   showBackFace = card.isTransformed,
   bare,
   resolution = "border_crop",
+  presentation,
 }: CardProps) {
-  const [hasError, setHasError] = useState(false);
-  const { deckCard, cardFaces, imageUrl: resolveImageUrl } = useResolvedGameCard(card);
+  const [failedUrl, setFailedUrl] = useState<string>();
+  const { deckCard, cardFaces, info, imageUrl: resolveImageUrl } = useResolvedGameCard(card);
   const faceIndex = showBackFace ? 1 : 0;
-  const faceless = isFacelessCard(card);
+  const faceless = card.isFaceDown || !card.identity.name;
   const imageUrl = faceless ? CARD_BACK_IMAGE_URL : resolveImageUrl(faceIndex, resolution);
+  const hasError = imageUrl === failedUrl;
+  const defaultPresentation = usePreferencesStore((state) => state.promptCardStyle);
+  const generated = !faceless && (presentation ?? defaultPresentation) === "rules";
   const displayName = faceless ? "Face-down card" : card.identity.name;
   const themeColors = useTheme().gameTheme;
   const creature = isCreature(card);
@@ -112,12 +120,9 @@ function CardComponent({
       color: fg,
     };
   }, [lethal, card.basePower, card.power, card.toughness, card.baseToughness, themeColors]);
-  const horizontal = isHorizontalGameCard(
-    card,
-    deckCard.layout,
-    faceIndex,
-    cardFaces.faces[faceIndex]?.typeLine,
-  );
+  const horizontal =
+    !faceless &&
+    isHorizontalGameCard(card, deckCard.layout, faceIndex, cardFaces.faces[faceIndex]?.typeLine);
   return (
     <div
       className={cn(
@@ -129,7 +134,6 @@ function CardComponent({
           onBattlefield &&
           "outline-2 outline-dashed outline-card-status-summoning-sick -outline-offset-2",
         card.phasedOut && "opacity-30 grayscale",
-        card.foil && "draft-tile-foil",
         className,
       )}
       onClick={onClick}
@@ -141,28 +145,51 @@ function CardComponent({
         } as CSSProperties
       }
     >
-      {imageUrl && !hasError ? (
+      <CardFoilOverlay
+        enabled={!faceless && !generated}
+        foil={!faceless && !!card.foil}
+        cosmetics={faceless ? undefined : card.cosmetics}
+        etched={!faceless && isEtchedOnlyPrinting(info?.finishes)}
+      />
+      {generated || (imageUrl && !hasError) ? (
         <>
-          {horizontal ? (
-            <ScryfallImg
-              src={imageUrl}
-              alt={displayName}
-              title=""
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-90 origin-center h-[calc(100%*7/5)] aspect-[5/7] rounded-lg"
-              onError={() => setHasError(true)}
-              style={{ imageRendering: "auto" }}
+          {generated ? (
+            <GeneratedCardImage
+              card={card}
+              deckCard={deckCard}
+              faceIndex={faceIndex}
+              className={
+                horizontal
+                  ? "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-90 origin-center h-[calc(100%*7/5)] aspect-[5/7] rounded-lg"
+                  : "absolute inset-0 h-full w-full rounded-lg"
+              }
+              fallback={
+                imageUrl && !hasError ? (
+                  <ScryfallImg
+                    src={imageUrl}
+                    alt={displayName}
+                    className="h-full w-full object-contain"
+                    onError={() => setFailedUrl(imageUrl)}
+                    draggable={false}
+                  />
+                ) : undefined
+              }
             />
           ) : (
             <ScryfallImg
               src={imageUrl}
               alt={displayName}
               title=""
-              className="absolute inset-0 w-full h-full object-contain rounded-lg"
-              onError={() => setHasError(true)}
+              className={
+                horizontal
+                  ? "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-90 origin-center h-[calc(100%*7/5)] aspect-[5/7] rounded-lg"
+                  : "absolute inset-0 w-full h-full object-contain rounded-lg"
+              }
+              onError={() => setFailedUrl(imageUrl)}
               style={{ imageRendering: "auto" }}
             />
           )}
-          {!bare && (
+          {!bare && !faceless && (
             <>
               {card.exerted ? (
                 <CardBadge {...CARD_BADGES.exerted} />
@@ -223,6 +250,10 @@ function CardComponent({
             </>
           )}
         </>
+      ) : faceless ? (
+        <div className="absolute inset-0 flex items-center justify-center bg-card text-xs">
+          {displayName}
+        </div>
       ) : (
         <div className="absolute inset-0 p-2 flex gap-2 bg-card">
           <div
@@ -300,93 +331,10 @@ function CardComponent({
           {rail && <CardRail state={rail} />}
         </div>
       )}
-      {!bare && (
+      {!bare && !faceless && (
         <CardChoiceIndicators card={card} className="absolute left-1 right-1 top-[18%] z-10" />
       )}
     </div>
   );
 }
-function shallowStyleEqual(a: CSSProperties | undefined, b: CSSProperties | undefined): boolean {
-  if (a === b) return true;
-  if (!a || !b) return false;
-  const ak = Object.keys(a);
-  const bk = Object.keys(b);
-  if (ak.length !== bk.length) return false;
-  for (const k of ak) {
-    if ((a as Record<string, unknown>)[k] !== (b as Record<string, unknown>)[k]) return false;
-  }
-  return true;
-}
-function arraysEqual(a: string[] | undefined, b: string[] | undefined): boolean {
-  if (a === b) return true;
-  if (!a || !b || a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    if (a[i] !== b[i]) return false;
-  }
-  return true;
-}
-export const Card = memo(CardComponent, (prev, next) => {
-  if (
-    prev.className !== next.className ||
-    prev.isTapped !== next.isTapped ||
-    prev.isHovered !== next.isHovered ||
-    prev.showBackFace !== next.showBackFace ||
-    prev.resolution !== next.resolution ||
-    prev.onClick !== next.onClick ||
-    prev.onFlip !== next.onFlip
-  )
-    return false;
-  if (!shallowStyleEqual(prev.style, next.style)) return false;
-  const pc = prev.card,
-    nc = next.card;
-  if (pc === nc) return true;
-  if (
-    pc.id !== nc.id ||
-    pc.identity.name !== nc.identity.name ||
-    pc.power !== nc.power ||
-    pc.toughness !== nc.toughness ||
-    pc.damage !== nc.damage ||
-    pc.basePower !== nc.basePower ||
-    pc.baseToughness !== nc.baseToughness ||
-    pc.tapped !== nc.tapped ||
-    pc.phasedOut !== nc.phasedOut ||
-    pc.exerted !== nc.exerted ||
-    pc.summoningSick !== nc.summoningSick ||
-    pc.isFaceDown !== nc.isFaceDown ||
-    pc.isBestowed !== nc.isBestowed ||
-    pc.isTransformed !== nc.isTransformed ||
-    pc.isPlotted !== nc.isPlotted ||
-    pc.isMadnessExiled !== nc.isMadnessExiled ||
-    pc.isWarpExiled !== nc.isWarpExiled ||
-    pc.identity.isToken !== nc.identity.isToken ||
-    pc.isCopy !== nc.isCopy ||
-    pc.foil !== nc.foil ||
-    pc.isDoubleFaced !== nc.isDoubleFaced ||
-    pc.color !== nc.color ||
-    pc.identity.setCode !== nc.identity.setCode ||
-    pc.identity.cardNumber !== nc.identity.cardNumber ||
-    pc.zoneId !== nc.zoneId ||
-    pc.text !== nc.text ||
-    pc.manaCost !== nc.manaCost ||
-    pc.effectiveManaCost !== nc.effectiveManaCost ||
-    pc.finalChapter !== nc.finalChapter ||
-    pc.classLevel !== nc.classLevel
-  )
-    return false;
-  if (!arraysEqual(pc.types, nc.types)) return false;
-  if (!arraysEqual(pc.subtypes, nc.subtypes)) return false;
-  if (!arraysEqual(pc.keywords, nc.keywords)) return false;
-  if (pc.classLevels !== nc.classLevels) {
-    if (JSON.stringify(pc.classLevels) !== JSON.stringify(nc.classLevels)) return false;
-  }
-  if (pc.sagaChapters !== nc.sagaChapters) {
-    if (JSON.stringify(pc.sagaChapters) !== JSON.stringify(nc.sagaChapters)) return false;
-  }
-  if (pc.choices !== nc.choices) {
-    if (JSON.stringify(pc.choices) !== JSON.stringify(nc.choices)) return false;
-  }
-  if (pc.counters !== nc.counters) {
-    if (JSON.stringify(pc.counters) !== JSON.stringify(nc.counters)) return false;
-  }
-  return true;
-});
+export const Card = memo(CardComponent);

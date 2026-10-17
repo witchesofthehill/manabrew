@@ -11,13 +11,19 @@ export function useResolvedGameCard(card: CardDto) {
   const deck = useGameStore((state) => state.gameDecks[card.ownerId]);
   const deckCard = asDeckCard(deck, card);
   const locale = useScryfallStore((state) => state.locale);
-  const entry = useCard({
-    name: deckCard.identity.name || card.identity.name,
-    setCode: deckCard.identity.setCode || undefined,
-    cardNumber: deckCard.identity.cardNumber || undefined,
-  });
+  const hidden = card.isFaceDown || !card.identity.name;
+  const entry = useCard(
+    hidden
+      ? null
+      : {
+          name: deckCard.identity.name || card.identity.name,
+          setCode: deckCard.identity.setCode || undefined,
+          cardNumber: deckCard.identity.cardNumber || undefined,
+        },
+  );
   const cardFaces = resolveCardFaces(entry?.info);
   const imageUrl = (faceIndex: number, size: ScryfallImageSize) => {
+    if (hidden) return undefined;
     if (!entry) {
       return locale === DEFAULT_SCRYFALL_LANGUAGE &&
         deckCard.imageLanguage === DEFAULT_SCRYFALL_LANGUAGE

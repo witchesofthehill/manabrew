@@ -5,6 +5,7 @@ import { THEME_PRESETS } from "@/themes";
 import type { ThemeColors, GameFontSizes } from "@/themes";
 import {
   filterGameThemeColorOverrides,
+  getGameThemeColorPaths,
   resolveGameThemeColors,
   flattenGameThemeToCssVars,
   resolveGameFontSizes,
@@ -121,7 +122,8 @@ export function getDefaultGameThemeColorMap(): Record<string, string> {
     THEME_PRESETS.find(
       (candidate) => candidate.id === usePreferencesStore.getState().appThemePreset,
     ) ?? THEME_PRESETS[0]!;
-  return { ...THEME_PRESETS[0]!.gameColors, ...preset.gameColors };
+  const colors = { ...THEME_PRESETS[0]!.gameColors, ...preset.gameColors };
+  return Object.fromEntries(getGameThemeColorPaths().map((key) => [key, colors[key]]));
 }
 
 export function useTheme(): Theme {

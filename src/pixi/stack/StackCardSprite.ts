@@ -26,8 +26,9 @@ export class StackCardSprite {
   readonly sourceId: string;
   private theme: Theme;
   private spec: StackCardSpec;
-  private readonly width: number;
-  private readonly height: number;
+  private previewFace: 0 | 1 | undefined;
+  private width: number;
+  private height: number;
   private readonly faceScale: number;
   private glow = new Graphics();
   private promptReference = new Graphics();
@@ -58,9 +59,11 @@ export class StackCardSprite {
     onToggleRules: (id: string) => void,
     onFlip: (id: string) => void,
     onLongPressCard?: (card: StackCardSpec["card"], bounds: ScreenBounds) => void,
+    faceIndex?: 0 | 1,
   ) {
     this.theme = theme;
     this.spec = spec;
+    this.previewFace = faceIndex;
     this.sourceId = spec.sourceId;
     this.onToggleRules = onToggleRules;
     this.onFlip = onFlip;
@@ -72,6 +75,7 @@ export class StackCardSprite {
     this.promptReference.eventMode = "none";
     this.face = new CardSprite(spec.card, "hand");
     this.face.onVisualChange = onRenderRequested;
+    this.face.setPreviewFace(faceIndex ?? null);
     this.face.scale.set(this.faceScale);
     this.face.setHandRulesView(rulesView);
     this.face.setHandRulesHighlight(spec.sourceAbilityText ?? "");
@@ -158,8 +162,8 @@ export class StackCardSprite {
     this.redraw();
   }
 
-  scrollRules(delta: number, mode: number): boolean {
-    return this.face.scrollHandRules(delta, mode);
+  scrollRules(delta: number, mode: number, x: number, y: number): boolean {
+    return this.face.scrollHandRules(delta, mode, x, y);
   }
 
   setTheme(theme: Theme): void {
@@ -168,24 +172,37 @@ export class StackCardSprite {
     this.redraw();
   }
 
-  setSpec(spec: StackCardSpec): void {
+  setSpec(spec: StackCardSpec, faceIndex?: 0 | 1): void {
     const ringChanged =
       spec.seatColor !== this.spec.seatColor ||
       spec.isCasting !== this.spec.isCasting ||
       spec.isTopOfStack !== this.spec.isTopOfStack ||
       spec.isValidTarget !== this.spec.isValidTarget;
     const controlsChanged =
+      faceIndex !== this.previewFace ||
       spec.id !== this.spec.id ||
       spec.card.isDoubleFaced !== this.spec.card.isDoubleFaced ||
       spec.card.isTransformed !== this.spec.card.isTransformed;
     const dimChanged = spec.isDimmed !== this.spec.isDimmed;
     this.spec = spec;
+    this.previewFace = faceIndex;
     this.container.cursor = spec.isValidTarget ? "pointer" : "default";
     this.face.updateCardContent(spec.card);
+    this.face.setPreviewFace(faceIndex ?? null);
+    const horizontal = this.face.horizontalFrame;
+    const width = (horizontal ? CARD_H : CARD_W) * this.faceScale;
+    const height = (horizontal ? CARD_W : CARD_H) * this.faceScale;
+    const resized = width !== this.width || height !== this.height;
+    this.width = width;
+    this.height = height;
+    if (resized) {
+      this.container.hitArea = new Rectangle(-width / 2, -height / 2, width, height);
+      if (this.promptReferenceColor != null) this.setPromptReference(this.promptReferenceColor);
+    }
     this.face.setHandRulesHighlight(spec.sourceAbilityText ?? "");
-    if (controlsChanged) this.syncControls();
+    if (controlsChanged || resized) this.syncControls();
     if (dimChanged) this.container.alpha = spec.isDimmed ? 0.6 : 1;
-    if (ringChanged) this.redraw();
+    if (ringChanged || resized) this.redraw();
   }
 
   setPromptReference(color: number | null): void {
@@ -307,8 +324,7 @@ export class StackCardSprite {
   }
 
   setRulesView(active: boolean): void {
-    if (this.face.usesHandRulesView === active) return;
-    this.face.setHandRulesView(active);
+    this.face.setHandRulesView(active, true);
     this.syncControls();
     this.redraw();
     if (this.promptReferenceColor != null) this.setPromptReference(this.promptReferenceColor);
@@ -397,7 +413,7 @@ export class StackCardSprite {
         ? {
             rulesView: this.face.usesHandRulesView,
             horizontal: false,
-            alternateFace: this.spec.card.isTransformed,
+            alternateFace: (this.previewFace ?? (this.spec.card.isTransformed ? 1 : 0)) === 1,
             showFaceControl: this.spec.card.isDoubleFaced,
             onToggleRules: () => this.onToggleRules(this.spec.id),
             onToggleFace: () => this.onFlip(this.spec.id),

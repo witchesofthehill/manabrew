@@ -80,9 +80,8 @@ function getRouteChrome(pathname: string, search: string): RouteChrome {
     return { title: `Design System`, fallback: ROUTES.PLAY };
   }
   if (pathname === "/card-mock") {
-    return { title: `Card Face Gallery`, fallback: ROUTES.PLAY };
+    return { title: "Card lab", fallback: ROUTES.PLAY };
   }
-  if (pathname === "/card-mock") return { title: "Theme Editor", fallback: ROUTES.PLAY };
   return { title: null, fallback: ROUTES.PLAY };
 }
 interface TopBarProps {

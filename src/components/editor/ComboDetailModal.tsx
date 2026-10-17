@@ -2,7 +2,10 @@ import { Modal } from "@/components/game/modals/Modal";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
-import { ScryfallImg } from "@/components/ScryfallImg";
+import { useMemo } from "react";
+import { GeneratedCardImage } from "@/components/game/GeneratedCardImage";
+import { parseTypeLine } from "@/lib/scryfall.utils";
+import type { DeckCard } from "@/protocol/deck";
 import { ExternalLink, Sparkles } from "lucide-react";
 import type { SpellbookCombo } from "@/api/commanderSpellbook";
 function steps(combo: SpellbookCombo): string[] {
@@ -26,6 +29,30 @@ export function ComboDetailModal({
 }) {
   const produces = combo.produces.map((p) => p.feature.name);
   const prereqs = prerequisites(combo);
+  const cards = useMemo<DeckCard[]>(
+    () =>
+      combo.uses.map(({ card }) => {
+        const image = card.imageUriFrontNormal ?? "";
+        return {
+          identity: { id: "", name: card.name, setCode: "", cardNumber: "" },
+          uris: {
+            small: image,
+            normal: image,
+            large: image,
+            png: image,
+            border_crop: image,
+            art_crop: "",
+          },
+          color: "",
+          colorIdentity: [],
+          manaCost: "",
+          cmc: 0,
+          text: "",
+          ...parseTypeLine(card.typeLine ?? ""),
+        };
+      }),
+    [combo.uses],
+  );
   return (
     <Modal onClose={onClose} maxWidth="max-w-3xl" maxHeight="max-h-[90dvh]">
       <Modal.Header onClose={onClose}>
@@ -39,21 +66,14 @@ export function ComboDetailModal({
         <ScrollArea className="h-full">
           <div className="p-4 space-y-4">
             <div className="flex flex-wrap gap-3">
-              {combo.uses.map(({ card }) => (
-                <div key={card.name} className="w-32 shrink-0">
-                  {card.imageUriFrontNormal ? (
-                    <ScryfallImg
-                      src={card.imageUriFrontNormal}
-                      alt={card.name}
-                      className="w-full rounded-lg border border-border/50 shadow-sm"
-                    />
-                  ) : (
-                    <div className="w-full aspect-[5/7] rounded-lg bg-muted flex items-center justify-center p-2 text-center">
-                      <span className="text-xs text-muted-foreground">{card.name}</span>
-                    </div>
-                  )}
-                  <div className="text-xs text-center mt-1 truncate" title={card.name}>
-                    {card.name}
+              {cards.map((card) => (
+                <div key={card.identity.name} className="w-32 shrink-0">
+                  <GeneratedCardImage
+                    deckCard={card}
+                    className="w-full rounded-lg border border-border/50 shadow-sm"
+                  />
+                  <div className="text-xs text-center mt-1 truncate" title={card.identity.name}>
+                    {card.identity.name}
                   </div>
                 </div>
               ))}

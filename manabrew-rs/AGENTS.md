@@ -39,6 +39,10 @@ All under `manabrew-rs/crates/`. The relay, hub, and self-hosted node each have 
 
 Dependency direction: `foundation`, `card-script`, `cardset-archive` ← `carddb` ← `engine` ← everything else, and `manabrew-protocol` ← `manabrew-relay-protocol`. Don't introduce cycles.
 
+Per-copy `CardCosmetics` and its closed wire types live in `forge-foundation/src/sealed_product/card_cosmetics.rs`; `manabrew-protocol` re-exports them. Printing selections use version 1, at most two inherited face layers, bounded text and finite numeric values. `Arc<CardPrintingSelection>` shares immutable appearance data across runtime snapshots; clone the handle rather than its payload. Preserve explicit per-face default values and existing PaperCard Eq/Hash grouping. Runtime deck loading binds exact physical entries before shuffle, while created copies start without inherited cosmetics. Token overrides use original owner plus exact token script, never name matching.
+
+Appearance serialization distinguishes viewer-filtered snapshots from explicitly authorized prompt cards. Owning a library is not permission to reveal its cosmetics. Stack sources use current visibility when historical visibility is unavailable. The Rust producer still has a pre-existing broader hand-identity/text disclosure issue; suppressing new foil/cosmetics fields is not a repair of that separate privacy boundary.
+
 ## Limited session checkpoints
 
 `forge-limited` owns serializable Limited engines, physical occurrence IDs and own-seat decision history. Versioned checkpoint export/import is exposed by `src-tauri/src/limited_commands.rs` and `crates/wasm/src/limited_api.rs`; it preserves pending multiplayer submissions, undo state, ChaCha12 RNG continuation, AI/rank state and Gauntlet progress. Serialize borrowed state rather than cloning the engine or materializing an intermediate JSON tree. A complete native draft still needs its durable pool-registration handoff before the frontend marks the host complete.

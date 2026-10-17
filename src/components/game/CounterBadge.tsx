@@ -1,130 +1,11 @@
 import { cn } from "@/lib/utils";
 import type { GameThemeColors } from "@/themes/gameTheme";
-import { GameIcon, type GameIconName } from "./GameIcon";
+import { GameIcon } from "./GameIcon";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-type CounterColorKey = keyof GameThemeColors["counter"];
-interface CounterConfig {
-  iconName?: GameIconName;
-  label: string;
-  colorKey: CounterColorKey;
-  title: string;
-}
-/**
- * Known counter types and their visual identity.
- *
- * Keys must match the `CounterType` variant names produced by the Rust engine
- * (derived from `{:?}` formatting, e.g. "P1P1", "M1M1", "Loyalty").
- *
- * Colour comes from `theme.counter.<colorKey>` — see `src/themes/default.ts`
- * for the canonical palette. To add a new counter type, add an entry here
- * and a matching `counter.<name>` key to the theme.
- */
-const COUNTER_CONFIG: Record<string, CounterConfig> = {
-  P1P1: { label: "+1/+1", colorKey: "p1p1", title: "+1/+1" },
-  M1M1: { label: "−1/−1", colorKey: "m1m1", title: "−1/−1" },
-  Loyalty: {
-    iconName: "vibrating-shield",
-    label: `Loyalty`,
-    colorKey: "loyalty",
-    title: `Loyalty`,
-  },
-  Charge: {
-    iconName: "lightning-trio",
-    label: `Charge`,
-    colorKey: "charge",
-    title: `Charge`,
-  },
-  Quest: {
-    iconName: "scroll-quill",
-    label: `Quest`,
-    colorKey: "quest",
-    title: `Quest`,
-  },
-  Study: {
-    iconName: "book-aura",
-    label: `Study`,
-    colorKey: "study",
-    title: `Study`,
-  },
-  Lore: {
-    iconName: "spell-book",
-    label: `Lore`,
-    colorKey: "lore",
-    title: `Lore`,
-  },
-  Age: {
-    iconName: "hourglass",
-    label: `Age`,
-    colorKey: "age",
-    title: `Age`,
-  },
-  Time: {
-    iconName: "stopwatch",
-    label: `Time`,
-    colorKey: "time",
-    title: `Time`,
-  },
-  Fade: {
-    iconName: "ghost",
-    label: `Fade`,
-    colorKey: "fade",
-    title: `Fade`,
-  },
-  Level: {
-    iconName: "rank-3",
-    label: `Level`,
-    colorKey: "level",
-    title: `Level`,
-  },
-  Storage: {
-    iconName: "stack",
-    label: `Storage`,
-    colorKey: "storage",
-    title: `Storage`,
-  },
-  Mining: {
-    iconName: "mining",
-    label: `Mining`,
-    colorKey: "mining",
-    title: `Mining`,
-  },
-  Brick: {
-    iconName: "brick-wall",
-    label: `Brick`,
-    colorKey: "brick",
-    title: `Brick`,
-  },
-  Depletion: {
-    iconName: "battery-pack-alt",
-    label: `Depletion`,
-    colorKey: "depletion",
-    title: `Depletion`,
-  },
-  Page: {
-    iconName: "scroll-unfurled",
-    label: `Page`,
-    colorKey: "page",
-    title: `Page`,
-  },
-  Shield: {
-    iconName: "round-shield",
-    label: `Shield`,
-    colorKey: "shield",
-    title: `Shield`,
-  },
-};
-function getCounterConfig(type: string): CounterConfig {
-  return (
-    COUNTER_CONFIG[type] ?? {
-      label: type.slice(0, 3),
-      colorKey: "default",
-      title: type,
-    }
-  );
-}
+import { counterBadgePresentation, getCounterConfig } from "./cardPresentation";
 /** Static `bg-counter-*` class per counter colour key — Tailwind JIT
  *  needs the full class name in source, so we can't string-build it. */
-const COUNTER_BG_CLASS: Record<CounterColorKey, string> = {
+const COUNTER_BG_CLASS: Record<keyof GameThemeColors["counter"], string> = {
   default: "bg-counter-default",
   p1p1: "bg-counter-p1p1",
   m1m1: "bg-counter-m1m1",
@@ -179,12 +60,8 @@ export interface CounterBadgeProps {
 }
 export function CounterBadge({ type, count, size = "sm", className }: CounterBadgeProps) {
   if (count <= 0) return null;
-  const cfg = getCounterConfig(type);
+  const cfg = counterBadgePresentation(type, count);
   const sz = SIZE_TOKENS[size];
-  // +1/+1 and -1/-1 counters read as their aggregate stat delta (e.g. three
-  // +1/+1 counters → "+3/+3") rather than a "+1/+1 ×3" label-plus-count.
-  const ptSign = type === "P1P1" ? "+" : type === "M1M1" ? "−" : null;
-  const aggregateLabel = ptSign ? `${ptSign}${count}/${ptSign}${count}` : null;
   const tooltipText = `${count} ${cfg.title} counter${count !== 1 ? `s` : ""}`;
   return (
     <Tooltip>
@@ -202,10 +79,10 @@ export function CounterBadge({ type, count, size = "sm", className }: CounterBad
           {cfg.iconName ? (
             <GameIcon name={cfg.iconName} className={cn(sz.symbol, "fill-current")} />
           ) : (
-            <span className={sz.text}>{aggregateLabel ?? cfg.label}</span>
+            <span className={sz.text}>{cfg.label}</span>
           )}
-          {!aggregateLabel && count > 1 && (
-            <span className={cn(sz.count, "opacity-90")}>{count}</span>
+          {cfg.displayCount != null && (
+            <span className={cn(sz.count, "opacity-90")}>{cfg.displayCount}</span>
           )}
         </span>
       </TooltipTrigger>

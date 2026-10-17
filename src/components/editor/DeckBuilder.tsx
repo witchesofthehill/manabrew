@@ -75,7 +75,7 @@ import {
   copyLimitFromText,
 } from "@/lib/formats";
 import { commanderSlotFor } from "./deckEditor.utils";
-import { DeckListView } from "./DeckListView";
+import { CardContextMenu, CardMenuButton, DeckListView } from "./DeckListView";
 import { DeckHero } from "./DeckHero";
 import { CardPreviewRail } from "@/components/game/CardPreviewRail";
 import { useCardPreview, type CardPreviewController } from "@/hooks/useCardPreview";
@@ -256,7 +256,6 @@ export function DeckBuilder({
     setStackPositions,
     updatePrintingVariant,
     updateTokenPrint,
-    toggleFoil,
     resetTokenPrint,
     updateAccountDeckVersion,
     linkSavedDeckToAccount,
@@ -380,9 +379,6 @@ export function DeckBuilder({
     },
     "deck-editor-move-maybe": () => {
       if (selectedCards.size > 0 && !isReadOnly) handleMoveSelectedToMaybe();
-    },
-    "deck-editor-toggle-foil-selection": () => {
-      if (selectedCards.size > 0 && !isReadOnly) toggleSelectedFoil();
     },
     "deck-editor-remove-one-selection": () => {
       if (selectedCards.size > 0 && !isReadOnly) removeOneEachSelected();
@@ -659,11 +655,6 @@ export function DeckBuilder({
       }
     });
     toast.success(`Removed one copy of ${selectedCards.size} cards`);
-  }
-  function toggleSelectedFoil() {
-    bulkAction(`Toggled foil for ${selectedCards.size} cards`, () => {
-      for (const name of selectedCards) toggleFoil(name);
-    });
   }
   const handleTagSelected = (tag: string) =>
     bulkAction(`Tagged ${selectedCards.size} cards with "${tag}"`, () => {
@@ -1499,13 +1490,6 @@ export function DeckBuilder({
       run: removeOneEachSelected,
     },
     {
-      id: "foil-selection",
-      label: `Toggle foil for selected cards`,
-      disabled: selectedCards.size === 0 || isReadOnly,
-      disabledReason: selectedCards.size === 0 ? "No selection" : "Read only",
-      run: toggleSelectedFoil,
-    },
-    {
       id: "manage-tags",
       label: `Manage deck tags`,
       keywords: ["rename", "reorder", "delete", "groups"],
@@ -2077,15 +2061,12 @@ export function DeckBuilder({
                       commanderLabel: label,
                       customTags: currentDeck.customTags ?? [],
                       appliedTags: currentDeck.cardTags?.[name.toLowerCase()] ?? [],
-                      isFoil: !!card.identity.foil,
                       isCover,
                       isCoverBack,
                       hasBackFace: !!card.backFace,
                       onShowInfo: () => handleShowInfo(card),
                       onRemoveCommander: () => handleRemoveCommander(card),
                       onPickPrint: () => setPrintPickerCard(card),
-                      onToggleFoil: () =>
-                        executeDeckEdit(`Toggle foil for ${name}`, () => toggleFoil(name)),
                       onSetCover: () => {
                         executeDeckEdit(`Change deck cover`, () =>
                           setCoverCard(isCover ? undefined : name, 0),
@@ -2113,6 +2094,31 @@ export function DeckBuilder({
                     };
                   }}
                 />
+                {currentDeck.companion && (
+                  <section className="mx-4 mb-4 rounded-lg border p-3">
+                    <h3 className="mb-2 text-sm font-semibold">Companion</h3>
+                    <CardContextMenu
+                      card={currentDeck.companion}
+                      count={1}
+                      location="side"
+                      onShowInfo={() => handleShowInfo(currentDeck.companion!)}
+                      onPickPrint={
+                        isReadOnly ? undefined : () => setPrintPickerCard(currentDeck.companion!)
+                      }
+                    >
+                      <div className="group flex items-center gap-2 rounded-md hover:bg-muted/40">
+                        <button
+                          type="button"
+                          className="min-w-0 flex-1 truncate p-2 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          onClick={() => handleShowInfo(currentDeck.companion!)}
+                        >
+                          {currentDeck.companion.identity.name}
+                        </button>
+                        <CardMenuButton />
+                      </div>
+                    </CardContextMenu>
+                  </section>
+                )}
                 <div
                   ref={setMainDropRef}
                   className={cn("transition-colors", isOverMain && !isOverSide && "bg-primary/5")}
@@ -2151,9 +2157,6 @@ export function DeckBuilder({
                     onMoveOneFromMaybeToSide={handleMoveOneFromMaybeToSide}
                     onMoveAllFromMaybeToSide={handleMoveAllFromMaybeToSide}
                     onPickPrint={setPrintPickerCard}
-                    onToggleFoil={(name) =>
-                      executeDeckEdit(`Toggle foil for ${name}`, () => toggleFoil(name))
-                    }
                     onHover={(card, e) =>
                       preview.handleMouseEnter(deckCardToPreviewDto(card), e, { useDelay: true })
                     }
@@ -2341,7 +2344,6 @@ export function DeckBuilder({
             onMoveToMaybe={handleMoveSelectedToMaybe}
             onAddCopy={addOneEachSelected}
             onRemoveCopy={removeOneEachSelected}
-            onToggleFoil={toggleSelectedFoil}
             onCopy={() => void copySelectedCards()}
             onTag={handleTagSelected}
             onUntag={handleUntagSelected}
@@ -2423,8 +2425,6 @@ export function DeckBuilder({
               onUntagCard: (name, tag) =>
                 executeDeckEdit(`Remove ${tag} from ${name}`, () => untagCard(name, tag)),
               onAddTag: (tag) => executeDeckEdit(`Create ${tag} tag`, () => addCustomTag(tag)),
-              onToggleFoil: (name) =>
-                executeDeckEdit(`Toggle foil for ${name}`, () => toggleFoil(name)),
               onSetCover: (name, face) => {
                 const isCurrent =
                   currentDeck.coverCardName === name && (currentDeck.coverCardFace ?? 0) === face;

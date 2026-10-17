@@ -7,6 +7,7 @@ import { ChevronDown, Gem, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FoilBadge } from "@/components/limited/FoilBadge";
 import { ScryfallImg } from "@/components/ScryfallImg";
+import { GeneratedCardImage } from "@/components/game/GeneratedCardImage";
 import type { OverlayAction } from "./deckEditor.utils";
 import type { DeckCard } from "@/protocol/deck";
 export type { OverlayAction } from "./deckEditor.utils";
@@ -34,15 +35,25 @@ export function CardThumbnail({
   loading?: "eager" | "lazy";
 }) {
   const { name, foil } = card.identity;
+  const imageUrl = card.uris?.[imageSize];
   return (
-    <div className={cn("relative w-full", foil && "draft-tile-foil")}>
-      <ScryfallImg
-        src={card.uris?.[imageSize]}
-        alt={name}
+    <div className="relative w-full">
+      <GeneratedCardImage
+        deckCard={card}
         loading={loading}
-        decoding={loading === "lazy" ? "async" : undefined}
-        className={cn("w-full rounded-lg border border-border/50 shadow-sm")}
-        draggable={false}
+        className="w-full rounded-lg border border-border/50 shadow-sm"
+        fallback={
+          imageUrl && !imageUrl.startsWith("data:") ? (
+            <ScryfallImg
+              src={imageUrl}
+              alt={name}
+              loading={loading}
+              decoding={loading === "lazy" ? "async" : undefined}
+              className="h-full w-full object-contain"
+              draggable={false}
+            />
+          ) : undefined
+        }
       />
       {foil && <FoilBadge />}
     </div>

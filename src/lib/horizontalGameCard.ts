@@ -20,9 +20,8 @@ export function scryfallLayoutOf(card: CardDto): string | undefined {
 
 /** Horizontal-frame detection that survives a deck whose `layout` field isn't
  *  populated (split / aftermath / room report only their type line): fall back
- *  to the Scryfall-resolved layout and type line, which the hand has already
- *  prefetched. The type line catches type-based horizontals (Battle / Plane /
- *  Phenomenon / Scheme) whose `types` array the source DTO may not carry. */
+ *  to the Scryfall-resolved layout and type line. The type line catches Battle,
+ *  Plane and Phenomenon cards whose types array the source DTO may not carry. */
 export function isHorizontalGameCard(
   card: CardDto,
   deckLayout?: string,

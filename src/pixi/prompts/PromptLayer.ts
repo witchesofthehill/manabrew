@@ -1860,6 +1860,8 @@ export class PromptLayer extends PromptModalLayer {
   private makeActionCardThumbnail(card: CardDto): Container {
     const container = new Container();
     const sprite = new CardSprite(card, "hand");
+    sprite.onVisualChange = this.callbacks.onRenderRequested;
+    sprite.setHandRulesView(usePreferencesStore.getState().promptCardStyle === "rules");
     const place = () => {
       sprite.scale.set(1);
       const scale = Math.min(

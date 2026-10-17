@@ -810,7 +810,7 @@ export abstract class PromptLayerBase {
     sprite.onVisualChange = this.callbacks.onRenderRequested;
     const state = this.promptCardState(card);
     sprite.setPreviewFace(state.face);
-    sprite.setHandRulesView(state.rulesView);
+    sprite.setHandRulesView(state.rulesView, true);
     const horizontal = sprite.horizontalFrame && !card.isDoubleFaced;
     sprite.setHandControls({
       rulesView: state.rulesView,
@@ -831,10 +831,13 @@ export abstract class PromptLayerBase {
 
   protected togglePromptCardFace(card: CardDto, sprite: CardSprite): void {
     const state = this.promptCardState(card);
-    if (card.isDoubleFaced) state.face = state.face === 0 ? 1 : 0;
-    else if (sprite.horizontalFrame) state.horizontalFlipped = !state.horizontalFlipped;
-    else return;
-    this.rebuild();
+    if (card.isDoubleFaced) {
+      state.face = state.face === 0 ? 1 : 0;
+      this.configurePromptCardSprite(sprite, card);
+    } else if (sprite.horizontalFrame) {
+      state.horizontalFlipped = !state.horizontalFlipped;
+      sprite.flipPreviewOrientation(() => this.configurePromptCardSprite(sprite, card));
+    }
   }
   protected bindPromptCardLongPress(
     target: Container,
@@ -976,7 +979,7 @@ export abstract class PromptLayerBase {
   }
 
   scrollRulesAt(x: number, y: number, delta: number, mode: number): boolean {
-    return this.rulesSpriteAt(x, y)?.scrollHandRules(delta, mode) ?? false;
+    return this.rulesSpriteAt(x, y)?.scrollHandRules(delta, mode, x, y) ?? false;
   }
 
   private rulesSpriteAt(x: number, y: number): CardSprite | null {

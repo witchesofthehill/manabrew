@@ -2,14 +2,17 @@ use manabrew_engine::game::GameState;
 use manabrew_engine::ids::{CardId, PlayerId};
 use manabrew_protocol::prompts::scry::ScryDestination;
 
-use crate::game_view_dto::{card_to_dto, CardDto};
+use crate::game_view_dto::{revealed_card_to_dto, CardDto};
 use crate::ids_codec::{card_id_str, parse_card_id};
 use crate::prompt::*;
 
 use super::{PromptAgent, Responder};
 
-fn library_dtos(game: &GameState, cards: &[CardId]) -> Vec<CardDto> {
-    cards.iter().map(|&id| card_to_dto(game, id)).collect()
+fn library_dtos(game: &GameState, cards: &[CardId], viewer: PlayerId) -> Vec<CardDto> {
+    cards
+        .iter()
+        .map(|&id| revealed_card_to_dto(game, id, viewer))
+        .collect()
 }
 
 fn send_scry<T: Responder>(
@@ -29,7 +32,7 @@ fn send_scry<T: Responder>(
                 text: None,
                 targets: Vec::new(),
             },
-            cards: library_dtos(game, cards),
+            cards: library_dtos(game, cards, agent.player_id),
             zones,
         }),
         source,
@@ -87,7 +90,7 @@ pub(super) fn choose_dig<T: Responder>(
     max: usize,
     optional: bool,
 ) -> Vec<CardId> {
-    let cards = library_dtos(game, valid);
+    let cards = library_dtos(game, valid, agent.player_id);
     let min = if optional { 0 } else { max.min(1) };
     agent.send_prompt(
         PromptInput::ChooseCards(manabrew_protocol::prompts::choose_cards::ChooseCardsInput {
@@ -124,7 +127,7 @@ pub(super) fn choose_reorder_library<T: Responder>(
         .iter()
         .map(|&id| ReorderItem {
             id: card_id_str(id),
-            card: card_to_dto(game, id),
+            card: revealed_card_to_dto(game, id, agent.player_id),
             oracle: None,
         })
         .collect();

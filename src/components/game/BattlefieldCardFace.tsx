@@ -2,16 +2,19 @@ import type { CardDto } from "@/protocol/game";
 import type { CSSProperties } from "react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/useTheme";
-import { cardFrameTints, readableTextColor, withAlpha } from "@/themes/gameTheme";
-import { ManaSymbols } from "@/components/game/ManaSymbols";
+import { useResolvedGameCard } from "@/hooks/useResolvedGameCard";
+import { cardFrameTints, withAlpha } from "@/themes/gameTheme";
+import { GeneratedCardImage } from "@/components/game/GeneratedCardImage";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { CounterDisplay } from "@/components/game/CounterBadge";
 import { CardChoiceIndicators } from "@/components/game/CardChoiceIndicators";
 import { CardRail, CARD_RAIL_WIDTH } from "@/components/game/CardRail";
 import { deriveCardRailState } from "@/components/game/cardRailState";
-import { cardTypeLine } from "@/components/game/cardPresentation";
 import { isCreature, isLethalDamage } from "@/components/game/game.utils";
+import { cardTypeLine } from "@/components/game/cardPresentation";
 import { battlefieldKeywords } from "@/lib/battlefieldKeywords";
+import { CardFoilOverlay } from "@/components/game/CardFoilOverlay";
+import { isEtchedOnlyPrinting } from "@/lib/cardFinish";
 
 export type BattlefieldCardFaceVariant = "frame" | "art";
 
@@ -32,15 +35,29 @@ export function BattlefieldCardFace({
   width = 70,
 }: BattlefieldCardFaceProps) {
   const theme = useTheme().gameTheme;
+  const { imageUrl, info } = useResolvedGameCard(card);
+  if (card.isFaceDown || !card.identity.name) {
+    return (
+      <div style={{ width, height: width * (98 / 70) }}>
+        <GeneratedCardImage card={card} className="h-full w-full" />
+      </div>
+    );
+  }
+  const artworkUrl = imageUrl(card.isTransformed ? 1 : 0, "art_crop") || artCrop;
+  const fallbackUrl = imageUrl(card.isTransformed ? 1 : 0, "normal");
+  const artwork = artworkUrl ? (
+    <ScryfallImg
+      src={artworkUrl}
+      alt={card.identity.name}
+      className="absolute inset-0 h-full w-full object-cover"
+      draggable={false}
+    />
+  ) : undefined;
   const u = width / 70;
   const height = width * (98 / 70);
   const rail = deriveCardRailState(card);
 
-  const { primary: tint, secondary: tintB } = cardFrameTints(colorIdentity, theme.mana);
-  const barText = readableTextColor(tint, theme.canvas.shadow, theme.textOnTinted);
-  const barBg = tintB
-    ? `linear-gradient(105deg, ${tint} 0%, ${tint} 42%, ${tintB} 58%, ${tintB} 100%)`
-    : tint;
+  const { primary: tint } = cardFrameTints(colorIdentity, theme.mana);
 
   const creature = isCreature(card);
   const summoned = creature && !!card.summoningSick;
@@ -67,8 +84,6 @@ export function BattlefieldCardFace({
         : withAlpha(theme.pt.neutral, 0.85);
   const ptStyle = { backgroundColor: ptBg, color: theme.textOnTinted };
 
-  const fontName = Math.max(5, 7 * u);
-  const fontType = Math.max(4, 5.5 * u);
   const fontPt = Math.max(7, 9 * u);
   const radius = 5 * u;
   const pad = 3 * u;
@@ -76,7 +91,6 @@ export function BattlefieldCardFace({
     ? `calc(${pad}px + var(--card-rail-width) + ${0.35 * u}px)`
     : `${pad}px`;
 
-  const typeLine = cardTypeLine(card);
   const { shown: keywords, hidden: hiddenKeywords } = battlefieldKeywords(card.keywords);
 
   // P1P1 / M1M1 are dropped here: the net buff/debuff shows in the P/T color.
@@ -106,7 +120,7 @@ export function BattlefieldCardFace({
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          borderRadius: variant === "art" ? radius : 0,
+          borderRadius: radius,
           background: withAlpha(
             theme.pt.lethal,
             Math.min(0.5, (toughForDamage > 0 ? damage / toughForDamage : 1) * 0.5),
@@ -174,100 +188,10 @@ export function BattlefieldCardFace({
     </>
   );
 
-  if (variant === "art") {
-    return (
-      <div
-        className={cn(
-          "relative @container overflow-hidden shadow-sm",
-          card.tapped && "rotate-90",
-          card.phasedOut && "opacity-30 grayscale",
-          summoned && "opacity-80 grayscale-[0.85]",
-        )}
-        style={
-          {
-            ["--card-rail-width" as string]: CARD_RAIL_WIDTH,
-            width,
-            height,
-            borderRadius: radius,
-            background: theme.cardPlaceholder.fill,
-          } as CSSProperties
-        }
-      >
-        {artCrop && (
-          <ScryfallImg
-            src={artCrop}
-            alt={card.identity.name}
-            className="absolute inset-0 w-full h-full object-cover"
-          />
-        )}
-        {damageEffect}
-        <div
-          className="absolute top-0 right-0 flex items-center"
-          style={{ transform: `scale(${0.6 * u})`, transformOrigin: "top right", padding: pad }}
-        >
-          <ManaSymbols cost={card.manaCost} size="sm" />
-        </div>
-        <div
-          className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-1"
-          style={{
-            padding: pad,
-            paddingTop: 10 * u,
-            background: `linear-gradient(to top, ${withAlpha(theme.canvas.shadow, 0.94)} 0%, ${withAlpha(theme.canvas.shadow, 0.6)} 60%, transparent 100%)`,
-          }}
-        >
-          <div className="min-w-0 flex flex-col items-start" style={{ gap: 1 * u }}>
-            {counterBadges}
-            <span
-              className="font-semibold leading-tight break-words"
-              style={{ fontSize: fontName, color: theme.textOnTinted }}
-            >
-              {card.identity.name}
-            </span>
-            {typeLine && (
-              <span
-                className="leading-tight break-words"
-                style={{ fontSize: fontType, color: withAlpha(theme.textOnTinted, 0.75) }}
-              >
-                {typeLine}
-              </span>
-            )}
-          </div>
-          {pt && (
-            <span
-              className="font-bold rounded leading-none shrink-0 self-end"
-              style={{ ...ptStyle, fontSize: fontPt, padding: `${1.5 * u}px ${3 * u}px` }}
-            >
-              {card.power}/{card.toughness}
-            </span>
-          )}
-          {loyalty != null && (
-            <span
-              className="font-bold rounded leading-none shrink-0 self-end"
-              style={{
-                backgroundColor: theme.counter.loyalty,
-                color: theme.textOnTinted,
-                fontSize: fontPt,
-                padding: `${1.5 * u}px ${3 * u}px`,
-              }}
-            >
-              {loyalty}
-            </span>
-          )}
-        </div>
-        {Overlays}
-        {rail && <CardRail state={rail} />}
-        <div
-          className="absolute inset-0 rounded-[inherit] pointer-events-none"
-          style={{ border: `${borderW}px solid ${tint}` }}
-        />
-      </div>
-    );
-  }
-
   return (
     <div
       className={cn(
-        "relative @container overflow-hidden flex flex-col",
+        "relative @container overflow-hidden shadow-sm",
         card.tapped && "rotate-90",
         card.phasedOut && "opacity-30 grayscale",
         summoned && "opacity-80 grayscale-[0.85]",
@@ -278,84 +202,93 @@ export function BattlefieldCardFace({
           width,
           height,
           borderRadius: radius,
-          border: `${borderW}px solid ${tint}`,
           background: theme.cardPlaceholder.fill,
-          boxShadow: `0 ${1.5 * u}px ${3 * u}px ${withAlpha(theme.canvas.shadow, 0.5)}, inset 0 0 0 ${Math.max(0.5, 0.75 * u)}px ${withAlpha(theme.canvas.shadow, 0.4)}`,
         } as CSSProperties
       }
     >
-      <div
-        className="flex items-center justify-between gap-1 shrink-0"
-        style={{ background: barBg, padding: `${2 * u}px ${pad}px` }}
-      >
-        <span
-          className="font-semibold leading-tight truncate"
-          style={{ fontSize: fontName, color: barText }}
+      {variant === "art" ? (
+        artwork
+      ) : (
+        <GeneratedCardImage
+          card={card}
+          className="absolute inset-0 h-full w-full"
+          fallback={
+            fallbackUrl ? (
+              <ScryfallImg
+                src={fallbackUrl}
+                alt=""
+                className="absolute inset-0 h-full w-full object-contain"
+                draggable={false}
+              />
+            ) : undefined
+          }
+        />
+      )}
+      <CardFoilOverlay
+        enabled={variant === "art"}
+        foil={!!card.foil}
+        cosmetics={card.cosmetics}
+        etched={isEtchedOnlyPrinting(info?.finishes)}
+      />
+      {variant === "frame" && (
+        <div
+          className="pointer-events-none absolute inset-0 rounded-[inherit]"
+          style={{ boxShadow: `inset 0 0 0 ${borderW}px ${tint}` }}
+        />
+      )}
+      {variant === "art" && (
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 leading-tight"
+          style={{
+            padding: `${2 * u}px ${pad}px`,
+            color: theme.textOnTinted,
+            backgroundColor: withAlpha(theme.canvas.shadow, 0.78),
+          }}
         >
-          {card.identity.name}
-        </span>
-        <span
-          className="shrink-0 flex items-center"
-          style={{ transform: `scale(${Math.min(1, u)})`, transformOrigin: "right center" }}
-        >
-          <ManaSymbols cost={card.manaCost} size="sm" />
-        </span>
-      </div>
-
-      <div className="relative flex-1 overflow-hidden" style={{ background: theme.canvas.shadow }}>
-        {artCrop && (
-          <ScryfallImg
-            src={artCrop}
-            alt={card.identity.name}
-            className="absolute inset-0 w-full h-full object-cover"
-          />
-        )}
-        {damageEffect}
-        {counterBadges && (
-          <div className="absolute z-10" style={{ left: pad, bottom: pad }}>
-            {counterBadges}
+          <div className="truncate font-bold" style={{ fontSize: Math.max(5, 7 * u) }}>
+            {card.identity.name}
           </div>
-        )}
-        {pt && (
-          <span
-            className="absolute font-bold rounded leading-none"
-            style={{
-              ...ptStyle,
-              right: railOffsetRight,
-              bottom: pad,
-              fontSize: fontPt,
-              padding: `${1.5 * u}px ${3 * u}px`,
-            }}
-          >
-            {card.power}/{card.toughness}
-          </span>
-        )}
-        {loyalty != null && (
-          <span
-            className="absolute font-bold rounded leading-none"
-            style={{
-              backgroundColor: theme.counter.loyalty,
-              color: theme.textOnTinted,
-              right: railOffsetRight,
-              bottom: pad,
-              fontSize: fontPt,
-              padding: `${1.5 * u}px ${3 * u}px`,
-            }}
-          >
-            {loyalty}
-          </span>
-        )}
-        {Overlays}
-      </div>
-
-      <div
-        className="flex items-center justify-between gap-1 shrink-0"
-        style={{ background: withAlpha(tint, 0.9), padding: `${1.5 * u}px ${pad}px` }}
-      >
-        <span className="leading-none truncate" style={{ fontSize: fontType, color: barText }}>
-          {typeLine}
+          <div className="truncate" style={{ fontSize: Math.max(4, 5 * u) }}>
+            {cardTypeLine(card)}
+          </div>
+        </div>
+      )}
+      {damageEffect}
+      {counterBadges && (
+        <div className="absolute z-10" style={{ left: pad, bottom: pad }}>
+          {counterBadges}
+        </div>
+      )}
+      {pt && (
+        <span
+          className="absolute font-bold rounded leading-none"
+          style={{
+            ...ptStyle,
+            right: railOffsetRight,
+            bottom: pad,
+            fontSize: fontPt,
+            padding: `${1.5 * u}px ${3 * u}px`,
+          }}
+        >
+          {card.power}/{card.toughness}
         </span>
-      </div>
+      )}
+      {loyalty != null && (
+        <span
+          className="absolute font-bold rounded leading-none"
+          style={{
+            backgroundColor: theme.counter.loyalty,
+            color: theme.textOnTinted,
+            right: railOffsetRight,
+            bottom: pad,
+            fontSize: fontPt,
+            padding: `${1.5 * u}px ${3 * u}px`,
+          }}
+        >
+          {loyalty}
+        </span>
+      )}
+      {Overlays}
       {rail && <CardRail state={rail} />}
     </div>
   );

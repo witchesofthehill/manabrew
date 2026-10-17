@@ -127,7 +127,9 @@ function CommandZoneCard({
     </div>
   );
   return menuActions ? (
-    <CommandZoneCardMenu actions={menuActions}>{content}</CommandZoneCardMenu>
+    <CommandZoneCardMenu card={card} actions={menuActions}>
+      {content}
+    </CommandZoneCardMenu>
   ) : (
     content
   );

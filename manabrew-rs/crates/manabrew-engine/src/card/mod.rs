@@ -525,6 +525,8 @@ pub struct Card {
 
     #[serde(default)]
     pub paper_foil: bool,
+    #[serde(default)]
+    pub cosmetics: Option<forge_foundation::sealed_product::card_cosmetics::CardCosmetics>,
 
     // Phase-out state (issue #22, Phases effect).
     pub phased_out: bool,
@@ -872,6 +874,7 @@ impl Card {
             set_code: None,
             card_number: None,
             paper_foil: false,
+            cosmetics: None,
             phased_out: false,
             regeneration_shields: 0,
             kicked: false,

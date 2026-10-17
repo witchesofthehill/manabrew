@@ -1,3 +1,5 @@
+import { CardFoilOverlay } from "@/components/game/CardFoilOverlay";
+import { isEtchedOnlyPrinting } from "@/lib/cardFinish";
 import { topModal } from "@/lib/modalStack";
 import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, Loader2, RotateCw } from "lucide-react";
@@ -6,6 +8,10 @@ import type { DeckCard } from "@/protocol/deck";
 import { CounterDisplay } from "@/components/game/CounterBadge";
 import { CARD_RAIL_WIDTH } from "@/components/game/CardRail";
 import { CardRailPreview } from "@/components/game/CardRailPreview";
+import {
+  CardPreviewFlipSurface,
+  type CardPreviewFlipHandle,
+} from "@/components/game/CardPreviewFlipSurface";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { CardPreviewOverlay } from "./CardPreviewOverlay";
 import { GameIcon } from "./GameIcon";
@@ -15,7 +21,6 @@ import { computePreviewLayout } from "./cardPreviewLayout";
 import { getPreviewActionShortcut } from "./game.utils";
 import { CARD_W, CARD_RADIUS } from "./game.constants";
 import { CARD_BACK_IMAGE_URL } from "./game.constants";
-import { isFacelessCard } from "@/lib/gameCard";
 import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
 import { isHorizontalGameCard } from "@/lib/horizontalGameCard";
@@ -24,8 +29,8 @@ import { GHOST_CLICK_ARM_MS } from "@/lib/responsive";
 import { PREVIEW_TIMING, type PreviewFlipOptions } from "@/lib/cardPreview";
 import { CARD_PREVIEW_EVENT_HANDLERS } from "@/lib/cardPreviewEvents";
 import type { HandActionOption } from "@/stores/useGameUIStore";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { CSSProperties } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import type { CSSProperties, RefObject } from "react";
 import { DEBUG_KEYWORD_CARD_ID, useGameDevStore } from "@/stores/useGameDevStore";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { useResolvedGameCard } from "@/hooks/useResolvedGameCard";
@@ -33,6 +38,7 @@ import { useKeybindings } from "@/hooks/useKeybindings";
 import { deriveCardRailEffects, deriveCardRailState } from "@/components/game/cardRailState";
 import { cardTypeLine, replaceCardName } from "@/components/game/cardPresentation";
 import { localizeRulesPreviewText } from "@/pixi/cardPreview/rulesCardPreviewPresentation";
+import { GeneratedCardImage } from "@/components/game/GeneratedCardImage";
 import { CardPreviewHoverArea } from "./CardPreviewHoverArea";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 interface CardPreviewProps {
@@ -42,10 +48,14 @@ interface CardPreviewProps {
   anchorRect?: DOMRect | null;
   placement?: "auto" | "top-center" | "pinned";
   viewportRight?: number;
+  viewportBounds?: DOMRect;
   phase?: "open" | "closing";
   suppressed?: boolean;
   showBackFace?: boolean;
   skipEnterAnimation?: boolean;
+  flipHandleRef?: RefObject<CardPreviewFlipHandle | null>;
+  flipClosed?: boolean;
+  onPresentationReady?: () => void;
   actions?: HandActionOption[];
   onSelectAction?: (action: HandActionOption) => void;
   onDismiss?: () => void;
@@ -84,17 +94,32 @@ function PreviewImageStack({
     src: string;
     horizontal: boolean;
   } | null>(null);
+  const [failedTarget, setFailedTarget] = useState<string | null>(null);
+  const [failedLowRes, setFailedLowRes] = useState<string | null>(null);
+  const targetFailed = failedTarget === targetUrl;
+  const terminalFailure =
+    targetFailed && (!lowResUrl || lowResUrl === targetUrl || failedLowRes === lowResUrl);
   const targetShown = displayed?.src === targetUrl;
-  const showLowRes = !!lowResUrl && !targetShown && displayed?.src !== lowResUrl;
+  const showLowRes =
+    !!lowResUrl &&
+    lowResUrl !== targetUrl &&
+    !targetShown &&
+    displayed?.src !== lowResUrl &&
+    failedLowRes !== lowResUrl;
   return (
-    <>
-      {!displayed && (
+    <div
+      className="absolute inset-0"
+      data-card-preview-image-ready={
+        targetShown || (!!lowResUrl && displayed?.src === lowResUrl) || terminalFailure
+      }
+    >
+      {(!displayed || terminalFailure) && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4 bg-black">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          {!terminalFailure && <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />}
           <span className="text-xs text-muted-foreground text-center">{cardName}</span>
         </div>
       )}
-      {displayed && !targetShown && (
+      {displayed && !targetShown && !terminalFailure && (
         <ScryfallImg
           src={displayed.src}
           alt=""
@@ -110,17 +135,21 @@ function PreviewImageStack({
           title=""
           aria-hidden
           onLoad={() => setDisplayed({ src: lowResUrl, horizontal })}
-          className={horizontal ? IMG_HORIZONTAL : IMG_VERTICAL}
+          onError={() => setFailedLowRes(lowResUrl)}
+          className={cn(horizontal ? IMG_HORIZONTAL : IMG_VERTICAL, "opacity-0")}
         />
       )}
-      <ScryfallImg
-        src={targetUrl}
-        alt={cardName}
-        title=""
-        onLoad={() => setDisplayed({ src: targetUrl, horizontal })}
-        className={cn(horizontal ? IMG_HORIZONTAL : IMG_VERTICAL, !targetShown && "opacity-0")}
-      />
-    </>
+      {!targetFailed && (
+        <ScryfallImg
+          src={targetUrl}
+          alt={cardName}
+          title=""
+          onLoad={() => setDisplayed({ src: targetUrl, horizontal })}
+          onError={() => setFailedTarget(targetUrl)}
+          className={cn(horizontal ? IMG_HORIZONTAL : IMG_VERTICAL, !targetShown && "opacity-0")}
+        />
+      )}
+    </div>
   );
 }
 export function CardPreview({
@@ -130,9 +159,13 @@ export function CardPreview({
   anchorRect,
   placement = "auto",
   viewportRight,
+  viewportBounds,
   phase = "open",
   suppressed = false,
   skipEnterAnimation = false,
+  flipHandleRef,
+  flipClosed,
+  onPresentationReady,
   showBackFace = false,
   actions,
   onSelectAction,
@@ -149,6 +182,24 @@ export function CardPreview({
   portalTarget,
 }: CardPreviewProps) {
   const resolvedGameCard = useResolvedGameCard(card);
+  const preferredView = usePreferencesStore((state) => state.inGameCardPreviewStyle);
+  const [viewOverride, setViewOverride] = useState<boolean | null>(null);
+  const generatedView = !onToggleView && (viewOverride ?? preferredView === "rules");
+  const toggleView =
+    onToggleView ?? (() => setViewOverride((current) => !(current ?? preferredView === "rules")));
+  const [displayedFace, setDisplayedFace] = useState({ cardId: card.id, back: showBackFace });
+  const displayFace = useCallback(
+    (back: boolean) => setDisplayedFace({ cardId: card.id, back }),
+    [card.id],
+  );
+  const layoutFaceIndex =
+    !onToggleView && displayedFace.cardId === card.id
+      ? displayedFace.back
+        ? 1
+        : 0
+      : showBackFace
+        ? 1
+        : 0;
   const previewSize = usePreferencesStore((state) => state.inGameCardPreviewSize);
   const hasActions = Boolean(actions?.length && onSelectAction);
   const themeColors = useTheme().gameTheme;
@@ -208,6 +259,7 @@ export function CardPreview({
   const front = cardFaces.faces[0];
   const back = cardFaces.faces[1];
   const previewFaceIndex = showBackFace ? 1 : 0;
+  const showsCurrentFace = previewFaceIndex === (card.isTransformed ? 1 : 0);
   const railEffects = rail ? deriveCardRailEffects(card, rail) : [];
   const panelRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -253,11 +305,11 @@ export function CardPreview({
       observer.disconnect();
     };
   }, [showSidePanel, card.id]);
-  const faceless = isFacelessCard(card);
+  const faceless = card.isFaceDown || !card.identity.name;
   const imageUrl = faceless ? CARD_BACK_IMAGE_URL : resolveImageUrl(0, imageSize);
   const frontImageUrl = resolveImageUrl(0, imageSize);
   const backImageUrl = resolveImageUrl(1, imageSize);
-  const hasFlippableFaces = cardFaces.isFlippable && !!frontImageUrl && !!backImageUrl;
+  const hasFlippableFaces = !faceless && cardFaces.isFlippable && !!frontImageUrl && !!backImageUrl;
   const doubleFacedData = hasFlippableFaces
     ? {
         frontImageUrl: frontImageUrl!,
@@ -268,14 +320,24 @@ export function CardPreview({
         backName: back!.name,
       }
     : null;
-  const horizontalCard = isDebugCard
-    ? false
-    : isHorizontalGameCard(
-        card,
-        deckCard.layout,
-        previewFaceIndex,
-        cardFaces.faces[previewFaceIndex]?.typeLine,
-      );
+  const horizontalCard =
+    isDebugCard || faceless
+      ? false
+      : isHorizontalGameCard(
+          card,
+          deckCard.layout,
+          layoutFaceIndex,
+          cardFaces.faces[layoutFaceIndex]?.typeLine,
+        );
+  const targetHorizontal =
+    isDebugCard || faceless
+      ? false
+      : isHorizontalGameCard(
+          card,
+          deckCard.layout,
+          previewFaceIndex,
+          cardFaces.faces[previewFaceIndex]?.typeLine,
+        );
   const fallbackCounters =
     rail?.kind === "saga" && card.counters
       ? Object.fromEntries(
@@ -283,7 +345,10 @@ export function CardPreview({
         )
       : card.counters;
   useKeybindings(
-    onFlip && hasFlippableFaces ? { "flip-card": () => onFlip() } : {},
+    {
+      ...(onFlip && hasFlippableFaces ? { "flip-card": () => onFlip() } : {}),
+      ...(!onToggleView ? { "toggle-card-view": toggleView } : {}),
+    },
     portalTarget ? rootRef : undefined,
   );
   useEffect(() => {
@@ -358,6 +423,8 @@ export function CardPreview({
   const portalTop = portalBounds ? portalBounds.top + portalTarget!.clientTop : 0;
   const portalOriginLeft = portalLeft - (portalTarget?.scrollLeft ?? 0);
   const portalOriginTop = portalTop - (portalTarget?.scrollTop ?? 0);
+  const viewportLeft = Math.max(viewportBounds?.left ?? 0, portalLeft);
+  const viewportTop = Math.max(viewportBounds?.top ?? 0, portalTop);
   const layout = computePreviewLayout({
     placement,
     anchorRect: anchorRect ?? null,
@@ -366,16 +433,22 @@ export function CardPreview({
     horizontal,
     hasPanel: showSidePanel,
     panelHeight,
-    viewportLeft: portalBounds ? portalLeft : undefined,
-    viewportTop: portalBounds ? portalTop : undefined,
-    viewportRight: portalBounds
-      ? Math.min(viewportRight ?? Infinity, portalLeft + portalTarget!.clientWidth)
-      : viewportRight,
-    viewportBottom: portalBounds ? portalTop + portalTarget!.clientHeight : undefined,
+    viewportLeft,
+    viewportTop,
+    viewportRight: Math.min(
+      viewportRight ?? Infinity,
+      viewportBounds?.right ?? Infinity,
+      portalBounds ? portalLeft + portalTarget!.clientWidth : Infinity,
+    ),
+    viewportBottom: Math.min(
+      viewportBounds?.bottom ?? Infinity,
+      portalBounds ? portalTop + portalTarget!.clientHeight : Infinity,
+    ),
     slot: slot ?? null,
     size: previewSize,
   });
-  const { cardLeft, top, cardWidth, cardHeight, sidePanelWidth, panelSide } = layout;
+  const { cardWidth, cardHeight, sidePanelWidth, panelSide } = layout;
+  const { cardLeft, top } = layout;
   const cardCornerRadius = (Math.min(cardWidth, cardHeight) * CARD_RADIUS) / CARD_W;
   const anchorCenterX = anchorRect ? anchorRect.left + anchorRect.width / 2 : mouseX;
   const anchorCenterY = anchorRect ? anchorRect.top + anchorRect.height / 2 : mouseY;
@@ -388,8 +461,11 @@ export function CardPreview({
       : 0.5;
   const hasDoubleFace = !!doubleFacedData;
   const currentImageUrl = hasDoubleFace && showBackFace ? doubleFacedData.backImageUrl : imageUrl;
-  const currentCardName =
-    hasDoubleFace && showBackFace ? doubleFacedData.backName : card.identity.name;
+  const currentCardName = faceless
+    ? "Face-down card"
+    : hasDoubleFace && showBackFace
+      ? doubleFacedData.backName
+      : card.identity.name;
   const currentLowResUrl =
     imageSize !== "large"
       ? null
@@ -399,7 +475,6 @@ export function CardPreview({
           : doubleFacedData.frontImageUrlLow
         : resolveImageUrl(0, "normal");
   const cardLookupPending = !isDebugCard && cardFaces.faces.length === 0;
-  const hasPreviewControls = Boolean(onToggleView || (hasDoubleFace && onFlip) || isSticky);
   const handlePreviewPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     event.stopPropagation();
     if (!isSticky || event.pointerType !== "touch") return;
@@ -427,7 +502,7 @@ export function CardPreview({
     }
     if (!horizontal && dy <= -64) {
       if (hasDoubleFace && onFlip) onFlip();
-      else onToggleView?.();
+      else toggleView();
       event.preventDefault();
     }
   };
@@ -474,7 +549,7 @@ export function CardPreview({
             ? "relative w-full h-full flex items-start justify-start pointer-events-none"
             : cn(
                 portalTarget ? "absolute z-[10001]" : "fixed z-[10001]",
-                placement !== "pinned" && interactive && (showSidePanel || hasPreviewControls)
+                placement !== "pinned" && interactive
                   ? "pointer-events-auto"
                   : "pointer-events-none",
               ),
@@ -508,7 +583,7 @@ export function CardPreview({
             "relative @container",
             phase === "closing"
               ? "animate-preview-out"
-              : !skipEnterAnimation && "animate-preview-in",
+              : !skipEnterAnimation && !entered && "animate-preview-in",
           )}
           style={
             {
@@ -524,151 +599,184 @@ export function CardPreview({
             } as CSSProperties
           }
         >
-          <div
-            className={cn(
-              "w-full h-full shadow-2xl overflow-hidden bg-black relative",
-              hasActions && ACTIONABLE_CARD_GLOW_CLASS,
-              card.foil && "draft-tile-foil",
-            )}
-            style={{
-              borderRadius: cardCornerRadius,
-              ...(hasActions ? actionableCardGlowStyle(ringColor) : {}),
-            }}
+          <CardPreviewFlipSurface
+            key={`${card.id}:${faceless}`}
+            contentKey={`${generatedView}:${showBackFace}`}
+            local={!onToggleView}
+            active={phase === "open" && !suppressed}
+            backFace={showBackFace}
+            onDisplayFace={displayFace}
+            flipHandleRef={flipHandleRef}
+            flipClosed={flipClosed}
+            onPresentationReady={onPresentationReady}
           >
-            {currentImageUrl ? (
-              <>
-                <PreviewImageStack
-                  targetUrl={currentImageUrl}
-                  lowResUrl={currentLowResUrl ?? null}
-                  horizontal={horizontal}
-                  cardName={currentCardName}
-                />
-                <CardPreviewOverlay
-                  card={card}
-                  horizontal={horizontal}
-                  rail={rail}
-                  compactRail={false}
-                />
-                {showHoverAreas && (
-                  <div
-                    className="pointer-events-none absolute inset-0 z-30"
-                    style={{ backgroundColor: withAlpha(themeColors.success, 0.28) }}
-                  />
-                )}
-                {hasPreviewControls && (
-                  <div className="absolute top-[12%] right-2 z-20 flex items-center gap-1">
-                    {onToggleView && (
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onToggleView();
-                        }}
-                        className={cn(
-                          "inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/65 text-white shadow hover:bg-black/85 pointer-coarse:h-11 pointer-coarse:w-11",
-                          interactive ? "pointer-events-auto" : "pointer-events-none",
-                        )}
-                        aria-label={`Show rules`}
-                        title={`Show rules (R)`}
-                      >
-                        <GameIcon name="spell-book" className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                    {hasDoubleFace && onFlip && (
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onFlip({ sticky: true });
-                        }}
-                        className={cn(
-                          "inline-flex min-h-8 items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white shadow hover:bg-black/85 pointer-coarse:min-h-11 pointer-coarse:px-3",
-                          interactive ? "pointer-events-auto" : "pointer-events-none",
-                        )}
-                        title={`Flip card (F) — ${showBackFace ? doubleFacedData.frontName : doubleFacedData.backName}`}
-                      >
-                        <RotateCw className="h-3 w-3" />
-                        {showBackFace ? `Front` : `Back`}
-                      </button>
-                    )}
-                  </div>
-                )}
-                {isSticky && (onNavigatePrevious || onNavigateNext) && (
-                  <div className="absolute inset-x-2 bottom-2 z-20 flex items-center justify-between">
-                    <button
-                      type="button"
-                      aria-label="Previous card"
-                      disabled={!onNavigatePrevious}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onNavigatePrevious?.();
-                      }}
-                      className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/65 text-white shadow disabled:opacity-30"
-                    >
-                      <ChevronLeft className="h-5 w-5" />
-                    </button>
-                    <button
-                      type="button"
-                      aria-label="Next card"
-                      disabled={!onNavigateNext}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onNavigateNext?.();
-                      }}
-                      className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/65 text-white shadow disabled:opacity-30"
-                    >
-                      <ChevronRight className="h-5 w-5" />
-                    </button>
-                  </div>
-                )}
-              </>
-            ) : cardLookupPending ? (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4 bg-black">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                <span className="text-xs text-muted-foreground text-center">{currentCardName}</span>
-              </div>
-            ) : (
-              <div className="w-full h-full p-4 bg-card">
-                <div className="flex h-full min-w-0 flex-col gap-2">
-                  <div className="flex justify-between items-start gap-2">
-                    <span className="font-bold text-sm leading-tight">{currentCardName}</span>
-                    {!hasDoubleFace &&
-                      (card.effectiveManaCost ? (
-                        <div className="flex flex-col items-end">
-                          <span className="line-through opacity-50">
-                            <ManaSymbols cost={card.manaCost} size="md" />
-                          </span>
-                          <span
-                            className="rounded border px-0.5"
-                            style={{ borderColor: ringColor }}
-                          >
-                            <ManaSymbols cost={card.effectiveManaCost} size="md" />
-                          </span>
-                        </div>
-                      ) : (
-                        <ManaSymbols cost={card.manaCost} size="md" />
-                      ))}
-                  </div>
-                  {!hasDoubleFace && (
-                    <div className="text-xs text-muted-foreground">{cardTypeLine(card)}</div>
+            <div
+              className={cn(
+                "w-full h-full shadow-2xl overflow-hidden bg-black relative",
+                hasActions && ACTIONABLE_CARD_GLOW_CLASS,
+              )}
+              style={{
+                borderRadius: cardCornerRadius,
+                ...(hasActions ? actionableCardGlowStyle(ringColor) : {}),
+              }}
+            >
+              {currentImageUrl || generatedView ? (
+                <>
+                  {currentImageUrl && (
+                    <PreviewImageStack
+                      key={faceless ? "hidden" : "visible"}
+                      targetUrl={currentImageUrl}
+                      lowResUrl={currentLowResUrl ?? null}
+                      horizontal={targetHorizontal}
+                      cardName={currentCardName}
+                    />
                   )}
-                  <div className="flex-1 text-xs text-foreground/80 whitespace-pre-wrap">
-                    {hasDoubleFace && showBackFace
-                      ? `Back face: ${doubleFacedData!.backName}`
-                      : hasDoubleFace && !showBackFace
-                        ? `Front face: ${doubleFacedData!.frontName}`
-                        : replaceCardName(card.text, card.identity.name)}
-                  </div>
-                  {fallbackCounters && <CounterDisplay counters={fallbackCounters} size="md" />}
-                  {card.power && card.toughness && (
-                    <div className="text-right font-bold text-sm">
-                      {card.power}/{card.toughness}
+                  {generatedView && !faceless && (
+                    <GeneratedCardImage
+                      card={card}
+                      deckCard={deckCard}
+                      faceIndex={previewFaceIndex}
+                      className={targetHorizontal ? IMG_HORIZONTAL : IMG_VERTICAL}
+                      fallback={currentImageUrl ? <></> : undefined}
+                    />
+                  )}
+                  <CardFoilOverlay
+                    enabled={!faceless && !generatedView && !suppressed}
+                    foil={!faceless && !!card.foil}
+                    cosmetics={faceless ? undefined : card.cosmetics}
+                    etched={!faceless && isEtchedOnlyPrinting(resolvedGameCard.info?.finishes)}
+                  />
+                  {!faceless && showsCurrentFace && (
+                    <CardPreviewOverlay
+                      card={card}
+                      horizontal={targetHorizontal}
+                      rail={rail}
+                      compactRail={false}
+                    />
+                  )}
+                  {showHoverAreas && (
+                    <div
+                      className="pointer-events-none absolute inset-0 z-30"
+                      style={{ backgroundColor: withAlpha(themeColors.success, 0.28) }}
+                    />
+                  )}
+
+                  {isSticky && (onNavigatePrevious || onNavigateNext) && (
+                    <div className="absolute inset-x-2 bottom-2 z-20 flex items-center justify-between">
+                      <button
+                        type="button"
+                        aria-label="Previous card"
+                        disabled={!onNavigatePrevious}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onNavigatePrevious?.();
+                        }}
+                        className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/65 text-white shadow disabled:opacity-30"
+                      >
+                        <ChevronLeft className="h-5 w-5" />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Next card"
+                        disabled={!onNavigateNext}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onNavigateNext?.();
+                        }}
+                        className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/65 text-white shadow disabled:opacity-30"
+                      >
+                        <ChevronRight className="h-5 w-5" />
+                      </button>
                     </div>
                   )}
+                </>
+              ) : cardLookupPending ? (
+                <div
+                  data-card-preview-loading
+                  className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4 bg-black"
+                >
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground text-center">
+                    {currentCardName}
+                  </span>
                 </div>
+              ) : (
+                <div className="w-full h-full p-4 bg-card">
+                  <div className="flex h-full min-w-0 flex-col gap-2">
+                    <div className="flex justify-between items-start gap-2">
+                      <span className="font-bold text-sm leading-tight">{currentCardName}</span>
+                      {!hasDoubleFace &&
+                        (card.effectiveManaCost ? (
+                          <div className="flex flex-col items-end">
+                            <span className="line-through opacity-50">
+                              <ManaSymbols cost={card.manaCost} size="md" />
+                            </span>
+                            <span
+                              className="rounded border px-0.5"
+                              style={{ borderColor: ringColor }}
+                            >
+                              <ManaSymbols cost={card.effectiveManaCost} size="md" />
+                            </span>
+                          </div>
+                        ) : (
+                          <ManaSymbols cost={card.manaCost} size="md" />
+                        ))}
+                    </div>
+                    {!hasDoubleFace && (
+                      <div className="text-xs text-muted-foreground">{cardTypeLine(card)}</div>
+                    )}
+                    <div className="flex-1 text-xs text-foreground/80 whitespace-pre-wrap">
+                      {hasDoubleFace && showBackFace
+                        ? `Back face: ${doubleFacedData!.backName}`
+                        : hasDoubleFace && !showBackFace
+                          ? `Front face: ${doubleFacedData!.frontName}`
+                          : replaceCardName(card.text, card.identity.name)}
+                    </div>
+                    {fallbackCounters && <CounterDisplay counters={fallbackCounters} size="md" />}
+                    {card.power && card.toughness && (
+                      <div className="text-right font-bold text-sm">
+                        {card.power}/{card.toughness}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              <div className="absolute top-[12%] right-2 z-20 flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    toggleView();
+                  }}
+                  className={cn(
+                    "inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/65 text-white shadow hover:bg-black/85 pointer-coarse:h-11 pointer-coarse:w-11",
+                    interactive ? "pointer-events-auto" : "pointer-events-none",
+                  )}
+                  aria-label={generatedView ? "Show Realistic card" : "Show Manabrew card"}
+                  title={generatedView ? "Show Realistic card (R)" : "Show Manabrew card (R)"}
+                >
+                  <GameIcon name="spell-book" className="h-3.5 w-3.5" />
+                </button>
+                {hasDoubleFace && onFlip && (
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onFlip({ sticky: true });
+                    }}
+                    className={cn(
+                      "inline-flex min-h-8 items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white shadow hover:bg-black/85 pointer-coarse:min-h-11 pointer-coarse:px-3",
+                      interactive ? "pointer-events-auto" : "pointer-events-none",
+                    )}
+                    title={`Flip card (F) — ${showBackFace ? doubleFacedData.frontName : doubleFacedData.backName}`}
+                  >
+                    <RotateCw className="h-3 w-3" />
+                    {showBackFace ? `Front` : `Back`}
+                  </button>
+                )}
               </div>
-            )}
-          </div>
+            </div>
+          </CardPreviewFlipSurface>
 
           {showSidePanel && (
             <div

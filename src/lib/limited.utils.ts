@@ -5,6 +5,8 @@ import type { Deck, DeckCard } from "@/protocol/deck";
 import type { ScryfallCard } from "@/types/scryfall";
 import { frontFaceName, scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { cardKey, useCard, useScryfallStore } from "@/stores/useScryfallStore";
+import { normalizeCardCosmetics } from "@/lib/cardCosmetics";
+
 export function manaPipPattern(letter: string): RegExp {
   return new RegExp(`\\{[^}]*${letter}[^}]*\\}`, "g");
 }
@@ -14,13 +16,14 @@ export function countManaPips(cost: string, letter: string): number {
 }
 
 export function deckCardToDraftCard(card: DeckCard): DraftCard {
-  const { name, setCode, cardNumber, foil } = card.identity;
+  const { name, setCode, cardNumber, foil, cosmetics } = card.identity;
   return {
     id: card.identity.id,
     name,
     setCode,
     cardNumber,
     foil,
+    cosmetics: normalizeCardCosmetics(cosmetics),
   };
 }
 
@@ -46,6 +49,7 @@ export function refToDeckCard(
       setCode: ref.setCode || card.identity.setCode,
       cardNumber: ref.setCode ? ref.cardNumber : card.identity.cardNumber,
       foil: ref.foil,
+      cosmetics: normalizeCardCosmetics(ref.cosmetics),
     },
   };
 }

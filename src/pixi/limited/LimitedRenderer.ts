@@ -1,4 +1,4 @@
-import { Application, Container, Graphics, Sprite } from "pixi.js";
+import { Application, Container, Graphics } from "pixi.js";
 import { animationsEnabled } from "@/pixi/effects/enabled";
 import { gsap } from "@/pixi/effects/gsap";
 import { dragPositionBlend, dragTransformBlend } from "@/pixi/dragMotion";
@@ -24,7 +24,7 @@ interface RegisteredPane {
 }
 interface CardFlight {
   pane: LimitedPane;
-  sprite: Sprite;
+  sprite: Container;
   timeline: gsap.core.Timeline;
 }
 interface LiftedCard {
@@ -372,16 +372,20 @@ export class LimitedRenderer {
     }
     this.request();
   }
-  flyCard(pane: LimitedPane, source: Sprite, departureTarget: () => HTMLElement | null): void {
+  flyCard(
+    pane: LimitedPane,
+    source: Container,
+    departureTarget: () => HTMLElement | null,
+  ): boolean {
     const entry = this.panes.get(pane);
-    if (!entry || !animationsEnabled() || this.disposed || source.texture.width <= 1) return;
+    if (!entry || !animationsEnabled() || this.disposed || source.destroyed) return false;
     this.place(entry);
     const target = departureTarget();
     let ancestor: Container | null = source;
     while (ancestor && !this.liftedCards.has(ancestor)) ancestor = ancestor.parent;
     const lifted = ancestor !== null;
     if ((!pane.root.visible && !lifted) || !target?.isConnected || !target.getClientRects().length)
-      return;
+      return false;
     const destination = target.getBoundingClientRect();
     const bounds = source.getBounds();
     const paneBounds = entry.mask.getLocalBounds();
@@ -404,17 +408,22 @@ export class LimitedRenderer {
           bounds.x >= paneBounds.x + paneBounds.width ||
           bounds.y >= paneBounds.y + paneBounds.height))
     )
-      return;
-    const center = source.toGlobal({ x: source.texture.width / 2, y: source.texture.height / 2 });
+      return false;
+    const local = source.getLocalBounds();
+    const center = source.toGlobal({ x: local.x + local.width / 2, y: local.y + local.height / 2 });
     const transform = source.getGlobalTransform();
-    const sprite = new Sprite(source.texture);
+    const sprite = new Container();
     sprite.eventMode = "none";
-    sprite.anchor.set(0.5);
+    sprite.setFromMatrix(transform);
+    sprite.pivot.set(local.x + local.width / 2, local.y + local.height / 2);
     sprite.position.copyFrom(center);
-    sprite.width = source.texture.width * Math.hypot(transform.a, transform.b);
-    sprite.height = source.texture.height * Math.hypot(transform.c, transform.d);
-    sprite.rotation = Math.atan2(transform.b, transform.a);
     sprite.alpha = ancestor ? ancestor.alpha : pane.root.alpha;
+    source.position.set(0);
+    source.scale.set(1);
+    source.rotation = 0;
+    source.skew.set(0);
+    source.pivot.set(0);
+    sprite.addChild(source);
     this.flightsLayer.addChild(sprite);
     const left = Math.max(0, destination.left);
     const top = Math.max(0, destination.top);
@@ -440,8 +449,8 @@ export class LimitedRenderer {
     timeline.to(
       sprite.scale,
       {
-        x: destinationWidth / source.texture.width,
-        y: destinationHeight / source.texture.height,
+        x: destinationWidth / local.width,
+        y: destinationHeight / local.height,
         duration: PICK_FLIGHT_DURATION,
         ease: "power2.inOut",
       },
@@ -449,6 +458,7 @@ export class LimitedRenderer {
     );
     timeline.to(sprite, { alpha: 0, duration: 0.1 }, PICK_FLIGHT_DURATION - 0.1);
     this.request();
+    return true;
   }
   cancelFlights(pane?: LimitedPane): void {
     for (const flight of this.flights) {
@@ -458,7 +468,7 @@ export class LimitedRenderer {
   private removeFlight(flight: CardFlight): void {
     flight.timeline.kill();
     flight.sprite.removeFromParent();
-    flight.sprite.destroy({ texture: false, textureSource: false });
+    flight.sprite.destroy({ children: true, texture: false, textureSource: false });
     this.flights.delete(flight);
     this.request();
   }

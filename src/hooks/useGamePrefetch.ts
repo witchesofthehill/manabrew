@@ -1,9 +1,11 @@
 import { useEffect, useRef } from "react";
 import { useGameStore } from "@/stores/useGameStore";
 import { prefetchCards } from "@/stores/useScryfallStore";
-import { asDeckCard, getDeckCardPool } from "@/lib/decks";
+import { asDeckCard, asGameDeckCard, getDeckCardPool } from "@/lib/decks";
 import type { ClientGameView } from "@/stores/gameStore.types";
 import type { Deck, DeckCard } from "@/protocol/deck";
+import { renderRulesCard } from "@/lib/cardRenderer";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
 
 export type GamePrefetchMode = "visible" | "full";
 
@@ -88,7 +90,27 @@ export function useGamePrefetch(mode: GamePrefetchMode): void {
     let cancelIdle = () => {};
     const deckCards = Object.values(decks).flatMap(getDeckCardPool);
     const visibleCards = cardsToPrefetchImmediately(gameView, decks);
-    const finish = () => useGameStore.setState({ isPrefetchingCards: false });
+    const finish = async () => {
+      if (usePreferencesStore.getState().handCardStyle === "rules") {
+        const current = useGameStore.getState();
+        const hands = current.gameView?.players.flatMap((player) => player.hand) ?? [];
+        await Promise.allSettled(
+          hands
+            .filter(
+              (card) =>
+                !card.isFaceDown && card.identity.name && card.identity.name !== "Hidden Card",
+            )
+            .map((card) =>
+              renderRulesCard({
+                card,
+                deckCard: asGameDeckCard(current.gameDecks, card),
+                faceIndex: card.isTransformed ? 1 : 0,
+              }),
+            ),
+        );
+      }
+      useGameStore.setState({ isPrefetchingCards: false });
+    };
     if (mode === "full") {
       const cap = new Promise<void>((resolve) => setTimeout(resolve, FULL_PREFETCH_WAIT_CAP_MS));
       void Promise.all([

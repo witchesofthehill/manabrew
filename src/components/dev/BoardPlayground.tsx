@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCardFinishPreview } from "@/stores/useCardFinishPreview";
 import type { ClientCardDto } from "@/stores/gameStore.types";
 import type { CardDto, ZoneKind } from "@/protocol/game";
 import { GAME_CARD_DEFAULTS, isFacelessCard } from "@/lib/gameCard";
@@ -98,9 +99,23 @@ const PREVIEW_VIEWPORTS = [
 
 let previewCardSequence = 0;
 
-export function BoardPlayground({ themeEditor = false }: { themeEditor?: boolean }) {
-  const [table, setTable] = useState(() =>
-    createPlaygroundTable(themeEditor ? "theme" : "opening"),
+export function BoardPlayground({
+  themeEditor = false,
+  initialScenario,
+}: {
+  themeEditor?: boolean;
+  initialScenario?: PlaygroundScenarioId;
+}) {
+  const foilAll = useCardFinishPreview((state) => state.foilAll);
+  const [sourceTable, setTable] = useState(() =>
+    createPlaygroundTable(initialScenario ?? (themeEditor ? "theme" : "opening")),
+  );
+  const table = useMemo(
+    () =>
+      foilAll
+        ? { ...sourceTable, cards: sourceTable.cards.map((card) => ({ ...card, foil: true })) }
+        : sourceTable,
+    [sourceTable, foilAll],
   );
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [sheetPlayerId, setSheetPlayerId] = useState<string | null>(null);
@@ -715,14 +730,14 @@ export function BoardPlayground({ themeEditor = false }: { themeEditor?: boolean
               variant={previewStyle === "printed" ? "selected" : "outline"}
               onClick={() => setPreviewStyle("printed")}
             >
-              Printed preview
+              Realistic preview
             </Button>
             <Button
               size="sm"
               variant={previewStyle === "rules" ? "selected" : "outline"}
               onClick={() => setPreviewStyle("rules")}
             >
-              Rules preview
+              Manabrew preview
             </Button>
             <Button size="sm" variant="outline" onClick={showSelectedPreview} disabled={!targetId}>
               Open selected preview
@@ -828,6 +843,18 @@ export function BoardPlayground({ themeEditor = false }: { themeEditor?: boolean
             onTargetPlayer: gameplay.setSelectedTarget,
             onHoverCard: hover,
             onHoverHandCard: hover,
+            onHoverZoneCards: (cards, bounds) => {
+              if (!cards?.length || !bounds) {
+                preview.handleMouseLeave();
+                return;
+              }
+              preview.handleMouseEnter(cards[0]!, undefined, {
+                anchorOverride: new DOMRect(bounds.x, bounds.y, bounds.width, bounds.height),
+                ignoreTriggerPreference: true,
+                useAnchor: true,
+                useDelay: true,
+              });
+            },
             onLongPressCard: (card, bounds) => inspect(card, bounds, true),
             onRightClickCard:
               previewMode === "right-click"
@@ -893,6 +920,7 @@ export function BoardPlayground({ themeEditor = false }: { themeEditor?: boolean
       {previewStyle === "printed" && (
         <HoverCardPreview
           preview={{ ...preview, hoveredCard: previewCard }}
+          viewportBounds={boardRef.current?.querySelector("canvas")?.getBoundingClientRect()}
           actions={previewActions}
           onSelectAction={handlePreviewAction}
           skipEnterAnimation={skipPreviewEnterAnimation}

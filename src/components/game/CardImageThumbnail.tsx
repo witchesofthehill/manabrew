@@ -1,7 +1,8 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { ScryfallImg } from "@/components/ScryfallImg";
+import { GeneratedCardImage } from "./GeneratedCardImage";
 import { useLongPressPreview } from "@/hooks/useLongPressPreview";
 import type { DeckCard } from "@/protocol/deck";
 
@@ -16,7 +17,6 @@ interface CardImageThumbnailProps {
 export function CardImageThumbnail({ card, className }: CardImageThumbnailProps) {
   const [hovered, setHovered] = useState(false);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-  const imgRef = useRef<HTMLImageElement>(null);
 
   const longPress = useLongPressPreview<DeckCard>({
     resolve: (e) => ({ item: card, anchor: e.currentTarget as HTMLElement }),
@@ -55,11 +55,11 @@ export function CardImageThumbnail({ card, className }: CardImageThumbnailProps)
 
   return (
     <>
-      <ScryfallImg
-        ref={imgRef}
-        src={card.uris.normal}
-        alt={card.identity.name}
-        className={cn("cursor-zoom-in select-none [-webkit-touch-callout:none]", className)}
+      <div
+        className={cn(
+          "inline-block cursor-zoom-in select-none [-webkit-touch-callout:none]",
+          className,
+        )}
         onPointerEnter={handlePointerEnter}
         onPointerMove={handlePointerMove}
         onPointerLeave={handlePointerLeave}
@@ -68,7 +68,9 @@ export function CardImageThumbnail({ card, className }: CardImageThumbnailProps)
         onPointerCancel={longPress.onPointerCancel}
         onClickCapture={longPress.onClickCapture}
         onContextMenu={longPress.onContextMenu}
-      />
+      >
+        <GeneratedCardImage deckCard={card} className="h-full w-full" />
+      </div>
       {hovered &&
         createPortal(
           <div
@@ -78,7 +80,7 @@ export function CardImageThumbnail({ card, className }: CardImageThumbnailProps)
             <ScryfallImg
               src={card.uris.large}
               alt={card.identity.name}
-              className="w-full h-full object-contain rounded-xl shadow-2xl ring-1 ring-black/20"
+              className="h-full w-full object-contain rounded-xl shadow-2xl ring-1 ring-black/20"
             />
           </div>,
           document.body,

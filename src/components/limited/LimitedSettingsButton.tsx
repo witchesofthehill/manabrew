@@ -53,11 +53,11 @@ export function LimitedSettingsButton({
         <div className="min-h-0 space-y-5 overflow-y-auto">
           <LimitedDisplaySettings sessionKey={sessionKey} />
           <section className="space-y-4 border-t border-border pt-4">
-            <h3 className="text-sm font-semibold">Card inspection</h3>
+            <h3 className="text-sm font-semibold">Card rendering</h3>
             <fieldset className="space-y-2">
-              <legend className="text-sm">Preview view</legend>
+              <legend className="text-sm">Card view</legend>
               <AppSelect
-                aria-label="Preview view"
+                aria-label="Card view"
                 value={previewStyle}
                 onValueChange={(value) =>
                   usePreferencesStore
@@ -72,6 +72,9 @@ export function LimitedSettingsButton({
                   </AppSelectOption>
                 ))}
               </AppSelect>
+              <p className="text-xs text-muted-foreground">
+                Applies to cards on the Limited table and their hover previews.
+              </p>
             </fieldset>
             <fieldset className="space-y-2">
               <legend className="text-sm">Preview size</legend>

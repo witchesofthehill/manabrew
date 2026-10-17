@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, type MouseEvent } from "react";
 import { ArrowRightLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { ScryfallImg } from "@/components/ScryfallImg";
+import { GeneratedCardImage } from "@/components/game/GeneratedCardImage";
 import { Button } from "@/components/ui/button";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import { isLand } from "@/lib/mana";
@@ -204,11 +204,7 @@ export function ReplacementSuggestionsPanel({
                       setTargetMenuOpen(false);
                     }}
                   >
-                    <ScryfallImg
-                      src={card.uris.small || card.uris.normal}
-                      alt=""
-                      className="h-11 w-8 shrink-0 rounded object-cover object-top"
-                    />
+                    <GeneratedCardImage deckCard={card} className="h-11 w-8 shrink-0 rounded" />
                     <span className="min-w-0 flex-1 truncate text-xs font-medium">
                       {card.identity.name}
                     </span>
@@ -247,13 +243,9 @@ export function ReplacementSuggestionsPanel({
               onMouseEnter={(event) => onHover?.(card, event)}
               onMouseLeave={onLeave}
             >
-              <ScryfallImg
-                src={
-                  suggestion.image_uris?.normal ?? suggestion.card_faces?.[0]?.image_uris?.normal
-                }
-                alt={suggestion.name}
+              <GeneratedCardImage
+                deckCard={card}
                 className="w-full rounded-lg border border-border/50 shadow-sm"
-                draggable={false}
               />
               <div className="mt-1 text-[10px] text-muted-foreground">
                 {collectionQuantityForName(quantities, suggestion.name) > 0

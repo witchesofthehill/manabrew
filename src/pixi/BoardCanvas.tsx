@@ -334,6 +334,7 @@ export function BoardCanvasSurface({
         const theme = getTheme();
         setPixiTextStyleTheme(theme);
         newScene.setTheme(theme);
+        newScene.setHandCardStyle(usePreferencesStore.getState().handCardStyle);
 
         const parent = canvas.parentElement;
         if (parent) newScene.resize(parent.clientWidth, parent.clientHeight);

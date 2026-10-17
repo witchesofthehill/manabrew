@@ -50,13 +50,28 @@ export interface BasePalette {
 }
 
 import type { GameThemeColorMap } from "./gameTheme";
-import { contrastRatio, withAlpha } from "./themeColor";
+import { contrastRatio, darken, ensureTextContrast, withAlpha } from "./themeColor";
+
+export const CARD_CHANGE_COLORS = {
+  buffed: "#229c3c",
+  debuffed: "#bb365d",
+  changed: "#1685ad",
+  removed: "#b27a18",
+} as const;
+
+export const CARD_PRINTING_COLORS = {
+  paper: "#e4decb",
+  ink: "#17140f",
+  frame: "#746c60",
+  footer: "#fff",
+} as const;
 
 export function buildGameColors(p: BasePalette): GameThemeColorMap {
   const promptForeground = (background: string): string =>
     contrastRatio(p.foreground, background) >= contrastRatio(p.canvasBackground, background)
       ? p.foreground
       : p.canvasBackground;
+  const cardInk = promptForeground(p.paper);
   return {
     "activeAction.active": p.amber,
 
@@ -78,6 +93,22 @@ export function buildGameColors(p: BasePalette): GameThemeColorMap {
     "zone.graveyard": p.slate,
     "zone.exile": p.purple,
     "zone.command": p.amber,
+
+    "cardPaper.background": p.paper,
+    "cardPaper.raised": darken(p.paper, 0.04),
+    "cardPaper.ink": cardInk,
+    "cardPaper.mutedInk": ensureTextContrast(p.slate, p.paper, cardInk, 4.5),
+    "cardPaper.border": p.slate,
+
+    "cardChange.buffed": CARD_CHANGE_COLORS.buffed,
+    "cardChange.debuffed": CARD_CHANGE_COLORS.debuffed,
+    "cardChange.changed": CARD_CHANGE_COLORS.changed,
+    "cardChange.removed": CARD_CHANGE_COLORS.removed,
+
+    "cardPrinting.paper": CARD_PRINTING_COLORS.paper,
+    "cardPrinting.ink": CARD_PRINTING_COLORS.ink,
+    "cardPrinting.frame": CARD_PRINTING_COLORS.frame,
+    "cardPrinting.footer": CARD_PRINTING_COLORS.footer,
 
     "mana.W": p.manaW,
     "mana.U": p.manaU,

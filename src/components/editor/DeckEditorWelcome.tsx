@@ -114,7 +114,7 @@ const STEPS = [
     icon: Sparkles,
     tips: [
       "Alt+3 jumps to the next editor section",
-      "Bulk actions: T tags, F toggles foil, M/S/B moves, Delete removes",
+      "Bulk actions: T tags, M/S/B moves, Delete removes",
       "Cmd/Ctrl+C and Cmd/Ctrl+V copy and paste cards; - and = adjust quantities",
       "Press ? to see every shortcut and customize them in Preferences",
     ],

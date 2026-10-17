@@ -8,7 +8,7 @@ export function bindPreviewScroll(
     if (!(event instanceof WheelEvent)) return;
     if (event.ctrlKey || !hitTest(event.clientX, event.clientY)) return;
     event.preventDefault();
-    event.stopPropagation();
+    event.stopImmediatePropagation();
     scroll(event.deltaY, event.deltaMode, event.clientX, event.clientY);
   };
   const onTouchStart = (event: Event) => {

@@ -10,7 +10,7 @@ export const BATTLEFIELD_CARD_STYLE_OPTIONS = [
   },
   {
     value: "frame",
-    label: `Mini-frame`,
+    label: `Manabrew`,
   },
 ] as const satisfies ReadonlyArray<{
   value: BattlefieldCardStyle;

@@ -29,6 +29,7 @@ import { SetSelect } from "@/components/editor/SetSelect";
 import { deckCardToPreviewDto, scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { manaSymbolUrl } from "@/api/scryfall";
 import { ScryfallImg } from "@/components/ScryfallImg";
+import { GeneratedCardImage } from "@/components/game/GeneratedCardImage";
 import { HoverCardPreview } from "@/components/game/HoverCardPreview";
 import { useCardPreview, type CardPreviewController } from "@/hooks/useCardPreview";
 import type { ManaCode } from "@/types/scryfall";
@@ -789,12 +790,7 @@ function DraggableCardRow({
       )}
     >
       <div className="w-8 h-8 shrink-0 rounded overflow-hidden bg-muted">
-        <ScryfallImg
-          src={card.uris.small}
-          alt=""
-          className="w-full h-full object-cover object-top"
-          draggable={false}
-        />
+        <GeneratedCardImage deckCard={card} className="h-full w-full" />
       </div>
 
       <div className="flex-1 min-w-0">

@@ -123,7 +123,11 @@ export class DialogCardPickerScene {
         this.canvas,
         (clientX, clientY) => this.rulesSpriteAt(clientX, clientY) !== null,
         (delta, mode, clientX, clientY) => {
-          this.rulesSpriteAt(clientX, clientY)?.scrollHandRules(delta, mode);
+          const rect = this.canvas.getBoundingClientRect();
+          if (rect.width <= 0 || rect.height <= 0) return;
+          const x = ((clientX - rect.left) * this.app.screen.width) / rect.width;
+          const y = ((clientY - rect.top) * this.app.screen.height) / rect.height;
+          this.rulesSpriteAt(clientX, clientY)?.scrollHandRules(delta, mode, x, y);
           this.request();
         },
       );

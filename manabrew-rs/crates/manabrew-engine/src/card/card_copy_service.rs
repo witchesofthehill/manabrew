@@ -14,6 +14,7 @@ pub fn copy_card(
 ) -> Card {
     let mut out = copy_from.clone();
     if assign_new_id {
+        out.cosmetics = None;
         if let Some(id) = new_id {
             out.id = id;
         }

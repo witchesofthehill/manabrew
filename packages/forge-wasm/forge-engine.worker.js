@@ -40,7 +40,10 @@ function boot() {
 }
 
 function flatten(deck) {
-  return identities([...((deck && deck.cards) || []), ...((deck && deck.commanders) || [])]);
+  return [
+    ...identities((deck && deck.cards) || []),
+    ...identities((deck && deck.commanders) || []).map((card) => ({ ...card, commander: true })),
+  ];
 }
 
 /**
@@ -53,9 +56,11 @@ function identities(cards) {
     const identity = card.identity || card;
     const name = identity.name;
     if (!name) continue;
-    const entry = { name: frontFace(name) };
+    const entry = { name: frontFace(name), foil: identity.foil ?? false };
     if (identity.setCode) entry.setCode = identity.setCode;
     if (identity.cardNumber) entry.collectorNumber = identity.cardNumber;
+    if (identity.cosmetics != null) entry.cosmetics = identity.cosmetics;
+    if (identity.tokenScript) entry.tokenScript = identity.tokenScript;
     for (let i = 0; i < (card.count ?? 1); i++) out.push(entry);
   }
   return out;
@@ -153,6 +158,7 @@ async function startGame(requestId, args) {
         deck: flatten(humanDeck),
         sideboard: identities(humanDeck.sideboard || []),
         attractions: identities(humanDeck.attractions || []),
+        tokens: identities(humanDeck.tokens || []),
         commanderNames: commanderGame ? commanderNames(humanDeck, args && args.commanderName) : [],
       },
       ...aiDecks.map((deck, i) => ({
@@ -170,6 +176,7 @@ async function startGame(requestId, args) {
         deck: flatten(deck),
         sideboard: identities(deck.sideboard || []),
         attractions: identities(deck.attractions || []),
+        tokens: identities(deck.tokens || []),
         commanderNames: commanderGame ? commanderNames(deck, null) : [],
       })),
     ],
@@ -248,6 +255,7 @@ async function startMultiplayerGame(requestId, args) {
       deck: flatten(deck),
       sideboard: identities(deck.sideboard || []),
       attractions: identities(deck.attractions || []),
+      tokens: identities(deck.tokens || []),
       commanderNames: commanderGame ? commanderNames(deck, commanders[index] ?? null) : [],
     })),
   };

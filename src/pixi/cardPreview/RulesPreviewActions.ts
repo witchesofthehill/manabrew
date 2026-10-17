@@ -5,11 +5,13 @@ import type { Theme } from "@/hooks/useTheme";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { hexToNum } from "@/pixi/colorUtils";
 import { PixiRichText } from "./PixiRichText";
+import { RULES_BODY_FONT, type RulesPreviewFrameStyle } from "./rulesPreviewFrame";
 
 interface ActionsContent {
   width: number;
   maxHeight: number;
   theme: Theme;
+  frame: RulesPreviewFrameStyle;
   actions: Array<{ action: HandActionOption; shortcut: number; displayLabel?: string }>;
   controls: Array<{ label: string; activate: () => void }>;
   statuses: CardStatusPresentation[];
@@ -18,6 +20,7 @@ interface ActionsContent {
   onSelectAction: (action: HandActionOption) => void;
   embedded?: boolean;
   ownsScroll?: boolean;
+  compact?: boolean;
 }
 
 interface ActionRow {
@@ -32,11 +35,16 @@ const SCROLL_GUTTER = 8;
 const LINE_HEIGHT = 18;
 const DRAG_SLOP = 5;
 
-function textStyle(fill: string, fontSize = 13, bold = false): TextStyle {
+function textStyle(
+  fill: string,
+  fontSize = 13,
+  bold = false,
+  fontFamily = RULES_BODY_FONT,
+): TextStyle {
   return new TextStyle({
     fill,
     fontSize,
-    fontFamily: "Inter, system-ui, sans-serif",
+    fontFamily,
     fontWeight: bold ? "700" : "400",
     lineHeight: fontSize * 1.3,
   });
@@ -59,7 +67,9 @@ function sameAction(left: HandActionOption, right: HandActionOption): boolean {
 }
 
 function actionText(action: HandActionOption, displayLabel?: string): string {
-  const label = displayLabel ?? action.label;
+  const symbols = action.displayManaLetters?.map((letter) => `{${letter}}`).join("") ?? "";
+  const baseLabel = action.isManaAbility && symbols ? action.label : (displayLabel ?? action.label);
+  const label = symbols && !baseLabel.includes(symbols) ? `${baseLabel} ${symbols}` : baseLabel;
   const cost = action.cost?.trim();
   if (!cost || label.toLowerCase().startsWith(cost.toLowerCase())) return label;
   return `${cost}: ${label}`;
@@ -76,6 +86,7 @@ export class RulesPreviewActions extends Container {
   private rows: ActionRow[] = [];
   private focusedIndex: number | null = null;
   private hoveredIndex: number | null = null;
+  private hoveredControl: Graphics | null = null;
   private contentWidth = 0;
   private contentInset = PAD;
   private contentHeight = 0;
@@ -134,6 +145,12 @@ export class RulesPreviewActions extends Container {
     return this.heightValue;
   }
 
+  cancelPress(): void {
+    this.pointerId = this.tapPointerId = null;
+    this.dragMoved = true;
+    this.clearHover();
+  }
+
   get focusedActionBounds(): { top: number; height: number } | null {
     if (this.focusedIndex === null) return null;
     const row = this.rows[this.focusedIndex];
@@ -162,31 +179,45 @@ export class RulesPreviewActions extends Container {
     let y = 0;
     if (spec.actions.length > 0) {
       if (spec.label) {
-        y = this.addText(spec.label, y, spec.theme.appTheme["muted-foreground"], 11, true);
+        y = this.addText(spec.label, y, spec.frame.mutedInk, 11, true);
       }
       for (const [index, entry] of spec.actions.entries()) {
         const row = new Container();
         const background = new Graphics();
         const key = new Text({
           text: String(entry.shortcut),
-          style: textStyle(spec.theme.appTheme["muted-foreground"], 11),
+          style: textStyle(
+            spec.theme.appTheme["popover-foreground"],
+            12,
+            true,
+            "Inter, system-ui, sans-serif",
+          ),
         });
         key.resolution = 2;
         key.anchor.set(0.5);
-        key.position.set(12, 18);
+        const keyTop = spec.compact ? 4 : 8;
+        const keyWidth = Math.max(22, key.width + 8);
+        const keyBackground = new Graphics()
+          .roundRect(4, keyTop, keyWidth, 20, 4)
+          .fill(hexToNum(spec.theme.appTheme.muted))
+          .stroke({ color: hexToNum(spec.theme.appTheme.border), width: 1 });
+        keyBackground.eventMode = key.eventMode = "none";
+        key.position.set(4 + keyWidth / 2, keyTop + 10);
+        const labelLeft = keyWidth + 10;
         const label = new PixiRichText();
         const labelHeight = label.setContent(
           actionText(entry.action, entry.displayLabel),
-          textStyle(spec.theme.appTheme["popover-foreground"]),
-          Math.max(1, this.contentWidth - 32),
+          textStyle(spec.frame.ink, 15, false, spec.frame.bodyFont),
+          Math.max(1, this.contentWidth - labelLeft - 6),
           15,
           3,
-          { parentheticalStyle: textStyle(spec.theme.appTheme["muted-foreground"]) },
+          { parentheticalStyle: textStyle(spec.frame.mutedInk, 15, false, spec.frame.bodyFont) },
         );
-        const height = Math.max(40, labelHeight + 16);
-        label.position.set(26, 8);
+        const rowPadding = spec.compact ? 4 : 8;
+        const height = Math.max(spec.compact ? 32 : 48, labelHeight + rowPadding * 2);
+        label.position.set(labelLeft, rowPadding);
         row.position.set(0, y);
-        row.addChild(background, key, label);
+        row.addChild(background, keyBackground, key, label);
         row.hitArea = new Rectangle(0, 0, this.contentWidth, height);
         row.eventMode = "static";
         row.cursor = "pointer";
@@ -209,7 +240,7 @@ export class RulesPreviewActions extends Container {
       }
     }
     if (spec.statuses.length > 0) y = this.addChips(y > 0 ? y + GAP : y);
-    if (spec.hint) y = this.addText(spec.hint, y, spec.theme.appTheme["muted-foreground"], 10);
+    if (spec.hint) y = this.addText(spec.hint, y, spec.frame.mutedInk, 11);
     this.contentHeight = Math.max(0, y - GAP);
     const utilityHeight = this.addControls();
     const sectionGap = this.contentHeight > 0 && utilityHeight > 0 ? GAP * 2 : 0;
@@ -239,19 +270,20 @@ export class RulesPreviewActions extends Container {
     if (!spec.embedded) {
       this.background
         .roundRect(0, 0, spec.width, this.heightValue, 10)
-        .fill(hexToNum(spec.theme.appTheme.popover));
+        .fill(hexToNum(spec.frame.paper));
     }
     if (sectionGap > 0) {
       const dividerY = this.contentInset + this.viewportHeight + GAP;
       this.background
         .moveTo(this.contentInset, dividerY)
         .lineTo(spec.width - this.contentInset, dividerY)
-        .stroke({ color: hexToNum(spec.theme.appTheme.border), width: 1, alpha: 0.45 });
+        .stroke({ color: hexToNum(spec.frame.border), width: 1, alpha: 0.45 });
     }
     this.clip
       .clear()
       .rect(this.contentInset, this.contentInset, this.contentWidth, this.viewportHeight)
-      .fill(hexToNum(spec.theme.appTheme.popover));
+      .fill(hexToNum(spec.frame.paper));
+    this.setScroll(this.scrollOffset);
     this.drawFocus();
   }
 
@@ -274,6 +306,17 @@ export class RulesPreviewActions extends Container {
     }
   }
 
+  focusActionAt(index: number): void {
+    if (!this.rows[index]) return;
+    this.focusedIndex = index;
+    this.focusAction(0);
+  }
+
+  getActionScreenBounds(index: number) {
+    const bounds = this.rows[index]?.background.getBounds();
+    return bounds ? { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height } : null;
+  }
+
   activateFocusedAction(): void {
     if (this.focusedIndex !== null) {
       this.activateAction(this.focusedIndex);
@@ -294,9 +337,16 @@ export class RulesPreviewActions extends Container {
   }
 
   scrollBy(delta: number, mode: number, scale: number): void {
+    this.cancelPress();
     const unit =
       mode === 1 ? LINE_HEIGHT : mode === 2 ? this.viewportHeight : scale > 0 ? 1 / scale : 0;
     this.setScroll(this.scrollOffset + delta * unit);
+  }
+
+  cancelInteraction(): void {
+    this.clearInput();
+    this.focusedIndex = null;
+    this.drawFocus();
   }
 
   reset(): void {
@@ -328,7 +378,7 @@ export class RulesPreviewActions extends Container {
   }
 
   private addText(value: string, y: number, color: string, size: number, bold = false): number {
-    const style = textStyle(color, size, bold);
+    const style = textStyle(color, size, bold, this.spec!.frame.bodyFont);
     style.wordWrap = true;
     style.breakWords = true;
     style.wordWrapWidth = this.contentWidth;
@@ -345,7 +395,12 @@ export class RulesPreviewActions extends Container {
     let rowHeight = 0;
     for (const status of this.spec!.statuses) {
       const color = this.statusColor(status.tone);
-      const style = textStyle(this.spec!.theme.gameTheme.textOnTinted, 10, true);
+      const style = textStyle(
+        this.spec!.theme.gameTheme.textOnTinted,
+        10,
+        true,
+        this.spec!.frame.bodyFont,
+      );
       style.wordWrap = true;
       style.breakWords = true;
       style.wordWrapWidth = Math.max(1, this.contentWidth - 16);
@@ -377,7 +432,7 @@ export class RulesPreviewActions extends Container {
     let y = 0;
     let rowHeight = 0;
     for (const control of spec.controls) {
-      const style = textStyle(spec.theme.appTheme["muted-foreground"], 11);
+      const style = textStyle(spec.frame.ink, 13, false, spec.frame.bodyFont);
       style.wordWrap = true;
       style.breakWords = true;
       style.wordWrapWidth = Math.max(1, this.contentWidth - 16);
@@ -400,12 +455,19 @@ export class RulesPreviewActions extends Container {
       button.hitArea = new Rectangle(0, 0, width, height);
       button.on("pointerenter", (event: FederatedPointerEvent) => {
         if (event.pointerType === "touch") return;
+        this.hoveredControl = background;
         background
           .clear()
           .roundRect(0, 0, width, height, 6)
-          .fill({ color: hexToNum(spec.theme.appTheme.muted), alpha: 0.65 });
+          .fill({
+            color: hexToNum(spec.frame.textured ? spec.frame.ink : spec.frame.raised),
+            alpha: spec.frame.textured ? 0.08 : 0.65,
+          });
       });
-      button.on("pointerleave", () => background.clear());
+      button.on("pointerleave", () => {
+        background.clear();
+        if (this.hoveredControl === background) this.hoveredControl = null;
+      });
       button.on("pointertap", (event: FederatedPointerEvent) => {
         if (this.consumeTap(event)) control.activate();
       });
@@ -433,11 +495,24 @@ export class RulesPreviewActions extends Container {
   }
 
   private drawFocus(): void {
+    if (this.rows.length === 0) return;
     const color = hexToNum(this.spec!.theme.gameTheme.activeAction.active);
+    const frame = this.spec!.frame;
     this.rows.forEach((row, index) => {
       const focused = index === this.focusedIndex;
       const hovered = index === this.hoveredIndex;
       row.background.clear();
+      row.background
+        .roundRect(0, 0, this.contentWidth, row.height, 4)
+        .fill({
+          color: hexToNum(frame.textured ? frame.ink : frame.raised),
+          alpha: frame.textured ? 0.035 : 1,
+        })
+        .stroke({
+          color: hexToNum(frame.textured ? frame.ink : frame.border),
+          width: 1,
+          alpha: frame.textured ? 0.24 : 0.6,
+        });
       if (focused || hovered) {
         row.background
           .roundRect(0, 0, this.contentWidth, row.height, 4)
@@ -448,7 +523,9 @@ export class RulesPreviewActions extends Container {
 
   private setScroll(offset: number): void {
     const maxScroll = Math.max(0, this.contentHeight - this.viewportHeight);
-    this.scrollOffset = Math.max(0, Math.min(offset, maxScroll));
+    const nextOffset = Math.max(0, Math.min(offset, maxScroll));
+    if (nextOffset !== this.scrollOffset) this.clearHover();
+    this.scrollOffset = nextOffset;
     this.content.y = -this.scrollOffset;
     this.scrollbar.clear();
     if (!this.spec || maxScroll <= 0 || this.viewportHeight <= 0) return;
@@ -461,10 +538,8 @@ export class RulesPreviewActions extends Container {
     const y = this.contentInset + ((trackHeight - thumbHeight) * this.scrollOffset) / maxScroll;
     this.scrollbar
       .roundRect(x, this.contentInset, 2, trackHeight, 1)
-      .fill({ color: hexToNum(this.spec.theme.appTheme.muted), alpha: 0.8 });
-    this.scrollbar
-      .roundRect(x - 1, y, 4, thumbHeight, 2)
-      .fill(hexToNum(this.spec.theme.appTheme["muted-foreground"]));
+      .fill({ color: hexToNum(this.spec.frame.border), alpha: 0.5 });
+    this.scrollbar.roundRect(x - 1, y, 4, thumbHeight, 2).fill(hexToNum(this.spec.frame.mutedInk));
   }
 
   private endPress(event: FederatedPointerEvent, cancelled: boolean): void {
@@ -484,9 +559,17 @@ export class RulesPreviewActions extends Container {
     return true;
   }
 
-  private clearInput(): void {
-    this.pointerId = this.tapPointerId = null;
+  private clearHover(): void {
+    this.hoveredControl?.clear();
+    this.hoveredControl = null;
+    if (this.hoveredIndex === null) return;
     this.hoveredIndex = null;
+    this.drawFocus();
+  }
+
+  private clearInput(): void {
+    this.clearHover();
+    this.pointerId = this.tapPointerId = null;
     this.pressX = this.pressY = this.pressScroll = 0;
     this.touchPress = this.dragMoved = false;
   }

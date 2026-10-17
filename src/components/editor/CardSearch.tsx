@@ -21,12 +21,14 @@ import type { DeckCard } from "@/protocol/deck";
 import { useDraggable } from "@dnd-kit/core";
 import { toast } from "sonner";
 import { useDeckStore } from "@/stores/useDeckStore";
+import { useScryfallStore } from "@/stores/useScryfallStore";
 import { CardDetailModal } from "@/components/editor/CardDetailModal";
 import { CardThumbnail } from "@/components/editor/deckEditor.primitives";
 import { CARD_WIDTH_MAP, DEFAULT_CARD_SIZE } from "@/components/editor/deckBuilder.utils";
 import { SetStudyToolbar } from "@/components/editor/SetStudyToolbar";
 import { SetSelect } from "@/components/editor/SetSelect";
-import { deckCardToPreviewDto, scryfallToDeckCard } from "@/lib/scryfall.utils";
+import { deckCardToPreviewDto, scryfallToSearchResult } from "@/lib/scryfall.utils";
+import { shouldLocalizeScryfallSearchResults } from "@/lib/scryfallSearch";
 import { manaSymbolUrl } from "@/api/scryfall";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { HoverCardPreview } from "@/components/game/HoverCardPreview";
@@ -677,6 +679,7 @@ function FilterSeparator({ label }: { label: string }) {
 }
 function DraggableCardGrid({
   card,
+  displayName,
   onMoreInfo,
   onAdd,
   standalone,
@@ -684,6 +687,7 @@ function DraggableCardGrid({
   onLeave,
 }: {
   card: DeckCard;
+  displayName: string;
   onMoreInfo: () => void;
   onAdd?: () => void;
   standalone?: boolean;
@@ -701,7 +705,7 @@ function DraggableCardGrid({
       <button
         type="button"
         onClick={onMoreInfo}
-        title={`Inspect ${card.identity.name}`}
+        title={`Inspect ${displayName}`}
         className="block aspect-[5/7] w-full cursor-zoom-in rounded-lg text-left motion-safe:transition-transform motion-safe:hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <CardThumbnail card={card} loading="lazy" />
@@ -755,6 +759,7 @@ function DraggableCardGrid({
 }
 function DraggableCardRow({
   card,
+  displayName,
   onMoreInfo,
   onAdd,
   standalone,
@@ -762,6 +767,7 @@ function DraggableCardRow({
   onLeave,
 }: {
   card: DeckCard;
+  displayName: string;
   onMoreInfo: () => void;
   onAdd?: () => void;
   standalone?: boolean;
@@ -798,7 +804,7 @@ function DraggableCardRow({
       </div>
 
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-medium truncate leading-tight">{card.identity.name}</div>
+        <div className="text-sm font-medium truncate leading-tight">{displayName}</div>
         <div className="text-xs text-muted-foreground truncate leading-tight">{typeStr}</div>
       </div>
 
@@ -857,6 +863,7 @@ export function CardSearch({
   const internalPreview = useCardPreview();
   const preview = previewController ?? internalPreview;
   const addToMain = useDeckStore((s) => s.addToMain);
+  const locale = useScryfallStore((s) => s.locale);
   const addCard = (card: DeckCard) => {
     addToMain({ ...card, identity: { ...card.identity, id: crypto.randomUUID() } });
     toast.success(`Added ${card.identity.name}`);
@@ -950,7 +957,11 @@ export function CardSearch({
   }
   // Keep both DeckCard and raw ScryfallCard arrays in sync
   const rawCards: ScryfallCard[] = data?.pages.flatMap((p) => p.data) ?? [];
-  const allCards: DeckCard[] = rawCards.map(scryfallToDeckCard);
+  const preserveSearchLanguage = !shouldLocalizeScryfallSearchResults(effectiveQuery);
+  const searchResults = rawCards.map((card) =>
+    scryfallToSearchResult(card, locale, preserveSearchLanguage),
+  );
+  const allCards: DeckCard[] = searchResults.map((result) => result.card);
   const detailIndex = detailCard ? rawCards.findIndex((card) => card.id === detailCard.id) : -1;
   useEffect(() => {
     if (
@@ -1452,6 +1463,7 @@ export function CardSearch({
                 >
                   <DraggableCardGrid
                     card={card}
+                    displayName={searchResults[i].displayName}
                     onMoreInfo={() => setDetailCard(rawCards[i])}
                     onAdd={standalone ? undefined : () => addCard(card)}
                     standalone={standalone}
@@ -1469,6 +1481,7 @@ export function CardSearch({
                 <DraggableCardRow
                   key={card.identity.id}
                   card={card}
+                  displayName={searchResults[i].displayName}
                   onMoreInfo={() => setDetailCard(rawCards[i])}
                   onAdd={standalone ? undefined : () => addCard(card)}
                   standalone={standalone}
@@ -1515,3 +1528,4 @@ export function CardSearch({
     </div>
   );
 }
+

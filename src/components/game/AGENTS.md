@@ -213,6 +213,8 @@ Inline rules-text P/T modifiers are separate from counter badges. React `Dynamic
 
 `CardLiveHighlight` must recheck animation eligibility when rendering resumes on the same scene root. Pixi ancestor `alpha` and `renderable` changes do not emit `visibleChanged`; root identity alone cannot detect recovery from fades or render suppression. Pause live ink while hidden and resume it when eligible, without bypassing reduced-motion or animation preferences.
 
+Planeswalker previews use painter-owned cost shields, numeral offsets, text columns and safe ink bounds from `CardInteractionPanel.planeswalker`. Loyalty shields, colons and separators scroll with their ability rows; passive paragraphs have no shield. Parse signed, zero and variable loyalty costs through the SDK's `specialRules`, not a numeric-only regex. Preserve native loyalty-stat exclusions and scroll clearance for the final ability.
+
 `previewHoverArea.ts` defines curved transfer areas from the source card to the preview and between the preview and its controls. Cover diagonal departures above and below the source, not only the gap between facing edges. `BoardOverlayCanvas` derives enter and leave callbacks from pointer position so crossing a gap cancels dismissal immediately. Returning to the source keeps the preview open without intercepting the card. Use these curves only for hover; wheel routing and sticky-touch dismissal use visible panel bounds.
 
 Printed and Rules window-exit `pointerout` listeners run in capture phase, with matching capture cleanup. Preview event isolation stops bubbling; it must not hide `relatedTarget === null` exits from hover dismissal.

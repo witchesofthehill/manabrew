@@ -106,6 +106,8 @@ Saga panel metadata includes the painter-owned chapter-strip and text-column geo
 
 Class panels expose the native level-band asset and measurements from `extraRuleBlocks`. Interactive level bands scroll with their ability rows inside unchanged rules bounds; battlefield sprite rails remain independent. The `class-dice` lab fixture covers Barbarian Class's longer dice abilities.
 
+Planeswalker panel metadata supplies native cost shields, cost/static text columns and safe ink bounds without changing the full rules rectangle. Lab fixtures cover Jace's four abilities, Narset's passive text and Ugin's variable loyalty cost.
+
 Interactive Pixi previews opt into `standardFrameFallback` for unsupported or ambiguous printing treatments, keeping their generated frame and measured rules box consistent. It changes frame selection only, not selected artwork, card semantics or the Original scan. DOM printing renderers retain their original-scan rejection policy. Artwork-integrated treatments preserve the selected scan in both renderers; Pixi keeps it full-size behind a dark game-palette rules/actions overlay. Its heading shows the displayed face's full type line; a top-right badge shows its mana cost when present. Never substitute another printing's artwork.
 
 `lib/cardRenderQueue.ts` serializes composition, prioritizes previews, deduplicates consumers, and removes queued work when its last consumer aborts. An active composition finishes safely and can populate the bounded canvas cache. `getCardRenderStats` reports preparation, queue, composition and cache counters; cancellation counts queued subscribers, not requests aborted during preparation. Cold gallery measurements clear finished canvases only, not fonts, downloaded resources or browser caches.

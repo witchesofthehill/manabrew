@@ -177,3 +177,173 @@
 +export { sagaRuleLayout, SAGA_RULE_BOUNDS } from './presentation/saga-rules.js';
 +export { SAGA_CHAPTER, SAGA_MARKER_GEOMETRY, SAGA_RECTS } from './presentation/saga-frame.js';
  
+--- a/games/magic/src/presentation/planeswalker-rules.ts
++++ b/games/magic/src/presentation/planeswalker-rules.ts
+@@ -2,6 +2,24 @@
+ import { faceFrame, faceRects, specialRules } from './special-frames.js';
+ import { layoutRules, RULES_TYPOGRAPHY } from './rules-layout.js';
+ import { planeswalkerInkLimits } from './planeswalker-lower-frame.js';
++export { planeswalkerInkLimits } from './planeswalker-lower-frame.js';
++export { PLANESWALKER_COST_GEOMETRY } from './planeswalker-loyalty.js';
++
++export const PLANESWALKER_RULE_GEOMETRY = {
++  badgeWidth: 54,
++  badgeHeight: 40,
++  textLeft: 67,
++  staticTextLeft: 45,
++  rightInset: 8,
++  separatorLeft: 40,
++  separatorHeight: 1.5,
++  minimumRowHeight: 34,
++  colonOffsetX: 4,
++  colonOffsetY: 1.5,
++  colonFontSize: 24,
++  colonFontFamily: '"CardRenderer MTG MPlantin", Georgia',
++  colonInk: '#17140f',
++} as const;
+ 
+ /** Match explicit styles to the visible ability, stripping only its loyalty prefix.
+  * rulesText remains the special-frame source; unrelated ordinary paragraphs do
+@@ -34,14 +52,14 @@
+   const rows = abilities.map((row, index) => ({
+     ...row,
+     runs: abilityRuns(face, row.text, index),
+-    left: row.badges.length ? 67 : 45,
++    left: row.badges.length ? PLANESWALKER_RULE_GEOMETRY.textLeft : PLANESWALKER_RULE_GEOMETRY.staticTextLeft,
+   }));
+   const measure = (size: number) =>
+     rows.map((row) =>
+       layoutRules(
+         context,
+         [{ role: 'rules', runs: row.runs }],
+-        { x: x + row.left, y: 0, width: width - row.left - 8, height: 1000 },
++        { x: x + row.left, y: 0, width: width - row.left - PLANESWALKER_RULE_GEOMETRY.rightInset, height: 1000 },
+         size,
+         size,
+         typography,
+@@ -66,7 +84,7 @@
+     return tops;
+   };
+   const paperFits = () => (paperTops()[0] ?? inkTop) >= inkTop;
+-  const minimum = () => measured.map((layout) => Math.max(34, layout.height + 16));
++  const minimum = () => measured.map((layout) => Math.max(PLANESWALKER_RULE_GEOMETRY.minimumRowHeight, layout.height + 16));
+   const fixedRowsFit = () => {
+     const step = height / Math.max(1, rows.length);
+     return measured.every((layout, i) => {
+@@ -99,7 +117,7 @@
+       {
+         x: x + row.left,
+         y: textTops[index]!,
+-        width: width - row.left - 8,
++        width: width - row.left - PLANESWALKER_RULE_GEOMETRY.rightInset,
+         height: textHeight,
+       },
+       font,
+--- a/games/magic/src/presentation/planeswalker-loyalty.ts
++++ b/games/magic/src/presentation/planeswalker-loyalty.ts
+@@ -1,4 +1,15 @@
+ import type { FaceRect } from './face-layout.js';
++
++export const PLANESWALKER_COST_GEOMETRY = {
++  fontSize: 19.5,
++  fontFamily: '"CardRenderer MTG Beleren", Georgia',
++  fontWeight: 700,
++  ink: '#fff',
++  numeralOffsetX: -0.5,
++  numeralOffsetY: { plus: -0.25, zero: -3.25, minus: -4.5 },
++  horizontalInset: 10,
++  widthScale: 0.97,
++} as const;
+ 
+ /** Center the visible ink in the shield's body, below its top notch. Canvas's
+  * generic middle baseline centers the font em box and puts tall digits into
+@@ -19,15 +30,16 @@
+   text: string,
+   [x, y, width, height]: FaceRect,
+ ): void {
+-  const inkOffsetY = text.startsWith('+') ? -0.25 : text === '0' ? -3.25 : -4.5;
++  const geometry = PLANESWALKER_COST_GEOMETRY;
++  const inkOffsetY = geometry.numeralOffsetY[text.startsWith('+') ? 'plus' : text === '0' ? 'zero' : 'minus'];
+   paintLoyaltyInk(
+     c,
+     text,
+-    19.5,
+-    x + width / 2 - 0.5,
++    geometry.fontSize,
++    x + width / 2 + geometry.numeralOffsetX,
+     y + height / 2 + inkOffsetY,
+-    width - 10,
+-    0.97,
++    width - geometry.horizontalInset,
++    geometry.widthScale,
+   );
+ }
+ 
+@@ -42,7 +54,7 @@
+ ): void {
+   c.save();
+-  c.fillStyle = '#fff';
++  c.fillStyle = PLANESWALKER_COST_GEOMETRY.ink;
+-  c.font = `700 ${size}px "CardRenderer MTG Beleren", Georgia`;
++  c.font = `${PLANESWALKER_COST_GEOMETRY.fontWeight} ${size}px ${PLANESWALKER_COST_GEOMETRY.fontFamily}`;
+   c.textAlign = 'center';
+   c.textBaseline = 'alphabetic';
+   c.letterSpacing = '0px';
+--- a/games/magic/src/presentation/special-rule-paint.ts
++++ b/games/magic/src/presentation/special-rule-paint.ts
+@@ -4,7 +4,7 @@
+ import { faceFrame, faceRects, specialRuleRows, type SingleFrame } from './special-frames.js';
+ import { paintRules, rulesLines } from './canvas-text.js';
+ import type { CanvasImages } from './canvas-assets.js';
+-import { planeswalkerRuleRows } from './planeswalker-rules.js';
++import { PLANESWALKER_RULE_GEOMETRY, planeswalkerRuleRows } from './planeswalker-rules.js';
+ import { paintRulesLayout } from './rules-paint.js';
+ import type { RulesLayout } from './rules-layout.js';
+ import { planeswalkerLowerPanel } from './planeswalker-lower-frame.js';
+@@ -61,14 +61,14 @@
+ function paintAbilityColon(context: CanvasRenderingContext2D, x: number, center: number) {
+   context.save();
+-  context.fillStyle = '#17140f';
++  context.fillStyle = PLANESWALKER_RULE_GEOMETRY.colonInk;
+-  context.font = '24px "CardRenderer MTG MPlantin", Georgia';
++  context.font = `${PLANESWALKER_RULE_GEOMETRY.colonFontSize}px ${PLANESWALKER_RULE_GEOMETRY.colonFontFamily}`;
+   context.textAlign = 'center';
+   context.textBaseline = 'alphabetic';
+   const ink = context.measureText(':');
+   context.fillText(
+     ':',
+     x,
+-    center + 1.5 + (ink.actualBoundingBoxAscent - ink.actualBoundingBoxDescent) / 2,
++    center + PLANESWALKER_RULE_GEOMETRY.colonOffsetY + (ink.actualBoundingBoxAscent - ink.actualBoundingBoxDescent) / 2,
+   );
+   context.restore();
+ }
+@@ -102,7 +102,7 @@
+           ? Math.max(previous.top + previous.height + 3, Math.min(y + row.top, row.layout.top - 3))
+           : y + row.top;
+       context.fillStyle = '#0002';
+-      context.fillRect(x + (saga ? 0 : 40), separator, w - (saga ? 0 : 40), 1.5);
++      context.fillRect(x + (saga ? 0 : PLANESWALKER_RULE_GEOMETRY.separatorLeft), separator, w - (saga ? 0 : PLANESWALKER_RULE_GEOMETRY.separatorLeft), PLANESWALKER_RULE_GEOMETRY.separatorHeight);
+     }
+     context.fillStyle = '#17140f';
+     context.textAlign = 'left';
+@@ -120,8 +120,8 @@
+         images,
+       );
+     }
+-    const badgeW = saga ? 36 : 54,
+-      badgeH = saga ? 36 : 40;
++    const badgeW = saga ? 36 : PLANESWALKER_RULE_GEOMETRY.badgeWidth,
++      badgeH = saga ? 36 : PLANESWALKER_RULE_GEOMETRY.badgeHeight;
+     row.badges.forEach((badge, index) => {
+       const bx = x + (saga ? -18 : 0),
+         by = y + row.top + row.height / 2 + (index - row.badges.length / 2) * badgeH;
+@@ -143,7 +143,7 @@
+       }
+       if (!saga) {
+         paintPlaneswalkerCost(context, badge, [bx, by, badgeW, badgeH]);
+-        paintAbilityColon(context, bx + badgeW + 4, by + badgeH / 2);
++        paintAbilityColon(context, bx + badgeW + PLANESWALKER_RULE_GEOMETRY.colonOffsetX, by + badgeH / 2);
+       } else if (!image) {
+         context.fillStyle = 'white';
+         context.textAlign = 'center';

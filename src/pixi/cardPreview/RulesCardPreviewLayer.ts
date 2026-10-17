@@ -26,6 +26,8 @@ import { gameIconTexture } from "@/pixi/gameIconCache";
 import { PixiRichText } from "@/pixi/cardPreview/PixiRichText";
 import { RulesPreviewBody, RULES_PREVIEW_FONT_SIZE } from "@/pixi/cardPreview/RulesPreviewBody";
 import { PixiCardRailPreview } from "@/pixi/cardPreview/PixiCardRailPreview";
+import { addPlaneswalkerCost } from "@/pixi/cardPreview/PixiPlaneswalkerCost";
+import { specialRules } from "card-glint/magic/presentation";
 import {
   localizeRulesPreviewText,
   resolveRulesPreviewDisplay,
@@ -138,6 +140,7 @@ const CONTENT_PAD = 16;
 const ORACLE_LINE_HEIGHT = RULES_PREVIEW_FONT_SIZE;
 const FLAVOR_GAP = RULES_PREVIEW_FONT_SIZE * 0.75;
 const ABILITY_GAP = RULES_PREVIEW_FONT_SIZE * 0.4;
+const PLANESWALKER_SECTION_GAP = 8;
 const SECTION_GAP = 8;
 const ENTRY_INTERACTION_PAD_MS = 80;
 const STACK_RULES_PULSE_S = 0.9;
@@ -867,12 +870,26 @@ export class RulesCardPreviewLayer {
       } else {
         const sections = this.scanOverlay ? display.sections : section ? [section] : [];
         for (const panelSection of sections) {
-          for (const text of rulesTextEntries(
+          const entries = rulesTextEntries(
             panelSection.rulesText,
             primary ? progression : null,
             panelSection.canonicalRulesText,
-          )) {
+          );
+          for (const [entryIndex, text] of entries.entries()) {
             if (progressionOpening.includes(text)) continue;
+            if (panelSection.planeswalker && body.planeswalker && entryIndex > 0) {
+              const { separator } = body.planeswalker;
+              body.content.addChild(
+                new Graphics()
+                  .rect(
+                    separator.x,
+                    y - PLANESWALKER_SECTION_GAP / 2,
+                    separator.width,
+                    separator.height,
+                  )
+                  .fill({ color: hexToNum(this.frame.ink), alpha: 0.13 }),
+              );
+            }
             y = this.addOracleAbilityRow(body, text, y, panelSection.planeswalker);
           }
           if (panelSection.flavorText) y = this.addFlavorText(body, panelSection.flavorText, y);
@@ -1050,21 +1067,34 @@ export class RulesCardPreviewLayer {
     parent = body.content,
     style = oracleTextStyle(this.frame.ink, false, this.frame.bodyFont),
   ): number {
-    const loyalty = planeswalker ? /^([+\-−]?\d+):\s*(.+)$/.exec(text) : null;
-    const content = loyalty?.[2] ?? text;
-    const contentX = loyalty ? 43 : 0;
+    const native = planeswalker ? body.planeswalker : undefined;
+    const loyalty = native
+      ? specialRules({
+          name: this.spec!.card.identity.name,
+          rulesText: text,
+          typeLine: "Planeswalker",
+        })[0]
+      : null;
+    const cost = loyalty?.badges[0];
+    const content = cost ? loyalty!.text : text;
+    const column = native ? (cost ? native.text : native.staticText) : null;
+    const contentX = column?.x ?? 0;
     const row = new Container();
     const rich = new PixiRichText();
     const textHeight = rich.setContent(
       content,
       style,
-      body.contentWidth - contentX,
+      column?.width ?? body.contentWidth,
       RULES_PREVIEW_FONT_SIZE,
       0,
       { parentheticalStyle: oracleTextStyle(this.frame.mutedInk, true, this.frame.bodyFont) },
     );
-    const height = Math.max(loyalty ? 34 : 0, textHeight);
-    rich.position.set(contentX, 0);
+    const height = Math.max(
+      native?.minimumRowHeight ?? 0,
+      cost ? native!.badge.height : 0,
+      textHeight,
+    );
+    rich.position.set(contentX, native ? (height - textHeight) / 2 : 0);
     row.position.set(0, y);
     const highlightedEffect = this.spec?.highlightedEffect?.trim();
     if (highlightedEffect && rulesEntryMatchesStackAbility(text, highlightedEffect)) {
@@ -1078,25 +1108,11 @@ export class RulesCardPreviewLayer {
       body.highlightedRowTop ??= y;
     }
     row.addChild(rich);
-    if (loyalty) {
-      const badge = new Graphics();
-      badge.poly([4, 7, 34, 7, 37, height / 2, 34, height - 7, 4, height - 7, 1, height / 2]);
-      badge.fill({
-        color: hexToNum(this.frame.raised),
-        alpha: 1,
-      });
-      badge.stroke({ color: hexToNum(this.frame.border), width: 1 });
-      const value = new Text({
-        text: loyalty[1]!.replace("-", "−"),
-        style: textStyle(this.frame.ink, 12, "700", RULES_TITLE_FONT),
-      });
-      value.resolution = 2;
-      value.anchor.set(0.5);
-      value.position.set(19, height / 2);
-      row.addChild(badge, value);
+    if (cost && native) {
+      addPlaneswalkerCost(row, cost, height, native, () => this.callbacks.onRenderRequested());
     }
     parent.addChild(row);
-    return y + height + ABILITY_GAP;
+    return y + height + (native ? PLANESWALKER_SECTION_GAP : ABILITY_GAP);
   }
 
   private addFlavorText(

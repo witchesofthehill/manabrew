@@ -15,6 +15,10 @@ import {
   SAGA_MARKER_GEOMETRY,
   SAGA_RECTS,
   SAGA_RULE_BOUNDS,
+  PLANESWALKER_COST_GEOMETRY,
+  PLANESWALKER_RULE_GEOMETRY,
+  planeswalkerInkLimits,
+  ruleBadgeAsset,
   specialRules,
   FACE_WIDTH,
   FACE_HEIGHT,
@@ -91,6 +95,34 @@ export interface CardInteractionPanel {
       readonly width: number;
     };
   };
+  readonly planeswalker?: {
+    readonly badge: {
+      readonly assets: Readonly<Record<"plus" | "zero" | "minus", string>>;
+      readonly x: number;
+      readonly width: number;
+      readonly height: number;
+      readonly fontSize: number;
+      readonly fontFamily: string;
+      readonly fontWeight: 700;
+      readonly ink: string;
+      readonly numeralOffsetX: number;
+      readonly numeralOffsetY: Readonly<Record<"plus" | "zero" | "minus", number>>;
+      readonly numeralMaxWidth: number;
+      readonly numeralWidthScale: number;
+    };
+    readonly text: { readonly x: number; readonly width: number };
+    readonly staticText: { readonly x: number; readonly width: number };
+    readonly separator: { readonly x: number; readonly width: number; readonly height: number };
+    readonly colon: {
+      readonly x: number;
+      readonly fontSize: number;
+      readonly fontFamily: string;
+      readonly offsetY: number;
+      readonly ink: string;
+    };
+    readonly minimumRowHeight: number;
+    readonly ink: { readonly top: number; readonly bottom: number };
+  };
   readonly level?: {
     readonly rulesText: string;
     readonly range: string;
@@ -154,6 +186,70 @@ export function orientCardRegion(region: CardRenderRegion, landscape: boolean): 
         angle: (region.angle + 90) % 360,
       }
     : region;
+}
+
+function planeswalkerPanel(
+  face: RenderedCardInput,
+  region: CardRenderRegion,
+): CardInteractionPanel["planeswalker"] {
+  const frame = faceFrame(face);
+  if (frame !== "planeswalker" && frame !== "planeswalker-large") return undefined;
+  const rect = faceRects(face).rules;
+  const nativeWidth = rect[2] * FACE_WIDTH;
+  const scaleX = region.width / nativeWidth;
+  const scaleY = region.height / (rect[3] * FACE_HEIGHT);
+  const rules = PLANESWALKER_RULE_GEOMETRY;
+  const cost = PLANESWALKER_COST_GEOMETRY;
+  const [inkTop, inkBottom] = planeswalkerInkLimits(frame === "planeswalker-large");
+  return Object.freeze({
+    badge: Object.freeze({
+      assets: Object.freeze({
+        plus: ruleBadgeAsset(frame, "+1")!,
+        zero: ruleBadgeAsset(frame, "0")!,
+        minus: ruleBadgeAsset(frame, "−1")!,
+      }),
+      x: region.x,
+      width: rules.badgeWidth * scaleX,
+      height: rules.badgeHeight * scaleY,
+      fontSize: cost.fontSize * scaleY,
+      fontFamily: cost.fontFamily,
+      fontWeight: cost.fontWeight,
+      ink: cost.ink,
+      numeralOffsetX: cost.numeralOffsetX * scaleX,
+      numeralOffsetY: Object.freeze({
+        plus: cost.numeralOffsetY.plus * scaleY,
+        zero: cost.numeralOffsetY.zero * scaleY,
+        minus: cost.numeralOffsetY.minus * scaleY,
+      }),
+      numeralMaxWidth: (rules.badgeWidth - cost.horizontalInset) * scaleX,
+      numeralWidthScale: cost.widthScale,
+    }),
+    text: Object.freeze({
+      x: region.x + rules.textLeft * scaleX,
+      width: (nativeWidth - rules.textLeft - rules.rightInset) * scaleX,
+    }),
+    staticText: Object.freeze({
+      x: region.x + rules.staticTextLeft * scaleX,
+      width: (nativeWidth - rules.staticTextLeft - rules.rightInset) * scaleX,
+    }),
+    separator: Object.freeze({
+      x: region.x + rules.separatorLeft * scaleX,
+      width: (nativeWidth - rules.separatorLeft) * scaleX,
+      height: rules.separatorHeight * scaleY,
+    }),
+    colon: Object.freeze({
+      x: region.x + (rules.badgeWidth + rules.colonOffsetX) * scaleX,
+      fontSize: rules.colonFontSize * scaleY,
+      fontFamily: rules.colonFontFamily,
+      offsetY: rules.colonOffsetY * scaleY,
+      ink: rules.colonInk,
+    }),
+    minimumRowHeight: rules.minimumRowHeight * scaleY,
+    ink: Object.freeze({
+      top: region.y + (inkTop - rect[1] * FACE_HEIGHT) * scaleY,
+      bottom: region.y + (inkBottom - rect[1] * FACE_HEIGHT) * scaleY,
+    }),
+  });
 }
 
 export function attachCardRenderGeometry(
@@ -344,6 +440,9 @@ export function attachCardRenderGeometry(
   const interactionPanels = Object.freeze(
     rules.map((region) => {
       const level = levelContent.get(region.name);
+      const planeswalker = !isSemanticLayout(face)
+        ? planeswalkerPanel(panels[region.faceIndex]?.face ?? face, region)
+        : undefined;
       return Object.freeze({
         id: region.name,
         faceIndex: region.faceIndex,
@@ -362,6 +461,7 @@ export function attachCardRenderGeometry(
         ...(level ? { level } : {}),
         ...(sagaRail && region.faceIndex === selectedFaceIndex ? { sagaRail } : {}),
         ...(classLevelBand && region.faceIndex === selectedFaceIndex ? { classLevelBand } : {}),
+        ...(planeswalker ? { planeswalker } : {}),
       });
     }),
   );

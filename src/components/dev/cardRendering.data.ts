@@ -80,6 +80,16 @@ export const CARD_RENDERING_FIXTURES: CardRenderingFixture[] = [
     label: "Planeswalker / loyalty",
     lookup: { name: "Jace, the Mind Sculptor", setCode: "wwk" },
   },
+  {
+    id: "planeswalker-static",
+    label: "Planeswalker / static ability",
+    lookup: { name: "Narset, Parter of Veils", setCode: "war" },
+  },
+  {
+    id: "planeswalker-variable",
+    label: "Planeswalker / variable loyalty",
+    lookup: { name: "Ugin, the Spirit Dragon", setCode: "frf" },
+  },
   { id: "token", label: "Token", lookup: { setCode: "tm19", collectorNumber: "1" } },
   { id: "textless", label: "Textless", query: '!"Lightning Bolt" is:textless unique:prints' },
   { id: "full-art", label: "Full-art land", query: '!"Island" set:unf is:fullart unique:prints' },

@@ -39,6 +39,8 @@ Local modifications:
   Shared Saga marker metrics and reminder/chapter columns are exported from
   the same constants used by the native painter and layout. Host chapter
   badges therefore occupy the printed gutter without changing rules bounds.
+  Planeswalker shield, numeral, column and safe-ink metrics are shared with
+  the native painter so interactive ability rows retain native placement.
 - patches/finish-material.patch exposes modern surface materials, shared
   resources and deterministic wear. Artwork-derived masks and caustics support
   all nine finishes; generated artwork and printing remain separate so optical

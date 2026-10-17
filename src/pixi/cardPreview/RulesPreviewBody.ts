@@ -25,6 +25,7 @@ export class RulesPreviewBody {
   readonly markerRegion = new Rectangle();
   sagaRail: CardInteractionPanel["sagaRail"];
   classLevelBand: CardInteractionPanel["classLevelBand"];
+  planeswalker: CardInteractionPanel["planeswalker"];
   readonly content = new Container();
   readonly mask = new Graphics();
   readonly track = new Graphics();
@@ -162,6 +163,54 @@ export class RulesPreviewBody {
       1,
       this.height - this.bodyTop - (scanOverlay ? 4 : NATIVE_BODY_INSET),
     );
+    const planeswalker = scanOverlay ? undefined : this.panel.planeswalker;
+    if (planeswalker) {
+      this.contentX = 0;
+      this.contentWidth = this.width;
+      this.bodyTop = (planeswalker.ink.top - region.y) * scale;
+      this.bodyHeight = (planeswalker.ink.bottom - planeswalker.ink.top) * scale;
+      const localX = (x: number) => (x - region.x) * scale;
+      this.planeswalker = {
+        badge: {
+          ...planeswalker.badge,
+          x: localX(planeswalker.badge.x),
+          width: planeswalker.badge.width * scale,
+          height: planeswalker.badge.height * scale,
+          fontSize: planeswalker.badge.fontSize * scale,
+          numeralOffsetX: planeswalker.badge.numeralOffsetX * scale,
+          numeralOffsetY: {
+            plus: planeswalker.badge.numeralOffsetY.plus * scale,
+            zero: planeswalker.badge.numeralOffsetY.zero * scale,
+            minus: planeswalker.badge.numeralOffsetY.minus * scale,
+          },
+          numeralMaxWidth: planeswalker.badge.numeralMaxWidth * scale,
+        },
+        text: {
+          x: localX(planeswalker.text.x),
+          width: planeswalker.text.width * scale,
+        },
+        staticText: {
+          x: localX(planeswalker.staticText.x),
+          width: planeswalker.staticText.width * scale,
+        },
+        separator: {
+          x: localX(planeswalker.separator.x),
+          width: planeswalker.separator.width * scale,
+          height: planeswalker.separator.height * scale,
+        },
+        colon: {
+          ...planeswalker.colon,
+          x: localX(planeswalker.colon.x),
+          fontSize: planeswalker.colon.fontSize * scale,
+          offsetY: planeswalker.colon.offsetY * scale,
+        },
+        minimumRowHeight: planeswalker.minimumRowHeight * scale,
+        ink: {
+          top: this.bodyTop,
+          bottom: this.bodyTop + this.bodyHeight,
+        },
+      };
+    }
     if (!scanOverlay && this.panel.classLevelBand) {
       this.classLevelBand = {
         ...this.panel.classLevelBand,

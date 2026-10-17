@@ -1051,11 +1051,6 @@ export class CardSprite extends Container {
       this.previewFlipPhase === "idle" ? this.handRulesView : this.requestedRulesView,
     );
   }
-  get previewControlArtTop(): number {
-    return this.usesHandRulesView && this.handRulesFace
-      ? this.handRulesFace.artworkTop
-      : this.ch * PRINTED_ART_TOP_FRAC;
-  }
   setHandRulesView(active: boolean, animate = false): void {
     if (this.kind !== "hand") return;
     if (animate) {
@@ -1104,11 +1099,12 @@ export class CardSprite extends Container {
     );
     this.syncFoilTexture();
     const highlights = this.handRulesFace?.liveHighlights;
-    const top = highlights ?? this.liveHighlight;
+    const top = this.handControls ?? highlights ?? this.liveHighlight;
     if (this.contentContainer.children.at(-1) !== top) {
       this.contentContainer.addChild(this.foilSheen);
       this.contentContainer.addChild(this.liveHighlight);
       if (highlights) this.contentContainer.addChild(highlights);
+      if (this.handControls) this.contentContainer.addChild(this.handControls);
     }
   }
   private syncFoilTexture(): void {
@@ -1154,7 +1150,7 @@ export class CardSprite extends Container {
     if (this.kind !== "hand") return;
     if (spec && !this.handControls) {
       this.handControls = new HandCardControls(activeTheme);
-      this.addChild(this.handControls);
+      this.contentContainer.addChild(this.handControls);
     }
     this.handControlsSpec = spec;
     this.updateHandControls();
@@ -1166,11 +1162,13 @@ export class CardSprite extends Container {
         ? {
             ...spec,
             rulesView: this.usesHandRulesView,
-            alternateFace: spec.horizontal ? spec.alternateFace : this.previewFace === 1,
+            alternateFace: spec.horizontal
+              ? spec.alternateFace
+              : (this.previewFace ?? (this.card.isTransformed ? 1 : 0)) === 1,
           }
         : null,
       this.cw,
-      this.previewControlArtTop,
+      this.ch * PRINTED_ART_TOP_FRAC,
       this.scale.x,
       this.scale.y,
     );
@@ -1180,7 +1178,7 @@ export class CardSprite extends Container {
       this.scale.x,
       this.scale.y,
       this.cw,
-      this.previewControlArtTop,
+      this.ch * PRINTED_ART_TOP_FRAC,
     );
   }
   setHandRulesActions(

@@ -321,9 +321,6 @@ export class RulesCardPreviewLayer {
       this.callbacks.onRenderRequested();
     });
   }
-  get artworkTop(): number {
-    return this.container.y + this.artY * this.container.scale.y;
-  }
   get imageReady(): boolean {
     return (
       this.faceSprite.texture !== Texture.EMPTY &&

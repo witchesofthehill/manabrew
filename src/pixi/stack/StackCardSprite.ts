@@ -8,7 +8,6 @@ import { LongPressGesture } from "../LongPressGesture";
 import { animationsEnabled } from "../effects/enabled";
 import { rulesCardRadius } from "../cardPreview/rulesPreviewFrame";
 import type { StackCardSpec } from "./stack.types";
-import { HandCardControls } from "../HandCardControls";
 import { getRectBorderAnchor } from "./stackLayout";
 import type { ScreenBounds } from "../types";
 
@@ -44,7 +43,6 @@ export class StackCardSprite {
   private promptReferenceColor: number | null = null;
   private longPress = new LongPressGesture();
   private touchPointerId: number | null = null;
-  private viewControls: HandCardControls;
   private readonly onToggleRules: (id: string) => void;
   private readonly onFlip: (id: string) => void;
 
@@ -86,7 +84,6 @@ export class StackCardSprite {
     this.face.on("pointertap", (event: FederatedPointerEvent) => {
       if (this.face.usesHandRulesView) event.stopPropagation();
     });
-    this.viewControls = new HandCardControls(theme);
     this.face.position.set(0, 0);
 
     const horiz = this.face.horizontalFrame;
@@ -152,13 +149,7 @@ export class StackCardSprite {
       onHover(null);
     });
 
-    this.container.addChild(
-      this.glow,
-      this.face,
-      this.ring,
-      this.promptReference,
-      this.viewControls,
-    );
+    this.container.addChild(this.glow, this.face, this.ring, this.promptReference);
     this.syncControls();
     this.redraw();
     this.face.onReorient = () => {
@@ -176,7 +167,6 @@ export class StackCardSprite {
 
   setTheme(theme: Theme): void {
     this.theme = theme;
-    this.viewControls.setTheme(theme);
     this.redraw();
   }
 
@@ -419,7 +409,7 @@ export class StackCardSprite {
   }
 
   private syncControls(): void {
-    this.viewControls.setSpec(
+    this.face.setHandControls(
       this.hovered
         ? {
             rulesView: this.face.usesHandRulesView,
@@ -430,12 +420,6 @@ export class StackCardSprite {
             onToggleFace: () => this.onFlip(this.spec.id),
           }
         : null,
-      this.width,
-      this.face.previewControlArtTop * this.faceScale,
-      1,
-      1,
     );
-    this.viewControls.position.x -= this.width / 2;
-    this.viewControls.position.y -= this.height / 2;
   }
 }

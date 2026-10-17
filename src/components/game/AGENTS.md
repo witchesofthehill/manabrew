@@ -158,6 +158,8 @@ Flip-button clicks pin the current preview without reopening it. Portrait/landsc
 
 View-mode and physical-face switches share the GSAP edge-on flip timing in `PREVIEW_TIMING.flipHalfMs` and a constant angular turn. Start closing immediately, swap at the edge, then open when the incoming surface is ready. The incoming renderer owns preparation; do not issue a duplicate `renderRulesCard` request from the view-toggle handler. DOM readiness reports after parent layout; Pixi reports after applying its new spec, not from its previous face. Preserve the current angle on interruption and scale the remaining duration accordingly. Animate only the card surface, not side actions. Cancel transitions on dismissal, navigation, disposal or disabled/reduced motion; animation frames must not compose card rasters.
 
+Hand and stack view/face buttons share `CardSprite.setHandControls`. Keep them above foil/highlights on the animated content surface, using the same card-relative anchor in realistic and Manabrew views. Painter-specific artwork bounds must not move those buttons; external preview action panels remain outside the flip.
+
 A successful original-scan fallback is presentation-ready even when native composition fails. Disposing an old generated texture must not erase the requested face key before fallback completion. Revealed-hand replacement clears the previous identity and loads the replacement's scan; shared scan textures remain store-owned. Stack geometry, hit areas and layout update from committed reorientation, not only the initiating flip request.
 
 A cancelled close must not replay the printed preview's entrance zoom once it has entered. That zoom can cross the source card, steal its hover and repeatedly invalidate an otherwise stationary flip.

@@ -5,10 +5,12 @@ reference implementation.
 
 ## Prerequisites
 
-1. **Java 18** (Zulu recommended):
+1. **JDK 17+ and Maven** (CI builds on JDK 21). The parity runner and
+   `yarn build:harness` use `JAVA_HOME` when it is set and the `java` on `PATH`
+   otherwise, so set it only if your default JDK is a different one:
 
    ```bash
-   export JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-18.jdk/Contents/Home
+   export JAVA_HOME=/path/to/jdk-21
    ```
 
 ## How to run a parity test

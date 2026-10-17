@@ -23,11 +23,10 @@ parity ci-client submit --server http://localhost:8080 --file regression.json
 parity ci-client poll --server http://localhost:8080 --batch-id 1
 ```
 
-For the Java harness (required for full parity mode):
+For the Java harness (required for full parity mode), from the repo root:
 
 ```bash
-cd forge-harness
-mvn package -DskipTests
+yarn build:harness
 ```
 
 ## Usage

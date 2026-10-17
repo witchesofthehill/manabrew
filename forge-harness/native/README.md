@@ -19,19 +19,19 @@ Forge rooms in-process — no JVM, no jar subprocess.
    - SDKMAN: `sdk install java 21.0.2-graalce`
    - Homebrew: `brew install --cask graalvm-jdk`
 
-   `build-native.sh` defaults `GRAALVM_HOME` to
-   `~/.local/graalvm/graalvm-community-openjdk-21.0.2+13.1/Contents/Home`;
-   set the `GRAALVM_HOME` env var to override.
+   `build-native.sh` and `build-native.ps1` both require `GRAALVM_HOME` and
+   exit if it is unset.
 
-2. **JDK 17 + Maven** to build the harness fat jar (`yarn build:harness`).
+2. **JDK 17+ and Maven** to build the harness fat jar (`yarn build:harness`).
 
 ## Build
 
 macOS / Linux:
 
 ```bash
-yarn build:harness          # JDK 17 + Maven → forge-harness/target/…jar
-./forge-harness/build-native.sh   # GraalVM → native/build/libforgeharness.dylib
+export GRAALVM_HOME=/path/to/graalvm-jdk-21   # dir containing bin/native-image
+yarn build:harness          # JDK 17+ + Maven → forge-harness/target/…jar
+./forge-harness/build-native.sh   # GraalVM → native/build/libforgeharness.{dylib,so}
 cargo build -p self-hosted-node --features graal-forge
 ```
 

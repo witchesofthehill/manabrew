@@ -5,6 +5,7 @@ const resources = {
   ...config.bundle?.resources,
   "../forge-harness/native/build/libforgeharness.dylib": null,
   "../forge-harness/native/build/forgeharness.dll": null,
+  "../forge-harness/native/build/lib*.so": null,
 };
 const tauriConfig = JSON.stringify({
   ...config,

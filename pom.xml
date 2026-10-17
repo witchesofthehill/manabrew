@@ -9,7 +9,9 @@
   This is NOT a parent POM — forge-harness still inherits from forge/ (the fork).
   It is irrelevant to the Rust/JS/Tauri build and is only read by Maven.
 
-  Build the harness with:  mvn -pl forge-harness -am package -DskipTests
+  Build the harness with:  yarn build:harness
+  (scripts/harness.mjs generates the gitignored forge.harness.protocol.* sources,
+  then runs:  mvn -pl forge-harness -am package -DskipTests)
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"

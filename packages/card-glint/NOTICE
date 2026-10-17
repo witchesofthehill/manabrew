@@ -26,6 +26,9 @@ Local modifications:
   embedded rules symbols without changing face input, frame choice or layout.
   Manabrew uses this backing under its interactive rules layer.
   Native Leveler level labels remain painted when rules ink is omitted.
+  Class level header bands are also suppressed in the text-free pass, while
+  the native rules paper remains. The host reuses the native band asset and
+  measured typography in scrolling level rows; printed rendering is unchanged.
 - patches/host-geometry.patch exposes the painter's existing Adventure rules,
   Prepared spell and Flip panel rectangles through the public presentation
   entry. It preserves paint geometry and lets host interactions use the same
@@ -33,6 +36,9 @@ Local modifications:
   It also honors explicit reverse-face statistics for Saga layout selection,
   preserving transforming Saga statistics when localized type text requires
   an explicit semantic layout.
+  Shared Saga marker metrics and reminder/chapter columns are exported from
+  the same constants used by the native painter and layout. Host chapter
+  badges therefore occupy the printed gutter without changing rules bounds.
 - patches/finish-material.patch exposes modern surface materials, shared
   resources and deterministic wear. Artwork-derived masks and caustics support
   all nine finishes; generated artwork and printing remain separate so optical

@@ -28,16 +28,24 @@ interface Props {
 
 function RulesPreviewOracleText({ card, showBackFace }: Pick<Props, "card" | "showBackFace">) {
   const { info, deckCard } = useResolvedGameCard(card);
+  const presentation = deriveCardPresentation(card);
   const display = resolveRulesPreviewDisplay({
     card,
-    presentation: deriveCardPresentation(card),
+    presentation,
     info,
     deckLayout: deckCard.layout,
     showBackFace,
     faceless: false,
   });
+  const progression = display.currentFace ? presentation.progression?.rail : null;
   return (
     <div className="sr-only">
+      {progression && (
+        <p aria-live="polite">
+          {progression.kind === "saga" ? "Chapter" : "Level"} {progression.current} of{" "}
+          {progression.max}
+        </p>
+      )}
       {display.sections.map((section, index) => (
         <section key={index} aria-label={section.name}>
           <h3>{section.name}</h3>

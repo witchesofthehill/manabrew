@@ -18,6 +18,13 @@ export class RulesPreviewBody {
   readonly background = new Graphics();
   readonly chrome = new Container();
   readonly scroller = new Container();
+  private readonly textViewport = new Container();
+  private readonly markerViewport = new Container();
+  readonly markerContent = new Container();
+  readonly markerMask = new Graphics();
+  readonly markerRegion = new Rectangle();
+  sagaRail: CardInteractionPanel["sagaRail"];
+  classLevelBand: CardInteractionPanel["classLevelBand"];
   readonly content = new Container();
   readonly mask = new Graphics();
   readonly track = new Graphics();
@@ -77,13 +84,17 @@ export class RulesPreviewBody {
     this.changed = changed;
     this.cancelPress = cancelPress;
     this.beginInteraction = beginInteraction;
-    this.scroller.mask = this.mask;
-    this.scroller.addChild(this.content);
+    this.textViewport.mask = this.mask;
+    this.textViewport.addChild(this.content);
+    this.markerViewport.mask = this.markerMask;
+    this.markerViewport.addChild(this.markerContent);
+    this.scroller.addChild(this.markerViewport, this.textViewport);
     this.container.addChild(
       this.background,
       this.chrome,
       this.scroller,
       this.mask,
+      this.markerMask,
       this.track,
       this.thumb,
       this.footer,
@@ -151,6 +162,45 @@ export class RulesPreviewBody {
       1,
       this.height - this.bodyTop - (scanOverlay ? 4 : NATIVE_BODY_INSET),
     );
+    if (!scanOverlay && this.panel.classLevelBand) {
+      this.classLevelBand = {
+        ...this.panel.classLevelBand,
+        height: this.panel.classLevelBand.height * scale,
+        fontSize: this.panel.classLevelBand.fontSize * scale,
+      };
+    }
+    const sagaRail = scanOverlay ? undefined : this.panel.sagaRail;
+    if (sagaRail) {
+      this.sagaRail = {
+        marker: {
+          ...sagaRail.marker,
+          x: (sagaRail.marker.x - region.x) * scale - this.contentX,
+          centerX: (sagaRail.marker.centerX - region.x) * scale - this.contentX,
+          width: sagaRail.marker.width * scale,
+          height: sagaRail.marker.height * scale,
+          numeralOffsetY: sagaRail.marker.numeralOffsetY * scale,
+          gap: sagaRail.marker.gap * scale,
+          fontSize: sagaRail.marker.fontSize * scale,
+          minimumRowHeight: sagaRail.marker.minimumRowHeight * scale,
+        },
+        text: {
+          x: (sagaRail.text.x - region.x) * scale - this.contentX,
+          y: (sagaRail.text.y - region.y) * scale - this.bodyTop,
+          width: sagaRail.text.width * scale,
+        },
+        reminder: {
+          x: (sagaRail.reminder.x - region.x) * scale - this.contentX,
+          y: (sagaRail.reminder.y - region.y) * scale - this.bodyTop,
+          width: sagaRail.reminder.width * scale,
+        },
+      };
+      this.markerRegion.set(
+        sagaRail.marker.x * scale,
+        this.region.y,
+        sagaRail.marker.width * scale,
+        this.region.height,
+      );
+    }
     const radians = (region.angle * Math.PI) / 180;
     const cosine = Math.round(Math.cos(radians));
     const sine = Math.round(Math.sin(radians));
@@ -212,12 +262,22 @@ export class RulesPreviewBody {
       if (right > left) this.mask.rect(left, top, right - left, height);
     }
     this.mask.fill(hexToNum(this.frame.paper));
+    if (this.sagaRail) {
+      this.markerMask
+        .rect(
+          this.sagaRail.marker.x + this.contentX,
+          this.bodyTop,
+          this.sagaRail.marker.width,
+          this.bodyHeight,
+        )
+        .fill(hexToNum(this.frame.paper));
+    }
     this.setScroll(this.scrollOffset);
   }
 
   private containsLocal(x: number, y: number): boolean {
     return (
-      x >= 0 &&
+      x >= Math.min(0, this.sagaRail?.marker.x ?? 0) &&
       x <= this.contentWidth &&
       y >= 0 &&
       y <= this.bodyHeight &&
@@ -286,6 +346,7 @@ export class RulesPreviewBody {
     const previousOffset = this.scrollOffset;
     this.scrollOffset = Math.max(0, Math.min(offset, maxScroll));
     this.content.y = -this.scrollOffset;
+    this.markerContent.y = -this.scrollOffset;
     this.track.clear();
     this.thumb.clear();
     if (maxScroll > 0 && this.bodyHeight > 0) {

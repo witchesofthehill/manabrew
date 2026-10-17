@@ -4,12 +4,18 @@ import {
   semanticLayoutRegions,
   faceFrame,
   extraRuleBlocks,
+  CLASS_LEVEL_ASSET,
   splitPanels,
   panelRect,
   ADVENTURE_RULE_BOUNDS,
   PREPARE_SPELL_RECTS,
   FLIP_PANEL_RECTS,
   STANDARD_TEMPLATE_DEFAULTS,
+  SAGA_CHAPTER,
+  SAGA_MARKER_GEOMETRY,
+  SAGA_RECTS,
+  SAGA_RULE_BOUNDS,
+  specialRules,
   FACE_WIDTH,
   FACE_HEIGHT,
   rulesFont,
@@ -55,6 +61,36 @@ export interface CardInteractionPanel {
   readonly kind: "face" | "level";
   readonly region: CardRenderRegion;
   readonly exclusions: readonly CardRenderRegion[];
+  readonly classLevelBand?: {
+    readonly assetUrl: string;
+    readonly height: number;
+    readonly fontSize: number;
+  };
+  readonly sagaRail?: {
+    readonly marker: {
+      readonly shape: "chapter";
+      readonly assetUrl: string;
+      readonly x: number;
+      readonly width: number;
+      readonly height: number;
+      readonly centerX: number;
+      readonly numeralOffsetY: number;
+      readonly gap: number;
+      readonly fontSize: number;
+      readonly fontFamily: string;
+      readonly minimumRowHeight: number;
+    };
+    readonly text: {
+      readonly x: number;
+      readonly y: number;
+      readonly width: number;
+    };
+    readonly reminder: {
+      readonly x: number;
+      readonly y: number;
+      readonly width: number;
+    };
+  };
   readonly level?: {
     readonly rulesText: string;
     readonly range: string;
@@ -129,6 +165,52 @@ export function attachCardRenderGeometry(
   const regions: CardRenderRegion[] = [];
   const leveler = faceFrame(face) === "leveler";
   const levelBlocks = leveler ? extraRuleBlocks(face) : [];
+  const classBlocks = faceFrame(face) === "class" ? extraRuleBlocks(face) : [];
+  const classBand = classBlocks.find((block) => block.asset === CLASS_LEVEL_ASSET);
+  const classLevelBand = classBand
+    ? Object.freeze({
+        assetUrl: CLASS_LEVEL_ASSET,
+        height: (classBand.height / FACE_HEIGHT) * CARD_RENDER_HEIGHT,
+        fontSize:
+          (classBlocks.find((block) => block.kind === "heading")!.font / FACE_HEIGHT) *
+          CARD_RENDER_HEIGHT,
+      })
+    : undefined;
+  const sagaRail: CardInteractionPanel["sagaRail"] =
+    faceRects(face) === SAGA_RECTS
+      ? Object.freeze({
+          marker: Object.freeze({
+            shape: SAGA_MARKER_GEOMETRY.shape,
+            assetUrl: SAGA_CHAPTER,
+            x: (SAGA_MARKER_GEOMETRY.x / FACE_WIDTH) * CARD_RENDER_WIDTH,
+            width: (SAGA_MARKER_GEOMETRY.width / FACE_WIDTH) * CARD_RENDER_WIDTH,
+            height: (SAGA_MARKER_GEOMETRY.height / FACE_HEIGHT) * CARD_RENDER_HEIGHT,
+            centerX: (SAGA_MARKER_GEOMETRY.centerX / FACE_WIDTH) * CARD_RENDER_WIDTH,
+            numeralOffsetY:
+              (SAGA_MARKER_GEOMETRY.numeralOffsetY / FACE_HEIGHT) * CARD_RENDER_HEIGHT,
+            gap: (SAGA_MARKER_GEOMETRY.gap / FACE_HEIGHT) * CARD_RENDER_HEIGHT,
+            fontSize: (SAGA_MARKER_GEOMETRY.fontSize / FACE_HEIGHT) * CARD_RENDER_HEIGHT,
+            fontFamily: SAGA_MARKER_GEOMETRY.fontFamily,
+            minimumRowHeight:
+              (SAGA_MARKER_GEOMETRY.minimumRowHeight / FACE_HEIGHT) * CARD_RENDER_HEIGHT,
+          }),
+          text: Object.freeze({
+            x: (SAGA_RULE_BOUNDS.chapters.x / FACE_WIDTH) * CARD_RENDER_WIDTH,
+            y:
+              ((specialRules(face).some((row) => !row.badges.length)
+                ? SAGA_RULE_BOUNDS.reminderBottom
+                : SAGA_RULE_BOUNDS.top) /
+                FACE_HEIGHT) *
+              CARD_RENDER_HEIGHT,
+            width: (SAGA_RULE_BOUNDS.chapters.width / FACE_WIDTH) * CARD_RENDER_WIDTH,
+          }),
+          reminder: Object.freeze({
+            x: (SAGA_RULE_BOUNDS.reminder.x / FACE_WIDTH) * CARD_RENDER_WIDTH,
+            y: (SAGA_RULE_BOUNDS.reminder.y / FACE_HEIGHT) * CARD_RENDER_HEIGHT,
+            width: (SAGA_RULE_BOUNDS.reminder.width / FACE_WIDTH) * CARD_RENDER_WIDTH,
+          }),
+        })
+      : undefined;
   const levelContent = new Map<string, NonNullable<CardInteractionPanel["level"]>>();
   const palette = resolveFrameColors(face);
   const inkTone =
@@ -278,6 +360,8 @@ export function attachCardRenderGeometry(
           ),
         ),
         ...(level ? { level } : {}),
+        ...(sagaRail && region.faceIndex === selectedFaceIndex ? { sagaRail } : {}),
+        ...(classLevelBand && region.faceIndex === selectedFaceIndex ? { classLevelBand } : {}),
       });
     }),
   );

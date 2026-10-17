@@ -778,6 +778,10 @@ export class RulesCardPreviewLayer {
         if (display.typeLine) this.addTypeHeading(body, display.typeLine);
         if (!display.faceless) this.drawScanManaCost(body, display.manaCost);
       }
+      const progressionOpening =
+        primary && progression && section
+          ? rulesTextEntries(section.rulesText, progression, section.canonicalRulesText)
+          : [];
       let y = this.scanOverlay ? 2 : 4;
       if (primary) {
         this.actions.setContent({
@@ -818,6 +822,18 @@ export class RulesCardPreviewLayer {
             ) + 8;
         }
         if (progression) {
+          for (const text of progressionOpening) {
+            y = this.addOracleAbilityRow(
+              body,
+              text,
+              y,
+              false,
+              body.content,
+              text.startsWith("(")
+                ? oracleTextStyle(this.frame.mutedInk, true, this.frame.bodyFont)
+                : oracleTextStyle(this.frame.ink, false, this.frame.bodyFont),
+            );
+          }
           const rail = new PixiCardRailPreview({
             state: progression.rail,
             effects: progression.effects,
@@ -825,9 +841,22 @@ export class RulesCardPreviewLayer {
             theme: this.theme,
             frame: this.frame,
             highlightedEffect: spec.highlightedEffect,
+            sagaRail: body.sagaRail,
+            classLevelBand: body.classLevelBand,
+            sagaChapters: presentationCard.sagaChapters.map((chapter) => ({
+              ...chapter,
+              oracle: localizeRulesPreviewText(
+                chapter.oracle,
+                this.scryfallInfo,
+                display.liveFaceIndex,
+              ),
+            })),
+            onChange: () => this.callbacks.onRenderRequested(),
           });
           rail.position.set(0, y);
           body.content.addChild(rail);
+          rail.markers.position.set(0, y);
+          body.markerContent.addChild(rail.markers);
           this.highlightedRows.push(...rail.highlightedRows);
           if (rail.highlightedRowTop != null) body.highlightedRowTop = y + rail.highlightedRowTop;
           y += rail.contentHeight + 8;
@@ -849,6 +878,7 @@ export class RulesCardPreviewLayer {
             primary ? progression : null,
             panelSection.canonicalRulesText,
           )) {
+            if (progressionOpening.includes(text)) continue;
             y = this.addOracleAbilityRow(body, text, y, panelSection.planeswalker);
           }
           if (panelSection.flavorText) y = this.addFlavorText(body, panelSection.flavorText, y);
@@ -894,7 +924,8 @@ export class RulesCardPreviewLayer {
       }
       const contentBounds = body.content.getLocalBounds();
       const contentBottom = contentBounds.y + contentBounds.height;
-      body.contentHeight = contentBottom;
+      const markerBounds = body.markerContent.getLocalBounds();
+      body.contentHeight = Math.max(contentBottom, markerBounds.y + markerBounds.height);
       body.layout();
       if (this.revealHighlightedEffect && body.highlightedRowTop !== null) {
         body.setScroll(Math.max(0, body.highlightedRowTop - 8));
@@ -1278,8 +1309,7 @@ export class RulesCardPreviewLayer {
   }
 
   private layoutDetails(): void {
-    this.foilRulesExclusions.length = this.bodies.length;
-    this.screenFoilExclusions.length = this.bodies.length;
+    let exclusionIndex = 0;
     for (let index = 0; index < this.bodies.length; index += 1) {
       const body = this.bodies[index]!;
       body.background.clear();
@@ -1291,18 +1321,24 @@ export class RulesCardPreviewLayer {
         body.background.rect(0, 0, body.width, body.height).fill(hexToNum(body.frame.paper));
       }
       body.layout();
-      const exclusion = (this.foilRulesExclusions[index] ??= new Rectangle());
-      exclusion.copyFrom(body.region);
-      exclusion.x -= this.foilSurface.x;
-      exclusion.y -= this.foilSurface.y;
-      const screen = (this.screenFoilExclusions[index] ??= new Rectangle());
-      screen.set(
-        this.container.x + body.region.x * this.container.scale.x,
-        this.container.y + body.region.y * this.container.scale.y,
-        body.region.width * this.container.scale.x,
-        body.region.height * this.container.scale.y,
-      );
+      const regions = body.sagaRail ? [body.region, body.markerRegion] : [body.region];
+      for (const region of regions) {
+        const exclusion = (this.foilRulesExclusions[exclusionIndex] ??= new Rectangle());
+        exclusion.copyFrom(region);
+        exclusion.x -= this.foilSurface.x;
+        exclusion.y -= this.foilSurface.y;
+        const screen = (this.screenFoilExclusions[exclusionIndex] ??= new Rectangle());
+        screen.set(
+          this.container.x + region.x * this.container.scale.x,
+          this.container.y + region.y * this.container.scale.y,
+          region.width * this.container.scale.x,
+          region.height * this.container.scale.y,
+        );
+        exclusionIndex += 1;
+      }
     }
+    this.foilRulesExclusions.length = exclusionIndex;
+    this.screenFoilExclusions.length = exclusionIndex;
     this.foil?.setExclusions(this.foilRulesExclusions);
   }
 

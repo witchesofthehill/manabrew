@@ -64,7 +64,17 @@ export const CARD_RENDERING_FIXTURES: CardRenderingFixture[] = [
     lookup: { name: "Invasion of Zendikar", setCode: "mom" },
   },
   { id: "saga", label: "Saga / chapters", lookup: { name: "The Eldest Reborn", setCode: "dom" } },
+  {
+    id: "saga-merged",
+    label: "Saga / merged chapters and reverse creature",
+    lookup: { name: "The Modern Age", setCode: "neo" },
+  },
   { id: "class", label: "Class / levels", lookup: { name: "Ranger Class", setCode: "afr" } },
+  {
+    id: "class-dice",
+    label: "Class / dice abilities",
+    lookup: { name: "Barbarian Class", setCode: "afr" },
+  },
   {
     id: "planeswalker",
     label: "Planeswalker / loyalty",

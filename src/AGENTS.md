@@ -98,7 +98,13 @@ Generated card faces use `lib/cardRenderer.ts` in both React (`GeneratedCardImag
 
 `lib/cardRenderGeometry.ts` maps upstream painter rectangles into normalized interaction geometry. `CardRenderError.decision` carries original-scan reasons; `GeneratedCardImage` exposes `data-card-render-state`, `data-card-render-template`, and `data-card-render-fallback`. Native selection describes eligibility, not successful asset loading or exact historical-printing fidelity. Local upstream patches expose missing painter geometry and suppress rules ink without altering layout inputs.
 
+Generate renderer patches against the pristine pinned archive, not an existing source cache that already contains the local patch series.
+
 Interactive geometry preserves every native rules panel with explicit face ownership, rotation and stat exclusions. `RulesPreviewBody` owns each panel's clipping and scroll position; simultaneous Split/Aftermath, Adventure/Prepare, Flip and Room parts are not reversible card faces. Leveler panels use their native band text. Layouts absent from the pinned painter, including Prototype, retain the explicit original-scan fallback rather than claiming native support.
+
+Saga panel metadata includes the painter-owned chapter-strip and text-column geometry. Keep those coordinates separate from the panel's unchanged native rules bounds. The card lab's `saga-merged` fixture covers shared chapter effects and a transforming creature back face.
+
+Class panels expose the native level-band asset and measurements from `extraRuleBlocks`. Interactive level bands scroll with their ability rows inside unchanged rules bounds; battlefield sprite rails remain independent. The `class-dice` lab fixture covers Barbarian Class's longer dice abilities.
 
 Interactive Pixi previews opt into `standardFrameFallback` for unsupported or ambiguous printing treatments, keeping their generated frame and measured rules box consistent. It changes frame selection only, not selected artwork, card semantics or the Original scan. DOM printing renderers retain their original-scan rejection policy. Artwork-integrated treatments preserve the selected scan in both renderers; Pixi keeps it full-size behind a dark game-palette rules/actions overlay. Its heading shows the displayed face's full type line; a top-right badge shows its mana cost when present. Never substitute another printing's artwork.
 

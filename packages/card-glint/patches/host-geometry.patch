@@ -74,7 +74,12 @@
 +export { FLIP_PANEL_RECTS } from './presentation/flip-template-paint.js';
 --- a/games/magic/src/presentation/saga-paint.ts
 +++ b/games/magic/src/presentation/saga-paint.ts
-@@ -89,7 +89,7 @@
+@@ -10,3 +10,4 @@
+   SAGA_CHAPTER,
++  SAGA_MARKER_GEOMETRY,
+   SAGA_DIVIDER,
+   SAGA_STAMP,
+@@ -89,7 +90,7 @@
      if (isStyledSetSymbol(url) || face.setSymbol) c.drawImage(icon, ...bounds);
      else paintSetSymbol(c, icon, face.setCode, face.rarity, ...bounds, crop);
    }
@@ -83,3 +88,92 @@
      c.fillStyle = '#65605a';
      c.font = 'italic 20px "CardRenderer MTG MPlantin", Georgia';
      c.textAlign = 'left';
+--- a/games/magic/src/presentation/saga-frame.ts
++++ b/games/magic/src/presentation/saga-frame.ts
+@@ -23,6 +23,18 @@
+ export const SAGA_CHAPTER = `${root}/sagaChapter.png`;
+ export const SAGA_DIVIDER = `${root}/sagaDivider.png`;
+ export const SAGA_STAMP = `${root}/stamp.png`;
++export const SAGA_MARKER_GEOMETRY = {
++  shape: 'chapter',
++  x: 18.8,
++  width: 38.4,
++  height: 42.8,
++  centerX: 38.1,
++  numeralOffsetY: 0.7,
++  gap: 49,
++  fontSize: 22,
++  fontFamily: 'CardRenderer MTG Chapter',
++  minimumRowHeight: 55,
++} as const;
+ export function sagaAssets(face: RenderedCardInput): string[] {
+   return [
+     sagaFrameAsset(face),
+--- a/games/magic/src/presentation/saga-rules.ts
++++ b/games/magic/src/presentation/saga-rules.ts
+@@ -1,7 +1,17 @@
+ import type { RenderedCardInput, RulesParagraph } from './face-layout.js';
+ import { specialRules } from './special-frames.js';
+ import { layoutRules } from './rules-layout.js';
++import { SAGA_MARKER_GEOMETRY } from './saga-frame.js';
++
++export const SAGA_RULE_BOUNDS = {
++  reminder: { x: 42.3, y: 78, width: 197 },
++  chapters: { x: 65.1, width: 171 },
++  top: 80,
++  reminderBottom: 201,
++  bottom: 569,
++  reverseStatsBottom: 535,
++} as const;
+ 
+ /** Fixed reminder area and measured chapter demand. Sparse merged chapters
+  * retain a little trailing breathing room; dense chapters consume the column.
+  * Defaults are shared across sets, never selected from a card name or scan. */
+@@ -32,12 +42,12 @@
+     },
+   ];
+   const typography = { leading: 0.98, paragraphGap: 0.3, flavorGap: 0 };
+-  const top = opening.length ? 201 : 80,
+-    bottom = face.reverseStats && face.layout === 'transform' ? 535 : 569;
++  const top = opening.length ? SAGA_RULE_BOUNDS.reminderBottom : SAGA_RULE_BOUNDS.top,
++    bottom = face.reverseStats && face.layout === 'transform' ? SAGA_RULE_BOUNDS.reverseStatsBottom : SAGA_RULE_BOUNDS.bottom;
+   const reminder = layoutRules(
+     context,
+     opening.flatMap((r) => paragraphs(r.text, r.reminder)),
+-    { x: 42.3, y: 78, width: 197, height: top - 80 },
++    { ...SAGA_RULE_BOUNDS.reminder, height: top - SAGA_RULE_BOUNDS.top },
+     20.4,
+     12,
+     { ...typography, centerOffset: -3 },
+@@ -51,12 +61,12 @@
+         layoutRules(
+           context,
+           paragraphs(r.text),
+-          { x: 65.1, y: 0, width: 171, height: 2000 },
++          { ...SAGA_RULE_BOUNDS.chapters, y: 0, height: 2000 },
+           size,
+           size,
+           typography,
+         ).height + options.padding,
+-        43 + Math.max(0, r.badges.length - 1) * 49 + 12,
++        SAGA_MARKER_GEOMETRY.minimumRowHeight + Math.max(0, r.badges.length - 1) * SAGA_MARKER_GEOMETRY.gap,
+       ),
+     );
+     const available = bottom - top;
+@@ -79,7 +89,7 @@
+       const layout = layoutRules(
+         context,
+         paragraphs(row.text),
+-        { x: 65.1, y: y + 7, width: 171, height: height - 14 },
++        { ...SAGA_RULE_BOUNDS.chapters, y: y + 7, height: height - 14 },
+         size,
+         size,
+         { ...typography, centerOffset: i === chapters.length - 1 ? -options.lastLift : 0 },
+--- a/games/magic/src/presentation.ts
++++ b/games/magic/src/presentation.ts
+@@ -33,3 +33,4 @@
+ 
+-export { sagaRuleLayout } from './presentation/saga-rules.js';
++export { sagaRuleLayout, SAGA_RULE_BOUNDS } from './presentation/saga-rules.js';
++export { SAGA_CHAPTER, SAGA_MARKER_GEOMETRY, SAGA_RECTS } from './presentation/saga-frame.js';
+ 

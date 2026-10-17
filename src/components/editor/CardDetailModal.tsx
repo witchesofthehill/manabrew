@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Modal } from "@/components/game/modals/Modal";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,7 @@ import { DEFAULT_COMMANDER_SLOT, type CommanderSlot } from "@/components/editor/
 import { toast } from "sonner";
 import type { ScryfallCard } from "@/types/scryfall";
 import type { DeckCard, DeckCardIdentity } from "@/protocol/deck";
+import { localizedCardDetailsKey, type LocalizedCardDetails } from "@/lib/localizedCardDetails";
 import { useCollectionStore } from "@/stores/useCollectionStore";
 import { collectionOwnership, collectionQuantityForName } from "@/lib/collection";
 import { useIsUnsupported } from "@/stores/useCardSupportStore";
@@ -82,8 +83,15 @@ export function CardDetailModal({
   const [newTagInput, setNewTagInput] = useState("");
   const [selectedPrint, setSelectedPrint] = useState<ScryfallCard | null>(null);
   const [faceIndex, setFaceIndex] = useState<0 | 1>(0);
+  const [englishMode, setEnglishMode] = useState<{ key: string; enabled: boolean } | null>(null);
+  const [displayResult, setDisplayResult] = useState<{
+    key: string;
+    details: LocalizedCardDetails | null;
+  } | null>(null);
   const rulingsData = useCardRulings(initialCard);
   const updatePrinting = useScryfallStore((s) => s.updatePrinting);
+  const locale = useScryfallStore((s) => s.locale);
+  const getLocalizedCardDetails = useScryfallStore((s) => s.getLocalizedCardDetails);
   const rulingsLoading = !rulingsData;
   const { setPreferredPrint } = usePreferredPrintsStore();
   const setLookup = useSetLookup();
@@ -106,6 +114,42 @@ export function CardDetailModal({
     setFaceIndex(0);
   }
   const card = selectedPrint ?? initialCard;
+  const cardKey = `${card?.id ?? ""}::${card?.set ?? ""}::${card?.collector_number ?? ""}::${locale}`;
+  const showEnglish = englishMode?.key === cardKey && englishMode.enabled;
+  const displayLocale = showEnglish ? "en" : locale;
+  const detailsKey = `${cardKey}::${displayLocale}`;
+  const displayDetails = displayResult?.key === detailsKey ? displayResult.details : null;
+  useEffect(() => {
+    let cancelled = false;
+    const setCode = card?.set ?? "";
+    const collectorNumber = card?.collector_number ?? "";
+    if (!setCode || !collectorNumber) return;
+    void getLocalizedCardDetails(
+      [{ oracleId: card.oracle_id, setCode, collectorNumber }],
+      displayLocale,
+    )
+      .then((details) => {
+        if (!cancelled) {
+          setDisplayResult({
+            key: detailsKey,
+            details:
+              details.get(localizedCardDetailsKey(displayLocale, setCode, collectorNumber)) ?? null,
+          });
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    card?.id,
+    card?.set,
+    card?.collector_number,
+    card?.oracle_id,
+    displayLocale,
+    detailsKey,
+    getLocalizedCardDetails,
+  ]);
   const deckCardName = frontFaceName(card.name);
   const deckCards = [
     ...currentDeck.cards,
@@ -146,18 +190,25 @@ export function CardDetailModal({
   });
   const isDoubleFaced = !!(card.card_faces && card.card_faces.length >= 2);
   const activeFace = isDoubleFaced ? card.card_faces![faceIndex] : null;
+  const localizedFace = displayDetails?.faces?.[faceIndex];
   const faceUris = cardFaceImageUris(card, storeCard?.uris, faceIndex);
-  const imageUrl = faceUris?.large ?? faceUris?.normal;
+  const localizedImageUris =
+    localizedFace?.imageUris ?? (activeFace ? undefined : displayDetails?.imageUris);
+  const imageUrl =
+    localizedImageUris?.large ?? localizedImageUris?.normal ?? faceUris?.large ?? faceUris?.normal;
   const manaCost = activeFace?.mana_cost ?? getScryfallManaCost(card);
-  const displayName = activeFace
-    ? (activeFace.printed_name ?? activeFace.name)
-    : (card.printed_name ?? card.name);
-  const typeLine = activeFace
-    ? (activeFace.printed_type_line ?? activeFace.type_line)
-    : (card.printed_type_line ?? card.type_line);
-  const oracleText = activeFace
-    ? (activeFace.printed_text ?? activeFace.oracle_text)
-    : (card.printed_text ?? card.oracle_text);
+  const displayName =
+    localizedFace?.name ??
+    (activeFace ? undefined : displayDetails?.name) ??
+    (activeFace ? activeFace.name : card.name);
+  const typeLine =
+    localizedFace?.typeLine ??
+    (activeFace ? undefined : displayDetails?.typeLine) ??
+    (activeFace ? activeFace.type_line : card.type_line);
+  const oracleText =
+    localizedFace?.text ??
+    (activeFace ? undefined : displayDetails?.text) ??
+    (activeFace ? activeFace.oracle_text : card.oracle_text);
   const power =
     (
       activeFace as {
@@ -220,6 +271,17 @@ export function CardDetailModal({
         <Modal.Header onClose={onClose}>
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-bold truncate">{displayName}</h2>
+            {locale !== "en" && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="shrink-0"
+                onClick={() => setEnglishMode({ key: cardKey, enabled: !showEnglish })}
+                aria-pressed={showEnglish}
+              >
+                {showEnglish ? "Show translated text" : "Show English"}
+              </Button>
+            )}
             {isDoubleFaced && (
               <span className="text-xs text-muted-foreground shrink-0">
                 {faceIndex === 0 ? `Front face` : `Back face`}

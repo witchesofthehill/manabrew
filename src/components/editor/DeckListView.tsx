@@ -1,5 +1,7 @@
 import {
   forwardRef,
+  createContext,
+  useContext,
   useState,
   useCallback,
   useEffect,
@@ -48,6 +50,8 @@ import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { cn } from "@/lib/utils";
 import { formatRequiresCommander } from "@/lib/formats";
 import type { DeckCard } from "@/protocol/deck";
+import type { ScryfallLanguage } from "@/i18n/locales";
+import { localizedCardDetailsKey, type LocalizedCardDetails } from "@/lib/localizedCardDetails";
 import type { CardGroup, ViewMode, SectionDefinition } from "./deckBuilder.utils";
 import { CARD_WIDTH_MAP, DEFAULT_CARD_SIZE, getTaggedGroups } from "./deckBuilder.utils";
 import { CARD_RING } from "@/components/game/game.styles";
@@ -80,6 +84,23 @@ function ownershipHighlight(ownership: "exact" | "other" | "none", surface: "sta
   );
 }
 export type CardLocation = "main" | "side" | "maybe";
+const LocalizedCardDetailsContext = createContext<{
+  locale: ScryfallLanguage;
+  details: ReadonlyMap<string, LocalizedCardDetails | null>;
+}>({ locale: "en", details: new Map() });
+
+function useLocalizedCardDetails(card: DeckCard): LocalizedCardDetails | null {
+  const { locale, details } = useContext(LocalizedCardDetailsContext);
+  return (
+    details.get(localizedCardDetailsKey(locale, card.identity.setCode, card.identity.cardNumber)) ??
+    null
+  );
+}
+
+function LocalizedCardName({ card }: { card: DeckCard }) {
+  const details = useLocalizedCardDetails(card);
+  return <>{details?.name ?? card.identity.name}</>;
+}
 function openCardContextMenu(event: React.MouseEvent<HTMLButtonElement>) {
   event.preventDefault();
   event.stopPropagation();
@@ -1024,6 +1045,8 @@ function CardRow({
   sourceTag,
 }: CardRowProps) {
   const { name } = group.card.identity;
+  const localizedDetails = useLocalizedCardDetails(group.card);
+  const displayName = localizedDetails?.name ?? name;
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: dragId,
     data: { type: "deck-card", card: group.card, name, sourceTag },
@@ -1050,7 +1073,9 @@ function CardRow({
       data-card-name={name}
       data-card-supported={unsupported ? "false" : undefined}
       data-card-ownership={ownership}
-      aria-label={group.count === 1 ? `${name}, one copy` : `${name}, ${group.count} copies`}
+      aria-label={
+        group.count === 1 ? `${displayName}, one copy` : `${displayName}, ${group.count} copies`
+      }
       aria-pressed={isSelected}
       onClick={(e) => {
         e.stopPropagation();
@@ -1095,9 +1120,13 @@ function CardRow({
       )}
       <span
         className={cn("text-sm flex-1 truncate", unsupported && "text-warning")}
-        title={unsupported ? `${name} - unsupported by the Manabrew and Forge engines` : name}
+        title={
+          unsupported
+            ? `${displayName} - unsupported by the Manabrew and Forge engines`
+            : displayName
+        }
       >
-        {name}
+        {displayName}
       </span>
       {isGameChanger && (
         <Gem className="h-3 w-3 text-pt-lethal shrink-0" aria-label={`Game Changer`} />
@@ -1521,8 +1550,10 @@ export interface DeckListViewProps {
     >,
   ) => void;
   /** Hover preview wiring (event-delegated via `data-card-name` on the scroll container). */
-  onHover?: (card: DeckCard, e: React.MouseEvent) => void;
+  onHover?: (card: DeckCard, e: React.MouseEvent, details?: LocalizedCardDetails | null) => void;
   onLeave?: () => void;
+  localizedCardDetails?: ReadonlyMap<string, LocalizedCardDetails | null>;
+  locale?: ScryfallLanguage;
 }
 export function DeckListView({
   viewMode,
@@ -1582,6 +1613,8 @@ export function DeckListView({
   onStackPositionsChange,
   onHover,
   onLeave,
+  localizedCardDetails = new Map(),
+  locale = "en",
 }: DeckListViewProps) {
   const [sideboardOpen, setSideboardOpen] = useDeckSectionOpen();
   const [maybeboardOpen, setMaybeboardOpen] = useDeckSectionOpen();
@@ -1633,9 +1666,16 @@ export function DeckListView({
       const name = el.getAttribute("data-card-name");
       if (!name) return;
       const card = cardsByName.get(name);
-      if (card) onHover(card, e as unknown as React.MouseEvent);
+      if (card)
+        onHover(
+          card,
+          e as unknown as React.MouseEvent,
+          localizedCardDetails.get(
+            localizedCardDetailsKey(locale, card.identity.setCode, card.identity.cardNumber),
+          ) ?? null,
+        );
     },
-    [onHover, cardsByName],
+    [onHover, cardsByName, localizedCardDetails, locale],
   );
   const handleContainerPointerOut = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
@@ -2137,240 +2177,199 @@ export function DeckListView({
   }
   if (viewMode === "stack") {
     return (
+      <LocalizedCardDetailsContext.Provider value={{ locale, details: localizedCardDetails }}>
+        <div className="relative">
+          {selectionBadge}
+          {marqueeOverlay}
+          <div
+            ref={containerRef}
+            className={cn("px-4 py-3 relative", dragSection && "cursor-grabbing select-none")}
+            onMouseDown={wrappedHandleMouseDown}
+            onPointerOver={handleContainerPointerOver}
+            onPointerOut={handleContainerPointerOut}
+            onKeyDown={handleCardKeyboardNavigation}
+          >
+            <div
+              className="grid items-start"
+              style={{
+                gridTemplateColumns: `repeat(${stackColumnCount}, minmax(${cardWidth + STACK_COLUMN_EXTRA_PX}px, 1fr))`,
+                gap: GAP,
+              }}
+            >
+              {orderedSectionIds.map((id) => renderStackSection(id))}
+            </div>
+
+            {dragSection && dragPos && (
+              <div
+                className="fixed z-[200] pointer-events-none bg-selection text-selection-foreground rounded-md px-2.5 py-1 text-xs font-semibold"
+                style={{
+                  left: dragPos.x + 12,
+                  top: dragPos.y - 8,
+                  boxShadow: "0 4px 16px color-mix(in srgb, var(--selection) 40%, transparent)",
+                }}
+              >
+                Moving…
+              </div>
+            )}
+          </div>
+        </div>
+      </LocalizedCardDetailsContext.Provider>
+    );
+  }
+  return (
+    <LocalizedCardDetailsContext.Provider value={{ locale, details: localizedCardDetails }}>
       <div className="relative">
         {selectionBadge}
-        {marqueeOverlay}
+        {marqueeRect && (
+          <div
+            className="absolute pointer-events-none border-2 border-dashed border-selection bg-selection/10 z-[9999] rounded"
+            style={{
+              left: marqueeRect.left,
+              top: marqueeRect.top,
+              width: marqueeRect.width,
+              height: marqueeRect.height,
+            }}
+          />
+        )}
         <div
           ref={containerRef}
-          className={cn("px-4 py-3 relative", dragSection && "cursor-grabbing select-none")}
+          className="px-4 py-3 relative"
           onMouseDown={wrappedHandleMouseDown}
           onPointerOver={handleContainerPointerOver}
           onPointerOut={handleContainerPointerOut}
           onKeyDown={handleCardKeyboardNavigation}
         >
-          <div
-            className="grid items-start"
-            style={{
-              gridTemplateColumns: `repeat(${stackColumnCount}, minmax(${cardWidth + STACK_COLUMN_EXTRA_PX}px, 1fr))`,
-              gap: GAP,
-            }}
-          >
-            {orderedSectionIds.map((id) => renderStackSection(id))}
-          </div>
-
-          {dragSection && dragPos && (
-            <div
-              className="fixed z-[200] pointer-events-none bg-selection text-selection-foreground rounded-md px-2.5 py-1 text-xs font-semibold"
-              style={{
-                left: dragPos.x + 12,
-                top: dragPos.y - 8,
-                boxShadow: "0 4px 16px color-mix(in srgb, var(--selection) 40%, transparent)",
-              }}
-            >
-              Moving…
+          {totalCards === 0 && (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="text-4xl mb-3 opacity-20">🃏</div>
+              <p className="text-sm text-muted-foreground">Drag cards here from the search panel</p>
+              <p className="text-xs text-muted-foreground/60 mt-1">or use the + buttons on hover</p>
             </div>
           )}
-        </div>
-      </div>
-    );
-  }
-  return (
-    <div className="relative">
-      {selectionBadge}
-      {marqueeRect && (
-        <div
-          className="absolute pointer-events-none border-2 border-dashed border-selection bg-selection/10 z-[9999] rounded"
-          style={{
-            left: marqueeRect.left,
-            top: marqueeRect.top,
-            width: marqueeRect.width,
-            height: marqueeRect.height,
-          }}
-        />
-      )}
-      <div
-        ref={containerRef}
-        className="px-4 py-3 relative"
-        onMouseDown={wrappedHandleMouseDown}
-        onPointerOver={handleContainerPointerOver}
-        onPointerOut={handleContainerPointerOut}
-        onKeyDown={handleCardKeyboardNavigation}
-      >
-        {totalCards === 0 && (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="text-4xl mb-3 opacity-20">🃏</div>
-            <p className="text-sm text-muted-foreground">Drag cards here from the search panel</p>
-            <p className="text-xs text-muted-foreground/60 mt-1">or use the + buttons on hover</p>
-          </div>
-        )}
 
-        {viewMode === "list" ? (
-          <>
-            <div
-              className="w-full gap-4"
-              style={{ columnCount: listColumnCount, columnGap: "1rem" }}
-            >
-              {mainSections.map((s) => (
-                <div key={s.id} className="break-inside-avoid">
-                  <CardSection
-                    label={s.label}
-                    groups={s.groups}
-                    sectionId={s.id}
-                    {...sharedSectionProps}
-                  />
-                </div>
-              ))}
-              {otherGroups.length > 0 && (
-                <div className="break-inside-avoid">
-                  <CardSection
-                    label={`Other`}
-                    groups={otherGroups}
-                    sectionId="other"
-                    {...sharedSectionProps}
-                  />
-                </div>
+          {viewMode === "list" ? (
+            <>
+              <div
+                className="w-full gap-4"
+                style={{ columnCount: listColumnCount, columnGap: "1rem" }}
+              >
+                {mainSections.map((s) => (
+                  <div key={s.id} className="break-inside-avoid">
+                    <CardSection
+                      label={s.label}
+                      groups={s.groups}
+                      sectionId={s.id}
+                      {...sharedSectionProps}
+                    />
+                  </div>
+                ))}
+                {otherGroups.length > 0 && (
+                  <div className="break-inside-avoid">
+                    <CardSection
+                      label={`Other`}
+                      groups={otherGroups}
+                      sectionId="other"
+                      {...sharedSectionProps}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {customTags && customTags.length > 0 && allMainCards && (
+                <>
+                  <div className="border-t border-border/30 my-3" />
+                  <div style={{ columnCount: listColumnCount, columnGap: "1rem" }}>
+                    {customTags.map((tag) => {
+                      const tagGroups = getTaggedGroups(tag, allMainCards, cardTags);
+                      return (
+                        <div key={tag} className="break-inside-avoid">
+                          <CardSection
+                            label={tag}
+                            sectionId={`tag-${tag}`}
+                            tag={tag}
+                            groups={tagGroups}
+                            {...sharedSectionProps}
+                            onUntagCard={(cardName) => onUntagCard?.(cardName, tag)}
+                            onRemoveTag={() => onRemoveTag?.(tag)}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
               )}
-            </div>
+            </>
+          ) : (
+            <>
+              {mainSections.map((s) => (
+                <CardSection
+                  key={s.id}
+                  label={s.label}
+                  groups={s.groups}
+                  sectionId={s.id}
+                  {...sharedSectionProps}
+                />
+              ))}
 
-            {customTags && customTags.length > 0 && allMainCards && (
-              <>
-                <div className="border-t border-border/30 my-3" />
-                <div style={{ columnCount: listColumnCount, columnGap: "1rem" }}>
+              {otherGroups.length > 0 && (
+                <CardSection
+                  label={`Other`}
+                  groups={otherGroups}
+                  sectionId="other"
+                  {...sharedSectionProps}
+                />
+              )}
+
+              {customTags && customTags.length > 0 && allMainCards && (
+                <>
+                  <div className="border-t border-border/30 my-3" />
                   {customTags.map((tag) => {
                     const tagGroups = getTaggedGroups(tag, allMainCards, cardTags);
                     return (
-                      <div key={tag} className="break-inside-avoid">
-                        <CardSection
-                          label={tag}
-                          sectionId={`tag-${tag}`}
-                          tag={tag}
-                          groups={tagGroups}
-                          {...sharedSectionProps}
-                          onUntagCard={(cardName) => onUntagCard?.(cardName, tag)}
-                          onRemoveTag={() => onRemoveTag?.(tag)}
-                        />
-                      </div>
+                      <CardSection
+                        key={tag}
+                        label={tag}
+                        sectionId={`tag-${tag}`}
+                        tag={tag}
+                        groups={tagGroups}
+                        {...sharedSectionProps}
+                        onUntagCard={(cardName) => onUntagCard?.(cardName, tag)}
+                        onRemoveTag={() => onRemoveTag?.(tag)}
+                      />
                     );
                   })}
-                </div>
-              </>
-            )}
-          </>
-        ) : (
-          <>
-            {mainSections.map((s) => (
-              <CardSection
-                key={s.id}
-                label={s.label}
-                groups={s.groups}
-                sectionId={s.id}
-                {...sharedSectionProps}
-              />
-            ))}
-
-            {otherGroups.length > 0 && (
-              <CardSection
-                label={`Other`}
-                groups={otherGroups}
-                sectionId="other"
-                {...sharedSectionProps}
-              />
-            )}
-
-            {customTags && customTags.length > 0 && allMainCards && (
-              <>
-                <div className="border-t border-border/30 my-3" />
-                {customTags.map((tag) => {
-                  const tagGroups = getTaggedGroups(tag, allMainCards, cardTags);
-                  return (
-                    <CardSection
-                      key={tag}
-                      label={tag}
-                      sectionId={`tag-${tag}`}
-                      tag={tag}
-                      groups={tagGroups}
-                      {...sharedSectionProps}
-                      onUntagCard={(cardName) => onUntagCard?.(cardName, tag)}
-                      onRemoveTag={() => onRemoveTag?.(tag)}
-                    />
-                  );
-                })}
-              </>
-            )}
-          </>
-        )}
-
-        <div
-          ref={setSideDropRef}
-          className={cn(
-            "mt-2 rounded-lg border-2 border-dashed transition-colors",
-            isOverSide ? "border-primary bg-primary/10" : "border-border/40 hover:border-border/60",
+                </>
+              )}
+            </>
           )}
-        >
-          <div className="px-2 pt-2 pb-1">
-            <SectionHeader
-              label={`Sideboard`}
-              count={sideboardCount}
-              open={sideboardOpen}
-              onToggle={() => setSideboardOpen((value) => !value)}
-            />
-            {!sideboardOpen ? null : sideboardGroups.length === 0 ? (
-              <div className="py-3 text-center">
-                <p className="text-xs text-muted-foreground/40">Drop cards here</p>
-              </div>
-            ) : viewMode === "list" ? (
-              <div className="space-y-0.5 pb-1">
-                {sideboardGroups.map((g) => (
-                  <CardContextMenu
-                    key={g.key}
-                    count={g.count}
-                    location="side"
-                    onAddOne={() =>
-                      onAddToSide({
-                        ...g.card,
-                        identity: { ...g.card.identity, id: crypto.randomUUID() },
-                      })
-                    }
-                    onRemoveOne={() => onRemoveFromSide(g.card.identity.name)}
-                    onMoveOneToMain={() => onMoveOneFromSideToMain(g.card.identity.name)}
-                    onMoveAllToMain={() => onMoveAllFromSideToMain(g.card.identity.name)}
-                    onMoveOneToMaybe={() => onMoveOneFromSideToMaybe(g.card.identity.name)}
-                    onMoveAllToMaybe={() => onMoveAllFromSideToMaybe(g.card.identity.name)}
-                    onShowInfo={onShowInfo ? () => onShowInfo(g.card) : undefined}
-                    onPickPrint={() => onPickPrint(g.card)}
-                    onToggleFoil={
-                      onToggleFoil ? () => onToggleFoil(g.card.identity.name) : undefined
-                    }
-                    isFoil={!!g.card.identity.foil}
-                    customTags={customTags}
-                    appliedTags={cardTags?.[g.card.identity.name.toLowerCase()]}
-                    onApplyTag={(t) => applyCardTag(g.card.identity.name, t)}
-                    onRemoveCustomTag={onRemoveTag}
-                    onCreateTag={(t) => createAndApplyTag(g.card.identity.name, t)}
-                  >
-                    <DraggableMiniRow
-                      dragId={`deck-sideboard-${g.key}`}
-                      card={g.card}
-                      className="flex items-center gap-1 group hover:bg-muted/40 rounded px-1 py-0.5"
-                    >
-                      <span className="text-xs font-mono w-4 text-right text-muted-foreground shrink-0">
-                        {g.count}
-                      </span>
-                      <span className="text-sm flex-1 truncate">{g.card.identity.name}</span>
-                      {g.card.manaCost && (
-                        <ManaSymbols cost={g.card.manaCost} size="sm" className="shrink-0" />
-                      )}
-                    </DraggableMiniRow>
-                  </CardContextMenu>
-                ))}
-              </div>
-            ) : (
-              <div className="flex flex-wrap gap-2 pb-1">
-                {sideboardGroups.map((g) => (
-                  <div key={g.key} className="shrink-0" style={{ width: cardWidth }}>
-                    <CardVisual
-                      group={g}
-                      dragId={`deck-sideboard-${g.key}`}
+
+          <div
+            ref={setSideDropRef}
+            className={cn(
+              "mt-2 rounded-lg border-2 border-dashed transition-colors",
+              isOverSide
+                ? "border-primary bg-primary/10"
+                : "border-border/40 hover:border-border/60",
+            )}
+          >
+            <div className="px-2 pt-2 pb-1">
+              <SectionHeader
+                label={`Sideboard`}
+                count={sideboardCount}
+                open={sideboardOpen}
+                onToggle={() => setSideboardOpen((value) => !value)}
+              />
+              {!sideboardOpen ? null : sideboardGroups.length === 0 ? (
+                <div className="py-3 text-center">
+                  <p className="text-xs text-muted-foreground/40">Drop cards here</p>
+                </div>
+              ) : viewMode === "list" ? (
+                <div className="space-y-0.5 pb-1">
+                  {sideboardGroups.map((g) => (
+                    <CardContextMenu
+                      key={g.key}
+                      count={g.count}
+                      location="side"
                       onAddOne={() =>
                         onAddToSide({
                           ...g.card,
@@ -2378,121 +2377,117 @@ export function DeckListView({
                         })
                       }
                       onRemoveOne={() => onRemoveFromSide(g.card.identity.name)}
+                      onMoveOneToMain={() => onMoveOneFromSideToMain(g.card.identity.name)}
+                      onMoveAllToMain={() => onMoveAllFromSideToMain(g.card.identity.name)}
+                      onMoveOneToMaybe={() => onMoveOneFromSideToMaybe(g.card.identity.name)}
+                      onMoveAllToMaybe={() => onMoveAllFromSideToMaybe(g.card.identity.name)}
+                      onShowInfo={onShowInfo ? () => onShowInfo(g.card) : undefined}
                       onPickPrint={() => onPickPrint(g.card)}
-                      contextLocation="side"
-                      contextActions={{
-                        onAddOne: () =>
+                      onToggleFoil={
+                        onToggleFoil ? () => onToggleFoil(g.card.identity.name) : undefined
+                      }
+                      isFoil={!!g.card.identity.foil}
+                      customTags={customTags}
+                      appliedTags={cardTags?.[g.card.identity.name.toLowerCase()]}
+                      onApplyTag={(t) => applyCardTag(g.card.identity.name, t)}
+                      onRemoveCustomTag={onRemoveTag}
+                      onCreateTag={(t) => createAndApplyTag(g.card.identity.name, t)}
+                    >
+                      <DraggableMiniRow
+                        dragId={`deck-sideboard-${g.key}`}
+                        card={g.card}
+                        className="flex items-center gap-1 group hover:bg-muted/40 rounded px-1 py-0.5"
+                      >
+                        <span className="text-xs font-mono w-4 text-right text-muted-foreground shrink-0">
+                          {g.count}
+                        </span>
+                        <span className="text-sm flex-1 truncate">
+                          <LocalizedCardName card={g.card} />
+                        </span>
+                        {g.card.manaCost && (
+                          <ManaSymbols cost={g.card.manaCost} size="sm" className="shrink-0" />
+                        )}
+                      </DraggableMiniRow>
+                    </CardContextMenu>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-2 pb-1">
+                  {sideboardGroups.map((g) => (
+                    <div key={g.key} className="shrink-0" style={{ width: cardWidth }}>
+                      <CardVisual
+                        group={g}
+                        dragId={`deck-sideboard-${g.key}`}
+                        onAddOne={() =>
                           onAddToSide({
                             ...g.card,
                             identity: { ...g.card.identity, id: crypto.randomUUID() },
-                          }),
-                        onRemoveOne: () => onRemoveFromSide(g.card.identity.name),
-                        onMoveOneToMain: () => onMoveOneFromSideToMain(g.card.identity.name),
-                        onMoveAllToMain: () => onMoveAllFromSideToMain(g.card.identity.name),
-                        onMoveOneToMaybe: () => onMoveOneFromSideToMaybe(g.card.identity.name),
-                        onMoveAllToMaybe: () => onMoveAllFromSideToMaybe(g.card.identity.name),
-                        onShowInfo: onShowInfo ? () => onShowInfo(g.card) : undefined,
-                        onPickPrint: () => onPickPrint(g.card),
-                        onToggleFoil: onToggleFoil
-                          ? () => onToggleFoil(g.card.identity.name)
-                          : undefined,
-                        isFoil: !!g.card.identity.foil,
-                        customTags,
-                        appliedTags: cardTags?.[g.card.identity.name.toLowerCase()],
-                        onApplyTag: (t) => applyCardTag(g.card.identity.name, t),
-                        onRemoveCustomTag: onRemoveTag,
-                        onCreateTag: (t) => createAndApplyTag(g.card.identity.name, t),
-                      }}
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
+                          })
+                        }
+                        onRemoveOne={() => onRemoveFromSide(g.card.identity.name)}
+                        onPickPrint={() => onPickPrint(g.card)}
+                        contextLocation="side"
+                        contextActions={{
+                          onAddOne: () =>
+                            onAddToSide({
+                              ...g.card,
+                              identity: { ...g.card.identity, id: crypto.randomUUID() },
+                            }),
+                          onRemoveOne: () => onRemoveFromSide(g.card.identity.name),
+                          onMoveOneToMain: () => onMoveOneFromSideToMain(g.card.identity.name),
+                          onMoveAllToMain: () => onMoveAllFromSideToMain(g.card.identity.name),
+                          onMoveOneToMaybe: () => onMoveOneFromSideToMaybe(g.card.identity.name),
+                          onMoveAllToMaybe: () => onMoveAllFromSideToMaybe(g.card.identity.name),
+                          onShowInfo: onShowInfo ? () => onShowInfo(g.card) : undefined,
+                          onPickPrint: () => onPickPrint(g.card),
+                          onToggleFoil: onToggleFoil
+                            ? () => onToggleFoil(g.card.identity.name)
+                            : undefined,
+                          isFoil: !!g.card.identity.foil,
+                          customTags,
+                          appliedTags: cardTags?.[g.card.identity.name.toLowerCase()],
+                          onApplyTag: (t) => applyCardTag(g.card.identity.name, t),
+                          onRemoveCustomTag: onRemoveTag,
+                          onCreateTag: (t) => createAndApplyTag(g.card.identity.name, t),
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
 
-        <div
-          ref={setMaybeDropRef}
-          className={cn(
-            "mt-2 rounded-lg border-2 border-dashed transition-colors",
-            isOverMaybe
-              ? "border-primary bg-primary/10"
-              : "border-border/40 hover:border-border/60",
-          )}
-        >
-          <div className="px-2 pt-2 pb-1">
-            <SectionHeader
-              label={`Maybeboard`}
-              count={maybeboardCount}
-              open={maybeboardOpen}
-              onToggle={() => setMaybeboardOpen((value) => !value)}
-              extraContent={
-                <span className="text-xs italic text-muted-foreground/40">not in deck</span>
-              }
-            />
-            {!maybeboardOpen ? null : maybeboardGroups.length === 0 ? (
-              <div className="py-3 text-center">
-                <p className="text-xs text-muted-foreground/40">Cards you&apos;re considering</p>
-              </div>
-            ) : viewMode === "list" ? (
-              <div className="space-y-0.5 pb-1">
-                {maybeboardGroups.map((g) => (
-                  <CardContextMenu
-                    key={g.key}
-                    count={g.count}
-                    location="maybe"
-                    onAddOne={() =>
-                      onAddToMaybe({
-                        ...g.card,
-                        identity: { ...g.card.identity, id: crypto.randomUUID() },
-                      })
-                    }
-                    onRemoveOne={() => onRemoveFromMaybe(g.card.identity.name)}
-                    onMoveOneToMain={() => onMoveOneFromMaybeToMain(g.card.identity.name)}
-                    onMoveAllToMain={() => onMoveAllFromMaybeToMain(g.card.identity.name)}
-                    onMoveOneToSide={() => onMoveOneFromMaybeToSide(g.card.identity.name)}
-                    onMoveAllToSide={() => onMoveAllFromMaybeToSide(g.card.identity.name)}
-                    onShowInfo={onShowInfo ? () => onShowInfo(g.card) : undefined}
-                    onPickPrint={() => onPickPrint(g.card)}
-                    onToggleFoil={
-                      onToggleFoil ? () => onToggleFoil(g.card.identity.name) : undefined
-                    }
-                    isFoil={!!g.card.identity.foil}
-                    customTags={customTags}
-                    appliedTags={cardTags?.[g.card.identity.name.toLowerCase()]}
-                    onApplyTag={(t) => applyCardTag(g.card.identity.name, t)}
-                    onRemoveCustomTag={onRemoveTag}
-                    onCreateTag={(t) => createAndApplyTag(g.card.identity.name, t)}
-                  >
-                    <DraggableMiniRow
-                      dragId={`deck-maybeboard-${g.key}`}
-                      card={g.card}
-                      className="flex items-center gap-1 group hover:bg-muted/40 rounded px-1 py-0.5"
-                    >
-                      <span className="text-xs font-mono w-4 text-right text-muted-foreground shrink-0">
-                        {g.count}
-                      </span>
-                      <span className="text-sm flex-1 truncate text-muted-foreground">
-                        {g.card.identity.name}
-                      </span>
-                      {g.card.manaCost && (
-                        <ManaSymbols
-                          cost={g.card.manaCost}
-                          size="sm"
-                          className="shrink-0 opacity-60"
-                        />
-                      )}
-                    </DraggableMiniRow>
-                  </CardContextMenu>
-                ))}
-              </div>
-            ) : (
-              <div className="flex flex-wrap gap-2 pb-1">
-                {maybeboardGroups.map((g) => (
-                  <div key={g.key} className="shrink-0" style={{ width: cardWidth }}>
-                    <CardVisual
-                      group={g}
-                      dragId={`deck-maybeboard-${g.key}`}
+          <div
+            ref={setMaybeDropRef}
+            className={cn(
+              "mt-2 rounded-lg border-2 border-dashed transition-colors",
+              isOverMaybe
+                ? "border-primary bg-primary/10"
+                : "border-border/40 hover:border-border/60",
+            )}
+          >
+            <div className="px-2 pt-2 pb-1">
+              <SectionHeader
+                label={`Maybeboard`}
+                count={maybeboardCount}
+                open={maybeboardOpen}
+                onToggle={() => setMaybeboardOpen((value) => !value)}
+                extraContent={
+                  <span className="text-xs italic text-muted-foreground/40">not in deck</span>
+                }
+              />
+              {!maybeboardOpen ? null : maybeboardGroups.length === 0 ? (
+                <div className="py-3 text-center">
+                  <p className="text-xs text-muted-foreground/40">Cards you&apos;re considering</p>
+                </div>
+              ) : viewMode === "list" ? (
+                <div className="space-y-0.5 pb-1">
+                  {maybeboardGroups.map((g) => (
+                    <CardContextMenu
+                      key={g.key}
+                      count={g.count}
+                      location="maybe"
                       onAddOne={() =>
                         onAddToMaybe({
                           ...g.card,
@@ -2500,113 +2495,168 @@ export function DeckListView({
                         })
                       }
                       onRemoveOne={() => onRemoveFromMaybe(g.card.identity.name)}
+                      onMoveOneToMain={() => onMoveOneFromMaybeToMain(g.card.identity.name)}
+                      onMoveAllToMain={() => onMoveAllFromMaybeToMain(g.card.identity.name)}
+                      onMoveOneToSide={() => onMoveOneFromMaybeToSide(g.card.identity.name)}
+                      onMoveAllToSide={() => onMoveAllFromMaybeToSide(g.card.identity.name)}
+                      onShowInfo={onShowInfo ? () => onShowInfo(g.card) : undefined}
                       onPickPrint={() => onPickPrint(g.card)}
-                      contextLocation="maybe"
-                      contextActions={{
-                        onAddOne: () =>
-                          onAddToMaybe({
-                            ...g.card,
-                            identity: { ...g.card.identity, id: crypto.randomUUID() },
-                          }),
-                        onRemoveOne: () => onRemoveFromMaybe(g.card.identity.name),
-                        onMoveOneToMain: () => onMoveOneFromMaybeToMain(g.card.identity.name),
-                        onMoveAllToMain: () => onMoveAllFromMaybeToMain(g.card.identity.name),
-                        onMoveOneToSide: () => onMoveOneFromMaybeToSide(g.card.identity.name),
-                        onMoveAllToSide: () => onMoveAllFromMaybeToSide(g.card.identity.name),
-                        onShowInfo: onShowInfo ? () => onShowInfo(g.card) : undefined,
-                        onPickPrint: () => onPickPrint(g.card),
-                        onToggleFoil: onToggleFoil
-                          ? () => onToggleFoil(g.card.identity.name)
-                          : undefined,
-                        isFoil: !!g.card.identity.foil,
-                        customTags,
-                        appliedTags: cardTags?.[g.card.identity.name.toLowerCase()],
-                        onApplyTag: (t) => applyCardTag(g.card.identity.name, t),
-                        onRemoveCustomTag: onRemoveTag,
-                        onCreateTag: (t) => createAndApplyTag(g.card.identity.name, t),
-                      }}
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {specialSections.map((section) => {
-          const count = section.groups.reduce((s, g) => s + g.count, 0);
-          const open = !collapsedSpecialSections.has(section.id);
-          return (
-            <div
-              key={section.id}
-              className="mt-2 rounded-lg border-2 border-dashed border-border/40 hover:border-border/60 transition-colors"
-            >
-              <div className="px-2 pt-2 pb-1">
-                <SectionHeader
-                  label={section.label}
-                  count={count}
-                  open={open}
-                  onToggle={() =>
-                    setCollapsedSpecialSections((current) => {
-                      const next = new Set(current);
-                      if (next.has(section.id)) next.delete(section.id);
-                      else next.add(section.id);
-                      return next;
-                    })
-                  }
-                />
-                {!open ? null : viewMode === "list" ? (
-                  <div className="space-y-0.5 pb-1">
-                    {section.groups.map((g) => (
-                      <div
-                        key={g.key}
-                        data-card-name={g.card.identity.name}
+                      onToggleFoil={
+                        onToggleFoil ? () => onToggleFoil(g.card.identity.name) : undefined
+                      }
+                      isFoil={!!g.card.identity.foil}
+                      customTags={customTags}
+                      appliedTags={cardTags?.[g.card.identity.name.toLowerCase()]}
+                      onApplyTag={(t) => applyCardTag(g.card.identity.name, t)}
+                      onRemoveCustomTag={onRemoveTag}
+                      onCreateTag={(t) => createAndApplyTag(g.card.identity.name, t)}
+                    >
+                      <DraggableMiniRow
+                        dragId={`deck-maybeboard-${g.key}`}
+                        card={g.card}
                         className="flex items-center gap-1 group hover:bg-muted/40 rounded px-1 py-0.5"
                       >
                         <span className="text-xs font-mono w-4 text-right text-muted-foreground shrink-0">
                           {g.count}
                         </span>
-                        <span className="text-sm flex-1 truncate">{g.card.identity.name}</span>
+                        <span className="text-sm flex-1 truncate text-muted-foreground">
+                          <LocalizedCardName card={g.card} />
+                        </span>
                         {g.card.manaCost && (
-                          <ManaSymbols cost={g.card.manaCost} size="sm" className="shrink-0" />
+                          <ManaSymbols
+                            cost={g.card.manaCost}
+                            size="sm"
+                            className="shrink-0 opacity-60"
+                          />
                         )}
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-5 w-5 text-destructive shrink-0"
-                          title={`Remove`}
-                          onClick={() => onRemoveFromSide(g.card.identity.name)}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap gap-2 pb-1">
-                    {section.groups.map((g) => (
-                      <div key={g.key} className="shrink-0" style={{ width: cardWidth }}>
-                        <CardVisual
-                          group={g}
-                          dragId={`deck-${section.id}-${g.key}`}
-                          onAddOne={() =>
-                            onAddToSide({
+                      </DraggableMiniRow>
+                    </CardContextMenu>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-2 pb-1">
+                  {maybeboardGroups.map((g) => (
+                    <div key={g.key} className="shrink-0" style={{ width: cardWidth }}>
+                      <CardVisual
+                        group={g}
+                        dragId={`deck-maybeboard-${g.key}`}
+                        onAddOne={() =>
+                          onAddToMaybe({
+                            ...g.card,
+                            identity: { ...g.card.identity, id: crypto.randomUUID() },
+                          })
+                        }
+                        onRemoveOne={() => onRemoveFromMaybe(g.card.identity.name)}
+                        onPickPrint={() => onPickPrint(g.card)}
+                        contextLocation="maybe"
+                        contextActions={{
+                          onAddOne: () =>
+                            onAddToMaybe({
                               ...g.card,
                               identity: { ...g.card.identity, id: crypto.randomUUID() },
-                            })
-                          }
-                          onRemoveOne={() => onRemoveFromSide(g.card.identity.name)}
-                          onPickPrint={() => onPickPrint(g.card)}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                            }),
+                          onRemoveOne: () => onRemoveFromMaybe(g.card.identity.name),
+                          onMoveOneToMain: () => onMoveOneFromMaybeToMain(g.card.identity.name),
+                          onMoveAllToMain: () => onMoveAllFromMaybeToMain(g.card.identity.name),
+                          onMoveOneToSide: () => onMoveOneFromMaybeToSide(g.card.identity.name),
+                          onMoveAllToSide: () => onMoveAllFromMaybeToSide(g.card.identity.name),
+                          onShowInfo: onShowInfo ? () => onShowInfo(g.card) : undefined,
+                          onPickPrint: () => onPickPrint(g.card),
+                          onToggleFoil: onToggleFoil
+                            ? () => onToggleFoil(g.card.identity.name)
+                            : undefined,
+                          isFoil: !!g.card.identity.foil,
+                          customTags,
+                          appliedTags: cardTags?.[g.card.identity.name.toLowerCase()],
+                          onApplyTag: (t) => applyCardTag(g.card.identity.name, t),
+                          onRemoveCustomTag: onRemoveTag,
+                          onCreateTag: (t) => createAndApplyTag(g.card.identity.name, t),
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          );
-        })}
+          </div>
+
+          {specialSections.map((section) => {
+            const count = section.groups.reduce((s, g) => s + g.count, 0);
+            const open = !collapsedSpecialSections.has(section.id);
+            return (
+              <div
+                key={section.id}
+                className="mt-2 rounded-lg border-2 border-dashed border-border/40 hover:border-border/60 transition-colors"
+              >
+                <div className="px-2 pt-2 pb-1">
+                  <SectionHeader
+                    label={section.label}
+                    count={count}
+                    open={open}
+                    onToggle={() =>
+                      setCollapsedSpecialSections((current) => {
+                        const next = new Set(current);
+                        if (next.has(section.id)) next.delete(section.id);
+                        else next.add(section.id);
+                        return next;
+                      })
+                    }
+                  />
+                  {!open ? null : viewMode === "list" ? (
+                    <div className="space-y-0.5 pb-1">
+                      {section.groups.map((g) => (
+                        <div
+                          key={g.key}
+                          data-card-name={g.card.identity.name}
+                          className="flex items-center gap-1 group hover:bg-muted/40 rounded px-1 py-0.5"
+                        >
+                          <span className="text-xs font-mono w-4 text-right text-muted-foreground shrink-0">
+                            {g.count}
+                          </span>
+                          <span className="text-sm flex-1 truncate">
+                            <LocalizedCardName card={g.card} />
+                          </span>
+                          {g.card.manaCost && (
+                            <ManaSymbols cost={g.card.manaCost} size="sm" className="shrink-0" />
+                          )}
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-5 w-5 text-destructive shrink-0"
+                            title={`Remove`}
+                            onClick={() => onRemoveFromSide(g.card.identity.name)}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-2 pb-1">
+                      {section.groups.map((g) => (
+                        <div key={g.key} className="shrink-0" style={{ width: cardWidth }}>
+                          <CardVisual
+                            group={g}
+                            dragId={`deck-${section.id}-${g.key}`}
+                            onAddOne={() =>
+                              onAddToSide({
+                                ...g.card,
+                                identity: { ...g.card.identity, id: crypto.randomUUID() },
+                              })
+                            }
+                            onRemoveOne={() => onRemoveFromSide(g.card.identity.name)}
+                            onPickPrint={() => onPickPrint(g.card)}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
-    </div>
+    </LocalizedCardDetailsContext.Provider>
   );
 }

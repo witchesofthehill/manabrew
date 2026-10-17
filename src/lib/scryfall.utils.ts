@@ -1,6 +1,7 @@
 import type { CardBackFaceSummary, DeckCard } from "@/protocol/deck";
 import type { CardDto } from "@/protocol/game";
 import type { ScryfallCard } from "@/types/scryfall";
+import type { LocalizedCardDetails } from "@/lib/localizedCardDetails";
 import type { ScryfallLanguage } from "@/i18n/locales";
 import { getScryfallManaCost } from "@/api/scryfall";
 import { chooseImageUrisForCard } from "@/stores/useScryfallStore";
@@ -154,6 +155,21 @@ export function deckCardToPreviewDto(card: DeckCard): CardDto {
   previewDtoByDeckCard.set(card, preview);
   deckCardByPreviewDto.set(preview, card);
   return preview;
+}
+
+export function localizedDeckCardToPreviewDto(
+  card: DeckCard,
+  details: LocalizedCardDetails,
+): CardDto {
+  const preview = deckCardToPreviewDto(card);
+  const localized = {
+    ...preview,
+    identity: { ...preview.identity, name: details.name },
+    text: details.text,
+    ...parseTypeLine(details.typeLine),
+  };
+  deckCardByPreviewDto.set(localized, card);
+  return localized;
 }
 
 export function previewDtoDeckCard(preview: CardDto): DeckCard | undefined {

@@ -41,6 +41,8 @@ Dependency direction: `foundation`, `card-script`, `cardset-archive` ← `carddb
 
 Per-copy `CardCosmetics` and its closed wire types live in `forge-foundation/src/sealed_product/card_cosmetics.rs`; `manabrew-protocol` re-exports them. Printing selections use version 1, at most two inherited face layers, bounded text and finite numeric values. `Arc<CardPrintingSelection>` shares immutable appearance data across runtime snapshots; clone the handle rather than its payload. Preserve explicit per-face default values and existing PaperCard Eq/Hash grouping. Runtime deck loading binds exact physical entries before shuffle, while created copies start without inherited cosmetics. Token overrides use original owner plus exact token script, never name matching.
 
+`CardCosmetics.wearAmount` is a finite scalar in `[0, 1]` and takes precedence over legacy wear presets. Explicit zero clears both wear and its seed; positive amounts retain a nonzero seed. Keep Rust, Java codec and frontend normalization aligned.
+
 Appearance serialization distinguishes viewer-filtered snapshots from explicitly authorized prompt cards. Owning a library is not permission to reveal its cosmetics. Stack sources use current visibility when historical visibility is unavailable. The Rust producer still has a pre-existing broader hand-identity/text disclosure issue; suppressing new foil/cosmetics fields is not a repair of that separate privacy boundary.
 
 ## Limited session checkpoints

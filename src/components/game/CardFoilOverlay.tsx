@@ -1,5 +1,5 @@
 import { useEffect, useRef, useSyncExternalStore } from "react";
-import { CARD_WEAR_AMOUNTS, resolveCardFinish, type CardFoilRegion } from "@/lib/cardFinish";
+import { resolveCardFinish, resolveCardWearAmount, type CardFoilRegion } from "@/lib/cardFinish";
 import type { CardCosmetics } from "@/protocol/deck";
 import { registerDomCardFoil, type CardFoilSource } from "@/lib/cardFoilDom";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
@@ -35,8 +35,7 @@ export function CardFoilOverlay({
   const animations = usePreferencesStore((state) => state.inGameAnimations);
   const reduced = useSyncExternalStore(subscribeMotion, motionSnapshot);
   const animated = animations && !reduced;
-  const visible =
-    enabled && (mode !== "regular" || CARD_WEAR_AMOUNTS[cosmetics?.wear ?? "fresh"] > 0);
+  const visible = enabled && (mode !== "regular" || resolveCardWearAmount(cosmetics) > 0);
   useEffect(() => {
     if (!visible || !canvasRef.current) return;
     return registerDomCardFoil(canvasRef.current, {

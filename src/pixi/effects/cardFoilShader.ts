@@ -2,8 +2,8 @@ import { foilShader, SURFACE_GLSL, WORN_GLSL, SurfaceMotion, surfaceSeed } from 
 import { GlProgram, MeshGeometry, Shader, Texture, UniformGroup } from "pixi.js";
 import {
   CARD_FINISH_KINDS,
-  CARD_WEAR_AMOUNTS,
   resolveCardRainFog,
+  resolveCardWearAmount,
   type CardFoilRegion,
 } from "@/lib/cardFinish";
 import type { CardCosmetics, CardFinish } from "@/protocol/deck";
@@ -360,7 +360,7 @@ export function createCardFoilShader(invalidate: () => void): CardFoilShader {
       mode = value;
       group.uniforms.previewKind = CARD_FINISH_KINDS[mode];
       group.uniforms.rainFogDensity = resolveCardRainFog(cosmetics);
-      group.uniforms.wearInfo[0] = CARD_WEAR_AMOUNTS[cosmetics?.wear ?? "fresh"];
+      group.uniforms.wearInfo[0] = resolveCardWearAmount(cosmetics);
       group.uniforms.wearInfo[1] = surfaceSeed(cosmetics?.wearSeed ?? 0);
       group.uniforms.surfaceInfo[2] = surfaceSeed(cosmetics?.wearSeed ?? 0);
       if (mode !== "pool" && poolLease) {

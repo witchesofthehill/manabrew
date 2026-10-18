@@ -9,6 +9,7 @@ import {
   CARD_FRAME_PRESETS,
   CARD_BORDER_PRESETS,
   CARD_WEAR_PRESETS,
+  resolveCardWearAmount,
 } from "@/lib/cardFinish";
 import { cn } from "@/lib/utils";
 import type { DeckCard } from "@/protocol/deck";
@@ -69,7 +70,10 @@ export function CardCustomizerCopies({
               ?.label,
             CARD_BORDER_PRESETS.find((preset) => preset.id === (cosmetics?.border ?? "printing"))
               ?.label,
-            CARD_WEAR_PRESETS.find((preset) => preset.id === (cosmetics?.wear ?? "fresh"))?.label,
+            typeof cosmetics?.wearAmount === "number" && Number.isFinite(cosmetics.wearAmount)
+              ? `${(resolveCardWearAmount(cosmetics) * 100).toFixed(1)}% wear`
+              : CARD_WEAR_PRESETS.find((preset) => preset.id === (cosmetics?.wear ?? "fresh"))
+                  ?.label,
           ].join(" · ");
           const name = `Copy ${index + 1}, ${sections.get(id)}, ${copy.identity.setCode.toUpperCase()} #${copy.identity.cardNumber}`;
           return (

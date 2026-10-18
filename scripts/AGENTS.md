@@ -44,7 +44,7 @@ Protocol generators replace their output directories. Do not run `yarn gen:types
 
 Card Glint is installed from its official prebuilt release tarball, including JavaScript, declarations and WASM. Consumers do not build Card Glint or need its Rust toolchain. Do not add application-side download, patch or renderer-build scripts. Restart the development web service after dependency changes so its separate node-modules volume reruns installation.
 
-`gen-harness-prompts.mjs` maps `CardCosmetics.wearSeed` to Java `Long`, rain density/artwork scalars to `Double`, and numeric coordinate tuples to `List<Double>`; integer conversion loses custom artwork positions. Keep generated Java derived from fresh protocol bindings. Harness input checksums include `forge-foundation` because cosmetic wire types live there, not in the protocol crate. Protocol documentation reads that shared source too.
+`gen-harness-prompts.mjs` maps `CardCosmetics.wearSeed` to Java `Long`, `wearAmount` and rain density/artwork scalars to `Double`, and numeric coordinate tuples to `List<Double>`; integer conversion loses fractional wear and custom artwork positions. Keep generated Java derived from fresh protocol bindings. Harness input checksums include `forge-foundation` because cosmetic wire types live there, not in the protocol crate. Protocol documentation reads that shared source too.
 
 ## Lint and format (yarn)
 

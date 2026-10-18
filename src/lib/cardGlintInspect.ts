@@ -15,7 +15,7 @@ import { renderCard } from "@/lib/cardRenderer";
 import { getCardArtWindows } from "@/lib/cardRenderGeometry";
 import { loadScryfallImage } from "@/lib/scryfallImageSource";
 import { ensureCardGlintFonts } from "@/lib/cardGlintAssets";
-import { CARD_WEAR_AMOUNTS, resolveCardRainFog } from "@/lib/cardFinish";
+import { resolveCardRainFog, resolveCardWearAmount } from "@/lib/cardFinish";
 import { cardRasterHost } from "@/lib/cardOpticalLayers";
 import { cardFaceImageUris, localizedDeckCardImageUris } from "@/lib/cardImage";
 import { peekCard, useScryfallStore } from "@/stores/useScryfallStore";
@@ -281,7 +281,7 @@ export class CardGlintInspectScene {
     if (this.disposed) return;
     this.sourceRainFog = resolveCardRainFog(card.identity.cosmetics);
     this.sourceWear = {
-      amount: CARD_WEAR_AMOUNTS[card.identity.cosmetics?.wear ?? "fresh"],
+      amount: resolveCardWearAmount(card.identity.cosmetics),
       seed: card.identity.cosmetics?.wearSeed ?? 0,
     };
     this.applyInstanceAppearance();
@@ -294,6 +294,7 @@ export class CardGlintInspectScene {
             ...card.identity.cosmetics,
             rainFog: undefined,
             wear: undefined,
+            wearAmount: undefined,
             wearSeed: undefined,
           },
         },

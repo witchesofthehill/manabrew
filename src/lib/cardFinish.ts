@@ -55,6 +55,13 @@ export function resolveCardFinish(
   return cosmetics?.finish ?? (foil ? (etched ? "etched" : DEFAULT_CARD_FINISH) : "regular");
 }
 
+export function resolveCardWearAmount(cosmetics?: CardCosmetics): number {
+  const amount = cosmetics?.wearAmount;
+  return typeof amount === "number" && Number.isFinite(amount)
+    ? Math.max(0, Math.min(1, amount))
+    : CARD_WEAR_AMOUNTS[cosmetics?.wear ?? "fresh"];
+}
+
 export function resolveCardRainFog(cosmetics?: CardCosmetics): number {
   const density = cosmetics?.rainFog;
   return typeof density === "number" && Number.isFinite(density)

@@ -15,6 +15,10 @@ const FINISHES: Record<CardFinish, true> = {
 };
 const MAX_WEAR_SEED = 0xffffffff;
 
+export function randomCardWearSeed(): number {
+  return crypto.getRandomValues(new Uint32Array(1))[0] || 1;
+}
+
 export function normalizeCardCosmetics(value: unknown): CardCosmetics | undefined {
   const input = cosmeticRecord(value);
   if (!input) return undefined;
@@ -26,8 +30,17 @@ export function normalizeCardCosmetics(value: unknown): CardCosmetics | undefine
   if (input.border === "black" || input.border === "white" || input.border === "silver") {
     result.border = input.border;
   }
-  if (input.wear === "light" || input.wear === "played" || input.wear === "heavy") {
+  if (
+    typeof input.wearAmount === "number" &&
+    Number.isFinite(input.wearAmount) &&
+    input.wearAmount >= 0 &&
+    input.wearAmount <= 1
+  ) {
+    if (input.wearAmount > 0) result.wearAmount = input.wearAmount;
+  } else if (input.wear === "light" || input.wear === "played" || input.wear === "heavy") {
     result.wear = input.wear;
+  }
+  if (result.wear || result.wearAmount) {
     if (
       typeof input.wearSeed === "number" &&
       Number.isInteger(input.wearSeed) &&

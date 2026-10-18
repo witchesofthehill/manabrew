@@ -2304,7 +2304,6 @@ pub fn collect_mana_payment_sources(
                 ability_index: ab.ability_index,
                 description: ab.ability_text.clone(),
                 cost: ab.cost_string(),
-                is_intrinsic: ab.ability_index < card.base_ability_count,
                 produced_mana,
                 produced_mana_amount,
             });

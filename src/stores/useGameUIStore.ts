@@ -11,7 +11,6 @@ export interface HandActionOption {
   cardId: string;
   label: string;
   abilityText?: string;
-  isIntrinsic?: boolean;
   actionId?: string;
   mode?: string;
   abilityIndex?: number;

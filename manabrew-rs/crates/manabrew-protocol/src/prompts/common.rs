@@ -91,9 +91,6 @@ pub struct ActivatableAbilityInfo {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub produced_mana: Option<Vec<Mana>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub is_intrinsic: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

@@ -84,7 +84,6 @@ export function manaAbilityInfos(
             description: a.description,
             isManaAbility: true,
             isClassLevelUp: false,
-            isIntrinsic: a.isIntrinsic,
             cost: a.cost,
             producedMana: a.producedMana,
             actionId: a.id,

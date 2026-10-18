@@ -278,7 +278,7 @@ export function activatedRulesEntries(
 ): Map<number, string> {
   const matches = new Map<number, string>();
   actions.forEach(({ action, displayLabel }, index) => {
-    if (action.kind !== "ability" || action.isIntrinsic === false) return;
+    if (action.kind !== "ability") return;
     const text = action.abilityText ? localize(action.abilityText) : displayLabel;
     const entry = matchRulesEntry(text, entries, action.cost?.trim());
     if (entry !== null) matches.set(index, entries[entry]!);

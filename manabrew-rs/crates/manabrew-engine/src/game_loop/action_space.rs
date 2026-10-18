@@ -168,7 +168,6 @@ impl GameLoop {
                         is_class_level_up: ability.is_some_and(|a| {
                             a.ability_api == Some(crate::ability::api_type::ApiType::ClassLevelUp)
                         }),
-                        is_intrinsic: ability_index < card.base_ability_count,
                         produced_mana,
                         produced_mana_amount,
                     }
@@ -211,7 +210,6 @@ impl GameLoop {
                     cost: ability.cost_string(),
                     is_mana_ability: true,
                     is_class_level_up: false,
-                    is_intrinsic: ability.ability_index < card.base_ability_count,
                     produced_mana,
                     produced_mana_amount,
                 });

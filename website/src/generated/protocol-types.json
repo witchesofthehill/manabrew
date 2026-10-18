@@ -115,8 +115,8 @@
   ],
   "types": {
     "ActivatableAbilityInfo": {
-      "ts": "interface ActivatableAbilityInfo {\n  cardId: string;\n  abilityIndex: number;\n  description: string;\n  isManaAbility: boolean;\n  isClassLevelUp?: boolean;\n  cost?: string;\n  producedMana?: Array<Mana>;\n  isIntrinsic?: boolean;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct ActivatableAbilityInfo {\n    pub card_id: String,\n    pub ability_index: usize,\n    pub description: String,\n    pub is_mana_ability: bool,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub is_class_level_up: Option<bool>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub cost: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub produced_mana: Option<Vec<Mana>>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub is_intrinsic: Option<bool>,\n}",
+      "ts": "interface ActivatableAbilityInfo {\n  cardId: string;\n  abilityIndex: number;\n  description: string;\n  isManaAbility: boolean;\n  isClassLevelUp?: boolean;\n  cost?: string;\n  producedMana?: Array<Mana>;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct ActivatableAbilityInfo {\n    pub card_id: String,\n    pub ability_index: usize,\n    pub description: String,\n    pub is_mana_ability: bool,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub is_class_level_up: Option<bool>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub cost: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub produced_mana: Option<Vec<Mana>>,\n}",
       "refs": ["Mana"]
     },
     "AlternativeCostKind": {

@@ -76,6 +76,21 @@ export const CARD_RENDERING_FIXTURES: CardRenderingFixture[] = [
     lookup: { name: "Barbarian Class", setCode: "afr" },
   },
   {
+    id: "station-spacecraft",
+    label: "Station / Spacecraft thresholds",
+    lookup: { name: "Lumen-Class Frigate", setCode: "eoe" },
+  },
+  {
+    id: "station-planet",
+    label: "Station / Planet threshold",
+    lookup: { name: "Adagia, Windswept Bastion", setCode: "eoe" },
+  },
+  {
+    id: "crew",
+    label: "Crew / Vehicle",
+    lookup: { name: "Smuggler's Copter", setCode: "kld" },
+  },
+  {
     id: "planeswalker",
     label: "Planeswalker / loyalty",
     lookup: { name: "Jace, the Mind Sculptor", setCode: "wwk" },

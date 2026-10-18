@@ -119,6 +119,8 @@ Saga panel metadata includes the painter-owned chapter-strip and text-column geo
 
 Class panels expose the native level-band asset and measurements from `extraRuleBlocks`. Interactive level bands scroll with their ability rows inside unchanged rules bounds; battlefield sprite rails remain independent. The `class-dice` lab fixture covers Barbarian Class's longer dice abilities.
 
+Station and Crew use ordinary native rules panels in Card Glint 0.5.1. Their host-rendered mechanic rows stay inside those measured bounds; Class band assets are not Station geometry. Gameplay presentation and local mechanic fixtures are documented in `src/components/game/AGENTS.md`.
+
 Planeswalker panel metadata supplies native cost shields, cost/static text columns and safe ink bounds without changing the full rules rectangle. Lab fixtures cover Jace's four abilities, Narset's passive text and Ugin's variable loyalty cost.
 
 Interactive Pixi previews opt into `standardFrameFallback` for unsupported or ambiguous printing treatments, keeping their generated frame and measured rules box consistent. It changes frame selection only, not selected artwork, card semantics or the Original scan. DOM printing renderers retain their original-scan rejection policy. Artwork-integrated treatments preserve the selected scan in both renderers; Pixi keeps it full-size behind a dark game-palette rules/actions overlay. Its heading shows the displayed face's full type line; a top-right badge shows its mana cost when present. Never substitute another printing's artwork.

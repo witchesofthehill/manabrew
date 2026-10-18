@@ -14,15 +14,15 @@ msgstr ""
 "Plural-Forms: \n"
 
 #. placeholder {0}: display.stats.damage
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1029
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1059
 msgid "{0} damage"
 msgstr "{0} danni"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:904
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:913
 msgid "Actions apply to the current face."
 msgstr ""
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1336
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1366
 msgid "Defense"
 msgstr "Difesa"
 
@@ -31,19 +31,19 @@ msgstr "Difesa"
 msgid "Effect text unavailable"
 msgstr "Testo dell'effetto non disponibile"
 
-#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:491
+#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:575
 msgid "Face-down card"
 msgstr "Carta coperta"
 
-#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:493
+#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:577
 msgid "Face-down permanent"
 msgstr "Permanente coperto"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1001
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1031
 msgid "Flip back · F"
 msgstr "Mostra il retro · F"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1001
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1031
 msgid "Flip front · F"
 msgstr "Mostra il fronte · F"
 
@@ -52,14 +52,14 @@ msgstr "Mostra il fronte · F"
 msgid "Level {0}"
 msgstr ""
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1335
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1365
 msgid "Loyalty"
 msgstr "Fedeltà"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1017
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1047
 msgid "Original printing · generated frame unavailable"
 msgstr ""
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1015
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1045
 msgid "Printed face · live state belongs to the other face"
 msgstr ""

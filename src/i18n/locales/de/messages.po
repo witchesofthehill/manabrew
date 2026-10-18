@@ -14,15 +14,15 @@ msgstr ""
 "Plural-Forms: \n"
 
 #. placeholder {0}: display.stats.damage
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1029
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1059
 msgid "{0} damage"
 msgstr "{0} Schaden"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:904
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:913
 msgid "Actions apply to the current face."
 msgstr ""
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1336
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1366
 msgid "Defense"
 msgstr "Verteidigung"
 
@@ -31,19 +31,19 @@ msgstr "Verteidigung"
 msgid "Effect text unavailable"
 msgstr "Effekttext nicht verfügbar"
 
-#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:491
+#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:575
 msgid "Face-down card"
 msgstr "Verdeckte Karte"
 
-#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:493
+#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:577
 msgid "Face-down permanent"
 msgstr "Verdeckter Permanent"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1001
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1031
 msgid "Flip back · F"
 msgstr "Rückseite zeigen · F"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1001
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1031
 msgid "Flip front · F"
 msgstr "Vorderseite zeigen · F"
 
@@ -52,14 +52,14 @@ msgstr "Vorderseite zeigen · F"
 msgid "Level {0}"
 msgstr ""
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1335
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1365
 msgid "Loyalty"
 msgstr "Loyalität"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1017
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1047
 msgid "Original printing · generated frame unavailable"
 msgstr ""
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1015
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1045
 msgid "Printed face · live state belongs to the other face"
 msgstr ""

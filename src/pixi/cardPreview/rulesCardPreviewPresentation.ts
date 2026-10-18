@@ -42,6 +42,17 @@ export interface RulesPreviewDisplay {
   defense: number | null;
 }
 
+export interface StationRulesTier {
+  threshold: number;
+  text: string;
+  canonicalText: string;
+}
+
+export interface StationRulesPresentation {
+  opening: string[];
+  tiers: StationRulesTier[];
+}
+
 function numericValue(value: string | undefined): number | null {
   if (value == null) return null;
   const parsed = Number.parseInt(value, 10);
@@ -284,6 +295,78 @@ function closestRulesLine(
   return ambiguous ? null : match;
 }
 
+function parseStationRules(rulesText: string, canonical: boolean): StationRulesPresentation | null {
+  const lines = rulesText.replace(/\r\n?/g, "\n").split("\n");
+  if (canonical && !lines.some((line) => /^Station(?:\s*\(.*\))?\s*$/i.test(line.trim()))) {
+    return null;
+  }
+  const opening: string[] = [];
+  const tiers: StationRulesTier[] = [];
+  let effectLines: string[] = [];
+  const finishTier = () => {
+    const tier = tiers[tiers.length - 1];
+    if (!tier) return;
+    tier.text = effectLines.join("\n").trim();
+    tier.canonicalText = tier.text;
+  };
+  for (const sourceLine of lines) {
+    const line = sourceLine.trim();
+    const heading =
+      line.match(/^(?:STATION\s+)?(\d+)\s*\+\s*[|｜]\s*(.*)$/i) ??
+      line.match(/^STATION\s+(\d+)\s*\+(?:\s+(.*))?$/i) ??
+      (!canonical ? line.match(/^[\p{L}\p{M}][\p{L}\p{M}\s-]*\s+(\d+)\s*\+$/u) : null);
+    if (heading) {
+      finishTier();
+      tiers.push({ threshold: Number(heading[1]), text: "", canonicalText: "" });
+      effectLines = heading[2] ? [heading[2]] : [];
+    } else if (tiers.length > 0) {
+      effectLines.push(line);
+    } else if (line) {
+      opening.push(line);
+    }
+  }
+  finishTier();
+  return tiers.length > 0 && tiers.every((tier) => tier.text) ? { opening, tiers } : null;
+}
+
+export function stationRulesPresentation(
+  rulesText: string,
+  canonicalRulesText = rulesText,
+): StationRulesPresentation | null {
+  const canonical = parseStationRules(canonicalRulesText, true);
+  if (!canonical || rulesText === canonicalRulesText) return canonical;
+  const localized = parseStationRules(rulesText, false);
+  if (
+    !localized ||
+    localized.tiers.length !== canonical.tiers.length ||
+    localized.tiers.some((tier, index) => tier.threshold !== canonical.tiers[index]!.threshold)
+  ) {
+    return canonical;
+  }
+  return {
+    opening: localized.opening,
+    tiers: localized.tiers.map((tier, index) => ({
+      ...tier,
+      canonicalText: canonical.tiers[index]!.text,
+    })),
+  };
+}
+
+function mechanicPaymentIsDescribed(action: HandActionOption, cost: string): boolean {
+  if (action.kind !== "ability" || action.isManaAbility) return false;
+  const description = normalizedRulesComparisonText(
+    translationComparisonText(action.abilityText ?? action.label),
+  );
+  if (description === "station") {
+    return /^Tap another (?:untapped )?creature you control\.?$/i.test(cost);
+  }
+  const crew = description.match(/^crew\s+(\d+)$/);
+  const payment = cost.match(
+    /^Tap any number of (?:untapped )?creatures you control(?: other than .+)? with total power (\d+) or (?:greater|more)\.?$/i,
+  );
+  return crew !== null && payment !== null && crew[1] === payment[1];
+}
+
 export function actionRowText(action: HandActionOption, displayLabel?: string): string {
   const symbols = action.displayManaLetters?.map((letter) => `{${letter}}`).join("") ?? "";
   const baseLabel = action.isManaAbility && symbols ? action.label : (displayLabel ?? action.label);
@@ -291,6 +374,7 @@ export function actionRowText(action: HandActionOption, displayLabel?: string): 
   const cost = action.cost?.trim();
   if (
     !cost ||
+    mechanicPaymentIsDescribed(action, cost) ||
     label
       .replace(/\([^()]*\)/g, "")
       .toLowerCase()

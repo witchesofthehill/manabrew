@@ -12,6 +12,11 @@ import {
   type CardRenderingOverrides,
 } from "@/components/dev/cardRenderingOverrides";
 import { useCardRenderingFixture } from "@/components/dev/useCardRenderingFixture";
+import {
+  applyDevPreviewMechanicAction,
+  devPreviewMechanicActions,
+} from "@/components/dev/devPreviewScenarios";
+import { stationRulesPresentation } from "@/pixi/cardPreview/rulesCardPreviewPresentation";
 import { parsePrintedCardRailMetadata } from "@/components/game/cardRailState";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import { scryfallToSampleGameCard } from "@/lib/sampleGameCard";
@@ -65,6 +70,13 @@ export default function CardRenderingLab() {
       next.classLevels = rail.classLevels;
       next.classLevel = live ? 3 : 1;
     }
+    const station = stationRulesPresentation(next.text);
+    if (station) {
+      next.counters = {
+        ...next.counters,
+        Charge: live ? Math.max(...station.tiers.map((tier) => tier.threshold)) : 0,
+      };
+    }
     if (live) {
       if (next.types.includes("Creature")) {
         next.power = "12";
@@ -86,14 +98,20 @@ export default function CardRenderingLab() {
   const actions = useMemo<HandActionOption[]>(
     () =>
       card
-        ? Array.from({ length: actionCount }, (_, index) => ({
-            kind: "ability",
-            cardId: card.id,
-            actionId: `gallery-action-${index}`,
-            label: `Draw a card. Action ${index + 1}.`,
-            cost: `{${index + 1}}`,
-            abilityIndex: index,
-          }))
+        ? [
+            ...devPreviewMechanicActions(card),
+            ...Array.from(
+              { length: actionCount },
+              (_, index): HandActionOption => ({
+                kind: "ability",
+                cardId: card.id,
+                actionId: `gallery-action-${index}`,
+                label: `Draw a card. Action ${index + 1}.`,
+                cost: `{${index + 1}}`,
+                abilityIndex: index,
+              }),
+            ),
+          ]
         : [],
     [card, actionCount],
   );
@@ -114,6 +132,17 @@ export default function CardRenderingLab() {
   const flipFace = () => {
     setFace((value) => (value === 0 ? 1 : 0));
     setOverrides({});
+  };
+  const handleAction = (action: HandActionOption) => {
+    setLastAction(`Executed local fixture action: ${action.label}`);
+    if (!card) return;
+    const next = applyDevPreviewMechanicAction(card, action);
+    if (next === card) return;
+    setOverrides((current) => ({
+      ...current,
+      isCrewed: next.isCrewed,
+      counters: { ...current.counters, ...next.counters },
+    }));
   };
   return (
     <section
@@ -183,7 +212,7 @@ export default function CardRenderingLab() {
               }
               actions={actions}
               onFlip={flipFace}
-              onAction={(action) => setLastAction(`Executed local fixture action: ${action.label}`)}
+              onAction={handleAction}
             />
           </div>
           <CardRenderingProfile

@@ -48,7 +48,7 @@ export function DevCardLayoutControls() {
     try {
       const { info } = await useScryfallStore
         .getState()
-        .getCard({ name: scenario.name || "Serra Angel" });
+        .getCard({ name: scenario.name || "Serra Angel", setCode: scenario.setCode });
       const card = scryfallToDeckCard(info);
       setDebugCard(
         scenario.name

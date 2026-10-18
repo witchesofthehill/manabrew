@@ -14,15 +14,15 @@ msgstr ""
 "Plural-Forms: \n"
 
 #. placeholder {0}: display.stats.damage
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1029
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1059
 msgid "{0} damage"
 msgstr "{0} 點傷害"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:904
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:913
 msgid "Actions apply to the current face."
 msgstr ""
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1336
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1366
 msgid "Defense"
 msgstr "防禦"
 
@@ -31,19 +31,19 @@ msgstr "防禦"
 msgid "Effect text unavailable"
 msgstr "無法取得效應文字"
 
-#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:491
+#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:575
 msgid "Face-down card"
 msgstr "牌面朝下的牌"
 
-#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:493
+#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:577
 msgid "Face-down permanent"
 msgstr "牌面朝下的永久物"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1001
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1031
 msgid "Flip back · F"
 msgstr "翻到背面 · F"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1001
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1031
 msgid "Flip front · F"
 msgstr "翻到正面 · F"
 
@@ -52,14 +52,14 @@ msgstr "翻到正面 · F"
 msgid "Level {0}"
 msgstr ""
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1335
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1365
 msgid "Loyalty"
 msgstr "忠誠"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1017
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1047
 msgid "Original printing · generated frame unavailable"
 msgstr ""
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1015
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1045
 msgid "Printed face · live state belongs to the other face"
 msgstr ""

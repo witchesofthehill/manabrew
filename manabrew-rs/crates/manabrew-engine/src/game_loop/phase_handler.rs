@@ -296,11 +296,6 @@ impl GameLoop {
                 if emit_phase_trigger {
                     self.emit_phase_trigger(game, phase);
                 }
-                // Suspend: at the beginning of each upkeep, remove a time counter
-                // from each suspended card in exile. If last counter removed, cast for free.
-                if phase == PhaseType::Upkeep {
-                    self.process_suspend_upkeep(game, agents);
-                }
             }
             TurnEvent::PriorityWindow { is_main_phase } => {
                 self.step_with_priority(game, agents, is_main_phase);
@@ -875,107 +870,6 @@ impl GameLoop {
             };
             self.trigger_handler
                 .run_trigger(TriggerType::DamageDoneOnce, params, false);
-        }
-    }
-
-    /// Suspend upkeep processing: for each suspended card in exile owned by the
-    /// active player, remove a time counter. If the last counter was removed,
-    /// cast the card for free (and grant haste if creature).
-    /// Mirrors Java's GameAction.handleSuspendTriggers().
-    pub(crate) fn process_suspend_upkeep(
-        &mut self,
-        game: &mut GameState,
-        agents: &mut [Box<dyn PlayerAgent>],
-    ) {
-        let active = game.active_player();
-        let exile: Vec<CardId> = game.cards_in_zone(ZoneType::Exile, active).to_vec();
-        for card_id in exile {
-            let card = game.card(card_id);
-            // Check if the card has suspend keyword and time counters
-            if card.get_suspend_cost().is_none() {
-                continue;
-            }
-            let time_counters = *card
-                .counters
-                .get(&crate::card::CounterType::Time)
-                .unwrap_or(&0);
-            if time_counters <= 0 {
-                continue;
-            }
-            // Remove one time counter
-            game.card_mut(card_id)
-                .remove_counter(&crate::card::CounterType::Time, 1);
-
-            // Emit CounterRemoved trigger
-            self.trigger_handler.run_trigger(
-                TriggerType::CounterRemoved,
-                RunParams {
-                    card: Some(card_id),
-                    player: Some(active),
-                    ..Default::default()
-                },
-                false,
-            );
-
-            let remaining = *game
-                .card(card_id)
-                .counters
-                .get(&crate::card::CounterType::Time)
-                .unwrap_or(&0);
-            if remaining <= 0 {
-                // Last counter removed — cast for free
-                let card_name = game.card(card_id).card_name.clone();
-                let is_creature = game.card(card_id).is_creature();
-                let is_permanent = game.card(card_id).is_permanent();
-                // Move from exile to stack
-                game.player_record_spell_cast(active, card_id);
-
-                // Emit SpellCast trigger
-                self.trigger_handler.run_trigger(
-                    TriggerType::SpellCast,
-                    RunParams {
-                        spell_card: Some(card_id),
-                        spell_controller: Some(active),
-                        ..Default::default()
-                    },
-                    false,
-                );
-
-                // Build SpellAbility
-                let mut sa =
-                    crate::spellability::build_spell_ability_for_card_cast(game, card_id, active);
-                sa.alt_cost = Some(crate::spellability::AlternativeCost::Suspend);
-                sa.setup_targets(game, agents, &self.mana_pools);
-
-                let entry = StackEntry {
-                    id: 0,
-                    spell_ability: sa,
-                    is_pending_cast: false,
-                    is_creature_spell: is_creature,
-                    is_permanent_spell: is_permanent,
-                    cast_from_zone: Some(ZoneType::Exile),
-                    optional_trigger_decider: None,
-                    optional_trigger_description: None,
-                    optional_trigger_source_name: None,
-                };
-
-                game.stack.push(entry);
-                self.log_stack_push(&card_name, &game.player(active).name);
-                self.move_card_with_runtime(game, card_id, ZoneType::Stack, active, agents);
-                crate::agent::notify_all_agents(
-                    agents,
-                    crate::agent::GameLogEvent::stack(format!(
-                        "Suspend: casting {card_name} for free!"
-                    ))
-                    .with_player(active)
-                    .with_card(card_id),
-                );
-
-                // Grant haste if creature (suspend creatures get haste)
-                if is_creature && !game.card(card_id).has_haste() {
-                    game.card_mut(card_id).granted_keywords.add("Haste");
-                }
-            }
         }
     }
 }

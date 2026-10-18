@@ -190,10 +190,21 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     targets.dedup();
 
     let tgt_zones = sa
-        .target_restrictions
-        .as_ref()
-        .map(|tr| tr.tgt_zone.clone())
-        .filter(|zones| !zones.is_empty())
+        .ir
+        .pump_zone
+        .as_deref()
+        .map(|zones| {
+            zones
+                .split(',')
+                .filter_map(|zone| crate::zone::zone_type::smart_value_of(zone.trim()))
+                .collect::<Vec<_>>()
+        })
+        .or_else(|| {
+            sa.target_restrictions
+                .as_ref()
+                .map(|tr| tr.tgt_zone.clone())
+                .filter(|zones| !zones.is_empty())
+        })
         .unwrap_or_else(|| vec![ZoneType::Battlefield]);
     for target_card in targets {
         if !tgt_zones.contains(&ctx.game.card(target_card).zone) {
@@ -202,15 +213,23 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         let target = ctx.game.card(target_card);
         let att = att_bonus.resolve(target.power());
         let def = def_bonus.resolve(target.toughness());
-        apply_pump_to_card(
-            ctx,
-            target_card,
-            att,
-            def,
-            &keywords,
-            is_perpetual,
-            resolve_ts,
-        );
+        if sa.ir.duration == Some(crate::spellability::AbilityDuration::UntilLoseControlOfHost) {
+            let target = ctx.game.card_mut(target_card);
+            target.add_pt_boost(att, def);
+            for keyword in &keywords {
+                target.until_lose_control_keywords.add(keyword);
+            }
+        } else {
+            apply_pump_to_card(
+                ctx,
+                target_card,
+                att,
+                def,
+                &keywords,
+                is_perpetual,
+                resolve_ts,
+            );
+        }
         pumped_targets.push(target_card);
     }
 

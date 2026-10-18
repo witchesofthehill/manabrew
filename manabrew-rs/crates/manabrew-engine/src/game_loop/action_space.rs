@@ -168,6 +168,14 @@ impl GameLoop {
                         is_class_level_up: ability.is_some_and(|a| {
                             a.ability_api == Some(crate::ability::api_type::ApiType::ClassLevelUp)
                         }),
+                        is_level_up: ability.is_some_and(|ability| ability.is_level_up),
+                        face_index: ability.map(|ability| {
+                            u8::from(
+                                ability.params.get("CardState") == Some("RightSplit")
+                                    || card.is_transformed
+                                    || card.adventure_spell,
+                            )
+                        }),
                         produced_mana,
                         produced_mana_amount,
                     }
@@ -210,6 +218,12 @@ impl GameLoop {
                     cost: ability.cost_string(),
                     is_mana_ability: true,
                     is_class_level_up: false,
+                    is_level_up: false,
+                    face_index: Some(u8::from(
+                        ability.params.get("CardState") == Some("RightSplit")
+                            || card.is_transformed
+                            || card.adventure_spell,
+                    )),
                     produced_mana,
                     produced_mana_amount,
                 });

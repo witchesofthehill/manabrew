@@ -31,10 +31,6 @@ pub fn can_play(sa: &SpellAbility, card: &Card) -> bool {
     sa.source == Some(card.id) && sa.activating_player == card.controller
 }
 
-pub fn ability_unlock_room(card: &Card) -> SpellAbility {
-    SpellAbility::new_simple(Some(card.id), card.controller, "UnlockRoom")
-}
-
 pub fn ability_morph_up(card: &Card, cost_str: &str, mega: bool, _intrinsic: bool) -> SpellAbility {
     SpellAbility::new_simple(
         Some(card.id),
@@ -385,8 +381,12 @@ pub fn setup_siege_abilities(card: &mut Card) {
     card.update_triggers();
 }
 
-pub fn setup_adventure_ability(_card: &mut Card) -> Option<ReplacementEffect> {
-    None
+pub fn setup_adventure_ability(card: &mut Card) -> Option<ReplacementEffect> {
+    let mut replacement = parse_replacement_effect(
+        "R$ Event$ Moved | ValidCard$ Card.Self | Origin$ Stack | ExcludeDestination$ Exile | ValidStackSa$ Spell.Adventure | Fizzle$ False | Secondary$ True | NewDestination$ Exile | Description$ Adventure"
+    )?;
+    replacement.set_host_card(card);
+    Some(replacement)
 }
 
 pub fn setup_omen_ability(_card: &mut Card) -> Option<ReplacementEffect> {

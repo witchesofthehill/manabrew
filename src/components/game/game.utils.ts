@@ -84,6 +84,8 @@ export function manaAbilityInfos(
             description: a.description,
             isManaAbility: true,
             isClassLevelUp: false,
+            faceIndex: a.faceIndex,
+            mechanic: a.mechanic,
             cost: a.cost,
             producedMana: a.producedMana,
             actionId: a.id,
@@ -115,10 +117,15 @@ export function isLethalDamage(card: CardDto, queuedDamage = 0): boolean {
   return !isNaN(toughness) && total >= toughness;
 }
 export type ScryfallImageSize = "small" | "normal" | "large" | "png" | "border_crop" | "art_crop";
-/** CardDto view of a stack-resident source for rendering. `StackObjectDto.text`
- *  is a stack label rather than Oracle text, so the rules renderer hydrates
- *  rules and printed characteristics from the printing identity. */
-export function stackObjectToCardStub(obj: StackObjectDto): ClientCardDto {
+export function stackObjectToCard(obj: StackObjectDto): ClientCardDto {
+  if (obj.sourceCard) {
+    return {
+      ...GAME_CARD_DEFAULTS,
+      ...obj.sourceCard,
+      id: obj.sourceId,
+      zoneId: obj.sourceCard.zone ?? "stack",
+    };
+  }
   return {
     ...GAME_CARD_DEFAULTS,
     id: obj.sourceId,
@@ -130,7 +137,7 @@ export function stackObjectToCardStub(obj: StackObjectDto): ClientCardDto {
     ownerId: obj.ownerId,
     zoneId: "stack",
     isDoubleFaced: obj.isDoubleFaced,
-    isTransformed: obj.faceIndex === 1,
+    isTransformed: obj.isDoubleFaced && obj.faceIndex === 1,
   };
 }
 export function stackObjectAbilityText(obj: StackObjectDto): string {

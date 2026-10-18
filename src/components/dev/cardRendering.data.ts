@@ -71,6 +71,16 @@ export const CARD_RENDERING_FIXTURES: CardRenderingFixture[] = [
   },
   { id: "class", label: "Class / levels", lookup: { name: "Ranger Class", setCode: "afr" } },
   {
+    id: "case",
+    label: "Case / solved sections",
+    lookup: { name: "Case of the Uneaten Feast", setCode: "mkm" },
+  },
+  {
+    id: "suspend",
+    label: "Suspend / time counters",
+    lookup: { name: "Rift Bolt", setCode: "tsp" },
+  },
+  {
     id: "class-dice",
     label: "Class / dice abilities",
     lookup: { name: "Barbarian Class", setCode: "afr" },
@@ -138,6 +148,11 @@ export const CARD_RENDERING_FIXTURES: CardRenderingFixture[] = [
     lookup: { name: "Akroma, Angel of Wrath Avatar", setCode: "pmoa" },
   },
   { id: "leveler", label: "Level up", lookup: { name: "Student of Warfare", setCode: "roe" } },
+  {
+    id: "leveler-activated",
+    label: "Level up / gained activated abilities",
+    lookup: { name: "Enclave Cryptologist", setCode: "roe" },
+  },
   { id: "mutate", label: "Mutate", lookup: { name: "Gemrazer", setCode: "iko" } },
   {
     id: "meld",

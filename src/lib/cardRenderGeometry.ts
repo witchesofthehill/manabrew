@@ -437,7 +437,9 @@ export function attachCardRenderGeometry(
         const fields = levelBlocks.slice(index + 1, band < 0 ? undefined : index + 1 + band);
         levelContent.set(`rules_${index}`, {
           rulesText: block.text,
-          range: fields.find((field) => field.kind === "level")?.text.replace(/^LEVEL\n/, "") ?? "",
+          range:
+            fields.find((field) => field.kind === "level")?.text.replace(/^LEVEL\n/, "") ??
+            `0-${Math.max(0, Number(levelBlocks.find((field) => field.kind === "level")?.text.match(/\d+/)?.[0] ?? 1) - 1)}`,
           statsText: fields.find((field) => field.kind === "stats")?.text ?? "",
         });
       }

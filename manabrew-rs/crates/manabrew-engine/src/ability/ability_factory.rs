@@ -250,6 +250,22 @@ pub fn build_spell_ability_from_host_card(
         )
     });
     let params = Params::from_parsed(&parsed);
+    let room_host = parsed
+        .get("CardState")
+        .and_then(forge_foundation::CardStateName::from_str_compat)
+        .and_then(|door| {
+            host.room_face(door).map(|face| {
+                let mut selected = host.clone();
+                selected.svars.extend(
+                    face.svars
+                        .iter()
+                        .map(|(key, value)| (key.clone(), value.clone())),
+                );
+                selected.parsed_svar_cache.clear();
+                selected
+            })
+        });
+    let host = room_host.as_ref().unwrap_or(host);
     build_spell_ability_of_type_with_params(
         host,
         ability_text,
@@ -270,16 +286,20 @@ pub fn build_spell_ability_for_card_cast(
     card_id: CardId,
     player: PlayerId,
 ) -> SpellAbility {
+    build_spell_ability_for_host_card_cast(game.card(card_id), player)
+}
+
+pub fn build_spell_ability_for_host_card_cast(card: &Card, player: PlayerId) -> SpellAbility {
+    let card_id = card.id;
     let _perf_scope =
         crate::perf::ParamsLookupScopeGuard::enter(crate::perf::ParamsLookupScope::AbilityBuild);
-    if let Some(spell_ability_text) = game
-        .card(card_id)
+    if let Some(spell_ability_text) = card
         .abilities
         .iter()
         .find(|a| crate::parsing::raw_has_key(a, keys::SP))
         .cloned()
     {
-        let host = game.card(card_id);
+        let host = card;
         let mut sa = build_spell_ability_of_type(
             host,
             &spell_ability_text,
@@ -317,7 +337,6 @@ pub fn build_spell_ability_for_card_cast(
     let mut restriction = crate::spellability::SpellAbilityRestriction::default();
     restriction.variables.set_zone(ZoneType::Hand);
     let condition = crate::spellability::SpellAbilityCondition::default();
-    let card = game.card(card_id);
 
     // Aura enchantments: derive targeting from "Enchant <type>" keyword.
     // Mirrors Java's Spell constructor which reads the Enchant keyword to

@@ -31,12 +31,20 @@ import { specialRules } from "card-glint/magic/presentation";
 import {
   activatedRulesEntries,
   localizeRulesPreviewText,
+  matchRulesEntry,
   resolveRulesPreviewDisplay,
   rulesEntryMatchesStackAbility,
   rulesTextEntries,
   stackHighlightEntry,
 } from "@/pixi/cardPreview/rulesCardPreviewPresentation";
 import { RulesPreviewActions } from "@/pixi/cardPreview/RulesPreviewActions";
+import {
+  previewActionFace,
+  levelActionPanel,
+  previewPanelState,
+  caseSections,
+  suspendState,
+} from "@/pixi/cardPreview/previewMechanics";
 import {
   drawRulesStatBadge,
   resolveRulesPreviewFrame,
@@ -219,6 +227,12 @@ export class RulesCardPreviewLayer {
   private primaryBody: RulesPreviewBody | null = null;
   private readonly scrollPositions = new Map<string, number>();
   private actions = new RulesPreviewActions();
+  private extraActions: RulesPreviewActions[] = [];
+  private actionPanels = new Map<
+    number,
+    { view: RulesPreviewActions; index: number; body: RulesPreviewBody }
+  >();
+  private focusedAction: number | null = null;
   private bodyPointerId: number | null = null;
   private controls = new RulesPreviewActions();
   private viewControls: HandCardControls;
@@ -421,6 +435,21 @@ export class RulesCardPreviewLayer {
       !previous ||
       previous.actions.length !== spec.actions.length ||
       previous.actions.some((action, index) => action !== spec.actions[index]);
+    if (this.focusedAction !== null && previous) {
+      const focused = previous.actions[this.focusedAction];
+      const index = focused
+        ? spec.actions.findIndex(
+            (action) =>
+              action.cardId === focused.cardId &&
+              (focused.actionId !== undefined
+                ? action.actionId === focused.actionId
+                : action.abilityIndex === focused.abilityIndex &&
+                  action.kind === focused.kind &&
+                  action.label === focused.label),
+          )
+        : -1;
+      this.focusedAction = index >= 0 ? index : null;
+    }
     const embeddedChanged = previous?.embedded !== spec.embedded;
     const highlightChanged = previous?.highlightedEffect !== spec.highlightedEffect;
     this.displayedBackFace = spec.showBackFace;
@@ -601,25 +630,34 @@ export class RulesCardPreviewLayer {
   }
 
   focusAction(delta: number): void {
-    if (!this.spec?.actions.length) return;
-    this.actions.focusAction(delta);
-    const row = this.actions.focusedActionBounds;
-    if (row) this.primaryBody?.scrollIntoView(this.actions.y + row.top, row.height);
-    this.callbacks.onRenderRequested();
+    const count = this.spec?.actions.length ?? 0;
+    if (!count) return;
+    this.focusActionAt(
+      this.focusedAction === null
+        ? delta < 0
+          ? count - 1
+          : 0
+        : (((this.focusedAction + Math.trunc(delta)) % count) + count) % count,
+    );
   }
 
   focusActionAt(index: number): void {
-    if (!this.spec?.actions.length) return;
-    this.actions.focusActionAt(index);
-    const row = this.actions.focusedActionBounds;
-    if (row) this.primaryBody?.scrollIntoView(this.actions.y + row.top, row.height);
+    const entry = this.actionPanels.get(index);
+    if (!entry) return;
+    for (const view of [this.actions, ...this.extraActions])
+      if (view !== entry.view) view.clearFocus();
+    this.focusedAction = index;
+    entry.view.focusActionAt(entry.index);
+    const row = entry.view.focusedActionBounds;
+    if (row) entry.body.scrollIntoView(entry.view.y + row.top, row.height);
     this.callbacks.onRenderRequested();
   }
 
   getActionScreenBounds(index: number) {
     if (!this.spec || this.spec.suppressed || !this.container.visible) return null;
-    const bounds = this.actions.getActionScreenBounds(index);
-    const body = this.primaryBody;
+    const entry = this.actionPanels.get(index);
+    const bounds = entry?.view.getActionScreenBounds(entry.index);
+    const body = entry?.body;
     if (!bounds || !body?.scroller.visible) return null;
     const clip = body.clipScreenBounds.actions;
     const x = Math.max(bounds.x, clip.x);
@@ -637,13 +675,21 @@ export class RulesCardPreviewLayer {
 
   activateFocusedAction(): void {
     if (!this.spec?.actions.length || this.spec.suppressed) return;
-    this.actions.activateFocusedAction();
+    const hovered = [this.actions, ...this.extraActions].find((view) => view.hasHoveredAction);
+    const entry =
+      this.focusedAction === null ? undefined : this.actionPanels.get(this.focusedAction);
+    (
+      entry?.view ??
+      hovered ??
+      this.actionPanels.get(0)?.view ??
+      this.actions
+    ).activateFocusedAction();
     this.callbacks.onRenderRequested();
   }
 
   activateShortcut(shortcut: number): boolean {
     if (!this.spec?.actions.length) return false;
-    return this.actions.activateShortcut(shortcut);
+    return [this.actions, ...this.extraActions].some((view) => view.activateShortcut(shortcut));
   }
 
   activatePrimaryTransform(): void {
@@ -692,6 +738,9 @@ export class RulesCardPreviewLayer {
     this.fieldFace.visible =
       this.faceSprite.texture !== Texture.EMPTY && this.renderState !== "loading";
     this.actions.removeFromParent();
+    for (const view of this.extraActions) view.destroy({ children: true });
+    this.extraActions = [];
+    this.actionPanels.clear();
     this.controls.removeFromParent();
     for (const body of this.bodies) {
       this.scrollPositions.set(body.panel.id, body.scrollOffset);
@@ -742,22 +791,32 @@ export class RulesCardPreviewLayer {
       displayLabel: localizeRulesPreviewText(
         action.label,
         this.scryfallInfo,
-        display.liveFaceIndex,
+        action.faceIndex ?? display.liveFaceIndex,
       ),
     }));
-    const actionSection = display.otherFace
-      ? undefined
-      : display.sections.find(
-          (section) => section.faceIndex === display.liveFaceIndex && !section.planeswalker,
+    const activatedEntries = new Map<number, Set<string>>();
+    if (!display.otherFace)
+      for (const section of display.sections) {
+        if (section.planeswalker) continue;
+        const actions = indexedActions.filter(
+          ({ action }) =>
+            (previewActionFace(action) ?? display.liveFaceIndex) === section.faceIndex,
         );
-    const actionEntries = actionSection
-      ? rulesTextEntries(actionSection.rulesText, progression, actionSection.canonicalRulesText)
-      : [];
-    const activated = activatedRulesEntries(indexedActions, actionEntries, (text) =>
-      localizeRulesPreviewText(text, this.scryfallInfo, display.liveFaceIndex),
-    );
-    for (const [index, entry] of activated) indexedActions[index]!.displayLabel = entry;
-    const activatedEntries = new Set(activated.values());
+        const entries = rulesTextEntries(
+          section.rulesText,
+          progression,
+          section.canonicalRulesText,
+        );
+        const activated = activatedRulesEntries(actions, entries, (text) =>
+          localizeRulesPreviewText(
+            text,
+            this.scryfallInfo,
+            display.prototype ? 0 : section.faceIndex,
+          ),
+        );
+        for (const [index, entry] of activated) actions[index]!.displayLabel = entry;
+        activatedEntries.set(section.faceIndex, new Set(activated.values()));
+      }
     this.highlightedEntry = stackHighlightEntry(
       spec.highlightedEffect,
       display.sections.flatMap((section) =>
@@ -798,7 +857,7 @@ export class RulesCardPreviewLayer {
         frame,
         () => this.callbacks.onRenderRequested(),
         () => {
-          this.actions.cancelPress();
+          for (const view of [this.actions, ...this.extraActions]) view.cancelPress();
           this.controls.cancelPress();
         },
         (pointerId) => {
@@ -882,31 +941,82 @@ export class RulesCardPreviewLayer {
           ? rulesTextEntries(section.rulesText, progression, section.canonicalRulesText)
           : [];
       let y = this.scanOverlay ? 2 : 4;
+      const ownedActions = indexedActions.filter(({ action }) => {
+        if (
+          !this.scanOverlay &&
+          action.kind === "ability" &&
+          panels.some((panel) => panel.kind === "level")
+        ) {
+          const owner = levelActionPanel(action, panels);
+          return owner === undefined ? primary : body.panel.id === owner;
+        }
+        const owner = previewActionFace(action);
+        if (owner === undefined || this.scanOverlay) return primary;
+        return (
+          body ===
+          (this.bodies.find((candidate) => candidate.panel.faceIndex === owner) ?? this.primaryBody)
+        );
+      });
+      const actionView = primary ? this.actions : new RulesPreviewActions();
+      if (!primary) {
+        this.extraActions.push(actionView);
+        actionView.on("pointerover", () => this.callbacks.onRenderRequested());
+        actionView.on("pointerout", () => this.callbacks.onRenderRequested());
+      }
+      actionView.setContent({
+        width: body.contentWidth,
+        maxHeight: Number.POSITIVE_INFINITY,
+        theme: this.theme,
+        frame: this.frame,
+        actions: ownedActions,
+        controls: [],
+        statuses: [],
+        hint: "",
+        label: "",
+        onSelectAction: (action) => this.callbacks.onSelectAction(action),
+        embedded: true,
+        compact: body.bodyHeight < 48,
+      });
+      ownedActions.forEach((entry, index) =>
+        this.actionPanels.set(indexedActions.indexOf(entry), { view: actionView, index, body }),
+      );
+      if (this.focusedAction !== null) {
+        const focused = this.actionPanels.get(this.focusedAction);
+        if (focused?.view === actionView) actionView.focusActionAt(focused.index);
+        else actionView.clearFocus();
+      }
+      const panelState = previewPanelState(
+        spec.card,
+        body.panel,
+        display.prototype
+          ? "prototype"
+          : /\bRoom\b/.test(this.scryfallInfo?.type_line ?? "")
+            ? "room"
+            : deckCard.layout,
+      );
+      if (panelState) y = this.addStaticAbilityRow(body, panelState, y);
+      if (ownedActions.length > 0) {
+        actionView.position.set(0, y);
+        body.content.addChild(actionView);
+        y += actionView.panelHeight + SECTION_GAP;
+      }
       if (primary) {
-        this.actions.setContent({
-          width: body.contentWidth,
-          maxHeight: Number.POSITIVE_INFINITY,
-          theme: this.theme,
-          frame: this.frame,
-          actions: indexedActions,
-          controls: [],
-          statuses: [],
-          hint: "",
-          label: "",
-          onSelectAction: (action) => this.callbacks.onSelectAction(action),
-          embedded: true,
-          compact: body.bodyHeight < 48,
-        });
         if (display.keywords.length > 0)
           y = this.addKeywordChips(body, display.keywords, y) + SECTION_GAP;
-        if (indexedActions.length > 0) {
-          if (display.otherFace)
-            y = this.addStaticAbilityRow(body, i18n._(msg`Actions apply to the current face.`), y);
-          this.actions.visible = true;
-          this.actions.position.set(0, y);
-          body.content.addChild(this.actions);
-          y += this.actions.panelHeight + SECTION_GAP;
-        }
+        const suspended = suspendState(spec.card);
+        if (suspended) y = this.addStaticAbilityRow(body, suspended, y);
+        if (spec.card.isOnAdventure === true)
+          y = this.addStaticAbilityRow(
+            body,
+            i18n._(msg`On an Adventure · available actions are listed on their spell half`),
+            y,
+          );
+        if (body.panel.kind === "level" && display.stats)
+          y = this.addStaticAbilityRow(
+            body,
+            i18n._(msg`Current P/T: ${display.stats.power}/${display.stats.toughness}`),
+            y,
+          );
         if (visibleCounters.length > 0) {
           y = this.addChips(body, visibleCounters, y + 4) + 8;
         }
@@ -957,13 +1067,24 @@ export class RulesCardPreviewLayer {
         }
       }
       if (body.panel.kind === "level") {
-        const text = localizeRulesPreviewText(
-          body.panel.level?.rulesText ?? "",
-          this.scryfallInfo,
-          body.panel.faceIndex,
+        const entries = rulesTextEntries(body.panel.level?.rulesText ?? "", null);
+        const replaced = new Set(
+          ownedActions.flatMap(({ action }) => {
+            const index = action.abilityText
+              ? matchRulesEntry(action.abilityText, entries, action.cost)
+              : null;
+            return index === null ? [] : [index];
+          }),
         );
-        for (const entry of rulesTextEntries(text, null))
-          y = this.addOracleAbilityRow(body, entry, y, false);
+        for (const [index, entry] of entries.entries()) {
+          if (replaced.has(index)) continue;
+          y = this.addOracleAbilityRow(
+            body,
+            localizeRulesPreviewText(entry, this.scryfallInfo, body.panel.faceIndex),
+            y,
+            false,
+          );
+        }
       } else {
         const sections = this.scanOverlay ? display.sections : section ? [section] : [];
         for (const panelSection of sections) {
@@ -972,9 +1093,26 @@ export class RulesCardPreviewLayer {
             primary ? progression : null,
             panelSection.canonicalRulesText,
           );
+          const caseParts = /\bCase\b/.test(this.scryfallInfo?.type_line ?? "")
+            ? caseSections(panelSection.rulesText, panelSection.canonicalRulesText)
+            : [];
           for (const [entryIndex, text] of entries.entries()) {
             if (progressionOpening.includes(text)) continue;
-            if (panelSection === actionSection && activatedEntries.has(text)) continue;
+            if (activatedEntries.get(panelSection.faceIndex)?.has(text)) continue;
+            if (caseParts.length > 0) {
+              const part = caseParts.find((candidate) => candidate.text === text);
+              if (part?.kind === "toSolve")
+                y = this.addStaticAbilityRow(body, i18n._(msg`To solve`), y);
+              if (part?.kind === "solved") {
+                const label =
+                  spec.card.isSolved === undefined
+                    ? i18n._(msg`Solved ability`)
+                    : spec.card.isSolved
+                      ? i18n._(msg`Solved · active`)
+                      : i18n._(msg`Unsolved · inactive`);
+                y = this.addStaticAbilityRow(body, label, y);
+              }
+            }
             if (panelSection.planeswalker && body.planeswalker && entryIndex > 0) {
               const { separator } = body.planeswalker;
               body.content.addChild(
@@ -1782,7 +1920,7 @@ export class RulesCardPreviewLayer {
     if (!preserveHover && !this.spec) this.clearHover();
     this.bodyPointerId = null;
     for (const body of this.bodies) body.cancelInteraction();
-    this.actions.cancelInteraction();
+    for (const view of [this.actions, ...this.extraActions]) view.cancelInteraction();
     this.controls.cancelInteraction();
     this.container.visible = false;
     this.container.alpha = 0;
@@ -1800,6 +1938,7 @@ export class RulesCardPreviewLayer {
     this.clearFaceTexture();
     this.liveHighlight.destroy();
     this.actions.destroy();
+    for (const view of this.extraActions) view.destroy({ children: true });
     this.controls.destroy();
     this.container.destroy({ children: true });
   }

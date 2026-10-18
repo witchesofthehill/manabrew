@@ -11,6 +11,7 @@ import type { ScryfallCard } from "@/types/scryfall";
 import { msg } from "@lingui/core/macro";
 import { i18n } from "@/i18n/i18n";
 import { parseManaCost } from "@/pixi/manaSymbols";
+import { printedPrototype } from "@/lib/cardPrototype";
 
 export interface RulesPreviewSection {
   faceIndex: number;
@@ -35,6 +36,7 @@ export interface RulesPreviewDisplay {
   multipart: boolean;
   flippable: boolean;
   faceless: boolean;
+  prototype?: boolean;
   sections: RulesPreviewSection[];
   keywords: string[];
   stats: CardStatPresentation | null;
@@ -507,10 +509,66 @@ export function resolveRulesPreviewDisplay(options: {
     };
   }
 
+  const prototype = printedPrototype(info?.oracle_text ?? "");
+  if (prototype) {
+    const base = sectionFromFace(resolved.faces[0]!, localizedFaceText(info, 0), 0);
+    const lines = base.rulesText.split("\n");
+    const canonicalLines = base.canonicalRulesText.split("\n");
+    const alternate = {
+      ...base,
+      faceIndex: 1,
+      name: i18n._(msg`Prototype`),
+      manaCost: prototype.manaCost,
+      rulesText: lines[0]?.includes("(") ? lines[0].slice(lines[0].indexOf("(")) : "",
+      canonicalRulesText: canonicalLines[0] ?? "",
+      flavorText: "",
+    };
+    base.rulesText = lines.slice(1).join("\n");
+    base.canonicalRulesText = canonicalLines.slice(1).join("\n");
+    return {
+      name: base.name,
+      manaCost: card.isPrototyped === true ? presentation.manaCost : base.manaCost,
+      typeLine: base.typeLine,
+      faceIndex: 0,
+      liveFaceIndex: card.isPrototyped === true ? 1 : 0,
+      currentFace: true,
+      otherFace: false,
+      horizontal: false,
+      multipart: true,
+      flippable: false,
+      faceless: false,
+      prototype: true,
+      sections: [base, alternate],
+      keywords: grantedKeywordChips(card),
+      stats: presentation.stats,
+      loyalty: null,
+      defense: null,
+    };
+  }
   if (!flippable && resolved.isMultiFaced) {
     const sections = resolved.faces.map((part, index) =>
       sectionFromFace(part, localizedFaceText(info, index), index),
     );
+    const liveIndex =
+      card.faceIndex ??
+      resolved.faces.findIndex((part, index) =>
+        [
+          part.name,
+          localizedFaceText(info, index)?.canonicalName,
+          localizedFaceText(info, index)?.displayName,
+        ].some((name) => name && comparableText(name) === comparableText(card.identity.name)),
+      );
+    if (layout === "adventure" && liveIndex >= 0 && sections[liveIndex]) {
+      const selected = sections[liveIndex]!;
+      selected.rulesText = localizeRulesPreviewText(
+        presentation.rulesText || selected.canonicalRulesText,
+        info,
+        liveIndex,
+      );
+      selected.canonicalRulesText = presentation.rulesText || selected.canonicalRulesText;
+      selected.manaCost =
+        presentation.effectiveManaCost ?? presentation.manaCost ?? selected.manaCost;
+    }
     const name =
       info?.printed_name ??
       (sections.map((section) => section.name).join(FACE_SEPARATOR) ||
@@ -526,7 +584,7 @@ export function resolveRulesPreviewDisplay(options: {
       manaCost: "",
       typeLine,
       faceIndex: 0,
-      liveFaceIndex: 0,
+      liveFaceIndex: liveIndex === 1 ? 1 : 0,
       currentFace: true,
       otherFace: false,
       horizontal,

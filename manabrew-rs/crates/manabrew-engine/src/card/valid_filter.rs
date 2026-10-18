@@ -792,8 +792,10 @@ fn matches_card_state(state: CardStateSelector, card: &Card, context: MatchConte
                 || card.static_toughness_modifier != 0
         }
         CardStateSelector::Saddled => card.get_s_var("SaddledBy").is_some(),
+        CardStateSelector::Solved => card.is_solved(),
+        CardStateSelector::FullyUnlocked => card.unlocked_doors.len() == 2,
         CardStateSelector::MayPlaySource => card.may_play(context.source_controller),
-        CardStateSelector::Suspended => card.has_keyword("Suspend") && card.zone == ZoneType::Exile,
+        CardStateSelector::Suspended => card.is_suspended(),
         CardStateSelector::SingleTarget => false,
         CardStateSelector::PromisedGift => card.promised_gift.is_some(),
         CardStateSelector::RingBearer => context
@@ -1415,6 +1417,9 @@ fn legacy_matches_card_atom(raw: &str, card: &Card, context: MatchContext<'_>) -
             "legendary" => card.type_line.is_legendary(),
             "basic" => card.type_line.is_basic(),
             "snow" => card.type_line.is_snow(),
+            "issolved" => card.is_solved(),
+            "suspended" => card.is_suspended(),
+            "fullyunlocked" => card.unlocked_doors.len() == 2,
             _ => card.has_subtype(value),
         };
         return !positive_match;
@@ -1654,6 +1659,8 @@ fn legacy_matches_card_atom(raw: &str, card: &Card, context: MatchContext<'_>) -
         "historic" => matches_card_state(CardStateSelector::Historic, card, context),
         "modified" => matches_card_state(CardStateSelector::Modified, card, context),
         "issaddled" => matches_card_state(CardStateSelector::Saddled, card, context),
+        "issolved" => matches_card_state(CardStateSelector::Solved, card, context),
+        "fullyunlocked" => matches_card_state(CardStateSelector::FullyUnlocked, card, context),
         "mayplaysource" => matches_card_state(CardStateSelector::MayPlaySource, card, context),
         "exiledwithsource" => {
             matches_context_predicate(&ContextPredicate::ExiledWithSource, card, context)
@@ -2007,6 +2014,7 @@ fn matches_type_and_qualifier_parts(
                     "legendary" => card.type_line.is_legendary(),
                     "basic" => card.type_line.is_basic(),
                     "snow" => card.type_line.is_snow(),
+                    "fullyunlocked" => card.unlocked_doors.len() == 2,
                     _ => {
                         // Try subtype match
                         card.has_subtype(raw)
@@ -2112,6 +2120,11 @@ fn matches_type_and_qualifier_parts(
                 }
                 "kicked" => {
                     if !card.kicked {
+                        return false;
+                    }
+                }
+                "fullyunlocked" => {
+                    if card.unlocked_doors.len() < 2 {
                         return false;
                     }
                 }
@@ -2240,6 +2253,7 @@ fn matches_type_and_qualifier_parts(
                 | "historic"
                 | "modified"
                 | "issaddled"
+                | "issolved"
                 | "mayplaysource"
                 | "suspended"
                 | "singletarget"
@@ -2793,6 +2807,7 @@ fn check_condition_value(game: &GameState, condition: Option<&str>, source: &Car
         "Ferocious" => game.player_has_ferocious(controller),
         "Desert" => game.player_has_desert(controller),
         "Blessing" => game.player_has_blessing(controller),
+        "Solved" => source.is_solved(),
         "Monarch" => game.monarch == Some(controller),
         "Night" => game.is_night,
         "FatefulHour" => game.player(controller).life <= 5,

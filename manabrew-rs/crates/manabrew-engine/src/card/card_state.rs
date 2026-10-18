@@ -616,6 +616,9 @@ pub fn has_keyword(card: &Card, keyword: &str) -> bool {
     card.keywords.contains_string_ignore_case(keyword)
         || card.granted_keywords.contains_string_ignore_case(keyword)
         || card.pump_keywords.contains_string_ignore_case(keyword)
+        || card
+            .until_lose_control_keywords
+            .contains_string_ignore_case(keyword)
 }
 
 pub fn has_intrinsic_keyword(card: &Card, keyword: &str) -> bool {

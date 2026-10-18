@@ -860,7 +860,17 @@ impl GameLoop {
                             .find(|cid| game.card(*cid).counter_count(counter_type) >= amount_n)
                     };
                     if let Some(target) = target {
-                        game.card_mut(target).remove_counter(counter_type, amount_n);
+                        crate::ability::effects::effect_context::remove_counter_with_context(
+                            game,
+                            &mut self.trigger_handler,
+                            target,
+                            counter_type,
+                            amount_n,
+                            RunParams {
+                                player: Some(player),
+                                ..Default::default()
+                            },
+                        );
                     }
                 }
                 CostPart::AddCounter {
@@ -1504,9 +1514,17 @@ impl GameLoop {
                             .find(|cid| game.card(*cid).counter_count(counter_type) >= amount_n)
                     };
                     if let Some(target) = target {
-                        if game.card(target).zone == ZoneType::Battlefield {
-                            game.card_mut(target).remove_counter(counter_type, amount_n);
-                        }
+                        crate::ability::effects::effect_context::remove_counter_with_context(
+                            game,
+                            &mut self.trigger_handler,
+                            target,
+                            counter_type,
+                            amount_n,
+                            RunParams {
+                                player: Some(player),
+                                ..Default::default()
+                            },
+                        );
                     }
                 }
                 CostPart::AddCounter {
@@ -3506,17 +3524,16 @@ impl GameLoop {
                 // Pick first available counter type on the chosen card.
                 game.card(chosen).counters.keys().next().unwrap().clone()
             };
-            game.card_mut(chosen).remove_counter(&ct_to_remove, 1);
-            self.trigger_handler.run_trigger(
-                TriggerType::CounterRemoved,
+            crate::ability::effects::effect_context::remove_counter_with_context(
+                game,
+                &mut self.trigger_handler,
+                chosen,
+                &ct_to_remove,
+                1,
                 RunParams {
-                    card: Some(chosen),
                     player: Some(player),
-                    counter_type: Some(format!("{ct_to_remove:?}")),
-                    counter_amount: Some(1),
                     ..Default::default()
                 },
-                false,
             );
         }
     }

@@ -190,6 +190,14 @@ impl GameState {
                 );
             }
         }
+        if dest_zone == ZoneType::Battlefield
+            && src_zone != ZoneType::Battlefield
+            && self.card(card_id).is_room()
+            && self.card(card_id).cast_sa.is_none()
+        {
+            self.card_mut(card_id)
+                .set_room_state(forge_foundation::CardStateName::EmptyRoom);
+        }
         let mut etb_counters = std::collections::BTreeMap::new();
         if dest_zone == ZoneType::Battlefield {
             for keyword in self.cards[card_id.index()].keywords.as_string_list() {
@@ -312,6 +320,9 @@ impl GameState {
                 ),
                 _ => (dest_zone, None, None, Vec::new()),
             };
+        let adventure_exile = src_zone == ZoneType::Stack
+            && dest_zone == ZoneType::Exile
+            && self.card(card_id).on_adventure;
         let replacement_marked_etb_tapped = dest_zone == ZoneType::Battlefield
             && self.card(card_id).tapped
             && !tapped_before_replacement;
@@ -328,6 +339,9 @@ impl GameState {
         // Java `Card.clearCastSA` — the cast-SA link dies once the instance
         // leaves the battlefield (a new cast produces a fresh instance).
         if host_left_battlefield {
+            if self.card(card_id).is_room() {
+                self.update_lki_snapshot(card_id);
+            }
             self.card_mut(card_id).cast_sa = None;
             // `ControlGain$ LoseControl$ LeavesPlay` — drop the scheduled
             // revert since the card is no longer on the battlefield.
@@ -349,7 +363,10 @@ impl GameState {
 
         // Tokens and copy-tokens cease to exist when leaving the battlefield (CR 110.5g).
         // Set zone to None (limbo) and remove from source zone without adding to destination.
-        if is_token && dest_zone != ZoneType::Battlefield {
+        if (is_token && dest_zone != ZoneType::Battlefield)
+            || (self.card(card_id).copied_spell
+                && !matches!(dest_zone, ZoneType::Stack | ZoneType::Battlefield))
+        {
             if let Some(table) = self.pending_change_zone_table.as_mut() {
                 table.put(Some(src_zone), Some(ZoneType::None), card_id);
             }
@@ -394,6 +411,12 @@ impl GameState {
         if src_zone != dest_zone {
             self.cards[card_id.index()].turn_in_zone = self.turn.turn_number;
         }
+        if src_zone != dest_zone && self.card(card_id).room_faces.is_some() {
+            self.card_mut(card_id).unlocked_doors.clear();
+            if dest_zone != ZoneType::Battlefield || self.card(card_id).cast_sa.is_none() {
+                self.card_mut(card_id).update_rooms();
+            }
+        }
 
         if let Some(table) = self.pending_change_zone_table.as_mut() {
             table.put(Some(src_zone), Some(dest_zone), card_id);
@@ -407,6 +430,12 @@ impl GameState {
 
         // Track LKI: record which zone this card came from on the destination zone.
         self.save_zone_lki(dest_zone, dest_owner, card_id, src_zone);
+        if src_zone != dest_zone {
+            self.card_mut(card_id).set_solved(false);
+            if !(src_zone == ZoneType::Stack && dest_zone == ZoneType::Battlefield) {
+                self.card_mut(card_id).until_lose_control_keywords.clear();
+            }
+        }
 
         // Reset state on zone change
         match dest_zone {
@@ -422,6 +451,27 @@ impl GameState {
                 // Add to destination zone first so the card is "on the
                 // battlefield" when ETB-tapped checks run against it.
                 self.add_card_to_zone(dest_zone, dest_owner, card_id);
+                if src_zone != ZoneType::Battlefield && self.card(card_id).is_room() {
+                    let cast_door = self.card(card_id).cast_sa.as_ref().map(|sa| {
+                        (
+                            sa.activating_player,
+                            sa.ir
+                                .card_state_name
+                                .as_deref()
+                                .and_then(forge_foundation::CardStateName::from_str_compat)
+                                .unwrap_or(forge_foundation::CardStateName::LeftSplit),
+                        )
+                    });
+                    if let Some((player, door)) = cast_door {
+                        if let Some(handler) = trigger_handler.as_deref_mut() {
+                            crate::ability::effects::unlock_door_effect::unlock_room(
+                                self, handler, card_id, player, door,
+                            );
+                        } else {
+                            self.card_mut(card_id).unlock_room(door);
+                        }
+                    }
+                }
                 if was_land {
                     self.player_record_landfall(dest_owner);
                 }
@@ -598,6 +648,16 @@ impl GameState {
                 }
             }
             _ => {}
+        }
+        if src_zone != dest_zone {
+            let card = &mut self.cards[card_id.index()];
+            card.on_adventure = adventure_exile;
+            if dest_zone != ZoneType::Stack {
+                card.set_adventure_state(false);
+                if !(src_zone == ZoneType::Stack && dest_zone == ZoneType::Battlefield) {
+                    card.reset_prototype();
+                }
+            }
         }
 
         // Add to destination zone
@@ -1627,7 +1687,7 @@ impl GameState {
             self.remove_card_from_zone(zone, old_controller, card_id);
             self.add_card_to_zone(zone, new_controller, card_id);
         }
-        self.cards[card_id.index()].controller = new_controller;
+        self.cards[card_id.index()].set_controller(new_controller);
     }
 
     /// Attach `aura_id` to `target_id`.

@@ -489,6 +489,8 @@ impl GameLoop {
                 let played = if ab.is_mana_ability {
                     self.resolve_mana_ability(game, agents, player, card_id, &ab, None);
                     true
+                } else if ab.is_unlock_door {
+                    self.resolve_immediate_ability(game, agents, player, card_id, &ab)
                 } else if ab
                     .params
                     .get(keys::AB)
@@ -530,13 +532,30 @@ impl GameLoop {
         sa.alt_cost_index = play.alt_cost_index;
         let mut static_alternative_cost_prepared = false;
         match play_mode {
-            crate::agent::PlayCardMode::Normal => {}
+            crate::agent::PlayCardMode::Normal => {
+                if game.card(card_id).is_room() {
+                    sa.ir.card_state_name = Some("LeftSplit".to_string());
+                }
+            }
+            crate::agent::PlayCardMode::Adventure => {
+                let mut host = game.card(card_id).clone();
+                if !host.is_adventure_card() || host.is_on_adventure() {
+                    return None;
+                }
+                host.set_adventure_state(true);
+                sa = crate::ability::ability_factory::build_spell_ability_for_host_card_cast(
+                    &host, player,
+                );
+                sa.ir.card_state_name = Some("Secondary".to_string());
+            }
             crate::agent::PlayCardMode::RoomRightSplit => {
-                let cost = game.card(card_id).svars.get("RoomRightSplitCost")?;
-                sa.pay_costs = Some(parse_cost(cost));
+                let face = game
+                    .card(card_id)
+                    .room_face(forge_foundation::CardStateName::RightSplit)?;
+                sa.pay_costs = Some(parse_cost(&face.mana_cost.to_string()));
                 sa.ir.card_state_name = Some("RightSplit".to_string());
             }
-            crate::agent::PlayCardMode::UnlockDoor
+            crate::agent::PlayCardMode::UnlockDoor { .. }
             | crate::agent::PlayCardMode::ForetellExile
             | crate::agent::PlayCardMode::BackFaceLand => return None,
             crate::agent::PlayCardMode::StaticAlternative => {
@@ -567,6 +586,10 @@ impl GameLoop {
                     return None;
                 }
                 sa.alt_cost = Some(alt_cost);
+                if alt_cost == crate::spellability::AlternativeCost::Prototype {
+                    let (cost, _, _) = game.card(card_id).get_prototype_cost()?;
+                    sa.pay_costs = Some(parse_cost(&cost.to_string()));
+                }
                 // Capture Evoke keyword count from the card WHILE STILL IN ITS
                 // ORIGINAL ZONE (usually hand). Zone-gated statics like Ashling,
                 // the Limitless's `AddKeyword$ Evoke:4 | AffectedZone$ Hand` grant
@@ -640,13 +663,57 @@ impl GameLoop {
             crate::agent::PlayCardMode::Alternative(
                 crate::spellability::AlternativeCost::Suspend,
             ) => {
-                if let Some((suspend_cost, counters)) = game.card(card_id).get_suspend_cost() {
-                    if !game.card_is_in_zone(card_id, ZoneType::Hand) {
+                if let Some(suspend) = game.card(card_id).get_suspend_cost() {
+                    if !game.card_is_in_zone(card_id, ZoneType::Hand)
+                        || game.card(card_id).controller != player
+                        || crate::spellability::has_split_second_on_stack(game)
+                    {
+                        return Some(None);
+                    }
+                    let suspend_sa = crate::spellability::build_spell_ability_for_card_cast(
+                        game, card_id, player,
+                    );
+                    if !suspend_sa.can_cast_timing(game)
+                        || crate::staticability::static_ability_cant_be_cast::cant_be_cast_ability_in_context(
+                            &game.cards, &suspend_sa,
+                            &crate::staticability::static_ability_cant_be_cast::restriction_host(game.card(card_id)),
+                            player, Some(game),
+                        )
+                    {
                         return Some(None);
                     }
                     let available_mana =
                         mana::calculate_available_mana(self.pool(player), game, player);
-                    let suspend_mc = forge_foundation::ManaCost::parse(&suspend_cost);
+                    let x_count = suspend.mana_cost.count_x() as i32;
+                    let mut suspend_mc = suspend.mana_cost.without_x();
+                    let x_paid = if x_count > 0 {
+                        let mut maximum = 0;
+                        while maximum < available_mana.total_mana()
+                            && available_mana.can_pay(&suspend_mc.add(
+                                &forge_foundation::ManaCost::generic((maximum + 1) * x_count),
+                            ))
+                        {
+                            maximum += 1;
+                        }
+                        if maximum < suspend.x_min {
+                            return Some(None);
+                        }
+                        let Some(chosen) = agents[player.index()].choose_number(
+                            player,
+                            Some(card_id),
+                            "Choose a value for X",
+                            None,
+                            suspend.x_min,
+                            maximum,
+                        ) else {
+                            return Some(None);
+                        };
+                        chosen
+                    } else {
+                        0
+                    };
+                    suspend_mc =
+                        suspend_mc.add(&forge_foundation::ManaCost::generic(x_paid * x_count));
                     if !available_mana.can_pay(&suspend_mc) {
                         return Some(None);
                     }
@@ -660,6 +727,12 @@ impl GameLoop {
                     self.emit_tap_for_mana_triggers(player, &tapped);
                     self.pool_mut(player).try_pay(&suspend_mc);
                     self.move_card_with_runtime(game, card_id, ZoneType::Exile, player, agents);
+                    if game.card(card_id).zone != ZoneType::Exile {
+                        return Some(None);
+                    }
+                    game.card_mut(card_id)
+                        .set_s_var("XPaid", x_paid.to_string());
+                    let counters = suspend.time_counters.resolve(game, card_id, player);
                     crate::ability::effects::effect_context::add_counter_with_context(
                         game,
                         Some(&mut self.trigger_handler),
@@ -694,11 +767,63 @@ impl GameLoop {
         game: &mut GameState,
         agents: &mut [Box<dyn PlayerAgent>],
         player: PlayerId,
+        sa: SpellAbility,
+        static_alternative_cost_prepared: bool,
+    ) -> Option<(CardId, String)> {
+        let card_id = sa.source?;
+        let adventure = sa.ir.card_state_name.as_deref() == Some("Secondary")
+            && game.card(card_id).is_adventure_card();
+        let prototype = sa.alt_cost == Some(crate::spellability::AlternativeCost::Prototype);
+        let room = game.card(card_id).is_room();
+        let original = (adventure || prototype || room).then(|| game.card(card_id).clone());
+        if adventure {
+            game.card_mut(card_id).set_adventure_state(true);
+        }
+        if prototype && !game.card_mut(card_id).apply_prototype() {
+            return None;
+        }
+        if room {
+            let door = sa
+                .ir
+                .card_state_name
+                .as_deref()
+                .and_then(forge_foundation::CardStateName::from_str_compat)
+                .unwrap_or(forge_foundation::CardStateName::LeftSplit);
+            game.card_mut(card_id).set_room_state(door);
+        }
+        let result = self.cast_card_spell_ability_inner(
+            game,
+            agents,
+            player,
+            sa,
+            static_alternative_cost_prepared,
+        );
+        if result.is_none() {
+            if let Some(original) = original {
+                game.cards[card_id.index()] = original;
+            }
+        }
+        result
+    }
+
+    fn cast_card_spell_ability_inner(
+        &mut self,
+        game: &mut GameState,
+        agents: &mut [Box<dyn PlayerAgent>],
+        player: PlayerId,
         mut sa: SpellAbility,
         static_alternative_cost_prepared: bool,
     ) -> Option<(CardId, String)> {
         let card_id = sa.source?;
         let card = game.card(card_id);
+        if (sa.alt_cost.is_none()
+            || sa.alt_cost == Some(crate::spellability::AlternativeCost::Prototype))
+            && !crate::staticability::static_ability_continuous::can_play_spell_from_zone(
+                game, player, card, &sa,
+            )
+        {
+            return None;
+        }
         let card_name = card.card_name.clone();
         let original_zone = card.zone;
 
@@ -1307,6 +1432,15 @@ impl GameLoop {
         let announced_from_zone = game.card_current_zone(card_id);
         if sa.is_spell && !game.card_is_in_zone(card_id, ZoneType::Stack) {
             self.move_card_with_runtime(game, card_id, ZoneType::Stack, player, agents);
+            if game.card(card_id).is_room() {
+                let door = sa
+                    .ir
+                    .card_state_name
+                    .as_deref()
+                    .and_then(forge_foundation::CardStateName::from_str_compat)
+                    .unwrap_or(forge_foundation::CardStateName::LeftSplit);
+                game.card_mut(card_id).set_room_state(door);
+            }
         }
         let pending_stack_id = if sa.is_spell {
             Some(game.stack.begin_pending_cast(StackEntry {
@@ -2318,7 +2452,11 @@ impl GameLoop {
                     crate::perf::increment(crate::perf::Metric::StackEntryClones, 1);
                     let mut copy = entry.clone();
                     copy.spell_ability =
-                        crate::card::card_factory::copy_spell_ability(&entry.spell_ability, player);
+                        crate::card::card_factory::copy_spell_ability_and_possibly_host(
+                            game,
+                            &entry.spell_ability,
+                            player,
+                        );
                     if copy.spell_ability.uses_targeting() {
                         agents[player.index()].snapshot_state(game, &self.mana_pools);
                         agents[player.index()].notify(
@@ -2379,7 +2517,11 @@ impl GameLoop {
                 crate::perf::increment(crate::perf::Metric::StackEntryClones, 1);
                 let mut copy = entry.clone();
                 copy.spell_ability =
-                    crate::card::card_factory::copy_spell_ability(&entry.spell_ability, player);
+                    crate::card::card_factory::copy_spell_ability_and_possibly_host(
+                        game,
+                        &entry.spell_ability,
+                        player,
+                    );
                 if copy.spell_ability.uses_targeting() {
                     agents[player.index()].snapshot_state(game, &self.mana_pools);
                     agents[player.index()].notify(

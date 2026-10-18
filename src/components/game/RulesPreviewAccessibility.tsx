@@ -1,10 +1,19 @@
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useId, useLayoutEffect, useRef, useState } from "react";
 import type { CardDto } from "@/protocol/game";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { cn } from "@/lib/utils";
 import { useResolvedGameCard } from "@/hooks/useResolvedGameCard";
 import { deriveCardPresentation } from "@/components/game/cardPresentation";
 import { resolveRulesPreviewDisplay } from "@/pixi/cardPreview/rulesCardPreviewPresentation";
+import {
+  caseSections,
+  levelBandActive,
+  previewPanelState,
+  suspendState,
+} from "@/pixi/cardPreview/previewMechanics";
+import { printedPrototype } from "@/lib/cardPrototype";
+import { i18n } from "@/i18n/i18n";
+import { msg } from "@lingui/core/macro";
 
 interface Bounds {
   x: number;
@@ -26,7 +35,11 @@ interface Props {
   onDismiss?: () => void;
 }
 
-function RulesPreviewOracleText({ card, showBackFace }: Pick<Props, "card" | "showBackFace">) {
+function RulesPreviewOracleText({
+  card,
+  showBackFace,
+  descriptionId,
+}: Pick<Props, "card" | "showBackFace"> & { descriptionId: string }) {
   const { info, deckCard } = useResolvedGameCard(card);
   const presentation = deriveCardPresentation(card);
   const display = resolveRulesPreviewDisplay({
@@ -38,22 +51,103 @@ function RulesPreviewOracleText({ card, showBackFace }: Pick<Props, "card" | "sh
     faceless: false,
   });
   const progression = display.currentFace ? presentation.progression?.rail : null;
+  const layout = display.prototype
+    ? "prototype"
+    : /\bRoom\b/.test(info?.type_line ?? "")
+      ? "room"
+      : deckCard.layout;
+  const suspended = suspendState(card);
+  const prototype = printedPrototype(info?.oracle_text ?? "");
+  const ranges = [...(info?.oracle_text ?? "").matchAll(/^LEVEL\s+([^\n]+)/gm)].map(
+    (match) => match[1]!,
+  );
+  if (ranges.length)
+    ranges.unshift(`0-${Math.max(0, Number(ranges[0]?.match(/\d+/)?.[0] ?? 1) - 1)}`);
   return (
-    <div className="sr-only">
+    <div id={descriptionId} className="sr-only">
+      <div aria-live="polite">
+        {suspended && <p>{suspended}</p>}
+        {display.stats && (
+          <p>
+            {i18n._(msg`Current power and toughness`)}: {display.stats.power}/
+            {display.stats.toughness}
+          </p>
+        )}
+        {card.isPrototyped !== undefined && prototype && (
+          <p>{card.isPrototyped ? i18n._(msg`Prototyped`) : i18n._(msg`Not prototyped`)}</p>
+        )}
+        {ranges.map((range) => {
+          const active = levelBandActive(range, card);
+          return (
+            <p key={range}>
+              {i18n._(msg`Level`)} {range}
+              {active === undefined
+                ? ""
+                : active
+                  ? `: ${i18n._(msg`Active level`)}`
+                  : `: ${i18n._(msg`Inactive level`)}`}
+            </p>
+          );
+        })}
+      </div>
       {progression && (
         <p aria-live="polite">
           {progression.kind === "saga" ? "Chapter" : "Level"} {progression.current} of{" "}
           {progression.max}
         </p>
       )}
-      {display.sections.map((section, index) => (
-        <section key={index} aria-label={section.name}>
-          <h3>{section.name}</h3>
-          <p>{section.typeLine}</p>
-          <p>{section.rulesText}</p>
-          {section.flavorText && <p>{section.flavorText}</p>}
-        </section>
-      ))}
+      {display.sections.map((section, index) => {
+        const state = previewPanelState(card, { faceIndex: section.faceIndex }, layout);
+        const caseCard = /\bCase\b/.test(info?.type_line ?? "");
+        const stats = prototype
+          ? section.faceIndex === 1
+            ? prototype
+            : { power: info?.power, toughness: info?.toughness }
+          : undefined;
+        return (
+          <section key={index} aria-label={section.name}>
+            <h3>{section.name}</h3>
+            {state && <p aria-live="polite">{state}</p>}
+            {section.manaCost && (
+              <p>
+                {i18n._(msg`Mana cost`)}: {section.manaCost}
+              </p>
+            )}
+            <p>{section.typeLine}</p>
+            {stats?.power !== undefined && stats.toughness !== undefined && (
+              <p>
+                {i18n._(msg`Printed power and toughness`)}: {stats.power}/{stats.toughness}
+              </p>
+            )}
+            {caseCard ? (
+              caseSections(section.rulesText, section.canonicalRulesText).map((part, partIndex) => (
+                <section
+                  key={partIndex}
+                  aria-label={
+                    part.kind === "base"
+                      ? i18n._(msg`Base ability`)
+                      : part.kind === "toSolve"
+                        ? i18n._(msg`To solve`)
+                        : i18n._(msg`Solved ability`)
+                  }
+                >
+                  {part.kind === "solved" && card.isSolved !== undefined && (
+                    <p aria-live="polite">
+                      {card.isSolved
+                        ? i18n._(msg`Solved · active`)
+                        : i18n._(msg`Unsolved · inactive`)}
+                    </p>
+                  )}
+                  <p>{part.text}</p>
+                </section>
+              ))
+            ) : (
+              <p>{section.rulesText}</p>
+            )}
+            {section.flavorText && <p>{section.flavorText}</p>}
+          </section>
+        );
+      })}
     </div>
   );
 }
@@ -72,6 +166,7 @@ export function RulesPreviewAccessibility({
   onDismiss,
 }: Props) {
   const [focus, setFocus] = useState<{ key: string; bounds: Bounds } | null>(null);
+  const descriptionId = useId();
   const sectionRef = useRef<HTMLElement>(null);
   const focusHold = useRef<{ hold: () => void; release: () => void } | null>(null);
   const releaseFocusHold = useCallback(() => {
@@ -129,7 +224,11 @@ export function RulesPreviewAccessibility({
         }
       }}
     >
-      <RulesPreviewOracleText card={card} showBackFace={showBackFace} />
+      <RulesPreviewOracleText
+        card={card}
+        showBackFace={showBackFace}
+        descriptionId={descriptionId}
+      />
       {controls.map((control) => {
         const focused = focus?.key === control.key;
         return (
@@ -156,6 +255,7 @@ export function RulesPreviewAccessibility({
                 : undefined
             }
             aria-label={control.label}
+            aria-describedby={descriptionId}
             onFocus={() => {
               const bounds =
                 control.actionIndex === undefined

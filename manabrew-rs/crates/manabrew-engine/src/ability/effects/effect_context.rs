@@ -77,6 +77,57 @@ pub(crate) fn add_counter_with_context(
         .get(source, GameEntity::Card(card_id), counter_type)
 }
 
+pub(crate) fn remove_counter_with_context(
+    game: &mut GameState,
+    trigger_handler: &mut TriggerHandler,
+    card_id: CardId,
+    counter_type: &CounterType,
+    amount: i32,
+    mut params: RunParams,
+) -> i32 {
+    use crate::replacement::replacement_handler::{apply_replacements, ReplacementEvent};
+    use crate::replacement::ReplacementResult;
+    let mut event = ReplacementEvent::RemoveCounter {
+        target: card_id,
+        counter_type: counter_type.clone(),
+        count: amount,
+    };
+    let result = apply_replacements(game, &mut event);
+    if matches!(
+        result,
+        ReplacementResult::Skipped | ReplacementResult::Replaced
+    ) {
+        return 0;
+    }
+    let ReplacementEvent::RemoveCounter { count, .. } = event else {
+        return 0;
+    };
+    let current = game.card(card_id).counter_count(counter_type);
+    let actual = count.min(current).max(0);
+    if actual == 0 {
+        return 0;
+    }
+    game.card_mut(card_id).remove_counter(counter_type, actual);
+    params.card = Some(card_id);
+    params.counter_type = Some(format!("{counter_type:?}"));
+    params.counter_amount = Some(1);
+    for removed in 1..=actual {
+        params.new_counter_amount = Some(current - removed);
+        trigger_handler.run_trigger(
+            crate::trigger::TriggerType::CounterRemoved,
+            params.clone(),
+            false,
+        );
+    }
+    params.counter_amount = Some(actual);
+    trigger_handler.run_trigger(
+        crate::trigger::TriggerType::CounterRemovedOnce,
+        params,
+        false,
+    );
+    actual
+}
+
 impl EffectContext<'_> {
     /// Get the number of art variants for a token in a given edition,
     /// following TokenFallbackCode chains. Returns 1 if not found.

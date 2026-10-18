@@ -14,6 +14,7 @@ import { useShallow } from "zustand/react/shallow";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CardChoiceDto, CardDto, CheckpointDto, StackObjectDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
+import type { ActivatableAbilityInfo } from "@/protocol/prompts/common";
 import type { ClientCardDto, ClientPlayerDto } from "@/stores/gameStore.types";
 import { GameModals } from "@/components/game/GameModals";
 import { LandscapeGate } from "@/components/LandscapeGate";
@@ -90,7 +91,7 @@ import {
 import {
   isPermanentSpellCard,
   stackObjectAbilityText,
-  stackObjectToCardStub,
+  stackObjectToCard,
 } from "@/components/game/game.utils";
 import { createPortal } from "react-dom";
 import { Card } from "@/components/game/Card";
@@ -454,13 +455,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     })),
   );
   const toAbilityOption = (
-    a: {
-      cardId: string;
-      abilityIndex: number;
-      description: string;
-      isManaAbility: boolean;
-      isClassLevelUp?: boolean;
-      cost?: string;
+    a: ActivatableAbilityInfo & {
       displayManaLetters?: string[];
       colorChoice?: string;
     },
@@ -470,8 +465,11 @@ export default function Game({ exitTo }: GameProps = {}) {
     cardId: a.cardId,
     abilityIndex: a.abilityIndex,
     label: a.description,
+    abilityText: a.description,
     isManaAbility: a.isManaAbility,
     isClassLevelUp: a.isClassLevelUp,
+    faceIndex: a.faceIndex,
+    mechanic: a.mechanic,
     cost: a.cost,
     displayManaLetters: a.displayManaLetters,
     colorChoice: a.colorChoice,
@@ -485,7 +483,9 @@ export default function Game({ exitTo }: GameProps = {}) {
       arr.push({
         kind: "cast" as const,
         cardId: a.cardId,
-        mode: a.mode.type,
+        mode: a.mode,
+        faceIndex: a.faceIndex,
+        mechanic: a.mechanic,
         label: a.label,
         actionId: a.id,
       });
@@ -517,6 +517,8 @@ export default function Game({ exitTo }: GameProps = {}) {
           description: a.description,
           isManaAbility: true,
           isClassLevelUp: false,
+          faceIndex: a.faceIndex,
+          mechanic: a.mechanic,
           cost: a.cost,
           producedMana: a.producedMana,
           actionId: a.id,
@@ -594,8 +596,11 @@ export default function Game({ exitTo }: GameProps = {}) {
     [manualApi, getManualCardActions, castOptions, abilitiesByCardId],
   );
   const getBattlefieldAbilityOptions = useCallback(
-    (card: CardDto): HandActionOption[] => abilitiesByCardId.get(card.id) ?? [],
-    [abilitiesByCardId],
+    (card: CardDto): HandActionOption[] => [
+      ...castOptions(card).filter((action) => action.mode?.type === "unlockDoor"),
+      ...(abilitiesByCardId.get(card.id) ?? []),
+    ],
+    [castOptions, abilitiesByCardId],
   );
   const getCardActions = useCallback(
     (card: CardDto): HandActionOption[] => {
@@ -1784,7 +1789,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     const byId = new Map<string, ClientCardDto>();
     for (const s of gameView?.stack ?? []) {
       if (byId.has(s.sourceId)) continue;
-      byId.set(s.sourceId, stackObjectToCardStub(s));
+      byId.set(s.sourceId, stackObjectToCard(s));
     }
     return byId;
   }, [gameView?.stack]);
@@ -1816,12 +1821,23 @@ export default function Game({ exitTo }: GameProps = {}) {
   const previewCardId = preview.hoveredCard?.id ?? null;
   const livePreviewCard = useMemo(() => {
     if (!previewCardId) return null;
+    const stackObject = gameView?.stack.find(
+      (object) => object.id === hoveredStackObjectIdForSpecs && object.sourceId === previewCardId,
+    );
+    if (stackObject?.sourceCard) return stackObjectToCard(stackObject);
     return (
       visibleCardsById.get(previewCardId) ??
       stackCardsBySourceId.get(previewCardId) ??
       (preview.hoveredCard ? { ...preview.hoveredCard, zoneId: "prompt" } : null)
     );
-  }, [preview.hoveredCard, previewCardId, stackCardsBySourceId, visibleCardsById]);
+  }, [
+    preview.hoveredCard,
+    previewCardId,
+    stackCardsBySourceId,
+    visibleCardsById,
+    gameView?.stack,
+    hoveredStackObjectIdForSpecs,
+  ]);
   const previewFaceCard = singleCommandPreviewCard ?? livePreviewCard;
   const [previewFaceOverride, setPreviewFaceOverride] = useState<{
     cardId: string;
@@ -2008,7 +2024,9 @@ export default function Game({ exitTo }: GameProps = {}) {
     [gameView?.players],
   );
   const resolveStackCard = (stackItem: StackObjectDto): CardDto =>
-    visibleCardsById.get(stackItem.sourceId) ?? stackCardsBySourceId.get(stackItem.sourceId)!;
+    stackItem.sourceCard
+      ? stackObjectToCard(stackItem)
+      : (visibleCardsById.get(stackItem.sourceId) ?? stackCardsBySourceId.get(stackItem.sourceId)!);
   const activeFlashCard: CardDto | null = useMemo(() => {
     if (!activeFlash || activeFlash.kind !== "card") return null;
     return (

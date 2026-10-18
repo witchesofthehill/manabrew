@@ -5,7 +5,6 @@ use crate::ability::ability_ir::DefinedRef;
 use crate::card::CounterType;
 use crate::event::RunParams;
 use crate::parsing::keys;
-use crate::trigger::TriggerType;
 
 /// `SP$ MoveCounter` — move counters from one permanent to another.
 ///
@@ -53,11 +52,25 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         });
 
     let from = match from_id {
-        Some(id) if ctx.game.card(id).zone == ZoneType::Battlefield => id,
+        Some(id)
+            if matches!(
+                ctx.game.card(id).zone,
+                ZoneType::Battlefield | ZoneType::Exile
+            ) =>
+        {
+            id
+        }
         _ => return,
     };
     let to = match to_id {
-        Some(id) if ctx.game.card(id).zone == ZoneType::Battlefield => id,
+        Some(id)
+            if matches!(
+                ctx.game.card(id).zone,
+                ZoneType::Battlefield | ZoneType::Exile
+            ) =>
+        {
+            id
+        }
         _ => return,
     };
 
@@ -81,18 +94,16 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     {
         return;
     }
-    ctx.game
-        .card_mut(from)
-        .remove_counter(&counter_type, actual);
-    ctx.trigger_handler.run_trigger(
-        TriggerType::CounterRemoved,
+    let actual = super::effect_context::remove_counter_with_context(
+        ctx.game,
+        ctx.trigger_handler,
+        from,
+        &counter_type,
+        actual,
         RunParams {
-            card: Some(from),
-            counter_type: Some(format!("{counter_type:?}")),
-            counter_amount: Some(actual),
+            player: Some(sa.activating_player),
             ..Default::default()
         },
-        false,
     );
     ctx.add_counter(to, &counter_type, actual, sa, RunParams::default());
 }

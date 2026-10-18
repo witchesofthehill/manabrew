@@ -21,14 +21,19 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     let amount = super::resolve_numeric_svar(ctx.game, sa, "CounterNum", 1).max(0);
 
     // Source: card to remove counters from
-    let source_card = sa
-        .source
-        .filter(|&cid| ctx.game.card(cid).zone == ZoneType::Battlefield);
+    let source_card = sa.source.filter(|&cid| {
+        matches!(
+            ctx.game.card(cid).zone,
+            ZoneType::Battlefield | ZoneType::Exile
+        )
+    });
     // Target: card to add counters to
-    let target_card = sa
-        .target_chosen
-        .target_card
-        .filter(|&cid| ctx.game.card(cid).zone == ZoneType::Battlefield);
+    let target_card = sa.target_chosen.target_card.filter(|&cid| {
+        matches!(
+            ctx.game.card(cid).zone,
+            ZoneType::Battlefield | ZoneType::Exile
+        )
+    });
 
     let (Some(from), Some(to)) = (source_card, target_card) else {
         return;
@@ -58,9 +63,17 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         return;
     }
 
-    ctx.game
-        .card_mut(from)
-        .remove_counter(&counter_type, to_move);
+    let to_move = super::effect_context::remove_counter_with_context(
+        ctx.game,
+        ctx.trigger_handler,
+        from,
+        &counter_type,
+        to_move,
+        crate::event::RunParams {
+            player: Some(sa.activating_player),
+            ..Default::default()
+        },
+    );
     ctx.add_counter(
         to,
         &counter_type,

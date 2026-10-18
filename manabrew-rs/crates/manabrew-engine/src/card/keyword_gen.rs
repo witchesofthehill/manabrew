@@ -278,6 +278,15 @@ impl Card {
             }
         }
 
+        if let Some(cost) = self.get_keyword_cost("Level up") {
+            let raw = format!("AB$ PutCounter | Cost$ {cost} | PrecostDesc$ Level up | SorcerySpeed$ True | Secondary$ True | CounterType$ LEVEL | CounterNum$ 1 | StackDescription$ {{p:You}} levels up {{c:Self}}. | SpellDescription$ Level up");
+            let index = self.activated_abilities.len();
+            if let Some(mut ability) = parse_activated_ability(&raw, index) {
+                ability.is_level_up = true;
+                self.activated_abilities.push(ability);
+            }
+        }
+
         // Class: K:Class:{level}:{cost}:{params} → AB$ ClassLevelUp.
         // Mirrors Java CardFactoryUtil lines 2789-2799.
         let class_keywords: Vec<String> = self
@@ -798,6 +807,39 @@ impl Card {
     }
 
     fn generate_keyword_trigger_misc(&mut self, kw: &str, next_id: &mut u32) {
+        if kw == "Suspend" || kw.starts_with("Suspend:") {
+            let upkeep = "Mode$ Phase | Phase$ Upkeep | ValidPlayer$ You | TriggerZones$ Exile | IsPresent$ Card.Self+suspended | PresentZone$ Exile | Secondary$ True | Execute$ TrigSuspendRemove | TriggerDescription$ At the beginning of your upkeep, if this card is suspended, remove a time counter from it.";
+            if let Some(trigger) = parse_trigger(upkeep, next_id) {
+                self.add_trigger(trigger);
+            }
+            self.svars
+                .entry("TrigSuspendRemove".to_string())
+                .or_insert_with(|| {
+                    "DB$ RemoveCounter | Defined$ Self | CounterType$ TIME | CounterNum$ 1"
+                        .to_string()
+                });
+            let play = "Mode$ CounterRemoved | TriggerZones$ Exile | ValidCard$ Card.Self | CounterType$ TIME | NewCounterAmount$ 0 | Secondary$ True | Execute$ TrigSuspendPlay | TriggerDescription$ When the last time counter is removed from this card, if it's exiled, you may play it without paying its mana cost if able.";
+            if let Some(trigger) = parse_trigger(play, next_id) {
+                self.add_trigger(trigger);
+            }
+            let permanent = self.is_permanent();
+            self.svars.entry("TrigSuspendPlay".to_string()).or_insert_with(|| {
+                if permanent {
+                    "DB$ Play | Defined$ Self | WithoutManaCost$ True | Optional$ True | ConditionPresent$ Card.Self | ConditionPresentZone$ Exile | RememberPlayed$ True | SubAbility$ DBSuspendHaste".to_string()
+                } else {
+                    "DB$ Play | Defined$ Self | WithoutManaCost$ True | Optional$ True | ConditionPresent$ Card.Self | ConditionPresentZone$ Exile".to_string()
+                }
+            });
+            if permanent {
+                self.svars.entry("DBSuspendHaste".to_string()).or_insert_with(|| {
+                    "DB$ Pump | Defined$ Remembered | KW$ Haste | PumpZone$ Stack | ConditionDefined$ Remembered | ConditionPresent$ Creature | Duration$ UntilLoseControlOfHost | SubAbility$ DBSuspendCleanup".to_string()
+                });
+                self.svars
+                    .entry("DBSuspendCleanup".to_string())
+                    .or_insert_with(|| "DB$ Cleanup | ClearRemembered$ True".to_string());
+            }
+        }
+
         if let Some(cost_str) = crate::keyword::extract_keyword_cost_str(kw, "Ward") {
             let raw = "Mode$ BecomesTarget | ValidSource$ SpellAbility.OppCtrl | ValidTarget$ Card.Self | Secondary$ True | TriggerZones$ Battlefield | TriggerDescription$ Ward";
             if let Some(mut trig) = parse_trigger(raw, next_id) {

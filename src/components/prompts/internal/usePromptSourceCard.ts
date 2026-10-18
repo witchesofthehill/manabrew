@@ -2,7 +2,7 @@ import { useMemo } from "react";
 
 import { asDeckCard, getDeckCardPool } from "@/lib/decks";
 import { scryfallToDeckCard } from "@/lib/scryfall.utils";
-import { stackObjectToCardStub } from "@/components/game/game.utils";
+import { stackObjectToCard } from "@/components/game/game.utils";
 import { peekArchivedToken, useCard } from "@/stores/useScryfallStore";
 import { useGameStore } from "@/stores/useGameStore";
 import type { CardDto } from "@/protocol/game";
@@ -20,7 +20,7 @@ export function useSourceCardDto(cardId: string | undefined): CardDto | undefine
     const gc = visible.find((c) => c.id === cardId);
     if (gc) return gc;
     const stackObj = gameView.stack.find((s) => s.sourceId === cardId);
-    return stackObj ? (stackObjectToCardStub(stackObj) as CardDto) : undefined;
+    return stackObj ? (stackObjectToCard(stackObj) as CardDto) : undefined;
   }, [cardId, gameView]);
 }
 

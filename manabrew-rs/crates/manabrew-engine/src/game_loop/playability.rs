@@ -3,6 +3,105 @@ use super::*;
 use crate::cost::cost_adjustment::apply_cost_reductions;
 
 impl GameLoop {
+    fn can_play_alternate_characteristics(
+        &self,
+        game: &GameState,
+        player: PlayerId,
+        host: &crate::card::Card,
+        must_be_instant: bool,
+    ) -> bool {
+        let mut sa =
+            crate::ability::ability_factory::build_spell_ability_for_host_card_cast(host, player);
+        sa.ir.flash |= host.type_line.is_instant()
+            || host.has_keyword("Flash")
+            || crate::staticability::static_ability_cast_with_flash::any_with_flash_for_card(
+                &game.cards,
+                host,
+                player,
+            );
+        if host.adventure_spell {
+            sa.ir.card_state_name = Some("Secondary".to_string());
+        } else if host.is_prototyped() {
+            sa.alt_cost = Some(crate::spellability::AlternativeCost::Prototype);
+        }
+        if !crate::staticability::static_ability_continuous::can_play_spell_from_zone(
+            game, player, host, &sa,
+        ) {
+            return false;
+        }
+        sa.restriction.variables.set_zone(host.zone);
+        if (must_be_instant && !sa.ir.flash)
+            || !crate::spellability::spell::can_play(&sa, game)
+            || crate::staticability::static_ability_cant_be_cast::cant_be_cast_ability_in_context(
+                &game.cards,
+                &sa,
+                &crate::staticability::static_ability_cant_be_cast::restriction_host(host),
+                player,
+                Some(game),
+            )
+            || !target_restrictions::has_candidates_in_spell_ability_chain(game, player, &sa)
+        {
+            return false;
+        }
+        let cost = sa.pay_costs.as_ref();
+        if cost.is_some_and(|cost| {
+            !crate::cost::can_pay_ignoring_mana_for_spell(cost, game, host.id, player)
+        }) {
+            return false;
+        }
+        let cost_adjustment =
+            crate::cost::cost_adjustment::compute_cost_adjustment(game, host, player, host.zone);
+        let raised =
+            crate::cost::cost_adjustment::compute_raise_cost_parts(game, host, player, host.zone);
+        if raised.as_ref().is_some_and(|cost| {
+            !crate::cost::can_pay_ignoring_mana_for_spell(cost, game, host.id, player)
+        }) {
+            return false;
+        }
+        let mana = if host.is_prototyped() {
+            host.mana_cost.clone()
+        } else {
+            cost.map(Self::mana_from_cost)
+                .unwrap_or_else(|| host.mana_cost.clone())
+        };
+        let mana = cost_adjustment.apply(&mana).add(
+            &raised
+                .as_ref()
+                .map(Self::mana_from_cost)
+                .unwrap_or_else(forge_foundation::ManaCost::zero),
+        );
+        let payment_ctx = mana::ManaPaymentContext {
+            is_spell: true,
+            is_activated_ability: false,
+            sa_on_stack: false,
+            type_line: Some(host.type_line.clone()),
+            card_name: Some(host.card_name.clone()),
+            card_color: Some(host.color),
+            chosen_types_by_source: game
+                .cards
+                .iter()
+                .filter_map(|card| card.chosen_type.clone().map(|chosen| (card.id, chosen)))
+                .collect(),
+        };
+        let available = mana::calculate_available_mana_with_context(
+            self.pool(player),
+            game,
+            player,
+            Some(host.id),
+            &[],
+            Some(&payment_ctx),
+        );
+        if crate::staticability::static_ability_mana_convert::can_spend_mana_as_any_color(
+            &game.cards,
+            player,
+            host,
+        ) {
+            available.can_pay_any_color(&mana)
+        } else {
+            available.can_pay(&mana)
+        }
+    }
+
     pub(super) fn mana_from_cost(cost: &crate::cost::Cost) -> forge_foundation::ManaCost {
         let mut out = forge_foundation::ManaCost::generic(0);
         for part in &cost.parts {
@@ -111,8 +210,64 @@ impl GameLoop {
             .filter_map(|c| c.chosen_type.clone().map(|chosen| (c.id, chosen)))
             .collect();
 
+        for card in &game.cards {
+            if matches!(
+                card.zone,
+                ZoneType::Battlefield | ZoneType::Stack | ZoneType::None
+            ) {
+                continue;
+            }
+            let adventure = card.is_adventure_card() && !card.is_on_adventure();
+            let prototype = card.has_keyword_enum(crate::keyword::Keyword::Prototype);
+            if !adventure && !prototype {
+                continue;
+            }
+            if adventure {
+                let mut host = card.clone();
+                host.set_adventure_state(true);
+                if self.can_play_alternate_characteristics(game, player, &host, must_be_instant) {
+                    playable.push(crate::agent::PlayOption::with_mode(
+                        card.id,
+                        crate::agent::PlayCardMode::Adventure,
+                    ));
+                }
+            }
+            if prototype {
+                let mut host = card.clone();
+                host.apply_prototype();
+                if self.can_play_alternate_characteristics(game, player, &host, must_be_instant) {
+                    playable.push(crate::agent::PlayOption::with_mode(
+                        card.id,
+                        crate::agent::PlayCardMode::Alternative(
+                            crate::spellability::AlternativeCost::Prototype,
+                        ),
+                    ));
+                }
+            }
+        }
+
         for &card_id in hand {
             let card = game.card(card_id);
+            if card.is_room() {
+                for (door, mode) in [
+                    (
+                        forge_foundation::CardStateName::LeftSplit,
+                        crate::agent::PlayCardMode::Normal,
+                    ),
+                    (
+                        forge_foundation::CardStateName::RightSplit,
+                        crate::agent::PlayCardMode::RoomRightSplit,
+                    ),
+                ] {
+                    let mut host = card.clone();
+                    host.set_room_state(door);
+                    if self.can_play_alternate_characteristics(game, player, &host, must_be_instant)
+                    {
+                        playable.push(crate::agent::PlayOption::with_mode(card_id, mode));
+                    }
+                }
+                continue;
+            }
             if card.is_land() {
                 if crate::staticability::static_ability_cant_be_cast::cant_play_land_ability(
                     &game.cards,
@@ -183,6 +338,29 @@ impl GameLoop {
 
                 if must_be_instant && !has_flash_permission(card_id) {
                     continue;
+                }
+
+                if !crate::spellability::has_split_second_on_stack(game)
+                    && cast_sa.can_cast_timing(game)
+                {
+                    if let Some(suspend) = card.get_suspend_cost() {
+                        let minimum_cost = suspend.mana_cost.without_x().add(
+                            &forge_foundation::ManaCost::generic(
+                                suspend.x_min * suspend.mana_cost.count_x() as i32,
+                            ),
+                        );
+                        let available =
+                            mana::calculate_available_mana(self.pool(player), game, player);
+                        if available.can_pay(&minimum_cost) {
+                            playable.push(crate::agent::PlayOption {
+                                card_id,
+                                mode: crate::agent::PlayCardMode::Alternative(
+                                    crate::spellability::AlternativeCost::Suspend,
+                                ),
+                                alt_cost_index: 0,
+                            });
+                        }
+                    }
                 }
 
                 // Spell-level checks: not on battlefield, no split second
@@ -325,16 +503,6 @@ impl GameLoop {
                         }
                     }
                 };
-                let room_right_split_ok = card.type_line.has_subtype("Room")
-                    && card.svars.get("RoomRightSplitCost").is_some_and(|cost| {
-                        let cost = forge_foundation::ManaCost::parse(cost);
-                        let adjusted = cost_adj.apply(&cost).add(&raise_mana);
-                        if any_color {
-                            available_mana.can_pay_any_color(&adjusted)
-                        } else {
-                            available_mana.can_pay(&adjusted)
-                        }
-                    });
 
                 // Spectacle: alt cost if opponent lost life this turn
                 let spectacle_ok = if let Some(spec_cost_str) = card.get_spectacle_cost() {
@@ -426,16 +594,6 @@ impl GameLoop {
                                 player,
                             )
                     });
-
-                // Suspend: special action, pay suspend cost to exile with time counters
-                // (Suspend is not a spell cast — cost reduction doesn't apply)
-                let suspend_ok = if let Some((suspend_cost_str, _counters)) =
-                    card.get_suspend_cost()
-                {
-                    available_mana.can_pay(&forge_foundation::ManaCost::parse(&suspend_cost_str))
-                } else {
-                    false
-                };
 
                 // Foretell: pay {2} to exile face-down from hand
                 // (This is a special action, not a cast — always costs {2})
@@ -529,14 +687,12 @@ impl GameLoop {
                 };
 
                 if !normal_ok
-                    && !room_right_split_ok
                     && !spectacle_ok
                     && !evoke_ok
                     && !dash_ok
                     && !blitz_ok
                     && !overload_ok
                     && !static_alt_ok
-                    && !suspend_ok
                     && !foretell_exile_ok
                     && !emerge_ok
                     && !offering_ok
@@ -599,13 +755,6 @@ impl GameLoop {
                             playable.push(crate::agent::PlayOption {
                                 card_id,
                                 mode: crate::agent::PlayCardMode::Normal,
-                                alt_cost_index: 0,
-                            });
-                        }
-                        if room_right_split_ok {
-                            playable.push(crate::agent::PlayOption {
-                                card_id,
-                                mode: crate::agent::PlayCardMode::RoomRightSplit,
                                 alt_cost_index: 0,
                             });
                         }
@@ -686,15 +835,6 @@ impl GameLoop {
                                 card_id,
                                 mode: crate::agent::PlayCardMode::Alternative(
                                     crate::spellability::AlternativeCost::Emerge,
-                                ),
-                                alt_cost_index: 0,
-                            });
-                        }
-                        if suspend_ok {
-                            playable.push(crate::agent::PlayOption {
-                                card_id,
-                                mode: crate::agent::PlayCardMode::Alternative(
-                                    crate::spellability::AlternativeCost::Suspend,
                                 ),
                                 alt_cost_index: 0,
                             });
@@ -782,38 +922,25 @@ impl GameLoop {
             }
         }
 
-        // Check battlefield for Room enchantments with a locked door that can be
-        // unlocked. Java models this as a `StaticAbilityApiBased` (`ST$ UnlockDoor`)
-        // which falls through to the CastSpell branch in the harness, NOT as an
-        // activated ability. We mirror that by putting it in `playable` with
-        // `PlayCardMode::UnlockDoor`.
         if !must_be_instant {
-            let bf_cards: Vec<CardId> = game.cards_in_zone(ZoneType::Battlefield, player).to_vec();
-            for &card_id in &bf_cards {
+            for &card_id in game.cards_in_zone(ZoneType::Battlefield, player) {
                 let card = game.card(card_id);
-                if !card.type_line.has_subtype("Room") {
+                if !card.is_room() || card.face_down || card.phased_out || card.controller != player
+                {
                     continue;
                 }
-                let fully_unlocked = card
-                    .svars
-                    .get("UnlockedRoomCount")
-                    .and_then(|count| count.parse::<i32>().ok())
-                    .is_some_and(|count| count >= 2)
-                    || (!card.full_name.is_empty()
-                        && card.card_name == card.full_name
-                        && card.full_name.contains(" // "));
-                if fully_unlocked {
-                    continue;
-                }
-                // Find the synthetic UnlockDoor activated ability
-                let has_unlock_ab = card.activated_abilities.iter().any(|ab| ab.is_unlock_door);
-                if !has_unlock_ab {
-                    continue;
-                }
-                // Check if the ability can actually be activated (cost, etc.)
-                // We reuse the same checks from get_activatable_abilities inline.
                 for ab in &card.activated_abilities {
                     if !ab.is_unlock_door {
+                        continue;
+                    }
+                    let Some(door) = ab
+                        .params
+                        .get("CardState")
+                        .and_then(forge_foundation::CardStateName::from_str_compat)
+                    else {
+                        continue;
+                    };
+                    if card.is_door_unlocked(door) {
                         continue;
                     }
                     let mana_cost = Self::mana_from_cost(&ab.cost);
@@ -822,11 +949,10 @@ impl GameLoop {
                     if available_mana.can_pay(&mana_cost)
                         && crate::cost::can_pay_ignoring_mana(&ab.cost, game, card_id, player)
                     {
-                        playable.push(crate::agent::PlayOption {
+                        playable.push(crate::agent::PlayOption::with_mode(
                             card_id,
-                            mode: crate::agent::PlayCardMode::UnlockDoor,
-                            alt_cost_index: 0,
-                        });
+                            crate::agent::PlayCardMode::UnlockDoor { door },
+                        ));
                     }
                 }
             }
@@ -836,6 +962,14 @@ impl GameLoop {
         let graveyard: Vec<CardId> = game.cards_in_zone(ZoneType::Graveyard, player).to_vec();
         for card_id in graveyard {
             let card = game.card(card_id);
+            if !card.is_land()
+                && self.can_play_alternate_characteristics(game, player, card, must_be_instant)
+            {
+                playable.push(crate::agent::PlayOption::with_mode(
+                    card_id,
+                    crate::agent::PlayCardMode::Normal,
+                ));
+            }
             if must_be_instant && !has_flash_permission(card_id) {
                 continue;
             }
@@ -914,7 +1048,8 @@ impl GameLoop {
         let exile: Vec<CardId> = game.cards_in_zone(ZoneType::Exile, player).to_vec();
         for card_id in exile {
             let card = game.card(card_id);
-            let can_may_play = can_may_play_from_static(card_id);
+            let can_may_play = can_may_play_from_static(card_id)
+                || (card.is_on_adventure() && card.owner == player);
             if can_may_play {
                 if card.is_land() {
                     let land_sa = SpellAbility::new_land(Some(card_id), player);
@@ -936,9 +1071,12 @@ impl GameLoop {
                 let alt_cost_str = may_play_alt_cost(card_id);
                 let mut cast_sa =
                     crate::spellability::build_spell_ability_for_card_cast(game, card_id, player);
-                if alt_cost_str.is_some() {
-                    cast_sa.restriction.variables.set_zone(ZoneType::Exile);
+                if !crate::staticability::static_ability_continuous::can_play_spell_from_zone(
+                    game, player, card, &cast_sa,
+                ) {
+                    continue;
                 }
+                cast_sa.restriction.variables.set_zone(ZoneType::Exile);
                 if crate::staticability::static_ability_cant_be_cast::cant_be_cast_ability_in_context(
                     &game.cards,
                     &cast_sa,

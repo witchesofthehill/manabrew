@@ -46,6 +46,7 @@ impl PlayOption {
 pub enum PlayCardMode {
     Normal,
     BackFaceLand,
+    Adventure,
     /// Cast the right split face of a Room card from hand.
     RoomRightSplit,
     Alternative(AlternativeCost),
@@ -55,7 +56,9 @@ pub enum PlayCardMode {
     /// Unlock a Room door on a permanent already on the battlefield.
     /// Mirrors Java's `StaticAbilityApiBased` for `ST$ UnlockDoor` which falls
     /// through to the `CastSpell` branch in the harness (not `ActivateAbility`).
-    UnlockDoor,
+    UnlockDoor {
+        door: forge_foundation::CardStateName,
+    },
 }
 
 /// A target choice that can be a player, a card, or nothing.
@@ -90,6 +93,8 @@ pub struct ActivatableAction {
     pub cost: Option<String>,
     pub is_mana_ability: bool,
     pub is_class_level_up: bool,
+    pub is_level_up: bool,
+    pub face_index: Option<u8>,
     pub produced_mana: Option<String>,
     pub produced_mana_amount: Option<i32>,
 }

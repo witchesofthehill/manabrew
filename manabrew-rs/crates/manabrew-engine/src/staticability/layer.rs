@@ -471,6 +471,25 @@ pub fn apply_continuous_effects(game: &mut GameState) {
                 if source_card.zone == ZoneType::Battlefield {
                     apply_to_target(source_id);
                 }
+            } else if let Some(defined) = sa.ir.affected_defined_text.as_deref() {
+                for target in crate::ability::ability_utils::get_defined_cards(
+                    game,
+                    Some(source_id),
+                    defined,
+                    Some(source_card.controller),
+                ) {
+                    let card = game.card(target);
+                    if !card.phased_out
+                        && crate::card::valid_filter::matches_valid_card_selector_opt_in_game(
+                            sa.ir.affected.as_ref(),
+                            card,
+                            &source_card,
+                            game,
+                        )
+                    {
+                        apply_to_target(target);
+                    }
+                }
             } else if affected_str.eq_ignore_ascii_case("Card.Self")
                 || affected_str.starts_with("Card.Self+")
             {

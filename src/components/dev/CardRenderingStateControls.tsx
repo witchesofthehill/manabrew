@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { CardRenderingCharacteristicControls } from "@/components/dev/CardRenderingCharacteristicControls";
 import { CardRenderingCounterControls } from "@/components/dev/CardRenderingCounterControls";
+import { CardRenderingMechanicControls } from "@/components/dev/CardRenderingMechanicControls";
 import {
   DEV_CONTROL_ACTIVE,
   DEV_CONTROL_BUTTON,
@@ -16,6 +17,7 @@ import type { ClientCardDto } from "@/stores/gameStore.types";
 
 interface CardRenderingStateControlsProps {
   card: ClientCardDto | undefined;
+  layout?: string;
   value: CardRenderingOverrides;
   onChange: (value: CardRenderingOverrides) => void;
   onReset: () => void;
@@ -40,6 +42,7 @@ const STATUSES: { key: CardRenderingStatus; label: string }[] = [
 
 export function CardRenderingStateControls({
   card,
+  layout,
   value,
   onChange,
   onReset,
@@ -67,6 +70,12 @@ export function CardRenderingStateControls({
       </div>
       {card ? (
         <div className="mt-3 max-h-64 space-y-2 overflow-y-auto">
+          <CardRenderingMechanicControls
+            card={card}
+            layout={layout}
+            value={value}
+            onChange={onChange}
+          />
           <details className="rounded-md border border-border/70 px-3 py-2">
             <summary className="cursor-pointer text-xs font-medium">
               Types, P/T, damage & keywords

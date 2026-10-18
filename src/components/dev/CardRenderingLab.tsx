@@ -12,6 +12,7 @@ import {
   type CardRenderingOverrides,
 } from "@/components/dev/cardRenderingOverrides";
 import { useCardRenderingFixture } from "@/components/dev/useCardRenderingFixture";
+import { cardRenderingMechanicActions } from "@/components/dev/cardRenderingMechanics";
 import { parsePrintedCardRailMetadata } from "@/components/game/cardRailState";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import { scryfallToSampleGameCard } from "@/lib/sampleGameCard";
@@ -68,6 +69,7 @@ export default function CardRenderingLab() {
   const card = useMemo(() => {
     if (!entry) return undefined;
     const next = scryfallToSampleGameCard(entry.info, { foil, isTransformed: effectiveFace === 1 });
+    next.zone = "battlefield";
     next.cosmetics = cosmetics;
     const rail = parsePrintedCardRailMetadata(next);
     if (rail?.kind === "saga") {
@@ -100,20 +102,19 @@ export default function CardRenderingLab() {
     const next = scryfallToDeckCard(entry.info);
     return { ...next, identity: { ...next.identity, cosmetics } };
   }, [entry, cosmetics]);
-  const actions = useMemo<HandActionOption[]>(
-    () =>
-      card
-        ? Array.from({ length: actionCount }, (_, index) => ({
-            kind: "ability",
-            cardId: card.id,
-            actionId: `gallery-action-${index}`,
-            label: `Draw a card. Action ${index + 1}.`,
-            cost: `{${index + 1}}`,
-            abilityIndex: index,
-          }))
-        : [],
-    [card, actionCount],
-  );
+  const actions = useMemo<HandActionOption[]>(() => {
+    if (!card) return [];
+    const mechanic = entry ? cardRenderingMechanicActions(card, entry.info) : undefined;
+    if (mechanic !== undefined) return actionCount > 0 ? mechanic : [];
+    return Array.from({ length: actionCount }, (_, index) => ({
+      kind: "ability" as const,
+      cardId: card.id,
+      actionId: `gallery-action-${index}`,
+      label: `Draw a card. Action ${index + 1}.`,
+      cost: `{${index + 1}}`,
+      abilityIndex: index,
+    }));
+  }, [card, actionCount, entry]);
   const request = useMemo(
     () => ({ card, deckCard, faceIndex: effectiveFace }),
     [card, deckCard, effectiveFace],
@@ -177,6 +178,7 @@ export default function CardRenderingLab() {
       )}
       <CardRenderingStateControls
         card={card}
+        layout={entry?.info.layout}
         value={overrides}
         onChange={setOverrides}
         onReset={() => setOverrides({})}

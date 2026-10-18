@@ -61,7 +61,13 @@ function sameAction(left: HandActionOption, right: HandActionOption): boolean {
     left.cardId === right.cardId &&
     left.actionId === right.actionId &&
     left.abilityIndex === right.abilityIndex &&
-    left.mode === right.mode &&
+    left.mode?.type === right.mode?.type &&
+    (left.mode?.type !== "alternative" ||
+      (right.mode?.type === "alternative" && left.mode.cost === right.mode.cost)) &&
+    (left.mode?.type !== "unlockDoor" ||
+      (right.mode?.type === "unlockDoor" && left.mode.door === right.mode.door)) &&
+    left.faceIndex === right.faceIndex &&
+    left.mechanic === right.mechanic &&
     left.colorChoice === right.colorChoice &&
     left.toZoneId === right.toZoneId &&
     left.tapped === right.tapped &&
@@ -145,6 +151,15 @@ export class RulesPreviewActions extends Container {
     this.pointerId = this.tapPointerId = null;
     this.dragMoved = true;
     this.clearHover();
+  }
+
+  get hasHoveredAction(): boolean {
+    return this.hoveredIndex !== null;
+  }
+
+  clearFocus(): void {
+    this.focusedIndex = null;
+    this.drawFocus();
   }
 
   get focusedActionBounds(): { top: number; height: number } | null {

@@ -1,0 +1,99 @@
+import type { CardDto } from "@/protocol/game";
+import type { HandActionOption } from "@/stores/useGameUIStore";
+import type { CardInteractionPanel } from "@/lib/cardRenderGeometry";
+import { i18n } from "@/i18n/i18n";
+import { msg } from "@lingui/core/macro";
+import { matchRulesEntry, rulesTextEntries } from "@/pixi/cardPreview/rulesCardPreviewPresentation";
+
+export function previewActionFace(action: HandActionOption): number | undefined {
+  if (
+    action.mechanic === "prototype" ||
+    (action.mode?.type === "alternative" && action.mode.cost === "prototype")
+  )
+    return 1;
+  if (action.faceIndex !== undefined) return action.faceIndex;
+  if (action.mode?.type === "unlockDoor") return action.mode.door === "left" ? 0 : 1;
+  if (action.mode?.type === "adventure") return 1;
+  return undefined;
+}
+
+export function levelActionPanel(
+  action: HandActionOption,
+  panels: readonly CardInteractionPanel[],
+): string | undefined {
+  if (action.kind !== "ability") return undefined;
+  const bands = panels.filter(
+    (panel) =>
+      panel.kind === "level" &&
+      (action.faceIndex === undefined || panel.faceIndex === action.faceIndex),
+  );
+  if (action.mechanic === "levelUp") return bands[0]?.id;
+  const text = action.abilityText;
+  if (!text) return undefined;
+  const matching = bands.filter(
+    (panel) =>
+      matchRulesEntry(text, rulesTextEntries(panel.level?.rulesText ?? "", null), action.cost) !==
+      null,
+  );
+  return matching.length === 1 ? matching[0]!.id : undefined;
+}
+
+export function levelBandActive(range: string, card: CardDto): boolean | undefined {
+  if (card.zone !== "battlefield") return undefined;
+  const match = /^(\d+)(?:\s*[-–]\s*(\d+)|(\+))?$/.exec(range.trim());
+  if (!match) return undefined;
+  const level = card.counters.Level ?? 0;
+  return (
+    level >= Number(match[1]) && (match[3] !== undefined || level <= Number(match[2] ?? match[1]))
+  );
+}
+
+export function previewPanelState(
+  card: CardDto,
+  panel: Pick<CardInteractionPanel, "faceIndex" | "level">,
+  layout?: string,
+): string | undefined {
+  if (layout === "room" && card.unlockedDoors !== undefined) {
+    return card.unlockedDoors.includes(panel.faceIndex === 0 ? "left" : "right")
+      ? i18n._(msg`Unlocked`)
+      : i18n._(msg`Locked`);
+  }
+  if (panel.level?.range) {
+    const active = levelBandActive(panel.level.range, card);
+    if (active !== undefined)
+      return active ? i18n._(msg`Active level`) : i18n._(msg`Inactive level`);
+  }
+  if (layout === "prototype" && card.isPrototyped !== undefined)
+    return (panel.faceIndex === 1) === card.isPrototyped
+      ? i18n._(msg`Current characteristics`)
+      : i18n._(msg`Printed alternative`);
+  if (layout === "adventure" && card.isOnAdventure !== undefined && panel.faceIndex === 1)
+    return card.isOnAdventure ? i18n._(msg`On an Adventure`) : undefined;
+  return undefined;
+}
+
+export function caseSections(
+  display: string,
+  canonical: string,
+): Array<{ kind: "base" | "toSolve" | "solved"; text: string }> {
+  const lines = display.split("\n");
+  let kind: "base" | "toSolve" | "solved" = "base";
+  return canonical
+    .split("\n")
+    .map((line, index) => {
+      if (/^To solve\s*[—–-]/i.test(line)) kind = "toSolve";
+      if (/^Solved\s*[—–-]/i.test(line)) kind = "solved";
+      return { kind, text: lines[index] ?? line };
+    })
+    .filter(({ text }) => text.trim());
+}
+
+export function suspendState(card: CardDto): string | undefined {
+  if (card.isSuspended === undefined) return undefined;
+  if (!card.isSuspended && !/\bSuspend\b/i.test(card.text)) return undefined;
+  if (!card.isSuspended) return i18n._(msg`Not suspended`);
+  const time = card.counters.Time;
+  return time === undefined
+    ? i18n._(msg`Suspended`)
+    : i18n._(msg`Suspended · ${time} time counters`);
+}

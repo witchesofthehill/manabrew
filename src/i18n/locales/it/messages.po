@@ -14,15 +14,34 @@ msgstr ""
 "Plural-Forms: \n"
 
 #. placeholder {0}: display.stats.damage
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1029
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1076
 msgid "{0} damage"
 msgstr "{0} danni"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:904
-msgid "Actions apply to the current face."
-msgstr ""
+#: src/components/game/RulesPreviewAccessibility.tsx:58
+#: src/pixi/cardPreview/previewMechanics.ts:42
+msgid "Active level"
+msgstr "Livello attivo"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1336
+#: src/components/game/RulesPreviewAccessibility.tsx:81
+msgid "Base ability"
+msgstr "Abilità di base"
+
+#: src/pixi/cardPreview/previewMechanics.ts:45
+msgid "Current characteristics"
+msgstr "Caratteristiche attuali"
+
+#. placeholder {0}: display.stats.power
+#. placeholder {1}: display.stats.toughness
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:946
+msgid "Current P/T: {0}/{1}"
+msgstr "F/C attuali: {0}/{1}"
+
+#: src/components/game/RulesPreviewAccessibility.tsx:54
+msgid "Current power and toughness"
+msgstr "Forza e costituzione attuali"
+
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1383
 msgid "Defense"
 msgstr "Difesa"
 
@@ -31,35 +50,116 @@ msgstr "Difesa"
 msgid "Effect text unavailable"
 msgstr "Testo dell'effetto non disponibile"
 
-#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:491
+#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:493
 msgid "Face-down card"
 msgstr "Carta coperta"
 
-#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:493
+#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:495
 msgid "Face-down permanent"
 msgstr "Permanente coperto"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1001
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1048
 msgid "Flip back · F"
 msgstr "Mostra il retro · F"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1001
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1048
 msgid "Flip front · F"
 msgstr "Mostra il fronte · F"
+
+#: src/components/game/RulesPreviewAccessibility.tsx:58
+#: src/pixi/cardPreview/previewMechanics.ts:42
+msgid "Inactive level"
+msgstr "Livello inattivo"
+
+#: src/components/game/RulesPreviewAccessibility.tsx:58
+msgid "Level"
+msgstr "Livello"
 
 #. placeholder {0}: notch.label
 #: src/pixi/cardPreview/PixiCardRailPreview.ts:116
 msgid "Level {0}"
-msgstr ""
+msgstr "Livello {0}"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1335
+#: src/pixi/cardPreview/previewMechanics.ts:38
+msgid "Locked"
+msgstr "Bloccata"
+
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1382
 msgid "Loyalty"
 msgstr "Fedeltà"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1017
-msgid "Original printing · generated frame unavailable"
-msgstr ""
+#: src/components/game/RulesPreviewAccessibility.tsx:77
+msgid "Mana cost"
+msgstr "Costo di mana"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1015
+#: src/components/game/RulesPreviewAccessibility.tsx:55
+msgid "Not prototyped"
+msgstr "Non lanciato come prototipo"
+
+#: src/pixi/cardPreview/previewMechanics.ts:64
+msgid "Not suspended"
+msgstr "Non sospesa"
+
+#: src/pixi/cardPreview/previewMechanics.ts:47
+msgid "On an Adventure"
+msgstr "In un'Avventura"
+
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:945
+msgid "On an Adventure · available actions are listed on their spell half"
+msgstr "In un'Avventura · le azioni disponibili sono indicate sulla metà magia"
+
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1064
+msgid "Original printing · generated frame unavailable"
+msgstr "Stampa originale · cornice generata non disponibile"
+
+#: src/pixi/cardPreview/previewMechanics.ts:45
+msgid "Printed alternative"
+msgstr "Alternativa stampata"
+
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1062
 msgid "Printed face · live state belongs to the other face"
-msgstr ""
+msgstr "Faccia stampata · lo stato attuale corrisponde all'altra faccia"
+
+#: src/components/game/RulesPreviewAccessibility.tsx:79
+msgid "Printed power and toughness"
+msgstr "Forza e costituzione stampate"
+
+#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:520
+msgid "Prototype"
+msgstr "Prototipo"
+
+#: src/components/game/RulesPreviewAccessibility.tsx:55
+msgid "Prototyped"
+msgstr "Lanciato come prototipo"
+
+#: src/components/game/RulesPreviewAccessibility.tsx:82
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1021
+msgid "Solved · active"
+msgstr "Risolto · attivo"
+
+#: src/components/game/RulesPreviewAccessibility.tsx:81
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1021
+msgid "Solved ability"
+msgstr "Abilità del caso risolto"
+
+#: src/pixi/cardPreview/previewMechanics.ts:66
+msgid "Suspended"
+msgstr "Sospesa"
+
+#: src/pixi/cardPreview/previewMechanics.ts:66
+msgid "Suspended · {time} time counters"
+msgstr "Sospesa · {time} segnalini tempo"
+
+#: src/components/game/RulesPreviewAccessibility.tsx:81
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1019
+msgid "To solve"
+msgstr "Risolvere"
+
+#: src/pixi/cardPreview/previewMechanics.ts:37
+msgid "Unlocked"
+msgstr "Sbloccata"
+
+#: src/components/game/RulesPreviewAccessibility.tsx:82
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1021
+msgid "Unsolved · inactive"
+msgstr "Irrisolto · inattivo"

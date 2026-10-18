@@ -58,6 +58,11 @@ fn matches_single_property(card: &Card, property: &str, source_controller: Playe
         fc::NON_ARTIFACT => !card.type_line.is_artifact(),
         "tapped" => card.tapped,
         "untapped" => !card.tapped,
+        "FullyUnlocked" => card.unlocked_doors.len() == 2,
+        "!FullyUnlocked" => card.unlocked_doors.len() < 2,
+        "IsSolved" => card.is_solved(),
+        "!IsSolved" => !card.is_solved(),
+        "suspended" => card.is_suspended(),
         _ => {
             let lower = property.to_ascii_lowercase();
             // Power comparisons (powerLE2, powerGE3, etc.)

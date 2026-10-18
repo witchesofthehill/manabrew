@@ -70,6 +70,7 @@ pub struct CardSnapshot {
     pub tapped: bool,
     pub zone: ZoneType,
     pub card_name: String,
+    pub room_unlocked_doors: Option<[bool; 2]>,
 }
 
 impl CardSnapshot {
@@ -85,6 +86,14 @@ impl CardSnapshot {
             tapped: card.tapped,
             zone: card.zone,
             card_name: card.card_name.clone(),
+            room_unlocked_doors: card.room_faces.as_ref().map(|_| {
+                [
+                    !card.face_down
+                        && card.is_door_unlocked(forge_foundation::CardStateName::LeftSplit),
+                    !card.face_down
+                        && card.is_door_unlocked(forge_foundation::CardStateName::RightSplit),
+                ]
+            }),
         }
     }
 }

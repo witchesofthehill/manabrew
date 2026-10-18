@@ -683,7 +683,11 @@ fn card_to_dto_with_face_visibility(
         )
     } else {
         (
-            card.card_name.clone(),
+            if face_visible && card.card_name.is_empty() && card.is_room() {
+                card.full_name.clone()
+            } else {
+                card.card_name.clone()
+            },
             types,
             subtypes,
             supertypes,
@@ -746,6 +750,24 @@ fn card_to_dto_with_face_visibility(
         class_levels,
         saga_chapters,
         text,
+        unlocked_doors: (face_visible && card.is_room()).then(|| {
+            [
+                (forge_foundation::CardStateName::LeftSplit, RoomDoor::Left),
+                (forge_foundation::CardStateName::RightSplit, RoomDoor::Right),
+            ]
+            .into_iter()
+            .filter_map(|(state, door)| card.is_door_unlocked(state).then_some(door))
+            .collect()
+        }),
+        is_solved: face_visible.then_some(card.is_solved()),
+        is_suspended: face_visible.then_some(card.is_suspended()),
+        is_on_adventure: face_visible.then_some(card.is_on_adventure()),
+        is_prototyped: face_visible.then_some(card.is_prototyped()),
+        face_index: face_visible.then_some(u8::from(
+            card.adventure_spell
+                || card.is_transformed
+                || card.room_state == Some(forge_foundation::CardStateName::RightSplit),
+        )),
         choices: card_choices(game, card, viewer),
         controller_id: player_id_str(card.controller),
         owner_id: player_id_str(card.owner),
@@ -827,7 +849,21 @@ fn card_to_dto_with_face_visibility(
         // Combat death prediction is computed by the Forge harness only; the
         // Rust engine doesn't surface it yet.
         would_die_in_combat: false,
-        zone: None,
+        zone: match card.zone {
+            ZoneType::Hand
+            | ZoneType::ExtraHand
+            | ZoneType::Library
+            | ZoneType::Graveyard
+            | ZoneType::Flashback
+            | ZoneType::Battlefield
+            | ZoneType::Merged
+            | ZoneType::Exile
+            | ZoneType::Command => Some(zone_kind_of(card.zone)),
+            ZoneType::Sideboard => Some(ZoneKind::Sideboard),
+            ZoneType::AttractionDeck => Some(ZoneKind::Attractions),
+            ZoneType::Junkyard => Some(ZoneKind::Junkyard),
+            _ => None,
+        },
     }
 }
 
@@ -1050,6 +1086,22 @@ impl GameViewDtoExt for GameViewDto {
                         .and_then(|c| c.get_s_var("TokenScript"))
                         .map(|script| manabrew_protocol::TokenScript(script.to_owned())),
                 };
+                let face_index = visible_source
+                    .map(|card| {
+                        u8::from(
+                            entry
+                                .spell_ability
+                                .ir
+                                .card_state_name
+                                .as_deref()
+                                .is_some_and(|state| {
+                                    matches!(state, "Secondary" | "RightSplit" | "Backside")
+                                })
+                                || card.is_transformed
+                                || card.adventure_spell,
+                        )
+                    })
+                    .unwrap_or_default();
                 StackObjectDto {
                     id: format!("stack-{}", entry.id),
                     source_id: entry
@@ -1062,6 +1114,11 @@ impl GameViewDtoExt for GameViewDto {
                         .map(|c| player_id_str(c.owner))
                         .unwrap_or_default(),
                     identity,
+                    source_card: visible_source.map(|card| {
+                        let mut dto = card_to_dto_for_viewer(game, card.id, Some(human_player));
+                        dto.face_index = Some(face_index);
+                        dto
+                    }),
                     foil: visible_source.is_some_and(|card| card.paper_foil),
                     cosmetics: visible_source
                         .and_then(|card| card.cosmetics.clone())
@@ -1072,9 +1129,7 @@ impl GameViewDtoExt for GameViewDto {
                     is_permanent_spell: entry.is_creature_spell || entry.is_permanent_spell,
                     is_casting: entry.is_pending_cast,
                     is_double_faced: visible_source.is_some_and(|c| c.is_double_faced()),
-                    face_index: visible_source
-                        .map(|c| u8::from(c.is_transformed))
-                        .unwrap_or_default(),
+                    face_index,
                     targets: collect_stack_targets(&entry.spell_ability),
                 }
             })

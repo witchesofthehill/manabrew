@@ -19,6 +19,7 @@ import { CardArtworkError, CardRenderError } from "@/lib/cardRenderDecision";
 import { hasIntegratedArtwork } from "@/lib/cardArtworkPrinting";
 import { previewDtoDeckCard } from "@/lib/scryfall.utils";
 import { localizeRulesPreviewText } from "@/pixi/cardPreview/rulesCardPreviewPresentation";
+import { printedPrototype, type PrototypeCharacteristics } from "@/lib/cardPrototype";
 import {
   peekArchivedToken,
   prefetchTokenArchive,
@@ -30,6 +31,7 @@ export interface CardRenderRequest {
   card?: CardDto;
   deckCard?: DeckCard;
   faceIndex?: 0 | 1;
+  liveFaceIndex?: 0 | 1;
 }
 
 interface LiveCard {
@@ -55,12 +57,14 @@ interface LiveCard {
   baseToughness?: number;
   loyalty?: string;
   defense?: string;
+  isPrototyped?: boolean;
 }
 
 export interface CardRenderInput {
   readonly card?: LiveCard;
   readonly deckCard?: DeckCard;
   readonly faceIndex?: 0 | 1;
+  readonly liveFaceIndex?: 0 | 1;
   readonly locale: ScryfallLanguage;
   readonly cosmetics?: CardCosmetics;
 }
@@ -93,6 +97,12 @@ export interface CardFaceSnapshot {
   artist?: string;
   life_modifier?: string;
   liveChanges?: CardFaceLiveChanges;
+  prototype?: PrototypeCharacteristics;
+  prototypeBase?: PrototypeCharacteristics;
+  prototypeText?: string;
+  prototypeSelected?: boolean;
+  levelerBase?: { power: string; toughness: string };
+  levelerRules?: string;
 }
 
 export interface PreparedCard {
@@ -176,6 +186,7 @@ export function captureCardInput(request: CardRenderRequest): CardRenderInput {
           toughness: card.toughness ?? undefined,
           basePower: card.basePower,
           baseToughness: card.baseToughness,
+          isPrototyped: card.isPrototyped,
           loyalty: card.counters.Loyalty == null ? emptyCounter : String(card.counters.Loyalty),
           defense: card.counters.Defense == null ? emptyCounter : String(card.counters.Defense),
         }
@@ -184,6 +195,8 @@ export function captureCardInput(request: CardRenderRequest): CardRenderInput {
     card: live && Object.freeze(live),
     deckCard: deckCard ? structuredClone(deckCard) : undefined,
     faceIndex,
+    liveFaceIndex:
+      request.liveFaceIndex ?? (card?.faceIndex === 1 ? 1 : card?.faceIndex === 0 ? 0 : undefined),
     locale: useScryfallStore.getState().locale,
     cosmetics: normalizeCardCosmetics(card ? card.cosmetics : deckCard?.identity.cosmetics),
   });
@@ -285,9 +298,21 @@ function faceSnapshot(
 ): CardFaceSnapshot {
   const back = index === 1 ? deckCard?.backFace : undefined;
   const canonicalType = face?.type_line ?? back?.typeLine ?? (deckCard ? typeLine(deckCard) : "");
+  const prototype = printedPrototype(face?.oracle_text ?? back?.oracleText ?? deckCard?.text ?? "");
   return {
     name: face?.printed_name ?? face?.name ?? back?.name ?? deckCard?.identity.name ?? "",
     layout: stringField(face, "layout"),
+    prototype,
+    prototypeText: prototype
+      ? (face?.printed_text ?? face?.oracle_text ?? back?.oracleText ?? deckCard?.text ?? "").split(
+          "\n",
+        )[0]
+      : undefined,
+    levelerBase:
+      /^Level up\b/m.test(face?.oracle_text ?? "") && face?.power != null && face?.toughness != null
+        ? { power: face.power, toughness: face.toughness }
+        : undefined,
+    levelerRules: /^Level up\b/m.test(face?.oracle_text ?? "") ? face?.oracle_text : undefined,
     type_line: canonicalType,
     type_line_display: face?.printed_type_line ?? canonicalType,
     oracle_text:
@@ -442,6 +467,11 @@ function applyLiveFace(
     toughness: card.toughness,
     loyalty: /\bPlaneswalker\b/i.test(card.typeLine) ? (card.loyalty ?? face.loyalty) : undefined,
     defense: /\bBattle\b/i.test(card.typeLine) ? (card.defense ?? face.defense) : undefined,
+    prototypeBase:
+      face.prototype && face.power != null && face.toughness != null
+        ? { manaCost: face.mana_cost, power: face.power, toughness: face.toughness }
+        : undefined,
+    prototypeSelected: card.isPrototyped,
     ...(liveChanges ? { liveChanges } : {}),
   };
 }
@@ -570,9 +600,13 @@ export async function prepareCard(input: CardRenderInput): Promise<PreparedCard>
     const liveIndex = input.card.isTransformed ? 1 : 0;
     if (combined) {
       const selected =
+        (layout === "adventure" ? input.liveFaceIndex : undefined) ??
         faceInfo?.card_faces?.findIndex(
-          (face) => normalized(face.name) === normalized(input.card!.name),
-        ) ?? -1;
+          (face) =>
+            normalized(face.name) === normalized(input.card!.name) ||
+            normalized(face.printed_name ?? "") === normalized(input.card!.name),
+        ) ??
+        -1;
       if (selected >= 0)
         faces[selected] = applyLiveFace(faces[selected]!, input.card, faceInfo, deckCard, selected);
     } else if (faces[liveIndex]) {

@@ -36,6 +36,7 @@ interface Region {
 }
 const LAYOUTS: Record<string, true> = {
   room: true,
+  prototype: true,
   planar: true,
   scheme: true,
   vanguard: true,
@@ -49,8 +50,8 @@ function scanBacked(face: RenderedCardInput): boolean {
   return face.layout === "art_series" || face.layout === "front_card";
 }
 function parts(face: SemanticCardInput): SemanticCardInput[] {
-  if (face.layout !== "room") return [face];
-  if (face.faces?.length !== 2) throw Error("Room composition requires both doors.");
+  if (face.layout !== "room" && face.layout !== "prototype") return [face];
+  if (face.faces?.length !== 2) throw Error("Semantic composition requires both parts.");
   return face.faces;
 }
 function roomRules(face: SemanticCardInput): FaceRect {
@@ -81,6 +82,15 @@ function regions(face: SemanticCardInput): Region[] {
       add("rules", [x + 8, 280, 286, roomRules(face)[3]], i);
       if (faceStats(parts(face)[i]!)) add("stats", [x + 194, 420, 108, 24], i);
     }
+  } else if (face.layout === "prototype") {
+    add("title", [28, 28, 432, 34]);
+    add("artwork", [28, 72, 432, 260]);
+    add("type", [28, 342, 432, 30]);
+    add("title", [38, 388, 412, 30], 1);
+    add("rules", [38, 430, 292, 68], 1);
+    add("stats", [338, 438, 108, 28], 1);
+    add("rules", [38, 516, 412, 90]);
+    add("stats", [330, 614, 130, 28]);
   } else if (face.layout === "planar") {
     add("title", [26, 22, 628, 34]);
     add("artwork", [26, 65, 628, 194]);

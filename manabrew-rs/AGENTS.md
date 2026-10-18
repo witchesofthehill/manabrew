@@ -47,6 +47,16 @@ Material cosmetics use closed `CardCoating`, `CardPrintDots` and `CardFinishCove
 
 Appearance serialization distinguishes viewer-filtered snapshots from explicitly authorized prompt cards. Owning a library is not permission to reveal its cosmetics. Stack sources use current visibility when historical visibility is unavailable. The Rust producer still has a pre-existing broader hand-identity/text disclosure issue; suppressing new foil/cosmetics fields is not a repair of that separate privacy boundary.
 
+Mechanic state belongs to the card model, not display-only SVars. Rooms retain independent unlocked doors and gate each door's abilities. Copied Room spells carry their selected cast provenance into the resolving token and unlock that door on entry; ordinary battlefield copies enter locked. Case solved state survives LKI but is not a copiable characteristic. `has_suspend()` is keyword-only, while `is_suspended()` also requires exile and positive Time counters. Removing the last counter raises the Suspend cast trigger; it does not create a priority cast permission.
+
+Adventure uses the secondary spell state without DFC transformation and a successful-resolution Moved replacement for its owner-only exile permission. Prototype changes copiable cost, color and P/T, persists through stack-to-battlefield, and resets on cancellation or subsequent zone changes. Evaluate static zone grants against the selected spell's characteristics and `ValidSA`, not its front face. Copied spells require independent source cards so the original leaving a zone cannot change their characteristics. Viewer-filtered stack DTOs carry the actual source/LKI and selected physical face; known ordinary `CardDto.zone` is authoritative, while stack and unknown zones remain absent.
+
+Adding a validity property requires both compiled selector classification/evaluation and the legacy property path. `IsSolved` and `FullyUnlocked` are typed `CardStateSelector` values; a legacy-only implementation silently mis-evaluates static conditions and negated selectors.
+
+Static MayPlay flags live in `StaticAbilityIr`; `base.has_param` does not retain `MayPlayDontGrantZonePermissions`. That marker follows Java's presence semantics, including when its value is `False`.
+
+Continuous statics with `AffectedDefined` resolve that defined-card set before applying an explicitly supplied `Affected` filter. Do not substitute the ordinary `Creature.YouControl` fallback: `AffectedDefined$ Self` must never broadcast a Level-up band's characteristics to other creatures.
+
 ## Limited session checkpoints
 
 `forge-limited` owns serializable Limited engines, physical occurrence IDs and own-seat decision history. Versioned checkpoint export/import is exposed by `src-tauri/src/limited_commands.rs` and `crates/wasm/src/limited_api.rs`; it preserves pending multiplayer submissions, undo state, ChaCha12 RNG continuation, AI/rank state and Gauntlet progress. Serialize borrowed state rather than cloning the engine or materializing an intermediate JSON tree. A complete native draft still needs its durable pool-registration handoff before the frontend marks the host complete.

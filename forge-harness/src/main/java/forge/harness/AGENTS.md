@@ -102,6 +102,10 @@ Per-copy appearance is bound by `host/CardCosmeticBindings` during initial zone 
 
 Visible card and stack-source projections read the same bindings; hidden redaction clears foil and cosmetics. Prompt-card disclosure is explicit, not spectator visibility. Preserve bindings across checkpoints without rewinding the live card-ID counter. Rebuild the browser Web Image as well as the harness after changing this producer.
 
+Mechanic projections use Forge's predicates and selected ability state: independent `unlockedDoors`, Case `isSolved`, exile plus `hasSuspend`, exile plus `isOnAdventure`, Prototype selection, and active `faceIndex`. Cast/ability actions retain typed mechanic ownership and the full mode payload. Adventure's spell half is not a transformed DFC. Visible stack entries carry the exact source/spell-LKI `sourceCard`; hidden redaction clears the new states and omits hidden stack sources.
+
+Forge's LKI copier drops unlocked Room doors and the Prototype timestamp. Omit unknown LKI state rather than reporting false or locked; a spell ability's explicit `Prototype` parameter can recover its selected variant. A Room with both doors locked has an empty active name: retain its `PaperCard` name for visible printing identity without changing the live characteristics or weakening hidden-card redaction.
+
 `CardDto.keywords` retains raw engine identifiers. Visible cards also emit `keywordLabels`, keyed by the original string and formatted with `KeywordInterface.getTitle()`. Generated rules use those labels without duplicating printed keyword lines; never expose cost DSL as rules text or parse it in the renderer. Hidden redaction clears the label map.
 
 ## Boundary API discipline

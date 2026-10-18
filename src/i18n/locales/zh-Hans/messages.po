@@ -14,15 +14,34 @@ msgstr ""
 "Plural-Forms: \n"
 
 #. placeholder {0}: display.stats.damage
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1029
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1076
 msgid "{0} damage"
 msgstr "{0} 点伤害"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:904
-msgid "Actions apply to the current face."
-msgstr ""
+#: src/components/game/RulesPreviewAccessibility.tsx:58
+#: src/pixi/cardPreview/previewMechanics.ts:42
+msgid "Active level"
+msgstr "生效等级"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1336
+#: src/components/game/RulesPreviewAccessibility.tsx:81
+msgid "Base ability"
+msgstr "基本异能"
+
+#: src/pixi/cardPreview/previewMechanics.ts:45
+msgid "Current characteristics"
+msgstr "当前特征"
+
+#. placeholder {0}: display.stats.power
+#. placeholder {1}: display.stats.toughness
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:946
+msgid "Current P/T: {0}/{1}"
+msgstr "当前力量／防御力：{0}/{1}"
+
+#: src/components/game/RulesPreviewAccessibility.tsx:54
+msgid "Current power and toughness"
+msgstr "当前力量与防御力"
+
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1383
 msgid "Defense"
 msgstr "防御"
 
@@ -31,35 +50,116 @@ msgstr "防御"
 msgid "Effect text unavailable"
 msgstr "无法获取效应文本"
 
-#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:491
+#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:493
 msgid "Face-down card"
 msgstr "牌面朝下的牌"
 
-#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:493
+#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:495
 msgid "Face-down permanent"
 msgstr "牌面朝下的永久物"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1001
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1048
 msgid "Flip back · F"
 msgstr "翻到背面 · F"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1001
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1048
 msgid "Flip front · F"
 msgstr "翻到正面 · F"
+
+#: src/components/game/RulesPreviewAccessibility.tsx:58
+#: src/pixi/cardPreview/previewMechanics.ts:42
+msgid "Inactive level"
+msgstr "未生效等级"
+
+#: src/components/game/RulesPreviewAccessibility.tsx:58
+msgid "Level"
+msgstr "等级"
 
 #. placeholder {0}: notch.label
 #: src/pixi/cardPreview/PixiCardRailPreview.ts:116
 msgid "Level {0}"
-msgstr ""
+msgstr "等级 {0}"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1335
+#: src/pixi/cardPreview/previewMechanics.ts:38
+msgid "Locked"
+msgstr "已上锁"
+
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1382
 msgid "Loyalty"
 msgstr "忠诚"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1017
-msgid "Original printing · generated frame unavailable"
-msgstr ""
+#: src/components/game/RulesPreviewAccessibility.tsx:77
+msgid "Mana cost"
+msgstr "法术力费用"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1015
+#: src/components/game/RulesPreviewAccessibility.tsx:55
+msgid "Not prototyped"
+msgstr "非试作状态"
+
+#: src/pixi/cardPreview/previewMechanics.ts:64
+msgid "Not suspended"
+msgstr "未延缓"
+
+#: src/pixi/cardPreview/previewMechanics.ts:47
+msgid "On an Adventure"
+msgstr "历险中"
+
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:945
+msgid "On an Adventure · available actions are listed on their spell half"
+msgstr "历险中 · 可用操作列于咒语一侧"
+
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1064
+msgid "Original printing · generated frame unavailable"
+msgstr "原始印刷版 · 生成牌框不可用"
+
+#: src/pixi/cardPreview/previewMechanics.ts:45
+msgid "Printed alternative"
+msgstr "牌面上的另一组特征"
+
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1062
 msgid "Printed face · live state belongs to the other face"
-msgstr ""
+msgstr "印刷牌面 · 当前状态属于另一面"
+
+#: src/components/game/RulesPreviewAccessibility.tsx:79
+msgid "Printed power and toughness"
+msgstr "牌面上的力量与防御力"
+
+#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:520
+msgid "Prototype"
+msgstr "试作"
+
+#: src/components/game/RulesPreviewAccessibility.tsx:55
+msgid "Prototyped"
+msgstr "试作状态"
+
+#: src/components/game/RulesPreviewAccessibility.tsx:82
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1021
+msgid "Solved · active"
+msgstr "已侦结 · 生效"
+
+#: src/components/game/RulesPreviewAccessibility.tsx:81
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1021
+msgid "Solved ability"
+msgstr "侦结异能"
+
+#: src/pixi/cardPreview/previewMechanics.ts:66
+msgid "Suspended"
+msgstr "已延缓"
+
+#: src/pixi/cardPreview/previewMechanics.ts:66
+msgid "Suspended · {time} time counters"
+msgstr "已延缓 · {time} 个计时指示物"
+
+#: src/components/game/RulesPreviewAccessibility.tsx:81
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1019
+msgid "To solve"
+msgstr "侦办"
+
+#: src/pixi/cardPreview/previewMechanics.ts:37
+msgid "Unlocked"
+msgstr "已解锁"
+
+#: src/components/game/RulesPreviewAccessibility.tsx:82
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1021
+msgid "Unsolved · inactive"
+msgstr "未侦结 · 未生效"

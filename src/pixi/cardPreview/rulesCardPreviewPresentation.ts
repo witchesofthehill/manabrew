@@ -1,4 +1,8 @@
-import type { CardPresentation, CardStatPresentation } from "@/components/game/cardPresentation";
+import {
+  replaceCardName,
+  type CardPresentation,
+  type CardStatPresentation,
+} from "@/components/game/cardPresentation";
 import type { CardDto } from "@/protocol/game";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { resolveCardFaces, type CardFace } from "@/lib/cardFaces";
@@ -144,6 +148,19 @@ function withoutAbilityCost(text: string): string {
   return text.replace(/^(?:\{[^{}]+\}[,\s、，]*)+[:：]\s*/, "");
 }
 
+function normalizedRulesComparisonText(text: string): string {
+  const normalized = text
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .replace(/[—–]/g, "-")
+    .replace(/\s+/g, " ")
+    .trim();
+  const cost = abilityCost(normalized);
+  return cost === null ? normalized : `${cost}: ${withoutAbilityCost(normalized)}`;
+}
+
 function translationLines(info: ScryfallCard, faceIndex: number): TranslationLine[] {
   let cardEntries = translationLinesByCard.get(info);
   if (!cardEntries) {
@@ -218,7 +235,7 @@ export function localizeRulesPreviewText(
   return text
     .split("\n")
     .map((line) => {
-      const match = closestRulesLine(line, mappings);
+      const match = closestRulesLine(replaceCardName(line, face.canonicalName), mappings);
       if (!match?.localized) return line;
       return abilityCost(translationComparisonText(line)) !== null
         ? match.localized
@@ -227,19 +244,31 @@ export function localizeRulesPreviewText(
     .join("\n");
 }
 
-function closestRulesLine(text: string, lines: TranslationLine[]): TranslationLine | null {
-  const comparison = translationComparisonText(text);
+function closestRulesLine(
+  text: string,
+  lines: TranslationLine[],
+  allowFuzzy = false,
+): TranslationLine | null {
+  const comparison = normalizedRulesComparisonText(translationComparisonText(text));
   if (!comparison) return null;
   const cost = abilityCost(comparison);
   let match: TranslationLine | null = null;
   let minimumDistance = comparison.length;
   let ambiguous = false;
   for (const candidate of lines) {
-    const candidateCost = abilityCost(candidate.canonical);
+    const candidateText = normalizedRulesComparisonText(candidate.canonical);
+    const candidateCost = abilityCost(candidateText);
     if (cost !== null && candidateCost !== null && candidateCost !== cost) continue;
-    const canonical = cost !== null ? candidate.canonical : withoutAbilityCost(candidate.canonical);
-    const threshold = Math.floor(Math.min(canonical.length, comparison.length) / 3);
-    const distance = editDistanceWithin(canonical, comparison, threshold);
+    const canonical = cost !== null ? candidateText : withoutAbilityCost(candidateText);
+    const threshold = allowFuzzy
+      ? Math.floor(Math.min(canonical.length, comparison.length) / 3)
+      : 0;
+    const distance =
+      canonical === comparison
+        ? 0
+        : allowFuzzy
+          ? editDistanceWithin(canonical, comparison, threshold)
+          : null;
     if (distance !== null && distance < minimumDistance) {
       minimumDistance = distance;
       match = candidate;
@@ -292,7 +321,15 @@ export function stackHighlightEntry(effect: string | undefined, entries: string[
     return null;
   }
   const index = matchRulesEntry(ability, entries);
-  return index === null ? null : entries[index]!;
+  if (index !== null) return entries[index]!;
+  return closestRulesLine(ability, rulesEntryLines(entries), true)?.localized ?? null;
+}
+
+function rulesEntryLines(entries: string[]): TranslationLine[] {
+  return entries.map((entry) => ({
+    canonical: translationComparisonText(entry).replace(/^\((.*)\)$/, "$1"),
+    localized: entry,
+  }));
 }
 
 export function matchRulesEntry(
@@ -300,10 +337,7 @@ export function matchRulesEntry(
   entries: string[],
   actionCost?: string,
 ): number | null {
-  const lines: TranslationLine[] = entries.map((entry) => ({
-    canonical: translationComparisonText(entry).replace(/^\((.*)\)$/, "$1"),
-    localized: entry,
-  }));
+  const lines = rulesEntryLines(entries);
   const visible = translationComparisonText(text);
   const match =
     closestRulesLine(text, lines) ??

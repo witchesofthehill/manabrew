@@ -947,6 +947,9 @@ export class CardSprite extends Container {
       this.imageMask.visible = false;
       this.placeholderGfx.visible = true;
       this.nameText.visible = !hidden;
+      const previousCounterReserve = this.frameCounterReserve;
+      this.renderFrame();
+      if (this.frameCounterReserve !== previousCounterReserve) this.updateCounters();
       this.syncHandFaceVisibility();
       this.onVisualChange?.();
       return;
@@ -964,7 +967,9 @@ export class CardSprite extends Container {
     this.placeholderGfx.visible = false;
     this.nameText.visible = false;
     this._imageLoaded = true;
+    const previousCounterReserve = this.frameCounterReserve;
     this.renderFrame();
+    if (this.frameCounterReserve !== previousCounterReserve) this.updateCounters();
     this.updateMana();
     this.syncHandFaceVisibility();
     previous?.destroy(true);

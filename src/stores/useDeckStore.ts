@@ -596,15 +596,11 @@ export const useDeckStore = create<DeckState>()(
               !getFormat(format)?.deckRules.requiresCommander &&
               (deck.commanders?.length ?? 0) > 0
             ) {
-              const movedBack = (deck.commanders ?? []).map((c) => ({
-                ...c,
-                identity: { ...c.identity, id: crypto.randomUUID() },
-              }));
               return {
                 currentDeck: {
                   ...deck,
                   format,
-                  cards: [...deck.cards, ...movedBack],
+                  cards: [...deck.cards, ...(deck.commanders ?? [])],
                   commanders: undefined,
                 },
               };
@@ -685,17 +681,22 @@ export const useDeckStore = create<DeckState>()(
         setCommander: (card) =>
           set((state) => {
             const deck = normalizeDeck(state.currentDeck);
+            if (deck.commanders?.some((entry) => entry.identity.id === card.identity.id)) {
+              return state;
+            }
             const nextMain = [...deck.cards];
-            const selectedIndex = nextMain.findIndex(
-              (entry) => entry.identity.id === card.identity.id,
-            );
-            const selectedCard =
-              selectedIndex !== -1
-                ? nextMain.splice(selectedIndex, 1)[0]
-                : createCardOccurrence(card);
+            const nextSide = [...deck.sideboard];
+            const nextMaybe = [...(deck.maybeboard ?? [])];
+            let selectedCard: DeckCard | undefined;
+            for (const cards of [nextMain, nextSide, nextMaybe]) {
+              const index = cards.findIndex((entry) => entry.identity.id === card.identity.id);
+              if (index === -1) continue;
+              selectedCard = cards.splice(index, 1)[0];
+              break;
+            }
+            selectedCard ??= createCardOccurrence(card);
             let commanders = [...(deck.commanders ?? [])];
-            const returnToMain = (c: DeckCard) =>
-              nextMain.push({ ...c, identity: { ...c.identity, id: crypto.randomUUID() } });
+            const returnToMain = (c: DeckCard) => nextMain.push(c);
             if (deck.format === "oathbreaker") {
               const oathbreakers = commanders.filter((c) => canBeOathbreaker(c));
               const spells = commanders.filter((c) => canBeSignatureSpell(c));
@@ -733,6 +734,8 @@ export const useDeckStore = create<DeckState>()(
                 name: autoRename ? commanders.map((c) => c.identity.name).join(" / ") : deck.name,
                 format: formatRequiresCommander(deck.format) ? deck.format : "commander",
                 cards: nextMain,
+                sideboard: nextSide,
+                maybeboard: nextMaybe,
                 commanders,
               },
             };
@@ -743,17 +746,14 @@ export const useDeckStore = create<DeckState>()(
             const commanders = deck.commanders ?? [];
             if (commanders.length === 0) return state;
             const toRemove = card
-              ? commanders.find((c) => c.identity.name === card.identity.name)
+              ? commanders.find((c) => c.identity.id === card.identity.id)
               : commanders[commanders.length - 1];
             if (!toRemove) return state;
             return {
               currentDeck: {
                 ...deck,
-                cards: [
-                  ...deck.cards,
-                  { ...toRemove, identity: { ...toRemove.identity, id: crypto.randomUUID() } },
-                ],
-                commanders: commanders.filter((c) => c.identity.name !== toRemove.identity.name),
+                cards: [...deck.cards, toRemove],
+                commanders: commanders.filter((c) => c.identity.id !== toRemove.identity.id),
               },
             };
           }),

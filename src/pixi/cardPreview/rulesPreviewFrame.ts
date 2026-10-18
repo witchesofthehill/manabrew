@@ -1,5 +1,6 @@
 import { Graphics, Text, TextStyle, type Container } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
+import { CARD_RADIUS, CARD_W } from "@/components/game/game.constants";
 import { hexToNum } from "@/pixi/colorUtils";
 import { ensureTextContrast } from "@/themes/gameTheme";
 import type { CardStatPresentation } from "@/components/game/cardPresentation";
@@ -16,10 +17,7 @@ export const RULES_CARD_CONSTRAINTS = {
 const RULES_TEXT_MIN_CONTRAST = 4.5;
 
 export function rulesCardRadius(width: number, height: number): number {
-  return (
-    (Math.min(width, height) * RULES_CARD_CONSTRAINTS.radius) /
-    Math.min(RULES_CARD_CONSTRAINTS.width, RULES_CARD_CONSTRAINTS.height)
-  );
+  return (Math.min(width, height) * CARD_RADIUS) / CARD_W;
 }
 
 export interface RulesPreviewFrameStyle {

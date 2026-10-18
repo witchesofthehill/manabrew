@@ -137,7 +137,7 @@ export class CardLiveHighlight extends Container {
         height: canvas.height,
         resolution: 1,
         autoDensity: false,
-        autoGenerateMipmaps: true,
+        autoGenerateMipmaps: false,
       }),
     });
     this.ownedTextures.push(texture);
@@ -262,7 +262,7 @@ export class CardLiveHighlight extends Container {
     }
     this.pulse = gsap.to(this.breathing, {
       scale: CARD_LIVE_PULSE.maxScale,
-      offsetY: -CARD_LIVE_PULSE.floatPx,
+      offsetY: -this.layers!.floatPx,
       duration: CARD_LIVE_PULSE.halfDurationS,
       ease: "sine.inOut",
       repeat: -1,

@@ -13,7 +13,7 @@ export function createGeneratedCardTexture(canvas: HTMLCanvasElement, frame?: Re
       height: canvas.height,
       resolution: 1,
       autoDensity: false,
-      autoGenerateMipmaps: true,
+      autoGenerateMipmaps: false,
     }),
   });
   artworkByTexture.set(texture, getCardArtWindows(canvas));

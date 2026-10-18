@@ -115,7 +115,7 @@ export function CardGlintOfflineSection() {
             Installed for this deck and language: {status.manifest?.urls.length} resources,{" "}
             {((status.manifest?.bytes ?? 0) / 1024 / 1024).toFixed(1)} MB.
             {status.manifest?.scanOnly
-              ? ` ${status.manifest.scanOnly} artwork-integrated cards retain their original scans.`
+              ? ` ${status.manifest.scanOnly} cards retain their original scans.`
               : ""}
           </p>
         ) : (

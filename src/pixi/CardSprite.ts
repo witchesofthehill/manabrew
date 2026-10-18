@@ -403,6 +403,7 @@ export class CardSprite extends Container {
   private ownerRingGfx: Graphics;
   private contentContainer: Container;
   private printedFaceContainer: Container;
+  private printedChromeContainer: Container;
   private ptContainer: Container;
   private ptBg: Graphics;
   private ptText: Text;
@@ -508,6 +509,7 @@ export class CardSprite extends Container {
 
     this.contentContainer = new Container();
     this.printedFaceContainer = new Container();
+    this.printedChromeContainer = new Container();
     this.contentContainer.addChild(this.printedFaceContainer);
     this.addChild(this.contentContainer);
     this.placeholderGfx = new Graphics();
@@ -520,7 +522,7 @@ export class CardSprite extends Container {
       color: hexToNum(activeTheme.gameTheme.cardPlaceholder.stroke),
       width: 1,
     });
-    this.addChild(this.placeholderGfx);
+    this.printedFaceContainer.addChild(this.placeholderGfx);
     this.nameText = new Text({ text: card.identity.name, style: NAME_STYLE });
     this.nameText.resolution = TEXT_RASTER_RESOLUTION;
     this.nameText.anchor.set(0.5);
@@ -530,13 +532,12 @@ export class CardSprite extends Container {
     this.imageMask = new Graphics();
     this.imageMask.roundRect(0, 0, this.cw, this.ch, CARD_RADIUS);
     this.imageMask.fill(hexToNum(activeTheme.gameTheme.canvas.neutral));
-    this.addChild(this.imageMask);
+    this.printedFaceContainer.addChild(this.imageMask);
     this.imageSpr = new Sprite(Texture.EMPTY);
     this.imageSpr.setSize(this.cw, this.ch);
     this.imageSpr.mask = this.imageMask;
-    this.addChild(this.imageSpr);
+    this.printedFaceContainer.addChild(this.imageSpr);
     this.liveHighlight = new CardLiveHighlight(() => this.onVisualChange?.());
-    this.addChild(this.liveHighlight);
     this.fitImageToSlot();
     this.frameContainer = new Container();
     this.frameContainer.visible = false;
@@ -679,11 +680,12 @@ export class CardSprite extends Container {
         child !== this.promptReferenceGfx &&
         child !== this.contentContainer
       ) {
-        this.printedFaceContainer.addChild(child);
+        this.printedChromeContainer.addChild(child);
       }
     }
     this.foilSheen = new CardFoil(() => this.onVisualChange?.());
     this.contentContainer.addChild(this.foilSheen);
+    this.contentContainer.addChild(this.printedChromeContainer);
     this.contentContainer.addChild(this.liveHighlight);
     this.addChild(this.pulseRing.gfx);
     this.pivot.set(this.cw / 2, this.ch / 2);
@@ -1091,6 +1093,7 @@ export class CardSprite extends Container {
     const hidden = this.hasHiddenIdentity();
     const ready = !hidden && this.handRulesFace?.imageReady === true;
     this.printedFaceContainer.visible = hidden || !this.handRulesView || !ready;
+    this.printedChromeContainer.visible = this.printedFaceContainer.visible;
     if (this.handRulesFace) {
       this.handRulesFace.visible = !hidden && ready && (this.handRulesView || !this._imageLoaded);
     }
@@ -1102,6 +1105,7 @@ export class CardSprite extends Container {
     const top = this.handControls ?? highlights ?? this.liveHighlight;
     if (this.contentContainer.children.at(-1) !== top) {
       this.contentContainer.addChild(this.foilSheen);
+      this.contentContainer.addChild(this.printedChromeContainer);
       this.contentContainer.addChild(this.liveHighlight);
       if (highlights) this.contentContainer.addChild(highlights);
       if (this.handControls) this.contentContainer.addChild(this.handControls);

@@ -171,13 +171,14 @@ export class StackCardSprite {
   }
 
   setSpec(spec: StackCardSpec, faceIndex?: 0 | 1): void {
+    const faceChanged = faceIndex !== this.previewFace;
     const ringChanged =
       spec.seatColor !== this.spec.seatColor ||
       spec.isCasting !== this.spec.isCasting ||
       spec.isTopOfStack !== this.spec.isTopOfStack ||
       spec.isValidTarget !== this.spec.isValidTarget;
     const controlsChanged =
-      faceIndex !== this.previewFace ||
+      faceChanged ||
       spec.id !== this.spec.id ||
       spec.card.isDoubleFaced !== this.spec.card.isDoubleFaced ||
       spec.card.isTransformed !== this.spec.card.isTransformed;
@@ -186,7 +187,7 @@ export class StackCardSprite {
     this.previewFace = faceIndex;
     this.container.cursor = spec.isValidTarget ? "pointer" : "default";
     this.face.updateCardContent(spec.card);
-    this.face.setPreviewFace(faceIndex ?? null);
+    if (faceChanged) this.face.setPreviewFace(faceIndex ?? null);
     const resized = this.syncGeometry();
     this.face.setHandRulesHighlight(spec.sourceAbilityText ?? "");
     if (controlsChanged || resized) this.syncControls();

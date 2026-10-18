@@ -127,6 +127,8 @@ Four renderers draw cards. `components/game/cardPresentation.ts` provides shared
 - **Attacking + summoning-sickness now match the DOM in Pixi too:** both draw an inset **edge glow** (`CardSprite.updateEdgeGlow`) — red for attacking, frosty + pulsing for summoning-sick (pulse driven per-frame by `BoardRegion.animate` → `tickEffects`); summoning-sick also keeps the grey desaturate/dim filter. Pixi's `setRing` is now reserved for **interaction/combat** states only (lethal, pending, tappable/untappable land, selectable/targeting).
 - **Known intentional divergences — do not "fix" without being asked:** some effects are **Pixi-only** (doomed wash, foil ring, ring-bearer, status badges `MORPH`/`EXERTED`/…, damage-order badge, stack count). The DOM face also currently lacks the _debuffed_ P/T color that Pixi has.
 
+`CardSprite.printedFaceContainer` holds the source image, mask and placeholder; opaque foil/wear renders above that image but below `printedChromeContainer`, which holds live stats, counters, damage, rails and badges. Both printed containers share visibility and the content-surface flip transform. Preserve this order when embedded Rules faces append or reorder their layers.
+
 ## Card preview (hover / sticky)
 
 The app has one preview state machine. Games and Limited share the persisted printed-card and Pixi Rules renderers. Limited's `CardHoverPreview` composes `HoverCardPreview` and `CardPreviewOverlayCanvas`; the latter reuses `BoardOverlayCanvasSurface` without a game scene, fake stack or no-op game callbacks. Deck and editor previews keep the DOM renderer. Consumer contracts import the named `CardPreviewController` from `hooks/useCardPreview.ts`.
@@ -157,6 +159,8 @@ Dialog-hosted Printed previews fit the dialog's visible client bounds and positi
 Flip-button clicks pin the current preview without reopening it. Portrait/landscape face changes can move the controls away from the pointer; that reflow must not dismiss a clicked preview. Keyboard flips retain ordinary hover dismissal.
 
 View-mode and physical-face switches share the GSAP edge-on flip timing in `PREVIEW_TIMING.flipHalfMs` and a constant angular turn. Start closing immediately, swap at the edge, then open when the incoming surface is ready. The incoming renderer owns preparation; do not issue a duplicate `renderRulesCard` request from the view-toggle handler. DOM readiness reports after parent layout; Pixi reports after applying its new spec, not from its previous face. Preserve the current angle on interruption and scale the remaining duration accordingly. Animate only the card surface, not side actions. Cancel transitions on dismissal, navigation, disposal or disabled/reduced motion; animation frames must not compose card rasters.
+
+An unchanged stack spec preserves pending view transitions. `StackCardSprite.setSpec` calls the face-reset setter only when the face override changes; clearing a real override still cancels its transition.
 
 Hand and stack view/face buttons share `CardSprite.setHandControls`. Keep them above foil/highlights on the animated content surface, using the same card-relative anchor in realistic and Manabrew views. Painter-specific artwork bounds must not move those buttons; external preview action panels remain outside the flip.
 

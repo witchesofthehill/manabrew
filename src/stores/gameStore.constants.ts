@@ -195,7 +195,34 @@ export function applyPrompt(
   notePromptArrived(prompt.input.type);
   const normalized = prompt.sourceCard
     ? { ...prompt, sourceCard: { ...GAME_CARD_DEFAULTS, ...prompt.sourceCard } }
-    : prompt;
+    : { ...prompt };
+  const input = normalized.input;
+  switch (input.type) {
+    case "mulliganPutBack":
+    case "revealCards":
+    case "scry":
+    case "chooseCards":
+      normalized.input = {
+        ...input,
+        cards: input.cards.map((card) => ({ ...GAME_CARD_DEFAULTS, ...card })),
+      };
+      break;
+    case "chooseDamageAssignmentOrder":
+      normalized.input = {
+        ...input,
+        blockerCards: input.blockerCards.map((card) => ({ ...GAME_CARD_DEFAULTS, ...card })),
+      };
+      break;
+    case "reorder":
+      normalized.input = {
+        ...input,
+        items: input.items.map((item) => ({
+          ...item,
+          card: { ...GAME_CARD_DEFAULTS, ...item.card },
+        })),
+      };
+      break;
+  }
   route(
     { displayEvents: [], gameView: null, prompt: normalized },
     `${source}: ${prompt.input.type}`,

@@ -18,7 +18,7 @@ import {
 } from "@/stores/useScryfallStore";
 import { captureCardInput, prepareCard } from "@/lib/cardRenderSnapshot";
 import { cardGlintFace } from "@/lib/cardRenderFace";
-import { CardArtworkError } from "@/lib/cardRenderDecision";
+import { CardRenderError } from "@/lib/cardRenderDecision";
 import { resolveCardGlintAsset } from "@/lib/cardGlintAssets";
 import {
   CARD_GLINT_CACHE,
@@ -240,7 +240,7 @@ async function install(deck: Deck, signal: AbortSignal): Promise<void> {
         for (const url of required) if (url) addUrl(url);
       }
     } catch (error) {
-      if (!(error instanceof CardArtworkError)) throw error;
+      if (!(error instanceof CardRenderError) || error.decision.mode !== "original") throw error;
       scanOnly += 1;
     }
   }

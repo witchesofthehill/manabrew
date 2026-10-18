@@ -98,6 +98,13 @@ function createCardOccurrence(card: DeckCard): DeckCard {
     },
   };
 }
+function canAddToMain(deck: EditorDeck, card: DeckCard): boolean {
+  if (canHaveAnyNumberOf(card)) return true;
+  const format = getFormat(deck.format ?? "standard");
+  if (!format) return true;
+  const limit = copyLimitFromText(card.text) ?? format.deckRules.maxCopies;
+  return deck.cards.filter((entry) => entry.identity.name === card.identity.name).length < limit;
+}
 export function normalizeDeck(deck: EditorDeck): EditorDeck {
   const attractions = [...(deck.attractions ?? [])];
   const contraptions = [...(deck.contraptions ?? [])];
@@ -367,6 +374,7 @@ interface DeckState {
   addToMain: (card: DeckCard) => void;
   addToSide: (card: DeckCard) => void;
   addToMaybe: (card: DeckCard) => void;
+  moveCards: (cardIds: Iterable<string>, destination: "main" | "side" | "maybe") => number;
   removeFromMaybe: (cardId: string) => void;
   removeFromMain: (cardId: string) => void;
   removeFromSide: (cardId: string) => void;
@@ -466,18 +474,7 @@ export const useDeckStore = create<DeckState>()(
         migrationError: false,
         addToMain: (card) =>
           set((state) => {
-            if (!canHaveAnyNumberOf(card)) {
-              const format = getFormat(state.currentDeck.format ?? "standard");
-              if (format) {
-                const limit = copyLimitFromText(card.text) ?? format.deckRules.maxCopies;
-                const currentCount = state.currentDeck.cards.filter(
-                  (c) => c.identity.name === card.identity.name,
-                ).length;
-                if (currentCount >= limit) {
-                  return state; // silently reject — UI will show toast via DeckBuilder
-                }
-              }
-            }
+            if (!canAddToMain(state.currentDeck, card)) return state;
             return {
               currentDeck: normalizeDeck({
                 ...state.currentDeck,
@@ -499,6 +496,36 @@ export const useDeckStore = create<DeckState>()(
               maybeboard: [...(state.currentDeck.maybeboard ?? []), createCardOccurrence(card)],
             }),
           })),
+        moveCards: (cardIds, destination) => {
+          const ids = new Set(cardIds);
+          let moved = 0;
+          set((state) => {
+            const deck = {
+              ...state.currentDeck,
+              cards: [...state.currentDeck.cards],
+              sideboard: [...state.currentDeck.sideboard],
+              maybeboard: [...(state.currentDeck.maybeboard ?? [])],
+            };
+            const target =
+              destination === "main"
+                ? "cards"
+                : destination === "side"
+                  ? "sideboard"
+                  : "maybeboard";
+            for (const source of ["cards", "sideboard", "maybeboard"] as const) {
+              if (source === target) continue;
+              deck[source] = deck[source].filter((card) => {
+                if (!ids.has(card.identity.id)) return true;
+                if (target === "cards" && !canAddToMain(deck, card)) return true;
+                deck[target].push(card);
+                moved += 1;
+                return false;
+              });
+            }
+            return moved > 0 ? { currentDeck: normalizeDeck(deck) } : state;
+          });
+          return moved;
+        },
         removeFromMaybe: (cardId) =>
           set((state) => {
             const idx = (state.currentDeck.maybeboard ?? []).findIndex(

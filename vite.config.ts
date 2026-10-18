@@ -1,6 +1,7 @@
 import path from "path";
 import { readFileSync } from "fs";
 import { fileURLToPath } from "node:url";
+import { createHash } from "node:crypto";
 import { defineConfig } from "vite";
 import type { Plugin } from "vite";
 import react from "@vitejs/plugin-react";
@@ -37,11 +38,26 @@ function crossOriginIsolation(): Plugin {
   };
 }
 
-function cardGlintNotices(): Plugin {
+function cardGlintAssets(): Plugin {
+  const rendererWasm = readFileSync(fileURLToPath(import.meta.resolve("card-glint/renderer.wasm")));
   return {
-    name: "card-glint-notices",
-    generateBundle() {
+    name: "card-glint-assets",
+    augmentChunkHash: (chunk) =>
+      chunk.name === "card-glint"
+        ? createHash("sha256").update(rendererWasm).digest("hex")
+        : undefined,
+    generateBundle(_options, bundle) {
       const packageRoot = fileURLToPath(new URL("../../", import.meta.resolve("card-glint")));
+      const rendererChunk = Object.values(bundle).find(
+        (output) => output.type === "chunk" && output.name === "card-glint",
+      );
+      if (rendererChunk) {
+        this.emitFile({
+          type: "asset",
+          fileName: `${path.posix.dirname(rendererChunk.fileName)}/renderer_bg.wasm`,
+          source: rendererWasm,
+        });
+      }
       for (const file of ["LICENSE-MIT", "LICENSE-APACHE", "NOTICE.md", "games/magic/NOTICE.md"]) {
         this.emitFile({
           type: "asset",
@@ -66,7 +82,7 @@ export default defineConfig({
       compiler: "raw",
     }),
     crossOriginIsolation(),
-    cardGlintNotices(),
+    cardGlintAssets(),
   ],
   resolve: {
     alias: {
@@ -142,5 +158,15 @@ export default defineConfig({
   assetsInclude: ["**/*.wasm"],
   build: {
     target: "esnext",
+    rollupOptions: {
+      output: {
+        manualChunks: (id) =>
+          id.replaceAll("\\", "/").includes("/node_modules/card-glint/") ? "card-glint" : undefined,
+        chunkFileNames: (chunk) =>
+          chunk.name === "card-glint"
+            ? "assets/card-glint-[hash]/index.js"
+            : "assets/[name]-[hash].js",
+      },
+    },
   },
 });

@@ -10,7 +10,7 @@ import type { CardInspectAppearance } from "@/lib/cardGlintInspectAppearance";
 import type { DeckCard, CardFinish } from "@/protocol/deck";
 import { captureCardInput, prepareCard } from "@/lib/cardRenderSnapshot";
 import { cardGlintFace } from "@/lib/cardRenderFace";
-import { CardArtworkError } from "@/lib/cardRenderDecision";
+import { CardRenderError } from "@/lib/cardRenderDecision";
 import { renderCard } from "@/lib/cardRenderer";
 import { getCardArtWindows } from "@/lib/cardRenderGeometry";
 import { loadScryfallImage } from "@/lib/scryfallImageSource";
@@ -145,7 +145,7 @@ async function inspectDocument(
         throw error;
       }
     } catch (error) {
-      if (!(error instanceof CardArtworkError)) throw error;
+      if (!(error instanceof CardRenderError) || error.decision.mode !== "original") throw error;
     }
   }
   const store = useScryfallStore.getState();

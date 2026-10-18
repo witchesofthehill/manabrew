@@ -45,7 +45,7 @@ Per-copy `CardCosmetics` and its closed wire types live in `forge-foundation/src
 
 Material cosmetics use closed `CardCoating`, `CardPrintDots` and `CardFinishCoverage` objects. Zero coating/dots normalize away; omitted dot sampling matches native defaults. Explicit finish coverage, including amount zero and full/one, overrides native recipe coverage and must survive normalization. Keep these objects aligned across Rust, frontend normalization and the Java codec. Browser engine artifacts must be rebuilt after foundation cosmetic changes.
 
-Appearance serialization distinguishes viewer-filtered snapshots from explicitly authorized prompt cards. Owning a library is not permission to reveal its cosmetics. Stack sources use current visibility when historical visibility is unavailable. The Rust producer still has a pre-existing broader hand-identity/text disclosure issue; suppressing new foil/cosmetics fields is not a repair of that separate privacy boundary.
+Appearance serialization distinguishes viewer-filtered snapshots from explicitly authorized prompt cards. Owning a library is not permission to reveal its cosmetics. Stack sources use current visibility when historical visibility is unavailable. Hand snapshots serialize only cards the viewer controls or has `may_player_look` permission to see; hidden cards contribute only to the zone count. Keep this filtering before DTO construction so identity, rules text and appearance never enter another seat's payload.
 
 ## Limited session checkpoints
 

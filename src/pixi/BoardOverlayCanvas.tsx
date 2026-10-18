@@ -145,9 +145,19 @@ function syncPromptViewport(
   height: number,
   viewportRight: number | undefined,
 ): void {
+  const visualViewport = window.visualViewport;
+  const visibleHeight = visualViewport
+    ? Math.max(
+        1,
+        Math.min(
+          height,
+          visualViewport.offsetTop + visualViewport.height - canvas.getBoundingClientRect().top,
+        ),
+      )
+    : height;
   prompt.setViewport(
     width,
-    height,
+    visibleHeight,
     viewportRight == null ? null : viewportRight - canvas.getBoundingClientRect().left,
   );
 }
@@ -770,8 +780,25 @@ export function BoardOverlayCanvasSurface({
         schedulerRef.current?.request();
       }
     });
+    const onVisualViewportResize = () => {
+      const prompt = promptRef.current;
+      const canvas = canvasRef.current;
+      if (!prompt || !canvas) return;
+      syncPromptViewport(
+        prompt,
+        canvas,
+        parent.clientWidth,
+        parent.clientHeight,
+        promptViewportRightRef.current,
+      );
+      schedulerRef.current?.request();
+    };
+    window.visualViewport?.addEventListener("resize", onVisualViewportResize);
     observer.observe(parent);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      window.visualViewport?.removeEventListener("resize", onVisualViewportResize);
+    };
   }, []);
 
   useEffect(() => {

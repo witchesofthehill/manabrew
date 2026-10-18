@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.56.1](https://github.com/witchesofthehill/manabrew/compare/v3.56.0...v3.56.1) (2026-10-17)
+
+### Fixes
+
+* **ui:** restore touch scrolling and search in choice prompts ([#1052](https://github.com/witchesofthehill/manabrew/issues/1052)) ([688d6a6](https://github.com/witchesofthehill/manabrew/commit/688d6a6b1a30769c0e0dda0ce9dad0c78007616d))
+
 ## [3.56.0](https://github.com/witchesofthehill/manabrew/compare/v3.55.4...v3.56.0) (2026-10-16)
 
 ### Features

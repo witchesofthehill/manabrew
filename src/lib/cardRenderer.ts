@@ -10,7 +10,8 @@ import {
   type CardRenderRequest,
   type PreparedCard,
 } from "@/lib/cardRenderSnapshot";
-import { cardImageLoader, normalizeCardCanvas } from "@/lib/cardRenderArtwork";
+import { cardImageLoader } from "@/lib/cardRenderArtwork";
+import { attachCardRenderGeometry } from "@/lib/cardRenderGeometry";
 import { CardRenderError, type CardRenderDecision } from "@/lib/cardRenderDecision";
 import { cardGlintFace, type CardGlintFace } from "@/lib/cardRenderFace";
 import {
@@ -145,15 +146,12 @@ function composeCard(
                 compositionSignal,
                 { loadImages },
               );
-        const canvas = normalizeCardCanvas(await paint(face), face, prepared.faceIndex);
+        const canvas = await paint(face);
+        attachCardRenderGeometry(canvas, face, prepared.faceIndex);
         const colors = new Set<string>();
         const backingFace = withoutLiveInk(face, colors);
         if (backingFace !== face) {
-          const backing = normalizeCardCanvas(
-            await paint(backingFace),
-            backingFace,
-            prepared.faceIndex,
-          );
+          const backing = await paint(backingFace);
           registerCardLiveHighlights(canvas, backing, [...colors]);
           backing.width = backing.height = 0;
         }

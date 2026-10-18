@@ -194,10 +194,7 @@ function GeneratedCardCanvas({
           <canvas
             ref={canvasRef}
             aria-hidden="true"
-            className={cn(
-              "absolute inset-0 h-full w-full object-contain",
-              !hasImage && "invisible",
-            )}
+            className={cn("absolute inset-0 h-full w-full object-fill", !hasImage && "invisible")}
           />
           <CardFoilOverlay
             enabled={!hidden && visible}

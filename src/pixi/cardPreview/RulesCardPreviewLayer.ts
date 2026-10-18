@@ -1739,7 +1739,11 @@ export class RulesCardPreviewLayer {
     this.faceSprite.rotation = rotate ? Math.PI / 2 : 0;
     const width = rotate ? texture.height : texture.width;
     const height = rotate ? texture.width : texture.height;
-    this.faceSprite.scale.set(Math.min(this.faceWidth / width, this.panelHeight / height));
+    if (this.faceGeometry && !this.scanOverlay) {
+      this.faceSprite.scale.set(this.faceWidth / width, this.panelHeight / height);
+    } else {
+      this.faceSprite.scale.set(Math.min(this.faceWidth / width, this.panelHeight / height));
+    }
     const faceWidth = rotate ? this.faceSprite.height : this.faceSprite.width;
     const faceHeight = rotate ? this.faceSprite.width : this.faceSprite.height;
     this.faceMask

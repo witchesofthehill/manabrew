@@ -1,11 +1,5 @@
 import { loadCanvasImages } from "card-glint/magic/presentation";
 import { loadScryfallImage } from "@/lib/scryfallImageSource";
-import {
-  CARD_RENDER_WIDTH,
-  CARD_RENDER_HEIGHT,
-  attachCardRenderGeometry,
-} from "@/lib/cardRenderGeometry";
-import type { RenderedCardInput } from "card-glint/magic/presentation";
 
 export const CARD_ARTWORK_FACE_FRAGMENT = "#manabrew-card-art-face=";
 const MAX_ARTWORK_BYTES = 32 * 1024 * 1024;
@@ -25,13 +19,6 @@ interface ImageEntry {
 }
 const images = new Map<string, ImageEntry>();
 let imageBytes = 0;
-
-export function createCardCanvas(width: number, height: number): HTMLCanvasElement {
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  return canvas;
-}
 
 async function decodeArtwork(url: string): Promise<ImageLease> {
   const separator = url.lastIndexOf(CARD_ARTWORK_FACE_FRAGMENT);
@@ -150,23 +137,4 @@ export function cardImageLoader(artUrls: readonly (string | undefined)[]): typeo
       for (const [url, image] of entry.lease.images) loaded.set(url, image);
     return { images: loaded, dispose };
   };
-}
-
-export function normalizeCardCanvas(
-  source: HTMLCanvasElement,
-  face: RenderedCardInput,
-  faceIndex: number,
-): HTMLCanvasElement {
-  const density = Math.min(source.width / CARD_RENDER_WIDTH, source.height / CARD_RENDER_HEIGHT);
-  const canvas = createCardCanvas(
-    Math.round(CARD_RENDER_WIDTH * density),
-    Math.round(CARD_RENDER_HEIGHT * density),
-  );
-  const drawing = canvas.getContext("2d");
-  if (!drawing) throw new Error("Card rendering requires a 2D canvas context");
-  drawing.imageSmoothingQuality = "high";
-  drawing.drawImage(source, 0, 0, canvas.width, canvas.height);
-  attachCardRenderGeometry(canvas, face, faceIndex);
-  source.width = source.height = 0;
-  return canvas;
 }

@@ -952,6 +952,7 @@ export class CardSprite extends Container {
       if (this.frameCounterReserve !== previousCounterReserve) this.updateCounters();
       this.syncHandFaceVisibility();
       this.onVisualChange?.();
+      this.finishPreviewFlip();
       return;
     }
     this.showImage(texture, owned, artwork);
@@ -997,9 +998,7 @@ export class CardSprite extends Container {
     this.updateHandControls();
   }
   get previewPresentationReady(): boolean {
-    return this.handRulesView
-      ? this.handRulesFace?.presentationReady === true
-      : this._imageLoaded && this._imageSettled;
+    return this.handRulesView ? this.handRulesFace?.presentationReady === true : this._imageSettled;
   }
   private requestPreviewChange(face: 0 | 1 | null, rulesView: boolean): void {
     this.requestedFace = face;

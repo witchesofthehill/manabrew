@@ -13,6 +13,7 @@ export interface TokenSectionProps {
   tokens: DeckCard[];
   customizedTokens?: DeckCard[];
   cardSize: number;
+  canCustomize: boolean;
   showHeader?: boolean;
   onShowInfo?: (token: DeckCard) => void;
   onInspect?: (token: DeckCard, anchor: HTMLElement | DOMRect) => void;
@@ -26,6 +27,7 @@ export function TokenSection({
   tokens,
   customizedTokens,
   cardSize,
+  canCustomize,
   showHeader = true,
   onShowInfo,
   onInspect,
@@ -64,6 +66,7 @@ export function TokenSection({
             >
               <TokenGridCard
                 token={t}
+                canCustomize={canCustomize}
                 customized={customizedTokens?.some(
                   (candidate) => tokenIdentityKey(candidate) === tokenIdentityKey(t),
                 )}
@@ -84,6 +87,7 @@ export function TokenSection({
 }
 function TokenGridCard({
   token,
+  canCustomize,
   customized,
   onShowInfo,
   onInspect,
@@ -95,6 +99,7 @@ function TokenGridCard({
 }: {
   token: DeckCard;
   customized?: boolean;
+  canCustomize: boolean;
   onShowInfo?: (token: DeckCard) => void;
   onInspect?: (token: DeckCard, anchor: HTMLElement | DOMRect) => void;
   onDismiss?: () => void;
@@ -117,6 +122,7 @@ function TokenGridCard({
       token
       count={1}
       location="main"
+      canCustomize={canCustomize}
       onShowInfo={onShowInfo ? () => onShowInfo(token) : undefined}
       onPickPrint={onPickPrint ? () => onPickPrint(token) : undefined}
     >

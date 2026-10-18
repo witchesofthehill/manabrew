@@ -52,7 +52,7 @@ import type { DeckCard, DeckCardIdentity } from "@/protocol/deck";
 import type { ScryfallCard } from "@/types/scryfall";
 import type { ScryfallLanguage } from "@/i18n/locales";
 import type { EditorDeck } from "@/types/manabrew";
-import { useScryfallStore } from "@/stores/useScryfallStore";
+import { chooseImageUrisForCard, useScryfallStore } from "@/stores/useScryfallStore";
 import {
   deckCardToPreviewDto,
   frontFaceName,
@@ -1758,6 +1758,10 @@ export function DeckBuilder({
                     .length
                 }
                 onAdd={(sc, request) => {
+                  if (!chooseImageUrisForCard(sc, { frontOnly: true })) {
+                    toast.error(`This printing has no card image. Choose another printing.`);
+                    return false;
+                  }
                   const card = scryfallToDeckCard(sc);
                   const format = getFormat(currentDeck.format ?? "standard");
                   const existingCount = currentDeck.cards.filter(
@@ -2049,6 +2053,7 @@ export function DeckBuilder({
                     const isCoverBack =
                       currentDeck.coverCardName === name && currentDeck.coverCardFace === 1;
                     return {
+                      canCustomize: !isReadOnly,
                       commanderLabel: label,
                       customTags: currentDeck.customTags ?? [],
                       appliedTags: currentDeck.cardTags?.[name.toLowerCase()] ?? [],
@@ -2092,6 +2097,7 @@ export function DeckBuilder({
                       card={currentDeck.companion}
                       count={1}
                       location="side"
+                      canCustomize={!isReadOnly}
                       onShowInfo={() => handleShowInfo(currentDeck.companion!)}
                       onPickPrint={
                         isReadOnly ? undefined : () => setPrintPickerCard(currentDeck.companion!)
@@ -2116,6 +2122,7 @@ export function DeckBuilder({
                 >
                   <DeckListView
                     key={`deck-sections-${editorSessionId}`}
+                    canCustomize={!isReadOnly}
                     viewMode={viewMode}
                     cardSize={cardSize}
                     commanders={currentDeck.commanders ?? []}
@@ -2238,6 +2245,7 @@ export function DeckBuilder({
                         tokens={mergedTokens}
                         customizedTokens={currentDeck.tokens}
                         cardSize={cardSize}
+                        canCustomize={!isReadOnly}
                         onShowInfo={handleShowTokenInfo}
                         onPickPrint={setTokenPrintPicker}
                         onResetPrint={(token) =>

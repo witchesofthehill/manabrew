@@ -138,6 +138,8 @@ export function LimitedBuildUtilities({
               tokens={tokens}
               cardSize={tokenCardSize}
               showHeader={false}
+              canCustomize={false}
+              onShowInfo={(token) => preview.showSticky(deckCardToPreviewDto(token))}
               onInspect={(token, anchor) =>
                 preview.showSticky(deckCardToPreviewDto(token), undefined, undefined, anchor)
               }

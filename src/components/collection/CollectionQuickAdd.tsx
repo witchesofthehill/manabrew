@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { scryfallDisplayName, scryfallToDeckCard } from "@/lib/scryfall.utils";
-import { useScryfallStore } from "@/stores/useScryfallStore";
+import { chooseImageUrisForCard, useScryfallStore } from "@/stores/useScryfallStore";
 import type { ScryfallCard } from "@/types/scryfall";
 interface CollectionQuickAddProps {
   disabled?: boolean;
@@ -194,10 +194,12 @@ export function CollectionQuickAdd({
                   title={`Add one ${displayName}`}
                   onClick={() => add(card)}
                 >
-                  <GeneratedCardImage
-                    deckCard={scryfallToDeckCard(card)}
-                    className="h-11 w-8 shrink-0 rounded"
-                  />
+                  {chooseImageUrisForCard(card, { frontOnly: true }) && (
+                    <GeneratedCardImage
+                      deckCard={scryfallToDeckCard(card)}
+                      className="h-11 w-8 shrink-0 rounded"
+                    />
+                  )}
                   <span className="min-w-0 flex-1 truncate text-xs font-medium">{displayName}</span>
                   <span className="shrink-0 text-[10px] text-muted-foreground">
                     {getCount(card.name)} owned

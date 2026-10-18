@@ -31,6 +31,12 @@
         { "url": "https://backs.scryfall.io/*" },
         { "url": "https://svgs.scryfall.io/*" },
         { "url": "https://game.scryfall.io/*" },
+        { "url": "https://cdn.jsdelivr.net/gh/wingedsheep/mtg-card-renderer@*/*" },
+        { "url": "https://cdn.jsdelivr.net/gh/andrewgioia/keyrune@*/*" },
+        { "url": "https://cdn.jsdelivr.net/gh/andrewgioia/mana@*/*" },
+        { "url": "https://cdn.jsdelivr.net/gh/Investigamer/cardconjurer@*/*" },
+        { "url": "https://raw.githubusercontent.com/joshbirnholz/cardconjurer/*" },
+        { "url": "https://raw.githubusercontent.com/MagicSetEditorPacks/Full-Magic-Pack/*" },
         { "url": "https://cubecobra.com/cube/download/forge/*" }
       ]
     }

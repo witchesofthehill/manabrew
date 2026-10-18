@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { CardPreviewController } from "@/hooks/useCardPreview";
 import { CardPreviewMachine, type PreviewCard } from "@/lib/cardPreview";
+import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
 
 vi.mock("./HoverCardPreview", () => ({ HoverCardPreview: () => null }));
 
@@ -39,9 +40,11 @@ describe("CardPreviewRail", () => {
       onMouseLeavePreview: () => undefined,
       showSticky: () => undefined,
     } as CardPreviewController;
-    const card = {
-      identity: { id: "card-1", name: "Lightning Bolt" },
-    } as unknown as PreviewCard;
+    const card: PreviewCard = {
+      ...GAME_CARD_DEFAULTS,
+      id: "card-1",
+      identity: { ...GAME_CARD_DEFAULTS.identity, name: "Lightning Bolt" },
+    };
     const container = document.createElement("div");
     const root = createRoot(container);
 

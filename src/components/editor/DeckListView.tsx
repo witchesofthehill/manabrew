@@ -72,7 +72,6 @@ import { useIsUnsupported } from "@/stores/useCardSupportStore";
 import { useIsComboCard, useIsGameChangerCard } from "@/stores/useDeckAnalysisStore";
 import { useCardCollectionOwnership, useDeckCardOwnership } from "./useCardCollectionOwnership";
 import { CollectionOwnershipTooltip } from "./CollectionOwnershipTooltip";
-import { useDeckStore } from "@/stores/useDeckStore";
 import { CardCustomizerModal } from "@/components/editor/CardCustomizerModal";
 function ownershipHighlight(ownership: "exact" | "other" | "none", surface: "stack" | "grid") {
   return cn(
@@ -259,6 +258,7 @@ const STACK_SECTION_MAYBEBOARD = "__maybeboard__";
 const STACK_SECTION_TAG_PREFIX = "__tag__";
 const STACK_SECTION_SPECIAL_PREFIX = "__special__";
 export interface CardContextActions {
+  canCustomize?: boolean;
   onAddOne?: () => void;
   onRemoveOne?: () => void;
   onRemoveAll?: () => void;
@@ -424,6 +424,7 @@ export function CardContextMenu({
   children,
   count,
   location,
+  canCustomize = false,
   onAddOne,
   onRemoveOne,
   onRemoveAll,
@@ -450,7 +451,6 @@ export function CardContextMenu({
   onCreateTag,
 }: CardContextMenuProps) {
   const [customizing, setCustomizing] = useState(false);
-  const isReadOnly = useDeckStore((state) => state.isReadOnly);
   const showTagSubmenu = !!onApplyTag && ((customTags && customTags.length > 0) || !!onCreateTag);
   const commanderHandler = isCommander ? onRemoveCommander : onSetCommander;
   const showAll = count > 1;
@@ -572,14 +572,14 @@ export function CardContextMenu({
               </ContextMenuItem>
             </>
           )}
-          {!isReadOnly && (
+          {canCustomize && (
             <ContextMenuItem onSelect={() => setCustomizing(true)}>
               <Palette className="mr-2 h-3.5 w-3.5" /> Customize card…
             </ContextMenuItem>
           )}
         </ContextMenuContent>
       </ContextMenu>
-      {customizing && !isReadOnly && (
+      {customizing && canCustomize && (
         <CardCustomizerModal card={card} token={token} onClose={() => setCustomizing(false)} />
       )}
     </>
@@ -1149,6 +1149,7 @@ function CardRow({
   );
 }
 interface CardSectionProps {
+  canCustomize: boolean;
   label: string;
   sectionId: string;
   groups: CardGroup[];
@@ -1191,6 +1192,7 @@ function CardSection({
   deckFormat,
   viewMode,
   cardWidth,
+  canCustomize,
   onAddOne,
   onRemoveOne,
   onRemoveAll,
@@ -1230,6 +1232,7 @@ function CardSection({
   const contextActionsFor = (group: CardGroup): CardContextActions => {
     const { name } = group.card.identity;
     return {
+      canCustomize,
       onAddOne: () => onAddOne(group),
       onRemoveOne: () => effectiveRemoveOne(name),
       onRemoveAll: () => onRemoveAll(name),
@@ -1457,6 +1460,7 @@ function DroppableStackTag({
   );
 }
 export interface DeckListViewProps {
+  canCustomize: boolean;
   viewMode: ViewMode;
   cardSize: number;
   commanders: DeckCard[];
@@ -1543,6 +1547,7 @@ export interface DeckListViewProps {
 export function DeckListView({
   viewMode,
   cardSize,
+  canCustomize,
   commanders,
   deckFormat,
   mainSections,
@@ -1766,6 +1771,7 @@ export function DeckListView({
     [onAddCustomTag, onTagCard],
   );
   const sharedSectionProps = {
+    canCustomize,
     commanderNames: new Set(commanders.map((c) => c.identity.name)),
     deckFormat,
     viewMode,
@@ -1922,6 +1928,7 @@ export function DeckListView({
       return {
         location: "main" as const,
         actions: {
+          canCustomize,
           onAddOne: () => onAddOne(group),
           onRemoveOne: () => onRemoveOne(name),
           onRemoveAll: () => onRemoveAll(name),
@@ -1987,6 +1994,7 @@ export function DeckListView({
               contextMenuFor={(g) => ({
                 location: "side",
                 actions: {
+                  canCustomize,
                   onAddOne: () =>
                     onAddToSide({
                       ...g.card,
@@ -2046,6 +2054,7 @@ export function DeckListView({
               contextMenuFor={(g) => ({
                 location: "maybe",
                 actions: {
+                  canCustomize,
                   onAddOne: () =>
                     onAddToMaybe({
                       ...g.card,
@@ -2118,6 +2127,7 @@ export function DeckListView({
             contextMenuFor={(group) => ({
               location: "side",
               actions: {
+                canCustomize,
                 onShowInfo: onShowInfo ? () => onShowInfo(group.card) : undefined,
                 onPickPrint: () => onPickPrint(group.card),
               },
@@ -2338,6 +2348,7 @@ export function DeckListView({
                     key={g.key}
                     count={g.count}
                     location="side"
+                    canCustomize={canCustomize}
                     onAddOne={() =>
                       onAddToSide({
                         ...g.card,
@@ -2390,6 +2401,7 @@ export function DeckListView({
                       onPickPrint={() => onPickPrint(g.card)}
                       contextLocation="side"
                       contextActions={{
+                        canCustomize,
                         onAddOne: () =>
                           onAddToSide({
                             ...g.card,
@@ -2447,6 +2459,7 @@ export function DeckListView({
                     key={g.key}
                     count={g.count}
                     location="maybe"
+                    canCustomize={canCustomize}
                     onAddOne={() =>
                       onAddToMaybe({
                         ...g.card,
@@ -2505,6 +2518,7 @@ export function DeckListView({
                       onPickPrint={() => onPickPrint(g.card)}
                       contextLocation="maybe"
                       contextActions={{
+                        canCustomize,
                         onAddOne: () =>
                           onAddToMaybe({
                             ...g.card,
@@ -2561,6 +2575,7 @@ export function DeckListView({
                         card={g.card}
                         count={g.count}
                         location="side"
+                        canCustomize={canCustomize}
                         onShowInfo={onShowInfo ? () => onShowInfo(g.card) : undefined}
                         onPickPrint={() => onPickPrint(g.card)}
                       >
@@ -2608,6 +2623,7 @@ export function DeckListView({
                           onPickPrint={() => onPickPrint(g.card)}
                           contextLocation="side"
                           contextActions={{
+                            canCustomize,
                             onShowInfo: onShowInfo ? () => onShowInfo(g.card) : undefined,
                             onPickPrint: () => onPickPrint(g.card),
                           }}

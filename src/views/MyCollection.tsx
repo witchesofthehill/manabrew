@@ -38,6 +38,7 @@ import { cn } from "@/lib/utils";
 import { deckCardToPreviewDto, scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useCollectionStore } from "@/stores/useCollectionStore";
+import { chooseImageUrisForCard } from "@/stores/useScryfallStore";
 export default function MyCollection() {
   useCardCollection();
   const shortScreen = useIsShortScreen();
@@ -205,11 +206,15 @@ export default function MyCollection() {
                 const cardKey = collectionCardKey(name, setCode, collectorNumber, foil);
                 updateQuantity(cardKey, (quantities[cardKey] ?? 0) + quantity);
               }}
-              onHover={(card, event) =>
+              onHover={(card, event) => {
+                if (!chooseImageUrisForCard(card, { frontOnly: true })) {
+                  preview.handleMouseLeave();
+                  return;
+                }
                 preview.handleMouseEnter(deckCardToPreviewDto(scryfallToDeckCard(card)), event, {
                   placement: "pinned",
-                })
-              }
+                });
+              }}
               onLeave={preview.handleMouseLeave}
             />
             <div className="flex shrink-0 overflow-hidden rounded-md border">

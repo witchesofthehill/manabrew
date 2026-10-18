@@ -4,6 +4,7 @@ import type { DeckCard } from "@/protocol/deck";
 import { CardContextMenu } from "./DeckListView";
 
 export interface CommandZoneCardMenuActions {
+  canCustomize: boolean;
   commanderLabel: string;
   customTags: string[];
   appliedTags: string[];
@@ -33,6 +34,7 @@ export function CommandZoneCardMenu({
       card={card}
       count={1}
       location="main"
+      canCustomize={actions.canCustomize}
       onShowInfo={actions.onShowInfo}
       isCommander
       commanderSlot={{ noun: actions.commanderLabel, icon: "crown" }}

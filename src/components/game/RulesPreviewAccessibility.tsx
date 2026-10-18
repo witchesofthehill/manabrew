@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import type { CardDto } from "@/protocol/game";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { cn } from "@/lib/utils";
@@ -72,12 +72,36 @@ export function RulesPreviewAccessibility({
   onDismiss,
 }: Props) {
   const [focus, setFocus] = useState<{ key: string; bounds: Bounds } | null>(null);
-  if (
+  const sectionRef = useRef<HTMLElement>(null);
+  const focusHold = useRef<{ hold: () => void; release: () => void } | null>(null);
+  const releaseFocusHold = useCallback(() => {
+    const held = focusHold.current;
+    focusHold.current = null;
+    held?.release();
+  }, []);
+  const holdFocus = () => {
+    if (focusHold.current) return;
+    focusHold.current = { hold: onHold, release: onRelease };
+    onHold();
+  };
+  const hidden =
     card.isFaceDown ||
     !card.identity.name ||
-    ("visibility" in card && card.visibility === "hidden")
-  )
+    ("visibility" in card && card.visibility === "hidden");
+
+  useLayoutEffect(() => releaseFocusHold, [releaseFocusHold]);
+  useLayoutEffect(() => {
+    const containsFocus = sectionRef.current?.contains(document.activeElement) === true;
+    const held = focusHold.current;
+    if (held && (!containsFocus || held.hold !== onHold || held.release !== onRelease))
+      releaseFocusHold();
+    if (containsFocus) holdFocus();
+  });
+
+  if (hidden) {
+    if (focus) setFocus(null);
     return null;
+  }
   const controls = [
     ...actions.map((action, index) => ({
       key: `action-${index}`,
@@ -95,12 +119,13 @@ export function RulesPreviewAccessibility({
   ];
   return (
     <section
+      ref={sectionRef}
       aria-label={`${card.identity.name} rules and actions`}
-      onFocusCapture={onHold}
+      onFocusCapture={holdFocus}
       onBlurCapture={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget)) {
           setFocus(null);
-          onRelease();
+          releaseFocusHold();
         }
       }}
     >

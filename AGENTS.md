@@ -17,6 +17,8 @@ The development web container owns a separate `web-node-modules` volume. Host-si
 
 Hub migrations are immutable once any environment has applied them. Extend the schema with the next numbered migration so existing and fresh databases converge through the same sequence.
 
+For Hub startup or health-check changes, read `docs/agents/HUB.md`: parsing the cached Scryfall index can exceed the deployment health-check budget.
+
 ## Prime directive: root-cause, not symptom
 
 Every engine fix must restore long-term correctness of the underlying mechanic — not patch the one card that triggered the bug report. If a single card seems to need a special case, that is almost always wrong: the general rule lives somewhere in Forge — find it, port it, mirror it.

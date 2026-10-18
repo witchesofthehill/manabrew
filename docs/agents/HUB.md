@@ -50,4 +50,6 @@ Publication writes require `SessionAccount`. The Hub service's `DECK_HUB` flag d
 
 Production has one Hub container. Ingress waits up to 30 seconds for a reachable Hub and checks health every second during recreation. Keep the retry policy loaded before restarting Hub. Connection failures can be retried before a request is delivered; do not enable blanket POST retries after delivery, because code exchange and other writes may not be repeatable. A prolonged outage still returns an error.
 
+The Scryfall index loads cached data through `spawn_blocking` in the background refresh loop. Keep that parsing off the startup path: a production cache took roughly 35 seconds to load and exhausted the container's health-check retries before the HTTP listener opened. Other API routes remain available during loading; collection verification returns its existing 503 response until the index is ready.
+
 Engine reports optionally carry typed `checkpoints` summaries. Migration 27 stores them as JSON in `engine_play_stats.checkpoints`; the relay emits the same object in `engine_stats` events and the ingester preserves it in `engine_stats.checkpoints`. Timing fields ending in `Us` are integer microseconds. Old reports remain NULL. This field contains aggregate durations and counts only.

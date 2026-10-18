@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.57.1](https://github.com/witchesofthehill/manabrew/compare/v3.57.0...v3.57.1) (2026-10-18)
+
+### Fixes
+
+* **ui:** use the card language for search results ([#1043](https://github.com/witchesofthehill/manabrew/issues/1043)) ([a811638](https://github.com/witchesofthehill/manabrew/commit/a81163817b78914b043836dbcd91669a3199581a))
+
 ## [3.57.0](https://github.com/witchesofthehill/manabrew/compare/v3.56.1...v3.57.0) (2026-10-18)
 
 ### Features

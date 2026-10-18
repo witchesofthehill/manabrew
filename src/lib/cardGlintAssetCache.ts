@@ -1,7 +1,7 @@
 import type { ScryfallCard, ScryfallImageUris } from "@/types/scryfall";
 import type { ScryfallCardLookup } from "@/stores/useScryfallStore";
 
-export const CARD_GLINT_CACHE = "manabrew-card-glint-0.5.1-offline-v1";
+export const CARD_GLINT_CACHE = "manabrew-card-glint-0.5.2-offline-v1";
 export const CARD_GLINT_MANIFEST_CACHE = `${CARD_GLINT_CACHE}-manifests`;
 export const CARD_GLINT_RECORD_CACHE = `${CARD_GLINT_CACHE}-records`;
 

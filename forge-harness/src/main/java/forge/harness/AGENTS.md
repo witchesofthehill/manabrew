@@ -98,6 +98,8 @@ Snapshots are **per-viewer**: `getSnapshot` takes a `viewer` seat index (`-1` = 
 
 Per-copy appearance is bound by `host/CardCosmeticBindings` during initial zone insertion, before identical `PaperCard` entries can lose their physical-entry association through shuffle. Clear pending entry queues at initial shuffle; later tokens must not consume deck bindings. Bindings use immutable game card IDs and retain foil plus typed cosmetics for exact owner/token-script overrides. Do not mutate shared `PaperCard` objects or recover appearance by name.
 
+`host/CardCosmeticsCodec` validates the foundation's closed material objects before Gson conversion. Fractional material values require type-specific floating-point overrides in `scripts/gen-harness-prompts.mjs`; its generic numeric fallback is integer. Keep explicit zero finish coverage and rebuild both the harness and browser Web Image after cosmetic wire changes.
+
 Visible card and stack-source projections read the same bindings; hidden redaction clears foil and cosmetics. Prompt-card disclosure is explicit, not spectator visibility. Preserve bindings across checkpoints without rewinding the live card-ID counter. Rebuild the browser Web Image as well as the harness after changing this producer.
 
 `CardDto.keywords` retains raw engine identifiers. Visible cards also emit `keywordLabels`, keyed by the original string and formatted with `KeywordInterface.getTitle()`. Generated rules use those labels without duplicating printed keyword lines; never expose cost DSL as rules text or parse it in the renderer. Hidden redaction clears the label map.

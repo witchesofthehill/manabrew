@@ -191,6 +191,10 @@ export class CardGlintInspectScene {
   private appearanceKey?: string;
   private sourceRainFog = 1;
   private sourceWear: Instance["wear"] = { amount: 0, seed: 0 };
+  private sourceCardstock?: Instance["cardstock"];
+  private sourcePrintDots?: Instance["printDots"];
+  private sourceCoverage?: CardInspectAppearance["coverage"];
+  private documentAppearance?: CardInspectAppearance;
   private documentKey?: string;
   private disposed = false;
   private ready = false;
@@ -284,6 +288,9 @@ export class CardGlintInspectScene {
       amount: resolveCardWearAmount(card.identity.cosmetics),
       seed: card.identity.cosmetics?.wearSeed ?? 0,
     };
+    this.sourceCardstock = card.identity.cosmetics?.cardstock;
+    this.sourcePrintDots = card.identity.cosmetics?.printDots;
+    this.sourceCoverage = card.identity.cosmetics?.finishCoverage;
     this.applyInstanceAppearance();
     const key = JSON.stringify([
       {
@@ -296,6 +303,9 @@ export class CardGlintInspectScene {
             wear: undefined,
             wearAmount: undefined,
             wearSeed: undefined,
+            cardstock: undefined,
+            printDots: undefined,
+            finishCoverage: undefined,
           },
         },
       },
@@ -306,6 +316,7 @@ export class CardGlintInspectScene {
       useScryfallStore.getState().locale,
     ]);
     if (this.documentKey === key && (this.ready || this.controller || this.preparation)) {
+      this.updateDocumentAppearance();
       this.invalidate();
       return;
     }
@@ -361,20 +372,24 @@ export class CardGlintInspectScene {
   private applyInstanceAppearance() {
     this.instance.rainFog = this.appearance?.rainFog ?? this.sourceRainFog;
     this.instance.wear = this.appearance?.wear ?? this.sourceWear;
-    this.instance.cardstock = this.appearance?.cardstock;
-    this.instance.printDots = this.appearance?.printDots;
+    this.instance.cardstock = this.appearance?.cardstock ?? this.sourceCardstock;
+    this.instance.printDots = this.appearance?.printDots ?? this.sourcePrintDots;
     this.instance.deformation = this.appearance?.deformation;
+    this.documentAppearance =
+      this.sourceCoverage && !this.appearance?.coverage
+        ? { ...this.appearance, coverage: this.sourceCoverage }
+        : this.appearance;
   }
 
   private updateDocumentAppearance() {
     if (!this.current || this.preparation || this.disposed) return;
-    const key = cardInspectDocumentAppearanceKey(this.appearance);
+    const key = cardInspectDocumentAppearanceKey(this.documentAppearance);
     if (this.derived && this.appearanceKey === key) return;
     try {
       const derived = cardInspectAppearanceDocument(
         this.current.document,
         ++this.revision,
-        this.appearance,
+        this.documentAppearance,
       );
       this.renderer.upsertCards([derived]);
       this.derived = derived;
@@ -401,7 +416,7 @@ export class CardGlintInspectScene {
         this.contextLost ||
         this.current !== current ||
         this.derived !== derived ||
-        this.appearanceKey !== cardInspectDocumentAppearanceKey(this.appearance)
+        this.appearanceKey !== cardInspectDocumentAppearanceKey(this.documentAppearance)
       )
         return;
       this.ready = true;

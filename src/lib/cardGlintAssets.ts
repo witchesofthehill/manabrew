@@ -1,4 +1,5 @@
-import { canvasFontAssets, setAssetFetcher } from "card-glint/magic/presentation";
+import { canvasFontAssets } from "card-glint/magic/presentation";
+import { setAssetFetcher } from "card-glint/canvas";
 import { cachedCardGlintAsset } from "@/lib/cardGlintAssetCache";
 import { platformFetch } from "@/lib/platformFetch";
 import { loadScryfallImage } from "@/lib/scryfallImageSource";

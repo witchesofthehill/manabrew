@@ -1,7 +1,12 @@
 import { useEffect, useRef, useSyncExternalStore } from "react";
-import { resolveCardFinish, resolveCardWearAmount, type CardFoilRegion } from "@/lib/cardFinish";
+import { hasCardFinishEffects, resolveCardFinish, type CardFoilRegion } from "@/lib/cardFinish";
 import type { CardCosmetics } from "@/protocol/deck";
-import { registerDomCardFoil, type CardFoilSource } from "@/lib/cardFoilDom";
+import {
+  registerDomCardFoil,
+  type CardFoilSource,
+  type DomCardFoilOptions,
+  type DomCardFoilRegistration,
+} from "@/lib/cardFoilDom";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useCardFinishPreview } from "@/stores/useCardFinishPreview";
 
@@ -35,17 +40,29 @@ export function CardFoilOverlay({
   const animations = usePreferencesStore((state) => state.inGameAnimations);
   const reduced = useSyncExternalStore(subscribeMotion, motionSnapshot);
   const animated = animations && !reduced;
-  const visible = enabled && (mode !== "regular" || resolveCardWearAmount(cosmetics) > 0);
+  const visible = enabled && hasCardFinishEffects(mode, cosmetics);
+  const optionsRef = useRef<DomCardFoilOptions>({
+    source,
+    artWindows,
+    mode,
+    cosmetics,
+    animated,
+  });
+  const registrationRef = useRef<DomCardFoilRegistration | null>(null);
+  useEffect(() => {
+    const options = { source, artWindows, mode, cosmetics, animated };
+    optionsRef.current = options;
+    registrationRef.current?.update(options);
+  }, [source, artWindows, mode, cosmetics, animated]);
   useEffect(() => {
     if (!visible || !canvasRef.current) return;
-    return registerDomCardFoil(canvasRef.current, {
-      source,
-      artWindows,
-      mode,
-      cosmetics,
-      animated,
-    });
-  }, [visible, source, artWindows, mode, cosmetics, animated]);
+    const registration = registerDomCardFoil(canvasRef.current, optionsRef.current);
+    registrationRef.current = registration;
+    return () => {
+      registrationRef.current = null;
+      registration.dispose();
+    };
+  }, [visible]);
   return visible ? (
     <canvas
       ref={canvasRef}

@@ -2,6 +2,7 @@ import { useId } from "react";
 import { ExternalLink } from "lucide-react";
 import { CardCustomizerNumber } from "@/components/editor/CardCustomizerNumber";
 import { CardCustomizerSurfaceWear } from "@/components/editor/CardCustomizerSurfaceWear";
+import { CardCustomizerMaterials } from "@/components/editor/CardCustomizerMaterials";
 import { AppSelect, AppSelectOption } from "@/components/ui/AppSelect";
 import {
   customizationFieldValue,
@@ -97,13 +98,19 @@ export function CardCustomizerControls({
           );
         })}
       </div>
+      <CardCustomizerMaterials
+        selected={selected}
+        drafts={drafts}
+        disabled={inactive}
+        onChange={onChange}
+      />
       <a
         href="/card-mock?tab=rendering"
         target="_blank"
         rel="noopener noreferrer"
         className="inline-flex items-center gap-1.5 rounded-sm px-1 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        Coating & print dots in Card lab
+        Open Card lab
         <ExternalLink className="size-3 shrink-0" aria-hidden="true" />
       </a>
     </section>

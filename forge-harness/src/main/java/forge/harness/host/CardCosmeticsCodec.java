@@ -19,7 +19,7 @@ final class CardCosmeticsCodec {
             return null;
         }
         final JsonObject object = object(value, Set.of("finish", "frame", "border", "wear", "wearAmount", "wearSeed",
-                "rainFog", "wording", "printing"));
+                "rainFog", "cardstock", "printDots", "finishCoverage", "wording", "printing"));
         enumeration(object, "finish", Set.of("regular", "gloss", "etched", "prismatic", "holofoil", "cold", "opal", "rain", "heat", "pool"));
         enumeration(object, "frame", Set.of("printing", "modern", "retro"));
         enumeration(object, "border", Set.of("printing", "black", "white", "silver"));
@@ -28,6 +28,16 @@ final class CardCosmeticsCodec {
         numeric(object, "wearSeed", 0, 0xffffffffL, true);
         numeric(object, "wearAmount", 0, 1, false);
         numeric(object, "rainFog", 0, 2, false);
+        for (final String key : new String[] {"cardstock", "printDots", "finishCoverage"}) {
+            if (object.has(key)) {
+                final JsonObject effect = effect(object.get(key), key);
+                if (effect == null) {
+                    object.remove(key);
+                } else {
+                    object.add(key, effect);
+                }
+            }
+        }
         if (object.has("printing")) {
             final JsonObject printing = printing(object.get("printing"));
             if (printing == null) {
@@ -53,6 +63,33 @@ final class CardCosmeticsCodec {
             object.remove("wearSeed");
         }
         return object.isEmpty() ? null : GSON.fromJson(object, CardCosmetics.class);
+    }
+
+    private static JsonObject effect(final JsonElement value, final String key) {
+        final JsonObject object = object(value, switch (key) {
+            case "printDots" -> Set.of("amount", "period", "variation", "inset");
+            case "finishCoverage" -> Set.of("area", "amount");
+            default -> Set.of("amount");
+        });
+        if (!object.has("amount")) {
+            throw new IllegalArgumentException("cosmetic amount is required");
+        }
+        final double amount = numeric(object, "amount", 0, 1, false);
+        if (key.equals("printDots")) {
+            numeric(object, "period", 2, 16, false);
+            numeric(object, "variation", 0, 1, false);
+            numeric(object, "inset", 0, 0.2, false);
+            removeNumberDefault(object, "period", 5);
+            removeNumberDefault(object, "variation", 0.5);
+            removeNumberDefault(object, "inset", 0);
+        }
+        if (key.equals("finishCoverage")) {
+            if (!object.has("area")) {
+                throw new IllegalArgumentException("finish coverage area is required");
+            }
+            enumeration(object, "area", Set.of("full", "artwork", "left", "right"));
+        }
+        return amount == 0 && !key.equals("finishCoverage") ? null : object;
     }
 
     private static JsonObject printing(final JsonElement value) {

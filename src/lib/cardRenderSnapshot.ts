@@ -3,7 +3,7 @@ import {
   type RenderedCardInput,
   type CardWording,
 } from "card-glint/magic/presentation";
-import { resolvePrintingArtist, resolvePrintingWording } from "card-glint/magic";
+import { resolveSetPrintingArtist, resolveSetPrintingWording } from "card-glint/magic/printing";
 import type { CardSnapshot } from "@/lib/cardRenderTypes";
 import type { CardDto } from "@/protocol/game";
 import type { CardCosmetics, DeckCard } from "@/protocol/deck";
@@ -624,57 +624,63 @@ export async function prepareCard(input: CardRenderInput): Promise<PreparedCard>
     released_at: info?.released_at,
     artist: info?.artist,
   };
-  const printing = faces.map((_, index) => {
-    const record = index === 1 && reverse ? reverse.info : info;
-    const printed = record?.card_faces?.[index === 1 && reverse ? 0 : index] ?? record;
-    const id = record?.id;
-    const canonicalArtist = stringField(printed, "artist") ?? record?.artist;
-    const artist = id
-      ? (resolvePrintingArtist(id, canonicalArtist).artist ?? undefined)
-      : canonicalArtist;
-    const provider = record
-      ? fromScryfallCard(record, {
-          faceIndex: index === 1 && reverse ? 0 : index,
-          symbolStyle: "modern",
-        })
-      : undefined;
-    const oracle = printed && {
-      name: printed.name,
-      typeLine: printed.type_line ?? "",
-      rulesText: printed.oracle_text ?? "",
-      flavorText: printed.flavor_text,
-    };
-    const wording =
-      !input.card && input.cosmetics?.wording === "original" && id && oracle
-        ? resolvePrintingWording(
-            id,
-            {
-              oracle,
-              original: {
-                ...oracle,
-                name: printed?.printed_name ?? oracle.name,
-                typeLine: printed?.printed_type_line ?? oracle.typeLine,
-                rulesText: printed?.printed_text ?? oracle.rulesText,
-              },
-            },
-            { faceName: printed?.name },
-          )
+  const printing = await Promise.all(
+    faces.map(async (_, index) => {
+      const record = index === 1 && reverse ? reverse.info : info;
+      const printed = record?.card_faces?.[index === 1 && reverse ? 0 : index] ?? record;
+      const id = record?.id;
+      const canonicalArtist = stringField(printed, "artist") ?? record?.artist;
+      const artist =
+        id && record
+          ? ((await resolveSetPrintingArtist(record.set, id, canonicalArtist)).artist ?? undefined)
+          : canonicalArtist;
+      const provider = record
+        ? fromScryfallCard(record, {
+            faceIndex: index === 1 && reverse ? 0 : index,
+            symbolStyle: "modern",
+          })
         : undefined;
-    const reviewed = new Set(
-      wording?.provenance.corrections.flatMap((correction) => correction.fields),
-    );
-    const hasOriginalRules =
-      printed?.printed_text != null || reviewed.has("rulesText") || reviewed.has("rulesParagraphs");
-    const hasOriginalType = printed?.printed_type_line != null || reviewed.has("typeLine");
-    const hasOriginal = hasOriginalRules && hasOriginalType;
-    return Object.freeze({
-      id,
-      canonicalArtist,
-      artist,
-      provider: provider && Object.freeze(provider),
-      originalWording: hasOriginal ? wording?.wordings.original : undefined,
-    });
-  });
+      const oracle = printed && {
+        name: printed.name,
+        typeLine: printed.type_line ?? "",
+        rulesText: printed.oracle_text ?? "",
+        flavorText: printed.flavor_text,
+      };
+      const wording =
+        !input.card && input.cosmetics?.wording === "original" && id && oracle && record
+          ? await resolveSetPrintingWording(
+              record.set,
+              id,
+              {
+                oracle,
+                original: {
+                  ...oracle,
+                  name: printed?.printed_name ?? oracle.name,
+                  typeLine: printed?.printed_type_line ?? oracle.typeLine,
+                  rulesText: printed?.printed_text ?? oracle.rulesText,
+                },
+              },
+              { faceName: printed?.name },
+            )
+          : undefined;
+      const reviewed = new Set(
+        wording?.provenance.corrections.flatMap((correction) => correction.fields),
+      );
+      const hasOriginalRules =
+        printed?.printed_text != null ||
+        reviewed.has("rulesText") ||
+        reviewed.has("rulesParagraphs");
+      const hasOriginalType = printed?.printed_type_line != null || reviewed.has("typeLine");
+      const hasOriginal = hasOriginalRules && hasOriginalType;
+      return Object.freeze({
+        id,
+        canonicalArtist,
+        artist,
+        provider: provider && Object.freeze(provider),
+        originalWording: hasOriginal ? wording?.wordings.original : undefined,
+      });
+    }),
+  );
   for (const value of Object.values(snapshot)) if (Array.isArray(value)) Object.freeze(value);
   const scanBacked = layout === "art_series" || layout === "front_card";
   const artUrls = faces.map((_, index) => {

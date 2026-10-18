@@ -2,7 +2,19 @@ import { cardCosmeticsKey, normalizeCardCosmetics, randomCardWearSeed } from "@/
 import { resolveCardWearAmount } from "@/lib/cardFinish";
 import type { CardCosmetics, CardPrintingFace, DeckCard } from "@/protocol/deck";
 
-export type CosmeticField = "finish" | "frame" | "border" | "wearAmount" | "rainFog";
+export type CosmeticField =
+  | "finish"
+  | "frame"
+  | "border"
+  | "wearAmount"
+  | "rainFog"
+  | "cardstockAmount"
+  | "printDotsAmount"
+  | "printDotsPeriod"
+  | "printDotsVariation"
+  | "printDotsInset"
+  | "finishCoverageArea"
+  | "finishCoverageAmount";
 export interface CardCustomizationDraft {
   source: DeckCard;
   cosmetics: CardCosmetics | undefined;
@@ -44,6 +56,51 @@ export function changeCustomizationField(
   field: CosmeticField,
   value: string,
 ): CardCustomizationDraft {
+  const cosmetics = draft.cosmetics;
+  if (field === "cardstockAmount") {
+    return {
+      ...draft,
+      cosmetics: normalizeCardCosmetics({ ...cosmetics, cardstock: { amount: Number(value) } }),
+    };
+  }
+  if (
+    field === "printDotsAmount" ||
+    field === "printDotsPeriod" ||
+    field === "printDotsVariation" ||
+    field === "printDotsInset"
+  ) {
+    const key = {
+      printDotsAmount: "amount",
+      printDotsPeriod: "period",
+      printDotsVariation: "variation",
+      printDotsInset: "inset",
+    }[field];
+    return {
+      ...draft,
+      cosmetics: normalizeCardCosmetics({
+        ...cosmetics,
+        printDots: {
+          ...cosmetics?.printDots,
+          amount: cosmetics?.printDots?.amount ?? 0,
+          [key]: Number(value),
+        },
+      }),
+    };
+  }
+  if (field === "finishCoverageArea" || field === "finishCoverageAmount") {
+    return {
+      ...draft,
+      cosmetics: normalizeCardCosmetics({
+        ...cosmetics,
+        finishCoverage:
+          field === "finishCoverageArea"
+            ? value === "native"
+              ? undefined
+              : { area: value, amount: cosmetics?.finishCoverage?.amount ?? 1 }
+            : { area: cosmetics?.finishCoverage?.area ?? "full", amount: Number(value) },
+      }),
+    };
+  }
   const wearSeed =
     field === "wearAmount" && Number(value) > 0
       ? (draft.wearSeed ?? randomCardWearSeed())
@@ -116,13 +173,51 @@ export function customizationFieldValue(
   drafts: ReadonlyMap<string, CardCustomizationDraft>,
   field: CosmeticField,
 ): string {
-  const fallback = field === "rainFog" ? "1" : "printing";
+  const fallback =
+    field === "rainFog" || field === "finishCoverageAmount"
+      ? "1"
+      : field === "cardstockAmount" || field === "printDotsAmount" || field === "printDotsInset"
+        ? "0"
+        : field === "printDotsPeriod"
+          ? "5"
+          : field === "printDotsVariation"
+            ? "0.5"
+            : field === "finishCoverageArea"
+              ? "native"
+              : "printing";
   const values = copies.map((copy) => {
     const draft = drafts.get(copy.identity.id);
     const cosmetics = draft ? draft.cosmetics : copy.identity.cosmetics;
-    return field === "wearAmount"
-      ? String(resolveCardWearAmount(cosmetics))
-      : String(cosmetics?.[field] ?? fallback);
+    let value: string | number | undefined;
+    switch (field) {
+      case "wearAmount":
+        value = resolveCardWearAmount(cosmetics);
+        break;
+      case "cardstockAmount":
+        value = cosmetics?.cardstock?.amount;
+        break;
+      case "printDotsAmount":
+        value = cosmetics?.printDots?.amount;
+        break;
+      case "printDotsPeriod":
+        value = cosmetics?.printDots?.period;
+        break;
+      case "printDotsVariation":
+        value = cosmetics?.printDots?.variation;
+        break;
+      case "printDotsInset":
+        value = cosmetics?.printDots?.inset;
+        break;
+      case "finishCoverageArea":
+        value = cosmetics?.finishCoverage?.area;
+        break;
+      case "finishCoverageAmount":
+        value = cosmetics?.finishCoverage?.amount;
+        break;
+      default:
+        value = cosmetics?.[field];
+    }
+    return String(value ?? fallback);
   });
   return values.some((value) => value !== values[0]) ? "mixed" : (values[0] ?? fallback);
 }

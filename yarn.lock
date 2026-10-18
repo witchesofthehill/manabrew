@@ -2386,9 +2386,9 @@ caniuse-lite@^1.0.30001759, caniuse-lite@^1.0.30001766:
   resolved "https://registry.npmjs.org/caniuse-lite/-/caniuse-lite-1.0.30001770.tgz"
   integrity sha512-x/2CLQ1jHENRbHg5PSId2sXq1CIO1CISvwWAj027ltMVG2UNgW+w9oH2+HzgEIRFembL8bUlXtfbBHR1fCg2xw==
 
-"card-glint@https://github.com/vishvananda/card-glint/releases/download/v0.5.1/card-glint-0.5.1.tgz":
-  version "0.5.1"
-  resolved "https://github.com/vishvananda/card-glint/releases/download/v0.5.1/card-glint-0.5.1.tgz#b9e63ae8770760433b4a01377174629f7f80efdb"
+"card-glint@https://github.com/vishvananda/card-glint/releases/download/v0.5.2/card-glint-0.5.2.tgz":
+  version "0.5.2"
+  resolved "https://github.com/vishvananda/card-glint/releases/download/v0.5.2/card-glint-0.5.2.tgz#d0ac3842d6cc7d1b612e2b230cf8d92f539ae2a4"
 
 chai@^5.2.0:
   version "5.3.3"

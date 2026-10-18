@@ -40,6 +40,8 @@ Docker images that build the harness directly must perform the same generation s
 
 A `#[serde(transparent)]` newtype (`pub struct TokenScript(pub String)`) exports as `export type X = string;`. The generator follows those aliases to the underlying primitive instead of emitting a class: a class would have no fields, so it would compile but serialize as `{}` and drop the value on the wire. Keep `isPrimitiveAlias` in step with any new primitive the protocol wraps.
 
+TypeScript `number` does not distinguish integer and fractional Rust fields. `JAVA_FIELD_TYPES` supplies type-specific floating-point overrides for material cosmetics and printing adjustments; preserve them when adding fields, or Gson silently truncates fractions. Validate generated DTO round trips, not only Java compilation.
+
 Protocol generators replace their output directories. Do not run `yarn gen:types`, `yarn gen:protocol-docs`, `yarn build:harness`, or commands that invoke them concurrently; one process can delete files while another is exporting them.
 
 Card Glint is installed from its official prebuilt release tarball, including JavaScript, declarations and WASM. Consumers do not build Card Glint or need its Rust toolchain. Do not add application-side download, patch or renderer-build scripts. Restart the development web service after dependency changes so its separate node-modules volume reruns installation.

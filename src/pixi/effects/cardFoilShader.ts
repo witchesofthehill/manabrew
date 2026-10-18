@@ -1,4 +1,11 @@
-import { foilShader, SURFACE_GLSL, WORN_GLSL, SurfaceMotion, surfaceSeed } from "card-glint/finish";
+import {
+  CARDSTOCK_GLSL,
+  foilShader,
+  SURFACE_GLSL,
+  WORN_GLSL,
+  SurfaceMotion,
+  surfaceSeed,
+} from "card-glint/finish";
 import { GlProgram, MeshGeometry, Shader, Texture, UniformGroup } from "pixi.js";
 import {
   CARD_FINISH_KINDS,
@@ -15,6 +22,9 @@ import {
 import {
   acquireCardFinishMask,
   acquireCardFinishCaustics,
+  acquireCardFinishPrinting,
+  acquireCardFinishCoverage,
+  acquireCardFinishCardstock,
   type CardFinishMaskLease,
   type CardFinishCausticsLease,
 } from "@/lib/cardFinishResources";
@@ -39,6 +49,11 @@ export interface CardFoilUniforms {
   satinHoverGain: number;
   cornerRadius: number;
   finishBase: number;
+  hasCoverage: number;
+  facePrepared: number;
+  printingPrepared: number;
+  cardstockAmount: number;
+  regularPrinting: number;
   surfaceTime: number;
   rainFogDensity: number;
   surfaceInfo: Float32Array;
@@ -72,18 +87,22 @@ function modernSurfaceShader(): string {
   return `${foil}
 ${surface}
 ${WORN_GLSL}
+${CARDSTOCK_GLSL.replaceAll("flat in ", "uniform ")}
 
 vec3 modernSurface(vec2 uv,vec3 normal,vec3 view,vec2 wear,vec2 pixel) {
-  vec3 color=previewKind>=5. && previewKind<8. ? animatedSurface(uv,normal) : previewFoil(uv,normal,view);
   vec3 base=finishFace(uv).rgb;
-  if(wear.x>0.)color=wornSurface(uv,previewInk(base),color,normal,view,wear.y,wear.x,
+  vec3 ink=previewInk(base);
+  vec3 color=regularPrinting>0. ? ink
+    : previewKind>=5. && previewKind<8. ? animatedSurface(uv,normal) : previewFoil(uv,normal,view);
+  if(regularPrinting<1.)color=cardstockGloss(uv,ink,color);
+  if(wear.x>0.)color=wornSurface(uv,ink,color,normal,view,wear.y,wear.x,
     previewKind==9. ? 1. : step(.5,previewKind)*(1.-step(4.5,previewKind)),pixel);
+  vec3 under=mix(base,previewLinear(color),finishCoverage(uv));
   if(hasPrinting>0.){
     vec4 top=finishPrinting(uv);
-    vec3 under=mix(base,previewLinear(color),finishCoverage(uv));
-    color=previewInk(mix(under,top.rgb,top.a));
+    under=mix(under,top.rgb,top.a);
   }
-  return color;
+  return previewInk(under);
 }`;
 }
 
@@ -117,6 +136,10 @@ uniform float hasMask;
 uniform sampler2D printing;
 uniform sampler2D coverage;
 uniform float hasPrinting;
+uniform float hasCoverage;
+uniform float facePrepared;
+uniform float printingPrepared;
+uniform float regularPrinting;
 uniform vec2 pointer;
 uniform float aspect;
 uniform vec4 artBounds[8];
@@ -130,20 +153,21 @@ vec3 linearInk(vec3 c) {
   return mix(c/12.92,pow(max((c+.055)/1.055,vec3(0.)),vec3(2.4)),step(vec3(.04045),c));
 }
 vec4 finishFace(vec2 uv) {
-  vec4 ink=texture(face,vec2(uv.x,1.-uv.y));
-  return vec4(linearInk(ink.rgb/max(ink.a,.00001)),ink.a);
+  vec4 ink=texture(face,vec2(uv.x,mix(1.-uv.y,uv.y,facePrepared)));
+  return vec4(linearInk(ink.rgb/mix(max(ink.a,.00001),1.,facePrepared)),ink.a);
 }
 vec4 finishMask(vec2 uv) { return texture(mask,vec2(uv.x,1.-uv.y)); }
 vec4 finishPrinting(vec2 uv) {
-  vec4 ink=texture(printing,vec2(uv.x,1.-uv.y));
-  return vec4(linearInk(ink.rgb/max(ink.a,.00001)),ink.a);
+  vec4 ink=texture(printing,vec2(uv.x,mix(1.-uv.y,uv.y,printingPrepared)));
+  return vec4(linearInk(ink.rgb/mix(max(ink.a,.00001),1.,printingPrepared)),ink.a);
 }
-float finishCoverage(vec2 uv) { return texture(coverage,vec2(uv.x,1.-uv.y)).a; }
+float finishCoverage(vec2 uv) {
+  return hasCoverage>0. ? texture(coverage,vec2(uv.x,1.-uv.y)).r : 1.;
+}
 #define texture2D texture
 ${modernSurfaceShader().replaceAll("texture(caustics,", "sampleCaustics(")}
 #undef texture2D
 void main() {
-  if(hasPrinting<0.) discard;
   vec2 sourceUv=faceUv(vUV);
   vec2 uv=vec2(sourceUv.x,1.-sourceUv.y);
   vec2 pixel=fwidth(uv*vec2(1.,aspect));
@@ -209,6 +233,11 @@ export function createCardFoilShader(invalidate: () => void): CardFoilShader {
     satinHoverGain: { value: 0, type: "f32" },
     cornerRadius: { value: 0.035, type: "f32" },
     finishBase: { value: 1, type: "f32" },
+    hasCoverage: { value: 0, type: "f32" },
+    facePrepared: { value: 0, type: "f32" },
+    printingPrepared: { value: 0, type: "f32" },
+    cardstockAmount: { value: 0, type: "f32" },
+    regularPrinting: { value: 1, type: "f32" },
     surfaceTime: { value: 0, type: "f32" },
     rainFogDensity: { value: 1, type: "f32" },
     surfaceInfo: { value: new Float32Array(4), type: "vec4<f32>" },
@@ -227,6 +256,7 @@ export function createCardFoilShader(invalidate: () => void): CardFoilShader {
       caustics: Texture.EMPTY.source,
       printing: Texture.EMPTY.source,
       coverage: Texture.EMPTY.source,
+      cardstockMap: Texture.EMPTY.source,
     },
   });
   const motion = new SurfaceMotion();
@@ -237,9 +267,30 @@ export function createCardFoilShader(invalidate: () => void): CardFoilShader {
   let controller: AbortController | null = null;
   let maskLease: CardFinishMaskLease | null = null;
   let poolLease: CardFinishCausticsLease | null = null;
+  let cardstockLease: CardFinishMaskLease | null = null;
   let opticalLease: CardOpticalLease | null = null;
-  let opticalController: AbortController | null = null;
+  let printingLeases: CardFinishMaskLease[] = [];
+  let coverageLease: CardFinishMaskLease | null = null;
+  let materialController: AbortController | null = null;
+  let materialKey = "";
+  let cosmetics: CardCosmetics | undefined;
+  let destroyed = false;
   let artWindows: readonly CardFoilRegion[] = [];
+  const syncCardstock = () => {
+    if (group.uniforms.cardstockAmount > 0 && source && !cardstockLease) {
+      try {
+        cardstockLease = acquireCardFinishCardstock();
+        shader.resources.cardstockMap = cardstockLease.texture.source;
+      } catch (error) {
+        console.error("Card Glint cardstock unavailable", error);
+      }
+    }
+    if ((mode === "regular" || !source) && cardstockLease) {
+      shader.resources.cardstockMap = Texture.EMPTY.source;
+      cardstockLease.release();
+      cardstockLease = null;
+    }
+  };
   const setArtWindows = (regions: readonly CardFoilRegion[]) => {
     const bounds = group.uniforms.artBounds;
     bounds.fill(0);
@@ -256,86 +307,166 @@ export function createCardFoilShader(invalidate: () => void): CardFoilShader {
       bounds[offset + 3] = 1 - region.y;
     }
   };
-  const releaseOptical = () => {
+  const releaseMaterial = () => {
+    materialController?.abort();
+    materialController = null;
     shader.resources.face = (source ?? Texture.EMPTY).source;
     shader.resources.printing = Texture.EMPTY.source;
     shader.resources.coverage = Texture.EMPTY.source;
-    opticalController?.abort();
-    opticalController = null;
+    group.uniforms.hasPrinting = 0;
+    group.uniforms.hasCoverage = 0;
+    group.uniforms.facePrepared = 0;
+    group.uniforms.printingPrepared = 0;
+    group.uniforms.finishBase = 1;
     opticalLease?.release();
     opticalLease = null;
-    group.uniforms.hasPrinting = 0;
-    group.uniforms.finishBase = 1;
+    for (const lease of printingLeases) lease.release();
+    printingLeases = [];
+    coverageLease?.release();
+    coverageLease = null;
     group.uniforms.cornerRadius = source ? getCardSourceCornerRadius(source) : 0.035;
     setArtWindows(artWindows);
   };
-  const syncOptical = () => {
-    if (!source || (mode !== "rain" && mode !== "heat" && mode !== "pool")) {
-      if (opticalController) releaseOptical();
-      return;
-    }
-    if (opticalController) return;
+  const syncMaterial = (preserveOptical = true) => {
+    if (destroyed) return;
+    const optical = mode === "rain" || mode === "heat" || mode === "pool";
+    const dots = cosmetics?.printDots;
+    const settings =
+      dots && dots.amount > 0
+        ? {
+            amount: dots.amount,
+            period: dots.period ?? 5,
+            variation: dots.variation ?? 0.5,
+            inset: dots.inset ?? 0,
+          }
+        : undefined;
+    const key = JSON.stringify([optical, settings, cosmetics?.finishCoverage, artWindows]);
+    if (materialController && materialKey === key) return;
+    materialKey = key;
+    const retained = preserveOptical && optical ? opticalLease : null;
+    if (retained) opticalLease = null;
+    releaseMaterial();
+    if (!source) return;
+    const texture = source;
     const pending = new AbortController();
-    const acquisition = acquireCardOpticalLayers(source, pending.signal);
-    if (!acquisition) return;
-    opticalController = pending;
-    group.uniforms.hasPrinting = -1;
-    void acquisition
+    materialController = pending;
+    const signal = pending.signal;
+    void (async () => {
+      let layers: CardOpticalLease | null = retained;
+      let coverage: CardFinishMaskLease | null = null;
+      const printing: CardFinishMaskLease[] = [];
+      try {
+        if (optical && !layers) layers = await acquireCardOpticalLayers(texture, signal);
+        signal.throwIfAborted();
+        coverage = await acquireCardFinishCoverage(
+          texture,
+          cosmetics?.finishCoverage,
+          optical,
+          artWindows,
+          signal,
+        );
+        signal.throwIfAborted();
+        if (settings) {
+          printing.push(
+            await acquireCardFinishPrinting(layers?.artwork ?? texture, settings, signal),
+          );
+          signal.throwIfAborted();
+          if (layers) {
+            printing.push(await acquireCardFinishPrinting(layers.printing, settings, signal));
+            signal.throwIfAborted();
+          }
+        }
+        opticalLease = layers;
+        coverageLease = coverage;
+        printingLeases = printing;
+        shader.resources.face = (printing[0]?.texture ?? layers?.artwork ?? texture).source;
+        shader.resources.printing = (
+          printing[1]?.texture ??
+          layers?.printing ??
+          Texture.EMPTY
+        ).source;
+        shader.resources.coverage = coverage.texture.source;
+        group.uniforms.hasPrinting = layers ? 1 : 0;
+        group.uniforms.hasCoverage = 1;
+        group.uniforms.finishBase = layers ? 0 : 1;
+        group.uniforms.facePrepared = settings ? 1 : 0;
+        group.uniforms.printingPrepared = settings && layers ? 1 : 0;
+        if (layers) {
+          group.uniforms.cornerRadius = layers.cornerRadius;
+          setArtWindows(layers.artWindows);
+        }
+        invalidate();
+      } catch (error) {
+        for (const lease of printing) lease.release();
+        coverage?.release();
+        layers?.release();
+        if (!signal.aborted) console.error("Card Glint finish material unavailable", error);
+      }
+    })();
+  };
+  const sourceChanged = () => {
+    syncCardstock();
+    materialKey = "";
+    syncMaterial(false);
+    controller?.abort();
+    controller = null;
+    shader.resources.mask = Texture.EMPTY.source;
+    group.uniforms.hasMask = 0;
+    maskLease?.release();
+    maskLease = null;
+    if (!source || source.destroyed || source.source.destroyed) return;
+    group.uniforms.aspect = source.source.pixelHeight / source.source.pixelWidth;
+    const pending = new AbortController();
+    controller = pending;
+    void acquireCardFinishMask(source, pending.signal)
       .then((lease) => {
         if (pending.signal.aborted) {
           lease.release();
           return;
         }
-        opticalLease = lease;
-        shader.resources.face = lease.artwork.source;
-        shader.resources.printing = lease.printing.source;
-        shader.resources.coverage = lease.coverage.source;
-        group.uniforms.hasPrinting = 1;
-        group.uniforms.finishBase = 0;
-        group.uniforms.cornerRadius = lease.cornerRadius;
-        setArtWindows(lease.artWindows);
+        maskLease = lease;
+        shader.resources.mask = lease.texture.source;
+        group.uniforms.hasMask = 1;
         invalidate();
       })
       .catch((error: unknown) => {
-        if (!pending.signal.aborted)
-          console.error("Card Glint optical printing unavailable", error);
+        if (!pending.signal.aborted) console.error("Card Glint artwork mask unavailable", error);
       });
+    invalidate();
+  };
+  const queueSourceChange = () => {
+    materialController?.abort();
+    controller?.abort();
+    const changed = source;
+    queueMicrotask(() => {
+      if (!destroyed && source === changed) sourceChanged();
+    });
+  };
+  const sourceDestroyed = () => {
+    source?.source.off("update", queueSourceChange);
+    source?.source.off("resize", queueSourceChange);
+    source?.source.off("destroy", sourceDestroyed);
+    source?.off("destroy", sourceDestroyed);
+    source = null;
+    sourceChanged();
   };
   return {
     shader,
     uniforms: group.uniforms,
     geometry: resources.geometry,
     setTexture(texture: Texture | null, uvs?: Float32Array) {
-      shader.resources.face = (opticalLease?.artwork ?? texture ?? Texture.EMPTY).source;
       if (texture !== source) {
+        source?.source.off("update", queueSourceChange);
+        source?.source.off("resize", queueSourceChange);
+        source?.source.off("destroy", sourceDestroyed);
+        source?.off("destroy", sourceDestroyed);
         source = texture;
-        releaseOptical();
+        source?.source.on("update", queueSourceChange);
+        source?.source.on("resize", queueSourceChange);
+        source?.source.once("destroy", sourceDestroyed);
+        source?.once("destroy", sourceDestroyed);
         motion.clear();
-        if (texture) group.uniforms.aspect = texture.source.pixelHeight / texture.source.pixelWidth;
-        controller?.abort();
-        shader.resources.mask = Texture.EMPTY.source;
-        group.uniforms.hasMask = 0;
-        maskLease?.release();
-        maskLease = null;
-        if (texture) {
-          const pending = new AbortController();
-          controller = pending;
-          void acquireCardFinishMask(texture, pending.signal)
-            .then((lease) => {
-              if (pending.signal.aborted) {
-                lease.release();
-                return;
-              }
-              maskLease = lease;
-              shader.resources.mask = lease.texture.source;
-              group.uniforms.hasMask = 1;
-              invalidate();
-            })
-            .catch((error: unknown) => {
-              if (!pending.signal.aborted)
-                console.error("Card Glint artwork mask unavailable", error);
-            });
-        }
+        sourceChanged();
       }
       const uv = texture?.uvs;
       const top = group.uniforms.uUvTop;
@@ -353,11 +484,18 @@ export function createCardFoilShader(invalidate: () => void): CardFoilShader {
         poolLease.release();
         poolLease = null;
       }
-      syncOptical();
+      if (mode === "pool" && texture && !poolLease) {
+        poolLease = acquireCardFinishCaustics();
+        shader.resources.caustics = poolLease.texture.source;
+      }
     },
-    setMode(value: CardFinish, cosmetics?: CardCosmetics) {
+    setMode(value: CardFinish, appearance?: CardCosmetics) {
       if (mode !== value) motion.clear();
       mode = value;
+      cosmetics = appearance;
+      group.uniforms.regularPrinting = mode === "regular" ? 1 : 0;
+      group.uniforms.cardstockAmount = mode === "regular" ? 0 : (cosmetics?.cardstock?.amount ?? 0);
+      syncCardstock();
       group.uniforms.previewKind = CARD_FINISH_KINDS[mode];
       group.uniforms.rainFogDensity = resolveCardRainFog(cosmetics);
       group.uniforms.wearInfo[0] = resolveCardWearAmount(cosmetics);
@@ -368,11 +506,17 @@ export function createCardFoilShader(invalidate: () => void): CardFoilShader {
         poolLease.release();
         poolLease = null;
       }
-      syncOptical();
+      if (mode === "pool" && source && !poolLease) {
+        poolLease = acquireCardFinishCaustics();
+        shader.resources.caustics = poolLease.texture.source;
+      }
+      syncMaterial();
     },
     setArtWindows(regions: readonly CardFoilRegion[]) {
+      if (artWindows === regions) return;
       artWindows = regions;
       if (!opticalLease) setArtWindows(regions);
+      syncMaterial();
     },
     setExclusions(regions: readonly CardFoilRegion[]) {
       if (regions.length > MAX_CARD_FOIL_EXCLUSIONS)
@@ -425,20 +569,23 @@ export function createCardFoilShader(invalidate: () => void): CardFoilShader {
         uniforms.ripple3.set(sample.subarray(16, 20));
       }
       if (mode === "pool" && source) {
-        poolLease ??= acquireCardFinishCaustics();
+        if (!poolLease) return;
         poolLease.update(time);
         shader.resources.caustics = poolLease.texture.source;
       }
     },
     destroy() {
-      source = null;
-      releaseOptical();
+      destroyed = true;
+      sourceDestroyed();
+      releaseMaterial();
       controller?.abort();
       shader.resources.face = Texture.EMPTY.source;
       shader.resources.mask = Texture.EMPTY.source;
       shader.resources.caustics = Texture.EMPTY.source;
       maskLease?.release();
       poolLease?.release();
+      shader.resources.cardstockMap = Texture.EMPTY.source;
+      cardstockLease?.release();
       motion.clear();
       shader.destroy(false);
       if (--resources.users === 0) {

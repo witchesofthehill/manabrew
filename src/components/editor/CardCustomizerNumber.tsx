@@ -8,6 +8,7 @@ export function CardCustomizerNumber({
   selectionKey,
   min,
   max,
+  step = 0.05,
   disabled = false,
   onChange,
 }: {
@@ -16,6 +17,7 @@ export function CardCustomizerNumber({
   selectionKey: string;
   min: number;
   max: number;
+  step?: number;
   disabled?: boolean;
   onChange: (value: string) => void;
 }) {
@@ -46,7 +48,7 @@ export function CardCustomizerNumber({
           aria-valuetext={value === "mixed" ? "Mixed" : value}
           min={min}
           max={max}
-          step={0.05}
+          step={step}
           value={value === "mixed" ? (min + max) / 2 : Number(value)}
           disabled={disabled}
           className={CARD_CUSTOMIZER_RANGE}

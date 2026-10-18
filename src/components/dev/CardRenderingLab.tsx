@@ -20,6 +20,7 @@ import { cardFaceImageUris } from "@/lib/cardImage";
 import { resolveCardFaces } from "@/lib/cardFaces";
 import type { CardInspectAppearance } from "@/lib/cardGlintInspectAppearance";
 import type { HandActionOption } from "@/stores/useGameUIStore";
+import type { CardCosmetics } from "@/protocol/deck";
 
 export default function CardRenderingLab() {
   const [params, setParams] = useSearchParams();
@@ -53,9 +54,21 @@ export default function CardRenderingLab() {
   const entry = result?.entry;
   const flippable = resolveCardFaces(entry?.info).isFlippable;
   const effectiveFace = flippable ? face : 0;
+  const cosmetics = useMemo<CardCosmetics>(
+    () => ({
+      rainFog: appearance.rainFog,
+      wearAmount: appearance.wear?.amount,
+      wearSeed: appearance.wear?.seed,
+      cardstock: appearance.cardstock,
+      printDots: appearance.printDots,
+      finishCoverage: appearance.coverage,
+    }),
+    [appearance],
+  );
   const card = useMemo(() => {
     if (!entry) return undefined;
     const next = scryfallToSampleGameCard(entry.info, { foil, isTransformed: effectiveFace === 1 });
+    next.cosmetics = cosmetics;
     const rail = parsePrintedCardRailMetadata(next);
     if (rail?.kind === "saga") {
       next.sagaChapters = rail.sagaChapters;
@@ -81,8 +94,12 @@ export default function CardRenderingLab() {
       next.keywords = [...next.keywords, "Lifelink"];
     }
     return applyCardRenderingOverrides(next, overrides);
-  }, [entry, foil, effectiveFace, live, granted, overrides]);
-  const deckCard = useMemo(() => (entry ? scryfallToDeckCard(entry.info) : undefined), [entry]);
+  }, [entry, foil, effectiveFace, live, granted, overrides, cosmetics]);
+  const deckCard = useMemo(() => {
+    if (!entry) return undefined;
+    const next = scryfallToDeckCard(entry.info);
+    return { ...next, identity: { ...next.identity, cosmetics } };
+  }, [entry, cosmetics]);
   const actions = useMemo<HandActionOption[]>(
     () =>
       card

@@ -62,6 +62,14 @@ export function resolveCardWearAmount(cosmetics?: CardCosmetics): number {
     : CARD_WEAR_AMOUNTS[cosmetics?.wear ?? "fresh"];
 }
 
+export function hasCardFinishEffects(finish: CardFinish, cosmetics?: CardCosmetics): boolean {
+  return (
+    finish !== "regular" ||
+    resolveCardWearAmount(cosmetics) > 0 ||
+    (cosmetics?.printDots?.amount ?? 0) > 0
+  );
+}
+
 export function resolveCardRainFog(cosmetics?: CardCosmetics): number {
   const density = cosmetics?.rainFog;
   return typeof density === "number" && Number.isFinite(density)

@@ -6,6 +6,7 @@ import {
   type RenderedCardInput,
 } from "card-glint/magic/presentation";
 import { CanvasSource, Texture } from "pixi.js";
+import type { TextureSource } from "pixi.js";
 import { cardImageLoader } from "@/lib/cardRenderArtwork";
 import { ensureCardGlintFonts } from "@/lib/cardGlintAssets";
 import type { CardFoilRegion } from "@/lib/cardFinish";
@@ -15,7 +16,6 @@ import { cardOpticalDocument, isSemanticLayout } from "@/lib/cardSemanticLayout"
 export interface CardOpticalLayers {
   artwork: Texture;
   printing: Texture;
-  coverage: Texture;
   artWindows: readonly CardFoilRegion[];
   cornerRadius: number;
 }
@@ -35,6 +35,8 @@ interface OpticalSource {
   cornerRadius: number;
   entry?: OpticalEntry;
   finish?: CardFinishSource;
+  opticalFinish?: CardFinishSource;
+  watched: WeakSet<TextureSource>;
 }
 
 interface OpticalEntry {
@@ -68,6 +70,7 @@ export function registerCardOpticalSource(
     width: canvas.width,
     height: canvas.height,
     cornerRadius: isSemanticLayout(face) ? FACE_CORNER_RADIUS : faceCornerRadius(face),
+    watched: new WeakSet(),
   });
 }
 
@@ -125,9 +128,40 @@ export function cardRasterHost(artUrls: readonly (string | undefined)[]): Raster
   };
 }
 
-export function getCardFinishSource(texture: Texture): CardFinishSource | null {
+function watchOpticalSource(source: OpticalSource, texture: TextureSource): void {
+  if (source.watched.has(texture)) return;
+  const invalidate = () => {
+    source.id = ++sourceId;
+    source.entry = undefined;
+    source.finish = undefined;
+    source.opticalFinish = undefined;
+    source.width = source.canvas.width;
+    source.height = source.canvas.height;
+  };
+  const detach = () => {
+    texture.off("update", invalidate);
+    texture.off("resize", invalidate);
+    source.watched.delete(texture);
+  };
+  source.watched.add(texture);
+  texture.on("update", invalidate);
+  texture.on("resize", invalidate);
+  texture.once("destroy", detach);
+}
+
+export function getCardFinishSource(texture: Texture, optical = false): CardFinishSource | null {
   const source = sources.get(texture.source.resource as object);
   if (!source) return null;
+  watchOpticalSource(source, texture.source);
+  if (optical) {
+    source.opticalFinish ??= {
+      kind: isSemanticLayout(source.face) ? "raster" : "native",
+      key: `manabrew-optical-finish:${source.id}`,
+      document: cardOpticalDocument(0, 0, source.face, "inspect", source.rulesText),
+      host: cardRasterHost(source.artUrls),
+    };
+    return source.opticalFinish;
+  }
   if (!source.finish) {
     if (isSemanticLayout(source.face)) {
       const key = `manabrew-semantic-finish:${source.id}`;
@@ -216,7 +250,7 @@ export function getCardFinishSource(texture: Texture): CardFinishSource | null {
 }
 
 function disposeLayers(layers: CardOpticalLayers): void {
-  for (const texture of [layers.artwork, layers.printing, layers.coverage]) {
+  for (const texture of [layers.artwork, layers.printing]) {
     const canvas = texture.source.resource as HTMLCanvasElement;
     texture.destroy(true);
     canvas.width = canvas.height = 0;
@@ -231,12 +265,11 @@ async function composeLayers(
   signal.throwIfAborted();
   const document = cardOpticalDocument(0, 0, source.face, "inspect", source.rulesText);
   const printing = document.layers?.[0];
-  const coverage = printing?.finishCoverage?.add;
-  if (!printing || !coverage) throw new Error("Card Glint optical printing layers are unavailable");
+  if (!printing) throw new Error("Card Glint optical printing layers are unavailable");
   const host = cardRasterHost(source.artUrls);
   const textures: Texture[] = [];
   try {
-    for (const raster of [document.recipe.color, printing.raster, coverage]) {
+    for (const raster of [document.recipe.color, printing.raster]) {
       const painted = await raster.paint(host, signal);
       try {
         signal.throwIfAborted();
@@ -264,7 +297,6 @@ async function composeLayers(
     return {
       artwork: textures[0]!,
       printing: textures[1]!,
-      coverage: textures[2]!,
       artWindows: document.recipe.artWindows.map(([x, y, width, height]) => ({
         x,
         y,
@@ -290,6 +322,7 @@ export function acquireCardOpticalLayers(
   const source = sources.get(texture.source.resource as object);
   if (!source) return null;
   signal.throwIfAborted();
+  watchOpticalSource(source, texture.source);
   let entry = source.entry;
   if (!entry) {
     const controller = new AbortController();

@@ -57,8 +57,9 @@ export function CardGlintAppearanceLab({
         <div className="space-y-1">
           <h2 className="font-semibold">Card Glint material workbench</h2>
           <p className="max-w-3xl text-xs text-muted-foreground">
-            Native SDK preview only. Use the finish selector above, then tune the settings below.
-            Nothing is saved or applied to the production comparisons.
+            Coating, print dots, wear, fog and coverage also apply to the production comparisons
+            below. Deformation, printing reflections and holograms affect only this native preview.
+            Nothing is saved.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -71,7 +72,7 @@ export function CardGlintAppearanceLab({
             disabled={Object.keys(appearance).length === 0}
             onClick={() => update({})}
           >
-            Reset SDK settings
+            Reset material settings
           </Button>
         </div>
       </header>

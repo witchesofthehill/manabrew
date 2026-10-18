@@ -9,7 +9,7 @@ import {
   type Texture,
 } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
-import { resolveCardFinish, resolveCardWearAmount, type CardFoilRegion } from "@/lib/cardFinish";
+import { hasCardFinishEffects, resolveCardFinish, type CardFoilRegion } from "@/lib/cardFinish";
 import type { CardCosmetics } from "@/protocol/deck";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useCardFinishPreview } from "@/stores/useCardFinishPreview";
@@ -192,10 +192,7 @@ export class CardFoil extends Container {
       useCardFinishPreview.getState().mode ??
       resolveCardFinish(this.physicalFoil, this.cosmetics, this.etched);
     this.finish?.setMode(mode, this.cosmetics);
-    this.visible =
-      this.enabled &&
-      this.hasTexture &&
-      (mode !== "regular" || resolveCardWearAmount(this.cosmetics) > 0);
+    this.visible = this.enabled && this.hasTexture && hasCardFinishEffects(mode, this.cosmetics);
     this.syncAnimation();
     this.requestRender();
   }

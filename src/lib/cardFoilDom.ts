@@ -13,6 +13,11 @@ export interface DomCardFoilOptions {
   artWindows?: readonly CardFoilRegion[];
 }
 
+export interface DomCardFoilRegistration {
+  update(options: DomCardFoilOptions): void;
+  dispose(): void;
+}
+
 interface FoilEntry {
   canvas: HTMLCanvasElement;
   context: CanvasRenderingContext2D;
@@ -262,10 +267,12 @@ function renderFrame(now: number) {
       entry.canvas.height = pixelHeight;
     }
     if (entry.dirty) updateUvs(entry, source, width, height);
+    if (entry.dirty) {
+      finish.setMode(entry.options.mode, entry.options.cosmetics);
+      finish.setArtWindows(entry.options.artWindows ?? NO_ART_WINDOWS);
+    }
     finish.setTexture(entry.texture, entry.uvs);
-    finish.setMode(entry.options.mode, entry.options.cosmetics);
     mesh.shader = finish.shader;
-    finish.setArtWindows(entry.options.artWindows ?? NO_ART_WINDOWS);
     finish.uniforms.uSize[0] = width;
     finish.uniforms.uSize[1] = height;
     finish.uniforms.uRadius = 0;
@@ -314,10 +321,13 @@ function renderFrame(now: number) {
   if (animate) requestFrame();
 }
 
-export function registerDomCardFoil(canvas: HTMLCanvasElement, options: DomCardFoilOptions) {
+export function registerDomCardFoil(
+  canvas: HTMLCanvasElement,
+  options: DomCardFoilOptions,
+): DomCardFoilRegistration {
   const host = canvas.parentElement;
   const context = canvas.getContext("2d");
-  if (!host || !context) return () => {};
+  if (!host || !context) return { update() {}, dispose() {} };
   const entry: FoilEntry = {
     canvas,
     context,
@@ -366,7 +376,7 @@ export function registerDomCardFoil(canvas: HTMLCanvasElement, options: DomCardF
     if (records.some((record) => record.target !== canvas)) invalidate();
   });
   const pointer = (event: PointerEvent) => {
-    if (!options.animated) return;
+    if (!entry.options.animated) return;
     const rect = canvas.getBoundingClientRect();
     entry.hovering = true;
     entry.pointer[0] = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
@@ -398,25 +408,33 @@ export function registerDomCardFoil(canvas: HTMLCanvasElement, options: DomCardF
   entries.add(entry);
   ensureRenderer();
   requestFrame();
-  return () => {
-    entries.delete(entry);
-    intersection.disconnect();
-    resize.disconnect();
-    mutations.disconnect();
-    host.removeEventListener("load", invalidate, true);
-    host.removeEventListener("pointermove", pointer);
-    host.removeEventListener("pointerleave", leave);
-    releaseTexture(entry);
-    if (shared?.mesh.shader === entry.finish.shader) shared.mesh.shader = shared.finish.shader;
-    entry.finish.destroy();
-    context.clearRect(0, 0, canvas.width, canvas.height);
-    canvas.width = 1;
-    canvas.height = 1;
-    if (!entries.size) {
-      cancelAnimationFrame(frame);
-      frame = 0;
-      document.removeEventListener("visibilitychange", visibilityChanged);
-      disposeRenderer();
-    }
+  return {
+    update(next) {
+      entry.options = next;
+      entry.finish.setMode(next.mode, next.cosmetics);
+      entry.finish.setArtWindows(next.artWindows ?? NO_ART_WINDOWS);
+      invalidate();
+    },
+    dispose() {
+      entries.delete(entry);
+      intersection.disconnect();
+      resize.disconnect();
+      mutations.disconnect();
+      host.removeEventListener("load", invalidate, true);
+      host.removeEventListener("pointermove", pointer);
+      host.removeEventListener("pointerleave", leave);
+      releaseTexture(entry);
+      if (shared?.mesh.shader === entry.finish.shader) shared.mesh.shader = shared.finish.shader;
+      entry.finish.destroy();
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      canvas.width = 1;
+      canvas.height = 1;
+      if (!entries.size) {
+        cancelAnimationFrame(frame);
+        frame = 0;
+        document.removeEventListener("visibilitychange", visibilityChanged);
+        disposeRenderer();
+      }
+    },
   };
 }

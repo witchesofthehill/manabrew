@@ -1,4 +1,4 @@
-import { canvas } from "card-glint";
+import { canvas } from "card-glint/canvas";
 import type { CardDocument, CardLayer, FaceRecipe, Instance, Raster, Rect } from "card-glint";
 
 export interface CardInspectAppearance {
@@ -73,44 +73,54 @@ function hologramMask(shape: "ellipse" | "rectangle"): Raster {
   };
 }
 
+export function cardFinishCoverageDocument(
+  base: CardDocument,
+  coverage?: CardInspectAppearance["coverage"],
+): CardDocument {
+  if (!coverage) return base;
+  const recipe = {
+    ...base.recipe,
+    finishCoverageBase: coverage.area === "full" ? coverage.amount : 0,
+  };
+  const layers =
+    base.layers?.map((layer) =>
+      layer.id === "magic-printing"
+        ? {
+            ...layer,
+            finishCoverage: layer.finishCoverage
+              ? { ...layer.finishCoverage, add: undefined }
+              : undefined,
+          }
+        : layer,
+    ) ?? [];
+  if (coverage.area !== "full") {
+    const raster: Raster = {
+      key: "manabrew-inspect-empty-v1",
+      size: [1, 1],
+      async paint(_host, signal) {
+        signal.throwIfAborted();
+        return canvas([1, 1]);
+      },
+    };
+    const layer: CardLayer = {
+      id: "manabrew-inspect-coverage",
+      order: 0,
+      stage: "under-finish",
+      raster,
+      finishCoverage: { add: coverageMask(recipe, coverage) },
+    };
+    layers.push(layer);
+  }
+  return { ...base, recipe, layers };
+}
+
 export function cardInspectAppearanceDocument(
   base: CardDocument,
   revision: number,
   appearance?: CardInspectAppearance,
 ): CardDocument {
-  const recipe = { ...base.recipe };
-  let layers = base.layers;
-  if (appearance?.coverage) {
-    const coverage = appearance.coverage;
-    recipe.finishCoverageBase = coverage.area === "full" ? coverage.amount : 0;
-    layers = base.layers?.map((layer) => ({ ...layer, finishCoverage: undefined }));
-    if (coverage.area !== "full") {
-      const mask = coverageMask(recipe, coverage);
-      const existing = layers?.findIndex((layer) => !layer.clip) ?? -1;
-      if (existing >= 0) {
-        layers = layers?.map((layer, index) =>
-          index === existing ? { ...layer, finishCoverage: { add: mask } } : layer,
-        );
-      } else {
-        const raster: Raster = {
-          key: "manabrew-inspect-empty-v1",
-          size: [1, 1],
-          async paint(_host, signal) {
-            signal.throwIfAborted();
-            return canvas([1, 1]);
-          },
-        };
-        const layer: CardLayer = {
-          id: "manabrew-inspect-coverage",
-          order: 0,
-          stage: "under-finish",
-          raster,
-          finishCoverage: { add: mask },
-        };
-        layers = [...(layers ?? []), layer];
-      }
-    }
-  }
+  const covered = cardFinishCoverageDocument(base, appearance?.coverage);
+  const recipe = { ...covered.recipe };
   if (appearance?.overlayFoil !== undefined)
     recipe.overlayFoil = appearance.overlayFoil ?? undefined;
   if (appearance?.hologram !== undefined) {
@@ -124,5 +134,5 @@ export function cardInspectAppearanceDocument(
         }
       : undefined;
   }
-  return { ...base, revision, recipe, layers };
+  return { ...covered, revision, recipe };
 }

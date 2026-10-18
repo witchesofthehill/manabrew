@@ -74,6 +74,17 @@ export function CardCustomizerCopies({
               ? `${(resolveCardWearAmount(cosmetics) * 100).toFixed(1)}% wear`
               : CARD_WEAR_PRESETS.find((preset) => preset.id === (cosmetics?.wear ?? "fresh"))
                   ?.label,
+            ...(cosmetics?.cardstock
+              ? [`${Math.round(cosmetics.cardstock.amount * 100)}% coating`]
+              : []),
+            ...(cosmetics?.printDots
+              ? [`${Math.round(cosmetics.printDots.amount * 100)}% print dots`]
+              : []),
+            ...(cosmetics?.finishCoverage
+              ? [
+                  `${cosmetics.finishCoverage.area} finish ${Math.round(cosmetics.finishCoverage.amount * 100)}%`,
+                ]
+              : []),
           ].join(" · ");
           const name = `Copy ${index + 1}, ${sections.get(id)}, ${copy.identity.setCode.toUpperCase()} #${copy.identity.cardNumber}`;
           return (

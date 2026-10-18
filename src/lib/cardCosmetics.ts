@@ -1,4 +1,11 @@
-import type { CardCosmetics, CardFinish, Deck } from "@/protocol/deck";
+import type {
+  CardCoating,
+  CardCosmetics,
+  CardFinish,
+  CardFinishCoverage,
+  CardPrintDots,
+  Deck,
+} from "@/protocol/deck";
 import { cosmeticRecord, normalizeCardPrintingSelection } from "@/lib/cardPrintingCosmetics";
 
 const FINISHES: Record<CardFinish, true> = {
@@ -17,6 +24,59 @@ const MAX_WEAR_SEED = 0xffffffff;
 
 export function randomCardWearSeed(): number {
   return crypto.getRandomValues(new Uint32Array(1))[0] || 1;
+}
+
+function boundedNumber(value: unknown, min: number, max: number): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= min && value <= max;
+}
+
+function normalizeCoating(value: unknown): CardCoating | undefined {
+  const input = cosmeticRecord(value);
+  if (
+    !input ||
+    Object.keys(input).some((key) => key !== "amount") ||
+    !boundedNumber(input.amount, 0, 1) ||
+    input.amount === 0
+  )
+    return undefined;
+  return { amount: input.amount };
+}
+
+function normalizePrintDots(value: unknown): CardPrintDots | undefined {
+  const input = cosmeticRecord(value);
+  if (
+    !input ||
+    Object.keys(input).some((key) => !["amount", "period", "variation", "inset"].includes(key)) ||
+    !boundedNumber(input.amount, 0, 1) ||
+    (input.period != null && !boundedNumber(input.period, 2, 16)) ||
+    (input.variation != null && !boundedNumber(input.variation, 0, 1)) ||
+    (input.inset != null && !boundedNumber(input.inset, 0, 0.2)) ||
+    input.amount === 0
+  )
+    return undefined;
+  return {
+    amount: input.amount,
+    ...(input.period != null && input.period !== 5 ? { period: input.period as number } : {}),
+    ...(input.variation != null && input.variation !== 0.5
+      ? { variation: input.variation as number }
+      : {}),
+    ...(input.inset != null && input.inset !== 0 ? { inset: input.inset as number } : {}),
+  };
+}
+
+function normalizeFinishCoverage(value: unknown): CardFinishCoverage | undefined {
+  const input = cosmeticRecord(value);
+  if (
+    !input ||
+    Object.keys(input).some((key) => key !== "area" && key !== "amount") ||
+    !boundedNumber(input.amount, 0, 1) ||
+    (input.area !== "full" &&
+      input.area !== "artwork" &&
+      input.area !== "left" &&
+      input.area !== "right")
+  )
+    return undefined;
+  return { area: input.area, amount: input.amount };
 }
 
 export function normalizeCardCosmetics(value: unknown): CardCosmetics | undefined {
@@ -59,6 +119,12 @@ export function normalizeCardCosmetics(value: unknown): CardCosmetics | undefine
   ) {
     result.rainFog = input.rainFog;
   }
+  const cardstock = normalizeCoating(input.cardstock);
+  if (cardstock) result.cardstock = cardstock;
+  const printDots = normalizePrintDots(input.printDots);
+  if (printDots) result.printDots = printDots;
+  const finishCoverage = normalizeFinishCoverage(input.finishCoverage);
+  if (finishCoverage) result.finishCoverage = finishCoverage;
   if (input.wording === "original") result.wording = "original";
   const printing = normalizeCardPrintingSelection(input.printing);
   if (printing) {

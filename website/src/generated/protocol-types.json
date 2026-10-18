@@ -262,7 +262,7 @@
     },
     "CardPrintDots": {
       "ts": "interface CardPrintDots {\n  amount: number;\n  period?: number;\n  variation?: number;\n  inset?: number;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\", deny_unknown_fields)]\npub struct CardPrintDots {\n    #[serde(deserialize_with = \"unit_amount\")]\n    pub amount: CardCosmeticNumber,\n    #[serde(default, skip_serializing_if = \"Option::is_none\", deserialize_with = \"print_period\")]\n    pub period: Option<CardCosmeticNumber>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\", deserialize_with = \"paper_opacity\")]\n    pub variation: Option<CardCosmeticNumber>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\", deserialize_with = \"print_inset\")]\n    pub inset: Option<CardCosmeticNumber>,\n}",
+      "rust": "#[serde(rename_all = \"camelCase\", deny_unknown_fields)]\npub struct CardPrintDots {\n    #[serde(deserialize_with = \"unit_amount\")]\n    pub amount: CardCosmeticNumber,\n    #[serde(\n        default,\n        skip_serializing_if = \"Option::is_none\",\n        deserialize_with = \"print_period\"\n    )]\n    pub period: Option<CardCosmeticNumber>,\n    #[serde(\n        default,\n        skip_serializing_if = \"Option::is_none\",\n        deserialize_with = \"paper_opacity\"\n    )]\n    pub variation: Option<CardCosmeticNumber>,\n    #[serde(\n        default,\n        skip_serializing_if = \"Option::is_none\",\n        deserialize_with = \"print_inset\"\n    )]\n    pub inset: Option<CardCosmeticNumber>,\n}",
       "refs": []
     },
     "CardPrintingBorder": {

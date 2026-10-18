@@ -11,6 +11,7 @@ pub enum AgentMessage {
     State(StateUpdate),
     Display(DisplayEvent),
     Prompt(AgentPrompt),
+    Directive(EngineDirective),
     Error(ProtocolError),
 }
 
@@ -33,6 +34,74 @@ pub enum DirectiveInput {
     RequestRestore { checkpoint_id: u32 },
     RestoreVote { vote_id: u32, accept: bool },
     SetSnapshotRecording { enabled: bool },
+    StartRecording,
+    StopRecording,
+    RequestRepeat { iterations: u32 },
+    RepeatVote { vote_id: u32, accept: bool },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(
+    tag = "type",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+#[ts(export, export_to = "transport/messages.ts")]
+pub enum EngineDirective {
+    Recording { status: RecordingStatus },
+    RepeatVote { vote: RepeatVoteDto },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(
+    tag = "type",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+#[ts(export, export_to = "transport/messages.ts")]
+pub enum RecordingStatus {
+    Off,
+    Recording,
+    Ready { actions: Vec<String> },
+    Failed { reason: RecordingFailure },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "transport/messages.ts")]
+pub enum RecordingFailure {
+    NotAtPriority,
+    UnsupportedPrompt,
+    OpponentActed,
+    Empty,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "transport/messages.ts")]
+pub struct RepeatVoteDto {
+    pub vote_id: u32,
+    pub requested_by_player_id: String,
+    pub iterations: u32,
+    pub actions: Vec<String>,
+    pub awaiting_player_ids: Vec<String>,
+    pub status: RepeatVoteStatus,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(
+    tag = "type",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+#[ts(export, export_to = "transport/messages.ts")]
+pub enum RepeatVoteStatus {
+    Pending,
+    Running { completed: u32 },
+    Declined { player_id: String },
+    Cancelled,
+    Applied,
+    Failed { iteration: u32 },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

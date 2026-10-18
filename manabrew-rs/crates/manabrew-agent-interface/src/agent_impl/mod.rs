@@ -221,7 +221,11 @@ impl<R: Responder> PromptAgent<R> {
             DirectiveInput::Concede => self.conceded = true,
             DirectiveInput::RequestRestore { .. }
             | DirectiveInput::RestoreVote { .. }
-            | DirectiveInput::SetSnapshotRecording { .. } => {}
+            | DirectiveInput::SetSnapshotRecording { .. }
+            | DirectiveInput::StartRecording
+            | DirectiveInput::StopRecording
+            | DirectiveInput::RequestRepeat { .. }
+            | DirectiveInput::RepeatVote { .. } => {}
         }
     }
 
@@ -657,7 +661,11 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                 directive:
                     DirectiveInput::RequestRestore { .. }
                     | DirectiveInput::RestoreVote { .. }
-                    | DirectiveInput::SetSnapshotRecording { .. },
+                    | DirectiveInput::SetSnapshotRecording { .. }
+                    | DirectiveInput::StartRecording
+                    | DirectiveInput::StopRecording
+                    | DirectiveInput::RequestRepeat { .. }
+                    | DirectiveInput::RepeatVote { .. },
             } => Self::default_pass(),
         };
         match action {

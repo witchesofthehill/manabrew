@@ -93,7 +93,7 @@ Call `dispose()` to terminate the worker. A running Forge game is synchronous in
 
 ## Types
 
-Messages are typed by [`@manabrew/protocol`](https://www.npmjs.com/package/@manabrew/protocol), which the package depends on: `onState` hands you a `StateUpdate`, `onPrompt` a `Prompt`, `onDisplay` a `DisplayEvent`, and `respond` takes a `PromptOutput`. The range tracks the protocol's major version, which is the wire compatibility boundary.
+Messages are typed by [`@manabrew/protocol`](https://www.npmjs.com/package/@manabrew/protocol), which the package depends on: `onState` hands you a `StateUpdate`, `onPrompt` a `Prompt`, `onDisplay` a `DisplayEvent`, and `respond` takes a `PromptOutput`. The range starts at the protocol version the package was built against and tracks its major version, which is the wire compatibility boundary.
 
 `ForgeDeck` is looser than the protocol's `Deck`, so a deck can be built from card names alone. A `Deck` satisfies it, so one fetched from a relay can be passed straight to `startGame`.
 

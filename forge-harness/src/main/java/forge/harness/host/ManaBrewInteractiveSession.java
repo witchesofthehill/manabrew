@@ -6,6 +6,7 @@ import forge.harness.common.ParityCardMap;
 import forge.harness.common.ParityOrder;
 import forge.harness.common.SnapshotExtractor;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -58,8 +59,9 @@ public final class ManaBrewInteractiveSession {
     private final String sessionId;
     private Match match;
     private Game game;
-    private final BlockingQueue<JsonObject> actions = new LinkedBlockingQueue<>();
+    private final BlockingQueue<Submission> actions = new LinkedBlockingQueue<>();
     private volatile String latestPromptJson;
+    private String openPromptJson;
     private volatile int promptedPlayerIndex = -1;
     private long promptSeq;
     private volatile boolean closed;
@@ -84,6 +86,18 @@ public final class ManaBrewInteractiveSession {
     private final List<long[]> checkpointTimings = new ArrayList<>();
     private boolean priorityPromptOpen;
     private Set<Integer> botSeats = Set.of();
+    private ActionRepeat actionRepeat;
+    private final List<JsonObject> outboundDirectives = new ArrayList<>();
+
+    private static final class Submission {
+        private final JsonObject response;
+        private final JsonObject action;
+
+        private Submission(final JsonObject response, final JsonObject action) {
+            this.response = response;
+            this.action = action;
+        }
+    }
 
     private static final class Checkpoint {
         private final int id;
@@ -136,6 +150,7 @@ public final class ManaBrewInteractiveSession {
         this.game = Objects.requireNonNull(game, "game");
         this.botSeats = Set.copyOf(botSeats);
         this.snapshotRecording = snapshotRecording;
+        this.actionRepeat = new ActionRepeat(this, game);
     }
 
     public String getSessionId() {
@@ -177,9 +192,7 @@ public final class ManaBrewInteractiveSession {
 
     public void close() {
         closed = true;
-        JsonObject action = new JsonObject();
-        action.addProperty("kind", "pass");
-        actions.offer(action);
+        actions.offer(new Submission(null, syntheticPass()));
         if (game != null && !game.isGameOver()) {
             game.setGameOver(forge.game.GameEndReason.Draw);
         }
@@ -259,7 +272,7 @@ public final class ManaBrewInteractiveSession {
         }
         final JsonObject canonical = JsonParser.parseString(actionJson).getAsJsonObject();
         final JsonObject decoded = ManabrewProtocolAdapter.decodeAction(canonical);
-        actions.offer(decoded);
+        actions.offer(new Submission(canonical, decoded));
         // No snapshot here — it would race the game thread this unblocks.
         return "";
     }
@@ -344,7 +357,7 @@ public final class ManaBrewInteractiveSession {
             final List<Card> untappableCards
     ) {
         requireAttached();
-        if (!botSeats.contains(playerId)) {
+        if (!botSeats.contains(playerId) && !actionRepeat.replaying()) {
             recordCheckpoint();
         }
         publishPriorityPrompt(playerId, actionsForPrompt, untappableCards);
@@ -1940,16 +1953,23 @@ public final class ManaBrewInteractiveSession {
 
     private JsonObject takeAction() throws InterruptedException {
         while (true) {
+            if (actionRepeat.replaying()) {
+                final JsonObject replayed = actionRepeat.replayAnswer();
+                if (replayed != null) {
+                    return ManabrewProtocolAdapter.decodeAction(replayed);
+                }
+            }
             if (bridge != null && actions.isEmpty() && !closed && !game.isGameOver()) {
                 submitAction(bridge.exchange(promptedPlayerIndex, latestPromptJson));
             }
-            final JsonObject action = actions.poll(1, java.util.concurrent.TimeUnit.SECONDS);
-            if (action == null) {
+            final Submission submission = actions.poll(1, java.util.concurrent.TimeUnit.SECONDS);
+            if (submission == null) {
                 if (closed || game.isGameOver()) {
                     return syntheticPass();
                 }
                 continue;
             }
+            final JsonObject action = submission.action;
             final String kind = action.has("kind") ? action.get("kind").getAsString() : "";
             if (isRestoreDirective(action)) {
                 if ("request_restore".equals(kind)) {
@@ -1973,7 +1993,12 @@ public final class ManaBrewInteractiveSession {
                 }
                 continue;
             }
+            if (ActionRepeat.isDirective(kind)) {
+                actionRepeat.handleDirective(action);
+                continue;
+            }
             if (!"concede".equals(kind)) {
+                actionRepeat.onAnswer(submission.response);
                 return action;
             }
             final int target = action.has("player")
@@ -1987,7 +2012,7 @@ public final class ManaBrewInteractiveSession {
         }
     }
 
-    private static JsonObject syntheticPass() {
+    static JsonObject syntheticPass() {
         final JsonObject pass = new JsonObject();
         pass.addProperty("kind", "pass");
         return pass;
@@ -2022,7 +2047,7 @@ public final class ManaBrewInteractiveSession {
         return true;
     }
 
-    private void announceState() {
+    void announceState() {
         stateRevision++;
         if (bridge != null) {
             bridge.publishState();
@@ -2040,6 +2065,50 @@ public final class ManaBrewInteractiveSession {
     private static boolean isRestoreDirective(final JsonObject action) {
         final String kind = action.has("kind") ? action.get("kind").getAsString() : "";
         return "request_restore".equals(kind) || "restore_vote".equals(kind);
+    }
+
+    Set<Integer> humanSeats() {
+        final Set<Integer> seats = new TreeSet<>();
+        for (final Player player : game.getRegisteredPlayers()) {
+            final int seat = SnapshotExtractor.playerIndex(game, player);
+            if (!botSeats.contains(seat)
+                    && player.getOriginalLobbyPlayer() instanceof ManaBrewInteractiveLobbyPlayer) {
+                seats.add(seat);
+            }
+        }
+        return seats;
+    }
+
+    Set<Integer> voterSeats(final int requester) {
+        final Set<Integer> voters = humanSeats();
+        voters.remove(requester);
+        voters.removeIf(seat -> game.getRegisteredPlayers().get(seat).hasLost());
+        return voters;
+    }
+
+    void publishDirective(final int seat, final EngineDirective directive) {
+        final String json = GSON.toJson(directive);
+        if (bridge != null) {
+            bridge.publishDirective(seat, json);
+            return;
+        }
+        final JsonObject entry = new JsonObject();
+        entry.addProperty("seat", seat);
+        entry.add("directive", JsonParser.parseString(json));
+        synchronized (outboundDirectives) {
+            outboundDirectives.add(entry);
+        }
+    }
+
+    public String drainDirectives() {
+        final JsonArray drained = new JsonArray();
+        synchronized (outboundDirectives) {
+            for (final JsonObject entry : outboundDirectives) {
+                drained.add(entry);
+            }
+            outboundDirectives.clear();
+        }
+        return drained.toString();
     }
 
     private boolean restoreApproved() {
@@ -2108,15 +2177,7 @@ public final class ManaBrewInteractiveSession {
         }
         for (final Checkpoint checkpoint : checkpoints) {
             if (checkpoint.id == checkpointId) {
-                final Set<Integer> voters = new TreeSet<>();
-                for (final Player player : players) {
-                    final int seat = SnapshotExtractor.playerIndex(game, player);
-                    if (seat != requester && !player.hasLost() && !botSeats.contains(seat)
-                            && player.getOriginalLobbyPlayer() instanceof ManaBrewInteractiveLobbyPlayer) {
-                        voters.add(seat);
-                    }
-                }
-                restoreVote = new RestoreVote(++restoreVoteCount, checkpoint, requester, voters);
+                restoreVote = new RestoreVote(++restoreVoteCount, checkpoint, requester, voterSeats(requester));
                 publishRestoreVote();
                 return;
             }
@@ -2157,17 +2218,21 @@ public final class ManaBrewInteractiveSession {
     }
 
     private void restore(final Checkpoint target) {
-        game.getStack().clear();
-        game.getStack().clearSimultaneousStack();
-        game.getStack().clearUndoStack();
-        target.snapshot.restoreGameState(game);
-        game.getPhaseHandler().setPriority(target.priorityPlayer);
+        restoreSnapshot(target.snapshot, target.priorityPlayer);
         checkpointTurn = target.turn;
         checkpointPhase = target.phase;
         while (checkpoints.peekLast() != target) {
             checkpoints.removeLast();
         }
         publishCheckpointViews();
+    }
+
+    void restoreSnapshot(final GameSnapshot snapshot, final Player priorityPlayer) {
+        game.getStack().clear();
+        game.getStack().clearSimultaneousStack();
+        game.getStack().clearUndoStack();
+        snapshot.restoreGameState(game);
+        game.getPhaseHandler().setPriority(priorityPlayer);
         for (final Player player : game.getPlayers()) {
             if (player.getController() instanceof ManaBrewInteractiveController) {
                 ((ManaBrewInteractiveController) player.getController()).clearHeldPass();
@@ -2920,12 +2985,35 @@ public final class ManaBrewInteractiveSession {
 
     private void publishAgentPrompt(final String decidingPlayerId, final String sourceCardId, final JsonObject input) {
         promptedPlayerIndex = parsePlayerSlot(decidingPlayerId);
-        latestPromptJson = ManabrewProtocolAdapter.agentPrompt(
+        openPromptJson = ManabrewProtocolAdapter.agentPrompt(
                 ++promptSeq,
                 decidingPlayerId,
                 sourceCard(sourceCardId),
                 sourceAbilityText(sourceCardId),
                 input);
+        if (!actionRepeat.replaying()) {
+            latestPromptJson = openPromptJson;
+        }
+    }
+
+    void publishOpenPrompt() {
+        latestPromptJson = openPromptJson;
+    }
+
+    JsonObject openPrompt() {
+        return JsonParser.parseString(openPromptJson).getAsJsonObject();
+    }
+
+    int promptedSeat() {
+        return promptedPlayerIndex;
+    }
+
+    boolean priorityPromptOpen() {
+        return priorityPromptOpen;
+    }
+
+    ActionRepeat actionRepeat() {
+        return actionRepeat;
     }
 
     private static int parsePlayerSlot(final String decidingPlayerId) {

@@ -1,4 +1,10 @@
-import type { Prompt, PromptOutput, ProtocolError } from "@/protocol";
+import type {
+  Prompt,
+  PromptOutput,
+  ProtocolError,
+  RecordingStatus,
+  RepeatVoteDto,
+} from "@/protocol";
 import type { DisplayEvent } from "@/protocol/display";
 import type { CardDto, GameViewDto, PlayerDto } from "@/protocol/game";
 import type { Deck } from "@/protocol/deck";
@@ -83,6 +89,8 @@ export interface GameState {
   /** Optimistic: true from when the local player passes/declines a decision until the next prompt
    *  for them arrives. Lets the UI reflect "waiting for others" instantly, without the state lag. */
   relinquishedPriority: boolean;
+  recording: RecordingStatus;
+  repeatVote: RepeatVoteDto | null;
   gameConfig: GameConfig | null;
   /** Set at concede click, before the engine confirms via `status: "conceded"`. */
   selfConceded: boolean;
@@ -135,5 +143,9 @@ export interface GameState {
   ) => void;
   requestRestore: (checkpointId: number) => Promise<void>;
   voteRestore: (voteId: number, accept: boolean) => Promise<void>;
+  startRecording: () => Promise<void>;
+  stopRecording: () => Promise<void>;
+  requestRepeat: (iterations: number) => Promise<void>;
+  voteRepeat: (voteId: number, accept: boolean) => Promise<void>;
   setSnapshotRecording: (enabled: boolean) => Promise<void>;
 }

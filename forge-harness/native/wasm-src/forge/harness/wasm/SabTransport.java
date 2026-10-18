@@ -342,6 +342,13 @@ public final class SabTransport implements InteractiveBridge {
         }
     }
 
+    @Override
+    public void publishDirective(final int playerIndex, final String directiveJson) {
+        if (!botSeats.contains(playerIndex)) {
+            post("game:seat_directive", "{\"seat\":" + playerIndex + ",\"directive\":" + directiveJson + "}");
+        }
+    }
+
     // The client reads state.gameView, matching GameSnapshotEventDto on
     // the Rust side; a bare game view leaves the board unmounted.
     private String stateFrame(final String view) {

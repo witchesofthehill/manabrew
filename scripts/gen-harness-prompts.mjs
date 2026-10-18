@@ -4,8 +4,9 @@
 // so the harness physically cannot build a prompt with the wrong type, an
 // unknown field, or a wrong field type — it won't compile.
 //
-// Emission side only: the *Input structs and the value types they reference,
-// transitively. *Output types (the response direction) are not generated.
+// Emission side only: the *Input structs, `EngineDirective`, and the value
+// types they reference, transitively. *Output types (the response direction)
+// are not generated.
 //
 // Usage: node scripts/gen-harness-prompts.mjs <output-dir>
 import { readFileSync, readdirSync, statSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
@@ -88,7 +89,7 @@ const refsOf = (body) => {
 // ---- reachable closure from the input types --------------------------------
 
 const reachable = new Set();
-const queue = [...inputTag.keys(), "CardDto"];
+const queue = [...inputTag.keys(), "CardDto", "EngineDirective"];
 while (queue.length) {
   const n = queue.pop();
   if (reachable.has(n) || !aliases.has(n) || /Output$/.test(n)) continue;

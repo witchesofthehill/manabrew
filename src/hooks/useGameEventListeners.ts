@@ -19,11 +19,19 @@ import { clearActiveGameSession, peekActiveGameSession } from "@/lib/activeGameS
 import { FORETELL_LOG_PREFIX, normalizeGameLogPayload, type GameLogEntry } from "@/types/gameLog";
 import {
   applyDisplay,
+  applyEngineDirective,
   applyPrompt,
   applyProtocolError,
   applyState,
 } from "@/stores/gameStore.constants";
-import type { Prompt, StateUpdate, ProtocolError } from "@/protocol";
+import type {
+  EngineDirective,
+  Prompt,
+  ProtocolError,
+  RecordingFailure,
+  RepeatVoteDto,
+  StateUpdate,
+} from "@/protocol";
 import type { DisplayEvent } from "@/protocol/display";
 import type { GameViewDto } from "@/protocol/game";
 import { RELAY_FEATURE, SERVER_ERROR_CODE } from "@/types/server";
@@ -205,6 +213,32 @@ function reportEngineGame(): void {
  * State and display are applied for whichever player they are addressed to;
  * a prompt or error only becomes actionable when it is addressed to this player.
  */
+const RECORDING_FAILURE_MESSAGES: Record<RecordingFailure, string> = {
+  notAtPriority: "Start and stop recording while you have priority and the stack is empty.",
+  unsupportedPrompt: "Recording stopped: this kind of choice cannot be repeated.",
+  opponentActed: "Recording stopped: another player acted during the recording.",
+  empty: "Nothing was recorded. Record at least one action.",
+};
+
+function noticeRecording(status: GameState["recording"]) {
+  if (status.type === "failed") toast.error(RECORDING_FAILURE_MESSAGES[status.reason]);
+}
+
+function noticeRepeatVote(vote: RepeatVoteDto, state: GameState) {
+  const playerName = (id: string) =>
+    state.gameView?.players.find((player) => player.id === id)?.name ?? id;
+  switch (vote.status.type) {
+    case "declined":
+      toast.error(`${playerName(vote.status.playerId)} declined the repeat`);
+      break;
+    case "failed":
+      toast.error(
+        `The repeat failed in iteration ${vote.status.iteration}. The game went back to before the repeat.`,
+      );
+      break;
+  }
+}
+
 export function useGameEventListeners() {
   useEffect(() => {
     window.addEventListener("pagehide", reportEngineGame);
@@ -286,6 +320,19 @@ export function useGameEventListeners() {
           }
         }),
       );
+      const receiveEngineDirective = (directive: EngineDirective) => {
+        console.info("[repeat] engine directive", JSON.stringify(directive));
+        const { recording, repeatVote } = getState();
+        applyEngineDirective(directive, setState);
+        if (directive.type === "recording") {
+          if (directive.status.type !== recording.type) noticeRecording(directive.status);
+        } else if (
+          directive.vote.voteId !== repeatVote?.voteId ||
+          directive.vote.status.type !== repeatVote.status.type
+        ) {
+          noticeRepeatVote(directive.vote, getState());
+        }
+      };
       const handleProtocolError = (error: ProtocolError | undefined, source: string) => {
         if ((error?.code as string) === ENGINE_CRASH_CODE) {
           setState({ engineCrash: error?.message || "Engine crashed" });
@@ -307,6 +354,11 @@ export function useGameEventListeners() {
           if (getState().gameView?.gameOver) return;
           if (getState().selfConceded) return;
           applyPrompt(prompt, "Event", setState, getState);
+        }),
+      );
+      unsubscribers.push(
+        platform.events.on<EngineDirective>("game:directive", (payload) => {
+          receiveEngineDirective(payload);
         }),
       );
       unsubscribers.push(
@@ -353,6 +405,15 @@ export function useGameEventListeners() {
           if (!prompt) return;
           if (getState().selfConceded) return;
           applyPrompt(prompt, "Remote", setState, getState);
+        }),
+      );
+      unsubscribers.push(
+        platform.events.on<{
+          forPlayer: string;
+          directive: EngineDirective;
+        }>("game:remote_directive", (payload) => {
+          if (payload.forPlayer !== getState().myPlayerSlot) return;
+          receiveEngineDirective(payload.directive);
         }),
       );
       unsubscribers.push(

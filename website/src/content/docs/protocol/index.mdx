@@ -14,7 +14,7 @@ that implements it can host a Manabrew compatible engine.
 > What we hope to achieve by putting effort and love into the spec, is that more people and projects start adopting it.
 > We see huge potential in a truly open-standard for online card gaming, and we dream of a day where UIs and Engines for all sorts of games will be able to be inter-changed for a superior community driven ecosystem.
 >
-> *- Witches of the Hill*
+> _- Witches of the Hill_
 
 ## The protocol ensures:
 
@@ -27,12 +27,14 @@ Enforcing the rules is up to the particular engine implementing the protocol.
 
 ## Message families
 
-The engine → client channel carries **four separate kinds of message**:
+The engine → client channel carries **five separate kinds of message**:
 
 <CardGrid>
   <Card title="state" icon="seti:db">
-    A `StateUpdate` carrying authoritative game state. This may contain a full [`gameView`](/protocol/game-view/)⁠, or a [`patch`](/protocol/game-view/#state-patches) against the client’s current view. 
-    StateUpdate is the **only** carrier of authoritative game state; the client applies updates in order and renders from the resulting view.
+    A `StateUpdate` carrying authoritative game state. This may contain a full
+    [`gameView`](/protocol/game-view/)⁠, or a [`patch`](/protocol/game-view/#state-patches) against
+    the client’s current view. StateUpdate is the **only** carrier of authoritative game state; the
+    client applies updates in order and renders from the resulting view.
   </Card>
   <Card title="display" icon="sparkles">
     [**⚠️ Work in Progress**] A `DisplayEvent` - a transient, potentially very frequent UI display
@@ -42,6 +44,12 @@ The engine → client channel carries **four separate kinds of message**:
   <Card title="prompt" icon="comment">
     An `AgentPrompt` - a **call to action**. The engine has paused and needs a decision from a
     specific player.
+  </Card>
+  <Card title="engineDirective" icon="information">
+    An `EngineDirective` - an **out-of-band notice** for one player, never paired with a prompt and
+    never part of the game state. It reports the player's action recording and an open vote to
+    repeat recorded actions. Each directive is the complete current status of its kind, so the
+    client keeps only the latest one.
   </Card>
   <Card title="error" icon="warning">
     A `ProtocolError` - the engine **rejected** the last response. See [Errors](#errors).
@@ -56,8 +64,10 @@ The client → engine channel carries **two**:
     response per prompt. See [Answering a prompt](#answering-a-prompt).
   </Card>
   <Card title="directive" icon="right-arrow">
-    A `DirectiveInput` - **out-of-band and fire-and-forget**, never paired with a prompt. Currently
-    only `concede`, legal at any time.
+    A `DirectiveInput` - **out-of-band and fire-and-forget**, never paired with a prompt: `concede`
+    (legal at any time), `startRecording` and `stopRecording` (legal while the player holds priority
+    with an empty stack), `requestRepeat` (asks to repeat the recorded actions `iterations` times,
+    under the same condition), and `repeatVote` (answers an open repeat vote).
   </Card>
 </CardGrid>
 
@@ -82,7 +92,7 @@ interface AgentPrompt {
 ```ts
 type ClientToServerMessage =
   | { kind: "response"; promptId: number; action: PromptOutput }
-  | { kind: "directive"; directive: DirectiveInput }; // out-of-band; currently { type: "concede" }
+  | { kind: "directive"; directive: DirectiveInput }; // out-of-band, never paired with a prompt
 ```
 
 It is important `promptId` is always the same as the last `promptId` emitted by the engine.

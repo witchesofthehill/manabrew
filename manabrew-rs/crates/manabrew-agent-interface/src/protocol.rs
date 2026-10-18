@@ -88,6 +88,11 @@ pub enum StateEnvelope {
         from_player: String,
         directive: Value,
     },
+    EngineDirective {
+        #[serde(rename = "forPlayer")]
+        for_player: String,
+        directive: Value,
+    },
     /// Engine log entry broadcast to observers.
     Log {
         #[serde(rename = "fromPlayer")]
@@ -165,6 +170,10 @@ impl StateEnvelope {
                 prompt: serde_json::to_value(prompt).unwrap_or(Value::Null),
                 engine_ms,
                 emit_ms: None,
+            },
+            AgentMessage::Directive(directive) => StateEnvelope::EngineDirective {
+                for_player,
+                directive: serde_json::to_value(directive).unwrap_or(Value::Null),
             },
             AgentMessage::Error(error) => StateEnvelope::Error {
                 for_player,

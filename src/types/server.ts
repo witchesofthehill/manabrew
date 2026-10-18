@@ -1,6 +1,7 @@
 import type {
   DirectiveInput,
   DraftConfig,
+  EngineDirective,
   EngineKind,
   GameFormat,
   PlayerDeckInfo,
@@ -152,6 +153,11 @@ export type StateEnvelope =
       kind: "prompt";
       forPlayer: string;
       prompt: Prompt;
+    }
+  | {
+      kind: "engineDirective";
+      forPlayer: string;
+      directive: EngineDirective;
     }
   | {
       kind: "error";

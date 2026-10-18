@@ -132,6 +132,9 @@ impl WasmTransport {
             AgentMessage::Prompt(prompt) => {
                 serde_json::json!({ "kind": "prompt", "prompt": prompt })
             }
+            AgentMessage::Directive(directive) => {
+                serde_json::json!({ "kind": "engineDirective", "directive": directive })
+            }
             AgentMessage::Error(error) => {
                 serde_json::json!({ "kind": "error", "error": error })
             }

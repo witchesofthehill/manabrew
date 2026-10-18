@@ -369,8 +369,8 @@
       "refs": ["DiceRollEntry", "PromptPresentation"]
     },
     "DirectiveInput": {
-      "ts": "type DirectiveInput =\n  | { type: \"concede\" }\n  | { type: \"requestRestore\"; checkpointId: number }\n  | { type: \"restoreVote\"; voteId: number; accept: boolean }\n  | { type: \"setSnapshotRecording\"; enabled: boolean };",
-      "rust": "#[serde(\n    tag = \"type\",\n    rename_all = \"camelCase\",\n    rename_all_fields = \"camelCase\"\n)]\npub enum DirectiveInput {\n    Concede,\n    RequestRestore { checkpoint_id: u32 },\n    RestoreVote { vote_id: u32, accept: bool },\n    SetSnapshotRecording { enabled: bool },\n}",
+      "ts": "type DirectiveInput =\n  | { type: \"concede\" }\n  | { type: \"requestRestore\"; checkpointId: number }\n  | { type: \"restoreVote\"; voteId: number; accept: boolean }\n  | { type: \"setSnapshotRecording\"; enabled: boolean }\n  | { type: \"startRecording\" }\n  | { type: \"stopRecording\" }\n  | { type: \"requestRepeat\"; iterations: number }\n  | { type: \"repeatVote\"; voteId: number; accept: boolean };",
+      "rust": "#[serde(\n    tag = \"type\",\n    rename_all = \"camelCase\",\n    rename_all_fields = \"camelCase\"\n)]\npub enum DirectiveInput {\n    Concede,\n    RequestRestore { checkpoint_id: u32 },\n    RestoreVote { vote_id: u32, accept: bool },\n    SetSnapshotRecording { enabled: bool },\n    StartRecording,\n    StopRecording,\n    RequestRepeat { iterations: u32 },\n    RepeatVote { vote_id: u32, accept: bool },\n}",
       "refs": []
     },
     "DungeonStateDto": {

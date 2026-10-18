@@ -46,7 +46,6 @@ highlighted in place.
 ```ts
 type ChooseActionOutput =
   | { type: "pass"; until?: PassUntil; exhaustStack: boolean }
-  | { type: "restoreSnapshot"; checkpointId: number }
   | { type: "act"; actionId: string };
 
 type PassUntil = { playerId: string; phase: StepKind };

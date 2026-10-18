@@ -22,7 +22,7 @@ use manabrew_agent_interface::protocol::{
 };
 use manabrew_protocol::deck_dto::Deck;
 use manabrew_protocol::game::{GameViewDto, PlayerStatus};
-use manabrew_protocol::transport::{DirectiveInput, StateUpdate};
+use manabrew_protocol::transport::{DirectiveInput, EngineDirective, StateUpdate};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use tokio::net::TcpStream;
@@ -182,6 +182,7 @@ struct HostSnapshot {
     last_state: Option<Value>,
     last_state_by_slot: HashMap<String, Value>,
     pending_prompts: HashMap<String, Value>,
+    pending_directives: HashMap<(String, &'static str), Value>,
     pending_end_game: Option<String>,
 }
 
@@ -664,10 +665,16 @@ fn reprime_relay_cache(
     };
     let state = snap.last_state_by_slot.get(&slot).cloned();
     let prompt = snap.pending_prompts.get(&slot).cloned();
+    let directives: Vec<Value> = snap
+        .pending_directives
+        .iter()
+        .filter(|((directive_slot, _), _)| *directive_slot == slot)
+        .map(|(_, directive)| directive.clone())
+        .collect();
     drop(snap);
 
     // Stored before `patch_against_last` runs, so these are full states.
-    for state in [state, prompt].into_iter().flatten() {
+    for state in [state, prompt].into_iter().flatten().chain(directives) {
         let _ = outbound_tx.send(ClientMessage::BroadcastState {
             state,
             target_player: Some(username.to_string()),
@@ -765,13 +772,14 @@ async fn reestablish_room(
         client.send(&ClientMessage::ResumeRoom(request)).await?;
         match wait_for_room_resumed(client, engine_session, snapshot).await? {
             Some(room) => {
-                let (last_state, seat_states, prompts, player_order, pending_end_game) = {
+                let (last_state, seat_states, prompts, directives, player_order, pending_end_game) = {
                     let mut snap = snapshot.lock().map_err(|error| error.to_string())?;
                     snap.room_info = Some(room);
                     (
                         snap.last_state.clone(),
                         snap.last_state_by_slot.clone(),
                         snap.pending_prompts.clone(),
+                        snap.pending_directives.clone(),
                         snap.game
                             .as_ref()
                             .map(|game| game.player_order.clone())
@@ -811,6 +819,20 @@ async fn reestablish_room(
                     client
                         .send(&ClientMessage::BroadcastState {
                             state: prompt,
+                            target_player: Some(target_player),
+                        })
+                        .await?;
+                }
+                for ((slot, _), directive) in directives {
+                    let Some(target_player) =
+                        parse_player_slot(&slot).and_then(|index| player_order.get(index).cloned())
+                    else {
+                        warn!(slot, "cannot replay directive without a mapped player");
+                        continue;
+                    };
+                    client
+                        .send(&ClientMessage::BroadcastState {
+                            state: directive,
                             target_player: Some(target_player),
                         })
                         .await?;
@@ -979,6 +1001,7 @@ fn clear_game_snapshot(snapshot: &SharedHostSnapshot, game_id: &str) {
             snap.last_state = None;
             snap.last_state_by_slot.clear();
             snap.pending_prompts.clear();
+            snap.pending_directives.clear();
             snap.pending_end_game = None;
         }
     }
@@ -1340,6 +1363,7 @@ async fn handle_server_message(
                 snap.last_state = None;
                 snap.last_state_by_slot.clear();
                 snap.pending_prompts.clear();
+                snap.pending_directives.clear();
                 snap.pending_end_game = None;
             }
             let mut left_the_relay = Vec::new();
@@ -2178,13 +2202,16 @@ fn route_remote_directive(
     info!(claimed_slot, player_index, ?directive, "routing directive");
     match directive {
         DirectiveInput::Concede => concede_seat(engine_session, player_index),
-        DirectiveInput::RequestRestore { .. } | DirectiveInput::RestoreVote { .. } => {
-            send_seat_message(
-                engine_session,
-                player_index,
-                ClientToServerMessage::Directive { directive },
-            )
-        }
+        DirectiveInput::RequestRestore { .. }
+        | DirectiveInput::RestoreVote { .. }
+        | DirectiveInput::StartRecording
+        | DirectiveInput::StopRecording
+        | DirectiveInput::RequestRepeat { .. }
+        | DirectiveInput::RepeatVote { .. } => send_seat_message(
+            engine_session,
+            player_index,
+            ClientToServerMessage::Directive { directive },
+        ),
         DirectiveInput::SetSnapshotRecording { .. } => {
             warn!(claimed_slot, "only the engine host sets snapshot recording");
         }
@@ -2445,7 +2472,7 @@ fn spawn_remote_prompt_forwarder(
                 AgentMessage::State(_) => last_state = Some(state.clone()),
                 AgentMessage::Display(_) if last_display.as_ref() == Some(&state) => continue,
                 AgentMessage::Display(_) => last_display = Some(state.clone()),
-                AgentMessage::Prompt(_) | AgentMessage::Error(_) => {}
+                AgentMessage::Prompt(_) | AgentMessage::Directive(_) | AgentMessage::Error(_) => {}
             }
             if let Ok(mut snap) = snapshot.lock() {
                 match &message {
@@ -2455,6 +2482,14 @@ fn spawn_remote_prompt_forwarder(
                     AgentMessage::State(_) => snap.last_state = Some(state.clone()),
                     AgentMessage::Prompt(_) => {
                         snap.pending_prompts.insert(slot.clone(), state.clone());
+                    }
+                    AgentMessage::Directive(directive) => {
+                        let kind = match directive {
+                            EngineDirective::Recording { .. } => "recording",
+                            EngineDirective::RepeatVote { .. } => "repeatVote",
+                        };
+                        snap.pending_directives
+                            .insert((slot.clone(), kind), state.clone());
                     }
                     AgentMessage::Display(_) | AgentMessage::Error(_) => {}
                 }
@@ -2477,7 +2512,10 @@ fn spawn_remote_prompt_forwarder(
             let target_player = if per_seat
                 && matches!(
                     message,
-                    AgentMessage::State(_) | AgentMessage::Prompt(_) | AgentMessage::Error(_)
+                    AgentMessage::State(_)
+                        | AgentMessage::Prompt(_)
+                        | AgentMessage::Directive(_)
+                        | AgentMessage::Error(_)
                 ) {
                 let Some(target_player) = seat_usernames
                     .as_ref()
@@ -2597,13 +2635,18 @@ fn spawn_game_over_forwarder(
                     }
                     AgentMessage::State(_) if last_state.as_ref() == Some(&state) => continue,
                     AgentMessage::State(_) => last_state = Some(state.clone()),
-                    AgentMessage::Display(_) | AgentMessage::Prompt(_) | AgentMessage::Error(_) => {
-                    }
+                    AgentMessage::Display(_)
+                    | AgentMessage::Prompt(_)
+                    | AgentMessage::Directive(_)
+                    | AgentMessage::Error(_) => {}
                 }
                 let target_player = if per_seat
                     && matches!(
                         message,
-                        AgentMessage::State(_) | AgentMessage::Prompt(_) | AgentMessage::Error(_)
+                        AgentMessage::State(_)
+                            | AgentMessage::Prompt(_)
+                            | AgentMessage::Directive(_)
+                            | AgentMessage::Error(_)
                     ) {
                     let Some(target_player) = seat_usernames
                         .as_ref()

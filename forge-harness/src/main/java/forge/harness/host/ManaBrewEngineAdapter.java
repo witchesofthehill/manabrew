@@ -9,7 +9,6 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import forge.ai.LobbyPlayerAi;
 import forge.StaticData;
 import forge.card.CardDb;
 import forge.card.CardEdition;
@@ -115,7 +114,7 @@ public final class ManaBrewEngineAdapter {
             RegisteredPlayer registeredPlayer = RegisteredPlayer.forVariants(
                     playerCount, variants, deck, null, false, null, null);
             if (playerConfig.isAi()) {
-                registeredPlayer.setPlayer(new LobbyPlayerAi(playerConfig.getName(), null));
+                registeredPlayer.setPlayer(new ManaBrewAiLobbyPlayer(playerConfig.getName(), session));
             } else {
                 registeredPlayer.setPlayer(new ManaBrewInteractiveLobbyPlayer(
                         playerConfig.getName(), session));
@@ -171,6 +170,10 @@ public final class ManaBrewEngineAdapter {
 
     public String drainCheckpointMetrics(final String sessionId) {
         return getSession(sessionId).drainCheckpointMetrics();
+    }
+
+    public String drainDirectives(final String sessionId) {
+        return getSession(sessionId).drainDirectives();
     }
 
     public String getStateRevision(final String sessionId) {

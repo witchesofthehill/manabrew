@@ -178,7 +178,7 @@ Keep the native measured textbox bounds unchanged. Do not widen, shorten or lift
 
 Pixi accessibility buttons can be one-pixel DOM proxies rather than pointer targets. Browser probes should use keyboard activation or the painted canvas control, not pointer clicks on those proxy rectangles.
 
-Rules typography uses native-relative font sizing, 1× leading and no extra rich-text line gap. Preserve the native text area's width with minimal safety padding; use paragraph spacing instead of padding every line. Separate major content sections with an 8px gap without loosening paragraph leading. Long content still scrolls rather than shrinking to fit.
+Rules typography uses native-relative font sizing, 1× leading and no extra rich-text line gap. A single ordinary or retro rules panel uses the size card-glint prints its rules at (`CardRenderGeometry.rulesFontSize`, from `retroTextLayout ?? ordinaryTextLayout`), so short text reads larger, as on printed cards; it is never smaller than `RULES_PREVIEW_FONT_SIZE`. Planeswalker, Saga, Class, level, multipart, semantic and scan-overlay faces keep that minimum. Preserve the native text area's width with minimal safety padding; use paragraph spacing instead of padding every line. Separate major content sections with an 8px gap without loosening paragraph leading. Long content still scrolls rather than shrinking to fit.
 
 Rules-body overflow uses only the vertical scrollbar. Keep the native paper unobscured by horizontal fade or tint overlays.
 

@@ -143,9 +143,8 @@ const SCAN_OVERLAY_OPACITY = 0.94;
 const SCAN_COST_SYMBOL_SIZE = 22;
 const SCAN_COST_PADDING = 6;
 const CONTENT_PAD = 16;
-const ORACLE_LINE_HEIGHT = RULES_PREVIEW_FONT_SIZE;
-const FLAVOR_GAP = RULES_PREVIEW_FONT_SIZE * 0.75;
-const ABILITY_GAP = RULES_PREVIEW_FONT_SIZE * 0.4;
+const FLAVOR_GAP_EM = 0.75;
+const ABILITY_GAP_EM = 0.4;
 const PLANESWALKER_SECTION_GAP = 8;
 const SECTION_GAP = 8;
 const ENTRY_INTERACTION_PAD_MS = 80;
@@ -168,25 +167,19 @@ function textStyle(
   return new TextStyle({ fill, fontSize, fontWeight, fontFamily, lineHeight: fontSize * 1.3 });
 }
 
-function oracleTextStyle(fill: string, italic = false, fontFamily = RULES_BODY_FONT): TextStyle {
+function oracleTextStyle(
+  fill: string,
+  fontSize: number,
+  italic = false,
+  fontFamily = RULES_BODY_FONT,
+): TextStyle {
   return new TextStyle({
     fill,
     fontFamily,
-    fontSize: RULES_PREVIEW_FONT_SIZE,
+    fontSize,
     fontWeight: "400",
     fontStyle: italic ? "italic" : "normal",
-    lineHeight: ORACLE_LINE_HEIGHT,
-  });
-}
-
-function flavorTextStyle(fill: string, fontFamily = RULES_BODY_FONT): TextStyle {
-  return new TextStyle({
-    fill,
-    fontFamily,
-    fontSize: RULES_PREVIEW_FONT_SIZE,
-    fontWeight: "400",
-    fontStyle: "italic",
-    lineHeight: ORACLE_LINE_HEIGHT,
+    lineHeight: fontSize,
   });
 }
 
@@ -263,6 +256,7 @@ export class RulesCardPreviewLayer {
   private highlightedEffectTween: gsap.core.Tween | null = null;
   private highlightedRows: Container[] = [];
   private highlightedEntry: string | null = null;
+  private rulesFontSize = RULES_PREVIEW_FONT_SIZE;
 
   private previewSize = usePreferencesStore.getState().inGameCardPreviewSize;
   private readonly unsubscribePreferences: () => void;
@@ -773,6 +767,12 @@ export class RulesCardPreviewLayer {
     this.canFlip = display.flippable;
     const landscape = display.horizontal;
     const measuredPanels = this.configureGeometry(landscape, display.faceIndex);
+    this.rulesFontSize = Math.max(
+      RULES_PREVIEW_FONT_SIZE,
+      this.scanOverlay
+        ? 0
+        : ((this.faceGeometry?.rulesFontSize ?? 0) * PORTRAIT_WIDTH) / CARD_RENDER_WIDTH,
+    );
     const detailsReady = this.imageReady || this.renderState === "error";
     const panels = detailsReady ? measuredPanels : [];
     this.viewControls.setSpec(
@@ -919,8 +919,13 @@ export class RulesCardPreviewLayer {
               false,
               body.content,
               text.startsWith("(")
-                ? oracleTextStyle(this.frame.mutedInk, true, this.frame.bodyFont)
-                : oracleTextStyle(this.frame.ink, false, this.frame.bodyFont),
+                ? oracleTextStyle(
+                    this.frame.mutedInk,
+                    this.rulesFontSize,
+                    true,
+                    this.frame.bodyFont,
+                  )
+                : oracleTextStyle(this.frame.ink, this.rulesFontSize, false, this.frame.bodyFont),
             );
           }
           const rail = new PixiCardRailPreview({
@@ -1153,7 +1158,7 @@ export class RulesCardPreviewLayer {
   }
 
   private addStaticAbilityRow(body: RulesPreviewBody, text: string, y: number): number {
-    const style = oracleTextStyle(this.frame.ink, false, this.frame.bodyFont);
+    const style = oracleTextStyle(this.frame.ink, this.rulesFontSize, false, this.frame.bodyFont);
     style.fontWeight = "700";
     return this.addOracleAbilityRow(body, text, y, false, body.content, style);
   }
@@ -1164,7 +1169,7 @@ export class RulesCardPreviewLayer {
     y: number,
     planeswalker: boolean,
     parent = body.content,
-    style = oracleTextStyle(this.frame.ink, false, this.frame.bodyFont),
+    style = oracleTextStyle(this.frame.ink, this.rulesFontSize, false, this.frame.bodyFont),
   ): number {
     const native = planeswalker ? body.planeswalker : undefined;
     const loyalty = native
@@ -1184,9 +1189,16 @@ export class RulesCardPreviewLayer {
       content,
       style,
       column?.width ?? body.contentWidth,
-      RULES_PREVIEW_FONT_SIZE,
+      this.rulesFontSize,
       0,
-      { parentheticalStyle: oracleTextStyle(this.frame.mutedInk, true, this.frame.bodyFont) },
+      {
+        parentheticalStyle: oracleTextStyle(
+          this.frame.mutedInk,
+          this.rulesFontSize,
+          true,
+          this.frame.bodyFont,
+        ),
+      },
     );
     const height = Math.max(
       native?.minimumRowHeight ?? 0,
@@ -1214,7 +1226,7 @@ export class RulesCardPreviewLayer {
       addPlaneswalkerCost(row, cost, height, native, () => this.callbacks.onRenderRequested());
     }
     parent.addChild(row);
-    return y + height + (native ? PLANESWALKER_SECTION_GAP : ABILITY_GAP);
+    return y + height + (native ? PLANESWALKER_SECTION_GAP : this.rulesFontSize * ABILITY_GAP_EM);
   }
 
   private addFlavorText(
@@ -1228,18 +1240,18 @@ export class RulesCardPreviewLayer {
     const rich = new PixiRichText();
     const height = rich.setContent(
       text,
-      flavorTextStyle(this.frame.mutedInk, this.frame.bodyFont),
+      oracleTextStyle(this.frame.mutedInk, this.rulesFontSize, true, this.frame.bodyFont),
       width,
-      RULES_PREVIEW_FONT_SIZE,
+      this.rulesFontSize,
       0,
     );
     const divider = new Graphics();
     divider.moveTo(0, y).lineTo(width, y);
     divider.stroke({ color: hexToNum(this.frame.border), alpha: 0.45, width: 1 });
     parent.addChild(divider);
-    rich.position.set(0, y + FLAVOR_GAP);
+    rich.position.set(0, y + this.rulesFontSize * FLAVOR_GAP_EM);
     parent.addChild(rich);
-    return y + height + FLAVOR_GAP + ABILITY_GAP;
+    return y + height + this.rulesFontSize * (FLAVOR_GAP_EM + ABILITY_GAP_EM);
   }
 
   private configureGeometry(

@@ -727,7 +727,7 @@ public final class ManaBrewInteractiveSession {
             final String cardId = SnapshotExtractor.javaCardId(host);
             final int abilityIndex = host.getManaAbilities().indexOf(sa);
             final String description = host.getName();
-            final String cost = simpleCostText(sa);
+            final String cost = costText(sa);
             final String produced = resolveProducedMana(sa);
             final Integer amount = sa.getManaPart() == null ? null : sa.amountOfManaGenerated(false);
             for (final ManaChoice choice : splitManaChoices(produced, amount)) {
@@ -2218,7 +2218,7 @@ public final class ManaBrewInteractiveSession {
             } else if (sa.isManaAbility()) {
                 final String description = abilityDescription(sa, label);
                 final String produced = resolveProducedMana(sa);
-                final String cost = simpleCostText(sa);
+                final String cost = costText(sa);
                 for (final ManaChoice choice : splitManaChoices(produced, sa.amountOfManaGenerated(false))) {
                     final String actionId = choice.color != null
                             ? "tap:" + cardId + ":" + i + ":" + choice.color
@@ -2229,7 +2229,7 @@ public final class ManaBrewInteractiveSession {
             } else {
                 actionsArray.add(new AvailableAction_activateAbility(
                         id, cardId, i, abilityDescription(sa, label), false,
-                        sa.getApi() == ApiType.ClassLevelUp, simpleCostText(sa), null));
+                        sa.getApi() == ApiType.ClassLevelUp, costText(sa), null));
             }
         }
         for (final Card card : untappableCards) {
@@ -3194,13 +3194,12 @@ public final class ManaBrewInteractiveSession {
         return produced != null && !produced.isEmpty() ? produced : null;
     }
 
-    private static String simpleCostText(final SpellAbility sa) {
+    private static String costText(final SpellAbility sa) {
         final Cost cost = sa.getPayCosts();
-        if (cost == null) {
+        if (cost == null || cost.getCostParts().isEmpty()) {
             return null;
         }
-        final String costText = cost.toSimpleString();
-        return costText != null && !costText.isEmpty() ? costText : null;
+        return cost.toString();
     }
 
     private static String intentFromApi(

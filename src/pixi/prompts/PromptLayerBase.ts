@@ -987,6 +987,7 @@ export abstract class PromptLayerBase {
     let target: Container | null = this.app.renderer.events.rootBoundary.hitTest(x, y);
     let sprite: CardSprite | null = null;
     while (target && target !== this.container) {
+      if (target === this.modalBody?.body) return null;
       if (target instanceof CardSprite && target.usesHandRulesView) sprite = target;
       target = target.parent;
     }

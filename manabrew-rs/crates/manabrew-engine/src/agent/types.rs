@@ -90,6 +90,7 @@ pub struct ActivatableAction {
     pub cost: Option<String>,
     pub is_mana_ability: bool,
     pub is_class_level_up: bool,
+    pub is_intrinsic: bool,
     pub produced_mana: Option<String>,
     pub produced_mana_amount: Option<i32>,
 }
@@ -154,6 +155,7 @@ pub struct ManaAbilityOption {
     pub ability_index: usize,
     pub description: String,
     pub cost: Option<String>,
+    pub is_intrinsic: bool,
     pub produced_mana: Option<String>,
     pub produced_mana_amount: Option<i32>,
 }

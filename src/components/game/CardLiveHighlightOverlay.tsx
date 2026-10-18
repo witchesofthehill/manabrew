@@ -49,7 +49,7 @@ export function CardLiveHighlightOverlay({ enabled, layers }: CardLiveHighlightO
         [
           { transform: `translateY(0%) scale(${CARD_LIVE_PULSE.minScale})` },
           {
-            transform: `translateY(${(-CARD_LIVE_PULSE.floatPx / canvas.height) * 100}%) scale(${CARD_LIVE_PULSE.maxScale})`,
+            transform: `translateY(${(-layers.floatPx / canvas.height) * 100}%) scale(${CARD_LIVE_PULSE.maxScale})`,
           },
         ],
         {

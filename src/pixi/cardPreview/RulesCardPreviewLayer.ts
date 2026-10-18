@@ -29,10 +29,12 @@ import { PixiCardRailPreview } from "@/pixi/cardPreview/PixiCardRailPreview";
 import { addPlaneswalkerCost } from "@/pixi/cardPreview/PixiPlaneswalkerCost";
 import { specialRules } from "card-glint/magic/presentation";
 import {
+  activatedRulesEntries,
   localizeRulesPreviewText,
   resolveRulesPreviewDisplay,
   rulesEntryMatchesStackAbility,
   rulesTextEntries,
+  stackHighlightEntry,
 } from "@/pixi/cardPreview/rulesCardPreviewPresentation";
 import { RulesPreviewActions } from "@/pixi/cardPreview/RulesPreviewActions";
 import {
@@ -141,9 +143,8 @@ const SCAN_OVERLAY_OPACITY = 0.94;
 const SCAN_COST_SYMBOL_SIZE = 22;
 const SCAN_COST_PADDING = 6;
 const CONTENT_PAD = 16;
-const ORACLE_LINE_HEIGHT = RULES_PREVIEW_FONT_SIZE;
-const FLAVOR_GAP = RULES_PREVIEW_FONT_SIZE * 0.75;
-const ABILITY_GAP = RULES_PREVIEW_FONT_SIZE * 0.4;
+const FLAVOR_GAP_EM = 0.75;
+const ABILITY_GAP_EM = 0.4;
 const PLANESWALKER_SECTION_GAP = 8;
 const SECTION_GAP = 8;
 const ENTRY_INTERACTION_PAD_MS = 80;
@@ -166,25 +167,19 @@ function textStyle(
   return new TextStyle({ fill, fontSize, fontWeight, fontFamily, lineHeight: fontSize * 1.3 });
 }
 
-function oracleTextStyle(fill: string, italic = false, fontFamily = RULES_BODY_FONT): TextStyle {
+function oracleTextStyle(
+  fill: string,
+  fontSize: number,
+  italic = false,
+  fontFamily = RULES_BODY_FONT,
+): TextStyle {
   return new TextStyle({
     fill,
     fontFamily,
-    fontSize: RULES_PREVIEW_FONT_SIZE,
+    fontSize,
     fontWeight: "400",
     fontStyle: italic ? "italic" : "normal",
-    lineHeight: ORACLE_LINE_HEIGHT,
-  });
-}
-
-function flavorTextStyle(fill: string, fontFamily = RULES_BODY_FONT): TextStyle {
-  return new TextStyle({
-    fill,
-    fontFamily,
-    fontSize: RULES_PREVIEW_FONT_SIZE,
-    fontWeight: "400",
-    fontStyle: "italic",
-    lineHeight: ORACLE_LINE_HEIGHT,
+    lineHeight: fontSize,
   });
 }
 
@@ -260,6 +255,8 @@ export class RulesCardPreviewLayer {
   private revealHighlightedEffect = false;
   private highlightedEffectTween: gsap.core.Tween | null = null;
   private highlightedRows: Container[] = [];
+  private highlightedEntry: string | null = null;
+  private rulesFontSize = RULES_PREVIEW_FONT_SIZE;
 
   private previewSize = usePreferencesStore.getState().inGameCardPreviewSize;
   private readonly unsubscribePreferences: () => void;
@@ -748,9 +745,34 @@ export class RulesCardPreviewLayer {
         display.liveFaceIndex,
       ),
     }));
+    const actionSection = display.otherFace
+      ? undefined
+      : display.sections.find(
+          (section) => section.faceIndex === display.liveFaceIndex && !section.planeswalker,
+        );
+    const actionEntries = actionSection
+      ? rulesTextEntries(actionSection.rulesText, progression, actionSection.canonicalRulesText)
+      : [];
+    const activated = activatedRulesEntries(indexedActions, actionEntries, (text) =>
+      localizeRulesPreviewText(text, this.scryfallInfo, display.liveFaceIndex),
+    );
+    for (const [index, entry] of activated) indexedActions[index]!.displayLabel = entry;
+    const activatedEntries = new Set(activated.values());
+    this.highlightedEntry = stackHighlightEntry(
+      spec.highlightedEffect,
+      display.sections.flatMap((section) =>
+        rulesTextEntries(section.rulesText, null, section.canonicalRulesText),
+      ),
+    );
     this.canFlip = display.flippable;
     const landscape = display.horizontal;
     const measuredPanels = this.configureGeometry(landscape, display.faceIndex);
+    this.rulesFontSize = Math.max(
+      RULES_PREVIEW_FONT_SIZE,
+      this.scanOverlay
+        ? 0
+        : ((this.faceGeometry?.rulesFontSize ?? 0) * PORTRAIT_WIDTH) / CARD_RENDER_WIDTH,
+    );
     const detailsReady = this.imageReady || this.renderState === "error";
     const panels = detailsReady ? measuredPanels : [];
     this.viewControls.setSpec(
@@ -885,8 +907,6 @@ export class RulesCardPreviewLayer {
           body.content.addChild(this.actions);
           y += this.actions.panelHeight + SECTION_GAP;
         }
-        for (const cost of display.costs)
-          y = this.addStaticAbilityRow(body, `${cost.label} ${cost.cost}`, y);
         if (visibleCounters.length > 0) {
           y = this.addChips(body, visibleCounters, y + 4) + 8;
         }
@@ -899,8 +919,13 @@ export class RulesCardPreviewLayer {
               false,
               body.content,
               text.startsWith("(")
-                ? oracleTextStyle(this.frame.mutedInk, true, this.frame.bodyFont)
-                : oracleTextStyle(this.frame.ink, false, this.frame.bodyFont),
+                ? oracleTextStyle(
+                    this.frame.mutedInk,
+                    this.rulesFontSize,
+                    true,
+                    this.frame.bodyFont,
+                  )
+                : oracleTextStyle(this.frame.ink, this.rulesFontSize, false, this.frame.bodyFont),
             );
           }
           const rail = new PixiCardRailPreview({
@@ -949,6 +974,7 @@ export class RulesCardPreviewLayer {
           );
           for (const [entryIndex, text] of entries.entries()) {
             if (progressionOpening.includes(text)) continue;
+            if (panelSection === actionSection && activatedEntries.has(text)) continue;
             if (panelSection.planeswalker && body.planeswalker && entryIndex > 0) {
               const { separator } = body.planeswalker;
               body.content.addChild(
@@ -1045,18 +1071,11 @@ export class RulesCardPreviewLayer {
     let x = 0;
     let rowHeight = 0;
     for (const keyword of keywords) {
-      const separator = keyword.indexOf(":");
-      const label = (separator < 0 ? keyword : keyword.slice(0, separator)).trim().toUpperCase();
-      if (!label) continue;
-      const mana =
-        separator < 0
-          ? ""
-          : parseManaCost(keyword.slice(separator + 1))
-              .map((code) => `{${code}}`)
-              .join("");
+      const text = keyword.toUpperCase();
+      if (!text) continue;
       const content = new PixiRichText();
       const textHeight = content.setContent(
-        mana ? `${label} ${mana}` : label,
+        text,
         textStyle(this.theme.gameTheme.textOnTinted, 11, "700"),
         Math.max(1, body.contentWidth - 14),
         14,
@@ -1139,7 +1158,7 @@ export class RulesCardPreviewLayer {
   }
 
   private addStaticAbilityRow(body: RulesPreviewBody, text: string, y: number): number {
-    const style = oracleTextStyle(this.frame.ink, false, this.frame.bodyFont);
+    const style = oracleTextStyle(this.frame.ink, this.rulesFontSize, false, this.frame.bodyFont);
     style.fontWeight = "700";
     return this.addOracleAbilityRow(body, text, y, false, body.content, style);
   }
@@ -1150,7 +1169,7 @@ export class RulesCardPreviewLayer {
     y: number,
     planeswalker: boolean,
     parent = body.content,
-    style = oracleTextStyle(this.frame.ink, false, this.frame.bodyFont),
+    style = oracleTextStyle(this.frame.ink, this.rulesFontSize, false, this.frame.bodyFont),
   ): number {
     const native = planeswalker ? body.planeswalker : undefined;
     const loyalty = native
@@ -1170,9 +1189,16 @@ export class RulesCardPreviewLayer {
       content,
       style,
       column?.width ?? body.contentWidth,
-      RULES_PREVIEW_FONT_SIZE,
+      this.rulesFontSize,
       0,
-      { parentheticalStyle: oracleTextStyle(this.frame.mutedInk, true, this.frame.bodyFont) },
+      {
+        parentheticalStyle: oracleTextStyle(
+          this.frame.mutedInk,
+          this.rulesFontSize,
+          true,
+          this.frame.bodyFont,
+        ),
+      },
     );
     const height = Math.max(
       native?.minimumRowHeight ?? 0,
@@ -1182,7 +1208,10 @@ export class RulesCardPreviewLayer {
     rich.position.set(contentX, native ? (height - textHeight) / 2 : 0);
     row.position.set(0, y);
     const highlightedEffect = this.spec?.highlightedEffect?.trim();
-    if (highlightedEffect && rulesEntryMatchesStackAbility(text, highlightedEffect)) {
+    if (
+      highlightedEffect &&
+      (rulesEntryMatchesStackAbility(text, highlightedEffect) || text === this.highlightedEntry)
+    ) {
       const color = hexToNum(this.theme.gameTheme.activeAction.active);
       const highlight = new Graphics()
         .roundRect(-4, 0, body.contentWidth + 8, height, 6)
@@ -1197,7 +1226,7 @@ export class RulesCardPreviewLayer {
       addPlaneswalkerCost(row, cost, height, native, () => this.callbacks.onRenderRequested());
     }
     parent.addChild(row);
-    return y + height + (native ? PLANESWALKER_SECTION_GAP : ABILITY_GAP);
+    return y + height + (native ? PLANESWALKER_SECTION_GAP : this.rulesFontSize * ABILITY_GAP_EM);
   }
 
   private addFlavorText(
@@ -1211,18 +1240,18 @@ export class RulesCardPreviewLayer {
     const rich = new PixiRichText();
     const height = rich.setContent(
       text,
-      flavorTextStyle(this.frame.mutedInk, this.frame.bodyFont),
+      oracleTextStyle(this.frame.mutedInk, this.rulesFontSize, true, this.frame.bodyFont),
       width,
-      RULES_PREVIEW_FONT_SIZE,
+      this.rulesFontSize,
       0,
     );
     const divider = new Graphics();
     divider.moveTo(0, y).lineTo(width, y);
     divider.stroke({ color: hexToNum(this.frame.border), alpha: 0.45, width: 1 });
     parent.addChild(divider);
-    rich.position.set(0, y + FLAVOR_GAP);
+    rich.position.set(0, y + this.rulesFontSize * FLAVOR_GAP_EM);
     parent.addChild(rich);
-    return y + height + FLAVOR_GAP + ABILITY_GAP;
+    return y + height + this.rulesFontSize * (FLAVOR_GAP_EM + ABILITY_GAP_EM);
   }
 
   private configureGeometry(

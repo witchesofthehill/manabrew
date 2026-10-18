@@ -460,6 +460,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       description: string;
       isManaAbility: boolean;
       isClassLevelUp?: boolean;
+      isIntrinsic?: boolean;
       cost?: string;
       displayManaLetters?: string[];
       colorChoice?: string;
@@ -472,6 +473,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     label: a.description,
     isManaAbility: a.isManaAbility,
     isClassLevelUp: a.isClassLevelUp,
+    isIntrinsic: a.isIntrinsic,
     cost: a.cost,
     displayManaLetters: a.displayManaLetters,
     colorChoice: a.colorChoice,
@@ -517,12 +519,18 @@ export default function Game({ exitTo }: GameProps = {}) {
           description: a.description,
           isManaAbility: true,
           isClassLevelUp: false,
+          isIntrinsic: a.isIntrinsic,
           cost: a.cost,
           producedMana: a.producedMana,
           actionId: a.id,
         },
       ]);
-      arr.push(...displayed.map((ab) => toAbilityOption(ab, ab.actionId)));
+      arr.push(
+        ...displayed.map((ab) => ({
+          ...toAbilityOption(ab, ab.actionId),
+          abilityText: a.description,
+        })),
+      );
       map.set(a.cardId, arr);
     }
     return map;

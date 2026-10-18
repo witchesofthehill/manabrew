@@ -20,6 +20,8 @@ import {
   specialRules,
   FACE_WIDTH,
   FACE_HEIGHT,
+  ordinaryTextLayout,
+  retroTextLayout,
   rulesFont,
   resolveCardProfile,
   resolveFrameColors,
@@ -141,6 +143,7 @@ export interface CardRenderGeometry {
   readonly title: readonly CardRenderRegion[];
   readonly stats: readonly CardRenderRegion[];
   readonly panels: readonly CardInteractionPanel[];
+  readonly rulesFontSize?: number;
 }
 
 const geometryByCanvas = new WeakMap<CardCanvas, CardRenderGeometry>();
@@ -503,8 +506,32 @@ export function attachCardRenderGeometry(
       title: Object.freeze(regions.filter((region) => region.role === "title")),
       stats,
       panels: interactionPanels,
+      rulesFontSize: paintedRulesFontSize(face, interactionPanels),
     }),
   );
+}
+
+let measuringContext: CanvasRenderingContext2D | null = null;
+
+function paintedRulesFontSize(
+  face: RenderedCardInput,
+  panels: readonly CardInteractionPanel[],
+): number | undefined {
+  const [panel] = panels;
+  if (
+    panels.length !== 1 ||
+    isSemanticLayout(face) ||
+    panel!.kind !== "face" ||
+    panel!.planeswalker ||
+    panel!.sagaRail ||
+    panel!.classLevelBand
+  )
+    return undefined;
+  measuringContext ??= document.createElement("canvas").getContext("2d");
+  if (!measuringContext) throw new Error("Card rendering requires a 2D canvas context");
+  const layout =
+    retroTextLayout(measuringContext, face) ?? ordinaryTextLayout(measuringContext, face);
+  return (layout.size * CARD_RENDER_WIDTH) / FACE_WIDTH;
 }
 
 export function getCardRenderGeometry(canvas: CardCanvas): CardRenderGeometry | undefined {

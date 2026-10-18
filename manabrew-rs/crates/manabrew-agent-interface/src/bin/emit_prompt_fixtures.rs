@@ -70,6 +70,7 @@ fn main() {
                         cost: Some("{T}".into()),
                         is_mana_ability: true,
                         is_class_level_up: Some(false),
+                        is_intrinsic: Some(true),
                         produced_mana: Some(vec![Mana {
                             color: ManaColor::Green,
                             amount: 1,

@@ -102,10 +102,11 @@ export class RulesPreviewBody {
     );
     this.scroller.eventMode = "static";
     this.scroller.on("pointerdown", (event: FederatedPointerEvent) => {
-      event.stopPropagation();
       this.beginInteraction(event.pointerId);
       this.tapCancelled = false;
-      if (event.pointerType !== "touch" || this.pointerId !== null) return;
+      if (event.pointerType !== "touch") return;
+      event.stopPropagation();
+      if (this.pointerId !== null) return;
       this.pointerId = event.pointerId;
       this.dragStart.copyFrom(event.global);
       this.dragPrevious.copyFrom(event.global);
@@ -135,7 +136,9 @@ export class RulesPreviewBody {
     this.scroller.on("pointertapcapture", (event: FederatedPointerEvent) => {
       if (this.tapCancelled) event.stopImmediatePropagation();
     });
-    this.scroller.on("pointertap", (event: FederatedPointerEvent) => event.stopPropagation());
+    this.scroller.on("pointertap", (event: FederatedPointerEvent) => {
+      if (event.pointerType === "touch") event.stopPropagation();
+    });
     this.scroller.hitArea = { contains: (x, y) => this.containsLocal(x, y) };
   }
 

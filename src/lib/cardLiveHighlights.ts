@@ -1,3 +1,5 @@
+import { CARD_RENDER_WIDTH } from "@/lib/cardRenderGeometry";
+
 export const CARD_LIVE_PULSE = {
   minScale: 1,
   maxScale: 1.055,
@@ -15,6 +17,7 @@ export interface CardLiveHighlightRegion {
 export interface CardLiveHighlightLayers {
   readonly width: number;
   readonly height: number;
+  readonly floatPx: number;
   readonly regions: readonly CardLiveHighlightRegion[];
 }
 
@@ -106,7 +109,7 @@ function extractInk(
   return ink;
 }
 
-function wordComponents(ink: ImageData): number[][] {
+function wordComponents(ink: ImageData, joinDistance: number): number[][] {
   const { width, height, data } = ink;
   const visited = new Uint8Array(width * height);
   const components: number[][] = [];
@@ -119,13 +122,13 @@ function wordComponents(ink: ImageData): number[][] {
       const x = pixel % width;
       const y = Math.floor(pixel / width);
       for (
-        let row = Math.max(0, y - WORD_JOIN_DISTANCE);
-        row <= Math.min(height - 1, y + WORD_JOIN_DISTANCE);
+        let row = Math.max(0, y - joinDistance);
+        row <= Math.min(height - 1, y + joinDistance);
         row++
       ) {
         for (
-          let col = Math.max(0, x - WORD_JOIN_DISTANCE);
-          col <= Math.min(width - 1, x + WORD_JOIN_DISTANCE);
+          let col = Math.max(0, x - joinDistance);
+          col <= Math.min(width - 1, x + joinDistance);
           col++
         ) {
           const neighbor = row * width + col;
@@ -146,8 +149,10 @@ export function registerCardLiveHighlights(
   colors: readonly string[],
 ): void {
   const ink = extractInk(canvas, backing, colors);
+  const density = canvas.width / CARD_RENDER_WIDTH;
+  const floatPx = CARD_LIVE_PULSE.floatPx * density;
   const regions: CardLiveHighlightRegion[] = [];
-  for (const component of wordComponents(ink)) {
+  for (const component of wordComponents(ink, Math.round(WORD_JOIN_DISTANCE * density))) {
     let left = ink.width;
     let right = 0;
     let top = ink.height;
@@ -162,10 +167,7 @@ export function registerCardLiveHighlights(
     }
     const padding = Math.max(
       2,
-      Math.ceil(
-        Math.max(right - left, bottom - top) * (CARD_LIVE_PULSE.maxScale - 1) +
-          CARD_LIVE_PULSE.floatPx,
-      ),
+      Math.ceil(Math.max(right - left, bottom - top) * (CARD_LIVE_PULSE.maxScale - 1) + floatPx),
     );
     const x = Math.max(0, left - padding);
     const y = Math.max(0, top - padding);
@@ -189,5 +191,5 @@ export function registerCardLiveHighlights(
     regions.push({ x, y, ink: foreground, paper });
   }
   if (regions.length)
-    highlights.set(canvas, { width: canvas.width, height: canvas.height, regions });
+    highlights.set(canvas, { width: canvas.width, height: canvas.height, floatPx, regions });
 }

@@ -1,10 +1,12 @@
 import type { CardPresentation, CardStatPresentation } from "@/components/game/cardPresentation";
 import type { CardDto } from "@/protocol/game";
+import type { HandActionOption } from "@/stores/useGameUIStore";
 import { resolveCardFaces, type CardFace } from "@/lib/cardFaces";
 import { isHorizontalCard, isTwoHalfLayout } from "@/lib/cardLayout";
 import type { ScryfallCard } from "@/types/scryfall";
 import { msg } from "@lingui/core/macro";
 import { i18n } from "@/i18n/i18n";
+import { parseManaCost } from "@/pixi/manaSymbols";
 
 export interface RulesPreviewSection {
   faceIndex: number;
@@ -31,7 +33,6 @@ export interface RulesPreviewDisplay {
   faceless: boolean;
   sections: RulesPreviewSection[];
   keywords: string[];
-  costs: CardPresentation["costs"];
   stats: CardStatPresentation | null;
   loyalty: number | null;
   defense: number | null;
@@ -217,32 +218,122 @@ export function localizeRulesPreviewText(
   return text
     .split("\n")
     .map((line) => {
-      const comparison = translationComparisonText(line);
-      if (!comparison) return line;
-      const hasCost = abilityCost(comparison) !== null;
-      let match: TranslationLine | null = null;
-      let minimumDistance = comparison.length;
-      let ambiguous = false;
-      for (const candidate of mappings) {
-        const canonical = hasCost ? candidate.canonical : withoutAbilityCost(candidate.canonical);
-        const threshold = Math.floor(Math.min(canonical.length, comparison.length) / 3);
-        const distance = editDistanceWithin(canonical, comparison, threshold);
-        if (distance !== null && distance < minimumDistance) {
-          minimumDistance = distance;
-          match = candidate;
-          ambiguous = false;
-        } else if (
-          distance !== null &&
-          distance === minimumDistance &&
-          candidate.localized !== match?.localized
-        ) {
-          ambiguous = true;
-        }
-      }
-      if (ambiguous || !match?.localized) return line;
-      return hasCost ? match.localized : withoutAbilityCost(match.localized);
+      const match = closestRulesLine(line, mappings);
+      if (!match?.localized) return line;
+      return abilityCost(translationComparisonText(line)) !== null
+        ? match.localized
+        : withoutAbilityCost(match.localized);
     })
     .join("\n");
+}
+
+function closestRulesLine(text: string, lines: TranslationLine[]): TranslationLine | null {
+  const comparison = translationComparisonText(text);
+  if (!comparison) return null;
+  const cost = abilityCost(comparison);
+  let match: TranslationLine | null = null;
+  let minimumDistance = comparison.length;
+  let ambiguous = false;
+  for (const candidate of lines) {
+    const candidateCost = abilityCost(candidate.canonical);
+    if (cost !== null && candidateCost !== null && candidateCost !== cost) continue;
+    const canonical = cost !== null ? candidate.canonical : withoutAbilityCost(candidate.canonical);
+    const threshold = Math.floor(Math.min(canonical.length, comparison.length) / 3);
+    const distance = editDistanceWithin(canonical, comparison, threshold);
+    if (distance !== null && distance < minimumDistance) {
+      minimumDistance = distance;
+      match = candidate;
+      ambiguous = false;
+    } else if (
+      distance !== null &&
+      distance === minimumDistance &&
+      candidate.localized !== match?.localized
+    ) {
+      ambiguous = true;
+    }
+  }
+  return ambiguous ? null : match;
+}
+
+export function actionRowText(action: HandActionOption, displayLabel?: string): string {
+  const symbols = action.displayManaLetters?.map((letter) => `{${letter}}`).join("") ?? "";
+  const baseLabel = action.isManaAbility && symbols ? action.label : (displayLabel ?? action.label);
+  const label = symbols && !baseLabel.includes(symbols) ? `${baseLabel} ${symbols}` : baseLabel;
+  const cost = action.cost?.trim();
+  if (
+    !cost ||
+    label
+      .replace(/\([^()]*\)/g, "")
+      .toLowerCase()
+      .includes(cost.toLowerCase())
+  )
+    return label;
+  return `${cost}: ${label}`;
+}
+
+export function activatedRulesEntries(
+  actions: ReadonlyArray<{ action: HandActionOption; displayLabel: string }>,
+  entries: string[],
+  localize: (text: string) => string,
+): Map<number, string> {
+  const matches = new Map<number, string>();
+  actions.forEach(({ action, displayLabel }, index) => {
+    if (action.kind !== "ability" || action.isIntrinsic === false) return;
+    const text = action.abilityText ? localize(action.abilityText) : displayLabel;
+    const entry = matchRulesEntry(text, entries, action.cost?.trim());
+    if (entry !== null) matches.set(index, entries[entry]!);
+  });
+  return matches;
+}
+
+export function stackHighlightEntry(effect: string | undefined, entries: string[]): string | null {
+  const ability = effect?.trim();
+  if (!ability || entries.some((entry) => rulesEntryMatchesStackAbility(entry, ability))) {
+    return null;
+  }
+  const index = matchRulesEntry(ability, entries);
+  return index === null ? null : entries[index]!;
+}
+
+export function matchRulesEntry(
+  text: string,
+  entries: string[],
+  actionCost?: string,
+): number | null {
+  const lines: TranslationLine[] = entries.map((entry) => ({
+    canonical: translationComparisonText(entry).replace(/^\((.*)\)$/, "$1"),
+    localized: entry,
+  }));
+  const visible = translationComparisonText(text);
+  const match =
+    closestRulesLine(text, lines) ??
+    (actionCost && !visible.includes(actionCost)
+      ? closestRulesLine(`${visible} ${actionCost}`, lines)
+      : null);
+  if (match) return lines.indexOf(match);
+  const choices = manaChoices(text);
+  if (!choices) return null;
+  const cost = abilityCost(text);
+  const index = lines.findIndex(({ canonical }) => {
+    const alternatives = manaChoices(canonical);
+    return (
+      alternatives !== null &&
+      abilityCost(canonical) === cost &&
+      choices.every((choice) => alternatives.includes(choice))
+    );
+  });
+  return index >= 0 ? index : null;
+}
+
+function manaChoices(text: string): string[] | null {
+  return (
+    text
+      .trim()
+      .match(
+        /^(?:\{[^{}]+\}[,\s]*)+:\s*Add ((?:\{[^{}]+\})+(?:(?:,?\s+or|,)\s+(?:\{[^{}]+\})+)*)\.?$/,
+      )?.[1]
+      ?.split(/(?:,?\s+or|,)\s+/) ?? null
+  );
 }
 
 function sectionFromFace(
@@ -263,42 +354,27 @@ function sectionFromFace(
   };
 }
 
-function additionalRulesDetails(presentation: CardPresentation, rulesText: string) {
-  let depth = 0;
-  let withoutReminder = "";
-  for (const character of rulesText) {
-    if (character === "(") depth += 1;
-    else if (character === ")") depth = Math.max(0, depth - 1);
-    else if (depth === 0) withoutReminder += character;
-  }
-  const normalize = (text: string) =>
-    text
-      .toLowerCase()
-      .replace(/[:—–]/g, " ")
-      .replace(/\s+/g, " ")
-      .trim()
-      .replace(/[.\s]+$/, "");
-  const visibleEntries = new Set(
-    withoutReminder
-      .split(/[\n,;•]/)
-      .map(normalize)
-      .filter(Boolean),
-  );
-  const keywordKeys = new Set<string>();
-  const keywords = presentation.keywords.filter((keyword) => {
-    const key = normalize(keyword);
-    if (!key || keywordKeys.has(key)) return false;
-    keywordKeys.add(key);
-    visibleEntries.add(key);
-    return true;
-  });
-  const costs = presentation.costs.filter(({ label, cost }) => {
-    const key = normalize(`${label} ${cost}`);
-    if (visibleEntries.has(key)) return false;
-    visibleEntries.add(key);
-    return true;
-  });
-  return { keywords, costs };
+function grantedKeywordChips(card: CardDto): string[] {
+  return [
+    ...new Set(
+      card.grantedKeywords.map((keyword) => card.keywordLabels?.[keyword] ?? keywordText(keyword)),
+    ),
+  ];
+}
+
+function manaText(cost: string): string {
+  const codes = parseManaCost(cost);
+  return codes.length === cost.trim().split(/\s+|(?<=\})(?=\{)/).length
+    ? codes.map((code) => `{${code}}`).join("")
+    : "";
+}
+
+function keywordText(keyword: string): string {
+  const separator = keyword.indexOf(":");
+  if (separator < 0) return keyword.trim();
+  const label = keyword.slice(0, separator).trim();
+  const mana = manaText(keyword.slice(separator + 1));
+  return mana ? `${label} ${mana}` : label;
 }
 
 function normalizeAbilityText(text: string): string {
@@ -391,7 +467,6 @@ export function resolveRulesPreviewDisplay(options: {
       faceless: true,
       sections: [],
       keywords: [],
-      costs: [],
       stats: presentation.stats,
       loyalty: presentation.loyalty,
       defense: presentation.defense,
@@ -425,10 +500,7 @@ export function resolveRulesPreviewDisplay(options: {
       flippable: false,
       faceless: false,
       sections,
-      ...additionalRulesDetails(
-        presentation,
-        sections.map((part) => part.canonicalRulesText).join("\n"),
-      ),
+      keywords: grantedKeywordChips(card),
       stats: presentation.stats ?? printedStats(resolved.faces[0]),
       loyalty: presentation.loyalty,
       defense: presentation.defense,
@@ -495,9 +567,7 @@ export function resolveRulesPreviewDisplay(options: {
     flippable,
     faceless: false,
     sections: [section],
-    ...(currentFace
-      ? additionalRulesDetails(presentation, liveRulesText)
-      : { keywords: [], costs: [] }),
+    keywords: currentFace ? grantedKeywordChips(card) : [],
     stats,
     loyalty,
     defense,

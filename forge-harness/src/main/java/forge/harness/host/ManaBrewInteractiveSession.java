@@ -727,7 +727,7 @@ public final class ManaBrewInteractiveSession {
             final String cardId = SnapshotExtractor.javaCardId(host);
             final int abilityIndex = host.getManaAbilities().indexOf(sa);
             final String description = host.getName();
-            final String cost = simpleCostText(sa);
+            final String cost = costText(sa);
             final String produced = resolveProducedMana(sa);
             final Integer amount = sa.getManaPart() == null ? null : sa.amountOfManaGenerated(false);
             for (final ManaChoice choice : splitManaChoices(produced, amount)) {
@@ -735,14 +735,15 @@ public final class ManaBrewInteractiveSession {
                         ? "tap:" + cardId + ":" + abilityIndex + ":" + choice.color
                         : "tap:" + cardId + ":" + abilityIndex;
                 actionList.add(new PaymentAction_activateManaAbility(
-                        actionId, cardId, abilityIndex, description, true, false, cost, choice.producedMana));
+                        actionId, cardId, abilityIndex, description, true, false, cost, choice.producedMana,
+                        sa.isIntrinsic()));
             }
         }
 
         for (final Card card : convokeSources) {
             final String cardId = SnapshotExtractor.javaCardId(card);
             actionList.add(new PaymentAction_activateManaAbility(
-                    "tap:" + cardId, cardId, 0, card.getName(), true, false, null, null));
+                    "tap:" + cardId, cardId, 0, card.getName(), true, false, null, null, null));
         }
         for (final Card card : waterbendSources) {
             final String cardId = SnapshotExtractor.javaCardId(card);
@@ -2218,18 +2219,19 @@ public final class ManaBrewInteractiveSession {
             } else if (sa.isManaAbility()) {
                 final String description = abilityDescription(sa, label);
                 final String produced = resolveProducedMana(sa);
-                final String cost = simpleCostText(sa);
+                final String cost = costText(sa);
                 for (final ManaChoice choice : splitManaChoices(produced, sa.amountOfManaGenerated(false))) {
                     final String actionId = choice.color != null
                             ? "tap:" + cardId + ":" + i + ":" + choice.color
                             : "tap:" + cardId + ":" + i;
                     actionsArray.add(new AvailableAction_activateAbility(
-                            actionId, cardId, i, description, true, false, cost, choice.producedMana));
+                            actionId, cardId, i, description, true, false, cost, choice.producedMana,
+                            sa.isIntrinsic()));
                 }
             } else {
                 actionsArray.add(new AvailableAction_activateAbility(
                         id, cardId, i, abilityDescription(sa, label), false,
-                        sa.getApi() == ApiType.ClassLevelUp, simpleCostText(sa), null));
+                        sa.getApi() == ApiType.ClassLevelUp, costText(sa), null, sa.isIntrinsic()));
             }
         }
         for (final Card card : untappableCards) {
@@ -3194,13 +3196,12 @@ public final class ManaBrewInteractiveSession {
         return produced != null && !produced.isEmpty() ? produced : null;
     }
 
-    private static String simpleCostText(final SpellAbility sa) {
+    private static String costText(final SpellAbility sa) {
         final Cost cost = sa.getPayCosts();
-        if (cost == null) {
+        if (cost == null || cost.getCostParts().isEmpty()) {
             return null;
         }
-        final String costText = cost.toSimpleString();
-        return costText != null && !costText.isEmpty() ? costText : null;
+        return cost.isAbility() ? cost.toString() : cost.toSimpleString();
     }
 
     private static String intentFromApi(

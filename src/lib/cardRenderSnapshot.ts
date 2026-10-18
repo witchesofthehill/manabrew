@@ -47,6 +47,7 @@ interface LiveCard {
   rulesText: string;
   colors: readonly string[];
   keywords: readonly string[];
+  grantedKeywords: readonly string[];
   keywordLabels?: Readonly<Record<string, string | undefined>>;
   power?: string;
   toughness?: string;
@@ -169,6 +170,7 @@ export function captureCardInput(request: CardRenderRequest): CardRenderInput {
           rulesText: replaceCardName(card.text, card.identity.name),
           colors: Object.freeze(colorCodes(card.color)),
           keywords: Object.freeze([...card.keywords]),
+          grantedKeywords: Object.freeze([...card.grantedKeywords]),
           keywordLabels: card.keywordLabels && Object.freeze({ ...card.keywordLabels }),
           power: card.power ?? undefined,
           toughness: card.toughness ?? undefined,
@@ -270,15 +272,8 @@ function liveRules(card: LiveCard, info: ScryfallCard | undefined, index: number
     .map((line) =>
       lines.includes(normalized(line)) ? localizeRulesPreviewText(line, info ?? null, index) : line,
     );
-  const visible = withoutReminder(card.rulesText)
-    .split(/[\n,;•]/)
-    .map((line) => normalized(line).replace(/[.\s]+$/, ""));
-  for (const keyword of card.keywords) {
-    const display = replaceCardName(card.keywordLabels?.[keyword] ?? keyword, card.name);
-    const label = normalized(display).replace(/[.\s]+$/, "");
-    if (label && !visible.includes(label) && !rules.some((line) => normalized(line) === label)) {
-      rules.push(display);
-    }
+  for (const keyword of card.grantedKeywords) {
+    rules.push(replaceCardName(card.keywordLabels?.[keyword] ?? keyword, card.name));
   }
   return rules.join("\n");
 }

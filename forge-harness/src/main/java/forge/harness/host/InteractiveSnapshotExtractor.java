@@ -47,9 +47,11 @@ import forge.item.PaperToken;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -1024,10 +1026,20 @@ public final class InteractiveSnapshotExtractor {
     private static void keywords(final Card card, final CardDto dto) {
         dto.keywords = new ArrayList<>();
         dto.keywordLabels = new TreeMap<>();
+        dto.grantedKeywords = new ArrayList<>();
+        final Set<String> intrinsic = new HashSet<>();
+        for (final KeywordInterface keyword : card.getKeywords()) {
+            if (keyword.isIntrinsic()) {
+                intrinsic.add(keyword.getOriginal());
+            }
+        }
         for (final KeywordInterface keyword : card.getKeywords()) {
             final String original = keyword.getOriginal();
             dto.keywords.add(original);
             dto.keywordLabels.put(original, keyword.getTitle());
+            if (!intrinsic.contains(original) && !dto.grantedKeywords.contains(original)) {
+                dto.grantedKeywords.add(original);
+            }
         }
     }
 

@@ -3,8 +3,10 @@ import type { DestroyOptions, FederatedPointerEvent, FederatedWheelEvent } from 
 import type { CardStatusPresentation, CardStatusTone } from "@/components/game/cardPresentation";
 import type { Theme } from "@/hooks/useTheme";
 import type { HandActionOption } from "@/stores/useGameUIStore";
+import { isCoarsePointer } from "@/lib/responsive";
 import { hexToNum } from "@/pixi/colorUtils";
 import { PixiRichText } from "./PixiRichText";
+import { actionRowText } from "./rulesCardPreviewPresentation";
 import { RULES_BODY_FONT, type RulesPreviewFrameStyle } from "./rulesPreviewFrame";
 
 interface ActionsContent {
@@ -33,6 +35,8 @@ const PAD = 10;
 const GAP = 4;
 const SCROLL_GUTTER = 8;
 const LINE_HEIGHT = 18;
+const KEY_HEIGHT = 20;
+const ACTION_FONT_SIZE = 15;
 const DRAG_SLOP = 5;
 
 function textStyle(
@@ -40,13 +44,14 @@ function textStyle(
   fontSize = 13,
   bold = false,
   fontFamily = RULES_BODY_FONT,
+  leading = 1.3,
 ): TextStyle {
   return new TextStyle({
     fill,
     fontSize,
     fontFamily,
     fontWeight: bold ? "700" : "400",
-    lineHeight: fontSize * 1.3,
+    lineHeight: fontSize * leading,
   });
 }
 
@@ -64,15 +69,6 @@ function sameAction(left: HandActionOption, right: HandActionOption): boolean {
     left.isManaAbility === right.isManaAbility &&
     (left.actionId !== undefined || left.abilityIndex !== undefined || left.label === right.label)
   );
-}
-
-function actionText(action: HandActionOption, displayLabel?: string): string {
-  const symbols = action.displayManaLetters?.map((letter) => `{${letter}}`).join("") ?? "";
-  const baseLabel = action.isManaAbility && symbols ? action.label : (displayLabel ?? action.label);
-  const label = symbols && !baseLabel.includes(symbols) ? `${baseLabel} ${symbols}` : baseLabel;
-  const cost = action.cost?.trim();
-  if (!cost || label.toLowerCase().startsWith(cost.toLowerCase())) return label;
-  return `${cost}: ${label}`;
 }
 
 export class RulesPreviewActions extends Container {
@@ -195,27 +191,38 @@ export class RulesPreviewActions extends Container {
         });
         key.resolution = 2;
         key.anchor.set(0.5);
-        const keyTop = spec.compact ? 4 : 8;
+        const rowPadding = spec.compact ? 4 : 6;
         const keyWidth = Math.max(22, key.width + 8);
         const keyBackground = new Graphics()
-          .roundRect(4, keyTop, keyWidth, 20, 4)
+          .roundRect(4, rowPadding, keyWidth, KEY_HEIGHT, 4)
           .fill(hexToNum(spec.theme.appTheme.muted))
           .stroke({ color: hexToNum(spec.theme.appTheme.border), width: 1 });
         keyBackground.eventMode = key.eventMode = "none";
-        key.position.set(4 + keyWidth / 2, keyTop + 10);
+        key.position.set(4 + keyWidth / 2, rowPadding + KEY_HEIGHT / 2);
         const labelLeft = keyWidth + 10;
         const label = new PixiRichText();
         const labelHeight = label.setContent(
-          actionText(entry.action, entry.displayLabel),
-          textStyle(spec.frame.ink, 15, false, spec.frame.bodyFont),
+          actionRowText(entry.action, entry.displayLabel),
+          textStyle(spec.frame.ink, ACTION_FONT_SIZE, false, spec.frame.bodyFont, 1),
           Math.max(1, this.contentWidth - labelLeft - 6),
-          15,
-          3,
-          { parentheticalStyle: textStyle(spec.frame.mutedInk, 15, false, spec.frame.bodyFont) },
+          ACTION_FONT_SIZE,
+          0,
+          {
+            parentheticalStyle: textStyle(
+              spec.frame.mutedInk,
+              ACTION_FONT_SIZE,
+              false,
+              spec.frame.bodyFont,
+              1,
+            ),
+          },
         );
-        const rowPadding = spec.compact ? 4 : 8;
-        const height = Math.max(spec.compact ? 32 : 48, labelHeight + rowPadding * 2);
-        label.position.set(labelLeft, rowPadding);
+        const labelTop = rowPadding + (KEY_HEIGHT - ACTION_FONT_SIZE) / 2;
+        const height = Math.max(
+          isCoarsePointer() && !spec.compact ? 44 : 32,
+          labelHeight + labelTop * 2,
+        );
+        label.position.set(labelLeft, labelTop);
         row.position.set(0, y);
         row.addChild(background, keyBackground, key, label);
         row.hitArea = new Rectangle(0, 0, this.contentWidth, height);

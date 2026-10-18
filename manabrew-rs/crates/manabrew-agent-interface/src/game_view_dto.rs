@@ -697,6 +697,18 @@ fn card_to_dto_with_face_visibility(
             card.mana_cost.cmc(),
         )
     };
+    let mut keywords = card.keywords.as_string_list();
+    let mut granted_keywords: Vec<String> = Vec::new();
+    for k in card
+        .granted_keywords
+        .iter_strings()
+        .chain(card.pump_keywords.iter_strings())
+    {
+        if !keywords.iter().any(|e| e.eq_ignore_ascii_case(k)) {
+            keywords.push(k.to_string());
+            granted_keywords.push(k.to_string());
+        }
+    }
 
     CardDto {
         id: card_id_str(cid),
@@ -742,22 +754,9 @@ fn card_to_dto_with_face_visibility(
         is_attacking: card.attacking_player.is_some(),
         attacking_player_id: card.attacking_player.map(player_id_str),
         attack_target_id: None,
-        // Merge intrinsic keywords with those granted by continuous effects (layer 6)
-        // and temporary pump keywords (KW$ parameter, until end of turn).
-        keywords: {
-            let mut all_kw = card.keywords.as_string_list();
-            for k in card
-                .granted_keywords
-                .iter_strings()
-                .chain(card.pump_keywords.iter_strings())
-            {
-                if !all_kw.iter().any(|e| e.eq_ignore_ascii_case(k)) {
-                    all_kw.push(k.to_string());
-                }
-            }
-            all_kw
-        },
+        keywords,
         keyword_labels: None,
+        granted_keywords,
         counters,
         damage: card.damage,
         summoning_sick: card.summoning_sick && !card.has_haste(),

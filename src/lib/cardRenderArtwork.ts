@@ -157,9 +157,14 @@ export function normalizeCardCanvas(
   face: RenderedCardInput,
   faceIndex: number,
 ): HTMLCanvasElement {
-  const canvas = createCardCanvas(CARD_RENDER_WIDTH, CARD_RENDER_HEIGHT);
+  const density = Math.min(source.width / CARD_RENDER_WIDTH, source.height / CARD_RENDER_HEIGHT);
+  const canvas = createCardCanvas(
+    Math.round(CARD_RENDER_WIDTH * density),
+    Math.round(CARD_RENDER_HEIGHT * density),
+  );
   const drawing = canvas.getContext("2d");
   if (!drawing) throw new Error("Card rendering requires a 2D canvas context");
+  drawing.imageSmoothingQuality = "high";
   drawing.drawImage(source, 0, 0, canvas.width, canvas.height);
   attachCardRenderGeometry(canvas, face, faceIndex);
   source.width = source.height = 0;

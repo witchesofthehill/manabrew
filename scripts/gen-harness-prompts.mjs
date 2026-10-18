@@ -154,6 +154,7 @@ const parentOf = new Map(); // variant class name -> interface it implements
 
 const JAVA_FIELD_TYPES = {
   "CardCosmetics.wearSeed": "Long",
+  "CardCosmetics.wearAmount": "Double",
   "CardCosmetics.rainFog": "Double",
   "CardArtPlacement.zoom": "Double",
   "CardArtPlacement.paperOpacity": "Double",

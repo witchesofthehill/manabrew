@@ -420,6 +420,13 @@ pub struct CardCosmetics {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub wear: Option<CardWearPreset>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "wear_amount"
+    )]
+    #[ts(optional, type = "number")]
+    pub wear_amount: Option<CardCosmeticNumber>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub wear_seed: Option<u32>,
@@ -559,10 +566,15 @@ impl CardCosmetics {
         if self.border == Some(CardBorderPreset::Printing) {
             self.border = None;
         }
-        if self.wear == Some(CardWearPreset::Fresh) {
+        if let Some(amount) = self.wear_amount {
+            self.wear = None;
+            if amount.get() == 0.0 {
+                self.wear_amount = None;
+            }
+        } else if self.wear == Some(CardWearPreset::Fresh) {
             self.wear = None;
         }
-        if self.wear.is_none() || self.wear_seed == Some(0) {
+        if self.wear.is_none() && self.wear_amount.is_none() || self.wear_seed == Some(0) {
             self.wear_seed = None;
         }
         if self.rain_fog.is_some_and(|n| n.get() == 1.0) {
@@ -629,6 +641,16 @@ fn collector_total<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Option<u32>
     let value = Option::<u32>::deserialize(d)?;
     if value.is_some_and(|n| !(1..=99999).contains(&n)) {
         return Err(serde::de::Error::custom("invalid collector total"));
+    }
+    Ok(value)
+}
+
+fn wear_amount<'de, D: serde::Deserializer<'de>>(
+    d: D,
+) -> Result<Option<CardCosmeticNumber>, D::Error> {
+    let value = Option::<CardCosmeticNumber>::deserialize(d)?;
+    if value.is_some_and(|n| !(0.0..=1.0).contains(&n.get())) {
+        return Err(serde::de::Error::custom("invalid wear_amount"));
     }
     Ok(value)
 }

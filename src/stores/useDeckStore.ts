@@ -23,7 +23,8 @@ import {
   tokenIdentityKey,
 } from "@/stores/useScryfallStore";
 import { collectProducedTokenKeys, deriveTokens } from "@/lib/decks";
-import { cardCosmeticsKey, normalizeCardCosmetics } from "@/lib/cardCosmetics";
+import { cardCosmeticsKey, normalizeCardCosmetics, randomCardWearSeed } from "@/lib/cardCosmetics";
+import { resolveCardWearAmount } from "@/lib/cardFinish";
 import { resolveDeckName } from "@/lib/deckName";
 import { mergeDeckImportIntoDeck } from "@/lib/deckImport";
 /** Migrate legacy "constructed" format id to "standard". */
@@ -84,7 +85,18 @@ function normalizeCardAppearance(card: DeckCard): DeckCard {
   return { ...card, identity: { ...card.identity, cosmetics } };
 }
 function createCardOccurrence(card: DeckCard): DeckCard {
-  return { ...card, identity: { ...card.identity, id: crypto.randomUUID() } };
+  const cosmetics = card.identity.cosmetics;
+  return {
+    ...card,
+    identity: {
+      ...card.identity,
+      id: crypto.randomUUID(),
+      cosmetics:
+        resolveCardWearAmount(cosmetics) > 0
+          ? { ...cosmetics, wearSeed: randomCardWearSeed() }
+          : cosmetics,
+    },
+  };
 }
 export function normalizeDeck(deck: EditorDeck): EditorDeck {
   const attractions = [...(deck.attractions ?? [])];

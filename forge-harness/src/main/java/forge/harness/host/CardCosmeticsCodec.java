@@ -18,7 +18,7 @@ final class CardCosmeticsCodec {
         if (value == null || value.isJsonNull()) {
             return null;
         }
-        final JsonObject object = object(value, Set.of("finish", "frame", "border", "wear", "wearSeed",
+        final JsonObject object = object(value, Set.of("finish", "frame", "border", "wear", "wearAmount", "wearSeed",
                 "rainFog", "wording", "printing"));
         enumeration(object, "finish", Set.of("regular", "gloss", "etched", "prismatic", "holofoil", "cold", "opal", "rain", "heat", "pool"));
         enumeration(object, "frame", Set.of("printing", "modern", "retro"));
@@ -26,6 +26,7 @@ final class CardCosmeticsCodec {
         enumeration(object, "wear", Set.of("fresh", "light", "played", "heavy"));
         enumeration(object, "wording", Set.of("original", "oracle"));
         numeric(object, "wearSeed", 0, 0xffffffffL, true);
+        numeric(object, "wearAmount", 0, 1, false);
         numeric(object, "rainFog", 0, 2, false);
         if (object.has("printing")) {
             final JsonObject printing = printing(object.get("printing"));
@@ -41,10 +42,14 @@ final class CardCosmeticsCodec {
         removeDefault(object, "frame", "printing");
         removeDefault(object, "border", "printing");
         removeDefault(object, "wear", "fresh");
+        if (object.has("wearAmount")) {
+            object.remove("wear");
+            removeNumberDefault(object, "wearAmount", 0);
+        }
         removeDefault(object, "wording", "oracle");
         removeNumberDefault(object, "rainFog", 1);
         removeNumberDefault(object, "wearSeed", 0);
-        if (!object.has("wear")) {
+        if (!object.has("wear") && !object.has("wearAmount")) {
             object.remove("wearSeed");
         }
         return object.isEmpty() ? null : GSON.fromJson(object, CardCosmetics.class);

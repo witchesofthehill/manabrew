@@ -9,7 +9,7 @@ import {
   type Texture,
 } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
-import { CARD_WEAR_AMOUNTS, resolveCardFinish, type CardFoilRegion } from "@/lib/cardFinish";
+import { resolveCardFinish, resolveCardWearAmount, type CardFoilRegion } from "@/lib/cardFinish";
 import type { CardCosmetics } from "@/protocol/deck";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useCardFinishPreview } from "@/stores/useCardFinishPreview";
@@ -195,7 +195,7 @@ export class CardFoil extends Container {
     this.visible =
       this.enabled &&
       this.hasTexture &&
-      (mode !== "regular" || CARD_WEAR_AMOUNTS[this.cosmetics?.wear ?? "fresh"] > 0);
+      (mode !== "regular" || resolveCardWearAmount(this.cosmetics) > 0);
     this.syncAnimation();
     this.requestRender();
   }

@@ -1,7 +1,8 @@
-import { cardCosmeticsKey, normalizeCardCosmetics } from "@/lib/cardCosmetics";
+import { cardCosmeticsKey, normalizeCardCosmetics, randomCardWearSeed } from "@/lib/cardCosmetics";
+import { resolveCardWearAmount } from "@/lib/cardFinish";
 import type { CardCosmetics, CardPrintingFace, DeckCard } from "@/protocol/deck";
 
-export type CosmeticField = "finish" | "frame" | "border" | "wear";
+export type CosmeticField = "finish" | "frame" | "border" | "wearAmount" | "rainFog";
 export interface CardCustomizationDraft {
   source: DeckCard;
   cosmetics: CardCosmetics | undefined;
@@ -44,8 +45,8 @@ export function changeCustomizationField(
   value: string,
 ): CardCustomizationDraft {
   const wearSeed =
-    field === "wear" && value !== "fresh"
-      ? (draft.wearSeed ?? (crypto.getRandomValues(new Uint32Array(1))[0] || 1))
+    field === "wearAmount" && Number(value) > 0
+      ? (draft.wearSeed ?? randomCardWearSeed())
       : draft.wearSeed;
   const printing = draft.cosmetics?.printing;
   return {
@@ -59,7 +60,12 @@ export function changeCustomizationField(
         : draft.foil,
     cosmetics: normalizeCardCosmetics({
       ...draft.cosmetics,
-      [field]: value === "printing" ? undefined : value,
+      [field]:
+        field === "rainFog" || field === "wearAmount"
+          ? Number(value)
+          : value === "printing"
+            ? undefined
+            : value,
       ...(field === "frame" && printing
         ? {
             printing: {
@@ -80,7 +86,9 @@ export function changeCustomizationField(
             },
           }
         : {}),
-      ...(field === "wear" ? { wearSeed: value === "fresh" ? undefined : wearSeed } : {}),
+      ...(field === "wearAmount"
+        ? { wear: undefined, wearSeed: Number(value) > 0 ? wearSeed : undefined }
+        : {}),
     }),
   };
 }
@@ -108,11 +116,13 @@ export function customizationFieldValue(
   drafts: ReadonlyMap<string, CardCustomizationDraft>,
   field: CosmeticField,
 ): string {
-  const fallback = field === "wear" ? "fresh" : "printing";
+  const fallback = field === "rainFog" ? "1" : "printing";
   const values = copies.map((copy) => {
     const draft = drafts.get(copy.identity.id);
     const cosmetics = draft ? draft.cosmetics : copy.identity.cosmetics;
-    return cosmetics?.[field] ?? fallback;
+    return field === "wearAmount"
+      ? String(resolveCardWearAmount(cosmetics))
+      : String(cosmetics?.[field] ?? fallback);
   });
   return values.some((value) => value !== values[0]) ? "mixed" : (values[0] ?? fallback);
 }

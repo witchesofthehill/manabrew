@@ -232,7 +232,7 @@ Planeswalker previews use painter-owned cost shields, numeral offsets, text colu
 
 `previewHoverArea.ts` defines curved transfer areas from the source card to the preview and between the preview and its controls. Cover diagonal departures above and below the source, not only the gap between facing edges. `BoardOverlayCanvas` derives enter and leave callbacks from pointer position so crossing a gap cancels dismissal immediately. Returning to the source keeps the preview open without intercepting the card. Use these curves only for hover; wheel routing and sticky-touch dismissal use visible panel bounds.
 
-Printed and Rules window-exit `pointerout` listeners run in capture phase, with matching capture cleanup. Preview event isolation stops bubbling; it must not hide `relatedTarget === null` exits from hover dismissal.
+Printed and Rules window-exit `pointerout` listeners run in capture phase, with matching capture cleanup. `BoardScene` releases overlay tap suppression (`suppressPointerTap`) from capture-phase window `pointerup`/`pointercancel` listeners for the same reason: the overlay canvas stops the bubble phase, and a bubbling release listener left the pointer suppressed, so the next board tap, often the first target click, was swallowed. Preview event isolation stops bubbling; it must not hide `relatedTarget === null` exits from hover dismissal.
 
 Protect hover as soon as the preview opens. Use final layout coordinates rather than animated transforms. Do not wait for click readiness: its 300 ms entry delay exceeds the 120 ms leave grace. `onInteractionReady` rechecks the last pointer position so a stationary pointer becomes interactive without another move.
 

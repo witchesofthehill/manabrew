@@ -392,8 +392,8 @@ export class BoardScene {
     this.app.canvas.addEventListener("pointerdown", this.stripOutsideListener);
     this.app.canvas.addEventListener("pointerdown", this.pinchDownListener);
     window.addEventListener("pointermove", this.pinchMoveListener);
-    window.addEventListener("pointerup", this.pinchUpListener);
-    window.addEventListener("pointercancel", this.pinchUpListener);
+    window.addEventListener("pointerup", this.pinchUpListener, { capture: true });
+    window.addEventListener("pointercancel", this.pinchUpListener, { capture: true });
 
     app.ticker.add(this.tick, this);
     prewarmManaSymbols();
@@ -2422,8 +2422,8 @@ export class BoardScene {
     this.app.canvas.removeEventListener("pointerdown", this.stripOutsideListener);
     this.app.canvas.removeEventListener("pointerdown", this.pinchDownListener);
     window.removeEventListener("pointermove", this.pinchMoveListener);
-    window.removeEventListener("pointerup", this.pinchUpListener);
-    window.removeEventListener("pointercancel", this.pinchUpListener);
+    window.removeEventListener("pointerup", this.pinchUpListener, { capture: true });
+    window.removeEventListener("pointercancel", this.pinchUpListener, { capture: true });
     this.longPress.cancel();
     this.app.canvas.removeEventListener("pointerleave", this.canvasLeaveListener);
     this.app.stage.off("pointerleave", this.canvasLeaveListener);

@@ -1,14 +1,12 @@
-import {
-  createRenderer,
-  type CardDocument,
-  type Frame,
-  type Instance,
-  type Renderer,
-  type Rect,
-  type RasterHost,
-} from "card-glint";
+import { createRenderer } from "card-glint";
+import type { CardDocument, Frame, Instance, Renderer, Rect, RasterHost } from "card-glint";
 import { magic } from "card-glint/magic";
 import { cardOpticalDocument, isSemanticLayout } from "@/lib/cardSemanticLayout";
+import {
+  cardInspectAppearanceDocument,
+  cardInspectDocumentAppearanceKey,
+} from "@/lib/cardGlintInspectAppearance";
+import type { CardInspectAppearance } from "@/lib/cardGlintInspectAppearance";
 import type { DeckCard, CardFinish } from "@/protocol/deck";
 import { captureCardInput, prepareCard } from "@/lib/cardRenderSnapshot";
 import { cardGlintFace } from "@/lib/cardRenderFace";
@@ -188,6 +186,11 @@ export class CardGlintInspectScene {
   private controller?: AbortController;
   private preparation?: AbortController;
   private current?: InspectDocument;
+  private derived?: CardDocument;
+  private appearance?: CardInspectAppearance;
+  private appearanceKey?: string;
+  private sourceRainFog = 1;
+  private sourceWear: Instance["wear"] = { amount: 0, seed: 0 };
   private documentKey?: string;
   private disposed = false;
   private ready = false;
@@ -276,13 +279,23 @@ export class CardGlintInspectScene {
     landscape: boolean,
   ) {
     if (this.disposed) return;
-    this.instance.rainFog = resolveCardRainFog(card.identity.cosmetics);
+    this.sourceRainFog = resolveCardRainFog(card.identity.cosmetics);
+    this.sourceWear = {
+      amount: CARD_WEAR_AMOUNTS[card.identity.cosmetics?.wear ?? "fresh"],
+      seed: card.identity.cosmetics?.wearSeed ?? 0,
+    };
+    this.applyInstanceAppearance();
     const key = JSON.stringify([
       {
         ...card,
         identity: {
           ...card.identity,
-          cosmetics: { ...card.identity.cosmetics, rainFog: undefined },
+          cosmetics: {
+            ...card.identity.cosmetics,
+            rainFog: undefined,
+            wear: undefined,
+            wearSeed: undefined,
+          },
         },
       },
       faceIndex,
@@ -291,17 +304,20 @@ export class CardGlintInspectScene {
       landscape,
       useScryfallStore.getState().locale,
     ]);
-    if (this.documentKey === key && (this.ready || this.controller)) {
+    if (this.documentKey === key && (this.ready || this.controller || this.preparation)) {
       this.invalidate();
       return;
     }
     this.documentKey = key;
     this.controller?.abort();
     this.preparation?.abort();
+    this.preparation = undefined;
     this.ready = false;
     this.renderer.releaseCards(new Uint32Array([CARD_ID]));
     this.current?.release?.();
     this.current = undefined;
+    this.derived = undefined;
+    this.appearanceKey = undefined;
     const controller = new AbortController();
     this.controller = controller;
     const revision = ++this.revision;
@@ -318,18 +334,13 @@ export class CardGlintInspectScene {
       );
       controller.signal.throwIfAborted();
       this.rasterHost = prepared.rasterHost ?? cardRasterHost([]);
-      this.renderer.upsertCards([prepared.document]);
       this.current = prepared;
       prepared = undefined;
       const size = this.current.document.recipe.color.size;
       this.sourceAspect = size[0] / size[1];
       this.landscape = landscape;
       this.instance.finish = finish;
-      this.instance.wear = {
-        amount: CARD_WEAR_AMOUNTS[card.identity.cosmetics?.wear ?? "fresh"],
-        seed: card.identity.cosmetics?.wearSeed ?? 0,
-      };
-      await this.prepareCurrent();
+      this.updateDocumentAppearance();
     } catch (error) {
       if (!controller.signal.aborted && !this.disposed) this.fail(error);
     } finally {
@@ -338,20 +349,58 @@ export class CardGlintInspectScene {
     }
   }
 
+  setAppearance(appearance?: CardInspectAppearance) {
+    if (this.disposed) return;
+    this.appearance = appearance;
+    this.applyInstanceAppearance();
+    this.updateDocumentAppearance();
+    this.invalidate();
+  }
+
+  private applyInstanceAppearance() {
+    this.instance.rainFog = this.appearance?.rainFog ?? this.sourceRainFog;
+    this.instance.wear = this.appearance?.wear ?? this.sourceWear;
+    this.instance.cardstock = this.appearance?.cardstock;
+    this.instance.printDots = this.appearance?.printDots;
+    this.instance.deformation = this.appearance?.deformation;
+  }
+
+  private updateDocumentAppearance() {
+    if (!this.current || this.preparation || this.disposed) return;
+    const key = cardInspectDocumentAppearanceKey(this.appearance);
+    if (this.derived && this.appearanceKey === key) return;
+    try {
+      const derived = cardInspectAppearanceDocument(
+        this.current.document,
+        ++this.revision,
+        this.appearance,
+      );
+      this.renderer.upsertCards([derived]);
+      this.derived = derived;
+      this.appearanceKey = key;
+      void this.prepareCurrent();
+    } catch (error) {
+      this.failRenderer(error);
+    }
+  }
+
   private async prepareCurrent() {
     const current = this.current;
-    if (!current || this.disposed || this.contextLost) return;
+    const derived = this.derived;
+    if (!current || !derived || this.disposed || this.contextLost) return;
     this.preparation?.abort();
     const controller = new AbortController();
     this.preparation = controller;
     this.ready = false;
     try {
-      await this.renderer.ready(CARD_ID, current.document.revision, controller.signal);
+      await this.renderer.ready(CARD_ID, derived.revision, controller.signal);
       if (
         controller.signal.aborted ||
         this.disposed ||
         this.contextLost ||
-        this.current !== current
+        this.current !== current ||
+        this.derived !== derived ||
+        this.appearanceKey !== cardInspectDocumentAppearanceKey(this.appearance)
       )
         return;
       this.ready = true;
@@ -362,6 +411,7 @@ export class CardGlintInspectScene {
         this.failRenderer(error);
     } finally {
       if (this.preparation === controller) this.preparation = undefined;
+      if (this.current === current && !this.contextLost) this.updateDocumentAppearance();
     }
   }
 
@@ -538,5 +588,6 @@ export class CardGlintInspectScene {
     this.renderer.dispose();
     this.current?.release?.();
     this.current = undefined;
+    this.derived = undefined;
   }
 }

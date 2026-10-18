@@ -5,6 +5,7 @@ import { CardRenderingFixtureControls } from "@/components/dev/CardRenderingFixt
 import { CardRenderingStateControls } from "@/components/dev/CardRenderingStateControls";
 import { CardRenderingComparison } from "@/components/dev/CardRenderingComparison";
 import { CardRenderingProfile } from "@/components/dev/CardRenderingProfile";
+import { CardGlintAppearanceLab } from "@/components/dev/CardGlintAppearanceLab";
 import { CARD_RENDERING_FIXTURES } from "@/components/dev/cardRendering.data";
 import {
   applyCardRenderingOverrides,
@@ -17,6 +18,7 @@ import { scryfallToSampleGameCard } from "@/lib/sampleGameCard";
 import { scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { cardFaceImageUris } from "@/lib/cardImage";
 import { resolveCardFaces } from "@/lib/cardFaces";
+import type { CardInspectAppearance } from "@/lib/cardGlintInspectAppearance";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 
 export default function CardRenderingLab() {
@@ -26,6 +28,7 @@ export default function CardRenderingLab() {
     CARD_RENDERING_FIXTURES[0]!;
   const [face, setFace] = useState<0 | 1>(0);
   const [overrides, setOverrides] = useState<CardRenderingOverrides>({});
+  const [appearance, setAppearance] = useState<CardInspectAppearance>({});
   const [previousFixture, setPreviousFixture] = useState(fixture.id);
   const foil = useCardFinishPreview((state) => state.foilAll);
   const [live, setLive] = useState(false);
@@ -145,6 +148,15 @@ export default function CardRenderingLab() {
         <p role="alert" className="text-destructive">
           {result.error}
         </p>
+      )}
+      {deckCard && (
+        <CardGlintAppearanceLab
+          card={deckCard}
+          faceIndex={effectiveFace}
+          onFlipFace={flipFace}
+          appearance={appearance}
+          onAppearanceChange={setAppearance}
+        />
       )}
       <CardRenderingStateControls
         card={card}

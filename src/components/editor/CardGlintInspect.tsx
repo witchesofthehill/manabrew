@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Loader2, Pause, Play, RotateCcw } from "lucide-react";
 import type { DeckCard } from "@/protocol/deck";
-import { CardGlintInspectScene, type CardInspectState } from "@/lib/cardGlintInspect";
+import { CardGlintInspectScene } from "@/lib/cardGlintInspect";
+import type { CardInspectState } from "@/lib/cardGlintInspect";
+import type { CardInspectAppearance } from "@/lib/cardGlintInspectAppearance";
 import { isEtchedOnlyPrinting, resolveCardFinish } from "@/lib/cardFinish";
 import { isHorizontalCard, isTwoFaceLayout } from "@/lib/cardLayout";
 import { useCard, useScryfallStore } from "@/stores/useScryfallStore";
@@ -17,7 +19,19 @@ const subscribeMotion = (notify: () => void) => {
 const motionSnapshot = () => motionPreference.matches;
 const KEYBOARD_TILT_STEP = 0.08;
 
-export function CardGlintInspect({ card, className }: { card: DeckCard; className?: string }) {
+export function CardGlintInspect({
+  card,
+  className,
+  appearance,
+  faceIndex: controlledFaceIndex,
+  onFlipFace,
+}: {
+  card: DeckCard;
+  className?: string;
+  appearance?: CardInspectAppearance;
+  faceIndex?: 0 | 1;
+  onFlipFace?: () => void;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<CardGlintInspectScene | null>(null);
   const pendingRef = useRef<Promise<CardGlintInspectScene | undefined> | null>(null);
@@ -40,7 +54,7 @@ export function CardGlintInspect({ card, className }: { card: DeckCard; classNam
   );
   const animated = !paused && !reducedMotion && animations;
   const hasBack = !!card.backFace || isTwoFaceLayout(card.layout || printing?.info.layout);
-  const faceIndex = hasBack ? requestedFaceIndex : 0;
+  const faceIndex = hasBack ? (controlledFaceIndex ?? requestedFaceIndex) : 0;
   const landscape =
     faceIndex === 1
       ? isHorizontalCard({
@@ -85,6 +99,16 @@ export function CardGlintInspect({ card, className }: { card: DeckCard; classNam
       owned?.dispose();
     };
   }, []);
+
+  useEffect(() => {
+    let alive = true;
+    void pendingRef.current?.then((scene) => {
+      if (alive) scene?.setAppearance(appearance);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [appearance]);
 
   useEffect(() => {
     let alive = true;
@@ -182,7 +206,11 @@ export function CardGlintInspect({ card, className }: { card: DeckCard; classNam
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setFaceIndex((value) => (value === 0 ? 1 : 0))}
+            onClick={() => {
+              if (controlledFaceIndex !== undefined) onFlipFace?.();
+              else setFaceIndex((value) => (value === 0 ? 1 : 0));
+            }}
+            disabled={controlledFaceIndex !== undefined && !onFlipFace}
           >
             {faceIndex === 0 ? "Back face" : "Front face"}
           </Button>

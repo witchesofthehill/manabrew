@@ -11,7 +11,12 @@ import { getPlatformType } from "@/platform";
 export function platformFetch(input: string, init?: RequestInit): Promise<Response> {
   const merged = { ...init, redirect: init?.redirect ?? "follow" };
   if (getPlatformType() === "tauri") {
-    return tauriFetch(input, { ...merged, maxRedirections: 10 }) as Promise<Response>;
+    return tauriFetch(input, { ...merged, maxRedirections: 10 }).then((response) => {
+      // The plugin overrides .headers, but blob() and clone() use the native header list.
+      const headers = Reflect.get(Response.prototype, "headers", response) as Headers;
+      response.headers.forEach((value, name) => headers.set(name, value));
+      return response;
+    });
   }
   return fetch(input, merged);
 }

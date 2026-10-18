@@ -23,6 +23,7 @@ export const GAME_CARD_DEFAULTS: ClientCardDto = {
   isCrewed: false,
   isAttacking: false,
   keywords: [],
+  grantedKeywords: [],
   counters: {},
   damage: 0,
   summoningSick: false,

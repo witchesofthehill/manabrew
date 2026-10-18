@@ -204,6 +204,7 @@ pub(super) fn mana_payment_actions(
                 opt.ability_index,
                 &opt.description,
                 opt.cost.clone(),
+                opt.is_intrinsic,
                 opt.produced_mana.clone(),
                 opt.produced_mana_amount,
             )

@@ -29,10 +29,12 @@ import { PixiCardRailPreview } from "@/pixi/cardPreview/PixiCardRailPreview";
 import { addPlaneswalkerCost } from "@/pixi/cardPreview/PixiPlaneswalkerCost";
 import { specialRules } from "card-glint/magic/presentation";
 import {
+  activatedRulesEntries,
   localizeRulesPreviewText,
   resolveRulesPreviewDisplay,
   rulesEntryMatchesStackAbility,
   rulesTextEntries,
+  stackHighlightEntry,
 } from "@/pixi/cardPreview/rulesCardPreviewPresentation";
 import { RulesPreviewActions } from "@/pixi/cardPreview/RulesPreviewActions";
 import {
@@ -260,6 +262,7 @@ export class RulesCardPreviewLayer {
   private revealHighlightedEffect = false;
   private highlightedEffectTween: gsap.core.Tween | null = null;
   private highlightedRows: Container[] = [];
+  private highlightedEntry: string | null = null;
 
   private previewSize = usePreferencesStore.getState().inGameCardPreviewSize;
   private readonly unsubscribePreferences: () => void;
@@ -748,6 +751,25 @@ export class RulesCardPreviewLayer {
         display.liveFaceIndex,
       ),
     }));
+    const actionSection = display.otherFace
+      ? undefined
+      : display.sections.find(
+          (section) => section.faceIndex === display.liveFaceIndex && !section.planeswalker,
+        );
+    const actionEntries = actionSection
+      ? rulesTextEntries(actionSection.rulesText, progression, actionSection.canonicalRulesText)
+      : [];
+    const activated = activatedRulesEntries(indexedActions, actionEntries, (text) =>
+      localizeRulesPreviewText(text, this.scryfallInfo, display.liveFaceIndex),
+    );
+    for (const [index, entry] of activated) indexedActions[index]!.displayLabel = entry;
+    const activatedEntries = new Set(activated.values());
+    this.highlightedEntry = stackHighlightEntry(
+      spec.highlightedEffect,
+      display.sections.flatMap((section) =>
+        rulesTextEntries(section.rulesText, null, section.canonicalRulesText),
+      ),
+    );
     this.canFlip = display.flippable;
     const landscape = display.horizontal;
     const measuredPanels = this.configureGeometry(landscape, display.faceIndex);
@@ -885,8 +907,6 @@ export class RulesCardPreviewLayer {
           body.content.addChild(this.actions);
           y += this.actions.panelHeight + SECTION_GAP;
         }
-        for (const cost of display.costs)
-          y = this.addStaticAbilityRow(body, `${cost.label} ${cost.cost}`, y);
         if (visibleCounters.length > 0) {
           y = this.addChips(body, visibleCounters, y + 4) + 8;
         }
@@ -949,6 +969,7 @@ export class RulesCardPreviewLayer {
           );
           for (const [entryIndex, text] of entries.entries()) {
             if (progressionOpening.includes(text)) continue;
+            if (panelSection === actionSection && activatedEntries.has(text)) continue;
             if (panelSection.planeswalker && body.planeswalker && entryIndex > 0) {
               const { separator } = body.planeswalker;
               body.content.addChild(
@@ -1045,18 +1066,11 @@ export class RulesCardPreviewLayer {
     let x = 0;
     let rowHeight = 0;
     for (const keyword of keywords) {
-      const separator = keyword.indexOf(":");
-      const label = (separator < 0 ? keyword : keyword.slice(0, separator)).trim().toUpperCase();
-      if (!label) continue;
-      const mana =
-        separator < 0
-          ? ""
-          : parseManaCost(keyword.slice(separator + 1))
-              .map((code) => `{${code}}`)
-              .join("");
+      const text = keyword.toUpperCase();
+      if (!text) continue;
       const content = new PixiRichText();
       const textHeight = content.setContent(
-        mana ? `${label} ${mana}` : label,
+        text,
         textStyle(this.theme.gameTheme.textOnTinted, 11, "700"),
         Math.max(1, body.contentWidth - 14),
         14,
@@ -1182,7 +1196,10 @@ export class RulesCardPreviewLayer {
     rich.position.set(contentX, native ? (height - textHeight) / 2 : 0);
     row.position.set(0, y);
     const highlightedEffect = this.spec?.highlightedEffect?.trim();
-    if (highlightedEffect && rulesEntryMatchesStackAbility(text, highlightedEffect)) {
+    if (
+      highlightedEffect &&
+      (rulesEntryMatchesStackAbility(text, highlightedEffect) || text === this.highlightedEntry)
+    ) {
       const color = hexToNum(this.theme.gameTheme.activeAction.active);
       const highlight = new Graphics()
         .roundRect(-4, 0, body.contentWidth + 8, height, 6)

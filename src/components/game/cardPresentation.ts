@@ -42,11 +42,6 @@ export interface CardStatPresentation {
   state: "neutral" | "buffed" | "debuffed" | "lethal";
   damage: number;
 }
-export interface CardCostPresentation {
-  id: string;
-  label: string;
-  cost: string;
-}
 export interface CardProgressionPresentation {
   rail: CardRailState;
   effects: CardRailEffect[];
@@ -57,13 +52,11 @@ export interface CardPresentation {
   effectiveManaCost?: string;
   typeLine: string;
   rulesText: string;
-  keywords: string[];
   statuses: CardStatusPresentation[];
   counters: CardCounterPresentation[];
   stats: CardStatPresentation | null;
   loyalty: number | null;
   defense: number | null;
-  costs: CardCostPresentation[];
   progression: CardProgressionPresentation | null;
 }
 const LOYALTY_COUNTER_TYPE = "Loyalty";
@@ -250,28 +243,6 @@ function deriveStats(card: CardDto): CardStatPresentation | null {
     damage: card.damage,
   };
 }
-function deriveCosts(card: CardDto): CardCostPresentation[] {
-  const costs: CardCostPresentation[] = [];
-  if (card.flashbackCost)
-    costs.push({
-      id: "flashback",
-      label: `Flashback`,
-      cost: card.flashbackCost,
-    });
-  if (card.kickerCost)
-    costs.push({
-      id: "kicker",
-      label: `Kicker`,
-      cost: card.kickerCost,
-    });
-  if (card.madnessCost)
-    costs.push({
-      id: "madness",
-      label: `Madness`,
-      cost: card.madnessCost,
-    });
-  return costs;
-}
 
 export function replaceCardName(text: string, name: string): string {
   return text.includes("CARDNAME") ? text.replace(/CARDNAME/g, name) : text;
@@ -292,7 +263,6 @@ export function deriveCardPresentation(card: CardDto & { zoneId?: string }): Car
     effectiveManaCost: card.effectiveManaCost,
     typeLine: cardTypeLine(card),
     rulesText: replaceCardName(card.text, card.identity.name),
-    keywords: card.keywords,
     statuses: deriveStatuses(card),
     counters: Object.entries(card.counters)
       .filter(
@@ -305,7 +275,6 @@ export function deriveCardPresentation(card: CardDto & { zoneId?: string }): Car
     stats: deriveStats(card),
     loyalty,
     defense,
-    costs: deriveCosts(card),
     progression: rail ? { rail, effects: deriveCardRailEffects(card, rail) } : null,
   };
 }

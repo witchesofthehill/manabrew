@@ -27,12 +27,7 @@ function ability(
   return { kind: "ability", cardId: "card-1", abilityIndex: 0, label: description, cost, ...extra };
 }
 
-function manaOptions(
-  description: string,
-  cost: string,
-  color: ManaColor,
-  isIntrinsic = true,
-): HandActionOption[] {
+function manaOptions(description: string, cost: string, color: ManaColor): HandActionOption[] {
   return getDisplayedManaAbilities("card-1", [
     {
       cardId: "card-1",
@@ -40,7 +35,6 @@ function manaOptions(
       description,
       isManaAbility: true,
       isClassLevelUp: false,
-      isIntrinsic,
       cost,
       producedMana: [{ color, amount: 1 }],
     },
@@ -50,7 +44,6 @@ function manaOptions(
     abilityIndex: option.abilityIndex,
     label: option.description,
     isManaAbility: true,
-    isIntrinsic: option.isIntrinsic,
     cost: option.cost,
     displayManaLetters: option.displayManaLetters,
     abilityText: description,
@@ -148,19 +141,6 @@ describe("ability actions and their Oracle paragraphs", () => {
     const result = pair([ability(PLOT_DESCRIPTION, "{1}{R}")], "Flying, haste");
     expect(result.hidden).toEqual([]);
     expect(result.rows).toEqual([`{1}{R}: ${PLOT_DESCRIPTION}`]);
-  });
-
-  it("never lets a granted ability hide a printed paragraph", () => {
-    const result = pair(manaOptions("{T}: Add {B}.", "{T}", "B", false), SWAMP);
-    expect(result.hidden).toEqual([]);
-  });
-
-  it("treats an ability without an intrinsic flag as printed", () => {
-    const result = pair(
-      [ability(HERMIT_DRUID, "{G}, {T}", { isIntrinsic: undefined })],
-      HERMIT_DRUID,
-    );
-    expect(result.hidden).toEqual([HERMIT_DRUID]);
   });
 
   it("does not match a paragraph with a different cost", () => {

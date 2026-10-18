@@ -39,7 +39,6 @@ pub(crate) fn mana_ability_actions(
     ability_index: usize,
     description: &str,
     cost: Option<String>,
-    is_intrinsic: bool,
     produced_mana: Option<String>,
     produced_mana_amount: Option<i32>,
 ) -> Vec<(String, ActivatableAbilityInfo)> {
@@ -60,7 +59,6 @@ pub(crate) fn mana_ability_actions(
                     is_class_level_up: Some(false),
                     cost: cost.clone(),
                     produced_mana: choice.produced_mana,
-                    is_intrinsic: Some(is_intrinsic),
                 },
             )
         })

@@ -613,7 +613,6 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                         a.ability_index,
                         &a.description,
                         a.cost.clone(),
-                        a.is_intrinsic,
                         a.produced_mana.clone(),
                         a.produced_mana_amount,
                     )
@@ -634,7 +633,6 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                         is_mana_ability: false,
                         is_class_level_up: Some(a.is_class_level_up),
                         produced_mana: None,
-                        is_intrinsic: Some(a.is_intrinsic),
                     }),
                 });
             }

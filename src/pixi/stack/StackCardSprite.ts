@@ -76,13 +76,15 @@ export class StackCardSprite {
     this.face.onVisualChange = onRenderRequested;
     this.face.setPreviewFace(faceIndex ?? null);
     this.face.scale.set(this.faceScale);
+    this.face.setHandRulesInteractive(!spec.isValidTarget);
     this.face.setHandRulesView(rulesView);
     this.face.setHandRulesHighlight(spec.sourceAbilityText ?? "");
     this.face.on("pointerdown", (event: FederatedPointerEvent) => {
-      if (this.face.usesHandRulesView && event.pointerType !== "touch") event.stopPropagation();
+      if (this.face.usesHandRulesView && !this.spec.isValidTarget && event.pointerType !== "touch")
+        event.stopPropagation();
     });
     this.face.on("pointertap", (event: FederatedPointerEvent) => {
-      if (this.face.usesHandRulesView) event.stopPropagation();
+      if (this.face.usesHandRulesView && !this.spec.isValidTarget) event.stopPropagation();
     });
     this.face.position.set(0, 0);
 
@@ -186,6 +188,7 @@ export class StackCardSprite {
     this.spec = spec;
     this.previewFace = faceIndex;
     this.container.cursor = spec.isValidTarget ? "pointer" : "default";
+    this.face.setHandRulesInteractive(!spec.isValidTarget);
     this.face.updateCardContent(spec.card);
     if (faceChanged) this.face.setPreviewFace(faceIndex ?? null);
     const resized = this.syncGeometry();

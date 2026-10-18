@@ -168,6 +168,8 @@ An unchanged stack spec preserves pending view transitions. `StackCardSprite.set
 
 Hand and stack view/face buttons share `CardSprite.setHandControls`. Keep them above foil/highlights on the animated content surface, using the same card-relative anchor in realistic and Manabrew views. Painter-specific artwork bounds must not move those buttons; external preview action panels remain outside the flip.
 
+Stack target selection owns the card body while `isValidTarget` is true. `StackCardSprite` disables embedded rules hit testing through `CardSprite.setHandRulesInteractive` and lets taps reach its target handler; view/face controls remain interactive siblings. Restore rules input when targeting ends. Forward the current stack-object ID, including after sprite reuse, rather than its source-card ID.
+
 A successful original-scan fallback is presentation-ready even when native composition fails. Disposing an old generated texture must not erase the requested face key before fallback completion. Revealed-hand replacement clears the previous identity and loads the replacement's scan; shared scan textures remain store-owned. Stack geometry, hit areas and layout update from committed reorientation, not only the initiating flip request.
 
 A cancelled close must not replay the printed preview's entrance zoom once it has entered. That zoom can cross the source card, steal its hover and repeatedly invalidate an otherwise stationary flip.

@@ -463,6 +463,7 @@ export class CardSprite extends Container {
   private readonly kind: "battlefield" | "hand" | "zone";
   private handRulesFace: HandRulesCardFace | null = null;
   private handRulesView = false;
+  private handRulesInteractive = true;
   private handRulesActions: HandActionOption[] = [];
   private onSelectHandRulesAction: ((action: HandActionOption) => void) | null = null;
   private handRulesHighlight = "";
@@ -1077,6 +1078,7 @@ export class CardSprite extends Container {
         this.ch,
         activeTheme,
       );
+      this.handRulesFace.eventMode = this.handRulesInteractive ? "passive" : "none";
       this.contentContainer.addChild(this.handRulesFace);
       this.handRulesFace.onRenderRequested = () => {
         this.syncHandFaceVisibility();
@@ -1188,6 +1190,10 @@ export class CardSprite extends Container {
       this.cw,
       this.ch * PRINTED_ART_TOP_FRAC,
     );
+  }
+  setHandRulesInteractive(active: boolean): void {
+    this.handRulesInteractive = active;
+    if (this.handRulesFace) this.handRulesFace.eventMode = active ? "passive" : "none";
   }
   setHandRulesActions(
     actions: HandActionOption[],

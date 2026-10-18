@@ -264,7 +264,7 @@ Detach a foil shader from a texture before destroying that texture's source. Pix
 
 Use `/card-mock` for theme/game scenarios and its Card rendering workspace for printing comparisons. The lab shares all nine finish presets and a fixture-only Foil lab cards toggle. Overrides reset on exit without changing saved metadata. Strict printing renderers keep original-scan fallbacks for unsupported treatments; interactive generated previews retain the standard-frame policy below.
 
-Manabrew rendering is the gameplay default. The preference migration switches existing profiles once; subsequent Realistic selections remain persisted user choices. Map stored `rules` and `frame` values to Manabrew, and `printed` to Realistic. Standalone DOM previews follow the preview preference; DOM previews with an external view-toggle callback remain the Realistic half of the shared React/Pixi switch.
+Manabrew rendering defaults only on the stack; battlefield cards, hand cards, prompts/dialogs and hover previews default to Realistic. Preference version 4 applies these defaults to existing profiles once; subsequent view selections remain persisted user choices. Map stored `rules` and `frame` values to Manabrew, and `printed` and `realistic` to Realistic. Standalone DOM previews follow the preview preference; DOM previews with an external view-toggle callback remain the Realistic half of the shared React/Pixi switch.
 
 Mana headers omit Forge's exact `no cost` sentinel while retaining an actual zero mana cost. `cardRenderSnapshot.ts` normalizes live, deck, and per-face costs before Card Glint's symbol fields. Preserve hybrid, Phyrexian, variable, snow, and colorless costs rather than suppressing costs by card type.
 

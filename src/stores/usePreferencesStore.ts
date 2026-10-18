@@ -21,12 +21,12 @@ export type InGameCardPreviewSize = "small" | "medium" | "large";
 export type InlineCardStyle = "printed" | "rules";
 export type OpponentHandFanMode = "always" | "revealed" | "never";
 
-const GENERATED_CARD_DEFAULTS = {
-  battlefieldCardStyle: "frame",
-  inGameCardPreviewStyle: "rules",
-  handCardStyle: "rules",
+const CARD_VIEW_DEFAULTS = {
+  battlefieldCardStyle: "realistic",
+  inGameCardPreviewStyle: "printed",
+  handCardStyle: "printed",
   stackCardStyle: "rules",
-  promptCardStyle: "rules",
+  promptCardStyle: "printed",
 } as const;
 
 export interface LastRoomSetup {
@@ -283,7 +283,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       (set) => {
         const serverDefaults = getServerConnectionDefaults();
         return {
-          ...GENERATED_CARD_DEFAULTS,
+          ...CARD_VIEW_DEFAULTS,
           appThemePreset: "default",
           setAppThemePreset: (appThemePreset) =>
             set({
@@ -445,11 +445,11 @@ export const usePreferencesStore = create<PreferencesState>()(
       },
       {
         name: STORAGE_KEYS.PREFERENCES,
-        version: 3,
+        version: 4,
         migrate: (persistedState, version) => {
           if (!persistedState || typeof persistedState !== "object") return {};
           const persisted = persistedState as Record<string, unknown>;
-          if (version < 3) return { ...persisted, ...GENERATED_CARD_DEFAULTS };
+          if (version < 4) return { ...persisted, ...CARD_VIEW_DEFAULTS };
           return persisted;
         },
         merge: (persistedState, currentState) => ({

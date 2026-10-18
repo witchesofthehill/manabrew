@@ -17,6 +17,7 @@ pub enum CardFinish {
     Rain,
     Heat,
     Pool,
+    Holofoil,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]

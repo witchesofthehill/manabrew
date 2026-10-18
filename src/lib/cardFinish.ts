@@ -11,6 +11,7 @@ export const CARD_FINISH_PRESETS = [
   { id: "gloss", label: "Gloss" },
   { id: "etched", label: "Etched" },
   { id: "prismatic", label: "Prismatic" },
+  { id: "holofoil", label: "Holofoil" },
   { id: "cold", label: "Cold silver" },
   { id: "opal", label: "Opal" },
   { id: "rain", label: "Rain" },
@@ -82,4 +83,5 @@ export const CARD_FINISH_KINDS: Record<CardFinish, number> = {
   heat: 6,
   pool: 7,
   gloss: 8,
+  holofoil: 9,
 };

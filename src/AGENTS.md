@@ -133,6 +133,8 @@ The SDK's native paper/ink separation, rules-visibility and generic `textInk` sp
 
 `FinishResources.documentMask` and `RendererOptions.rasterHost` share native symbol/etch preparation with Pixi. Route prepared artwork through `cardRasterHost` so multipart crops and selected-image leases survive both raster painting and edge preparation. Registered native faces use native recipe masks; original scans retain the generic raster path. `cardFoilShader.ts` assembles the Pixi material from public SDK shader sources and owns sampler adaptation and artwork/printing/wear composition. Rain density uses `CardCosmetics.rainFog` in both `Instance.rainFog` and Pixi's `rainFogDensity`; omitted means 1, with finite values from 0 to 2.
 
+Holofoil uses the public SDK's finish mode 9 and metallic wear; Prismatic remains the default foil finish. Keep finish values aligned across Rust `CardFinish`, Java `CardCosmeticsCodec`, normalization, picker presets and the shared Pixi/DOM mode map.
+
 Apply wear before finish-coverage blending and protected printing composition, matching the SDK. A final whole-card wear pass bypasses artwork-only coverage and damages protected lettering and frames.
 
 Generated Rain, Heat and Pool cards keep native printing above artwork optics without the SDK's optional satin reflection. `cardOpticalDocument` removes `overlayFoil`, and the Pixi material composites the printing texture unshaded. Zero Rain fog removes condensation only, not water distortion or glare; it is not an overall effect-strength control. Original scans have no separate printing layer and retain full-face treatment.

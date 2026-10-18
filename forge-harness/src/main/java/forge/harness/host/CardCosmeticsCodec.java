@@ -20,7 +20,7 @@ final class CardCosmeticsCodec {
         }
         final JsonObject object = object(value, Set.of("finish", "frame", "border", "wear", "wearSeed",
                 "rainFog", "wording", "printing"));
-        enumeration(object, "finish", Set.of("regular", "gloss", "etched", "prismatic", "cold", "opal", "rain", "heat", "pool"));
+        enumeration(object, "finish", Set.of("regular", "gloss", "etched", "prismatic", "holofoil", "cold", "opal", "rain", "heat", "pool"));
         enumeration(object, "frame", Set.of("printing", "modern", "retro"));
         enumeration(object, "border", Set.of("printing", "black", "white", "silver"));
         enumeration(object, "wear", Set.of("fresh", "light", "played", "heavy"));

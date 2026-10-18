@@ -204,8 +204,8 @@
       ]
     },
     "CardFinish": {
-      "ts": "type CardFinish =\n  | \"regular\"\n  | \"gloss\"\n  | \"etched\"\n  | \"prismatic\"\n  | \"cold\"\n  | \"opal\"\n  | \"rain\"\n  | \"heat\"\n  | \"pool\";",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub enum CardFinish {\n    Regular,\n    Gloss,\n    Etched,\n    Prismatic,\n    Cold,\n    Opal,\n    Rain,\n    Heat,\n    Pool,\n}",
+      "ts": "type CardFinish =\n  | \"regular\"\n  | \"gloss\"\n  | \"etched\"\n  | \"prismatic\"\n  | \"cold\"\n  | \"opal\"\n  | \"rain\"\n  | \"heat\"\n  | \"pool\"\n  | \"holofoil\";",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub enum CardFinish {\n    Regular,\n    Gloss,\n    Etched,\n    Prismatic,\n    Cold,\n    Opal,\n    Rain,\n    Heat,\n    Pool,\n    Holofoil,\n}",
       "refs": []
     },
     "CardFramePreset": {

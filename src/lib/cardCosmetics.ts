@@ -6,6 +6,7 @@ const FINISHES: Record<CardFinish, true> = {
   gloss: true,
   etched: true,
   prismatic: true,
+  holofoil: true,
   cold: true,
   opal: true,
   rain: true,

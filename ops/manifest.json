@@ -1,5 +1,5 @@
 {
-  "version": 253,
+  "version": 254,
   "packages": {
     "forge-card-script": "0.1.2",
     "forge-card-script-lsp": "0.1.2",
@@ -9,7 +9,7 @@
     "forge-limited": "0.4.2",
     "loadgen": "0.3.8",
     "manabot": "0.17.2",
-    "manabrew": "3.58.0",
+    "manabrew": "3.59.0",
     "manabrew-agent-interface": "0.15.1",
     "manabrew-art-cache": "0.3.0",
     "manabrew-engine": "0.11.1",

@@ -41,7 +41,11 @@ import {
   PLAYGROUND_LANDS,
   type PlaygroundScenarioId,
 } from "@/components/dev/boardPlayground.data";
-import { PREVIEW_SCENARIOS } from "./devPreviewScenarios";
+import {
+  applyDevPreviewMechanicAction,
+  devPreviewMechanicActions,
+  PREVIEW_SCENARIOS,
+} from "@/components/dev/devPreviewScenarios";
 import { BoardGameplayPreviewControls } from "./BoardGameplayPreviewControls";
 import { useBoardGameplayPreview } from "./useBoardGameplayPreview";
 import { BoardPlaygroundZone } from "./BoardPlaygroundZone";
@@ -320,7 +324,10 @@ export function BoardPlayground({
           toughness: "2",
         };
       } else {
-        const { info } = await useScryfallStore.getState().getCard({ name });
+        const { info } = await useScryfallStore.getState().getCard({
+          name,
+          ...(nameOverride == null && scenario.setCode ? { setCode: scenario.setCode } : {}),
+        });
         if (generation !== loadGeneration.current) return;
         const faces = resolveCardFaces(info);
         const back = nameOverride == null && !!scenario.back && faces.isFlippable;
@@ -384,15 +391,21 @@ export function BoardPlayground({
   };
   const previewActions = useMemo<HandActionOption[]>(() => {
     if (!previewCard) return [];
-    return Array.from({ length: actionCount }, (_, index) => ({
-      kind: "ability",
-      cardId: previewCard.id,
-      actionId: index === 0 ? DEV_MANA_ACTION_ID : `dev-action-${index}`,
-      label: index === 0 ? `Add {G}.` : `Preview test action ${index + 1}.`,
-      cost: index === 0 ? "{T}" : `{${index + 1}}`,
-      isManaAbility: index === 0,
-      abilityIndex: index,
-    }));
+    return [
+      ...devPreviewMechanicActions(previewCard),
+      ...Array.from(
+        { length: actionCount },
+        (_, index): HandActionOption => ({
+          kind: "ability",
+          cardId: previewCard.id,
+          actionId: index === 0 ? DEV_MANA_ACTION_ID : `dev-action-${index}`,
+          label: index === 0 ? `Add {G}.` : `Preview test action ${index + 1}.`,
+          cost: index === 0 ? "{T}" : `{${index + 1}}`,
+          isManaAbility: index === 0,
+          abilityIndex: index,
+        }),
+      ),
+    ];
   }, [previewCard, actionCount]);
   useEffect(() => {
     if (preview.phase !== "open") previewViewSwitchCardIdRef.current = null;
@@ -435,6 +448,10 @@ export function BoardPlayground({
   );
   const handlePreviewAction = (action: HandActionOption) => {
     setLastAction(`Selected ${action.label} (${action.actionId})`);
+    if (action.actionId === "dev-station" || action.actionId === "dev-crew") {
+      updateCard(action.cardId, (card) => applyDevPreviewMechanicAction(card, action));
+      return;
+    }
     if (action.actionId === DEV_MANA_ACTION_ID) {
       updateCard(action.cardId, (card) => ({ ...card, tapped: true }));
       return;

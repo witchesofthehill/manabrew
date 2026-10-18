@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.59.0](https://github.com/witchesofthehill/manabrew/compare/v3.58.0...v3.59.0) (2026-10-18)
+
+### Features
+
+* **ui:** improve station and crew card previews ([#1065](https://github.com/witchesofthehill/manabrew/issues/1065)) ([5692021](https://github.com/witchesofthehill/manabrew/commit/5692021559d7bad88fc8fa5ca4eedb1609398dda))
+
 ## [3.58.0](https://github.com/witchesofthehill/manabrew/compare/v3.57.1...v3.58.0) (2026-10-18)
 
 ### Features

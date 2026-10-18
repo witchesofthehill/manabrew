@@ -26,6 +26,7 @@ import { gameIconTexture } from "@/pixi/gameIconCache";
 import { PixiRichText } from "@/pixi/cardPreview/PixiRichText";
 import { RulesPreviewBody, RULES_PREVIEW_FONT_SIZE } from "@/pixi/cardPreview/RulesPreviewBody";
 import { PixiCardRailPreview } from "@/pixi/cardPreview/PixiCardRailPreview";
+import { PixiStationPreview } from "@/pixi/cardPreview/PixiStationPreview";
 import { addPlaneswalkerCost } from "@/pixi/cardPreview/PixiPlaneswalkerCost";
 import { specialRules } from "card-glint/magic/presentation";
 import {
@@ -36,6 +37,7 @@ import {
   rulesEntryMatchesStackAbility,
   rulesTextEntries,
   stackHighlightEntry,
+  stationRulesPresentation,
 } from "@/pixi/cardPreview/rulesCardPreviewPresentation";
 import { RulesPreviewActions } from "@/pixi/cardPreview/RulesPreviewActions";
 import {
@@ -773,6 +775,11 @@ export class RulesCardPreviewLayer {
             })),
           }
         : null;
+    const stationSection =
+      !display.faceless && !display.multipart ? display.sections[0] : undefined;
+    const station = stationSection
+      ? stationRulesPresentation(stationSection.rulesText, stationSection.canonicalRulesText)
+      : null;
     const nextClassLevel =
       progression?.rail.kind === "class" && progression.rail.current < progression.rail.max
         ? progression.rail.current + 1
@@ -802,11 +809,10 @@ export class RulesCardPreviewLayer {
           ({ action }) =>
             (previewActionFace(action) ?? display.liveFaceIndex) === section.faceIndex,
         );
-        const entries = rulesTextEntries(
-          section.rulesText,
-          progression,
-          section.canonicalRulesText,
-        );
+        const entries =
+          station && section === stationSection
+            ? station.opening
+            : rulesTextEntries(section.rulesText, progression, section.canonicalRulesText);
         const activated = activatedRulesEntries(actions, entries, (text) =>
           localizeRulesPreviewText(
             text,
@@ -828,7 +834,7 @@ export class RulesCardPreviewLayer {
     const measuredPanels = this.configureGeometry(landscape, display.faceIndex);
     this.rulesFontSize = Math.max(
       RULES_PREVIEW_FONT_SIZE,
-      this.scanOverlay
+      this.scanOverlay || station
         ? 0
         : ((this.faceGeometry?.rulesFontSize ?? 0) * PORTRAIT_WIDTH) / CARD_RENDER_WIDTH,
     );
@@ -1088,11 +1094,14 @@ export class RulesCardPreviewLayer {
       } else {
         const sections = this.scanOverlay ? display.sections : section ? [section] : [];
         for (const panelSection of sections) {
-          const entries = rulesTextEntries(
-            panelSection.rulesText,
-            primary ? progression : null,
-            panelSection.canonicalRulesText,
-          );
+          const entries =
+            station && panelSection === stationSection
+              ? station.opening
+              : rulesTextEntries(
+                  panelSection.rulesText,
+                  primary ? progression : null,
+                  panelSection.canonicalRulesText,
+                );
           const caseParts = /\bCase\b/.test(this.scryfallInfo?.type_line ?? "")
             ? caseSections(panelSection.rulesText, panelSection.canonicalRulesText)
             : [];
@@ -1127,6 +1136,24 @@ export class RulesCardPreviewLayer {
               );
             }
             y = this.addOracleAbilityRow(body, text, y, panelSection.planeswalker);
+          }
+          if (station && panelSection === stationSection) {
+            const tiers = new PixiStationPreview({
+              tiers: station.tiers,
+              charge: display.currentFace ? (presentationCard.counters.Charge ?? 0) : null,
+              width: body.contentWidth,
+              fontSize: this.rulesFontSize,
+              theme: this.theme,
+              frame: this.frame,
+              highlightedEffect: spec.highlightedEffect,
+            });
+            tiers.position.set(0, y);
+            body.content.addChild(tiers);
+            this.highlightedRows.push(...tiers.highlightedRows);
+            if (tiers.highlightedRowTop !== null) {
+              body.highlightedRowTop ??= y + tiers.highlightedRowTop;
+            }
+            y += tiers.contentHeight + SECTION_GAP;
           }
           if (panelSection.flavorText) y = this.addFlavorText(body, panelSection.flavorText, y);
         }

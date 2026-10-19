@@ -51,11 +51,13 @@ import { showAccountSaveNudge } from "@/components/auth/accountSaveNudge";
 import type { DeckCard, DeckCardIdentity } from "@/protocol/deck";
 import type { ScryfallCard } from "@/types/scryfall";
 import type { ScryfallLanguage } from "@/i18n/locales";
+import { localizedCardDetailsKey, type LocalizedCardDetails } from "@/lib/localizedCardDetails";
 import type { EditorDeck } from "@/types/manabrew";
 import { chooseImageUrisForCard, useScryfallStore } from "@/stores/useScryfallStore";
 import {
   deckCardToPreviewDto,
   frontFaceName,
+  localizedDeckCardToPreviewDto,
   needsScryfallEnrichment,
   scryfallToDeckCard,
 } from "@/lib/scryfall.utils";
@@ -210,6 +212,10 @@ export function DeckBuilder({
   const [detailCard, setDetailCard] = useState<ScryfallCard | null>(null);
   const [detailToken, setDetailToken] = useState<DeckCard | null>(null);
   const [detailPrinting, setDetailPrinting] = useState<DeckCardIdentity | null>(null);
+  const [localizedDetailsResult, setLocalizedDetailsResult] = useState<{
+    key: string;
+    details: ReadonlyMap<string, LocalizedCardDetails | null>;
+  }>(() => ({ key: "", details: new Map() }));
   const [labelsOpen, setLabelsOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -465,6 +471,40 @@ export function DeckBuilder({
   useCardCollection();
   const collectionQuantities = useCollectionStore((state) => state.quantities);
   const scryfallLocale = useScryfallStore((state) => state.locale);
+  const localizedCards = useMemo(() => {
+    const cards = [
+      ...currentDeck.cards,
+      ...currentDeck.sideboard,
+      ...(currentDeck.maybeboard ?? []),
+      ...(currentDeck.commanders ?? []),
+      ...supplementaryCards,
+    ];
+    return [
+      ...new Map(
+        cards.map((card) => [
+          localizedCardDetailsKey(scryfallLocale, card.identity.setCode, card.identity.cardNumber),
+          card,
+        ]),
+      ).values(),
+    ];
+  }, [
+    currentDeck.cards,
+    currentDeck.sideboard,
+    currentDeck.maybeboard,
+    currentDeck.commanders,
+    supplementaryCards,
+    scryfallLocale,
+  ]);
+  const localizedDetailsKey = localizedCards
+    .map((card) =>
+      localizedCardDetailsKey(scryfallLocale, card.identity.setCode, card.identity.cardNumber),
+    )
+    .sort()
+    .join("|");
+  const localizedCardDetails =
+    localizedDetailsResult.key === `${scryfallLocale}::${localizedDetailsKey}`
+      ? localizedDetailsResult.details
+      : new Map<string, LocalizedCardDetails | null>();
   const comboCardNames = useDeckAnalysisStore((state) => state.comboCardNames);
   const gameChangerNames = useDeckAnalysisStore((state) => state.gameChangerNames);
   const ownershipByName = useMemo(
@@ -476,6 +516,39 @@ export function DeckBuilder({
       ]),
     [collectionQuantities, currentDeck.cards, currentDeck.commanders, currentDeck.sideboard],
   );
+  useEffect(() => {
+    let cancelled = false;
+    if (localizedCards.length === 0 || scryfallLocale === "en") {
+      useScryfallStore.getState().setActiveLocalizedCards([], scryfallLocale);
+      return () => {
+        cancelled = true;
+      };
+    }
+    const activeLookups = localizedCards.map((card) => ({
+      oracleId: card.identity.oracleId,
+      name: card.identity.name,
+      setCode: card.identity.setCode,
+      collectorNumber: card.identity.cardNumber,
+    }));
+    useScryfallStore.getState().setActiveLocalizedCards(activeLookups, scryfallLocale);
+    const store = useScryfallStore.getState();
+    void store
+      .getLocalizedCardDetails(activeLookups, scryfallLocale)
+      .then((details) => {
+        if (!cancelled)
+          setLocalizedDetailsResult({
+            key: `${scryfallLocale}::${localizedDetailsKey}`,
+            details,
+          });
+      })
+      .catch((error) => {
+        console.warn("[DeckBuilder] Failed to load localized card details:", error);
+      });
+    return () => {
+      cancelled = true;
+      useScryfallStore.getState().setActiveLocalizedCards([], scryfallLocale);
+    };
+  }, [localizedCards, localizedDetailsKey, scryfallLocale]);
   const collectionGapCount = useMemo(
     () =>
       [...ownershipByName.values()].filter(
@@ -2039,11 +2112,21 @@ export function DeckBuilder({
                   readOnly={isReadOnly}
                   onSetCommander={handleSetCommander}
                   onRemoveCommander={handleRemoveCommander}
-                  onHover={(card, event) =>
-                    preview.handleMouseEnter(deckCardToPreviewDto(card), event, {
-                      useDelay: true,
-                    })
-                  }
+                  onHover={(card, event) => {
+                    const details = localizedCardDetails.get(
+                      localizedCardDetailsKey(
+                        scryfallLocale,
+                        card.identity.setCode,
+                        card.identity.cardNumber,
+                      ),
+                    );
+                    const previewCard = deckCardToPreviewDto(card);
+                    preview.handleMouseEnter(
+                      details ? localizedDeckCardToPreviewDto(card, details) : previewCard,
+                      event,
+                      { useDelay: true },
+                    );
+                  }}
                   onLeave={preview.handleMouseLeave}
                   onPickPrint={setPrintPickerCard}
                   contextMenuFor={(card, label) => {
@@ -2131,6 +2214,8 @@ export function DeckBuilder({
                     otherGroups={otherGroups}
                     sideboardGroups={sideGroups}
                     maybeboardGroups={maybeGroups}
+                    localizedCardDetails={localizedCardDetails}
+                    locale={scryfallLocale}
                     specialSections={specialSections}
                     stackColumns={stackColsData}
                     isOverSide={isOverSide}
@@ -2155,9 +2240,13 @@ export function DeckBuilder({
                     onMoveOneFromMaybeToSide={handleMoveOneFromMaybeToSide}
                     onMoveAllFromMaybeToSide={handleMoveAllFromMaybeToSide}
                     onPickPrint={setPrintPickerCard}
-                    onHover={(card, e) =>
-                      preview.handleMouseEnter(deckCardToPreviewDto(card), e, { useDelay: true })
-                    }
+                    onHover={(card, e, details) => {
+                      const previewCard = deckCardToPreviewDto(card);
+                      const localized = details
+                        ? localizedDeckCardToPreviewDto(card, details)
+                        : previewCard;
+                      preview.handleMouseEnter(localized, e, { useDelay: true });
+                    }}
                     onLeave={preview.handleMouseLeave}
                     onAddToSide={(card) =>
                       executeDeckEdit(`Add ${card.identity.name} to sideboard`, () =>

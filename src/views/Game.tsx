@@ -71,7 +71,7 @@ import { boardBackgroundDarken, boardBackgroundUrl } from "@/pixi/board/boardBac
 import { Navigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useLimitedGameReturn } from "@/hooks/useLimitedGameReturn";
-import { peek as peekGauntletMatch } from "@/lib/gauntletReturn";
+import { peekForGame as peekGauntletMatch } from "@/lib/gauntletReturn";
 import { peekLimitedMatchReturn } from "@/game/limitedSession";
 import { intentIsHostile, intentPrefersArrow } from "@/types/promptType";
 import type { PromptType } from "@/protocol";
@@ -247,6 +247,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   useAutoResolvePrompt(interruption.waiting);
   const rawGameView = useGameStore((s) => s.gameView);
   const myPlayerSlot = useGameStore((s) => s.myPlayerSlot);
+  const gauntletId = useGameStore((s) => s.gauntletId);
   const currentPrompt = useGameStore((s) => s.currentPrompt);
   const protocolError = useGameStore((s) => s.protocolError);
   const isGameActive = useGameStore((s) => s.isGameActive);
@@ -2117,11 +2118,12 @@ export default function Game({ exitTo }: GameProps = {}) {
   );
   useEffect(() => {
     if (!gameView?.gameOver && activePrompt?.input.type !== "gameOver") return;
-    if (peekGauntletMatch() || peekLimitedMatchReturn()) return;
+    if (peekGauntletMatch(gauntletId) || peekLimitedMatchReturn()) return;
     const timer = setTimeout(() => endGame(), 3000);
     return () => clearTimeout(timer);
-  }, [gameView?.gameOver, activePrompt?.input.type, endGame]);
+  }, [gameView?.gameOver, activePrompt?.input.type, gauntletId, endGame]);
   const limitedReturn = useLimitedGameReturn({
+    gauntletId,
     gameOver: (gameView?.gameOver ?? false) || activePrompt?.input.type === "gameOver",
     winnerId: gameView?.winnerId ?? null,
     playerSlot: myPlayerSlot,

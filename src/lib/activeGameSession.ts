@@ -3,6 +3,7 @@ const KEY = "manabrew.activeMultiplayerGame";
 export interface ActiveGameSession {
   roomId: string;
   gameId: string;
+  gauntletId?: string;
   isHost: boolean;
   username: string;
   ownsForgeHost?: boolean;

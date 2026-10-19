@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  shouldLocalizeScryfallSearchResults,
-  withAnyScryfallLanguage,
-} from "@/lib/scryfallSearch";
+import { shouldLocalizeScryfallSearchResults, withAnyScryfallLanguage } from "@/lib/scryfallSearch";
 
 describe("Scryfall search language filters", () => {
   it("preserves language aliases and negated filters inside groups", () => {

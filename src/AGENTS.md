@@ -4,6 +4,8 @@ The web frontend for Manabrew. Tailwind CSS 4, Shadcn/UI, Zustand, React Router.
 
 Read first: `/AGENTS.md`, `docs/STYLE_GUIDELINES.md`, `docs/agents/UI_THEME_RULES.md`.
 
+Settings choice buttons must preserve the shared `selected` variant; converting it to `outline` hides the active preference.
+
 ## Folder map
 
 | Folder                  | What lives there                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
@@ -323,3 +325,5 @@ Lobby-spawned AI bots (`WasmBot`s driven by `spawnAiBot` in `platform/web.ts`) s
 Offline play reports mark engine crashes as `endReason: "engine_error"` and `gameOver: false`, even when the engine’s final board says it is over. The analytics completion flag must not count a terminal crash as a completed game.
 
 Browser Forge checkpoint telemetry comes from `forge:checkpoints` batches on the engine worker, not from board snapshots. `engineTelemetry.ts` retains at most 4,000 samples, excludes batches spanning a hidden tab, and writes copy, bookkeeping, total, and human-decision-window summaries in integer microseconds (`checkpoints` in the per-game engine report). `hidden` and `dropped` expose exclusions and the cap. Reports keep startup/final samples in per-checkpoint totals; decision windows include intervening bot turns and are not comparable to a node's individual decision without accounting for that difference. The worker opts in automatically even if snapshot recording starts disabled, so enabling it midgame is measured. Older engines report null, while supported engines with no checkpoints report zero counts.
+
+Gauntlet endgame returns must match `useGameStore.gauntletId`, supplied by the Gauntlet launch. The persisted pending marker can outlive its game; its presence alone must never select the endgame flow or destination of another game.

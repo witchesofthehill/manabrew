@@ -74,3 +74,5 @@ Never use `--no-verify` to bypass the commit-msg or pre-commit hooks. If a hook 
 `ingest-events.py` normalizes `engine_error` and `engine_fatal` to `games.game_over = 0`, including existing analytics rows when opening the database. Offline clients can report these terminal failures with `game_over = 1`; that source flag must not turn crashes into successful completions.
 
 `parity-repair-agent.py` requires `PARITY_AUTH` in the environment as `username:password`. Supply it through local secrets or CI secrets. The previously committed dashboard credential must be rotated because it remains in Git history.
+
+The decision journal checks are `bench:forge-journal` (delivery and barriers) and `test:forge-replay` (real Forge, independent-process snapshot restoration). Use Node 24 and JDK 18–21. They run in the Forge harness CI job, including on submodule changes. See `docs/DECISION_REPLAY.md`. Relay journal/takeover probes are preserved on `preserve/pr-1026-host-recovery` for the follow-up.

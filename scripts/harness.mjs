@@ -293,6 +293,22 @@ function rebuild() {
     }
   }
 
+  for (const perturbation of [0, 2, 9, 13]) {
+    const regression = spawnSync(
+      "java",
+      [
+        "-XX:+UnlockExperimentalVMOptions",
+        "-XX:hashCode=0",
+        "-cp",
+        regressionClasspath,
+        "forge.harness.host.ReplayOrderingTest",
+        String(perturbation),
+      ],
+      { cwd: root, stdio: "inherit" },
+    );
+    if (regression.status !== 0) process.exit(regression.status ?? 1);
+  }
+
   updateChecksum();
   console.log("harness: rebuild complete");
 }

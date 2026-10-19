@@ -230,3 +230,7 @@ Everything is behind `-Dforge.engineCounters=true`, a static final read at class
 init, so it folds away when it is off. An earlier round of this used atomics and
 two `nanoTime` calls on every `checkStaticAbilities` and had to be reverted
 (forge `9d14d1511bf`).
+
+## Decision journal
+
+`yarn bench:forge-journal --jar <jar> --forge-home <forge-gui>` checks consumed-input replay and acknowledgement barriers. `yarn test:forge-replay` checks reconstruction at pending decisions in fresh JVMs, followed by continued execution. It reports journal size and restore time. See [the replay contract and audit](../../docs/DECISION_REPLAY.md) for supported runtimes, scenarios, limitations and the preserved host-recovery follow-up.

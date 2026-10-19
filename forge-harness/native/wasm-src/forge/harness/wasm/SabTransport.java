@@ -133,6 +133,7 @@ public final class SabTransport implements InteractiveBridge {
      */
     private final java.util.Set<Integer> botSeats;
     private final java.util.function.Supplier<String> checkpointMetrics;
+    private final java.util.function.Supplier<String> decisionJournal;
     private long checkpointNanosSinceRecv;
     private long checkpoint;
     /** When a person's answer last landed; bot answers do not move it. */
@@ -163,15 +164,17 @@ public final class SabTransport implements InteractiveBridge {
     }
 
     public SabTransport(final java.util.function.IntFunction<String> snapshots) {
-        this(snapshots, java.util.Collections.emptySet(), () -> "[]");
+        this(snapshots, java.util.Collections.emptySet(), () -> "[]", () -> "");
     }
 
     public SabTransport(final java.util.function.IntFunction<String> snapshots,
             final java.util.Set<Integer> botSeats,
-            final java.util.function.Supplier<String> checkpointMetrics) {
+            final java.util.function.Supplier<String> checkpointMetrics,
+            final java.util.function.Supplier<String> decisionJournal) {
         this.snapshots = snapshots;
         this.botSeats = botSeats;
         this.checkpointMetrics = checkpointMetrics;
+        this.decisionJournal = decisionJournal;
     }
 
     @Override
@@ -181,6 +184,7 @@ public final class SabTransport implements InteractiveBridge {
 
     @Override
     public String exchange(final int playerIndex, final String promptJson) {
+        publishDecisionJournal();
         final int seat = playerIndex < 0 ? 0 : playerIndex;
         final String type = inputType(promptJson);
         final boolean dice = "diceRolled".equals(type);
@@ -350,6 +354,13 @@ public final class SabTransport implements InteractiveBridge {
                 + ",\"timestampMs\":" + System.currentTimeMillis() + "}";
     }
 
+    private void publishDecisionJournal() {
+        final String batch = decisionJournal.get();
+        if (!batch.isEmpty()) {
+            post("forge:journal", batch);
+        }
+    }
+
     private void publishCheckpointMetrics() {
         final String samples = checkpointMetrics.get();
         for (final com.google.gson.JsonElement sample : JsonParser.parseString(samples).getAsJsonArray()) {
@@ -360,6 +371,7 @@ public final class SabTransport implements InteractiveBridge {
     }
 
     public void publishGameOver(final String engineError) {
+        publishDecisionJournal();
         publishCheckpointMetrics();
         final int seats = Math.max(1, seatCount());
         for (int seat = 0; seat < seats; seat++) {

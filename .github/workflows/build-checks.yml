@@ -58,6 +58,10 @@ jobs:
               'src-tauri/',
               'manabrew-rs/crates/self-hosted-node/',
               'scripts/harness.mjs',
+              'scripts/engine-bench/forge-replay.mjs',
+              'scripts/engine-bench/forge-decision-journal.mjs',
+              'scripts/engine-bench/journal-fixture.mjs',
+              'scripts/engine-bench/journal-harness.mjs',
               '.github/workflows/build-checks.yml',
             ];
 
@@ -757,8 +761,20 @@ jobs:
           java-version: "21"
           cache: maven
 
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
       - name: Build and test forge-harness
         run: node scripts/harness.mjs test
+
+      - name: Verify consumed decision replay
+        run: >-
+          node scripts/engine-bench/forge-decision-journal.mjs
+          --jar forge-harness/target/forge-harness-jar-with-dependencies.jar
+          --forge-home forge/forge-gui
+
+      - name: Verify replay snapshot restoration in fresh processes
+        run: yarn test:forge-replay
 
   forge-room-graalvm-windows:
     name: GraalVM build (Windows)

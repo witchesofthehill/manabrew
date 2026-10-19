@@ -115,6 +115,7 @@ import {
   setLastSavedDeckRef,
 } from "./deckBuilder.unsavedChanges";
 import { useUnsupportedCards } from "@/hooks/useUnsupportedCards";
+import { useCardPool } from "@/hooks/useCardPool";
 import { CommanderSlots } from "./CommanderSlots";
 import { ImportDeckTextDialog } from "./ImportDeckTextDialog";
 import { useDeckTextImportIntoCurrent } from "./useDeckTextImport";
@@ -761,18 +762,20 @@ export function DeckBuilder({
   );
   const hasUnsupportedCards = unsupportedNames.size > 0;
   const deckFormat = getFormat(currentDeck.format ?? "standard");
+  const deckCommanderName = currentDeck.commanders?.[0]?.identity.name;
+  const cardPool = useCardPool([
+    { input: { deck: currentDeck, commanderName: deckCommanderName }, format: deckFormat },
+  ]);
   const deckValidation = useMemo(
     () =>
       deckFormat
         ? validateDeckSections(
-            {
-              deck: currentDeck,
-              commanderName: currentDeck.commanders?.[0]?.identity.name,
-            },
+            { deck: currentDeck, commanderName: deckCommanderName },
             deckFormat,
+            cardPool,
           )
         : { legal: false, errors: [] as string[] },
-    [currentDeck, deckFormat],
+    [currentDeck, deckCommanderName, deckFormat, cardPool],
   );
   const isDeckLegal = deckValidation.legal;
   const matchesFilters = useCallback(

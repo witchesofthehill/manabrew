@@ -572,6 +572,7 @@ pub enum GameFormat {
     Pauper,
     Premodern,
     Commander,
+    PauperCommander,
     Brawl,
     Oathbreaker,
     Draft,

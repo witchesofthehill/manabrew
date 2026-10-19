@@ -1352,7 +1352,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             return true;
         }
         final ManaCostBeingPaid assistCost = new ManaCostBeingPaid(ManaCost.get(willPay));
-        final GameSnapshot snapshot = beginManaPaymentSnapshot();
+        final ManaBrewInteractiveSession.SessionSnapshot snapshot = beginManaPaymentSnapshot();
         if (payManaInteractively(assistCost, sa, true, snapshot, null)) {
             cost.decreaseGenericMana(willPay);
             return true;
@@ -1866,7 +1866,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             return autoPay.payManaCost(payableCost, sa, effect);
         }
         final Player activator = sa.getActivatingPlayer() != null ? sa.getActivatingPlayer() : player;
-        final GameSnapshot snapshot = beginManaPaymentSnapshot();
+        final ManaBrewInteractiveSession.SessionSnapshot snapshot = beginManaPaymentSnapshot();
         final CardCollection cardsToDelve = new CardCollection();
         CostAdjustment.adjust(toPayBeing, sa, activator, cardsToDelve, false, effect);
         if ((sa.isOffering() && sa.getSacrificedAsOffering() == null)
@@ -1967,7 +1967,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     private boolean payManaInteractively(
             final ManaCostBeingPaid unpaid, final SpellAbility sa, final boolean effect,
-            final GameSnapshot sessionSnapshot, final CardCollection cardsToDelve) {
+            final ManaBrewInteractiveSession.SessionSnapshot sessionSnapshot, final CardCollection cardsToDelve) {
         final ManaPool pool = player.getManaPool();
         final Map<Integer, Card> sessionTapped = new LinkedHashMap<>();
         final Map<Integer, ManaCostShard> sessionConvoke = new LinkedHashMap<>();
@@ -2133,10 +2133,8 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         return out;
     }
 
-    private GameSnapshot beginManaPaymentSnapshot() {
-        final GameSnapshot snapshot = new GameSnapshot(getGame());
-        snapshot.makeCopy();
-        return snapshot;
+    private ManaBrewInteractiveSession.SessionSnapshot beginManaPaymentSnapshot() {
+        return session.captureSnapshot();
     }
 
     private List<Card> convokePaymentSources(
@@ -2306,8 +2304,8 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         sessionTapped.remove(source.getId());
     }
 
-    private void restoreManaPaymentSnapshot(final GameSnapshot snapshot) {
-        snapshot.restoreGameState(getGame());
+    private void restoreManaPaymentSnapshot(final ManaBrewInteractiveSession.SessionSnapshot snapshot) {
+        session.restoreSnapshot(snapshot);
     }
 
     // ── Voting / division / mana from pool ────────────────────────────

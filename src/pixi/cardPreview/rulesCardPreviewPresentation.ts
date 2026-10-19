@@ -736,9 +736,13 @@ export function resolveRulesPreviewDisplay(options: {
   const loyalty = currentFace
     ? (presentation.loyalty ?? numericValue(face?.loyalty))
     : numericValue(face?.loyalty);
-  const defense = currentFace
-    ? (presentation.defense ?? numericValue(face?.defense))
-    : numericValue(face?.defense);
+  const defense = /\bBattle\b/i.test(
+    currentFace ? presentation.typeLine : (localized?.canonicalTypeLine ?? face?.typeLine ?? ""),
+  )
+    ? currentFace && (card.zone === "battlefield" || card.zone === undefined)
+      ? (card.counters.Defense ?? (card.zone === "battlefield" ? 0 : numericValue(face?.defense)))
+      : numericValue(face?.defense)
+    : null;
 
   return {
     name,

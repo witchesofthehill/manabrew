@@ -3,7 +3,11 @@ import type { HandActionOption } from "@/stores/useGameUIStore";
 import type { CardInteractionPanel } from "@/lib/cardRenderGeometry";
 import { i18n } from "@/i18n/i18n";
 import { msg } from "@lingui/core/macro";
-import { matchRulesEntry, rulesTextEntries } from "@/pixi/cardPreview/rulesCardPreviewPresentation";
+import {
+  matchRulesEntry,
+  rulesTextEntries,
+  type RulesPreviewDisplay,
+} from "@/pixi/cardPreview/rulesCardPreviewPresentation";
 
 export function previewActionFace(action: HandActionOption): number | undefined {
   if (
@@ -15,6 +19,17 @@ export function previewActionFace(action: HandActionOption): number | undefined 
   if (action.mode?.type === "unlockDoor") return action.mode.door === "left" ? 0 : 1;
   if (action.mode?.type === "adventure") return 1;
   return undefined;
+}
+
+export function previewOwnsAction(
+  action: HandActionOption,
+  display: RulesPreviewDisplay,
+  battle: boolean,
+): boolean {
+  return (
+    !display.faceless &&
+    (!battle || (previewActionFace(action) ?? display.liveFaceIndex) === display.faceIndex)
+  );
 }
 
 export function levelActionPanel(

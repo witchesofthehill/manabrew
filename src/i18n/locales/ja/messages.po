@@ -14,34 +14,34 @@ msgstr ""
 "Plural-Forms: \n"
 
 #. placeholder {0}: display.stats.damage
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1201
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1215
 msgid "{0} damage"
 msgstr "{0} ダメージ"
 
-#: src/components/game/RulesPreviewAccessibility.tsx:88
-#: src/pixi/cardPreview/previewMechanics.ts:86
+#: src/components/game/RulesPreviewAccessibility.tsx:92
+#: src/pixi/cardPreview/previewMechanics.ts:101
 msgid "Active level"
 msgstr "有効なレベル"
 
-#: src/components/game/RulesPreviewAccessibility.tsx:129
+#: src/components/game/RulesPreviewAccessibility.tsx:133
 msgid "Base ability"
 msgstr "基本能力"
 
-#: src/pixi/cardPreview/previewMechanics.ts:88
+#: src/pixi/cardPreview/previewMechanics.ts:103
 msgid "Current characteristics"
 msgstr "現在の特性"
 
 #. placeholder {0}: display.stats.power
 #. placeholder {1}: display.stats.toughness
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1009
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1023
 msgid "Current P/T: {0}/{1}"
 msgstr "現在のパワー／タフネス：{0}/{1}"
 
-#: src/components/game/RulesPreviewAccessibility.tsx:73
+#: src/components/game/RulesPreviewAccessibility.tsx:77
 msgid "Current power and toughness"
 msgstr "現在のパワーとタフネス"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1585
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1599
 msgid "Defense"
 msgstr "防衛"
 
@@ -58,20 +58,20 @@ msgstr "裏向きのカード"
 msgid "Face-down permanent"
 msgstr "裏向きのパーマネント"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1173
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1187
 msgid "Flip back · F"
 msgstr "裏面に切替 · F"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1173
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1187
 msgid "Flip front · F"
 msgstr "表面に切替 · F"
 
-#: src/components/game/RulesPreviewAccessibility.tsx:89
-#: src/pixi/cardPreview/previewMechanics.ts:86
+#: src/components/game/RulesPreviewAccessibility.tsx:93
+#: src/pixi/cardPreview/previewMechanics.ts:101
 msgid "Inactive level"
 msgstr "無効なレベル"
 
-#: src/components/game/RulesPreviewAccessibility.tsx:84
+#: src/components/game/RulesPreviewAccessibility.tsx:88
 msgid "Level"
 msgstr "レベル"
 
@@ -80,47 +80,47 @@ msgstr "レベル"
 msgid "Level {0}"
 msgstr "レベル {0}"
 
-#: src/pixi/cardPreview/previewMechanics.ts:84
+#: src/pixi/cardPreview/previewMechanics.ts:99
 msgid "Locked"
 msgstr "閉鎖"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1584
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1598
 msgid "Loyalty"
 msgstr "忠誠度"
 
-#: src/components/game/RulesPreviewAccessibility.tsx:114
+#: src/components/game/RulesPreviewAccessibility.tsx:118
 msgid "Mana cost"
 msgstr "マナ・コスト"
 
-#: src/components/game/RulesPreviewAccessibility.tsx:78
+#: src/components/game/RulesPreviewAccessibility.tsx:82
 msgid "Not prototyped"
 msgstr "試作ではない"
 
-#: src/pixi/cardPreview/previewMechanics.ts:113
+#: src/pixi/cardPreview/previewMechanics.ts:128
 msgid "Not suspended"
 msgstr "待機中ではない"
 
-#: src/pixi/cardPreview/previewMechanics.ts:90
+#: src/pixi/cardPreview/previewMechanics.ts:105
 msgid "On an Adventure"
 msgstr "出来事中"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1003
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1017
 msgid "On an Adventure · available actions are listed on their spell half"
 msgstr "出来事中 · 可能なアクションは呪文側に表示されます"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1189
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1203
 msgid "Original printing · generated frame unavailable"
 msgstr ""
 
-#: src/pixi/cardPreview/previewMechanics.ts:88
+#: src/pixi/cardPreview/previewMechanics.ts:103
 msgid "Printed alternative"
 msgstr "印刷上の別の特性"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1187
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1201
 msgid "Printed face · live state belongs to the other face"
 msgstr "印刷された面 · 現在の状態はもう一方の面に適用されます"
 
-#: src/components/game/RulesPreviewAccessibility.tsx:120
+#: src/components/game/RulesPreviewAccessibility.tsx:124
 msgid "Printed power and toughness"
 msgstr "印刷されたパワーとタフネス"
 
@@ -128,34 +128,34 @@ msgstr "印刷されたパワーとタフネス"
 msgid "Prototype"
 msgstr "試作"
 
-#: src/components/game/RulesPreviewAccessibility.tsx:78
+#: src/components/game/RulesPreviewAccessibility.tsx:82
 msgid "Prototyped"
 msgstr "試作済み"
 
-#: src/components/game/RulesPreviewAccessibility.tsx:138
+#: src/components/game/RulesPreviewAccessibility.tsx:142
 msgid "Solved · active"
 msgstr "解明完了 · 有効"
 
-#: src/components/game/RulesPreviewAccessibility.tsx:132
+#: src/components/game/RulesPreviewAccessibility.tsx:136
 msgid "Solved ability"
 msgstr "解明完了能力"
 
-#: src/pixi/cardPreview/previewMechanics.ts:116
+#: src/pixi/cardPreview/previewMechanics.ts:131
 msgid "Suspended"
 msgstr "待機中"
 
-#: src/pixi/cardPreview/previewMechanics.ts:117
+#: src/pixi/cardPreview/previewMechanics.ts:132
 msgid "Suspended · {time} time counters"
 msgstr "待機中 · 時間カウンター {time} 個"
 
-#: src/components/game/RulesPreviewAccessibility.tsx:131
+#: src/components/game/RulesPreviewAccessibility.tsx:135
 msgid "To solve"
 msgstr "解明条件"
 
-#: src/pixi/cardPreview/previewMechanics.ts:84
+#: src/pixi/cardPreview/previewMechanics.ts:99
 msgid "Unlocked"
 msgstr "開放"
 
-#: src/components/game/RulesPreviewAccessibility.tsx:139
+#: src/components/game/RulesPreviewAccessibility.tsx:143
 msgid "Unsolved · inactive"
 msgstr "未解明 · 無効"

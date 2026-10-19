@@ -152,7 +152,9 @@ export default function CardRenderingLab() {
     setOverrides({});
   };
   const handleAction = (action: HandActionOption) => {
-    setLastAction(`Executed local fixture action: ${action.label}`);
+    setLastAction(
+      `Selected local fixture action: ${action.label} (${action.actionId ?? action.abilityIndex})`,
+    );
     if (!card) return;
     const next = applyDevPreviewMechanicAction(card, action);
     if (next === card) return;
@@ -199,6 +201,7 @@ export default function CardRenderingLab() {
       <CardRenderingStateControls
         card={card}
         layout={entry?.info.layout}
+        startingDefense={entry?.info.card_faces?.[0]?.defense ?? entry?.info.defense}
         value={overrides}
         onChange={setOverrides}
         onReset={() => setOverrides({})}

@@ -14,7 +14,6 @@ import { cardTypeLine, replaceCardName } from "@/components/game/cardPresentatio
 import { cardFaceImageUris } from "@/lib/cardImage";
 import { resolveCardFaces } from "@/lib/cardFaces";
 import { isTwoHalfLayout } from "@/lib/cardLayout";
-import { CARD_ARTWORK_FACE_FRAGMENT } from "@/lib/cardRenderArtwork";
 import { CardArtworkError, CardRenderError } from "@/lib/cardRenderDecision";
 import { hasIntegratedArtwork } from "@/lib/cardArtworkPrinting";
 import { previewDtoDeckCard } from "@/lib/scryfall.utils";
@@ -112,6 +111,7 @@ export interface PreparedCard {
   combined: boolean;
   locale: ScryfallLanguage;
   readonly gameplay: boolean;
+  readonly composite?: RenderedCardInput;
   readonly printing: readonly {
     readonly id?: string;
     readonly canonicalArtist?: string;
@@ -162,7 +162,7 @@ export function captureCardInput(request: CardRenderRequest): CardRenderInput {
   if (!card?.identity?.name && !deckCard?.identity?.name) {
     throw new Error("Card rendering requires a visible card identity");
   }
-  const emptyCounter = card && "zoneId" in card && card.zoneId === "battlefield" ? "0" : undefined;
+  const emptyCounter = card?.zone === "battlefield" ? "0" : undefined;
   const live: LiveCard | undefined =
     card && !previewDeck
       ? {
@@ -188,7 +188,12 @@ export function captureCardInput(request: CardRenderRequest): CardRenderInput {
           baseToughness: card.baseToughness,
           isPrototyped: card.isPrototyped,
           loyalty: card.counters.Loyalty == null ? emptyCounter : String(card.counters.Loyalty),
-          defense: card.counters.Defense == null ? emptyCounter : String(card.counters.Defense),
+          defense:
+            card.zone !== undefined && card.zone !== "battlefield"
+              ? undefined
+              : card.counters.Defense == null
+                ? emptyCounter
+                : String(card.counters.Defense),
         }
       : undefined;
   return Object.freeze({
@@ -658,6 +663,8 @@ export async function prepareCard(input: CardRenderInput): Promise<PreparedCard>
     released_at: info?.released_at,
     artist: info?.artist,
   };
+  const composite =
+    combined && info ? fromScryfallCard(info, { symbolStyle: "modern" }) : undefined;
   const printing = await Promise.all(
     faces.map(async (_, index) => {
       const record = index === 1 && reverse ? reverse.info : info;
@@ -668,12 +675,14 @@ export async function prepareCard(input: CardRenderInput): Promise<PreparedCard>
         id && record
           ? ((await resolveSetPrintingArtist(record.set, id, canonicalArtist)).artist ?? undefined)
           : canonicalArtist;
-      const provider = record
-        ? fromScryfallCard(record, {
-            faceIndex: index === 1 && reverse ? 0 : index,
-            symbolStyle: "modern",
-          })
-        : undefined;
+      const provider =
+        composite?.faces?.[index] ??
+        (record
+          ? fromScryfallCard(record, {
+              faceIndex: index === 1 && reverse ? 0 : index,
+              symbolStyle: "modern",
+            })
+          : undefined);
       const oracle = printed && {
         name: printed.name,
         typeLine: printed.type_line ?? "",
@@ -725,11 +734,6 @@ export async function prepareCard(input: CardRenderInput): Promise<PreparedCard>
   if (info && hasIntegratedArtwork(info)) {
     throw new CardArtworkError(layout, faceIndex);
   }
-  if (layout === "room" && artUrls[0] && artUrls[0] === artUrls[1]) {
-    const source = artUrls[0];
-    artUrls[0] = `${source}${CARD_ARTWORK_FACE_FRAGMENT}0`;
-    artUrls[1] = `${source}${CARD_ARTWORK_FACE_FRAGMENT}1`;
-  }
   Object.freeze(artUrls);
   const prepared: PreparedCard = Object.freeze({
     snapshot: Object.freeze(snapshot),
@@ -738,6 +742,7 @@ export async function prepareCard(input: CardRenderInput): Promise<PreparedCard>
     combined,
     locale: input.locale,
     gameplay: input.card != null,
+    composite: composite && Object.freeze(composite),
     printing: Object.freeze(printing),
     cosmetics: input.cosmetics,
   });

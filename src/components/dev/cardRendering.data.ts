@@ -63,6 +63,11 @@ export const CARD_RENDERING_FIXTURES: CardRenderingFixture[] = [
     label: "Battle / reverse creature",
     lookup: { name: "Invasion of Zendikar", setCode: "mom" },
   },
+  {
+    id: "battle-activated",
+    label: "Battle / reverse targeted ability",
+    lookup: { name: "Invasion of Innistrad", setCode: "mom" },
+  },
   { id: "saga", label: "Saga / chapters", lookup: { name: "The Eldest Reborn", setCode: "dom" } },
   {
     id: "saga-merged",
@@ -156,11 +161,17 @@ export const CARD_RENDERING_FIXTURES: CardRenderingFixture[] = [
   },
   { id: "flip", label: "Kamigawa flip", lookup: { name: "Budoka Gardener", setCode: "chk" } },
   { id: "plane", label: "Plane / landscape", lookup: { name: "Academy at Tolaria West" } },
-  { id: "scheme", label: "Scheme / landscape", lookup: { name: "Your Fate Is Thrice Sealed" } },
+  { id: "phenomenon", label: "Phenomenon", lookup: { name: "Spatial Merging" } },
+  { id: "scheme", label: "Scheme / oversized", lookup: { name: "Your Fate Is Thrice Sealed" } },
   {
     id: "vanguard",
     label: "Vanguard / modifiers",
     lookup: { name: "Akroma, Angel of Wrath Avatar", setCode: "pmoa" },
+  },
+  {
+    id: "vanguard-paper",
+    label: "Vanguard / paper",
+    lookup: { name: "Serra", setCode: "pvan" },
   },
   { id: "leveler", label: "Level up", lookup: { name: "Student of Warfare", setCode: "roe" } },
   {

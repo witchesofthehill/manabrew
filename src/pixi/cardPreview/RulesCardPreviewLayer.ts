@@ -42,6 +42,7 @@ import {
 import { RulesPreviewActions } from "@/pixi/cardPreview/RulesPreviewActions";
 import {
   previewActionFace,
+  previewOwnsAction,
   levelActionPanel,
   previewPanelActive,
   caseSectionActive,
@@ -642,15 +643,17 @@ export class RulesCardPreviewLayer {
   }
 
   focusAction(delta: number): void {
-    const count = this.spec?.actions.length ?? 0;
+    const indexes = [...this.actionPanels.keys()].sort((left, right) => left - right);
+    const count = indexes.length;
     if (!count) return;
-    this.focusActionAt(
-      this.focusedAction === null
+    const current = this.focusedAction === null ? -1 : indexes.indexOf(this.focusedAction);
+    const next =
+      current < 0
         ? delta < 0
           ? count - 1
           : 0
-        : (((this.focusedAction + Math.trunc(delta)) % count) + count) % count,
-    );
+        : (((current + Math.trunc(delta)) % count) + count) % count;
+    this.focusActionAt(indexes[next]!);
   }
 
   focusActionAt(index: number): void {
@@ -663,6 +666,10 @@ export class RulesCardPreviewLayer {
     const row = entry.view.focusedActionBounds;
     if (row) entry.body.scrollIntoView(entry.view.y + row.top, row.height);
     this.callbacks.onRenderRequested();
+  }
+
+  ownsAction(index: number): boolean {
+    return this.actionPanels.has(index);
   }
 
   getActionScreenBounds(index: number) {
@@ -776,6 +783,12 @@ export class RulesCardPreviewLayer {
       faceless: spec.card.isFaceDown || !spec.card.identity.name,
     });
     const isCase = !display.otherFace && spec.card.subtypes.includes("Case");
+    const isBattleCard = /\bBattle\b/.test(
+      this.scryfallInfo?.card_faces?.[0]?.type_line ??
+        this.scryfallInfo?.type_line ??
+        presentation.typeLine,
+    );
+    const inlineActions = isCase || isBattleCard;
     const progression =
       display.currentFace && !display.multipart && !display.faceless && presentation.progression
         ? {
@@ -971,6 +984,7 @@ export class RulesCardPreviewLayer {
           : [];
       let y = this.scanOverlay ? 2 : 4;
       const ownedActions = indexedActions.filter(({ action }) => {
+        if (!previewOwnsAction(action, display, isBattleCard)) return false;
         if (
           !this.scanOverlay &&
           action.kind === "ability" &&
@@ -986,7 +1000,7 @@ export class RulesCardPreviewLayer {
           (this.bodies.find((candidate) => candidate.panel.faceIndex === owner) ?? this.primaryBody)
         );
       });
-      const upfrontActions = isCase
+      const upfrontActions = inlineActions
         ? ownedActions.filter(
             (entry) => !activatedEntries.get(body.panel.faceIndex)?.has(entry.displayLabel),
           )
@@ -1094,7 +1108,7 @@ export class RulesCardPreviewLayer {
             : [];
           for (const [entryIndex, text] of entries.entries()) {
             if (progressionOpening.includes(text)) continue;
-            if (!isCase && activatedEntries.get(panelSection.faceIndex)?.has(text)) continue;
+            if (!inlineActions && activatedEntries.get(panelSection.faceIndex)?.has(text)) continue;
             if (panelSection.planeswalker && body.planeswalker && entryIndex > 0) {
               const { separator } = body.planeswalker;
               body.content.addChild(
@@ -1108,7 +1122,7 @@ export class RulesCardPreviewLayer {
                   .fill({ color: hexToNum(this.frame.ink), alpha: 0.13 }),
               );
             }
-            if (!isCase) {
+            if (!inlineActions) {
               y = this.addOracleAbilityRow(body, text, y, panelSection.planeswalker);
               continue;
             }

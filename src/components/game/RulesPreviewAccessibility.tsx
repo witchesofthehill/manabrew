@@ -3,14 +3,19 @@ import type { CardDto } from "@/protocol/game";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { cn } from "@/lib/utils";
 import { useResolvedGameCard } from "@/hooks/useResolvedGameCard";
-import { deriveCardPresentation } from "@/components/game/cardPresentation";
-import { resolveRulesPreviewDisplay } from "@/pixi/cardPreview/rulesCardPreviewPresentation";
+import { deriveCardPresentation, type CardPresentation } from "@/components/game/cardPresentation";
+import {
+  resolveRulesPreviewDisplay,
+  type RulesPreviewDisplay,
+} from "@/pixi/cardPreview/rulesCardPreviewPresentation";
+import type { ScryfallCard } from "@/types/scryfall";
 import {
   caseSections,
   caseSectionActive,
   levelBandActive,
   previewPanelState,
   suspendState,
+  previewOwnsAction,
 } from "@/pixi/cardPreview/previewMechanics";
 import { printedPrototype } from "@/lib/cardPrototype";
 import { i18n } from "@/i18n/i18n";
@@ -28,7 +33,7 @@ interface Props {
   actions: HandActionOption[];
   onFocusAction: (index: number) => Bounds | null;
   cardBounds: () => Bounds | null;
-  onSelect: (action: HandActionOption) => void;
+  onSelect: (action: HandActionOption, index: number) => void;
   onHold: () => void;
   onRelease: () => void;
   onOriginal?: () => void;
@@ -38,25 +43,24 @@ interface Props {
 
 function RulesPreviewOracleText({
   card,
-  showBackFace,
+  info,
+  deckLayout,
+  presentation,
+  display,
   descriptionId,
-}: Pick<Props, "card" | "showBackFace"> & { descriptionId: string }) {
-  const { info, deckCard } = useResolvedGameCard(card);
-  const presentation = deriveCardPresentation(card);
-  const display = resolveRulesPreviewDisplay({
-    card,
-    presentation,
-    info,
-    deckLayout: deckCard.layout,
-    showBackFace,
-    faceless: false,
-  });
+}: Pick<Props, "card"> & {
+  info: ScryfallCard | null;
+  deckLayout: string | undefined;
+  presentation: CardPresentation;
+  display: RulesPreviewDisplay;
+  descriptionId: string;
+}) {
   const progression = display.currentFace ? presentation.progression?.rail : null;
   const layout = display.prototype
     ? "prototype"
     : /\bRoom\b/.test(info?.type_line ?? "")
       ? "room"
-      : deckCard.layout;
+      : deckLayout;
   const suspended = suspendState(card);
   const prototype = printedPrototype(info?.oracle_text ?? "");
   const ranges = [...(info?.oracle_text ?? "").matchAll(/^LEVEL\s+([^\n]+)/gm)].map(
@@ -166,6 +170,19 @@ export function RulesPreviewAccessibility({
   onFlip,
   onDismiss,
 }: Props) {
+  const resolved = useResolvedGameCard(card);
+  const presentation = deriveCardPresentation(card);
+  const display = resolveRulesPreviewDisplay({
+    card,
+    presentation,
+    info: resolved.info,
+    deckLayout: resolved.deckCard.layout,
+    showBackFace,
+    faceless: false,
+  });
+  const isBattleCard = /\bBattle\b/.test(
+    resolved.info?.card_faces?.[0]?.type_line ?? resolved.info?.type_line ?? presentation.typeLine,
+  );
   const [focus, setFocus] = useState<{ key: string; bounds: Bounds } | null>(null);
   const descriptionId = useId();
   const sectionRef = useRef<HTMLElement>(null);
@@ -199,12 +216,20 @@ export function RulesPreviewAccessibility({
     return null;
   }
   const controls = [
-    ...actions.map((action, index) => ({
-      key: `action-${index}`,
-      label: [action.cost, action.label].filter(Boolean).join(": "),
-      activate: () => onSelect(action),
-      actionIndex: index,
-    })),
+    ...actions.flatMap((action, index) =>
+      previewOwnsAction(action, display, isBattleCard)
+        ? [
+            {
+              key: `action-${index}`,
+              label: [action.cost, action.label].filter(Boolean).join(": "),
+              activate: () => {
+                if (previewOwnsAction(action, display, isBattleCard)) onSelect(action, index);
+              },
+              actionIndex: index,
+            },
+          ]
+        : [],
+    ),
     ...[
       { key: "original", label: "Show Realistic card", activate: onOriginal },
       { key: "flip", label: "Flip card face", activate: card.isDoubleFaced ? onFlip : undefined },
@@ -227,7 +252,10 @@ export function RulesPreviewAccessibility({
     >
       <RulesPreviewOracleText
         card={card}
-        showBackFace={showBackFace}
+        info={resolved.info}
+        deckLayout={resolved.deckCard.layout}
+        presentation={presentation}
+        display={display}
         descriptionId={descriptionId}
       />
       {controls.map((control) => {

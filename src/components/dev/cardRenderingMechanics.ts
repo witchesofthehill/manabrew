@@ -12,6 +12,43 @@ export function cardRenderingMechanicActions(
     value: Omit<HandActionOption, "cardId" | "actionId">,
     index: number,
   ): HandActionOption => ({ ...value, cardId: card.id, actionId: `fixture-mechanic-${index}` });
+  if (/\bBattle\b/.test(info.card_faces?.[0]?.type_line ?? info.type_line ?? "")) {
+    const faceIndex = card.faceIndex ?? (card.isTransformed ? 1 : 0);
+    if (card.zone === "hand")
+      return faceIndex === 0
+        ? [
+            action(
+              {
+                kind: "cast",
+                label: `Cast ${info.card_faces?.[0]?.name ?? info.name}`,
+                cost: info.card_faces?.[0]?.mana_cost ?? info.mana_cost,
+                faceIndex: 0,
+                mode: { type: "normal" },
+              },
+              0,
+            ),
+          ]
+        : [];
+    if (card.zone !== "battlefield") return [];
+    const abilities = card.text.split("\n").flatMap((text) => {
+      const activated = /^([^:]+):\s*(.+)$/.exec(text);
+      return activated ? [{ text, cost: activated[1]!, label: activated[2]! }] : [];
+    });
+    return abilities.map(({ text, cost, label }, abilityIndex) =>
+      action(
+        {
+          kind: "ability",
+          label,
+          abilityText: text,
+          cost,
+          faceIndex,
+          abilityIndex,
+          isManaAbility: /^Add\b/.test(label),
+        },
+        abilityIndex,
+      ),
+    );
+  }
   if (info.layout === "room" || /\bRoom\b/.test(info.type_line ?? "")) {
     return (["left", "right"] as const).flatMap((door, index) => {
       if (

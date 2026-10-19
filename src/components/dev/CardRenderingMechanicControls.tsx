@@ -8,12 +8,52 @@ import { cn } from "@/lib/utils";
 interface Props {
   card: ClientCardDto;
   layout?: string;
+  startingDefense?: string;
   value: CardRenderingOverrides;
   onChange: (value: CardRenderingOverrides) => void;
 }
 
-export function CardRenderingMechanicControls({ card, value, onChange, layout }: Props) {
+export function CardRenderingMechanicControls({
+  card,
+  value,
+  onChange,
+  layout,
+  startingDefense,
+}: Props) {
   const presets: Array<{ label: string; state: CardRenderingOverrides }> = [];
+  const battle = card.types.includes("Battle");
+  const defense = startingDefense === undefined ? undefined : Number(startingDefense);
+  if (battle) {
+    if (defense !== undefined && Number.isFinite(defense)) {
+      presets.push(
+        {
+          label: `Starting defense (${defense})`,
+          state: { zoneId: "battlefield", counters: { ...value.counters, Defense: defense } },
+        },
+        {
+          label: `Damaged defense (${Math.max(0, defense - 1)})`,
+          state: {
+            zoneId: "battlefield",
+            counters: { ...value.counters, Defense: Math.max(0, defense - 1) },
+          },
+        },
+      );
+    }
+    presets.push(
+      {
+        label: "Zero defense / no cast permission",
+        state: { zoneId: "battlefield", counters: { ...value.counters, Defense: 0 } },
+      },
+      {
+        label: "Battle in hand",
+        state: { zoneId: "hand", counters: { ...value.counters, Defense: 0 } },
+      },
+      {
+        label: "Battle zone unknown",
+        state: { zoneId: "unknown", counters: { ...value.counters, Defense: 0 } },
+      },
+    );
+  }
   if (card.subtypes.includes("Room")) {
     presets.push(
       { label: "Room in hand", state: { zoneId: "hand", unlockedDoors: undefined } },
@@ -124,6 +164,13 @@ export function CardRenderingMechanicControls({ card, value, onChange, layout }:
         Local examples only. Level counters do not calculate P/T; edit engine P/T separately. Use
         the action-count control to show owned mechanic action examples.
       </p>
+      {battle && (
+        <p className="mb-2 text-xs text-muted-foreground">
+          The shield shows current defense on the battlefield and printed starting defense in hand.
+          Zero only removes the local counter; it does not resolve a defeat trigger or grant a cast
+          action. Protector is not exposed by the engine snapshot.
+        </p>
+      )}
       <div className="flex flex-wrap gap-2">
         {presets.map(({ label, state }) => {
           const selected = Object.entries(state).every(

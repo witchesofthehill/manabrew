@@ -71,7 +71,7 @@ export function applyCardRenderingOverrides(
     zone:
       fields.zoneId === "battlefield" || fields.zoneId === "hand" || fields.zoneId === "exile"
         ? fields.zoneId
-        : fields.zoneId === "stack"
+        : fields.zoneId !== undefined
           ? undefined
           : card.zone,
     identity: isToken === undefined ? card.identity : { ...card.identity, isToken },

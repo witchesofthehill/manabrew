@@ -1,7 +1,6 @@
 import { loadCanvasImages } from "card-glint/magic/presentation";
 import { loadScryfallImage } from "@/lib/scryfallImageSource";
 
-export const CARD_ARTWORK_FACE_FRAGMENT = "#manabrew-card-art-face=";
 const MAX_ARTWORK_BYTES = 32 * 1024 * 1024;
 interface ImageLease {
   images: Map<string, ImageBitmap>;
@@ -21,29 +20,11 @@ const images = new Map<string, ImageEntry>();
 let imageBytes = 0;
 
 async function decodeArtwork(url: string): Promise<ImageLease> {
-  const separator = url.lastIndexOf(CARD_ARTWORK_FACE_FRAGMENT);
-  const source = separator < 0 ? url : url.slice(0, separator);
   const image = new Image();
   image.crossOrigin = "anonymous";
-  image.src = await loadScryfallImage(source);
+  image.src = await loadScryfallImage(url);
   await image.decode();
-  let bitmap: ImageBitmap;
-  if (separator < 0) bitmap = await createImageBitmap(image);
-  else {
-    const index = Number(url.slice(separator + CARD_ARTWORK_FACE_FRAGMENT.length));
-    if (index !== 0 && index !== 1) throw new Error("Invalid multipart artwork face");
-    const horizontal = image.naturalWidth >= image.naturalHeight;
-    const extent = horizontal ? image.naturalWidth : image.naturalHeight;
-    const start = index * Math.floor(extent / 2);
-    const length = index === 0 ? Math.floor(extent / 2) : extent - start;
-    bitmap = await createImageBitmap(
-      image,
-      horizontal ? start : 0,
-      horizontal ? 0 : start,
-      horizontal ? length : image.naturalWidth,
-      horizontal ? image.naturalHeight : length,
-    );
-  }
+  const bitmap = await createImageBitmap(image);
   return { images: new Map([[url, bitmap]]), dispose: () => bitmap.close() };
 }
 

@@ -260,11 +260,21 @@ export function attachCardRenderGeometry(
   face: RenderedCardInput,
   selectedFaceIndex: number,
 ): void {
-  const panels = splitPanels(face);
+  const semantic = isSemanticLayout(face);
+  const panels = semantic ? [] : splitPanels(face);
+  const frame = semantic ? undefined : faceFrame(face);
+  const room =
+    face.layout === "split" &&
+    [face, ...(face.faces ?? [])].some((part) =>
+      /\bRoom\b/i.test(part.canonicalTypeLine ?? part.typeLine ?? ""),
+    ) &&
+    panels.length === 2 &&
+    panels.every((panel) => panel.rotation === -90);
+  const sideways = face.frameTemplate === "battle" || room || face.layout === "planar";
   const regions: CardRenderRegion[] = [];
-  const leveler = faceFrame(face) === "leveler";
+  const leveler = frame === "leveler";
   const levelBlocks = leveler ? extraRuleBlocks(face) : [];
-  const classBlocks = faceFrame(face) === "class" ? extraRuleBlocks(face) : [];
+  const classBlocks = frame === "class" ? extraRuleBlocks(face) : [];
   const classBand = classBlocks.find((block) => block.asset === CLASS_LEVEL_ASSET);
   const classLevelBand = classBand
     ? Object.freeze({
@@ -276,7 +286,7 @@ export function attachCardRenderGeometry(
       })
     : undefined;
   const sagaRail: CardInteractionPanel["sagaRail"] =
-    faceRects(face) === SAGA_RECTS
+    !semantic && faceRects(face) === SAGA_RECTS
       ? Object.freeze({
           marker: Object.freeze({
             shape: SAGA_MARKER_GEOMETRY.shape,
@@ -313,6 +323,7 @@ export function attachCardRenderGeometry(
   const levelContent = new Map<string, NonNullable<CardInteractionPanel["level"]>>();
   const palette = resolveFrameColors(face);
   const inkTone =
+    !semantic &&
     face.frameTemplate === "future" &&
     resolveCardProfile(face).land &&
     palette.length === 2 &&
@@ -369,7 +380,7 @@ export function attachCardRenderGeometry(
       );
     }
   };
-  if (isSemanticLayout(face))
+  if (semantic)
     semanticLayoutRegions(face).forEach((region) =>
       add(
         region.name,
@@ -451,7 +462,7 @@ export function attachCardRenderGeometry(
   const interactionPanels = Object.freeze(
     rules.map((region) => {
       const level = levelContent.get(region.name);
-      const planeswalker = !isSemanticLayout(face)
+      const planeswalker = !semantic
         ? planeswalkerPanel(panels[region.faceIndex]?.face ?? face, region)
         : undefined;
       return Object.freeze({
@@ -494,14 +505,8 @@ export function attachCardRenderGeometry(
     Object.freeze({
       width: CARD_RENDER_WIDTH,
       height: CARD_RENDER_HEIGHT,
-      sourceOrientation:
-        face.frameTemplate === "battle" || face.layout === "room" || face.layout === "planar"
-          ? "landscape"
-          : "portrait",
-      normalizationRotation:
-        face.frameTemplate === "battle" || face.layout === "room" || face.layout === "planar"
-          ? -90
-          : 0,
+      sourceOrientation: sideways ? "landscape" : "portrait",
+      normalizationRotation: sideways ? -90 : 0,
       regions: Object.freeze(regions),
       rules,
       artwork,
@@ -523,6 +528,7 @@ function paintedRulesFontSize(
   if (
     panels.length !== 1 ||
     isSemanticLayout(face) ||
+    face.frameTemplate === "battle" ||
     panel!.kind !== "face" ||
     panel!.planeswalker ||
     panel!.sagaRail ||

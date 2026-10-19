@@ -156,13 +156,9 @@ function GeneratedCardCanvas({
     <div
       ref={hostRef}
       className={cn("relative @container aspect-[5/7] overflow-hidden", className)}
-      data-card-renderer={hidden ? undefined : "card-glint"}
+      data-card-renderer={hidden ? undefined : (result?.decision?.engine ?? "card-glint")}
       data-card-render-state={hidden ? undefined : state}
-      data-card-render-template={
-        state === "ready" && result?.decision?.mode === "native"
-          ? result.decision.template
-          : undefined
-      }
+      data-card-render-template={state === "ready" ? result?.decision?.template : undefined}
       data-card-render-fallback={state === "error" ? result?.failure : undefined}
       role="img"
       aria-label={name}

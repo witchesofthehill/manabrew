@@ -18,6 +18,7 @@ import type { ClientCardDto } from "@/stores/gameStore.types";
 interface CardRenderingStateControlsProps {
   card: ClientCardDto | undefined;
   layout?: string;
+  startingDefense?: string;
   value: CardRenderingOverrides;
   onChange: (value: CardRenderingOverrides) => void;
   onReset: () => void;
@@ -43,6 +44,7 @@ const STATUSES: { key: CardRenderingStatus; label: string }[] = [
 export function CardRenderingStateControls({
   card,
   layout,
+  startingDefense,
   value,
   onChange,
   onReset,
@@ -74,6 +76,7 @@ export function CardRenderingStateControls({
           <CardRenderingMechanicControls
             card={card}
             layout={layout}
+            startingDefense={startingDefense}
             value={value}
             onChange={onChange}
           />

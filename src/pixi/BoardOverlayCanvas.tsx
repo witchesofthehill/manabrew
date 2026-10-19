@@ -1194,8 +1194,9 @@ export function BoardOverlayCanvasSurface({
           actions={previewSpec.actions}
           onFocusAction={previewControlBounds}
           cardBounds={() => previewControlBounds()}
-          onSelect={(action) => {
-            if (previewControlBounds()) onSelectPreviewAction?.(action);
+          onSelect={(action, index) => {
+            if (previewRef.current?.ownsAction(index) && previewControlBounds())
+              onSelectPreviewAction?.(action);
           }}
           onHold={() => onPreviewPointerEnter?.()}
           onRelease={() => onPreviewPointerLeave?.()}

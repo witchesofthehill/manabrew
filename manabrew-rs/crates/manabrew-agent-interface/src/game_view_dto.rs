@@ -701,16 +701,23 @@ fn card_to_dto_with_face_visibility(
             card.mana_cost.cmc(),
         )
     };
-    let mut keywords = card.keywords.as_string_list();
+    let mut keywords = if face_visible {
+        card.keywords.as_string_list()
+    } else {
+        Vec::new()
+    };
     let mut granted_keywords: Vec<String> = Vec::new();
-    for k in card
-        .granted_keywords
-        .iter_strings()
-        .chain(card.pump_keywords.iter_strings())
-    {
-        if !keywords.iter().any(|e| e.eq_ignore_ascii_case(k)) {
-            keywords.push(k.to_string());
-            granted_keywords.push(k.to_string());
+    if face_visible {
+        for k in card
+            .granted_keywords
+            .iter_strings()
+            .chain(card.pump_keywords.iter_strings())
+            .chain(card.until_lose_control_keywords.iter_strings())
+        {
+            if !keywords.iter().any(|e| e.eq_ignore_ascii_case(k)) {
+                keywords.push(k.to_string());
+                granted_keywords.push(k.to_string());
+            }
         }
     }
 

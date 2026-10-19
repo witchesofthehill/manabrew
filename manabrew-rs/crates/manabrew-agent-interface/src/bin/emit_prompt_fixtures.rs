@@ -52,7 +52,6 @@ fn main() {
                         mode: PlayCardMode::Normal,
                         label: "Cast normally".into(),
                         face_index: None,
-                        mechanic: None,
                     },
                 },
                 AvailableAction {
@@ -62,7 +61,6 @@ fn main() {
                         mode: PlayCardMode::Normal,
                         label: "Play land".into(),
                         face_index: None,
-                        mechanic: None,
                     },
                 },
                 AvailableAction {
@@ -73,9 +71,8 @@ fn main() {
                         description: "{T}: Add {G}.".into(),
                         cost: Some("{T}".into()),
                         is_mana_ability: true,
-                        is_class_level_up: Some(false),
+                        level_up: None,
                         face_index: None,
-                        mechanic: None,
                         produced_mana: Some(vec![Mana {
                             color: ManaColor::Green,
                             amount: 1,

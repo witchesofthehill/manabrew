@@ -236,10 +236,10 @@ vec4 dots(vec4 ink,vec2 uv,float enabled){
 }
 vec4 glintSampleFace(vec2 uv){return dots(rawFace(uv),uv,faceProcedural);}
 float glintSampleMask(vec2 uv){vec2 p=vec2(uv.x,mix(1.-uv.y,uv.y,maskBottomUp));return ${instanced ? "texture(masks,vec3(p,layerIds.y)).r" : "texture(mask,p).r"};}
-vec4 finishPrinting(vec2 uv){
- vec4 ink=decodeInk(${instanced ? "texture(printings,vec3(vec2(uv.x,mix(1.-uv.y,uv.y,printingPrepared)),layerIds.z))" : "texture(printing,vec2(uv.x,mix(1.-uv.y,uv.y,printingPrepared)))"},printingPrepared);
- return dots(ink,uv,printingProcedural);
+vec4 rawPrinting(vec2 uv){
+ return decodeInk(${instanced ? "texture(printings,vec3(vec2(uv.x,mix(1.-uv.y,uv.y,printingPrepared)),layerIds.z))" : "texture(printing,vec2(uv.x,mix(1.-uv.y,uv.y,printingPrepared)))"},printingPrepared);
 }
+vec4 finishPrinting(vec2 uv){return dots(rawPrinting(uv),uv,printingProcedural);}
 float finishCoverage(vec2 uv){return hasCoverage>.5?${instanced ? "texture(coverages,vec3(uv.x,1.-uv.y,layerIds.w)).r" : "texture(coverage,vec2(uv.x,1.-uv.y)).r"}:1.;}
 vec3 modernSurface(vec2 uv,vec3 normal,vec3 view,vec2 pixel){
  vec3 base=glintSampleFace(uv).rgb;
@@ -261,7 +261,14 @@ void main(){
  for(int i=0;i<8;i++){if(i>=uExclusionCount)break;vec4 e=exclusionAt(i);if(e.z>0.&&point.x>=e.x&&point.y>=e.y&&point.x<=e.x+e.z&&point.y<=e.y+e.w){
   if(heatDeformation<=0.)discard;
   if(any(lessThan(originalUv,vec2(0.)))||any(greaterThan(originalUv,vec2(1.))))discard;
-  vec4 base=rawFace(vec2(originalUv.x,1.-originalUv.y));float alpha=base.a*uColor.a;
+  vec2 protectedUv=vec2(originalUv.x,1.-originalUv.y);
+  vec4 base=rawFace(protectedUv);
+  if(hasPrinting>0.){
+   vec4 top=rawPrinting(protectedUv);
+   float alpha=top.a+base.a*(1.-top.a);
+   base=vec4((top.rgb*top.a+base.rgb*base.a*(1.-top.a))/max(alpha,.00001),alpha);
+  }
+  float alpha=base.a*uColor.a;
   finalColor=vec4(previewInk(base.rgb)*alpha,alpha);return;
  }}
  vec2 clipPoint=(heatDeformation>0.&&fullCard()?materialUv(sourceUv):vUV)*uSize;

@@ -113,7 +113,10 @@ realm.addEventListener("message", (event) => {
       let result: CardCompositionResult | undefined;
       try {
         controller.signal.throwIfAborted();
-        await (kernels ??= initializeKernels({ wasmUrl: pixelsWasmUrl }));
+        await (kernels ??= initializeKernels({ wasmUrl: pixelsWasmUrl }).catch((error: unknown) => {
+          kernels = undefined;
+          throw error;
+        }));
         controller.signal.throwIfAborted();
         result = await composeCardRaster(message.input, controller.signal);
         controller.signal.throwIfAborted();

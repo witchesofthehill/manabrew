@@ -66,21 +66,27 @@ function GeneratedCardCanvas({
   const [tier, setTier] = useState<CardRenderTier>();
   const locale = useScryfallStore((store) => store.locale);
   const requestRef = useRef<CardRenderRequest>({ card, deckCard, faceIndex });
-  const renderKey =
+  const faceKey =
     hidden || (!card?.identity.name && !deckCard?.identity.name)
       ? null
-      : JSON.stringify([cardRenderInputKey({ card, deckCard, faceIndex }), locale, tier]);
+      : JSON.stringify([cardRenderInputKey({ card, deckCard, faceIndex }), locale]);
+  const renderKey = faceKey && JSON.stringify([faceKey, tier]);
   const pendingKeyRef = useRef(renderKey);
   const [visible, setVisible] = useState(loading !== "lazy");
   const [result, setResult] = useState<{
     key: string | null;
     state: "ready" | "error";
     decision?: CardRenderDecision;
-    artWindows?: readonly CardArtWindow[];
-    liveHighlights?: CardLiveHighlightLayers;
     failure?: string;
   }>();
-  const [hasImage, setHasImage] = useState(false);
+  const [raster, setRaster] = useState<{
+    key: string | null;
+    decision?: CardRenderDecision;
+    artWindows?: readonly CardArtWindow[];
+    liveHighlights?: CardLiveHighlightLayers;
+  }>();
+  const hasImage = !!raster && raster.key === faceKey;
+  const decision = hasImage ? raster?.decision : result?.decision;
   const foil = !hidden && (card ? card.foil : deckCard?.identity.foil);
   const cosmetics = hidden ? undefined : card ? card.cosmetics : deckCard?.identity.cosmetics;
   const identity = deckCard?.identity ?? card?.identity;
@@ -125,13 +131,13 @@ function GeneratedCardCanvas({
     };
   }, [hidden]);
 
-  useEffect(
-    () => () => {
+  useLayoutEffect(() => {
+    setRaster(undefined);
+    return () => {
       visibleRasterRelease.current?.();
       visibleRasterRelease.current = null;
-    },
-    [],
-  );
+    };
+  }, [faceKey]);
 
   useEffect(() => {
     if (visible || loading !== "lazy") return;
@@ -167,13 +173,16 @@ function GeneratedCardCanvas({
           copyCardLiveHighlights(image, canvas);
           const previousRelease = visibleRasterRelease.current;
           visibleRasterRelease.current = retainCardRaster(image);
-          setHasImage(true);
+          setRaster({
+            key: faceKey,
+            decision,
+            artWindows,
+            liveHighlights: getCardLiveHighlights(canvas),
+          });
           setResult({
             key: renderKey,
             state: "ready",
             decision,
-            artWindows,
-            liveHighlights: getCardLiveHighlights(canvas),
           });
           previousRelease?.();
           const request = requestRef.current;
@@ -202,15 +211,15 @@ function GeneratedCardCanvas({
         }
       });
     return () => controller.abort();
-  }, [renderKey, hidden, loading, visible, tier]);
+  }, [renderKey, faceKey, hidden, loading, visible, tier]);
 
   return (
     <div
       ref={hostRef}
       className={cn("relative @container aspect-[5/7] overflow-hidden", className)}
-      data-card-renderer={hidden ? undefined : (result?.decision?.engine ?? "card-glint")}
+      data-card-renderer={hidden ? undefined : (decision?.engine ?? "card-glint")}
       data-card-render-state={hidden ? undefined : state}
-      data-card-render-template={state === "ready" ? result?.decision?.template : undefined}
+      data-card-render-template={hasImage ? raster?.decision?.template : undefined}
       data-card-render-fallback={state === "error" ? result?.failure : undefined}
       role="img"
       aria-label={name}
@@ -250,13 +259,13 @@ function GeneratedCardCanvas({
             cosmetics={cosmetics}
             etched={isEtchedOnlyPrinting(printing?.info.finishes)}
             source={hasImage ? canvasRef.current : undefined}
-            artWindows={hasImage ? result?.artWindows : undefined}
+            artWindows={hasImage ? raster?.artWindows : undefined}
             lighting={lighting}
             pose={pose}
           />
           <CardLiveHighlightOverlay
             enabled={!hidden && visible && hasImage}
-            layers={hasImage ? result?.liveHighlights : undefined}
+            layers={hasImage ? raster?.liveHighlights : undefined}
           />
         </>
       )}

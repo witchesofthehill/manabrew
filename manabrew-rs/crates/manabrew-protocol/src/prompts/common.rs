@@ -79,12 +79,9 @@ pub enum PlayCardMode {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "prompts/common.ts")]
-pub enum ActionMechanic {
-    LevelUp,
-    UnlockDoor,
-    Suspend,
-    Adventure,
-    Prototype,
+pub enum LevelUpKind {
+    Class,
+    Creature,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -97,13 +94,10 @@ pub struct ActivatableAbilityInfo {
     pub is_mana_ability: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
-    pub is_class_level_up: Option<bool>,
+    pub level_up: Option<LevelUpKind>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub face_index: Option<u8>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub mechanic: Option<ActionMechanic>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub cost: Option<String>,
@@ -127,9 +121,6 @@ pub enum AvailableActionKind {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
         face_index: Option<u8>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        #[ts(optional)]
-        mechanic: Option<ActionMechanic>,
     },
     ActivateAbility(ActivatableAbilityInfo),
     UndoMana {

@@ -23,7 +23,7 @@ use crate::ids_codec::{card_id_str, parse_card_id, parse_player_id, player_id_st
 use crate::mana_action_id::{mana_ability_actions, parse_tap_action_id};
 use crate::prompt::*;
 use manabrew_protocol::game::RoomDoor;
-use manabrew_protocol::prompts::common::ActionMechanic;
+use manabrew_protocol::prompts::common::LevelUpKind;
 
 mod choices;
 mod combat;
@@ -634,21 +634,6 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                         ),
                         _ => None,
                     },
-                    mechanic: match play.mode {
-                        manabrew_engine::agent::PlayCardMode::Adventure => {
-                            Some(ActionMechanic::Adventure)
-                        }
-                        manabrew_engine::agent::PlayCardMode::UnlockDoor { .. } => {
-                            Some(ActionMechanic::UnlockDoor)
-                        }
-                        manabrew_engine::agent::PlayCardMode::Alternative(
-                            manabrew_engine::spellability::AlternativeCost::Prototype,
-                        ) => Some(ActionMechanic::Prototype),
-                        manabrew_engine::agent::PlayCardMode::Alternative(
-                            manabrew_engine::spellability::AlternativeCost::Suspend,
-                        ) => Some(ActionMechanic::Suspend),
-                        _ => None,
-                    },
                 },
             });
         }
@@ -686,9 +671,14 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                         description: a.description.clone(),
                         cost: a.cost.clone(),
                         is_mana_ability: false,
-                        is_class_level_up: Some(a.is_class_level_up),
+                        level_up: if a.is_class_level_up {
+                            Some(LevelUpKind::Class)
+                        } else if a.is_level_up {
+                            Some(LevelUpKind::Creature)
+                        } else {
+                            None
+                        },
                         face_index: a.face_index,
-                        mechanic: a.is_level_up.then_some(ActionMechanic::LevelUp),
                         produced_mana: None,
                     }),
                 });

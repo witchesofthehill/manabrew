@@ -22,7 +22,6 @@
     "scry": "ScryInput"
   },
   "shared": [
-    "ActionMechanic",
     "ActivatableAbilityInfo",
     "AlternativeCostKind",
     "AttackTargetDto",
@@ -56,6 +55,7 @@
     "CardWearPreset",
     "CardWordingMode",
     "DiceRollEntry",
+    "LevelUpKind",
     "PaymentAction",
     "PaymentResourceKind",
     "PlayCardMode",
@@ -120,15 +120,10 @@
     "DeckSideboardPlan"
   ],
   "types": {
-    "ActionMechanic": {
-      "ts": "type ActionMechanic =\n  | \"levelUp\"\n  | \"unlockDoor\"\n  | \"suspend\"\n  | \"adventure\"\n  | \"prototype\";",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub enum ActionMechanic {\n    LevelUp,\n    UnlockDoor,\n    Suspend,\n    Adventure,\n    Prototype,\n}",
-      "refs": []
-    },
     "ActivatableAbilityInfo": {
-      "ts": "interface ActivatableAbilityInfo {\n  cardId: string;\n  abilityIndex: number;\n  description: string;\n  isManaAbility: boolean;\n  isClassLevelUp?: boolean;\n  faceIndex?: number;\n  mechanic?: ActionMechanic;\n  cost?: string;\n  producedMana?: Array<Mana>;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct ActivatableAbilityInfo {\n    pub card_id: String,\n    pub ability_index: usize,\n    pub description: String,\n    pub is_mana_ability: bool,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub is_class_level_up: Option<bool>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub face_index: Option<u8>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub mechanic: Option<ActionMechanic>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub cost: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub produced_mana: Option<Vec<Mana>>,\n}",
-      "refs": ["ActionMechanic", "Mana"]
+      "ts": "interface ActivatableAbilityInfo {\n  cardId: string;\n  abilityIndex: number;\n  description: string;\n  isManaAbility: boolean;\n  levelUp?: LevelUpKind;\n  faceIndex?: number;\n  cost?: string;\n  producedMana?: Array<Mana>;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct ActivatableAbilityInfo {\n    pub card_id: String,\n    pub ability_index: usize,\n    pub description: String,\n    pub is_mana_ability: bool,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub level_up: Option<LevelUpKind>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub face_index: Option<u8>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub cost: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub produced_mana: Option<Vec<Mana>>,\n}",
+      "refs": ["LevelUpKind", "Mana"]
     },
     "AlternativeCostKind": {
       "ts": "type AlternativeCostKind =\n  | \"flashback\"\n  | \"spectacle\"\n  | \"evoke\"\n  | \"dash\"\n  | \"blitz\"\n  | \"escape\"\n  | \"overload\"\n  | \"madness\"\n  | \"foretell\"\n  | \"emerge\"\n  | \"suspend\"\n  | \"morph\"\n  | \"megamorph\"\n  | \"bestow\"\n  | \"warp\"\n  | \"sacrificeAlt\"\n  | \"plot\"\n  | \"awaken\"\n  | \"disturb\"\n  | \"harmonize\"\n  | \"freerunning\"\n  | \"impending\"\n  | \"mayhem\"\n  | \"moreThanMeetsTheEye\"\n  | \"mutate\"\n  | \"prowl\"\n  | \"sneak\"\n  | \"surge\"\n  | \"webSlinging\"\n  | \"plotted\"\n  | \"prototype\";",
@@ -151,9 +146,9 @@
       "refs": []
     },
     "AvailableAction": {
-      "ts": "type AvailableAction = { id: string } & (\n  | {\n      type: \"cast\";\n      cardId: string;\n      mode: PlayCardMode;\n      label: string;\n      faceIndex?: number;\n      mechanic?: ActionMechanic;\n    }\n  | ({ type: \"activateAbility\" } & ActivatableAbilityInfo)\n  | { type: \"undoMana\"; cardId: string }\n);",
+      "ts": "type AvailableAction = { id: string } & (\n  | {\n      type: \"cast\";\n      cardId: string;\n      mode: PlayCardMode;\n      label: string;\n      faceIndex?: number;\n    }\n  | ({ type: \"activateAbility\" } & ActivatableAbilityInfo)\n  | { type: \"undoMana\"; cardId: string }\n);",
       "rust": "pub struct AvailableAction {\n    pub id: String,\n    #[serde(flatten)]\n    pub kind: AvailableActionKind,\n}",
-      "refs": ["ActionMechanic", "ActivatableAbilityInfo", "PlayCardMode"]
+      "refs": ["ActivatableAbilityInfo", "PlayCardMode"]
     },
     "BlockableAttackerDto": {
       "ts": "interface BlockableAttackerDto {\n  attackerId: string;\n  validBlockerIds: Array<string>;\n  minBlockers: number;\n  maxBlockers?: number;\n  mustBeBlocked: boolean;\n}",
@@ -593,6 +588,11 @@
         "StepKind",
         "ZoneDto"
       ]
+    },
+    "LevelUpKind": {
+      "ts": "type LevelUpKind = \"class\" | \"creature\";",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub enum LevelUpKind {\n    Class,\n    Creature,\n}",
+      "refs": []
     },
     "Mana": {
       "ts": "interface Mana {\n  color: ManaColor;\n  amount: number;\n}",

@@ -102,6 +102,12 @@ pub fn can_play_spell_from_zone(
     if card.is_on_adventure() && card.owner == player && !card.adventure_spell {
         return true;
     }
+    if card.zone == forge_foundation::ZoneType::Exile
+        && card.owner == player
+        && card.has_keyword(crate::card::KEYWORD_WARP_EXILED)
+    {
+        return true;
+    }
     if matches!(
         card.zone,
         forge_foundation::ZoneType::Battlefield

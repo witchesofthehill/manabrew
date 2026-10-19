@@ -10,11 +10,7 @@ import {
 } from "@/pixi/cardPreview/rulesCardPreviewPresentation";
 
 export function previewActionFace(action: HandActionOption): number | undefined {
-  if (
-    action.mechanic === "prototype" ||
-    (action.mode?.type === "alternative" && action.mode.cost === "prototype")
-  )
-    return 1;
+  if (action.mode?.type === "alternative" && action.mode.cost === "prototype") return 1;
   if (action.faceIndex !== undefined) return action.faceIndex;
   if (action.mode?.type === "unlockDoor") return action.mode.door === "left" ? 0 : 1;
   if (action.mode?.type === "adventure") return 1;
@@ -42,7 +38,7 @@ export function levelActionPanel(
       panel.kind === "level" &&
       (action.faceIndex === undefined || panel.faceIndex === action.faceIndex),
   );
-  if (action.mechanic === "levelUp") return bands[0]?.id;
+  if (action.levelUp === "creature") return bands[0]?.id;
   const text = action.abilityText;
   if (!text) return undefined;
   const matching = bands.filter(

@@ -848,7 +848,7 @@ export class RulesCardPreviewLayer {
         ? progression.rail.current + 1
         : null;
     const classLevelUpIndex = nextClassLevel
-      ? spec.actions.findIndex((action) => action.isClassLevelUp)
+      ? spec.actions.findIndex((action) => action.levelUp === "class")
       : -1;
     const classActionIndex = classLevelUpIndex >= 0 ? classLevelUpIndex : null;
     const indexedActions: IndexedPreviewAction[] = (display.faceless ? [] : spec.actions).map(

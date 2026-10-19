@@ -739,15 +739,15 @@ public final class ManaBrewInteractiveSession {
                         ? "tap:" + cardId + ":" + abilityIndex + ":" + choice.color
                         : "tap:" + cardId + ":" + abilityIndex;
                 actionList.add(new PaymentAction_activateManaAbility(
-                        actionId, cardId, abilityIndex, description, true, false,
-                        actionFaceIndex(sa), actionMechanic(sa), cost, choice.producedMana));
+                        actionId, cardId, abilityIndex, description, true, null,
+                        actionFaceIndex(sa), cost, choice.producedMana));
             }
         }
 
         for (final Card card : convokeSources) {
             final String cardId = SnapshotExtractor.javaCardId(card);
             actionList.add(new PaymentAction_activateManaAbility(
-                    "tap:" + cardId, cardId, 0, card.getName(), true, false, null, null, null, null));
+                    "tap:" + cardId, cardId, 0, card.getName(), true, null, null, null, null));
         }
         for (final Card card : waterbendSources) {
             final String cardId = SnapshotExtractor.javaCardId(card);
@@ -2219,9 +2219,9 @@ public final class ManaBrewInteractiveSession {
             final String cardId = SnapshotExtractor.javaCardId(host);
             final String id = "prompt-action-" + i;
             if (sa.isLandAbility() || sa.isSpell() || sa.isForetelling()
-                    || isUnlockDoorAction(sa)) {
+                    || isUnlockDoorAction(sa) || isSuspendAction(sa)) {
                 actionsArray.add(new AvailableAction_cast(
-                        id, cardId, playCardMode(sa), label, actionFaceIndex(sa), actionMechanic(sa)));
+                        id, cardId, playCardMode(sa), label, actionFaceIndex(sa)));
             } else if (sa.isManaAbility()) {
                 final String description = abilityDescription(sa, label);
                 final String produced = resolveProducedMana(sa);
@@ -2231,13 +2231,13 @@ public final class ManaBrewInteractiveSession {
                             ? "tap:" + cardId + ":" + i + ":" + choice.color
                             : "tap:" + cardId + ":" + i;
                     actionsArray.add(new AvailableAction_activateAbility(
-                            actionId, cardId, i, description, true, false,
-                            actionFaceIndex(sa), actionMechanic(sa), cost, choice.producedMana));
+                            actionId, cardId, i, description, true, null,
+                            actionFaceIndex(sa), cost, choice.producedMana));
                 }
             } else {
                 actionsArray.add(new AvailableAction_activateAbility(
                         id, cardId, i, abilityDescription(sa, label), false,
-                        sa.getApi() == ApiType.ClassLevelUp, actionFaceIndex(sa), actionMechanic(sa),
+                        levelUpKind(sa), actionFaceIndex(sa),
                         costText(sa), null));
             }
         }
@@ -2265,23 +2265,15 @@ public final class ManaBrewInteractiveSession {
         return sa instanceof AbilityStatic && sa.getApi() == ApiType.UnlockDoor;
     }
 
-    private static ActionMechanic actionMechanic(final SpellAbility sa) {
-        if (isUnlockDoorAction(sa)) {
-            return ActionMechanic.UNLOCK_DOOR;
+    private static boolean isSuspendAction(final SpellAbility sa) {
+        return sa.isKeyword(Keyword.SUSPEND) && !sa.isSpell();
+    }
+
+    private static LevelUpKind levelUpKind(final SpellAbility sa) {
+        if (sa.getApi() == ApiType.ClassLevelUp) {
+            return LevelUpKind.CLASS;
         }
-        if (sa.isKeyword(Keyword.LEVEL_UP)) {
-            return ActionMechanic.LEVEL_UP;
-        }
-        if (sa.isKeyword(Keyword.SUSPEND) && !sa.isSpell()) {
-            return ActionMechanic.SUSPEND;
-        }
-        if (sa.isAdventure()) {
-            return ActionMechanic.ADVENTURE;
-        }
-        if (sa.hasParam("Prototype")) {
-            return ActionMechanic.PROTOTYPE;
-        }
-        return null;
+        return sa.isKeyword(Keyword.LEVEL_UP) ? LevelUpKind.CREATURE : null;
     }
 
     private static PlayCardMode playCardMode(final SpellAbility sa) {
@@ -2292,6 +2284,9 @@ public final class ManaBrewInteractiveSession {
                 default -> throw new IllegalArgumentException("unlock ability without a Room door");
             };
             return new PlayCardMode_unlockDoor(door);
+        }
+        if (isSuspendAction(sa)) {
+            return new PlayCardMode_alternative(AlternativeCostKind.SUSPEND);
         }
         if (sa.isForetelling()) {
             return new PlayCardMode_foretellExile();

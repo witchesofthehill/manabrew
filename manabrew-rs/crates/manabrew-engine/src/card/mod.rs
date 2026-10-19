@@ -3882,6 +3882,34 @@ impl Card {
             return;
         };
         self.room_state = Some(state);
+        let static_abilities = self
+            .trait_base_static_abilities
+            .as_mut()
+            .unwrap_or(&mut self.static_abilities);
+        static_abilities.retain(|ability| {
+            !matches!(
+                ability.base.get_card_state_name(),
+                Some(
+                    forge_foundation::CardStateName::LeftSplit
+                        | forge_foundation::CardStateName::RightSplit
+                )
+            )
+        });
+        for (index, face) in faces.iter().enumerate() {
+            let door = if index == 0 {
+                forge_foundation::CardStateName::LeftSplit
+            } else {
+                forge_foundation::CardStateName::RightSplit
+            };
+            if state == forge_foundation::CardStateName::Original || state == door {
+                static_abilities.extend(face.static_abilities.iter().cloned().map(
+                    |mut ability| {
+                        ability.base.set_host_card_id(self.id);
+                        ability
+                    },
+                ));
+            }
+        }
         match state {
             forge_foundation::CardStateName::LeftSplit
             | forge_foundation::CardStateName::RightSplit => {
@@ -3915,6 +3943,10 @@ impl Card {
                 self.abilities.clone_from(&faces[0].abilities);
                 self.abilities.extend(faces[1].abilities.iter().cloned());
             }
+        }
+        if self.trait_base_static_abilities.is_some() {
+            self.trait_base_keywords = Some(self.keywords.clone());
+            self.recompute_changed_card_traits();
         }
         if self.static_type_line_base.is_some() {
             self.static_type_line_base = Some(self.type_line.clone());

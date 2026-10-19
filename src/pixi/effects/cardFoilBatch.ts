@@ -147,6 +147,7 @@ class CardFoilPipe {
     }
   }
   renderStart(): void {
+    if (this.renderer.gl.isContextLost()) return;
     this.epoch++;
     const renderer = this.renderer;
     const gl = renderer.gl as WebGL2RenderingContext;
@@ -170,6 +171,7 @@ class CardFoilPipe {
     }
   }
   renderEnd(): void {
+    if (this.renderer.gl.isContextLost()) return;
     for (const resident of this.residency.values())
       if (resident.used !== this.epoch) resident.dispose();
     for (const instruction of this.instructions) {
@@ -251,6 +253,7 @@ class CardFoilPipe {
   }
 
   execute(instruction: BatchInstruction): void {
+    if (this.renderer.gl.isContextLost()) return;
     const presentation = instruction.meshes[0]?.presentation;
     const timer = presentation
       ? (this.gpuTimers[presentation] ??= createCardGpuTimer(

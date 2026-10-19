@@ -14,12 +14,12 @@ msgstr ""
 "Plural-Forms: \n"
 
 #. placeholder {0}: display.stats.damage
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1215
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1255
 msgid "{0} damage"
 msgstr "{0} 點傷害"
 
 #: src/components/game/RulesPreviewAccessibility.tsx:92
-#: src/pixi/cardPreview/previewMechanics.ts:101
+#: src/pixi/cardPreview/previewMechanics.ts:97
 msgid "Active level"
 msgstr "生效等級"
 
@@ -27,13 +27,13 @@ msgstr "生效等級"
 msgid "Base ability"
 msgstr "基本異能"
 
-#: src/pixi/cardPreview/previewMechanics.ts:103
+#: src/pixi/cardPreview/previewMechanics.ts:99
 msgid "Current characteristics"
 msgstr "目前特徵"
 
 #. placeholder {0}: display.stats.power
 #. placeholder {1}: display.stats.toughness
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1023
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1063
 msgid "Current P/T: {0}/{1}"
 msgstr "目前力量／防禦力：{0}/{1}"
 
@@ -41,7 +41,7 @@ msgstr "目前力量／防禦力：{0}/{1}"
 msgid "Current power and toughness"
 msgstr "目前力量與防禦力"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1599
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1639
 msgid "Defense"
 msgstr "防禦"
 
@@ -58,16 +58,16 @@ msgstr "牌面朝下的牌"
 msgid "Face-down permanent"
 msgstr "牌面朝下的永久物"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1187
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1227
 msgid "Flip back · F"
 msgstr "翻到背面 · F"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1187
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1227
 msgid "Flip front · F"
 msgstr "翻到正面 · F"
 
 #: src/components/game/RulesPreviewAccessibility.tsx:93
-#: src/pixi/cardPreview/previewMechanics.ts:101
+#: src/pixi/cardPreview/previewMechanics.ts:97
 msgid "Inactive level"
 msgstr "未生效等級"
 
@@ -80,11 +80,11 @@ msgstr "等級"
 msgid "Level {0}"
 msgstr "等級 {0}"
 
-#: src/pixi/cardPreview/previewMechanics.ts:99
+#: src/pixi/cardPreview/previewMechanics.ts:95
 msgid "Locked"
 msgstr "已上鎖"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1598
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1638
 msgid "Loyalty"
 msgstr "忠誠"
 
@@ -96,27 +96,27 @@ msgstr "魔法力費用"
 msgid "Not prototyped"
 msgstr "非試作狀態"
 
-#: src/pixi/cardPreview/previewMechanics.ts:128
+#: src/pixi/cardPreview/previewMechanics.ts:124
 msgid "Not suspended"
 msgstr "未延緩"
 
-#: src/pixi/cardPreview/previewMechanics.ts:105
+#: src/pixi/cardPreview/previewMechanics.ts:101
 msgid "On an Adventure"
 msgstr "歷險中"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1017
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1057
 msgid "On an Adventure · available actions are listed on their spell half"
 msgstr "歷險中 · 可用操作列於咒語一側"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1203
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1243
 msgid "Original printing · generated frame unavailable"
 msgstr ""
 
-#: src/pixi/cardPreview/previewMechanics.ts:103
+#: src/pixi/cardPreview/previewMechanics.ts:99
 msgid "Printed alternative"
 msgstr "牌面上的另一組特徵"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1201
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1241
 msgid "Printed face · live state belongs to the other face"
 msgstr "印刷牌面 · 目前狀態屬於另一面"
 
@@ -140,11 +140,11 @@ msgstr "已偵結 · 生效"
 msgid "Solved ability"
 msgstr "偵結異能"
 
-#: src/pixi/cardPreview/previewMechanics.ts:131
+#: src/pixi/cardPreview/previewMechanics.ts:127
 msgid "Suspended"
 msgstr "已延緩"
 
-#: src/pixi/cardPreview/previewMechanics.ts:132
+#: src/pixi/cardPreview/previewMechanics.ts:128
 msgid "Suspended · {time} time counters"
 msgstr "已延緩 · {time} 個計時指示物"
 
@@ -152,7 +152,7 @@ msgstr "已延緩 · {time} 個計時指示物"
 msgid "To solve"
 msgstr "偵辦"
 
-#: src/pixi/cardPreview/previewMechanics.ts:99
+#: src/pixi/cardPreview/previewMechanics.ts:95
 msgid "Unlocked"
 msgstr "已解鎖"
 

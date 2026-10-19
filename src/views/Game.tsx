@@ -467,9 +467,8 @@ export default function Game({ exitTo }: GameProps = {}) {
     label: a.description,
     abilityText: a.description,
     isManaAbility: a.isManaAbility,
-    isClassLevelUp: a.isClassLevelUp,
+    levelUp: a.levelUp,
     faceIndex: a.faceIndex,
-    mechanic: a.mechanic,
     cost: a.cost,
     displayManaLetters: a.displayManaLetters,
     colorChoice: a.colorChoice,
@@ -485,7 +484,6 @@ export default function Game({ exitTo }: GameProps = {}) {
         cardId: a.cardId,
         mode: a.mode,
         faceIndex: a.faceIndex,
-        mechanic: a.mechanic,
         label: a.label,
         actionId: a.id,
       });
@@ -516,9 +514,8 @@ export default function Game({ exitTo }: GameProps = {}) {
           abilityIndex: a.abilityIndex,
           description: a.description,
           isManaAbility: true,
-          isClassLevelUp: false,
+          levelUp: a.levelUp,
           faceIndex: a.faceIndex,
-          mechanic: a.mechanic,
           cost: a.cost,
           producedMana: a.producedMana,
           actionId: a.id,
@@ -731,7 +728,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   const handleBattlefieldCardAction = (card: CardDto, e?: React.MouseEvent) => {
     const abilities = getBattlefieldAbilityOptions(card);
     if (abilities.length === 0) return false;
-    if (abilities.length === 1 && !abilities[0].isClassLevelUp) {
+    if (abilities.length === 1 && abilities[0].levelUp !== "class") {
       return respondHandAction(abilities[0]);
     }
     preview.showSticky(card, e?.clientX, e?.clientY);

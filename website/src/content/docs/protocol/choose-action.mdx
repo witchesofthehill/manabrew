@@ -16,6 +16,20 @@ available actions directly on the board**.
 
 <ProtocolType slug="choose-action" />
 
+Each cast/play action has one typed `mode`. Room unlocks use
+`{ type: "unlockDoor", door: "left" | "right" }`; Suspend uses
+`{ type: "alternative", cost: "suspend" }`. These operations retain the existing
+action kinds and dispatch through the advertised action ID.
+
+Optional `faceIndex` identifies the face that owns a cast or activated ability.
+It is independent of the mode: a back-face spell can use `mode: { type: "normal" }`.
+Activated leveling abilities use optional `levelUp: "class" | "creature"`.
+There is no separate `mechanic` field or `isClassLevelUp` flag.
+
+Action availability and live card state are separate. For example, an unlock
+action offers a legal choice, while `CardDto.unlockedDoors` describes which
+doors are already unlocked.
+
 ## Rendering
 
 There's no dialog - while you hold priority, each entry in `actions` is
@@ -46,10 +60,9 @@ highlighted in place.
 ```ts
 type ChooseActionOutput =
   | { type: "pass"; until?: PassUntil; exhaustStack: boolean }
-  | { type: "restoreSnapshot"; checkpointId: number }
   | { type: "act"; actionId: string };
 
-type PassUntil = { playerId: string; phase: StepKind };
+type PassUntil = { playerId: string; phase: StepKind; throughCombat: boolean };
 ```
 
 Send `{ type: "act", actionId }` to perform an action by its `id` - including
@@ -79,8 +92,8 @@ Conceding is **not** a response - it is the out-of-band `directive` message
         "id": "act-0",
         "type": "cast",
         "cardId": "hand-2",
-        "mode": "cast",
-        "modeLabel": "Cast Lightning Bolt"
+        "mode": { "type": "normal" },
+        "label": "Cast Lightning Bolt"
       },
       {
         "id": "tap:perm-5:0",

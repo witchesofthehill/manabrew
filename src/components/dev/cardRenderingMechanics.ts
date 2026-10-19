@@ -67,7 +67,6 @@ export function cardRenderingMechanicActions(
                 : `Unlock ${face?.name ?? door}`,
             cost: face?.mana_cost,
             faceIndex: index,
-            mechanic: "unlockDoor",
             mode:
               card.zoneId === "hand"
                 ? index === 0
@@ -90,7 +89,6 @@ export function cardRenderingMechanicActions(
           label: `Cast ${info.card_faces?.[index]?.name ?? "spell"}`,
           cost: info.card_faces?.[index]?.mana_cost,
           faceIndex: index,
-          mechanic: index === 1 ? "adventure" : undefined,
           mode: index === 1 ? { type: "adventure" } : { type: "normal" },
         },
         index,
@@ -117,7 +115,6 @@ export function cardRenderingMechanicActions(
           label: "Cast as Prototype",
           cost: prototype.manaCost,
           faceIndex: 0,
-          mechanic: "prototype",
           mode: { type: "alternative", cost: "prototype" },
         },
         1,
@@ -129,7 +126,7 @@ export function cardRenderingMechanicActions(
         {
           kind: "ability",
           label: "Level up",
-          mechanic: "levelUp",
+          levelUp: "creature",
           faceIndex: 0,
           abilityIndex: 0,
           abilityText: (info.oracle_text ?? "").split("\n")[0],
@@ -161,7 +158,6 @@ export function cardRenderingMechanicActions(
             {
               kind: "cast",
               label: "Suspend",
-              mechanic: "suspend",
               faceIndex: 0,
               mode: { type: "alternative", cost: "suspend" },
             },

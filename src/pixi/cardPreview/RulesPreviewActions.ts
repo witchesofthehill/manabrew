@@ -67,11 +67,10 @@ function sameAction(left: HandActionOption, right: HandActionOption): boolean {
     (left.mode?.type !== "unlockDoor" ||
       (right.mode?.type === "unlockDoor" && left.mode.door === right.mode.door)) &&
     left.faceIndex === right.faceIndex &&
-    left.mechanic === right.mechanic &&
     left.colorChoice === right.colorChoice &&
     left.toZoneId === right.toZoneId &&
     left.tapped === right.tapped &&
-    left.isClassLevelUp === right.isClassLevelUp &&
+    left.levelUp === right.levelUp &&
     left.isManaAbility === right.isManaAbility &&
     (left.actionId !== undefined || left.abilityIndex !== undefined || left.label === right.label)
   );

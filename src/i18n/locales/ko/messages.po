@@ -14,12 +14,12 @@ msgstr ""
 "Plural-Forms: \n"
 
 #. placeholder {0}: display.stats.damage
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1215
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1255
 msgid "{0} damage"
 msgstr "피해 {0}"
 
 #: src/components/game/RulesPreviewAccessibility.tsx:92
-#: src/pixi/cardPreview/previewMechanics.ts:101
+#: src/pixi/cardPreview/previewMechanics.ts:97
 msgid "Active level"
 msgstr "활성 레벨"
 
@@ -27,13 +27,13 @@ msgstr "활성 레벨"
 msgid "Base ability"
 msgstr "기본 능력"
 
-#: src/pixi/cardPreview/previewMechanics.ts:103
+#: src/pixi/cardPreview/previewMechanics.ts:99
 msgid "Current characteristics"
 msgstr "현재 특성"
 
 #. placeholder {0}: display.stats.power
 #. placeholder {1}: display.stats.toughness
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1023
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1063
 msgid "Current P/T: {0}/{1}"
 msgstr "현재 공격력/방어력: {0}/{1}"
 
@@ -41,7 +41,7 @@ msgstr "현재 공격력/방어력: {0}/{1}"
 msgid "Current power and toughness"
 msgstr "현재 공격력 및 방어력"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1599
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1639
 msgid "Defense"
 msgstr "방어"
 
@@ -58,16 +58,16 @@ msgstr "뒷면인 카드"
 msgid "Face-down permanent"
 msgstr "뒷면인 영구물"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1187
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1227
 msgid "Flip back · F"
 msgstr "뒷면으로 뒤집기 · F"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1187
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1227
 msgid "Flip front · F"
 msgstr "앞면으로 뒤집기 · F"
 
 #: src/components/game/RulesPreviewAccessibility.tsx:93
-#: src/pixi/cardPreview/previewMechanics.ts:101
+#: src/pixi/cardPreview/previewMechanics.ts:97
 msgid "Inactive level"
 msgstr "비활성 레벨"
 
@@ -80,11 +80,11 @@ msgstr "레벨"
 msgid "Level {0}"
 msgstr "레벨 {0}"
 
-#: src/pixi/cardPreview/previewMechanics.ts:99
+#: src/pixi/cardPreview/previewMechanics.ts:95
 msgid "Locked"
 msgstr "잠김"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1598
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1638
 msgid "Loyalty"
 msgstr "충성도"
 
@@ -96,27 +96,27 @@ msgstr "마나 비용"
 msgid "Not prototyped"
 msgstr "프로토타입 미적용"
 
-#: src/pixi/cardPreview/previewMechanics.ts:128
+#: src/pixi/cardPreview/previewMechanics.ts:124
 msgid "Not suspended"
 msgstr "유예 중이 아님"
 
-#: src/pixi/cardPreview/previewMechanics.ts:105
+#: src/pixi/cardPreview/previewMechanics.ts:101
 msgid "On an Adventure"
 msgstr "모험 중"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1017
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1057
 msgid "On an Adventure · available actions are listed on their spell half"
 msgstr "모험 중 · 가능한 행동은 주문 쪽에 표시됩니다"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1203
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1243
 msgid "Original printing · generated frame unavailable"
 msgstr ""
 
-#: src/pixi/cardPreview/previewMechanics.ts:103
+#: src/pixi/cardPreview/previewMechanics.ts:99
 msgid "Printed alternative"
 msgstr "인쇄된 대체 특성"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1201
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1241
 msgid "Printed face · live state belongs to the other face"
 msgstr "인쇄된 면 · 현재 상태는 반대쪽 면에 적용됩니다"
 
@@ -140,11 +140,11 @@ msgstr "해결됨 · 활성"
 msgid "Solved ability"
 msgstr "해결 후 능력"
 
-#: src/pixi/cardPreview/previewMechanics.ts:131
+#: src/pixi/cardPreview/previewMechanics.ts:127
 msgid "Suspended"
 msgstr "유예 중"
 
-#: src/pixi/cardPreview/previewMechanics.ts:132
+#: src/pixi/cardPreview/previewMechanics.ts:128
 msgid "Suspended · {time} time counters"
 msgstr "유예 중 · 시간 카운터 {time}개"
 
@@ -152,7 +152,7 @@ msgstr "유예 중 · 시간 카운터 {time}개"
 msgid "To solve"
 msgstr "해결 조건"
 
-#: src/pixi/cardPreview/previewMechanics.ts:99
+#: src/pixi/cardPreview/previewMechanics.ts:95
 msgid "Unlocked"
 msgstr "잠금 해제됨"
 

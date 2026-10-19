@@ -210,7 +210,7 @@ export function CardPreview({
     rail?.kind === "class" && rail.current < rail.max ? rail.current + 1 : null;
   const availableActions = hasActions ? (actions ?? []) : [];
   const classLevelUpIndex = nextClassLevel
-    ? availableActions.findIndex((action) => action.isClassLevelUp)
+    ? availableActions.findIndex((action) => action.levelUp === "class")
     : -1;
   const integratedClassLevelUpIndex = classLevelUpIndex >= 0 ? classLevelUpIndex : null;
   const indexedActions: IndexedPreviewAction[] = availableActions.map((action, index) => ({
@@ -227,13 +227,13 @@ export function CardPreview({
       card.isTransformed ? 1 : 0,
     ),
   }));
-  const classLevelUpActions = indexedActions.filter(({ action }) => action.isClassLevelUp);
+  const classLevelUpActions = indexedActions.filter(({ action }) => action.levelUp === "class");
   const railClassLevelUpAction =
     integratedClassLevelUpIndex === null ? undefined : indexedActions[integratedClassLevelUpIndex];
   const extraClassActions = railClassLevelUpAction
     ? classLevelUpActions.filter(({ index }) => index !== railClassLevelUpAction.index)
     : classLevelUpActions;
-  const mainActions = indexedActions.filter(({ action }) => !action.isClassLevelUp);
+  const mainActions = indexedActions.filter(({ action }) => action.levelUp !== "class");
   const railInteractions =
     nextClassLevel && railClassLevelUpAction
       ? [

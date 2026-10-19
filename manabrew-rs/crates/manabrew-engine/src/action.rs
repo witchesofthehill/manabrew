@@ -336,16 +336,19 @@ impl GameState {
         if host_left_battlefield && was_permanent {
             self.player_record_permanent_left_battlefield(src_owner);
         }
-        // Java `Card.clearCastSA` — the cast-SA link dies once the instance
-        // leaves the battlefield (a new cast produces a fresh instance).
         if host_left_battlefield {
             if self.card(card_id).is_room() {
                 self.update_lki_snapshot(card_id);
             }
-            self.card_mut(card_id).cast_sa = None;
             // `ControlGain$ LoseControl$ LeavesPlay` — drop the scheduled
             // revert since the card is no longer on the battlefield.
             crate::ability::effects::control_gain_effect::leaves_play_hook(self, card_id);
+        }
+        if src_zone != dest_zone
+            && (host_left_battlefield
+                || !matches!(dest_zone, ZoneType::Stack | ZoneType::Battlefield))
+        {
+            self.card_mut(card_id).cast_sa = None;
         }
         if dest_zone == ZoneType::Graveyard && was_permanent && !is_token {
             self.player_record_permanent_put_into_graveyard(self.card(card_id).owner);

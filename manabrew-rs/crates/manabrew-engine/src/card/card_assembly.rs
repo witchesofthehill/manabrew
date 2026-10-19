@@ -272,7 +272,6 @@ pub(crate) fn assemble_card(
                     card.activated_abilities.push(ability);
                 }
                 for trigger in parsed.triggers { card.add_trigger(trigger); }
-                for ability in parsed.static_abilities { card.add_static_ability(ability); }
                 for replacement in parsed.replacement_effects { card.add_replacement_effect(replacement); }
                 for (key, value) in &face.svars { card.svars.entry(key.clone()).or_insert_with(|| value.clone()); }
                 room_face

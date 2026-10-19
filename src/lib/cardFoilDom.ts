@@ -44,6 +44,10 @@ interface FoilEntry {
   pointer: Float32Array;
   uvs: Float32Array;
   clip: Float32Array;
+  paddingX: number;
+  paddingY: number;
+  resolution: number;
+  canvasStyle: { property: string; value: string; priority: string }[];
   sourceUploadPending: boolean;
   normal: Float32Array;
   hiddenSource: CardFoilSource | null;
@@ -56,6 +60,7 @@ interface FoilRenderer {
   stage: Container;
   finish: CardFoilShader;
   mesh: CardFoilMesh;
+  contextLost: boolean;
 }
 
 const entries = new Set<FoilEntry>();
@@ -86,8 +91,24 @@ export function getDomCardFoilStats() {
     gpuCompletionMs: gpuTiming.gpuCompletionMs,
   };
 }
+function contextLost(event?: Event) {
+  event?.preventDefault();
+  if (shared) shared.contextLost = true;
+  cancelAnimationFrame(frame);
+  frame = 0;
+  for (const entry of entries) {
+    restoreSource(entry);
+    entry.context.clearRect(0, 0, entry.canvas.width, entry.canvas.height);
+    entry.canvas.dataset.foilState = "unavailable";
+    entry.dirty = true;
+  }
+}
+
 function contextRestored() {
+  if (!shared || shared.renderer.gl.isContextLost()) return;
+  shared.contextLost = false;
   domStats.restores++;
+  for (const entry of entries) entry.sourceUploadPending = !!entry.texture;
   visibilityChanged();
 }
 
@@ -95,6 +116,7 @@ function disposeRenderer() {
   if (!shared) return;
   shared.stage.destroy({ children: true });
   shared.finish.destroy();
+  shared.renderer.canvas.removeEventListener("webglcontextlost", contextLost);
   shared.renderer.canvas.removeEventListener("webglcontextrestored", contextRestored);
   shared.renderer.destroy();
   shared = null;
@@ -121,7 +143,8 @@ function releaseTexture(entry: FoilEntry) {
 }
 
 function requestFrame() {
-  if (!frame && entries.size && !document.hidden) frame = requestAnimationFrame(renderFrame);
+  if (!frame && entries.size && !document.hidden && !shared?.contextLost)
+    frame = requestAnimationFrame(renderFrame);
 }
 
 function visibilityChanged() {
@@ -144,9 +167,11 @@ function ensureRenderer() {
       const mesh = new CardFoilMesh(finish, "dom");
       const stage = new Container();
       stage.addChild(mesh);
-      shared = { renderer, finish, mesh, stage };
+      shared = { renderer, finish, mesh, stage, contextLost: renderer.gl.isContextLost() };
+      renderer.canvas.addEventListener("webglcontextlost", contextLost);
       renderer.canvas.addEventListener("webglcontextrestored", contextRestored);
       if (!entries.size) disposeRenderer();
+      else if (shared.contextLost) contextLost();
       else requestFrame();
     })
     .catch((error: unknown) => {
@@ -214,7 +239,13 @@ function updateSource(entry: FoilEntry) {
   return source;
 }
 
-function updateUvs(entry: FoilEntry, source: CardFoilSource, width: number, height: number) {
+function updateUvs(
+  entry: FoilEntry,
+  source: CardFoilSource,
+  width: number,
+  height: number,
+  resolution: number,
+) {
   const hostRect = entry.canvas.getBoundingClientRect();
   const sourceRect = source.getBoundingClientRect();
   const style = getComputedStyle(source);
@@ -222,31 +253,12 @@ function updateUvs(entry: FoilEntry, source: CardFoilSource, width: number, heig
   const angle = Math.atan2(matrix.b, matrix.a) + ((parseFloat(style.rotate) || 0) * Math.PI) / 180;
   const cosine = Math.cos(angle);
   const sine = Math.sin(angle);
-  const scaleX = hostRect.width / width;
-  const scaleY = hostRect.height / height;
-  const clip = entry.clip;
-  clip[0] = Math.max(0, (sourceRect.left - hostRect.left) / scaleX);
-  clip[1] = Math.max(0, (sourceRect.top - hostRect.top) / scaleY);
-  clip[2] = Math.min(width, (sourceRect.right - hostRect.left) / scaleX);
-  clip[3] = Math.min(height, (sourceRect.bottom - hostRect.top) / scaleY);
-  for (
-    let ancestor = source.parentElement;
-    ancestor && ancestor !== entry.host;
-    ancestor = ancestor.parentElement
-  ) {
-    const ancestorStyle = getComputedStyle(ancestor);
-    const bounds = ancestor.getBoundingClientRect();
-    if (ancestorStyle.overflowX !== "visible") {
-      clip[0] = Math.max(clip[0], (bounds.left - hostRect.left) / scaleX);
-      clip[2] = Math.min(clip[2], (bounds.right - hostRect.left) / scaleX);
-    }
-    if (ancestorStyle.overflowY !== "visible") {
-      clip[1] = Math.max(clip[1], (bounds.top - hostRect.top) / scaleY);
-      clip[3] = Math.min(clip[3], (bounds.bottom - hostRect.top) / scaleY);
-    }
-  }
-  const centerX = (sourceRect.left + sourceRect.width / 2 - hostRect.left) / scaleX;
-  const centerY = (sourceRect.top + sourceRect.height / 2 - hostRect.top) / scaleY;
+  const scaleX = hostRect.width / (width + entry.paddingX * 2);
+  const scaleY = hostRect.height / (height + entry.paddingY * 2);
+  const hostLeft = hostRect.left + entry.paddingX * scaleX;
+  const hostTop = hostRect.top + entry.paddingY * scaleY;
+  const centerX = (sourceRect.left + sourceRect.width / 2 - hostLeft) / scaleX;
+  const centerY = (sourceRect.top + sourceRect.height / 2 - hostTop) / scaleY;
   const boxWidth = source.clientWidth;
   const boxHeight = source.clientHeight;
   const naturalWidth = source instanceof HTMLImageElement ? source.naturalWidth : source.width;
@@ -283,11 +295,78 @@ function updateUvs(entry: FoilEntry, source: CardFoilSource, width: number, heig
     entry.uvs[index * 2] = (x * cosine + y * sine + boxWidth / 2 - offsetX) / drawWidth;
     entry.uvs[index * 2 + 1] = (-x * sine + y * cosine + boxHeight / 2 - offsetY) / drawHeight;
   }
+  const uvs = entry.uvs;
+  const duX = uvs[2] - uvs[0];
+  const duY = uvs[3] - uvs[1];
+  const dvX = uvs[6] - uvs[0];
+  const dvY = uvs[7] - uvs[1];
+  const fullCard =
+    Math.abs(Math.abs(duX) + Math.abs(dvX) - 1) < 0.00001 &&
+    Math.abs(Math.abs(duY) + Math.abs(dvY) - 1) < 0.00001 &&
+    Math.abs(Math.min(uvs[0], uvs[2], uvs[4], uvs[6])) < 0.00001 &&
+    Math.abs(Math.min(uvs[1], uvs[3], uvs[5], uvs[7])) < 0.00001;
+  const amount = fullCard ? entry.finish.uniforms.heatDeformation : 0;
+  const determinant = Math.abs(duX * dvY - dvX * duY);
+  const paddingX =
+    amount > 0
+      ? Math.ceil(
+          (amount * (Math.abs(dvY) + Math.abs(dvX) * 0.18) * Math.round(width * resolution)) /
+            determinant,
+        ) / resolution
+      : 0;
+  const paddingY =
+    amount > 0
+      ? Math.ceil(
+          (amount * (Math.abs(duY) + Math.abs(duX) * 0.18) * Math.round(height * resolution)) /
+            determinant,
+        ) / resolution
+      : 0;
+  const clip = entry.clip;
+  clip[0] = Math.max(-paddingX, (sourceRect.left - hostLeft) / scaleX - paddingX);
+  clip[1] = Math.max(-paddingY, (sourceRect.top - hostTop) / scaleY - paddingY);
+  clip[2] = Math.min(width + paddingX, (sourceRect.right - hostLeft) / scaleX + paddingX);
+  clip[3] = Math.min(height + paddingY, (sourceRect.bottom - hostTop) / scaleY + paddingY);
+  for (
+    let ancestor = source.parentElement;
+    ancestor && ancestor !== entry.host;
+    ancestor = ancestor.parentElement
+  ) {
+    const ancestorStyle = getComputedStyle(ancestor);
+    const bounds = ancestor.getBoundingClientRect();
+    if (ancestorStyle.overflowX !== "visible") {
+      clip[0] = Math.max(clip[0], (bounds.left - hostLeft) / scaleX);
+      clip[2] = Math.min(clip[2], (bounds.right - hostLeft) / scaleX);
+    }
+    if (ancestorStyle.overflowY !== "visible") {
+      clip[1] = Math.max(clip[1], (bounds.top - hostTop) / scaleY);
+      clip[3] = Math.min(clip[3], (bounds.bottom - hostTop) / scaleY);
+    }
+  }
+  if (entry.paddingX !== paddingX || entry.paddingY !== paddingY) {
+    if (paddingX || paddingY) {
+      entry.canvas.style.width = `calc(100% + ${paddingX * 2}px)`;
+      entry.canvas.style.height = `calc(100% + ${paddingY * 2}px)`;
+      entry.canvas.style.left = `${-paddingX}px`;
+      entry.canvas.style.top = `${-paddingY}px`;
+      entry.canvas.style.borderRadius = "0";
+    } else {
+      for (const { property, value, priority } of entry.canvasStyle)
+        if (value) entry.canvas.style.setProperty(property, value, priority);
+        else entry.canvas.style.removeProperty(property);
+    }
+    entry.paddingX = paddingX;
+    entry.paddingY = paddingY;
+  }
+  entry.resolution = resolution;
 }
 
 function renderFrame(now: number) {
   frame = 0;
-  if (!shared || document.hidden) return;
+  if (!shared || document.hidden || shared.contextLost) return;
+  if (shared.renderer.gl.isContextLost()) {
+    contextLost();
+    return;
+  }
   if (now - lastFrame < FRAME_INTERVAL) {
     requestFrame();
     return;
@@ -306,8 +385,8 @@ function renderFrame(now: number) {
       entry.dirty = false;
       continue;
     }
-    const width = entry.canvas.clientWidth;
-    const height = entry.canvas.clientHeight;
+    const width = entry.host.clientWidth;
+    const height = entry.host.clientHeight;
     if (
       !width ||
       !height ||
@@ -321,11 +400,16 @@ function renderFrame(now: number) {
     );
     const pixelWidth = Math.max(1, Math.round(width * resolution));
     const pixelHeight = Math.max(1, Math.round(height * resolution));
-    if (entry.canvas.width !== pixelWidth || entry.canvas.height !== pixelHeight) {
-      entry.canvas.width = pixelWidth;
-      entry.canvas.height = pixelHeight;
+    if (entry.dirty || entry.resolution !== resolution)
+      updateUvs(entry, source, width, height, resolution);
+    const originX = Math.round(entry.paddingX * resolution);
+    const originY = Math.round(entry.paddingY * resolution);
+    const outputWidth = pixelWidth + originX * 2;
+    const outputHeight = pixelHeight + originY * 2;
+    if (entry.canvas.width !== outputWidth || entry.canvas.height !== outputHeight) {
+      entry.canvas.width = outputWidth;
+      entry.canvas.height = outputHeight;
     }
-    if (entry.dirty) updateUvs(entry, source, width, height);
     finish.setTexture(entry.texture, entry.uvs);
     mesh.shader = finish.shader;
     mesh.finish = finish;
@@ -340,14 +424,22 @@ function renderFrame(now: number) {
       finish.uniforms.pointer[1] = 0.5 + Math.sin(phase * 2) * 0.12;
     }
     mesh.scale.set(pixelWidth, pixelHeight);
-    if (renderer.width < pixelWidth || renderer.height < pixelHeight) {
-      renderer.resize(Math.max(renderer.width, pixelWidth), Math.max(renderer.height, pixelHeight));
+    mesh.position.set(originX, originY);
+    if (renderer.width < outputWidth || renderer.height < outputHeight) {
+      renderer.resize(
+        Math.max(renderer.width, outputWidth),
+        Math.max(renderer.height, outputHeight),
+      );
     }
     try {
       finish.update(animated ? now / 1000 : 0, animated && entry.hovering);
       renderer.gl.pixelStorei(renderer.gl.UNPACK_ALIGNMENT, 1);
       const started = performance.now();
       renderer.render(stage);
+      if (shared.contextLost || renderer.gl.isContextLost()) {
+        contextLost();
+        return;
+      }
       domStats.cpuSubmissionMs += performance.now() - started;
       domStats.renders++;
       if (entry.sourceUploadPending) {
@@ -356,11 +448,11 @@ function renderFrame(now: number) {
           entry.texture.source.pixelWidth * entry.texture.source.pixelHeight * 4;
         entry.sourceUploadPending = false;
       }
-      entry.context.clearRect(0, 0, pixelWidth, pixelHeight);
-      const x = entry.clip[0] * resolution;
-      const y = entry.clip[1] * resolution;
-      const clippedWidth = (entry.clip[2] - entry.clip[0]) * resolution;
-      const clippedHeight = (entry.clip[3] - entry.clip[1]) * resolution;
+      entry.context.clearRect(0, 0, outputWidth, outputHeight);
+      const x = Math.max(0, originX + entry.clip[0] * resolution);
+      const y = Math.max(0, originY + entry.clip[1] * resolution);
+      const clippedWidth = Math.min(outputWidth, originX + entry.clip[2] * resolution) - x;
+      const clippedHeight = Math.min(outputHeight, originY + entry.clip[3] * resolution) - y;
       if (clippedWidth > 0 && clippedHeight > 0) {
         entry.context.drawImage(
           renderer.canvas,
@@ -375,8 +467,9 @@ function renderFrame(now: number) {
         );
         domStats.outputCopies++;
       }
-      entry.canvas.dataset.foilState = "ready";
-      if (finish.uniforms.heatDeformation > 0) {
+      entry.canvas.dataset.foilState =
+        clippedWidth > 0 && clippedHeight > 0 ? "ready" : "unavailable";
+      if (finish.uniforms.heatDeformation > 0 && clippedWidth > 0 && clippedHeight > 0) {
         if (entry.hiddenSource !== source) {
           restoreSource(entry);
           entry.hiddenSource = source;
@@ -386,7 +479,11 @@ function renderFrame(now: number) {
         }
       } else restoreSource(entry);
     } catch (error) {
-      entry.context.clearRect(0, 0, pixelWidth, pixelHeight);
+      if (renderer.gl.isContextLost()) {
+        contextLost();
+        return;
+      }
+      entry.context.clearRect(0, 0, outputWidth, outputHeight);
       entry.canvas.dataset.foilState = "unavailable";
       console.error("Card Glint foil could not render the displayed face", error);
       releaseTexture(entry);
@@ -423,6 +520,14 @@ export function registerDomCardFoil(
     pointer: new Float32Array([0.5, 0.5]),
     uvs: new Float32Array(8),
     clip: new Float32Array(4),
+    paddingX: 0,
+    paddingY: 0,
+    resolution: 0,
+    canvasStyle: ["width", "height", "left", "top", "border-radius"].map((property) => ({
+      property,
+      value: canvas.style.getPropertyValue(property),
+      priority: canvas.style.getPropertyPriority(property),
+    })),
     sourceUploadPending: false,
     normal: new Float32Array([0, 0, 1]),
     hiddenSource: null,
@@ -463,9 +568,19 @@ export function registerDomCardFoil(
   const pointer = (event: PointerEvent) => {
     if (!entry.options.animated) return;
     const rect = canvas.getBoundingClientRect();
+    const width = host.clientWidth;
+    const height = host.clientHeight;
+    const scaleX = rect.width / (width + entry.paddingX * 2);
+    const scaleY = rect.height / (height + entry.paddingY * 2);
     entry.hovering = true;
-    entry.pointer[0] = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
-    entry.pointer[1] = Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height));
+    entry.pointer[0] = Math.max(
+      0,
+      Math.min(1, (event.clientX - rect.left - entry.paddingX * scaleX) / (width * scaleX)),
+    );
+    entry.pointer[1] = Math.max(
+      0,
+      Math.min(1, (event.clientY - rect.top - entry.paddingY * scaleY) / (height * scaleY)),
+    );
     invalidate();
   };
   const leave = () => {
@@ -491,6 +606,7 @@ export function registerDomCardFoil(
   host.addEventListener("pointerleave", leave, { passive: true });
   if (!entries.size) document.addEventListener("visibilitychange", visibilityChanged);
   entries.add(entry);
+  if (shared?.contextLost) canvas.dataset.foilState = "unavailable";
   ensureRenderer();
   requestFrame();
   return {
@@ -520,6 +636,9 @@ export function registerDomCardFoil(
       context.clearRect(0, 0, canvas.width, canvas.height);
       canvas.width = 1;
       canvas.height = 1;
+      for (const { property, value, priority } of entry.canvasStyle)
+        if (value) canvas.style.setProperty(property, value, priority);
+        else canvas.style.removeProperty(property);
       if (!entries.size) {
         cancelAnimationFrame(frame);
         frame = 0;

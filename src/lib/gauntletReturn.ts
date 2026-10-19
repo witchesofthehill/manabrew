@@ -107,3 +107,9 @@ export async function restoreGauntletProgress(
   records[gauntletId] = progress;
   await limitedStateStorage.setItem(PROGRESS_KEY, JSON.stringify(records));
 }
+
+export function peekForGame(gauntletId: string | null): PendingGauntletMatch | null {
+  if (!gauntletId) return null;
+  const match = peek();
+  return match?.gauntletId === gauntletId ? match : null;
+}

@@ -156,6 +156,7 @@ const JAVA_FIELD_TYPES = {
   "CardCosmetics.wearSeed": "Long",
   "CardCosmetics.wearAmount": "Double",
   "CardCosmetics.rainFog": "Double",
+  "CardCosmetics.heatDeformation": "Double",
   "CardCoating.amount": "double",
   "CardPrintDots.amount": "double",
   "CardPrintDots.period": "Double",

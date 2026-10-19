@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useSyncExternalStore } from "react";
 import { CARD_LIVE_PULSE, type CardLiveHighlightLayers } from "@/lib/cardLiveHighlights";
+import { recordCardRasterCopy } from "@/lib/cardRenderTypes";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -39,7 +40,10 @@ export function CardLiveHighlightOverlay({ enabled, layers }: CardLiveHighlightO
         canvas.style.top = `${(region.y / layers.height) * 100}%`;
         canvas.style.width = `${(source.width / layers.width) * 100}%`;
         canvas.style.height = `${(source.height / layers.height) * 100}%`;
-        canvas.getContext("2d")?.drawImage(source, 0, 0);
+        const context = canvas.getContext("2d");
+        if (!context) throw new Error("Card highlighting requires a 2D canvas context");
+        context.drawImage(source, 0, 0);
+        recordCardRasterCopy(source.width, source.height, "dom");
         surface.appendChild(canvas);
         if (kind === "ink") inkCanvases.push(canvas);
       }

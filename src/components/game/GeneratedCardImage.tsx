@@ -3,6 +3,13 @@ import type { CardDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
 import { cardRenderInputKey, getCardRenderDecision, renderCard } from "@/lib/cardRenderer";
 import type { CardRenderRequest } from "@/lib/cardRenderer";
+import {
+  recordCardRasterCopy,
+  releaseCardRaster,
+  retainCardRaster,
+  selectCardRenderTier,
+  type CardRenderTier,
+} from "@/lib/cardRenderTypes";
 import { CardRenderError } from "@/lib/cardRenderDecision";
 import type { CardRenderDecision } from "@/lib/cardRenderDecision";
 import { getCardArtWindows, type CardArtWindow } from "@/lib/cardRenderGeometry";
@@ -19,6 +26,7 @@ import { CardFoilOverlay } from "@/components/game/CardFoilOverlay";
 import { CardLiveHighlightOverlay } from "@/components/game/CardLiveHighlightOverlay";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { CARD_BACK_IMAGE_URL } from "./game.constants";
+import type { CardLightingMode, CardPose } from "@/lib/cardLighting";
 
 interface GeneratedCardImageProps {
   card?: CardDto;
@@ -27,6 +35,8 @@ interface GeneratedCardImageProps {
   className?: string;
   fallback?: ReactNode;
   loading?: "eager" | "lazy";
+  lighting?: CardLightingMode;
+  pose?: CardPose;
 }
 
 export function GeneratedCardImage(props: GeneratedCardImageProps) {
@@ -36,18 +46,7 @@ export function GeneratedCardImage(props: GeneratedCardImageProps) {
       ("visibility" in props.card && props.card.visibility === "hidden")
     : false;
   const identity = props.card?.id ?? (props.deckCard?.identity.id || props.deckCard?.identity.name);
-  const faceIndex = props.faceIndex ?? (props.card?.isTransformed ? 1 : 0);
-  const locale = useScryfallStore((store) => store.locale);
-  const printingKey = JSON.stringify([
-    identity,
-    props.card?.identity,
-    props.deckCard?.identity,
-    props.deckCard?.uris.normal,
-    props.deckCard?.backFace?.uris.normal,
-    faceIndex,
-    locale,
-  ]);
-  return <GeneratedCardCanvas key={hidden ? "hidden" : printingKey} {...props} hidden={hidden} />;
+  return <GeneratedCardCanvas key={hidden ? "hidden" : identity} {...props} hidden={hidden} />;
 }
 
 function GeneratedCardCanvas({
@@ -58,14 +57,20 @@ function GeneratedCardCanvas({
   fallback,
   loading = "eager",
   hidden,
+  lighting,
+  pose,
 }: GeneratedCardImageProps & { hidden: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
+  const visibleRasterRelease = useRef<(() => void) | null>(null);
+  const [tier, setTier] = useState<CardRenderTier>();
+  const locale = useScryfallStore((store) => store.locale);
   const requestRef = useRef<CardRenderRequest>({ card, deckCard, faceIndex });
   const renderKey =
     hidden || (!card?.identity.name && !deckCard?.identity.name)
       ? null
-      : cardRenderInputKey({ card, deckCard, faceIndex });
+      : JSON.stringify([cardRenderInputKey({ card, deckCard, faceIndex }), locale, tier]);
+  const pendingKeyRef = useRef(renderKey);
   const [visible, setVisible] = useState(loading !== "lazy");
   const [result, setResult] = useState<{
     key: string | null;
@@ -96,7 +101,37 @@ function GeneratedCardCanvas({
 
   useLayoutEffect(() => {
     requestRef.current = { card, deckCard, faceIndex };
-  }, [card, deckCard, faceIndex]);
+    pendingKeyRef.current = renderKey;
+  }, [card, deckCard, faceIndex, renderKey]);
+
+  useLayoutEffect(() => {
+    const host = hostRef.current;
+    if (!host || hidden) return;
+    const measure = () => {
+      const { width, height } = host.getBoundingClientRect();
+      if (width > 0 && height > 0) {
+        setTier((previous) =>
+          selectCardRenderTier(width, height, window.devicePixelRatio || 1, previous),
+        );
+      }
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(host);
+    window.addEventListener("resize", measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [hidden]);
+
+  useEffect(
+    () => () => {
+      visibleRasterRelease.current?.();
+      visibleRasterRelease.current = null;
+    },
+    [],
+  );
 
   useEffect(() => {
     if (visible || loading !== "lazy") return;
@@ -113,31 +148,48 @@ function GeneratedCardCanvas({
   }, [loading, visible]);
 
   useEffect(() => {
-    if (hidden || (!visible && loading === "lazy")) return;
+    if (hidden || !tier || (!visible && loading === "lazy")) return;
     const controller = new AbortController();
-    void renderCard(requestRef.current, controller.signal)
+    void renderCard(requestRef.current, controller.signal, { tier })
       .then((image) => {
-        if (controller.signal.aborted) return;
-        const canvas = canvasRef.current;
-        const context = canvas?.getContext("2d");
-        if (!canvas || !context) throw new Error("Card canvas is unavailable");
-        canvas.width = image.width;
-        canvas.height = image.height;
-        context.drawImage(image, 0, 0);
-        copyCardOpticalSource(image, canvas);
-        copyCardLiveHighlights(image, canvas);
-        setHasImage(true);
-        setResult({
-          key: renderKey,
-          state: "ready",
-          decision: getCardRenderDecision(image),
-          artWindows: getCardArtWindows(image),
-          liveHighlights: getCardLiveHighlights(canvas),
-        });
+        try {
+          if (controller.signal.aborted || pendingKeyRef.current !== renderKey) return;
+          const canvas = canvasRef.current;
+          const context = canvas?.getContext("2d");
+          if (!canvas || !context) throw new Error("Card canvas is unavailable");
+          const decision = getCardRenderDecision(image);
+          const artWindows = getCardArtWindows(image);
+          canvas.width = image.width;
+          canvas.height = image.height;
+          context.drawImage(image, 0, 0);
+          recordCardRasterCopy(image.width, image.height, "dom");
+          copyCardOpticalSource(image, canvas);
+          copyCardLiveHighlights(image, canvas);
+          const previousRelease = visibleRasterRelease.current;
+          visibleRasterRelease.current = retainCardRaster(image);
+          setHasImage(true);
+          setResult({
+            key: renderKey,
+            state: "ready",
+            decision,
+            artWindows,
+            liveHighlights: getCardLiveHighlights(canvas),
+          });
+          previousRelease?.();
+          const request = requestRef.current;
+          if (request.deckCard?.backFace) {
+            void renderCard(
+              { ...request, faceIndex: request.faceIndex === 1 ? 0 : 1 },
+              controller.signal,
+              { tier, priority: "background" },
+            ).then(releaseCardRaster, () => undefined);
+          }
+        } finally {
+          releaseCardRaster(image);
+        }
       })
       .catch((cause: unknown) => {
-        if (!controller.signal.aborted) {
-          setHasImage(false);
+        if (!controller.signal.aborted && pendingKeyRef.current === renderKey) {
           setResult({
             key: renderKey,
             state: "error",
@@ -150,7 +202,7 @@ function GeneratedCardCanvas({
         }
       });
     return () => controller.abort();
-  }, [renderKey, hidden, loading, visible]);
+  }, [renderKey, hidden, loading, visible, tier]);
 
   return (
     <div
@@ -199,6 +251,8 @@ function GeneratedCardCanvas({
             etched={isEtchedOnlyPrinting(printing?.info.finishes)}
             source={hasImage ? canvasRef.current : undefined}
             artWindows={hasImage ? result?.artWindows : undefined}
+            lighting={lighting}
+            pose={pose}
           />
           <CardLiveHighlightOverlay
             enabled={!hidden && visible && hasImage}

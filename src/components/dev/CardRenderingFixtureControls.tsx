@@ -23,6 +23,8 @@ interface CardRenderingFixtureControlsProps {
   onWidthChange: (value: number) => void;
   locale: ScryfallLanguage;
   onLocaleChange: (value: ScryfallLanguage) => void;
+  historicalWording?: "original" | "oracle";
+  onWordingChange: (value: "original" | "oracle") => void;
 }
 
 export function CardRenderingFixtureControls({
@@ -41,6 +43,8 @@ export function CardRenderingFixtureControls({
   onWidthChange,
   locale,
   onLocaleChange,
+  historicalWording,
+  onWordingChange,
 }: CardRenderingFixtureControlsProps) {
   const fixtureIndex = CARD_RENDERING_FIXTURES.findIndex((item) => item.id === fixtureId);
   const stepFixture = (direction: -1 | 1) => {
@@ -88,6 +92,16 @@ export function CardRenderingFixtureControls({
       <Button variant="outline" disabled={!flippable} onClick={onFlip}>
         Face: {face === 0 ? "front" : "back"}
       </Button>
+      {historicalWording && (
+        <AppSelect
+          aria-label="Historical printed wording"
+          value={historicalWording}
+          onValueChange={(value) => onWordingChange(value as "original" | "oracle")}
+        >
+          <AppSelectOption value="original">Printed previews: original wording</AppSelectOption>
+          <AppSelectOption value="oracle">Printed previews: Oracle wording</AppSelectOption>
+        </AppSelect>
+      )}
       <label className="flex items-center gap-2 text-sm">
         <input
           type="checkbox"

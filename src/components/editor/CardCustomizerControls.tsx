@@ -1,5 +1,4 @@
 import { useId } from "react";
-import { ExternalLink } from "lucide-react";
 import { CardCustomizerNumber } from "@/components/editor/CardCustomizerNumber";
 import { CardCustomizerSurfaceWear } from "@/components/editor/CardCustomizerSurfaceWear";
 import { CardCustomizerMaterials } from "@/components/editor/CardCustomizerMaterials";
@@ -87,6 +86,18 @@ export function CardCustomizerControls({
                   </p>
                 </div>
               )}
+              {field === "finish" && value === "heat" && (
+                <CardCustomizerNumber
+                  label="Heat deformation"
+                  value={customizationFieldValue(selected, drafts, "heatDeformation")}
+                  selectionKey={selectionKey}
+                  min={0}
+                  max={0.02}
+                  step={0.0001}
+                  disabled={inactive}
+                  onChange={(next) => onChange("heatDeformation", next)}
+                />
+              )}
               {field === "wearAmount" && (
                 <CardCustomizerSurfaceWear
                   wear={value}
@@ -104,15 +115,6 @@ export function CardCustomizerControls({
         disabled={inactive}
         onChange={onChange}
       />
-      <a
-        href="/card-mock?tab=rendering"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex items-center gap-1.5 rounded-sm px-1 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        Open Card lab
-        <ExternalLink className="size-3 shrink-0" aria-hidden="true" />
-      </a>
     </section>
   );
 }

@@ -1,5 +1,6 @@
 import { loadCanvasImages } from "card-glint/magic/presentation";
-import { loadScryfallImage } from "@/lib/scryfallImageSource";
+import { decodeCanvasImage } from "card-glint/canvas";
+import { resolveCardGlintAsset } from "@/lib/cardGlintAssets";
 
 const MAX_ARTWORK_BYTES = 32 * 1024 * 1024;
 interface ImageLease {
@@ -18,14 +19,50 @@ interface ImageEntry {
 }
 const images = new Map<string, ImageEntry>();
 let imageBytes = 0;
+type CardImageBridge = (
+  url: string,
+  artwork: boolean,
+  signal: AbortSignal,
+  blob?: Blob,
+) => Promise<Map<string, ImageBitmap>>;
+let imageBridge: CardImageBridge | undefined;
+
+export function setCardImageBridge(bridge: CardImageBridge): void {
+  imageBridge = bridge;
+}
+
+async function bridgedImages(url: string, artwork: boolean, blob?: Blob): Promise<ImageLease> {
+  if (!imageBridge) throw new Error("Card image bridge is unavailable");
+  const loaded = await imageBridge(url, artwork, new AbortController().signal, blob);
+  return {
+    images: loaded,
+    dispose: () => {
+      for (const image of new Set(loaded.values())) image.close();
+      loaded.clear();
+    },
+  };
+}
 
 async function decodeArtwork(url: string): Promise<ImageLease> {
-  const image = new Image();
-  image.crossOrigin = "anonymous";
-  image.src = await loadScryfallImage(url);
-  await image.decode();
-  const bitmap = await createImageBitmap(image);
+  const blob = await (await resolveCardGlintAsset(url)).blob();
+  if (imageBridge && blob.type.includes("svg")) return bridgedImages(url, true, blob);
+  const bitmap = await decodeCanvasImage(blob, new AbortController().signal);
   return { images: new Map([[url, bitmap]]), dispose: () => bitmap.close() };
+}
+
+export function cardArtworkStats() {
+  let activeArtworkBytes = 0;
+  for (const entry of images.values()) if (entry.refs) activeArtworkBytes += entry.bytes;
+  return { artworkBytes: imageBytes, activeArtworkBytes, decodedArtwork: images.size };
+}
+
+export function clearCardArtworkCache(): void {
+  for (const [url, entry] of images) {
+    if (entry.refs || !entry.lease) continue;
+    images.delete(url);
+    imageBytes -= entry.bytes;
+    entry.lease.dispose();
+  }
 }
 
 function trimImages(): void {
@@ -51,7 +88,9 @@ async function acquireImage(url: string, artwork: boolean): Promise<AcquiredImag
         .then(async () => {
           const lease = artwork
             ? await decodeArtwork(url)
-            : await loadCanvasImages([url], new AbortController().signal);
+            : imageBridge
+              ? await bridgedImages(url, false)
+              : await loadCanvasImages([url], new AbortController().signal);
           if (!lease.images.get(url)) {
             lease.dispose();
             throw new Error(`Card composition asset unavailable: ${url}`);

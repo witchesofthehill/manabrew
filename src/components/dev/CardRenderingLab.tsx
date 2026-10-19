@@ -27,6 +27,8 @@ import { resolveCardFaces } from "@/lib/cardFaces";
 import type { CardInspectAppearance } from "@/lib/cardGlintInspectAppearance";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import type { CardCosmetics } from "@/protocol/deck";
+import { DEFAULT_CARD_POSE } from "@/lib/cardLighting";
+import type { CardLightingMode, CardPose } from "@/lib/cardLighting";
 
 export default function CardRenderingLab() {
   const [params, setParams] = useSearchParams();
@@ -36,7 +38,11 @@ export default function CardRenderingLab() {
   const [face, setFace] = useState<0 | 1>(0);
   const [overrides, setOverrides] = useState<CardRenderingOverrides>({});
   const [appearance, setAppearance] = useState<CardInspectAppearance>({});
+  const [lighting, setLighting] = useState<CardLightingMode>("pointer");
+  const [pose, setPose] = useState<CardPose>(DEFAULT_CARD_POSE);
   const [previousFixture, setPreviousFixture] = useState(fixture.id);
+  const [wording, setWording] = useState<"original" | "oracle">("original");
+  const historicalPrinting = fixture.lookup?.setCode === "lea" || fixture.lookup?.setCode === "leb";
   const foil = useCardFinishPreview((state) => state.foilAll);
   const [live, setLive] = useState(false);
   const [granted, setGranted] = useState(false);
@@ -112,8 +118,12 @@ export default function CardRenderingLab() {
   const deckCard = useMemo(() => {
     if (!entry) return undefined;
     const next = scryfallToDeckCard(entry.info);
-    return { ...next, identity: { ...next.identity, cosmetics } };
-  }, [entry, cosmetics]);
+    const printedCosmetics =
+      historicalPrinting && wording === "original"
+        ? { ...cosmetics, wording: "original" as const }
+        : cosmetics;
+    return { ...next, identity: { ...next.identity, cosmetics: printedCosmetics } };
+  }, [entry, cosmetics, historicalPrinting, wording]);
   const actions = useMemo<HandActionOption[]>(() => {
     if (!card) return [];
     const mechanic = entry ? cardRenderingMechanicActions(card, entry.info) : undefined;
@@ -134,8 +144,8 @@ export default function CardRenderingLab() {
     ];
   }, [card, actionCount, entry]);
   const request = useMemo(
-    () => ({ card, deckCard, faceIndex: effectiveFace }),
-    [card, deckCard, effectiveFace],
+    () => ({ card: historicalPrinting ? undefined : card, deckCard, faceIndex: effectiveFace }),
+    [card, deckCard, effectiveFace, historicalPrinting],
   );
   const selectFixture = (id: string) => {
     setFace(0);
@@ -186,6 +196,8 @@ export default function CardRenderingLab() {
         onWidthChange={setWidth}
         locale={locale}
         onLocaleChange={(value) => useScryfallStore.getState().setLocale(value)}
+        historicalWording={historicalPrinting ? wording : undefined}
+        onWordingChange={setWording}
       />
       <p role="status" className="text-sm text-muted-foreground">
         {lastAction ||
@@ -218,12 +230,15 @@ export default function CardRenderingLab() {
               key={`${fixture.id}-${revision}`}
               card={card}
               deckCard={deckCard}
+              historicalPrinting={historicalPrinting}
               face={effectiveFace}
               imageUrl={
                 cardFaceImageUris(entry.info, entry.uris, effectiveFace, entry.imageInfo)?.normal ??
                 ""
               }
               actions={actions}
+              lighting={lighting}
+              pose={pose}
               onFlip={flipFace}
               onAction={handleAction}
             />
@@ -242,6 +257,10 @@ export default function CardRenderingLab() {
           onFlipFace={flipFace}
           appearance={appearance}
           onAppearanceChange={setAppearance}
+          lighting={lighting}
+          pose={pose}
+          onLightingChange={setLighting}
+          onPoseChange={setPose}
         />
       )}
     </section>

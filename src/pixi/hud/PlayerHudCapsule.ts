@@ -29,6 +29,11 @@ import { useScryfallStore } from "@/stores/useScryfallStore";
 import { useGameStore } from "@/stores/useGameStore";
 import { asGameDeckCard } from "@/lib/decks";
 import { renderCard } from "@/lib/cardRenderer";
+import {
+  releaseCardRaster,
+  selectCardRenderTier,
+  type CardRenderTier,
+} from "@/lib/cardRenderTypes";
 import { createGeneratedCardTexture } from "@/pixi/generatedCardTexture";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { RING_ABILITIES, zoneBadgeId } from "@/components/game/game.constants";
@@ -151,6 +156,7 @@ export class PlayerHudCapsule {
   private handFaceCards: (CardDto | undefined)[] = [];
   private handFaceRequests: (AbortController | undefined)[] = [];
   private handFaceTextures: (Texture | undefined)[] = [];
+  private handFaceTiers: (CardRenderTier | undefined)[] = [];
   private unsubscribeHandStyle: (() => void) | null = null;
   private unsubscribeLocale: (() => void) | null = null;
   private overflow: Text;
@@ -960,7 +966,7 @@ export class PlayerHudCapsule {
     const fanWidth = width + 10;
     for (let i = 0; i < this.handBacks.length; i++) {
       const back = this.handBacks[i]!;
-      void this.applyHandFace(i, revealed[i]);
+      void this.applyHandFace(i, revealed[i], width, height);
       back.width = width;
       back.height = height;
       back.visible = i < count;
@@ -976,10 +982,22 @@ export class PlayerHudCapsule {
     };
   }
 
-  private async applyHandFace(index: number, card: CardDto | undefined): Promise<void> {
+  private async applyHandFace(
+    index: number,
+    card: CardDto | undefined,
+    width: number,
+    height: number,
+  ): Promise<void> {
     const visible = card && !card.isFaceDown && !!card.identity.name;
     const generated = usePreferencesStore.getState().handCardStyle === "rules";
     const locale = useScryfallStore.getState().locale;
+    const tier = selectCardRenderTier(
+      width,
+      height,
+      Math.min(2, window.devicePixelRatio || 1),
+      this.handFaceTiers[index],
+    );
+    this.handFaceTiers[index] = tier;
     const id = visible
       ? JSON.stringify([
           card.id,
@@ -989,10 +1007,13 @@ export class PlayerHudCapsule {
           card.isTransformed,
           generated,
           locale,
+          tier,
         ])
       : null;
     if (this.handFaceIds[index] === id && this.handFaceCards[index] === card) return;
-    const identityChanged = this.handFaceIds[index] !== id;
+    const previousCard = this.handFaceCards[index];
+    const identityChanged =
+      previousCard?.id !== card?.id || previousCard?.identity.name !== card?.identity.name;
     this.handFaceIds[index] = id;
     this.handFaceCards[index] = card;
     this.handFaceRequests[index]?.abort();
@@ -1036,10 +1057,14 @@ export class PlayerHudCapsule {
     let owned = false;
     try {
       if (generated) {
-        const canvas = await renderCard({ card, deckCard, faceIndex }, controller.signal);
-        if (this.container.destroyed || controller.signal.aborted) return;
-        texture = createGeneratedCardTexture(canvas);
-        owned = true;
+        const raster = await renderCard({ card, deckCard, faceIndex }, controller.signal, { tier });
+        try {
+          if (this.container.destroyed || controller.signal.aborted) return;
+          texture = createGeneratedCardTexture(raster);
+          owned = true;
+        } finally {
+          releaseCardRaster(raster);
+        }
       } else {
         texture = await useScryfallStore.getState().getCardTexture(deckCard, "full", faceIndex);
       }

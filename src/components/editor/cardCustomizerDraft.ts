@@ -8,13 +8,11 @@ export type CosmeticField =
   | "border"
   | "wearAmount"
   | "rainFog"
+  | "heatDeformation"
   | "cardstockAmount"
   | "printDotsAmount"
-  | "printDotsPeriod"
-  | "printDotsVariation"
   | "printDotsInset"
-  | "finishCoverageArea"
-  | "finishCoverageAmount";
+  | "printDotsArtwork";
 export interface CardCustomizationDraft {
   source: DeckCard;
   cosmetics: CardCosmetics | undefined;
@@ -63,17 +61,11 @@ export function changeCustomizationField(
       cosmetics: normalizeCardCosmetics({ ...cosmetics, cardstock: { amount: Number(value) } }),
     };
   }
-  if (
-    field === "printDotsAmount" ||
-    field === "printDotsPeriod" ||
-    field === "printDotsVariation" ||
-    field === "printDotsInset"
-  ) {
+  if (field === "printDotsAmount" || field === "printDotsInset" || field === "printDotsArtwork") {
     const key = {
       printDotsAmount: "amount",
-      printDotsPeriod: "period",
-      printDotsVariation: "variation",
       printDotsInset: "inset",
+      printDotsArtwork: "artwork",
     }[field];
     return {
       ...draft,
@@ -82,22 +74,8 @@ export function changeCustomizationField(
         printDots: {
           ...cosmetics?.printDots,
           amount: cosmetics?.printDots?.amount ?? 0,
-          [key]: Number(value),
+          [key]: field === "printDotsArtwork" ? value === "true" : Number(value),
         },
-      }),
-    };
-  }
-  if (field === "finishCoverageArea" || field === "finishCoverageAmount") {
-    return {
-      ...draft,
-      cosmetics: normalizeCardCosmetics({
-        ...cosmetics,
-        finishCoverage:
-          field === "finishCoverageArea"
-            ? value === "native"
-              ? undefined
-              : { area: value, amount: cosmetics?.finishCoverage?.amount ?? 1 }
-            : { area: cosmetics?.finishCoverage?.area ?? "full", amount: Number(value) },
       }),
     };
   }
@@ -118,7 +96,7 @@ export function changeCustomizationField(
     cosmetics: normalizeCardCosmetics({
       ...draft.cosmetics,
       [field]:
-        field === "rainFog" || field === "wearAmount"
+        field === "rainFog" || field === "heatDeformation" || field === "wearAmount"
           ? Number(value)
           : value === "printing"
             ? undefined
@@ -174,21 +152,18 @@ export function customizationFieldValue(
   field: CosmeticField,
 ): string {
   const fallback =
-    field === "rainFog" || field === "finishCoverageAmount"
+    field === "rainFog"
       ? "1"
-      : field === "cardstockAmount" || field === "printDotsAmount" || field === "printDotsInset"
+      : field === "cardstockAmount" ||
+          field === "printDotsAmount" ||
+          field === "printDotsInset" ||
+          field === "heatDeformation"
         ? "0"
-        : field === "printDotsPeriod"
-          ? "5"
-          : field === "printDotsVariation"
-            ? "0.5"
-            : field === "finishCoverageArea"
-              ? "native"
-              : "printing";
+        : "printing";
   const values = copies.map((copy) => {
     const draft = drafts.get(copy.identity.id);
     const cosmetics = draft ? draft.cosmetics : copy.identity.cosmetics;
-    let value: string | number | undefined;
+    let value: string | number | boolean | undefined;
     switch (field) {
       case "wearAmount":
         value = resolveCardWearAmount(cosmetics);
@@ -199,20 +174,11 @@ export function customizationFieldValue(
       case "printDotsAmount":
         value = cosmetics?.printDots?.amount;
         break;
-      case "printDotsPeriod":
-        value = cosmetics?.printDots?.period;
-        break;
-      case "printDotsVariation":
-        value = cosmetics?.printDots?.variation;
-        break;
       case "printDotsInset":
         value = cosmetics?.printDots?.inset;
         break;
-      case "finishCoverageArea":
-        value = cosmetics?.finishCoverage?.area;
-        break;
-      case "finishCoverageAmount":
-        value = cosmetics?.finishCoverage?.amount;
+      case "printDotsArtwork":
+        value = cosmetics?.printDots?.artwork ?? true;
         break;
       default:
         value = cosmetics?.[field];

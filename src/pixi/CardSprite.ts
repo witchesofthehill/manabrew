@@ -34,6 +34,11 @@ import { battlefieldKeywords } from "@/lib/battlefieldKeywords";
 import { applyManaSymbol, parseManaCost } from "./manaSymbols";
 import { asGameDeckCard } from "@/lib/decks";
 import { cardRenderInputKey, renderCard } from "@/lib/cardRenderer";
+import {
+  releaseCardRaster,
+  selectCardRenderTier,
+  type CardRenderTier,
+} from "@/lib/cardRenderTypes";
 import { createGeneratedCardTexture, getGeneratedCardArtWindows } from "./generatedCardTexture";
 import { writeCardTextureUvs } from "./cardTextureUvs";
 import { loadCardBack } from "./cardBackTexture";
@@ -458,6 +463,7 @@ export class CardSprite extends Container {
   private loadGeneration = 0;
   private imageAbort: AbortController | null = null;
   private imageRequestKey: string | null = null;
+  private renderTier: CardRenderTier | undefined;
   private ownedImageTexture: Texture | null = null;
   private imageIsArtwork = false;
   private readonly kind: "battlefield" | "hand" | "zone";
@@ -492,6 +498,7 @@ export class CardSprite extends Container {
     this.cw = width;
     this.ch = height;
     this.eventMode = "static";
+    this.onRender = () => this.syncRasterTier();
     this.cursor = "pointer";
 
     this.shadowGfx = new Graphics({ context: shadowContext(this.cw, this.ch) });
@@ -727,12 +734,47 @@ export class CardSprite extends Container {
     const deckCard = this.deckCard(card);
     const faceIndex = this.previewFace ?? (card.isTransformed ? 1 : 0);
     const style = this.isBattlefield ? activeStyle : "realistic";
+    const tier = this.selectRasterTier();
     return JSON.stringify([
       style,
+      tier,
       style !== "realistic" && style !== "art"
         ? cardRenderInputKey({ card, deckCard, faceIndex })
         : [useScryfallStore.getState().locale, deckCard, faceIndex],
     ]);
+  }
+
+  private projectedRasterScale(): number {
+    let scale = Math.max(Math.abs(this.scale.x), Math.abs(this.scale.y));
+    for (let node: Container | null = this.parent; node; node = node.parent) {
+      scale *= Math.max(Math.abs(node.scale.x), Math.abs(node.scale.y));
+    }
+    return scale;
+  }
+
+  private selectRasterTier(scale = this.projectedRasterScale()): CardRenderTier {
+    return selectCardRenderTier(
+      this.cw * scale,
+      this.ch * scale,
+      Math.min(2, window.devicePixelRatio || 1),
+      this.renderTier,
+      this.previewFlipPhase !== "idle",
+    );
+  }
+
+  private syncRasterTier(): void {
+    const scale = this.projectedRasterScale();
+    this.handRulesFace?.setRasterProjection(
+      this.cw * scale,
+      this.ch * scale,
+      this.previewFlipPhase !== "idle",
+    );
+    const tier = this.selectRasterTier(scale);
+    if (tier === this.renderTier) return;
+    this.renderTier = tier;
+    if (this.isBattlefield && activeStyle !== "realistic" && activeStyle !== "art") {
+      void this.loadImage();
+    }
   }
 
   private displayDimensions(): { width: number; height: number } {
@@ -874,6 +916,8 @@ export class CardSprite extends Container {
     const deckCard = hidden ? undefined : this.deckCard();
     const custom = this.isBattlefield && activeStyle !== "realistic" && !hidden;
     const faceIndex = this.previewFace ?? (card.isTransformed ? 1 : 0);
+    const tier = this.selectRasterTier();
+    this.renderTier = tier;
     const fallback =
       custom && !this._imageLoaded
         ? useScryfallStore
@@ -906,10 +950,22 @@ export class CardSprite extends Container {
         texture = await useScryfallStore.getState().getCardTexture(deckCard!, "art", faceIndex);
         artwork = true;
       } else if (custom) {
-        const canvas = await renderCard({ card, deckCard, faceIndex }, controller.signal);
-        if (this.destroyed || generation !== this.loadGeneration) return;
-        texture = createGeneratedCardTexture(canvas);
-        owned = true;
+        const raster = await renderCard({ card, deckCard, faceIndex }, controller.signal, { tier });
+        try {
+          if (this.destroyed || generation !== this.loadGeneration || controller.signal.aborted)
+            return;
+          texture = createGeneratedCardTexture(raster);
+          owned = true;
+        } finally {
+          releaseCardRaster(raster);
+        }
+        if (deckCard?.backFace) {
+          void renderCard(
+            { card, deckCard, faceIndex: faceIndex === 0 ? 1 : 0 },
+            controller.signal,
+            { tier, priority: "background" },
+          ).then(releaseCardRaster, () => undefined);
+        }
       } else {
         texture = await useScryfallStore.getState().getCardTexture(deckCard!, "full", faceIndex);
       }
@@ -1153,7 +1209,7 @@ export class CardSprite extends Container {
     } else {
       writeCardTextureUvs(this.imageSpr, this.contentContainer, this.foilSurface, this.foilUvs);
     }
-    this.foilSheen.setTexture(texture, this.foilUvs);
+    this.foilSheen.setTexture(texture, this.foilUvs, embedded?.foilSource ?? this.imageSpr);
     this.foilSheen.setArtWindows(getGeneratedCardArtWindows(texture));
   }
   setHandControls(spec: HandCardControlsSpec | null): void {

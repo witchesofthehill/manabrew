@@ -11,6 +11,7 @@ import { GAME_CARD_SIZES } from "@/components/game/game.constants";
 import { CardFoilOverlay } from "@/components/game/CardFoilOverlay";
 import { isEtchedOnlyPrinting } from "@/lib/cardFinish";
 import { useResolvedGameCard } from "@/hooks/useResolvedGameCard";
+import type { CardLightingMode, CardPose } from "@/lib/cardLighting";
 
 const EMPTY_STACK = { cards: [], flash: null, showPreStackFlash: false, collapsed: true };
 const ignore = () => undefined;
@@ -23,6 +24,9 @@ export function CardRenderingComparison({
   actions,
   onFlip,
   onAction,
+  lighting,
+  pose,
+  historicalPrinting,
 }: {
   card: ClientCardDto;
   deckCard: DeckCard;
@@ -31,6 +35,9 @@ export function CardRenderingComparison({
   actions: HandActionOption[];
   onFlip: () => void;
   onAction: (action: HandActionOption) => void;
+  lighting: CardLightingMode;
+  pose: CardPose;
+  historicalPrinting: boolean;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const [bounds, setBounds] = useState<DOMRect | null>(null);
@@ -62,12 +69,14 @@ export function CardRenderingComparison({
             skipEnterAnimation: true,
             actions,
             reserveSidePanel: false,
+            lighting,
+            pose,
             mousePos: { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 },
             anchorRect: null,
             slotRect: bounds,
           }
         : null,
-    [bounds, generated, card, face, actions],
+    [bounds, generated, card, face, actions, lighting, pose],
   );
   return (
     <div className="grid grid-cols-1 gap-4 @[960px]:grid-cols-3">
@@ -109,6 +118,8 @@ export function CardRenderingComparison({
                 foil={!hidden && !!card.foil}
                 cosmetics={hidden ? undefined : card.cosmetics}
                 etched={!hidden && isEtchedOnlyPrinting(info?.finishes)}
+                lighting={lighting}
+                pose={pose}
               />
             </div>
           )}
@@ -135,6 +146,8 @@ export function CardRenderingComparison({
               foil={!hidden && !!card.foil}
               cosmetics={hidden ? undefined : card.cosmetics}
               etched={!hidden && isEtchedOnlyPrinting(info?.finishes)}
+              lighting={lighting}
+              pose={pose}
             />
           </div>
         </div>
@@ -149,9 +162,11 @@ export function CardRenderingComparison({
         <div className="flex min-h-[440px] items-center justify-center">
           <div className="w-full" style={{ maxWidth: GAME_CARD_SIZES.preview.width }}>
             <GeneratedCardImage
-              card={card}
+              card={historicalPrinting ? undefined : card}
               deckCard={deckCard}
               faceIndex={face}
+              lighting={lighting}
+              pose={pose}
               fallback={
                 <ScryfallImg
                   src={imageUrl}

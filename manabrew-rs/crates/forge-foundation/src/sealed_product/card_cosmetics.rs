@@ -441,6 +441,9 @@ pub struct CardPrintDots {
     )]
     #[ts(optional, type = "number")]
     pub inset: Option<CardCosmeticNumber>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub artwork: Option<bool>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
@@ -496,6 +499,13 @@ pub struct CardCosmetics {
     )]
     #[ts(optional, type = "number")]
     pub rain_fog: Option<CardCosmeticNumber>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "heat_deformation"
+    )]
+    #[ts(optional, type = "number")]
+    pub heat_deformation: Option<CardCosmeticNumber>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub cardstock: Option<CardCoating>,
@@ -648,6 +658,9 @@ impl CardCosmetics {
         if self.rain_fog.is_some_and(|n| n.get() == 1.0) {
             self.rain_fog = None;
         }
+        if self.heat_deformation.is_some_and(|n| n.get() == 0.0) {
+            self.heat_deformation = None;
+        }
         if self
             .cardstock
             .as_ref()
@@ -664,6 +677,9 @@ impl CardCosmetics {
             }
             if dots.inset.is_some_and(|n| n.get() == 0.0) {
                 dots.inset = None;
+            }
+            if dots.artwork == Some(true) {
+                dots.artwork = None;
             }
             if dots.amount.get() == 0.0 {
                 self.print_dots = None;
@@ -778,6 +794,16 @@ fn rain_fog<'de, D: serde::Deserializer<'de>>(
     let value = Option::<CardCosmeticNumber>::deserialize(d)?;
     if value.is_some_and(|n| !(0.0..=2.0).contains(&n.get())) {
         return Err(serde::de::Error::custom("invalid rain_fog"));
+    }
+    Ok(value)
+}
+
+fn heat_deformation<'de, D: serde::Deserializer<'de>>(
+    d: D,
+) -> Result<Option<CardCosmeticNumber>, D::Error> {
+    let value = Option::<CardCosmeticNumber>::deserialize(d)?;
+    if value.is_some_and(|n| !(0.0..=0.02).contains(&n.get())) {
+        return Err(serde::de::Error::custom("invalid heat_deformation"));
     }
     Ok(value)
 }

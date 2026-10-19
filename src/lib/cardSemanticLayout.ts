@@ -1,7 +1,15 @@
-import type { CardDocument, Raster, RasterHost, Tier } from "card-glint";
+import type { CardDocument, Raster, RasterHost } from "card-glint";
+import {
+  closeRaster,
+  rasterCanvas,
+  type CanvasContext,
+  type CanvasRaster,
+} from "card-glint/canvas";
 import { opticalDocument } from "card-glint/magic";
 import {
   cardStock,
+  cardTextureSize,
+  composeCardTexture,
   faceStats,
   faceRects,
   framePlate,
@@ -14,9 +22,9 @@ import {
   FACE_HEIGHT,
   FACE_CORNER_RADIUS,
   canvasAssetWidth,
-  loadCanvasFonts,
+  type TextureTier,
   loadCanvasImages,
-  fetchCanvasAsset,
+  type CanvasFontAsset,
   faceManaAssets,
   paintFittedText,
   paintMana,
@@ -27,7 +35,7 @@ import {
   type CanvasImages,
   type RulesParagraph,
 } from "card-glint/magic/presentation";
-import { getTheme } from "@/hooks/useTheme";
+import { ensureCardGlintFont, ensureCardGlintFonts } from "@/lib/cardGlintAssets";
 import {
   semanticFrame,
   semanticFrameAssets,
@@ -167,7 +175,7 @@ function paragraphs(face: RenderedCardInput): readonly RulesParagraph[] {
   );
 }
 function paintRules(
-  c: CanvasRenderingContext2D,
+  c: CanvasContext,
   values: readonly RulesParagraph[],
   [x, y, width, height]: FaceRect,
   size: number,
@@ -176,10 +184,11 @@ function paintRules(
   paintRulesLayout(c, layoutRules(c, values, { x, y, width, height }, size, 7), images);
 }
 function paintPrototype(
-  c: CanvasRenderingContext2D,
+  c: CanvasContext,
   face: SemanticCardInput,
   images: CanvasImages,
   rulesText: boolean,
+  palette: CardSemanticPalette,
   layer?: "artwork" | "printing",
 ): void {
   const [normal, alternate] = parts(face);
@@ -216,7 +225,7 @@ function paintPrototype(
       images,
     ),
   );
-  c.fillStyle = getTheme().gameTheme.cardPrinting.ink;
+  c.fillStyle = palette.ink;
   c.textBaseline = "middle";
   c.textAlign = "center";
   const stats = drawn.find((region) => region.role === "stats" && region.faceIndex === 1)!;
@@ -252,7 +261,7 @@ function paintPrototype(
   paintRules(c, paragraphs(normal!), rules.rect, 15, images);
 }
 function paintFrameLabel(
-  c: CanvasRenderingContext2D,
+  c: CanvasContext,
   text: string,
   [x, y, width, height]: FaceRect,
   size: number,
@@ -321,14 +330,14 @@ function paintFrameLabel(
 }
 
 function paintSpecialText(
-  c: CanvasRenderingContext2D,
+  c: CanvasContext,
   face: SemanticCardInput,
   images: CanvasImages,
   rulesText: boolean,
+  palette: CardSemanticPalette,
 ): void {
   const frame = semanticFrame(face);
-  const printing = getTheme().gameTheme.cardPrinting;
-  c.fillStyle = printing.ink;
+  c.fillStyle = palette.ink;
   c.textBaseline = "middle";
   const titleFont =
     frame.vanguard === "paper"
@@ -381,7 +390,7 @@ function paintSpecialText(
         images,
       );
   }
-  c.fillStyle = printing.footer;
+  c.fillStyle = palette.footer;
   c.textAlign = "left";
   const footer = [face.collectorNumber, face.rarity, face.setCode?.toUpperCase(), face.artist]
     .filter(Boolean)
@@ -402,7 +411,12 @@ export interface SemanticImageLease {
   images: CanvasImages;
   dispose(): void;
 }
+export interface CardSemanticPalette {
+  readonly ink: string;
+  readonly footer: string;
+}
 export interface SemanticCompositionOptions {
+  palette: CardSemanticPalette;
   rulesText?: boolean;
   paintLayer?: "artwork" | "printing";
   loadImages?: (
@@ -410,43 +424,42 @@ export interface SemanticCompositionOptions {
     signal: AbortSignal,
   ) => Promise<SemanticImageLease>;
   loadFonts?: () => Promise<void>;
+  loadFont?: (asset: CanvasFontAsset) => Promise<void>;
 }
-let vanguardFont: FontFace | undefined;
-async function loadVanguardFont(signal: AbortSignal): Promise<void> {
-  if (vanguardFont?.status === "loaded") return;
-  const response = await fetchCanvasAsset(VANGUARD_FONT_ASSET.url, signal);
-  if (!response.ok) throw new Error(`Vanguard font is unavailable: ${response.status}`);
-  const font = new FontFace(VANGUARD_FONT_ASSET.family, await response.arrayBuffer(), {
-    weight: VANGUARD_FONT_ASSET.weight,
-    style: VANGUARD_FONT_ASSET.style,
-  });
-  await font.load();
-  signal.throwIfAborted();
-  document.fonts.add(font);
-  vanguardFont = font;
+function finishSemanticCanvas(canvas: CanvasRaster): HTMLCanvasElement | ImageBitmap {
+  if (typeof OffscreenCanvas !== "undefined" && canvas instanceof OffscreenCanvas) {
+    try {
+      return canvas.transferToImageBitmap();
+    } finally {
+      closeRaster(canvas);
+    }
+  }
+  return canvas as HTMLCanvasElement;
 }
 export async function composeSemanticCardTexture(
   face: SemanticCardInput,
-  tier: "table" | "inspect",
+  tier: TextureTier,
   signal: AbortSignal,
-  options: SemanticCompositionOptions = {},
-): Promise<HTMLCanvasElement> {
+  options: SemanticCompositionOptions,
+): Promise<HTMLCanvasElement | ImageBitmap> {
   if (!isSemanticLayout(face)) throw Error("Not a semantic card layout.");
   if (face.layout === "vanguard" && (face.handModifier == null || face.lifeModifier == null))
     throw Error("Vanguard composition requires hand and life modifiers.");
+  const [width, height] = cardTextureSize(tier);
+  const palette = Object.freeze({ ...options.palette });
   if (!scanBacked(face)) {
-    await (options.loadFonts ?? loadCanvasFonts)();
-    if (face.layout === "vanguard" && semanticFrame(face).flavor) await loadVanguardFont(signal);
+    await (options.loadFonts ?? ensureCardGlintFonts)();
+    if (face.layout === "vanguard" && semanticFrame(face).flavor)
+      await (options.loadFont ?? ensureCardGlintFont)(VANGUARD_FONT_ASSET);
   }
   signal.throwIfAborted();
   const loaded = await (options.loadImages ?? loadCanvasImages)(
     semanticCardAssetUrls(face),
     signal,
   );
-  const canvas = document.createElement("canvas");
-  canvas.width = tier === "table" ? 244 : 732;
-  canvas.height = tier === "table" ? 340 : 1020;
+  let canvas: CanvasRaster | undefined;
   try {
+    canvas = rasterCanvas([width, height]);
     signal.throwIfAborted();
     if (!loaded.images.has(parts(face)[0]!.illustration ?? ""))
       throw new Error("Selected artwork is unavailable.");
@@ -467,7 +480,14 @@ export async function composeSemanticCardTexture(
         if (options.paintLayer === "printing") c.clearRect(...regions(face)[0]!.rect);
       }
     } else if (face.layout === "prototype") {
-      paintPrototype(c, face, loaded.images, options.rulesText !== false, options.paintLayer);
+      paintPrototype(
+        c,
+        face,
+        loaded.images,
+        options.rulesText !== false,
+        palette,
+        options.paintLayer,
+      );
     } else {
       const frame = semanticFrame(face);
       const sideways = face.layout === "planar";
@@ -488,7 +508,7 @@ export async function composeSemanticCardTexture(
         options.paintLayer,
       );
       if (options.paintLayer !== "artwork")
-        paintSpecialText(c, face, loaded.images, options.rulesText !== false);
+        paintSpecialText(c, face, loaded.images, options.rulesText !== false, palette);
     }
     c.setTransform(canvas.width / FACE_WIDTH, 0, 0, canvas.height / FACE_HEIGHT, 0, 0);
     c.globalCompositeOperation = "destination-in";
@@ -496,9 +516,10 @@ export async function composeSemanticCardTexture(
     c.beginPath();
     c.roundRect(0, 0, FACE_WIDTH, FACE_HEIGHT, FACE_CORNER_RADIUS * FACE_WIDTH);
     c.fill();
-    return canvas;
+    signal.throwIfAborted();
+    return finishSemanticCanvas(canvas);
   } catch (error) {
-    canvas.width = canvas.height = 0;
+    if (canvas) closeRaster(canvas);
     throw error;
   } finally {
     loaded.dispose();
@@ -509,49 +530,77 @@ export function cardOpticalDocument(
   id: number,
   revision: number,
   value: SemanticCardInput,
-  tier: Tier = "inspect",
-  rulesText = true,
+  tier: TextureTier,
+  rulesText: boolean,
+  palette: CardSemanticPalette,
 ): CardDocument {
-  if (!isSemanticLayout(value)) {
-    const document = opticalDocument(id, revision, value, "prismatic", tier, rulesText);
-    delete document.recipe.overlayFoil;
-    return document;
-  }
   const face = structuredClone({ ...value, setCode: value.setCode ?? "GLINT" });
-  const size = (tier === "table" ? [244, 340] : [732, 1020]) as readonly [number, number];
-  const layout = semanticLayoutRegions(face);
-  const artWindows = layout
-    .filter((region) => region.role === "artwork")
-    .map((region) => region.rect);
-  const raster = (paintLayer: "artwork" | "printing"): Raster => ({
-    key: JSON.stringify(["manabrew-semantic-optical-v2", face, tier, paintLayer, rulesText]),
-    size,
-    paint: (host: RasterHost, signal: AbortSignal) =>
-      composeSemanticCardTexture(face, tier, signal, {
-        paintLayer,
+  const capturedPalette = Object.freeze({ ...palette });
+  const nativeDocument = isSemanticLayout(face)
+    ? undefined
+    : opticalDocument(
+        id,
+        revision,
+        face,
+        "prismatic",
+        tier === "table" ? "table" : "inspect",
         rulesText,
-        async loadImages(urls, imageSignal) {
-          const lease = await host.images(
-            [...new Set(urls.filter((url): url is string => Boolean(url)))].map((url) => ({
-              url,
-              width: canvasAssetWidth(url),
-            })),
-            imageSignal,
-          );
-          return { images: lease.value, dispose: () => lease.release() };
-        },
-      }),
+      );
+  if (nativeDocument) delete nativeDocument.recipe.overlayFoil;
+  const size = cardTextureSize(tier);
+  const layout = nativeDocument ? undefined : semanticLayoutRegions(face);
+  const artWindows = nativeDocument
+    ? nativeDocument.recipe.artWindows
+    : layout!.filter((region) => region.role === "artwork").map((region) => region.rect);
+  const raster = (paintLayer: "artwork" | "printing"): Raster => ({
+    key: JSON.stringify([
+      "manabrew-optical-v3",
+      face,
+      tier,
+      paintLayer,
+      rulesText,
+      capturedPalette,
+    ]),
+    size,
+    paint: async (host: RasterHost, signal: AbortSignal) => {
+      const loadImages: typeof loadCanvasImages = async (urls, imageSignal) => {
+        const lease = await host.images(
+          [...new Set(urls.filter((url): url is string => Boolean(url)))].map((url) => ({
+            url,
+            width: canvasAssetWidth(url),
+          })),
+          imageSignal,
+        );
+        return { images: new Map(lease.value), dispose: () => lease.release() };
+      };
+      return nativeDocument
+        ? composeCardTexture(
+            { face, printingId: null, printedImage: null, paintLayer, rulesText },
+            tier,
+            signal,
+            { loadImages, loadFonts: ensureCardGlintFonts, loadRetroFont: ensureCardGlintFonts },
+          )
+        : composeSemanticCardTexture(face, tier, signal, {
+            palette: capturedPalette,
+            paintLayer,
+            rulesText,
+            loadImages,
+          });
+    },
   });
   return {
     id,
     revision,
     recipe: {
-      pack: "manabrew-semantic",
+      ...nativeDocument?.recipe,
+      pack: nativeDocument?.recipe.pack ?? "manabrew-semantic",
       color: raster("artwork"),
-      edges: [],
+      edges: nativeDocument?.recipe.edges ?? [],
       artWindows,
-      cornerRadius: FACE_CORNER_RADIUS,
-      regions: layout.map((region) => ({ id: region.name, rect: region.rect })),
+      cornerRadius: nativeDocument?.recipe.cornerRadius ?? FACE_CORNER_RADIUS,
+      regions: nativeDocument
+        ? nativeDocument.recipe.regions
+        : layout!.map((region) => ({ id: region.name, rect: region.rect })),
       finishCoverageBase: 0,
     },
     layers: [
@@ -562,23 +611,28 @@ export function cardOpticalDocument(
         raster: raster("printing"),
         finishCoverage: {
           add: {
-            key: JSON.stringify(["manabrew-semantic-art-scope-v1", size, artWindows]),
+            key: JSON.stringify(["manabrew-art-scope-v2", size, artWindows]),
             size,
             async paint(_host, signal) {
               signal.throwIfAborted();
-              const canvas = document.createElement("canvas");
-              [canvas.width, canvas.height] = size;
-              const context = canvas.getContext("2d");
-              if (!context) throw new Error("Card finish requires a 2D canvas context");
-              context.fillStyle = "white";
-              for (const [x, y, width, height] of artWindows)
-                context.fillRect(
-                  x * canvas.width,
-                  y * canvas.height,
-                  width * canvas.width,
-                  height * canvas.height,
-                );
-              return canvas;
+              const canvas = rasterCanvas(size);
+              try {
+                const context = canvas.getContext("2d");
+                if (!context) throw new Error("Card finish requires a 2D canvas context");
+                context.fillStyle = "white";
+                for (const [x, y, width, height] of artWindows)
+                  context.fillRect(
+                    x * canvas.width,
+                    y * canvas.height,
+                    width * canvas.width,
+                    height * canvas.height,
+                  );
+                signal.throwIfAborted();
+                return finishSemanticCanvas(canvas);
+              } catch (error) {
+                closeRaster(canvas);
+                throw error;
+              }
             },
           },
         },

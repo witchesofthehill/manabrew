@@ -1,3 +1,4 @@
+import type { CanvasContext, CanvasRaster } from "card-glint/canvas";
 import {
   MSE_TEMPLATE_ROOT,
   FACE_WIDTH,
@@ -7,6 +8,7 @@ import {
   type FaceRect,
   type RenderedCardInput,
 } from "card-glint/magic/presentation";
+import { createCardScratchCanvas, closeCardScratchCanvas } from "@/lib/cardRasterScratch";
 
 export const VANGUARD_FONT_ASSET = {
   url: `${MSE_TEMPLATE_ROOT}/magic-vanguard.mse-style/fonts/Fritz%20Quadrata%20Cyrillic.ttf`,
@@ -14,6 +16,10 @@ export const VANGUARD_FONT_ASSET = {
   weight: "400",
   style: "normal",
 };
+
+export function createSemanticCanvas(width: number, height: number): CanvasRaster {
+  return createCardScratchCanvas(width, height, true);
+}
 
 export interface SemanticFrame {
   root: string;
@@ -120,9 +126,7 @@ function image(images: CanvasImages, url: string) {
 }
 
 function luminanceMask(images: CanvasImages, url: string, width: number, height: number) {
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
+  const canvas = createSemanticCanvas(width, height);
   try {
     const context = canvas.getContext("2d");
     if (!context) throw new Error("Special frames require Canvas2D.");
@@ -133,13 +137,13 @@ function luminanceMask(images: CanvasImages, url: string, width: number, height:
     context.putImageData(pixels, 0, 0);
     return canvas;
   } catch (error) {
-    canvas.width = canvas.height = 0;
+    closeCardScratchCanvas(canvas);
     throw error;
   }
 }
 
 export function paintSemanticFrame(
-  c: CanvasRenderingContext2D,
+  c: CanvasContext,
   face: RenderedCardInput,
   frame: SemanticFrame,
   images: CanvasImages,
@@ -147,19 +151,23 @@ export function paintSemanticFrame(
   layer?: "artwork" | "printing",
 ): void {
   const [width, height] = frame.size;
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const masks: HTMLCanvasElement[] = [];
+  const transform = c.getTransform();
+  const pixelWidth = Math.max(1, Math.ceil(width * Math.hypot(transform.a, transform.b)));
+  const pixelHeight = Math.max(1, Math.ceil(height * Math.hypot(transform.c, transform.d)));
+  const canvas = createSemanticCanvas(pixelWidth, pixelHeight);
+  const masks: CanvasRaster[] = [];
   try {
     const context = canvas.getContext("2d");
     if (!context) throw new Error("Special frames require Canvas2D.");
-    const artMask = luminanceMask(images, `${frame.root}/image_mask.png`, width, height);
+    context.scale(pixelWidth / width, pixelHeight / height);
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = "high";
+    const artMask = luminanceMask(images, `${frame.root}/image_mask.png`, pixelWidth, pixelHeight);
     masks.push(artMask);
     if (layer !== "printing") {
       paintIllustration(context, face, images, frame.art, "artwork");
       context.globalCompositeOperation = "destination-in";
-      context.drawImage(artMask, 0, 0);
+      context.drawImage(artMask, 0, 0, width, height);
       c.drawImage(canvas, 0, 0, width, height);
       context.clearRect(0, 0, width, height);
     }
@@ -168,24 +176,24 @@ export function paintSemanticFrame(
     context.fillStyle = stock;
     context.fillRect(0, 0, width, height);
     context.globalCompositeOperation = "destination-out";
-    context.drawImage(artMask, 0, 0);
+    context.drawImage(artMask, 0, 0, width, height);
     context.globalCompositeOperation = "source-over";
     for (const part of frame.components ?? []) {
       context.globalAlpha = part.alpha ?? 1;
       context.drawImage(image(images, `${frame.root}/${part.file}`), ...part.rect);
     }
     context.globalAlpha = 1;
-    c.drawImage(canvas, 0, 0);
+    c.drawImage(canvas, 0, 0, width, height);
     context.clearRect(0, 0, width, height);
     context.drawImage(image(images, `${frame.root}/${frame.frame}`), 0, 0, width, height);
-    const frameMask = luminanceMask(images, `${frame.root}/card_mask.png`, width, height);
+    const frameMask = luminanceMask(images, `${frame.root}/card_mask.png`, pixelWidth, pixelHeight);
     masks.push(frameMask);
     context.globalCompositeOperation = "destination-in";
-    context.drawImage(frameMask, 0, 0);
-    c.drawImage(canvas, 0, 0);
+    context.drawImage(frameMask, 0, 0, width, height);
+    c.drawImage(canvas, 0, 0, width, height);
   } finally {
-    canvas.width = canvas.height = 0;
-    for (const mask of masks) mask.width = mask.height = 0;
+    closeCardScratchCanvas(canvas);
+    for (const mask of masks) closeCardScratchCanvas(mask);
   }
 }
 
@@ -199,7 +207,7 @@ export function prototypeFrameAssets(face: RenderedCardInput): string[] {
 }
 
 export function paintPrototypeFrame(
-  c: CanvasRenderingContext2D,
+  c: CanvasContext,
   face: RenderedCardInput,
   images: CanvasImages,
 ): void {

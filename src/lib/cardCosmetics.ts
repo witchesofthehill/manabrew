@@ -46,11 +46,14 @@ function normalizePrintDots(value: unknown): CardPrintDots | undefined {
   const input = cosmeticRecord(value);
   if (
     !input ||
-    Object.keys(input).some((key) => !["amount", "period", "variation", "inset"].includes(key)) ||
+    Object.keys(input).some(
+      (key) => !["amount", "period", "variation", "inset", "artwork"].includes(key),
+    ) ||
     !boundedNumber(input.amount, 0, 1) ||
     (input.period != null && !boundedNumber(input.period, 2, 16)) ||
     (input.variation != null && !boundedNumber(input.variation, 0, 1)) ||
     (input.inset != null && !boundedNumber(input.inset, 0, 0.2)) ||
+    (input.artwork != null && typeof input.artwork !== "boolean") ||
     input.amount === 0
   )
     return undefined;
@@ -61,6 +64,7 @@ function normalizePrintDots(value: unknown): CardPrintDots | undefined {
       ? { variation: input.variation as number }
       : {}),
     ...(input.inset != null && input.inset !== 0 ? { inset: input.inset as number } : {}),
+    ...(input.artwork === false ? { artwork: false } : {}),
   };
 }
 
@@ -118,6 +122,9 @@ export function normalizeCardCosmetics(value: unknown): CardCosmetics | undefine
     input.rainFog !== 1
   ) {
     result.rainFog = input.rainFog;
+  }
+  if (boundedNumber(input.heatDeformation, 0, 0.02) && input.heatDeformation !== 0) {
+    result.heatDeformation = input.heatDeformation;
   }
   const cardstock = normalizeCoating(input.cardstock);
   if (cardstock) result.cardstock = cardstock;

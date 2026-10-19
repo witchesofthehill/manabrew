@@ -19,7 +19,7 @@ final class CardCosmeticsCodec {
             return null;
         }
         final JsonObject object = object(value, Set.of("finish", "frame", "border", "wear", "wearAmount", "wearSeed",
-                "rainFog", "cardstock", "printDots", "finishCoverage", "wording", "printing"));
+                "rainFog", "heatDeformation", "cardstock", "printDots", "finishCoverage", "wording", "printing"));
         enumeration(object, "finish", Set.of("regular", "gloss", "etched", "prismatic", "holofoil", "cold", "opal", "rain", "heat", "pool"));
         enumeration(object, "frame", Set.of("printing", "modern", "retro"));
         enumeration(object, "border", Set.of("printing", "black", "white", "silver"));
@@ -28,6 +28,7 @@ final class CardCosmeticsCodec {
         numeric(object, "wearSeed", 0, 0xffffffffL, true);
         numeric(object, "wearAmount", 0, 1, false);
         numeric(object, "rainFog", 0, 2, false);
+        numeric(object, "heatDeformation", 0, 0.02, false);
         for (final String key : new String[] {"cardstock", "printDots", "finishCoverage"}) {
             if (object.has(key)) {
                 final JsonObject effect = effect(object.get(key), key);
@@ -58,6 +59,7 @@ final class CardCosmeticsCodec {
         }
         removeDefault(object, "wording", "oracle");
         removeNumberDefault(object, "rainFog", 1);
+        removeNumberDefault(object, "heatDeformation", 0);
         removeNumberDefault(object, "wearSeed", 0);
         if (!object.has("wear") && !object.has("wearAmount")) {
             object.remove("wearSeed");
@@ -67,7 +69,7 @@ final class CardCosmeticsCodec {
 
     private static JsonObject effect(final JsonElement value, final String key) {
         final JsonObject object = object(value, switch (key) {
-            case "printDots" -> Set.of("amount", "period", "variation", "inset");
+            case "printDots" -> Set.of("amount", "period", "variation", "inset", "artwork");
             case "finishCoverage" -> Set.of("area", "amount");
             default -> Set.of("amount");
         });
@@ -79,6 +81,15 @@ final class CardCosmeticsCodec {
             numeric(object, "period", 2, 16, false);
             numeric(object, "variation", 0, 1, false);
             numeric(object, "inset", 0, 0.2, false);
+            if (object.has("artwork")) {
+                final JsonElement artwork = object.get("artwork");
+                if (!artwork.isJsonPrimitive() || !artwork.getAsJsonPrimitive().isBoolean()) {
+                    throw new IllegalArgumentException("print-dot artwork must be boolean");
+                }
+                if (artwork.getAsBoolean()) {
+                    object.remove("artwork");
+                }
+            }
             removeNumberDefault(object, "period", 5);
             removeNumberDefault(object, "variation", 0.5);
             removeNumberDefault(object, "inset", 0);

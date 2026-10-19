@@ -81,6 +81,13 @@ import { getSafeAreaInsets } from "@/lib/safeArea";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { cardRenderInputKey, renderRulesCard } from "@/lib/cardRenderer";
 import type { CardRenderRequest } from "@/lib/cardRenderSnapshot";
+import {
+  releaseCardRaster,
+  selectCardRenderTier,
+  type CardRaster,
+  type CardRenderTier,
+} from "@/lib/cardRenderTypes";
+import { overlayResolution } from "@/pixi/overlay/overlayRuntime";
 import { CardArtworkError } from "@/lib/cardRenderDecision";
 import { hasIntegratedArtwork } from "@/lib/cardArtworkPrinting";
 import {
@@ -100,6 +107,7 @@ import { CardLiveHighlight } from "@/pixi/effects/CardLiveHighlight";
 import { isEtchedOnlyPrinting } from "@/lib/cardFinish";
 import type { GamePreviewFlipBinding } from "@/hooks/useGamePreviewFlip";
 import { PreviewFlipAnimation } from "@/pixi/cardPreview/PreviewFlipAnimation";
+import type { CardLightingMode, CardPose } from "@/lib/cardLighting";
 
 export interface RulesCardPreviewSpec {
   card: CardDto;
@@ -117,6 +125,8 @@ export interface RulesCardPreviewSpec {
   embedded?: boolean;
   highlightedEffect?: string;
   flip?: GamePreviewFlipBinding;
+  lighting?: CardLightingMode;
+  pose?: CardPose;
 }
 
 export interface RulesPreviewActionGlowBounds {
@@ -214,6 +224,7 @@ export class RulesCardPreviewLayer {
   private faceGeometry: CardRenderGeometry | undefined;
   private faceTexture: Texture | null = null;
   private foil: CardFoil | null = null;
+  private readonly materialPose = { yaw: 0, pitch: 0 };
   private readonly liveHighlight: CardLiveHighlight;
   private readonly foilUvs = new Float32Array(8);
   private readonly foilSurface = new Rectangle();
@@ -222,6 +233,10 @@ export class RulesCardPreviewLayer {
   private renderAbort: AbortController | null = null;
   private faceInputKey: string | null = null;
   private completedFaceInputKey: string | null = null;
+  private renderTier: CardRenderTier | undefined;
+  private projectedRasterWidth = 0;
+  private projectedRasterHeight = 0;
+  private rasterFlipping = false;
   private unsubscribeLocale: () => void;
   private renderState: "loading" | "ready" | "error" = "loading";
   private preserveArtwork = false;
@@ -365,6 +380,9 @@ export class RulesCardPreviewLayer {
       ? this.faceSprite.texture
       : null;
   }
+  get foilSource(): Sprite {
+    return this.faceSprite;
+  }
   writeFoilTextureUvs(relativeTo: Container, surface: Rectangle, output: Float32Array): void {
     writeCardTextureUvs(this.faceSprite, relativeTo, surface, output);
   }
@@ -411,6 +429,23 @@ export class RulesCardPreviewLayer {
     this.viewportHeight = height;
     if (width <= EDGE_PAD * 2 || height <= EDGE_PAD * 2) this.setSpec(null);
     else if (this.spec) this.rebuild();
+  }
+
+  setRasterProjection(width: number, height: number, flipping: boolean): void {
+    this.projectedRasterWidth = width;
+    this.projectedRasterHeight = height;
+    this.rasterFlipping = flipping;
+    if (this.spec && this.selectRasterTier() !== this.renderTier) void this.loadFace();
+  }
+
+  private selectRasterTier(): CardRenderTier {
+    return selectCardRenderTier(
+      this.projectedRasterWidth || this.faceWidth * this.layoutScale,
+      this.projectedRasterHeight || this.panelHeight * this.layoutScale,
+      overlayResolution(window.innerWidth, window.innerHeight),
+      this.renderTier,
+      this.rasterFlipping || !!this.spec?.flip?.closed || this.flip.scale < 1,
+    );
   }
 
   setSpec(spec: RulesCardPreviewSpec | null, preserveHover = false): void {
@@ -481,11 +516,14 @@ export class RulesCardPreviewLayer {
         this.faceTexture !== null &&
         this.renderState === "ready" &&
         this.completedFaceInputKey ===
-          cardRenderInputKey({
-            card: spec.card,
-            deckCard: previewDeckCard(spec.card),
-            faceIndex: spec.showBackFace ? 1 : 0,
-          });
+          JSON.stringify([
+            cardRenderInputKey({
+              card: spec.card,
+              deckCard: previewDeckCard(spec.card),
+              faceIndex: spec.showBackFace ? 1 : 0,
+            }),
+            this.selectRasterTier(),
+          ]);
       if (!retainFace) {
         this.clearFaceTexture();
         this.faceGeometry = undefined;
@@ -521,8 +559,6 @@ export class RulesCardPreviewLayer {
       this.revealHighlightedEffect = !!spec.highlightedEffect;
     }
     const previousFaceInputKey = this.faceInputKey;
-    if (contentChanged || faceChanged || visibilityChanged || returning)
-      void this.loadFace(returning && !hidden);
     if (
       contentChanged ||
       this.scryfallInfo !== previousInfo ||
@@ -539,6 +575,8 @@ export class RulesCardPreviewLayer {
     } else {
       this.layoutPanel();
     }
+    if (contentChanged || faceChanged || visibilityChanged || returning)
+      void this.loadFace(returning && !hidden);
 
     if (spec.suppressed) {
       this.hide();
@@ -546,6 +584,7 @@ export class RulesCardPreviewLayer {
     }
 
     this.foil?.setEnabled(!spec.embedded && !hidden && this.imageReady);
+    this.applyLightingPose();
     this.startHighlightedEffect();
 
     if (
@@ -942,9 +981,10 @@ export class RulesCardPreviewLayer {
       this.foil.position.set(this.foilSurface.x, this.foilSurface.y);
       this.foil.setExclusions(this.foilRulesExclusions);
       this.writeFoilTextureUvs(this.container, this.foilSurface, this.foilUvs);
-      this.foil.setTexture(this.faceSprite.texture, this.foilUvs);
+      this.foil.setTexture(this.faceSprite.texture, this.foilUvs, this.faceSprite);
       this.foil.setArtWindows(getGeneratedCardArtWindows(this.faceSprite.texture));
     }
+    this.applyLightingPose();
     this.foil?.setAppearance(
       !display.faceless && !!spec.card.foil,
       display.faceless ? undefined : spec.card.cosmetics,
@@ -1706,6 +1746,7 @@ export class RulesCardPreviewLayer {
     this.anchorBounds.height = anchorHeight / scale;
     this.layoutDetails();
     if (spec.phase === "open" && !spec.suppressed) this.applyEntrancePose();
+    if (this.selectRasterTier() !== this.renderTier) void this.loadFace();
   }
 
   private layoutDetails(): void {
@@ -1721,7 +1762,8 @@ export class RulesCardPreviewLayer {
         body.background.rect(0, 0, body.width, body.height).fill(hexToNum(body.frame.paper));
       }
       body.layout();
-      const regions = body.sagaRail ? [body.region, body.markerRegion] : [body.region];
+      const regions = [body.region, ...body.reminderRegions];
+      if (body.sagaRail) regions.push(body.markerRegion);
       for (const region of regions) {
         const exclusion = (this.foilRulesExclusions[exclusionIndex] ??= new Rectangle());
         exclusion.copyFrom(region);
@@ -1736,6 +1778,15 @@ export class RulesCardPreviewLayer {
     this.foil?.setExclusions(this.foilRulesExclusions);
   }
 
+  private applyLightingPose(): void {
+    const spec = this.spec;
+    if (!spec || !this.foil) return;
+    this.materialPose.yaw =
+      (spec.pose?.yaw ?? 0) + Math.acos(Math.max(-1, Math.min(1, this.flip.scale)));
+    this.materialPose.pitch = spec.pose?.pitch ?? 0;
+    this.foil.setLighting(spec.lighting ?? "pointer", this.materialPose);
+  }
+
   private applyEntrancePose(): void {
     const remaining = 1 - this.entrance.progress;
     this.container.position.set(
@@ -1746,6 +1797,7 @@ export class RulesCardPreviewLayer {
     this.container.x += (this.panelWidth * scale * (1 - this.flip.scale)) / 2;
     this.container.scale.set(scale * this.flip.scale, scale);
     this.container.alpha = this.entrance.progress;
+    this.applyLightingPose();
     for (let index = 0; index < this.foilRulesExclusions.length; index += 1) {
       const region = this.foilRulesExclusions[index];
       this.screenFoilExclusions[index].set(
@@ -1896,7 +1948,8 @@ export class RulesCardPreviewLayer {
       deckCard,
       faceIndex: spec.showBackFace ? 1 : 0,
     };
-    const inputKey = hidden ? "hidden" : cardRenderInputKey(request);
+    const tier = this.selectRasterTier();
+    const inputKey = hidden ? "hidden" : JSON.stringify([cardRenderInputKey(request), tier]);
     if (
       !refreshMetadata &&
       inputKey === this.faceInputKey &&
@@ -1906,6 +1959,7 @@ export class RulesCardPreviewLayer {
     )
       return;
     this.faceInputKey = inputKey;
+    this.renderTier = tier;
     this.renderAbort?.abort();
     const controller = new AbortController();
     this.renderAbort = controller;
@@ -1914,9 +1968,10 @@ export class RulesCardPreviewLayer {
       this.renderState = "loading";
       this.faceSprite.label = "card-glint-loading";
     }
+    let raster: CardRaster | null = null;
     try {
-      const canvas = hidden ? null : await renderRulesCard(request, controller.signal);
-      const geometry = canvas ? getCardRenderGeometry(canvas) : undefined;
+      raster = hidden ? null : await renderRulesCard(request, controller.signal, { tier });
+      const geometry = raster ? getCardRenderGeometry(raster) : undefined;
       const cardBack = hidden ? await loadCardBack() : null;
       if (
         controller.signal.aborted ||
@@ -1925,12 +1980,12 @@ export class RulesCardPreviewLayer {
       )
         return;
       this.completedFaceInputKey = inputKey;
-      if (canvas && this.faceTexture?.source.resource === canvas) {
+      if (raster && this.faceTexture?.source.resource === raster) {
         this.spec?.flip?.onReady();
         this.callbacks.onRenderRequested();
         return;
       }
-      const texture = canvas ? createGeneratedCardTexture(canvas) : cardBack!;
+      const texture = raster ? createGeneratedCardTexture(raster) : cardBack!;
       const previous = this.faceTexture;
       this.foil?.setTexture(null);
       this.faceGeometry = geometry;
@@ -1943,6 +1998,13 @@ export class RulesCardPreviewLayer {
       this.spec?.flip?.onReady();
       this.callbacks.onRenderRequested();
       previous?.destroy(true);
+      if (!hidden && this.canFlip && deckCard?.backFace) {
+        void renderRulesCard(
+          { ...request, faceIndex: spec.showBackFace ? 0 : 1 },
+          controller.signal,
+          { tier },
+        ).then(releaseCardRaster, () => undefined);
+      }
     } catch (cause: unknown) {
       if (
         controller.signal.aborted ||
@@ -1975,6 +2037,8 @@ export class RulesCardPreviewLayer {
       this.rebuild();
       if (texture !== Texture.EMPTY) this.spec?.flip?.onReady();
       this.callbacks.onRenderRequested();
+    } finally {
+      if (raster) releaseCardRaster(raster);
     }
   }
 

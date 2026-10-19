@@ -48,6 +48,9 @@ export class HandRulesCardFace extends Container {
   get foilTexture(): Texture | null {
     return this.preview.foilTexture;
   }
+  get foilSource() {
+    return this.preview.foilSource;
+  }
   writeFoilTextureUvs(relativeTo: Container, surface: Rectangle, output: Float32Array): void {
     this.preview.writeFoilTextureUvs(relativeTo, surface, output);
   }
@@ -70,6 +73,9 @@ export class HandRulesCardFace extends Container {
     this.slotWidth = width;
     this.slotHeight = height;
     this.sync();
+  }
+  setRasterProjection(width: number, height: number, flipping: boolean): void {
+    this.preview.setRasterProjection(width, height, flipping);
   }
   setTheme(theme: Theme): void {
     this.preview.setTheme(theme);

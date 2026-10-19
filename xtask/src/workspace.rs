@@ -146,6 +146,15 @@ impl Workspace {
         if JAVA_ENGINE_PACKAGES.contains(&pkg.name.as_str()) {
             globs.extend(JAVA_ENGINE_GLOBS.iter().map(|g| g.to_string()));
         }
+        if matches!(
+            pkg.name.as_str(),
+            "manabrew-protocol" | "manabrew-relay-protocol"
+        ) {
+            globs.push(
+                "manabrew-rs/crates/forge-foundation/src/sealed_product/card_cosmetics.rs"
+                    .to_string(),
+            );
+        }
         globs
     }
 

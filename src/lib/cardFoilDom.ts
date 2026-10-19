@@ -1,7 +1,15 @@
-import { Container, Mesh, Texture, WebGLRenderer, type MeshGeometry, type Shader } from "pixi.js";
+import { Container, Texture, WebGLRenderer } from "pixi.js";
+import { CardFoilMesh, getCardFoilBatchStats } from "@/pixi/effects/cardFoilBatch";
+import {
+  DEFAULT_CARD_POSE,
+  writeCardPoseNormal,
+  type CardLightingMode,
+  type CardPose,
+} from "@/lib/cardLighting";
 import { createCardFoilShader, type CardFoilShader } from "@/pixi/effects/cardFoilShader";
 import type { CardFoilRegion } from "@/lib/cardFinish";
 import type { CardCosmetics, CardFinish } from "@/protocol/deck";
+import { getCardGpuTimingStats } from "@/lib/cardRenderGpuTiming";
 
 export type CardFoilSource = HTMLCanvasElement | HTMLImageElement;
 
@@ -11,6 +19,8 @@ export interface DomCardFoilOptions {
   cosmetics?: CardCosmetics;
   animated: boolean;
   artWindows?: readonly CardFoilRegion[];
+  lighting?: CardLightingMode;
+  pose?: CardPose;
 }
 
 export interface DomCardFoilRegistration {
@@ -34,13 +44,18 @@ interface FoilEntry {
   pointer: Float32Array;
   uvs: Float32Array;
   clip: Float32Array;
+  sourceUploadPending: boolean;
+  normal: Float32Array;
+  hiddenSource: CardFoilSource | null;
+  sourceOpacity: string;
+  sourceOpacityPriority: string;
 }
 
 interface FoilRenderer {
   renderer: WebGLRenderer;
   stage: Container;
   finish: CardFoilShader;
-  mesh: Mesh<MeshGeometry, Shader>;
+  mesh: CardFoilMesh;
 }
 
 const entries = new Set<FoilEntry>();
@@ -52,17 +67,53 @@ const FRAME_INTERVAL = 1000 / 30;
 const MAX_FOIL_RESOLUTION = 2;
 const NO_ART_WINDOWS: readonly CardFoilRegion[] = [];
 const MAX_FOIL_EDGE = 1024;
+const domStats = {
+  renders: 0,
+  outputCopies: 0,
+  sourceUploads: 0,
+  sourceUploadBytes: 0,
+  cpuSubmissionMs: 0,
+  restores: 0,
+};
+export function getDomCardFoilStats() {
+  const gpuTiming = getCardGpuTimingStats("dom");
+  return {
+    ...domStats,
+    outputs: entries.size,
+    draws: getCardFoilBatchStats().domDraws,
+    gpuTiming,
+    gpuTimingAvailable: gpuTiming.gpuTimingAvailable,
+    gpuCompletionMs: gpuTiming.gpuCompletionMs,
+  };
+}
+function contextRestored() {
+  domStats.restores++;
+  visibilityChanged();
+}
 
 function disposeRenderer() {
   if (!shared) return;
   shared.stage.destroy({ children: true });
   shared.finish.destroy();
-  shared.renderer.canvas.removeEventListener("webglcontextrestored", visibilityChanged);
+  shared.renderer.canvas.removeEventListener("webglcontextrestored", contextRestored);
   shared.renderer.destroy();
   shared = null;
 }
 
+function restoreSource(entry: FoilEntry) {
+  if (!entry.hiddenSource) return;
+  if (entry.sourceOpacity)
+    entry.hiddenSource.style.setProperty(
+      "opacity",
+      entry.sourceOpacity,
+      entry.sourceOpacityPriority,
+    );
+  else entry.hiddenSource.style.removeProperty("opacity");
+  entry.hiddenSource = null;
+}
+
 function releaseTexture(entry: FoilEntry) {
+  restoreSource(entry);
   if (!entry.texture) return;
   entry.finish.setTexture(null);
   entry.texture.destroy(true);
@@ -90,11 +141,11 @@ function ensureRenderer() {
     .init({ width: 1, height: 1, backgroundAlpha: 0, antialias: false, resolution: 1 })
     .then(() => {
       const finish = createCardFoilShader(requestFrame);
-      const mesh = new Mesh({ geometry: finish.geometry, shader: finish.shader });
+      const mesh = new CardFoilMesh(finish, "dom");
       const stage = new Container();
       stage.addChild(mesh);
       shared = { renderer, finish, mesh, stage };
-      renderer.canvas.addEventListener("webglcontextrestored", visibilityChanged);
+      renderer.canvas.addEventListener("webglcontextrestored", contextRestored);
       if (!entries.size) disposeRenderer();
       else requestFrame();
     })
@@ -118,7 +169,13 @@ function displayedSource(entry: FoilEntry): CardFoilSource | null {
   let largestArea = 0;
   for (const source of candidates) {
     if (source.dataset.cardFinish || source.closest("[data-card-finish]")) continue;
-    if (!source.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) continue;
+    if (
+      !source.checkVisibility({
+        checkOpacity: source !== entry.hiddenSource,
+        checkVisibilityCSS: true,
+      })
+    )
+      continue;
     if (source instanceof HTMLImageElement && (!source.complete || !source.naturalWidth)) continue;
     const area = source.clientWidth * source.clientHeight;
     if (!area || area < largestArea) continue;
@@ -145,11 +202,13 @@ function updateSource(entry: FoilEntry) {
       (!(source instanceof HTMLImageElement) || (source.complete && source.naturalWidth))
     ) {
       entry.texture = Texture.from(source, true);
+      entry.sourceUploadPending = true;
     }
   }
   if (entry.uploadDirty && source instanceof HTMLCanvasElement) {
     entry.finish.setTexture(null);
     entry.texture?.source.update();
+    entry.sourceUploadPending = true;
   }
   entry.uploadDirty = false;
   return source;
@@ -267,12 +326,9 @@ function renderFrame(now: number) {
       entry.canvas.height = pixelHeight;
     }
     if (entry.dirty) updateUvs(entry, source, width, height);
-    if (entry.dirty) {
-      finish.setMode(entry.options.mode, entry.options.cosmetics);
-      finish.setArtWindows(entry.options.artWindows ?? NO_ART_WINDOWS);
-    }
     finish.setTexture(entry.texture, entry.uvs);
     mesh.shader = finish.shader;
+    mesh.finish = finish;
     finish.uniforms.uSize[0] = width;
     finish.uniforms.uSize[1] = height;
     finish.uniforms.uRadius = 0;
@@ -289,7 +345,17 @@ function renderFrame(now: number) {
     }
     try {
       finish.update(animated ? now / 1000 : 0, animated && entry.hovering);
+      renderer.gl.pixelStorei(renderer.gl.UNPACK_ALIGNMENT, 1);
+      const started = performance.now();
       renderer.render(stage);
+      domStats.cpuSubmissionMs += performance.now() - started;
+      domStats.renders++;
+      if (entry.sourceUploadPending) {
+        domStats.sourceUploads++;
+        domStats.sourceUploadBytes +=
+          entry.texture.source.pixelWidth * entry.texture.source.pixelHeight * 4;
+        entry.sourceUploadPending = false;
+      }
       entry.context.clearRect(0, 0, pixelWidth, pixelHeight);
       const x = entry.clip[0] * resolution;
       const y = entry.clip[1] * resolution;
@@ -307,8 +373,18 @@ function renderFrame(now: number) {
           clippedWidth,
           clippedHeight,
         );
+        domStats.outputCopies++;
       }
       entry.canvas.dataset.foilState = "ready";
+      if (finish.uniforms.heatDeformation > 0) {
+        if (entry.hiddenSource !== source) {
+          restoreSource(entry);
+          entry.hiddenSource = source;
+          entry.sourceOpacity = source.style.getPropertyValue("opacity");
+          entry.sourceOpacityPriority = source.style.getPropertyPriority("opacity");
+          source.style.setProperty("opacity", "0");
+        }
+      } else restoreSource(entry);
     } catch (error) {
       entry.context.clearRect(0, 0, pixelWidth, pixelHeight);
       entry.canvas.dataset.foilState = "unavailable";
@@ -347,7 +423,16 @@ export function registerDomCardFoil(
     pointer: new Float32Array([0.5, 0.5]),
     uvs: new Float32Array(8),
     clip: new Float32Array(4),
+    sourceUploadPending: false,
+    normal: new Float32Array([0, 0, 1]),
+    hiddenSource: null,
+    sourceOpacity: "",
+    sourceOpacityPriority: "",
   };
+  entry.finish.setMode(options.mode, options.cosmetics);
+  entry.finish.setArtWindows(options.artWindows ?? NO_ART_WINDOWS);
+  writeCardPoseNormal(entry.normal, options.pose ?? DEFAULT_CARD_POSE);
+  entry.finish.setLighting(options.lighting ?? "pointer", entry.normal);
   const invalidate = () => {
     entry.dirty = true;
     requestFrame();
@@ -410,9 +495,14 @@ export function registerDomCardFoil(
   requestFrame();
   return {
     update(next) {
+      const previous = entry.options;
       entry.options = next;
-      entry.finish.setMode(next.mode, next.cosmetics);
-      entry.finish.setArtWindows(next.artWindows ?? NO_ART_WINDOWS);
+      if (previous.mode !== next.mode || previous.cosmetics !== next.cosmetics)
+        entry.finish.setMode(next.mode, next.cosmetics);
+      if (previous.artWindows !== next.artWindows)
+        entry.finish.setArtWindows(next.artWindows ?? NO_ART_WINDOWS);
+      writeCardPoseNormal(entry.normal, next.pose ?? DEFAULT_CARD_POSE);
+      entry.finish.setLighting(next.lighting ?? "pointer", entry.normal);
       invalidate();
     },
     dispose() {
@@ -425,6 +515,7 @@ export function registerDomCardFoil(
       host.removeEventListener("pointerleave", leave);
       releaseTexture(entry);
       if (shared?.mesh.shader === entry.finish.shader) shared.mesh.shader = shared.finish.shader;
+      if (shared?.mesh.finish === entry.finish) shared.mesh.finish = shared.finish;
       entry.finish.destroy();
       context.clearRect(0, 0, canvas.width, canvas.height);
       canvas.width = 1;

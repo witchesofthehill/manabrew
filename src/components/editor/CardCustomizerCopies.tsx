@@ -78,7 +78,9 @@ export function CardCustomizerCopies({
               ? [`${Math.round(cosmetics.cardstock.amount * 100)}% coating`]
               : []),
             ...(cosmetics?.printDots
-              ? [`${Math.round(cosmetics.printDots.amount * 100)}% print dots`]
+              ? [
+                  `${Math.round(cosmetics.printDots.amount * 100)}% print dots${cosmetics.printDots.artwork === false ? " excluding artwork" : ""}`,
+                ]
               : []),
             ...(cosmetics?.finishCoverage
               ? [

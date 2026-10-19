@@ -96,9 +96,9 @@ function Button({ variant, className, ...props }: ButtonProps) {
   return (
     <BaseButton
       {...props}
-      variant={selected ? "outline" : variant}
+      variant={variant}
       aria-pressed={selected ? true : props["aria-pressed"]}
-      className={cn(selected && "border-accent", className)}
+      className={className}
     />
   );
 }

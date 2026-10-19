@@ -4,6 +4,8 @@ The web frontend for Manabrew. Tailwind CSS 4, Shadcn/UI, Zustand, React Router.
 
 Read first: `/AGENTS.md`, `docs/STYLE_GUIDELINES.md`, `docs/agents/UI_THEME_RULES.md`.
 
+Settings choice buttons must preserve the shared `selected` variant; converting it to `outline` hides the active preference.
+
 ## Folder map
 
 | Folder                  | What lives there                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |

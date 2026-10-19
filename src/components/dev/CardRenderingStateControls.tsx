@@ -56,7 +56,8 @@ export function CardRenderingStateControls({
         <div>
           <h3 className={DEV_SECTION_HEADING}>Local card state</h3>
           <p className="mt-1 text-xs text-muted-foreground">
-            Both renderers only. No game state or saved deck changes.
+            Mechanic states appear in Interactive Pixi. Characteristic edits also update Card Glint
+            DOM. Original scans and the material workbench keep their printed state.
           </p>
         </div>
         <Button

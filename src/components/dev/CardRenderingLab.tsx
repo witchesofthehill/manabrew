@@ -196,15 +196,6 @@ export default function CardRenderingLab() {
           {result.error}
         </p>
       )}
-      {deckCard && (
-        <CardGlintAppearanceLab
-          card={deckCard}
-          faceIndex={effectiveFace}
-          onFlipFace={flipFace}
-          appearance={appearance}
-          onAppearanceChange={setAppearance}
-        />
-      )}
       <CardRenderingStateControls
         card={card}
         layout={entry?.info.layout}
@@ -240,6 +231,15 @@ export default function CardRenderingLab() {
             onRemount={() => setRevision((value) => value + 1)}
           />
         </>
+      )}
+      {deckCard && (
+        <CardGlintAppearanceLab
+          card={deckCard}
+          faceIndex={effectiveFace}
+          onFlipFace={flipFace}
+          appearance={appearance}
+          onAppearanceChange={setAppearance}
+        />
       )}
     </section>
   );

@@ -48,25 +48,44 @@ export function levelBandActive(range: string, card: CardDto): boolean | undefin
   );
 }
 
+export function previewPanelActive(
+  card: CardDto,
+  panel: Pick<CardInteractionPanel, "faceIndex" | "level">,
+  layout?: string,
+): boolean | undefined {
+  if (panel.level?.range) return levelBandActive(panel.level.range, card);
+  if (layout === "room" && card.zone === "battlefield" && card.unlockedDoors !== undefined)
+    return card.unlockedDoors.includes(panel.faceIndex === 0 ? "left" : "right");
+  if (
+    layout === "prototype" &&
+    (card.zone === "battlefield" || card.zone === undefined) &&
+    card.isPrototyped !== undefined
+  )
+    return (panel.faceIndex === 1) === card.isPrototyped;
+  return undefined;
+}
+
+export function caseSectionActive(
+  card: CardDto,
+  kind: "base" | "toSolve" | "solved",
+): boolean | undefined {
+  if (card.zone !== "battlefield" || card.isSolved === undefined || kind === "base")
+    return undefined;
+  return kind === "solved" ? card.isSolved : !card.isSolved;
+}
+
 export function previewPanelState(
   card: CardDto,
   panel: Pick<CardInteractionPanel, "faceIndex" | "level">,
   layout?: string,
 ): string | undefined {
-  if (layout === "room" && card.unlockedDoors !== undefined) {
-    return card.unlockedDoors.includes(panel.faceIndex === 0 ? "left" : "right")
-      ? i18n._(msg`Unlocked`)
-      : i18n._(msg`Locked`);
-  }
-  if (panel.level?.range) {
-    const active = levelBandActive(panel.level.range, card);
-    if (active !== undefined)
-      return active ? i18n._(msg`Active level`) : i18n._(msg`Inactive level`);
-  }
-  if (layout === "prototype" && card.isPrototyped !== undefined)
-    return (panel.faceIndex === 1) === card.isPrototyped
-      ? i18n._(msg`Current characteristics`)
-      : i18n._(msg`Printed alternative`);
+  const active = previewPanelActive(card, panel, layout);
+  if (layout === "room" && active !== undefined)
+    return active ? i18n._(msg`Unlocked`) : i18n._(msg`Locked`);
+  if (panel.level?.range && active !== undefined)
+    return active ? i18n._(msg`Active level`) : i18n._(msg`Inactive level`);
+  if (layout === "prototype" && active !== undefined)
+    return active ? i18n._(msg`Current characteristics`) : i18n._(msg`Printed alternative`);
   if (layout === "adventure" && card.isOnAdventure !== undefined && panel.faceIndex === 1)
     return card.isOnAdventure ? i18n._(msg`On an Adventure`) : undefined;
   return undefined;
@@ -83,7 +102,7 @@ export function caseSections(
     .map((line, index) => {
       if (/^To solve\s*[—–-]/i.test(line)) kind = "toSolve";
       if (/^Solved\s*[—–-]/i.test(line)) kind = "solved";
-      return { kind, text: lines[index] ?? line };
+      return { kind, text: (lines[index] ?? line).trim() };
     })
     .filter(({ text }) => text.trim());
 }

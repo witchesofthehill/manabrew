@@ -2,6 +2,8 @@ import { Button } from "@/components/ui/button";
 import type { CardRenderingOverrides } from "@/components/dev/cardRenderingOverrides";
 import type { ClientCardDto } from "@/stores/gameStore.types";
 import { printedPrototype } from "@/lib/cardPrototype";
+import { DEV_CONTROL_ACTIVE } from "@/components/dev/devPanel.styles";
+import { cn } from "@/lib/utils";
 
 interface Props {
   card: ClientCardDto;
@@ -123,16 +125,25 @@ export function CardRenderingMechanicControls({ card, value, onChange, layout }:
         the action-count control to show owned mechanic action examples.
       </p>
       <div className="flex flex-wrap gap-2">
-        {presets.map(({ label, state }) => (
-          <Button
-            key={label}
-            variant="outline"
-            size="sm"
-            onClick={() => onChange({ ...value, ...state })}
-          >
-            {label}
-          </Button>
-        ))}
+        {presets.map(({ label, state }) => {
+          const selected = Object.entries(state).every(
+            ([key, expected]) =>
+              JSON.stringify(value[key as keyof CardRenderingOverrides]) ===
+              JSON.stringify(expected),
+          );
+          return (
+            <Button
+              key={label}
+              variant="outline"
+              size="sm"
+              aria-pressed={selected}
+              className={cn(selected && DEV_CONTROL_ACTIVE)}
+              onClick={() => onChange({ ...value, ...state })}
+            >
+              {label}
+            </Button>
+          );
+        })}
       </div>
     </details>
   );

@@ -7,6 +7,7 @@ import { deriveCardPresentation } from "@/components/game/cardPresentation";
 import { resolveRulesPreviewDisplay } from "@/pixi/cardPreview/rulesCardPreviewPresentation";
 import {
   caseSections,
+  caseSectionActive,
   levelBandActive,
   previewPanelState,
   suspendState,
@@ -131,7 +132,7 @@ function RulesPreviewOracleText({
                         : i18n._(msg`Solved ability`)
                   }
                 >
-                  {part.kind === "solved" && card.isSolved !== undefined && (
+                  {part.kind === "solved" && caseSectionActive(card, part.kind) !== undefined && (
                     <p aria-live="polite">
                       {card.isSolved
                         ? i18n._(msg`Solved · active`)

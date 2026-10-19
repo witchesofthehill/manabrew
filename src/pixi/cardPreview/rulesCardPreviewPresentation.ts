@@ -362,6 +362,16 @@ function mechanicPaymentIsDescribed(action: HandActionOption, cost: string): boo
   if (description === "station") {
     return /^Tap another (?:untapped )?creature you control\.?$/i.test(cost);
   }
+  if (/^solved\s*-\s*/.test(description)) {
+    const describedCost = description.replace(/^solved\s*-\s*/, "").split(":")[0]!;
+    const [beforeName, afterName] = normalizedRulesComparisonText(cost).split("cardname");
+    if (
+      afterName !== undefined &&
+      describedCost.startsWith(beforeName!) &&
+      describedCost.endsWith(afterName)
+    )
+      return true;
+  }
   const crew = description.match(/^crew\s+(\d+)$/);
   const payment = cost.match(
     /^Tap any number of (?:untapped )?creatures you control(?: other than .+)? with total power (\d+) or (?:greater|more)\.?$/i,

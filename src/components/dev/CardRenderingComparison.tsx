@@ -73,6 +73,53 @@ export function CardRenderingComparison({
     <div className="grid grid-cols-1 gap-4 @[960px]:grid-cols-3">
       <section
         className="min-w-0 space-y-3 rounded-lg border border-border bg-card p-3"
+        aria-label="Interactive Pixi card"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-semibold">Interactive Pixi</h2>
+          <Button variant="outline" size="sm" onClick={() => setGenerated((value) => !value)}>
+            {generated ? "Show Realistic" : "Show Manabrew"}
+          </Button>
+        </div>
+        <div ref={host} className="relative h-[440px]" data-testid="interactive-card">
+          <DesktopBoardOverlayCanvas
+            scene={null}
+            stackSpec={EMPTY_STACK}
+            promptSpec={null}
+            onTargetSpell={ignore}
+            onHoverStack={ignore}
+            onToggleStack={ignore}
+            previewSpec={preview}
+            onFlipPreview={onFlip}
+            onTogglePreviewView={() => setGenerated(false)}
+            onSelectPreviewAction={onAction}
+          />
+          {!generated && (
+            <div
+              className="absolute inset-0 m-auto max-w-full overflow-hidden"
+              style={GAME_CARD_SIZES.preview}
+            >
+              <ScryfallImg
+                src={imageUrl}
+                alt={card.identity.name}
+                className="h-full w-full object-contain"
+              />
+              <CardFoilOverlay
+                enabled={!hidden}
+                foil={!hidden && !!card.foil}
+                cosmetics={hidden ? undefined : card.cosmetics}
+                etched={!hidden && isEtchedOnlyPrinting(info?.finishes)}
+              />
+            </div>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Production rules preview. Actions stay inside the card and support scrolling, keyboard
+          focus, and screen readers.
+        </p>
+      </section>
+      <section
+        className="min-w-0 space-y-3 rounded-lg border border-border bg-card p-3"
         aria-label="Original scan"
       >
         <h2 className="font-semibold">Original</h2>
@@ -118,53 +165,6 @@ export function CardRenderingComparison({
         <p className="text-xs text-muted-foreground">
           Production GeneratedCardImage. Loading and fallback states stay inspectable on the
           element.
-        </p>
-      </section>
-      <section
-        className="min-w-0 space-y-3 rounded-lg border border-border bg-card p-3"
-        aria-label="Interactive Pixi card"
-      >
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-semibold">Interactive Pixi</h2>
-          <Button variant="outline" size="sm" onClick={() => setGenerated((value) => !value)}>
-            {generated ? "Show Realistic" : "Show Manabrew"}
-          </Button>
-        </div>
-        <div ref={host} className="relative h-[440px]" data-testid="interactive-card">
-          <DesktopBoardOverlayCanvas
-            scene={null}
-            stackSpec={EMPTY_STACK}
-            promptSpec={null}
-            onTargetSpell={ignore}
-            onHoverStack={ignore}
-            onToggleStack={ignore}
-            previewSpec={preview}
-            onFlipPreview={onFlip}
-            onTogglePreviewView={() => setGenerated(false)}
-            onSelectPreviewAction={onAction}
-          />
-          {!generated && (
-            <div
-              className="absolute inset-0 m-auto max-w-full overflow-hidden"
-              style={GAME_CARD_SIZES.preview}
-            >
-              <ScryfallImg
-                src={imageUrl}
-                alt={card.identity.name}
-                className="h-full w-full object-contain"
-              />
-              <CardFoilOverlay
-                enabled={!hidden}
-                foil={!hidden && !!card.foil}
-                cosmetics={hidden ? undefined : card.cosmetics}
-                etched={!hidden && isEtchedOnlyPrinting(info?.finishes)}
-              />
-            </div>
-          )}
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Production rules preview. Actions stay inside the card and support scrolling, keyboard
-          focus, and screen readers.
         </p>
       </section>
     </div>

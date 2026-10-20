@@ -44,7 +44,7 @@ export function LimitedPoolAnalysis({ sessionKey, pool, deck }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-serif text-lg">Pool and mana analysis</h2>
+        <h2 className="text-lg font-semibold">Pool and mana analysis</h2>
         <Button variant="outline" size="sm" onClick={() => setCompareOpen(true)}>
           Compare builds
         </Button>

@@ -9,7 +9,7 @@ export function FormatPicker({ formats = GAME_FORMATS, onSelect }: FormatPickerP
     <div className="flex h-full flex-col overflow-y-auto px-4 py-10 sm:px-6 lg:px-8">
       <div className="flex w-full flex-col">
         <header className="mb-10 text-center">
-          <h2 className="font-serif text-4xl font-light tracking-wide">Choose a format</h2>
+          <h2 className="font-serif text-4xl font-semibold tracking-tight">Choose a format</h2>
           <p className="mt-3 text-sm text-muted-foreground">
             Decide the rules of engagement before picking decks.
           </p>

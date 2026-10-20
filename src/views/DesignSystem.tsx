@@ -1,4 +1,3 @@
-import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { SECTIONS } from "@/components/dev/designSystem/designSystem.data";
 import { BrandSection } from "@/components/dev/designSystem/sections/BrandSection";
 import { ColorSection } from "@/components/dev/designSystem/sections/ColorSection";
@@ -10,8 +9,6 @@ import { SpacingSection } from "@/components/dev/designSystem/sections/SpacingSe
 import { AssetsSection } from "@/components/dev/designSystem/sections/AssetsSection";
 
 export default function DesignSystem() {
-  const presetId = usePreferencesStore((s) => s.appThemePreset);
-
   return (
     <div className="h-full overflow-auto">
       <div className="px-4 pt-6 sm:px-6 lg:px-8">
@@ -32,7 +29,7 @@ export default function DesignSystem() {
 
       <main className="space-y-8 px-4 py-8 sm:px-6 lg:px-8">
         <BrandSection />
-        <ColorSection presetId={presetId} />
+        <ColorSection />
         <TypographySection />
         <IconsSection />
         <ComponentsSection />

@@ -36,7 +36,7 @@ export function Section({
             open && "rotate-90",
           )}
         />
-        <h2 className="font-serif text-2xl font-light tracking-tight">{title}</h2>
+        <h2 className="font-serif text-2xl font-semibold tracking-tight">{title}</h2>
       </button>
       {open && (
         <div className="space-y-6 pt-4">

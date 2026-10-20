@@ -189,7 +189,7 @@ export function TableRoom({
               backgroundUrl={boardBackgroundUrl(room.table_style)}
               centerContent={
                 <span className="flex flex-col items-center gap-1">
-                  <span className="font-serif text-lg font-light text-foreground/90 sm:text-2xl">
+                  <span className="font-serif text-lg font-semibold text-foreground/90 sm:text-2xl">
                     {modeLabel}
                   </span>
                   <span className="text-xs font-medium text-muted-foreground sm:text-sm">

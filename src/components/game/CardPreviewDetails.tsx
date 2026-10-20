@@ -31,7 +31,7 @@ export function CardPreviewDetails({
       <div className="flex items-baseline gap-2 text-xs text-muted-foreground">
         <span className="truncate">{typeLine}</span>
         {card.power && card.toughness && (
-          <span className="ml-auto shrink-0 font-mono tabular-nums">
+          <span className="ml-auto shrink-0 tabular-nums lining-nums">
             {card.power}/{card.toughness}
           </span>
         )}

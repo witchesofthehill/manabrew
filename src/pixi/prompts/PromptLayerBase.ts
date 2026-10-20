@@ -1,3 +1,4 @@
+import { UI_FONT_FAMILY as FONT } from "@/themes/typography";
 import {
   Application,
   Container,
@@ -73,7 +74,6 @@ export const MODAL_TYPES = new Set([
   "reorder",
   "diceRolled",
 ]);
-const FONT = "Inter, system-ui, sans-serif";
 export const PANEL_PADDING = 8;
 export const ROW_GAP = 10;
 const CARD_HOVER_Z_INDEX = 600;

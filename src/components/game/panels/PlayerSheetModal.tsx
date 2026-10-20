@@ -60,7 +60,9 @@ export function PlayerSheetModal({ spec, onClose }: PlayerSheetModalProps) {
             </p>
           </div>
           <div className="shrink-0 text-right" style={{ color: theme.life }}>
-            <div className="text-3xl font-bold leading-none tabular-nums">{spec.life}</div>
+            <div className="text-3xl font-bold leading-none tabular-nums lining-nums">
+              {spec.life}
+            </div>
             <div className="mt-1 text-[10px] font-semibold uppercase tracking-wide">Life</div>
           </div>
         </div>
@@ -134,7 +136,7 @@ export function PlayerSheetModal({ spec, onClose }: PlayerSheetModalProps) {
                     <dt className={cn("flex items-center", count === 0 && "opacity-45")}>
                       <ManaSymbols cost={letter} size="lg" className="mx-0" />
                     </dt>
-                    <dd className="font-mono text-sm font-semibold tabular-nums">{count}</dd>
+                    <dd className="text-sm font-semibold tabular-nums lining-nums">{count}</dd>
                   </div>
                 );
               })}
@@ -214,7 +216,7 @@ function HandSummary({
       )}
       <div className="min-w-0 shrink-0">
         <p className="text-xs text-muted-foreground">Cards in hand</p>
-        <p className="font-mono text-xl font-bold tabular-nums">{count}</p>
+        <p className="text-xl font-bold tabular-nums lining-nums">{count}</p>
         {onView && <span className="text-xs text-muted-foreground">View</span>}
       </div>
     </Element>
@@ -230,7 +232,7 @@ function ResourceTile({ badge }: { badge: PlayerHudBadge }) {
         style={{ color: badge.color }}
       />
       <span className="min-w-0 flex-1 truncate text-xs">{badge.label}</span>
-      <span className="font-mono text-sm font-bold tabular-nums">{badge.count ?? 0}</span>
+      <span className="text-sm font-bold tabular-nums lining-nums">{badge.count ?? 0}</span>
       {badge.onTap && <span className="text-xs text-muted-foreground">View</span>}
     </>
   );
@@ -306,7 +308,7 @@ function BadgeRow({ badge }: { badge: PlayerHudBadge }) {
       {badge.count !== undefined && (
         <span
           className={cn(
-            "shrink-0 font-mono font-bold tabular-nums",
+            "shrink-0 font-bold tabular-nums lining-nums",
             badge.lethal && "text-pt-lethal",
           )}
         >

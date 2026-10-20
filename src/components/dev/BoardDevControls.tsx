@@ -297,12 +297,14 @@ function GuideToggle({
       className={cn(
         "flex min-h-14 items-center gap-3 rounded-lg border px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
         checked
-          ? "border-selection bg-selection/10"
+          ? "border-selection-border bg-selection"
           : "border-border/70 bg-background/40 hover:bg-muted/40",
       )}
       onClick={() => onChange(!checked)}
     >
-      {Icon ? <Icon className={cn("h-4 w-4 shrink-0", checked && "text-selection")} /> : null}
+      {Icon ? (
+        <Icon className={cn("h-4 w-4 shrink-0", checked && "text-selection-border")} />
+      ) : null}
       <span className="min-w-0 flex-1">
         <span className="block text-xs font-medium">{label}</span>
         <span className="mt-0.5 block text-[10px] leading-snug text-muted-foreground">
@@ -312,7 +314,7 @@ function GuideToggle({
       <span
         className={cn(
           "relative h-5 w-9 shrink-0 rounded-full border transition-colors",
-          checked ? "border-selection bg-selection" : "border-border bg-muted",
+          checked ? "border-selection-border bg-selection" : "border-border bg-muted",
         )}
       >
         <span

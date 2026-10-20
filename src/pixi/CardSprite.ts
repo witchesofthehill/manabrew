@@ -1,3 +1,4 @@
+import { UI_FONT_FAMILY } from "@/themes/typography";
 import {
   Container,
   Sprite,
@@ -120,7 +121,7 @@ function prefersReducedMotion(): boolean {
 const tintedTextFill = (): string => activeTheme.gameTheme.textOnTinted;
 const PT_STYLE = registerTintedTextStyle(
   new TextStyle({
-    fontFamily: "Inter, system-ui, -apple-system, sans-serif",
+    fontFamily: UI_FONT_FAMILY,
     fontSize: 10,
     fontWeight: "bold",
     fill: tintedTextFill(),
@@ -128,7 +129,7 @@ const PT_STYLE = registerTintedTextStyle(
 );
 const BADGE_STYLE = registerTintedTextStyle(
   new TextStyle({
-    fontFamily: "Inter, system-ui, -apple-system, sans-serif",
+    fontFamily: UI_FONT_FAMILY,
     fontSize: 6,
     fontWeight: "bold",
     fill: tintedTextFill(),
@@ -136,7 +137,7 @@ const BADGE_STYLE = registerTintedTextStyle(
 );
 const COUNTER_STYLE = registerTintedTextStyle(
   new TextStyle({
-    fontFamily: "Inter, system-ui, -apple-system, sans-serif",
+    fontFamily: UI_FONT_FAMILY,
     fontSize: 8,
     fontWeight: "bold",
     fill: tintedTextFill(),
@@ -144,7 +145,7 @@ const COUNTER_STYLE = registerTintedTextStyle(
 );
 const NAME_STYLE = registerTintedTextStyle(
   new TextStyle({
-    fontFamily: "Inter, system-ui, -apple-system, sans-serif",
+    fontFamily: UI_FONT_FAMILY,
     fontSize: 8,
     fill: tintedTextFill(),
     wordWrap: true,
@@ -156,7 +157,7 @@ const NAME_STYLE = registerTintedTextStyle(
 // (dark on light tint bars, light on the dark art scrim) and set per-card in
 // `renderFrame`, so each frame Text gets its own cloned style instance.
 const FRAME_NAME_STYLE = new TextStyle({
-  fontFamily: "Inter, system-ui, -apple-system, sans-serif",
+  fontFamily: UI_FONT_FAMILY,
   fontSize: 7,
   fontWeight: "600",
   fill: tintedTextFill(),
@@ -165,7 +166,7 @@ const FRAME_NAME_STYLE = new TextStyle({
   lineHeight: 8,
 });
 const FRAME_TYPE_STYLE = new TextStyle({
-  fontFamily: "Inter, system-ui, -apple-system, sans-serif",
+  fontFamily: UI_FONT_FAMILY,
   fontSize: 5.5,
   fill: tintedTextFill(),
   wordWrap: true,
@@ -173,7 +174,7 @@ const FRAME_TYPE_STYLE = new TextStyle({
   lineHeight: 6.5,
 });
 const FOIL_STAR_STYLE = new TextStyle({
-  fontFamily: "Inter, system-ui, -apple-system, sans-serif",
+  fontFamily: UI_FONT_FAMILY,
   fontSize: 10,
   fontWeight: "bold",
   fill: activeTheme.gameTheme.rarity.rare,
@@ -228,7 +229,7 @@ function truncateChipLabel(text: string): string {
 }
 const KEYWORD_CHIP_STYLE = registerTintedTextStyle(
   new TextStyle({
-    fontFamily: "Inter, system-ui, -apple-system, sans-serif",
+    fontFamily: UI_FONT_FAMILY,
     fontSize: 7,
     fontWeight: "bold",
     fill: tintedTextFill(),
@@ -236,7 +237,7 @@ const KEYWORD_CHIP_STYLE = registerTintedTextStyle(
 );
 const RAIL_LABEL_STYLE = registerTintedTextStyle(
   new TextStyle({
-    fontFamily: "Inter, system-ui, -apple-system, sans-serif",
+    fontFamily: UI_FONT_FAMILY,
     fontSize: 6,
     fontWeight: "700",
     fill: tintedTextFill(),

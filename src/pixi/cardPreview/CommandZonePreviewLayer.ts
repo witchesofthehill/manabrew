@@ -1,3 +1,4 @@
+import { UI_FONT_FAMILY } from "@/themes/typography";
 import {
   Container,
   Graphics,
@@ -279,7 +280,7 @@ export class CommandZonePreviewLayer {
         text: "Cast",
         style: {
           fill: hexToNum(this.theme.appTheme["popover-foreground"]),
-          fontFamily: "Inter, system-ui, sans-serif",
+          fontFamily: UI_FONT_FAMILY,
           fontSize: 10,
           fontWeight: "700",
         },

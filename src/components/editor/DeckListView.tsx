@@ -165,7 +165,7 @@ function CardSelectionButton({
       type="button"
       className={cn(
         "absolute bottom-1 left-1 z-40 flex h-7 w-7 items-center justify-center rounded-full border bg-background/90 opacity-0 shadow transition-opacity group-hover:opacity-100 pointer-coarse:h-9 pointer-coarse:w-9 pointer-coarse:opacity-100",
-        selected && "border-selection bg-selection text-white opacity-100",
+        selected && "border-selection-border bg-selection text-selection-foreground opacity-100",
       )}
       aria-label={selected ? `Deselect ${name}` : `Select ${name}`}
       aria-pressed={selected}
@@ -1121,15 +1121,17 @@ function CardRow({
       <CollectionOwnershipTooltip card={group.card} surface="text" />
       <div
         className={cn(
-          "w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors cursor-pointer hover:border-selection",
-          isSelected ? "bg-selection border-selection" : "border-muted-foreground/40",
+          "w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors cursor-pointer hover:border-selection-border",
+          isSelected
+            ? "bg-selection border-selection-border text-selection-foreground"
+            : "border-muted-foreground/40",
         )}
         onClick={(e) => {
           e.stopPropagation();
           onSelect?.(name, e.shiftKey);
         }}
       >
-        {isSelected && <span className="text-[8px] text-white font-bold">✓</span>}
+        {isSelected && <span className="text-[8px] font-bold">✓</span>}
       </div>
       <span className="text-xs font-mono w-4 text-right text-muted-foreground shrink-0">
         {group.count}
@@ -1842,14 +1844,14 @@ export function DeckListView({
   const selectionBadge =
     (selectedCards?.size ?? 0) > 0 ? (
       <div className="absolute top-1 right-1 z-40">
-        <span className="text-[10px] px-1.5 py-0.5 rounded bg-card/90 border text-selection">
+        <span className="text-[10px] px-1.5 py-0.5 rounded bg-card/90 border text-selection-border">
           {selectedCards!.size} selected
         </span>
       </div>
     ) : null;
   const marqueeOverlay = marqueeRect && (
     <div
-      className="absolute pointer-events-none border-2 border-dashed border-selection bg-selection/10 z-[9999] rounded"
+      className="absolute pointer-events-none border-2 border-dashed border-selection-border bg-selection/10 z-[9999] rounded"
       style={{
         left: marqueeRect.left,
         top: marqueeRect.top,
@@ -1960,8 +1962,8 @@ export function DeckListView({
     const isDragging = dragSection === id;
     const wrapperClass = cn(
       "break-inside-avoid mb-5 transition-all duration-200 ease-out",
-      isDragging && "opacity-30 scale-95 ring-2 ring-selection/50 rounded-lg",
-      dropTarget === id && !isDragging && "ring-2 ring-selection rounded-lg",
+      isDragging && "opacity-30 scale-95 ring-2 ring-selection-border/50 rounded-lg",
+      dropTarget === id && !isDragging && "ring-2 ring-selection-border rounded-lg",
     );
     const mainContextMenuFor = (group: CardGroup) => {
       const { name } = group.card.identity;
@@ -2244,7 +2246,7 @@ export function DeckListView({
         {selectionBadge}
         {marqueeRect && (
           <div
-            className="absolute pointer-events-none border-2 border-dashed border-selection bg-selection/10 z-[9999] rounded"
+            className="absolute pointer-events-none border-2 border-dashed border-selection-border bg-selection/10 z-[9999] rounded"
             style={{
               left: marqueeRect.left,
               top: marqueeRect.top,

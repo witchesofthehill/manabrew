@@ -1,3 +1,4 @@
+import { UI_FONT_FAMILY as FONT } from "@/themes/typography";
 import { Container, Graphics, Rectangle, Sprite, Text, TextStyle, type Texture } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
 import { colorAlpha, hexToNum } from "@/pixi/colorUtils";
@@ -5,7 +6,6 @@ import { gameIconTexture } from "@/pixi/gameIconCache";
 import { animationsEnabled } from "@/pixi/effects/enabled";
 import { gsap } from "@/pixi/effects/gsap";
 
-const FONT = "Inter, system-ui, sans-serif";
 const PRESS_SECONDS = 0.08;
 const RELEASE_SECONDS = 0.18;
 
@@ -96,7 +96,7 @@ export class PromptButton extends Container {
     this.labelText = new Text({
       text: labelPlacement === "stacked" ? options.label.toUpperCase() : options.label,
       style: new TextStyle({
-        fontFamily: "Inter, system-ui, sans-serif",
+        fontFamily: FONT,
         fontSize:
           options.fontSize ?? (labelPlacement === "stacked" ? 8 : options.compact ? 10 : 12),
         fontWeight: options.fontWeight ?? "700",
@@ -373,7 +373,7 @@ export class PromptButton extends Container {
     const label = new Text({
       text: value,
       style: new TextStyle({
-        fontFamily: "system-ui, -apple-system, sans-serif",
+        fontFamily: FONT,
         fontSize: 10,
         fontWeight: "700",
         fill: hexToNum(this.theme.gameTheme.textOnTinted),

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { installDesktopUpdate } from "@/hooks/useDesktopUpdater";
 import { ROUTES } from "@/lib/constants";
 import { useDesktopUpdateStore } from "@/stores/useDesktopUpdateStore";
+import { cn } from "@/lib/utils";
 import { AccountMenu } from "./AccountMenu";
 import { ManaBrewLogo } from "./ManaBrewLogo";
 import { NavSheet } from "./NavSheet";
@@ -161,6 +162,14 @@ export function TopBar({ override }: TopBarProps) {
           size={36}
           className="shrink-0 rounded-lg motion-safe:transition-transform motion-safe:group-hover:scale-105"
         />
+        <span
+          className={cn(
+            "font-serif text-xl font-semibold tracking-tight",
+            title && "hidden xl:inline",
+          )}
+        >
+          Manabrew
+        </span>
       </button>
       {title && (
         <>

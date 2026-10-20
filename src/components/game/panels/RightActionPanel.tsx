@@ -83,7 +83,7 @@ export function RightActionPanel({
       >
         <ScrollText className="h-4 w-4 text-primary" />
         Log
-        <span className="min-w-5 rounded-full bg-primary px-1.5 py-0.5 font-mono text-[10px] text-primary-foreground">
+        <span className="min-w-5 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold tabular-nums lining-nums text-primary-foreground">
           {logActivityCount}
         </span>
       </button>

@@ -37,9 +37,9 @@ export function NavSheet({ disabled = false }: NavSheetProps) {
 
   function renderRow({ to, label, icon: Icon, external }: NavDestination) {
     const className = cn(
-      "flex h-11 w-full items-center gap-3 rounded-lg px-3 text-sm transition-colors",
+      "flex h-11 w-full items-center gap-3 rounded-lg border border-transparent px-3 text-sm transition-colors",
       !external && isActive(to)
-        ? "bg-secondary font-medium text-secondary-foreground"
+        ? "border-selection-border bg-selection font-medium text-selection-foreground"
         : "text-foreground/85 hover:bg-muted/60",
     );
     if (external) {
@@ -63,6 +63,7 @@ export function NavSheet({ disabled = false }: NavSheetProps) {
       <button
         key={to}
         type="button"
+        aria-current={isActive(to) ? "page" : undefined}
         disabled={disabled}
         onClick={() => go(to)}
         className={className}

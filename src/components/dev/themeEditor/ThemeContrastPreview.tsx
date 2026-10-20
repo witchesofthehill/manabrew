@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Panel } from "@/components/dev/designSystem/kit";
-import { THEME_PRESETS, type GameThemeColorKey, type ThemeColors } from "@/themes";
+import { MANABREW_THEME, type GameThemeColorKey, type ThemeColors } from "@/themes";
 import { compositeThemeColor, contrastRatio, getGameThemeColorPaths } from "@/themes/gameTheme";
 import type { Theme } from "@/hooks/useTheme";
 import type { ThemeDocument } from "@/themes/themeDocument";
@@ -17,8 +17,15 @@ const APP_PAIRS: { label: string; foreground: keyof ThemeColors; background: key
       foreground: "primary-foreground",
       background: "primary",
     },
+    { label: "Primary hover", foreground: "primary-foreground", background: "primary-hover" },
     { label: "Secondary action", foreground: "secondary-foreground", background: "secondary" },
     { label: "Accent text", foreground: "accent-foreground", background: "accent" },
+    { label: "Sage detail", foreground: "brand-accent", background: "background" },
+    {
+      label: "Sage background",
+      foreground: "brand-accent-foreground",
+      background: "brand-accent-muted",
+    },
     {
       label: "Destructive action",
       foreground: "destructive-foreground",
@@ -73,8 +80,7 @@ export function ThemeContrastPreview({
   document: ThemeDocument;
 }) {
   const { appTheme: app, gameTheme: game } = theme;
-  const preset = THEME_PRESETS.find((item) => item.id === document.presetId)!;
-  const page = compositeThemeColor(app.background, preset[document.mode].background);
+  const page = compositeThemeColor(app.background, MANABREW_THEME[document.mode].background);
   const canvas = compositeThemeColor(game.canvas.background, page);
   const canvasPairs: {
     label: string;
@@ -138,7 +144,9 @@ export function ThemeContrastPreview({
               label={pair.label}
               foreground={app[pair.foreground]}
               background={app[pair.background]}
-              backdrop={pair.background === "background" ? preset[document.mode].background : page}
+              backdrop={
+                pair.background === "background" ? MANABREW_THEME[document.mode].background : page
+              }
             />
           ))}
           {canvasPairs.map((pair) => (

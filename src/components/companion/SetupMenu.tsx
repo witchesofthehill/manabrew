@@ -81,7 +81,7 @@ export function SetupMenu({ session, onOpenLog }: SetupMenuProps) {
               className={cn(
                 "rounded-full border px-2.5 py-0.5 text-xs font-medium transition",
                 value === session.startingLife
-                  ? "border-selection bg-selection/15 text-foreground"
+                  ? "border-selection-border bg-selection text-selection-foreground"
                   : "border-border bg-background hover:bg-muted",
               )}
             >

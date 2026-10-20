@@ -23,7 +23,8 @@ export function TopBarNav({ disabled = false }: TopBarNavProps) {
         <Button
           key={to}
           size="sm"
-          variant={isActive(to) ? "secondary" : "ghost"}
+          variant={isActive(to) ? "selected" : "ghost"}
+          aria-current={isActive(to) ? "page" : undefined}
           aria-label={label}
           title={label}
           className="h-8 gap-1.5 px-2 text-xs"

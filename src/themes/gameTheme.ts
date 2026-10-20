@@ -1,7 +1,15 @@
-import { usePreferencesStore } from "@/stores/usePreferencesStore";
-import { THEME_PRESETS, DEFAULT_GAME_FONT_SIZES, type GameFontSizes } from "./presets";
+import MANABREW_THEME from "./default";
 import { darken, relativeLuminance } from "./themeColor";
 import { CARD_CHANGE_COLORS, CARD_PRINTING_COLORS } from "./buildGameColors";
+
+export interface GameFontSizes {
+  badgeCount: string;
+  life: string;
+  manaCount: string;
+  zoneCount: string;
+  zoneLabel: string;
+  avatarInitials: string;
+}
 
 export {
   parseThemeColor,
@@ -224,14 +232,10 @@ function filterFlatMap(
   );
 }
 
-const DEFAULT_PRESET_GAME_COLORS: GameThemeColorMap = (() => {
-  const defaultPreset = THEME_PRESETS.find((p) => p.id === "default");
-  if (!defaultPreset) return {} as GameThemeColorMap;
-  return cleanFlatMap(defaultPreset.gameColors) as GameThemeColorMap;
-})();
+const DEFAULT_GAME_COLORS = cleanFlatMap(MANABREW_THEME.gameColors) as GameThemeColorMap;
 
 export function getGameThemeColorPaths(): GameThemeColorKey[] {
-  return Object.keys(DEFAULT_PRESET_GAME_COLORS).filter(
+  return Object.keys(DEFAULT_GAME_COLORS).filter(
     (key) => !key.startsWith("cardChange.") && !key.startsWith("cardPrinting."),
   ) as GameThemeColorKey[];
 }
@@ -246,14 +250,9 @@ export function filterGameThemeColorOverrides(
 
 export function resolveGameThemeColors(
   overrides: Partial<GameThemeColorMap> = {},
-  presetId?: string,
 ): GameThemeColors {
-  const activePresetId = presetId ?? usePreferencesStore.getState().appThemePreset;
-  const preset = THEME_PRESETS.find((p) => p.id === activePresetId) || THEME_PRESETS[0]!;
-
   const merged = {
-    ...DEFAULT_PRESET_GAME_COLORS,
-    ...cleanFlatMap(preset.gameColors),
+    ...DEFAULT_GAME_COLORS,
     ...filterFlatMap(overrides as Record<string, string>, GAME_THEME_COLOR_PATHS),
   } as GameThemeColorMap;
 
@@ -286,17 +285,6 @@ function camelToKebab(s: string): string {
   return s.replace(/[A-Z]/g, (char, index) =>
     index === 0 ? char.toLowerCase() : `-${char.toLowerCase()}`,
   );
-}
-
-export function resolveGameFontSizes(presetId?: string): GameFontSizes {
-  const activePresetId = presetId ?? usePreferencesStore.getState().appThemePreset;
-  const active = THEME_PRESETS.find((p) => p.id === activePresetId);
-  const fallback = THEME_PRESETS.find((p) => p.id === "default");
-  return {
-    ...DEFAULT_GAME_FONT_SIZES,
-    ...(fallback?.gameFontSizes ?? {}),
-    ...(active?.gameFontSizes ?? {}),
-  };
 }
 
 const FRAME_TINT_DARKEN = 0.3;

@@ -1,3 +1,4 @@
+import { UI_FONT_FAMILY } from "@/themes/typography";
 import {
   Container,
   Graphics,
@@ -184,7 +185,7 @@ export class HandCardControls extends Container {
       text: "",
       style: new TextStyle({
         fill: this.theme.appTheme["popover-foreground"],
-        fontFamily: "Inter, system-ui, sans-serif",
+        fontFamily: UI_FONT_FAMILY,
         fontSize: TOOLTIP_FONT_SIZE,
         fontWeight: "600",
       }),

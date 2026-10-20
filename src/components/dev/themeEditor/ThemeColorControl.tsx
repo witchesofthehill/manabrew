@@ -58,7 +58,7 @@ export function ThemeColorControl({
           variant="ghost"
           className="h-6 px-1.5 text-[10px]"
           disabled={!overridden && !invalid}
-          title="Remove this override and inherit the base preset color"
+          title="Remove this override and inherit the Manabrew default color"
           onClick={() => {
             setRaw(value);
             onReset();

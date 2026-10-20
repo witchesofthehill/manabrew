@@ -164,7 +164,7 @@ export function DeckListControls({
                 className={cn(
                   SELECT_CLS,
                   "flex items-center justify-center gap-2",
-                  colorFilter.length > 0 && "border-selection text-selection",
+                  colorFilter.length > 0 && "border-selection-border text-selection-border",
                 )}
               >
                 <Palette className="h-4 w-4" />
@@ -189,7 +189,7 @@ export function DeckListControls({
                       className="h-5 w-5 rounded-full"
                     />
                     {COLOR_LABEL[color]}
-                    {active && <Check className="ml-auto h-4 w-4 text-selection" />}
+                    {active && <Check className="ml-auto h-4 w-4 text-selection-border" />}
                   </DropdownMenuItem>
                 );
               })}
@@ -208,7 +208,7 @@ export function DeckListControls({
                 className={cn(
                   "h-4 w-4 shrink-0 overflow-hidden rounded-full border-2 transition-all focus:outline-none",
                   active
-                    ? "scale-110 border-selection"
+                    ? "scale-110 border-selection-border"
                     : "border-transparent opacity-40 hover:opacity-70",
                 )}
               >

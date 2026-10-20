@@ -81,7 +81,7 @@ export function TableRoomSidebar({
   return (
     <aside className="grid content-start gap-4 sm:grid-cols-2 xl:grid-cols-1">
       <section className="rounded-xl border bg-card/85 p-4 backdrop-blur-md">
-        <h2 className="truncate font-serif text-xl font-light">{room.room_name}</h2>
+        <h2 className="truncate font-serif text-xl font-semibold">{room.room_name}</h2>
         <dl className="mt-3 space-y-3 text-sm">
           <div className="flex items-center justify-between gap-3">
             <dt className="text-muted-foreground">Format</dt>

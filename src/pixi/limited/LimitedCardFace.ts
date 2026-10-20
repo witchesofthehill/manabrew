@@ -1,3 +1,4 @@
+import { UI_FONT_FAMILY } from "@/themes/typography";
 import { Container, Sprite, Text, Texture, type DestroyOptions } from "pixi.js";
 import { getTheme } from "@/hooks/useTheme";
 import { cardCosmeticsKey } from "@/lib/cardCosmetics";
@@ -18,7 +19,7 @@ export class LimitedCardFace extends Container {
   private readonly foil: CardFoil;
   private readonly fallbackLabel = new Text({
     style: {
-      fontFamily: "Alegreya Sans",
+      fontFamily: UI_FONT_FAMILY,
       fontSize: 13,
       wordWrap: true,
     },

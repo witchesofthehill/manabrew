@@ -3,6 +3,7 @@
  * Shows the current phase, enabled stops, and supports click-to-toggle.
  */
 
+import { UI_FONT_FAMILY as FONT } from "@/themes/typography";
 import { Container, Graphics, Text, TextStyle, Sprite } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
 import { getTheme } from "@/hooks/useTheme";
@@ -67,7 +68,6 @@ const COMBAT_PIP_ACTIVE_W = 10;
 const COMBAT_PIP_GAP = 3;
 const COMBAT_PIPS_W =
   (COMBAT_SUB_PHASES.length - 1) * (COMBAT_PIP_W + COMBAT_PIP_GAP) + COMBAT_PIP_ACTIVE_W;
-const FONT = "Inter, system-ui, -apple-system, sans-serif";
 
 const FLASH_DURATION_MS = 800;
 const FLASH_MAX_EXPAND = 8;

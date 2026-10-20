@@ -94,7 +94,7 @@ export function PlayHome() {
           <header className={cn("max-w-xl sm:pt-2", shortTouch && "sm:pt-0")}>
             <h1
               className={cn(
-                "font-serif text-3xl font-light tracking-[0.02em] text-foreground sm:text-4xl",
+                "font-serif text-3xl font-semibold tracking-tight text-foreground sm:text-4xl",
                 shortTouch && "text-2xl sm:text-2xl",
               )}
             >

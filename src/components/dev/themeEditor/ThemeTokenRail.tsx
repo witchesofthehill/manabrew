@@ -113,7 +113,7 @@ export function ThemeTokenRail({
             Reset all overrides
           </Button>
           <p className="text-[10px] text-muted-foreground">
-            Resets both app modes and every game color to the selected preset. Undo restores them.
+            Resets both app modes and every game color to Manabrew defaults. Undo restores them.
           </p>
         </div>
         {count === 0 && (
@@ -126,7 +126,7 @@ export function ThemeTokenRail({
               <p className="text-[11px] text-muted-foreground">{group.description}</p>
               {group.keys.map((key) => (
                 <ThemeColorControl
-                  key={`${key}:${draft.mode}:${draft.presetId}:${editor.revision}`}
+                  key={`${key}:${draft.mode}:${editor.revision}`}
                   token={`app.${key}`}
                   label={APP_THEME_COLOR_LABELS[key]}
                   description={APP_THEME_COLOR_DESCRIPTIONS[key]}
@@ -148,7 +148,7 @@ export function ThemeTokenRail({
               )}
               {group.keys.map((key) => (
                 <ThemeColorControl
-                  key={`${key}:${draft.mode}:${draft.presetId}:${editor.revision}`}
+                  key={`${key}:${draft.mode}:${editor.revision}`}
                   token={`game.${key}`}
                   label={key.split(".").at(-1)!}
                   description={GAME_THEME_COLOR_DESCRIPTIONS[key]}

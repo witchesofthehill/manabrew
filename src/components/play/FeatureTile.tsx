@@ -44,7 +44,7 @@ const TILE_SIZES = {
     chip: "h-12 w-12",
     chipIcon: "h-5 w-5",
     watermark: "-bottom-8 -right-5 h-36 w-36 sm:h-44 sm:w-44",
-    label: `font-serif text-2xl font-light sm:text-3xl`,
+    label: `font-serif text-2xl font-semibold sm:text-3xl`,
     desc: "mt-1 text-sm",
   },
   sm: {

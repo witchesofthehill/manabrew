@@ -14,15 +14,15 @@ msgstr ""
 "Plural-Forms: \n"
 
 #. placeholder {0}: display.stats.damage
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1059
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1060
 msgid "{0} damage"
 msgstr "{0} урона"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:913
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:914
 msgid "Actions apply to the current face."
 msgstr ""
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1366
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1367
 msgid "Defense"
 msgstr "Защита"
 
@@ -39,11 +39,11 @@ msgstr "Карта рубашкой вверх"
 msgid "Face-down permanent"
 msgstr "Постоянство рубашкой вверх"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1031
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1032
 msgid "Flip back · F"
 msgstr "Оборотная сторона · F"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1031
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1032
 msgid "Flip front · F"
 msgstr "Лицевая сторона · F"
 
@@ -52,14 +52,14 @@ msgstr "Лицевая сторона · F"
 msgid "Level {0}"
 msgstr ""
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1365
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1366
 msgid "Loyalty"
 msgstr "Верность"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1047
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1048
 msgid "Original printing · generated frame unavailable"
 msgstr ""
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1045
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1046
 msgid "Printed face · live state belongs to the other face"
 msgstr ""

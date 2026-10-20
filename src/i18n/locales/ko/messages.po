@@ -14,15 +14,15 @@ msgstr ""
 "Plural-Forms: \n"
 
 #. placeholder {0}: display.stats.damage
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1059
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1060
 msgid "{0} damage"
 msgstr "피해 {0}"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:913
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:914
 msgid "Actions apply to the current face."
 msgstr ""
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1366
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1367
 msgid "Defense"
 msgstr "방어"
 
@@ -39,11 +39,11 @@ msgstr "뒷면인 카드"
 msgid "Face-down permanent"
 msgstr "뒷면인 영구물"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1031
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1032
 msgid "Flip back · F"
 msgstr "뒷면으로 뒤집기 · F"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1031
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1032
 msgid "Flip front · F"
 msgstr "앞면으로 뒤집기 · F"
 
@@ -52,14 +52,14 @@ msgstr "앞면으로 뒤집기 · F"
 msgid "Level {0}"
 msgstr ""
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1365
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1366
 msgid "Loyalty"
 msgstr "충성도"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1047
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1048
 msgid "Original printing · generated frame unavailable"
 msgstr ""
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1045
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1046
 msgid "Printed face · live state belongs to the other face"
 msgstr ""

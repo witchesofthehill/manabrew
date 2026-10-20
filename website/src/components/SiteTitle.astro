@@ -4,18 +4,37 @@ import logo from "../../../src/assets/manaBrew.png";
 ---
 
 <a href="https://manabrew.app/" class="site-title">
-  <Image src={logo} alt="Manabrew" width={64} height={64} />
+  <Image src={logo} alt="" width={64} height={64} />
+  <span>Manabrew</span>
 </a>
 
 <style>
   .site-title {
     display: flex;
     align-items: center;
+    gap: 0.5rem;
+    color: var(--mb-foreground);
+    font-family: "Fraunces Variable", Georgia, serif;
+    font-optical-sizing: auto;
+    font-variation-settings: "SOFT" 60, "WONK" 1;
+    font-size: clamp(1.15rem, 3.5vw, 1.5rem);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    text-decoration: none;
     min-width: 0;
   }
 
   .site-title img {
     height: 2.75rem;
     width: auto;
+  }
+
+  .site-title span {
+    border-bottom: 2px solid var(--mb-brand-accent);
+  }
+
+  .site-title:focus-visible {
+    outline: 2px solid var(--mb-ring);
+    outline-offset: 4px;
   }
 </style>

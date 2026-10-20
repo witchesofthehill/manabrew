@@ -5,8 +5,8 @@
   "start_url": "/companion",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#121316",
-  "theme_color": "#121316",
+  "background_color": "#1C191D",
+  "theme_color": "#1C191D",
   "categories": ["games"],
   "icons": [
     {

@@ -1,3 +1,4 @@
+import { UI_FONT_FAMILY as FONT } from "@/themes/typography";
 import {
   Bounds,
   ColorMatrixFilter,
@@ -38,7 +39,6 @@ const BOT_ICON_NAME = "robot-antennas";
 const SKULL_ICON_NAME = "skull-crossed-bones";
 const OFFLINE_ICON_NAME = "aerial-signal";
 const DETAILS_ICON_NAME = "info";
-const FONT = "Inter, system-ui, -apple-system, sans-serif";
 const PANEL_PADDING = 10;
 const AVATAR_DIAMETER = 44;
 const SHALLOW_AVATAR_MIN_HEIGHT = 96;

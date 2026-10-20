@@ -84,7 +84,7 @@ export function AppInitGate({ children }: { children: ReactNode }) {
     <div className={cn("flex flex-col items-center gap-2 text-center", shortTouch && "gap-0.5")}>
       <p
         className={cn(
-          "font-mono text-[0.65rem] uppercase tracking-[0.55em] text-muted-foreground",
+          "text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-muted-foreground",
           shortTouch && "text-[0.55rem]",
         )}
       >
@@ -92,7 +92,7 @@ export function AppInitGate({ children }: { children: ReactNode }) {
       </p>
       <h1
         className={cn(
-          "font-serif text-5xl font-light tracking-[0.08em] text-foreground md:text-6xl",
+          "font-serif text-5xl font-bold tracking-tight text-foreground md:text-6xl",
           shortTouch && "text-3xl md:text-3xl",
         )}
       >
@@ -101,7 +101,7 @@ export function AppInitGate({ children }: { children: ReactNode }) {
       <div
         aria-hidden
         className={cn(
-          "mt-2 h-px w-24 bg-gradient-to-r from-transparent via-foreground/50 to-transparent",
+          "mt-2 h-px w-24 bg-gradient-to-r from-transparent via-brand-accent to-transparent",
           shortTouch && "mt-0.5",
         )}
       />

@@ -180,7 +180,7 @@ export function useThemeDraft(): ThemeDraftController {
       anchor.click();
       setTimeout(() => URL.revokeObjectURL(url), 0);
       setError(null);
-      setStatus("Draft exported as version 1 JSON.");
+      setStatus("Draft exported as version 2 JSON.");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not export this theme.");
     }

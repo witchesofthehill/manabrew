@@ -234,7 +234,7 @@ export default function MultiplayerLimitedBuild() {
               key={seat.seat}
               className={cn(
                 "rounded-md bg-card/80 px-2 py-1",
-                status?.ready ? "text-selection" : "text-muted-foreground",
+                status?.ready ? "text-selection-border" : "text-muted-foreground",
               )}
             >
               <span className="font-semibold">{seat.displayName}</span> ·{" "}

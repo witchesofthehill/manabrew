@@ -5,9 +5,10 @@ import { hexToNum } from "@/pixi/colorUtils";
 import { ensureTextContrast } from "@/themes/gameTheme";
 import type { CardStatPresentation } from "@/components/game/cardPresentation";
 import type { CardRenderRegion } from "@/lib/cardRenderGeometry";
+import { UI_FONT_FAMILY } from "@/themes/typography";
 
 export const RULES_BODY_FONT = "Georgia, Cambria, Times New Roman, serif";
-export const RULES_TITLE_FONT = "Cormorant Garamond, Georgia, serif";
+export const RULES_TITLE_FONT = UI_FONT_FAMILY;
 
 export const RULES_CARD_CONSTRAINTS = {
   width: 360,

@@ -12,21 +12,25 @@ The wasm app lives at `play.manabrew.app` (its own Caddy vhost, `/srv/manabrew`)
 ## Layout
 
 - `src-landing/pages/index.astro` - the landing page. Fonts and styles live in this file; colors come from the shared theme via `define:vars`. Links to the app and docs are absolute (`https://play.manabrew.app`, `https://docs.manabrew.app/`).
-- `src/theme.ts` - single source of truth for colors: re-exports the app's default preset from `../../src/themes/default.ts` (pure data, safe to import at build time). Both builds read it.
-- `src/components/Head.astro` - Starlight `Head` override that injects the preset as `--mb-*` custom properties for both `data-theme` states.
-- `src/components/SiteTitle.astro` - Starlight `SiteTitle` override: app logo linking to `https://manabrew.app/`.
+- `src/theme.ts` - re-exports the app's canonical Manabrew theme from `../../src/themes/default.ts` and `BRAND_COLORS` from `../../src/themes/brand.ts` (pure data, safe to import at build time). Both builds read this bridge. Use semantic theme colors for text and controls; exact brand anchors are only for decorative effects.
+- `src/components/Head.astro` - Starlight `Head` override that injects the theme as `--mb-*` custom properties for both `data-theme` states.
+- `src/components/SiteTitle.astro` - Starlight `SiteTitle` override: preserved app logo and the full Manabrew name linking to `https://manabrew.app/`. The image has empty alt text because the visible name labels the link.
 - `src/content/docs/` - documentation content at the collection root; routes land at the root of `docs.manabrew.app`. Internal links are root-relative (`/getting-started/`), app links absolute to `play.manabrew.app`.
 - `src/styles/starlight.css` - maps the injected `--mb-*` variables onto Starlight's `--sl-color-*` tokens, plus the site fonts.
 - `src-landing/pages/robots.txt.ts` and `src/pages/robots.txt.ts` - one `robots.txt` per host, each pointing at its own `sitemap-index.xml` (`@astrojs/sitemap` on the landing build, Starlight's bundled one on docs). `public/` is shared by both builds, so it cannot carry a per-host file.
 - `public/` - favicons copied from the app's `/public`, shared by both builds; in production they're byte-identical duplicates of the app's.
+- Fonts match the app's self-hosted `@fontsource-variable/fraunces` and `@fontsource-variable/source-sans-3` packages. Load Fraunces `full.css` so display headings and wordmarks support `SOFT` 60, `WONK` 1, automatic optical sizing, and weights 600/700. Load its `full-italic.css` only on the landing page, whose hero uses italic display text. Source Sans 3 Variable is for body text and controls, with `wght-italic.css` for emphasized prose. Font license notices ship in `public/fonts/` in both builds. Keep them with font package updates.
 - Images and theme data are imported via relative paths that escape this folder (`../images/`, `../public/`, `../src/`) - `vite.server.fs.allow` and the directory layout in the `website` Docker stage both exist to support this. New escapes need a matching `COPY` in `Dockerfile.web`.
 
 ## Constraints
 
 - **Package manager is yarn here** (`yarn.lock`, no `package-lock.json`): `yarn install`, `yarn dev` (landing), `yarn dev:docs` (docs), `yarn build` (both). The Docker stage runs `yarn install --frozen-lockfile` - commit lockfile changes.
-- **Node 20.** Astro is pinned to v5 and Starlight to 0.37.x because Starlight ≥0.38 requires Astro 6, which requires Node ≥22. Don't bump those majors until the repo toolchain (local + `Dockerfile.web`) moves to Node 22.
+- **Node 20.19.5 or newer.** Local website commands use Node 20; the shared Docker website stage uses Node 24. Astro remains pinned to v5 and Starlight to 0.37.x. Node 20.19.1 fails the locked sitemap package's engine requirement.
 - **Public content only.** Do not publish internal agent docs (`docs/agents/`, DSL grammar/semantics) here; this site is user-facing.
+- Ember is for actions, purple for selected navigation, and sage for sparse non-interactive details. Primary hover uses `primary-hover` with `primary-foreground`; menus and ordinary hover surfaces stay neutral. Read `../docs/BRAND_DIRECTION.md` for the identity rules.
 - Verify landing-page changes at ~390px viewport - fluid layout, no fixed widths.
+- Astro layout styles are scoped. Resets that must reach slotted page or Markdown content, such as blog `box-sizing`, need `:global(...)`; a scoped `*` leaves padded child pages wider than mobile viewports.
+- Landing and docs share Astro's content cache. Verify both with sequential builds and separate static output roots; concurrent development servers using the two configurations can show empty collections.
 
 ## Deploy
 

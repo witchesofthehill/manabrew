@@ -22,14 +22,14 @@ export function TableCreatingSplash({ label }: { label: string }) {
             <span
               key={`out-${leaving}`}
               onAnimationEnd={() => setLeaving(null)}
-              className="animate-splash-step-out absolute inset-0 flex items-center justify-center font-serif text-lg font-light text-foreground/90 sm:text-xl"
+              className="animate-splash-step-out absolute inset-0 flex items-center justify-center font-serif text-lg font-semibold text-foreground/90 sm:text-xl"
             >
               {leaving}
             </span>
           )}
           <span
             key={`in-${current}`}
-            className="animate-splash-step-in absolute inset-0 flex items-center justify-center font-serif text-lg font-light text-foreground/90 sm:text-xl"
+            className="animate-splash-step-in absolute inset-0 flex items-center justify-center font-serif text-lg font-semibold text-foreground/90 sm:text-xl"
           >
             {current}
           </span>

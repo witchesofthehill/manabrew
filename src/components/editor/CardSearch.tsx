@@ -624,7 +624,7 @@ function FilterBtn({
       className={cn(
         "h-6 min-w-[1.5rem] select-none rounded border px-1.5 text-xs font-semibold transition-colors pointer-coarse:h-11 pointer-coarse:min-w-11",
         active
-          ? "bg-selection text-selection-foreground border-selection"
+          ? "bg-selection text-selection-foreground border-selection-border"
           : "bg-background text-muted-foreground border-border hover:bg-muted",
         className,
       )}
@@ -652,7 +652,7 @@ function ManaFilterBtn({
       className={cn(
         "h-7 w-7 rounded-full border-2 transition-all select-none flex items-center justify-center p-0.5 pointer-coarse:h-9 pointer-coarse:w-9",
         active
-          ? "border-selection ring-2 ring-selection/30 scale-110"
+          ? "border-selection-border ring-2 ring-selection-border/30 scale-110"
           : "border-transparent opacity-70 hover:opacity-100 hover:scale-105",
       )}
     >

@@ -180,7 +180,7 @@ function ColorControl({
           aria-pressed={colors.includes(color)}
           className={cn(
             "flex h-8 w-8 items-center justify-center rounded opacity-45 transition-opacity hover:opacity-80 pointer-coarse:h-11 pointer-coarse:w-11",
-            colors.includes(color) && "bg-selection/15 opacity-100 ring-1 ring-selection",
+            colors.includes(color) && "bg-selection opacity-100 ring-1 ring-selection-border",
           )}
           onClick={() => onToggle(color)}
         >

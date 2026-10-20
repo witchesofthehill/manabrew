@@ -26,7 +26,7 @@ export function DeckPlayActions({ savedDeckId }: DeckPlayActionsProps) {
       <div className="relative h-full min-h-0 overflow-hidden">
         <div className="relative z-10 flex h-full items-center justify-center overflow-y-auto px-4 py-4">
           <div className="w-full max-w-md rounded-2xl border border-border/70 bg-card/90 p-6 text-center shadow-xl backdrop-blur-md">
-            <h2 className="font-serif text-3xl font-light">Deck not found</h2>
+            <h2 className="font-serif text-3xl font-semibold">Deck not found</h2>
             <p className="mt-2 text-sm text-muted-foreground">
               This saved deck may have been renamed or removed.
             </p>
@@ -65,7 +65,7 @@ export function DeckPlayActions({ savedDeckId }: DeckPlayActionsProps) {
                 <FormatBadge formatId={formatId} />
                 <span className="text-xs text-muted-foreground">{cardCount} cards</span>
               </div>
-              <h2 className="mt-3 break-words font-serif text-4xl font-light leading-none tracking-tight sm:text-5xl">
+              <h2 className="mt-3 break-words font-serif text-4xl font-bold leading-none tracking-tight sm:text-5xl">
                 {deck.name}
               </h2>
               <p className="mt-4 text-sm leading-relaxed text-muted-foreground sm:text-base">

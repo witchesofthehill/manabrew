@@ -1,3 +1,4 @@
+import { UI_FONT_FAMILY } from "@/themes/typography";
 import {
   Container,
   FederatedPointerEvent,
@@ -164,7 +165,7 @@ function textStyle(
   fill: string,
   fontSize: number,
   fontWeight: "400" | "500" | "600" | "700" = "400",
-  fontFamily = "Inter, system-ui, sans-serif",
+  fontFamily = UI_FONT_FAMILY,
 ): TextStyle {
   return new TextStyle({ fill, fontSize, fontWeight, fontFamily, lineHeight: fontSize * 1.3 });
 }

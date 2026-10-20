@@ -1,3 +1,4 @@
+import { UI_FONT_FAMILY } from "@/themes/typography";
 import { Container, Graphics, Rectangle, Text, TextStyle } from "pixi.js";
 import type { DestroyOptions, FederatedPointerEvent, FederatedWheelEvent } from "pixi.js";
 import type { CardStatusPresentation, CardStatusTone } from "@/components/game/cardPresentation";
@@ -182,12 +183,7 @@ export class RulesPreviewActions extends Container {
         const background = new Graphics();
         const key = new Text({
           text: String(entry.shortcut),
-          style: textStyle(
-            spec.theme.appTheme["popover-foreground"],
-            12,
-            true,
-            "Inter, system-ui, sans-serif",
-          ),
+          style: textStyle(spec.theme.appTheme["popover-foreground"], 12, true, UI_FONT_FAMILY),
         });
         key.resolution = 2;
         key.anchor.set(0.5);

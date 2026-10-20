@@ -91,7 +91,7 @@ export function AppSelect({
           >
             {option.props.children}
             {String(option.props.value) === String(value) && (
-              <Check className="ml-auto h-4 w-4 text-primary" aria-hidden="true" />
+              <Check className="ml-auto h-4 w-4 text-selection-border" aria-hidden="true" />
             )}
           </DropdownMenuItem>
         ))}

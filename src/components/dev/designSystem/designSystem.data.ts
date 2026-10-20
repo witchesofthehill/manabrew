@@ -211,25 +211,18 @@ export const FONTS: {
   use: string;
 }[] = [
   {
-    role: "Sans — body / UI",
-    stack: "Alegreya Sans",
+    role: "Body, UI and game",
+    stack: "Source Sans 3",
     cls: "font-sans",
-    weights: "400 · 500 · 700",
-    use: "Default body text, controls, panels",
+    weights: "400 · 500 · 600 · 700 · 800 · 900",
+    use: "Body text, controls, rules UI and canvas labels. font-game uses the same family.",
   },
   {
-    role: "Serif — display",
-    stack: "Cormorant Garamond",
-    cls: "font-serif",
+    role: "Display and brand",
+    stack: "Fraunces",
+    cls: "font-serif font-semibold",
     weights: "600 · 700",
-    use: "Hero headings (light weight, wide tracking)",
-  },
-  {
-    role: "Game — board",
-    stack: "Inter",
-    cls: "font-game",
-    weights: "400–900",
-    use: "In-game surface + Pixi canvas text",
+    use: "Brand text and intentional titles, tight or normal tracking. Optical sizing with SOFT 20 and WONK 1.",
   },
 ];
 export const GAME_FONT_SIZES: {

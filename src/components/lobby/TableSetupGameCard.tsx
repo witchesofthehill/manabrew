@@ -169,7 +169,7 @@ export function TableSetupGameCard({
                     <FormatBadge formatId={option.value.toLowerCase()} />
                     <span className="text-xs">{option.label}</span>
                     {format === option.value && (
-                      <Check className="ml-auto h-3 w-3 text-selection" />
+                      <Check className="ml-auto h-3 w-3 text-selection-border" />
                     )}
                   </DropdownMenuItem>
                 ))}
@@ -424,8 +424,8 @@ function LimitedKindCard({
       className={cn(
         "flex flex-col items-start gap-0.5 rounded-lg border p-3 text-left transition-colors",
         selected && meta.enabled
-          ? "border-selection bg-selection/10"
-          : "border-border enabled:hover:border-selection/30 enabled:hover:bg-muted/30",
+          ? "border-selection-border bg-selection"
+          : "border-border enabled:hover:border-selection-border/30 enabled:hover:bg-muted/30",
         !meta.enabled && "cursor-not-allowed opacity-50",
       )}
     >
@@ -433,7 +433,7 @@ function LimitedKindCard({
         <Icon
           className={cn(
             "h-4 w-4",
-            selected && meta.enabled ? "text-selection" : "text-muted-foreground",
+            selected && meta.enabled ? "text-selection-border" : "text-muted-foreground",
           )}
         />
         <span className="text-sm font-medium">{meta.label}</span>

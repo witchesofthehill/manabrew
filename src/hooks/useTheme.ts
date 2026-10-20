@@ -1,14 +1,13 @@
 import { useLayoutEffect, useSyncExternalStore } from "react";
 import { useTheme as useNextTheme } from "next-themes";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
-import { THEME_PRESETS } from "@/themes";
+import { MANABREW_THEME } from "@/themes";
 import type { ThemeColors, GameFontSizes } from "@/themes";
 import {
   filterGameThemeColorOverrides,
   getGameThemeColorPaths,
   resolveGameThemeColors,
   flattenGameThemeToCssVars,
-  resolveGameFontSizes,
   type GameThemeColors,
 } from "@/themes/gameTheme";
 import type { ThemeDocument, ThemeMode } from "@/themes/themeDocument";
@@ -30,12 +29,10 @@ const listeners = new Set<() => void>();
 
 export function getThemeDocument(mode: ThemeMode = savedMode): ThemeDocument {
   const state = usePreferencesStore.getState();
-  const preset =
-    THEME_PRESETS.find((candidate) => candidate.id === state.appThemePreset) ?? THEME_PRESETS[0]!;
   return {
-    version: 1,
-    name: state.personalThemeName ?? preset.name,
-    presetId: preset.id,
+    version: 2,
+    base: "manabrew",
+    name: state.personalThemeName ?? MANABREW_THEME.name,
     mode,
     appOverrides: state.appThemeColorOverrides,
     gameOverrides: filterGameThemeColorOverrides(state.gameThemeColorOverrides),
@@ -43,13 +40,11 @@ export function getThemeDocument(mode: ThemeMode = savedMode): ThemeDocument {
 }
 
 export function resolveThemeDocument(document: ThemeDocument): Theme {
-  const preset =
-    THEME_PRESETS.find((candidate) => candidate.id === document.presetId) ?? THEME_PRESETS[0]!;
   return {
-    appTheme: { ...preset[document.mode], ...document.appOverrides[document.mode] },
+    appTheme: { ...MANABREW_THEME[document.mode], ...document.appOverrides[document.mode] },
     gameTheme: {
-      ...resolveGameThemeColors(document.gameOverrides, preset.id),
-      fontSizes: resolveGameFontSizes(preset.id),
+      ...resolveGameThemeColors(document.gameOverrides),
+      fontSizes: MANABREW_THEME.gameFontSizes,
     },
   };
 }
@@ -62,7 +57,6 @@ function refreshTheme(force = false): void {
   const next = previewDocument ?? getThemeDocument();
   if (
     !force &&
-    next.presetId === activeDocument.presetId &&
     next.mode === activeDocument.mode &&
     next.appOverrides === activeDocument.appOverrides &&
     next.gameOverrides === activeDocument.gameOverrides
@@ -76,7 +70,6 @@ function refreshTheme(force = false): void {
 
 const unsubscribePreferences = usePreferencesStore.subscribe((state, previous) => {
   if (
-    state.appThemePreset !== previous.appThemePreset ||
     state.appThemeColorOverrides !== previous.appThemeColorOverrides ||
     state.gameThemeColorOverrides !== previous.gameThemeColorOverrides
   )
@@ -102,7 +95,6 @@ export function setThemePreview(document: ThemeDocument | null): void {
 export function saveThemeDocument(document: ThemeDocument): void {
   savedMode = document.mode;
   usePreferencesStore.setState({
-    appThemePreset: document.presetId,
     personalThemeName: document.name,
     appThemeColorOverrides: document.appOverrides,
     gameThemeColorOverrides: document.gameOverrides,
@@ -118,12 +110,9 @@ export function useThemePreviewMode(): ThemeMode | undefined {
 }
 
 export function getDefaultGameThemeColorMap(): Record<string, string> {
-  const preset =
-    THEME_PRESETS.find(
-      (candidate) => candidate.id === usePreferencesStore.getState().appThemePreset,
-    ) ?? THEME_PRESETS[0]!;
-  const colors = { ...THEME_PRESETS[0]!.gameColors, ...preset.gameColors };
-  return Object.fromEntries(getGameThemeColorPaths().map((key) => [key, colors[key]]));
+  return Object.fromEntries(
+    getGameThemeColorPaths().map((key) => [key, MANABREW_THEME.gameColors[key]]),
+  );
 }
 
 export function useTheme(): Theme {
@@ -144,5 +133,7 @@ export function useApplyTheme(): void {
     for (const [key, value] of Object.entries(theme.appTheme))
       root.style.setProperty(`--${key}`, value);
     for (const [key, value] of Object.entries(gameCssVars)) root.style.setProperty(key, value);
+    document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')!.content =
+      theme.appTheme.background;
   }, [theme]);
 }

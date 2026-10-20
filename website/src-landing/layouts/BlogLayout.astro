@@ -1,10 +1,8 @@
 ---
 import { Image } from "astro:assets";
-import "@fontsource/cormorant-garamond/600.css";
-import "@fontsource/cormorant-garamond/700.css";
-import "@fontsource/alegreya-sans/400.css";
-import "@fontsource/alegreya-sans/500.css";
-import "@fontsource/alegreya-sans/700.css";
+import "@fontsource-variable/fraunces/full.css";
+import "@fontsource-variable/source-sans-3";
+import "@fontsource-variable/source-sans-3/wght-italic.css";
 import preset from "../../src/theme";
 import logo from "../../../src/assets/manaBrew.png";
 import brewery from "../../../public/manabrew_brewery_1.png";
@@ -73,7 +71,8 @@ const jsonLd = article
   <body>
     <header class="nav">
       <a class="wordmark" href="/">
-        <Image src={logo} alt="Manabrew" width={64} height={64} />
+        <Image src={logo} alt="" width={64} height={64} />
+        <span>Manabrew</span>
       </a>
       <nav>
         <a href="/blog/">Blog</a>
@@ -114,15 +113,19 @@ const jsonLd = article
     "muted-foreground": t["muted-foreground"],
     primary: t.primary,
     "primary-foreground": t["primary-foreground"],
+    "brand-accent": t["brand-accent"],
     ring: t.ring,
   }}
 >
   :root {
-    --font-display: "Cormorant Garamond", georgia, serif;
-    --font-body: "Alegreya Sans", system-ui, sans-serif;
+    --font-display: "Fraunces Variable", Georgia, serif;
+    --font-body: "Source Sans 3 Variable", system-ui, -apple-system, sans-serif;
+    color-scheme: dark;
   }
 
-  * {
+  :global(*),
+  :global(*::before),
+  :global(*::after) {
     box-sizing: border-box;
   }
 
@@ -143,6 +146,11 @@ const jsonLd = article
     color: var(--primary);
   }
 
+
+  a:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 4px;
+  }
   main {
     flex: 1 0 auto;
   }
@@ -160,6 +168,15 @@ const jsonLd = article
   .wordmark {
     display: flex;
     align-items: center;
+    gap: 0.6rem;
+    color: var(--foreground);
+    font-family: var(--font-display);
+    font-optical-sizing: auto;
+    font-variation-settings: "SOFT" 60, "WONK" 1;
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    text-decoration: none;
   }
 
   .wordmark img {
@@ -170,6 +187,7 @@ const jsonLd = article
   .nav nav {
     display: flex;
     gap: clamp(0.9rem, 3vw, 1.8rem);
+    flex-wrap: wrap;
   }
 
   .nav nav a {
@@ -201,5 +219,12 @@ const jsonLd = article
 
   .foot-links a {
     color: var(--foreground);
+  }
+
+  @media (max-width: 32rem) {
+    .nav nav {
+      width: 100%;
+      justify-content: space-between;
+    }
   }
 </style>

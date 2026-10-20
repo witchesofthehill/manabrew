@@ -1,3 +1,4 @@
+import { UI_FONT_FAMILY } from "@/themes/typography";
 import { Container, Graphics, Text } from "pixi.js";
 import { getTheme, subscribeTheme } from "@/hooks/useTheme";
 import { hexToNum } from "@/pixi/colorUtils";
@@ -320,7 +321,7 @@ export class LimitedCardScene implements LimitedPane {
       const text = new Text({
         text: header.label,
         style: {
-          fontFamily: "Alegreya Sans",
+          fontFamily: UI_FONT_FAMILY,
           fontSize: 16,
           fontWeight: "bold",
           fill: theme.appTheme["muted-foreground"],

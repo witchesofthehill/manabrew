@@ -126,12 +126,16 @@ export function LimitedManaAnalysis({ cards }: { cards: AnalyzedLimitedCard[] })
                     <td className="p-2">
                       <ManaSymbols cost={`{${color}}`} size="sm" />
                     </td>
-                    <td className="p-2 font-mono">{required}</td>
-                    <td className="p-2 font-mono">
+                    <td className="p-2 tabular-nums lining-nums">{required}</td>
+                    <td className="p-2 tabular-nums lining-nums">
                       {sources.length - tapped} / {tapped}
                     </td>
-                    <td className="p-2 font-mono">{Math.round(drawChance * 100)}%</td>
-                    <td className="p-2 font-mono">{Math.round(timingChance * 100)}%</td>
+                    <td className="p-2 tabular-nums lining-nums">
+                      {Math.round(drawChance * 100)}%
+                    </td>
+                    <td className="p-2 tabular-nums lining-nums">
+                      {Math.round(timingChance * 100)}%
+                    </td>
                   </tr>
                 );
               },

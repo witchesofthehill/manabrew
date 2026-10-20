@@ -43,8 +43,6 @@ export const CARD_SIZE_MULTIPLIER_MIN = 0.75;
 export const CARD_SIZE_MULTIPLIER_MAX = 1.5;
 
 export interface PreferencesState {
-  appThemePreset: string;
-  setAppThemePreset: (id: string) => void;
   personalThemeName: string | null;
   appLanguage: AppLanguagePreference;
   setAppLanguage: (language: AppLanguagePreference) => void;
@@ -181,7 +179,6 @@ export interface PreferencesState {
 }
 
 const PERSISTED_PREFERENCE_KEYS = [
-  "appThemePreset",
   "personalThemeName",
   "appLanguage",
   "flashDurationMs",
@@ -284,14 +281,6 @@ export const usePreferencesStore = create<PreferencesState>()(
         const serverDefaults = getServerConnectionDefaults();
         return {
           ...CARD_VIEW_DEFAULTS,
-          appThemePreset: "default",
-          setAppThemePreset: (appThemePreset) =>
-            set({
-              appThemePreset,
-              personalThemeName: null,
-              appThemeColorOverrides: { light: {}, dark: {} },
-              gameThemeColorOverrides: {},
-            }),
           personalThemeName: null,
           appLanguage: "system",
           setAppLanguage: (appLanguage) => set({ appLanguage }),
@@ -445,12 +434,13 @@ export const usePreferencesStore = create<PreferencesState>()(
       },
       {
         name: STORAGE_KEYS.PREFERENCES,
-        version: 4,
+        version: 5,
         migrate: (persistedState, version) => {
           if (!persistedState || typeof persistedState !== "object") return {};
           const persisted = persistedState as Record<string, unknown>;
-          if (version < 4) return { ...persisted, ...CARD_VIEW_DEFAULTS };
-          return persisted;
+          return pickPersistedPreferences(
+            version < 4 ? { ...persisted, ...CARD_VIEW_DEFAULTS } : persisted,
+          );
         },
         merge: (persistedState, currentState) => ({
           ...currentState,

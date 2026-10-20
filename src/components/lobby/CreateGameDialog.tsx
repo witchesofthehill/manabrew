@@ -444,7 +444,7 @@ export function CreateGameDialog({
                       className={cn(
                         "w-full rounded-lg border p-2.5 text-left transition-colors",
                         selectedFormat.id === format.id
-                          ? "border-selection bg-selection/10"
+                          ? "border-selection-border bg-selection"
                           : "border-border hover:bg-muted/60",
                       )}
                     >

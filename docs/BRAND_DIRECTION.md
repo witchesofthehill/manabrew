@@ -179,13 +179,19 @@ Utility pages no longer have the brewery illustration behind them. The existing 
 
 Approved source artwork lives in `images/brand/logos/color/` and `images/brand/logos/dark/`, with mouth/fire and brew layers under `images/brand/layers/`. Run `python3 scripts/generate-brand-logo.py` after changing designer exports. It prepares `images/brand/logos/interactive/manabrew-logo.svg` and `src/assets/brandLogoGeometry.json` for the React and Astro renderers without modifying the original artwork. The horizontal 1450:400 viewBox retains the wordmark's 1.6-times enlargement. Keep generated outputs with source changes; normal builds consume them without Python.
 
-The app follows resolved light/dark mode and theme previews; documentation follows its selected theme. Browser icons use the dedicated exports in `images/brand/favicon/`, preserving the supplied rounded tile and transparent corners in both color schemes. SVG and ICO are copied unchanged into the app and website public directories; PNG fallbacks, Apple touch and PWA icons come from the supplied 512px PNG. PWA icons use `purpose: "any"`, not `maskable`. Native desktop/Android icons preserve alpha; native iOS icons are flattened to opaque RGB because iOS requires it. Contextual screen illustrations remain outside this implementation.
+The app follows resolved light/dark mode and theme previews; documentation follows its selected theme. Browser icons use the dedicated exports in `images/brand/favicon/`, preserving the supplied rounded tile and transparent corners in both color schemes. SVG and ICO are copied unchanged into the app and website public directories; PNG fallbacks, Apple touch and PWA icons come from the supplied 512px PNG. PWA icons use `purpose: "any"`, not `maskable`. Native desktop/Android icons preserve alpha; native iOS icons are flattened to opaque RGB because iOS requires it. Loading, empty-state and error illustrations remain unchanged.
 
 ### Interactive header logo
 
 At rest, preserve the closed-mouth silhouette. Mouse or pen hover anywhere on the existing Home control, or keyboard-visible focus, reveals the mouth and clipped fire. Both flame layers flicker while the three brew bubbles and three floating bubbles/drops move with staggered timing. The body and wordmark stay fixed. Motion runs for roughly two seconds, then settles with the mouth open until hover/focus ends; leaving resets the reaction.
 
 Reduced motion shows the static open-mouth/fire pose without animation or transitions. Touch navigation remains a single tap, without a hover-only first tap. `/design-system#assets` provides an explicit, keyboard- and touch-operable preview toggle; standalone specimens stay still. Each logo instance owns a unique mouth clip. Favicons and native icons remain static.
+
+### Brewing-room illustration assets
+
+`images/brand/illustrations/manabrew-brewing-room-desktop.*` supplies a 2560 × 1440 landscape composition with copy space on the left. `manabrew-brewing-room-mobile.*` supplies a separately composed 1080 × 1920 portrait with copy space above the cauldron. Both use the canonical full mascot, ember heat, purple brew, and restrained sage ingredients, without baked-in text or a wordmark.
+
+Each composition includes an editable `.vectorcraft` master and SVG, plus a `.pcraft` finishing master with an embedded render, nondestructive grain, and a curves adjustment. PNG exports are lossless; WebP exports use quality 90. The images are static. Existing app and website background references remain unchanged.
 
 ## Research sources
 

@@ -169,7 +169,7 @@ The symbol-only icon identifies app launchers, favicons and constrained navigati
 
 Draw full-color, single-color and reversed versions. The single-color version must preserve the rim and body separation without gradients, glow or color-dependent detail. Make a simplified micro-icon rather than shrinking every detail of the full mascot.
 
-For artwork revisions, compare the icon at 16, 24, 32 and 64 pixels, inspect the wordmark at header size, and check a one-color print. Keep SVG and browser-icon backgrounds transparent; do not add a light panel to compensate for dark-mode contrast.
+For artwork revisions, compare the icon at 16, 24, 32 and 64 pixels, inspect the wordmark at header size, and check a one-color print. Keep header SVG backgrounds transparent; do not add a light panel to compensate for dark-mode contrast. Browser icons use the separately approved favicon tile.
 
 ## Implementation boundaries
 
@@ -179,7 +179,7 @@ Utility pages no longer have the brewery illustration behind them. The existing 
 
 Approved source artwork lives in `images/brand/logos/color/` and `images/brand/logos/dark/`, with mouth/fire and brew layers under `images/brand/layers/`. Run `python3 scripts/generate-brand-logo.py` after changing designer exports. It prepares `images/brand/logos/interactive/manabrew-logo.svg` and `src/assets/brandLogoGeometry.json` for the React and Astro renderers without modifying the original artwork. The horizontal 1450:400 viewBox retains the wordmark's 1.6-times enlargement. Keep generated outputs with source changes; normal builds consume them without Python.
 
-The app follows resolved light/dark mode and theme previews; documentation follows its selected theme. SVG favicons select the matching approved symbol with `prefers-color-scheme`. Favicons and desktop/Android icons preserve alpha. Transparent PWA icons use `purpose: "any"`, not `maskable`; native iOS icons are flattened to opaque RGB because iOS requires it. Contextual screen illustrations remain outside this implementation.
+The app follows resolved light/dark mode and theme previews; documentation follows its selected theme. Browser icons use the dedicated exports in `images/brand/favicon/`, preserving the supplied rounded tile and transparent corners in both color schemes. SVG and ICO are copied unchanged into the app and website public directories; PNG fallbacks, Apple touch and PWA icons come from the supplied 512px PNG. PWA icons use `purpose: "any"`, not `maskable`. Native desktop/Android icons preserve alpha; native iOS icons are flattened to opaque RGB because iOS requires it. Contextual screen illustrations remain outside this implementation.
 
 ### Interactive header logo
 

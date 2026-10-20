@@ -108,6 +108,7 @@ jobs:
               'images/screenshots/',
               'src/themes/',
               'images/brand/logos/',
+              'images/brand/favicon/',
               'images/brand/layers/',
               'images/brand/mascot/',
               'src/assets/brandLogoGeometry.json',

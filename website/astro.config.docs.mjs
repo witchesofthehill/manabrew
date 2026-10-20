@@ -21,7 +21,7 @@ export default defineConfig({
       head: [
         {
           tag: "link",
-          attrs: { rel: "icon", href: "/favicon.ico", sizes: "32x32" },
+          attrs: { rel: "icon", href: "/favicon.ico", sizes: "16x16 32x32 48x48" },
         },
         {
           tag: "link",

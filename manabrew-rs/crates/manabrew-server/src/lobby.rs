@@ -694,6 +694,7 @@ pub fn start_game_sync(
         let starting_life = match room.format {
             GameFormat::Commander => 40,
             GameFormat::Brawl => 25,
+            GameFormat::PauperCommander => 30,
             GameFormat::Standard
             | GameFormat::Pioneer
             | GameFormat::Modern

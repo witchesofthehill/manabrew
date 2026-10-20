@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.62.0](https://github.com/witchesofthehill/manabrew/compare/v3.61.1...v3.62.0) (2026-10-20)
+
+### Features
+
+* pauper commander ([#1080](https://github.com/witchesofthehill/manabrew/issues/1080)) ([50365f1](https://github.com/witchesofthehill/manabrew/commit/50365f163e81fd5d4884cc70c6a59b88459b6651))
+
 ## [3.61.1](https://github.com/witchesofthehill/manabrew/compare/v3.61.0...v3.61.1) (2026-10-19)
 
 ### Fixes

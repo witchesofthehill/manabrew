@@ -419,6 +419,8 @@ pub enum DeckFormat {
     Pauper,
     Premodern,
     Commander,
+    #[serde(rename = "paupercommander")]
+    PauperCommander,
     Brawl,
     Oathbreaker,
     Draft,

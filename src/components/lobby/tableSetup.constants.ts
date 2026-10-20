@@ -58,6 +58,11 @@ export const FORMATS: {
     description: `100-card singleton, 40 life`,
   },
   {
+    value: "PauperCommander",
+    label: `Pauper Commander`,
+    description: `100-card singleton, 30 life, commons`,
+  },
+  {
     value: "Brawl",
     label: `Brawl`,
     description: `60-card singleton, 25 life`,
@@ -110,7 +115,8 @@ export const LIMITED_KINDS: LimitedKindMeta[] = [
 ];
 export const PLAYER_OPTIONS_MATCH = [2, 3, 4] as const;
 export const PLAYER_OPTIONS_LIMITED = [2, 4, 6, 8] as const;
-export const defaultMatchPlayers = (format: GameFormat) => (format === "Commander" ? 4 : 2);
+export const defaultMatchPlayers = (format: GameFormat) =>
+  format === "Commander" || format === "PauperCommander" ? 4 : 2;
 // Capped at 90s: the engine auto-passes a silent seat after 120s
 export const RECONNECT_TIMEOUT_OPTIONS = [30, 60, 90] as const;
 export const CREATE_SPLASH_MIN_MS = 1200;

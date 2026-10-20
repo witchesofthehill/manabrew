@@ -75,6 +75,7 @@ function frontFace(name) {
 function forgeVariant(deck) {
   const format = String((deck && deck.format) || "").toLowerCase();
   if (format === "commander") return "Commander";
+  if (format === "paupercommander") return "PauperCommander";
   if (format.includes("brawl")) return "Brawl";
   if (format === "oathbreaker") return "Oathbreaker";
   return "Constructed";

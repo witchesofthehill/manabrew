@@ -21,13 +21,14 @@ const HOST_SELECTABLE_FORMATS: GameFormat[] = [
   "Pauper",
   "Premodern",
   "Commander",
+  "PauperCommander",
   "Brawl",
   "Oathbreaker",
   "Draft",
   "Sealed",
 ];
 const PLAYER_COUNT_OPTIONS = [2, 3, 4];
-const MULTIPLAYER_FORMATS: GameFormat[] = ["Commander", "Brawl", "Oathbreaker"];
+const MULTIPLAYER_FORMATS: GameFormat[] = ["Commander", "PauperCommander", "Brawl", "Oathbreaker"];
 interface TableRoomSidebarProps {
   room: RoomInfo;
   roomPassword?: string | null;

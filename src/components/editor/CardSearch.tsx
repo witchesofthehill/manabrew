@@ -174,6 +174,10 @@ const FORMAT_FILTERS = [
     label: `Pauper`,
   },
   {
+    id: "paupercommander",
+    label: `Pauper Commander`,
+  },
+  {
     id: "premodern",
     label: `Premodern`,
   },

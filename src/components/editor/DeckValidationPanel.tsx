@@ -1,17 +1,14 @@
 import { AlertTriangle } from "lucide-react";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { getFormat, validateDeckSections } from "@/lib/formats";
+import { useCardPool } from "@/hooks/useCardPool";
 export function DeckValidationPanel({ unsupportedNames }: { unsupportedNames?: Set<string> }) {
   const { currentDeck } = useDeckStore();
   const format = getFormat(currentDeck.format ?? "standard");
+  const input = { deck: currentDeck, commanderName: currentDeck.commanders?.[0]?.identity.name };
+  const cardPool = useCardPool([{ input, format }]);
   if (!format) return null;
-  const validation = validateDeckSections(
-    {
-      deck: currentDeck,
-      commanderName: currentDeck.commanders?.[0]?.identity.name,
-    },
-    format,
-  );
+  const validation = validateDeckSections(input, format, cardPool);
   const unsupportedList = unsupportedNames ? [...unsupportedNames].sort() : [];
   if (validation.legal && unsupportedList.length === 0) return null;
   const compatibilityErrors =

@@ -1,6 +1,6 @@
 # Manabrew brand direction
 
-Status: implemented for app, game UI, landing page, blog and documentation typography and colors. The existing logo and favicon assets remain until the designer supplies replacements. Light/dark modes and personal color overrides remain; alternate theme presets do not return.
+Status: implemented for app, game UI, landing page, blog and documentation typography and colors. The approved horizontal cauldron lockup and symbol are integrated with transparent backgrounds. Light/dark modes and personal color overrides remain; alternate theme presets do not return.
 
 ## The idea
 
@@ -74,6 +74,7 @@ Dark-mode primary uses Ember 400 so existing ember-colored labels also remain re
 | Role                      | Dark mode                                              | Light mode                                             |
 | ------------------------- | ------------------------------------------------------ | ------------------------------------------------------ |
 | Page / text               | Soot / Steam                                           | Steam / Soot                                           |
+| Header / text             | Cauldron / Steam                                       | White / Soot                                           |
 | Panel                     | Cauldron                                               | White                                                  |
 | Secondary text            | Pewter                                                 | Dark pewter                                            |
 | Primary fill / text       | Ember 400 / Soot                                       | Ember 700 / White                                      |
@@ -83,6 +84,8 @@ Dark-mode primary uses Ember 400 so existing ember-colored labels also remain re
 | Sage detail               | Sage / Soot                                            | Deep sage / Steam                                      |
 
 The logo can retain the anchor colors while controls use neighboring shades for contrast. Light and dark modes are lighting conditions for the same brand, not separate identities.
+
+Navigation headers reuse the same `card` surface as the hero cards. Dark mode uses the approved white-cauldron artwork against that surface; light mode keeps the original dark cauldron. SVG backgrounds remain transparent, without a separate header palette, a light panel, or CSS recoloring.
 
 ### Measured contrast
 
@@ -123,9 +126,9 @@ I also considered Bricolage Grotesque, whose French/British grotesque mixture of
 
 Undercase Type's Phaedra Charles and Flavia Zimbardi designed Fraunces around the expressive soft-serif tradition of Windsor, Souvenir and Cooper. The designers explicitly describe the genre as playful and sometimes goofy. That is a closer fit to a derpy cauldron than a solemn fantasy inscription.
 
-Fraunces includes weight, optical size, softness and wonk axes. Implemented display text uses weights 600/700, automatic optical sizing, softness 60 and wonk 1. For the designer's final outlined wordmark, compare weight 700 at optical size 72 with these softness/wonk settings. The current text wordmark uses title-case `Manabrew`.
+Fraunces includes weight, optical size, softness and wonk axes. Implemented display text uses weights 600/700, automatic optical sizing, softness 60 and wonk 1. The approved outlined wordmark uses Fraunces 700. Its geometry is enlarged relative to the cauldron so the name remains legible at header size.
 
-Set custom spacing by eye. Consider one repeatable feature, such as the cauldron rim echoing a soft serif, rather than replacing a letter with a difficult-to-read icon. The final wordmark should be an outlined vector asset with deliberate proportions, not text that depends on the viewer having the font installed.
+The wordmark uses outlined vector paths with deliberate proportions, independent of installed fonts. Preserve its letter spacing when resizing; scale the lockup proportionally instead of stretching it.
 
 Reserve Fraunces for the logo, onboarding titles, marketing headlines and occasional empty-state headings. Do not use it for card rules, deck rows, small navigation, mana counts or dense tables. Its optical sizing improves small-size behavior, but that is not a reason to use a decorative face everywhere.
 
@@ -162,19 +165,19 @@ Keep variants out of dense gameplay decisions. An opponent disconnecting or a fa
 
 The primary lockup includes both the cauldron and the complete name `Manabrew`. Use it in introductions, the website header, launch materials and prominent product identification.
 
-Also create a compact stacked lockup and a symbol-only icon for app launchers, favicons and constrained navigation. "Always include the name" is a good rule for introducing the brand, but not for a 16-pixel favicon. Give standalone interactive icons an accessible name in the interface.
+The symbol-only icon identifies app launchers, favicons and constrained navigation. "Always include the name" is a good rule for introducing the brand, but not for a 16-pixel favicon. Give standalone interactive icons an accessible name in the interface.
 
 Draw full-color, single-color and reversed versions. The single-color version must preserve the rim and body separation without gradients, glow or color-dependent detail. Make a simplified micro-icon rather than shrinking every detail of the full mascot.
 
-Before approval, compare the icon at 16, 24, 32 and 64 pixels, inspect the wordmark at header size, and check a one-color print. These logo checks have not been performed because the new artwork does not yet exist.
+For artwork revisions, compare the icon at 16, 24, 32 and 64 pixels, inspect the wordmark at header size, and check a one-color print. Keep SVG and browser-icon backgrounds transparent; do not add a light panel to compensate for dark-mode contrast.
 
 ## Implementation boundaries
 
 Existing personal color overrides are preserved. Reset Colors restores the new canonical defaults for that mode; game overrides remain shared. Primary hover has an explicit paired fill. Selected backgrounds, foregrounds and purple borders are separate tokens; selection text and rings do not reuse the tinted fill.
 
-Utility pages no longer have the brewery illustration behind them. The existing illustration remains on entry and home hero surfaces and the website, without inventing new mascot artwork. The full-name text beside the current logo is responsive; constrained app route headers retain the existing compact symbol.
+Utility pages no longer have the brewery illustration behind them. The existing illustration remains on entry and home hero surfaces and the website, without inventing new mascot artwork. App headers use the horizontal SVG on wider screens and the symbol on compact screens. Website headers use the horizontal SVG without duplicate text.
 
-Designer-supplied cauldron, wordmark, mascot variants and replacement app icons remain outside this implementation. Keep the silhouette and export checks above when those assets arrive.
+Approved source artwork lives in `images/brand/logos/color/` and `images/brand/logos/dark/`. Headers use the derived `color/manabrew-horizontal-header.svg` and `dark/manabrew-horizontal-header-dark.svg`, whose 1450:400 viewBox accommodates a wordmark scaled 1.6 times around its original left edge and vertical center. Regenerate those variants after designer exports change, without modifying the source exports. The app follows resolved light/dark mode and theme previews; documentation follows its selected theme. SVG favicons select the matching approved symbol with `prefers-color-scheme`. Favicons and desktop/Android icons preserve alpha. Transparent PWA icons use `purpose: "any"`, not `maskable`; native iOS icons are flattened to opaque RGB because iOS requires it. Contextual mascot illustrations remain outside this implementation.
 
 ## Research sources
 

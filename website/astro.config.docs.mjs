@@ -17,7 +17,26 @@ export default defineConfig({
       title: "Manabrew",
       description:
         "An open-source Magic: The Gathering client and rules engine, built around Forge compatibility.",
-      favicon: "/favicon-32x32.png",
+      favicon: "/favicon.svg",
+      head: [
+        {
+          tag: "link",
+          attrs: { rel: "icon", href: "/favicon.ico", sizes: "32x32" },
+        },
+        {
+          tag: "link",
+          attrs: {
+            rel: "icon",
+            href: "/favicon-32x32.png",
+            type: "image/png",
+            sizes: "32x32",
+          },
+        },
+        {
+          tag: "link",
+          attrs: { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
+        },
+      ],
       social: [
         {
           icon: "github",

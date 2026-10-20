@@ -33,6 +33,7 @@ Read first: `/AGENTS.md`.
 - **Limited persistence commands.** `limited_export_session`, `limited_import_session`, `limited_get_draft_review` and `limited_auto_pick` use the native session manager on Tauri and corresponding WASM exports on web. Checkpoints retain engine/RNG/AI state and exact occurrence IDs; reject incompatible versions instead of regenerating a pool. Frontend IndexedDB owns durable acceptance and rollback.
 - **Long-running work runs off the command thread.** Tauri commands are async; spawn into the runtime, don't block.
 - **Mobile safe-area insets are injected natively.** Android's WebView doesn't surface window insets to CSS `env(safe-area-inset-*)`, so `gen/android/app/src/main/java/com/manabrew/app/MainActivity.kt` is a hand-edited override (not the auto-generated `TauriActivity.kt`): it runs `enableEdgeToEdge()`, reads `WindowInsets` in `onWebViewCreate`, and exposes them through the `__ANDROID_SAFE_AREA__` JS bridge that `src/platform/androidSafeArea.ts` mirrors onto the `--safe-area-inset-*` CSS vars. If `tauri android init` ever regenerates `MainActivity.kt`, re-apply this. iOS/iPad get insets from `env()` directly (`viewport-fit=cover` + `black-translucent` status bar in `index.html`).
+- **Brand icons.** Generate from `images/brand/logos/color/manabrew-symbol.svg`; keep desktop and Android exports transparent. iOS app icons must be opaque RGB. Explicitly flatten iOS exports: Tauri's SVG rasterization can leave alpha values below 255 even with `--ios-color`.
 
 ## The direct transport
 

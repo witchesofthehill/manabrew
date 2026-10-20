@@ -6,23 +6,49 @@ export function AssetsSection() {
     <Section
       id="assets"
       title={`Assets`}
-      intro="Brand imagery, favicons/PWA icons, and the static data files the app ships. Image assets live in public/ (URL-served) except the logo, which is a bundled src/assets import."
+      intro="Brand imagery, favicons/PWA icons, and the static data files the app ships. Logo SVGs are bundled directly from images/brand/logos/color/. URL-served images and generated icons live in public/."
     >
-      <Subhead>Brand mark</Subhead>
-      <Panel className="flex flex-wrap items-center gap-6">
-        <div className="flex flex-col items-center gap-2">
-          <ManaBrewLogo size={96} className="rounded-xl" />
-          <span className="font-mono text-[11px] text-muted-foreground">96px</span>
+      <Subhead>Approved logo variants</Subhead>
+      <Panel className="space-y-6">
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-6">
+            <div className="space-y-2">
+              <ManaBrewLogo height={72} />
+              <p className="font-mono text-[11px] text-muted-foreground">Horizontal · 72px high</p>
+            </div>
+            <div className="space-y-2">
+              <ManaBrewLogo height={56} />
+              <p className="font-mono text-[11px] text-muted-foreground">Header · 56px high</p>
+            </div>
+          </div>
+          <p className="break-all font-mono text-[11px] text-muted-foreground">
+            Light: color/manabrew-horizontal-header.svg · Dark:
+            dark/manabrew-horizontal-header-dark.svg · 1450 × 400
+          </p>
         </div>
-        <div className="flex flex-col items-center gap-2">
-          <ManaBrewLogo size={48} className="rounded-lg" />
-          <span className="font-mono text-[11px] text-muted-foreground">48px</span>
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-6">
+            <div className="space-y-2">
+              <ManaBrewLogo variant="symbol" height={48} />
+              <p className="font-mono text-[11px] text-muted-foreground">Symbol · 48px</p>
+            </div>
+            <div className="space-y-2">
+              <ManaBrewLogo variant="symbol" height={36} />
+              <p className="font-mono text-[11px] text-muted-foreground">Compact header · 36px</p>
+            </div>
+            <div className="space-y-2">
+              <ManaBrewLogo variant="symbol" height={32} />
+              <p className="font-mono text-[11px] text-muted-foreground">Favicon · 32px</p>
+            </div>
+          </div>
+          <p className="break-all font-mono text-[11px] text-muted-foreground">
+            Light: color/manabrew-symbol.svg · Dark: dark/manabrew-symbol-dark.svg · 512 × 512
+          </p>
         </div>
-        <div className="flex flex-col items-center gap-2">
-          <ManaBrewLogo size={28} className="rounded-lg" />
-          <span className="font-mono text-[11px] text-muted-foreground">28px</span>
-        </div>
-        <span className="font-mono text-[11px] text-muted-foreground">src/assets/manaBrew.png</span>
+        <p className="text-xs text-muted-foreground">
+          Dark mode uses the supplied white cauldron; light mode uses the original dark cauldron.
+          Preserve the artwork's colors, aspect ratio, and transparent background.
+        </p>
       </Panel>
 
       <Subhead>Images & icons</Subhead>

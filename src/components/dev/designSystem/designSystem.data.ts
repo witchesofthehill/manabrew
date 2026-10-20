@@ -274,14 +274,20 @@ export const ASSETS: {
   {
     file: "public/apple-touch-icon.png",
     kind: "PWA icon",
-    use: "iOS home-screen + 512px maskable",
+    use: "512px transparent home-screen icon",
     preview: "/apple-touch-icon.png",
   },
   {
     file: "public/icon-192x192.png",
     kind: "PWA icon",
-    use: "192px maskable",
+    use: "192px transparent PWA icon",
     preview: "/icon-192x192.png",
+  },
+  {
+    file: "public/favicon.svg",
+    kind: "Favicon",
+    use: "Scalable approved symbol with transparent background",
+    preview: "/favicon.svg",
   },
   {
     file: "public/favicon-128x128.png",

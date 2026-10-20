@@ -4,7 +4,7 @@ import "@fontsource-variable/fraunces/full.css";
 import "@fontsource-variable/source-sans-3";
 import "@fontsource-variable/source-sans-3/wght-italic.css";
 import preset from "../../src/theme";
-import logo from "../../../src/assets/manaBrew.png";
+import logo from "../../../images/brand/logos/dark/manabrew-horizontal-header-dark.svg";
 import brewery from "../../../public/manabrew_brewery_1.png";
 
 interface Props {
@@ -65,14 +65,15 @@ const jsonLd = article
     <meta name="twitter:image" content={social} />
     {pubDate && <meta property="article:published_time" content={pubDate.toISOString()} />}
     <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/favicon-32x32.png" type="image/png" sizes="32x32" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" sizes="any" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     {jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
   </head>
   <body>
     <header class="nav">
-      <a class="wordmark" href="/">
-        <Image src={logo} alt="" width={64} height={64} />
-        <span>Manabrew</span>
+      <a class="wordmark" href="/" aria-label="Manabrew">
+        <Image src={logo} alt="" width={1450} height={400} />
       </a>
       <nav>
         <a href="/blog/">Blog</a>
@@ -163,25 +164,21 @@ const jsonLd = article
     gap: 0.5rem 1rem;
     padding: 1.1rem clamp(1rem, 4vw, 3rem);
     border-bottom: 1px solid var(--border);
+    background: var(--card);
   }
 
   .wordmark {
     display: flex;
     align-items: center;
-    gap: 0.6rem;
-    color: var(--foreground);
-    font-family: var(--font-display);
-    font-optical-sizing: auto;
-    font-variation-settings: "SOFT" 60, "WONK" 1;
-    font-size: 1.5rem;
-    font-weight: 700;
-    letter-spacing: -0.03em;
+    max-width: 100%;
     text-decoration: none;
   }
 
   .wordmark img {
-    height: 3rem;
-    width: auto;
+    display: block;
+    width: 16.5rem;
+    max-width: 100%;
+    height: auto;
   }
 
   .nav nav {
@@ -200,7 +197,10 @@ const jsonLd = article
   }
 
   .nav nav a:hover {
-    color: var(--primary);
+    color: var(--foreground);
+    text-decoration: underline;
+    text-decoration-color: var(--primary);
+    text-underline-offset: 0.2em;
   }
 
   footer {

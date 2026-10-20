@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { installDesktopUpdate } from "@/hooks/useDesktopUpdater";
 import { ROUTES } from "@/lib/constants";
 import { useDesktopUpdateStore } from "@/stores/useDesktopUpdateStore";
-import { cn } from "@/lib/utils";
 import { AccountMenu } from "./AccountMenu";
 import { ManaBrewLogo } from "./ManaBrewLogo";
 import { NavSheet } from "./NavSheet";
@@ -139,7 +138,7 @@ export function TopBar({ override }: TopBarProps) {
     }
   }
   return (
-    <header className="flex min-w-0 items-center gap-2 border-b border-border/70 bg-background/80 py-2 pl-[calc(var(--safe-area-inset-left)+1rem)] pr-[calc(var(--safe-area-inset-right)+1rem)] pt-[calc(var(--safe-area-inset-top)+0.5rem)] backdrop-blur-md sm:pl-[calc(var(--safe-area-inset-left)+1.5rem)] sm:pr-[calc(var(--safe-area-inset-right)+1.5rem)] lg:pl-[calc(var(--safe-area-inset-left)+2rem)] lg:pr-[calc(var(--safe-area-inset-right)+2rem)]">
+    <header className="flex min-w-0 items-center gap-2 border-b border-border/70 bg-card py-2 pl-[calc(var(--safe-area-inset-left)+1rem)] pr-[calc(var(--safe-area-inset-right)+1rem)] pt-[calc(var(--safe-area-inset-top)+0.5rem)] sm:pl-[calc(var(--safe-area-inset-left)+1.5rem)] sm:pr-[calc(var(--safe-area-inset-right)+1.5rem)] lg:pl-[calc(var(--safe-area-inset-left)+2rem)] lg:pr-[calc(var(--safe-area-inset-right)+2rem)]">
       {!isPlayHome && (
         <Button
           size="icon"
@@ -156,20 +155,10 @@ export function TopBar({ override }: TopBarProps) {
         type="button"
         onClick={goHome}
         aria-label={`Manabrew Home`}
-        className="group relative flex shrink-0 items-center gap-2 rounded-xl border border-transparent p-0.5 motion-safe:transition-[background-color,border-color,box-shadow] hover:border-primary/30 hover:bg-primary/10 hover:shadow-sm focus-visible:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:before:absolute pointer-coarse:before:-inset-2.5 pointer-coarse:before:content-['']"
+        className="group relative flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xl border border-transparent p-0.5 motion-safe:transition-[background-color,border-color,box-shadow] hover:border-primary/30 hover:bg-primary/10 hover:shadow-sm focus-visible:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <ManaBrewLogo
-          size={36}
-          className="shrink-0 rounded-lg motion-safe:transition-transform motion-safe:group-hover:scale-105"
-        />
-        <span
-          className={cn(
-            "font-serif text-xl font-semibold tracking-tight",
-            title && "hidden xl:inline",
-          )}
-        >
-          Manabrew
-        </span>
+        <ManaBrewLogo height={56} className="hidden shrink-0 sm:block" />
+        <ManaBrewLogo variant="symbol" height={36} className="shrink-0 sm:hidden" />
       </button>
       {title && (
         <>

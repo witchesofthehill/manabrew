@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 512 512">
+  <defs>
+    <clipPath id="clip-path-1">
+      <path d="M200.3 358.15 C236.75 355.45 266.45 347.35 300.2 337.9 C320.45 331.15 340.7 328.45 351.5 333.85 C365 340.6 356.9 356.8 342.05 368.95 C313.7 394.6 248.9 408.1 217.85 393.25 C203 386.5 194.9 371.65 200.3 358.15 Z"/>
+    </clipPath>
+  </defs>
+  <title>Manabrew · mouth fire only</title>
+  <g id="Layer_1" data-name="Layer 1">
+    <g id="Fire_inside_the_mouth___clipped_to_charcoal_opening" data-name="Fire inside the mouth · clipped to charcoal opening" clip-path="url(#clip-path-1)">
+      <path id="Flame___primary_ember" data-name="Flame · primary ember" d="M248.9 390.55 C235.4 382.45 240.8 368.95 250.25 362.2 C247.55 371.65 258.35 375.7 262.4 367.6 C267.8 358.15 271.85 355.45 274.55 352.75 C285.35 359.5 290.75 368.95 293.45 375.7 C298.85 371.65 302.9 366.25 304.25 362.2 C317.75 374.35 319.1 383.8 309.65 390.55 C294.8 398.65 266.45 400 248.9 390.55 Z" fill="#ec8650"/>
+      <path id="Flame___golden_heart" data-name="Flame · golden heart" d="M263.75 391.9 C254.3 386.5 258.35 377.05 263.75 373 C263.75 378.4 269.15 381.1 274.55 375.7 C278.6 370.3 279.95 366.25 279.95 363.55 C292.1 373 300.2 383.8 292.1 389.2 C285.35 395.95 271.85 397.3 263.75 391.9 Z" fill="#fac8a5"/>
+    </g>
+  </g>
+</svg>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 512 512">
+  <title>Manabrew · flat liquid and brand bubbles</title>
+  <g id="Layer_1" data-name="Layer 1">
+    <g id="Flat_mana__713A98___opaque_primary_secondary_accent_bubbles___aligned_512x512" data-name="Flat mana #713A98 · opaque primary/secondary/accent bubbles · aligned 512x512">
+      <path id="Mana___violet_potion_surface" data-name="Mana · violet potion surface" d="M119.3 173.2 C115.25 158.35 169.25 136.75 236.75 127.3 C296.15 116.5 358.25 117.85 370.4 135.4 C393.35 158.35 315.05 182.65 242.15 190.75 C184.1 198.85 128.75 192.1 119.3 173.2 Z" fill="#713a98"/>
+      <path id="Mana___left_overflow" data-name="Mana · left overflow" d="M157.1 189.4 C158.45 181.3 169.25 182.65 170.6 190.75 L174.65 206.95 C176 219.1 162.5 223.15 159.8 211 Z" fill="#713a98"/>
+      <path id="Mana___right_overflow" data-name="Mana · right overflow" d="M328.55 170.5 C327.2 159.7 339.35 155.65 344.75 165.1 C350.15 173.2 351.5 185.35 354.2 194.8 C356.9 208.3 342.05 212.35 336.65 198.85 Z" fill="#713a98"/>
+      <path id="Primary_ember_bubble___exact_logo_shape" data-name="Primary ember bubble · exact logo shape" d="M189.5 144.85 C174.65 144.85 162.5 157 166.55 170.5 C177.35 186.7 220.55 184 219.2 171.85 C217.85 158.35 205.7 144.85 189.5 144.85 Z" fill="#ec8650"/>
+      <path id="Secondary_mana_bubble___exact_logo_shape" data-name="Secondary mana bubble · exact logo shape" d="M290.75 113.8 C275.9 113.8 261.05 124.6 261.05 142.15 C263.75 162.4 316.4 161.05 321.8 144.85 C324.5 132.7 309.65 115.15 290.75 113.8 Z" fill="#bd91d9"/>
+      <path id="Accent_sage_bubble___exact_logo_shape" data-name="Accent sage bubble · exact logo shape" d="M242.15 170.5 C244.85 182.65 273.2 175.9 265.1 165.1 C258.35 151.6 246.2 154.3 242.15 170.5 Z" fill="#9baf91"/>
+      <path id="Floating_sage_bubble___shared_logo_contour" data-name="Floating sage bubble · shared logo contour" d="M157.1 115.15 C157.1 119.624 153.474 123.25 149 123.25 C144.526 123.25 140.9 119.624 140.9 115.15 C140.9 110.676 144.526 107.05 149 107.05 C153.474 107.05 157.1 110.676 157.1 115.15 Z" fill="#9baf91"/>
+      <path id="Floating_mana_drop___shared_logo_contour" data-name="Floating mana drop · shared logo contour" d="M335.3 92.2 C343.4 85.45 346.1 73.3 352.85 67.9 C363.65 59.8 375.8 71.95 363.65 81.4 C354.2 88.15 346.1 93.55 338 97.6 Z" fill="#bd91d9"/>
+      <path id="Floating_ember_drop___shared_logo_contour" data-name="Floating ember drop · shared logo contour" d="M377.15 82.75 C386.6 70.6 417.65 53.05 428.45 58.45 C444.65 71.95 410.9 89.5 381.2 90.85 Z" fill="#ec8650"/>
+    </g>
+  </g>
+</svg>

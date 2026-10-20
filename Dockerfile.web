@@ -134,10 +134,11 @@ FROM node:24-slim AS website
 WORKDIR /repo/website
 COPY website/package.json website/yarn.lock ./
 RUN corepack enable && yarn install --frozen-lockfile
-COPY images/ /repo/images/
+COPY images/screenshots/ /repo/images/screenshots/
 COPY public/manabrew_brewery_1.png /repo/public/manabrew_brewery_1.png
 COPY src/themes/ /repo/src/themes/
-COPY src/assets/manaBrew.png /repo/src/assets/manaBrew.png
+COPY images/brand/logos/color/ /repo/images/brand/logos/color/
+COPY images/brand/logos/dark/ /repo/images/brand/logos/dark/
 COPY website/ ./
 RUN yarn build
 

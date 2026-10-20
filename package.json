@@ -18,7 +18,6 @@
     "ios": "node scripts/mobile-dev.mjs ios dev",
     "ios:init": "node scripts/mobile-dev.mjs ios init",
     "ios:build": "node scripts/mobile-dev.mjs ios build",
-    "icons:generate": "node scripts/generate-app-icons.mjs",
     "dev:relay": "cargo run --release -p manabrew-server",
     "dev:forge": "yarn build:harness && ./forge-harness/build-native.sh && yarn ensure:wasm && tauri dev --features forge-room",
     "dev:forge:win": "yarn build:harness && pwsh -File ./forge-harness/build-native.ps1 && yarn ensure:wasm && tauri dev --features forge-room",

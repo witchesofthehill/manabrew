@@ -6,7 +6,6 @@
 
 * Preserve the current mana cost when previewing copies of prototyped creatures.
 * Fix the Clippy build failure caused by oversized draft checkpoint agent variants.
-* Update desktop, Android, and iOS app icons to the cauldron branding.
 
 ## [3.62.0](https://github.com/witchesofthehill/manabrew/compare/v3.61.1...v3.62.0) (2026-10-20)
 

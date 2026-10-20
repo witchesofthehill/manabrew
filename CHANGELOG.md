@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Fixes
+
+* Preserve the current mana cost when previewing copies of prototyped creatures.
+* Fix the Clippy build failure caused by oversized draft checkpoint agent variants.
+
 ## [3.61.1](https://github.com/witchesofthehill/manabrew/compare/v3.61.0...v3.61.1) (2026-10-19)
 
 ### Fixes

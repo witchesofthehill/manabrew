@@ -620,10 +620,8 @@ export function resolveRulesPreviewDisplay(options: {
       canonicalRulesText: canonicalHeader,
       flavorText: "",
     };
-    const liveRulesText =
-      card.types.length > 0 || card.text.length > 0
-        ? presentation.rulesText
-        : base.canonicalRulesText;
+    const hasCharacteristics = card.types.length > 0 || card.text.length > 0;
+    const liveRulesText = hasCharacteristics ? presentation.rulesText : base.canonicalRulesText;
     base.canonicalRulesText = liveRulesText
       .split("\n")
       .filter(
@@ -642,9 +640,13 @@ export function resolveRulesPreviewDisplay(options: {
       localized?.canonicalTypeLine ?? base.typeLine,
       base.typeLine,
     );
+    const current = card.isPrototyped === true ? alternate : base;
+    if (hasCharacteristics) {
+      current.manaCost = presentation.effectiveManaCost ?? presentation.manaCost;
+    }
     return {
       name: base.name,
-      manaCost: card.isPrototyped === true ? presentation.manaCost : base.manaCost,
+      manaCost: current.manaCost,
       typeLine: base.typeLine,
       faceIndex: 0,
       liveFaceIndex: card.isPrototyped === true ? 1 : 0,

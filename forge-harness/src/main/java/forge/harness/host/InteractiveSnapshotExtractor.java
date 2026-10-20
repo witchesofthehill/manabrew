@@ -108,6 +108,7 @@ public final class InteractiveSnapshotExtractor {
             final String gameId,
             final int viewer,
             final SecretChoiceVisibility secretChoiceVisibility,
+            final HandKnowledge handKnowledge,
             final List<Map<String, Object>> checkpoints,
             final Map<String, Object> restoreVote,
             final boolean snapshotRecording
@@ -115,8 +116,8 @@ public final class InteractiveSnapshotExtractor {
         ParityCardMap.beginSnapshot(game);
         try {
             return GSON.toJson(buildGameView(
-                    game, castingAbility, gameId, viewer, secretChoiceVisibility, checkpoints, restoreVote,
-                    snapshotRecording));
+                    game, castingAbility, gameId, viewer, secretChoiceVisibility, handKnowledge,
+                    checkpoints, restoreVote, snapshotRecording));
         } finally {
             ParityCardMap.endSnapshot();
         }
@@ -128,6 +129,7 @@ public final class InteractiveSnapshotExtractor {
             final String gameId,
             final int viewer,
             final SecretChoiceVisibility secretChoiceVisibility,
+            final HandKnowledge handKnowledge,
             final List<Map<String, Object>> checkpoints,
             final Map<String, Object> restoreVote,
             final boolean snapshotRecording
@@ -141,9 +143,7 @@ public final class InteractiveSnapshotExtractor {
             final int index = SnapshotExtractor.playerIndex(game, player);
             final String ownerId = "player-" + index;
             players.add(toPlayer(game, player, index, viewer));
-            zones.add(zoneWithVisibility("hand", ownerId, game,
-                    player.getCardsIn(ZoneType.Hand), index, true, viewerPlayer, false,
-                    secretChoiceVisibility));
+            zones.add(handZone(game, player, index, viewerPlayer, secretChoiceVisibility, handKnowledge));
             zones.add(visibleZone("graveyard", ownerId, game, player.getCardsIn(ZoneType.Graveyard),
                     index, false, viewerPlayer, secretChoiceVisibility));
             zones.add(zoneWithVisibility("exile", ownerId, game,
@@ -437,6 +437,32 @@ public final class InteractiveSnapshotExtractor {
         obj.addProperty("visibility", "hidden");
         obj.addProperty("id", SnapshotExtractor.javaCardId(card));
         return obj;
+    }
+
+    private static Map<String, Object> handZone(
+            final Game game,
+            final Player owner,
+            final int ownerIndex,
+            final Player viewer,
+            final SecretChoiceVisibility secretChoiceVisibility,
+            final HandKnowledge handKnowledge
+    ) {
+        final List<JsonObject> views = new ArrayList<>();
+        int count = 0;
+        for (final Card card : owner.getCardsIn(ZoneType.Hand)) {
+            count++;
+            final CardDto dto;
+            if (shownTo(card, viewer)) {
+                dto = toCard(game, card, ownerIndex, true, viewer, secretChoiceVisibility);
+                handKnowledge.remember(viewer, card, dto);
+            } else {
+                dto = handKnowledge.recalled(viewer, card);
+            }
+            if (dto != null) {
+                views.add(visibleCard(dto));
+            }
+        }
+        return zoneEntry("hand", "player-" + ownerIndex, views, count);
     }
 
     private static Map<String, Object> zoneWithVisibility(

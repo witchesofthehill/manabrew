@@ -153,6 +153,7 @@ export class LimitedCardFace extends Container {
         } catch (error: unknown) {
           if (!current()) return;
           console.warn("[limited] generated card render failed", card.name, error);
+          if (this.ownedTexture) return;
         }
       }
       const texture = await scan;

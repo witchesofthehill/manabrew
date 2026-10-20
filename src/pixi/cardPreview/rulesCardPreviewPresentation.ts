@@ -606,20 +606,42 @@ export function resolveRulesPreviewDisplay(options: {
 
   const prototype = printedPrototype(info?.oracle_text ?? "");
   if (prototype) {
-    const base = sectionFromFace(resolved.faces[0]!, localizedFaceText(info, 0), 0);
-    const lines = base.rulesText.split("\n");
-    const canonicalLines = base.canonicalRulesText.split("\n");
+    const localized = localizedFaceText(info, 0);
+    const base = sectionFromFace(resolved.faces[0]!, localized, 0);
+    const canonicalHeader =
+      base.canonicalRulesText.split("\n").find((line) => printedPrototype(line)) ?? "";
+    const header = localizeRulesPreviewText(canonicalHeader, info, 0);
     const alternate = {
       ...base,
       faceIndex: 1,
       name: i18n._(msg`Prototype`),
       manaCost: prototype.manaCost,
-      rulesText: lines[0]?.includes("(") ? lines[0].slice(lines[0].indexOf("(")) : "",
-      canonicalRulesText: canonicalLines[0] ?? "",
+      rulesText: header.includes("(") ? header.slice(header.indexOf("(")) : "",
+      canonicalRulesText: canonicalHeader,
       flavorText: "",
     };
-    base.rulesText = lines.slice(1).join("\n");
-    base.canonicalRulesText = canonicalLines.slice(1).join("\n");
+    const liveRulesText =
+      card.types.length > 0 || card.text.length > 0
+        ? presentation.rulesText
+        : base.canonicalRulesText;
+    base.canonicalRulesText = liveRulesText
+      .split("\n")
+      .filter(
+        (line) =>
+          !printedPrototype(line) && matchRulesEntry(line, [canonicalHeader, header]) === null,
+      )
+      .join("\n");
+    base.rulesText = localizeRulesPreviewText(base.canonicalRulesText, info, 0);
+    base.name = localizedLiveValue(
+      presentation.name,
+      localized?.canonicalName ?? base.name,
+      base.name,
+    );
+    base.typeLine = localizedLiveValue(
+      presentation.typeLine,
+      localized?.canonicalTypeLine ?? base.typeLine,
+      base.typeLine,
+    );
     return {
       name: base.name,
       manaCost: card.isPrototyped === true ? presentation.manaCost : base.manaCost,

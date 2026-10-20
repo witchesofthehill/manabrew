@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { peek as peekGauntletMatch, clear as clearGauntletMatch } from "@/lib/gauntletReturn";
+import {
+  peekForGame as peekGauntletMatch,
+  clear as clearGauntletMatch,
+} from "@/lib/gauntletReturn";
 import { completeLimitedMatch, peekLimitedMatchReturn } from "@/game/limitedSession";
 import { useLimitedStore } from "@/stores/useLimitedStore";
 
 interface LimitedGameReturnInput {
+  gauntletId: string | null;
   gameOver: boolean;
   winnerId: string | null;
   playerSlot: string | null;
@@ -12,6 +16,7 @@ interface LimitedGameReturnInput {
 }
 
 export function useLimitedGameReturn({
+  gauntletId,
   gameOver,
   winnerId,
   playerSlot,
@@ -21,7 +26,7 @@ export function useLimitedGameReturn({
   const pending = useRef(false);
   const completed = useRef(false);
   const [error, setError] = useState<string | null>(null);
-  const gauntlet = peekGauntletMatch();
+  const gauntlet = peekGauntletMatch(gauntletId);
   const multiplayer = peekLimitedMatchReturn();
   const destination = gauntlet ? `/gauntlet/${gauntlet.gauntletId}` : multiplayer?.route;
   const finish = useCallback(async () => {
@@ -29,7 +34,7 @@ export function useLimitedGameReturn({
     pending.current = true;
     setError(null);
     try {
-      const match = peekGauntletMatch();
+      const match = peekGauntletMatch(gauntletId);
       if (match) {
         const store = useLimitedStore.getState();
         if (store.activeGauntlet?.gauntletId !== match.gauntletId) {
@@ -65,7 +70,7 @@ export function useLimitedGameReturn({
     } finally {
       pending.current = false;
     }
-  }, [gameOver, winnerId, playerSlot, endGame, navigate]);
+  }, [gauntletId, gameOver, winnerId, playerSlot, endGame, navigate]);
   useEffect(() => {
     void finish();
   }, [finish]);

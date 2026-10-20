@@ -573,9 +573,8 @@ pub fn card_to_dto(game: &GameState, cid: CardId) -> CardDto {
 pub(crate) fn card_face_visible_to(card: &Card, viewer: Option<PlayerId>) -> bool {
     !card.face_down
         && match card.zone {
-            ZoneType::Hand | ZoneType::ExtraHand | ZoneType::Sideboard => {
-                viewer.is_some_and(|player| player == card.owner || card.may_player_look(player))
-            }
+            ZoneType::Hand | ZoneType::ExtraHand | ZoneType::Sideboard => viewer
+                .is_some_and(|player| player == card.controller || card.may_player_look(player)),
             zone => zone.is_known() || viewer.is_some_and(|player| card.may_player_look(player)),
         }
 }
@@ -894,14 +893,18 @@ impl GameViewDtoExt for GameViewDto {
         let mut players = Vec::new();
         let mut zones: Vec<ZoneDto> = Vec::new();
         let visible_zone = |zone: ZoneType, kind: ZoneKind, pid: PlayerId| -> ZoneDto {
-            let cards: Vec<CardView> = game
-                .cards_in_zone(zone, pid)
+            let zone_cards = game.cards_in_zone(zone, pid);
+            let cards: Vec<CardView> = zone_cards
                 .iter()
+                .filter(|&&cid| {
+                    zone != ZoneType::Hand
+                        || card_face_visible_to(game.card(cid), Some(human_player))
+                })
                 .map(|&cid| {
                     CardView::Visible(card_to_dto_for_viewer(game, cid, Some(human_player)))
                 })
                 .collect();
-            let count = cards.len();
+            let count = zone_cards.len();
             ZoneDto {
                 zone: kind,
                 owner_id: player_id_str(pid),

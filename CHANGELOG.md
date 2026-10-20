@@ -1,5 +1,35 @@
 # Changelog
 
+## [3.61.1](https://github.com/witchesofthehill/manabrew/compare/v3.61.0...v3.61.1) (2026-10-19)
+
+### Fixes
+
+* restore tablet prompt scrolling and hide private hands ([#1067](https://github.com/witchesofthehill/manabrew/issues/1067)) ([cede8d5](https://github.com/witchesofthehill/manabrew/commit/cede8d5a6e8f03a0e4a12d9f262dbca5f6639086))
+
+## [3.61.0](https://github.com/witchesofthehill/manabrew/compare/v3.60.2...v3.61.0) (2026-10-19)
+
+### Features
+
+* **forge:** remember revealed opponent hand cards ([#1078](https://github.com/witchesofthehill/manabrew/issues/1078)) ([8f9775a](https://github.com/witchesofthehill/manabrew/commit/8f9775adba045615a0cbf6e11554a02c447298aa))
+
+## [3.60.2](https://github.com/witchesofthehill/manabrew/compare/v3.60.1...v3.60.2) (2026-10-19)
+
+### Fixes
+
+* **ui:** restore selected settings button styling ([#1077](https://github.com/witchesofthehill/manabrew/issues/1077)) ([2476055](https://github.com/witchesofthehill/manabrew/commit/24760558ee41597a5faa035b6dd975cae37d7238))
+
+## [3.60.1](https://github.com/witchesofthehill/manabrew/compare/v3.60.0...v3.60.1) (2026-10-19)
+
+### Fixes
+
+* **ui:** scope gauntlet returns to the active game ([#1076](https://github.com/witchesofthehill/manabrew/issues/1076)) ([a0aa6c1](https://github.com/witchesofthehill/manabrew/commit/a0aa6c1b3b6d2baef6ac98ca791ecef8fb1b895e))
+
+## [3.60.0](https://github.com/witchesofthehill/manabrew/compare/v3.59.0...v3.60.0) (2026-10-19)
+
+### Features
+
+* **editor:** show localized card names and English details ([#1051](https://github.com/witchesofthehill/manabrew/issues/1051)) ([134ac56](https://github.com/witchesofthehill/manabrew/commit/134ac56843a21a3802dbe0bb13bce10f3d69a407))
+
 ## [3.59.0](https://github.com/witchesofthehill/manabrew/compare/v3.58.0...v3.59.0) (2026-10-18)
 
 ### Features

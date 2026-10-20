@@ -14,7 +14,7 @@ msgstr ""
 "Plural-Forms: \n"
 
 #. placeholder {0}: display.stats.damage
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1255
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1259
 msgid "{0} damage"
 msgstr "{0} blessures"
 
@@ -33,7 +33,7 @@ msgstr "Caractéristiques actuelles"
 
 #. placeholder {0}: display.stats.power
 #. placeholder {1}: display.stats.toughness
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1063
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1067
 msgid "Current P/T: {0}/{1}"
 msgstr "F/E actuelles : {0}/{1}"
 
@@ -41,7 +41,7 @@ msgstr "F/E actuelles : {0}/{1}"
 msgid "Current power and toughness"
 msgstr "Force et endurance actuelles"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1645
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1649
 msgid "Defense"
 msgstr "Défense"
 
@@ -58,11 +58,11 @@ msgstr "Carte face cachée"
 msgid "Face-down permanent"
 msgstr "Permanent face cachée"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1227
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1231
 msgid "Flip back · F"
 msgstr "Retourner au verso · F"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1227
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1231
 msgid "Flip front · F"
 msgstr "Retourner au recto · F"
 
@@ -84,7 +84,7 @@ msgstr "Niveau {0}"
 msgid "Locked"
 msgstr "Verrouillé"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1644
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1648
 msgid "Loyalty"
 msgstr "Loyauté"
 
@@ -104,11 +104,11 @@ msgstr "Pas en suspension"
 msgid "On an Adventure"
 msgstr "En aventure"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1057
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1061
 msgid "On an Adventure · available actions are listed on their spell half"
 msgstr "En aventure · les actions disponibles figurent sur sa moitié de sort"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1243
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1247
 msgid "Original printing · generated frame unavailable"
 msgstr ""
 
@@ -116,7 +116,7 @@ msgstr ""
 msgid "Printed alternative"
 msgstr "Alternative imprimée"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1241
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1245
 msgid "Printed face · live state belongs to the other face"
 msgstr "Face imprimée · l'état actuel correspond à l'autre face"
 
@@ -124,7 +124,7 @@ msgstr "Face imprimée · l'état actuel correspond à l'autre face"
 msgid "Printed power and toughness"
 msgstr "Force et endurance imprimées"
 
-#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:615
+#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:617
 msgid "Prototype"
 msgstr "Prototype"
 

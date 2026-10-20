@@ -10,6 +10,7 @@ import { hexToNum } from "@/pixi/colorUtils";
 import { CardSprite } from "@/pixi/CardSprite";
 import { loadManaSymbolTexture } from "@/pixi/manaSymbolCache";
 import { readableTextColor } from "@/themes/gameTheme";
+import { TOUCH_MOVE_SLOP_PX } from "@/lib/responsive";
 import {
   CARD_H,
   CARD_RADIUS,
@@ -414,6 +415,63 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       scrollTrack,
       scrollThumb,
     };
+    {
+      let touchId: number | null = null;
+      let touchStartY = 0;
+      let scrollStart = 0;
+      let didScroll = false;
+      let scrolledTouchId: number | null = null;
+      panel.on("pointerdowncapture", (event: FederatedPointerEvent) => {
+        if (event.pointerType !== "touch" || touchId !== null) return;
+        scrolledTouchId = null;
+        if (this.modalScrollMax <= 0) return;
+        const state = this.modalBody!;
+        const { x: localX, y: localY } = panel.toLocal(event.global);
+        if (
+          localX < PANEL_PADDING ||
+          localX > state.width - PANEL_PADDING ||
+          localY < state.bodyTop ||
+          localY > state.bodyTop + state.viewportHeight
+        )
+          return;
+        touchId = event.pointerId;
+        didScroll = false;
+        touchStartY = localY;
+        scrollStart = this.modalScrollOffset;
+      });
+      panel.on("globalpointermove", (event: FederatedPointerEvent) => {
+        if (touchId !== event.pointerId || this.drag?.pointerId === event.pointerId) return;
+        const delta = panel.toLocal(event.global).y - touchStartY;
+        if (!didScroll && Math.abs(delta) < TOUCH_MOVE_SLOP_PX) return;
+        didScroll = true;
+        scrolledTouchId = event.pointerId;
+        event.preventDefault();
+        this.promptCardLongPress.cancel();
+        this.modalScrollOffset = Math.max(0, Math.min(this.modalScrollMax, scrollStart - delta));
+        this.modalScrollTarget = this.modalScrollOffset;
+        this.syncModalScrollPosition();
+        this.callbacks.onRenderRequested?.();
+      });
+      panel.on("pointerup", (event: FederatedPointerEvent) => {
+        if (touchId === event.pointerId) touchId = null;
+      });
+      panel.on("pointerupoutside", (event: FederatedPointerEvent) => {
+        if (touchId === event.pointerId) touchId = null;
+        if (scrolledTouchId === event.pointerId) scrolledTouchId = null;
+      });
+      const cancelTouch = (event: PointerEvent) => {
+        if (touchId === event.pointerId) touchId = null;
+        if (scrolledTouchId === event.pointerId) scrolledTouchId = null;
+      };
+      window.addEventListener("pointercancel", cancelTouch, true);
+      panel.once("destroyed", () => window.removeEventListener("pointercancel", cancelTouch, true));
+      panel.on("pointertapcapture", (event: FederatedPointerEvent) => {
+        if (event.pointerType === "touch" && event.pointerId === scrolledTouchId) {
+          event.stopImmediatePropagation();
+          scrolledTouchId = null;
+        }
+      });
+    }
     this.container.addChild(panel);
     return { panel, body, bodyTop, footer, footerHintWidth, searchToolbar };
   }
@@ -874,62 +932,6 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       optionPosition += 1;
     }
     y += Math.ceil(optionPosition / selectionColumns) * optionRowPitch;
-    {
-      let touchId: number | null = null;
-      let touchStartY = 0;
-      let scrollStart = 0;
-      let didScroll = false;
-      let scrolledTouchId: number | null = null;
-      panel.on("pointerdowncapture", (event: FederatedPointerEvent) => {
-        if (event.pointerType !== "touch" || touchId !== null) return;
-        scrolledTouchId = null;
-        if (this.modalScrollMax <= 0) return;
-        const state = this.modalBody!;
-        const localX = event.global.x - panel.x;
-        const localY = event.global.y - panel.y;
-        if (
-          localX < PANEL_PADDING ||
-          localX > width - PANEL_PADDING ||
-          localY < state.bodyTop ||
-          localY > state.bodyTop + state.viewportHeight
-        )
-          return;
-        touchId = event.pointerId;
-        didScroll = false;
-        touchStartY = event.global.y;
-        scrollStart = this.modalScrollOffset;
-      });
-      panel.on("globalpointermove", (event: FederatedPointerEvent) => {
-        if (touchId !== event.pointerId) return;
-        const delta = event.global.y - touchStartY;
-        if (!didScroll && Math.abs(delta) < 8) return;
-        didScroll = true;
-        scrolledTouchId = event.pointerId;
-        event.preventDefault();
-        this.modalScrollOffset = Math.max(0, Math.min(this.modalScrollMax, scrollStart - delta));
-        this.modalScrollTarget = this.modalScrollOffset;
-        this.syncModalScrollPosition();
-      });
-      panel.on("pointerup", (event: FederatedPointerEvent) => {
-        if (touchId === event.pointerId) touchId = null;
-      });
-      panel.on("pointerupoutside", (event: FederatedPointerEvent) => {
-        if (touchId === event.pointerId) touchId = null;
-        if (scrolledTouchId === event.pointerId) scrolledTouchId = null;
-      });
-      const cancelTouch = (event: PointerEvent) => {
-        if (touchId === event.pointerId) touchId = null;
-        if (scrolledTouchId === event.pointerId) scrolledTouchId = null;
-      };
-      window.addEventListener("pointercancel", cancelTouch, true);
-      panel.once("destroyed", () => window.removeEventListener("pointercancel", cancelTouch, true));
-      panel.on("pointertapcapture", (event: FederatedPointerEvent) => {
-        if (event.pointerType === "touch" && event.pointerId === scrolledTouchId) {
-          event.stopImmediatePropagation();
-          scrolledTouchId = null;
-        }
-      });
-    }
 
     const selectedTotal = this.selectionTotal(options);
     const canConfirm = selectedTotal >= minTotal && selectedTotal <= maxTotal;

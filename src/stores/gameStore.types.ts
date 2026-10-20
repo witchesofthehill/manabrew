@@ -84,6 +84,7 @@ export interface GameState {
    *  for them arrives. Lets the UI reflect "waiting for others" instantly, without the state lag. */
   relinquishedPriority: boolean;
   gameConfig: GameConfig | null;
+  gauntletId: string | null;
   /** Set at concede click, before the engine confirms via `status: "conceded"`. */
   selfConceded: boolean;
   isMultiplayer: boolean;
@@ -105,6 +106,7 @@ export interface GameState {
     commanderName?: string,
     opponentDecks?: Deck[],
     engine?: EngineKind,
+    gauntletId?: string,
   ) => Promise<boolean>;
   startManualTabletopGame: (deck: Deck, formatId?: string, commanderName?: string) => Promise<void>;
   startManualRoomHost: (localPlayerSlot: string) => Promise<void>;

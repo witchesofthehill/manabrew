@@ -283,6 +283,7 @@ export function cardGlintBaseline(
           }
         : {}),
     };
+    if (part.liveChanges) result.textInk = resolveLiveChanges(part.liveChanges, result);
     if (part.prototype) {
       const prototype = part.prototype;
       const selected = part.prototypeSelected === true;
@@ -310,6 +311,12 @@ export function cardGlintBaseline(
             ? lines.slice(1).join("\n")
             : part.oracle_text,
         rulesParagraphs: undefined,
+        textInk: result.textInk
+          ? {
+              ...result.textInk,
+              stats: part.prototypeSelected === false ? result.textInk.stats : undefined,
+            }
+          : undefined,
       };
       const alternate = {
         ...result,
@@ -324,11 +331,11 @@ export function cardGlintBaseline(
         toughness: selected ? result.toughness : prototype.toughness,
         rulesText: reminder,
         rulesParagraphs: undefined,
+        textInk: selected && result.textInk?.stats ? { stats: result.textInk.stats } : undefined,
       };
       result.layout = "prototype";
       result.faces = [normal, alternate];
     }
-    if (part.liveChanges) result.textInk = resolveLiveChanges(part.liveChanges, result);
     if (part.levelerRules && result.textInk)
       result.textInk = { ...result.textInk, stats: undefined };
     if (faceLayout === "flip") result.frameTemplate = "flip";

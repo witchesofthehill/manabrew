@@ -14,7 +14,7 @@ msgstr ""
 "Plural-Forms: \n"
 
 #. placeholder {0}: display.stats.damage
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1255
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1259
 msgid "{0} damage"
 msgstr "{0} ダメージ"
 
@@ -33,7 +33,7 @@ msgstr "現在の特性"
 
 #. placeholder {0}: display.stats.power
 #. placeholder {1}: display.stats.toughness
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1063
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1067
 msgid "Current P/T: {0}/{1}"
 msgstr "現在のパワー／タフネス：{0}/{1}"
 
@@ -41,7 +41,7 @@ msgstr "現在のパワー／タフネス：{0}/{1}"
 msgid "Current power and toughness"
 msgstr "現在のパワーとタフネス"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1645
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1649
 msgid "Defense"
 msgstr "防衛"
 
@@ -58,11 +58,11 @@ msgstr "裏向きのカード"
 msgid "Face-down permanent"
 msgstr "裏向きのパーマネント"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1227
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1231
 msgid "Flip back · F"
 msgstr "裏面に切替 · F"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1227
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1231
 msgid "Flip front · F"
 msgstr "表面に切替 · F"
 
@@ -84,7 +84,7 @@ msgstr "レベル {0}"
 msgid "Locked"
 msgstr "閉鎖"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1644
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1648
 msgid "Loyalty"
 msgstr "忠誠度"
 
@@ -104,11 +104,11 @@ msgstr "待機中ではない"
 msgid "On an Adventure"
 msgstr "出来事中"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1057
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1061
 msgid "On an Adventure · available actions are listed on their spell half"
 msgstr "出来事中 · 可能なアクションは呪文側に表示されます"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1243
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1247
 msgid "Original printing · generated frame unavailable"
 msgstr ""
 
@@ -116,7 +116,7 @@ msgstr ""
 msgid "Printed alternative"
 msgstr "印刷上の別の特性"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1241
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1245
 msgid "Printed face · live state belongs to the other face"
 msgstr "印刷された面 · 現在の状態はもう一方の面に適用されます"
 
@@ -124,7 +124,7 @@ msgstr "印刷された面 · 現在の状態はもう一方の面に適用さ�
 msgid "Printed power and toughness"
 msgstr "印刷されたパワーとタフネス"
 
-#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:615
+#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:617
 msgid "Prototype"
 msgstr "試作"
 

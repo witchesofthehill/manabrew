@@ -734,6 +734,10 @@ export class RulesCardPreviewLayer {
   activateFocusedAction(): void {
     if (!this.spec?.actions.length || this.spec.suppressed) return;
     const hovered = [this.actions, ...this.extraActions].find((view) => view.hasHoveredAction);
+    if (this.focusedAction === null && !hovered) {
+      this.focusAction(0);
+      return;
+    }
     const entry =
       this.focusedAction === null ? undefined : this.actionPanels.get(this.focusedAction);
     (

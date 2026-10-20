@@ -438,7 +438,7 @@ class CardFoilPipe {
                 artBounds: { value: new Float32Array(4), type: "vec4<f32>" },
                 artBounds2: { value: new Float32Array(4), type: "vec4<f32>" },
               },
-              { isStatic: true },
+              { isStatic: false },
             ),
             instanceData: draw.source,
             faces: resident.leases[0].page.source,
@@ -452,17 +452,12 @@ class CardFoilPipe {
         this.shaders.set(key, shader);
       }
       const frame = shader.resources.frameUniforms as UniformGroup;
-      let frameChanged = false;
-      if (frame.uniforms.surfaceTime !== time) {
-        frame.uniforms.surfaceTime = time;
-        frameChanged = true;
-      }
+      frame.uniforms.surfaceTime = time;
       for (const [name, size] of CARD_FOIL_SHARED_FIELDS) {
         const value = finish.uniforms[name];
         if (typeof value === "number") {
           if (frame.uniforms[name] !== value) {
             frame.uniforms[name] = value;
-            frameChanged = true;
           }
         } else {
           for (let component = 0; component < size; component++) {
@@ -472,12 +467,10 @@ class CardFoilPipe {
             const index = component < 4 ? component : component - 4;
             if (target[index] !== value[component]) {
               target[index] = value[component];
-              frameChanged = true;
             }
           }
         }
       }
-      if (frameChanged) frame.update();
       shader.resources.instanceData = draw.source;
       shader.resources.faces = resident.leases[0].page.source;
       shader.resources.masks = resident.leases[1].page.source;

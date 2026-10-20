@@ -1,4 +1,4 @@
-import { act, createElement } from "react";
+import { act, createElement, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useCardSearch } from "@/hooks/useCards";
@@ -10,7 +10,13 @@ const store = vi.hoisted(() => {
     object: "list",
     total_cards: 1,
     has_more: false,
-    data: [{ lang: locale, name: "Lightning Bolt", printed_name: locale === "it" ? "Fulmine" : undefined }],
+    data: [
+      {
+        lang: locale,
+        name: "Lightning Bolt",
+        printed_name: locale === "it" ? "Fulmine" : undefined,
+      },
+    ],
   }));
   return {
     get locale() {
@@ -45,7 +51,10 @@ let container: HTMLDivElement;
 let result: ReturnType<typeof useCardSearch> | undefined;
 
 function SearchProbe() {
-  result = useCardSearch("Fulmine");
+  const searchResult = useCardSearch("Fulmine");
+  useEffect(() => {
+    result = searchResult;
+  }, [searchResult]);
   return null;
 }
 

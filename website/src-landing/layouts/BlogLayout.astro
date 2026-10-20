@@ -1,10 +1,9 @@
 ---
-import { Image } from "astro:assets";
 import "@fontsource-variable/fraunces/full.css";
 import "@fontsource-variable/source-sans-3";
 import "@fontsource-variable/source-sans-3/wght-italic.css";
 import preset from "../../src/theme";
-import logo from "../../../images/brand/logos/dark/manabrew-horizontal-header-dark.svg";
+import BrandLogo from "../../src/components/BrandLogo.astro";
 import brewery from "../../../public/manabrew_brewery_1.png";
 
 interface Props {
@@ -72,8 +71,8 @@ const jsonLd = article
   </head>
   <body>
     <header class="nav">
-      <a class="wordmark" href="/" aria-label="Manabrew">
-        <Image src={logo} alt="" width={1450} height={400} />
+      <a class="wordmark mb-logo-trigger" href="/" aria-label="Manabrew">
+        <BrandLogo mode="dark" idPrefix="blog-header" decorative />
       </a>
       <nav>
         <a href="/blog/">Blog</a>
@@ -174,7 +173,7 @@ const jsonLd = article
     text-decoration: none;
   }
 
-  .wordmark img {
+  .wordmark :global(.mb-logo) {
     display: block;
     width: 16.5rem;
     max-width: 100%;

@@ -1,10 +1,12 @@
 import { ArrowDownToLine, ArrowLeft, Loader2 } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { installDesktopUpdate } from "@/hooks/useDesktopUpdater";
 import { ROUTES } from "@/lib/constants";
 import { useDesktopUpdateStore } from "@/stores/useDesktopUpdateStore";
 import { AccountMenu } from "./AccountMenu";
+import { bindBrandLogoInteraction } from "./brandLogoInteraction";
 import { ManaBrewLogo } from "./ManaBrewLogo";
 import { NavSheet } from "./NavSheet";
 import { TopBarNav } from "./TopBarNav";
@@ -90,6 +92,10 @@ interface TopBarProps {
 export function TopBar({ override }: TopBarProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const homeRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (homeRef.current) return bindBrandLogoInteraction(homeRef.current);
+  }, []);
   const phase = useDesktopUpdateStore((s) => s.phase);
   const version = useDesktopUpdateStore((s) => s.version);
   const progress = useDesktopUpdateStore((s) => s.progress);
@@ -152,13 +158,14 @@ export function TopBar({ override }: TopBarProps) {
         </Button>
       )}
       <button
+        ref={homeRef}
         type="button"
         onClick={goHome}
         aria-label={`Manabrew Home`}
-        className="group relative flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xl border border-transparent p-0.5 motion-safe:transition-[background-color,border-color,box-shadow] hover:border-primary/30 hover:bg-primary/10 hover:shadow-sm focus-visible:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="mb-logo-trigger group relative flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xl border border-transparent p-0.5 motion-safe:transition-[background-color,border-color,box-shadow] hover:border-primary/30 hover:bg-primary/10 hover:shadow-sm focus-visible:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <ManaBrewLogo height={56} className="hidden shrink-0 sm:block" />
-        <ManaBrewLogo variant="symbol" height={36} className="shrink-0 sm:hidden" />
+        <ManaBrewLogo decorative height={56} className="hidden shrink-0 sm:block" />
+        <ManaBrewLogo decorative variant="symbol" height={36} className="shrink-0 sm:hidden" />
       </button>
       {title && (
         <>

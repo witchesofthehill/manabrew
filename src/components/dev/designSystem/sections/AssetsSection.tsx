@@ -1,12 +1,15 @@
+import { useState } from "react";
 import { ManaBrewLogo } from "@/components/layout/ManaBrewLogo";
+import { Button } from "@/components/ui/button";
 import { Section, Subhead, Panel } from "../kit";
 import { ASSETS, DATA_ASSETS } from "../designSystem.data";
 export function AssetsSection() {
+  const [reactionPreview, setReactionPreview] = useState(false);
   return (
     <Section
       id="assets"
       title={`Assets`}
-      intro="Brand imagery, favicons/PWA icons, and the static data files the app ships. Logo SVGs are bundled directly from images/brand/logos/color/. URL-served images and generated icons live in public/."
+      intro="Brand imagery, favicons/PWA icons, and the static data files the app ships. The live logo uses a layered SVG sprite from images/brand/logos/interactive/. URL-served images and generated icons live in public/."
     >
       <Subhead>Approved logo variants</Subhead>
       <Panel className="space-y-6">
@@ -22,8 +25,7 @@ export function AssetsSection() {
             </div>
           </div>
           <p className="break-all font-mono text-[11px] text-muted-foreground">
-            Light: color/manabrew-horizontal-header.svg · Dark:
-            dark/manabrew-horizontal-header-dark.svg · 1450 × 400
+            Layered sprite: interactive/manabrew-logo.svg · Fixed header wordmark · 1450 × 400
           </p>
         </div>
         <div className="space-y-3">
@@ -38,16 +40,35 @@ export function AssetsSection() {
             </div>
             <div className="space-y-2">
               <ManaBrewLogo variant="symbol" height={32} />
-              <p className="font-mono text-[11px] text-muted-foreground">Favicon · 32px</p>
+              <p className="font-mono text-[11px] text-muted-foreground">Small symbol · 32px</p>
             </div>
           </div>
           <p className="break-all font-mono text-[11px] text-muted-foreground">
-            Light: color/manabrew-symbol.svg · Dark: dark/manabrew-symbol-dark.svg · 512 × 512
+            Layered symbol · 512 × 512 · Static favicon and native icon exports stay unchanged
+          </p>
+        </div>
+        <div className="space-y-3">
+          <Button
+            variant={reactionPreview ? "selected" : "outline"}
+            aria-pressed={reactionPreview}
+            data-logo-preview={reactionPreview ? "true" : "false"}
+            onClick={() => setReactionPreview((active) => !active)}
+            className="mb-logo-trigger h-auto max-w-full flex-wrap gap-4 px-4 py-3 pointer-coarse:h-auto"
+          >
+            <ManaBrewLogo decorative variant="symbol" height={72} className="shrink-0" />
+            <span>Preview logo reaction</span>
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            Toggle the mouth fire and brewing bubbles without navigating. The specimens above stay
+            still. Home reacts to mouse or pen hover and keyboard focus; touch navigation stays
+            immediate. Reduced motion shows the open pose without animation.
           </p>
         </div>
         <p className="text-xs text-muted-foreground">
-          Dark mode uses the supplied white cauldron; light mode uses the original dark cauldron.
-          Preserve the artwork's colors, aspect ratio, and transparent background.
+          Dark mode uses the supplied white cauldron; light mode uses the original dark cauldron,
+          including theme previews. ManaBrewLogo composes the shared sprite and geometry with the
+          shared interaction stylesheet. Preserve the fixed wordmark, source colors, aspect ratio,
+          and transparent background.
         </p>
       </Panel>
 

@@ -5,7 +5,7 @@ import "@fontsource-variable/fraunces/full-italic.css";
 import "@fontsource-variable/source-sans-3";
 import "@fontsource-variable/source-sans-3/wght-italic.css";
 import preset, { BRAND_COLORS } from "../../src/theme";
-import logo from "../../../images/brand/logos/dark/manabrew-horizontal-header-dark.svg";
+import BrandLogo from "../../src/components/BrandLogo.astro";
 import brewery from "../../../public/manabrew_brewery_1.png";
 import deckLibrary from "../../../images/screenshots/my-decks.webp";
 import deckEditor from "../../../images/screenshots/deck-editor-grid.webp";
@@ -41,8 +41,8 @@ const mana = preset.gameColors;
   </head>
   <body>
     <header class="nav">
-      <a class="wordmark" href="/" aria-label="Manabrew">
-        <Image src={logo} alt="" width={1450} height={400} />
+      <a class="wordmark mb-logo-trigger" href="/" aria-label="Manabrew">
+        <BrandLogo mode="dark" idPrefix="landing-header" decorative />
       </a>
       <nav>
         <a href="/blog/">Blog</a>
@@ -308,7 +308,7 @@ const mana = preset.gameColors;
     text-decoration: none;
   }
 
-  .wordmark img {
+  .wordmark :global(.mb-logo) {
     display: block;
     width: 16.5rem;
     max-width: 100%;
@@ -647,23 +647,17 @@ const mana = preset.gameColors;
     "ember-core": BRAND_COLORS.ember[400],
     "ember-mid": BRAND_COLORS.ember[500],
     "ember-edge": BRAND_COLORS.ember[700],
-    "mana-light": BRAND_COLORS.mana[100],
-    "mana-mid": BRAND_COLORS.mana[400],
-    "mana-edge": BRAND_COLORS.mana[700],
+    "bubble-purple-core": `${BRAND_COLORS.mana[100]}fa`,
+    "bubble-purple-mid": `${BRAND_COLORS.mana[400]}f5`,
+    "bubble-purple-edge": `${BRAND_COLORS.mana[700]}f2`,
+    "bubble-purple-glow": `${BRAND_COLORS.mana[400]}cc`,
+    "bubble-orange-core": `${BRAND_COLORS.ember[100]}fa`,
+    "bubble-orange-mid": `${BRAND_COLORS.ember[500]}f5`,
+    "bubble-orange-edge": `${BRAND_COLORS.ember[700]}f2`,
+    "bubble-orange-glow": `${BRAND_COLORS.ember[400]}d9`,
     steam: BRAND_COLORS.neutral.steam,
   }}
 >
-  :root {
-    --bubble-purple-core: color-mix(in srgb, var(--mana-light) 98%, transparent);
-    --bubble-purple-mid: color-mix(in srgb, var(--mana-mid) 96%, transparent);
-    --bubble-purple-edge: color-mix(in srgb, var(--mana-edge) 95%, transparent);
-    --bubble-purple-glow: color-mix(in srgb, var(--mana-mid) 80%, transparent);
-    --bubble-orange-core: color-mix(in srgb, var(--ember-light) 98%, transparent);
-    --bubble-orange-mid: color-mix(in srgb, var(--ember-mid) 96%, transparent);
-    --bubble-orange-edge: color-mix(in srgb, var(--ember-edge) 95%, transparent);
-    --bubble-orange-glow: color-mix(in srgb, var(--ember-core) 85%, transparent);
-  }
-
   .last-call::before {
     content: "";
     position: absolute;

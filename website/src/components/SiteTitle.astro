@@ -1,12 +1,9 @@
 ---
-import { Image } from "astro:assets";
-import logo from "../../../images/brand/logos/color/manabrew-horizontal-header.svg";
-import darkLogo from "../../../images/brand/logos/dark/manabrew-horizontal-header-dark.svg";
+import BrandLogo from "./BrandLogo.astro";
 ---
 
-<a href="https://manabrew.app/" class="site-title" aria-label="Manabrew">
-  <Image class="light-logo" src={logo} alt="" width={1450} height={400} />
-  <Image class="dark-logo" src={darkLogo} alt="" width={1450} height={400} />
+<a href="https://manabrew.app/" class="site-title mb-logo-trigger" aria-label="Manabrew">
+  <BrandLogo mode="auto" idPrefix="docs-header" decorative />
 </a>
 
 <style>
@@ -18,24 +15,13 @@ import darkLogo from "../../../images/brand/logos/dark/manabrew-horizontal-heade
     min-width: 0;
   }
 
-  .site-title img {
+  .site-title :global(.mb-logo) {
     display: block;
     width: clamp(11.6rem, 24vw, 12.6875rem);
     max-width: 100%;
     height: auto;
   }
 
-  .site-title .light-logo {
-    display: none;
-  }
-
-  :global([data-theme="light"]) .site-title .light-logo {
-    display: block;
-  }
-
-  :global([data-theme="light"]) .site-title .dark-logo {
-    display: none;
-  }
 
   .site-title:focus-visible {
     outline: 2px solid var(--mb-ring);

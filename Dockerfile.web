@@ -74,6 +74,7 @@ COPY scripts/ ./scripts/
 COPY src/ ./src/
 COPY packages/ ./packages/
 COPY public/ ./public/
+COPY images/brand/logos/interactive/ ./images/brand/logos/interactive/
 # ops/manifest.json is read by vite.config.ts to stamp the app version.
 COPY index.html tsconfig*.json vite.config.ts lingui.config.ts ./
 COPY ops/manifest.json ./ops/manifest.json
@@ -137,8 +138,9 @@ RUN corepack enable && yarn install --frozen-lockfile
 COPY images/screenshots/ /repo/images/screenshots/
 COPY public/manabrew_brewery_1.png /repo/public/manabrew_brewery_1.png
 COPY src/themes/ /repo/src/themes/
-COPY images/brand/logos/color/ /repo/images/brand/logos/color/
-COPY images/brand/logos/dark/ /repo/images/brand/logos/dark/
+COPY images/brand/logos/interactive/ /repo/images/brand/logos/interactive/
+COPY src/assets/brandLogoGeometry.json /repo/src/assets/brandLogoGeometry.json
+COPY src/components/layout/ManaBrewLogo.css src/components/layout/brandLogoInteraction.ts /repo/src/components/layout/
 COPY website/ ./
 RUN yarn build
 

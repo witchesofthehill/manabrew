@@ -177,7 +177,15 @@ Existing personal color overrides are preserved. Reset Colors restores the new c
 
 Utility pages no longer have the brewery illustration behind them. The existing illustration remains on entry and home hero surfaces and the website, without inventing new mascot artwork. App headers use the horizontal SVG on wider screens and the symbol on compact screens. Website headers use the horizontal SVG without duplicate text.
 
-Approved source artwork lives in `images/brand/logos/color/` and `images/brand/logos/dark/`. Headers use the derived `color/manabrew-horizontal-header.svg` and `dark/manabrew-horizontal-header-dark.svg`, whose 1450:400 viewBox accommodates a wordmark scaled 1.6 times around its original left edge and vertical center. Regenerate those variants after designer exports change, without modifying the source exports. The app follows resolved light/dark mode and theme previews; documentation follows its selected theme. SVG favicons select the matching approved symbol with `prefers-color-scheme`. Favicons and desktop/Android icons preserve alpha. Transparent PWA icons use `purpose: "any"`, not `maskable`; native iOS icons are flattened to opaque RGB because iOS requires it. Contextual mascot illustrations remain outside this implementation.
+Approved source artwork lives in `images/brand/logos/color/` and `images/brand/logos/dark/`, with mouth/fire and brew layers under `images/brand/layers/`. Run `python3 scripts/generate-brand-logo.py` after changing designer exports. It prepares `images/brand/logos/interactive/manabrew-logo.svg` and `src/assets/brandLogoGeometry.json` for the React and Astro renderers without modifying the original artwork. The horizontal 1450:400 viewBox retains the wordmark's 1.6-times enlargement. Keep generated outputs with source changes; normal builds consume them without Python.
+
+The app follows resolved light/dark mode and theme previews; documentation follows its selected theme. SVG favicons select the matching approved symbol with `prefers-color-scheme`. Favicons and desktop/Android icons preserve alpha. Transparent PWA icons use `purpose: "any"`, not `maskable`; native iOS icons are flattened to opaque RGB because iOS requires it. Contextual screen illustrations remain outside this implementation.
+
+### Interactive header logo
+
+At rest, preserve the closed-mouth silhouette. Mouse or pen hover anywhere on the existing Home control, or keyboard-visible focus, reveals the mouth and clipped fire. Both flame layers flicker while the three brew bubbles and three floating bubbles/drops move with staggered timing. The body and wordmark stay fixed. Motion runs for roughly two seconds, then settles with the mouth open until hover/focus ends; leaving resets the reaction.
+
+Reduced motion shows the static open-mouth/fire pose without animation or transitions. Touch navigation remains a single tap, without a hover-only first tap. `/design-system#assets` provides an explicit, keyboard- and touch-operable preview toggle; standalone specimens stay still. Each logo instance owns a unique mouth clip. Favicons and native icons remain static.
 
 ## Research sources
 

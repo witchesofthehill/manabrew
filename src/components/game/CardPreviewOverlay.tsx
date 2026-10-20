@@ -13,6 +13,7 @@ import { isCreature, isLethalDamage } from "./game.utils";
 import { cn } from "@/lib/utils";
 import type { CardRailState } from "@/components/game/cardRailState";
 import { isVisibleBattlefieldKeyword } from "@/lib/battlefieldKeywords";
+import { RoomDoorOverlay } from "@/components/game/RoomDoorOverlay";
 const MAX_PREVIEW_KEYWORDS = 8;
 export function CardPreviewOverlay({
   card,
@@ -106,6 +107,7 @@ export function CardPreviewOverlay({
   }, [card.counters, showLoyalty, rail]);
   return (
     <>
+      <RoomDoorOverlay card={card} />
       {damage > 0 && (
         <div
           className="absolute inset-0 z-[3] pointer-events-none"

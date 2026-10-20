@@ -17,6 +17,8 @@ import type { HandActionOption } from "@/stores/useGameUIStore";
 import type { Theme } from "@/hooks/useTheme";
 import {
   deriveCardPresentation,
+  ROOM_DOOR_BOUNDS,
+  roomDoorState,
   type CardStatPresentation,
   type CardCounterPresentation,
 } from "@/components/game/cardPresentation";
@@ -219,6 +221,7 @@ export class RulesCardPreviewLayer {
   private cardContainer = new Container();
   private fieldFace = new Container();
   private detailsContainer = new Container();
+  private readonly roomState = new Graphics({ label: "room-door-state", eventMode: "none" });
   private faceSprite = new Sprite(Texture.EMPTY);
   private faceMask = new Graphics();
   private faceGeometry: CardRenderGeometry | undefined;
@@ -347,6 +350,7 @@ export class RulesCardPreviewLayer {
     this.container.addChild(
       this.cardContainer,
       this.liveHighlight,
+      this.roomState,
       this.detailsContainer,
       this.viewControls,
     );
@@ -797,6 +801,7 @@ export class RulesCardPreviewLayer {
     this.highlightedEffectTween?.kill();
     this.highlightedEffectTween = null;
     this.highlightedRows = [];
+    this.roomState.clear();
     this.fieldFace.visible =
       this.faceSprite.texture !== Texture.EMPTY && this.renderState !== "loading";
     this.actions.removeFromParent();
@@ -1012,6 +1017,33 @@ export class RulesCardPreviewLayer {
       : /\bRoom\b/.test(this.scryfallInfo?.type_line ?? "")
         ? "room"
         : deckCard.layout;
+    const doorState = roomDoorState(spec.card);
+    if (
+      panelLayout === "room" &&
+      !spec.embedded &&
+      display.currentFace &&
+      !display.faceless &&
+      detailsReady &&
+      doorState !== undefined
+    ) {
+      const inset = 6;
+      const shadow = hexToNum(this.theme.gameTheme.canvas.shadow);
+      const active = hexToNum(this.theme.gameTheme.activeAction.active);
+      for (let half = 0; half < ROOM_DOOR_BOUNDS.length; half++) {
+        const bounds = ROOM_DOOR_BOUNDS[half]!;
+        const x = bounds.x * this.faceWidth + inset;
+        const width = bounds.width * this.faceWidth - inset * 2;
+        const height = this.panelHeight - inset * 2;
+        const unlocked = (doorState & (1 << half)) !== 0;
+        this.roomState.roundRect(x, inset, width, height, RULES_CARD_CONSTRAINTS.radius);
+        if (unlocked) {
+          this.roomState.stroke({ color: shadow, alpha: 0.85, width: 6, alignment: 1 });
+          this.roomState
+            .roundRect(x, inset, width, height, RULES_CARD_CONSTRAINTS.radius)
+            .stroke({ color: active, width: 3, alignment: 1 });
+        } else this.roomState.fill({ color: shadow, alpha: 0.42 });
+      }
+    }
     for (const body of this.bodies) {
       this.frame = body.frame;
       const primary = body === this.primaryBody;

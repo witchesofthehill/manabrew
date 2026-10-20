@@ -14,7 +14,13 @@ import {
 import type { CardDto } from "@/protocol/game";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { deriveCardRailState, type CardRailState } from "@/components/game/cardRailState";
-import { cardTypeLine, counterColorKey, counterIconName } from "@/components/game/cardPresentation";
+import {
+  cardTypeLine,
+  counterColorKey,
+  counterIconName,
+  ROOM_DOOR_BOUNDS,
+  roomDoorState,
+} from "@/components/game/cardPresentation";
 import { CARD_W, CARD_H, CARD_RADIUS } from "@/components/game/game.constants";
 import { deriveCardChoiceIndicators } from "@/components/game/game.utils";
 import { isHorizontalGameCard } from "@/lib/horizontalGameCard";
@@ -410,6 +416,8 @@ export class CardSprite extends Container {
   private contentContainer: Container;
   private printedFaceContainer: Container;
   private printedChromeContainer: Container;
+  private readonly roomDoorsGfx = new Graphics();
+  private roomDoorsState = -1;
   private ptContainer: Container;
   private ptBg: Graphics;
   private ptText: Text;
@@ -692,8 +700,11 @@ export class CardSprite extends Container {
         this.printedChromeContainer.addChild(child);
       }
     }
+    this.roomDoorsGfx.eventMode = "none";
+    this.roomDoorsGfx.visible = false;
     this.foilSheen = new CardFoil(() => this.onVisualChange?.());
     this.contentContainer.addChild(this.foilSheen);
+    this.contentContainer.addChild(this.roomDoorsGfx);
     this.contentContainer.addChild(this.printedChromeContainer);
     this.contentContainer.addChild(this.liveHighlight);
     this.addChild(this.pulseRing.gfx);
@@ -1030,6 +1041,7 @@ export class CardSprite extends Container {
     this.renderFrame();
     if (this.frameCounterReserve !== previousCounterReserve) this.updateCounters();
     this.updateMana();
+    this.updateRoomDoors();
     this.syncHandFaceVisibility();
     previous?.destroy(true);
     this.onVisualChange?.();
@@ -1168,6 +1180,7 @@ export class CardSprite extends Container {
     const top = this.handControls ?? highlights ?? this.liveHighlight;
     if (this.contentContainer.children.at(-1) !== top) {
       this.contentContainer.addChild(this.foilSheen);
+      this.contentContainer.addChild(this.roomDoorsGfx);
       this.contentContainer.addChild(this.printedChromeContainer);
       this.contentContainer.addChild(this.liveHighlight);
       if (highlights) this.contentContainer.addChild(highlights);
@@ -1309,6 +1322,7 @@ export class CardSprite extends Container {
     this.updateMana();
     this.updateCardFilter();
     this.updateEdgeGlow();
+    this.updateRoomDoors(true);
     this.updateChoice(true);
     this.handRulesFace?.setTheme(activeTheme);
     this.handControls?.setTheme(activeTheme);
@@ -1498,7 +1512,35 @@ export class CardSprite extends Container {
     if (card.manaCost !== previous.manaCost || frameChanged) this.updateMana();
     if (filterChanged) this.updateCardFilter();
     if (edgeGlowChanged) this.updateEdgeGlow();
+    this.updateRoomDoors();
     this.updateHandRulesFace();
+  }
+  private updateRoomDoors(force = false): void {
+    const state = roomDoorState(this.card) ?? -1;
+    if (!force && state === this.roomDoorsState) return;
+    this.roomDoorsState = state;
+    this.roomDoorsGfx.clear();
+    this.roomDoorsGfx.visible = state >= 0;
+    if (state < 0) return;
+    const theme = activeTheme.gameTheme;
+    for (let half = 0; half < ROOM_DOOR_BOUNDS.length; half++) {
+      const bounds = ROOM_DOOR_BOUNDS[half]!;
+      const inset = 0.75;
+      const x = bounds.x * this.cw + inset;
+      const width = bounds.width * this.cw - inset * 2;
+      const height = this.ch - inset * 2;
+      if ((state & (1 << half)) === 0) {
+        this.roomDoorsGfx
+          .roundRect(x, inset, width, height, CARD_RADIUS - inset)
+          .fill({ color: hexToNum(theme.canvas.shadow), alpha: 0.42 });
+      } else {
+        this.roomDoorsGfx
+          .roundRect(x, inset, width, height, CARD_RADIUS - inset)
+          .stroke({ color: hexToNum(theme.canvas.shadow), width: 2, alignment: 1 })
+          .roundRect(x, inset, width, height, CARD_RADIUS - inset)
+          .stroke({ color: hexToNum(theme.activeAction.active), width: 1.25, alignment: 1 });
+      }
+    }
   }
   private updateEdgeGlow(): void {
     const card = this.card;

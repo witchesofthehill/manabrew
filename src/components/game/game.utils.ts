@@ -121,7 +121,7 @@ export function stackObjectToCard(obj: StackObjectDto): ClientCardDto {
       ...GAME_CARD_DEFAULTS,
       ...obj.sourceCard,
       id: obj.sourceId,
-      zoneId: obj.sourceCard.zone ?? "stack",
+      zoneId: "stack",
     };
   }
   return {

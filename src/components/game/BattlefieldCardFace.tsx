@@ -16,6 +16,7 @@ import { battlefieldKeywords } from "@/lib/battlefieldKeywords";
 import { CardFoilOverlay } from "@/components/game/CardFoilOverlay";
 import { isEtchedOnlyPrinting } from "@/lib/cardFinish";
 import { gameCardFaceIndex } from "@/lib/gameCard";
+import { RoomDoorOverlay } from "@/components/game/RoomDoorOverlay";
 
 export type BattlefieldCardFaceVariant = "frame" | "art";
 
@@ -36,14 +37,23 @@ export function BattlefieldCardFace({
   width = 70,
 }: BattlefieldCardFaceProps) {
   const theme = useTheme().gameTheme;
-  const { imageUrl, info } = useResolvedGameCard(card);
-  if (card.isFaceDown || !card.identity.name) {
+  const { deckCard, imageUrl, info } = useResolvedGameCard(card);
+  if (
+    card.isFaceDown ||
+    !card.identity.name ||
+    ("visibility" in card && card.visibility === "hidden")
+  ) {
     return (
       <div style={{ width, height: width * (98 / 70) }}>
         <GeneratedCardImage card={card} className="h-full w-full" />
       </div>
     );
   }
+  const room =
+    card.subtypes.includes("Room") ||
+    deckCard.subtypes?.includes("Room") ||
+    info?.layout === "room" ||
+    /\bRoom\b/.test(info?.type_line ?? "");
   const artworkUrl = imageUrl(gameCardFaceIndex(card), "art_crop") || artCrop;
   const fallbackUrl = imageUrl(gameCardFaceIndex(card), "normal");
   const artwork = artworkUrl ? (
@@ -55,7 +65,8 @@ export function BattlefieldCardFace({
     />
   ) : undefined;
   const u = width / 70;
-  const height = width * (98 / 70);
+  const faceWidth = room ? width * (98 / 70) : width;
+  const height = room ? width : width * (98 / 70);
   const rail = deriveCardRailState(card);
 
   const { primary: tint } = cardFrameTints(colorIdentity, theme.mana);
@@ -201,7 +212,7 @@ export function BattlefieldCardFace({
       style={
         {
           ["--card-rail-width" as string]: CARD_RAIL_WIDTH,
-          width,
+          width: faceWidth,
           height,
           borderRadius: radius,
           background: theme.cardPlaceholder.fill,
@@ -211,20 +222,35 @@ export function BattlefieldCardFace({
       {variant === "art" ? (
         artwork
       ) : (
-        <GeneratedCardImage
-          card={card}
-          className="absolute inset-0 h-full w-full"
-          fallback={
-            fallbackUrl ? (
-              <ScryfallImg
-                src={fallbackUrl}
-                alt=""
-                className="absolute inset-0 h-full w-full rounded-[inherit] object-contain"
-                draggable={false}
-              />
-            ) : undefined
+        <div
+          className="absolute rounded-[inherit]"
+          style={
+            room
+              ? {
+                  width: height,
+                  height: faceWidth,
+                  left: (faceWidth - height) / 2,
+                  top: (height - faceWidth) / 2,
+                  transform: "rotate(90deg)",
+                }
+              : { inset: 0 }
           }
-        />
+        >
+          <GeneratedCardImage
+            card={card}
+            className="absolute inset-0 h-full w-full"
+            fallback={
+              fallbackUrl ? (
+                <ScryfallImg
+                  src={fallbackUrl}
+                  alt=""
+                  className="absolute inset-0 h-full w-full rounded-[inherit] object-contain"
+                  draggable={false}
+                />
+              ) : undefined
+            }
+          />
+        </div>
       )}
       <CardFoilOverlay
         enabled={variant === "art"}
@@ -238,6 +264,7 @@ export function BattlefieldCardFace({
           style={{ boxShadow: `inset 0 0 0 ${borderW}px ${tint}` }}
         />
       )}
+      <RoomDoorOverlay card={card} />
       {variant === "art" && (
         <div
           className="pointer-events-none absolute inset-x-0 top-0 leading-tight"

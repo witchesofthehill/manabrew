@@ -3,6 +3,7 @@ import type { HandActionOption } from "@/stores/useGameUIStore";
 import type { CardInteractionPanel } from "@/lib/cardRenderGeometry";
 import { i18n } from "@/i18n/i18n";
 import { msg } from "@lingui/core/macro";
+import { roomDoorState } from "@/components/game/cardPresentation";
 import {
   matchRulesEntry,
   rulesTextEntries,
@@ -70,8 +71,10 @@ export function previewPanelActive(
   layout?: string,
 ): boolean | undefined {
   if (panel.level?.range) return levelBandActive(panel.level.range, card);
-  if (layout === "room" && card.zone === "battlefield" && card.unlockedDoors !== undefined)
-    return card.unlockedDoors.includes(panel.faceIndex === 0 ? "left" : "right");
+  if (layout === "room") {
+    const state = roomDoorState(card);
+    return state === undefined ? undefined : (state & (1 << panel.faceIndex)) !== 0;
+  }
   if (
     layout === "prototype" &&
     (card.zone === "battlefield" || card.zone === undefined) &&
@@ -96,6 +99,7 @@ export function previewPanelState(
   layout?: string,
 ): string | undefined {
   const active = previewPanelActive(card, panel, layout);
+  if (layout === "room" && "zoneId" in card && card.zoneId === "stack") return undefined;
   if (layout === "room" && active !== undefined)
     return active ? i18n._(msg`Unlocked`) : i18n._(msg`Locked`);
   if (panel.level?.range && active !== undefined)

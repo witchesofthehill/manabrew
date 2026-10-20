@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { GeneratedCardImage } from "@/components/game/GeneratedCardImage";
+import { CardPreview } from "@/components/game/CardPreview";
 import { Button } from "@/components/ui/button";
 import { DesktopBoardOverlayCanvas } from "@/pixi/DesktopBoardOverlayCanvas";
 import type { BoardOverlayPreviewSpec } from "@/pixi/BoardOverlayCanvas";
@@ -39,13 +40,15 @@ export function CardRenderingComparison({
   pose: CardPose;
   historicalPrinting: boolean;
 }) {
-  const host = useRef<HTMLDivElement>(null);
+  const [host, setHost] = useState<HTMLDivElement | null>(null);
+  const [printedHost, setPrintedHost] = useState<HTMLDivElement | null>(null);
   const [bounds, setBounds] = useState<DOMRect | null>(null);
   const [generated, setGenerated] = useState(true);
   const { info } = useResolvedGameCard(card);
   const hidden = card.isFaceDown || !card.identity.name;
   useEffect(() => {
-    const node = host.current!;
+    if (!host) return;
+    const node = host;
     const update = () => setBounds(node.getBoundingClientRect());
     const observer = new ResizeObserver(update);
     observer.observe(node);
@@ -55,7 +58,7 @@ export function CardRenderingComparison({
       observer.disconnect();
       window.removeEventListener("scroll", update, true);
     };
-  }, []);
+  }, [host]);
   const preview = useMemo<BoardOverlayPreviewSpec | null>(
     () =>
       bounds && generated
@@ -90,7 +93,7 @@ export function CardRenderingComparison({
             {generated ? "Show Realistic" : "Show Manabrew"}
           </Button>
         </div>
-        <div ref={host} className="relative h-[440px]" data-testid="interactive-card">
+        <div ref={setHost} className="relative h-[440px]" data-testid="interactive-card">
           <DesktopBoardOverlayCanvas
             scene={null}
             stackSpec={EMPTY_STACK}
@@ -103,22 +106,23 @@ export function CardRenderingComparison({
             onTogglePreviewView={() => setGenerated(false)}
             onSelectPreviewAction={onAction}
           />
-          {!generated && (
-            <div className="absolute inset-0 m-auto max-w-full" style={GAME_CARD_SIZES.preview}>
-              <ScryfallImg
-                src={imageUrl}
-                alt={card.identity.name}
-                className="h-full w-full rounded-[inherit] object-contain"
-              />
-              <CardFoilOverlay
-                enabled={!hidden}
-                foil={!hidden && !!card.foil}
-                cosmetics={hidden ? undefined : card.cosmetics}
-                etched={!hidden && isEtchedOnlyPrinting(info?.finishes)}
-                lighting={lighting}
-                pose={pose}
-              />
-            </div>
+          {!generated && <div ref={setPrintedHost} className="absolute inset-0" />}
+          {!generated && printedHost && (
+            <CardPreview
+              card={card}
+              mouseX={0}
+              mouseY={0}
+              placement="pinned"
+              slot={printedHost}
+              skipEnterAnimation
+              showBackFace={face === 1}
+              lighting={lighting}
+              pose={pose}
+              actions={actions}
+              onSelectAction={onAction}
+              onFlip={onFlip}
+              onToggleView={() => setGenerated(true)}
+            />
           )}
         </div>
         <p className="text-xs text-muted-foreground">

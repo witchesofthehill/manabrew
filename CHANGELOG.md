@@ -4,6 +4,7 @@
 
 ### Fixes
 
+* Highlight unlocked Room doors and the door represented on the stack in both card views, with outlines that include the collector strip.
 * Preserve localized Prototype abilities and reminders, including Japanese line wrapping.
 * Place localized leveler actions in the correct band without duplicating ability text.
 * Preserve the current mana cost when previewing copies of prototyped creatures.

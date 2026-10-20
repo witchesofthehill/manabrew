@@ -43,6 +43,7 @@ import { CardPreviewHoverArea } from "./CardPreviewHoverArea";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { gameCardFaceIndex } from "@/lib/gameCard";
 import { previewActionFace } from "@/pixi/cardPreview/previewMechanics";
+import type { CardLightingMode, CardPose } from "@/lib/cardLighting";
 interface CardPreviewProps {
   card: CardDto;
   mouseX: number;
@@ -71,6 +72,8 @@ interface CardPreviewProps {
   slot?: HTMLElement | null;
   portalTarget?: HTMLElement | null;
   imageSize?: "normal" | "large";
+  lighting?: CardLightingMode;
+  pose?: CardPose;
 }
 const IMG_VERTICAL = "absolute inset-0 w-full h-full rounded-[inherit] object-cover";
 const IMG_HORIZONTAL =
@@ -182,6 +185,8 @@ export function CardPreview({
   slot,
   imageSize = "large",
   portalTarget,
+  lighting,
+  pose,
 }: CardPreviewProps) {
   const resolvedGameCard = useResolvedGameCard(card);
   const preferredView = usePreferencesStore((state) => state.inGameCardPreviewStyle);
@@ -641,6 +646,8 @@ export function CardPreview({
                       faceIndex={previewFaceIndex}
                       className={targetHorizontal ? IMG_HORIZONTAL : IMG_VERTICAL}
                       fallback={currentImageUrl ? <></> : undefined}
+                      lighting={lighting}
+                      pose={pose}
                     />
                   )}
                   <CardFoilOverlay
@@ -648,6 +655,8 @@ export function CardPreview({
                     foil={!faceless && !!card.foil}
                     cosmetics={faceless ? undefined : card.cosmetics}
                     etched={!faceless && isEtchedOnlyPrinting(resolvedGameCard.info?.finishes)}
+                    lighting={lighting}
+                    pose={pose}
                   />
                   {!faceless && showsCurrentFace && (
                     <CardPreviewOverlay

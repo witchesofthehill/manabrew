@@ -14,12 +14,12 @@ msgstr ""
 "Plural-Forms: \n"
 
 #. placeholder {0}: display.stats.damage
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1259
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1269
 msgid "{0} damage"
 msgstr "{0} 点伤害"
 
 #: src/components/game/RulesPreviewAccessibility.tsx:92
-#: src/pixi/cardPreview/previewMechanics.ts:98
+#: src/pixi/cardPreview/previewMechanics.ts:102
 msgid "Active level"
 msgstr "生效等级"
 
@@ -27,13 +27,13 @@ msgstr "生效等级"
 msgid "Base ability"
 msgstr "基本异能"
 
-#: src/pixi/cardPreview/previewMechanics.ts:100
+#: src/pixi/cardPreview/previewMechanics.ts:104
 msgid "Current characteristics"
 msgstr "当前特征"
 
 #. placeholder {0}: display.stats.power
 #. placeholder {1}: display.stats.toughness
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1067
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1069
 msgid "Current P/T: {0}/{1}"
 msgstr "当前力量／防御力：{0}/{1}"
 
@@ -41,7 +41,7 @@ msgstr "当前力量／防御力：{0}/{1}"
 msgid "Current power and toughness"
 msgstr "当前力量与防御力"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1649
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1659
 msgid "Defense"
 msgstr "防御"
 
@@ -50,24 +50,24 @@ msgstr "防御"
 msgid "Effect text unavailable"
 msgstr "无法获取效应文本"
 
-#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:588
+#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:625
 msgid "Face-down card"
 msgstr "牌面朝下的牌"
 
-#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:590
+#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:627
 msgid "Face-down permanent"
 msgstr "牌面朝下的永久物"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1231
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1241
 msgid "Flip back · F"
 msgstr "翻到背面 · F"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1231
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1241
 msgid "Flip front · F"
 msgstr "翻到正面 · F"
 
 #: src/components/game/RulesPreviewAccessibility.tsx:93
-#: src/pixi/cardPreview/previewMechanics.ts:98
+#: src/pixi/cardPreview/previewMechanics.ts:102
 msgid "Inactive level"
 msgstr "未生效等级"
 
@@ -80,11 +80,11 @@ msgstr "等级"
 msgid "Level {0}"
 msgstr "等级 {0}"
 
-#: src/pixi/cardPreview/previewMechanics.ts:96
+#: src/pixi/cardPreview/previewMechanics.ts:100
 msgid "Locked"
 msgstr "已上锁"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1648
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1658
 msgid "Loyalty"
 msgstr "忠诚"
 
@@ -96,27 +96,27 @@ msgstr "法术力费用"
 msgid "Not prototyped"
 msgstr "非试作状态"
 
-#: src/pixi/cardPreview/previewMechanics.ts:125
+#: src/pixi/cardPreview/previewMechanics.ts:129
 msgid "Not suspended"
 msgstr "未延缓"
 
-#: src/pixi/cardPreview/previewMechanics.ts:102
+#: src/pixi/cardPreview/previewMechanics.ts:106
 msgid "On an Adventure"
 msgstr "历险中"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1061
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1063
 msgid "On an Adventure · available actions are listed on their spell half"
 msgstr "历险中 · 可用操作列于咒语一侧"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1247
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1257
 msgid "Original printing · generated frame unavailable"
 msgstr ""
 
-#: src/pixi/cardPreview/previewMechanics.ts:100
+#: src/pixi/cardPreview/previewMechanics.ts:104
 msgid "Printed alternative"
 msgstr "牌面上的另一组特征"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1245
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1255
 msgid "Printed face · live state belongs to the other face"
 msgstr "印刷牌面 · 当前状态属于另一面"
 
@@ -124,7 +124,7 @@ msgstr "印刷牌面 · 当前状态属于另一面"
 msgid "Printed power and toughness"
 msgstr "牌面上的力量与防御力"
 
-#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:617
+#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:653
 msgid "Prototype"
 msgstr "试作"
 
@@ -140,11 +140,11 @@ msgstr "已侦结 · 生效"
 msgid "Solved ability"
 msgstr "侦结异能"
 
-#: src/pixi/cardPreview/previewMechanics.ts:128
+#: src/pixi/cardPreview/previewMechanics.ts:132
 msgid "Suspended"
 msgstr "已延缓"
 
-#: src/pixi/cardPreview/previewMechanics.ts:129
+#: src/pixi/cardPreview/previewMechanics.ts:133
 msgid "Suspended · {time} time counters"
 msgstr "已延缓 · {time} 个计时指示物"
 
@@ -152,7 +152,7 @@ msgstr "已延缓 · {time} 个计时指示物"
 msgid "To solve"
 msgstr "侦办"
 
-#: src/pixi/cardPreview/previewMechanics.ts:96
+#: src/pixi/cardPreview/previewMechanics.ts:100
 msgid "Unlocked"
 msgstr "已解锁"
 

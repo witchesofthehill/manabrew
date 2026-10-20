@@ -18,7 +18,12 @@ import { CardArtworkError, CardRenderError } from "@/lib/cardRenderDecision";
 import { hasIntegratedArtwork } from "@/lib/cardArtworkPrinting";
 import { previewDtoDeckCard } from "@/lib/scryfall.utils";
 import { localizeRulesPreviewText } from "@/pixi/cardPreview/rulesCardPreviewPresentation";
-import { printedPrototype, type PrototypeCharacteristics } from "@/lib/cardPrototype";
+import {
+  printedPrototype,
+  prototypeRules,
+  type PrototypeCharacteristics,
+  type PrototypeRules,
+} from "@/lib/cardPrototype";
 import { gameCardFaceIndex } from "@/lib/gameCard";
 import {
   peekArchivedToken,
@@ -99,7 +104,7 @@ export interface CardFaceSnapshot {
   liveChanges?: CardFaceLiveChanges;
   prototype?: PrototypeCharacteristics;
   prototypeBase?: PrototypeCharacteristics;
-  prototypeText?: string;
+  prototypeRules?: PrototypeRules;
   prototypeSelected?: boolean;
   levelerBase?: { power: string; toughness: string };
   levelerRules?: string;
@@ -291,8 +296,12 @@ function normalized(text: string): string {
 
 function liveRules(card: LiveCard, info: ScryfallCard | undefined, index: number): string {
   const canonical = info?.card_faces?.[index]?.oracle_text ?? info?.oracle_text ?? "";
+  const prototype = printedPrototype(canonical);
+  const currentRules = prototype
+    ? (prototypeRules(card.rulesText, prototype)?.rulesText ?? card.rulesText)
+    : card.rulesText;
   const lines = canonical.split("\n").map(normalized);
-  const rules = card.rulesText
+  const rules = currentRules
     .split("\n")
     .map((line) =>
       lines.includes(normalized(line)) ? localizeRulesPreviewText(line, info ?? null, index) : line,
@@ -326,16 +335,14 @@ function faceSnapshot(
   const back = index === 1 ? deckCard?.backFace : undefined;
   const canonicalType = face?.type_line ?? back?.typeLine ?? (deckCard ? typeLine(deckCard) : "");
   const prototype = printedPrototype(face?.oracle_text ?? back?.oracleText ?? deckCard?.text ?? "");
+  const rulesText =
+    face?.printed_text ?? face?.oracle_text ?? back?.oracleText ?? deckCard?.text ?? "";
   const levelerRules = nativeLevelerRules(face);
   return {
     name: face?.printed_name ?? face?.name ?? back?.name ?? deckCard?.identity.name ?? "",
     layout: stringField(face, "layout"),
     prototype,
-    prototypeText: prototype
-      ? (face?.printed_text ?? face?.oracle_text ?? back?.oracleText ?? deckCard?.text ?? "").split(
-          "\n",
-        )[0]
-      : undefined,
+    prototypeRules: prototype ? prototypeRules(rulesText, prototype) : undefined,
     levelerBase:
       levelerRules !== undefined && face?.power != null && face?.toughness != null
         ? { power: face.power, toughness: face.toughness }
@@ -343,8 +350,7 @@ function faceSnapshot(
     levelerRules,
     type_line: canonicalType,
     type_line_display: face?.printed_type_line ?? canonicalType,
-    oracle_text:
-      face?.printed_text ?? face?.oracle_text ?? back?.oracleText ?? deckCard?.text ?? "",
+    oracle_text: rulesText,
     mana_cost: normalizedManaCost(
       face?.mana_cost ?? back?.manaCost ?? (index === 0 ? deckCard?.manaCost : ""),
     ),

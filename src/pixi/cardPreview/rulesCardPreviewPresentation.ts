@@ -11,7 +11,7 @@ import type { ScryfallCard } from "@/types/scryfall";
 import { msg } from "@lingui/core/macro";
 import { i18n } from "@/i18n/i18n";
 import { parseManaCost } from "@/pixi/manaSymbols";
-import { printedPrototype } from "@/lib/cardPrototype";
+import { printedPrototype, prototypeRules } from "@/lib/cardPrototype";
 import { gameCardFaceIndex } from "@/lib/gameCard";
 
 export interface RulesPreviewSection {
@@ -184,8 +184,19 @@ function translationLines(info: ScryfallCard, faceIndex: number): TranslationLin
   const cached = cardEntries.get(faceIndex);
   if (cached) return cached;
   const face = localizedFaceText(info, faceIndex);
-  const canonicalLines = face?.canonicalRulesText.split("\n") ?? [];
-  const localizedLines = face?.displayRulesText.split("\n") ?? [];
+  const prototype = printedPrototype(face?.canonicalRulesText ?? "");
+  const canonicalPrototype = prototype
+    ? prototypeRules(face?.canonicalRulesText ?? "", prototype)
+    : undefined;
+  const localizedPrototype = prototype
+    ? prototypeRules(face?.displayRulesText ?? "", prototype)
+    : undefined;
+  const canonicalLines = (canonicalPrototype?.rulesText ?? face?.canonicalRulesText ?? "").split(
+    "\n",
+  );
+  const localizedLines = (
+    localizedPrototype?.rulesText ?? (prototype ? "" : (face?.displayRulesText ?? ""))
+  ).split("\n");
   const entries: TranslationLine[] = canonicalLines.map((canonical) => ({
     canonical: translationComparisonText(canonical),
     localized: null,
@@ -232,6 +243,18 @@ function translationLines(info: ScryfallCard, faceIndex: number): TranslationLin
       }
     }
   }
+  if (canonicalPrototype && localizedPrototype) {
+    entries.push({
+      canonical: translationComparisonText(canonicalPrototype.header),
+      localized: localizedPrototype.header,
+    });
+    if (canonicalPrototype.reminder && localizedPrototype.reminder) {
+      entries.push({
+        canonical: canonicalPrototype.reminder,
+        localized: localizedPrototype.reminder,
+      });
+    }
+  }
   cardEntries.set(faceIndex, entries);
   return entries;
 }
@@ -244,7 +267,21 @@ export function localizeRulesPreviewText(
   if (!text || !info) return text;
   const face = localizedFaceText(info, faceIndex);
   if (!face || face.displayRulesText === face.canonicalRulesText) return text;
-  if (text.trim() === face.canonicalRulesText.trim()) return face.displayRulesText;
+  const prototype = printedPrototype(face.canonicalRulesText);
+  if (prototype) {
+    const localized = prototypeRules(face.displayRulesText, prototype);
+    if (!localized) return /\/\/PRT-/.test(text) ? face.canonicalRulesText : text;
+    if (text.trim() === face.canonicalRulesText.trim()) {
+      return [localized.header, localized.rulesText].filter(Boolean).join("\n");
+    }
+    if (/\/\/PRT-/.test(text)) {
+      const current = prototypeRules(text, prototype);
+      if (!current) return face.canonicalRulesText;
+      text = [current.header, current.rulesText].filter(Boolean).join("\n");
+    }
+  } else if (text.trim() === face.canonicalRulesText.trim()) {
+    return face.displayRulesText;
+  }
   const mappings = translationLines(info, faceIndex);
   return text
     .split("\n")
@@ -608,28 +645,25 @@ export function resolveRulesPreviewDisplay(options: {
   if (prototype) {
     const localized = localizedFaceText(info, 0);
     const base = sectionFromFace(resolved.faces[0]!, localized, 0);
-    const canonicalHeader =
-      base.canonicalRulesText.split("\n").find((line) => printedPrototype(line)) ?? "";
-    const header = localizeRulesPreviewText(canonicalHeader, info, 0);
+    const canonical = prototypeRules(base.canonicalRulesText, prototype);
+    const printed = prototypeRules(base.rulesText, prototype);
     const alternate = {
       ...base,
       faceIndex: 1,
-      name: i18n._(msg`Prototype`),
+      name: printed?.name ?? i18n._(msg`Prototype`),
       manaCost: prototype.manaCost,
-      rulesText: header.includes("(") ? header.slice(header.indexOf("(")) : "",
-      canonicalRulesText: canonicalHeader,
+      rulesText: printed?.reminder ?? "",
+      canonicalRulesText: canonical?.reminder ?? "",
       flavorText: "",
     };
     const hasCharacteristics = card.types.length > 0 || card.text.length > 0;
     const liveRulesText = hasCharacteristics ? presentation.rulesText : base.canonicalRulesText;
-    base.canonicalRulesText = liveRulesText
-      .split("\n")
-      .filter(
-        (line) =>
-          !printedPrototype(line) && matchRulesEntry(line, [canonicalHeader, header]) === null,
-      )
-      .join("\n");
-    base.rulesText = localizeRulesPreviewText(base.canonicalRulesText, info, 0);
+    const live = prototypeRules(liveRulesText, prototype);
+    const representable = canonical && printed && (live || !/\/\/PRT-/.test(liveRulesText));
+    base.canonicalRulesText = live?.rulesText ?? liveRulesText;
+    base.rulesText = hasCharacteristics
+      ? localizeRulesPreviewText(base.canonicalRulesText, info, 0)
+      : (printed?.rulesText ?? "");
     base.name = localizedLiveValue(
       presentation.name,
       localized?.canonicalName ?? base.name,
@@ -657,7 +691,7 @@ export function resolveRulesPreviewDisplay(options: {
       flippable: false,
       faceless: false,
       prototype: true,
-      sections: [base, alternate],
+      sections: representable ? [base, alternate] : [],
       keywords: grantedKeywordChips(card),
       stats: presentation.stats,
       loyalty: null,

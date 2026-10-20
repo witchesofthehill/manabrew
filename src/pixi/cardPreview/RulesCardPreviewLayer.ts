@@ -1034,7 +1034,9 @@ export class RulesCardPreviewLayer {
           action.kind === "ability" &&
           panels.some((panel) => panel.kind === "level")
         ) {
-          const owner = levelActionPanel(action, panels);
+          const owner = levelActionPanel(action, panels, (text, faceIndex) =>
+            localizeRulesPreviewText(text, this.scryfallInfo, faceIndex),
+          );
           return owner === undefined ? primary : body.panel.id === owner;
         }
         const owner = previewActionFace(action);
@@ -1121,7 +1123,15 @@ export class RulesCardPreviewLayer {
         const replaced = new Set(
           ownedActions.flatMap(({ action }) => {
             const index = action.abilityText
-              ? matchRulesEntry(action.abilityText, entries, action.cost)
+              ? matchRulesEntry(
+                  localizeRulesPreviewText(
+                    action.abilityText,
+                    this.scryfallInfo,
+                    body.panel.faceIndex,
+                  ),
+                  entries,
+                  action.cost,
+                )
               : null;
             return index === null ? [] : [index];
           }),

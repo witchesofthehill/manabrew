@@ -4,6 +4,8 @@
 
 ### Fixes
 
+* Preserve localized Prototype abilities and reminders, including Japanese line wrapping.
+* Place localized leveler actions in the correct band without duplicating ability text.
 * Preserve the current mana cost when previewing copies of prototyped creatures.
 * Fix the Clippy build failure caused by oversized draft checkpoint agent variants.
 * Preserve translated leveler abilities and reminders in native card rendering.

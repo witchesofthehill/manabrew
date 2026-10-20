@@ -17,6 +17,7 @@ import {
 } from "@/lib/cardRenderDecision";
 import { resolveCardPrinting } from "@/lib/cardPrinting";
 import { isTwoFaceLayout } from "@/lib/cardLayout";
+import { prototypeRules } from "@/lib/cardPrototype";
 
 export interface CardGlintFace {
   face: SemanticCardInput;
@@ -288,11 +289,9 @@ export function cardGlintBaseline(
       const prototype = part.prototype;
       const selected = part.prototypeSelected === true;
       const base = part.prototypeBase;
-      const lines = part.oracle_text.split("\n");
-      const prototypeText = part.prototypeText ?? "";
-      const reminder = prototypeText.includes("(")
-        ? prototypeText.slice(prototypeText.indexOf("("))
-        : "";
+      const printedRules = part.prototypeRules ?? original("unrepresentable-fields");
+      const currentRules = prototypeRules(part.oracle_text, prototype);
+      if (!currentRules && /\/\/PRT-/.test(part.oracle_text)) original("unrepresentable-fields");
       const normal = {
         ...result,
         layout: "normal",
@@ -306,10 +305,7 @@ export function cardGlintBaseline(
             : result.colors,
         power: part.prototypeSelected !== false && base ? base.power : result.power,
         toughness: part.prototypeSelected !== false && base ? base.toughness : result.toughness,
-        rulesText:
-          lines[0] === prototypeText || /^Prototype\b/.test(lines[0] ?? "")
-            ? lines.slice(1).join("\n")
-            : part.oracle_text,
+        rulesText: currentRules?.rulesText ?? part.oracle_text,
         rulesParagraphs: undefined,
         textInk: result.textInk
           ? {
@@ -320,7 +316,7 @@ export function cardGlintBaseline(
       };
       const alternate = {
         ...result,
-        name: prototypeText.match(/^([^{]+)\s*\{/)?.[1]?.trim() ?? "Prototype",
+        name: printedRules.name,
         layout: "normal",
         manaSymbols: selected
           ? result.manaSymbols
@@ -329,7 +325,7 @@ export function cardGlintBaseline(
         frameColors: undefined,
         power: selected ? result.power : prototype.power,
         toughness: selected ? result.toughness : prototype.toughness,
-        rulesText: reminder,
+        rulesText: printedRules.reminder,
         rulesParagraphs: undefined,
         textInk: selected && result.textInk?.stats ? { stats: result.textInk.stats } : undefined,
       };

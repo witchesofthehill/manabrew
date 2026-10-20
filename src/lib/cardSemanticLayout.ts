@@ -34,6 +34,7 @@ import {
   type RenderedCardInput,
   type CanvasImages,
   type RulesParagraph,
+  type RulesRun,
 } from "card-glint/magic/presentation";
 import { ensureCardGlintFont, ensureCardGlintFonts } from "@/lib/cardGlintAssets";
 import {
@@ -59,6 +60,8 @@ interface Region {
   rect: FaceRect;
   faceIndex: number;
 }
+const MIN_RULES_FONT_SIZE = 7;
+const RULES_FONT_SIZE_STEP = 0.25;
 const LAYOUTS: Record<string, true> = {
   prototype: true,
   planar: true,
@@ -174,6 +177,65 @@ function paragraphs(face: RenderedCardInput): readonly RulesParagraph[] {
       .map((text) => ({ role: "rules" as const, runs: [{ text }] }))
   );
 }
+const rulesWordSegmenter = new Intl.Segmenter(undefined, { granularity: "word" });
+
+function wordWrappedRules(
+  c: CanvasContext,
+  values: readonly RulesParagraph[],
+  width: number,
+  height: number,
+  size: number,
+): RulesParagraph[] {
+  return values.map((paragraph) => {
+    const chunks: RulesRun[][] = [];
+    for (const run of paragraph.runs) {
+      for (const part of run.text.split(/(\{[^}\n]+\}|\n)/g).filter(Boolean)) {
+        const pieces =
+          part === "\n" || /^\{[^}\n]+\}$/.test(part)
+            ? [part]
+            : Array.from(rulesWordSegmenter.segment(part), ({ segment }) => segment);
+        for (const text of pieces) {
+          const previous = chunks.at(-1);
+          const piece = { text, italic: run.italic };
+          if (
+            text !== "\n" &&
+            previous?.[0]?.text !== "\n" &&
+            previous &&
+            (/^[\p{Pe}\p{Pf}\p{Po}]/u.test(text) || /[\p{Ps}\p{Pi}]$/u.test(previous.at(-1)!.text))
+          ) {
+            previous.push(piece);
+          } else {
+            chunks.push([piece]);
+          }
+        }
+      }
+    }
+    const runs: RulesRun[] = [];
+    let line: RulesRun[] = [];
+    for (const chunk of chunks) {
+      if (chunk[0]!.text === "\n") {
+        runs.push(...chunk);
+        line = [];
+        continue;
+      }
+      const trial = layoutRules(
+        c,
+        [{ role: paragraph.role, runs: [...line, ...chunk] }],
+        { x: 0, y: 0, width, height },
+        size,
+        size,
+      );
+      if (line.length && (trial.overflow || trial.lines.length > 1)) {
+        runs.push({ text: "\n" });
+        line = [];
+      }
+      runs.push(...chunk);
+      line.push(...chunk);
+    }
+    return { ...paragraph, runs };
+  });
+}
+
 function paintRules(
   c: CanvasContext,
   values: readonly RulesParagraph[],
@@ -181,7 +243,19 @@ function paintRules(
   size: number,
   images: CanvasImages,
 ): void {
-  paintRulesLayout(c, layoutRules(c, values, { x, y, width, height }, size, 7), images);
+  let layout = layoutRules(c, values, { x, y, width, height }, size, MIN_RULES_FONT_SIZE);
+  if (layout.overflow) {
+    for (
+      let candidate = size;
+      candidate >= MIN_RULES_FONT_SIZE;
+      candidate -= RULES_FONT_SIZE_STEP
+    ) {
+      const wrapped = wordWrappedRules(c, values, width, height, candidate);
+      layout = layoutRules(c, wrapped, { x, y, width, height }, candidate, candidate);
+      if (!layout.overflow) break;
+    }
+  }
+  paintRulesLayout(c, layout, images);
 }
 function paintPrototype(
   c: CanvasContext,

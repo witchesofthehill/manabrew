@@ -32,6 +32,7 @@ export function previewOwnsAction(
 export function levelActionPanel(
   action: HandActionOption,
   panels: readonly CardInteractionPanel[],
+  localize: (text: string, faceIndex: number) => string,
 ): string | undefined {
   if (action.kind !== "ability") return undefined;
   const bands = panels.filter(
@@ -44,8 +45,11 @@ export function levelActionPanel(
   if (!text) return undefined;
   const matching = bands.filter(
     (panel) =>
-      matchRulesEntry(text, rulesTextEntries(panel.level?.rulesText ?? "", null), action.cost) !==
-      null,
+      matchRulesEntry(
+        localize(text, panel.faceIndex),
+        rulesTextEntries(panel.level?.rulesText ?? "", null),
+        action.cost,
+      ) !== null,
   );
   return matching.length === 1 ? matching[0]!.id : undefined;
 }

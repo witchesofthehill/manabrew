@@ -53,10 +53,11 @@ export function AssetsSection() {
             aria-pressed={reactionPreview}
             data-logo-preview={reactionPreview ? "true" : "false"}
             onClick={() => setReactionPreview((active) => !active)}
-            className="mb-logo-trigger h-auto max-w-full flex-wrap gap-4 px-4 py-3 pointer-coarse:h-auto"
+            className="ds-logo-reaction mb-logo-trigger h-auto max-w-full flex-wrap gap-4 px-4 py-3 pointer-coarse:h-auto"
           >
             <ManaBrewLogo decorative variant="symbol" height={72} className="shrink-0" />
-            <span>Preview logo reaction</span>
+            <span className="ds-screen-only">Preview logo reaction</span>
+            <span className="ds-print-only">Logo reaction, static open pose</span>
           </Button>
           <p className="text-xs text-muted-foreground">
             Toggle the mouth fire and brewing bubbles without navigating. The specimens above stay
@@ -75,7 +76,10 @@ export function AssetsSection() {
       <Subhead>Images & icons</Subhead>
       <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
         {ASSETS.map((a) => (
-          <div key={a.file} className="overflow-hidden rounded-lg border border-border bg-card">
+          <div
+            key={a.file}
+            className="ds-asset overflow-hidden rounded-lg border border-border bg-card"
+          >
             <div className="flex h-28 items-center justify-center bg-muted/40 p-3">
               {a.preview && (
                 <img

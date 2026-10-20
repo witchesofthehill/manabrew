@@ -171,6 +171,12 @@ Draw full-color, single-color and reversed versions. The single-color version mu
 
 For artwork revisions, compare the icon at 16, 24, 32 and 64 pixels, inspect the wordmark at header size, and check a one-color print. Keep header SVG backgrounds transparent; do not add a light panel to compensate for dark-mode contrast. Browser icons use the separately approved favicon tile.
 
+## Designer reference PDF
+
+Open `/design-system` and choose **Export PDF**, then **Save as PDF** in the browser's print dialog. Export waits for fonts, card examples and images. The A4 document includes collapsed sections, both light/dark token tables, typography, icons, component examples, all three card-face styles, spacing and assets. Logo reactions print as static open poses.
+
+Component examples use the current light/dark mode and include personal color overrides. The cover records the mode and export date. To share both treatments, export once in each mode; the action does not change theme preferences.
+
 ## Implementation boundaries
 
 Existing personal color overrides are preserved. Reset Colors restores the new canonical defaults for that mode; game overrides remain shared. Primary hover has an explicit paired fill. Selected backgrounds, foregrounds and purple borders are separate tokens; selection text and rings do not reuse the tinted fill.

@@ -85,7 +85,7 @@ function AppChrome({ colors, mode }: { colors: ThemeColors; mode: string }) {
 }
 function AppTokens({ colors, mode }: { colors: ThemeColors; mode: string }) {
   return (
-    <div className="space-y-1.5">
+    <div className="ds-app-token-mode space-y-1.5">
       <div className="font-mono text-[11px] text-muted-foreground">{mode}</div>
       <SwatchGrid>
         {(Object.entries(colors) as [keyof ThemeColors, string][]).map(([key, value]) => (
@@ -98,7 +98,7 @@ function AppTokens({ colors, mode }: { colors: ThemeColors; mode: string }) {
 
 function ThemeCard({ theme }: { theme: typeof MANABREW_THEME }) {
   return (
-    <div className="space-y-4 rounded-xl border border-border bg-card/40 p-4">
+    <div className="ds-theme-card space-y-4 rounded-xl border border-border bg-card/40 p-4">
       <div className="flex items-baseline gap-2">
         <h3 className="text-lg font-semibold tracking-tight">{theme.name}</h3>
       </div>
@@ -110,7 +110,7 @@ function ThemeCard({ theme }: { theme: typeof MANABREW_THEME }) {
       </div>
 
       <Subhead>App tokens</Subhead>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="ds-app-token-modes grid grid-cols-1 gap-3 sm:grid-cols-2">
         <AppTokens colors={theme.light} mode="Light" />
         <AppTokens colors={theme.dark} mode="Dark" />
       </div>
@@ -118,7 +118,7 @@ function ThemeCard({ theme }: { theme: typeof MANABREW_THEME }) {
       <Subhead>Game tokens</Subhead>
       <div className="space-y-3">
         {groupGameColors(theme.gameColors).map((grp) => (
-          <div key={grp.name} className="space-y-1.5">
+          <div key={grp.name} className="ds-color-group space-y-1.5">
             <div className="font-mono text-[11px] text-muted-foreground">{grp.name}</div>
             <SwatchGrid>
               {grp.entries.map(([label, value]) => (
@@ -155,7 +155,7 @@ export function ColorSection() {
           one identity, not selectable themes.
         </p>
         {Object.entries(BRAND_COLORS).map(([family, shades]) => (
-          <div key={family} className="space-y-2">
+          <div key={family} className="ds-color-group space-y-2">
             <h3 className="text-sm font-semibold capitalize">{family}</h3>
             <SwatchGrid>
               {Object.entries(shades).map(([shade, value]) => (

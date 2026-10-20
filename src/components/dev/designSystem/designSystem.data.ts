@@ -222,7 +222,7 @@ export const FONTS: {
     stack: "Fraunces",
     cls: "font-serif font-semibold",
     weights: "600 · 700",
-    use: "Brand text and intentional titles, tight or normal tracking. Optical sizing with SOFT 20 and WONK 1.",
+    use: "Brand text and intentional titles, tight or normal tracking. Optical sizing with SOFT 60 and WONK 1.",
   },
 ];
 export const GAME_FONT_SIZES: {
@@ -274,19 +274,19 @@ export const ASSETS: {
   {
     file: "public/apple-touch-icon.png",
     kind: "PWA icon",
-    use: "512px transparent home-screen icon",
+    use: "512px approved favicon tile for home-screen icons",
     preview: "/apple-touch-icon.png",
   },
   {
     file: "public/icon-192x192.png",
     kind: "PWA icon",
-    use: "192px transparent PWA icon",
+    use: "192px approved favicon tile for PWA icons",
     preview: "/icon-192x192.png",
   },
   {
     file: "public/favicon.svg",
     kind: "Favicon",
-    use: "Scalable approved symbol with transparent background",
+    use: "Approved SVG favicon tile with transparent corners",
     preview: "/favicon.svg",
   },
   {

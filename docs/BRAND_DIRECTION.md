@@ -183,9 +183,9 @@ Existing personal color overrides are preserved. Reset Colors restores the new c
 
 Utility pages no longer have the brewery illustration behind them. The existing illustration remains on entry and home hero surfaces and the website, without inventing new mascot artwork. App headers use the horizontal SVG on wider screens and the symbol on compact screens. Website headers use the horizontal SVG without duplicate text.
 
-Approved source artwork lives in `images/brand/logos/color/` and `images/brand/logos/dark/`, with mouth/fire and brew layers under `images/brand/layers/`. Run `python3 scripts/generate-brand-logo.py` after changing designer exports. It prepares `images/brand/logos/interactive/manabrew-logo.svg` and `src/assets/brandLogoGeometry.json` for the React and Astro renderers without modifying the original artwork. The horizontal 1450:400 viewBox retains the wordmark's 1.6-times enlargement. Keep generated outputs with source changes; normal builds consume them without Python.
+Designer source artwork and unused exports live outside the repository. Run `python3 scripts/generate-brand-logo.py /path/to/manabrew-brand` after changing approved exports in that external folder. It reads `logos/color/`, `logos/dark/`, `layers/` and `mascot/`, then writes `images/brand/logos/interactive/manabrew-logo.svg` and `src/assets/brandLogoGeometry.json` for the React and Astro renderers without modifying the originals. The horizontal 1450:400 viewBox retains the wordmark's 1.6-times enlargement. Commit only the runtime outputs; normal builds consume them without Python or the external archive.
 
-The app follows resolved light/dark mode and theme previews; documentation follows its selected theme. Browser icons use the dedicated exports in `images/brand/favicon/`, preserving the supplied rounded tile and transparent corners in both color schemes. SVG and ICO are copied unchanged into the app and website public directories; PNG fallbacks, Apple touch and PWA icons come from the supplied 512px PNG. PWA icons use `purpose: "any"`, not `maskable`. Native desktop/Android icons preserve alpha; native iOS icons are flattened to opaque RGB because iOS requires it. Loading, empty-state and error illustrations remain unchanged.
+The app follows resolved light/dark mode and theme previews; documentation follows its selected theme. Browser icons use the dedicated `favicon/` exports from the external brand folder, preserving the supplied rounded tile and transparent corners in both color schemes. SVG and ICO are copied unchanged into the app and website public directories; PNG fallbacks, Apple touch and PWA icons come from the supplied 512px PNG. PWA icons use `purpose: "any"`, not `maskable`. Native desktop/Android icons preserve alpha; native iOS icons are flattened to opaque RGB because iOS requires it. Keep these shipped icons in the repository. Loading, empty-state and error illustrations remain unchanged.
 
 ### Interactive header logo
 
@@ -195,9 +195,9 @@ Reduced motion shows the static open-mouth/fire pose without animation or transi
 
 ### Brewing-room illustration assets
 
-`images/brand/illustrations/manabrew-brewing-room-desktop.*` supplies a 2560 × 1440 landscape composition with copy space on the left. `manabrew-brewing-room-mobile.*` supplies a separately composed 1080 × 1920 portrait with copy space above the cauldron. Both use the canonical full mascot, ember heat, purple brew, and restrained sage ingredients, without baked-in text or a wordmark.
+The external brand folder's `illustrations/manabrew-brewing-room-desktop.*` supplies a 2560 × 1440 landscape composition with copy space on the left. `manabrew-brewing-room-mobile.*` supplies a separately composed 1080 × 1920 portrait with copy space above the cauldron. Both use the canonical full mascot, ember heat, purple brew, and restrained sage ingredients, without baked-in text or a wordmark.
 
-Each composition includes an editable `.vectorcraft` master and SVG, plus a `.pcraft` finishing master with an embedded render, nondestructive grain, and a curves adjustment. PNG exports are lossless; WebP exports use quality 90. The images are static. Existing app and website background references remain unchanged.
+Each composition includes an editable `.vectorcraft` master and SVG, plus a `.pcraft` finishing master with an embedded render, nondestructive grain, and a curves adjustment. PNG exports are lossless; WebP exports use quality 90. These unused assets remain outside the repository. Existing app and website background references remain unchanged.
 
 ## Research sources
 

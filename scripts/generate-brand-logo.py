@@ -1,10 +1,13 @@
+import argparse
 import copy
 import json
 from pathlib import Path
 import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
-BRAND = ROOT / "images/brand"
+parser = argparse.ArgumentParser(description="Prepare runtime logos from an external brand folder.")
+parser.add_argument("brand_dir", type=Path)
+BRAND = parser.parse_args().brand_dir
 NS = "http://www.w3.org/2000/svg"
 ET.register_namespace("", NS)
 
@@ -78,7 +81,7 @@ layer("mb-fire-core", [identified(fire, "Flame___golden_heart")])
 wordmark = layer("mb-wordmark", [identified(horizontal, "Manabrew_wordmark___existing_brand_typography_and_colors")])
 wordmark.set("transform", "translate(-246 -122.4) scale(1.6)")
 
-output = BRAND / "logos/interactive/manabrew-logo.svg"
+output = ROOT / "images/brand/logos/interactive/manabrew-logo.svg"
 output.parent.mkdir(parents=True, exist_ok=True)
 ET.indent(sprite)
 ET.ElementTree(sprite).write(output, encoding="UTF-8", xml_declaration=True)

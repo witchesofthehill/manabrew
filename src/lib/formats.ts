@@ -16,6 +16,22 @@ export interface GameFormat {
     requiresCommander: boolean;
   };
   bannedCards: string[];
+  cardPool?: {
+    scryfallFormat: string;
+    commanderRarity?: string;
+  };
+}
+export interface CardPoolCard {
+  legalities: Record<string, "legal" | "not_legal" | "restricted" | "banned">;
+  oracleId: string;
+  printedRarities?: string[];
+}
+export interface CardPool {
+  cards: Record<string, CardPoolCard | null>;
+  error: string | null;
+}
+export function cardPoolKey(name: string): string {
+  return name.toLowerCase();
 }
 /** Name-only fallback for callers without card data; prefer canHaveAnyNumberOf. */
 export const BASIC_LAND_NAMES = new Set(["Plains", "Island", "Swamp", "Mountain", "Forest"]);
@@ -221,6 +237,23 @@ export const GAME_FORMATS: GameFormat[] = [
       requiresCommander: true,
     },
     bannedCards: [],
+  },
+  {
+    id: "paupercommander",
+    name: "Pauper Commander",
+    shortName: "PDH",
+    description: `100 cards, singleton, 30 life, uncommon creature commander`,
+    badgeColor: "zinc",
+    deckRules: {
+      minDeckSize: 100,
+      maxDeckSize: 100,
+      maxCopies: 1,
+      sideboardMax: 10,
+      startingLife: 30,
+      requiresCommander: true,
+    },
+    bannedCards: [],
+    cardPool: { scryfallFormat: "paupercommander", commanderRarity: "uncommon" },
   },
   {
     id: "brawl",
@@ -433,7 +466,14 @@ function canBeCreature(card: DeckCard): boolean {
 }
 export function isLegalCommander(card: DeckCard, formatId?: string): boolean {
   if (formatId === "brawl") return canBeBrawlCommander(card);
+  if (formatId === "paupercommander") return canBePauperCommander(card);
   return isCommanderEligible(card);
+}
+function canBePauperCommander(card: DeckCard): boolean {
+  if (isBackgroundCard(card)) return true;
+  if (card.types.includes("Land")) return false;
+  if (card.types.includes("Creature")) return true;
+  return card.subtypes?.some((s) => ["vehicle", "spacecraft"].includes(s.toLowerCase())) ?? false;
 }
 function canBeBrawlCommander(card: DeckCard): boolean {
   if (!card.supertypes.includes("Legendary")) return false;
@@ -503,24 +543,66 @@ export function canBeSignatureSpell(card?: DeckCard): boolean {
 export function formatRequiresCommander(formatId?: string): boolean {
   return getFormat(formatId ?? "")?.deckRules.requiresCommander ?? false;
 }
+export function resolveDeckSections(input: DeckValidationInput): {
+  commanders: DeckCard[];
+  mainDeck: DeckCard[];
+} {
+  // deck.commanders takes precedence; otherwise the override name (if present)
+  // pulls one card out of deck.cards for legality checking.
+  const commanders = input.deck.commanders ?? [];
+  const mainDeck = input.deck.cards;
+  if (commanders.length > 0 || !input.commanderName) return { commanders, mainDeck };
+  const idx = mainDeck.findIndex((c) => c.identity.name === input.commanderName);
+  if (idx < 0) return { commanders, mainDeck };
+  return { commanders: [mainDeck[idx]], mainDeck: mainDeck.filter((_, i) => i !== idx) };
+}
+function cardPoolErrors(
+  mainDeck: DeckCard[],
+  commanders: DeckCard[],
+  format: GameFormat,
+  rules: NonNullable<GameFormat["cardPool"]>,
+  pool: CardPool | undefined,
+): string[] {
+  if (pool?.error) return [`Could not check ${format.name} card legality: ${pool.error}`];
+  const lookup = (card: DeckCard) => pool?.cards[cardPoolKey(card.identity.name)];
+  const loading =
+    [...mainDeck, ...commanders].some((card) => lookup(card) === undefined) ||
+    (rules.commanderRarity !== undefined &&
+      commanders.some((card) => lookup(card)?.printedRarities === undefined));
+  if (loading) return [`Checking ${format.name} card legality…`];
+  const errors: string[] = [];
+  const reported = new Set<string>();
+  for (const card of mainDeck) {
+    const name = card.identity.name;
+    if (reported.has(name)) continue;
+    const status = lookup(card)?.legalities[rules.scryfallFormat];
+    if (status === "legal") continue;
+    reported.add(name);
+    errors.push(
+      status === "banned"
+        ? `"${name}" is banned in ${format.name}`
+        : `"${name}" is not legal in ${format.name}`,
+    );
+  }
+  for (const card of commanders) {
+    const name = card.identity.name;
+    const entry = lookup(card);
+    if (entry?.legalities[rules.scryfallFormat] === "banned") {
+      errors.push(`"${name}" is banned in ${format.name}`);
+    } else if (rules.commanderRarity && !entry?.printedRarities?.includes(rules.commanderRarity)) {
+      errors.push(`"${name}" has never been printed at ${rules.commanderRarity} rarity`);
+    }
+  }
+  return errors;
+}
 export function validateDeckSections(
   input: DeckValidationInput,
   format: GameFormat,
+  cardPool?: CardPool,
 ): DeckValidation {
   const { deck } = input;
   const errors: string[] = [];
-  // Resolve commanders: deck.commanders takes precedence; otherwise the
-  // override name (if present) pulls one card out of deck.cards for
-  // legality checking.
-  let commanders: DeckCard[] = deck.commanders ?? [];
-  let mainDeck: DeckCard[] = deck.cards;
-  if (commanders.length === 0 && input.commanderName) {
-    const idx = mainDeck.findIndex((c) => c.identity.name === input.commanderName);
-    if (idx >= 0) {
-      commanders = [mainDeck[idx]];
-      mainDeck = mainDeck.filter((_, i) => i !== idx);
-    }
-  }
+  const { commanders, mainDeck } = resolveDeckSections(input);
   const sideboard = deck.sideboard;
   const availableCards: DeckCard[] = [
     ...deck.cards,
@@ -627,6 +709,9 @@ export function validateDeckSections(
         );
       }
     }
+  }
+  if (format.cardPool) {
+    errors.push(...cardPoolErrors(mainDeck, commanders, format, format.cardPool, cardPool));
   }
   return { legal: errors.length === 0, errors };
 }

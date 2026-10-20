@@ -62,6 +62,7 @@ export const GAME_FORMAT_TO_ARCHIDEKT: Record<string, number> = {
   legacy: 4,
   vintage: 5,
   pauper: 6,
+  paupercommander: 17,
   pioneer: 12,
   premodern: 21,
 };

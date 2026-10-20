@@ -1556,9 +1556,11 @@ fn spawn_engine_thread<F: FnOnce() + Send + 'static>(body: F) {
 // at StartGame, and dropping commanders there would break commander games.
 fn is_commander_variant(format: GameFormat) -> bool {
     match format {
-        GameFormat::Any | GameFormat::Commander | GameFormat::Brawl | GameFormat::Oathbreaker => {
-            true
-        }
+        GameFormat::Any
+        | GameFormat::Commander
+        | GameFormat::PauperCommander
+        | GameFormat::Brawl
+        | GameFormat::Oathbreaker => true,
         GameFormat::Standard
         | GameFormat::Pioneer
         | GameFormat::Modern
@@ -1577,6 +1579,7 @@ fn java_game_variant(format: GameFormat) -> &'static str {
     match format {
         GameFormat::Any => "",
         GameFormat::Commander => "Commander",
+        GameFormat::PauperCommander => "PauperCommander",
         GameFormat::Brawl => "Brawl",
         GameFormat::Oathbreaker => "Oathbreaker",
         GameFormat::Standard

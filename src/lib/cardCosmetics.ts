@@ -147,18 +147,26 @@ export function cardCosmeticsKey(cosmetics?: CardCosmetics): string {
   return JSON.stringify(value);
 }
 
-export function deckHasCardCosmetics(deck: Deck): boolean {
+export function deckHasCardCosmetics(
+  deck: Deck,
+  matches?: (cosmetics: CardCosmetics) => boolean,
+): boolean {
+  const hasCosmetics = (value: unknown): boolean => {
+    const cosmetics = normalizeCardCosmetics(value);
+    return !!cosmetics && (!matches || matches(cosmetics));
+  };
   return (
     [
       deck.cards,
       deck.sideboard,
+      deck.maybeboard,
       deck.commanders,
       deck.attractions,
       deck.contraptions,
       deck.schemes,
       deck.planes,
       deck.tokens,
-    ].some((cards) => cards?.some((card) => normalizeCardCosmetics(card.identity.cosmetics))) ||
-    !!normalizeCardCosmetics(deck.companion?.identity.cosmetics)
+    ].some((cards) => cards?.some((card) => hasCosmetics(card.identity.cosmetics))) ||
+    hasCosmetics(deck.companion?.identity.cosmetics)
   );
 }

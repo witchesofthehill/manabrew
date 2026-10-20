@@ -6,6 +6,9 @@
 
 * Preserve the current mana cost when previewing copies of prototyped creatures.
 * Fix the Clippy build failure caused by oversized draft checkpoint agent variants.
+* Preserve translated leveler abilities and reminders in native card rendering.
+* Match Realistic print-dot previews to production without changing scan finish geometry.
+* Check relay support for new card materials before submitting a customized deck.
 
 ## [3.62.0](https://github.com/witchesofthehill/manabrew/compare/v3.61.1...v3.62.0) (2026-10-20)
 

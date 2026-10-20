@@ -412,6 +412,7 @@ export class CardGlintInspectScene {
       this.sourceAspect = size[0] / size[1];
       this.landscape = landscape;
       this.instance.finish = finish;
+      this.applyInstanceAppearance();
       this.updateDocumentAppearance();
     } catch (error) {
       if (!controller.signal.aborted && !this.disposed) this.fail(error);
@@ -434,8 +435,13 @@ export class CardGlintInspectScene {
     this.instance.wear = this.appearance?.wear ?? this.sourceWear;
     this.instance.cardstock = this.appearance?.cardstock ?? this.sourceCardstock;
     const printDots = this.appearance?.printDots ?? this.sourcePrintDots;
-    this.instance.printDots =
-      printDots && printDots.period === undefined ? { ...printDots, period: 5 } : printDots;
+    this.instance.printDots = printDots
+      ? {
+          ...printDots,
+          period: printDots.period ?? 5,
+          artwork: this.current?.original ? true : printDots.artwork,
+        }
+      : undefined;
     this.instance.deformation =
       this.instance.finish === "heat"
         ? (this.appearance?.deformation ?? this.sourceDeformation)

@@ -303,6 +303,21 @@ function liveRules(card: LiveCard, info: ScryfallCard | undefined, index: number
   return rules.join("\n");
 }
 
+function nativeLevelerRules(face: PrintedFace | undefined): string | undefined {
+  const canonical = face?.oracle_text ?? "";
+  if (!/^Level up\b/m.test(canonical)) return undefined;
+  const printed = face?.printed_text;
+  if (!printed || printed === canonical) return canonical;
+  const boundaries = [
+    ...canonical.matchAll(/^LEVEL\s+[^\n]+\n[*X\d+−-]+\/[*X\d+−-]+(?=\n|$)/gm),
+  ].map((match) => match[0]);
+  let tier = 0;
+  return printed.replace(
+    /^[^\n]+\n[*X\d+−-]+\/[*X\d+−-]+(?=\n|$)/gm,
+    (boundary) => boundaries[tier++] ?? boundary,
+  );
+}
+
 function faceSnapshot(
   face: PrintedFace | undefined,
   deckCard: DeckCard | undefined,
@@ -311,6 +326,7 @@ function faceSnapshot(
   const back = index === 1 ? deckCard?.backFace : undefined;
   const canonicalType = face?.type_line ?? back?.typeLine ?? (deckCard ? typeLine(deckCard) : "");
   const prototype = printedPrototype(face?.oracle_text ?? back?.oracleText ?? deckCard?.text ?? "");
+  const levelerRules = nativeLevelerRules(face);
   return {
     name: face?.printed_name ?? face?.name ?? back?.name ?? deckCard?.identity.name ?? "",
     layout: stringField(face, "layout"),
@@ -321,10 +337,10 @@ function faceSnapshot(
         )[0]
       : undefined,
     levelerBase:
-      /^Level up\b/m.test(face?.oracle_text ?? "") && face?.power != null && face?.toughness != null
+      levelerRules !== undefined && face?.power != null && face?.toughness != null
         ? { power: face.power, toughness: face.toughness }
         : undefined,
-    levelerRules: /^Level up\b/m.test(face?.oracle_text ?? "") ? face?.oracle_text : undefined,
+    levelerRules,
     type_line: canonicalType,
     type_line_display: face?.printed_type_line ?? canonicalType,
     oracle_text:

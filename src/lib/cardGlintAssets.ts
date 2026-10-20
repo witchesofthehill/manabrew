@@ -1,7 +1,5 @@
-import { canvasFontAssets, retroFontAssets } from "card-glint/magic/presentation";
+import { canvasFontAssets } from "card-glint/magic/presentation";
 import { setAssetFetcher } from "card-glint/canvas";
-import type { CanvasRaster } from "card-glint/canvas";
-import { createCardScratchCanvas, closeCardScratchCanvas } from "@/lib/cardRasterScratch";
 
 type AssetResolver = (url: string, options?: RequestInit) => Promise<Response>;
 interface FontRealm {
@@ -27,7 +25,6 @@ async function platformAsset(url: string, options: RequestInit): Promise<Respons
   return platformFetch(url, { ...options, mode: "cors" });
 }
 
-const ART_FACE_FRAGMENT = "#manabrew-card-art-face=";
 let fonts: Promise<void> | undefined;
 
 export async function resolveCardGlintAsset(
@@ -35,45 +32,10 @@ export async function resolveCardGlintAsset(
   options: RequestInit = {},
 ): Promise<Response> {
   options.signal?.throwIfAborted();
-  const separator = url.lastIndexOf(ART_FACE_FRAGMENT);
-  const source = separator < 0 ? url : url.slice(0, separator);
-  const response = await (assetResolver ?? platformAsset)(source, options);
-  if (!response.ok) throw new Error(`Card Glint asset HTTP ${response.status}: ${source}`);
+  const response = await (assetResolver ?? platformAsset)(url, options);
+  if (!response.ok) throw new Error(`Card Glint asset HTTP ${response.status}: ${url}`);
   options.signal?.throwIfAborted();
-  if (separator < 0) return response;
-  const index = Number(url.slice(separator + ART_FACE_FRAGMENT.length));
-  if (index !== 0 && index !== 1) throw new Error("Invalid multipart artwork face");
-  const bitmap = await createImageBitmap(await response.blob());
-  let canvas: CanvasRaster | undefined;
-  try {
-    const horizontal = bitmap.width >= bitmap.height;
-    const extent = horizontal ? bitmap.width : bitmap.height;
-    const start = index * Math.floor(extent / 2);
-    const length = index === 0 ? Math.floor(extent / 2) : extent - start;
-    canvas = createCardScratchCanvas(
-      horizontal ? length : bitmap.width,
-      horizontal ? bitmap.height : length,
-    );
-    const context = canvas.getContext("2d");
-    if (!context) throw new Error("Card artwork needs Canvas2D");
-    context.drawImage(bitmap, horizontal ? -start : 0, horizontal ? 0 : -start);
-    const output = canvas;
-    const blob =
-      "convertToBlob" in output
-        ? await output.convertToBlob({ type: "image/png" })
-        : await new Promise<Blob>((resolve, reject) =>
-            output.toBlob(
-              (value) =>
-                value ? resolve(value) : reject(new Error("Card artwork could not be cropped")),
-              "image/png",
-            ),
-          );
-    options.signal?.throwIfAborted();
-    return new Response(blob);
-  } finally {
-    if (canvas) closeCardScratchCanvas(canvas);
-    bitmap.close();
-  }
+  return response;
 }
 
 setAssetFetcher(resolveCardGlintAsset);
@@ -111,7 +73,7 @@ export function ensureCardGlintFont(asset: CardGlintFontAsset): Promise<void> {
 }
 
 export function ensureCardGlintFonts(): Promise<void> {
-  fonts ??= Promise.all([...canvasFontAssets, ...retroFontAssets].map(ensureCardGlintFont))
+  fonts ??= Promise.all(canvasFontAssets.map(ensureCardGlintFont))
     .then(() => undefined)
     .catch((error: unknown) => {
       fonts = undefined;

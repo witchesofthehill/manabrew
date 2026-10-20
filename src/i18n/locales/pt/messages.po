@@ -19,7 +19,7 @@ msgid "{0} damage"
 msgstr "{0} de dano"
 
 #: src/components/game/RulesPreviewAccessibility.tsx:92
-#: src/pixi/cardPreview/previewMechanics.ts:97
+#: src/pixi/cardPreview/previewMechanics.ts:98
 msgid "Active level"
 msgstr "Nível ativo"
 
@@ -27,7 +27,7 @@ msgstr "Nível ativo"
 msgid "Base ability"
 msgstr "Habilidade base"
 
-#: src/pixi/cardPreview/previewMechanics.ts:99
+#: src/pixi/cardPreview/previewMechanics.ts:100
 msgid "Current characteristics"
 msgstr "Características atuais"
 
@@ -41,7 +41,7 @@ msgstr "P/R atuais: {0}/{1}"
 msgid "Current power and toughness"
 msgstr "Poder e resistência atuais"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1639
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1645
 msgid "Defense"
 msgstr "Defesa"
 
@@ -50,11 +50,11 @@ msgstr "Defesa"
 msgid "Effect text unavailable"
 msgstr "Texto do efeito indisponível"
 
-#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:587
+#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:588
 msgid "Face-down card"
 msgstr "Card virado para baixo"
 
-#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:589
+#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:590
 msgid "Face-down permanent"
 msgstr "Permanente virado para baixo"
 
@@ -67,7 +67,7 @@ msgid "Flip front · F"
 msgstr "Virar para a face · F"
 
 #: src/components/game/RulesPreviewAccessibility.tsx:93
-#: src/pixi/cardPreview/previewMechanics.ts:97
+#: src/pixi/cardPreview/previewMechanics.ts:98
 msgid "Inactive level"
 msgstr "Nível inativo"
 
@@ -80,11 +80,11 @@ msgstr "Nível"
 msgid "Level {0}"
 msgstr "Nível {0}"
 
-#: src/pixi/cardPreview/previewMechanics.ts:95
+#: src/pixi/cardPreview/previewMechanics.ts:96
 msgid "Locked"
 msgstr "Trancada"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1638
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1644
 msgid "Loyalty"
 msgstr "Lealdade"
 
@@ -96,11 +96,11 @@ msgstr "Custo de mana"
 msgid "Not prototyped"
 msgstr "Não conjurado como protótipo"
 
-#: src/pixi/cardPreview/previewMechanics.ts:124
+#: src/pixi/cardPreview/previewMechanics.ts:125
 msgid "Not suspended"
 msgstr "Não suspenso"
 
-#: src/pixi/cardPreview/previewMechanics.ts:101
+#: src/pixi/cardPreview/previewMechanics.ts:102
 msgid "On an Adventure"
 msgstr "Em uma Aventura"
 
@@ -112,7 +112,7 @@ msgstr "Em uma Aventura · as ações disponíveis estão na metade de mágica"
 msgid "Original printing · generated frame unavailable"
 msgstr ""
 
-#: src/pixi/cardPreview/previewMechanics.ts:99
+#: src/pixi/cardPreview/previewMechanics.ts:100
 msgid "Printed alternative"
 msgstr "Alternativa impressa"
 
@@ -124,7 +124,7 @@ msgstr "Face impressa · o estado atual corresponde à outra face"
 msgid "Printed power and toughness"
 msgstr "Poder e resistência impressos"
 
-#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:614
+#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:615
 msgid "Prototype"
 msgstr "Protótipo"
 
@@ -140,11 +140,11 @@ msgstr "Solucionado · ativo"
 msgid "Solved ability"
 msgstr "Habilidade de caso solucionado"
 
-#: src/pixi/cardPreview/previewMechanics.ts:127
+#: src/pixi/cardPreview/previewMechanics.ts:128
 msgid "Suspended"
 msgstr "Suspenso"
 
-#: src/pixi/cardPreview/previewMechanics.ts:128
+#: src/pixi/cardPreview/previewMechanics.ts:129
 msgid "Suspended · {time} time counters"
 msgstr "Suspenso · {time} marcadores temporais"
 
@@ -152,7 +152,7 @@ msgstr "Suspenso · {time} marcadores temporais"
 msgid "To solve"
 msgstr "Para solucionar"
 
-#: src/pixi/cardPreview/previewMechanics.ts:95
+#: src/pixi/cardPreview/previewMechanics.ts:96
 msgid "Unlocked"
 msgstr "Destrancada"
 

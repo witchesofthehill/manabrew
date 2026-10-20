@@ -38,6 +38,7 @@ import { createGeneratedCardTexture } from "@/pixi/generatedCardTexture";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { RING_ABILITIES, zoneBadgeId } from "@/components/game/game.constants";
 import { intentIsHostile } from "@/types/promptType";
+import { gameCardFaceIndex } from "@/lib/gameCard";
 
 const BOT_ICON_NAME = "robot-antennas";
 const SKULL_ICON_NAME = "skull-crossed-bones";
@@ -1004,7 +1005,7 @@ export class PlayerHudCapsule {
           card.identity.name,
           card.identity.setCode,
           card.identity.cardNumber,
-          card.isTransformed,
+          gameCardFaceIndex(card),
           generated,
           locale,
           tier,
@@ -1029,7 +1030,7 @@ export class PlayerHudCapsule {
       return;
     }
     const deckCard = asGameDeckCard(useGameStore.getState().gameDecks, card);
-    const faceIndex = card.isTransformed ? 1 : 0;
+    const faceIndex = gameCardFaceIndex(card);
     if (
       generated &&
       (sprite.texture === this.handBackTexture || sprite.texture === Texture.EMPTY)

@@ -97,9 +97,6 @@ pub struct ActivatableAbilityInfo {
     pub level_up: Option<LevelUpKind>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
-    pub face_index: Option<u8>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
     pub cost: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]

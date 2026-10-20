@@ -214,7 +214,6 @@ export class CardLiveHighlight extends Container {
       !this.renderable ||
       this.alpha <= 0 ||
       !source.visible ||
-      !source.renderable ||
       source.alpha <= 0 ||
       !this.parent ||
       document.hidden ||

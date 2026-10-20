@@ -95,14 +95,10 @@ export function buildDevDialogFixtures(
           sourceId: card.id,
           controllerId: index === 0 ? me.id : targetPlayer.id,
           ownerId: index === 0 ? me.id : targetPlayer.id,
-          identity: card.identity,
-          foil: card.foil,
-          cosmetics: card.cosmetics,
+          sourceCard: card,
           text: index === 0 ? "Counter target spell." : "Draw two cards.",
           isPermanentSpell: index === 1,
           isCasting: index === 0,
-          isDoubleFaced: false,
-          faceIndex: 0,
           targets: [],
         }));
   const cardById = new Map(cards.map((card) => [card.id, card]));

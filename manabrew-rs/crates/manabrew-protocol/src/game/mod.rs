@@ -445,24 +445,15 @@ pub struct StackObjectDto {
     pub source_id: String,
     pub controller_id: String,
     pub owner_id: String,
-    pub identity: CardIdentity,
-    #[serde(default)]
-    pub foil: bool,
-    #[serde(
-        default,
-        deserialize_with = "crate::deck_dto::CardCosmetics::deserialize_optional",
-        skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
-    pub cosmetics: Option<crate::deck_dto::CardCosmetics>,
+    pub identity: Option<CardIdentity>,
     pub text: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub source_ability_text: Option<String>,
     pub is_permanent_spell: bool,
     pub is_casting: bool,
-    pub is_double_faced: bool,
-    pub face_index: u8,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub source_card: Option<CardDto>,

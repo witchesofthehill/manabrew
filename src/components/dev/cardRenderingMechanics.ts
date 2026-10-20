@@ -41,7 +41,6 @@ export function cardRenderingMechanicActions(
           label,
           abilityText: text,
           cost,
-          faceIndex,
           abilityIndex,
           isManaAbility: /^Add\b/.test(label),
         },
@@ -66,7 +65,7 @@ export function cardRenderingMechanicActions(
                 ? `Cast ${face?.name ?? door}`
                 : `Unlock ${face?.name ?? door}`,
             cost: face?.mana_cost,
-            faceIndex: index,
+            faceIndex: card.zoneId === "hand" && index === 0 ? 0 : undefined,
             mode:
               card.zoneId === "hand"
                 ? index === 0
@@ -88,7 +87,7 @@ export function cardRenderingMechanicActions(
           kind: "cast",
           label: `Cast ${info.card_faces?.[index]?.name ?? "spell"}`,
           cost: info.card_faces?.[index]?.mana_cost,
-          faceIndex: index,
+          faceIndex: index === 0 ? 0 : undefined,
           mode: index === 1 ? { type: "adventure" } : { type: "normal" },
         },
         index,
@@ -127,7 +126,6 @@ export function cardRenderingMechanicActions(
           kind: "ability",
           label: "Level up",
           levelUp: "creature",
-          faceIndex: 0,
           abilityIndex: 0,
           abilityText: (info.oracle_text ?? "").split("\n")[0],
         },
@@ -142,10 +140,7 @@ export function cardRenderingMechanicActions(
         .filter((line) => line.includes(":"))) {
         const abilityIndex = actions.length;
         actions.push(
-          action(
-            { kind: "ability", label: text, faceIndex: 0, abilityIndex, abilityText: text },
-            abilityIndex,
-          ),
+          action({ kind: "ability", label: text, abilityIndex, abilityText: text }, abilityIndex),
         );
       }
     }

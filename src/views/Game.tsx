@@ -3,7 +3,7 @@ import { locateVisibleZone, visibleZoneCards, zoneLocationKey } from "@/lib/zone
 import { useGameStore } from "@/stores/useGameStore";
 import { useServerStore } from "@/stores/useServerStore";
 import { asDeckCard } from "@/lib/decks";
-import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
+import { gameCardFaceIndex, GAME_CARD_DEFAULTS } from "@/lib/gameCard";
 import { partitionBoardTargets } from "@/lib/boardTargets";
 import { useGameUIStore } from "@/stores/useGameUIStore";
 import { useKeybindings } from "@/hooks/useKeybindings";
@@ -468,7 +468,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     abilityText: a.description,
     isManaAbility: a.isManaAbility,
     levelUp: a.levelUp,
-    faceIndex: a.faceIndex,
     cost: a.cost,
     displayManaLetters: a.displayManaLetters,
     colorChoice: a.colorChoice,
@@ -515,7 +514,6 @@ export default function Game({ exitTo }: GameProps = {}) {
           description: a.description,
           isManaAbility: true,
           levelUp: a.levelUp,
-          faceIndex: a.faceIndex,
           cost: a.cost,
           producedMana: a.producedMana,
           actionId: a.id,
@@ -1846,7 +1844,9 @@ export default function Game({ exitTo }: GameProps = {}) {
   const previewShowBackFace =
     previewFaceOverride && previewFaceOverride.cardId === previewFaceCard?.id
       ? previewFaceOverride.showBackFace
-      : (previewFaceCard?.isTransformed ?? false);
+      : previewFaceCard
+        ? gameCardFaceIndex(previewFaceCard) === 1
+        : false;
   const hoveredCardActions = useMemo(
     () => (livePreviewCard ? getCardActions(livePreviewCard) : []),
     [getCardActions, livePreviewCard],
@@ -2099,7 +2099,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       const card = currentPreviewFaceCard.current;
       if (card) {
         setPreviewFaceOverride(
-          target.showBackFace === card.isTransformed
+          target.showBackFace === (gameCardFaceIndex(card) === 1)
             ? null
             : { cardId: card.id, showBackFace: target.showBackFace },
         );

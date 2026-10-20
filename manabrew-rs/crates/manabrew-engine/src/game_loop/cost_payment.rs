@@ -857,20 +857,31 @@ impl GameLoop {
                     } else {
                         crate::cost::get_sub_counter_targets(game, player, card_id, type_filter)
                             .into_iter()
-                            .find(|cid| game.card(*cid).counter_count(counter_type) >= amount_n)
+                            .find(|cid| {
+                                game.card(*cid).counter_count(counter_type) >= amount_n
+                                    && (amount_n <= 0
+                                        || crate::replacement::replace_remove_counter::can_remove_counters(
+                                            game, *cid, counter_type,
+                                        ))
+                            })
                     };
-                    if let Some(target) = target {
-                        crate::ability::effects::effect_context::remove_counter_with_context(
-                            game,
-                            &mut self.trigger_handler,
-                            target,
-                            counter_type,
-                            amount_n,
-                            RunParams {
-                                player: Some(player),
-                                ..Default::default()
-                            },
-                        );
+                    let Some(target) = target else {
+                        payment_ok = false;
+                        break;
+                    };
+                    if !crate::ability::effects::effect_context::pay_remove_counter_cost(
+                        game,
+                        Some(&mut self.trigger_handler),
+                        target,
+                        counter_type,
+                        amount_n,
+                        RunParams {
+                            player: Some(player),
+                            ..Default::default()
+                        },
+                    ) {
+                        payment_ok = false;
+                        break;
                     }
                 }
                 CostPart::AddCounter {
@@ -1079,7 +1090,7 @@ impl GameLoop {
                     type_filter,
                     counter_type,
                 } => {
-                    self.pay_remove_any_counter_cost(
+                    if !self.pay_remove_any_counter_cost(
                         game,
                         agents,
                         player,
@@ -1087,7 +1098,10 @@ impl GameLoop {
                         type_filter,
                         amount.resolve(game, card_id, player),
                         counter_type.as_ref(),
-                    );
+                    ) {
+                        payment_ok = false;
+                        break;
+                    }
                 }
                 CostPart::Unattach { type_filter, .. } => {
                     let target = self.choose_unattach_target(
@@ -1511,20 +1525,31 @@ impl GameLoop {
                     } else {
                         crate::cost::get_sub_counter_targets(game, player, card_id, type_filter)
                             .into_iter()
-                            .find(|cid| game.card(*cid).counter_count(counter_type) >= amount_n)
+                            .find(|cid| {
+                                game.card(*cid).counter_count(counter_type) >= amount_n
+                                    && (amount_n <= 0
+                                        || crate::replacement::replace_remove_counter::can_remove_counters(
+                                            game, *cid, counter_type,
+                                        ))
+                            })
                     };
-                    if let Some(target) = target {
-                        crate::ability::effects::effect_context::remove_counter_with_context(
-                            game,
-                            &mut self.trigger_handler,
-                            target,
-                            counter_type,
-                            amount_n,
-                            RunParams {
-                                player: Some(player),
-                                ..Default::default()
-                            },
-                        );
+                    let Some(target) = target else {
+                        payment_ok = false;
+                        break;
+                    };
+                    if !crate::ability::effects::effect_context::pay_remove_counter_cost(
+                        game,
+                        Some(&mut self.trigger_handler),
+                        target,
+                        counter_type,
+                        amount_n,
+                        RunParams {
+                            player: Some(player),
+                            ..Default::default()
+                        },
+                    ) {
+                        payment_ok = false;
+                        break;
                     }
                 }
                 CostPart::AddCounter {
@@ -1776,7 +1801,7 @@ impl GameLoop {
                     type_filter,
                     counter_type,
                 } => {
-                    self.pay_remove_any_counter_cost(
+                    if !self.pay_remove_any_counter_cost(
                         game,
                         agents,
                         player,
@@ -1784,7 +1809,10 @@ impl GameLoop {
                         type_filter,
                         amount.resolve(game, card_id, player),
                         counter_type.as_ref(),
-                    );
+                    ) {
+                        payment_ok = false;
+                        break;
+                    }
                 }
                 CostPart::Unattach { type_filter, .. } => {
                     let target = self.choose_unattach_target(
@@ -3486,7 +3514,7 @@ impl GameLoop {
         type_filter: &str,
         amount: i32,
         counter_type: Option<&crate::card::CounterType>,
-    ) {
+    ) -> bool {
         for _ in 0..amount {
             // Build candidates that have at least one counter of the required type.
             let candidates: Vec<CardId> = game
@@ -3506,13 +3534,21 @@ impl GameLoop {
                     }
                     if let Some(ct) = counter_type {
                         game.card(cid).counter_count(ct) > 0
+                            && crate::replacement::replace_remove_counter::can_remove_counters(
+                                game, cid, ct,
+                            )
                     } else {
-                        !game.card(cid).counters.is_empty()
+                        game.card(cid).counters.iter().any(|(ct, count)| {
+                            *count > 0
+                                && crate::replacement::replace_remove_counter::can_remove_counters(
+                                    game, cid, ct,
+                                )
+                        })
                     }
                 })
                 .collect();
             if candidates.is_empty() {
-                break;
+                return false;
             }
             // Let the agent choose which permanent to remove a counter from.
             let chosen = agents[player.index()]
@@ -3521,12 +3557,34 @@ impl GameLoop {
             let ct_to_remove = if let Some(ct) = counter_type {
                 ct.clone()
             } else {
-                // Pick first available counter type on the chosen card.
-                game.card(chosen).counters.keys().next().unwrap().clone()
+                let mut types: Vec<_> = game
+                    .card(chosen)
+                    .counters
+                    .iter()
+                    .filter(|(ct, count)| {
+                        **count > 0
+                            && crate::replacement::replace_remove_counter::can_remove_counters(
+                                game, chosen, ct,
+                            )
+                    })
+                    .map(|(ct, _)| ct.clone())
+                    .collect();
+                types.sort();
+                let Some(ct) = agents[player.index()].choose_counter_type(
+                    player,
+                    &types,
+                    "Select counter type",
+                ) else {
+                    return false;
+                };
+                if !types.contains(&ct) {
+                    return false;
+                }
+                ct
             };
-            crate::ability::effects::effect_context::remove_counter_with_context(
+            if !crate::ability::effects::effect_context::pay_remove_counter_cost(
                 game,
-                &mut self.trigger_handler,
+                Some(&mut self.trigger_handler),
                 chosen,
                 &ct_to_remove,
                 1,
@@ -3534,8 +3592,11 @@ impl GameLoop {
                     player: Some(player),
                     ..Default::default()
                 },
-            );
+            ) {
+                return false;
+            }
         }
+        true
     }
 
     /// Move `amount` cards from exile to graveyard as cost.

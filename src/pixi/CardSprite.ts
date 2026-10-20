@@ -18,6 +18,7 @@ import { cardTypeLine, counterColorKey, counterIconName } from "@/components/gam
 import { CARD_W, CARD_H, CARD_RADIUS } from "@/components/game/game.constants";
 import { deriveCardChoiceIndicators } from "@/components/game/game.utils";
 import { isHorizontalGameCard } from "@/lib/horizontalGameCard";
+import { gameCardFaceIndex } from "@/lib/gameCard";
 import type { Theme } from "@/hooks/useTheme";
 import { cardFrameTintHex, withAlpha } from "@/themes/gameTheme";
 import { getTheme } from "@/hooks/useTheme";
@@ -732,7 +733,7 @@ export class CardSprite extends Container {
   private imageKey(card = this.card): string {
     if (this.hasHiddenIdentity(card)) return "hidden";
     const deckCard = this.deckCard(card);
-    const faceIndex = this.previewFace ?? (card.isTransformed ? 1 : 0);
+    const faceIndex = this.previewFace ?? gameCardFaceIndex(card);
     const style = this.isBattlefield ? activeStyle : "realistic";
     const tier = this.selectRasterTier();
     return JSON.stringify([
@@ -788,7 +789,7 @@ export class CardSprite extends Container {
   // Scryfall serves horizontal-frame cards as upright 5:7 PNGs — rotate
   // the sprite 90° so the printed art reads in landscape inside the slot.
   private isHorizontal(): boolean {
-    const faceIndex = this.previewFace ?? (this.card.isTransformed ? 1 : 0);
+    const faceIndex = this.previewFace ?? gameCardFaceIndex(this.card);
     return isHorizontalGameCard(this.card, this.deckCard().layout, faceIndex);
   }
   get horizontalFrame(): boolean {
@@ -915,7 +916,7 @@ export class CardSprite extends Container {
     const card = this.card;
     const deckCard = hidden ? undefined : this.deckCard();
     const custom = this.isBattlefield && activeStyle !== "realistic" && !hidden;
-    const faceIndex = this.previewFace ?? (card.isTransformed ? 1 : 0);
+    const faceIndex = this.previewFace ?? gameCardFaceIndex(card);
     const tier = this.selectRasterTier();
     this.renderTier = tier;
     const fallback =
@@ -1065,10 +1066,10 @@ export class CardSprite extends Container {
       this.commitPreviewChange();
       return;
     }
-    const currentFace = this.previewFace ?? (this.card.isTransformed ? 1 : 0);
+    const currentFace = this.previewFace ?? gameCardFaceIndex(this.card);
     if (
       !this.previewOrientationCommit &&
-      (face ?? (this.card.isTransformed ? 1 : 0)) === currentFace &&
+      (face ?? gameCardFaceIndex(this.card)) === currentFace &&
       rulesView === this.handRulesView
     )
       return;
@@ -1126,7 +1127,7 @@ export class CardSprite extends Container {
     if (this.usesHandRulesView === active) return;
     this.handRulesView = active;
     if (!this.handRulesFace) {
-      const faceIndex = this.previewFace ?? (this.card.isTransformed ? 1 : 0);
+      const faceIndex = this.previewFace ?? gameCardFaceIndex(this.card);
       this.handRulesFace = new HandRulesCardFace(
         this.card,
         faceIndex,
@@ -1230,7 +1231,7 @@ export class CardSprite extends Container {
             rulesView: this.usesHandRulesView,
             alternateFace: spec.horizontal
               ? spec.alternateFace
-              : (this.previewFace ?? (this.card.isTransformed ? 1 : 0)) === 1,
+              : (this.previewFace ?? gameCardFaceIndex(this.card)) === 1,
           }
         : null,
       this.cw,
@@ -1278,7 +1279,7 @@ export class CardSprite extends Container {
 
   private updateHandRulesFace(): void {
     if (!this.handRulesFace || (!this.handRulesFace.visible && !this.handRulesView)) return;
-    const faceIndex = this.previewFace ?? (this.card.isTransformed ? 1 : 0);
+    const faceIndex = this.previewFace ?? gameCardFaceIndex(this.card);
     this.handRulesFace.setContent(this.card, faceIndex, this.cw, this.ch);
     this.syncHandFaceVisibility();
   }

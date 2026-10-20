@@ -15,6 +15,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { PlaymatLayer, clampPlaymatZoom } from "@/pixi/board/PlaymatLayer";
 import { computeBoardLayout } from "@/pixi/board/boardLayout";
 import { BG_ALPHA_IDLE, TABLE_RADIUS } from "@/pixi/constants";
+import { gameCardFaceIndex } from "@/lib/gameCard";
 import { hexToNum } from "@/pixi/colorUtils";
 import { loadManaSymbolTexture } from "@/pixi/manaSymbolCache";
 import { parseManaCost } from "@/pixi/manaSymbols";
@@ -234,7 +235,7 @@ export function usePlaymatPreview({
         .getCardTexture(
           asDeckCard(undefined, card),
           cardStyle === "realistic" ? "full" : "art",
-          card.isTransformed ? 1 : 0,
+          gameCardFaceIndex(card),
         )
         .then(
           () => {

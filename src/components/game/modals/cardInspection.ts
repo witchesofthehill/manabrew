@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { CardDto } from "@/protocol/game";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { gameCardFaceIndex } from "@/lib/gameCard";
 
 export interface CardInspectionState {
   rules: boolean;
@@ -14,7 +15,7 @@ export function useCardInspection() {
   const stateFor = (card: CardDto, key = card.id): CardInspectionState =>
     states[key] ?? {
       rules: defaultStyle === "rules",
-      face: card.isTransformed ? 1 : 0,
+      face: gameCardFaceIndex(card),
       rotated: false,
     };
   const change = (key: string, state: CardInspectionState) =>

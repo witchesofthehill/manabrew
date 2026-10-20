@@ -381,6 +381,8 @@ impl GameState {
                     exile_effects.push(eff_id);
                 }
             }
+            self.expire_until_lose_control_keyword_changes(card_id);
+            self.cards[card_id.index()].clear_changed_card_keyword_layers();
             self.cards[card_id.index()].zone = ZoneType::None;
             if src_zone != ZoneType::None {
                 self.remove_card_from_zone(src_zone, src_owner, card_id);
@@ -436,7 +438,9 @@ impl GameState {
         if src_zone != dest_zone {
             self.card_mut(card_id).set_solved(false);
             if !(src_zone == ZoneType::Stack && dest_zone == ZoneType::Battlefield) {
-                self.card_mut(card_id).until_lose_control_keywords.clear();
+                self.expire_until_lose_control_keyword_changes(card_id);
+                let card = self.card_mut(card_id);
+                card.clear_changed_card_keyword_layers();
             }
         }
 
@@ -446,7 +450,10 @@ impl GameState {
                 // A permanent enters under the destination player's control.
                 // This must be updated before ETB-trigger registration so
                 // triggered abilities inherit the correct controller.
-                self.cards[card_id.index()].controller = dest_owner;
+                if self.cards[card_id.index()].controller != dest_owner {
+                    self.expire_until_lose_control_keyword_changes(card_id);
+                }
+                self.cards[card_id.index()].set_controller(dest_owner);
                 self.cards[card_id.index()].enter_battlefield();
                 if replacement_marked_etb_tapped {
                     self.cards[card_id.index()].set_tapped(true);
@@ -1685,12 +1692,21 @@ impl GameState {
         let old_controller = card.controller;
         let zone = card.zone;
 
+        self.expire_until_lose_control_keyword_changes(card_id);
         // Move between zone lists
         if zone != ZoneType::None {
             self.remove_card_from_zone(zone, old_controller, card_id);
             self.add_card_to_zone(zone, new_controller, card_id);
         }
         self.cards[card_id.index()].set_controller(new_controller);
+    }
+
+    fn expire_until_lose_control_keyword_changes(&mut self, host: CardId) {
+        let changes =
+            std::mem::take(&mut self.cards[host.index()].until_lose_control_keyword_changes);
+        for (target, timestamp) in changes {
+            self.cards[target.index()].remove_changed_card_keywords_at(timestamp, 0);
+        }
     }
 
     /// Attach `aura_id` to `target_id`.
@@ -1732,6 +1748,8 @@ impl GameState {
         let src_zone = card.zone;
         let src_owner = card.controller;
 
+        self.expire_until_lose_control_keyword_changes(card_id);
+        self.cards[card_id.index()].clear_changed_card_keyword_layers();
         if src_zone != ZoneType::None {
             self.remove_card_from_zone(src_zone, src_owner, card_id);
         }

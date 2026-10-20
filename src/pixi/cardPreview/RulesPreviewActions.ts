@@ -20,6 +20,7 @@ interface ActionsContent {
   hint: string;
   label: string;
   onSelectAction: (action: HandActionOption) => void;
+  onHoverAction?: (index: number) => void;
   embedded?: boolean;
   ownsScroll?: boolean;
   compact?: boolean;
@@ -246,6 +247,7 @@ export class RulesPreviewActions extends Container {
           if (event.pointerType === "touch" || this.pointerId !== null) return;
           this.focusedIndex = null;
           this.hoveredIndex = index;
+          spec.onHoverAction?.(index);
           this.drawFocus();
         });
         row.on("pointerleave", () => {

@@ -660,8 +660,11 @@ impl GameState {
 
     /// Return the next monotonic effect timestamp.
     pub fn next_effect_timestamp(&mut self) -> i64 {
-        let ts = self.next_effect_timestamp;
-        self.next_effect_timestamp = self.next_effect_timestamp.saturating_add(1);
+        let ts = self
+            .next_effect_timestamp
+            .max(self.next_zone_timestamp as i64);
+        self.next_effect_timestamp = ts.saturating_add(1);
+        self.next_zone_timestamp = self.next_effect_timestamp as u64;
         ts
     }
 

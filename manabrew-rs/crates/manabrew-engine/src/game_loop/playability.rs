@@ -23,6 +23,8 @@ impl GameLoop {
             sa.ir.card_state_name = Some("Secondary".to_string());
         } else if host.is_prototyped() {
             sa.alt_cost = Some(crate::spellability::AlternativeCost::Prototype);
+        } else if let Some(door) = host.room_state {
+            sa.ir.card_state_name = Some(format!("{door:?}"));
         }
         if !crate::staticability::static_ability_continuous::can_play_spell_from_zone(
             game, player, host, &sa,
@@ -30,6 +32,18 @@ impl GameLoop {
             return false;
         }
         sa.restriction.variables.set_zone(host.zone);
+        let alt_mana_cost = game
+            .cards_in_zone(ZoneType::Battlefield, player)
+            .iter()
+            .chain(game.cards_in_zone(ZoneType::Command, player))
+            .find_map(|&source_id| {
+                let source = game.card(source_id);
+                source.static_abilities.iter().find_map(|st_ab| {
+                    crate::staticability::static_ability_continuous::may_play_alt_mana_cost(
+                        st_ab, source, host, game, &sa,
+                    )
+                })
+            });
         if (must_be_instant && !sa.ir.flash)
             || !crate::spellability::spell::can_play(&sa, game)
             || crate::staticability::static_ability_cant_be_cast::cant_be_cast_ability_in_context(
@@ -60,6 +74,8 @@ impl GameLoop {
         }
         let mana = if host.is_prototyped() {
             host.mana_cost.clone()
+        } else if let Some(cost) = alt_mana_cost {
+            forge_foundation::ManaCost::parse(&cost)
         } else {
             cost.map(Self::mana_from_cost)
                 .unwrap_or_else(|| host.mana_cost.clone())
@@ -163,30 +179,13 @@ impl GameLoop {
                     })
                 })
         };
-        // First MayPlay alt-cost (e.g. Airbend's `MayPlayAltManaCost$ 2`)
-        // granted to `card_id`. Returns the cost string if any.
-        let may_play_alt_cost = |card_id: CardId| -> Option<String> {
-            let card = game.card(card_id);
-            game.cards_in_zone(ZoneType::Battlefield, player)
-                .iter()
-                .chain(game.cards_in_zone(ZoneType::Command, player).iter())
-                .find_map(|&source_id| {
-                    let source = game.card(source_id);
-                    source.static_abilities.iter().find_map(|sa| {
-                        crate::staticability::static_ability_continuous::may_play_alt_mana_cost(
-                            sa, source, card, game,
-                        )
-                    })
-                })
-        };
         // Count distinct MayPlay statics that grant permission to cast
         // `card_id`. Java's `GameActionUtil.getMayPlaySpellOptions` enumerates
         // one alternative SA per `CardPlayOption` returned by
         // `source.mayPlay(activator)`, so the same exiled card can produce
         // multiple play options when several statics grant permission (e.g.
         // multiple airbend Effects each remembering it).
-        let count_may_play_grants = |card_id: CardId| -> usize {
-            let card = game.card(card_id);
+        let count_may_play_grants = |card: &crate::card::Card| -> usize {
             game.cards_in_zone(ZoneType::Battlefield, player)
                 .iter()
                 .chain(game.cards_in_zone(ZoneType::Command, player).iter())
@@ -215,6 +214,28 @@ impl GameLoop {
                 card.zone,
                 ZoneType::Battlefield | ZoneType::Stack | ZoneType::None
             ) {
+                continue;
+            }
+            if card.is_room() {
+                for (door, mode) in [
+                    (
+                        forge_foundation::CardStateName::LeftSplit,
+                        crate::agent::PlayCardMode::Normal,
+                    ),
+                    (
+                        forge_foundation::CardStateName::RightSplit,
+                        crate::agent::PlayCardMode::RoomRightSplit,
+                    ),
+                ] {
+                    let mut host = card.clone();
+                    host.set_room_state(door);
+                    if self.can_play_alternate_characteristics(game, player, &host, must_be_instant)
+                    {
+                        for _ in 0..count_may_play_grants(&host).max(1) {
+                            playable.push(crate::agent::PlayOption::with_mode(card.id, mode));
+                        }
+                    }
+                }
                 continue;
             }
             let adventure = card.is_adventure_card() && !card.is_on_adventure();
@@ -249,23 +270,6 @@ impl GameLoop {
         for &card_id in hand {
             let card = game.card(card_id);
             if card.is_room() {
-                for (door, mode) in [
-                    (
-                        forge_foundation::CardStateName::LeftSplit,
-                        crate::agent::PlayCardMode::Normal,
-                    ),
-                    (
-                        forge_foundation::CardStateName::RightSplit,
-                        crate::agent::PlayCardMode::RoomRightSplit,
-                    ),
-                ] {
-                    let mut host = card.clone();
-                    host.set_room_state(door);
-                    if self.can_play_alternate_characteristics(game, player, &host, must_be_instant)
-                    {
-                        playable.push(crate::agent::PlayOption::with_mode(card_id, mode));
-                    }
-                }
                 continue;
             }
             if card.is_land() {
@@ -963,6 +967,7 @@ impl GameLoop {
         for card_id in graveyard {
             let card = game.card(card_id);
             if !card.is_land()
+                && !card.is_room()
                 && self.can_play_alternate_characteristics(game, player, card, must_be_instant)
             {
                 playable.push(crate::agent::PlayOption::with_mode(
@@ -1051,6 +1056,9 @@ impl GameLoop {
             let can_may_play = can_may_play_from_static(card_id)
                 || (card.is_on_adventure() && card.owner == player);
             if can_may_play {
+                if card.is_room() {
+                    continue;
+                }
                 if card.is_land() {
                     let land_sa = SpellAbility::new_land(Some(card_id), player);
                     if !must_be_instant
@@ -1065,59 +1073,8 @@ impl GameLoop {
                     continue;
                 }
 
-                if must_be_instant && !has_flash_permission(card_id) {
-                    continue;
-                }
-                let alt_cost_str = may_play_alt_cost(card_id);
-                let mut cast_sa =
-                    crate::spellability::build_spell_ability_for_card_cast(game, card_id, player);
-                if !crate::staticability::static_ability_continuous::can_play_spell_from_zone(
-                    game, player, card, &cast_sa,
-                ) {
-                    continue;
-                }
-                cast_sa.restriction.variables.set_zone(ZoneType::Exile);
-                if crate::staticability::static_ability_cant_be_cast::cant_be_cast_ability_in_context(
-                    &game.cards,
-                    &cast_sa,
-                    &crate::staticability::static_ability_cant_be_cast::restriction_host(card),
-                    player,
-                    Some(game),
-                ) {
-                    continue;
-                }
-                if !crate::spellability::spell::can_play(&cast_sa, game) {
-                    continue;
-                }
-                if let Some(ref tr) = cast_sa.target_restrictions {
-                    let min_targets = tr.get_min_targets(game, &cast_sa);
-                    if min_targets > 0
-                        && !target_restrictions::has_candidates_in_spell_ability_chain(
-                            game, player, &cast_sa,
-                        )
-                    {
-                        continue;
-                    }
-                }
-                let available_mana = mana::calculate_available_mana_for_casting_excluding(
-                    self.pool(player),
-                    game,
-                    player,
-                    Some(card_id),
-                );
-                let cost_adj = crate::cost::cost_adjustment::compute_cost_adjustment(
-                    game,
-                    card,
-                    player,
-                    ZoneType::Exile,
-                );
-                let alt_cost_mc = alt_cost_str
-                    .as_ref()
-                    .map(|s| forge_foundation::ManaCost::parse(s));
-                let base_cost = alt_cost_mc.as_ref().unwrap_or(&card.mana_cost);
-                let adjusted = cost_adj.apply(base_cost);
-                if available_mana.can_pay(&adjusted) {
-                    let grant_count = count_may_play_grants(card_id).max(1);
+                if self.can_play_alternate_characteristics(game, player, card, must_be_instant) {
+                    let grant_count = count_may_play_grants(card).max(1);
                     for _ in 0..grant_count {
                         playable.push(crate::agent::PlayOption {
                             card_id,
@@ -1184,6 +1141,9 @@ impl GameLoop {
                     alt_cost_index: 0,
                 });
             } else if card.has_keyword(crate::card::KEYWORD_WARP_EXILED) {
+                if card.is_room() {
+                    continue;
+                }
                 // Warp: exiled card can be cast for its normal mana cost
                 if must_be_instant && !has_flash_permission(card_id) {
                     continue;

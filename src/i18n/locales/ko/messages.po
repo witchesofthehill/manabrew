@@ -19,7 +19,7 @@ msgid "{0} damage"
 msgstr "피해 {0}"
 
 #: src/components/game/RulesPreviewAccessibility.tsx:92
-#: src/pixi/cardPreview/previewMechanics.ts:97
+#: src/pixi/cardPreview/previewMechanics.ts:98
 msgid "Active level"
 msgstr "활성 레벨"
 
@@ -27,7 +27,7 @@ msgstr "활성 레벨"
 msgid "Base ability"
 msgstr "기본 능력"
 
-#: src/pixi/cardPreview/previewMechanics.ts:99
+#: src/pixi/cardPreview/previewMechanics.ts:100
 msgid "Current characteristics"
 msgstr "현재 특성"
 
@@ -41,7 +41,7 @@ msgstr "현재 공격력/방어력: {0}/{1}"
 msgid "Current power and toughness"
 msgstr "현재 공격력 및 방어력"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1639
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1645
 msgid "Defense"
 msgstr "방어"
 
@@ -50,11 +50,11 @@ msgstr "방어"
 msgid "Effect text unavailable"
 msgstr "효과 텍스트를 사용할 수 없음"
 
-#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:587
+#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:588
 msgid "Face-down card"
 msgstr "뒷면인 카드"
 
-#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:589
+#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:590
 msgid "Face-down permanent"
 msgstr "뒷면인 영구물"
 
@@ -67,7 +67,7 @@ msgid "Flip front · F"
 msgstr "앞면으로 뒤집기 · F"
 
 #: src/components/game/RulesPreviewAccessibility.tsx:93
-#: src/pixi/cardPreview/previewMechanics.ts:97
+#: src/pixi/cardPreview/previewMechanics.ts:98
 msgid "Inactive level"
 msgstr "비활성 레벨"
 
@@ -80,11 +80,11 @@ msgstr "레벨"
 msgid "Level {0}"
 msgstr "레벨 {0}"
 
-#: src/pixi/cardPreview/previewMechanics.ts:95
+#: src/pixi/cardPreview/previewMechanics.ts:96
 msgid "Locked"
 msgstr "잠김"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1638
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1644
 msgid "Loyalty"
 msgstr "충성도"
 
@@ -96,11 +96,11 @@ msgstr "마나 비용"
 msgid "Not prototyped"
 msgstr "프로토타입 미적용"
 
-#: src/pixi/cardPreview/previewMechanics.ts:124
+#: src/pixi/cardPreview/previewMechanics.ts:125
 msgid "Not suspended"
 msgstr "유예 중이 아님"
 
-#: src/pixi/cardPreview/previewMechanics.ts:101
+#: src/pixi/cardPreview/previewMechanics.ts:102
 msgid "On an Adventure"
 msgstr "모험 중"
 
@@ -112,7 +112,7 @@ msgstr "모험 중 · 가능한 행동은 주문 쪽에 표시됩니다"
 msgid "Original printing · generated frame unavailable"
 msgstr ""
 
-#: src/pixi/cardPreview/previewMechanics.ts:99
+#: src/pixi/cardPreview/previewMechanics.ts:100
 msgid "Printed alternative"
 msgstr "인쇄된 대체 특성"
 
@@ -124,7 +124,7 @@ msgstr "인쇄된 면 · 현재 상태는 반대쪽 면에 적용됩니다"
 msgid "Printed power and toughness"
 msgstr "인쇄된 공격력 및 방어력"
 
-#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:614
+#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:615
 msgid "Prototype"
 msgstr "프로토타입"
 
@@ -140,11 +140,11 @@ msgstr "해결됨 · 활성"
 msgid "Solved ability"
 msgstr "해결 후 능력"
 
-#: src/pixi/cardPreview/previewMechanics.ts:127
+#: src/pixi/cardPreview/previewMechanics.ts:128
 msgid "Suspended"
 msgstr "유예 중"
 
-#: src/pixi/cardPreview/previewMechanics.ts:128
+#: src/pixi/cardPreview/previewMechanics.ts:129
 msgid "Suspended · {time} time counters"
 msgstr "유예 중 · 시간 카운터 {time}개"
 
@@ -152,7 +152,7 @@ msgstr "유예 중 · 시간 카운터 {time}개"
 msgid "To solve"
 msgstr "해결 조건"
 
-#: src/pixi/cardPreview/previewMechanics.ts:95
+#: src/pixi/cardPreview/previewMechanics.ts:96
 msgid "Unlocked"
 msgstr "잠금 해제됨"
 

@@ -9,6 +9,7 @@ import { releaseCardRaster, selectCardRenderTier } from "@/lib/cardRenderTypes";
 import { GAME_CARD_SIZES } from "@/components/game/game.constants";
 import { overlayResolution } from "@/pixi/overlay/overlayRuntime";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { gameCardFaceIndex } from "@/lib/gameCard";
 
 export type GamePrefetchMode = "visible" | "full";
 
@@ -110,7 +111,7 @@ export function useGamePrefetch(mode: GamePrefetchMode): void {
             )
             .flatMap((card) => {
               const deckCard = asGameDeckCard(current.gameDecks, card);
-              const faceIndex = card.isTransformed ? 1 : 0;
+              const faceIndex = gameCardFaceIndex(card);
               const faces: (0 | 1)[] = deckCard.backFace
                 ? [faceIndex, faceIndex === 0 ? 1 : 0]
                 : [faceIndex];

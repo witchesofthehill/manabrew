@@ -626,12 +626,6 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                         | manabrew_engine::agent::PlayCardMode::Alternative(
                             manabrew_engine::spellability::AlternativeCost::Prototype,
                         ) => Some(0),
-                        manabrew_engine::agent::PlayCardMode::Adventure
-                        | manabrew_engine::agent::PlayCardMode::RoomRightSplit
-                        | manabrew_engine::agent::PlayCardMode::BackFaceLand => Some(1),
-                        manabrew_engine::agent::PlayCardMode::UnlockDoor { door } => Some(
-                            u8::from(door == forge_foundation::CardStateName::RightSplit),
-                        ),
                         _ => None,
                     },
                 },
@@ -654,12 +648,9 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                         a.produced_mana_amount,
                     )
                     .into_iter()
-                    .map(|(id, mut info)| {
-                        info.face_index = a.face_index;
-                        AvailableAction {
-                            id,
-                            kind: AvailableActionKind::ActivateAbility(info),
-                        }
+                    .map(|(id, info)| AvailableAction {
+                        id,
+                        kind: AvailableActionKind::ActivateAbility(info),
                     }),
                 );
             } else {
@@ -678,7 +669,6 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                         } else {
                             None
                         },
-                        face_index: a.face_index,
                         produced_mana: None,
                     }),
                 });

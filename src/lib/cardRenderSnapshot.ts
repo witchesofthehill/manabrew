@@ -19,6 +19,7 @@ import { hasIntegratedArtwork } from "@/lib/cardArtworkPrinting";
 import { previewDtoDeckCard } from "@/lib/scryfall.utils";
 import { localizeRulesPreviewText } from "@/pixi/cardPreview/rulesCardPreviewPresentation";
 import { printedPrototype, type PrototypeCharacteristics } from "@/lib/cardPrototype";
+import { gameCardFaceIndex } from "@/lib/gameCard";
 import {
   peekArchivedToken,
   prefetchTokenArchive,
@@ -40,7 +41,7 @@ interface LiveCard {
   tokenScript?: string;
   isToken: boolean;
   isCopy: boolean;
-  isTransformed: boolean;
+  faceIndex: 0 | 1;
   isDoubleFaced: boolean;
   hasCharacteristics: boolean;
   manaCost: string;
@@ -163,6 +164,13 @@ export function captureCardInput(request: CardRenderRequest): CardRenderInput {
     throw new Error("Card rendering requires a visible card identity");
   }
   const emptyCounter = card?.zone === "battlefield" ? "0" : undefined;
+  const activeFaceIndex = card
+    ? card.faceIndex === undefined
+      ? gameCardFaceIndex(card)
+      : card.faceIndex === 1
+        ? 1
+        : 0
+    : undefined;
   const live: LiveCard | undefined =
     card && !previewDeck
       ? {
@@ -172,7 +180,7 @@ export function captureCardInput(request: CardRenderRequest): CardRenderInput {
           tokenScript: card.identity.tokenScript,
           isToken: card.identity.isToken,
           isCopy: card.isCopy,
-          isTransformed: card.isTransformed,
+          faceIndex: activeFaceIndex ?? 0,
           isDoubleFaced: card.isDoubleFaced,
           hasCharacteristics: card.types.length > 0 || card.text.length > 0,
           manaCost: normalizedManaCost(card.effectiveManaCost ?? card.manaCost),
@@ -200,8 +208,7 @@ export function captureCardInput(request: CardRenderRequest): CardRenderInput {
     card: live && Object.freeze(live),
     deckCard: deckCard ? structuredClone(deckCard) : undefined,
     faceIndex,
-    liveFaceIndex:
-      request.liveFaceIndex ?? (card?.faceIndex === 1 ? 1 : card?.faceIndex === 0 ? 0 : undefined),
+    liveFaceIndex: request.liveFaceIndex ?? activeFaceIndex,
     locale: useScryfallStore.getState().locale,
     cosmetics: normalizeCardCosmetics(card ? card.cosmetics : deckCard?.identity.cosmetics),
   });
@@ -368,7 +375,7 @@ function hasPrintedBaseline(
   if (info?.card_faces?.length && sameName(card.name, info.name)) return true;
   return (
     index === 1 &&
-    card.isTransformed &&
+    card.faceIndex === 1 &&
     sameName(card.name, info?.card_faces?.[0]?.name ?? deckCard?.identity.name)
   );
 }
@@ -456,7 +463,7 @@ function applyLiveFace(
       normalized(card.name) === normalized(printed?.name ?? "") ||
       (Boolean(info?.card_faces?.length) &&
         normalized(card.name) === normalized(info?.name ?? "")) ||
-      (card.isTransformed &&
+      (card.faceIndex === 1 &&
         normalized(card.name) === normalized(info?.card_faces?.[0]?.name ?? ""))
         ? face.name
         : card.name,
@@ -544,13 +551,13 @@ export async function prepareCard(input: CardRenderInput): Promise<PreparedCard>
     Boolean(deckCard?.backFace) ||
     input.card?.isDoubleFaced ||
     deckCard?.isDoubleFaced;
-  const faceIndex = combined ? 0 : (input.faceIndex ?? (input.card?.isTransformed ? 1 : 0));
+  const faceIndex = combined ? 0 : (input.faceIndex ?? input.liveFaceIndex ?? 0);
   if (faceIndex === 1 && !flippable)
     throw new CardRenderError(
       { mode: "original", reason: "invalid-faces", layout, faceIndex },
       "This card has no reverse face",
     );
-  if (input.card?.isTransformed && faceIndex === 0 && !info && !deckCard) {
+  if (input.card?.faceIndex === 1 && faceIndex === 0 && !info && !deckCard) {
     throw new CardRenderError(
       { mode: "original", reason: "invalid-faces", layout, faceIndex },
       "The original face is unavailable",
@@ -593,7 +600,7 @@ export async function prepareCard(input: CardRenderInput): Promise<PreparedCard>
     );
   }
   if (faceIndex >= faces.length) {
-    if (input.card?.isTransformed && faceIndex === 1)
+    if (input.card?.faceIndex === 1 && faceIndex === 1)
       faces.push(faceSnapshot(undefined, undefined, 1));
     else
       throw new CardRenderError(
@@ -602,7 +609,7 @@ export async function prepareCard(input: CardRenderInput): Promise<PreparedCard>
       );
   }
   if (input.card?.hasCharacteristics) {
-    const liveIndex = input.card.isTransformed ? 1 : 0;
+    const liveIndex = input.liveFaceIndex ?? input.card.faceIndex;
     if (combined) {
       const selected =
         (layout === "adventure" ? input.liveFaceIndex : undefined) ??

@@ -14,6 +14,7 @@ export function previewActionFace(action: HandActionOption): number | undefined 
   if (action.faceIndex !== undefined) return action.faceIndex;
   if (action.mode?.type === "unlockDoor") return action.mode.door === "left" ? 0 : 1;
   if (action.mode?.type === "adventure") return 1;
+  if (action.mode?.type === "roomRightSplit" || action.mode?.type === "backFaceLand") return 1;
   return undefined;
 }
 

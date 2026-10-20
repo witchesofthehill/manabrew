@@ -740,14 +740,14 @@ public final class ManaBrewInteractiveSession {
                         : "tap:" + cardId + ":" + abilityIndex;
                 actionList.add(new PaymentAction_activateManaAbility(
                         actionId, cardId, abilityIndex, description, true, null,
-                        actionFaceIndex(sa), cost, choice.producedMana));
+                        cost, choice.producedMana));
             }
         }
 
         for (final Card card : convokeSources) {
             final String cardId = SnapshotExtractor.javaCardId(card);
             actionList.add(new PaymentAction_activateManaAbility(
-                    "tap:" + cardId, cardId, 0, card.getName(), true, null, null, null, null));
+                    "tap:" + cardId, cardId, 0, card.getName(), true, null, null, null));
         }
         for (final Card card : waterbendSources) {
             final String cardId = SnapshotExtractor.javaCardId(card);
@@ -2232,12 +2232,12 @@ public final class ManaBrewInteractiveSession {
                             : "tap:" + cardId + ":" + i;
                     actionsArray.add(new AvailableAction_activateAbility(
                             actionId, cardId, i, description, true, null,
-                            actionFaceIndex(sa), cost, choice.producedMana));
+                            cost, choice.producedMana));
                 }
             } else {
                 actionsArray.add(new AvailableAction_activateAbility(
                         id, cardId, i, abilityDescription(sa, label), false,
-                        levelUpKind(sa), actionFaceIndex(sa),
+                        levelUpKind(sa),
                         costText(sa), null));
             }
         }
@@ -2255,7 +2255,8 @@ public final class ManaBrewInteractiveSession {
 
     private static Integer actionFaceIndex(final SpellAbility sa) {
         final Card host = sa.getHostCard();
-        if (host == null) {
+        if (host == null || sa.isAdventure() || host.isRoom()
+                || (sa.isLandAbility() && sa.getCardStateName() == CardStateName.Backside)) {
             return null;
         }
         return InteractiveSnapshotExtractor.stackFaceIndex(sa.getCardStateName(), host.getCurrentStateName());

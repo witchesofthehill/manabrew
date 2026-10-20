@@ -79,7 +79,11 @@ export default function CardRenderingLab() {
   );
   const card = useMemo(() => {
     if (!entry) return undefined;
-    const next = scryfallToSampleGameCard(entry.info, { foil, isTransformed: effectiveFace === 1 });
+    const next = scryfallToSampleGameCard(entry.info, {
+      foil,
+      faceIndex: effectiveFace,
+      isTransformed: effectiveFace === 1 && ["transform", "battle"].includes(entry.info.layout),
+    });
     next.zone = "battlefield";
     next.cosmetics = cosmetics;
     const rail = parsePrintedCardRailMetadata(next);

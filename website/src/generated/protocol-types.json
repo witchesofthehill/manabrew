@@ -121,8 +121,8 @@
   ],
   "types": {
     "ActivatableAbilityInfo": {
-      "ts": "interface ActivatableAbilityInfo {\n  cardId: string;\n  abilityIndex: number;\n  description: string;\n  isManaAbility: boolean;\n  levelUp?: LevelUpKind;\n  faceIndex?: number;\n  cost?: string;\n  producedMana?: Array<Mana>;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct ActivatableAbilityInfo {\n    pub card_id: String,\n    pub ability_index: usize,\n    pub description: String,\n    pub is_mana_ability: bool,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub level_up: Option<LevelUpKind>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub face_index: Option<u8>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub cost: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub produced_mana: Option<Vec<Mana>>,\n}",
+      "ts": "interface ActivatableAbilityInfo {\n  cardId: string;\n  abilityIndex: number;\n  description: string;\n  isManaAbility: boolean;\n  levelUp?: LevelUpKind;\n  cost?: string;\n  producedMana?: Array<Mana>;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct ActivatableAbilityInfo {\n    pub card_id: String,\n    pub ability_index: usize,\n    pub description: String,\n    pub is_mana_ability: bool,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub level_up: Option<LevelUpKind>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub cost: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub produced_mana: Option<Vec<Mana>>,\n}",
       "refs": ["LevelUpKind", "Mana"]
     },
     "AlternativeCostKind": {
@@ -715,9 +715,9 @@
       "refs": []
     },
     "StackObjectDto": {
-      "ts": "interface StackObjectDto {\n  id: string;\n  sourceId: string;\n  controllerId: string;\n  ownerId: string;\n  identity: CardIdentity;\n  foil: boolean;\n  cosmetics?: CardCosmetics;\n  text: string;\n  sourceAbilityText?: string;\n  isPermanentSpell: boolean;\n  isCasting: boolean;\n  isDoubleFaced: boolean;\n  faceIndex: number;\n  sourceCard?: CardDto;\n  targets: Array<TargetRef>;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\", default)]\npub struct StackObjectDto {\n    pub id: String,\n    pub source_id: String,\n    pub controller_id: String,\n    pub owner_id: String,\n    pub identity: CardIdentity,\n    #[serde(default)]\n    pub foil: bool,\n    #[serde(\n        default,\n        deserialize_with = \"crate::deck_dto::CardCosmetics::deserialize_optional\",\n        skip_serializing_if = \"Option::is_none\"\n    )]\n    pub cosmetics: Option<crate::deck_dto::CardCosmetics>,\n    pub text: String,\n    #[serde(skip_serializing_if = \"Option::is_none\")]\n    pub source_ability_text: Option<String>,\n    pub is_permanent_spell: bool,\n    pub is_casting: bool,\n    pub is_double_faced: bool,\n    pub face_index: u8,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub source_card: Option<CardDto>,\n    pub targets: Vec<TargetRef>,\n}",
-      "refs": ["CardCosmetics", "CardDto", "CardIdentity", "TargetRef"]
+      "ts": "interface StackObjectDto {\n  id: string;\n  sourceId: string;\n  controllerId: string;\n  ownerId: string;\n  identity?: CardIdentity;\n  text: string;\n  sourceAbilityText?: string;\n  isPermanentSpell: boolean;\n  isCasting: boolean;\n  sourceCard?: CardDto;\n  targets: Array<TargetRef>;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\", default)]\npub struct StackObjectDto {\n    pub id: String,\n    pub source_id: String,\n    pub controller_id: String,\n    pub owner_id: String,\n    #[serde(skip_serializing_if = \"Option::is_none\")]\n    pub identity: Option<CardIdentity>,\n    pub text: String,\n    #[serde(skip_serializing_if = \"Option::is_none\")]\n    pub source_ability_text: Option<String>,\n    pub is_permanent_spell: bool,\n    pub is_casting: bool,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub source_card: Option<CardDto>,\n    pub targets: Vec<TargetRef>,\n}",
+      "refs": ["CardDto", "CardIdentity", "TargetRef"]
     },
     "StepKind": {
       "ts": "type StepKind =\n  | \"untap\"\n  | \"upkeep\"\n  | \"draw\"\n  | \"main1\"\n  | \"combatBegin\"\n  | \"combatDeclareAttackers\"\n  | \"combatDeclareBlockers\"\n  | \"combatFirstStrikeDamage\"\n  | \"combatDamage\"\n  | \"combatEnd\"\n  | \"main2\"\n  | \"endOfTurn\"\n  | \"cleanup\";",

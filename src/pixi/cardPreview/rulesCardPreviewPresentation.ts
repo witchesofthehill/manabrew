@@ -12,6 +12,7 @@ import { msg } from "@lingui/core/macro";
 import { i18n } from "@/i18n/i18n";
 import { parseManaCost } from "@/pixi/manaSymbols";
 import { printedPrototype } from "@/lib/cardPrototype";
+import { gameCardFaceIndex } from "@/lib/gameCard";
 
 export interface RulesPreviewSection {
   faceIndex: number;
@@ -573,7 +574,7 @@ export function resolveRulesPreviewDisplay(options: {
     isTwoHalfLayout(layout) || layout === "adventure" || layout === "prepare" || layout === "flip";
   const flippable = resolved.isFlippable && !simultaneous && !faceless;
   const faceIndex: 0 | 1 = showBackFace && flippable ? 1 : 0;
-  const currentFaceIndex: 0 | 1 = card.isTransformed && flippable ? 1 : 0;
+  const currentFaceIndex: 0 | 1 = flippable ? gameCardFaceIndex(card, layout) : 0;
   const currentFace = faceIndex === currentFaceIndex;
   const face = resolved.faces[faceIndex];
   const horizontal = isHorizontalCard({

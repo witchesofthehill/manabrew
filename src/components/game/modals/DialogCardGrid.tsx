@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Check } from "lucide-react";
 import { Card } from "@/components/game/Card";
 import { useTheme } from "@/hooks/useTheme";
-import { isFacelessCard } from "@/lib/gameCard";
+import { gameCardFaceIndex, isFacelessCard } from "@/lib/gameCard";
 import { cn } from "@/lib/utils";
 import { GAME_CARD_SIZES } from "@/components/game/game.constants";
 import type { CardBrowserItem, CardBrowserState } from "./cardBrowser";
@@ -145,7 +145,7 @@ export function DialogCardGrid({ items, state, onInspect, onScroll, intentColor 
                   bare
                   showBackFace={
                     state.inspection[item.id]?.face === 1 ||
-                    (!state.inspection[item.id] && item.card.isTransformed)
+                    (!state.inspection[item.id] && gameCardFaceIndex(item.card) === 1)
                   }
                   style={{ width: "100%" }}
                   className="border-0 shadow-md"

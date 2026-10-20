@@ -15,6 +15,7 @@ import { cardTypeLine } from "@/components/game/cardPresentation";
 import { battlefieldKeywords } from "@/lib/battlefieldKeywords";
 import { CardFoilOverlay } from "@/components/game/CardFoilOverlay";
 import { isEtchedOnlyPrinting } from "@/lib/cardFinish";
+import { gameCardFaceIndex } from "@/lib/gameCard";
 
 export type BattlefieldCardFaceVariant = "frame" | "art";
 
@@ -43,8 +44,8 @@ export function BattlefieldCardFace({
       </div>
     );
   }
-  const artworkUrl = imageUrl(card.isTransformed ? 1 : 0, "art_crop") || artCrop;
-  const fallbackUrl = imageUrl(card.isTransformed ? 1 : 0, "normal");
+  const artworkUrl = imageUrl(gameCardFaceIndex(card), "art_crop") || artCrop;
+  const fallbackUrl = imageUrl(gameCardFaceIndex(card), "normal");
   const artwork = artworkUrl ? (
     <ScryfallImg
       src={artworkUrl}
@@ -191,7 +192,8 @@ export function BattlefieldCardFace({
   return (
     <div
       className={cn(
-        "relative @container overflow-hidden shadow-sm",
+        "relative @container shadow-sm",
+        variant === "art" ? "overflow-hidden" : "overflow-visible",
         card.tapped && "rotate-90",
         card.phasedOut && "opacity-30 grayscale",
         summoned && "opacity-80 grayscale-[0.85]",
@@ -217,7 +219,7 @@ export function BattlefieldCardFace({
               <ScryfallImg
                 src={fallbackUrl}
                 alt=""
-                className="absolute inset-0 h-full w-full object-contain"
+                className="absolute inset-0 h-full w-full rounded-[inherit] object-contain"
                 draggable={false}
               />
             ) : undefined

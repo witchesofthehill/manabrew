@@ -756,7 +756,7 @@ public final class InteractiveSnapshotExtractor {
         dto.damage = card.getDamage();
         dto.summoningSick = card.hasSickness();
         dto.isCopy = card.isCloned() || card.getCopiedPermanent() != null;
-        dto.isDoubleFaced = card.isDoubleFaced();
+        dto.isDoubleFaced = card.isDoubleFaced() || card.isModal();
         dto.isTransformed = card.isTransformed();
         dto.faceIndex = stackFaceIndex(null, card.getCurrentStateName());
         dto.isFaceDown = card.isFaceDown();
@@ -1151,21 +1151,17 @@ public final class InteractiveSnapshotExtractor {
             stackItem.put("ownerId", source != null && source.getOwner() != null
                     ? "player-" + SnapshotExtractor.playerIndex(game, source.getOwner())
                     : "");
-            final String name = source == null
-                    ? item.getStackDescription()
-                    : visibleSource == null ? "" : normalizeCardName(source.getName());
-            stackItem.put("identity", stackIdentity(name, visibleSource));
             if (visibleSource != null) {
                 stackItem.put("sourceCard", stackSourceCard(game, visibleSource, sa, viewerPlayer));
+            } else if (source == null) {
+                stackItem.put("identity", new CardIdentity(item.getStackDescription(), "", "", false, null));
             }
-            putStackCosmetics(stackItem, game, visibleSource);
             stackItem.put("text", item.getStackDescription());
-            putIfNotBlank(stackItem, "sourceAbilityText", sourceAbilityText(sa));
+            if (visibleSource != null) {
+                putIfNotBlank(stackItem, "sourceAbilityText", sourceAbilityText(sa));
+            }
             stackItem.put("isPermanentSpell", source != null && item.isSpell() && source.isPermanent());
             stackItem.put("isCasting", false);
-            stackItem.put("isDoubleFaced", visibleSource != null
-                    && (visibleSource.isDoubleFaced() || visibleSource.isModal()));
-            stackItem.put("faceIndex", visibleSource == null ? 0 : stackFaceIndex(visibleSource, sa));
             stackItem.put("targets", stackTargets(game, item.getSpellAbility()));
             out.add(stackItem);
             index++;
@@ -1209,19 +1205,15 @@ public final class InteractiveSnapshotExtractor {
         stackItem.put("ownerId", source.getOwner() != null
                 ? "player-" + SnapshotExtractor.playerIndex(game, source.getOwner())
                 : "");
-        stackItem.put("identity", stackIdentity(
-                visibleSource == null ? "" : normalizeCardName(source.getName()), visibleSource));
         if (visibleSource != null) {
             stackItem.put("sourceCard", stackSourceCard(game, visibleSource, castingAbility, viewerPlayer));
         }
-        putStackCosmetics(stackItem, game, visibleSource);
         stackItem.put("text", castingAbility.getStackDescription());
-        putIfNotBlank(stackItem, "sourceAbilityText", sourceAbilityText(castingAbility));
+        if (visibleSource != null) {
+            putIfNotBlank(stackItem, "sourceAbilityText", sourceAbilityText(castingAbility));
+        }
         stackItem.put("isPermanentSpell", castingAbility.isSpell() && source.isPermanent());
         stackItem.put("isCasting", true);
-        stackItem.put("isDoubleFaced", visibleSource != null
-                && (visibleSource.isDoubleFaced() || visibleSource.isModal()));
-        stackItem.put("faceIndex", visibleSource == null ? 0 : stackFaceIndex(visibleSource, castingAbility));
         stackItem.put("targets", stackTargets(game, castingAbility));
         return stackItem;
     }
@@ -1236,6 +1228,7 @@ public final class InteractiveSnapshotExtractor {
                 game, source,
                 source.getOwner() == null ? 0 : SnapshotExtractor.playerIndex(game, source.getOwner()),
                 false, viewerPlayer, null);
+        dto.faceIndex = stackFaceIndex(source, ability);
         if (source.isLKI() && ability != null && ability.isSpell()) {
             dto.isPrototyped = ability.hasParam("Prototype");
         }
@@ -1261,23 +1254,6 @@ public final class InteractiveSnapshotExtractor {
             default -> false;
         };
         return visible && (!source.isFaceDown() || faceShownTo(source, viewerPlayer));
-    }
-
-    private static void putStackCosmetics(
-            final Map<String, Object> stackItem,
-            final Game game,
-            final Card source
-    ) {
-        stackItem.put("foil", source != null && source.hasPaperFoil());
-        if (source != null) {
-            final var presentation = CardCosmeticBindings.get(game, source);
-            if (presentation != null) {
-                stackItem.put("foil", presentation.isFoil());
-                if (presentation.getCosmetics() != null) {
-                    stackItem.put("cosmetics", presentation.getCosmetics());
-                }
-            }
-        }
     }
 
     static String sourceAbilityText(final SpellAbility ability) {
@@ -1345,19 +1321,6 @@ public final class InteractiveSnapshotExtractor {
         return out;
     }
 
-    private static Map<String, Object> stackIdentity(final String name, final Card source) {
-        final IPaperCard paper = source == null ? null : source.getPaperCard();
-        final Map<String, Object> identity = new LinkedHashMap<>();
-        identity.put("name", name);
-        identity.put("setCode", source == null ? "" : (paper != null ? paper.getEdition() : source.getSetCode()));
-        identity.put("cardNumber", source == null ? "" : (paper != null ? paper.getCollectorNumber() : ""));
-        identity.put("isToken", source != null && source.isToken());
-        final String tokenScript = source == null ? null : tokenScript(source, paper);
-        if (tokenScript != null) {
-            identity.put("tokenScript", tokenScript);
-        }
-        return identity;
-    }
 
     static String tokenScript(final Card card, final IPaperCard paper) {
         if (!card.isToken() || !(paper instanceof PaperToken token)) {

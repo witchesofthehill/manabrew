@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check } from "lucide-react";
-import { isFacelessCard } from "@/lib/gameCard";
+import { gameCardFaceIndex, isFacelessCard } from "@/lib/gameCard";
 import {
   CARD_H,
   CARD_W,
@@ -86,7 +86,7 @@ export function DialogCardPickerGrid({
     const states = items.map((item) => {
       const inspection = state.inspection[item.id] ?? {
         rules: defaultRules,
-        face: item.card.isTransformed ? (1 as const) : (0 as const),
+        face: gameCardFaceIndex(item.card),
         rotated: false,
       };
       return { item, inspection };

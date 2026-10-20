@@ -10,6 +10,7 @@ import { rulesCardRadius } from "../cardPreview/rulesPreviewFrame";
 import type { StackCardSpec } from "./stack.types";
 import { getRectBorderAnchor } from "./stackLayout";
 import type { ScreenBounds } from "../types";
+import { gameCardFaceIndex } from "@/lib/gameCard";
 
 const ENTER_MS = 0.42;
 const FLASH_MS = 0.56;
@@ -183,7 +184,7 @@ export class StackCardSprite {
       faceChanged ||
       spec.id !== this.spec.id ||
       spec.card.isDoubleFaced !== this.spec.card.isDoubleFaced ||
-      spec.card.isTransformed !== this.spec.card.isTransformed;
+      gameCardFaceIndex(spec.card) !== gameCardFaceIndex(this.spec.card);
     const dimChanged = spec.isDimmed !== this.spec.isDimmed;
     this.spec = spec;
     this.previewFace = faceIndex;
@@ -418,7 +419,7 @@ export class StackCardSprite {
         ? {
             rulesView: this.face.usesHandRulesView,
             horizontal: false,
-            alternateFace: (this.previewFace ?? (this.spec.card.isTransformed ? 1 : 0)) === 1,
+            alternateFace: (this.previewFace ?? gameCardFaceIndex(this.spec.card)) === 1,
             showFaceControl: this.spec.card.isDoubleFaced,
             onToggleRules: () => this.onToggleRules(this.spec.id),
             onToggleFace: () => this.onFlip(this.spec.id),

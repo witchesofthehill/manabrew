@@ -57,7 +57,6 @@ pub(crate) fn mana_ability_actions(
                     description: description.to_string(),
                     is_mana_ability: true,
                     level_up: None,
-                    face_index: None,
                     cost: cost.clone(),
                     produced_mana: choice.produced_mana,
                 },

@@ -27,6 +27,7 @@ import { CardLiveHighlightOverlay } from "@/components/game/CardLiveHighlightOve
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { CARD_BACK_IMAGE_URL } from "./game.constants";
 import type { CardLightingMode, CardPose } from "@/lib/cardLighting";
+import { gameCardFaceIndex } from "@/lib/gameCard";
 
 interface GeneratedCardImageProps {
   card?: CardDto;
@@ -52,7 +53,7 @@ export function GeneratedCardImage(props: GeneratedCardImageProps) {
 function GeneratedCardCanvas({
   card,
   deckCard,
-  faceIndex = card?.isTransformed ? 1 : 0,
+  faceIndex = card ? gameCardFaceIndex(card, deckCard?.layout) : 0,
   className,
   fallback,
   loading = "eager",
@@ -216,7 +217,7 @@ function GeneratedCardCanvas({
   return (
     <div
       ref={hostRef}
-      className={cn("relative @container aspect-[5/7] overflow-hidden", className)}
+      className={cn("relative @container aspect-[5/7] rounded-[inherit]", className)}
       data-card-renderer={hidden ? undefined : (decision?.engine ?? "card-glint")}
       data-card-render-state={hidden ? undefined : state}
       data-card-render-template={hasImage ? raster?.decision?.template : undefined}
@@ -229,7 +230,7 @@ function GeneratedCardCanvas({
         <ScryfallImg
           src={CARD_BACK_IMAGE_URL}
           alt=""
-          className="h-full w-full object-contain"
+          className="h-full w-full rounded-[inherit] object-contain"
           draggable={false}
         />
       ) : (
@@ -240,18 +241,21 @@ function GeneratedCardCanvas({
                 <ScryfallImg
                   src={fallbackUrl}
                   alt=""
-                  className="h-full w-full object-contain"
+                  className="h-full w-full rounded-[inherit] object-contain"
                   draggable={false}
                 />
               ) : (
-                <span className="absolute inset-0 flex items-center justify-center bg-card p-2 text-center text-xs text-card-foreground">
+                <span className="absolute inset-0 flex items-center justify-center rounded-[inherit] bg-card p-2 text-center text-xs text-card-foreground">
                   {name}
                 </span>
               )))}
           <canvas
             ref={canvasRef}
             aria-hidden="true"
-            className={cn("absolute inset-0 h-full w-full object-fill", !hasImage && "invisible")}
+            className={cn(
+              "absolute inset-0 h-full w-full rounded-[inherit] object-fill",
+              !hasImage && "invisible",
+            )}
           />
           <CardFoilOverlay
             enabled={!hidden && visible}

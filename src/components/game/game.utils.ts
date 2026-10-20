@@ -84,7 +84,6 @@ export function manaAbilityInfos(
             description: a.description,
             isManaAbility: true,
             levelUp: a.levelUp,
-            faceIndex: a.faceIndex,
             cost: a.cost,
             producedMana: a.producedMana,
             actionId: a.id,
@@ -128,15 +127,12 @@ export function stackObjectToCard(obj: StackObjectDto): ClientCardDto {
   return {
     ...GAME_CARD_DEFAULTS,
     id: obj.sourceId,
-    identity: obj.identity,
-    foil: obj.foil,
-    cosmetics: obj.cosmetics,
+    identity: obj.identity ?? GAME_CARD_DEFAULTS.identity,
     text: "",
     controllerId: obj.controllerId,
     ownerId: obj.ownerId,
     zoneId: "stack",
-    isDoubleFaced: obj.isDoubleFaced,
-    isTransformed: obj.isDoubleFaced && obj.faceIndex === 1,
+    isFaceDown: !obj.identity,
   };
 }
 export function stackObjectAbilityText(obj: StackObjectDto): string {

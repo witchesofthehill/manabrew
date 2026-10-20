@@ -354,7 +354,10 @@ pub struct Card {
     /// Cleared during step_cleanup alongside power_modifier / toughness_modifier.
     pub pump_keywords: crate::keyword::keyword_collection::KeywordCollection,
     #[serde(default)]
-    pub until_lose_control_keywords: crate::keyword::keyword_collection::KeywordCollection,
+    pub until_lose_control_keyword_changes: Vec<(CardId, i64)>,
+    #[serde(default, with = "crate::keyword::keywords_change::timestamped")]
+    pub changed_card_keywords:
+        BTreeMap<(i64, i64), crate::keyword::keywords_change::KeywordsChange>,
     /// Number of triggers added temporarily by `DB$ Animate | Triggers$` effects.
     /// At cleanup, this many triggers are popped from the end of the `triggers` vec.
     pub pump_trigger_count: usize,
@@ -736,7 +739,7 @@ pub struct Card {
     trait_base_replacement_effects: Option<Vec<ReplacementEffect>>,
     #[serde(skip)]
     trait_base_static_abilities: Option<Vec<StaticAbility>>,
-    #[serde(skip)]
+    #[serde(default)]
     trait_base_keywords: Option<crate::keyword::keyword_collection::KeywordCollection>,
 }
 
@@ -842,8 +845,8 @@ impl Card {
             changed_base_power: None,
             changed_base_toughness: None,
             pump_keywords: crate::keyword::keyword_collection::KeywordCollection::new(),
-            until_lose_control_keywords: crate::keyword::keyword_collection::KeywordCollection::new(
-            ),
+            until_lose_control_keyword_changes: Vec::new(),
+            changed_card_keywords: BTreeMap::new(),
             pump_trigger_count: 0,
             abilities,
             action_spell_specs: Vec::new(),
@@ -1351,7 +1354,6 @@ impl Card {
         self.keywords.contains_keyword(kw)
             || self.granted_keywords.contains_keyword(kw)
             || self.pump_keywords.contains_keyword(kw)
-            || self.until_lose_control_keywords.contains_keyword(kw)
     }
 
     pub fn has_haste(&self) -> bool {
@@ -1981,7 +1983,12 @@ impl Card {
     pub fn set_controller(&mut self, controller: PlayerId) {
         if self.controller != controller {
             self.came_under_control_since_last_upkeep = true;
-            self.until_lose_control_keywords.clear();
+            let changes = std::mem::take(&mut self.until_lose_control_keyword_changes);
+            for (target, timestamp) in changes {
+                if target == self.id {
+                    self.remove_changed_card_keywords_at(timestamp, 0);
+                }
+            }
         }
         self.controller = controller;
     }
@@ -3213,14 +3220,22 @@ impl Card {
     }
 
     pub fn clear_intrinsic_keywords(&mut self) {
-        self.keywords.clear();
+        if let Some(base) = self.trait_base_keywords.as_mut() {
+            base.clear();
+            self.recompute_changed_card_keywords();
+        } else {
+            self.keywords.clear();
+        }
     }
 
     pub fn clear_all_keyword_sets(&mut self) {
         self.keywords.clear();
         self.pump_keywords.clear();
         self.granted_keywords.clear();
-        self.until_lose_control_keywords.clear();
+        self.changed_card_keywords.clear();
+        if let Some(base) = self.trait_base_keywords.as_mut() {
+            base.clear();
+        }
     }
 
     pub fn clear_subtypes(&mut self) {
@@ -3360,6 +3375,32 @@ impl Card {
     pub fn add_changed_card_keywords(&mut self, kw: &str) {
         self.add_intrinsic_keyword(kw);
     }
+    pub fn add_changed_card_keyword_at(&mut self, kw: &str, timestamp: i64, static_id: i64) {
+        if self.trait_base_keywords.is_none() {
+            self.trait_base_keywords = Some(self.keywords.clone());
+        }
+        self.changed_card_keywords
+            .entry((timestamp, static_id))
+            .or_default()
+            .keywords
+            .add(kw);
+        self.recompute_changed_card_keywords();
+    }
+
+    pub fn remove_changed_card_keywords_at(&mut self, timestamp: i64, static_id: i64) {
+        if self
+            .changed_card_keywords
+            .remove(&(timestamp, static_id))
+            .is_some()
+        {
+            self.recompute_changed_card_keywords();
+        }
+    }
+
+    pub(crate) fn clear_changed_card_keyword_layers(&mut self) {
+        self.changed_card_keywords.clear();
+        self.recompute_changed_card_keywords();
+    }
     pub fn add_keyword_for_static_ability(&mut self, kw: &str) {
         self.granted_keywords.add(kw);
     }
@@ -3376,10 +3417,13 @@ impl Card {
         self.remove_intrinsic_keyword(kw);
     }
     pub fn clear_changed_card_keywords(&mut self) {
-        self.keywords.clear();
+        self.clear_intrinsic_keywords();
     }
     pub fn clear_static_changed_card_keywords(&mut self) {
         self.granted_keywords.clear();
+        self.changed_card_keywords
+            .retain(|(_, static_id), _| *static_id >= 0);
+        self.recompute_changed_card_keywords();
     }
     pub fn add_hidden_extrinsic_keywords(&mut self, kw: &str) {
         self.granted_keywords.add(kw);
@@ -3400,7 +3444,6 @@ impl Card {
         !self.keywords.is_empty()
             || !self.granted_keywords.is_empty()
             || !self.pump_keywords.is_empty()
-            || !self.until_lose_control_keywords.is_empty()
     }
     pub fn add_cant_have_keyword(&mut self, kw: &str) {
         self.cant_have_keywords.insert(kw.to_ascii_lowercase());
@@ -4045,7 +4088,9 @@ impl Card {
             self.trait_base_triggers = Some(self.triggers.clone());
             self.trait_base_replacement_effects = Some(self.replacement_effects.clone());
             self.trait_base_static_abilities = Some(self.static_abilities.clone());
-            self.trait_base_keywords = Some(self.keywords.clone());
+            if self.trait_base_keywords.is_none() {
+                self.trait_base_keywords = Some(self.keywords.clone());
+            }
         }
     }
 
@@ -4063,6 +4108,22 @@ impl Card {
     }
 
     fn recompute_changed_card_traits(&mut self) {
+        if self.changed_card_traits.is_empty() && self.changed_card_traits_by_text.is_empty() {
+            if let Some(v) = self.trait_base_activated_abilities.take() {
+                self.activated_abilities = v;
+            }
+            if let Some(v) = self.trait_base_triggers.take() {
+                self.triggers = v;
+            }
+            if let Some(v) = self.trait_base_replacement_effects.take() {
+                self.replacement_effects = v;
+            }
+            if let Some(v) = self.trait_base_static_abilities.take() {
+                self.static_abilities = v;
+            }
+            self.recompute_changed_card_keywords();
+            return;
+        }
         let Some(base_activated) = self.trait_base_activated_abilities.clone() else {
             return;
         };
@@ -4075,15 +4136,11 @@ impl Card {
         let Some(base_static) = self.trait_base_static_abilities.clone() else {
             return;
         };
-        let Some(base_keywords) = self.trait_base_keywords.clone() else {
-            return;
-        };
 
         let mut spell_abilities = self.activated_to_spell_abilities(&base_activated);
         let mut triggers = base_triggers;
         let mut replacements = base_replacements;
         let mut static_abilities = base_static;
-        let mut keywords = base_keywords;
 
         for layer in self.changed_card_traits_by_text.values() {
             spell_abilities = crate::card::card_state::apply_spell_ability(layer, spell_abilities);
@@ -4091,7 +4148,6 @@ impl Card {
             replacements = crate::card::card_state::apply_replacement_effect(layer, replacements);
             static_abilities =
                 crate::card::card_state::apply_static_ability(layer, static_abilities);
-            keywords = crate::card::card_state::apply_keywords(layer, keywords);
         }
         for layer in self.changed_card_traits.values() {
             spell_abilities = crate::card::card_state::apply_spell_ability(layer, spell_abilities);
@@ -4099,13 +4155,45 @@ impl Card {
             replacements = crate::card::card_state::apply_replacement_effect(layer, replacements);
             static_abilities =
                 crate::card::card_state::apply_static_ability(layer, static_abilities);
-            keywords = crate::card::card_state::apply_keywords(layer, keywords);
         }
 
         self.activated_abilities = Self::spell_to_activated_abilities(&spell_abilities);
         self.triggers = triggers;
         self.replacement_effects = replacements;
         self.static_abilities = static_abilities;
+        self.recompute_changed_card_keywords();
+    }
+
+    fn recompute_changed_card_keywords(&mut self) {
+        if self.changed_card_traits.is_empty()
+            && self.changed_card_traits_by_text.is_empty()
+            && self.changed_card_keywords.is_empty()
+        {
+            if let Some(base) = self.trait_base_keywords.take() {
+                self.keywords = base;
+            }
+            return;
+        }
+        let Some(mut keywords) = self.trait_base_keywords.clone() else {
+            return;
+        };
+        for layer in self.changed_card_traits_by_text.values() {
+            keywords = crate::card::card_state::apply_keywords(layer, keywords);
+        }
+        let mut keyword_traits = self.changed_card_traits.iter().peekable();
+        for (key, change) in &self.changed_card_keywords {
+            while keyword_traits.peek().is_some_and(|entry| entry.0 <= key) {
+                let (_, layer) = keyword_traits.next().unwrap();
+                keywords = crate::card::card_state::apply_keywords(layer, keywords);
+            }
+            crate::keyword::trait_keywords_change::KeywordsChange::apply_keywords(
+                change,
+                &mut keywords,
+            );
+        }
+        for (_, layer) in keyword_traits {
+            keywords = crate::card::card_state::apply_keywords(layer, keywords);
+        }
         self.keywords = keywords;
     }
 
@@ -4144,25 +4232,6 @@ impl Card {
         {
             return false;
         }
-        if self.changed_card_traits.is_empty() && self.changed_card_traits_by_text.is_empty() {
-            if let Some(v) = self.trait_base_activated_abilities.take() {
-                self.activated_abilities = v;
-            }
-            if let Some(v) = self.trait_base_triggers.take() {
-                self.triggers = v;
-            }
-            if let Some(v) = self.trait_base_replacement_effects.take() {
-                self.replacement_effects = v;
-            }
-            if let Some(v) = self.trait_base_static_abilities.take() {
-                self.static_abilities = v;
-            }
-            if let Some(v) = self.trait_base_keywords.take() {
-                self.keywords = v;
-            }
-            return true;
-        }
-
         self.recompute_changed_card_traits();
         true
     }
@@ -4176,25 +4245,6 @@ impl Card {
         {
             return false;
         }
-        if self.changed_card_traits.is_empty() && self.changed_card_traits_by_text.is_empty() {
-            if let Some(v) = self.trait_base_activated_abilities.take() {
-                self.activated_abilities = v;
-            }
-            if let Some(v) = self.trait_base_triggers.take() {
-                self.triggers = v;
-            }
-            if let Some(v) = self.trait_base_replacement_effects.take() {
-                self.replacement_effects = v;
-            }
-            if let Some(v) = self.trait_base_static_abilities.take() {
-                self.static_abilities = v;
-            }
-            if let Some(v) = self.trait_base_keywords.take() {
-                self.keywords = v;
-            }
-            return true;
-        }
-
         self.recompute_changed_card_traits();
         true
     }
@@ -4203,21 +4253,7 @@ impl Card {
     pub fn clear_changed_card_traits(&mut self) {
         self.changed_card_traits.clear();
         self.changed_card_traits_by_text.clear();
-        if let Some(v) = self.trait_base_activated_abilities.take() {
-            self.activated_abilities = v;
-        }
-        if let Some(v) = self.trait_base_triggers.take() {
-            self.triggers = v;
-        }
-        if let Some(v) = self.trait_base_replacement_effects.take() {
-            self.replacement_effects = v;
-        }
-        if let Some(v) = self.trait_base_static_abilities.take() {
-            self.static_abilities = v;
-        }
-        if let Some(v) = self.trait_base_keywords.take() {
-            self.keywords = v;
-        }
+        self.recompute_changed_card_traits();
     }
 
     /// Clear continuous static-ability trait changes from the previous layer pass.
@@ -4225,32 +4261,14 @@ impl Card {
     /// Static layer effects use negative static IDs so they can be recomputed
     /// each pass without disturbing perpetual/card-state trait changes.
     pub fn clear_static_layer_changed_card_traits(&mut self) {
-        let before = self.changed_card_traits.len();
+        let before = self.changed_card_traits.len() + self.changed_card_keywords.len();
         self.changed_card_traits
             .retain(|(_, static_id), _| *static_id >= 0);
-        if self.changed_card_traits.len() == before {
-            return;
+        self.changed_card_keywords
+            .retain(|(_, static_id), _| *static_id >= 0);
+        if self.changed_card_traits.len() + self.changed_card_keywords.len() != before {
+            self.recompute_changed_card_traits();
         }
-        if self.changed_card_traits.is_empty() && self.changed_card_traits_by_text.is_empty() {
-            if let Some(v) = self.trait_base_activated_abilities.take() {
-                self.activated_abilities = v;
-            }
-            if let Some(v) = self.trait_base_triggers.take() {
-                self.triggers = v;
-            }
-            if let Some(v) = self.trait_base_replacement_effects.take() {
-                self.replacement_effects = v;
-            }
-            if let Some(v) = self.trait_base_static_abilities.take() {
-                self.static_abilities = v;
-            }
-            if let Some(v) = self.trait_base_keywords.take() {
-                self.keywords = v;
-            }
-            return;
-        }
-
-        self.recompute_changed_card_traits();
     }
 
     pub fn remove_changed_state(&mut self) {

@@ -712,7 +712,6 @@ fn card_to_dto_with_face_visibility(
             .granted_keywords
             .iter_strings()
             .chain(card.pump_keywords.iter_strings())
-            .chain(card.until_lose_control_keywords.iter_strings())
         {
             if !keywords.iter().any(|e| e.eq_ignore_ascii_case(k)) {
                 keywords.push(k.to_string());
@@ -1069,30 +1068,10 @@ impl GameViewDtoExt for GameViewDto {
                 let source_card = entry.spell_ability.source.map(|cid| game.card(cid));
                 let visible_source =
                     source_card.filter(|card| card_face_visible_to(card, Some(human_player)));
-                let identity = CardIdentity {
-                    name: visible_source
-                        .map(|c| c.card_name.clone())
-                        .unwrap_or_else(|| {
-                            if entry.spell_ability.is_spell
-                                && source_card.is_some_and(|card| card.face_down)
-                            {
-                                "Face-down spell".to_string()
-                            } else {
-                                "Ability".to_string()
-                            }
-                        }),
-                    set_code: visible_source
-                        .and_then(|c| c.set_code.clone())
-                        .unwrap_or_default(),
-                    card_number: visible_source
-                        .and_then(|c| c.card_number.clone())
-                        .unwrap_or_default(),
-                    is_token: visible_source.is_some_and(|c| c.is_token),
-                    token_script: visible_source
-                        .filter(|c| c.is_token)
-                        .and_then(|c| c.get_s_var("TokenScript"))
-                        .map(|script| manabrew_protocol::TokenScript(script.to_owned())),
-                };
+                let identity = source_card.is_none().then(|| CardIdentity {
+                    name: "Ability".to_string(),
+                    ..CardIdentity::default()
+                });
                 let face_index = visible_source
                     .map(|card| {
                         u8::from(
@@ -1126,17 +1105,11 @@ impl GameViewDtoExt for GameViewDto {
                         dto.face_index = Some(face_index);
                         dto
                     }),
-                    foil: visible_source.is_some_and(|card| card.paper_foil),
-                    cosmetics: visible_source
-                        .and_then(|card| card.cosmetics.clone())
-                        .and_then(manabrew_protocol::deck_dto::CardCosmetics::normalize),
                     text: entry.spell_ability.ability_text.clone(),
                     source_ability_text: visible_source
                         .and_then(|_| stack_source_ability_text(game, &entry.spell_ability)),
                     is_permanent_spell: entry.is_creature_spell || entry.is_permanent_spell,
                     is_casting: entry.is_pending_cast,
-                    is_double_faced: visible_source.is_some_and(|c| c.is_double_faced()),
-                    face_index,
                     targets: collect_stack_targets(&entry.spell_ability),
                 }
             })

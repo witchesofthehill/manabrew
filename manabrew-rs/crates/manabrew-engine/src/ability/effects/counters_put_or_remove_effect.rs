@@ -38,7 +38,12 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
             ctx.game.card(target_id),
             &counter_type,
         );
-    let can_remove = ctx.game.card(target_id).counter_count(&counter_type) > 0;
+    let can_remove = ctx.game.card(target_id).counter_count(&counter_type) > 0
+        && crate::replacement::replace_remove_counter::can_remove_counters(
+            ctx.game,
+            target_id,
+            &counter_type,
+        );
     if !can_add && !can_remove {
         return;
     }

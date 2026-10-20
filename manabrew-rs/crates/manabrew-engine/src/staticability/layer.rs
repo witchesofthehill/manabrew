@@ -70,7 +70,11 @@ enum EffectKind {
         timestamp: i64,
         static_id: i64,
     },
-    GrantKeyword(String),
+    GrantKeyword {
+        keyword: String,
+        timestamp: i64,
+        static_id: i64,
+    },
     /// Grant an activated ability (from AddAbility$). The string is the ability text.
     GrantAbility {
         text: String,
@@ -376,7 +380,11 @@ pub fn apply_continuous_effects(game: &mut GameState) {
                             pending.push(PendingEffect {
                                 layer: Layer::Ability,
                                 target,
-                                kind: EffectKind::GrantKeyword(kw.to_string()),
+                                kind: EffectKind::GrantKeyword {
+                                    keyword: kw.to_string(),
+                                    timestamp: source_card.zone_timestamp as i64,
+                                    static_id: static_layer_trait_id(source_id, sa_idx),
+                                },
                             });
                         }
                     }
@@ -598,9 +606,13 @@ pub fn apply_continuous_effects(game: &mut GameState) {
                     static_id,
                 );
             }
-            EffectKind::GrantKeyword(kw) => {
+            EffectKind::GrantKeyword {
+                keyword: kw,
+                timestamp,
+                static_id,
+            } => {
                 let card = &mut game.cards[effect.target.index()];
-                card.granted_keywords.add(&kw);
+                card.add_changed_card_keyword_at(&kw, timestamp, static_id);
                 if let Some(cost_str) = crate::keyword::extract_keyword_cost_str(&kw, "Ward") {
                     let next_id = card
                         .triggers

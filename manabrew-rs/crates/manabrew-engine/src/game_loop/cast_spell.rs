@@ -2,13 +2,11 @@ use super::mana_payment::ManaPaymentSession;
 use super::*;
 use crate::mana::mana_cost_being_paid::ManaCostBeingPaid;
 
-/// Find the `MayPlayAltManaCost$` value granted to `card_id` by any
-/// `MayPlay$ True` static the player controls. Mirrors Java's
-/// `GameActionUtil.getAlternativeCosts` reading the static that authorized the cast.
 fn may_play_alt_mana_cost_for(
     game: &GameState,
     player: PlayerId,
     card_id: CardId,
+    spell: &SpellAbility,
 ) -> Option<String> {
     let card = game.card(card_id);
     game.cards_in_zone(ZoneType::Battlefield, player)
@@ -18,7 +16,7 @@ fn may_play_alt_mana_cost_for(
             let source = game.card(source_id);
             source.static_abilities.iter().find_map(|sa| {
                 crate::staticability::static_ability_continuous::may_play_alt_mana_cost(
-                    sa, source, card, game,
+                    sa, source, card, game, spell,
                 )
             })
         })
@@ -534,6 +532,11 @@ impl GameLoop {
         match play_mode {
             crate::agent::PlayCardMode::Normal => {
                 if game.card(card_id).is_room() {
+                    let mut host = game.card(card_id).clone();
+                    host.set_room_state(forge_foundation::CardStateName::LeftSplit);
+                    sa = crate::ability::ability_factory::build_spell_ability_for_host_card_cast(
+                        &host, player,
+                    );
                     sa.ir.card_state_name = Some("LeftSplit".to_string());
                 }
             }
@@ -549,10 +552,12 @@ impl GameLoop {
                 sa.ir.card_state_name = Some("Secondary".to_string());
             }
             crate::agent::PlayCardMode::RoomRightSplit => {
-                let face = game
-                    .card(card_id)
-                    .room_face(forge_foundation::CardStateName::RightSplit)?;
-                sa.pay_costs = Some(parse_cost(&face.mana_cost.to_string()));
+                let mut host = game.card(card_id).clone();
+                host.room_face(forge_foundation::CardStateName::RightSplit)?;
+                host.set_room_state(forge_foundation::CardStateName::RightSplit);
+                sa = crate::ability::ability_factory::build_spell_ability_for_host_card_cast(
+                    &host, player,
+                );
                 sa.ir.card_state_name = Some("RightSplit".to_string());
             }
             crate::agent::PlayCardMode::UnlockDoor { .. }
@@ -960,15 +965,10 @@ impl GameLoop {
             forge_foundation::ManaCost::parse(&warp_cost_str)
         } else if is_morph_facedown {
             forge_foundation::ManaCost::generic(crate::spellability::MORPH_GENERIC_COST)
-        } else if original_zone == ZoneType::Exile {
-            // Java parity: a `MayPlay$ True | MayPlayAltManaCost$ X` static
-            // active for this exiled card replaces the printed mana cost.
-            // Used by Airbend's Effect to let the owner cast for `{2}`.
-            may_play_alt_mana_cost_for(game, player, card_id)
+        } else {
+            may_play_alt_mana_cost_for(game, player, card_id, &sa)
                 .map(|s| forge_foundation::ManaCost::parse(&s))
                 .unwrap_or_else(|| game.card(card_id).mana_cost.clone())
-        } else {
-            game.card(card_id).mana_cost.clone()
         };
 
         // NOTE: Static mana-cost reduction/increase is now handled centrally

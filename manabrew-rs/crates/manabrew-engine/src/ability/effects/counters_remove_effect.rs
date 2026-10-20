@@ -10,14 +10,11 @@ use crate::spellability::SpellAbility;
 fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     let counter_type_str = sa.ir.counter_type_text.as_deref().unwrap_or("P1P1");
 
-    // Parse amount: integer or "All" (resolve per-card).
-    let remove_all = sa
-        .ir
-        .counter_num_text
-        .as_deref()
-        .is_some_and(|s| s.eq_ignore_ascii_case("All"));
-    let requested_count = if remove_all {
-        i32::MAX // will be clamped per-card
+    let number = sa.ir.counter_num_text.as_deref().unwrap_or("1");
+    let remove_all = number.eq_ignore_ascii_case("All");
+    let any_number = number.eq_ignore_ascii_case("Any");
+    let requested_count = if remove_all || any_number {
+        i32::MAX
     } else {
         super::resolve_numeric_svar(ctx.game, sa, "CounterNum", 1)
     };
@@ -27,9 +24,11 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         return;
     };
 
-    let counter_types = if counter_type_str.eq_ignore_ascii_case("All")
-        || counter_type_str.eq_ignore_ascii_case("Any")
-    {
+    if counter_type_str.eq_ignore_ascii_case("Any") {
+        remove_any_type(ctx, sa, card_id, requested_count, sa.ir.up_to || any_number);
+        return;
+    }
+    let counter_types = if counter_type_str.eq_ignore_ascii_case("All") {
         let mut types: Vec<_> = ctx
             .game
             .card(card_id)
@@ -43,29 +42,40 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     } else {
         vec![parse_counter_type(counter_type_str)]
     };
-    let mut remaining = requested_count;
-    let mut types = counter_types;
-    while !types.is_empty() {
-        let counter_type = if counter_type_str.eq_ignore_ascii_case("Any") {
-            ctx.agents[sa.activating_player.index()].choose_counter_type(
-                sa.activating_player,
-                &types,
-                "Select counter type",
-            )
-        } else {
-            types.first().cloned()
-        };
-        let Some(counter_type) = counter_type else {
-            break;
-        };
-        types.retain(|candidate| *candidate != counter_type);
+    for counter_type in counter_types {
+        if !crate::replacement::replace_remove_counter::can_remove_counters(
+            ctx.game,
+            card_id,
+            &counter_type,
+        ) {
+            continue;
+        }
         let current = ctx.game.card(card_id).counter_count(&counter_type);
-        let requested = if counter_type_str.eq_ignore_ascii_case("All") {
+        let mut requested = if counter_type_str.eq_ignore_ascii_case("All") {
             current
         } else {
-            remaining
+            requested_count.min(current).max(0)
         };
-        let actual = super::effect_context::remove_counter_with_context(
+        if !counter_type_str.eq_ignore_ascii_case("All")
+            && matches!(
+                ctx.game.card(card_id).zone,
+                forge_foundation::ZoneType::Battlefield | forge_foundation::ZoneType::Exile
+            )
+            && (sa.ir.up_to || any_number)
+        {
+            requested = ctx.agents[sa.activating_player.index()]
+                .choose_number(
+                    sa.activating_player,
+                    sa.source,
+                    "Select number of counters to remove",
+                    None,
+                    0,
+                    requested,
+                )
+                .unwrap_or(0)
+                .clamp(0, requested);
+        }
+        super::effect_context::remove_counter_with_context(
             ctx.game,
             ctx.trigger_handler,
             card_id,
@@ -76,12 +86,74 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
                 ..Default::default()
             },
         );
-        if counter_type_str.eq_ignore_ascii_case("Any") {
-            remaining -= actual;
-            if remaining <= 0 {
-                break;
-            }
+    }
+}
+
+fn remove_any_type(
+    ctx: &mut EffectContext,
+    sa: &SpellAbility,
+    card_id: CardId,
+    mut remaining: i32,
+    up_to: bool,
+) {
+    let mut counters: Vec<_> = ctx
+        .game
+        .card(card_id)
+        .counters
+        .iter()
+        .filter(|(counter_type, count)| {
+            **count > 0
+                && crate::replacement::replace_remove_counter::can_remove_counters(
+                    ctx.game,
+                    card_id,
+                    counter_type,
+                )
+        })
+        .map(|(counter_type, count)| (counter_type.clone(), *count))
+        .collect();
+    counters.sort_by(|a, b| a.0.cmp(&b.0));
+    while remaining > 0 && !counters.is_empty() {
+        let types: Vec<_> = counters.iter().map(|(ct, _)| ct.clone()).collect();
+        let Some(counter_type) = ctx.agents[sa.activating_player.index()].choose_counter_type(
+            sa.activating_player,
+            &types,
+            "Select counter type",
+        ) else {
+            break;
+        };
+        let Some(index) = counters.iter().position(|(ct, _)| *ct == counter_type) else {
+            break;
+        };
+        let (_, count) = counters.remove(index);
+        let max = remaining.min(count);
+        let available: i32 = counters.iter().map(|(_, count)| count).sum();
+        let min = if up_to { 0 } else { (max - available).max(1) };
+        let chosen = ctx.agents[sa.activating_player.index()]
+            .choose_number(
+                sa.activating_player,
+                sa.source,
+                "Select number of counters to remove",
+                None,
+                min,
+                max,
+            )
+            .unwrap_or(min)
+            .clamp(min, max);
+        if chosen == 0 && up_to {
+            break;
         }
+        super::effect_context::remove_counter_with_context(
+            ctx.game,
+            ctx.trigger_handler,
+            card_id,
+            &counter_type,
+            chosen,
+            RunParams {
+                player: Some(sa.activating_player),
+                ..Default::default()
+            },
+        );
+        remaining -= chosen;
     }
 }
 

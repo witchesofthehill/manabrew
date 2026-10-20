@@ -863,7 +863,7 @@ export class RulesCardPreviewLayer {
         displayLabel: localizeRulesPreviewText(
           action.label,
           this.scryfallInfo,
-          action.faceIndex ?? display.liveFaceIndex,
+          previewActionFace(action) ?? display.liveFaceIndex,
         ),
       }),
     );
@@ -1420,6 +1420,12 @@ export class RulesCardPreviewLayer {
       hint: "",
       label: "",
       onSelectAction: (action) => this.callbacks.onSelectAction(action),
+      onHoverAction: (index) => {
+        const previous =
+          this.focusedAction === null ? undefined : this.actionPanels.get(this.focusedAction)?.view;
+        this.focusedAction = entries[index]!.index;
+        if (previous !== view) previous?.clearFocus();
+      },
       embedded: true,
       compact: body.bodyHeight < 48,
     });

@@ -7,7 +7,7 @@ use std::fmt;
 
 /// Base data shared by all keyword instances.
 /// Mirrors Java's `KeywordInstance` abstract class fields.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct KeywordInstanceData {
     /// The keyword enum variant.
     pub keyword: Keyword,
@@ -182,7 +182,7 @@ impl KeywordInstance {
 
 /// The Keyword enum with all keyword variants.
 /// Mirrors Java's `Keyword` enum with 213 entries.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum Keyword {
     Undefined,
     Absorb,

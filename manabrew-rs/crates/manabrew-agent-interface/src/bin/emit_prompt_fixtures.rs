@@ -72,7 +72,6 @@ fn main() {
                         cost: Some("{T}".into()),
                         is_mana_ability: true,
                         level_up: None,
-                        face_index: None,
                         produced_mana: Some(vec![Mana {
                             color: ManaColor::Green,
                             amount: 1,

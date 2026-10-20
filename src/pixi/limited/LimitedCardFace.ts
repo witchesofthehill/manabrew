@@ -68,7 +68,6 @@ export class LimitedCardFace extends Container {
       overlayResolution(window.innerWidth, window.innerHeight),
       this.tier,
     );
-    this.tier = tier;
     const key = JSON.stringify([
       card.id,
       card.name,
@@ -78,13 +77,15 @@ export class LimitedCardFace extends Container {
       cardCosmeticsKey(card.cosmetics),
       locale,
       style,
-      tier,
     ]);
-    if (key === this.contentKey) return;
+    const contentChanged = key !== this.contentKey;
+    if (!contentChanged && tier === this.tier) return;
     this.contentKey = key;
+    this.tier = tier;
     this.controller?.abort();
     const controller = new AbortController();
     this.controller = controller;
+    if (contentChanged) this.showTexture(Texture.EMPTY);
     this.foil.setAppearance(!!card.foil, card.cosmetics);
     this.fallbackLabel.text = card.name;
     this.positionLabel();

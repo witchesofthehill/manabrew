@@ -20,7 +20,7 @@ import { useKeybindings } from "@/hooks/useKeybindings";
 import { useKeybindingsStore, resolveCombo } from "@/stores/useKeybindingsStore";
 import { formatCombo } from "@/lib/keybindings";
 import { useIsDesktop } from "@/hooks/useBreakpoints";
-import { isFacelessCard } from "@/lib/gameCard";
+import { gameCardFaceIndex, isFacelessCard } from "@/lib/gameCard";
 
 interface Props {
   items: CardBrowserItem[];
@@ -98,7 +98,7 @@ export function DialogCardBrowser({
   const inspection = active
     ? (state.inspection[active.id] ?? {
         rules: defaultView === "rules",
-        face: active.card.isTransformed ? (1 as const) : (0 as const),
+        face: gameCardFaceIndex(active.card),
         rotated: false,
       })
     : null;

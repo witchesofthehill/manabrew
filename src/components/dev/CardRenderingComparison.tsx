@@ -104,14 +104,11 @@ export function CardRenderingComparison({
             onSelectPreviewAction={onAction}
           />
           {!generated && (
-            <div
-              className="absolute inset-0 m-auto max-w-full overflow-hidden"
-              style={GAME_CARD_SIZES.preview}
-            >
+            <div className="absolute inset-0 m-auto max-w-full" style={GAME_CARD_SIZES.preview}>
               <ScryfallImg
                 src={imageUrl}
                 alt={card.identity.name}
-                className="h-full w-full object-contain"
+                className="h-full w-full rounded-[inherit] object-contain"
               />
               <CardFoilOverlay
                 enabled={!hidden}
@@ -135,11 +132,11 @@ export function CardRenderingComparison({
       >
         <h2 className="font-semibold">Original</h2>
         <div className="flex min-h-[440px] items-center justify-center">
-          <div className="relative max-w-full overflow-hidden" style={GAME_CARD_SIZES.preview}>
+          <div className="relative max-w-full" style={GAME_CARD_SIZES.preview}>
             <ScryfallImg
               src={imageUrl}
               alt={`Original ${card.identity.name}`}
-              className="h-full w-full object-contain"
+              className="h-full w-full rounded-[inherit] object-contain"
             />
             <CardFoilOverlay
               enabled={!hidden}

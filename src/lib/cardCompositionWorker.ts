@@ -191,15 +191,9 @@ function startWorker(): Promise<boolean> {
               disposeImages = lease.dispose;
               if (!lease.images.get(message.url))
                 throw new Error(`Card image could not be decoded: ${message.url}`);
-              const clones = new Map<ImageBitmap, ImageBitmap>();
               for (const [url, image] of lease.images) {
-                let clone = clones.get(image);
-                if (!clone) {
-                  clone = await createImageBitmap(image);
-                  owned.push(clone);
-                  clones.set(image, clone);
-                }
-                images.push([url, clone]);
+                if (!owned.includes(image)) owned.push(image);
+                images.push([url, image]);
               }
             }
             controller.signal.throwIfAborted();
@@ -221,8 +215,8 @@ function startWorker(): Promise<boolean> {
                 error: error instanceof Error ? error.message : String(error),
               } satisfies CardWorkerRequest);
           } finally {
-            if (!transferred) for (const bitmap of owned) bitmap.close();
-            disposeImages?.();
+            if (disposeImages) disposeImages();
+            else if (!transferred) for (const bitmap of owned) bitmap.close();
             if (assets.get(message.id) === controller) assets.delete(message.id);
           }
         })();

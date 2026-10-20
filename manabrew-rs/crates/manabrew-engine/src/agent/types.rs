@@ -47,7 +47,6 @@ pub enum PlayCardMode {
     Normal,
     BackFaceLand,
     Adventure,
-    /// Cast the right split face of a Room card from hand.
     RoomRightSplit,
     Alternative(AlternativeCost),
     /// Alternative cost granted by `Mode$ AlternativeCost` static abilities.
@@ -94,7 +93,6 @@ pub struct ActivatableAction {
     pub is_mana_ability: bool,
     pub is_class_level_up: bool,
     pub is_level_up: bool,
-    pub face_index: Option<u8>,
     pub produced_mana: Option<String>,
     pub produced_mana_amount: Option<i32>,
 }

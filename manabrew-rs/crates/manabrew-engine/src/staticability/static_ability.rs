@@ -244,6 +244,7 @@ pub struct StaticAbilityIr {
     pub valid_zone: Vec<ZoneType>,
     pub may_play: bool,
     pub may_play_dont_grant_zone_permissions: bool,
+    pub may_play_without_mana_cost: bool,
     /// Mana cost string from `MayPlayAltManaCost$` (e.g. Airbend's `2`).
     /// When `may_play` is true and this is set, the granted cast option uses
     /// this cost in place of the card's printed mana cost.
@@ -423,6 +424,7 @@ impl StaticAbilityIr {
                 .is_some_and(|value| value.eq_ignore_ascii_case("True")),
             may_play_dont_grant_zone_permissions: raw
                 .contains_key("MayPlayDontGrantZonePermissions"),
+            may_play_without_mana_cost: raw.contains_key("MayPlayWithoutManaCost"),
             may_play_alt_mana_cost: raw.get(keys::MAY_PLAY_ALT_MANA_COST).map(String::to_string),
             counter_type_text: raw.get(keys::COUNTER_TYPE).map(String::to_string),
             counter_type: raw

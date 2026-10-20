@@ -151,20 +151,47 @@ pub fn can_play_spell_from_zone(
         })
 }
 
-/// If a `MayPlay$ True` static on `source` grants `card` permission to be
-/// cast and also defines `MayPlayAltManaCost$`, return that alt cost string.
-/// Mirrors Java's `GameActionUtil.canPlayCardMayPlay` reading
-/// `getMayPlayAltManaCost()` for the granting static.
 pub fn may_play_alt_mana_cost(
     st_ab: &StaticAbility,
     source: &Card,
     card: &Card,
     game: &GameState,
+    spell: &crate::spellability::SpellAbility,
 ) -> Option<String> {
-    if !can_play(st_ab, source, card, game) {
+    if can_play(st_ab, source, card, game)
+        && st_ab.ir.valid_sa.as_deref().is_none_or(|valid| {
+            crate::spellability::matches_valid_sa(valid, spell, source, Some(card))
+        })
+    {
+        if st_ab.ir.may_play_without_mana_cost {
+            return Some("0".to_string());
+        }
+        if let Some(cost) = &st_ab.ir.may_play_alt_mana_cost {
+            return Some(cost.clone());
+        }
+    }
+    if !st_ab.check_conditions(source, game)
+        || !crate::card::valid_filter::matches_valid_card_selector_opt_in_game(
+            st_ab.ir.affected.as_ref(),
+            source,
+            source,
+            game,
+        )
+    {
         return None;
     }
-    st_ab.ir.may_play_alt_mana_cost.clone()
+    st_ab
+        .ir
+        .add_static_ability_text
+        .as_deref()
+        .and_then(|add_static| {
+            add_static
+                .split(" & ")
+                .map(str::trim)
+                .filter_map(|name| source.svars.get(name))
+                .filter_map(|text| crate::staticability::parse_static_ability(text))
+                .find_map(|granted| may_play_alt_mana_cost(&granted, source, card, game, spell))
+        })
 }
 
 pub fn run(st_ab: &StaticAbility, source: &Card, game: &GameState) -> bool {

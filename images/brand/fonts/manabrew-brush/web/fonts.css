@@ -1,0 +1,111 @@
+@font-face {
+  font-family: "Manabrew Brush";
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url("./ManabrewBrush-Light.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Manabrew Brush";
+  font-style: italic;
+  font-weight: 300;
+  font-display: swap;
+  src: url("./ManabrewBrush-LightItalic.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Manabrew Brush";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./ManabrewBrush-Regular.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Manabrew Brush";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./ManabrewBrush-RegularItalic.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Manabrew Brush";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("./ManabrewBrush-Medium.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Manabrew Brush";
+  font-style: italic;
+  font-weight: 500;
+  font-display: swap;
+  src: url("./ManabrewBrush-MediumItalic.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Manabrew Brush";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("./ManabrewBrush-SemiBold.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Manabrew Brush";
+  font-style: italic;
+  font-weight: 600;
+  font-display: swap;
+  src: url("./ManabrewBrush-SemiBoldItalic.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Manabrew Brush";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("./ManabrewBrush-Bold.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Manabrew Brush";
+  font-style: italic;
+  font-weight: 700;
+  font-display: swap;
+  src: url("./ManabrewBrush-BoldItalic.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Manabrew Brush";
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("./ManabrewBrush-ExtraBold.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Manabrew Brush";
+  font-style: italic;
+  font-weight: 800;
+  font-display: swap;
+  src: url("./ManabrewBrush-ExtraBoldItalic.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Manabrew Brush";
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url("./ManabrewBrush-Black.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Manabrew Brush";
+  font-style: italic;
+  font-weight: 900;
+  font-display: swap;
+  src: url("./ManabrewBrush-BlackItalic.woff2") format("woff2");
+}

@@ -219,10 +219,10 @@ export const FONTS: {
   },
   {
     role: "Display and brand",
-    stack: "Merienda",
+    stack: "Alegreya Sans",
     cls: "font-serif font-bold",
     weights: "700",
-    use: "Merienda Bold for brand text and intentional display titles.",
+    use: "Alegreya Sans Bold for brand text and intentional display titles.",
   },
 ];
 export const GAME_FONT_SIZES: {

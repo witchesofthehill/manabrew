@@ -1,5 +1,5 @@
 import { createRoot } from "react-dom/client";
-import "@fontsource/merienda/700.css";
+import "@fontsource/alegreya-sans/700.css";
 import "@fontsource-variable/source-sans-3";
 import "@fontsource-variable/source-sans-3/wght-italic.css";
 import "./index.css";

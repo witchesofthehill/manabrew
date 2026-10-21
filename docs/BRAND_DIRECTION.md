@@ -118,15 +118,13 @@ For further shade tuning, use Oklch to control perceived lightness and chroma, c
 
 ## Typography
 
-Merienda Bold 700 supplies brand text and display headings; Source Sans 3 supplies the interface and game data. Both families are bundled locally. CSS and imperative stacks are defined in `src/index.css` and `src/themes/typography.ts`.
+Alegreya Sans Bold 700 supplies brand text and display headings; Source Sans 3 supplies the interface and game data. Both families are bundled locally. CSS and imperative stacks are defined in `src/index.css` and `src/themes/typography.ts`.
 
-### Merienda Bold gives the name a brush-lettered voice
+### Alegreya Sans connects the wordmark and display text
 
-Merienda's strong brush strokes give headings and the Manabrew wordmark a handwritten, craft-beer character. Use the normal Bold face at weight 700.
+Use the normal Bold face at weight 700 for onboarding titles, marketing headlines and display headings. Keep card rules, deck rows, small navigation, mana counts and dense tables in their existing fonts.
 
-The wordmark uses outlined vector paths, independent of installed fonts. Its geometry is enlarged relative to the cauldron so the name remains legible at header size. Preserve its letter spacing when resizing; scale the lockup proportionally instead of stretching it.
-
-Reserve Merienda Bold for the logo, onboarding titles, marketing headlines and occasional empty-state headings. Keep card rules, deck rows, small navigation, mana counts and dense tables in their existing fonts.
+The approved wordmark uses outlined Alegreya Sans vector paths, independent of installed fonts. The balanced horizontal lockup retains its 1080 × 400 canvas, with a larger wordmark beside a smaller Brewy. Preserve its letter spacing and scale the complete lockup proportionally instead of stretching it.
 
 ### Source Sans 3 keeps the game readable
 
@@ -134,11 +132,11 @@ Paul D. Hunt designed Adobe's Source Sans as an open-source family for user inte
 
 Use lining tabular figures for changing life totals, timers, quantities and comparable statistics. Use proportional figures in prose. Imperative UI text uses Source Sans 3; native Card Glint printing and physical-card font registration remain independent.
 
-The application waits for normal/italic UI and display font loading before mounting React so successful loads are available for first-frame canvas measurements. Failed font downloads retain the declared system-font fallback rather than blocking startup. Existing game and Limited UI retain their layout roles while sharing the same readable family. A system monospace remains only for code, diagnostics and explicit utility labels. Alegreya Sans, Cormorant Garamond and Inter brand dependencies are removed.
+The application waits for normal/italic UI and display font loading before mounting React so successful loads are available for first-frame canvas measurements. Failed font downloads retain the declared system-font fallback rather than blocking startup. Existing game and Limited UI retain their layout roles while sharing the same readable family. A system monospace remains only for code, diagnostics and explicit utility labels.
 
 ### Distribution
 
-Merienda and Source Sans 3 use SIL Open Font License 1.1. Their WOFF2 files are bundled locally, without runtime font-CDN requests. Full copyright and OFL notices ship in `public/font-licenses/` for the app and `website/public/fonts/` for the sites. If redistributing modified font files, follow the font's reserved-name provisions where applicable.
+Alegreya Sans and Source Sans 3 use SIL Open Font License 1.1. Their WOFF2 files are bundled locally, without runtime font-CDN requests. Full copyright and OFL notices ship in `public/font-licenses/` for the app and `website/public/fonts/` for the sites. If redistributing modified font files, follow the font's reserved-name provisions where applicable.
 
 ## One parent mascot, contextual children
 
@@ -169,7 +167,7 @@ For artwork revisions, compare the icon at 16, 24, 32 and 64 pixels, inspect the
 
 ## Designer reference PDF
 
-Open `/design-system` and choose **Export PDF**, then **Save as PDF** in the browser's print dialog. Export waits for fonts, card examples and images. The A4 document includes collapsed sections, both light/dark token tables, typography, icons, component examples, all three card-face styles, spacing and assets. Logo reactions print as static open poses.
+Open `/design-system` and choose **Export PDF**, then **Save as PDF** in the browser's print dialog. Export waits for fonts, card examples and images. The A4 document includes collapsed sections, both light/dark token tables, typography, icons, component examples, all three card-face styles, spacing and assets.
 
 Component examples use the current light/dark mode and include personal color overrides. The cover records the mode and export date. To share both treatments, export once in each mode; the action does not change theme preferences.
 
@@ -179,15 +177,13 @@ Existing personal color overrides are preserved. Reset Colors restores the new c
 
 Utility pages no longer have the brewery illustration behind them. The existing illustration remains on entry and home hero surfaces and the website, without inventing new mascot artwork. App headers use the horizontal SVG on wider screens and the symbol on compact screens. Website headers use the horizontal SVG without duplicate text.
 
-Designer source artwork and unused exports live outside the repository. Run `python3 scripts/generate-brand-logo.py /path/to/manabrew-brand` after changing approved exports in that external folder. It copies bodies and bubbles from `logos/interactive/manabrew-logo.svg`, the approved enlarged wordmark from `logos/color/manabrew-horizontal-header.svg`, and mouth/fire geometry from `layers/manabrew-mouth-fire.svg`. Liquid and eyes remain transparent body cutouts. It writes `images/brand/logos/interactive/manabrew-logo.svg` and `src/assets/brandLogoGeometry.json` for the React and Astro renderers without modifying the originals. The horizontal viewBox remains 1450:400. Commit only the runtime outputs; normal builds consume them without Python or the external archive.
+Designer source artwork and unused exports live outside the repository. Run `python3 scripts/generate-brand-logo.py /path/to/manabrew-brand` after changing approved exports. It uses the latest dark horizontal export's balanced geometry for both modes, applying the light export's approved inks for light mode. Standalone symbol variants come from their dark/light exports. It writes complete static groups to `images/brand/logos/interactive/manabrew-logo.svg` and dimensions to `src/assets/brandLogoGeometry.json`. Liquid and eyes remain transparent body cutouts. All app routes and website headers share these outputs; no route-specific preview remains. Normal builds consume the committed runtime outputs without Python or the external archive.
 
-The app follows resolved light/dark mode and theme previews; documentation follows its selected theme. Browser icons use the dedicated `favicon/` exports from the external brand folder, preserving the supplied rounded tile and transparent corners in both color schemes. SVG and ICO are copied unchanged into the app and website public directories; PNG fallbacks, the 512px Apple touch icon and PWA icons are resized from the supplied PNG. PWA icons use `purpose: "any"`, not `maskable`. Native desktop/Android icons preserve alpha; native iOS icons are flattened onto white and saved as opaque RGB because iOS requires it. Refresh both canonical Android icon mirrors and the initialized mobile projects' launcher resources. Keep these shipped icons in the repository. Loading, empty-state and error illustrations remain unchanged; retain `website/public/cauldronColored.png`.
+The app follows resolved light/dark mode and theme previews; documentation follows its selected theme. Browser icons use the Brewy-only `favicon/` exports from the external brand folder, preserving the supplied rounded purple tile and transparent corners. SVG and ICO are copied unchanged into the app and website public directories; PNG fallbacks, the 512px Apple touch icon and PWA icons are resized from the supplied PNG. PWA icons use `purpose: "any"`, not `maskable`. Native desktop/Android icons use the standalone dark Brewy without a wordmark and preserve alpha. Native iOS icons are composited onto the approved favicon purple `#48295d` and saved as opaque RGB. Refresh canonical Android mirrors and initialized mobile launcher resources. Keep these shipped icons in the repository. Retain existing illustrations, including `website/public/cauldronColored.png`.
 
-### Interactive header logo
+### Static logo behavior
 
-At rest, preserve the closed-mouth silhouette. Mouse or pen hover anywhere on the existing Home control, or keyboard-visible focus, reveals the mouth and clipped fire. Both flame layers flicker while the three brew bubbles and three floating bubbles/drops move with staggered timing. The body and wordmark stay fixed. Fire and bubble motion loop while hover, focus or an explicit gallery preview remains active; leaving resets the reaction.
-
-Reduced motion shows the static open-mouth/fire pose without animation or transitions. Touch navigation remains a single tap, without a hover-only first tap. `/design-system#assets` provides an explicit, keyboard- and touch-operable preview toggle; standalone specimens stay still. Each logo instance owns a unique mouth clip. Favicons and native icons remain static.
+The logo artwork stays still on hover, keyboard focus and touch. Navigation controls retain ordinary hover/focus affordances, but no mouth/fire reaction, bubble movement, pointer listeners or gallery reaction toggle remains. Favicons and native icons are static too.
 
 ### Brewing-room illustration assets
 
@@ -197,8 +193,8 @@ Each composition includes an editable `.vectorcraft` master and SVG, plus a `.pc
 
 ## Research sources
 
-- [Merienda specimen, Google Fonts](https://fonts.google.com/specimen/Merienda).
-- [Merienda source and licensing](https://github.com/etunni/merienda).
+- [Alegreya Sans specimen, Google Fonts](https://fonts.google.com/specimen/Alegreya+Sans).
+- [Alegreya Sans source and licensing](https://github.com/huertatipografica/Alegreya-Sans).
 - [Source Sans 3, Adobe Fonts](https://fonts.adobe.com/fonts/source-sans-3).
 - [Source Sans source, releases and licensing, Adobe](https://github.com/adobe-fonts/source-sans).
 - [Bricolage Grotesque design notes, Mathieu Triay](https://ateliertriay.github.io/bricolage/).

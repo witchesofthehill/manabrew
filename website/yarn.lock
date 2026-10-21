@@ -472,10 +472,10 @@
   resolved "https://registry.yarnpkg.com/@fontsource-variable/source-sans-3/-/source-sans-3-5.3.1.tgz#da566169416060ced3e90b64b079dfb6b3dd83e9"
   integrity sha512-u0p5Z/PM2e1uxYOMiodLM6NVzxHwULcB6Oi7QSr2WU/sdoLBFP/BeOZ3YYHeJ6rHsjPZA1nZweZVaV7sf2MAyQ==
 
-"@fontsource/merienda@^5.3.0":
+"@fontsource/alegreya-sans@^5.3.0":
   version "5.3.0"
-  resolved "https://registry.yarnpkg.com/@fontsource/merienda/-/merienda-5.3.0.tgz#c1673bcd8f346e602917c3e06a2c97b0d21ece71"
-  integrity sha512-0CpBXbcYSFw2zUiGEzAluqlFnKBDsTG6DxPAxyDbRtx4pTJcIDeBzLd7nWst0MGRpwsRs3TURlzVYsxJ/rA7ZQ==
+  resolved "https://registry.yarnpkg.com/@fontsource/alegreya-sans/-/alegreya-sans-5.3.0.tgz#2a92e66f911b47e37e90ad13bfd7ba13a3093870"
+  integrity sha512-Uf0RbuwzhSS3NQrBFcRzEUm7TxDQW3qdAbQ6JIOhsIW6V+YN2dqlR99lhfEE38R3GHgMCMJBzqSp7aJxhNXSOw==
 
 "@img/colour@^1.0.0":
   version "1.1.0"

@@ -2,7 +2,7 @@
 
 @theme {
   --font-sans: "Source Sans 3 Variable", system-ui, -apple-system, sans-serif;
-  --font-serif: "Merienda", Georgia, serif;
+  --font-serif: "Alegreya Sans", system-ui, -apple-system, sans-serif;
   --font-game: "Source Sans 3 Variable", system-ui, -apple-system, sans-serif;
 
   --color-border: var(--border);

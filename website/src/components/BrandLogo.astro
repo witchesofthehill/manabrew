@@ -7,14 +7,12 @@ interface Props {
   variant?: "horizontal" | "symbol";
   height?: number;
   mode?: "light" | "dark" | "auto";
-  idPrefix: string;
   decorative?: boolean;
 }
 
-const { variant = "horizontal", height = 64, mode = "dark", idPrefix, decorative = false } = Astro.props;
+const { variant = "horizontal", height = 64, mode = "dark", decorative = false } = Astro.props;
 const dimensions = geometry[variant];
 const width = (height * dimensions.width) / dimensions.height;
-const mouthId = `${idPrefix}-mouth`;
 const modes = mode === "auto" ? ["light", "dark"] : [mode];
 ---
 
@@ -30,44 +28,10 @@ const modes = mode === "auto" ? ["light", "dark"] : [mode];
   aria-hidden={decorative ? "true" : undefined}
   focusable="false"
 >
-  <defs>
-    <clipPath id={mouthId}>
-      <path d={geometry.mouthPath} />
-    </clipPath>
-  </defs>
-  {variant === "horizontal" && <use href={`${sprite}#mb-wordmark`} />}
-  <g transform={variant === "horizontal" ? geometry.horizontal.mascotTransform : undefined}>
-    {modes.map((logoMode) => (
-      <use
-        class={mode === "auto" ? (logoMode === "light" ? "mb-logo-light" : "mb-logo-dark") : undefined}
-        href={`${sprite}#mb-body-${logoMode}`}
-      />
-    ))}
-    <g class="mb-logo-bubble-ember"><use href={`${sprite}#mb-bubble-ember`} /></g>
-    <g class="mb-logo-bubble-mana"><use href={`${sprite}#mb-bubble-mana`} /></g>
-    <g class="mb-logo-bubble-sage"><use href={`${sprite}#mb-bubble-sage`} /></g>
-    <g class="mb-logo-float-sage"><use href={`${sprite}#mb-float-sage`} /></g>
-    <g class="mb-logo-float-mana"><use href={`${sprite}#mb-float-mana`} /></g>
-    <g class="mb-logo-float-ember"><use href={`${sprite}#mb-float-ember`} /></g>
-    <g class="mb-logo-mouth">
-      {modes.map((logoMode) => (
-        <use
-          class={mode === "auto" ? (logoMode === "light" ? "mb-logo-light" : "mb-logo-dark") : undefined}
-          href={`${sprite}#mb-mouth-${logoMode}`}
-        />
-      ))}
-      <g clip-path={`url(#${mouthId})`}>
-        <g class="mb-logo-fire-outer"><use href={`${sprite}#mb-fire-outer`} /></g>
-        <g class="mb-logo-fire-core"><use href={`${sprite}#mb-fire-core`} /></g>
-      </g>
-    </g>
-  </g>
+  {modes.map((logoMode) => (
+    <use
+      class={mode === "auto" ? (logoMode === "light" ? "mb-logo-light" : "mb-logo-dark") : undefined}
+      href={`${sprite}#mb-${variant}-${logoMode}`}
+    />
+  ))}
 </svg>
-
-<script>
-  import { bindBrandLogoInteraction } from "../../../src/components/layout/brandLogoInteraction";
-
-  document.querySelectorAll<HTMLElement>(".mb-logo-trigger").forEach((element) => {
-    bindBrandLogoInteraction(element);
-  });
-</script>

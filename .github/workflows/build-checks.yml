@@ -110,7 +110,6 @@ jobs:
               'images/brand/logos/interactive/',
               'src/assets/brandLogoGeometry.json',
               'src/components/layout/ManaBrewLogo.css',
-              'src/components/layout/brandLogoInteraction.ts',
               'scripts/generate-brand-logo.py',
               'Dockerfile.web',
               'public/manabrew_brewery_1.png',

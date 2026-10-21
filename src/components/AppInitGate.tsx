@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useAppInitStore } from "@/stores/useAppInitStore";
 import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 import { BreweryBackdrop } from "@/components/BreweryBackdrop";
+import { ManaBrewLogo } from "@/components/layout/ManaBrewLogo";
 import { cn } from "@/lib/utils";
 const BAR_FILL_MS = 200;
 // Minimum dwell at the initial `idle` stage. Without it, a cache hit can
@@ -90,13 +91,9 @@ export function AppInitGate({ children }: { children: ReactNode }) {
       >
         Welcome to
       </p>
-      <h1
-        className={cn(
-          "font-serif text-5xl font-bold tracking-tight text-foreground md:text-6xl",
-          shortTouch && "text-3xl md:text-3xl",
-        )}
-      >
-        Manabrew
+      <h1 className="max-w-full">
+        <ManaBrewLogo decorative height={shortTouch ? 64 : 96} />
+        <span className="sr-only">Manabrew</span>
       </h1>
       <div
         aria-hidden

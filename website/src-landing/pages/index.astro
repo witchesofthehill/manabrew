@@ -1,6 +1,6 @@
 ---
 import { Image } from "astro:assets";
-import "@fontsource/merienda/700.css";
+import "@fontsource/alegreya-sans/700.css";
 import "@fontsource-variable/source-sans-3";
 import "@fontsource-variable/source-sans-3/wght-italic.css";
 import preset, { BRAND_COLORS } from "../../src/theme";
@@ -40,8 +40,8 @@ const mana = preset.gameColors;
   </head>
   <body>
     <header class="nav">
-      <a class="wordmark mb-logo-trigger" href="/" aria-label="Manabrew">
-        <BrandLogo mode="dark" idPrefix="landing-header" decorative />
+      <a class="wordmark" href="/" aria-label="Manabrew">
+        <BrandLogo mode="dark" decorative />
       </a>
       <nav>
         <a href="/blog/">Blog</a>
@@ -259,7 +259,7 @@ const mana = preset.gameColors;
   }}
 >
   :root {
-    --font-display: "Merienda", Georgia, serif;
+    --font-display: "Alegreya Sans", system-ui, -apple-system, sans-serif;
     --font-body: "Source Sans 3 Variable", system-ui, -apple-system, sans-serif;
     color-scheme: dark;
   }

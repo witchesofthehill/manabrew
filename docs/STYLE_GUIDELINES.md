@@ -282,7 +282,7 @@ color overrides, and unrelated settings. Legacy flat app overrides still migrate
 ### Brand and typography
 
 Follow `docs/BRAND_DIRECTION.md` for identity changes. Source Sans 3 is the UI/game
-family; Merienda Bold 700 is reserved for brand text and occasional display headings.
+family; Alegreya Sans Bold 700 supplies brand text and display headings.
 Keep native Card Glint printing fonts independent. Brand fonts load locally before
 React mounts so canvas text is measured with the intended face.
 

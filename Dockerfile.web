@@ -140,7 +140,7 @@ COPY public/manabrew_brewery_1.png /repo/public/manabrew_brewery_1.png
 COPY src/themes/ /repo/src/themes/
 COPY images/brand/logos/interactive/ /repo/images/brand/logos/interactive/
 COPY src/assets/brandLogoGeometry.json /repo/src/assets/brandLogoGeometry.json
-COPY src/components/layout/ManaBrewLogo.css src/components/layout/brandLogoInteraction.ts /repo/src/components/layout/
+COPY src/components/layout/ManaBrewLogo.css /repo/src/components/layout/
 COPY website/ ./
 RUN yarn build
 

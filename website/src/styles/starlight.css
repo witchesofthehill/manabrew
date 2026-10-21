@@ -33,7 +33,11 @@
 
 .sl-markdown-content :is(h1, h2),
 h1#_top {
-  font-family: "Merienda", Georgia, serif;
+  font-family:
+    "Alegreya Sans",
+    system-ui,
+    -apple-system,
+    sans-serif;
   font-weight: 700;
   letter-spacing: -0.03em;
 }

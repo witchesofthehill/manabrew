@@ -171,9 +171,4 @@
     min-width: 0;
     padding: 3mm 0;
   }
-
-  .design-system .ds-logo-reaction {
-    --mb-logo-mouth-opacity: 1 !important;
-    --mb-logo-mouth-scale: 1 !important;
-  }
 }

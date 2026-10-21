@@ -122,7 +122,7 @@ export default defineConfig({
         SiteTitle: "./src/components/SiteTitle.astro",
       },
       customCss: [
-        "@fontsource/merienda/700.css",
+        "@fontsource/alegreya-sans/700.css",
         "@fontsource-variable/source-sans-3",
         "@fontsource-variable/source-sans-3/wght-italic.css",
         "./src/styles/starlight.css",

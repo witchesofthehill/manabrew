@@ -356,7 +356,7 @@ function faceSnapshot(
     ),
     colors:
       stringList(face, "colors") ??
-      (index === 0 && deckCard ? colorCodes(deckCard.color ?? "") : undefined),
+      (!face && index === 0 && deckCard ? colorCodes(deckCard.color ?? "") : undefined),
     color_indicator: stringList(face, "color_indicator"),
     color_identity:
       stringList(face, "color_identity") ??
@@ -468,6 +468,7 @@ function applyLiveFace(
   info: ScryfallCard | undefined,
   deckCard: DeckCard | undefined,
   index: number,
+  layout: string,
 ): CardFaceSnapshot {
   const printed = info?.card_faces?.length
     ? info.card_faces[index]
@@ -496,7 +497,7 @@ function applyLiveFace(
         : card.typeLine,
     oracle_text: liveRules(card, info, index),
     mana_cost: card.manaCost,
-    colors: [...card.colors],
+    colors: isTwoHalfLayout(layout) ? face.colors : [...card.colors],
     power: card.power,
     toughness: card.toughness,
     loyalty: /\bPlaneswalker\b/i.test(card.typeLine) ? (card.loyalty ?? face.loyalty) : undefined,
@@ -642,7 +643,14 @@ export async function prepareCard(input: CardRenderInput): Promise<PreparedCard>
         ) ??
         -1;
       if (selected >= 0)
-        faces[selected] = applyLiveFace(faces[selected]!, input.card, faceInfo, deckCard, selected);
+        faces[selected] = applyLiveFace(
+          faces[selected]!,
+          input.card,
+          faceInfo,
+          deckCard,
+          selected,
+          layout,
+        );
     } else if (faces[liveIndex]) {
       faces[liveIndex] = applyLiveFace(
         faces[liveIndex]!,
@@ -650,6 +658,7 @@ export async function prepareCard(input: CardRenderInput): Promise<PreparedCard>
         faceInfo,
         deckCard,
         liveIndex,
+        layout,
       );
     }
   }

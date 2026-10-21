@@ -14,12 +14,12 @@ msgstr ""
 "Plural-Forms: \n"
 
 #. placeholder {0}: display.stats.damage
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1269
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1301
 msgid "{0} damage"
 msgstr "{0} de daño"
 
 #: src/components/game/RulesPreviewAccessibility.tsx:92
-#: src/pixi/cardPreview/previewMechanics.ts:102
+#: src/pixi/cardPreview/previewMechanics.ts:106
 msgid "Active level"
 msgstr "Nivel activo"
 
@@ -27,13 +27,13 @@ msgstr "Nivel activo"
 msgid "Base ability"
 msgstr "Habilidad base"
 
-#: src/pixi/cardPreview/previewMechanics.ts:104
+#: src/pixi/cardPreview/previewMechanics.ts:108
 msgid "Current characteristics"
 msgstr "Características actuales"
 
 #. placeholder {0}: display.stats.power
 #. placeholder {1}: display.stats.toughness
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1069
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1101
 msgid "Current P/T: {0}/{1}"
 msgstr "F/R actuales: {0}/{1}"
 
@@ -41,7 +41,7 @@ msgstr "F/R actuales: {0}/{1}"
 msgid "Current power and toughness"
 msgstr "Fuerza y resistencia actuales"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1659
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1691
 msgid "Defense"
 msgstr "Defensa"
 
@@ -58,16 +58,16 @@ msgstr "Carta boca abajo"
 msgid "Face-down permanent"
 msgstr "Permanente boca abajo"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1241
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1273
 msgid "Flip back · F"
 msgstr "Ver el reverso · F"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1241
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1273
 msgid "Flip front · F"
 msgstr "Ver el anverso · F"
 
 #: src/components/game/RulesPreviewAccessibility.tsx:93
-#: src/pixi/cardPreview/previewMechanics.ts:102
+#: src/pixi/cardPreview/previewMechanics.ts:106
 msgid "Inactive level"
 msgstr "Nivel inactivo"
 
@@ -80,11 +80,11 @@ msgstr "Nivel"
 msgid "Level {0}"
 msgstr "Nivel {0}"
 
-#: src/pixi/cardPreview/previewMechanics.ts:100
+#: src/pixi/cardPreview/previewMechanics.ts:104
 msgid "Locked"
 msgstr "Cerrada"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1658
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1690
 msgid "Loyalty"
 msgstr "Lealtad"
 
@@ -96,27 +96,27 @@ msgstr "Coste de maná"
 msgid "Not prototyped"
 msgstr "No lanzada como prototipo"
 
-#: src/pixi/cardPreview/previewMechanics.ts:129
+#: src/pixi/cardPreview/previewMechanics.ts:133
 msgid "Not suspended"
 msgstr "No suspendida"
 
-#: src/pixi/cardPreview/previewMechanics.ts:106
+#: src/pixi/cardPreview/previewMechanics.ts:110
 msgid "On an Adventure"
 msgstr "De aventura"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1063
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1095
 msgid "On an Adventure · available actions are listed on their spell half"
 msgstr "De aventura · las acciones disponibles se indican en su mitad de hechizo"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1257
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1289
 msgid "Original printing · generated frame unavailable"
 msgstr ""
 
-#: src/pixi/cardPreview/previewMechanics.ts:104
+#: src/pixi/cardPreview/previewMechanics.ts:108
 msgid "Printed alternative"
 msgstr "Alternativa impresa"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1255
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1287
 msgid "Printed face · live state belongs to the other face"
 msgstr "Cara impresa · el estado actual corresponde a la otra cara"
 
@@ -140,11 +140,11 @@ msgstr "Resuelto · activo"
 msgid "Solved ability"
 msgstr "Habilidad de caso resuelto"
 
-#: src/pixi/cardPreview/previewMechanics.ts:132
+#: src/pixi/cardPreview/previewMechanics.ts:136
 msgid "Suspended"
 msgstr "Suspendida"
 
-#: src/pixi/cardPreview/previewMechanics.ts:133
+#: src/pixi/cardPreview/previewMechanics.ts:137
 msgid "Suspended · {time} time counters"
 msgstr "Suspendida · {time} contadores de tiempo"
 
@@ -152,7 +152,7 @@ msgstr "Suspendida · {time} contadores de tiempo"
 msgid "To solve"
 msgstr "Resolver"
 
-#: src/pixi/cardPreview/previewMechanics.ts:100
+#: src/pixi/cardPreview/previewMechanics.ts:104
 msgid "Unlocked"
 msgstr "Abierta"
 

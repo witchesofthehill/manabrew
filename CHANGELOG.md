@@ -14,6 +14,18 @@
 * Match Realistic print-dot previews to production without changing scan finish geometry.
 * Check relay support for new card materials before submitting a customized deck.
 
+## [3.62.2](https://github.com/witchesofthehill/manabrew/compare/v3.62.1...v3.62.2) (2026-10-21)
+
+### Fixes
+
+* forge-bot default ([#1087](https://github.com/witchesofthehill/manabrew/issues/1087)) ([6789e0b](https://github.com/witchesofthehill/manabrew/commit/6789e0b6ca17b967b0aeebcf137da53945e7fb3b))
+
+## [3.62.1](https://github.com/witchesofthehill/manabrew/compare/v3.62.0...v3.62.1) (2026-10-20)
+
+### Fixes
+
+* relative target svar cost reduction actionspace ([#1086](https://github.com/witchesofthehill/manabrew/issues/1086)) ([7a806ec](https://github.com/witchesofthehill/manabrew/commit/7a806ec16cf8e7d586511f74df61ae0e19d4c500))
+
 ## [3.62.0](https://github.com/witchesofthehill/manabrew/compare/v3.61.1...v3.62.0) (2026-10-20)
 
 ### Features

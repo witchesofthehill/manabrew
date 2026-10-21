@@ -38,7 +38,34 @@ public final class ActionSpaceTest {
         stackGrantedAffinityLeavesNoResidue();
         targetDiscountedSpellIsOffered();
         targetDiscountedSpellNeedsTheDiscountTarget();
+        relativeTargetDiscountIsOffered();
+        relativeTargetDiscountNeedsTheDiscountTarget();
         System.exit(0);
+    }
+
+    private static void relativeTargetDiscountIsOffered() {
+        final Game game = newGame();
+        final Player p = game.getPlayers().get(1);
+        castAt("Murder", game.getPlayers().get(0), add("Ancient Brontodon", p, ZoneType.Battlefield));
+        add("Not of This World", p, ZoneType.Hand);
+        game.getAction().checkStaticAbilities();
+
+        if (!offered(p, true).contains("Not of This World")) {
+            throw new AssertionError(
+                    "Not of This World castable for {0} by targeting Murder on Ancient Brontodon was not offered");
+        }
+    }
+
+    private static void relativeTargetDiscountNeedsTheDiscountTarget() {
+        final Game game = newGame();
+        final Player p = game.getPlayers().get(1);
+        castAt("Murder", game.getPlayers().get(0), add("Grizzly Bears", p, ZoneType.Battlefield));
+        add("Not of This World", p, ZoneType.Hand);
+        game.getAction().checkStaticAbilities();
+
+        if (offered(p, true).contains("Not of This World")) {
+            throw new AssertionError("Not of This World offered with no mana and no power 7 creature targeted");
+        }
     }
 
     private static void targetDiscountedSpellIsOffered() {
@@ -139,6 +166,21 @@ public final class ActionSpaceTest {
     }
 
     private static Card add(final String name, final Player p, final ZoneType zone) {
+        final Card card = create(name, p);
+        p.getZone(zone).add(card);
+        return card;
+    }
+
+    private static void castAt(final String name, final Player caster, final Card target) {
+        final Card card = create(name, caster);
+        final SpellAbility sa = card.getFirstSpellAbility();
+        sa.setActivatingPlayer(caster);
+        sa.getTargets().add(target);
+        caster.getGame().getStackZone().add(card);
+        caster.getGame().getStack().add(sa);
+    }
+
+    private static Card create(final String name, final Player p) {
         IPaperCard paper = FModel.getMagicDb().getCommonCards().getCard(name);
         if (paper == null) {
             StaticData.instance().attemptToLoadCard(name);
@@ -146,7 +188,6 @@ public final class ActionSpaceTest {
         }
         final Card card = Card.fromPaperCard(paper, p);
         card.setGameTimestamp(p.getGame().getNextTimestamp());
-        p.getZone(zone).add(card);
         return card;
     }
 }

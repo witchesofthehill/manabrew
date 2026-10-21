@@ -276,9 +276,14 @@ public final class ActionSpace {
         cards.add(host);
         for (final Card card : cards) {
             for (final StaticAbility st : card.getStaticAbilities()) {
+                if (!st.matchesValidParam("ValidCard", host)) {
+                    continue;
+                }
                 if ((st.checkMode(StaticAbilityMode.ReduceCost) || st.checkMode(StaticAbilityMode.RaiseCost))
-                        && st.hasParam("ValidTarget")
-                        && st.matchesValidParam("ValidCard", host)) {
+                        && st.hasParam("ValidTarget")) {
+                    return true;
+                }
+                if (st.checkMode(StaticAbilityMode.ReduceCost) && st.hasParam("Relative")) {
                     return true;
                 }
             }
@@ -297,6 +302,9 @@ public final class ActionSpace {
         }
         if (!current.usesTargeting()) {
             return canPayManaWithTargets(sa, current.getSubAbility(), player, reservedSacrifices);
+        }
+        if (current.getMaxTargets() > 1) {
+            return true;
         }
         current.resetTargets();
         final List<GameObject> candidates = new ArrayList<>(

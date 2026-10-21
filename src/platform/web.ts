@@ -803,6 +803,9 @@ class WebGameApi implements IGameApi {
 
     if (params.localIsHost) {
       this.serverApi?.setEnginePlayerNames(params.playerNames);
+      const forgeAi =
+        params.engine === "Forge" && usePreferencesStore.getState().aiController === "forge";
+      const botSeats = (params.botPlayerSlots ?? []).map(seatIndexOf);
       const limited = useMultiplayerLimitedStore.getState();
       const virtualBotNames = new Set(
         limited.matchReturn
@@ -812,9 +815,11 @@ class WebGameApi implements IGameApi {
           : [],
       );
       this.bridge.setLocalBotSlots(
-        (params.botPlayerSlots ?? []).filter((slot) =>
-          virtualBotNames.has(params.playerNames[seatIndexOf(slot)]),
-        ),
+        forgeAi
+          ? []
+          : (params.botPlayerSlots ?? []).filter((slot) =>
+              virtualBotNames.has(params.playerNames[seatIndexOf(slot)]),
+            ),
       );
       // Host runs the engine; the worker posts back one SAB per remote
       // seat (see the game:remote_sab handler in WorkerBridge).
@@ -823,7 +828,8 @@ class WebGameApi implements IGameApi {
         commanderNames: params.commanderNames,
         playerNames: params.playerNames,
         enginePlayerIndex: params.enginePlayerIndex,
-        botSeats: (params.botPlayerSlots ?? []).map(seatIndexOf),
+        botSeats,
+        forgeAiSeats: forgeAi ? botSeats : [],
         snapshotRecording: usePreferencesStore.getState().snapshotRecording,
         startingLife: params.startingLife,
         engine: params.engine,

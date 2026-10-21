@@ -53,6 +53,9 @@ targets:
           - UIInterfaceOrientationLandscapeRight
         CFBundleShortVersionString: 0.0.0
         CFBundleVersion: "0.0.0"
+        NSLocalNetworkUsageDescription: Manabrew looks for a relay or a table hosted on your network, so you can play with nobody typing an address.
+        NSBonjourServices:
+          - _manabrew._tcp
     entitlements:
       path: manabrew_iOS/manabrew_iOS.entitlements
     scheme:

@@ -185,7 +185,7 @@ The app follows resolved light/dark mode and theme previews; documentation follo
 
 ### Interactive header logo
 
-At rest, preserve the closed-mouth silhouette. Mouse or pen hover anywhere on the existing Home control, or keyboard-visible focus, reveals the mouth and clipped fire. Both flame layers flicker while the three brew bubbles and three floating bubbles/drops move with staggered timing. The body and wordmark stay fixed. Motion runs for roughly two seconds, then settles with the mouth open until hover/focus ends; leaving resets the reaction.
+At rest, preserve the closed-mouth silhouette. Mouse or pen hover anywhere on the existing Home control, or keyboard-visible focus, reveals the mouth and clipped fire. Both flame layers flicker while the three brew bubbles and three floating bubbles/drops move with staggered timing. The body and wordmark stay fixed. Fire and bubble motion loop while hover, focus or an explicit gallery preview remains active; leaving resets the reaction.
 
 Reduced motion shows the static open-mouth/fire pose without animation or transitions. Touch navigation remains a single tap, without a hover-only first tap. `/design-system#assets` provides an explicit, keyboard- and touch-operable preview toggle; standalone specimens stay still. Each logo instance owns a unique mouth clip. Favicons and native icons remain static.
 

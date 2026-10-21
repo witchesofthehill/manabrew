@@ -66,20 +66,19 @@ html[data-theme="light"] .mb-logo[data-mode="auto"] .mb-logo-dark {
   .mb-logo-float-ember {
     animation-timing-function: ease-in-out;
     animation-fill-mode: both;
+    animation-iteration-count: infinite;
   }
 
   .mb-logo-fire-outer {
     animation-name: var(--mb-logo-fire-outer-animation, none);
     animation-duration: 650ms;
     animation-delay: 160ms;
-    animation-iteration-count: 3;
   }
 
   .mb-logo-fire-core {
     animation-name: var(--mb-logo-fire-core-animation, none);
     animation-duration: 570ms;
     animation-delay: 210ms;
-    animation-iteration-count: 3;
   }
 
   .mb-logo-bubble-ember,
@@ -87,7 +86,6 @@ html[data-theme="light"] .mb-logo[data-mode="auto"] .mb-logo-dark {
   .mb-logo-bubble-sage {
     animation-name: var(--mb-logo-brew-animation, none);
     animation-duration: 900ms;
-    animation-iteration-count: 2;
   }
 
   .mb-logo-bubble-ember {
@@ -109,7 +107,6 @@ html[data-theme="light"] .mb-logo[data-mode="auto"] .mb-logo-dark {
   .mb-logo-float-ember {
     animation-name: var(--mb-logo-rise-animation, none);
     animation-duration: 900ms;
-    animation-iteration-count: 2;
   }
 
   .mb-logo-float-sage {

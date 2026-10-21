@@ -44,6 +44,16 @@ if (target === "android") {
   }
 }
 
+if (target === "ios" && platform() === "darwin" && ["dev", "build"].includes(args[0])) {
+  const generated = spawnSync(
+    "xcodegen",
+    ["generate", "--spec", "src-tauri/gen/apple/project.yml", "--only-plists"],
+    { stdio: "inherit", env },
+  );
+  if (generated.error) console.error(`[mobile-dev] ${generated.error.message}`);
+  if (generated.status !== 0) process.exit(generated.status ?? 1);
+}
+
 if (target === "ios" && args[0] === "dev" && args.length === 1 && platform() === "darwin") {
   const chosen = await pickIosSimulator();
   if (chosen) {

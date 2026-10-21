@@ -1,7 +1,6 @@
 ---
 import { Image } from "astro:assets";
-import "@fontsource-variable/fraunces/full.css";
-import "@fontsource-variable/fraunces/full-italic.css";
+import "@fontsource/merienda/700.css";
 import "@fontsource-variable/source-sans-3";
 import "@fontsource-variable/source-sans-3/wght-italic.css";
 import preset, { BRAND_COLORS } from "../../src/theme";
@@ -65,7 +64,7 @@ const mana = preset.gameColors;
         <div class="hero-veil"></div>
         <div class="hero-inner">
           <p class="kicker reveal">Open-source <i>Magic</i> client · Multiplayer first</p>
-          <h1 class="reveal"><i>Magic</i> with friends made simple and easy.</h1>
+          <h1 class="reveal">Magic with friends made simple and easy.</h1>
           <p class="lede reveal">
             Manabrew is a modern way to play <i>Magic: The Gathering</i> online with friends. Available on most platforms and
             compatible with <a href="https://github.com/Card-Forge/forge">Forge</a>.
@@ -260,7 +259,7 @@ const mana = preset.gameColors;
   }}
 >
   :root {
-    --font-display: "Fraunces Variable", Georgia, serif;
+    --font-display: "Merienda", Georgia, serif;
     --font-body: "Source Sans 3 Variable", system-ui, -apple-system, sans-serif;
     color-scheme: dark;
   }
@@ -391,8 +390,6 @@ const mana = preset.gameColors;
   h1 {
     margin: 0;
     font-family: var(--font-display);
-    font-optical-sizing: auto;
-    font-variation-settings: "SOFT" 60, "WONK" 1;
     font-weight: 700;
     font-size: clamp(2.4rem, 8vw, 4.8rem);
     line-height: 1.1;
@@ -509,9 +506,7 @@ const mana = preset.gameColors;
   .features h2 {
     margin: 0 0 0.5rem;
     font-family: var(--font-display);
-    font-optical-sizing: auto;
-    font-variation-settings: "SOFT" 60, "WONK" 1;
-    font-weight: 600;
+    font-weight: 700;
     font-size: 1.45rem;
     color: var(--primary);
   }
@@ -564,8 +559,6 @@ const mana = preset.gameColors;
   .last-call h2 {
     margin: 0 0 0.4rem;
     font-family: var(--font-display);
-    font-optical-sizing: auto;
-    font-variation-settings: "SOFT" 60, "WONK" 1;
     font-weight: 700;
     font-size: clamp(2rem, 6vw, 3.2rem);
   }

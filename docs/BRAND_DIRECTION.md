@@ -118,23 +118,19 @@ For further shade tuning, use Oklch to control perceived lightness and chroma, c
 
 ## Typography
 
-Fraunces supplies brand text and occasional display headings; Source Sans 3 supplies the interface and game data. Both use locally bundled variable fonts. CSS and imperative stacks are defined in `src/index.css` and `src/themes/typography.ts`.
+Merienda Bold 700 supplies brand text and display headings; Source Sans 3 supplies the interface and game data. Both families are bundled locally. CSS and imperative stacks are defined in `src/index.css` and `src/themes/typography.ts`.
 
-I also considered Bricolage Grotesque, whose French/British grotesque mixture offers a more contemporary, irregular wordmark, and Newsreader, which suggests a quieter reading-oriented product. Fraunces wins here because its soft, leaning forms can echo the cauldron's deliberate awkwardness. This is an aesthetic choice, not a legibility ranking.
+### Merienda Bold gives the name a brush-lettered voice
 
-### Fraunces gives the cauldron a typographic relative
+Merienda's strong brush strokes give headings and the Manabrew wordmark a handwritten, craft-beer character. Use the normal Bold face at weight 700.
 
-Undercase Type's Phaedra Charles and Flavia Zimbardi designed Fraunces around the expressive soft-serif tradition of Windsor, Souvenir and Cooper. The designers explicitly describe the genre as playful and sometimes goofy. That is a closer fit to a derpy cauldron than a solemn fantasy inscription.
+The wordmark uses outlined vector paths, independent of installed fonts. Its geometry is enlarged relative to the cauldron so the name remains legible at header size. Preserve its letter spacing when resizing; scale the lockup proportionally instead of stretching it.
 
-Fraunces includes weight, optical size, softness and wonk axes. Implemented display text uses weights 600/700, automatic optical sizing, softness 60 and wonk 1. The approved outlined wordmark uses Fraunces 700. Its geometry is enlarged relative to the cauldron so the name remains legible at header size.
-
-The wordmark uses outlined vector paths with deliberate proportions, independent of installed fonts. Preserve its letter spacing when resizing; scale the lockup proportionally instead of stretching it.
-
-Reserve Fraunces for the logo, onboarding titles, marketing headlines and occasional empty-state headings. Do not use it for card rules, deck rows, small navigation, mana counts or dense tables. Its optical sizing improves small-size behavior, but that is not a reason to use a decorative face everywhere.
+Reserve Merienda Bold for the logo, onboarding titles, marketing headlines and occasional empty-state headings. Keep card rules, deck rows, small navigation, mana counts and dense tables in their existing fonts.
 
 ### Source Sans 3 keeps the game readable
 
-Paul D. Hunt designed Adobe's Source Sans as an open-source family for user interfaces. Its humanist construction gives a quieter companion to the expressive serif without making the entire product look like a children's game.
+Paul D. Hunt designed Adobe's Source Sans as an open-source family for user interfaces. Its humanist construction gives a quieter companion to the brush-lettered display face.
 
 Use lining tabular figures for changing life totals, timers, quantities and comparable statistics. Use proportional figures in prose. Imperative UI text uses Source Sans 3; native Card Glint printing and physical-card font registration remain independent.
 
@@ -142,7 +138,7 @@ The application waits for normal/italic UI and display font loading before mount
 
 ### Distribution
 
-Fraunces and Source Sans 3 use SIL Open Font License 1.1. Their WOFF2 files are bundled locally, without runtime font-CDN requests. Full copyright and OFL notices ship in `public/font-licenses/` for the app and `website/public/fonts/` for the sites. If redistributing modified font files, follow the font's reserved-name provisions where applicable.
+Merienda and Source Sans 3 use SIL Open Font License 1.1. Their WOFF2 files are bundled locally, without runtime font-CDN requests. Full copyright and OFL notices ship in `public/font-licenses/` for the app and `website/public/fonts/` for the sites. If redistributing modified font files, follow the font's reserved-name provisions where applicable.
 
 ## One parent mascot, contextual children
 
@@ -201,8 +197,8 @@ Each composition includes an editable `.vectorcraft` master and SVG, plus a `.pc
 
 ## Research sources
 
-- [Fraunces specimen and design history, Undercase Type](https://fraunces.undercase.xyz/).
-- [Fraunces source and licensing](https://github.com/undercasetype/Fraunces).
+- [Merienda specimen, Google Fonts](https://fonts.google.com/specimen/Merienda).
+- [Merienda source and licensing](https://github.com/etunni/merienda).
 - [Source Sans 3, Adobe Fonts](https://fonts.adobe.com/fonts/source-sans-3).
 - [Source Sans source, releases and licensing, Adobe](https://github.com/adobe-fonts/source-sans).
 - [Bricolage Grotesque design notes, Mathieu Triay](https://ateliertriay.github.io/bricolage/).

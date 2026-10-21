@@ -23,7 +23,7 @@ BasePalette (Manabrew raw hues)
 | `src/themes/buildGameColors.ts`  | `BasePalette` interface, `buildGameColors()` — maps ~30 raw hues to ~80 typed tokens.                                                                           |
 | `src/themes/default.ts`          | Canonical Manabrew light/dark colors, game palette, and game font sizes                                                                                         |
 | `src/themes/brand.ts`            | Ember/purple shade families, restrained sage accents, and warm neutrals shared with the website.                                                                |
-| `src/themes/typography.ts`       | Source Sans 3 UI and Fraunces display stacks for imperative text.                                                                                               |
+| `src/themes/typography.ts`       | Source Sans 3 UI and Merienda display stacks for imperative text.                                                                                               |
 | `src/hooks/useTheme.ts`          | Shared resolved snapshot: `useTheme()` for React, `getTheme()` / `subscribeTheme()` for Pixi, and root-only `useApplyTheme()`.                                  |
 | `src/index.css`                  | The `@theme` block mapping CSS vars to Tailwind utilities — **auto-generated**.                                                                                 |
 | `scripts/generate-theme-css.mjs` | Regenerates the `@theme` block. Run with `--write` after schema changes.                                                                                        |

@@ -15,6 +15,8 @@ The engine is incomplete. Most day-to-day work is **finding parity bugs** with `
 
 The development web container owns a separate `web-node-modules` volume. Host-side dependency installs do not update it. After changing `package.json` or `yarn.lock`, run `docker compose -f compose.dev.yaml restart web` so startup reruns `yarn install --frozen-lockfile`; a browser reload or `./dev start web` on an already-running container does not rerun installation.
 
+Multiple checkouts use separate Compose project names but the same published ports. Before restarting a stack, check the running web container's `com.docker.compose.project.working_dir` label. If another checkout owns port 1420, leave that stack running; starting this checkout's stopped web container fails with a port-allocation conflict.
+
 Hub migrations are immutable once any environment has applied them. Extend the schema with the next numbered migration so existing and fresh databases converge through the same sequence.
 
 For Hub startup or health-check changes, read `docs/agents/HUB.md`: parsing the cached Scryfall index can exceed the deployment health-check budget.

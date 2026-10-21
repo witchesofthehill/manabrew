@@ -219,10 +219,10 @@ export const FONTS: {
   },
   {
     role: "Display and brand",
-    stack: "Fraunces",
-    cls: "font-serif font-semibold",
-    weights: "600 · 700",
-    use: "Brand text and intentional titles, tight or normal tracking. Optical sizing with SOFT 60 and WONK 1.",
+    stack: "Merienda",
+    cls: "font-serif font-bold",
+    weights: "700",
+    use: "Merienda Bold for brand text and intentional display titles.",
   },
 ];
 export const GAME_FONT_SIZES: {

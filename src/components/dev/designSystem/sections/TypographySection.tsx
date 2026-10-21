@@ -39,7 +39,7 @@ export function TypographySection() {
     <Section
       id="typography"
       title={`Typography`}
-      intro="Two self-hosted variable families. Fraunces supplies display titles; Source Sans 3 supplies body, controls and game text. rem scales chrome on large displays; card art keeps its native printing fonts."
+      intro="Two self-hosted families. Merienda Bold supplies display titles; Source Sans 3 supplies body, controls and game text. rem scales chrome on large displays; card art keeps its native printing fonts."
     >
       <div className="grid gap-3 md:grid-cols-2">
         {FONTS.map((f) => (

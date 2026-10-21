@@ -2,7 +2,7 @@
 
 @theme {
   --font-sans: "Source Sans 3 Variable", system-ui, -apple-system, sans-serif;
-  --font-serif: "Fraunces Variable", Georgia, serif;
+  --font-serif: "Merienda", Georgia, serif;
   --font-game: "Source Sans 3 Variable", system-ui, -apple-system, sans-serif;
 
   --color-border: var(--border);
@@ -619,10 +619,7 @@
 }
 
 .font-serif {
-  font-optical-sizing: auto;
-  font-variation-settings:
-    "SOFT" 60,
-    "WONK" 1;
+  font-weight: 700;
 }
 
 .font-game {

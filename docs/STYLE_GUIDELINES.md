@@ -282,10 +282,9 @@ color overrides, and unrelated settings. Legacy flat app overrides still migrate
 ### Brand and typography
 
 Follow `docs/BRAND_DIRECTION.md` for identity changes. Source Sans 3 is the UI/game
-family; Fraunces is reserved for brand text and occasional display headings.
-Fraunces uses automatic optical sizing with `SOFT 60` and `WONK 1`. Keep native
-Card Glint printing fonts independent. Brand fonts load locally before React mounts
-so canvas text is measured with the intended face.
+family; Merienda Bold 700 is reserved for brand text and occasional display headings.
+Keep native Card Glint printing fonts independent. Brand fonts load locally before
+React mounts so canvas text is measured with the intended face.
 
 Ember actions use explicit `primary-hover` and `primary-foreground` pairs.
 Selection fill, text and purple indicators use `selection`, `selection-foreground`

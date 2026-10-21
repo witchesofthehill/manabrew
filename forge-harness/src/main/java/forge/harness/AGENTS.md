@@ -127,13 +127,15 @@ Use the session's `captureSnapshot`/`restoreSnapshot` pair for checkpoints and m
 
 ## Build / verify
 
-Jar is produced by `node scripts/harness.mjs ensure` (or `mvn -pl forge-harness package` from `forge/`). For a fast compile-only check against an existing fat jar:
+Jar is produced by `node scripts/harness.mjs ensure` (or `mvn -pl forge-harness -am package -DskipTests` from the repository root). For a fast compile-only check against an existing fat jar:
 
 ```
 javac -d /tmp/out -cp target/forge-harness-jar-with-dependencies.jar $(find src/main/java -name '*.java')
 ```
 
 **After a `forge` submodule bump, do a _clean_ rebuild** (`mvn -pl forge-harness -am clean package -DskipTests`). `ensure`/`package` are incremental and key off source mtime, not the classpath — so a Forge change recompiles `forge/` but reuses the harness `.class` files compiled against the **old** Forge, silently shipping a broken jar (missing newer card enums like `CardSplitType.Prepare`, or synthetic `switch`-map classes like `SnapshotExtractor$1` → deck-load failures or a runtime `NoClassDefFoundError`). A Forge API change may also require updating the `PlayerController` overrides in `host/ManaBrewInteractiveController` + `parity/DeterministicController` (and call sites in `common/HarnessPlayPlumbing`) before it compiles. Keep the submodule pinned to the recorded gitlink with `git submodule update --init forge`; only `--remote` advances it. Build with JDK 18–21 — newer JDKs (e.g. 26) fail to compile Forge.
+
+If a merged harness cannot find a Forge API, compare the `forge` gitlink with main before changing the harness. Git can retain a branch's rollback when main's pin is unchanged since the merge base.
 
 ## Crash reporting
 

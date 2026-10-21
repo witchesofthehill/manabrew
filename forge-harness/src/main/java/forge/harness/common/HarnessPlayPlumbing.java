@@ -10,13 +10,16 @@ import forge.game.ability.AbilityUtils;
 import forge.game.ability.ApiType;
 import forge.game.ability.effects.CharmEffect;
 import forge.game.card.Card;
+import forge.game.card.CardPlayOption;
 import forge.game.cost.Cost;
 import forge.game.cost.CostPayment;
+import forge.game.mana.ManaPool;
 import forge.game.player.Player;
 import forge.game.player.PlayerController;
 import forge.game.spellability.OptionalCostValue;
 import forge.game.spellability.Spell;
 import forge.game.spellability.SpellAbility;
+import forge.game.staticability.StaticAbilityManaConvert;
 import forge.game.trigger.Trigger;
 import forge.game.trigger.TriggerHandler;
 import forge.game.trigger.TriggerType;
@@ -74,23 +77,26 @@ public final class HarnessPlayPlumbing {
         }
 
         final Card source = sa.getHostCard();
+        final CardPlayOption option = source.mayPlay(sa.getMayPlay());
         if (!effect && sa.isSpell() && !source.isCopiedSpell()) {
             sa.setHostCard(game.getAction().moveToStack(source, sa));
             sa = GameActionUtil.addExtraKeywordCost(sa);
         }
 
-        needX = true;
-        if (!announceType(sa) || !announceValuesLikeX(sa)) {
-            return false;
-        }
-
         final Cost cost = sa.getPayCosts();
-        if (costPlumbing.payWithControllerDecision(cost, sa, effect)) {
-            AbilityUtils.resolve(sa);
-            return true;
-        }
+        final CostPayment pay = new CostPayment(cost, sa);
+        final boolean manaColorConversion = applyManaConversion(sa, ai, option, pay);
 
-        return false;
+        needX = true;
+        final boolean paid = announceType(sa) && announceValuesLikeX(sa)
+                && costPlumbing.payWithControllerDecision(cost, sa, effect, pay);
+        if (manaColorConversion) {
+            ai.getManaPool().restoreColorReplacements();
+        }
+        if (paid) {
+            AbilityUtils.resolve(sa);
+        }
+        return paid;
     }
 
     boolean playStack(SpellAbility sa, final Player ai, final Game game) {
@@ -103,6 +109,7 @@ public final class HarnessPlayPlumbing {
         final Card source = sa.getHostCard();
         final Zone fromZone = game.getZoneOf(source);
         final int zonePosition = fromZone != null ? fromZone.getCards().indexOf(source) : 0;
+        final CardPlayOption option = source.mayPlay(sa.getMayPlay());
 
         if (sa.isSpell() && !source.isCopiedSpell()) {
             sa.setHostCard(game.getAction().moveToStack(source, sa));
@@ -111,17 +118,16 @@ public final class HarnessPlayPlumbing {
 
         final Cost cost = sa.getPayCosts();
         final CostPayment pay = new CostPayment(cost, sa);
+        final boolean manaColorConversion = applyManaConversion(sa, ai, option, pay);
 
-        if (!sa.checkRestrictions(ai)) {
-            GameActionUtil.rollbackAbility(sa, sa.isSpell() ? fromZone : null, zonePosition, pay, source);
-            return false;
+        final boolean paid = sa.checkRestrictions(ai) && costPlumbing.payWithControllerDecision(cost, sa, false, pay);
+        if (manaColorConversion) {
+            ai.getManaPool().restoreColorReplacements();
         }
-
-        if (costPlumbing.payWithControllerDecision(cost, sa, false, pay)) {
+        if (paid) {
             game.getStack().add(sa);
             return true;
         }
-        // Payment failed — rollback moveToStack if the card was moved.
         GameActionUtil.rollbackAbility(sa, sa.isSpell() ? fromZone : null, zonePosition, pay, source);
         return false;
     }
@@ -136,6 +142,8 @@ public final class HarnessPlayPlumbing {
         final Card host = sa.getHostCard();
         final Zone hz = host.isCopiedSpell() ? null : host.getZone();
         final int zonePosition = hz != null ? hz.getCards().indexOf(host) : 0;
+        final ManaPool manapool = ai.getManaPool();
+        final CardPlayOption option = host.mayPlay(sa.getMayPlay());
         final CardStateName oldState = source.getCurrentStateName();
         source.setSplitStateToPlayAbility(sa);
 
@@ -184,11 +192,15 @@ public final class HarnessPlayPlumbing {
 
         final Cost cost = sa.getPayCosts();
         final CostPayment pay = new CostPayment(cost, sa);
+        final boolean manaColorConversion = applyManaConversion(sa, ai, option, pay);
 
         if (!announceType(sa) || !announceValuesLikeX(sa) || !sa.checkRestrictions(ai)
                 || !sa.setupTargets() || !sa.isLegalAfterStack()) {
             if (sa.isSpell() && !source.isCopiedSpell() && hz != null) {
                 GameActionUtil.rollbackAbility(sa, hz, zonePosition, pay, host);
+            }
+            if (manaColorConversion) {
+                manapool.restoreColorReplacements();
             }
             return false;
         }
@@ -217,6 +229,9 @@ public final class HarnessPlayPlumbing {
             if (sa.getSplicedCards() != null && !sa.getSplicedCards().isEmpty()) {
                 game.getAction().reveal(sa.getSplicedCards(), ai, true, "Computer reveals spliced cards from ");
             }
+            if (manaColorConversion) {
+                manapool.restoreColorReplacements();
+            }
             return true;
         }
 
@@ -239,7 +254,38 @@ public final class HarnessPlayPlumbing {
         // subsequent addAndUnfreeze() calls to skip unfreezing because
         // primaryAbility doesn't match the new ability.
         game.getStack().unfreezeStack();
+        if (manaColorConversion) {
+            manapool.restoreColorReplacements();
+        }
         return false;
+    }
+
+    static boolean applyManaConversion(
+            final SpellAbility ability, final Player player, final CardPlayOption option, final CostPayment payment) {
+        boolean manaColorConversion = false;
+        if (!ability.isCopied()) {
+            if (ability.isSpell()) {
+                if (option != null && option.applyManaConvert(payment)) {
+                    manaColorConversion = true;
+                }
+                if (option != null && option.isIgnoreSnowSourceManaCostColor()) {
+                    payment.setSnowForColor(true);
+                }
+            }
+            if (ability.isActivatedAbility() && ability.getGrantorStatic() != null
+                    && ability.getGrantorStatic().hasParam("ManaConversion")) {
+                AbilityUtils.applyManaColorConversion(payment, ability.getGrantorStatic().getParam("ManaConversion"));
+                manaColorConversion = true;
+            }
+            if (StaticAbilityManaConvert.manaConvert(payment, player, ability.getHostCard(), ability)) {
+                manaColorConversion = true;
+            }
+            if (ability.hasParam("ManaConversion")) {
+                AbilityUtils.applyManaColorConversion(payment, ability.getParam("ManaConversion"));
+                manaColorConversion = true;
+            }
+        }
+        return manaColorConversion;
     }
 
     private static SpellAbility chooseOptionalAdditionalCosts(Player p, final SpellAbility original) {

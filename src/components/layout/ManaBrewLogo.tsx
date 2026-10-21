@@ -42,7 +42,6 @@ export function ManaBrewLogo({
       {variant === "horizontal" && <use href={`${logoSpriteUrl}#mb-wordmark`} />}
       <g transform={variant === "horizontal" ? geometry.horizontal.mascotTransform : undefined}>
         <use href={`${logoSpriteUrl}#mb-body-${mode}`} />
-        <use href={`${logoSpriteUrl}#mb-liquid`} />
         <g className="mb-logo-bubble-ember">
           <use href={`${logoSpriteUrl}#mb-bubble-ember`} />
         </g>

@@ -109,11 +109,7 @@ impl CardDatabase {
     }
 
     fn lookup_face(&self, card_name: &str) -> Option<&'static CardRules> {
-        let resolved = self
-            .normalized_names
-            .get(card_name)
-            .map(|s| s.as_str())
-            .unwrap_or(card_name);
+        let resolved = self.get_normalized_name(card_name);
         let resolved = self.resolve_flavor_alias(resolved);
         let lower = resolved.to_ascii_lowercase();
 
@@ -282,9 +278,16 @@ impl CardDatabase {
     /// If the given name is an accent-stripped variant, returns the original name.
     pub fn get_normalized_name<'a>(&'a self, card_name: &'a str) -> &'a str {
         self.normalized_names
-            .get(card_name)
+            .get(&normalized_name_key(card_name))
             .map(|s| s.as_str())
             .unwrap_or(card_name)
+    }
+
+    fn add_normalized_name(&mut self, name: &str) {
+        if deunicode(name) != name {
+            self.normalized_names
+                .insert(normalized_name_key(name), name.to_string());
+        }
     }
 
     pub fn load_from_archive(archive_bytes: &[u8]) -> Result<ArchiveBundle, String> {
@@ -315,6 +318,11 @@ impl CardDatabase {
         cards.archive = Some(archive);
         for edition in archive.editions.iter() {
             cards.extract_flavor_aliases_from_edition_contents(edition.raw.as_str());
+        }
+        for card in archive.cards.iter() {
+            if !card.name_lower.as_str().is_ascii() {
+                cards.add_normalized_name(card.display_name());
+            }
         }
         let cards_result = LoadResult {
             loaded: archive.cards.len(),
@@ -353,11 +361,7 @@ impl CardDatabase {
                     } else {
                         card.normalized_name.clone()
                     };
-                    let card_name = card.name();
-                    let normal_name = deunicode(&card_name);
-                    if normal_name != card_name {
-                        self.normalized_names.insert(normal_name, card_name);
-                    }
+                    self.add_normalized_name(&card.name());
                     self.register_flavor_aliases_for_card(&card);
                     let leaked: &'static CardRules = Box::leak(Box::new(card));
                     self.cache_insert(key, leaked);
@@ -390,15 +394,9 @@ impl CardDatabase {
         self.flavor_name_aliases
             .insert(alias.to_ascii_lowercase(), canonical_name.to_string());
 
-        let normalized_alias = deunicode(alias);
-        if normalized_alias != alias {
-            self.normalized_names
-                .insert(normalized_alias.clone(), alias.to_string());
-        }
-        self.flavor_name_aliases_normalized.insert(
-            normalized_alias.to_ascii_lowercase(),
-            canonical_name.to_string(),
-        );
+        self.add_normalized_name(alias);
+        self.flavor_name_aliases_normalized
+            .insert(normalized_name_key(alias), canonical_name.to_string());
     }
 
     fn register_flavor_aliases_for_card(&mut self, card: &CardRules) {
@@ -525,6 +523,10 @@ impl CardDatabase {
             }
         }
     }
+}
+
+fn normalized_name_key(name: &str) -> String {
+    deunicode(name).to_ascii_lowercase()
 }
 
 /// Parse a card name from an edition's `[cards]` section line.

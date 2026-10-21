@@ -1,3 +1,4 @@
+import { isFeatureEnabled } from "@/featureFlags";
 import type {
   CardBorderPreset,
   CardCosmetics,
@@ -63,6 +64,7 @@ export function resolveCardWearAmount(cosmetics?: CardCosmetics): number {
 }
 
 export function hasCardFinishEffects(finish: CardFinish, cosmetics?: CardCosmetics): boolean {
+  if (!isFeatureEnabled("cardFoil")) return false;
   return (
     finish !== "regular" ||
     resolveCardWearAmount(cosmetics) > 0 ||

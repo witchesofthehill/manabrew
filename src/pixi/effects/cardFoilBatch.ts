@@ -101,11 +101,9 @@ class CardFoilPipe {
     this.gpuTimers.dom?.reset();
   };
   private supported: boolean | undefined;
-  private warmed = false;
   private readonly restore = () => {
     this.resetGpuTiming();
     this.supported = undefined;
-    this.warmed = false;
     for (const instruction of this.instructions)
       for (const draw of instruction.draws) draw.uploaded = false;
   };
@@ -156,19 +154,6 @@ class CardFoilPipe {
       gl.getParameter(gl.MAX_VARYING_VECTORS) >= MIN_BATCH_VARYING_VECTORS &&
       gl.getParameter(gl.MAX_VERTEX_TEXTURE_IMAGE_UNITS) > 0 &&
       gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS) >= 8;
-    if (this.warmed) return;
-    this.warmed = true;
-    for (const instanced of this.supported ? [false, true] : [false]) {
-      for (const procedural of [false, true]) {
-        const shader = new Shader({
-          glProgram: getCardFoilProgram(instanced, procedural),
-          resources: {},
-        });
-        renderer.shader.bind(shader, true);
-        shader.destroy(false);
-        cardFoilBatchCounters.programPreparations++;
-      }
-    }
   }
   renderEnd(): void {
     if (this.renderer.gl.isContextLost()) return;

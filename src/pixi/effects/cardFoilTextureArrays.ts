@@ -17,7 +17,6 @@ export const cardFoilBatchCounters = {
   instanceUploadBytes: 0,
   restores: 0,
   domDraws: 0,
-  programPreparations: 0,
 };
 interface Resident {
   key: string;

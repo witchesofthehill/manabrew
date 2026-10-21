@@ -56,6 +56,12 @@ targets:
         NSLocalNetworkUsageDescription: Manabrew looks for a relay or a table hosted on your network, so you can play with nobody typing an address.
         NSBonjourServices:
           - _manabrew._tcp
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: true
+          UISceneConfigurations:
+            UIWindowSceneSessionRoleApplication:
+              - UISceneConfigurationName: TaoScene
+                UISceneDelegateClassName: TaoSceneDelegate
     entitlements:
       path: manabrew_iOS/manabrew_iOS.entitlements
     scheme:

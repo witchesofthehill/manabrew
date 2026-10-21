@@ -19,7 +19,7 @@ export function scryfallToSampleGameCard(
   sc: ScryfallCard,
   overrides: Partial<ClientCardDto> = {},
 ): ClientCardDto {
-  const face = sc.card_faces?.[overrides.isTransformed ? 1 : 0] ?? sc;
+  const face = sc.card_faces?.[overrides.faceIndex ?? (overrides.isTransformed ? 1 : 0)] ?? sc;
   const { supertypes, types, subtypes } = parseTypeLine(face.type_line ?? "");
   const colors =
     face.colors ??

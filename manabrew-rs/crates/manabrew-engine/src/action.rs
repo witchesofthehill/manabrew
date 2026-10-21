@@ -190,6 +190,14 @@ impl GameState {
                 );
             }
         }
+        if dest_zone == ZoneType::Battlefield
+            && src_zone != ZoneType::Battlefield
+            && self.card(card_id).is_room()
+            && self.card(card_id).cast_sa.is_none()
+        {
+            self.card_mut(card_id)
+                .set_room_state(forge_foundation::CardStateName::EmptyRoom);
+        }
         let mut etb_counters = std::collections::BTreeMap::new();
         if dest_zone == ZoneType::Battlefield {
             for keyword in self.cards[card_id.index()].keywords.as_string_list() {
@@ -312,6 +320,9 @@ impl GameState {
                 ),
                 _ => (dest_zone, None, None, Vec::new()),
             };
+        let adventure_exile = src_zone == ZoneType::Stack
+            && dest_zone == ZoneType::Exile
+            && self.card(card_id).on_adventure;
         let replacement_marked_etb_tapped = dest_zone == ZoneType::Battlefield
             && self.card(card_id).tapped
             && !tapped_before_replacement;
@@ -325,13 +336,19 @@ impl GameState {
         if host_left_battlefield && was_permanent {
             self.player_record_permanent_left_battlefield(src_owner);
         }
-        // Java `Card.clearCastSA` — the cast-SA link dies once the instance
-        // leaves the battlefield (a new cast produces a fresh instance).
         if host_left_battlefield {
-            self.card_mut(card_id).cast_sa = None;
+            if self.card(card_id).is_room() {
+                self.update_lki_snapshot(card_id);
+            }
             // `ControlGain$ LoseControl$ LeavesPlay` — drop the scheduled
             // revert since the card is no longer on the battlefield.
             crate::ability::effects::control_gain_effect::leaves_play_hook(self, card_id);
+        }
+        if src_zone != dest_zone
+            && (host_left_battlefield
+                || !matches!(dest_zone, ZoneType::Stack | ZoneType::Battlefield))
+        {
+            self.card_mut(card_id).cast_sa = None;
         }
         if dest_zone == ZoneType::Graveyard && was_permanent && !is_token {
             self.player_record_permanent_put_into_graveyard(self.card(card_id).owner);
@@ -349,7 +366,10 @@ impl GameState {
 
         // Tokens and copy-tokens cease to exist when leaving the battlefield (CR 110.5g).
         // Set zone to None (limbo) and remove from source zone without adding to destination.
-        if is_token && dest_zone != ZoneType::Battlefield {
+        if (is_token && dest_zone != ZoneType::Battlefield)
+            || (self.card(card_id).copied_spell
+                && !matches!(dest_zone, ZoneType::Stack | ZoneType::Battlefield))
+        {
             if let Some(table) = self.pending_change_zone_table.as_mut() {
                 table.put(Some(src_zone), Some(ZoneType::None), card_id);
             }
@@ -361,6 +381,8 @@ impl GameState {
                     exile_effects.push(eff_id);
                 }
             }
+            self.expire_until_lose_control_keyword_changes(card_id);
+            self.cards[card_id.index()].clear_changed_card_keyword_layers();
             self.cards[card_id.index()].zone = ZoneType::None;
             if src_zone != ZoneType::None {
                 self.remove_card_from_zone(src_zone, src_owner, card_id);
@@ -394,6 +416,12 @@ impl GameState {
         if src_zone != dest_zone {
             self.cards[card_id.index()].turn_in_zone = self.turn.turn_number;
         }
+        if src_zone != dest_zone && self.card(card_id).room_faces.is_some() {
+            self.card_mut(card_id).unlocked_doors.clear();
+            if dest_zone != ZoneType::Battlefield || self.card(card_id).cast_sa.is_none() {
+                self.card_mut(card_id).update_rooms();
+            }
+        }
 
         if let Some(table) = self.pending_change_zone_table.as_mut() {
             table.put(Some(src_zone), Some(dest_zone), card_id);
@@ -407,6 +435,14 @@ impl GameState {
 
         // Track LKI: record which zone this card came from on the destination zone.
         self.save_zone_lki(dest_zone, dest_owner, card_id, src_zone);
+        if src_zone != dest_zone {
+            self.card_mut(card_id).set_solved(false);
+            if !(src_zone == ZoneType::Stack && dest_zone == ZoneType::Battlefield) {
+                self.expire_until_lose_control_keyword_changes(card_id);
+                let card = self.card_mut(card_id);
+                card.clear_changed_card_keyword_layers();
+            }
+        }
 
         // Reset state on zone change
         match dest_zone {
@@ -414,7 +450,10 @@ impl GameState {
                 // A permanent enters under the destination player's control.
                 // This must be updated before ETB-trigger registration so
                 // triggered abilities inherit the correct controller.
-                self.cards[card_id.index()].controller = dest_owner;
+                if self.cards[card_id.index()].controller != dest_owner {
+                    self.expire_until_lose_control_keyword_changes(card_id);
+                }
+                self.cards[card_id.index()].set_controller(dest_owner);
                 self.cards[card_id.index()].enter_battlefield();
                 if replacement_marked_etb_tapped {
                     self.cards[card_id.index()].set_tapped(true);
@@ -422,6 +461,27 @@ impl GameState {
                 // Add to destination zone first so the card is "on the
                 // battlefield" when ETB-tapped checks run against it.
                 self.add_card_to_zone(dest_zone, dest_owner, card_id);
+                if src_zone != ZoneType::Battlefield && self.card(card_id).is_room() {
+                    let cast_door = self.card(card_id).cast_sa.as_ref().map(|sa| {
+                        (
+                            sa.activating_player,
+                            sa.ir
+                                .card_state_name
+                                .as_deref()
+                                .and_then(forge_foundation::CardStateName::from_str_compat)
+                                .unwrap_or(forge_foundation::CardStateName::LeftSplit),
+                        )
+                    });
+                    if let Some((player, door)) = cast_door {
+                        if let Some(handler) = trigger_handler.as_deref_mut() {
+                            crate::ability::effects::unlock_door_effect::unlock_room(
+                                self, handler, card_id, player, door,
+                            );
+                        } else {
+                            self.card_mut(card_id).unlock_room(door);
+                        }
+                    }
+                }
                 if was_land {
                     self.player_record_landfall(dest_owner);
                 }
@@ -598,6 +658,16 @@ impl GameState {
                 }
             }
             _ => {}
+        }
+        if src_zone != dest_zone {
+            let card = &mut self.cards[card_id.index()];
+            card.on_adventure = adventure_exile;
+            if dest_zone != ZoneType::Stack {
+                card.set_adventure_state(false);
+                if !(src_zone == ZoneType::Stack && dest_zone == ZoneType::Battlefield) {
+                    card.reset_prototype();
+                }
+            }
         }
 
         // Add to destination zone
@@ -1622,12 +1692,21 @@ impl GameState {
         let old_controller = card.controller;
         let zone = card.zone;
 
+        self.expire_until_lose_control_keyword_changes(card_id);
         // Move between zone lists
         if zone != ZoneType::None {
             self.remove_card_from_zone(zone, old_controller, card_id);
             self.add_card_to_zone(zone, new_controller, card_id);
         }
-        self.cards[card_id.index()].controller = new_controller;
+        self.cards[card_id.index()].set_controller(new_controller);
+    }
+
+    fn expire_until_lose_control_keyword_changes(&mut self, host: CardId) {
+        let changes =
+            std::mem::take(&mut self.cards[host.index()].until_lose_control_keyword_changes);
+        for (target, timestamp) in changes {
+            self.cards[target.index()].remove_changed_card_keywords_at(timestamp, 0);
+        }
     }
 
     /// Attach `aura_id` to `target_id`.
@@ -1669,6 +1748,8 @@ impl GameState {
         let src_zone = card.zone;
         let src_owner = card.controller;
 
+        self.expire_until_lose_control_keyword_changes(card_id);
+        self.cards[card_id.index()].clear_changed_card_keyword_layers();
         if src_zone != ZoneType::None {
             self.remove_card_from_zone(src_zone, src_owner, card_id);
         }

@@ -1,12 +1,13 @@
 import {
   Container,
-  Mesh,
+  type Mesh,
   Point,
   type DestroyOptions,
   type FederatedPointerEvent,
   type MeshGeometry,
   type Shader,
   type Texture,
+  type Sprite,
 } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
 import { hasCardFinishEffects, resolveCardFinish, type CardFoilRegion } from "@/lib/cardFinish";
@@ -16,6 +17,13 @@ import { useCardFinishPreview } from "@/stores/useCardFinishPreview";
 import { createCardFoilShader, type CardFoilShader } from "./cardFoilShader";
 import { animationsEnabled } from "./enabled";
 import { gsap } from "./gsap";
+import { CardFoilMesh } from "./cardFoilBatch";
+import {
+  DEFAULT_CARD_POSE,
+  writeCardPoseNormal,
+  type CardLightingMode,
+  type CardPose,
+} from "@/lib/cardLighting";
 
 export class CardFoil extends Container {
   private finish: CardFoilShader | null = null;
@@ -31,11 +39,15 @@ export class CardFoil extends Container {
   private hasTexture = false;
   private texture: Texture | null = null;
   private textureUvs?: Float32Array;
+  private sourceSprite: Sprite | null = null;
+  private sourceRenderable = true;
   private physicalFoil = false;
   private cosmetics?: CardCosmetics;
   private etched = false;
   private readonly reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   private readonly requestRender: () => void;
+  private lighting: CardLightingMode = "pointer";
+  private readonly cardNormal = new Float32Array([0, 0, 1]);
 
   constructor(requestRender: () => void) {
     super();
@@ -112,6 +124,9 @@ export class CardFoil extends Container {
   private readonly syncAnimation = (): void => {
     if (!this.finish) return;
     this.finish.setTexture(this.surfaceVisible() ? this.texture : null, this.textureUvs);
+    if (this.sourceSprite)
+      this.sourceSprite.renderable =
+        this.sourceRenderable && !(this.visible && this.finish.uniforms.heatDeformation > 0);
     if (!this.canAnimate()) {
       this.sweep?.pause();
       if (
@@ -150,7 +165,8 @@ export class CardFoil extends Container {
   setSurface(width: number, height: number, radius: number, _theme: Theme): void {
     if (!this.finish) {
       this.finish = createCardFoilShader(this.requestRender);
-      this.sheen = new Mesh({ geometry: this.finish.geometry, shader: this.finish.shader });
+      this.sheen = new CardFoilMesh(this.finish);
+      this.finish.setLighting(this.lighting, this.cardNormal);
       this.addChild(this.sheen);
     }
     this.sheen!.scale.set(width, height);
@@ -159,7 +175,12 @@ export class CardFoil extends Container {
     this.syncFinish();
   }
 
-  setTexture(texture: Texture | null, uvs?: Float32Array): void {
+  setTexture(texture: Texture | null, uvs?: Float32Array, sourceSprite?: Sprite): void {
+    if (this.sourceSprite !== (sourceSprite ?? null)) {
+      if (this.sourceSprite) this.sourceSprite.renderable = this.sourceRenderable;
+      this.sourceSprite = sourceSprite ?? null;
+      this.sourceRenderable = sourceSprite?.renderable ?? true;
+    }
     this.hasTexture = !!texture && !texture.destroyed;
     this.texture = this.hasTexture ? texture : null;
     this.textureUvs = uvs;
@@ -172,6 +193,11 @@ export class CardFoil extends Container {
 
   setExclusions(regions: readonly CardFoilRegion[]): void {
     this.finish?.setExclusions(regions);
+  }
+  setLighting(mode: CardLightingMode, pose?: CardPose): void {
+    this.lighting = mode;
+    writeCardPoseNormal(this.cardNormal, pose ?? DEFAULT_CARD_POSE);
+    this.finish?.setLighting(mode, this.cardNormal);
   }
 
   setEnabled(enabled: boolean): void {
@@ -198,6 +224,7 @@ export class CardFoil extends Container {
   }
 
   override destroy(_options?: DestroyOptions): void {
+    if (this.sourceSprite) this.sourceSprite.renderable = this.sourceRenderable;
     this.onRender = null;
     this.sweep?.kill();
     this.pointerParent?.off("pointermove", this.movePointer);

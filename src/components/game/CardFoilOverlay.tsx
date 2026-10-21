@@ -9,6 +9,7 @@ import {
 } from "@/lib/cardFoilDom";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useCardFinishPreview } from "@/stores/useCardFinishPreview";
+import type { CardLightingMode, CardPose } from "@/lib/cardLighting";
 
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 const subscribeMotion = (notify: () => void) => {
@@ -24,6 +25,8 @@ interface CardFoilOverlayProps {
   etched?: boolean;
   source?: CardFoilSource | null;
   artWindows?: readonly CardFoilRegion[];
+  lighting?: CardLightingMode;
+  pose?: CardPose;
 }
 
 export function CardFoilOverlay({
@@ -33,6 +36,8 @@ export function CardFoilOverlay({
   etched = false,
   source,
   artWindows,
+  lighting = "pointer",
+  pose,
 }: CardFoilOverlayProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mode =
@@ -47,13 +52,15 @@ export function CardFoilOverlay({
     mode,
     cosmetics,
     animated,
+    lighting,
+    pose,
   });
   const registrationRef = useRef<DomCardFoilRegistration | null>(null);
   useEffect(() => {
-    const options = { source, artWindows, mode, cosmetics, animated };
+    const options = { source, artWindows, mode, cosmetics, animated, lighting, pose };
     optionsRef.current = options;
     registrationRef.current?.update(options);
-  }, [source, artWindows, mode, cosmetics, animated]);
+  }, [source, artWindows, mode, cosmetics, animated, lighting, pose]);
   useEffect(() => {
     if (!visible || !canvasRef.current) return;
     const registration = registerDomCardFoil(canvasRef.current, optionsRef.current);
@@ -71,6 +78,7 @@ export function CardFoilOverlay({
       data-card-finish="card-glint"
       data-foil-mode={mode}
       data-foil-animated={animated}
+      data-foil-lighting={lighting}
     />
   ) : null;
 }

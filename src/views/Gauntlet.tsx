@@ -68,7 +68,6 @@ export default function Gauntlet() {
   const referenceFormat = useLimitedSessionSource(progress?.sessionKey ?? null);
 
   useTopBarOverride({
-    onBack: () => navigate(ROUTES.PLAY_OFFLINE_LIMITED),
     onHome: () => navigate(ROUTES.PLAY),
   });
   useEffect(() => {

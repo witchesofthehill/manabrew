@@ -17,6 +17,7 @@ import { CardSprite } from "@/pixi/CardSprite";
 import { getSafeAreaInsets } from "@/lib/safeArea";
 import { hexToNum } from "@/pixi/colorUtils";
 import { gsap } from "@/pixi/effects/gsap";
+import { gameCardFaceIndex } from "@/lib/gameCard";
 import { animationsEnabled } from "@/pixi/effects/enabled";
 import { PREVIEW_TIMING } from "@/lib/cardPreview";
 import { applyIcon } from "@/pixi/panelIcons";
@@ -243,7 +244,7 @@ export class CommandZonePreviewLayer {
       this.callbacks.onFlip();
       return;
     }
-    entry.face = (entry.face ?? (entry.sprite.card.isTransformed ? 1 : 0)) === 0 ? 1 : 0;
+    entry.face = (entry.face ?? gameCardFaceIndex(entry.sprite.card)) === 0 ? 1 : 0;
     entry.sprite.setPreviewFace(entry.face);
   }
 

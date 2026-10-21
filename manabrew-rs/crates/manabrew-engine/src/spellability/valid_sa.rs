@@ -103,6 +103,10 @@ fn matches_property_token_positive(
         "istargeting" => sa.target_restrictions.is_some(),
         "xcost" => sa.cost_has_x(),
         "singletarget" => sa.targets_single_target(),
+        "adventure" => {
+            sa.ir.card_state_name.as_deref() == Some("Secondary")
+                && ability_host.is_some_and(|host| host.is_adventure_card())
+        }
         "crew" => is_crew(sa, ability_host),
         "saddle" => is_keyword_ability(sa, ability_host, Keyword::Saddle, "saddle"),
         "station" => is_keyword_ability(sa, ability_host, Keyword::Station, "station"),

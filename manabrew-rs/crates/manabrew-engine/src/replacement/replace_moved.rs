@@ -65,6 +65,18 @@ pub fn can_replace(
         }
     }
     let moving_card = &game.cards[moving_id.index()];
+    if let Some(fizzle) = effect.ir.fizzle {
+        if game.stack.resolving_fizzle(moving_id) != Some(fizzle) {
+            return false;
+        }
+    }
+    if let Some(valid) = effect.ir.valid_stack_sa_text.as_deref() {
+        if !moving_card.cast_sa.as_deref().is_some_and(|sa| {
+            crate::spellability::matches_valid_sa(valid, sa, source_card, Some(moving_card))
+        }) {
+            return false;
+        }
+    }
     if let Some(valid) = effect.ir.valid_card_selector.as_ref() {
         if !effect.matches_compiled_valid_card(valid, moving_card, source_card) {
             return false;
@@ -126,6 +138,12 @@ pub fn execute(
         if let Some(z) = new_zone {
             if let ReplacementEvent::Moved { destination, .. } = event {
                 *destination = z;
+            }
+            if effect.ir.valid_stack_sa_text.as_deref() == Some("Spell.Adventure")
+                && z == ZoneType::Exile
+                && !game.card(moving_id).is_token
+            {
+                game.card_mut(moving_id).on_adventure = true;
             }
             if z == ZoneType::Exile && effect.ir.exiled_with_effect_source {
                 let exile_source = game

@@ -281,6 +281,14 @@ pub struct CardIdentity {
     pub token_script: Option<TokenScript>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "game/index.ts")]
+pub enum RoomDoor {
+    Left,
+    Right,
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase", default)]
 #[ts(export, export_to = "game/index.ts")]
@@ -335,6 +343,21 @@ pub struct CardDto {
     pub class_level: Option<i32>,
     pub class_levels: Vec<ClassLevelDto>,
     pub saga_chapters: Vec<SagaChapterDto>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub unlocked_doors: Option<Vec<RoomDoor>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub is_solved: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub is_suspended: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub is_on_adventure: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub is_prototyped: Option<bool>,
     pub text: String,
     #[serde(default)]
     pub choices: Vec<CardChoiceDto>,
@@ -366,6 +389,9 @@ pub struct CardDto {
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub is_copy: bool,
     pub is_double_faced: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub face_index: Option<u8>,
     pub is_transformed: bool,
     pub is_face_down: bool,
     pub is_bestowed: bool,
@@ -419,72 +445,19 @@ pub struct StackObjectDto {
     pub source_id: String,
     pub controller_id: String,
     pub owner_id: String,
-    pub identity: CardIdentity,
-    #[serde(default)]
-    pub foil: bool,
-    #[serde(
-        default,
-        deserialize_with = "crate::deck_dto::CardCosmetics::deserialize_optional",
-        skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
-    pub cosmetics: Option<crate::deck_dto::CardCosmetics>,
+    pub identity: Option<CardIdentity>,
     pub text: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub source_ability_text: Option<String>,
     pub is_permanent_spell: bool,
     pub is_casting: bool,
-    pub is_double_faced: bool,
-    pub face_index: u8,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub source_card: Option<CardDto>,
     pub targets: Vec<TargetRef>,
-}
-
-#[cfg(test)]
-mod stack_object_tests {
-    use super::{CardIdentity, StackObjectDto};
-
-    #[test]
-    fn serializes_card_face_fields() {
-        let stack_object = StackObjectDto {
-            id: "stack-1".into(),
-            source_id: "card-1".into(),
-            controller_id: "player-0".into(),
-            owner_id: "player-1".into(),
-            identity: CardIdentity::default(),
-            foil: false,
-            cosmetics: None,
-            text: String::new(),
-            source_ability_text: Some("When this enters, draw a card.".into()),
-            is_permanent_spell: true,
-            is_casting: true,
-            is_double_faced: true,
-            face_index: 1,
-            targets: Vec::new(),
-        };
-
-        let value = serde_json::to_value(stack_object).unwrap();
-        assert_eq!(value["sourceAbilityText"], "When this enters, draw a card.");
-
-        assert_eq!(value["ownerId"], "player-1");
-        assert_eq!(value["isDoubleFaced"], true);
-        assert_eq!(value["faceIndex"], 1);
-    }
-
-    #[test]
-    fn defaults_missing_card_face_fields() {
-        let value = serde_json::json!({
-            "id": "stack-1",
-            "sourceId": "card-1",
-            "controllerId": "player-0"
-        });
-
-        let stack_object: StackObjectDto = serde_json::from_value(value).unwrap();
-
-        assert!(stack_object.owner_id.is_empty());
-        assert!(!stack_object.is_double_faced);
-        assert_eq!(stack_object.face_index, 0);
-    }
 }
 
 #[derive(

@@ -82,6 +82,8 @@ pub struct ActivatedAbility {
     /// Whether this is the synthetic Room UnlockDoor ability.
     #[serde(default)]
     pub is_unlock_door: bool,
+    #[serde(default)]
+    pub is_level_up: bool,
     /// Whether this is a ManaReflected ability.
     #[serde(default)]
     pub is_mana_reflected: bool,
@@ -155,7 +157,7 @@ pub fn parse_activated_ability(raw: &str, index: usize) -> Option<ActivatedAbili
         .and_then(|v| v.parse::<u32>().ok());
     let power_up = params.is_true(keys::POWER_UP);
     let sorcery_speed = params.is_true(keys::SORCERY_SPEED);
-    let is_unlock_door = ab_type.eq_ignore_ascii_case("UnlockDoor");
+    let is_unlock_door = ab_type.eq_ignore_ascii_case("UnlockDoor") && params.is_true("Unlock");
     let is_mana_reflected = ab_type.eq_ignore_ascii_case("ManaReflected");
     let ability_kind = ab_type.to_string();
     let ability_api = ApiType::smart_value_of(ab_type);
@@ -210,6 +212,7 @@ pub fn parse_activated_ability(raw: &str, index: usize) -> Option<ActivatedAbili
         power_up,
         sorcery_speed,
         is_unlock_door,
+        is_level_up: false,
         is_mana_reflected,
         params,
     })

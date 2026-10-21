@@ -41,6 +41,9 @@ import { localizeRulesPreviewText } from "@/pixi/cardPreview/rulesCardPreviewPre
 import { GeneratedCardImage } from "@/components/game/GeneratedCardImage";
 import { CardPreviewHoverArea } from "./CardPreviewHoverArea";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { gameCardFaceIndex } from "@/lib/gameCard";
+import { previewActionFace } from "@/pixi/cardPreview/previewMechanics";
+import type { CardLightingMode, CardPose } from "@/lib/cardLighting";
 interface CardPreviewProps {
   card: CardDto;
   mouseX: number;
@@ -69,10 +72,12 @@ interface CardPreviewProps {
   slot?: HTMLElement | null;
   portalTarget?: HTMLElement | null;
   imageSize?: "normal" | "large";
+  lighting?: CardLightingMode;
+  pose?: CardPose;
 }
-const IMG_VERTICAL = "absolute inset-0 w-full h-full object-cover";
+const IMG_VERTICAL = "absolute inset-0 w-full h-full rounded-[inherit] object-cover";
 const IMG_HORIZONTAL =
-  "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-90 origin-center h-[calc(100%*7/5)] aspect-[5/7] object-cover";
+  "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-90 origin-center h-[calc(100%*7/5)] aspect-[5/7] rounded-[inherit] object-cover";
 /**
  * Monotonic image display: pixels already on screen are never removed until
  * the replacement has finished loading. Swapping an `<img>` src blanks it
@@ -108,13 +113,13 @@ function PreviewImageStack({
     failedLowRes !== lowResUrl;
   return (
     <div
-      className="absolute inset-0"
+      className="absolute inset-0 rounded-[inherit]"
       data-card-preview-image-ready={
         targetShown || (!!lowResUrl && displayed?.src === lowResUrl) || terminalFailure
       }
     >
       {(!displayed || terminalFailure) && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4 bg-black">
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-[inherit] p-4 bg-black">
           {!terminalFailure && <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />}
           <span className="text-xs text-muted-foreground text-center">{cardName}</span>
         </div>
@@ -180,6 +185,8 @@ export function CardPreview({
   slot,
   imageSize = "large",
   portalTarget,
+  lighting,
+  pose,
 }: CardPreviewProps) {
   const resolvedGameCard = useResolvedGameCard(card);
   const preferredView = usePreferencesStore((state) => state.inGameCardPreviewStyle);
@@ -210,7 +217,7 @@ export function CardPreview({
     rail?.kind === "class" && rail.current < rail.max ? rail.current + 1 : null;
   const availableActions = hasActions ? (actions ?? []) : [];
   const classLevelUpIndex = nextClassLevel
-    ? availableActions.findIndex((action) => action.isClassLevelUp)
+    ? availableActions.findIndex((action) => action.levelUp === "class")
     : -1;
   const integratedClassLevelUpIndex = classLevelUpIndex >= 0 ? classLevelUpIndex : null;
   const indexedActions: IndexedPreviewAction[] = availableActions.map((action, index) => ({
@@ -224,16 +231,16 @@ export function CardPreview({
     displayLabel: localizeRulesPreviewText(
       action.label,
       resolvedGameCard.info,
-      card.isTransformed ? 1 : 0,
+      previewActionFace(action) ?? gameCardFaceIndex(card, resolvedGameCard.info?.layout),
     ),
   }));
-  const classLevelUpActions = indexedActions.filter(({ action }) => action.isClassLevelUp);
+  const classLevelUpActions = indexedActions.filter(({ action }) => action.levelUp === "class");
   const railClassLevelUpAction =
     integratedClassLevelUpIndex === null ? undefined : indexedActions[integratedClassLevelUpIndex];
   const extraClassActions = railClassLevelUpAction
     ? classLevelUpActions.filter(({ index }) => index !== railClassLevelUpAction.index)
     : classLevelUpActions;
-  const mainActions = indexedActions.filter(({ action }) => !action.isClassLevelUp);
+  const mainActions = indexedActions.filter(({ action }) => action.levelUp !== "class");
   const railInteractions =
     nextClassLevel && railClassLevelUpAction
       ? [
@@ -259,7 +266,8 @@ export function CardPreview({
   const front = cardFaces.faces[0];
   const back = cardFaces.faces[1];
   const previewFaceIndex = showBackFace ? 1 : 0;
-  const showsCurrentFace = previewFaceIndex === (card.isTransformed ? 1 : 0);
+  const showsCurrentFace =
+    previewFaceIndex === gameCardFaceIndex(card, resolvedGameCard.info?.layout);
   const railEffects = rail ? deriveCardRailEffects(card, rail) : [];
   const panelRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -612,7 +620,7 @@ export function CardPreview({
           >
             <div
               className={cn(
-                "w-full h-full shadow-2xl overflow-hidden bg-black relative",
+                "w-full h-full shadow-2xl bg-black relative",
                 hasActions && ACTIONABLE_CARD_GLOW_CLASS,
               )}
               style={{
@@ -638,6 +646,8 @@ export function CardPreview({
                       faceIndex={previewFaceIndex}
                       className={targetHorizontal ? IMG_HORIZONTAL : IMG_VERTICAL}
                       fallback={currentImageUrl ? <></> : undefined}
+                      lighting={lighting}
+                      pose={pose}
                     />
                   )}
                   <CardFoilOverlay
@@ -645,6 +655,8 @@ export function CardPreview({
                     foil={!faceless && !!card.foil}
                     cosmetics={faceless ? undefined : card.cosmetics}
                     etched={!faceless && isEtchedOnlyPrinting(resolvedGameCard.info?.finishes)}
+                    lighting={lighting}
+                    pose={pose}
                   />
                   {!faceless && showsCurrentFace && (
                     <CardPreviewOverlay

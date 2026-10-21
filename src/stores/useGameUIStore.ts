@@ -3,6 +3,7 @@ import { devtools } from "zustand/middleware";
 import type { CardDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
 import type { Prompt } from "@/protocol";
+import type { LevelUpKind, PlayCardMode } from "@/protocol/prompts/common";
 import type { ZoneLocation, ZoneViewMode } from "@/lib/zoneView";
 import type { CardBrowserState } from "@/components/game/modals/cardBrowser";
 
@@ -12,10 +13,11 @@ export interface HandActionOption {
   label: string;
   abilityText?: string;
   actionId?: string;
-  mode?: string;
+  mode?: PlayCardMode;
+  faceIndex?: number;
   abilityIndex?: number;
   isManaAbility?: boolean;
-  isClassLevelUp?: boolean;
+  levelUp?: LevelUpKind;
   cost?: string;
   displayManaLetters?: string[];
   colorChoice?: string;

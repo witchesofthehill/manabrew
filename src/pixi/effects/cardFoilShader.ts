@@ -1,12 +1,8 @@
-import {
-  CARDSTOCK_GLSL,
-  foilShader,
-  SURFACE_GLSL,
-  WORN_GLSL,
-  SurfaceMotion,
-  surfaceSeed,
-} from "card-glint/finish";
-import { GlProgram, MeshGeometry, Shader, Texture, UniformGroup } from "pixi.js";
+import { SurfaceMotion, surfaceSeed } from "card-glint/finish";
+import { MeshGeometry, Shader, Texture, UniformGroup } from "pixi.js";
+import type { CardLightingMode } from "@/lib/cardLighting";
+import { getCardFoilProgram, MAX_CARD_FOIL_EXCLUSIONS } from "./cardFoilPrograms";
+export { MAX_CARD_FOIL_EXCLUSIONS } from "./cardFoilPrograms";
 import {
   CARD_FINISH_KINDS,
   resolveCardRainFog,
@@ -27,9 +23,10 @@ import {
   acquireCardFinishCardstock,
   type CardFinishMaskLease,
   type CardFinishCausticsLease,
+  type CardFinishPrintingLease,
 } from "@/lib/cardFinishResources";
 
-export const MAX_CARD_FOIL_EXCLUSIONS = 8;
+export type CardFoilTextureRole = "face" | "mask" | "printing" | "coverage";
 
 export interface CardFoilUniforms {
   uSize: Float32Array;
@@ -42,6 +39,7 @@ export interface CardFoilUniforms {
   aspect: number;
   artBounds: Float32Array;
   hasMask: number;
+  maskBottomUp: number;
   hasWave: number;
   previewKind: number;
   hasPrinting: number;
@@ -56,18 +54,29 @@ export interface CardFoilUniforms {
   regularPrinting: number;
   surfaceTime: number;
   rainFogDensity: number;
+  heatDeformation: number;
   surfaceInfo: Float32Array;
   ripple0: Float32Array;
   ripple1: Float32Array;
   ripple2: Float32Array;
   ripple3: Float32Array;
   wearInfo: Float32Array;
+  studioLighting: number;
+  cardNormal: Float32Array;
+  facePixelSize: Float32Array;
+  printDotsInfo: Float32Array;
+  printArtwork: number;
+  faceProcedural: number;
+  printingProcedural: number;
 }
 
 export interface CardFoilShader {
   shader: Shader;
   geometry: MeshGeometry;
   uniforms: CardFoilUniforms;
+  readonly textures: Record<CardFoilTextureRole, Texture>;
+  readonly artWindowCount: number;
+  setLighting(mode: CardLightingMode, normal: ArrayLike<number>): void;
   setTexture(texture: Texture | null, uvs?: Float32Array): void;
   setMode(mode: CardFinish, cosmetics?: CardCosmetics): void;
   setArtWindows(regions: readonly CardFoilRegion[]): void;
@@ -76,132 +85,12 @@ export interface CardFoilShader {
   destroy(): void;
 }
 
-function modernSurfaceShader(): string {
-  const foil = foilShader()
-    .replaceAll("texture2D(face,", "finishFace(")
-    .replaceAll("texture2D(mask,", "finishMask(");
-  const surface = SURFACE_GLSL.replaceAll("flat in ", "uniform ").replaceAll(
-    "texture(face,",
-    "finishFace(",
-  );
-  return `${foil}
-${surface}
-${WORN_GLSL}
-${CARDSTOCK_GLSL.replaceAll("flat in ", "uniform ")}
-
-vec3 modernSurface(vec2 uv,vec3 normal,vec3 view,vec2 wear,vec2 pixel) {
-  vec3 base=finishFace(uv).rgb;
-  vec3 ink=previewInk(base);
-  vec3 color=regularPrinting>0. ? ink
-    : previewKind>=5. && previewKind<8. ? animatedSurface(uv,normal) : previewFoil(uv,normal,view);
-  if(regularPrinting<1.)color=cardstockGloss(uv,ink,color);
-  if(wear.x>0.)color=wornSurface(uv,ink,color,normal,view,wear.y,wear.x,
-    previewKind==9. ? 1. : step(.5,previewKind)*(1.-step(4.5,previewKind)),pixel);
-  vec3 under=mix(base,previewLinear(color),finishCoverage(uv));
-  if(hasPrinting>0.){
-    vec4 top=finishPrinting(uv);
-    under=mix(under,top.rgb,top.a);
-  }
-  return previewInk(under);
-}`;
-}
-
-const vertex = `#version 300 es
-in vec2 aPosition;
-in vec2 aUV;
-uniform mat3 uProjectionMatrix;
-uniform mat3 uWorldTransformMatrix;
-uniform mat3 uTransformMatrix;
-out vec2 vUV;
-void main() {
-  vUV = aUV;
-  vec3 position = uProjectionMatrix * uWorldTransformMatrix * uTransformMatrix * vec3(aPosition, 1.0);
-  gl_Position = vec4(position.xy, 0.0, 1.0);
-}`;
-
-const fragment = `#version 300 es
-precision highp float;
-in vec2 vUV;
-out vec4 finalColor;
-uniform vec4 uColor;
-uniform vec2 uSize;
-uniform float uRadius;
-uniform vec4 uExclusions[${MAX_CARD_FOIL_EXCLUSIONS}];
-uniform int uExclusionCount;
-uniform vec4 uUvTop;
-uniform vec4 uUvBottom;
-uniform sampler2D face;
-uniform sampler2D mask;
-uniform float hasMask;
-uniform sampler2D printing;
-uniform sampler2D coverage;
-uniform float hasPrinting;
-uniform float hasCoverage;
-uniform float facePrepared;
-uniform float printingPrepared;
-uniform float regularPrinting;
-uniform vec2 pointer;
-uniform float aspect;
-uniform vec4 artBounds[8];
-uniform float cornerRadius;
-uniform float finishBase;
-uniform vec2 wearInfo;
-vec2 faceUv(vec2 uv) {
-  return mix(mix(uUvTop.xy,uUvTop.zw,uv.x),mix(uUvBottom.xy,uUvBottom.zw,uv.x),uv.y);
-}
-vec3 linearInk(vec3 c) {
-  return mix(c/12.92,pow(max((c+.055)/1.055,vec3(0.)),vec3(2.4)),step(vec3(.04045),c));
-}
-vec4 finishFace(vec2 uv) {
-  vec4 ink=texture(face,vec2(uv.x,mix(1.-uv.y,uv.y,facePrepared)));
-  return vec4(linearInk(ink.rgb/mix(max(ink.a,.00001),1.,facePrepared)),ink.a);
-}
-vec4 finishMask(vec2 uv) { return texture(mask,vec2(uv.x,1.-uv.y)); }
-vec4 finishPrinting(vec2 uv) {
-  vec4 ink=texture(printing,vec2(uv.x,mix(1.-uv.y,uv.y,printingPrepared)));
-  return vec4(linearInk(ink.rgb/mix(max(ink.a,.00001),1.,printingPrepared)),ink.a);
-}
-float finishCoverage(vec2 uv) {
-  return hasCoverage>0. ? texture(coverage,vec2(uv.x,1.-uv.y)).r : 1.;
-}
-#define texture2D texture
-${modernSurfaceShader().replaceAll("texture(caustics,", "sampleCaustics(")}
-#undef texture2D
-void main() {
-  vec2 sourceUv=faceUv(vUV);
-  vec2 uv=vec2(sourceUv.x,1.-sourceUv.y);
-  vec2 pixel=fwidth(uv*vec2(1.,aspect));
-  vec2 point=vUV*uSize;
-  vec2 corner=abs(point-uSize*.5)-(uSize*.5-uRadius);
-  if(length(max(corner,0.))+min(max(corner.x,corner.y),0.)>uRadius) discard;
-  for(int index=0; index<${MAX_CARD_FOIL_EXCLUSIONS}; index++) {
-    if(index>=uExclusionCount) break;
-    vec4 exclusion=uExclusions[index];
-    if(exclusion.z>0. && point.x>=exclusion.x && point.y>=exclusion.y
-        && point.x<=exclusion.x+exclusion.z && point.y<=exclusion.y+exclusion.w) discard;
-  }
-  if(any(lessThan(sourceUv,vec2(0.))) || any(greaterThan(sourceUv,vec2(1.)))) discard;
-  vec2 sourceCorner=abs((uv-.5)*vec2(1.,aspect))-(vec2(.5,aspect*.5)-cornerRadius);
-  if(length(max(sourceCorner,0.))+min(max(sourceCorner.x,sourceCorner.y),0.)>cornerRadius) discard;
-  vec4 ink=finishFace(uv);
-  vec3 normal=normalize(vec3((pointer-.5)*vec2(.24,-.24),1.));
-  vec3 view=normalize(vec3((uv-.5)*vec2(-.65,-.90),1.));
-  vec3 color=modernSurface(uv,normal,view,wearInfo,pixel);
-  float alpha=mix(ink.a,1.,hasPrinting)*uColor.a;
-  finalColor=vec4(color*alpha,alpha);
-}`.replace(
-  "uniform sampler2D caustics;",
-  `uniform sampler2D caustics;
-vec4 sampleCaustics(vec2 uv) { return texture(caustics,vec2(uv.x,1.-uv.y)); }`,
-);
-
-let shared: { program: GlProgram; geometry: MeshGeometry; users: number } | null = null;
+let shared: { geometry: MeshGeometry; users: number } | null = null;
 const identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
 const viewProjection = new Float32Array(identity);
 
 export function createCardFoilShader(invalidate: () => void): CardFoilShader {
   shared ??= {
-    program: new GlProgram({ vertex, fragment, name: "manabrew-card-glint-modern" }),
     geometry: new MeshGeometry({
       positions: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
       uvs: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
@@ -226,6 +115,7 @@ export function createCardFoilShader(invalidate: () => void): CardFoilShader {
     aspect: { value: 1.4, type: "f32" },
     artBounds: { value: new Float32Array(32), type: "vec4<f32>", size: 8 },
     hasMask: { value: 0, type: "f32" },
+    maskBottomUp: { value: 0, type: "f32" },
     hasWave: { value: 0, type: "f32" },
     previewKind: { value: 0, type: "f32" },
     hasPrinting: { value: 0, type: "f32" },
@@ -240,15 +130,23 @@ export function createCardFoilShader(invalidate: () => void): CardFoilShader {
     regularPrinting: { value: 1, type: "f32" },
     surfaceTime: { value: 0, type: "f32" },
     rainFogDensity: { value: 1, type: "f32" },
+    heatDeformation: { value: 0, type: "f32" },
     surfaceInfo: { value: new Float32Array(4), type: "vec4<f32>" },
     ripple0: { value: new Float32Array([0, 0, -100, 0]), type: "vec4<f32>" },
     ripple1: { value: new Float32Array([0, 0, -100, 0]), type: "vec4<f32>" },
     ripple2: { value: new Float32Array([0, 0, -100, 0]), type: "vec4<f32>" },
     ripple3: { value: new Float32Array([0, 0, -100, 0]), type: "vec4<f32>" },
     wearInfo: { value: new Float32Array(2), type: "vec2<f32>" },
+    studioLighting: { value: 0, type: "f32" },
+    cardNormal: { value: new Float32Array([0, 0, 1]), type: "vec3<f32>" },
+    facePixelSize: { value: new Float32Array([1, 1]), type: "vec2<f32>" },
+    printDotsInfo: { value: new Float32Array([0, 5, 0.5, 0]), type: "vec4<f32>" },
+    printArtwork: { value: 1, type: "f32" },
+    faceProcedural: { value: 0, type: "f32" },
+    printingProcedural: { value: 0, type: "f32" },
   });
   const shader = new Shader({
-    glProgram: resources.program,
+    glProgram: getCardFoilProgram(false, false),
     resources: {
       foilUniforms: group,
       face: Texture.EMPTY.source,
@@ -259,6 +157,16 @@ export function createCardFoilShader(invalidate: () => void): CardFoilShader {
       cardstockMap: Texture.EMPTY.source,
     },
   });
+  const textures: Record<CardFoilTextureRole, Texture> = {
+    face: Texture.EMPTY,
+    mask: Texture.EMPTY,
+    printing: Texture.EMPTY,
+    coverage: Texture.EMPTY,
+  };
+  const bindTexture = (role: CardFoilTextureRole, texture: Texture) => {
+    textures[role] = texture;
+    shader.resources[role] = texture.source;
+  };
   const motion = new SurfaceMotion();
   const normal: [number, number, number] = [0, 0, 1];
   const hoverUv: [number, number] = [0.5, 0.5];
@@ -269,7 +177,7 @@ export function createCardFoilShader(invalidate: () => void): CardFoilShader {
   let poolLease: CardFinishCausticsLease | null = null;
   let cardstockLease: CardFinishMaskLease | null = null;
   let opticalLease: CardOpticalLease | null = null;
-  let printingLeases: CardFinishMaskLease[] = [];
+  let printingLeases: CardFinishPrintingLease[] = [];
   let coverageLease: CardFinishMaskLease | null = null;
   let materialController: AbortController | null = null;
   let materialKey = "";
@@ -310,9 +218,12 @@ export function createCardFoilShader(invalidate: () => void): CardFoilShader {
   const releaseMaterial = () => {
     materialController?.abort();
     materialController = null;
-    shader.resources.face = (source ?? Texture.EMPTY).source;
-    shader.resources.printing = Texture.EMPTY.source;
-    shader.resources.coverage = Texture.EMPTY.source;
+    bindTexture("face", source ?? Texture.EMPTY);
+    bindTexture("printing", Texture.EMPTY);
+    bindTexture("coverage", Texture.EMPTY);
+    group.uniforms.faceProcedural = 0;
+    group.uniforms.printingProcedural = 0;
+    shader.glProgram = getCardFoilProgram(false, false);
     group.uniforms.hasPrinting = 0;
     group.uniforms.hasCoverage = 0;
     group.uniforms.facePrepared = 0;
@@ -338,6 +249,7 @@ export function createCardFoilShader(invalidate: () => void): CardFoilShader {
             period: dots.period ?? 5,
             variation: dots.variation ?? 0.5,
             inset: dots.inset ?? 0,
+            ...(dots.artwork === false ? { artwork: false as const } : {}),
           }
         : undefined;
     const key = JSON.stringify([optical, settings, cosmetics?.finishCoverage, artWindows]);
@@ -354,7 +266,7 @@ export function createCardFoilShader(invalidate: () => void): CardFoilShader {
     void (async () => {
       let layers: CardOpticalLease | null = retained;
       let coverage: CardFinishMaskLease | null = null;
-      const printing: CardFinishMaskLease[] = [];
+      const printing: CardFinishPrintingLease[] = [];
       try {
         if (optical && !layers) layers = await acquireCardOpticalLayers(texture, signal);
         signal.throwIfAborted();
@@ -368,29 +280,46 @@ export function createCardFoilShader(invalidate: () => void): CardFoilShader {
         signal.throwIfAborted();
         if (settings) {
           printing.push(
-            await acquireCardFinishPrinting(layers?.artwork ?? texture, settings, signal),
+            await acquireCardFinishPrinting(
+              layers?.artwork ?? texture,
+              settings,
+              signal,
+              layers?.artWindows ?? artWindows,
+            ),
           );
           signal.throwIfAborted();
           if (layers) {
-            printing.push(await acquireCardFinishPrinting(layers.printing, settings, signal));
+            printing.push(
+              await acquireCardFinishPrinting(layers.printing, settings, signal, layers.artWindows),
+            );
             signal.throwIfAborted();
           }
         }
         opticalLease = layers;
         coverageLease = coverage;
         printingLeases = printing;
-        shader.resources.face = (printing[0]?.texture ?? layers?.artwork ?? texture).source;
-        shader.resources.printing = (
-          printing[1]?.texture ??
-          layers?.printing ??
-          Texture.EMPTY
-        ).source;
-        shader.resources.coverage = coverage.texture.source;
+        bindTexture("face", printing[0]?.texture ?? layers?.artwork ?? texture);
+        bindTexture("printing", printing[1]?.texture ?? layers?.printing ?? Texture.EMPTY);
+        bindTexture("coverage", coverage.texture);
         group.uniforms.hasPrinting = layers ? 1 : 0;
         group.uniforms.hasCoverage = 1;
         group.uniforms.finishBase = layers ? 0 : 1;
-        group.uniforms.facePrepared = settings ? 1 : 0;
-        group.uniforms.printingPrepared = settings && layers ? 1 : 0;
+        group.uniforms.facePrepared = printing[0]?.texture ? 1 : 0;
+        group.uniforms.printingPrepared = printing[1]?.texture ? 1 : 0;
+        group.uniforms.faceProcedural = printing[0]?.procedural ? 1 : 0;
+        group.uniforms.printingProcedural = printing[1]?.procedural ? 1 : 0;
+        group.uniforms.printDotsInfo.set([
+          settings?.amount ?? 0,
+          settings?.period ?? 5,
+          settings?.variation ?? 0.5,
+          settings?.inset ?? 0,
+        ]);
+        group.uniforms.printArtwork =
+          settings?.artwork === false && (layers?.artWindows ?? artWindows).length > 0 ? 0 : 1;
+        shader.glProgram = getCardFoilProgram(
+          false,
+          printing.some((lease) => lease.procedural),
+        );
         if (layers) {
           group.uniforms.cornerRadius = layers.cornerRadius;
           setArtWindows(layers.artWindows);
@@ -410,12 +339,13 @@ export function createCardFoilShader(invalidate: () => void): CardFoilShader {
     syncMaterial(false);
     controller?.abort();
     controller = null;
-    shader.resources.mask = Texture.EMPTY.source;
+    bindTexture("mask", Texture.EMPTY);
     group.uniforms.hasMask = 0;
     maskLease?.release();
     maskLease = null;
     if (!source || source.destroyed || source.source.destroyed) return;
     group.uniforms.aspect = source.source.pixelHeight / source.source.pixelWidth;
+    group.uniforms.facePixelSize.set([source.source.pixelWidth, source.source.pixelHeight]);
     const pending = new AbortController();
     controller = pending;
     void acquireCardFinishMask(source, pending.signal)
@@ -425,8 +355,9 @@ export function createCardFoilShader(invalidate: () => void): CardFoilShader {
           return;
         }
         maskLease = lease;
-        shader.resources.mask = lease.texture.source;
+        bindTexture("mask", lease.texture);
         group.uniforms.hasMask = 1;
+        group.uniforms.maskBottomUp = lease.texture.source.format === "r8unorm" ? 1 : 0;
         invalidate();
       })
       .catch((error: unknown) => {
@@ -454,6 +385,22 @@ export function createCardFoilShader(invalidate: () => void): CardFoilShader {
     shader,
     uniforms: group.uniforms,
     geometry: resources.geometry,
+    textures,
+    get artWindowCount() {
+      return (opticalLease?.artWindows ?? artWindows).length;
+    },
+    setLighting(mode, actualNormal) {
+      const lighting = mode === "studio" ? 1 : 0;
+      const normal = group.uniforms.cardNormal;
+      if (
+        group.uniforms.studioLighting === lighting &&
+        normal.every((value, index) => value === Math.fround(actualNormal[index]))
+      )
+        return;
+      group.uniforms.studioLighting = lighting;
+      normal.set(actualNormal);
+      invalidate();
+    },
     setTexture(texture: Texture | null, uvs?: Float32Array) {
       if (texture !== source) {
         source?.source.off("update", queueSourceChange);
@@ -498,6 +445,7 @@ export function createCardFoilShader(invalidate: () => void): CardFoilShader {
       syncCardstock();
       group.uniforms.previewKind = CARD_FINISH_KINDS[mode];
       group.uniforms.rainFogDensity = resolveCardRainFog(cosmetics);
+      group.uniforms.heatDeformation = mode === "heat" ? (cosmetics?.heatDeformation ?? 0) : 0;
       group.uniforms.wearInfo[0] = resolveCardWearAmount(cosmetics);
       group.uniforms.wearInfo[1] = surfaceSeed(cosmetics?.wearSeed ?? 0);
       group.uniforms.surfaceInfo[2] = surfaceSeed(cosmetics?.wearSeed ?? 0);
@@ -536,12 +484,18 @@ export function createCardFoilShader(invalidate: () => void): CardFoilShader {
       time = Math.floor(time * 30) / 30;
       const uniforms = group.uniforms;
       uniforms.surfaceTime = time;
-      normal[0] = (uniforms.pointer[0] - 0.5) * 0.24;
-      normal[1] = (uniforms.pointer[1] - 0.5) * -0.24;
-      const length = Math.hypot(normal[0], normal[1], 1);
-      normal[0] /= length;
-      normal[1] /= length;
-      normal[2] = 1 / length;
+      if (uniforms.studioLighting > 0.5) {
+        normal[0] = uniforms.cardNormal[0];
+        normal[1] = uniforms.cardNormal[1];
+        normal[2] = uniforms.cardNormal[2];
+      } else {
+        normal[0] = (uniforms.pointer[0] - 0.5) * 0.24;
+        normal[1] = (uniforms.pointer[1] - 0.5) * -0.24;
+        const length = Math.hypot(normal[0], normal[1], 1);
+        normal[0] /= length;
+        normal[1] /= length;
+        normal[2] = 1 / length;
+      }
       const { uUvTop: top, uUvBottom: bottom, pointer } = uniforms;
       const x = pointer[0];
       const y = pointer[1];
@@ -579,8 +533,8 @@ export function createCardFoilShader(invalidate: () => void): CardFoilShader {
       sourceDestroyed();
       releaseMaterial();
       controller?.abort();
-      shader.resources.face = Texture.EMPTY.source;
-      shader.resources.mask = Texture.EMPTY.source;
+      bindTexture("face", Texture.EMPTY);
+      bindTexture("mask", Texture.EMPTY);
       shader.resources.caustics = Texture.EMPTY.source;
       maskLease?.release();
       poolLease?.release();
@@ -590,7 +544,6 @@ export function createCardFoilShader(invalidate: () => void): CardFoilShader {
       shader.destroy(false);
       if (--resources.users === 0) {
         resources.geometry.destroy();
-        resources.program.destroy();
         shared = null;
       }
     },

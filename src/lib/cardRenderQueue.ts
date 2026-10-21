@@ -1,16 +1,18 @@
-import type { CardCanvas } from "@/lib/cardRenderTypes";
+import { releaseCardRaster, retainCardRaster } from "@/lib/cardRenderTypes";
+import type { CardRaster } from "@/lib/cardRenderTypes";
 
 export type CardRenderPriority = "preview" | "visible" | "background";
 
 interface Consumer {
-  resolve: (canvas: CardCanvas) => void;
+  resolve: (raster: CardRaster) => void;
   reject: (error: unknown) => void;
   detach: () => void;
 }
 
 interface Composition {
   key: string;
-  run: () => Promise<CardCanvas>;
+  run: (signal: AbortSignal) => Promise<CardRaster>;
+  controller: AbortController;
   priority: CardRenderPriority;
   queuedAt: number;
   started: boolean;
@@ -18,8 +20,9 @@ interface Composition {
 }
 
 const PRIORITY: Record<CardRenderPriority, number> = { preview: 0, visible: 1, background: 2 };
+const MAX_QUEUED = 128;
 const pending = new Map<string, Composition>();
-let active = false;
+let active: Composition | undefined;
 let scheduled = false;
 const counters = {
   deduplicated: 0,
@@ -27,10 +30,15 @@ const counters = {
   cancelled: 0,
   compositionMs: 0,
   queueWaitMs: 0,
+  queueOverflows: 0,
 };
 
 export function cardQueueStats() {
-  return { ...counters, active: Number(active), queued: pending.size - Number(active) };
+  return {
+    ...counters,
+    active: Number(Boolean(active)),
+    queued: [...pending.values()].filter((job) => !job.started).length,
+  };
 }
 
 export function resetCardQueueStats(): void {
@@ -39,6 +47,7 @@ export function resetCardQueueStats(): void {
   counters.cancelled = 0;
   counters.compositionMs = 0;
   counters.queueWaitMs = 0;
+  counters.queueOverflows = 0;
 }
 
 function schedule(): void {
@@ -53,52 +62,92 @@ function schedule(): void {
 async function drain(): Promise<void> {
   let next: Composition | undefined;
   for (const job of pending.values()) {
+    if (job.started) continue;
     if (!next || PRIORITY[job.priority] < PRIORITY[next.priority]) next = job;
   }
   if (!next) return;
   const job = next;
-  active = true;
+  active = job;
   job.started = true;
   const start = performance.now();
   counters.queueWaitMs += start - job.queuedAt;
   counters.compositions += 1;
+  let raster: CardRaster | undefined;
   try {
-    const canvas = await job.run();
-    for (const consumer of job.consumers) consumer.resolve(canvas);
+    raster = await job.run(job.controller.signal);
+    job.controller.signal.throwIfAborted();
+    for (const consumer of job.consumers) {
+      retainCardRaster(raster);
+      consumer.resolve(raster);
+    }
   } catch (error) {
     for (const consumer of job.consumers) consumer.reject(error);
   } finally {
+    if (raster) releaseCardRaster(raster);
     for (const consumer of job.consumers) consumer.detach();
     counters.compositionMs += performance.now() - start;
-    pending.delete(job.key);
-    active = false;
+    if (pending.get(job.key) === job) pending.delete(job.key);
+    active = undefined;
     schedule();
   }
 }
 
 export function enqueueCardRender(
   key: string,
-  run: () => Promise<CardCanvas>,
+  run: (signal: AbortSignal) => Promise<CardRaster>,
   priority: CardRenderPriority,
   signal?: AbortSignal,
-): Promise<CardCanvas> {
+): Promise<CardRaster> {
   if (signal?.aborted) return Promise.reject(signal.reason);
   let job = pending.get(key);
   if (job) {
     counters.deduplicated += 1;
     if (PRIORITY[priority] < PRIORITY[job.priority]) job.priority = priority;
   } else {
-    job = { key, run, priority, queuedAt: performance.now(), started: false, consumers: new Set() };
+    if (pending.size >= MAX_QUEUED + Number(Boolean(active))) {
+      let displaced: Composition | undefined;
+      for (const candidate of pending.values()) {
+        if (candidate.started || PRIORITY[candidate.priority] < PRIORITY[priority]) continue;
+        if (!displaced || PRIORITY[candidate.priority] > PRIORITY[displaced.priority])
+          displaced = candidate;
+      }
+      counters.queueOverflows++;
+      if (!displaced) return Promise.reject(new Error("Card composition queue is full"));
+      const error = new DOMException(
+        "Card rendering displaced by newer visible work",
+        "AbortError",
+      );
+      pending.delete(displaced.key);
+      displaced.controller.abort(error);
+      for (const consumer of displaced.consumers) {
+        consumer.detach();
+        consumer.reject(error);
+      }
+      displaced.consumers.clear();
+    }
+    job = {
+      key,
+      run,
+      priority,
+      controller: new AbortController(),
+      queuedAt: performance.now(),
+      started: false,
+      consumers: new Set(),
+    };
     pending.set(key, job);
   }
   const composition = job;
-  const promise = new Promise<CardCanvas>((resolve, reject) => {
+  const promise = new Promise<CardRaster>((resolve, reject) => {
     const abort = () => {
       composition.consumers.delete(consumer);
       consumer.detach();
       counters.cancelled += 1;
-      reject(signal?.reason ?? new DOMException("Card rendering cancelled", "AbortError"));
-      if (!composition.started && composition.consumers.size === 0) pending.delete(key);
+      const error = signal?.reason ?? new DOMException("Card rendering cancelled", "AbortError");
+      reject(error);
+      if (composition.consumers.size === 0) {
+        if (pending.get(key) === composition) pending.delete(key);
+        composition.controller.abort(error);
+      }
     };
     const consumer: Consumer = {
       resolve,

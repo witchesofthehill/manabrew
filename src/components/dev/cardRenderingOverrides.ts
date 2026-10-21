@@ -28,6 +28,15 @@ export type CardRenderingOverrides = Partial<
     | "power"
     | "toughness"
     | "damage"
+    | "zoneId"
+    | "unlockedDoors"
+    | "isSolved"
+    | "isSuspended"
+    | "isOnAdventure"
+    | "isPrototyped"
+    | "manaCost"
+    | "effectiveManaCost"
+    | "color"
   >
 > & {
   isToken?: boolean;
@@ -59,6 +68,12 @@ export function applyCardRenderingOverrides(
     : 0;
   return {
     ...next,
+    zone:
+      fields.zoneId === "battlefield" || fields.zoneId === "hand" || fields.zoneId === "exile"
+        ? fields.zoneId
+        : fields.zoneId !== undefined
+          ? undefined
+          : card.zone,
     identity: isToken === undefined ? card.identity : { ...card.identity, isToken },
     counters,
     power: power === undefined ? adjustedStat(card.power, counterDelta) : power,

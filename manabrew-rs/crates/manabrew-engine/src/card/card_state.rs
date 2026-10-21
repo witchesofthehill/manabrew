@@ -619,7 +619,10 @@ pub fn has_keyword(card: &Card, keyword: &str) -> bool {
 }
 
 pub fn has_intrinsic_keyword(card: &Card, keyword: &str) -> bool {
-    card.keywords.contains_string_ignore_case(keyword)
+    card.trait_base_keywords
+        .as_ref()
+        .unwrap_or(&card.keywords)
+        .contains_string_ignore_case(keyword)
 }
 
 pub fn update_keywords_cache(card: &mut Card) {
@@ -643,7 +646,15 @@ pub fn add_intrinsic_keyword(card: &mut Card, keyword: &str) -> bool {
     if keyword.trim().is_empty() {
         return false;
     }
-    card.keywords.add(keyword)
+    if let Some(base) = card.trait_base_keywords.as_mut() {
+        let changed = base.add(keyword);
+        if changed {
+            card.recompute_changed_card_keywords();
+        }
+        changed
+    } else {
+        card.keywords.add(keyword)
+    }
 }
 
 pub fn add_intrinsic_keywords<'a>(
@@ -658,7 +669,15 @@ pub fn add_intrinsic_keywords<'a>(
 }
 
 pub fn remove_intrinsic_keyword(card: &mut Card, keyword: &str) -> bool {
-    card.keywords.remove(keyword)
+    if let Some(base) = card.trait_base_keywords.as_mut() {
+        let changed = base.remove(keyword);
+        if changed {
+            card.recompute_changed_card_keywords();
+        }
+        changed
+    } else {
+        card.keywords.remove(keyword)
+    }
 }
 
 pub fn apply_spell_ability(

@@ -11,6 +11,8 @@ import type { ScryfallCard } from "@/types/scryfall";
 import { msg } from "@lingui/core/macro";
 import { i18n } from "@/i18n/i18n";
 import { parseManaCost } from "@/pixi/manaSymbols";
+import { printedPrototype, prototypeRules } from "@/lib/cardPrototype";
+import { gameCardFaceIndex } from "@/lib/gameCard";
 
 export interface RulesPreviewSection {
   faceIndex: number;
@@ -35,6 +37,7 @@ export interface RulesPreviewDisplay {
   multipart: boolean;
   flippable: boolean;
   faceless: boolean;
+  prototype?: boolean;
   sections: RulesPreviewSection[];
   keywords: string[];
   stats: CardStatPresentation | null;
@@ -181,8 +184,19 @@ function translationLines(info: ScryfallCard, faceIndex: number): TranslationLin
   const cached = cardEntries.get(faceIndex);
   if (cached) return cached;
   const face = localizedFaceText(info, faceIndex);
-  const canonicalLines = face?.canonicalRulesText.split("\n") ?? [];
-  const localizedLines = face?.displayRulesText.split("\n") ?? [];
+  const prototype = printedPrototype(face?.canonicalRulesText ?? "");
+  const canonicalPrototype = prototype
+    ? prototypeRules(face?.canonicalRulesText ?? "", prototype)
+    : undefined;
+  const localizedPrototype = prototype
+    ? prototypeRules(face?.displayRulesText ?? "", prototype)
+    : undefined;
+  const canonicalLines = (canonicalPrototype?.rulesText ?? face?.canonicalRulesText ?? "").split(
+    "\n",
+  );
+  const localizedLines = (
+    localizedPrototype?.rulesText ?? (prototype ? "" : (face?.displayRulesText ?? ""))
+  ).split("\n");
   const entries: TranslationLine[] = canonicalLines.map((canonical) => ({
     canonical: translationComparisonText(canonical),
     localized: null,
@@ -229,6 +243,18 @@ function translationLines(info: ScryfallCard, faceIndex: number): TranslationLin
       }
     }
   }
+  if (canonicalPrototype && localizedPrototype) {
+    entries.push({
+      canonical: translationComparisonText(canonicalPrototype.header),
+      localized: localizedPrototype.header,
+    });
+    if (canonicalPrototype.reminder && localizedPrototype.reminder) {
+      entries.push({
+        canonical: canonicalPrototype.reminder,
+        localized: localizedPrototype.reminder,
+      });
+    }
+  }
   cardEntries.set(faceIndex, entries);
   return entries;
 }
@@ -241,7 +267,21 @@ export function localizeRulesPreviewText(
   if (!text || !info) return text;
   const face = localizedFaceText(info, faceIndex);
   if (!face || face.displayRulesText === face.canonicalRulesText) return text;
-  if (text.trim() === face.canonicalRulesText.trim()) return face.displayRulesText;
+  const prototype = printedPrototype(face.canonicalRulesText);
+  if (prototype) {
+    const localized = prototypeRules(face.displayRulesText, prototype);
+    if (!localized) return /\/\/PRT-/.test(text) ? face.canonicalRulesText : text;
+    if (text.trim() === face.canonicalRulesText.trim()) {
+      return [localized.header, localized.rulesText].filter(Boolean).join("\n");
+    }
+    if (/\/\/PRT-/.test(text)) {
+      const current = prototypeRules(text, prototype);
+      if (!current) return face.canonicalRulesText;
+      text = [current.header, current.rulesText].filter(Boolean).join("\n");
+    }
+  } else if (text.trim() === face.canonicalRulesText.trim()) {
+    return face.displayRulesText;
+  }
   const mappings = translationLines(info, faceIndex);
   return text
     .split("\n")
@@ -359,6 +399,16 @@ function mechanicPaymentIsDescribed(action: HandActionOption, cost: string): boo
   );
   if (description === "station") {
     return /^Tap another (?:untapped )?creature you control\.?$/i.test(cost);
+  }
+  if (/^solved\s*-\s*/.test(description)) {
+    const describedCost = description.replace(/^solved\s*-\s*/, "").split(":")[0]!;
+    const [beforeName, afterName] = normalizedRulesComparisonText(cost).split("cardname");
+    if (
+      afterName !== undefined &&
+      describedCost.startsWith(beforeName!) &&
+      describedCost.endsWith(afterName)
+    )
+      return true;
   }
   const crew = description.match(/^crew\s+(\d+)$/);
   const payment = cost.match(
@@ -561,7 +611,7 @@ export function resolveRulesPreviewDisplay(options: {
     isTwoHalfLayout(layout) || layout === "adventure" || layout === "prepare" || layout === "flip";
   const flippable = resolved.isFlippable && !simultaneous && !faceless;
   const faceIndex: 0 | 1 = showBackFace && flippable ? 1 : 0;
-  const currentFaceIndex: 0 | 1 = card.isTransformed && flippable ? 1 : 0;
+  const currentFaceIndex: 0 | 1 = flippable ? gameCardFaceIndex(card, layout) : 0;
   const currentFace = faceIndex === currentFaceIndex;
   const face = resolved.faces[faceIndex];
   const horizontal = isHorizontalCard({
@@ -591,10 +641,87 @@ export function resolveRulesPreviewDisplay(options: {
     };
   }
 
+  const prototype = printedPrototype(info?.oracle_text ?? "");
+  if (prototype) {
+    const localized = localizedFaceText(info, 0);
+    const base = sectionFromFace(resolved.faces[0]!, localized, 0);
+    const canonical = prototypeRules(base.canonicalRulesText, prototype);
+    const printed = prototypeRules(base.rulesText, prototype);
+    const alternate = {
+      ...base,
+      faceIndex: 1,
+      name: printed?.name ?? i18n._(msg`Prototype`),
+      manaCost: prototype.manaCost,
+      rulesText: printed?.reminder ?? "",
+      canonicalRulesText: canonical?.reminder ?? "",
+      flavorText: "",
+    };
+    const hasCharacteristics = card.types.length > 0 || card.text.length > 0;
+    const liveRulesText = hasCharacteristics ? presentation.rulesText : base.canonicalRulesText;
+    const live = prototypeRules(liveRulesText, prototype);
+    const representable = canonical && printed && (live || !/\/\/PRT-/.test(liveRulesText));
+    base.canonicalRulesText = live?.rulesText ?? liveRulesText;
+    base.rulesText = hasCharacteristics
+      ? localizeRulesPreviewText(base.canonicalRulesText, info, 0)
+      : (printed?.rulesText ?? "");
+    base.name = localizedLiveValue(
+      presentation.name,
+      localized?.canonicalName ?? base.name,
+      base.name,
+    );
+    base.typeLine = localizedLiveValue(
+      presentation.typeLine,
+      localized?.canonicalTypeLine ?? base.typeLine,
+      base.typeLine,
+    );
+    const current = card.isPrototyped === true ? alternate : base;
+    if (hasCharacteristics) {
+      current.manaCost = presentation.effectiveManaCost ?? presentation.manaCost;
+    }
+    return {
+      name: base.name,
+      manaCost: current.manaCost,
+      typeLine: base.typeLine,
+      faceIndex: 0,
+      liveFaceIndex: card.isPrototyped === true ? 1 : 0,
+      currentFace: true,
+      otherFace: false,
+      horizontal: false,
+      multipart: true,
+      flippable: false,
+      faceless: false,
+      prototype: true,
+      sections: representable ? [base, alternate] : [],
+      keywords: grantedKeywordChips(card),
+      stats: presentation.stats,
+      loyalty: null,
+      defense: null,
+    };
+  }
   if (!flippable && resolved.isMultiFaced) {
     const sections = resolved.faces.map((part, index) =>
       sectionFromFace(part, localizedFaceText(info, index), index),
     );
+    const liveIndex =
+      card.faceIndex ??
+      resolved.faces.findIndex((part, index) =>
+        [
+          part.name,
+          localizedFaceText(info, index)?.canonicalName,
+          localizedFaceText(info, index)?.displayName,
+        ].some((name) => name && comparableText(name) === comparableText(card.identity.name)),
+      );
+    if (layout === "adventure" && liveIndex >= 0 && sections[liveIndex]) {
+      const selected = sections[liveIndex]!;
+      selected.rulesText = localizeRulesPreviewText(
+        presentation.rulesText || selected.canonicalRulesText,
+        info,
+        liveIndex,
+      );
+      selected.canonicalRulesText = presentation.rulesText || selected.canonicalRulesText;
+      selected.manaCost =
+        presentation.effectiveManaCost ?? presentation.manaCost ?? selected.manaCost;
+    }
     const name =
       info?.printed_name ??
       (sections.map((section) => section.name).join(FACE_SEPARATOR) ||
@@ -610,7 +737,7 @@ export function resolveRulesPreviewDisplay(options: {
       manaCost: "",
       typeLine,
       faceIndex: 0,
-      liveFaceIndex: 0,
+      liveFaceIndex: liveIndex === 1 ? 1 : 0,
       currentFace: true,
       otherFace: false,
       horizontal,
@@ -668,9 +795,13 @@ export function resolveRulesPreviewDisplay(options: {
   const loyalty = currentFace
     ? (presentation.loyalty ?? numericValue(face?.loyalty))
     : numericValue(face?.loyalty);
-  const defense = currentFace
-    ? (presentation.defense ?? numericValue(face?.defense))
-    : numericValue(face?.defense);
+  const defense = /\bBattle\b/i.test(
+    currentFace ? presentation.typeLine : (localized?.canonicalTypeLine ?? face?.typeLine ?? ""),
+  )
+    ? currentFace && (card.zone === "battlefield" || card.zone === undefined)
+      ? (card.counters.Defense ?? (card.zone === "battlefield" ? 0 : numericValue(face?.defense)))
+      : numericValue(face?.defense)
+    : null;
 
   return {
     name,

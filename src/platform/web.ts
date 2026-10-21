@@ -5,7 +5,7 @@
  * The game engine runs in a Web Worker for non-blocking UI.
  */
 
-import { deckHasCardCosmetics } from "@/lib/cardCosmetics";
+import { deckHasCardCosmetics, normalizeCardCosmetics } from "@/lib/cardCosmetics";
 import type { EngineGameStats } from "@/lib/engineTelemetry";
 import {
   noteEngineThinkTime,
@@ -803,6 +803,9 @@ class WebGameApi implements IGameApi {
 
     if (params.localIsHost) {
       this.serverApi?.setEnginePlayerNames(params.playerNames);
+      const forgeAi =
+        params.engine === "Forge" && usePreferencesStore.getState().aiController === "forge";
+      const botSeats = (params.botPlayerSlots ?? []).map(seatIndexOf);
       const limited = useMultiplayerLimitedStore.getState();
       const virtualBotNames = new Set(
         limited.matchReturn
@@ -812,9 +815,11 @@ class WebGameApi implements IGameApi {
           : [],
       );
       this.bridge.setLocalBotSlots(
-        (params.botPlayerSlots ?? []).filter((slot) =>
-          virtualBotNames.has(params.playerNames[seatIndexOf(slot)]),
-        ),
+        forgeAi
+          ? []
+          : (params.botPlayerSlots ?? []).filter((slot) =>
+              virtualBotNames.has(params.playerNames[seatIndexOf(slot)]),
+            ),
       );
       // Host runs the engine; the worker posts back one SAB per remote
       // seat (see the game:remote_sab handler in WorkerBridge).
@@ -823,7 +828,8 @@ class WebGameApi implements IGameApi {
         commanderNames: params.commanderNames,
         playerNames: params.playerNames,
         enginePlayerIndex: params.enginePlayerIndex,
-        botSeats: (params.botPlayerSlots ?? []).map(seatIndexOf),
+        botSeats,
+        forgeAiSeats: forgeAi ? botSeats : [],
         snapshotRecording: usePreferencesStore.getState().snapshotRecording,
         startingLife: params.startingLife,
         engine: params.engine,
@@ -1008,7 +1014,7 @@ class WebServerApi implements IServerApi {
   private announcedRoom: string | null = null;
   private relayRttMs: number | null = null;
   private planeQualityReporting = false;
-  private cardCosmetics = false;
+  private cardCosmeticsVersion: 0 | 1 | 2 = 0;
   private pingSentAt: number | null = null;
   private directTransportOptIn = usePreferencesStore.getState().directTransport;
   private roomTransport = false;
@@ -1091,6 +1097,7 @@ class WebServerApi implements IServerApi {
   }
 
   private async openSocket(params: ServerConnectParams): Promise<void> {
+    this.cardCosmeticsVersion = 0;
     const forceRemint = this.sessionTokenRejected;
     this.sessionTokenRejected = false;
     const identity = await resolveRelayIdentity(this.sessionIdentity, params.username, forceRemint);
@@ -1166,6 +1173,7 @@ class WebServerApi implements IServerApi {
     this.stopKeepalive();
     this.ws = null;
     this.connectedAt = null;
+    this.cardCosmeticsVersion = 0;
 
     if (this.manualDisconnect) {
       this.eventBus.emit("server:disconnected", { terminal: true });
@@ -1277,6 +1285,7 @@ class WebServerApi implements IServerApi {
     this.connectParams = null;
     this.sessionIdentity = null;
     this.sessionTokenRejected = false;
+    this.cardCosmeticsVersion = 0;
     this.stopKeepalive();
     this.stopAllBots();
     const ws = this.ws;
@@ -1383,9 +1392,21 @@ class WebServerApi implements IServerApi {
   }
 
   async setDeckSelection(params: SetDeckSelectionParams): Promise<void> {
-    if (!this.cardCosmetics && deckHasCardCosmetics(params.deck)) {
+    if (this.cardCosmeticsVersion === 0 && deckHasCardCosmetics(params.deck)) {
       throw new Error(
         "This server does not support customized cards. Update the server before selecting this deck.",
+      );
+    }
+    if (
+      this.cardCosmeticsVersion < 2 &&
+      deckHasCardCosmetics(
+        params.deck,
+        (cosmetics) =>
+          cosmetics.printDots?.artwork === false || cosmetics.heatDeformation !== undefined,
+      )
+    ) {
+      throw new Error(
+        "This server does not support this deck's print-dot artwork settings or Heat deformation. Update the server before selecting this deck.",
       );
     }
     this.send({
@@ -1739,7 +1760,12 @@ class WebServerApi implements IServerApi {
       console.error("[WebServerApi] Not connected");
       return;
     }
-    const raw = JSON.stringify(msg);
+    const raw = JSON.stringify(
+      msg,
+      msg.type === "SetDeckSelection"
+        ? (key, value) => (key === "cosmetics" ? normalizeCardCosmetics(value) : value)
+        : undefined,
+    );
     if (msg.type !== "Ping") logComms("send", raw);
     this.ws.send(raw);
   }
@@ -1762,6 +1788,16 @@ class WebServerApi implements IServerApi {
       return;
     }
     logComms("recv", raw ?? msg);
+    if (type === "AuthResult") {
+      this.cardCosmeticsVersion =
+        msg.success && Array.isArray(msg.features)
+          ? msg.features.includes("card_cosmetics_v2")
+            ? 2
+            : msg.features.includes("card_cosmetics")
+              ? 1
+              : 0
+          : 0;
+    }
     if (type === "AuthResult" && msg.success) {
       this.peerSignalling =
         Array.isArray(msg.features) && (msg.features as string[]).includes("peer_signal");
@@ -1769,8 +1805,6 @@ class WebServerApi implements IServerApi {
         Array.isArray(msg.features) && (msg.features as string[]).includes("room_transport");
       this.planeQualityReporting =
         Array.isArray(msg.features) && (msg.features as string[]).includes("plane_quality");
-      this.cardCosmetics =
-        Array.isArray(msg.features) && (msg.features as string[]).includes("card_cosmetics");
     }
     if (DEBUG_TRANSPORT) console.log("[transport←ws] received:", JSON.stringify(msg));
     if (isPromptLoggingEnabled()) {

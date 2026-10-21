@@ -18,6 +18,8 @@ import type { HandActionOption } from "@/stores/useGameUIStore";
 import type { Theme } from "@/hooks/useTheme";
 import {
   deriveCardPresentation,
+  ROOM_DOOR_BOUNDS,
+  roomDoorState,
   type CardStatPresentation,
   type CardCounterPresentation,
 } from "@/components/game/cardPresentation";
@@ -33,6 +35,7 @@ import { specialRules } from "card-glint/magic/presentation";
 import {
   activatedRulesEntries,
   localizeRulesPreviewText,
+  matchRulesEntry,
   resolveRulesPreviewDisplay,
   rulesEntryMatchesStackAbility,
   rulesTextEntries,
@@ -40,6 +43,15 @@ import {
   stationRulesPresentation,
 } from "@/pixi/cardPreview/rulesCardPreviewPresentation";
 import { RulesPreviewActions } from "@/pixi/cardPreview/RulesPreviewActions";
+import {
+  previewActionFace,
+  previewOwnsAction,
+  levelActionPanel,
+  previewPanelActive,
+  caseSectionActive,
+  caseSections,
+  suspendState,
+} from "@/pixi/cardPreview/previewMechanics";
 import {
   drawRulesStatBadge,
   resolveRulesPreviewFrame,
@@ -72,6 +84,13 @@ import { getSafeAreaInsets } from "@/lib/safeArea";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { cardRenderInputKey, renderRulesCard } from "@/lib/cardRenderer";
 import type { CardRenderRequest } from "@/lib/cardRenderSnapshot";
+import {
+  releaseCardRaster,
+  selectCardRenderTier,
+  type CardRaster,
+  type CardRenderTier,
+} from "@/lib/cardRenderTypes";
+import { overlayResolution } from "@/pixi/overlay/overlayRuntime";
 import { CardArtworkError } from "@/lib/cardRenderDecision";
 import { hasIntegratedArtwork } from "@/lib/cardArtworkPrinting";
 import {
@@ -91,6 +110,7 @@ import { CardLiveHighlight } from "@/pixi/effects/CardLiveHighlight";
 import { isEtchedOnlyPrinting } from "@/lib/cardFinish";
 import type { GamePreviewFlipBinding } from "@/hooks/useGamePreviewFlip";
 import { PreviewFlipAnimation } from "@/pixi/cardPreview/PreviewFlipAnimation";
+import type { CardLightingMode, CardPose } from "@/lib/cardLighting";
 
 export interface RulesCardPreviewSpec {
   card: CardDto;
@@ -108,6 +128,8 @@ export interface RulesCardPreviewSpec {
   embedded?: boolean;
   highlightedEffect?: string;
   flip?: GamePreviewFlipBinding;
+  lighting?: CardLightingMode;
+  pose?: CardPose;
 }
 
 export interface RulesPreviewActionGlowBounds {
@@ -130,6 +152,13 @@ export interface RulesCardPreviewCallbacks {
   onToggleView: () => void;
 }
 
+interface IndexedPreviewAction {
+  action: HandActionOption;
+  index: number;
+  shortcut: number;
+  displayLabel: string;
+}
+
 const PORTRAIT_WIDTH: number = RULES_CARD_CONSTRAINTS.width;
 const PORTRAIT_HEIGHT: number = RULES_CARD_CONSTRAINTS.height;
 const LANDSCAPE_WIDTH = PORTRAIT_HEIGHT;
@@ -150,6 +179,8 @@ const FLAVOR_GAP_EM = 0.75;
 const ABILITY_GAP_EM = 0.4;
 const PLANESWALKER_SECTION_GAP = 8;
 const SECTION_GAP = 8;
+const ACTIVE_SECTION_ALPHA = 0.2;
+const CASE_SELF_REFERENCE = "this Case";
 const ENTRY_INTERACTION_PAD_MS = 80;
 const STACK_RULES_PULSE_S = 0.9;
 
@@ -191,11 +222,13 @@ export class RulesCardPreviewLayer {
   private cardContainer = new Container();
   private fieldFace = new Container();
   private detailsContainer = new Container();
+  private readonly roomState = new Graphics({ label: "room-door-state", eventMode: "none" });
   private faceSprite = new Sprite(Texture.EMPTY);
   private faceMask = new Graphics();
   private faceGeometry: CardRenderGeometry | undefined;
   private faceTexture: Texture | null = null;
   private foil: CardFoil | null = null;
+  private readonly materialPose = { yaw: 0, pitch: 0 };
   private readonly liveHighlight: CardLiveHighlight;
   private readonly foilUvs = new Float32Array(8);
   private readonly foilSurface = new Rectangle();
@@ -204,6 +237,10 @@ export class RulesCardPreviewLayer {
   private renderAbort: AbortController | null = null;
   private faceInputKey: string | null = null;
   private completedFaceInputKey: string | null = null;
+  private renderTier: CardRenderTier | undefined;
+  private projectedRasterWidth = 0;
+  private projectedRasterHeight = 0;
+  private rasterFlipping = false;
   private unsubscribeLocale: () => void;
   private renderState: "loading" | "ready" | "error" = "loading";
   private preserveArtwork = false;
@@ -222,6 +259,12 @@ export class RulesCardPreviewLayer {
   private primaryBody: RulesPreviewBody | null = null;
   private readonly scrollPositions = new Map<string, number>();
   private actions = new RulesPreviewActions();
+  private extraActions: RulesPreviewActions[] = [];
+  private actionPanels = new Map<
+    number,
+    { view: RulesPreviewActions; index: number; body: RulesPreviewBody }
+  >();
+  private focusedAction: number | null = null;
   private bodyPointerId: number | null = null;
   private controls = new RulesPreviewActions();
   private viewControls: HandCardControls;
@@ -308,6 +351,7 @@ export class RulesCardPreviewLayer {
     this.container.addChild(
       this.cardContainer,
       this.liveHighlight,
+      this.roomState,
       this.detailsContainer,
       this.viewControls,
     );
@@ -340,6 +384,9 @@ export class RulesCardPreviewLayer {
       this.imageReady
       ? this.faceSprite.texture
       : null;
+  }
+  get foilSource(): Sprite {
+    return this.faceSprite;
   }
   writeFoilTextureUvs(relativeTo: Container, surface: Rectangle, output: Float32Array): void {
     writeCardTextureUvs(this.faceSprite, relativeTo, surface, output);
@@ -389,6 +436,23 @@ export class RulesCardPreviewLayer {
     else if (this.spec) this.rebuild();
   }
 
+  setRasterProjection(width: number, height: number, flipping: boolean): void {
+    this.projectedRasterWidth = width;
+    this.projectedRasterHeight = height;
+    this.rasterFlipping = flipping;
+    if (this.spec && this.selectRasterTier() !== this.renderTier) void this.loadFace();
+  }
+
+  private selectRasterTier(): CardRenderTier {
+    return selectCardRenderTier(
+      this.projectedRasterWidth || this.faceWidth * this.layoutScale,
+      this.projectedRasterHeight || this.panelHeight * this.layoutScale,
+      overlayResolution(window.innerWidth, window.innerHeight),
+      this.renderTier,
+      this.rasterFlipping || !!this.spec?.flip?.closed || this.flip.scale < 1,
+    );
+  }
+
   setSpec(spec: RulesCardPreviewSpec | null, preserveHover = false): void {
     const activePrevious = this.spec;
     const previous = activePrevious ?? this.retainedSpec;
@@ -424,6 +488,21 @@ export class RulesCardPreviewLayer {
       !previous ||
       previous.actions.length !== spec.actions.length ||
       previous.actions.some((action, index) => action !== spec.actions[index]);
+    if (this.focusedAction !== null && previous) {
+      const focused = previous.actions[this.focusedAction];
+      const index = focused
+        ? spec.actions.findIndex(
+            (action) =>
+              action.cardId === focused.cardId &&
+              (focused.actionId !== undefined
+                ? action.actionId === focused.actionId
+                : action.abilityIndex === focused.abilityIndex &&
+                  action.kind === focused.kind &&
+                  action.label === focused.label),
+          )
+        : -1;
+      this.focusedAction = index >= 0 ? index : null;
+    }
     const embeddedChanged = previous?.embedded !== spec.embedded;
     const highlightChanged = previous?.highlightedEffect !== spec.highlightedEffect;
     this.displayedBackFace = spec.showBackFace;
@@ -442,11 +521,14 @@ export class RulesCardPreviewLayer {
         this.faceTexture !== null &&
         this.renderState === "ready" &&
         this.completedFaceInputKey ===
-          cardRenderInputKey({
-            card: spec.card,
-            deckCard: previewDeckCard(spec.card),
-            faceIndex: spec.showBackFace ? 1 : 0,
-          });
+          JSON.stringify([
+            cardRenderInputKey({
+              card: spec.card,
+              deckCard: previewDeckCard(spec.card),
+              faceIndex: spec.showBackFace ? 1 : 0,
+            }),
+            this.selectRasterTier(),
+          ]);
       if (!retainFace) {
         this.clearFaceTexture();
         this.faceGeometry = undefined;
@@ -482,8 +564,6 @@ export class RulesCardPreviewLayer {
       this.revealHighlightedEffect = !!spec.highlightedEffect;
     }
     const previousFaceInputKey = this.faceInputKey;
-    if (contentChanged || faceChanged || visibilityChanged || returning)
-      void this.loadFace(returning && !hidden);
     if (
       contentChanged ||
       this.scryfallInfo !== previousInfo ||
@@ -500,6 +580,8 @@ export class RulesCardPreviewLayer {
     } else {
       this.layoutPanel();
     }
+    if (contentChanged || faceChanged || visibilityChanged || returning)
+      void this.loadFace(returning && !hidden);
 
     if (spec.suppressed) {
       this.hide();
@@ -507,6 +589,7 @@ export class RulesCardPreviewLayer {
     }
 
     this.foil?.setEnabled(!spec.embedded && !hidden && this.imageReady);
+    this.applyLightingPose();
     this.startHighlightedEffect();
 
     if (
@@ -604,25 +687,40 @@ export class RulesCardPreviewLayer {
   }
 
   focusAction(delta: number): void {
-    if (!this.spec?.actions.length) return;
-    this.actions.focusAction(delta);
-    const row = this.actions.focusedActionBounds;
-    if (row) this.primaryBody?.scrollIntoView(this.actions.y + row.top, row.height);
-    this.callbacks.onRenderRequested();
+    const indexes = [...this.actionPanels.keys()].sort((left, right) => left - right);
+    const count = indexes.length;
+    if (!count) return;
+    const current = this.focusedAction === null ? -1 : indexes.indexOf(this.focusedAction);
+    const next =
+      current < 0
+        ? delta < 0
+          ? count - 1
+          : 0
+        : (((current + Math.trunc(delta)) % count) + count) % count;
+    this.focusActionAt(indexes[next]!);
   }
 
   focusActionAt(index: number): void {
-    if (!this.spec?.actions.length) return;
-    this.actions.focusActionAt(index);
-    const row = this.actions.focusedActionBounds;
-    if (row) this.primaryBody?.scrollIntoView(this.actions.y + row.top, row.height);
+    const entry = this.actionPanels.get(index);
+    if (!entry) return;
+    for (const view of [this.actions, ...this.extraActions])
+      if (view !== entry.view) view.clearFocus();
+    this.focusedAction = index;
+    entry.view.focusActionAt(entry.index);
+    const row = entry.view.focusedActionBounds;
+    if (row) entry.body.scrollIntoView(entry.view.y + row.top, row.height);
     this.callbacks.onRenderRequested();
+  }
+
+  ownsAction(index: number): boolean {
+    return this.actionPanels.has(index);
   }
 
   getActionScreenBounds(index: number) {
     if (!this.spec || this.spec.suppressed || !this.container.visible) return null;
-    const bounds = this.actions.getActionScreenBounds(index);
-    const body = this.primaryBody;
+    const entry = this.actionPanels.get(index);
+    const bounds = entry?.view.getActionScreenBounds(entry.index);
+    const body = entry?.body;
     if (!bounds || !body?.scroller.visible) return null;
     const clip = body.clipScreenBounds.actions;
     const x = Math.max(bounds.x, clip.x);
@@ -640,13 +738,25 @@ export class RulesCardPreviewLayer {
 
   activateFocusedAction(): void {
     if (!this.spec?.actions.length || this.spec.suppressed) return;
-    this.actions.activateFocusedAction();
+    const hovered = [this.actions, ...this.extraActions].find((view) => view.hasHoveredAction);
+    if (this.focusedAction === null && !hovered) {
+      this.focusAction(0);
+      return;
+    }
+    const entry =
+      this.focusedAction === null ? undefined : this.actionPanels.get(this.focusedAction);
+    (
+      entry?.view ??
+      hovered ??
+      this.actionPanels.get(0)?.view ??
+      this.actions
+    ).activateFocusedAction();
     this.callbacks.onRenderRequested();
   }
 
   activateShortcut(shortcut: number): boolean {
     if (!this.spec?.actions.length) return false;
-    return this.actions.activateShortcut(shortcut);
+    return [this.actions, ...this.extraActions].some((view) => view.activateShortcut(shortcut));
   }
 
   activatePrimaryTransform(): void {
@@ -692,9 +802,13 @@ export class RulesCardPreviewLayer {
     this.highlightedEffectTween?.kill();
     this.highlightedEffectTween = null;
     this.highlightedRows = [];
+    this.roomState.clear();
     this.fieldFace.visible =
       this.faceSprite.texture !== Texture.EMPTY && this.renderState !== "loading";
     this.actions.removeFromParent();
+    for (const view of this.extraActions) view.destroy({ children: true });
+    this.extraActions = [];
+    this.actionPanels.clear();
     this.controls.removeFromParent();
     for (const body of this.bodies) {
       this.scrollPositions.set(body.panel.id, body.scrollOffset);
@@ -717,6 +831,13 @@ export class RulesCardPreviewLayer {
       showBackFace: this.displayedBackFace,
       faceless: spec.card.isFaceDown || !spec.card.identity.name,
     });
+    const isCase = !display.otherFace && spec.card.subtypes.includes("Case");
+    const isBattleCard = /\bBattle\b/.test(
+      this.scryfallInfo?.card_faces?.[0]?.type_line ??
+        this.scryfallInfo?.type_line ??
+        presentation.typeLine,
+    );
+    const inlineActions = isCase || isBattleCard;
     const progression =
       display.currentFace && !display.multipart && !display.faceless && presentation.progression
         ? {
@@ -737,37 +858,51 @@ export class RulesCardPreviewLayer {
         ? progression.rail.current + 1
         : null;
     const classLevelUpIndex = nextClassLevel
-      ? spec.actions.findIndex((action) => action.isClassLevelUp)
+      ? spec.actions.findIndex((action) => action.levelUp === "class")
       : -1;
     const classActionIndex = classLevelUpIndex >= 0 ? classLevelUpIndex : null;
-    const indexedActions = (display.faceless ? [] : spec.actions).map((action, index) => ({
-      action,
-      shortcut: getPreviewActionShortcut(
+    const indexedActions: IndexedPreviewAction[] = (display.faceless ? [] : spec.actions).map(
+      (action, index) => ({
+        action,
         index,
-        classActionIndex,
-        classActionIndex === null ? null : nextClassLevel,
-      ),
-      displayLabel: localizeRulesPreviewText(
-        action.label,
-        this.scryfallInfo,
-        display.liveFaceIndex,
-      ),
-    }));
-    const actionSection = display.otherFace
-      ? undefined
-      : display.sections.find(
-          (section) => section.faceIndex === display.liveFaceIndex && !section.planeswalker,
-        );
-    const actionEntries = actionSection
-      ? station && actionSection === stationSection
-        ? station.opening
-        : rulesTextEntries(actionSection.rulesText, progression, actionSection.canonicalRulesText)
-      : [];
-    const activated = activatedRulesEntries(indexedActions, actionEntries, (text) =>
-      localizeRulesPreviewText(text, this.scryfallInfo, display.liveFaceIndex),
+        shortcut: getPreviewActionShortcut(
+          index,
+          classActionIndex,
+          classActionIndex === null ? null : nextClassLevel,
+        ),
+        displayLabel: localizeRulesPreviewText(
+          action.label,
+          this.scryfallInfo,
+          previewActionFace(action) ?? display.liveFaceIndex,
+        ),
+      }),
     );
-    for (const [index, entry] of activated) indexedActions[index]!.displayLabel = entry;
-    const activatedEntries = new Set(activated.values());
+    const activatedEntries = new Map<number, Set<string>>();
+    if (!display.otherFace)
+      for (const section of display.sections) {
+        if (section.planeswalker) continue;
+        const actions = indexedActions.filter(
+          ({ action }) =>
+            (previewActionFace(action) ?? display.liveFaceIndex) === section.faceIndex,
+        );
+        const entries =
+          station && section === stationSection
+            ? station.opening
+            : rulesTextEntries(section.rulesText, progression, section.canonicalRulesText);
+        const activated = activatedRulesEntries(actions, entries, (text) =>
+          localizeRulesPreviewText(
+            isCase
+              ? text
+                  .replaceAll("CARDNAME", CASE_SELF_REFERENCE)
+                  .replaceAll(spec.card.identity.name, CASE_SELF_REFERENCE)
+              : text,
+            this.scryfallInfo,
+            display.prototype ? 0 : section.faceIndex,
+          ),
+        );
+        for (const [index, entry] of activated) actions[index]!.displayLabel = entry;
+        activatedEntries.set(section.faceIndex, new Set(activated.values()));
+      }
     this.highlightedEntry = stackHighlightEntry(
       spec.highlightedEffect,
       display.sections.flatMap((section) =>
@@ -808,7 +943,7 @@ export class RulesCardPreviewLayer {
         frame,
         () => this.callbacks.onRenderRequested(),
         () => {
-          this.actions.cancelPress();
+          for (const view of [this.actions, ...this.extraActions]) view.cancelPress();
           this.controls.cancelPress();
         },
         (pointerId) => {
@@ -856,9 +991,10 @@ export class RulesCardPreviewLayer {
       this.foil.position.set(this.foilSurface.x, this.foilSurface.y);
       this.foil.setExclusions(this.foilRulesExclusions);
       this.writeFoilTextureUvs(this.container, this.foilSurface, this.foilUvs);
-      this.foil.setTexture(this.faceSprite.texture, this.foilUvs);
+      this.foil.setTexture(this.faceSprite.texture, this.foilUvs, this.faceSprite);
       this.foil.setArtWindows(getGeneratedCardArtWindows(this.faceSprite.texture));
     }
+    this.applyLightingPose();
     this.foil?.setAppearance(
       !display.faceless && !!spec.card.foil,
       display.faceless ? undefined : spec.card.cosmetics,
@@ -877,6 +1013,38 @@ export class RulesCardPreviewLayer {
       progression?.rail.kind === "saga"
         ? presentation.counters.filter((counter) => counter.type !== "Lore")
         : presentation.counters;
+    const panelLayout = display.prototype
+      ? "prototype"
+      : /\bRoom\b/.test(this.scryfallInfo?.type_line ?? "")
+        ? "room"
+        : deckCard.layout;
+    const doorState = roomDoorState(spec.card);
+    if (
+      panelLayout === "room" &&
+      !spec.embedded &&
+      display.currentFace &&
+      !display.faceless &&
+      detailsReady &&
+      doorState !== undefined
+    ) {
+      const inset = 6;
+      const shadow = hexToNum(this.theme.gameTheme.canvas.shadow);
+      const active = hexToNum(this.theme.gameTheme.activeAction.active);
+      for (let half = 0; half < ROOM_DOOR_BOUNDS.length; half++) {
+        const bounds = ROOM_DOOR_BOUNDS[half]!;
+        const x = bounds.x * this.faceWidth + inset;
+        const width = bounds.width * this.faceWidth - inset * 2;
+        const height = this.panelHeight - inset * 2;
+        const unlocked = (doorState & (1 << half)) !== 0;
+        this.roomState.roundRect(x, inset, width, height, RULES_CARD_CONSTRAINTS.radius);
+        if (unlocked) {
+          this.roomState.stroke({ color: shadow, alpha: 0.85, width: 6, alignment: 1 });
+          this.roomState
+            .roundRect(x, inset, width, height, RULES_CARD_CONSTRAINTS.radius)
+            .stroke({ color: active, width: 3, alignment: 1 });
+        } else this.roomState.fill({ color: shadow, alpha: 0.42 });
+      }
+    }
     for (const body of this.bodies) {
       this.frame = body.frame;
       const primary = body === this.primaryBody;
@@ -892,31 +1060,48 @@ export class RulesCardPreviewLayer {
           ? rulesTextEntries(section.rulesText, progression, section.canonicalRulesText)
           : [];
       let y = this.scanOverlay ? 2 : 4;
+      const ownedActions = indexedActions.filter(({ action }) => {
+        if (!previewOwnsAction(action, display, isBattleCard)) return false;
+        if (
+          !this.scanOverlay &&
+          action.kind === "ability" &&
+          panels.some((panel) => panel.kind === "level")
+        ) {
+          const owner = levelActionPanel(action, panels, (text, faceIndex) =>
+            localizeRulesPreviewText(text, this.scryfallInfo, faceIndex),
+          );
+          return owner === undefined ? primary : body.panel.id === owner;
+        }
+        const owner = previewActionFace(action);
+        if (owner === undefined || this.scanOverlay) return primary;
+        return (
+          body ===
+          (this.bodies.find((candidate) => candidate.panel.faceIndex === owner) ?? this.primaryBody)
+        );
+      });
+      const upfrontActions = inlineActions
+        ? ownedActions.filter(
+            (entry) => !activatedEntries.get(body.panel.faceIndex)?.has(entry.displayLabel),
+          )
+        : ownedActions;
+      y = this.addActionRows(body, upfrontActions, y, primary);
       if (primary) {
-        this.actions.setContent({
-          width: body.contentWidth,
-          maxHeight: Number.POSITIVE_INFINITY,
-          theme: this.theme,
-          frame: this.frame,
-          actions: indexedActions,
-          controls: [],
-          statuses: [],
-          hint: "",
-          label: "",
-          onSelectAction: (action) => this.callbacks.onSelectAction(action),
-          embedded: true,
-          compact: body.bodyHeight < 48,
-        });
         if (display.keywords.length > 0)
           y = this.addKeywordChips(body, display.keywords, y) + SECTION_GAP;
-        if (indexedActions.length > 0) {
-          if (display.otherFace)
-            y = this.addStaticAbilityRow(body, i18n._(msg`Actions apply to the current face.`), y);
-          this.actions.visible = true;
-          this.actions.position.set(0, y);
-          body.content.addChild(this.actions);
-          y += this.actions.panelHeight + SECTION_GAP;
-        }
+        const suspended = suspendState(spec.card);
+        if (suspended) y = this.addStaticAbilityRow(body, suspended, y);
+        if (spec.card.isOnAdventure === true)
+          y = this.addStaticAbilityRow(
+            body,
+            i18n._(msg`On an Adventure · available actions are listed on their spell half`),
+            y,
+          );
+        if (body.panel.kind === "level" && display.stats)
+          y = this.addStaticAbilityRow(
+            body,
+            i18n._(msg`Current P/T: ${display.stats.power}/${display.stats.toughness}`),
+            y,
+          );
         if (visibleCounters.length > 0) {
           y = this.addChips(body, visibleCounters, y + 4) + 8;
         }
@@ -967,16 +1152,36 @@ export class RulesCardPreviewLayer {
         }
       }
       if (body.panel.kind === "level") {
-        const text = localizeRulesPreviewText(
-          body.panel.level?.rulesText ?? "",
-          this.scryfallInfo,
-          body.panel.faceIndex,
+        const entries = rulesTextEntries(body.panel.level?.rulesText ?? "", null);
+        const replaced = new Set(
+          ownedActions.flatMap(({ action }) => {
+            const index = action.abilityText
+              ? matchRulesEntry(
+                  localizeRulesPreviewText(
+                    action.abilityText,
+                    this.scryfallInfo,
+                    body.panel.faceIndex,
+                  ),
+                  entries,
+                  action.cost,
+                )
+              : null;
+            return index === null ? [] : [index];
+          }),
         );
-        for (const entry of rulesTextEntries(text, null))
-          y = this.addOracleAbilityRow(body, entry, y, false);
+        for (const [index, entry] of entries.entries()) {
+          if (replaced.has(index)) continue;
+          y = this.addOracleAbilityRow(
+            body,
+            localizeRulesPreviewText(entry, this.scryfallInfo, body.panel.faceIndex),
+            y,
+            false,
+          );
+        }
       } else {
         const sections = this.scanOverlay ? display.sections : section ? [section] : [];
         for (const panelSection of sections) {
+          const sectionTop = y;
           const entries =
             station && panelSection === stationSection
               ? station.opening
@@ -985,9 +1190,12 @@ export class RulesCardPreviewLayer {
                   primary ? progression : null,
                   panelSection.canonicalRulesText,
                 );
+          const caseParts = isCase
+            ? caseSections(panelSection.rulesText, panelSection.canonicalRulesText)
+            : [];
           for (const [entryIndex, text] of entries.entries()) {
             if (progressionOpening.includes(text)) continue;
-            if (panelSection === actionSection && activatedEntries.has(text)) continue;
+            if (!inlineActions && activatedEntries.get(panelSection.faceIndex)?.has(text)) continue;
             if (panelSection.planeswalker && body.planeswalker && entryIndex > 0) {
               const { separator } = body.planeswalker;
               body.content.addChild(
@@ -1001,7 +1209,29 @@ export class RulesCardPreviewLayer {
                   .fill({ color: hexToNum(this.frame.ink), alpha: 0.13 }),
               );
             }
-            y = this.addOracleAbilityRow(body, text, y, panelSection.planeswalker);
+            if (!inlineActions) {
+              y = this.addOracleAbilityRow(body, text, y, panelSection.planeswalker);
+              continue;
+            }
+            const top = y;
+            const linkedActions = ownedActions.filter((entry) => entry.displayLabel === text);
+            if (linkedActions.length > 0) y = this.addActionRows(body, linkedActions, y);
+            else y = this.addOracleAbilityRow(body, text, y, panelSection.planeswalker);
+            const part = caseParts.find((candidate) => candidate.text === text);
+            const highlighted =
+              !!spec.highlightedEffect &&
+              (rulesEntryMatchesStackAbility(text, spec.highlightedEffect) ||
+                text === this.highlightedEntry);
+            if (part)
+              this.addSectionTint(
+                body,
+                top,
+                y - top,
+                !highlighted && caseSectionActive(spec.card, part.kind) === true
+                  ? this.theme.gameTheme.activeAction.active
+                  : undefined,
+                highlighted && linkedActions.length > 0,
+              );
           }
           if (station && panelSection === stationSection) {
             const tiers = new PixiStationPreview({
@@ -1022,6 +1252,18 @@ export class RulesCardPreviewLayer {
             y += tiers.contentHeight + SECTION_GAP;
           }
           if (panelSection.flavorText) y = this.addFlavorText(body, panelSection.flavorText, y);
+          if (
+            this.scanOverlay &&
+            display.currentFace &&
+            previewPanelActive(spec.card, { faceIndex: panelSection.faceIndex }, panelLayout) ===
+              true
+          )
+            this.addSectionTint(
+              body,
+              sectionTop,
+              y - sectionTop,
+              this.theme.gameTheme.activeAction.active,
+            );
         }
       }
       if (primary) {
@@ -1066,6 +1308,19 @@ export class RulesCardPreviewLayer {
       const contentBottom = contentBounds.y + contentBounds.height;
       const markerBounds = body.markerContent.getLocalBounds();
       body.contentHeight = Math.max(contentBottom, markerBounds.y + markerBounds.height);
+      if (
+        !this.scanOverlay &&
+        display.currentFace &&
+        previewPanelActive(spec.card, body.panel, panelLayout) === true
+      )
+        this.addSectionTint(
+          body,
+          0,
+          Math.max(body.bodyHeight, body.contentHeight),
+          body.panel.kind === "level"
+            ? this.theme.gameTheme.counter.level
+            : this.theme.gameTheme.activeAction.active,
+        );
       body.layout();
       if (this.revealHighlightedEffect && body.highlightedRowTop !== null) {
         body.setScroll(Math.max(0, body.highlightedRowTop - 8));
@@ -1186,6 +1441,76 @@ export class RulesCardPreviewLayer {
       rowHeight = Math.max(rowHeight, height);
     }
     return y + rowHeight;
+  }
+
+  private addActionRows(
+    body: RulesPreviewBody,
+    entries: IndexedPreviewAction[],
+    y: number,
+    primary = false,
+  ): number {
+    if (!primary && entries.length === 0) return y;
+    const view = primary ? this.actions : new RulesPreviewActions();
+    if (!primary) {
+      this.extraActions.push(view);
+      view.on("pointerover", () => this.callbacks.onRenderRequested());
+      view.on("pointerout", () => this.callbacks.onRenderRequested());
+    }
+    view.setContent({
+      width: body.contentWidth,
+      maxHeight: Number.POSITIVE_INFINITY,
+      theme: this.theme,
+      frame: this.frame,
+      actions: entries,
+      controls: [],
+      statuses: [],
+      hint: "",
+      label: "",
+      onSelectAction: (action) => this.callbacks.onSelectAction(action),
+      onHoverAction: (index) => {
+        const previous =
+          this.focusedAction === null ? undefined : this.actionPanels.get(this.focusedAction)?.view;
+        this.focusedAction = entries[index]!.index;
+        if (previous !== view) previous?.clearFocus();
+      },
+      embedded: true,
+      compact: body.bodyHeight < 48,
+    });
+    entries.forEach((entry, index) => this.actionPanels.set(entry.index, { view, index, body }));
+    if (this.focusedAction !== null) {
+      const focused = this.actionPanels.get(this.focusedAction);
+      if (focused?.view === view) view.focusActionAt(focused.index);
+      else view.clearFocus();
+    }
+    if (entries.length === 0) return y;
+    view.position.set(0, y);
+    body.content.addChild(view);
+    return y + view.panelHeight + SECTION_GAP;
+  }
+
+  private addSectionTint(
+    body: RulesPreviewBody,
+    y: number,
+    height: number,
+    activeColor?: string,
+    highlighted = false,
+  ): void {
+    if (!activeColor && !highlighted) return;
+    const color = hexToNum(highlighted ? this.theme.gameTheme.activeAction.active : activeColor!);
+    const tint = new Graphics({
+      label: highlighted ? "stack-effect-highlight" : "active-mechanic-section",
+      eventMode: "none",
+    })
+      .rect(0, y, body.contentWidth, height)
+      .fill({ color, alpha: highlighted ? 0.28 : ACTIVE_SECTION_ALPHA });
+    body.content.addChildAt(tint, 0);
+    if (highlighted) {
+      const marker = new Graphics().rect(0, y, 4, height).fill(color);
+      marker.eventMode = "none";
+      body.content.addChildAt(marker, 1);
+      this.highlightedRows.push(tint);
+      body.highlightedRowTop ??= y;
+    }
   }
 
   private addStaticAbilityRow(body: RulesPreviewBody, text: string, y: number): number {
@@ -1474,6 +1799,7 @@ export class RulesCardPreviewLayer {
     this.anchorBounds.height = anchorHeight / scale;
     this.layoutDetails();
     if (spec.phase === "open" && !spec.suppressed) this.applyEntrancePose();
+    if (this.selectRasterTier() !== this.renderTier) void this.loadFace();
   }
 
   private layoutDetails(): void {
@@ -1489,7 +1815,8 @@ export class RulesCardPreviewLayer {
         body.background.rect(0, 0, body.width, body.height).fill(hexToNum(body.frame.paper));
       }
       body.layout();
-      const regions = body.sagaRail ? [body.region, body.markerRegion] : [body.region];
+      const regions = [body.region, ...body.reminderRegions];
+      if (body.sagaRail) regions.push(body.markerRegion);
       for (const region of regions) {
         const exclusion = (this.foilRulesExclusions[exclusionIndex] ??= new Rectangle());
         exclusion.copyFrom(region);
@@ -1504,6 +1831,15 @@ export class RulesCardPreviewLayer {
     this.foil?.setExclusions(this.foilRulesExclusions);
   }
 
+  private applyLightingPose(): void {
+    const spec = this.spec;
+    if (!spec || !this.foil) return;
+    this.materialPose.yaw =
+      (spec.pose?.yaw ?? 0) + Math.acos(Math.max(-1, Math.min(1, this.flip.scale)));
+    this.materialPose.pitch = spec.pose?.pitch ?? 0;
+    this.foil.setLighting(spec.lighting ?? "pointer", this.materialPose);
+  }
+
   private applyEntrancePose(): void {
     const remaining = 1 - this.entrance.progress;
     this.container.position.set(
@@ -1514,6 +1850,7 @@ export class RulesCardPreviewLayer {
     this.container.x += (this.panelWidth * scale * (1 - this.flip.scale)) / 2;
     this.container.scale.set(scale * this.flip.scale, scale);
     this.container.alpha = this.entrance.progress;
+    this.applyLightingPose();
     for (let index = 0; index < this.foilRulesExclusions.length; index += 1) {
       const region = this.foilRulesExclusions[index];
       this.screenFoilExclusions[index].set(
@@ -1664,7 +2001,8 @@ export class RulesCardPreviewLayer {
       deckCard,
       faceIndex: spec.showBackFace ? 1 : 0,
     };
-    const inputKey = hidden ? "hidden" : cardRenderInputKey(request);
+    const tier = this.selectRasterTier();
+    const inputKey = hidden ? "hidden" : JSON.stringify([cardRenderInputKey(request), tier]);
     if (
       !refreshMetadata &&
       inputKey === this.faceInputKey &&
@@ -1674,6 +2012,7 @@ export class RulesCardPreviewLayer {
     )
       return;
     this.faceInputKey = inputKey;
+    this.renderTier = tier;
     this.renderAbort?.abort();
     const controller = new AbortController();
     this.renderAbort = controller;
@@ -1682,9 +2021,10 @@ export class RulesCardPreviewLayer {
       this.renderState = "loading";
       this.faceSprite.label = "card-glint-loading";
     }
+    let raster: CardRaster | null = null;
     try {
-      const canvas = hidden ? null : await renderRulesCard(request, controller.signal);
-      const geometry = canvas ? getCardRenderGeometry(canvas) : undefined;
+      raster = hidden ? null : await renderRulesCard(request, controller.signal, { tier });
+      const geometry = raster ? getCardRenderGeometry(raster) : undefined;
       const cardBack = hidden ? await loadCardBack() : null;
       if (
         controller.signal.aborted ||
@@ -1693,12 +2033,12 @@ export class RulesCardPreviewLayer {
       )
         return;
       this.completedFaceInputKey = inputKey;
-      if (canvas && this.faceTexture?.source.resource === canvas) {
+      if (raster && this.faceTexture?.source.resource === raster) {
         this.spec?.flip?.onReady();
         this.callbacks.onRenderRequested();
         return;
       }
-      const texture = canvas ? createGeneratedCardTexture(canvas) : cardBack!;
+      const texture = raster ? createGeneratedCardTexture(raster) : cardBack!;
       const previous = this.faceTexture;
       this.foil?.setTexture(null);
       this.faceGeometry = geometry;
@@ -1711,6 +2051,13 @@ export class RulesCardPreviewLayer {
       this.spec?.flip?.onReady();
       this.callbacks.onRenderRequested();
       previous?.destroy(true);
+      if (!hidden && this.canFlip && deckCard?.backFace) {
+        void renderRulesCard(
+          { ...request, faceIndex: spec.showBackFace ? 0 : 1 },
+          controller.signal,
+          { tier },
+        ).then(releaseCardRaster, () => undefined);
+      }
     } catch (cause: unknown) {
       if (
         controller.signal.aborted ||
@@ -1743,6 +2090,8 @@ export class RulesCardPreviewLayer {
       this.rebuild();
       if (texture !== Texture.EMPTY) this.spec?.flip?.onReady();
       this.callbacks.onRenderRequested();
+    } finally {
+      if (raster) releaseCardRaster(raster);
     }
   }
 
@@ -1813,7 +2162,7 @@ export class RulesCardPreviewLayer {
     if (!preserveHover && !this.spec) this.clearHover();
     this.bodyPointerId = null;
     for (const body of this.bodies) body.cancelInteraction();
-    this.actions.cancelInteraction();
+    for (const view of [this.actions, ...this.extraActions]) view.cancelInteraction();
     this.controls.cancelInteraction();
     this.container.visible = false;
     this.container.alpha = 0;
@@ -1831,6 +2180,7 @@ export class RulesCardPreviewLayer {
     this.clearFaceTexture();
     this.liveHighlight.destroy();
     this.actions.destroy();
+    for (const view of this.extraActions) view.destroy({ children: true });
     this.controls.destroy();
     this.container.destroy({ children: true });
   }

@@ -1,5 +1,31 @@
 # Changelog
 
+## [3.63.0](https://github.com/witchesofthehill/manabrew/compare/v3.62.2...v3.63.0) (2026-10-21)
+
+### Features
+
+* add engine-backed mechanic previews ([#1069](https://github.com/witchesofthehill/manabrew/issues/1069)) ([bb27666](https://github.com/witchesofthehill/manabrew/commit/bb276666fe7afb42d194d30049b8dc8d39e76077))
+
+## Unreleased
+
+### Fixes
+
+* Preserve each Room, split and aftermath half's frame color instead of inheriting the whole card's combined colors in hand and stack previews.
+* Highlight unlocked Room doors and the door represented on the stack in both card views, with outlines that include the collector strip.
+* Preserve localized Prototype abilities and reminders, including Japanese line wrapping.
+* Place localized leveler actions in the correct band without duplicating ability text.
+* Preserve the current mana cost when previewing copies of prototyped creatures.
+* Fix the Clippy build failure caused by oversized draft checkpoint agent variants.
+* Preserve translated leveler abilities and reminders in native card rendering.
+* Match Realistic print-dot previews to production without changing scan finish geometry.
+* Check relay support for new card materials before submitting a customized deck.
+
+## [3.62.2](https://github.com/witchesofthehill/manabrew/compare/v3.62.1...v3.62.2) (2026-10-21)
+
+### Fixes
+
+* forge-bot default ([#1087](https://github.com/witchesofthehill/manabrew/issues/1087)) ([6789e0b](https://github.com/witchesofthehill/manabrew/commit/6789e0b6ca17b967b0aeebcf137da53945e7fb3b))
+
 ## [3.62.1](https://github.com/witchesofthehill/manabrew/compare/v3.62.0...v3.62.1) (2026-10-20)
 
 ### Fixes

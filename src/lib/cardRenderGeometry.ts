@@ -21,6 +21,7 @@ import {
   FACE_WIDTH,
   FACE_HEIGHT,
   ordinaryTextLayout,
+  battleReverseStatsLayout,
   retroTextLayout,
   rulesFont,
   resolveCardProfile,
@@ -30,7 +31,7 @@ import {
   type FaceRect,
 } from "card-glint/magic/presentation";
 import { isSemanticLayout, semanticLayoutRegions } from "@/lib/cardSemanticLayout";
-import type { CardCanvas } from "@/lib/cardRenderTypes";
+import type { CardRaster } from "@/lib/cardRenderTypes";
 
 export const CARD_RENDER_WIDTH = 375;
 export const CARD_RENDER_HEIGHT = 525;
@@ -38,7 +39,7 @@ const RULES_FONT_FAMILY = rulesFont(1).replace(/^1px\s+/, "");
 
 export interface CardRenderRegion {
   readonly name: string;
-  readonly role: "rules" | "stats" | "artwork" | "title" | "type";
+  readonly role: "rules" | "stats" | "reminder" | "artwork" | "title" | "type";
   readonly faceIndex: number;
   readonly x: number;
   readonly y: number;
@@ -55,9 +56,9 @@ export interface CardArtWindow {
   readonly width: number;
   readonly height: number;
 }
-const artWindowsByCanvas = new WeakMap<CardCanvas, readonly CardArtWindow[]>();
+const artWindowsByCanvas = new WeakMap<CardRaster, readonly CardArtWindow[]>();
 const NO_ART_WINDOWS: readonly CardArtWindow[] = Object.freeze([]);
-export function getCardArtWindows(canvas: CardCanvas): readonly CardArtWindow[] {
+export function getCardArtWindows(canvas: CardRaster): readonly CardArtWindow[] {
   return artWindowsByCanvas.get(canvas) ?? NO_ART_WINDOWS;
 }
 
@@ -142,11 +143,12 @@ export interface CardRenderGeometry {
   readonly artwork: readonly CardRenderRegion[];
   readonly title: readonly CardRenderRegion[];
   readonly stats: readonly CardRenderRegion[];
+  readonly reminders: readonly CardRenderRegion[];
   readonly panels: readonly CardInteractionPanel[];
   readonly rulesFontSize?: number;
 }
 
-const geometryByCanvas = new WeakMap<CardCanvas, CardRenderGeometry>();
+const geometryByCanvas = new WeakMap<CardRaster, CardRenderGeometry>();
 const FALLBACK_PANELS: readonly CardInteractionPanel[] = Object.freeze([
   Object.freeze({
     id: "fallback",
@@ -256,15 +258,25 @@ function planeswalkerPanel(
 }
 
 export function attachCardRenderGeometry(
-  canvas: CardCanvas,
+  canvas: CardRaster,
   face: RenderedCardInput,
   selectedFaceIndex: number,
 ): void {
-  const panels = splitPanels(face);
+  const semantic = isSemanticLayout(face);
+  const panels = semantic ? [] : splitPanels(face);
+  const frame = semantic ? undefined : faceFrame(face);
+  const room =
+    face.layout === "split" &&
+    [face, ...(face.faces ?? [])].some((part) =>
+      /\bRoom\b/i.test(part.canonicalTypeLine ?? part.typeLine ?? ""),
+    ) &&
+    panels.length === 2 &&
+    panels.every((panel) => panel.rotation === -90);
+  const sideways = face.frameTemplate === "battle" || room || face.layout === "planar";
   const regions: CardRenderRegion[] = [];
-  const leveler = faceFrame(face) === "leveler";
+  const leveler = frame === "leveler";
   const levelBlocks = leveler ? extraRuleBlocks(face) : [];
-  const classBlocks = faceFrame(face) === "class" ? extraRuleBlocks(face) : [];
+  const classBlocks = frame === "class" ? extraRuleBlocks(face) : [];
   const classBand = classBlocks.find((block) => block.asset === CLASS_LEVEL_ASSET);
   const classLevelBand = classBand
     ? Object.freeze({
@@ -276,7 +288,7 @@ export function attachCardRenderGeometry(
       })
     : undefined;
   const sagaRail: CardInteractionPanel["sagaRail"] =
-    faceRects(face) === SAGA_RECTS
+    !semantic && faceRects(face) === SAGA_RECTS
       ? Object.freeze({
           marker: Object.freeze({
             shape: SAGA_MARKER_GEOMETRY.shape,
@@ -313,6 +325,7 @@ export function attachCardRenderGeometry(
   const levelContent = new Map<string, NonNullable<CardInteractionPanel["level"]>>();
   const palette = resolveFrameColors(face);
   const inkTone =
+    !semantic &&
     face.frameTemplate === "future" &&
     resolveCardProfile(face).land &&
     palette.length === 2 &&
@@ -369,7 +382,7 @@ export function attachCardRenderGeometry(
       );
     }
   };
-  if (isSemanticLayout(face))
+  if (semantic)
     semanticLayoutRegions(face).forEach((region) =>
       add(
         region.name,
@@ -384,6 +397,17 @@ export function attachCardRenderGeometry(
       append(panel.face, index, (rect) => panelRect(panel, rect), (panel.rotation + 360) % 360),
     );
   else append(face, selectedFaceIndex, (rect) => rect, face.frameTemplate === "battle" ? 270 : 0);
+  if (face.frameTemplate === "battle") {
+    const reminder = battleReverseStatsLayout(rulesMeasuringContext(), face);
+    if (reminder)
+      add(
+        `battle_reverse_stats_${selectedFaceIndex}`,
+        "reminder",
+        reminder.rect,
+        (reminder.rotation + 360) % 360,
+        selectedFaceIndex,
+      );
+  }
   if (face.frameTemplate === "flip") {
     const [width, height] = STANDARD_TEMPLATE_DEFAULTS.flip.size;
     FLIP_PANEL_RECTS.forEach((rects, index) => {
@@ -437,7 +461,9 @@ export function attachCardRenderGeometry(
         const fields = levelBlocks.slice(index + 1, band < 0 ? undefined : index + 1 + band);
         levelContent.set(`rules_${index}`, {
           rulesText: block.text,
-          range: fields.find((field) => field.kind === "level")?.text.replace(/^LEVEL\n/, "") ?? "",
+          range:
+            fields.find((field) => field.kind === "level")?.text.replace(/^LEVEL\n/, "") ??
+            `0-${Math.max(0, Number(levelBlocks.find((field) => field.kind === "level")?.text.match(/\d+/)?.[0] ?? 1) - 1)}`,
           statsText: fields.find((field) => field.kind === "stats")?.text ?? "",
         });
       }
@@ -445,11 +471,12 @@ export function attachCardRenderGeometry(
   }
   const rules = Object.freeze(regions.filter((region) => region.role === "rules"));
   const stats = Object.freeze(regions.filter((region) => region.role === "stats"));
+  const reminders = Object.freeze(regions.filter((region) => region.role === "reminder"));
   const artwork = Object.freeze(regions.filter((region) => region.role === "artwork"));
   const interactionPanels = Object.freeze(
     rules.map((region) => {
       const level = levelContent.get(region.name);
-      const planeswalker = !isSemanticLayout(face)
+      const planeswalker = !semantic
         ? planeswalkerPanel(panels[region.faceIndex]?.face ?? face, region)
         : undefined;
       return Object.freeze({
@@ -458,13 +485,14 @@ export function attachCardRenderGeometry(
         kind: level ? ("level" as const) : ("face" as const),
         region,
         exclusions: Object.freeze(
-          stats.filter(
-            (stat) =>
-              stat.faceIndex === region.faceIndex &&
-              stat.x < region.x + region.width &&
-              stat.x + stat.width > region.x &&
-              stat.y < region.y + region.height &&
-              stat.y + stat.height > region.y,
+          [...stats, ...reminders].filter(
+            (exclusion) =>
+              exclusion.faceIndex === region.faceIndex &&
+              (exclusion.role === "reminder" ||
+                (exclusion.x < region.x + region.width &&
+                  exclusion.x + exclusion.width > region.x &&
+                  exclusion.y < region.y + region.height &&
+                  exclusion.y + exclusion.height > region.y)),
           ),
         ),
         ...(level ? { level } : {}),
@@ -492,19 +520,14 @@ export function attachCardRenderGeometry(
     Object.freeze({
       width: CARD_RENDER_WIDTH,
       height: CARD_RENDER_HEIGHT,
-      sourceOrientation:
-        face.frameTemplate === "battle" || face.layout === "room" || face.layout === "planar"
-          ? "landscape"
-          : "portrait",
-      normalizationRotation:
-        face.frameTemplate === "battle" || face.layout === "room" || face.layout === "planar"
-          ? -90
-          : 0,
+      sourceOrientation: sideways ? "landscape" : "portrait",
+      normalizationRotation: sideways ? -90 : 0,
       regions: Object.freeze(regions),
       rules,
       artwork,
       title: Object.freeze(regions.filter((region) => region.role === "title")),
       stats,
+      reminders,
       panels: interactionPanels,
       rulesFontSize: paintedRulesFontSize(face, interactionPanels),
     }),
@@ -512,6 +535,12 @@ export function attachCardRenderGeometry(
 }
 
 let measuringContext: CanvasRenderingContext2D | null = null;
+
+function rulesMeasuringContext(): CanvasRenderingContext2D {
+  measuringContext ??= document.createElement("canvas").getContext("2d");
+  if (!measuringContext) throw new Error("Card rendering requires a 2D canvas context");
+  return measuringContext;
+}
 
 function paintedRulesFontSize(
   face: RenderedCardInput,
@@ -521,20 +550,19 @@ function paintedRulesFontSize(
   if (
     panels.length !== 1 ||
     isSemanticLayout(face) ||
+    face.frameTemplate === "battle" ||
     panel!.kind !== "face" ||
     panel!.planeswalker ||
     panel!.sagaRail ||
     panel!.classLevelBand
   )
     return undefined;
-  measuringContext ??= document.createElement("canvas").getContext("2d");
-  if (!measuringContext) throw new Error("Card rendering requires a 2D canvas context");
-  const layout =
-    retroTextLayout(measuringContext, face) ?? ordinaryTextLayout(measuringContext, face);
+  const context = rulesMeasuringContext();
+  const layout = retroTextLayout(context, face) ?? ordinaryTextLayout(context, face);
   return (layout.size * CARD_RENDER_WIDTH) / FACE_WIDTH;
 }
 
-export function getCardRenderGeometry(canvas: CardCanvas): CardRenderGeometry | undefined {
+export function getCardRenderGeometry(canvas: CardRaster): CardRenderGeometry | undefined {
   return geometryByCanvas.get(canvas);
 }
 

@@ -46,11 +46,14 @@ function normalizePrintDots(value: unknown): CardPrintDots | undefined {
   const input = cosmeticRecord(value);
   if (
     !input ||
-    Object.keys(input).some((key) => !["amount", "period", "variation", "inset"].includes(key)) ||
+    Object.keys(input).some(
+      (key) => !["amount", "period", "variation", "inset", "artwork"].includes(key),
+    ) ||
     !boundedNumber(input.amount, 0, 1) ||
     (input.period != null && !boundedNumber(input.period, 2, 16)) ||
     (input.variation != null && !boundedNumber(input.variation, 0, 1)) ||
     (input.inset != null && !boundedNumber(input.inset, 0, 0.2)) ||
+    (input.artwork != null && typeof input.artwork !== "boolean") ||
     input.amount === 0
   )
     return undefined;
@@ -61,6 +64,7 @@ function normalizePrintDots(value: unknown): CardPrintDots | undefined {
       ? { variation: input.variation as number }
       : {}),
     ...(input.inset != null && input.inset !== 0 ? { inset: input.inset as number } : {}),
+    ...(input.artwork === false ? { artwork: false } : {}),
   };
 }
 
@@ -119,6 +123,9 @@ export function normalizeCardCosmetics(value: unknown): CardCosmetics | undefine
   ) {
     result.rainFog = input.rainFog;
   }
+  if (boundedNumber(input.heatDeformation, 0, 0.02) && input.heatDeformation !== 0) {
+    result.heatDeformation = input.heatDeformation;
+  }
   const cardstock = normalizeCoating(input.cardstock);
   if (cardstock) result.cardstock = cardstock;
   const printDots = normalizePrintDots(input.printDots);
@@ -140,18 +147,26 @@ export function cardCosmeticsKey(cosmetics?: CardCosmetics): string {
   return JSON.stringify(value);
 }
 
-export function deckHasCardCosmetics(deck: Deck): boolean {
+export function deckHasCardCosmetics(
+  deck: Deck,
+  matches?: (cosmetics: CardCosmetics) => boolean,
+): boolean {
+  const hasCosmetics = (value: unknown): boolean => {
+    const cosmetics = normalizeCardCosmetics(value);
+    return !!cosmetics && (!matches || matches(cosmetics));
+  };
   return (
     [
       deck.cards,
       deck.sideboard,
+      deck.maybeboard,
       deck.commanders,
       deck.attractions,
       deck.contraptions,
       deck.schemes,
       deck.planes,
       deck.tokens,
-    ].some((cards) => cards?.some((card) => normalizeCardCosmetics(card.identity.cosmetics))) ||
-    !!normalizeCardCosmetics(deck.companion?.identity.cosmetics)
+    ].some((cards) => cards?.some((card) => hasCosmetics(card.identity.cosmetics))) ||
+    hasCosmetics(deck.companion?.identity.cosmetics)
   );
 }

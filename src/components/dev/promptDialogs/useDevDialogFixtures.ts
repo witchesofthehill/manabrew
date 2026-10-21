@@ -62,7 +62,7 @@ export const PLAY_OPTIONS: HandActionOption[] = [
     actionId: "dev-cast-normal",
     label: "Cast Serra Angel",
     cost: "{3}{W}{W}",
-    mode: "normal",
+    mode: { type: "normal" },
   },
   {
     kind: "cast",
@@ -70,7 +70,7 @@ export const PLAY_OPTIONS: HandActionOption[] = [
     actionId: "dev-cast-alternate",
     label: "Cast for its alternate cost",
     cost: "{2}{W}",
-    mode: "alternative",
+    mode: { type: "staticAlternative" },
   },
 ];
 

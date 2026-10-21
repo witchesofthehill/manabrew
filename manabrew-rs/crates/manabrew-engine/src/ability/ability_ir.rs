@@ -290,6 +290,7 @@ pub struct SpellAbilityIr {
     pub condition_revolt: bool,
     pub condition_desert: bool,
     pub condition_blessing: bool,
+    pub condition_solved: bool,
     pub condition_kicked: bool,
     pub condition_optional_paid: bool,
     pub condition_optional_not_paid: bool,
@@ -822,6 +823,7 @@ impl SpellAbilityIr {
             condition_revolt: parsed_true(params.get("ConditionRevolt")),
             condition_desert: parsed_true(params.get("ConditionDesert")),
             condition_blessing: parsed_true(params.get("ConditionBlessing")),
+            condition_solved: parsed_true(params.get("ConditionSolved")),
             condition_kicked: parsed_true(params.get("ConditionKicked")),
             condition_optional_paid: parsed_true(params.get("ConditionOptionalPaid")),
             condition_optional_not_paid: parsed_true(params.get("ConditionOptionalNotPaid")),
@@ -837,8 +839,15 @@ impl SpellAbilityIr {
             condition_defined: params.get(keys::CONDITION_DEFINED).map(DefinedExpr::parse),
             condition_defined_text: params.get(keys::CONDITION_DEFINED).map(str::to_string),
             condition_compare: params.get(keys::CONDITION_COMPARE).map(str::to_string),
-            condition_zone_text: params.get(keys::CONDITION_ZONE).map(str::to_string),
-            condition_zone: parsed_zone_type(params.get(keys::CONDITION_ZONE)),
+            condition_zone_text: params
+                .get("ConditionPresentZone")
+                .or_else(|| params.get(keys::CONDITION_ZONE))
+                .map(str::to_string),
+            condition_zone: parsed_zone_type(
+                params
+                    .get("ConditionPresentZone")
+                    .or_else(|| params.get(keys::CONDITION_ZONE)),
+            ),
             optional_present: params.has(keys::OPTIONAL),
             remove_from_combat: parsed_true(params.get(keys::REMOVE_FROM_COMBAT)),
             num_att: params.get(keys::NUM_ATT).map(str::to_string),

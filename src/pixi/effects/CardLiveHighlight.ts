@@ -1,12 +1,4 @@
-import {
-  CanvasSource,
-  Container,
-  Graphics,
-  Matrix,
-  Sprite,
-  Texture,
-  type DestroyOptions,
-} from "pixi.js";
+import { Container, Graphics, Matrix, Sprite, Texture, type DestroyOptions } from "pixi.js";
 import {
   CARD_LIVE_PULSE,
   getCardLiveHighlights,
@@ -15,6 +7,9 @@ import {
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { animationsEnabled, subscribeAnimationsEnabled } from "./enabled";
 import { gsap } from "./gsap";
+import { createGeneratedCardTexture } from "@/pixi/generatedCardTexture";
+import type { CardRaster } from "@/lib/cardRenderTypes";
+import { retainCardRaster } from "@/lib/cardRenderTypes";
 
 export class CardLiveHighlight extends Container {
   private readonly surface = new Container();
@@ -27,6 +22,7 @@ export class CardLiveHighlight extends Container {
   private sourceSprite: Sprite | null = null;
   private sourceTexture: Texture | null = null;
   private layers: CardLiveHighlightLayers | undefined;
+  private releaseRaster?: () => void;
   private pulse: gsap.core.Tween | null = null;
   private readonly breathing = { scale: CARD_LIVE_PULSE.minScale, offsetY: 0 };
   private readonly ancestors: Container[] = [];
@@ -83,6 +79,9 @@ export class CardLiveHighlight extends Container {
       this.inks.length = 0;
       for (const owned of this.ownedTextures) owned.destroy(true);
       this.ownedTextures.length = 0;
+      this.releaseRaster?.();
+      this.releaseRaster =
+        nextSource && texture ? retainCardRaster(texture.source.resource as CardRaster) : undefined;
       this.layers = layers;
       if (nextSource && layers) {
         for (const region of layers.regions) {
@@ -129,17 +128,8 @@ export class CardLiveHighlight extends Container {
     this.requestRender();
   }
 
-  private createTexture(canvas: HTMLCanvasElement): Texture {
-    const texture = new Texture({
-      source: new CanvasSource({
-        resource: canvas,
-        width: canvas.width,
-        height: canvas.height,
-        resolution: 1,
-        autoDensity: false,
-        autoGenerateMipmaps: false,
-      }),
-    });
+  private createTexture(canvas: CardRaster): Texture {
+    const texture = createGeneratedCardTexture(canvas);
     this.ownedTextures.push(texture);
     return texture;
   }
@@ -224,7 +214,6 @@ export class CardLiveHighlight extends Container {
       !this.renderable ||
       this.alpha <= 0 ||
       !source.visible ||
-      !source.renderable ||
       source.alpha <= 0 ||
       !this.parent ||
       document.hidden ||

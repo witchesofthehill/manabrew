@@ -2,7 +2,7 @@
 
 The 200+ `*_effect.rs` resolvers that execute spell and ability resolution. **Most parity bugs land here.**
 
-Read first: `manabrew-engine/AGENTS.md`, `docs/agents/PARITY_PHILOSOPHY.md`, `docs/agents/ENGINE_BUGFIX_WORKFLOW.md`.
+Read first: `manabrew-rs/AGENTS.md`, `docs/agents/PARITY_PHILOSOPHY.md`, `docs/agents/ENGINE_BUGFIX_WORKFLOW.md`.
 
 Java mirror: `forge/forge-game/src/main/java/forge/game/ability/effects/`.
 

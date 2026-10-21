@@ -1,11 +1,12 @@
 import { canvas } from "card-glint/canvas";
 import type { CardDocument, CardLayer, FaceRecipe, Instance, Raster, Rect } from "card-glint";
+import type { CardCosmetics } from "@/protocol/deck";
 
 export interface CardInspectAppearance {
   rainFog?: Instance["rainFog"];
   wear?: Instance["wear"];
   cardstock?: Instance["cardstock"];
-  printDots?: Instance["printDots"];
+  printDots?: CardCosmetics["printDots"];
   deformation?: Instance["deformation"];
   coverage?: {
     area: "full" | "artwork" | "left" | "right";

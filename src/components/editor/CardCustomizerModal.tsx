@@ -174,9 +174,6 @@ export function CardCustomizerModal({
                 cannot yet match these token definitions.
               </p>
             )}
-            <p className="text-xs text-muted-foreground">
-              Foil state follows the selected finish. Your printing and card rules do not change.
-            </p>
           </div>
         </div>
         {!token && (

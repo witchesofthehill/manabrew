@@ -1,11 +1,30 @@
 import { canvasFontAssets } from "card-glint/magic/presentation";
 import { setAssetFetcher } from "card-glint/canvas";
-import { cachedCardGlintAsset } from "@/lib/cardGlintAssetCache";
-import { platformFetch } from "@/lib/platformFetch";
-import { loadScryfallImage } from "@/lib/scryfallImageSource";
 
-const ART_FACE_FRAGMENT = "#manabrew-card-art-face=";
-const loadedFonts = new Map<string, FontFace>();
+type AssetResolver = (url: string, options?: RequestInit) => Promise<Response>;
+interface FontRealm {
+  fonts: FontFaceSet;
+}
+let assetResolver: AssetResolver | undefined;
+
+export function setCardGlintAssetResolver(resolve: AssetResolver): void {
+  assetResolver = resolve;
+}
+
+async function platformAsset(url: string, options: RequestInit): Promise<Response> {
+  const [{ cachedCardGlintAsset }, { platformFetch }, { loadScryfallImage }] = await Promise.all([
+    import("@/lib/cardGlintAssetCache"),
+    import("@/lib/platformFetch"),
+    import("@/lib/scryfallImageSource"),
+  ]);
+  const cached = await cachedCardGlintAsset(url).catch(() => undefined);
+  if (cached) return cached;
+  if (url.startsWith("blob:") || url.startsWith("data:")) return fetch(url, options);
+  if (url.startsWith("https://cards.scryfall.io/"))
+    return fetch(await loadScryfallImage(url), { signal: options.signal });
+  return platformFetch(url, { ...options, mode: "cors" });
+}
+
 let fonts: Promise<void> | undefined;
 
 export async function resolveCardGlintAsset(
@@ -13,64 +32,48 @@ export async function resolveCardGlintAsset(
   options: RequestInit = {},
 ): Promise<Response> {
   options.signal?.throwIfAborted();
-  const separator = url.lastIndexOf(ART_FACE_FRAGMENT);
-  const source = separator < 0 ? url : url.slice(0, separator);
-  let response = await cachedCardGlintAsset(source).catch(() => undefined);
-  if (!response) {
-    if (source.startsWith("blob:") || source.startsWith("data:")) {
-      response = await fetch(source, options);
-    } else if (source.startsWith("https://cards.scryfall.io/") && !options.signal) {
-      response = await fetch(await loadScryfallImage(source));
-    } else {
-      response = await platformFetch(source, { ...options, mode: "cors" });
-    }
-  }
-  if (!response.ok) throw new Error(`Card Glint asset HTTP ${response.status}: ${source}`);
+  const response = await (assetResolver ?? platformAsset)(url, options);
+  if (!response.ok) throw new Error(`Card Glint asset HTTP ${response.status}: ${url}`);
   options.signal?.throwIfAborted();
-  if (separator < 0) return response;
-  const index = Number(url.slice(separator + ART_FACE_FRAGMENT.length));
-  if (index !== 0 && index !== 1) throw new Error("Invalid multipart artwork face");
-  const bitmap = await createImageBitmap(await response.blob());
-  try {
-    const horizontal = bitmap.width >= bitmap.height;
-    const extent = horizontal ? bitmap.width : bitmap.height;
-    const start = index * Math.floor(extent / 2);
-    const length = index === 0 ? Math.floor(extent / 2) : extent - start;
-    const canvas = document.createElement("canvas");
-    canvas.width = horizontal ? length : bitmap.width;
-    canvas.height = horizontal ? bitmap.height : length;
-    const context = canvas.getContext("2d");
-    if (!context) throw new Error("Card artwork needs Canvas2D");
-    context.drawImage(bitmap, horizontal ? -start : 0, horizontal ? 0 : -start);
-    const blob = await new Promise<Blob>((resolve, reject) =>
-      canvas.toBlob(
-        (value) =>
-          value ? resolve(value) : reject(new Error("Card artwork could not be cropped")),
-        "image/png",
-      ),
-    );
-    options.signal?.throwIfAborted();
-    return new Response(blob);
-  } finally {
-    bitmap.close();
-  }
+  return response;
 }
 
 setAssetFetcher(resolveCardGlintAsset);
 
-export function ensureCardGlintFonts(): Promise<void> {
-  fonts ??= Promise.all(
-    canvasFontAssets.map(async ({ family, url, weight, style }) => {
-      if (loadedFonts.has(url)) return;
+export interface CardGlintFontAsset {
+  family: string;
+  url: string;
+  weight: string;
+  style: string;
+}
+
+const pendingFonts = new Map<string, Promise<void>>();
+
+export function ensureCardGlintFont(asset: CardGlintFontAsset): Promise<void> {
+  const { family, url, weight, style } = asset;
+  const key = JSON.stringify([url, family, weight, style]);
+  let pending = pendingFonts.get(key);
+  if (!pending) {
+    pending = (async () => {
       const response = await resolveCardGlintAsset(url);
       const font = await new FontFace(family, await response.arrayBuffer(), {
         weight,
         style,
       }).load();
-      document.fonts.add(font);
-      loadedFonts.set(url, font);
-    }),
-  )
+      const realm = globalThis as unknown as FontRealm;
+      const registry = typeof document === "undefined" ? realm.fonts : document.fonts;
+      registry.add(font);
+    })().catch((error: unknown) => {
+      pendingFonts.delete(key);
+      throw error;
+    });
+    pendingFonts.set(key, pending);
+  }
+  return pending;
+}
+
+export function ensureCardGlintFonts(): Promise<void> {
+  fonts ??= Promise.all(canvasFontAssets.map(ensureCardGlintFont))
     .then(() => undefined)
     .catch((error: unknown) => {
       fonts = undefined;

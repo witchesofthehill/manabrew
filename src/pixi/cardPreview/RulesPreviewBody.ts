@@ -33,6 +33,7 @@ export class RulesPreviewBody {
   readonly footer = new Container();
   readonly statBounds = new Rectangle();
   readonly region = new Rectangle();
+  readonly reminderRegions: Rectangle[] = [];
   private readonly clipOrigin = new Point();
   private readonly clipPoint = new Point();
   private readonly transformedClipBounds = {
@@ -256,7 +257,18 @@ export class RulesPreviewBody {
     const radians = (region.angle * Math.PI) / 180;
     const cosine = Math.round(Math.cos(radians));
     const sine = Math.round(Math.sin(radians));
+    this.nativeExclusions.length = 0;
+    this.reminderRegions.length = 0;
     for (const exclusion of this.panel.exclusions) {
+      if (exclusion.role === "reminder")
+        this.reminderRegions.push(
+          new Rectangle(
+            exclusion.x * scale,
+            exclusion.y * scale,
+            exclusion.width * scale,
+            exclusion.height * scale,
+          ),
+        );
       const dx = (exclusion.x + exclusion.width / 2) * scale - this.container.x;
       const dy = (exclusion.y + exclusion.height / 2) * scale - this.container.y;
       const width =
@@ -404,7 +416,11 @@ export class RulesPreviewBody {
     if (maxScroll > 0 && this.bodyHeight > 0) {
       const trackX = this.width - 3;
       const trackY = this.bodyTop + 5;
-      const trackHeight = Math.max(12, this.bodyHeight - 10);
+      let trackBottom = this.bodyTop + this.bodyHeight - 5;
+      for (const exclusion of this.nativeExclusions)
+        if (exclusion.x < trackX + 3 && exclusion.right > trackX - 1 && exclusion.y > trackY)
+          trackBottom = Math.min(trackBottom, exclusion.y);
+      const trackHeight = Math.max(0, trackBottom - trackY);
       const thumbHeight = Math.min(
         trackHeight,
         Math.max(28, trackHeight * (this.usableHeight / this.contentHeight)),

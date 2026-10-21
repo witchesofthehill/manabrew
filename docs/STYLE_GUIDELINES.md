@@ -276,8 +276,9 @@ Theme JSON exports use version 2 with `base: "manabrew"` and no preset selection
 Version 1 imports with `presetId: "default"` migrate to version 2. Imports based on
 removed presets fail explicitly rather than silently changing their inherited colors.
 Version 2 imports require the Manabrew base and reject a `presetId` field.
-Preferences version 5 discards stored preset selection while preserving personal names,
-color overrides, and unrelated settings. Legacy flat app overrides still migrate to both modes.
+Preferences version 6 drops stored preset selection and migrates older AI choices to Forge.
+Personal names, color overrides and unrelated settings survive; legacy flat app
+overrides still migrate to both modes.
 
 ### Brand and typography
 

@@ -19,14 +19,40 @@ import { resolveCardRainFog, resolveCardWearAmount } from "@/lib/cardFinish";
 import { cardRasterHost } from "@/lib/cardOpticalLayers";
 import { cardFaceImageUris, localizedDeckCardImageUris } from "@/lib/cardImage";
 import { peekCard, useScryfallStore } from "@/stores/useScryfallStore";
+import { CARD_NORMAL_LIGHTING_VERSION, MAX_CARD_TILT } from "@/lib/cardLighting";
+import type { CardLightingMode, CardPose } from "@/lib/cardLighting";
+import { recordCardRasterCopy, releaseCardRaster } from "@/lib/cardRenderTypes";
+import {
+  createCardGpuTimer,
+  getCardGpuTimingStats,
+  type CardGpuTimer,
+} from "@/lib/cardRenderGpuTiming";
+import { getTheme } from "@/hooks/useTheme";
 
 const CARD_ID = 1;
 const FRAME_INTERVAL = 1000 / 30;
 const MAX_PIXEL_RATIO = 2;
 const MAX_CANVAS_EDGE = 1200;
-const MAX_TILT = 0.45;
 const CARD_MARGIN = 0.86;
 const OPTICAL_FINISHES: Partial<Record<CardFinish, true>> = { rain: true, heat: true, pool: true };
+
+const inspectStats = {
+  renders: 0,
+  documentPreparations: 0,
+  documentUpserts: 0,
+  cpuSubmissionMs: 0,
+  contextRestorations: 0,
+};
+
+export function getCardInspectStats() {
+  const gpuTiming = getCardGpuTimingStats("native");
+  return {
+    ...inspectStats,
+    gpuTiming,
+    gpuTimingAvailable: gpuTiming.gpuTimingAvailable,
+    gpuCompletionMs: gpuTiming.gpuCompletionMs,
+  };
+}
 
 export interface CardInspectState {
   status: "loading" | "ready" | "error";
@@ -114,31 +140,48 @@ async function inspectDocument(
       if (!isSemanticLayout(face) || OPTICAL_FINISHES[finish]) {
         return {
           document: OPTICAL_FINISHES[finish]
-            ? cardOpticalDocument(CARD_ID, revision, face)
+            ? cardOpticalDocument(CARD_ID, revision, face, "inspect", true, {
+                ink: getTheme().gameTheme.cardPrinting.ink,
+                footer: getTheme().gameTheme.cardPrinting.footer,
+              })
             : { id: CARD_ID, revision, recipe: magic.describe(face, "inspect") },
           original: false,
           rasterHost: cardRasterHost(prepared.artUrls),
         };
       }
-      const canvas = await renderCard({ deckCard: card, faceIndex }, signal, {
+      const raster = await renderCard({ deckCard: card, faceIndex }, signal, {
         standardFrameFallback: true,
+        tier: "inspect",
       });
-      const blob = await new Promise<Blob>((resolve, reject) =>
-        canvas.toBlob((value) =>
-          value ? resolve(value) : reject(new Error("Card image export failed")),
-        ),
-      );
+      let blob: Blob;
+      let artWindows: readonly Rect[];
+      try {
+        artWindows = getCardArtWindows(raster).map(
+          ({ x, y, width, height }) => [x, y, width, height] as const,
+        );
+        const canvas =
+          raster instanceof HTMLCanvasElement ? raster : document.createElement("canvas");
+        if (canvas !== raster) {
+          canvas.width = raster.width;
+          canvas.height = raster.height;
+          const context = canvas.getContext("2d");
+          if (!context) throw new Error("Card image export could not allocate a canvas");
+          context.drawImage(raster, 0, 0);
+          recordCardRasterCopy(raster.width, raster.height, "encoding");
+        }
+        blob = await new Promise<Blob>((resolve, reject) =>
+          canvas.toBlob((value) =>
+            value ? resolve(value) : reject(new Error("Card image export failed")),
+          ),
+        );
+        signal.throwIfAborted();
+      } finally {
+        releaseCardRaster(raster);
+      }
       const url = URL.createObjectURL(blob);
       try {
-        return await imageDocument(
-          url,
-          revision,
-          false,
-          getCardArtWindows(canvas).map(
-            ({ x, y, width, height }) => [x, y, width, height] as const,
-          ),
-          signal,
-          () => URL.revokeObjectURL(url),
+        return await imageDocument(url, revision, false, artWindows, signal, () =>
+          URL.revokeObjectURL(url),
         );
       } catch (error) {
         URL.revokeObjectURL(url);
@@ -190,9 +233,10 @@ export class CardGlintInspectScene {
   private appearance?: CardInspectAppearance;
   private appearanceKey?: string;
   private sourceRainFog = 1;
+  private sourceDeformation?: Instance["deformation"];
   private sourceWear: Instance["wear"] = { amount: 0, seed: 0 };
   private sourceCardstock?: Instance["cardstock"];
-  private sourcePrintDots?: Instance["printDots"];
+  private sourcePrintDots?: CardInspectAppearance["printDots"];
   private sourceCoverage?: CardInspectAppearance["coverage"];
   private documentAppearance?: CardInspectAppearance;
   private documentKey?: string;
@@ -208,11 +252,13 @@ export class CardGlintInspectScene {
   private yaw = 0;
   private pitch = 0;
   private manualPose = false;
+  private controlledPose?: CardPose;
   private landscape = false;
   private sourceAspect = 5 / 7;
   private pixelAspect = 5 / 7;
   private readonly transform = new Array<number>(16).fill(0);
   private readonly normal: [number, number, number] = [0, 0, 1];
+  private readonly pointer: [number, number] = [0.5, 0.5];
   private readonly projection = new Float32Array(16);
   private readonly instance: Instance = {
     id: CARD_ID,
@@ -222,11 +268,18 @@ export class CardGlintInspectScene {
     rainFog: 1,
   };
   private readonly instances = [this.instance];
-  private readonly frame: Frame = { viewProjection: this.projection, time: 0, clear: [0, 0, 0, 0] };
+  private readonly frame: Frame = {
+    viewProjection: this.projection,
+    pointer: this.pointer,
+    lighting: "pointer",
+    time: 0,
+    clear: [0, 0, 0, 0],
+  };
   private readonly resize: ResizeObserver;
   private readonly visibility: IntersectionObserver;
   private readonly canvas: HTMLCanvasElement;
   private readonly renderer: Renderer;
+  private readonly gpuTimer: CardGpuTimer | null;
   private rasterHost = cardRasterHost([]);
   private readonly onState: (state: CardInspectState) => void;
 
@@ -237,6 +290,8 @@ export class CardGlintInspectScene {
   ) {
     this.canvas = canvas;
     this.renderer = renderer;
+    const gl = canvas.getContext("webgl2");
+    this.gpuTimer = gl ? createCardGpuTimer(gl, "native") : null;
     this.onState = onState;
     this.projection[5] = 1;
     this.projection[10] = 0.05;
@@ -284,6 +339,10 @@ export class CardGlintInspectScene {
   ) {
     if (this.disposed) return;
     this.sourceRainFog = resolveCardRainFog(card.identity.cosmetics);
+    this.instance.finish = finish;
+    const heatDeformation = card.identity.cosmetics?.heatDeformation ?? 0;
+    this.sourceDeformation =
+      heatDeformation > 0 ? { kind: "heat", amount: heatDeformation } : undefined;
     this.sourceWear = {
       amount: resolveCardWearAmount(card.identity.cosmetics),
       seed: card.identity.cosmetics?.wearSeed ?? 0,
@@ -300,6 +359,7 @@ export class CardGlintInspectScene {
           cosmetics: {
             ...card.identity.cosmetics,
             rainFog: undefined,
+            heatDeformation: undefined,
             wear: undefined,
             wearAmount: undefined,
             wearSeed: undefined,
@@ -352,6 +412,7 @@ export class CardGlintInspectScene {
       this.sourceAspect = size[0] / size[1];
       this.landscape = landscape;
       this.instance.finish = finish;
+      this.applyInstanceAppearance();
       this.updateDocumentAppearance();
     } catch (error) {
       if (!controller.signal.aborted && !this.disposed) this.fail(error);
@@ -373,8 +434,18 @@ export class CardGlintInspectScene {
     this.instance.rainFog = this.appearance?.rainFog ?? this.sourceRainFog;
     this.instance.wear = this.appearance?.wear ?? this.sourceWear;
     this.instance.cardstock = this.appearance?.cardstock ?? this.sourceCardstock;
-    this.instance.printDots = this.appearance?.printDots ?? this.sourcePrintDots;
-    this.instance.deformation = this.appearance?.deformation;
+    const printDots = this.appearance?.printDots ?? this.sourcePrintDots;
+    this.instance.printDots = printDots
+      ? {
+          ...printDots,
+          period: printDots.period ?? 5,
+          artwork: this.current?.original ? true : printDots.artwork,
+        }
+      : undefined;
+    this.instance.deformation =
+      this.instance.finish === "heat"
+        ? (this.appearance?.deformation ?? this.sourceDeformation)
+        : undefined;
     this.documentAppearance =
       this.sourceCoverage && !this.appearance?.coverage
         ? { ...this.appearance, coverage: this.sourceCoverage }
@@ -392,6 +463,7 @@ export class CardGlintInspectScene {
         this.documentAppearance,
       );
       this.renderer.upsertCards([derived]);
+      inspectStats.documentUpserts += 1;
       this.derived = derived;
       this.appearanceKey = key;
       void this.prepareCurrent();
@@ -409,6 +481,7 @@ export class CardGlintInspectScene {
     this.preparation = controller;
     this.ready = false;
     try {
+      inspectStats.documentPreparations += 1;
       await this.renderer.ready(CARD_ID, derived.revision, controller.signal);
       if (
         controller.signal.aborted ||
@@ -435,6 +508,7 @@ export class CardGlintInspectScene {
     event.preventDefault();
     if (this.disposed) return;
     this.contextLost = true;
+    this.gpuTimer?.reset();
     this.ready = false;
     this.preparation?.abort();
     cancelAnimationFrame(this.raf);
@@ -445,6 +519,8 @@ export class CardGlintInspectScene {
 
   private restoreContext = () => {
     if (this.disposed) return;
+    this.gpuTimer?.reset();
+    inspectStats.contextRestorations += 1;
     this.contextLost = false;
     this.resizeCanvas();
     void this.prepareCurrent();
@@ -472,21 +548,44 @@ export class CardGlintInspectScene {
     this.invalidate();
   }
 
+  setLighting(lighting: CardLightingMode = "pointer") {
+    if (lighting === "studio" && CARD_NORMAL_LIGHTING_VERSION !== 1)
+      throw new Error("Card Glint normal lighting version 1 is required");
+    this.frame.lighting = lighting;
+    this.invalidate();
+  }
+
+  setPose(pose?: CardPose) {
+    this.controlledPose = pose;
+    this.invalidate();
+  }
+
   point(x: number, y: number) {
     const bounds = this.canvas.getBoundingClientRect();
     const px = (x - bounds.left) / bounds.width;
     const py = (y - bounds.top) / bounds.height;
-    this.yaw = (px - 0.5) * MAX_TILT;
-    this.pitch = (py - 0.5) * MAX_TILT;
-    this.manualPose = true;
+    this.pointer[0] = px;
+    this.pointer[1] = py;
+    if (!this.controlledPose && this.frame.lighting !== "studio") {
+      this.yaw = (px - 0.5) * MAX_CARD_TILT;
+      this.pitch = (py - 0.5) * MAX_CARD_TILT;
+      this.manualPose = true;
+    }
     const hit = this.renderer.hitTest(x - bounds.left, y - bounds.top);
     this.frame.hover = hit ? { instance: hit.instance, uv: hit.uv } : undefined;
     this.invalidate();
   }
 
+  leavePoint() {
+    this.pointer[0] = this.pointer[1] = 0.5;
+    this.frame.hover = undefined;
+    if (!this.controlledPose && this.frame.lighting !== "studio") this.reset();
+    else this.invalidate();
+  }
+
   tilt(x: number, y: number) {
-    this.yaw = Math.max(-MAX_TILT, Math.min(MAX_TILT, this.yaw + x));
-    this.pitch = Math.max(-MAX_TILT, Math.min(MAX_TILT, this.pitch + y));
+    this.yaw = Math.max(-MAX_CARD_TILT, Math.min(MAX_CARD_TILT, this.yaw + x));
+    this.pitch = Math.max(-MAX_CARD_TILT, Math.min(MAX_CARD_TILT, this.pitch + y));
     this.manualPose = true;
     this.frame.hover = undefined;
     this.invalidate();
@@ -495,6 +594,7 @@ export class CardGlintInspectScene {
   reset = () => {
     this.yaw = this.pitch = 0;
     this.manualPose = false;
+    this.pointer[0] = this.pointer[1] = 0.5;
     this.frame.hover = undefined;
     this.invalidate();
   };
@@ -540,16 +640,12 @@ export class CardGlintInspectScene {
       this.effectTime += Math.min(0.05, this.previousFrame ? (now - this.previousFrame) / 1000 : 0);
     this.previousFrame = now;
     this.dirty = false;
-    const yaw = this.manualPose
-      ? this.yaw
-      : this.animated
-        ? Math.sin(this.effectTime * 0.7) * 0.14
-        : 0;
-    const pitch = this.manualPose
-      ? this.pitch
-      : this.animated
-        ? Math.cos(this.effectTime * 0.5) * 0.09
-        : 0;
+    const yaw =
+      this.controlledPose?.yaw ??
+      (this.manualPose ? this.yaw : this.animated ? Math.sin(this.effectTime * 0.7) * 0.14 : 0);
+    const pitch =
+      this.controlledPose?.pitch ??
+      (this.manualPose ? this.pitch : this.animated ? Math.cos(this.effectTime * 0.5) * 0.09 : 0);
     const cy = Math.cos(yaw),
       sy = Math.sin(yaw),
       cx = Math.cos(pitch),
@@ -579,12 +675,18 @@ export class CardGlintInspectScene {
     this.normal[1] = -sx;
     this.normal[2] = cy * cx;
     this.frame.time = this.effectTime;
+    const submissionStarted = performance.now();
     try {
+      this.gpuTimer?.begin();
       this.renderer.updateScene(this.instances);
       this.renderer.render(this.frame);
+      inspectStats.renders += 1;
     } catch (error) {
       this.failRenderer(error);
       return;
+    } finally {
+      this.gpuTimer?.end();
+      inspectStats.cpuSubmissionMs += performance.now() - submissionStarted;
     }
     if (this.animated) this.raf = requestAnimationFrame(this.draw);
   };
@@ -601,6 +703,7 @@ export class CardGlintInspectScene {
     document.removeEventListener("visibilitychange", this.invalidate);
     this.canvas.removeEventListener("webglcontextlost", this.loseContext);
     this.canvas.removeEventListener("webglcontextrestored", this.restoreContext);
+    this.gpuTimer?.destroy();
     this.renderer.dispose();
     this.current?.release?.();
     this.current = undefined;

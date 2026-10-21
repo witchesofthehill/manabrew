@@ -179,6 +179,14 @@ impl GameLoop {
             battlefield.extend(game.cards_in_zone(ZoneType::Battlefield, other_player));
         }
         let can_activate = |card_id: CardId, ab: &crate::ability::ActivatedAbility| {
+            let card = game.card(card_id);
+            if !card.room_ability_active(
+                ab.params
+                    .get("CardState")
+                    .and_then(forge_foundation::CardStateName::from_str_compat),
+            ) {
+                return false;
+            }
             // Per-game activation cap (e.g. "GameActivationLimit$ 1").
             if let Some(limit) = ab.game_activation_limit {
                 let used = game
@@ -399,6 +407,13 @@ impl GameLoop {
                 continue;
             }
             if ab.activation_zone.is_some_and(|zone| zone != card.zone) {
+                continue;
+            }
+            if !card.room_ability_active(
+                ab.params
+                    .get("CardState")
+                    .and_then(forge_foundation::CardStateName::from_str_compat),
+            ) {
                 continue;
             }
             if let Some(limit) = ab.game_activation_limit {

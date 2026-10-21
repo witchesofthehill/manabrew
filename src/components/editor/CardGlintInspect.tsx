@@ -10,6 +10,8 @@ import { useCard, useScryfallStore } from "@/stores/useScryfallStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { DEFAULT_CARD_POSE, MAX_CARD_TILT } from "@/lib/cardLighting";
+import type { CardLightingMode, CardPose } from "@/lib/cardLighting";
 
 const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
 const subscribeMotion = (notify: () => void) => {
@@ -25,12 +27,18 @@ export function CardGlintInspect({
   appearance,
   faceIndex: controlledFaceIndex,
   onFlipFace,
+  lighting = "pointer",
+  pose,
+  onPoseChange,
 }: {
   card: DeckCard;
   className?: string;
   appearance?: CardInspectAppearance;
   faceIndex?: 0 | 1;
   onFlipFace?: () => void;
+  lighting?: CardLightingMode;
+  pose?: CardPose;
+  onPoseChange?: (pose: CardPose) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<CardGlintInspectScene | null>(null);
@@ -113,6 +121,18 @@ export function CardGlintInspect({
   useEffect(() => {
     let alive = true;
     void pendingRef.current?.then((scene) => {
+      if (!alive) return;
+      scene?.setLighting(lighting);
+      scene?.setPose(pose);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [lighting, pose]);
+
+  useEffect(() => {
+    let alive = true;
+    void pendingRef.current?.then((scene) => {
       if (alive) return scene?.setCard(card, faceIndex, finish, original, landscape);
     });
     return () => {
@@ -129,6 +149,21 @@ export function CardGlintInspect({
       alive = false;
     };
   }, [animated]);
+
+  const resetPose = () => {
+    if (pose) onPoseChange?.(DEFAULT_CARD_POSE);
+    sceneRef.current?.reset();
+  };
+  const tiltPose = (yaw: number, pitch: number) => {
+    if (!pose) {
+      sceneRef.current?.tilt(yaw, pitch);
+      return;
+    }
+    onPoseChange?.({
+      yaw: Math.max(-MAX_CARD_TILT, Math.min(MAX_CARD_TILT, pose.yaw + yaw)),
+      pitch: Math.max(-MAX_CARD_TILT, Math.min(MAX_CARD_TILT, pose.pitch + pitch)),
+    });
+  };
 
   return (
     <section
@@ -147,27 +182,28 @@ export function CardGlintInspect({
           aria-busy={state.status === "loading"}
           data-card-inspect-state={state.status}
           data-card-inspect-finish={finish}
+          data-card-inspect-lighting={lighting}
           className="absolute inset-0 h-full w-full touch-pan-y rounded-md outline-none focus-visible:ring-2 focus-visible:ring-primary"
           onPointerMove={(event) => sceneRef.current?.point(event.clientX, event.clientY)}
-          onPointerLeave={() => sceneRef.current?.reset()}
+          onPointerLeave={() => sceneRef.current?.leavePoint()}
           onKeyDown={(event) => {
             const scene = sceneRef.current;
             if (!scene) return;
             switch (event.key) {
               case "ArrowLeft":
-                scene.tilt(-KEYBOARD_TILT_STEP, 0);
+                tiltPose(-KEYBOARD_TILT_STEP, 0);
                 break;
               case "ArrowRight":
-                scene.tilt(KEYBOARD_TILT_STEP, 0);
+                tiltPose(KEYBOARD_TILT_STEP, 0);
                 break;
               case "ArrowUp":
-                scene.tilt(0, -KEYBOARD_TILT_STEP);
+                tiltPose(0, -KEYBOARD_TILT_STEP);
                 break;
               case "ArrowDown":
-                scene.tilt(0, KEYBOARD_TILT_STEP);
+                tiltPose(0, KEYBOARD_TILT_STEP);
                 break;
               case "Home":
-                scene.reset();
+                resetPose();
                 break;
               default:
                 return;
@@ -229,12 +265,7 @@ export function CardGlintInspect({
             <Pause className="h-4 w-4" />
           )}
         </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => sceneRef.current?.reset()}
-          aria-label="Reset card view"
-        >
+        <Button variant="ghost" size="icon" onClick={resetPose} aria-label="Reset card view">
           <RotateCcw className="h-4 w-4" />
         </Button>
       </div>
@@ -243,7 +274,9 @@ export function CardGlintInspect({
           ? "Preparing card…"
           : state.original && !original
             ? "Selected printing layout preserved."
-            : "Move over the card or use arrow keys to tilt."}
+            : pose || lighting === "studio"
+              ? "Use pose controls or arrow keys to tilt. Pointer hits move water."
+              : "Move over the card or use arrow keys to tilt."}
       </p>
       <p className="sr-only">{card.text}</p>
     </section>

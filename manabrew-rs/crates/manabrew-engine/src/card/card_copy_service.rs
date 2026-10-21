@@ -15,6 +15,9 @@ pub fn copy_card(
     let mut out = copy_from.clone();
     if assign_new_id {
         out.cosmetics = None;
+        out.on_adventure = false;
+        out.unlocked_doors.clear();
+        out.update_rooms();
         if let Some(id) = new_id {
             out.id = id;
         }
@@ -38,6 +41,8 @@ pub fn copy_stats(
 /// Copy copiable characteristics from one card into another.
 pub fn copy_copiable_characteristics(copy_from: &Card, to: &mut Card) {
     to.card_name = copy_from.card_name.clone();
+    to.full_name.clone_from(&copy_from.full_name);
+    to.room_faces.clone_from(&copy_from.room_faces);
     to.oracle_text = copy_from.oracle_text.clone();
     to.type_line = copiable_type_line(copy_from);
     to.mana_cost = copy_from.mana_cost.clone();
@@ -62,6 +67,7 @@ pub fn copy_copiable_characteristics(copy_from: &Card, to: &mut Card) {
     to.abilities = copy_from.abilities.clone();
     to.triggers = copy_from.triggers.clone();
     to.svars = copy_from.svars.clone();
+    to.update_rooms();
     to.parsed_svar_cache.clear();
     to.refresh_action_specs();
 }

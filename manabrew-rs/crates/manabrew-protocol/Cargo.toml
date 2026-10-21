@@ -1,6 +1,6 @@
 [package]
 name = "manabrew-protocol"
-version = "5.16.0"
+version = "6.0.0"
 edition = "2021"
 license.workspace = true
 repository.workspace = true
@@ -9,7 +9,7 @@ documentation = "https://docs.rs/manabrew-protocol"
 description = "Engine-free game DTOs shared by manabrew clients"
 
 [dependencies]
-forge-foundation = { path = "../forge-foundation", version = "0.5.0" }
+forge-foundation = { path = "../forge-foundation", version = "0.6.0" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sha2 = "0.10"

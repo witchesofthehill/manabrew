@@ -21,6 +21,7 @@ interface ActionsContent {
   hint: string;
   label: string;
   onSelectAction: (action: HandActionOption) => void;
+  onHoverAction?: (index: number) => void;
   embedded?: boolean;
   ownsScroll?: boolean;
   compact?: boolean;
@@ -62,11 +63,16 @@ function sameAction(left: HandActionOption, right: HandActionOption): boolean {
     left.cardId === right.cardId &&
     left.actionId === right.actionId &&
     left.abilityIndex === right.abilityIndex &&
-    left.mode === right.mode &&
+    left.mode?.type === right.mode?.type &&
+    (left.mode?.type !== "alternative" ||
+      (right.mode?.type === "alternative" && left.mode.cost === right.mode.cost)) &&
+    (left.mode?.type !== "unlockDoor" ||
+      (right.mode?.type === "unlockDoor" && left.mode.door === right.mode.door)) &&
+    left.faceIndex === right.faceIndex &&
     left.colorChoice === right.colorChoice &&
     left.toZoneId === right.toZoneId &&
     left.tapped === right.tapped &&
-    left.isClassLevelUp === right.isClassLevelUp &&
+    left.levelUp === right.levelUp &&
     left.isManaAbility === right.isManaAbility &&
     (left.actionId !== undefined || left.abilityIndex !== undefined || left.label === right.label)
   );
@@ -146,6 +152,15 @@ export class RulesPreviewActions extends Container {
     this.pointerId = this.tapPointerId = null;
     this.dragMoved = true;
     this.clearHover();
+  }
+
+  get hasHoveredAction(): boolean {
+    return this.hoveredIndex !== null;
+  }
+
+  clearFocus(): void {
+    this.focusedIndex = null;
+    this.drawFocus();
   }
 
   get focusedActionBounds(): { top: number; height: number } | null {
@@ -228,6 +243,7 @@ export class RulesPreviewActions extends Container {
           if (event.pointerType === "touch" || this.pointerId !== null) return;
           this.focusedIndex = null;
           this.hoveredIndex = index;
+          spec.onHoverAction?.(index);
           this.drawFocus();
         });
         row.on("pointerleave", () => {

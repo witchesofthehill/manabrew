@@ -392,9 +392,14 @@ export function GameBoard({
   const chooseActionActions = chooseActionPrompt?.input.actions;
   const promptActions = chooseActionActions ?? payManaCostPrompt?.input.actions;
   const manaAbilityOptions = promptActions ? manaAbilityInfos(promptActions) : undefined;
-  const chooseActionAbilityCardIds = chooseActionActions
-    ?.filter((a) => a.type === "activateAbility")
-    .map((a) => a.cardId);
+  const chooseActionAbilityCardIds = chooseActionActions?.reduce<string[]>((cardIds, action) => {
+    if (
+      action.type === "activateAbility" ||
+      (action.type === "cast" && action.mode.type === "unlockDoor")
+    )
+      cardIds.push(action.cardId);
+    return cardIds;
+  }, []);
   const hostileTargeting = boardTargetsPrompt?.input.hostile ?? false;
   const targetZoneCardIds = (zone: string, cards?: CardDto[]): string[] =>
     boardTargets?.zone?.zone === zone

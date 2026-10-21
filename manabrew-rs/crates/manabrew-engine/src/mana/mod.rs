@@ -51,6 +51,13 @@ pub(crate) fn mana_ability_meets_script_requirements(
     ab: &crate::ability::activated::ActivatedAbility,
 ) -> bool {
     let card = game.card(card_id);
+    if !card.room_ability_active(
+        ab.params
+            .get("CardState")
+            .and_then(forge_foundation::CardStateName::from_str_compat),
+    ) {
+        return false;
+    }
     let requirements = crate::card::valid_filter::CardTraitRequirementsIr::from_key_values(
         ab.params
             .inner()
@@ -634,7 +641,13 @@ pub(crate) fn tap_land_for_mana(
 pub fn land_mana_atoms(card: &Card) -> Vec<u16> {
     let mut atoms = Vec::new();
     for ab in &card.activated_abilities {
-        if !ab.is_mana_ability {
+        if !ab.is_mana_ability
+            || !card.room_ability_active(
+                ab.params
+                    .get("CardState")
+                    .and_then(forge_foundation::CardStateName::from_str_compat),
+            )
+        {
             continue;
         }
         // Java parity: don't treat mana abilities with mana activation costs as free

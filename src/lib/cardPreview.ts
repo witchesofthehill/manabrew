@@ -1,4 +1,5 @@
 import type { CardDto } from "@/protocol/game";
+import { gameCardFaceIndex } from "@/lib/gameCard";
 
 export type PreviewCard = CardDto & { zoneId?: string };
 export interface PreviewPointerInput {
@@ -208,7 +209,7 @@ export class CardPreviewMachine {
       phase: "open",
       card,
       sticky,
-      showBackFace: card.isTransformed,
+      showBackFace: gameCardFaceIndex(card) === 1,
       mousePos: options.pointer ?? this.snapshot.mousePos,
       anchorRect: options.anchorRect ?? null,
       placement: options.placement ?? "auto",

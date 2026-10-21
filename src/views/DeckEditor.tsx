@@ -469,7 +469,6 @@ export default function DeckEditor() {
   }
   useTopBarOverride({
     title: view === "editor" ? "Deck Editor" : undefined,
-    onBack: view === "editor" ? handleBack : undefined,
   });
   useKeybindings({
     "card-search-focus": () => {

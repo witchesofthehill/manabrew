@@ -357,7 +357,7 @@ export const usePreferencesStore = create<PreferencesState>()(
           directTransport: false,
           setDirectTransport: (directTransport) => set({ directTransport }),
 
-          aiController: "manabot",
+          aiController: "forge",
           setAiController: (aiController) => set({ aiController }),
 
           hideAccountSaveNudge: false,
@@ -434,13 +434,13 @@ export const usePreferencesStore = create<PreferencesState>()(
       },
       {
         name: STORAGE_KEYS.PREFERENCES,
-        version: 5,
+        version: 6,
         migrate: (persistedState, version) => {
           if (!persistedState || typeof persistedState !== "object") return {};
-          const persisted = persistedState as Record<string, unknown>;
-          return pickPersistedPreferences(
-            version < 4 ? { ...persisted, ...CARD_VIEW_DEFAULTS } : persisted,
-          );
+          let persisted = persistedState as Record<string, unknown>;
+          if (version < 4) persisted = { ...persisted, ...CARD_VIEW_DEFAULTS };
+          if (version < 6) persisted = { ...persisted, aiController: "forge" };
+          return pickPersistedPreferences(persisted);
         },
         merge: (persistedState, currentState) => ({
           ...currentState,

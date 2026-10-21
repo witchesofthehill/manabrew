@@ -84,6 +84,8 @@ pub struct ReplacementEffectIr {
     pub destination_text: Option<String>,
     pub destination_zone: Option<ZoneType>,
     pub exclude_destination_text: Option<String>,
+    pub valid_stack_sa_text: Option<String>,
+    pub fizzle: Option<bool>,
     pub valid_card_text: Option<String>,
     pub valid_card_selector: Option<CompiledSelector>,
     pub valid_player_text: Option<String>,
@@ -298,6 +300,9 @@ impl ReplacementEffect {
 
     /// Check requirements for this replacement effect against the current game state.
     pub fn requirements_check(&self, game: &GameState, source: &Card) -> bool {
+        if !source.room_ability_active(self.base.card_trait_base.get_card_state_name()) {
+            return false;
+        }
         if self.suppressed || self.base.card_trait_base.is_suppressed() {
             return false;
         }
@@ -708,6 +713,10 @@ impl ReplacementEffectIr {
             destination_text: params.get(keys::DESTINATION).map(str::to_string),
             destination_zone: parsed_zone_type(params.get(keys::DESTINATION)),
             exclude_destination_text: params.get("ExcludeDestination").map(str::to_string),
+            valid_stack_sa_text: params.get("ValidStackSa").map(str::to_owned),
+            fizzle: params
+                .get("Fizzle")
+                .map(|value| value.eq_ignore_ascii_case("True")),
             valid_card_text: params.get(keys::VALID_CARD).map(str::to_string),
             valid_card_selector: params.selector_cloned(keys::VALID_CARD),
             valid_player_text: params.get(keys::VALID_PLAYER).map(str::to_string),

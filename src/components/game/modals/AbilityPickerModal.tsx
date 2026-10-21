@@ -9,6 +9,7 @@ import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { Modal } from "./Modal";
 import { DialogCardInspector } from "./DialogCardInspector";
 import type { CardInspectionState } from "./cardInspection";
+import { gameCardFaceIndex } from "@/lib/gameCard";
 
 export interface ActionPickerModalProps {
   card: DeckCard;
@@ -38,7 +39,7 @@ export function ActionPickerModal({
   const [inspection, setInspection] = useState<CardInspectionState>(
     initialInspection ?? {
       rules: defaultView === "rules",
-      face: source.isTransformed ? 1 : 0,
+      face: gameCardFaceIndex(source),
       rotated: false,
     },
   );

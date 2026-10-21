@@ -5,7 +5,11 @@ import { asDeckCard, asGameDeckCard, getDeckCardPool } from "@/lib/decks";
 import type { ClientGameView } from "@/stores/gameStore.types";
 import type { Deck, DeckCard } from "@/protocol/deck";
 import { renderRulesCard } from "@/lib/cardRenderer";
+import { releaseCardRaster, selectCardRenderTier } from "@/lib/cardRenderTypes";
+import { GAME_CARD_SIZES } from "@/components/game/game.constants";
+import { overlayResolution } from "@/pixi/overlay/overlayRuntime";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { gameCardFaceIndex } from "@/lib/gameCard";
 
 export type GamePrefetchMode = "visible" | "full";
 
@@ -94,19 +98,29 @@ export function useGamePrefetch(mode: GamePrefetchMode): void {
       if (usePreferencesStore.getState().handCardStyle === "rules") {
         const current = useGameStore.getState();
         const hands = current.gameView?.players.flatMap((player) => player.hand) ?? [];
+        const tier = selectCardRenderTier(
+          GAME_CARD_SIZES.hand.width,
+          GAME_CARD_SIZES.hand.height,
+          overlayResolution(window.innerWidth, window.innerHeight),
+        );
         await Promise.allSettled(
           hands
             .filter(
               (card) =>
                 !card.isFaceDown && card.identity.name && card.identity.name !== "Hidden Card",
             )
-            .map((card) =>
-              renderRulesCard({
-                card,
-                deckCard: asGameDeckCard(current.gameDecks, card),
-                faceIndex: card.isTransformed ? 1 : 0,
-              }),
-            ),
+            .flatMap((card) => {
+              const deckCard = asGameDeckCard(current.gameDecks, card);
+              const faceIndex = gameCardFaceIndex(card);
+              const faces: (0 | 1)[] = deckCard.backFace
+                ? [faceIndex, faceIndex === 0 ? 1 : 0]
+                : [faceIndex];
+              return faces.map((face) =>
+                renderRulesCard({ card, deckCard, faceIndex: face }, undefined, { tier }).then(
+                  releaseCardRaster,
+                ),
+              );
+            }),
         );
       }
       useGameStore.setState({ isPrefetchingCards: false });

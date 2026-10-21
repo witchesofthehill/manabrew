@@ -17,7 +17,7 @@ import { gsap } from "@/pixi/effects/gsap";
 import { destroyPixiApp } from "@/pixi/pixiPatches";
 import { LongPressGesture } from "@/pixi/LongPressGesture";
 import { useScryfallStore } from "@/stores/useScryfallStore";
-import { isFacelessCard } from "@/lib/gameCard";
+import { gameCardFaceIndex, isFacelessCard } from "@/lib/gameCard";
 import { getTheme } from "@/hooks/useTheme";
 import type { CardInspectionState } from "./cardInspection";
 import {
@@ -340,7 +340,7 @@ export class DialogCardPickerScene {
     return (
       this.props.state.inspection[item.id] ?? {
         rules: this.props.defaultRules,
-        face: item.card.isTransformed ? 1 : 0,
+        face: gameCardFaceIndex(item.card),
         rotated: false,
       }
     );

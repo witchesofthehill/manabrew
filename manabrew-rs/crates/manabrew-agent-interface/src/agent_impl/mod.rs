@@ -22,6 +22,8 @@ use crate::game_view_dto::{
 use crate::ids_codec::{card_id_str, parse_card_id, parse_player_id, player_id_str};
 use crate::mana_action_id::{mana_ability_actions, parse_tap_action_id};
 use crate::prompt::*;
+use manabrew_protocol::game::RoomDoor;
+use manabrew_protocol::prompts::common::LevelUpKind;
 
 mod choices;
 mod combat;
@@ -296,6 +298,7 @@ impl<R: Responder> PromptAgent<R> {
             A::Foretell => AlternativeCostKind::Foretell,
             A::Emerge => AlternativeCostKind::Emerge,
             A::Suspend => AlternativeCostKind::Suspend,
+            A::Prototype => AlternativeCostKind::Prototype,
             A::Morph => AlternativeCostKind::Morph,
             A::Megamorph => AlternativeCostKind::Megamorph,
             A::Bestow => AlternativeCostKind::Bestow,
@@ -322,6 +325,7 @@ impl<R: Responder> PromptAgent<R> {
         use manabrew_engine::agent::PlayCardMode as E;
         match mode {
             E::Normal => (PlayCardMode::Normal, "Cast normally".to_string()),
+            E::Adventure => (PlayCardMode::Adventure, "Cast Adventure".to_string()),
             E::BackFaceLand => (
                 PlayCardMode::BackFaceLand,
                 "Play back face as land".to_string(),
@@ -335,7 +339,16 @@ impl<R: Responder> PromptAgent<R> {
                 PlayCardMode::ForetellExile,
                 "Foretell (exile face-down)".to_string(),
             ),
-            E::UnlockDoor => (PlayCardMode::UnlockDoor, "Unlock door".to_string()),
+            E::UnlockDoor { door } => (
+                PlayCardMode::UnlockDoor {
+                    door: if *door == forge_foundation::CardStateName::RightSplit {
+                        RoomDoor::Right
+                    } else {
+                        RoomDoor::Left
+                    },
+                },
+                "Unlock door".to_string(),
+            ),
             E::Alternative(alt) => (
                 PlayCardMode::Alternative {
                     cost: Self::alt_cost_kind(*alt),
@@ -350,10 +363,14 @@ impl<R: Responder> PromptAgent<R> {
         match mode {
             E::Normal => "normal".to_string(),
             E::BackFaceLand => "backFaceLand".to_string(),
+            E::Adventure => "adventure".to_string(),
             E::RoomRightSplit => "roomRightSplit".to_string(),
             E::StaticAlternative => "staticAlternative".to_string(),
             E::ForetellExile => "foretellExile".to_string(),
-            E::UnlockDoor => "unlockDoor".to_string(),
+            E::UnlockDoor { door } => match door {
+                forge_foundation::CardStateName::RightSplit => "unlockDoor:right".to_string(),
+                _ => "unlockDoor:left".to_string(),
+            },
             E::Alternative(alt) => format!("alternative:{}", format!("{alt:?}").to_lowercase()),
         }
     }
@@ -364,9 +381,15 @@ impl<R: Responder> PromptAgent<R> {
         match mode_str {
             "normal" => Some(PlayCardMode::Normal),
             "backFaceLand" => Some(PlayCardMode::BackFaceLand),
+            "adventure" => Some(PlayCardMode::Adventure),
             "staticAlternative" => Some(PlayCardMode::StaticAlternative),
             "foretellExile" => Some(PlayCardMode::ForetellExile),
-            "unlockDoor" => Some(PlayCardMode::UnlockDoor),
+            "unlockDoor:left" => Some(PlayCardMode::UnlockDoor {
+                door: forge_foundation::CardStateName::LeftSplit,
+            }),
+            "unlockDoor:right" => Some(PlayCardMode::UnlockDoor {
+                door: forge_foundation::CardStateName::RightSplit,
+            }),
             "roomRightSplit" => Some(PlayCardMode::RoomRightSplit),
             s if s.starts_with("alternative:") => {
                 let alt = match &s["alternative:".len()..] {
@@ -381,6 +404,7 @@ impl<R: Responder> PromptAgent<R> {
                     "foretell" => A::Foretell,
                     "emerge" => A::Emerge,
                     "suspend" => A::Suspend,
+                    "prototype" => A::Prototype,
                     "morph" => A::Morph,
                     "megamorph" => A::Megamorph,
                     "bestow" => A::Bestow,
@@ -597,6 +621,13 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                     card_id: card_id.clone(),
                     mode,
                     label,
+                    face_index: match play.mode {
+                        manabrew_engine::agent::PlayCardMode::Normal
+                        | manabrew_engine::agent::PlayCardMode::Alternative(
+                            manabrew_engine::spellability::AlternativeCost::Prototype,
+                        ) => Some(0),
+                        _ => None,
+                    },
                 },
             });
         }
@@ -631,7 +662,13 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                         description: a.description.clone(),
                         cost: a.cost.clone(),
                         is_mana_ability: false,
-                        is_class_level_up: Some(a.is_class_level_up),
+                        level_up: if a.is_class_level_up {
+                            Some(LevelUpKind::Class)
+                        } else if a.is_level_up {
+                            Some(LevelUpKind::Creature)
+                        } else {
+                            None
+                        },
                         produced_mana: None,
                     }),
                 });

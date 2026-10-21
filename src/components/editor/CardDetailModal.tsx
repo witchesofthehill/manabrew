@@ -386,7 +386,7 @@ export function CardDetailModal({
                   {generated ? (
                     <div
                       className={cn(
-                        "relative w-full overflow-hidden rounded-lg shadow-lg",
+                        "relative w-full rounded-lg shadow-lg",
                         isHorizontalActiveFace ? "aspect-[7/5]" : "aspect-[5/7]",
                       )}
                     >
@@ -403,7 +403,7 @@ export function CardDetailModal({
                   ) : imageUrl ? (
                     <div
                       className={cn(
-                        "relative w-full overflow-hidden rounded-lg shadow-lg",
+                        "relative w-full rounded-lg shadow-lg",
                         isHorizontalActiveFace ? "aspect-[7/5]" : "aspect-[5/7]",
                       )}
                     >
@@ -411,13 +411,13 @@ export function CardDetailModal({
                         <HorizontalCardImage
                           src={imageUrl}
                           alt={displayName}
-                          className="h-full w-full"
+                          className="h-full w-full rounded-[inherit]"
                         />
                       ) : (
                         <ScryfallImg
                           src={imageUrl}
                           alt={displayName}
-                          className="absolute inset-0 h-full w-full object-contain"
+                          className="absolute inset-0 h-full w-full rounded-[inherit] object-contain"
                         />
                       )}
                       <CardFoilOverlay

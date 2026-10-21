@@ -24,12 +24,12 @@ export function supportsRetroCardFrame(
 }
 
 export interface CardRenderDecision {
-  readonly mode: "native" | "original";
+  readonly mode: "native" | "host" | "original";
   readonly reason?: string;
   readonly layout: string;
   readonly faceIndex: number;
   readonly template?: string;
-  readonly engine?: "card-glint";
+  readonly engine?: "card-glint" | "manabrew";
 }
 
 export class CardRenderError extends Error {

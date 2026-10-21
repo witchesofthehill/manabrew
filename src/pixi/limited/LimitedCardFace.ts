@@ -4,6 +4,12 @@ import { getTheme } from "@/hooks/useTheme";
 import { cardCosmeticsKey } from "@/lib/cardCosmetics";
 import { isEtchedOnlyPrinting } from "@/lib/cardFinish";
 import { renderCard } from "@/lib/cardRenderer";
+import {
+  releaseCardRaster,
+  selectCardRenderTier,
+  type CardRenderTier,
+} from "@/lib/cardRenderTypes";
+import { overlayResolution } from "@/pixi/overlay/overlayRuntime";
 import { scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { CardFoil } from "@/pixi/effects/CardFoil";
 import {
@@ -29,6 +35,7 @@ export class LimitedCardFace extends Container {
   private contentKey = "";
   private cardWidth = 0;
   private cardHeight = 0;
+  private tier: CardRenderTier | undefined;
   private readonly request: () => void;
 
   constructor(request: () => void) {
@@ -56,6 +63,12 @@ export class LimitedCardFace extends Container {
     this.positionLabel();
     const locale = useScryfallStore.getState().locale;
     const style = usePreferencesStore.getState().inGameCardPreviewStyle;
+    const tier = selectCardRenderTier(
+      width,
+      height,
+      overlayResolution(window.innerWidth, window.innerHeight),
+      this.tier,
+    );
     const key = JSON.stringify([
       card.id,
       card.name,
@@ -66,16 +79,18 @@ export class LimitedCardFace extends Container {
       locale,
       style,
     ]);
-    if (key === this.contentKey) return;
+    const contentChanged = key !== this.contentKey;
+    if (!contentChanged && tier === this.tier) return;
     this.contentKey = key;
+    this.tier = tier;
     this.controller?.abort();
     const controller = new AbortController();
     this.controller = controller;
-    this.showTexture(Texture.EMPTY);
+    if (contentChanged) this.showTexture(Texture.EMPTY);
     this.foil.setAppearance(!!card.foil, card.cosmetics);
     this.fallbackLabel.text = card.name;
     this.positionLabel();
-    void this.load({ ...card }, style === "rules", locale, controller);
+    void this.load({ ...card }, style === "rules", locale, tier, controller);
   }
 
   private positionLabel(): void {
@@ -90,7 +105,7 @@ export class LimitedCardFace extends Container {
     const ready = texture !== Texture.EMPTY && texture.width > 1;
     this.image.visible = ready;
     this.fallbackLabel.visible = !ready;
-    this.foil.setTexture(ready ? texture : null);
+    this.foil.setTexture(ready ? texture : null, undefined, this.image);
     this.foil.setArtWindows(getGeneratedCardArtWindows(texture));
     this.foil.setEnabled(ready);
     previous?.destroy(true);
@@ -101,6 +116,7 @@ export class LimitedCardFace extends Container {
     card: DraftCard,
     generated: boolean,
     locale: string,
+    tier: CardRenderTier,
     controller: AbortController,
   ): Promise<void> {
     const current = (): boolean =>
@@ -124,14 +140,21 @@ export class LimitedCardFace extends Container {
         .catch(() => Texture.EMPTY);
       if (generated) {
         try {
-          const canvas = await renderCard({ deckCard, faceIndex: 0 }, controller.signal, {
+          const raster = await renderCard({ deckCard, faceIndex: 0 }, controller.signal, {
             standardFrameFallback: true,
+            tier,
           });
+          try {
+            if (!current()) return;
+            this.showTexture(createGeneratedCardTexture(raster), true);
+            return;
+          } finally {
+            releaseCardRaster(raster);
+          }
+        } catch (error: unknown) {
           if (!current()) return;
-          this.showTexture(createGeneratedCardTexture(canvas), true);
-          return;
-        } catch {
-          if (!current()) return;
+          console.warn("[limited] generated card render failed", card.name, error);
+          if (this.ownedTexture) return;
         }
       }
       const texture = await scan;

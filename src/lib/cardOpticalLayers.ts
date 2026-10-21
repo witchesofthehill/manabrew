@@ -1,17 +1,22 @@
 import { magic } from "card-glint/magic";
+import { closeRaster } from "card-glint/canvas";
 import type { CardDocument, RasterHost, Rect } from "card-glint";
 import {
   faceCornerRadius,
   FACE_CORNER_RADIUS,
   type RenderedCardInput,
 } from "card-glint/magic/presentation";
-import { CanvasSource, Texture } from "pixi.js";
+import { Texture } from "pixi.js";
 import type { TextureSource } from "pixi.js";
 import { cardImageLoader } from "@/lib/cardRenderArtwork";
-import { ensureCardGlintFonts } from "@/lib/cardGlintAssets";
 import type { CardFoilRegion } from "@/lib/cardFinish";
 import { getCardArtWindows } from "@/lib/cardRenderGeometry";
 import { cardOpticalDocument, isSemanticLayout } from "@/lib/cardSemanticLayout";
+import type { CardSemanticPalette } from "@/lib/cardSemanticLayout";
+import type { CardRaster, CardRenderTier } from "@/lib/cardRenderTypes";
+import { ownCardRaster, retainCardRaster, releaseCardRaster } from "@/lib/cardRenderTypes";
+import { composeCardOffThread } from "@/lib/cardCompositionWorker";
+import { createGeneratedCardTexture } from "@/pixi/generatedCardTexture";
 
 export interface CardOpticalLayers {
   artwork: Texture;
@@ -25,7 +30,7 @@ export interface CardOpticalLease extends CardOpticalLayers {
 }
 
 interface OpticalSource {
-  canvas: HTMLCanvasElement;
+  canvas: CardRaster;
   id: number;
   face: RenderedCardInput;
   artUrls: readonly (string | undefined)[];
@@ -33,10 +38,11 @@ interface OpticalSource {
   width: number;
   height: number;
   cornerRadius: number;
+  tier: CardRenderTier;
+  palette: CardSemanticPalette;
   entry?: OpticalEntry;
   finish?: CardFinishSource;
   opticalFinish?: CardFinishSource;
-  watched: WeakSet<TextureSource>;
 }
 
 interface OpticalEntry {
@@ -44,6 +50,7 @@ interface OpticalEntry {
   controller: AbortController;
   ready: Promise<CardOpticalLayers>;
   layers?: CardOpticalLayers;
+  releaseSource(): void;
 }
 
 export interface CardFinishSource {
@@ -53,13 +60,16 @@ export interface CardFinishSource {
   host: RasterHost;
 }
 const sources = new WeakMap<object, OpticalSource>();
+const watchedSources = new WeakMap<TextureSource, { source: OpticalSource; detach(): void }>();
 let sourceId = 0;
 
 export function registerCardOpticalSource(
-  canvas: HTMLCanvasElement,
+  canvas: CardRaster,
   face: RenderedCardInput,
   artUrls: readonly (string | undefined)[],
   rulesText: boolean,
+  tier: CardRenderTier,
+  palette: CardSemanticPalette,
 ): void {
   sources.set(canvas, {
     canvas,
@@ -70,11 +80,12 @@ export function registerCardOpticalSource(
     width: canvas.width,
     height: canvas.height,
     cornerRadius: isSemanticLayout(face) ? FACE_CORNER_RADIUS : faceCornerRadius(face),
-    watched: new WeakSet(),
+    tier,
+    palette,
   });
 }
 
-export function copyCardOpticalSource(from: HTMLCanvasElement, to: HTMLCanvasElement): void {
+export function copyCardOpticalSource(from: CardRaster, to: CardRaster): void {
   const source = sources.get(from);
   if (source) sources.set(to, source);
   else sources.delete(to);
@@ -129,7 +140,9 @@ export function cardRasterHost(artUrls: readonly (string | undefined)[]): Raster
 }
 
 function watchOpticalSource(source: OpticalSource, texture: TextureSource): void {
-  if (source.watched.has(texture)) return;
+  const watched = watchedSources.get(texture);
+  if (watched?.source === source) return;
+  watched?.detach();
   const invalidate = () => {
     source.id = ++sourceId;
     source.entry = undefined;
@@ -141,9 +154,10 @@ function watchOpticalSource(source: OpticalSource, texture: TextureSource): void
   const detach = () => {
     texture.off("update", invalidate);
     texture.off("resize", invalidate);
-    source.watched.delete(texture);
+    texture.off("destroy", detach);
+    if (watchedSources.get(texture)?.source === source) watchedSources.delete(texture);
   };
-  source.watched.add(texture);
+  watchedSources.set(texture, { source, detach });
   texture.on("update", invalidate);
   texture.on("resize", invalidate);
   texture.once("destroy", detach);
@@ -157,7 +171,14 @@ export function getCardFinishSource(texture: Texture, optical = false): CardFini
     source.opticalFinish ??= {
       kind: isSemanticLayout(source.face) ? "raster" : "native",
       key: `manabrew-optical-finish:${source.id}`,
-      document: cardOpticalDocument(0, 0, source.face, "inspect", source.rulesText),
+      document: cardOpticalDocument(
+        0,
+        0,
+        source.face,
+        source.tier,
+        source.rulesText,
+        source.palette,
+      ),
       host: cardRasterHost(source.artUrls),
     };
     return source.opticalFinish;
@@ -185,12 +206,7 @@ export function getCardFinishSource(texture: Texture, optical = false): CardFini
               size,
               async paint(_host, signal) {
                 signal.throwIfAborted();
-                const canvas = document.createElement("canvas");
-                [canvas.width, canvas.height] = size;
-                const context = canvas.getContext("2d");
-                if (!context) throw new Error("Card finish requires a 2D canvas context");
-                context.drawImage(source.canvas, 0, 0, ...size);
-                return canvas;
+                return createImageBitmap(source.canvas);
               },
             },
             edges: artWindows.map((rect) => ({
@@ -238,7 +254,41 @@ export function getCardFinishSource(texture: Texture, optical = false): CardFini
       };
       return source.finish;
     }
-    const recipe = magic.describe(source.face, "inspect");
+    const recipe = magic.describe(source.face, source.tier === "table" ? "table" : "inspect");
+    recipe.color = {
+      ...recipe.color,
+      key: JSON.stringify([recipe.color.key, source.width, source.height]),
+      size: [source.width, source.height],
+      async paint(_host, signal) {
+        signal.throwIfAborted();
+        return createImageBitmap(source.canvas);
+      },
+    };
+    if (recipe.stamp) {
+      const stamp = recipe.stamp;
+      const key = JSON.stringify([stamp.key, source.width, source.height]);
+      recipe.stamp = {
+        ...stamp,
+        key,
+        size: [source.width, source.height],
+        async paint(_host, signal) {
+          const result = await composeCardOffThread(
+            {
+              key,
+              face: source.face,
+              printingId: null,
+              artUrls: source.artUrls,
+              rulesText: source.rulesText,
+              tier: source.tier,
+              palette: source.palette,
+              etching: true,
+            },
+            signal,
+          );
+          return result.raster;
+        },
+      };
+    }
     source.finish = {
       kind: "native",
       key: JSON.stringify([recipe.pack, recipe.color.size, recipe.edges, recipe.stamp?.key]),
@@ -250,68 +300,53 @@ export function getCardFinishSource(texture: Texture, optical = false): CardFini
 }
 
 function disposeLayers(layers: CardOpticalLayers): void {
-  for (const texture of [layers.artwork, layers.printing]) {
-    const canvas = texture.source.resource as HTMLCanvasElement;
-    texture.destroy(true);
-    canvas.width = canvas.height = 0;
-  }
+  layers.artwork.destroy(true);
+  layers.printing.destroy(true);
 }
 
 async function composeLayers(
   source: OpticalSource,
   signal: AbortSignal,
 ): Promise<CardOpticalLayers> {
-  await ensureCardGlintFonts();
-  signal.throwIfAborted();
-  const document = cardOpticalDocument(0, 0, source.face, "inspect", source.rulesText);
-  const printing = document.layers?.[0];
-  if (!printing) throw new Error("Card Glint optical printing layers are unavailable");
-  const host = cardRasterHost(source.artUrls);
+  const key = `manabrew-optical:${source.id}:${source.tier}`;
+  const result = await composeCardOffThread(
+    {
+      key,
+      face: source.face,
+      printingId: null,
+      artUrls: source.artUrls,
+      rulesText: source.rulesText,
+      tier: source.tier,
+      palette: source.palette,
+      optical: true,
+    },
+    signal,
+  );
+  const rasters = [result.raster, result.printing];
   const textures: Texture[] = [];
+  const owned: CardRaster[] = [];
   try {
-    for (const raster of [document.recipe.color, printing.raster]) {
-      const painted = await raster.paint(host, signal);
-      try {
-        signal.throwIfAborted();
-        const canvas = window.document.createElement("canvas");
-        canvas.width = source.width;
-        canvas.height = source.height;
-        const context = canvas.getContext("2d");
-        if (!context) throw new Error("Optical printing requires a 2D canvas context");
-        context.drawImage(painted, 0, 0, canvas.width, canvas.height);
-        textures.push(
-          new Texture({
-            source: new CanvasSource({
-              resource: canvas,
-              width: canvas.width,
-              height: canvas.height,
-              resolution: 1,
-              autoGenerateMipmaps: false,
-            }),
-          }),
-        );
-      } finally {
-        painted.width = painted.height = 0;
-      }
+    signal.throwIfAborted();
+    if (!result.printing || result.key !== key)
+      throw new Error("Card optical printing layers are unavailable");
+    for (const raster of rasters) {
+      if (!raster) continue;
+      ownCardRaster(raster, raster.width * raster.height * 4);
+      owned.push(raster);
+      textures.push(createGeneratedCardTexture(raster));
     }
     return {
       artwork: textures[0]!,
       printing: textures[1]!,
-      artWindows: document.recipe.artWindows.map(([x, y, width, height]) => ({
-        x,
-        y,
-        width,
-        height,
-      })),
-      cornerRadius: document.recipe.cornerRadius,
+      artWindows: getCardArtWindows(source.canvas),
+      cornerRadius: source.cornerRadius,
     };
   } catch (error) {
-    for (const texture of textures) {
-      const canvas = texture.source.resource as HTMLCanvasElement;
-      texture.destroy(true);
-      canvas.width = canvas.height = 0;
-    }
+    for (const texture of textures) texture.destroy(true);
+    for (const raster of rasters) if (raster && !owned.includes(raster)) closeRaster(raster);
     throw error;
+  } finally {
+    for (const raster of owned) releaseCardRaster(raster);
   }
 }
 
@@ -329,6 +364,7 @@ export function acquireCardOpticalLayers(
     const created: OpticalEntry = {
       refs: 0,
       controller,
+      releaseSource: retainCardRaster(source.canvas),
       ready: composeLayers(source, controller.signal).then((layers) => {
         if (controller.signal.aborted) {
           disposeLayers(layers);
@@ -349,6 +385,7 @@ export function acquireCardOpticalLayers(
     if (--retained.refs === 0) {
       retained.controller.abort();
       if (retained.layers) disposeLayers(retained.layers);
+      retained.releaseSource();
       if (source.entry === retained) source.entry = undefined;
     }
   };

@@ -1,129 +1,154 @@
-//! UnlockDoor — unlock a door on a Room card.
-//! Ported from Java's UnlockDoorEffect: unlocks one side of a Room
-//! enchantment, activating its abilities.
-
-use forge_foundation::ZoneType;
+use forge_foundation::{CardStateName, ZoneType};
 
 use super::EffectContext;
 use crate::event::RunParams;
-use crate::ids::CardId;
+use crate::game::GameState;
+use crate::ids::{CardId, PlayerId};
 use crate::spellability::SpellAbilityMode;
-use crate::trigger::TriggerType;
+use crate::trigger::{TriggerHandler, TriggerType};
 
-fn unlocked_room_count(ctx: &EffectContext, card_id: CardId) -> i32 {
-    let card = ctx.game.card(card_id);
-    // Check explicit counter first.
-    if let Some(count) = card
-        .svars
-        .get("UnlockedRoomCount")
-        .and_then(|v| v.parse::<i32>().ok())
-    {
-        return count;
+pub fn unlock_room(
+    game: &mut GameState,
+    triggers: &mut TriggerHandler,
+    card_id: CardId,
+    player: PlayerId,
+    door: CardStateName,
+) -> bool {
+    triggers.flush_waiting_triggers(game);
+    if !game.card_mut(card_id).unlock_room(door) {
+        return false;
     }
-    // A Room on the battlefield always has at least its first door unlocked
-    // (the door it was cast as).  The first door unlock happens implicitly at
-    // ETB without going through unlock_door_effect::resolve(), so
-    // UnlockedRoomCount is never set to 1.  Infer count=1 for Room cards on
-    // the battlefield.
-    if card.zone == ZoneType::Battlefield && card.type_line.has_subtype("Room") {
-        return 1;
+    crate::staticability::layer::apply_continuous_effects(game);
+    triggers.unregister_active_triggers(card_id);
+    triggers.register_active_trigger(game, card_id);
+    triggers.run_trigger(
+        TriggerType::UnlockDoor,
+        RunParams {
+            card: Some(card_id),
+            player: Some(player),
+            card_state_name: Some(format!("{door:?}")),
+            ..Default::default()
+        },
+        true,
+    );
+    if game.card(card_id).unlocked_doors.len() == 2 {
+        triggers.run_trigger(
+            TriggerType::FullyUnlock,
+            RunParams {
+                card: Some(card_id),
+                player: Some(player),
+                ..Default::default()
+            },
+            true,
+        );
     }
-    0
+    triggers.flush_waiting_triggers(game);
+    true
 }
 
-/// Struct form of this effect so it can participate in the
-/// `SpellAbilityEffect` trait hierarchy — mirrors Java's
-/// `UnlockDoorEffect` class extending `SpellAbilityEffect`.
+pub fn lock_room(
+    game: &mut GameState,
+    triggers: &mut TriggerHandler,
+    card_id: CardId,
+    door: CardStateName,
+) -> bool {
+    triggers.flush_waiting_triggers(game);
+    if !game.card_mut(card_id).lock_room(door) {
+        return false;
+    }
+    crate::staticability::layer::apply_continuous_effects(game);
+    triggers.unregister_active_triggers(card_id);
+    triggers.register_active_trigger(game, card_id);
+    true
+}
+
 #[manabrew_engine_macros::spell_effect(UnlockDoorEffect)]
 fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
-    let targets: Vec<CardId> = if let Some(target) = sa.target_chosen.target_card {
-        vec![target]
-    } else if let Some(source) = sa.source {
-        vec![source]
+    let player = sa.activating_player;
+    let targets = if let Some(filter) = sa.ir.choices.as_deref() {
+        let choices: Vec<_> = ctx
+            .game
+            .cards
+            .iter()
+            .filter(|card| {
+                card.zone == ZoneType::Battlefield
+                    && super::matches_valid_cards_for_sa(
+                        ctx.game,
+                        sa,
+                        card,
+                        sa.ir.choices_selector.as_ref(),
+                        filter,
+                    )
+            })
+            .map(|card| crate::agent::GameEntity::Card(card.id))
+            .collect();
+        if choices.is_empty() {
+            return;
+        }
+        ctx.agents[player.index()].snapshot_state(ctx.game, ctx.mana_pools);
+        match ctx.agents[player.index()].choose_single_entity_for_effect(player, &choices, false) {
+            Some(crate::agent::GameEntity::Card(card)) => vec![card],
+            _ => return,
+        }
     } else {
-        return;
+        crate::ability::spell_ability_effect::get_defined_cards_or_targeted(ctx.game, sa)
     };
-
     let mode = sa.ir.mode.as_ref().unwrap_or(&SpellAbilityMode::ThisDoor);
-
     for card_id in targets {
-        if ctx.game.card(card_id).zone != ZoneType::Battlefield {
+        if ctx.game.card(card_id).zone != ZoneType::Battlefield || !ctx.game.card(card_id).is_room()
+        {
             continue;
         }
-
-        let before = unlocked_room_count(ctx, card_id);
-        let mut after = before;
-        let mut unlocked = false;
-        match mode {
-            SpellAbilityMode::ThisDoor => {
-                ctx.game.card_mut(card_id).set_s_var("DoorUnlocked", "True");
-                if before < 2 {
-                    after = before + 1;
-                    unlocked = true;
-                }
+        let door = if mode == &SpellAbilityMode::ThisDoor {
+            sa.ir
+                .card_state_name
+                .as_deref()
+                .and_then(CardStateName::from_str_compat)
+        } else {
+            let doors: Vec<_> = [CardStateName::LeftSplit, CardStateName::RightSplit]
+                .into_iter()
+                .filter(|door| {
+                    mode == &SpellAbilityMode::LockOrUnlock
+                        || !ctx.game.card(card_id).is_door_unlocked(*door)
+                })
+                .collect();
+            if doors.is_empty() {
+                continue;
             }
-            SpellAbilityMode::Unlock => {
-                ctx.game.card_mut(card_id).set_s_var("DoorUnlocked", "True");
-                if before < 2 {
-                    after = before + 1;
-                    unlocked = true;
-                }
+            let descriptions: Vec<_> = doors
+                .iter()
+                .map(|door| {
+                    let action = if ctx.game.card(card_id).is_door_unlocked(*door) {
+                        "Lock"
+                    } else {
+                        "Unlock"
+                    };
+                    format!(
+                        "{action} {}",
+                        ctx.game.card(card_id).room_face(*door).unwrap().name
+                    )
+                })
+                .collect();
+            ctx.agents[player.index()].snapshot_state(ctx.game, ctx.mana_pools);
+            ctx.agents[player.index()]
+                .choose_mode(player, &descriptions, 1, 1, Some(card_id))
+                .first()
+                .and_then(|index| doors.get(*index))
+                .copied()
+        };
+        let Some(door) = door else { continue };
+        match mode {
+            SpellAbilityMode::ThisDoor | SpellAbilityMode::Unlock => {
+                unlock_room(ctx.game, ctx.trigger_handler, card_id, player, door);
             }
             SpellAbilityMode::LockOrUnlock => {
-                let is_locked = ctx
-                    .game
-                    .card(card_id)
-                    .svars
-                    .get("DoorUnlocked")
-                    .is_none_or(|v| v != "True");
-                if is_locked {
-                    ctx.game.card_mut(card_id).set_s_var("DoorUnlocked", "True");
-                    if before < 2 {
-                        after = before + 1;
-                        unlocked = true;
-                    }
+                if ctx.game.card(card_id).is_door_unlocked(door) {
+                    lock_room(ctx.game, ctx.trigger_handler, card_id, door);
                 } else {
-                    ctx.game.card_mut(card_id).remove_s_var("DoorUnlocked");
-                    after = before.saturating_sub(1);
+                    unlock_room(ctx.game, ctx.trigger_handler, card_id, player, door);
                 }
             }
             _ => {}
-        }
-
-        if after != before {
-            ctx.game
-                .card_mut(card_id)
-                .set_s_var("UnlockedRoomCount", after.to_string());
-        }
-
-        if unlocked {
-            ctx.trigger_handler.run_trigger(
-                TriggerType::UnlockDoor,
-                RunParams {
-                    card: Some(card_id),
-                    player: Some(sa.activating_player),
-                    card_state_name: sa.ir.card_state_name.clone(),
-                    ..Default::default()
-                },
-                true,
-            );
-            if before < 2 && after >= 2 {
-                // When both doors are unlocked, update the card name to the
-                // full combined name (e.g. "Walk-In Closet // Forgotten Cellar").
-                // Mirrors Java's Card.updateRooms() setting state to Original.
-                let full = ctx.game.card(card_id).full_name.clone();
-                ctx.game.card_mut(card_id).card_name = full;
-
-                ctx.trigger_handler.run_trigger(
-                    TriggerType::FullyUnlock,
-                    RunParams {
-                        card: Some(card_id),
-                        player: Some(sa.activating_player),
-                        ..Default::default()
-                    },
-                    true,
-                );
-            }
         }
     }
 }

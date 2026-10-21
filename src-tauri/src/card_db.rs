@@ -8,7 +8,6 @@ use memmap2::Mmap;
 use std::path::PathBuf;
 
 static CARD_DB: OnceLock<CardDatabase> = OnceLock::new();
-static CARD_NAME_INDEX: OnceLock<std::collections::HashSet<String>> = OnceLock::new();
 static DB_INIT: Once = Once::new();
 
 #[cfg(not(target_os = "android"))]
@@ -74,25 +73,8 @@ pub fn get_card_db() -> &'static CardDatabase {
     CARD_DB.get().expect("card db must be initialized")
 }
 
-pub fn get_card_name_index() -> &'static std::collections::HashSet<String> {
-    CARD_NAME_INDEX.get_or_init(|| {
-        // Walk the rkyv archive (or eager cache) for names without parsing
-        // any cards — `card_name_known` is hit on every UI deck-validation
-        // pass.
-        let db = get_card_db();
-        db.iter_card_keys().into_iter().collect()
-    })
-}
-
 pub fn card_name_known(name: &str) -> bool {
-    let index = get_card_name_index();
-    if index.contains(&name.to_lowercase()) {
-        return true;
-    }
-    if let Some((front, _)) = name.split_once(" // ") {
-        return index.contains(&front.to_lowercase());
-    }
-    false
+    get_card_db().get_by_card_name(name).is_some()
 }
 
 /// Parse the archive bytes through `CardDatabase::load_from_archive` and

@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.63.1](https://github.com/witchesofthehill/manabrew/compare/v3.63.0...v3.63.1) (2026-10-21)
+
+### Fixes
+
+* tinybones actionspace and desktop ([#1094](https://github.com/witchesofthehill/manabrew/issues/1094)) ([00c847a](https://github.com/witchesofthehill/manabrew/commit/00c847a9ad79a143c1f3f2b2bb914fe1f4514e92))
+
 ## [3.63.0](https://github.com/witchesofthehill/manabrew/compare/v3.62.2...v3.63.0) (2026-10-21)
 
 ### Features

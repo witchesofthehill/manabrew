@@ -515,6 +515,18 @@ function applyLiveFace(
   return showsPrintedFace(face, live) ? face : live;
 }
 
+// Forge names the card where current oracle text says "this land" or "this creature".
+function selfReferenced(text: string, name: string): string {
+  const own = normalized(name);
+  return normalized(text)
+    .split(own)
+    .join("~")
+    .replace(
+      /\bthis (?:artifact|battle|card|creature|enchantment|equipment|land|permanent|planeswalker|spell|vehicle)\b/g,
+      "~",
+    );
+}
+
 // An unchanged card must resolve to the printed face so deck pre-renders share its cache key.
 function showsPrintedFace(face: CardFaceSnapshot, live: CardFaceSnapshot): boolean {
   return (
@@ -524,7 +536,7 @@ function showsPrintedFace(face: CardFaceSnapshot, live: CardFaceSnapshot): boole
     live.name === face.name &&
     live.type_line_display === face.type_line_display &&
     normalized(live.type_line) === normalized(face.type_line) &&
-    normalized(live.oracle_text) === normalized(face.oracle_text) &&
+    selfReferenced(live.oracle_text, live.name) === selfReferenced(face.oracle_text, face.name) &&
     live.mana_cost === face.mana_cost &&
     [...(live.colors ?? [])].sort().join() === [...(face.colors ?? [])].sort().join() &&
     live.power === face.power &&

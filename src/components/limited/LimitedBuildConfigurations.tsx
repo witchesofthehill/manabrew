@@ -122,11 +122,13 @@ export function LimitedBuildConfigurations({ sessionKey, session, onClose }: Pro
               <>
                 <div className="grid gap-3 md:grid-cols-2">
                   <section>
-                    <h3 className="mb-2 font-serif text-lg">Current · {current.length} cards</h3>
+                    <h3 className="mb-2 text-lg font-semibold tabular-nums lining-nums">
+                      Current · {current.length} cards
+                    </h3>
                     <LimitedDeckStats cards={current} />
                   </section>
                   <section>
-                    <h3 className="mb-2 font-serif text-lg">
+                    <h3 className="mb-2 text-lg font-semibold tabular-nums lining-nums">
                       {selected.name} · {other.length} cards
                     </h3>
                     <LimitedDeckStats cards={other} />
@@ -142,7 +144,7 @@ export function LimitedBuildConfigurations({ sessionKey, session, onClose }: Pro
                           className="flex justify-between border-b border-border py-1"
                         >
                           <span>{entry.name}</span>
-                          <span className="font-mono">
+                          <span className="tabular-nums lining-nums">
                             {entry.delta > 0 ? "+" : ""}
                             {entry.delta}
                           </span>

@@ -211,25 +211,18 @@ export const FONTS: {
   use: string;
 }[] = [
   {
-    role: "Sans — body / UI",
-    stack: "Alegreya Sans",
+    role: "Body, UI and game",
+    stack: "Source Sans 3",
     cls: "font-sans",
-    weights: "400 · 500 · 700",
-    use: "Default body text, controls, panels",
+    weights: "400 · 500 · 600 · 700 · 800 · 900",
+    use: "Body text, controls, rules UI and canvas labels. font-game uses the same family.",
   },
   {
-    role: "Serif — display",
-    stack: "Cormorant Garamond",
-    cls: "font-serif",
-    weights: "600 · 700",
-    use: "Hero headings (light weight, wide tracking)",
-  },
-  {
-    role: "Game — board",
-    stack: "Inter",
-    cls: "font-game",
-    weights: "400–900",
-    use: "In-game surface + Pixi canvas text",
+    role: "Display and brand",
+    stack: "Alegreya Sans",
+    cls: "font-serif font-bold",
+    weights: "700",
+    use: "Alegreya Sans Bold for brand text and intentional display titles.",
   },
 ];
 export const GAME_FONT_SIZES: {
@@ -281,14 +274,20 @@ export const ASSETS: {
   {
     file: "public/apple-touch-icon.png",
     kind: "PWA icon",
-    use: "iOS home-screen + 512px maskable",
+    use: "512px approved favicon tile for home-screen icons",
     preview: "/apple-touch-icon.png",
   },
   {
     file: "public/icon-192x192.png",
     kind: "PWA icon",
-    use: "192px maskable",
+    use: "192px approved favicon tile for PWA icons",
     preview: "/icon-192x192.png",
+  },
+  {
+    file: "public/favicon.svg",
+    kind: "Favicon",
+    use: "Approved SVG favicon tile with transparent corners",
+    preview: "/favicon.svg",
   },
   {
     file: "public/favicon-128x128.png",

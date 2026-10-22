@@ -47,7 +47,7 @@ export function LimitedModeSelector({
     <fieldset disabled={disabled} className="min-w-0">
       <legend className="sr-only">Choose a format</legend>
       <div className="mb-2 flex min-h-9 items-center justify-between gap-3">
-        {leadingControl ?? <h2 className="font-serif text-lg">Choose a format</h2>}
+        {leadingControl ?? <h2 className="font-serif text-lg font-semibold">Choose a format</h2>}
         {actions}
       </div>
       <div className="grid grid-cols-3 gap-2">
@@ -57,7 +57,7 @@ export function LimitedModeSelector({
             className={cn(
               "relative flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-md border px-2 py-2 transition-colors focus-within:ring-2 focus-within:ring-ring motion-reduce:transition-none",
               mode === value
-                ? "border-selection bg-selection/10 text-foreground"
+                ? "border-selection-border bg-selection text-selection-foreground"
                 : "border-border/80 bg-card/40 text-muted-foreground hover:border-foreground/30 hover:bg-muted/50",
               disabled && "cursor-not-allowed opacity-50",
             )}
@@ -77,7 +77,7 @@ export function LimitedModeSelector({
             ) : (
               <Icon aria-hidden="true" className="h-4 w-4 shrink-0" />
             )}
-            <span className="font-serif text-base text-foreground">{title}</span>
+            <span className="text-base font-semibold text-foreground">{title}</span>
           </label>
         ))}
       </div>

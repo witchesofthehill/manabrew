@@ -271,7 +271,7 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
                 placeholder={defaultName}
                 autoComplete="off"
                 spellCheck={false}
-                className="w-full bg-transparent font-serif text-xl font-normal text-foreground outline-none placeholder:text-foreground sm:text-2xl"
+                className="w-full bg-transparent font-serif text-xl font-semibold text-foreground outline-none placeholder:text-foreground sm:text-2xl"
               />
               <div className="mt-3 flex max-w-64 items-center gap-1.5">
                 {roomPassword.trim() && (
@@ -304,7 +304,7 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
                 backgroundUrl={boardBackgroundUrl(background)}
                 centerContent={
                   <span className="flex flex-col items-center gap-1 px-2 text-center">
-                    <span className="font-serif text-lg font-light text-foreground/90 sm:text-2xl">
+                    <span className="font-serif text-lg font-semibold text-foreground/90 sm:text-2xl">
                       {modeLabel}
                     </span>
                     <span className="flex flex-wrap items-center justify-center gap-1 text-[11px] text-muted-foreground sm:text-xs">

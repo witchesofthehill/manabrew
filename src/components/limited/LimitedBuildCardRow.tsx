@@ -48,7 +48,7 @@ export function LimitedBuildCardRow({
     <li
       className={cn(
         "flex items-center gap-1 rounded bg-card/70 px-2 py-1",
-        selected && "bg-selection/20 ring-1 ring-selection",
+        selected && "bg-selection ring-1 ring-selection-border",
       )}
     >
       <button

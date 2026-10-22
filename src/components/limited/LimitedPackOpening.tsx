@@ -87,7 +87,7 @@ export function LimitedPackOpening({
     >
       <header className="flex shrink-0 items-start justify-between gap-3">
         <div>
-          <h2 className="font-serif text-xl sm:text-2xl">{setName}</h2>
+          <h2 className="font-serif text-xl font-semibold sm:text-2xl">{setName}</h2>
           <p role="status" aria-live="polite" className="mt-0.5 text-xs text-muted-foreground">
             {preparing
               ? "Loading cards…"
@@ -131,7 +131,7 @@ export function LimitedPackOpening({
             className="flex min-h-0 min-w-0 flex-1 flex-col gap-1"
           >
             <div className="flex shrink-0 items-baseline justify-center gap-2">
-              <h3 className="font-serif text-lg">
+              <h3 className="text-lg font-semibold">
                 {showingPool
                   ? "Pool"
                   : activePack

@@ -60,10 +60,7 @@ export function KeyboardShortcutsDialog({
                     return (
                       <div key={b.id} className="flex items-center justify-between gap-3 text-sm">
                         <span>{b.label}</span>
-                        <kbd
-                          className="rounded border bg-muted px-1.5 py-0.5 text-xs"
-                          style={{ fontFamily: "system-ui, -apple-system, sans-serif" }}
-                        >
+                        <kbd className="rounded border bg-muted px-1.5 py-0.5 text-xs">
                           {combo ? formatCombo(combo) : "—"}
                         </kbd>
                       </div>

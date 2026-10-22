@@ -68,8 +68,12 @@ export function WinstonWorkspace({
         {(showBoth || tab === "piles") && (
           <section className="flex min-h-0 flex-col overflow-hidden">
             <header className="flex shrink-0 self-center items-center justify-center gap-2 rounded bg-card/70 px-2 py-1">
-              <h2 className="font-serif text-lg">Pile {activeIdx + 1}</h2>
-              <span className="text-xs text-muted-foreground">{activePile.length} cards</span>
+              <h2 className="text-lg font-semibold tabular-nums lining-nums">
+                Pile {activeIdx + 1}
+              </h2>
+              <span className="text-xs tabular-nums lining-nums text-muted-foreground">
+                {activePile.length} cards
+              </span>
               <LimitedReferenceButton
                 cards={activeWinston.pickedPile.length ? activeWinston.pickedPile : activePile}
                 format={referenceFormat}

@@ -83,7 +83,7 @@ export function manaAbilityInfos(
             abilityIndex: a.abilityIndex,
             description: a.description,
             isManaAbility: true,
-            isClassLevelUp: false,
+            levelUp: a.levelUp,
             cost: a.cost,
             producedMana: a.producedMana,
             actionId: a.id,
@@ -115,22 +115,24 @@ export function isLethalDamage(card: CardDto, queuedDamage = 0): boolean {
   return !isNaN(toughness) && total >= toughness;
 }
 export type ScryfallImageSize = "small" | "normal" | "large" | "png" | "border_crop" | "art_crop";
-/** CardDto view of a stack-resident source for rendering. `StackObjectDto.text`
- *  is a stack label rather than Oracle text, so the rules renderer hydrates
- *  rules and printed characteristics from the printing identity. */
-export function stackObjectToCardStub(obj: StackObjectDto): ClientCardDto {
+export function stackObjectToCard(obj: StackObjectDto): ClientCardDto {
+  if (obj.sourceCard) {
+    return {
+      ...GAME_CARD_DEFAULTS,
+      ...obj.sourceCard,
+      id: obj.sourceId,
+      zoneId: "stack",
+    };
+  }
   return {
     ...GAME_CARD_DEFAULTS,
     id: obj.sourceId,
-    identity: obj.identity,
-    foil: obj.foil,
-    cosmetics: obj.cosmetics,
+    identity: obj.identity ?? GAME_CARD_DEFAULTS.identity,
     text: "",
     controllerId: obj.controllerId,
     ownerId: obj.ownerId,
     zoneId: "stack",
-    isDoubleFaced: obj.isDoubleFaced,
-    isTransformed: obj.faceIndex === 1,
+    isFaceDown: !obj.identity,
   };
 }
 export function stackObjectAbilityText(obj: StackObjectDto): string {

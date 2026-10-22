@@ -68,7 +68,6 @@ export default function Gauntlet() {
   const referenceFormat = useLimitedSessionSource(progress?.sessionKey ?? null);
 
   useTopBarOverride({
-    onBack: () => navigate(ROUTES.PLAY_OFFLINE_LIMITED),
     onHome: () => navigate(ROUTES.PLAY),
   });
   useEffect(() => {
@@ -115,7 +114,7 @@ export default function Gauntlet() {
         ),
       ]);
       await armGauntletReturn(gauntlet);
-      const started = startGame(human, format, undefined, [opponent], "Forge");
+      const started = startGame(human, format, undefined, [opponent], "Forge", gauntlet.gauntletId);
       navigate(ROUTES.PLAY, { state: { exitTo: `/gauntlet/${gauntlet.gauntletId}` } });
       if (!(await started)) {
         await clearGauntletReturn();

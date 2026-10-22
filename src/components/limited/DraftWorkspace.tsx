@@ -88,9 +88,9 @@ export function DraftWorkspace({
           aria-label="Current booster"
         >
           <header className="flex shrink-0 flex-wrap items-center justify-center gap-x-4 gap-y-1 px-3">
-            <h2 className="rounded bg-card/70 px-2 py-1 font-serif text-lg">
+            <h2 className="rounded bg-card/70 px-2 py-1 text-lg font-semibold">
               Booster{" "}
-              <span className="font-sans text-xs text-muted-foreground">
+              <span className="text-xs tabular-nums lining-nums text-muted-foreground">
                 {draft.currentPack.length}
               </span>
             </h2>

@@ -97,6 +97,8 @@ pub struct MagicStack {
     /// Whether the stack is currently resolving an entry.
     #[serde(default)]
     resolving: bool,
+    #[serde(default)]
+    resolving_fizzled: bool,
 
     /// The card currently being resolved (if any).
     #[serde(default)]
@@ -162,6 +164,7 @@ impl MagicStack {
             frozen: false,
             frozen_stack: Vec::new(),
             resolving: false,
+            resolving_fizzled: false,
             cur_resolving_card: None,
             resolving_entry: None,
             this_turn_cast: Vec::new(),
@@ -448,6 +451,13 @@ impl MagicStack {
     pub fn set_resolving(&mut self, resolving: bool) {
         self.resolving = resolving;
     }
+    pub fn set_resolving_fizzled(&mut self, fizzled: bool) {
+        self.resolving_fizzled = fizzled;
+    }
+
+    pub fn resolving_fizzle(&self, card: CardId) -> Option<bool> {
+        (self.resolving && self.cur_resolving_card == Some(card)).then_some(self.resolving_fizzled)
+    }
 
     pub fn set_cur_resolving_card(&mut self, card: Option<CardId>) {
         self.cur_resolving_card = card;
@@ -596,6 +606,7 @@ impl MagicStack {
         self.resolving = true;
         self.cur_resolving_card = entry.spell_ability.source;
         self.resolving_entry = Some(entry.clone());
+        self.resolving_fizzled = false;
         Some(entry)
     }
 
@@ -604,6 +615,7 @@ impl MagicStack {
         self.resolving = false;
         self.cur_resolving_card = None;
         self.resolving_entry = None;
+        self.resolving_fizzled = false;
     }
 
     // ── Turn tracking ────────────────────────────────────────────────

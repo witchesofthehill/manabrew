@@ -93,6 +93,21 @@ pub fn get_proto_type(sa: &SpellAbility, original: &Card, new_owner: crate::ids:
         original.keywords.as_string_list(),
         original.abilities.clone(),
     );
+    copy.full_name.clone_from(&original.full_name);
+    if original.copied_spell && sa.is_spell && sa.source == Some(original.id) {
+        copy.cast_sa = Some(Box::new(sa.clone()));
+    }
+    copy.room_faces.clone_from(&original.room_faces);
+    if copy.room_faces.is_some() {
+        copy.activated_abilities
+            .clone_from(&original.activated_abilities);
+        copy.base_ability_count = copy.activated_abilities.len();
+        if copy.cast_sa.is_some() {
+            copy.room_state = original.room_state;
+        } else {
+            copy.update_rooms();
+        }
+    }
     copy.set_triggers(original.copiable_triggers());
     copy.set_svars_map(original.svars.clone());
     copy.set_static_abilities(original.static_abilities.clone());

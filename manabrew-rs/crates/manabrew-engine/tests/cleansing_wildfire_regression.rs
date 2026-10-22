@@ -136,7 +136,7 @@ impl PlayerAgent for AcceptSearchAgent {
         _: Option<&str>,
         _: &str,
         _: &[String],
-        _: Option<&str>,
+        _: Option<CardId>,
         _: Option<manabrew_engine::ability::api_type::ApiType>,
     ) -> bool {
         true

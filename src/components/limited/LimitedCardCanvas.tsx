@@ -425,7 +425,7 @@ export function LimitedCardCanvas({
                 "absolute z-[2] cursor-pointer rounded-md p-2 text-sm opacity-0 focus-visible:opacity-100 focus-visible:bg-card focus-visible:text-card-foreground focus-visible:outline-2 focus-visible:outline-primary",
                 onDrop && "cursor-grab active:cursor-grabbing",
                 error && "bg-card opacity-100",
-                selectedIds.includes(cell.card.id) && "ring-2 ring-selection",
+                selectedIds.includes(cell.card.id) && "ring-2 ring-selection-border",
               )}
               style={{
                 left: cell.x,

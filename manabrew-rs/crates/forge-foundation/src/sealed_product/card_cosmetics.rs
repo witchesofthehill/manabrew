@@ -404,6 +404,68 @@ pub struct CardPrintingSelection {
     pub faces: Option<Vec<CardPrintingFace>>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export, export_to = "deck/index.ts")]
+pub struct CardCoating {
+    #[serde(deserialize_with = "unit_amount")]
+    #[ts(type = "number")]
+    pub amount: CardCosmeticNumber,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export, export_to = "deck/index.ts")]
+pub struct CardPrintDots {
+    #[serde(deserialize_with = "unit_amount")]
+    #[ts(type = "number")]
+    pub amount: CardCosmeticNumber,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "print_period"
+    )]
+    #[ts(optional, type = "number")]
+    pub period: Option<CardCosmeticNumber>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "paper_opacity"
+    )]
+    #[ts(optional, type = "number")]
+    pub variation: Option<CardCosmeticNumber>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "print_inset"
+    )]
+    #[ts(optional, type = "number")]
+    pub inset: Option<CardCosmeticNumber>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub artwork: Option<bool>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "deck/index.ts")]
+pub enum CardFinishCoverageArea {
+    Full,
+    Artwork,
+    Left,
+    Right,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export, export_to = "deck/index.ts")]
+pub struct CardFinishCoverage {
+    pub area: CardFinishCoverageArea,
+    #[serde(deserialize_with = "unit_amount")]
+    #[ts(type = "number")]
+    pub amount: CardCosmeticNumber,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[ts(export, export_to = "deck/index.ts")]
@@ -437,6 +499,22 @@ pub struct CardCosmetics {
     )]
     #[ts(optional, type = "number")]
     pub rain_fog: Option<CardCosmeticNumber>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "heat_deformation"
+    )]
+    #[ts(optional, type = "number")]
+    pub heat_deformation: Option<CardCosmeticNumber>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub cardstock: Option<CardCoating>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub print_dots: Option<CardPrintDots>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub finish_coverage: Option<CardFinishCoverage>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub wording: Option<CardWordingMode>,
@@ -580,6 +658,33 @@ impl CardCosmetics {
         if self.rain_fog.is_some_and(|n| n.get() == 1.0) {
             self.rain_fog = None;
         }
+        if self.heat_deformation.is_some_and(|n| n.get() == 0.0) {
+            self.heat_deformation = None;
+        }
+        if self
+            .cardstock
+            .as_ref()
+            .is_some_and(|v| v.amount.get() == 0.0)
+        {
+            self.cardstock = None;
+        }
+        if let Some(dots) = &mut self.print_dots {
+            if dots.period.is_some_and(|n| n.get() == 5.0) {
+                dots.period = None;
+            }
+            if dots.variation.is_some_and(|n| n.get() == 0.5) {
+                dots.variation = None;
+            }
+            if dots.inset.is_some_and(|n| n.get() == 0.0) {
+                dots.inset = None;
+            }
+            if dots.artwork == Some(true) {
+                dots.artwork = None;
+            }
+            if dots.amount.get() == 0.0 {
+                self.print_dots = None;
+            }
+        }
         if self.wording == Some(CardWordingMode::Oracle) {
             self.wording = None;
         }
@@ -645,6 +750,34 @@ fn collector_total<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Option<u32>
     Ok(value)
 }
 
+fn unit_amount<'de, D: serde::Deserializer<'de>>(d: D) -> Result<CardCosmeticNumber, D::Error> {
+    let value = CardCosmeticNumber::deserialize(d)?;
+    if !(0.0..=1.0).contains(&value.get()) {
+        return Err(serde::de::Error::custom("invalid cosmetic amount"));
+    }
+    Ok(value)
+}
+
+fn print_period<'de, D: serde::Deserializer<'de>>(
+    d: D,
+) -> Result<Option<CardCosmeticNumber>, D::Error> {
+    let value = Option::<CardCosmeticNumber>::deserialize(d)?;
+    if value.is_some_and(|n| !(2.0..=16.0).contains(&n.get())) {
+        return Err(serde::de::Error::custom("invalid print period"));
+    }
+    Ok(value)
+}
+
+fn print_inset<'de, D: serde::Deserializer<'de>>(
+    d: D,
+) -> Result<Option<CardCosmeticNumber>, D::Error> {
+    let value = Option::<CardCosmeticNumber>::deserialize(d)?;
+    if value.is_some_and(|n| !(0.0..=0.2).contains(&n.get())) {
+        return Err(serde::de::Error::custom("invalid print inset"));
+    }
+    Ok(value)
+}
+
 fn wear_amount<'de, D: serde::Deserializer<'de>>(
     d: D,
 ) -> Result<Option<CardCosmeticNumber>, D::Error> {
@@ -661,6 +794,16 @@ fn rain_fog<'de, D: serde::Deserializer<'de>>(
     let value = Option::<CardCosmeticNumber>::deserialize(d)?;
     if value.is_some_and(|n| !(0.0..=2.0).contains(&n.get())) {
         return Err(serde::de::Error::custom("invalid rain_fog"));
+    }
+    Ok(value)
+}
+
+fn heat_deformation<'de, D: serde::Deserializer<'de>>(
+    d: D,
+) -> Result<Option<CardCosmeticNumber>, D::Error> {
+    let value = Option::<CardCosmeticNumber>::deserialize(d)?;
+    if value.is_some_and(|n| !(0.0..=0.02).contains(&n.get())) {
+        return Err(serde::de::Error::custom("invalid heat_deformation"));
     }
     Ok(value)
 }

@@ -122,7 +122,7 @@ export function DeckStats({
                       count === 0 && "opacity-15",
                       isDimmed && "opacity-40",
                       hoveredBucket === i && "brightness-110",
-                      isActive && "ring-2 ring-selection ring-offset-2 ring-offset-card",
+                      isActive && "ring-2 ring-selection-border ring-offset-2 ring-offset-card",
                     )}
                     style={{
                       height: count > 0 ? `${Math.max((count / max) * barMaxPx, 4)}px` : "4px",

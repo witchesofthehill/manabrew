@@ -54,6 +54,7 @@ export const FORMAT_DISPLAY: Record<string, string> = {
   vintage: "Vintage",
   commander: "Commander",
   pauper: "Pauper",
+  paupercommander: "Pauper Commander",
   premodern: "Premodern",
   historic: "Historic",
   brawl: "Brawl",

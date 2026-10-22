@@ -66,7 +66,7 @@ export function DeckHubEntryCard({
   ) : null;
   const rankMarker = rank ? (
     <span
-      className="flex h-7 min-w-7 shrink-0 items-center justify-center rounded-full border border-[var(--podium-color)] bg-background/90 px-1.5 font-serif text-xs font-semibold text-[var(--podium-color)] shadow-sm backdrop-blur-sm"
+      className="flex h-7 min-w-7 shrink-0 items-center justify-center rounded-full border border-[var(--podium-color)] bg-background/90 px-1.5 text-xs font-semibold tabular-nums lining-nums text-[var(--podium-color)] shadow-sm backdrop-blur-sm"
       role={rank <= 3 ? "img" : undefined}
       aria-label={
         rank === 1

@@ -48,7 +48,7 @@ export function LimitedSetConfiguration({
                 className="h-12 w-12 shrink-0 text-foreground/80 sm:h-16 sm:w-16"
               />
               <div className="min-w-0">
-                <h3 className="break-words font-serif text-2xl leading-tight text-foreground sm:text-3xl">
+                <h3 className="break-words font-serif text-2xl font-semibold leading-tight text-foreground sm:text-3xl">
                   {set.name}
                 </h3>
                 <p className="mt-1 text-xs text-muted-foreground">

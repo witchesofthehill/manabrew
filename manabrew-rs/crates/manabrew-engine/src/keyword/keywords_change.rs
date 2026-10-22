@@ -8,7 +8,7 @@ use super::trait_keywords_change::KeywordsChange as IKeywordsChange;
 
 /// Tracks a set of keyword changes (additions and removals).
 /// Mirrors Java's `KeywordsChange` class.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct KeywordsChange {
     /// Keywords to add.
     pub keywords: KeywordCollection,
@@ -174,8 +174,9 @@ impl IKeywordsChange for KeywordsChange {
         if self.remove_all_keywords {
             list.clear();
         } else {
-            let strs: Vec<&str> = self.remove_keywords.iter().map(|s| s.as_str()).collect();
-            list.remove_strings(strs);
+            for keyword in &self.remove_keywords {
+                list.remove(keyword);
+            }
         }
 
         // Remove specific instances
@@ -184,12 +185,60 @@ impl IKeywordsChange for KeywordsChange {
         }
 
         // Add new keywords
-        for inst in self.keywords.get_values() {
+        for inst in self.keywords.iter_values() {
             list.insert(inst.clone());
         }
     }
 
     fn copy(&self) -> Box<dyn IKeywordsChange> {
         Box::new(self.clone())
+    }
+}
+
+pub(crate) mod timestamped {
+    use std::collections::BTreeMap;
+
+    use serde::{Deserializer, Serializer};
+
+    use super::KeywordsChange;
+
+    pub fn serialize<S>(
+        changes: &BTreeMap<(i64, i64), KeywordsChange>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.collect_seq(changes.iter())
+    }
+
+    pub fn deserialize<'de, D>(
+        deserializer: D,
+    ) -> Result<BTreeMap<(i64, i64), KeywordsChange>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct Entries;
+
+        impl<'de> serde::de::Visitor<'de> for Entries {
+            type Value = BTreeMap<(i64, i64), KeywordsChange>;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("timestamped change entries")
+            }
+
+            fn visit_seq<A>(self, mut sequence: A) -> Result<Self::Value, A::Error>
+            where
+                A: serde::de::SeqAccess<'de>,
+            {
+                let mut changes = BTreeMap::new();
+                while let Some((key, value)) = sequence.next_element()? {
+                    changes.insert(key, value);
+                }
+                Ok(changes)
+            }
+        }
+
+        deserializer.deserialize_seq(Entries)
     }
 }

@@ -23,12 +23,13 @@ export function Section({
     return () => window.removeEventListener("hashchange", openIfTargeted);
   }, [id]);
   return (
-    <section id={id} className="scroll-mt-24 border-t border-border pt-6">
+    <section id={id} className="ds-section scroll-mt-24 border-t border-border pt-6">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="flex w-full items-center gap-3 text-left"
+        aria-controls={`${id}-content`}
+        className="ds-section-toggle flex w-full items-center gap-3 text-left"
       >
         <ChevronRight
           className={cn(
@@ -36,27 +37,30 @@ export function Section({
             open && "rotate-90",
           )}
         />
-        <h2 className="font-serif text-2xl font-light tracking-tight">{title}</h2>
+        <h2 className="font-serif text-2xl font-semibold tracking-tight">{title}</h2>
       </button>
-      {open && (
-        <div className="space-y-6 pt-4">
-          {intro && <p className="max-w-2xl text-sm text-muted-foreground">{intro}</p>}
-          {children}
-        </div>
-      )}
+      <div
+        id={`${id}-content`}
+        className={cn("ds-section-content space-y-6 pt-4", !open && "hidden")}
+      >
+        {intro && <p className="max-w-2xl text-sm text-muted-foreground">{intro}</p>}
+        {children}
+      </div>
     </section>
   );
 }
 export function Subhead({ children }: { children: React.ReactNode }) {
   return (
-    <h3 className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+    <h3 className="ds-subhead text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
       {children}
     </h3>
   );
 }
 export function Panel({ className, children }: { className?: string; children: React.ReactNode }) {
   return (
-    <div className={cn("rounded-lg border border-border bg-card p-5", className)}>{children}</div>
+    <div className={cn("ds-panel rounded-lg border border-border bg-card p-5", className)}>
+      {children}
+    </div>
   );
 }
 export function CopyChip({ value, className }: { value: string; className?: string }) {
@@ -75,7 +79,8 @@ export function CopyChip({ value, className }: { value: string; className?: stri
       )}
       title={`Copy ${value}`}
     >
-      {copied ? `copied` : value}
+      <span className="ds-screen-only">{copied ? `copied` : value}</span>
+      <span className="ds-print-only">{value}</span>
     </button>
   );
 }
@@ -90,7 +95,7 @@ const CHECKER_STYLE: React.CSSProperties = {
 };
 export function Swatch({ value, label, sub }: { value: string; label: string; sub?: string }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-card">
+    <div className="ds-swatch overflow-hidden rounded-lg border border-border bg-card">
       <div className="h-16" style={CHECKER_STYLE}>
         <div className="h-full w-full" style={{ background: value }} />
       </div>
@@ -104,12 +109,14 @@ export function Swatch({ value, label, sub }: { value: string; label: string; su
 }
 export function SwatchGrid({ children }: { children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(112px,1fr))] gap-2">{children}</div>
+    <div className="ds-swatch-grid grid grid-cols-[repeat(auto-fill,minmax(112px,1fr))] gap-2">
+      {children}
+    </div>
   );
 }
 export function Tile({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col items-center gap-2 rounded-lg border border-border bg-card p-3 text-center">
+    <div className="ds-tile flex flex-col items-center gap-2 rounded-lg border border-border bg-card p-3 text-center">
       <div className="flex min-h-9 items-center justify-center">{children}</div>
       <span className="text-[10px] leading-tight text-muted-foreground">{label}</span>
     </div>

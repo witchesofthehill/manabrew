@@ -11,6 +11,7 @@ const SELECTABLE_FORMATS: GameFormat[] = [
   "Pauper",
   "Premodern",
   "Commander",
+  "PauperCommander",
   "Brawl",
   "Oathbreaker",
   "Draft",

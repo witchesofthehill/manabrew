@@ -13,6 +13,29 @@ import {
   isLethalDamage,
 } from "@/components/game/game.utils";
 
+const ROOM_COLLECTOR_STRIP_FRACTION = 32 / 680;
+const ROOM_DOOR_DIVIDER = (1 + ROOM_COLLECTOR_STRIP_FRACTION) / 2;
+export const ROOM_DOOR_BOUNDS = [
+  { door: "left", x: 0, width: ROOM_DOOR_DIVIDER },
+  { door: "right", x: ROOM_DOOR_DIVIDER, width: 1 - ROOM_DOOR_DIVIDER },
+] as const;
+
+export function roomDoorState(card: CardDto): number | undefined {
+  if (
+    !card.subtypes.includes("Room") ||
+    card.isFaceDown ||
+    !card.identity.name ||
+    ("visibility" in card && card.visibility === "hidden")
+  )
+    return undefined;
+  if ("zoneId" in card && card.zoneId === "stack")
+    return card.faceIndex === 0 ? 1 : card.faceIndex === 1 ? 2 : undefined;
+  if (card.zone !== "battlefield" || card.unlockedDoors === undefined) return undefined;
+  return (
+    (card.unlockedDoors.includes("left") ? 1 : 0) | (card.unlockedDoors.includes("right") ? 2 : 0)
+  );
+}
+
 export type CardStatusTone =
   | keyof GameThemeColors["cardStatus"]
   | "neutral"

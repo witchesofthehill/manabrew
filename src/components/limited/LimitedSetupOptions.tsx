@@ -56,7 +56,7 @@ export function LimitedSetupOptions(props: LimitedSetupOptionsProps) {
   const variants = [...new Set(props.variants.filter((variant) => variant.trim()))];
   return (
     <fieldset disabled={props.disabled} className="min-w-0 space-y-4">
-      <legend className="mb-3 font-serif text-lg text-foreground">Options</legend>
+      <legend className="mb-3 font-serif text-lg font-semibold text-foreground">Options</legend>
       <div className="grid grid-cols-2 gap-3">
         {props.mode === "sealed" && (
           <NumberField

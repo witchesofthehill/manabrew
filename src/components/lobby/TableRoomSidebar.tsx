@@ -21,13 +21,14 @@ const HOST_SELECTABLE_FORMATS: GameFormat[] = [
   "Pauper",
   "Premodern",
   "Commander",
+  "PauperCommander",
   "Brawl",
   "Oathbreaker",
   "Draft",
   "Sealed",
 ];
 const PLAYER_COUNT_OPTIONS = [2, 3, 4];
-const MULTIPLAYER_FORMATS: GameFormat[] = ["Commander", "Brawl", "Oathbreaker"];
+const MULTIPLAYER_FORMATS: GameFormat[] = ["Commander", "PauperCommander", "Brawl", "Oathbreaker"];
 interface TableRoomSidebarProps {
   room: RoomInfo;
   roomPassword?: string | null;
@@ -81,7 +82,7 @@ export function TableRoomSidebar({
   return (
     <aside className="grid content-start gap-4 sm:grid-cols-2 xl:grid-cols-1">
       <section className="rounded-xl border bg-card/85 p-4 backdrop-blur-md">
-        <h2 className="truncate font-serif text-xl font-light">{room.room_name}</h2>
+        <h2 className="truncate font-serif text-xl font-semibold">{room.room_name}</h2>
         <dl className="mt-3 space-y-3 text-sm">
           <div className="flex items-center justify-between gap-3">
             <dt className="text-muted-foreground">Format</dt>

@@ -3,7 +3,7 @@ import {
   type RenderedCardInput,
   type CardWording,
 } from "card-glint/magic/presentation";
-import { resolvePrintingArtist, resolvePrintingWording } from "card-glint/magic";
+import { resolveSetPrintingArtist, resolveSetPrintingWording } from "card-glint/magic/printing";
 import type { CardSnapshot } from "@/lib/cardRenderTypes";
 import type { CardDto } from "@/protocol/game";
 import type { CardCosmetics, DeckCard } from "@/protocol/deck";
@@ -14,11 +14,17 @@ import { cardTypeLine, replaceCardName } from "@/components/game/cardPresentatio
 import { cardFaceImageUris } from "@/lib/cardImage";
 import { resolveCardFaces } from "@/lib/cardFaces";
 import { isTwoHalfLayout } from "@/lib/cardLayout";
-import { CARD_ARTWORK_FACE_FRAGMENT } from "@/lib/cardRenderArtwork";
 import { CardArtworkError, CardRenderError } from "@/lib/cardRenderDecision";
 import { hasIntegratedArtwork } from "@/lib/cardArtworkPrinting";
 import { previewDtoDeckCard } from "@/lib/scryfall.utils";
 import { localizeRulesPreviewText } from "@/pixi/cardPreview/rulesCardPreviewPresentation";
+import {
+  printedPrototype,
+  prototypeRules,
+  type PrototypeCharacteristics,
+  type PrototypeRules,
+} from "@/lib/cardPrototype";
+import { gameCardFaceIndex } from "@/lib/gameCard";
 import {
   peekArchivedToken,
   prefetchTokenArchive,
@@ -30,6 +36,7 @@ export interface CardRenderRequest {
   card?: CardDto;
   deckCard?: DeckCard;
   faceIndex?: 0 | 1;
+  liveFaceIndex?: 0 | 1;
   gameplay?: boolean;
 }
 
@@ -40,7 +47,7 @@ interface LiveCard {
   tokenScript?: string;
   isToken: boolean;
   isCopy: boolean;
-  isTransformed: boolean;
+  faceIndex: 0 | 1;
   isDoubleFaced: boolean;
   hasCharacteristics: boolean;
   manaCost: string;
@@ -56,12 +63,14 @@ interface LiveCard {
   baseToughness?: number;
   loyalty?: string;
   defense?: string;
+  isPrototyped?: boolean;
 }
 
 export interface CardRenderInput {
   readonly card?: LiveCard;
   readonly deckCard?: DeckCard;
   readonly faceIndex?: 0 | 1;
+  readonly liveFaceIndex?: 0 | 1;
   readonly locale: ScryfallLanguage;
   readonly cosmetics?: CardCosmetics;
   readonly gameplay: boolean;
@@ -95,6 +104,12 @@ export interface CardFaceSnapshot {
   artist?: string;
   life_modifier?: string;
   liveChanges?: CardFaceLiveChanges;
+  prototype?: PrototypeCharacteristics;
+  prototypeBase?: PrototypeCharacteristics;
+  prototypeRules?: PrototypeRules;
+  prototypeSelected?: boolean;
+  levelerBase?: { power: string; toughness: string };
+  levelerRules?: string;
 }
 
 export interface PreparedCard {
@@ -104,6 +119,7 @@ export interface PreparedCard {
   combined: boolean;
   locale: ScryfallLanguage;
   readonly gameplay: boolean;
+  readonly composite?: RenderedCardInput;
   readonly printing: readonly {
     readonly id?: string;
     readonly canonicalArtist?: string;
@@ -154,7 +170,14 @@ export function captureCardInput(request: CardRenderRequest): CardRenderInput {
   if (!card?.identity?.name && !deckCard?.identity?.name) {
     throw new Error("Card rendering requires a visible card identity");
   }
-  const emptyCounter = card && "zoneId" in card && card.zoneId === "battlefield" ? "0" : undefined;
+  const emptyCounter = card?.zone === "battlefield" ? "0" : undefined;
+  const activeFaceIndex = card
+    ? card.faceIndex === undefined
+      ? gameCardFaceIndex(card)
+      : card.faceIndex === 1
+        ? 1
+        : 0
+    : undefined;
   const live: LiveCard | undefined =
     card && !previewDeck
       ? {
@@ -164,7 +187,7 @@ export function captureCardInput(request: CardRenderRequest): CardRenderInput {
           tokenScript: card.identity.tokenScript,
           isToken: card.identity.isToken,
           isCopy: card.isCopy,
-          isTransformed: card.isTransformed,
+          faceIndex: activeFaceIndex ?? 0,
           isDoubleFaced: card.isDoubleFaced,
           hasCharacteristics: card.types.length > 0 || card.text.length > 0,
           manaCost: normalizedManaCost(card.effectiveManaCost ?? card.manaCost),
@@ -178,14 +201,21 @@ export function captureCardInput(request: CardRenderRequest): CardRenderInput {
           toughness: card.toughness ?? undefined,
           basePower: card.basePower,
           baseToughness: card.baseToughness,
+          isPrototyped: card.isPrototyped,
           loyalty: card.counters.Loyalty == null ? emptyCounter : String(card.counters.Loyalty),
-          defense: card.counters.Defense == null ? emptyCounter : String(card.counters.Defense),
+          defense:
+            card.zone !== undefined && card.zone !== "battlefield"
+              ? undefined
+              : card.counters.Defense == null
+                ? emptyCounter
+                : String(card.counters.Defense),
         }
       : undefined;
   return Object.freeze({
     card: live && Object.freeze(live),
     deckCard: deckCard ? structuredClone(deckCard) : undefined,
     faceIndex,
+    liveFaceIndex: request.liveFaceIndex ?? activeFaceIndex,
     locale: useScryfallStore.getState().locale,
     cosmetics: normalizeCardCosmetics(card ? card.cosmetics : deckCard?.identity.cosmetics),
     gameplay: live != null || request.gameplay === true,
@@ -269,8 +299,12 @@ function normalized(text: string): string {
 
 function liveRules(card: LiveCard, info: ScryfallCard | undefined, index: number): string {
   const canonical = info?.card_faces?.[index]?.oracle_text ?? info?.oracle_text ?? "";
+  const prototype = printedPrototype(canonical);
+  const currentRules = prototype
+    ? (prototypeRules(card.rulesText, prototype)?.rulesText ?? card.rulesText)
+    : card.rulesText;
   const lines = canonical.split("\n").map(normalized);
-  const rules = card.rulesText
+  const rules = currentRules
     .split("\n")
     .map((line) =>
       lines.includes(normalized(line)) ? localizeRulesPreviewText(line, info ?? null, index) : line,
@@ -281,6 +315,21 @@ function liveRules(card: LiveCard, info: ScryfallCard | undefined, index: number
   return rules.join("\n");
 }
 
+function nativeLevelerRules(face: PrintedFace | undefined): string | undefined {
+  const canonical = face?.oracle_text ?? "";
+  if (!/^Level up\b/m.test(canonical)) return undefined;
+  const printed = face?.printed_text;
+  if (!printed || printed === canonical) return canonical;
+  const boundaries = [
+    ...canonical.matchAll(/^LEVEL\s+[^\n]+\n[*X\d+−-]+\/[*X\d+−-]+(?=\n|$)/gm),
+  ].map((match) => match[0]);
+  let tier = 0;
+  return printed.replace(
+    /^[^\n]+\n[*X\d+−-]+\/[*X\d+−-]+(?=\n|$)/gm,
+    (boundary) => boundaries[tier++] ?? boundary,
+  );
+}
+
 function faceSnapshot(
   face: PrintedFace | undefined,
   deckCard: DeckCard | undefined,
@@ -288,19 +337,29 @@ function faceSnapshot(
 ): CardFaceSnapshot {
   const back = index === 1 ? deckCard?.backFace : undefined;
   const canonicalType = face?.type_line ?? back?.typeLine ?? (deckCard ? typeLine(deckCard) : "");
+  const prototype = printedPrototype(face?.oracle_text ?? back?.oracleText ?? deckCard?.text ?? "");
+  const rulesText =
+    face?.printed_text ?? face?.oracle_text ?? back?.oracleText ?? deckCard?.text ?? "";
+  const levelerRules = nativeLevelerRules(face);
   return {
     name: face?.printed_name ?? face?.name ?? back?.name ?? deckCard?.identity.name ?? "",
     layout: stringField(face, "layout"),
+    prototype,
+    prototypeRules: prototype ? prototypeRules(rulesText, prototype) : undefined,
+    levelerBase:
+      levelerRules !== undefined && face?.power != null && face?.toughness != null
+        ? { power: face.power, toughness: face.toughness }
+        : undefined,
+    levelerRules,
     type_line: canonicalType,
     type_line_display: face?.printed_type_line ?? canonicalType,
-    oracle_text:
-      face?.printed_text ?? face?.oracle_text ?? back?.oracleText ?? deckCard?.text ?? "",
+    oracle_text: rulesText,
     mana_cost: normalizedManaCost(
       face?.mana_cost ?? back?.manaCost ?? (index === 0 ? deckCard?.manaCost : ""),
     ),
     colors:
       stringList(face, "colors") ??
-      (index === 0 && deckCard ? colorCodes(deckCard.color ?? "") : undefined),
+      (!face && index === 0 && deckCard ? colorCodes(deckCard.color ?? "") : undefined),
     color_indicator: stringList(face, "color_indicator"),
     color_identity:
       stringList(face, "color_identity") ??
@@ -341,7 +400,7 @@ function hasPrintedBaseline(
   if (info?.card_faces?.length && sameName(card.name, info.name)) return true;
   return (
     index === 1 &&
-    card.isTransformed &&
+    card.faceIndex === 1 &&
     sameName(card.name, info?.card_faces?.[0]?.name ?? deckCard?.identity.name)
   );
 }
@@ -412,6 +471,7 @@ function applyLiveFace(
   info: ScryfallCard | undefined,
   deckCard: DeckCard | undefined,
   index: number,
+  layout: string,
 ): CardFaceSnapshot {
   const printed = info?.card_faces?.length
     ? info.card_faces[index]
@@ -429,7 +489,7 @@ function applyLiveFace(
       normalized(card.name) === normalized(printed?.name ?? "") ||
       (Boolean(info?.card_faces?.length) &&
         normalized(card.name) === normalized(info?.name ?? "")) ||
-      (card.isTransformed &&
+      (card.faceIndex === 1 &&
         normalized(card.name) === normalized(info?.card_faces?.[0]?.name ?? ""))
         ? face.name
         : card.name,
@@ -440,11 +500,16 @@ function applyLiveFace(
         : card.typeLine,
     oracle_text: liveRules(card, info, index),
     mana_cost: card.manaCost,
-    colors: [...card.colors],
+    colors: isTwoHalfLayout(layout) ? face.colors : [...card.colors],
     power: card.power,
     toughness: card.toughness,
     loyalty: /\bPlaneswalker\b/i.test(card.typeLine) ? (card.loyalty ?? face.loyalty) : undefined,
     defense: /\bBattle\b/i.test(card.typeLine) ? (card.defense ?? face.defense) : undefined,
+    prototypeBase:
+      face.prototype && face.power != null && face.toughness != null
+        ? { manaCost: face.mana_cost, power: face.power, toughness: face.toughness }
+        : undefined,
+    prototypeSelected: card.isPrototyped,
     ...(liveChanges ? { liveChanges } : {}),
   };
   return showsPrintedFace(face, live) ? face : live;
@@ -454,6 +519,8 @@ function applyLiveFace(
 function showsPrintedFace(face: CardFaceSnapshot, live: CardFaceSnapshot): boolean {
   return (
     !live.liveChanges &&
+    !live.prototypeBase &&
+    !live.prototypeSelected &&
     live.name === face.name &&
     live.type_line_display === face.type_line_display &&
     normalized(live.type_line) === normalized(face.type_line) &&
@@ -530,13 +597,13 @@ export async function prepareCard(input: CardRenderInput): Promise<PreparedCard>
     Boolean(deckCard?.backFace) ||
     input.card?.isDoubleFaced ||
     deckCard?.isDoubleFaced;
-  const faceIndex = combined ? 0 : (input.faceIndex ?? (input.card?.isTransformed ? 1 : 0));
+  const faceIndex = combined ? 0 : (input.faceIndex ?? input.liveFaceIndex ?? 0);
   if (faceIndex === 1 && !flippable)
     throw new CardRenderError(
       { mode: "original", reason: "invalid-faces", layout, faceIndex },
       "This card has no reverse face",
     );
-  if (input.card?.isTransformed && faceIndex === 0 && !info && !deckCard) {
+  if (input.card?.faceIndex === 1 && faceIndex === 0 && !info && !deckCard) {
     throw new CardRenderError(
       { mode: "original", reason: "invalid-faces", layout, faceIndex },
       "The original face is unavailable",
@@ -579,7 +646,7 @@ export async function prepareCard(input: CardRenderInput): Promise<PreparedCard>
     );
   }
   if (faceIndex >= faces.length) {
-    if (input.card?.isTransformed && faceIndex === 1)
+    if (input.card?.faceIndex === 1 && faceIndex === 1)
       faces.push(faceSnapshot(undefined, undefined, 1));
     else
       throw new CardRenderError(
@@ -588,14 +655,25 @@ export async function prepareCard(input: CardRenderInput): Promise<PreparedCard>
       );
   }
   if (input.card?.hasCharacteristics) {
-    const liveIndex = input.card.isTransformed ? 1 : 0;
+    const liveIndex = input.liveFaceIndex ?? input.card.faceIndex;
     if (combined) {
       const selected =
+        (layout === "adventure" ? input.liveFaceIndex : undefined) ??
         faceInfo?.card_faces?.findIndex(
-          (face) => normalized(face.name) === normalized(input.card!.name),
-        ) ?? -1;
+          (face) =>
+            normalized(face.name) === normalized(input.card!.name) ||
+            normalized(face.printed_name ?? "") === normalized(input.card!.name),
+        ) ??
+        -1;
       if (selected >= 0)
-        faces[selected] = applyLiveFace(faces[selected]!, input.card, faceInfo, deckCard, selected);
+        faces[selected] = applyLiveFace(
+          faces[selected]!,
+          input.card,
+          faceInfo,
+          deckCard,
+          selected,
+          layout,
+        );
     } else if (faces[liveIndex]) {
       faces[liveIndex] = applyLiveFace(
         faces[liveIndex]!,
@@ -603,6 +681,7 @@ export async function prepareCard(input: CardRenderInput): Promise<PreparedCard>
         faceInfo,
         deckCard,
         liveIndex,
+        layout,
       );
     }
   }
@@ -645,57 +724,67 @@ export async function prepareCard(input: CardRenderInput): Promise<PreparedCard>
     released_at: info?.released_at,
     artist: info?.artist,
   };
-  const printing = faces.map((_, index) => {
-    const record = index === 1 && reverse ? reverse.info : info;
-    const printed = record?.card_faces?.[index === 1 && reverse ? 0 : index] ?? record;
-    const id = record?.id;
-    const canonicalArtist = stringField(printed, "artist") ?? record?.artist;
-    const artist = id
-      ? (resolvePrintingArtist(id, canonicalArtist).artist ?? undefined)
-      : canonicalArtist;
-    const provider = record
-      ? fromScryfallCard(record, {
-          faceIndex: index === 1 && reverse ? 0 : index,
-          symbolStyle: "modern",
-        })
-      : undefined;
-    const oracle = printed && {
-      name: printed.name,
-      typeLine: printed.type_line ?? "",
-      rulesText: printed.oracle_text ?? "",
-      flavorText: printed.flavor_text,
-    };
-    const wording =
-      !input.gameplay && input.cosmetics?.wording === "original" && id && oracle
-        ? resolvePrintingWording(
-            id,
-            {
-              oracle,
-              original: {
-                ...oracle,
-                name: printed?.printed_name ?? oracle.name,
-                typeLine: printed?.printed_type_line ?? oracle.typeLine,
-                rulesText: printed?.printed_text ?? oracle.rulesText,
+  const composite =
+    combined && info ? fromScryfallCard(info, { symbolStyle: "modern" }) : undefined;
+  const printing = await Promise.all(
+    faces.map(async (_, index) => {
+      const record = index === 1 && reverse ? reverse.info : info;
+      const printed = record?.card_faces?.[index === 1 && reverse ? 0 : index] ?? record;
+      const id = record?.id;
+      const canonicalArtist = stringField(printed, "artist") ?? record?.artist;
+      const artist =
+        id && record
+          ? ((await resolveSetPrintingArtist(record.set, id, canonicalArtist)).artist ?? undefined)
+          : canonicalArtist;
+      const provider =
+        composite?.faces?.[index] ??
+        (record
+          ? fromScryfallCard(record, {
+              faceIndex: index === 1 && reverse ? 0 : index,
+              symbolStyle: "modern",
+            })
+          : undefined);
+      const oracle = printed && {
+        name: printed.name,
+        typeLine: printed.type_line ?? "",
+        rulesText: printed.oracle_text ?? "",
+        flavorText: printed.flavor_text,
+      };
+      const wording =
+        !input.gameplay && input.cosmetics?.wording === "original" && id && oracle && record
+          ? await resolveSetPrintingWording(
+              record.set,
+              id,
+              {
+                oracle,
+                original: {
+                  ...oracle,
+                  name: printed?.printed_name ?? oracle.name,
+                  typeLine: printed?.printed_type_line ?? oracle.typeLine,
+                  rulesText: printed?.printed_text ?? oracle.rulesText,
+                },
               },
-            },
-            { faceName: printed?.name },
-          )
-        : undefined;
-    const reviewed = new Set(
-      wording?.provenance.corrections.flatMap((correction) => correction.fields),
-    );
-    const hasOriginalRules =
-      printed?.printed_text != null || reviewed.has("rulesText") || reviewed.has("rulesParagraphs");
-    const hasOriginalType = printed?.printed_type_line != null || reviewed.has("typeLine");
-    const hasOriginal = hasOriginalRules && hasOriginalType;
-    return Object.freeze({
-      id,
-      canonicalArtist,
-      artist,
-      provider: provider && Object.freeze(provider),
-      originalWording: hasOriginal ? wording?.wordings.original : undefined,
-    });
-  });
+              { faceName: printed?.name },
+            )
+          : undefined;
+      const reviewed = new Set(
+        wording?.provenance.corrections.flatMap((correction) => correction.fields),
+      );
+      const hasOriginalRules =
+        printed?.printed_text != null ||
+        reviewed.has("rulesText") ||
+        reviewed.has("rulesParagraphs");
+      const hasOriginalType = printed?.printed_type_line != null || reviewed.has("typeLine");
+      const hasOriginal = hasOriginalRules && hasOriginalType;
+      return Object.freeze({
+        id,
+        canonicalArtist,
+        artist,
+        provider: provider && Object.freeze(provider),
+        originalWording: hasOriginal ? wording?.wordings.original : undefined,
+      });
+    }),
+  );
   for (const value of Object.values(snapshot)) if (Array.isArray(value)) Object.freeze(value);
   const scanBacked = layout === "art_series" || layout === "front_card";
   const artUrls = faces.map((_, index) => {
@@ -706,11 +795,6 @@ export async function prepareCard(input: CardRenderInput): Promise<PreparedCard>
   if (info && hasIntegratedArtwork(info)) {
     throw new CardArtworkError(layout, faceIndex);
   }
-  if (layout === "room" && artUrls[0] && artUrls[0] === artUrls[1]) {
-    const source = artUrls[0];
-    artUrls[0] = `${source}${CARD_ARTWORK_FACE_FRAGMENT}0`;
-    artUrls[1] = `${source}${CARD_ARTWORK_FACE_FRAGMENT}1`;
-  }
   Object.freeze(artUrls);
   const prepared: PreparedCard = Object.freeze({
     snapshot: Object.freeze(snapshot),
@@ -719,6 +803,7 @@ export async function prepareCard(input: CardRenderInput): Promise<PreparedCard>
     combined,
     locale: input.locale,
     gameplay: input.gameplay,
+    composite: composite && Object.freeze(composite),
     printing: Object.freeze(printing),
     cosmetics: input.cosmetics,
   });

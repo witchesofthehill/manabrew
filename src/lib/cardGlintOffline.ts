@@ -6,6 +6,7 @@ import {
   type RenderedCardInput,
 } from "card-glint/magic/presentation";
 import { isSemanticLayout, semanticCardAssetUrls } from "@/lib/cardSemanticLayout";
+import { semanticFrame, VANGUARD_FONT_ASSET } from "@/lib/cardSemanticFrames";
 import type { ScryfallImageUris } from "@/types/scryfall";
 import { MANA_CODES } from "@/types/scryfall";
 import { manaSymbolUrl } from "@/api/scryfall";
@@ -28,6 +29,7 @@ import {
   offlineCacheKey,
   storeOfflineCardRecord,
 } from "@/lib/cardGlintAssetCache";
+const RENDERER_FONT_ASSETS = [...canvasFontAssets, VANGUARD_FONT_ASSET];
 
 interface OfflineManifest {
   fingerprint: string;
@@ -179,7 +181,7 @@ async function install(deck: Deck, signal: AbortSignal): Promise<void> {
   const unique = new Map(deckCards(snapshot).map((card) => [JSON.stringify(card), card]));
   let scanOnly = 0;
   const addUrl = (url: string | undefined) => {
-    if (url) urls.add(url.split("#manabrew-card-art-face=")[0]!);
+    if (url) urls.add(url);
   };
   const addImages = (uris: ScryfallImageUris | undefined) => {
     if (uris) for (const url of Object.values(uris)) addUrl(url);
@@ -234,6 +236,8 @@ async function install(deck: Deck, signal: AbortSignal): Promise<void> {
       }
       for (const preparedFace of faces) {
         const { face } = cardGlintFace(preparedFace, true);
+        if (face.layout === "vanguard" && semanticFrame(face).vanguard === "paper")
+          addUrl(VANGUARD_FONT_ASSET.url);
         const required = isSemanticLayout(face)
           ? semanticCardAssetUrls(face)
           : magicAssetUrls(face);
@@ -266,7 +270,7 @@ async function install(deck: Deck, signal: AbortSignal): Promise<void> {
     const blob = await response.blob();
     if (blob.size === 0 || blob.type.includes("text/html"))
       throw new Error(`Invalid renderer asset: ${url}`);
-    const font = canvasFontAssets.find((candidate) => candidate.url === url);
+    const font = RENDERER_FONT_ASSETS.find((candidate) => candidate.url === url);
     if (font) {
       await new FontFace(font.family, await blob.arrayBuffer(), {
         weight: font.weight,

@@ -199,6 +199,7 @@ async function initializeGame({
         gameId: hostedLaunch.gameId,
         isHost: false,
         username: hostedLaunch.username,
+        gauntletId: get().gauntletId ?? undefined,
         ownsForgeHost: hostedLaunch.ownsForgeHost,
         relayHost: hostedLaunch.relay?.host,
         relayPort: hostedLaunch.relay?.port,
@@ -352,6 +353,7 @@ export const useGameStore = create<GameState>()(
       seatAddressedStates: false,
       relinquishedPriority: false,
       gameConfig: null,
+      gauntletId: null,
       selfConceded: false,
       isMultiplayer: false,
       isHost: false,
@@ -368,7 +370,7 @@ export const useGameStore = create<GameState>()(
       updateGameView: (view) => set({ gameView: view }),
       setGameConfig: (config) => set({ gameConfig: config }),
       dismissIronsmithDeckError: () => set({ ironsmithDeckError: null }),
-      startGame: async (deck, formatId, commanderName, opponentDecks, engine) => {
+      startGame: async (deck, formatId, commanderName, opponentDecks, engine, gauntletId) => {
         if (get().isGameActive) return false;
         if (gameLaunchInFlight !== null) {
           toast.info(`The previous game is still closing. Try again in a moment.`);
@@ -376,6 +378,7 @@ export const useGameStore = create<GameState>()(
         }
         const launchGeneration = ++gameLaunchGeneration;
         gameLaunchInFlight = launchGeneration;
+        set({ gauntletId: gauntletId ?? null });
         try {
           await initializeGame({
             deck,
@@ -390,7 +393,12 @@ export const useGameStore = create<GameState>()(
           return true;
         } catch (e) {
           if (e instanceof GameLaunchCancelledError) return false;
-          set({ isGameActive: false, debugInfo: `Start failed: ${e}`, isPrefetchingCards: false });
+          set({
+            isGameActive: false,
+            gauntletId: null,
+            debugInfo: `Start failed: ${e}`,
+            isPrefetchingCards: false,
+          });
           console.error("[store] Failed to start game:", e);
           if (e instanceof IronsmithUnsupportedDeckError) {
             set({ ironsmithDeckError: e.issues });
@@ -521,10 +529,17 @@ export const useGameStore = create<GameState>()(
           gameDecks[`player-${i}`] = d;
         });
         const server = useServerStore.getState();
+        const session = peekActiveGameSession();
+        const gauntletId =
+          session?.roomId === server.currentRoom?.room_id && session?.gameId === server.gameId
+            ? (session?.gauntletId ?? null)
+            : null;
+        set({ gauntletId });
         if (server.currentRoom) {
           armActiveGameSession({
             roomId: server.currentRoom.room_id,
             gameId: server.gameId,
+            gauntletId: gauntletId ?? undefined,
             isHost: localIsHost,
             username: server.username ?? "",
           });
@@ -707,6 +722,7 @@ export const useGameStore = create<GameState>()(
         });
         set({
           isGameActive: false,
+          gauntletId: null,
           gameView: null,
           currentPrompt: null,
           gameLog: [],

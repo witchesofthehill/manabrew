@@ -1,12 +1,10 @@
 ---
 import { Image } from "astro:assets";
-import "@fontsource/cormorant-garamond/600.css";
-import "@fontsource/cormorant-garamond/700.css";
-import "@fontsource/alegreya-sans/400.css";
-import "@fontsource/alegreya-sans/500.css";
 import "@fontsource/alegreya-sans/700.css";
-import preset from "../../src/theme";
-import logo from "../../../src/assets/manaBrew.png";
+import "@fontsource-variable/source-sans-3";
+import "@fontsource-variable/source-sans-3/wght-italic.css";
+import preset, { BRAND_COLORS } from "../../src/theme";
+import BrandLogo from "../../src/components/BrandLogo.astro";
 import brewery from "../../../public/manabrew_brewery_1.png";
 import deckLibrary from "../../../images/screenshots/my-decks.webp";
 import deckEditor from "../../../images/screenshots/deck-editor-grid.webp";
@@ -35,13 +33,15 @@ const mana = preset.gameColors;
     <meta property="og:description" content={DESCRIPTION} />
     <meta property="og:image" content={new URL(brewery.src, Astro.site)} />
     <meta property="og:url" content={Astro.site} />
-    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
+    <link rel="icon" href="/favicon-32x32.png" type="image/png" sizes="32x32" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" sizes="any" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   </head>
   <body>
     <header class="nav">
-      <a class="wordmark" href="/">
-        <Image src={logo} alt="Manabrew" width={64} height={64} />
+      <a class="wordmark" href="/" aria-label="Manabrew">
+        <BrandLogo mode="dark" decorative />
       </a>
       <nav>
         <a href="/blog/">Blog</a>
@@ -64,7 +64,7 @@ const mana = preset.gameColors;
         <div class="hero-veil"></div>
         <div class="hero-inner">
           <p class="kicker reveal">Open-source <i>Magic</i> client · Multiplayer first</p>
-          <h1 class="reveal"><i>Magic</i> with friends made simple and easy.</h1>
+          <h1 class="reveal">Magic with friends made simple and easy.</h1>
           <p class="lede reveal">
             Manabrew is a modern way to play <i>Magic: The Gathering</i> online with friends. Available on most platforms and
             compatible with <a href="https://github.com/Card-Forge/forge">Forge</a>.
@@ -248,6 +248,8 @@ const mana = preset.gameColors;
     "muted-foreground": t["muted-foreground"],
     primary: t.primary,
     "primary-foreground": t["primary-foreground"],
+    "primary-hover": t["primary-hover"],
+    "brand-accent": t["brand-accent"],
     ring: t.ring,
     "mana-w": mana["mana.W"],
     "mana-u": mana["mana.U"],
@@ -257,8 +259,9 @@ const mana = preset.gameColors;
   }}
 >
   :root {
-    --font-display: "Cormorant Garamond", georgia, serif;
-    --font-body: "Alegreya Sans", system-ui, sans-serif;
+    --font-display: "Alegreya Sans", system-ui, -apple-system, sans-serif;
+    --font-body: "Source Sans 3 Variable", system-ui, -apple-system, sans-serif;
+    color-scheme: dark;
   }
 
   * {
@@ -279,6 +282,11 @@ const mana = preset.gameColors;
     color: var(--primary);
   }
 
+  a:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 4px;
+  }
+
   .nav {
     position: absolute;
     inset: 0 0 auto 0;
@@ -289,21 +297,27 @@ const mana = preset.gameColors;
     flex-wrap: wrap;
     gap: 0.5rem 1rem;
     padding: 1.1rem clamp(1rem, 4vw, 3rem);
+    background: var(--card);
   }
 
   .wordmark {
     display: flex;
     align-items: center;
+    max-width: 100%;
+    text-decoration: none;
   }
 
-  .wordmark img {
-    height: 3rem;
-    width: auto;
+  .wordmark :global(.mb-logo) {
+    display: block;
+    width: 16.5rem;
+    max-width: 100%;
+    height: auto;
   }
 
   .nav nav {
     display: flex;
     gap: clamp(0.9rem, 3vw, 1.8rem);
+    flex-wrap: wrap;
   }
 
   .nav nav a {
@@ -313,11 +327,13 @@ const mana = preset.gameColors;
     letter-spacing: 0.06em;
     text-transform: uppercase;
     font-size: 0.8rem;
-    text-shadow: 0 1px 8px rgba(0, 0, 0, 0.9);
   }
 
   .nav nav a:hover {
-    color: var(--primary);
+    color: var(--foreground);
+    text-decoration: underline;
+    text-decoration-color: var(--primary);
+    text-underline-offset: 0.2em;
   }
 
   .hero {
@@ -359,25 +375,25 @@ const mana = preset.gameColors;
     z-index: 1;
     width: min(64rem, 100%);
     margin-inline: auto;
-    padding: 0 clamp(1rem, 4vw, 3rem) clamp(5.5rem, 16vh, 9rem);
+    padding: 10rem clamp(1rem, 4vw, 3rem) clamp(5.5rem, 16vh, 9rem);
   }
 
   .kicker {
     margin: 0 0 0.6rem;
     font-size: 0.82rem;
     font-weight: 700;
-    letter-spacing: 0.22em;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: var(--primary);
+    color: var(--brand-accent);
   }
 
   h1 {
     margin: 0;
     font-family: var(--font-display);
     font-weight: 700;
-    font-size: clamp(2.4rem, 8vw, 5.2rem);
-    line-height: 1.02;
-    letter-spacing: 0.01em;
+    font-size: clamp(2.4rem, 8vw, 4.8rem);
+    line-height: 1.1;
+    letter-spacing: -0.035em;
     text-shadow: 0 2px 30px rgba(0, 0, 0, 0.85);
   }
 
@@ -421,18 +437,19 @@ const mana = preset.gameColors;
   }
 
   .btn-primary {
-    background: linear-gradient(180deg, var(--primary), var(--ring));
+    background: var(--primary);
     color: var(--primary-foreground);
     box-shadow: 0 0 24px color-mix(in srgb, var(--primary) 35%, transparent);
   }
 
   .btn-primary:hover {
     transform: translateY(-2px);
+    background: var(--primary-hover);
     box-shadow: 0 4px 34px color-mix(in srgb, var(--primary) 55%, transparent);
   }
 
   .btn-ghost {
-    border: 1px solid var(--ring);
+    border: 1px solid var(--border);
     color: var(--foreground);
     background: color-mix(in srgb, var(--background) 45%, transparent);
   }
@@ -489,7 +506,7 @@ const mana = preset.gameColors;
   .features h2 {
     margin: 0 0 0.5rem;
     font-family: var(--font-display);
-    font-weight: 600;
+    font-weight: 700;
     font-size: 1.45rem;
     color: var(--primary);
   }
@@ -568,9 +585,21 @@ const mana = preset.gameColors;
   }
 
   .foot-links a {
+    text-underline-offset: 0.2em;
     color: var(--foreground);
   }
 
+
+  @media (max-width: 32rem) {
+    .nav nav {
+      width: 100%;
+      justify-content: space-between;
+    }
+
+    .hero-inner {
+      padding-top: 11rem;
+    }
+  }
   @media (prefers-reduced-motion: no-preference) {
     .reveal {
       animation: rise 700ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
@@ -604,24 +633,24 @@ const mana = preset.gameColors;
   }
 </style>
 
-<style is:global>
-  /* Global (unscoped) so the JS-spawned .bubble elements pick up these rules. */
-
-  /* ── Bubble colors — each bubble blends between these two sets via --mix
-        (0 = full purple, 1 = full orange; set per-bubble in the script). ── */
-  :root {
-    --bubble-purple-core: rgba(245, 200, 255, 0.98);
-    --bubble-purple-mid: rgba(206, 104, 224, 0.96);
-    --bubble-purple-edge: rgba(126, 56, 190, 0.95);
-    --bubble-purple-glow: rgba(190, 96, 240, 0.8);
-
-    --bubble-orange-core: rgba(255, 224, 150, 0.98);
-    --bubble-orange-mid: rgba(255, 150, 48, 0.96);
-    --bubble-orange-edge: rgba(218, 92, 18, 0.95);
-    --bubble-orange-glow: rgba(255, 140, 40, 0.85);
-  }
-  /* ─────────────────────────────────────────────────────────────────── */
-
+<style
+  is:global
+  define:vars={{
+    "ember-light": BRAND_COLORS.ember[100],
+    "ember-core": BRAND_COLORS.ember[400],
+    "ember-mid": BRAND_COLORS.ember[500],
+    "ember-edge": BRAND_COLORS.ember[700],
+    "bubble-purple-core": `${BRAND_COLORS.mana[100]}fa`,
+    "bubble-purple-mid": `${BRAND_COLORS.mana[400]}f5`,
+    "bubble-purple-edge": `${BRAND_COLORS.mana[700]}f2`,
+    "bubble-purple-glow": `${BRAND_COLORS.mana[400]}cc`,
+    "bubble-orange-core": `${BRAND_COLORS.ember[100]}fa`,
+    "bubble-orange-mid": `${BRAND_COLORS.ember[500]}f5`,
+    "bubble-orange-edge": `${BRAND_COLORS.ember[700]}f2`,
+    "bubble-orange-glow": `${BRAND_COLORS.ember[400]}d9`,
+    steam: BRAND_COLORS.neutral.steam,
+  }}
+>
   .last-call::before {
     content: "";
     position: absolute;
@@ -629,8 +658,8 @@ const mana = preset.gameColors;
     z-index: -1;
     background: radial-gradient(
       62% 86% at 50% 100%,
-      rgba(255, 150, 36, 0.38) 0%,
-      rgba(255, 96, 20, 0.14) 40%,
+      color-mix(in srgb, var(--ember-mid) 38%, transparent) 0%,
+      color-mix(in srgb, var(--ember-edge) 14%, transparent) 40%,
       transparent 72%
     );
     transform-origin: 50% 100%;
@@ -666,8 +695,8 @@ const mana = preset.gameColors;
     height: 62%;
     transform: translateX(-50%);
     background:
-      radial-gradient(ellipse 62% 70% at 50% 80%, rgba(255, 184, 56, 0.95) 0%, rgba(255, 120, 24, 0.6) 36%, rgba(255, 70, 10, 0) 72%),
-      radial-gradient(ellipse 38% 50% at 50% 86%, rgba(255, 234, 150, 0.95) 0%, rgba(255, 160, 40, 0) 62%);
+      radial-gradient(ellipse 62% 70% at 50% 80%, color-mix(in srgb, var(--ember-core) 95%, transparent) 0%, color-mix(in srgb, var(--ember-mid) 60%, transparent) 36%, transparent 72%),
+      radial-gradient(ellipse 38% 50% at 50% 86%, color-mix(in srgb, var(--ember-light) 95%, transparent) 0%, transparent 62%);
     filter: blur(14px);
     z-index: 0;
     will-change: opacity, transform;
@@ -697,7 +726,7 @@ const mana = preset.gameColors;
     );
     box-shadow:
       0 0 14px color-mix(in srgb, var(--bubble-orange-glow) calc(var(--mix) * 100%), var(--bubble-purple-glow)),
-      inset 0 0 6px rgba(255, 246, 230, 0.7);
+      inset 0 0 6px color-mix(in srgb, var(--steam) 70%, transparent);
     will-change: transform, opacity;
     animation: bubble-rise var(--dur, 4s) linear forwards;
   }

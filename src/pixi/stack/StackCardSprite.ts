@@ -10,6 +10,7 @@ import { rulesCardRadius } from "../cardPreview/rulesPreviewFrame";
 import type { StackCardSpec } from "./stack.types";
 import { getRectBorderAnchor } from "./stackLayout";
 import type { ScreenBounds } from "../types";
+import { gameCardFaceIndex } from "@/lib/gameCard";
 
 const ENTER_MS = 0.42;
 const FLASH_MS = 0.56;
@@ -76,13 +77,15 @@ export class StackCardSprite {
     this.face.onVisualChange = onRenderRequested;
     this.face.setPreviewFace(faceIndex ?? null);
     this.face.scale.set(this.faceScale);
+    this.face.setHandRulesInteractive(!spec.isValidTarget);
     this.face.setHandRulesView(rulesView);
     this.face.setHandRulesHighlight(spec.sourceAbilityText ?? "");
     this.face.on("pointerdown", (event: FederatedPointerEvent) => {
-      if (this.face.usesHandRulesView && event.pointerType !== "touch") event.stopPropagation();
+      if (this.face.usesHandRulesView && !this.spec.isValidTarget && event.pointerType !== "touch")
+        event.stopPropagation();
     });
     this.face.on("pointertap", (event: FederatedPointerEvent) => {
-      if (this.face.usesHandRulesView) event.stopPropagation();
+      if (this.face.usesHandRulesView && !this.spec.isValidTarget) event.stopPropagation();
     });
     this.face.position.set(0, 0);
 
@@ -181,11 +184,12 @@ export class StackCardSprite {
       faceChanged ||
       spec.id !== this.spec.id ||
       spec.card.isDoubleFaced !== this.spec.card.isDoubleFaced ||
-      spec.card.isTransformed !== this.spec.card.isTransformed;
+      gameCardFaceIndex(spec.card) !== gameCardFaceIndex(this.spec.card);
     const dimChanged = spec.isDimmed !== this.spec.isDimmed;
     this.spec = spec;
     this.previewFace = faceIndex;
     this.container.cursor = spec.isValidTarget ? "pointer" : "default";
+    this.face.setHandRulesInteractive(!spec.isValidTarget);
     this.face.updateCardContent(spec.card);
     if (faceChanged) this.face.setPreviewFace(faceIndex ?? null);
     const resized = this.syncGeometry();
@@ -415,7 +419,7 @@ export class StackCardSprite {
         ? {
             rulesView: this.face.usesHandRulesView,
             horizontal: false,
-            alternateFace: (this.previewFace ?? (this.spec.card.isTransformed ? 1 : 0)) === 1,
+            alternateFace: (this.previewFace ?? gameCardFaceIndex(this.spec.card)) === 1,
             showFaceControl: this.spec.card.isDoubleFaced,
             onToggleRules: () => this.onToggleRules(this.spec.id),
             onToggleFace: () => this.onFlip(this.spec.id),

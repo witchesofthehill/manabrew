@@ -128,11 +128,11 @@ function GalleryRow({
   return (
     <div className="flex items-start gap-2">
       {variant === "realistic" ? (
-        <div className="relative overflow-hidden rounded" style={size}>
+        <div className="relative rounded" style={size}>
           <ScryfallImg
             src={entry.uris.normal}
             alt={card.identity.name}
-            className="h-full w-full object-contain"
+            className="h-full w-full rounded-[inherit] object-contain"
           />
           <CardFoilOverlay
             enabled={!card.isFaceDown && !!card.identity.name}
@@ -153,11 +153,11 @@ function GalleryRow({
         />
       )}
       {showReal && variant !== "realistic" && (
-        <div className="relative overflow-hidden rounded" style={size}>
+        <div className="relative rounded" style={size}>
           <ScryfallImg
             src={entry.uris.normal}
             alt={card.identity.name}
-            className="h-full w-full object-contain opacity-90"
+            className="h-full w-full rounded-[inherit] object-contain opacity-90"
           />
           <CardFoilOverlay
             enabled={!card.isFaceDown && !!card.identity.name}

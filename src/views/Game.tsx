@@ -3,7 +3,7 @@ import { locateVisibleZone, visibleZoneCards, zoneLocationKey } from "@/lib/zone
 import { useGameStore } from "@/stores/useGameStore";
 import { useServerStore } from "@/stores/useServerStore";
 import { asDeckCard } from "@/lib/decks";
-import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
+import { gameCardFaceIndex, GAME_CARD_DEFAULTS } from "@/lib/gameCard";
 import { partitionBoardTargets } from "@/lib/boardTargets";
 import { useGameUIStore } from "@/stores/useGameUIStore";
 import { useKeybindings } from "@/hooks/useKeybindings";
@@ -14,6 +14,7 @@ import { useShallow } from "zustand/react/shallow";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CardChoiceDto, CardDto, CheckpointDto, StackObjectDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
+import type { ActivatableAbilityInfo } from "@/protocol/prompts/common";
 import type { ClientCardDto, ClientPlayerDto } from "@/stores/gameStore.types";
 import { GameModals } from "@/components/game/GameModals";
 import { LandscapeGate } from "@/components/LandscapeGate";
@@ -71,7 +72,7 @@ import { boardBackgroundDarken, boardBackgroundUrl } from "@/pixi/board/boardBac
 import { Navigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useLimitedGameReturn } from "@/hooks/useLimitedGameReturn";
-import { peek as peekGauntletMatch } from "@/lib/gauntletReturn";
+import { peekForGame as peekGauntletMatch } from "@/lib/gauntletReturn";
 import { peekLimitedMatchReturn } from "@/game/limitedSession";
 import { intentIsHostile, intentPrefersArrow } from "@/types/promptType";
 import type { PromptType } from "@/protocol";
@@ -90,7 +91,7 @@ import {
 import {
   isPermanentSpellCard,
   stackObjectAbilityText,
-  stackObjectToCardStub,
+  stackObjectToCard,
 } from "@/components/game/game.utils";
 import { createPortal } from "react-dom";
 import { Card } from "@/components/game/Card";
@@ -247,6 +248,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   useAutoResolvePrompt(interruption.waiting);
   const rawGameView = useGameStore((s) => s.gameView);
   const myPlayerSlot = useGameStore((s) => s.myPlayerSlot);
+  const gauntletId = useGameStore((s) => s.gauntletId);
   const currentPrompt = useGameStore((s) => s.currentPrompt);
   const protocolError = useGameStore((s) => s.protocolError);
   const isGameActive = useGameStore((s) => s.isGameActive);
@@ -454,13 +456,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     })),
   );
   const toAbilityOption = (
-    a: {
-      cardId: string;
-      abilityIndex: number;
-      description: string;
-      isManaAbility: boolean;
-      isClassLevelUp?: boolean;
-      cost?: string;
+    a: ActivatableAbilityInfo & {
       displayManaLetters?: string[];
       colorChoice?: string;
     },
@@ -470,8 +466,9 @@ export default function Game({ exitTo }: GameProps = {}) {
     cardId: a.cardId,
     abilityIndex: a.abilityIndex,
     label: a.description,
+    abilityText: a.description,
     isManaAbility: a.isManaAbility,
-    isClassLevelUp: a.isClassLevelUp,
+    levelUp: a.levelUp,
     cost: a.cost,
     displayManaLetters: a.displayManaLetters,
     colorChoice: a.colorChoice,
@@ -485,7 +482,8 @@ export default function Game({ exitTo }: GameProps = {}) {
       arr.push({
         kind: "cast" as const,
         cardId: a.cardId,
-        mode: a.mode.type,
+        mode: a.mode,
+        faceIndex: a.faceIndex,
         label: a.label,
         actionId: a.id,
       });
@@ -516,7 +514,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           abilityIndex: a.abilityIndex,
           description: a.description,
           isManaAbility: true,
-          isClassLevelUp: false,
+          levelUp: a.levelUp,
           cost: a.cost,
           producedMana: a.producedMana,
           actionId: a.id,
@@ -594,8 +592,11 @@ export default function Game({ exitTo }: GameProps = {}) {
     [manualApi, getManualCardActions, castOptions, abilitiesByCardId],
   );
   const getBattlefieldAbilityOptions = useCallback(
-    (card: CardDto): HandActionOption[] => abilitiesByCardId.get(card.id) ?? [],
-    [abilitiesByCardId],
+    (card: CardDto): HandActionOption[] => [
+      ...castOptions(card).filter((action) => action.mode?.type === "unlockDoor"),
+      ...(abilitiesByCardId.get(card.id) ?? []),
+    ],
+    [castOptions, abilitiesByCardId],
   );
   const getCardActions = useCallback(
     (card: CardDto): HandActionOption[] => {
@@ -726,7 +727,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   const handleBattlefieldCardAction = (card: CardDto, e?: React.MouseEvent) => {
     const abilities = getBattlefieldAbilityOptions(card);
     if (abilities.length === 0) return false;
-    if (abilities.length === 1 && !abilities[0].isClassLevelUp) {
+    if (abilities.length === 1 && abilities[0].levelUp !== "class") {
       return respondHandAction(abilities[0]);
     }
     preview.showSticky(card, e?.clientX, e?.clientY);
@@ -1784,7 +1785,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     const byId = new Map<string, ClientCardDto>();
     for (const s of gameView?.stack ?? []) {
       if (byId.has(s.sourceId)) continue;
-      byId.set(s.sourceId, stackObjectToCardStub(s));
+      byId.set(s.sourceId, stackObjectToCard(s));
     }
     return byId;
   }, [gameView?.stack]);
@@ -1816,12 +1817,23 @@ export default function Game({ exitTo }: GameProps = {}) {
   const previewCardId = preview.hoveredCard?.id ?? null;
   const livePreviewCard = useMemo(() => {
     if (!previewCardId) return null;
+    const stackObject = gameView?.stack.find(
+      (object) => object.id === hoveredStackObjectIdForSpecs && object.sourceId === previewCardId,
+    );
+    if (stackObject?.sourceCard) return stackObjectToCard(stackObject);
     return (
       visibleCardsById.get(previewCardId) ??
       stackCardsBySourceId.get(previewCardId) ??
       (preview.hoveredCard ? { ...preview.hoveredCard, zoneId: "prompt" } : null)
     );
-  }, [preview.hoveredCard, previewCardId, stackCardsBySourceId, visibleCardsById]);
+  }, [
+    preview.hoveredCard,
+    previewCardId,
+    stackCardsBySourceId,
+    visibleCardsById,
+    gameView?.stack,
+    hoveredStackObjectIdForSpecs,
+  ]);
   const previewFaceCard = singleCommandPreviewCard ?? livePreviewCard;
   const [previewFaceOverride, setPreviewFaceOverride] = useState<{
     cardId: string;
@@ -1833,7 +1845,9 @@ export default function Game({ exitTo }: GameProps = {}) {
   const previewShowBackFace =
     previewFaceOverride && previewFaceOverride.cardId === previewFaceCard?.id
       ? previewFaceOverride.showBackFace
-      : (previewFaceCard?.isTransformed ?? false);
+      : previewFaceCard
+        ? gameCardFaceIndex(previewFaceCard) === 1
+        : false;
   const hoveredCardActions = useMemo(
     () => (livePreviewCard ? getCardActions(livePreviewCard) : []),
     [getCardActions, livePreviewCard],
@@ -2008,7 +2022,9 @@ export default function Game({ exitTo }: GameProps = {}) {
     [gameView?.players],
   );
   const resolveStackCard = (stackItem: StackObjectDto): CardDto =>
-    visibleCardsById.get(stackItem.sourceId) ?? stackCardsBySourceId.get(stackItem.sourceId)!;
+    stackItem.sourceCard
+      ? stackObjectToCard(stackItem)
+      : (visibleCardsById.get(stackItem.sourceId) ?? stackCardsBySourceId.get(stackItem.sourceId)!);
   const activeFlashCard: CardDto | null = useMemo(() => {
     if (!activeFlash || activeFlash.kind !== "card") return null;
     return (
@@ -2084,7 +2100,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       const card = currentPreviewFaceCard.current;
       if (card) {
         setPreviewFaceOverride(
-          target.showBackFace === card.isTransformed
+          target.showBackFace === (gameCardFaceIndex(card) === 1)
             ? null
             : { cardId: card.id, showBackFace: target.showBackFace },
         );
@@ -2117,11 +2133,12 @@ export default function Game({ exitTo }: GameProps = {}) {
   );
   useEffect(() => {
     if (!gameView?.gameOver && activePrompt?.input.type !== "gameOver") return;
-    if (peekGauntletMatch() || peekLimitedMatchReturn()) return;
+    if (peekGauntletMatch(gauntletId) || peekLimitedMatchReturn()) return;
     const timer = setTimeout(() => endGame(), 3000);
     return () => clearTimeout(timer);
-  }, [gameView?.gameOver, activePrompt?.input.type, endGame]);
+  }, [gameView?.gameOver, activePrompt?.input.type, gauntletId, endGame]);
   const limitedReturn = useLimitedGameReturn({
+    gauntletId,
     gameOver: (gameView?.gameOver ?? false) || activePrompt?.input.type === "gameOver",
     winnerId: gameView?.winnerId ?? null,
     playerSlot: myPlayerSlot,

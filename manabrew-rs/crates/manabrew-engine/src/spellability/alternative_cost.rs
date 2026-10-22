@@ -20,6 +20,7 @@ pub enum AlternativeCost {
     Foretell,
     Emerge,
     Suspend,
+    Prototype,
     /// Cast face-down as a 2/2 creature for {3} (Morph).
     Morph,
     /// Cast face-down as a 2/2 creature for {3}, +1/+1 counter on turn face-up (Megamorph).

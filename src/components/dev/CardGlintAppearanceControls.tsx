@@ -1,6 +1,7 @@
 import { CardGlintAppearanceNumber } from "@/components/dev/CardGlintAppearanceNumber";
 import { CardGlintAppearancePrinting } from "@/components/dev/CardGlintAppearancePrinting";
 import { CardGlintAppearanceHologram } from "@/components/dev/CardGlintAppearanceHologram";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   APPEARANCE_GROUP,
   APPEARANCE_LEGEND,
@@ -84,7 +85,7 @@ export function CardGlintAppearanceControls({
           onChange={(amount) => onChange({ ...value, printDots: { ...dots, amount } })}
         />
         <CardGlintAppearanceNumber
-          label="Print dots period"
+          label="Print dots period (732px reference pixels)"
           value={dots.period}
           min={2}
           max={16}
@@ -106,6 +107,18 @@ export function CardGlintAppearanceControls({
           resetKey={value}
           onChange={(inset) => onChange({ ...value, printDots: { ...dots, inset } })}
         />
+        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Checkbox
+            checked={dots.artwork !== false}
+            onCheckedChange={(checked) =>
+              onChange({
+                ...value,
+                printDots: { ...dots, artwork: checked === true ? undefined : false },
+              })
+            }
+          />
+          Include artwork in print dots
+        </label>
       </fieldset>
       <CardGlintAppearancePrinting value={value} onChange={onChange} />
       <CardGlintAppearanceHologram value={value} onChange={onChange} />

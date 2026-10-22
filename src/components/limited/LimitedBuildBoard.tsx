@@ -114,7 +114,7 @@ export function LimitedBuildBoard({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="min-w-0 flex-1 justify-start gap-1 px-0 font-serif"
+                    className="min-w-0 flex-1 justify-start gap-1 px-0 font-semibold tabular-nums lining-nums"
                     aria-expanded={shown}
                     aria-controls={`${boardId}-${zone.id}`}
                     aria-label={`${shown ? "Collapse" : "Expand"} ${zone.title}`}

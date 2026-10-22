@@ -17,7 +17,7 @@ export function SetSymbol({ setCode, className, color }: SetSymbolProps) {
     return (
       <span
         className={cn(
-          "inline-flex items-center justify-center font-mono text-[10px] font-bold uppercase",
+          "inline-flex items-center justify-center text-[10px] font-bold uppercase",
           className,
         )}
       >

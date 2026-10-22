@@ -12,8 +12,6 @@ export interface BasePalette {
   placeholderStroke: string;
   canvasBackground: string;
 
-  /** Core hue set — map each to the nearest match in the preset's
-   *  canonical palette. */
   red: string; // hostile, destructive, lethal, counter
   redDeep: string; // sacrifice, loseLife, depletion, madness (deeper red)
   orange: string; // damage, fight, attack, exerted, level
@@ -133,8 +131,6 @@ export function buildGameColors(p: BasePalette): GameThemeColorMap {
     textMuted: p.labelMuted,
     textGhost: p.labelGhost,
 
-    // Shadow stays a physics-black across all presets — dark-mode and
-    // light-mode surfaces still drop black shadows.
     "canvas.background": p.canvasBackground,
     "canvas.shadow": "#000000",
     "canvas.neutral": p.foreground,
@@ -174,17 +170,11 @@ export function buildGameColors(p: BasePalette): GameThemeColorMap {
     "counter.page": p.paper,
     "counter.shield": p.amber,
 
-    // Base seat mapping for presets without explicit overrides. Each
-    // preset can replace individual values while retaining palette-native hues.
     "playerColors.self": p.green,
     "playerColors.opponent1": p.amber,
     "playerColors.opponent2": p.blue,
     "playerColors.opponent3": p.pink,
 
-    // Tint the status chips rendered next to the mana pool. No fill —
-    // the hue stains both the icon and its count. Kept semantically
-    // stable across presets (monarch = regal amber, poison = infect,
-    // damage = red) so icon meaning stays consistent everywhere.
     "badges.monarch": p.amber,
     "badges.initiative": p.blue,
     "badges.poison": p.poison,
@@ -205,8 +195,6 @@ export function buildGameColors(p: BasePalette): GameThemeColorMap {
 
     "community.accent": p.purple,
 
-    // One token per format badge colour key. Each preset maps these to
-    // its own palette so format badges feel cohesive with the theme.
     "formatBadge.blue": p.blue,
     "formatBadge.amber": p.amber,
     "formatBadge.emerald": p.green,

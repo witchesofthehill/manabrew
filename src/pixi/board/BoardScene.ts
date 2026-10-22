@@ -1,3 +1,4 @@
+import { UI_FONT_FAMILY } from "@/themes/typography";
 import { Application, Container, Graphics, Point, Text, type FederatedPointerEvent } from "pixi.js";
 import { isCardPreviewTarget } from "@/lib/cardPreviewEvents";
 import type { CardDto, PlaymatSettings } from "@/protocol/game";
@@ -1454,7 +1455,7 @@ export class BoardScene {
     const text = new Text({
       text: content,
       style: {
-        fontFamily: "system-ui, sans-serif",
+        fontFamily: UI_FONT_FAMILY,
         fontSize: FLOATER_FONT_SIZE,
         fontWeight: "900",
         fill: color,

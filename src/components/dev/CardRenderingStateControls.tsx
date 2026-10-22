@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { CardRenderingCharacteristicControls } from "@/components/dev/CardRenderingCharacteristicControls";
 import { CardRenderingCounterControls } from "@/components/dev/CardRenderingCounterControls";
+import { CardRenderingMechanicControls } from "@/components/dev/CardRenderingMechanicControls";
 import {
   DEV_CONTROL_ACTIVE,
   DEV_CONTROL_BUTTON,
@@ -16,6 +17,8 @@ import type { ClientCardDto } from "@/stores/gameStore.types";
 
 interface CardRenderingStateControlsProps {
   card: ClientCardDto | undefined;
+  layout?: string;
+  startingDefense?: string;
   value: CardRenderingOverrides;
   onChange: (value: CardRenderingOverrides) => void;
   onReset: () => void;
@@ -40,6 +43,8 @@ const STATUSES: { key: CardRenderingStatus; label: string }[] = [
 
 export function CardRenderingStateControls({
   card,
+  layout,
+  startingDefense,
   value,
   onChange,
   onReset,
@@ -53,7 +58,8 @@ export function CardRenderingStateControls({
         <div>
           <h3 className={DEV_SECTION_HEADING}>Local card state</h3>
           <p className="mt-1 text-xs text-muted-foreground">
-            Both renderers only. No game state or saved deck changes.
+            Mechanic states appear in Interactive Pixi. Characteristic edits also update Card Glint
+            DOM. Original scans and the material workbench keep their printed state.
           </p>
         </div>
         <Button
@@ -67,6 +73,13 @@ export function CardRenderingStateControls({
       </div>
       {card ? (
         <div className="mt-3 max-h-64 space-y-2 overflow-y-auto">
+          <CardRenderingMechanicControls
+            card={card}
+            layout={layout}
+            startingDefense={startingDefense}
+            value={value}
+            onChange={onChange}
+          />
           <details className="rounded-md border border-border/70 px-3 py-2">
             <summary className="cursor-pointer text-xs font-medium">
               Types, P/T, damage & keywords

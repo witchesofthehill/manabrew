@@ -85,7 +85,7 @@ function CustomCounterForm({
                 className={cn(
                   "grid size-9 place-items-center rounded-md border",
                   key === iconKey
-                    ? "border-selection bg-selection/15 text-selection"
+                    ? "border-selection-border bg-selection text-selection-foreground"
                     : "border-border hover:bg-muted",
                 )}
                 aria-label={key}

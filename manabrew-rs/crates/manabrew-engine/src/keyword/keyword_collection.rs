@@ -213,6 +213,10 @@ impl KeywordCollection {
         self.map.values().flat_map(|v| v.iter()).collect()
     }
 
+    pub(crate) fn iter_values(&self) -> impl Iterator<Item = &KeywordInstanceData> {
+        self.map.values().flatten()
+    }
+
     /// Get all keyword instances for a specific keyword.
     pub fn get_values_for(&self, keyword: Keyword) -> Vec<&KeywordInstanceData> {
         self.map

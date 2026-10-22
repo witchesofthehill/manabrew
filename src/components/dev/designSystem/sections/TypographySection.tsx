@@ -6,11 +6,11 @@ const SCALE: {
   label: string;
 }[] = [
   {
-    cls: "text-5xl font-light tracking-[0.08em] font-serif",
+    cls: "text-5xl font-bold tracking-tight font-serif",
     label: `Display / hero`,
   },
   {
-    cls: "text-3xl font-light tracking-tight font-serif",
+    cls: "text-3xl font-semibold tracking-tight font-serif",
     label: `Section heading`,
   },
   {
@@ -39,9 +39,9 @@ export function TypographySection() {
     <Section
       id="typography"
       title={`Typography`}
-      intro="Three self-hosted families (@fontsource). rem drives chrome so text scales up on ≥2000px displays; px is reserved for card art."
+      intro="Two self-hosted families. Alegreya Sans Bold supplies display titles; Source Sans 3 supplies body, controls and game text. rem scales chrome on large displays; card art keeps its native printing fonts."
     >
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="grid gap-3 md:grid-cols-2">
         {FONTS.map((f) => (
           <Panel key={f.role} className="space-y-2">
             <Subhead>{f.role}</Subhead>
@@ -68,6 +68,17 @@ export function TypographySection() {
             <span className={s.cls}>Manabrew</span>
           </div>
         ))}
+      </Panel>
+
+      <Subhead>Game counters</Subhead>
+      <Panel className="space-y-2">
+        <p className="font-game text-2xl font-semibold tabular-nums lining-nums">
+          20 · 11 · 08 · 3/4 · 09:42
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Lining tabular numerals keep counters and timers steady. Body prose uses proportional
+          numerals.
+        </p>
       </Panel>
 
       <Subhead>Game font-size tokens</Subhead>

@@ -1,32 +1,33 @@
-import { composeCardTexture, type RenderedCardInput } from "card-glint/magic/presentation";
-import { composeSemanticCardTexture, isSemanticLayout } from "@/lib/cardSemanticLayout";
-import { ensureCardGlintFonts } from "@/lib/cardGlintAssets";
 import type { ScryfallLanguage } from "@/i18n/locales";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import { getTheme } from "@/hooks/useTheme";
-import {
-  captureCardInput,
-  prepareCard,
-  type CardRenderRequest,
-  type PreparedCard,
-} from "@/lib/cardRenderSnapshot";
-import { cardImageLoader } from "@/lib/cardRenderArtwork";
+import { captureCardInput, prepareCard } from "@/lib/cardRenderSnapshot";
+import type { CardRenderRequest, PreparedCard } from "@/lib/cardRenderSnapshot";
 import { attachCardRenderGeometry } from "@/lib/cardRenderGeometry";
-import { CardRenderError, type CardRenderDecision } from "@/lib/cardRenderDecision";
-import { cardGlintFace, type CardGlintFace } from "@/lib/cardRenderFace";
+import { CardRenderError } from "@/lib/cardRenderDecision";
+import type { CardRenderDecision } from "@/lib/cardRenderDecision";
+import { cardGlintFace } from "@/lib/cardRenderFace";
+import type { CardGlintFace } from "@/lib/cardRenderFace";
+import { enqueueCardRender, cardQueueStats, resetCardQueueStats } from "@/lib/cardRenderQueue";
+import type { CardRenderPriority } from "@/lib/cardRenderQueue";
 import {
-  enqueueCardRender,
-  cardQueueStats,
-  resetCardQueueStats,
-  type CardRenderPriority,
-} from "@/lib/cardRenderQueue";
-import type { CardCanvas } from "@/lib/cardRenderTypes";
+  cardRasterStats,
+  ownCardRaster,
+  releaseCardRaster,
+  retainCardRaster,
+} from "@/lib/cardRenderTypes";
+import type { CardRaster, CardRenderTier } from "@/lib/cardRenderTypes";
 import { registerCardOpticalSource } from "@/lib/cardOpticalLayers";
+import { disposeCardLiveHighlights, setCardLiveHighlights } from "@/lib/cardLiveHighlights";
 import {
-  copyCardLiveHighlights,
-  getCardLiveHighlights,
-  registerCardLiveHighlights,
-} from "@/lib/cardLiveHighlights";
+  composeCardOffThread,
+  cardWorkerStats,
+  terminateCardRenderWorker,
+} from "@/lib/cardCompositionWorker";
+import { disposeCardComposition } from "@/lib/cardComposition";
+import { cardArtworkStats, clearCardArtworkCache } from "@/lib/cardRenderArtwork";
+import type { CardSemanticPalette } from "@/lib/cardSemanticLayout";
+import { cardScratchStats } from "@/lib/cardRasterScratch";
 
 export type { CardRenderRequest } from "@/lib/cardRenderSnapshot";
 
@@ -38,39 +39,43 @@ export interface CardRenderOptions {
   rulesText?: boolean;
   priority?: CardRenderPriority;
   standardFrameFallback?: boolean;
+  tier?: CardRenderTier;
   onCompose?: () => void;
-}
-
-interface FinishedCard {
-  canvas?: CardCanvas;
-  live: WeakRef<CardCanvas>;
-  image?: Blob;
-  decoding?: Promise<CardCanvas>;
-  bytes: number;
-  restore: (canvas: CardCanvas) => void;
 }
 
 const MAX_FINISHED_CARDS = 1024;
 const MAX_FINISHED_BYTES = 256 * 1024 * 1024;
-const FINISHED_IMAGE_QUALITY = 0.95;
-const finished = new Map<string, FinishedCard>();
-const decisions = new WeakMap<CardCanvas, CardRenderDecision>();
+const finished = new Map<string, { raster: CardRaster; bytes: number; release(): void }>();
+const decisions = new WeakMap<CardRaster, CardRenderDecision>();
 const compositions = new WeakMap<
   PreparedCard,
-  CardGlintFace & { optionsKey: string; key: string }
+  CardGlintFace & { optionsKey: string; key: string; palette: CardSemanticPalette }
 >();
 let finishedBytes = 0;
 let preparing = 0;
-const counters = { requests: 0, cacheHits: 0, failures: 0, evictions: 0 };
+const counters = {
+  requests: 0,
+  cacheHits: 0,
+  failures: 0,
+  evictions: 0,
+  tableCompositions: 0,
+  nativeCompositions: 0,
+  inspectCompositions: 0,
+};
 
-export function getCardRenderDecision(canvas: CardCanvas): CardRenderDecision | undefined {
-  return decisions.get(canvas);
+export function getCardRenderDecision(raster: CardRaster): CardRenderDecision | undefined {
+  return decisions.get(raster);
 }
 
 export function getCardRenderStats() {
+  const cachedSources = new Set([...finished.values()].map(({ raster }) => raster));
   return {
     ...counters,
     ...cardQueueStats(),
+    ...cardRasterStats(cachedSources),
+    ...cardWorkerStats(),
+    ...cardArtworkStats(),
+    ...cardScratchStats(),
     preparing,
     finishedCards: finished.size,
     finishedBytes,
@@ -80,72 +85,14 @@ export function getCardRenderStats() {
 export function clearCardRenderCache(): boolean {
   const { active, queued } = cardQueueStats();
   if (active || queued || preparing) return false;
+  for (const entry of finished.values()) entry.release();
   finished.clear();
   finishedBytes = 0;
-  counters.requests = 0;
-  counters.cacheHits = 0;
-  counters.failures = 0;
-  counters.evictions = 0;
+  for (const key of Object.keys(counters) as (keyof typeof counters)[]) counters[key] = 0;
   resetCardQueueStats();
+  clearCardArtworkCache();
+  terminateCardRenderWorker();
   return true;
-}
-
-function withoutLiveInk<T extends RenderedCardInput>(face: T, colors: Set<string>): T {
-  const faces = face.faces?.map((child) => withoutLiveInk(child, colors));
-  if (!face.textInk && (!faces || faces.every((child, index) => child === face.faces![index])))
-    return face;
-  if (face.textInk) {
-    for (const spans of [face.textInk.stats, face.textInk.typeLine])
-      for (const span of spans ?? []) colors.add(span.color);
-  }
-  return {
-    ...face,
-    textInk: face.textInk ? { ...face.textInk, omitInk: true } : undefined,
-    faces,
-  };
-}
-
-function evictFinishedCards(): void {
-  while (finished.size > MAX_FINISHED_CARDS || finishedBytes > MAX_FINISHED_BYTES) {
-    const oldest = finished.entries().next().value;
-    if (!oldest) break;
-    finishedBytes -= oldest[1].bytes;
-    finished.delete(oldest[0]);
-    counters.evictions += 1;
-  }
-}
-
-function encodeFinishedCard(canvas: CardCanvas): Promise<Blob> {
-  return new Promise((resolve, reject) =>
-    canvas.toBlob(
-      (image) => (image ? resolve(image) : reject(new Error("Card encoding failed"))),
-      "image/webp",
-      FINISHED_IMAGE_QUALITY,
-    ),
-  );
-}
-
-async function decodeFinishedCard(card: FinishedCard): Promise<CardCanvas> {
-  const bitmap = await createImageBitmap(card.image!);
-  const canvas = document.createElement("canvas");
-  canvas.width = bitmap.width;
-  canvas.height = bitmap.height;
-  const context = canvas.getContext("2d");
-  if (!context) throw new Error("Card rendering requires a 2D canvas context");
-  context.drawImage(bitmap, 0, 0);
-  bitmap.close();
-  card.restore(canvas);
-  card.live = new WeakRef(canvas);
-  return canvas;
-}
-
-function restoreFinishedCard(card: FinishedCard): Promise<CardCanvas> {
-  const canvas = card.canvas ?? card.live.deref();
-  if (canvas) return Promise.resolve(canvas);
-  card.decoding ??= decodeFinishedCard(card).finally(() => {
-    card.decoding = undefined;
-  });
-  return card.decoding;
 }
 
 function composeCard(
@@ -153,108 +100,110 @@ function composeCard(
   rulesText: boolean,
   priority: CardRenderPriority,
   standardFrameFallback: boolean,
+  tier: CardRenderTier,
   signal?: AbortSignal,
   onCompose?: () => void,
-): Promise<CardCanvas> {
+): Promise<CardRaster> {
   const { cardChange, cardPrinting } = getTheme().gameTheme;
-  const optionsKey = JSON.stringify([rulesText, standardFrameFallback, cardChange, cardPrinting]);
+  const optionsKey = JSON.stringify([
+    rulesText,
+    standardFrameFallback,
+    tier,
+    cardChange,
+    cardPrinting,
+  ]);
   let composition = compositions.get(prepared);
   if (!composition || composition.optionsKey !== optionsKey) {
-    const { face, decision } = cardGlintFace(prepared, standardFrameFallback);
+    const { face: resolved, decision } = cardGlintFace(prepared, standardFrameFallback);
+    const face = structuredClone(resolved);
+    const palette = Object.freeze({ ink: cardPrinting.ink, footer: cardPrinting.footer });
     const key = JSON.stringify([
       prepared.locale,
       prepared.printing.map((printing) => printing.id),
       face,
       decision,
       rulesText,
-      isSemanticLayout(face) ? cardPrinting : undefined,
+      tier,
+      palette,
     ]);
-    composition = { optionsKey, key, face, decision };
+    composition = { optionsKey, key, face, decision, palette };
     compositions.set(prepared, composition);
   }
-  const { face, decision, key } = composition;
+  const { face, decision, key, palette } = composition;
   const cached = finished.get(key);
-  if (cached && (cached.canvas || cached.image || cached.live.deref())) {
-    counters.cacheHits += 1;
+  if (cached) {
+    counters.cacheHits++;
     finished.delete(key);
     finished.set(key, cached);
-    return restoreFinishedCard(cached);
+    retainCardRaster(cached.raster);
+    return Promise.resolve(cached.raster);
   }
   onCompose?.();
   return enqueueCardRender(
     key,
-    async () => {
+    async (compositionSignal) => {
       try {
-        await ensureCardGlintFonts();
-        const compositionSignal = new AbortController().signal;
-        const loadImages = cardImageLoader(prepared.artUrls);
-        const paint = (input: typeof face) =>
-          isSemanticLayout(input)
-            ? composeSemanticCardTexture(input, "inspect", compositionSignal, {
-                rulesText,
-                loadImages,
-                loadFonts: ensureCardGlintFonts,
-              })
-            : composeCardTexture(
-                {
-                  face: input,
-                  printingId: prepared.printing[prepared.faceIndex]?.id ?? null,
-                  printedImage: null,
-                  rulesText,
-                },
-                "inspect",
-                compositionSignal,
-                { loadImages },
-              );
-        const canvas = await paint(face);
-        attachCardRenderGeometry(canvas, face, prepared.faceIndex);
-        const colors = new Set<string>();
-        const backingFace = withoutLiveInk(face, colors);
-        if (backingFace !== face) {
-          const backing = await paint(backingFace);
-          registerCardLiveHighlights(canvas, backing, [...colors]);
-          backing.width = backing.height = 0;
+        counters[`${tier}Compositions`]++;
+        const result = await composeCardOffThread(
+          {
+            key,
+            face,
+            palette,
+            tier,
+            rulesText,
+            printingId: prepared.printing[prepared.faceIndex]?.id ?? null,
+            artUrls: prepared.artUrls,
+          },
+          compositionSignal,
+        );
+        if (compositionSignal.aborted || result.key !== key) {
+          disposeCardComposition(result);
+          compositionSignal.throwIfAborted();
+          throw new DOMException("Card composition was superseded", "AbortError");
         }
-        registerCardOpticalSource(canvas, face, prepared.artUrls, rulesText);
-        decisions.set(canvas, decision);
-        const highlights = getCardLiveHighlights(canvas);
+        const raster = result.raster;
+        try {
+          attachCardRenderGeometry(raster, face, prepared.faceIndex);
+          registerCardOpticalSource(raster, face, prepared.artUrls, rulesText, tier, palette);
+          decisions.set(raster, decision);
+          setCardLiveHighlights(raster, result.highlights);
+        } catch (error) {
+          disposeCardComposition(result);
+          throw error;
+        }
         const highlightPixels =
-          highlights?.regions.reduce(
+          result.highlights?.regions.reduce(
             (total, region) =>
               total +
               region.ink.width * region.ink.height +
               region.paper.width * region.paper.height,
             0,
           ) ?? 0;
-        const card: FinishedCard = {
-          canvas,
-          live: new WeakRef(canvas),
-          bytes: 0,
-          restore: (target) => {
-            attachCardRenderGeometry(target, face, prepared.faceIndex);
-            copyCardLiveHighlights(card, target);
-            registerCardOpticalSource(target, face, prepared.artUrls, rulesText);
-            decisions.set(target, decision);
-          },
-        };
-        copyCardLiveHighlights(canvas, card);
-        finished.set(key, card);
-        evictFinishedCards();
-        void encodeFinishedCard(canvas)
-          .then((image) => {
-            if (finished.get(key) !== card) return;
-            card.image = image;
-            card.canvas = undefined;
-            card.bytes = image.size + highlightPixels * 4;
-            finishedBytes += card.bytes;
-            evictFinishedCards();
-          })
-          .catch(() => {
-            if (finished.get(key) === card) finished.delete(key);
-          });
-        return canvas;
+        const bytes = (raster.width * raster.height + highlightPixels) * 4;
+        ownCardRaster(raster, bytes, () => disposeCardLiveHighlights(result.highlights));
+        if (bytes <= MAX_FINISHED_BYTES) {
+          while (
+            finished.size >= MAX_FINISHED_CARDS ||
+            finishedBytes + bytes > MAX_FINISHED_BYTES
+          ) {
+            const oldest = finished.entries().next().value;
+            if (!oldest) break;
+            finishedBytes -= oldest[1].bytes;
+            finished.delete(oldest[0]);
+            oldest[1].release();
+            counters.evictions++;
+          }
+          finished.set(key, { raster, bytes, release: retainCardRaster(raster) });
+          finishedBytes += bytes;
+        }
+        return raster;
       } catch (cause) {
-        if (cause instanceof CardRenderError) throw cause;
+        if (
+          compositionSignal.aborted ||
+          cause instanceof CardRenderError ||
+          (cause instanceof Error && cause.name === "AbortError")
+        )
+          throw cause;
         throw new CardRenderError(
           { ...decision, mode: "original", reason: "composition-failed" },
           "Card Glint could not compose this face",
@@ -274,13 +223,14 @@ export async function renderCard(
     rulesText = true,
     priority = "visible",
     standardFrameFallback = false,
+    tier = "native",
     onCompose,
   }: CardRenderOptions = {},
-): Promise<CardCanvas> {
+): Promise<CardRaster> {
   signal?.throwIfAborted();
-  counters.requests += 1;
-  preparing += 1;
-  let pending: Promise<CardCanvas>;
+  counters.requests++;
+  preparing++;
+  let pending: Promise<CardRaster>;
   let locale: ScryfallLanguage;
   try {
     const input = captureCardInput(request);
@@ -289,21 +239,31 @@ export async function renderCard(
     signal?.throwIfAborted();
     if (useScryfallStore.getState().locale !== locale)
       throw new DOMException("Card language changed during preparation", "AbortError");
-    pending = composeCard(prepared, rulesText, priority, standardFrameFallback, signal, onCompose);
+    pending = composeCard(
+      prepared,
+      rulesText,
+      priority,
+      standardFrameFallback,
+      tier,
+      signal,
+      onCompose,
+    );
   } catch (error) {
-    if (!signal?.aborted) counters.failures += 1;
+    if (!signal?.aborted) counters.failures++;
     throw error;
   } finally {
-    preparing -= 1;
+    preparing--;
   }
+  let raster: CardRaster | undefined;
   try {
-    const canvas = await pending;
+    raster = await pending;
     signal?.throwIfAborted();
     if (useScryfallStore.getState().locale !== locale)
       throw new DOMException("Card language changed during rendering", "AbortError");
-    return canvas;
+    return raster;
   } catch (error) {
-    if (!signal?.aborted) counters.failures += 1;
+    if (raster) releaseCardRaster(raster);
+    if (!signal?.aborted) counters.failures++;
     throw error;
   }
 }
@@ -311,12 +271,12 @@ export async function renderCard(
 export function renderRulesCard(
   request: CardRenderRequest,
   signal?: AbortSignal,
-  onCompose?: () => void,
-): Promise<CardCanvas> {
+  options: Pick<CardRenderOptions, "tier" | "priority" | "onCompose"> = {},
+): Promise<CardRaster> {
   return renderCard(request, signal, {
     rulesText: false,
     priority: "preview",
     standardFrameFallback: true,
-    onCompose,
+    ...options,
   });
 }

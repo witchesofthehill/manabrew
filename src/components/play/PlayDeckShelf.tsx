@@ -120,7 +120,7 @@ export function PlayDeckShelf({
   return (
     <section className="min-w-0 overflow-hidden rounded-2xl border border-border/70 bg-background/80 p-5 shadow-xl backdrop-blur-md sm:p-6">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-        <h2 className="font-serif text-2xl font-light tracking-tight sm:text-3xl">My Decks</h2>
+        <h2 className="font-serif text-2xl font-semibold tracking-tight sm:text-3xl">My Decks</h2>
         <div className="flex flex-wrap items-center gap-2">
           {ownedDecks.length > 0 && (
             <Button variant="outline" size="sm" onClick={() => setChoiceOpen(true)}>

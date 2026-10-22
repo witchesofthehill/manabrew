@@ -1,29 +1,28 @@
-import type { ThemePreset } from "./presets";
+import type { ThemeColors } from "./appTheme";
+import type { GameFontSizes, GameThemeColorMap } from "./gameTheme";
 import { buildGameColors, type BasePalette } from "./buildGameColors";
+import { BRAND_COLORS } from "./brand";
 
-const primary = "#D4632E";
-const secondary = "#713A98";
-const accent = "#e7e2dc";
-const charcoal = "#131416";
-const cardCharcoal = "#1a1c1d";
-const mutedGraphite = "#232627";
-const popoverGraphite = "#202223";
-const neutralGray = "#343839";
-const lightMutedText = "#59615f";
-const lightBorder = "#b9bfbd";
-const white = "#ffffff";
+const { ember, mana, sage, neutral } = BRAND_COLORS;
+const lightMuted = "#F0E9EF";
+const lightBorder = "#D5CCD5";
+const darkBorder = "#514753";
+const lightInput = "#8D838F";
+const darkInput = "#7E7282";
+const lightDestructive = "#B82E45";
+const darkDestructive = "#F0788B";
 
 const palette: BasePalette = {
-  foreground: accent,
-  labelMuted: accent,
-  labelGhost: secondary,
-  placeholderFill: charcoal,
-  placeholderStroke: accent,
-  canvasBackground: charcoal,
+  foreground: neutral.steam,
+  labelMuted: neutral.pewter,
+  labelGhost: mana[400],
+  placeholderFill: neutral.cauldron,
+  placeholderStroke: neutral.pewter,
+  canvasBackground: neutral.soot,
   red: "#c93d50",
   redDeep: "#a92f46",
-  orange: primary,
-  amber: primary,
+  orange: ember[600],
+  amber: ember[600],
   yellow: "#d8d34a",
   green: "#7ca982",
   teal: "#3fb6b8",
@@ -36,7 +35,7 @@ const palette: BasePalette = {
   pink: "#ce5d82",
   slate: "#7a8180",
   brown: "#ad6848",
-  paper: accent,
+  paper: neutral.steam,
   poison: "#82ad41",
   promptDefense: "#4f9fd0",
   manaW: "#f8f6d8",
@@ -46,71 +45,86 @@ const palette: BasePalette = {
   manaG: "#a3c095",
   manaC: "#cac5c0",
 };
-const preset: ThemePreset = {
-  id: "default",
+const MANABREW_THEME: {
+  name: string;
+  light: ThemeColors;
+  dark: ThemeColors;
+  gameColors: GameThemeColorMap;
+  gameFontSizes: GameFontSizes;
+} = {
   name: "Manabrew",
-  description: `Manabrew default theme`,
   light: {
-    background: accent,
-    foreground: charcoal,
-    card: white,
-    "card-foreground": charcoal,
-    popover: white,
-    "popover-foreground": charcoal,
-    primary,
-    "primary-foreground": charcoal,
-    secondary,
-    "secondary-foreground": white,
-    muted: accent,
-    "muted-foreground": lightMutedText,
-    accent,
-    "accent-foreground": charcoal,
-    destructive: "#c93d50",
-    "destructive-foreground": white,
+    background: neutral.steam,
+    foreground: neutral.soot,
+    card: neutral.white,
+    "card-foreground": neutral.soot,
+    popover: neutral.white,
+    "popover-foreground": neutral.soot,
+    primary: ember[700],
+    "primary-hover": ember[800],
+    "primary-foreground": neutral.white,
+    secondary: mana[700],
+    "secondary-foreground": neutral.white,
+    muted: lightMuted,
+    "muted-foreground": neutral.darkPewter,
+    accent: lightMuted,
+    "accent-foreground": neutral.soot,
+    "brand-accent": sage[700],
+    "brand-accent-muted": sage[100],
+    "brand-accent-foreground": sage[700],
+    destructive: lightDestructive,
+    "destructive-foreground": neutral.white,
     border: lightBorder,
-    input: lightBorder,
-    ring: primary,
-    selection: secondary,
-    "selection-foreground": white,
-    commander: accent,
+    input: lightInput,
+    ring: ember[700],
+    selection: mana[100],
+    "selection-border": mana[700],
+    "selection-foreground": mana[800],
+    commander: "#806000",
     warning: "#806000",
     overlay: "#000000",
   },
   dark: {
-    background: charcoal,
-    foreground: accent,
-    card: cardCharcoal,
-    "card-foreground": accent,
-    popover: popoverGraphite,
-    "popover-foreground": accent,
-    primary,
-    "primary-foreground": charcoal,
-    secondary,
-    "secondary-foreground": white,
-    muted: mutedGraphite,
-    "muted-foreground": accent,
-    accent,
-    "accent-foreground": charcoal,
-    destructive: "#c93d50",
-    "destructive-foreground": white,
-    border: neutralGray,
-    input: neutralGray,
-    ring: primary,
-    selection: secondary,
-    "selection-foreground": white,
-    commander: accent,
+    background: neutral.soot,
+    foreground: neutral.steam,
+    card: neutral.cauldron,
+    "card-foreground": neutral.steam,
+    popover: neutral.ash,
+    "popover-foreground": neutral.steam,
+    primary: ember[400],
+    "primary-hover": ember[300],
+    "primary-foreground": neutral.soot,
+    secondary: mana[400],
+    "secondary-foreground": neutral.soot,
+    muted: neutral.ash,
+    "muted-foreground": neutral.pewter,
+    accent: neutral.ash,
+    "accent-foreground": neutral.steam,
+    "brand-accent": sage[400],
+    "brand-accent-muted": "#303B2D",
+    "brand-accent-foreground": sage[100],
+    destructive: darkDestructive,
+    "destructive-foreground": neutral.soot,
+    border: darkBorder,
+    input: darkInput,
+    ring: ember[400],
+    selection: mana[950],
+    "selection-border": mana[400],
+    "selection-foreground": mana[200],
+    commander: "#d8a640",
     warning: "#d8a640",
     overlay: "#000000",
   },
   gameColors: {
     ...buildGameColors(palette),
-    cardRing: primary,
-    "activeAction.active": primary,
+    cardRing: ember[400],
+    cardSelection: mana[400],
+    "activeAction.active": ember[400],
     "playerColors.self": palette.green,
     "playerColors.opponent1": palette.blue,
     "playerColors.opponent2": palette.yellow,
     "playerColors.opponent3": palette.pink,
-    "phaseStrip.background": charcoal,
+    "phaseStrip.background": neutral.soot,
   },
   gameFontSizes: {
     badgeCount: "13px",
@@ -121,4 +135,4 @@ const preset: ThemePreset = {
     avatarInitials: "16px",
   },
 };
-export default preset;
+export default MANABREW_THEME;

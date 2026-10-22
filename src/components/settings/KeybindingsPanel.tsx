@@ -92,7 +92,6 @@ export function KeybindingsPanel() {
                         size="sm"
                         variant={isCapturing ? "selected" : "outline"}
                         className={cn("h-7 min-w-24 text-xs", isCapturing && "animate-pulse")}
-                        style={{ fontFamily: "system-ui, -apple-system, sans-serif" }}
                         onClick={() => setCapturingId(isCapturing ? null : b.id)}
                       >
                         {isCapturing ? `Press keys…` : combo ? formatCombo(combo) : `Unbound`}

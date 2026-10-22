@@ -452,7 +452,7 @@ function PolicyButton({
       variant="outline"
       className={cn(
         "h-auto min-h-24 items-start justify-start gap-3 whitespace-normal p-4 text-left",
-        selected && "border-selection bg-selection/10 ring-1 ring-selection",
+        selected && "border-selection-border bg-selection ring-1 ring-selection-border",
       )}
       disabled={disabled}
       onClick={onClick}

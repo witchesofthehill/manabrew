@@ -20,22 +20,22 @@ export function LimitedAnalysisSummary({
       </h3>
       <dl className="grid grid-cols-2 gap-x-4 gap-y-1">
         <dt>Creatures</dt>
-        <dd className="text-right font-mono">{summary.creatures}</dd>
+        <dd className="text-right tabular-nums lining-nums">{summary.creatures}</dd>
         <dt>Interaction</dt>
-        <dd className="text-right font-mono">{summary.interaction}</dd>
+        <dd className="text-right tabular-nums lining-nums">{summary.interaction}</dd>
         <dt>Fixing</dt>
-        <dd className="text-right font-mono">{summary.fixing}</dd>
+        <dd className="text-right tabular-nums lining-nums">{summary.fixing}</dd>
         <dt>Lands</dt>
-        <dd className="text-right font-mono">{summary.lands}</dd>
+        <dd className="text-right tabular-nums lining-nums">{summary.lands}</dd>
         <dt>Supported physical land sources</dt>
-        <dd className="text-right font-mono">{summary.physicalSources}</dd>
+        <dd className="text-right tabular-nums lining-nums">{summary.physicalSources}</dd>
       </dl>
       <div>
         <h4 className="mb-1 text-muted-foreground">Creatures by mana value</h4>
         <div className="grid grid-cols-7 gap-1 text-center">
           {summary.curve.map((count, index) => (
             <div key={index} className="rounded bg-muted/40 p-1">
-              <div className="font-mono tabular-nums">{count}</div>
+              <div className="tabular-nums lining-nums">{count}</div>
               <div className="text-muted-foreground">{index === 6 ? "6+" : index}</div>
             </div>
           ))}
@@ -49,7 +49,7 @@ export function LimitedAnalysisSummary({
           ).map((color) => (
             <div key={color} className="flex items-center gap-1">
               <ManaSymbols cost={`{${color}}`} size="sm" />
-              <span className="font-mono">{summary.requirements[color]}</span>
+              <span className="tabular-nums lining-nums">{summary.requirements[color]}</span>
               {summary.alternatives[color] > 0 && (
                 <span className="text-muted-foreground">
                   + {summary.alternatives[color]} alternative
@@ -65,7 +65,7 @@ export function LimitedAnalysisSummary({
           {MANA_LETTERS.map((color) => (
             <div key={color} className="flex items-center gap-1">
               <ManaSymbols cost={`{${color}}`} size="sm" />
-              <span className="font-mono">{summary.sources[color]}</span>
+              <span className="tabular-nums lining-nums">{summary.sources[color]}</span>
             </div>
           ))}
         </div>

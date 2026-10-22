@@ -1,4 +1,4 @@
-import { ArrowDownToLine, ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowDownToLine, Loader2 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { installDesktopUpdate } from "@/hooks/useDesktopUpdater";
@@ -9,80 +9,73 @@ import { ManaBrewLogo } from "./ManaBrewLogo";
 import { NavSheet } from "./NavSheet";
 import { TopBarNav } from "./TopBarNav";
 import type { TopBarOverride } from "./TopBarOverride";
-interface RouteChrome {
-  title: string | null;
-  fallback: string;
-}
 function normalizePathname(pathname: string) {
   return pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
 }
-function getRouteChrome(pathname: string, search: string): RouteChrome {
+function getRouteTitle(pathname: string, search: string): string | null {
   pathname = normalizePathname(pathname);
-  if (pathname === ROUTES.PLAY) return { title: null, fallback: ROUTES.PLAY };
+  if (pathname === ROUTES.PLAY) return null;
   if (pathname === ROUTES.PLAY_OFFLINE_CONSTRUCTED) {
-    return { title: `Play Offline`, fallback: ROUTES.PLAY };
+    return `Play Offline`;
   }
   if (pathname === ROUTES.PLAY_OFFLINE_LIMITED) {
-    return { title: `Play Offline`, fallback: ROUTES.PLAY };
+    return `Play Offline`;
   }
   if (pathname.startsWith(`${ROUTES.PLAY_DECK}/`)) {
-    return { title: `Play Deck`, fallback: ROUTES.PLAY };
+    return `Play Deck`;
   }
   if (pathname === ROUTES.LOBBY) {
-    return { title: `Multiplayer`, fallback: ROUTES.PLAY };
+    return `Multiplayer`;
   }
   if (pathname === ROUTES.SEARCH) {
-    return { title: `Card Search`, fallback: ROUTES.PLAY };
+    return `Card Search`;
   }
   if (pathname === ROUTES.DECK_EDITOR) {
-    return {
-      title: new URLSearchParams(search).has("deck") ? `Deck Editor` : `My Decks`,
-      fallback: ROUTES.PLAY,
-    };
+    return new URLSearchParams(search).has("deck") ? `Deck Editor` : `My Decks`;
   }
   if (pathname === ROUTES.MY_COLLECTION) {
-    return { title: `My Collection`, fallback: ROUTES.PLAY };
+    return `My Collection`;
   }
   if (pathname === ROUTES.HUB_TOP) {
-    return { title: `Top Decks`, fallback: ROUTES.HUB };
+    return `Top Decks`;
   }
   if (pathname === ROUTES.HUB) {
-    return { title: `Community`, fallback: ROUTES.PLAY };
+    return `Community`;
   }
   if (pathname === `${ROUTES.DRAFT}/multiplayer`) {
-    return { title: `Multiplayer Draft`, fallback: ROUTES.LOBBY };
+    return `Multiplayer Draft`;
   }
   if (pathname.startsWith(`${ROUTES.DRAFT}/`)) {
-    return { title: `Booster Draft`, fallback: ROUTES.PLAY_OFFLINE_LIMITED };
+    return `Booster Draft`;
   }
   if (pathname === `${ROUTES.SEALED}/multiplayer`) {
-    return { title: `Sealed Deck Build`, fallback: ROUTES.LOBBY };
+    return `Sealed Deck Build`;
   }
   if (pathname.startsWith(`${ROUTES.SEALED}/`)) {
-    return { title: `Sealed`, fallback: ROUTES.PLAY_OFFLINE_LIMITED };
+    return `Sealed`;
   }
   if (pathname.startsWith(`${ROUTES.WINSTON}/`)) {
-    return { title: `Winston Draft`, fallback: ROUTES.PLAY_OFFLINE_LIMITED };
+    return `Winston Draft`;
   }
   if (pathname.startsWith(`${ROUTES.GAUNTLET}/`)) {
-    return { title: `Gauntlet`, fallback: ROUTES.PLAY_OFFLINE_LIMITED };
+    return `Gauntlet`;
   }
   if (pathname === ROUTES.COMPANION) {
-    return { title: `Life Tracker`, fallback: ROUTES.PLAY };
+    return `Life Tracker`;
   }
   if (pathname === ROUTES.SETTINGS) {
-    return { title: `Preferences`, fallback: ROUTES.PLAY };
+    return `Preferences`;
   }
   if (pathname === ROUTES.ABOUT) {
-    return { title: `About Manabrew`, fallback: ROUTES.PLAY };
+    return `About Manabrew`;
   }
   if (pathname === ROUTES.DESIGN_SYSTEM) {
-    return { title: `Design System`, fallback: ROUTES.PLAY };
+    return `Design System`;
   }
   if (pathname === "/card-mock") {
-    return { title: "Card lab", fallback: ROUTES.PLAY };
+    return "Card lab";
   }
-  return { title: null, fallback: ROUTES.PLAY };
+  return null;
 }
 interface TopBarProps {
   override?: TopBarOverride;
@@ -93,9 +86,7 @@ export function TopBar({ override }: TopBarProps) {
   const phase = useDesktopUpdateStore((s) => s.phase);
   const version = useDesktopUpdateStore((s) => s.version);
   const progress = useDesktopUpdateStore((s) => s.progress);
-  const routeChrome = getRouteChrome(location.pathname, location.search);
-  const title = override?.title ?? routeChrome.title;
-  const isPlayHome = normalizePathname(location.pathname) === ROUTES.PLAY;
+  const title = override?.title ?? getRouteTitle(location.pathname, location.search);
   // AppShell hides this bar while the board is shown, so a live game never
   // reaches here except from another route, where it must stay navigable.
   const navigationDisabled = override?.navigationDisabled === true;
@@ -108,28 +99,6 @@ export function TopBar({ override }: TopBarProps) {
     : version
       ? `Update to ${version}`
       : "";
-  function goBack() {
-    if (override?.onBack) {
-      override.onBack();
-      return;
-    }
-    const routeState = location.state;
-    if (
-      routeState &&
-      typeof routeState === "object" &&
-      "topBarBackTo" in routeState &&
-      typeof routeState.topBarBackTo === "string"
-    ) {
-      navigate(routeState.topBarBackTo, { replace: true });
-      return;
-    }
-    const historyIndex = window.history.state?.idx;
-    if (typeof historyIndex === "number" && historyIndex > 0) {
-      navigate(-1);
-    } else {
-      navigate(routeChrome.fallback);
-    }
-  }
   function goHome() {
     if (override?.onHome) {
       override.onHome();
@@ -138,29 +107,15 @@ export function TopBar({ override }: TopBarProps) {
     }
   }
   return (
-    <header className="flex min-w-0 items-center gap-2 border-b border-border/70 bg-background/80 py-2 pl-[calc(var(--safe-area-inset-left)+1rem)] pr-[calc(var(--safe-area-inset-right)+1rem)] pt-[calc(var(--safe-area-inset-top)+0.5rem)] backdrop-blur-md sm:pl-[calc(var(--safe-area-inset-left)+1.5rem)] sm:pr-[calc(var(--safe-area-inset-right)+1.5rem)] lg:pl-[calc(var(--safe-area-inset-left)+2rem)] lg:pr-[calc(var(--safe-area-inset-right)+2rem)]">
-      {!isPlayHome && (
-        <Button
-          size="icon"
-          variant="ghost"
-          className="group h-8 w-8 shrink-0 border border-transparent motion-safe:transition-[background-color,border-color,color,box-shadow] hover:border-primary/30 hover:bg-primary/10 hover:text-primary hover:shadow-sm"
-          onClick={goBack}
-          title={`Back`}
-        >
-          <ArrowLeft className="h-5 w-5 motion-safe:transition-transform motion-safe:group-hover:-translate-x-0.5" />
-          <span className="sr-only">{`Back`}</span>
-        </Button>
-      )}
+    <header className="flex min-w-0 items-center gap-2 border-b border-border/70 bg-card py-2 pl-[calc(var(--safe-area-inset-left)+1rem)] pr-[calc(var(--safe-area-inset-right)+1rem)] pt-[calc(var(--safe-area-inset-top)+0.5rem)] sm:pl-[calc(var(--safe-area-inset-left)+1.5rem)] sm:pr-[calc(var(--safe-area-inset-right)+1.5rem)] lg:pl-[calc(var(--safe-area-inset-left)+2rem)] lg:pr-[calc(var(--safe-area-inset-right)+2rem)]">
       <button
         type="button"
         onClick={goHome}
         aria-label={`Manabrew Home`}
-        className="group relative flex shrink-0 items-center gap-2 rounded-xl border border-transparent p-0.5 motion-safe:transition-[background-color,border-color,box-shadow] hover:border-primary/30 hover:bg-primary/10 hover:shadow-sm focus-visible:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:before:absolute pointer-coarse:before:-inset-2.5 pointer-coarse:before:content-['']"
+        className="group relative flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xl border border-transparent p-0.5 motion-safe:transition-[background-color,border-color,box-shadow] hover:border-primary/30 hover:bg-primary/10 hover:shadow-sm focus-visible:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <ManaBrewLogo
-          size={36}
-          className="shrink-0 rounded-lg motion-safe:transition-transform motion-safe:group-hover:scale-105"
-        />
+        <ManaBrewLogo decorative height={56} className="hidden shrink-0 sm:block" />
+        <ManaBrewLogo decorative variant="symbol" height={36} className="shrink-0 sm:hidden" />
       </button>
       {title && (
         <>

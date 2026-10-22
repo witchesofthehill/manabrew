@@ -27,6 +27,7 @@ import {
   type CardIdentifier,
 } from "./scryfallBatch";
 import { DEFAULT_SCRYFALL_LANGUAGE, type ScryfallLanguage } from "@/i18n/locales";
+import { withAnyScryfallLanguage } from "@/lib/scryfallSearch";
 
 export const SCRYFALL_API = "https://api.scryfall.com";
 export const COLLECTION_BATCH_SIZE = 75;
@@ -127,9 +128,10 @@ export async function searchCards(
 ): Promise<ScryfallListResponse> {
   const orderParam = order || "cmc";
   const dirParam = dir && dir !== "auto" ? `&dir=${dir}` : "";
+  const scryfallQuery = withAnyScryfallLanguage(query);
   try {
     return await scryfallFetch<ScryfallListResponse>(
-      `${SCRYFALL_API}/cards/search?q=${encodeURIComponent(query)}&page=${page}&order=${orderParam}&unique=cards${dirParam}`,
+      `${SCRYFALL_API}/cards/search?q=${encodeURIComponent(scryfallQuery)}&page=${page}&order=${orderParam}&unique=cards${dirParam}`,
       "Failed to fetch cards from Scryfall",
     );
   } catch (error) {

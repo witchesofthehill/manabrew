@@ -228,28 +228,28 @@ Always use `@/` path aliases. Never use `../../` relative paths that escape the 
 
 **All colours must be theme-driven.** No hex / rgb / rgba / hsl
 literals anywhere in component or Pixi code. Every colour the user sees
-comes from shared semantic colors or a preset under `src/themes/` and
-flows through the resolution pipeline.
+comes from shared semantic colors and the canonical Manabrew theme in `src/themes/`.
+All colors flow through the resolution pipeline.
 
 ### Architecture overview
 
 ```
-BasePalette (~30 raw hues per preset)
+BasePalette (Manabrew raw hues)
   → buildGameColors(palette): GameThemeColorMap  (~80 semantic tokens)
-    → resolveGameThemeColors():  default preset → active preset → user overrides
+    → resolveGameThemeColors():  Manabrew defaults → user overrides
       → flatToGameTheme():       nested GameThemeColors object
         → flattenGameThemeToCssVars():  --kebab-case CSS vars on :root
           → Tailwind @theme block:       bg-targeting-hostile, text-mana-w, …
 ```
 
-| Surface                   | Source of truth                                          | Accessor                                                       |
-| ------------------------- | -------------------------------------------------------- | -------------------------------------------------------------- |
-| App chrome (Radix/shadcn) | `ThemePreset.light` / `.dark` with mode-scoped overrides | `useTheme()`                                                   |
-| Game board / Pixi canvas  | `ThemePreset.gameColors: GameThemeColorMap`              | `useTheme().gameTheme` (React) / `getTheme().gameTheme` (Pixi) |
+| Surface                   | Source of truth                                                      | Accessor                                                       |
+| ------------------------- | -------------------------------------------------------------------- | -------------------------------------------------------------- |
+| App chrome (Radix/shadcn) | `MANABREW_THEME.light` / `.dark` with mode-scoped overrides          | `useTheme()`                                                   |
+| Game board / Pixi canvas  | `MANABREW_THEME.gameColors: GameThemeColorMap` with shared overrides | `useTheme().gameTheme` (React) / `getTheme().gameTheme` (Pixi) |
 
 Native live-card highlights use the fixed `cardChange.*` family from
 `CARD_CHANGE_COLORS` in `buildGameColors.ts`. Its readable saturated hues
-are identical across presets and overrides, without glow or blur. These tokens flow
+ignore personal overrides, without glow or blur. These tokens flow
 through the resolved game theme and generated CSS, but are excluded from
 editable color paths and Settings defaults. Reserve them for changed card text.
 
@@ -259,14 +259,40 @@ editable color paths and Settings defaults. Reserve them for changed card text.
 | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/themes/gameTheme.ts`       | `GameThemeColors` interface, `GameThemeColorKey` union type, `GameThemeColorMap` typed record, resolution logic, CSS flattening, colour utilities |
 | `src/themes/buildGameColors.ts` | `BasePalette` interface, `buildGameColors()` that maps ~30 hues → 80 typed tokens                                                                 |
-| `src/themes/default.ts`         | Default palette + preset (fallback for every token)                                                                                               |
-| `src/themes/<name>.ts`          | Per-preset palette overrides (nord, dracula, catppuccin, …)                                                                                       |
-| `src/themes/presets.ts`         | `ThemePreset` interface, preset registry                                                                                                          |
+| `src/themes/default.ts`         | Canonical Manabrew light/dark colors, game palette, and game font sizes                                                                           |
+| `src/themes/brand.ts`           | Shared ember/purple shade families, sage details, and warm neutrals.                                                                              |
+| `src/themes/typography.ts`      | UI/display font stacks shared by imperative canvas text.                                                                                          |
 | `src/hooks/useTheme.ts`         | Shared resolved snapshot for React/CSS/Pixi; root-only CSS application and transient editor preview                                               |
 | `src/index.css`                 | `@theme` block mapping CSS vars to Tailwind utilities (auto-generated)                                                                            |
-| `src/themes/themeColor.ts`      | Shared parsing, compositing, and contrast math, without preset dependencies                                                                       |
-| `src/themes/themeDocument.ts`   | Version 1 theme documents, mode-scoped app overrides, and validated imports                                                                       |
+| `src/themes/themeColor.ts`      | Shared parsing, compositing, and contrast math                                                                                                    |
+| `src/themes/themeDocument.ts`   | Version 2 Manabrew theme documents, mode-scoped app overrides, and validated imports                                                              |
 | `src/themes/themeMetadata.ts`   | Semantic labels and groups shared by Settings and the `/card-mock` editor                                                                         |
+
+Manabrew has one base theme, with light, dark, and system mode preferences.
+Settings and `/card-mock` edit personal app and game colors without changing that base.
+The editor previews drafts without persistence; Save applies all overrides atomically.
+
+Theme JSON exports use version 2 with `base: "manabrew"` and no preset selection.
+Version 1 imports with `presetId: "default"` migrate to version 2. Imports based on
+removed presets fail explicitly rather than silently changing their inherited colors.
+Version 2 imports require the Manabrew base and reject a `presetId` field.
+Preferences version 6 drops stored preset selection and migrates older AI choices to Forge.
+Personal names, color overrides and unrelated settings survive; legacy flat app
+overrides still migrate to both modes.
+
+### Brand and typography
+
+Follow `docs/BRAND_DIRECTION.md` for identity changes. Source Sans 3 is the UI/game
+family; Alegreya Sans Bold 700 supplies brand text and display headings.
+Keep native Card Glint printing fonts independent. Brand fonts load locally before
+React mounts so canvas text is measured with the intended face.
+
+Ember actions use explicit `primary-hover` and `primary-foreground` pairs.
+Selection fill, text and purple indicators use `selection`, `selection-foreground`
+and `selection-border` respectively. Sage uses `brand-accent*` only for sparse,
+non-interactive details; shadcn `accent` remains neutral. Existing personal color
+overrides survive the rebrand. Do not restore invalid HSL-triplet defaults in CSS:
+`ThemeApplicator` owns resolved root colors and the browser theme-color metadata.
 
 ### Type safety
 
@@ -303,12 +329,11 @@ This means:
 1. Add the field to `GameThemeColors` in `src/themes/gameTheme.ts`.
 2. Add the mapping in `buildGameColors()` in `src/themes/buildGameColors.ts`
    (maps a `BasePalette` hue to the new token). If a new base hue is
-   needed, add it to the `BasePalette` interface and every preset file.
+   needed, add it to the `BasePalette` interface and the palette in `default.ts`.
 3. Run `node scripts/generate-theme-css.mjs --write` to regenerate the
    `@theme` CSS block in `src/index.css`.
 4. The new token is immediately available as a Tailwind utility
    (e.g. `bg-my-new-token`) and via `useTheme().gameTheme.myNewToken`.
-   All 16 presets automatically get a value via `buildGameColors`.
 
 If you find yourself about to type a hex literal in a component, stop
 and add a semantic theme key instead.

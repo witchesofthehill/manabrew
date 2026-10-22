@@ -33,6 +33,7 @@ import { cn } from "@/lib/utils";
 import { Loader2, Search, Shuffle, Swords } from "lucide-react";
 import { getDeckFingerprint } from "@/lib/decks";
 import { useHubDeckSearch } from "@/hooks/useHubDeckSearch";
+import { useCardPool } from "@/hooks/useCardPool";
 import { useHubStore } from "@/stores/useHubStore";
 import type { DeckHubEntryDetail, DeckHubEntrySummary } from "@/api/hubTypes";
 interface CreateGameDialogProps {
@@ -246,6 +247,40 @@ export function CreateGameDialog({
   const selectedDeckEntry = allDecks.find(
     (d) => d.id === selectedDeck && d.formatId === selectedFormat.id,
   );
+  const userDeckValidationInput = (d: (typeof filteredUserDecks)[number]) => ({
+    deck: d.sourceDeck,
+    commanderName: selectedFormat.deckRules.requiresCommander
+      ? d.id === selectedDeck
+        ? selectedCommander || d.commanderName
+        : d.commanderName
+      : undefined,
+  });
+  const hubDeckValidationInput = (deck: Deck) => ({
+    deck,
+    commanderName: deck.commanders?.[0]?.identity.name,
+  });
+  const cardPool = useCardPool([
+    ...filteredUserDecks.map((d) => ({
+      input: userDeckValidationInput(d),
+      format: selectedFormat,
+    })),
+    ...(selectedDeckEntry && !selectedDeckEntry.isPreset
+      ? [
+          {
+            input: {
+              deck: selectedDeckEntry.sourceDeck,
+              commanderName: selectedCommander || selectedDeckEntry.commanderName,
+            },
+            format: selectedFormat,
+          },
+        ]
+      : []),
+    ...hubSearchResults.flatMap((deck) =>
+      loadedHubDecks[deck.id]
+        ? [{ input: hubDeckValidationInput(loadedHubDecks[deck.id].deck), format: selectedFormat }]
+        : [],
+    ),
+  ]);
   const selectedDeckCommanders = selectedDeckEntry?.sourceDeck.commanders ?? [];
   const selectedPartnerLabel = commanderPairLabel(
     selectedDeckCommanders,
@@ -283,6 +318,7 @@ export function CreateGameDialog({
             commanderName: selectedCommander || selectedDeckEntry.commanderName,
           },
           selectedFormat,
+          cardPool,
         )
     : { legal: false, errors: [] as string[] };
   const isReady =
@@ -359,6 +395,7 @@ export function CreateGameDialog({
       : validateDeckSections(
           { deck: entry.sourceDeck, commanderName: commander || entry.commanderName },
           selectedFormat,
+          cardPool,
         );
     if (!validation.legal && !allowIllegalDecks) {
       toast.warning(validation.errors[0] ?? `Deck is not legal in this format`);
@@ -444,7 +481,7 @@ export function CreateGameDialog({
                       className={cn(
                         "w-full rounded-lg border p-2.5 text-left transition-colors",
                         selectedFormat.id === format.id
-                          ? "border-selection bg-selection/10"
+                          ? "border-selection-border bg-selection"
                           : "border-border hover:bg-muted/60",
                       )}
                     >
@@ -605,15 +642,9 @@ export function CreateGameDialog({
                   >
                     {filteredUserDecks.map((d) => {
                       const validation = validateDeckSections(
-                        {
-                          deck: d.sourceDeck,
-                          commanderName: selectedFormat.deckRules.requiresCommander
-                            ? d.id === selectedDeck
-                              ? selectedCommander || d.commanderName
-                              : d.commanderName
-                            : undefined,
-                        },
+                        userDeckValidationInput(d),
                         selectedFormat,
+                        cardPool,
                       );
                       return (
                         <DeckSelectionCard
@@ -697,11 +728,9 @@ export function CreateGameDialog({
                           const validation =
                             loaded && format
                               ? validateDeckSections(
-                                  {
-                                    deck: loaded.deck,
-                                    commanderName: loaded.deck.commanders?.[0]?.identity.name,
-                                  },
+                                  hubDeckValidationInput(loaded.deck),
                                   format,
+                                  cardPool,
                                 )
                               : { legal: true, errors: [] as string[] };
                           return (

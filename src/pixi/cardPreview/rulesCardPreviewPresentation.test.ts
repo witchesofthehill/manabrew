@@ -34,7 +34,6 @@ function manaOptions(description: string, cost: string, color: ManaColor): HandA
       abilityIndex: 0,
       description,
       isManaAbility: true,
-      isClassLevelUp: false,
       cost,
       producedMana: [{ color, amount: 1 }],
     },

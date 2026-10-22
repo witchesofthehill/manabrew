@@ -7,7 +7,7 @@ import {
   type CardTextInk,
   type TextInkSpan,
 } from "card-glint/magic/presentation";
-import type { SemanticCardInput } from "@/lib/cardSemanticLayout";
+import { isSemanticLayout, type SemanticCardInput } from "@/lib/cardSemanticLayout";
 import type { CardFaceLiveChanges, CardFaceSnapshot, PreparedCard } from "@/lib/cardRenderSnapshot";
 import { getTheme } from "@/hooks/useTheme";
 import {
@@ -17,6 +17,7 @@ import {
 } from "@/lib/cardRenderDecision";
 import { resolveCardPrinting } from "@/lib/cardPrinting";
 import { isTwoFaceLayout } from "@/lib/cardLayout";
+import { prototypeRules } from "@/lib/cardPrototype";
 
 export interface CardGlintFace {
   face: SemanticCardInput;
@@ -34,6 +35,7 @@ const SUPPORTED_LAYOUTS: Record<string, true> = {
   reversible_card: true,
   saga: true,
   class: true,
+  case: true,
   leveler: true,
   planeswalker: true,
   adventure: true,
@@ -48,6 +50,8 @@ const SUPPORTED_LAYOUTS: Record<string, true> = {
   vanguard: true,
   art_series: true,
   front_card: true,
+  prototype: true,
+  mutate: true,
 };
 const STAMPS: Partial<Record<SecurityStamp, true>> = {
   none: true,
@@ -103,6 +107,31 @@ function resolveLiveChanges(changes: CardFaceLiveChanges, face: RenderedCardInpu
   return { ...(stats.length ? { stats } : {}), ...(typeLine?.length ? { typeLine } : {}) };
 }
 
+function renderDecision(
+  face: SemanticCardInput,
+  layout: string,
+  faceIndex: number,
+): CardRenderDecision {
+  const semantic = isSemanticLayout(face);
+  const scanBacked = face.layout === "art_series" || face.layout === "front_card";
+  return Object.freeze({
+    mode: semantic ? "host" : "native",
+    ...(scanBacked
+      ? { reason: "scan-backed-layout" }
+      : semantic
+        ? { reason: "host-owned-semantic-composition" }
+        : {}),
+    layout: face.layout === "prototype" || face.layout === "aftermath" ? face.layout : layout,
+    faceIndex,
+    template: scanBacked
+      ? `manabrew-scan:${face.layout}`
+      : semantic
+        ? `manabrew-semantic:${face.layout}`
+        : `card-glint:${face.frameTemplate ?? (face.layout === "split" || face.layout === "aftermath" ? face.layout : face.frameStyle === "retro" ? "retro" : faceFrame(face))}`,
+    engine: semantic ? "manabrew" : "card-glint",
+  });
+}
+
 export function cardGlintBaseline(
   prepared: PreparedCard,
   standardFrameFallback: boolean,
@@ -148,17 +177,19 @@ export function cardGlintBaseline(
         ? "class"
         : /\bPlaneswalker\b/i.test(canonicalType)
           ? "planeswalker"
-          : /^Level up\b/m.test(part.oracle_text)
+          : part.levelerRules !== undefined || /^Level up\b/m.test(part.oracle_text)
             ? "leveler"
             : undefined;
     const faceLayout = part.layout ?? (child ? "normal" : layout);
     if (SUPPORTED_LAYOUTS[faceLayout] !== true) original("unknown-layout");
     const painterLayout =
-      isTwoFaceLayout(faceLayout) && !/\bBattle\b/i.test(canonicalType)
-        ? faceLayout === "double_faced_token"
-          ? "token"
-          : "normal"
-        : faceLayout;
+      faceLayout === "mutate"
+        ? "normal"
+        : isTwoFaceLayout(faceLayout) && !/\bBattle\b/i.test(canonicalType)
+          ? faceLayout === "double_faced_token"
+            ? "token"
+            : "normal"
+          : faceLayout;
     const colors = part.colors ??
       part.color_indicator ?? [...new Set(part.mana_cost.match(/[WUBRG]/g) ?? [])];
     const cosmetics = prepared.cosmetics;
@@ -192,7 +223,7 @@ export function cardGlintBaseline(
           ? frameColors(part.produced_mana ?? part.color_identity ?? snapshot.color_identity)
           : undefined,
       manaSymbols: [...part.mana_cost.matchAll(/\{([^{}]+)\}/g)].map((match) => match[1]!),
-      rulesText: part.oracle_text,
+      rulesText: part.levelerRules ?? part.oracle_text,
       rulesParagraphs: [
         ...part.oracle_text
           .split("\n")
@@ -203,12 +234,13 @@ export function cardGlintBaseline(
           : []),
       ],
       illustration: prepared.artUrls[index] ?? null,
-      power: part.power,
-      toughness: part.toughness,
+      power: part.levelerBase?.power ?? part.power,
+      toughness: part.levelerBase?.toughness ?? part.toughness,
       loyalty: part.loyalty,
       defense: part.defense,
       handModifier: part.hand_modifier,
       lifeModifier: part.life_modifier,
+      sourceFrame: faceLayout === "vanguard" ? snapshot.frame : undefined,
       scanBorder:
         scanBacked &&
         (legacyFrame === "modern" ||
@@ -253,6 +285,55 @@ export function cardGlintBaseline(
         : {}),
     };
     if (part.liveChanges) result.textInk = resolveLiveChanges(part.liveChanges, result);
+    if (part.prototype) {
+      const prototype = part.prototype;
+      const selected = part.prototypeSelected === true;
+      const base = part.prototypeBase;
+      const printedRules = part.prototypeRules ?? original("unrepresentable-fields");
+      const currentRules = prototypeRules(part.oracle_text, prototype);
+      if (!currentRules && /\/\/PRT-/.test(part.oracle_text)) original("unrepresentable-fields");
+      const normal = {
+        ...result,
+        layout: "normal",
+        manaSymbols:
+          part.prototypeSelected !== false && base
+            ? [...base.manaCost.matchAll(/\{([^{}]+)\}/g)].map((match) => match[1]!)
+            : result.manaSymbols,
+        colors:
+          part.prototypeSelected !== false && base
+            ? frameColors(base.manaCost.match(/[WUBRG]/g) ?? [])
+            : result.colors,
+        power: part.prototypeSelected !== false && base ? base.power : result.power,
+        toughness: part.prototypeSelected !== false && base ? base.toughness : result.toughness,
+        rulesText: currentRules?.rulesText ?? part.oracle_text,
+        rulesParagraphs: undefined,
+        textInk: result.textInk
+          ? {
+              ...result.textInk,
+              stats: part.prototypeSelected === false ? result.textInk.stats : undefined,
+            }
+          : undefined,
+      };
+      const alternate = {
+        ...result,
+        name: printedRules.name,
+        layout: "normal",
+        manaSymbols: selected
+          ? result.manaSymbols
+          : [...prototype.manaCost.matchAll(/\{([^{}]+)\}/g)].map((match) => match[1]!),
+        colors: frameColors(prototype.manaCost.match(/[WUBRG]/g) ?? []),
+        frameColors: undefined,
+        power: selected ? result.power : prototype.power,
+        toughness: selected ? result.toughness : prototype.toughness,
+        rulesText: printedRules.reminder,
+        rulesParagraphs: undefined,
+        textInk: selected && result.textInk?.stats ? { stats: result.textInk.stats } : undefined,
+      };
+      result.layout = "prototype";
+      result.faces = [normal, alternate];
+    }
+    if (part.levelerRules && result.textInk)
+      result.textInk = { ...result.textInk, stats: undefined };
     if (faceLayout === "flip") result.frameTemplate = "flip";
     else if (/\bBattle\b/i.test(canonicalType)) result.frameTemplate = "battle";
     else if (
@@ -273,7 +354,19 @@ export function cardGlintBaseline(
     original("artwork-unavailable");
   if (prepared.combined) {
     face.faces = parts.map((part, index) => convert(part, index, true));
-    face.layout = layout;
+    face.layout = layout === "room" ? "split" : layout;
+    if (prepared.composite && !fallbackTreatment) {
+      const provider = prepared.composite;
+      Object.assign(face, {
+        layout: provider.layout ?? face.layout,
+        frameStyle: frameOverride && !concretePreset ? face.frameStyle : provider.frameStyle,
+        frameTemplate: provider.frameTemplate,
+        frameAssetFamily:
+          frameOverride && !concretePreset ? face.frameAssetFamily : provider.frameAssetFamily,
+        frameTreatment: provider.frameTreatment,
+        futureTreatment: provider.futureTreatment,
+      });
+    }
     if (layout === "split" && snapshot.keywords?.includes("Aftermath")) face.layout = "aftermath";
     if (
       (face.layout === "split" || face.layout === "aftermath") &&
@@ -289,6 +382,12 @@ export function cardGlintBaseline(
       }));
     }
   }
+  if (isSemanticLayout(face)) {
+    face.frameAssetFamily = undefined;
+    face.frameTemplate = undefined;
+    face.frameTreatment = undefined;
+    face.futureTreatment = undefined;
+  }
   const reverse = parts[1];
   if (
     prepared.faceIndex === 0 &&
@@ -300,14 +399,7 @@ export function cardGlintBaseline(
   }
   return {
     face,
-    decision: Object.freeze({
-      mode: "native",
-      ...(scanBacked ? { reason: "scan-backed-layout" } : {}),
-      layout,
-      faceIndex: prepared.faceIndex,
-      template: `card-glint:${scanBacked ? `${layout}-scan` : ["room", "planar", "scheme", "vanguard"].includes(layout) ? layout : (face.frameTemplate ?? (face.frameStyle === "retro" ? "retro" : faceFrame(face)))}`,
-      engine: "card-glint",
-    }),
+    decision: renderDecision(face, layout, prepared.faceIndex),
   };
 }
 
@@ -319,9 +411,6 @@ export function cardGlintFace(
   const face = resolveCardPrinting(baseline, prepared);
   return {
     face,
-    decision: Object.freeze({
-      ...decision,
-      template: `card-glint:${face.layout === "art_series" || face.layout === "front_card" ? `${face.layout}-scan` : ["room", "planar", "scheme", "vanguard"].includes(face.layout ?? "") ? face.layout : (face.frameTemplate ?? (face.frameStyle === "retro" ? "retro" : faceFrame(face)))}`,
-    }),
+    decision: renderDecision(face, decision.layout, decision.faceIndex),
   };
 }

@@ -1440,11 +1440,10 @@ async fn handle_state_update(
                 Some("spawnBot") => {
                     let effective_room_id = requested_room_id.as_deref().unwrap_or(room_id);
                     if effective_room_id == room_id {
-                        let requested_forge_ai = payload
+                        *forge_ai = payload
                             .get("forgeAi")
                             .and_then(Value::as_bool)
-                            .unwrap_or(false);
-                        *forge_ai = config.forge_ai || requested_forge_ai;
+                            .unwrap_or(config.forge_ai);
                         info!(observer = %client.username, room_id, forge_ai = *forge_ai, "received spawnBot request");
                         let bot_decks = bot_decks_from_payload(config, &payload);
                         spawn_bots(config, &bot_decks, room_id, bot_state);
@@ -1556,9 +1555,11 @@ fn spawn_engine_thread<F: FnOnce() + Send + 'static>(body: F) {
 // at StartGame, and dropping commanders there would break commander games.
 fn is_commander_variant(format: GameFormat) -> bool {
     match format {
-        GameFormat::Any | GameFormat::Commander | GameFormat::Brawl | GameFormat::Oathbreaker => {
-            true
-        }
+        GameFormat::Any
+        | GameFormat::Commander
+        | GameFormat::PauperCommander
+        | GameFormat::Brawl
+        | GameFormat::Oathbreaker => true,
         GameFormat::Standard
         | GameFormat::Pioneer
         | GameFormat::Modern
@@ -1577,6 +1578,7 @@ fn java_game_variant(format: GameFormat) -> &'static str {
     match format {
         GameFormat::Any => "",
         GameFormat::Commander => "Commander",
+        GameFormat::PauperCommander => "PauperCommander",
         GameFormat::Brawl => "Brawl",
         GameFormat::Oathbreaker => "Oathbreaker",
         GameFormat::Standard
@@ -1731,7 +1733,7 @@ fn maybe_start_hosted_engine(
                 Some(player_names.clone()),
                 config.state_delta,
                 engine_clock,
-                local_bot_seats(config, &player_names, bot_usernames),
+                local_bot_seats(config, false, &player_names, bot_usernames),
             );
             let (game_over_tx, game_over_rx) = std_mpsc::channel::<HostedGameOver>();
             spawn_game_over_forwarder(
@@ -1810,7 +1812,7 @@ fn maybe_start_hosted_engine(
                 Some(player_names.clone()),
                 config.state_delta,
                 engine_clock,
-                local_bot_seats(config, &player_names, bot_usernames),
+                local_bot_seats(config, forge_ai, &player_names, bot_usernames),
             );
             let (game_over_tx, game_over_rx) = std_mpsc::channel::<HostedGameOver>();
             spawn_game_over_forwarder(
@@ -2325,10 +2327,11 @@ fn patch_against_last(
 /// second and is dropped by `is_local_bot_duplicate`.
 fn local_bot_seats(
     config: &Config,
+    forge_ai: bool,
     player_names: &[String],
     bot_usernames: &HashSet<String>,
 ) -> HashMap<usize, BotResponder> {
-    if !config.bot_enabled || !config.bot_local_answers || config.forge_ai {
+    if !config.bot_enabled || !config.bot_local_answers || forge_ai {
         return HashMap::new();
     }
     player_names
@@ -2918,7 +2921,7 @@ mod local_bot_tests {
             Some(names.clone()),
             false,
             engine_clock,
-            local_bot_seats(config, &names, &bots),
+            local_bot_seats(config, config.forge_ai, &names, &bots),
         );
         Rig {
             engine_session,

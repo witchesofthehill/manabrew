@@ -15,7 +15,7 @@ export function MultiplayerStartPanel({ disabled, onSetUp }: MultiplayerStartPan
     return (
       <section className="flex min-h-24 items-center justify-between gap-4 rounded-xl border border-border/70 bg-card/80 p-3 shadow-md backdrop-blur-md">
         <div className="min-w-0">
-          <h2 className="font-serif text-2xl font-light leading-tight">Pull up a chair.</h2>
+          <h2 className="font-serif text-2xl font-semibold leading-tight">Pull up a chair.</h2>
           <p className="mt-1 text-xs text-muted-foreground">Create a table for your group.</p>
         </div>
         <Button
@@ -41,7 +41,7 @@ export function MultiplayerStartPanel({ disabled, onSetUp }: MultiplayerStartPan
         <div className="flex flex-col items-center gap-4 sm:mr-4 sm:flex-row sm:gap-4">
           <Armchair className="hidden text-foreground sm:mt-2 sm:block sm:h-24 sm:w-24" />
           <div className="flex flex-col items-center gap-3 sm:ml-4 sm:items-start">
-            <h2 className="font-serif text-xl font-light leading-tight sm:text-4xl">
+            <h2 className="font-serif text-xl font-semibold leading-tight sm:text-4xl">
               Pull up a chair.
             </h2>
             <Button variant="primary" size="lg" onClick={onSetUp} disabled={disabled}>

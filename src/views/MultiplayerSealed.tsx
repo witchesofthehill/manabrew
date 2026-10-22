@@ -21,7 +21,6 @@ export default function MultiplayerSealed() {
   };
   useTopBarOverride({
     title: "Sealed",
-    onBack: () => void leave(ROUTES.LOBBY),
     onHome: () => void leave(ROUTES.PLAY),
     navigationDisabled: true,
   });

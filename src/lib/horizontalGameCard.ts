@@ -2,6 +2,7 @@ import type { CardDto } from "@/protocol/game";
 import { isHorizontalCard, isTwoHalfLayout } from "@/lib/cardLayout";
 import { resolveCardFaces } from "@/lib/cardFaces";
 import { peekCard, useScryfallStore } from "@/stores/useScryfallStore";
+import { gameCardFaceIndex } from "@/lib/gameCard";
 
 function peekScryfall(card: CardDto) {
   const { name, setCode, cardNumber } = card.identity;
@@ -25,7 +26,7 @@ export function scryfallLayoutOf(card: CardDto): string | undefined {
 export function isHorizontalGameCard(
   card: CardDto,
   deckLayout?: string,
-  faceIndex: 0 | 1 = card.isTransformed ? 1 : 0,
+  faceIndex: 0 | 1 = gameCardFaceIndex(card),
   resolvedTypeLine?: string,
 ): boolean {
   const scry = peekScryfall(card);

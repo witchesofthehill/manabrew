@@ -618,6 +618,14 @@ pub(crate) fn resolve_replace_value(
         "DamageAmount" | "LifeGained" | "Amount" | "Number" | "TokenNum" | "CounterNum" | "Num" => {
             replacement_event_amount(event)?
         }
+        "Result" => match event {
+            ReplacementEvent::RemoveCounter {
+                target,
+                counter_type,
+                count,
+            } => (game.card(*target).counter_count(counter_type) - count).max(0),
+            _ => return None,
+        },
         "Ignore" => match event {
             ReplacementEvent::RollDice { ignore, .. }
             | ReplacementEvent::RollPlanarDice { ignore, .. } => *ignore,
@@ -734,6 +742,19 @@ pub(crate) fn execute_replace_effect_ir(
                                                         }
                                                     }
                                                 }
+                                            }
+                                        }
+                                        "Result" => {
+                                            if let ReplacementEvent::RemoveCounter {
+                                                target,
+                                                counter_type,
+                                                count,
+                                            } = event
+                                            {
+                                                *count =
+                                                    game.card(*target).counter_count(counter_type)
+                                                        - value.max(0);
+                                                updated = true;
                                             }
                                         }
                                         _ => {

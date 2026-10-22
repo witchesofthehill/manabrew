@@ -105,9 +105,13 @@ jobs:
             // outside it can break the build and belongs in this list.
             const WEBSITE_PATHS = [
               'website/',
-              'images/',
+              'images/screenshots/',
               'src/themes/',
-              'src/assets/manaBrew.png',
+              'images/brand/logos/interactive/',
+              'src/assets/brandLogoGeometry.json',
+              'src/components/layout/ManaBrewLogo.css',
+              'scripts/generate-brand-logo.py',
+              'Dockerfile.web',
               'public/manabrew_brewery_1.png',
               '.github/workflows/build-checks.yml',
             ];

@@ -1578,6 +1578,18 @@ pub fn resolve_count_svar_for_sa(
         );
     }
 
+    if let Some(operators) = expr.strip_prefix("Count$LifeYouGainedThisTurn") {
+        let operators = operators.strip_prefix('/').unwrap_or(operators);
+        return do_x_math(
+            game.player(controller).life_gained_this_turn,
+            operators,
+            game,
+            source_id,
+            controller,
+            sa,
+        );
+    }
+
     if let Some(operators) = expr.strip_prefix("Count$OppGreatestLifeTotal") {
         let operators = operators.strip_prefix('/').unwrap_or(operators);
         let highest_life = game

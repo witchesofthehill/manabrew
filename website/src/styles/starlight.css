@@ -1,24 +1,94 @@
-/* Maps the app's default theme preset (injected as --mb-* custom
+/* Maps the app's canonical Manabrew theme (injected as --mb-* custom
    properties by src/components/Head.astro from src/themes/default.ts)
    onto Starlight's color tokens. The --mb-* values swap with
    [data-theme], so one mapping covers both modes. */
 :root,
 :root[data-theme="light"] {
-  --sl-font: "Alegreya Sans", system-ui, sans-serif;
-  --sl-color-accent-low: var(--mb-secondary);
+  --sl-font: "Source Sans 3 Variable", system-ui, -apple-system, sans-serif;
+  --sl-color-white: var(--mb-foreground);
+  --sl-color-gray-1: var(--mb-foreground);
+  --sl-color-gray-2: var(--mb-muted-foreground);
+  --sl-color-gray-3: var(--mb-muted-foreground);
+  --sl-color-gray-4: var(--mb-input);
+  --sl-color-gray-5: var(--mb-border);
+  --sl-color-gray-6: var(--mb-muted);
+  --sl-color-gray-7: var(--mb-card);
+  --sl-color-black: var(--mb-background);
+  --sl-color-accent-low: var(--mb-selection);
   --sl-color-accent: var(--mb-primary);
-  --sl-color-accent-high: var(--mb-foreground);
+  --sl-color-accent-high: var(--mb-primary);
+  --sl-color-text: var(--mb-foreground);
+  --sl-color-text-accent: var(--mb-primary);
+  --sl-color-text-invert: var(--mb-primary-foreground);
   --sl-color-bg: var(--mb-background);
   --sl-color-bg-nav: var(--mb-card);
   --sl-color-bg-sidebar: var(--mb-card);
+  --sl-color-bg-inline-code: var(--mb-muted);
+  --sl-color-bg-accent: var(--mb-primary);
   --sl-color-hairline: var(--mb-border);
-  --sl-color-hairline-light: var(--mb-input);
+  --sl-color-hairline-light: var(--mb-border);
+  --sl-color-hairline-shade: var(--mb-border);
+  --sl-color-backdrop-overlay: color-mix(in srgb, var(--mb-overlay) 66%, transparent);
 }
 
-/* Same display face as the landing page headings */
-.sl-markdown-content :is(h1, h2, h3, h4, h5, h6),
+.sl-markdown-content :is(h1, h2),
 h1#_top {
-  font-family: "Cormorant Garamond", georgia, serif;
+  font-family:
+    "Alegreya Sans",
+    system-ui,
+    -apple-system,
+    sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.sl-markdown-content h2 {
+  letter-spacing: -0.02em;
+}
+
+.sl-markdown-content :is(h3, h4, h5, h6) {
+  font-family: var(--sl-font);
+  font-weight: 600;
+}
+
+:is(a, button, select, input, summary):focus-visible {
+  outline: 2px solid var(--mb-ring);
+  outline-offset: 3px;
+}
+
+.sidebar-content a[aria-current="page"],
+.sidebar-content a[aria-current="page"]:is(:hover, :focus) {
+  color: var(--mb-selection-foreground);
+  background: var(--mb-selection);
+  box-shadow: inset 3px 0 var(--mb-selection-border);
+}
+
+:is(starlight-toc, mobile-starlight-toc) a[aria-current="true"],
+:is(starlight-toc, mobile-starlight-toc) a[aria-current="true"]:is(:hover, :focus) {
+  color: var(--mb-selection-foreground);
+  background: var(--mb-selection);
+}
+
+mobile-starlight-toc a[aria-current="true"]::after {
+  background-color: var(--mb-selection-border);
+}
+
+.sl-link-button.primary {
+  color: var(--mb-primary-foreground);
+  background: var(--mb-primary);
+  border-color: var(--mb-primary);
+}
+
+.sl-link-button.primary:hover {
+  color: var(--mb-primary-foreground);
+  background: var(--mb-primary-hover);
+  border-color: var(--mb-primary-hover);
+}
+
+select,
+option {
+  color: var(--mb-foreground);
+  background-color: var(--mb-card);
 }
 
 /* Protocol pages: a prompt screenshot sitting beside its explanation,

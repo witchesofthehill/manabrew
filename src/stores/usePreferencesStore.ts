@@ -43,8 +43,6 @@ export const CARD_SIZE_MULTIPLIER_MIN = 0.75;
 export const CARD_SIZE_MULTIPLIER_MAX = 1.5;
 
 export interface PreferencesState {
-  appThemePreset: string;
-  setAppThemePreset: (id: string) => void;
   personalThemeName: string | null;
   appLanguage: AppLanguagePreference;
   setAppLanguage: (language: AppLanguagePreference) => void;
@@ -181,7 +179,6 @@ export interface PreferencesState {
 }
 
 const PERSISTED_PREFERENCE_KEYS = [
-  "appThemePreset",
   "personalThemeName",
   "appLanguage",
   "flashDurationMs",
@@ -284,14 +281,6 @@ export const usePreferencesStore = create<PreferencesState>()(
         const serverDefaults = getServerConnectionDefaults();
         return {
           ...CARD_VIEW_DEFAULTS,
-          appThemePreset: "default",
-          setAppThemePreset: (appThemePreset) =>
-            set({
-              appThemePreset,
-              personalThemeName: null,
-              appThemeColorOverrides: { light: {}, dark: {} },
-              gameThemeColorOverrides: {},
-            }),
           personalThemeName: null,
           appLanguage: "system",
           setAppLanguage: (appLanguage) => set({ appLanguage }),
@@ -368,7 +357,7 @@ export const usePreferencesStore = create<PreferencesState>()(
           directTransport: false,
           setDirectTransport: (directTransport) => set({ directTransport }),
 
-          aiController: "manabot",
+          aiController: "forge",
           setAiController: (aiController) => set({ aiController }),
 
           hideAccountSaveNudge: false,
@@ -445,12 +434,13 @@ export const usePreferencesStore = create<PreferencesState>()(
       },
       {
         name: STORAGE_KEYS.PREFERENCES,
-        version: 4,
+        version: 6,
         migrate: (persistedState, version) => {
           if (!persistedState || typeof persistedState !== "object") return {};
-          const persisted = persistedState as Record<string, unknown>;
-          if (version < 4) return { ...persisted, ...CARD_VIEW_DEFAULTS };
-          return persisted;
+          let persisted = persistedState as Record<string, unknown>;
+          if (version < 4) persisted = { ...persisted, ...CARD_VIEW_DEFAULTS };
+          if (version < 6) persisted = { ...persisted, aiController: "forge" };
+          return pickPersistedPreferences(persisted);
         },
         merge: (persistedState, currentState) => ({
           ...currentState,

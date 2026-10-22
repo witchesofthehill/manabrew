@@ -20,6 +20,7 @@ import { useResolvedGameCard } from "@/hooks/useResolvedGameCard";
 import { isHorizontalGameCard } from "@/lib/horizontalGameCard";
 import { GeneratedCardImage } from "./GeneratedCardImage";
 import { usePreferencesStore, type InlineCardStyle } from "@/stores/usePreferencesStore";
+import { gameCardFaceIndex } from "@/lib/gameCard";
 const TOKEN_LABELS: Record<string, string> = {
   get "Blood Token"() {
     return `BLOOD`;
@@ -73,7 +74,7 @@ function CardComponent({
   style,
   isTapped,
   onClick,
-  showBackFace = card.isTransformed,
+  showBackFace = gameCardFaceIndex(card) === 1,
   bare,
   resolution = "border_crop",
   presentation,
@@ -126,7 +127,7 @@ function CardComponent({
   return (
     <div
       className={cn(
-        "relative @container rounded-lg border bg-card text-card-foreground shadow-sm cursor-pointer group overflow-hidden",
+        "relative @container rounded-lg border bg-card text-card-foreground shadow-sm cursor-pointer group",
         horizontal ? "aspect-[7/5]" : "aspect-[5/7]",
         isTapped && "rotate-90",
         creature &&
@@ -168,7 +169,7 @@ function CardComponent({
                   <ScryfallImg
                     src={imageUrl}
                     alt={displayName}
-                    className="h-full w-full object-contain"
+                    className="h-full w-full rounded-[inherit] object-contain"
                     onError={() => setFailedUrl(imageUrl)}
                     draggable={false}
                   />

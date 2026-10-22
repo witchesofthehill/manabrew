@@ -22,13 +22,34 @@ pub fn can_replace(
     if effect.event != ReplacementType::RemoveCounter {
         return false;
     }
-    let target = match event {
-        ReplacementEvent::RemoveCounter { target, .. } => *target,
+    let (target, counter_type, count) = match event {
+        ReplacementEvent::RemoveCounter {
+            target,
+            counter_type,
+            count,
+        } => (*target, counter_type, *count),
         _ => return false,
     };
     let target_card = &game.cards[target.index()];
     if let Some(valid) = effect.ir.valid_card_selector.as_ref() {
         if !effect.matches_compiled_valid_card(valid, target_card, source_card) {
+            return false;
+        }
+    }
+    if effect
+        .ir
+        .valid_counter_type_text
+        .as_deref()
+        .is_some_and(|valid| crate::card::counter_type::parse_counter_type(valid) != *counter_type)
+    {
+        return false;
+    }
+    if effect.ir.is_damage == Some(true) {
+        return false;
+    }
+    if let Some(comparator) = effect.ir.result_text.as_deref() {
+        let result = (target_card.counter_count(counter_type) - count).max(0);
+        if !crate::parsing::compare::compare_expr(result, comparator) {
             return false;
         }
     }
@@ -39,16 +60,42 @@ pub fn can_replace(
 pub fn execute(
     effect: &ReplacementEffect,
     event: &mut ReplacementEvent,
-    _game: &GameState,
-    _source_card_id: CardId,
+    game: &GameState,
+    source_card_id: CardId,
 ) -> ReplacementResult {
     let count = match event {
         ReplacementEvent::RemoveCounter { count, .. } => count,
         _ => return ReplacementResult::NotReplaced,
     };
-    if effect.prevents() {
+    if effect.layer == super::ReplacementLayer::CantHappen || effect.prevents() {
         *count = 0;
         return ReplacementResult::Prevented;
     }
+    if let Some(result) = super::replacement_handler::execute_replace_with_numeric_update(
+        effect,
+        event,
+        game,
+        source_card_id,
+        "Result",
+    ) {
+        return result;
+    }
     ReplacementResult::Replaced
+}
+
+pub(crate) fn can_remove_counters(
+    game: &GameState,
+    card_id: CardId,
+    counter_type: &crate::card::CounterType,
+) -> bool {
+    let card = game.card(card_id);
+    !card.phased_out
+        && !super::replacement_handler::cant_happen_check(
+            game,
+            &ReplacementEvent::RemoveCounter {
+                target: card_id,
+                counter_type: counter_type.clone(),
+                count: card.counter_count(counter_type),
+            },
+        )
 }

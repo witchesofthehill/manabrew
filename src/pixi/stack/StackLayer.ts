@@ -16,6 +16,7 @@ import {
   STACK_OFFSET_Y,
 } from "./stackLayout";
 import type { StackAnchorProvider, StackCallbacks, StackSpec } from "./stack.types";
+import { gameCardFaceIndex } from "@/lib/gameCard";
 
 const MAX_CARD_HEIGHT_FRAC = 0.55;
 const COMPACT_MAX_CARD_HEIGHT_FRAC = 0.69;
@@ -413,7 +414,7 @@ export class StackLayer implements StackAnchorProvider {
     const card = this.spec.cards.find((candidate) => candidate.id === stackObjectId);
     if (!card?.card.isDoubleFaced) return;
     if (this.hoveredId === stackObjectId) this.setHovered(null);
-    const current = this.faceOverrides.get(stackObjectId) ?? card.card.isTransformed;
+    const current = this.faceOverrides.get(stackObjectId) ?? gameCardFaceIndex(card.card) === 1;
     this.faceOverrides.set(stackObjectId, !current);
     this.setSpec(this.spec);
   }

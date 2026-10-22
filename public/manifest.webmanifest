@@ -5,8 +5,8 @@
   "start_url": "/companion",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#121316",
-  "theme_color": "#121316",
+  "background_color": "#1C191D",
+  "theme_color": "#1C191D",
   "categories": ["games"],
   "icons": [
     {
@@ -18,13 +18,13 @@
       "src": "/icon-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/apple-touch-icon.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ]
 }

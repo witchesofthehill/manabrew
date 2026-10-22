@@ -51,11 +51,11 @@ export function DeckSelectionTray({
 }: DeckSelectionTrayProps) {
   return (
     <section
-      className="absolute bottom-0 left-0 right-0 z-50 border-t border-selection/30 bg-background/95 px-3 pb-[calc(var(--safe-area-inset-bottom)+0.75rem)] pt-2 shadow-lg backdrop-blur sm:px-4 sm:pb-2"
+      className="absolute bottom-0 left-0 right-0 z-50 border-t border-selection-border/30 bg-background/95 px-3 pb-[calc(var(--safe-area-inset-bottom)+0.75rem)] pt-2 shadow-lg backdrop-blur sm:px-4 sm:pb-2"
       aria-label={`Actions for selected cards`}
     >
       <div className="mb-2 flex items-center sm:hidden">
-        <div className="min-w-0 flex-1 text-sm font-medium text-selection">
+        <div className="min-w-0 flex-1 text-sm font-medium text-selection-border">
           {count} card{count !== 1 ? "s" : ""} selected
         </div>
         <Button size="sm" variant="ghost" className="h-9" onClick={onClear}>
@@ -64,7 +64,7 @@ export function DeckSelectionTray({
       </div>
       <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
         <div className="mr-2 hidden sm:block">
-          <div className="text-sm font-medium text-selection">
+          <div className="text-sm font-medium text-selection-border">
             {count} card{count !== 1 ? "s" : ""} selected
           </div>
           <div className="text-[10px] text-muted-foreground">Bulk editor</div>

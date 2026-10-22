@@ -253,7 +253,7 @@ function LayoutCard({
       className={cn(
         "flex flex-col items-center gap-1.5 rounded-md border p-2 text-center text-[11px] font-medium transition",
         active
-          ? "border-selection bg-selection/15 text-foreground"
+          ? "border-selection-border bg-selection text-selection-foreground"
           : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
       )}
       aria-pressed={active}
@@ -281,7 +281,7 @@ function PillButton({
       className={cn(
         "rounded-full border px-3 py-1 text-xs font-medium transition",
         active
-          ? "border-selection bg-selection/15 text-foreground"
+          ? "border-selection-border bg-selection text-selection-foreground"
           : "border-border bg-background text-foreground hover:bg-muted",
       )}
     >

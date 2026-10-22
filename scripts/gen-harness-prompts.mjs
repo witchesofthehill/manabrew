@@ -156,6 +156,13 @@ const JAVA_FIELD_TYPES = {
   "CardCosmetics.wearSeed": "Long",
   "CardCosmetics.wearAmount": "Double",
   "CardCosmetics.rainFog": "Double",
+  "CardCosmetics.heatDeformation": "Double",
+  "CardCoating.amount": "double",
+  "CardPrintDots.amount": "double",
+  "CardPrintDots.period": "Double",
+  "CardPrintDots.variation": "Double",
+  "CardPrintDots.inset": "Double",
+  "CardFinishCoverage.amount": "double",
   "CardArtPlacement.zoom": "Double",
   "CardArtPlacement.paperOpacity": "Double",
 };

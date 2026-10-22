@@ -1,3 +1,4 @@
+import { UI_FONT_FAMILY } from "@/themes/typography";
 import { Container, Graphics, Text } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
 import { hexToNum } from "../colorUtils";
@@ -123,7 +124,7 @@ export class CombatRowRenderer {
       const text = new Text({
         text: String(count),
         style: {
-          fontFamily: "system-ui, sans-serif",
+          fontFamily: UI_FONT_FAMILY,
           fontSize: 11,
           fontWeight: "800",
           fill: hexToNum(colors.textOnTinted),

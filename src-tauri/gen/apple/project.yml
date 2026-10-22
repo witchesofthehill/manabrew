@@ -2,7 +2,7 @@ name: manabrew
 options:
   bundleIdPrefix: com.manabrew.app
   deploymentTarget:
-    iOS: 14.0
+    iOS: 15.0
 fileGroups: [../../src]
 configs:
   debug: debug
@@ -53,6 +53,15 @@ targets:
           - UIInterfaceOrientationLandscapeRight
         CFBundleShortVersionString: 0.0.0
         CFBundleVersion: "0.0.0"
+        NSLocalNetworkUsageDescription: Manabrew looks for a relay or a table hosted on your network, so you can play with nobody typing an address.
+        NSBonjourServices:
+          - _manabrew._tcp
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: true
+          UISceneConfigurations:
+            UIWindowSceneSessionRoleApplication:
+              - UISceneConfigurationName: TaoScene
+                UISceneDelegateClassName: TaoSceneDelegate
     entitlements:
       path: manabrew_iOS/manabrew_iOS.entitlements
     scheme:

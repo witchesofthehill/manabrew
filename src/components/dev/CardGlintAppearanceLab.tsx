@@ -6,6 +6,8 @@ import { CARD_FINISH_PRESETS, resolveCardFinish } from "@/lib/cardFinish";
 import type { CardInspectAppearance } from "@/lib/cardGlintInspectAppearance";
 import type { DeckCard } from "@/protocol/deck";
 import { useCardFinishPreview } from "@/stores/useCardFinishPreview";
+import { CardRenderingLightingControls } from "@/components/dev/CardRenderingLightingControls";
+import type { CardLightingMode, CardPose } from "@/lib/cardLighting";
 
 export function CardGlintAppearanceLab({
   card,
@@ -13,12 +15,20 @@ export function CardGlintAppearanceLab({
   onFlipFace,
   appearance,
   onAppearanceChange,
+  lighting,
+  pose,
+  onLightingChange,
+  onPoseChange,
 }: {
   card: DeckCard;
   faceIndex: 0 | 1;
   onFlipFace: () => void;
   appearance: CardInspectAppearance;
   onAppearanceChange: (appearance: CardInspectAppearance) => void;
+  lighting: CardLightingMode;
+  pose: CardPose;
+  onLightingChange: (lighting: CardLightingMode) => void;
+  onPoseChange: (pose: CardPose) => void;
 }) {
   const [copyState, setCopyState] = useState<{ copied?: string; failed?: string }>({});
   const mode = useCardFinishPreview((state) => state.mode);
@@ -35,7 +45,7 @@ export function CardGlintAppearanceLab({
     }),
     [card, foil, finish],
   );
-  const settings = JSON.stringify({ finish, ...appearance }, null, 2);
+  const settings = JSON.stringify({ finish, ...appearance, lighting, pose }, null, 2);
   const update = (next: CardInspectAppearance) => {
     onAppearanceChange(next);
     setCopyState({});
@@ -57,8 +67,9 @@ export function CardGlintAppearanceLab({
         <div className="space-y-1">
           <h2 className="font-semibold">Card Glint material workbench</h2>
           <p className="max-w-3xl text-xs text-muted-foreground">
-            Native SDK preview only. Use the finish selector above, then tune the settings below.
-            Nothing is saved or applied to the production comparisons.
+            Coating, print dots, wear, fog and coverage also apply to the production comparisons
+            below. Deformation, printing reflections and holograms affect only this native preview.
+            Nothing is saved.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -71,7 +82,7 @@ export function CardGlintAppearanceLab({
             disabled={Object.keys(appearance).length === 0}
             onClick={() => update({})}
           >
-            Reset SDK settings
+            Reset material settings
           </Button>
         </div>
       </header>
@@ -91,6 +102,9 @@ export function CardGlintAppearanceLab({
             appearance={appearance}
             faceIndex={faceIndex}
             onFlipFace={onFlipFace}
+            lighting={lighting}
+            pose={pose}
+            onPoseChange={onPoseChange}
             className="rounded-md border border-border bg-background"
           />
           <p className="text-xs text-muted-foreground">
@@ -98,6 +112,12 @@ export function CardGlintAppearanceLab({
           </p>
         </div>
         <div className="min-w-0 space-y-3 lg:max-h-[38rem] lg:overflow-y-auto lg:overscroll-contain lg:pr-2">
+          <CardRenderingLightingControls
+            lighting={lighting}
+            pose={pose}
+            onLightingChange={onLightingChange}
+            onPoseChange={onPoseChange}
+          />
           <CardGlintAppearanceControls value={appearance} onChange={update} finish={finish} />
           <details
             open={copyState.failed === settings}

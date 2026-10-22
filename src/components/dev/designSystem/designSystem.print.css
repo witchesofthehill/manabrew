@@ -1,0 +1,174 @@
+.ds-print-only {
+  display: none;
+}
+
+@page manabrew-design-system {
+  size: A4 portrait;
+  margin: 12mm;
+}
+
+@media print {
+  html:has(.design-system),
+  body:has(.design-system),
+  body:has(.design-system) #root,
+  body:has(.design-system) #root :has(.design-system) {
+    page: manabrew-design-system;
+    display: block !important;
+    position: static !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    transform: none !important;
+    contain: none !important;
+  }
+
+  body:has(.design-system) > :not(#root),
+  body:has(.design-system) #root > :not(:has(.design-system), .design-system),
+  body:has(.design-system) #root :has(.design-system) > :not(:has(.design-system), .design-system) {
+    display: none !important;
+  }
+
+  .design-system {
+    page: manabrew-design-system;
+    height: auto !important;
+    overflow: visible !important;
+    background: var(--background);
+    color: var(--foreground);
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .design-system *,
+  .design-system *::before,
+  .design-system *::after {
+    animation: none !important;
+    transition: none !important;
+    caret-color: transparent !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .design-system > main {
+    padding: 0;
+  }
+
+  .design-system .ds-screen-only {
+    display: none !important;
+  }
+
+  .design-system .ds-print-only {
+    display: revert !important;
+  }
+
+  .design-system .ds-print-header {
+    margin-bottom: 6mm;
+  }
+
+  .design-system .ds-section {
+    break-before: page;
+    margin-top: 0 !important;
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .design-system .ds-section-content {
+    display: block !important;
+  }
+
+  .design-system .ds-section-toggle {
+    break-after: avoid;
+  }
+
+  .design-system .ds-section-toggle > svg {
+    display: none;
+  }
+
+  .design-system .ds-subhead,
+  .design-system h3,
+  .design-system thead {
+    break-after: avoid;
+  }
+
+  .design-system .ds-panel,
+  .design-system .ds-swatch,
+  .design-system .ds-tile,
+  .design-system .ds-asset,
+  .design-system .ds-color-group,
+  .design-system .ds-card-specimen,
+  .design-system tr {
+    break-inside: avoid;
+  }
+
+  .design-system .ds-panel {
+    min-width: 0;
+    padding: 4mm;
+  }
+
+  .design-system .ds-theme-card {
+    border: 0;
+    padding: 0;
+    background: transparent;
+  }
+
+  .design-system .ds-app-token-modes {
+    display: block;
+  }
+
+  .design-system .ds-app-token-mode + .ds-app-token-mode {
+    break-before: page;
+    margin-top: 6mm;
+  }
+
+  .design-system .ds-swatch-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .design-system .ds-swatch > :first-child {
+    height: 9mm;
+  }
+
+  .design-system .ds-swatch .truncate,
+  .design-system .ds-asset .truncate,
+  .design-system .ds-swatch button {
+    overflow: visible;
+    white-space: normal;
+    text-overflow: clip;
+    overflow-wrap: anywhere;
+  }
+
+  .design-system .overflow-x-auto {
+    overflow: visible;
+  }
+
+  .design-system table {
+    min-width: 0 !important;
+    width: 100%;
+  }
+
+  .design-system th,
+  .design-system td {
+    overflow-wrap: anywhere;
+  }
+
+  .design-system .ds-card-style {
+    break-inside: avoid;
+  }
+
+  .design-system .ds-card-style + .ds-card-style {
+    break-before: page;
+  }
+
+  .design-system .ds-card-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6mm;
+  }
+
+  .design-system .ds-card-specimen {
+    min-width: 0;
+    padding: 3mm 0;
+  }
+}

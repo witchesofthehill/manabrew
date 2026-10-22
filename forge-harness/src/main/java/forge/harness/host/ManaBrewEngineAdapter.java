@@ -48,6 +48,9 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class ManaBrewEngineAdapter {
     private static final Gson GSON = new Gson();
+    private static final String PAUPER_COMMANDER = "PauperCommander";
+    private static final int PAUPER_COMMANDER_STARTING_LIFE = 30;
+    private static final int PAUPER_COMMANDER_DAMAGE_TO_LOSE = 16;
     private final Map<String, ManaBrewInteractiveSession> sessions = new ConcurrentHashMap<>();
     private volatile boolean initialized;
 
@@ -90,6 +93,10 @@ public final class ManaBrewEngineAdapter {
         final GameRules rules = new GameRules(gameType);
         rules.setAppliedVariants(variants);
         rules.setSimTimeout(120);
+        final boolean pauperCommander = PAUPER_COMMANDER.equals(request.getVariant());
+        if (pauperCommander) {
+            rules.setCommanderDamageToLose(PAUPER_COMMANDER_DAMAGE_TO_LOSE);
+        }
         // The client draws its own card faces, so nothing here or in the
         // protocol ever reads Forge's rendered rules text. Building it asks
         // every conditional static ability whether it applies, and each of
@@ -118,6 +125,9 @@ public final class ManaBrewEngineAdapter {
             deckEntries.add(entries);
             RegisteredPlayer registeredPlayer = RegisteredPlayer.forVariants(
                     playerCount, variants, deck, null, false, null, null);
+            if (pauperCommander) {
+                registeredPlayer.setStartingLife(PAUPER_COMMANDER_STARTING_LIFE);
+            }
             if (playerConfig.isAi()) {
                 registeredPlayer.setPlayer(new LobbyPlayerAi(playerConfig.getName(), null));
             } else {
@@ -385,6 +395,7 @@ public final class ManaBrewEngineAdapter {
         if (variant != null && !variant.isBlank()) {
             switch (variant) {
                 case "Commander":
+                case PAUPER_COMMANDER:
                     return GameType.Commander;
                 case "Oathbreaker":
                     return GameType.Oathbreaker;

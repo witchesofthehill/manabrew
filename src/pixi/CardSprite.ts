@@ -1,3 +1,4 @@
+import { UI_FONT_FAMILY } from "@/themes/typography";
 import {
   Container,
   Sprite,
@@ -14,10 +15,17 @@ import {
 import type { CardDto } from "@/protocol/game";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { deriveCardRailState, type CardRailState } from "@/components/game/cardRailState";
-import { cardTypeLine, counterColorKey, counterIconName } from "@/components/game/cardPresentation";
+import {
+  cardTypeLine,
+  counterColorKey,
+  counterIconName,
+  ROOM_DOOR_BOUNDS,
+  roomDoorState,
+} from "@/components/game/cardPresentation";
 import { CARD_W, CARD_H, CARD_RADIUS } from "@/components/game/game.constants";
 import { deriveCardChoiceIndicators } from "@/components/game/game.utils";
 import { isHorizontalGameCard } from "@/lib/horizontalGameCard";
+import { gameCardFaceIndex } from "@/lib/gameCard";
 import type { Theme } from "@/hooks/useTheme";
 import { cardFrameTintHex, withAlpha } from "@/themes/gameTheme";
 import { getTheme } from "@/hooks/useTheme";
@@ -34,6 +42,11 @@ import { battlefieldKeywords } from "@/lib/battlefieldKeywords";
 import { applyManaSymbol, parseManaCost } from "./manaSymbols";
 import { asGameDeckCard } from "@/lib/decks";
 import { cardRenderInputKey, renderCard } from "@/lib/cardRenderer";
+import {
+  releaseCardRaster,
+  selectCardRenderTier,
+  type CardRenderTier,
+} from "@/lib/cardRenderTypes";
 import { createGeneratedCardTexture, getGeneratedCardArtWindows } from "./generatedCardTexture";
 import { writeCardTextureUvs } from "./cardTextureUvs";
 import { loadCardBack } from "./cardBackTexture";
@@ -120,7 +133,7 @@ function prefersReducedMotion(): boolean {
 const tintedTextFill = (): string => activeTheme.gameTheme.textOnTinted;
 const PT_STYLE = registerTintedTextStyle(
   new TextStyle({
-    fontFamily: "Inter, system-ui, -apple-system, sans-serif",
+    fontFamily: UI_FONT_FAMILY,
     fontSize: 10,
     fontWeight: "bold",
     fill: tintedTextFill(),
@@ -128,7 +141,7 @@ const PT_STYLE = registerTintedTextStyle(
 );
 const BADGE_STYLE = registerTintedTextStyle(
   new TextStyle({
-    fontFamily: "Inter, system-ui, -apple-system, sans-serif",
+    fontFamily: UI_FONT_FAMILY,
     fontSize: 6,
     fontWeight: "bold",
     fill: tintedTextFill(),
@@ -136,7 +149,7 @@ const BADGE_STYLE = registerTintedTextStyle(
 );
 const COUNTER_STYLE = registerTintedTextStyle(
   new TextStyle({
-    fontFamily: "Inter, system-ui, -apple-system, sans-serif",
+    fontFamily: UI_FONT_FAMILY,
     fontSize: 8,
     fontWeight: "bold",
     fill: tintedTextFill(),
@@ -144,7 +157,7 @@ const COUNTER_STYLE = registerTintedTextStyle(
 );
 const NAME_STYLE = registerTintedTextStyle(
   new TextStyle({
-    fontFamily: "Inter, system-ui, -apple-system, sans-serif",
+    fontFamily: UI_FONT_FAMILY,
     fontSize: 8,
     fill: tintedTextFill(),
     wordWrap: true,
@@ -156,7 +169,7 @@ const NAME_STYLE = registerTintedTextStyle(
 // (dark on light tint bars, light on the dark art scrim) and set per-card in
 // `renderFrame`, so each frame Text gets its own cloned style instance.
 const FRAME_NAME_STYLE = new TextStyle({
-  fontFamily: "Inter, system-ui, -apple-system, sans-serif",
+  fontFamily: UI_FONT_FAMILY,
   fontSize: 7,
   fontWeight: "600",
   fill: tintedTextFill(),
@@ -165,7 +178,7 @@ const FRAME_NAME_STYLE = new TextStyle({
   lineHeight: 8,
 });
 const FRAME_TYPE_STYLE = new TextStyle({
-  fontFamily: "Inter, system-ui, -apple-system, sans-serif",
+  fontFamily: UI_FONT_FAMILY,
   fontSize: 5.5,
   fill: tintedTextFill(),
   wordWrap: true,
@@ -173,7 +186,7 @@ const FRAME_TYPE_STYLE = new TextStyle({
   lineHeight: 6.5,
 });
 const FOIL_STAR_STYLE = new TextStyle({
-  fontFamily: "Inter, system-ui, -apple-system, sans-serif",
+  fontFamily: UI_FONT_FAMILY,
   fontSize: 10,
   fontWeight: "bold",
   fill: activeTheme.gameTheme.rarity.rare,
@@ -228,7 +241,7 @@ function truncateChipLabel(text: string): string {
 }
 const KEYWORD_CHIP_STYLE = registerTintedTextStyle(
   new TextStyle({
-    fontFamily: "Inter, system-ui, -apple-system, sans-serif",
+    fontFamily: UI_FONT_FAMILY,
     fontSize: 7,
     fontWeight: "bold",
     fill: tintedTextFill(),
@@ -236,7 +249,7 @@ const KEYWORD_CHIP_STYLE = registerTintedTextStyle(
 );
 const RAIL_LABEL_STYLE = registerTintedTextStyle(
   new TextStyle({
-    fontFamily: "Inter, system-ui, -apple-system, sans-serif",
+    fontFamily: UI_FONT_FAMILY,
     fontSize: 6,
     fontWeight: "700",
     fill: tintedTextFill(),
@@ -404,6 +417,8 @@ export class CardSprite extends Container {
   private contentContainer: Container;
   private printedFaceContainer: Container;
   private printedChromeContainer: Container;
+  private readonly roomDoorsGfx = new Graphics();
+  private roomDoorsState = -1;
   private ptContainer: Container;
   private ptBg: Graphics;
   private ptText: Text;
@@ -458,11 +473,13 @@ export class CardSprite extends Container {
   private loadGeneration = 0;
   private imageAbort: AbortController | null = null;
   private imageRequestKey: string | null = null;
+  private renderTier: CardRenderTier | undefined;
   private ownedImageTexture: Texture | null = null;
   private imageIsArtwork = false;
   private readonly kind: "battlefield" | "hand" | "zone";
   private handRulesFace: HandRulesCardFace | null = null;
   private handRulesView = false;
+  private handRulesInteractive = true;
   private handRulesActions: HandActionOption[] = [];
   private onSelectHandRulesAction: ((action: HandActionOption) => void) | null = null;
   private handRulesHighlight = "";
@@ -491,6 +508,7 @@ export class CardSprite extends Container {
     this.cw = width;
     this.ch = height;
     this.eventMode = "static";
+    this.onRender = () => this.syncRasterTier();
     this.cursor = "pointer";
 
     this.shadowGfx = new Graphics({ context: shadowContext(this.cw, this.ch) });
@@ -683,8 +701,11 @@ export class CardSprite extends Container {
         this.printedChromeContainer.addChild(child);
       }
     }
+    this.roomDoorsGfx.eventMode = "none";
+    this.roomDoorsGfx.visible = false;
     this.foilSheen = new CardFoil(() => this.onVisualChange?.());
     this.contentContainer.addChild(this.foilSheen);
+    this.contentContainer.addChild(this.roomDoorsGfx);
     this.contentContainer.addChild(this.printedChromeContainer);
     this.contentContainer.addChild(this.liveHighlight);
     this.addChild(this.pulseRing.gfx);
@@ -724,14 +745,49 @@ export class CardSprite extends Container {
   private imageKey(card = this.card): string {
     if (this.hasHiddenIdentity(card)) return "hidden";
     const deckCard = this.deckCard(card);
-    const faceIndex = this.previewFace ?? (card.isTransformed ? 1 : 0);
+    const faceIndex = this.previewFace ?? gameCardFaceIndex(card);
     const style = this.isBattlefield ? activeStyle : "realistic";
+    const tier = this.selectRasterTier();
     return JSON.stringify([
       style,
+      tier,
       style !== "realistic" && style !== "art"
         ? cardRenderInputKey({ card, deckCard, faceIndex })
         : [useScryfallStore.getState().locale, deckCard, faceIndex],
     ]);
+  }
+
+  private projectedRasterScale(): number {
+    let scale = Math.max(Math.abs(this.scale.x), Math.abs(this.scale.y));
+    for (let node: Container | null = this.parent; node; node = node.parent) {
+      scale *= Math.max(Math.abs(node.scale.x), Math.abs(node.scale.y));
+    }
+    return scale;
+  }
+
+  private selectRasterTier(scale = this.projectedRasterScale()): CardRenderTier {
+    return selectCardRenderTier(
+      this.cw * scale,
+      this.ch * scale,
+      Math.min(2, window.devicePixelRatio || 1),
+      this.renderTier,
+      this.previewFlipPhase !== "idle",
+    );
+  }
+
+  private syncRasterTier(): void {
+    const scale = this.projectedRasterScale();
+    this.handRulesFace?.setRasterProjection(
+      this.cw * scale,
+      this.ch * scale,
+      this.previewFlipPhase !== "idle",
+    );
+    const tier = this.selectRasterTier(scale);
+    if (tier === this.renderTier) return;
+    this.renderTier = tier;
+    if (this.isBattlefield && activeStyle !== "realistic" && activeStyle !== "art") {
+      void this.loadImage();
+    }
   }
 
   private displayDimensions(): { width: number; height: number } {
@@ -745,7 +801,7 @@ export class CardSprite extends Container {
   // Scryfall serves horizontal-frame cards as upright 5:7 PNGs — rotate
   // the sprite 90° so the printed art reads in landscape inside the slot.
   private isHorizontal(): boolean {
-    const faceIndex = this.previewFace ?? (this.card.isTransformed ? 1 : 0);
+    const faceIndex = this.previewFace ?? gameCardFaceIndex(this.card);
     return isHorizontalGameCard(this.card, this.deckCard().layout, faceIndex);
   }
   get horizontalFrame(): boolean {
@@ -872,7 +928,9 @@ export class CardSprite extends Container {
     const card = this.card;
     const deckCard = hidden ? undefined : this.deckCard();
     const custom = this.isBattlefield && activeStyle !== "realistic" && !hidden;
-    const faceIndex = this.previewFace ?? (card.isTransformed ? 1 : 0);
+    const faceIndex = this.previewFace ?? gameCardFaceIndex(card);
+    const tier = this.selectRasterTier();
+    this.renderTier = tier;
     let fallback: Promise<Texture> | null = null;
     const showFallback = () => {
       fallback = useScryfallStore
@@ -905,12 +963,25 @@ export class CardSprite extends Container {
         texture = await useScryfallStore.getState().getCardTexture(deckCard!, "art", faceIndex);
         artwork = true;
       } else if (custom) {
-        const canvas = await renderCard({ card, deckCard, faceIndex }, controller.signal, {
+        const raster = await renderCard({ card, deckCard, faceIndex }, controller.signal, {
+          tier,
           onCompose: this._imageLoaded ? undefined : showFallback,
         });
-        if (this.destroyed || generation !== this.loadGeneration) return;
-        texture = createGeneratedCardTexture(canvas);
-        owned = true;
+        try {
+          if (this.destroyed || generation !== this.loadGeneration || controller.signal.aborted)
+            return;
+          texture = createGeneratedCardTexture(raster);
+          owned = true;
+        } finally {
+          releaseCardRaster(raster);
+        }
+        if (deckCard?.backFace) {
+          void renderCard(
+            { card, deckCard, faceIndex: faceIndex === 0 ? 1 : 0 },
+            controller.signal,
+            { tier, priority: "background" },
+          ).then(releaseCardRaster, () => undefined);
+        }
       } else {
         texture = await useScryfallStore.getState().getCardTexture(deckCard!, "full", faceIndex);
       }
@@ -974,6 +1045,7 @@ export class CardSprite extends Container {
     this.renderFrame();
     if (this.frameCounterReserve !== previousCounterReserve) this.updateCounters();
     this.updateMana();
+    this.updateRoomDoors();
     this.syncHandFaceVisibility();
     previous?.destroy(true);
     this.onVisualChange?.();
@@ -1010,10 +1082,10 @@ export class CardSprite extends Container {
       this.commitPreviewChange();
       return;
     }
-    const currentFace = this.previewFace ?? (this.card.isTransformed ? 1 : 0);
+    const currentFace = this.previewFace ?? gameCardFaceIndex(this.card);
     if (
       !this.previewOrientationCommit &&
-      (face ?? (this.card.isTransformed ? 1 : 0)) === currentFace &&
+      (face ?? gameCardFaceIndex(this.card)) === currentFace &&
       rulesView === this.handRulesView
     )
       return;
@@ -1071,7 +1143,7 @@ export class CardSprite extends Container {
     if (this.usesHandRulesView === active) return;
     this.handRulesView = active;
     if (!this.handRulesFace) {
-      const faceIndex = this.previewFace ?? (this.card.isTransformed ? 1 : 0);
+      const faceIndex = this.previewFace ?? gameCardFaceIndex(this.card);
       this.handRulesFace = new HandRulesCardFace(
         this.card,
         faceIndex,
@@ -1079,6 +1151,7 @@ export class CardSprite extends Container {
         this.ch,
         activeTheme,
       );
+      this.handRulesFace.eventMode = this.handRulesInteractive ? "passive" : "none";
       this.contentContainer.addChild(this.handRulesFace);
       this.handRulesFace.onRenderRequested = () => {
         this.syncHandFaceVisibility();
@@ -1112,6 +1185,7 @@ export class CardSprite extends Container {
     const top = this.handControls ?? highlights ?? this.liveHighlight;
     if (this.contentContainer.children.at(-1) !== top) {
       this.contentContainer.addChild(this.foilSheen);
+      this.contentContainer.addChild(this.roomDoorsGfx);
       this.contentContainer.addChild(this.printedChromeContainer);
       this.contentContainer.addChild(this.liveHighlight);
       if (highlights) this.contentContainer.addChild(highlights);
@@ -1154,7 +1228,7 @@ export class CardSprite extends Container {
     } else {
       writeCardTextureUvs(this.imageSpr, this.contentContainer, this.foilSurface, this.foilUvs);
     }
-    this.foilSheen.setTexture(texture, this.foilUvs);
+    this.foilSheen.setTexture(texture, this.foilUvs, embedded?.foilSource ?? this.imageSpr);
     this.foilSheen.setArtWindows(getGeneratedCardArtWindows(texture));
   }
   setHandControls(spec: HandCardControlsSpec | null): void {
@@ -1175,7 +1249,7 @@ export class CardSprite extends Container {
             rulesView: this.usesHandRulesView,
             alternateFace: spec.horizontal
               ? spec.alternateFace
-              : (this.previewFace ?? (this.card.isTransformed ? 1 : 0)) === 1,
+              : (this.previewFace ?? gameCardFaceIndex(this.card)) === 1,
           }
         : null,
       this.cw,
@@ -1191,6 +1265,10 @@ export class CardSprite extends Container {
       this.cw,
       this.ch * PRINTED_ART_TOP_FRAC,
     );
+  }
+  setHandRulesInteractive(active: boolean): void {
+    this.handRulesInteractive = active;
+    if (this.handRulesFace) this.handRulesFace.eventMode = active ? "passive" : "none";
   }
   setHandRulesActions(
     actions: HandActionOption[],
@@ -1219,7 +1297,7 @@ export class CardSprite extends Container {
 
   private updateHandRulesFace(): void {
     if (!this.handRulesFace || (!this.handRulesFace.visible && !this.handRulesView)) return;
-    const faceIndex = this.previewFace ?? (this.card.isTransformed ? 1 : 0);
+    const faceIndex = this.previewFace ?? gameCardFaceIndex(this.card);
     this.handRulesFace.setContent(this.card, faceIndex, this.cw, this.ch);
     this.syncHandFaceVisibility();
   }
@@ -1249,6 +1327,7 @@ export class CardSprite extends Container {
     this.updateMana();
     this.updateCardFilter();
     this.updateEdgeGlow();
+    this.updateRoomDoors(true);
     this.updateChoice(true);
     this.handRulesFace?.setTheme(activeTheme);
     this.handControls?.setTheme(activeTheme);
@@ -1438,7 +1517,35 @@ export class CardSprite extends Container {
     if (card.manaCost !== previous.manaCost || frameChanged) this.updateMana();
     if (filterChanged) this.updateCardFilter();
     if (edgeGlowChanged) this.updateEdgeGlow();
+    this.updateRoomDoors();
     this.updateHandRulesFace();
+  }
+  private updateRoomDoors(force = false): void {
+    const state = roomDoorState(this.card) ?? -1;
+    if (!force && state === this.roomDoorsState) return;
+    this.roomDoorsState = state;
+    this.roomDoorsGfx.clear();
+    this.roomDoorsGfx.visible = state >= 0;
+    if (state < 0) return;
+    const theme = activeTheme.gameTheme;
+    for (let half = 0; half < ROOM_DOOR_BOUNDS.length; half++) {
+      const bounds = ROOM_DOOR_BOUNDS[half]!;
+      const inset = 0.75;
+      const x = bounds.x * this.cw + inset;
+      const width = bounds.width * this.cw - inset * 2;
+      const height = this.ch - inset * 2;
+      if ((state & (1 << half)) === 0) {
+        this.roomDoorsGfx
+          .roundRect(x, inset, width, height, CARD_RADIUS - inset)
+          .fill({ color: hexToNum(theme.canvas.shadow), alpha: 0.42 });
+      } else {
+        this.roomDoorsGfx
+          .roundRect(x, inset, width, height, CARD_RADIUS - inset)
+          .stroke({ color: hexToNum(theme.canvas.shadow), width: 2, alignment: 1 })
+          .roundRect(x, inset, width, height, CARD_RADIUS - inset)
+          .stroke({ color: hexToNum(theme.activeAction.active), width: 1.25, alignment: 1 });
+      }
+    }
   }
   private updateEdgeGlow(): void {
     const card = this.card;

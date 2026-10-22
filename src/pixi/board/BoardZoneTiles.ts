@@ -1,3 +1,4 @@
+import { UI_FONT_FAMILY } from "@/themes/typography";
 import {
   Container,
   Graphics,
@@ -283,7 +284,7 @@ export class BoardZoneTiles {
     const countText = new Text({
       text: "",
       style: {
-        fontFamily: "system-ui, sans-serif",
+        fontFamily: UI_FONT_FAMILY,
         fontSize: 12,
         fontWeight: "900",
         fill: hexToNum(this.theme.gameTheme.textOnTinted),
@@ -293,7 +294,7 @@ export class BoardZoneTiles {
     const taxText = new Text({
       text: "",
       style: {
-        fontFamily: "system-ui, sans-serif",
+        fontFamily: UI_FONT_FAMILY,
         fontSize: 11,
         fontWeight: "700",
         fill: hexToNum(this.theme.gameTheme.textOnTinted),

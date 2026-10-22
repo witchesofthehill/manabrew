@@ -21,7 +21,7 @@ export function PlayerRuleFacts({ facts }: PlayerRuleFactsProps) {
             <dt className="text-muted-foreground">{fact.label}</dt>
             <dd
               className={cn(
-                "text-right font-semibold tabular-nums",
+                "text-right font-semibold tabular-nums lining-nums",
                 fact.emphasized && "text-primary",
               )}
             >

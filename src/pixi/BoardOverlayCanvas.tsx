@@ -47,6 +47,7 @@ import { usePreferencesStore, type InGameCardPreviewStyle } from "@/stores/usePr
 import { hexToNum } from "./colorUtils";
 import { RulesPreviewAccessibility } from "@/components/game/RulesPreviewAccessibility";
 import type { GamePreviewFlipBinding } from "@/hooks/useGamePreviewFlip";
+import type { CardLightingMode, CardPose } from "@/lib/cardLighting";
 
 export interface BoardOverlayPreviewSpec {
   card: CardDto;
@@ -63,6 +64,8 @@ export interface BoardOverlayPreviewSpec {
   viewportRight?: number;
   slotRect?: DOMRect | null;
   flip?: GamePreviewFlipBinding;
+  lighting?: CardLightingMode;
+  pose?: CardPose;
 }
 
 export interface BoardOverlayCommandPreviewSpec {
@@ -177,6 +180,8 @@ function toRulesPreviewSpec(
     skipEnterAnimation: spec.skipEnterAnimation,
     actions: spec.actions,
     flip: spec.flip,
+    lighting: spec.lighting,
+    pose: spec.pose,
     anchor: spec.anchorRect
       ? {
           x: spec.anchorRect.x - canvasRect.left,
@@ -1194,8 +1199,9 @@ export function BoardOverlayCanvasSurface({
           actions={previewSpec.actions}
           onFocusAction={previewControlBounds}
           cardBounds={() => previewControlBounds()}
-          onSelect={(action) => {
-            if (previewControlBounds()) onSelectPreviewAction?.(action);
+          onSelect={(action, index) => {
+            if (previewRef.current?.ownsAction(index) && previewControlBounds())
+              onSelectPreviewAction?.(action);
           }}
           onHold={() => onPreviewPointerEnter?.()}
           onRelease={() => onPreviewPointerLeave?.()}

@@ -5,7 +5,11 @@ import { asDeckCard, asGameDeckCard, getDeckCardPool } from "@/lib/decks";
 import type { ClientGameView } from "@/stores/gameStore.types";
 import type { Deck, DeckCard } from "@/protocol/deck";
 import { renderCard, type CardRenderOptions } from "@/lib/cardRenderer";
+import { releaseCardRaster, selectCardRenderTier } from "@/lib/cardRenderTypes";
+import { GAME_CARD_SIZES } from "@/components/game/game.constants";
+import { overlayResolution } from "@/pixi/overlay/overlayRuntime";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { gameCardFaceIndex } from "@/lib/gameCard";
 
 export type GamePrefetchMode = "visible" | "full";
 
@@ -73,6 +77,7 @@ async function prefetchAllCards(visibleCards: DeckCard[], deckCards: DeckCard[])
 
 function manabrewRenderVariants(): CardRenderOptions[] {
   const preferences = usePreferencesStore.getState();
+  const resolution = overlayResolution(window.innerWidth, window.innerHeight);
   const variants: CardRenderOptions[] = [];
   if (
     [
@@ -82,39 +87,57 @@ function manabrewRenderVariants(): CardRenderOptions[] {
       preferences.inGameCardPreviewStyle,
     ].includes("rules")
   ) {
-    variants.push({ rulesText: false, standardFrameFallback: true });
+    variants.push({
+      rulesText: false,
+      standardFrameFallback: true,
+      tier: selectCardRenderTier(
+        GAME_CARD_SIZES.hand.width,
+        GAME_CARD_SIZES.hand.height,
+        resolution,
+      ),
+    });
   }
-  if (preferences.battlefieldCardStyle === "frame") variants.push({});
+  if (preferences.battlefieldCardStyle === "frame") {
+    variants.push({
+      tier: selectCardRenderTier(
+        GAME_CARD_SIZES.battlefield.width,
+        GAME_CARD_SIZES.battlefield.height,
+        resolution,
+      ),
+    });
+  }
   return variants;
 }
 
 async function renderOpeningCards(): Promise<void> {
   const { gameView, gameDecks } = useGameStore.getState();
-  const cards = (gameView?.players ?? [])
+  const faces = (gameView?.players ?? [])
     .flatMap((player) => [...player.hand, ...player.commandZone])
     .filter(
       (card) => !card.isFaceDown && card.identity.name && card.identity.name !== "Hidden Card",
-    );
+    )
+    .flatMap((card) => {
+      const deckCard = asGameDeckCard(gameDecks, card);
+      const faceIndex = gameCardFaceIndex(card);
+      const indices: (0 | 1)[] = deckCard.backFace
+        ? [faceIndex, faceIndex === 0 ? 1 : 0]
+        : [faceIndex];
+      return indices.map((face) => ({ card, deckCard, faceIndex: face }));
+    });
   const variants = manabrewRenderVariants();
-  const total = variants.length * cards.length;
+  const total = variants.length * faces.length;
   if (total === 0) return;
   let loaded = 0;
   useGameStore.setState({ cardRenderProgress: { loaded, total } });
   await Promise.allSettled(
     variants.flatMap((options) =>
-      cards.map((card) =>
-        renderCard(
-          {
-            card,
-            deckCard: asGameDeckCard(gameDecks, card),
-            faceIndex: card.isTransformed ? 1 : 0,
-          },
-          undefined,
-          options,
-        ).finally(() => {
-          loaded += 1;
-          useGameStore.setState({ cardRenderProgress: { loaded, total } });
-        }),
+      faces.map((request) =>
+        renderCard(request, undefined, options)
+          .then(releaseCardRaster)
+          .finally(() => {
+            loaded += 1;
+            useGameStore.setState({ cardRenderProgress: { loaded, total } });
+          }),
       ),
     ),
   );
@@ -133,7 +156,7 @@ async function renderDeckPools(): Promise<void> {
           renderCard({ deckCard, faceIndex: 0, gameplay: true }, undefined, {
             ...options,
             priority: "background",
-          }),
+          }).then(releaseCardRaster),
         ),
       ),
     );

@@ -59,6 +59,13 @@ pub fn run(
 /// `PumpEffect` class extending `SpellAbilityEffect`.
 #[manabrew_engine_macros::spell_effect(PumpEffect)]
 fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
+    if !crate::ability::spell_ability_effect::check_valid_duration(
+        ctx.game,
+        sa,
+        sa.ir.duration.as_ref(),
+    ) {
+        return;
+    }
     let mut pumped_targets: Vec<crate::ids::CardId> = Vec::new();
 
     // `Optional$` — activator confirms before any pump applies (Java L283–L292).
@@ -143,7 +150,9 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     }
 
     let is_perpetual = sa.ir.perpetual_duration;
-    let resolve_ts = if is_perpetual {
+    let until_lose_control =
+        sa.ir.duration == Some(crate::spellability::AbilityDuration::UntilLoseControlOfHost);
+    let resolve_ts = if is_perpetual || until_lose_control {
         Some(ctx.game.next_effect_timestamp())
     } else {
         None
@@ -176,7 +185,16 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
             let target = ctx.game.card(cid);
             let att = att_bonus.resolve(target.power());
             let def = def_bonus.resolve(target.toughness());
-            apply_pump_to_card(ctx, cid, att, def, &keywords, is_perpetual, resolve_ts);
+            apply_pump_to_card(
+                ctx,
+                cid,
+                att,
+                def,
+                &keywords,
+                is_perpetual,
+                resolve_ts,
+                sa.source.filter(|_| until_lose_control),
+            );
         }
         return;
     }
@@ -190,10 +208,21 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     targets.dedup();
 
     let tgt_zones = sa
-        .target_restrictions
-        .as_ref()
-        .map(|tr| tr.tgt_zone.clone())
-        .filter(|zones| !zones.is_empty())
+        .ir
+        .pump_zone
+        .as_deref()
+        .map(|zones| {
+            zones
+                .split(',')
+                .filter_map(|zone| crate::zone::zone_type::smart_value_of(zone.trim()))
+                .collect::<Vec<_>>()
+        })
+        .or_else(|| {
+            sa.target_restrictions
+                .as_ref()
+                .map(|tr| tr.tgt_zone.clone())
+                .filter(|zones| !zones.is_empty())
+        })
         .unwrap_or_else(|| vec![ZoneType::Battlefield]);
     for target_card in targets {
         if !tgt_zones.contains(&ctx.game.card(target_card).zone) {
@@ -210,6 +239,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
             &keywords,
             is_perpetual,
             resolve_ts,
+            sa.source.filter(|_| until_lose_control),
         );
         pumped_targets.push(target_card);
     }
@@ -261,8 +291,20 @@ fn apply_pump_to_card(
     keywords: &[String],
     is_perpetual: bool,
     resolve_ts: Option<i64>,
+    until_lose_control_host: Option<crate::ids::CardId>,
 ) {
-    if is_perpetual {
+    if let Some(host) = until_lose_control_host {
+        let timestamp = resolve_ts.unwrap();
+        let target = ctx.game.card_mut(card_id);
+        target.add_pt_boost(att, def);
+        for keyword in keywords {
+            target.add_changed_card_keyword_at(keyword, timestamp, 0);
+        }
+        ctx.game
+            .card_mut(host)
+            .until_lose_control_keyword_changes
+            .push((card_id, timestamp));
+    } else if is_perpetual {
         let ts = resolve_ts.expect("perpetual resolve timestamp must exist");
         let card = ctx.game.card_mut(card_id);
         perpetual_pt_boost::PerpetualPtBoost {

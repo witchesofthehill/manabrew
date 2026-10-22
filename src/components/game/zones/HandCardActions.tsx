@@ -6,6 +6,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useEffect } from "react";
 import { useResolvedGameCard } from "@/hooks/useResolvedGameCard";
 import { localizeRulesPreviewText } from "@/pixi/cardPreview/rulesCardPreviewPresentation";
+import { gameCardFaceIndex } from "@/lib/gameCard";
 
 interface HandCardActionsProps {
   card: CardDto;
@@ -77,11 +78,7 @@ export function HandCardActions({ card, actions, onSelectAction }: HandCardActio
           </span>
           <span className="leading-snug text-[13px] font-semibold pointer-events-none">
             <DynamicTextRender
-              text={localizeRulesPreviewText(
-                action.label,
-                info ?? null,
-                card.isTransformed ? 1 : 0,
-              )}
+              text={localizeRulesPreviewText(action.label, info ?? null, gameCardFaceIndex(card))}
             />
           </span>
         </button>

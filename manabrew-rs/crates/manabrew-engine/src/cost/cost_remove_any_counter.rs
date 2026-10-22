@@ -10,7 +10,9 @@ use crate::ids::CardId;
 /// `decision.counterTable`.
 pub fn pay_as_decided(game: &mut GameState, removals: &[(CardId, CounterType, i32)]) -> bool {
     for &(cid, ref ct, amt) in removals {
-        game.card_mut(cid).remove_counter(ct, amt);
+        if !crate::cost::cost_sub_counter::pay_as_decided(game, cid, amt, ct) {
+            return false;
+        }
     }
     true
 }
@@ -46,8 +48,25 @@ pub fn can_pay(
         .map(|&cid| {
             let c = game.card(cid);
             match counter_type {
-                Some(ct) => c.counter_count(ct),
-                None => c.counters.values().sum(),
+                Some(ct) => {
+                    if crate::replacement::replace_remove_counter::can_remove_counters(
+                        game, cid, ct,
+                    ) {
+                        c.counter_count(ct)
+                    } else {
+                        0
+                    }
+                }
+                None => c
+                    .counters
+                    .iter()
+                    .filter(|(ct, _)| {
+                        crate::replacement::replace_remove_counter::can_remove_counters(
+                            game, cid, ct,
+                        )
+                    })
+                    .map(|(_, count)| count)
+                    .sum(),
             }
         })
         .sum();
@@ -55,11 +74,46 @@ pub fn can_pay(
 }
 
 pub fn pay_with_decision(
-    _game: &mut GameState,
-    _player: crate::ids::PlayerId,
-    _source: CardId,
-    _part: &super::CostPart,
+    game: &mut GameState,
+    player: crate::ids::PlayerId,
+    source: CardId,
+    part: &super::CostPart,
     _decision: &crate::cost::payment_decision::PaymentDecision,
 ) -> bool {
-    true
+    let super::CostPart::RemoveAnyCounter {
+        amount,
+        type_filter,
+        counter_type,
+    } = part
+    else {
+        return false;
+    };
+    let mut remaining = amount.resolve(game, source, player);
+    let mut removals = Vec::new();
+    for &cid in game.cards_in_zone(forge_foundation::ZoneType::Battlefield, player) {
+        if type_filter != "Permanent"
+            && !type_filter.is_empty()
+            && !crate::ability::effects::matches_change_type(game.card(cid), type_filter, &[])
+        {
+            continue;
+        }
+        let mut types: Vec<_> = game.card(cid).counters.keys().collect();
+        types.sort();
+        for ct in types {
+            if remaining <= 0 {
+                break;
+            }
+            if counter_type.as_ref().is_some_and(|required| required != ct)
+                || !crate::replacement::replace_remove_counter::can_remove_counters(game, cid, ct)
+            {
+                continue;
+            }
+            let count = remaining.min(game.card(cid).counter_count(ct)).max(0);
+            if count > 0 {
+                removals.push((cid, ct.clone(), count));
+                remaining -= count;
+            }
+        }
+    }
+    remaining <= 0 && pay_as_decided(game, &removals)
 }

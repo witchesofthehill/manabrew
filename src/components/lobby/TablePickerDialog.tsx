@@ -83,7 +83,7 @@ export function TablePickerDialog({
                   className={cn(
                     "overflow-hidden rounded-md border text-left transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
                     isSelected
-                      ? "border-selection ring-1 ring-selection"
+                      ? "border-selection-border ring-1 ring-selection-border"
                       : "border-border/70 hover:border-primary/50",
                   )}
                 >

@@ -6,29 +6,59 @@ export function AssetsSection() {
     <Section
       id="assets"
       title={`Assets`}
-      intro="Brand imagery, favicons/PWA icons, and the static data files the app ships. Image assets live in public/ (URL-served) except the logo, which is a bundled src/assets import."
+      intro="Brand imagery, favicons/PWA icons, and the static data files the app ships. The static logo uses complete light and dark SVG groups from images/brand/logos/interactive/. URL-served images and generated icons live in public/."
     >
-      <Subhead>Brand mark</Subhead>
-      <Panel className="flex flex-wrap items-center gap-6">
-        <div className="flex flex-col items-center gap-2">
-          <ManaBrewLogo size={96} className="rounded-xl" />
-          <span className="font-mono text-[11px] text-muted-foreground">96px</span>
+      <Subhead>Approved logo variants</Subhead>
+      <Panel className="space-y-6">
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-6">
+            <div className="space-y-2">
+              <ManaBrewLogo height={72} />
+              <p className="font-mono text-[11px] text-muted-foreground">Horizontal · 72px high</p>
+            </div>
+            <div className="space-y-2">
+              <ManaBrewLogo height={56} />
+              <p className="font-mono text-[11px] text-muted-foreground">Header · 56px high</p>
+            </div>
+          </div>
+          <p className="break-all font-mono text-[11px] text-muted-foreground">
+            Static sprite: interactive/manabrew-logo.svg · Balanced horizontal lockup · 1080 × 400
+          </p>
         </div>
-        <div className="flex flex-col items-center gap-2">
-          <ManaBrewLogo size={48} className="rounded-lg" />
-          <span className="font-mono text-[11px] text-muted-foreground">48px</span>
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-6">
+            <div className="space-y-2">
+              <ManaBrewLogo variant="symbol" height={48} />
+              <p className="font-mono text-[11px] text-muted-foreground">Symbol · 48px</p>
+            </div>
+            <div className="space-y-2">
+              <ManaBrewLogo variant="symbol" height={36} />
+              <p className="font-mono text-[11px] text-muted-foreground">Compact header · 36px</p>
+            </div>
+            <div className="space-y-2">
+              <ManaBrewLogo variant="symbol" height={32} />
+              <p className="font-mono text-[11px] text-muted-foreground">Small symbol · 32px</p>
+            </div>
+          </div>
+          <p className="break-all font-mono text-[11px] text-muted-foreground">
+            Brewy-only symbol · 512 × 512 · Favicons and native icons use dedicated symbol exports
+          </p>
         </div>
-        <div className="flex flex-col items-center gap-2">
-          <ManaBrewLogo size={28} className="rounded-lg" />
-          <span className="font-mono text-[11px] text-muted-foreground">28px</span>
-        </div>
-        <span className="font-mono text-[11px] text-muted-foreground">src/assets/manaBrew.png</span>
+        <p className="text-xs text-muted-foreground">
+          Dark mode uses the approved white Brewy and ember wordmark; light mode uses the approved
+          ember and mana inks, including theme previews. Both horizontal modes preserve the latest
+          balanced logo geometry. ManaBrewLogo renders one complete static group from the shared
+          sprite. Preserve the source colors, aspect ratio, and transparent background.
+        </p>
       </Panel>
 
       <Subhead>Images & icons</Subhead>
       <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
         {ASSETS.map((a) => (
-          <div key={a.file} className="overflow-hidden rounded-lg border border-border bg-card">
+          <div
+            key={a.file}
+            className="ds-asset overflow-hidden rounded-lg border border-border bg-card"
+          >
             <div className="flex h-28 items-center justify-center bg-muted/40 p-3">
               {a.preview && (
                 <img

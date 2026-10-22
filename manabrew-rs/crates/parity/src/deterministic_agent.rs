@@ -353,7 +353,10 @@ impl DeterministicAgent {
         // Java harness: Room UnlockDoor is a StaticAbilityApiBased where
         // isSpell()=false, isLandAbility()=false, isManaAbility()=false,
         // so actionBaseLabel() classifies it as "AB:".
-        if play.mode == PlayCardMode::UnlockDoor {
+        if matches!(
+            play.mode,
+            PlayCardMode::UnlockDoor { .. } | PlayCardMode::Alternative(AlternativeCost::Suspend)
+        ) {
             return format!("AB:{}", self.card_name(play.card_id));
         }
         let fb_tag = match play.mode {
@@ -368,6 +371,8 @@ impl DeterministicAgent {
             PlayCardMode::Normal => "0",
             PlayCardMode::BackFaceLand => "0",
             PlayCardMode::RoomRightSplit => "0",
+            PlayCardMode::Adventure => "0",
+            PlayCardMode::Alternative(AlternativeCost::Prototype) => "Prototype",
             PlayCardMode::Alternative(AlternativeCost::Flashback) => "Flashback",
             PlayCardMode::Alternative(AlternativeCost::Spectacle) => "Spectacle",
             PlayCardMode::Alternative(AlternativeCost::Evoke) => "Evoke",
@@ -402,7 +407,7 @@ impl DeterministicAgent {
             // as `StaticAlternative`; parity uses the same explicit label.
             PlayCardMode::StaticAlternative => "StaticAlternative",
             PlayCardMode::ForetellExile => "ForetellExile",
-            PlayCardMode::UnlockDoor => "0",
+            PlayCardMode::UnlockDoor { .. } => "0",
         }
     }
 
@@ -462,7 +467,7 @@ impl DeterministicAgent {
                 // Room UnlockDoor: Java models this as a StaticAbilityApiBased
                 // where isSpell()=false, so it sorts in the ability bucket (|1|)
                 // with abilityDeclarationIndex as the variant, not the spell bucket.
-                if play.mode == PlayCardMode::UnlockDoor {
+                if matches!(play.mode, PlayCardMode::UnlockDoor { .. }) {
                     let ability_idx = self.unlock_door_ability_index(play.card_id);
                     let sort_idx = self
                         .last_game_snapshot
@@ -485,9 +490,15 @@ impl DeterministicAgent {
                     );
                 }
                 let label = self.play_option_label(play);
+                let bucket = if play.mode == PlayCardMode::Alternative(AlternativeCost::Suspend) {
+                    "1"
+                } else {
+                    "0"
+                };
                 format!(
-                    "{}|0|{}|{}|{}",
+                    "{}|{}|{}|{}|{}",
                     label,
+                    bucket,
                     self.parity_map.id(play.card_id),
                     Self::play_option_sort_text(play),
                     self.play_option_fallback(play),
@@ -931,7 +942,8 @@ impl PlayerAgent for DeterministicAgent {
                             PlayCardMode::Normal => "Normal",
                             PlayCardMode::BackFaceLand => "BackFaceLand",
                             PlayCardMode::RoomRightSplit => "RoomRightSplit",
-                            PlayCardMode::UnlockDoor => "UnlockDoor",
+                            PlayCardMode::Adventure => "Adventure",
+                            PlayCardMode::UnlockDoor { .. } => "UnlockDoor",
                             PlayCardMode::StaticAlternative => "StaticAlternative",
                             PlayCardMode::ForetellExile => "ForetellExile",
                             PlayCardMode::Alternative(_) => "Alternative",
@@ -980,7 +992,8 @@ impl PlayerAgent for DeterministicAgent {
                             PlayCardMode::Normal => "Normal",
                             PlayCardMode::BackFaceLand => "BackFaceLand",
                             PlayCardMode::RoomRightSplit => "RoomRightSplit",
-                            PlayCardMode::UnlockDoor => "UnlockDoor",
+                            PlayCardMode::Adventure => "Adventure",
+                            PlayCardMode::UnlockDoor { .. } => "UnlockDoor",
                             PlayCardMode::StaticAlternative => "StaticAlternative",
                             PlayCardMode::ForetellExile => "ForetellExile",
                             PlayCardMode::Alternative(_) => "Alternative",

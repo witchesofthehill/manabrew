@@ -23,6 +23,9 @@ export const featureFlags = {
   // Email sign-in inside the accounts dialog. Code entry, so desktop-safe.
   emailSignIn: true,
   forgeWasm: false,
+  // Card Glint finish shaders. Windows browsers compile them through Direct3D,
+  // which blocks the GPU process and freezes the whole browser.
+  cardFoil: false,
 } as const;
 
 export type FeatureFlag = keyof typeof featureFlags;

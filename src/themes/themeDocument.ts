@@ -1,5 +1,5 @@
 import type { ThemeColors } from "@/themes/appTheme";
-import { THEME_PRESETS } from "@/themes/presets";
+import MANABREW_THEME from "@/themes/default";
 import {
   getGameThemeColorPaths,
   parseThemeColor,
@@ -10,9 +10,9 @@ import {
 export type ThemeMode = "light" | "dark";
 
 export interface ThemeDocument {
-  version: 1;
+  version: 2;
+  base: "manabrew";
   name: string;
-  presetId: string;
   mode: ThemeMode;
   appOverrides: Record<ThemeMode, Partial<ThemeColors>>;
   gameOverrides: Partial<GameThemeColorMap>;
@@ -44,21 +44,29 @@ function colorOverrides<K extends string>(
 
 export function parseThemeDocument(input: unknown): ThemeDocument {
   const document = objectValue(input, "Theme");
-  if (document.version !== 1) throw new Error("Unsupported theme version. Expected version 1.");
+  if (document.version !== 1 && document.version !== 2) {
+    throw new Error("Unsupported theme version. Expected version 1 or 2.");
+  }
+  if (document.version === 1 && document.presetId !== "default") {
+    throw new Error(
+      "This theme uses a removed base preset and cannot be imported. Only version 1 themes based on Manabrew are supported.",
+    );
+  }
+  if (document.version === 2 && (document.base !== "manabrew" || "presetId" in document)) {
+    throw new Error("Version 2 themes must use the Manabrew base without a preset selection.");
+  }
   if (typeof document.name !== "string" || !document.name.trim() || document.name.length > 80) {
     throw new Error("Theme name must contain 1 to 80 characters.");
   }
-  const preset = THEME_PRESETS.find((candidate) => candidate.id === document.presetId);
-  if (!preset) throw new Error("Unknown base preset.");
   if (document.mode !== "light" && document.mode !== "dark") {
     throw new Error("Theme mode must be light or dark.");
   }
   const app = objectValue(document.appOverrides, "App overrides");
-  const appKeys = Object.keys(preset.dark) as (keyof ThemeColors)[];
+  const appKeys = Object.keys(MANABREW_THEME.dark) as (keyof ThemeColors)[];
   return {
-    version: 1,
+    version: 2,
+    base: "manabrew",
     name: document.name.trim(),
-    presetId: preset.id,
     mode: document.mode,
     appOverrides: {
       light: colorOverrides(app.light, appKeys, "light app"),

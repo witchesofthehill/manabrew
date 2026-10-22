@@ -8,12 +8,12 @@
  * rewritten in place whenever the preset or overrides change.
  */
 
+import { UI_FONT_FAMILY as SYSTEM_FONT_FAMILY } from "@/themes/typography";
 import { TextStyle } from "pixi.js";
 import { CARD_W } from "@/components/game/game.constants";
 import type { Theme } from "@/hooks/useTheme";
 import { getTheme } from "@/hooks/useTheme";
 
-const SYSTEM_FONT_FAMILY = "system-ui, -apple-system, sans-serif";
 // Resolve the current preset synchronously so the styles below have
 // concrete fill values from construction — `new TextStyle({ fill: "" })`
 // would otherwise fault Pixi's colour parser.

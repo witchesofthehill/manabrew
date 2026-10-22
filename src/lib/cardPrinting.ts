@@ -76,7 +76,7 @@ function resolveFace(input: RenderedCardInput, selection: PrintingSelection): Se
     );
     if (unsupported.length) {
       throw new Error(
-        `The native ${input.layout} painter does not support ${unsupported.join(", ")} overrides.`,
+        `The ${input.layout} host compositor does not support ${unsupported.join(", ")} overrides.`,
       );
     }
   }
@@ -130,7 +130,7 @@ export function resolveCardPrinting(
       )
     ) {
       throw new Error(
-        `The native ${baseline.layout} painter supports only artist overrides per face.`,
+        `The ${baseline.layout} host compositor supports only artist overrides per face.`,
       );
     }
     const selection = selectionFor(prepared.cosmetics?.printing, index, prepared.cosmetics?.border);
@@ -158,5 +158,19 @@ export function resolveCardPrinting(
       throw new Error("Both split-card panels must use the same printing frame family.");
     }
   }
-  return { ...faces[0]!, layout: baseline.layout, faces, reverseStats: baseline.reverseStats };
+  const parent = resolveFace(
+    baseline,
+    selectionFor(prepared.cosmetics?.printing, 0, prepared.cosmetics?.border),
+  );
+  return {
+    ...faces[0]!,
+    layout: baseline.layout,
+    frameStyle: parent.frameStyle,
+    frameTemplate: parent.frameTemplate,
+    frameAssetFamily: parent.frameAssetFamily,
+    frameTreatment: parent.frameTreatment,
+    futureTreatment: parent.futureTreatment,
+    faces,
+    reverseStats: baseline.reverseStats,
+  };
 }

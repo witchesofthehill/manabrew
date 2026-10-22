@@ -1,12 +1,23 @@
 import { FinishResources } from "card-glint/finish";
-import { CanvasSource, Texture } from "pixi.js";
+import type { FinishMap } from "card-glint/finish";
+import type { CardDocument } from "card-glint";
+import { BufferImageSource, CanvasSource, Texture } from "pixi.js";
 import type { TextureSource } from "pixi.js";
 import { ensureCardGlintFonts } from "@/lib/cardGlintAssets";
 import { getCardFinishSource } from "@/lib/cardOpticalLayers";
 import type { CardFinishSource } from "@/lib/cardOpticalLayers";
+import { cardFinishCoverageDocument } from "@/lib/cardGlintInspectAppearance";
+import type { CardCosmetics } from "@/protocol/deck";
+import type { CardFoilRegion } from "@/lib/cardFinish";
 
 export interface CardFinishMaskLease {
   texture: Texture;
+  release(): void;
+}
+
+export interface CardFinishPrintingLease {
+  texture: Texture | null;
+  procedural: boolean;
   release(): void;
 }
 
@@ -21,6 +32,7 @@ interface ArtworkMasks {
   revision: number;
   sources: Map<TextureSource, () => void>;
   entries: Map<string, MaskEntry>;
+  overflow: Set<string>;
 }
 
 interface MaskEntry {
@@ -39,6 +51,10 @@ interface MaskEntry {
   disposed: boolean;
   controller: AbortController;
   native: CardFinishSource | null;
+  kind: "mask" | "coverage" | "printing";
+  printDots?: CardCosmetics["printDots"];
+  artWindows: readonly CardFoilRegion[];
+  reservedBytes: number;
 }
 
 interface CausticsEntry {
@@ -51,6 +67,52 @@ const MAX_MASK_EDGE = 1024;
 const MAX_IDLE_MASKS = 24;
 const MAX_IDLE_MASK_BYTES = 32 * 1024 * 1024;
 const MASK_BYTES_PER_PIXEL = 4;
+const MAX_PRINTING_BYTES = 32 * 1024 * 1024;
+const liveMasks = new Set<MaskEntry>();
+let printingBytes = 0;
+const preparationStats = {
+  hits: 0,
+  misses: 0,
+  evictions: 0,
+  masks: 0,
+  coverage: 0,
+  printing: 0,
+  procedural: 0,
+  preparedUploadBytes: 0,
+  dynamicUpdates: 0,
+};
+
+export function getCardFinishStats() {
+  let activeBytes = 0;
+  let r8Bytes = 0;
+  let retainedBytes = 0;
+  for (const entry of liveMasks) {
+    retainedBytes += entry.bytes;
+    if (entry.refs) activeBytes += entry.bytes;
+    if (entry.texture?.source.format === "r8unorm") r8Bytes += entry.bytes;
+  }
+  return {
+    ...preparationStats,
+    leases: leaseCount,
+    entries: liveMasks.size,
+    activeBytes,
+    retainedBytes,
+    idleBytes: idleMaskBytes,
+    r8Bytes,
+    printingBytes,
+    printingBudget: MAX_PRINTING_BYTES,
+  };
+}
+
+function mipBytes(width: number, height: number): number {
+  let bytes = 0;
+  for (;;) {
+    bytes += width * height * 4;
+    if (width === 1 && height === 1) return bytes;
+    width = Math.max(1, Math.floor(width / 2));
+    height = Math.max(1, Math.floor(height / 2));
+  }
+}
 const artworkMasks = new WeakMap<ArtworkSource, ArtworkMasks>();
 const idleMasks = new Set<MaskEntry>();
 let idleMaskBytes = 0;
@@ -58,6 +120,8 @@ let leaseCount = 0;
 let maskGeneration = 0;
 let resources: FinishResources | null = null;
 let caustics: CausticsEntry | null = null;
+let cardstock: { texture: Texture; refs: number } | null = null;
+const SDK_REVISION = "0.6.0";
 
 function finishResources(): FinishResources {
   resources ??= new FinishResources();
@@ -81,6 +145,7 @@ function watchSource(artwork: ArtworkMasks, source: TextureSource): void {
   if (artwork.sources.has(source)) return;
   const update = () => {
     artwork.revision += 1;
+    artwork.overflow.clear();
   };
   const detach = () => {
     source.off("update", update);
@@ -102,6 +167,10 @@ function destroyMask(entry: MaskEntry): void {
   if (entry.disposed) return;
   entry.disposed = true;
   entry.controller.abort();
+  liveMasks.delete(entry);
+  printingBytes -= entry.reservedBytes;
+  entry.reservedBytes = 0;
+  preparationStats.evictions++;
   removeIdleMask(entry);
   entry.artwork.entries.delete(entry.key);
   entry.texture?.destroy(true);
@@ -111,7 +180,7 @@ function destroyMask(entry: MaskEntry): void {
     entry.canvas.height = 1;
     entry.canvas = null;
   }
-  if (!entry.artwork.entries.size) {
+  if (!entry.artwork.entries.size && !entry.artwork.overflow.size) {
     for (const detach of entry.artwork.sources.values()) detach();
     artworkMasks.delete(entry.artwork.resource);
   }
@@ -158,6 +227,24 @@ function canvasTexture(canvas: HTMLCanvasElement, repeat = false): Texture {
   return new Texture({ source });
 }
 
+function mapTexture(map: FinishMap, mipmaps: boolean): Texture {
+  return new Texture({
+    source: new BufferImageSource({
+      resource: map.data,
+      width: map.width,
+      height: map.height,
+      resolution: 1,
+      format: "rgba8unorm",
+      alphaMode: "no-premultiply-alpha",
+      magFilter: "linear",
+      minFilter: "linear",
+      mipmapFilter: "linear",
+      addressMode: "clamp-to-edge",
+      autoGenerateMipmaps: mipmaps,
+    }),
+  });
+}
+
 async function createMask(entry: MaskEntry): Promise<Texture> {
   if (entry.disposed || !entry.refs) {
     throw new DOMException("Card finish mask acquisition cancelled", "AbortError");
@@ -176,8 +263,22 @@ async function createMask(entry: MaskEntry): Promise<Texture> {
   ) {
     throw new Error("Card artwork changed before its finish mask was generated");
   }
+  if (entry.kind === "printing") {
+    const map = finishResources().printDots(
+      resource,
+      width,
+      height,
+      entry.printDots!,
+      entry.artWindows.map(({ x, y, width, height }) => [x, y, width, height]),
+    );
+    entry.texture = mapTexture(map, true);
+    entry.bytes = entry.reservedBytes;
+    preparationStats.printing++;
+    preparationStats.preparedUploadBytes += map.data.byteLength;
+    return entry.texture;
+  }
   if (entry.native) {
-    await ensureCardGlintFonts();
+    if (entry.kind !== "coverage") await ensureCardGlintFonts();
     entry.controller.signal.throwIfAborted();
     const document =
       entry.native.kind === "raster"
@@ -192,7 +293,38 @@ async function createMask(entry: MaskEntry): Promise<Texture> {
             },
           }
         : entry.native.document;
-    const canvas = await finishResources().documentMask(
+    if (entry.kind === "mask") {
+      const mask = await finishResources().documentMaskData(
+        document,
+        entry.native.host,
+        entry.controller.signal,
+      );
+      entry.controller.signal.throwIfAborted();
+      if (
+        artwork.revision !== entry.revision ||
+        (image ? image.naturalWidth : resource.width) !== entry.width ||
+        (image ? image.naturalHeight : resource.height) !== entry.height ||
+        (image ? image.currentSrc || image.src : "") !== entry.imageUrl
+      )
+        throw new Error("Card artwork changed before its finish mask was generated");
+      entry.texture = new Texture({
+        source: new BufferImageSource({
+          resource: mask.data,
+          width: mask.width,
+          height: mask.height,
+          format: "r8unorm",
+          alphaMode: "no-premultiply-alpha",
+          scaleMode: "linear",
+          addressMode: "clamp-to-edge",
+          autoGenerateMipmaps: false,
+        }),
+      });
+      entry.bytes = mask.data.byteLength;
+      preparationStats.masks++;
+      preparationStats.preparedUploadBytes += mask.data.byteLength;
+      return entry.texture;
+    }
+    const canvas = await finishResources().documentCoverage(
       document,
       entry.native.host,
       entry.controller.signal,
@@ -210,6 +342,8 @@ async function createMask(entry: MaskEntry): Promise<Texture> {
       entry.texture = canvasTexture(canvas);
       entry.canvas = canvas;
       entry.bytes = canvas.width * canvas.height * MASK_BYTES_PER_PIXEL;
+      preparationStats.coverage++;
+      preparationStats.preparedUploadBytes += entry.bytes;
       return entry.texture;
     } catch (error) {
       canvas.width = canvas.height = 0;
@@ -234,6 +368,8 @@ async function createMask(entry: MaskEntry): Promise<Texture> {
     entry.canvas = finishResources().mask(input, maskWidth, maskHeight);
     entry.texture = canvasTexture(entry.canvas);
     entry.bytes = maskWidth * maskHeight * MASK_BYTES_PER_PIXEL;
+    preparationStats.masks++;
+    preparationStats.preparedUploadBytes += entry.bytes;
     return entry.texture;
   } finally {
     if (resized) {
@@ -243,10 +379,33 @@ async function createMask(entry: MaskEntry): Promise<Texture> {
   }
 }
 
-export async function acquireCardFinishMask(
+function acquireFinishTexture(
   texture: Texture,
+  kind: "printing",
   signal?: AbortSignal,
-): Promise<CardFinishMaskLease> {
+  printDots?: CardCosmetics["printDots"],
+  coverage?: CardCosmetics["finishCoverage"],
+  optical?: boolean,
+  artWindows?: readonly CardFoilRegion[],
+): Promise<CardFinishMaskLease | null>;
+function acquireFinishTexture(
+  texture: Texture,
+  kind: "mask" | "coverage",
+  signal?: AbortSignal,
+  printDots?: CardCosmetics["printDots"],
+  coverage?: CardCosmetics["finishCoverage"],
+  optical?: boolean,
+  artWindows?: readonly CardFoilRegion[],
+): Promise<CardFinishMaskLease>;
+async function acquireFinishTexture(
+  texture: Texture,
+  kind: MaskEntry["kind"],
+  signal?: AbortSignal,
+  printDots?: CardCosmetics["printDots"],
+  coverage?: CardCosmetics["finishCoverage"],
+  optical = false,
+  artWindows: readonly CardFoilRegion[] = [],
+): Promise<CardFinishMaskLease | null> {
   if (signal?.aborted) {
     throw signal.reason ?? new DOMException("Card finish mask acquisition cancelled", "AbortError");
   }
@@ -264,15 +423,59 @@ export async function acquireCardFinishMask(
   if (!width || !height || (image && !image.complete)) {
     throw new Error("Card artwork must be loaded before generating a finish mask");
   }
-  const native = getCardFinishSource(texture);
+  let native = kind === "printing" ? null : getCardFinishSource(texture, optical);
+  if (kind === "coverage") {
+    const base: CardDocument = native?.document ?? {
+      id: 0,
+      revision: 0,
+      recipe: {
+        pack: "manabrew-raster",
+        color: {
+          key: "manabrew-raster-coverage",
+          size: [width, height],
+          async paint(_host, rasterSignal) {
+            rasterSignal.throwIfAborted();
+            const canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+            return canvas;
+          },
+        },
+        edges: [],
+        artWindows: artWindows.map(({ x, y, width, height }) => [x, y, width, height]),
+        cornerRadius: 0.035,
+        regions: [],
+      },
+    };
+    native = {
+      kind: native?.kind ?? "raster",
+      key: JSON.stringify([native?.key, coverage, artWindows]),
+      document: cardFinishCoverageDocument(base, coverage),
+      host: native?.host ?? {
+        async images(_requests, rasterSignal) {
+          rasterSignal.throwIfAborted();
+          return { value: new Map<string, ImageBitmap>(), release() {} };
+        },
+      },
+    };
+  }
   let artwork = artworkMasks.get(resource);
   if (!artwork) {
-    artwork = { resource, revision: 0, sources: new Map(), entries: new Map() };
+    artwork = {
+      resource,
+      revision: 0,
+      sources: new Map(),
+      entries: new Map(),
+      overflow: new Set(),
+    };
     artworkMasks.set(resource, artwork);
   }
   watchSource(artwork, source);
   const url = image ? image.currentSrc || image.src : "";
   const key = JSON.stringify([
+    SDK_REVISION,
+    kind,
+    printDots,
     width,
     height,
     source.pixelWidth,
@@ -280,9 +483,29 @@ export async function acquireCardFinishMask(
     artwork.revision,
     url,
     native?.key,
+    artWindows,
   ]);
   let entry = artwork.entries.get(key);
   if (!entry) {
+    let reservedBytes = 0;
+    if (kind === "printing") {
+      if (artwork.overflow.has(key)) {
+        preparationStats.procedural++;
+        return null;
+      }
+      reservedBytes = mipBytes(width, height);
+      for (const idle of idleMasks) {
+        if (printingBytes + reservedBytes <= MAX_PRINTING_BYTES) break;
+        if (idle.kind === "printing") destroyMask(idle);
+      }
+      if (printingBytes + reservedBytes > MAX_PRINTING_BYTES) {
+        artwork.overflow.add(key);
+        preparationStats.procedural++;
+        return null;
+      }
+      printingBytes += reservedBytes;
+    }
+    preparationStats.misses++;
     const pending: MaskEntry = {
       artwork,
       key,
@@ -299,9 +522,16 @@ export async function acquireCardFinishMask(
       disposed: false,
       controller: new AbortController(),
       native,
+      kind,
+      printDots,
+      artWindows,
+      reservedBytes,
     };
     artwork.entries.set(key, pending);
+    liveMasks.add(pending);
     entry = pending;
+  } else {
+    preparationStats.hits++;
   }
   const mask = entry;
   removeIdleMask(mask);
@@ -347,6 +577,86 @@ export async function acquireCardFinishMask(
   });
 }
 
+export function acquireCardFinishMask(
+  texture: Texture,
+  signal?: AbortSignal,
+): Promise<CardFinishMaskLease> {
+  return acquireFinishTexture(texture, "mask", signal);
+}
+
+export async function acquireCardFinishPrinting(
+  texture: Texture,
+  settings: NonNullable<CardCosmetics["printDots"]>,
+  signal?: AbortSignal,
+  artWindows: readonly CardFoilRegion[] = [],
+): Promise<CardFinishPrintingLease> {
+  const normalized = {
+    amount: settings.amount,
+    period: settings.period ?? 5,
+    variation: settings.variation ?? 0.5,
+    inset: settings.inset ?? 0,
+    ...(settings.artwork === false ? { artwork: false } : {}),
+  };
+  const lease = await acquireFinishTexture(
+    texture,
+    "printing",
+    signal,
+    normalized,
+    undefined,
+    false,
+    artWindows,
+  );
+  if (lease) return { ...lease, procedural: false };
+  return { texture: null, procedural: true, release() {} };
+}
+
+export function acquireCardFinishCoverage(
+  texture: Texture,
+  settings: CardCosmetics["finishCoverage"],
+  optical: boolean,
+  artWindows: readonly CardFoilRegion[],
+  signal?: AbortSignal,
+): Promise<CardFinishMaskLease> {
+  return acquireFinishTexture(
+    texture,
+    "coverage",
+    signal,
+    undefined,
+    settings,
+    optical,
+    artWindows,
+  );
+}
+
+export function acquireCardFinishCardstock(): CardFinishMaskLease {
+  if (!cardstock) {
+    try {
+      cardstock = { texture: mapTexture(finishResources().cardstock(), false), refs: 0 };
+    } catch (error) {
+      disposeUnusedResources();
+      throw error;
+    }
+  }
+  const entry = cardstock;
+  entry.refs++;
+  leaseCount++;
+  let released = false;
+  return {
+    texture: entry.texture,
+    release() {
+      if (released) return;
+      released = true;
+      entry.refs--;
+      leaseCount--;
+      if (!entry.refs) {
+        entry.texture.destroy(true);
+        cardstock = null;
+      }
+      disposeUnusedResources();
+    },
+  };
+}
+
 export function acquireCardFinishCaustics(): CardFinishCausticsLease {
   if (!caustics) {
     try {
@@ -366,6 +676,7 @@ export function acquireCardFinishCaustics(): CardFinishCausticsLease {
       if (released || entry.time === time) return;
       finishResources().caustics(time);
       entry.texture.source.update();
+      preparationStats.dynamicUpdates++;
       entry.time = time;
     },
     release() {

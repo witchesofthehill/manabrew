@@ -80,7 +80,8 @@ export function LimitedBuildFilters({
             aria-pressed={filters.colors.includes(color)}
             className={cn(
               "flex h-8 w-8 items-center justify-center rounded text-xs opacity-45 transition-opacity hover:opacity-80 pointer-coarse:h-11 pointer-coarse:w-11",
-              filters.colors.includes(color) && "bg-selection/15 opacity-100 ring-1 ring-selection",
+              filters.colors.includes(color) &&
+                "bg-selection opacity-100 ring-1 ring-selection-border",
             )}
             onClick={() =>
               onChange({

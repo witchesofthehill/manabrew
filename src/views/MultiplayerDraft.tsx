@@ -39,7 +39,6 @@ export default function MultiplayerDraft() {
   };
   useTopBarOverride({
     title: phase !== "idle" ? "Build draft deck" : undefined,
-    onBack: () => void leave(ROUTES.LOBBY),
     onHome: () => void leave(ROUTES.PLAY),
     navigationDisabled: true,
   });

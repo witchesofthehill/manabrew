@@ -1,21 +1,30 @@
 ---
-import { Image } from "astro:assets";
-import logo from "../../../src/assets/manaBrew.png";
+import BrandLogo from "./BrandLogo.astro";
 ---
 
-<a href="https://manabrew.app/" class="site-title">
-  <Image src={logo} alt="Manabrew" width={64} height={64} />
+<a href="https://manabrew.app/" class="site-title" aria-label="Manabrew">
+  <BrandLogo mode="auto" decorative />
 </a>
 
 <style>
   .site-title {
     display: flex;
     align-items: center;
+    max-width: 100%;
+    text-decoration: none;
     min-width: 0;
   }
 
-  .site-title img {
-    height: 2.75rem;
-    width: auto;
+  .site-title :global(.mb-logo) {
+    display: block;
+    width: clamp(11.6rem, 24vw, 12.6875rem);
+    max-width: 100%;
+    height: auto;
+  }
+
+
+  .site-title:focus-visible {
+    outline: 2px solid var(--mb-ring);
+    outline-offset: 2px;
   }
 </style>

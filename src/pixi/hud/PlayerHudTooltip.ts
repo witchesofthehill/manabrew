@@ -1,10 +1,9 @@
+import { UI_FONT_FAMILY } from "@/themes/typography";
 import { Container, Graphics, Text, TextStyle } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
 import { hexToNum } from "../colorUtils";
 import type { PlayerHudTooltipContent } from "./playerHud.types";
 
-const BODY_FONT = "Inter, system-ui, -apple-system, sans-serif";
-const TITLE_FONT = "Cormorant Garamond, Georgia, serif";
 const PAD_X = 11;
 const PAD_Y = 9;
 const MAX_W = 250;
@@ -125,10 +124,9 @@ export class PlayerHudTooltip {
 
   private titleStyle(): TextStyle {
     return new TextStyle({
-      fontFamily: TITLE_FONT,
+      fontFamily: UI_FONT_FAMILY,
       fontSize: 15,
       fontWeight: "700",
-      letterSpacing: 0.35,
       fill: hexToNum(this.theme.appTheme["popover-foreground"]),
       wordWrap: true,
       wordWrapWidth: MAX_W - PAD_X * 2,
@@ -138,7 +136,7 @@ export class PlayerHudTooltip {
   private lineStyle(active: boolean): TextStyle {
     const app = this.theme.appTheme;
     return new TextStyle({
-      fontFamily: BODY_FONT,
+      fontFamily: UI_FONT_FAMILY,
       fontSize: 11,
       fontWeight: active ? "600" : "400",
       lineHeight: 15,

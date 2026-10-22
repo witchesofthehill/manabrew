@@ -540,7 +540,7 @@ function ImportMode({
   onChange: () => void;
 }) {
   return (
-    <label className="flex cursor-pointer gap-3 rounded-lg border p-3 has-[:checked]:border-selection has-[:checked]:bg-selection/10">
+    <label className="flex cursor-pointer gap-3 rounded-lg border p-3 has-[:checked]:border-selection-border has-[:checked]:bg-selection">
       <input type="radio" name="collection-import-mode" checked={checked} onChange={onChange} />
       <span>
         <span className="block text-sm font-medium">{title}</span>

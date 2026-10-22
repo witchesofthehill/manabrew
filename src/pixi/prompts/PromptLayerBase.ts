@@ -1,3 +1,4 @@
+import { UI_FONT_FAMILY as FONT } from "@/themes/typography";
 import {
   Application,
   Container,
@@ -42,6 +43,7 @@ import {
   setVirtualTextInputActive,
 } from "@/lib/keybindings";
 import type { CardDto } from "@/protocol";
+import { gameCardFaceIndex } from "@/lib/gameCard";
 import { PromptButton, type PromptButtonOptions } from "./PromptButton";
 import { PromptGlow } from "./PromptGlow";
 import { LongPressGesture } from "@/pixi/LongPressGesture";
@@ -73,7 +75,6 @@ export const MODAL_TYPES = new Set([
   "reorder",
   "diceRolled",
 ]);
-const FONT = "Inter, system-ui, sans-serif";
 export const PANEL_PADDING = 8;
 export const ROW_GAP = 10;
 const CARD_HOVER_Z_INDEX = 600;
@@ -798,7 +799,7 @@ export abstract class PromptLayerBase {
     if (!state) {
       state = {
         rulesView: usePreferencesStore.getState().promptCardStyle === "rules",
-        face: card.isTransformed ? 1 : 0,
+        face: gameCardFaceIndex(card),
         horizontalFlipped: true,
       };
       this.promptCardStates.set(card.id, state);

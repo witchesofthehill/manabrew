@@ -171,7 +171,7 @@ export function TablesList({
             <div>
               <h2
                 className={cn(
-                  "font-serif text-3xl font-light sm:text-4xl",
+                  "font-serif text-3xl font-semibold sm:text-4xl",
                   shortTouch && "text-2xl sm:text-2xl",
                 )}
               >

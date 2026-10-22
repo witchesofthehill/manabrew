@@ -65,7 +65,15 @@ pub fn pay_with_decision(
     {
         let Some(target) = super::get_sub_counter_targets(game, player, source, type_filter)
             .into_iter()
-            .find(|cid| game.card(*cid).counter_count(counter_type) >= resolved)
+            .find(|cid| {
+                game.card(*cid).counter_count(counter_type) >= resolved
+                    && (resolved <= 0
+                        || crate::replacement::replace_remove_counter::can_remove_counters(
+                            game,
+                            *cid,
+                            counter_type,
+                        ))
+            })
         else {
             return false;
         };

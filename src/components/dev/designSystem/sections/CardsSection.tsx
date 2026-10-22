@@ -8,7 +8,7 @@ import {
   type BattlefieldCardFaceVariant,
 } from "@/components/game/BattlefieldCardFace";
 import { cn } from "@/lib/utils";
-import { Section } from "../kit";
+import { Section, Subhead } from "../kit";
 type Variant = BattlefieldCardFaceVariant | "realistic";
 const VARIANTS: {
   id: Variant;
@@ -85,6 +85,7 @@ function CardTile({
       <div
         className="flex items-center justify-center rounded border border-dashed border-border text-[10px] text-muted-foreground"
         style={size}
+        data-design-system-pending
       >
         …
       </div>
@@ -108,6 +109,24 @@ function CardTile({
     />
   );
 }
+function CardSpecimens({ variant }: { variant: Variant }) {
+  return (
+    <div className="ds-card-grid flex flex-wrap gap-5">
+      {SPECS.map((spec) => (
+        <div
+          key={spec.name + spec.label}
+          className="ds-card-specimen flex flex-col items-center gap-1.5"
+        >
+          <CardTile spec={spec} variant={variant} width={140} />
+          <span className="max-w-[140px] text-center text-[11px] leading-tight text-muted-foreground">
+            {spec.label}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function CardsSection() {
   const [variant, setVariant] = useState<Variant>("art");
   return (
@@ -116,7 +135,7 @@ export function CardsSection() {
       title={`Card faces`}
       intro="The battlefield card renderer used in-game (DOM path). Three styles — realistic Scryfall image, art-forward, and mini-frame — across representative card types and states."
     >
-      <div className="inline-flex overflow-hidden rounded-md border border-border">
+      <div className="ds-screen-only inline-flex overflow-hidden rounded-md border border-border">
         {VARIANTS.map((v) => (
           <button
             key={v.id}
@@ -132,16 +151,15 @@ export function CardsSection() {
         ))}
       </div>
 
-      <div className="flex flex-wrap gap-5">
-        {SPECS.map((spec) => (
-          <div key={spec.name + spec.label} className="flex flex-col items-center gap-1.5">
-            <CardTile spec={spec} variant={variant} width={140} />
-            <span className="max-w-[140px] text-center text-[11px] leading-tight text-muted-foreground">
-              {spec.label}
-            </span>
-          </div>
-        ))}
+      <div className="ds-screen-only">
+        <CardSpecimens variant={variant} />
       </div>
+      {VARIANTS.map((style) => (
+        <div key={style.id} className="ds-print-only ds-card-style space-y-4">
+          <Subhead>{style.label}</Subhead>
+          <CardSpecimens variant={style.id} />
+        </div>
+      ))}
     </Section>
   );
 }

@@ -121,7 +121,7 @@ export default function Limited({ leadingControl }: LimitedProps) {
           className="min-w-0 space-y-4 pb-5 lg:-ml-1 lg:col-start-1 lg:row-span-2 lg:row-start-2 lg:min-h-0 lg:overflow-y-auto lg:pl-1 lg:pr-2"
         >
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="font-serif text-lg">Choose cards</h2>
+            <h2 className="font-serif text-lg font-semibold">Choose cards</h2>
             <AppSelect
               aria-label="Card source"
               value={setup.source}
@@ -197,7 +197,7 @@ export default function Limited({ leadingControl }: LimitedProps) {
       <footer className="shrink-0 border-t border-border/60 bg-background pt-3 pb-[max(0.75rem,var(--safe-area-inset-bottom))] lg:col-start-2 lg:row-start-3">
         <div className="flex items-center gap-3 lg:flex-col lg:items-stretch">
           <div className="min-w-0 flex-1" aria-live="polite">
-            <p className="truncate font-serif text-base text-foreground" title={sourceTitle}>
+            <p className="truncate text-base font-semibold text-foreground" title={sourceTitle}>
               {sourceTitle}
             </p>
             <p
@@ -246,7 +246,7 @@ export default function Limited({ leadingControl }: LimitedProps) {
         centerContent={
           setup.pendingDraftStart && (
             <div className="space-y-1 rounded-md bg-card/80 px-3 py-2">
-              <span className="font-serif text-lg font-light text-foreground/90">
+              <span className="font-serif text-lg font-semibold text-foreground/90">
                 {setup.pendingDraftStart.format}
               </span>
               <p className="text-xs text-muted-foreground">

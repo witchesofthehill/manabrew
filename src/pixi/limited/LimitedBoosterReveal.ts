@@ -1,3 +1,4 @@
+import { DISPLAY_FONT_FAMILY, UI_FONT_FAMILY } from "@/themes/typography";
 import { Container, FillGradient, Graphics, GraphicsContext, Sprite, Text } from "pixi.js";
 import { GAME_CARD_SIZES } from "@/components/game/game.constants";
 import { gsap } from "@/pixi/effects/gsap";
@@ -199,10 +200,9 @@ export class LimitedBoosterReveal {
     const brand = new Text({
       text: "MAGIC",
       style: {
-        fontFamily: "Alegreya",
+        fontFamily: DISPLAY_FONT_FAMILY,
         fontSize: wrapperWidth * 0.2,
         fontWeight: "bold",
-        letterSpacing: 1,
         fill: theme.appTheme.foreground,
       },
     });
@@ -241,7 +241,7 @@ export class LimitedBoosterReveal {
     symbol.visible = false;
     const symbolCode = new Text({
       style: {
-        fontFamily: "Alegreya Sans",
+        fontFamily: UI_FONT_FAMILY,
         fontSize: wrapperWidth * 0.2,
         fontWeight: "bold",
         fill: theme.appTheme.foreground,
@@ -251,7 +251,7 @@ export class LimitedBoosterReveal {
     symbolCode.position.copyFrom(symbol.position);
     const setName = new Text({
       style: {
-        fontFamily: "Alegreya",
+        fontFamily: DISPLAY_FONT_FAMILY,
         fontSize: wrapperWidth * 0.085,
         fontWeight: "bold",
         fill: theme.appTheme.foreground,
@@ -268,7 +268,7 @@ export class LimitedBoosterReveal {
         ? `${packCount} PACKS\n${cards.length} CARDS`
         : `${options.cardCount ?? cards.length}-CARD BOOSTER`,
       style: {
-        fontFamily: "Alegreya Sans",
+        fontFamily: UI_FONT_FAMILY,
         fontSize: grouped ? Math.max(9, wrapperWidth * 0.08) : Math.max(7, wrapperWidth * 0.055),
         fontWeight: "bold",
         letterSpacing: 0.6,

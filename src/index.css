@@ -1,9 +1,9 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Alegreya Sans", system-ui, -apple-system, sans-serif;
-  --font-serif: "Cormorant Garamond", Georgia, serif;
-  --font-game: "Inter", system-ui, -apple-system, sans-serif;
+  --font-sans: "Source Sans 3 Variable", system-ui, -apple-system, sans-serif;
+  --font-serif: "Alegreya Sans", system-ui, -apple-system, sans-serif;
+  --font-game: "Source Sans 3 Variable", system-ui, -apple-system, sans-serif;
 
   --color-border: var(--border);
   --color-input: var(--input);
@@ -13,6 +13,7 @@
 
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
 
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
@@ -25,6 +26,9 @@
 
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+  --color-brand-accent: var(--brand-accent);
+  --color-brand-accent-muted: var(--brand-accent-muted);
+  --color-brand-accent-foreground: var(--brand-accent-foreground);
 
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
@@ -34,6 +38,7 @@
 
   --color-selection: var(--selection);
   --color-selection-foreground: var(--selection-foreground);
+  --color-selection-border: var(--selection-border);
   --color-commander: var(--commander);
   --color-warning: var(--warning);
   --color-overlay: var(--overlay);
@@ -557,60 +562,7 @@
     --safe-area-inset-right: env(safe-area-inset-right, 0px);
     --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
     --safe-area-inset-left: env(safe-area-inset-left, 0px);
-    --background: 214 22% 96%; /* #EFF1F5 — light slate wash */
-    --foreground: 220 18% 14%; /* #1D2030 — near-black slate */
-    --card: 0 0% 100%; /* pure white cards */
-    --card-foreground: 220 18% 14%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 220 18% 14%;
-    --primary: 220 18% 14%; /* dark slate — primary actions */
-    --primary-foreground: 0 0% 100%;
-    --secondary: 214 16% 90%; /* #E1E4EC — tinted surface */
-    --secondary-foreground: 220 18% 14%;
-    --muted: 214 16% 93%; /* #E8EAF0 — subtle backgrounds */
-    --muted-foreground: 215 12% 46%; /* #6C7585 — slate-500 */
-    --accent: 214 16% 90%;
-    --accent-foreground: 220 18% 14%;
-    --destructive: 0 78% 55%; /* clean red */
-    --destructive-foreground: 0 0% 100%;
-    --border: 214 18% 84%; /* #CDD1DC */
-    --input: 214 18% 88%; /* #D6DAE4 */
-    --ring: 220 18% 40%;
     --radius: 0.5rem;
-
-    --selection: 270 60% 65%; /* purple — lasso/multi-select */
-    --selection-foreground: 0 0% 100%;
-    --commander: 45 93% 47%; /* gold — commander badge */
-    --warning: 38 92% 50%; /* amber — unknown/warning */
-    --overlay: 0 0% 0%; /* black — card overlays */
-  }
-
-  .dark {
-    --background: 220 7% 8%; /* #121316 — near-black charcoal */
-    --foreground: 214 12% 92%; /* #E6E8EC — cool off-white */
-    --card: 220 7% 11%; /* #191B1E — elevated surface */
-    --card-foreground: 214 12% 92%;
-    --popover: 220 7% 13%; /* #1E2023 — tooltip/dropdown bg */
-    --popover-foreground: 214 12% 92%;
-    --primary: 214 12% 84%; /* #D1D4DB — light slate for text/btns */
-    --primary-foreground: 220 7% 8%;
-    --secondary: 220 7% 16%; /* #252729 — chip/tag surface */
-    --secondary-foreground: 214 12% 92%;
-    --muted: 220 7% 16%; /* #252729 */
-    --muted-foreground: 214 8% 52%; /* #7D8290 — subdued text */
-    --accent: 220 7% 19%; /* #2C2E32 — hover surface */
-    --accent-foreground: 214 12% 92%;
-    --destructive: 0 68% 48%; /* muted red suits dark bg */
-    --destructive-foreground: 214 12% 92%;
-    --border: 220 7% 20%; /* #2E3034 — subtle dividers */
-    --input: 220 7% 18%; /* #2A2C30 */
-    --ring: 214 12% 68%; /* #A3A8B4 */
-
-    --selection: 270 60% 65%; /* purple — lasso/multi-select */
-    --selection-foreground: 214 12% 92%;
-    --commander: 45 80% 55%; /* gold — commander badge */
-    --warning: 38 80% 50%; /* amber — unknown/warning */
-    --overlay: 0 0% 0%; /* black — card overlays */
   }
 }
 
@@ -636,10 +588,6 @@
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-sans);
-    /* Alegreya Sans has a smaller x-height than the system font it replaced,
-       so equal font-sizes read smaller. Normalize the x-height to roughly the
-       system font's ratio so apparent text size is unchanged. */
-    font-size-adjust: 0.52;
     overflow: hidden;
     overscroll-behavior: none;
     -webkit-text-size-adjust: 100%;
@@ -670,9 +618,12 @@
   -webkit-user-drag: none;
 }
 
+.font-serif {
+  font-weight: 700;
+}
+
 .font-game {
   font-family: var(--font-game);
-  font-size-adjust: none;
 }
 
 /* Hide the OS pointer so the floating glyph reads as the cursor itself.

@@ -1,3 +1,4 @@
+import { isFeatureEnabled } from "@/featureFlags";
 import type {
   CardBorderPreset,
   CardCosmetics,
@@ -60,6 +61,15 @@ export function resolveCardWearAmount(cosmetics?: CardCosmetics): number {
   return typeof amount === "number" && Number.isFinite(amount)
     ? Math.max(0, Math.min(1, amount))
     : CARD_WEAR_AMOUNTS[cosmetics?.wear ?? "fresh"];
+}
+
+export function hasCardFinishEffects(finish: CardFinish, cosmetics?: CardCosmetics): boolean {
+  if (!isFeatureEnabled("cardFoil")) return false;
+  return (
+    finish !== "regular" ||
+    resolveCardWearAmount(cosmetics) > 0 ||
+    (cosmetics?.printDots?.amount ?? 0) > 0
+  );
 }
 
 export function resolveCardRainFog(cosmetics?: CardCosmetics): number {

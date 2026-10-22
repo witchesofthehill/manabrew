@@ -55,6 +55,8 @@ Trust the type system. You don't need defensive checks at the consumer.
 10. **Live card changes use the invariant `cardChange.*` palette.** `CARD_CHANGE_COLORS` in `buildGameColors.ts` defines saturated, readable gain, loss, other-change and type-removal ink without glow or blur. Resolution keeps these values independent of personal overrides. They are reserved for native live-characteristic highlights, not ordinary badges or app chrome. `getGameThemeColorPaths()` and Settings defaults exclude this read-only family; CSS utilities still include it.
 11. **Fallback card printing uses invariant `cardPrinting.*` colors.** These preserve the existing physical paper, ink, frame and footer colors after moving fallback painters into Manabrew. Like `cardChange.*`, they flow through the resolved theme but are excluded from editable Settings paths. Alpha/coverage masks encode data, not visible UI colors.
 
+Table material pickers keep the dialog in the app palette and frame unchanged textures with `canvas.background`. Use `cardSelection` and `cardRing` for selection and focus against that dark frame. Table-centre content and seat captions need opaque app `background` backings paired with `foreground`, `muted-foreground`, or `primary`; app ink must not sit directly on table artwork.
+
 ### Single narrow exception
 
 Pure `rgba(0, 0, 0, X)` shadow idioms in tailwind arbitrary classes (`shadow-[0_10px_30px_rgba(0,0,0,0.35)]`) are allowed when the shadow is intentionally physics-black. Any colored shadow goes through the theme.

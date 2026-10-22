@@ -145,26 +145,35 @@ export function TableSeatChip({
           </button>
         )}
       </div>
-      {nameLabel && (
-        <span
+      {(nameLabel || statusLabel) && (
+        <div
           className={cn(
-            "max-w-16 truncate text-[10px] font-medium leading-tight",
-            size === "room" && "hidden max-w-24 text-xs sm:block",
-            isYou && "font-semibold text-primary",
+            "flex flex-col items-center gap-0.5 rounded-md bg-background px-1.5 py-0.5 text-foreground shadow-sm",
+            size === "room" && "hidden sm:flex",
           )}
         >
-          {nameLabel}
-        </span>
-      )}
-      {statusLabel && (
-        <span
-          className={cn(
-            "max-w-16 truncate text-[9px] leading-tight text-muted-foreground",
-            size === "room" && "hidden max-w-24 text-[10px] sm:block",
+          {nameLabel && (
+            <span
+              className={cn(
+                "max-w-16 truncate text-[10px] font-medium leading-tight",
+                size === "room" && "hidden max-w-24 text-xs sm:block",
+                isYou && "font-semibold text-primary",
+              )}
+            >
+              {nameLabel}
+            </span>
           )}
-        >
-          {statusLabel}
-        </span>
+          {statusLabel && (
+            <span
+              className={cn(
+                "max-w-16 truncate text-[9px] leading-tight text-muted-foreground",
+                size === "room" && "hidden max-w-24 text-[10px] sm:block",
+              )}
+            >
+              {statusLabel}
+            </span>
+          )}
+        </div>
       )}
     </div>
   );

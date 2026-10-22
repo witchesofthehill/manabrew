@@ -69,9 +69,19 @@ export function OpenTableSeats({
             : undefined
         }
       />
-      <div className="absolute left-1/2 top-1/2 flex h-[48%] w-[60%] -translate-x-1/2 -translate-y-1/2 items-center justify-center text-center">
-        {centerContent}
-      </div>
+      {centerContent && (
+        <div className="absolute left-1/2 top-1/2 flex h-[48%] w-[60%] -translate-x-1/2 -translate-y-1/2 items-center justify-center text-center">
+          <div
+            className={cn(
+              !ornamental &&
+                backgroundUrl !== undefined &&
+                "rounded-lg border border-border bg-background px-3 py-2 text-foreground shadow-sm",
+            )}
+          >
+            {centerContent}
+          </div>
+        </div>
+      )}
       {Array.from({ length: maxPlayers }, (_, seatIndex) => {
         const player = players[seatIndex];
         const isControllerSeat = player?.username === controllerName;

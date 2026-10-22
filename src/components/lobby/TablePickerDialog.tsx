@@ -59,7 +59,7 @@ export function TablePickerDialog({
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
-          <div className="flex items-center justify-center sm:pr-2">
+          <div className="flex items-center justify-center rounded-xl border border-border bg-canvas-background p-3">
             <OpenTableSeats
               players={players}
               maxPlayers={maxPlayers}
@@ -71,7 +71,7 @@ export function TablePickerDialog({
               centerContent={centerContent}
             />
           </div>
-          <div className="grid grid-cols-3 gap-2 content-start sm:grid-cols-4">
+          <div className="grid grid-cols-3 content-start gap-2 rounded-xl border border-border bg-canvas-background p-3 sm:grid-cols-4">
             {BOARD_BACKGROUNDS.map((option) => {
               const isSelected = option.id === background;
               return (
@@ -79,12 +79,13 @@ export function TablePickerDialog({
                   key={option.id}
                   type="button"
                   title={option.label}
+                  aria-pressed={isSelected}
                   onClick={() => onBackgroundChange(option.id)}
                   className={cn(
-                    "overflow-hidden rounded-md border text-left transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                    "overflow-hidden rounded-md border text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-card-ring",
                     isSelected
-                      ? "border-selection-border ring-1 ring-selection-border"
-                      : "border-border/70 hover:border-primary/50",
+                      ? "border-card-selection ring-1 ring-card-selection"
+                      : "border-text-muted/40 hover:border-card-ring",
                   )}
                 >
                   {option.url ? (
@@ -95,7 +96,7 @@ export function TablePickerDialog({
                       loading="lazy"
                     />
                   ) : (
-                    <span className="flex aspect-[16/9] w-full items-center justify-center bg-canvas-background text-[10px] text-muted-foreground">
+                    <span className="flex aspect-[16/9] w-full items-center justify-center bg-canvas-background text-[10px] text-text-muted">
                       None
                     </span>
                   )}

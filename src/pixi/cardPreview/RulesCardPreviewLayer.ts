@@ -243,7 +243,6 @@ export class RulesCardPreviewLayer {
   private rasterFlipping = false;
   private unsubscribeLocale: () => void;
   private renderState: "loading" | "ready" | "error" = "loading";
-  private composingFace = false;
   private preserveArtwork = false;
   private scanOverlay = false;
   private cardBounds = new Rectangle();
@@ -374,9 +373,6 @@ export class RulesCardPreviewLayer {
   }
   get presentationReady(): boolean {
     return this.flip.isReady();
-  }
-  get composing(): boolean {
-    return this.composingFace;
   }
   get liveHighlights(): CardLiveHighlight {
     return this.liveHighlight;
@@ -2021,23 +2017,13 @@ export class RulesCardPreviewLayer {
     const controller = new AbortController();
     this.renderAbort = controller;
     const generation = ++this.artGeneration;
-    this.composingFace = false;
     if (!this.imageReady) {
       this.renderState = "loading";
       this.faceSprite.label = "card-glint-loading";
     }
     let raster: CardRaster | null = null;
     try {
-      raster = hidden
-        ? null
-        : await renderRulesCard(request, controller.signal, {
-            tier,
-            onCompose: () => {
-              if (generation !== this.artGeneration) return;
-              this.composingFace = true;
-              this.callbacks.onRenderRequested();
-            },
-          });
+      raster = hidden ? null : await renderRulesCard(request, controller.signal, { tier });
       const geometry = raster ? getCardRenderGeometry(raster) : undefined;
       const cardBack = hidden ? await loadCardBack() : null;
       if (

@@ -42,9 +42,6 @@ export class HandRulesCardFace extends Container {
   get presentationReady(): boolean {
     return this.preview.presentationReady;
   }
-  get composing(): boolean {
-    return this.preview.composing;
-  }
   get liveHighlights(): CardLiveHighlight {
     return this.preview.liveHighlights;
   }

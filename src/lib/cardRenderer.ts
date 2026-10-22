@@ -40,7 +40,6 @@ export interface CardRenderOptions {
   priority?: CardRenderPriority;
   standardFrameFallback?: boolean;
   tier?: CardRenderTier;
-  onCompose?: () => void;
 }
 
 const MAX_FINISHED_CARDS = 1024;
@@ -102,7 +101,6 @@ function composeCard(
   standardFrameFallback: boolean,
   tier: CardRenderTier,
   signal?: AbortSignal,
-  onCompose?: () => void,
 ): Promise<CardRaster> {
   const { cardChange, cardPrinting } = getTheme().gameTheme;
   const optionsKey = JSON.stringify([
@@ -138,7 +136,6 @@ function composeCard(
     retainCardRaster(cached.raster);
     return Promise.resolve(cached.raster);
   }
-  onCompose?.();
   return enqueueCardRender(
     key,
     async (compositionSignal) => {
@@ -224,7 +221,6 @@ export async function renderCard(
     priority = "visible",
     standardFrameFallback = false,
     tier = "native",
-    onCompose,
   }: CardRenderOptions = {},
 ): Promise<CardRaster> {
   signal?.throwIfAborted();
@@ -239,15 +235,7 @@ export async function renderCard(
     signal?.throwIfAborted();
     if (useScryfallStore.getState().locale !== locale)
       throw new DOMException("Card language changed during preparation", "AbortError");
-    pending = composeCard(
-      prepared,
-      rulesText,
-      priority,
-      standardFrameFallback,
-      tier,
-      signal,
-      onCompose,
-    );
+    pending = composeCard(prepared, rulesText, priority, standardFrameFallback, tier, signal);
   } catch (error) {
     if (!signal?.aborted) counters.failures++;
     throw error;
@@ -271,7 +259,7 @@ export async function renderCard(
 export function renderRulesCard(
   request: CardRenderRequest,
   signal?: AbortSignal,
-  options: Pick<CardRenderOptions, "tier" | "priority" | "onCompose"> = {},
+  options: Pick<CardRenderOptions, "tier" | "priority"> = {},
 ): Promise<CardRaster> {
   return renderCard(request, signal, {
     rulesText: false,

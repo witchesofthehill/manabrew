@@ -916,13 +916,9 @@ export class CardSprite extends Container {
       this.ownedImageTexture = null;
       this.imageIsArtwork = false;
       this._imageLoaded = false;
-      this.imageSpr.visible = false;
-      this.imageMask.visible = false;
-      this.syncHandFaceVisibility();
     }
-    this.placeholderGfx.visible = !this._imageLoaded;
-    this.nameText.visible = !hidden && !this._imageLoaded;
     this.nameText.text = hidden ? "" : this.card.identity.name;
+    this.syncHandFaceVisibility();
     if (this.reapplyOrientation()) this.rebuildDecorations(true);
 
     const card = this.card;
@@ -931,28 +927,6 @@ export class CardSprite extends Container {
     const faceIndex = this.previewFace ?? gameCardFaceIndex(card);
     const tier = this.selectRasterTier();
     this.renderTier = tier;
-    let fallback: Promise<Texture> | null = null;
-    const showFallback = () => {
-      fallback = useScryfallStore
-        .getState()
-        .getCardTexture(deckCard!, "full", faceIndex)
-        .then((scan) => {
-          if (
-            !this.destroyed &&
-            generation === this.loadGeneration &&
-            !this._imageLoaded &&
-            scan !== Texture.EMPTY
-          )
-            this.showImage(scan);
-          return scan;
-        })
-        .catch((error: unknown) => {
-          if (!this.destroyed && generation === this.loadGeneration) {
-            console.warn("[pixi] card scan load failed", card.identity.name, error);
-          }
-          return Texture.EMPTY;
-        });
-    };
     let texture: Texture;
     let owned = false;
     let artwork = false;
@@ -963,10 +937,7 @@ export class CardSprite extends Container {
         texture = await useScryfallStore.getState().getCardTexture(deckCard!, "art", faceIndex);
         artwork = true;
       } else if (custom) {
-        const raster = await renderCard({ card, deckCard, faceIndex }, controller.signal, {
-          tier,
-          onCompose: this._imageLoaded ? undefined : showFallback,
-        });
+        const raster = await renderCard({ card, deckCard, faceIndex }, controller.signal, { tier });
         try {
           if (this.destroyed || generation !== this.loadGeneration || controller.signal.aborted)
             return;
@@ -994,14 +965,12 @@ export class CardSprite extends Container {
         card.identity.name,
         error,
       );
-      texture = fallback
-        ? await fallback
-        : custom
-          ? await useScryfallStore
-              .getState()
-              .getCardTexture(deckCard!, "full", faceIndex)
-              .catch(() => Texture.EMPTY)
-          : Texture.EMPTY;
+      texture = custom
+        ? await useScryfallStore
+            .getState()
+            .getCardTexture(deckCard!, "full", faceIndex)
+            .catch(() => Texture.EMPTY)
+        : Texture.EMPTY;
     }
     if (this.destroyed || generation !== this.loadGeneration) {
       if (owned) texture.destroy(true);
@@ -1016,10 +985,6 @@ export class CardSprite extends Container {
       this.ownedImageTexture = null;
       this.imageIsArtwork = false;
       this._imageLoaded = false;
-      this.imageSpr.visible = false;
-      this.imageMask.visible = false;
-      this.placeholderGfx.visible = true;
-      this.nameText.visible = !hidden;
       const previousCounterReserve = this.frameCounterReserve;
       this.renderFrame();
       if (this.frameCounterReserve !== previousCounterReserve) this.updateCounters();
@@ -1035,11 +1000,7 @@ export class CardSprite extends Container {
     this.ownedImageTexture = owned ? texture : null;
     this.imageIsArtwork = artwork;
     this.imageSpr.texture = texture;
-    this.imageSpr.visible = true;
-    this.imageMask.visible = true;
     this.fitImageToSlot();
-    this.placeholderGfx.visible = false;
-    this.nameText.visible = false;
     this._imageLoaded = true;
     const previousCounterReserve = this.frameCounterReserve;
     this.renderFrame();
@@ -1171,9 +1132,13 @@ export class CardSprite extends Container {
   private syncHandFaceVisibility(): void {
     const hidden = this.hasHiddenIdentity();
     const ready = !hidden && this.handRulesFace?.imageReady === true;
-    this.printedFaceContainer.visible =
-      hidden || !this.handRulesView || (!ready && this.handRulesFace?.composing !== false);
-    this.printedChromeContainer.visible = this.printedFaceContainer.visible;
+    const pending = !hidden && this.handRulesView && !ready;
+    this.printedFaceContainer.visible = hidden || !this.handRulesView || pending;
+    this.printedChromeContainer.visible = hidden || !this.handRulesView;
+    this.imageSpr.visible = this._imageLoaded && !pending;
+    this.imageMask.visible = this.imageSpr.visible;
+    this.placeholderGfx.visible = !this.imageSpr.visible;
+    this.nameText.visible = !hidden && !this.imageSpr.visible;
     if (this.handRulesFace) {
       this.handRulesFace.visible = !hidden && ready && (this.handRulesView || !this._imageLoaded);
     }

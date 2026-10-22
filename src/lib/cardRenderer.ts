@@ -151,6 +151,14 @@ function tierKey(faceKey: string, tier: CardRenderTier): string {
   return JSON.stringify([faceKey, tier]);
 }
 
+function takeLargerFinished(faceKey: string, tier: CardRenderTier): CardRaster | undefined {
+  for (const candidate of CARD_RENDER_TIERS.slice(CARD_RENDER_TIERS.indexOf(tier) + 1)) {
+    const raster = takeFinished(tierKey(faceKey, candidate));
+    if (raster) return raster;
+  }
+  return undefined;
+}
+
 function resizeRaster(source: CardRaster, tier: CardRenderTier): Promise<ImageBitmap> {
   const width = CARD_RENDER_TIER_WIDTH[tier];
   return createImageBitmap(source, {
@@ -249,7 +257,7 @@ function composeCard(
     composition = { optionsKey, faceKey, key: tierKey(faceKey, tier), face, decision, palette };
     compositions.set(prepared, composition);
   }
-  const cached = takeFinished(composition.key);
+  const cached = takeFinished(composition.key) ?? takeLargerFinished(composition.faceKey, tier);
   if (cached) return Promise.resolve(cached);
   const restoringKey = composition.key;
   let restore = restoring.get(restoringKey);

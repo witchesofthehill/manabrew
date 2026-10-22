@@ -2,7 +2,7 @@ import type { Deck, DeckCard } from "@/protocol/deck";
 import type { CardIdentity } from "@/protocol/game";
 import { getDeckCardPool } from "@/lib/decks";
 import { renderCard, type CardRenderOptions } from "@/lib/cardRenderer";
-import { releaseCardRaster, selectCardRenderTier } from "@/lib/cardRenderTypes";
+import { CARD_RENDER_TIERS, releaseCardRaster, selectCardRenderTier } from "@/lib/cardRenderTypes";
 import type { CardRenderPriority } from "@/lib/cardRenderQueue";
 import { GAME_CARD_SIZES } from "@/components/game/game.constants";
 import { overlayResolution } from "@/pixi/overlay/overlayRuntime";
@@ -31,14 +31,20 @@ export function manabrewRenderVariants(): CardRenderOptions[] {
       preferences.inGameCardPreviewStyle,
     ].includes("rules")
   ) {
+    const prompt = selectCardRenderTier(
+      GAME_CARD_SIZES.prompt.width,
+      GAME_CARD_SIZES.prompt.height,
+      resolution,
+    );
+    const hand = selectCardRenderTier(
+      GAME_CARD_SIZES.hand.width * preferences.cardSizeMultiplier,
+      GAME_CARD_SIZES.hand.height * preferences.cardSizeMultiplier,
+      resolution,
+    );
     variants.push({
       rulesText: false,
       standardFrameFallback: true,
-      tier: selectCardRenderTier(
-        GAME_CARD_SIZES.prompt.width,
-        GAME_CARD_SIZES.prompt.height,
-        resolution,
-      ),
+      tier: CARD_RENDER_TIERS.indexOf(hand) > CARD_RENDER_TIERS.indexOf(prompt) ? hand : prompt,
     });
   }
   if (preferences.battlefieldCardStyle === "frame") {

@@ -13,7 +13,7 @@ import { gameCardFaceIndex } from "@/lib/gameCard";
 
 export type GamePrefetchMode = "visible" | "full";
 
-const FULL_PREFETCH_WAIT_CAP_MS = 10_000;
+const GAME_LOADING_CAP_MS = 10_000;
 
 function cardsToPrefetchImmediately(
   view: ClientGameView,
@@ -109,6 +109,19 @@ function manabrewRenderVariants(): CardRenderOptions[] {
   return variants;
 }
 
+function openingRenderVariants(): CardRenderOptions[] {
+  const variants = manabrewRenderVariants();
+  if (usePreferencesStore.getState().promptCardStyle !== "rules") return variants;
+  const tier = selectCardRenderTier(
+    GAME_CARD_SIZES.prompt.width,
+    GAME_CARD_SIZES.prompt.height,
+    overlayResolution(window.innerWidth, window.innerHeight),
+  );
+  const rules = variants.find((options) => options.rulesText === false);
+  if (rules && rules.tier !== tier) variants.push({ ...rules, tier });
+  return variants;
+}
+
 async function renderOpeningCards(): Promise<void> {
   const { gameView, gameDecks } = useGameStore.getState();
   const faces = (gameView?.players ?? [])
@@ -124,7 +137,7 @@ async function renderOpeningCards(): Promise<void> {
         : [faceIndex];
       return indices.map((face) => ({ card, deckCard, faceIndex: face }));
     });
-  const variants = manabrewRenderVariants();
+  const variants = openingRenderVariants();
   const total = variants.length * faces.length;
   if (total === 0) return;
   let loaded = 0;
@@ -182,20 +195,18 @@ export function useGamePrefetch(mode: GamePrefetchMode): void {
     let cancelIdle = () => {};
     const deckCards = Object.values(decks).flatMap(getDeckCardPool);
     const visibleCards = cardsToPrefetchImmediately(gameView, decks);
-    const finish = async () => {
-      await renderOpeningCards();
+    const waitForDeck =
+      mode === "full" && usePreferencesStore.getState().battlefieldCardStyle !== "frame";
+    const ready = Promise.all([
+      prefetchCards(visibleCards).then(renderOpeningCards),
+      waitForDeck ? prefetchAllCards(visibleCards, deckCards) : undefined,
+    ]);
+    const cap = new Promise<void>((resolve) => setTimeout(resolve, GAME_LOADING_CAP_MS));
+    void Promise.race([ready, cap]).finally(() => {
       useGameStore.setState({ isPrefetchingCards: false });
       void renderDeckPools();
-    };
-    if (mode === "full") {
-      const cap = new Promise<void>((resolve) => setTimeout(resolve, FULL_PREFETCH_WAIT_CAP_MS));
-      void Promise.all([
-        prefetchCards(visibleCards),
-        Promise.race([prefetchAllCards(visibleCards, deckCards), cap]),
-      ]).finally(finish);
-      return;
-    }
-    void prefetchCards(visibleCards).finally(finish);
+    });
+    if (waitForDeck) return;
     void prefetchCards(likelyCards).then(() => {
       if (cancelled) return;
       cancelIdle = scheduleIdle(() => {

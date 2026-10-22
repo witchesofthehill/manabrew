@@ -77,6 +77,42 @@ const TINTED_TEXT_STYLES: TextStyle[] = [];
 const SHADOW_CONTEXTS: { width: number; height: number; context: GraphicsContext }[] = [];
 const NO_FOIL_EXCLUSIONS = [] as const;
 const FACE_HOLD_CAP_MS = 3000;
+const FACE_HOLD_JOIN_MS = 50;
+
+interface FaceHold {
+  readonly members: Set<CardSprite>;
+  readonly waiting: Set<CardSprite>;
+  released: boolean;
+  timer: ReturnType<typeof setTimeout>;
+}
+let joinableFaceHold: FaceHold | null = null;
+
+function joinFaceHold(sprite: CardSprite): FaceHold {
+  let hold = joinableFaceHold;
+  if (!hold) {
+    const created: FaceHold = {
+      members: new Set(),
+      waiting: new Set(),
+      released: false,
+      timer: setTimeout(() => releaseFaceHold(created), FACE_HOLD_CAP_MS),
+    };
+    hold = joinableFaceHold = created;
+    setTimeout(() => {
+      if (joinableFaceHold === created) joinableFaceHold = null;
+    }, FACE_HOLD_JOIN_MS);
+  }
+  hold.members.add(sprite);
+  hold.waiting.add(sprite);
+  return hold;
+}
+
+function releaseFaceHold(hold: FaceHold): void {
+  if (hold.released) return;
+  hold.released = true;
+  clearTimeout(hold.timer);
+  if (joinableFaceHold === hold) joinableFaceHold = null;
+  for (const sprite of hold.members) sprite.revealHeldFace();
+}
 
 function drawShadowContext(context: GraphicsContext, width: number, height: number): void {
   context.clear();
@@ -480,8 +516,7 @@ export class CardSprite extends Container {
   private readonly kind: "battlefield" | "hand" | "zone";
   private handRulesFace: HandRulesCardFace | null = null;
   private handRulesView = false;
-  private faceHoldTimer: ReturnType<typeof setTimeout> | null = null;
-  private faceHoldExpired = false;
+  private faceHold: FaceHold | null = null;
   private handRulesInteractive = true;
   private handRulesActions: HandActionOption[] = [];
   private onSelectHandRulesAction: ((action: HandActionOption) => void) | null = null;
@@ -1132,23 +1167,34 @@ export class CardSprite extends Container {
     this.updateHandControls();
     this.refreshCardRadiusChrome();
   }
+  // Cards that start waiting together appear together, never one by one.
   private holdUntilFaceReady(pending: boolean): void {
+    const hold = this.faceHold;
     if (!pending) {
-      if (this.faceHoldTimer) clearTimeout(this.faceHoldTimer);
-      this.faceHoldTimer = null;
-      this.faceHoldExpired = false;
+      if (hold && !hold.released) {
+        hold.waiting.delete(this);
+        if (hold.waiting.size > 0) {
+          this.renderable = false;
+          return;
+        }
+        releaseFaceHold(hold);
+      }
+      this.faceHold = null;
       this.renderable = true;
       return;
     }
-    this.renderable = this.faceHoldExpired;
-    if (this.faceHoldTimer || this.faceHoldExpired) return;
-    this.faceHoldTimer = setTimeout(() => {
-      this.faceHoldTimer = null;
-      if (this.destroyed) return;
-      this.faceHoldExpired = true;
-      this.syncHandFaceVisibility();
-      this.onVisualChange?.();
-    }, FACE_HOLD_CAP_MS);
+    if (hold?.released) {
+      this.renderable = true;
+      return;
+    }
+    if (hold) hold.waiting.add(this);
+    else this.faceHold = joinFaceHold(this);
+    this.renderable = false;
+  }
+  revealHeldFace(): void {
+    if (this.destroyed) return;
+    this.renderable = true;
+    this.onVisualChange?.();
   }
   private syncHandFaceVisibility(): void {
     const hidden = this.hasHiddenIdentity();
@@ -1618,8 +1664,13 @@ export class CardSprite extends Container {
     }
   }
   destroy(options?: DestroyOptions): void {
-    if (this.faceHoldTimer) clearTimeout(this.faceHoldTimer);
-    this.faceHoldTimer = null;
+    const hold = this.faceHold;
+    this.faceHold = null;
+    if (hold && !hold.released) {
+      hold.members.delete(this);
+      hold.waiting.delete(this);
+      if (hold.waiting.size === 0) releaseFaceHold(hold);
+    }
     this.loadGeneration++;
     this.previewFlipGeneration += 1;
     this.previewFlip.cancel();

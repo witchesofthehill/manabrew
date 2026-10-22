@@ -2,7 +2,7 @@ import type { Deck, DeckCard } from "@/protocol/deck";
 import type { CardIdentity } from "@/protocol/game";
 import { getDeckCardPool } from "@/lib/decks";
 import { renderCard, type CardRenderOptions } from "@/lib/cardRenderer";
-import { CARD_RENDER_TIERS, releaseCardRaster, selectCardRenderTier } from "@/lib/cardRenderTypes";
+import { releaseCardRaster, selectCardRenderTier } from "@/lib/cardRenderTypes";
 import type { CardRenderPriority } from "@/lib/cardRenderQueue";
 import { GAME_CARD_SIZES } from "@/components/game/game.constants";
 import { overlayResolution } from "@/pixi/overlay/overlayRuntime";
@@ -19,44 +19,54 @@ const libraryTopWaiters = new Set<() => void>();
 const identityKey = (identity: { name: string; setCode: string; cardNumber: string }) =>
   `${identity.name}|${identity.setCode.toLowerCase()}|${identity.cardNumber}`;
 
-export function manabrewRenderVariants(): CardRenderOptions[] {
+function rulesTiers() {
   const preferences = usePreferencesStore.getState();
   const resolution = overlayResolution(window.innerWidth, window.innerHeight);
-  const variants: CardRenderOptions[] = [];
-  if (
-    [
-      preferences.handCardStyle,
-      preferences.stackCardStyle,
-      preferences.promptCardStyle,
-      preferences.inGameCardPreviewStyle,
-    ].includes("rules")
-  ) {
-    const prompt = selectCardRenderTier(
-      GAME_CARD_SIZES.prompt.width,
-      GAME_CARD_SIZES.prompt.height,
-      resolution,
-    );
-    const hand = selectCardRenderTier(
+  return {
+    hand: selectCardRenderTier(
       GAME_CARD_SIZES.hand.width * preferences.cardSizeMultiplier,
       GAME_CARD_SIZES.hand.height * preferences.cardSizeMultiplier,
       resolution,
-    );
-    variants.push({
-      rulesText: false,
-      standardFrameFallback: true,
-      tier: CARD_RENDER_TIERS.indexOf(hand) > CARD_RENDER_TIERS.indexOf(prompt) ? hand : prompt,
-    });
-  }
-  if (preferences.battlefieldCardStyle === "frame") {
+    ),
+    prompt: selectCardRenderTier(
+      GAME_CARD_SIZES.prompt.width,
+      GAME_CARD_SIZES.prompt.height,
+      resolution,
+    ),
+  };
+}
+
+function usesRulesFaces(): boolean {
+  const preferences = usePreferencesStore.getState();
+  return [
+    preferences.handCardStyle,
+    preferences.stackCardStyle,
+    preferences.promptCardStyle,
+    preferences.inGameCardPreviewStyle,
+  ].includes("rules");
+}
+
+export function manabrewRenderVariants(): CardRenderOptions[] {
+  const variants: CardRenderOptions[] = [];
+  if (usesRulesFaces())
+    variants.push({ rulesText: false, standardFrameFallback: true, tier: rulesTiers().hand });
+  if (usePreferencesStore.getState().battlefieldCardStyle === "frame") {
     variants.push({
       tier: selectCardRenderTier(
         GAME_CARD_SIZES.battlefield.width,
         GAME_CARD_SIZES.battlefield.height,
-        resolution,
+        overlayResolution(window.innerWidth, window.innerHeight),
       ),
     });
   }
   return variants;
+}
+
+function laterRenderVariants(): CardRenderOptions[] {
+  const { hand, prompt } = rulesTiers();
+  return usesRulesFaces() && prompt !== hand
+    ? [{ rulesText: false, standardFrameFallback: true, tier: prompt }]
+    : [];
 }
 
 function renderFaces(
@@ -108,7 +118,11 @@ export async function warmDeckFaces(
   others: readonly Deck[] = [],
 ): Promise<void> {
   const generation = ++warmGeneration;
-  const renders = renderFaces(warmOrder(own, others), "background");
+  const cards = warmOrder(own, others);
+  const renders = [
+    ...renderFaces(cards, "background"),
+    ...renderFaces(cards, "background", laterRenderVariants()),
+  ];
   for (let index = 0; index < renders.length; index += WARM_BATCH) {
     if (generation !== warmGeneration) return;
     await Promise.allSettled(renders.slice(index, index + WARM_BATCH).map((render) => render()));

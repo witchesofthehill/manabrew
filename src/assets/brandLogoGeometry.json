@@ -1,12 +1,26 @@
 {
   "horizontal": {
-    "viewBox": "0 0 1080 400",
-    "width": 1080,
-    "height": 400
+    "dark": {
+      "viewBox": "0 0 1080 400",
+      "width": 1080,
+      "height": 400
+    },
+    "light": {
+      "viewBox": "0 0 1450 400",
+      "width": 1450,
+      "height": 400
+    }
   },
   "symbol": {
-    "viewBox": "0 0 512 512",
-    "width": 512,
-    "height": 512
+    "dark": {
+      "viewBox": "0 0 512 512",
+      "width": 512,
+      "height": 512
+    },
+    "light": {
+      "viewBox": "0 0 512 512",
+      "width": 512,
+      "height": 512
+    }
   }
 }

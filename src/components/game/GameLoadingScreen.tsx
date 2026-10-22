@@ -14,8 +14,10 @@ const STEPS = [
   `Take your seat`,
   `Receive the first game state`,
   `Load card images`,
+  `Render Manabrew cards`,
 ];
-const LOAD_CARD_IMAGES_STEP = STEPS.length - 1;
+const LOAD_CARD_IMAGES_STEP = 3;
+const RENDER_CARDS_STEP = 4;
 interface GameLoadingScreenProps {
   debugInfo: string;
   onComplete?: () => void;
@@ -23,6 +25,7 @@ interface GameLoadingScreenProps {
 export function GameLoadingScreen({ debugInfo, onComplete }: GameLoadingScreenProps) {
   const isPrefetchingCards = useGameStore((s) => s.isPrefetchingCards);
   const cardPrefetchProgress = useGameStore((s) => s.cardPrefetchProgress);
+  const cardRenderProgress = useGameStore((s) => s.cardRenderProgress);
   const hasGameView = useGameStore((s) => s.gameView !== null);
   const seated = useGameStore((s) => (s.gameView?.players?.length ?? 0) > 0);
   const endGame = useGameStore((s) => s.endGame);
@@ -35,6 +38,7 @@ export function GameLoadingScreen({ debugInfo, onComplete }: GameLoadingScreenPr
   let target = 0;
   if (/started/i.test(debugInfo)) target = 1;
   if (hasGameView && seated) target = LOAD_CARD_IMAGES_STEP;
+  if (hasGameView && seated && cardRenderProgress) target = RENDER_CARDS_STEP;
   if (hasGameView && seated && !isPrefetchingCards) target = STEPS.length;
   useEffect(() => {
     lastAdvanceAt.current = Date.now();
@@ -162,7 +166,10 @@ export function GameLoadingScreen({ debugInfo, onComplete }: GameLoadingScreenPr
                     </span>
                   </div>
                   {active && index === LOAD_CARD_IMAGES_STEP && cardPrefetchProgress && (
-                    <CardPrefetchBar {...cardPrefetchProgress} />
+                    <CardProgressBar label="Card images loaded" {...cardPrefetchProgress} />
+                  )}
+                  {active && index === RENDER_CARDS_STEP && cardRenderProgress && (
+                    <CardProgressBar label="Manabrew cards rendered" {...cardRenderProgress} />
                   )}
                 </li>
               );
@@ -196,13 +203,21 @@ export function GameLoadingScreen({ debugInfo, onComplete }: GameLoadingScreenPr
   );
 }
 
-function CardPrefetchBar({ loaded, total }: { loaded: number; total: number }) {
+function CardProgressBar({
+  label,
+  loaded,
+  total,
+}: {
+  label: string;
+  loaded: number;
+  total: number;
+}) {
   const percent = total > 0 ? (loaded / total) * 100 : 100;
   return (
     <div className="flex items-center gap-3 pl-8">
       <div
         role="progressbar"
-        aria-label={`Card images loaded`}
+        aria-label={label}
         aria-valuemin={0}
         aria-valuemax={total}
         aria-valuenow={loaded}

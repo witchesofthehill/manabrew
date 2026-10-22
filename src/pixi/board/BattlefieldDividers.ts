@@ -176,7 +176,7 @@ export class BattlefieldDividers {
         .rect(x - DIVIDER.barWidthPx / 2, 0, DIVIDER.barWidthPx, height)
         .fill({ color: hexToNum(this.theme.gameTheme.canvas.shadow), alpha: 0.9 });
       aura.rect(x - 0.5, 0, 1, height).fill({
-        color: hexToNum(this.theme.appTheme.primary),
+        color: hexToNum(this.theme.gameTheme.cardRing),
         alpha: focusAdjacent ? 0.52 : 0.24,
       });
     }
@@ -204,8 +204,8 @@ export class BattlefieldDividers {
         });
       const shadow = withAlpha(this.theme.gameTheme.canvas.shadow, DIVIDER.shadowAlpha);
       const shadowClear = withAlpha(this.theme.gameTheme.canvas.shadow, 0);
-      const aura = withAlpha(this.theme.appTheme.primary, DIVIDER.auraAlpha);
-      const auraClear = withAlpha(this.theme.appTheme.primary, 0);
+      const aura = withAlpha(this.theme.gameTheme.cardRing, DIVIDER.auraAlpha);
+      const auraClear = withAlpha(this.theme.gameTheme.cardRing, 0);
       this.fogGradRight = linear([
         { offset: 0, color: shadow },
         { offset: 1, color: shadowClear },
@@ -268,7 +268,7 @@ export class BattlefieldDividers {
     particle.dot
       .clear()
       .circle(0, 0, particle.spec.radius)
-      .fill({ color: hexToNum(this.theme.appTheme.primary) });
+      .fill({ color: hexToNum(this.theme.gameTheme.cardRing) });
   }
 
   private setFogParticleAnimation(particle: FogParticle, animated: boolean): void {

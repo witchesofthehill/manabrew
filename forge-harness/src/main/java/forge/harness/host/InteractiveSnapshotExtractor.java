@@ -552,6 +552,26 @@ public final class InteractiveSnapshotExtractor {
         return null;
     }
 
+    /** Hidden information: only the browser hosting the game may read it, for its own seat. */
+    public static String libraryTopJson(final Game game, final int playerIndex, final int count) {
+        final Player player = playerForIndex(game, playerIndex);
+        final List<CardIdentity> top = new ArrayList<>();
+        if (player != null) {
+            final CardCollectionView library = player.getCardsIn(ZoneType.Library);
+            for (int index = 0; index < Math.min(count, library.size()); index++) {
+                final Card card = library.get(index);
+                final IPaperCard paper = card.getPaperCard();
+                top.add(new CardIdentity(
+                        normalizeCardName(paper != null ? paper.getName() : card.getName()),
+                        paper != null ? paper.getEdition() : card.getSetCode(),
+                        paper != null ? paper.getCollectorNumber() : "",
+                        card.isToken(),
+                        null));
+            }
+        }
+        return GSON.toJson(top);
+    }
+
     private static String dayTime(final Game game) {
         if (game.isNeitherDayNorNight()) {
             return "neither";

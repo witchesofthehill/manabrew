@@ -31,14 +31,37 @@ interface PendingComposition {
   detach(): void;
   cancelled: boolean;
 }
-let worker: Worker | undefined;
-let ready: Promise<boolean> | undefined;
-let rejectReady: ((error: unknown) => void) | undefined;
+interface WorkerSlot {
+  worker?: Worker;
+  ready?: Promise<boolean>;
+  rejectReady?: (error: unknown) => void;
+  readonly pending: Map<number, PendingComposition>;
+  readonly assets: Map<number, AbortController>;
+  starting: number;
+  stats: WorkerStats;
+}
+
+const EMPTY_WORKER_STATS: WorkerStats = {
+  artworkBytes: 0,
+  activeArtworkBytes: 0,
+  decodedArtwork: 0,
+  scratchBytes: 0,
+  peakScratchBytes: 0,
+  scratchCanvases: 0,
+};
+export const CARD_WORKER_COUNT = Math.max(
+  1,
+  Math.min(3, (globalThis.navigator?.hardwareConcurrency || 2) - 1),
+);
+const slots: WorkerSlot[] = Array.from({ length: CARD_WORKER_COUNT }, () => ({
+  pending: new Map(),
+  assets: new Map(),
+  starting: 0,
+  stats: EMPTY_WORKER_STATS,
+}));
 let sequence = 0;
 let mainWork: Promise<unknown> = Promise.resolve();
 let mainPending = 0;
-const pending = new Map<number, PendingComposition>();
-const assets = new Map<number, AbortController>();
 const stats = {
   workerCompositions: 0,
   workerTransfers: 0,
@@ -46,58 +69,51 @@ const stats = {
   workerAssetBitmapTransfers: 0,
   workerAssetBitmapBytes: 0,
   hostAssetDecodes: 0,
-  workerArtworkBytes: 0,
-  workerActiveArtworkBytes: 0,
-  workerDecodedArtwork: 0,
-  workerScratchBytes: 0,
-  workerPeakScratchBytes: 0,
-  workerScratchCanvases: 0,
   mainThreadCompositions: 0,
 };
 
 export function cardWorkerStats() {
+  const sum = (field: keyof WorkerStats) =>
+    slots.reduce((total, slot) => total + slot.stats[field], 0);
   return {
     ...stats,
-    workerPending: pending.size,
+    workerArtworkBytes: sum("artworkBytes"),
+    workerActiveArtworkBytes: sum("activeArtworkBytes"),
+    workerDecodedArtwork: sum("decodedArtwork"),
+    workerScratchBytes: sum("scratchBytes"),
+    workerPeakScratchBytes: sum("peakScratchBytes"),
+    workerScratchCanvases: sum("scratchCanvases"),
+    workerPending: slots.reduce((total, slot) => total + slot.pending.size, 0),
     mainThreadPending: mainPending,
-    workerStarted: Boolean(worker),
+    workerStarted: slots.filter((slot) => slot.worker).length,
   };
 }
-function updateStats(next: WorkerStats): void {
-  stats.workerArtworkBytes = next.artworkBytes;
-  stats.workerActiveArtworkBytes = next.activeArtworkBytes;
-  stats.workerDecodedArtwork = next.decodedArtwork;
-  stats.workerScratchBytes = next.scratchBytes;
-  stats.workerPeakScratchBytes = next.peakScratchBytes;
-  stats.workerScratchCanvases = next.scratchCanvases;
-}
 
-export function terminateCardRenderWorker(): void {
-  worker?.terminate();
-  worker = undefined;
-  ready = undefined;
-  const error = new DOMException("Card rendering worker terminated", "AbortError");
-  rejectReady?.(error);
-  rejectReady = undefined;
-  for (const job of pending.values()) {
+function failSlot(slot: WorkerSlot, error: unknown): void {
+  for (const job of slot.pending.values()) {
     job.detach();
     job.reject(error);
   }
-  pending.clear();
-  for (const controller of assets.values()) controller.abort(error);
-  assets.clear();
-  updateStats({
-    artworkBytes: 0,
-    activeArtworkBytes: 0,
-    decodedArtwork: 0,
-    scratchBytes: 0,
-    peakScratchBytes: 0,
-    scratchCanvases: 0,
-  });
+  slot.pending.clear();
+  for (const controller of slot.assets.values()) controller.abort(error);
+  slot.assets.clear();
+  slot.stats = EMPTY_WORKER_STATS;
 }
 
-function startWorker(): Promise<boolean> {
-  if (ready) return ready;
+export function terminateCardRenderWorker(): void {
+  const error = new DOMException("Card rendering worker terminated", "AbortError");
+  for (const slot of slots) {
+    slot.worker?.terminate();
+    slot.worker = undefined;
+    slot.ready = undefined;
+    slot.rejectReady?.(error);
+    slot.rejectReady = undefined;
+    failSlot(slot, error);
+  }
+}
+
+function startWorker(slot: WorkerSlot): Promise<boolean> {
+  if (slot.ready) return slot.ready;
   if (
     typeof Worker === "undefined" ||
     typeof OffscreenCanvas === "undefined" ||
@@ -105,38 +121,33 @@ function startWorker(): Promise<boolean> {
     typeof FontFace === "undefined"
   )
     return Promise.resolve(false);
-  ready = new Promise<boolean>((resolve, reject) => {
-    rejectReady = reject;
+  const { pending, assets } = slot;
+  slot.ready = new Promise<boolean>((resolve, reject) => {
+    slot.rejectReady = reject;
     const instance = new Worker(new URL("../workers/cardRender.worker.ts", import.meta.url), {
       type: "module",
       name: "card-render",
     });
-    worker = instance;
+    slot.worker = instance;
     window.addEventListener("pagehide", terminateCardRenderWorker, { once: true });
     instance.onerror = (event) => {
-      if (worker !== instance) return;
+      if (slot.worker !== instance) return;
       const error = new Error(event.message || "Card rendering worker failed");
       reject(error);
-      rejectReady = undefined;
-      for (const job of pending.values()) {
-        job.detach();
-        job.reject(error);
-      }
-      pending.clear();
+      slot.rejectReady = undefined;
       instance.terminate();
-      for (const controller of assets.values()) controller.abort(error);
-      assets.clear();
-      worker = undefined;
-      ready = undefined;
+      failSlot(slot, error);
+      slot.worker = undefined;
+      slot.ready = undefined;
     };
     instance.onmessage = (event: MessageEvent<CardWorkerResponse>) => {
       const message = event.data;
       if (message.type === "ready") {
         resolve(message.supported);
-        rejectReady = undefined;
+        slot.rejectReady = undefined;
         if (!message.supported) {
           instance.terminate();
-          if (worker === instance) worker = undefined;
+          if (slot.worker === instance) slot.worker = undefined;
         }
       } else if (message.type === "asset") {
         const controller = new AbortController();
@@ -144,7 +155,7 @@ function startWorker(): Promise<boolean> {
         void resolveCardGlintAsset(message.url, { signal: controller.signal })
           .then(async (response) => {
             const data = await response.arrayBuffer();
-            if (!controller.signal.aborted && worker === instance)
+            if (!controller.signal.aborted && slot.worker === instance)
               instance.postMessage(
                 {
                   type: "asset",
@@ -156,7 +167,7 @@ function startWorker(): Promise<boolean> {
               );
           })
           .catch((error: unknown) => {
-            if (worker === instance)
+            if (slot.worker === instance)
               instance.postMessage({
                 type: "asset",
                 id: message.id,
@@ -197,7 +208,7 @@ function startWorker(): Promise<boolean> {
               }
             }
             controller.signal.throwIfAborted();
-            if (worker !== instance) return;
+            if (slot.worker !== instance) return;
             const bytes = owned.reduce((sum, image) => sum + image.width * image.height * 4, 0);
             instance.postMessage(
               { type: "images", id: message.id, images } satisfies CardWorkerRequest,
@@ -208,7 +219,7 @@ function startWorker(): Promise<boolean> {
             stats.workerAssetBitmapBytes += bytes;
             stats.hostAssetDecodes++;
           } catch (error) {
-            if (worker === instance)
+            if (slot.worker === instance)
               instance.postMessage({
                 type: "images",
                 id: message.id,
@@ -223,7 +234,7 @@ function startWorker(): Promise<boolean> {
       } else if (message.type === "cancelAsset") {
         assets.get(message.id)?.abort();
       } else {
-        updateStats(message.stats);
+        slot.stats = message.stats;
         const job = pending.get(message.id);
         pending.delete(message.id);
         job?.detach();
@@ -252,14 +263,22 @@ function startWorker(): Promise<boolean> {
       }
     };
   });
-  return ready;
+  return slot.ready;
 }
 
 export async function composeCardOffThread(
   input: CardCompositionInput,
   signal: AbortSignal,
 ): Promise<CardCompositionResult> {
-  const supported = await startWorker();
+  const load = (slot: WorkerSlot) => slot.pending.size + slot.starting;
+  const slot = slots.reduce((best, candidate) => (load(candidate) < load(best) ? candidate : best));
+  slot.starting++;
+  let supported: boolean;
+  try {
+    supported = await startWorker(slot);
+  } finally {
+    slot.starting--;
+  }
   signal.throwIfAborted();
   if (!supported) {
     if (mainPending >= 128) throw new Error("Card fallback queue is full");
@@ -277,9 +296,10 @@ export async function composeCardOffThread(
       mainPending--;
     });
   }
-  if (!worker) throw new Error("Card rendering worker is unavailable after initialization");
+  const instance = slot.worker;
+  if (!instance) throw new Error("Card rendering worker is unavailable after initialization");
+  const { pending } = slot;
   if (pending.size >= 128) throw new Error("Card worker queue is full");
-  const instance = worker;
   const id = ++sequence;
   stats.workerCompositions++;
   return new Promise<CardCompositionResult>((resolve, reject) => {

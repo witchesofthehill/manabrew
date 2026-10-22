@@ -4,6 +4,8 @@ import { BRAND_COLORS } from "@/themes/brand";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { APP_THEME_COLOR_LABELS } from "@/themes/themeMetadata";
 import { Section, Subhead, Swatch, SwatchGrid } from "../kit";
+import { getDefaultGameThemeColorMap } from "@/hooks/useTheme";
+import { useTheme as useColorMode } from "next-themes";
 function groupGameColors(colors: GameThemeColorMap): {
   name: string;
   entries: [string, string][];
@@ -135,12 +137,17 @@ export function ColorSection() {
   const appOverrides = usePreferencesStore((state) => state.appThemeColorOverrides);
   const gameOverrides = usePreferencesStore((state) => state.gameThemeColorOverrides);
   const personalName = usePreferencesStore((state) => state.personalThemeName);
+  const { resolvedTheme: mode } = useColorMode();
   const resolvedTheme = {
     ...MANABREW_THEME,
     name: personalName ?? MANABREW_THEME.name,
     light: { ...MANABREW_THEME.light, ...appOverrides.light },
     dark: { ...MANABREW_THEME.dark, ...appOverrides.dark },
-    gameColors: { ...MANABREW_THEME.gameColors, ...filterGameThemeColorOverrides(gameOverrides) },
+    gameColors: {
+      ...MANABREW_THEME.gameColors,
+      ...getDefaultGameThemeColorMap(mode === "light" ? "light" : "dark"),
+      ...filterGameThemeColorOverrides(gameOverrides),
+    },
   };
   return (
     <Section

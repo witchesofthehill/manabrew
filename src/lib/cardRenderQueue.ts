@@ -1,5 +1,6 @@
 import { releaseCardRaster, retainCardRaster } from "@/lib/cardRenderTypes";
 import type { CardRaster } from "@/lib/cardRenderTypes";
+import { CARD_WORKER_COUNT } from "@/lib/cardCompositionWorker";
 
 export type CardRenderPriority = "preview" | "visible" | "background";
 
@@ -22,7 +23,7 @@ interface Composition {
 const PRIORITY: Record<CardRenderPriority, number> = { preview: 0, visible: 1, background: 2 };
 const MAX_QUEUED = 128;
 const pending = new Map<string, Composition>();
-let active: Composition | undefined;
+const active = new Set<Composition>();
 let scheduled = false;
 const counters = {
   deduplicated: 0,
@@ -36,7 +37,7 @@ const counters = {
 export function cardQueueStats() {
   return {
     ...counters,
-    active: Number(Boolean(active)),
+    active: active.size,
     queued: [...pending.values()].filter((job) => !job.started).length,
   };
 }
@@ -51,7 +52,7 @@ export function resetCardQueueStats(): void {
 }
 
 function schedule(): void {
-  if (active || scheduled || pending.size === 0) return;
+  if (active.size >= CARD_WORKER_COUNT || scheduled || pending.size === 0) return;
   scheduled = true;
   setTimeout(() => {
     scheduled = false;
@@ -67,8 +68,9 @@ async function drain(): Promise<void> {
   }
   if (!next) return;
   const job = next;
-  active = job;
+  active.add(job);
   job.started = true;
+  schedule();
   const start = performance.now();
   counters.queueWaitMs += start - job.queuedAt;
   counters.compositions += 1;
@@ -87,7 +89,7 @@ async function drain(): Promise<void> {
     for (const consumer of job.consumers) consumer.detach();
     counters.compositionMs += performance.now() - start;
     if (pending.get(job.key) === job) pending.delete(job.key);
-    active = undefined;
+    active.delete(job);
     schedule();
   }
 }
@@ -104,7 +106,7 @@ export function enqueueCardRender(
     counters.deduplicated += 1;
     if (PRIORITY[priority] < PRIORITY[job.priority]) job.priority = priority;
   } else {
-    if (pending.size >= MAX_QUEUED + Number(Boolean(active))) {
+    if (pending.size >= MAX_QUEUED + active.size) {
       let displaced: Composition | undefined;
       for (const candidate of pending.values()) {
         if (candidate.started || PRIORITY[candidate.priority] < PRIORITY[priority]) continue;

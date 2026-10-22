@@ -51,11 +51,14 @@ Use `brand-accent` for small non-interactive details, `brand-accent-muted` for t
 | Soot        | `#1C191D` | Dark page background; dark text on bright fills |
 | Cauldron    | `#272329` | Dark cards and panels                           |
 | Ash         | `#342E37` | Raised dark panels and quiet separators         |
-| Steam       | `#F4EEE8` | Main dark-mode text; light page background      |
+| Steam       | `#F4EEE8` | Main dark-mode text                             |
+| Cream       | `#EDE3D6` | Light page background                           |
+| Linen       | `#F4EDE2` | Light cards and navigation headers              |
+| Ivory       | `#F8F2E8` | Light floating panels and menus                 |
 | Pewter      | `#B9AEBB` | Secondary dark-mode text                        |
 | Dark pewter | `#655B69` | Secondary light-mode text                       |
 
-The slight plum bias ties the neutrals to mana purple without making the whole application purple. Steam is an off-white for reading, not a parchment texture.
+The slight plum bias ties the dark neutrals to mana purple. Light mode uses muted cream surfaces instead of large pure-white panels; sage supplies quiet guest-profile and Settings accents. These are flat colors, not parchment textures.
 
 ### Roles before decoration
 
@@ -69,48 +72,50 @@ The slight plum bias ties the neutrals to mana purple without making the whole a
 
 ### Implemented light and dark assignments
 
-Dark-mode primary uses Ember 400 so existing ember-colored labels also remain readable on Ash panels. Light-mode muted and neutral hover backgrounds use `#F0E9EF`, which preserves readable Ember 700 text.
+Dark-mode primary uses Ember 400 so existing ember-colored labels remain readable on Ash panels. Light mode uses Ember 800 with Ember 900 hover, warm cream muted surfaces, and stronger neutral borders. Sage accents stay on quiet panels, icons, and section labels rather than action or selection controls.
 
 | Role                      | Dark mode                                              | Light mode                                             |
 | ------------------------- | ------------------------------------------------------ | ------------------------------------------------------ |
-| Page / text               | Soot / Steam                                           | Steam / Soot                                           |
-| Header / text             | Cauldron / Steam                                       | White / Soot                                           |
-| Panel                     | Cauldron                                               | White                                                  |
+| Page / text               | Soot / Steam                                           | Cream / Soot                                           |
+| Header / text             | Cauldron / Steam                                       | Linen / Soot                                           |
+| Panel                     | Cauldron                                               | Linen, with Ivory for floating surfaces                |
 | Secondary text            | Pewter                                                 | Dark pewter                                            |
-| Primary fill / text       | Ember 400 / Soot                                       | Ember 700 / White                                      |
-| Primary hover fill / text | Ember 300 / Soot                                       | Ember 800 / White                                      |
+| Primary fill / text       | Ember 400 / Soot                                       | Ember 800 / White                                      |
+| Primary hover fill / text | Ember 300 / Soot                                       | Ember 900 / White                                      |
 | Purple text or icon       | Mana 400                                               | Mana 700                                               |
 | Selected fill / text      | Mana 950 / Mana 200, with a visible Mana 400 indicator | Mana 100 / Mana 800, with a visible Mana 700 indicator |
 | Sage detail               | Sage / Soot                                            | Deep sage / Steam                                      |
 
 The logo can retain the anchor colors while controls use neighboring shades for contrast. Light and dark modes are lighting conditions for the same brand, not separate identities.
 
-Navigation headers reuse the same `card` surface as the hero cards. Dark mode uses the approved white-cauldron artwork against that surface; light mode keeps the original dark cauldron. SVG backgrounds remain transparent, without a separate header palette, a light panel, or CSS recoloring.
+Navigation headers reuse the same `card` surface as the hero cards. Dark mode uses the approved white-cauldron artwork; light mode uses black Brewy, the orange wordmark, and ember/lavender/sage bubbles. SVG backgrounds remain transparent, without CSS recoloring or a separate header palette.
 
 ### Measured contrast
 
 Calculated using WCAG relative luminance on the exact opaque sRGB pairs below. Values are rounded for display; pass decisions use unrounded results. These checks do not establish whole-app accessibility and do not cover translucent overlays or unknown card-art backgrounds.
 
-| Foreground / background |   Ratio | Ordinary text AA     |
-| ----------------------- | ------: | -------------------- |
-| Soot / Ember 600        |  4.66:1 | Pass, limited margin |
-| White / Ember 600       |  3.73:1 | Fail                 |
-| Soot / Ember 500        |  5.81:1 | Pass                 |
-| Soot / Ember 400        |  6.71:1 | Pass                 |
-| White / Ember 700       |  5.63:1 | Pass                 |
-| White / Ember 800       |  7.92:1 | Pass                 |
-| Steam / Mana 700        |  6.61:1 | Pass                 |
-| Mana 700 / Soot         |  2.29:1 | Fail                 |
-| Mana 400 / Ash          |  5.16:1 | Pass                 |
-| Pewter / Ash            |  6.18:1 | Pass                 |
-| Soot / Steam            | 15.12:1 | Pass                 |
-| Dark pewter / Steam     |  5.61:1 | Pass                 |
-| Soot / Ember 300        |  8.63:1 | Pass                 |
-| Ember 400 / Ash         |  5.08:1 | Pass                 |
-| Ember 700 / light muted |  4.72:1 | Pass                 |
-| Sage / Soot             |  7.41:1 | Pass                 |
-| Deep sage / Steam       |  5.43:1 | Pass                 |
-| Deep sage / Mist        |  5.30:1 | Pass                 |
+| Foreground / background   |   Ratio | Ordinary text AA     |
+| ------------------------- | ------: | -------------------- |
+| Soot / Ember 600          |  4.66:1 | Pass, limited margin |
+| White / Ember 600         |  3.73:1 | Fail                 |
+| Soot / Ember 500          |  5.81:1 | Pass                 |
+| Soot / Ember 400          |  6.71:1 | Pass                 |
+| White / Ember 700         |  5.63:1 | Pass                 |
+| White / Ember 800         |  7.92:1 | Pass                 |
+| Steam / Mana 700          |  6.61:1 | Pass                 |
+| Mana 700 / Soot           |  2.29:1 | Fail                 |
+| Mana 400 / Ash            |  5.16:1 | Pass                 |
+| Pewter / Ash              |  6.18:1 | Pass                 |
+| Soot / Steam              | 15.12:1 | Pass                 |
+| Dark pewter / Steam       |  5.61:1 | Pass                 |
+| Soot / Ember 300          |  8.63:1 | Pass                 |
+| Ember 400 / Ash           |  5.08:1 | Pass                 |
+| Ember 800 / light muted   |  5.75:1 | Pass                 |
+| Soot / Cream              | 13.73:1 | Pass                 |
+| Dark pewter / light muted |  4.69:1 | Pass                 |
+| Sage / Soot               |  7.41:1 | Pass                 |
+| Deep sage / Steam         |  5.43:1 | Pass                 |
+| Deep sage / Mist          |  5.30:1 | Pass                 |
 
 WCAG AA requires 4.5:1 for ordinary text and 3:1 for large text. Required visual information identifying controls and their states generally needs 3:1 against adjacent colors. A dark purple that works as a fill with pale text does not automatically work as purple text on a dark panel.
 
@@ -124,7 +129,7 @@ Alegreya Sans Bold 700 supplies brand text and display headings; Source Sans 3 s
 
 Use the normal Bold face at weight 700 for onboarding titles, marketing headlines and display headings. Keep card rules, deck rows, small navigation, mana counts and dense tables in their existing fonts.
 
-The approved wordmark uses outlined Alegreya Sans vector paths, independent of installed fonts. The balanced horizontal lockup retains its 1080 × 400 canvas, with a larger wordmark beside a smaller Brewy. Preserve its letter spacing and scale the complete lockup proportionally instead of stretching it.
+The approved wordmark uses outlined Alegreya Sans vector paths, independent of installed fonts. The dark horizontal lockup retains its 1080 × 400 canvas; the light header uses its approved 1450 × 400 canvas. Preserve each export's letter spacing and scale the complete lockup proportionally instead of stretching or cropping it.
 
 ### Source Sans 3 keeps the game readable
 
@@ -177,7 +182,7 @@ Existing personal color overrides are preserved. Reset Colors restores the new c
 
 Utility pages no longer have the brewery illustration behind them. The existing illustration remains on entry and home hero surfaces and the website, without inventing new mascot artwork. App headers use the horizontal SVG on wider screens and the symbol on compact screens. Website headers use the horizontal SVG without duplicate text.
 
-Designer source artwork and unused exports live outside the repository. Run `python3 scripts/generate-brand-logo.py /path/to/manabrew-brand` after changing approved exports. It uses the latest dark horizontal export's balanced geometry for both modes, applying the light export's approved inks for light mode. Standalone symbol variants come from their dark/light exports. It writes complete static groups to `images/brand/logos/interactive/manabrew-logo.svg` and dimensions to `src/assets/brandLogoGeometry.json`. Liquid and eyes remain transparent body cutouts. All app routes and website headers share these outputs; no route-specific preview remains. Normal builds consume the committed runtime outputs without Python or the external archive.
+Designer source artwork and unused exports live outside the repository. Run `python3 scripts/generate-brand-logo.py /path/to/manabrew-brand` after changing approved exports. It reads the complete dark horizontal and light horizontal-header artwork, preserving each mode's geometry and inks. Standalone symbol variants come from their dark/light exports. It writes static groups to `images/brand/logos/interactive/manabrew-logo.svg` and dimensions keyed by variant and mode to `src/assets/brandLogoGeometry.json`. Liquid and eyes remain transparent body cutouts. All app routes and website headers share these outputs; Astro auto mode uses separate SVG roots for the two viewports. Normal builds consume the committed runtime outputs without Python or the external archive.
 
 The app follows resolved light/dark mode and theme previews; documentation follows its selected theme. Every browser and native app icon uses the Brewy-only `favicon/` artwork with the same purple background. SVG and ICO favicons are copied unchanged into app and website public directories; browser PNGs, the 512px Apple touch icon and PWA icons are resized from the supplied PNG. PWA icons use `purpose: "any"`, not `maskable`. Generate desktop and mobile icons from that same PNG, retaining desktop tile-corner transparency, matching Android adaptive backgrounds to `#48295d`, and saving iOS icons as opaque RGB on that purple. Refresh canonical Android mirrors and initialized mobile launcher resources. Keep these shipped icons in the repository. Retain existing illustrations, including `website/public/cauldronColored.png`.
 

@@ -30,10 +30,10 @@ export function GuestNudge() {
   return (
     <section
       aria-label={`Guest profile`}
-      className="rounded-lg border border-border/60 bg-background/60 p-3 backdrop-blur-md sm:p-4"
+      className="rounded-lg border border-brand-accent/25 bg-brand-accent-muted/60 p-3 backdrop-blur-md dark:border-border/60 dark:bg-background/60 sm:p-4"
     >
       <div className="flex items-start gap-3">
-        <UserRound className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+        <UserRound className="mt-0.5 h-4 w-4 shrink-0 text-brand-accent-foreground dark:text-primary" />
         <div className="min-w-0 flex-1 space-y-1">
           <p className="text-sm">
             You are playing as{" "}

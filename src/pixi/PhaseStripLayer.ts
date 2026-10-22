@@ -7,6 +7,7 @@ import { UI_FONT_FAMILY as FONT } from "@/themes/typography";
 import { Container, Graphics, Text, TextStyle, Sprite } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
 import { getTheme } from "@/hooks/useTheme";
+import { readableTextColor } from "@/themes/gameTheme";
 import { hexToNum } from "./colorUtils";
 import { applyIcon, getIconColor } from "./panelIcons";
 import { isCoarsePointer } from "@/lib/responsive";
@@ -96,14 +97,22 @@ const normalStyle = new TextStyle({
   fontFamily: FONT,
   fontSize: 11,
   fontWeight: "600",
-  fill: _initTheme.textOnTinted,
+  fill: readableTextColor(
+    _initTheme.phaseStrip.background,
+    _initTheme.canvas.shadow,
+    _initTheme.textOnTinted,
+  ),
   align: "center",
 });
 const activeStyle = new TextStyle({
   fontFamily: FONT,
   fontSize: 11,
   fontWeight: "bold",
-  fill: _initTheme.textOnTinted,
+  fill: readableTextColor(
+    _initTheme.phaseStrip.background,
+    _initTheme.canvas.shadow,
+    _initTheme.textOnTinted,
+  ),
   align: "center",
 });
 
@@ -458,8 +467,13 @@ export class PhaseStripLayer {
 
   setTheme(theme: Theme): void {
     this.theme = theme;
-    normalStyle.fill = theme.gameTheme.textOnTinted;
-    activeStyle.fill = theme.gameTheme.textOnTinted;
+    const foreground = readableTextColor(
+      theme.gameTheme.phaseStrip.background,
+      theme.gameTheme.canvas.shadow,
+      theme.gameTheme.textOnTinted,
+    );
+    normalStyle.fill = foreground;
+    activeStyle.fill = foreground;
     if (this.lastState) this.render(this.lastState);
   }
 
@@ -521,6 +535,7 @@ export class PhaseStripLayer {
   private render(state: PhaseStripState): void {
     this.lastState = state;
     const t = this.theme.gameTheme;
+    const foreground = readableTextColor(t.phaseStrip.background, t.canvas.shadow, t.textOnTinted);
     const y = this.canvasHeight / 2 - CELL_H / 2;
     const centerX = this.canvasWidth / 2;
 
@@ -667,7 +682,7 @@ export class PhaseStripLayer {
         CELL_R * 2,
       );
       this.expandedBackdrop.fill({
-        color: hexToNum(t.canvas.background),
+        color: hexToNum(t.phaseStrip.background),
         alpha: STRIP_EXPANDED_BG_ALPHA,
       });
       this.expandedBounds = {
@@ -702,9 +717,7 @@ export class PhaseStripLayer {
 
       // Combat icon position + tint
       if (cell.icon) {
-        const iconTint = isActive
-          ? this.theme.gameTheme.textOnTinted
-          : getIconColor("cmdsword", this.theme.gameTheme);
+        const iconTint = isActive ? foreground : getIconColor("cmdsword", this.theme.gameTheme);
         applyIcon(cell.icon, "cmdsword", iconTint);
         cell.icon.width = COMBAT_ICON_SIZE;
         cell.icon.height = COMBAT_ICON_SIZE;
@@ -724,7 +737,7 @@ export class PhaseStripLayer {
           const pipW = activePip ? COMBAT_PIP_ACTIVE_W : COMBAT_PIP_W;
           cell.pips.roundRect(px, py, pipW, COMBAT_PIP_H, COMBAT_PIP_H / 2);
           cell.pips.fill({
-            color: activePip ? turnColor : hexToNum(t.textMuted),
+            color: activePip ? turnColor : hexToNum(foreground),
             alpha: activePip ? 1 : INDICATOR_GHOST_ALPHA,
           });
           px += pipW + COMBAT_PIP_GAP;

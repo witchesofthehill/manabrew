@@ -92,6 +92,11 @@ public final class SabTransport implements InteractiveBridge {
     static native int seatCount();
 
     @JS.Coerce
+    @JS("const sabs = globalThis.__forgeSeatSabs;"
+        + "return Array.isArray(sabs) ? sabs.indexOf(globalThis.__forgeSab) : 0;")
+    static native int localSeat();
+
+    @JS.Coerce
     @JS("const seats = globalThis.__forgeDirectiveLanes || [];"
         + "const host = globalThis.__forgeHostLane;"
         + "globalThis.__mbLanes = (host ? [...seats, host] : seats).map((lane) => ({"
@@ -122,8 +127,11 @@ public final class SabTransport implements InteractiveBridge {
     static native boolean awaitAnswer(int seat, int timeoutMs);
 
     private static final int LANE_POLL_MS = 25;
+    private static final int LIBRARY_TOP_CARDS = 7;
 
     private final java.util.function.IntFunction<String> snapshots;
+    private final java.util.function.BiFunction<Integer, Integer, String> libraryTop;
+    private String publishedLibraryTop;
     /**
      * Seats a Manabot plays. A bot reads one board, the one it is prompted
      * on, so it gets a state only then; a person watches the whole game and
@@ -163,13 +171,15 @@ public final class SabTransport implements InteractiveBridge {
     }
 
     public SabTransport(final java.util.function.IntFunction<String> snapshots) {
-        this(snapshots, java.util.Collections.emptySet(), () -> "[]");
+        this(snapshots, java.util.Collections.emptySet(), () -> "[]", (seat, count) -> "[]");
     }
 
     public SabTransport(final java.util.function.IntFunction<String> snapshots,
             final java.util.Set<Integer> botSeats,
-            final java.util.function.Supplier<String> checkpointMetrics) {
+            final java.util.function.Supplier<String> checkpointMetrics,
+            final java.util.function.BiFunction<Integer, Integer, String> libraryTop) {
         this.snapshots = snapshots;
+        this.libraryTop = libraryTop;
         this.botSeats = botSeats;
         this.checkpointMetrics = checkpointMetrics;
     }
@@ -253,6 +263,19 @@ public final class SabTransport implements InteractiveBridge {
         if (!dice) {
             sendTagged(seat, "prompt", "prompt", promptJson);
         }
+        if (!bot && seat == localSeat()) {
+            publishLibraryTop(seat);
+        }
+    }
+
+    /** A worker event, so it reaches this tab and never a relayed seat. */
+    private void publishLibraryTop(final int seat) {
+        final String top = libraryTop.apply(seat, LIBRARY_TOP_CARDS);
+        if (top.equals(publishedLibraryTop)) {
+            return;
+        }
+        publishedLibraryTop = top;
+        post("game:library_top", "{\"cards\":" + top + "}");
     }
 
     private String exchangeWithAllSeats(final String promptJson) {

@@ -19,7 +19,7 @@ export function ManaBrewLogo({
   const { resolvedTheme } = useColorMode();
   const previewMode = useThemePreviewMode();
   const mode = (previewMode ?? resolvedTheme) === "light" ? "light" : "dark";
-  const dimensions = geometry[variant];
+  const dimensions = geometry[variant][mode];
   return (
     <svg
       viewBox={dimensions.viewBox}

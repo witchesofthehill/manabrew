@@ -72,8 +72,8 @@ export function cardRasterStats(cachedSources?: ReadonlySet<CardRaster>) {
   };
 }
 
-const TIER_WIDTH = { table: 244, native: 488, inspect: 732 } as const;
-const TIERS: readonly CardRenderTier[] = ["table", "native", "inspect"];
+export const CARD_RENDER_TIER_WIDTH = { table: 244, native: 488, inspect: 732 } as const;
+export const CARD_RENDER_TIERS: readonly CardRenderTier[] = ["table", "native", "inspect"];
 
 export function selectCardRenderTier(
   projectedWidth: number,
@@ -87,12 +87,14 @@ export function selectCardRenderTier(
   const pixels =
     Math.max(rotated ? height : projectedWidth, (rotated ? projectedWidth : height) * (488 / 680)) *
     Math.max(1, Math.min(2, density));
-  const suitable = TIERS.find((tier) => pixels <= TIER_WIDTH[tier]) ?? "inspect";
+  const suitable =
+    CARD_RENDER_TIERS.find((tier) => pixels <= CARD_RENDER_TIER_WIDTH[tier]) ?? "inspect";
   if (!previous || previous === suitable) return suitable;
-  const current = TIERS.indexOf(previous);
-  const next = TIERS.indexOf(suitable);
-  if (next > current) return pixels > TIER_WIDTH[previous] * 1.1 ? suitable : previous;
-  if (flipping || pixels >= TIER_WIDTH[TIERS[current - 1]!] * 0.85) return previous;
+  const current = CARD_RENDER_TIERS.indexOf(previous);
+  const next = CARD_RENDER_TIERS.indexOf(suitable);
+  if (next > current) return pixels > CARD_RENDER_TIER_WIDTH[previous] * 1.1 ? suitable : previous;
+  if (flipping || pixels >= CARD_RENDER_TIER_WIDTH[CARD_RENDER_TIERS[current - 1]!] * 0.85)
+    return previous;
   return suitable;
 }
 

@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 import type { GameLogEntryType, GameLogEntry } from "@/types/gameLog";
-import { withAlpha } from "@/themes/gameTheme";
+import { compositeThemeColor, ensureTextContrast, withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
 import { useLongPressPreview } from "@/hooks/useLongPressPreview";
 import type { LogCardPreviewOptions } from "@/components/game/game.types";
@@ -57,6 +57,13 @@ export function ActionLog({
   };
   const priorityColor = appTheme.primary;
   const infoColor = themeColors.promptAction.defenseAction;
+  const infoBackground = withAlpha(infoColor, 0.12);
+  const infoForeground = ensureTextContrast(
+    infoColor,
+    compositeThemeColor(infoBackground, appTheme.muted),
+    appTheme.foreground,
+    4.5,
+  );
   const typeLabel: Record<GameLogEntryType, string> = {
     info: `INFO`,
     action: `ACTION`,
@@ -90,11 +97,14 @@ export function ActionLog({
         return { bg: withAlpha(priorityColor, 0.12), fg: priorityColor };
       case "warning":
         return {
-          bg: withAlpha(themeColors.promptAction.attackAction, 0.12),
-          fg: themeColors.promptAction.attackAction,
+          bg: withAlpha(appTheme.warning, 0.12),
+          fg: appTheme.warning,
         };
       default:
-        return { bg: withAlpha(themeColors.textMuted, 0.12), fg: themeColors.textMuted };
+        return {
+          bg: withAlpha(appTheme["muted-foreground"], 0.12),
+          fg: appTheme["muted-foreground"],
+        };
     }
   };
   const formatTs = (timestampMs: number) =>
@@ -166,7 +176,7 @@ export function ActionLog({
                     {entry.sourceCardId && (
                       <span
                         className="px-1 py-0.5 rounded text-[10px] cursor-help"
-                        style={{ backgroundColor: withAlpha(infoColor, 0.12), color: infoColor }}
+                        style={{ backgroundColor: infoBackground, color: infoForeground }}
                         data-log-card-id={entry.sourceCardId}
                         onPointerEnter={(e) => {
                           if (e.pointerType === "touch") return;
@@ -183,7 +193,7 @@ export function ActionLog({
                     {entry.targetCardId && (
                       <span
                         className="px-1 py-0.5 rounded text-[10px] cursor-help"
-                        style={{ backgroundColor: withAlpha(infoColor, 0.12), color: infoColor }}
+                        style={{ backgroundColor: infoBackground, color: infoForeground }}
                         data-log-card-id={entry.targetCardId}
                         onPointerEnter={(e) => {
                           if (e.pointerType === "touch") return;

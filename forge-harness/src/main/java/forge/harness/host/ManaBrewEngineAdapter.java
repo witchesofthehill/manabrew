@@ -184,6 +184,11 @@ public final class ManaBrewEngineAdapter {
         return String.valueOf(session.isGameOver());
     }
 
+    public String getLibraryTop(final String sessionId, final int playerIndex, final int count) {
+        return InteractiveSnapshotExtractor.libraryTopJson(
+                getSession(sessionId).getGame(), playerIndex, count);
+    }
+
     public String drainCheckpointMetrics(final String sessionId) {
         return getSession(sessionId).drainCheckpointMetrics();
     }

@@ -242,10 +242,18 @@ BasePalette (Manabrew raw hues)
           → Tailwind @theme block:       bg-targeting-hostile, text-mana-w, …
 ```
 
-| Surface                   | Source of truth                                                      | Accessor                                                       |
-| ------------------------- | -------------------------------------------------------------------- | -------------------------------------------------------------- |
-| App chrome (Radix/shadcn) | `MANABREW_THEME.light` / `.dark` with mode-scoped overrides          | `useTheme()`                                                   |
-| Game board / Pixi canvas  | `MANABREW_THEME.gameColors: GameThemeColorMap` with shared overrides | `useTheme().gameTheme` (React) / `getTheme().gameTheme` (Pixi) |
+| Surface                   | Source of truth                                                               | Accessor                                                       |
+| ------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| App chrome (Radix/shadcn) | `MANABREW_THEME.light` / `.dark` with mode-scoped overrides                   | `useTheme()`                                                   |
+| Game board / Pixi canvas  | `MANABREW_THEME.gameColors`, mode-aware neutral chrome, then shared overrides | `useTheme().gameTheme` (React) / `getTheme().gameTheme` (Pixi) |
+
+Gameplay app surfaces follow the selected light/dark mode. Light phase strips inherit
+the resolved app card surface, and loading-card fills/strokes inherit muted/border;
+shared personal game overrides are applied last. Pair labels with the actual fill.
+Battlefield artwork, native card printing, mana, targeting, damage and player
+identities keep their game palettes. Battlefield availability/focus uses `cardRing`,
+not the darker light-mode app primary ink. `getDefaultGameThemeColorMap(mode)`
+supplies the same inherited values to editors.
 
 Native live-card highlights use the fixed `cardChange.*` family from
 `CARD_CHANGE_COLORS` in `buildGameColors.ts`. Its readable saturated hues

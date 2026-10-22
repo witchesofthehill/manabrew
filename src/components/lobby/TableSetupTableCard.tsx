@@ -18,35 +18,38 @@ export function TableSetupTableCard({
 }: TableSetupTableCardProps) {
   const cols = columns ?? Math.ceil(BOARD_BACKGROUNDS.length / 2);
   return (
-    <div
-      className={cn("grid gap-2", className, disabled && "pointer-events-none opacity-50")}
-      style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
-    >
-      {BOARD_BACKGROUNDS.map((option) => {
-        const selected = option.id === background;
-        return (
-          <button
-            key={option.id}
-            type="button"
-            title={option.label}
-            onClick={() => onBackgroundChange(option.id)}
-            className={cn(
-              "aspect-[16/9] w-full overflow-hidden rounded-md border text-[10px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-              selected
-                ? "border-selection-border ring-1 ring-selection-border"
-                : "border-border/70 hover:border-primary/50",
-            )}
-          >
-            {option.url ? (
-              <img src={option.url} alt={option.label} className="h-full w-full object-cover" />
-            ) : (
-              <span className="flex h-full w-full items-center justify-center bg-canvas-background text-muted-foreground">
-                None
-              </span>
-            )}
-          </button>
-        );
-      })}
+    <div className={cn(className, disabled && "pointer-events-none opacity-50")}>
+      <div
+        className="grid gap-2 rounded-lg border border-border bg-canvas-background p-2"
+        style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+      >
+        {BOARD_BACKGROUNDS.map((option) => {
+          const selected = option.id === background;
+          return (
+            <button
+              key={option.id}
+              type="button"
+              title={option.label}
+              aria-pressed={selected}
+              onClick={() => onBackgroundChange(option.id)}
+              className={cn(
+                "aspect-[16/9] w-full overflow-hidden rounded-md border text-[10px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-card-ring",
+                selected
+                  ? "border-card-selection ring-1 ring-card-selection"
+                  : "border-text-muted/40 hover:border-card-ring",
+              )}
+            >
+              {option.url ? (
+                <img src={option.url} alt={option.label} className="h-full w-full object-cover" />
+              ) : (
+                <span className="flex h-full w-full items-center justify-center bg-canvas-background text-text-muted">
+                  None
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

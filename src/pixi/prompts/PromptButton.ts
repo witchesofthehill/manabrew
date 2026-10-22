@@ -376,7 +376,7 @@ export class PromptButton extends Container {
         fontFamily: FONT,
         fontSize: 10,
         fontWeight: "700",
-        fill: hexToNum(this.theme.gameTheme.textOnTinted),
+        fill: hexToNum(this.theme.appTheme["muted-foreground"]),
       }),
     });
     label.anchor.set(0.5);
@@ -385,10 +385,10 @@ export class PromptButton extends Container {
     const height = 18;
     const background = new Graphics()
       .roundRect(-width / 2, -height / 2, width, height, 4)
-      .fill({ color: hexToNum(this.theme.gameTheme.canvas.shadow), alpha: 0.25 })
+      .fill({ color: hexToNum(this.theme.appTheme.muted), alpha: 0.95 })
       .moveTo(-width / 2 + 4, height / 2 - 1)
       .lineTo(width / 2 - 4, height / 2 - 1)
-      .stroke({ color: hexToNum(this.theme.gameTheme.canvas.shadow), width: 1, alpha: 0.35 });
+      .stroke({ color: hexToNum(this.theme.appTheme.border), width: 1, alpha: 0.8 });
     shortcut.eventMode = "none";
     shortcut.addChild(background, label);
     return shortcut;

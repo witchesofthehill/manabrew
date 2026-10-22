@@ -74,6 +74,7 @@ export interface GameState {
    *  null between games. Populated while the start-game flow is fetching
    *  Scryfall textures, before the engine is allowed to emit prompts. */
   cardPrefetchProgress: { loaded: number; total: number } | null;
+  cardRenderProgress: { loaded: number; total: number } | null;
   isPrefetchingCards: boolean;
   deferredQueue: DeferredSnapshot[];
   isFlashing: boolean;

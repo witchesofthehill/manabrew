@@ -2,7 +2,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Panel } from "@/components/dev/designSystem/kit";
 import { MANABREW_THEME, type GameThemeColorKey, type ThemeColors } from "@/themes";
-import { compositeThemeColor, contrastRatio, getGameThemeColorPaths } from "@/themes/gameTheme";
+import {
+  compositeThemeColor,
+  contrastRatio,
+  getGameThemeColorPaths,
+  readableTextColor,
+} from "@/themes/gameTheme";
 import type { Theme } from "@/hooks/useTheme";
 import type { ThemeDocument } from "@/themes/themeDocument";
 import { getGameColor } from "./themeEditorColors";
@@ -88,7 +93,6 @@ export function ThemeContrastPreview({
     background: GameThemeColorKey;
   }[] = [
     { label: "Empty-zone label", foreground: "textMuted", background: "canvas.background" },
-    { label: "Loading card name", foreground: "textGhost", background: "cardPlaceholder.fill" },
     ...(["attackAction", "defenseAction", "cancel"] as const).map((action) => ({
       label: `Prompt ${action}`,
       foreground: `promptForeground.${action}` as const,
@@ -156,6 +160,20 @@ export function ThemeContrastPreview({
               foreground={getGameColor(game, pair.foreground)}
               background={getGameColor(game, pair.background)}
               backdrop={pair.background === "canvas.background" ? page : canvas}
+            />
+          ))}
+          {(
+            [
+              ["Loading card name", game.cardPlaceholder.fill],
+              ["Phase label", game.phaseStrip.background],
+            ] as const
+          ).map(([label, background]) => (
+            <ContrastPair
+              key={label}
+              label={label}
+              foreground={readableTextColor(background, game.canvas.shadow, game.textOnTinted)}
+              background={background}
+              backdrop={canvas}
             />
           ))}
         </div>

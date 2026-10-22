@@ -112,9 +112,9 @@ export function TopBar({ override }: TopBarProps) {
         type="button"
         onClick={goHome}
         aria-label={`Manabrew Home`}
-        className="group relative flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xl border border-transparent p-0.5 motion-safe:transition-[background-color,border-color,box-shadow] hover:border-primary/30 hover:bg-primary/10 hover:shadow-sm focus-visible:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="group relative flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xl border border-transparent px-0.5 py-0 motion-safe:transition-[background-color,border-color,box-shadow] hover:border-primary/30 hover:bg-primary/10 hover:shadow-sm focus-visible:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <ManaBrewLogo decorative height={56} className="hidden shrink-0 sm:block" />
+        <ManaBrewLogo decorative height={40} className="hidden shrink-0 sm:block" />
         <ManaBrewLogo decorative variant="symbol" height={36} className="shrink-0 sm:hidden" />
       </button>
       {title && (

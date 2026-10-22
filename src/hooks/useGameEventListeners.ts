@@ -25,7 +25,8 @@ import {
 } from "@/stores/gameStore.constants";
 import type { Prompt, StateUpdate, ProtocolError } from "@/protocol";
 import type { DisplayEvent } from "@/protocol/display";
-import type { GameViewDto } from "@/protocol/game";
+import type { CardIdentity, GameViewDto } from "@/protocol/game";
+import { warmLibraryTop } from "@/lib/cardFaceWarmup";
 import { RELAY_FEATURE, SERVER_ERROR_CODE } from "@/types/server";
 import type { AuthResultPayload, GameAbortedPayload, RoomMessagePayload } from "@/types/server";
 type SelfHostedNodeRoomPayload = {
@@ -257,6 +258,11 @@ export function useGameEventListeners() {
         platform.events.on<DisplayEvent>("game:display", (payload) => {
           if (!payload?.kind) return;
           applyDisplay(payload, "Event", setState, getState);
+        }),
+      );
+      unsubscribers.push(
+        platform.events.on<{ cards?: CardIdentity[] }>("game:library_top", (payload) => {
+          if (payload?.cards?.length) warmLibraryTop(payload.cards);
         }),
       );
       unsubscribers.push(

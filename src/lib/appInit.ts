@@ -70,7 +70,7 @@ export function initApp(): Promise<void> {
         prefetchTokenArchive().catch((e) => console.error("[appInit] token archive failed:", e)),
       ]);
       postStage("decks");
-      await prefetchDeckCovers().catch((e) =>
+      void prefetchDeckCovers().catch((e) =>
         console.error("[appInit] deck cover prefetch failed:", e),
       );
     } finally {

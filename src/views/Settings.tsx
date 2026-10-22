@@ -153,7 +153,9 @@ export default function Settings() {
   const [editingThemeColorPath, setEditingThemeColorPath] = useState<string | null>(null);
   const [editingThemeColorValue, setEditingThemeColorValue] = useState("");
   const [themeColorFilter, setThemeColorFilter] = useState("");
-  const DEFAULT_GAME_THEME_COLOR_MAP = getDefaultGameThemeColorMap();
+  const DEFAULT_GAME_THEME_COLOR_MAP = getDefaultGameThemeColorMap(
+    resolvedTheme === "light" ? "light" : "dark",
+  );
   const zoneOrder = prefs.zonePanelOrder;
   const [playmatEditorOpen, setPlaymatEditorOpen] = useState(false);
   const defaultPlaymat = useAssetUrl(prefs.defaultPlaymatAssetId);

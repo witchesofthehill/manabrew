@@ -7,16 +7,16 @@
   user-select: none;
 }
 
-.mb-logo[data-mode="dark"] .mb-logo-light,
-.mb-logo[data-mode="light"] .mb-logo-dark,
-.mb-logo[data-mode="auto"] .mb-logo-light {
+.mb-logo[data-mode="dark"].mb-logo-light,
+.mb-logo[data-mode="light"].mb-logo-dark,
+.mb-logo[data-mode="auto"].mb-logo-light {
   display: none;
 }
 
-html[data-theme="light"] .mb-logo[data-mode="auto"] .mb-logo-light {
+html[data-theme="light"] .mb-logo[data-mode="auto"].mb-logo-light {
   display: inline;
 }
 
-html[data-theme="light"] .mb-logo[data-mode="auto"] .mb-logo-dark {
+html[data-theme="light"] .mb-logo[data-mode="auto"].mb-logo-dark {
   display: none;
 }

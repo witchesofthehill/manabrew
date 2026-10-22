@@ -561,7 +561,7 @@ export class ArrowLayer {
   private setupRune(entry: ArrowEntry, arrow: ArrowDef): void {
     const { ax1, ay1, ax2, ay2 } = shortenEndpoints(arrow.fromX, arrow.fromY, arrow.toX, arrow.toY);
     const curve = cubicCurve(ax1, ay1, ax2, ay2, BOW_RUNE);
-    const hue = hexToNum(this.theme.appTheme.primary);
+    const hue = hexToNum(this.theme.gameTheme.targeting.friendly);
     const points = sampleCubic(curve, RUNE_BEZIER_STEPS);
     let drawing = true;
     let remaining = RUNE_DASH_ON;

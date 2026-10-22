@@ -1645,7 +1645,7 @@ export class BoardRegion {
     if (card.wouldDieInCombat) {
       sprite.setRing(hexToNum(theme.gameTheme.pt.lethal));
     } else if (state.pendingCardIds?.includes(card.id)) {
-      sprite.setRing(hexToNum(theme.appTheme.primary));
+      sprite.setRing(hexToNum(theme.gameTheme.cardSelection));
     } else if (state.tappableLandIds?.includes(card.id)) {
       sprite.setRing(null);
       sprite.setPlayableRing(hexToNum(theme.gameTheme.cardRing));

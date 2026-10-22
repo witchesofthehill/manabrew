@@ -4,13 +4,14 @@ import { buildGameColors, type BasePalette } from "./buildGameColors";
 import { BRAND_COLORS } from "./brand";
 
 const { ember, mana, sage, neutral } = BRAND_COLORS;
-const lightMuted = "#F0E9EF";
-const lightBorder = "#D5CCD5";
+const lightMuted = "#E6DACA";
+const lightBorder = "#C7B9A8";
 const darkBorder = "#514753";
-const lightInput = "#8D838F";
+const lightInput = "#887765";
 const darkInput = "#7E7282";
-const lightDestructive = "#B82E45";
+const lightDestructive = "#A6283F";
 const darkDestructive = "#F0788B";
+const lightWarning = "#735400";
 
 const palette: BasePalette = {
   foreground: neutral.steam,
@@ -54,14 +55,14 @@ const MANABREW_THEME: {
 } = {
   name: "Manabrew",
   light: {
-    background: neutral.steam,
+    background: neutral.cream,
     foreground: neutral.soot,
-    card: neutral.white,
+    card: neutral.linen,
     "card-foreground": neutral.soot,
-    popover: neutral.white,
+    popover: neutral.ivory,
     "popover-foreground": neutral.soot,
-    primary: ember[700],
-    "primary-hover": ember[800],
+    primary: ember[800],
+    "primary-hover": ember[900],
     "primary-foreground": neutral.white,
     secondary: mana[700],
     "secondary-foreground": neutral.white,
@@ -76,12 +77,12 @@ const MANABREW_THEME: {
     "destructive-foreground": neutral.white,
     border: lightBorder,
     input: lightInput,
-    ring: ember[700],
+    ring: ember[800],
     selection: mana[100],
     "selection-border": mana[700],
     "selection-foreground": mana[800],
-    commander: "#806000",
-    warning: "#806000",
+    commander: lightWarning,
+    warning: lightWarning,
     overlay: "#000000",
   },
   dark: {

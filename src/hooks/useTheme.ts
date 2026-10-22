@@ -9,6 +9,7 @@ import {
   resolveGameThemeColors,
   flattenGameThemeToCssVars,
   type GameThemeColors,
+  type GameThemeColorMap,
 } from "@/themes/gameTheme";
 import type { ThemeDocument, ThemeMode } from "@/themes/themeDocument";
 export type { GameThemeColors } from "@/themes/gameTheme";
@@ -39,11 +40,25 @@ export function getThemeDocument(mode: ThemeMode = savedMode): ThemeDocument {
   };
 }
 
-export function resolveThemeDocument(document: ThemeDocument): Theme {
+function defaultGameColors(mode: ThemeMode, appTheme: ThemeColors): GameThemeColorMap {
+  if (mode === "dark") return MANABREW_THEME.gameColors;
   return {
-    appTheme: { ...MANABREW_THEME[document.mode], ...document.appOverrides[document.mode] },
+    ...MANABREW_THEME.gameColors,
+    "phaseStrip.background": appTheme.card,
+    "cardPlaceholder.fill": appTheme.muted,
+    "cardPlaceholder.stroke": appTheme.border,
+  };
+}
+
+export function resolveThemeDocument(document: ThemeDocument): Theme {
+  const appTheme = { ...MANABREW_THEME[document.mode], ...document.appOverrides[document.mode] };
+  return {
+    appTheme,
     gameTheme: {
-      ...resolveGameThemeColors(document.gameOverrides),
+      ...resolveGameThemeColors({
+        ...defaultGameColors(document.mode, appTheme),
+        ...document.gameOverrides,
+      }),
       fontSizes: MANABREW_THEME.gameFontSizes,
     },
   };
@@ -109,10 +124,13 @@ export function useThemePreviewMode(): ThemeMode | undefined {
   return useSyncExternalStore(subscribeTheme, getPreviewMode, getPreviewMode);
 }
 
-export function getDefaultGameThemeColorMap(): Record<string, string> {
-  return Object.fromEntries(
-    getGameThemeColorPaths().map((key) => [key, MANABREW_THEME.gameColors[key]]),
-  );
+export function getDefaultGameThemeColorMap(mode: ThemeMode = savedMode): Record<string, string> {
+  const document = getThemeDocument(mode);
+  const defaults = defaultGameColors(mode, {
+    ...MANABREW_THEME[mode],
+    ...document.appOverrides[mode],
+  });
+  return Object.fromEntries(getGameThemeColorPaths().map((key) => [key, defaults[key]]));
 }
 
 export function useTheme(): Theme {

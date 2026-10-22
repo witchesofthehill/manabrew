@@ -25,45 +25,31 @@ def clean(node):
 
 
 horizontal_dark = load("logos/dark/manabrew-horizontal-dark.svg")
-horizontal_light = copy.deepcopy(horizontal_dark)
-light_palette = load("logos/light/manabrew-horizontal-light.svg")
-light_paths = {
-    node.get("id"): node
-    for node in light_palette.iter(f"{{{NS}}}path")
-    if node.get("id")
-}
-for node in horizontal_light.iter(f"{{{NS}}}path"):
-    if node.get("id"):
-        node.set("fill", light_paths[node.get("id")].attrib["fill"])
-
-# The light export still has older proportions. Only take its wordmark ink;
-# both horizontal modes retain the latest dark export's balanced geometry.
-wordmark_id = "Manabrew___Alegreya_Sans_Bold_700"
-light_wordmark = light_palette.find(f".//*[@id='{wordmark_id}']/{{{NS}}}path")
-horizontal_light.find(f".//*[@id='{wordmark_id}']/{{{NS}}}path").set(
-    "fill", light_wordmark.attrib["fill"]
-)
+horizontal_light = load("logos/light/manabrew-horizontal-header-light.svg")
 symbol_dark = load("logos/dark/manabrew-symbol-dark.svg")
 symbol_light = load("logos/light/manabrew-symbol-light.svg")
 
+sources = {
+    "horizontal": {"dark": horizontal_dark, "light": horizontal_light},
+    "symbol": {"dark": symbol_dark, "light": symbol_light},
+}
 sprite = ET.Element(f"{{{NS}}}svg", {"viewBox": horizontal_dark.attrib["viewBox"]})
 definitions = ET.SubElement(sprite, f"{{{NS}}}defs")
-for identifier, source in [
-    ("mb-horizontal-dark", horizontal_dark),
-    ("mb-horizontal-light", horizontal_light),
-    ("mb-symbol-dark", symbol_dark),
-    ("mb-symbol-light", symbol_light),
-]:
-    group = ET.SubElement(definitions, f"{{{NS}}}g", {"id": identifier})
-    group.extend(clean(node) for node in source if node.tag == f"{{{NS}}}g")
+for variant, modes in sources.items():
+    for mode, source in modes.items():
+        group = ET.SubElement(definitions, f"{{{NS}}}g", {"id": f"mb-{variant}-{mode}"})
+        group.extend(clean(node) for node in source if node.tag == f"{{{NS}}}g")
 
 geometry = {
     variant: {
-        "viewBox": source.attrib["viewBox"],
-        "width": int(source.attrib["width"]),
-        "height": int(source.attrib["height"]),
+        mode: {
+            "viewBox": source.attrib["viewBox"],
+            "width": int(source.attrib["width"]),
+            "height": int(source.attrib["height"]),
+        }
+        for mode, source in modes.items()
     }
-    for variant, source in [("horizontal", horizontal_dark), ("symbol", symbol_dark)]
+    for variant, modes in sources.items()
 }
 (ROOT / "src/assets/brandLogoGeometry.json").write_text(json.dumps(geometry, indent=2) + "\n")
 

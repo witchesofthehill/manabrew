@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 import { PHASES } from "@/components/game/game.constants";
 import { useTheme } from "@/hooks/useTheme";
 import { cn } from "@/lib/utils";
+import { readableTextColor } from "@/themes/gameTheme";
 import type { StepKind } from "@/protocol";
 
 export const PHASE_CONTROLS = PHASES.filter((phase) => phase.id !== "untap").map((phase) => ({
@@ -68,6 +69,11 @@ export function MobilePhaseStops({
               style={{
                 backgroundColor: gameTheme.phaseStrip.background,
                 borderColor: activeColor,
+                color: readableTextColor(
+                  gameTheme.phaseStrip.background,
+                  gameTheme.canvas.shadow,
+                  gameTheme.textOnTinted,
+                ),
               }}
             >
               {currentShort}

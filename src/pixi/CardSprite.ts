@@ -27,7 +27,7 @@ import { deriveCardChoiceIndicators } from "@/components/game/game.utils";
 import { isHorizontalGameCard } from "@/lib/horizontalGameCard";
 import { gameCardFaceIndex } from "@/lib/gameCard";
 import type { Theme } from "@/hooks/useTheme";
-import { cardFrameTintHex, withAlpha } from "@/themes/gameTheme";
+import { cardFrameTintHex, readableTextColor, withAlpha } from "@/themes/gameTheme";
 import { getTheme } from "@/hooks/useTheme";
 import { hexToNum } from "./colorUtils";
 import { DOOMED_FILL_ALPHA } from "./constants";
@@ -104,6 +104,11 @@ export function setCardSpriteTheme(theme: Theme): void {
   for (const style of TINTED_TEXT_STYLES) {
     style.fill = theme.gameTheme.textOnTinted;
   }
+  NAME_STYLE.fill = readableTextColor(
+    theme.gameTheme.cardPlaceholder.fill,
+    theme.gameTheme.canvas.shadow,
+    theme.gameTheme.textOnTinted,
+  );
   updateFoilTheme(theme);
   if (shadowChanged) {
     for (const { context, width, height } of SHADOW_CONTEXTS) {
@@ -155,16 +160,18 @@ const COUNTER_STYLE = registerTintedTextStyle(
     fill: tintedTextFill(),
   }),
 );
-const NAME_STYLE = registerTintedTextStyle(
-  new TextStyle({
-    fontFamily: UI_FONT_FAMILY,
-    fontSize: 8,
-    fill: tintedTextFill(),
-    wordWrap: true,
-    wordWrapWidth: CARD_W - 8,
-    align: "center",
-  }),
-);
+const NAME_STYLE = new TextStyle({
+  fontFamily: UI_FONT_FAMILY,
+  fontSize: 8,
+  fill: readableTextColor(
+    activeTheme.gameTheme.cardPlaceholder.fill,
+    activeTheme.gameTheme.canvas.shadow,
+    activeTheme.gameTheme.textOnTinted,
+  ),
+  wordWrap: true,
+  wordWrapWidth: CARD_W - 8,
+  align: "center",
+});
 // Not registered as a tinted style: the frame text color is contrast-aware
 // (dark on light tint bars, light on the dark art scrim) and set per-card in
 // `renderFrame`, so each frame Text gets its own cloned style instance.

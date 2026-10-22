@@ -22,7 +22,7 @@ export function AssetsSection() {
             </div>
           </div>
           <p className="break-all font-mono text-[11px] text-muted-foreground">
-            Static sprite: interactive/manabrew-logo.svg · Balanced horizontal lockup · 1080 × 400
+            Static sprite: interactive/manabrew-logo.svg · Dark 1080 × 400 · Light 1450 × 400
           </p>
         </div>
         <div className="space-y-3">
@@ -45,10 +45,10 @@ export function AssetsSection() {
           </p>
         </div>
         <p className="text-xs text-muted-foreground">
-          Dark mode uses the approved white Brewy and ember wordmark; light mode uses the approved
-          ember and mana inks, including theme previews. Both horizontal modes preserve the latest
-          balanced logo geometry. ManaBrewLogo renders one complete static group from the shared
-          sprite. Preserve the source colors, aspect ratio, and transparent background.
+          Dark mode uses the approved white Brewy and ember wordmark; light mode uses black Brewy,
+          an orange wordmark, and lavender, ember, and sage bubbles, including theme previews. Each
+          mode keeps its approved geometry. ManaBrewLogo renders one complete static group from the
+          shared sprite. Preserve the source colors, aspect ratio, and transparent background.
         </p>
       </Panel>
 

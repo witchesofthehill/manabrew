@@ -371,6 +371,7 @@ export async function fetchCardsBySet(setCode: string): Promise<ScryfallCard[]> 
 }
 
 const SCRYFALL_IMAGE_MAX_RETRIES = 3;
+const SCRYFALL_IMAGE_TIMEOUT_MS = 15_000;
 
 async function fetchImageBlob(url: string, cache: RequestCache): Promise<string> {
   const installed = await cachedCardGlintAsset(url).catch(() => undefined);
@@ -379,6 +380,7 @@ async function fetchImageBlob(url: string, cache: RequestCache): Promise<string>
     cache,
     credentials: "omit",
     mode: "cors",
+    signal: AbortSignal.timeout(SCRYFALL_IMAGE_TIMEOUT_MS),
   });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   return URL.createObjectURL(await response.blob());

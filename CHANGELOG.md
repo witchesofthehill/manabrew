@@ -34,6 +34,7 @@
 
 ### Fixes
 
+* Allow combat damage to be divided freely among blockers under current Magic rules, while preserving lethal-damage requirements for trample.
 * Preserve each Room, split and aftermath half's frame color instead of inheriting the whole card's combined colors in hand and stack previews.
 * Highlight unlocked Room doors and the door represented on the stack in both card views, with outlines that include the collector strip.
 * Preserve localized Prototype abilities and reminders, including Japanese line wrapping.

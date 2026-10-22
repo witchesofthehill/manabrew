@@ -2334,7 +2334,7 @@ export class PromptLayer extends PromptModalLayer {
       const remaining =
         input.totalDamage -
         Object.values(this.damageAssigned).reduce((sum, value) => sum + value, 0);
-      if (remaining === 0 && this.damageLegallyOrdered(input, assignees)) {
+      if (remaining === 0 && this.damageAssignmentLegal(input)) {
         event.preventDefault();
         this.spec.respond({
           type: "combatDamageAssignmentDecision",

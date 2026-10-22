@@ -17,6 +17,8 @@ The development web container owns a separate `web-node-modules` volume. Host-si
 
 Multiple checkouts use separate Compose project names but the same published ports. Before restarting a stack, check the running web container's `com.docker.compose.project.working_dir` label. If another checkout owns port 1420, leave that stack running; starting this checkout's stopped web container fails with a port-allocation conflict.
 
+Docker Desktop can exhaust its VM disk while macOS still has free space; `apt-get update` may then report invalid signatures. Check `df -h /` inside a container before changing repository keys. Reclaim only explicitly approved, unused build-cache volumes or increase Docker's disk limit; preserve development data and keep APT signature verification enabled.
+
 Hub migrations are immutable once any environment has applied them. Extend the schema with the next numbered migration so existing and fresh databases converge through the same sequence.
 
 For Hub startup or health-check changes, read `docs/agents/HUB.md`: parsing the cached Scryfall index can exceed the deployment health-check budget.

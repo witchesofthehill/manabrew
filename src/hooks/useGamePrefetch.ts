@@ -6,13 +6,15 @@ import type { ClientGameView } from "@/stores/gameStore.types";
 import type { Deck, DeckCard } from "@/protocol/deck";
 import { renderCard } from "@/lib/cardRenderer";
 import { releaseCardRaster } from "@/lib/cardRenderTypes";
-import { manabrewRenderVariants, warmDeckFaces } from "@/lib/cardFaceWarmup";
+import { libraryTopRendered, manabrewRenderVariants, warmDeckFaces } from "@/lib/cardFaceWarmup";
+import { isForgeWasmActive } from "@/lib/forgeWasm";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { gameCardFaceIndex } from "@/lib/gameCard";
 
 export type GamePrefetchMode = "visible" | "full";
 
 const GAME_LOADING_CAP_MS = 10_000;
+const LIBRARY_TOP_ARRIVAL_MS = 3_000;
 
 function cardsToPrefetchImmediately(
   view: ClientGameView,
@@ -108,6 +110,13 @@ async function renderOpeningCards(): Promise<void> {
   );
 }
 
+function renderOpeningHand(since: number): Promise<unknown> | undefined {
+  const { gameView, myPlayerSlot, isMultiplayer, isHost } = useGameStore.getState();
+  const me = gameView?.players.find((player) => player.id === myPlayerSlot);
+  if (!isForgeWasmActive() || (isMultiplayer && !isHost) || !me || me.hand.length > 0) return;
+  return libraryTopRendered(since, LIBRARY_TOP_ARRIVAL_MS);
+}
+
 function renderDeckPools(): void {
   const { gameDecks, myPlayerSlot } = useGameStore.getState();
   const decks = Object.entries(gameDecks);
@@ -121,12 +130,15 @@ export function useGamePrefetch(mode: GamePrefetchMode): void {
   const gameView = useGameStore((s) => s.gameView);
   const isPrefetchingCards = useGameStore((s) => s.isPrefetchingCards);
   const startedRef = useRef(false);
+  const loadingSinceRef = useRef(0);
 
   useEffect(() => {
     if (!isPrefetchingCards) {
       startedRef.current = false;
+      loadingSinceRef.current = 0;
       return;
     }
+    loadingSinceRef.current ||= performance.now();
     if (!gameView || startedRef.current) return;
     startedRef.current = true;
 
@@ -141,6 +153,7 @@ export function useGamePrefetch(mode: GamePrefetchMode): void {
     const ready = Promise.all([
       prefetchCards(visibleCards).then(renderOpeningCards),
       waitForDeck ? prefetchAllCards(visibleCards, deckCards) : undefined,
+      renderOpeningHand(loadingSinceRef.current),
     ]);
     const cap = new Promise<void>((resolve) => setTimeout(resolve, GAME_LOADING_CAP_MS));
     void Promise.race([ready, cap]).finally(() => {

@@ -127,7 +127,7 @@ public final class SabTransport implements InteractiveBridge {
     static native boolean awaitAnswer(int seat, int timeoutMs);
 
     private static final int LANE_POLL_MS = 25;
-    private static final int LIBRARY_TOP_CARDS = 5;
+    private static final int LIBRARY_TOP_CARDS = 7;
 
     private final java.util.function.IntFunction<String> snapshots;
     private final java.util.function.BiFunction<Integer, Integer, String> libraryTop;

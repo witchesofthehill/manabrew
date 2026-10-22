@@ -13,6 +13,8 @@ const LAST_PLAYABLE_RANK = 99;
 
 let warmGeneration = 0;
 const knownDeckCards = new Map<string, DeckCard>();
+let libraryTop: { at: number; rendered: Promise<unknown> } | null = null;
+const libraryTopWaiters = new Set<() => void>();
 
 const identityKey = (identity: { name: string; setCode: string; cardNumber: string }) =>
   `${identity.name}|${identity.setCode.toLowerCase()}|${identity.cardNumber}`;
@@ -51,8 +53,11 @@ export function manabrewRenderVariants(): CardRenderOptions[] {
   return variants;
 }
 
-function renderFaces(deckCards: readonly DeckCard[], priority: CardRenderPriority) {
-  const variants = manabrewRenderVariants();
+function renderFaces(
+  deckCards: readonly DeckCard[],
+  priority: CardRenderPriority,
+  variants = manabrewRenderVariants(),
+) {
   return deckCards.flatMap((deckCard) =>
     variants.flatMap((options) =>
       (deckCard.backFace ? ([0, 1] as const) : ([0] as const)).map(
@@ -109,5 +114,25 @@ export function warmLibraryTop(cards: readonly CardIdentity[]): void {
     const deckCard = knownDeckCards.get(identityKey(identity));
     return deckCard ? [deckCard] : [];
   });
-  for (const render of renderFaces(deckCards, "visible")) void render().catch(() => undefined);
+  const renders = manabrewRenderVariants().flatMap((options) =>
+    renderFaces(deckCards, "visible", [options]).map((render) => render()),
+  );
+  libraryTop = { at: performance.now(), rendered: Promise.allSettled(renders) };
+  for (const waiter of libraryTopWaiters) waiter();
+  libraryTopWaiters.clear();
+}
+
+export function libraryTopRendered(since: number, arrivalMs: number): Promise<unknown> {
+  if (libraryTop && libraryTop.at >= since) return libraryTop.rendered;
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      libraryTopWaiters.delete(waiter);
+      resolve(undefined);
+    }, arrivalMs);
+    const waiter = () => {
+      clearTimeout(timer);
+      resolve(libraryTop?.rendered);
+    };
+    libraryTopWaiters.add(waiter);
+  });
 }

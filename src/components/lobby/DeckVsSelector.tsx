@@ -28,6 +28,7 @@ import { Check, Loader2, Search, Shuffle, Swords, User, Bot, X } from "lucide-re
 import { resolveCoverCard } from "@/components/deck/deckCover.utils";
 import { useHubDeckSearch } from "@/hooks/useHubDeckSearch";
 import { useHubStore } from "@/stores/useHubStore";
+import { warmDeckFaces } from "@/lib/cardFaceWarmup";
 import { useCardPoolStore } from "@/stores/useCardPoolStore";
 import { useCardPool } from "@/hooks/useCardPool";
 import type { DeckHubEntrySummary } from "@/api/hubTypes";
@@ -102,6 +103,10 @@ export function DeckVsSelector({
   const [pickingSide, setPickingSide] = useState<PickingSide>(
     preSelectedDeckEntry ? "opponent" : "player",
   );
+  useEffect(() => {
+    const decks = [playerDeck?.sourceDeck, opponentDeck?.sourceDeck].filter((deck) => !!deck);
+    if (decks.length) void warmDeckFaces(decks);
+  }, [playerDeck, opponentDeck]);
   const [selectedFormat, setSelectedFormat] = useState<PlayFormatId | null>(
     preSelectedDeckEntry?.formatId ?? rememberedFormatId,
   );

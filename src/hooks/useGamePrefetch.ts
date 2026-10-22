@@ -4,10 +4,9 @@ import { prefetchCards } from "@/stores/useScryfallStore";
 import { asDeckCard, asGameDeckCard, getDeckCardPool } from "@/lib/decks";
 import type { ClientGameView } from "@/stores/gameStore.types";
 import type { Deck, DeckCard } from "@/protocol/deck";
-import { renderCard, type CardRenderOptions } from "@/lib/cardRenderer";
-import { releaseCardRaster, selectCardRenderTier } from "@/lib/cardRenderTypes";
-import { GAME_CARD_SIZES } from "@/components/game/game.constants";
-import { overlayResolution } from "@/pixi/overlay/overlayRuntime";
+import { renderCard } from "@/lib/cardRenderer";
+import { releaseCardRaster } from "@/lib/cardRenderTypes";
+import { manabrewRenderVariants, warmDeckFaces } from "@/lib/cardFaceWarmup";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { gameCardFaceIndex } from "@/lib/gameCard";
 
@@ -75,53 +74,6 @@ async function prefetchAllCards(visibleCards: DeckCard[], deckCards: DeckCard[])
   await prefetchCards(deckCards, "art", onSettled);
 }
 
-function manabrewRenderVariants(): CardRenderOptions[] {
-  const preferences = usePreferencesStore.getState();
-  const resolution = overlayResolution(window.innerWidth, window.innerHeight);
-  const variants: CardRenderOptions[] = [];
-  if (
-    [
-      preferences.handCardStyle,
-      preferences.stackCardStyle,
-      preferences.promptCardStyle,
-      preferences.inGameCardPreviewStyle,
-    ].includes("rules")
-  ) {
-    variants.push({
-      rulesText: false,
-      standardFrameFallback: true,
-      tier: selectCardRenderTier(
-        GAME_CARD_SIZES.hand.width,
-        GAME_CARD_SIZES.hand.height,
-        resolution,
-      ),
-    });
-  }
-  if (preferences.battlefieldCardStyle === "frame") {
-    variants.push({
-      tier: selectCardRenderTier(
-        GAME_CARD_SIZES.battlefield.width,
-        GAME_CARD_SIZES.battlefield.height,
-        resolution,
-      ),
-    });
-  }
-  return variants;
-}
-
-function openingRenderVariants(): CardRenderOptions[] {
-  const variants = manabrewRenderVariants();
-  if (usePreferencesStore.getState().promptCardStyle !== "rules") return variants;
-  const tier = selectCardRenderTier(
-    GAME_CARD_SIZES.prompt.width,
-    GAME_CARD_SIZES.prompt.height,
-    overlayResolution(window.innerWidth, window.innerHeight),
-  );
-  const rules = variants.find((options) => options.rulesText === false);
-  if (rules && rules.tier !== tier) variants.push({ ...rules, tier });
-  return variants;
-}
-
 async function renderOpeningCards(): Promise<void> {
   const { gameView, gameDecks } = useGameStore.getState();
   const faces = (gameView?.players ?? [])
@@ -137,7 +89,7 @@ async function renderOpeningCards(): Promise<void> {
         : [faceIndex];
       return indices.map((face) => ({ card, deckCard, faceIndex: face }));
     });
-  const variants = openingRenderVariants();
+  const variants = manabrewRenderVariants();
   const total = variants.length * faces.length;
   if (total === 0) return;
   let loaded = 0;
@@ -156,24 +108,13 @@ async function renderOpeningCards(): Promise<void> {
   );
 }
 
-async function renderDeckPools(): Promise<void> {
+function renderDeckPools(): void {
   const { gameDecks, myPlayerSlot } = useGameStore.getState();
-  const decks = Object.entries(gameDecks)
-    .sort(([a], [b]) => Number(b === myPlayerSlot) - Number(a === myPlayerSlot))
-    .map(([, deck]) => deck);
-  const variants = manabrewRenderVariants();
-  for (const deck of decks) {
-    await Promise.allSettled(
-      variants.flatMap((options) =>
-        getDeckCardPool(deck).map((deckCard) =>
-          renderCard({ deckCard, faceIndex: 0, gameplay: true }, undefined, {
-            ...options,
-            priority: "background",
-          }).then(releaseCardRaster),
-        ),
-      ),
-    );
-  }
+  void warmDeckFaces(
+    Object.entries(gameDecks)
+      .sort(([a], [b]) => Number(b === myPlayerSlot) - Number(a === myPlayerSlot))
+      .map(([, deck]) => deck),
+  );
 }
 
 export function useGamePrefetch(mode: GamePrefetchMode): void {
@@ -204,7 +145,7 @@ export function useGamePrefetch(mode: GamePrefetchMode): void {
     const cap = new Promise<void>((resolve) => setTimeout(resolve, GAME_LOADING_CAP_MS));
     void Promise.race([ready, cap]).finally(() => {
       useGameStore.setState({ isPrefetchingCards: false });
-      void renderDeckPools();
+      renderDeckPools();
     });
     if (waitForDeck) return;
     void prefetchCards(likelyCards).then(() => {

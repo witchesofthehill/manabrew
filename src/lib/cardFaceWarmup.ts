@@ -1,14 +1,21 @@
-import type { Deck } from "@/protocol/deck";
+import type { Deck, DeckCard } from "@/protocol/deck";
+import type { CardIdentity } from "@/protocol/game";
 import { getDeckCardPool } from "@/lib/decks";
 import { renderCard, type CardRenderOptions } from "@/lib/cardRenderer";
 import { releaseCardRaster, selectCardRenderTier } from "@/lib/cardRenderTypes";
+import type { CardRenderPriority } from "@/lib/cardRenderQueue";
 import { GAME_CARD_SIZES } from "@/components/game/game.constants";
 import { overlayResolution } from "@/pixi/overlay/overlayRuntime";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 
 const WARM_BATCH = 8;
+const LAST_PLAYABLE_RANK = 99;
 
 let warmGeneration = 0;
+const knownDeckCards = new Map<string, DeckCard>();
+
+const identityKey = (identity: { name: string; setCode: string; cardNumber: string }) =>
+  `${identity.name}|${identity.setCode.toLowerCase()}|${identity.cardNumber}`;
 
 export function manabrewRenderVariants(): CardRenderOptions[] {
   const preferences = usePreferencesStore.getState();
@@ -44,25 +51,63 @@ export function manabrewRenderVariants(): CardRenderOptions[] {
   return variants;
 }
 
-export async function warmDeckFaces(decks: readonly Deck[]): Promise<void> {
-  const generation = ++warmGeneration;
+function renderFaces(deckCards: readonly DeckCard[], priority: CardRenderPriority) {
   const variants = manabrewRenderVariants();
-  const requests = decks
-    .flatMap(getDeckCardPool)
-    .flatMap((deckCard) =>
-      (deckCard.backFace ? ([0, 1] as const) : ([0] as const)).flatMap((faceIndex) =>
-        variants.map((options) => ({ deckCard, faceIndex, options })),
+  return deckCards.flatMap((deckCard) =>
+    variants.flatMap((options) =>
+      (deckCard.backFace ? ([0, 1] as const) : ([0] as const)).map(
+        (faceIndex) => () =>
+          renderCard({ deckCard, faceIndex, gameplay: true }, undefined, {
+            ...options,
+            priority,
+          }).then(releaseCardRaster),
       ),
-    );
-  for (let index = 0; index < requests.length; index += WARM_BATCH) {
-    if (generation !== warmGeneration) return;
-    await Promise.allSettled(
-      requests.slice(index, index + WARM_BATCH).map(({ deckCard, faceIndex, options }) =>
-        renderCard({ deckCard, faceIndex, gameplay: true }, undefined, {
-          ...options,
-          priority: "background",
-        }).then(releaseCardRaster),
-      ),
-    );
+    ),
+  );
+}
+
+function playableRank(deckCard: DeckCard, own: boolean): number {
+  return Math.min(deckCard.cmc ?? 0, LAST_PLAYABLE_RANK - 1) * 2 + (own ? 0 : 1);
+}
+
+function warmOrder(own: readonly Deck[], others: readonly Deck[]): DeckCard[] {
+  const ranked = new Map<string, { deckCard: DeckCard; rank: number }>();
+  const add = (deckCard: DeckCard, rank: number) => {
+    const key = identityKey(deckCard.identity);
+    knownDeckCards.set(key, deckCard);
+    const existing = ranked.get(key);
+    if (!existing || rank < existing.rank) ranked.set(key, { deckCard, rank });
+  };
+  for (const [decks, isOwn] of [
+    [own, true],
+    [others, false],
+  ] as const) {
+    for (const deck of decks) {
+      for (const deckCard of [...deck.cards, ...(deck.commanders ?? [])])
+        add(deckCard, playableRank(deckCard, isOwn));
+      for (const deckCard of getDeckCardPool(deck))
+        add(deckCard, LAST_PLAYABLE_RANK * 2 + (isOwn ? 0 : 1));
+    }
   }
+  return [...ranked.values()].sort((a, b) => a.rank - b.rank).map(({ deckCard }) => deckCard);
+}
+
+export async function warmDeckFaces(
+  own: readonly Deck[],
+  others: readonly Deck[] = [],
+): Promise<void> {
+  const generation = ++warmGeneration;
+  const renders = renderFaces(warmOrder(own, others), "background");
+  for (let index = 0; index < renders.length; index += WARM_BATCH) {
+    if (generation !== warmGeneration) return;
+    await Promise.allSettled(renders.slice(index, index + WARM_BATCH).map((render) => render()));
+  }
+}
+
+export function warmLibraryTop(cards: readonly CardIdentity[]): void {
+  const deckCards = cards.flatMap((identity) => {
+    const deckCard = knownDeckCards.get(identityKey(identity));
+    return deckCard ? [deckCard] : [];
+  });
+  for (const render of renderFaces(deckCards, "visible")) void render().catch(() => undefined);
 }

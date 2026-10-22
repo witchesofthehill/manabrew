@@ -76,6 +76,7 @@ let activeTheme: Theme = getTheme();
 const TINTED_TEXT_STYLES: TextStyle[] = [];
 const SHADOW_CONTEXTS: { width: number; height: number; context: GraphicsContext }[] = [];
 const NO_FOIL_EXCLUSIONS = [] as const;
+const FACE_HOLD_CAP_MS = 3000;
 
 function drawShadowContext(context: GraphicsContext, width: number, height: number): void {
   context.clear();
@@ -479,6 +480,8 @@ export class CardSprite extends Container {
   private readonly kind: "battlefield" | "hand" | "zone";
   private handRulesFace: HandRulesCardFace | null = null;
   private handRulesView = false;
+  private faceHoldTimer: ReturnType<typeof setTimeout> | null = null;
+  private faceHoldExpired = false;
   private handRulesInteractive = true;
   private handRulesActions: HandActionOption[] = [];
   private onSelectHandRulesAction: ((action: HandActionOption) => void) | null = null;
@@ -1129,10 +1132,29 @@ export class CardSprite extends Container {
     this.updateHandControls();
     this.refreshCardRadiusChrome();
   }
+  private holdUntilFaceReady(pending: boolean): void {
+    if (!pending) {
+      if (this.faceHoldTimer) clearTimeout(this.faceHoldTimer);
+      this.faceHoldTimer = null;
+      this.faceHoldExpired = false;
+      this.renderable = true;
+      return;
+    }
+    this.renderable = this.faceHoldExpired;
+    if (this.faceHoldTimer || this.faceHoldExpired) return;
+    this.faceHoldTimer = setTimeout(() => {
+      this.faceHoldTimer = null;
+      if (this.destroyed) return;
+      this.faceHoldExpired = true;
+      this.syncHandFaceVisibility();
+      this.onVisualChange?.();
+    }, FACE_HOLD_CAP_MS);
+  }
   private syncHandFaceVisibility(): void {
     const hidden = this.hasHiddenIdentity();
     const ready = !hidden && this.handRulesFace?.imageReady === true;
     const pending = !hidden && this.handRulesView && !ready;
+    this.holdUntilFaceReady(pending);
     this.printedFaceContainer.visible = hidden || !this.handRulesView || pending;
     this.printedChromeContainer.visible = hidden || !this.handRulesView;
     this.imageSpr.visible = this._imageLoaded && !pending;
@@ -1596,6 +1618,8 @@ export class CardSprite extends Container {
     }
   }
   destroy(options?: DestroyOptions): void {
+    if (this.faceHoldTimer) clearTimeout(this.faceHoldTimer);
+    this.faceHoldTimer = null;
     this.loadGeneration++;
     this.previewFlipGeneration += 1;
     this.previewFlip.cancel();

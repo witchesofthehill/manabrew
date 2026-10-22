@@ -628,6 +628,8 @@ const cacheTexture = (url: string, texture: Texture): void => {
 };
 
 const pendingImagePrintings = new Map<string, Promise<ScryfallCard | undefined>>();
+const FAILED_LOOKUP_RETRY_MS = 30_000;
+const failedLookups = new Map<string, { at: number; error: unknown }>();
 const pendingLocalizedCardDetails = new Map<string, Promise<LocalizedCardDetails | null>>();
 
 async function fetchPrintsByOracleIdsOrEmpty(
@@ -832,6 +834,7 @@ export const useScryfallStore = create<ScryfallState>()(
         printingsByOracleId.clear();
         setPrefetchGeneration += 1;
         pendingSetPrefetches.clear();
+        failedLookups.clear();
         set((state) => {
           state.locale = locale;
           state.cards = {};
@@ -920,6 +923,8 @@ export const useScryfallStore = create<ScryfallState>()(
           return get().cards[key]?.card ?? card;
         }
         if (existing?.pendingPromise) return existing.pendingPromise;
+        const failed = failedLookups.get(key);
+        if (failed && performance.now() - failed.at < FAILED_LOOKUP_RETRY_MS) throw failed.error;
 
         const { _fetchCardLookup } = get();
         const pendingPromise = _fetchCardLookup(lookup);
@@ -927,8 +932,11 @@ export const useScryfallStore = create<ScryfallState>()(
           state.cards[key] = { pendingPromise };
         });
         try {
-          return await pendingPromise;
+          const card = await pendingPromise;
+          failedLookups.delete(key);
+          return card;
         } catch (error) {
+          failedLookups.set(key, { at: performance.now(), error });
           set((state) => {
             if (state.cards[key]?.pendingPromise === pendingPromise) delete state.cards[key];
           });

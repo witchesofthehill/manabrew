@@ -7,6 +7,7 @@
 
 import { deckHasCardCosmetics, normalizeCardCosmetics } from "@/lib/cardCosmetics";
 import type { EngineGameStats } from "@/lib/engineTelemetry";
+import type { CardIdentity } from "@/protocol/game";
 import {
   noteEngineThinkTime,
   noteCheckpointTimings,
@@ -562,6 +563,13 @@ class WorkerBridge {
             bot?: number;
             checkpointMs?: number;
           };
+          this.eventBus.on<{ cards?: CardIdentity[] }>("game:library_top", (payload) => {
+            const cards = payload?.cards;
+            if (cards?.length)
+              void import("@/lib/cardFaceWarmup").then(({ warmLibraryTop }) =>
+                warmLibraryTop(cards),
+              );
+          });
           this.eventBus.on<Array<[number, number]>>("forge:checkpoints", (samples) => {
             if (samples) noteCheckpointTimings(samples);
           });

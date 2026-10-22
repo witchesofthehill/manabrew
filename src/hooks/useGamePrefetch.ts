@@ -110,10 +110,10 @@ async function renderOpeningCards(): Promise<void> {
 
 function renderDeckPools(): void {
   const { gameDecks, myPlayerSlot } = useGameStore.getState();
+  const decks = Object.entries(gameDecks);
   void warmDeckFaces(
-    Object.entries(gameDecks)
-      .sort(([a], [b]) => Number(b === myPlayerSlot) - Number(a === myPlayerSlot))
-      .map(([, deck]) => deck),
+    decks.filter(([slot]) => slot === myPlayerSlot).map(([, deck]) => deck),
+    decks.filter(([slot]) => slot !== myPlayerSlot).map(([, deck]) => deck),
   );
 }
 

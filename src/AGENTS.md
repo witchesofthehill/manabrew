@@ -247,6 +247,8 @@ Deck-editor card groups use name, set code, collector number, physical foil and 
 
 Deck-editor delegated hover resolves `data-card-id` to the exact displayed `DeckCard` by copy ID across list, grid and stack layouts and every section. Keep `data-card-name` for name-based selection and bulk operations, not preview identity. Same-name appearance variants must retain their own printing, foil and cosmetics through `deckCardToPreviewDto`; ignore portaled hover targets outside the actual deck container.
 
+A failed card lookup is remembered for `FAILED_LOOKUP_RETRY_MS`, and repeats inside that window fail at once. Without it every render of the card queued a new request behind the Scryfall rate limiter.
+
 Lookup keys are normalized internally (`id:` / `set:…::cn:…` / `name:…[::set:…]`); always pass structured args, never assemble keys yourself. Token cards resolve through the same store from `public/token_archive.json`; do not add per-component token fetch/discovery hooks. A failed archive download must not prevent ordinary exact-printing card lookups from reaching Scryfall.
 
 Read existing cached entries through `get().cards` when prefetching printings. Immer's mapped draft type drops Pixi `Texture` private members; preserve the store-owned texture rather than casting a draft to `ScryfallEntry`.

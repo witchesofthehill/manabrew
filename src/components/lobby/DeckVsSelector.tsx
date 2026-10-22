@@ -104,8 +104,9 @@ export function DeckVsSelector({
     preSelectedDeckEntry ? "opponent" : "player",
   );
   useEffect(() => {
-    const decks = [playerDeck?.sourceDeck, opponentDeck?.sourceDeck].filter((deck) => !!deck);
-    if (decks.length) void warmDeckFaces(decks);
+    const own = playerDeck?.sourceDeck;
+    const opponent = opponentDeck?.sourceDeck;
+    if (own || opponent) void warmDeckFaces(own ? [own] : [], opponent ? [opponent] : []);
   }, [playerDeck, opponentDeck]);
   const [selectedFormat, setSelectedFormat] = useState<PlayFormatId | null>(
     preSelectedDeckEntry?.formatId ?? rememberedFormatId,

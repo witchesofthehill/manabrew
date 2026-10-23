@@ -4,11 +4,13 @@ import { getDeckCardPool } from "@/lib/decks";
 import { renderCard, type CardRenderOptions } from "@/lib/cardRenderer";
 import { releaseCardRaster, selectCardRenderTier } from "@/lib/cardRenderTypes";
 import type { CardRenderPriority } from "@/lib/cardRenderQueue";
+import { CARD_WORKER_COUNT } from "@/lib/cardCompositionWorker";
 import { GAME_CARD_SIZES } from "@/components/game/game.constants";
 import { overlayResolution } from "@/pixi/overlay/overlayRuntime";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 
 const IDLE_FALLBACK_MS = 800;
+const WARM_CONCURRENCY = CARD_WORKER_COUNT + 1;
 const LAST_PLAYABLE_RANK = 99;
 
 let warmGeneration = 0;
@@ -123,11 +125,15 @@ export async function warmDeckFaces(
     ...renderFaces(cards, "background"),
     ...renderFaces(cards, "background", laterRenderVariants()),
   ];
-  for (const render of renders) {
+  let next = 0;
+  const lane = async (): Promise<void> => {
     await idle();
-    if (generation !== warmGeneration) return;
+    const render = renders[next++];
+    if (!render || generation !== warmGeneration) return;
     await render().catch(() => undefined);
-  }
+    return lane();
+  };
+  await Promise.all(Array.from({ length: WARM_CONCURRENCY }, lane));
 }
 
 function idle(): Promise<void> {

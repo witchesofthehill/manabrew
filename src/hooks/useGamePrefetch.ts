@@ -92,20 +92,11 @@ async function renderOpeningCards(): Promise<void> {
       return indices.map((face) => ({ card, deckCard, faceIndex: face }));
     });
   const variants = manabrewRenderVariants();
-  const total = variants.length * faces.length;
-  if (total === 0) return;
-  let loaded = 0;
-  useGameStore.setState({ cardRenderProgress: { loaded, total } });
+  if (variants.length * faces.length === 0) return;
+  useGameStore.setState({ isRenderingCards: true });
   await Promise.allSettled(
     variants.flatMap((options) =>
-      faces.map((request) =>
-        renderCard(request, undefined, options)
-          .then(releaseCardRaster)
-          .finally(() => {
-            loaded += 1;
-            useGameStore.setState({ cardRenderProgress: { loaded, total } });
-          }),
-      ),
+      faces.map((request) => renderCard(request, undefined, options).then(releaseCardRaster)),
     ),
   );
 }

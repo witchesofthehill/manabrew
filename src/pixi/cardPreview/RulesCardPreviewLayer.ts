@@ -371,6 +371,9 @@ export class RulesCardPreviewLayer {
       (this.faceTexture !== null || this.renderState === "error")
     );
   }
+  get faceFailed(): boolean {
+    return this.renderState === "error" && this.faceSprite.texture === Texture.EMPTY;
+  }
   get presentationReady(): boolean {
     return this.flip.isReady();
   }

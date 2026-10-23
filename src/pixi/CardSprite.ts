@@ -1206,9 +1206,10 @@ export class CardSprite extends Container {
   private syncHandFaceVisibility(): void {
     const hidden = this.hasHiddenIdentity();
     const ready = !hidden && this.handRulesFace?.imageReady === true;
-    const pending = !hidden && this.handRulesView && !ready;
+    const pending =
+      !hidden && this.handRulesView && !ready && this.handRulesFace?.faceFailed !== true;
     this.holdUntilFaceReady(pending);
-    this.printedFaceContainer.visible = hidden || !this.handRulesView || pending;
+    this.printedFaceContainer.visible = hidden || !this.handRulesView || !ready;
     this.printedChromeContainer.visible = hidden || !this.handRulesView;
     this.imageSpr.visible = this._imageLoaded && !pending;
     this.imageMask.visible = this.imageSpr.visible;

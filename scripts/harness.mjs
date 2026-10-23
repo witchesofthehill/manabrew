@@ -255,7 +255,8 @@ function rebuild() {
   // Build from the repo root via the aggregator pom so forge-harness and the
   // engine modules it depends on share one reactor (resolves the engine's
   // ${revision} version without cross-reactor install/flatten).
-  const result = spawnSync(maven, ["-pl", "forge-harness", "-am", "package", "-DskipTests"], {
+  const goals = process.argv.includes("--clean") ? ["clean", "package"] : ["package"];
+  const result = spawnSync(maven, ["-pl", "forge-harness", "-am", ...goals, "-DskipTests"], {
     cwd: root,
     stdio: "inherit",
     shell: process.platform === "win32" && maven.toLowerCase().endsWith(".cmd"),
@@ -417,7 +418,7 @@ switch (mode) {
     break;
   default:
     console.error(
-      "Usage: node scripts/harness.mjs <build|test|ensure|stage|check|update-checksum|checksum|native-checksum>",
+      "Usage: node scripts/harness.mjs <build|test|ensure|stage|check|update-checksum|checksum|native-checksum> [--clean]",
     );
     process.exit(1);
 }

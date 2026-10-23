@@ -8,7 +8,7 @@ import { GAME_CARD_SIZES } from "@/components/game/game.constants";
 import { overlayResolution } from "@/pixi/overlay/overlayRuntime";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 
-const WARM_BATCH = 8;
+const IDLE_FALLBACK_MS = 800;
 const LAST_PLAYABLE_RANK = 99;
 
 let warmGeneration = 0;
@@ -123,10 +123,18 @@ export async function warmDeckFaces(
     ...renderFaces(cards, "background"),
     ...renderFaces(cards, "background", laterRenderVariants()),
   ];
-  for (let index = 0; index < renders.length; index += WARM_BATCH) {
+  for (const render of renders) {
+    await idle();
     if (generation !== warmGeneration) return;
-    await Promise.allSettled(renders.slice(index, index + WARM_BATCH).map((render) => render()));
+    await render().catch(() => undefined);
   }
+}
+
+function idle(): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof requestIdleCallback === "function") requestIdleCallback(() => resolve());
+    else setTimeout(resolve, IDLE_FALLBACK_MS);
+  });
 }
 
 export function warmLibraryTop(cards: readonly CardIdentity[]): void {

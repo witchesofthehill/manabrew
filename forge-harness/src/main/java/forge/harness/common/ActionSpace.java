@@ -164,7 +164,7 @@ public final class ActionSpace {
             if (!includeManaAbilities && sa.isManaAbility()) {
                 continue;
             }
-            if (!hasValidTargets(sa)) {
+            if (!announcesX(sa) && !hasValidTargets(sa)) {
                 continue;
             }
             if (!sa.checkRestrictions(spellHost(sa, game, spellHosts), player)) {
@@ -262,6 +262,14 @@ public final class ActionSpace {
             sa.setXManaCostPaid(null);
         }
         return false;
+    }
+
+    private static boolean announcesX(final SpellAbility sa) {
+        if (sa.getXManaCostPaid() != null || sa.getPayCosts() == null || !sa.getPayCosts().hasXInAnyCostPart()) {
+            return false;
+        }
+        final String sVar = sa.getParamOrDefault("XAlternative", sa.getSVar("X"));
+        return "Count$xPaid".equals(sVar) || sVar.isEmpty();
     }
 
     private static boolean costDependsOnTargets(final SpellAbility sa) {

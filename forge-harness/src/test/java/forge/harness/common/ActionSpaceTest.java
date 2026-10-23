@@ -40,7 +40,25 @@ public final class ActionSpaceTest {
         targetDiscountedSpellNeedsTheDiscountTarget();
         relativeTargetDiscountIsOffered();
         relativeTargetDiscountNeedsTheDiscountTarget();
+        targetsDependingOnAnnouncedXAreOffered();
         System.exit(0);
+    }
+
+    private static void targetsDependingOnAnnouncedXAreOffered() {
+        final Game game = newGame();
+        final Player p = game.getPlayers().get(1);
+        add("Swamp", p, ZoneType.Battlefield);
+        add("Swamp", p, ZoneType.Battlefield);
+        add("Swamp", p, ZoneType.Battlefield);
+        add("Swamp", p, ZoneType.Battlefield);
+        add("Lazotep Quarry", p, ZoneType.Battlefield);
+        add("Grizzly Bears", p, ZoneType.Graveyard);
+        game.getAction().checkStaticAbilities();
+
+        if (!offered(p, true).contains("Lazotep Quarry")) {
+            throw new AssertionError(
+                    "Lazotep Quarry's X ability targeting a mana value 2 creature card was not offered");
+        }
     }
 
     private static void relativeTargetDiscountIsOffered() {

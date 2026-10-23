@@ -198,6 +198,8 @@ public final class HarnessPlayPlumbing {
                 || !sa.setupTargets() || !sa.isLegalAfterStack()) {
             if (sa.isSpell() && !source.isCopiedSpell() && hz != null) {
                 GameActionUtil.rollbackAbility(sa, hz, zonePosition, pay, host);
+            } else if (sa.isActivatedAbility()) {
+                sa.setXManaCostPaid(null);
             }
             if (manaColorConversion) {
                 manapool.restoreColorReplacements();

@@ -41,6 +41,7 @@ public final class ActionSpaceTest {
         relativeTargetDiscountIsOffered();
         relativeTargetDiscountNeedsTheDiscountTarget();
         targetsDependingOnAnnouncedXAreOffered();
+        announcedXWithoutTargetsIsNotOffered();
         System.exit(0);
     }
 
@@ -58,6 +59,21 @@ public final class ActionSpaceTest {
         if (!offered(p, true).contains("Lazotep Quarry")) {
             throw new AssertionError(
                     "Lazotep Quarry's X ability targeting a mana value 2 creature card was not offered");
+        }
+    }
+
+    private static void announcedXWithoutTargetsIsNotOffered() {
+        final Game game = newGame();
+        final Player p = game.getPlayers().get(1);
+        add("Mountain", p, ZoneType.Battlefield);
+        add("Mountain", p, ZoneType.Battlefield);
+        add("Mountain", p, ZoneType.Battlefield);
+        add("Mountain", p, ZoneType.Battlefield);
+        add("Heat Ray", p, ZoneType.Hand);
+        game.getAction().checkStaticAbilities();
+
+        if (offered(p, true).contains("Heat Ray")) {
+            throw new AssertionError("Heat Ray offered with no creature to target");
         }
     }
 

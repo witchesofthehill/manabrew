@@ -25,7 +25,7 @@ interface GameLoadingScreenProps {
 export function GameLoadingScreen({ debugInfo, onComplete }: GameLoadingScreenProps) {
   const isPrefetchingCards = useGameStore((s) => s.isPrefetchingCards);
   const cardPrefetchProgress = useGameStore((s) => s.cardPrefetchProgress);
-  const cardRenderProgress = useGameStore((s) => s.cardRenderProgress);
+  const isRenderingCards = useGameStore((s) => s.isRenderingCards);
   const hasGameView = useGameStore((s) => s.gameView !== null);
   const seated = useGameStore((s) => (s.gameView?.players?.length ?? 0) > 0);
   const endGame = useGameStore((s) => s.endGame);
@@ -38,7 +38,7 @@ export function GameLoadingScreen({ debugInfo, onComplete }: GameLoadingScreenPr
   let target = 0;
   if (/started/i.test(debugInfo)) target = 1;
   if (hasGameView && seated) target = LOAD_CARD_IMAGES_STEP;
-  if (hasGameView && seated && cardRenderProgress) target = RENDER_CARDS_STEP;
+  if (hasGameView && seated && isRenderingCards) target = RENDER_CARDS_STEP;
   if (hasGameView && seated && !isPrefetchingCards) target = STEPS.length;
   useEffect(() => {
     lastAdvanceAt.current = Date.now();
@@ -167,9 +167,6 @@ export function GameLoadingScreen({ debugInfo, onComplete }: GameLoadingScreenPr
                   </div>
                   {active && index === LOAD_CARD_IMAGES_STEP && cardPrefetchProgress && (
                     <CardProgressBar label="Card images loaded" {...cardPrefetchProgress} />
-                  )}
-                  {active && index === RENDER_CARDS_STEP && cardRenderProgress && (
-                    <CardProgressBar label="Manabrew cards rendered" {...cardRenderProgress} />
                   )}
                 </li>
               );

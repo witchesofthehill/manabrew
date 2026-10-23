@@ -67,6 +67,11 @@ async function drain(): Promise<void> {
     if (!next || PRIORITY[job.priority] < PRIORITY[next.priority]) next = job;
   }
   if (!next) return;
+  if (
+    next.priority === "background" &&
+    [...active].some((running) => running.priority === "background")
+  )
+    return;
   const job = next;
   active.add(job);
   job.started = true;

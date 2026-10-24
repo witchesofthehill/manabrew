@@ -1354,6 +1354,22 @@ impl Card {
         self.keywords.contains_keyword(kw)
             || self.granted_keywords.contains_keyword(kw)
             || self.pump_keywords.contains_keyword(kw)
+            || self.has_keyword_counter(kw.display_name())
+    }
+
+    /// Java's `CardState.hasKeyword` also matches keyword counters.
+    fn has_keyword_counter(&self, keyword: &str) -> bool {
+        self.counters.iter().any(|(ct, &count)| {
+            if count <= 0 {
+                return false;
+            }
+            let CounterType::Named(name) = ct else {
+                return false;
+            };
+            name.eq_ignore_ascii_case(keyword)
+                || (keyword.eq_ignore_ascii_case("Hexproof") && name.starts_with("Hexproof:"))
+                || (keyword.eq_ignore_ascii_case("Trample") && name.starts_with("Trample:"))
+        })
     }
 
     pub fn has_haste(&self) -> bool {
@@ -4326,6 +4342,29 @@ mod tests {
         card.add_counter(&CounterType::P1P1, 1);
         assert_eq!(card.power(), 3);
         assert_eq!(card.toughness(), 3);
+    }
+
+    #[test]
+    fn keyword_counter_grants_the_keyword() {
+        let mut card = Card::new(
+            CardId(0),
+            "Test".to_string(),
+            PlayerId(0),
+            CardTypeLine::parse("Creature Bear"),
+            ManaCost::parse("1 G"),
+            ColorSet::GREEN,
+            Some(2),
+            Some(2),
+            vec![],
+            vec![],
+        );
+        assert!(!card.has_shadow());
+
+        card.add_counter(&CounterType::Named("Shadow".to_string()), 1);
+        assert!(card.has_shadow());
+
+        card.add_counter(&CounterType::P1P1, 1);
+        assert!(!card.has_flying());
     }
 
     #[test]

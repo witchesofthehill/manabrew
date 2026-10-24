@@ -81,6 +81,8 @@ public class DeterministicController extends PlayerController implements Harness
     private static final int PREFER_ACTION_WEIGHT = 3;
     private static final int STACK_ACTION_SPACE_SKIP_THRESHOLD = 20;
     private static final int CARD_COPY_GUARD_THRESHOLD = 100;
+    // Mirrors the multikicker cap in manabrew-engine's cast_spell.rs.
+    private static final int KEYWORD_COST_LIMIT = 20;
     private final CountingRandom rng;
     private final boolean preferActions;
     private final boolean deep;
@@ -1011,9 +1013,24 @@ public class DeterministicController extends PlayerController implements Harness
     @Override
     public int chooseNumberForKeywordCost(SpellAbility sa, Cost cost,
             KeywordInterface keyword, String prompt, int max) {
-        final int result = ChoiceSpace.pickIntInRange(0, max, rng);
+        final int payable = maxPayableKeywordCost(sa, cost, max);
+        final int result = ChoiceSpace.pickIntInRange(0, payable, rng);
         onCallback("choose_number_for_keyword_cost", String.valueOf(result), String.valueOf(max));
         return result;
+    }
+
+    private int maxPayableKeywordCost(SpellAbility sa, Cost cost, int max) {
+        final Cost costSoFar = sa.getPayCosts().copy();
+        final int limit = Math.min(max, KEYWORD_COST_LIMIT);
+        int payable = 0;
+        for (int i = 0; i < limit; i++) {
+            costSoFar.add(cost);
+            if (!ComputerUtilCost.canPayCost(sa.copyWithDefinedCost(costSoFar), player, sa.isTrigger())) {
+                break;
+            }
+            payable++;
+        }
+        return payable;
     }
 
     // ── X-Cost ────────────────────────────────────────────────────────

@@ -4,7 +4,6 @@ use super::{resolve_numeric_svar, EffectContext};
 use crate::ability::ability_ir::EffectIr;
 use crate::card::card_damage_map::DamageTarget;
 use crate::card::card_util;
-use crate::parsing::amount::AmountExpr;
 use crate::parsing::keys;
 use crate::spellability::SpellAbility;
 
@@ -364,139 +363,24 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     let _ = crate::ability::spell_ability_effect::replace_dying(ctx.game, sa);
 }
 
-/// Resolve the NumDmg$ parameter, supporting both integer literals and SVar
-/// references (e.g. `NumDmg$ X` where `SVar:X:ParentTargeted$CardPower`).
 /// Mirrors Java's `AbilityUtils.calculateAmount(sa, "NumDmg", sa)`.
 fn resolve_damage_amount(ctx: &EffectContext, sa: &SpellAbility) -> i32 {
     if let Some(EffectIr::DealDamage(ir)) = &sa.ir.effect {
         if let Some(amount) = &ir.amount {
-            if let Some(value) = resolve_amount_expr(ctx, sa, amount) {
-                #[cfg(debug_assertions)]
-                debug_assert_eq!(
-                    value,
-                    resolve_damage_amount_from_params(ctx, sa),
-                    "compiled DealDamage amount diverged from string params"
-                );
-                return value;
-            }
+            let value = amount.resolve_for_spell_ability(ctx.game, sa, 0);
+            #[cfg(debug_assertions)]
+            debug_assert_eq!(
+                value,
+                resolve_damage_amount_from_params(ctx, sa),
+                "compiled DealDamage amount diverged from string params"
+            );
+            return value;
         }
     }
 
     resolve_damage_amount_from_params(ctx, sa)
 }
 
-fn resolve_amount_expr(ctx: &EffectContext, sa: &SpellAbility, amount: &AmountExpr) -> Option<i32> {
-    match amount {
-        AmountExpr::Literal(value) => Some(*value),
-        AmountExpr::X => Some(resolve_x_amount(ctx, sa)),
-        AmountExpr::SVar(name) => Some(resolve_svar_amount(ctx, sa, name)),
-        AmountExpr::Raw(_) => None,
-    }
-}
-
 fn resolve_damage_amount_from_params(ctx: &EffectContext, sa: &SpellAbility) -> i32 {
     resolve_numeric_svar(ctx.game, sa, keys::NUM_DMG, 0)
-}
-
-fn resolve_x_amount(ctx: &EffectContext, sa: &SpellAbility) -> i32 {
-    if let Some(source_id) = sa.source {
-        if let Some(svar_expr) = ctx.game.card(source_id).get_s_var("X") {
-            return evaluate_svar_expr(ctx, sa, svar_expr);
-        }
-    }
-    sa.x_mana_cost_paid as i32
-}
-
-fn resolve_svar_amount(ctx: &EffectContext, sa: &SpellAbility, var_name: &str) -> i32 {
-    if let Some(source_id) = sa.source {
-        let svar_val = ctx
-            .game
-            .card(source_id)
-            .get_s_var(var_name)
-            .map(str::to_string);
-        if let Some(expr) = svar_val {
-            return evaluate_svar_expr(ctx, sa, &expr);
-        }
-    }
-
-    0
-}
-
-/// Evaluate a simple SVar expression string.
-/// Mirrors Java's `AbilityUtils.calculateAmount` for common SVar patterns.
-fn evaluate_svar_expr(ctx: &EffectContext, sa: &SpellAbility, expr: &str) -> i32 {
-    // Count$Kicked.X.Y — delegate to shared evaluator
-    if expr.starts_with("Count$Kicked.") {
-        return super::evaluate_svar(expr, sa);
-    }
-    // Count$ expressions — delegate to shared game-aware resolver
-    if expr.starts_with("Count$") {
-        if let Some(source_id) = sa.source {
-            return crate::svar::resolve_count_svar_for_sa(
-                expr,
-                ctx.game,
-                source_id,
-                sa.activating_player,
-                sa,
-            );
-        }
-    }
-    // Sacrificed$CardPower / Sacrificed$CardToughness — LKI from cost payment.
-    // Used by Rite of Consumption: SVar:X:Sacrificed$CardPower
-    if expr == "Sacrificed$CardPower" || expr == "Sacrificed$CardToughness" {
-        if let Some(sac_id) = ctx.game.last_sacrificed_card {
-            let sac_card = ctx.game.card(sac_id);
-            let val = if expr.ends_with("Power") {
-                sac_card
-                    .lki_power
-                    .unwrap_or(sac_card.base_power.unwrap_or(0))
-            } else {
-                sac_card
-                    .lki_toughness
-                    .unwrap_or(sac_card.base_toughness.unwrap_or(0))
-            };
-            return val;
-        }
-        return 0;
-    }
-    if expr == "TriggeredCard$CardPower" || expr == "TriggeredCard$CardToughness" {
-        let trigger_value_key = if expr.ends_with("CardPower") {
-            "TriggeredCardPower"
-        } else {
-            "TriggeredCardToughness"
-        };
-        if let Some(value) = crate::ability::ability_key::from_string(trigger_value_key)
-            .and_then(|key| sa.get_triggering_value(key))
-            .and_then(|value| value.trim().parse::<i32>().ok())
-        {
-            return value;
-        }
-
-        let triggered_card = sa
-            .get_triggering_card(crate::ability::AbilityKey::Card)
-            .or(sa.trigger_source);
-        if let Some(card_id) = triggered_card {
-            return if expr.ends_with("CardPower") {
-                crate::lki::resolve_lki_power(ctx.game, card_id)
-            } else {
-                crate::lki::resolve_lki_toughness(ctx.game, card_id)
-            };
-        }
-        return 0;
-    }
-    match expr {
-        // X mana cost paid value
-        "Count$xPaid" | "Count$XPaid" => sa.x_mana_cost_paid as i32,
-        // Power / toughness of the parent SA's chosen target card.
-        // Used by Ram Through: SVar:X:ParentTargeted$CardPower
-        "ParentTargeted$CardPower" => ctx
-            .parent_target_card
-            .map(|id| ctx.game.card(id).power())
-            .unwrap_or(0),
-        "ParentTargeted$CardToughness" => ctx
-            .parent_target_card
-            .map(|id| ctx.game.card(id).toughness())
-            .unwrap_or(0),
-        _ => 0,
-    }
 }

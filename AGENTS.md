@@ -68,6 +68,7 @@ Topic spinoffs (cross-cut multiple folders):
 | File                                    | Read it when                                                                                             |
 | --------------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | `docs/agents/PARITY_PHILOSOPHY.md`      | Any engine work                                                                                          |
+| `docs/agents/PARITY_BASELINE.md`        | Measuring engine parity, reading a baseline snapshot, or changing the baseline runner                    |
 | `docs/agents/ENGINE_BUGFIX_WORKFLOW.md` | Investigating a parity divergence                                                                        |
 | `docs/agents/UI_THEME_RULES.md`         | Any UI change that involves color                                                                        |
 | `docs/agents/RELAY.md`                  | Any relay (`manabrew-server`) work — trust boundary, reconnect/resync, identity and usernames            |

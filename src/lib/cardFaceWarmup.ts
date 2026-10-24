@@ -7,6 +7,7 @@ import type { CardRenderPriority } from "@/lib/cardRenderQueue";
 import { GAME_CARD_SIZES } from "@/components/game/game.constants";
 import { overlayResolution } from "@/pixi/overlay/overlayRuntime";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { useScryfallStore } from "@/stores/useScryfallStore";
 
 const IDLE_FALLBACK_MS = 800;
 const WARM_CONCURRENCY = 2;
@@ -124,7 +125,21 @@ export async function warmDeckFaces(
     ...renderFaces(cards, "background"),
     ...renderFaces(cards, "background", laterRenderVariants()),
   ];
+  if (renders.length === 0) return;
   const started = performance.now();
+  const scryfall = useScryfallStore.getState();
+  await Promise.allSettled(
+    cards
+      .filter(({ identity, layout }) => !identity.tokenScript && !layout?.includes("token"))
+      .map(({ identity }) =>
+        scryfall.getCard({
+          name: identity.name,
+          setCode: identity.setCode || undefined,
+          collectorNumber: identity.cardNumber || undefined,
+        }),
+      ),
+  );
+  if (generation !== warmGeneration) return;
   let next = 0;
   const lane = async (): Promise<void> => {
     await idle();

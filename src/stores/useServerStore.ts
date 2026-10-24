@@ -61,7 +61,6 @@ import type {
 } from "@/types/server";
 import type { Deck } from "@/protocol/deck";
 import { resendLocalGame } from "@/lib/localGamePresence";
-import { warmDeckFaces } from "@/lib/cardFaceWarmup";
 export const DEFAULT_STARTING_LIFE = 20;
 export interface ReconnectState {
   phase: "idle" | "reconnecting" | "failed";
@@ -436,7 +435,6 @@ export const useServerStore = create<ServerState>()(
       async setDeckSelection(deckName, deck, commanderName, publishedDeckId) {
         const platform = getPlatform();
         if (!platform.server) return;
-        void warmDeckFaces([deck]);
         const prefs = usePreferencesStore.getState();
         const deckHasPlaymat = !!deck.playmatUrl || !!deck.playmatSettings?.color;
         const defaultPlaymatUrl = deckHasPlaymat

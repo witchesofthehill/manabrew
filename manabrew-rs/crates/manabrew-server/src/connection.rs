@@ -74,7 +74,7 @@ fn authorize_game_message(
                 .ok()
                 .map(|_| GameMessageSource::Player)
         }
-        "state" | "stateDelta" | "display" | "prompt" | "error" | "log" | "snapshot" | "fatal" => {
+        "state" | "stateDelta" | "prompt" | "error" | "log" | "snapshot" | "fatal" => {
             room.is_host(player_id).then_some(GameMessageSource::Engine)
         }
         "roomRelay" => {

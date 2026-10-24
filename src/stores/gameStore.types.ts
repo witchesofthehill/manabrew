@@ -1,12 +1,10 @@
 import type { Prompt, PromptOutput, ProtocolError } from "@/protocol";
-import type { DisplayEvent } from "@/protocol/display";
 import type { CardDto, GameViewDto, PlayerDto } from "@/protocol/game";
 import type { Deck } from "@/protocol/deck";
 import type { GameLogEntry } from "@/types/gameLog";
 import type { EngineKind, GameFormat } from "@/types/server";
 import type { IronsmithDeckIssue } from "@/game";
-
-export type { DisplayEvent };
+import type { GameViewTransition } from "@/lib/gameViewTransitions";
 
 /** The engine sends `zones: ZoneDto[]` with per-recipient `CardView` visibility.
  *  The board reads the classic flat shape (a battlefield array, per-player zone
@@ -44,11 +42,11 @@ export interface GameConfig {
   startingLife: number;
 }
 
-/** One ordered effect queued for flash-then-apply processing: animate
- *  `displayEvents`, then apply `gameView` and/or `prompt` if present. Each
- *  incoming message (display / state / prompt) becomes one of these. */
+/** One ordered effect queued for flash-then-apply processing: flash the
+ *  `transitions` that have a flash, then apply `gameView` and/or `prompt`.
+ *  Each incoming message (state / prompt) becomes one of these. */
 export interface DeferredSnapshot {
-  displayEvents: DisplayEvent[];
+  transitions: GameViewTransition[];
   gameView: ClientGameView | null;
   prompt: Prompt | null;
 }

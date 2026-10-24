@@ -12,6 +12,7 @@ import { GHOST_CLICK_ARM_MS } from "@/lib/responsive";
 import { useGameStore } from "@/stores/useGameStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { animationsEnabled } from "@/pixi/effects/enabled";
+import { playAppSound } from "@/lib/soundRuntime";
 import { modalFocusables, registerModal, topModal, MODAL_BASE_Z_INDEX } from "@/lib/modalStack";
 
 const ModalTitleContext = createContext<string | undefined>(undefined);
@@ -166,7 +167,10 @@ export function Modal({
             "max-h-[calc(100dvh-1rem-var(--safe-area-inset-top)-var(--safe-area-inset-bottom))]",
           className,
         )}
-        onClick={(event) => event.stopPropagation()}
+        onClick={(event) => {
+          event.stopPropagation();
+          if ((event.target as Element).closest("button")) playAppSound("buttonClick");
+        }}
         onKeyDown={(event) => {
           if (event.key !== "Tab" || topModal() !== panelRef.current) return;
           const panel = panelRef.current!;

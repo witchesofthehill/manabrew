@@ -7,6 +7,7 @@ import { gameCardFaceIndex, GAME_CARD_DEFAULTS } from "@/lib/gameCard";
 import { partitionBoardTargets } from "@/lib/boardTargets";
 import { useGameUIStore } from "@/stores/useGameUIStore";
 import { useKeybindings } from "@/hooks/useKeybindings";
+import { playAppSound } from "@/lib/soundRuntime";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
 import { useAutoResolvePrompt } from "@/components/prompts/internal/useAutoResolvePrompt";
@@ -32,6 +33,7 @@ import {
   EliminatedModal,
   GameSettingsModal,
   LeaveGameModal,
+  SoundSettingsModal,
 } from "@/components/game/modals";
 import type { StackCardSpec, StackSpec } from "@/pixi/stack/stack.types";
 import { useCastingState } from "@/hooks/useCastingState";
@@ -337,6 +339,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   const [handCardLifted, setHandCardLifted] = useState(false);
   const [boardMenuOpen, setBoardMenuOpen] = useState(false);
   const [gameSettingsOpen, setGameSettingsOpen] = useState(false);
+  const [soundSettingsOpen, setSoundSettingsOpen] = useState(false);
   const [eliminatedModalOpen, setEliminatedModalOpen] = useState(false);
   const eliminatedModalShownRef = useRef(false);
   const [leaveGameModalOpen, setLeaveGameModalOpen] = useState(false);
@@ -1150,16 +1153,24 @@ export default function Game({ exitTo }: GameProps = {}) {
     },
     "toggle-dev-panel": () => useGameUIStore.getState().toggleDevPanel(),
     "pass-priority": () => {
-      if (manualApi || document.querySelector('[role="dialog"]')) return false;
-      if (confirmPromptRef.current()) return true;
-      if (promptType !== "chooseAction") return false;
+      if (manualApi || isWaitingForResponse || document.querySelector('[role="dialog"]'))
+        return false;
+      if (confirmPromptRef.current()) {
+        playAppSound("buttonClick");
+        return true;
+      }
+      if (promptType !== "chooseAction" || !gameView) return false;
       unifiedPassRef.current();
+      playAppSound("buttonClick");
       return true;
     },
     "pass-end-of-turn": () => {
-      if (manualApi) return;
-      if (document.querySelector('[role="dialog"]')) return;
-      if (promptType === "chooseAction") passEndTurnRef.current();
+      if (manualApi || isWaitingForResponse || document.querySelector('[role="dialog"]'))
+        return false;
+      if (promptType !== "chooseAction" || !gameView) return false;
+      passEndTurnRef.current();
+      playAppSound("buttonClick");
+      return true;
     },
     "toggle-priority-mode": () => {
       if (manualApi) return;
@@ -1260,6 +1271,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       setConcedeModalOpen(false);
       setLeaveGameModalOpen(false);
       setGameSettingsOpen(false);
+      setSoundSettingsOpen(false);
       setCombatDetailsOpen(false);
       closeZoneViewer();
       closePlayModePicker();
@@ -2025,14 +2037,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     stackItem.sourceCard
       ? stackObjectToCard(stackItem)
       : (visibleCardsById.get(stackItem.sourceId) ?? stackCardsBySourceId.get(stackItem.sourceId)!);
-  const activeFlashCard: CardDto | null = useMemo(() => {
-    if (!activeFlash || activeFlash.kind !== "card") return null;
-    return (
-      visibleCardsById.get(activeFlash.cardId) ??
-      stackCardsBySourceId.get(activeFlash.cardId) ??
-      null
-    );
-  }, [activeFlash, visibleCardsById, stackCardsBySourceId]);
+  const activeFlashCard: CardDto | null = activeFlash?.kind === "card" ? activeFlash.card : null;
   const zonePreviewPanel = viewingZone && modalPanel === topModal() ? modalPanel : null;
   useEffect(() => {
     zonePreviewScope.current = zonePreviewPanel;
@@ -2257,11 +2262,8 @@ export default function Game({ exitTo }: GameProps = {}) {
   const stackSpec: StackSpec = {
     cards: stackCards,
     flash:
-      shouldRenderStackFlashCard && activeFlashCard && activeFlash
-        ? {
-            token: `${activeFlash.cardId}:${activeFlash.cardName}:${activeFlash.setCode}`,
-            card: activeFlashCard,
-          }
+      shouldRenderStackFlashCard && activeFlashCard
+        ? { token: activeFlashCard.id, card: activeFlashCard }
         : null,
     showPreStackFlash: shouldShowPreStackFlash,
     collapsed: debugStackCard === null && stackCollapsed,
@@ -2674,6 +2676,7 @@ export default function Game({ exitTo }: GameProps = {}) {
               open={boardMenuOpen}
               onOpenChange={setBoardMenuOpen}
               onOpenSettings={() => setGameSettingsOpen(true)}
+              onOpenSoundSettings={() => setSoundSettingsOpen(true)}
               onOpenCombat={() => setCombatDetailsOpen(true)}
               onConcede={handleConcede}
               eliminated={iAmEliminated}
@@ -2699,6 +2702,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         )}
 
       {gameSettingsOpen && <GameSettingsModal onClose={() => setGameSettingsOpen(false)} />}
+      {soundSettingsOpen && <SoundSettingsModal onClose={() => setSoundSettingsOpen(false)} />}
       {combatDetailsOpen && (
         <CombatBreakdownModal
           attackerIds={

@@ -113,7 +113,6 @@ export class ForgeEngine {
     this.options.onMessage?.(message, playerSlot);
     if (message?.kind === "state") this.options.onState?.(message.state, playerSlot);
     if (message?.kind === "prompt") this.options.onPrompt?.(message.prompt, playerSlot);
-    if (message?.kind === "display") this.options.onDisplay?.(message.event, playerSlot);
     if (message?.kind === "error") this.options.onError?.(message.error, playerSlot);
   }
 

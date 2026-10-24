@@ -2402,7 +2402,6 @@ fn spawn_remote_prompt_forwarder(
         let mut last_state_by_seat: HashMap<usize, Value> = HashMap::new();
         let mut delta_bases: HashMap<usize, (Value, String)> = HashMap::new();
         let mut last_state: Option<Value> = None;
-        let mut last_display: Option<Value> = None;
         while let Ok((player_index, message)) = remote_prompt_rx.recv() {
             let Ok(session) = engine_session.lock() else {
                 break;
@@ -2446,8 +2445,6 @@ fn spawn_remote_prompt_forwarder(
                 }
                 AgentMessage::State(_) if last_state.as_ref() == Some(&state) => continue,
                 AgentMessage::State(_) => last_state = Some(state.clone()),
-                AgentMessage::Display(_) if last_display.as_ref() == Some(&state) => continue,
-                AgentMessage::Display(_) => last_display = Some(state.clone()),
                 AgentMessage::Prompt(_) | AgentMessage::Error(_) => {}
             }
             if let Ok(mut snap) = snapshot.lock() {
@@ -2459,7 +2456,7 @@ fn spawn_remote_prompt_forwarder(
                     AgentMessage::Prompt(_) => {
                         snap.pending_prompts.insert(slot.clone(), state.clone());
                     }
-                    AgentMessage::Display(_) | AgentMessage::Error(_) => {}
+                    AgentMessage::Error(_) => {}
                 }
             }
             if let Some(bot) = local_bots.get_mut(&player_index) {
@@ -2477,11 +2474,7 @@ fn spawn_remote_prompt_forwarder(
                 .unwrap_or(state),
                 _ => state,
             };
-            let target_player = if per_seat
-                && matches!(
-                    message,
-                    AgentMessage::State(_) | AgentMessage::Prompt(_) | AgentMessage::Error(_)
-                ) {
+            let target_player = if per_seat {
                 let Some(target_player) = seat_usernames
                     .as_ref()
                     .and_then(|names| names.get(player_index).cloned())
@@ -2600,14 +2593,9 @@ fn spawn_game_over_forwarder(
                     }
                     AgentMessage::State(_) if last_state.as_ref() == Some(&state) => continue,
                     AgentMessage::State(_) => last_state = Some(state.clone()),
-                    AgentMessage::Display(_) | AgentMessage::Prompt(_) | AgentMessage::Error(_) => {
-                    }
+                    AgentMessage::Prompt(_) | AgentMessage::Error(_) => {}
                 }
-                let target_player = if per_seat
-                    && matches!(
-                        message,
-                        AgentMessage::State(_) | AgentMessage::Prompt(_) | AgentMessage::Error(_)
-                    ) {
+                let target_player = if per_seat {
                     let Some(target_player) = seat_usernames
                         .as_ref()
                         .and_then(|names| names.get(player_index).cloned())

@@ -58,7 +58,7 @@ import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
 import { normalizeCardCosmetics } from "@/lib/cardCosmetics";
 import type { GameRuntime, ManualTabletopApi } from "@/game";
 import { withResolvedDeckName } from "@/lib/deckName";
-export type { GameConfig, GameState, DisplayEvent, DeferredSnapshot } from "./gameStore.types";
+export type { GameConfig, GameState, DeferredSnapshot } from "./gameStore.types";
 let gameLaunchGeneration = 0;
 let gameLaunchInFlight: number | null = null;
 export function cancelPendingGameLaunch(): void {

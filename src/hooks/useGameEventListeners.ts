@@ -17,14 +17,8 @@ import { useServerStore } from "@/stores/useServerStore";
 import { SELF_RECONNECT_WINDOW_S } from "@/hooks/useMultiplayerInterruption";
 import { clearActiveGameSession, peekActiveGameSession } from "@/lib/activeGameSession";
 import { FORETELL_LOG_PREFIX, normalizeGameLogPayload, type GameLogEntry } from "@/types/gameLog";
-import {
-  applyDisplay,
-  applyPrompt,
-  applyProtocolError,
-  applyState,
-} from "@/stores/gameStore.constants";
+import { applyPrompt, applyProtocolError, applyState } from "@/stores/gameStore.constants";
 import type { Prompt, StateUpdate, ProtocolError } from "@/protocol";
-import type { DisplayEvent } from "@/protocol/display";
 import type { CardIdentity, GameViewDto } from "@/protocol/game";
 import { warmLibraryTop } from "@/lib/cardFaceWarmup";
 import { RELAY_FEATURE, SERVER_ERROR_CODE } from "@/types/server";
@@ -200,11 +194,11 @@ function reportEngineGame(): void {
   });
 }
 /**
- * Sets up platform event listeners for the four engine→UI message families:
- * `state` (game view), `display` (animations), `prompt` (decisions) and
- * `error` (a rejected response — the engine re-sends the open prompt after it).
- * State and display are applied for whichever player they are addressed to;
- * a prompt or error only becomes actionable when it is addressed to this player.
+ * Sets up platform event listeners for the three engine→UI message families:
+ * `state` (game view), `prompt` (decisions) and `error` (a rejected response —
+ * the engine re-sends the open prompt after it). State is applied for whichever
+ * player it is addressed to; a prompt or error only becomes actionable when it
+ * is addressed to this player.
  */
 export function useGameEventListeners() {
   useEffect(() => {
@@ -252,12 +246,6 @@ export function useGameEventListeners() {
         platform.events.on<StateUpdate>("game:state", (payload) => {
           if (!payload?.gameView) return;
           applyState(payload.gameView as GameViewDto, "Event", setState, getState);
-        }),
-      );
-      unsubscribers.push(
-        platform.events.on<DisplayEvent>("game:display", (payload) => {
-          if (!payload?.kind) return;
-          applyDisplay(payload, "Event", setState, getState);
         }),
       );
       unsubscribers.push(
@@ -324,7 +312,7 @@ export function useGameEventListeners() {
           toastOpponentPublicAction(entry);
         }),
       );
-      // Relay (non-host) seats receive state/display/prompt addressed per player.
+      // Relay (non-host) seats receive state/prompt addressed per player.
       unsubscribers.push(
         platform.events.on<{
           forPlayer?: string;
@@ -339,14 +327,6 @@ export function useGameEventListeners() {
             return;
           }
           applyState(payload.state.gameView as GameViewDto, "Remote", setState, getState);
-        }),
-      );
-      unsubscribers.push(
-        platform.events.on<{
-          event: DisplayEvent;
-        }>("game:remote_display", (payload) => {
-          if (!payload.event?.kind) return;
-          applyDisplay(payload.event, "Remote", setState, getState);
         }),
       );
       unsubscribers.push(

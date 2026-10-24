@@ -147,6 +147,9 @@ public final class ManaBrewInteractiveSession {
     }
 
     void attach(final Match match, final Game game, final Set<Integer> botSeats, final boolean snapshotRecording) {
+        if (this.game != null) {
+            throw new IllegalStateException("session is already attached");
+        }
         this.match = Objects.requireNonNull(match, "match");
         this.game = Objects.requireNonNull(game, "game");
         this.botSeats = Set.copyOf(botSeats);
@@ -1971,8 +1974,9 @@ public final class ManaBrewInteractiveSession {
 
     private JsonObject takeAction() throws InterruptedException {
         while (true) {
-            if (bridge != null && actions.isEmpty() && !closed && !game.isGameOver()) {
-                submitAction(bridge.exchange(promptedPlayerIndex, latestPromptJson));
+            final InteractiveBridge currentBridge = bridge;
+            if (currentBridge != null && actions.isEmpty() && !closed && !game.isGameOver()) {
+                submitAction(currentBridge.exchange(promptedPlayerIndex, latestPromptJson));
             }
             final JsonObject action = actions.poll(1, java.util.concurrent.TimeUnit.SECONDS);
             if (action == null) {
@@ -2989,8 +2993,9 @@ public final class ManaBrewInteractiveSession {
 
     private void publishAgentPrompt(final String decidingPlayerId, final String sourceCardId, final JsonObject input) {
         promptedPlayerIndex = parsePlayerSlot(decidingPlayerId);
+        final long promptId = ++promptSeq;
         latestPromptJson = ManabrewProtocolAdapter.agentPrompt(
-                ++promptSeq,
+                promptId,
                 decidingPlayerId,
                 sourceCard(promptedPlayerIndex, sourceCardId),
                 sourceAbilityText(sourceCardId),

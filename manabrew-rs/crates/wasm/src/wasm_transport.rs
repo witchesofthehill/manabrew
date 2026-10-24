@@ -126,9 +126,6 @@ impl WasmTransport {
         self.wait_until_prompt_slot_available();
         let tagged = match message {
             AgentMessage::State(state) => serde_json::json!({ "kind": "state", "state": state }),
-            AgentMessage::Display(event) => {
-                serde_json::json!({ "kind": "display", "event": event })
-            }
             AgentMessage::Prompt(prompt) => {
                 serde_json::json!({ "kind": "prompt", "prompt": prompt })
             }

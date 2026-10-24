@@ -6,4 +6,5 @@ export { LeaveGameModal } from "./LeaveGameModal";
 export { Modal } from "./Modal";
 export { RestoreRequestModal } from "./RestoreRequestModal";
 export { RestoreVoteModal } from "./RestoreVoteModal";
+export { SoundSettingsModal } from "./SoundSettingsModal";
 export { ZoneViewer } from "./ZoneViewer";

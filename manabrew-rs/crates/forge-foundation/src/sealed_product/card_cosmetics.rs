@@ -669,13 +669,13 @@ impl CardCosmetics {
             self.cardstock = None;
         }
         if let Some(dots) = &mut self.print_dots {
-            if dots.period.is_some_and(|n| n.get() == 5.0) {
+            if dots.period.is_some_and(|n| n.get() == 2.0) {
                 dots.period = None;
             }
             if dots.variation.is_some_and(|n| n.get() == 0.5) {
                 dots.variation = None;
             }
-            if dots.inset.is_some_and(|n| n.get() == 0.0) {
+            if dots.inset.is_some_and(|n| n.get() == 0.035) {
                 dots.inset = None;
             }
             if dots.artwork == Some(true) {

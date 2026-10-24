@@ -438,7 +438,6 @@ export class CardGlintInspectScene {
     this.instance.printDots = printDots
       ? {
           ...printDots,
-          period: printDots.period ?? 5,
           artwork: this.current?.original ? true : printDots.artwork,
         }
       : undefined;

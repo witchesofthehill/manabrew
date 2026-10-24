@@ -1,3 +1,4 @@
+import { DEFAULT_PRINT_DOTS } from "card-glint/finish";
 import { CardGlintAppearanceNumber } from "@/components/dev/CardGlintAppearanceNumber";
 import { CardGlintAppearancePrinting } from "@/components/dev/CardGlintAppearancePrinting";
 import { CardGlintAppearanceHologram } from "@/components/dev/CardGlintAppearanceHologram";
@@ -21,7 +22,7 @@ export function CardGlintAppearanceControls({
   finish,
 }: CardGlintAppearanceControlsProps) {
   const wear = { amount: 0, seed: 0, ...value.wear };
-  const dots = { amount: 0, period: 5, variation: 0.5, inset: 0, ...value.printDots };
+  const dots = { ...DEFAULT_PRINT_DOTS, amount: 0, ...value.printDots };
 
   return (
     <div className="grid min-w-0 items-start gap-4 xl:grid-cols-2">
@@ -76,7 +77,8 @@ export function CardGlintAppearanceControls({
       <fieldset className={APPEARANCE_GROUP}>
         <legend className={APPEARANCE_LEGEND}>Print dots</legend>
         <p className="text-xs text-muted-foreground">
-          Available on every finish. Original scans may already contain print dots.
+          Available on every finish. Omitted sampling settings use the SDK defaults. Original scans
+          may already contain print dots.
         </p>
         <CardGlintAppearanceNumber
           label="Print dots amount"
@@ -85,7 +87,7 @@ export function CardGlintAppearanceControls({
           onChange={(amount) => onChange({ ...value, printDots: { ...dots, amount } })}
         />
         <CardGlintAppearanceNumber
-          label="Print dots period (732px reference pixels)"
+          label="Print dot period (732px reference width)"
           value={dots.period}
           min={2}
           max={16}

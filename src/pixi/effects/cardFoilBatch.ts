@@ -28,6 +28,7 @@ import {
   getCardGpuTimingStats,
   type CardGpuTimer,
 } from "@/lib/cardRenderGpuTiming";
+import { CardFinishGpuResources } from "@/lib/cardFinishResources";
 
 const MAX_INSTANCES = 32;
 const MIN_BATCH_VARYING_VECTORS = 12;
@@ -92,6 +93,7 @@ function sameSharedUniforms(
 class CardFoilPipe {
   static extension = { type: ExtensionType.WebGLPipes, name: "cardFoil" } as const;
   private readonly arrays: CardFoilTextureArrays;
+  private readonly finishes: CardFinishGpuResources;
   private readonly residency = new Map<CardFoilMesh, MeshResidency>();
   private readonly shaders = new Map<number, Shader>();
   private readonly instructions = new Set<BatchInstruction>();
@@ -114,6 +116,7 @@ class CardFoilPipe {
   constructor(renderer: WebGLRenderer) {
     this.renderer = renderer;
     this.arrays = new CardFoilTextureArrays(renderer);
+    this.finishes = new CardFinishGpuResources(renderer);
     renderer.runners.renderStart.add(this);
     renderer.runners.renderEnd.add(this);
     renderer.runners.init.add(this);
@@ -121,6 +124,7 @@ class CardFoilPipe {
 
   init(): void {
     this.arrays.init();
+    this.finishes.init();
     this.renderer.canvas.addEventListener("webglcontextlost", this.resetGpuTiming);
     this.renderer.canvas.addEventListener("webglcontextrestored", this.restore);
   }
@@ -259,6 +263,14 @@ class CardFoilPipe {
     const gl = renderer.gl as WebGL2RenderingContext;
     instruction.used = this.epoch;
     this.instructions.add(instruction);
+    for (const mesh of instruction.meshes) {
+      if (!mesh.isRenderable) continue;
+      for (const role of ROLES) {
+        const source = mesh.finish.textures[role].source;
+        if (this.finishes.prepare(source)) this.arrays.invalidate(source);
+      }
+      this.finishes.prepare(mesh.finish.shader.resources.cardstockMap as Texture["source"]);
+    }
     let first = 0;
     let drawIndex = 0;
     while (first < instruction.meshes.length) {
@@ -502,6 +514,7 @@ class CardFoilPipe {
       for (const draw of instruction.draws) draw.source.destroy();
     for (const shader of this.shaders.values()) shader.destroy(false);
     this.arrays.destroy();
+    this.finishes.destroy();
     this.instructions.clear();
     this.shaders.clear();
   }

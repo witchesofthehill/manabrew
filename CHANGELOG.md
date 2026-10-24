@@ -74,6 +74,8 @@
 * Preserve translated leveler abilities and reminders in native card rendering.
 * Match Realistic print-dot previews to production without changing scan finish geometry.
 * Check relay support for new card materials before submitting a customized deck.
+* Upgrade Card Glint to 0.6.12, adopting its printing defaults and Oracle flavor selection while preserving explicit cosmetic overrides.
+* Prepare print dots and cardstock on each renderer's GPU, preserving bounded batching caches and restoring cached printing correctly after context loss.
 
 ## [3.62.2](https://github.com/witchesofthehill/manabrew/compare/v3.62.1...v3.62.2) (2026-10-21)
 

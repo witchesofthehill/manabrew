@@ -165,13 +165,11 @@ or a `NoClassDefFoundError` at runtime. When in doubt, re-sync and rebuild.
 yarn install
 ```
 
-Card rendering uses a commit-pinned public fork of
-[Card Glint](https://github.com/witchesofthehill/card-glint/tree/manabrew-integration).
-On the first uncached install, the package builds its JavaScript, declarations
-and WASM from source, provisioning Rust 1.98 and wasm-bindgen 0.2.127 through its
-own build lifecycle. Keep install scripts enabled. No private registry, access
-token or separate Manabrew renderer-build command is needed; the engine's default
-Rust toolchain is unchanged.
+Card rendering uses the official [Card Glint](https://github.com/vishvananda/card-glint)
+0.6.12 release tarball pinned in `package.json` and `yarn.lock`. It includes
+prebuilt JavaScript, declarations and WASM; no separate renderer build, private
+registry or access token is needed. Vite ships the matching renderer WASM beside
+its versioned JavaScript chunk and includes the package license notices.
 
 ### Optional: per-checkout environment with direnv
 

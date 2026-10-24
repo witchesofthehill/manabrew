@@ -1,3 +1,4 @@
+import { DEFAULT_PRINT_DOTS } from "card-glint/finish";
 import type {
   CardCoating,
   CardCosmetics,
@@ -59,11 +60,15 @@ function normalizePrintDots(value: unknown): CardPrintDots | undefined {
     return undefined;
   return {
     amount: input.amount,
-    ...(input.period != null && input.period !== 5 ? { period: input.period as number } : {}),
-    ...(input.variation != null && input.variation !== 0.5
+    ...(input.period != null && input.period !== DEFAULT_PRINT_DOTS.period
+      ? { period: input.period as number }
+      : {}),
+    ...(input.variation != null && input.variation !== DEFAULT_PRINT_DOTS.variation
       ? { variation: input.variation as number }
       : {}),
-    ...(input.inset != null && input.inset !== 0 ? { inset: input.inset as number } : {}),
+    ...(input.inset != null && input.inset !== DEFAULT_PRINT_DOTS.inset
+      ? { inset: input.inset as number }
+      : {}),
     ...(input.artwork === false ? { artwork: false } : {}),
   };
 }

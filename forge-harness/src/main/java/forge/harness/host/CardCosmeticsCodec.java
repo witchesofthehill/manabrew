@@ -90,9 +90,9 @@ final class CardCosmeticsCodec {
                     object.remove("artwork");
                 }
             }
-            removeNumberDefault(object, "period", 5);
+            removeNumberDefault(object, "period", 2);
             removeNumberDefault(object, "variation", 0.5);
-            removeNumberDefault(object, "inset", 0);
+            removeNumberDefault(object, "inset", 0.035);
         }
         if (key.equals("finishCoverage")) {
             if (!object.has("area")) {

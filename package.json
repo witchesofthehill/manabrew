@@ -112,7 +112,7 @@
     "@tauri-apps/plugin-opener": "^2.5.4",
     "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-updater": "^2.10.1",
-    "card-glint": "https://github.com/vishvananda/card-glint/releases/download/v0.6.0/card-glint-0.6.0.tgz",
+    "card-glint": "https://github.com/vishvananda/card-glint/releases/download/v0.6.12/card-glint-0.6.12.tgz",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "gsap": "^3.15.0",

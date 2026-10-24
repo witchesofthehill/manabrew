@@ -1,3 +1,4 @@
+import { DEFAULT_PRINT_DOTS } from "card-glint/finish";
 import { cardCosmeticsKey, normalizeCardCosmetics, randomCardWearSeed } from "@/lib/cardCosmetics";
 import { resolveCardWearAmount } from "@/lib/cardFinish";
 import type { CardCosmetics, CardPrintingFace, DeckCard } from "@/protocol/deck";
@@ -154,12 +155,11 @@ export function customizationFieldValue(
   const fallback =
     field === "rainFog"
       ? "1"
-      : field === "cardstockAmount" ||
-          field === "printDotsAmount" ||
-          field === "printDotsInset" ||
-          field === "heatDeformation"
-        ? "0"
-        : "printing";
+      : field === "printDotsInset"
+        ? String(DEFAULT_PRINT_DOTS.inset)
+        : field === "cardstockAmount" || field === "printDotsAmount" || field === "heatDeformation"
+          ? "0"
+          : "printing";
   const values = copies.map((copy) => {
     const draft = drafts.get(copy.identity.id);
     const cosmetics = draft ? draft.cosmetics : copy.identity.cosmetics;
@@ -178,7 +178,7 @@ export function customizationFieldValue(
         value = cosmetics?.printDots?.inset;
         break;
       case "printDotsArtwork":
-        value = cosmetics?.printDots?.artwork ?? true;
+        value = cosmetics?.printDots?.artwork ?? DEFAULT_PRINT_DOTS.artwork;
         break;
       default:
         value = cosmetics?.[field];

@@ -15,6 +15,36 @@ export const CARD_RENDERING_FIXTURES: CardRenderingFixture[] = [
   { id: "black", label: "Black / modern", lookup: { name: "Sign in Blood", setCode: "m15" } },
   { id: "red", label: "Red / modern", lookup: { name: "Lightning Strike", setCode: "m15" } },
   { id: "green", label: "Green / modern", lookup: { name: "Elvish Mystic", setCode: "m15" } },
+  {
+    id: "m21-ordinary",
+    label: "M21 / ordinary",
+    lookup: { name: "Baneslayer Angel", setCode: "m21" },
+  },
+  {
+    id: "m21-colored-artifact",
+    label: "M21 / colored artifact",
+    lookup: { name: "Witch's Cauldron", setCode: "m21" },
+  },
+  {
+    id: "m21-legendary",
+    label: "M21 / legendary crown",
+    lookup: { name: "Gadrak, the Crown-Scourge", setCode: "m21" },
+  },
+  {
+    id: "m21-land",
+    label: "M21 / Fabled Passage",
+    lookup: { name: "Fabled Passage", setCode: "m21" },
+  },
+  {
+    id: "m21-planeswalker",
+    label: "M21 / planeswalker",
+    lookup: { name: "Teferi, Master of Time", setCode: "m21" },
+  },
+  {
+    id: "unlimited-dual",
+    label: "Unlimited / dual land",
+    lookup: { name: "Tundra", setCode: "2ed" },
+  },
   { id: "multicolor", label: "Multicolor", lookup: { name: "Dragonlord Atarka", setCode: "dtk" } },
   { id: "hybrid", label: "Hybrid", lookup: { name: "Kitchen Finks", setCode: "shm" } },
   {

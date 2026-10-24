@@ -79,7 +79,7 @@ export function NavSheet({ disabled = false }: NavSheetProps) {
       <Button
         size="icon"
         variant="ghost"
-        className="h-8 w-8 md:pointer-fine:hidden"
+        className="h-10 w-10 md:pointer-fine:hidden"
         disabled={disabled}
         onClick={() => setOpen(true)}
         title={`Menu`}

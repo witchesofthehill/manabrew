@@ -85,23 +85,16 @@ export function AppInitGate({ children }: { children: ReactNode }) {
     <div className={cn("flex flex-col items-center gap-2 text-center", shortTouch && "gap-0.5")}>
       <p
         className={cn(
-          "text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-muted-foreground",
-          shortTouch && "text-[0.55rem]",
+          "text-xl font-semibold uppercase tracking-[0.2em] text-muted-foreground",
+          shortTouch && "text-sm",
         )}
       >
         Welcome to
       </p>
       <h1 className="max-w-full">
-        <ManaBrewLogo decorative height={shortTouch ? 64 : 96} />
+        <ManaBrewLogo decorative height={shortTouch ? 120 : 200} />
         <span className="sr-only">Manabrew</span>
       </h1>
-      <div
-        aria-hidden
-        className={cn(
-          "mt-2 h-px w-24 bg-gradient-to-r from-transparent via-brand-accent to-transparent",
-          shortTouch && "mt-0.5",
-        )}
-      />
     </div>
   );
 
@@ -149,8 +142,8 @@ export function AppInitGate({ children }: { children: ReactNode }) {
           >
             <div
               className={cn(
-                "flex w-full max-w-2xl flex-col items-center gap-10",
-                isTouch && "gap-6",
+                "flex w-full max-w-2xl flex-col items-center gap-6",
+                isTouch && "gap-4",
                 shortTouch && "h-full min-h-0 max-w-xl justify-center gap-3",
               )}
             >

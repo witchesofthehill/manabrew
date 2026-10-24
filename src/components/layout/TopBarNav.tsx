@@ -27,11 +27,11 @@ export function TopBarNav({ disabled = false }: TopBarNavProps) {
           aria-current={isActive(to) ? "page" : undefined}
           aria-label={label}
           title={label}
-          className="h-8 gap-1.5 px-2 text-xs"
+          className="h-10 gap-2 px-3 text-sm"
           disabled={disabled}
           onClick={() => navigate(to)}
         >
-          <Icon className="h-4 w-4" />
+          <Icon className="h-5 w-5" />
           <span className="hidden xl:inline">{label}</span>
         </Button>
       ))}

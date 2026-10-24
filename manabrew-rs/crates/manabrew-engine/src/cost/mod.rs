@@ -878,8 +878,15 @@ pub fn get_sacrifice_targets_for_cost(
     type_filter: &str,
     ability: Option<&SpellAbility>,
 ) -> Vec<CardId> {
+    let source = ability.and_then(|sa| sa.source);
+    let requires_other = type_filter
+        .split('.')
+        .any(|part| part.eq_ignore_ascii_case("Other"))
+        || type_filter.to_ascii_lowercase().contains("another");
     get_sacrifice_targets(game, player, type_filter)
         .into_iter()
+        // `Creature.Other` excludes the ability source.
+        .filter(|&cid| !(requires_other && Some(cid) == source))
         .filter(|&cid| !cant_sacrifice(&game.cards, game.card(cid), ability, true))
         .collect()
 }

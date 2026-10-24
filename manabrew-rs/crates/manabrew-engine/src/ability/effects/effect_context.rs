@@ -214,13 +214,13 @@ impl EffectContext<'_> {
             .and_then(|cid| self.game.card(cid).set_code.as_deref())
             .unwrap_or("");
         let art_count = self.token_art_variant_count(token_script, host_edition);
-        // Java's Aggregates.random(Collection<PaperToken>) uses min-random
-        // selection: for each element, call nextInt() (unbounded). Collection
-        // size = number of art variants in the resolved edition.
-        for _ in 0..art_count {
-            self.rng.next_int(1);
+        // Java's `TokenDb.getToken` passes an ArrayList to `Aggregates.random`,
+        // whose List path calls nextInt(size) once.
+        if art_count > 1 {
+            self.rng.next_int(art_count as i32);
         }
-        // PaperToken.getImageKey(): nextInt(artIndex)
+        // PaperToken.getImageKey(): nextInt(artIndex). Every archive edition
+        // entry is a distinct collector number, so artIndex is 1.
         self.rng.next_int(1);
     }
 

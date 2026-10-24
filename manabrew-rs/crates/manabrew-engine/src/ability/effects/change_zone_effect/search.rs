@@ -113,6 +113,29 @@ pub(super) fn resolve_multi_search(
     let budget_cmc = sa.ir.with_total_cmc;
     let budget_power = sa.ir.with_total_power;
 
+    // Java's `ChangeZoneEffect.allowMultiSelect`: a multi-card selection is
+    // only possible when the chooser is not an AI and the selection carries no
+    // per-card constraints.
+    if !share_land
+        && !diff_names
+        && !diff_cmc
+        && !diff_power
+        && !sa.ir.at_random
+        && !sa.ir.with_total_card_types
+        && (sa.ir.defined.is_none() || sa.ir.choose_from_defined)
+    {
+        let min = if sa.ir.mandatory { max } else { 0 };
+        ctx.agents[chooser.index()].snapshot_state(ctx.game, ctx.mana_pools);
+        return ctx.agents[chooser.index()].choose_cards_for_zone_change(
+            ctx.game,
+            chooser,
+            candidates,
+            min,
+            max,
+            sa.select_prompt().unwrap_or("Select card for zone change"),
+        );
+    }
+
     if diff_names
         || diff_cmc
         || diff_power

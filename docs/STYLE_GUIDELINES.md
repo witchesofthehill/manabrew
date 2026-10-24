@@ -298,9 +298,11 @@ React mounts so canvas text is measured with the intended face.
 Ember actions use explicit `primary-hover` and `primary-foreground` pairs.
 Selection fill, text and purple indicators use `selection`, `selection-foreground`
 and `selection-border` respectively. Sage uses `brand-accent*` only for sparse,
-non-interactive details; shadcn `accent` remains neutral. Existing personal color
-overrides survive the rebrand. Do not restore invalid HSL-triplet defaults in CSS:
-`ThemeApplicator` owns resolved root colors and the browser theme-color metadata.
+non-interactive details; shadcn `accent` remains neutral. Keep `accent` visibly
+distinct from `popover` in both modes so menu hover and keyboard focus remain
+visible. Existing personal color overrides survive the rebrand. Do not restore
+invalid HSL-triplet defaults in CSS: `ThemeApplicator` owns resolved root colors
+and the browser theme-color metadata.
 
 ### Type safety
 

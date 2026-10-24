@@ -1005,6 +1005,21 @@ export class BoardScene {
     return this.presentation.handBounds(this.hand);
   }
 
+  getHandScreenBounds(): ScreenBounds | null {
+    const bounds = this.getHandBounds();
+    if (!bounds) return null;
+    const topLeft = this.root.toGlobal(RECT_SCRATCH_A.set(bounds.x, bounds.y), RECT_SCRATCH_A);
+    const bottomRight = this.root.toGlobal(
+      RECT_SCRATCH_B.set(bounds.x + bounds.width, bounds.y + bounds.height),
+      RECT_SCRATCH_B,
+    );
+    bounds.x = topLeft.x;
+    bounds.y = topLeft.y;
+    bounds.width = bottomRight.x - topLeft.x;
+    bounds.height = bottomRight.y - topLeft.y;
+    return bounds;
+  }
+
   holdHandHover(): void {
     this.hand?.holdHover();
   }

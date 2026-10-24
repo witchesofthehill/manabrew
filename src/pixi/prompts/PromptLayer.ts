@@ -41,6 +41,7 @@ import { animationsEnabled } from "@/pixi/effects/enabled";
 import { gsap } from "@/pixi/effects/gsap";
 import type { PromptLayerCallbacks, PromptOverlaySpec } from "./prompt.types";
 import type { PromptLayerPresentation } from "./PromptLayerPresentation";
+import type { ScreenBounds } from "@/pixi/types";
 import {
   type ActionViewLayout,
   FILTER_CARET_PERIOD_MS,
@@ -67,6 +68,7 @@ const COMPACT_PHASE_TOUCH_HEIGHT = 48;
 export class PromptLayer extends PromptModalLayer {
   private phasePulseFired = false;
   private phaseBounds: Rectangle | null = null;
+  private handBounds: Rectangle | null = null;
   private readonly unsubscribePromptPreferences: () => void;
   private readonly unsubscribePreferences: () => void;
   private readonly unsubscribeKeybindings: () => void;
@@ -151,6 +153,22 @@ export class PromptLayer extends PromptModalLayer {
     this.viewportHeight = height;
     this.viewportRight = viewportRight;
     this.rebuild();
+  }
+
+  setHandBounds(bounds: ScreenBounds | null): void {
+    if (this.layerPresentation.actionStyle === "minimal") return;
+    if (
+      this.handBounds?.x === bounds?.x &&
+      this.handBounds?.y === bounds?.y &&
+      this.handBounds?.width === bounds?.width &&
+      this.handBounds?.height === bounds?.height
+    ) {
+      return;
+    }
+    this.handBounds = bounds
+      ? new Rectangle(bounds.x, bounds.y, bounds.width, bounds.height)
+      : null;
+    if (!this.modalOpen) this.rebuild();
   }
 
   setSpec(spec: PromptOverlaySpec | null): void {
@@ -438,11 +456,22 @@ export class PromptLayer extends PromptModalLayer {
       : shortScreen
         ? this.viewportHeight - panelHeight - 118
         : this.viewportHeight - panelHeight;
-    const y = minimal
+    let y = minimal
       ? Math.max(6, Math.min(this.viewportHeight - panelHeight - 6, unclampedY))
       : unclampedY;
+    const hand = this.handBounds;
+    if (
+      !minimal &&
+      hand &&
+      x < hand.right &&
+      x + width > hand.left &&
+      y < hand.bottom &&
+      y + panelHeight > hand.top
+    ) {
+      y = Math.max(edgeMargin, Math.min(y, hand.top - panelHeight - ACTION_CARD_GAP));
+    }
     const radius = minimal ? 16 : 8;
-    const squareBottom = !minimal && !shortScreen;
+    const squareBottom = !minimal && !shortScreen && y === unclampedY;
     const panel = new Container();
     panel.position.set(x, y + panelHeight);
     panel.pivot.set(0, panelHeight);

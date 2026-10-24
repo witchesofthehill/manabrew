@@ -278,6 +278,7 @@ function rebuild() {
   for (const regressionClass of [
     "forge.harness.host.ManaBrewEngineAdapterTest",
     "forge.harness.host.InteractiveSnapshotExtractorTest",
+    "forge.harness.host.ManaBrewInteractiveControllerTest",
     "forge.harness.common.HarnessPlayPlumbingTest",
     "forge.harness.common.ActionSpaceTest",
   ]) {

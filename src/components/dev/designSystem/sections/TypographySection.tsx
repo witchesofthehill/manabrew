@@ -26,32 +26,32 @@ const SCALE: {
   {
     cls: "text-ui-body",
     label: `Body`,
-    sizes: "Fine 16px · touch 16px",
+    sizes: "Fine 16px · compact touch 16px · wide touch 20px",
     sample:
       "Choose a deck to start a game. This body copy wraps at narrow widths without shrinking.",
   },
   {
     cls: "text-ui-label font-medium",
     label: `Label`,
-    sizes: "Fine 14px · touch 16px",
+    sizes: "Fine 14px · compact touch 16px · wide touch 20px",
     sample: "Include cards from every available set in this collection",
   },
   {
     cls: "text-ui-meta text-muted-foreground",
     label: `Meta`,
-    sizes: "Fine 12px · touch 14px",
+    sizes: "Fine 12px · compact touch 14px · wide touch 18px",
     sample: "60 cards · Updated today · Ready to play",
   },
   {
     cls: "text-ui-caption text-muted-foreground",
     label: `Caption`,
-    sizes: "Fine 12px · touch 12px · nonessential only",
+    sizes: "Fine 12px · compact touch 12px · wide touch 14px · nonessential only",
     sample: "An optional note about this example.",
   },
   {
     cls: "text-ui-input",
     label: `Input`,
-    sizes: "Fine 14px · touch 16px",
+    sizes: "Fine 14px · compact touch 16px · wide touch 20px",
     sample: "Search by card name, type, or rules text",
   },
 ];
@@ -60,7 +60,7 @@ export function TypographySection() {
     <Section
       id="typography"
       title={`Typography`}
-      intro="Two self-hosted families. Alegreya Sans Bold supplies display titles; Source Sans 3 supplies body, controls and game text. Touch values apply whenever any pointer is coarse, including hybrid devices. Card art keeps its native printing fonts."
+      intro="Two self-hosted families. Alegreya Sans Bold supplies display titles; Source Sans 3 supplies body, controls and game text. Touch values apply whenever any pointer is coarse, including hybrid devices. The wide-touch tier starts at 48rem of viewport width. Card art keeps its native printing fonts."
     >
       <div className="grid gap-3 md:grid-cols-2">
         {FONTS.map((f) => (

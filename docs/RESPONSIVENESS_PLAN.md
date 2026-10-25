@@ -34,13 +34,13 @@ The existing short-touch gate and mobile-game scene gate remain distinct. Preser
 
 Reference sizes below assume a 16px root. Use scalable units for DOM text and preserve browser text-size preferences.
 
-| Role                                             | Fine-pointer UI | Touch-capable UI            |
-| ------------------------------------------------ | --------------- | --------------------------- |
-| Body and explanatory text                        | 16px            | 16px                        |
-| Primary controls, form labels, menu items        | 14px            | 16px                        |
-| Secondary labels, counts, status and helper text | 12–14px         | 14px minimum                |
-| Nonessential captions                            | 12px minimum    | 12px minimum                |
-| Input and textarea text                          | 14–16px         | 16px minimum at every width |
+| Role                                             | Fine-pointer UI | Compact touch UI | Wide touch UI, ≥48rem |
+| ------------------------------------------------ | --------------- | ---------------- | --------------------- |
+| Body and explanatory text                        | 16px            | 16px             | 20px                  |
+| Primary controls, form labels, menu items        | 14px            | 16px             | 20px                  |
+| Secondary labels, counts, status and helper text | 12–14px         | 14px minimum     | 18px                  |
+| Nonessential captions                            | 12px minimum    | 12px minimum     | 14px                  |
+| Input and textarea text                          | 14–16px         | 16px minimum     | 20px                  |
 
 - Essential information is not a nonessential caption. Deck counts, game actions, validation messages, and selectable options must meet their role's size floor.
 - Establish a small semantic text scale in the existing typography foundation. Share its reference values between DOM and Pixi; do not introduce a generated token framework.
@@ -135,6 +135,8 @@ Completion: every scoped surface is migrated or has a documented intentional exc
 
 All six source phases are implemented. CSS owns the semantic roles and touch-capability policy; cached Pixi metrics refresh through the existing theme lifecycle. Root-owned visible-viewport bounds cover shared portals. Shared controls, ordinary pages, dense workspaces, Limited, Companion, game DOM, Pixi prompts/HUDs and existing developer galleries consume the policy. Embedded rules-card controls account for both the owning card's stable screen scale and the inner preview transform.
 
+Large-tablet review found the initial 16px labels and 14px metadata too small on a 13-inch iPad. Touch-capable viewports at least 48rem wide now use the larger tier above. Fine-pointer and compact-touch sizes remain unchanged. Existing resize notifications refresh cached Pixi metrics when crossing the tier; no root-font, scene-selection or card-size changes are needed.
+
 Intentional exceptions retain their original purpose:
 
 - Native card printing, fallback card faces and proportional card-local battlefield badges remain card presentation. Expanded inspection metadata uses UI roles.
@@ -157,6 +159,8 @@ Completed static verification:
 - Prettier across the 426 eligible changed source/guidance files.
 - `yarn i18n:extract` for moved rules-preview message references.
 - `yarn vite build`; emitted CSS includes semantic font utilities, the `any-pointer: coarse` policy and visible-viewport bounds.
+
+The wide-touch correction also passes `yarn tsc -b`, ESLint on both updated gallery sections, scoped Prettier checks and `yarn vite build`. Emitted CSS retains the fine-pointer and compact-touch values, adds all five wide-touch role overrides behind `(any-pointer: coarse) and (min-width: 48rem)`, and keeps semantic utilities bound to those variables.
 
 The production build reports mixed static/dynamic imports, large chunks and a Node deprecation warning. Catalog extraction reports one missing translation per non-English locale.
 

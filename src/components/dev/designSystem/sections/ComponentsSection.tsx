@@ -85,8 +85,8 @@ export function ComponentsSection() {
           </label>
         </div>
         <p className="text-ui-meta text-muted-foreground">
-          Labels use 14px with a fine pointer and 16px with any coarse pointer. Touch targets are at
-          least 44px.
+          Labels use 14px with a fine pointer, 16px on compact touch viewports and 20px on touch
+          viewports at least 48rem wide. Touch targets remain at least 44px.
         </p>
         <p className="text-ui-caption text-muted-foreground">Optional specimen annotation.</p>
       </Panel>
@@ -111,7 +111,8 @@ export function ComponentsSection() {
             <Label htmlFor="ds-disabled-input">Disabled input</Label>
             <Input id="ds-disabled-input" disabled placeholder={`Disabled`} />
             <p className="text-ui-meta text-muted-foreground">
-              Input text is 14px with a fine pointer and 16px with any coarse pointer.
+              Input text is 14px with a fine pointer, 16px on compact touch viewports and 20px on
+              touch viewports at least 48rem wide.
             </p>
           </Panel>
         </div>

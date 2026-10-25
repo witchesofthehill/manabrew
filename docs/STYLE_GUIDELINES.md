@@ -385,7 +385,7 @@ Available width determines columns and panels. Available height determines compa
 
 ### Semantic UI typography
 
-`src/index.css` owns the rem-valued `--text-ui-*` properties. Use `text-ui-body` for prose, `text-ui-label` for controls and form labels, `text-ui-meta` for counts/status/help, and `text-ui-caption` only for nonessential captions. Body text is 16px at the default root; touch labels/fields are 16px and metadata is at least 14px. Preserve large headings, life totals, card-local printing and the large-monitor root steps.
+`src/index.css` owns the rem-valued `--text-ui-*` properties. Use `text-ui-body` for prose, `text-ui-label` for controls and form labels, `text-ui-meta` for counts/status/help, and `text-ui-caption` only for nonessential captions. At the default root, compact touch viewports use 16px body/labels/fields and 14px metadata. Touch-capable viewports at least 48rem wide use 20px body/labels/fields, 18px metadata and 14px captions. The initial 16px/14px touch scale was too small in large-tablet review; do not treat minimum touch sizes as the wide-screen target. This tier changes semantic text tokens, not the root font size or card dimensions. It remains active with an attached mouse or keyboard. Preserve large headings, life totals, card-local printing and the large-monitor root steps.
 
 `cn()` registers these names as font sizes, so foreground colors survive role overrides. Register new roles in its font-size group and in `themes/typography.ts`. Keep role property values in rem because the imperative metric reader converts them using the current root size.
 

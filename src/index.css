@@ -599,6 +599,16 @@
       --ui-control-height: 2.75rem;
     }
   }
+
+  @media (any-pointer: coarse) and (min-width: 48rem) {
+    :root {
+      --text-ui-body: 1.25rem;
+      --text-ui-label: 1.25rem;
+      --text-ui-meta: 1.125rem;
+      --text-ui-caption: 0.875rem;
+      --text-ui-input: 1.25rem;
+    }
+  }
 }
 
 @layer base {

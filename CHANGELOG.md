@@ -82,6 +82,7 @@
 
 ### Fixes
 
+* Increase wide-touch body and control text to 20px and metadata to 18px after iPad readability review, without scaling card artwork.
 * Improve app-wide tablet typography, touch targets, responsive workspace density and keyboard-visible dialogs without enlarging card sprites.
 * Allow combat damage to be divided freely among blockers under current Magic rules, while preserving lethal-damage requirements for trample.
 * Preserve each Room, split and aftermath half's frame color instead of inheriting the whole card's combined colors in hand and stack previews.

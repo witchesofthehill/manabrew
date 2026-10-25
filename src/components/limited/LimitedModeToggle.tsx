@@ -7,13 +7,13 @@ interface Props {
 }
 export function LimitedModeToggle({ mode, onChange, disableDrafting }: Props) {
   return (
-    <div className="inline-flex rounded-md border border-border/70 bg-card/40 p-0.5 text-xs">
+    <div className="inline-flex flex-wrap rounded-md border border-border/70 bg-card/40 p-0.5 text-ui-label">
       <Button
         size="sm"
         variant={mode === "drafting" ? "secondary" : "ghost"}
         onClick={() => onChange("drafting")}
         disabled={disableDrafting}
-        className="h-7 px-3"
+        className="h-auto min-h-8 px-3 touch:min-h-11"
       >
         Drafting
       </Button>
@@ -21,7 +21,7 @@ export function LimitedModeToggle({ mode, onChange, disableDrafting }: Props) {
         size="sm"
         variant={mode === "building" ? "secondary" : "ghost"}
         onClick={() => onChange("building")}
-        className="h-7 px-3"
+        className="h-auto min-h-8 px-3 touch:min-h-11"
       >
         Build Deck
       </Button>

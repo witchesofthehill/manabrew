@@ -245,14 +245,17 @@ export class HandController {
         );
         reorderIndicatorShown = true;
       }
+      const scaleX = (l.scaleW / CARD_W) * castScale;
+      const scaleY = (l.scaleH / CARD_H) * castScale;
       this.targets.set(card.id, {
         x: centerX + l.x,
         y: bottomY + l.y - l.scaleH / 2 + selectedDrop,
         rot,
-        scaleX: (l.scaleW / CARD_W) * castScale,
-        scaleY: (l.scaleH / CARD_H) * castScale,
+        scaleX,
+        scaleY,
         zIndex: isHovered || isCastingPermanent ? Z_HAND_HOVERED : i + 1,
       });
+      sprite.setHandRulesScale(Math.max(scaleX, scaleY));
       hitZones.push(
         isHovered
           ? {

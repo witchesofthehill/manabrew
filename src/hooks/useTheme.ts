@@ -1,5 +1,7 @@
 import { useLayoutEffect, useSyncExternalStore } from "react";
 import { useTheme as useNextTheme } from "next-themes";
+import { useHasTouchPointer } from "@/hooks/useBreakpoints";
+import { refreshUiTypography } from "@/themes/typography";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { MANABREW_THEME } from "@/themes";
 import type { ThemeColors, GameFontSizes } from "@/themes";
@@ -137,8 +139,13 @@ export function useTheme(): Theme {
   return useSyncExternalStore(subscribeTheme, getTheme, getTheme);
 }
 
+function refreshTypography(): void {
+  if (refreshUiTypography()) refreshTheme(true);
+}
+
 export function useApplyTheme(): void {
   const { resolvedTheme } = useNextTheme();
+  const hasTouchPointer = useHasTouchPointer();
   const theme = useTheme();
   useLayoutEffect(() => {
     const mode = resolvedTheme === "light" ? "light" : "dark";
@@ -154,4 +161,9 @@ export function useApplyTheme(): void {
     document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')!.content =
       theme.appTheme.background;
   }, [theme]);
+  useLayoutEffect(refreshTypography, [hasTouchPointer]);
+  useLayoutEffect(() => {
+    window.addEventListener("resize", refreshTypography);
+    return () => window.removeEventListener("resize", refreshTypography);
+  }, []);
 }

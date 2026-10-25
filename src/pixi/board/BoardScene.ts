@@ -491,6 +491,7 @@ export class BoardScene {
     this.dragHandler.setCardScale(scales.self);
     this.dragHandler.setContainerSize(this.app.renderer.width, this.app.renderer.height);
     this.syncHandPresentation();
+    this.selection?.refresh();
     // Regions laid out above sampled capsule bounds from before this pass's
     // applyDelimiters/layoutSelfBar moved them (resize/rotation) — reconcile.
     this.refreshCapsuleBlockers();
@@ -1369,6 +1370,8 @@ export class BoardScene {
     this.applyDelimiters(); // repaint the collapse veil in the new theme colour
     if (this.promptReference) this.setPromptReference(this.promptReference);
     this.syncHandPresentation();
+    this.selection?.refresh();
+    this.overlay?.refreshAll();
   }
 
   private canvasRect(): DOMRect {

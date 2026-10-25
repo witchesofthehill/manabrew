@@ -14,7 +14,7 @@ export function LimitedAnalysisSummary({
 }) {
   const summary = summarizeLimitedCards(cards);
   return (
-    <section className="space-y-3 rounded-md border border-border bg-card/40 p-3 text-xs">
+    <section className="space-y-3 rounded-md border border-border bg-card/40 p-3 text-ui-meta">
       <h3 className="font-semibold">
         {title} · {summary.total} cards
       </h3>

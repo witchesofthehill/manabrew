@@ -1,4 +1,4 @@
-import { UI_FONT_FAMILY } from "@/themes/typography";
+import { getUiFontSize, UI_FONT_FAMILY } from "@/themes/typography";
 import { Container, Graphics, Text } from "pixi.js";
 import { getTheme, subscribeTheme } from "@/hooks/useTheme";
 import { hexToNum } from "@/pixi/colorUtils";
@@ -158,7 +158,11 @@ export class LimitedCardScene implements LimitedPane {
       await this.renderer.ready;
       if (this.disposed) return;
       this.initialized = true;
-      this.unsubscribeTheme = subscribeTheme(() => this.update(this.props));
+      this.unsubscribeTheme = subscribeTheme(() => {
+        this.reveal.setTheme();
+        for (const reveal of this.packetReveals) reveal.setTheme();
+        this.update(this.props);
+      });
       this.unsubscribeStore = useScryfallStore.subscribe((state, previous) => {
         if (state.locale !== previous.locale) this.update(this.props);
       });
@@ -317,14 +321,19 @@ export class LimitedCardScene implements LimitedPane {
     }
     for (const child of this.headings.removeChildren()) child.destroy();
     for (const header of props.layout.headers) {
-      if (header.y < props.scrollTop - 32 || header.y > props.scrollTop + props.height) continue;
+      if (header.y + header.height < props.scrollTop || header.y > props.scrollTop + props.height)
+        continue;
       const text = new Text({
         text: header.label,
         style: {
           fontFamily: UI_FONT_FAMILY,
-          fontSize: 16,
+          fontSize: Math.max(16, getUiFontSize("label")),
           fontWeight: "bold",
           fill: theme.appTheme["muted-foreground"],
+          lineHeight: Math.ceil(Math.max(16, getUiFontSize("label")) * 1.25),
+          wordWrap: true,
+          breakWords: true,
+          wordWrapWidth: header.width,
         },
       });
       text.position.set(header.x, header.y - props.scrollTop);

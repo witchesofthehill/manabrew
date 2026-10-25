@@ -25,19 +25,19 @@ export function AccountProfileCard({ account, identities }: AccountProfileCardPr
             <Button
               variant="ghost"
               size="icon"
-              className="size-7 shrink-0"
+              className="size-7 shrink-0 touch:min-h-11 touch:min-w-11"
               title={`Change handle`}
               onClick={() => setHandleOpen(true)}
             >
               <Pencil className="h-3.5 w-3.5" />
             </Button>
           </div>
-          <div className="space-y-0.5 text-xs text-muted-foreground">
-            {email && <p className="truncate">{email}</p>}
+          <div className="space-y-0.5 text-ui-meta text-muted-foreground">
+            {email && <p className="break-all">{email}</p>}
             <p>Member since {memberSince}</p>
           </div>
           {account.handlePending && (
-            <p className="text-xs text-warning">
+            <p className="text-ui-meta text-warning">
               This handle was generated for you — pick your own.
             </p>
           )}

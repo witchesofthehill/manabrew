@@ -35,7 +35,7 @@ export function CollectionDeleteDialog({
   }
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => !deleting && onOpenChange(nextOpen)}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Delete entire collection?</DialogTitle>
           <DialogDescription>

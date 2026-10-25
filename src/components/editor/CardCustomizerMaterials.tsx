@@ -44,7 +44,7 @@ export function CardCustomizerMaterials({
         />
       ))}
       {(dots === "mixed" || Number(dots) > 0) && (
-        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+        <label className="touch:min-h-11 flex items-center gap-2 text-ui-label text-muted-foreground">
           <Checkbox
             checked={dotArtwork === "mixed" ? "indeterminate" : dotArtwork === "true"}
             disabled={disabled}

@@ -27,7 +27,7 @@ export function FormatBadge({ formatId, className }: FormatBadgeProps) {
   return (
     <span
       className={cn(
-        "inline-flex items-center px-1 py-px rounded text-[10px] font-semibold uppercase tracking-wide bg-muted/60",
+        "inline-flex items-center px-1 py-px rounded text-ui-meta font-semibold uppercase tracking-wide bg-muted/60",
         textColor,
         className,
       )}

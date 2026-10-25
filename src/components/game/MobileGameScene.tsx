@@ -233,7 +233,7 @@ export function MobileGameScene({
         {promptType === "mulligan" && mobileHandOpen && mulliganAction && (
           <div className="absolute left-1/2 top-2 z-[5] flex -translate-x-1/2 items-center gap-2">
             {mulliganAction.mulliganCount ? (
-              <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">
+              <span className="rounded-full bg-primary px-2 py-0.5 text-ui-meta font-semibold text-primary-foreground">
                 mulligan {mulliganAction.mulliganCount}
               </span>
             ) : null}
@@ -253,7 +253,7 @@ export function MobileGameScene({
           >
             <Modal.Header onClose={() => setRevealBrowseCards(null)}>
               <h2 className="text-base font-semibold">Revealed cards</h2>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-ui-meta text-muted-foreground">
                 {revealBrowseCards.length} card{revealBrowseCards.length === 1 ? "" : "s"}
               </p>
             </Modal.Header>

@@ -35,9 +35,9 @@ export default function Sealed() {
 
   if (!activeSealed || activeSealed.sessionId !== id) {
     return (
-      <LimitedTableSurface className="items-center justify-center">
+      <LimitedTableSurface className="items-center justify-center overflow-y-auto overscroll-contain px-4 py-3 text-ui-body break-words sm:px-6 lg:px-8">
         {lastError ? (
-          <p className="text-destructive">{lastError}</p>
+          <p className="max-h-full shrink-0 overflow-y-auto text-destructive">{lastError}</p>
         ) : (
           <p className="text-muted-foreground">Loading sealed pool…</p>
         )}
@@ -45,17 +45,17 @@ export default function Sealed() {
     );
   }
   return (
-    <LimitedTableSurface className="gap-2 px-4 py-3 sm:px-6 lg:px-8">
-      <header className="flex shrink-0 flex-wrap items-center justify-between gap-2">
-        <div>
-          <p className="text-sm text-muted-foreground">
+    <LimitedTableSurface className="min-w-0 gap-2 px-4 py-3 text-ui-body sm:px-6 lg:px-8">
+      <header className="-mx-1 flex max-h-[40%] shrink-0 flex-wrap items-center justify-between gap-2 overflow-y-auto overscroll-contain px-1 py-1">
+        <div className="min-w-0 flex-1 basis-64">
+          <p className="text-ui-meta break-words text-muted-foreground">
             {activeSealed.packs.length} packs · {activeSealed.cards.length} cards ·{" "}
             {openedSession === activeSealed.sessionId
               ? `${activeSealed.aiDecks.length} AI opponents ready for the gauntlet`
               : "Open your packs to reveal your pool"}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           {openedSession === activeSealed.sessionId && (
             <LimitedPlayAction
               sessionId={activeSealed.sessionId}
@@ -72,7 +72,7 @@ export default function Sealed() {
         </div>
       </header>
 
-      <div className="min-h-0 flex-1">
+      <div className="min-h-0 min-w-0 flex-1">
         {openedSession !== activeSealed.sessionId ? (
           <LimitedPackOpening
             key={activeSealed.sessionId}
@@ -95,7 +95,7 @@ export default function Sealed() {
       </div>
 
       {lastError && (
-        <p className="rounded border border-destructive/70 bg-destructive/10 p-3 text-sm text-destructive">
+        <p className="max-h-[20%] shrink-0 overflow-y-auto overscroll-contain rounded border border-destructive/70 bg-destructive/10 p-3 text-ui-label break-words text-destructive">
           {lastError}
         </p>
       )}

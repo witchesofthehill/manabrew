@@ -126,18 +126,18 @@ export function GameDevPanel() {
   return (
     <div className="flex min-h-0 flex-col gap-3">
       <div className="rounded-xl border border-border/70 bg-muted/20 p-3 shadow-sm">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <FlaskConical className="h-4 w-4 text-primary" />
-              <h2 className="text-sm font-semibold">Battlefield lab</h2>
+              <h2 className="text-ui-label font-semibold">Battlefield lab</h2>
               {activeCount > 0 ? (
-                <span className="rounded-full bg-primary/10 px-2 py-0.5 font-mono text-[10px] font-semibold text-primary">
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 font-mono text-ui-meta font-semibold text-primary">
                   {activeCount} active
                 </span>
               ) : null}
             </div>
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className="mt-1 text-ui-body text-muted-foreground">
               Stage card, player, board, and prompt visuals without changing the game.
             </p>
           </div>
@@ -153,7 +153,7 @@ export function GameDevPanel() {
           </Button>
         </div>
 
-        <div className="mt-3 grid grid-cols-5 gap-1 rounded-lg bg-muted/50 p-1" role="tablist">
+        <div className="mt-3 flex flex-wrap gap-1 rounded-lg bg-muted/50 p-1" role="tablist">
           {WORKSPACES.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
@@ -161,7 +161,7 @@ export function GameDevPanel() {
               role="tab"
               aria-selected={workspace === id}
               className={cn(
-                "flex min-w-0 items-center justify-center gap-1 rounded-md px-1 py-2 text-[10px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:gap-1.5 sm:px-2 sm:text-xs",
+                "flex min-h-8 touch:min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-2 text-ui-label font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
                 workspace === id
                   ? "bg-background text-foreground shadow-sm"
                   : "text-muted-foreground hover:bg-background/60 hover:text-foreground",
@@ -171,7 +171,7 @@ export function GameDevPanel() {
               <Icon className="hidden h-3.5 w-3.5 sm:block" />
               <span>{label}</span>
               {counts[id] > 0 ? (
-                <span className="min-w-4 rounded-full bg-primary/10 px-1 font-mono text-[9px] text-primary">
+                <span className="min-w-4 rounded-full bg-primary/10 px-1 font-mono text-ui-meta text-primary">
                   {counts[id]}
                 </span>
               ) : null}

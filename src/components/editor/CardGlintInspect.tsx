@@ -223,7 +223,7 @@ export function CardGlintInspect({
         {state.status === "error" && (
           <p
             role="alert"
-            className="absolute inset-4 flex items-center justify-center break-words bg-background/90 p-3 text-sm text-destructive"
+            className="absolute inset-4 flex items-center justify-center break-words bg-background/90 p-3 text-ui-label text-destructive"
           >
             Preview unavailable: {state.error}
           </p>
@@ -269,7 +269,7 @@ export function CardGlintInspect({
           <RotateCcw className="h-4 w-4" />
         </Button>
       </div>
-      <p className="mt-2 text-center text-xs text-muted-foreground" role="status">
+      <p className="mt-2 text-center text-ui-meta text-muted-foreground" role="status">
         {state.status === "loading"
           ? "Preparing card…"
           : state.original && !original

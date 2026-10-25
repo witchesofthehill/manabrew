@@ -51,14 +51,14 @@ export function LimitedBuildFilters({
           placeholder="Search acquired cards"
           value={filters.search}
           onChange={(event) => onChange({ ...filters, search: event.target.value })}
-          className="h-9 pl-9 pr-9 text-xs pointer-coarse:h-11 pointer-coarse:text-base"
+          className="h-auto min-h-9 pl-9 pr-11 text-ui-input touch:min-h-11"
         />
         {filters.search && (
           <Button
             variant="ghost"
             size="icon"
             aria-label="Clear acquired card search"
-            className="absolute right-0 top-0 h-9 w-9 pointer-coarse:h-11 pointer-coarse:w-11"
+            className="absolute right-0 top-0 h-9 w-9 touch:min-h-11 touch:min-w-11"
             onClick={() => onChange({ ...filters, search: "" })}
           >
             <X className="h-3.5 w-3.5" />
@@ -79,7 +79,7 @@ export function LimitedBuildFilters({
             aria-label={`Filter ${color === "M" ? "multicolor" : color === "C" ? "colorless" : color}`}
             aria-pressed={filters.colors.includes(color)}
             className={cn(
-              "flex h-8 w-8 items-center justify-center rounded text-xs opacity-45 transition-opacity hover:opacity-80 pointer-coarse:h-11 pointer-coarse:w-11",
+              "flex min-h-8 min-w-8 items-center justify-center rounded px-1 text-ui-label opacity-45 transition-opacity hover:opacity-80 touch:min-h-11 touch:min-w-11",
               filters.colors.includes(color) &&
                 "bg-selection opacity-100 ring-1 ring-selection-border",
             )}
@@ -104,7 +104,7 @@ export function LimitedBuildFilters({
         aria-label="Card type filter"
         value={filters.type}
         onValueChange={(type) => onChange({ ...filters, type })}
-        className="h-9 w-auto min-w-32 text-xs pointer-coarse:h-11 pointer-coarse:text-base"
+        className="h-auto min-h-9 w-auto min-w-32 touch:min-h-11"
       >
         <AppSelectOption value="all">All types</AppSelectOption>
         {[
@@ -158,7 +158,7 @@ export function LimitedBuildFilters({
             {!toolbar && hasFilters && " · Active"}
           </Button>
         </DialogTrigger>
-        <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-xl">
+        <DialogContent className="overflow-y-auto overscroll-contain sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>{toolbar ? "Deck statistics" : "Filters & statistics"}</DialogTitle>
             <DialogDescription>
@@ -169,12 +169,12 @@ export function LimitedBuildFilters({
           </DialogHeader>
           <div className="grid grid-cols-2 items-center gap-2">{!toolbar && quickFilters}</div>
           <section className="space-y-2 border-t border-border pt-3">
-            <h3 className="text-sm font-medium">Mainboard statistics</h3>
-            <p className="text-xs tabular-nums text-muted-foreground">
+            <h3 className="text-ui-label font-medium">Mainboard statistics</h3>
+            <p className="text-ui-meta tabular-nums text-muted-foreground">
               Pool {deck.sideboard.length - sideboardCount - maybeCount} · Sideboard{" "}
               {sideboardCount} · Maybeboard {maybeCount}
             </p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-ui-meta text-muted-foreground">
               The complete exported sideboard contains all {deck.sideboard.length} cards outside the
               Mainboard.
             </p>

@@ -523,6 +523,7 @@ export class CardSprite extends Container {
   private readonly kind: "battlefield" | "hand" | "zone";
   private handRulesFace: HandRulesCardFace | null = null;
   private handRulesView = false;
+  private handRulesScreenScale = 1;
   private faceHold: FaceHold | null = null;
   private handRulesInteractive = true;
   private handRulesActions: HandActionOption[] = [];
@@ -802,8 +803,9 @@ export class CardSprite extends Container {
     ]);
   }
 
-  private projectedRasterScale(): number {
-    let scale = Math.max(Math.abs(this.scale.x), Math.abs(this.scale.y));
+  private projectedRasterScale(
+    scale = Math.max(Math.abs(this.scale.x), Math.abs(this.scale.y)),
+  ): number {
     for (let node: Container | null = this.parent; node; node = node.parent) {
       scale *= Math.max(Math.abs(node.scale.x), Math.abs(node.scale.y));
     }
@@ -1156,6 +1158,7 @@ export class CardSprite extends Container {
         this.cw,
         this.ch,
         activeTheme,
+        this.handRulesScreenScale,
       );
       this.handRulesFace.eventMode = this.handRulesInteractive ? "passive" : "none";
       this.contentContainer.addChild(this.handRulesFace);
@@ -1305,6 +1308,10 @@ export class CardSprite extends Container {
       this.cw,
       this.ch * PRINTED_ART_TOP_FRAC,
     );
+  }
+  setHandRulesScale(scale: number): void {
+    this.handRulesScreenScale = this.projectedRasterScale(scale);
+    this.handRulesFace?.setParentScale(this.handRulesScreenScale);
   }
   setHandRulesInteractive(active: boolean): void {
     this.handRulesInteractive = active;

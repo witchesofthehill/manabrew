@@ -28,7 +28,7 @@ export function CardPreviewActions({
             key={index}
             onClick={() => onSelect(action)}
             className={cn(
-              "group flex w-full flex-col rounded-lg border border-border bg-popover px-3 py-2 text-left text-xs font-medium text-popover-foreground shadow-lg backdrop-blur-md",
+              "group flex min-h-8 touch:min-h-11 touch:min-w-11 w-full flex-col rounded-lg border border-border bg-popover px-3 py-2 text-left text-ui-label font-medium text-popover-foreground shadow-lg backdrop-blur-md break-words",
               "transition-all duration-150 ease-out",
               "hover:scale-[1.02] hover:-translate-y-px hover:shadow-xl",
             )}
@@ -39,39 +39,43 @@ export function CardPreviewActions({
               event.currentTarget.style.borderColor = "";
             }}
           >
-            <span className="mb-0.5 flex w-full items-center justify-between">
-              <span className="flex h-5 min-w-[22px] items-center justify-center rounded border border-border bg-muted text-xs font-bold shadow-[0_1px_0_rgba(0,0,0,0.1)]">
+            <span className="mb-0.5 flex w-full flex-wrap items-center justify-between gap-1">
+              <span className="flex min-h-5 min-w-[22px] items-center justify-center rounded border border-border bg-muted px-1 text-ui-meta font-bold shadow-[0_1px_0_rgba(0,0,0,0.1)]">
                 {shortcut}
               </span>
               {action.cost && (
-                <span className="flex items-center gap-0.5 text-[11px] opacity-90">
+                <span className="flex flex-wrap items-center gap-0.5 text-ui-meta opacity-90">
                   <DynamicTextRender text={action.cost} />
                 </span>
               )}
             </span>
-            <span className="text-[13px] font-semibold leading-snug">
+            <span className="text-ui-label font-semibold leading-snug">
               <DynamicTextRender text={displayLabel} />
             </span>
           </button>
         ))}
       </div>
       {showHelp && (
-        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 px-1 text-[10px] text-muted-foreground">
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 px-1 text-ui-meta text-muted-foreground">
           <span>
-            <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">1</kbd>
+            <kbd className="rounded border border-border bg-muted px-1 font-mono text-ui-meta">
+              1
+            </kbd>
             -
-            <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">9</kbd>{" "}
+            <kbd className="rounded border border-border bg-muted px-1 font-mono text-ui-meta">
+              9
+            </kbd>{" "}
             select
           </span>
           <span>
-            <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">
+            <kbd className="rounded border border-border bg-muted px-1 font-mono text-ui-meta">
               Esc
             </kbd>{" "}
             close
           </span>
           {hasFlippableFaces && (
             <span>
-              <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">
+              <kbd className="rounded border border-border bg-muted px-1 font-mono text-ui-meta">
                 F
               </kbd>{" "}
               flip

@@ -24,7 +24,7 @@ export function LandscapeGate() {
     <div className="fixed inset-0 z-[10002] flex flex-col items-center justify-center gap-3 bg-background/95 p-6 text-center [padding-bottom:max(1.5rem,var(--safe-area-inset-bottom))] [padding-left:max(1.5rem,var(--safe-area-inset-left))] [padding-right:max(1.5rem,var(--safe-area-inset-right))] [padding-top:max(1.5rem,var(--safe-area-inset-top))]">
       <RotateCw className="h-10 w-10 animate-pulse text-muted-foreground motion-reduce:animate-none" />
       <p className="text-lg font-semibold">Rotate your device</p>
-      <p className="max-w-sm text-sm text-muted-foreground">
+      <p className="max-w-sm text-ui-body text-muted-foreground">
         This screen is designed for landscape play.
       </p>
     </div>,

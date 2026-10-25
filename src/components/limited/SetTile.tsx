@@ -21,7 +21,7 @@ export function SetTile({ set, active, prefetching, onClick, size = "md" }: SetT
       onClick={onClick}
       title={`${set.name} (${set.code.toUpperCase()}) · ${setType} · ${set.released_at ?? "—"} · ${set.card_count} cards`}
       className={cn(
-        "group relative flex min-h-9 items-center gap-2 rounded-lg border px-3 text-left transition pointer-coarse:min-h-11 pointer-coarse:min-w-0 pointer-coarse:w-full",
+        "group relative flex min-h-9 min-w-0 items-center gap-2 rounded-lg border px-3 text-left transition touch:min-h-11",
         compact ? "py-1.5" : "py-2",
         active
           ? "border-selection-border bg-selection ring-1 ring-selection-border/30"
@@ -36,10 +36,8 @@ export function SetTile({ set, active, prefetching, onClick, size = "md" }: SetT
         )}
       />
       <div className="min-w-0 flex-1">
-        <div className={cn("truncate font-medium leading-tight", compact ? "text-xs" : "text-sm")}>
-          {set.name}
-        </div>
-        <div className={cn("text-[10px] text-muted-foreground", compact && "text-[9px]")}>
+        <div className="break-words text-ui-label font-medium leading-tight">{set.name}</div>
+        <div className="text-ui-meta text-muted-foreground">
           {set.code.toUpperCase()} · {releasedYear} · {set.card_count}
         </div>
       </div>

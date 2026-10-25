@@ -38,7 +38,7 @@ export function CardCustomizerNumber({
   };
   return (
     <div className="min-w-0 space-y-1.5">
-      <label htmlFor={id} className="block text-xs text-muted-foreground">
+      <label htmlFor={id} className="touch:min-h-11 block text-ui-label text-muted-foreground">
         {label}
       </label>
       <div className="flex min-w-0 items-center gap-2">
@@ -64,7 +64,7 @@ export function CardCustomizerNumber({
           value={text}
           placeholder={value === "mixed" ? "Mixed" : undefined}
           disabled={disabled}
-          className="w-16 shrink-0 px-2 tabular-nums"
+          className="touch:min-h-11 w-16 shrink-0 px-2 tabular-nums"
           onChange={(event) => setDraft({ value, selectionKey, text: event.currentTarget.value })}
           onBlur={commit}
           onKeyDown={(event) => {

@@ -45,15 +45,15 @@ const TILE_SIZES = {
     chipIcon: "h-5 w-5",
     watermark: "-bottom-8 -right-5 h-36 w-36 sm:h-44 sm:w-44",
     label: `font-serif text-2xl font-semibold sm:text-3xl`,
-    desc: "mt-1 text-sm",
+    desc: "mt-1 text-ui-body",
   },
   sm: {
     tile: "min-h-32 gap-3 p-4 shadow-md motion-safe:transition-colors sm:min-h-36 sm:p-5",
     chip: "h-9 w-9",
     chipIcon: "h-4 w-4",
     watermark: "-bottom-4 -right-4 h-24 w-24",
-    label: `text-sm font-medium`,
-    desc: "mt-0.5 text-xs leading-snug",
+    label: `text-ui-label font-medium`,
+    desc: "mt-0.5 text-ui-body leading-snug",
   },
 } as const;
 interface FeatureTileProps {
@@ -116,9 +116,7 @@ export function FeatureTile({
         <span className={cn("block min-w-0", sizing.label, compact && "text-xl sm:text-xl")}>
           {label}
         </span>
-        <span className={cn("block text-muted-foreground", sizing.desc, compact && "line-clamp-2")}>
-          {desc}
-        </span>
+        <span className={cn("block text-muted-foreground", sizing.desc)}>{desc}</span>
         {footer}
       </span>
     </Link>

@@ -56,8 +56,8 @@ export function CardCustomizerCopies({
   }, [deck]);
   return (
     <section className="mt-5 min-w-0 space-y-3 border-t pt-4" aria-label="Copies in this deck">
-      <h3 className="text-sm font-semibold">Copies in this deck · {copies.length}</h3>
-      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+      <h3 className="text-ui-label font-semibold">Copies in this deck · {copies.length}</h3>
+      <ul className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-3">
         {copies.map((copy, index) => {
           const id = copy.identity.id;
           const selected = selectedIds.has(id);
@@ -99,7 +99,7 @@ export function CardCustomizerCopies({
             >
               <button
                 type="button"
-                className="block w-full rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                className="touch:min-w-11 touch:min-h-11 block w-full rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
                 aria-label={`Inspect ${name}`}
                 aria-pressed={activeId === id}
                 disabled={disabled}
@@ -110,17 +110,17 @@ export function CardCustomizerCopies({
                   loading="lazy"
                   className="w-full rounded-md"
                 />
-                <span className="mt-1 block text-xs font-medium">
+                <span className="mt-1 block text-ui-label font-medium">
                   Copy {index + 1} · {sections.get(id)}
                 </span>
-                <span className="block text-xs text-muted-foreground">
+                <span className="block text-ui-meta text-muted-foreground">
                   {copy.identity.setCode.toUpperCase()} #{copy.identity.cardNumber} ·{" "}
                   {preview.identity.foil ? "Foil" : "Nonfoil"}
                 </span>
-                <span className="block text-xs text-muted-foreground">{settings}</span>
+                <span className="block text-ui-meta text-muted-foreground">{settings}</span>
                 <span
                   className={cn(
-                    "block text-xs",
+                    "block text-ui-meta",
                     pendingIds.has(id) ? "font-medium text-primary" : "text-muted-foreground",
                   )}
                 >
@@ -128,14 +128,14 @@ export function CardCustomizerCopies({
                   {activeId === id ? " · Inspecting" : ""}
                 </span>
               </button>
-              <label className="mt-1 flex min-h-8 cursor-pointer items-center gap-1.5 text-xs pointer-coarse:min-h-11">
+              <label className="mt-1 flex min-h-8 cursor-pointer items-center gap-1.5 text-ui-label touch:min-h-11">
                 <input
                   type="checkbox"
                   checked={selected}
                   disabled={disabled}
                   onChange={() => onToggle(id)}
                   aria-label={`Select ${name} for editing`}
-                  className="size-4 accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="touch:min-h-11 size-4 accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 />
                 Selected
               </label>

@@ -89,12 +89,12 @@ export function CollectionQuickAdd({
     [],
   );
   return (
-    <div ref={containerRef} className="relative min-w-56 flex-1 sm:max-w-xs">
+    <div ref={containerRef} className="relative min-w-0 basis-56 flex-1 sm:max-w-xs">
       <div className="relative">
         <Plus className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={value}
-          className="pl-9 pr-8"
+          className="pl-9 pr-8 touch:pr-12"
           placeholder={`Quick add card\u2026`}
           disabled={disabled}
           onChange={(event) => updateSearch(event.target.value)}
@@ -119,7 +119,7 @@ export function CollectionQuickAdd({
         ) : value ? (
           <button
             type="button"
-            className="absolute right-0 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center text-muted-foreground hover:text-foreground pointer-coarse:h-11 pointer-coarse:w-11"
+            className="absolute right-0 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center text-muted-foreground hover:text-foreground touch:min-h-11 touch:min-w-11"
             title="Clear card search"
             onClick={() => updateSearch("")}
           >
@@ -130,15 +130,14 @@ export function CollectionQuickAdd({
 
       {quantityCard ? (
         <div className="absolute left-0 right-0 top-full z-50 mt-1 rounded-md border bg-popover p-3 shadow-lg">
-          <p className="truncate text-sm font-medium">{quantityCard.name}</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
+          <p className="break-words text-ui-label font-medium">{quantityCard.name}</p>
+          <p className="mt-0.5 text-ui-meta text-muted-foreground">
             {getCount(quantityCard.name)} currently owned
           </p>
-          <div className="mt-3 flex items-center gap-2">
+          <div className="mt-3 flex flex-wrap items-center gap-2">
             <Button
               variant="outline"
               size="icon"
-              className="h-8 w-8"
               onClick={() => setQuantity((count) => Math.max(1, count - 1))}
             >
               <Minus className="h-3.5 w-3.5" />
@@ -147,15 +146,10 @@ export function CollectionQuickAdd({
               type="number"
               min="1"
               value={quantity}
-              className="h-8 w-16 text-center font-mono"
+              className="w-16 text-center font-mono"
               onChange={(event) => setQuantity(Math.max(1, Number(event.target.value) || 1))}
             />
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => setQuantity((count) => count + 1)}
-            >
+            <Button variant="outline" size="icon" onClick={() => setQuantity((count) => count + 1)}>
               <Plus className="h-3.5 w-3.5" />
             </Button>
             <Button
@@ -169,8 +163,8 @@ export function CollectionQuickAdd({
           </div>
         </div>
       ) : open && results.length > 0 ? (
-        <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-80 min-w-72 overflow-y-auto rounded-md border bg-popover shadow-lg">
-          <div className="sticky top-0 z-10 border-b bg-popover px-2 py-1 text-[10px] text-muted-foreground">
+        <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-80 min-w-0 overflow-y-auto rounded-md border bg-popover shadow-lg">
+          <div className="sticky top-0 z-10 border-b bg-popover px-2 py-1 text-ui-meta text-muted-foreground">
             Click or press Enter to add one to your collection
           </div>
           {results.map((card, index) => {
@@ -190,7 +184,7 @@ export function CollectionQuickAdd({
               >
                 <button
                   type="button"
-                  className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1 text-left"
+                  className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1 text-left touch:min-h-11 touch:min-w-11"
                   title={`Add one ${displayName}`}
                   onClick={() => add(card)}
                 >
@@ -200,15 +194,19 @@ export function CollectionQuickAdd({
                       className="h-11 w-8 shrink-0 rounded"
                     />
                   )}
-                  <span className="min-w-0 flex-1 truncate text-xs font-medium">{displayName}</span>
-                  <span className="shrink-0 text-[10px] text-muted-foreground">
-                    {getCount(card.name)} owned
+                  <span className="min-w-0 flex-1">
+                    <span className="block break-words text-ui-label font-medium">
+                      {displayName}
+                    </span>
+                    <span className="block text-ui-meta text-muted-foreground">
+                      {getCount(card.name)} owned
+                    </span>
                   </span>
                   <Plus className="h-3.5 w-3.5 shrink-0 text-primary" />
                 </button>
                 <button
                   type="button"
-                  className="mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-background hover:text-foreground pointer-coarse:h-11 pointer-coarse:w-11"
+                  className="mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-background hover:text-foreground touch:min-h-11 touch:min-w-11"
                   title={`Add multiple ${displayName}`}
                   onClick={() => {
                     setQuantity(1);
@@ -216,7 +214,7 @@ export function CollectionQuickAdd({
                     setOpen(false);
                   }}
                 >
-                  <span className="text-xs font-semibold">×N</span>
+                  <span className="text-ui-label font-semibold">×N</span>
                 </button>
               </div>
             );

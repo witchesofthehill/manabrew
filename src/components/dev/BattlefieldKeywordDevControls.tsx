@@ -136,10 +136,10 @@ export function BattlefieldKeywordDevControls() {
     <section className={DEV_SECTION}>
       {showCardControls ? (
         <>
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <p className={DEV_SECTION_HEADING}>Card under test</p>
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p className="mt-1 text-ui-body text-muted-foreground">
                 Resolve a real print, then layer debug-only visuals over it.
               </p>
             </div>
@@ -147,7 +147,7 @@ export function BattlefieldKeywordDevControls() {
               type="button"
               role="switch"
               aria-checked={debugCardEnabled}
-              className="flex shrink-0 items-center gap-2 rounded-md text-[10px] font-medium text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="flex min-h-8 touch:min-h-11 shrink-0 items-center gap-2 rounded-md text-ui-label font-medium text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               disabled={loadingCard}
               onClick={() => void toggleDebugCard()}
             >
@@ -168,10 +168,10 @@ export function BattlefieldKeywordDevControls() {
               </span>
             </button>
           </div>
-          {cardError ? <p className="mt-2 text-xs text-destructive">{cardError}</p> : null}
+          {cardError ? <p className="mt-2 text-ui-meta text-destructive">{cardError}</p> : null}
 
           <div className="mt-3">
-            <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            <span className="mb-1.5 block text-ui-label font-medium uppercase tracking-wide text-muted-foreground">
               Scryfall card name
             </span>
             <DevCardSearch
@@ -189,14 +189,14 @@ export function BattlefieldKeywordDevControls() {
           <div className="mt-4 flex items-center justify-between gap-3">
             <div>
               <p className={DEV_SECTION_HEADING}>Keyword chips</p>
-              <p className="mt-1 text-[10px] text-muted-foreground">
+              <p className="mt-1 text-ui-meta text-muted-foreground">
                 {selected.length === 0 ? "No forced keywords" : `${selected.length} forced`}
               </p>
             </div>
             {selected.length > 0 ? (
               <button
                 type="button"
-                className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground hover:text-destructive"
+                className="min-h-8 touch:min-h-11 text-ui-label font-medium uppercase tracking-wide text-muted-foreground hover:text-destructive"
                 onClick={clear}
               >
                 Clear all
@@ -210,7 +210,7 @@ export function BattlefieldKeywordDevControls() {
                 <button
                   key={keyword}
                   type="button"
-                  className={cn(DEV_CONTROL_BUTTON, DEV_CONTROL_ACTIVE, "px-2 py-1 text-[10px]")}
+                  className={cn(DEV_CONTROL_BUTTON, DEV_CONTROL_ACTIVE, "px-2 py-1")}
                   onClick={() => toggle(keyword)}
                 >
                   {keyword}
@@ -229,7 +229,7 @@ export function BattlefieldKeywordDevControls() {
                   type="button"
                   className={cn(
                     DEV_CONTROL_BUTTON,
-                    "truncate px-2 py-1.5 text-[10px]",
+                    "px-2 py-1.5",
                     active ? DEV_CONTROL_ACTIVE : DEV_CONTROL_INACTIVE,
                   )}
                   onClick={() => toggle(keyword)}
@@ -241,7 +241,9 @@ export function BattlefieldKeywordDevControls() {
             })}
           </div>
           {visibleKeywords.length === 0 ? (
-            <p className="mt-3 text-center text-xs text-muted-foreground">No keyword matches.</p>
+            <p className="mt-3 text-center text-ui-body text-muted-foreground">
+              No keyword matches.
+            </p>
           ) : null}
         </>
       ) : null}

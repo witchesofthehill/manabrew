@@ -26,7 +26,7 @@ export function CardCustomizerQuantity({
 
   return (
     <div className="space-y-1.5">
-      <label htmlFor={id} className="block text-sm font-medium">
+      <label htmlFor={id} className="touch:min-h-11 block text-ui-label font-medium">
         Select number of copies
       </label>
       <div className="flex items-center gap-2">
@@ -34,7 +34,7 @@ export function CardCustomizerQuantity({
           type="button"
           variant="outline"
           size="icon"
-          className="h-9 w-9 shrink-0 pointer-coarse:min-h-11 pointer-coarse:min-w-11"
+          className="min-h-9 w-9 shrink-0 touch:min-h-11 touch:min-w-11"
           aria-label="Select one fewer copy"
           disabled={disabled || count <= 0}
           onClick={() => apply(-1)}
@@ -51,7 +51,7 @@ export function CardCustomizerQuantity({
           value={draft ?? String(value)}
           disabled={disabled}
           aria-describedby={`${id}-hint`}
-          className="w-20 text-center font-mono"
+          className="touch:min-h-11 w-20 text-center font-mono"
           onFocus={(event) => {
             setDraft(String(value));
             event.currentTarget.select();
@@ -69,16 +69,16 @@ export function CardCustomizerQuantity({
           type="button"
           variant="outline"
           size="icon"
-          className="h-9 w-9 shrink-0 pointer-coarse:min-h-11 pointer-coarse:min-w-11"
+          className="min-h-9 w-9 shrink-0 touch:min-h-11 touch:min-w-11"
           aria-label="Select one more copy"
           disabled={disabled || count >= max}
           onClick={() => apply(1)}
         >
           <Plus className="h-4 w-4" aria-hidden="true" />
         </Button>
-        <span className="text-sm text-muted-foreground">of {max}</span>
+        <span className="text-ui-meta text-muted-foreground">of {max}</span>
       </div>
-      <p id={`${id}-hint`} className="text-xs text-muted-foreground">
+      <p id={`${id}-hint`} className="text-ui-meta text-muted-foreground">
         Selects the inspected copy first, then deck order. Does not change appearances.
       </p>
     </div>

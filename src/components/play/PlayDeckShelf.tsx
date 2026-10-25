@@ -135,7 +135,7 @@ export function PlayDeckShelf({
       </div>
 
       {accountDecksAvailable && accountDecksSignedIn && accountDecksError && (
-        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-ui-meta text-destructive">
           <span className="min-w-0 flex-1">{accountDecksError}</span>
           <Button variant="outline" size="sm" onClick={() => void refreshAccountDecks()}>
             Retry

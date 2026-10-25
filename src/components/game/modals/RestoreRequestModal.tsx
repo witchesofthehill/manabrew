@@ -62,7 +62,7 @@ export function RestoreRequestModal({
       <Modal.Header>
         <h2 className="text-base font-semibold">Restore the game?</h2>
       </Modal.Header>
-      <Modal.Body className="space-y-3 text-sm">
+      <Modal.Body className="space-y-3">
         {outcome ? (
           <p role="status">{outcome}</p>
         ) : sent ? (

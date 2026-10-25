@@ -56,7 +56,7 @@ export function HandleDialog({ open, onOpenChange }: HandleDialogProps) {
   }
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-sm overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Change handle</DialogTitle>
           <DialogDescription>
@@ -75,7 +75,7 @@ export function HandleDialog({ open, onOpenChange }: HandleDialogProps) {
               if (e.key === "Enter" && handle.trim().length >= 3) void handleSave();
             }}
           />
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && <p className="text-ui-meta text-destructive">{error}</p>}
         </div>
         <DialogFooter className="gap-2">
           <Button variant="ghost" size="sm" disabled={busy} onClick={() => onOpenChange(false)}>

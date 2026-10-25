@@ -116,16 +116,16 @@ export function ActionLog({
   if (visibleLog.length === 0) {
     return (
       <div className="rounded-lg p-2.5 min-h-0 flex-1 flex flex-col bg-muted/20">
-        <p className="text-xs font-semibold text-muted-foreground mb-2">Game Log</p>
-        <p className="text-xs text-muted-foreground italic">No log entries yet.</p>
+        <p className="text-ui-meta font-semibold text-muted-foreground mb-2">Game Log</p>
+        <p className="text-ui-meta text-muted-foreground italic">No log entries yet.</p>
       </div>
     );
   }
   return (
     <div className="rounded-lg p-2.5 min-h-0 flex-1 flex flex-col bg-muted/20">
-      <p className="text-xs font-semibold text-muted-foreground mb-2">Game Log</p>
+      <p className="text-ui-meta font-semibold text-muted-foreground mb-2">Game Log</p>
       <div
-        className="min-h-0 flex-1 overflow-y-auto text-xs text-muted-foreground flex flex-col-reverse pr-1"
+        className="min-h-0 flex-1 overflow-y-auto text-ui-body text-muted-foreground flex flex-col-reverse pr-1 break-words"
         {...longPress}
         onContextMenu={handleContextMenu}
       >
@@ -153,7 +153,7 @@ export function ActionLog({
               >
                 <div className="flex items-center gap-1.5 mb-0.5">
                   <span
-                    className="px-1 py-0.5 rounded text-[10px] font-semibold"
+                    className="px-1 py-0.5 rounded text-ui-meta font-semibold"
                     style={{ backgroundColor: style.bg, color: style.fg }}
                   >
                     {entry.entryType === "stack" && /\bresolved?\b/i.test(entry.message)
@@ -162,11 +162,11 @@ export function ActionLog({
                         ? `TURN`
                         : typeLabel[entry.entryType]}
                   </span>
-                  <span className="text-[10px] text-muted-foreground/80">
+                  <span className="text-ui-meta text-muted-foreground/80">
                     {formatTs(entry.timestampMs)}
                   </span>
                   {entry.playerId && (
-                    <span className="text-[10px] text-muted-foreground/80">
+                    <span className="text-ui-meta text-muted-foreground/80">
                       {resolvePlayerName(entry.playerId)}
                     </span>
                   )}
@@ -175,7 +175,7 @@ export function ActionLog({
                   <div className="flex items-center gap-1 mb-0.5">
                     {entry.sourceCardId && (
                       <span
-                        className="px-1 py-0.5 rounded text-[10px] cursor-help"
+                        className="px-1 py-0.5 rounded text-ui-meta cursor-help"
                         style={{ backgroundColor: infoBackground, color: infoForeground }}
                         data-log-card-id={entry.sourceCardId}
                         onPointerEnter={(e) => {
@@ -192,7 +192,7 @@ export function ActionLog({
                     )}
                     {entry.targetCardId && (
                       <span
-                        className="px-1 py-0.5 rounded text-[10px] cursor-help"
+                        className="px-1 py-0.5 rounded text-ui-meta cursor-help"
                         style={{ backgroundColor: infoBackground, color: infoForeground }}
                         data-log-card-id={entry.targetCardId}
                         onPointerEnter={(e) => {

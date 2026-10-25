@@ -85,7 +85,7 @@ export function PrintPickerModal({ cardName, onClose, onSelect, token }: PrintPi
 
         {!isLoading && !error && (
           <ScrollArea className="h-full">
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-4">
               {prints.map((p) => {
                 const face = p.card_faces
                   ? p.card_faces.find((f) => f.name.toLowerCase() === resolvedName.toLowerCase()) ||
@@ -112,7 +112,7 @@ export function PrintPickerModal({ cardName, onClose, onSelect, token }: PrintPi
                   >
                     <div
                       className={cn(
-                        "w-full rounded-[4%] overflow-hidden border-2 border-transparent group-hover:border-primary transition-colors bg-muted flex items-center justify-center relative",
+                        "w-full max-w-44 rounded-[4%] overflow-hidden border-2 border-transparent group-hover:border-primary transition-colors bg-muted flex items-center justify-center relative",
                         isHorizontalCard({ layout: p.layout, typeLine: p.type_line })
                           ? "aspect-[7/5]"
                           : "aspect-[5/7]",
@@ -135,12 +135,14 @@ export function PrintPickerModal({ cardName, onClose, onSelect, token }: PrintPi
                           />
                         )
                       ) : (
-                        <span className="text-xs text-muted-foreground text-center">No Image</span>
+                        <span className="text-ui-meta text-muted-foreground text-center">
+                          No Image
+                        </span>
                       )}
                     </div>
                     <div className="text-center w-full">
                       <div
-                        className="text-xs font-semibold truncate flex items-center justify-center gap-1"
+                        className="text-ui-label font-semibold break-words flex items-center justify-center gap-1"
                         title={p.set_name}
                       >
                         {setLookup.get(p.set)?.icon_svg_uri && (
@@ -150,9 +152,9 @@ export function PrintPickerModal({ cardName, onClose, onSelect, token }: PrintPi
                             className="h-3.5 w-3.5 shrink-0 brightness-0 dark:invert"
                           />
                         )}
-                        <span className="truncate">{p.set_name}</span>
+                        <span className="min-w-0 break-words">{p.set_name}</span>
                       </div>
-                      <div className="text-[10px] text-muted-foreground uppercase flex gap-1 justify-center">
+                      <div className="text-ui-meta text-muted-foreground uppercase flex gap-1 justify-center">
                         <span>{p.set}</span>
                         <span>•</span>
                         <span>#{p.collector_number}</span>

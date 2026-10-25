@@ -17,6 +17,7 @@ export class SelectionController {
     this.marquee = new MarqueeHandler();
     parent.addChild(this.marquee.graphics);
     this.badge = new Text({ text: "", style: SELECTION_BADGE_STYLE });
+    this.badge.resolution = 2;
     this.badge.visible = false;
     this.badge.zIndex = Z_SELECTION_BADGE;
     parent.addChild(this.badge);
@@ -73,7 +74,10 @@ export class SelectionController {
     this.badge.text = `${this.selected.size} selected`;
     this.badge.visible = true;
     const zone = this.host.getPlayZone();
-    this.badge.x = this.host.getBadgeX(this.badge.width);
+    this.badge.x = Math.max(
+      zone.x + 6,
+      Math.min(this.host.getBadgeX(this.badge.width), zone.x + zone.width - this.badge.width - 6),
+    );
     this.badge.y = zone.y + 6;
   }
 

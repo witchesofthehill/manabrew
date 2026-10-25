@@ -29,8 +29,8 @@ export function CheckpointsPanel({
 }: CheckpointsPanelProps) {
   return (
     <div className="rounded-lg p-2.5 min-h-0 flex-1 flex flex-col bg-muted/20">
-      <p className="text-xs font-semibold text-muted-foreground mb-2">Snapshots</p>
-      <label className="flex items-center gap-2 text-xs mb-1">
+      <p className="text-ui-meta font-semibold text-muted-foreground mb-2">Snapshots</p>
+      <label className="flex min-h-8 touch:min-h-11 items-center gap-2 text-ui-label mb-1">
         <Checkbox
           checked={snapshotRecording}
           disabled={!hostsEngine}
@@ -39,12 +39,12 @@ export function CheckpointsPanel({
         Take snapshots
       </label>
       {!hostsEngine && (
-        <p className="text-[10px] text-muted-foreground mb-2">
+        <p className="text-ui-meta text-muted-foreground mb-2">
           Only the engine host can change this.
         </p>
       )}
       {checkpoints.length === 0 ? (
-        <p className="text-xs text-muted-foreground italic mt-1">
+        <p className="text-ui-meta text-muted-foreground italic mt-1">
           {snapshotRecording ? `No snapshots yet.` : `Snapshots are off.`}
         </p>
       ) : (
@@ -52,8 +52,8 @@ export function CheckpointsPanel({
           {groupByTurn(checkpoints).map(([turn, steps]) => (
             <section key={turn} className="rounded-md border border-border/40 p-2">
               <div className="flex items-baseline justify-between gap-2 mb-1">
-                <span className="text-xs font-semibold text-foreground">{`Turn ${turn}`}</span>
-                <span className="text-[10px] text-muted-foreground truncate">
+                <span className="text-ui-meta font-semibold text-foreground">{`Turn ${turn}`}</span>
+                <span className="text-ui-meta text-muted-foreground break-words">
                   {resolvePlayerName(steps[0]!.activePlayerId)}
                 </span>
               </div>
@@ -63,7 +63,7 @@ export function CheckpointsPanel({
                     <button
                       type="button"
                       className={cn(
-                        "w-full rounded px-2 py-1 text-left text-xs text-muted-foreground",
+                        "w-full min-h-8 touch:min-h-11 touch:min-w-11 rounded px-2 py-1 text-left text-ui-label text-muted-foreground whitespace-normal break-words",
                         "enabled:hover:bg-accent enabled:hover:text-accent-foreground",
                         "disabled:opacity-50",
                       )}

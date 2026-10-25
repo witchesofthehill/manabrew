@@ -437,7 +437,7 @@ export function CreateGameDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
-        className="w-[min(96vw,84rem)] max-w-6xl p-0 gap-0 overflow-hidden grid-rows-[auto_minmax(0,1fr)_auto]"
+        className="max-w-6xl h-[min(52rem,calc(var(--visual-viewport-height,100dvh)-2rem-var(--safe-area-inset-top)-var(--safe-area-inset-bottom)))] p-0 gap-0 overflow-hidden grid-rows-[auto_minmax(0,1fr)_auto]"
         onKeyDown={(e) => {
           if (e.key !== "Enter") return;
           const target = e.target as HTMLElement;
@@ -455,7 +455,7 @@ export function CreateGameDialog({
           <DialogTitle className="text-lg font-semibold">
             {target === "bot" ? `Choose Bot Deck` : isLobbyMode ? `Choose Deck` : `New Game`}
           </DialogTitle>
-          <p className="text-sm text-muted-foreground mt-0.5">
+          <p className="text-ui-body text-muted-foreground mt-0.5">
             {target === "bot"
               ? `Select the deck the AI will play in this lobby.`
               : isLobbyMode
@@ -464,9 +464,9 @@ export function CreateGameDialog({
           </p>
         </div>
 
-        <div className="flex min-h-0 overflow-hidden">
+        <div className="flex min-h-0 flex-col overflow-y-auto sm:flex-row sm:overflow-hidden">
           {!isLobbyMode && (
-            <div className="w-48 border-r flex-shrink-0 p-4 space-y-5 overflow-y-auto bg-muted/20">
+            <div className="w-full sm:w-48 border-b sm:border-b-0 sm:border-r flex-shrink-0 p-4 space-y-5 sm:overflow-y-auto bg-muted/20">
               <div>
                 <SectionLabel>Format</SectionLabel>
                 <div className="mt-2 space-y-2">
@@ -479,7 +479,7 @@ export function CreateGameDialog({
                         setSelectedFormat(format);
                       }}
                       className={cn(
-                        "w-full rounded-lg border p-2.5 text-left transition-colors",
+                        "w-full rounded-lg border p-2.5 text-left transition-colors touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal",
                         selectedFormat.id === format.id
                           ? "border-selection-border bg-selection"
                           : "border-border hover:bg-muted/60",
@@ -488,8 +488,8 @@ export function CreateGameDialog({
                       <div className="mb-1">
                         <FormatBadge formatId={format.id} />
                       </div>
-                      <p className="font-medium text-xs">{format.name}</p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">
+                      <p className="font-medium text-ui-label">{format.name}</p>
+                      <p className="text-ui-body text-muted-foreground mt-0.5 leading-tight">
                         {format.description}
                       </p>
                     </button>
@@ -527,7 +527,7 @@ export function CreateGameDialog({
                   <SectionLabel>Commander</SectionLabel>
                   <div className="mt-2 space-y-1.5">
                     {selectedPartnerLabel ? (
-                      <div className="flex flex-wrap items-center gap-1.5 rounded border border-border bg-background px-2 py-1.5 text-xs">
+                      <div className="flex flex-wrap items-center gap-1.5 rounded border border-border bg-background px-2 py-1.5 text-ui-meta">
                         <span className="truncate">{selectedDeckCommanders[0].identity.name}</span>
                         <span className="text-muted-foreground">+</span>
                         <span className="truncate">{selectedDeckCommanders[1].identity.name}</span>
@@ -536,13 +536,13 @@ export function CreateGameDialog({
                     ) : (
                       <>
                         {legendaryCreatures.length === 0 && (
-                          <p className="text-[10px] text-muted-foreground italic">
+                          <p className="text-ui-meta text-muted-foreground italic">
                             No legendaries in deck — type a name below.
                           </p>
                         )}
                         {legendaryCreatures.length > 0 ? (
                           <AppSelect
-                            className="w-full rounded border border-border bg-background px-2 py-1.5 text-xs pointer-coarse:text-base"
+                            className="w-full rounded border border-border bg-background px-2 py-1.5 text-ui-label "
                             value={selectedCommander}
                             onValueChange={setSelectedCommander}
                             aria-label="Commander"
@@ -556,7 +556,7 @@ export function CreateGameDialog({
                           </AppSelect>
                         ) : (
                           <input
-                            className="w-full rounded border border-border bg-background px-2 py-1.5 text-xs pointer-coarse:text-base"
+                            className="w-full rounded border border-border bg-background px-2 py-1.5 text-ui-input touch:min-h-11 touch:min-w-11"
                             placeholder={`Card name`}
                             value={selectedCommander}
                             onChange={(event) => setSelectedCommander(event.target.value)}
@@ -575,7 +575,7 @@ export function CreateGameDialog({
               <div>
                 <SectionLabel>
                   Opponents
-                  <span className="ml-1 text-[9px] font-mono text-warning bg-warning/10 px-1 rounded">
+                  <span className="ml-1 text-ui-meta font-mono text-warning bg-warning/10 px-1 rounded">
                     DEV
                   </span>
                 </SectionLabel>
@@ -586,7 +586,7 @@ export function CreateGameDialog({
                       type="button"
                       onClick={() => setPlayerCount(count)}
                       className={cn(
-                        "flex-1 py-1 rounded border text-xs transition-colors",
+                        "flex-1 py-1 rounded border text-ui-label transition-colors touch:min-h-11 touch:min-w-11 whitespace-normal",
                         playerCount === count
                           ? "border-warning bg-warning/10 text-warning font-semibold"
                           : "border-border hover:bg-muted/60",
@@ -600,7 +600,7 @@ export function CreateGameDialog({
             </div>
           )}
 
-          <div className="flex min-h-0 flex-1 flex-col">
+          <div className="flex min-h-64 shrink-0 flex-1 flex-col sm:min-h-0 sm:shrink">
             <div className="px-4 pt-4 pb-2 bg-background">
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
@@ -610,7 +610,7 @@ export function CreateGameDialog({
                   placeholder={`Filter decks...`}
                   value={deckSearch}
                   onChange={(e) => setDeckSearch(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 rounded-md border bg-background text-sm pointer-coarse:h-10 pointer-coarse:text-base focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-full pl-8 pr-3 py-1.5 rounded-md border bg-background text-ui-input focus:outline-none focus:ring-1 focus:ring-primary touch:min-h-11 touch:min-w-11"
                   autoComplete="off"
                   autoCorrect="off"
                   autoCapitalize="off"
@@ -619,14 +619,14 @@ export function CreateGameDialog({
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto">
+            <div className="min-h-0 flex-1 sm:overflow-y-auto">
               <div className="p-4 pt-2">
                 <SectionLabel>Your Decks</SectionLabel>
-                <p className="text-[11px] text-muted-foreground mt-0.5 mb-3">
+                <p className="text-ui-meta text-muted-foreground mt-0.5 mb-3">
                   Decks you've built in the editor.
                 </p>
                 {filteredUserDecks.length === 0 ? (
-                  <p className="text-xs text-muted-foreground italic">
+                  <p className="text-ui-meta text-muted-foreground italic">
                     {searchLower
                       ? `No saved decks match your search.`
                       : `No saved decks. Build one in the Deck Editor.`}
@@ -635,9 +635,7 @@ export function CreateGameDialog({
                   <div
                     className={cn(
                       "grid gap-3",
-                      denseDecks
-                        ? "grid-cols-2 md:grid-cols-3"
-                        : "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3",
+                      "grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))]",
                     )}
                   >
                     {filteredUserDecks.map((d) => {
@@ -678,11 +676,11 @@ export function CreateGameDialog({
                   hubSearchResults.length > 0) && (
                   <div className="p-4">
                     <SectionLabel>Community</SectionLabel>
-                    <p className="text-[11px] text-muted-foreground mt-0.5 mb-3">
+                    <p className="text-ui-meta text-muted-foreground mt-0.5 mb-3">
                       Community decks are downloaded when selected.
                     </p>
                     {hubDecks.error ? (
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-destructive">
+                      <div className="flex flex-wrap items-center gap-2 text-ui-meta text-destructive">
                         <span className="min-w-0 break-words">{hubDecks.error}</span>
                         <Button variant="outline" size="sm" onClick={hubDecks.retry}>
                           Retry
@@ -692,9 +690,7 @@ export function CreateGameDialog({
                       <div
                         className={cn(
                           "grid gap-3",
-                          denseDecks
-                            ? "grid-cols-2 md:grid-cols-3"
-                            : "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3",
+                          "grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))]",
                         )}
                       >
                         {Array.from({ length: 10 }, (_, index) => (
@@ -708,16 +704,14 @@ export function CreateGameDialog({
                         ))}
                       </div>
                     ) : hubSearchResults.length === 0 ? (
-                      <p className="text-xs text-muted-foreground italic">
+                      <p className="text-ui-meta text-muted-foreground italic">
                         No Community decks match your search.
                       </p>
                     ) : (
                       <div
                         className={cn(
                           "grid gap-3",
-                          denseDecks
-                            ? "grid-cols-2 md:grid-cols-3"
-                            : "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3",
+                          "grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))]",
                         )}
                       >
                         {hubSearchResults.map((deck) => {
@@ -768,20 +762,18 @@ export function CreateGameDialog({
 
               <div className="p-4">
                 <SectionLabel>Starter Decks</SectionLabel>
-                <p className="text-[11px] text-muted-foreground mt-0.5 mb-3">
+                <p className="text-ui-meta text-muted-foreground mt-0.5 mb-3">
                   Pre-built themed decks — always legal, great for testing mechanics.
                 </p>
                 {filteredPresetEntries.length === 0 ? (
-                  <p className="text-xs text-muted-foreground italic">
+                  <p className="text-ui-meta text-muted-foreground italic">
                     No preset decks match your search.
                   </p>
                 ) : (
                   <div
                     className={cn(
                       "grid gap-3",
-                      denseDecks
-                        ? "grid-cols-2 md:grid-cols-3"
-                        : "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3",
+                      "grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))]",
                     )}
                   >
                     {filteredPresetEntries.map((deck) => (
@@ -808,12 +800,12 @@ export function CreateGameDialog({
           </div>
         </div>
 
-        <div className="px-6 py-3 border-t flex items-center justify-between gap-4 bg-muted/10">
-          <div className="flex items-center gap-2 text-sm min-w-0">
+        <div className="px-6 py-3 border-t flex flex-col items-stretch justify-between sm:flex-row sm:flex-wrap sm:items-center gap-4 bg-muted/10">
+          <div className="flex flex-wrap items-center gap-2 text-ui-label min-w-0">
             {!isLobbyMode && selectedDeckEntry ? (
               <>
                 <span className="text-muted-foreground shrink-0">Playing</span>
-                <span className="font-medium truncate">{selectedDeckEntry.name}</span>
+                <span className="font-medium break-words">{selectedDeckEntry.name}</span>
                 <span className="text-muted-foreground shrink-0">vs</span>
                 <span className="inline-flex items-center gap-1 text-muted-foreground shrink-0">
                   <Shuffle className="h-3 w-3" />
@@ -822,22 +814,22 @@ export function CreateGameDialog({
               </>
             ) : selectedDeckEntry ? (
               <div className="min-w-0">
-                <span className="block truncate text-sm text-muted-foreground">
-                  Selected:{" "}
+                <span className="block break-words text-ui-label text-muted-foreground">
+                  Selected:{""}
                   <span className="font-medium text-foreground">{selectedDeckEntry.name}</span>
                 </span>
                 {!selectedDeckValidation.legal && (
-                  <span className="block truncate text-xs text-warning">
+                  <span className="block break-words text-ui-meta text-warning">
                     {selectedDeckValidation.errors[0] ??
                       `This deck is not legal in the room format.`}
                   </span>
                 )}
               </div>
             ) : (
-              <span className="text-muted-foreground italic text-xs">No deck selected</span>
+              <span className="text-muted-foreground italic text-ui-meta">No deck selected</span>
             )}
           </div>
-          <div className="flex gap-2 shrink-0">
+          <div className="flex flex-wrap justify-end gap-2 shrink-0">
             <Button variant="ghost" size="sm" onClick={() => handleOpenChange(false)}>
               Cancel
             </Button>
@@ -869,14 +861,14 @@ export function CreateGameDialog({
 }
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <Label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+    <Label className="text-ui-label uppercase tracking-wider text-muted-foreground font-semibold">
       {children}
     </Label>
   );
 }
 function RulePill({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between text-xs">
+    <div className="flex items-center justify-between text-ui-meta">
       <span className="text-muted-foreground">{label}</span>
       <span className="font-medium">{value}</span>
     </div>

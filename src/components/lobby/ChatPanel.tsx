@@ -69,7 +69,7 @@ export function ChatPanel({
         type="button"
         onClick={() => setScope(tab)}
         className={cn(
-          "flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold uppercase tracking-wide",
+          "flex items-center gap-1.5 rounded-md px-2 py-1 text-ui-label font-semibold uppercase tracking-wide touch:min-h-11 touch:min-w-11 whitespace-normal",
           scope === tab
             ? "bg-muted text-foreground"
             : "text-muted-foreground hover:text-foreground",
@@ -77,7 +77,7 @@ export function ChatPanel({
       >
         {SCOPE_LABEL[tab]}
         {count > 0 && tab !== scope && (
-          <span className="rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground">
+          <span className="rounded-full bg-primary px-1.5 text-ui-meta text-primary-foreground">
             {count}
           </span>
         )}
@@ -86,14 +86,14 @@ export function ChatPanel({
   }
   return (
     <div className={cn("flex min-h-0 flex-col", className)}>
-      <div className="flex h-10 shrink-0 items-center gap-1 border-b px-2">
+      <div className="flex min-h-10 flex-wrap touch:min-h-11 shrink-0 items-center gap-1 border-b px-2">
         {inRoom ? (
           <>
             {renderTab("Room")}
             {renderTab("Lobby")}
           </>
         ) : (
-          <span className="px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <span className="px-2 text-ui-meta font-semibold uppercase tracking-wide text-muted-foreground">
             General
           </span>
         )}
@@ -101,7 +101,7 @@ export function ChatPanel({
       <ScrollArea className="min-h-0 flex-1 px-3 py-2">
         <div className="space-y-2">
           {entries.length === 0 && (
-            <p className="py-4 text-center text-sm italic text-muted-foreground">
+            <p className="py-4 text-center text-ui-body italic text-muted-foreground">
               {scope === "Room" ? `Say hello to your table.` : `No messages yet.`}
             </p>
           )}
@@ -137,7 +137,7 @@ export function ChatPanel({
       >
         <div className="relative min-w-0 flex-1">
           <Input
-            className="h-9 text-sm pointer-coarse:h-10 pointer-coarse:text-base"
+            className="min-h-9 text-ui-input touch:min-h-11"
             placeholder={
               locked ? "" : scope === "Room" ? `Message your table…` : `Message everyone…`
             }
@@ -147,11 +147,11 @@ export function ChatPanel({
             onChange={(event) => setInput(event.target.value)}
           />
           {locked && (
-            <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-muted-foreground">
+            <span className="pointer-events-none absolute inset-0 flex flex-wrap items-center gap-x-1 px-3 text-ui-label text-muted-foreground">
               <button
                 type="button"
                 onClick={() => showSignIn()}
-                className="pointer-events-auto font-medium text-primary hover:underline"
+                className="pointer-events-auto font-medium text-primary hover:underline touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal"
               >
                 Sign in
               </button>
@@ -163,7 +163,7 @@ export function ChatPanel({
           variant="primary"
           type="submit"
           size="icon"
-          className="h-9 w-9 shrink-0"
+          className="min-h-9 w-9 shrink-0 touch:min-h-11 touch:min-w-11"
           disabled={disabled || locked || !input.trim()}
           aria-label={`Send message`}
         >

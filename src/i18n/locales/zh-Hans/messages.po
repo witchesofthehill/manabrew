@@ -14,7 +14,7 @@ msgstr ""
 "Plural-Forms: \n"
 
 #. placeholder {0}: display.stats.damage
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1302
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1312
 msgid "{0} damage"
 msgstr "{0} 点伤害"
 
@@ -33,7 +33,7 @@ msgstr "当前特征"
 
 #. placeholder {0}: display.stats.power
 #. placeholder {1}: display.stats.toughness
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1102
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1111
 msgid "Current P/T: {0}/{1}"
 msgstr "当前力量／防御力：{0}/{1}"
 
@@ -41,7 +41,7 @@ msgstr "当前力量／防御力：{0}/{1}"
 msgid "Current power and toughness"
 msgstr "当前力量与防御力"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1692
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1702
 msgid "Defense"
 msgstr "防御"
 
@@ -58,11 +58,11 @@ msgstr "牌面朝下的牌"
 msgid "Face-down permanent"
 msgstr "牌面朝下的永久物"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1274
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1283
 msgid "Flip back · F"
 msgstr "翻到背面 · F"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1274
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1283
 msgid "Flip front · F"
 msgstr "翻到正面 · F"
 
@@ -84,7 +84,7 @@ msgstr "等级 {0}"
 msgid "Locked"
 msgstr "已上锁"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1691
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1701
 msgid "Loyalty"
 msgstr "忠诚"
 
@@ -104,11 +104,11 @@ msgstr "未延缓"
 msgid "On an Adventure"
 msgstr "历险中"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1096
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1105
 msgid "On an Adventure · available actions are listed on their spell half"
 msgstr "历险中 · 可用操作列于咒语一侧"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1290
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1300
 msgid "Original printing · generated frame unavailable"
 msgstr ""
 
@@ -116,7 +116,7 @@ msgstr ""
 msgid "Printed alternative"
 msgstr "牌面上的另一组特征"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1288
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1298
 msgid "Printed face · live state belongs to the other face"
 msgstr "印刷牌面 · 当前状态属于另一面"
 

@@ -35,12 +35,15 @@ export function CardCustomizerControls({
   ] as const;
   return (
     <section aria-label="Card appearance controls" className="space-y-2">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-1">
+      <div className="grid gap-3">
         {controls.map(({ field, label, presets }) => {
           const value = customizationFieldValue(selected, drafts, field);
           return (
             <div key={field} className="min-w-0 space-y-1.5">
-              <label id={`${labelId}-${field}`} className="block text-sm font-medium">
+              <label
+                id={`${labelId}-${field}`}
+                className="touch:min-h-11 block text-ui-label font-medium"
+              >
                 {label}
               </label>
               {field !== "wearAmount" && (
@@ -49,7 +52,7 @@ export function CardCustomizerControls({
                   onValueChange={(next) => onChange(field, next)}
                   aria-labelledby={`${labelId}-${field}`}
                   disabled={inactive}
-                  className="w-full"
+                  className="touch:min-h-11 w-full"
                 >
                   {value === "mixed" && (
                     <AppSelectOption value="mixed" disabled>
@@ -81,7 +84,7 @@ export function CardCustomizerControls({
                     disabled={inactive}
                     onChange={(next) => onChange("rainFog", next)}
                   />
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-ui-body text-muted-foreground">
                     Zero clears the fog. Water distortion and reflections remain.
                   </p>
                 </div>

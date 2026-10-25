@@ -413,7 +413,7 @@ export function FreeTile({
   const cardHeight = isPerpendicular ? tileWidth : tileHeight;
   return (
     <div
-      className="absolute touch-none select-none rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-white"
+      className="absolute select-none rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-white"
       style={{ left: position.x, top: position.y, width: tileWidth, height: tileHeight }}
       role="group"
       aria-label={`${player.name} tile — left/right arrows or +/- to adjust life`}
@@ -445,14 +445,14 @@ export function FreeTile({
             transform: `translate(-50%, -50%) rotate(${position.rotation}deg)`,
           }}
         >
-          <div className="pointer-events-auto absolute bottom-1 left-1/2 flex -translate-x-1/2 gap-1 opacity-70 transition-opacity hover:opacity-100">
+          <div className="pointer-events-auto absolute bottom-1 left-1/2 flex max-w-full -translate-x-1/2 flex-wrap justify-center gap-1 opacity-70 transition-opacity hover:opacity-100">
             <div
               role="button"
               aria-label={`Rotate tile`}
               title={`Tap to rotate 90\u00B0 \u00B7 drag to free-rotate`}
               data-companion-handle
               className={cn(
-                "grid size-7 cursor-grab touch-none place-items-center rounded-md bg-black/60 text-white",
+                "grid size-7 shrink-0 cursor-grab touch-none place-items-center rounded-md bg-black/60 text-white touch:min-h-11 touch:min-w-11",
                 "active:cursor-grabbing",
               )}
               onPointerDown={onRotatePointerDown}
@@ -467,7 +467,7 @@ export function FreeTile({
               aria-label={`Scale tile`}
               title={`Drag to resize \u00B7 tap to reset`}
               data-companion-handle
-              className="grid size-7 cursor-grab touch-none place-items-center rounded-md bg-black/60 text-white active:cursor-grabbing"
+              className="grid size-7 shrink-0 cursor-grab touch-none place-items-center rounded-md bg-black/60 text-white active:cursor-grabbing touch:min-h-11 touch:min-w-11"
               onPointerDown={onScalePointerDown}
               onPointerMove={onScalePointerMove}
               onPointerUp={onScalePointerUp}
@@ -479,7 +479,7 @@ export function FreeTile({
               role="button"
               aria-label={`Drag tile`}
               data-companion-handle
-              className="grid size-7 cursor-grab touch-none place-items-center rounded-md bg-black/60 text-white active:cursor-grabbing"
+              className="grid size-7 shrink-0 cursor-grab touch-none place-items-center rounded-md bg-black/60 text-white active:cursor-grabbing touch:min-h-11 touch:min-w-11"
               onPointerDown={onMovePointerDown}
               onPointerMove={onMovePointerMove}
               onPointerUp={onMovePointerUp}

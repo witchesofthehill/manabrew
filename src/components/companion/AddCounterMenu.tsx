@@ -30,7 +30,7 @@ export function AddCounterMenu({ player }: AddCounterMenuProps) {
           <Button
             size="icon"
             variant="ghost"
-            className="size-7 rounded-full bg-black/40 text-white hover:bg-black/55 hover:text-white @md:size-8"
+            className="size-7 rounded-full bg-black/40 text-white hover:bg-black/55 hover:text-white @md:size-8 touch:min-h-11 touch:min-w-11"
             aria-label={`Add counter`}
           >
             <Plus className="size-4 @md:size-5" />

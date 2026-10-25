@@ -30,7 +30,7 @@ export function RestoreVoteModal({
       <Modal.Header>
         <h2 className="text-base font-semibold">Restore the game?</h2>
       </Modal.Header>
-      <Modal.Body className="space-y-3 text-sm">
+      <Modal.Body className="space-y-3">
         <p>
           {`${resolvePlayerName(restoreVote.requestedByPlayerId)} asks to go back to ${checkpointLabel(restoreVote.checkpoint)}.`}
         </p>

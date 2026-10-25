@@ -21,18 +21,18 @@ export function LimitedRoleCorrections({
     card.card.name.toLowerCase().includes(search.toLowerCase()),
   );
   return (
-    <details className="rounded border border-border p-3 text-xs">
-      <summary className="cursor-pointer font-semibold">
+    <details className="rounded border border-border p-3 text-ui-meta">
+      <summary className="min-h-8 cursor-pointer text-ui-label font-semibold touch:min-h-11">
         Classification and role corrections
       </summary>
       <div className="mt-3 space-y-3">
-        <p className="text-muted-foreground">
+        <p className="text-ui-body text-muted-foreground">
           Creature roles use the front-face type. Interaction matches Oracle removal, countering,
           bounce, damage and attack/block restrictions. Fixing matches multiple-color land sources,
           any-color mana, land searches and Treasure. These are text-based suggestions, not power
           ratings. Choose a card's roles when the suggestion misses its job in this pool.
         </p>
-        <p className="text-muted-foreground">
+        <p className="text-ui-body text-muted-foreground">
           Corrections belong to this session and physical card. They survive reloads and do not move
           cards, change mana costs or turn unsupported abilities into unconditional sources. Reset
           returns to the metadata suggestion.
@@ -51,7 +51,7 @@ export function LimitedRoleCorrections({
               className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border py-3"
             >
               <div className="min-w-0 flex-1 basis-40">
-                <p className="font-medium">{card.card.name}</p>
+                <p className="text-ui-label font-medium">{card.card.name}</p>
                 <p className="text-muted-foreground">
                   {card.card.setCode.toUpperCase()} {card.card.cardNumber}
                   {card.card.foil ? " · Foil" : ""}
@@ -59,7 +59,10 @@ export function LimitedRoleCorrections({
                 </p>
               </div>
               {LIMITED_ROLES.map((role) => (
-                <label key={role} className="flex min-h-8 cursor-pointer items-center gap-2">
+                <label
+                  key={role}
+                  className="flex min-h-8 cursor-pointer items-center gap-2 text-ui-label touch:min-h-11"
+                >
                   <input
                     type="checkbox"
                     className="h-4 w-4 accent-primary"

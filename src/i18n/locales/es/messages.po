@@ -14,7 +14,7 @@ msgstr ""
 "Plural-Forms: \n"
 
 #. placeholder {0}: display.stats.damage
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1302
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1312
 msgid "{0} damage"
 msgstr "{0} de daño"
 
@@ -33,7 +33,7 @@ msgstr "Características actuales"
 
 #. placeholder {0}: display.stats.power
 #. placeholder {1}: display.stats.toughness
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1102
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1111
 msgid "Current P/T: {0}/{1}"
 msgstr "F/R actuales: {0}/{1}"
 
@@ -41,7 +41,7 @@ msgstr "F/R actuales: {0}/{1}"
 msgid "Current power and toughness"
 msgstr "Fuerza y resistencia actuales"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1692
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1702
 msgid "Defense"
 msgstr "Defensa"
 
@@ -58,11 +58,11 @@ msgstr "Carta boca abajo"
 msgid "Face-down permanent"
 msgstr "Permanente boca abajo"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1274
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1283
 msgid "Flip back · F"
 msgstr "Ver el reverso · F"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1274
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1283
 msgid "Flip front · F"
 msgstr "Ver el anverso · F"
 
@@ -84,7 +84,7 @@ msgstr "Nivel {0}"
 msgid "Locked"
 msgstr "Cerrada"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1691
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1701
 msgid "Loyalty"
 msgstr "Lealtad"
 
@@ -104,11 +104,11 @@ msgstr "No suspendida"
 msgid "On an Adventure"
 msgstr "De aventura"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1096
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1105
 msgid "On an Adventure · available actions are listed on their spell half"
 msgstr "De aventura · las acciones disponibles se indican en su mitad de hechizo"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1290
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1300
 msgid "Original printing · generated frame unavailable"
 msgstr ""
 
@@ -116,7 +116,7 @@ msgstr ""
 msgid "Printed alternative"
 msgstr "Alternativa impresa"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1288
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1298
 msgid "Printed face · live state belongs to the other face"
 msgstr "Cara impresa · el estado actual corresponde a la otra cara"
 

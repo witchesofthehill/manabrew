@@ -1,4 +1,4 @@
-import { UI_FONT_FAMILY } from "@/themes/typography";
+import { getUiControlHeight, getUiFontSize, UI_FONT_FAMILY } from "@/themes/typography";
 import {
   Container,
   Graphics,
@@ -10,7 +10,6 @@ import {
   type FederatedPointerEvent,
 } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
-import { isCoarsePointer } from "@/lib/responsive";
 import { applyIcon } from "./panelIcons";
 import { hexToNum } from "./colorUtils";
 
@@ -19,10 +18,8 @@ const CONTROL_GAP = 4;
 const CONTROL_INSET = 5;
 const ICON_SIZE = 12;
 const TOOLTIP_GAP = 4;
-const TOOLTIP_HEIGHT = 20;
 const TOOLTIP_PAD_X = 6;
 const TOOLTIP_RADIUS = 5;
-const TOOLTIP_FONT_SIZE = 10;
 
 export interface HandCardControlsSpec {
   rulesView: boolean;
@@ -36,12 +33,17 @@ export interface HandCardControlsSpec {
 export class HandCardControls extends Container {
   private spec: HandCardControlsSpec | null = null;
   private theme: Theme;
-  private readonly controlSize: number;
+  private controlSize: number;
+  private readonly baseControlSize: number;
+  private buttons: Container[] = [];
+  private availableWidth = Infinity;
+  private buttonsHeight = 0;
 
   constructor(theme: Theme, controlSize = CONTROL_SIZE) {
     super();
     this.theme = theme;
-    this.controlSize = controlSize;
+    this.baseControlSize = controlSize;
+    this.controlSize = Math.max(controlSize, getUiControlHeight());
     this.eventMode = "passive";
     this.visible = false;
   }
@@ -62,6 +64,8 @@ export class HandCardControls extends Container {
     if (scaleX <= 0 || scaleY <= 0) return;
     this.scale.set(1 / scaleX, 1 / scaleY);
     this.position.set(cardWidth - CONTROL_INSET / scaleX, artTop);
+    this.availableWidth = Math.max(0, cardWidth * scaleX - CONTROL_INSET * 2);
+    this.layoutButtons();
   }
 
   setTheme(theme: Theme): void {
@@ -70,7 +74,9 @@ export class HandCardControls extends Container {
   }
 
   private redraw(): void {
+    this.controlSize = Math.max(this.baseControlSize, getUiControlHeight());
     this.removeChildren().forEach((child) => child.destroy({ children: true }));
+    this.buttons.length = 0;
     const spec = this.spec;
     if (!spec) {
       this.visible = false;
@@ -100,19 +106,26 @@ export class HandCardControls extends Container {
         : []),
     ];
     const tooltip = this.createTooltip();
-    const buttons = controls.map(({ icon, tooltip: label, activate }) =>
+    this.buttons = controls.map(({ icon, tooltip: label, activate }) =>
       this.createButton(icon, label, activate, tooltip),
     );
-    const totalWidth =
-      buttons.length * this.controlSize + CONTROL_GAP * Math.max(0, buttons.length - 1);
-    let x = -totalWidth;
-    for (const button of buttons) {
-      button.position.set(x, 0);
-      this.addChild(button);
-      x += this.controlSize + CONTROL_GAP;
-    }
+    for (const button of this.buttons) this.addChild(button);
+    this.layoutButtons();
     this.addChild(tooltip.container);
     this.visible = true;
+  }
+
+  private layoutButtons(): void {
+    const totalWidth =
+      this.buttons.length * this.controlSize + CONTROL_GAP * Math.max(0, this.buttons.length - 1);
+    const vertical = totalWidth > this.availableWidth;
+    this.buttonsHeight = vertical ? totalWidth : this.controlSize;
+    for (let index = 0; index < this.buttons.length; index++) {
+      this.buttons[index]!.position.set(
+        vertical ? -this.controlSize : -totalWidth + index * (this.controlSize + CONTROL_GAP),
+        vertical ? index * (this.controlSize + CONTROL_GAP) : 0,
+      );
+    }
   }
 
   private createButton(
@@ -149,7 +162,7 @@ export class HandCardControls extends Container {
     button.addChild(background, icon);
     button.eventMode = "static";
     button.cursor = "pointer";
-    const hitPad = isCoarsePointer() ? 6 : 1;
+    const hitPad = 1;
     button.hitArea = new Rectangle(
       -hitPad,
       -hitPad,
@@ -186,7 +199,7 @@ export class HandCardControls extends Container {
       style: new TextStyle({
         fill: this.theme.appTheme["popover-foreground"],
         fontFamily: UI_FONT_FAMILY,
-        fontSize: TOOLTIP_FONT_SIZE,
+        fontSize: getUiFontSize("meta"),
         fontWeight: "600",
       }),
     });
@@ -203,19 +216,17 @@ export class HandCardControls extends Container {
     centerX: number,
   ): void {
     tooltip.label.text = text;
+    const height = tooltip.label.height + 8;
     const width = tooltip.label.width + TOOLTIP_PAD_X * 2;
-    tooltip.label.position.set(
-      TOOLTIP_PAD_X,
-      Math.round((TOOLTIP_HEIGHT - tooltip.label.height) / 2),
-    );
+    tooltip.label.position.set(TOOLTIP_PAD_X, Math.round((height - tooltip.label.height) / 2));
     tooltip.background
       .clear()
-      .roundRect(0, 0, width, TOOLTIP_HEIGHT, TOOLTIP_RADIUS)
+      .roundRect(0, 0, width, height, TOOLTIP_RADIUS)
       .fill({ color: hexToNum(this.theme.appTheme.popover), alpha: 0.97 })
       .stroke({ color: hexToNum(this.theme.appTheme.border), width: 0.75 });
     tooltip.container.position.set(
       Math.min(centerX - width / 2, -width),
-      this.controlSize + TOOLTIP_GAP,
+      this.buttonsHeight + TOOLTIP_GAP,
     );
     tooltip.container.visible = true;
   }

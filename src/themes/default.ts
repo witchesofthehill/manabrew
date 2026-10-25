@@ -99,7 +99,7 @@ const MANABREW_THEME: {
     "secondary-foreground": neutral.soot,
     muted: neutral.ash,
     "muted-foreground": neutral.pewter,
-    accent: darkBorder,
+    accent: neutral.darkPewter,
     "accent-foreground": neutral.steam,
     "brand-accent": sage[400],
     "brand-accent-muted": "#303B2D",

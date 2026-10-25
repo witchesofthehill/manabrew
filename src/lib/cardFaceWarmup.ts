@@ -7,8 +7,10 @@ import type { CardRenderPriority } from "@/lib/cardRenderQueue";
 import { GAME_CARD_SIZES } from "@/components/game/game.constants";
 import { overlayResolution } from "@/pixi/overlay/overlayRuntime";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { useScryfallStore } from "@/stores/useScryfallStore";
 
-const WARM_BATCH = 8;
+const IDLE_FALLBACK_MS = 800;
+const WARM_CONCURRENCY = 2;
 const LAST_PLAYABLE_RANK = 99;
 
 let warmGeneration = 0;
@@ -123,10 +125,41 @@ export async function warmDeckFaces(
     ...renderFaces(cards, "background"),
     ...renderFaces(cards, "background", laterRenderVariants()),
   ];
-  for (let index = 0; index < renders.length; index += WARM_BATCH) {
-    if (generation !== warmGeneration) return;
-    await Promise.allSettled(renders.slice(index, index + WARM_BATCH).map((render) => render()));
-  }
+  if (renders.length === 0) return;
+  const started = performance.now();
+  const scryfall = useScryfallStore.getState();
+  await Promise.allSettled(
+    cards
+      .filter(({ identity, layout }) => !identity.tokenScript && !layout?.includes("token"))
+      .map(({ identity }) =>
+        scryfall.getCard({
+          name: identity.name,
+          setCode: identity.setCode || undefined,
+          collectorNumber: identity.cardNumber || undefined,
+        }),
+      ),
+  );
+  if (generation !== warmGeneration) return;
+  let next = 0;
+  const lane = async (): Promise<void> => {
+    await idle();
+    const render = renders[next++];
+    if (!render || generation !== warmGeneration) return;
+    await render().catch(() => undefined);
+    return lane();
+  };
+  await Promise.all(Array.from({ length: WARM_CONCURRENCY }, lane));
+  if (generation !== warmGeneration) return;
+  console.info(
+    `[card warm-up] ${renders.length} faces in ${((performance.now() - started) / 1000).toFixed(1)} s`,
+  );
+}
+
+function idle(): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof requestIdleCallback === "function") requestIdleCallback(() => resolve());
+    else setTimeout(resolve, IDLE_FALLBACK_MS);
+  });
 }
 
 export function warmLibraryTop(cards: readonly CardIdentity[]): void {

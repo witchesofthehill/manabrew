@@ -46,10 +46,12 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 public final class ActionSpace {
     private static final String SPEND_ONLY_COLORED_ON_X =
             "Spend only colored mana on X. No more than one mana of each color may be spent this way.";
+    private static final Pattern X_COMPARISON = Pattern.compile("(EQ|NE|LT|LE|GT|GE)X(?![A-Za-z0-9])");
 
 
 
@@ -164,7 +166,7 @@ public final class ActionSpace {
             if (!includeManaAbilities && sa.isManaAbility()) {
                 continue;
             }
-            if (!hasValidTargets(sa)) {
+            if (!targetsDependOnAnnouncedX(sa) && !hasValidTargets(sa)) {
                 continue;
             }
             if (!sa.checkRestrictions(spellHost(sa, game, spellHosts), player)) {
@@ -260,6 +262,27 @@ public final class ActionSpace {
             }
         } finally {
             sa.setXManaCostPaid(null);
+        }
+        return false;
+    }
+
+    private static boolean targetsDependOnAnnouncedX(final SpellAbility sa) {
+        if (sa.getXManaCostPaid() != null || sa.getPayCosts() == null || !sa.getPayCosts().hasXInAnyCostPart()) {
+            return false;
+        }
+        final String sVar = sa.getParamOrDefault("XAlternative", sa.getSVar("X"));
+        if (!"Count$xPaid".equals(sVar) && !sVar.isEmpty()) {
+            return false;
+        }
+        for (SpellAbility current = sa; current != null; current = current.getSubAbility()) {
+            if (!current.usesTargeting()) {
+                continue;
+            }
+            for (final String valid : current.getTargetRestrictions().getValidTgts()) {
+                if (X_COMPARISON.matcher(valid).find()) {
+                    return true;
+                }
+            }
         }
         return false;
     }

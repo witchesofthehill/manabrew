@@ -81,7 +81,7 @@ export function AccountMenu({ disabled = false }: AccountMenuProps) {
         </span>
       );
     }
-    return <CircleUserRound className="h-4 w-4 text-muted-foreground" />;
+    return <CircleUserRound className="h-5 w-5 text-muted-foreground" />;
   }
 
   return (
@@ -93,7 +93,7 @@ export function AccountMenu({ disabled = false }: AccountMenuProps) {
           aria-label={signedInAccount ? `Account: @${signedInAccount.handle}` : `Account menu`}
           title={signedInAccount ? `@${signedInAccount.handle}` : displayName || `Account`}
           className={cn(
-            "relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border/70 bg-muted pointer-coarse:h-11 pointer-coarse:w-11",
+            "relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border/70 bg-muted pointer-coarse:h-11 pointer-coarse:w-11",
             "motion-safe:transition-[border-color,box-shadow] hover:border-primary/40 hover:shadow-sm",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
             "data-[state=open]:border-primary/50 data-[state=open]:ring-2 data-[state=open]:ring-ring",

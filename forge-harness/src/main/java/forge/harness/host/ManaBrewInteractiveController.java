@@ -493,7 +493,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         return fallbackCombatDamage(attacker, blockers, damageDealt, defender);
     }
 
-    private static void validateCombatDamageAssignment(
+    static void validateCombatDamageAssignment(
             final Map<Card, Integer> assignment,
             final Card attacker,
             final CardCollectionView blockers,
@@ -520,7 +520,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                 throw new IllegalArgumentException(
                         "combat damage assigned out of damage assignment order to " + blocker);
             }
-            final int lethal = ComputerUtilCombat.getEnoughDamageToKill(blocker, damageDealt, attacker, false, false);
+            final int lethal = blocker.getExcessDamageValue(attacker.hasKeyword(Keyword.DEATHTOUCH));
             priorLethal &= assigned >= lethal;
             allBlockersLethal &= assigned >= lethal;
         }

@@ -431,7 +431,9 @@ export class PromptLayer extends PromptModalLayer {
     const contextLines = this.actionContextLines();
     const showActionContext = !minimal && (contextLines.length > 0 || this.hasActionCombatInfo());
     if (!showActionContext) this.actionContextOpen = false;
-    const fixedWidth = minimal ? null : Math.min(this.viewportWidth - 24, shortScreen ? 320 : 360);
+    const fixedWidth = minimal
+      ? null
+      : Math.min(this.viewportWidth - 24, shortScreen || touch ? 320 : 360);
     const fixedContentWidth = fixedWidth == null ? this.viewportWidth - 24 : fixedWidth - 16;
     const phaseAnchor = action.compactPhaseControl?.anchor ?? null;
     const controls = minimal
@@ -470,7 +472,7 @@ export class PromptLayer extends PromptModalLayer {
     const leftHanded = this.leftHanded;
     const edgeMargin = minimal || shortScreen ? 6 : 12;
     const x = minimal && leftHanded ? edgeMargin : this.viewportWidth - width - edgeMargin;
-    const hand = this.handBounds;
+    const hand = touch ? null : this.handBounds;
     const bottomLimit =
       !minimal && hand && x < hand.right && x + width > hand.left
         ? Math.min(this.viewportHeight - (shortScreen ? 118 : 0), hand.top - ACTION_CARD_GAP)
@@ -1122,7 +1124,10 @@ export class PromptLayer extends PromptModalLayer {
     const maxWidth =
       this.layerPresentation.actionStyle === "minimal"
         ? this.viewportWidth - 24
-        : Math.min(this.viewportWidth - 40, this.viewportHeight <= 520 ? 304 : 344);
+        : Math.min(
+            this.viewportWidth - 40,
+            this.viewportHeight <= 520 || getUiControlHeight() >= 44 ? 304 : 344,
+          );
     return this.layoutWrappedActionButtons(buttons, maxWidth, gap);
   }
 
@@ -1196,6 +1201,12 @@ export class PromptLayer extends PromptModalLayer {
       return this.layoutActionRow([pass, end], 4);
     }
 
+    const touch = getUiControlHeight() >= 44;
+    const labelWidth = Math.max(140, getUiFontSize("label") * 10);
+    const textEndWidth = Math.min(availableWidth, Math.max(120, getUiFontSize("label") * 10));
+    const endIconOnly = touch && textEndWidth + labelWidth > availableWidth;
+    const endWidth = endIconOnly ? Math.max(48, getUiControlHeight()) : textEndWidth;
+    const priorityColumn = !morphed && endWidth + labelWidth > availableWidth;
     const end = morphed
       ? null
       : this.makeButton(endLabel, action.onPassEndTurn, {
@@ -1203,7 +1214,11 @@ export class PromptLayer extends PromptModalLayer {
           radius: 0,
           disabled,
           height,
-          width: Math.min(availableWidth, Math.max(120, getUiFontSize("label") * 10)),
+          width: priorityColumn ? availableWidth : endWidth,
+          icon: endIconOnly ? "lucide-skip-forward" : undefined,
+          iconSize: 20,
+          labelPlacement: endIconOnly ? "hidden" : "inline",
+          tooltip: endIconOnly,
           paddingX: 14,
           fontWeight: "700",
           letterSpacing: 1,
@@ -1213,8 +1228,6 @@ export class PromptLayer extends PromptModalLayer {
           hoverBackgroundAlpha: 0.3,
           title: endCombo ? `${endTitle} (${comboSymbols(endCombo)})` : endTitle,
         });
-    const priorityColumn =
-      !!end && end.buttonWidth + Math.max(140, getUiFontSize("label") * 10) > availableWidth;
     const pass = this.makeButton(
       passLabel,
       morphed ? action.onPassEndTurn : action.onPassPriority,
@@ -1232,7 +1245,7 @@ export class PromptLayer extends PromptModalLayer {
         backgroundColor: this.theme.appTheme["primary-foreground"],
         backgroundAlpha: morphed ? 0.15 : 0,
         hoverBackgroundAlpha: morphed ? 0.2 : 0.1,
-        shortcut: combo ? comboSymbols(combo) : undefined,
+        shortcut: !touch && combo ? comboSymbols(combo) : undefined,
         title: morphed ? endTitle : "Pass priority",
       },
     );
@@ -1246,32 +1259,31 @@ export class PromptLayer extends PromptModalLayer {
         this.theme.appTheme["primary-foreground"],
       );
     }
-    if (priorityColumn && end) {
-      this.priorityButtons = { pass, end };
-      return this.layoutActionRow([pass, end], 4);
-    }
+    const totalHeight = priorityColumn ? height * 2 : height;
     const container = new Container();
     const clipped = new Container();
     const surface = new Graphics()
-      .roundRect(0, 0, availableWidth, height, 8)
+      .roundRect(0, 0, availableWidth, totalHeight, 8)
       .fill({ color: hexToNum(this.theme.appTheme.primary) });
     const mask = new Graphics()
-      .roundRect(0, 0, availableWidth, height, 8)
+      .roundRect(0, 0, availableWidth, totalHeight, 8)
       .fill({ color: 0xffffff });
-    const ring = new Graphics().roundRect(0.5, 0.5, availableWidth - 1, height - 1, 7.5).stroke({
-      color: hexToNum(this.theme.appTheme["primary-foreground"]),
-      width: 1,
-      alpha: 0.2,
-    });
+    const ring = new Graphics()
+      .roundRect(0.5, 0.5, availableWidth - 1, totalHeight - 1, 7.5)
+      .stroke({
+        color: hexToNum(this.theme.appTheme["primary-foreground"]),
+        width: 1,
+        alpha: 0.2,
+      });
     surface.eventMode = "none";
     mask.eventMode = "none";
     ring.eventMode = "none";
     clipped.addChild(surface, pass);
     if (end) {
-      end.position.x = pass.buttonWidth;
+      end.position.set(priorityColumn ? 0 : pass.buttonWidth, priorityColumn ? height : 0);
       const divider = new Graphics()
-        .moveTo(pass.buttonWidth, 0)
-        .lineTo(pass.buttonWidth, height)
+        .moveTo(priorityColumn ? 0 : pass.buttonWidth, priorityColumn ? height : 0)
+        .lineTo(priorityColumn ? availableWidth : pass.buttonWidth, height)
         .stroke({
           color: hexToNum(this.theme.appTheme["primary-foreground"]),
           width: 1,
@@ -1283,7 +1295,7 @@ export class PromptLayer extends PromptModalLayer {
     clipped.mask = mask;
     container.addChild(mask, clipped, ring);
     this.priorityButtons = { pass, end };
-    return { container, width: availableWidth, height };
+    return { container, width: availableWidth, height: totalHeight };
   }
 
   private buildNoActionView(availableWidth: number, minimal: boolean): ActionViewLayout {
@@ -1938,6 +1950,7 @@ export class PromptLayer extends PromptModalLayer {
     const combo = resolveCombo("toggle-priority-mode", useKeybindingsStore.getState().overrides);
     const fullControl = state.fullControl;
     const hint = combo ? ` (${formatCombo(combo)})` : "";
+    const iconOnly = !minimal && getUiControlHeight() >= 44;
     const button = this.makeButton(
       minimal ? (fullControl ? "FULL" : "AUTO") : fullControl ? "FULL CTRL" : "AUTOPASS",
       () => {
@@ -1949,8 +1962,9 @@ export class PromptLayer extends PromptModalLayer {
           ? `Full control — you stop at every priority window${hint}`
           : `Autopass: dead priority windows pass automatically${hint}`,
         icon: fullControl ? "lucide-hand" : "lucide-zap",
-        iconSize: minimal ? 16 : 12,
-        labelPlacement: minimal ? "stacked" : undefined,
+        iconSize: iconOnly ? 20 : minimal ? 16 : 12,
+        labelPlacement: iconOnly ? "hidden" : minimal ? "stacked" : undefined,
+        tooltip: iconOnly,
         outline: true,
         foreground: fullControl
           ? this.theme.appTheme["selection-foreground"]
@@ -1971,7 +1985,7 @@ export class PromptLayer extends PromptModalLayer {
         pressOffsetY: 1,
         borderAlpha: minimal && !fullControl ? 0 : 0.8,
         disabled,
-        width: minimal ? 64 : undefined,
+        width: iconOnly ? getUiControlHeight() : minimal ? 64 : undefined,
         height: minimal ? 44 : 22,
         paddingX: 8,
         fontWeight: "700",

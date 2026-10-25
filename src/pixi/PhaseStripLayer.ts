@@ -389,8 +389,11 @@ export class PhaseStripLayer {
   }
 
   private updateTypography(): void {
-    normalStyle.fontSize = activeStyle.fontSize = getUiFontSize("label");
-    CELL_H = Math.max(28, getUiControlHeight(), Math.ceil(getUiFontSize("label") * 1.4) + 8);
+    const tablet = !this.compact && getUiControlHeight() >= 44;
+    const fontSize = getUiFontSize(tablet ? "caption" : "label");
+    const controlHeight = tablet ? 32 : getUiControlHeight();
+    normalStyle.fontSize = activeStyle.fontSize = fontSize;
+    CELL_H = Math.max(28, controlHeight, Math.ceil(fontSize * 1.4) + 8);
     COMPACT_PILL_H = Math.max(
       22,
       getUiControlHeight(),
@@ -398,7 +401,7 @@ export class PhaseStripLayer {
     );
     INDICATOR_HIT_H = Math.max(12, getUiControlHeight());
     const measurer = new Text({ text: "", style: activeStyle });
-    CELL_W = Math.max(60, getUiControlHeight());
+    CELL_W = Math.max(60, controlHeight);
     for (const phase of PHASES) {
       if (phase.subPhases) continue;
       measurer.text = phase.short;
@@ -561,9 +564,10 @@ export class PhaseStripLayer {
     const availableWidth = Math.max(1, this.canvasWidth - 16);
     const combatWidth = Math.min(this.combatCellW, availableWidth);
 
+    const indicatorWidth = !this.compact && getUiControlHeight() >= 44 ? 32 : getUiControlHeight();
     const cellWidth = Math.max(
       CELL_W,
-      state.opponents.length * getUiControlHeight() +
+      state.opponents.length * indicatorWidth +
         Math.max(0, state.opponents.length - 1) * INDICATOR_GAP,
     );
     const naturalWidth =

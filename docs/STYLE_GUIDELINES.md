@@ -374,7 +374,7 @@ and add a semantic theme key instead.
 
 The app targets smartphones/tablets (touch, small landscape screens) through huge desktop monitors.
 
-- **Breakpoint constants live in `src/lib/responsive.ts`** (`DESKTOP_QUERY`, `SHORT_SCREEN_QUERY`, `COARSE_POINTER_QUERY`, long-press timings). JS gates use `useMediaQuery` or the `useIsTouch` / `useIsDesktop` / `useIsShortScreen` wrappers in `src/hooks/useBreakpoints.ts`. Don't inline `matchMedia` query strings.
+- **Breakpoint constants live in `src/lib/responsive.ts`** (`DESKTOP_QUERY`, `SHORT_SCREEN_QUERY`, `COARSE_POINTER_QUERY`, `MOBILE_GAME_QUERY`, long-press timings). JS gates use `useMediaQuery` or the wrappers in `src/hooks/useBreakpoints.ts`. In-game scene and chrome selection use `useIsMobileGame`; height-constrained touch layouts use `useIsShortTouchScreen`. Don't inline `matchMedia` query strings.
 - **`dvh`, never `vh`**, for viewport heights (`max-h-[85dvh]`); `env(safe-area-inset-*)` for notch/home-indicator padding. See `src/AGENTS.md` "page never scrolls".
 - **Hover is not a feature on touch.** Every hover-only affordance needs a touch path: reveal overlays with `pointer-coarse:opacity-100 pointer-coarse:pointer-events-auto`, and previews via **long-press = preview** — the app-wide convention (450ms hold, <10px movement, release hides, the release-tap is swallowed). DOM surfaces use `useLongPressPreview` (`src/hooks/useLongPressPreview.ts`); Pixi surfaces use `LongPressGesture` (`src/pixi/LongPressGesture.ts`).
 - **Hover handlers on card tiles use `onPointerEnter`/`onPointerLeave` with an `e.pointerType === "touch"` early-return** — plain `onMouseEnter` fires on tap and strands the preview (no mouseleave ever comes on touch).

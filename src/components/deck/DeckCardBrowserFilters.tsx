@@ -16,7 +16,7 @@ import {
   type GroupByMode,
   type ViewMode,
 } from "@/components/editor/deckBuilder.utils";
-import { useIsMobileGame } from "@/hooks/useBreakpoints";
+import { useIsShortTouchScreen } from "@/hooks/useBreakpoints";
 import { cn } from "@/lib/utils";
 import { MANA_LETTERS } from "@/themes/gameTheme";
 export type BrowserZoneFilter = "all" | "main" | "side" | "maybe";
@@ -209,7 +209,7 @@ export function DeckCardBrowserFilters({
   hasFilters,
   onClear,
 }: DeckCardBrowserFiltersProps) {
-  const shortTouch = useIsMobileGame();
+  const shortTouch = useIsShortTouchScreen();
   const activeFilterCount =
     Number(zone !== "all") +
     Number(cardType !== "all") +

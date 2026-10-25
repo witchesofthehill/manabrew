@@ -24,7 +24,7 @@ import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { removeDeckHubEntry } from "@/api/hub";
 import { useMyDeckHubEntries } from "@/hooks/useMyDeckHubEntries";
 import { useAccountDecks } from "@/hooks/useAccountDecks";
-import { useIsMobileGame } from "@/hooks/useBreakpoints";
+import { useIsShortTouchScreen } from "@/hooks/useBreakpoints";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { useAccountDecksStore } from "@/stores/useAccountDecksStore";
 import { useHubStore } from "@/stores/useHubStore";
@@ -56,7 +56,7 @@ export function HubDeckPreviewDialog({
   onUnpublished,
   onViewSnapshot,
 }: HubDeckPreviewDialogProps) {
-  const shortTouch = useIsMobileGame();
+  const shortTouch = useIsShortTouchScreen();
   const hubEnabled = isFeatureEnabled("deckHub");
   const navigate = useNavigate();
   const {

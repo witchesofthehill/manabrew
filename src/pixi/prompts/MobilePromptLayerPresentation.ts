@@ -1,3 +1,4 @@
+import { SHORT_SCREEN_MAX_HEIGHT_PX } from "@/lib/responsive";
 import type {
   PromptLayerPresentation,
   ScryPromptHint,
@@ -7,7 +8,6 @@ import type {
 export class MobilePromptLayerPresentation implements PromptLayerPresentation {
   readonly actionStyle = "minimal";
   readonly modalBodyFit = "scale";
-  readonly cardLayout = "horizontal-scroll";
   readonly selectionRowHeight = 64;
   readonly selectionRowPitch = 70;
   readonly scryHint: ScryPromptHint = {
@@ -22,6 +22,10 @@ export class MobilePromptLayerPresentation implements PromptLayerPresentation {
     fontSize: 10,
     textOffsetY: 22,
   };
+
+  cardLayout(viewportHeight: number): "grid" | "horizontal-scroll" {
+    return viewportHeight > SHORT_SCREEN_MAX_HEIGHT_PX ? "grid" : "horizontal-scroll";
+  }
 
   modalHeight(viewportHeight: number, _requestedHeight: number, viewportMargin: number): number {
     return viewportHeight - viewportMargin;

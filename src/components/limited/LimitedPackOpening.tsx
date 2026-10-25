@@ -5,7 +5,7 @@ import { LimitedBoosterTable } from "@/components/limited/LimitedBoosterTable";
 import { useLimitedPackOpening } from "@/components/limited/useLimitedPackOpening";
 import { useLimitedBuildStore } from "@/components/limited/useLimitedBuildStore";
 import { Button } from "@/components/ui/button";
-import { useIsMobileGame } from "@/hooks/useBreakpoints";
+import { useIsShortTouchScreen } from "@/hooks/useBreakpoints";
 import { peekCard, useScryfallStore } from "@/stores/useScryfallStore";
 import { cn } from "@/lib/utils";
 import type { SealedPool } from "@/types/limited";
@@ -21,7 +21,7 @@ export function LimitedPackOpening({
   packs: SealedPool["packs"];
   onComplete: () => void;
 }) {
-  const compact = useIsMobileGame();
+  const compact = useIsShortTouchScreen();
   const [viewPool, setViewPool] = useState(false);
   const cardSize = useLimitedBuildStore(
     (state) => state.sessions[sessionKey]?.cardSize ?? state.displayPreferences.cardSize,

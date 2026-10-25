@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { DeckHubFilters } from "@/components/deck/DeckHubFilters";
 import { DeckHubResults } from "@/components/deck/DeckHubResults";
-import { useIsMobileGame } from "@/hooks/useBreakpoints";
+import { useIsShortTouchScreen } from "@/hooks/useBreakpoints";
 import { availableEngines, hubEntryEngines, supportsAvailableEngine } from "@/lib/engines";
 import { cn } from "@/lib/utils";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
@@ -27,7 +27,7 @@ function csv(value: string | null) {
 }
 
 export function DeckHubDiscover({ onOpen }: DeckHubDiscoverProps) {
-  const shortTouch = useIsMobileGame();
+  const shortTouch = useIsShortTouchScreen();
   const ironsmithRuntimeOn = usePreferencesStore((state) => state.ironsmithRuntimeEnabled);
   const accountsEnabled = isFeatureEnabled("accounts");
   const [searchParams, setSearchParams] = useSearchParams();

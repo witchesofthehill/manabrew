@@ -1,8 +1,11 @@
 export const DESKTOP_QUERY = "(min-width: 768px)";
 
-export const SHORT_SCREEN_QUERY = "(max-height: 520px)";
+export const SHORT_SCREEN_MAX_HEIGHT_PX = 520;
+export const SHORT_SCREEN_QUERY = `(max-height: ${SHORT_SCREEN_MAX_HEIGHT_PX}px)`;
 
 export const COARSE_POINTER_QUERY = "(pointer: coarse)";
+
+export const MOBILE_GAME_QUERY = `${COARSE_POINTER_QUERY} and (max-width: 1024px), ${COARSE_POINTER_QUERY} and (max-height: 1024px)`;
 
 export const PORTRAIT_QUERY = "(orientation: portrait)";
 

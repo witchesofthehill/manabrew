@@ -27,7 +27,7 @@ export interface ScryPromptLayout {
 export interface PromptLayerPresentation {
   readonly actionStyle: "full" | "minimal";
   readonly modalBodyFit: "scroll" | "scale";
-  readonly cardLayout: "grid" | "horizontal-scroll";
+  cardLayout(viewportHeight: number): "grid" | "horizontal-scroll";
   readonly selectionRowHeight: number;
   readonly scryHint: ScryPromptHint;
   readonly selectionRowPitch: number;

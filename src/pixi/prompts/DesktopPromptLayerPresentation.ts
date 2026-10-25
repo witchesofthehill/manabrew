@@ -9,7 +9,6 @@ const MIN_PROMPT_PANEL_WIDTH = 360;
 export class DesktopPromptLayerPresentation implements PromptLayerPresentation {
   readonly actionStyle = "full";
   readonly modalBodyFit = "scroll";
-  readonly cardLayout = "grid";
   readonly selectionRowHeight = 56;
   readonly selectionRowPitch = 66;
   readonly scryHint: ScryPromptHint = {
@@ -24,6 +23,10 @@ export class DesktopPromptLayerPresentation implements PromptLayerPresentation {
     fontSize: 11,
     textOffsetY: 32,
   };
+
+  cardLayout(): "grid" {
+    return "grid";
+  }
 
   modalHeight(_viewportHeight: number, requestedHeight: number): number {
     return requestedHeight;

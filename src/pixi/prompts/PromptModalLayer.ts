@@ -568,10 +568,14 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     const requiredHeight = Math.ceil(
       state.bodyTop + contentHeight + state.footerHeight + MODAL_BODY_BOTTOM_PADDING,
     );
-    const compactSelection =
+    const inputType = this.spec?.currentPrompt?.input.type;
+    const cardGrid =
+      (inputType === "chooseCards" || inputType === "revealCards") &&
+      this.layerPresentation.cardLayout(this.viewportHeight) === "grid";
+    const compactScroll =
       this.layerPresentation.modalBodyFit === "scale" &&
-      this.spec?.currentPrompt?.input.type === "chooseFromSelection";
-    if (this.layerPresentation.modalBodyFit === "scale" && !compactSelection) {
+      (inputType === "chooseFromSelection" || cardGrid);
+    if (this.layerPresentation.modalBodyFit === "scale" && !compactScroll) {
       const compactHeight = Math.min(
         this.viewportHeight - PROMPT_MODAL_VIEWPORT_MARGIN,
         Math.max(state.height, requiredHeight),
@@ -616,7 +620,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       state.scrollThumb.visible = false;
       return;
     }
-    const fittedHeight = compactSelection
+    const fittedHeight = compactScroll
       ? this.viewportHeight - PROMPT_MODAL_VIEWPORT_MARGIN
       : Math.min(
           this.viewportHeight - PROMPT_MODAL_VIEWPORT_MARGIN,
@@ -639,7 +643,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
         .clear()
         .roundRect(0, 0, 3, thumbHeight, 2)
         .fill({ color: hexToNum(this.theme.appTheme["muted-foreground"]), alpha: 0.85 });
-      state.scrollThumb.x = compactSelection ? state.width - 8 : state.scrollTrack.x;
+      state.scrollThumb.x = compactScroll ? state.width - 8 : state.scrollTrack.x;
     }
     this.syncModalScrollPosition();
   }
@@ -1146,7 +1150,8 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     const sectionHeaderHeight = sections.some((section) => section.label !== null)
       ? CARD_SECTION_HEADER_HEIGHT
       : 0;
-    const horizontalScroll = this.layerPresentation.cardLayout === "horizontal-scroll";
+    const horizontalScroll =
+      this.layerPresentation.cardLayout(this.viewportHeight) === "horizontal-scroll";
     const { width: preferredCardWidth } = this.promptCardDimensions(
       this.layerPresentation.cardMaxHeight(this.viewportHeight),
     );

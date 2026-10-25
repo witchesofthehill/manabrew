@@ -5,7 +5,7 @@ import { formatCommsLog } from "@/lib/commsLog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { GameLoadingTip } from "./GameLoadingTip";
-import { useIsMobileGame, useIsTouch } from "@/hooks/useBreakpoints";
+import { useIsShortTouchScreen, useIsTouch } from "@/hooks/useBreakpoints";
 
 const STUCK_HINT_AFTER_MS = 10_000;
 const STEP_MIN_MS = 200;
@@ -30,7 +30,7 @@ export function GameLoadingScreen({ debugInfo, onComplete }: GameLoadingScreenPr
   const seated = useGameStore((s) => (s.gameView?.players?.length ?? 0) > 0);
   const endGame = useGameStore((s) => s.endGame);
   const isTouch = useIsTouch();
-  const compactLandscape = useIsMobileGame();
+  const compactLandscape = useIsShortTouchScreen();
   const lastAdvanceAt = useRef(0);
   const [stage, setStage] = useState(0);
   const [slow, setSlow] = useState(false);

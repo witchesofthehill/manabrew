@@ -30,7 +30,7 @@ import {
   type ViewMode,
 } from "@/components/editor/deckBuilder.utils";
 import { useCardPreview } from "@/hooks/useCardPreview";
-import { useIsMobileGame } from "@/hooks/useBreakpoints";
+import { useIsShortTouchScreen } from "@/hooks/useBreakpoints";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useLongPressPreview } from "@/hooks/useLongPressPreview";
 import { cn } from "@/lib/utils";
@@ -250,7 +250,7 @@ function BrowserSection({
   );
 }
 export function DeckCardBrowser({ deck }: { deck: Deck }) {
-  const shortTouch = useIsMobileGame();
+  const shortTouch = useIsShortTouchScreen();
   const portrait = useMediaQuery(PORTRAIT_QUERY);
   const shortLandscape = shortTouch && !portrait;
   const [search, setSearch] = useState("");

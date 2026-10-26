@@ -115,7 +115,6 @@ export interface DevPlayerOverrides {
 }
 
 export interface DevGameStateOverrides {
-  forceLogActivity: boolean;
   forceCombatSummary: boolean;
   dayNight: "none" | "day" | "night";
   forceDungeon: boolean;
@@ -125,7 +124,6 @@ export interface DevGameStateOverrides {
 }
 
 export const DEFAULT_DEV_GAME_STATE_OVERRIDES: DevGameStateOverrides = {
-  forceLogActivity: false,
   forceCombatSummary: false,
   dayNight: "none",
   forceDungeon: false,

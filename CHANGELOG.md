@@ -1,5 +1,22 @@
 # Changelog
 
+## [3.65.0](https://github.com/witchesofthehill/manabrew/compare/v3.64.9...v3.65.0) (2026-10-25)
+
+### Features
+
+* **forge:** add decision replay and snapshot restoration ([15a4afd](https://github.com/witchesofthehill/manabrew/commit/15a4afd390e809584787720ea6001f66d442adf7))
+* **forge:** replace snapshots with journal history and rewind ([f1a65c8](https://github.com/witchesofthehill/manabrew/commit/f1a65c82d5487623f2c723bf617a42499fad5a6d))
+* **forge:** journal history and verified rewind across runtimes ([#1081](https://github.com/witchesofthehill/manabrew/issues/1081)) ([c48dce6](https://github.com/witchesofthehill/manabrew/commit/c48dce63b4785692f2be1fe2814b8de31260f220))
+
+### Fixes
+
+* **forge:** harden journal replay and rewind lifecycle ([3281760](https://github.com/witchesofthehill/manabrew/commit/3281760c63e3a7058f53254d31e700a28ed75d25))
+* ui ([c1cc4ed](https://github.com/witchesofthehill/manabrew/commit/c1cc4edcbbc86e571de9cfe2a6830beddea52884))
+
+### Performance
+
+* **forge:** defer replay UI snapshots until verification ([bed06d6](https://github.com/witchesofthehill/manabrew/commit/bed06d6cca6bc7feddc312e2de0cb027c81c5940))
+
 ## [3.64.9](https://github.com/witchesofthehill/manabrew/compare/v3.64.8...v3.64.9) (2026-10-25)
 
 ### Fixes

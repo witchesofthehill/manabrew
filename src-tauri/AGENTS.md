@@ -44,3 +44,5 @@ Read first: `/AGENTS.md`.
 WebRTC runs in the webview (`src/game/webrtcPlane.ts`); the shell binds nothing. `forge_room.rs`
 hosts `self-hosted-node` in-process and, when opted in, installs a `ShellBridge` so a WebRTC seat's
 envelopes go out through the webview. See `docs/TRANSPORT.md`.
+
+Native Forge gameplay runs in a child of the same executable with `--forge-engine-worker`; `lib.rs::run` handles this before starting Tauri. The child inherits the resolved bundled asset environment and uses the bundled native library, with no JVM requirement. Each game and rewind candidate owns a separate process; only a fully verified candidate replaces the active one.

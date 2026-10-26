@@ -2096,6 +2096,11 @@ fn route_remote_response(
         warn!(state = %state, "expected response envelope");
         return;
     };
+    // Zero is reserved for in-process absent-player defaults, never client input.
+    if prompt_id == 0 {
+        warn!(from_player, "relay response has no prompt identity");
+        return;
+    }
     let Some(player_index) =
         authenticated_player_index(snapshot, authenticated_username, &from_player, "response")
     else {
@@ -2940,6 +2945,18 @@ mod local_bot_tests {
         })
         .unwrap();
         route_remote_response(&rig.engine_session, &rig.snapshot, BOT, &state);
+    }
+
+    #[test]
+    fn remote_zero_prompt_cannot_bypass_engine_validation() {
+        let rig = rig(&config(false, false, false));
+        relay_response(&rig, 0);
+        assert!(rig.bot_rx.try_recv().is_err());
+        relay_response(&rig, 7);
+        assert!(matches!(
+            rig.bot_rx.try_recv(),
+            Ok(ClientToServerMessage::Response { prompt_id: 7, .. })
+        ));
     }
 
     #[test]

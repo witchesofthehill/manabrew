@@ -274,7 +274,6 @@ class WorkerBridge {
     this.eventBus = eventBus;
 
     eventBus.on<{ buffer: SharedArrayBuffer }>("game:sab", (payload) => {
-      this.directiveLanes = null;
       const seat = createSeat(payload.buffer);
       if (this.localSeat) this.dropSeat(this.localSeat);
       this.localSeat = seat;
@@ -326,6 +325,7 @@ class WorkerBridge {
     eventBus.on<{ buffers: SharedArrayBuffer[]; hostBuffer: SharedArrayBuffer; localSeat: number }>(
       "game:directive_lanes",
       (payload) => {
+        this.dropDirectiveLanes();
         this.directiveLanes = {
           lanes: payload.buffers.map(createDirectiveLane),
           host: createDirectiveLane(payload.hostBuffer),
@@ -348,8 +348,12 @@ class WorkerBridge {
 
     // The engine has nothing more to say once the game is over, so the bots
     // parked on their seats can go.
-    eventBus.on("game:over", () => this.stopLocalBots());
-    eventBus.on("game:forced_end", () => this.stopLocalBots());
+    for (const event of ["game:over", "game:forced_end"]) {
+      eventBus.on(event, () => {
+        this.stopLocalBots();
+        this.dropDirectiveLanes();
+      });
+    }
 
     // Eager so a response can't arrive before the listener exists; it
     // no-ops while remoteSeats is empty.
@@ -425,6 +429,15 @@ class WorkerBridge {
     this.seatReaders.delete(seat);
   }
 
+  private dropDirectiveLanes(): void {
+    if (!this.directiveLanes) return;
+    for (const lane of [...this.directiveLanes.lanes, this.directiveLanes.host]) {
+      lane.cancelled = true;
+      lane.queue.length = 0;
+    }
+    this.directiveLanes = null;
+  }
+
   private stopLocalBots(): void {
     for (const worker of this.localBotWorkers.values()) worker.terminate();
     this.localBotWorkers.clear();
@@ -467,6 +480,7 @@ class WorkerBridge {
       const action = payload.state.action as PromptOutput | undefined;
       if (!action) return;
       const promptId = Number(payload.state.promptId ?? 0);
+      if (!Number.isSafeInteger(promptId) || promptId <= 0) return;
       writeSeatMessage(seat, { kind: "response", promptId, action });
     });
   }
@@ -746,6 +760,7 @@ class WorkerBridge {
     }
     if (this.localSeat) this.dropSeat(this.localSeat);
     this.localSeat = null;
+    this.dropDirectiveLanes();
     for (const seat of this.remoteSeats.values()) this.dropSeat(seat);
     this.remoteSeats.clear();
     this.remotePlayerSlots.clear();
@@ -753,7 +768,10 @@ class WorkerBridge {
     // Response listener stays installed — terminate() is per-game, and a
     // second game on this (singleton) bridge still needs it.
     for (const [requestId, pending] of this.pendingRequests) {
-      if (pending.worker !== this.fallbackWorker) this.pendingRequests.delete(requestId);
+      if (pending.worker !== this.fallbackWorker) {
+        pending.reject(new Error("Game worker terminated."));
+        this.pendingRequests.delete(requestId);
+      }
     }
     this.initPromise = null;
     setForgeWasmActive(false);
@@ -792,7 +810,8 @@ class WebGameApi implements IGameApi {
       opponentDecks: params.opponentDecks,
       engine: params.engine,
       forgeAi: params.aiController === "forge",
-      snapshotRecording: usePreferencesStore.getState().snapshotRecording,
+      decisionJournal: params.engine === "Forge" && params.aiController !== "forge",
+      journalRewind: params.engine === "Forge" && params.aiController !== "forge",
     });
   }
 
@@ -830,7 +849,8 @@ class WebGameApi implements IGameApi {
         enginePlayerIndex: params.enginePlayerIndex,
         botSeats,
         forgeAiSeats: forgeAi ? botSeats : [],
-        snapshotRecording: usePreferencesStore.getState().snapshotRecording,
+        decisionJournal: params.engine === "Forge" && (!forgeAi || botSeats.length === 0),
+        journalRewind: params.engine === "Forge" && (!forgeAi || botSeats.length === 0),
         startingLife: params.startingLife,
         engine: params.engine,
       });

@@ -22,7 +22,6 @@ import { GameLoadingScreen } from "@/components/game/GameLoadingScreen";
 import { GameFailedScreen } from "@/components/game/GameFailedScreen";
 import { WaitingForPlayerScreen } from "@/components/game/WaitingForPlayerScreen";
 import { DevViewportFrame } from "@/components/dev/DevViewportFrame";
-import { isForgeWasmActive } from "@/lib/forgeWasm";
 import { ManualTabletopControls } from "@/components/game/ManualTabletopControls";
 import { MiddleBarDock, RightActionPanel } from "@/components/game/panels";
 import {
@@ -79,7 +78,7 @@ import type { PromptType } from "@/protocol";
 import { declareAttackersOutput } from "@/components/prompts/internal/playerActions";
 import { TargetingCursor } from "@/components/game/TargetingCursor";
 import { OPPONENT_SEATS } from "@/components/game/game.types";
-import type { CombatPairing, LogCardPreviewOptions } from "@/components/game/game.types";
+import type { CombatPairing } from "@/components/game/game.types";
 import { useStackUIStore } from "@/stores/useStackUIStore";
 import {
   useGameDevStore,
@@ -255,7 +254,6 @@ export default function Game({ exitTo }: GameProps = {}) {
   const isPrefetchingCards = useGameStore((s) => s.isPrefetchingCards);
   const isWaitingForResponse = useGameStore((s) => s.isWaitingForResponse);
   const relinquishedPriority = useGameStore((s) => s.relinquishedPriority);
-  const gameLog = useGameStore((s) => s.gameLog);
   const debugInfo = useGameStore((s) => s.debugInfo);
   const fatalError = useGameStore((s) => s.fatalError);
   const engineCrash = useGameStore((s) => s.engineCrash);
@@ -287,22 +285,13 @@ export default function Game({ exitTo }: GameProps = {}) {
   const hostingForgeRoom = useServerStore((s) => s.hostingForgeRoom);
   const selectedRuntime = getSelectedGameRuntime();
   const manualApi = isManualTabletopApi(selectedRuntime) ? selectedRuntime.api : null;
-  const {
-    respond,
-    concede,
-    endGame,
-    requestRestore,
-    voteRestore,
-    setSnapshotRecording,
-    gameDecks,
-  } = useGameStore(
+  const { respond, concede, endGame, requestRestore, voteRestore, gameDecks } = useGameStore(
     useShallow((s) => ({
       respond: s.respond,
       concede: s.concede,
       endGame: s.endGame,
       requestRestore: s.requestRestore,
       voteRestore: s.voteRestore,
-      setSnapshotRecording: s.setSnapshotRecording,
       gameDecks: s.gameDecks,
     })),
   );
@@ -1896,44 +1885,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   };
 
   const promptSourceDeckCard = useResolveSourceCard(activePrompt?.sourceCard);
-  const handleLogCardHover = (
-    cardId: string | null,
-    e?: React.MouseEvent,
-    options: LogCardPreviewOptions = {},
-  ) => {
-    if (cardId) {
-      setCommandPreviewSource(null);
-      commandZonePreview.dismiss();
-    }
-    if (draggingHandCard) {
-      preview.dismiss();
-      return;
-    }
-    if (!cardId) {
-      preview.handleMouseLeave();
-      return;
-    }
-    const card = visibleCardsById.get(cardId) ?? stackCardsBySourceId.get(cardId);
-    if (!card) {
-      preview.dismiss();
-      return;
-    }
-    if (options.sticky) {
-      const anchor =
-        options.anchorOverride ??
-        (options.useAnchor && e
-          ? (e.currentTarget as HTMLElement).getBoundingClientRect()
-          : undefined);
-      preview.showSticky(
-        card,
-        e?.clientX ?? (anchor ? anchor.left + anchor.width / 2 : undefined),
-        e?.clientY ?? (anchor ? anchor.top + anchor.height / 2 : undefined),
-        anchor,
-      );
-      return;
-    }
-    preview.handleMouseEnter(card, e, { useDelay: true, ...options });
-  };
+
   const handleHoverCardGuarded = (
     card: CardDto | null,
     e?: React.MouseEvent,
@@ -2655,16 +2607,16 @@ export default function Game({ exitTo }: GameProps = {}) {
         collapsed={isActionPanelCollapsed}
         onLeftEdgeChange={setRightPanelLeft}
         onToggleCollapse={toggleActionPanel}
-        gameLog={gameLog}
-        onHoverLogCard={handleLogCardHover}
-        resolveCardName={(cardId) => cardNameById.get(cardId) ?? cardId}
         resolvePlayerName={(playerId) => playerNameById.get(playerId) ?? playerId}
+        resolvePlayerColor={(playerId) =>
+          playerColorMap.get(playerId) ?? themeColors.playerColors.self
+        }
         checkpoints={gameView.checkpoints}
-        canRequestRestore={!iAmEliminated && !gameView.gameOver}
+        decisionHistory={gameView.decisionHistory}
+        canRequestRestore={
+          !iAmEliminated && !gameView.gameOver && !gameView.decisionHistory?.rewinding
+        }
         onRequestRestore={setRestoreTarget}
-        snapshotRecording={gameView.snapshotRecording}
-        hostsEngine={isForgeWasmActive() && (!isMultiplayer || isHost)}
-        onSnapshotRecordingChange={(enabled) => void setSnapshotRecording(enabled)}
       />
 
       {boardSurfaceEl &&

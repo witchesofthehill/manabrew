@@ -317,11 +317,7 @@ export function useGameEventListeners() {
       );
       unsubscribers.push(
         platform.events.on<unknown>("game:log", (payload) => {
-          const entry = normalizeGameLogPayload(payload);
-          setState((state) => ({
-            gameLog: [...state.gameLog.slice(-199), entry],
-          }));
-          toastOpponentPublicAction(entry);
+          toastOpponentPublicAction(normalizeGameLogPayload(payload));
         }),
       );
       // Relay (non-host) seats receive state/display/prompt addressed per player.

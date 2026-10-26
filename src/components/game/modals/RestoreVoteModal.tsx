@@ -28,7 +28,9 @@ export function RestoreVoteModal({
   return (
     <Modal maxWidth="max-w-md">
       <Modal.Header>
-        <h2 className="text-base font-semibold">Restore the game?</h2>
+        <h2 className="text-base font-semibold">
+          {restoreVote.checkpoint.decision ? "Rewind the game?" : "Restore the game?"}
+        </h2>
       </Modal.Header>
       <Modal.Body className="space-y-3">
         <p>

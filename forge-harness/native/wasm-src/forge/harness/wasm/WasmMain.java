@@ -112,6 +112,7 @@ public final class WasmMain {
                 final SabTransport transport = new SabTransport(
                         viewer -> adapter.getSnapshot(gameId, viewer), botSeats(start),
                         () -> adapter.drainCheckpointMetrics(gameId),
+                        () -> adapter.drainDecisionJournal(gameId),
                         (seat, count) -> adapter.getLibraryTop(gameId, seat, count));
                 ManaBrewInteractiveSession.setBridge(transport);
                 final String result = adapter.startGameJson(start.toString());
@@ -119,6 +120,9 @@ public final class WasmMain {
                 // line means the game is over and every seat is still waiting
                 // on an answer that will never come.
                 final String engineError = adapter.getEngineError(gameId);
+                if (adapter.isReplaying(gameId)) {
+                    throw new IllegalStateException(engineError.isEmpty() ? "Replay ended before its target decision" : engineError);
+                }
                 System.out.println(engineError.isEmpty()
                         ? "[wasm] game over, publishing the final board"
                         : "[wasm] engine crashed, publishing the final board");

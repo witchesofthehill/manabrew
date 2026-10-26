@@ -158,13 +158,6 @@ export function BoardDevControls() {
           <p className={DEV_SECTION_HEADING}>Game state</p>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             <GuideToggle
-              label={`Log activity`}
-              description={`Unread action-log indicator`}
-              searchTerms={["Game state"]}
-              checked={gameStateOverrides.forceLogActivity}
-              onChange={(checked) => setGameStateOverride("forceLogActivity", checked)}
-            />
-            <GuideToggle
               label={`Combat summary`}
               description={`Attacker, blocker, and incoming-damage totals`}
               searchTerms={["Game state"]}

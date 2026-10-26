@@ -123,6 +123,22 @@ public final class InteractiveSnapshotExtractor {
         }
     }
 
+    static com.google.gson.JsonObject verificationView(final Game game, final SpellAbility castingAbility,
+            final String gameId, final int viewer, final SecretChoiceVisibility secretChoiceVisibility,
+            final HandKnowledge handKnowledge) {
+        ParityCardMap.beginSnapshot(game);
+        try {
+            final Map<String, Object> view = buildGameView(game, castingAbility, gameId, viewer,
+                    secretChoiceVisibility, handKnowledge, List.of(), null, false);
+            view.remove("checkpoints");
+            view.remove("restoreVote");
+            view.remove("snapshotRecording");
+            return GSON.toJsonTree(view).getAsJsonObject();
+        } finally {
+            ParityCardMap.endSnapshot();
+        }
+    }
+
     private static Map<String, Object> buildGameView(
             final Game game,
             final SpellAbility castingAbility,

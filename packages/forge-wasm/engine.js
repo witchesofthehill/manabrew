@@ -53,6 +53,7 @@ export class ForgeEngine {
           this.attachSeat(message.payload.playerSlot, message.payload.buffer);
         }
         if (message.event === "game:directive_lanes") {
+          this.dropDirectiveLanes();
           this.directiveLanes = message.payload.buffers.map(createDirectiveLane);
           this.localSeatIndex = message.payload.localSeat;
         }
@@ -62,6 +63,15 @@ export class ForgeEngine {
             { kind: "state", state },
             seat === this.localSeatIndex ? LOCAL_SEAT : `player-${seat}`,
           );
+        }
+        if (["game:over", "game:forced_end"].includes(message.event)) {
+          this.dropDirectiveLanes();
+          if (message.event === "game:forced_end") {
+            for (const seat of this.seats.values()) seat.cancelled = true;
+          }
+          for (const pending of this.pending.values())
+            pending.reject(new Error("Forge game ended."));
+          this.pending.clear();
         }
         this.options.onEvent?.(message.event, message.payload);
       });
@@ -112,7 +122,11 @@ export class ForgeEngine {
     const playerSlot = seatSlot === LOCAL_SEAT ? undefined : seatSlot;
     this.options.onMessage?.(message, playerSlot);
     if (message?.kind === "state") this.options.onState?.(message.state, playerSlot);
-    if (message?.kind === "prompt") this.options.onPrompt?.(message.prompt, playerSlot);
+    if (message?.kind === "prompt") {
+      const seat = this.seats.get(seatSlot);
+      if (seat && message.prompt?.input?.type === "gameOver") seat.cancelled = true;
+      this.options.onPrompt?.(message.prompt, playerSlot);
+    }
     if (message?.kind === "display") this.options.onDisplay?.(message.event, playerSlot);
     if (message?.kind === "error") this.options.onError?.(message.error, playerSlot);
   }
@@ -137,7 +151,16 @@ export class ForgeEngine {
     return seat;
   }
 
+  dropDirectiveLanes() {
+    for (const lane of this.directiveLanes ?? []) {
+      lane.cancelled = true;
+      lane.queue.length = 0;
+    }
+    this.directiveLanes = null;
+  }
+
   dispose() {
+    this.dropDirectiveLanes();
     for (const seat of this.seats.values()) seat.cancelled = true;
     this.seats.clear();
     this.worker?.terminate();

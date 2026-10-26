@@ -12,7 +12,7 @@
  */
 const fs = require("fs");
 const path = require("path");
-const { parentPort, workerData } = require("worker_threads");
+const { parentPort, workerData, Worker } = require("worker_threads");
 
 const workerScript = workerData.workerScript;
 
@@ -23,6 +23,23 @@ function runScript(file) {
 }
 
 globalThis.self = globalThis;
+globalThis.location = { href: workerScript };
+globalThis.Worker = class {
+  constructor(script) {
+    this.worker = new Worker(__filename, {
+      workerData: { workerScript: script },
+      argv: ["--serve"],
+    });
+    this.worker.on("message", (data) => this.onmessage?.({ data }));
+    this.worker.on("error", (error) => this.onerror?.(error));
+  }
+  postMessage(message) {
+    this.worker.postMessage(message);
+  }
+  terminate() {
+    void this.worker.terminate();
+  }
+};
 globalThis.postMessage = (message) => parentPort.postMessage(message);
 globalThis.importScripts = (location) => {
   const file = location.startsWith("file:") ? new URL(location).pathname : location;

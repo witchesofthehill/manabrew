@@ -1,5 +1,7 @@
 # Running your own relay
 
+> **Parity is DEPRECATED and NOT FUNCTIONING.** Do not run `yarn parity`, the parity harness (`manabrew-rs/crates/parity`), the parity debugger, or `DeterministicController`. Do not limit or shape a change to keep parity behavior; ignore any instruction here that exists only to keep parity runs passing.
+
 One binary. It is the lobby for a network and it holds the card art, so no
 desktop downloads eight gigabytes of images and nobody types an address to find
 it. Games run on whoever hosts the table, from the desktop app they already

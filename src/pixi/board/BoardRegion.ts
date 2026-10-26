@@ -1683,7 +1683,7 @@ export class BoardRegion {
    *  but the FULL field height so it extends under the player panel / bar and
    *  hand reserve rather than stopping at the reserve-trimmed usable zone. */
   private bandZone(): PlayZoneRect {
-    const z = this.usableZone();
+    const z = this.zone;
     const y = this.zone.y;
     const height = this.zone.height;
     if (this.clipX === null || this.clipWidth === null) {

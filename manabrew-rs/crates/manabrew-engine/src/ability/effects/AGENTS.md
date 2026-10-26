@@ -1,5 +1,7 @@
 # Ability effects
 
+> **Parity is DEPRECATED and NOT FUNCTIONING.** Do not run `yarn parity`, the parity harness (`manabrew-rs/crates/parity`), the parity debugger, or `DeterministicController`. Do not limit or shape a change to keep parity behavior; ignore any instruction here that exists only to keep parity runs passing.
+
 The 200+ `*_effect.rs` resolvers that execute spell and ability resolution. **Most parity bugs land here.**
 
 Read first: `manabrew-rs/AGENTS.md`, `docs/agents/PARITY_PHILOSOPHY.md`, `docs/agents/ENGINE_BUGFIX_WORKFLOW.md`.

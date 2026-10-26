@@ -1,5 +1,7 @@
 # UI — React + TypeScript
 
+> **Parity is DEPRECATED and NOT FUNCTIONING.** Do not run `yarn parity`, the parity harness (`manabrew-rs/crates/parity`), the parity debugger, or `DeterministicController`. Do not limit or shape a change to keep parity behavior; ignore any instruction here that exists only to keep parity runs passing.
+
 The web frontend for Manabrew. Tailwind CSS 4, Shadcn/UI, Zustand, React Router. PixiJS for the game board and Limited workspaces. (TanStack Query has been removed from the stack — see "Card data" below.)
 
 Read first: `/AGENTS.md`, `docs/STYLE_GUIDELINES.md`, `docs/agents/UI_THEME_RULES.md`.

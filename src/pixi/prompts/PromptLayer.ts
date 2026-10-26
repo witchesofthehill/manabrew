@@ -68,7 +68,7 @@ const COMPACT_PHASE_TOUCH_HEIGHT = 48;
 export class PromptLayer extends PromptModalLayer {
   private phasePulseFired = false;
   private phaseBounds: Rectangle | null = null;
-  private handBounds: Rectangle | null = null;
+  private actionPanelBounds: ScreenBounds | null = null;
   private readonly unsubscribePromptPreferences: () => void;
   private readonly unsubscribePreferences: () => void;
   private readonly unsubscribeKeybindings: () => void;
@@ -155,20 +155,8 @@ export class PromptLayer extends PromptModalLayer {
     this.rebuild();
   }
 
-  setHandBounds(bounds: ScreenBounds | null): void {
-    if (this.layerPresentation.actionStyle === "minimal") return;
-    if (
-      this.handBounds?.x === bounds?.x &&
-      this.handBounds?.y === bounds?.y &&
-      this.handBounds?.width === bounds?.width &&
-      this.handBounds?.height === bounds?.height
-    ) {
-      return;
-    }
-    this.handBounds = bounds
-      ? new Rectangle(bounds.x, bounds.y, bounds.width, bounds.height)
-      : null;
-    if (!this.modalOpen) this.rebuild();
+  getActionPanelBounds(): ScreenBounds | null {
+    return this.actionPanelBounds;
   }
 
   setSpec(spec: PromptOverlaySpec | null): void {
@@ -350,6 +338,7 @@ export class PromptLayer extends PromptModalLayer {
     this.modalBody = null;
     this.container.removeChildren().forEach((child) => child.destroy({ children: true }));
     if (!this.spec || this.viewportWidth <= 0 || this.viewportHeight <= 0) {
+      this.actionPanelBounds = null;
       this.container.visible = false;
       this.presentPrompt(null);
       return;
@@ -415,6 +404,7 @@ export class PromptLayer extends PromptModalLayer {
       !action.selfClusterMaxHeight ||
       action.selfClusterMaxHeight <= 0
     ) {
+      this.actionPanelBounds = null;
       this.container.visible = false;
       return;
     }
@@ -456,22 +446,12 @@ export class PromptLayer extends PromptModalLayer {
       : shortScreen
         ? this.viewportHeight - panelHeight - 118
         : this.viewportHeight - panelHeight;
-    let y = minimal
+    const y = minimal
       ? Math.max(6, Math.min(this.viewportHeight - panelHeight - 6, unclampedY))
       : unclampedY;
-    const hand = this.handBounds;
-    if (
-      !minimal &&
-      hand &&
-      x < hand.right &&
-      x + width > hand.left &&
-      y < hand.bottom &&
-      y + panelHeight > hand.top
-    ) {
-      y = Math.max(edgeMargin, Math.min(y, hand.top - panelHeight - ACTION_CARD_GAP));
-    }
+    this.actionPanelBounds = minimal ? null : { x, y, width, height: panelHeight };
     const radius = minimal ? 16 : 8;
-    const squareBottom = !minimal && !shortScreen && y === unclampedY;
+    const squareBottom = !minimal && !shortScreen;
     const panel = new Container();
     panel.position.set(x, y + panelHeight);
     panel.pivot.set(0, panelHeight);

@@ -213,8 +213,7 @@ export class BoardScene {
   private hoveredRegionRef: BoardRegion | null = null;
   private hoverClearTimer: number | null = null;
 
-  private handInsetLeft = 0;
-  private handInsetRight = 0;
+  private actionPanelLeft: number | null = null;
   private handPeek = false;
   private lastCapsuleRects = new Map<string, string>();
   private autoSort = false;
@@ -695,7 +694,7 @@ export class BoardScene {
     const maxWidth = this.presentation.hudMaxWidth;
     const desiredWidth = Math.min(availableWidth, maxWidth);
     let width = desiredWidth;
-    let bottom = field.y + field.height;
+    const bottom = field.y + field.height;
     const overlapsHand =
       hand &&
       hand.x < x + width &&
@@ -704,12 +703,8 @@ export class BoardScene {
       hand.y + hand.height > bottom - preferredHeight;
     if (overlapsHand) {
       const clearWidth = hand.x - PLAYER_HUD_HAND_GAP_PX - x;
-      const minWidth = this.presentation.hudMinWidth;
-      if (clearWidth >= Math.min(availableWidth, minWidth)) {
-        width = Math.min(width, clearWidth);
-      } else {
-        bottom = Math.min(bottom, hand.y - PLAYER_HUD_HAND_GAP_PX);
-      }
+      const minWidth = Math.min(availableWidth, this.presentation.hudMinWidth);
+      width = Math.min(width, Math.max(clearWidth, minWidth));
     }
     const height = Math.max(1, Math.min(preferredHeight, bottom - field.y));
     this.playerBars.setRect(this.localPlayerId, x, bottom - height, width, height, false);
@@ -1005,21 +1000,6 @@ export class BoardScene {
     return this.presentation.handBounds(this.hand);
   }
 
-  getHandScreenBounds(): ScreenBounds | null {
-    const bounds = this.getHandBounds();
-    if (!bounds) return null;
-    const topLeft = this.root.toGlobal(RECT_SCRATCH_A.set(bounds.x, bounds.y), RECT_SCRATCH_A);
-    const bottomRight = this.root.toGlobal(
-      RECT_SCRATCH_B.set(bounds.x + bounds.width, bounds.y + bounds.height),
-      RECT_SCRATCH_B,
-    );
-    bounds.x = topLeft.x;
-    bounds.y = topLeft.y;
-    bounds.width = bottomRight.x - topLeft.x;
-    bounds.height = bottomRight.y - topLeft.y;
-    return bounds;
-  }
-
   holdHandHover(): void {
     this.hand?.holdHover();
   }
@@ -1072,11 +1052,13 @@ export class BoardScene {
     this.hand?.relayout();
   }
 
-  setHandInsets(left: number, right: number): void {
-    if (this.handInsetLeft === left && this.handInsetRight === right) return;
-    this.handInsetLeft = left;
-    this.handInsetRight = right;
+  setActionPanelBounds(bounds: ScreenBounds | null): void {
+    const left = bounds?.x ?? null;
+    if (this.actionPanelLeft === left) return;
+    this.actionPanelLeft = left;
     this.hand?.relayout();
+    this.layoutSelfBar();
+    this.refreshCapsuleBlockers();
   }
 
   setCombatStaging(playerId: string, staging: SceneCombatStaging | null): void {
@@ -1591,8 +1573,19 @@ export class BoardScene {
       getPlayZone: () => {
         const zone = this.localZone();
         if (!zone) return { x: 0, y: 0, width: 0, height: 0 };
-        const left = this.handInsetLeft;
-        const right = this.handInsetRight;
+        const hudField =
+          this.barsEnabled && this.localPlayerId
+            ? (this.regions.get(this.localPlayerId)?.region.getPlaymatRect() ?? null)
+            : null;
+        const actionPanelLeft =
+          this.actionPanelLeft === null
+            ? null
+            : this.root.toLocal(
+                RECT_SCRATCH_A.set(this.actionPanelLeft, 0),
+                undefined,
+                RECT_SCRATCH_A,
+              ).x;
+        const { left, right } = this.presentation.handInsets(zone, hudField, actionPanelLeft);
         if (left <= 0 && right <= 0) return zone;
         return {
           x: zone.x + left,

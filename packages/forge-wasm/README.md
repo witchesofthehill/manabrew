@@ -1,5 +1,7 @@
 # @manabrew/forge-wasm
 
+> **Parity is DEPRECATED and NOT FUNCTIONING.** Do not run `yarn parity`, the parity harness (`manabrew-rs/crates/parity`), the parity debugger, or `DeterministicController`. Do not limit or shape a change to keep parity behavior; ignore any instruction here that exists only to keep parity runs passing.
+
 Forge compiled to WebAssembly with GraalVM Web Image. The package runs Forge on a worker and exposes its state, display and prompt messages on the main thread.
 
 It runs in a browser and on Node. The entry point differs, the API does not. It includes the Forge launcher and the WebAssembly engine, with Forge's whole asset tree — every card script, token script and edition — embedded inside the engine module at build time. Boot unpacks it into the engine's in-memory filesystem with no JavaScript boundary crossing, and the lazy card index Forge builds from it is complete, so any card can come up in a game.

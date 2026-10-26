@@ -38,7 +38,10 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
@@ -52,6 +55,7 @@ public final class ActionSpace {
     private static final String SPEND_ONLY_COLORED_ON_X =
             "Spend only colored mana on X. No more than one mana of each color may be spent this way.";
     private static final Pattern X_COMPARISON = Pattern.compile("(EQ|NE|LT|LE|GT|GE)X(?![A-Za-z0-9])");
+    private static final int MAX_CONVERTER_COMBINATIONS = 64;
 
 
 
@@ -140,6 +144,7 @@ public final class ActionSpace {
 
         final List<SpellAbility> actions = new ArrayList<>();
         final Map<Card, Card> spellHosts = new IdentityHashMap<>();
+        final MaybePaySources maybePaySources = new MaybePaySources(player);
         boolean stackStatics = false;
         try {
         final List<SpellAbility> possible = new ArrayList<>();
@@ -159,7 +164,7 @@ public final class ActionSpace {
             final Cost payCosts = sa.getPayCosts();
             if (payCosts != null && payCosts.hasManaCost()) {
                 final Card probeHost = stackStatics ? spellHosts.get(sa.getHostCard()) : null;
-                if (!canPayMana(sa, player, lifePaymentFallback, probeHost)) {
+                if (!canPayMana(sa, player, lifePaymentFallback, probeHost, maybePaySources)) {
                     continue;
                 }
             }
@@ -189,7 +194,8 @@ public final class ActionSpace {
             final SpellAbility sa,
             final Player player,
             final boolean lifePaymentFallback,
-            final Card probeHost
+            final Card probeHost,
+            final MaybePaySources maybePaySources
     ) {
         final Set<Card> reservedSacrifices = getFixedReservedSacrifices(sa);
         final Card host = sa.getHostCard();
@@ -197,7 +203,8 @@ public final class ActionSpace {
             sa.setHostCard(probeHost);
         }
         try {
-            if (canPayCurrentManaCost(sa, player, lifePaymentFallback, reservedSacrifices)) {
+            if (canPayCurrentManaCost(sa, player, lifePaymentFallback, reservedSacrifices)
+                    || canMaybePay(sa, player, maybePaySources)) {
                 return true;
             }
             if (!lifePaymentFallback) {
@@ -228,6 +235,283 @@ public final class ActionSpace {
                 : (reservedSacrifices.isEmpty()
                 ? ComputerUtilMana.canPayManaCost(sa, player, 0, false)
                 : canPayManaCostWithReservedSacrifices(sa, player, reservedSacrifices));
+    }
+
+    private static boolean canMaybePay(final SpellAbility sa, final Player player, final MaybePaySources sources) {
+        final List<Integer> needs = manaNeeds(probeManaCost(sa.getPayCosts(), sa, player, false), sa, player);
+        if (needs.isEmpty()) {
+            return true;
+        }
+        final Card tappedHost = sa.getPayCosts().hasTapCost() ? sa.getHostCard() : null;
+        final List<Integer> base = new ArrayList<>(sources.floating());
+        final List<List<ManaOption>> converterCards = new ArrayList<>();
+        int bound = base.size();
+        for (final ManaSourceCard source : sources.cards()) {
+            if (source.card == tappedHost) {
+                continue;
+            }
+            List<Integer> plain = new ArrayList<>();
+            final List<ManaOption> choices = new ArrayList<>();
+            for (final ManaOption option : source.options) {
+                if (option.ability != null && !option.ability.getManaPart().meetsManaRestrictions(sa)) {
+                    continue;
+                }
+                if (option.costNeeds.isEmpty()) {
+                    plain = mergeAlternativeManaAbility(plain, option.produced);
+                } else {
+                    choices.add(option);
+                }
+            }
+            if (choices.isEmpty()) {
+                base.addAll(plain);
+                bound += plain.size();
+                continue;
+            }
+            choices.add(0, new ManaOption(null, plain, List.of()));
+            converterCards.add(choices);
+            bound += bestNetOption(choices).net();
+        }
+        if (bound < needs.size()) {
+            return false;
+        }
+
+        long combinations = 1;
+        for (final List<ManaOption> choices : converterCards) {
+            combinations = Math.min(combinations * choices.size(), MAX_CONVERTER_COMBINATIONS + 1);
+        }
+        if (combinations > MAX_CONVERTER_COMBINATIONS) {
+            converterCards.replaceAll(choices -> List.of(bestNetOption(choices)));
+        }
+
+        final int[] picks = new int[converterCards.size()];
+        do {
+            if (canPayWithConverters(needs, base, converterCards, picks)) {
+                return true;
+            }
+        } while (nextPicks(picks, converterCards));
+        return false;
+    }
+
+    private static boolean nextPicks(final int[] picks, final List<List<ManaOption>> converterCards) {
+        for (int i = 0; i < picks.length; i++) {
+            if (++picks[i] < converterCards.get(i).size()) {
+                return true;
+            }
+            picks[i] = 0;
+        }
+        return false;
+    }
+
+    private static ManaOption bestNetOption(final List<ManaOption> choices) {
+        ManaOption best = choices.get(0);
+        for (final ManaOption option : choices) {
+            if (option.net() >= best.net()) {
+                best = option;
+            }
+        }
+        return best;
+    }
+
+    private static boolean canPayWithConverters(
+            final List<Integer> needs,
+            final List<Integer> base,
+            final List<List<ManaOption>> converterCards,
+            final int[] picks
+    ) {
+        final ManaMatching matching = new ManaMatching();
+        matching.addNeeds(needs, -1);
+        matching.addUnits(base, -1);
+        final List<ManaOption> active = new ArrayList<>();
+        int plainUnits = base.size();
+        for (int i = 0; i < picks.length; i++) {
+            final ManaOption option = converterCards.get(i).get(picks[i]);
+            if (option.costNeeds.isEmpty()) {
+                matching.addUnits(option.produced, -1);
+                plainUnits += option.produced.size();
+            } else {
+                matching.addNeeds(option.costNeeds, i);
+                matching.addUnits(option.produced, i);
+                active.add(option);
+            }
+        }
+        return matching.hasEnoughUnits()
+                && hasActivationOrder(plainUnits, active)
+                && matching.matchesEveryNeed();
+    }
+
+    private static boolean hasActivationOrder(final int plainUnits, final List<ManaOption> active) {
+        final List<ManaOption> order = new ArrayList<>(active);
+        order.sort(Comparator.comparing((ManaOption option) -> option.net() < 0)
+                .thenComparingInt(option -> option.net() < 0
+                        ? -option.produced.size()
+                        : option.costNeeds.size()));
+        int available = plainUnits;
+        for (final ManaOption option : order) {
+            if (available < option.costNeeds.size()) {
+                return false;
+            }
+            available += option.net();
+        }
+        return true;
+    }
+
+    private static List<Integer> manaNeeds(
+            final ManaCostBeingPaid cost, final SpellAbility sa, final Player player) {
+        final List<ManaCostShard> shards = cost.getUnpaidShards();
+        int phyrexian = 0;
+        for (final ManaCostShard shard : shards) {
+            if (shard.isPhyrexian()) {
+                phyrexian++;
+            }
+        }
+        final boolean lifeForPhyrexian = phyrexian > 0 && player.canPayLife(2 * phyrexian, false, sa);
+        final List<Integer> needs = new ArrayList<>();
+        for (final ManaCostShard shard : shards) {
+            if (shard == ManaCostShard.X || (lifeForPhyrexian && shard.isPhyrexian())) {
+                continue;
+            }
+            needs.add(shard.isGeneric() ? ManaAtom.ALL_MANA_TYPES : shard.getShard() & ManaAtom.ALL_MANA_TYPES);
+        }
+        return needs;
+    }
+
+    private static List<ManaSourceCard> collectManaSourceCards(final Player player) {
+        final List<ManaSourceCard> cards = new ArrayList<>();
+        for (final Card card : player.getCardsIn(ZoneType.Battlefield)) {
+            final List<ManaOption> options = new ArrayList<>();
+            for (final SpellAbility manaAbility : card.getManaAbilities()) {
+                if (!manaAbility.isManaAbility() || manaAbility.getManaPart() == null) {
+                    continue;
+                }
+                manaAbility.setActivatingPlayer(player);
+                if (!manaAbility.canPlay() || !manaAbility.checkRestrictions(player)) {
+                    continue;
+                }
+                final Cost cost = manaAbility.getPayCosts();
+                if (cost != null && !CostPayment.canPayAdditionalCosts(cost, manaAbility, false, player)) {
+                    continue;
+                }
+                final ManaCost manaCost = cost == null || !cost.hasManaCost() ? ManaCost.ZERO : cost.getTotalMana();
+                if (manaCost.countX() > 0) {
+                    continue;
+                }
+                final List<Integer> produced = producedManaMasks(manaAbility);
+                if (!produced.isEmpty()) {
+                    options.add(new ManaOption(
+                            manaAbility, produced, manaNeeds(new ManaCostBeingPaid(manaCost), manaAbility, player)));
+                }
+            }
+            if (options.isEmpty() && card.isLand() && !card.isTapped()) {
+                final int implicitMask = implicitLandManaMask(card);
+                if (implicitMask != 0) {
+                    options.add(new ManaOption(null, List.of(implicitMask), List.of()));
+                }
+            }
+            if (!options.isEmpty()) {
+                cards.add(new ManaSourceCard(card, options));
+            }
+        }
+        return cards;
+    }
+
+    private static final class MaybePaySources {
+        private final Player player;
+        private List<Integer> floating;
+        private List<ManaSourceCard> cards;
+
+        private MaybePaySources(final Player player) {
+            this.player = player;
+        }
+
+        private List<Integer> floating() {
+            if (floating == null) {
+                floating = new ArrayList<>();
+                addFloatingManaSources(player, floating);
+            }
+            return floating;
+        }
+
+        private List<ManaSourceCard> cards() {
+            if (cards == null) {
+                cards = collectManaSourceCards(player);
+            }
+            return cards;
+        }
+    }
+
+    private static final class ManaSourceCard {
+        private final Card card;
+        private final List<ManaOption> options;
+
+        private ManaSourceCard(final Card card, final List<ManaOption> options) {
+            this.card = card;
+            this.options = options;
+        }
+    }
+
+    private static final class ManaOption {
+        private final SpellAbility ability;
+        private final List<Integer> produced;
+        private final List<Integer> costNeeds;
+
+        private ManaOption(final SpellAbility ability, final List<Integer> produced, final List<Integer> costNeeds) {
+            this.ability = ability;
+            this.produced = produced;
+            this.costNeeds = costNeeds;
+        }
+
+        private int net() {
+            return produced.size() - costNeeds.size();
+        }
+    }
+
+    private static final class ManaMatching {
+        private final List<Integer> needMasks = new ArrayList<>();
+        private final List<Integer> needOwners = new ArrayList<>();
+        private final List<Integer> unitMasks = new ArrayList<>();
+        private final List<Integer> unitOwners = new ArrayList<>();
+
+        private void addNeeds(final List<Integer> masks, final int owner) {
+            needMasks.addAll(masks);
+            needOwners.addAll(Collections.nCopies(masks.size(), owner));
+        }
+
+        private void addUnits(final List<Integer> masks, final int owner) {
+            unitMasks.addAll(masks);
+            unitOwners.addAll(Collections.nCopies(masks.size(), owner));
+        }
+
+        private boolean hasEnoughUnits() {
+            return unitMasks.size() >= needMasks.size();
+        }
+
+        private boolean matchesEveryNeed() {
+            final int[] unitNeed = new int[unitMasks.size()];
+            Arrays.fill(unitNeed, -1);
+            for (int need = 0; need < needMasks.size(); need++) {
+                if (!assign(need, unitNeed, new boolean[unitMasks.size()])) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private boolean assign(final int need, final int[] unitNeed, final boolean[] visited) {
+            final int owner = needOwners.get(need);
+            for (int unit = 0; unit < unitMasks.size(); unit++) {
+                if (visited[unit]
+                        || (unitMasks.get(unit) & needMasks.get(need)) == 0
+                        || (owner >= 0 && owner == unitOwners.get(unit))) {
+                    continue;
+                }
+                visited[unit] = true;
+                if (unitNeed[unit] < 0 || assign(unitNeed[unit], unitNeed, visited)) {
+                    unitNeed[unit] = need;
+                    return true;
+                }
+            }
+            return false;
+        }
     }
 
     private static boolean canPayManaWithAnnouncedX(
@@ -658,7 +942,7 @@ public final class ActionSpace {
             sourceMasks.add((int) ManaAtom.GREEN);
         }
         for (int i = 0; i < player.getManaPool().getAmountOfColor(MagicColor.COLORLESS); i++) {
-            sourceMasks.add(0);
+            sourceMasks.add(ManaAtom.COLORLESS);
         }
     }
 
@@ -847,7 +1131,7 @@ public final class ActionSpace {
                 masks.add(tokenMask);
             }
         }
-        if (comboMask != 0) {
+        for (int i = 0; i < manaAbility.amountOfManaGenerated(false) && comboMask != 0; i++) {
             masks.add(comboMask);
         }
         return masks;

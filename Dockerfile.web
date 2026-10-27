@@ -112,6 +112,12 @@ ARG VITE_SCRYFALL_SYMBOL_BASE=
 ARG VITE_SCRYFALL_ASSET_BASE=
 ARG VITE_HOSTED_AI_ENABLED=
 ARG VITE_HUB_API_URL=
+ARG APP_BUILD_COMMIT=0000000000000000000000000000000000000000
+ARG APP_BUILD_TARGET=local-development
+ENV APP_BUILD_COMMIT=${APP_BUILD_COMMIT}
+ENV APP_BUILD_TARGET=${APP_BUILD_TARGET}
+ENV VITE_FARO_ENABLED=false
+ENV VITE_FARO_ENVIRONMENT=development
 ENV VITE_RELAY_HOST=${VITE_RELAY_HOST}
 ENV VITE_RELAY_PORT=${VITE_RELAY_PORT}
 ENV VITE_RELAY_PASSWORD=${VITE_RELAY_PASSWORD}
@@ -121,10 +127,14 @@ ENV VITE_SCRYFALL_ASSET_BASE=${VITE_SCRYFALL_ASSET_BASE}
 ENV VITE_HOSTED_AI_ENABLED=${VITE_HOSTED_AI_ENABLED}
 ENV VITE_HUB_API_URL=${VITE_HUB_API_URL}
 
+FROM builder AS frontend
 # Build WASM + Vite bundle (outputs to dist/). Dependencies come precompiled
 # from the chef cook layers above (cache mounts would shadow them and don't
 # survive CI runners anyway), so this compiles workspace crates only.
 RUN yarn build:web
+
+FROM scratch AS sourcemaps
+COPY --from=frontend /build/target/faro-sourcemaps/ /
 
 # --- Website: landing page (manabrew.app) + docs (docs.manabrew.app),
 # Astro + Starlight, two builds out of one package ---
@@ -148,9 +158,9 @@ RUN yarn build
 # relay + parity hostnames, and terminates Let's Encrypt TLS for all
 # three. ops/Caddyfile is mounted in via compose so config changes don't
 # require a rebuild. ---
-FROM caddy:2-alpine
+FROM caddy:2-alpine AS runtime
 
-COPY --from=builder /build/dist/ /srv/manabrew/
+COPY --from=frontend /build/dist/ /srv/manabrew/
 COPY --from=website /repo/website/dist/landing/ /srv/landing/
 COPY --from=website /repo/website/dist/docs/ /srv/docs/
 

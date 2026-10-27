@@ -8,6 +8,9 @@ interface ImportMetaEnv {
   readonly VITE_RELAY_HOST?: string;
   readonly VITE_RELAY_PORT?: string;
   readonly VITE_RELAY_PASSWORD?: string;
+  readonly VITE_FARO_ENABLED?: string;
+  readonly VITE_FARO_COLLECTOR_URL?: string;
+  readonly VITE_FARO_ENVIRONMENT?: string;
 }
 
 interface ImportMeta {
@@ -35,6 +38,7 @@ interface Window {
      *  dark (from ACCOUNTS etc.) — see `src/featureFlags.ts`. Can only enable,
      *  never disable. */
     featureFlags?: Record<string, boolean | undefined>;
+    observability?: { enabled: boolean; collectorUrl?: string; environment?: string };
   };
   // Injected by the Tauri Android shell (MainActivity) — the native window
   // insets, since Android's WebView does not surface them to env(safe-area-*).
@@ -43,6 +47,8 @@ interface Window {
 }
 
 declare const __APP_VERSION__: string;
+declare const __APP_BUILD_ID__: string;
+declare const __APP_BUILD_TARGET__: string;
 
 // `unplugin-icons` with `compiler: 'raw'` exports the plain SVG string
 // as the default import for any `~icons/<set>/<name>` module. Declare

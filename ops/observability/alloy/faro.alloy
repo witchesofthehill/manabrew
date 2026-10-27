@@ -1,0 +1,86 @@
+declare "client_errors" {
+  argument "origins" {}
+  argument "forward_to" {}
+
+  faro.receiver "client" {
+    log_format = "json"
+
+    server {
+      listen_address           = "0.0.0.0"
+      listen_port              = 12347
+      cors_allowed_origins     = argument.origins.value
+      max_allowed_payload_size = "256KiB"
+      include_metadata         = false
+
+      rate_limiting {
+        enabled    = true
+        rate       = 20
+        burst_size = 40
+      }
+    }
+
+    sourcemaps {
+      download              = false
+      download_from_origins = []
+
+      location {
+        minified_path_prefix = "app:///"
+        path                 = "/var/lib/faro/sourcemaps/{{ .Release }}"
+      }
+    }
+
+    output {
+      logs = [loki.process.client_errors.receiver]
+    }
+  }
+
+  loki.process "client_errors" {
+    forward_to = argument.forward_to.value
+
+    stage.json {
+      expressions = {
+        app         = "app_name",
+        environment = "app_environment",
+        source      = "context_source",
+        kind        = "kind",
+      }
+    }
+
+    stage.labels {
+      values = {
+        app         = "",
+        environment = "",
+        source      = "",
+        kind        = "",
+      }
+    }
+
+    stage.match {
+      selector            = "{app!=\"manabrew-client\"}"
+      action              = "drop"
+      drop_counter_reason = "faro_app"
+    }
+
+    stage.match {
+      selector            = "{app=\"manabrew-client\",kind!=\"exception\"}"
+      action              = "drop"
+      drop_counter_reason = "faro_kind"
+    }
+
+    stage.match {
+      selector            = "{app=\"manabrew-client\",environment!~\"production|staging|development\"}"
+      action              = "drop"
+      drop_counter_reason = "faro_environment"
+    }
+
+    stage.match {
+      selector            = "{app=\"manabrew-client\",source!~\"startup|react|unhandled|engine-worker|render-worker|bot-worker|remote-engine|engine-operation\"}"
+      action              = "drop"
+      drop_counter_reason = "faro_source"
+    }
+
+    stage.label_keep {
+      values = ["app", "environment", "source"]
+    }
+  }
+}

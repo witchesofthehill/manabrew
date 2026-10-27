@@ -45,3 +45,21 @@ loki.write "local" {
     url = "http://loki:3100/loki/api/v1/push"
   }
 }
+
+import.file "faro" {
+  filename = "/etc/alloy/faro.alloy"
+}
+
+faro.client_errors "client" {
+  origins = [
+    "https://play.manabrew.app",
+    "https://manabrew.app",
+    "https://staging.manabrew.app",
+    "tauri://localhost",
+    "http://tauri.localhost",
+    "https://tauri.localhost",
+    "http://localhost:9527",
+    "http://127.0.0.1:9527",
+  ]
+  forward_to = [loki.write.local.receiver]
+}

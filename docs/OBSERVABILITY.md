@@ -2,6 +2,8 @@
 
 Inventory of every Grafana panel and queryable data source in the stack. Config lives under `ops/observability/`; metric names are defined in code (`manabrew-server/src/metrics.rs`, `self-hosted-node/src/metrics.rs`) and the analytics schema in `scripts/ingest-events.py`. Keep this file in sync when adding a panel, metric, event, or column.
 
+Frontend exception reporting uses self-hosted Faro, Alloy, and Loki. Client collection remains disabled by default pending the rollout gates in [Faro implementation plan](FARO_IMPLEMENTATION_PLAN.md). Deployment settings and private-map publication are in [DEPLOY.md](DEPLOY.md#frontend-error-reporting).
+
 ## Dashboards
 
 Provisioned from `ops/observability/grafana/dashboards/` via `provisioning/dashboards/provider.yml`.
@@ -13,7 +15,41 @@ For local product-dashboard testing, start the normal stack and the dev Grafana 
 docker compose -f compose.dev.yaml --profile observability up -d grafana
 ```
 
-Open `http://localhost:3000` and sign in with `admin` / `admin`. The SQLite dashboards use `ops/hub-data/dev/events/events.db`, refreshed from the local Hub every five minutes. Live Ops Prometheus and Loki panels do not have local datasources in `compose.dev.yaml`; validate those panels against the production observability stack.
+Open `http://localhost:3000` and sign in with `admin` / `admin`. The SQLite dashboards use `ops/hub-data/dev/events/events.db`, refreshed from the local Hub every five minutes. To run the Loki/Prometheus dashboards locally, start `grafana prometheus faro-collector alloy loki` with the observability profile. Their ports bind only to loopback; the dev Alloy configuration does not discover Docker containers.
+
+### Client errors (`client-errors.json`)
+
+Faro SDK `2.13.0` sends eligible frontend exceptions to `/collect`, through Caddy and Alloy `v1.9.1` into Loki. The dashboard counts delivered exceptions and distinct anonymous sessions that reported an exception. It has no all-session denominator and does not measure crash-free users.
+
+Filters cover environment, version, immutable build, platform, source, and engine. Sources are `startup`, `react`, `unhandled`, `engine-worker`, `render-worker`, `bot-worker`, `remote-engine`, and `engine-operation`. Normal cancellation, renderer capability fallback, and ordinary protocol rejections are excluded. Recovery behavior and local console diagnostics remain unchanged.
+
+The receiver emits flat JSON. `type`, `value`, and `stacktrace` describe the sanitized exception; `app_release` is the exact build identity; `session_id` is a random session-scoped UUID. `context_source`, `context_operation`, `context_platform`, `context_build_target`, `context_route`, `context_engine`, `context_game_id`, and `context_signature` carry allowlisted context. Only `app`, `environment`, and `source` become Loki labels. Signatures include the safe error category, source, operation, and asset coordinates, never session or game IDs. The receiver's `hash` is message-only and is not the grouping key.
+
+```logql
+{app="manabrew-client",environment="production"} | json | kind="exception"
+```
+
+Use Exception details to select a game ID and view matching backend logs. Offline IDs may have no backend logs. A game ID can correlate with other operational records; it is not an anonymous-user guarantee.
+
+Arbitrary messages become fixed safe categories. Asset frames retain only approved hashed `/assets/` paths and positive line/column coordinates. Function names, URL credentials, queries, fragments, user-agent metadata, account data, console output, network bodies, deck contents, and decision journals are not sent. Source maps restore developer source locations inside authenticated Loki/Grafana, not in the client payload.
+
+Events expire under Loki's existing 30-day retention. Client batches contain at most 10 items; transport queues at most 20 batches with one request in flight, a five-second timeout, and two attempts. There is no persistent retry queue. Offline clients, abrupt termination, static module failures before initialization, and WebView/process termination can lose reports. Native Rust/Forge dumps, OS kills, and rules correctness are outside this coverage.
+
+For an isolated local collector without starting the app:
+
+```bash
+LOKI_DEV_PORT=13100 GRAFANA_DEV_PORT=13000 \
+  docker compose -p manabrew-faro-local -f compose.dev.yaml \
+  --profile observability up -d faro-collector alloy loki
+```
+
+The collector is `http://127.0.0.1:12347/collect`; allowed browser origins are `http://localhost:1420` and `http://127.0.0.1:1420`. For a local frontend build set `VITE_FARO_ENABLED=true`, `VITE_FARO_ENVIRONMENT=development`, and `VITE_FARO_COLLECTOR_URL` to that collector. A runtime `observability` object takes precedence, including an explicit disable. Initialization runs once per page load.
+
+Local `local-development` builds replace their unpublished maps in `target/faro-sourcemaps/`. Restart only the isolated Alloy service after rebuilding to discard cached locations. Published release directories remain immutable, including a local-development identity once published.
+
+Alloy metrics are private on port 12345. Monitor receiver requests/exceptions, source-map file-read status, `faro_receiver_exporter_errors_total`, Loki batch retries, and dropped entries. No-client-traffic periods do not imply a collector outage.
+
+The pinned receiver caches successful maps and misses without expiry or an entry limit. Real main/worker/Card Glint maps brought the isolated Alloy process to 120.5 MiB under its former 128 MiB limit; the initial limit is now 256 MiB. This is not a cache-size guarantee. Monitor process/container memory and `faro_receiver_sourcemap_cache_size`, and exercise concurrent old/new build variants in staging before enablement. Public ingestion can also create cache misses; exact-origin CORS is not authentication.
 
 ### Executive Health (`executive.json`)
 
@@ -292,14 +328,19 @@ Service logs shipped by Alloy (`ops/observability/alloy/config.alloy`). It disco
 
 `ops/observability/grafana/provisioning/alerting/rules.yml` (contact points and routing in `contactpoints.yml` / `policies.yml`):
 
-| Alert                       | Signal                                                                               |
-| --------------------------- | ------------------------------------------------------------------------------------ |
-| relay down                  | `up{job="relay"}`                                                                    |
-| node fleet silent           | `time() - push_time_seconds{job="self-hosted-node"}`                                 |
-| hosted rooms below expected | `sum(manabrew_node_rooms_hosted)`                                                    |
-| engine error spike          | `sum(increase(manabrew_node_engine_errors_total[10m]))`                              |
-| outdated client burst       | `sum(increase(manabrew_relay_client_rejections_total{reason="outdated_wire"}[15m]))` |
-| traffic cliff (EU daytime)  | `max_over_time(manabrew_relay_connections{kind="human"}[30m])` gated on hour-of-day  |
+| Alert                            | Signal                                                                               |
+| -------------------------------- | ------------------------------------------------------------------------------------ |
+| relay down                       | `up{job="relay"}`                                                                    |
+| node fleet silent                | `time() - push_time_seconds{job="self-hosted-node"}`                                 |
+| hosted rooms below expected      | `sum(manabrew_node_rooms_hosted)`                                                    |
+| engine error spike               | `sum(increase(manabrew_node_engine_errors_total[10m]))`                              |
+| outdated client burst            | `sum(increase(manabrew_relay_client_rejections_total{reason="outdated_wire"}[15m]))` |
+| traffic cliff (EU daytime)       | `max_over_time(manabrew_relay_connections{kind="human"}[30m])` gated on hour-of-day  |
+| client error burst               | At least 10 production exceptions across at least 3 reporting sessions in 10 minutes |
+| client telemetry collector down  | Alloy scrape unavailable for two minutes, including missing scrape data              |
+| client telemetry export failures | Faro exporter errors or dropped Loki entries sustained for five minutes              |
+
+Client rules live in `client-errors.yml` and reuse the existing contact point. Notifications contain bounded operational summaries, not exception details or game/session IDs. Staging errors do not trigger the production burst alert.
 
 ## Datasources
 

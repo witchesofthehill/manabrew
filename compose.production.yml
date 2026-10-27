@@ -54,6 +54,9 @@ services:
       DECK_HUB: "${DECK_HUB:-1}"
       EMAIL_SIGN_IN: "${EMAIL_SIGN_IN:-1}"
       FORGE_WASM: "${FORGE_WASM:-1}"
+      FARO_ENABLED: "${FARO_ENABLED:-false}"
+      FARO_COLLECTOR_URL: "${FARO_COLLECTOR_URL:-https://telemetry.manabrew.app/collect}"
+      FARO_ENVIRONMENT: "${FARO_ENVIRONMENT:-production}"
     # No depends_on for manabrew-hub: the site must deploy/restart even if the
     # hub image is broken; caddy just 502s api. until the hub comes up.
     depends_on:
@@ -290,13 +293,18 @@ services:
     command:
       - run
       - --storage.path=/var/lib/alloy/data
+      - --server.http.listen-addr=0.0.0.0:12345
       - /etc/alloy/config.alloy
     volumes:
       - ./ops/observability/alloy:/etc/alloy:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./ops/observability/data/sourcemaps:/var/lib/faro/sourcemaps:ro
       - alloy-data:/var/lib/alloy/data
+    expose:
+      - "12345"
+      - "12347"
     restart: unless-stopped
-    mem_limit: 128m
+    mem_limit: 256m
 
 volumes:
   caddy-data:

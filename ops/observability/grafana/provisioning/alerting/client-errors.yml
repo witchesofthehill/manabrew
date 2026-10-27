@@ -1,0 +1,101 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: manabrew-client-errors
+    folder: Manabrew
+    interval: 1m
+    rules:
+      - uid: client-error-burst
+        title: client error burst
+        condition: C
+        for: 0s
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: warning
+        annotations:
+          summary: production frontend errors reached 10 incidents across at least 3 reporting sessions in 10 minutes
+          dashboard: /d/manabrew-client-errors
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: loki
+            model:
+              expr: sum(count_over_time({app="manabrew-client",environment="production"} | json | __error__="" | kind="exception" [10m])) >= 10 and count(sum by (session_id) (count_over_time({app="manabrew-client",environment="production"} | json | __error__="" | kind="exception" | session_id!="" [10m]))) >= 3
+              queryType: instant
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              refId: C
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [9]
+
+      - uid: client-collector-down
+        title: client telemetry collector down
+        condition: C
+        for: 2m
+        noDataState: Alerting
+        execErrState: Error
+        labels:
+          severity: warning
+        annotations:
+          summary: Alloy metrics target is unreachable; frontend error ingestion may be unavailable
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: up{job="alloy"}
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              refId: C
+              conditions:
+                - evaluator:
+                    type: lt
+                    params: [1]
+
+      - uid: client-telemetry-export-errors
+        title: client telemetry export failures
+        condition: C
+        for: 5m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: warning
+        annotations:
+          summary: Alloy has sustained Faro export failures or dropped Loki entries
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: (sum(increase(faro_receiver_exporter_errors_total[5m])) or vector(0)) + (sum(increase(loki_write_dropped_entries_total[5m])) or vector(0))
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              refId: C
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0]

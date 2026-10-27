@@ -1,0 +1,16 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: relay
+    static_configs:
+      - targets: ["relay:9444"]
+
+  - job_name: alloy
+    static_configs:
+      - targets: ["alloy:12345"]
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

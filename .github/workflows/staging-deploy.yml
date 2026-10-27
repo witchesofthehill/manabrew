@@ -87,7 +87,7 @@ jobs:
       # checks out and rsyncs the same head, so the two must agree.
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           submodules: recursive
 
       - name: Set up Docker Buildx
@@ -141,6 +141,7 @@ jobs:
           ls -la packages/forge-wasm/forgeharness*
 
       - name: Build & push
+        if: matrix.image != 'manabrew-web'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -155,6 +156,27 @@ jobs:
             type=registry,ref=ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:buildcache-staging
             type=registry,ref=ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:buildcache
           cache-to: type=registry,ref=ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:buildcache-staging,mode=max,image-manifest=true,oci-mediatypes=true,ignore-error=true
+
+      - name: Build exact staging web image and private maps
+        if: matrix.image == 'manabrew-web'
+        env:
+          APP_BUILD_TARGET: staging-web
+          DOCKER_METADATA: '{"tags":["ghcr.io/${{ github.repository_owner }}/manabrew-web:staging"],"labels":{}}'
+          WEB_BUILD_ARGS: ${{ matrix.build-args }}
+          WEB_CACHE_FROM: |
+            ghcr.io/${{ github.repository_owner }}/manabrew-web:buildcache-staging
+            ghcr.io/${{ github.repository_owner }}/manabrew-web:buildcache
+          WEB_CACHE_TO: ghcr.io/${{ github.repository_owner }}/manabrew-web:buildcache-staging
+        run: node scripts/build-faro-web.mjs
+
+      - name: Upload private staging maps
+        if: matrix.image == 'manabrew-web'
+        uses: actions/upload-artifact@v4
+        with:
+          name: faro-maps-staging-web
+          path: target/faro-sourcemaps/
+          if-no-files-found: error
+          retention-days: 7
 
   # ── Deploy the staging slot on the prod box ────────────────────────
   # `cargo xtask deploy --staging` runs on the RUNNER at the deployed ref's
@@ -174,7 +196,11 @@ jobs:
       # must be the same ref build-images built.
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
 
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -183,6 +209,10 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: xtask-deploy
+      - uses: actions/download-artifact@v4
+        with:
+          name: faro-maps-staging-web
+          path: target/faro-sourcemaps/
 
       - name: Deploy staging (xtask, from the runner)
         id: deploy
@@ -192,6 +222,7 @@ jobs:
           HOST: ${{ secrets.DEPLOY_HOST }}
           USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_STAGING_PATH || '/opt/manabrew-staging' }}
+          MAP_DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
           # The PR's head branch; empty on workflow_dispatch → xtask's
           # `staging` default. DEPLOY_REF pins the config fetch to the exact sha
           # build-images built — a branch-name fetch could race a fresh push.
@@ -248,6 +279,8 @@ jobs:
             echo "  IdentityFile ~/.ssh/deploy_key"
             echo "  StrictHostKeyChecking yes"
           } >> ~/.ssh/config
+          node scripts/faro-sourcemaps.mjs publish staging-box \
+            "${MAP_DEPLOY_PATH:?}/ops/observability/data/sourcemaps" staging-web
           cargo xtask deploy --staging --branch "${DEPLOY_BRANCH:-staging}" \
             --ref "$DEPLOY_REF" \
             --host staging-box --path "$DEPLOY_PATH" 2>&1 | tee deploy.log

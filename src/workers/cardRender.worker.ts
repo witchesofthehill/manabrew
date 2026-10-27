@@ -137,6 +137,7 @@ realm.addEventListener("message", (event) => {
           id: message.id,
           message: error instanceof Error ? error.message : String(error),
           name: error instanceof Error ? error.name : "Error",
+          stack: error instanceof Error ? error.stack?.slice(0, 8192) : undefined,
           stats: { ...cardArtworkStats(), ...cardScratchStats() },
         });
       } finally {

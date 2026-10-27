@@ -358,3 +358,44 @@ Mobile builds skip the GraalVM/Maven harness (`tauri.{ios,android}.conf.json` ov
 ### Android APK
 
 `publish.yml`'s `android-apk` job builds an arm64 APK (`node scripts/mobile-dev.mjs android build --apk --target aarch64`) on `ubuntu-latest` and the `release` job attaches it to the GitHub Release alongside the desktop installers. The release APK is **unsigned** — installing it requires signing with a keystore (wire an `ANDROID_KEYSTORE` secret + a signing step to ship an installable build).
+
+## Frontend error reporting
+
+Reporting is disabled by default in production/staging Compose and packaged CI builds. Keep it disabled until the privacy notice and collection basis are approved and the user has manually checked the relevant browser/WebView. This implements frontend exceptions and forwarded engine failures, not native process crash dumps.
+
+Create DNS for `telemetry.manabrew.app` pointing to the existing ingress. Caddy terminates HTTPS and exposes only `/collect` for approved origins. Alloy's receiver, administration API, metrics, and private maps stay internal. The collector accepts at most 256 KiB per request and 20 POST requests/second globally, with burst 40. Stock Caddy has no configured per-client rate limiter. CORS is not authentication, and client-supplied app/environment metadata is untrusted.
+
+Managed web configuration comes from the container environment:
+
+| Variable             | Purpose                                     |
+| -------------------- | ------------------------------------------- |
+| `FARO_ENABLED`       | Explicit enable; defaults to `false`        |
+| `FARO_COLLECTOR_URL` | HTTPS endpoint ending exactly in `/collect` |
+| `FARO_ENVIRONMENT`   | `production`, `staging`, or `development`   |
+
+Production/staging Compose set separate environments and the managed collector URL. Set `FARO_ENABLED=true` only after acceptance, then recreate the web container through the normal tag-pinned deployment flow. Generic images and ordinary local builds remain off. `ops/web-entrypoint.sh` writes safely serialized `window.__MANABREW_RUNTIME__.observability`; explicit runtime disable overrides compiled settings. Reload the frontend after changes because initialization is one-shot.
+
+Official packaged jobs set the equivalent `VITE_FARO_*` variables in `publish.yml`, currently with `VITE_FARO_ENABLED=false`. Enabling packaged reporting requires a new build after its platform passes manual verification. The approved origins include Tauri origins and the packaged macOS/Linux asset-server origin `http://localhost:9527`. Keep ingress and Alloy origin lists in sync with any asset-server change.
+
+### Private source maps
+
+Vite generates hidden maps and removes them from `dist/` before packaging. The identity is `<manifest-app-version>-<40-character-checkout-SHA>-<variant>`; variants distinguish `web`, `staging-web`, `macos-arm64`, `windows-x86-64`, `ios-aarch64`, and `android-aarch64`. Local builds use `local-development`. Keep `__APP_VERSION__` sourced from `ops/manifest.json`.
+
+`target/faro-sourcemaps/<build-id>/` contains the exact emitted maps, relative asset paths, and a SHA-256 manifest. Main bundles, compiled workers, and nested Card Glint chunks retain their own paths. Worker shared chunks use `assets/worker-*` to prevent main/worker source-map collisions. Raw unminified Forge assets may remain unsymbolicated. `scripts/build-faro-web.mjs` exports runtime and maps from one Buildx Bake graph, so maps cannot come from a second rebuild.
+
+CI transfers private maps with the existing deployment SSH credentials before web rollout or public installer publication. The host needs Python 3 and rsync in addition to existing Docker prerequisites. Publication checksum-validates artifacts, rejects symlinks, and atomically renames immutable release directories into `<DEPLOY_PATH>/ops/observability/data/sourcemaps/`. Staging maps go to the production observability store because staging uses the shared collector. Source-map artifacts are authenticated Actions artifacts with seven-day retention, never GitHub Release assets.
+
+Restore Cargo caches **before** downloading maps under `target/`; partial `rust-cache` restores can delete non-Cargo files there. Public web runtime registry caches use `mode=min`. Cache warming ends at the pre-frontend `builder` stage; exporting frontend build layers with `mode=max` would publish private maps.
+
+Alloy mounts the store read-only at `/var/lib/faro/sourcemaps`. Reports canonicalize compiled asset URLs to `app:///assets/...`; `app.release` selects the build directory. Downloads are disabled, including on misses. Alloy `v1.9.1` caches successful maps and misses without expiry or an entry limit. Publish maps before the first report from a release; restart Alloy after repairing a missed map or replacing unpublished local-development maps. Monitor memory across active releases; the 256 MiB initial container limit is not a bounded-cache guarantee.
+
+Retain old directories for the supported lifetime of installed clients and rollback, not merely Loki's 30-day event retention. Deployment synchronization preserves the data directory. Do not prune source maps as part of image, installer, or event-log cleanup.
+
+### Rollout and rollback
+
+1. Deploy the collector and private map mount while clients remain disabled. Check DNS/TLS, approved-origin preflight, private metrics, and authenticated Grafana access.
+2. Publish exact maps, then enable staging. Inspect sanitized stored events, source locations, queue behavior, and resource use.
+3. Obtain manual browser/PWA checks and finalize notice, legal basis, and any required consent or opt-out. A deployment flag is not consent.
+4. Enable managed production web, then each packaged target only after its own manual WebView checks.
+
+Disable web reporting by setting `FARO_ENABLED=false`, recreating its container, and reloading the frontend. Packaged settings are compiled; stop their collection by closing the collector route until an updated package ships. Preserve maps and existing backend logging. See [OBSERVABILITY.md](OBSERVABILITY.md) for event fields, query examples, alert thresholds, and local collection.

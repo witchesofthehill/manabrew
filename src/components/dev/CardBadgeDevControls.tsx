@@ -186,7 +186,7 @@ export function CardBadgeDevControls() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className={DEV_SECTION_HEADING}>Card appearance</p>
-            <p className="mt-1 text-ui-body text-muted-foreground non-touch:text-xs">
+            <p className="mt-1 text-ui-body text-muted-foreground">
               Force states and counters on the staged card.
             </p>
           </div>
@@ -194,7 +194,7 @@ export function CardBadgeDevControls() {
             {dirty ? (
               <button
                 type="button"
-                className="min-h-8 touch:min-h-11 text-ui-label font-medium uppercase tracking-wide text-muted-foreground hover:text-destructive non-touch:text-[10px] non-touch:min-h-0 non-touch:leading-[inherit]"
+                className="min-h-8 touch:min-h-11 text-ui-label font-medium uppercase tracking-wide text-muted-foreground hover:text-destructive"
                 onClick={reset}
               >
                 Reset card
@@ -203,7 +203,7 @@ export function CardBadgeDevControls() {
           </DevSearchable>
         </div>
 
-        <p className="mb-2 mt-4 text-ui-label font-medium uppercase tracking-wide text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
+        <p className="mb-2 mt-4 text-ui-label font-medium uppercase tracking-wide text-muted-foreground">
           States
         </p>
         <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
@@ -217,7 +217,7 @@ export function CardBadgeDevControls() {
           ))}
         </div>
 
-        <p className="mb-2 mt-4 text-ui-label font-medium uppercase tracking-wide text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
+        <p className="mb-2 mt-4 text-ui-label font-medium uppercase tracking-wide text-muted-foreground">
           Counters
         </p>
         <div className="grid gap-1.5 sm:grid-cols-2">

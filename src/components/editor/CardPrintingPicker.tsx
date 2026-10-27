@@ -62,21 +62,18 @@ export function CardPrintingPicker({
     return (
       <div role="status" className="flex items-center justify-center gap-2 py-12">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-hidden="true" />
-        <span className="text-ui-body non-touch:text-sm">Loading printings…</span>
+        <span className="text-ui-body">Loading printings…</span>
       </div>
     );
   if (error)
     return (
-      <p role="alert" className="py-8 text-center text-ui-body text-destructive non-touch:text-sm">
+      <p role="alert" className="py-8 text-center text-ui-body text-destructive">
         {error}
       </p>
     );
   if (prints.length === 0)
     return (
-      <p
-        role="status"
-        className="py-8 text-center text-ui-body text-muted-foreground non-touch:text-sm"
-      >
+      <p role="status" className="py-8 text-center text-ui-body text-muted-foreground">
         No printings available.
       </p>
     );
@@ -142,9 +139,7 @@ export function CardPrintingPicker({
                   />
                 )
               ) : (
-                <span className="text-center text-ui-meta text-muted-foreground non-touch:text-xs">
-                  No image
-                </span>
+                <span className="text-center text-ui-meta text-muted-foreground">No image</span>
               )}
               {selected && (
                 <span className="absolute right-1 top-1 rounded-full bg-selection p-1 text-selection-foreground">
@@ -152,7 +147,7 @@ export function CardPrintingPicker({
                 </span>
               )}
             </div>
-            <span className="flex w-full items-center justify-center gap-1 text-center text-ui-label font-semibold non-touch:text-xs">
+            <span className="flex w-full items-center justify-center gap-1 text-center text-ui-label font-semibold">
               {setLookup.get(print.set)?.icon_svg_uri && (
                 <ScryfallImg
                   src={setLookup.get(print.set)!.icon_svg_uri}
@@ -162,7 +157,7 @@ export function CardPrintingPicker({
               )}
               <span className="min-w-0 break-words">{print.set_name}</span>
             </span>
-            <span className="text-ui-meta uppercase text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
+            <span className="text-ui-meta uppercase text-muted-foreground">
               {print.set} · #{print.collector_number}
             </span>
           </button>

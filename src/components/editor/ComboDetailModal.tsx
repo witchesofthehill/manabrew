@@ -73,7 +73,7 @@ export function ComboDetailModal({
                     className="w-full rounded-lg border border-border/50 shadow-sm"
                   />
                   <div
-                    className="text-ui-label text-center mt-1 break-words non-touch:text-xs"
+                    className="text-ui-label text-center mt-1 break-words"
                     title={card.identity.name}
                   >
                     {card.identity.name}
@@ -84,14 +84,14 @@ export function ComboDetailModal({
 
             {produces.length > 0 && (
               <div>
-                <div className="text-ui-label font-semibold text-muted-foreground mb-1 non-touch:text-sm">
+                <div className="text-ui-label font-semibold text-muted-foreground mb-1">
                   Produces
                 </div>
                 <div className="flex flex-wrap gap-1">
                   {produces.map((name) => (
                     <span
                       key={name}
-                      className="text-ui-label rounded bg-counter-charge/10 text-counter-charge px-1.5 py-0.5 non-touch:text-xs"
+                      className="text-ui-label rounded bg-counter-charge/10 text-counter-charge px-1.5 py-0.5"
                     >
                       {name}
                     </span>
@@ -102,11 +102,11 @@ export function ComboDetailModal({
 
             {(prereqs.length > 0 || combo.manaNeeded) && (
               <div>
-                <div className="text-ui-label font-semibold text-muted-foreground mb-1 non-touch:text-sm">
+                <div className="text-ui-label font-semibold text-muted-foreground mb-1">
                   Prerequisites
                 </div>
                 {combo.manaNeeded && (
-                  <div className="flex flex-wrap items-center gap-1.5 text-ui-label mb-1 non-touch:text-sm">
+                  <div className="flex flex-wrap items-center gap-1.5 text-ui-label mb-1">
                     <span className="text-muted-foreground">Mana:</span>
                     <ManaSymbols cost={combo.manaNeeded} size="sm" />
                   </div>
@@ -115,7 +115,7 @@ export function ComboDetailModal({
                   {prereqs.map((req, i) => (
                     <li
                       key={i}
-                      className="text-ui-body text-muted-foreground flex items-start gap-1.5 non-touch:text-sm"
+                      className="text-ui-body text-muted-foreground flex items-start gap-1.5"
                     >
                       <span className="shrink-0 mt-0.5">&#x2022;</span>
                       <span>{req}</span>
@@ -126,12 +126,10 @@ export function ComboDetailModal({
             )}
 
             <div>
-              <div className="text-ui-label font-semibold text-muted-foreground mb-1 non-touch:text-sm">
-                Steps
-              </div>
+              <div className="text-ui-label font-semibold text-muted-foreground mb-1">Steps</div>
               <ol className="space-y-1.5">
                 {steps(combo).map((step, i) => (
-                  <li key={i} className="text-ui-body flex gap-2 non-touch:text-sm">
+                  <li key={i} className="text-ui-body flex gap-2">
                     <span className="shrink-0 font-mono tabular-nums text-counter-charge">
                       {i + 1}.
                     </span>
@@ -154,7 +152,7 @@ export function ComboDetailModal({
             <Button
               size="sm"
               variant="outline"
-              className="h-auto touch:min-h-11 touch:min-w-11 gap-1.5 whitespace-normal text-ui-label non-touch:whitespace-nowrap"
+              className="h-auto touch:min-h-11 touch:min-w-11 gap-1.5 whitespace-normal text-ui-label"
             >
               <ExternalLink className="h-3.5 w-3.5" />
               View on Commander Spellbook
@@ -163,7 +161,7 @@ export function ComboDetailModal({
           <Button
             size="sm"
             variant="ghost"
-            className="h-auto touch:min-h-11 touch:min-w-11 text-ui-label non-touch:h-8"
+            className="h-auto touch:min-h-11 touch:min-w-11 text-ui-label"
             onClick={onClose}
           >
             Close

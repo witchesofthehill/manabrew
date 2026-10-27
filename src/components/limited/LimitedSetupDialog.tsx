@@ -66,7 +66,7 @@ export function LimitedSetupDialog({
           />
         )}
         {setup.lastError && (
-          <p role="alert" className="text-ui-meta text-destructive non-touch:text-sm">
+          <p role="alert" className="text-ui-meta text-destructive">
             {setup.lastError}
           </p>
         )}

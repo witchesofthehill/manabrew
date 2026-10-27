@@ -227,9 +227,7 @@ export function DeckCardBrowserFilters({
           onClick={() => onZoneChange(option.value)}
         >
           {option.label}
-          <span className="text-ui-meta tabular-nums text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
-            {option.count}
-          </span>
+          <span className="text-ui-meta tabular-nums text-muted-foreground">{option.count}</span>
         </Button>
       ))}
     </div>
@@ -238,7 +236,7 @@ export function DeckCardBrowserFilters({
     <AppSelect
       value={groupBy}
       aria-label={`Group cards by`}
-      className="min-w-0 non-touch:text-sm non-touch:h-9 non-touch:px-2"
+      className="min-w-0"
       onValueChange={(value) => onGroupByChange(value as GroupByMode)}
     >
       {GROUP_BY_OPTIONS.filter((option) => option.value !== "custom").map((option) => (
@@ -252,7 +250,7 @@ export function DeckCardBrowserFilters({
     <AppSelect
       value={cardType}
       aria-label={`Filter by card type`}
-      className="min-w-0 non-touch:text-sm non-touch:h-9 non-touch:px-2"
+      className="min-w-0"
       onValueChange={(value) => onCardTypeChange(value as BrowserCardTypeFilter)}
     >
       {CARD_TYPE_OPTIONS.map((option) => (
@@ -266,7 +264,7 @@ export function DeckCardBrowserFilters({
     <AppSelect
       value={manaValue}
       aria-label={`Filter by mana value`}
-      className="min-w-0 non-touch:text-sm non-touch:h-9 non-touch:px-2"
+      className="min-w-0"
       onValueChange={(value) => onManaValueChange(value as BrowserManaValueFilter)}
     >
       {MANA_VALUE_OPTIONS.map((value) => (
@@ -288,14 +286,14 @@ export function DeckCardBrowserFilters({
               <SlidersHorizontal className="h-3.5 w-3.5" />
               Filters
               {activeFilterCount > 0 && (
-                <span className="rounded-full bg-primary px-1.5 text-ui-meta text-primary-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
+                <span className="rounded-full bg-primary px-1.5 text-ui-meta text-primary-foreground">
                   {activeFilterCount}
                 </span>
               )}
             </Button>
           </SheetTrigger>
           <SheetContent side="bottom" className="overflow-y-auto rounded-t-xl">
-            <SheetHeader className="pr-8 text-left non-touch:pr-8">
+            <SheetHeader className="pr-8 text-left">
               <SheetTitle>Card filters</SheetTitle>
               <SheetDescription>
                 Colors match any selected color identity. Search also matches type and rules text.
@@ -303,9 +301,7 @@ export function DeckCardBrowserFilters({
             </SheetHeader>
             <div className="mt-5 space-y-5">
               <div>
-                <p className="mb-2 text-ui-label font-medium text-muted-foreground non-touch:text-xs">
-                  Deck section
-                </p>
+                <p className="mb-2 text-ui-label font-medium text-muted-foreground">Deck section</p>
                 {zoneControl}
               </div>
               <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-2">
@@ -314,13 +310,13 @@ export function DeckCardBrowserFilters({
                 {manaControl}
               </div>
               <div>
-                <p className="mb-2 text-ui-label font-medium text-muted-foreground non-touch:text-xs">
+                <p className="mb-2 text-ui-label font-medium text-muted-foreground">
                   Color identity
                 </p>
                 <ColorControl colors={colors} onToggle={onColorToggle} />
               </div>
               {viewMode !== "list" && (
-                <label className="block text-ui-label font-medium text-muted-foreground non-touch:text-xs">
+                <label className="block text-ui-label font-medium text-muted-foreground">
                   Card size
                   <input
                     type="range"
@@ -346,12 +342,7 @@ export function DeckCardBrowserFilters({
         </Sheet>
       </div>
 
-      <div
-        className={cn(
-          "hidden flex-wrap items-center gap-2 sm:flex non-touch:gap-1 non-touch:px-1 non-touch:pb-1",
-          shortTouch && "sm:hidden",
-        )}
-      >
+      <div className={cn("hidden flex-wrap items-center gap-2 sm:flex", shortTouch && "sm:hidden")}>
         {zoneControl}
         <div className="mx-1 h-5 w-px shrink-0 bg-border" />
         {groupControl}

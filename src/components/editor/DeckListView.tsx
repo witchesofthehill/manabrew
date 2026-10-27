@@ -218,7 +218,7 @@ function CardCornerActions({
   return (
     <div className="absolute left-1 top-1 z-40 flex max-w-[calc(100%-0.5rem)] flex-wrap items-center gap-0.5">
       {count > 1 && (
-        <span className="flex min-h-5 min-w-5 px-1 items-center justify-center rounded-full border border-white/20 bg-overlay/80 text-ui-meta font-bold text-white shadow non-touch:text-[10px] non-touch:h-5 non-touch:min-h-0 non-touch:w-5 non-touch:min-w-0 non-touch:px-0 non-touch:leading-[inherit]">
+        <span className="flex min-h-5 min-w-5 px-1 items-center justify-center rounded-full border border-white/20 bg-overlay/80 text-ui-meta font-bold text-white shadow">
           {count}
         </span>
       )}
@@ -383,9 +383,7 @@ function TagsSubmenu({
       <ContextMenuSubTrigger>
         <Bookmark className="mr-2 h-3.5 w-3.5" /> Tags
         {appliedTags && appliedTags.length > 0 && (
-          <span className="ml-auto text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
-            {appliedTags.length}
-          </span>
+          <span className="ml-auto text-ui-meta text-muted-foreground">{appliedTags.length}</span>
         )}
       </ContextMenuSubTrigger>
       <ContextMenuSubContent className="w-56">
@@ -420,9 +418,7 @@ function TagsSubmenu({
             );
           })
         ) : (
-          <div className="px-2 py-1.5 text-ui-meta text-muted-foreground non-touch:text-xs">
-            No tags yet
-          </div>
+          <div className="px-2 py-1.5 text-ui-meta text-muted-foreground">No tags yet</div>
         )}
         {onCreateTag && (
           <>
@@ -436,7 +432,7 @@ function TagsSubmenu({
             >
               <div>
                 <Input
-                  className="touch:min-h-11 min-h-7 text-ui-input non-touch:text-xs non-touch:h-7 non-touch:min-h-0"
+                  className="touch:min-h-11 min-h-7 text-ui-input"
                   placeholder={`New tag\u2026`}
                   value={newTagInput}
                   onChange={(e) => setNewTagInput(e.target.value)}
@@ -792,14 +788,12 @@ function EmptyStackBoard({
         >
           <GripVertical className="h-3.5 w-3.5" />
         </div>
-        <span className="text-ui-label font-semibold text-muted-foreground uppercase tracking-wide non-touch:text-xs">
+        <span className="text-ui-label font-semibold text-muted-foreground uppercase tracking-wide">
           {label}
         </span>
       </div>
       <div className="border-2 border-dashed border-border/40 rounded-lg py-4 flex items-center justify-center">
-        <p className="text-ui-meta text-muted-foreground/40 non-touch:text-[10px] non-touch:leading-[inherit]">
-          Drop here
-        </p>
+        <p className="text-ui-meta text-muted-foreground/40">Drop here</p>
       </div>
     </div>
   );
@@ -870,7 +864,7 @@ function StackColumn({
         )}
         <button
           type="button"
-          className="touch:min-w-11 touch:min-h-11 flex min-w-0 items-center gap-1 text-ui-label font-semibold uppercase tracking-wide text-muted-foreground non-touch:text-xs"
+          className="touch:min-w-11 touch:min-h-11 flex min-w-0 items-center gap-1 text-ui-label font-semibold uppercase tracking-wide text-muted-foreground"
           aria-expanded={open}
           onClick={() => setOpen((value) => !value)}
         >
@@ -1181,13 +1175,9 @@ function CardRow({
           onSelect?.(name, e.shiftKey);
         }}
       >
-        {isSelected && (
-          <span className="text-ui-caption font-bold non-touch:text-[8px] non-touch:leading-[inherit]">
-            ✓
-          </span>
-        )}
+        {isSelected && <span className="text-ui-caption font-bold">✓</span>}
       </div>
-      <span className="text-ui-meta font-mono min-w-5 text-right text-muted-foreground shrink-0 non-touch:text-xs non-touch:w-4 non-touch:min-w-0">
+      <span className="text-ui-meta font-mono min-w-5 text-right text-muted-foreground shrink-0">
         {group.count}
       </span>
       {unsupported && (
@@ -1197,10 +1187,7 @@ function CardRow({
         />
       )}
       <span
-        className={cn(
-          "text-ui-label flex-1 truncate non-touch:text-sm",
-          unsupported && "text-warning",
-        )}
+        className={cn("text-ui-label flex-1 truncate", unsupported && "text-warning")}
         title={
           unsupported
             ? `${displayName} - unsupported by the Manabrew and Forge engines`
@@ -1222,7 +1209,7 @@ function CardRow({
         <ManaSymbols cost={group.card.manaCost} size="sm" className="shrink-0" />
       )}
       {group.card.power && group.card.toughness && (
-        <span className="text-ui-meta text-muted-foreground/60 shrink-0 font-mono non-touch:text-xs">
+        <span className="text-ui-meta text-muted-foreground/60 shrink-0 font-mono">
           {group.card.power}/{group.card.toughness}
         </span>
       )}
@@ -1357,7 +1344,7 @@ function CardSection({
       <Button
         size="icon"
         variant="ghost"
-        className="touch:min-w-11 touch:min-h-11 min-h-5 w-5 text-destructive opacity-0 group-hover:opacity-100 touch:opacity-100 transition-opacity shrink-0 non-touch:h-5 non-touch:min-h-0"
+        className="touch:min-w-11 touch:min-h-11 min-h-5 w-5 text-destructive opacity-0 group-hover:opacity-100 touch:opacity-100 transition-opacity shrink-0"
         title={`Remove "${tag}" tag`}
         onClick={onRemoveTag}
       >
@@ -1407,7 +1394,7 @@ function CardSection({
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="touch:min-w-11 touch:min-h-11 min-h-5 w-5 text-muted-foreground/40 opacity-0 group-hover/tag:opacity-100 touch:opacity-100 transition-opacity shrink-0 non-touch:h-5 non-touch:min-h-0"
+                    className="touch:min-w-11 touch:min-h-11 min-h-5 w-5 text-muted-foreground/40 opacity-0 group-hover/tag:opacity-100 touch:opacity-100 transition-opacity shrink-0"
                     title={`Remove from this tag`}
                     onClick={() => onUntagCard(name)}
                   >
@@ -1527,22 +1514,20 @@ function DroppableStackTag({
               </div>
             )}
             <Tag className="h-3 w-3 text-primary/60 shrink-0" />
-            <span className="text-ui-label font-semibold text-muted-foreground uppercase tracking-wide truncate non-touch:text-xs">
+            <span className="text-ui-label font-semibold text-muted-foreground uppercase tracking-wide truncate">
               {tag}
             </span>
             <Button
               size="icon"
               variant="ghost"
-              className="touch:min-w-11 touch:min-h-11 min-h-4 w-4 text-destructive shrink-0 ml-auto non-touch:h-4 non-touch:min-h-0"
+              className="touch:min-w-11 touch:min-h-11 min-h-4 w-4 text-destructive shrink-0 ml-auto"
               onClick={onRemoveTag}
             >
               <X className="h-2.5 w-2.5" />
             </Button>
           </div>
           <div className="border-2 border-dashed border-border/40 rounded-lg flex-1 flex items-center justify-center">
-            <p className="text-ui-meta text-muted-foreground/40 text-center non-touch:text-[10px] non-touch:leading-[inherit]">
-              Drop cards here
-            </p>
+            <p className="text-ui-meta text-muted-foreground/40 text-center">Drop cards here</p>
           </div>
         </div>
       )}
@@ -1903,7 +1888,7 @@ export function DeckListView({
   const selectionBadge =
     (selectedCards?.size ?? 0) > 0 ? (
       <div className="absolute top-1 right-1 z-40">
-        <span className="text-ui-meta px-1.5 py-0.5 rounded bg-card/90 border text-selection-border non-touch:text-[10px] non-touch:leading-[inherit]">
+        <span className="text-ui-meta px-1.5 py-0.5 rounded bg-card/90 border text-selection-border">
           {selectedCards!.size} selected
         </span>
       </div>
@@ -2284,7 +2269,7 @@ export function DeckListView({
 
             {dragSection && dragPos && (
               <div
-                className="fixed z-[200] pointer-events-none bg-selection text-selection-foreground rounded-md px-2.5 py-1 text-ui-meta font-semibold non-touch:text-xs"
+                className="fixed z-[200] pointer-events-none bg-selection text-selection-foreground rounded-md px-2.5 py-1 text-ui-meta font-semibold"
                 style={{
                   left: dragPos.x + 12,
                   top: dragPos.y - 8,
@@ -2325,10 +2310,10 @@ export function DeckListView({
           {totalCards === 0 && (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <div className="text-4xl mb-3 opacity-20">🃏</div>
-              <p className="text-ui-body text-muted-foreground non-touch:text-sm">
+              <p className="text-ui-body text-muted-foreground">
                 Drag cards here from the search panel
               </p>
-              <p className="text-ui-meta text-muted-foreground/60 mt-1 non-touch:text-xs">
+              <p className="text-ui-meta text-muted-foreground/60 mt-1">
                 or use the + buttons on hover
               </p>
             </div>
@@ -2448,9 +2433,7 @@ export function DeckListView({
               />
               {!sideboardOpen ? null : sideboardGroups.length === 0 ? (
                 <div className="py-3 text-center">
-                  <p className="text-ui-meta text-muted-foreground/40 non-touch:text-xs">
-                    Drop cards here
-                  </p>
+                  <p className="text-ui-meta text-muted-foreground/40">Drop cards here</p>
                 </div>
               ) : viewMode === "list" ? (
                 <div className="space-y-0.5 pb-1">
@@ -2485,10 +2468,10 @@ export function DeckListView({
                         card={g.card}
                         className="flex items-center gap-1 group hover:bg-muted/40 rounded px-1 py-0.5"
                       >
-                        <span className="text-ui-meta font-mono min-w-5 text-right text-muted-foreground shrink-0 non-touch:text-xs non-touch:w-4 non-touch:min-w-0">
+                        <span className="text-ui-meta font-mono min-w-5 text-right text-muted-foreground shrink-0">
                           {g.count}
                         </span>
-                        <span className="text-ui-label flex-1 truncate non-touch:text-sm">
+                        <span className="text-ui-label flex-1 truncate">
                           <LocalizedCardName card={g.card} />
                         </span>
                         {g.card.manaCost && (
@@ -2558,14 +2541,12 @@ export function DeckListView({
                 open={maybeboardOpen}
                 onToggle={() => setMaybeboardOpen((value) => !value)}
                 extraContent={
-                  <span className="text-ui-meta italic text-muted-foreground/40 non-touch:text-xs">
-                    not in deck
-                  </span>
+                  <span className="text-ui-meta italic text-muted-foreground/40">not in deck</span>
                 }
               />
               {!maybeboardOpen ? null : maybeboardGroups.length === 0 ? (
                 <div className="py-3 text-center">
-                  <p className="text-ui-meta text-muted-foreground/40 non-touch:text-xs">
+                  <p className="text-ui-meta text-muted-foreground/40">
                     Cards you&apos;re considering
                   </p>
                 </div>
@@ -2602,10 +2583,10 @@ export function DeckListView({
                         card={g.card}
                         className="flex items-center gap-1 group hover:bg-muted/40 rounded px-1 py-0.5"
                       >
-                        <span className="text-ui-meta font-mono min-w-5 text-right text-muted-foreground shrink-0 non-touch:text-xs non-touch:w-4 non-touch:min-w-0">
+                        <span className="text-ui-meta font-mono min-w-5 text-right text-muted-foreground shrink-0">
                           {g.count}
                         </span>
-                        <span className="text-ui-label flex-1 truncate text-muted-foreground non-touch:text-sm">
+                        <span className="text-ui-label flex-1 truncate text-muted-foreground">
                           <LocalizedCardName card={g.card} />
                         </span>
                         {g.card.manaCost && (
@@ -2703,10 +2684,10 @@ export function DeckListView({
                             data-card-id={g.card.identity.id}
                             className="flex items-center gap-1 group hover:bg-muted/40 rounded px-1 py-0.5"
                           >
-                            <span className="text-ui-meta font-mono min-w-5 text-right text-muted-foreground shrink-0 non-touch:text-xs non-touch:w-4 non-touch:min-w-0">
+                            <span className="text-ui-meta font-mono min-w-5 text-right text-muted-foreground shrink-0">
                               {g.count}
                             </span>
-                            <span className="text-ui-label flex-1 truncate non-touch:text-sm">
+                            <span className="text-ui-label flex-1 truncate">
                               <LocalizedCardName card={g.card} />
                             </span>
                             {g.card.manaCost && (
@@ -2715,7 +2696,7 @@ export function DeckListView({
                             <Button
                               size="icon"
                               variant="ghost"
-                              className="touch:min-w-11 touch:min-h-11 min-h-5 w-5 text-destructive shrink-0 non-touch:h-5 non-touch:min-h-0"
+                              className="touch:min-w-11 touch:min-h-11 min-h-5 w-5 text-destructive shrink-0"
                               title={`Remove`}
                               onClick={() => onRemoveFromSide(g.card.identity.name)}
                             >

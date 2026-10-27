@@ -100,7 +100,7 @@ export function LimitedBuildUtilities({
         open={manaOpen}
         onToggle={(event) => setManaOpen(event.currentTarget.open)}
       >
-        <summary className="flex min-h-8 cursor-pointer items-center gap-2 rounded-sm px-2 text-ui-label font-medium focus-visible:outline-2 focus-visible:outline-primary touch:min-h-11 non-touch:text-sm">
+        <summary className="flex min-h-8 cursor-pointer items-center gap-2 rounded-sm px-2 text-ui-label font-medium focus-visible:outline-2 focus-visible:outline-primary touch:min-h-11">
           <ChevronDown className="size-3.5 -rotate-90 text-muted-foreground transition-transform group-open:rotate-0" />
           Mana curve
         </summary>
@@ -114,10 +114,7 @@ export function LimitedBuildUtilities({
               onBucketClick={onManaValueChange}
             />
           ) : (
-            <p
-              role="status"
-              className="px-3 py-2 text-ui-meta text-muted-foreground non-touch:text-xs"
-            >
+            <p role="status" className="px-3 py-2 text-ui-meta text-muted-foreground">
               {current?.error ?? "Loading card details…"}
             </p>
           ))}
@@ -127,19 +124,14 @@ export function LimitedBuildUtilities({
         open={tokensOpen}
         onToggle={(event) => setTokensOpen(event.currentTarget.open)}
       >
-        <summary className="flex min-h-8 cursor-pointer items-center gap-2 rounded-sm px-2 text-ui-label font-medium focus-visible:outline-2 focus-visible:outline-primary touch:min-h-11 non-touch:text-sm">
+        <summary className="flex min-h-8 cursor-pointer items-center gap-2 rounded-sm px-2 text-ui-label font-medium focus-visible:outline-2 focus-visible:outline-primary touch:min-h-11">
           <ChevronDown className="size-3.5 -rotate-90 text-muted-foreground transition-transform group-open:rotate-0" />
           Tokens{" "}
-          <span className="text-ui-meta tabular-nums text-muted-foreground non-touch:text-xs">
-            {tokens.length}
-          </span>
+          <span className="text-ui-meta tabular-nums text-muted-foreground">{tokens.length}</span>
         </summary>
         {tokensOpen &&
           (!current?.deck ? (
-            <p
-              role="status"
-              className="px-3 py-2 text-ui-meta text-muted-foreground non-touch:text-xs"
-            >
+            <p role="status" className="px-3 py-2 text-ui-meta text-muted-foreground">
               {current?.error ?? "Loading card details…"}
             </p>
           ) : tokens.length ? (
@@ -159,7 +151,7 @@ export function LimitedBuildUtilities({
               onLeave={preview.handleMouseLeave}
             />
           ) : (
-            <p className="px-3 py-2 text-ui-meta text-muted-foreground non-touch:text-xs">
+            <p className="px-3 py-2 text-ui-meta text-muted-foreground">
               No derived tokens for this build.
             </p>
           ))}
@@ -169,7 +161,7 @@ export function LimitedBuildUtilities({
         open={analysisOpen}
         onToggle={(event) => setAnalysisOpen(event.currentTarget.open)}
       >
-        <summary className="flex min-h-8 cursor-pointer items-center gap-2 rounded-sm px-2 text-ui-label font-medium focus-visible:outline-2 focus-visible:outline-primary touch:min-h-11 non-touch:text-sm">
+        <summary className="flex min-h-8 cursor-pointer items-center gap-2 rounded-sm px-2 text-ui-label font-medium focus-visible:outline-2 focus-visible:outline-primary touch:min-h-11">
           <ChevronDown className="size-3.5 -rotate-90 text-muted-foreground transition-transform group-open:rotate-0" />
           Pool and mana analysis
         </summary>

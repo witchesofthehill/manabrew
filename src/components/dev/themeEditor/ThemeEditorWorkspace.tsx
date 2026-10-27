@@ -19,19 +19,14 @@ function AppElementPreview() {
     >
       <div className="flex min-w-max items-start gap-6 p-3">
         <header className="w-32 shrink-0 space-y-1 pt-1">
-          <h2
-            id="app-element-preview-title"
-            className="text-ui-label font-semibold non-touch:text-sm"
-          >
+          <h2 id="app-element-preview-title" className="text-ui-label font-semibold">
             App elements
           </h2>
-          <p className="text-ui-meta text-muted-foreground non-touch:text-[11px] non-touch:leading-snug">
-            Live theme preview
-          </p>
+          <p className="text-ui-meta text-muted-foreground">Live theme preview</p>
         </header>
 
         <div className="space-y-2">
-          <div className="text-ui-label font-medium uppercase tracking-wide text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
+          <div className="text-ui-label font-medium uppercase tracking-wide text-muted-foreground">
             Buttons
           </div>
           <div className="flex items-center gap-2">
@@ -59,7 +54,7 @@ function AppElementPreview() {
         </div>
 
         <div className="space-y-2">
-          <div className="text-ui-label font-medium uppercase tracking-wide text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
+          <div className="text-ui-label font-medium uppercase tracking-wide text-muted-foreground">
             Selection
           </div>
           <div className="flex items-center gap-4">
@@ -75,7 +70,7 @@ function AppElementPreview() {
         </div>
 
         <div className="space-y-2">
-          <div className="text-ui-label font-medium uppercase tracking-wide text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
+          <div className="text-ui-label font-medium uppercase tracking-wide text-muted-foreground">
             Badges
           </div>
           <div className="flex items-center gap-2">
@@ -86,12 +81,10 @@ function AppElementPreview() {
           </div>
         </div>
 
-        <Card className="w-60 shrink-0 shadow-sm non-touch:w-52">
+        <Card className="w-60 shrink-0 shadow-sm">
           <CardContent className="space-y-1 p-3">
-            <div className="text-ui-label font-semibold non-touch:text-sm">Card surface</div>
-            <p className="text-ui-body text-muted-foreground non-touch:text-xs">
-              Foreground and muted copy
-            </p>
+            <div className="text-ui-label font-semibold">Card surface</div>
+            <p className="text-ui-body text-muted-foreground">Foreground and muted copy</p>
           </CardContent>
         </Card>
       </div>
@@ -152,17 +145,17 @@ export function ThemeEditorWorkspace({
         {controls}
       </div>
       {editor.error && (
-        <p role="alert" className="shrink-0 text-ui-body text-destructive non-touch:text-xs">
+        <p role="alert" className="shrink-0 text-ui-body text-destructive">
           {editor.error}
         </p>
       )}
       {invalidTokens.size > 0 && (
-        <p role="alert" className="shrink-0 text-ui-body text-destructive non-touch:text-xs">
+        <p role="alert" className="shrink-0 text-ui-body text-destructive">
           Fix invalid color values before saving or exporting.
         </p>
       )}
       {editor.status && (
-        <p role="status" className="shrink-0 text-ui-meta text-muted-foreground non-touch:text-xs">
+        <p role="status" className="shrink-0 text-ui-meta text-muted-foreground">
           {editor.status}
         </p>
       )}
@@ -176,7 +169,7 @@ export function ThemeEditorWorkspace({
         <div className="order-1 flex h-[52%] min-h-0 min-w-0 shrink-0 flex-col gap-2 md:order-2 md:h-auto md:flex-1">
           <div className="min-h-0 min-w-0 flex-1 overflow-hidden">{children}</div>
           <details className="max-h-[32%] shrink-0 overflow-auto overscroll-contain rounded-lg border border-border bg-card">
-            <summary className="cursor-pointer px-3 py-2 text-ui-label font-medium touch:min-h-11 non-touch:text-xs">
+            <summary className="cursor-pointer px-3 py-2 text-ui-label font-medium touch:min-h-11">
               Card specimens
             </summary>
             <div className="space-y-4 p-3 pt-1">{specimens}</div>

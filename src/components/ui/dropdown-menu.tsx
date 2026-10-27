@@ -27,7 +27,7 @@ const DropdownMenuSubTrigger = React.forwardRef<
   <DropdownMenuPrimitive.SubTrigger
     ref={ref}
     className={cn(
-      "flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 touch:min-h-11 touch:py-2.5 text-ui-label [overflow-wrap:anywhere] outline-none focus:bg-accent data-[state=open]:bg-accent [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 non-touch:text-sm",
+      "flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 touch:min-h-11 touch:py-2.5 text-ui-label [overflow-wrap:anywhere] outline-none focus:bg-accent data-[state=open]:bg-accent [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
       inset && "pl-8",
       className,
     )}
@@ -92,7 +92,7 @@ const DropdownMenuItem = React.forwardRef<
     ref={ref}
     onPointerUp={selectOnClickOnly(onPointerUp)}
     className={cn(
-      "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 touch:min-h-11 touch:py-2.5 text-ui-label [overflow-wrap:anywhere] outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&>svg]:size-4 [&>svg]:shrink-0 non-touch:text-sm",
+      "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 touch:min-h-11 touch:py-2.5 text-ui-label [overflow-wrap:anywhere] outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&>svg]:size-4 [&>svg]:shrink-0",
       inset && "pl-8",
       className,
     )}
@@ -109,7 +109,7 @@ const DropdownMenuCheckboxItem = React.forwardRef<
     ref={ref}
     onPointerUp={selectOnClickOnly(onPointerUp)}
     className={cn(
-      "relative flex cursor-default select-none items-center rounded-sm py-1.5 touch:min-h-11 touch:py-2.5 pl-8 pr-2 text-ui-label [overflow-wrap:anywhere] outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 non-touch:text-sm",
+      "relative flex cursor-default select-none items-center rounded-sm py-1.5 touch:min-h-11 touch:py-2.5 pl-8 pr-2 text-ui-label [overflow-wrap:anywhere] outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       className,
     )}
     checked={checked}
@@ -133,7 +133,7 @@ const DropdownMenuRadioItem = React.forwardRef<
     ref={ref}
     onPointerUp={selectOnClickOnly(onPointerUp)}
     className={cn(
-      "relative flex cursor-default select-none items-center rounded-sm py-1.5 touch:min-h-11 touch:py-2.5 pl-8 pr-2 text-ui-label [overflow-wrap:anywhere] outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 non-touch:text-sm",
+      "relative flex cursor-default select-none items-center rounded-sm py-1.5 touch:min-h-11 touch:py-2.5 pl-8 pr-2 text-ui-label [overflow-wrap:anywhere] outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       className,
     )}
     {...props}
@@ -156,11 +156,7 @@ const DropdownMenuLabel = React.forwardRef<
 >(({ className, inset, ...props }, ref) => (
   <DropdownMenuPrimitive.Label
     ref={ref}
-    className={cn(
-      "px-2 py-1.5 text-ui-meta font-semibold non-touch:text-sm",
-      inset && "pl-8",
-      className,
-    )}
+    className={cn("px-2 py-1.5 text-ui-meta font-semibold", inset && "pl-8", className)}
     {...props}
   />
 ));
@@ -181,10 +177,7 @@ DropdownMenuSeparator.displayName = DropdownMenuPrimitive.Separator.displayName;
 const DropdownMenuShortcut = ({ className, ...props }: React.HTMLAttributes<HTMLSpanElement>) => {
   return (
     <span
-      className={cn(
-        "ml-auto text-ui-caption tracking-widest opacity-60 non-touch:text-xs",
-        className,
-      )}
+      className={cn("ml-auto text-ui-caption tracking-widest opacity-60", className)}
       {...props}
     />
   );

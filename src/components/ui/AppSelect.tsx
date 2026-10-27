@@ -66,13 +66,13 @@ export function AppSelect({
           ref={triggerRef}
           type="button"
           className={cn(
-            "inline-flex min-h-9 min-w-0 items-center justify-between gap-2 rounded-md border border-input bg-background px-3 py-1 text-ui-label text-foreground transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 touch:min-h-11 touch:min-w-11 non-touch:text-sm non-touch:h-9 non-touch:min-h-0 non-touch:py-0",
+            "inline-flex min-h-9 min-w-0 items-center justify-between gap-2 rounded-md border border-input bg-background px-3 py-1 text-ui-label text-foreground transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 touch:min-h-11 touch:min-w-11",
             className,
           )}
           disabled={disabled}
           {...buttonProps}
         >
-          <span className="flex min-w-0 items-center gap-2 touch:whitespace-normal touch:text-left touch:break-words non-touch:truncate">
+          <span className="flex min-w-0 items-center gap-2 whitespace-normal text-left break-words">
             {selected?.props.children}
           </span>
           <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />

@@ -51,7 +51,7 @@ export function HandCardActions({ card, actions, onSelectAction }: HandCardActio
             onSelectAction(action);
           }}
           className={cn(
-            "group shrink-0 min-h-8 touch:min-h-11 touch:min-w-11 w-full text-left rounded-lg text-ui-label font-medium break-words non-touch:text-xs non-touch:min-h-0",
+            "group shrink-0 min-h-8 touch:min-h-11 touch:min-w-11 w-full text-left rounded-lg text-ui-label font-medium break-words",
             "bg-popover text-popover-foreground border border-border",
             "backdrop-blur-md shadow-lg",
             "transition-all duration-150 ease-out",
@@ -67,16 +67,16 @@ export function HandCardActions({ card, actions, onSelectAction }: HandCardActio
           }}
         >
           <span className="flex flex-wrap items-center justify-between gap-1 w-full pointer-events-none mb-0.5">
-            <span className="text-ui-meta font-bold min-w-[22px] min-h-5 px-1 flex items-center justify-center rounded border border-border bg-muted shadow-[0_1px_0_rgba(0,0,0,0.1)] non-touch:text-[12px] non-touch:leading-[inherit] non-touch:h-5 non-touch:px-0">
+            <span className="text-ui-meta font-bold min-w-[22px] min-h-5 px-1 flex items-center justify-center rounded border border-border bg-muted shadow-[0_1px_0_rgba(0,0,0,0.1)]">
               {idx + 1}
             </span>
             {action.cost && (
-              <span className="flex flex-wrap items-center gap-0.5 text-ui-meta opacity-90 non-touch:text-[11px] non-touch:leading-[inherit]">
+              <span className="flex flex-wrap items-center gap-0.5 text-ui-meta opacity-90">
                 <DynamicTextRender text={action.cost} />
               </span>
             )}
           </span>
-          <span className="leading-snug text-ui-label font-semibold pointer-events-none non-touch:text-[13px]">
+          <span className="leading-snug text-ui-label font-semibold pointer-events-none">
             <DynamicTextRender
               text={localizeRulesPreviewText(action.label, info ?? null, gameCardFaceIndex(card))}
             />

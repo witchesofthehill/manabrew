@@ -50,7 +50,7 @@ const SheetContent = React.forwardRef<
   <SheetPortal>
     <SheetOverlay />
     <SheetPrimitive.Content ref={ref} className={cn(sheetVariants({ side }), className)} {...props}>
-      <SheetPrimitive.Close className="absolute right-2 top-2 inline-flex h-8 w-8 touch:h-11 touch:w-11 items-center justify-center rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary non-touch:right-4 non-touch:top-4 non-touch:h-4 non-touch:w-4">
+      <SheetPrimitive.Close className="absolute right-2 top-2 inline-flex h-8 w-8 touch:h-11 touch:w-11 items-center justify-center rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary">
         <X className="h-4 w-4" />
         <span className="sr-only">Close</span>
       </SheetPrimitive.Close>
@@ -61,20 +61,14 @@ const SheetContent = React.forwardRef<
 SheetContent.displayName = SheetPrimitive.Content.displayName;
 const SheetHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
-    className={cn(
-      "flex flex-col space-y-2 pr-8 text-center sm:text-left non-touch:pr-0",
-      className,
-    )}
+    className={cn("flex flex-col space-y-2 pr-8 text-center sm:text-left", className)}
     {...props}
   />
 );
 SheetHeader.displayName = "SheetHeader";
 const SheetFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
-    className={cn(
-      "flex flex-col-reverse flex-wrap gap-2 sm:flex-row sm:justify-end non-touch:gap-0 non-touch:sm:space-x-2",
-      className,
-    )}
+    className={cn("flex flex-col-reverse flex-wrap gap-2 sm:flex-row sm:justify-end", className)}
     {...props}
   />
 );
@@ -96,7 +90,7 @@ const SheetDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <SheetPrimitive.Description
     ref={ref}
-    className={cn("text-ui-body text-muted-foreground non-touch:text-sm", className)}
+    className={cn("text-ui-body text-muted-foreground", className)}
     {...props}
   />
 ));

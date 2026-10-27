@@ -86,12 +86,10 @@ export function JoinPasswordDialog({ room, onClose, onJoin }: JoinPasswordDialog
                 if (e.key === "Enter") void submit();
               }}
               aria-label={`Password`}
-              className="absolute inset-0 h-full w-full cursor-text opacity-0 touch:min-h-11 touch:min-w-11 text-ui-input non-touch:text-[length:inherit] non-touch:leading-[inherit]"
+              className="absolute inset-0 h-full w-full cursor-text opacity-0 touch:min-h-11 touch:min-w-11 text-ui-input"
             />
             {password.length === 0 && !focused && (
-              <span className="text-ui-input text-muted-foreground non-touch:text-sm">
-                Enter password
-              </span>
+              <span className="text-ui-input text-muted-foreground">Enter password</span>
             )}
             {password.split("").map((_, i) => {
               const isSelected = focused && i >= selection.start && i < selection.end;
@@ -113,7 +111,7 @@ export function JoinPasswordDialog({ room, onClose, onJoin }: JoinPasswordDialog
               <span className="animate-password-caret h-7 w-0.5 shrink-0 rounded-full bg-foreground" />
             )}
           </div>
-          {error && <p className="text-ui-meta text-destructive non-touch:text-sm">{error}</p>}
+          {error && <p className="text-ui-meta text-destructive">{error}</p>}
         </div>
 
         <DialogFooter>

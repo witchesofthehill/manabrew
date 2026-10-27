@@ -127,7 +127,7 @@ export function DeckQuickAdd({ customTags, onAdd, getCount }: DeckQuickAddProps)
         <Plus className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
         <Input
           ref={inputRef}
-          className="min-h-7 pl-6 pr-11 text-ui-input touch:min-h-11 non-touch:text-xs non-touch:h-7 non-touch:min-h-0 non-touch:pr-6"
+          className="min-h-7 pl-6 pr-11 text-ui-input touch:min-h-11"
           placeholder={`Search card\u2026`}
           value={value}
           onChange={(event) => handleChange(event.target.value)}
@@ -153,7 +153,7 @@ export function DeckQuickAdd({ customTags, onAdd, getCount }: DeckQuickAddProps)
           value && (
             <button
               type="button"
-              className="touch:min-w-11 touch:min-h-11 inline-flex items-center justify-center absolute right-0 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground non-touch:right-2"
+              className="touch:min-w-11 touch:min-h-11 inline-flex items-center justify-center absolute right-0 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               onClick={clearSearch}
               title={`Clear card search`}
             >

@@ -83,7 +83,7 @@ export function LimitedModeSelector({
       </div>
       <p
         id={`${groupId}-description`}
-        className="mt-2 text-ui-body leading-relaxed text-muted-foreground non-touch:text-sm non-touch:leading-relaxed"
+        className="mt-2 text-ui-body leading-relaxed text-muted-foreground"
       >
         {MODES.find(({ value }) => value === mode)?.description}
       </p>

@@ -65,7 +65,7 @@ export function LimitedHandSampleWorkspace({
     return (
       <p
         role="status"
-        className="rounded border border-border bg-muted/30 p-4 text-ui-body text-muted-foreground non-touch:text-sm"
+        className="rounded border border-border bg-muted/30 p-4 text-ui-body text-muted-foreground"
       >
         This Mainboard is empty. Add cards in the builder or choose a named build to sample a hand.
       </p>
@@ -78,7 +78,7 @@ export function LimitedHandSampleWorkspace({
         <div
           role="status"
           aria-live="polite"
-          className="flex flex-wrap gap-x-4 gap-y-1 text-ui-meta tabular-nums non-touch:text-sm"
+          className="flex flex-wrap gap-x-4 gap-y-1 text-ui-meta tabular-nums"
         >
           <span>
             Hand <strong>{sample.hand.length}</strong>
@@ -96,7 +96,7 @@ export function LimitedHandSampleWorkspace({
             {sample.kept ? (sample.turn ? `Turn ${sample.turn}` : "Hand kept") : "Opening hand"}
           </span>
         </div>
-        <p className="text-ui-meta text-muted-foreground non-touch:text-xs">
+        <p className="text-ui-meta text-muted-foreground">
           {sample.kept
             ? "Cards on bottom are part of the library. Hover or hold a card to inspect it; press I to pin its preview."
             : required > 0
@@ -117,7 +117,7 @@ export function LimitedHandSampleWorkspace({
         />
         {!sample.kept && required > 0 && (
           <div className="grid gap-2">
-            <p role="status" className="text-ui-meta text-muted-foreground non-touch:text-sm">
+            <p role="status" className="text-ui-meta text-muted-foreground">
               {selected.length} of {required} selected to bottom
             </p>
             {selected.length > 0 && (
@@ -127,7 +127,7 @@ export function LimitedHandSampleWorkspace({
                     <Button
                       variant="selected"
                       size="sm"
-                      className="h-auto whitespace-normal text-left non-touch:h-8 non-touch:whitespace-nowrap non-touch:text-center"
+                      className="h-auto whitespace-normal text-left"
                       onClick={() => toggleBottom(sample.cards[index])}
                     >
                       {order + 1}. {sample.cards[index].name} · Remove
@@ -188,11 +188,7 @@ export function LimitedHandSampleWorkspace({
           </Button>
         </div>
         {sample.kept && (sample.turn > 0 || libraryCount === 0) && (
-          <p
-            role="status"
-            aria-live="polite"
-            className="text-ui-meta text-muted-foreground non-touch:text-sm"
-          >
+          <p role="status" aria-live="polite" className="text-ui-meta text-muted-foreground">
             {sample.lastDrawn !== null
               ? `Turn ${sample.turn}: drew ${sample.cards[sample.lastDrawn].name}. `
               : sample.turn === 1 && sample.position === "play"
@@ -205,7 +201,7 @@ export function LimitedHandSampleWorkspace({
         )}
         {bottom.length > 0 && (
           <details className="rounded-lg border border-border">
-            <summary className="min-h-8 cursor-pointer p-3 text-ui-label focus-visible:outline-2 focus-visible:outline-ring touch:min-h-11 non-touch:text-sm non-touch:min-h-0">
+            <summary className="min-h-8 cursor-pointer p-3 text-ui-label focus-visible:outline-2 focus-visible:outline-ring touch:min-h-11">
               Review {bottom.length} on bottom · first shown is drawn first
             </summary>
             <LimitedCardCanvas

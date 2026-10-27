@@ -34,14 +34,14 @@ export function refreshUiTypography(): boolean {
   return changed;
 }
 
-export function getUiFontSize(role: UiTextRole, desktopSize?: number): number {
+export function getUiFontSize(role: UiTextRole): number {
   if (!typographyInitialized) refreshUiTypography();
-  return !touchUi && desktopSize != null ? desktopSize : typographySizes[role];
+  return typographySizes[role];
 }
 
-export function getUiControlHeight(desktopHeight = 32): number {
+export function getUiControlHeight(): number {
   if (!typographyInitialized) refreshUiTypography();
-  return touchUi ? typographySizes.controlHeight : desktopHeight;
+  return typographySizes.controlHeight;
 }
 
 export function isTouchUi(): boolean {

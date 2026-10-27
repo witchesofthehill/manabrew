@@ -165,7 +165,7 @@ function NewSessionForm({
           </div>
         </div>
 
-        <label className="flex cursor-pointer items-center gap-2 text-ui-label touch:min-h-11 non-touch:text-sm">
+        <label className="flex cursor-pointer items-center gap-2 text-ui-label touch:min-h-11">
           <input
             type="checkbox"
             checked={commanderRules}
@@ -175,7 +175,7 @@ function NewSessionForm({
           Commander rules (40 life, 21 cmd damage lethal)
         </label>
 
-        <label className="flex cursor-pointer items-center gap-2 text-ui-label touch:min-h-11 non-touch:text-sm">
+        <label className="flex cursor-pointer items-center gap-2 text-ui-label touch:min-h-11">
           <input
             type="checkbox"
             checked={oathbreaker}
@@ -187,7 +187,7 @@ function NewSessionForm({
 
         <div className="space-y-1">
           <Label>Layout</Label>
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] gap-1.5 non-touch:grid-cols-3 non-touch:sm:grid-cols-4">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] gap-1.5">
             {layoutChoices.map((option) => (
               <LayoutCard
                 key={option}
@@ -201,7 +201,7 @@ function NewSessionForm({
         </div>
 
         {hasExistingSession && (
-          <label className="flex cursor-pointer items-center gap-2 text-ui-label touch:min-h-11 non-touch:text-sm">
+          <label className="flex cursor-pointer items-center gap-2 text-ui-label touch:min-h-11">
             <input
               type="checkbox"
               checked={carryRoster}
@@ -251,7 +251,7 @@ function LayoutCard({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex min-w-0 flex-col items-center gap-1.5 rounded-md border p-2 text-center text-ui-label font-medium transition touch:min-h-11 touch:min-w-11 non-touch:text-[11px] non-touch:leading-[inherit]",
+        "flex min-w-0 flex-col items-center gap-1.5 rounded-md border p-2 text-center text-ui-label font-medium transition touch:min-h-11 touch:min-w-11",
         active
           ? "border-selection-border bg-selection text-selection-foreground"
           : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -279,7 +279,7 @@ function PillButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "rounded-full border px-3 py-1 text-ui-label font-medium transition touch:min-h-11 touch:min-w-11 non-touch:text-xs",
+        "rounded-full border px-3 py-1 text-ui-label font-medium transition touch:min-h-11 touch:min-w-11",
         active
           ? "border-selection-border bg-selection text-selection-foreground"
           : "border-border bg-background text-foreground hover:bg-muted",

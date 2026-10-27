@@ -626,7 +626,7 @@ function FilterBtn({
       title={title}
       onClick={onClick}
       className={cn(
-        "h-6 min-w-[1.5rem] select-none rounded border px-1.5 text-ui-label font-semibold transition-colors touch:min-h-11 touch:min-w-11 non-touch:text-xs",
+        "h-6 min-w-[1.5rem] select-none rounded border px-1.5 text-ui-label font-semibold transition-colors touch:min-h-11 touch:min-w-11",
         active
           ? "bg-selection text-selection-foreground border-selection-border"
           : "bg-background text-muted-foreground border-border hover:bg-muted",
@@ -666,7 +666,7 @@ function ManaFilterBtn({
 }
 function FilterLabel({ children }: { children: React.ReactNode }) {
   return (
-    <span className="text-ui-label font-medium text-muted-foreground w-16 shrink-0 non-touch:text-xs non-touch:w-12">
+    <span className="text-ui-label font-medium text-muted-foreground w-16 shrink-0">
       {children}
     </span>
   );
@@ -677,7 +677,7 @@ function FilterRow({ children, className }: { children: React.ReactNode; classNa
 function FilterSeparator({ label }: { label: string }) {
   return (
     <div className="flex items-center gap-2 pt-2 pb-1">
-      <span className="text-ui-label font-semibold uppercase tracking-wider text-muted-foreground/50 non-touch:text-[10px] non-touch:leading-[inherit]">
+      <span className="text-ui-label font-semibold uppercase tracking-wider text-muted-foreground/50">
         {label}
       </span>
       <div className="flex-1 border-t border-border/30" />
@@ -738,7 +738,7 @@ function DraggableCardGrid({
           <Button
             variant="primary"
             size="sm"
-            className="touch:min-w-11 touch:min-h-11 w-full max-w-full gap-1 whitespace-normal px-1 non-touch:px-0"
+            className="touch:min-w-11 touch:min-h-11 w-full max-w-full gap-1 whitespace-normal px-1"
             onClick={(e) => {
               e.stopPropagation();
               onAdd();
@@ -751,7 +751,7 @@ function DraggableCardGrid({
         <Button
           size="sm"
           variant="secondary"
-          className="touch:min-w-11 touch:min-h-11 w-full max-w-full gap-1 whitespace-normal px-1 non-touch:px-0"
+          className="touch:min-w-11 touch:min-h-11 w-full max-w-full gap-1 whitespace-normal px-1"
           onClick={(e) => {
             e.stopPropagation();
             onMoreInfo();
@@ -816,7 +816,7 @@ function DraggableCardRow({
         <Button
           size="sm"
           variant="ghost"
-          className="touch:min-w-11 touch:min-h-11 min-h-6 px-2 text-ui-label gap-1 opacity-0 group-hover:opacity-100 touch:opacity-100 transition-opacity shrink-0 pointer-events-none group-hover:pointer-events-auto touch:pointer-events-auto non-touch:text-xs non-touch:h-6 non-touch:min-h-0"
+          className="touch:min-w-11 touch:min-h-11 min-h-6 px-2 text-ui-label gap-1 opacity-0 group-hover:opacity-100 touch:opacity-100 transition-opacity shrink-0 pointer-events-none group-hover:pointer-events-auto touch:pointer-events-auto"
           onClick={(e) => {
             e.stopPropagation();
             onAdd();
@@ -829,7 +829,7 @@ function DraggableCardRow({
       <Button
         size="sm"
         variant="ghost"
-        className="touch:min-w-11 touch:min-h-11 min-h-6 px-2 text-ui-label gap-1 opacity-0 group-hover:opacity-100 touch:opacity-100 transition-opacity shrink-0 pointer-events-none group-hover:pointer-events-auto touch:pointer-events-auto non-touch:text-xs non-touch:h-6 non-touch:min-h-0"
+        className="touch:min-w-11 touch:min-h-11 min-h-6 px-2 text-ui-label gap-1 opacity-0 group-hover:opacity-100 touch:opacity-100 transition-opacity shrink-0 pointer-events-none group-hover:pointer-events-auto touch:pointer-events-auto"
         onClick={(e) => {
           e.stopPropagation();
           onMoreInfo();
@@ -1014,7 +1014,7 @@ export function CardSearch({
             <Button
               size="icon"
               variant="ghost"
-              className="touch:min-w-11 touch:min-h-11 min-h-8 w-8 shrink-0 non-touch:h-8 non-touch:min-h-0"
+              className="touch:min-w-11 touch:min-h-11 min-h-8 w-8 shrink-0"
               title={`Close search panel`}
               onClick={onClose}
             >
@@ -1032,15 +1032,15 @@ export function CardSearch({
             size="sm"
             variant={showFilters || hasActiveFilters ? "secondary" : "outline"}
             className={cn(
-              "touch:min-w-11 touch:min-h-11 min-h-8 px-2 gap-1 shrink-0 non-touch:h-8 non-touch:min-h-0",
+              "touch:min-w-11 touch:min-h-11 min-h-8 px-2 gap-1 shrink-0",
               hasActiveFilters && !showFilters && "border-primary",
             )}
             onClick={() => setShowFilters((v) => !v)}
           >
             <SlidersHorizontal className="h-3.5 w-3.5" />
-            <span className="text-ui-label non-touch:text-xs">Filters</span>
+            <span className="text-ui-label">Filters</span>
             {hasActiveFilters && (
-              <span className="bg-selection text-selection-foreground text-ui-meta rounded-full min-w-5 min-h-5 px-1 flex items-center justify-center non-touch:text-[10px] non-touch:w-4 non-touch:h-4 non-touch:min-h-0 non-touch:min-w-0 non-touch:px-0 non-touch:leading-[inherit]">
+              <span className="bg-selection text-selection-foreground text-ui-meta rounded-full min-w-5 min-h-5 px-1 flex items-center justify-center">
                 {basicCount + advCount}
               </span>
             )}
@@ -1051,7 +1051,7 @@ export function CardSearch({
               title={`Grid view`}
               onClick={() => setViewMode("grid")}
               className={cn(
-                "flex h-8 w-8 items-center justify-center text-ui-label transition-colors touch:min-h-11 touch:min-w-11 non-touch:text-xs",
+                "flex h-8 w-8 items-center justify-center text-ui-label transition-colors touch:min-h-11 touch:min-w-11",
                 viewMode === "grid"
                   ? "bg-selection text-selection-foreground"
                   : "hover:bg-muted text-muted-foreground",
@@ -1064,7 +1064,7 @@ export function CardSearch({
               title={`List view`}
               onClick={() => setViewMode("list")}
               className={cn(
-                "flex h-8 w-8 items-center justify-center border-l text-ui-label transition-colors touch:min-h-11 touch:min-w-11 non-touch:text-xs",
+                "flex h-8 w-8 items-center justify-center border-l text-ui-label transition-colors touch:min-h-11 touch:min-w-11",
                 viewMode === "list"
                   ? "bg-selection text-selection-foreground"
                   : "hover:bg-muted text-muted-foreground",
@@ -1138,7 +1138,7 @@ export function CardSearch({
             <FilterRow>
               <FilterLabel>Mana</FilterLabel>
               <Input
-                className="touch:min-h-11 min-h-7 text-ui-input w-40 non-touch:text-xs non-touch:h-7 non-touch:min-h-0"
+                className="touch:min-h-11 min-h-7 text-ui-input w-40"
                 placeholder={`e.g. {2}{W}{W}`}
                 value={advanced.manaCost}
                 onChange={(e) => setAdv("manaCost", e.target.value)}
@@ -1190,11 +1190,9 @@ export function CardSearch({
             <FilterRow className="flex-wrap">
               <FilterLabel>Stats</FilterLabel>
               <div className="flex items-center gap-1">
-                <span className="text-ui-label text-muted-foreground/60 uppercase non-touch:text-[10px] non-touch:leading-[inherit]">
-                  pow
-                </span>
+                <span className="text-ui-label text-muted-foreground/60 uppercase">pow</span>
                 <AppSelect
-                  className="min-h-6 text-ui-label touch:min-h-11 bg-background border rounded px-1 non-touch:text-xs non-touch:h-6 non-touch:min-h-0"
+                  className="min-h-6 text-ui-label touch:min-h-11 bg-background border rounded px-1"
                   aria-label="Power comparison"
                   value={advanced.powerOp}
                   onValueChange={(value) => setAdv("powerOp", value)}
@@ -1206,18 +1204,16 @@ export function CardSearch({
                   ))}
                 </AppSelect>
                 <Input
-                  className="touch:min-h-11 min-h-6 text-ui-input w-16 non-touch:text-xs non-touch:h-6 non-touch:min-h-0 non-touch:w-10"
+                  className="touch:min-h-11 min-h-6 text-ui-input w-16"
                   placeholder="—"
                   value={advanced.power}
                   onChange={(e) => setAdv("power", e.target.value)}
                 />
               </div>
               <div className="flex items-center gap-1">
-                <span className="text-ui-label text-muted-foreground/60 uppercase non-touch:text-[10px] non-touch:leading-[inherit]">
-                  tou
-                </span>
+                <span className="text-ui-label text-muted-foreground/60 uppercase">tou</span>
                 <AppSelect
-                  className="min-h-6 text-ui-label touch:min-h-11 bg-background border rounded px-1 non-touch:text-xs non-touch:h-6 non-touch:min-h-0"
+                  className="min-h-6 text-ui-label touch:min-h-11 bg-background border rounded px-1"
                   aria-label="Toughness comparison"
                   value={advanced.toughnessOp}
                   onValueChange={(value) => setAdv("toughnessOp", value)}
@@ -1229,18 +1225,16 @@ export function CardSearch({
                   ))}
                 </AppSelect>
                 <Input
-                  className="touch:min-h-11 min-h-6 text-ui-input w-16 non-touch:text-xs non-touch:h-6 non-touch:min-h-0 non-touch:w-10"
+                  className="touch:min-h-11 min-h-6 text-ui-input w-16"
                   placeholder="—"
                   value={advanced.toughness}
                   onChange={(e) => setAdv("toughness", e.target.value)}
                 />
               </div>
               <div className="flex items-center gap-1">
-                <span className="text-ui-label text-muted-foreground/60 uppercase non-touch:text-[10px] non-touch:leading-[inherit]">
-                  loy
-                </span>
+                <span className="text-ui-label text-muted-foreground/60 uppercase">loy</span>
                 <AppSelect
-                  className="min-h-6 text-ui-label touch:min-h-11 bg-background border rounded px-1 non-touch:text-xs non-touch:h-6 non-touch:min-h-0"
+                  className="min-h-6 text-ui-label touch:min-h-11 bg-background border rounded px-1"
                   aria-label="Loyalty comparison"
                   value={advanced.loyaltyOp}
                   onValueChange={(value) => setAdv("loyaltyOp", value)}
@@ -1252,7 +1246,7 @@ export function CardSearch({
                   ))}
                 </AppSelect>
                 <Input
-                  className="touch:min-h-11 min-h-6 text-ui-input w-16 non-touch:text-xs non-touch:h-6 non-touch:min-h-0 non-touch:w-10"
+                  className="touch:min-h-11 min-h-6 text-ui-input w-16"
                   placeholder="—"
                   value={advanced.loyalty}
                   onChange={(e) => setAdv("loyalty", e.target.value)}
@@ -1265,7 +1259,7 @@ export function CardSearch({
             <FilterRow>
               <FilterLabel>Oracle</FilterLabel>
               <Input
-                className="touch:min-h-11 min-h-7 text-ui-input flex-1 non-touch:text-xs non-touch:h-7 non-touch:min-h-0"
+                className="touch:min-h-11 min-h-7 text-ui-input flex-1"
                 placeholder={`Card text contains\u2026`}
                 value={advanced.oracleText}
                 onChange={(e) => setAdv("oracleText", e.target.value)}
@@ -1275,7 +1269,7 @@ export function CardSearch({
             <FilterRow>
               <FilterLabel>Flavor</FilterLabel>
               <Input
-                className="touch:min-h-11 min-h-7 text-ui-input flex-1 non-touch:text-xs non-touch:h-7 non-touch:min-h-0"
+                className="touch:min-h-11 min-h-7 text-ui-input flex-1"
                 placeholder={`Flavor text contains\u2026`}
                 value={advanced.flavorText}
                 onChange={(e) => setAdv("flavorText", e.target.value)}
@@ -1285,7 +1279,7 @@ export function CardSearch({
             <FilterRow>
               <FilterLabel>Keyword</FilterLabel>
               <Input
-                className="touch:min-h-11 min-h-7 text-ui-input flex-1 non-touch:text-xs non-touch:h-7 non-touch:min-h-0"
+                className="touch:min-h-11 min-h-7 text-ui-input flex-1"
                 placeholder={`e.g. flying, haste, deathtouch`}
                 value={advanced.keyword}
                 onChange={(e) => setAdv("keyword", e.target.value)}
@@ -1314,14 +1308,14 @@ export function CardSearch({
               <SetSelect value={advanced.set} onChange={(v) => setAdv("set", v)} className="w-48" />
               <FilterLabel>Artist</FilterLabel>
               <Input
-                className="touch:min-h-11 min-h-7 text-ui-input flex-1 non-touch:text-xs non-touch:h-7 non-touch:min-h-0"
+                className="touch:min-h-11 min-h-7 text-ui-input flex-1"
                 placeholder={`Artist name\u2026`}
                 value={advanced.artist}
                 onChange={(e) => setAdv("artist", e.target.value)}
               />
               <FilterLabel>Year</FilterLabel>
               <Input
-                className="touch:min-h-11 min-h-7 text-ui-input w-20 non-touch:text-xs non-touch:h-7 non-touch:min-h-0 non-touch:w-16"
+                className="touch:min-h-11 min-h-7 text-ui-input w-20"
                 placeholder="2024"
                 value={advanced.year}
                 onChange={(e) => setAdv("year", e.target.value)}
@@ -1330,7 +1324,7 @@ export function CardSearch({
 
             <FilterRow className="flex-wrap gap-3">
               <div className="flex flex-wrap items-center gap-1">
-                <span className="text-ui-label text-muted-foreground/60 uppercase shrink-0 non-touch:text-[10px] non-touch:leading-[inherit]">
+                <span className="text-ui-label text-muted-foreground/60 uppercase shrink-0">
                   Frame
                 </span>
                 {FRAME_FILTERS.map((f) => (
@@ -1344,7 +1338,7 @@ export function CardSearch({
                 ))}
               </div>
               <div className="flex flex-wrap items-center gap-1">
-                <span className="text-ui-label text-muted-foreground/60 uppercase shrink-0 non-touch:text-[10px] non-touch:leading-[inherit]">
+                <span className="text-ui-label text-muted-foreground/60 uppercase shrink-0">
                   Border
                 </span>
                 {BORDER_FILTERS.map((f) => (
@@ -1358,7 +1352,7 @@ export function CardSearch({
                 ))}
               </div>
               <div className="flex flex-wrap items-center gap-1">
-                <span className="text-ui-label text-muted-foreground/60 uppercase shrink-0 non-touch:text-[10px] non-touch:leading-[inherit]">
+                <span className="text-ui-label text-muted-foreground/60 uppercase shrink-0">
                   Game
                 </span>
                 {GAME_FILTERS.map((f) => (
@@ -1372,11 +1366,11 @@ export function CardSearch({
                 ))}
               </div>
               <div className="flex flex-wrap items-center gap-1">
-                <span className="text-ui-label text-muted-foreground/60 uppercase shrink-0 non-touch:text-[10px] non-touch:leading-[inherit]">
+                <span className="text-ui-label text-muted-foreground/60 uppercase shrink-0">
                   Lang
                 </span>
                 <Input
-                  className="touch:min-h-11 min-h-6 text-ui-input w-20 non-touch:text-xs non-touch:h-6 non-touch:min-h-0 non-touch:w-14"
+                  className="touch:min-h-11 min-h-6 text-ui-input w-20"
                   placeholder={`en`}
                   value={advanced.language}
                   onChange={(e) => setAdv("language", e.target.value)}
@@ -1404,7 +1398,7 @@ export function CardSearch({
             <FilterRow>
               <FilterLabel>Sort by</FilterLabel>
               <AppSelect
-                className="min-h-7 text-ui-label touch:min-h-11 bg-background border rounded px-2 non-touch:text-xs non-touch:h-7 non-touch:min-h-0"
+                className="min-h-7 text-ui-label touch:min-h-11 bg-background border rounded px-2"
                 aria-label="Sort cards by"
                 value={advanced.sort}
                 onValueChange={(value) => setAdv("sort", value)}
@@ -1417,7 +1411,7 @@ export function CardSearch({
                 ))}
               </AppSelect>
               <AppSelect
-                className="min-h-7 text-ui-label touch:min-h-11 bg-background border rounded px-2 non-touch:text-xs non-touch:h-7 non-touch:min-h-0"
+                className="min-h-7 text-ui-label touch:min-h-11 bg-background border rounded px-2"
                 aria-label="Sort direction"
                 value={advanced.sortDir}
                 onValueChange={(value) => setAdv("sortDir", value)}
@@ -1434,7 +1428,7 @@ export function CardSearch({
       <ScrollArea className="min-h-0 flex-1">
         <div className={cn("py-3", standalone ? "px-4 sm:px-6 lg:px-8" : "px-3")}>
           {data && (
-            <p className="mb-3 text-ui-meta text-muted-foreground non-touch:text-xs">
+            <p className="mb-3 text-ui-meta text-muted-foreground">
               {rawCards.length} of {data.pages[0].total_cards} cards
             </p>
           )}
@@ -1449,14 +1443,14 @@ export function CardSearch({
             </div>
           )}
           {!effectiveQuery && (
-            <p className="text-center text-ui-body text-muted-foreground py-12 non-touch:text-sm">
+            <p className="text-center text-ui-body text-muted-foreground py-12">
               {standalone
                 ? "Choose a set to start studying, or search for any card."
                 : "Enter a card name or select filters to search."}
             </p>
           )}
           {status === "success" && effectiveQuery && rawCards.length === 0 && (
-            <p className="py-12 text-center text-ui-body text-muted-foreground non-touch:text-sm">
+            <p className="py-12 text-center text-ui-body text-muted-foreground">
               No cards match these filters. Try another color or reset your filters.
             </p>
           )}

@@ -95,15 +95,13 @@ export function BoardDevControls() {
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className={DEV_SECTION_HEADING}>Renderer</p>
-              <p className="mt-1 text-ui-body text-muted-foreground non-touch:text-xs">
+              <p className="mt-1 text-ui-body text-muted-foreground">
                 Live Pixi performance for the current battlefield.
               </p>
             </div>
             <div className="text-right">
               <p className={cn("font-mono text-2xl font-semibold tabular-nums", fpsColor)}>{fps}</p>
-              <p className="font-mono text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
-                FPS
-              </p>
+              <p className="font-mono text-ui-meta text-muted-foreground">FPS</p>
             </div>
           </div>
           <div className="mt-3 grid grid-cols-2 gap-2">
@@ -262,12 +260,8 @@ export function BoardDevControls() {
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-border/60 bg-background/50 px-3 py-2">
-      <p className="text-ui-meta uppercase tracking-wide text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
-        {label}
-      </p>
-      <p className="mt-0.5 font-mono text-ui-label font-medium tabular-nums non-touch:text-sm">
-        {value}
-      </p>
+      <p className="text-ui-meta uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="mt-0.5 font-mono text-ui-label font-medium tabular-nums">{value}</p>
     </div>
   );
 }
@@ -305,8 +299,8 @@ function GuideToggle({
         <Icon className={cn("h-4 w-4 shrink-0", checked && "text-selection-border")} />
       ) : null}
       <span className="min-w-0 flex-1">
-        <span className="block text-ui-label font-medium non-touch:text-xs">{label}</span>
-        <span className="mt-0.5 block text-ui-meta leading-snug text-muted-foreground non-touch:text-[10px] non-touch:leading-snug">
+        <span className="block text-ui-label font-medium">{label}</span>
+        <span className="mt-0.5 block text-ui-meta leading-snug text-muted-foreground">
           {description}
         </span>
       </span>

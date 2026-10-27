@@ -54,10 +54,8 @@ export function SetStudyToolbar({
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <div>
-          <p className="text-ui-label font-semibold non-touch:text-sm">Study a set</p>
-          <p className="text-ui-body text-muted-foreground non-touch:text-xs">
-            Get ready for draft or prerelease.
-          </p>
+          <p className="text-ui-label font-semibold">Study a set</p>
+          <p className="text-ui-body text-muted-foreground">Get ready for draft or prerelease.</p>
         </div>
         <SetStudyPicker value={setCode} onChange={onSetChange} />
       </div>
@@ -93,7 +91,7 @@ export function SetStudyToolbar({
                   onClick={() => onColorToggle(id)}
                 >
                   {id === "M" ? (
-                    <span className="text-ui-label non-touch:text-xs">M</span>
+                    <span className="text-ui-label">M</span>
                   ) : (
                     <ScryfallImg src={manaSymbolUrl(id as ManaCode)} alt="" className="h-4 w-4" />
                   )}
@@ -126,12 +124,12 @@ export function SetStudyToolbar({
         </div>
       )}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 sm:gap-x-5">
-        <label className="touch:min-h-11 flex items-center gap-2 text-ui-label text-muted-foreground non-touch:text-xs">
+        <label className="touch:min-h-11 flex items-center gap-2 text-ui-label text-muted-foreground">
           Sort
           <AppSelect
             value={sort || "cmc"}
             onValueChange={onSortChange}
-            className="min-h-8 w-28 rounded-md border bg-background px-2 text-ui-label text-foreground touch:min-h-11 non-touch:text-xs non-touch:h-8 non-touch:min-h-0"
+            className="min-h-8 w-28 rounded-md border bg-background px-2 text-ui-label text-foreground touch:min-h-11"
           >
             {sortOptions.map(({ id, label }) => (
               <AppSelectOption key={id} value={id}>
@@ -141,7 +139,7 @@ export function SetStudyToolbar({
           </AppSelect>
         </label>
         {grid && (
-          <label className="touch:min-h-11 flex items-center gap-2 text-ui-label text-muted-foreground non-touch:text-xs">
+          <label className="touch:min-h-11 flex items-center gap-2 text-ui-label text-muted-foreground">
             Card size
             <input
               type="range"
@@ -150,13 +148,13 @@ export function SetStudyToolbar({
               step={1}
               value={cardSize}
               onChange={(event) => onCardSizeChange(Number(event.target.value))}
-              className="min-h-8 w-24 cursor-pointer accent-primary touch:min-h-11 sm:w-28 non-touch:h-8 non-touch:min-h-0"
+              className="min-h-8 w-24 cursor-pointer accent-primary touch:min-h-11 sm:w-28"
             />
           </label>
         )}
       </div>
       {setCode && (
-        <p className="hidden text-ui-meta text-muted-foreground sm:block non-touch:text-xs">
+        <p className="hidden text-ui-meta text-muted-foreground sm:block">
           Tap a card to read it. Set listings can include cards outside draft boosters.
         </p>
       )}

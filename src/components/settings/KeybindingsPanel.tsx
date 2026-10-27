@@ -49,7 +49,7 @@ export function KeybindingsPanel() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold">Keyboard shortcuts</h2>
-          <p className="text-ui-meta text-muted-foreground non-touch:text-xs">
+          <p className="text-ui-meta text-muted-foreground">
             Click a shortcut, then press the key combination you want.
           </p>
         </div>
@@ -69,14 +69,12 @@ export function KeybindingsPanel() {
       </div>
 
       {categories.length === 0 && (
-        <p className="text-ui-body text-muted-foreground non-touch:text-sm">
-          No shortcuts match “{filter}”.
-        </p>
+        <p className="text-ui-body text-muted-foreground">No shortcuts match “{filter}”.</p>
       )}
 
       {categories.map((category) => (
         <div key={category} className="space-y-2">
-          <h3 className="text-ui-meta font-semibold uppercase tracking-wide text-muted-foreground non-touch:text-xs">
+          <h3 className="text-ui-meta font-semibold uppercase tracking-wide text-muted-foreground">
             {category}
           </h3>
           <div className="divide-y rounded-md border">
@@ -91,15 +89,12 @@ export function KeybindingsPanel() {
                     key={b.id}
                     className="flex flex-wrap items-center justify-between gap-3 px-3 py-2"
                   >
-                    <span className="text-ui-label non-touch:text-sm">{b.label}</span>
+                    <span className="text-ui-label">{b.label}</span>
                     <div className="flex items-center gap-1.5">
                       <Button
                         size="sm"
                         variant={isCapturing ? "selected" : "outline"}
-                        className={cn(
-                          "h-7 min-w-24 text-ui-label non-touch:text-xs non-touch:h-7",
-                          isCapturing && "animate-pulse",
-                        )}
+                        className={cn("h-7 min-w-24 text-ui-label", isCapturing && "animate-pulse")}
                         onClick={() => setCapturingId(isCapturing ? null : b.id)}
                       >
                         {isCapturing ? `Press keys…` : combo ? formatCombo(combo) : `Unbound`}

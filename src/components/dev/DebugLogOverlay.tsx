@@ -76,7 +76,7 @@ export function DebugLogOverlay() {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="min-h-8 touch:min-h-11 font-mono text-ui-label non-touch:text-[12px] non-touch:leading-[normal] non-touch:min-h-0 non-touch:font-[family-name:ui-monospace,monospace]"
+        className="min-h-8 touch:min-h-11 font-mono text-ui-label"
         title={`Show logs`}
         style={{
           position: "fixed",
@@ -97,7 +97,7 @@ export function DebugLogOverlay() {
   }
   return (
     <div
-      className="font-mono text-ui-meta non-touch:text-[12px] non-touch:leading-[normal] non-touch:font-[family-name:ui-monospace,SFMono-Regular,Menlo,monospace]"
+      className="font-mono text-ui-meta"
       style={
         {
           position: "fixed",
@@ -132,7 +132,7 @@ export function DebugLogOverlay() {
         <strong style={{ fontWeight: 600 }}>logs</strong>
         <button
           onClick={() => setTransportOnly((v) => !v)}
-          className="min-h-8 touch:min-h-11 text-ui-label non-touch:text-[length:inherit] non-touch:leading-[inherit] non-touch:min-h-0"
+          className="min-h-8 touch:min-h-11 text-ui-label"
           style={chip(transportOnly)}
           title={`Only transport lines`}
         >
@@ -140,11 +140,12 @@ export function DebugLogOverlay() {
         </button>
         <input
           value={filter}
-          className="min-h-8 min-w-[100px] touch:min-h-11 text-ui-input non-touch:text-[length:inherit] non-touch:leading-[inherit] non-touch:min-h-0 non-touch:min-w-0"
+          className="min-h-8 touch:min-h-11 text-ui-input"
           onChange={(e) => setFilter(e.target.value)}
           placeholder={`filter\u2026`}
           style={{
             flex: 1,
+            minWidth: 100,
             background: "rgba(0,0,0,0.3)",
             border: "1px solid rgba(128,128,128,0.3)",
             borderRadius: 6,
@@ -153,7 +154,7 @@ export function DebugLogOverlay() {
           }}
         />
         <button
-          className="min-h-8 touch:min-h-11 text-ui-label non-touch:text-[length:inherit] non-touch:leading-[inherit] non-touch:min-h-0"
+          className="min-h-8 touch:min-h-11 text-ui-label"
           onClick={() => {
             void navigator.clipboard
               ?.writeText(lines.map((l) => `${stamp(l.at)} ${l.text}`).join("\n"))
@@ -165,7 +166,7 @@ export function DebugLogOverlay() {
           copy
         </button>
         <button
-          className="min-h-8 touch:min-h-11 text-ui-label non-touch:text-[length:inherit] non-touch:leading-[inherit] non-touch:min-h-0"
+          className="min-h-8 touch:min-h-11 text-ui-label"
           onClick={() => {
             buffer.length = 0;
             force((n) => n + 1);
@@ -177,7 +178,7 @@ export function DebugLogOverlay() {
         </button>
         <button
           onClick={() => setOpen(false)}
-          className="min-h-8 min-w-8 touch:min-h-11 touch:min-w-11 text-ui-label non-touch:text-[length:inherit] non-touch:leading-[inherit] non-touch:min-h-0 non-touch:min-w-0"
+          className="min-h-8 min-w-8 touch:min-h-11 touch:min-w-11 text-ui-label"
           style={chip(false)}
           title={`Hide`}
         >

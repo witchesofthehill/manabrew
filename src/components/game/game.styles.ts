@@ -23,16 +23,16 @@ export const HAND_CARD_BASE = {
 } as const;
 
 export const MODAL_INPUT =
-  "w-full min-h-8 touch:min-h-11 px-3 py-1.5 rounded-md border bg-background text-ui-input focus:outline-none focus:ring-1 focus:ring-primary non-touch:text-sm" as const;
+  "w-full min-h-8 touch:min-h-11 px-3 py-1.5 rounded-md border bg-background text-ui-input focus:outline-none focus:ring-1 focus:ring-primary" as const;
 
 export const MODAL_LIST_BUTTON = [
-  "w-full min-h-8 touch:min-h-11 touch:min-w-11 text-left px-3 py-2 rounded-md border text-ui-label font-medium whitespace-normal break-words transition-all non-touch:text-sm",
+  "w-full min-h-8 touch:min-h-11 touch:min-w-11 text-left px-3 py-2 rounded-md border text-ui-label font-medium whitespace-normal break-words transition-all",
   "hover:border-primary/50 hover:bg-muted/50",
   "border-border bg-background",
 ].join(" ") as string;
 
 export const MODAL_PILL_BUTTON = [
-  "min-h-8 touch:min-h-11 touch:min-w-11 px-3 py-1.5 rounded-md border text-ui-label font-medium whitespace-normal break-words transition-all non-touch:text-sm",
+  "min-h-8 touch:min-h-11 touch:min-w-11 px-3 py-1.5 rounded-md border text-ui-label font-medium whitespace-normal break-words transition-all",
   "hover:border-primary/50 hover:bg-muted/50",
   "border-border bg-background",
 ].join(" ") as string;
@@ -41,11 +41,11 @@ export const MODAL_FOOTER_BETWEEN =
   "flex flex-wrap justify-between items-center px-4 py-3 border-t bg-muted/10 rounded-b-xl gap-2" as const;
 
 export const ZONE_LABEL =
-  "text-ui-meta font-semibold text-muted-foreground uppercase tracking-wide px-1 non-touch:text-xs" as const;
+  "text-ui-meta font-semibold text-muted-foreground uppercase tracking-wide px-1" as const;
 
 export const PROMPT_BUTTON_COLUMN = "flex flex-col gap-2 items-start [&_button]:w-fit" as const;
 
-export const PROMPT_HINT = "text-ui-meta text-muted-foreground non-touch:text-xs" as const;
+export const PROMPT_HINT = "text-ui-meta text-muted-foreground" as const;
 
 /**
  * Container for card status badges (Exerted, Morph, Bestow, Token,
@@ -63,7 +63,7 @@ export const CARD_BANNER_TEXT = "text-[7px] font-bold px-1 py-[1px] rounded lead
 export const BUTTON_CONFIRM_BLOCKS = "" as const;
 
 export const TAB_BUTTON_BASE =
-  "min-h-8 touch:min-h-11 touch:min-w-11 px-1 py-1 text-ui-label font-semibold border-b-2 -mb-px whitespace-normal transition-colors non-touch:text-xs non-touch:h-8 non-touch:px-0 non-touch:py-0 non-touch:whitespace-nowrap" as const;
+  "min-h-8 touch:min-h-11 touch:min-w-11 px-1 py-1 text-ui-label font-semibold border-b-2 -mb-px whitespace-normal transition-colors" as const;
 
 export const TAB_ACTIVE = "text-foreground border-foreground" as const;
 

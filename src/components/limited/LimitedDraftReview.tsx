@@ -61,12 +61,12 @@ function LimitedDraftReviewContent({ sessionId, open, onOpenChange }: LimitedDra
               : "Loading the local review..."}
           </DialogDescription>
         </DialogHeader>
-        <div className="min-h-16 space-y-4 overflow-y-auto overscroll-contain non-touch:min-h-0">
+        <div className="min-h-16 space-y-4 overflow-y-auto overscroll-contain">
           {(loadError || error) && (
-            <p className="text-ui-meta text-destructive non-touch:text-sm">{loadError || error}</p>
+            <p className="text-ui-meta text-destructive">{loadError || error}</p>
           )}
           {saved && (
-            <p className="text-ui-meta text-muted-foreground non-touch:text-xs">
+            <p className="text-ui-meta text-muted-foreground">
               This review contains only your visible decisions and acquired pool. Private engine
               checkpoints and other seats' pools are never exported.
             </p>
@@ -122,7 +122,7 @@ function LimitedDraftReviewContent({ sessionId, open, onOpenChange }: LimitedDra
                   Next
                 </Button>
               </div>
-              <p className="text-ui-body non-touch:text-sm">
+              <p className="text-ui-body">
                 {decision.action === "pass"
                   ? "Passed this Winston pile"
                   : decision.action === "take"
@@ -138,7 +138,7 @@ function LimitedDraftReviewContent({ sessionId, open, onOpenChange }: LimitedDra
                 previewPortalTarget={previewPortalTarget}
                 emptyMessage="No cards were visible before this action."
               />
-              <ul className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,16rem),1fr))] gap-1 text-ui-meta text-muted-foreground non-touch:text-xs">
+              <ul className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,16rem),1fr))] gap-1 text-ui-meta text-muted-foreground">
                 {decision.visibleCards.map((card) => (
                   <li key={card.id}>
                     {decision.selectedIds.includes(card.id) ? "Picked · " : ""}
@@ -149,7 +149,7 @@ function LimitedDraftReviewContent({ sessionId, open, onOpenChange }: LimitedDra
               </ul>
               {unseenSelected.length > 0 && (
                 <div className="grid gap-2">
-                  <p className="text-ui-label font-medium non-touch:text-sm">
+                  <p className="text-ui-label font-medium">
                     Cards drawn after passing the final pile
                   </p>
                   <LimitedCardCanvas
@@ -163,7 +163,7 @@ function LimitedDraftReviewContent({ sessionId, open, onOpenChange }: LimitedDra
           ) : (
             saved && (
               <section className="grid gap-2">
-                <p className="text-ui-body text-muted-foreground non-touch:text-sm">
+                <p className="text-ui-body text-muted-foreground">
                   {saved.kind === "sealed"
                     ? "Your acquired Sealed pool"
                     : "No accepted decisions yet. Picks and Winston actions appear here after they are saved."}

@@ -35,9 +35,7 @@ export function DeckHubFilters({ total, loaded, ...filterProps }: DeckHubFilters
     <div
       className={cn(
         "shrink-0 transition-[width] lg:order-2 lg:border-l",
-        expanded
-          ? "lg:w-80 xl:w-96 non-touch:lg:w-72 non-touch:xl:w-72"
-          : "lg:w-16 non-touch:lg:w-14",
+        expanded ? "lg:w-80 xl:w-96" : "lg:w-16",
         shortTouch && "lg:order-none lg:w-auto lg:border-l-0",
       )}
     >
@@ -47,7 +45,7 @@ export function DeckHubFilters({ total, loaded, ...filterProps }: DeckHubFilters
           shortTouch && "py-1.5 lg:flex",
         )}
       >
-        <p className="text-ui-meta text-muted-foreground non-touch:text-xs" aria-live="polite">
+        <p className="text-ui-meta text-muted-foreground" aria-live="polite">
           {loaded
             ? `${total.toLocaleString()} ${total === 1 ? "publication" : "publications"}`
             : "Loading publications…"}
@@ -55,10 +53,7 @@ export function DeckHubFilters({ total, loaded, ...filterProps }: DeckHubFilters
         <DeckHubFilterSheet {...filterProps} />
       </div>
       <aside
-        className={cn(
-          "hidden h-full overflow-y-auto p-3 lg:block non-touch:p-5",
-          shortTouch && "lg:hidden",
-        )}
+        className={cn("hidden h-full overflow-y-auto p-3 lg:block", shortTouch && "lg:hidden")}
         aria-label={`Community filters`}
       >
         <div
@@ -70,7 +65,7 @@ export function DeckHubFilters({ total, loaded, ...filterProps }: DeckHubFilters
           {expanded && (
             <div>
               <h2 className="font-serif text-xl font-semibold">Filters</h2>
-              <p className="mt-1 text-ui-meta text-muted-foreground non-touch:text-xs">
+              <p className="mt-1 text-ui-meta text-muted-foreground">
                 Refine published deck results.
               </p>
             </div>

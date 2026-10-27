@@ -132,7 +132,7 @@ export function CardRenderingCharacteristicControls({
           Automatic P/T
         </Button>
       </div>
-      <p className="text-ui-body text-muted-foreground non-touch:text-xs">
+      <p className="text-ui-body text-muted-foreground">
         P/T edits set final values. Automatic P/T follows the fixture and +1/+1 or −1/−1 counter
         changes. Clear a P/T field to remove that stat. Printed characteristics and the scan stay
         unchanged.

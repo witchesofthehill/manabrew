@@ -16,9 +16,7 @@ export function CardRenderingLightingControls({
 }) {
   return (
     <fieldset className="space-y-3 rounded-md border border-border p-3">
-      <legend className="px-1 text-ui-label font-medium non-touch:text-sm">
-        Renderer lighting and pose
-      </legend>
+      <legend className="px-1 text-ui-label font-medium">Renderer lighting and pose</legend>
       <AppSelect
         value={lighting}
         onValueChange={(value) => onLightingChange(value as CardLightingMode)}
@@ -28,10 +26,7 @@ export function CardRenderingLightingControls({
         <AppSelectOption value="studio">Studio</AppSelectOption>
       </AppSelect>
       {(["yaw", "pitch"] as const).map((axis) => (
-        <label
-          key={axis}
-          className="grid gap-1 text-ui-label text-muted-foreground non-touch:text-xs"
-        >
+        <label key={axis} className="grid gap-1 text-ui-label text-muted-foreground">
           {axis === "yaw" ? "Yaw" : "Pitch"} ({Math.round((pose[axis] * 180) / Math.PI)}°)
           <input
             type="range"
@@ -50,7 +45,7 @@ export function CardRenderingLightingControls({
       <Button variant="ghost" size="sm" onClick={() => onPoseChange(DEFAULT_CARD_POSE)}>
         Reset shared pose
       </Button>
-      <p className="text-ui-body text-muted-foreground non-touch:text-xs">
+      <p className="text-ui-body text-muted-foreground">
         Native and Interactive Pixi share this material pose. Pointer hits still move water.
         Lighting and pose are local renderer settings, not saved card cosmetics.
       </p>

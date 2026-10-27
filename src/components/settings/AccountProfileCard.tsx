@@ -32,12 +32,12 @@ export function AccountProfileCard({ account, identities }: AccountProfileCardPr
               <Pencil className="h-3.5 w-3.5" />
             </Button>
           </div>
-          <div className="space-y-0.5 text-ui-meta text-muted-foreground non-touch:text-xs">
+          <div className="space-y-0.5 text-ui-meta text-muted-foreground">
             {email && <p className="break-all">{email}</p>}
             <p>Member since {memberSince}</p>
           </div>
           {account.handlePending && (
-            <p className="text-ui-meta text-warning non-touch:text-xs">
+            <p className="text-ui-meta text-warning">
               This handle was generated for you — pick your own.
             </p>
           )}

@@ -1,4 +1,4 @@
-import { getUiFontSize, UI_FONT_FAMILY, isTouchUi } from "@/themes/typography";
+import { getUiFontSize, UI_FONT_FAMILY } from "@/themes/typography";
 import {
   Container,
   Graphics,
@@ -285,7 +285,7 @@ export class BoardZoneTiles {
       text: "",
       style: {
         fontFamily: UI_FONT_FAMILY,
-        fontSize: getUiFontSize("meta", 12),
+        fontSize: getUiFontSize("meta"),
         fontWeight: "900",
         fill: hexToNum(this.theme.gameTheme.textOnTinted),
       },
@@ -295,7 +295,7 @@ export class BoardZoneTiles {
       text: "",
       style: {
         fontFamily: UI_FONT_FAMILY,
-        fontSize: getUiFontSize("meta", 11),
+        fontSize: getUiFontSize("meta"),
         fontWeight: "700",
         fill: hexToNum(this.theme.gameTheme.textOnTinted),
       },
@@ -766,14 +766,13 @@ export class BoardZoneTiles {
       }
 
       tile.countText.visible = hasContent;
-      tile.countText.style.fontSize = getUiFontSize("meta", Math.max(10, Math.round(12 * k)));
+      tile.countText.style.fontSize = getUiFontSize("meta");
       tile.countText.text = String(spec.count);
-      const badgeScale = isTouchUi() ? 1 : k;
-      const countH = isTouchUi() ? Math.ceil(tile.countText.height) + 6 : Math.max(16, 18 * k);
+      const countH = Math.ceil(tile.countText.height) + 6;
       if (hasContent) {
         tile.countText.style.fill = hexToNum(gt.textOnTinted);
-        const pillW = tile.countText.width + 12 * badgeScale;
-        const pillY = cardH - countH - 3 * badgeScale;
+        const pillW = tile.countText.width + 12;
+        const pillY = cardH - countH - 3;
         tile.outline.roundRect((cardW - pillW) / 2, pillY, pillW, countH, countH / 2);
         tile.outline.fill({ color: shadow, alpha: 0.94 });
         tile.countText.position.set(cardW / 2, pillY + countH / 2);
@@ -783,12 +782,10 @@ export class BoardZoneTiles {
       if (tile.taxText.visible) {
         tile.taxText.text = `Tax +${spec.commanderTax}`;
         tile.taxText.style.fill = hexToNum(gt.textOnTinted);
-        tile.taxText.style.fontSize = getUiFontSize("meta", Math.max(9, Math.round(11 * k)));
-        const taxW = tile.taxText.width + 8 * badgeScale;
-        const taxH = isTouchUi() ? Math.ceil(tile.taxText.height) + 6 : Math.max(16, 18 * k);
-        const taxY = hasContent
-          ? cardH - countH - taxH - 5 * badgeScale
-          : cardH - taxH - 3 * badgeScale;
+        tile.taxText.style.fontSize = getUiFontSize("meta");
+        const taxW = tile.taxText.width + 8;
+        const taxH = Math.ceil(tile.taxText.height) + 6;
+        const taxY = hasContent ? cardH - countH - taxH - 5 : cardH - taxH - 3;
         const hitLeft = Math.min(-padX, (cardW - taxW) / 2);
         const hitTop = Math.min(-padY, taxY);
         tile.container.hitArea = new Rectangle(

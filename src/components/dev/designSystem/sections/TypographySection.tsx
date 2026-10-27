@@ -67,16 +67,14 @@ export function TypographySection() {
           <Panel key={f.role} className="space-y-2">
             <Subhead>{f.role}</Subhead>
             <div className={cn("break-words text-2xl", f.cls)}>{f.stack}</div>
-            <div className={cn("text-ui-body text-muted-foreground non-touch:text-sm", f.cls)}>
+            <div className={cn("text-ui-body text-muted-foreground", f.cls)}>
               The quick brown fox jumps
             </div>
-            <div className="flex flex-wrap gap-x-3 gap-y-1 pt-1 font-mono text-ui-meta text-muted-foreground non-touch:text-[11px] non-touch:leading-[inherit]">
+            <div className="flex flex-wrap gap-x-3 gap-y-1 pt-1 font-mono text-ui-meta text-muted-foreground">
               <span>{f.cls}</span>
               <span>· {f.weights}</span>
             </div>
-            <p className="text-ui-body text-muted-foreground non-touch:text-[11px] non-touch:leading-[inherit]">
-              {f.use}
-            </p>
+            <p className="text-ui-body text-muted-foreground">{f.use}</p>
           </Panel>
         ))}
       </div>
@@ -86,9 +84,7 @@ export function TypographySection() {
         {SCALE.map((s) => (
           <div key={s.label} className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
             <div className="w-full shrink-0 space-y-1 sm:w-48">
-              <p className="font-mono text-ui-label text-muted-foreground non-touch:text-[11px] non-touch:leading-[inherit]">
-                {s.label}
-              </p>
+              <p className="font-mono text-ui-label text-muted-foreground">{s.label}</p>
               {s.sizes && <p className="text-ui-meta text-muted-foreground">{s.sizes}</p>}
             </div>
             <span className={cn("min-w-0 max-w-lg break-words", s.cls)}>
@@ -103,7 +99,7 @@ export function TypographySection() {
         <p className="font-game text-2xl font-semibold tabular-nums lining-nums">
           20 · 11 · 08 · 3/4 · 09:42
         </p>
-        <p className="text-ui-body text-muted-foreground non-touch:text-xs">
+        <p className="text-ui-body text-muted-foreground">
           Lining tabular numerals keep counters and timers steady. Body prose uses proportional
           numerals.
         </p>
@@ -112,8 +108,8 @@ export function TypographySection() {
       <Subhead>Game font-size tokens</Subhead>
       <Panel>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[420px] text-left text-ui-label non-touch:text-sm">
-            <thead className="text-ui-label uppercase tracking-wide text-muted-foreground non-touch:text-[11px] non-touch:leading-[inherit]">
+          <table className="w-full min-w-[420px] text-left text-ui-label">
+            <thead className="text-ui-label uppercase tracking-wide text-muted-foreground">
               <tr>
                 <th className="pb-2 pr-4 font-semibold">Token</th>
                 <th className="pb-2 pr-4 font-semibold">Value</th>
@@ -123,13 +119,11 @@ export function TypographySection() {
             <tbody>
               {GAME_FONT_SIZES.map((t) => (
                 <tr key={t.token} className="border-t border-border">
-                  <td className="py-2 pr-4 font-mono text-ui-label non-touch:text-xs">{t.token}</td>
-                  <td className="py-2 pr-4 font-mono text-ui-meta text-muted-foreground non-touch:text-xs">
+                  <td className="py-2 pr-4 font-mono text-ui-label">{t.token}</td>
+                  <td className="py-2 pr-4 font-mono text-ui-meta text-muted-foreground">
                     {t.value}
                   </td>
-                  <td className="py-2 text-ui-body text-muted-foreground non-touch:text-xs">
-                    {t.use}
-                  </td>
+                  <td className="py-2 text-ui-body text-muted-foreground">{t.use}</td>
                 </tr>
               ))}
             </tbody>

@@ -91,13 +91,13 @@ export function DeckHubFilterPanel({
           onChange={(event) => onChange({ search: event.target.value })}
           aria-label={`Search Community`}
           placeholder={`Search decks or authors`}
-          className="pl-9 pr-11 non-touch:h-10 non-touch:pr-9"
+          className="pl-9 pr-11"
         />
         {filters.search && (
           <button
             type="button"
             aria-label={`Clear search`}
-            className="absolute right-0 top-1/2 flex -translate-y-1/2 items-center justify-center rounded p-2 text-muted-foreground hover:text-foreground touch:min-h-11 touch:min-w-11 non-touch:right-1"
+            className="absolute right-0 top-1/2 flex -translate-y-1/2 items-center justify-center rounded p-2 text-muted-foreground hover:text-foreground touch:min-h-11 touch:min-w-11"
             onClick={() => onChange({ search: "" })}
           >
             <X className="h-4 w-4" />
@@ -109,7 +109,7 @@ export function DeckHubFilterPanel({
         <AppSelect
           value={filters.sort}
           aria-label={`Sort Community decks`}
-          className="min-w-0 non-touch:text-sm non-touch:h-9 non-touch:px-2"
+          className="min-w-0"
           onValueChange={(value) => onChange({ sort: value as DeckHubDiscoveryFilters["sort"] })}
         >
           <AppSelectOption value="newest">Newest</AppSelectOption>
@@ -119,7 +119,7 @@ export function DeckHubFilterPanel({
         <AppSelect
           value={filters.group}
           aria-label={`Group Community results`}
-          className="min-w-0 non-touch:text-sm non-touch:h-9 non-touch:px-2"
+          className="min-w-0"
           onValueChange={(value) => onChange({ group: value as DeckHubDiscoveryFilters["group"] })}
         >
           <AppSelectOption value="none">No groups</AppSelectOption>
@@ -131,7 +131,7 @@ export function DeckHubFilterPanel({
       </div>
 
       <div className="space-y-2">
-        <span className="text-ui-label font-medium non-touch:text-sm">Source</span>
+        <span className="text-ui-label font-medium">Source</span>
         <div className="flex flex-wrap gap-2">
           {(["all", "community", "presets"] as const).map((source) => (
             <Button
@@ -149,7 +149,7 @@ export function DeckHubFilterPanel({
       </div>
 
       <div className="space-y-2">
-        <span className="text-ui-label font-medium non-touch:text-sm">Formats</span>
+        <span className="text-ui-label font-medium">Formats</span>
         <div className="flex flex-wrap gap-1.5">
           {formats.map((format) => (
             <Button
@@ -167,7 +167,7 @@ export function DeckHubFilterPanel({
       </div>
 
       <div className="space-y-2">
-        <span className="text-ui-label font-medium non-touch:text-sm">Color identity</span>
+        <span className="text-ui-label font-medium">Color identity</span>
         <div className="flex flex-wrap gap-2">
           {MANA_LETTERS.map((color) => (
             <Button
@@ -185,7 +185,7 @@ export function DeckHubFilterPanel({
         <AppSelect
           value={filters.colorMatch}
           aria-label={`Color identity match`}
-          className="w-full non-touch:text-sm non-touch:h-9 non-touch:px-2"
+          className="w-full"
           onValueChange={(value) =>
             onChange({ colorMatch: value as DeckHubDiscoveryFilters["colorMatch"] })
           }
@@ -224,7 +224,7 @@ export function DeckHubFilterPanel({
         userTags &&
         userTags.length > 0 && (
           <div className="space-y-2">
-            <span className="text-ui-label font-medium non-touch:text-sm">Tags</span>
+            <span className="text-ui-label font-medium">Tags</span>
             <div className="flex flex-wrap gap-1.5">
               {userTags.map((tag) => (
                 <Button

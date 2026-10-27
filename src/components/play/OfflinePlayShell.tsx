@@ -34,7 +34,7 @@ export function OfflinePlayShell({ children }: OfflinePlayShellProps) {
       aria-label="Offline play mode"
       value={location.pathname}
       onValueChange={(value) => navigate(value, { replace: true })}
-      className="min-h-11 shrink-0 text-ui-label font-medium non-touch:text-base non-touch:h-11 non-touch:min-h-0"
+      className="min-h-11 shrink-0 text-ui-label font-medium"
     >
       {TABS.map(({ to, label, icon: Icon }) => (
         <AppSelectOption key={to} value={to}>
@@ -79,12 +79,10 @@ export function OfflinePlayShell({ children }: OfflinePlayShellProps) {
               <Icon className="h-4 w-4" />
             </span>
             <span className="min-w-0 text-left">
-              <span className="block break-words text-ui-label font-semibold non-touch:text-sm">
-                {label}
-              </span>
+              <span className="block break-words text-ui-label font-semibold">{label}</span>
               <span
                 className={cn(
-                  "hidden break-words text-ui-meta text-muted-foreground sm:block non-touch:text-[11px] non-touch:leading-[inherit]",
+                  "hidden break-words text-ui-meta text-muted-foreground sm:block",
                   compact && "sm:hidden",
                 )}
               >

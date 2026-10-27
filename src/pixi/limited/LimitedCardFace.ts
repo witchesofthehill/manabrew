@@ -1,4 +1,4 @@
-import { getUiFontSize, UI_FONT_FAMILY, isTouchUi } from "@/themes/typography";
+import { getUiFontSize, UI_FONT_FAMILY } from "@/themes/typography";
 import { Container, Sprite, Text, Texture, type DestroyOptions } from "pixi.js";
 import { getTheme } from "@/hooks/useTheme";
 import { cardCosmeticsKey } from "@/lib/cardCosmetics";
@@ -26,9 +26,9 @@ export class LimitedCardFace extends Container {
   private readonly fallbackLabel = new Text({
     style: {
       fontFamily: UI_FONT_FAMILY,
-      fontSize: getUiFontSize("label", 13),
+      fontSize: getUiFontSize("label"),
       wordWrap: true,
-      breakWords: isTouchUi(),
+      breakWords: true,
     },
   });
   private ownedTexture: Texture | null = null;
@@ -60,7 +60,7 @@ export class LimitedCardFace extends Container {
     const theme = getTheme();
     this.image.setSize(width, height);
     this.foil.setSurface(width, height, 6, theme);
-    this.fallbackLabel.style.fontSize = getUiFontSize("label", 13);
+    this.fallbackLabel.style.fontSize = getUiFontSize("label");
     this.fallbackLabel.style.fill = theme.appTheme.foreground;
     this.fallbackLabel.style.wordWrapWidth = width - 12;
     this.positionLabel();
@@ -98,9 +98,7 @@ export class LimitedCardFace extends Container {
 
   private positionLabel(): void {
     this.fallbackLabel.text = this.fallbackText;
-    this.fallbackLabel.style.breakWords = isTouchUi();
     while (
-      isTouchUi() &&
       this.fallbackLabel.height > this.cardHeight - 12 &&
       this.fallbackLabel.text.replace(/…$/, "").length > 1
     ) {

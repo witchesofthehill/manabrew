@@ -14,19 +14,17 @@ export function LimitedGuideSection({ title, topics, onInspect }: LimitedGuideSe
       <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,18rem),1fr))] gap-2">
         {topics.map((topic) => (
           <details key={topic.title} className="rounded border border-border bg-card p-3">
-            <summary className="min-h-8 cursor-pointer text-ui-label font-medium touch:min-h-11 non-touch:text-[length:inherit] non-touch:leading-[inherit]">
+            <summary className="min-h-8 cursor-pointer text-ui-label font-medium touch:min-h-11">
               {topic.title}
             </summary>
-            <p className="my-2 text-ui-body leading-relaxed text-muted-foreground non-touch:text-[length:inherit] non-touch:leading-[inherit] non-touch:leading-relaxed">
-              {topic.text}
-            </p>
+            <p className="my-2 text-ui-body leading-relaxed text-muted-foreground">{topic.text}</p>
             <div className="flex flex-wrap gap-1">
               {topic.cards.map((name) => (
                 <Button
                   key={name}
                   variant="outline"
                   size="sm"
-                  className="h-auto min-h-11 whitespace-normal text-left non-touch:h-auto non-touch:min-h-11"
+                  className="h-auto min-h-11 whitespace-normal text-left"
                   aria-label={`Inspect ${name}`}
                   onClick={(event) => {
                     void onInspect(name, event.currentTarget);

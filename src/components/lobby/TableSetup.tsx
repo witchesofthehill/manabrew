@@ -288,7 +288,7 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
                   onKeyDown={(e) => e.key === "Enter" && handleCreate()}
                   placeholder={`Password (optional)`}
                   autoComplete="off"
-                  className="w-full bg-transparent text-ui-input text-foreground/80 outline-none placeholder:text-foreground/80 touch:min-h-11 touch:min-w-11 non-touch:text-xs"
+                  className="w-full bg-transparent text-ui-input text-foreground/80 outline-none placeholder:text-foreground/80 touch:min-h-11 touch:min-w-11"
                 />
               </div>
             </div>
@@ -307,7 +307,7 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
                     <span className="font-serif text-lg font-semibold text-foreground/90 sm:text-2xl">
                       {modeLabel}
                     </span>
-                    <span className="flex flex-wrap items-center justify-center gap-1 text-ui-meta text-muted-foreground non-touch:text-[11px] non-touch:sm:text-xs non-touch:leading-[inherit]">
+                    <span className="flex flex-wrap items-center justify-center gap-1 text-ui-meta text-muted-foreground">
                       <EngineMark engine={submittedEngine} className="h-3 w-3" />
                       {[submittedEngine, poolLabel, `${maxPlayers} seats`]
                         .filter(Boolean)
@@ -318,7 +318,7 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
               />
             </div>
             <div className="flex flex-col gap-3 border-t border-border/60 bg-background/60 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
-              <p className="min-w-0 text-ui-meta text-muted-foreground non-touch:text-xs non-touch:sm:text-sm">
+              <p className="min-w-0 text-ui-meta text-muted-foreground">
                 {disabledReason ?? openTableHint}
               </p>
               <div className="flex flex-wrap shrink-0 gap-2">
@@ -395,7 +395,7 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
         {showPicker && (
           <div className="space-y-2">
             {draftableSets.length === 0 ? (
-              <p className="flex items-center gap-2 text-ui-meta text-muted-foreground non-touch:text-xs">
+              <p className="flex items-center gap-2 text-ui-meta text-muted-foreground">
                 <Loader2 className="h-3 w-3 animate-spin" /> Loading sets from Scryfall…
               </p>
             ) : (
@@ -408,7 +408,7 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
               />
             )}
             {!!pickerSet && pickerUnsupported === pickerSet && (
-              <p className="text-ui-meta text-destructive non-touch:text-[11px] non-touch:leading-[inherit]">
+              <p className="text-ui-meta text-destructive">
                 Your game data doesn't include {pickerSet.toUpperCase()}. Update the app to use this
                 set.
               </p>

@@ -99,7 +99,7 @@ export function CardGlintAppearanceHologram({ value, onChange }: CardGlintAppear
           />
         ))}
       </div>
-      <p className="text-ui-body text-muted-foreground non-touch:text-xs">
+      <p className="text-ui-body text-muted-foreground">
         Native keeps the card recipe's hologram; Off removes it. Coordinates start at the top-left.
         Width and height can extend past the card and are clipped at its edge.
       </p>

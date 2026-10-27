@@ -158,22 +158,14 @@ export function UserList({
     const invitable =
       canInvite && !isCurrentPlayer && player.connected && room == null && !player.local_game;
     const statusLine = isCurrentPlayer ? (
-      <span
-        className={cn(
-          "flex items-center gap-1 text-ui-meta non-touch:text-[10px] non-touch:leading-[inherit]",
-          status.text,
-        )}
-      >
+      <span className={cn("flex items-center gap-1 text-ui-meta", status.text)}>
         <status.Icon
           className={cn("h-2.5 w-3.5", connectionState === "connecting" && "animate-spin")}
         />
         {connectionDetail ?? status.label}
       </span>
     ) : (
-      <span
-        className="text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]"
-        title={room?.room_name}
-      >
+      <span className="text-ui-meta text-muted-foreground" title={room?.room_name}>
         {playerStatus(room, player.local_game)}
       </span>
     );
@@ -219,12 +211,10 @@ export function UserList({
     return (
       <div className="space-y-0.5">
         <div className="flex items-center gap-1.5 px-2 pt-2 pb-1">
-          <span className="text-ui-meta font-semibold uppercase tracking-wide text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
+          <span className="text-ui-meta font-semibold uppercase tracking-wide text-muted-foreground">
             {label}
           </span>
-          <span className="text-ui-meta text-muted-foreground/70 non-touch:text-[10px] non-touch:leading-[inherit]">
-            {count}
-          </span>
+          <span className="text-ui-meta text-muted-foreground/70">{count}</span>
         </div>
         {rows.map((player) => renderPlayer(player))}
       </div>
@@ -244,8 +234,8 @@ export function UserList({
           </TooltipTrigger>
           <TooltipContent>{status.label}</TooltipContent>
         </Tooltip>
-        <h3 className="font-semibold text-ui-label non-touch:text-sm">Players</h3>
-        <span className="text-ui-meta text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full non-touch:text-xs">
+        <h3 className="font-semibold text-ui-label">Players</h3>
+        <span className="text-ui-meta text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">
           {uniquePlayers.length}
         </span>
       </div>
@@ -256,7 +246,7 @@ export function UserList({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={`Search players\u2026`}
-            className="min-h-8 pl-8 text-ui-input touch:min-h-11 non-touch:text-sm non-touch:h-8 non-touch:min-h-0"
+            className="min-h-8 pl-8 text-ui-input touch:min-h-11"
           />
         </div>
       </div>
@@ -276,12 +266,12 @@ export function UserList({
           {renderSection("Available", available.length, available)}
 
           {!myUsername && others.length === 0 && (
-            <p className="text-ui-meta text-muted-foreground italic text-center py-6 non-touch:text-xs">
+            <p className="text-ui-meta text-muted-foreground italic text-center py-6">
               No players online
             </p>
           )}
           {myUsername && filteredOthers.length === 0 && normalizedSearch !== "" && (
-            <p className="text-ui-meta text-muted-foreground italic text-center py-6 non-touch:text-xs">
+            <p className="text-ui-meta text-muted-foreground italic text-center py-6">
               No players match “{search.trim()}”
             </p>
           )}

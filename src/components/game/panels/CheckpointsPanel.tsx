@@ -42,7 +42,7 @@ export function CheckpointsPanel({
       <div
         role="status"
         className={cn(
-          "flex items-start gap-2 rounded-md bg-muted/40 px-2.5 py-2 text-ui-meta non-touch:text-xs",
+          "flex items-start gap-2 rounded-md bg-muted/40 px-2.5 py-2 text-ui-meta",
           decisionHistory?.unavailableReason ? "text-foreground" : "text-muted-foreground",
         )}
       >
@@ -58,9 +58,7 @@ export function CheckpointsPanel({
         </span>
       </div>
       {checkpoints.length === 0 ? (
-        <p className="px-1 text-ui-meta italic text-muted-foreground non-touch:text-xs">
-          Nothing recorded yet.
-        </p>
+        <p className="px-1 text-ui-meta italic text-muted-foreground">Nothing recorded yet.</p>
       ) : (
         <div className="-mx-1 min-h-0 flex-1 overflow-y-auto px-1">
           {groupByTurn(checkpoints).map(([turn, steps]) => {
@@ -71,10 +69,10 @@ export function CheckpointsPanel({
             return (
               <section key={turn} className="pb-2">
                 <header className="sticky top-0 z-10 flex items-center gap-2 bg-card py-1.5">
-                  <span className="font-game text-ui-meta font-semibold tabular-nums lining-nums text-foreground non-touch:text-xs">
+                  <span className="font-game text-ui-meta font-semibold tabular-nums lining-nums text-foreground">
                     {`Turn ${turn}`}
                   </span>
-                  <span className="flex min-w-0 items-center gap-1.5 text-ui-meta text-muted-foreground non-touch:text-[11px] non-touch:leading-[inherit]">
+                  <span className="flex min-w-0 items-center gap-1.5 text-ui-meta text-muted-foreground">
                     <span
                       className="h-2 w-2 shrink-0 rounded-full"
                       style={{ backgroundColor: resolvePlayerColor(activePlayerId) }}
@@ -107,13 +105,13 @@ export function CheckpointsPanel({
                             <ChevronsRight className="h-3.5 w-3.5" aria-hidden />
                           </span>
                           <span className="min-w-0 flex-1">
-                            <span className="flex items-center gap-1.5 text-ui-label text-muted-foreground non-touch:text-xs">
+                            <span className="flex items-center gap-1.5 text-ui-label text-muted-foreground">
                               Priority passes
-                              <span className="rounded-full bg-muted px-1.5 text-ui-meta font-semibold tabular-nums lining-nums text-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
+                              <span className="rounded-full bg-muted px-1.5 text-ui-meta font-semibold tabular-nums lining-nums text-foreground">
                                 {entry.checkpoints.length}
                               </span>
                             </span>
-                            <span className="block truncate text-ui-meta text-muted-foreground non-touch:text-[11px] non-touch:leading-[inherit]">
+                            <span className="block truncate text-ui-meta text-muted-foreground">
                               {stepLabel(oldest.step) === stepLabel(newest.step)
                                 ? stepLabel(newest.step)
                                 : `${stepLabel(oldest.step)} → ${stepLabel(newest.step)}`}

@@ -35,7 +35,7 @@ function NumberField({ id, label, value, min, max, onChange }: NumberFieldProps)
   return (
     <label
       htmlFor={id}
-      className="flex min-w-0 flex-col gap-2 text-ui-label font-medium text-foreground non-touch:text-sm"
+      className="flex min-w-0 flex-col gap-2 text-ui-label font-medium text-foreground"
     >
       {label}
       <Input
@@ -93,10 +93,7 @@ export function LimitedSetupOptions(props: LimitedSetupOptionsProps) {
         )}
         {variants.length > 0 && (
           <div className="space-y-2">
-            <span
-              id={`${id}-variant-label`}
-              className="block text-ui-label font-medium non-touch:text-sm"
-            >
+            <span id={`${id}-variant-label`} className="block text-ui-label font-medium">
               Booster variant
             </span>
             <AppSelect
@@ -124,7 +121,7 @@ export function LimitedSetupOptions(props: LimitedSetupOptionsProps) {
         />
       )}
       <details className="border-t border-border/60 pt-3">
-        <summary className="min-h-8 w-fit cursor-pointer rounded-sm text-ui-label text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring touch:min-h-11 non-touch:text-sm non-touch:min-h-0">
+        <summary className="min-h-8 w-fit cursor-pointer rounded-sm text-ui-label text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring touch:min-h-11">
           Advanced
         </summary>
         <div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-3">
@@ -140,7 +137,7 @@ export function LimitedSetupOptions(props: LimitedSetupOptionsProps) {
           )}
           <label
             htmlFor={`${id}-seed`}
-            className="flex min-w-0 flex-col gap-2 text-ui-label font-medium text-foreground non-touch:text-sm"
+            className="flex min-w-0 flex-col gap-2 text-ui-label font-medium text-foreground"
           >
             Seed (optional)
             <Input

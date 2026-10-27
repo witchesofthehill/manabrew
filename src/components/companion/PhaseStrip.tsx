@@ -53,7 +53,7 @@ export function PhaseStrip() {
     return active ? COMPANION_ACCENT_COLORS[active.accentKey] : null;
   });
   return (
-    <div className="flex shrink-0 flex-wrap items-center gap-1 border-b border-border bg-card/40 px-2 py-1 text-ui-label non-touch:text-[10px] non-touch:sm:text-xs non-touch:leading-[inherit] non-touch:flex-nowrap non-touch:gap-0.5 non-touch:sm:gap-1 non-touch:sm:leading-4">
+    <div className="flex shrink-0 flex-wrap items-center gap-1 border-b border-border bg-card/40 px-2 py-1 text-ui-label">
       {PHASES.map((p) => {
         const isActive = phase === p.id;
         return (

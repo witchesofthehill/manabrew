@@ -302,10 +302,8 @@ export function PrintingOptimizerDialog({
         {changes.length === 0 && skipped.length === 0 && !loading && (
           <div className="flex items-center justify-between gap-4 rounded-lg border bg-muted/30 p-3">
             <div>
-              <p className="text-ui-label font-medium non-touch:text-sm">
-                Ready to scan {allCards.length} cards
-              </p>
-              <p className="text-ui-body text-muted-foreground non-touch:text-xs">
+              <p className="text-ui-label font-medium">Ready to scan {allCards.length} cards</p>
+              <p className="text-ui-body text-muted-foreground">
                 Nothing changes until you review and apply the proposal.
               </p>
             </div>
@@ -321,7 +319,7 @@ export function PrintingOptimizerDialog({
         )}
         {loading && (
           <div className="space-y-2 rounded-lg border bg-muted/30 p-4">
-            <div className="flex items-center justify-between text-ui-label non-touch:text-sm">
+            <div className="flex items-center justify-between text-ui-label">
               <span className="flex items-center gap-2 font-medium">
                 <Loader2 className="h-4 w-4 animate-spin" /> Scanning available printings
               </span>
@@ -335,7 +333,7 @@ export function PrintingOptimizerDialog({
                 style={{ width: `${Math.max(progress * 100, 4)}%` }}
               />
             </div>
-            <p className="text-ui-body text-muted-foreground non-touch:text-xs">
+            <p className="text-ui-body text-muted-foreground">
               Large decks can take a moment. Requests are grouped and safely paced through the
               shared card-data service.
             </p>
@@ -358,7 +356,7 @@ export function PrintingOptimizerDialog({
             <div className="flex items-center justify-between rounded-lg border bg-muted/30 px-4 py-3">
               <div>
                 <p className="font-medium">Proposal ready</p>
-                <p className="text-ui-meta text-muted-foreground non-touch:text-xs">
+                <p className="text-ui-meta text-muted-foreground">
                   {changes.length === 1
                     ? `One copy will change · one undoable edit`
                     : `${changes.length} copies will change · one undoable edit`}
@@ -379,11 +377,9 @@ export function PrintingOptimizerDialog({
               {changes.map((change) => (
                 <div
                   key={change.cardId}
-                  className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto] gap-3 px-3 py-2 text-ui-meta non-touch:text-xs"
+                  className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto] gap-3 px-3 py-2 text-ui-meta"
                 >
-                  <span className="break-words text-ui-label font-medium non-touch:text-[length:inherit] non-touch:leading-[inherit]">
-                    {change.name}
-                  </span>
+                  <span className="break-words text-ui-label font-medium">{change.name}</span>
                   <span className="break-words text-muted-foreground sm:text-right">
                     {change.from} → {change.to}
                   </span>
@@ -391,7 +387,7 @@ export function PrintingOptimizerDialog({
               ))}
             </div>
             <div className="flex items-center justify-between gap-3">
-              <p className="text-ui-meta text-muted-foreground non-touch:text-xs">
+              <p className="text-ui-meta text-muted-foreground">
                 Review the exact before and after printing.
               </p>
               <Button
@@ -407,7 +403,7 @@ export function PrintingOptimizerDialog({
         {skipped.length > 0 && (
           <div className="space-y-2 rounded-lg border border-warning/40 bg-warning/5 p-3">
             <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2 text-ui-label font-medium text-warning non-touch:text-sm">
+              <div className="flex items-center gap-2 text-ui-label font-medium text-warning">
                 <TriangleAlert className="h-4 w-4" />
                 {skipped.length === 1
                   ? `Could not convert one copy`
@@ -423,11 +419,9 @@ export function PrintingOptimizerDialog({
               {skipped.map((item) => (
                 <div
                   key={item.cardId}
-                  className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto] gap-3 py-2 text-ui-meta non-touch:text-xs"
+                  className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto] gap-3 py-2 text-ui-meta"
                 >
-                  <span className="break-words text-ui-label font-medium non-touch:text-[length:inherit] non-touch:leading-[inherit]">
-                    {item.name}
-                  </span>
+                  <span className="break-words text-ui-label font-medium">{item.name}</span>
                   <span className="break-words text-muted-foreground sm:text-right">
                     {item.printing} · {item.reason}
                   </span>
@@ -461,7 +455,7 @@ function PolicyButton({
     <Button
       variant="outline"
       className={cn(
-        "touch:min-w-11 touch:min-h-11 h-auto min-h-24 items-start justify-start gap-3 whitespace-normal p-4 text-left non-touch:h-auto non-touch:min-h-24 non-touch:p-4",
+        "touch:min-w-11 touch:min-h-11 h-auto min-h-24 items-start justify-start gap-3 whitespace-normal p-4 text-left",
         selected && "border-selection-border bg-selection ring-1 ring-selection-border",
       )}
       disabled={disabled}
@@ -474,9 +468,7 @@ function PolicyButton({
       )}
       <span>
         <span className="block font-semibold">{label}</span>
-        <span className="block text-ui-body font-normal text-muted-foreground non-touch:text-xs">
-          {detail}
-        </span>
+        <span className="block text-ui-body font-normal text-muted-foreground">{detail}</span>
       </span>
     </Button>
   );

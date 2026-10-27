@@ -21,14 +21,14 @@ const initialTheme = getTheme().gameTheme;
 
 export const OVERLAY_LABEL_STYLE = new TextStyle({
   fontFamily: SYSTEM_FONT_FAMILY,
-  fontSize: getUiFontSize("meta", 9),
+  fontSize: getUiFontSize("meta"),
   fontWeight: "bold",
   fill: initialTheme.textOnTinted,
 });
 
 export const GHOST_LABEL_STYLE = new TextStyle({
   fontFamily: SYSTEM_FONT_FAMILY,
-  fontSize: getUiFontSize("meta", 9),
+  fontSize: getUiFontSize("meta"),
   fill: initialTheme.textGhost,
   fontWeight: "500",
   wordWrap: true,
@@ -38,14 +38,14 @@ export const GHOST_LABEL_STYLE = new TextStyle({
 
 export const EMPTY_LABEL_STYLE = new TextStyle({
   fontFamily: SYSTEM_FONT_FAMILY,
-  fontSize: getUiFontSize("meta", 12),
+  fontSize: getUiFontSize("meta"),
   fill: initialTheme.textMuted,
   fontStyle: "italic",
 });
 
 export const SELECTION_BADGE_STYLE = new TextStyle({
   fontFamily: SYSTEM_FONT_FAMILY,
-  fontSize: getUiFontSize("meta", 10),
+  fontSize: getUiFontSize("meta"),
   fill: initialTheme.textOnTinted,
 });
 
@@ -54,10 +54,10 @@ export const SELECTION_BADGE_STYLE = new TextStyle({
  * active theme. Call on each theme-change tick.
  */
 export function setPixiTextStyleTheme(theme: Theme): void {
-  OVERLAY_LABEL_STYLE.fontSize = getUiFontSize("meta", 9);
-  SELECTION_BADGE_STYLE.fontSize = getUiFontSize("meta", 10);
-  GHOST_LABEL_STYLE.fontSize = getUiFontSize("meta", 9);
-  EMPTY_LABEL_STYLE.fontSize = getUiFontSize("meta", 12);
+  OVERLAY_LABEL_STYLE.fontSize = getUiFontSize("meta");
+  SELECTION_BADGE_STYLE.fontSize = getUiFontSize("meta");
+  GHOST_LABEL_STYLE.fontSize = getUiFontSize("meta");
+  EMPTY_LABEL_STYLE.fontSize = getUiFontSize("meta");
   OVERLAY_LABEL_STYLE.fill = theme.gameTheme.textOnTinted;
   SELECTION_BADGE_STYLE.fill = theme.gameTheme.textOnTinted;
   GHOST_LABEL_STYLE.fill = theme.gameTheme.textGhost;

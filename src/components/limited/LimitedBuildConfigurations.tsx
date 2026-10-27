@@ -136,11 +136,9 @@ export function LimitedBuildConfigurations({ sessionKey, session, onClose }: Pro
                   </section>
                 </div>
                 <section>
-                  <h3 className="mb-2 text-ui-label font-semibold non-touch:text-sm">
-                    Changes from {selected.name}
-                  </h3>
+                  <h3 className="mb-2 text-ui-label font-semibold">Changes from {selected.name}</h3>
                   {diff.length ? (
-                    <ul className="max-h-48 overflow-y-auto text-ui-meta non-touch:text-xs">
+                    <ul className="max-h-48 overflow-y-auto text-ui-meta">
                       {diff.map((entry) => (
                         <li
                           key={entry.name}
@@ -155,7 +153,7 @@ export function LimitedBuildConfigurations({ sessionKey, session, onClose }: Pro
                       ))}
                     </ul>
                   ) : (
-                    <p className="text-ui-body text-muted-foreground non-touch:text-sm">
+                    <p className="text-ui-body text-muted-foreground">
                       The main decks contain the same printings and counts.
                     </p>
                   )}
@@ -164,7 +162,7 @@ export function LimitedBuildConfigurations({ sessionKey, session, onClose }: Pro
             )}
           </>
         ) : (
-          <p className="text-ui-body text-muted-foreground non-touch:text-sm">
+          <p className="text-ui-body text-muted-foreground">
             Name your current build to keep it here.
           </p>
         )}

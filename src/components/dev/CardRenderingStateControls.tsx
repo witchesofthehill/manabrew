@@ -57,7 +57,7 @@ export function CardRenderingStateControls({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h3 className={DEV_SECTION_HEADING}>Local card state</h3>
-          <p className="mt-1 text-ui-body text-muted-foreground non-touch:text-xs">
+          <p className="mt-1 text-ui-body text-muted-foreground">
             Mechanic states appear in Interactive Pixi. Characteristic edits also update Card Glint
             DOM. Original scans and the material workbench keep their printed state.
           </p>
@@ -81,7 +81,7 @@ export function CardRenderingStateControls({
             onChange={onChange}
           />
           <details className="rounded-md border border-border/70 px-3 py-2">
-            <summary className="min-h-8 touch:min-h-11 cursor-pointer text-ui-label font-medium non-touch:text-xs non-touch:min-h-0">
+            <summary className="min-h-8 touch:min-h-11 cursor-pointer text-ui-label font-medium">
               Types, P/T, damage & keywords
             </summary>
             <div className="mt-3">
@@ -89,7 +89,7 @@ export function CardRenderingStateControls({
             </div>
           </details>
           <details className="rounded-md border border-border/70 px-3 py-2">
-            <summary className="min-h-8 touch:min-h-11 cursor-pointer text-ui-label font-medium non-touch:text-xs non-touch:min-h-0">
+            <summary className="min-h-8 touch:min-h-11 cursor-pointer text-ui-label font-medium">
               Status badges
             </summary>
             <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
@@ -127,7 +127,7 @@ export function CardRenderingStateControls({
             </div>
           </details>
           <details className="rounded-md border border-border/70 px-3 py-2">
-            <summary className="min-h-8 touch:min-h-11 cursor-pointer text-ui-label font-medium non-touch:text-xs non-touch:min-h-0">
+            <summary className="min-h-8 touch:min-h-11 cursor-pointer text-ui-label font-medium">
               Counters
             </summary>
             <div className="mt-3">
@@ -136,9 +136,7 @@ export function CardRenderingStateControls({
           </details>
         </div>
       ) : (
-        <p className="mt-3 text-ui-body text-muted-foreground non-touch:text-xs">
-          Load a fixture to edit its state.
-        </p>
+        <p className="mt-3 text-ui-body text-muted-foreground">Load a fixture to edit its state.</p>
       )}
     </section>
   );

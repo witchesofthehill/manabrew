@@ -109,11 +109,11 @@ export function LimitedBuildSaveActions({
               autoFocus
               disabled={busy}
             />
-            <p className="text-ui-meta text-muted-foreground non-touch:text-sm">
+            <p className="text-ui-meta text-muted-foreground">
               Mainboard {deck.main.length} · Complete sideboard {deck.sideboard.length}
             </p>
             {deck.main.length < targetMainSize && (
-              <p className="text-ui-meta text-warning non-touch:text-sm">
+              <p className="text-ui-meta text-warning">
                 {targetMainSize - deck.main.length} more Mainboard cards needed.{" "}
                 {requireCompleteToSave
                   ? "Complete the deck before saving."

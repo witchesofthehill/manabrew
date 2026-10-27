@@ -91,28 +91,28 @@ export function DeckGridCard({
                 <Button
                   variant="secondary"
                   size="icon-sm"
-                  className="bg-background/80 backdrop-blur-sm hover:bg-background non-touch:h-6 non-touch:w-6"
+                  className="bg-background/80 backdrop-blur-sm hover:bg-background"
                   aria-label={`Actions for ${deck.deck.name}`}
                 >
-                  <MoreHorizontal className="h-4 w-4 non-touch:h-3 non-touch:w-3" />
+                  <MoreHorizontal className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 {onPlaytest && (
                   <DropdownMenuItem onSelect={onPlaytest}>
-                    <Swords className="h-4 w-4 non-touch:h-3 non-touch:w-3" />
+                    <Swords className="h-4 w-4" />
                     Playtest vs AI
                   </DropdownMenuItem>
                 )}
                 {onViewInHub && (
                   <DropdownMenuItem onSelect={onViewInHub}>
-                    <LibraryBig className="h-4 w-4 non-touch:h-3 non-touch:w-3" />
+                    <LibraryBig className="h-4 w-4" />
                     View in Community
                   </DropdownMenuItem>
                 )}
                 {!readOnly && onPublish && (
                   <DropdownMenuItem onSelect={onPublish}>
-                    <Share2 className="h-4 w-4 non-touch:h-3 non-touch:w-3" />
+                    <Share2 className="h-4 w-4" />
                     Publish to Community
                   </DropdownMenuItem>
                 )}
@@ -130,10 +130,10 @@ export function DeckGridCard({
                 )}
                 {!readOnly && onDelete && (
                   <DropdownMenuItem
-                    className="text-destructive focus:text-destructive non-touch:h-6 non-touch:w-6"
+                    className="text-destructive focus:text-destructive"
                     onSelect={() => setConfirmDelete(true)}
                   >
-                    <Trash2 className="h-4 w-4 non-touch:h-3 non-touch:w-3" />
+                    <Trash2 className="h-4 w-4" />
                     Delete
                   </DropdownMenuItem>
                 )}
@@ -149,19 +149,19 @@ export function DeckGridCard({
               <DeckLabelBadge key={label.name} label={label} size="sm" />
             ))}
             {badge && (
-              <span className="rounded-full border border-border/70 bg-background/80 px-1.5 py-0.5 text-ui-meta font-medium text-foreground backdrop-blur-sm non-touch:text-[9px] non-touch:leading-[inherit]">
+              <span className="rounded-full border border-border/70 bg-background/80 px-1.5 py-0.5 text-ui-meta font-medium text-foreground backdrop-blur-sm">
                 {badge}
               </span>
             )}
             {engines?.map((engine) => (
               <span
                 key={engine}
-                className="rounded-full border border-border/70 bg-background/80 px-1.5 py-0.5 text-ui-meta font-medium text-foreground backdrop-blur-sm non-touch:text-[9px] non-touch:leading-[inherit]"
+                className="rounded-full border border-border/70 bg-background/80 px-1.5 py-0.5 text-ui-meta font-medium text-foreground backdrop-blur-sm"
               >
                 {engine} engine
               </span>
             ))}
-            <span className="ml-auto text-ui-meta text-text-on-tinted/85 non-touch:text-[10px] non-touch:leading-[inherit]">
+            <span className="ml-auto text-ui-meta text-text-on-tinted/85">
               {displayCards.length} cards
             </span>
           </>
@@ -177,7 +177,7 @@ export function DeckGridCard({
               undone.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2 non-touch:gap-2">
+          <DialogFooter className="gap-2">
             <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(false)}>
               Cancel
             </Button>

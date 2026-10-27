@@ -117,7 +117,7 @@ export function CardPreviewRail({
         aria-label={`Show ${title.toLowerCase()}`}
       >
         <ChevronLeft className="h-4 w-4" />
-        <span className="mt-2 rotate-180 text-ui-label tracking-wider [writing-mode:vertical-rl] non-touch:text-[10px] non-touch:leading-[inherit]">
+        <span className="mt-2 rotate-180 text-ui-label tracking-wider [writing-mode:vertical-rl]">
           {title.toUpperCase()}
         </span>
       </button>
@@ -167,12 +167,12 @@ export function CardPreviewRail({
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain p-3">
         <div className="mb-2 flex shrink-0 items-center justify-between">
-          <span className="text-ui-meta font-semibold uppercase tracking-wide text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
+          <span className="text-ui-meta font-semibold uppercase tracking-wide text-muted-foreground">
             {title}
           </span>
           <button
             type="button"
-            className="flex min-h-8 min-w-8 touch:min-h-11 touch:min-w-11 items-center justify-center rounded p-0.5 text-muted-foreground hover:bg-muted non-touch:min-h-0 non-touch:min-w-0"
+            className="flex min-h-8 min-w-8 touch:min-h-11 touch:min-w-11 items-center justify-center rounded p-0.5 text-muted-foreground hover:bg-muted"
             onClick={() => setCollapsed(true)}
             title={`Hide ${title.toLowerCase()}`}
             aria-label={`Hide ${title.toLowerCase()}`}
@@ -195,9 +195,7 @@ export function CardPreviewRail({
             >
               <ImageIcon className="h-10 w-10 text-muted-foreground/40" />
             </div>
-            <span className="text-ui-meta text-muted-foreground/70 non-touch:text-xs">
-              {emptyMessage}
-            </span>
+            <span className="text-ui-meta text-muted-foreground/70">{emptyMessage}</span>
           </div>
         </div>
         {currentPreview.hoveredCard && renderDetails?.(currentPreview.hoveredCard)}

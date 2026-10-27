@@ -41,7 +41,7 @@ function TagRow({ tag, first, last }: { tag: string; first: boolean; last: boole
         <Input
           autoFocus
           value={name}
-          className="touch:min-h-11 min-h-8 flex-1 non-touch:h-8 non-touch:min-h-0"
+          className="touch:min-h-11 min-h-8 flex-1"
           onChange={(event) => setName(event.target.value)}
           onBlur={finishRename}
           onKeyDown={(event) => {
@@ -53,7 +53,7 @@ function TagRow({ tag, first, last }: { tag: string; first: boolean; last: boole
           }}
         />
       ) : (
-        <span className="flex-1 truncate text-ui-label non-touch:text-sm">{tag}</span>
+        <span className="flex-1 truncate text-ui-label">{tag}</span>
       )}
       <Button
         size="icon-sm"
@@ -84,7 +84,7 @@ function TagRow({ tag, first, last }: { tag: string; first: boolean; last: boole
       <Button
         size="icon"
         variant="ghost"
-        className="touch:min-w-11 touch:min-h-11 min-h-7 w-7 text-destructive non-touch:h-7 non-touch:min-h-0"
+        className="touch:min-w-11 touch:min-h-11 min-h-7 w-7 text-destructive"
         title={`Delete ${tag}`}
         onClick={() => executeDeckEdit(`Delete ${tag}`, () => removeCustomTag(tag))}
       >
@@ -116,7 +116,7 @@ export function DeckTagManagerDialog({
             <TagRow key={tag} tag={tag} first={index === 0} last={index === tags.length - 1} />
           ))}
           {tags.length === 0 && (
-            <p className="py-8 text-center text-ui-body text-muted-foreground non-touch:text-sm">
+            <p className="py-8 text-center text-ui-body text-muted-foreground">
               Select cards and press T to create the first tag.
             </p>
           )}

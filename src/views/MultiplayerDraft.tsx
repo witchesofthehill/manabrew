@@ -54,7 +54,7 @@ export default function MultiplayerDraft() {
     return (
       <LimitedTableSurface
         backgroundId={roomBackground}
-        className="items-center justify-center gap-2 overflow-y-auto overscroll-contain px-4 py-3 text-center text-ui-body break-words text-muted-foreground sm:px-6 lg:px-8 non-touch:text-sm"
+        className="items-center justify-center gap-2 overflow-y-auto overscroll-contain px-4 py-3 text-center text-ui-body break-words text-muted-foreground sm:px-6 lg:px-8"
       >
         <Loader2 className="h-4 w-4 animate-spin" />
         Waiting for the host to deal your pack…
@@ -92,7 +92,7 @@ export default function MultiplayerDraft() {
         pickPending={draft.pickPending}
       />
       {(hostDisconnected || draft.lastError) && (
-        <div className="max-h-[20%] shrink-0 space-y-2 overflow-y-auto overscroll-contain text-ui-label break-words text-destructive non-touch:text-sm">
+        <div className="max-h-[20%] shrink-0 space-y-2 overflow-y-auto overscroll-contain text-ui-label break-words text-destructive">
           {hostDisconnected && (
             <p role="status">
               The host is disconnected. Resume the saved session on the host&apos;s device to

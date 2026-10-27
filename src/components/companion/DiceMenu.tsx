@@ -45,7 +45,7 @@ export function DiceMenu({ players }: DiceMenuProps) {
             <GameIcon icon="d20" className="size-4 sm:size-5" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-60 max-w-[calc(100vw-2rem)] non-touch:w-40">
+        <DropdownMenuContent align="end" className="w-60 max-w-[calc(100vw-2rem)]">
           <DropdownMenuLabel>Roll</DropdownMenuLabel>
           <DropdownMenuSeparator />
           {DICE.map((sides) => (

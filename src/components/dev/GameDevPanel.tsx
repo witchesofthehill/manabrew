@@ -130,14 +130,14 @@ export function GameDevPanel() {
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <FlaskConical className="h-4 w-4 text-primary" />
-              <h2 className="text-ui-label font-semibold non-touch:text-sm">Battlefield lab</h2>
+              <h2 className="text-ui-label font-semibold">Battlefield lab</h2>
               {activeCount > 0 ? (
-                <span className="rounded-full bg-primary/10 px-2 py-0.5 font-mono text-ui-meta font-semibold text-primary non-touch:text-[10px] non-touch:leading-[inherit]">
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 font-mono text-ui-meta font-semibold text-primary">
                   {activeCount} active
                 </span>
               ) : null}
             </div>
-            <p className="mt-1 text-ui-body text-muted-foreground non-touch:text-xs">
+            <p className="mt-1 text-ui-body text-muted-foreground">
               Stage card, player, board, and prompt visuals without changing the game.
             </p>
           </div>
@@ -161,7 +161,7 @@ export function GameDevPanel() {
               role="tab"
               aria-selected={workspace === id}
               className={cn(
-                "flex min-h-8 touch:min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-2 text-ui-label font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring non-touch:text-[10px] non-touch:sm:text-xs non-touch:gap-1 non-touch:px-1 non-touch:sm:gap-1.5 non-touch:sm:px-2 non-touch:min-h-0 non-touch:leading-[inherit]",
+                "flex min-h-8 touch:min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-2 text-ui-label font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
                 workspace === id
                   ? "bg-background text-foreground shadow-sm"
                   : "text-muted-foreground hover:bg-background/60 hover:text-foreground",
@@ -171,7 +171,7 @@ export function GameDevPanel() {
               <Icon className="hidden h-3.5 w-3.5 sm:block" />
               <span>{label}</span>
               {counts[id] > 0 ? (
-                <span className="min-w-4 rounded-full bg-primary/10 px-1 font-mono text-ui-meta text-primary non-touch:text-[9px] non-touch:leading-[inherit]">
+                <span className="min-w-4 rounded-full bg-primary/10 px-1 font-mono text-ui-meta text-primary">
                   {counts[id]}
                 </span>
               ) : null}

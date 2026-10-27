@@ -48,7 +48,7 @@ export default function Sealed() {
     <LimitedTableSurface className="min-w-0 gap-2 px-4 py-3 text-ui-body sm:px-6 lg:px-8">
       <header className="-mx-1 flex max-h-[40%] shrink-0 flex-wrap items-center justify-between gap-2 overflow-y-auto overscroll-contain px-1 py-1">
         <div className="min-w-0 flex-1 basis-64">
-          <p className="text-ui-meta break-words text-muted-foreground non-touch:text-sm">
+          <p className="text-ui-meta break-words text-muted-foreground">
             {activeSealed.packs.length} packs · {activeSealed.cards.length} cards ·{" "}
             {openedSession === activeSealed.sessionId
               ? `${activeSealed.aiDecks.length} AI opponents ready for the gauntlet`
@@ -95,7 +95,7 @@ export default function Sealed() {
       </div>
 
       {lastError && (
-        <p className="max-h-[20%] shrink-0 overflow-y-auto overscroll-contain rounded border border-destructive/70 bg-destructive/10 p-3 text-ui-label break-words text-destructive non-touch:text-sm">
+        <p className="max-h-[20%] shrink-0 overflow-y-auto overscroll-contain rounded border border-destructive/70 bg-destructive/10 p-3 text-ui-label break-words text-destructive">
           {lastError}
         </p>
       )}

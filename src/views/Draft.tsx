@@ -92,7 +92,7 @@ export default function Draft() {
 
         {activeDraft.isComplete && (
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="min-w-0 flex-1 basis-64 text-ui-body break-words text-muted-foreground non-touch:text-sm">
+            <p className="min-w-0 flex-1 basis-64 text-ui-body break-words text-muted-foreground">
               Your pool is complete. Build your deck, then play against the decks drafted at this
               table.
             </p>
@@ -133,7 +133,7 @@ export default function Draft() {
       )}
 
       {lastError && (
-        <p className="max-h-[20%] shrink-0 overflow-y-auto overscroll-contain rounded border border-destructive/70 bg-destructive/10 p-3 text-ui-label break-words text-destructive non-touch:text-sm">
+        <p className="max-h-[20%] shrink-0 overflow-y-auto overscroll-contain rounded border border-destructive/70 bg-destructive/10 p-3 text-ui-label break-words text-destructive">
           {lastError}
         </p>
       )}

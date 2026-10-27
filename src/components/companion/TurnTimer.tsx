@@ -106,7 +106,7 @@ export function TurnTimer({ className }: { className?: string }) {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <span className="min-w-[42px] text-center tabular-nums text-ui-meta font-medium sm:min-w-[52px] non-touch:text-xs">
+      <span className="min-w-[42px] text-center tabular-nums text-ui-meta font-medium sm:min-w-[52px]">
         {formatElapsed(shownMs)}
       </span>
       <Button

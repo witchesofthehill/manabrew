@@ -26,10 +26,7 @@ export function LimitedCubeSource({
     <fieldset disabled={busy} className="min-w-0 space-y-4">
       <legend className="sr-only">Cube or saved pool</legend>
       <div className="space-y-2">
-        <label
-          htmlFor={`${id}-cube`}
-          className="block text-ui-label font-medium text-foreground non-touch:text-sm"
-        >
+        <label htmlFor={`${id}-cube`} className="block text-ui-label font-medium text-foreground">
           CubeCobra URL or cube ID
         </label>
         <div className="flex flex-col gap-2 sm:flex-row">
@@ -52,10 +49,7 @@ export function LimitedCubeSource({
         </div>
       </div>
       <div className="space-y-2">
-        <label
-          htmlFor={`${id}-file`}
-          className="block text-ui-label font-medium text-foreground non-touch:text-sm"
-        >
+        <label htmlFor={`${id}-file`} className="block text-ui-label font-medium text-foreground">
           Load pool · .json / .draft
         </label>
         <Input
@@ -67,15 +61,13 @@ export function LimitedCubeSource({
             event.currentTarget.value = "";
             if (file) void onLoadFile(file);
           }}
-          className="h-auto min-h-10 max-w-full py-2 non-touch:h-auto non-touch:min-h-10"
+          className="h-auto min-h-10 max-w-full py-2"
         />
       </div>
       {cube && (
         <div role="status" className="space-y-2 rounded-md border border-border bg-muted/30 p-3">
-          <h3 className="break-words text-ui-label font-semibold text-foreground non-touch:text-sm">
-            {cube.name}
-          </h3>
-          <p className="text-ui-meta text-muted-foreground non-touch:text-sm">
+          <h3 className="break-words text-ui-label font-semibold text-foreground">{cube.name}</h3>
+          <p className="text-ui-meta text-muted-foreground">
             {cube.cardCount} cards · {cube.singleton ? "Singleton" : "Non-singleton"}
           </p>
           <p className="text-ui-meta leading-relaxed text-muted-foreground">

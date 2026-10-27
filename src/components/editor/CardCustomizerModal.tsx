@@ -93,9 +93,7 @@ export function CardCustomizerModal({
       <Modal.Header>
         <div>
           <h2 className="text-ui-body font-semibold">Customize card</h2>
-          <p className="text-ui-label text-muted-foreground non-touch:text-sm">
-            {card.identity.name}
-          </p>
+          <p className="text-ui-label text-muted-foreground">{card.identity.name}</p>
         </div>
       </Modal.Header>
       <Modal.Body className="overflow-y-auto">
@@ -105,7 +103,7 @@ export function CardCustomizerModal({
               card={editor.preview}
               className="min-h-64 rounded-lg border bg-muted/20 sm:min-h-96"
             />
-            <p className="mt-2 text-ui-meta text-muted-foreground non-touch:text-xs">
+            <p className="mt-2 text-ui-meta text-muted-foreground">
               {editor.preview.identity.setCode.toUpperCase()} #{editor.preview.identity.cardNumber}
               {editor.preview.identity.foil ? " · Foil" : " · Nonfoil"}
             </p>
@@ -122,8 +120,8 @@ export function CardCustomizerModal({
           />
         </div>
         <section aria-label="Printings" className="mt-5 min-w-0 space-y-3 border-t pt-4">
-          <h3 className="text-ui-label font-semibold non-touch:text-sm">Printings</h3>
-          <p className="text-ui-body text-muted-foreground non-touch:text-xs" aria-live="polite">
+          <h3 className="text-ui-label font-semibold">Printings</h3>
+          <p className="text-ui-body text-muted-foreground" aria-live="polite">
             {token
               ? "Choose a printing for this deck's token type."
               : `Choose a printing for ${editor.selected.length} selected ${editor.selected.length === 1 ? "copy" : "copies"}.`}

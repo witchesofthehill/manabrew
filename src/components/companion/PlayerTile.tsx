@@ -131,17 +131,14 @@ export function PlayerTile({
 
         <div
           className={cn(
-            "pointer-events-none absolute inset-0 z-20 flex flex-col gap-2 overflow-y-auto overscroll-contain p-1.5 text-white @xs:p-2 @md:p-3 non-touch:gap-0",
-            (commanderRules || hasCommanderArt(opponents)) &&
-              opponents.length > 0 &&
-              "@md:pr-16 non-touch:@md:pr-3",
-            externalLifeInput &&
-              "pb-36 @xs:pb-36 @md:pb-36 non-touch:pb-1.5 non-touch:@xs:pb-2 non-touch:@md:pb-3",
+            "pointer-events-none absolute inset-0 z-20 flex flex-col gap-2 overflow-y-auto overscroll-contain p-1.5 text-white @xs:p-2 @md:p-3",
+            (commanderRules || hasCommanderArt(opponents)) && opponents.length > 0 && "@md:pr-16",
+            externalLifeInput && "pb-36 @xs:pb-36 @md:pb-36",
           )}
         >
           <div
             data-companion-no-body-drag
-            className="pointer-events-auto flex shrink-0 touch-pan-y flex-wrap items-start gap-1.5 @md:gap-2 non-touch:flex-nowrap"
+            className="pointer-events-auto flex shrink-0 touch-pan-y flex-wrap items-start gap-1.5 @md:gap-2"
           >
             <button
               type="button"
@@ -155,12 +152,12 @@ export function PlayerTile({
                 <GameIcon icon="crossed-swords" className="size-4 text-white/70 @md:size-5" />
               )}
             </button>
-            <div className="flex min-w-0 flex-1 basis-full flex-col @xs:basis-0 non-touch:basis-0">
+            <div className="flex min-w-0 flex-1 basis-full flex-col @xs:basis-0">
               {renaming ? (
                 <Input
                   autoFocus
                   defaultValue={player.name}
-                  className="min-h-9 bg-black/30 text-ui-input text-white placeholder:text-white/50 touch:min-h-11 non-touch:text-sm non-touch:h-7 non-touch:min-h-0"
+                  className="min-h-9 bg-black/30 text-ui-input text-white placeholder:text-white/50 touch:min-h-11"
                   onBlur={(e) => {
                     const name = e.target.value.trim();
                     if (name) renamePlayer(player.id, name);
@@ -174,7 +171,7 @@ export function PlayerTile({
               ) : (
                 <button
                   type="button"
-                  className="min-h-8 max-w-full self-start whitespace-normal break-words text-left text-ui-label font-semibold tracking-wide drop-shadow touch:min-h-11 touch:min-w-11 non-touch:text-xs non-touch:@md:text-sm non-touch:hidden non-touch:@xs:block non-touch:min-h-0 non-touch:truncate non-touch:whitespace-nowrap"
+                  className="min-h-8 max-w-full self-start whitespace-normal break-words text-left text-ui-label font-semibold tracking-wide drop-shadow touch:min-h-11 touch:min-w-11"
                   onClick={() => setRenaming(true)}
                   title={`Rename`}
                 >
@@ -192,12 +189,12 @@ export function PlayerTile({
             </div>
           </div>
 
-          <div className="relative flex min-h-24 flex-1 shrink-0 touch-none items-center justify-center non-touch:min-h-0 non-touch:shrink">
+          <div className="relative flex min-h-24 flex-1 shrink-0 touch-none items-center justify-center">
             {pendingAmount !== 0 && (
               <div
                 key={pendingAmount}
                 className={cn(
-                  "absolute top-0 grid place-items-center rounded-full px-1.5 py-0.5 text-ui-meta font-bold shadow @sm:px-2 non-touch:text-xs non-touch:@sm:text-base non-touch:-top-2",
+                  "absolute top-0 grid place-items-center rounded-full px-1.5 py-0.5 text-ui-meta font-bold shadow @sm:px-2",
                   pendingAmount > 0 ? "bg-emerald-500/90" : "bg-rose-600/90",
                 )}
               >
@@ -209,7 +206,7 @@ export function PlayerTile({
                 autoFocus
                 type="number"
                 defaultValue={player.life}
-                className="pointer-events-auto min-h-11 w-20 max-w-full rounded-md border border-white/30 bg-black/50 text-center text-3xl font-extrabold text-white outline-none @xs:w-24 @xs:text-4xl @sm:w-28 @sm:text-5xl non-touch:min-h-0"
+                className="pointer-events-auto min-h-11 w-20 max-w-full rounded-md border border-white/30 bg-black/50 text-center text-3xl font-extrabold text-white outline-none @xs:w-24 @xs:text-4xl @sm:w-28 @sm:text-5xl"
                 onBlur={(e) => {
                   const value = Number.parseInt(e.target.value, 10);
                   if (!Number.isNaN(value)) setLife(player.id, value);
@@ -223,7 +220,7 @@ export function PlayerTile({
             ) : (
               <button
                 type="button"
-                className="pointer-events-auto min-h-11 min-w-11 max-w-full select-none break-all text-[clamp(2rem,22cqi,8rem)] font-black leading-none tabular-nums drop-shadow-md non-touch:min-h-0 non-touch:min-w-0"
+                className="pointer-events-auto min-h-11 min-w-11 max-w-full select-none break-all text-[clamp(2rem,22cqi,8rem)] font-black leading-none tabular-nums drop-shadow-md"
                 onClick={() => setLifeEditing(true)}
                 aria-label={`Edit life total`}
               >
@@ -246,12 +243,12 @@ export function PlayerTile({
           {opponents.length > 0 && (commanderRules || hasCommanderArt(opponents)) && (
             <div
               data-companion-no-body-drag
-              className="pointer-events-auto shrink-0 touch-pan-y @md:absolute @md:bottom-2 @md:right-2 @md:top-2 @md:z-30 @md:overflow-y-auto @md:overscroll-contain @md:px-1 @md:py-1 non-touch:absolute non-touch:right-1 non-touch:top-1/2 non-touch:z-30 non-touch:-translate-y-1/2 non-touch:@md:right-2 non-touch:@md:bottom-auto non-touch:@md:top-1/2 non-touch:@md:px-0 non-touch:@md:py-0"
+              className="pointer-events-auto shrink-0 touch-pan-y @md:absolute @md:bottom-2 @md:right-2 @md:top-2 @md:z-30 @md:overflow-y-auto @md:overscroll-contain @md:px-1 @md:py-1"
             >
               <CommanderDamageStrip
                 target={player}
                 opponents={opponents}
-                className="flex-row flex-wrap justify-center @md:flex-col @md:flex-nowrap non-touch:flex-col non-touch:flex-nowrap"
+                className="flex-row flex-wrap justify-center @md:flex-col @md:flex-nowrap"
               />
             </div>
           )}

@@ -23,7 +23,7 @@ interface AccountMenuProps {
 }
 
 const MENU_ITEM_CLASS =
-  "my-0.5 min-h-8 touch:min-h-11 gap-2.5 whitespace-normal rounded-md bg-transparent px-2.5 py-2 text-ui-label focus:bg-muted focus:text-foreground touch:py-2.5 non-touch:text-[13px] non-touch:leading-[inherit]";
+  "my-0.5 min-h-8 touch:min-h-11 gap-2.5 whitespace-normal rounded-md bg-transparent px-2.5 py-2 text-ui-label focus:bg-muted focus:text-foreground touch:py-2.5";
 
 export function AccountMenu({ disabled = false }: AccountMenuProps) {
   const navigate = useNavigate();
@@ -93,14 +93,14 @@ export function AccountMenu({ disabled = false }: AccountMenuProps) {
           aria-label={signedInAccount ? `Account: @${signedInAccount.handle}` : `Account menu`}
           title={signedInAccount ? `@${signedInAccount.handle}` : displayName || `Account`}
           className={cn(
-            "relative flex min-h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border/70 bg-muted touch:min-h-11 touch:w-11 touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal non-touch:h-10 non-touch:min-h-0",
+            "relative flex min-h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border/70 bg-muted touch:min-h-11 touch:w-11 touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal",
             "motion-safe:transition-[border-color,box-shadow] hover:border-primary/40 hover:shadow-sm",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
             "data-[state=open]:border-primary/50 data-[state=open]:ring-2 data-[state=open]:ring-ring",
             isSettingsRoute && "border-primary/50",
           )}
         >
-          {renderAvatar("text-ui-label non-touch:text-sm")}
+          {renderAvatar("text-ui-label")}
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -117,7 +117,7 @@ export function AccountMenu({ disabled = false }: AccountMenuProps) {
             <p className="break-words text-ui-label font-semibold leading-tight">
               {displayName || `Guest`}
             </p>
-            <p className="break-words text-ui-meta text-muted-foreground non-touch:text-xs">
+            <p className="break-words text-ui-meta text-muted-foreground">
               {signedInAccount ? `Signed in` : `Playing as a guest`}
             </p>
           </div>

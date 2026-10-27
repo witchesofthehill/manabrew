@@ -52,9 +52,7 @@ export const ManaAbilityTapButton = memo(function ManaAbilityTapButton({
       <div
         className={cn(
           "flex min-h-8 min-w-8 touch:min-h-11 touch:min-w-11 items-center justify-center rounded-full bg-black/40 shadow-lg transition-transform group-hover/mana:scale-110",
-          small
-            ? "p-0.5 non-touch:h-6 non-touch:w-6 non-touch:min-h-0 non-touch:min-w-0"
-            : "p-1 non-touch:h-8 non-touch:w-8",
+          small ? "p-0.5" : "p-1",
         )}
       >
         {letter ? (
@@ -65,14 +63,7 @@ export const ManaAbilityTapButton = memo(function ManaAbilityTapButton({
             loading="lazy"
           />
         ) : (
-          <span
-            className={cn(
-              "text-ui-label font-bold text-white non-touch:leading-[inherit]",
-              small ? "non-touch:text-[7px]" : "non-touch:text-[9px]",
-            )}
-          >
-            TAP
-          </span>
+          <span className="text-ui-label font-bold text-white">TAP</span>
         )}
       </div>
       {hintRect && (

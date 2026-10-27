@@ -147,7 +147,7 @@ export default function LimitedDeckBuilder({
   );
   if (!session)
     return (
-      <p role="status" className="p-3 text-ui-meta text-muted-foreground non-touch:text-sm">
+      <p role="status" className="p-3 text-ui-meta text-muted-foreground">
         Restoring your build...
       </p>
     );
@@ -242,7 +242,7 @@ export default function LimitedDeckBuilder({
           />
         )}
       </div>
-      <div className="flex min-h-40 flex-1 flex-col non-touch:min-h-0">
+      <div className="flex min-h-40 flex-1 flex-col">
         <LimitedBuildBoard
           zones={zones}
           mobileZone={mobileZone}

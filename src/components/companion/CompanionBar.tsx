@@ -52,12 +52,12 @@ export function CompanionBar({
     session.dayNight === "night" ? Moon : session.dayNight === "day" ? Sun : SunMoon;
   const layoutChoices = COMPANION_LAYOUT_OPTIONS[session.players.length] ?? ["free"];
   return (
-    <div className="flex flex-wrap items-center gap-1 border-b border-border bg-card/70 px-1.5 py-1 backdrop-blur sm:gap-2 sm:px-3 sm:py-2 non-touch:gap-0.5 non-touch:sm:gap-2">
+    <div className="flex flex-wrap items-center gap-1 border-b border-border bg-card/70 px-1.5 py-1 backdrop-blur sm:gap-2 sm:px-3 sm:py-2">
       <Button
         variant="outline"
         size="sm"
         onClick={onOpenNewSession}
-        className="h-auto min-h-8 whitespace-normal px-2 py-1 text-ui-label sm:px-4 touch:min-h-11 touch:min-w-11 non-touch:text-xs non-touch:sm:text-sm non-touch:h-8 non-touch:sm:h-9 non-touch:whitespace-nowrap"
+        className="h-auto min-h-8 whitespace-normal px-2 py-1 text-ui-label sm:px-4 touch:min-h-11 touch:min-w-11"
         aria-label={`New game`}
         title={`New game`}
       >
@@ -72,7 +72,7 @@ export function CompanionBar({
           <Button
             size="sm"
             variant="outline"
-            className="h-auto min-h-8 gap-1.5 whitespace-normal px-2 py-1 text-ui-label sm:px-3 touch:min-h-11 touch:min-w-11 non-touch:text-xs non-touch:sm:text-sm non-touch:h-8 non-touch:sm:h-9 non-touch:whitespace-nowrap"
+            className="h-auto min-h-8 gap-1.5 whitespace-normal px-2 py-1 text-ui-label sm:px-3 touch:min-h-11 touch:min-w-11"
             aria-label={`Layout: ${COMPANION_LAYOUT_LABELS[session.layout]}`}
             title={`Layout: ${COMPANION_LAYOUT_LABELS[session.layout]}`}
           >
@@ -96,12 +96,12 @@ export function CompanionBar({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-1 sm:gap-2 non-touch:gap-0.5 non-touch:sm:gap-2">
+      <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-1 sm:gap-2">
         <Button
           size="sm"
           variant="outline"
           onClick={advanceTurn}
-          className="h-auto min-h-8 max-w-full gap-1 whitespace-normal break-words px-1.5 py-1 text-ui-label text-white shadow-sm sm:px-3 touch:min-h-11 touch:min-w-11 non-touch:text-xs non-touch:sm:text-sm non-touch:h-8 non-touch:sm:h-9 non-touch:whitespace-nowrap"
+          className="h-auto min-h-8 max-w-full gap-1 whitespace-normal break-words px-1.5 py-1 text-ui-label text-white shadow-sm sm:px-3 touch:min-h-11 touch:min-w-11"
           style={
             activePlayer
               ? { backgroundColor: COMPANION_ACCENT_COLORS[activePlayer.accentKey] }

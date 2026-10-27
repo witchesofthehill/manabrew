@@ -15,7 +15,7 @@ export function DeckCardPlayButton({
       size="sm"
       variant="secondary"
       disabled={playing || disabled}
-      className="pointer-events-auto bg-background/90 opacity-0 shadow-sm backdrop-blur-sm transition-opacity hover:bg-background group-hover:opacity-100 group-focus-within:opacity-100 touch:opacity-100 non-touch:h-8"
+      className="pointer-events-auto bg-background/90 opacity-0 shadow-sm backdrop-blur-sm transition-opacity hover:bg-background group-hover:opacity-100 group-focus-within:opacity-100 touch:opacity-100"
       onClick={onPlay}
     >
       {playing ? (

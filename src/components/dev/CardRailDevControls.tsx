@@ -136,7 +136,7 @@ export function CardRailDevControls() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className={DEV_SECTION_HEADING}>Progress rails</p>
-          <p className="mt-1 text-ui-body text-muted-foreground non-touch:text-xs">
+          <p className="mt-1 text-ui-body text-muted-foreground">
             Check page, saga, and class milestones on the staged card.
           </p>
         </div>
@@ -144,7 +144,7 @@ export function CardRailDevControls() {
           {dirty && showReset ? (
             <button
               type="button"
-              className="min-h-8 touch:min-h-11 text-ui-label font-medium uppercase tracking-wide text-muted-foreground hover:text-destructive non-touch:text-[10px] non-touch:min-h-0 non-touch:leading-[inherit]"
+              className="min-h-8 touch:min-h-11 text-ui-label font-medium uppercase tracking-wide text-muted-foreground hover:text-destructive"
               onClick={() => {
                 stopReplay();
                 reset();
@@ -158,7 +158,7 @@ export function CardRailDevControls() {
               type="button"
               role="switch"
               aria-checked={enabled}
-              className="flex min-h-8 touch:min-h-11 shrink-0 items-center gap-2 rounded-md text-ui-label font-medium text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring non-touch:text-[10px] non-touch:min-h-0 non-touch:leading-[inherit]"
+              className="flex min-h-8 touch:min-h-11 shrink-0 items-center gap-2 rounded-md text-ui-label font-medium text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               onClick={() => {
                 stopReplay();
                 setEnabled(!enabled);
@@ -209,7 +209,7 @@ export function CardRailDevControls() {
 
           {visiblePresets.length > 0 ? (
             <>
-              <p className="mb-2 mt-4 text-ui-label font-medium uppercase tracking-wide text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
+              <p className="mb-2 mt-4 text-ui-label font-medium uppercase tracking-wide text-muted-foreground">
                 Milestone
               </p>
               <div className={cn("grid gap-1.5", mode === "class" ? "grid-cols-3" : "grid-cols-4")}>
@@ -283,13 +283,13 @@ export function CardRailDevControls() {
                 Replay
               </button>
             ) : null}
-            <div className="flex min-w-12 items-center justify-center rounded-md border border-border/70 bg-background/40 px-2 font-mono text-ui-meta tabular-nums text-muted-foreground non-touch:text-xs">
+            <div className="flex min-w-12 items-center justify-center rounded-md border border-border/70 bg-background/40 px-2 font-mono text-ui-meta tabular-nums text-muted-foreground">
               {current}/{final}
             </div>
           </div>
         </>
       ) : (
-        <p className="mt-3 rounded-lg border border-dashed border-border/70 px-3 py-2 text-ui-body text-muted-foreground non-touch:text-xs">
+        <p className="mt-3 rounded-lg border border-dashed border-border/70 px-3 py-2 text-ui-body text-muted-foreground">
           Enable rails to add page, saga, or class progress to the staged card.
         </p>
       )}

@@ -121,13 +121,13 @@ export default function MyCollection() {
                 <LibraryBig className="h-5 w-5 text-primary" />
                 <h1 className="text-2xl font-semibold">My Collection</h1>
               </div>
-              <p className="mt-1 text-ui-meta text-muted-foreground non-touch:text-sm">
+              <p className="mt-1 text-ui-meta text-muted-foreground">
                 {loading
                   ? `Syncing with your account\u2026`
                   : `${Object.keys(quantities).length} collection entries`}
               </p>
               {syncError && (
-                <p className="mt-1 break-words text-ui-body text-destructive non-touch:text-sm">
+                <p className="mt-1 break-words text-ui-body text-destructive">
                   Account sync failed. Changes are preserved locally and will retry on the next
                   edit.
                 </p>
@@ -289,7 +289,7 @@ export default function MyCollection() {
             {!loading && rows.length === 0 && (
               <div
                 className={cn(
-                  "px-4 py-16 text-center text-ui-body text-muted-foreground non-touch:text-sm",
+                  "px-4 py-16 text-center text-ui-body text-muted-foreground",
                   view === "grid" && "col-span-full rounded-xl border",
                 )}
               >

@@ -27,11 +27,7 @@ function GridBoard({ session }: CompanionBoardProps) {
         const slot = slots[index];
         if (!slot) return null;
         return (
-          <div
-            key={player.id}
-            style={{ gridArea: slot.gridArea }}
-            className="min-h-40 min-w-40 non-touch:min-h-0 non-touch:min-w-0"
-          >
+          <div key={player.id} style={{ gridArea: slot.gridArea }} className="min-h-40 min-w-40">
             <PlayerTile
               player={player}
               opponents={session.players.filter((p) => p.id !== player.id)}

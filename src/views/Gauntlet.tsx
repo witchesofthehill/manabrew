@@ -168,11 +168,11 @@ export default function Gauntlet() {
     <LimitedTableSurface className="min-w-0 gap-2 px-4 py-3 text-ui-body sm:px-6 lg:px-8">
       <header className="flex max-h-[40%] shrink-0 flex-wrap items-center justify-between gap-3 overflow-y-auto overscroll-contain rounded-md border border-border bg-card px-3 py-2">
         <div className="min-w-0 flex-1 basis-64 break-words">
-          <p className="text-ui-label font-semibold non-touch:text-sm">
+          <p className="text-ui-label font-semibold">
             Round {gauntlet.currentRound} of {gauntlet.rounds} · {score.wins}–{score.losses} · Best
             of {progress.bestOf}
           </p>
-          <p className="text-ui-meta text-muted-foreground non-touch:text-xs">
+          <p className="text-ui-meta text-muted-foreground">
             {gauntlet.completed
               ? "Session complete. Your pool and builds remain available."
               : score.matchOver
@@ -225,12 +225,12 @@ export default function Gauntlet() {
             onChange={(deck) => setBuiltDeck({ gauntletId: gauntlet.gauntletId, ...deck })}
           />
         ) : (
-          <p className="text-ui-body text-muted-foreground non-touch:text-sm">Loading card pool…</p>
+          <p className="text-ui-body text-muted-foreground">Loading card pool…</p>
         )}
       </div>
       {lastError && (
         <p
-          className="max-h-[20%] shrink-0 overflow-y-auto overscroll-contain text-ui-label break-words text-destructive non-touch:text-sm"
+          className="max-h-[20%] shrink-0 overflow-y-auto overscroll-contain text-ui-label break-words text-destructive"
           role="alert"
         >
           {lastError}

@@ -30,7 +30,7 @@ export function BattlefieldStyleDevControls() {
   return (
     <section className={DEV_SECTION}>
       <p className={DEV_SECTION_HEADING}>Battlefield card style</p>
-      <p className="mt-1 text-ui-body text-muted-foreground non-touch:text-xs">
+      <p className="mt-1 text-ui-body text-muted-foreground">
         Switch every battlefield card live. This also updates the saved app preference.
       </p>
       <div className="mt-3 grid grid-cols-1 gap-1.5 sm:grid-cols-3">

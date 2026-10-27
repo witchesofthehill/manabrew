@@ -3,7 +3,6 @@ import { withAlpha } from "@/themes/gameTheme";
 import { CARD_BACK_IMAGE_URL, GAME_CARD_SIZES } from "@/components/game/game.constants";
 import { useTheme } from "@/hooks/useTheme";
 import { ScryfallImg } from "@/components/ScryfallImg";
-import { isTouchUi } from "@/themes/typography";
 interface LibraryZoneTileProps {
   count: number;
   onClick?: () => void;
@@ -46,21 +45,15 @@ export function LibraryZoneTile({ count, onClick, label = "Lib" }: LibraryZoneTi
           className="absolute bottom-0 left-0 right-0 flex justify-center py-0.5 text-ui-meta font-extrabold leading-none tabular-nums text-white"
           style={{
             backgroundColor: "rgba(0, 0, 0, 0.62)",
-            fontSize: isTouchUi()
-              ? `max(${fontSizes.zoneCount}px, var(--text-ui-meta))`
-              : fontSizes.zoneCount,
+            fontSize: `max(${fontSizes.zoneCount}px, var(--text-ui-meta))`,
           }}
         >
           {count}
         </span>
       </button>
       <span
-        className="text-ui-meta uppercase tracking-wide text-muted-foreground non-touch:leading-[inherit]"
-        style={{
-          fontSize: isTouchUi()
-            ? `max(${fontSizes.zoneLabel}px, var(--text-ui-meta))`
-            : fontSizes.zoneLabel,
-        }}
+        className="text-ui-meta uppercase tracking-wide text-muted-foreground"
+        style={{ fontSize: `max(${fontSizes.zoneLabel}px, var(--text-ui-meta))` }}
       >
         {label}
       </span>

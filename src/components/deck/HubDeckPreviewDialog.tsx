@@ -235,8 +235,8 @@ export function HubDeckPreviewDialog({
         <DialogContent className="flex h-[calc(var(--visual-viewport-height)-2rem-var(--safe-area-inset-top)-var(--safe-area-inset-bottom))] max-w-7xl flex-col gap-0 overflow-y-auto p-0">
           <DialogHeader
             className={cn(
-              "shrink-0 border-b px-4 py-3 pr-12 text-left sm:px-5 non-touch:px-4 non-touch:pr-12 non-touch:sm:px-5",
-              shortTouch && "space-y-0.5 py-1.5 sm:pl-4 sm:pr-12 non-touch:sm:pr-12",
+              "shrink-0 border-b px-4 py-3 pr-12 text-left sm:px-5",
+              shortTouch && "space-y-0.5 py-1.5 sm:pl-4 sm:pr-12",
             )}
           >
             <DialogTitle className="truncate">
@@ -250,7 +250,7 @@ export function HubDeckPreviewDialog({
             {detail && (
               <div
                 className={cn(
-                  "flex flex-wrap items-center gap-2 pt-0.5 text-ui-meta text-muted-foreground non-touch:text-xs",
+                  "flex flex-wrap items-center gap-2 pt-0.5 text-ui-meta text-muted-foreground",
                   shortTouch && "no-scrollbar flex-nowrap overflow-x-auto whitespace-nowrap",
                 )}
               >
@@ -277,12 +277,8 @@ export function HubDeckPreviewDialog({
           {error ? (
             <div className="grid min-h-0 flex-1 place-items-center px-6 text-center">
               <div>
-                <p className="text-ui-body font-medium non-touch:text-sm">
-                  This deck could not be loaded
-                </p>
-                <p className="mt-1 max-w-md text-ui-body text-muted-foreground non-touch:text-sm">
-                  {error}
-                </p>
+                <p className="text-ui-body font-medium">This deck could not be loaded</p>
+                <p className="mt-1 max-w-md text-ui-body text-muted-foreground">{error}</p>
                 <Button
                   variant="outline"
                   size="sm"
@@ -297,7 +293,7 @@ export function HubDeckPreviewDialog({
             <DeckCardBrowser deck={detail.deck} />
           ) : (
             <div className="grid min-h-0 flex-1 place-items-center">
-              <div className="flex items-center gap-2 text-ui-meta text-muted-foreground non-touch:text-sm">
+              <div className="flex items-center gap-2 text-ui-meta text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Loading deck…
               </div>
@@ -306,7 +302,7 @@ export function HubDeckPreviewDialog({
 
           <div className="shrink-0 border-t bg-background/95 px-3 py-2 backdrop-blur sm:px-4">
             {signedIn && ownershipError && (
-              <div className="mb-2 flex flex-wrap items-center gap-2 text-ui-meta text-destructive non-touch:text-xs">
+              <div className="mb-2 flex flex-wrap items-center gap-2 text-ui-meta text-destructive">
                 <span className="min-w-0 break-words">Couldn’t verify deck ownership.</span>
                 <Button variant="outline" size="sm" onClick={() => void refresh()}>
                   Retry
@@ -318,7 +314,7 @@ export function HubDeckPreviewDialog({
                 <span
                   role="status"
                   aria-live="polite"
-                  className="mr-auto text-ui-meta text-destructive non-touch:text-xs"
+                  className="mr-auto text-ui-meta text-destructive"
                 >
                   Remove this public snapshot?
                 </span>
@@ -367,7 +363,7 @@ export function HubDeckPreviewDialog({
                   onClick={
                     mine || linkedAccountDeck ? handleOpenAccountDeck : () => void handleSave()
                   }
-                  className="max-w-full whitespace-normal px-2 sm:px-3 non-touch:min-w-0"
+                  className="max-w-full whitespace-normal px-2 sm:px-3"
                 >
                   {linkedAccountDeck && !mine
                     ? `Open My Copy`

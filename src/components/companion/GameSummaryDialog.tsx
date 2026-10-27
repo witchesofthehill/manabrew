@@ -36,7 +36,7 @@ function SummaryBody({
     <>
       <div className="space-y-3">
         {winner && <p className="text-center text-lg font-semibold">🏆 {winner.name} wins</p>}
-        <div className="rounded-md border border-border p-3 text-ui-body non-touch:text-sm">
+        <div className="rounded-md border border-border p-3 text-ui-body">
           <div className="mb-1 font-medium">Final scores</div>
           <ul className="space-y-0.5 text-muted-foreground">
             {session.players.map((p) => (
@@ -50,7 +50,7 @@ function SummaryBody({
             ))}
           </ul>
         </div>
-        <div className="grid grid-cols-2 gap-3 text-ui-meta text-muted-foreground non-touch:text-xs">
+        <div className="grid grid-cols-2 gap-3 text-ui-meta text-muted-foreground">
           <div>
             <div className="font-medium text-foreground">Length</div>
             <div>{formatDuration(lengthMs)}</div>

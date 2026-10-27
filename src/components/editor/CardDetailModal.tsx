@@ -358,7 +358,7 @@ export function CardDetailModal({
               </Button>
             )}
             {isDoubleFaced && (
-              <span className="text-ui-meta text-muted-foreground shrink-0 non-touch:text-xs">
+              <span className="text-ui-meta text-muted-foreground shrink-0">
                 {faceIndex === 0 ? `Front face` : `Back face`}
               </span>
             )}
@@ -376,7 +376,7 @@ export function CardDetailModal({
             >
               Previous card
             </Button>
-            <span className="text-ui-meta text-muted-foreground non-touch:text-xs">
+            <span className="text-ui-meta text-muted-foreground">
               {navigation.position} / {navigation.total}
             </span>
             <Button
@@ -451,9 +451,7 @@ export function CardDetailModal({
                         isHorizontalActiveFace ? "aspect-[7/5]" : "aspect-[5/7]",
                       )}
                     >
-                      <span className="text-muted-foreground text-ui-label non-touch:text-sm">
-                        No Image
-                      </span>
+                      <span className="text-muted-foreground text-ui-label">No Image</span>
                     </div>
                   )}
                   <Button
@@ -494,18 +492,14 @@ export function CardDetailModal({
 
                 <div className="flex-1 min-w-0 space-y-3">
                   <div>
-                    <div className="text-ui-label font-semibold text-muted-foreground non-touch:text-sm">
-                      Type
-                    </div>
-                    <div className="text-ui-body non-touch:text-sm">{typeLine}</div>
+                    <div className="text-ui-label font-semibold text-muted-foreground">Type</div>
+                    <div className="text-ui-body">{typeLine}</div>
                   </div>
 
                   {deckEditorActions && matchingDeckCard && (
                     <div className="space-y-2 rounded-lg border bg-muted/20 p-3">
-                      <div className="text-ui-label font-semibold non-touch:text-sm">
-                        Deck inspector
-                      </div>
-                      <div className="flex flex-wrap gap-1.5 text-ui-meta non-touch:text-xs">
+                      <div className="text-ui-label font-semibold">Deck inspector</div>
+                      <div className="flex flex-wrap gap-1.5 text-ui-meta">
                         {zoneCounts.main > 0 && (
                           <Badge variant="outline">Main {zoneCounts.main}</Badge>
                         )}
@@ -522,7 +516,7 @@ export function CardDetailModal({
                           {matchingDeckCard.identity.foil ? `Foil` : `Non-foil`}
                         </Badge>
                       </div>
-                      <div className="flex items-center gap-2 text-ui-meta non-touch:text-xs">
+                      <div className="flex items-center gap-2 text-ui-meta">
                         <LibraryBig className="h-3.5 w-3.5 text-muted-foreground" />
                         <span>
                           {exactOwnership === "exact"
@@ -532,7 +526,7 @@ export function CardDetailModal({
                               : `Not in collection`}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 text-ui-meta non-touch:text-xs">
+                      <div className="flex items-center gap-2 text-ui-meta">
                         {unsupported ? (
                           <AlertTriangle className="h-3.5 w-3.5 text-warning" />
                         ) : (
@@ -551,7 +545,7 @@ export function CardDetailModal({
                               key={tag}
                               variant="outline"
                               size="sm"
-                              className="touch:min-w-11 touch:min-h-11 min-h-6 gap-1 px-2 text-ui-label non-touch:text-xs non-touch:h-6 non-touch:min-h-0"
+                              className="touch:min-w-11 touch:min-h-11 min-h-6 gap-1 px-2 text-ui-label"
                               onClick={() => deckEditorActions.onUntagCard?.(deckCardName, tag)}
                             >
                               <Tag className="h-3 w-3" />
@@ -566,10 +560,10 @@ export function CardDetailModal({
 
                   {oracleText && (
                     <div>
-                      <div className="text-ui-label font-semibold text-muted-foreground non-touch:text-sm">
+                      <div className="text-ui-label font-semibold text-muted-foreground">
                         Oracle Text
                       </div>
-                      <div className="text-ui-body whitespace-pre-wrap bg-muted/30 rounded p-2 border non-touch:text-sm">
+                      <div className="text-ui-body whitespace-pre-wrap bg-muted/30 rounded p-2 border">
                         {oracleText}
                       </div>
                     </div>
@@ -578,23 +572,23 @@ export function CardDetailModal({
                   {power && toughness && (
                     <div className="flex gap-4">
                       <div>
-                        <span className="text-ui-meta font-semibold text-muted-foreground non-touch:text-sm">
+                        <span className="text-ui-meta font-semibold text-muted-foreground">
                           P/T:
                         </span>
-                        <span className="text-ui-meta font-bold non-touch:text-sm">
+                        <span className="text-ui-meta font-bold">
                           {power}/{toughness}
                         </span>
                       </div>
                       <div>
-                        <span className="text-ui-meta font-semibold text-muted-foreground non-touch:text-sm">
+                        <span className="text-ui-meta font-semibold text-muted-foreground">
                           CMC:
                         </span>
-                        <span className="text-ui-meta non-touch:text-sm">{card.cmc}</span>
+                        <span className="text-ui-meta">{card.cmc}</span>
                       </div>
                     </div>
                   )}
 
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-ui-meta non-touch:text-sm">
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-ui-meta">
                     <div className="flex items-center gap-1">
                       <span className="font-semibold text-muted-foreground">Set:</span>
                       {setLookup.get(card.set)?.icon_svg_uri && (
@@ -618,23 +612,23 @@ export function CardDetailModal({
                     </div>
                   </div>
 
-                  <div className="text-ui-meta non-touch:text-sm">
+                  <div className="text-ui-meta">
                     <span className="font-semibold text-muted-foreground">Artist:</span>
                     <span>{card.artist}</span>
                   </div>
 
                   {card.edhrec_rank && (
-                    <div className="text-ui-meta non-touch:text-sm">
+                    <div className="text-ui-meta">
                       <span className="font-semibold text-muted-foreground">EDHREC Rank:</span>
                       <span>#{card.edhrec_rank.toLocaleString()}</span>
                     </div>
                   )}
 
                   <div>
-                    <div className="text-ui-label font-semibold text-muted-foreground mb-1 non-touch:text-sm">
+                    <div className="text-ui-label font-semibold text-muted-foreground mb-1">
                       Prices
                     </div>
-                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-ui-meta non-touch:text-sm">
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-ui-meta">
                       {card.prices.usd && <span>USD ${card.prices.usd}</span>}
                       {card.prices.usd_foil && <span>Foil ${card.prices.usd_foil}</span>}
                       {card.prices.eur && <span>EUR €{card.prices.eur}</span>}
@@ -656,7 +650,7 @@ export function CardDetailModal({
               )}
 
               <div>
-                <div className="text-ui-label font-semibold text-muted-foreground mb-1 non-touch:text-sm">
+                <div className="text-ui-label font-semibold text-muted-foreground mb-1">
                   Legalities
                 </div>
                 <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,13rem),1fr))] gap-1.5">
@@ -667,7 +661,7 @@ export function CardDetailModal({
                         key={key}
                         variant="outline"
                         className={cn(
-                          "text-ui-meta flex-wrap justify-between gap-2 whitespace-normal px-2 py-0.5 non-touch:text-xs",
+                          "text-ui-meta flex-wrap justify-between gap-2 whitespace-normal px-2 py-0.5",
                           LEGALITY_STYLES[status],
                         )}
                       >
@@ -680,7 +674,7 @@ export function CardDetailModal({
               </div>
 
               <div>
-                <div className="text-ui-label font-semibold text-muted-foreground mb-1 non-touch:text-sm">
+                <div className="text-ui-label font-semibold text-muted-foreground mb-1">
                   Rulings {rulings.length > 0 && `(${rulings.length})`}
                 </div>
                 {rulingsLoading && (
@@ -689,17 +683,12 @@ export function CardDetailModal({
                   </div>
                 )}
                 {!rulingsLoading && rulings.length === 0 && (
-                  <p className="text-ui-label text-muted-foreground non-touch:text-sm">
-                    No rulings available.
-                  </p>
+                  <p className="text-ui-label text-muted-foreground">No rulings available.</p>
                 )}
                 {rulings.length > 0 && (
                   <div className="space-y-1.5 max-h-48 overflow-y-auto">
                     {rulings.map((r, i) => (
-                      <div
-                        key={i}
-                        className="text-ui-body border rounded p-2 bg-muted/20 non-touch:text-xs"
-                      >
+                      <div key={i} className="text-ui-body border rounded p-2 bg-muted/20">
                         <div className="text-muted-foreground mb-0.5">
                           {r.published_at} — {r.source}
                         </div>
@@ -729,7 +718,7 @@ export function CardDetailModal({
                   >
                     <Minus className="h-3.5 w-3.5" />
                   </Button>
-                  <span className="min-w-6 px-1 text-center text-ui-meta font-semibold tabular-nums non-touch:text-xs">
+                  <span className="min-w-6 px-1 text-center text-ui-meta font-semibold tabular-nums">
                     {currentDeck.cards.filter((c) => c.identity.name === deckCardName).length}
                   </span>
                   <Button
@@ -776,7 +765,7 @@ export function CardDetailModal({
                       size="icon"
                       variant="ghost"
                       className={cn(
-                        "touch:min-w-11 touch:min-h-11 min-h-7 w-7 non-touch:h-7 non-touch:min-h-0",
+                        "touch:min-w-11 touch:min-h-11 min-h-7 w-7",
                         deckEditorActions.isCommander && "text-commander",
                       )}
                       title={
@@ -801,7 +790,7 @@ export function CardDetailModal({
                       size="icon"
                       variant="ghost"
                       className={cn(
-                        "touch:min-w-11 touch:min-h-11 min-h-7 w-7 non-touch:h-7 non-touch:min-h-0",
+                        "touch:min-w-11 touch:min-h-11 min-h-7 w-7",
                         currentDeck.coverCardName === deckCardName && "text-primary",
                       )}
                       title={
@@ -821,7 +810,7 @@ export function CardDetailModal({
                     <Button
                       size="sm"
                       variant="outline"
-                      className="touch:min-w-11 touch:min-h-11 gap-1 min-h-8 non-touch:h-8 non-touch:min-h-0"
+                      className="touch:min-w-11 touch:min-h-11 gap-1 min-h-8"
                       onClick={() => setShowDeckPicker((v) => !v)}
                     >
                       <Tag className="h-3.5 w-3.5" />
@@ -833,7 +822,7 @@ export function CardDetailModal({
                           <button
                             key={tag}
                             type="button"
-                            className="touch:min-w-11 touch:min-h-11 w-full text-left px-3 py-1.5 text-ui-label hover:bg-muted flex items-center gap-2 non-touch:text-sm"
+                            className="touch:min-w-11 touch:min-h-11 w-full text-left px-3 py-1.5 text-ui-label hover:bg-muted flex items-center gap-2"
                             onClick={() => {
                               deckEditorActions.onTagCard!(deckCardName, tag);
                               setShowDeckPicker(false);
@@ -849,7 +838,7 @@ export function CardDetailModal({
                         )}
                         <div className="px-2 py-1 flex items-center gap-1">
                           <Input
-                            className="touch:min-h-11 min-h-7 text-ui-input flex-1 non-touch:text-xs non-touch:h-7 non-touch:min-h-0"
+                            className="touch:min-h-11 min-h-7 text-ui-input flex-1"
                             placeholder={`New tag\u2026`}
                             value={newTagInput}
                             onChange={(e) => setNewTagInput(e.target.value)}
@@ -861,7 +850,7 @@ export function CardDetailModal({
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="touch:min-w-11 touch:min-h-11 min-h-7 w-7 shrink-0 non-touch:h-7 non-touch:min-h-0"
+                            className="touch:min-w-11 touch:min-h-11 min-h-7 w-7 shrink-0"
                             disabled={!newTagInput.trim()}
                             onClick={handleAddNewTag}
                           >
@@ -888,20 +877,17 @@ export function CardDetailModal({
 
                 {showDeckPicker && (
                   <div className="absolute bottom-full left-0 mb-1 w-64 bg-popover border rounded-md shadow-lg py-1 z-10">
-                    <div className="px-2 py-1 text-ui-label font-semibold text-muted-foreground non-touch:text-xs">
+                    <div className="px-2 py-1 text-ui-label font-semibold text-muted-foreground">
                       Select a deck
                     </div>
                     {currentDeck.name && (
                       <button
                         type="button"
-                        className="touch:min-w-11 touch:min-h-11 w-full text-left px-3 py-1.5 text-ui-label hover:bg-muted flex items-center gap-2 non-touch:text-sm"
+                        className="touch:min-w-11 touch:min-h-11 w-full text-left px-3 py-1.5 text-ui-label hover:bg-muted flex items-center gap-2"
                         onClick={handleAddToCurrentDeck}
                       >
                         <span className="flex-1 truncate">{currentDeck.name}</span>
-                        <Badge
-                          variant="outline"
-                          className="text-ui-meta px-1 py-0 shrink-0 non-touch:text-[10px] non-touch:leading-[inherit]"
-                        >
+                        <Badge variant="outline" className="text-ui-meta px-1 py-0 shrink-0">
                           editing
                         </Badge>
                       </button>
@@ -912,18 +898,18 @@ export function CardDetailModal({
                         <button
                           key={s.id}
                           type="button"
-                          className="touch:min-w-11 touch:min-h-11 w-full text-left px-3 py-1.5 text-ui-label hover:bg-muted flex items-center gap-2 non-touch:text-sm"
+                          className="touch:min-w-11 touch:min-h-11 w-full text-left px-3 py-1.5 text-ui-label hover:bg-muted flex items-center gap-2"
                           onClick={() => handleAddToSavedDeck(s.id, s.deck.name)}
                         >
                           <span className="flex-1 truncate">{s.deck.name}</span>
-                          <span className="text-ui-meta text-muted-foreground shrink-0 non-touch:text-xs">
+                          <span className="text-ui-meta text-muted-foreground shrink-0">
                             {s.deck.cards.length} cards
                           </span>
                         </button>
                       ))}
                     </ScrollArea>
                     {savedDecks.length === 0 && !currentDeck.name && (
-                      <div className="px-3 py-2 text-ui-label text-muted-foreground non-touch:text-sm">
+                      <div className="px-3 py-2 text-ui-label text-muted-foreground">
                         No decks available
                       </div>
                     )}

@@ -36,10 +36,8 @@ function ChoiceCard({
         <Icon className="h-4 w-4" />
       </span>
       <span>
-        <span className="block text-ui-label font-semibold non-touch:text-sm">{title}</span>
-        <span className="mt-0.5 block text-ui-body leading-snug text-muted-foreground non-touch:text-xs non-touch:leading-snug">
-          {desc}
-        </span>
+        <span className="block text-ui-label font-semibold">{title}</span>
+        <span className="mt-0.5 block text-ui-body leading-snug text-muted-foreground">{desc}</span>
       </span>
     </button>
   );

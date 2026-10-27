@@ -42,7 +42,7 @@ const SORT_OPTIONS: {
   },
 ];
 const SELECT_CLS =
-  "min-h-9 min-w-32 flex-1 cursor-pointer rounded border bg-background px-2 py-1 text-ui-label touch:min-h-11 touch:min-w-32 non-touch:text-xs non-touch:h-9 non-touch:min-h-0 non-touch:min-w-0 non-touch:py-0";
+  "min-h-9 min-w-32 flex-1 cursor-pointer rounded border bg-background px-2 py-1 text-ui-label touch:min-h-11 touch:min-w-32";
 interface DeckListControlsProps {
   search: string;
   onSearchChange: (v: string) => void;
@@ -73,13 +73,13 @@ export function DeckListControls({
   return (
     <div
       className={cn(
-        "mt-2 flex shrink-0 flex-wrap items-center gap-2 px-4 py-1.5 sm:px-6 lg:px-8 non-touch:gap-1",
+        "mt-2 flex shrink-0 flex-wrap items-center gap-2 px-4 py-1.5 sm:px-6 lg:px-8",
         isTouch && "flex-wrap gap-2 py-2",
       )}
     >
       <div
         className={cn(
-          "relative min-w-[min(100%,14rem)] flex-[2] non-touch:min-w-0",
+          "relative min-w-[min(100%,14rem)] flex-[2]",
           isTouch && "w-full flex-none sm:flex-1",
         )}
       >
@@ -89,7 +89,7 @@ export function DeckListControls({
           placeholder="Search decks…"
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
-          className="pl-9 pr-11 non-touch:text-xs non-touch:h-9"
+          className="pl-9 pr-11"
         />
         {search && (
           <button
@@ -105,7 +105,7 @@ export function DeckListControls({
 
       <div
         className={cn(
-          "flex min-w-[min(100%,18rem)] flex-[1] flex-wrap items-center gap-2 non-touch:gap-1 non-touch:min-w-0",
+          "flex min-w-[min(100%,18rem)] flex-[1] flex-wrap items-center gap-2",
           isTouch && "w-full flex-none gap-2 sm:w-auto sm:flex-1",
         )}
       >
@@ -130,7 +130,7 @@ export function DeckListControls({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
             <DropdownMenuItem onSelect={() => onFormatChange("")} className="gap-2">
-              <span className="non-touch:text-xs">All formats</span>
+              <span>All formats</span>
               {!formatFilter && <Check className="ml-auto h-3 w-3 text-primary" />}
             </DropdownMenuItem>
             {GAME_FORMATS.map((format) => (
@@ -140,7 +140,7 @@ export function DeckListControls({
                 className="gap-2"
               >
                 <FormatBadge formatId={format.id} />
-                <span className="non-touch:text-xs">{format.name}</span>
+                <span>{format.name}</span>
                 {formatFilter === format.id && <Check className="ml-auto h-3 w-3 text-primary" />}
               </DropdownMenuItem>
             ))}
@@ -211,17 +211,13 @@ export function DeckListControls({
                 title={`Filter by ${COLOR_LABEL[color]}`}
                 onClick={() => onColorToggle(color)}
                 className={cn(
-                  "flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 transition-all focus:outline-none touch:min-h-11 touch:min-w-11 non-touch:h-4 non-touch:w-4",
+                  "flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 transition-all focus:outline-none touch:min-h-11 touch:min-w-11",
                   active
                     ? "scale-110 border-selection-border"
                     : "border-transparent opacity-40 hover:opacity-70",
                 )}
               >
-                <ScryfallImg
-                  src={manaSymbolUrl(color)}
-                  alt={color}
-                  className="h-4 w-4 non-touch:h-full non-touch:w-full"
-                />
+                <ScryfallImg src={manaSymbolUrl(color)} alt={color} className="h-4 w-4" />
               </button>
             );
           })

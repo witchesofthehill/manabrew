@@ -55,11 +55,11 @@ export function PromptDevControls() {
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className={DEV_SECTION_HEADING}>Action view</p>
-              <p className="mt-1 text-ui-body text-muted-foreground non-touch:text-xs">
+              <p className="mt-1 text-ui-body text-muted-foreground">
                 Preview battlefield action states. The engine prompt stays untouched.
               </p>
             </div>
-            <span className="rounded-full bg-muted px-2 py-1 font-mono text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
+            <span className="rounded-full bg-muted px-2 py-1 font-mono text-ui-meta text-muted-foreground">
               UI only
             </span>
           </div>
@@ -78,7 +78,7 @@ export function PromptDevControls() {
                 onClick={clearOverride}
               >
                 <span className="block">Follow game</span>
-                <span className="mt-0.5 block text-ui-meta font-normal text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
+                <span className="mt-0.5 block text-ui-meta font-normal text-muted-foreground">
                   Use the live prompt
                 </span>
               </button>
@@ -97,7 +97,7 @@ export function PromptDevControls() {
                   onClick={() => setOverride(promptOverride)}
                 >
                   <span className="block">{option.label}</span>
-                  <span className="mt-0.5 block text-ui-meta font-normal text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
+                  <span className="mt-0.5 block text-ui-meta font-normal text-muted-foreground">
                     {option.description}
                   </span>
                 </button>

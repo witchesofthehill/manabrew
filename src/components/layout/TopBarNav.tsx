@@ -27,7 +27,7 @@ export function TopBarNav({ disabled = false }: TopBarNavProps) {
           aria-current={isActive(to) ? "page" : undefined}
           aria-label={label}
           title={label}
-          className="min-h-10 gap-2 px-3 text-ui-label touch:min-h-11 touch:min-w-11 non-touch:text-sm non-touch:h-10 non-touch:min-h-0"
+          className="min-h-10 gap-2 px-3 text-ui-label touch:min-h-11 touch:min-w-11"
           disabled={disabled}
           onClick={() => navigate(to)}
         >

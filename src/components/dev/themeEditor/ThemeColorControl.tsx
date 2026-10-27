@@ -49,17 +49,14 @@ export function ThemeColorControl({
 
   return (
     <div className="space-y-1.5 border-t border-border py-3 first:border-t-0">
-      <div className="flex items-start justify-between gap-2 non-touch:items-center non-touch:gap-1">
-        <Label
-          htmlFor={`${id}-raw`}
-          className="min-w-0 leading-snug non-touch:text-xs non-touch:leading-snug"
-        >
+      <div className="flex items-start justify-between gap-2">
+        <Label htmlFor={`${id}-raw`} className="min-w-0 leading-snug">
           {label}
         </Label>
         <Button
           size="sm"
           variant="ghost"
-          className="shrink-0 non-touch:text-[10px] non-touch:h-6 non-touch:px-1.5 non-touch:leading-[inherit]"
+          className="shrink-0"
           disabled={!overridden && !invalid}
           title="Remove this override and inherit the Manabrew default color"
           onClick={() => {
@@ -70,15 +67,11 @@ export function ThemeColorControl({
           Reset
         </Button>
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-2 text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-ui-meta text-muted-foreground">
         <code className="min-w-0 break-all">{token}</code>
         <span className="shrink-0">{overridden ? "Overridden" : "Inherited"}</span>
       </div>
-      {description && (
-        <p className="text-ui-body text-muted-foreground non-touch:text-[11px] non-touch:leading-snug">
-          {description}
-        </p>
-      )}
+      {description && <p className="text-ui-body text-muted-foreground">{description}</p>}
       <div className="flex items-center gap-2">
         {parsed && (
           <input
@@ -87,14 +80,14 @@ export function ThemeColorControl({
             aria-label={`${label} color picker`}
             title={`${label} hue. Alpha is controlled separately.`}
             value={parsed.hex}
-            className="h-9 w-9 shrink-0 cursor-pointer rounded border border-input bg-background p-0.5 touch:min-h-11 touch:min-w-11 non-touch:h-8 non-touch:w-8"
+            className="h-9 w-9 shrink-0 cursor-pointer rounded border border-input bg-background p-0.5 touch:min-h-11 touch:min-w-11"
             onChange={(event) => onChange(formatThemeColor(event.target.value, parsed.alpha))}
           />
         )}
         <Input
           id={`${id}-raw`}
           value={raw}
-          className="min-w-0 font-mono non-touch:text-[11px] non-touch:md:text-[11px] non-touch:h-8 non-touch:leading-[inherit] non-touch:md:leading-[inherit]"
+          className="min-w-0 font-mono"
           aria-invalid={invalid}
           aria-describedby={invalid ? `${id}-error` : undefined}
           onChange={(event) => setRaw(event.target.value)}
@@ -106,28 +99,18 @@ export function ThemeColorControl({
         />
       </div>
       {invalid && (
-        <p
-          id={`${id}-error`}
-          role="alert"
-          className="text-ui-body text-destructive non-touch:text-[11px] non-touch:leading-[inherit]"
-        >
+        <p id={`${id}-error`} role="alert" className="text-ui-body text-destructive">
           Enter a valid hex or rgba color. This value has not been applied.
         </p>
       )}
       {!parsed && (
-        <p
-          role="alert"
-          className="text-ui-body text-destructive non-touch:text-[11px] non-touch:leading-[inherit]"
-        >
+        <p role="alert" className="text-ui-body text-destructive">
           The resolved token is not a supported color.
         </p>
       )}
       {parsed && (
-        <div className="flex items-center gap-2 text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
-          <label
-            htmlFor={`${id}-alpha`}
-            className="text-ui-label non-touch:text-[length:inherit] non-touch:leading-[inherit]"
-          >
+        <div className="flex items-center gap-2 text-ui-meta text-muted-foreground">
+          <label htmlFor={`${id}-alpha`} className="text-ui-label">
             Alpha
           </label>
           <input
@@ -140,10 +123,7 @@ export function ThemeColorControl({
             className="min-w-0 flex-1 accent-primary touch:min-h-11"
             onChange={(event) => onChange(formatThemeColor(parsed.hex, Number(event.target.value)))}
           />
-          <output
-            htmlFor={`${id}-alpha`}
-            className="min-w-10 shrink-0 text-right tabular-nums non-touch:w-8 non-touch:min-w-0"
-          >
+          <output htmlFor={`${id}-alpha`} className="min-w-10 shrink-0 text-right tabular-nums">
             {Math.round(parsed.alpha * 100)}%
           </output>
         </div>

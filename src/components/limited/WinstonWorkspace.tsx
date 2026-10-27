@@ -65,17 +65,17 @@ export function WinstonWorkspace({
       )}
       <div
         className={cn(
-          "grid min-h-40 flex-1 gap-3 non-touch:min-h-0",
+          "grid min-h-40 flex-1 gap-3",
           showBoth && "min-h-[32rem] grid-rows-[minmax(16rem,min(42%,24rem))_minmax(16rem,1fr)]",
         )}
       >
         {(showBoth || tab === "piles") && (
-          <section className="flex min-h-64 flex-col overflow-y-auto overscroll-contain non-touch:min-h-0">
+          <section className="flex min-h-64 flex-col overflow-y-auto overscroll-contain">
             <header className="flex shrink-0 flex-wrap self-center items-center justify-center gap-2 rounded bg-card/70 px-2 py-1">
               <h2 className="text-lg font-semibold tabular-nums lining-nums">
                 Pile {activeIdx + 1}
               </h2>
-              <span className="text-ui-meta tabular-nums lining-nums text-muted-foreground non-touch:text-xs">
+              <span className="text-ui-meta tabular-nums lining-nums text-muted-foreground">
                 {activePile.length} cards
               </span>
               <LimitedReferenceButton
@@ -88,7 +88,7 @@ export function WinstonWorkspace({
               cardSize={cardSize}
               presentation="spread"
               arrivalKey={`${activeWinston.sessionId}:${activeIdx}:${activePile.map((card) => card.id).join(",")}`}
-              className="min-h-32 flex-1 non-touch:min-h-0"
+              className="min-h-32 flex-1"
             />
             <footer className="flex shrink-0 flex-wrap items-center justify-center gap-3 px-3 py-1">
               {activeWinston.awaitingHuman && (
@@ -110,7 +110,7 @@ export function WinstonWorkspace({
                 index === activeIdx ? null : (
                   <div
                     key={index}
-                    className="flex items-center gap-2 rounded bg-card/70 px-3 py-2 text-ui-meta text-muted-foreground non-touch:text-xs"
+                    className="flex items-center gap-2 rounded bg-card/70 px-3 py-2 text-ui-meta text-muted-foreground"
                   >
                     <Layers className="size-4" aria-hidden="true" />
                     <span>

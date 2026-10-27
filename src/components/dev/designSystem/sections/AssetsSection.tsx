@@ -14,18 +14,14 @@ export function AssetsSection() {
           <div className="flex flex-wrap items-center gap-6">
             <div className="space-y-2">
               <ManaBrewLogo height={72} />
-              <p className="font-mono text-ui-meta text-muted-foreground non-touch:text-[11px] non-touch:leading-[inherit]">
-                Horizontal · 72px high
-              </p>
+              <p className="font-mono text-ui-meta text-muted-foreground">Horizontal · 72px high</p>
             </div>
             <div className="space-y-2">
               <ManaBrewLogo height={56} />
-              <p className="font-mono text-ui-meta text-muted-foreground non-touch:text-[11px] non-touch:leading-[inherit]">
-                Header · 56px high
-              </p>
+              <p className="font-mono text-ui-meta text-muted-foreground">Header · 56px high</p>
             </div>
           </div>
-          <p className="break-all font-mono text-ui-meta text-muted-foreground non-touch:text-[11px] non-touch:leading-[inherit]">
+          <p className="break-all font-mono text-ui-meta text-muted-foreground">
             Static sprite: interactive/manabrew-logo.svg · Dark 1080 × 400 · Light 1450 × 400
           </p>
         </div>
@@ -33,28 +29,22 @@ export function AssetsSection() {
           <div className="flex flex-wrap items-center gap-6">
             <div className="space-y-2">
               <ManaBrewLogo variant="symbol" height={48} />
-              <p className="font-mono text-ui-meta text-muted-foreground non-touch:text-[11px] non-touch:leading-[inherit]">
-                Symbol · 48px
-              </p>
+              <p className="font-mono text-ui-meta text-muted-foreground">Symbol · 48px</p>
             </div>
             <div className="space-y-2">
               <ManaBrewLogo variant="symbol" height={36} />
-              <p className="font-mono text-ui-meta text-muted-foreground non-touch:text-[11px] non-touch:leading-[inherit]">
-                Compact header · 36px
-              </p>
+              <p className="font-mono text-ui-meta text-muted-foreground">Compact header · 36px</p>
             </div>
             <div className="space-y-2">
               <ManaBrewLogo variant="symbol" height={32} />
-              <p className="font-mono text-ui-meta text-muted-foreground non-touch:text-[11px] non-touch:leading-[inherit]">
-                Small symbol · 32px
-              </p>
+              <p className="font-mono text-ui-meta text-muted-foreground">Small symbol · 32px</p>
             </div>
           </div>
-          <p className="break-all font-mono text-ui-meta text-muted-foreground non-touch:text-[11px] non-touch:leading-[inherit]">
+          <p className="break-all font-mono text-ui-meta text-muted-foreground">
             Brewy-only symbol · 512 × 512 · Favicons and native icons use dedicated symbol exports
           </p>
         </div>
-        <p className="text-ui-body text-muted-foreground non-touch:text-xs">
+        <p className="text-ui-body text-muted-foreground">
           Dark mode uses the approved white Brewy and ember wordmark; light mode uses black Brewy,
           an orange wordmark, and lavender, ember, and sage bubbles, including theme previews. Each
           mode keeps its approved geometry. ManaBrewLogo renders one complete static group from the
@@ -80,18 +70,14 @@ export function AssetsSection() {
               )}
             </div>
             <div className="space-y-0.5 p-2">
-              <div className="text-ui-label font-semibold non-touch:text-[11px] non-touch:leading-[inherit]">
-                {a.kind}
-              </div>
+              <div className="text-ui-label font-semibold">{a.kind}</div>
               <div
-                className="break-all font-mono text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]"
+                className="break-all font-mono text-ui-meta text-muted-foreground"
                 title={a.file}
               >
                 {a.file}
               </div>
-              <div className="text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
-                {a.use}
-              </div>
+              <div className="text-ui-meta text-muted-foreground">{a.use}</div>
             </div>
           </div>
         ))}
@@ -100,14 +86,12 @@ export function AssetsSection() {
       <Subhead>Static data files</Subhead>
       <Panel>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[420px] text-left text-ui-label non-touch:text-sm">
+          <table className="w-full min-w-[420px] text-left text-ui-label">
             <tbody>
               {DATA_ASSETS.map((d) => (
                 <tr key={d.file} className="border-b border-border last:border-0">
-                  <td className="py-2 pr-4 font-mono text-ui-label non-touch:text-xs">{d.file}</td>
-                  <td className="py-2 text-ui-body text-muted-foreground non-touch:text-xs">
-                    {d.use}
-                  </td>
+                  <td className="py-2 pr-4 font-mono text-ui-label">{d.file}</td>
+                  <td className="py-2 text-ui-body text-muted-foreground">{d.use}</td>
                 </tr>
               ))}
             </tbody>

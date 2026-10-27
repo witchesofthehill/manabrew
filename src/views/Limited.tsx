@@ -70,7 +70,7 @@ export default function Limited({ leadingControl }: LimitedProps) {
       ? (selectedSet?.name ?? "Choose a set")
       : (setup.cube?.name ?? "Choose a cube or pool");
   return (
-    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden px-4 pt-4 text-ui-body sm:px-6 lg:grid lg:grid-cols-[minmax(0,1fr)_18rem] lg:grid-rows-[auto_minmax(0,1fr)_auto] lg:gap-x-8 lg:px-8 non-touch:text-[length:inherit] non-touch:leading-[inherit]">
+    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden px-4 pt-4 text-ui-body sm:px-6 lg:grid lg:grid-cols-[minmax(0,1fr)_18rem] lg:grid-rows-[auto_minmax(0,1fr)_auto] lg:gap-x-8 lg:px-8">
       <div className="-mx-1 min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-1 lg:contents">
         <header className="mb-5 lg:col-span-2">
           <LimitedModeSelector
@@ -127,7 +127,7 @@ export default function Limited({ leadingControl }: LimitedProps) {
               value={setup.source}
               onValueChange={(value) => setup.setSource(value === "custom" ? "custom" : "set")}
               disabled={setup.busy}
-              className="w-48 max-w-full non-touch:w-44"
+              className="w-48 max-w-full"
             >
               <AppSelectOption value="set">Set boosters</AppSelectOption>
               <AppSelectOption value="custom">Cube / saved pool</AppSelectOption>
@@ -206,17 +206,14 @@ export default function Limited({ leadingControl }: LimitedProps) {
             variant="primary"
             onClick={setup.start}
             disabled={setup.startBlocked}
-            className="min-h-11 max-w-full shrink-0 whitespace-normal touch:min-w-11 non-touch:min-h-11"
+            className="min-h-11 max-w-full shrink-0 whitespace-normal touch:min-w-11"
           >
             {startLabel}
             <ArrowRight aria-hidden="true" className="ml-2 h-4 w-4" />
           </Button>
         </div>
         {!panel && setup.lastError && (
-          <p
-            role="alert"
-            className="mt-2 text-ui-label break-words text-destructive non-touch:text-sm"
-          >
+          <p role="alert" className="mt-2 text-ui-label break-words text-destructive">
             {setup.lastError}
           </p>
         )}
@@ -247,7 +244,7 @@ export default function Limited({ leadingControl }: LimitedProps) {
               <span className="font-serif text-lg font-semibold text-foreground/90">
                 {setup.pendingDraftStart.format}
               </span>
-              <p className="text-ui-meta text-muted-foreground non-touch:text-xs">
+              <p className="text-ui-meta text-muted-foreground">
                 You + {setup.pendingDraftStart.seatCount - 1} AI{" "}
                 {setup.pendingDraftStart.seatCount === 2 ? "seat" : "seats"}
               </p>

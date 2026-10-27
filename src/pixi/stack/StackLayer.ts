@@ -1,5 +1,5 @@
 import { Container, Graphics, Rectangle } from "pixi.js";
-import { getUiControlHeight, isTouchUi } from "@/themes/typography";
+import { getUiControlHeight } from "@/themes/typography";
 import gsap from "gsap";
 import { CARD_H, CARD_W, GAME_CARD_SIZES } from "@/components/game/game.constants";
 import type { Theme } from "@/hooks/useTheme";
@@ -472,7 +472,7 @@ export class StackLayer implements StackAnchorProvider {
   }
 
   private buttonHitWidth(): number {
-    return Math.max(BTN_W + 12, getUiControlHeight(0) / BTN_PRESS_SCALE);
+    return Math.max(BTN_W + 12, getUiControlHeight() / BTN_PRESS_SCALE);
   }
 
   private layout(): void {
@@ -510,7 +510,7 @@ export class StackLayer implements StackAnchorProvider {
       fanOut,
       hoveredIndex,
       hoverScale: HOVER_SCALE,
-      buttonWidth: isTouchUi() ? this.buttonHitWidth() : BTN_W,
+      buttonWidth: this.buttonHitWidth(),
       buttonGap: BTN_GAP,
       compact: this.compact,
     });
@@ -578,7 +578,7 @@ export class StackLayer implements StackAnchorProvider {
     }
     this.btn.position.y = centerY;
     const hitW = this.buttonHitWidth();
-    const hitH = Math.max(BTN_H + 12, getUiControlHeight(0) / BTN_PRESS_SCALE);
+    const hitH = Math.max(BTN_H + 12, getUiControlHeight() / BTN_PRESS_SCALE);
     this.btn.hitArea = new Rectangle(-hitW / 2, -hitH / 2, hitW, hitH);
     const justAppeared = !this.btnVisible;
     this.btnVisible = true;

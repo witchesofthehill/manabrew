@@ -6,8 +6,8 @@
 import {
   getUiControlHeight,
   getUiFontSize,
-  UI_FONT_FAMILY as FONT,
   isTouchUi,
+  UI_FONT_FAMILY as FONT,
 } from "@/themes/typography";
 import { Container, Graphics, Text, TextStyle, Sprite } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
@@ -100,7 +100,7 @@ const INDICATOR_OFF_TURN_ALPHA = 0.55;
 const _initTheme = getTheme().gameTheme;
 const normalStyle = new TextStyle({
   fontFamily: FONT,
-  fontSize: getUiFontSize("label", 11),
+  fontSize: getUiFontSize("label"),
   fontWeight: "600",
   fill: readableTextColor(
     _initTheme.phaseStrip.background,
@@ -111,7 +111,7 @@ const normalStyle = new TextStyle({
 });
 const activeStyle = new TextStyle({
   fontFamily: FONT,
-  fontSize: getUiFontSize("label", 11),
+  fontSize: getUiFontSize("label"),
   fontWeight: "bold",
   fill: readableTextColor(
     _initTheme.phaseStrip.background,
@@ -394,23 +394,23 @@ export class PhaseStripLayer {
   }
 
   private updateTypography(): void {
-    const tablet = !this.compact && isTouchUi();
-    const fontSize = getUiFontSize(tablet ? "caption" : "label", 11);
-    const controlHeight = tablet ? 32 : getUiControlHeight(0);
+    const tablet = !this.compact && getUiControlHeight() >= 44;
+    const fontSize = getUiFontSize(tablet ? "caption" : "label");
+    const controlHeight = tablet ? 32 : getUiControlHeight();
     normalStyle.fontSize = activeStyle.fontSize = fontSize;
     CELL_H = Math.max(28, controlHeight, Math.ceil(fontSize * 1.4) + 8);
-    COMPACT_PILL_H = isTouchUi()
-      ? Math.max(22, getUiControlHeight(), Math.ceil(getUiFontSize("label", 11) * 1.4) + 8)
-      : 22;
-    INDICATOR_HIT_H = Math.max(12, getUiControlHeight(0));
+    COMPACT_PILL_H = Math.max(
+      22,
+      getUiControlHeight(),
+      Math.ceil(getUiFontSize("label") * 1.4) + 8,
+    );
+    INDICATOR_HIT_H = Math.max(12, getUiControlHeight());
     const measurer = new Text({ text: "", style: activeStyle });
     CELL_W = Math.max(60, controlHeight);
-    if (isTouchUi()) {
-      for (const phase of PHASES) {
-        if (phase.subPhases) continue;
-        measurer.text = phase.short;
-        CELL_W = Math.max(CELL_W, Math.ceil(measurer.width) + 16);
-      }
+    for (const phase of PHASES) {
+      if (phase.subPhases) continue;
+      measurer.text = phase.short;
+      CELL_W = Math.max(CELL_W, Math.ceil(measurer.width) + 16);
     }
     let maxLabelW = 0;
     for (const id of COMBAT_SUB_PHASES) {
@@ -567,9 +567,9 @@ export class PhaseStripLayer {
     const y = this.canvasHeight / 2 - CELL_H / 2;
     const centerX = this.canvasWidth / 2;
     const availableWidth = Math.max(1, this.canvasWidth - 16);
-    const combatWidth = isTouchUi() ? Math.min(this.combatCellW, availableWidth) : this.combatCellW;
+    const combatWidth = Math.min(this.combatCellW, availableWidth);
 
-    const indicatorWidth = !this.compact && isTouchUi() ? 32 : getUiControlHeight(0);
+    const indicatorWidth = isTouchUi() ? (this.compact ? getUiControlHeight() : 32) : 0;
     const cellWidth = Math.max(
       CELL_W,
       state.opponents.length * indicatorWidth +
@@ -577,7 +577,7 @@ export class PhaseStripLayer {
     );
     const naturalWidth =
       (this.cells.length - 1) * (cellWidth + CELL_GAP) + combatWidth + CELL_GAP * 2;
-    const constrained = isTouchUi() && naturalWidth > this.canvasWidth - 16;
+    const constrained = naturalWidth > this.canvasWidth - 16;
     const showPill = (this.compact || constrained) && !this.expanded;
     this.cellsContainer.visible = !showPill;
     this.combatContainer.visible = !showPill;
@@ -643,17 +643,11 @@ export class PhaseStripLayer {
     const lineY = this.canvasHeight / 2;
     const stripLeft = constrained ? 8 : cellPositions[0]! - CELL_GAP;
     const stripRight = constrained ? this.canvasWidth - 8 : rx;
-    const stripWidth = stripRight - stripLeft;
-    const fitX = isTouchUi() ? 1 : Math.min(1, availableWidth / stripWidth);
-    const stripOffset = isTouchUi()
-      ? constrained
-        ? 0
-        : centerX - (stripLeft + stripRight) / 2
-      : fitX < 1
-        ? centerX - ((stripLeft + stripRight) * fitX) / 2
-        : 0;
+    const stripWidth = Math.min(availableWidth, stripRight - stripLeft);
+    const fitX = 1;
+    const stripOffset = constrained ? 0 : centerX - (stripLeft + stripRight) / 2;
     for (const layer of [this.cellsContainer, this.combatContainer, this.expandedBackdrop]) {
-      layer.scale.x = fitX;
+      layer.scale.x = 1;
       layer.x = stripOffset;
     }
 

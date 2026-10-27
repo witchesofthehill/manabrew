@@ -1,7 +1,6 @@
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { MANA_KEYS } from "../game.constants";
 import { useTheme } from "@/hooks/useTheme";
-import { isTouchUi } from "@/themes/typography";
 
 export function ManaPool({ pool }: { pool: Record<string, number> }) {
   const fontSizes = useTheme().gameTheme.fontSizes;
@@ -14,11 +13,7 @@ export function ManaPool({ pool }: { pool: Record<string, number> }) {
           <span key={key} className="inline-flex flex-row items-center gap-0.5 flex-nowrap">
             <span
               className="text-ui-meta font-extrabold text-white leading-none tabular-nums"
-              style={{
-                fontSize: isTouchUi()
-                  ? `max(${fontSizes.manaCount}px, var(--text-ui-meta))`
-                  : fontSizes.manaCount,
-              }}
+              style={{ fontSize: `max(${fontSizes.manaCount}px, var(--text-ui-meta))` }}
             >
               {count}
             </span>

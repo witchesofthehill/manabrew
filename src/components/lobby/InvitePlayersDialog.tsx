@@ -49,14 +49,14 @@ export function InvitePlayersDialog({ open, onClose }: InvitePlayersDialogProps)
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={`Search players\u2026`}
-            className="min-h-8 pl-8 text-ui-input touch:min-h-11 non-touch:text-sm non-touch:h-8 non-touch:min-h-0"
+            className="min-h-8 pl-8 text-ui-input touch:min-h-11"
             autoFocus
           />
         </div>
         <ScrollArea className="max-h-72">
           <div className="space-y-0.5 pr-2">
             {candidates.length === 0 && (
-              <p className="py-6 text-center text-ui-meta italic text-muted-foreground non-touch:text-xs">
+              <p className="py-6 text-center text-ui-meta italic text-muted-foreground">
                 {query ? `No players match “${search.trim()}”` : `Nobody is free right now`}
               </p>
             )}
@@ -67,11 +67,7 @@ export function InvitePlayersDialog({ open, onClose }: InvitePlayersDialogProps)
                   key={player.player_id}
                   player={player}
                   presenceDotClass="bg-success"
-                  status={
-                    <span className="text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
-                      Available
-                    </span>
-                  }
+                  status={<span className="text-ui-meta text-muted-foreground">Available</span>}
                   action={
                     <Button
                       size="sm"

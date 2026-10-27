@@ -59,7 +59,7 @@ export function CardGlintAppearancePrinting({ value, onChange }: CardGlintAppear
             if (coverage) onChange({ ...value, coverage: { ...coverage, amount } });
           }}
         />
-        <p className="text-ui-body text-muted-foreground non-touch:text-xs">
+        <p className="text-ui-body text-muted-foreground">
           Native keeps the card recipe's coverage.
         </p>
       </fieldset>
@@ -98,7 +98,7 @@ export function CardGlintAppearancePrinting({ value, onChange }: CardGlintAppear
             if (overlay) onChange({ ...value, overlayFoil: { ...overlay, strength } });
           }}
         />
-        <p className="text-ui-body text-muted-foreground non-touch:text-xs">
+        <p className="text-ui-body text-muted-foreground">
           Native keeps the card recipe's printing reflection. Off removes it.
         </p>
       </fieldset>

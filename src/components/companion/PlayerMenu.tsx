@@ -70,7 +70,7 @@ export function PlayerMenu({ player, onPickCommander }: PlayerMenuProps) {
           <MoreVertical className="size-4 @md:size-5" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-72 max-w-[calc(100vw-2rem)] non-touch:w-52">
+      <DropdownMenuContent align="end" className="w-72 max-w-[calc(100vw-2rem)]">
         <DropdownMenuItem onSelect={onPickCommander}>
           <GameIcon icon="crossed-swords" className="mr-2 size-4" /> Choose commander…
         </DropdownMenuItem>
@@ -98,10 +98,8 @@ export function PlayerMenu({ player, onPickCommander }: PlayerMenuProps) {
           <GameIcon icon="lightning-trio" className="mr-2 size-4" /> Speed ({player.speed ?? 0}/4)
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuLabel className="text-ui-meta non-touch:text-xs">
-          Floating mana
-        </DropdownMenuLabel>
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(2.75rem,1fr))] gap-1 px-2 pb-2 non-touch:grid-cols-6">
+        <DropdownMenuLabel className="text-ui-meta">Floating mana</DropdownMenuLabel>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(2.75rem,1fr))] gap-1 px-2 pb-2">
           {MANA_COLORS.map((color) => (
             <button
               type="button"
@@ -116,8 +114,8 @@ export function PlayerMenu({ player, onPickCommander }: PlayerMenuProps) {
         </div>
         <DropdownMenuItem onSelect={() => clearMana(player.id)}>Empty mana pool</DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuLabel className="text-ui-meta non-touch:text-xs">Accent</DropdownMenuLabel>
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(2.75rem,1fr))] gap-1 px-2 pb-2 non-touch:grid-cols-8">
+        <DropdownMenuLabel className="text-ui-meta">Accent</DropdownMenuLabel>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(2.75rem,1fr))] gap-1 px-2 pb-2">
           {COMPANION_ACCENT_KEYS.map((key) => (
             <button
               type="button"

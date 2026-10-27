@@ -38,7 +38,7 @@ export function BoardGameplayPreviewControls({
           aria-label="Gameplay action preview"
           value={mode}
           onValueChange={(value) => onModeChange(value as GameplayPreviewAction)}
-          className="min-w-0 rounded-md border border-input bg-background px-2 non-touch:text-xs non-touch:h-8"
+          className="min-w-0 rounded-md border border-input bg-background px-2"
         >
           {GAMEPLAY_PREVIEW_ACTIONS.map((option) => (
             <AppSelectOption key={option.id} value={option.id}>
@@ -72,10 +72,7 @@ export function BoardGameplayPreviewControls({
         )}
       </div>
       {outcome && (
-        <p
-          role="status non-touch:max-h-10"
-          className="max-h-20 overflow-y-auto text-ui-meta text-muted-foreground non-touch:text-xs"
-        >
+        <p role="status" className="max-h-20 overflow-y-auto text-ui-meta text-muted-foreground">
           {outcome}
         </p>
       )}

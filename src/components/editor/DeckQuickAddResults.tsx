@@ -23,8 +23,8 @@ export function DeckQuickAddResults({
   getCount,
 }: DeckQuickAddResultsProps) {
   return (
-    <div className="absolute right-0 top-full z-50 mt-1 max-h-[min(24rem,60dvh)] w-96 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-md border bg-popover shadow-lg non-touch:min-w-[300px]">
-      <div className="sticky top-0 z-10 border-b bg-popover px-2 py-1 text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
+    <div className="absolute right-0 top-full z-50 mt-1 max-h-[min(24rem,60dvh)] w-96 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-md border bg-popover shadow-lg">
+      <div className="sticky top-0 z-10 border-b bg-popover px-2 py-1 text-ui-meta text-muted-foreground">
         Click or press Enter to add one to the main deck
       </div>
       {results.map((card, index) => {
@@ -51,10 +51,10 @@ export function DeckQuickAddResults({
                   className="h-11 w-8 shrink-0 rounded"
                 />
               )}
-              <span className="min-w-0 flex-1 truncate text-ui-label font-medium non-touch:text-xs">
+              <span className="min-w-0 flex-1 truncate text-ui-label font-medium">
                 {displayName}
               </span>
-              <span className="shrink-0 text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
+              <span className="shrink-0 text-ui-meta text-muted-foreground">
                 {getCount(card.name)} in deck
               </span>
               <Plus className="h-3.5 w-3.5 shrink-0 text-primary" />

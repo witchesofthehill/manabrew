@@ -27,7 +27,7 @@ export function GameLog({ session, open, onOpenChange }: GameLogProps) {
         </SheetHeader>
         <ol className="divide-y divide-border">
           {history.length === 0 && (
-            <li className="px-4 py-6 text-center text-ui-body text-muted-foreground non-touch:text-sm">
+            <li className="px-4 py-6 text-center text-ui-body text-muted-foreground">
               No events yet.
             </li>
           )}
@@ -38,17 +38,13 @@ export function GameLog({ session, open, onOpenChange }: GameLogProps) {
               <li
                 key={`${event.at}-${index}`}
                 className={cn(
-                  "flex items-center justify-between gap-2 px-4 py-2 text-ui-body non-touch:text-sm",
+                  "flex items-center justify-between gap-2 px-4 py-2 text-ui-body",
                   index === history.length - 1 && "bg-accent/50",
                 )}
               >
                 <div className="min-w-0 flex-1">
-                  <div className="break-words non-touch:truncate">
-                    {describeEvent(event, session)}
-                  </div>
-                  <div className="text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
-                    {formatTime(event.at)}
-                  </div>
+                  <div className="break-words">{describeEvent(event, session)}</div>
+                  <div className="text-ui-meta text-muted-foreground">{formatTime(event.at)}</div>
                 </div>
                 <Button
                   size="icon"

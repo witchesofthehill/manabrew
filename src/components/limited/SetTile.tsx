@@ -36,20 +36,8 @@ export function SetTile({ set, active, prefetching, onClick, size = "md" }: SetT
         )}
       />
       <div className="min-w-0 flex-1">
-        <div
-          className={cn(
-            "break-words text-ui-label font-medium leading-tight non-touch:leading-tight",
-            compact ? "non-touch:text-xs" : "non-touch:text-sm",
-          )}
-        >
-          {set.name}
-        </div>
-        <div
-          className={cn(
-            "text-ui-meta text-muted-foreground non-touch:leading-[inherit]",
-            compact ? "non-touch:text-[9px]" : "non-touch:text-[10px]",
-          )}
-        >
+        <div className="break-words text-ui-label font-medium leading-tight">{set.name}</div>
+        <div className="text-ui-meta text-muted-foreground">
           {set.code.toUpperCase()} · {releasedYear} · {set.card_count}
         </div>
       </div>

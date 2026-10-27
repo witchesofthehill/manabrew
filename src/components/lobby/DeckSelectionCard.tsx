@@ -148,7 +148,7 @@ export function DeckSelectionCard({
       pressed={Boolean(hasVsSide || isSelected)}
       titleAttribute={!isLegal ? validationError : undefined}
       className={cn(
-        dense && "min-h-40 aspect-auto non-touch:h-24 non-touch:min-h-0",
+        dense && "min-h-40 aspect-auto",
         !dense && "sm:min-h-[172px]",
         !hasVsSide &&
           isSelected &&
@@ -220,7 +220,7 @@ export function DeckSelectionCard({
               ) : fallbackColorLabel ? (
                 <span
                   className={cn(
-                    "text-ui-meta non-touch:text-[10px] non-touch:leading-[inherit]",
+                    "text-ui-meta",
                     cover ? "text-text-on-tinted/85" : "text-muted-foreground",
                   )}
                 >
@@ -233,7 +233,7 @@ export function DeckSelectionCard({
             <DeckLabelBadge key={label.name} label={label} size="sm" />
           ))}
           {!dense && (
-            <span className="text-ui-meta text-text-on-tinted/85 non-touch:text-[10px] non-touch:leading-[inherit]">
+            <span className="text-ui-meta text-text-on-tinted/85">
               {isHub
                 ? `Community · ${cardCount ?? cards.length} cards`
                 : isPreset
@@ -242,10 +242,7 @@ export function DeckSelectionCard({
             </span>
           )}
           {badge && (
-            <Badge
-              variant="outline"
-              className="ml-auto min-h-5 px-1 text-ui-meta non-touch:text-[9px] non-touch:h-4 non-touch:min-h-0 non-touch:leading-[inherit]"
-            >
+            <Badge variant="outline" className="ml-auto min-h-5 px-1 text-ui-meta">
               {badge}
             </Badge>
           )}

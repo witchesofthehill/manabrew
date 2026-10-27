@@ -21,14 +21,15 @@ export function TermsNotice() {
       aria-label={`Terms notice`}
       className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 pb-[max(1rem,var(--safe-area-inset-bottom))] motion-safe:animate-onboard-fade-up"
     >
-      <div className="pointer-events-auto flex max-w-xl items-center gap-3 rounded-lg border border-border/60 bg-background/90 py-2 pl-4 pr-2 text-ui-meta text-muted-foreground shadow-lg backdrop-blur-md non-touch:text-xs">
+      <div className="pointer-events-auto flex max-w-xl items-center gap-3 rounded-lg border border-border/60 bg-background/90 py-2 pl-4 pr-2 text-ui-meta text-muted-foreground shadow-lg backdrop-blur-md">
         <p className="min-w-0 flex-1">
           {updated ? `Our terms have changed. ` : null}
-          By using Manabrew you agree to the{" "}
+          By using Manabrew you agree to the{""}
           <a href={TERMS_URL} target="_blank" rel="noreferrer" className={link}>
             terms
-          </a>{" "}
-          and the{" "}
+          </a>
+          {""}
+          and the{""}
           <a href={PRIVACY_URL} target="_blank" rel="noreferrer" className={link}>
             privacy policy
           </a>

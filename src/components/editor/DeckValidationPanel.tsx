@@ -26,19 +26,14 @@ export function DeckValidationPanel({ unsupportedNames }: { unsupportedNames?: S
     >
       <div className="flex flex-wrap items-center gap-2">
         <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
-        <span className="text-ui-meta font-semibold text-destructive non-touch:text-sm">
+        <span className="text-ui-meta font-semibold text-destructive">
           {count} {count === 1 ? `issue` : `issues`}
         </span>
-        <span className="text-ui-meta text-destructive/60 non-touch:text-xs">
-          for {format.name}
-        </span>
+        <span className="text-ui-meta text-destructive/60">for {format.name}</span>
       </div>
       <ul className="mt-1.5 space-y-0.5 pl-6">
         {errors.map((err, i) => (
-          <li
-            key={i}
-            className="text-ui-body text-destructive/80 flex items-start gap-1.5 non-touch:text-xs"
-          >
+          <li key={i} className="text-ui-body text-destructive/80 flex items-start gap-1.5">
             <span className="shrink-0 mt-0.5">&#x2022;</span>
             <span className="min-w-0 break-words">{err}</span>
           </li>

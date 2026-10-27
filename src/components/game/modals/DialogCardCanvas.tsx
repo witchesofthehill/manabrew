@@ -192,7 +192,7 @@ export function DialogCardCanvas(props: Props) {
     <div className="relative h-[min(52dvh,32rem)] min-h-56 w-full" aria-hidden="true">
       <canvas ref={canvasRef} className="block h-full w-full" />
       {error && (
-        <p className="absolute inset-4 overflow-y-auto rounded-lg bg-card p-3 text-ui-meta text-destructive non-touch:text-sm">
+        <p className="absolute inset-4 overflow-y-auto rounded-lg bg-card p-3 text-ui-meta text-destructive">
           Card renderer unavailable: {error}
         </p>
       )}

@@ -29,9 +29,9 @@ class ErrorBoundaryInner extends Component<Props & { onReset: () => void }, Stat
           <div className="text-4xl">⚠️</div>
           <h2 className="text-xl font-semibold text-destructive">{`Something went wrong`}</h2>
           {this.props.context && (
-            <p className="text-ui-meta text-muted-foreground non-touch:text-sm">{`in ${this.props.context}`}</p>
+            <p className="text-ui-meta text-muted-foreground">{`in ${this.props.context}`}</p>
           )}
-          <p className="break-words text-ui-body text-muted-foreground max-w-md non-touch:text-sm">
+          <p className="break-words text-ui-body text-muted-foreground max-w-md">
             {this.state.error?.message ?? `An unexpected error occurred.`}
           </p>
           <div className="flex flex-wrap gap-2">
@@ -39,7 +39,7 @@ class ErrorBoundaryInner extends Component<Props & { onReset: () => void }, Stat
               onClick={() => {
                 this.setState({ hasError: false, error: null });
               }}
-              className="px-4 py-2 text-ui-label rounded-md bg-muted hover:bg-accent text-foreground touch:min-h-11 touch:min-w-11 whitespace-normal non-touch:text-sm"
+              className="px-4 py-2 text-ui-label rounded-md bg-muted hover:bg-accent text-foreground touch:min-h-11 touch:min-w-11 whitespace-normal"
             >
               {`Try Again`}
             </button>
@@ -48,17 +48,17 @@ class ErrorBoundaryInner extends Component<Props & { onReset: () => void }, Stat
                 this.setState({ hasError: false, error: null });
                 this.props.onReset();
               }}
-              className="px-4 py-2 text-ui-label rounded-md bg-muted hover:bg-accent text-foreground touch:min-h-11 touch:min-w-11 whitespace-normal non-touch:text-sm"
+              className="px-4 py-2 text-ui-label rounded-md bg-muted hover:bg-accent text-foreground touch:min-h-11 touch:min-w-11 whitespace-normal"
             >
               {`Go Home`}
             </button>
           </div>
           {this.state.error?.stack && (
             <details className="mt-4 text-left w-full max-w-lg">
-              <summary className="text-ui-label text-muted-foreground cursor-pointer touch:min-h-11 touch:min-w-11 non-touch:text-xs">
+              <summary className="text-ui-label text-muted-foreground cursor-pointer touch:min-h-11 touch:min-w-11">
                 {`Stack trace`}
               </summary>
-              <pre className="mt-2 text-ui-meta bg-card p-3 rounded overflow-auto max-h-48 text-muted-foreground non-touch:text-xs">
+              <pre className="mt-2 text-ui-meta bg-card p-3 rounded overflow-auto max-h-48 text-muted-foreground">
                 {this.state.error.stack}
               </pre>
             </details>

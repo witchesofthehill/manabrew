@@ -164,8 +164,8 @@ export function DeckCollectionPanel({
         <div className="flex items-center gap-2">
           <LibraryBig className="h-4 w-4 text-primary" />
           <div>
-            <h3 className="text-ui-label font-semibold non-touch:text-sm">Collection coverage</h3>
-            <p className="text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
+            <h3 className="text-ui-label font-semibold">Collection coverage</h3>
+            <p className="text-ui-meta text-muted-foreground">
               {accountId ? `Synced to your account` : `Saved on this device`}
             </p>
           </div>
@@ -173,7 +173,7 @@ export function DeckCollectionPanel({
         <div className="flex flex-wrap items-center gap-2">
           <span
             className={cn(
-              "text-ui-meta non-touch:text-xs",
+              "text-ui-meta",
               missing.length > 0 ? "text-warning" : "text-legality-legal",
             )}
           >
@@ -188,7 +188,7 @@ export function DeckCollectionPanel({
                 : `${missing.length} cards missing`}
           </span>
           {missing.length > 0 && estimatedTotal > 0 && (
-            <span className="text-ui-meta font-mono text-muted-foreground non-touch:text-xs">
+            <span className="text-ui-meta font-mono text-muted-foreground">
               est. {provider === "cardmarket" ? "€" : provider === "cardhoarder" ? "" : "$"}
               {estimatedTotal.toFixed(2)}
               {provider === "cardhoarder" ? " tix" : ""}
@@ -198,7 +198,7 @@ export function DeckCollectionPanel({
             <Button
               size="xs"
               variant="ghost"
-              className="h-auto touch:min-h-11 touch:min-w-11 whitespace-normal text-ui-label non-touch:h-7 non-touch:whitespace-nowrap"
+              className="h-auto touch:min-h-11 touch:min-w-11 whitespace-normal text-ui-label"
               onClick={onOptimizeOwnedPrintings}
             >
               <Sparkles className="h-3.5 w-3.5" /> Use owned printings
@@ -208,7 +208,7 @@ export function DeckCollectionPanel({
             <Button
               size="xs"
               variant="ghost"
-              className="h-auto touch:min-h-11 touch:min-w-11 whitespace-normal text-ui-label non-touch:h-7 non-touch:whitespace-nowrap"
+              className="h-auto touch:min-h-11 touch:min-w-11 whitespace-normal text-ui-label"
               onClick={exportMissing}
             >
               <Download className="h-3.5 w-3.5" /> Missing CSV
@@ -265,10 +265,8 @@ export function DeckCollectionPanel({
                   view === "grid" && "mt-2",
                 )}
               >
-                <span className="min-w-0 flex-1 break-words text-ui-label non-touch:text-xs">
-                  {entry.name}
-                </span>
-                <span className="text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
+                <span className="min-w-0 flex-1 break-words text-ui-label">{entry.name}</span>
+                <span className="text-ui-meta text-muted-foreground">
                   {ownership.get(key)?.status === "partial"
                     ? `partially owned · need ${ownership.get(key)?.shortage ?? entry.quantity}`
                     : `not owned · need ${ownership.get(key)?.shortage ?? entry.quantity}`}
@@ -276,7 +274,7 @@ export function DeckCollectionPanel({
                 <Input
                   type="number"
                   min="0"
-                  className="min-h-9 h-auto touch:min-h-11 touch:min-w-11 w-20 text-right font-mono text-ui-input non-touch:text-xs non-touch:h-7 non-touch:min-h-0 non-touch:w-16"
+                  className="min-h-9 h-auto touch:min-h-11 touch:min-w-11 w-20 text-right font-mono text-ui-input"
                   aria-label={`Owned copies of ${entry.name}`}
                   value={collectionQuantityForName(quantities, entry.name)}
                   onChange={(event) =>

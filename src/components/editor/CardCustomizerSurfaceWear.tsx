@@ -24,7 +24,7 @@ export function CardCustomizerSurfaceWear({
         onChange={(event) => onWearChange(event.currentTarget.value)}
       />
       <output
-        className="w-12 shrink-0 text-right text-ui-meta text-muted-foreground non-touch:text-xs"
+        className="w-12 shrink-0 text-right text-ui-meta text-muted-foreground"
         aria-hidden="true"
       >
         {wear === "mixed" ? "Mixed" : `${Math.round(Number(wear) * 1000) / 10}%`}

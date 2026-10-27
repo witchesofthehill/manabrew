@@ -1,4 +1,4 @@
-import { getUiControlHeight, getUiFontSize, UI_FONT_FAMILY, isTouchUi } from "@/themes/typography";
+import { getUiControlHeight, getUiFontSize, UI_FONT_FAMILY } from "@/themes/typography";
 import {
   Container,
   Graphics,
@@ -43,7 +43,7 @@ export class HandCardControls extends Container {
     super();
     this.theme = theme;
     this.baseControlSize = controlSize;
-    this.controlSize = getUiControlHeight(controlSize);
+    this.controlSize = Math.max(controlSize, getUiControlHeight());
     this.eventMode = "passive";
     this.visible = false;
   }
@@ -74,7 +74,7 @@ export class HandCardControls extends Container {
   }
 
   private redraw(): void {
-    this.controlSize = getUiControlHeight(this.baseControlSize);
+    this.controlSize = Math.max(this.baseControlSize, getUiControlHeight());
     this.removeChildren().forEach((child) => child.destroy({ children: true }));
     this.buttons.length = 0;
     const spec = this.spec;
@@ -199,7 +199,7 @@ export class HandCardControls extends Container {
       style: new TextStyle({
         fill: this.theme.appTheme["popover-foreground"],
         fontFamily: UI_FONT_FAMILY,
-        fontSize: getUiFontSize("meta", 10),
+        fontSize: getUiFontSize("meta"),
         fontWeight: "600",
       }),
     });
@@ -216,7 +216,7 @@ export class HandCardControls extends Container {
     centerX: number,
   ): void {
     tooltip.label.text = text;
-    const height = isTouchUi() ? tooltip.label.height + 8 : 20;
+    const height = tooltip.label.height + 8;
     const width = tooltip.label.width + TOOLTIP_PAD_X * 2;
     tooltip.label.position.set(TOOLTIP_PAD_X, Math.round((height - tooltip.label.height) / 2));
     tooltip.background

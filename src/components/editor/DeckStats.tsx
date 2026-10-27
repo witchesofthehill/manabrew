@@ -62,14 +62,12 @@ export function DeckStats({
   return (
     <section className={cn(EDITOR_PANEL_CLASS, compact && "px-3 py-3 sm:px-3")}>
       <div className={cn("flex flex-wrap items-baseline gap-2.5", compact ? "mb-3" : "mb-5")}>
-        {showHeader && (
-          <h3 className="text-ui-label font-semibold non-touch:text-base">Mana Curve</h3>
-        )}
-        <span className="text-ui-meta text-muted-foreground/70 non-touch:text-xs">
+        {showHeader && <h3 className="text-ui-label font-semibold">Mana Curve</h3>}
+        <span className="text-ui-meta text-muted-foreground/70">
           {spells.length} spells &middot; {lands.length} lands
         </span>
         {unknown.length > 0 && (
-          <span className="text-ui-meta text-warning non-touch:text-xs" title={`CMC unknown`}>
+          <span className="text-ui-meta text-warning" title={`CMC unknown`}>
             {unknown.length} ?
           </span>
         )}
@@ -83,7 +81,7 @@ export function DeckStats({
                 <div key={i} className="flex-1 text-center">
                   <span
                     className={cn(
-                      "text-ui-meta font-mono tabular-nums transition-colors non-touch:text-sm non-touch:leading-none",
+                      "text-ui-meta font-mono tabular-nums transition-colors",
                       count === 0 && "text-transparent select-none",
                       count > 0 && (hoveredBucket === i ? "text-foreground" : "text-foreground/80"),
                     )}
@@ -142,29 +140,29 @@ export function DeckStats({
                         side="top"
                         className="z-20 w-max max-w-[min(20rem,calc(100vw-2rem))] max-h-[70dvh] overflow-y-auto rounded-md border bg-popover p-3 text-popover-foreground shadow-xl"
                       >
-                        <p className="mb-1.5 text-ui-meta font-semibold non-touch:text-xs">
+                        <p className="mb-1.5 text-ui-meta font-semibold">
                           {count} card{count === 1 ? "" : "s"} at {CMC_BUCKET_LABELS[i]} mana
                         </p>
                         <div className="space-y-0.5">
                           {entries.slice(0, TOOLTIP_MAX_NAMES).map(([name, n]) => (
                             <div
                               key={name}
-                              className="flex items-baseline gap-1.5 text-ui-label text-muted-foreground non-touch:text-xs"
+                              className="flex items-baseline gap-1.5 text-ui-label text-muted-foreground"
                             >
-                              <span className="min-w-3 shrink-0 text-right text-ui-meta font-mono tabular-nums non-touch:text-[length:inherit] non-touch:leading-[inherit] non-touch:w-3 non-touch:min-w-0">
+                              <span className="min-w-3 shrink-0 text-right text-ui-meta font-mono tabular-nums">
                                 {n}
                               </span>
                               <span className="break-words">{name}</span>
                             </div>
                           ))}
                           {entries.length > TOOLTIP_MAX_NAMES && (
-                            <p className="pt-0.5 text-ui-meta text-muted-foreground/60 non-touch:text-[10px] non-touch:leading-[inherit]">
+                            <p className="pt-0.5 text-ui-meta text-muted-foreground/60">
                               +{entries.length - TOOLTIP_MAX_NAMES} more
                             </p>
                           )}
                         </div>
                         {onBucketClick && (
-                          <p className="mt-1.5 border-t border-border/40 pt-1.5 text-ui-meta text-muted-foreground/60 non-touch:text-[10px] non-touch:leading-[inherit]">
+                          <p className="mt-1.5 border-t border-border/40 pt-1.5 text-ui-meta text-muted-foreground/60">
                             {isActive ? `Click to clear the filter` : `Click to filter the deck`}
                           </p>
                         )}
@@ -180,7 +178,7 @@ export function DeckStats({
                 <div key={i} className="flex-1 text-center">
                   <span
                     className={cn(
-                      "text-ui-meta transition-colors non-touch:text-xs",
+                      "text-ui-meta transition-colors",
                       hoveredBucket === i || activeBucket === i
                         ? "text-foreground"
                         : "text-muted-foreground",
@@ -194,7 +192,7 @@ export function DeckStats({
           </div>
         </div>
       ) : (
-        <p className="text-ui-body text-muted-foreground italic text-center py-6 non-touch:text-xs">
+        <p className="text-ui-body text-muted-foreground italic text-center py-6">
           {cards.length === 0 ? `No cards in deck.` : `Add non-land cards to see the curve.`}
         </p>
       )}

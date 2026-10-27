@@ -186,17 +186,17 @@ export function PlaymatEditorModal({
                 </div>
               )}
               {dragActive && (
-                <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-md border-2 border-dashed border-primary bg-overlay/50 text-ui-label font-medium text-primary-foreground non-touch:text-sm">
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-md border-2 border-dashed border-primary bg-overlay/50 text-ui-label font-medium text-primary-foreground">
                   Drop image to use as playmat
                 </div>
               )}
             </div>
             {settings.fit === "cover" && (
-              <p className="text-ui-meta text-muted-foreground non-touch:text-xs">
+              <p className="text-ui-meta text-muted-foreground">
                 Drag to reposition · scroll or pinch to zoom · drop or paste an image
               </p>
             )}
-            <label className="touch:min-h-11 mt-1 flex cursor-pointer items-center gap-2 text-ui-label text-muted-foreground non-touch:text-xs">
+            <label className="touch:min-h-11 mt-1 flex cursor-pointer items-center gap-2 text-ui-label text-muted-foreground">
               <Checkbox
                 checked={showSampleCards}
                 onCheckedChange={(v) => setShowSampleCards(v === true)}
@@ -207,7 +207,7 @@ export function PlaymatEditorModal({
 
           {uploadAvailable && (
             <section className="space-y-2.5">
-              <Label className="text-ui-label font-semibold uppercase tracking-wide text-muted-foreground non-touch:text-xs">
+              <Label className="text-ui-label font-semibold uppercase tracking-wide text-muted-foreground">
                 Background image
               </Label>
               <input
@@ -252,7 +252,7 @@ export function PlaymatEditorModal({
           {playmat && (
             <section className="space-y-2.5">
               <div className="flex items-center gap-1.5">
-                <Label className="text-ui-label font-semibold uppercase tracking-wide text-muted-foreground non-touch:text-xs">
+                <Label className="text-ui-label font-semibold uppercase tracking-wide text-muted-foreground">
                   Image
                 </Label>
                 <Tooltip>
@@ -274,9 +274,7 @@ export function PlaymatEditorModal({
                 </Tooltip>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-ui-label font-medium text-muted-foreground non-touch:text-xs">
-                  Placement
-                </Label>
+                <Label className="text-ui-label font-medium text-muted-foreground">Placement</Label>
                 <div className="inline-flex w-full rounded-lg border bg-muted/40 p-1">
                   {(["cover", "fit", "stretch"] as const).map((mode) => (
                     <button
@@ -284,7 +282,7 @@ export function PlaymatEditorModal({
                       type="button"
                       onClick={() => update({ fit: mode })}
                       className={cn(
-                        "touch:min-w-11 touch:min-h-11 flex-1 rounded-md px-3 py-1.5 text-ui-label font-medium capitalize transition-colors non-touch:text-xs",
+                        "touch:min-w-11 touch:min-h-11 flex-1 rounded-md px-3 py-1.5 text-ui-label font-medium capitalize transition-colors",
                         settings.fit === mode
                           ? "bg-selection text-selection-foreground shadow-sm"
                           : "text-muted-foreground hover:text-foreground",
@@ -297,7 +295,7 @@ export function PlaymatEditorModal({
               </div>
               {settings.fit === "cover" && (
                 <div className="space-y-1.5">
-                  <Label className="text-ui-label font-medium text-muted-foreground non-touch:text-xs">
+                  <Label className="text-ui-label font-medium text-muted-foreground">
                     Vertical framing
                   </Label>
                   <div className="inline-flex w-full rounded-lg border bg-muted/40 p-1">
@@ -367,7 +365,7 @@ export function PlaymatEditorModal({
           )}
 
           <section className="space-y-2.5">
-            <Label className="text-ui-label font-semibold uppercase tracking-wide text-muted-foreground non-touch:text-xs">
+            <Label className="text-ui-label font-semibold uppercase tracking-wide text-muted-foreground">
               Table
             </Label>
             <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))]">
@@ -380,15 +378,13 @@ export function PlaymatEditorModal({
                 onChange={(v) => update({ texture: v / 100 })}
               />
               <div className="space-y-2 rounded-lg border bg-card/40 p-3">
-                <Label className="text-ui-label font-medium non-touch:text-xs">
-                  Background color
-                </Label>
+                <Label className="text-ui-label font-medium">Background color</Label>
                 <div className="flex items-center gap-2">
                   <input
                     type="color"
                     value={settings.color || "#000000"}
                     onChange={(e) => update({ color: clampPlaymatColor(e.target.value) })}
-                    className="touch:min-h-11 min-h-8 w-10 shrink-0 cursor-pointer rounded border border-input bg-transparent p-0.5 non-touch:h-8 non-touch:min-h-0"
+                    className="touch:min-h-11 min-h-8 w-10 shrink-0 cursor-pointer rounded border border-input bg-transparent p-0.5"
                   />
                   <input
                     value={bgHex}
@@ -401,7 +397,7 @@ export function PlaymatEditorModal({
                     onBlur={() => setBgHex(settings.color)}
                     spellCheck={false}
                     autoComplete="off"
-                    className="touch:min-h-11 min-h-8 min-w-0 flex-1 rounded border border-input bg-background px-2 font-mono text-ui-input uppercase non-touch:text-xs non-touch:h-8 non-touch:min-h-0"
+                    className="touch:min-h-11 min-h-8 min-w-0 flex-1 rounded border border-input bg-background px-2 font-mono text-ui-input uppercase"
                   />
                   {settings.color && (
                     <Button
@@ -419,7 +415,7 @@ export function PlaymatEditorModal({
           </section>
 
           <section className="space-y-2.5">
-            <Label className="text-ui-label font-semibold uppercase tracking-wide text-muted-foreground non-touch:text-xs">
+            <Label className="text-ui-label font-semibold uppercase tracking-wide text-muted-foreground">
               Border
             </Label>
             <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))]">
@@ -432,13 +428,13 @@ export function PlaymatEditorModal({
                 onChange={(v) => update({ borderWidth: v })}
               />
               <div className="space-y-2 rounded-lg border bg-card/40 p-3">
-                <Label className="text-ui-label font-medium non-touch:text-xs">Color</Label>
+                <Label className="text-ui-label font-medium">Color</Label>
                 <div className="flex items-center gap-2">
                   <input
                     type="color"
                     value={settings.borderColor}
                     onChange={(e) => update({ borderColor: clampBorderColor(e.target.value) })}
-                    className="touch:min-h-11 min-h-8 w-10 shrink-0 cursor-pointer rounded border border-input bg-transparent p-0.5 non-touch:h-8 non-touch:min-h-0"
+                    className="touch:min-h-11 min-h-8 w-10 shrink-0 cursor-pointer rounded border border-input bg-transparent p-0.5"
                   />
                   <input
                     value={borderHex}
@@ -450,7 +446,7 @@ export function PlaymatEditorModal({
                     onBlur={() => setBorderHex(settings.borderColor)}
                     spellCheck={false}
                     autoComplete="off"
-                    className="touch:min-h-11 min-h-8 min-w-0 flex-1 rounded border border-input bg-background px-2 font-mono text-ui-input uppercase non-touch:text-xs non-touch:h-8 non-touch:min-h-0"
+                    className="touch:min-h-11 min-h-8 min-w-0 flex-1 rounded border border-input bg-background px-2 font-mono text-ui-input uppercase"
                   />
                 </div>
               </div>
@@ -515,12 +511,12 @@ function SliderControl({
   return (
     <div className="group space-y-2.5 rounded-lg border bg-card/40 p-3 transition-colors hover:border-primary/40">
       <div className="flex items-center justify-between">
-        <Label className="text-ui-label font-medium non-touch:text-xs">{label}</Label>
-        <span className="rounded-full bg-primary/10 px-2 py-0.5 font-mono text-ui-meta font-semibold tabular-nums text-primary non-touch:text-[11px] non-touch:leading-[inherit]">
+        <Label className="text-ui-label font-medium">{label}</Label>
+        <span className="rounded-full bg-primary/10 px-2 py-0.5 font-mono text-ui-meta font-semibold tabular-nums text-primary">
           {value}
         </span>
       </div>
-      <div className="relative flex min-h-4 touch:min-h-11 items-center non-touch:h-4 non-touch:min-h-0">
+      <div className="relative flex min-h-4 touch:min-h-11 items-center">
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
           <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
         </div>

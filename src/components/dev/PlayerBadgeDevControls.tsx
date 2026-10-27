@@ -135,7 +135,7 @@ export function PlayerBadgeDevControls() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className={DEV_SECTION_HEADING}>Player HUD</p>
-            <p className="mt-1 text-ui-body text-muted-foreground non-touch:text-xs">
+            <p className="mt-1 text-ui-body text-muted-foreground">
               Override every player's HUD with the same values.
             </p>
           </div>
@@ -143,7 +143,7 @@ export function PlayerBadgeDevControls() {
             {dirty ? (
               <button
                 type="button"
-                className="min-h-8 touch:min-h-11 text-ui-label font-medium uppercase tracking-wide text-muted-foreground hover:text-destructive non-touch:text-[10px] non-touch:min-h-0 non-touch:leading-[inherit]"
+                className="min-h-8 touch:min-h-11 text-ui-label font-medium uppercase tracking-wide text-muted-foreground hover:text-destructive"
                 onClick={reset}
               >
                 Reset players
@@ -152,7 +152,7 @@ export function PlayerBadgeDevControls() {
           </DevSearchable>
         </div>
 
-        <p className="mb-2 mt-4 text-ui-label font-medium uppercase tracking-wide text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
+        <p className="mb-2 mt-4 text-ui-label font-medium uppercase tracking-wide text-muted-foreground">
           Identity
         </p>
         <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
@@ -166,7 +166,7 @@ export function PlayerBadgeDevControls() {
           ))}
         </div>
 
-        <p className="mb-2 mt-4 text-ui-label font-medium uppercase tracking-wide text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
+        <p className="mb-2 mt-4 text-ui-label font-medium uppercase tracking-wide text-muted-foreground">
           Game badges
         </p>
         <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
@@ -180,7 +180,7 @@ export function PlayerBadgeDevControls() {
           ))}
         </div>
 
-        <p className="mb-2 mt-4 text-ui-label font-medium uppercase tracking-wide text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
+        <p className="mb-2 mt-4 text-ui-label font-medium uppercase tracking-wide text-muted-foreground">
           States
         </p>
         <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
@@ -194,7 +194,7 @@ export function PlayerBadgeDevControls() {
           ))}
         </div>
 
-        <p className="mb-2 mt-4 text-ui-label font-medium uppercase tracking-wide text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
+        <p className="mb-2 mt-4 text-ui-label font-medium uppercase tracking-wide text-muted-foreground">
           Player rules
         </p>
         <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
@@ -208,7 +208,7 @@ export function PlayerBadgeDevControls() {
           ))}
         </div>
 
-        <p className="mb-2 mt-4 text-ui-label font-medium uppercase tracking-wide text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
+        <p className="mb-2 mt-4 text-ui-label font-medium uppercase tracking-wide text-muted-foreground">
           Mana pool
         </p>
         <div className="grid gap-1.5 sm:grid-cols-2">
@@ -223,7 +223,7 @@ export function PlayerBadgeDevControls() {
           ))}
         </div>
 
-        <p className="mb-2 mt-4 text-ui-label font-medium uppercase tracking-wide text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
+        <p className="mb-2 mt-4 text-ui-label font-medium uppercase tracking-wide text-muted-foreground">
           Values
         </p>
         <div className="grid gap-1.5 sm:grid-cols-2">

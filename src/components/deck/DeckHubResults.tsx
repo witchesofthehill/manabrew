@@ -84,22 +84,18 @@ export function DeckHubResults({
         <div className={cn("p-4 sm:px-6 lg:px-8", shortTouch && "p-2 sm:px-4")}>
           {!isTouch && (
             <div className="mb-3 flex items-center justify-between gap-3">
-              <p className="text-ui-meta text-muted-foreground non-touch:text-xs">
+              <p className="text-ui-meta text-muted-foreground">
                 {loaded
                   ? `${total.toLocaleString()} ${total === 1 ? "publication" : "publications"}`
                   : "Loading publications…"}
               </p>
-              {loading && loaded && (
-                <p className="text-ui-meta text-muted-foreground non-touch:text-xs">Updating…</p>
-              )}
+              {loading && loaded && <p className="text-ui-meta text-muted-foreground">Updating…</p>}
             </div>
           )}
           {error ? (
             <div className="rounded-lg border border-dashed p-8 text-center">
-              <p className="text-ui-body font-medium non-touch:text-sm">
-                Community could not be loaded
-              </p>
-              <p className="mt-1 text-ui-meta text-muted-foreground non-touch:text-xs">{error}</p>
+              <p className="text-ui-body font-medium">Community could not be loaded</p>
+              <p className="mt-1 text-ui-meta text-muted-foreground">{error}</p>
               <Button variant="outline" size="sm" className="mt-4" onClick={onRetry}>
                 Retry
               </Button>
@@ -126,7 +122,7 @@ export function DeckHubResults({
                   <p className="mt-3 text-lg font-semibold">
                     {hasFilters ? "No publications match" : "No decks here yet"}
                   </p>
-                  <p className="mt-1 max-w-sm text-ui-body text-muted-foreground non-touch:text-sm">
+                  <p className="mt-1 max-w-sm text-ui-body text-muted-foreground">
                     {hasFilters
                       ? "Try broadening the filters or searching for another card or commander."
                       : "Publish a version from My Decks to make its exact card snapshot discoverable."}
@@ -173,7 +169,7 @@ export function DeckHubResults({
                               label
                             )}
                           </h2>
-                          <span className="text-ui-meta text-muted-foreground non-touch:text-xs">
+                          <span className="text-ui-meta text-muted-foreground">
                             {groupedEntries.length}
                           </span>
                         </div>
@@ -197,13 +193,10 @@ export function DeckHubResults({
                       </div>
                     </section>
                   ))}
-                  <div
-                    ref={loadMoreRef}
-                    className="flex min-h-14 items-center justify-center non-touch:h-14 non-touch:min-h-0"
-                  >
+                  <div ref={loadMoreRef} className="flex min-h-14 items-center justify-center">
                     {loading && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
                     {!hasMore && entries.length > 0 && (
-                      <span className="text-ui-meta text-muted-foreground non-touch:text-xs">
+                      <span className="text-ui-meta text-muted-foreground">
                         You’ve reached the end of Community.
                       </span>
                     )}

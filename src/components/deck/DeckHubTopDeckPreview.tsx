@@ -39,7 +39,7 @@ export function DeckHubTopDeckPreview({ onOpen, onAuthor }: DeckHubTopDeckPrevie
         </div>
         <Link
           to={ROUTES.HUB_TOP}
-          className="flex min-h-8 shrink-0 items-center gap-1 text-ui-label font-medium text-primary hover:underline touch:min-h-11 touch:min-w-11 non-touch:text-xs"
+          className="flex min-h-8 shrink-0 items-center gap-1 text-ui-label font-medium text-primary hover:underline touch:min-h-11 touch:min-w-11"
         >
           See rankings
           <ArrowRight className="h-3.5 w-3.5" />

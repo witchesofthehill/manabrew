@@ -21,6 +21,8 @@ export const CARD_FOIL_INSTANCE_FIELDS = [
   ["hasCoverage", 1],
   ["facePrepared", 1],
   ["printingPrepared", 1],
+  ["faceEncoding", 2],
+  ["printingEncoding", 2],
   ["regularPrinting", 1],
   ["wearInfo", 2],
   ["cardNormal", 3],
@@ -68,6 +70,8 @@ const ownFields = [
   "hasCoverage",
   "facePrepared",
   "printingPrepared",
+  "faceEncoding",
+  "printingEncoding",
   "regularPrinting",
   "wearInfo",
   "cardNormal",
@@ -109,7 +113,6 @@ const quadVertex = `in vec2 aPosition; in vec2 aUV;
 uniform mat3 uProjectionMatrix; uniform mat3 uWorldTransformMatrix;
 out vec2 vUV;`;
 const deformationSampling = `
-// Match Card Glint 0.6 gpu/deformation-shader cardSource; the SDK does not export it.
 vec2 cardSource(vec2 local){
  float phase=${surfaceSeed(1)}*6.28318530718;
  return local+heatDeformation*vec2(
@@ -129,8 +132,15 @@ const commonSampling = `
 vec3 linearInk(vec3 c) {
   return mix(c/12.92,pow(max((c+.055)/1.055,vec3(0.)),vec3(2.4)),step(vec3(.04045),c));
 }
-vec4 decodeInk(vec4 ink,float prepared) {
-  return vec4(linearInk(ink.rgb/mix(max(ink.a,.00001),1.,prepared)),ink.a);
+vec3 encodedInk(vec3 c) {
+  return mix(c*12.92,1.055*pow(max(c,vec3(0.)),vec3(1./2.4))-.055,step(vec3(.0031308),c));
+}
+vec4 decodeInk(vec4 ink,vec2 encoding) {
+  if(encoding.x>.5){
+    if(encoding.y>.5)ink.rgb=encodedInk(ink.rgb);
+    ink.rgb=linearInk(ink.rgb/max(ink.a,.00001));
+  }else if(encoding.y<.5)ink.rgb=linearInk(ink.rgb);
+  return ink;
 }
 vec2 faceUv(vec2 uv) {
   return mix(mix(uUvTop.xy,uUvTop.zw,uv.x),mix(uUvBottom.xy,uUvBottom.zw,uv.x),uv.y);
@@ -140,11 +150,16 @@ float glintSampleMask(vec2 uv);
 `;
 const programs = new Map<string, GlProgram>();
 
-export function getCardFoilProgram(instanced: boolean, procedural: boolean): GlProgram {
-  const key = `${instanced}:${procedural}`;
+export function getCardFoilProgram(
+  instanced: boolean,
+  procedural: boolean,
+  kind: number,
+): GlProgram {
+  const key = `${instanced}:${procedural}:${kind}`;
   const cached = programs.get(key);
   if (cached) return cached;
   const pair = instanced;
+  const surface = kind >= 5 && kind < 8;
   const vertex = `#version 300 es
 precision highp float;
 precision highp int;
@@ -210,41 +225,69 @@ uniform sampler2D face; uniform sampler2D mask;
 uniform sampler2D printing; uniform sampler2D coverage;`
 }
 ${commonSampling}
+#define GLINT_HOST_BINDINGS
+#define GLINT_FACE_SIZE_BINDING
+#define GLINT_POINTER_BINDING
+const float previewKind=${kind.toFixed(1)};
+uniform vec2 facePixelSize;
+uniform float hasMask;
+uniform float aspect;
+uniform vec2 pointer;
+uniform vec4 artBounds${pair ? ";" : "[8];"}
+${pair ? "uniform vec4 artBounds2;" : ""}
 #define flat uniform
 #define in
 ${foilShader({ sampling: "host", artWindows: pair ? "pair" : "array", liquid: false })}
-${procedural ? PRINT_DOTS_GLSL : ""}
-vec4 glintSurfaceTexture(sampler2D inputMap,vec2 uv);
+${
+  procedural
+    ? `vec4 glintPrintCellFace(vec2 uv);
+#define GLINT_PRINT_CELL_FACE(uv) glintPrintCellFace(uv)
+#define GLINT_PRINT_PROCEDURAL
+${PRINT_DOTS_GLSL}`
+    : ""
+}
+${
+  surface
+    ? `vec4 glintSurfaceTexture(sampler2D inputMap,vec2 uv);
 #define texture glintSurfaceTexture
 ${SURFACE_GLSL}
 #undef texture
-vec4 glintSurfaceTexture(sampler2D inputMap,vec2 uv){return texture(inputMap,vec2(uv.x,1.-uv.y));}
+vec4 glintSurfaceTexture(sampler2D inputMap,vec2 uv){return texture(inputMap,vec2(uv.x,1.-uv.y));}`
+    : "uniform float surfaceTime;"
+}
 ${WORN_GLSL}
 ${CARDSTOCK_GLSL}
 #undef in
 #undef flat
 ${deformationSampling}
 vec4 rawFace(vec2 uv){
- return decodeInk(${instanced ? "texture(faces,vec3(vec2(uv.x,mix(1.-uv.y,uv.y,facePrepared)),layerIds.x))" : "texture(face,vec2(uv.x,mix(1.-uv.y,uv.y,facePrepared)))"},facePrepared);
+ return decodeInk(${instanced ? "texture(faces,vec3(vec2(uv.x,mix(1.-uv.y,uv.y,facePrepared)),layerIds.x))" : "texture(face,vec2(uv.x,mix(1.-uv.y,uv.y,facePrepared)))"},faceEncoding);
+}
+${
+  procedural
+    ? `vec4 glintPrintCellFace(vec2 uv){
+ return decodeInk(${instanced ? "textureLod(faces,vec3(vec2(uv.x,mix(1.-uv.y,uv.y,facePrepared)),layerIds.x),0.)" : "textureLod(face,vec2(uv.x,mix(1.-uv.y,uv.y,facePrepared)),0.)"},faceEncoding);
+}`
+    : ""
 }
 float inArtwork(vec2 uv){
  ${pair ? "return float((all(greaterThanEqual(uv,artBounds.xy))&&all(lessThanEqual(uv,artBounds.zw))&&artBounds.z>artBounds.x)||(all(greaterThanEqual(uv,artBounds2.xy))&&all(lessThanEqual(uv,artBounds2.zw))&&artBounds2.z>artBounds2.x));" : "for(int i=0;i<8;i++){vec4 b=artBounds[i];if(b.z>b.x&&all(greaterThanEqual(uv,b.xy))&&all(lessThanEqual(uv,b.zw)))return 1.;}return 0.;"}
 }
-vec4 dots(vec4 ink,vec2 uv,float enabled){
- ${procedural ? "if(enabled>.5&&(printArtwork>.5||inArtwork(uv)<.5))ink.rgb=previewLinear(printDotInk(previewInk(ink.rgb),uv));" : ""}
+vec4 dots(vec4 ink,vec2 uv,float enabled,bool localSource){
+ ${procedural ? "if(enabled>.5&&(printArtwork>.5||inArtwork(uv)<.5)){printUseLocalSource=localSource;ink.rgb=previewLinear(printDotInk(previewInk(ink.rgb),uv));}" : ""}
  return ink;
 }
-vec4 glintSampleFace(vec2 uv){return dots(rawFace(uv),uv,faceProcedural);}
+vec4 glintSampleFace(vec2 uv){return dots(rawFace(uv),uv,faceProcedural,false);}
 float glintSampleMask(vec2 uv){vec2 p=vec2(uv.x,mix(1.-uv.y,uv.y,maskBottomUp));return ${instanced ? "texture(masks,vec3(p,layerIds.y)).r" : "texture(mask,p).r"};}
 vec4 rawPrinting(vec2 uv){
- return decodeInk(${instanced ? "texture(printings,vec3(vec2(uv.x,mix(1.-uv.y,uv.y,printingPrepared)),layerIds.z))" : "texture(printing,vec2(uv.x,mix(1.-uv.y,uv.y,printingPrepared)))"},printingPrepared);
+ return decodeInk(${instanced ? "texture(printings,vec3(vec2(uv.x,mix(1.-uv.y,uv.y,printingPrepared)),layerIds.z))" : "texture(printing,vec2(uv.x,mix(1.-uv.y,uv.y,printingPrepared)))"},printingEncoding);
 }
-vec4 finishPrinting(vec2 uv){return dots(rawPrinting(uv),uv,printingProcedural);}
+vec4 finishPrinting(vec2 uv){return dots(rawPrinting(uv),uv,printingProcedural,true);}
 float finishCoverage(vec2 uv){return hasCoverage>.5?${instanced ? "texture(coverages,vec3(uv.x,1.-uv.y,layerIds.w)).r" : "texture(coverage,vec2(uv.x,1.-uv.y)).r"}:1.;}
 vec3 modernSurface(vec2 uv,vec3 normal,vec3 view,vec2 pixel){
  vec3 base=glintSampleFace(uv).rgb;
  vec3 ink=previewInk(base);
- vec3 color=regularPrinting>0.?ink:previewKind>=5.&&previewKind<8.?animatedSurface(uv,normal):previewFoil(uv,normal,view);
+ vec3 color=regularPrinting>0.?ink:${surface ? "animatedSurface(uv,normal)" : "previewFoil(uv,normal,view)"};
  if(regularPrinting<1.)color=cardstockGloss(uv,ink,color);
  if(wearInfo.x>0.)color=wornSurface(uv,ink,color,normal,view,wearInfo.y,wearInfo.x,previewKind==9.?1.:step(.5,previewKind)*(1.-step(4.5,previewKind)),pixel);
  vec3 under=mix(base,previewLinear(color),finishCoverage(uv));

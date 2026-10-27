@@ -1,6 +1,7 @@
 import {
   faceFrame,
   splitPanels,
+  withCardWording,
   type RenderedCardInput,
   type FrameColor,
   type SecurityStamp,
@@ -209,7 +210,7 @@ export function cardGlintBaseline(
     const stamp = snapshot.security_stamp as SecurityStamp | undefined;
     const provider = prepared.printing[index]?.provider;
     const matchFrame = !legacyFrame || legacyFrame === "printing";
-    const result: SemanticCardInput = {
+    let result: SemanticCardInput = {
       name: part.name,
       canonicalTypeLine: canonicalType,
       typeLine: part.type_line_display,
@@ -224,15 +225,6 @@ export function cardGlintBaseline(
           : undefined,
       manaSymbols: [...part.mana_cost.matchAll(/\{([^{}]+)\}/g)].map((match) => match[1]!),
       rulesText: part.levelerRules ?? part.oracle_text,
-      rulesParagraphs: [
-        ...part.oracle_text
-          .split("\n")
-          .filter(Boolean)
-          .map((text) => ({ role: "rules" as const, runs: [{ text }] })),
-        ...(part.flavor_text
-          ? [{ role: "flavor" as const, runs: [{ text: part.flavor_text, italic: true }] }]
-          : []),
-      ],
       illustration: prepared.artUrls[index] ?? null,
       power: part.levelerBase?.power ?? part.power,
       toughness: part.levelerBase?.toughness ?? part.toughness,
@@ -284,6 +276,18 @@ export function cardGlintBaseline(
           }
         : {}),
     };
+    result = withCardWording(
+      result,
+      {
+        oracle: {
+          typeLine: result.typeLine ?? "",
+          rulesText: result.rulesText ?? "",
+          flavorText: part.flavor_text,
+        },
+      },
+      "oracle",
+      { includeFlavorText: true, symbolStyle: result.symbolStyle },
+    );
     if (part.liveChanges) result.textInk = resolveLiveChanges(part.liveChanges, result);
     if (part.prototype) {
       const prototype = part.prototype;

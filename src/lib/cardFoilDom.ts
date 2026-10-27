@@ -10,6 +10,7 @@ import { createCardFoilShader, type CardFoilShader } from "@/pixi/effects/cardFo
 import type { CardFoilRegion } from "@/lib/cardFinish";
 import type { CardCosmetics, CardFinish } from "@/protocol/deck";
 import { getCardGpuTimingStats } from "@/lib/cardRenderGpuTiming";
+import { packCardFoilAtlas } from "@/lib/cardFoilAtlas";
 
 export type CardFoilSource = HTMLCanvasElement | HTMLImageElement;
 
@@ -36,6 +37,7 @@ interface FoilEntry {
   source: CardFoilSource | null;
   texture: Texture | null;
   finish: CardFoilShader;
+  mesh: CardFoilMesh | null;
   revision: string;
   dirty: boolean;
   uploadDirty: boolean;
@@ -58,9 +60,19 @@ interface FoilEntry {
 interface FoilRenderer {
   renderer: WebGLRenderer;
   stage: Container;
-  finish: CardFoilShader;
-  mesh: CardFoilMesh;
+  atlasEdge: number;
   contextLost: boolean;
+}
+
+interface FoilOutput {
+  entry: FoilEntry;
+  source: CardFoilSource;
+  mesh: CardFoilMesh;
+  width: number;
+  height: number;
+  originX: number;
+  originY: number;
+  resolution: number;
 }
 
 const entries = new Set<FoilEntry>();
@@ -72,6 +84,8 @@ const FRAME_INTERVAL = 1000 / 30;
 const MAX_FOIL_RESOLUTION = 2;
 const NO_ART_WINDOWS: readonly CardFoilRegion[] = [];
 const MAX_FOIL_EDGE = 1024;
+const MAX_ATLAS_PIXELS = 4 * 1024 * 1024;
+const ATLAS_GAP = 2;
 const domStats = {
   renders: 0,
   outputCopies: 0,
@@ -106,6 +120,9 @@ function contextLost(event?: Event) {
 
 function contextRestored() {
   if (!shared || shared.renderer.gl.isContextLost()) return;
+  shared.atlasEdge = atlasEdge(shared.renderer);
+  if (shared.renderer.width > shared.atlasEdge || shared.renderer.height > shared.atlasEdge)
+    shared.renderer.resize(1, 1);
   shared.contextLost = false;
   domStats.restores++;
   for (const entry of entries) entry.sourceUploadPending = !!entry.texture;
@@ -114,8 +131,7 @@ function contextRestored() {
 
 function disposeRenderer() {
   if (!shared) return;
-  shared.stage.destroy({ children: true });
-  shared.finish.destroy();
+  shared.stage.destroy();
   shared.renderer.canvas.removeEventListener("webglcontextlost", contextLost);
   shared.renderer.canvas.removeEventListener("webglcontextrestored", contextRestored);
   shared.renderer.destroy();
@@ -136,6 +152,8 @@ function restoreSource(entry: FoilEntry) {
 
 function releaseTexture(entry: FoilEntry) {
   restoreSource(entry);
+  entry.mesh?.destroy();
+  entry.mesh = null;
   if (!entry.texture) return;
   entry.finish.setTexture(null);
   entry.texture.destroy(true);
@@ -157,17 +175,30 @@ function visibilityChanged() {
   }
 }
 
+function atlasEdge(renderer: WebGLRenderer) {
+  const gl = renderer.gl;
+  return Math.floor(
+    Math.min(
+      gl.getParameter(gl.MAX_TEXTURE_SIZE),
+      gl.getParameter(gl.MAX_RENDERBUFFER_SIZE),
+      Math.sqrt(MAX_ATLAS_PIXELS),
+    ),
+  );
+}
+
 function ensureRenderer() {
   if (shared || starting) return;
   const renderer = new WebGLRenderer();
   starting = renderer
     .init({ width: 1, height: 1, backgroundAlpha: 0, antialias: false, resolution: 1 })
     .then(() => {
-      const finish = createCardFoilShader(requestFrame);
-      const mesh = new CardFoilMesh(finish, "dom");
       const stage = new Container();
-      stage.addChild(mesh);
-      shared = { renderer, finish, mesh, stage, contextLost: renderer.gl.isContextLost() };
+      shared = {
+        renderer,
+        stage,
+        atlasEdge: atlasEdge(renderer),
+        contextLost: renderer.gl.isContextLost(),
+      };
       renderer.canvas.addEventListener("webglcontextlost", contextLost);
       renderer.canvas.addEventListener("webglcontextrestored", contextRestored);
       if (!entries.size) disposeRenderer();
@@ -360,6 +391,131 @@ function updateUvs(
   entry.resolution = resolution;
 }
 
+function prepareOutput(entry: FoilEntry, now: number, edge: number): FoilOutput | null {
+  const source = entry.dirty ? updateSource(entry) : entry.source;
+  if (!source || !entry.texture) {
+    entry.context.clearRect(0, 0, entry.canvas.width, entry.canvas.height);
+    entry.canvas.dataset.foilState = "unavailable";
+    restoreSource(entry);
+    entry.dirty = false;
+    return null;
+  }
+  const width = entry.host.clientWidth;
+  const height = entry.host.clientHeight;
+  if (
+    !width ||
+    !height ||
+    !entry.host.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })
+  )
+    return null;
+  let resolution = Math.min(
+    window.devicePixelRatio || 1,
+    MAX_FOIL_RESOLUTION,
+    MAX_FOIL_EDGE / Math.max(width, height),
+  );
+  if (entry.dirty || entry.resolution !== resolution)
+    updateUvs(entry, source, width, height, resolution);
+  const paddedEdge = Math.max(
+    Math.max(1, Math.round(width * resolution)) + Math.round(entry.paddingX * resolution) * 2,
+    Math.max(1, Math.round(height * resolution)) + Math.round(entry.paddingY * resolution) * 2,
+  );
+  if (paddedEdge + ATLAS_GAP * 2 > edge) {
+    resolution *= (edge - ATLAS_GAP * 2 - 4) / paddedEdge;
+    updateUvs(entry, source, width, height, resolution);
+  }
+  const pixelWidth = Math.max(1, Math.round(width * resolution));
+  const pixelHeight = Math.max(1, Math.round(height * resolution));
+  const originX = Math.round(entry.paddingX * resolution);
+  const originY = Math.round(entry.paddingY * resolution);
+  const outputWidth = pixelWidth + originX * 2;
+  const outputHeight = pixelHeight + originY * 2;
+  if (entry.canvas.width !== outputWidth || entry.canvas.height !== outputHeight) {
+    entry.canvas.width = outputWidth;
+    entry.canvas.height = outputHeight;
+  }
+  const finish = entry.finish;
+  finish.setTexture(entry.texture, entry.uvs);
+  finish.uniforms.uSize[0] = width;
+  finish.uniforms.uSize[1] = height;
+  finish.uniforms.uRadius = 0;
+  const animated = entry.options.animated;
+  if (!animated) finish.uniforms.pointer.fill(0.5);
+  else if (entry.hovering) finish.uniforms.pointer.set(entry.pointer);
+  else {
+    const phase = (now * Math.PI * 2) / 6400;
+    finish.uniforms.pointer[0] = 0.5 + Math.sin(phase) * 0.18;
+    finish.uniforms.pointer[1] = 0.5 + Math.sin(phase * 2) * 0.12;
+  }
+  finish.update(animated ? now / 1000 : 0, animated && entry.hovering);
+  const mesh = (entry.mesh ??= new CardFoilMesh(finish, "dom"));
+  mesh.scale.set(pixelWidth, pixelHeight);
+  return {
+    entry,
+    source,
+    mesh,
+    width: outputWidth,
+    height: outputHeight,
+    originX,
+    originY,
+    resolution,
+  };
+}
+
+function copyOutput(renderer: WebGLRenderer, output: FoilOutput, atlasX: number, atlasY: number) {
+  const { entry, source, mesh, width, height, originX, originY, resolution } = output;
+  if (!mesh.rendered) {
+    restoreSource(entry);
+    entry.context.clearRect(0, 0, width, height);
+    entry.canvas.dataset.foilState = "unavailable";
+    entry.dirty = true;
+    return;
+  }
+  if (entry.sourceUploadPending && entry.texture) {
+    domStats.sourceUploads++;
+    domStats.sourceUploadBytes +=
+      entry.texture.source.pixelWidth * entry.texture.source.pixelHeight * 4;
+    entry.sourceUploadPending = false;
+  }
+  entry.context.clearRect(0, 0, width, height);
+  const x = Math.max(0, originX + entry.clip[0] * resolution);
+  const y = Math.max(0, originY + entry.clip[1] * resolution);
+  const clippedWidth = Math.min(width, originX + entry.clip[2] * resolution) - x;
+  const clippedHeight = Math.min(height, originY + entry.clip[3] * resolution) - y;
+  if (clippedWidth > 0 && clippedHeight > 0) {
+    entry.context.drawImage(
+      renderer.canvas,
+      atlasX + x,
+      atlasY + y,
+      clippedWidth,
+      clippedHeight,
+      x,
+      y,
+      clippedWidth,
+      clippedHeight,
+    );
+    domStats.outputCopies++;
+  }
+  entry.canvas.dataset.foilState = clippedWidth > 0 && clippedHeight > 0 ? "ready" : "unavailable";
+  if (entry.finish.uniforms.heatDeformation > 0 && clippedWidth > 0 && clippedHeight > 0) {
+    if (entry.hiddenSource !== source) {
+      restoreSource(entry);
+      entry.hiddenSource = source;
+      entry.sourceOpacity = source.style.getPropertyValue("opacity");
+      entry.sourceOpacityPriority = source.style.getPropertyPriority("opacity");
+      source.style.setProperty("opacity", "0");
+    }
+  } else restoreSource(entry);
+  entry.dirty = false;
+}
+
+function outputFailed(entry: FoilEntry, error: unknown) {
+  entry.context.clearRect(0, 0, entry.canvas.width, entry.canvas.height);
+  entry.canvas.dataset.foilState = "unavailable";
+  console.error("Card Glint foil could not render the displayed face", error);
+  releaseTexture(entry);
+  entry.dirty = false;
+}
+
 function renderFrame(now: number) {
   frame = 0;
   if (!shared || document.hidden || shared.contextLost) return;
@@ -372,67 +528,37 @@ function renderFrame(now: number) {
     return;
   }
   lastFrame = now;
-  let animate = false;
-  const { renderer, mesh, stage } = shared;
+  const { renderer, stage, atlasEdge: edge } = shared;
+  const outputs: FoilOutput[] = [];
   for (const entry of entries) {
-    if (!entry.visible) continue;
-    const finish = entry.finish;
-    const animated = entry.options.animated;
-    if (!entry.dirty && !animated) continue;
-    const source = entry.dirty ? updateSource(entry) : entry.source;
-    if (!source || !entry.texture) {
-      entry.context.clearRect(0, 0, entry.canvas.width, entry.canvas.height);
-      entry.dirty = false;
-      continue;
-    }
-    const width = entry.host.clientWidth;
-    const height = entry.host.clientHeight;
-    if (
-      !width ||
-      !height ||
-      !entry.host.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })
-    )
-      continue;
-    const resolution = Math.min(
-      window.devicePixelRatio || 1,
-      MAX_FOIL_RESOLUTION,
-      MAX_FOIL_EDGE / Math.max(width, height),
-    );
-    const pixelWidth = Math.max(1, Math.round(width * resolution));
-    const pixelHeight = Math.max(1, Math.round(height * resolution));
-    if (entry.dirty || entry.resolution !== resolution)
-      updateUvs(entry, source, width, height, resolution);
-    const originX = Math.round(entry.paddingX * resolution);
-    const originY = Math.round(entry.paddingY * resolution);
-    const outputWidth = pixelWidth + originX * 2;
-    const outputHeight = pixelHeight + originY * 2;
-    if (entry.canvas.width !== outputWidth || entry.canvas.height !== outputHeight) {
-      entry.canvas.width = outputWidth;
-      entry.canvas.height = outputHeight;
-    }
-    finish.setTexture(entry.texture, entry.uvs);
-    mesh.shader = finish.shader;
-    mesh.finish = finish;
-    finish.uniforms.uSize[0] = width;
-    finish.uniforms.uSize[1] = height;
-    finish.uniforms.uRadius = 0;
-    if (!animated) finish.uniforms.pointer.fill(0.5);
-    else if (entry.hovering) finish.uniforms.pointer.set(entry.pointer);
-    else {
-      const phase = (now * Math.PI * 2) / 6400;
-      finish.uniforms.pointer[0] = 0.5 + Math.sin(phase) * 0.18;
-      finish.uniforms.pointer[1] = 0.5 + Math.sin(phase * 2) * 0.12;
-    }
-    mesh.scale.set(pixelWidth, pixelHeight);
-    mesh.position.set(originX, originY);
-    if (renderer.width < outputWidth || renderer.height < outputHeight) {
-      renderer.resize(
-        Math.max(renderer.width, outputWidth),
-        Math.max(renderer.height, outputHeight),
-      );
-    }
+    if (!entry.visible || (!entry.dirty && !entry.options.animated)) continue;
     try {
-      finish.update(animated ? now / 1000 : 0, animated && entry.hovering);
+      const output = prepareOutput(entry, now, edge);
+      if (output) outputs.push(output);
+    } catch (error) {
+      if (renderer.gl.isContextLost()) {
+        contextLost();
+        return;
+      }
+      outputFailed(entry, error);
+    }
+  }
+  const pages = packCardFoilAtlas(outputs, edge, ATLAS_GAP);
+  let width = renderer.width;
+  let height = renderer.height;
+  for (const page of pages) {
+    width = Math.max(width, page.width);
+    height = Math.max(height, page.height);
+  }
+  if (renderer.width !== width || renderer.height !== height) renderer.resize(width, height);
+  let animate = false;
+  for (const page of pages) {
+    try {
+      for (const { item, x, y } of page.placements) {
+        item.mesh.position.set(x + item.originX, y + item.originY);
+        item.mesh.rendered = false;
+        stage.addChild(item.mesh);
+      }
       renderer.gl.pixelStorei(renderer.gl.UNPACK_ALIGNMENT, 1);
       const started = performance.now();
       renderer.render(stage);
@@ -442,54 +568,23 @@ function renderFrame(now: number) {
       }
       domStats.cpuSubmissionMs += performance.now() - started;
       domStats.renders++;
-      if (entry.sourceUploadPending) {
-        domStats.sourceUploads++;
-        domStats.sourceUploadBytes +=
-          entry.texture.source.pixelWidth * entry.texture.source.pixelHeight * 4;
-        entry.sourceUploadPending = false;
-      }
-      entry.context.clearRect(0, 0, outputWidth, outputHeight);
-      const x = Math.max(0, originX + entry.clip[0] * resolution);
-      const y = Math.max(0, originY + entry.clip[1] * resolution);
-      const clippedWidth = Math.min(outputWidth, originX + entry.clip[2] * resolution) - x;
-      const clippedHeight = Math.min(outputHeight, originY + entry.clip[3] * resolution) - y;
-      if (clippedWidth > 0 && clippedHeight > 0) {
-        entry.context.drawImage(
-          renderer.canvas,
-          x,
-          y,
-          clippedWidth,
-          clippedHeight,
-          x,
-          y,
-          clippedWidth,
-          clippedHeight,
-        );
-        domStats.outputCopies++;
-      }
-      entry.canvas.dataset.foilState =
-        clippedWidth > 0 && clippedHeight > 0 ? "ready" : "unavailable";
-      if (finish.uniforms.heatDeformation > 0 && clippedWidth > 0 && clippedHeight > 0) {
-        if (entry.hiddenSource !== source) {
-          restoreSource(entry);
-          entry.hiddenSource = source;
-          entry.sourceOpacity = source.style.getPropertyValue("opacity");
-          entry.sourceOpacityPriority = source.style.getPropertyPriority("opacity");
-          source.style.setProperty("opacity", "0");
+      for (const { item, x, y } of page.placements) {
+        try {
+          copyOutput(renderer, item, x, y);
+          animate ||= item.entry.dirty || item.entry.options.animated;
+        } catch (error) {
+          outputFailed(item.entry, error);
         }
-      } else restoreSource(entry);
+      }
     } catch (error) {
       if (renderer.gl.isContextLost()) {
         contextLost();
         return;
       }
-      entry.context.clearRect(0, 0, outputWidth, outputHeight);
-      entry.canvas.dataset.foilState = "unavailable";
-      console.error("Card Glint foil could not render the displayed face", error);
-      releaseTexture(entry);
+      for (const { item } of page.placements) outputFailed(item.entry, error);
+    } finally {
+      stage.removeChildren();
     }
-    entry.dirty = false;
-    animate ||= animated && !!entry.texture;
   }
   if (animate) requestFrame();
 }
@@ -512,6 +607,7 @@ export function registerDomCardFoil(
       entry.dirty = true;
       requestFrame();
     }),
+    mesh: null,
     revision: "",
     dirty: true,
     uploadDirty: false,
@@ -630,8 +726,6 @@ export function registerDomCardFoil(
       host.removeEventListener("pointermove", pointer);
       host.removeEventListener("pointerleave", leave);
       releaseTexture(entry);
-      if (shared?.mesh.shader === entry.finish.shader) shared.mesh.shader = shared.finish.shader;
-      if (shared?.mesh.finish === entry.finish) shared.mesh.finish = shared.finish;
       entry.finish.destroy();
       context.clearRect(0, 0, canvas.width, canvas.height);
       canvas.width = 1;

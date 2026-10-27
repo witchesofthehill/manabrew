@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+### Features
+
+- Add saved Card Glint calibration policies and named M21/Eighth profiles to Customize, with per-face inheritance, SDK coverage reports, and compatibility checks.
+- Advertise `card_cosmetics_v3` and reject calibration-bearing deck selections on older relays without changing saved decks.
+
+### Fixes
+
+- Specialize host Card Glint shaders for the requested finish and omit animated surface code from other finishes.
+- Defer host foil shader readiness and reuse completed Pixi programs without relinking; keep Heat source content visible while GPU resources are pending.
+- Render DOM foil overlays in bounded atlas pages before copying their output crops.
+- Upgrade Card Glint to 0.7.3 for updated native frame calibration and heading placement, with matching offline and finish-cache revisions.
+
 ## [3.65.3](https://github.com/witchesofthehill/manabrew/compare/v3.65.2...v3.65.3) (2026-10-27)
 
 ### Fixes
@@ -130,6 +144,8 @@
 * Preserve translated leveler abilities and reminders in native card rendering.
 * Match Realistic print-dot previews to production without changing scan finish geometry.
 * Check relay support for new card materials before submitting a customized deck.
+* Upgrade Card Glint to 0.6.12, adopting its printing defaults and Oracle flavor selection while preserving explicit cosmetic overrides.
+* Prepare print dots and cardstock on each renderer's GPU, preserving bounded batching caches and restoring cached printing correctly after context loss.
 
 ## [3.62.2](https://github.com/witchesofthehill/manabrew/compare/v3.62.1...v3.62.2) (2026-10-21)
 

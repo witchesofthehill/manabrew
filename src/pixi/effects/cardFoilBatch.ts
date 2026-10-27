@@ -28,6 +28,8 @@ import {
   getCardGpuTimingStats,
   type CardGpuTimer,
 } from "@/lib/cardRenderGpuTiming";
+import { CardFinishGpuResources } from "@/lib/cardFinishResources";
+import { CardFoilProgramSystem } from "./cardFoilProgramSystem";
 
 const MAX_INSTANCES = 32;
 const MIN_BATCH_VARYING_VECTORS = 12;
@@ -45,6 +47,7 @@ export class CardFoilMesh extends Mesh<MeshGeometry, Shader> {
   override readonly renderPipeId = "cardFoil";
   finish: CardFoilShader;
   readonly presentation: "board" | "dom";
+  rendered = false;
   constructor(finish: CardFoilShader, presentation: "board" | "dom" = "board") {
     super({ geometry: finish.geometry, shader: finish.shader });
     this.finish = finish;
@@ -92,13 +95,21 @@ function sameSharedUniforms(
 class CardFoilPipe {
   static extension = { type: ExtensionType.WebGLPipes, name: "cardFoil" } as const;
   private readonly arrays: CardFoilTextureArrays;
+  private readonly finishes: CardFinishGpuResources;
   private readonly residency = new Map<CardFoilMesh, MeshResidency>();
   private readonly shaders = new Map<number, Shader>();
   private readonly instructions = new Set<BatchInstruction>();
+  private readonly pending = new Set<CardFoilMesh>();
   private readonly gpuTimers: Partial<Record<CardFoilMesh["presentation"], CardGpuTimer>> = {};
   private readonly resetGpuTiming = () => {
     this.gpuTimers.board?.reset();
     this.gpuTimers.dom?.reset();
+    for (const instruction of this.instructions) {
+      for (const mesh of instruction.meshes) {
+        mesh.rendered = false;
+        mesh.finish.invalidate();
+      }
+    }
   };
   private supported: boolean | undefined;
   private readonly restore = () => {
@@ -114,6 +125,7 @@ class CardFoilPipe {
   constructor(renderer: WebGLRenderer) {
     this.renderer = renderer;
     this.arrays = new CardFoilTextureArrays(renderer);
+    this.finishes = new CardFinishGpuResources(renderer);
     renderer.runners.renderStart.add(this);
     renderer.runners.renderEnd.add(this);
     renderer.runners.init.add(this);
@@ -121,6 +133,7 @@ class CardFoilPipe {
 
   init(): void {
     this.arrays.init();
+    this.finishes.init();
     this.renderer.canvas.addEventListener("webglcontextlost", this.resetGpuTiming);
     this.renderer.canvas.addEventListener("webglcontextrestored", this.restore);
   }
@@ -259,22 +272,54 @@ class CardFoilPipe {
     const gl = renderer.gl as WebGL2RenderingContext;
     instruction.used = this.epoch;
     this.instructions.add(instruction);
+    this.pending.clear();
+    for (const mesh of instruction.meshes) {
+      if (!mesh.isRenderable) continue;
+      let ready = true;
+      for (const role of ROLES) {
+        const source = mesh.finish.textures[role].source;
+        const prepared = this.finishes.prepare(source, mesh.finish.invalidate);
+        if (prepared === null) ready = false;
+        else if (prepared) this.arrays.invalidate(source);
+      }
+      if (
+        this.finishes.prepare(
+          mesh.finish.shader.resources.cardstockMap as Texture["source"],
+          mesh.finish.invalidate,
+        ) === null
+      )
+        ready = false;
+      if (!ready) {
+        if (mesh.rendered) mesh.finish.invalidate();
+        mesh.rendered = false;
+        this.pending.add(mesh);
+      }
+    }
     let first = 0;
     let drawIndex = 0;
     while (first < instruction.meshes.length) {
       const mesh = instruction.meshes[first];
-      if (!mesh.isRenderable) {
+      if (!mesh.isRenderable || this.pending.has(mesh)) {
         first++;
         continue;
       }
       const finish = mesh.finish;
+      const programs = renderer.shader as CardFoilProgramSystem;
       const resident =
         this.supported && instruction.meshes.length > 1 && finish.artWindowCount <= 2
           ? this.getResidency(mesh)
           : null;
       if (!resident) {
+        if (!programs.ready(finish.shader.glProgram, finish.invalidate)) {
+          if (mesh.rendered) finish.invalidate();
+          mesh.rendered = false;
+          first++;
+          continue;
+        }
         gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
         renderer.renderPipes.mesh.execute(mesh as unknown as Mesh);
+        if (!mesh.rendered) finish.invalidate();
+        mesh.rendered = true;
         if (mesh.presentation === "dom") cardFoilBatchCounters.domDraws++;
         else {
           cardFoilBatchCounters.draws++;
@@ -285,6 +330,13 @@ class CardFoilPipe {
       }
       const procedural =
         finish.uniforms.faceProcedural > 0 || finish.uniforms.printingProcedural > 0;
+      const program = getCardFoilProgram(true, procedural, finish.uniforms.previewKind);
+      if (!programs.ready(program, finish.invalidate)) {
+        if (mesh.rendered) finish.invalidate();
+        mesh.rendered = false;
+        first++;
+        continue;
+      }
       const lighting = finish.uniforms.studioLighting;
       const time = finish.uniforms.surfaceTime;
       const cardstock = finish.shader.resources.cardstockMap;
@@ -299,6 +351,7 @@ class CardFoilPipe {
           cursor++;
           continue;
         }
+        if (this.pending.has(next)) break;
         const other = next.finish;
         if (
           other.artWindowCount > 2 ||
@@ -393,11 +446,12 @@ class CardFoilPipe {
           cardFoilBatchCounters.instanceUploadBytes += draw.rows[row].byteLength;
         }
       }
-      const key = lighting * 4 + (procedural ? 2 : 0) + (time === 0 ? 1 : 0);
+      const kind = finish.uniforms.previewKind;
+      const key = kind * 8 + lighting * 4 + (procedural ? 2 : 0) + (time === 0 ? 1 : 0);
       let shader = this.shaders.get(key);
       if (!shader) {
         shader = new Shader({
-          glProgram: getCardFoilProgram(true, procedural),
+          glProgram: program,
           resources: {
             frameUniforms: new UniformGroup(
               {
@@ -471,6 +525,12 @@ class CardFoilPipe {
         state: mesh.state,
         instanceCount: count,
       });
+      for (let index = first; index < cursor; index++) {
+        const drawn = instruction.meshes[index];
+        if (!drawn.isRenderable) continue;
+        if (!drawn.rendered) drawn.finish.invalidate();
+        drawn.rendered = true;
+      }
       shader.resources.instanceData =
         shader.resources.faces =
         shader.resources.masks =
@@ -502,6 +562,7 @@ class CardFoilPipe {
       for (const draw of instruction.draws) draw.source.destroy();
     for (const shader of this.shaders.values()) shader.destroy(false);
     this.arrays.destroy();
+    this.finishes.destroy();
     this.instructions.clear();
     this.shaders.clear();
   }

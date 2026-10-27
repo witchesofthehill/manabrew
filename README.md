@@ -173,6 +173,11 @@ prebuilt JavaScript, declarations and WASM; no separate renderer build, private
 registry or access token is needed. Vite ships the matching renderer WASM beside
 its versioned JavaScript chunk and includes the package license notices.
 
+Customize exposes saved printing calibration policies and the compatible M21/Eighth
+profiles, including per-face overrides and SDK coverage reports. New calibration
+settings require a relay advertising `card_cosmetics_v3`. See the
+[0.7.3 integration report and manual checklist](docs/CARD_GLINT_0_7_3_INTEGRATION.md).
+
 ### Optional: per-checkout environment with direnv
 
 If you use [direnv](https://direnv.net/), the committed `.envrc` loads a

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Features
+
+- Add saved Card Glint calibration policies and named M21/Eighth profiles to Customize, with per-face inheritance, SDK coverage reports, and compatibility checks.
+- Advertise `card_cosmetics_v3` and reject calibration-bearing deck selections on older relays without changing saved decks.
+
 ### Fixes
 
 - Specialize host Card Glint shaders for the requested finish and omit animated surface code from other finishes.

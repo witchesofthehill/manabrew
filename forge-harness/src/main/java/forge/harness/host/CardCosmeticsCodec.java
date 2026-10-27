@@ -162,9 +162,10 @@ final class CardCosmeticsCodec {
     }
 
     private static JsonObject overrides(final JsonElement value, final boolean inherited) {
-        final JsonObject object = object(value, Set.of("artist", "legalText", "collectorNumber", "collectorTotal",
+        final JsonObject object = object(value, Set.of("calibration", "artist", "legalText", "collectorNumber", "collectorTotal",
                 "collectorFormat", "collectorLanguage", "collectorSetCode", "styleSetCode", "frameColors",
                 "futureTreatment", "setSymbolCode", "setSymbolMask", "symbolStyle", "borderColor", "securityStamp", "elements"));
+        enumeration(object, "calibration", Set.of("auto", "printing", "source", "m21-modern", "8ed-eighth"));
         for (final String key : new String[] {"artist", "legalText", "collectorNumber"}) {
             text(object, key, 2048, null);
         }

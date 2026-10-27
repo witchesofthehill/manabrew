@@ -1034,7 +1034,7 @@ class WebServerApi implements IServerApi {
   private announcedRoom: string | null = null;
   private relayRttMs: number | null = null;
   private planeQualityReporting = false;
-  private cardCosmeticsVersion: 0 | 1 | 2 = 0;
+  private cardCosmeticsVersion: 0 | 1 | 2 | 3 = 0;
   private pingSentAt: number | null = null;
   private directTransportOptIn = usePreferencesStore.getState().directTransport;
   private roomTransport = false;
@@ -1429,6 +1429,19 @@ class WebServerApi implements IServerApi {
         "This server does not support this deck's print-dot artwork settings or Heat deformation. Update the server before selecting this deck.",
       );
     }
+    if (
+      this.cardCosmeticsVersion < 3 &&
+      deckHasCardCosmetics(
+        params.deck,
+        (cosmetics) =>
+          cosmetics.printing?.overrides?.calibration !== undefined ||
+          !!cosmetics.printing?.faces?.some((face) => face.overrides?.calibration !== undefined),
+      )
+    ) {
+      throw new Error(
+        "This server does not support this deck's printing calibration. Update the server before selecting this deck.",
+      );
+    }
     this.send({
       type: "SetDeckSelection",
       deck_name: params.deckName,
@@ -1811,11 +1824,13 @@ class WebServerApi implements IServerApi {
     if (type === "AuthResult") {
       this.cardCosmeticsVersion =
         msg.success && Array.isArray(msg.features)
-          ? msg.features.includes("card_cosmetics_v2")
-            ? 2
-            : msg.features.includes("card_cosmetics")
-              ? 1
-              : 0
+          ? msg.features.includes("card_cosmetics_v3")
+            ? 3
+            : msg.features.includes("card_cosmetics_v2")
+              ? 2
+              : msg.features.includes("card_cosmetics")
+                ? 1
+                : 0
           : 0;
     }
     if (type === "AuthResult" && msg.success) {

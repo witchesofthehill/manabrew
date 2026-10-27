@@ -97,6 +97,21 @@ pub enum CardPrintingPreset {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "deck/index.ts")]
+pub enum CardPrintingCalibration {
+    #[serde(rename = "auto")]
+    Auto,
+    #[serde(rename = "printing")]
+    Printing,
+    #[serde(rename = "source")]
+    Source,
+    #[serde(rename = "m21-modern")]
+    M21Modern,
+    #[serde(rename = "8ed-eighth")]
+    Eighth,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "deck/index.ts")]
 pub enum CardArtMode {
     #[serde(rename = "window")]
     Window,
@@ -252,6 +267,9 @@ pub struct CardPrintingElements {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[ts(export, export_to = "deck/index.ts")]
 pub struct CardPrintingOverrides {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub calibration: Option<CardPrintingCalibration>,
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",

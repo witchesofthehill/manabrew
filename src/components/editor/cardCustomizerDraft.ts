@@ -1,7 +1,13 @@
 import { DEFAULT_PRINT_DOTS } from "card-glint/finish";
 import { cardCosmeticsKey, normalizeCardCosmetics, randomCardWearSeed } from "@/lib/cardCosmetics";
 import { resolveCardWearAmount } from "@/lib/cardFinish";
-import type { CardCosmetics, CardPrintingFace, DeckCard } from "@/protocol/deck";
+import type {
+  CardCosmetics,
+  CardPrintingCalibration,
+  CardPrintingFace,
+  CardPrintingSelection,
+  DeckCard,
+} from "@/protocol/deck";
 import { availablePrintingFoil, getCardPrintingPatch } from "@/stores/useDeckStore";
 import type { ScryfallCard } from "@/types/scryfall";
 
@@ -51,6 +57,35 @@ export function changeCustomizationPrinting(
         : original
           ? !!draft.source.identity.foil
           : availablePrintingFoil(draft.source.identity, printing),
+  };
+}
+
+export function changeCustomizationCalibration(
+  draft: CardCustomizationDraft,
+  value: CardPrintingCalibration | undefined,
+  faceIndex?: 0 | 1,
+): CardCustomizationDraft {
+  const printing: CardPrintingSelection = draft.cosmetics?.printing ?? {
+    version: 1,
+    preset: "match",
+  };
+  const faces = [...(printing.faces ?? [])];
+  if (faceIndex !== undefined) {
+    while (faces.length <= faceIndex) faces.push({});
+    const face = faces[faceIndex]!;
+    faces[faceIndex] = { ...face, overrides: { ...face.overrides, calibration: value } };
+  }
+  return {
+    ...draft,
+    cosmetics: normalizeCardCosmetics({
+      ...draft.cosmetics,
+      printing: {
+        ...printing,
+        ...(faceIndex === undefined
+          ? { overrides: { ...printing.overrides, calibration: value } }
+          : { faces }),
+      },
+    }),
   };
 }
 

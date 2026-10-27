@@ -6,6 +6,7 @@ import { CardGlintInspect } from "@/components/editor/CardGlintInspect";
 import { CardPrintingPicker } from "@/components/editor/CardPrintingPicker";
 import { useCardCustomizerDraft } from "@/components/editor/useCardCustomizerDraft";
 import { useCardCustomizerEligibility } from "@/components/editor/useCardCustomizerEligibility";
+import { useCardCustomizerCalibration } from "@/components/editor/useCardCustomizerCalibration";
 import { customizationSourceChanged } from "@/components/editor/cardCustomizerDraft";
 import { executeDeckEdit } from "@/components/editor/deckEditor.history";
 import { deriveTokens } from "@/lib/decks";
@@ -36,6 +37,7 @@ export function CardCustomizerModal({
   const [opening] = useState({ sessionId: editorSessionId, cardId: card.identity.id, token });
   const editor = useCardCustomizerDraft(currentDeck, card, token);
   const retroCompatible = useCardCustomizerEligibility(editor.preview);
+  const calibration = useCardCustomizerCalibration(editor.preview);
   const sessionValid =
     opening.sessionId === editorSessionId &&
     opening.cardId === card.identity.id &&
@@ -44,7 +46,11 @@ export function CardCustomizerModal({
   const tokenSupported = !token || !!resolveTokenCustomizationScript(editor.active ?? card);
   const frameSupported = editor.draft?.cosmetics?.frame !== "retro" || retroCompatible === true;
   const canSave =
-    canEdit && editor.pending && frameSupported && (tokenSupported || !editor.draft?.cosmetics);
+    canEdit &&
+    editor.pending &&
+    frameSupported &&
+    calibration.valid &&
+    (tokenSupported || !editor.draft?.cosmetics);
   const save = () => {
     const draft = editor.draft;
     if (!canSave || !draft) return;
@@ -108,6 +114,7 @@ export function CardCustomizerModal({
             tokenSupported={tokenSupported}
             retroCompatible={retroCompatible}
             frameSupported={frameSupported}
+            calibration={calibration}
           />
         </div>
         <section aria-label="Printings" className="mt-5 min-w-0 space-y-3 border-t pt-4">

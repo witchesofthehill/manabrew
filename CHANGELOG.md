@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.65.3](https://github.com/witchesofthehill/manabrew/compare/v3.65.2...v3.65.3) (2026-10-27)
+
+### Fixes
+
+* **forge:** resolve commander aliases consistently ([#1122](https://github.com/witchesofthehill/manabrew/issues/1122)) ([30b6981](https://github.com/witchesofthehill/manabrew/commit/30b6981cf5a5721866fccc505c43da0927a3bcc6))
+
 ## [3.65.2](https://github.com/witchesofthehill/manabrew/compare/v3.65.1...v3.65.2) (2026-10-27)
 
 ### Fixes

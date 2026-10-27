@@ -1,6 +1,6 @@
 import { DEFAULT_PRINT_DOTS, FinishResources, FinishTextures } from "card-glint/finish";
 import type { CardDocument } from "card-glint";
-import { BufferImageSource, CanvasSource, Texture, TextureSource } from "pixi.js";
+import { BufferImageSource, CanvasSource, GlProgram, Texture, TextureSource } from "pixi.js";
 import type { WebGLRenderer } from "pixi.js";
 import { ensureCardGlintFonts } from "@/lib/cardGlintAssets";
 import { getCardFinishSource } from "@/lib/cardOpticalLayers";
@@ -8,6 +8,7 @@ import type { CardFinishSource } from "@/lib/cardOpticalLayers";
 import { cardFinishCoverageDocument } from "@/lib/cardGlintInspectAppearance";
 import type { CardCosmetics } from "@/protocol/deck";
 import type { CardFoilRegion } from "@/lib/cardFinish";
+import { CardFoilProgramSystem } from "@/pixi/effects/cardFoilProgramSystem";
 
 export interface CardFinishMaskLease {
   texture: Texture;
@@ -128,7 +129,7 @@ let maskGeneration = 0;
 let resources: FinishResources | null = null;
 let caustics: CausticsEntry | null = null;
 let cardstock: { texture: Texture; refs: number } | null = null;
-const SDK_REVISION = "0.6.12";
+const SDK_REVISION = "0.7.3";
 
 function finishResources(): FinishResources {
   resources ??= new FinishResources();
@@ -264,6 +265,7 @@ export class CardFinishGpuResources {
   private readonly resident = new Map<TextureSource, () => void>();
   private borrowedBytes = 0;
   private program: WebGLProgram | null = null;
+  private normalization: GlProgram | null = null;
   private vao: WebGLVertexArrayObject | null = null;
   private framebuffer: WebGLFramebuffer | null = null;
   private readonly lost = () => {
@@ -272,6 +274,7 @@ export class CardFinishGpuResources {
     this.clearAccounting();
     this.prepared = new WeakMap();
     this.program = null;
+    this.normalization = null;
     this.vao = null;
     this.framebuffer = null;
   };
@@ -286,7 +289,7 @@ export class CardFinishGpuResources {
     this.renderer.canvas.addEventListener("webglcontextlost", this.lost);
   }
 
-  prepare(source: TextureSource): boolean {
+  prepare(source: TextureSource, invalidate: () => void): boolean | null {
     const finish = gpuFinishes.get(source);
     if (!finish || source.destroyed) return false;
     const renderer = this.renderer;
@@ -298,14 +301,15 @@ export class CardFinishGpuResources {
     if (finish.input) {
       const input = finish.input;
       if (input.destroyed) throw new Error("Cannot prepare printing from a destroyed source");
-      this.prepare(input);
+      if (this.prepare(input, invalidate) === null) return null;
       renderer.texture.bindSource(input, 0);
       const original = renderer.texture.getGlSource(input).texture;
       const compatible =
         (gpuFinishes.has(input) || !input.resource) &&
         input.format === "rgba8unorm-srgb" &&
         input.alphaMode === "no-premultiply-alpha";
-      const normalized = compatible ? original : this.normalize(input, original);
+      const normalized = compatible ? original : this.normalize(input, original, invalidate);
+      if (!normalized) return null;
       preparationStats.gpuHostScratchPeakBytes = Math.max(
         preparationStats.gpuHostScratchPeakBytes,
         mipBytes(source.pixelWidth, source.pixelHeight) +
@@ -374,9 +378,13 @@ export class CardFinishGpuResources {
     return true;
   }
 
-  private normalize(source: TextureSource, texture: WebGLTexture): WebGLTexture {
+  private normalize(
+    source: TextureSource,
+    texture: WebGLTexture,
+    invalidate: () => void,
+  ): WebGLTexture | null {
     const gl = this.renderer.gl as WebGL2RenderingContext;
-    if (!this.program) {
+    if (!this.normalization) {
       const vertex = `#version 300 es
       out vec2 uv;
       void main(){
@@ -404,36 +412,15 @@ export class CardFinishGpuResources {
         }else if(linearSource<.5)ink.rgb=linearInk(ink.rgb);
         color=ink;
       }`;
-      const program = gl.createProgram();
-      if (!program) throw new Error("Card finish normalization program allocation failed");
-      const shaders: WebGLShader[] = [];
-      try {
-        for (const [type, code] of [
-          [gl.VERTEX_SHADER, vertex],
-          [gl.FRAGMENT_SHADER, fragment],
-        ] as const) {
-          const shader = gl.createShader(type);
-          if (!shader) throw new Error("Card finish normalization shader allocation failed");
-          shaders.push(shader);
-          gl.shaderSource(shader, code);
-          gl.compileShader(shader);
-          if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS))
-            throw new Error(
-              gl.getShaderInfoLog(shader) ?? "Card finish normalization compile failed",
-            );
-          gl.attachShader(program, shader);
-        }
-        gl.linkProgram(program);
-        if (!gl.getProgramParameter(program, gl.LINK_STATUS))
-          throw new Error(gl.getProgramInfoLog(program) ?? "Card finish normalization link failed");
-        this.program = program;
-      } catch (error) {
-        gl.deleteProgram(program);
-        throw error;
-      } finally {
-        for (const shader of shaders) gl.deleteShader(shader);
-      }
+      this.normalization = new GlProgram({
+        vertex,
+        fragment,
+        name: "manabrew-card-finish-normalization",
+      });
     }
+    const programs = this.renderer.shader as CardFoilProgramSystem;
+    if (!programs.ready(this.normalization, invalidate)) return null;
+    this.program = programs._getProgramData(this.normalization).program;
     const output = gl.createTexture();
     this.vao ??= gl.createVertexArray();
     this.framebuffer ??= gl.createFramebuffer();
@@ -516,11 +503,11 @@ export class CardFinishGpuResources {
     const gl = this.renderer.gl as WebGL2RenderingContext;
     this.helper?.dispose();
     this.clearAccounting();
-    if (this.program) gl.deleteProgram(this.program);
     if (this.vao) gl.deleteVertexArray(this.vao);
     if (this.framebuffer) gl.deleteFramebuffer(this.framebuffer);
     this.helper = null;
     this.program = null;
+    this.normalization = null;
     this.vao = null;
     this.framebuffer = null;
     this.prepared = new WeakMap();

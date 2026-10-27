@@ -168,7 +168,7 @@ yarn install
 ```
 
 Card rendering uses the official [Card Glint](https://github.com/vishvananda/card-glint)
-0.6.12 release tarball pinned in `package.json` and `yarn.lock`. It includes
+0.7.3 release tarball pinned in `package.json` and `yarn.lock`. It includes
 prebuilt JavaScript, declarations and WASM; no separate renderer build, private
 registry or access token is needed. Vite ships the matching renderer WASM beside
 its versioned JavaScript chunk and includes the package license notices.

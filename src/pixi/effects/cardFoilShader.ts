@@ -84,6 +84,7 @@ export interface CardFoilShader {
   setArtWindows(regions: readonly CardFoilRegion[]): void;
   setExclusions(regions: readonly CardFoilRegion[]): void;
   update(time: number, hovering: boolean): void;
+  invalidate(): void;
   destroy(): void;
 }
 
@@ -410,6 +411,9 @@ export function createCardFoilShader(invalidate: () => void): CardFoilShader {
     uniforms: group.uniforms,
     geometry: resources.geometry,
     textures,
+    invalidate() {
+      if (!destroyed) invalidate();
+    },
     get artWindowCount() {
       return (opticalLease?.artWindows ?? artWindows).length;
     },

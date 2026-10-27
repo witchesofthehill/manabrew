@@ -256,7 +256,7 @@ export class CardGlintInspectScene {
   private landscape = false;
   private sourceAspect = 5 / 7;
   private pixelAspect = 5 / 7;
-  private readonly transform = new Array<number>(16).fill(0);
+  private readonly transform = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
   private readonly normal: [number, number, number] = [0, 0, 1];
   private readonly pointer: [number, number] = [0.5, 0.5];
   private readonly projection = new Float32Array(16);
@@ -481,6 +481,7 @@ export class CardGlintInspectScene {
     this.ready = false;
     try {
       inspectStats.documentPreparations += 1;
+      this.renderer.updateScene(this.instances);
       await this.renderer.ready(CARD_ID, derived.revision, controller.signal);
       if (
         controller.signal.aborted ||

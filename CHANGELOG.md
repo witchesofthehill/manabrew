@@ -5,6 +5,9 @@
 ### Fixes
 
 - Specialize host Card Glint shaders for the requested finish and omit animated surface code from other finishes.
+- Defer host foil shader readiness and reuse completed Pixi programs without relinking; keep Heat source content visible while GPU resources are pending.
+- Render DOM foil overlays in bounded atlas pages before copying their output crops.
+- Upgrade Card Glint to 0.7.3 for updated native frame calibration and heading placement, with matching offline and finish-cache revisions.
 
 ## [3.65.3](https://github.com/witchesofthehill/manabrew/compare/v3.65.2...v3.65.3) (2026-10-27)
 

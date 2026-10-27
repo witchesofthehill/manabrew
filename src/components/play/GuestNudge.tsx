@@ -35,11 +35,11 @@ export function GuestNudge() {
       <div className="flex items-start gap-3">
         <UserRound className="mt-0.5 h-4 w-4 shrink-0 text-brand-accent-foreground dark:text-primary" />
         <div className="min-w-0 flex-1 space-y-1">
-          <p className="text-sm">
-            You are playing as{" "}
+          <p className="text-ui-body">
+            You are playing as{""}
             <span className="font-semibold">{stripUsernameTag(serverUsername)}</span>.
           </p>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-ui-body text-muted-foreground">
             {accounts
               ? `Create a free account to claim your name and keep your decks on every device.`
               : `Other players see this name at the table.`}

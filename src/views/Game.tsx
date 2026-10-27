@@ -2100,9 +2100,9 @@ export default function Game({ exitTo }: GameProps = {}) {
     return <Navigate to={limitedReturn.destination ?? exitTo ?? "/lobby"} replace />;
   if (limitedReturn.error) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 px-4">
+      <div className="flex h-full min-h-0 flex-col items-center [justify-content:safe_center] gap-3 overflow-y-auto px-4 py-4 text-ui-body [&>*]:shrink-0">
         <p className="font-semibold">Game finished. Your Limited session could not be updated.</p>
-        <p className="text-sm text-destructive" role="alert">
+        <p className="text-ui-body text-destructive" role="alert">
           {limitedReturn.error}
         </p>
         <Button variant="primary" onClick={() => void limitedReturn.retry()}>
@@ -2713,10 +2713,10 @@ export default function Game({ exitTo }: GameProps = {}) {
       )}
 
       {gameView.step === "combatFirstStrikeDamage" && (
-        <div className="pointer-events-none absolute top-[calc(1rem+var(--safe-area-inset-top))] left-1/2 z-50 -translate-x-1/2">
-          <div className="flex items-center gap-2 rounded-full border border-border/70 bg-background/90 px-4 py-2 shadow-lg backdrop-blur">
-            <span className="text-sm font-semibold tracking-wide">First Strike Damage</span>
-            <span className="text-xs text-muted-foreground">
+        <div className="pointer-events-none absolute top-[calc(1rem+var(--safe-area-inset-top))] left-1/2 z-50 w-max max-w-[calc(100%-2rem)] -translate-x-1/2">
+          <div className="flex max-w-full flex-wrap items-center justify-center gap-2 rounded-full border border-border/70 bg-background/90 px-4 py-2 shadow-lg backdrop-blur">
+            <span className="text-ui-label font-semibold tracking-wide">First Strike Damage</span>
+            <span className="text-ui-meta text-muted-foreground">
               only first &amp; double strikers deal damage now
             </span>
           </div>
@@ -2774,7 +2774,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       {protocolError && (
         <div
           role="alert"
-          className="pointer-events-none absolute bottom-[calc(4rem+var(--safe-area-inset-bottom))] left-1/2 z-[9000] max-w-[min(90vw,34rem)] -translate-x-1/2 rounded-lg border border-destructive/50 bg-card/95 px-4 py-2 text-center text-sm font-semibold text-destructive shadow-xl backdrop-blur-sm"
+          className="pointer-events-none absolute bottom-[calc(4rem+var(--safe-area-inset-bottom))] left-1/2 z-[9000] max-w-[min(90vw,34rem)] -translate-x-1/2 rounded-lg border border-destructive/50 bg-card/95 px-4 py-2 text-center text-ui-meta font-semibold text-destructive shadow-xl backdrop-blur-sm"
         >
           Action rejected: {protocolError.message || protocolError.code}
         </div>
@@ -2807,7 +2807,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         createPortal(
           <div
             role="status"
-            className="pointer-events-none fixed z-[10000] max-w-[min(18rem,80vw)] -translate-x-1/2 rounded-full border border-border bg-card/95 px-3 py-2 text-center text-xs font-semibold text-foreground shadow-xl backdrop-blur-sm"
+            className="pointer-events-none fixed z-[10000] max-w-[min(18rem,80vw)] -translate-x-1/2 rounded-full border border-border bg-card/95 px-3 py-2 text-center text-ui-meta font-semibold text-foreground shadow-xl backdrop-blur-sm"
             style={{ left: ghostPos.x, top: ghostPos.y + ghostCardH / 2 + 12 }}
           >
             {dragFeedback}
@@ -2818,7 +2818,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         createPortal(
           <div
             role="alert"
-            className="pointer-events-none fixed z-[10000] max-w-[min(20rem,84vw)] -translate-x-1/2 -translate-y-full rounded-lg border border-destructive/50 bg-card/95 px-3 py-2 text-center text-xs font-semibold text-foreground shadow-xl backdrop-blur-sm"
+            className="pointer-events-none fixed z-[10000] max-w-[min(20rem,84vw)] -translate-x-1/2 -translate-y-full rounded-lg border border-destructive/50 bg-card/95 px-3 py-2 text-center text-ui-meta font-semibold text-foreground shadow-xl backdrop-blur-sm"
             style={{ left: rejectionFeedback.x, top: rejectionFeedback.y - 16 }}
           >
             Invalid drop. {rejectionFeedback.message}

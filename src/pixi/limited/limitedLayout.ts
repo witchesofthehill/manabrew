@@ -1,12 +1,13 @@
 import { GAME_CARD_SIZES } from "@/components/game/game.constants";
 import { MANA_LETTERS } from "@/themes/gameTheme";
+import { getUiFontSize, UI_FONT_FAMILY } from "@/themes/typography";
+import { CanvasTextMetrics, TextStyle } from "pixi.js";
 import type { DraftCard } from "@/types/limited";
 import type { ScryfallCard } from "@/types/scryfall";
 
 export type LimitedGrouping = "none" | "color" | "cmc" | "type" | "rarity";
 export const LIMITED_GAP = 16;
 export const LIMITED_PADDING = 16;
-export const LIMITED_GROUP_HEADER = 32;
 export const LIMITED_DRAG_THRESHOLD = 8;
 export const LIMITED_MIN_CARD_WIDTH = 60;
 export interface LimitedLayoutOptions {
@@ -22,9 +23,23 @@ export interface LimitedCell {
 }
 export interface LimitedLayout {
   cells: LimitedCell[];
-  headers: { label: string; x: number; y: number }[];
+  headers: { label: string; x: number; y: number; width: number; height: number }[];
   height: number;
   columns: number;
+}
+
+const headerStyle = new TextStyle({
+  fontFamily: UI_FONT_FAMILY,
+  fontWeight: "bold",
+  wordWrap: true,
+  breakWords: true,
+});
+
+function headerHeight(label: string, width: number): number {
+  headerStyle.fontSize = Math.max(16, getUiFontSize("label"));
+  headerStyle.lineHeight = Math.ceil(Number(headerStyle.fontSize) * 1.25);
+  headerStyle.wordWrapWidth = width;
+  return Math.ceil(CanvasTextMetrics.measureText(label, headerStyle).height) + 12;
 }
 
 function groupLabel(info: ScryfallCard | null, groupBy: LimitedGrouping): string {
@@ -115,7 +130,7 @@ function columnLayout(
   const headers: LimitedLayout["headers"] = [];
   const lanes = Math.min(labels.length, columns);
   if (!lanes) return { cells, headers, height: LIMITED_PADDING * 2, columns };
-  const laneWidth = (width - LIMITED_PADDING * 2 - (lanes - 1) * LIMITED_GAP) / lanes;
+  const laneWidth = Math.max(1, (width - LIMITED_PADDING * 2 - (lanes - 1) * LIMITED_GAP) / lanes);
   const laneColumns = Math.max(
     1,
     Math.floor((laneWidth + LIMITED_GAP) / (cardWidth + LIMITED_GAP)),
@@ -127,20 +142,21 @@ function columnLayout(
       const label = labels[start + lane];
       const cards = groups.get(label)!;
       const x = LIMITED_PADDING + lane * (laneWidth + LIMITED_GAP);
-      headers.push({ label: `${label} · ${cards.length}`, x, y });
+      const headerLabel = `${label} · ${cards.length}`;
+      const height = headerHeight(headerLabel, laneWidth);
+      headers.push({ label: headerLabel, x, y, width: laneWidth, height });
       cards.forEach((card, index) =>
         cells.push({
           card,
           x: x + (index % laneColumns) * (cardWidth + LIMITED_GAP),
-          y:
-            y + LIMITED_GROUP_HEADER + Math.floor(index / laneColumns) * (cardHeight + LIMITED_GAP),
+          y: y + height + Math.floor(index / laneColumns) * (cardHeight + LIMITED_GAP),
           width: cardWidth,
           height: cardHeight,
         }),
       );
       bandHeight = Math.max(
         bandHeight,
-        LIMITED_GROUP_HEADER + Math.ceil(cards.length / laneColumns) * (cardHeight + LIMITED_GAP),
+        height + Math.ceil(cards.length / laneColumns) * (cardHeight + LIMITED_GAP),
       );
     }
     y += bandHeight;
@@ -194,8 +210,11 @@ export function limitedLayout(
   for (const label of labels) {
     const group = groups.get(label)!;
     if (label) {
-      headers.push({ label: `${label} · ${group.length}`, x: LIMITED_PADDING, y });
-      y += LIMITED_GROUP_HEADER;
+      const headerLabel = `${label} · ${group.length}`;
+      const headerWidth = Math.max(1, width - LIMITED_PADDING * 2);
+      const height = headerHeight(headerLabel, headerWidth);
+      headers.push({ label: headerLabel, x: LIMITED_PADDING, y, width: headerWidth, height });
+      y += height;
     }
     group.forEach((card, index) =>
       cells.push({

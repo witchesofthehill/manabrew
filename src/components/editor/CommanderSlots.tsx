@@ -36,7 +36,7 @@ function CommandZoneCard({
   onRemove,
   onHover,
   onLeave,
-  onPickPrint,
+  onCustomize,
   menuActions,
 }: {
   card: DeckCard;
@@ -46,7 +46,7 @@ function CommandZoneCard({
   onRemove: () => void;
   onHover?: (card: DeckCard, event: ReactPointerEvent<HTMLElement>) => void;
   onLeave?: () => void;
-  onPickPrint?: (card: DeckCard) => void;
+  onCustomize?: (card: DeckCard) => void;
   menuActions?: CommandZoneCardMenuActions;
 }) {
   const unsupported = useIsUnsupported(card.identity.name);
@@ -90,21 +90,21 @@ function CommandZoneCard({
           <AlertTriangle className="h-3 w-3" />
         </div>
       )}
-      <div className="absolute left-1 top-1 z-20 rounded bg-overlay/75 px-1.5 py-0.5 text-[10px] font-semibold text-foreground shadow">
+      <div className="absolute left-1 top-1 z-20 rounded bg-overlay/75 px-1.5 py-0.5 text-ui-meta font-semibold text-foreground shadow">
         {label}
       </div>
       {!readOnly && (
-        <div className="absolute right-1 top-1 z-20 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 pointer-coarse:opacity-100">
-          {onPickPrint && (
+        <div className="absolute right-1 top-1 z-20 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 touch:top-auto touch:bottom-1 touch:flex-col touch:opacity-100">
+          {onCustomize && (
             <button
               type="button"
-              className="rounded-full bg-overlay/70 p-0.5 text-muted-foreground shadow transition-colors hover:text-foreground"
-              title={`Change printing`}
-              aria-label={`Change printing for ${card.identity.name}`}
+              className="touch:min-w-11 touch:min-h-11 rounded-full bg-overlay/70 p-0.5 text-muted-foreground shadow transition-colors hover:text-foreground"
+              title={`Customize card`}
+              aria-label={`Customize card for ${card.identity.name}`}
               onPointerDown={(event) => event.stopPropagation()}
               onClick={(event) => {
                 event.stopPropagation();
-                onPickPrint(card);
+                onCustomize(card);
               }}
             >
               <Palette className="h-3.5 w-3.5" />
@@ -112,7 +112,7 @@ function CommandZoneCard({
           )}
           <button
             type="button"
-            className="rounded-full bg-overlay/70 p-0.5 text-muted-foreground shadow transition-colors hover:text-destructive"
+            className="touch:min-w-11 touch:min-h-11 rounded-full bg-overlay/70 p-0.5 text-muted-foreground shadow transition-colors hover:text-destructive"
             title={`Remove ${card.identity.name} from the command zone`}
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
@@ -144,7 +144,7 @@ interface CommanderSlotsProps {
   onRemoveCommander: (card: DeckCard) => void;
   onHover?: (card: DeckCard, event: ReactPointerEvent<HTMLElement>) => void;
   onLeave?: () => void;
-  onPickPrint?: (card: DeckCard) => void;
+  onCustomize?: (card: DeckCard) => void;
   contextMenuFor?: (card: DeckCard, label: string) => CommandZoneCardMenuActions;
 }
 export function CommanderSlots({
@@ -157,7 +157,7 @@ export function CommanderSlots({
   onRemoveCommander,
   onHover,
   onLeave,
-  onPickPrint,
+  onCustomize,
   contextMenuFor,
 }: CommanderSlotsProps) {
   const [open, setOpen] = useDeckSectionOpen();
@@ -213,14 +213,14 @@ export function CommanderSlots({
     >
       <button
         type="button"
-        className="mb-1.5 flex min-h-8 items-center gap-2 rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:min-h-11"
+        className="touch:min-w-11 mb-1.5 flex min-h-8 items-center gap-2 rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring touch:min-h-11"
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
       >
         <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", !open && "-rotate-90")} />
         <Crown className="h-3.5 w-3.5 text-primary" />
-        <h3 className="text-xs font-semibold uppercase tracking-wide">Command zone</h3>
-        <span className="text-xs text-muted-foreground">Set your deck identity</span>
+        <h3 className="text-ui-label font-semibold uppercase tracking-wide">Command zone</h3>
+        <span className="text-ui-meta text-muted-foreground">Set your deck identity</span>
       </button>
       {open && (
         <div
@@ -242,7 +242,7 @@ export function CommanderSlots({
               onRemove={() => onRemoveCommander(card)}
               onHover={onHover}
               onLeave={onLeave}
-              onPickPrint={onPickPrint}
+              onCustomize={onCustomize}
               menuActions={
                 readOnly
                   ? undefined
@@ -257,7 +257,11 @@ export function CommanderSlots({
           {!readOnly && canAddAnother && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button type="button" variant="outline" className="min-h-10 gap-2 border-dashed">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="touch:min-w-11 touch:min-h-11 min-h-10 gap-2 border-dashed"
+                >
                   <Plus className="h-3.5 w-3.5" />
                   {emptyLabel}
                 </Button>
@@ -279,7 +283,7 @@ export function CommanderSlots({
                     </DropdownMenuItem>
                   ))
                 ) : (
-                  <div className="px-2 py-3 text-xs text-muted-foreground">
+                  <div className="px-2 py-3 text-ui-meta text-muted-foreground">
                     Add an eligible card to the deck first.
                   </div>
                 )}

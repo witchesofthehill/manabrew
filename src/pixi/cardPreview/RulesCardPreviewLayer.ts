@@ -251,6 +251,7 @@ export class RulesCardPreviewLayer {
   private layoutX = 0;
   private layoutY = 0;
   private layoutScale = 1;
+  private parentScale = 1;
 
   private theme: Theme;
   private frame: RulesPreviewFrameStyle;
@@ -361,7 +362,7 @@ export class RulesCardPreviewLayer {
       if (!this.spec || this.spec.embedded || this.spec.phase !== "open") return;
       gsap.killTweensOf(this.container);
       gsap.killTweensOf(this.container.scale);
-      this.layoutPanel();
+      this.rebuild();
       this.callbacks.onRenderRequested();
     });
   }
@@ -434,6 +435,12 @@ export class RulesCardPreviewLayer {
     this.viewportHeight = height;
     if (width <= EDGE_PAD * 2 || height <= EDGE_PAD * 2) this.setSpec(null);
     else if (this.spec) this.rebuild();
+  }
+
+  setParentScale(scale: number): void {
+    if (this.parentScale === scale) return;
+    this.parentScale = scale;
+    if (this.spec) this.rebuild();
   }
 
   setRasterProjection(width: number, height: number, flipping: boolean): void {
@@ -912,6 +919,8 @@ export class RulesCardPreviewLayer {
     this.canFlip = display.flippable;
     const landscape = display.horizontal;
     const measuredPanels = this.configureGeometry(landscape, display.faceIndex);
+    this.widgetHeight = this.panelHeight;
+    this.layoutScale = this.previewTransform().scale;
     this.rulesFontSize = Math.max(
       RULES_PREVIEW_FONT_SIZE,
       this.scanOverlay || station
@@ -1278,6 +1287,7 @@ export class RulesCardPreviewLayer {
         this.controls.setContent({
           width: body.contentWidth,
           maxHeight: Number.POSITIVE_INFINITY,
+          screenScale: this.layoutScale * this.parentScale,
           theme: this.theme,
           frame: this.frame,
           embedded: true,
@@ -1327,7 +1337,6 @@ export class RulesCardPreviewLayer {
       } else body.setScroll(body.scrollOffset);
     }
     if (detailsReady) this.revealHighlightedEffect = false;
-    this.widgetHeight = this.panelHeight;
     this.startHighlightedEffect();
     this.layoutPanel();
     if (
@@ -1459,6 +1468,7 @@ export class RulesCardPreviewLayer {
     view.setContent({
       width: body.contentWidth,
       maxHeight: Number.POSITIVE_INFINITY,
+      screenScale: this.layoutScale * this.parentScale,
       theme: this.theme,
       frame: this.frame,
       actions: entries,
@@ -1743,7 +1753,6 @@ export class RulesCardPreviewLayer {
       mouseY: spec.pointer.y,
       horizontal,
       hasPanel: !this.scanOverlay && spec.reserveSidePanel,
-      panelHeight: 0,
       slot: null,
       viewportRight: this.viewportWidth,
       viewportBottom: this.viewportHeight,
@@ -1751,9 +1760,8 @@ export class RulesCardPreviewLayer {
     });
   }
 
-  private layoutPanel(): void {
-    const spec = this.spec;
-    if (!spec || this.viewportWidth <= 0 || this.viewportHeight <= 0) return;
+  private previewTransform(): { scale: number; x: number; y: number } {
+    const spec = this.spec!;
     const previewScale =
       MAX_PREVIEW_SCALE * (spec.embedded ? 1 : IN_GAME_CARD_PREVIEW_SCALES[this.previewSize]);
     let scale: number;
@@ -1782,6 +1790,13 @@ export class RulesCardPreviewLayer {
       x = layout.cardLeft;
       y = layout.top;
     }
+    return { scale, x, y };
+  }
+
+  private layoutPanel(): void {
+    const spec = this.spec;
+    if (!spec || this.viewportWidth <= 0 || this.viewportHeight <= 0) return;
+    const { scale, x, y } = this.previewTransform();
     this.layoutX = x;
     this.layoutY = y;
     this.layoutScale = scale;

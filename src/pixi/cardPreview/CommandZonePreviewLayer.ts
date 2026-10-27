@@ -1,4 +1,4 @@
-import { UI_FONT_FAMILY } from "@/themes/typography";
+import { getUiControlHeight, getUiFontSize, UI_FONT_FAMILY } from "@/themes/typography";
 import {
   Container,
   Graphics,
@@ -61,7 +61,6 @@ const EDGE_PAD = 8;
 const ANCHOR_GAP = 12;
 const INTERACTION_PAD_MS = 80;
 const CAST_BUTTON_WIDTH = 54;
-const CAST_BUTTON_HEIGHT = 22;
 const CAST_BUTTON_INSET = 5;
 const CAST_BUTTON_RADIUS = 7;
 const CAST_BUTTON_ICON_SIZE = 12;
@@ -116,6 +115,7 @@ export class CommandZonePreviewLayer {
   setTheme(theme: Theme): void {
     this.theme = theme;
     for (const entry of this.entries) this.paintCastButton(entry, false);
+    this.layout();
     this.setHoveredIndex(this.hoveredIndex, true);
   }
 
@@ -282,12 +282,11 @@ export class CommandZonePreviewLayer {
         style: {
           fill: hexToNum(this.theme.appTheme["popover-foreground"]),
           fontFamily: UI_FONT_FAMILY,
-          fontSize: 10,
+          fontSize: getUiFontSize("label"),
           fontWeight: "700",
         },
       });
       castButtonIcon.anchor.set(0.5);
-      castButtonIcon.position.set(13, CAST_BUTTON_HEIGHT / 2);
       applyIcon(
         castButtonIcon,
         "card-play",
@@ -297,10 +296,9 @@ export class CommandZonePreviewLayer {
         CAST_BUTTON_ICON_SIZE,
       );
       castButtonLabel.anchor.set(0.5);
-      castButtonLabel.position.set(37, CAST_BUTTON_HEIGHT / 2);
       castButton.eventMode = "static";
       castButton.cursor = "pointer";
-      castButton.hitArea = new Rectangle(0, 0, CAST_BUTTON_WIDTH, CAST_BUTTON_HEIGHT);
+      castButton.hitArea = new Rectangle();
       castButton.addChild(castButtonBackground, castButtonIcon, castButtonLabel);
       const entry: PreviewEntry = {
         sprite,
@@ -375,9 +373,10 @@ export class CommandZonePreviewLayer {
       entry.bounds.set(x, y, width, height);
       entry.sprite.position.set(x + width / 2, y + height / 2);
       entry.sprite.scale.set(scale);
+      entry.sprite.setHandRulesScale(scale);
       entry.sprite.setChromeScale(1 / scale);
       entry.castButton.position.set(
-        x + width - CAST_BUTTON_WIDTH - CAST_BUTTON_INSET,
+        x + width - this.castButtonWidth(entry) - CAST_BUTTON_INSET,
         y + CAST_BUTTON_INSET,
       );
       x += width + PREVIEW_GAP;
@@ -512,13 +511,30 @@ export class CommandZonePreviewLayer {
     this.interactionTimer = null;
   }
 
+  private castButtonWidth(entry: PreviewEntry): number {
+    return Math.max(
+      CAST_BUTTON_WIDTH,
+      getUiControlHeight(),
+      entry.castButtonLabel.width + CAST_BUTTON_ICON_SIZE + 24,
+    );
+  }
+
   private paintCastButton(entry: PreviewEntry, hovered: boolean): void {
     const foreground = hovered
       ? this.theme.appTheme["primary-foreground"]
       : this.theme.appTheme["popover-foreground"];
+    entry.castButtonLabel.style.fontSize = getUiFontSize("label");
+    const width = this.castButtonWidth(entry);
+    const height = Math.max(getUiControlHeight(), entry.castButtonLabel.height + 12);
+    entry.castButtonIcon.position.set(13, height / 2);
+    entry.castButtonLabel.position.set(
+      CAST_BUTTON_ICON_SIZE + 16 + entry.castButtonLabel.width / 2,
+      height / 2,
+    );
+    (entry.castButton.hitArea as Rectangle).set(0, 0, width, height);
     entry.castButtonBackground
       .clear()
-      .roundRect(0, 0, CAST_BUTTON_WIDTH, CAST_BUTTON_HEIGHT, CAST_BUTTON_RADIUS)
+      .roundRect(0, 0, width, height, CAST_BUTTON_RADIUS)
       .fill({
         color: hexToNum(hovered ? this.theme.appTheme.primary : this.theme.appTheme.popover),
         alpha: hovered ? 1 : 0.96,

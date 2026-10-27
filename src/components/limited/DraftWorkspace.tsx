@@ -60,9 +60,9 @@ export function DraftWorkspace({
     <div
       ref={workspaceRef}
       data-limited-table
-      className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden"
+      className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain"
     >
-      <div role="tablist" aria-label="Draft workspace" className="flex shrink-0 gap-1">
+      <div role="tablist" aria-label="Draft workspace" className="flex shrink-0 flex-wrap gap-1">
         <Button
           role="tab"
           aria-selected={activeTab === "pack"}
@@ -82,15 +82,18 @@ export function DraftWorkspace({
           Pool / build · {draft.pickedPile.length}
         </Button>
       </div>
-      <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-1 gap-2 overflow-hidden">
+      <div className="grid min-h-64 flex-1 grid-cols-1 grid-rows-1 gap-2">
         <section
-          className={cn("flex min-h-0 flex-col overflow-hidden", activeTab !== "pack" && "hidden")}
+          className={cn(
+            "flex min-h-64 flex-col overflow-y-auto overscroll-contain",
+            activeTab !== "pack" && "hidden",
+          )}
           aria-label="Current booster"
         >
           <header className="flex shrink-0 flex-wrap items-center justify-center gap-x-4 gap-y-1 px-3">
             <h2 className="rounded bg-card/70 px-2 py-1 text-lg font-semibold">
               Booster{" "}
-              <span className="text-xs tabular-nums lining-nums text-muted-foreground">
+              <span className="text-ui-meta tabular-nums lining-nums text-muted-foreground">
                 {draft.currentPack.length}
               </span>
             </h2>
@@ -128,7 +131,7 @@ export function DraftWorkspace({
                 ? "Draft complete. Finish your build."
                 : "Waiting for the next booster..."
             }
-            className="min-h-0 flex-1"
+            className="min-h-32 flex-1"
           />
           <footer className="flex shrink-0 flex-wrap items-center justify-center gap-2 px-3 py-1">
             <Button
@@ -163,8 +166,8 @@ export function DraftWorkspace({
           aria-label="Your acquired pool and deck"
         >
           {!!draft.humanConspiracies?.length && (
-            <details className="mx-2 min-w-0 max-w-xl shrink-0 text-xs">
-              <summary className="cursor-pointer rounded bg-card/70 px-2 py-1 font-semibold">
+            <details className="mx-2 min-w-0 max-w-xl shrink-0 text-ui-meta">
+              <summary className="cursor-pointer rounded bg-card/70 px-2 py-1 text-ui-label font-semibold touch:min-h-11">
                 Conspiracies · {draft.humanConspiracies.length}
               </summary>
               <ul className="max-h-24 space-y-1 overflow-y-auto rounded bg-card/90 p-2">

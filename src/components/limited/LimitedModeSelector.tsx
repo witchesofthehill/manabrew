@@ -46,11 +46,11 @@ export function LimitedModeSelector({
   return (
     <fieldset disabled={disabled} className="min-w-0">
       <legend className="sr-only">Choose a format</legend>
-      <div className="mb-2 flex min-h-9 items-center justify-between gap-3">
+      <div className="mb-2 flex min-h-9 flex-wrap items-center justify-between gap-3">
         {leadingControl ?? <h2 className="font-serif text-lg font-semibold">Choose a format</h2>}
         {actions}
       </div>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] gap-2">
         {MODES.map(({ value, title, icon: Icon }) => (
           <label
             key={value}
@@ -83,7 +83,7 @@ export function LimitedModeSelector({
       </div>
       <p
         id={`${groupId}-description`}
-        className="mt-2 text-sm leading-relaxed text-muted-foreground"
+        className="mt-2 text-ui-body leading-relaxed text-muted-foreground"
       >
         {MODES.find(({ value }) => value === mode)?.description}
       </p>

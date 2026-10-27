@@ -24,8 +24,8 @@ export function LinkCallout({ href, icon, title, description }: LinkCalloutProps
         {icon}
       </span>
       <span className="relative flex-1 space-y-0.5">
-        <span className="block text-sm font-semibold text-foreground">{title}</span>
-        <span className="block text-xs text-muted-foreground">{description}</span>
+        <span className="block text-ui-label font-semibold text-foreground">{title}</span>
+        <span className="block text-ui-body text-muted-foreground">{description}</span>
       </span>
       <ArrowRight className="relative size-4 shrink-0 text-primary transition-transform duration-300 group-hover:translate-x-1" />
     </a>

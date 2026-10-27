@@ -6,6 +6,18 @@
 
 - Specialize host Card Glint shaders for the requested finish and omit animated surface code from other finishes.
 
+## [3.65.2](https://github.com/witchesofthehill/manabrew/compare/v3.65.1...v3.65.2) (2026-10-27)
+
+### Fixes
+
+* **ui:** improve app-wide responsiveness ([#1123](https://github.com/witchesofthehill/manabrew/issues/1123)) ([178dda1](https://github.com/witchesofthehill/manabrew/commit/178dda1e6361a76cdcd9a71d9ee71b28ca7613cd))
+
+## [3.65.1](https://github.com/witchesofthehill/manabrew/compare/v3.65.0...v3.65.1) (2026-10-26)
+
+### Fixes
+
+* actionspace manarocks ([#1124](https://github.com/witchesofthehill/manabrew/issues/1124)) ([ca67bf2](https://github.com/witchesofthehill/manabrew/commit/ca67bf2a668f4e2486bb646859da763f72d1b559))
+
 ## [3.65.0](https://github.com/witchesofthehill/manabrew/compare/v3.64.9...v3.65.0) (2026-10-25)
 
 ### Features
@@ -105,6 +117,8 @@
 
 ### Fixes
 
+* Increase wide-touch body and control text to 20px and metadata to 18px after iPad readability review, without scaling card artwork.
+* Improve app-wide tablet typography, touch targets, responsive workspace density and keyboard-visible dialogs without enlarging card sprites.
 * Allow combat damage to be divided freely among blockers under current Magic rules, while preserving lethal-damage requirements for trample.
 * Preserve each Room, split and aftermath half's frame color instead of inheriting the whole card's combined colors in hand and stack previews.
 * Highlight unlocked Room doors and the door represented on the stack in both card views, with outlines that include the collector strip.

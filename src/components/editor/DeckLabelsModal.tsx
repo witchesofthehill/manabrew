@@ -60,9 +60,11 @@ export function DeckLabelsModal({ open, onClose }: DeckLabelsModalProps) {
       <Modal.Body>
         <div className="space-y-4">
           <div>
-            <div className="text-sm font-medium text-muted-foreground mb-2">Current Labels</div>
+            <div className="text-ui-label font-medium text-muted-foreground mb-2">
+              Current Labels
+            </div>
             {labels.length === 0 ? (
-              <p className="text-xs text-muted-foreground italic">No labels yet</p>
+              <p className="text-ui-meta text-muted-foreground italic">No labels yet</p>
             ) : (
               <div className="flex flex-wrap gap-2">
                 {labels.map((label) => (
@@ -75,12 +77,12 @@ export function DeckLabelsModal({ open, onClose }: DeckLabelsModalProps) {
                         updateDeckLabelColor(label.name, e.target.value);
                         saveCurrentDeck();
                       }}
-                      className="h-6 w-8 rounded border border-input bg-transparent p-0.5 cursor-pointer"
+                      className="touch:min-h-11 min-h-6 w-8 rounded border border-input bg-transparent p-0.5 cursor-pointer"
                       title={`Pick color`}
                     />
                     <button
                       type="button"
-                      className="hover:text-destructive transition-colors text-muted-foreground"
+                      className="touch:min-w-11 touch:min-h-11 hover:text-destructive transition-colors text-muted-foreground"
                       onClick={() => {
                         removeDeckLabel(label.name);
                         saveCurrentDeck();
@@ -96,10 +98,12 @@ export function DeckLabelsModal({ open, onClose }: DeckLabelsModalProps) {
           </div>
 
           <div>
-            <div className="text-sm font-medium text-muted-foreground mb-2">Add Custom Label</div>
+            <div className="text-ui-label font-medium text-muted-foreground mb-2">
+              Add Custom Label
+            </div>
             <div className="flex items-center gap-2">
               <Input
-                className="h-8 text-sm flex-1"
+                className="touch:min-h-11 min-h-8 text-ui-input flex-1"
                 placeholder={`Type a label\u2026`}
                 value={newLabel}
                 onChange={(e) => setNewLabel(e.target.value)}
@@ -111,13 +115,13 @@ export function DeckLabelsModal({ open, onClose }: DeckLabelsModalProps) {
                 type="color"
                 value={newLabelColor || defaultLabelColor}
                 onChange={(e) => setNewLabelColor(e.target.value)}
-                className="h-8 w-10 rounded border border-input bg-transparent p-0.5 cursor-pointer"
+                className="touch:min-h-11 min-h-8 w-10 rounded border border-input bg-transparent p-0.5 cursor-pointer"
                 title={`Pick color`}
               />
               <Button
                 variant="outline"
                 size="sm"
-                className="h-8 gap-1"
+                className="touch:min-w-11 touch:min-h-11 min-h-8 gap-1"
                 disabled={!newLabel.trim()}
                 onClick={() => handleAdd(newLabel, newLabelColor || undefined)}
               >
@@ -129,7 +133,9 @@ export function DeckLabelsModal({ open, onClose }: DeckLabelsModalProps) {
 
           {unusedSuggestions.length > 0 && (
             <div>
-              <div className="text-sm font-medium text-muted-foreground mb-2">Suggestions</div>
+              <div className="text-ui-label font-medium text-muted-foreground mb-2">
+                Suggestions
+              </div>
               <div className="flex flex-wrap gap-1.5">
                 {unusedSuggestions.map(({ value, label }) => (
                   <Badge

@@ -17,14 +17,11 @@ import {
   canHaveAnyNumberOf,
   copyLimitFromText,
 } from "@/lib/formats";
-import {
-  chooseImageUrisForCard,
-  resolveTokenCustomizationScript,
-  tokenIdentityKey,
-} from "@/stores/useScryfallStore";
+import { resolveTokenCustomizationScript, tokenIdentityKey } from "@/stores/useScryfallStore";
 import { collectProducedTokenKeys, deriveTokens } from "@/lib/decks";
 import { cardCosmeticsKey, normalizeCardCosmetics, randomCardWearSeed } from "@/lib/cardCosmetics";
 import { resolveCardWearAmount } from "@/lib/cardFinish";
+import { scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { resolveDeckName } from "@/lib/deckName";
 import { mergeDeckImportIntoDeck } from "@/lib/deckImport";
 /** Migrate legacy "constructed" format id to "standard". */
@@ -274,26 +271,19 @@ function matchesPrintingVariant(card: DeckCard, printing: DeckCardIdentity): boo
     cardCosmeticsKey(card.identity.cosmetics) === cardCosmeticsKey(printing.cosmetics)
   );
 }
-export function getCardCustomizationCopies(deck: EditorDeck, card: DeckCard): DeckCard[] {
-  const cards = [
-    ...deck.cards,
-    ...deck.sideboard,
-    ...(deck.maybeboard ?? []),
-    ...(deck.attractions ?? []),
-    ...(deck.contraptions ?? []),
-    ...(deck.schemes ?? []),
-    ...(deck.planes ?? []),
-    ...(deck.commanders ?? []),
-    ...(deck.companion ? [deck.companion] : []),
-  ];
-  const copies = cards.filter((candidate) => candidate.identity.name === card.identity.name);
-  const selectedIndex = copies.findIndex((candidate) => candidate.identity.id === card.identity.id);
-  if (selectedIndex <= 0) return copies;
-  return [
-    copies[selectedIndex]!,
-    ...copies.slice(0, selectedIndex),
-    ...copies.slice(selectedIndex + 1),
-  ];
+export function getCardCustomizationCopy(deck: EditorDeck, cardId: string): DeckCard | undefined {
+  const matches = (card: DeckCard) => card.identity.id === cardId;
+  return (
+    deck.cards.find(matches) ??
+    deck.sideboard.find(matches) ??
+    deck.maybeboard?.find(matches) ??
+    deck.attractions?.find(matches) ??
+    deck.contraptions?.find(matches) ??
+    deck.schemes?.find(matches) ??
+    deck.planes?.find(matches) ??
+    deck.commanders?.find(matches) ??
+    (deck.companion?.identity.id === cardId ? deck.companion : undefined)
+  );
 }
 function patchDeckPrintingVariant(
   deck: EditorDeck,
@@ -319,7 +309,10 @@ function patchDeckPrintingVariant(
         : normalized.companion,
   };
 }
-function availablePrintingFoil(printing: DeckCardIdentity, scryfallCard: ScryfallCard): boolean {
+export function availablePrintingFoil(
+  printing: DeckCardIdentity,
+  scryfallCard: ScryfallCard,
+): boolean {
   const finishes = scryfallCard.finishes ?? [];
   if (finishes.length === 0) return !!printing.foil;
   const hasFoil = finishes.some((finish) => finish === "foil" || finish === "etched");
@@ -327,6 +320,21 @@ function availablePrintingFoil(printing: DeckCardIdentity, scryfallCard: Scryfal
   if (printing.foil && !hasFoil && hasNonfoil) return false;
   if (!printing.foil && !hasNonfoil && hasFoil) return true;
   return !!printing.foil;
+}
+export function getCardPrintingPatch(printing: ScryfallCard): CardPatch {
+  const card = scryfallToDeckCard(printing);
+  return {
+    identity: {
+      setCode: card.identity.setCode,
+      cardNumber: card.identity.cardNumber,
+      oracleId: card.identity.oracleId,
+    },
+    uris: card.uris,
+    imageLanguage: card.imageLanguage,
+    layout: card.layout,
+    isDoubleFaced: card.isDoubleFaced,
+    backFace: card.backFace,
+  };
 }
 export interface SavedDeck {
   id: string;
@@ -411,9 +419,19 @@ interface DeckState {
   updatePrintingVariant: (printing: DeckCardIdentity, scryfallCard: ScryfallCard) => void;
   setCardFoil: (cardId: string, foil: boolean) => void;
   setCardCosmetics: (
-    changes: readonly { cardId: string; cosmetics: CardCosmetics | undefined; foil: boolean }[],
+    changes: readonly {
+      cardId: string;
+      cosmetics: CardCosmetics | undefined;
+      foil: boolean;
+      printing?: ScryfallCard;
+    }[],
   ) => void;
-  setTokenCosmetics: (card: DeckCard, cosmetics: CardCosmetics | undefined, foil: boolean) => void;
+  setTokenCosmetics: (
+    card: DeckCard,
+    cosmetics: CardCosmetics | undefined,
+    foil: boolean,
+    printing?: ScryfallCard,
+  ) => void;
   updateTokenPrint: (token: DeckCard, scryfallCard: ScryfallCard) => void;
   resetTokenPrint: (token: DeckCard) => void;
   enrichDeckCards: (updates: Map<string, CardPatch>) => void;
@@ -788,53 +806,35 @@ export const useDeckStore = create<DeckState>()(
           }),
         updatePrint: (cardName, scryfallCard) =>
           set((state) => {
-            const uris = chooseImageUrisForCard(scryfallCard, { frontOnly: true });
-            if (!uris) throw new Error(`Scryfall card has no image uris: ${scryfallCard.name}`);
             const updates = new Map<string, CardPatch>();
-            updates.set(cardName.toLowerCase(), {
-              identity: {
-                setCode: scryfallCard.set,
-                cardNumber: scryfallCard.collector_number,
-                oracleId: scryfallCard.oracle_id,
-              },
-              uris,
-              imageLanguage: scryfallCard.lang,
-            });
+            updates.set(cardName.toLowerCase(), getCardPrintingPatch(scryfallCard));
             return {
               currentDeck: patchDeckCards(state.currentDeck, updates),
             };
           }),
         updateCardPrint: (cardId, scryfallCard, foil) =>
           set((state) => {
-            const uris = chooseImageUrisForCard(scryfallCard, { frontOnly: true });
-            if (!uris) throw new Error(`Scryfall card has no image uris: ${scryfallCard.name}`);
+            const patch = getCardPrintingPatch(scryfallCard);
             return {
               currentDeck: patchDeckCardById(state.currentDeck, cardId, {
+                ...patch,
                 identity: {
-                  setCode: scryfallCard.set,
-                  cardNumber: scryfallCard.collector_number,
-                  oracleId: scryfallCard.oracle_id,
+                  ...patch.identity,
                   ...(foil === undefined ? {} : { foil }),
                 },
-                uris,
-                imageLanguage: scryfallCard.lang,
               }),
             };
           }),
         updatePrintingVariant: (printing, scryfallCard) =>
           set((state) => {
-            const uris = chooseImageUrisForCard(scryfallCard, { frontOnly: true });
-            if (!uris) throw new Error(`Scryfall card has no image uris: ${scryfallCard.name}`);
+            const patch = getCardPrintingPatch(scryfallCard);
             return {
               currentDeck: patchDeckPrintingVariant(state.currentDeck, printing, {
+                ...patch,
                 identity: {
-                  setCode: scryfallCard.set,
-                  cardNumber: scryfallCard.collector_number,
-                  oracleId: scryfallCard.oracle_id,
+                  ...patch.identity,
                   foil: availablePrintingFoil(printing, scryfallCard),
                 },
-                uris,
-                imageLanguage: scryfallCard.lang,
               }),
             };
           }),
@@ -846,9 +846,15 @@ export const useDeckStore = create<DeckState>()(
           set((state) => {
             if (state.isReadOnly || changes.length === 0) return state;
             const updates = new Map<string, CardPatch>();
-            for (const { cardId, cosmetics, foil } of changes) {
+            for (const { cardId, cosmetics, foil, printing } of changes) {
+              const patch = printing ? getCardPrintingPatch(printing) : undefined;
               updates.set(cardId, {
-                identity: { cosmetics: normalizeCardCosmetics(cosmetics), foil },
+                ...patch,
+                identity: {
+                  ...patch?.identity,
+                  cosmetics: normalizeCardCosmetics(cosmetics),
+                  foil,
+                },
               });
             }
             let changed = false;
@@ -873,7 +879,7 @@ export const useDeckStore = create<DeckState>()(
             };
             return changed ? { currentDeck } : state;
           }),
-        setTokenCosmetics: (card, value, foil) =>
+        setTokenCosmetics: (card, value, foil, printing) =>
           set((state) => {
             if (state.isReadOnly) return state;
             const cosmetics = normalizeCardCosmetics(value);
@@ -883,15 +889,16 @@ export const useDeckStore = create<DeckState>()(
             if (cosmetics && !tokenScript) return state;
             const existing = tokens.find((candidate) => tokenIdentityKey(candidate) === key);
             const source = existing ?? card;
-            const customized = {
-              ...source,
+            const patch = printing ? getCardPrintingPatch(printing) : undefined;
+            const customized = applyPatch(source, {
+              ...patch,
               identity: {
-                ...source.identity,
+                ...patch?.identity,
                 tokenScript,
                 cosmetics,
                 foil,
               },
-            };
+            });
             return {
               currentDeck: {
                 ...state.currentDeck,
@@ -903,25 +910,19 @@ export const useDeckStore = create<DeckState>()(
           }),
         updateTokenPrint: (token, scryfallCard) =>
           set((state) => {
-            const uris = chooseImageUrisForCard(scryfallCard, { frontOnly: true });
-            if (!uris) throw new Error(`Scryfall card has no image uris: ${scryfallCard.name}`);
+            const patch = getCardPrintingPatch(scryfallCard);
             const key = tokenIdentityKey(token);
             const existing = state.currentDeck.tokens ?? [];
             const source =
               existing.find((candidate) => tokenIdentityKey(candidate) === key) ?? token;
-            const customized: DeckCard = {
-              ...source,
+            const customized = applyPatch(source, {
+              ...patch,
               identity: {
-                ...source.identity,
+                ...patch.identity,
                 tokenScript: resolveTokenCustomizationScript(token),
                 id: `token:${scryfallCard.id}`,
-                setCode: scryfallCard.set,
-                cardNumber: scryfallCard.collector_number,
-                oracleId: scryfallCard.oracle_id,
               },
-              uris,
-              imageLanguage: scryfallCard.lang,
-            };
+            });
             const replaced = existing.some((candidate) => tokenIdentityKey(candidate) === key);
             return {
               currentDeck: {

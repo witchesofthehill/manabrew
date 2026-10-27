@@ -13,10 +13,10 @@ export function LimitedBoosterDetails({ set, info, loading }: LimitedBoosterDeta
   const recipe = loading ? null : info;
   return (
     <details className="group border-t border-border/60 pt-3">
-      <summary className="w-fit cursor-pointer rounded-sm text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+      <summary className="w-fit cursor-pointer rounded-sm text-ui-label text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring touch:min-h-11">
         Booster details
       </summary>
-      <div className="mt-3 space-y-4 text-xs">
+      <div className="mt-3 space-y-4 text-ui-meta">
         <div>
           <h4 className="mb-2 font-medium text-foreground">Default booster recipe</h4>
           {loading ? (

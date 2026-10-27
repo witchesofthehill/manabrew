@@ -70,18 +70,18 @@ function BrowserCardRow({
     <button
       type="button"
       data-card-name={card.identity.name}
-      className="flex w-full items-center gap-1 rounded px-1 py-1 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:min-h-10"
+      className="flex w-full items-center gap-2 rounded px-1 py-1 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring touch:min-h-11 touch:min-w-11"
       onClick={() => onOpen(card)}
       onPointerEnter={(event) => onPointerEnter(card, event)}
       onPointerLeave={onPointerLeave}
     >
-      <span className="w-5 shrink-0 text-right font-mono text-xs text-muted-foreground">
+      <span className="w-5 shrink-0 text-right font-mono text-ui-meta text-muted-foreground">
         {count}
       </span>
-      <span className="min-w-0 flex-1 truncate text-sm">{card.identity.name}</span>
+      <span className="min-w-0 flex-1 truncate text-ui-label">{card.identity.name}</span>
       {card.manaCost && <ManaSymbols cost={card.manaCost} size="sm" className="shrink-0" />}
       {card.power && card.toughness && (
-        <span className="shrink-0 font-mono text-xs text-muted-foreground">
+        <span className="shrink-0 font-mono text-ui-meta text-muted-foreground">
           {card.power}/{card.toughness}
         </span>
       )}
@@ -482,11 +482,11 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
     }
   }
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col">
+    <div className="relative flex min-h-40 min-w-0 flex-1 flex-col">
       <div
         className={cn(
-          "shrink-0 space-y-2 border-b bg-background/95 px-3 py-2 backdrop-blur sm:px-4",
-          shortLandscape && "flex items-center gap-2 space-y-0 py-1.5",
+          "max-h-[45%] shrink-0 space-y-2 overflow-y-auto border-b bg-background/95 px-3 py-2 backdrop-blur sm:px-4",
+          shortLandscape && "flex flex-wrap items-center gap-2 space-y-0 py-1.5",
         )}
       >
         <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -497,20 +497,20 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
               onChange={(event) => setSearch(event.target.value)}
               aria-label="Search card names, types, and rules text"
               placeholder="Search cards…"
-              className="h-8 pl-8 pr-8 text-xs pointer-coarse:h-11 pointer-coarse:text-base"
+              className="pl-8 pr-11"
             />
             {search && (
               <button
                 type="button"
                 aria-label="Clear card search"
-                className="absolute right-0 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded text-muted-foreground hover:text-foreground pointer-coarse:h-11 pointer-coarse:w-11"
+                className="absolute right-0 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded text-muted-foreground hover:text-foreground touch:min-h-11 touch:min-w-11"
                 onClick={() => setSearch("")}
               >
                 <X className="h-3 w-3" />
               </button>
             )}
           </div>
-          <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+          <span className="shrink-0 text-ui-meta tabular-nums text-muted-foreground">
             {shownCount === totalCount ? totalCount : `${shownCount} / ${totalCount}`} cards
           </span>
         </div>
@@ -544,7 +544,7 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
           {shownCount === 0 ? (
             <div className="grid min-h-48 place-items-center text-center">
               <div>
-                <p className="text-sm font-medium">No cards match these filters</p>
+                <p className="text-ui-body font-medium">No cards match these filters</p>
                 <Button variant="ghost" size="sm" className="mt-2" onClick={clearFilters}>
                   Clear filters
                 </Button>
@@ -617,11 +617,7 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
               ))}
             </div>
           ) : (
-            <div
-              className={cn(
-                viewMode === "list" ? "columns-1 gap-5 md:columns-2 xl:columns-3" : "space-y-5",
-              )}
-            >
+            <div className={cn(viewMode === "list" ? "columns-[18rem] gap-5" : "space-y-5")}>
               {commanders.length > 0 && (
                 <BrowserSection
                   label={commanders.length > 1 ? `Commanders` : `Commander`}
@@ -704,7 +700,7 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
 
       {loadingCardName && (
         <div className="pointer-events-none absolute inset-x-0 bottom-20 z-40 flex justify-center">
-          <span className="flex items-center gap-2 rounded-full border bg-background/95 px-3 py-1.5 text-xs shadow-lg">
+          <span className="flex items-center gap-2 rounded-full border bg-background/95 px-3 py-1.5 text-ui-meta shadow-lg">
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
             Loading {loadingCardName}…
           </span>

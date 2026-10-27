@@ -67,7 +67,7 @@ export function SetSelect({
       <button
         type="button"
         className={cn(
-          "h-7 w-full flex items-center gap-1.5 px-2 text-xs bg-background border rounded hover:bg-muted transition-colors text-left",
+          "touch:min-w-11 touch:min-h-11 h-7 w-full flex items-center gap-1.5 px-2 text-ui-label bg-background border rounded hover:bg-muted transition-colors text-left",
           !selected && "text-muted-foreground",
         )}
         onClick={() => setIsOpen((v) => !v)}
@@ -82,7 +82,7 @@ export function SetSelect({
             <span className="flex-1 truncate">{selected.name}</span>
             <button
               type="button"
-              className="shrink-0 text-muted-foreground hover:text-foreground"
+              className="touch:min-w-11 touch:min-h-11 shrink-0 text-muted-foreground hover:text-foreground"
               onClick={(e) => {
                 e.stopPropagation();
                 onChange("");
@@ -104,7 +104,7 @@ export function SetSelect({
           <div className="p-1.5 border-b shrink-0">
             <Input
               ref={inputRef}
-              className="h-6 text-xs"
+              className="touch:min-h-11 min-h-6 text-ui-input"
               placeholder={`Search sets\u2026`}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -113,7 +113,7 @@ export function SetSelect({
           <ScrollArea className="flex-1">
             <div className="py-1">
               {filtered.length === 0 && (
-                <div className="px-3 py-2 text-xs text-muted-foreground text-center">
+                <div className="px-3 py-2 text-ui-meta text-muted-foreground text-center">
                   No sets found
                 </div>
               )}
@@ -122,7 +122,7 @@ export function SetSelect({
                   key={s.code}
                   type="button"
                   className={cn(
-                    "w-full text-left px-2 py-1 text-xs hover:bg-muted flex items-center gap-1.5",
+                    "touch:min-w-11 touch:min-h-11 w-full text-left px-2 py-1 text-ui-label hover:bg-muted flex items-center gap-1.5",
                     value === s.code && "bg-muted",
                   )}
                   onClick={() => {
@@ -136,7 +136,7 @@ export function SetSelect({
                     className={cn("h-3.5 w-3.5 shrink-0", SET_ICON_CLASS)}
                   />
                   <span className="flex-1 truncate">{s.name}</span>
-                  <span className="text-[10px] text-muted-foreground uppercase shrink-0">
+                  <span className="text-ui-meta text-muted-foreground uppercase shrink-0">
                     {s.code}
                   </span>
                 </button>

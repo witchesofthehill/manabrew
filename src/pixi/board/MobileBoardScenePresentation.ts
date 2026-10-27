@@ -56,6 +56,10 @@ export class MobileBoardScenePresentation implements BoardScenePresentation {
   selfHudHandBlocker(): null {
     return null;
   }
+
+  handInsets(): { left: number; right: number } {
+    return { left: 0, right: 0 };
+  }
   initializeHand(root: Container, callbacks: GameCanvasCallbacks, app: Application): void {
     const backdrop = new Container();
     backdrop.visible = false;

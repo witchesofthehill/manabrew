@@ -346,13 +346,11 @@ public final class ManaBrewEngineAdapter {
             }
         }
         for (String commanderName : uniqueCommanders) {
-            String name = commanderName;
-            if (name.contains(" // ")) {
-                name = name.substring(0, name.indexOf(" // "));
-            }
             CardCosmeticBindings.DeckEntry commander = null;
             for (final CardCosmeticBindings.DeckEntry entry : entries) {
-                if (entry.zone == ZoneType.Library && entry.paper.getName().equalsIgnoreCase(name)
+                if (entry.zone == ZoneType.Library
+                        && (matchesCardName(entry.paper.getName(), commanderName)
+                                || matchesCardName(entry.identity.getName(), commanderName))
                         && (commander == null || entry.identity.commander)) {
                     commander = entry;
                     if (entry.identity.commander) {
@@ -381,6 +379,18 @@ public final class ManaBrewEngineAdapter {
             }
         }
         return deck;
+    }
+
+    private static boolean matchesCardName(final String name, final String requestedName) {
+        if (name == null) {
+            return false;
+        }
+        final int separator = name.indexOf(" // ");
+        final int length = separator < 0 ? name.length() : separator;
+        final int requestedSeparator = requestedName.indexOf(" // ");
+        final int requestedLength = requestedSeparator < 0
+                ? requestedName.length() : requestedSeparator;
+        return length == requestedLength && name.regionMatches(true, 0, requestedName, 0, length);
     }
 
     private static void addDeckEntry(final CardPool pool, final CardPool resolved,
@@ -468,7 +478,7 @@ public final class ManaBrewEngineAdapter {
                 if (entry == null) {
                     return null;
                 }
-                return flavorName.equalsIgnoreCase(entry.getFlavorName()) ? entry.name() : null;
+                return matchesCardName(entry.getFlavorName(), flavorName) ? entry.name() : null;
             }
 
             @Override

@@ -1,10 +1,14 @@
-import { UI_FONT_FAMILY } from "@/themes/typography";
+import {
+  getUiControlHeight,
+  getUiFontSize,
+  UI_FONT_FAMILY,
+  type UiTextRole,
+} from "@/themes/typography";
 import { Container, Graphics, Rectangle, Text, TextStyle } from "pixi.js";
 import type { DestroyOptions, FederatedPointerEvent, FederatedWheelEvent } from "pixi.js";
 import type { CardStatusPresentation, CardStatusTone } from "@/components/game/cardPresentation";
 import type { Theme } from "@/hooks/useTheme";
 import type { HandActionOption } from "@/stores/useGameUIStore";
-import { isCoarsePointer } from "@/lib/responsive";
 import { hexToNum } from "@/pixi/colorUtils";
 import { PixiRichText } from "./PixiRichText";
 import { actionRowText } from "./rulesCardPreviewPresentation";
@@ -13,6 +17,7 @@ import { RULES_BODY_FONT, type RulesPreviewFrameStyle } from "./rulesPreviewFram
 interface ActionsContent {
   width: number;
   maxHeight: number;
+  screenScale: number;
   theme: Theme;
   frame: RulesPreviewFrameStyle;
   actions: Array<{ action: HandActionOption; shortcut: number; displayLabel?: string }>;
@@ -189,6 +194,8 @@ export class RulesPreviewActions extends Container {
       : -1;
     this.focusedIndex = matchingIndex >= 0 ? matchingIndex : null;
     let y = 0;
+    const actionFontSize = this.fontSize(ACTION_FONT_SIZE, "label");
+    const keyHeight = Math.max(KEY_HEIGHT, Math.ceil(this.fontSize(12) * 1.3) + 4);
     if (spec.actions.length > 0) {
       if (spec.label) {
         y = this.addText(spec.label, y, spec.frame.mutedInk, 11, true);
@@ -198,39 +205,44 @@ export class RulesPreviewActions extends Container {
         const background = new Graphics();
         const key = new Text({
           text: String(entry.shortcut),
-          style: textStyle(spec.theme.appTheme["popover-foreground"], 12, true, UI_FONT_FAMILY),
+          style: textStyle(
+            spec.theme.appTheme["popover-foreground"],
+            this.fontSize(12),
+            true,
+            UI_FONT_FAMILY,
+          ),
         });
         key.resolution = 2;
         key.anchor.set(0.5);
         const rowPadding = spec.compact ? 4 : 6;
         const keyWidth = Math.max(22, key.width + 8);
         const keyBackground = new Graphics()
-          .roundRect(4, rowPadding, keyWidth, KEY_HEIGHT, 4)
+          .roundRect(4, rowPadding, keyWidth, keyHeight, 4)
           .fill(hexToNum(spec.theme.appTheme.muted))
           .stroke({ color: hexToNum(spec.theme.appTheme.border), width: 1 });
         keyBackground.eventMode = key.eventMode = "none";
-        key.position.set(4 + keyWidth / 2, rowPadding + KEY_HEIGHT / 2);
+        key.position.set(4 + keyWidth / 2, rowPadding + keyHeight / 2);
         const labelLeft = keyWidth + 10;
         const label = new PixiRichText();
         const labelHeight = label.setContent(
           actionRowText(entry.action, entry.displayLabel),
-          textStyle(spec.frame.ink, ACTION_FONT_SIZE, false, spec.frame.bodyFont, 1),
+          textStyle(spec.frame.ink, actionFontSize, false, spec.frame.bodyFont, 1),
           Math.max(1, this.contentWidth - labelLeft - 6),
-          ACTION_FONT_SIZE,
+          actionFontSize,
           0,
           {
             parentheticalStyle: textStyle(
               spec.frame.mutedInk,
-              ACTION_FONT_SIZE,
+              actionFontSize,
               false,
               spec.frame.bodyFont,
               1,
             ),
           },
         );
-        const labelTop = rowPadding + (KEY_HEIGHT - ACTION_FONT_SIZE) / 2;
+        const labelTop = rowPadding + Math.max(0, (keyHeight - actionFontSize) / 2);
         const height = Math.max(
-          isCoarsePointer() && !spec.compact ? 44 : 32,
+          getUiControlHeight() / spec.screenScale,
           labelHeight + labelTop * 2,
         );
         label.position.set(labelLeft, labelTop);
@@ -396,8 +408,12 @@ export class RulesPreviewActions extends Container {
     );
   }
 
+  private fontSize(size: number, role: UiTextRole = "meta"): number {
+    return Math.max(size, getUiFontSize(role) / this.spec!.screenScale);
+  }
+
   private addText(value: string, y: number, color: string, size: number, bold = false): number {
-    const style = textStyle(color, size, bold, this.spec!.frame.bodyFont);
+    const style = textStyle(color, this.fontSize(size), bold, this.spec!.frame.bodyFont);
     style.wordWrap = true;
     style.breakWords = true;
     style.wordWrapWidth = this.contentWidth;
@@ -416,7 +432,7 @@ export class RulesPreviewActions extends Container {
       const color = this.statusColor(status.tone);
       const style = textStyle(
         this.spec!.theme.gameTheme.textOnTinted,
-        10,
+        this.fontSize(10),
         true,
         this.spec!.frame.bodyFont,
       );
@@ -451,14 +467,22 @@ export class RulesPreviewActions extends Container {
     let y = 0;
     let rowHeight = 0;
     for (const control of spec.controls) {
-      const style = textStyle(spec.frame.ink, 13, false, spec.frame.bodyFont);
+      const style = textStyle(
+        spec.frame.ink,
+        this.fontSize(13, "label"),
+        false,
+        spec.frame.bodyFont,
+      );
       style.wordWrap = true;
       style.breakWords = true;
       style.wordWrapWidth = Math.max(1, this.contentWidth - 16);
       const text = new Text({ text: control.label, style });
       text.resolution = 2;
-      const width = Math.min(this.contentWidth, text.width + 16);
-      const height = Math.max(40, text.height + 16);
+      const width = Math.min(
+        this.contentWidth,
+        Math.max(getUiControlHeight() / spec.screenScale, text.width + 16),
+      );
+      const height = Math.max(40, getUiControlHeight() / spec.screenScale, text.height + 16);
       if (x > 0 && x + width > this.contentWidth) {
         x = 0;
         y += rowHeight + GAP;

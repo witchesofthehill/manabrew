@@ -9,9 +9,13 @@ import { useLimitedBuildCards } from "@/components/limited/useLimitedBuildCards"
 import { useLimitedBoardLayout } from "@/components/limited/useLimitedBoardLayout";
 import { LimitedBuildUtilities } from "@/components/limited/LimitedBuildUtilities";
 import { useIsDesktop, useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
+import { useTheme } from "@/hooks/useTheme";
 import type { DraftCard } from "@/types/limited";
 import type { DeckFormat } from "@/protocol/deck";
 import type { LimitedReferenceFormat } from "@/components/limited/LimitedSetReference";
+
+const MIN_WIDE_BOARD_REM = 80;
+
 export interface LimitedDeckBuilderProps {
   sessionKey: string;
   pool: DraftCard[];
@@ -56,6 +60,9 @@ export default function LimitedDeckBuilder({
   const isTouch = useIsTouch();
   const isDesktop = useIsDesktop();
   const shortTouch = shortScreen && isTouch;
+  const theme = useTheme();
+  const [wideBoard, setWideBoard] = useState(false);
+  const compactBoard = !isDesktop || shortTouch || !wideBoard;
   const acquired = session?.pool;
   const allocation = session?.allocation;
   const basics = allocation?.basics;
@@ -63,6 +70,18 @@ export default function LimitedDeckBuilder({
   const initialized = !!session;
   const changeRef = useRef(onChange);
   const builderRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const host = builderRef.current;
+    if (!host) return;
+    const update = () => {
+      const rootSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
+      setWideBoard(host.clientWidth >= MIN_WIDE_BOARD_REM * rootSize);
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(host);
+    return () => observer.disconnect();
+  }, [theme, initialized]);
   useLayoutEffect(() => {
     changeRef.current = onChange;
   }, [onChange]);
@@ -121,14 +140,14 @@ export default function LimitedDeckBuilder({
       const zone = destination.dataset.limitedZone;
       if (zone === "main" || zone === "pool" || zone === "sideboard" || zone === "maybe") {
         move(availableSelection.includes(card.id) ? availableSelection : [card.id], zone);
-        if (!isDesktop || shortTouch) showZone(zone);
+        if (compactBoard) showZone(zone);
       }
     },
-    [move, availableSelection, sessionKey, showZone, isDesktop, shortTouch],
+    [move, availableSelection, sessionKey, showZone, compactBoard],
   );
   if (!session)
     return (
-      <p role="status" className="p-3 text-sm text-muted-foreground">
+      <p role="status" className="p-3 text-ui-meta text-muted-foreground">
         Restoring your build...
       </p>
     );
@@ -170,7 +189,7 @@ export default function LimitedDeckBuilder({
       ref={builderRef}
       data-limited-table
       data-limited-builder={sessionKey}
-      className="flex h-full min-h-0 flex-col gap-2 overflow-hidden"
+      className="flex h-full min-h-0 min-w-0 flex-col gap-2 overflow-y-auto overscroll-contain"
       onKeyDown={(event) => {
         if (
           !builderRef.current?.contains(event.target as Node) ||
@@ -183,7 +202,7 @@ export default function LimitedDeckBuilder({
           setSelectedIds(
             zones
               .filter((zone) =>
-                isDesktop && !shortTouch ? visibleZones.includes(zone.id) : zone.id === mobileZone,
+                !compactBoard ? visibleZones.includes(zone.id) : zone.id === mobileZone,
               )
               .flatMap((zone) => zone.cards.map((card) => card.id)),
           );
@@ -223,12 +242,12 @@ export default function LimitedDeckBuilder({
           />
         )}
       </div>
-      <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex min-h-40 flex-1 flex-col">
         <LimitedBuildBoard
           zones={zones}
           mobileZone={mobileZone}
           onZoneChange={showZone}
-          compact={!isDesktop || shortTouch}
+          compact={compactBoard}
           visibleZones={visibleZones}
           onToggleZone={toggleZone}
           acquiredIds={acquiredIds}

@@ -121,7 +121,7 @@ function PreviewImageStack({
       {(!displayed || terminalFailure) && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-[inherit] p-4 bg-black">
           {!terminalFailure && <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />}
-          <span className="text-xs text-muted-foreground text-center">{cardName}</span>
+          <span className="text-ui-meta text-muted-foreground text-center">{cardName}</span>
         </div>
       )}
       {displayed && !targetShown && !terminalFailure && (
@@ -190,10 +190,15 @@ export function CardPreview({
 }: CardPreviewProps) {
   const resolvedGameCard = useResolvedGameCard(card);
   const preferredView = usePreferencesStore((state) => state.inGameCardPreviewStyle);
-  const [viewOverride, setViewOverride] = useState<boolean | null>(null);
-  const generatedView = !onToggleView && (viewOverride ?? preferredView === "rules");
+  const generatedView = !onToggleView && preferredView === "rules";
   const toggleView =
-    onToggleView ?? (() => setViewOverride((current) => !(current ?? preferredView === "rules")));
+    onToggleView ??
+    (() => {
+      const preferences = usePreferencesStore.getState();
+      preferences.setInGameCardPreviewStyle(
+        preferences.inGameCardPreviewStyle === "printed" ? "rules" : "printed",
+      );
+    });
   const [displayedFace, setDisplayedFace] = useState({ cardId: card.id, back: showBackFace });
   const displayFace = useCallback(
     (back: boolean) => setDisplayedFace({ cardId: card.id, back }),
@@ -353,10 +358,12 @@ export function CardPreview({
         )
       : card.counters;
   useKeybindings(
-    {
-      ...(onFlip && hasFlippableFaces ? { "flip-card": () => onFlip() } : {}),
-      ...(!onToggleView ? { "toggle-card-view": toggleView } : {}),
-    },
+    phase === "open" && !suppressed
+      ? {
+          ...(onFlip && hasFlippableFaces ? { "flip-card": () => onFlip() } : {}),
+          ...(!onToggleView ? { "toggle-card-view": toggleView } : {}),
+        }
+      : {},
     portalTarget ? rootRef : undefined,
   );
   useEffect(() => {
@@ -440,7 +447,6 @@ export function CardPreview({
     mouseY,
     horizontal,
     hasPanel: showSidePanel,
-    panelHeight,
     viewportLeft,
     viewportTop,
     viewportRight: Math.min(
@@ -533,8 +539,8 @@ export function CardPreview({
           cardTop={slot ? (slotBounds?.top ?? slot.getBoundingClientRect().top) : top}
           cardWidth={cardWidth}
           cardHeight={cardHeight}
-          panelWidth={showSidePanel ? sidePanelWidth * layout.panelScale : 0}
-          panelHeight={panelHeight * layout.panelScale}
+          panelWidth={showSidePanel ? sidePanelWidth : 0}
+          panelHeight={panelHeight}
           panelSide={panelSide}
           sticky={isSticky}
           contentInteractive={Boolean(slot) && interactive}
@@ -568,7 +574,6 @@ export function CardPreview({
             : {
                 left: cardLeft - portalOriginLeft,
                 top: top - portalOriginTop,
-                touchAction: isSticky ? "none" : undefined,
               }
         }
         onPointerDown={handlePreviewPointerDown}
@@ -625,6 +630,7 @@ export function CardPreview({
               )}
               style={{
                 borderRadius: cardCornerRadius,
+                touchAction: isSticky ? "none" : undefined,
                 ...(hasActions ? actionableCardGlowStyle(ringColor) : {}),
               }}
             >
@@ -708,7 +714,7 @@ export function CardPreview({
                   className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4 bg-black"
                 >
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground text-center">
+                  <span className="text-ui-meta text-muted-foreground text-center">
                     {currentCardName}
                   </span>
                 </div>
@@ -761,7 +767,7 @@ export function CardPreview({
                     toggleView();
                   }}
                   className={cn(
-                    "inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/65 text-white shadow hover:bg-black/85 pointer-coarse:h-11 pointer-coarse:w-11",
+                    "inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/65 text-white shadow hover:bg-black/85 touch:min-h-11 touch:min-w-11",
                     interactive ? "pointer-events-auto" : "pointer-events-none",
                   )}
                   aria-label={generatedView ? "Show Realistic card" : "Show Manabrew card"}
@@ -777,7 +783,7 @@ export function CardPreview({
                       onFlip({ sticky: true });
                     }}
                     className={cn(
-                      "inline-flex min-h-8 items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white shadow hover:bg-black/85 pointer-coarse:min-h-11 pointer-coarse:px-3",
+                      "inline-flex min-h-8 touch:min-h-11 touch:min-w-11 items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-ui-label font-semibold uppercase tracking-wide text-white shadow hover:bg-black/85 touch:px-3",
                       interactive ? "pointer-events-auto" : "pointer-events-none",
                     )}
                     title={`Flip card (F) — ${showBackFace ? doubleFacedData.frontName : doubleFacedData.backName}`}
@@ -793,14 +799,19 @@ export function CardPreview({
           {showSidePanel && (
             <div
               ref={panelRef}
-              className="absolute top-0 flex flex-col gap-1.5"
+              className="absolute top-0 flex flex-col gap-1.5 overflow-y-auto overscroll-contain [&>*]:shrink-0"
               style={{
                 ...(panelSide === "right" ? { left: cardWidth + 10 } : { right: cardWidth + 10 }),
                 width: sidePanelWidth,
-                transform: `scale(${layout.panelScale})`,
-                transformOrigin: panelSide === "right" ? "top left" : "top right",
+                maxHeight: slot
+                  ? cardHeight
+                  : `max(44px, calc(var(--visual-viewport-height, 100dvh) + var(--visual-viewport-top, 0px) - ${top}px - max(8px, var(--safe-area-inset-bottom))))`,
+                touchAction: "pan-y",
                 pointerEvents: interactive ? "auto" : "none",
               }}
+              onPointerDown={(event) => event.stopPropagation()}
+              onPointerUp={(event) => event.stopPropagation()}
+              onPointerCancel={(event) => event.stopPropagation()}
             >
               {hasMainActions && (
                 <CardPreviewActions
@@ -828,9 +839,9 @@ export function CardPreview({
                 />
               )}
               {!hasActions && hasFlippableFaces && (
-                <div className="px-1 text-[10px] text-muted-foreground">
+                <div className="px-1 text-ui-meta text-muted-foreground">
                   <span>
-                    <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">
+                    <kbd className="rounded border border-border bg-muted px-1 font-mono text-ui-meta">
                       F
                     </kbd>{" "}
                     flip

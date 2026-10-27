@@ -30,7 +30,7 @@ export function DeckStatusSummary({
           variant="ghost"
           size="sm"
           className={cn(
-            "h-7 shrink-0 gap-1.5 text-xs",
+            "min-h-7 h-auto touch:min-h-11 touch:min-w-11 shrink-0 gap-1.5 whitespace-normal text-ui-label",
             issueCount > 0 ? "text-warning" : "text-legality-legal",
           )}
         >
@@ -42,7 +42,7 @@ export function DeckStatusSummary({
           {issueCount > 0 ? `${issueCount} to review` : `Deck healthy`}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-64">
+      <DropdownMenuContent align="end" className="w-80 max-w-[calc(100vw-2rem)]">
         <StatusItem
           icon={<AlertTriangle className="h-3.5 w-3.5" />}
           label={`Format legality`}
@@ -87,10 +87,13 @@ function StatusItem({
   onSelect: () => void;
 }) {
   return (
-    <DropdownMenuItem className="gap-2" onSelect={onSelect}>
+    <DropdownMenuItem
+      className="flex-wrap gap-2 text-ui-label touch:min-h-11 touch:min-w-11"
+      onSelect={onSelect}
+    >
       <span className={cn(warning ? "text-warning" : "text-muted-foreground")}>{icon}</span>
-      <span className="flex-1">{label}</span>
-      <span className={cn("text-xs", warning ? "text-warning" : "text-muted-foreground")}>
+      <span className="min-w-0 flex-1">{label}</span>
+      <span className={cn("text-ui-meta", warning ? "text-warning" : "text-muted-foreground")}>
         {value}
       </span>
     </DropdownMenuItem>

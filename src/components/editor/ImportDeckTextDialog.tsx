@@ -139,7 +139,7 @@ export function ImportDeckTextDialog({
                 style={{ width: `${Math.round(progress * 100)}%` }}
               />
             </div>
-            <div className="text-center text-sm font-medium tabular-nums">
+            <div className="text-center text-ui-meta font-medium tabular-nums">
               {Math.round(progress * 100)}%
             </div>
           </div>
@@ -150,18 +150,18 @@ export function ImportDeckTextDialog({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="gap-1"
+                  className="touch:min-w-11 touch:min-h-11 gap-1"
                   onClick={() => setReviewing(false)}
                 >
                   <ArrowLeft className="h-3.5 w-3.5" /> Edit list
                 </Button>
-                <span className="text-xs text-muted-foreground">
+                <span className="text-ui-meta text-muted-foreground">
                   {mainCount + sideCount + maybeCount + commanderCount} cards · {entries.length}{" "}
                   entries
                 </span>
               </div>
-              <div className="max-h-[45dvh] overflow-y-auto rounded-lg border">
-                <table className="w-full text-xs">
+              <div className="max-h-[45dvh] overflow-auto rounded-lg border">
+                <table className="w-full text-ui-label">
                   <thead className="sticky top-0 bg-background text-left text-muted-foreground">
                     <tr>
                       <th className="px-3 py-2 font-medium">Qty</th>
@@ -199,13 +199,13 @@ export function ImportDeckTextDialog({
                 </table>
               </div>
               {unrecognizedLines.length > 0 && (
-                <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+                <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-ui-meta text-warning">
                   {unrecognizedLines.length === 1
                     ? `One card line was not recognized and will be skipped.`
                     : `${unrecognizedLines.length} card lines were not recognized and will be skipped.`}
                 </div>
               )}
-              <p className="text-xs text-muted-foreground">
+              <p className="text-ui-body text-muted-foreground">
                 Exact set, collector number, and foil finish are preserved when supplied.
                 Unavailable printings are reported after verification.
               </p>
@@ -217,7 +217,7 @@ export function ImportDeckTextDialog({
               <Button
                 variant="primary"
                 size="sm"
-                className="gap-1"
+                className="touch:min-w-11 touch:min-h-11 gap-1"
                 onClick={() => void handleImportClick()}
               >
                 <Download className="h-3.5 w-3.5" />
@@ -232,19 +232,21 @@ export function ImportDeckTextDialog({
                 <ol className="space-y-1.5">
                   {GUIDE_STEPS.map((label, i) => (
                     <li key={label} className="flex items-start gap-2.5">
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[11px] font-semibold text-primary">
+                      <span className="flex min-h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-primary/15 text-ui-meta font-semibold text-primary">
                         {i + 1}
                       </span>
-                      <span className="text-xs leading-5 text-muted-foreground">{label}</span>
+                      <span className="text-ui-body leading-relaxed text-muted-foreground">
+                        {label}
+                      </span>
                     </li>
                   ))}
                 </ol>
               )}
 
               {mode === "create" && (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_10rem]">
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_12rem]">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium">Deck name</label>
+                    <label className="touch:min-h-11 text-ui-label font-medium">Deck name</label>
                     <Input
                       value={name}
                       onChange={(e) => setCustomName(e.target.value)}
@@ -252,7 +254,10 @@ export function ImportDeckTextDialog({
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label htmlFor="import-deck-format" className="text-xs font-medium">
+                    <label
+                      htmlFor="import-deck-format"
+                      className="touch:min-h-11 text-ui-label font-medium"
+                    >
                       Format
                     </label>
                     <AppSelect
@@ -261,7 +266,7 @@ export function ImportDeckTextDialog({
                       onValueChange={(value) =>
                         setFormatId(IMPORT_FORMATS.find((format) => format.id === value)?.id ?? "")
                       }
-                      className="h-9 w-full cursor-pointer rounded-md border bg-background px-2 text-xs pointer-coarse:text-base"
+                      className="touch:min-h-11 min-h-9 w-full cursor-pointer rounded-md border bg-background px-2 text-ui-label"
                     >
                       <AppSelectOption value="">Auto-detect</AppSelectOption>
                       {IMPORT_FORMATS.map((format) => (
@@ -276,11 +281,11 @@ export function ImportDeckTextDialog({
 
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-medium">Deck list</label>
+                  <label className="touch:min-h-11 text-ui-label font-medium">Deck list</label>
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-6 gap-1 px-2 text-xs"
+                    className="touch:min-w-11 touch:min-h-11 min-h-6 gap-1 px-2 text-ui-label"
                     onClick={pasteFromClipboard}
                   >
                     <ClipboardPaste className="h-3 w-3" /> Paste
@@ -295,7 +300,7 @@ export function ImportDeckTextDialog({
                   }}
                   placeholder={"4 Lightning Bolt\n2 Counterspell\n…"}
                   className={cn(
-                    "flex min-h-[176px] w-full resize-none rounded-md border bg-transparent px-3 py-2 font-mono text-xs shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                    "touch:min-h-11 flex min-h-[176px] w-full resize-none rounded-md border bg-transparent px-3 py-2 font-mono text-ui-input shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
                     valid ? "border-legality-legal/60" : "border-input",
                   )}
                 />
@@ -307,8 +312,8 @@ export function ImportDeckTextDialog({
                   className="flex items-center gap-2 rounded-md border border-legality-legal/40 bg-legality-legal/10 px-3 py-2 text-legality-legal"
                 >
                   <CheckCircle2 className="h-4 w-4 shrink-0" />
-                  <span className="text-sm font-medium">Looks good!</span>
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-ui-label font-medium">Looks good!</span>
+                  <span className="text-ui-meta text-muted-foreground">
                     {commanderCount > 0 ? `${commanderCount} commander · ` : ""}
                     {mainCount} main
                     {sideCount > 0 ? ` · ${sideCount} sideboard` : ""}
@@ -316,10 +321,10 @@ export function ImportDeckTextDialog({
                   </span>
                 </div>
               ) : dirty ? (
-                <p className="text-xs text-destructive">No recognizable card entries yet</p>
+                <p className="text-ui-meta text-destructive">No recognizable card entries yet</p>
               ) : null}
               {mode === "add" && commanderCount > 0 && (
-                <p className="text-xs text-muted-foreground">
+                <p className="text-ui-body text-muted-foreground">
                   Commander entries fill an empty command zone. If it already has a commander, they
                   are added to the main deck instead.
                 </p>
@@ -335,7 +340,10 @@ export function ImportDeckTextDialog({
                 size="sm"
                 onClick={() => setReviewing(true)}
                 disabled={!valid}
-                className={cn("gap-1 transition-all", valid && "ring-2 ring-primary/40")}
+                className={cn(
+                  "touch:min-w-11 touch:min-h-11 gap-1 transition-all",
+                  valid && "ring-2 ring-primary/40",
+                )}
               >
                 <Download className="h-3.5 w-3.5" />
                 {mode === "add" ? `Review addition` : `Review import`}

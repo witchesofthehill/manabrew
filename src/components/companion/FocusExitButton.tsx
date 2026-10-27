@@ -45,7 +45,7 @@ export function FocusExitButton({ onExit, onShowChrome }: FocusExitButtonProps) 
         size="sm"
         variant="ghost"
         onClick={onShowChrome}
-        className="h-9 gap-1 rounded-full px-3 text-xs font-semibold"
+        className="h-auto min-h-9 gap-1 rounded-full px-3 py-1 text-ui-label font-semibold touch:min-h-11 touch:min-w-11"
         aria-label={`Show controls`}
         title={`Peek bar and phase strip`}
       >
@@ -55,7 +55,7 @@ export function FocusExitButton({ onExit, onShowChrome }: FocusExitButtonProps) 
         size="sm"
         variant="ghost"
         onClick={handleExit}
-        className="h-9 gap-1 rounded-full px-3 text-xs font-semibold"
+        className="h-auto min-h-9 gap-1 rounded-full px-3 py-1 text-ui-label font-semibold touch:min-h-11 touch:min-w-11"
         aria-label={`Exit focus mode`}
         title={`Exit focus mode`}
       >

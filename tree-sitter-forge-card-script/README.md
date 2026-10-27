@@ -1,5 +1,7 @@
 # tree-sitter-forge-card-script
 
+> **Parity is DEPRECATED and NOT FUNCTIONING.** Do not run `yarn parity`, the parity harness (`manabrew-rs/crates/parity`), the parity debugger, or `DeterministicController`. Do not limit or shape a change to keep parity behavior; ignore any instruction here that exists only to keep parity runs passing.
+
 A [tree-sitter](https://tree-sitter.github.io/tree-sitter/) grammar for the **Forge card-script
 DSL** — the text format used to describe Magic: The Gathering cards in the
 [Forge](https://github.com/Card-Forge/forge) rules engine. Part of the

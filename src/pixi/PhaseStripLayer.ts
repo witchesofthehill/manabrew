@@ -3,7 +3,12 @@
  * Shows the current phase, enabled stops, and supports click-to-toggle.
  */
 
-import { UI_FONT_FAMILY as FONT } from "@/themes/typography";
+import {
+  getUiControlHeight,
+  getUiFontSize,
+  isTouchUi,
+  UI_FONT_FAMILY as FONT,
+} from "@/themes/typography";
 import { Container, Graphics, Text, TextStyle, Sprite } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
 import { getTheme } from "@/hooks/useTheme";
@@ -51,11 +56,11 @@ const PHASES: PhaseSpec[] = STEP_DEFS.filter((p) => p.id !== "untap").flatMap((p
   ];
 });
 
-const CELL_W = 60;
-const CELL_H = 28;
+let CELL_W = 60;
+let CELL_H = 28;
 const CELL_GAP = 5;
 const CELL_R = 4;
-const COMPACT_PILL_H = 22;
+let COMPACT_PILL_H = 22;
 const COMPACT_PILL_MIN_W = 56;
 const COMPACT_PILL_PAD_X = 10;
 const COMPACT_PILL_HIT_PAD = 13;
@@ -86,7 +91,7 @@ const INDICATOR_H = 4;
 const INDICATOR_HOVER_H = 6;
 const INDICATOR_GAP = 4;
 const INDICATOR_MARGIN = 3; // distance from cell edge
-const INDICATOR_HIT_H = 12;
+let INDICATOR_HIT_H = 12;
 const INDICATOR_GHOST_ALPHA = 0.35;
 // My stops only fire on my turn — fade them while an opponent is acting.
 const INDICATOR_OFF_TURN_ALPHA = 0.55;
@@ -95,7 +100,7 @@ const INDICATOR_OFF_TURN_ALPHA = 0.55;
 const _initTheme = getTheme().gameTheme;
 const normalStyle = new TextStyle({
   fontFamily: FONT,
-  fontSize: 11,
+  fontSize: getUiFontSize("label"),
   fontWeight: "600",
   fill: readableTextColor(
     _initTheme.phaseStrip.background,
@@ -106,7 +111,7 @@ const normalStyle = new TextStyle({
 });
 const activeStyle = new TextStyle({
   fontFamily: FONT,
-  fontSize: 11,
+  fontSize: getUiFontSize("label"),
   fontWeight: "bold",
   fill: readableTextColor(
     _initTheme.phaseStrip.background,
@@ -197,7 +202,9 @@ export class PhaseStripLayer {
   private hoveredCellIndex = -1;
   private cellsContainer: Container;
   private combatContainer: Container;
-  private combatCellW: number;
+  private combatCellW = 0;
+  private readonly cellPositions = new Array<number>(PHASES.length).fill(0);
+  private readonly cellRows = new Array<number>(PHASES.length).fill(0);
   private dimAlpha = 1;
   private expandedBackdrop: Graphics;
   private pillContainer: Container;
@@ -383,7 +390,28 @@ export class PhaseStripLayer {
     this.pillContainer.addChild(this.pillHit);
     this.container.addChild(this.pillContainer);
 
+    this.updateTypography();
+  }
+
+  private updateTypography(): void {
+    const tablet = !this.compact && getUiControlHeight() >= 44;
+    const fontSize = getUiFontSize(tablet ? "caption" : "label");
+    const controlHeight = tablet ? 32 : getUiControlHeight();
+    normalStyle.fontSize = activeStyle.fontSize = fontSize;
+    CELL_H = Math.max(28, controlHeight, Math.ceil(fontSize * 1.4) + 8);
+    COMPACT_PILL_H = Math.max(
+      22,
+      getUiControlHeight(),
+      Math.ceil(getUiFontSize("label") * 1.4) + 8,
+    );
+    INDICATOR_HIT_H = Math.max(12, getUiControlHeight());
     const measurer = new Text({ text: "", style: activeStyle });
+    CELL_W = Math.max(60, controlHeight);
+    for (const phase of PHASES) {
+      if (phase.subPhases) continue;
+      measurer.text = phase.short;
+      CELL_W = Math.max(CELL_W, Math.ceil(measurer.width) + 16);
+    }
     let maxLabelW = 0;
     for (const id of COMBAT_SUB_PHASES) {
       measurer.text = COMBAT_FULL_LABELS[id] ?? "";
@@ -429,15 +457,14 @@ export class PhaseStripLayer {
     if (this.pillPressed === pressed) return;
     this.pillPressed = pressed;
     this.pillBg.alpha = pressed ? 0.82 : 1;
-    this.pillText.scale.set(pressed ? 0.96 : 1);
   }
 
   isCompactExpanded(): boolean {
-    return this.compact && this.expanded;
+    return this.expanded;
   }
 
   private expand(): void {
-    if (!this.compact || this.expanded) return;
+    if (this.expanded) return;
     this.expanded = true;
     this.expandedAt = performance.now();
     if (this.lastState) this.render(this.lastState);
@@ -456,7 +483,7 @@ export class PhaseStripLayer {
   }
 
   handleOutsidePointerDown(localX: number, localY: number): void {
-    if (!this.compact || !this.expanded) return;
+    if (!this.expanded) return;
     const b = this.expandedBounds;
     if (b && localX >= b.x && localX <= b.x + b.w && localY >= b.y && localY <= b.y + b.h) {
       this.pokeExpandTimer();
@@ -467,6 +494,7 @@ export class PhaseStripLayer {
 
   setTheme(theme: Theme): void {
     this.theme = theme;
+    this.updateTypography();
     const foreground = readableTextColor(
       theme.gameTheme.phaseStrip.background,
       theme.gameTheme.canvas.shadow,
@@ -538,32 +566,59 @@ export class PhaseStripLayer {
     const foreground = readableTextColor(t.phaseStrip.background, t.canvas.shadow, t.textOnTinted);
     const y = this.canvasHeight / 2 - CELL_H / 2;
     const centerX = this.canvasWidth / 2;
+    const availableWidth = Math.max(1, this.canvasWidth - 16);
+    const combatWidth = Math.min(this.combatCellW, availableWidth);
 
-    const showPill = this.compact && !this.expanded;
+    const indicatorWidth = isTouchUi() ? (this.compact ? getUiControlHeight() : 32) : 0;
+    const cellWidth = Math.max(
+      CELL_W,
+      state.opponents.length * indicatorWidth +
+        Math.max(0, state.opponents.length - 1) * INDICATOR_GAP,
+    );
+    const naturalWidth =
+      (this.cells.length - 1) * (cellWidth + CELL_GAP) + combatWidth + CELL_GAP * 2;
+    const constrained = naturalWidth > this.canvasWidth - 16;
+    const showPill = (this.compact || constrained) && !this.expanded;
     this.cellsContainer.visible = !showPill;
     this.combatContainer.visible = !showPill;
     this.pillContainer.visible = showPill;
-    this.forceShowIndicators = (this.compact && this.expanded) || isCoarsePointer();
+    this.forceShowIndicators = this.expanded || isCoarsePointer();
 
     const combatIdx = this.cells.findIndex((c) => !!c.subPhases);
-    const leftCells = this.cells.slice(0, combatIdx);
-    const rightCells = this.cells.slice(combatIdx + 1);
 
-    const combatX = centerX - this.combatCellW / 2;
+    const combatX = centerX - combatWidth / 2;
 
-    const cellPositions: number[] = new Array(this.cells.length);
+    const cellPositions = this.cellPositions;
     cellPositions[combatIdx] = combatX;
     let lx = combatX - CELL_GAP;
-    for (let i = leftCells.length - 1; i >= 0; i--) {
-      lx -= CELL_W;
+    for (let i = combatIdx - 1; i >= 0; i--) {
+      lx -= cellWidth;
       cellPositions[i] = lx;
       lx -= CELL_GAP;
     }
-    let rx = combatX + this.combatCellW + CELL_GAP;
-    for (let i = 0; i < rightCells.length; i++) {
-      cellPositions[combatIdx + 1 + i] = rx;
-      rx += CELL_W + CELL_GAP;
+    let rx = combatX + combatWidth + CELL_GAP;
+    for (let i = combatIdx + 1; i < this.cells.length; i++) {
+      cellPositions[i] = rx;
+      rx += cellWidth + CELL_GAP;
     }
+    const cellRows = this.cellRows;
+    cellRows.fill(0);
+    let rowCount = 1;
+    if (constrained && !showPill) {
+      let rowX = 8;
+      for (let i = 0; i < this.cells.length; i++) {
+        const width = this.cells[i]!.subPhases ? combatWidth : cellWidth;
+        if (rowX > 8 && rowX + width > this.canvasWidth - 8) {
+          rowCount++;
+          rowX = 8;
+        }
+        cellRows[i] = rowCount - 1;
+        cellPositions[i] = rowX;
+        rowX += width + CELL_GAP;
+      }
+    }
+    const rowHeight = CELL_H + INDICATOR_HIT_H * 2 + CELL_GAP;
+    const stripY = y - ((rowCount - 1) * rowHeight) / 2;
 
     // Determine the active player's color (divider line + active cell).
     const pc = t.playerColors;
@@ -586,13 +641,13 @@ export class PhaseStripLayer {
         : hexToNum(t.textMuted);
 
     const lineY = this.canvasHeight / 2;
-    const stripLeft = cellPositions[0]! - CELL_GAP;
-    const stripRight = rx;
-    const stripWidth = stripRight - stripLeft;
-    const fitX = Math.min(1, Math.max(1, this.canvasWidth - 16) / stripWidth);
-    const stripOffset = fitX < 1 ? centerX - ((stripLeft + stripRight) * fitX) / 2 : 0;
+    const stripLeft = constrained ? 8 : cellPositions[0]! - CELL_GAP;
+    const stripRight = constrained ? this.canvasWidth - 8 : rx;
+    const stripWidth = Math.min(availableWidth, stripRight - stripLeft);
+    const fitX = 1;
+    const stripOffset = constrained ? 0 : centerX - (stripLeft + stripRight) / 2;
     for (const layer of [this.cellsContainer, this.combatContainer, this.expandedBackdrop]) {
-      layer.scale.x = fitX;
+      layer.scale.x = 1;
       layer.x = stripOffset;
     }
 
@@ -610,7 +665,12 @@ export class PhaseStripLayer {
     // Strip hover hit area — covers cells + indicator rows
     const hoverPad = INDICATOR_HIT_H + INDICATOR_MARGIN + 2;
     this.stripHitArea.clear();
-    this.stripHitArea.rect(stripLeft, y - hoverPad, stripRight - stripLeft, CELL_H + hoverPad * 2);
+    this.stripHitArea.rect(
+      stripLeft,
+      stripY - hoverPad,
+      stripWidth,
+      CELL_H + hoverPad * 2 + (rowCount - 1) * rowHeight,
+    );
     this.stripHitArea.fill({
       color: hexToNum(this.theme.gameTheme.canvas.neutral),
       alpha: 0.001,
@@ -671,9 +731,9 @@ export class PhaseStripLayer {
     }
 
     this.expandedBackdrop.clear();
-    if (this.compact && this.expanded) {
-      const backdropY = y - hoverPad;
-      const backdropH = CELL_H + hoverPad * 2;
+    if ((this.compact || constrained) && this.expanded) {
+      const backdropY = stripY - hoverPad;
+      const backdropH = CELL_H + hoverPad * 2 + (rowCount - 1) * rowHeight;
       this.expandedBackdrop.roundRect(
         stripLeft,
         backdropY,
@@ -699,12 +759,14 @@ export class PhaseStripLayer {
     for (let i = 0; i < count; i++) {
       const cell = this.cells[i]!;
       const isCombatCell = !!cell.subPhases;
-      const cellW = isCombatCell ? this.combatCellW : CELL_W;
+      const cellW = isCombatCell ? combatWidth : cellWidth;
       const cx = cellPositions[i]!;
+      const y = stripY + cellRows[i]! * rowHeight;
 
       const combatSubActive = isCombatCell && cell.subPhases!.includes(state.currentStep);
       const isCurrentPhase = isCombatCell ? combatSubActive : state.currentStep === cell.id;
       const isActive = isCurrentPhase; // highlight current phase regardless of whose turn
+      cell.text.style = isActive ? activeStyle : normalStyle;
       const phaseIds = cell.indicatorPhases ?? cell.subPhases ?? [cell.id];
 
       // Combat cell: permanent battle section — idle shows "COMBAT" + ghost
@@ -713,6 +775,16 @@ export class PhaseStripLayer {
         cell.text.text = combatSubActive
           ? (COMBAT_FULL_LABELS[state.currentStep] ?? "")
           : cell.defaultLabel;
+        const labelWidth =
+          cellW -
+          COMBAT_EXPAND_PAD_X * 2 -
+          COMBAT_ICON_SIZE -
+          COMBAT_EXPAND_LABEL_GAP -
+          COMBAT_EXPAND_PIPS_GAP -
+          COMBAT_PIPS_W;
+        if (cell.text.width > labelWidth) {
+          cell.text.text = COMBAT_LABELS[state.currentStep] ?? cell.defaultLabel;
+        }
       }
 
       // Combat icon position + tint
@@ -766,7 +838,6 @@ export class PhaseStripLayer {
       cell.hoverBg.clear();
 
       // Text position (non-combat cells; combat text is positioned with the icon above)
-      cell.text.style = isActive ? activeStyle : normalStyle;
       cell.text.y = y + CELL_H / 2;
       if (!isCombatCell) {
         cell.text.x = cx + cellW / 2;
@@ -893,11 +964,7 @@ export class PhaseStripLayer {
       }
     }
 
-    if (
-      this.compact &&
-      this.expanded &&
-      performance.now() - this.expandedAt > STRIP_COMPACT_EXPAND_TIMEOUT_MS
-    ) {
+    if (this.expanded && performance.now() - this.expandedAt > STRIP_COMPACT_EXPAND_TIMEOUT_MS) {
       this.collapse();
     }
 

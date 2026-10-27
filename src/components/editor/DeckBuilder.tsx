@@ -8,7 +8,7 @@ import { DeckVersionHistoryDialog } from "@/components/deck/DeckVersionHistoryDi
 import { useKeybindings } from "@/hooks/useKeybindings";
 import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 import { Button } from "@/components/ui/button";
-import { PrintPickerModal } from "./PrintPickerModal";
+import { CardCustomizerModal } from "./CardCustomizerModal";
 import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
@@ -208,8 +208,9 @@ export function DeckBuilder({
   const hubEnabled = isFeatureEnabled("deckHub");
   const accountsEnabled = isFeatureEnabled("accounts");
   const publishEnabled = hubEnabled && accountsEnabled;
-  const [printPickerCard, setPrintPickerCard] = useState<DeckCard | null>(null);
-  const [tokenPrintPicker, setTokenPrintPicker] = useState<DeckCard | null>(null);
+  const [customization, setCustomization] = useState<{ card: DeckCard; token: boolean } | null>(
+    null,
+  );
   const [detailCard, setDetailCard] = useState<ScryfallCard | null>(null);
   const [detailToken, setDetailToken] = useState<DeckCard | null>(null);
   const [detailPrinting, setDetailPrinting] = useState<DeckCardIdentity | null>(null);
@@ -261,13 +262,14 @@ export function DeckBuilder({
     untagCard,
     setCoverCard,
     setStackPositions,
-    updatePrintingVariant,
-    updateTokenPrint,
     resetTokenPrint,
     updateAccountDeckVersion,
     linkSavedDeckToAccount,
     loadAccountDeck,
   } = useDeckStore();
+  function handleCustomize(card: DeckCard) {
+    if (!isReadOnly) setCustomization({ card, token: false });
+  }
   const allowIllegalDecks = useGameDevStore((s) => s.allowIllegalDecks);
   const importIntoCurrentDeck = useDeckTextImportIntoCurrent();
   const { selectedCards, toggleCard, rangeSelect, clearSelection, selectCards } =
@@ -1602,16 +1604,16 @@ export function DeckBuilder({
         <div
           className={cn(
             "flex shrink-0 flex-wrap items-center gap-2 border-b border-warning/40 bg-warning/10 px-3 py-2",
-            shortTouch && "flex-nowrap px-3 py-1",
+            shortTouch && "flex-nowrap overflow-x-auto px-3 py-1",
           )}
         >
           <Bookmark className="h-3.5 w-3.5 text-warning shrink-0" />
-          <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-warning">
+          <span className="shrink-0 text-ui-meta font-semibold uppercase tracking-wide text-warning">
             {readOnlySource === "hub" ? `Hub snapshot — read only` : `Starter deck — read only`}
           </span>
           <span
             className={cn(
-              "hidden min-w-0 flex-1 truncate text-xs text-warning/70 sm:block",
+              "hidden min-w-0 flex-1 truncate text-ui-meta text-warning/70 sm:block",
               shortTouch && "sm:hidden",
             )}
           >
@@ -1622,7 +1624,7 @@ export function DeckBuilder({
               <Button
                 variant="outline"
                 size="sm"
-                className="h-7 pointer-coarse:h-11"
+                className="touch:min-w-11 min-h-7 touch:min-h-11"
                 onClick={() => {
                   if (!currentDeck.id) return;
                   navigate(
@@ -1637,7 +1639,7 @@ export function DeckBuilder({
             <Button
               variant="primary"
               size="sm"
-              className="h-7 pointer-coarse:h-11"
+              className="touch:min-w-11 min-h-7 touch:min-h-11"
               onClick={handleImportReadOnlyDeck}
             >
               <Plus className="h-3.5 w-3.5 mr-1" />
@@ -1681,7 +1683,7 @@ export function DeckBuilder({
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
               <Input
                 ref={filterInputRef}
-                className="h-6 pl-6 pr-6 text-xs pointer-coarse:h-11 pointer-coarse:text-base"
+                className="min-h-6 pl-6 pr-11 text-ui-input touch:min-h-11"
                 placeholder="Filter…"
                 title="Filter by name or use tag:, type:, color:, section:, mv>=, is:owned, is:missing, is:partial, is:foil, is:combo, and - to negate"
                 value={deckFilter}
@@ -1690,7 +1692,7 @@ export function DeckBuilder({
               {deckFilter && (
                 <button
                   type="button"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  className="touch:min-w-11 touch:min-h-11 inline-flex items-center justify-center absolute right-0 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   onClick={() => setDeckFilter("")}
                 >
                   <X className="h-3 w-3" />
@@ -1700,7 +1702,7 @@ export function DeckBuilder({
             {cmcFilter !== null && (
               <button
                 type="button"
-                className="flex shrink-0 items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary transition-colors hover:bg-primary/25"
+                className="touch:min-w-11 touch:min-h-11 flex shrink-0 items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-ui-label font-medium text-primary transition-colors hover:bg-primary/25"
                 title={`Clear mana value filter`}
                 onClick={() => setCmcFilter(null)}
               >
@@ -1711,7 +1713,7 @@ export function DeckBuilder({
             {collectionFilter !== "all" && (
               <button
                 type="button"
-                className="flex shrink-0 items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium capitalize text-primary transition-colors hover:bg-primary/25"
+                className="touch:min-w-11 touch:min-h-11 flex shrink-0 items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-ui-label font-medium capitalize text-primary transition-colors hover:bg-primary/25"
                 title={`Clear collection filter`}
                 onClick={() => setCollectionFilter("all")}
               >
@@ -1722,7 +1724,7 @@ export function DeckBuilder({
             {!shortTouch && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded-md border shrink-0 transition-colors">
+                  <button className="touch:min-w-11 touch:min-h-11 flex items-center gap-1 text-ui-label text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded-md border shrink-0 transition-colors">
                     <Group className="h-3 w-3" />
                     <span>{GROUP_BY_OPTIONS.find((o) => o.value === groupBy)?.label}</span>
                     <ChevronDown className="h-2.5 w-2.5 opacity-60" />
@@ -1744,7 +1746,7 @@ export function DeckBuilder({
             {!shortTouch && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="flex shrink-0 items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs text-muted-foreground transition-colors hover:text-foreground">
+                  <button className="touch:min-w-11 touch:min-h-11 flex shrink-0 items-center gap-1 rounded-md border px-1.5 py-0.5 text-ui-label text-muted-foreground transition-colors hover:text-foreground">
                     <span>
                       Sort: {SORT_OPTIONS.find((option) => option.value === sortBy)?.label}
                     </span>
@@ -1803,7 +1805,7 @@ export function DeckBuilder({
                     title={mode.charAt(0).toUpperCase() + mode.slice(1)}
                     onClick={() => setViewMode(mode)}
                     className={cn(
-                      "p-1 transition-colors border-r last:border-r-0",
+                      "touch:min-w-11 touch:min-h-11 p-1 transition-colors border-r last:border-r-0",
                       viewMode === mode
                         ? "bg-selection text-selection-foreground"
                         : "hover:bg-muted text-muted-foreground",
@@ -1822,7 +1824,7 @@ export function DeckBuilder({
                 step={1}
                 value={cardSize}
                 onChange={(e) => setCardSize(Number(e.target.value))}
-                className="w-32 h-1 cursor-pointer accent-primary shrink-0"
+                className="touch:min-h-11 w-32 h-1 cursor-pointer accent-primary shrink-0"
                 title={`Card size: ${cardSize}`}
               />
             )}
@@ -1889,7 +1891,7 @@ export function DeckBuilder({
               />
             </div>
             {!shortTouch && !isReadOnly && (
-              <span className="shrink-0 text-[11px] text-muted-foreground" aria-live="polite">
+              <span className="shrink-0 text-ui-meta text-muted-foreground" aria-live="polite">
                 {isSaving || syncState === "saving"
                   ? `Saving\u2026`
                   : hasUnsavedChanges
@@ -1920,7 +1922,7 @@ export function DeckBuilder({
                 }
                 disabled={isSaving || (!hasUnsavedChanges && !currentDeck.draft)}
                 className={cn(
-                  "h-7 shrink-0 gap-1 text-xs",
+                  "touch:min-w-11 touch:min-h-11 min-h-7 shrink-0 gap-1 text-ui-label",
                   !isDeckLegal && "border-warning/50 text-warning hover:bg-warning/10",
                 )}
                 title={
@@ -1953,7 +1955,7 @@ export function DeckBuilder({
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="h-7 w-7 shrink-0"
+                    className="touch:min-w-11 touch:min-h-11 min-h-7 w-7 shrink-0"
                     disabled={isReadOnly}
                     aria-label="Deck actions"
                   >
@@ -2030,7 +2032,7 @@ export function DeckBuilder({
                   <DropdownMenuItem onSelect={() => setLabelsOpen(true)}>
                     <Palette className="h-3.5 w-3.5 mr-2" /> Deck labels
                     {(currentDeck.labels?.length ?? 0) > 0 && (
-                      <span className="ml-auto text-[10px] text-muted-foreground">
+                      <span className="ml-auto text-ui-meta text-muted-foreground">
                         {currentDeck.labels!.length}
                       </span>
                     )}
@@ -2038,7 +2040,7 @@ export function DeckBuilder({
                   <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                     <Bookmark className="h-3.5 w-3.5 mr-2" /> Tags
                     {(currentDeck.customTags?.length ?? 0) > 0 && (
-                      <span className="ml-auto text-[10px] text-muted-foreground">
+                      <span className="ml-auto text-ui-meta text-muted-foreground">
                         {currentDeck.customTags!.length}
                       </span>
                     )}
@@ -2048,14 +2050,14 @@ export function DeckBuilder({
                       {(currentDeck.customTags ?? []).map((tag) => (
                         <DropdownMenuItem
                           key={tag}
-                          className="text-xs pl-8 justify-between"
+                          className="text-ui-label pl-8 justify-between"
                           onSelect={(e) => e.preventDefault()}
                         >
                           <span>{tag}</span>
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="h-5 w-5 text-destructive shrink-0"
+                            className="touch:min-w-11 touch:min-h-11 min-h-5 w-5 text-destructive shrink-0"
                             onClick={() => {
                               executeDeckEdit(`Remove ${tag} tag`, () => removeCustomTag(tag));
                               toast.success(`Tag "${tag}" removed`);
@@ -2069,7 +2071,7 @@ export function DeckBuilder({
                   )}
                   <div className="px-2 py-1.5">
                     <Input
-                      className="h-7 text-xs"
+                      className="touch:min-h-11 min-h-7 text-ui-input"
                       placeholder="New tag…"
                       value={newTagInput}
                       onChange={(e) => setNewTagInput(e.target.value)}
@@ -2131,7 +2133,7 @@ export function DeckBuilder({
                     );
                   }}
                   onLeave={preview.handleMouseLeave}
-                  onPickPrint={setPrintPickerCard}
+                  onCustomize={handleCustomize}
                   contextMenuFor={(card, label) => {
                     const name = card.identity.name;
                     const isCover =
@@ -2148,7 +2150,7 @@ export function DeckBuilder({
                       hasBackFace: !!card.backFace,
                       onShowInfo: () => handleShowInfo(card),
                       onRemoveCommander: () => handleRemoveCommander(card),
-                      onPickPrint: () => setPrintPickerCard(card),
+                      onCustomize: () => handleCustomize(card),
                       onSetCover: () => {
                         executeDeckEdit(`Change deck cover`, () =>
                           setCoverCard(isCover ? undefined : name, 0),
@@ -2178,21 +2180,21 @@ export function DeckBuilder({
                 />
                 {currentDeck.companion && (
                   <section className="mx-4 mb-4 rounded-lg border p-3">
-                    <h3 className="mb-2 text-sm font-semibold">Companion</h3>
+                    <h3 className="mb-2 text-ui-label font-semibold">Companion</h3>
                     <CardContextMenu
                       card={currentDeck.companion}
                       count={1}
                       location="side"
                       canCustomize={!isReadOnly}
                       onShowInfo={() => handleShowInfo(currentDeck.companion!)}
-                      onPickPrint={
-                        isReadOnly ? undefined : () => setPrintPickerCard(currentDeck.companion!)
+                      onCustomize={
+                        isReadOnly ? undefined : () => handleCustomize(currentDeck.companion!)
                       }
                     >
                       <div className="group flex items-center gap-2 rounded-md hover:bg-muted/40">
                         <button
                           type="button"
-                          className="min-w-0 flex-1 truncate p-2 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          className="touch:min-w-11 touch:min-h-11 min-w-0 flex-1 truncate p-2 text-left text-ui-label focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                           onClick={() => handleShowInfo(currentDeck.companion!)}
                         >
                           {currentDeck.companion.identity.name}
@@ -2242,7 +2244,7 @@ export function DeckBuilder({
                     onMoveAllFromMaybeToMain={handleMoveAllFromMaybeToMain}
                     onMoveOneFromMaybeToSide={handleMoveOneFromMaybeToSide}
                     onMoveAllFromMaybeToSide={handleMoveAllFromMaybeToSide}
-                    onPickPrint={setPrintPickerCard}
+                    onCustomize={handleCustomize}
                     onHover={(card, e, details) => {
                       const previewCard = deckCardToPreviewDto(card);
                       const localized = details
@@ -2314,7 +2316,7 @@ export function DeckBuilder({
               <div data-editor-section="analysis" className="scroll-mt-12 px-4 pb-10 pt-4">
                 <button
                   type="button"
-                  className="mb-4 flex w-full items-center gap-3 rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="touch:min-w-11 touch:min-h-11 mb-4 flex w-full items-center gap-3 rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   aria-expanded={analysisOpen}
                   onClick={() => setAnalysisOpen((value) => !value)}
                 >
@@ -2324,7 +2326,7 @@ export function DeckBuilder({
                       !analysisOpen && "-rotate-90",
                     )}
                   />
-                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  <span className="text-ui-label font-semibold uppercase tracking-wider text-muted-foreground">
                     Deck Analysis
                   </span>
                   <div className="h-px flex-1 bg-border/60" />
@@ -2339,7 +2341,7 @@ export function DeckBuilder({
                         cardSize={cardSize}
                         canCustomize={!isReadOnly}
                         onShowInfo={handleShowTokenInfo}
-                        onPickPrint={setTokenPrintPicker}
+                        onCustomize={(card) => setCustomization({ card, token: true })}
                         onResetPrint={(token) =>
                           executeDeckEdit(`Reset ${token.identity.name} token printing`, () =>
                             resetTokenPrint(token),
@@ -2413,8 +2415,8 @@ export function DeckBuilder({
           variant="secondary"
           size="icon"
           className={cn(
-            "absolute bottom-4 right-4 z-50 h-10 w-10 rounded-full border shadow-lg",
-            selectedCards.size > 0 && "bottom-20",
+            "touch:min-w-11 touch:min-h-11 absolute bottom-4 right-4 z-50 min-h-10 w-10 rounded-full border shadow-lg",
+            selectedCards.size > 0 && "bottom-[calc(40%+1rem)]",
           )}
           title={`Back to top`}
           aria-label={`Back to top`}
@@ -2450,29 +2452,13 @@ export function DeckBuilder({
           />
         )}
 
-        <PrintPickerModal
-          cardName={printPickerCard?.identity.name ?? null}
-          onClose={() => setPrintPickerCard(null)}
-          onSelect={(print) => {
-            if (printPickerCard) {
-              executeDeckEdit(`Change ${printPickerCard.identity.name} printing`, () =>
-                updatePrintingVariant(printPickerCard.identity, print),
-              );
-            }
-          }}
-        />
-        <PrintPickerModal
-          cardName={tokenPrintPicker?.identity.name ?? null}
-          token={tokenPrintPicker ?? undefined}
-          onClose={() => setTokenPrintPicker(null)}
-          onSelect={(sc) => {
-            if (tokenPrintPicker) {
-              executeDeckEdit(`Change ${tokenPrintPicker.identity.name} token printing`, () =>
-                updateTokenPrint(tokenPrintPicker, sc),
-              );
-            }
-          }}
-        />
+        {customization && !isReadOnly && (
+          <CardCustomizerModal
+            card={customization.card}
+            token={customization.token}
+            onClose={() => setCustomization(null)}
+          />
+        )}
         {detailCard && (
           <CardDetailModal
             card={detailCard}
@@ -2486,10 +2472,6 @@ export function DeckBuilder({
               printing: detailPrinting ?? undefined,
               onAddOne: handleAddOneToMainByName,
               onRemoveOne: handleRemoveOneFromMain,
-              onPickPrint: (name) => {
-                const card = allDeckCards().find((candidate) => candidate.identity.name === name);
-                if (card) setPrintPickerCard(card);
-              },
               onSetCommander: (name) => {
                 const existing = currentDeck.commanders?.find((c) => c.identity.name === name);
                 if (existing) {
@@ -2524,13 +2506,6 @@ export function DeckBuilder({
                 );
               },
               token: detailToken ?? undefined,
-              onUpdateTokenPrint: (_name, print) => {
-                if (detailToken) {
-                  executeDeckEdit(`Change ${detailToken.identity.name} token printing`, () =>
-                    updateTokenPrint(detailToken, print),
-                  );
-                }
-              },
             }}
           />
         )}
@@ -2616,7 +2591,7 @@ export function DeckBuilder({
           <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-overlay/50 backdrop-blur-sm">
             <div className="bg-card border rounded-xl shadow-xl p-6 max-w-sm space-y-4">
               <h3 className="text-lg font-semibold">Clear Deck</h3>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-ui-body text-muted-foreground">
                 Are you sure you want to clear &quot;{currentDeck.name}&quot;? This will remove all
                 cards and delete the saved deck.
               </p>

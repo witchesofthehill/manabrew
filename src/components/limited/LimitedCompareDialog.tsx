@@ -71,7 +71,7 @@ export function LimitedCompareDialog({ current, sessionKey, open, onOpenChange }
   );
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90dvh] max-w-4xl overflow-y-auto">
+      <DialogContent className="max-w-4xl overflow-y-auto overscroll-contain">
         <DialogHeader>
           <DialogTitle>Compare Limited builds</DialogTitle>
           <DialogDescription>
@@ -82,19 +82,19 @@ export function LimitedCompareDialog({ current, sessionKey, open, onOpenChange }
         </DialogHeader>
 
         {choices.length === 0 ? (
-          <p className="rounded border border-border/50 bg-muted/30 p-3 text-sm text-muted-foreground">
+          <p className="rounded border border-border/50 bg-muted/30 p-3 text-ui-body text-muted-foreground">
             No comparison builds yet. Keep a named build in Build configurations or use Save to My
             Decks to save a Limited deck.
           </p>
         ) : (
           <div className="grid gap-3">
-            <label className="flex items-center gap-2 text-sm">
+            <label className="flex flex-wrap items-center gap-2 text-ui-label">
               <span className="text-muted-foreground">Compare with</span>
               <AppSelect
                 aria-label="Compare Limited build"
                 value={selectedId}
                 onValueChange={setSelectedId}
-                className="flex-1 rounded border border-border/70 bg-background px-2 py-1 text-sm pointer-coarse:text-base"
+                className="min-w-0 flex-1 rounded border border-border/70 bg-background px-2 py-1"
               >
                 <AppSelectOption value="">Choose a build</AppSelectOption>
                 {choices.map((choice) => (
@@ -105,7 +105,7 @@ export function LimitedCompareDialog({ current, sessionKey, open, onOpenChange }
               </AppSelect>
             </label>
 
-            <div className="grid gap-3 md:grid-cols-2">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,18rem),1fr))] gap-3">
               <CompareColumn title="Current build" cards={current} analysis={currentAnalysis} />
               <CompareColumn
                 title={selected?.name ?? "Choose a build"}
@@ -117,12 +117,12 @@ export function LimitedCompareDialog({ current, sessionKey, open, onOpenChange }
           </div>
         )}
         {metadata.loading && (
-          <p role="status" className="text-xs text-muted-foreground">
+          <p role="status" className="text-ui-meta text-muted-foreground">
             Loading metadata. Unresolved cards are excluded.
           </p>
         )}
         {metadata.errors.length > 0 && (
-          <div role="alert" className="space-y-2 text-xs">
+          <div role="alert" className="space-y-2 text-ui-meta">
             <ul>
               {metadata.errors.map((error) => (
                 <li key={error}>{error}</li>
@@ -156,12 +156,12 @@ function CompareColumn({
 }) {
   return (
     <section className="rounded border border-border/50 bg-card/30 p-3">
-      <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <h3 className="mb-2 text-ui-label font-semibold uppercase tracking-wide text-muted-foreground">
         {title}{" "}
         <span className="text-muted-foreground/70">({empty ? "—" : `${cards.length} cards`})</span>
       </h3>
       {empty ? (
-        <p className="text-xs text-muted-foreground">Pick a build to see its breakdown.</p>
+        <p className="text-ui-meta text-muted-foreground">Pick a build to see its breakdown.</p>
       ) : (
         <div className="space-y-3">
           <LimitedDeckStats cards={cards} />

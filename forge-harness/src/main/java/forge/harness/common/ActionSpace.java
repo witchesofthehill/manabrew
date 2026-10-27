@@ -140,6 +140,7 @@ public final class ActionSpace {
 
         final List<SpellAbility> actions = new ArrayList<>();
         final Map<Card, Card> spellHosts = new IdentityHashMap<>();
+        final MaybePay maybePay = new MaybePay(player);
         boolean stackStatics = false;
         try {
         final List<SpellAbility> possible = new ArrayList<>();
@@ -159,7 +160,7 @@ public final class ActionSpace {
             final Cost payCosts = sa.getPayCosts();
             if (payCosts != null && payCosts.hasManaCost()) {
                 final Card probeHost = stackStatics ? spellHosts.get(sa.getHostCard()) : null;
-                if (!canPayMana(sa, player, lifePaymentFallback, probeHost)) {
+                if (!canPayMana(sa, player, lifePaymentFallback, probeHost, maybePay)) {
                     continue;
                 }
             }
@@ -189,7 +190,8 @@ public final class ActionSpace {
             final SpellAbility sa,
             final Player player,
             final boolean lifePaymentFallback,
-            final Card probeHost
+            final Card probeHost,
+            final MaybePay maybePay
     ) {
         final Set<Card> reservedSacrifices = getFixedReservedSacrifices(sa);
         final Card host = sa.getHostCard();
@@ -197,7 +199,8 @@ public final class ActionSpace {
             sa.setHostCard(probeHost);
         }
         try {
-            if (canPayCurrentManaCost(sa, player, lifePaymentFallback, reservedSacrifices)) {
+            if (canPayCurrentManaCost(sa, player, lifePaymentFallback, reservedSacrifices)
+                    || canMaybePay(sa, player, maybePay)) {
                 return true;
             }
             if (!lifePaymentFallback) {
@@ -228,6 +231,10 @@ public final class ActionSpace {
                 : (reservedSacrifices.isEmpty()
                 ? ComputerUtilMana.canPayManaCost(sa, player, 0, false)
                 : canPayManaCostWithReservedSacrifices(sa, player, reservedSacrifices));
+    }
+
+    private static boolean canMaybePay(final SpellAbility sa, final Player player, final MaybePay maybePay) {
+        return maybePay.canPay(probeManaCost(sa.getPayCosts(), sa, player, false), sa);
     }
 
     private static boolean canPayManaWithAnnouncedX(
@@ -641,7 +648,7 @@ public final class ActionSpace {
         return canPayManaCostFromSources(manaCost, sourceMasks);
     }
 
-    private static void addFloatingManaSources(final Player player, final List<Integer> sourceMasks) {
+    static void addFloatingManaSources(final Player player, final List<Integer> sourceMasks) {
         for (int i = 0; i < player.getManaPool().getAmountOfColor(MagicColor.WHITE); i++) {
             sourceMasks.add((int) ManaAtom.WHITE);
         }
@@ -658,7 +665,7 @@ public final class ActionSpace {
             sourceMasks.add((int) ManaAtom.GREEN);
         }
         for (int i = 0; i < player.getManaPool().getAmountOfColor(MagicColor.COLORLESS); i++) {
-            sourceMasks.add(0);
+            sourceMasks.add(ManaAtom.COLORLESS);
         }
     }
 
@@ -723,7 +730,7 @@ public final class ActionSpace {
         }
     }
 
-    private static List<Integer> mergeAlternativeManaAbility(
+    static List<Integer> mergeAlternativeManaAbility(
             final List<Integer> current,
             final List<Integer> candidate
     ) {
@@ -805,7 +812,7 @@ public final class ActionSpace {
         return true;
     }
 
-    private static List<Integer> producedManaMasks(final SpellAbility manaAbility) {
+    static List<Integer> producedManaMasks(final SpellAbility manaAbility) {
         final List<Integer> masks = new ArrayList<>();
         final AbilityManaPart manaPart = manaAbility.getManaPart();
         if (manaPart == null) {
@@ -847,13 +854,13 @@ public final class ActionSpace {
                 masks.add(tokenMask);
             }
         }
-        if (comboMask != 0) {
+        for (int i = 0; i < manaAbility.amountOfManaGenerated(false) && comboMask != 0; i++) {
             masks.add(comboMask);
         }
         return masks;
     }
 
-    private static int implicitLandManaMask(final Card card) {
+    static int implicitLandManaMask(final Card card) {
         int mask = 0;
         if (card.getType().hasSubtype("Plains")) {
             mask |= ManaAtom.WHITE;

@@ -232,13 +232,7 @@ export function HubDeckPreviewDialog({
         open={hubEnabled && deckId !== null}
         onOpenChange={(open) => !open && !routeLaunchRef.current && onClose()}
       >
-        <DialogContent
-          className={cn(
-            "flex h-[calc(100dvh-1rem-var(--safe-area-inset-top)-var(--safe-area-inset-bottom))] max-h-[calc(100dvh-1rem-var(--safe-area-inset-top)-var(--safe-area-inset-bottom))] w-[calc(100vw-1rem)] max-w-7xl flex-col gap-0 overflow-hidden p-0 sm:h-[90dvh] sm:w-[94vw]",
-            shortTouch &&
-              "sm:h-[calc(100dvh-1rem-var(--safe-area-inset-top)-var(--safe-area-inset-bottom))]",
-          )}
-        >
+        <DialogContent className="flex h-[calc(var(--visual-viewport-height)-2rem-var(--safe-area-inset-top)-var(--safe-area-inset-bottom))] max-w-7xl flex-col gap-0 overflow-y-auto p-0">
           <DialogHeader
             className={cn(
               "shrink-0 border-b px-4 py-3 pr-12 text-left sm:px-5",
@@ -256,7 +250,7 @@ export function HubDeckPreviewDialog({
             {detail && (
               <div
                 className={cn(
-                  "flex flex-wrap items-center gap-2 pt-0.5 text-xs text-muted-foreground",
+                  "flex flex-wrap items-center gap-2 pt-0.5 text-ui-meta text-muted-foreground",
                   shortTouch && "no-scrollbar flex-nowrap overflow-x-auto whitespace-nowrap",
                 )}
               >
@@ -283,8 +277,8 @@ export function HubDeckPreviewDialog({
           {error ? (
             <div className="grid min-h-0 flex-1 place-items-center px-6 text-center">
               <div>
-                <p className="text-sm font-medium">This deck could not be loaded</p>
-                <p className="mt-1 max-w-md text-sm text-muted-foreground">{error}</p>
+                <p className="text-ui-body font-medium">This deck could not be loaded</p>
+                <p className="mt-1 max-w-md text-ui-body text-muted-foreground">{error}</p>
                 <Button
                   variant="outline"
                   size="sm"
@@ -299,7 +293,7 @@ export function HubDeckPreviewDialog({
             <DeckCardBrowser deck={detail.deck} />
           ) : (
             <div className="grid min-h-0 flex-1 place-items-center">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2 text-ui-meta text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Loading deck…
               </div>
@@ -308,7 +302,7 @@ export function HubDeckPreviewDialog({
 
           <div className="shrink-0 border-t bg-background/95 px-3 py-2 backdrop-blur sm:px-4">
             {signedIn && ownershipError && (
-              <div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-destructive">
+              <div className="mb-2 flex flex-wrap items-center gap-2 text-ui-meta text-destructive">
                 <span className="min-w-0 break-words">Couldn’t verify deck ownership.</span>
                 <Button variant="outline" size="sm" onClick={() => void refresh()}>
                   Retry
@@ -317,7 +311,11 @@ export function HubDeckPreviewDialog({
             )}
             {mine && !ownershipLoading && confirmingUnpublish ? (
               <div className="flex flex-wrap items-center justify-end gap-2">
-                <span role="status" aria-live="polite" className="mr-auto text-xs text-destructive">
+                <span
+                  role="status"
+                  aria-live="polite"
+                  className="mr-auto text-ui-meta text-destructive"
+                >
                   Remove this public snapshot?
                 </span>
                 <Button
@@ -339,7 +337,7 @@ export function HubDeckPreviewDialog({
                 </Button>
               </div>
             ) : (
-              <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] gap-2 sm:flex sm:flex-wrap sm:justify-end">
+              <div className="flex flex-wrap justify-end gap-2">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="primary" size="sm" disabled={!detail}>
@@ -365,7 +363,7 @@ export function HubDeckPreviewDialog({
                   onClick={
                     mine || linkedAccountDeck ? handleOpenAccountDeck : () => void handleSave()
                   }
-                  className="min-w-0 px-2 sm:px-3"
+                  className="max-w-full whitespace-normal px-2 sm:px-3"
                 >
                   {linkedAccountDeck && !mine
                     ? `Open My Copy`

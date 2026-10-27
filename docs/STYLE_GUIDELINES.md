@@ -35,7 +35,7 @@ If the same Tailwind string appears in **2+ files**, extract it to `game.styles.
 ```ts
 // game.styles.ts
 export const ZONE_LABEL =
-  "text-xs font-semibold text-muted-foreground uppercase tracking-wide px-1" as const;
+  "text-ui-meta font-semibold text-muted-foreground uppercase tracking-wide px-1" as const;
 ```
 
 ```tsx
@@ -48,10 +48,10 @@ Never use template literals for conditional Tailwind. Use `cn()` from `@/lib/uti
 
 ```tsx
 // ✅ Good
-className={cn("text-sm", isActive && "font-bold")}
+className={cn("text-ui-label", isActive && "font-bold")}
 
 // ❌ Bad
-className={`text-sm ${isActive ? "font-bold" : ""}`}
+className={`text-ui-label ${isActive ? "font-bold" : ""}`}
 ```
 
 ### Never generate Tailwind classes dynamically
@@ -130,7 +130,7 @@ When showing a source card thumbnail alongside a modal title:
     )}
     <div>
       <h2 className="font-semibold text-base">Title</h2>
-      <p className="text-xs text-muted-foreground">{subtitle}</p>
+      <p className="text-ui-meta text-muted-foreground">{subtitle}</p>
     </div>
   </div>
 </Modal.Header>
@@ -269,9 +269,9 @@ editable color paths and Settings defaults. Reserve them for changed card text.
 | `src/themes/buildGameColors.ts` | `BasePalette` interface, `buildGameColors()` that maps ~30 hues → 80 typed tokens                                                                 |
 | `src/themes/default.ts`         | Canonical Manabrew light/dark colors, game palette, and game font sizes                                                                           |
 | `src/themes/brand.ts`           | Shared ember/purple shade families, sage details, and warm neutrals.                                                                              |
-| `src/themes/typography.ts`      | UI/display font stacks shared by imperative canvas text.                                                                                          |
+| `src/themes/typography.ts`      | UI/display font stacks and cached CSS typography metrics for imperative canvas text.                                                              |
 | `src/hooks/useTheme.ts`         | Shared resolved snapshot for React/CSS/Pixi; root-only CSS application and transient editor preview                                               |
-| `src/index.css`                 | `@theme` block mapping CSS vars to Tailwind utilities (auto-generated)                                                                            |
+| `src/index.css`                 | Generated color mappings plus hand-maintained semantic typography and touch rules.                                                                |
 | `src/themes/themeColor.ts`      | Shared parsing, compositing, and contrast math                                                                                                    |
 | `src/themes/themeDocument.ts`   | Version 2 Manabrew theme documents, mode-scoped app overrides, and validated imports                                                              |
 | `src/themes/themeMetadata.ts`   | Semantic labels and groups shared by Settings and the `/card-mock` editor                                                                         |
@@ -372,24 +372,34 @@ and add a semantic theme key instead.
 
 ## 11. Responsive & Touch
 
-The app targets smartphones/tablets (touch, small landscape screens) through huge desktop monitors.
+Available width determines columns and panels. Available height determines compact chrome and scrolling. Touch capability determines readable controls; a wide tablet is not a mouse-only desktop.
 
-- **Breakpoint constants live in `src/lib/responsive.ts`** (`DESKTOP_QUERY`, `SHORT_SCREEN_QUERY`, `COARSE_POINTER_QUERY`, `MOBILE_GAME_QUERY`, long-press timings). JS gates use `useMediaQuery` or the wrappers in `src/hooks/useBreakpoints.ts`. In-game scene and chrome selection use `useIsMobileGame`; height-constrained touch layouts use `useIsShortTouchScreen`. Don't inline `matchMedia` query strings.
-- **`dvh`, never `vh`**, for viewport heights (`max-h-[85dvh]`); `env(safe-area-inset-*)` for notch/home-indicator padding. See `src/AGENTS.md` "page never scrolls".
-- **Hover is not a feature on touch.** Every hover-only affordance needs a touch path: reveal overlays with `pointer-coarse:opacity-100 pointer-coarse:pointer-events-auto`, and previews via **long-press = preview** — the app-wide convention (450ms hold, <10px movement, release hides, the release-tap is swallowed). DOM surfaces use `useLongPressPreview` (`src/hooks/useLongPressPreview.ts`); Pixi surfaces use `LongPressGesture` (`src/pixi/LongPressGesture.ts`).
+- **Shared capability queries.** `src/lib/responsive.ts` owns `DESKTOP_QUERY`, `SHORT_SCREEN_QUERY`, `COARSE_POINTER_QUERY`, `TOUCH_CAPABLE_QUERY`, `MOBILE_GAME_QUERY`, and long-press timings. Use `useHasTouchPointer` and the `touch:` variant for sizing on any touch-capable device, including one with an attached mouse. Primary-pointer interaction stays separate. In-game scene selection still uses `useIsMobileGame`; height-constrained touch layouts use `useIsShortTouchScreen`.
+- **Viewport and safe areas.** Use `100dvh`, explicit scroll owners, and `var(--safe-area-inset-*)` at the existing layout roots. `useVisualViewport` publishes `--visual-viewport-height/width/top/left` for keyboard-visible bounds. Shared Dialog, Sheet and game Modal own those bounds; callers must not replace them with a taller viewport limit or a stale centered width.
+- **Touch has a non-hover path.** Reveal touch actions with `touch:opacity-100 touch:pointer-events-auto`; keep mouse hover and keyboard support on hybrid devices. Long-press preview uses the shared 450ms timing and 10px slop through `useLongPressPreview` or `LongPressGesture`.
+- **Card action placement.** Commander and token thumbnails use a top-right action row on desktop and a bottom-right stack on touch. Keep these layout rules separate from typography adjustments.
 - **Hover handlers on card tiles use `onPointerEnter`/`onPointerLeave` with an `e.pointerType === "touch"` early-return** — plain `onMouseEnter` fires on tap and strands the preview (no mouseleave ever comes on touch).
-- **Tap targets**: interactive elements get ≥44px on coarse pointers — either `pointer-coarse:h-11`-style bumps or an invisible hit expander (`relative … before:absolute before:-inset-3 before:content-['']`). The `Button` and `Input` primitives already bump their sizes under `pointer-coarse:`.
-- **Native `<select>`/`<input>` need ≥16px font on touch** (`pointer-coarse:text-base`) or iOS zooms the page on focus. The `Input` primitive handles this; raw elements must add it.
+- **Tap targets.** Use `touch:min-h-11 touch:min-w-11` or a non-overlapping hit expander for at least 44 CSS pixels. Shared Button, Input, AppSelect, menu rows and close controls apply the policy. Grow geometry with text instead of clipping a readable label in a fixed-height box.
+- **Native fields.** Use `text-ui-input` for raw inputs, textareas and selects. It remains at least 16px on touch at every width; a tablet-width `md:text-sm` must not override it.
 - **rem for chrome, px for card art.** Panels, text, and spacing use rem-based Tailwind tokens so the `:root` font-size steps at 2000px and 3000px in `index.css` scale them on large monitors. `GAME_CARD_SIZES` stays in pixels; `useHandScale`, battlefield grid fitting, and preview viewport fitting apply runtime scale.
 - **Drag gestures use pointer events, never mouse events** (`pointermove`/`pointerup`/`pointercancel`), filtered by `pointerId` so a second finger can't hijack, with `pointercancel` treated as abort.
+
+### Semantic UI typography
+
+`src/index.css` owns the rem-valued `--text-ui-*` properties. Use `text-ui-body` for prose, `text-ui-label` for controls and form labels, `text-ui-meta` for counts/status/help, and `text-ui-caption` only for nonessential captions. At the default root, compact touch viewports use 16px body/labels/fields and 14px metadata. Touch-capable viewports at least 48rem wide use 20px body/labels/fields, 18px metadata and 14px captions. The initial 16px/14px touch scale was too small in large-tablet review; do not treat minimum touch sizes as the wide-screen target. This tier changes semantic text tokens, not the root font size or card dimensions. It remains active with an attached mouse or keyboard. Preserve large headings, life totals, card-local printing and the large-monitor root steps.
+
+At the default desktop root, UI body text and labels use 14px; metadata and captions use 12px. The inherited page font remains 16px. Adjust shared role tokens rather than adding desktop-restoration utilities to individual elements.
+
+`cn()` registers these names as font sizes, so foreground colors survive role overrides. Register new roles in its font-size group and in `themes/typography.ts`. Keep role property values in rem because the imperative metric reader converts them using the current root size.
+
+Pixi reads cached `getUiFontSize(role)`, `getUiControlHeight()` and `isTouchUi()` values. Touch capability uses the control-height/root-font ratio, not a fixed pixel threshold. The root theme lifecycle refreshes those metrics on resize and touch-capability changes and notifies `subscribeTheme`. Subscribers must rebuild text and associated bounds/hit areas, even when colors did not change. Account for a parent's transform when sizing UI controls; keep card fitting independent. The phase strip reserves per-opponent control widths only on touch devices; desktop indicators fit inside the existing cells without widening the strip as players join. Do not measure DOM styles per frame or scale UI text down to solve overflow.
+
+Dense grids use content-width minimums or fewer columns. Long toolbars wrap; overflowing forms and choice lists scroll. Card shelves and spatial reorder/scry interactions may remain horizontal. Browser zoom remains enabled.
 
 ---
 
 ## 12. Testing Checklist
 
-Before committing UI changes:
+Assistant verification is static: `yarn tsc -b`, scoped ESLint, and Prettier. Build the frontend when changing stylesheet generation or bundling. Add no unit tests unless requested.
 
-1. `yarn tsc -p tsconfig.app.json --noEmit` — must pass with zero errors
-2. `yarn tauri dev` — app must build and render correctly
-3. Visual spot-check: verify the changed components look identical to before
-4. Touch-affecting changes: spot-check in DevTools device emulation (long-press previews, tap targets, no stranded hover previews)
+The maintainer owns app/device and visual acceptance: phone landscapes, foldables, tablet orientations, split-screen, attached keyboards/pointers, open keyboards, text zoom, and large-monitor scaling. Static checks do not establish visual approval.

@@ -23,9 +23,9 @@ BasePalette (Manabrew raw hues)
 | `src/themes/buildGameColors.ts`  | `BasePalette` interface, `buildGameColors()` — maps ~30 raw hues to ~80 typed tokens.                                                                           |
 | `src/themes/default.ts`          | Canonical Manabrew light/dark colors, game palette, and game font sizes                                                                                         |
 | `src/themes/brand.ts`            | Ember/purple shade families, restrained sage accents, and warm neutrals shared with the website.                                                                |
-| `src/themes/typography.ts`       | Source Sans 3 UI and Alegreya Sans display stacks for imperative text.                                                                                          |
+| `src/themes/typography.ts`       | Source Sans 3 UI and Alegreya Sans display stacks, plus cached CSS text and control metrics for imperative UI.                                                  |
 | `src/hooks/useTheme.ts`          | Shared resolved snapshot: `useTheme()` for React, `getTheme()` / `subscribeTheme()` for Pixi, and root-only `useApplyTheme()`.                                  |
-| `src/index.css`                  | The `@theme` block mapping CSS vars to Tailwind utilities — **auto-generated**.                                                                                 |
+| `src/index.css`                  | Generated color `@theme` mappings; the separate semantic typography/touch rules are hand-maintained.                                                            |
 | `scripts/generate-theme-css.mjs` | Regenerates the `@theme` block. Run with `--write` after schema changes.                                                                                        |
 | `src/themes/themeColor.ts`       | Dependency-free color parsing, alpha compositing, and contrast math; re-exported by `gameTheme.ts`.                                                             |
 | `src/themes/themeDocument.ts`    | Version 2 Manabrew theme documents and validated version 1 imports. See `docs/STYLE_GUIDELINES.md` §9 for migration rules.                                      |

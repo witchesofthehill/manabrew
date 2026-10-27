@@ -59,7 +59,7 @@ export function TurnTimer({ className }: { className?: string }) {
       <Button
         size="icon"
         variant="ghost"
-        className={cn("size-8 rounded-md bg-muted/60", className)}
+        className={cn("size-8 rounded-md bg-muted/60 touch:min-h-11 touch:min-w-11", className)}
         onClick={() => startTimer()}
         aria-label={`Start timer`}
         title={`Start timer`}
@@ -80,7 +80,7 @@ export function TurnTimer({ className }: { className?: string }) {
           <Button
             size="icon"
             variant="ghost"
-            className="size-6"
+            className="size-6 touch:min-h-11 touch:min-w-11"
             aria-label={
               session.timerMode === "chess" ? `Timer mode: chess clock` : `Timer mode: shared`
             }
@@ -106,13 +106,13 @@ export function TurnTimer({ className }: { className?: string }) {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <span className="min-w-[42px] text-center tabular-nums text-xs font-medium sm:min-w-[52px]">
+      <span className="min-w-[42px] text-center tabular-nums text-ui-meta font-medium sm:min-w-[52px]">
         {formatElapsed(shownMs)}
       </span>
       <Button
         size="icon"
         variant="ghost"
-        className="size-6"
+        className="size-6 touch:min-h-11 touch:min-w-11"
         onClick={() => (running ? pauseTimer() : startTimer())}
         aria-label={running ? `Pause timer` : `Resume timer`}
       >
@@ -121,7 +121,7 @@ export function TurnTimer({ className }: { className?: string }) {
       <Button
         size="icon"
         variant="ghost"
-        className="size-6"
+        className="size-6 touch:min-h-11 touch:min-w-11"
         onClick={resetTimer}
         aria-label={`Reset timer`}
       >

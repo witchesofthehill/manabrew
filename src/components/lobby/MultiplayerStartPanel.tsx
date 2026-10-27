@@ -13,10 +13,10 @@ export function MultiplayerStartPanel({ disabled, onSetUp }: MultiplayerStartPan
 
   if (compact) {
     return (
-      <section className="flex min-h-24 items-center justify-between gap-4 rounded-xl border border-border/70 bg-card/80 p-3 shadow-md backdrop-blur-md">
+      <section className="flex min-h-24 flex-wrap items-center justify-between gap-4 rounded-xl border border-border/70 bg-card/80 p-3 shadow-md backdrop-blur-md">
         <div className="min-w-0">
           <h2 className="font-serif text-2xl font-semibold leading-tight">Pull up a chair.</h2>
-          <p className="mt-1 text-xs text-muted-foreground">Create a table for your group.</p>
+          <p className="mt-1 text-ui-meta text-muted-foreground">Create a table for your group.</p>
         </div>
         <Button
           variant="primary"

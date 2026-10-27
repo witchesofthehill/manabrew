@@ -71,7 +71,7 @@ export function ThemeTokenRail({
     (showGame ? gameGroups.reduce((sum, group) => sum + group.keys.length, 0) : 0);
   return (
     <aside
-      className="order-2 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-background md:order-1 md:w-[300px] md:flex-none"
+      className="order-2 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-background md:order-1 md:w-[22rem] md:flex-none"
       aria-label="Theme controls"
     >
       <div className="shrink-0 space-y-2 border-b border-border p-3">
@@ -80,9 +80,8 @@ export function ThemeTokenRail({
           placeholder="Search every app and game token"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          className="h-8 text-xs md:text-xs"
         />
-        <div className="flex items-center gap-1">
+        <div className="flex flex-wrap items-center gap-1">
           {(["all", "app", "game"] as const).map((value) => (
             <Button
               key={value}
@@ -94,36 +93,36 @@ export function ThemeTokenRail({
               {value === "all" ? "All" : value === "app" ? "App" : "Game"}
             </Button>
           ))}
-          <span className="ml-auto text-[10px] text-muted-foreground">{count} tokens</span>
+          <span className="ml-auto text-ui-meta text-muted-foreground">{count} tokens</span>
         </div>
       </div>
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-3">
         <ThemeContrastPreview theme={editor.displayed} document={editor.displayedDocument} />
         <div className="space-y-2">
-          <p className="text-[11px] leading-snug text-muted-foreground">
+          <p className="text-ui-body text-muted-foreground">
             App colors are separate for light and dark. Game colors are shared. Reset removes an
             override; alpha 0 makes a color transparent.
           </p>
           {editor.compareCurrent && (
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-ui-body text-muted-foreground">
               The board shows your saved theme. Editing any token switches back to Draft.
             </p>
           )}
           <Button size="sm" variant="outline" onClick={editor.resetOverrides}>
             Reset all overrides
           </Button>
-          <p className="text-[10px] text-muted-foreground">
+          <p className="text-ui-body text-muted-foreground">
             Resets both app modes and every game color to Manabrew defaults. Undo restores them.
           </p>
         </div>
         {count === 0 && (
-          <p className="text-xs text-muted-foreground">No tokens match this search.</p>
+          <p className="text-ui-body text-muted-foreground">No tokens match this search.</p>
         )}
         {showApp &&
           appGroups.map((group) => (
             <section key={group.heading} className="space-y-1">
-              <h3 className="text-xs font-semibold">App · {group.heading}</h3>
-              <p className="text-[11px] text-muted-foreground">{group.description}</p>
+              <h3 className="text-ui-label font-semibold">App · {group.heading}</h3>
+              <p className="text-ui-body text-muted-foreground">{group.description}</p>
               {group.keys.map((key) => (
                 <ThemeColorControl
                   key={`${key}:${draft.mode}:${editor.revision}`}
@@ -142,9 +141,9 @@ export function ThemeTokenRail({
         {showGame &&
           gameGroups.map((group) => (
             <section key={group.heading} className="space-y-1">
-              <h3 className="text-xs font-semibold">Game · {group.heading}</h3>
+              <h3 className="text-ui-label font-semibold">Game · {group.heading}</h3>
               {group.description && (
-                <p className="text-[11px] text-muted-foreground">{group.description}</p>
+                <p className="text-ui-body text-muted-foreground">{group.description}</p>
               )}
               {group.keys.map((key) => (
                 <ThemeColorControl

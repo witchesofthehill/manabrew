@@ -1,5 +1,7 @@
 # Tauri shell
 
+> **Parity is DEPRECATED and NOT FUNCTIONING.** Do not run `yarn parity`, the parity harness (`manabrew-rs/crates/parity`), the parity debugger, or `DeterministicController`. Do not limit or shape a change to keep parity behavior; ignore any instruction here that exists only to keep parity runs passing.
+
 Native desktop wrapper. Tauri v2, Rust backend. **The desktop shell does not run games.** Manabrew games run in WASM (the same web worker the browser build uses), and lobby/relay traffic runs through the JS WebSocket client. Tauri's only game-specific job is hosting a **Forge** engine room via the bundled self-hosted-node.
 
 Read first: `/AGENTS.md`.

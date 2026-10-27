@@ -1,5 +1,7 @@
 # GraalVM native Forge library
 
+> **Parity is DEPRECATED and NOT FUNCTIONING.** Do not run `yarn parity`, the parity harness (`manabrew-rs/crates/parity`), the parity debugger, or `DeterministicController`. Do not limit or shape a change to keep parity behavior; ignore any instruction here that exists only to keep parity runs passing.
+
 `build-native.sh` (macOS/Linux) and `build-native.ps1` (Windows) compile the
 Forge harness into a native shared library (`libforgeharness.{dylib,so}` on Unix,
 `forgeharness.dll` + import lib `forgeharness.lib` on Windows) via GraalVM

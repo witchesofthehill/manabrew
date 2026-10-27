@@ -35,7 +35,7 @@ export function CardCustomizerControls({
   ] as const;
   return (
     <section aria-label="Card appearance controls" className="space-y-2">
-      <div className="grid gap-3">
+      <div className="grid gap-3 lg:grid-cols-2">
         {controls.map(({ field, label, presets }) => {
           const value = customizationFieldValue(selected, drafts, field);
           return (

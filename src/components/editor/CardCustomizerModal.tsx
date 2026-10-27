@@ -89,7 +89,7 @@ export function CardCustomizerModal({
   };
 
   return (
-    <Modal onClose={onClose} maxWidth="max-w-3xl" ariaLabel={`Customize ${card.identity.name}`}>
+    <Modal onClose={onClose} maxWidth="max-w-7xl" ariaLabel={`Customize ${card.identity.name}`}>
       <Modal.Header>
         <div>
           <h2 className="text-ui-body font-semibold">Customize card</h2>
@@ -99,7 +99,7 @@ export function CardCustomizerModal({
         </div>
       </Modal.Header>
       <Modal.Body className="overflow-y-auto">
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(14rem,0.7fr)]">
+        <div className="grid items-start gap-5 md:grid-cols-[minmax(0,18rem)_minmax(0,1fr)]">
           <div className="min-w-0">
             <CardGlintInspect
               card={editor.preview}

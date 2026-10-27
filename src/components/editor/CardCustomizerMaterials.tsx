@@ -29,7 +29,7 @@ export function CardCustomizerMaterials({
       : []),
   ] as const;
   return (
-    <div className="space-y-3 border-t pt-3">
+    <div className="grid gap-3 border-t pt-3 lg:grid-cols-2">
       {controls.map(({ field, label, min, max, step }) => (
         <CardCustomizerNumber
           key={field}

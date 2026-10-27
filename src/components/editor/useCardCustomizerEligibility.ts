@@ -29,12 +29,28 @@ function supportsRetroCopy(card: DeckCard, printing?: ScryfallCard): boolean {
 
 export function useCardCustomizerEligibility(copies: readonly DeckCard[]) {
   const locale = useScryfallStore((state) => state.locale);
+  const printingKey = JSON.stringify(
+    copies.map((card) => [
+      card.identity.id,
+      card.identity.name,
+      card.identity.setCode,
+      card.identity.cardNumber,
+      card.layout,
+      card.isDoubleFaced,
+      card.types,
+      card.subtypes,
+      card.text,
+      card.backFace?.typeLine,
+      card.backFace?.oracleText,
+    ]),
+  );
   const [resolved, setResolved] = useState<{
-    copies: readonly DeckCard[];
+    printingKey: string;
     locale: string;
     supported: ReadonlySet<string>;
   }>();
   useEffect(() => {
+    if (resolved?.printingKey === printingKey && resolved.locale === locale) return;
     let alive = true;
     void Promise.all(
       copies.map(async (card) => {
@@ -54,11 +70,17 @@ export function useCardCustomizerEligibility(copies: readonly DeckCard[]) {
       }),
     ).then((ids) => {
       if (alive)
-        setResolved({ copies, locale, supported: new Set(ids.filter((id) => id !== undefined)) });
+        setResolved({
+          printingKey,
+          locale,
+          supported: new Set(ids.filter((id) => id !== undefined)),
+        });
     });
     return () => {
       alive = false;
     };
-  }, [copies, locale]);
-  return resolved?.copies === copies && resolved.locale === locale ? resolved.supported : undefined;
+  }, [copies, locale, printingKey, resolved]);
+  return resolved?.printingKey === printingKey && resolved.locale === locale
+    ? resolved.supported
+    : undefined;
 }

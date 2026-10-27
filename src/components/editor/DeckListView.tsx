@@ -34,7 +34,6 @@ import {
   ArrowDownToLine,
   HelpCircle,
   Info,
-  Image as ImageIcon,
   Sparkles,
   Gem,
   Trash2,
@@ -76,7 +75,6 @@ import { useIsUnsupported } from "@/stores/useCardSupportStore";
 import { useIsComboCard, useIsGameChangerCard } from "@/stores/useDeckAnalysisStore";
 import { useCardCollectionOwnership, useDeckCardOwnership } from "./useCardCollectionOwnership";
 import { CollectionOwnershipTooltip } from "./CollectionOwnershipTooltip";
-import { CardCustomizerModal } from "@/components/editor/CardCustomizerModal";
 function ownershipHighlight(ownership: "exact" | "other" | "none", surface: "stack" | "grid") {
   return cn(
     ownership === "exact" && "outline outline-2 outline-legality-legal/60",
@@ -133,7 +131,13 @@ export function CardMenuButton({ className }: { className?: string }) {
     </button>
   );
 }
-function CardPrintingButton({ onPickPrint, inMenu }: { onPickPrint: () => void; inMenu: boolean }) {
+function CardCustomizeButton({
+  onCustomize,
+  inMenu,
+}: {
+  onCustomize: () => void;
+  inMenu: boolean;
+}) {
   return (
     <button
       type="button"
@@ -141,12 +145,12 @@ function CardPrintingButton({ onPickPrint, inMenu }: { onPickPrint: () => void; 
         "touch:min-w-11 touch:min-h-11 absolute right-1 top-1 z-40 rounded-full bg-overlay/70 p-0.5 text-muted-foreground opacity-0 shadow transition-colors hover:text-foreground group-hover:opacity-100 touch:opacity-100",
         inMenu && "touch:hidden",
       )}
-      title={`Change printing`}
-      aria-label={`Change printing`}
+      title={`Customize card`}
+      aria-label={`Customize card`}
       onPointerDown={(event) => event.stopPropagation()}
       onClick={(event) => {
         event.stopPropagation();
-        onPickPrint();
+        onCustomize();
       }}
     >
       <Palette className="h-3.5 w-3.5" />
@@ -301,7 +305,7 @@ export interface CardContextActions {
   onMoveOneToMaybe?: () => void;
   onMoveAllToMaybe?: () => void;
   onShowInfo?: () => void;
-  onPickPrint?: () => void;
+  onCustomize?: () => void;
   isCommander?: boolean;
   commanderSlot?: CommanderSlot;
   onSetCommander?: () => void;
@@ -318,7 +322,6 @@ export interface CardContextActions {
 }
 interface CardContextMenuProps extends CardContextActions {
   card: DeckCard;
-  token?: boolean;
   children: React.ReactNode;
   count: number;
   location: CardLocation;
@@ -458,7 +461,6 @@ function TagsSubmenu({
 }
 export function CardContextMenu({
   card,
-  token,
   children,
   count,
   location,
@@ -473,7 +475,7 @@ export function CardContextMenu({
   onMoveOneToMaybe,
   onMoveAllToMaybe,
   onShowInfo,
-  onPickPrint,
+  onCustomize,
   isCommander,
   commanderSlot = DEFAULT_COMMANDER_SLOT,
   onSetCommander,
@@ -490,7 +492,7 @@ export function CardContextMenu({
   selected,
   onToggleSelection,
 }: CardContextMenuProps) {
-  const [customizing, setCustomizing] = useState(false);
+  const customizationOpened = useRef(false);
   const showTagSubmenu = !!onApplyTag && ((customTags && customTags.length > 0) || !!onCreateTag);
   const commanderHandler = isCommander ? onRemoveCommander : onSetCommander;
   const showAll = count > 1;
@@ -499,135 +501,132 @@ export function CardContextMenu({
     (location !== "side" && (onMoveOneToSide || onMoveAllToSide)) ||
     (location !== "maybe" && (onMoveOneToMaybe || onMoveAllToMaybe));
   return (
-    <>
-      <ContextMenu>
-        <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
-        <ContextMenuContent
-          className="w-52"
-          onCloseAutoFocus={(event) => {
-            if (customizing) event.preventDefault();
-          }}
-        >
-          {onToggleSelection && (
-            <ContextMenuItem onSelect={onToggleSelection}>
-              <Check className="mr-2 h-3.5 w-3.5" /> {selected ? "Deselect card" : "Select card"}
+    <ContextMenu>
+      <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
+      <ContextMenuContent
+        className="w-52"
+        aria-label={`${card.identity.name} card actions`}
+        onCloseAutoFocus={(event) => {
+          if (customizationOpened.current) event.preventDefault();
+          customizationOpened.current = false;
+        }}
+      >
+        {onToggleSelection && (
+          <ContextMenuItem onSelect={onToggleSelection}>
+            <Check className="mr-2 h-3.5 w-3.5" /> {selected ? "Deselect card" : "Select card"}
+          </ContextMenuItem>
+        )}
+        {onShowInfo && (
+          <>
+            <ContextMenuItem onSelect={onShowInfo}>
+              <Info className="mr-2 h-3.5 w-3.5" /> Card info
             </ContextMenuItem>
-          )}
-          {onShowInfo && (
-            <>
-              <ContextMenuItem onSelect={onShowInfo}>
-                <Info className="mr-2 h-3.5 w-3.5" /> Card info
-              </ContextMenuItem>
-              <ContextMenuSeparator />
-            </>
-          )}
-          {onAddOne && (
+            <ContextMenuSeparator />
+          </>
+        )}
+        {onAddOne && (
+          <ContextMenuItem
+            onSelect={(e: Event) => {
+              e.preventDefault();
+              onAddOne();
+            }}
+          >
+            <Plus className="mr-2 h-3.5 w-3.5" /> Add 1
+          </ContextMenuItem>
+        )}
+        {onRemoveOne && (
+          <ContextMenuItem
+            onSelect={(e: Event) => {
+              e.preventDefault();
+              onRemoveOne();
+            }}
+          >
+            <Minus className="mr-2 h-3.5 w-3.5" /> Remove 1
+          </ContextMenuItem>
+        )}
+        {onRemoveAll && showAll && (
+          <ContextMenuItem onSelect={onRemoveAll} className="text-destructive">
+            <Trash2 className="mr-2 h-3.5 w-3.5" /> Remove all ({count})
+          </ContextMenuItem>
+        )}
+        {hasMoveActions && <ContextMenuSeparator />}
+        {location !== "main" && (
+          <MoveDestination
+            label={`Move to main`}
+            icon={ArrowUpToLine}
+            count={count}
+            onMoveOne={onMoveOneToMain}
+            onMoveAll={onMoveAllToMain}
+          />
+        )}
+        {location !== "side" && (
+          <MoveDestination
+            label={`Move to sideboard`}
+            icon={ArrowDownToLine}
+            count={count}
+            onMoveOne={onMoveOneToSide}
+            onMoveAll={onMoveAllToSide}
+          />
+        )}
+        {location !== "maybe" && (
+          <MoveDestination
+            label={`Move to maybeboard`}
+            icon={HelpCircle}
+            count={count}
+            onMoveOne={onMoveOneToMaybe}
+            onMoveAll={onMoveAllToMaybe}
+          />
+        )}
+        {(commanderHandler || onSetCover || onSetCoverBack) && <ContextMenuSeparator />}
+        {commanderHandler && (
+          <ContextMenuItem onSelect={commanderHandler}>
+            <GameIcon name={commanderSlot.icon} className="mr-2 h-3.5 w-3.5" />
+            {isCommander ? `Remove ${commanderSlot.noun}` : `Set as ${commanderSlot.noun}`}
+          </ContextMenuItem>
+        )}
+        {onSetCover && (
+          <ContextMenuItem onSelect={onSetCover}>
+            <GameIcon name="book-cover" className="mr-2 h-3.5 w-3.5" />
+            {isCover ? `Remove deck cover` : `Set as deck cover`}
+          </ContextMenuItem>
+        )}
+        {onSetCoverBack && (
+          <ContextMenuItem onSelect={onSetCoverBack}>
+            <GameIcon
+              name="book-cover"
+              className="mr-2 h-3.5 w-3.5"
+              style={{ transform: "scaleX(-1)" }}
+            />
+            {isCoverBack ? `Remove back face cover` : `Set back face as cover`}
+          </ContextMenuItem>
+        )}
+        {showTagSubmenu && (
+          <>
+            <ContextMenuSeparator />
+            <TagsSubmenu
+              customTags={customTags}
+              appliedTags={appliedTags}
+              onApplyTag={onApplyTag!}
+              onRemoveCustomTag={onRemoveCustomTag}
+              onCreateTag={onCreateTag}
+            />
+          </>
+        )}
+        {canCustomize && onCustomize && (
+          <>
+            <ContextMenuSeparator />
             <ContextMenuItem
-              onSelect={(e: Event) => {
-                e.preventDefault();
-                onAddOne();
+              onSelect={() => {
+                customizationOpened.current = true;
+                onCustomize();
               }}
             >
-              <Plus className="mr-2 h-3.5 w-3.5" /> Add 1
-            </ContextMenuItem>
-          )}
-          {onRemoveOne && (
-            <ContextMenuItem
-              onSelect={(e: Event) => {
-                e.preventDefault();
-                onRemoveOne();
-              }}
-            >
-              <Minus className="mr-2 h-3.5 w-3.5" /> Remove 1
-            </ContextMenuItem>
-          )}
-          {onRemoveAll && showAll && (
-            <ContextMenuItem onSelect={onRemoveAll} className="text-destructive">
-              <Trash2 className="mr-2 h-3.5 w-3.5" /> Remove all ({count})
-            </ContextMenuItem>
-          )}
-          {hasMoveActions && <ContextMenuSeparator />}
-          {location !== "main" && (
-            <MoveDestination
-              label={`Move to main`}
-              icon={ArrowUpToLine}
-              count={count}
-              onMoveOne={onMoveOneToMain}
-              onMoveAll={onMoveAllToMain}
-            />
-          )}
-          {location !== "side" && (
-            <MoveDestination
-              label={`Move to sideboard`}
-              icon={ArrowDownToLine}
-              count={count}
-              onMoveOne={onMoveOneToSide}
-              onMoveAll={onMoveAllToSide}
-            />
-          )}
-          {location !== "maybe" && (
-            <MoveDestination
-              label={`Move to maybeboard`}
-              icon={HelpCircle}
-              count={count}
-              onMoveOne={onMoveOneToMaybe}
-              onMoveAll={onMoveAllToMaybe}
-            />
-          )}
-          {(commanderHandler || onSetCover || onSetCoverBack) && <ContextMenuSeparator />}
-          {commanderHandler && (
-            <ContextMenuItem onSelect={commanderHandler}>
-              <GameIcon name={commanderSlot.icon} className="mr-2 h-3.5 w-3.5" />
-              {isCommander ? `Remove ${commanderSlot.noun}` : `Set as ${commanderSlot.noun}`}
-            </ContextMenuItem>
-          )}
-          {onSetCover && (
-            <ContextMenuItem onSelect={onSetCover}>
-              <GameIcon name="book-cover" className="mr-2 h-3.5 w-3.5" />
-              {isCover ? `Remove deck cover` : `Set as deck cover`}
-            </ContextMenuItem>
-          )}
-          {onSetCoverBack && (
-            <ContextMenuItem onSelect={onSetCoverBack}>
-              <GameIcon
-                name="book-cover"
-                className="mr-2 h-3.5 w-3.5"
-                style={{ transform: "scaleX(-1)" }}
-              />
-              {isCoverBack ? `Remove back face cover` : `Set back face as cover`}
-            </ContextMenuItem>
-          )}
-          {showTagSubmenu && (
-            <>
-              <ContextMenuSeparator />
-              <TagsSubmenu
-                customTags={customTags}
-                appliedTags={appliedTags}
-                onApplyTag={onApplyTag!}
-                onRemoveCustomTag={onRemoveCustomTag}
-                onCreateTag={onCreateTag}
-              />
-            </>
-          )}
-          {onPickPrint && (
-            <>
-              <ContextMenuSeparator />
-              <ContextMenuItem onSelect={onPickPrint}>
-                <ImageIcon className="mr-2 h-3.5 w-3.5" /> Choose printing…
-              </ContextMenuItem>
-            </>
-          )}
-          {canCustomize && (
-            <ContextMenuItem onSelect={() => setCustomizing(true)}>
               <Palette className="mr-2 h-3.5 w-3.5" /> Customize card…
             </ContextMenuItem>
-          )}
-        </ContextMenuContent>
-      </ContextMenu>
-      {customizing && canCustomize && (
-        <CardCustomizerModal card={card} token={token} onClose={() => setCustomizing(false)} />
-      )}
-    </>
+          </>
+        )}
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }
 function DraggableStackCard({
@@ -637,7 +636,7 @@ function DraggableStackCard({
   index,
   onAddOne,
   onRemoveOne,
-  onPickPrint,
+  onCustomize,
   onUntag,
   isSelected,
   onSelect,
@@ -655,7 +654,7 @@ function DraggableStackCard({
   index: number;
   onAddOne: () => void;
   onRemoveOne: () => void;
-  onPickPrint?: (card: DeckCard) => void;
+  onCustomize?: (card: DeckCard) => void;
   onUntag?: (cardName: string) => void;
   isSelected?: boolean;
   onSelect?: (cardName: string, addToSelection: boolean) => void;
@@ -747,10 +746,12 @@ function DraggableStackCard({
         onSelect={onSelect}
         inMenu={!!contextActions}
       />
-      {(contextActions?.onPickPrint || onPickPrint) && (
-        <CardPrintingButton
+      {(contextActions
+        ? contextActions.canCustomize && contextActions.onCustomize
+        : onCustomize) && (
+        <CardCustomizeButton
           inMenu={!!contextActions}
-          onPickPrint={contextActions?.onPickPrint ?? (() => onPickPrint?.(group.card))}
+          onCustomize={contextActions?.onCustomize ?? (() => onCustomize?.(group.card))}
         />
       )}
       {contextActions && <CardMenuButton className="absolute bottom-1 right-1 z-40" />}
@@ -810,7 +811,7 @@ interface StackColumnProps {
   cardWidth: number;
   onAddOne: (g: CardGroup) => void;
   onRemoveOne: (name: string) => void;
-  onPickPrint?: (card: DeckCard) => void;
+  onCustomize?: (card: DeckCard) => void;
   onUntag?: (cardName: string) => void;
   selectedCards?: Set<string>;
   onSelectCard?: (cardName: string, addToSelection: boolean) => void;
@@ -829,7 +830,7 @@ function StackColumn({
   cardWidth,
   onAddOne,
   onRemoveOne,
-  onPickPrint,
+  onCustomize,
   onUntag,
   selectedCards,
   onSelectCard,
@@ -897,7 +898,7 @@ function StackColumn({
                 index={i}
                 onAddOne={() => onAddOne(g)}
                 onRemoveOne={() => onRemoveOne(g.card.identity.name)}
-                onPickPrint={onPickPrint}
+                onCustomize={onCustomize}
                 onUntag={onUntag ? () => onUntag(g.card.identity.name) : undefined}
                 isSelected={selectedCards?.has(g.card.identity.name.toLowerCase())}
                 onSelect={onSelectCard}
@@ -921,7 +922,7 @@ interface CardVisualProps {
   dragId: string;
   onAddOne: () => void;
   onRemoveOne: () => void;
-  onPickPrint: () => void;
+  onCustomize: () => void;
   isSelected?: boolean;
   onSelect?: (cardName: string, addToSelection: boolean) => void;
   onShowInfo?: () => void;
@@ -944,7 +945,7 @@ function CardVisual({
   dragId,
   onAddOne,
   onRemoveOne,
-  onPickPrint,
+  onCustomize,
   isSelected,
   onSelect,
   onShowInfo,
@@ -1027,7 +1028,9 @@ function CardVisual({
         </div>
       )}
       <CardAnalysisBadges isCombo={isCombo} isGameChanger={isGameChanger} />
-      <CardPrintingButton onPickPrint={onPickPrint} inMenu={!!contextActions} />
+      {contextActions?.canCustomize && (
+        <CardCustomizeButton onCustomize={onCustomize} inMenu={!!contextActions} />
+      )}
       <CardHoverOverlay
         actions={buildCardActions(onAddOne, onRemoveOne, onUntag)}
         className={cn(contextActions && "touch:hidden")}
@@ -1251,7 +1254,7 @@ interface CardSectionProps {
   onMoveAllToSide: (name: string) => void;
   onMoveOneToMaybe: (name: string) => void;
   onMoveAllToMaybe: (name: string) => void;
-  onPickPrint: (card: DeckCard) => void;
+  onCustomize: (card: DeckCard) => void;
   selectedCards?: Set<string>;
   onSelectCard?: (cardName: string, addToSelection: boolean) => void;
   onShowInfo?: (card: DeckCard) => void;
@@ -1287,7 +1290,7 @@ function CardSection({
   onMoveAllToSide,
   onMoveOneToMaybe,
   onMoveAllToMaybe,
-  onPickPrint,
+  onCustomize,
   selectedCards,
   onSelectCard,
   onShowInfo,
@@ -1326,7 +1329,7 @@ function CardSection({
       onMoveOneToMaybe: () => onMoveOneToMaybe(name),
       onMoveAllToMaybe: () => onMoveAllToMaybe(name),
       onShowInfo: onShowInfo ? () => onShowInfo(group.card) : undefined,
-      onPickPrint: () => onPickPrint(group.card),
+      onCustomize: () => onCustomize(group.card),
       isCommander: commanderNames?.has(name) ?? false,
       commanderSlot: commanderSlotFor(group.card, deckFormat),
       onSetCommander: formatRequiresCommander(deckFormat)
@@ -1428,7 +1431,7 @@ function CardSection({
                   onAddOne={() => onAddOne(g)}
                   onRemoveOne={() => effectiveRemoveOne(name)}
                   onUntag={isTagSection && onUntagCard ? () => onUntagCard(name) : undefined}
-                  onPickPrint={() => onPickPrint(g.card)}
+                  onCustomize={() => onCustomize(g.card)}
                   isSelected={selectedCards?.has(name.toLowerCase())}
                   onSelect={onSelectCard}
                   onShowInfo={onShowInfo ? () => onShowInfo(g.card) : undefined}
@@ -1462,7 +1465,7 @@ function DroppableStackTag({
   cardWidth,
   onAddOne,
   onRemoveOne,
-  onPickPrint,
+  onCustomize,
   onRemoveTag,
   onUntagCard,
   selectedCards,
@@ -1475,7 +1478,7 @@ function DroppableStackTag({
   cardWidth: number;
   onAddOne: (g: CardGroup) => void;
   onRemoveOne: (name: string) => void;
-  onPickPrint: (card: DeckCard) => void;
+  onCustomize: (card: DeckCard) => void;
   onRemoveTag: () => void;
   onUntagCard?: (cardName: string, tag: string) => void;
   selectedCards?: Set<string>;
@@ -1505,7 +1508,7 @@ function DroppableStackTag({
           cardWidth={cardWidth}
           onAddOne={onAddOne}
           onRemoveOne={onRemoveOne}
-          onPickPrint={onPickPrint}
+          onCustomize={onCustomize}
           onUntag={onUntagCard ? (cardName) => onUntagCard(cardName, tag) : undefined}
           selectedCards={selectedCards}
           onSelectCard={onSelectCard}
@@ -1591,7 +1594,7 @@ export interface DeckListViewProps {
   onMoveAllFromMaybeToMain: (name: string) => void;
   onMoveOneFromMaybeToSide: (name: string) => void;
   onMoveAllFromMaybeToSide: (name: string) => void;
-  onPickPrint: (card: DeckCard) => void;
+  onCustomize: (card: DeckCard) => void;
   onAddToSide: (card: DeckCard) => void;
   onRemoveFromSide: (name: string) => void;
   onAddToMaybe: (card: DeckCard) => void;
@@ -1666,7 +1669,7 @@ export function DeckListView({
   onMoveAllFromMaybeToMain,
   onMoveOneFromMaybeToSide,
   onMoveAllFromMaybeToSide,
-  onPickPrint,
+  onCustomize,
   onAddToSide,
   onRemoveFromSide,
   onAddToMaybe,
@@ -1883,7 +1886,7 @@ export function DeckListView({
     onMoveAllToSide,
     onMoveOneToMaybe,
     onMoveAllToMaybe,
-    onPickPrint,
+    onCustomize,
     selectedCards,
     onSelectCard,
     onShowInfo,
@@ -2035,7 +2038,7 @@ export function DeckListView({
           onMoveOneToMaybe: () => onMoveOneToMaybe(name),
           onMoveAllToMaybe: () => onMoveAllToMaybe(name),
           onShowInfo: onShowInfo ? () => onShowInfo(group.card) : undefined,
-          onPickPrint: () => onPickPrint(group.card),
+          onCustomize: () => onCustomize(group.card),
           isCommander: commanders.some((card) => card.identity.name === name),
           commanderSlot: commanderSlotFor(group.card, deckFormat),
           onSetCommander: formatRequiresCommander(deckFormat)
@@ -2086,7 +2089,7 @@ export function DeckListView({
                 })
               }
               onRemoveOne={onRemoveFromSide}
-              onPickPrint={onPickPrint}
+              onCustomize={onCustomize}
               onShowInfo={onShowInfo}
               dragHandleProps={dhProps}
               contextMenuFor={(g) => ({
@@ -2104,7 +2107,7 @@ export function DeckListView({
                   onMoveOneToMaybe: () => onMoveOneFromSideToMaybe(g.card.identity.name),
                   onMoveAllToMaybe: () => onMoveAllFromSideToMaybe(g.card.identity.name),
                   onShowInfo: onShowInfo ? () => onShowInfo(g.card) : undefined,
-                  onPickPrint: () => onPickPrint(g.card),
+                  onCustomize: () => onCustomize(g.card),
                   customTags,
                   appliedTags: cardTags?.[g.card.identity.name.toLowerCase()],
                   onApplyTag: (t) => applyCardTag(g.card.identity.name, t),
@@ -2146,7 +2149,7 @@ export function DeckListView({
                 })
               }
               onRemoveOne={onRemoveFromMaybe}
-              onPickPrint={onPickPrint}
+              onCustomize={onCustomize}
               onShowInfo={onShowInfo}
               dragHandleProps={dhProps}
               contextMenuFor={(g) => ({
@@ -2164,7 +2167,7 @@ export function DeckListView({
                   onMoveOneToSide: () => onMoveOneFromMaybeToSide(g.card.identity.name),
                   onMoveAllToSide: () => onMoveAllFromMaybeToSide(g.card.identity.name),
                   onShowInfo: onShowInfo ? () => onShowInfo(g.card) : undefined,
-                  onPickPrint: () => onPickPrint(g.card),
+                  onCustomize: () => onCustomize(g.card),
                   customTags,
                   appliedTags: cardTags?.[g.card.identity.name.toLowerCase()],
                   onApplyTag: (t) => applyCardTag(g.card.identity.name, t),
@@ -2190,7 +2193,7 @@ export function DeckListView({
             cardWidth={cardWidth}
             onAddOne={onAddOne}
             onRemoveOne={onRemoveOne}
-            onPickPrint={onPickPrint}
+            onCustomize={onCustomize}
             onRemoveTag={() => onRemoveTag?.(tag)}
             onUntagCard={onUntagCard ?? undefined}
             selectedCards={selectedCards}
@@ -2220,14 +2223,14 @@ export function DeckListView({
               onAddToSide({ ...g.card, identity: { ...g.card.identity, id: crypto.randomUUID() } })
             }
             onRemoveOne={onRemoveFromSide}
-            onPickPrint={onPickPrint}
+            onCustomize={onCustomize}
             dragHandleProps={dhProps}
             contextMenuFor={(group) => ({
               location: "side",
               actions: {
                 canCustomize,
                 onShowInfo: onShowInfo ? () => onShowInfo(group.card) : undefined,
-                onPickPrint: () => onPickPrint(group.card),
+                onCustomize: () => onCustomize(group.card),
               },
             })}
           />
@@ -2245,7 +2248,7 @@ export function DeckListView({
           cardWidth={cardWidth}
           onAddOne={onAddOne}
           onRemoveOne={onRemoveOne}
-          onPickPrint={onPickPrint}
+          onCustomize={onCustomize}
           selectedCards={selectedCards}
           onSelectCard={onSelectCard}
           onShowInfo={onShowInfo}
@@ -2470,7 +2473,7 @@ export function DeckListView({
                       onMoveOneToMaybe={() => onMoveOneFromSideToMaybe(g.card.identity.name)}
                       onMoveAllToMaybe={() => onMoveAllFromSideToMaybe(g.card.identity.name)}
                       onShowInfo={onShowInfo ? () => onShowInfo(g.card) : undefined}
-                      onPickPrint={() => onPickPrint(g.card)}
+                      onCustomize={() => onCustomize(g.card)}
                       customTags={customTags}
                       appliedTags={cardTags?.[g.card.identity.name.toLowerCase()]}
                       onApplyTag={(t) => applyCardTag(g.card.identity.name, t)}
@@ -2509,7 +2512,7 @@ export function DeckListView({
                           })
                         }
                         onRemoveOne={() => onRemoveFromSide(g.card.identity.name)}
-                        onPickPrint={() => onPickPrint(g.card)}
+                        onCustomize={() => onCustomize(g.card)}
                         contextLocation="side"
                         contextActions={{
                           canCustomize,
@@ -2524,7 +2527,7 @@ export function DeckListView({
                           onMoveOneToMaybe: () => onMoveOneFromSideToMaybe(g.card.identity.name),
                           onMoveAllToMaybe: () => onMoveAllFromSideToMaybe(g.card.identity.name),
                           onShowInfo: onShowInfo ? () => onShowInfo(g.card) : undefined,
-                          onPickPrint: () => onPickPrint(g.card),
+                          onCustomize: () => onCustomize(g.card),
                           customTags,
                           appliedTags: cardTags?.[g.card.identity.name.toLowerCase()],
                           onApplyTag: (t) => applyCardTag(g.card.identity.name, t),
@@ -2587,7 +2590,7 @@ export function DeckListView({
                       onMoveOneToSide={() => onMoveOneFromMaybeToSide(g.card.identity.name)}
                       onMoveAllToSide={() => onMoveAllFromMaybeToSide(g.card.identity.name)}
                       onShowInfo={onShowInfo ? () => onShowInfo(g.card) : undefined}
-                      onPickPrint={() => onPickPrint(g.card)}
+                      onCustomize={() => onCustomize(g.card)}
                       customTags={customTags}
                       appliedTags={cardTags?.[g.card.identity.name.toLowerCase()]}
                       onApplyTag={(t) => applyCardTag(g.card.identity.name, t)}
@@ -2630,7 +2633,7 @@ export function DeckListView({
                           })
                         }
                         onRemoveOne={() => onRemoveFromMaybe(g.card.identity.name)}
-                        onPickPrint={() => onPickPrint(g.card)}
+                        onCustomize={() => onCustomize(g.card)}
                         contextLocation="maybe"
                         contextActions={{
                           canCustomize,
@@ -2645,7 +2648,7 @@ export function DeckListView({
                           onMoveOneToSide: () => onMoveOneFromMaybeToSide(g.card.identity.name),
                           onMoveAllToSide: () => onMoveAllFromMaybeToSide(g.card.identity.name),
                           onShowInfo: onShowInfo ? () => onShowInfo(g.card) : undefined,
-                          onPickPrint: () => onPickPrint(g.card),
+                          onCustomize: () => onCustomize(g.card),
                           customTags,
                           appliedTags: cardTags?.[g.card.identity.name.toLowerCase()],
                           onApplyTag: (t) => applyCardTag(g.card.identity.name, t),
@@ -2692,7 +2695,7 @@ export function DeckListView({
                           location="side"
                           canCustomize={canCustomize}
                           onShowInfo={onShowInfo ? () => onShowInfo(g.card) : undefined}
-                          onPickPrint={() => onPickPrint(g.card)}
+                          onCustomize={() => onCustomize(g.card)}
                         >
                           <div
                             key={g.key}
@@ -2737,12 +2740,12 @@ export function DeckListView({
                               })
                             }
                             onRemoveOne={() => onRemoveFromSide(g.card.identity.name)}
-                            onPickPrint={() => onPickPrint(g.card)}
+                            onCustomize={() => onCustomize(g.card)}
                             contextLocation="side"
                             contextActions={{
                               canCustomize,
                               onShowInfo: onShowInfo ? () => onShowInfo(g.card) : undefined,
-                              onPickPrint: () => onPickPrint(g.card),
+                              onCustomize: () => onCustomize(g.card),
                             }}
                           />
                         </div>

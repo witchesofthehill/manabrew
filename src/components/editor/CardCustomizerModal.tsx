@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
 import { Modal } from "@/components/game/modals/Modal";
 import { Button } from "@/components/ui/button";
-import { CardCustomizerQuantity } from "@/components/editor/CardCustomizerQuantity";
+import { CardCustomizerSettings } from "@/components/editor/CardCustomizerSettings";
 import { CardGlintInspect } from "@/components/editor/CardGlintInspect";
 import { CardCustomizerCopies } from "@/components/editor/CardCustomizerCopies";
-import { CardCustomizerControls } from "@/components/editor/CardCustomizerControls";
+import { CardPrintingPicker } from "@/components/editor/CardPrintingPicker";
 import { useCardCustomizerDraft } from "@/components/editor/useCardCustomizerDraft";
 import { useCardCustomizerEligibility } from "@/components/editor/useCardCustomizerEligibility";
 import { customizationSourceChanged } from "@/components/editor/cardCustomizerDraft";
@@ -35,18 +35,17 @@ export function CardCustomizerModal({
   const editorSessionId = useDeckStore((state) => state.editorSessionId);
   const currentDeck = useDeckStore((state) => state.currentDeck);
   const [opening] = useState({ sessionId: editorSessionId, cardId: card.identity.id });
+  const [panel, setPanel] = useState<"appearance" | "printing">("appearance");
   const tokenCopy = useMemo(
     () => (token ? getTokenCustomizationCopy(currentDeck, card) : undefined),
     [currentDeck, card, token],
   );
   const editor = useCardCustomizerDraft(currentDeck, tokenCopy ?? card, token);
-  const retroIds = useCardCustomizerEligibility(editor.copies);
+  const retroIds = useCardCustomizerEligibility(editor.previewCopies);
   const sessionValid = opening.sessionId === editorSessionId && opening.cardId === card.identity.id;
   const available = token ? Number(!!tokenCopy) : editor.copies.length;
   const canEdit = !isReadOnly && sessionValid && available > 0 && !editor.stale;
   const tokenSupported = !token || !!resolveTokenCustomizationScript(tokenCopy ?? card);
-  const selectedRetroCompatible =
-    editor.selected.length > 0 && editor.selected.every((copy) => retroIds?.has(copy.identity.id));
   const pendingRetroCompatible = editor.pending.every(
     ([id, draft]) => draft.cosmetics?.frame !== "retro" || retroIds?.has(id),
   );
@@ -76,13 +75,14 @@ export function CardCustomizerModal({
     executeDeckEdit(`Customize ${card.identity.name}`, () => {
       if (token) {
         const draft = editor.pending[0]![1];
-        state.setTokenCosmetics(current[0]!, draft.cosmetics, draft.foil);
+        state.setTokenCosmetics(current[0]!, draft.cosmetics, draft.foil, draft.printing);
       } else
         state.setCardCosmetics(
           editor.pending.map(([cardId, draft]) => ({
             cardId,
             cosmetics: draft.cosmetics,
             foil: draft.foil,
+            printing: draft.printing,
           })),
         );
     });
@@ -100,87 +100,65 @@ export function CardCustomizerModal({
         </div>
       </Modal.Header>
       <Modal.Body className="overflow-y-auto">
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(14rem,0.7fr)]">
-          <div className="min-w-0">
-            <CardGlintInspect
-              card={editor.preview}
-              className="min-h-64 rounded-lg border bg-muted/20 sm:min-h-96"
-            />
-            <p className="mt-2 text-ui-meta text-muted-foreground non-touch:text-xs">
-              {editor.preview.identity.setCode.toUpperCase()} #{editor.preview.identity.cardNumber}
-              {editor.preview.identity.foil ? " · Foil" : " · Nonfoil"}
+        <div className="mb-4 flex gap-2" role="group" aria-label="Customization options">
+          <Button
+            variant={panel === "appearance" ? "selected" : "outline"}
+            aria-pressed={panel === "appearance"}
+            onClick={() => setPanel("appearance")}
+          >
+            Appearance
+          </Button>
+          <Button
+            variant={panel === "printing" ? "selected" : "outline"}
+            aria-pressed={panel === "printing"}
+            onClick={() => setPanel("printing")}
+          >
+            Printing
+          </Button>
+        </div>
+        {panel === "printing" ? (
+          <section aria-label="Printing" className="space-y-4">
+            <p className="text-ui-body text-muted-foreground non-touch:text-sm" aria-live="polite">
+              {token
+                ? "Choose a printing for this deck's token type."
+                : `Choose a printing for ${editor.selected.length} selected ${editor.selected.length === 1 ? "copy" : "copies"}.`}
+              {" Changes apply only when you save."}
             </p>
-          </div>
-          <div className="space-y-4">
-            <div
-              className="rounded-lg border bg-muted/20 p-3 text-ui-body non-touch:text-sm"
-              aria-live="polite"
-            >
-              <p className="font-medium">
-                {token
-                  ? "This deck's token appearance"
-                  : `${editor.selected.length} selected · ${editor.pending.length} pending`}
-              </p>
-              <p className="mt-1 text-ui-body text-muted-foreground non-touch:text-xs">
-                {token
-                  ? "Applies to this token type produced by this deck. Other token types stay unchanged."
-                  : "Click a copy to inspect and select it. Check copies to edit them together. Pending changes stay when you switch copies."}
-              </p>
-            </div>
-            {!token && editor.copies.length > 1 && (
-              <CardCustomizerQuantity
-                value={editor.selected.length}
-                max={available}
-                disabled={!canEdit}
-                onChange={editor.selectQuantity}
-              />
-            )}
-            <CardCustomizerControls
-              selected={editor.selected}
-              drafts={editor.drafts}
-              disabled={!canEdit || !editor.active || !tokenSupported}
-              retroCompatible={selectedRetroCompatible}
-              onChange={(field, value) => {
-                if (canEdit && (field !== "frame" || value !== "retro" || selectedRetroCompatible))
-                  editor.editSelected(field, value);
+            <CardPrintingPicker
+              cardName={card.identity.name}
+              token={token ? (tokenCopy ?? card) : undefined}
+              printing={editor.preview.identity}
+              disabled={!canEdit || !editor.active || editor.selected.length === 0}
+              onSelect={(printing) => {
+                if (canEdit) editor.editPrinting(printing);
               }}
             />
-            {(!sessionValid || editor.stale || !available || !editor.active) && (
-              <p role="status" className="text-ui-meta text-warning non-touch:text-xs">
-                {!sessionValid
-                  ? "The deck session changed. Close and reopen this customizer."
-                  : editor.stale
-                    ? "A pending copy changed or was removed. Close and reopen to edit the current deck."
-                    : "This copy is no longer available in the deck."}
+          </section>
+        ) : (
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(14rem,0.7fr)]">
+            <div className="min-w-0">
+              <CardGlintInspect
+                card={editor.preview}
+                className="min-h-64 rounded-lg border bg-muted/20 sm:min-h-96"
+              />
+              <p className="mt-2 text-ui-meta text-muted-foreground non-touch:text-xs">
+                {editor.preview.identity.setCode.toUpperCase()} #
+                {editor.preview.identity.cardNumber}
+                {editor.preview.identity.foil ? " · Foil" : " · Nonfoil"}
               </p>
-            )}
-            {!selectedRetroCompatible && (
-              <p className="text-ui-meta text-muted-foreground non-touch:text-xs">
-                {!retroIds
-                  ? "Checking frame compatibility…"
-                  : "Retro frames are unavailable for one or more selected copies or faces."}
-              </p>
-            )}
-            {!pendingRetroCompatible && (
-              <p role="status" className="text-ui-meta text-warning non-touch:text-xs">
-                A pending retro frame is not supported by its copy. Select that copy and choose
-                another frame before saving.
-              </p>
-            )}
-            {!tokenSupported && (
-              <p role="status" className="text-ui-meta text-warning non-touch:text-xs">
-                This token has no unambiguous engine token mapping. Custom appearance cannot be
-                saved for multiplayer.
-              </p>
-            )}
-            {tokenSupported && token && (
-              <p className="text-ui-body text-muted-foreground non-touch:text-xs">
-                Token appearance is supported by Forge, the Rust engine, and manual games. Ironsmith
-                cannot yet match these token definitions.
-              </p>
-            )}
+            </div>
+            <CardCustomizerSettings
+              editor={editor}
+              token={token}
+              canEdit={canEdit}
+              available={available}
+              sessionValid={sessionValid}
+              tokenSupported={tokenSupported}
+              retroIds={retroIds}
+              pendingRetroCompatible={pendingRetroCompatible}
+            />
           </div>
-        </div>
+        )}
         {!token && (
           <CardCustomizerCopies
             deck={currentDeck}

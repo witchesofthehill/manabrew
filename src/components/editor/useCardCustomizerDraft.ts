@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import {
   changeCustomizationField,
+  changeCustomizationPrinting,
   createCustomizationDraft,
   customizationDraftChanged,
   customizationPreview,
@@ -11,8 +12,33 @@ import {
 import type { DeckCard } from "@/protocol/deck";
 import { getCardCustomizationCopies } from "@/stores/useDeckStore";
 import type { EditorDeck } from "@/types/manabrew";
+import type { ScryfallCard } from "@/types/scryfall";
 
-export function useCardCustomizerDraft(deck: EditorDeck, clicked: DeckCard, token = false) {
+export interface CardCustomizerEditor {
+  copies: readonly DeckCard[];
+  active: DeckCard | undefined;
+  activeId: string;
+  selected: readonly DeckCard[];
+  selectedIds: ReadonlySet<string>;
+  drafts: ReadonlyMap<string, CardCustomizationDraft>;
+  pending: readonly [string, CardCustomizationDraft][];
+  pendingIds: ReadonlySet<string>;
+  preview: DeckCard;
+  previewCopies: readonly DeckCard[];
+  stale: boolean;
+  editSelected: (field: CosmeticField, value: string) => void;
+  editPrinting: (printing: ScryfallCard) => void;
+  resetSelected: () => void;
+  selectCopy: (id: string) => void;
+  toggleCopy: (id: string) => void;
+  selectQuantity: (quantity: number) => void;
+}
+
+export function useCardCustomizerDraft(
+  deck: EditorDeck,
+  clicked: DeckCard,
+  token = false,
+): CardCustomizerEditor {
   const [activeId, setActiveId] = useState(clicked.identity.id);
   const [selectedIds, setSelectedIds] = useState(() => new Set([clicked.identity.id]));
   const copies = useMemo(
@@ -28,7 +54,11 @@ export function useCardCustomizerDraft(deck: EditorDeck, clicked: DeckCard, toke
     return !current || customizationSourceChanged(draft.source, current);
   });
   const pendingIds = new Set(pending.map(([id]) => id));
-  const preview = active ? customizationPreview(active, drafts) : clicked;
+  const previewCopies = useMemo<readonly DeckCard[]>(
+    () => copies.map((copy) => customizationPreview(copy, drafts)),
+    [copies, drafts],
+  );
+  const preview = previewCopies.find((copy) => copy.identity.id === activeId) ?? clicked;
 
   const editSelected = (field: CosmeticField, value: string) => {
     setDrafts((current) => {
@@ -43,16 +73,29 @@ export function useCardCustomizerDraft(deck: EditorDeck, clicked: DeckCard, toke
       return next;
     });
   };
+  const editPrinting = (printing: ScryfallCard) => {
+    setDrafts((current) => {
+      const next = new Map(current);
+      for (const copy of selected) {
+        const id = copy.identity.id;
+        next.set(
+          id,
+          changeCustomizationPrinting(current.get(id) ?? createCustomizationDraft(copy), printing),
+        );
+      }
+      return next;
+    });
+  };
   const resetSelected = () => {
     setDrafts((current) => {
       const next = new Map(current);
       for (const copy of selected) {
         const id = copy.identity.id;
-        next.set(id, {
-          ...(current.get(id) ?? createCustomizationDraft(copy)),
-          cosmetics: undefined,
-          foil: !!copy.identity.foil,
-        });
+        const draft = current.get(id) ?? createCustomizationDraft(copy);
+        next.set(
+          id,
+          changeCustomizationField({ ...draft, cosmetics: undefined }, "finish", "printing"),
+        );
       }
       return next;
     });
@@ -84,8 +127,10 @@ export function useCardCustomizerDraft(deck: EditorDeck, clicked: DeckCard, toke
     pending,
     pendingIds,
     preview,
+    previewCopies,
     stale,
     editSelected,
+    editPrinting,
     resetSelected,
     selectCopy,
     toggleCopy,

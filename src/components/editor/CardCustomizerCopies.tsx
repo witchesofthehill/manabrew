@@ -59,7 +59,7 @@ export function CardCustomizerCopies({
       <h3 className="text-ui-label font-semibold non-touch:text-sm">
         Copies in this deck · {copies.length}
       </h3>
-      <ul className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-3">
+      <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,10rem),1fr))] gap-3">
         {copies.map((copy, index) => {
           const id = copy.identity.id;
           const selected = selectedIds.has(id);
@@ -90,12 +90,12 @@ export function CardCustomizerCopies({
                 ]
               : []),
           ].join(" · ");
-          const name = `Copy ${index + 1}, ${sections.get(id)}, ${copy.identity.setCode.toUpperCase()} #${copy.identity.cardNumber}`;
+          const name = `Copy ${index + 1}, ${sections.get(id)}, ${preview.identity.setCode.toUpperCase()} #${preview.identity.cardNumber}`;
           return (
             <li
               key={id}
               className={cn(
-                "min-w-0 rounded-lg border p-2",
+                "min-w-0 w-full max-w-48 rounded-lg border p-2",
                 selected ? "border-primary bg-primary/5" : "border-border bg-muted/20",
               )}
             >
@@ -116,7 +116,7 @@ export function CardCustomizerCopies({
                   Copy {index + 1} · {sections.get(id)}
                 </span>
                 <span className="block text-ui-meta text-muted-foreground non-touch:text-xs">
-                  {copy.identity.setCode.toUpperCase()} #{copy.identity.cardNumber} ·{" "}
+                  {preview.identity.setCode.toUpperCase()} #{preview.identity.cardNumber} ·{" "}
                   {preview.identity.foil ? "Foil" : "Nonfoil"}
                 </span>
                 <span className="block text-ui-meta text-muted-foreground non-touch:text-xs">

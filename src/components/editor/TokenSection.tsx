@@ -150,7 +150,7 @@ function TokenGridCard({
         >
           <CardThumbnail card={token} />
         </button>
-        <div className="absolute bottom-1 right-1 z-20 flex flex-col gap-1 opacity-0 group-hover:opacity-100 touch:opacity-100 transition-opacity">
+        <div className="absolute top-1 right-1 z-20 flex gap-1 opacity-0 group-hover:opacity-100 touch:top-auto touch:bottom-1 touch:flex-col touch:opacity-100 transition-opacity">
           {canCustomize && onCustomize && (
             <button
               type="button"

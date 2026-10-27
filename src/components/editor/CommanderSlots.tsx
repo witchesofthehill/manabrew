@@ -94,7 +94,7 @@ function CommandZoneCard({
         {label}
       </div>
       {!readOnly && (
-        <div className="absolute right-1 bottom-1 z-20 flex flex-col gap-1 opacity-0 transition-opacity group-hover:opacity-100 touch:opacity-100">
+        <div className="absolute right-1 top-1 z-20 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 touch:top-auto touch:bottom-1 touch:flex-col touch:opacity-100">
           {onCustomize && (
             <button
               type="button"

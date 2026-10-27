@@ -18,12 +18,14 @@ export function CardPrintingPicker({
   token,
   printing,
   disabled = false,
+  layout = "grid",
   onSelect,
 }: {
   cardName: string;
   token?: DeckCard;
   printing?: DeckCardIdentity;
   disabled?: boolean;
+  layout?: "grid" | "row";
   onSelect: (print: ScryfallCard) => void;
 }) {
   const [prints, setPrints] = useState<ScryfallCard[]>([]);
@@ -80,7 +82,13 @@ export function CardPrintingPicker({
     );
 
   return (
-    <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-4">
+    <div
+      className={cn(
+        layout === "row"
+          ? "flex min-w-0 items-start gap-3 overflow-x-auto overscroll-x-contain p-1"
+          : "grid grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-4",
+      )}
+    >
       {prints.map((print) => {
         const face = print.card_faces
           ? print.card_faces.find(
@@ -102,7 +110,10 @@ export function CardPrintingPicker({
             disabled={disabled}
             aria-pressed={selected}
             aria-label={`${print.set_name}, ${print.set.toUpperCase()} #${print.collector_number}`}
-            className="touch:min-w-11 touch:min-h-11 group flex min-w-0 flex-col items-center gap-1 rounded-md p-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+            className={cn(
+              "touch:min-w-11 touch:min-h-11 group flex min-w-0 flex-col items-center gap-1 rounded-md p-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+              layout === "row" && "w-32 shrink-0",
+            )}
             onClick={() => onSelect(print)}
           >
             <div

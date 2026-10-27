@@ -85,6 +85,7 @@ export function useCardCustomizerDraft(
       }
       return next;
     });
+    if (!selectedIds.has(activeId) && selected[0]) setActiveId(selected[0].identity.id);
   };
   const resetSelected = () => {
     setDrafts((current) => {

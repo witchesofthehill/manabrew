@@ -35,7 +35,6 @@ export function CardCustomizerModal({
   const editorSessionId = useDeckStore((state) => state.editorSessionId);
   const currentDeck = useDeckStore((state) => state.currentDeck);
   const [opening] = useState({ sessionId: editorSessionId, cardId: card.identity.id });
-  const [panel, setPanel] = useState<"appearance" | "printing">("appearance");
   const tokenCopy = useMemo(
     () => (token ? getTokenCustomizationCopy(currentDeck, card) : undefined),
     [currentDeck, card, token],
@@ -100,65 +99,47 @@ export function CardCustomizerModal({
         </div>
       </Modal.Header>
       <Modal.Body className="overflow-y-auto">
-        <div className="mb-4 flex gap-2" role="group" aria-label="Customization options">
-          <Button
-            variant={panel === "appearance" ? "selected" : "outline"}
-            aria-pressed={panel === "appearance"}
-            onClick={() => setPanel("appearance")}
-          >
-            Appearance
-          </Button>
-          <Button
-            variant={panel === "printing" ? "selected" : "outline"}
-            aria-pressed={panel === "printing"}
-            onClick={() => setPanel("printing")}
-          >
-            Printing
-          </Button>
-        </div>
-        {panel === "printing" ? (
-          <section aria-label="Printing" className="space-y-4">
-            <p className="text-ui-body text-muted-foreground non-touch:text-sm" aria-live="polite">
-              {token
-                ? "Choose a printing for this deck's token type."
-                : `Choose a printing for ${editor.selected.length} selected ${editor.selected.length === 1 ? "copy" : "copies"}.`}
-              {" Changes apply only when you save."}
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(14rem,0.7fr)]">
+          <div className="min-w-0">
+            <CardGlintInspect
+              card={editor.preview}
+              className="min-h-64 rounded-lg border bg-muted/20 sm:min-h-96"
+            />
+            <p className="mt-2 text-ui-meta text-muted-foreground non-touch:text-xs">
+              {editor.preview.identity.setCode.toUpperCase()} #{editor.preview.identity.cardNumber}
+              {editor.preview.identity.foil ? " · Foil" : " · Nonfoil"}
             </p>
-            <CardPrintingPicker
-              cardName={card.identity.name}
-              token={token ? (tokenCopy ?? card) : undefined}
-              printing={editor.preview.identity}
-              disabled={!canEdit || !editor.active || editor.selected.length === 0}
-              onSelect={(printing) => {
-                if (canEdit) editor.editPrinting(printing);
-              }}
-            />
-          </section>
-        ) : (
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(14rem,0.7fr)]">
-            <div className="min-w-0">
-              <CardGlintInspect
-                card={editor.preview}
-                className="min-h-64 rounded-lg border bg-muted/20 sm:min-h-96"
-              />
-              <p className="mt-2 text-ui-meta text-muted-foreground non-touch:text-xs">
-                {editor.preview.identity.setCode.toUpperCase()} #
-                {editor.preview.identity.cardNumber}
-                {editor.preview.identity.foil ? " · Foil" : " · Nonfoil"}
-              </p>
-            </div>
-            <CardCustomizerSettings
-              editor={editor}
-              token={token}
-              canEdit={canEdit}
-              available={available}
-              sessionValid={sessionValid}
-              tokenSupported={tokenSupported}
-              retroIds={retroIds}
-              pendingRetroCompatible={pendingRetroCompatible}
-            />
           </div>
-        )}
+          <CardCustomizerSettings
+            editor={editor}
+            token={token}
+            canEdit={canEdit}
+            available={available}
+            sessionValid={sessionValid}
+            tokenSupported={tokenSupported}
+            retroIds={retroIds}
+            pendingRetroCompatible={pendingRetroCompatible}
+          />
+        </div>
+        <section aria-label="Printings" className="mt-5 min-w-0 space-y-3 border-t pt-4">
+          <h3 className="text-ui-label font-semibold non-touch:text-sm">Printings</h3>
+          <p className="text-ui-body text-muted-foreground non-touch:text-xs" aria-live="polite">
+            {token
+              ? "Choose a printing for this deck's token type."
+              : `Choose a printing for ${editor.selected.length} selected ${editor.selected.length === 1 ? "copy" : "copies"}.`}
+            {" Changes apply only when you save."}
+          </p>
+          <CardPrintingPicker
+            cardName={card.identity.name}
+            token={token ? (tokenCopy ?? card) : undefined}
+            printing={editor.preview.identity}
+            layout="row"
+            disabled={!canEdit || !editor.active || editor.selected.length === 0}
+            onSelect={(printing) => {
+              if (canEdit) editor.editPrinting(printing);
+            }}
+          />
+        </section>
         {!token && (
           <CardCustomizerCopies
             deck={currentDeck}

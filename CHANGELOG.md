@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.65.4](https://github.com/witchesofthehill/manabrew/compare/v3.65.3...v3.65.4) (2026-10-27)
+
+### Fixes
+
+* windows death ([#1137](https://github.com/witchesofthehill/manabrew/issues/1137)) ([2895e83](https://github.com/witchesofthehill/manabrew/commit/2895e8353a1fa7f93375a6a98557baac3f01af51))
+
 ## [3.65.3](https://github.com/witchesofthehill/manabrew/compare/v3.65.2...v3.65.3) (2026-10-27)
 
 ### Fixes

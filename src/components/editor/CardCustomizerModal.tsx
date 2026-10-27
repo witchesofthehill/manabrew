@@ -3,6 +3,8 @@ import { Modal } from "@/components/game/modals/Modal";
 import { Button } from "@/components/ui/button";
 import { CardCustomizerSettings } from "@/components/editor/CardCustomizerSettings";
 import { CardGlintInspect } from "@/components/editor/CardGlintInspect";
+import { GeneratedCardImage } from "@/components/game/GeneratedCardImage";
+import { isFeatureEnabled } from "@/featureFlags";
 import { CardPrintingPicker } from "@/components/editor/CardPrintingPicker";
 import { useCardCustomizerDraft } from "@/components/editor/useCardCustomizerDraft";
 import { useCardCustomizerEligibility } from "@/components/editor/useCardCustomizerEligibility";
@@ -91,10 +93,14 @@ export function CardCustomizerModal({
       <Modal.Body className="overflow-y-auto">
         <div className="grid items-start gap-5 md:grid-cols-[minmax(0,18rem)_minmax(0,1fr)]">
           <div className="min-w-0">
-            <CardGlintInspect
-              card={editor.preview}
-              className="min-h-64 rounded-lg border bg-muted/20 sm:min-h-96"
-            />
+            {isFeatureEnabled("cardFoil") ? (
+              <CardGlintInspect
+                card={editor.preview}
+                className="min-h-64 rounded-lg border bg-muted/20 sm:min-h-96"
+              />
+            ) : (
+              <GeneratedCardImage deckCard={editor.preview} className="w-full rounded-lg" />
+            )}
             <p className="mt-2 text-ui-meta text-muted-foreground">
               {editor.preview.identity.setCode.toUpperCase()} #{editor.preview.identity.cardNumber}
               {editor.preview.identity.foil ? " · Foil" : " · Nonfoil"}

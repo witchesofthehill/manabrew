@@ -11,7 +11,7 @@ import { engineReportGameId, reportEngineStats } from "@/lib/engineStatsReport";
 import { currentOfflineGameId, reportOfflineGame } from "@/lib/offlinePlayRecord";
 import { offlineSeats } from "@/lib/offlineSeats";
 import { clearLocalGame } from "@/lib/localGamePresence";
-import { reportClientError, setErrorReportingGameContext } from "@/lib/errorReporting";
+import { reportClientError, setErrorReportingEngine } from "@/lib/errorReporting";
 import { useGameStore } from "@/stores/useGameStore";
 import type { GameState } from "@/stores/useGameStore";
 import { useServerStore } from "@/stores/useServerStore";
@@ -437,7 +437,7 @@ export function useGameEventListeners() {
           const { isMultiplayer, isHost } = getState();
           const activeSession = peekActiveGameSession();
           clearActiveGameSession();
-          setErrorReportingGameContext(null);
+          setErrorReportingEngine(null);
           setState({
             isGameActive: false,
             gameView: null,

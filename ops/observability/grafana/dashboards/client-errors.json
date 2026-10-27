@@ -62,13 +62,6 @@
         "allValue": ".*",
         "current": { "text": "All", "value": "$__all" },
         "multi": true
-      },
-      {
-        "name": "game_id",
-        "label": "Backend game ID",
-        "type": "textbox",
-        "query": "__select_game__",
-        "current": { "text": "__select_game__", "value": "__select_game__" }
       }
     ]
   },
@@ -94,30 +87,10 @@
       "options": { "reduceOptions": { "calcs": ["lastNotNull"] } }
     },
     {
-      "id": 2,
-      "type": "stat",
-      "title": "Affected reporting sessions",
-      "description": "Distinct anonymous sessions with a delivered exception. There is no all-session denominator, user count, or crash-free percentage.",
-      "gridPos": { "x": 6, "y": 0, "w": 6, "h": 5 },
-      "datasource": { "type": "loki", "uid": "loki" },
-      "targets": [
-        {
-          "refId": "A",
-          "queryType": "instant",
-          "expr": "count(sum by (session_id) (count_over_time({app=\"manabrew-client\",environment=~\"$environment\",source=~\"$source\"} | json | __error__=\"\" | kind=\"exception\" | session_id!=\"\" | context_version=~\"$version\" | context_build=~\"$build\" | context_platform=~\"$platform\" | context_engine=~\"$engine\" [$__range])))"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": { "unit": "short", "noValue": "0", "decimals": 0 },
-        "overrides": []
-      },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } }
-    },
-    {
       "id": 3,
       "type": "timeseries",
       "title": "Exceptions by source",
-      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 5 },
+      "gridPos": { "x": 6, "y": 0, "w": 18, "h": 5 },
       "datasource": { "type": "loki", "uid": "loki" },
       "targets": [
         {
@@ -152,7 +125,7 @@
       "id": 5,
       "type": "table",
       "title": "Exception details",
-      "description": "Sanitized exception details, source-mapped stacktrace when available, and build/session/game context. Click a game ID to select matching backend logs below.",
+      "description": "Sanitized exception details, source-mapped stacktrace when available, and allowlisted build, platform, engine, and normalized-route metadata.",
       "gridPos": { "x": 0, "y": 12, "w": 24, "h": 10 },
       "datasource": { "type": "loki", "uid": "loki" },
       "targets": [
@@ -171,42 +144,9 @@
       ],
       "fieldConfig": {
         "defaults": { "custom": { "cellOptions": { "type": "auto" }, "filterable": true } },
-        "overrides": [
-          {
-            "matcher": { "id": "byName", "options": "context_game_id" },
-            "properties": [
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "title": "Backend logs for this game",
-                    "url": "/d/manabrew-client-errors?var-environment=${environment}&var-game_id=${__value.raw}&${__url_time_range}",
-                    "targetBlank": false
-                  }
-                ]
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
       "options": { "showHeader": true, "cellHeight": "sm" }
-    },
-    {
-      "id": 6,
-      "type": "logs",
-      "title": "Backend logs for selected game",
-      "description": "Select a game ID from Exception details or enter one above. No matching backend record is expected for purely local games. These are existing operational logs, not private game captures.",
-      "gridPos": { "x": 0, "y": 22, "w": 24, "h": 8 },
-      "datasource": { "type": "loki", "uid": "loki" },
-      "targets": [
-        {
-          "refId": "A",
-          "queryType": "range",
-          "maxLines": 200,
-          "expr": "{service=~\"manabrew-server|manabrew-hub|self-hosted-node.*\"} |= \"$game_id\""
-        }
-      ],
-      "options": { "showTime": true, "wrapLogMessage": true, "enableLogDetails": true }
     }
   ]
 }

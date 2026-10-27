@@ -166,15 +166,8 @@ export function normalizedRoute(): string {
   return Object.hasOwn(ROUTES, segment) ? `/${segment}/*` : "/other";
 }
 
-export function safeGameContext(context: { gameId: string | null; engine: string } | null) {
-  return {
-    game_id:
-      context?.gameId &&
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(context.gameId)
-        ? context.gameId
-        : "",
-    engine: context && Object.hasOwn(ENGINES, context.engine) ? context.engine : "none",
-  };
+export function safeEngine(value: unknown): string {
+  return typeof value === "string" && Object.hasOwn(ENGINES, value) ? value : "none";
 }
 
 export function errorSignature(
@@ -192,7 +185,7 @@ export function errorSignature(
   return (hash >>> 0).toString(16).padStart(8, "0");
 }
 
-export function createPrivacyFilter(environment: string, session: string): BeforeSendHook {
+export function createPrivacyFilter(environment: string): BeforeSendHook {
   return (item) => {
     try {
       if (item.type !== TransportItemType.EXCEPTION) return null;
@@ -212,13 +205,8 @@ export function createPrivacyFilter(environment: string, session: string): Befor
       const frames = safeFrames(payload.stacktrace?.frames);
       const type = safeErrorName(payload.type);
       const value = safeErrorMessage(payload.value);
-      const game = safeGameContext({
-        gameId: typeof input.game_id === "string" ? input.game_id : null,
-        engine: typeof input.engine === "string" ? input.engine : "none",
-      });
       const context: Record<string, string> = {
-        session,
-        ...game,
+        engine: safeEngine(input.engine),
         build: __APP_BUILD_ID__,
         version: __APP_VERSION__,
         platform:
@@ -256,7 +244,6 @@ export function createPrivacyFilter(environment: string, session: string): Befor
             release: __APP_BUILD_ID__,
             environment,
           },
-          session: { id: session },
         },
       };
     } catch {

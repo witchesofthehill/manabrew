@@ -15,7 +15,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: production frontend errors reached 10 incidents across at least 3 reporting sessions in 10 minutes
+          summary: production frontend errors reached 10 reported exceptions in 10 minutes
           dashboard: /d/manabrew-client-errors
         data:
           - refId: A
@@ -24,7 +24,7 @@ groups:
               to: 0
             datasourceUid: loki
             model:
-              expr: sum(count_over_time({app="manabrew-client",environment="production"} | json | __error__="" | kind="exception" [10m])) >= 10 and count(sum by (session_id) (count_over_time({app="manabrew-client",environment="production"} | json | __error__="" | kind="exception" | session_id!="" [10m]))) >= 3
+              expr: sum(count_over_time({app="manabrew-client",environment="production"} | json | __error__="" | kind="exception" [10m]))
               queryType: instant
               refId: A
           - refId: C

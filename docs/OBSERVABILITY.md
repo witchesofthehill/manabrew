@@ -2,7 +2,7 @@
 
 Inventory of every Grafana panel and queryable data source in the stack. Config lives under `ops/observability/`; metric names are defined in code (`manabrew-server/src/metrics.rs`, `self-hosted-node/src/metrics.rs`) and the analytics schema in `scripts/ingest-events.py`. Keep this file in sync when adding a panel, metric, event, or column.
 
-Frontend exception reporting uses self-hosted Faro, Alloy, and Loki. Client collection remains disabled by default pending the rollout gates in [Faro implementation plan](FARO_IMPLEMENTATION_PLAN.md). Deployment settings and private-map publication are in [DEPLOY.md](DEPLOY.md#frontend-error-reporting).
+Frontend exception reporting uses self-hosted Faro, Alloy, and Loki. Managed production/staging web and official macOS, Windows, iOS, and Android builds report by default; generic images and local builds stay off. Explicit `false` disables reporting. Manual rollout checks remain in [Faro implementation plan](FARO_IMPLEMENTATION_PLAN.md). Deployment settings and private-map publication are in [DEPLOY.md](DEPLOY.md#frontend-error-reporting).
 
 ## Dashboards
 
@@ -19,19 +19,19 @@ Open `http://localhost:3000` and sign in with `admin` / `admin`. The SQLite dash
 
 ### Client errors (`client-errors.json`)
 
-Faro SDK `2.13.0` sends eligible frontend exceptions to `/collect`, through Caddy and Alloy `v1.9.1` into Loki. The dashboard counts delivered exceptions and distinct anonymous sessions that reported an exception. It has no all-session denominator and does not measure crash-free users.
+Faro SDK `2.13.0` sends eligible frontend exceptions to `/collect`, through Caddy and Alloy `v1.9.1` into Loki. The dashboard counts delivered exceptions, not affected sessions or users. It does not measure crash-free users.
 
 Filters cover environment, version, immutable build, platform, source, and engine. Sources are `startup`, `react`, `unhandled`, `engine-worker`, `render-worker`, `bot-worker`, `remote-engine`, and `engine-operation`. Normal cancellation, renderer capability fallback, and ordinary protocol rejections are excluded. Recovery behavior and local console diagnostics remain unchanged.
 
-The receiver emits flat JSON. `type`, `value`, and `stacktrace` describe the sanitized exception; `app_release` is the exact build identity; `session_id` is a random session-scoped UUID. `context_source`, `context_operation`, `context_platform`, `context_build_target`, `context_route`, `context_engine`, `context_game_id`, and `context_signature` carry allowlisted context. Only `app`, `environment`, and `source` become Loki labels. Signatures include the safe error category, source, operation, and asset coordinates, never session or game IDs. The receiver's `hash` is message-only and is not the grouping key.
+The receiver emits flat JSON. `type`, `value`, and `stacktrace` describe the fixed error category and safe code locations; `app_release` is the exact build identity. `context_source`, `context_operation`, `context_platform`, `context_build_target`, `context_route`, `context_engine`, and `context_signature` carry allowlisted context. Only `app`, `environment`, and `source` become Loki labels. Signatures include the safe error category, source, operation, and asset coordinates. The receiver's `hash` is message-only and is not the grouping key.
 
 ```logql
 {app="manabrew-client",environment="production"} | json | kind="exception"
 ```
 
-Use Exception details to select a game ID and view matching backend logs. Offline IDs may have no backend logs. A game ID can correlate with other operational records; it is not an anonymous-user guarantee.
+Reports contain no account, user, device, game, or session IDs, SDK session metadata, or persistent diagnostic identity. They cannot link a frontend exception to backend game records. The collector necessarily receives the sender's IP address at transport, but does not add it to diagnostic events or retain collector access logs.
 
-Arbitrary messages become fixed safe categories. Asset frames retain only approved hashed `/assets/` paths and positive line/column coordinates. Function names, URL credentials, queries, fragments, user-agent metadata, account data, console output, network bodies, deck contents, and decision journals are not sent. Source maps restore developer source locations inside authenticated Loki/Grafana, not in the client payload.
+Arbitrary messages become fixed safe categories. Asset frames retain only approved hashed `/assets/` paths and positive line/column coordinates. Function names, raw URLs, URL credentials, queries, fragments, user-agent metadata, names, email addresses, tokens, cookies, console output, network bodies, chat, deck contents, and decision journals are not sent. Source maps restore developer source locations inside authenticated Loki/Grafana, not in the client payload.
 
 Events expire under Loki's existing 30-day retention. Client batches contain at most 10 items; transport queues at most 20 batches with one request in flight, a five-second timeout, and two attempts. There is no persistent retry queue. Offline clients, abrupt termination, static module failures before initialization, and WebView/process termination can lose reports. Native Rust/Forge dumps, OS kills, and rules correctness are outside this coverage.
 
@@ -336,7 +336,7 @@ Service logs shipped by Alloy (`ops/observability/alloy/config.alloy`). It disco
 | engine error spike               | `sum(increase(manabrew_node_engine_errors_total[10m]))`                              |
 | outdated client burst            | `sum(increase(manabrew_relay_client_rejections_total{reason="outdated_wire"}[15m]))` |
 | traffic cliff (EU daytime)       | `max_over_time(manabrew_relay_connections{kind="human"}[30m])` gated on hour-of-day  |
-| client error burst               | At least 10 production exceptions across at least 3 reporting sessions in 10 minutes |
+| client error burst               | At least 10 production exceptions in 10 minutes, based on event count only           |
 | client telemetry collector down  | Alloy scrape unavailable for two minutes, including missing scrape data              |
 | client telemetry export failures | Faro exporter errors or dropped Loki entries sustained for five minutes              |
 

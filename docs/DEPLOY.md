@@ -361,21 +361,21 @@ Mobile builds skip the GraalVM/Maven harness (`tauri.{ios,android}.conf.json` ov
 
 ## Frontend error reporting
 
-Reporting is disabled by default in production/staging Compose and packaged CI builds. Keep it disabled until the privacy notice and collection basis are approved and the user has manually checked the relevant browser/WebView. This implements frontend exceptions and forwarded engine failures, not native process crash dumps.
+Reporting defaults on in managed production/staging Compose and official macOS, Windows, iOS, and Android builds. Generic images and local builds stay off. Explicit `false` remains the kill switch. Reports contain only allowlisted error/build/platform/engine/normalized-route/code-location metadata, with no account, user, device, game, or session IDs, SDK session metadata, or persistent diagnostic identity. This covers frontend exceptions and forwarded engine failures, not native process crash dumps. Default-on settings do not mark the manual rollout checks below as complete.
 
 Create DNS for `telemetry.manabrew.app` pointing to the existing ingress. Caddy terminates HTTPS and exposes only `/collect` for approved origins. Alloy's receiver, administration API, metrics, and private maps stay internal. The collector accepts at most 256 KiB per request and 20 POST requests/second globally, with burst 40. Stock Caddy has no configured per-client rate limiter. CORS is not authentication, and client-supplied app/environment metadata is untrusted.
 
 Managed web configuration comes from the container environment:
 
-| Variable             | Purpose                                     |
-| -------------------- | ------------------------------------------- |
-| `FARO_ENABLED`       | Explicit enable; defaults to `false`        |
-| `FARO_COLLECTOR_URL` | HTTPS endpoint ending exactly in `/collect` |
-| `FARO_ENVIRONMENT`   | `production`, `staging`, or `development`   |
+| Variable             | Purpose                                              |
+| -------------------- | ---------------------------------------------------- |
+| `FARO_ENABLED`       | Managed Compose defaults to `true`; `false` disables |
+| `FARO_COLLECTOR_URL` | HTTPS endpoint ending exactly in `/collect`          |
+| `FARO_ENVIRONMENT`   | `production`, `staging`, or `development`            |
 
-Production/staging Compose set separate environments and the managed collector URL. Set `FARO_ENABLED=true` only after acceptance, then recreate the web container through the normal tag-pinned deployment flow. Generic images and ordinary local builds remain off. `ops/web-entrypoint.sh` writes safely serialized `window.__MANABREW_RUNTIME__.observability`; explicit runtime disable overrides compiled settings. Reload the frontend after changes because initialization is one-shot.
+Production/staging Compose set separate environments, the managed collector URL, and `FARO_ENABLED=true` by default. Recreate the web container through the normal tag-pinned deployment flow after changing settings. Generic images and ordinary local builds remain off. `ops/web-entrypoint.sh` writes safely serialized `window.__MANABREW_RUNTIME__.observability`; explicit runtime disable overrides compiled settings. Reload the frontend after changes because initialization is one-shot.
 
-Official packaged jobs set the equivalent `VITE_FARO_*` variables in `publish.yml`, currently with `VITE_FARO_ENABLED=false`. Enabling packaged reporting requires a new build after its platform passes manual verification. The approved origins include Tauri origins and the packaged macOS/Linux asset-server origin `http://localhost:9527`. Keep ingress and Alloy origin lists in sync with any asset-server change.
+Official macOS, Windows, iOS, and Android jobs set the equivalent `VITE_FARO_*` variables in `publish.yml`, with `VITE_FARO_ENABLED=true`. Packaged settings require a new build to change. Each platform still needs its manual verification before release. The approved origins include Tauri origins and the packaged macOS/Linux asset-server origin `http://localhost:9527`. Keep ingress and Alloy origin lists in sync with any asset-server change.
 
 ### Private source maps
 
@@ -393,9 +393,9 @@ Retain old directories for the supported lifetime of installed clients and rollb
 
 ### Rollout and rollback
 
-1. Deploy the collector and private map mount while clients remain disabled. Check DNS/TLS, approved-origin preflight, private metrics, and authenticated Grafana access.
-2. Publish exact maps, then enable staging. Inspect sanitized stored events, source locations, queue behavior, and resource use.
+1. For first rollout, hold web clients off with `FARO_ENABLED=false` while deploying the collector and private map mount. Check DNS/TLS, approved-origin preflight, private metrics, and authenticated Grafana access.
+2. Publish exact maps, then remove the staging override to restore its default-on setting. Inspect identifier-free stored events, source locations, queue behavior, and resource use.
 3. Obtain manual browser/PWA checks and finalize notice, legal basis, and any required consent or opt-out. A deployment flag is not consent.
-4. Enable managed production web, then each packaged target only after its own manual WebView checks.
+4. Remove the managed production override after acceptance. Publish each default-on packaged target only after its maps and manual WebView checks are complete.
 
 Disable web reporting by setting `FARO_ENABLED=false`, recreating its container, and reloading the frontend. Packaged settings are compiled; stop their collection by closing the collector route until an updated package ships. Preserve maps and existing backend logging. See [OBSERVABILITY.md](OBSERVABILITY.md) for event fields, query examples, alert thresholds, and local collection.

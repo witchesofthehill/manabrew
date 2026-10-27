@@ -1,8 +1,14 @@
-import { CARD_H } from "@/components/game/game.constants";
+import { CARD_H, CARD_W } from "@/components/game/game.constants";
 import type { CardDto } from "@/protocol/game";
 import type { CardSprite } from "../CardSprite";
-import { GRID_SKELETON_FILL_ALPHA, GRID_SKELETON_STROKE_ALPHA } from "../constants";
+import {
+  COMBAT_ROW_PAD_Y,
+  GRID_SKELETON_FILL_ALPHA,
+  GRID_SKELETON_STROKE_ALPHA,
+} from "../constants";
+import type { GridAnchor } from "../GridLayout";
 import type { PlayZoneRect } from "../types";
+import { playmatGridArea } from "./PlaymatLayer";
 import type { BoardRegionPoint, BoardRegionPresentation } from "./BoardRegionPresentation";
 import type { BlockingRect } from "./types";
 
@@ -17,8 +23,8 @@ export class DesktopBoardRegionPresentation implements BoardRegionPresentation {
     return !mirrored && !locked;
   }
 
-  gridBottomAnchored(): boolean {
-    return false;
+  gridAnchor(mirrored: boolean): GridAnchor {
+    return mirrored ? "bottom" : "top";
   }
   ignoreZoneTileBlockers(): boolean {
     return false;
@@ -48,16 +54,8 @@ export class DesktopBoardRegionPresentation implements BoardRegionPresentation {
     slots.set(key, slot);
   }
 
-  frontEdgeY(
-    zone: PlayZoneRect,
-    mirrored: boolean,
-    cardScale: number,
-    combatRowPadding: number,
-  ): number {
-    const halfCard = (this.cardHeight * cardScale) / 2;
-    return mirrored
-      ? zone.y + zone.height - combatRowPadding - halfCard
-      : zone.y + combatRowPadding + halfCard;
+  frontEdgeY(zone: PlayZoneRect, mirrored: boolean): number {
+    return mirrored ? zone.y + zone.height : zone.y;
   }
 
   compressLands(
@@ -68,8 +66,20 @@ export class DesktopBoardRegionPresentation implements BoardRegionPresentation {
     _userPlacedCards: ReadonlySet<string>,
   ): void {}
 
-  playAreaZone(_zone: PlayZoneRect, usableZone: PlayZoneRect): PlayZoneRect {
-    return usableZone;
+  playAreaZone(
+    zone: PlayZoneRect,
+    usableZone: PlayZoneRect,
+    mirrored: boolean,
+    cardScale: number,
+  ): PlayZoneRect {
+    const area = playmatGridArea(zone, usableZone, ((CARD_H - CARD_W) * cardScale) / 2);
+    const halfLane = (CARD_H * cardScale) / 2 + COMBAT_ROW_PAD_Y;
+    if (mirrored) {
+      const bottom = Math.min(area.y + area.height, zone.y + zone.height - halfLane);
+      return { ...area, height: Math.max(1, bottom - area.y) };
+    }
+    const top = Math.max(area.y, zone.y + halfLane);
+    return { ...area, y: top, height: Math.max(1, area.y + area.height - top) };
   }
 
   gridSkeletonAlpha(): { stroke: number; fill: number } {

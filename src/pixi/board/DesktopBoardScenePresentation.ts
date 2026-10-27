@@ -34,7 +34,6 @@ export class DesktopBoardScenePresentation implements BoardScenePresentation {
   }
 
   configurePhaseStrip(layer: PhaseStripLayer): void {
-    layer.setCompact(false);
     layer.container.visible = true;
   }
 

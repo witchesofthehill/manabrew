@@ -4,9 +4,11 @@ import type { CardSprite } from "../CardSprite";
 import {
   COMPACT_LAND_OVERLAP_MIN,
   COMPACT_LAND_STEP_FRAC,
+  FIELD_INNER_EDGE_PAD_PX,
   GRID_SKELETON_FILL_ALPHA_COMPACT,
   GRID_SKELETON_STROKE_ALPHA_COMPACT,
 } from "../constants";
+import type { GridAnchor } from "../GridLayout";
 import type { PlayZoneRect } from "../types";
 import type { BoardRegionPoint, BoardRegionPresentation } from "./BoardRegionPresentation";
 import type { BlockingRect } from "./types";
@@ -26,8 +28,8 @@ export class MobileBoardRegionPresentation implements BoardRegionPresentation {
     return !mirrored;
   }
 
-  gridBottomAnchored(mirrored: boolean): boolean {
-    return !mirrored;
+  gridAnchor(mirrored: boolean): GridAnchor {
+    return mirrored ? "center" : "bottom";
   }
 
   localBlockers(mirrored: boolean, blockers: BlockingRect[]): BlockingRect[] {
@@ -71,8 +73,13 @@ export class MobileBoardRegionPresentation implements BoardRegionPresentation {
     }
   }
 
-  playAreaZone(zone: PlayZoneRect, _usableZone: PlayZoneRect, mirrored: boolean): PlayZoneRect {
-    return mirrored ? _usableZone : zone;
+  playAreaZone(zone: PlayZoneRect, usableZone: PlayZoneRect, mirrored: boolean): PlayZoneRect {
+    if (mirrored) return { ...usableZone, height: usableZone.height - FIELD_INNER_EDGE_PAD_PX };
+    return {
+      ...zone,
+      y: zone.y + FIELD_INNER_EDGE_PAD_PX,
+      height: zone.height - FIELD_INNER_EDGE_PAD_PX,
+    };
   }
 
   gridSkeletonAlpha(): { stroke: number; fill: number } {

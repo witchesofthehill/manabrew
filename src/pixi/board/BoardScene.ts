@@ -20,6 +20,7 @@ import {
   PhaseStripLayer,
   type PhaseStripCallbacks,
   type PhaseStripState,
+  type PhaseStripStyle,
 } from "../PhaseStripLayer";
 import { DragHandler } from "../DragHandler";
 import { dropCellFromPoint, type GridCell } from "../GridLayout";
@@ -65,12 +66,7 @@ import { BattlefieldOverlay } from "./BattlefieldOverlay";
 import { HandController } from "./HandController";
 import { OpponentHandFan } from "./OpponentHandFan";
 import { SelectionController } from "./SelectionController";
-import {
-  collapsedOpponentWidth,
-  STRIP_BAND_PX,
-  type BoardLayout,
-  type RegionOrientation,
-} from "./boardLayout";
+import { collapsedOpponentWidth, type BoardLayout, type RegionOrientation } from "./boardLayout";
 import type {
   BlockingRect,
   HandHost,
@@ -179,7 +175,6 @@ export class BoardScene {
   // opponent's band) back toward our field to un-declare it.
   private unassignDrag: { cardId: string; region: BoardRegion; overOwn: boolean } | null = null;
   private phaseStripAlphaTarget = 1;
-  private stripBandPx = STRIP_BAND_PX;
   private readonly presentation: BoardScenePresentation;
   private tapSuppressedPointers = new Set<number>();
 
@@ -301,7 +296,6 @@ export class BoardScene {
 
     this.phaseStrip = new PhaseStripLayer(this.theme);
     this.phaseStrip.container.zIndex = 7000;
-    this.phaseStrip.onExpandedChange = () => this.refreshPhaseStripDim();
     this.presentation.configurePhaseStrip(this.phaseStrip);
     this.root.addChild(this.phaseStrip.container);
 
@@ -382,11 +376,8 @@ export class BoardScene {
     };
     window.addEventListener("pointercancel", this.gestureCancelListener);
     this.stripOutsideListener = (e: PointerEvent) => {
-      if (!this.phaseStrip.isCompactExpanded()) return;
       const rect = this.canvasRect();
-      const p = this.phaseStrip.container.toLocal(
-        new Point(e.clientX - rect.left, e.clientY - rect.top),
-      );
+      const p = this.root.toLocal(new Point(e.clientX - rect.left, e.clientY - rect.top));
       this.phaseStrip.handleOutsidePointerDown(p.x, p.y);
     };
     this.app.canvas.addEventListener("pointerdown", this.stripOutsideListener);
@@ -411,15 +402,15 @@ export class BoardScene {
     players: BoardPlayerSpec[],
     layout: BoardLayout,
     scales: { self: number; opponent: number },
-    combatRowReserved = true,
   ): void {
     if (this.destroyed) return;
     this.cardScale = scales.self;
     this.overview = layout.opponentLayout === "overview";
     const seen = new Set<string>();
     let oppIndex = 0;
+    const localFirst = [...players].sort((a, b) => Number(b.isLocal) - Number(a.isLocal));
 
-    for (const spec of players) {
+    for (const spec of localFirst) {
       const opp = spec.isLocal ? null : layout.opponents[oppIndex++];
       const zone = opp?.rect ?? layout.self;
       const orientation: RegionOrientation = spec.isLocal ? "bottom" : (opp?.orientation ?? "top");
@@ -432,7 +423,6 @@ export class BoardScene {
         existing.zone = zone;
         existing.region.container.zIndex = zIndex;
         existing.region.setOverviewMode(this.overview && !spec.isLocal);
-        existing.region.setCombatRowReserved(combatRowReserved);
         existing.region.setZone(zone, orientation);
         existing.region.setCardScale(regionScale);
         existing.region.setPlaymatSettings(spec.playmatSettings);
@@ -444,7 +434,7 @@ export class BoardScene {
         this.root,
         zone,
         regionScale,
-        { orientation, combatRowReserved, presentation: this.presentation.region },
+        { orientation, presentation: this.presentation.region },
       );
       region.setPlaymatSettings(spec.playmatSettings);
       region.setOverviewMode(this.overview && !spec.isLocal);
@@ -462,7 +452,7 @@ export class BoardScene {
     }
 
     this.boardWidth = layout.self.width;
-    this.topHeight = layout.dividerY - layout.stripBandPx / 2;
+    this.topHeight = layout.dividerY;
     const oppIds = players.filter((p) => !p.isLocal).map((p) => p.playerId);
     const sameOpponents =
       oppIds.length === this.opponentIds.length &&
@@ -486,7 +476,6 @@ export class BoardScene {
       if (this.localPlayerId === id) this.localPlayerId = null;
     }
 
-    this.positionPhaseStrip(layout);
     this.dragHandler.setCardScale(scales.self);
     this.dragHandler.setContainerSize(this.app.renderer.width, this.app.renderer.height);
     this.syncHandPresentation();
@@ -658,7 +647,7 @@ export class BoardScene {
         // to its collapsed width — fully in sync with the ease, no separate tween.
         const frac = Math.max(0, Math.min(1, (veilStart - bandW) / (veilStart - collapsedWidth)));
         if (frac > 0.001) {
-          this.collapseVeil.rect(left, 0, bandW, this.topHeight + this.stripBandPx / 2);
+          this.collapseVeil.rect(left, 0, bandW, this.topHeight);
           this.collapseVeil.fill({ color: veilColor, alpha: frac });
         }
         const field = rec.region.getPlaymatRect();
@@ -744,7 +733,7 @@ export class BoardScene {
   private drawDelimiterFog(): void {
     this.dividers.draw(
       this.boardWidth,
-      this.topHeight + this.stripBandPx / 2,
+      this.topHeight,
       this.delimCurrent,
       this.focusedOpponentIds().map((id) => this.opponentIds.indexOf(id)),
       collapsedOpponentWidth(this.boardWidth, this.opponentIds.length),
@@ -917,11 +906,49 @@ export class BoardScene {
     this.activeGesturePointerId = e.pointerId;
   }
 
-  private positionPhaseStrip(layout: BoardLayout): void {
-    this.stripBandPx = layout.stripBandPx;
-    this.phaseStrip.container.x = layout.self.x;
-    this.phaseStrip.container.y = layout.dividerY - this.stripBandPx / 2;
-    this.phaseStrip.resize(layout.self.width, this.stripBandPx);
+  private syncPhaseStripFrame(): void {
+    const zone = this.localZone();
+    if (!zone) {
+      this.phaseStrip.setFrame(null);
+      return;
+    }
+    const plate = this.getLocalCapsuleBounds();
+    let plateRect: BlockingRect | null = null;
+    if (plate) {
+      const tl = this.root.toLocal(RECT_SCRATCH_A.set(plate.x, plate.y), undefined, RECT_SCRATCH_A);
+      const br = this.root.toLocal(
+        RECT_SCRATCH_B.set(plate.x + plate.width, plate.y + plate.height),
+        undefined,
+        RECT_SCRATCH_B,
+      );
+      plateRect = { x: tl.x, y: tl.y, width: br.x - tl.x, height: br.y - tl.y };
+    }
+    this.phaseStrip.setFrame({
+      field: zone,
+      hand: this.hand?.getFanRect() ?? null,
+      plate: plateRect,
+      gridBottom:
+        zone.y + zone.height - this.presentation.localHandReserve(this.handReserveBottom()),
+    });
+  }
+
+  private phaseStripBlockers(): BlockingRect[] {
+    this.syncPhaseStripFrame();
+    const b = this.phaseStrip.getBounds();
+    if (!b) return [];
+    const tl = this.root.toGlobal(RECT_SCRATCH_A.set(b.x, b.y), RECT_SCRATCH_A);
+    const br = this.root.toGlobal(
+      RECT_SCRATCH_B.set(b.x + b.width, b.y + b.height),
+      RECT_SCRATCH_B,
+    );
+    return [{ x: tl.x, y: tl.y, width: br.x - tl.x, height: br.y - tl.y }];
+  }
+
+  setPhaseStripStyle(style: PhaseStripStyle): void {
+    this.phaseStrip.setStyle(style);
+    const region = this.localRegion();
+    const state = region?.getLastState();
+    if (region && state) region.updateBattlefield(state);
   }
 
   private localRegion(): BoardRegion | null {
@@ -1227,9 +1254,6 @@ export class BoardScene {
   setPhaseStripCallbacks(cb: PhaseStripCallbacks): void {
     this.phaseStrip.setCallbacks(cb);
   }
-  setPhaseDividerVisible(visible: boolean): void {
-    this.phaseStrip.setDividerVisible(visible);
-  }
 
   protected setMobileHandOpen(open: boolean): void {
     if (!this.presentation.setHandOpen(open)) return;
@@ -1404,7 +1428,7 @@ export class BoardScene {
     return {
       getTheme: () => this.theme,
       collectBlockers: () => [
-        ...(isLocal ? this.localBlockers() : []),
+        ...(isLocal ? [...this.localBlockers(), ...this.phaseStripBlockers()] : []),
         ...this.gridCapsuleBlockers(playerId, isLocal),
       ],
       getEntrySeed: (cardId) => this.entrySeedFor(playerId, isLocal, cardId),
@@ -1419,6 +1443,7 @@ export class BoardScene {
       screenXToLocalX: (screenX) => screenX - this.canvasRect().left,
       getHandReserveBottom: () =>
         !isLocal ? 0 : this.presentation.localHandReserve(this.handReserveBottom()),
+      getGridColumns: () => (isLocal ? null : (this.localRegion()?.getGridColumns() ?? null)),
       spawnFloatingText: (x, y, content, color) => this.spawnFloatingText(x, y, content, color),
       previewCard: (card, bounds) => {
         if (!card) {
@@ -2124,6 +2149,7 @@ export class BoardScene {
     this.hand?.animate();
     for (const fan of this.opponentHands.values()) fan.animate();
     this.playerBars.tick();
+    this.syncPhaseStripFrame();
     this.phaseStrip.tick();
     this.phaseStrip.setDimAlpha(
       lerp(this.phaseStrip.getDimAlpha(), this.phaseStripAlphaTarget, 0.2, 0.01),

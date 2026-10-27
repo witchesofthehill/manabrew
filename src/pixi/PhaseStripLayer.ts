@@ -1,30 +1,28 @@
-/**
- * Horizontal phase strip rendered in Pixi at the vertical center of the canvas.
- * Shows the current phase, enabled stops, and supports click-to-toggle.
- */
-
 import { UI_FONT_FAMILY as FONT } from "@/themes/typography";
-import { Container, Graphics, Text, TextStyle, Sprite } from "pixi.js";
+import { BlurFilter, Container, Graphics, Rectangle, Text, TextStyle } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
 import { getTheme } from "@/hooks/useTheme";
 import { readableTextColor } from "@/themes/gameTheme";
 import { hexToNum } from "./colorUtils";
-import { applyIcon, getIconColor } from "./panelIcons";
 import { isCoarsePointer } from "@/lib/responsive";
-import {
-  STRIP_TURN_ALPHA,
-  STRIP_COMPACT_EXPAND_TIMEOUT_MS,
-  STRIP_EXPANDED_BG_ALPHA,
-} from "./constants";
 import { PHASES as STEP_DEFS } from "@/components/game/game.constants";
 import type { StepKind } from "@/protocol";
 import { animationsEnabled } from "./effects/enabled";
+import type { BlockingRect } from "./board/types";
+
+export type PhaseStripStyle = "rail" | "hand" | "plate";
+
+export interface PhaseStripFrame {
+  field: BlockingRect;
+  hand: BlockingRect | null;
+  plate: BlockingRect | null;
+  gridBottom: number;
+}
 
 interface PhaseSpec {
   id: string;
   short: string;
   subPhases?: string[];
-  /** If set, stop indicators/toggles use these phase ids instead of the cell phases. */
   indicatorPhases?: string[];
 }
 
@@ -32,10 +30,6 @@ const COMBAT_SUB_PHASES: string[] = STEP_DEFS.filter((p) => p.combat).map((p) =>
 
 const COMBAT_LABELS: Record<string, string> = Object.fromEntries(
   STEP_DEFS.filter((p) => p.combat).map((p) => [p.id, p.short]),
-);
-
-const COMBAT_FULL_LABELS: Record<string, string> = Object.fromEntries(
-  STEP_DEFS.filter((p) => p.combat).map((p) => [p.id, p.label]),
 );
 
 const PHASES: PhaseSpec[] = STEP_DEFS.filter((p) => p.id !== "untap").flatMap((p): PhaseSpec[] => {
@@ -51,18 +45,53 @@ const PHASES: PhaseSpec[] = STEP_DEFS.filter((p) => p.id !== "untap").flatMap((p
   ];
 });
 
-const CELL_W = 60;
-const CELL_H = 28;
-const CELL_GAP = 5;
+const STEP_ORDER = STEP_DEFS.filter((p) => p.id !== "untap");
+const CLEANUP_STEP: StepKind = "cleanup";
+const END_STEP: StepKind = "endOfTurn";
+
 const CELL_R = 4;
-const COMPACT_PILL_H = 22;
-const COMPACT_PILL_MIN_W = 56;
-const COMPACT_PILL_PAD_X = 10;
-const COMPACT_PILL_HIT_PAD = 13;
-const COMBAT_ICON_SIZE = 16;
-const COMBAT_EXPAND_PAD_X = 12;
-const COMBAT_EXPAND_LABEL_GAP = 5;
-const COMBAT_EXPAND_PIPS_GAP = 10;
+
+const RAIL_CELL_W = 56;
+const RAIL_CELL_H = 24;
+const RAIL_COMBAT_H = 34;
+const RAIL_GAP = 4;
+const RAIL_EDGE_PAD = 8;
+const RAIL_ACTION_CLEARANCE = 160;
+
+const BAR_CELL_W = 40;
+const BAR_COMBAT_W = 60;
+
+const CENTER_CELL_W = 36;
+const CENTER_EXPAND_W = 22;
+const CENTER_H = 22;
+const CENTER_HAND_GAP = 4;
+
+const EXPANDED_GAP = 6;
+const EXPANDED_PAD = 8;
+const EXPANDED_ROW_LABEL_W = 14;
+const EXPANDED_COL_W = 30;
+const EXPANDED_GROUP_GAP = 6;
+const EXPANDED_HEADER_H = 16;
+const EXPANDED_ROW_H = 18;
+const EXPANDED_TOGGLE_W = 14;
+const EXPANDED_TOGGLE_H = 8;
+const EXPANDED_SEAT_DOT_R = 4;
+
+const PLATE_MAX_H = 22;
+const PLATE_MIN_H = 16;
+const PLATE_GAP = 2;
+
+const SURFACE_ALPHA = 0.94;
+const BORDER_ALPHA = 0.5;
+const DIVIDER_ALPHA = 0.35;
+const SHADOW_ALPHA = 0.4;
+const ACTIVE_FILL_ALPHA = 0.22;
+const HOVER_FILL_ALPHA = 0.08;
+const INACTIVE_TEXT_ALPHA = 0.72;
+const PANEL_INDICATOR_H = 2;
+const PANEL_INDICATOR_HOVER_H = 3;
+const PANEL_INDICATOR_INSET = 4;
+
 const COMBAT_PIP_W = 4;
 const COMBAT_PIP_H = 4;
 const COMBAT_PIP_ACTIVE_W = 10;
@@ -84,60 +113,87 @@ function easeOut(t: number): number {
 
 const INDICATOR_H = 4;
 const INDICATOR_HOVER_H = 6;
-const INDICATOR_GAP = 4;
-const INDICATOR_MARGIN = 3; // distance from cell edge
-const INDICATOR_HIT_H = 12;
+const INDICATOR_GAP = 3;
+const INDICATOR_MARGIN = 3;
+const INDICATOR_HIT = 12;
 const INDICATOR_GHOST_ALPHA = 0.35;
 // My stops only fire on my turn — fade them while an opponent is acting.
 const INDICATOR_OFF_TURN_ALPHA = 0.55;
 
-// Text styles — seeded from the current theme; kept in sync by setTheme()
 const _initTheme = getTheme().gameTheme;
+const _initForeground = readableTextColor(
+  _initTheme.phaseStrip.background,
+  _initTheme.canvas.shadow,
+  _initTheme.textOnTinted,
+);
 const normalStyle = new TextStyle({
   fontFamily: FONT,
   fontSize: 11,
   fontWeight: "600",
-  fill: readableTextColor(
-    _initTheme.phaseStrip.background,
-    _initTheme.canvas.shadow,
-    _initTheme.textOnTinted,
-  ),
+  fill: _initForeground,
   align: "center",
 });
 const activeStyle = new TextStyle({
   fontFamily: FONT,
   fontSize: 11,
   fontWeight: "bold",
-  fill: readableTextColor(
-    _initTheme.phaseStrip.background,
-    _initTheme.canvas.shadow,
-    _initTheme.textOnTinted,
-  ),
+  fill: _initForeground,
+  align: "center",
+});
+const panelStyle = new TextStyle({
+  fontFamily: FONT,
+  fontSize: 11,
+  fontWeight: "bold",
+  fill: getTheme().appTheme.foreground,
+  align: "center",
+});
+const headerStyle = new TextStyle({
+  fontFamily: FONT,
+  fontSize: 9,
+  fontWeight: "bold",
+  fill: getTheme().appTheme.foreground,
   align: "center",
 });
 
+interface Point2 {
+  x: number;
+  y: number;
+}
+
+interface CellRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+interface CellGeometry {
+  rect: CellRect;
+  label: Point2;
+  pips: Point2 | null;
+  self: Point2[];
+  selfHit: CellRect;
+  opp: Point2[][];
+  oppHit: CellRect[];
+  hidden?: boolean;
+}
+
 interface PhaseIndicatorData {
-  cx: number;
-  selfCy: number;
-  oppCy: number;
+  rect: CellRect;
+  self: Point2[];
+  opp: Point2[][];
   selfEnabled: boolean;
   selfOffTurn: boolean;
   selfColor: number;
-  oppCount: number;
   oppEnabled: boolean[];
   oppColors: number[];
-  cellW: number;
-  hideIndicators: boolean;
 }
 
 interface PhaseCell {
   bg: Graphics;
   flashGfx: Graphics;
-  hoverBg: Graphics;
-  hitArea: Graphics;
   text: Text;
-  icon?: Sprite;
-  pips?: Graphics;
+  pips: Graphics | null;
   id: string;
   defaultLabel: string;
   subPhases?: string[];
@@ -149,11 +205,9 @@ interface PhaseCell {
   oppIndicators: Graphics;
   oppHitAreas: Graphics[];
   oppHovered: boolean[];
-  _indData?: PhaseIndicatorData;
-  _fx?: number;
-  _fy?: number;
-  _fw?: number;
-  _fc?: number;
+  indicators?: PhaseIndicatorData;
+  flashRect?: CellRect;
+  flashColor?: number;
 }
 
 export interface OpponentInfo {
@@ -175,7 +229,41 @@ export interface PhaseStripState {
 export interface PhaseStripCallbacks {
   onToggleSelfPhase?: (phaseId: string) => void;
   onToggleOpponentPhase?: (opponentId: string, phaseId: string) => void;
-  onOpenCompactControls?: () => void;
+}
+
+function sameRect(a: BlockingRect | null, b: BlockingRect | null): boolean {
+  if (!a || !b) return a === b;
+  return a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height;
+}
+
+function copyRect(r: BlockingRect | null): BlockingRect | null {
+  return r && { x: r.x, y: r.y, width: r.width, height: r.height };
+}
+
+function fillHit(g: Graphics, r: CellRect, color: number): void {
+  g.clear();
+  g.rect(r.x, r.y, r.w, r.h);
+  g.fill({ color, alpha: 0.001 });
+}
+
+function strokeLine(g: Graphics, points: Point2[], width: number, color: number, alpha: number) {
+  const [a, b] = points;
+  if (!a || !b) return;
+  g.moveTo(a.x, a.y);
+  g.lineTo(b.x, b.y);
+  g.stroke({ width, color, alpha, cap: "round" });
+}
+
+function plateWidth(): number {
+  return (PHASES.length - 1) * BAR_CELL_W + BAR_COMBAT_W;
+}
+
+function centerWidth(): number {
+  return (PHASES.length - 1) * CENTER_CELL_W + CENTER_EXPAND_W;
+}
+
+function contains(r: CellRect, x: number, y: number): boolean {
+  return x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 }
 
 export class PhaseStripLayer {
@@ -184,115 +272,68 @@ export class PhaseStripLayer {
   private callbacks: PhaseStripCallbacks = {};
   private lastState: PhaseStripState | null = null;
   private cells: PhaseCell[];
+  private panelShadow: Graphics;
+  private panel: Graphics;
+  private expandButton: Graphics;
+  private expandHovered = false;
+  private expandRect: CellRect | null = null;
+  private expandedPanel: Container;
+  private expandedRect: CellRect | null = null;
+  private expanded = false;
   private prevStep: string | null = null;
   private prevIsActiveTurn = false;
   /** Displayed active player — lags behind the real one so the color
    *  doesn't flip during cleanup (engine advances the active player
    *  before the new turn's first phase). */
   private displayActivePlayerId: string | null = null;
-  private canvasWidth = 0;
-  private canvasHeight = 0;
-  private lineGfx: Graphics;
-  private stripHitArea: Graphics;
-  private hoveredCellIndex = -1;
-  private cellsContainer: Container;
-  private combatContainer: Container;
-  private combatCellW: number;
+  private style: PhaseStripStyle = "rail";
+  private frame: PhaseStripFrame | null = null;
+  private pointerInside = false;
   private dimAlpha = 1;
-  private expandedBackdrop: Graphics;
-  private pillContainer: Container;
-  private pillBg: Graphics;
-  private pillText: Text;
-  private pillFlash: Graphics;
-  private pillHit: Graphics;
-  private compact = false;
-  private dividerVisible = true;
-  private expanded = false;
-  private expandedAt = 0;
-  private pillFlashStart = 0;
-  private pillLabel = "";
-  private pillRect: { x: number; y: number; w: number; c: number } | null = null;
-  private pillPressed = false;
   private forceShowIndicators = false;
-  private expandedBounds: { x: number; y: number; w: number; h: number } | null = null;
   private realState: PhaseStripState | null = null;
   private sweepQueue: { step: string; activePlayerId: string }[] = [];
   private sweepNextAt = 0;
   private sweepDwellMs = SWEEP_DWELL_MS;
-  onExpandedChange?: () => void;
 
   constructor(theme: Theme) {
     this.theme = theme;
     this.container = new Container();
     this.container.label = "phaseStrip";
+    this.container.eventMode = "static";
+    this.container.on("pointerenter", () => {
+      this.pointerInside = true;
+    });
+    this.container.on("pointerleave", () => {
+      this.pointerInside = false;
+    });
 
-    this.lineGfx = new Graphics();
-    this.container.addChild(this.lineGfx);
-
-    this.expandedBackdrop = new Graphics();
-    this.container.addChild(this.expandedBackdrop);
-
-    this.cellsContainer = new Container();
-    this.container.addChild(this.cellsContainer);
-
-    // Combat cell lives outside cellsContainer so the combat dim can spare it.
-    this.combatContainer = new Container();
-    this.container.addChild(this.combatContainer);
-
-    // Full-strip hit area for hover detection (show/hide empty indicators)
-    this.stripHitArea = new Graphics();
-    this.stripHitArea.eventMode = "static";
-    this.stripHitArea.on("pointerdown", () => this.pokeExpandTimer());
-    this.cellsContainer.addChild(this.stripHitArea);
+    this.panelShadow = new Graphics();
+    this.panelShadow.alpha = SHADOW_ALPHA;
+    this.panelShadow.filters = [new BlurFilter({ strength: 8 })];
+    this.container.addChild(this.panelShadow);
+    this.panel = new Graphics();
+    this.container.addChild(this.panel);
 
     this.cells = [];
     for (const p of PHASES) {
       const isCombat = !!p.subPhases;
-      const parent = isCombat ? this.combatContainer : this.cellsContainer;
       const bg = new Graphics();
-      parent.addChild(bg);
+      this.container.addChild(bg);
       const flashGfx = new Graphics();
-      parent.addChild(flashGfx);
-      const hoverBg = new Graphics();
-      hoverBg.visible = false;
-      parent.addChild(hoverBg);
-      // Combat cell gets an icon; default label is empty (icon replaces it)
-      let icon: Sprite | undefined;
-      let pips: Graphics | undefined;
-      if (isCombat) {
-        icon = new Sprite();
-        icon.width = COMBAT_ICON_SIZE;
-        icon.height = COMBAT_ICON_SIZE;
-        parent.addChild(icon);
-        applyIcon(icon, "cmdsword", getIconColor("cmdsword", this.theme.gameTheme));
-        pips = new Graphics();
-        parent.addChild(pips);
-      }
-      const text = new Text({ text: isCombat ? "" : p.short, style: normalStyle });
+      this.container.addChild(flashGfx);
+      const pips = isCombat ? new Graphics() : null;
+      if (pips) this.container.addChild(pips);
+      const text = new Text({ text: p.short, style: normalStyle });
       text.anchor.set(0.5, 0.5);
-      parent.addChild(text);
-      // Main cell hit area (for hover) — added first so indicators sit on top
-      const hitArea = new Graphics();
-      hitArea.eventMode = "static";
-      hitArea.cursor = "default";
-      const cellIndex = this.cells.length; // index for this cell (before push)
-      hitArea.on("pointerover", () => {
-        this.hoveredCellIndex = cellIndex;
-      });
-      hitArea.on("pointerout", () => {
-        if (this.hoveredCellIndex === cellIndex) this.hoveredCellIndex = -1;
-      });
-      parent.addChild(hitArea);
+      this.container.addChild(text);
 
-      // Self indicator (bottom — my turn toggle)
       const selfIndicator = new Graphics();
-      parent.addChild(selfIndicator);
+      this.container.addChild(selfIndicator);
       const selfHitArea = new Graphics();
       selfHitArea.eventMode = "static";
       selfHitArea.cursor = "pointer";
-      const selfHovered = false;
       selfHitArea.on("pointerdown", () => {
-        this.pokeExpandTimer();
         const phases = p.indicatorPhases ?? p.subPhases ?? [p.id];
         for (const ph of phases) this.callbacks.onToggleSelfPhase?.(ph);
       });
@@ -302,22 +343,18 @@ export class PhaseStripLayer {
       selfHitArea.on("pointerout", () => {
         cellRef.selfHovered = false;
       });
-      parent.addChild(selfHitArea);
+      this.container.addChild(selfHitArea);
 
       const oppIndicators = new Graphics();
-      parent.addChild(oppIndicators);
+      this.container.addChild(oppIndicators);
       const oppHitAreas: Graphics[] = [];
-      const oppHovered: boolean[] = [false, false, false];
       for (let oi = 0; oi < 3; oi++) {
         const oha = new Graphics();
         oha.eventMode = "static";
         oha.cursor = "pointer";
         oha.visible = false;
         oha.on("pointerdown", () => {
-          this.pokeExpandTimer();
-          const oppState = this.lastState;
-          if (!oppState) return;
-          const opp = oppState.opponents[oi];
+          const opp = this.lastState?.opponents[oi];
           if (!opp) return;
           const phases = p.indicatorPhases ?? p.subPhases ?? [p.id];
           for (const ph of phases) this.callbacks.onToggleOpponentPhase?.(opp.id, ph);
@@ -328,17 +365,14 @@ export class PhaseStripLayer {
         oha.on("pointerout", () => {
           cellRef.oppHovered[oi] = false;
         });
-        parent.addChild(oha);
+        this.container.addChild(oha);
         oppHitAreas.push(oha);
       }
 
       const cellRef: PhaseCell = {
         bg,
         flashGfx,
-        hoverBg,
-        hitArea,
         text,
-        icon,
         pips,
         id: p.id,
         defaultLabel: p.short,
@@ -347,57 +381,30 @@ export class PhaseStripLayer {
         flashStart: 0,
         selfIndicator,
         selfHitArea,
-        selfHovered,
+        selfHovered: false,
         oppIndicators,
         oppHitAreas,
-        oppHovered,
+        oppHovered: [false, false, false],
       };
-      const cell = cellRef;
-      this.cells.push(cell);
+      this.cells.push(cellRef);
     }
 
-    this.pillContainer = new Container();
-    this.pillContainer.visible = false;
-    this.pillBg = new Graphics();
-    this.pillContainer.addChild(this.pillBg);
-    this.pillFlash = new Graphics();
-    this.pillContainer.addChild(this.pillFlash);
-    this.pillText = new Text({ text: "", style: activeStyle });
-    this.pillText.anchor.set(0.5, 0.5);
-    this.pillContainer.addChild(this.pillText);
-    this.pillHit = new Graphics();
-    this.pillHit.eventMode = "static";
-    this.pillHit.cursor = "pointer";
-    this.pillHit.on("pointerdown", () => this.setPillPressed(true));
-    this.pillHit.on("pointerup", () => this.setPillPressed(false));
-    this.pillHit.on("pointerupoutside", () => this.setPillPressed(false));
-    this.pillHit.on("pointercancel", () => this.setPillPressed(false));
-    this.pillHit.on("pointerout", () => this.setPillPressed(false));
-    this.pillHit.on("pointertap", () => {
-      if (this.callbacks.onOpenCompactControls) {
-        this.callbacks.onOpenCompactControls();
-        return;
-      }
-      this.expand();
+    this.expandButton = new Graphics();
+    this.expandButton.eventMode = "static";
+    this.expandButton.cursor = "pointer";
+    this.expandButton.on("pointerdown", () => this.setExpanded(!this.expanded));
+    this.expandButton.on("pointerover", () => {
+      this.expandHovered = true;
+      this.refresh();
     });
-    this.pillContainer.addChild(this.pillHit);
-    this.container.addChild(this.pillContainer);
+    this.expandButton.on("pointerout", () => {
+      this.expandHovered = false;
+      this.refresh();
+    });
+    this.container.addChild(this.expandButton);
 
-    const measurer = new Text({ text: "", style: activeStyle });
-    let maxLabelW = 0;
-    for (const id of COMBAT_SUB_PHASES) {
-      measurer.text = COMBAT_FULL_LABELS[id] ?? "";
-      maxLabelW = Math.max(maxLabelW, measurer.width);
-    }
-    measurer.destroy();
-    this.combatCellW = Math.ceil(
-      COMBAT_EXPAND_PAD_X * 2 +
-        COMBAT_ICON_SIZE +
-        COMBAT_EXPAND_LABEL_GAP +
-        maxLabelW +
-        COMBAT_EXPAND_PIPS_GAP +
-        COMBAT_PIPS_W,
-    );
+    this.expandedPanel = new Container();
+    this.container.addChild(this.expandedPanel);
   }
 
   getDimAlpha(): number {
@@ -406,63 +413,52 @@ export class PhaseStripLayer {
 
   setDimAlpha(alpha: number): void {
     this.dimAlpha = alpha;
-    this.lineGfx.alpha = alpha;
-    this.expandedBackdrop.alpha = alpha;
-    this.cellsContainer.alpha = alpha;
-    this.pillContainer.alpha = alpha;
+    this.container.alpha = alpha;
   }
 
-  setCompact(compact: boolean): void {
-    if (this.compact === compact) return;
-    this.compact = compact;
+  setStyle(style: PhaseStripStyle): void {
+    if (this.style === style) return;
+    this.style = style;
     this.expanded = false;
-    this.setPillPressed(false);
-    if (this.lastState) this.render(this.lastState);
-    this.onExpandedChange?.();
-  }
-  setDividerVisible(visible: boolean): void {
-    if (this.dividerVisible === visible) return;
-    this.dividerVisible = visible;
-    if (this.lastState) this.render(this.lastState);
-  }
-  private setPillPressed(pressed: boolean): void {
-    if (this.pillPressed === pressed) return;
-    this.pillPressed = pressed;
-    this.pillBg.alpha = pressed ? 0.82 : 1;
-    this.pillText.scale.set(pressed ? 0.96 : 1);
+    this.refresh();
   }
 
-  isCompactExpanded(): boolean {
-    return this.compact && this.expanded;
-  }
-
-  private expand(): void {
-    if (!this.compact || this.expanded) return;
-    this.expanded = true;
-    this.expandedAt = performance.now();
-    if (this.lastState) this.render(this.lastState);
-    this.onExpandedChange?.();
-  }
-
-  private collapse(): void {
-    if (!this.expanded) return;
-    this.expanded = false;
-    if (this.lastState) this.render(this.lastState);
-    this.onExpandedChange?.();
-  }
-
-  private pokeExpandTimer(): void {
-    this.expandedAt = performance.now();
-  }
-
-  handleOutsidePointerDown(localX: number, localY: number): void {
-    if (!this.compact || !this.expanded) return;
-    const b = this.expandedBounds;
-    if (b && localX >= b.x && localX <= b.x + b.w && localY >= b.y && localY <= b.y + b.h) {
-      this.pokeExpandTimer();
+  setFrame(frame: PhaseStripFrame | null): void {
+    const prev = this.frame;
+    if (
+      prev?.gridBottom === frame?.gridBottom &&
+      sameRect(prev?.field ?? null, frame?.field ?? null) &&
+      sameRect(prev?.hand ?? null, frame?.hand ?? null) &&
+      sameRect(prev?.plate ?? null, frame?.plate ?? null)
+    ) {
       return;
     }
-    this.collapse();
+    this.frame = frame && {
+      field: copyRect(frame.field)!,
+      hand: copyRect(frame.hand),
+      plate: copyRect(frame.plate),
+      gridBottom: frame.gridBottom,
+    };
+    this.refresh();
+  }
+
+  handleOutsidePointerDown(x: number, y: number): void {
+    if (!this.expanded) return;
+    if (this.expandedRect && contains(this.expandedRect, x, y)) return;
+    if (this.expandRect && contains(this.expandRect, x, y)) return;
+    this.setExpanded(false);
+  }
+
+  getBounds(): BlockingRect | null {
+    if (!this.container.visible || !this.frame || this.style !== "rail") return null;
+    const rail = this.railColumns(this.lastState?.opponents.length ?? 0);
+    const left = rail.selfX - INDICATOR_HIT / 2;
+    return {
+      x: left,
+      y: this.railTop(),
+      width: this.frame.field.x + this.frame.field.width - left,
+      height: this.railHeight(),
+    };
   }
 
   setTheme(theme: Theme): void {
@@ -474,17 +470,13 @@ export class PhaseStripLayer {
     );
     normalStyle.fill = foreground;
     activeStyle.fill = foreground;
-    if (this.lastState) this.render(this.lastState);
+    panelStyle.fill = theme.appTheme.foreground;
+    headerStyle.fill = theme.appTheme.foreground;
+    this.refresh();
   }
 
   setCallbacks(cb: PhaseStripCallbacks): void {
     this.callbacks = cb;
-  }
-
-  resize(width: number, height: number): void {
-    this.canvasWidth = width;
-    this.canvasHeight = height;
-    if (this.lastState) this.render(this.lastState);
   }
 
   update(state: PhaseStripState): void {
@@ -532,40 +524,179 @@ export class PhaseStripLayer {
     this.sweepNextAt = 0;
   }
 
+  private refresh(): void {
+    if (this.lastState) this.render(this.lastState);
+  }
+
+  private setExpanded(expanded: boolean): void {
+    if (this.expanded === expanded) return;
+    this.expanded = expanded;
+    this.refresh();
+  }
+
+  private railColumns(oppCount: number): { cellX: number; selfX: number; oppX: number[] } {
+    const field = this.frame!.field;
+    const oppW = oppCount * INDICATOR_H + Math.max(0, oppCount - 1) * INDICATOR_GAP;
+    const right = field.x + field.width - RAIL_EDGE_PAD;
+    const cellX = right - oppW - (oppCount ? INDICATOR_MARGIN : 0) - RAIL_CELL_W;
+    const oppX = Array.from(
+      { length: oppCount },
+      (_, i) =>
+        cellX +
+        RAIL_CELL_W +
+        INDICATOR_MARGIN +
+        INDICATOR_H / 2 +
+        i * (INDICATOR_H + INDICATOR_GAP),
+    );
+    return { cellX, selfX: cellX - INDICATOR_MARGIN - INDICATOR_H / 2, oppX };
+  }
+
+  private railHeight(): number {
+    let total = 0;
+    for (const cell of this.cells) total += cell.subPhases ? RAIL_COMBAT_H : RAIL_CELL_H;
+    return total + RAIL_GAP * (this.cells.length - 1);
+  }
+
+  private railTop(): number {
+    const field = this.frame!.field;
+    const bottom = field.y + field.height - RAIL_ACTION_CLEARANCE;
+    return Math.max(field.y + RAIL_EDGE_PAD, bottom - this.railHeight());
+  }
+
+  private railGeometry(oppCount: number): CellGeometry[] {
+    const { cellX, selfX, oppX } = this.railColumns(oppCount);
+    const oppHitW = INDICATOR_H + INDICATOR_GAP;
+    let y = this.railTop();
+    return this.cells.map((cell) => {
+      const h = cell.subPhases ? RAIL_COMBAT_H : RAIL_CELL_H;
+      const top = y;
+      y += h + RAIL_GAP;
+      const lineTop = top + INDICATOR_H / 2;
+      const lineBottom = top + h - INDICATOR_H / 2;
+      return {
+        rect: { x: cellX, y: top, w: RAIL_CELL_W, h },
+        label: { x: cellX + RAIL_CELL_W / 2, y: cell.subPhases ? top + 12 : top + h / 2 },
+        pips: cell.subPhases
+          ? { x: cellX + (RAIL_CELL_W - COMBAT_PIPS_W) / 2, y: top + h - 10 }
+          : null,
+        self: [
+          { x: selfX, y: lineTop },
+          { x: selfX, y: lineBottom },
+        ],
+        selfHit: { x: selfX - INDICATOR_HIT / 2, y: top, w: INDICATOR_HIT, h },
+        opp: oppX.map((x) => [
+          { x, y: lineTop },
+          { x, y: lineBottom },
+        ]),
+        oppHit: oppX.map((x) => ({ x: x - oppHitW / 2, y: top, w: oppHitW, h })),
+      };
+    });
+  }
+
+  private centerBarRect(): CellRect | null {
+    const hand = this.frame?.hand;
+    if (!hand) return null;
+    const w = centerWidth();
+    return {
+      x: hand.x + hand.width / 2 - w / 2,
+      y: hand.y - CENTER_HAND_GAP - CENTER_H,
+      w,
+      h: CENTER_H,
+    };
+  }
+
+  private centerGeometry(): CellGeometry[] | null {
+    const bar = this.centerBarRect();
+    if (!bar) return null;
+    const selfY = bar.y + bar.h - 1 - PANEL_INDICATOR_HOVER_H / 2;
+    let x = bar.x;
+    return this.cells.map((cell) => {
+      if (cell.id === CLEANUP_STEP) {
+        return {
+          rect: { x: 0, y: 0, w: 0, h: 0 },
+          label: { x: 0, y: 0 },
+          pips: null,
+          self: [],
+          selfHit: { x: 0, y: 0, w: 0, h: 0 },
+          opp: [],
+          oppHit: [],
+          hidden: true,
+        };
+      }
+      const left = x;
+      x += CENTER_CELL_W;
+      const rect = { x: left, y: bar.y, w: CENTER_CELL_W, h: bar.h };
+      return {
+        rect,
+        label: { x: left + CENTER_CELL_W / 2, y: bar.y + bar.h / 2 },
+        pips: null,
+        self: [
+          { x: left + PANEL_INDICATOR_INSET, y: selfY },
+          { x: left + CENTER_CELL_W - PANEL_INDICATOR_INSET, y: selfY },
+        ],
+        selfHit: rect,
+        opp: [],
+        oppHit: [],
+      };
+    });
+  }
+
+  private plateBarRect(): CellRect | null {
+    const frame = this.frame;
+    if (!frame?.plate) return null;
+    const bottom = frame.plate.y - PLATE_GAP;
+    const h = Math.min(PLATE_MAX_H, Math.max(PLATE_MIN_H, bottom - frame.gridBottom));
+    return { x: frame.plate.x, y: bottom - h, w: plateWidth(), h };
+  }
+
+  private plateGeometry(oppCount: number): CellGeometry[] | null {
+    const bar = this.plateBarRect();
+    if (!bar) return null;
+    const half = bar.h / 2;
+    const selfY = bar.y + bar.h - 1 - PANEL_INDICATOR_HOVER_H / 2;
+    const oppY = bar.y + 1 + PANEL_INDICATOR_HOVER_H / 2;
+    let x = bar.x;
+    return this.cells.map((cell) => {
+      const w = cell.subPhases ? BAR_COMBAT_W : BAR_CELL_W;
+      const left = x;
+      x += w;
+      const segW = (w - INDICATOR_GAP * Math.max(0, oppCount - 1)) / Math.max(1, oppCount);
+      const segX = (i: number) => left + i * (segW + INDICATOR_GAP);
+      return {
+        rect: { x: left, y: bar.y, w, h: bar.h },
+        label: { x: left + w / 2, y: bar.y + half },
+        pips: null,
+        self: [
+          { x: left + PANEL_INDICATOR_INSET, y: selfY },
+          { x: left + w - PANEL_INDICATOR_INSET, y: selfY },
+        ],
+        selfHit: { x: left, y: bar.y + half, w, h: half },
+        opp: Array.from({ length: oppCount }, (_, i) => [
+          { x: segX(i) + PANEL_INDICATOR_INSET, y: oppY },
+          { x: segX(i) + segW - PANEL_INDICATOR_INSET, y: oppY },
+        ]),
+        oppHit: Array.from({ length: oppCount }, (_, i) => ({
+          x: segX(i),
+          y: bar.y,
+          w: segW,
+          h: half,
+        })),
+      };
+    });
+  }
+
+  private isCurrent(cell: PhaseCell, step: string): boolean {
+    if (this.style === "hand" && step === CLEANUP_STEP) return cell.id === END_STEP;
+    return cell.subPhases ? cell.subPhases.includes(step) : step === cell.id;
+  }
+
   private render(state: PhaseStripState): void {
     this.lastState = state;
     const t = this.theme.gameTheme;
+    const app = this.theme.appTheme;
     const foreground = readableTextColor(t.phaseStrip.background, t.canvas.shadow, t.textOnTinted);
-    const y = this.canvasHeight / 2 - CELL_H / 2;
-    const centerX = this.canvasWidth / 2;
+    this.forceShowIndicators = isCoarsePointer();
 
-    const showPill = this.compact && !this.expanded;
-    this.cellsContainer.visible = !showPill;
-    this.combatContainer.visible = !showPill;
-    this.pillContainer.visible = showPill;
-    this.forceShowIndicators = (this.compact && this.expanded) || isCoarsePointer();
-
-    const combatIdx = this.cells.findIndex((c) => !!c.subPhases);
-    const leftCells = this.cells.slice(0, combatIdx);
-    const rightCells = this.cells.slice(combatIdx + 1);
-
-    const combatX = centerX - this.combatCellW / 2;
-
-    const cellPositions: number[] = new Array(this.cells.length);
-    cellPositions[combatIdx] = combatX;
-    let lx = combatX - CELL_GAP;
-    for (let i = leftCells.length - 1; i >= 0; i--) {
-      lx -= CELL_W;
-      cellPositions[i] = lx;
-      lx -= CELL_GAP;
-    }
-    let rx = combatX + this.combatCellW + CELL_GAP;
-    for (let i = 0; i < rightCells.length; i++) {
-      cellPositions[combatIdx + 1 + i] = rx;
-      rx += CELL_W + CELL_GAP;
-    }
-
-    // Determine the active player's color (divider line + active cell).
     const pc = t.playerColors;
     const selfColor = hexToNum(pc.self);
     const oppColors = [hexToNum(pc.opponent1), hexToNum(pc.opponent2), hexToNum(pc.opponent3)];
@@ -576,7 +707,6 @@ export class PhaseStripLayer {
       this.displayActivePlayerId = state.activePlayerId;
     }
     const displayActive = this.displayActivePlayerId ?? state.activePlayerId;
-
     const isMeActive = displayActive === state.myPlayerId;
     const activeOppIdx = state.opponents.findIndex((o) => o.id === displayActive);
     const turnColor = isMeActive
@@ -584,37 +714,6 @@ export class PhaseStripLayer {
       : activeOppIdx >= 0
         ? oppColors[activeOppIdx]!
         : hexToNum(t.textMuted);
-
-    const lineY = this.canvasHeight / 2;
-    const stripLeft = cellPositions[0]! - CELL_GAP;
-    const stripRight = rx;
-    const stripWidth = stripRight - stripLeft;
-    const fitX = Math.min(1, Math.max(1, this.canvasWidth - 16) / stripWidth);
-    const stripOffset = fitX < 1 ? centerX - ((stripLeft + stripRight) * fitX) / 2 : 0;
-    for (const layer of [this.cellsContainer, this.combatContainer, this.expandedBackdrop]) {
-      layer.scale.x = fitX;
-      layer.x = stripOffset;
-    }
-
-    this.lineGfx.clear();
-    if (!showPill && this.dividerVisible) {
-      const lineLeft = stripLeft * fitX + stripOffset;
-      const lineRight = stripRight * fitX + stripOffset;
-      this.lineGfx.moveTo(0, lineY);
-      this.lineGfx.lineTo(lineLeft, lineY);
-      this.lineGfx.moveTo(lineRight, lineY);
-      this.lineGfx.lineTo(this.canvasWidth, lineY);
-      this.lineGfx.stroke({ color: turnColor, width: 2, alpha: STRIP_TURN_ALPHA });
-    }
-
-    // Strip hover hit area — covers cells + indicator rows
-    const hoverPad = INDICATOR_HIT_H + INDICATOR_MARGIN + 2;
-    this.stripHitArea.clear();
-    this.stripHitArea.rect(stripLeft, y - hoverPad, stripRight - stripLeft, CELL_H + hoverPad * 2);
-    this.stripHitArea.fill({
-      color: hexToNum(this.theme.gameTheme.canvas.neutral),
-      alpha: 0.001,
-    });
 
     const turnJustStarted = state.isActiveTurn && !this.prevIsActiveTurn;
     this.prevIsActiveTurn = state.isActiveTurn;
@@ -626,121 +725,104 @@ export class PhaseStripLayer {
     }
     this.prevStep = state.currentStep;
 
-    if (showPill) {
-      const label =
-        COMBAT_LABELS[state.currentStep] ?? PHASES.find((p) => p.id === state.currentStep)?.short;
-      if (label) this.pillLabel = label;
-      this.pillText.text = this.pillLabel;
-      const pillW = Math.max(
-        COMPACT_PILL_MIN_W,
-        Math.ceil(this.pillText.width) + COMPACT_PILL_PAD_X * 2,
-      );
-      const pillX = centerX - pillW / 2;
-      const pillY = lineY - COMPACT_PILL_H / 2;
-      this.pillText.x = centerX;
-      this.pillText.y = lineY;
-      this.pillBg.clear();
-      this.pillBg.roundRect(pillX, pillY, pillW, COMPACT_PILL_H, COMPACT_PILL_H / 2);
-      this.pillBg.fill({ color: hexToNum(t.phaseStrip.background) });
-      this.pillBg.roundRect(pillX, pillY, pillW, COMPACT_PILL_H, COMPACT_PILL_H / 2);
-      this.pillBg.stroke({ color: turnColor, width: 2, alignment: 0.5 });
-      this.pillHit.clear();
-      this.pillHit.rect(
-        pillX - COMPACT_PILL_HIT_PAD,
-        pillY - COMPACT_PILL_HIT_PAD,
-        pillW + COMPACT_PILL_HIT_PAD * 2,
-        COMPACT_PILL_H + COMPACT_PILL_HIT_PAD * 2,
-      );
-      this.pillHit.fill({
-        color: hexToNum(this.theme.gameTheme.canvas.neutral),
-        alpha: 0.001,
-      });
-      if (this.dividerVisible) {
-        this.lineGfx.moveTo(0, lineY);
-        this.lineGfx.lineTo(pillX - CELL_GAP, lineY);
-        this.lineGfx.moveTo(pillX + pillW + CELL_GAP, lineY);
-        this.lineGfx.lineTo(this.canvasWidth, lineY);
-        this.lineGfx.stroke({ color: turnColor, width: 2, alpha: STRIP_TURN_ALPHA });
-      }
-      this.pillRect = { x: pillX, y: pillY, w: pillW, c: turnColor };
-      if (stepChanged && animationsEnabled()) this.pillFlashStart = performance.now();
-    } else {
-      this.pillRect = null;
-      this.pillFlashStart = 0;
-      this.pillFlash.clear();
+    const oppCount = state.opponents.length;
+    const center = this.style === "hand";
+    const panelStyled = this.style !== "rail";
+    const geometry = !this.frame
+      ? null
+      : this.style === "rail"
+        ? this.railGeometry(oppCount)
+        : center
+          ? this.centerGeometry()
+          : this.plateGeometry(oppCount);
+
+    this.panel.clear();
+    this.panelShadow.clear();
+    this.expandButton.clear();
+    this.expandRect = null;
+    this.container.renderable = geometry !== null;
+    if (!geometry) {
+      this.renderExpanded(null, state, selfColor, oppColors, turnColor);
+      this.container.hitArea = new Rectangle(0, 0, 0, 0);
+      return;
     }
 
-    this.expandedBackdrop.clear();
-    if (this.compact && this.expanded) {
-      const backdropY = y - hoverPad;
-      const backdropH = CELL_H + hoverPad * 2;
-      this.expandedBackdrop.roundRect(
-        stripLeft,
-        backdropY,
-        stripRight - stripLeft,
-        backdropH,
-        CELL_R * 2,
-      );
-      this.expandedBackdrop.fill({
-        color: hexToNum(t.phaseStrip.background),
-        alpha: STRIP_EXPANDED_BG_ALPHA,
-      });
-      this.expandedBounds = {
-        x: stripLeft * fitX + stripOffset,
-        y: backdropY,
-        w: stripWidth * fitX,
-        h: backdropH,
-      };
-    } else {
-      this.expandedBounds = null;
+    const neutral = hexToNum(t.canvas.neutral);
+    const surface = hexToNum(t.phaseStrip.background);
+    const border = hexToNum(app.border);
+    const panelBar = center ? this.centerBarRect() : panelStyled ? this.plateBarRect() : null;
+    if (panelBar) {
+      this.panelShadow
+        .roundRect(panelBar.x, panelBar.y + 2, panelBar.w, panelBar.h, CELL_R)
+        .fill({ color: hexToNum(t.canvas.shadow) });
+      this.panel
+        .roundRect(panelBar.x, panelBar.y, panelBar.w, panelBar.h, CELL_R)
+        .fill({ color: hexToNum(app.card), alpha: SURFACE_ALPHA })
+        .stroke({ color: border, width: 1, alpha: BORDER_ALPHA });
     }
 
-    const count = this.cells.length;
-    for (let i = 0; i < count; i++) {
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    const include = (r: CellRect) => {
+      minX = Math.min(minX, r.x);
+      minY = Math.min(minY, r.y);
+      maxX = Math.max(maxX, r.x + r.w);
+      maxY = Math.max(maxY, r.y + r.h);
+    };
+
+    for (let i = 0; i < this.cells.length; i++) {
       const cell = this.cells[i]!;
-      const isCombatCell = !!cell.subPhases;
-      const cellW = isCombatCell ? this.combatCellW : CELL_W;
-      const cx = cellPositions[i]!;
+      const geo = geometry[i]!;
+      const { rect } = geo;
 
-      const combatSubActive = isCombatCell && cell.subPhases!.includes(state.currentStep);
-      const isCurrentPhase = isCombatCell ? combatSubActive : state.currentStep === cell.id;
-      const isActive = isCurrentPhase; // highlight current phase regardless of whose turn
+      if (geo.hidden) {
+        cell.bg.clear();
+        cell.pips?.clear();
+        cell.text.visible = false;
+        cell.selfHitArea.clear();
+        cell.selfIndicator.clear();
+        cell.oppIndicators.clear();
+        for (const oha of cell.oppHitAreas) oha.visible = false;
+        cell.indicators = undefined;
+        cell.flashRect = undefined;
+        continue;
+      }
+
+      const isActive = this.isCurrent(cell, state.currentStep);
       const phaseIds = cell.indicatorPhases ?? cell.subPhases ?? [cell.id];
 
-      // Combat cell: permanent battle section — idle shows "COMBAT" + ghost
-      // pips; a combat step swaps in the sub-phase name and lights its pip
-      if (isCombatCell) {
-        cell.text.text = combatSubActive
-          ? (COMBAT_FULL_LABELS[state.currentStep] ?? "")
-          : cell.defaultLabel;
+      if (panelBar && rect.x > panelBar.x) {
+        this.panel.moveTo(rect.x, rect.y + 4).lineTo(rect.x, rect.y + rect.h - 4);
       }
 
-      // Combat icon position + tint
-      if (cell.icon) {
-        const iconTint = isActive ? foreground : getIconColor("cmdsword", this.theme.gameTheme);
-        applyIcon(cell.icon, "cmdsword", iconTint);
-        cell.icon.width = COMBAT_ICON_SIZE;
-        cell.icon.height = COMBAT_ICON_SIZE;
-        const iconX = cx + COMBAT_EXPAND_PAD_X;
-        cell.icon.x = iconX;
-        cell.icon.y = y + (CELL_H - COMBAT_ICON_SIZE) / 2;
-        cell.text.x = iconX + COMBAT_ICON_SIZE + COMBAT_EXPAND_LABEL_GAP + cell.text.width / 2;
-      }
+      cell.text.text =
+        cell.subPhases && isActive
+          ? (COMBAT_LABELS[state.currentStep] ?? cell.defaultLabel)
+          : center && cell.subPhases
+            ? (COMBAT_LABELS[cell.indicatorPhases![0]!] ?? cell.defaultLabel)
+            : cell.defaultLabel;
+      cell.text.style = panelStyled ? panelStyle : isActive ? activeStyle : normalStyle;
+      cell.text.alpha = panelStyled && !isActive ? INACTIVE_TEXT_ALPHA : 1;
+      cell.text.position.set(geo.label.x, geo.label.y);
+      cell.text.visible = true;
 
       if (cell.pips) {
         cell.pips.clear();
-        const currentIdx = combatSubActive ? COMBAT_SUB_PHASES.indexOf(state.currentStep) : -1;
-        let px = cx + cellW - COMBAT_EXPAND_PAD_X - COMBAT_PIPS_W;
-        const py = y + (CELL_H - COMBAT_PIP_H) / 2;
-        for (let pi = 0; pi < COMBAT_SUB_PHASES.length; pi++) {
-          const activePip = pi === currentIdx;
-          const pipW = activePip ? COMBAT_PIP_ACTIVE_W : COMBAT_PIP_W;
-          cell.pips.roundRect(px, py, pipW, COMBAT_PIP_H, COMBAT_PIP_H / 2);
-          cell.pips.fill({
-            color: activePip ? turnColor : hexToNum(foreground),
-            alpha: activePip ? 1 : INDICATOR_GHOST_ALPHA,
-          });
-          px += pipW + COMBAT_PIP_GAP;
+        if (geo.pips) {
+          const currentIdx = isActive ? COMBAT_SUB_PHASES.indexOf(state.currentStep) : -1;
+          let px = geo.pips.x;
+          for (let pi = 0; pi < COMBAT_SUB_PHASES.length; pi++) {
+            const activePip = pi === currentIdx;
+            const pipW = activePip ? COMBAT_PIP_ACTIVE_W : COMBAT_PIP_W;
+            cell.pips.roundRect(px, geo.pips.y, pipW, COMBAT_PIP_H, COMBAT_PIP_H / 2);
+            cell.pips.fill({
+              color: activePip ? turnColor : hexToNum(foreground),
+              alpha: activePip ? 1 : INDICATOR_GHOST_ALPHA,
+            });
+            px += pipW + COMBAT_PIP_GAP;
+          }
         }
       }
 
@@ -748,128 +830,246 @@ export class PhaseStripLayer {
         cell.flashStart = performance.now();
       }
 
-      cell.hitArea.clear();
-      cell.hitArea.rect(cx, y, cellW, CELL_H);
-      cell.hitArea.fill({
-        color: hexToNum(this.theme.gameTheme.canvas.neutral),
-        alpha: 0.001,
-      });
-
+      const radius = Math.min(CELL_R, rect.h / 2);
       cell.bg.clear();
-      cell.bg.roundRect(cx, y, cellW, CELL_H, CELL_R);
-      cell.bg.fill({ color: hexToNum(t.phaseStrip.background) });
+      if (!panelStyled) {
+        cell.bg.roundRect(rect.x, rect.y, rect.w, rect.h, radius);
+        cell.bg.fill({ color: surface });
+      }
       if (isActive) {
-        cell.bg.roundRect(cx, y, cellW, CELL_H, CELL_R);
-        cell.bg.stroke({ color: turnColor, width: 2, alignment: 0.5 });
+        if (panelStyled) {
+          cell.bg.roundRect(rect.x, rect.y, rect.w, rect.h, radius);
+          cell.bg.fill({ color: turnColor, alpha: ACTIVE_FILL_ALPHA });
+        }
+        cell.bg.roundRect(rect.x, rect.y, rect.w, rect.h, radius);
+        cell.bg.stroke({ color: turnColor, width: 2, alignment: panelStyled ? 1 : 0.5 });
       }
 
-      cell.hoverBg.clear();
-
-      // Text position (non-combat cells; combat text is positioned with the icon above)
-      cell.text.style = isActive ? activeStyle : normalStyle;
-      cell.text.y = y + CELL_H / 2;
-      if (!isCombatCell) {
-        cell.text.x = cx + cellW / 2;
+      fillHit(cell.selfHitArea, geo.selfHit, neutral);
+      include(rect);
+      include(geo.selfHit);
+      for (let oi = 0; oi < cell.oppHitAreas.length; oi++) {
+        const oha = cell.oppHitAreas[oi]!;
+        const hit = geo.oppHit[oi];
+        oha.visible = !!hit;
+        if (!hit) continue;
+        fillHit(oha, hit, neutral);
+        include(hit);
       }
 
-      cell._indData = {
-        cx: cx + cellW / 2,
-        selfCy: y + CELL_H + INDICATOR_MARGIN + INDICATOR_H / 2,
-        oppCy: y - INDICATOR_MARGIN - INDICATOR_H / 2,
+      cell.indicators = {
+        rect,
+        self: geo.self,
+        opp: geo.opp,
         selfEnabled: phaseIds.some((ph) => state.selfEnabledPhases.has(ph)),
         selfOffTurn: !isMeActive,
         selfColor,
-        oppCount: state.opponents.length,
         oppEnabled: state.opponents.map((opp) => {
           const stops = state.opponentEnabledPhases.get(opp.id);
           return phaseIds.some((ph) => stops?.has(ph));
         }),
         oppColors,
-        cellW,
-        hideIndicators: false,
       };
-
-      // Hit areas (static positions, always present)
-      cell.selfHitArea.clear();
-      cell.selfHitArea.rect(cx, y + CELL_H, cellW, INDICATOR_HIT_H);
-      cell.selfHitArea.fill({
-        color: hexToNum(this.theme.gameTheme.canvas.neutral),
-        alpha: 0.001,
-      });
-
-      const oppCount = state.opponents.length;
-      const oppSegW = (cellW - Math.max(0, oppCount - 1) * INDICATOR_GAP) / Math.max(1, oppCount);
-      for (let oi = 0; oi < 3; oi++) {
-        const oha = cell.oppHitAreas[oi]!;
-        if (oi >= oppCount) {
-          oha.visible = false;
-          continue;
-        }
-        oha.visible = true;
-        oha.clear();
-        oha.rect(
-          cx + oi * (oppSegW + INDICATOR_GAP),
-          y - INDICATOR_HIT_H,
-          oppSegW,
-          INDICATOR_HIT_H,
-        );
-        oha.fill({
-          color: hexToNum(this.theme.gameTheme.canvas.neutral),
-          alpha: 0.001,
-        });
-      }
-
-      cell._fx = cx;
-      cell._fy = y;
-      cell._fw = cellW;
-      cell._fc = turnColor;
+      cell.flashRect = rect;
+      cell.flashColor = turnColor;
     }
+
+    if (panelBar) {
+      if (center) {
+        const r = {
+          x: panelBar.x + panelBar.w - CENTER_EXPAND_W,
+          y: panelBar.y,
+          w: CENTER_EXPAND_W,
+          h: panelBar.h,
+        };
+        this.panel.moveTo(r.x, r.y + 4).lineTo(r.x, r.y + r.h - 4);
+        this.drawExpandButton(r);
+      }
+      this.panel.stroke({ color: border, width: 1, alpha: DIVIDER_ALPHA });
+    }
+
+    const expandedRect = this.renderExpanded(
+      center && this.expanded ? panelBar : null,
+      state,
+      selfColor,
+      oppColors,
+      turnColor,
+    );
+    if (expandedRect) include(expandedRect);
+    this.container.hitArea = new Rectangle(minX, minY, maxX - minX, maxY - minY);
+  }
+
+  private drawExpandButton(r: CellRect): void {
+    this.expandRect = r;
+    const fg = hexToNum(this.theme.appTheme.foreground);
+    const g = this.expandButton;
+    g.rect(r.x, r.y, r.w, r.h).fill({
+      color: fg,
+      alpha: this.expandHovered || this.expanded ? HOVER_FILL_ALPHA : 0.001,
+    });
+    const cx = r.x + r.w / 2;
+    const cy = r.y + r.h / 2;
+    const s = 4;
+    if (this.expanded) {
+      g.poly([cx - s, cy + s / 2, cx + s, cy + s / 2, cx, cy - s / 2]);
+    } else {
+      g.poly([cx - s, cy - s / 2, cx + s, cy - s / 2, cx, cy + s / 2]);
+    }
+    g.fill({ color: fg, alpha: this.expanded ? 1 : INACTIVE_TEXT_ALPHA });
+  }
+
+  private renderExpanded(
+    bar: CellRect | null,
+    state: PhaseStripState,
+    selfColor: number,
+    oppColors: number[],
+    turnColor: number,
+  ): CellRect | null {
+    for (const child of this.expandedPanel.removeChildren()) child.destroy({ children: true });
+    this.expandedRect = null;
+    if (!bar) return null;
+
+    const app = this.theme.appTheme;
+    const t = this.theme.gameTheme;
+    const combatStart = SWEEP_STEP_ORDER.indexOf(COMBAT_SUB_PHASES[0]!);
+    const groupOf = (id: string) =>
+      COMBAT_SUB_PHASES.includes(id) ? 1 : SWEEP_STEP_ORDER.indexOf(id) < combatStart ? 0 : 2;
+    const columns: { id: string; short: string; x: number }[] = [];
+    let x = EXPANDED_PAD + EXPANDED_ROW_LABEL_W;
+    let group = 0;
+    for (const step of STEP_ORDER) {
+      const g = groupOf(step.id);
+      if (g !== group) {
+        x += EXPANDED_GROUP_GAP;
+        group = g;
+      }
+      columns.push({ id: step.id, short: step.short, x });
+      x += EXPANDED_COL_W;
+    }
+    const rows = [
+      { color: selfColor, stops: state.selfEnabledPhases, opponentId: null as string | null },
+      ...state.opponents.map((opp, i) => ({
+        color: oppColors[i]!,
+        stops: state.opponentEnabledPhases.get(opp.id) ?? new Set<string>(),
+        opponentId: opp.id as string | null,
+      })),
+    ];
+    const w = x + EXPANDED_PAD;
+    const h = EXPANDED_PAD * 2 + EXPANDED_HEADER_H + rows.length * EXPANDED_ROW_H;
+    const rect = {
+      x: bar.x + bar.w / 2 - w / 2,
+      y: bar.y - EXPANDED_GAP - h,
+      w,
+      h,
+    };
+    this.expandedRect = rect;
+
+    const shadow = new Graphics()
+      .roundRect(rect.x, rect.y + 3, w, h, CELL_R * 1.5)
+      .fill({ color: hexToNum(t.canvas.shadow) });
+    shadow.alpha = SHADOW_ALPHA;
+    shadow.filters = [new BlurFilter({ strength: 10 })];
+    const surface = new Graphics()
+      .roundRect(rect.x, rect.y, w, h, CELL_R * 1.5)
+      .fill({ color: hexToNum(app.card), alpha: SURFACE_ALPHA })
+      .stroke({ color: hexToNum(app.border), width: 1, alpha: BORDER_ALPHA });
+    surface.eventMode = "static";
+    this.expandedPanel.addChild(shadow, surface);
+
+    const headerY = rect.y + EXPANDED_PAD + EXPANDED_HEADER_H / 2;
+    for (const col of columns) {
+      const cx = rect.x + col.x + EXPANDED_COL_W / 2;
+      const current = state.currentStep === col.id;
+      if (current) {
+        surface
+          .roundRect(
+            rect.x + col.x + 1,
+            rect.y + EXPANDED_PAD - 2,
+            EXPANDED_COL_W - 2,
+            h - EXPANDED_PAD * 2 + 4,
+            CELL_R,
+          )
+          .fill({ color: turnColor, alpha: ACTIVE_FILL_ALPHA });
+      }
+      const label = new Text({ text: col.short, style: headerStyle });
+      label.anchor.set(0.5, 0.5);
+      label.position.set(cx, headerY);
+      label.alpha = current ? 1 : INACTIVE_TEXT_ALPHA;
+      this.expandedPanel.addChild(label);
+    }
+
+    rows.forEach((row, ri) => {
+      const cy =
+        rect.y + EXPANDED_PAD + EXPANDED_HEADER_H + ri * EXPANDED_ROW_H + EXPANDED_ROW_H / 2;
+      surface
+        .circle(rect.x + EXPANDED_PAD + EXPANDED_ROW_LABEL_W / 2 - 2, cy, EXPANDED_SEAT_DOT_R)
+        .fill({ color: row.color });
+      for (const col of columns) {
+        const enabled = row.stops.has(col.id);
+        const cx = rect.x + col.x + EXPANDED_COL_W / 2;
+        const toggle = new Graphics();
+        toggle
+          .rect(cx - EXPANDED_COL_W / 2, cy - EXPANDED_ROW_H / 2, EXPANDED_COL_W, EXPANDED_ROW_H)
+          .fill({ color: hexToNum(t.canvas.neutral), alpha: 0.001 });
+        toggle.roundRect(
+          cx - EXPANDED_TOGGLE_W / 2,
+          cy - EXPANDED_TOGGLE_H / 2,
+          EXPANDED_TOGGLE_W,
+          EXPANDED_TOGGLE_H,
+          EXPANDED_TOGGLE_H / 2,
+        );
+        if (enabled) toggle.fill({ color: row.color });
+        else toggle.stroke({ color: row.color, width: 1, alpha: INDICATOR_GHOST_ALPHA * 1.5 });
+        toggle.eventMode = "static";
+        toggle.cursor = "pointer";
+        toggle.on("pointerdown", () => {
+          if (row.opponentId) this.callbacks.onToggleOpponentPhase?.(row.opponentId, col.id);
+          else this.callbacks.onToggleSelfPhase?.(col.id);
+        });
+        this.expandedPanel.addChild(toggle);
+      }
+    });
+    return rect;
   }
 
   private drawIndicators(): void {
-    for (let ci = 0; ci < this.cells.length; ci++) {
-      const cell = this.cells[ci]!;
-      const d = cell._indData;
+    const panelStyled = this.style !== "rail";
+    const center = this.style === "hand";
+    const lineH = panelStyled ? PANEL_INDICATOR_H : INDICATOR_H;
+    const hoverH = panelStyled ? PANEL_INDICATOR_HOVER_H : INDICATOR_HOVER_H;
+    const showAllEmpty = !center && (this.forceShowIndicators || this.pointerInside);
+    const fg = hexToNum(this.theme.appTheme.foreground);
+    for (const cell of this.cells) {
+      const d = cell.indicators;
       if (!d) continue;
 
-      if (d.hideIndicators) {
-        cell.selfIndicator.clear();
-        cell.oppIndicators.clear();
-        continue;
-      }
-
-      const cellHovered = this.hoveredCellIndex === ci;
-      const showEmpty =
-        this.forceShowIndicators ||
-        cellHovered ||
-        cell.selfHovered ||
-        cell.oppHovered.some(Boolean);
-
       cell.selfIndicator.clear();
-      if (d.selfEnabled || showEmpty) {
-        const h = cell.selfHovered ? INDICATOR_HOVER_H : INDICATOR_H;
-        cell.selfIndicator.roundRect(d.cx - d.cellW / 2, d.selfCy - h / 2, d.cellW, h, h / 2);
-        cell.selfIndicator.fill({
-          color: d.selfColor,
-          alpha: d.selfEnabled
-            ? d.selfOffTurn
-              ? INDICATOR_OFF_TURN_ALPHA
-              : 1
-            : INDICATOR_GHOST_ALPHA,
-        });
+      if (center && cell.selfHovered) {
+        cell.selfIndicator
+          .rect(d.rect.x, d.rect.y, d.rect.w, d.rect.h)
+          .fill({ color: fg, alpha: HOVER_FILL_ALPHA });
+      }
+      if (d.selfEnabled || showAllEmpty || (center && cell.selfHovered)) {
+        strokeLine(
+          cell.selfIndicator,
+          d.self,
+          cell.selfHovered && !center ? hoverH : lineH,
+          d.selfColor,
+          d.selfEnabled ? (d.selfOffTurn ? INDICATOR_OFF_TURN_ALPHA : 1) : INDICATOR_GHOST_ALPHA,
+        );
       }
 
       cell.oppIndicators.clear();
-      const oppSegW =
-        (d.cellW - Math.max(0, d.oppCount - 1) * INDICATOR_GAP) / Math.max(1, d.oppCount);
-      for (let oi = 0; oi < d.oppCount; oi++) {
+      for (let oi = 0; oi < d.opp.length; oi++) {
         const enabled = d.oppEnabled[oi];
-        if (!enabled && !showEmpty) continue;
-        const color = d.oppColors[oi];
-        const h = cell.oppHovered[oi] ? INDICATOR_HOVER_H : INDICATOR_H;
-        const segX = d.cx - d.cellW / 2 + oi * (oppSegW + INDICATOR_GAP);
-        cell.oppIndicators.roundRect(segX, d.oppCy - h / 2, oppSegW, h, h / 2);
-        cell.oppIndicators.fill({ color, alpha: enabled ? 1 : INDICATOR_GHOST_ALPHA });
+        if (!enabled && !showAllEmpty) continue;
+        strokeLine(
+          cell.oppIndicators,
+          d.opp[oi]!,
+          cell.oppHovered[oi] ? hoverH : lineH,
+          d.oppColors[oi]!,
+          enabled ? 1 : INDICATOR_GHOST_ALPHA,
+        );
       }
     }
   }
@@ -893,15 +1093,7 @@ export class PhaseStripLayer {
       }
     }
 
-    if (
-      this.compact &&
-      this.expanded &&
-      performance.now() - this.expandedAt > STRIP_COMPACT_EXPAND_TIMEOUT_MS
-    ) {
-      this.collapse();
-    }
-
-    if (!(this.compact && !this.expanded)) this.drawIndicators();
+    this.drawIndicators();
 
     const now = performance.now();
     if (!animationsEnabled()) {
@@ -909,8 +1101,6 @@ export class PhaseStripLayer {
         cell.flashStart = 0;
         cell.flashGfx.clear();
       }
-      this.pillFlashStart = 0;
-      this.pillFlash.clear();
       return;
     }
     for (const cell of this.cells) {
@@ -921,54 +1111,22 @@ export class PhaseStripLayer {
         cell.flashStart = 0;
         continue;
       }
-
-      const p = elapsed / FLASH_DURATION_MS;
-      const e = easeOut(p);
-      const fade = 1 - e;
-      const cx = cell._fx;
-      const cy = cell._fy;
-      const color = cell._fc;
-      if (cx === undefined || cy === undefined || color === undefined) continue;
-
-      const cw = cell._fw ?? CELL_W;
+      const r = cell.flashRect;
+      const color = cell.flashColor;
+      if (!r || color === undefined) continue;
+      const fade = 1 - easeOut(elapsed / FLASH_DURATION_MS);
       const expand = fade * FLASH_MAX_EXPAND;
+      const radius = Math.min(CELL_R, r.h / 2);
       cell.flashGfx.roundRect(
-        cx - expand,
-        cy - expand,
-        cw + expand * 2,
-        CELL_H + expand * 2,
-        CELL_R + expand * 0.5,
+        r.x - expand,
+        r.y - expand,
+        r.w + expand * 2,
+        r.h + expand * 2,
+        radius + expand * 0.5,
       );
       cell.flashGfx.stroke({ color, width: 1.5 + fade * 2, alpha: fade * 0.85, alignment: 0.5 });
-      cell.flashGfx.roundRect(cx, cy, cw, CELL_H, CELL_R);
+      cell.flashGfx.roundRect(r.x, r.y, r.w, r.h, radius);
       cell.flashGfx.fill({ color, alpha: fade * fade * 0.25 });
-    }
-
-    if (this.pillFlashStart !== 0 && this.pillRect) {
-      this.pillFlash.clear();
-      const elapsed = now - this.pillFlashStart;
-      if (elapsed >= FLASH_DURATION_MS) {
-        this.pillFlashStart = 0;
-      } else {
-        const fade = 1 - easeOut(elapsed / FLASH_DURATION_MS);
-        const expand = fade * FLASH_MAX_EXPAND;
-        const r = this.pillRect;
-        this.pillFlash.roundRect(
-          r.x - expand,
-          r.y - expand,
-          r.w + expand * 2,
-          COMPACT_PILL_H + expand * 2,
-          COMPACT_PILL_H / 2 + expand * 0.5,
-        );
-        this.pillFlash.stroke({
-          color: r.c,
-          width: 1.5 + fade * 2,
-          alpha: fade * 0.85,
-          alignment: 0.5,
-        });
-        this.pillFlash.roundRect(r.x, r.y, r.w, COMPACT_PILL_H, COMPACT_PILL_H / 2);
-        this.pillFlash.fill({ color: r.c, alpha: fade * fade * 0.25 });
-      }
     }
   }
 

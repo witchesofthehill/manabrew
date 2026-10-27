@@ -1,5 +1,8 @@
 import { LibraryBig, Swords, Users } from "lucide-react";
 import { useEffect, useState } from "react";
+import multiplayerArt from "@/assets/multiplayer.png";
+// import singlePlayerArt from "@/assets/single-player-brewy.webp";
+import singlePlayerArt from "@/assets/manabrew-brewy-poker-face.png";
 import { UpdateCallout } from "@/components/layout/UpdateCallout";
 import { FeatureTile } from "@/components/play/FeatureTile";
 import { GuestNudge } from "@/components/play/GuestNudge";
@@ -22,6 +25,7 @@ const MODES = [
     label: `Play Offline`,
     desc: "Choose your decks and play against the AI at your own pace.",
     icon: Swords,
+    image: singlePlayerArt,
     tone: "primary",
   },
   {
@@ -29,6 +33,8 @@ const MODES = [
     label: `Multiplayer`,
     desc: "Join an open table or create a room for your group.",
     icon: Users,
+    image: multiplayerArt,
+    imageClassName: "h-40 w-40 sm:h-52 sm:w-52 lg:h-60 lg:w-60",
     tone: "secondary",
   },
 ];
@@ -125,13 +131,15 @@ export function PlayHome() {
             )}
           >
             <section aria-label={`Play modes`} className="grid gap-4 md:grid-cols-2">
-              {MODES.map(({ to, label, desc, icon, tone }) => (
+              {MODES.map(({ to, label, desc, icon, image, imageClassName, tone }) => (
                 <FeatureTile
                   key={to}
                   to={to}
                   label={label}
                   desc={desc}
                   icon={icon}
+                  image={image}
+                  imageClassName={imageClassName}
                   tone={tone}
                   size="lg"
                   compact={shortTouch}

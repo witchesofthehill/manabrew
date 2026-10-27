@@ -407,9 +407,8 @@ export function BoardCanvasSurface({
       handViewportScale,
     });
     const { layout } = result;
-    s.setPhaseDividerVisible(layoutPolicy.showPhaseDivider);
     s.setFocusLocked(focusLocked);
-    s.configure(players, layout, result.scales, result.combatRowReserved);
+    s.configure(players, layout, result.scales);
     s.setHandScale(result.handScale);
     const next: BoardCanvasLayout = {
       self: layout.self,
@@ -634,6 +633,12 @@ export function BoardCanvasSurface({
   useEffect(() => {
     scene?.setAttackRowDebug(showAttackRows);
   }, [scene, showAttackRows]);
+
+  const phaseStripStyle = useGameDevStore((s) => s.phaseStripStyle);
+
+  useEffect(() => {
+    scene?.setPhaseStripStyle(phaseStripStyle);
+  }, [scene, phaseStripStyle]);
 
   const roomTableStyle = useServerStore((s) => s.currentRoom?.table_style);
   const boardBackground = usePreferencesStore((s) => s.boardBackgroundId);

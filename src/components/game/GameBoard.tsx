@@ -1614,6 +1614,15 @@ export function GameBoard({
     // Local/AI/hotseat decks skip setDeckSelection, so the default playmat is
     // resolved here too; multiplayer decks already carry it from the relay.
     const myDeckHasPlaymat = !!myDeck?.playmatUrl || !!myDeck?.playmatSettings?.color;
+    const myPlaymat = myDeckHasPlaymat ? myDeck?.playmatUrl : defaultPlaymat;
+    const myPlaymatSettings = myDeckHasPlaymat ? myDeck?.playmatSettings : defaultPlaymatSettings;
+    const opponentPlaymat = (op: ClientPlayerDto) => {
+      const deck = gameDecks[op.id];
+      const hasOwn = !!deck?.playmatUrl || !!deck?.playmatSettings?.color;
+      return hasOwn || op.isHuman
+        ? { playmat: deck?.playmatUrl, playmatSettings: deck?.playmatSettings }
+        : { playmat: myPlaymat, playmatSettings: myPlaymatSettings };
+    };
     return [
       {
         playerId: me.id,
@@ -1625,16 +1634,8 @@ export function GameBoard({
           ...rowFields(combatRowByDefender.get(me.id)),
           ownerRingByCard,
         },
-        playmat: hiddenPlaymats.has(me.id)
-          ? undefined
-          : myDeckHasPlaymat
-            ? myDeck?.playmatUrl
-            : defaultPlaymat,
-        playmatSettings: hiddenPlaymats.has(me.id)
-          ? undefined
-          : myDeckHasPlaymat
-            ? myDeck?.playmatSettings
-            : defaultPlaymatSettings,
+        playmat: hiddenPlaymats.has(me.id) ? undefined : myPlaymat,
+        playmatSettings: hiddenPlaymats.has(me.id) ? undefined : myPlaymatSettings,
       },
       ...opponents.map((op, i) => ({
         playerId: op.id,
@@ -1644,8 +1645,7 @@ export function GameBoard({
           ownerRingByCard,
         },
         hand: opponentHands.get(op.id),
-        playmat: hiddenPlaymats.has(op.id) ? undefined : gameDecks[op.id]?.playmatUrl,
-        playmatSettings: hiddenPlaymats.has(op.id) ? undefined : gameDecks[op.id]?.playmatSettings,
+        ...(hiddenPlaymats.has(op.id) ? {} : opponentPlaymat(op)),
         color: playerColors[OPPONENT_SEATS[i] ?? "opponent1"],
       })),
     ];

@@ -18,8 +18,6 @@ function scaleForRows(layout: BoardLayout, selfRows: number): number {
 }
 
 export const MOBILE_BATTLEFIELD_LAYOUT: BattlefieldLayoutPolicy = {
-  showPhaseDivider: false,
-
   effectiveBottomReserve() {
     return 0;
   },
@@ -56,7 +54,6 @@ export const MOBILE_BATTLEFIELD_LAYOUT: BattlefieldLayoutPolicy = {
     return {
       layout,
       scales: { self: sharedScale, opponent: sharedScale },
-      combatRowReserved: false,
       handScale: 1,
       selfClusterMaxHeight: Math.max(1, layout.self.height),
     };

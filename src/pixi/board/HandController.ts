@@ -545,8 +545,14 @@ export class HandController {
 
   getBlockerRect(): BlockingRect | null {
     const count = this.lastState?.cards.length ?? 0;
-    if (count === 0) return null;
+    return count === 0 ? null : this.fanRect(count);
+  }
 
+  getFanRect(): BlockingRect | null {
+    return this.fanRect(Math.max(1, this.lastState?.cards.length ?? 0));
+  }
+
+  private fanRect(count: number): BlockingRect | null {
     const dims = this.getDimensions();
     const spread =
       count <= 1

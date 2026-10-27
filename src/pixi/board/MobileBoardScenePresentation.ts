@@ -34,7 +34,6 @@ export class MobileBoardScenePresentation implements BoardScenePresentation {
   }
 
   configurePhaseStrip(layer: PhaseStripLayer): void {
-    layer.setCompact(true);
     layer.container.visible = false;
   }
 

@@ -14,6 +14,8 @@ export function BoardDevControls() {
   const showPlayerPanelBounds = useGameDevStore((s) => s.showPlayerPanelBounds);
   const showGridSkeleton = useGameDevStore((s) => s.showGridSkeleton);
   const showAttackRows = useGameDevStore((s) => s.showAttackRows);
+  const phaseStripStyle = useGameDevStore((s) => s.phaseStripStyle);
+  const setPhaseStripStyle = useGameDevStore((s) => s.setPhaseStripStyle);
   const debugStackCardEnabled = useGameDevStore((s) => s.debugStackCardEnabled);
   const setDevToolsEnabled = useGameDevStore((s) => s.setDevToolsEnabled);
   const setShowHoverAreas = useGameDevStore((s) => s.setShowHoverAreas);
@@ -46,6 +48,13 @@ export function BoardDevControls() {
     "Rows card slots",
     "Attack rows",
     "Combat drop areas",
+  );
+  const showPhaseStrip = matchesDevPanelSearch(
+    query,
+    "Phase strip",
+    "Right rail",
+    "Center",
+    "Above player",
   );
   const showGameState = matchesDevPanelSearch(
     query,
@@ -149,6 +158,31 @@ export function BoardDevControls() {
               checked={showAttackRows}
               onChange={setShowAttackRows}
             />
+          </div>
+        </section>
+      ) : null}
+
+      {showPhaseStrip ? (
+        <section className={DEV_SECTION}>
+          <p className={DEV_SECTION_HEADING}>Phase strip</p>
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            {(
+              [
+                ["rail", "Right rail"],
+                ["hand", "Center"],
+                ["plate", "Above player"],
+              ] as const
+            ).map(([value, label]) => (
+              <Button
+                key={value}
+                type="button"
+                size="sm"
+                variant={phaseStripStyle === value ? "selected" : "outline"}
+                onClick={() => setPhaseStripStyle(value)}
+              >
+                {label}
+              </Button>
+            ))}
           </div>
         </section>
       ) : null}

@@ -3,6 +3,7 @@ import { devtools } from "zustand/middleware";
 import type { CardChoiceDto, CardDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
 import type { ArrowType } from "@/pixi/types";
+import type { PhaseStripStyle } from "@/pixi/PhaseStripLayer";
 import { parsePrintedCardRailMetadata } from "@/components/game/cardRailState";
 
 export const DEBUG_KEYWORD_CARD_ID = "dev-keyword-card";
@@ -284,6 +285,8 @@ interface GameDevState {
   setShowGridSkeleton: (value: boolean) => void;
   showAttackRows: boolean;
   setShowAttackRows: (value: boolean) => void;
+  phaseStripStyle: PhaseStripStyle;
+  setPhaseStripStyle: (value: PhaseStripStyle) => void;
   setPromptActionOverride: (value: DevPromptActionOverride | null) => void;
   setDevToolsEnabled: (value: boolean) => void;
   clearPromptActionOverride: () => void;
@@ -352,6 +355,8 @@ export const useGameDevStore = create<GameDevState>()(
       setShowGridSkeleton: (value) => set({ showGridSkeleton: value }),
       showAttackRows: false,
       setShowAttackRows: (value) => set({ showAttackRows: value }),
+      phaseStripStyle: "rail",
+      setPhaseStripStyle: (value) => set({ phaseStripStyle: value }),
       setPromptActionOverride: (value) => set({ promptActionOverride: value }),
       setDevToolsEnabled: (value) => set({ devToolsEnabled: value }),
       clearPromptActionOverride: () => set({ promptActionOverride: null }),
@@ -467,6 +472,7 @@ export const useGameDevStore = create<GameDevState>()(
           showPlayerPanelBounds: false,
           showGridSkeleton: false,
           showAttackRows: false,
+          phaseStripStyle: "rail",
         }),
     }),
     { name: "gameDev", enabled: import.meta.env.DEV },

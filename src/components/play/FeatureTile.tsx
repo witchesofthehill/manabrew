@@ -44,6 +44,8 @@ const TILE_SIZES = {
     chip: "h-12 w-12",
     chipIcon: "h-5 w-5",
     watermark: "-bottom-8 -right-5 h-36 w-36 sm:h-44 sm:w-44",
+    image: "-bottom-3 -right-3 h-36 w-36 sm:h-44 sm:w-44 lg:h-52 lg:w-52",
+    imageGutter: "pr-28 sm:pr-36 lg:pr-44",
     label: `font-serif text-2xl font-semibold sm:text-3xl`,
     desc: "mt-1 text-sm",
   },
@@ -52,6 +54,8 @@ const TILE_SIZES = {
     chip: "h-9 w-9",
     chipIcon: "h-4 w-4",
     watermark: "-bottom-4 -right-4 h-24 w-24",
+    image: "-bottom-2 -right-2 h-24 w-24",
+    imageGutter: "pr-20",
     label: `text-sm font-medium`,
     desc: "mt-0.5 text-xs leading-snug",
   },
@@ -63,6 +67,8 @@ interface FeatureTileProps {
   icon: ComponentType<{
     className?: string;
   }>;
+  image?: string;
+  imageClassName?: string;
   tone: string;
   size?: keyof typeof TILE_SIZES;
   footer?: ReactNode;
@@ -74,6 +80,8 @@ export function FeatureTile({
   label,
   desc,
   icon: Icon,
+  image,
+  imageClassName,
   tone,
   size = "sm",
   footer,
@@ -93,15 +101,29 @@ export function FeatureTile({
         className,
       )}
     >
-      <Icon
-        aria-hidden="true"
-        className={cn(
-          "absolute rotate-12",
-          sizing.watermark,
-          compact && "-bottom-6 -right-4 h-28 w-28 sm:h-28 sm:w-28",
-          accent.watermark,
-        )}
-      />
+      {image ? (
+        <img
+          src={image}
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+          className={cn(
+            "pointer-events-none absolute object-contain motion-safe:transition-transform motion-safe:group-hover:scale-105",
+            sizing.image,
+            compact ? "-bottom-2 h-24 w-24 sm:h-24 sm:w-24 lg:h-24 lg:w-24" : imageClassName,
+          )}
+        />
+      ) : (
+        <Icon
+          aria-hidden="true"
+          className={cn(
+            "absolute rotate-12",
+            sizing.watermark,
+            compact && "-bottom-6 -right-4 h-28 w-28 sm:h-28 sm:w-28",
+            accent.watermark,
+          )}
+        />
+      )}
       <span
         className={cn(
           "flex shrink-0 items-center justify-center rounded-full border",
@@ -112,7 +134,7 @@ export function FeatureTile({
       >
         <Icon className={sizing.chipIcon} />
       </span>
-      <span className="relative">
+      <span className={cn("relative", image && (compact ? "pr-20" : sizing.imageGutter))}>
         <span className={cn("block min-w-0", sizing.label, compact && "text-xl sm:text-xl")}>
           {label}
         </span>

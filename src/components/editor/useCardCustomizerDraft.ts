@@ -10,28 +10,21 @@ import {
   type CosmeticField,
 } from "@/components/editor/cardCustomizerDraft";
 import type { DeckCard } from "@/protocol/deck";
-import { getCardCustomizationCopies } from "@/stores/useDeckStore";
+import { deriveTokens } from "@/lib/decks";
+import { getCardCustomizationCopy } from "@/stores/useDeckStore";
+import { tokenIdentityKey } from "@/stores/useScryfallStore";
 import type { EditorDeck } from "@/types/manabrew";
 import type { ScryfallCard } from "@/types/scryfall";
 
 export interface CardCustomizerEditor {
-  copies: readonly DeckCard[];
   active: DeckCard | undefined;
-  activeId: string;
-  selected: readonly DeckCard[];
-  selectedIds: ReadonlySet<string>;
-  drafts: ReadonlyMap<string, CardCustomizationDraft>;
-  pending: readonly [string, CardCustomizationDraft][];
-  pendingIds: ReadonlySet<string>;
+  draft: CardCustomizationDraft | undefined;
+  pending: boolean;
   preview: DeckCard;
-  previewCopies: readonly DeckCard[];
   stale: boolean;
-  editSelected: (field: CosmeticField, value: string) => void;
+  edit: (field: CosmeticField, value: string) => void;
   editPrinting: (printing: ScryfallCard) => void;
-  resetSelected: () => void;
-  selectCopy: (id: string) => void;
-  toggleCopy: (id: string) => void;
-  selectQuantity: (quantity: number) => void;
+  reset: () => void;
 }
 
 export function useCardCustomizerDraft(
@@ -39,102 +32,40 @@ export function useCardCustomizerDraft(
   clicked: DeckCard,
   token = false,
 ): CardCustomizerEditor {
-  const [activeId, setActiveId] = useState(clicked.identity.id);
-  const [selectedIds, setSelectedIds] = useState(() => new Set([clicked.identity.id]));
-  const copies = useMemo(
-    () => (token ? [clicked] : getCardCustomizationCopies(deck, clicked)),
-    [deck, clicked, token],
+  const active = useMemo(() => {
+    if (!token) return getCardCustomizationCopy(deck, clicked.identity.id);
+    const key = tokenIdentityKey(clicked);
+    const produced = deriveTokens(deck).find((card) => tokenIdentityKey(card) === key);
+    if (!produced) return undefined;
+    return deck.tokens?.find((card) => tokenIdentityKey(card) === key) ?? produced;
+  }, [deck, clicked, token]);
+  const [draft, setDraft] = useState<CardCustomizationDraft>();
+  const pending = !!draft && customizationDraftChanged(draft);
+  const stale = !!draft && (!active || customizationSourceChanged(draft.source, active));
+  const preview = useMemo(
+    () => customizationPreview(active ?? clicked, draft),
+    [active, clicked, draft],
   );
-  const [drafts, setDrafts] = useState(() => new Map<string, CardCustomizationDraft>());
-  const active = copies.find((copy) => copy.identity.id === activeId);
-  const selected = copies.filter((copy) => selectedIds.has(copy.identity.id));
-  const pending = [...drafts.entries()].filter(([, draft]) => customizationDraftChanged(draft));
-  const stale = pending.some(([id, draft]) => {
-    const current = copies.find((copy) => copy.identity.id === id);
-    return !current || customizationSourceChanged(draft.source, current);
-  });
-  const pendingIds = new Set(pending.map(([id]) => id));
-  const previewCopies = useMemo<readonly DeckCard[]>(
-    () => copies.map((copy) => customizationPreview(copy, drafts)),
-    [copies, drafts],
-  );
-  const preview = previewCopies.find((copy) => copy.identity.id === activeId) ?? clicked;
 
-  const editSelected = (field: CosmeticField, value: string) => {
-    setDrafts((current) => {
-      const next = new Map(current);
-      for (const copy of selected) {
-        const id = copy.identity.id;
-        next.set(
-          id,
-          changeCustomizationField(current.get(id) ?? createCustomizationDraft(copy), field, value),
-        );
-      }
-      return next;
-    });
+  const edit = (field: CosmeticField, value: string) => {
+    if (!active || stale) return;
+    setDraft((current) =>
+      changeCustomizationField(current ?? createCustomizationDraft(active), field, value),
+    );
   };
   const editPrinting = (printing: ScryfallCard) => {
-    setDrafts((current) => {
-      const next = new Map(current);
-      for (const copy of selected) {
-        const id = copy.identity.id;
-        next.set(
-          id,
-          changeCustomizationPrinting(current.get(id) ?? createCustomizationDraft(copy), printing),
-        );
-      }
-      return next;
+    if (!active || stale) return;
+    setDraft((current) =>
+      changeCustomizationPrinting(current ?? createCustomizationDraft(active), printing),
+    );
+  };
+  const reset = () => {
+    if (!active || stale) return;
+    setDraft((current) => {
+      const next = current ?? createCustomizationDraft(active);
+      return changeCustomizationField({ ...next, cosmetics: undefined }, "finish", "printing");
     });
-    if (!selectedIds.has(activeId) && selected[0]) setActiveId(selected[0].identity.id);
-  };
-  const resetSelected = () => {
-    setDrafts((current) => {
-      const next = new Map(current);
-      for (const copy of selected) {
-        const id = copy.identity.id;
-        const draft = current.get(id) ?? createCustomizationDraft(copy);
-        next.set(
-          id,
-          changeCustomizationField({ ...draft, cosmetics: undefined }, "finish", "printing"),
-        );
-      }
-      return next;
-    });
-  };
-  const selectCopy = (id: string) => {
-    setActiveId(id);
-    setSelectedIds(new Set([id]));
-  };
-  const toggleCopy = (id: string) => {
-    setSelectedIds((current) => {
-      const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-  const selectQuantity = (quantity: number) => {
-    const ordered = active && !token ? getCardCustomizationCopies(deck, active) : copies;
-    setSelectedIds(new Set(ordered.slice(0, quantity).map((copy) => copy.identity.id)));
   };
 
-  return {
-    copies,
-    active,
-    activeId,
-    selected,
-    selectedIds,
-    drafts,
-    pending,
-    pendingIds,
-    preview,
-    previewCopies,
-    stale,
-    editSelected,
-    editPrinting,
-    resetSelected,
-    selectCopy,
-    toggleCopy,
-    selectQuantity,
-  };
+  return { active, draft, pending, preview, stale, edit, editPrinting, reset };
 }

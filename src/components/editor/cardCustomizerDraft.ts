@@ -176,8 +176,7 @@ export function customizationSourceChanged(source: DeckCard, current: DeckCard):
 }
 
 export function customizationFieldValue(
-  copies: readonly DeckCard[],
-  drafts: ReadonlyMap<string, CardCustomizationDraft>,
+  cosmetics: CardCosmetics | undefined,
   field: CosmeticField,
 ): string {
   const fallback =
@@ -189,39 +188,30 @@ export function customizationFieldValue(
           field === "heatDeformation"
         ? "0"
         : "printing";
-  const values = copies.map((copy) => {
-    const draft = drafts.get(copy.identity.id);
-    const cosmetics = draft ? draft.cosmetics : copy.identity.cosmetics;
-    let value: string | number | boolean | undefined;
-    switch (field) {
-      case "wearAmount":
-        value = resolveCardWearAmount(cosmetics);
-        break;
-      case "cardstockAmount":
-        value = cosmetics?.cardstock?.amount;
-        break;
-      case "printDotsAmount":
-        value = cosmetics?.printDots?.amount;
-        break;
-      case "printDotsInset":
-        value = cosmetics?.printDots?.inset;
-        break;
-      case "printDotsArtwork":
-        value = cosmetics?.printDots?.artwork ?? true;
-        break;
-      default:
-        value = cosmetics?.[field];
-    }
-    return String(value ?? fallback);
-  });
-  return values.some((value) => value !== values[0]) ? "mixed" : (values[0] ?? fallback);
+  let value: string | number | boolean | undefined;
+  switch (field) {
+    case "wearAmount":
+      value = resolveCardWearAmount(cosmetics);
+      break;
+    case "cardstockAmount":
+      value = cosmetics?.cardstock?.amount;
+      break;
+    case "printDotsAmount":
+      value = cosmetics?.printDots?.amount;
+      break;
+    case "printDotsInset":
+      value = cosmetics?.printDots?.inset;
+      break;
+    case "printDotsArtwork":
+      value = cosmetics?.printDots?.artwork ?? true;
+      break;
+    default:
+      value = cosmetics?.[field];
+  }
+  return String(value ?? fallback);
 }
 
-export function customizationPreview(
-  copy: DeckCard,
-  drafts: ReadonlyMap<string, CardCustomizationDraft>,
-): DeckCard {
-  const draft = drafts.get(copy.identity.id);
+export function customizationPreview(copy: DeckCard, draft?: CardCustomizationDraft): DeckCard {
   if (!draft) return copy;
   const patch = draft.printing ? getCardPrintingPatch(draft.printing) : undefined;
   return {

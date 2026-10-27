@@ -1,16 +1,15 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Modal } from "@/components/game/modals/Modal";
 import { Button } from "@/components/ui/button";
 import { CardCustomizerSettings } from "@/components/editor/CardCustomizerSettings";
 import { CardGlintInspect } from "@/components/editor/CardGlintInspect";
-import { CardCustomizerCopies } from "@/components/editor/CardCustomizerCopies";
 import { CardPrintingPicker } from "@/components/editor/CardPrintingPicker";
 import { useCardCustomizerDraft } from "@/components/editor/useCardCustomizerDraft";
 import { useCardCustomizerEligibility } from "@/components/editor/useCardCustomizerEligibility";
 import { customizationSourceChanged } from "@/components/editor/cardCustomizerDraft";
 import { executeDeckEdit } from "@/components/editor/deckEditor.history";
 import { deriveTokens } from "@/lib/decks";
-import { getCardCustomizationCopies, useDeckStore } from "@/stores/useDeckStore";
+import { getCardCustomizationCopy, useDeckStore } from "@/stores/useDeckStore";
 import { resolveTokenCustomizationScript, tokenIdentityKey } from "@/stores/useScryfallStore";
 import type { DeckCard } from "@/protocol/deck";
 import type { EditorDeck } from "@/types/manabrew";
@@ -34,56 +33,49 @@ export function CardCustomizerModal({
   const isReadOnly = useDeckStore((state) => state.isReadOnly);
   const editorSessionId = useDeckStore((state) => state.editorSessionId);
   const currentDeck = useDeckStore((state) => state.currentDeck);
-  const [opening] = useState({ sessionId: editorSessionId, cardId: card.identity.id });
-  const tokenCopy = useMemo(
-    () => (token ? getTokenCustomizationCopy(currentDeck, card) : undefined),
-    [currentDeck, card, token],
-  );
-  const editor = useCardCustomizerDraft(currentDeck, tokenCopy ?? card, token);
-  const retroIds = useCardCustomizerEligibility(editor.previewCopies);
-  const sessionValid = opening.sessionId === editorSessionId && opening.cardId === card.identity.id;
-  const available = token ? Number(!!tokenCopy) : editor.copies.length;
-  const canEdit = !isReadOnly && sessionValid && available > 0 && !editor.stale;
-  const tokenSupported = !token || !!resolveTokenCustomizationScript(tokenCopy ?? card);
-  const pendingRetroCompatible = editor.pending.every(
-    ([id, draft]) => draft.cosmetics?.frame !== "retro" || retroIds?.has(id),
-  );
+  const [opening] = useState({ sessionId: editorSessionId, cardId: card.identity.id, token });
+  const editor = useCardCustomizerDraft(currentDeck, card, token);
+  const retroCompatible = useCardCustomizerEligibility(editor.preview);
+  const sessionValid =
+    opening.sessionId === editorSessionId &&
+    opening.cardId === card.identity.id &&
+    opening.token === token;
+  const canEdit = !isReadOnly && sessionValid && !!editor.active && !editor.stale;
+  const tokenSupported = !token || !!resolveTokenCustomizationScript(editor.active ?? card);
+  const frameSupported = editor.draft?.cosmetics?.frame !== "retro" || retroCompatible === true;
   const canSave =
-    canEdit &&
-    !!editor.active &&
-    editor.pending.length > 0 &&
-    pendingRetroCompatible &&
-    (tokenSupported || editor.pending.every(([, draft]) => !draft.cosmetics));
+    canEdit && editor.pending && frameSupported && (tokenSupported || !editor.draft?.cosmetics);
   const save = () => {
-    if (!canSave) return;
+    const draft = editor.draft;
+    if (!canSave || !draft) return;
     const state = useDeckStore.getState();
-    if (state.isReadOnly || state.editorSessionId !== opening.sessionId) return;
-    const currentToken = token ? getTokenCustomizationCopy(state.currentDeck, card) : undefined;
-    const current = token
-      ? currentToken
-        ? [currentToken]
-        : []
-      : getCardCustomizationCopies(state.currentDeck, card);
     if (
-      editor.pending.some(([id, draft]) => {
-        const copy = current.find((candidate) => candidate.identity.id === id);
-        return !copy || customizationSourceChanged(draft.source, copy);
-      })
+      state.isReadOnly ||
+      state.editorSessionId !== opening.sessionId ||
+      card.identity.id !== opening.cardId ||
+      token !== opening.token
+    )
+      return;
+    const current = token
+      ? getTokenCustomizationCopy(state.currentDeck, card)
+      : getCardCustomizationCopy(state.currentDeck, opening.cardId);
+    if (
+      !current ||
+      customizationSourceChanged(draft.source, current) ||
+      (token && draft.cosmetics && !resolveTokenCustomizationScript(current))
     )
       return;
     executeDeckEdit(`Customize ${card.identity.name}`, () => {
-      if (token) {
-        const draft = editor.pending[0]![1];
-        state.setTokenCosmetics(current[0]!, draft.cosmetics, draft.foil, draft.printing);
-      } else
-        state.setCardCosmetics(
-          editor.pending.map(([cardId, draft]) => ({
-            cardId,
+      if (token) state.setTokenCosmetics(current, draft.cosmetics, draft.foil, draft.printing);
+      else
+        state.setCardCosmetics([
+          {
+            cardId: current.identity.id,
             cosmetics: draft.cosmetics,
             foil: draft.foil,
             printing: draft.printing,
-          })),
-        );
+          },
+        ]);
     });
     onClose();
   };
@@ -112,11 +104,10 @@ export function CardCustomizerModal({
             editor={editor}
             token={token}
             canEdit={canEdit}
-            available={available}
             sessionValid={sessionValid}
             tokenSupported={tokenSupported}
-            retroIds={retroIds}
-            pendingRetroCompatible={pendingRetroCompatible}
+            retroCompatible={retroCompatible}
+            frameSupported={frameSupported}
           />
         </div>
         <section aria-label="Printings" className="mt-5 min-w-0 space-y-3 border-t pt-4">
@@ -124,40 +115,23 @@ export function CardCustomizerModal({
           <p className="text-ui-body text-muted-foreground" aria-live="polite">
             {token
               ? "Choose a printing for this deck's token type."
-              : `Choose a printing for ${editor.selected.length} selected ${editor.selected.length === 1 ? "copy" : "copies"}.`}
+              : "Choose a printing for this card."}
             {" Changes apply only when you save."}
           </p>
           <CardPrintingPicker
             cardName={card.identity.name}
-            token={token ? (tokenCopy ?? card) : undefined}
+            token={token ? (editor.active ?? card) : undefined}
             printing={editor.preview.identity}
             layout="row"
-            disabled={!canEdit || !editor.active || editor.selected.length === 0}
+            disabled={!canEdit}
             onSelect={(printing) => {
               if (canEdit) editor.editPrinting(printing);
             }}
           />
         </section>
-        {!token && (
-          <CardCustomizerCopies
-            deck={currentDeck}
-            copies={editor.copies}
-            activeId={editor.activeId}
-            selectedIds={editor.selectedIds}
-            pendingIds={editor.pendingIds}
-            drafts={editor.drafts}
-            disabled={isReadOnly || !sessionValid}
-            onSelect={editor.selectCopy}
-            onToggle={editor.toggleCopy}
-          />
-        )}
       </Modal.Body>
       <Modal.Footer className="flex-wrap gap-2">
-        <Button
-          variant="outline"
-          disabled={!canEdit || editor.selected.length === 0}
-          onClick={editor.resetSelected}
-        >
+        <Button variant="outline" disabled={!canEdit} onClick={editor.reset}>
           Reset to printing
         </Button>
         <div className="ml-auto flex gap-2">
@@ -166,9 +140,6 @@ export function CardCustomizerModal({
           </Button>
           <Button variant="primary" disabled={!canSave} onClick={save}>
             Save
-            {!token && editor.pending.length > 0
-              ? ` ${editor.pending.length} ${editor.pending.length === 1 ? "change" : "changes"}`
-              : ""}
           </Button>
         </div>
       </Modal.Footer>

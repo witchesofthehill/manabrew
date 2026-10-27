@@ -271,26 +271,19 @@ function matchesPrintingVariant(card: DeckCard, printing: DeckCardIdentity): boo
     cardCosmeticsKey(card.identity.cosmetics) === cardCosmeticsKey(printing.cosmetics)
   );
 }
-export function getCardCustomizationCopies(deck: EditorDeck, card: DeckCard): DeckCard[] {
-  const cards = [
-    ...deck.cards,
-    ...deck.sideboard,
-    ...(deck.maybeboard ?? []),
-    ...(deck.attractions ?? []),
-    ...(deck.contraptions ?? []),
-    ...(deck.schemes ?? []),
-    ...(deck.planes ?? []),
-    ...(deck.commanders ?? []),
-    ...(deck.companion ? [deck.companion] : []),
-  ];
-  const copies = cards.filter((candidate) => candidate.identity.name === card.identity.name);
-  const selectedIndex = copies.findIndex((candidate) => candidate.identity.id === card.identity.id);
-  if (selectedIndex <= 0) return copies;
-  return [
-    copies[selectedIndex]!,
-    ...copies.slice(0, selectedIndex),
-    ...copies.slice(selectedIndex + 1),
-  ];
+export function getCardCustomizationCopy(deck: EditorDeck, cardId: string): DeckCard | undefined {
+  const matches = (card: DeckCard) => card.identity.id === cardId;
+  return (
+    deck.cards.find(matches) ??
+    deck.sideboard.find(matches) ??
+    deck.maybeboard?.find(matches) ??
+    deck.attractions?.find(matches) ??
+    deck.contraptions?.find(matches) ??
+    deck.schemes?.find(matches) ??
+    deck.planes?.find(matches) ??
+    deck.commanders?.find(matches) ??
+    (deck.companion?.identity.id === cardId ? deck.companion : undefined)
+  );
 }
 function patchDeckPrintingVariant(
   deck: EditorDeck,

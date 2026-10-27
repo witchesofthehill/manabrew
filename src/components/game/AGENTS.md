@@ -155,6 +155,8 @@ The interactive card view is labeled **Manabrew**; the original printed scan is 
 
 In-game preview triggers are **Hover**, **Right click**, and **touch long-press**. Right click and long-press pass the source-card rectangle through the same preview state used by hover; long-press opens it sticky, changing dismissal rather than placement. Persisted modifier-trigger values normalize to Hover. Realistic and Rules placement share `CARD_PREVIEW_ANCHOR_GAP` and `CARD_PREVIEW_EDGE_PAD`, so switching with `R` does not move the card.
 
+Deck-editor and other pinned `CardPreviewRail` previews share the in-game Realistic/Manabrew preference. `R` (`toggle-card-view`) and `F` (`flip-card`) use `useKeybindings`, including remapped shortcuts and editable-field/modal guards. Open, unsuppressed DOM previews own these bindings; face flipping requires both reversible-face images. Do not retain a separate rail-local view override.
+
 Outside touch dismissal consumes the pointerdown and its click before the battlefield card or zone modal can act on them. Closing a zone viewer also dismisses its sticky preview, so a preview cannot outlive its card browser.
 
 | Layer         | File                                                                                                                      | Role                                                                                                                                                                                                                                                                                                                                                                 |

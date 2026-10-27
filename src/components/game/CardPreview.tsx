@@ -190,10 +190,15 @@ export function CardPreview({
 }: CardPreviewProps) {
   const resolvedGameCard = useResolvedGameCard(card);
   const preferredView = usePreferencesStore((state) => state.inGameCardPreviewStyle);
-  const [viewOverride, setViewOverride] = useState<boolean | null>(null);
-  const generatedView = !onToggleView && (viewOverride ?? preferredView === "rules");
+  const generatedView = !onToggleView && preferredView === "rules";
   const toggleView =
-    onToggleView ?? (() => setViewOverride((current) => !(current ?? preferredView === "rules")));
+    onToggleView ??
+    (() => {
+      const preferences = usePreferencesStore.getState();
+      preferences.setInGameCardPreviewStyle(
+        preferences.inGameCardPreviewStyle === "printed" ? "rules" : "printed",
+      );
+    });
   const [displayedFace, setDisplayedFace] = useState({ cardId: card.id, back: showBackFace });
   const displayFace = useCallback(
     (back: boolean) => setDisplayedFace({ cardId: card.id, back }),
@@ -353,10 +358,12 @@ export function CardPreview({
         )
       : card.counters;
   useKeybindings(
-    {
-      ...(onFlip && hasFlippableFaces ? { "flip-card": () => onFlip() } : {}),
-      ...(!onToggleView ? { "toggle-card-view": toggleView } : {}),
-    },
+    phase === "open" && !suppressed
+      ? {
+          ...(onFlip && hasFlippableFaces ? { "flip-card": () => onFlip() } : {}),
+          ...(!onToggleView ? { "toggle-card-view": toggleView } : {}),
+        }
+      : {},
     portalTarget ? rootRef : undefined,
   );
   useEffect(() => {

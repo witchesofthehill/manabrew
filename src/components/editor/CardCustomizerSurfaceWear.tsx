@@ -14,11 +14,11 @@ export function CardCustomizerSurfaceWear({
       <input
         type="range"
         aria-label="Wear slider"
-        aria-valuetext={wear === "mixed" ? "Mixed" : `${Math.round(Number(wear) * 1000) / 10}%`}
+        aria-valuetext={`${Math.round(Number(wear) * 1000) / 10}%`}
         min={0}
         max={1}
         step={0.001}
-        value={wear === "mixed" ? 0.5 : Number(wear)}
+        value={Number(wear)}
         disabled={disabled}
         className={CARD_CUSTOMIZER_RANGE}
         onChange={(event) => onWearChange(event.currentTarget.value)}
@@ -27,7 +27,7 @@ export function CardCustomizerSurfaceWear({
         className="w-12 shrink-0 text-right text-ui-meta text-muted-foreground"
         aria-hidden="true"
       >
-        {wear === "mixed" ? "Mixed" : `${Math.round(Number(wear) * 1000) / 10}%`}
+        {`${Math.round(Number(wear) * 1000) / 10}%`}
       </output>
     </div>
   );

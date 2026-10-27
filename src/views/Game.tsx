@@ -22,7 +22,6 @@ import { GameLoadingScreen } from "@/components/game/GameLoadingScreen";
 import { GameFailedScreen } from "@/components/game/GameFailedScreen";
 import { WaitingForPlayerScreen } from "@/components/game/WaitingForPlayerScreen";
 import { DevViewportFrame } from "@/components/dev/DevViewportFrame";
-import { isForgeWasmActive } from "@/lib/forgeWasm";
 import { ManualTabletopControls } from "@/components/game/ManualTabletopControls";
 import { MiddleBarDock, RightActionPanel } from "@/components/game/panels";
 import {
@@ -79,7 +78,7 @@ import type { PromptType } from "@/protocol";
 import { declareAttackersOutput } from "@/components/prompts/internal/playerActions";
 import { TargetingCursor } from "@/components/game/TargetingCursor";
 import { OPPONENT_SEATS } from "@/components/game/game.types";
-import type { CombatPairing, LogCardPreviewOptions } from "@/components/game/game.types";
+import type { CombatPairing } from "@/components/game/game.types";
 import { useStackUIStore } from "@/stores/useStackUIStore";
 import {
   useGameDevStore,
@@ -255,7 +254,6 @@ export default function Game({ exitTo }: GameProps = {}) {
   const isPrefetchingCards = useGameStore((s) => s.isPrefetchingCards);
   const isWaitingForResponse = useGameStore((s) => s.isWaitingForResponse);
   const relinquishedPriority = useGameStore((s) => s.relinquishedPriority);
-  const gameLog = useGameStore((s) => s.gameLog);
   const debugInfo = useGameStore((s) => s.debugInfo);
   const fatalError = useGameStore((s) => s.fatalError);
   const engineCrash = useGameStore((s) => s.engineCrash);
@@ -287,22 +285,13 @@ export default function Game({ exitTo }: GameProps = {}) {
   const hostingForgeRoom = useServerStore((s) => s.hostingForgeRoom);
   const selectedRuntime = getSelectedGameRuntime();
   const manualApi = isManualTabletopApi(selectedRuntime) ? selectedRuntime.api : null;
-  const {
-    respond,
-    concede,
-    endGame,
-    requestRestore,
-    voteRestore,
-    setSnapshotRecording,
-    gameDecks,
-  } = useGameStore(
+  const { respond, concede, endGame, requestRestore, voteRestore, gameDecks } = useGameStore(
     useShallow((s) => ({
       respond: s.respond,
       concede: s.concede,
       endGame: s.endGame,
       requestRestore: s.requestRestore,
       voteRestore: s.voteRestore,
-      setSnapshotRecording: s.setSnapshotRecording,
       gameDecks: s.gameDecks,
     })),
   );
@@ -1896,44 +1885,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   };
 
   const promptSourceDeckCard = useResolveSourceCard(activePrompt?.sourceCard);
-  const handleLogCardHover = (
-    cardId: string | null,
-    e?: React.MouseEvent,
-    options: LogCardPreviewOptions = {},
-  ) => {
-    if (cardId) {
-      setCommandPreviewSource(null);
-      commandZonePreview.dismiss();
-    }
-    if (draggingHandCard) {
-      preview.dismiss();
-      return;
-    }
-    if (!cardId) {
-      preview.handleMouseLeave();
-      return;
-    }
-    const card = visibleCardsById.get(cardId) ?? stackCardsBySourceId.get(cardId);
-    if (!card) {
-      preview.dismiss();
-      return;
-    }
-    if (options.sticky) {
-      const anchor =
-        options.anchorOverride ??
-        (options.useAnchor && e
-          ? (e.currentTarget as HTMLElement).getBoundingClientRect()
-          : undefined);
-      preview.showSticky(
-        card,
-        e?.clientX ?? (anchor ? anchor.left + anchor.width / 2 : undefined),
-        e?.clientY ?? (anchor ? anchor.top + anchor.height / 2 : undefined),
-        anchor,
-      );
-      return;
-    }
-    preview.handleMouseEnter(card, e, { useDelay: true, ...options });
-  };
+
   const handleHoverCardGuarded = (
     card: CardDto | null,
     e?: React.MouseEvent,
@@ -2148,9 +2100,9 @@ export default function Game({ exitTo }: GameProps = {}) {
     return <Navigate to={limitedReturn.destination ?? exitTo ?? "/lobby"} replace />;
   if (limitedReturn.error) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 px-4">
+      <div className="flex h-full min-h-0 flex-col items-center [justify-content:safe_center] gap-3 overflow-y-auto px-4 py-4 text-ui-body [&>*]:shrink-0">
         <p className="font-semibold">Game finished. Your Limited session could not be updated.</p>
-        <p className="text-sm text-destructive" role="alert">
+        <p className="text-ui-body text-destructive" role="alert">
           {limitedReturn.error}
         </p>
         <Button variant="primary" onClick={() => void limitedReturn.retry()}>
@@ -2655,16 +2607,16 @@ export default function Game({ exitTo }: GameProps = {}) {
         collapsed={isActionPanelCollapsed}
         onLeftEdgeChange={setRightPanelLeft}
         onToggleCollapse={toggleActionPanel}
-        gameLog={gameLog}
-        onHoverLogCard={handleLogCardHover}
-        resolveCardName={(cardId) => cardNameById.get(cardId) ?? cardId}
         resolvePlayerName={(playerId) => playerNameById.get(playerId) ?? playerId}
+        resolvePlayerColor={(playerId) =>
+          playerColorMap.get(playerId) ?? themeColors.playerColors.self
+        }
         checkpoints={gameView.checkpoints}
-        canRequestRestore={!iAmEliminated && !gameView.gameOver}
+        decisionHistory={gameView.decisionHistory}
+        canRequestRestore={
+          !iAmEliminated && !gameView.gameOver && !gameView.decisionHistory?.rewinding
+        }
         onRequestRestore={setRestoreTarget}
-        snapshotRecording={gameView.snapshotRecording}
-        hostsEngine={isForgeWasmActive() && (!isMultiplayer || isHost)}
-        onSnapshotRecordingChange={(enabled) => void setSnapshotRecording(enabled)}
       />
 
       {boardSurfaceEl &&
@@ -2761,10 +2713,10 @@ export default function Game({ exitTo }: GameProps = {}) {
       )}
 
       {gameView.step === "combatFirstStrikeDamage" && (
-        <div className="pointer-events-none absolute top-[calc(1rem+var(--safe-area-inset-top))] left-1/2 z-50 -translate-x-1/2">
-          <div className="flex items-center gap-2 rounded-full border border-border/70 bg-background/90 px-4 py-2 shadow-lg backdrop-blur">
-            <span className="text-sm font-semibold tracking-wide">First Strike Damage</span>
-            <span className="text-xs text-muted-foreground">
+        <div className="pointer-events-none absolute top-[calc(1rem+var(--safe-area-inset-top))] left-1/2 z-50 w-max max-w-[calc(100%-2rem)] -translate-x-1/2">
+          <div className="flex max-w-full flex-wrap items-center justify-center gap-2 rounded-full border border-border/70 bg-background/90 px-4 py-2 shadow-lg backdrop-blur">
+            <span className="text-ui-label font-semibold tracking-wide">First Strike Damage</span>
+            <span className="text-ui-meta text-muted-foreground">
               only first &amp; double strikers deal damage now
             </span>
           </div>
@@ -2822,7 +2774,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       {protocolError && (
         <div
           role="alert"
-          className="pointer-events-none absolute bottom-[calc(4rem+var(--safe-area-inset-bottom))] left-1/2 z-[9000] max-w-[min(90vw,34rem)] -translate-x-1/2 rounded-lg border border-destructive/50 bg-card/95 px-4 py-2 text-center text-sm font-semibold text-destructive shadow-xl backdrop-blur-sm"
+          className="pointer-events-none absolute bottom-[calc(4rem+var(--safe-area-inset-bottom))] left-1/2 z-[9000] max-w-[min(90vw,34rem)] -translate-x-1/2 rounded-lg border border-destructive/50 bg-card/95 px-4 py-2 text-center text-ui-meta font-semibold text-destructive shadow-xl backdrop-blur-sm"
         >
           Action rejected: {protocolError.message || protocolError.code}
         </div>
@@ -2855,7 +2807,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         createPortal(
           <div
             role="status"
-            className="pointer-events-none fixed z-[10000] max-w-[min(18rem,80vw)] -translate-x-1/2 rounded-full border border-border bg-card/95 px-3 py-2 text-center text-xs font-semibold text-foreground shadow-xl backdrop-blur-sm"
+            className="pointer-events-none fixed z-[10000] max-w-[min(18rem,80vw)] -translate-x-1/2 rounded-full border border-border bg-card/95 px-3 py-2 text-center text-ui-meta font-semibold text-foreground shadow-xl backdrop-blur-sm"
             style={{ left: ghostPos.x, top: ghostPos.y + ghostCardH / 2 + 12 }}
           >
             {dragFeedback}
@@ -2866,7 +2818,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         createPortal(
           <div
             role="alert"
-            className="pointer-events-none fixed z-[10000] max-w-[min(20rem,84vw)] -translate-x-1/2 -translate-y-full rounded-lg border border-destructive/50 bg-card/95 px-3 py-2 text-center text-xs font-semibold text-foreground shadow-xl backdrop-blur-sm"
+            className="pointer-events-none fixed z-[10000] max-w-[min(20rem,84vw)] -translate-x-1/2 -translate-y-full rounded-lg border border-destructive/50 bg-card/95 px-3 py-2 text-center text-ui-meta font-semibold text-foreground shadow-xl backdrop-blur-sm"
             style={{ left: rejectionFeedback.x, top: rejectionFeedback.y - 16 }}
           >
             Invalid drop. {rejectionFeedback.message}

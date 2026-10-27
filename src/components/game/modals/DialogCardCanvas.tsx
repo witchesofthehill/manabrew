@@ -81,7 +81,9 @@ export function DialogCardCanvas(props: Props) {
         (host.clientHeight - 20) / height,
       );
       sprite.rotation = rotated ? -Math.PI / 2 : 0;
-      sprite.scale.set(Math.max(0.1, scale));
+      const displayScale = Math.max(0.1, scale);
+      sprite.scale.set(displayScale);
+      sprite.setHandRulesScale(displayScale);
       sprite.position.set(host.clientWidth / 2, host.clientHeight / 2);
       sprite.syncHandControlsScale();
       request();
@@ -190,7 +192,7 @@ export function DialogCardCanvas(props: Props) {
     <div className="relative h-[min(52dvh,32rem)] min-h-56 w-full" aria-hidden="true">
       <canvas ref={canvasRef} className="block h-full w-full" />
       {error && (
-        <p className="absolute inset-4 rounded-lg bg-card p-3 text-sm text-destructive">
+        <p className="absolute inset-4 overflow-y-auto rounded-lg bg-card p-3 text-ui-meta text-destructive">
           Card renderer unavailable: {error}
         </p>
       )}

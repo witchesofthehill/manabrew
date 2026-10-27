@@ -11,11 +11,13 @@ export function LimitedGuideSection({ title, topics, onInspect }: LimitedGuideSe
   return (
     <section className="space-y-2">
       <h3 className="font-semibold">{title}</h3>
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,18rem),1fr))] gap-2">
         {topics.map((topic) => (
           <details key={topic.title} className="rounded border border-border bg-card p-3">
-            <summary className="min-h-8 cursor-pointer font-medium">{topic.title}</summary>
-            <p className="my-2 leading-relaxed text-muted-foreground">{topic.text}</p>
+            <summary className="min-h-8 cursor-pointer text-ui-label font-medium touch:min-h-11">
+              {topic.title}
+            </summary>
+            <p className="my-2 text-ui-body leading-relaxed text-muted-foreground">{topic.text}</p>
             <div className="flex flex-wrap gap-1">
               {topic.cards.map((name) => (
                 <Button

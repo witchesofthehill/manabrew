@@ -18,7 +18,7 @@ export function PlayerAvatar({
   return (
     <Avatar className={cn("h-7 w-7", className)}>
       {avatarUrl && <AvatarImage src={avatarUrl} alt="" crossOrigin="anonymous" />}
-      <AvatarFallback className={cn("text-xs", fallbackClassName)}>
+      <AvatarFallback className={cn("text-ui-meta", fallbackClassName)}>
         {stripUsernameTag(username).slice(0, 1).toUpperCase()}
       </AvatarFallback>
     </Avatar>

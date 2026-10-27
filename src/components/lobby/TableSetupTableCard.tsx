@@ -33,7 +33,7 @@ export function TableSetupTableCard({
               aria-pressed={selected}
               onClick={() => onBackgroundChange(option.id)}
               className={cn(
-                "aspect-[16/9] w-full overflow-hidden rounded-md border text-[10px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-card-ring",
+                "aspect-[16/9] w-full overflow-hidden rounded-md border text-ui-label font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-card-ring touch:min-h-11 touch:min-w-11 whitespace-normal",
                 selected
                   ? "border-card-selection ring-1 ring-card-selection"
                   : "border-text-muted/40 hover:border-card-ring",

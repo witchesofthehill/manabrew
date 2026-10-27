@@ -186,7 +186,7 @@ RUN cargo build --release -p self-hosted-node --features graal-forge && \
     cp /build/target/release/self-hosted-node /usr/local/bin/self-hosted-node
 
 # ── Stage 4: Runtime ─────────────────────────────────────────────────
-# No JRE: the engine is a .so in the node's own address space. Same distro as the
+# No JRE: each engine worker loads the native .so. Same distro as the
 # builder for glibc, which now means trixie: the harness is built on Oracle Linux
 # 10 and needs glibc 2.38, and /build reproduces the compile-time workspace root the
 # node resolves Forge assets and preset decks against.
@@ -210,8 +210,6 @@ COPY public/preset_decks/ /build/public/preset_decks/
 WORKDIR /build
 
 ENV SELF_HOSTED_NODE_ENGINE_BACKEND=forge
-# One isolate for every room: the card database is loaded once per node.
-ENV SELF_HOSTED_NODE_SHARED_ISOLATE=1
 ENV LD_LIBRARY_PATH=/build/forge-harness/native/build
 # Default to the in-compose relay; compose overrides as needed.
 ENV FORGE_RELAY_URL=ws://manabrew-server:9443

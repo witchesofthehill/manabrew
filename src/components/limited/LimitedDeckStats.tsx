@@ -63,13 +63,13 @@ export function LimitedDeckStats({ cards, className, compact = false }: Props) {
   return (
     <div
       className={cn(
-        "grid grid-cols-1 gap-3 rounded-md border border-border/70 bg-card/40 p-3 text-xs lg:grid-cols-3",
-        compact && "gap-2 p-2 lg:grid-cols-1",
+        "grid grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))] gap-3 rounded-md border border-border/70 bg-card/40 p-3 text-ui-meta",
+        compact && "grid-cols-1 gap-2 p-2",
         className,
       )}
     >
       <section>
-        <h3 className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <h3 className="mb-1 text-ui-label font-semibold uppercase tracking-wide text-muted-foreground">
           Composition ({stats.total})
         </h3>
         <ul className="space-y-0.5">
@@ -80,22 +80,22 @@ export function LimitedDeckStats({ cards, className, compact = false }: Props) {
       </section>
 
       <section>
-        <h3 className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <h3 className="mb-1 text-ui-label font-semibold uppercase tracking-wide text-muted-foreground">
           Mana curve {stats.curveSampleSize ? `(${stats.curveSampleSize} non-land)` : ""}
         </h3>
-        <div className="flex h-16 items-end gap-1">
+        <div className="flex h-24 items-end gap-1">
           {stats.curve.map((count, i) => {
             const heightPct = (count / stats.curveMax) * 100;
             return (
               <div key={`cmc-${i}`} className="flex h-full flex-1 flex-col items-center gap-1">
-                <span className="text-[10px] text-muted-foreground/80">{count || ""}</span>
+                <span className="text-ui-meta text-muted-foreground/80">{count || ""}</span>
                 <div className="flex w-full flex-1 items-end">
                   <div
                     className="w-full rounded-sm bg-primary/60"
                     style={{ height: `${heightPct}%`, minHeight: count > 0 ? 2 : 0 }}
                   />
                 </div>
-                <span className="text-[10px] text-muted-foreground">{i === 6 ? "6+" : i}</span>
+                <span className="text-ui-meta text-muted-foreground">{i === 6 ? "6+" : i}</span>
               </div>
             );
           })}
@@ -103,7 +103,7 @@ export function LimitedDeckStats({ cards, className, compact = false }: Props) {
       </section>
 
       <section>
-        <h3 className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <h3 className="mb-1 text-ui-label font-semibold uppercase tracking-wide text-muted-foreground">
           Colour pips {colorTotal ? `(${colorTotal})` : ""}
         </h3>
         <ul className="space-y-0.5">

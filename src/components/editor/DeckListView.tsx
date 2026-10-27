@@ -121,7 +121,7 @@ export function CardMenuButton({ className }: { className?: string }) {
     <button
       type="button"
       className={cn(
-        "flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-colors hover:bg-muted hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover:opacity-100 pointer-coarse:opacity-100",
+        "touch:min-w-11 touch:min-h-11 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-colors hover:bg-muted hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover:opacity-100 touch:opacity-100",
         className,
       )}
       title={`Card actions`}
@@ -133,11 +133,14 @@ export function CardMenuButton({ className }: { className?: string }) {
     </button>
   );
 }
-function CardPrintingButton({ onPickPrint }: { onPickPrint: () => void }) {
+function CardPrintingButton({ onPickPrint, inMenu }: { onPickPrint: () => void; inMenu: boolean }) {
   return (
     <button
       type="button"
-      className="absolute right-1 top-1 z-40 rounded-full bg-overlay/70 p-0.5 text-muted-foreground opacity-0 shadow transition-colors hover:text-foreground group-hover:opacity-100 pointer-coarse:opacity-100"
+      className={cn(
+        "touch:min-w-11 touch:min-h-11 absolute right-1 top-1 z-40 rounded-full bg-overlay/70 p-0.5 text-muted-foreground opacity-0 shadow transition-colors hover:text-foreground group-hover:opacity-100 touch:opacity-100",
+        inMenu && "touch:hidden",
+      )}
       title={`Change printing`}
       aria-label={`Change printing`}
       onPointerDown={(event) => event.stopPropagation()}
@@ -154,18 +157,21 @@ function CardSelectionButton({
   name,
   selected,
   onSelect,
+  inMenu,
 }: {
   name: string;
   selected?: boolean;
   onSelect?: (cardName: string, addToSelection: boolean) => void;
+  inMenu: boolean;
 }) {
   if (!onSelect) return null;
   return (
     <button
       type="button"
       className={cn(
-        "absolute bottom-1 left-1 z-40 flex h-7 w-7 items-center justify-center rounded-full border bg-background/90 opacity-0 shadow transition-opacity group-hover:opacity-100 pointer-coarse:h-9 pointer-coarse:w-9 pointer-coarse:opacity-100",
+        "absolute bottom-1 left-1 z-40 flex h-7 w-7 items-center justify-center rounded-full border bg-background/90 opacity-0 shadow transition-opacity group-hover:opacity-100 touch:min-h-11 touch:min-w-11 touch:opacity-100",
         selected && "border-selection-border bg-selection text-selection-foreground opacity-100",
+        inMenu && "touch:hidden",
       )}
       aria-label={selected ? `Deselect ${name}` : `Select ${name}`}
       aria-pressed={selected}
@@ -182,6 +188,7 @@ function CardSelectionButton({
 function CardCornerActions({
   card,
   count,
+  hasActionMenu,
   isCommander,
   commanderSlot = DEFAULT_COMMANDER_SLOT,
   onSetCommander,
@@ -193,6 +200,7 @@ function CardCornerActions({
 }: {
   card: DeckCard;
   count: number;
+  hasActionMenu: boolean;
   isCommander?: boolean;
   commanderSlot?: CommanderSlot;
   onSetCommander?: () => void;
@@ -204,9 +212,9 @@ function CardCornerActions({
 }) {
   const commanderHandler = isCommander ? onRemoveCommander : onSetCommander;
   return (
-    <div className="absolute left-1 top-1 z-40 flex items-center gap-0.5">
+    <div className="absolute left-1 top-1 z-40 flex max-w-[calc(100%-0.5rem)] flex-wrap items-center gap-0.5">
       {count > 1 && (
-        <span className="flex h-5 w-5 items-center justify-center rounded-full border border-white/20 bg-overlay/80 text-[10px] font-bold text-white shadow">
+        <span className="flex min-h-5 min-w-5 px-1 items-center justify-center rounded-full border border-white/20 bg-overlay/80 text-ui-meta font-bold text-white shadow">
           {count}
         </span>
       )}
@@ -215,10 +223,11 @@ function CardCornerActions({
         <button
           type="button"
           className={cn(
-            "rounded-full p-0.5 shadow transition-colors",
+            "touch:min-w-11 touch:min-h-11 rounded-full p-0.5 shadow transition-colors",
+            hasActionMenu && "touch:hidden",
             isCommander
               ? "bg-commander/90 text-white"
-              : "bg-overlay/70 text-muted-foreground opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100",
+              : "bg-overlay/70 text-muted-foreground opacity-0 group-hover:opacity-100 touch:opacity-100",
           )}
           title={isCommander ? `Remove ${commanderSlot.noun}` : `Set as ${commanderSlot.noun}`}
           onPointerDown={(event) => event.stopPropagation()}
@@ -234,10 +243,11 @@ function CardCornerActions({
         <button
           type="button"
           className={cn(
-            "rounded-full p-0.5 shadow transition-colors",
+            "touch:min-w-11 touch:min-h-11 rounded-full p-0.5 shadow transition-colors",
+            hasActionMenu && "touch:hidden",
             isCover
               ? "bg-selection/90 text-selection-foreground"
-              : "bg-overlay/70 text-muted-foreground opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100",
+              : "bg-overlay/70 text-muted-foreground opacity-0 group-hover:opacity-100 touch:opacity-100",
           )}
           title={isCover ? `Remove as deck art cover` : `Set as deck art cover`}
           onPointerDown={(event) => event.stopPropagation()}
@@ -253,10 +263,11 @@ function CardCornerActions({
         <button
           type="button"
           className={cn(
-            "rounded-full p-0.5 shadow transition-colors",
+            "touch:min-w-11 touch:min-h-11 rounded-full p-0.5 shadow transition-colors",
+            hasActionMenu && "touch:hidden",
             isCoverBack
               ? "bg-selection/90 text-selection-foreground"
-              : "bg-overlay/70 text-muted-foreground opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100",
+              : "bg-overlay/70 text-muted-foreground opacity-0 group-hover:opacity-100 touch:opacity-100",
           )}
           title={
             isCoverBack ? `Remove back face as deck art cover` : `Set back face as deck art cover`
@@ -311,6 +322,8 @@ interface CardContextMenuProps extends CardContextActions {
   children: React.ReactNode;
   count: number;
   location: CardLocation;
+  selected?: boolean;
+  onToggleSelection?: () => void;
 }
 function MoveDestination({
   label,
@@ -367,7 +380,7 @@ function TagsSubmenu({
       <ContextMenuSubTrigger>
         <Bookmark className="mr-2 h-3.5 w-3.5" /> Tags
         {appliedTags && appliedTags.length > 0 && (
-          <span className="ml-auto text-[10px] text-muted-foreground">{appliedTags.length}</span>
+          <span className="ml-auto text-ui-meta text-muted-foreground">{appliedTags.length}</span>
         )}
       </ContextMenuSubTrigger>
       <ContextMenuSubContent className="w-56">
@@ -388,7 +401,7 @@ function TagsSubmenu({
                 {onRemoveCustomTag && (
                   <button
                     type="button"
-                    className="ml-2 rounded p-0.5 text-destructive hover:bg-muted shrink-0"
+                    className="touch:min-w-11 touch:min-h-11 ml-2 rounded p-0.5 text-destructive hover:bg-muted shrink-0"
                     title={`Remove "${tag}" from deck`}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -402,7 +415,7 @@ function TagsSubmenu({
             );
           })
         ) : (
-          <div className="px-2 py-1.5 text-xs text-muted-foreground">No tags yet</div>
+          <div className="px-2 py-1.5 text-ui-meta text-muted-foreground">No tags yet</div>
         )}
         {onCreateTag && (
           <>
@@ -416,7 +429,7 @@ function TagsSubmenu({
             >
               <div>
                 <Input
-                  className="h-7 text-xs"
+                  className="touch:min-h-11 min-h-7 text-ui-input"
                   placeholder={`New tag\u2026`}
                   value={newTagInput}
                   onChange={(e) => setNewTagInput(e.target.value)}
@@ -470,6 +483,8 @@ export function CardContextMenu({
   onApplyTag,
   onRemoveCustomTag,
   onCreateTag,
+  selected,
+  onToggleSelection,
 }: CardContextMenuProps) {
   const [customizing, setCustomizing] = useState(false);
   const showTagSubmenu = !!onApplyTag && ((customTags && customTags.length > 0) || !!onCreateTag);
@@ -489,6 +504,11 @@ export function CardContextMenu({
             if (customizing) event.preventDefault();
           }}
         >
+          {onToggleSelection && (
+            <ContextMenuItem onSelect={onToggleSelection}>
+              <Check className="mr-2 h-3.5 w-3.5" /> {selected ? "Deselect card" : "Select card"}
+            </ContextMenuItem>
+          )}
           {onShowInfo && (
             <>
               <ContextMenuItem onSelect={onShowInfo}>
@@ -693,6 +713,7 @@ function DraggableStackCard({
       <CardCornerActions
         card={group.card}
         count={group.count}
+        hasActionMenu={!!contextActions}
         isCommander={contextActions?.isCommander}
         commanderSlot={contextActions?.commanderSlot}
         onSetCommander={contextActions?.onSetCommander}
@@ -714,10 +735,17 @@ function DraggableStackCard({
       <CardHoverOverlay
         actions={buildCardActions(onAddOne, onRemoveOne, onUntag ? () => onUntag(name) : undefined)}
         rounded="rounded-[4%]"
+        className={cn(contextActions && "touch:hidden")}
       />
-      <CardSelectionButton name={name} selected={isSelected} onSelect={onSelect} />
+      <CardSelectionButton
+        name={name}
+        selected={isSelected}
+        onSelect={onSelect}
+        inMenu={!!contextActions}
+      />
       {(contextActions?.onPickPrint || onPickPrint) && (
         <CardPrintingButton
+          inMenu={!!contextActions}
           onPickPrint={contextActions?.onPickPrint ?? (() => onPickPrint?.(group.card))}
         />
       )}
@@ -731,6 +759,8 @@ function DraggableStackCard({
       count={group.count}
       location={contextLocation}
       {...contextActions}
+      selected={isSelected}
+      onToggleSelection={onSelect ? () => onSelect(name, false) : undefined}
     >
       {content}
     </CardContextMenu>
@@ -757,12 +787,12 @@ function EmptyStackBoard({
         >
           <GripVertical className="h-3.5 w-3.5" />
         </div>
-        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+        <span className="text-ui-label font-semibold text-muted-foreground uppercase tracking-wide">
           {label}
         </span>
       </div>
       <div className="border-2 border-dashed border-border/40 rounded-lg py-4 flex items-center justify-center">
-        <p className="text-[10px] text-muted-foreground/40">Drop here</p>
+        <p className="text-ui-meta text-muted-foreground/40">Drop here</p>
       </div>
     </div>
   );
@@ -833,7 +863,7 @@ function StackColumn({
         )}
         <button
           type="button"
-          className="flex min-w-0 items-center gap-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+          className="touch:min-w-11 touch:min-h-11 flex min-w-0 items-center gap-1 text-ui-label font-semibold uppercase tracking-wide text-muted-foreground"
           aria-expanded={open}
           onClick={() => setOpen((value) => !value)}
         >
@@ -972,6 +1002,7 @@ function CardVisual({
       <CardCornerActions
         card={group.card}
         count={group.count}
+        hasActionMenu={!!contextActions}
         isCommander={isCommander}
         commanderSlot={commanderSlot}
         onSetCommander={showCommander ? onSetCommander : undefined}
@@ -990,9 +1021,17 @@ function CardVisual({
         </div>
       )}
       <CardAnalysisBadges isCombo={isCombo} isGameChanger={isGameChanger} />
-      <CardPrintingButton onPickPrint={onPickPrint} />
-      <CardHoverOverlay actions={buildCardActions(onAddOne, onRemoveOne, onUntag)} />
-      <CardSelectionButton name={name} selected={isSelected} onSelect={onSelect} />
+      <CardPrintingButton onPickPrint={onPickPrint} inMenu={!!contextActions} />
+      <CardHoverOverlay
+        actions={buildCardActions(onAddOne, onRemoveOne, onUntag)}
+        className={cn(contextActions && "touch:hidden")}
+      />
+      <CardSelectionButton
+        name={name}
+        selected={isSelected}
+        onSelect={onSelect}
+        inMenu={!!contextActions}
+      />
       {contextActions && <CardMenuButton className="absolute bottom-1 right-1 z-40" />}
     </div>
   );
@@ -1003,6 +1042,8 @@ function CardVisual({
       count={group.count}
       location={contextLocation}
       {...contextActions}
+      selected={isSelected}
+      onToggleSelection={onSelect ? () => onSelect(name, false) : undefined}
     >
       {visualContent}
     </CardContextMenu>
@@ -1083,7 +1124,7 @@ function CardRow({
       {...listeners}
       {...attributes}
       className={cn(
-        "flex items-center gap-1 group hover:bg-muted/40 rounded px-1 py-0.5 cursor-grab active:cursor-grabbing select-none transition-colors",
+        "flex touch:min-h-11 items-center gap-1 group hover:bg-muted/40 rounded px-1 py-0.5 cursor-grab active:cursor-grabbing select-none transition-colors",
         isDragging && "opacity-30",
         isSelected && "bg-selection/20",
         unsupported && "bg-warning/10 ring-1 ring-warning/40",
@@ -1121,7 +1162,7 @@ function CardRow({
       <CollectionOwnershipTooltip card={group.card} surface="text" />
       <div
         className={cn(
-          "w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors cursor-pointer hover:border-selection-border",
+          "w-4 h-4 touch:min-h-11 touch:min-w-11 rounded border flex items-center justify-center shrink-0 transition-colors cursor-pointer hover:border-selection-border",
           isSelected
             ? "bg-selection border-selection-border text-selection-foreground"
             : "border-muted-foreground/40",
@@ -1131,9 +1172,9 @@ function CardRow({
           onSelect?.(name, e.shiftKey);
         }}
       >
-        {isSelected && <span className="text-[8px] font-bold">✓</span>}
+        {isSelected && <span className="text-ui-caption font-bold">✓</span>}
       </div>
-      <span className="text-xs font-mono w-4 text-right text-muted-foreground shrink-0">
+      <span className="text-ui-meta font-mono min-w-5 text-right text-muted-foreground shrink-0">
         {group.count}
       </span>
       {unsupported && (
@@ -1143,7 +1184,7 @@ function CardRow({
         />
       )}
       <span
-        className={cn("text-sm flex-1 truncate", unsupported && "text-warning")}
+        className={cn("text-ui-label flex-1 truncate", unsupported && "text-warning")}
         title={
           unsupported
             ? `${displayName} - unsupported by the Manabrew and Forge engines`
@@ -1165,7 +1206,7 @@ function CardRow({
         <ManaSymbols cost={group.card.manaCost} size="sm" className="shrink-0" />
       )}
       {group.card.power && group.card.toughness && (
-        <span className="text-xs text-muted-foreground/60 shrink-0 font-mono">
+        <span className="text-ui-meta text-muted-foreground/60 shrink-0 font-mono">
           {group.card.power}/{group.card.toughness}
         </span>
       )}
@@ -1300,7 +1341,7 @@ function CardSection({
       <Button
         size="icon"
         variant="ghost"
-        className="h-5 w-5 text-destructive opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100 transition-opacity shrink-0"
+        className="touch:min-w-11 touch:min-h-11 min-h-5 w-5 text-destructive opacity-0 group-hover:opacity-100 touch:opacity-100 transition-opacity shrink-0"
         title={`Remove "${tag}" tag`}
         onClick={onRemoveTag}
       >
@@ -1350,7 +1391,7 @@ function CardSection({
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="h-5 w-5 text-muted-foreground/40 opacity-0 group-hover/tag:opacity-100 pointer-coarse:opacity-100 transition-opacity shrink-0"
+                    className="touch:min-w-11 touch:min-h-11 min-h-5 w-5 text-muted-foreground/40 opacity-0 group-hover/tag:opacity-100 touch:opacity-100 transition-opacity shrink-0"
                     title={`Remove from this tag`}
                     onClick={() => onUntagCard(name)}
                   >
@@ -1470,20 +1511,20 @@ function DroppableStackTag({
               </div>
             )}
             <Tag className="h-3 w-3 text-primary/60 shrink-0" />
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide truncate">
+            <span className="text-ui-label font-semibold text-muted-foreground uppercase tracking-wide truncate">
               {tag}
             </span>
             <Button
               size="icon"
               variant="ghost"
-              className="h-4 w-4 text-destructive shrink-0 ml-auto"
+              className="touch:min-w-11 touch:min-h-11 min-h-4 w-4 text-destructive shrink-0 ml-auto"
               onClick={onRemoveTag}
             >
               <X className="h-2.5 w-2.5" />
             </Button>
           </div>
           <div className="border-2 border-dashed border-border/40 rounded-lg flex-1 flex items-center justify-center">
-            <p className="text-[10px] text-muted-foreground/40 text-center">Drop cards here</p>
+            <p className="text-ui-meta text-muted-foreground/40 text-center">Drop cards here</p>
           </div>
         </div>
       )}
@@ -1844,7 +1885,7 @@ export function DeckListView({
   const selectionBadge =
     (selectedCards?.size ?? 0) > 0 ? (
       <div className="absolute top-1 right-1 z-40">
-        <span className="text-[10px] px-1.5 py-0.5 rounded bg-card/90 border text-selection-border">
+        <span className="text-ui-meta px-1.5 py-0.5 rounded bg-card/90 border text-selection-border">
           {selectedCards!.size} selected
         </span>
       </div>
@@ -2225,7 +2266,7 @@ export function DeckListView({
 
             {dragSection && dragPos && (
               <div
-                className="fixed z-[200] pointer-events-none bg-selection text-selection-foreground rounded-md px-2.5 py-1 text-xs font-semibold"
+                className="fixed z-[200] pointer-events-none bg-selection text-selection-foreground rounded-md px-2.5 py-1 text-ui-meta font-semibold"
                 style={{
                   left: dragPos.x + 12,
                   top: dragPos.y - 8,
@@ -2266,8 +2307,12 @@ export function DeckListView({
           {totalCards === 0 && (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <div className="text-4xl mb-3 opacity-20">🃏</div>
-              <p className="text-sm text-muted-foreground">Drag cards here from the search panel</p>
-              <p className="text-xs text-muted-foreground/60 mt-1">or use the + buttons on hover</p>
+              <p className="text-ui-body text-muted-foreground">
+                Drag cards here from the search panel
+              </p>
+              <p className="text-ui-meta text-muted-foreground/60 mt-1">
+                or use the + buttons on hover
+              </p>
             </div>
           )}
 
@@ -2385,7 +2430,7 @@ export function DeckListView({
               />
               {!sideboardOpen ? null : sideboardGroups.length === 0 ? (
                 <div className="py-3 text-center">
-                  <p className="text-xs text-muted-foreground/40">Drop cards here</p>
+                  <p className="text-ui-meta text-muted-foreground/40">Drop cards here</p>
                 </div>
               ) : viewMode === "list" ? (
                 <div className="space-y-0.5 pb-1">
@@ -2420,10 +2465,10 @@ export function DeckListView({
                         card={g.card}
                         className="flex items-center gap-1 group hover:bg-muted/40 rounded px-1 py-0.5"
                       >
-                        <span className="text-xs font-mono w-4 text-right text-muted-foreground shrink-0">
+                        <span className="text-ui-meta font-mono min-w-5 text-right text-muted-foreground shrink-0">
                           {g.count}
                         </span>
-                        <span className="text-sm flex-1 truncate">
+                        <span className="text-ui-label flex-1 truncate">
                           <LocalizedCardName card={g.card} />
                         </span>
                         {g.card.manaCost && (
@@ -2493,12 +2538,14 @@ export function DeckListView({
                 open={maybeboardOpen}
                 onToggle={() => setMaybeboardOpen((value) => !value)}
                 extraContent={
-                  <span className="text-xs italic text-muted-foreground/40">not in deck</span>
+                  <span className="text-ui-meta italic text-muted-foreground/40">not in deck</span>
                 }
               />
               {!maybeboardOpen ? null : maybeboardGroups.length === 0 ? (
                 <div className="py-3 text-center">
-                  <p className="text-xs text-muted-foreground/40">Cards you&apos;re considering</p>
+                  <p className="text-ui-meta text-muted-foreground/40">
+                    Cards you&apos;re considering
+                  </p>
                 </div>
               ) : viewMode === "list" ? (
                 <div className="space-y-0.5 pb-1">
@@ -2533,10 +2580,10 @@ export function DeckListView({
                         card={g.card}
                         className="flex items-center gap-1 group hover:bg-muted/40 rounded px-1 py-0.5"
                       >
-                        <span className="text-xs font-mono w-4 text-right text-muted-foreground shrink-0">
+                        <span className="text-ui-meta font-mono min-w-5 text-right text-muted-foreground shrink-0">
                           {g.count}
                         </span>
-                        <span className="text-sm flex-1 truncate text-muted-foreground">
+                        <span className="text-ui-label flex-1 truncate text-muted-foreground">
                           <LocalizedCardName card={g.card} />
                         </span>
                         {g.card.manaCost && (
@@ -2634,10 +2681,10 @@ export function DeckListView({
                             data-card-id={g.card.identity.id}
                             className="flex items-center gap-1 group hover:bg-muted/40 rounded px-1 py-0.5"
                           >
-                            <span className="text-xs font-mono w-4 text-right text-muted-foreground shrink-0">
+                            <span className="text-ui-meta font-mono min-w-5 text-right text-muted-foreground shrink-0">
                               {g.count}
                             </span>
-                            <span className="text-sm flex-1 truncate">
+                            <span className="text-ui-label flex-1 truncate">
                               <LocalizedCardName card={g.card} />
                             </span>
                             {g.card.manaCost && (
@@ -2646,7 +2693,7 @@ export function DeckListView({
                             <Button
                               size="icon"
                               variant="ghost"
-                              className="h-5 w-5 text-destructive shrink-0"
+                              className="touch:min-w-11 touch:min-h-11 min-h-5 w-5 text-destructive shrink-0"
                               title={`Remove`}
                               onClick={() => onRemoveFromSide(g.card.identity.name)}
                             >

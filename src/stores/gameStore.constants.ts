@@ -104,6 +104,7 @@ function normalizeGameView(
       ? incoming.checkpoints
       : (current?.checkpoints ?? []),
     snapshotRecording: incoming.snapshotRecording ?? current?.snapshotRecording ?? false,
+    decisionHistory: incoming.decisionHistory ?? current?.decisionHistory,
     restoreVote: Array.isArray(incoming.checkpoints)
       ? (incoming.restoreVote ?? null)
       : (current?.restoreVote ?? null),
@@ -154,6 +155,19 @@ export function applyState(
   set: (partial: Partial<GameState>) => void,
   get: () => GameState,
 ) {
+  const previousVote = get().gameView?.restoreVote;
+  const vote = gameView.restoreVote;
+  if (
+    gameView.decisionHistory &&
+    vote?.status.type === "approved" &&
+    (previousVote?.voteId !== vote.voteId || previousVote?.status.type !== "approved")
+  ) {
+    set({
+      currentPrompt: null,
+      isWaitingForResponse: false,
+      relinquishedPriority: false,
+    });
+  }
   route(
     { displayEvents: [], gameView: normalizeGameView(gameView, get().gameView), prompt: null },
     `${source}: state`,

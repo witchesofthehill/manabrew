@@ -1,41 +1,28 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useGameDevStore } from "@/stores/useGameDevStore";
 import { useGameUIStore } from "@/stores/useGameUIStore";
 import { useIsMobileGame } from "@/hooks/useBreakpoints";
-import { PanelRightClose, ScrollText } from "lucide-react";
+import { History, PanelRightClose } from "lucide-react";
 import { useLayoutEffect, useRef } from "react";
 import type { RightActionPanelProps } from "../game.types";
 import { TAB_BUTTON_BASE, TAB_ACTIVE, TAB_INACTIVE } from "../game.styles";
-import { ActionLog } from "./ActionLog";
 import { CheckpointsPanel } from "./CheckpointsPanel";
 import { GameDevPanel } from "@/components/dev/GameDevPanel";
 export function RightActionPanel({
   collapsed,
   onToggleCollapse: rawToggle,
-  gameLog,
-  onHoverLogCard,
-  resolveCardName,
   resolvePlayerName,
+  resolvePlayerColor,
   checkpoints,
+  decisionHistory,
   canRequestRestore,
   onRequestRestore,
-  snapshotRecording,
-  hostsEngine,
-  onSnapshotRecordingChange,
   onLeftEdgeChange,
 }: RightActionPanelProps) {
   const mobile = useIsMobileGame();
-  const visibleLog = gameLog.filter((entry) => entry.entryType !== "rule");
-  const latestLog = visibleLog.at(-1);
-  const forceLogActivityOverride = useGameDevStore(
-    (state) => state.gameStateOverrides.forceLogActivity,
-  );
   const storedActiveTab = useGameUIStore((s) => s.rightPanelTab);
-  const activeTab = storedActiveTab === "dev" && !import.meta.env.DEV ? "log" : storedActiveTab;
+  const activeTab = storedActiveTab === "dev" && !import.meta.env.DEV ? "journal" : storedActiveTab;
   const setActiveTab = useGameUIStore((s) => s.setRightPanelTab);
-  const forceLogActivity = import.meta.env.DEV && forceLogActivityOverride;
-  const logActivityCount = forceLogActivity ? Math.max(4, visibleLog.length) : visibleLog.length;
   const panelRef = useRef<HTMLElement>(null);
   useLayoutEffect(() => {
     const panel = panelRef.current;
@@ -54,37 +41,20 @@ export function RightActionPanel({
   }, [collapsed, onLeftEdgeChange]);
 
   if (collapsed) {
-    if (mobile) {
-      return latestLog ? (
-        <button
-          type="button"
-          className="absolute left-1/2 top-[calc(0.5rem+var(--safe-area-inset-top))] z-50 flex min-h-11 max-w-[min(75vw,30rem)] -translate-x-1/2 items-center gap-2 rounded-full border border-border/80 bg-card/95 px-3 font-game text-xs font-semibold text-foreground shadow-lg backdrop-blur-sm active:scale-[0.98]"
-          title={latestLog.message}
-          aria-label={`Open action log. Last action: ${latestLog.message}`}
-          onClick={() => {
-            setActiveTab("log");
-            rawToggle();
-          }}
-        >
-          <ScrollText className="h-4 w-4 shrink-0 text-primary" />
-          <span className="truncate">{latestLog.message}</span>
-        </button>
-      ) : null;
-    }
-    return logActivityCount > 0 ? (
+    return !mobile && checkpoints.length > 0 ? (
       <button
         type="button"
-        className="absolute right-[calc(0.75rem+var(--safe-area-inset-right))] top-[calc(0.75rem+var(--safe-area-inset-top))] z-50 flex items-center gap-2 rounded-full border border-primary/50 bg-card/95 px-3 py-2 font-game text-xs font-semibold text-foreground shadow-lg backdrop-blur-sm transition-colors hover:bg-accent"
-        aria-label={`Open action log with ${logActivityCount} entries`}
+        className="absolute right-[calc(0.75rem+var(--safe-area-inset-right))] top-[calc(0.75rem+var(--safe-area-inset-top))] z-50 flex touch:min-h-11 touch:min-w-11 items-center gap-2 rounded-full border border-border/80 bg-card/95 px-3 py-2 font-game text-ui-label font-semibold text-foreground shadow-lg backdrop-blur-sm transition-colors hover:bg-accent"
+        aria-label={`Open journal with ${checkpoints.length} entries`}
         onClick={() => {
-          setActiveTab("log");
+          setActiveTab("journal");
           rawToggle();
         }}
       >
-        <ScrollText className="h-4 w-4 text-primary" />
-        Log
-        <span className="min-w-5 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold tabular-nums lining-nums text-primary-foreground">
-          {logActivityCount}
+        <History className="h-4 w-4 text-primary" />
+        Journal
+        <span className="min-w-5 rounded-full bg-muted px-1.5 py-0.5 text-ui-meta font-semibold tabular-nums lining-nums text-foreground">
+          {checkpoints.length}
         </span>
       </button>
     ) : null;
@@ -99,23 +69,17 @@ export function RightActionPanel({
           ? "w-[calc(100vw_-_0.75rem_-_var(--safe-area-inset-left)_-_var(--safe-area-inset-right))]"
           : activeTab === "dev"
             ? "w-[calc(100vw_-_0.75rem_-_var(--safe-area-inset-left)_-_var(--safe-area-inset-right))] sm:w-[38rem]"
-            : "w-72",
+            : "w-80",
       )}
     >
       <div className="h-full p-3 flex flex-col gap-3 overflow-y-auto">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-4">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
             <button
-              className={cn(TAB_BUTTON_BASE, activeTab === "log" ? TAB_ACTIVE : TAB_INACTIVE)}
-              onClick={() => setActiveTab("log")}
+              className={cn(TAB_BUTTON_BASE, activeTab === "journal" ? TAB_ACTIVE : TAB_INACTIVE)}
+              onClick={() => setActiveTab("journal")}
             >
-              Log ({logActivityCount})
-            </button>
-            <button
-              className={cn(TAB_BUTTON_BASE, activeTab === "snapshots" ? TAB_ACTIVE : TAB_INACTIVE)}
-              onClick={() => setActiveTab("snapshots")}
-            >
-              Snapshots ({checkpoints.length})
+              Journal ({checkpoints.length})
             </button>
             {import.meta.env.DEV ? (
               <button
@@ -129,7 +93,7 @@ export function RightActionPanel({
           <Button
             size="icon"
             variant="ghost"
-            className="h-7 w-7 pointer-coarse:h-12 pointer-coarse:w-12 text-muted-foreground hover:text-foreground"
+            className="h-8 w-8 touch:min-h-11 touch:min-w-11 text-muted-foreground hover:text-foreground"
             onClick={rawToggle}
             title={`Close right panel`}
           >
@@ -137,22 +101,14 @@ export function RightActionPanel({
           </Button>
         </div>
 
-        {activeTab === "log" ? (
-          <ActionLog
-            gameLog={gameLog}
-            resolveCardName={resolveCardName}
-            resolvePlayerName={resolvePlayerName}
-            onHoverLogCard={onHoverLogCard}
-          />
-        ) : activeTab === "snapshots" ? (
+        {activeTab === "journal" ? (
           <CheckpointsPanel
             checkpoints={checkpoints}
+            decisionHistory={decisionHistory}
             canRequestRestore={canRequestRestore}
             onRequestRestore={onRequestRestore}
             resolvePlayerName={resolvePlayerName}
-            snapshotRecording={snapshotRecording}
-            hostsEngine={hostsEngine}
-            onSnapshotRecordingChange={onSnapshotRecordingChange}
+            resolvePlayerColor={resolvePlayerColor}
           />
         ) : (
           <GameDevPanel />

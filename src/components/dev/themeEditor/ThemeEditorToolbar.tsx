@@ -19,7 +19,7 @@ export function ThemeEditorToolbar({
         <Input
           aria-label="Personal theme name"
           title="Personal theme name"
-          className="h-8 w-40 shrink-0 text-xs"
+          className="w-52 shrink-0"
           value={draft.name}
           maxLength={80}
           onChange={(event) => update((current) => ({ ...current, name: event.target.value }))}
@@ -37,7 +37,7 @@ export function ThemeEditorToolbar({
             </Button>
           ))}
         </div>
-        <span className="shrink-0 text-xs text-muted-foreground">
+        <span className="shrink-0 text-ui-meta text-muted-foreground">
           {editor.compareCurrent
             ? "Showing saved theme"
             : editor.dirty

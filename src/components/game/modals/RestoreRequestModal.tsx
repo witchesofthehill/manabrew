@@ -35,7 +35,9 @@ export function RestoreRequestModal({
       : status?.type === "declined"
         ? `${resolvePlayerName(status.playerId)} declined.`
         : status?.type === "unavailable"
-          ? `The snapshot for ${target} is no longer available.`
+          ? checkpoint.decision
+            ? "The game could not be rewound. Your current game has been kept."
+            : `The snapshot for ${target} is no longer available.`
           : null;
   const awaiting = ownVote ? vote.awaitingPlayerIds.map(resolvePlayerName) : [];
   const waiting =
@@ -60,9 +62,11 @@ export function RestoreRequestModal({
   return (
     <Modal maxWidth="max-w-md" onClose={onClose}>
       <Modal.Header>
-        <h2 className="text-base font-semibold">Restore the game?</h2>
+        <h2 className="text-base font-semibold">
+          {checkpoint.decision ? "Rewind the game?" : "Restore the game?"}
+        </h2>
       </Modal.Header>
-      <Modal.Body className="space-y-3 text-sm">
+      <Modal.Body className="space-y-3">
         {outcome ? (
           <p role="status">{outcome}</p>
         ) : sent ? (
@@ -88,7 +92,7 @@ export function RestoreRequestModal({
         </Modal.Close>
         {!sent && (
           <Button variant="primary" onClick={() => void confirm()}>
-            Restore
+            {checkpoint.decision ? "Rewind" : "Restore"}
           </Button>
         )}
       </Modal.Footer>

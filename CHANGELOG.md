@@ -1,5 +1,34 @@
 # Changelog
 
+## [3.65.2](https://github.com/witchesofthehill/manabrew/compare/v3.65.1...v3.65.2) (2026-10-27)
+
+### Fixes
+
+* **ui:** improve app-wide responsiveness ([#1123](https://github.com/witchesofthehill/manabrew/issues/1123)) ([178dda1](https://github.com/witchesofthehill/manabrew/commit/178dda1e6361a76cdcd9a71d9ee71b28ca7613cd))
+
+## [3.65.1](https://github.com/witchesofthehill/manabrew/compare/v3.65.0...v3.65.1) (2026-10-26)
+
+### Fixes
+
+* actionspace manarocks ([#1124](https://github.com/witchesofthehill/manabrew/issues/1124)) ([ca67bf2](https://github.com/witchesofthehill/manabrew/commit/ca67bf2a668f4e2486bb646859da763f72d1b559))
+
+## [3.65.0](https://github.com/witchesofthehill/manabrew/compare/v3.64.9...v3.65.0) (2026-10-25)
+
+### Features
+
+* **forge:** add decision replay and snapshot restoration ([15a4afd](https://github.com/witchesofthehill/manabrew/commit/15a4afd390e809584787720ea6001f66d442adf7))
+* **forge:** replace snapshots with journal history and rewind ([f1a65c8](https://github.com/witchesofthehill/manabrew/commit/f1a65c82d5487623f2c723bf617a42499fad5a6d))
+* **forge:** journal history and verified rewind across runtimes ([#1081](https://github.com/witchesofthehill/manabrew/issues/1081)) ([c48dce6](https://github.com/witchesofthehill/manabrew/commit/c48dce63b4785692f2be1fe2814b8de31260f220))
+
+### Fixes
+
+* **forge:** harden journal replay and rewind lifecycle ([3281760](https://github.com/witchesofthehill/manabrew/commit/3281760c63e3a7058f53254d31e700a28ed75d25))
+* ui ([c1cc4ed](https://github.com/witchesofthehill/manabrew/commit/c1cc4edcbbc86e571de9cfe2a6830beddea52884))
+
+### Performance
+
+* **forge:** defer replay UI snapshots until verification ([bed06d6](https://github.com/witchesofthehill/manabrew/commit/bed06d6cca6bc7feddc312e2de0cb027c81c5940))
+
 ## [3.64.9](https://github.com/witchesofthehill/manabrew/compare/v3.64.8...v3.64.9) (2026-10-25)
 
 ### Fixes
@@ -82,6 +111,8 @@
 
 ### Fixes
 
+* Increase wide-touch body and control text to 20px and metadata to 18px after iPad readability review, without scaling card artwork.
+* Improve app-wide tablet typography, touch targets, responsive workspace density and keyboard-visible dialogs without enlarging card sprites.
 * Allow combat damage to be divided freely among blockers under current Magic rules, while preserving lethal-damage requirements for trample.
 * Preserve each Room, split and aftermath half's frame color instead of inheriting the whole card's combined colors in hand and stack previews.
 * Highlight unlocked Room doors and the door represented on the stack in both card views, with outlines that include the collector strip.

@@ -85,15 +85,15 @@ export function SignInMethodsCard({ identities }: SignInMethodsCardProps) {
                 {providerIcon(identity.provider)}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium leading-tight">{label}</p>
+                <p className="text-ui-label font-medium leading-tight">{label}</p>
                 {identity.email && (
-                  <p className="truncate text-xs text-muted-foreground">{identity.email}</p>
+                  <p className="break-all text-ui-meta text-muted-foreground">{identity.email}</p>
                 )}
               </div>
               <Button
                 variant="ghost"
                 size="icon"
-                className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
+                className="size-8 shrink-0 text-muted-foreground hover:text-destructive touch:min-h-11 touch:min-w-11"
                 title={`Unlink ${label}`}
                 disabled={busy || identities.length <= 1}
                 onClick={() => void handleUnlink(identity.provider)}

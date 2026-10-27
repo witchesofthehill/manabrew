@@ -55,7 +55,7 @@ export function LimitedBuildConfigurations({ sessionKey, session, onClose }: Pro
         if (!open) onClose();
       }}
     >
-      <DialogContent className="max-h-[90dvh] max-w-3xl overflow-y-auto">
+      <DialogContent className="max-w-3xl overflow-y-auto overscroll-contain">
         <DialogHeader>
           <DialogTitle>Build configurations</DialogTitle>
           <DialogDescription>
@@ -64,7 +64,7 @@ export function LimitedBuildConfigurations({ sessionKey, session, onClose }: Pro
           </DialogDescription>
         </DialogHeader>
         <form
-          className="flex gap-2"
+          className="flex flex-wrap gap-2"
           onSubmit={(event) => {
             event.preventDefault();
             if (!name.trim()) return;
@@ -79,6 +79,7 @@ export function LimitedBuildConfigurations({ sessionKey, session, onClose }: Pro
             placeholder="Name this build"
             value={name}
             onChange={(event) => setName(event.target.value)}
+            className="min-w-0 flex-1 basis-48"
           />
           <Button variant="outline" type="submit" disabled={!name.trim()}>
             Keep build
@@ -91,7 +92,7 @@ export function LimitedBuildConfigurations({ sessionKey, session, onClose }: Pro
                 aria-label="Compare configuration"
                 value={selectedId}
                 onValueChange={setSelectedId}
-                className="flex-1"
+                className="min-w-0 flex-1 basis-48"
               >
                 <AppSelectOption value="">Choose a build</AppSelectOption>
                 {session.builds.map((build) => (
@@ -120,7 +121,7 @@ export function LimitedBuildConfigurations({ sessionKey, session, onClose }: Pro
             </div>
             {selected && (
               <>
-                <div className="grid gap-3 md:grid-cols-2">
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,18rem),1fr))] gap-3">
                   <section>
                     <h3 className="mb-2 text-lg font-semibold tabular-nums lining-nums">
                       Current · {current.length} cards
@@ -135,9 +136,9 @@ export function LimitedBuildConfigurations({ sessionKey, session, onClose }: Pro
                   </section>
                 </div>
                 <section>
-                  <h3 className="mb-2 text-sm font-semibold">Changes from {selected.name}</h3>
+                  <h3 className="mb-2 text-ui-label font-semibold">Changes from {selected.name}</h3>
                   {diff.length ? (
-                    <ul className="max-h-48 overflow-y-auto text-xs">
+                    <ul className="max-h-48 overflow-y-auto text-ui-meta">
                       {diff.map((entry) => (
                         <li
                           key={entry.name}
@@ -152,7 +153,7 @@ export function LimitedBuildConfigurations({ sessionKey, session, onClose }: Pro
                       ))}
                     </ul>
                   ) : (
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-ui-body text-muted-foreground">
                       The main decks contain the same printings and counts.
                     </p>
                   )}
@@ -161,7 +162,9 @@ export function LimitedBuildConfigurations({ sessionKey, session, onClose }: Pro
             )}
           </>
         ) : (
-          <p className="text-sm text-muted-foreground">Name your current build to keep it here.</p>
+          <p className="text-ui-body text-muted-foreground">
+            Name your current build to keep it here.
+          </p>
         )}
         <div className="flex justify-end">
           <Button variant="ghost" onClick={onClose}>

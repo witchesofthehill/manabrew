@@ -93,7 +93,7 @@ export function MobileHandControl({
           : `Open hand, ${count} cards${actionable ? ", actions available" : ""}`
       }
       className={cn(
-        "group pointer-events-auto absolute z-[4] flex h-11 items-center justify-center gap-2 px-3 font-game text-sm font-semibold tracking-wide text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-card-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-safe:transition-[color,opacity,transform] active:scale-[0.98]",
+        "group pointer-events-auto absolute z-[4] flex min-h-11 min-w-11 items-center justify-center gap-2 px-3 py-2 font-game text-ui-label font-semibold tracking-wide text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-card-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-safe:transition-[color,opacity,transform] active:scale-[0.98]",
         open
           ? leftHanded
             ? "left-2 top-2"

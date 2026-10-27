@@ -298,7 +298,7 @@ export function DialogCardPickerGrid({
         })}
         {!items.length && (
           <p
-            className="absolute inset-x-0 top-0 p-8 text-center text-sm text-muted-foreground"
+            className="absolute inset-x-0 top-0 p-8 text-center text-ui-body text-muted-foreground"
             role="status"
           >
             No matching cards. Clear or change the filters.

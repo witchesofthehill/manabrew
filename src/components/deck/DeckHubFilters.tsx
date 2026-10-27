@@ -35,17 +35,17 @@ export function DeckHubFilters({ total, loaded, ...filterProps }: DeckHubFilters
     <div
       className={cn(
         "shrink-0 transition-[width] lg:order-2 lg:border-l",
-        expanded ? "lg:w-72" : "lg:w-14",
+        expanded ? "lg:w-80 xl:w-96" : "lg:w-16",
         shortTouch && "lg:order-none lg:w-auto lg:border-l-0",
       )}
     >
       <div
         className={cn(
-          "flex items-center justify-between border-b px-4 py-3 sm:px-6 lg:hidden",
+          "flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3 sm:px-6 lg:hidden",
           shortTouch && "py-1.5 lg:flex",
         )}
       >
-        <p className="text-xs text-muted-foreground" aria-live="polite">
+        <p className="text-ui-meta text-muted-foreground" aria-live="polite">
           {loaded
             ? `${total.toLocaleString()} ${total === 1 ? "publication" : "publications"}`
             : "Loading publications…"}
@@ -53,7 +53,7 @@ export function DeckHubFilters({ total, loaded, ...filterProps }: DeckHubFilters
         <DeckHubFilterSheet {...filterProps} />
       </div>
       <aside
-        className={cn("hidden h-full overflow-y-auto p-5 lg:block", shortTouch && "lg:hidden")}
+        className={cn("hidden h-full overflow-y-auto p-3 lg:block", shortTouch && "lg:hidden")}
         aria-label={`Community filters`}
       >
         <div
@@ -65,12 +65,14 @@ export function DeckHubFilters({ total, loaded, ...filterProps }: DeckHubFilters
           {expanded && (
             <div>
               <h2 className="font-serif text-xl font-semibold">Filters</h2>
-              <p className="mt-1 text-xs text-muted-foreground">Refine published deck results.</p>
+              <p className="mt-1 text-ui-meta text-muted-foreground">
+                Refine published deck results.
+              </p>
             </div>
           )}
           <button
             type="button"
-            className="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="shrink-0 rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground touch:min-h-11 touch:min-w-11"
             aria-label={expanded ? `Collapse filters` : `Expand filters`}
             onClick={toggleExpanded}
           >

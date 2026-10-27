@@ -30,7 +30,6 @@ function makeStoreStub(myPlayerSlot: unknown) {
     gameView: null,
     deferredQueue: [],
     isFlashing: false,
-    gameLog: [],
     currentPrompt: null,
     isWaitingForResponse: false,
     myPlayerSlot,

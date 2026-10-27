@@ -76,6 +76,7 @@
     "ClassLevelDto",
     "CombatAssignmentDto",
     "DayTime",
+    "DecisionHistoryDto",
     "DungeonStateDto",
     "EngineKind",
     "GameFormat",
@@ -357,8 +358,8 @@
       "refs": []
     },
     "CheckpointDto": {
-      "ts": "interface CheckpointDto {\n  checkpointId: number;\n  turn: number;\n  step: StepKind;\n  activePlayerId: string;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct CheckpointDto {\n    pub checkpoint_id: u32,\n    pub turn: u32,\n    pub step: StepKind,\n    pub active_player_id: String,\n}",
+      "ts": "interface CheckpointDto {\n  checkpointId: number;\n  turn: number;\n  step: StepKind;\n  activePlayerId: string;\n  decision?: string;\n  decidingPlayerId?: string;\n  log: Array<string>;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct CheckpointDto {\n    pub checkpoint_id: u32,\n    pub turn: u32,\n    pub step: StepKind,\n    pub active_player_id: String,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub decision: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub deciding_player_id: Option<String>,\n    #[serde(default, skip_serializing_if = \"Vec::is_empty\")]\n    pub log: Vec<String>,\n}",
       "refs": ["StepKind"]
     },
     "ChooseActionInput": {
@@ -429,6 +430,11 @@
     "DayTime": {
       "ts": "type DayTime = \"neither\" | \"day\" | \"night\";",
       "rust": "#[serde(rename_all = \"camelCase\")]\npub enum DayTime {\n    #[default]\n    Neither,\n    Day,\n    Night,\n}",
+      "refs": []
+    },
+    "DecisionHistoryDto": {
+      "ts": "interface DecisionHistoryDto {\n  rewinding: boolean;\n  unavailableReason: string | null;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct DecisionHistoryDto {\n    pub rewinding: bool,\n    pub unavailable_reason: Option<String>,\n}",
       "refs": []
     },
     "Deck": {
@@ -576,12 +582,13 @@
       "refs": []
     },
     "GameViewDto": {
-      "ts": "interface GameViewDto {\n  gameId: string;\n  turn: number;\n  step: StepKind;\n  combatAssignments: Array<CombatAssignmentDto>;\n  activePlayerId: string;\n  priorityPlayerId: string;\n  players: Array<PlayerDto>;\n  zones: Array<ZoneDto>;\n  stack: Array<StackObjectDto>;\n  gameOver: boolean;\n  winnerId: string | null;\n  monarchId: string | null;\n  initiativeHolderId: string | null;\n  dayTime: DayTime;\n  activePlaneNames?: Array<string>;\n  checkpoints: Array<CheckpointDto>;\n  restoreVote: RestoreVoteDto | null;\n  snapshotRecording: boolean;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct GameViewDto {\n    pub game_id: String,\n    pub turn: u32,\n    pub step: StepKind,\n    pub combat_assignments: Vec<CombatAssignmentDto>,\n    pub active_player_id: String,\n    pub priority_player_id: String,\n    pub players: Vec<PlayerDto>,\n    pub zones: Vec<ZoneDto>,\n    pub stack: Vec<StackObjectDto>,\n    pub game_over: bool,\n    pub winner_id: Option<String>,\n    pub monarch_id: Option<String>,\n    pub initiative_holder_id: Option<String>,\n    pub day_time: DayTime,\n    pub active_plane_names: Option<Vec<String>>,\n    #[serde(default)]\n    pub checkpoints: Vec<CheckpointDto>,\n    #[serde(default)]\n    pub restore_vote: Option<RestoreVoteDto>,\n    #[serde(default)]\n    pub snapshot_recording: bool,\n}",
+      "ts": "interface GameViewDto {\n  gameId: string;\n  turn: number;\n  step: StepKind;\n  combatAssignments: Array<CombatAssignmentDto>;\n  activePlayerId: string;\n  priorityPlayerId: string;\n  players: Array<PlayerDto>;\n  zones: Array<ZoneDto>;\n  stack: Array<StackObjectDto>;\n  gameOver: boolean;\n  winnerId: string | null;\n  monarchId: string | null;\n  initiativeHolderId: string | null;\n  dayTime: DayTime;\n  activePlaneNames?: Array<string>;\n  checkpoints: Array<CheckpointDto>;\n  restoreVote: RestoreVoteDto | null;\n  snapshotRecording: boolean;\n  decisionHistory?: DecisionHistoryDto;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct GameViewDto {\n    pub game_id: String,\n    pub turn: u32,\n    pub step: StepKind,\n    pub combat_assignments: Vec<CombatAssignmentDto>,\n    pub active_player_id: String,\n    pub priority_player_id: String,\n    pub players: Vec<PlayerDto>,\n    pub zones: Vec<ZoneDto>,\n    pub stack: Vec<StackObjectDto>,\n    pub game_over: bool,\n    pub winner_id: Option<String>,\n    pub monarch_id: Option<String>,\n    pub initiative_holder_id: Option<String>,\n    pub day_time: DayTime,\n    pub active_plane_names: Option<Vec<String>>,\n    #[serde(default)]\n    pub checkpoints: Vec<CheckpointDto>,\n    #[serde(default)]\n    pub restore_vote: Option<RestoreVoteDto>,\n    #[serde(default)]\n    pub snapshot_recording: bool,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub decision_history: Option<DecisionHistoryDto>,\n}",
       "refs": [
         "CheckpointDto",
         "CombatAssignmentDto",
         "DayTime",
+        "DecisionHistoryDto",
         "PlayerDto",
         "RestoreVoteDto",
         "StackObjectDto",

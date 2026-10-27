@@ -45,7 +45,7 @@ function FilterSelect({
         aria-label={label}
         value={value}
         onValueChange={onChange}
-        className="h-9 w-full rounded-md border bg-background pl-2 pr-2 text-sm pointer-coarse:text-base"
+        className="h-auto min-h-9 touch:min-h-11 w-full rounded-md border bg-background pl-2 pr-2"
       >
         {children}
       </AppSelect>
@@ -71,20 +71,20 @@ export function DialogCardBrowserToolbar({
     <div className="shrink-0 space-y-2 border-b p-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <div className="relative w-full sm:max-w-md sm:flex-1">
-          <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             ref={search}
             aria-label="Search cards by name, rules, type or mana"
             placeholder="Search cards"
             value={state.query}
             onChange={(event) => onFilter({ query: event.target.value })}
-            className="pl-9 pr-9 focus-visible:ring-card-ring"
+            className="pl-9 pr-11 focus-visible:ring-card-ring"
           />
           {state.query && (
             <Button
               size="icon"
               variant="ghost"
-              className="absolute right-0 top-0 h-9 w-9"
+              className="absolute right-0 top-0 h-full w-9 touch:min-h-11 touch:min-w-11"
               aria-label="Clear search"
               onClick={() => {
                 onFilter({ query: "" });
@@ -106,13 +106,13 @@ export function DialogCardBrowserToolbar({
             <SlidersHorizontal className="h-3.5 w-3.5" />
             Filters
             {activeFilterCount > 0 && (
-              <span className="rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground">
+              <span className="rounded-full bg-primary px-1.5 text-ui-meta text-primary-foreground">
                 {activeFilterCount}
               </span>
             )}
           </Button>
           <span
-            className="ml-auto shrink-0 text-xs text-muted-foreground"
+            className="ml-auto text-ui-meta text-muted-foreground"
             role="status"
             aria-live="polite"
           >
@@ -123,7 +123,7 @@ export function DialogCardBrowserToolbar({
         </div>
       </div>
       {filtersOpen && (
-        <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+        <div className="flex flex-wrap items-center gap-2 pt-1 text-ui-label">
           <FilterSelect
             label="Card type"
             value={state.type}
@@ -139,7 +139,7 @@ export function DialogCardBrowserToolbar({
           <div
             role="group"
             aria-label="Card color"
-            className="flex h-9 flex-wrap items-center gap-1 rounded-md border bg-background px-1 pointer-coarse:h-12"
+            className="flex min-h-9 flex-wrap items-center gap-1 rounded-md border bg-background px-1 py-0.5 touch:min-h-11"
           >
             {ANY_COLOR_LETTERS.map((color) => {
               const active = state.color === color;
@@ -151,7 +151,7 @@ export function DialogCardBrowserToolbar({
                   aria-label={`Filter by ${COLOR_LABELS[color]} identity`}
                   aria-pressed={active}
                   className={cn(
-                    "relative flex h-8 w-8 items-center justify-center rounded opacity-45 transition-opacity hover:opacity-80 pointer-coarse:h-10 pointer-coarse:w-10",
+                    "relative flex h-8 w-8 touch:min-h-11 touch:min-w-11 items-center justify-center rounded opacity-45 transition-opacity hover:opacity-80",
                     active && "opacity-100",
                   )}
                   onClick={() => onFilter({ color: active ? "" : color })}
@@ -190,10 +190,10 @@ export function DialogCardBrowserToolbar({
         </div>
       )}
       {selectedCount > 0 && (
-        <p className="text-xs text-muted-foreground">{selectedCount} selected</p>
+        <p className="text-ui-meta text-muted-foreground">{selectedCount} selected</p>
       )}
       {(loading || incomplete) && (
-        <p className="text-xs text-muted-foreground" role="status">
+        <p className="text-ui-meta text-muted-foreground" role="status">
           {loading
             ? "Loading card details for search…"
             : "Some card details are unavailable. Visible names and game rules remain searchable."}

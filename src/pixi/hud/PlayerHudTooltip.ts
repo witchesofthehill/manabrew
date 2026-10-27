@@ -1,4 +1,4 @@
-import { UI_FONT_FAMILY } from "@/themes/typography";
+import { getUiFontSize, UI_FONT_FAMILY } from "@/themes/typography";
 import { Container, Graphics, Text, TextStyle } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
 import { hexToNum } from "../colorUtils";
@@ -63,6 +63,10 @@ export class PlayerHudTooltip {
     const app = this.theme.appTheme;
     const accent = hexToNum(accentColor);
     this.title.text = content.title;
+    const wrapWidth = Math.max(1, Math.min(MAX_W, this.vw > 0 ? this.vw - 8 : MAX_W) - PAD_X * 2);
+    this.title.style.wordWrapWidth = wrapWidth;
+    this.activeLineStyle.wordWrapWidth = wrapWidth;
+    this.inactiveLineStyle.wordWrapWidth = wrapWidth;
     let contentW = this.title.width;
     let y = PAD_Y;
     this.title.position.set(PAD_X, y);
@@ -125,7 +129,7 @@ export class PlayerHudTooltip {
   private titleStyle(): TextStyle {
     return new TextStyle({
       fontFamily: UI_FONT_FAMILY,
-      fontSize: 15,
+      fontSize: Math.max(15, getUiFontSize("label")),
       fontWeight: "700",
       fill: hexToNum(this.theme.appTheme["popover-foreground"]),
       wordWrap: true,
@@ -137,9 +141,9 @@ export class PlayerHudTooltip {
     const app = this.theme.appTheme;
     return new TextStyle({
       fontFamily: UI_FONT_FAMILY,
-      fontSize: 11,
+      fontSize: getUiFontSize("meta"),
       fontWeight: active ? "600" : "400",
-      lineHeight: 15,
+      lineHeight: getUiFontSize("meta") * 1.35,
       fill: hexToNum(active ? app["popover-foreground"] : app["muted-foreground"]),
       wordWrap: true,
       wordWrapWidth: MAX_W - PAD_X * 2,

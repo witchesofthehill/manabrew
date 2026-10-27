@@ -237,7 +237,12 @@ export function DeckHubDiscover({ onOpen }: DeckHubDiscoverProps) {
   const total = entries?.total ?? 0;
 
   return (
-    <div className={cn("flex min-h-0 flex-1 flex-col lg:flex-row", shortTouch && "lg:flex-col")}>
+    <div
+      className={cn(
+        "flex min-h-0 min-w-0 flex-1 flex-col lg:flex-row",
+        shortTouch && "lg:flex-col",
+      )}
+    >
       <DeckHubFilters
         filters={filters}
         facets={facets}

@@ -28,7 +28,7 @@ export function DiceTray() {
           <Button
             size="icon"
             variant="outline"
-            className="size-8 sm:size-9"
+            className="size-8 sm:size-9 touch:min-h-11 touch:min-w-11"
             aria-label={`Dice tray`}
             title={`Dice & coin`}
           >

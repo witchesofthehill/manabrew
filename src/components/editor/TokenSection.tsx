@@ -45,13 +45,13 @@ export function TokenSection({
       {showHeader && (
         <button
           type="button"
-          className="mb-4 flex items-center gap-2.5 rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="touch:min-w-11 touch:min-h-11 mb-4 flex items-center gap-2.5 rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           aria-expanded={open}
           onClick={() => setOpen((value) => !value)}
         >
           <ChevronDown className={cn("h-4 w-4 transition-transform", !open && "-rotate-90")} />
-          <h3 className="text-base font-semibold">Tokens</h3>
-          <span className="text-xs text-muted-foreground/70">
+          <h3 className="text-ui-body font-semibold">Tokens</h3>
+          <span className="text-ui-meta text-muted-foreground/70">
             {tokens.length} token{tokens.length !== 1 ? "s" : ""} produced by this deck
           </span>
         </button>
@@ -129,7 +129,7 @@ function TokenGridCard({
       <div className="relative group">
         <button
           type="button"
-          className="block w-full rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="touch:min-w-11 touch:min-h-11 block w-full rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           aria-label={`Inspect ${name} token`}
           disabled={!onInspect && !onShowInfo}
           onClick={(event) => {
@@ -151,11 +151,11 @@ function TokenGridCard({
         >
           <CardThumbnail card={token} />
         </button>
-        <div className="absolute top-1 right-1 z-20 flex gap-1 opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100 transition-opacity">
+        <div className="absolute bottom-1 right-1 z-20 flex flex-col gap-1 opacity-0 group-hover:opacity-100 touch:opacity-100 transition-opacity">
           {onPickPrint && (
             <button
               type="button"
-              className="rounded-full p-0.5 shadow bg-overlay/70 text-muted-foreground hover:text-foreground transition-colors"
+              className="touch:min-w-11 touch:min-h-11 rounded-full p-0.5 shadow bg-overlay/70 text-muted-foreground hover:text-foreground transition-colors"
               title={`Change printing`}
               onClick={(e) => {
                 e.stopPropagation();
@@ -168,7 +168,7 @@ function TokenGridCard({
           {customized && onReset && (
             <button
               type="button"
-              className="rounded-full p-0.5 shadow bg-overlay/70 text-muted-foreground hover:text-destructive transition-colors"
+              className="touch:min-w-11 touch:min-h-11 rounded-full p-0.5 shadow bg-overlay/70 text-muted-foreground hover:text-destructive transition-colors"
               title={`Reset printing`}
               onClick={(e) => {
                 e.stopPropagation();

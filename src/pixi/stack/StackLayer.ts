@@ -1,5 +1,5 @@
 import { Container, Graphics, Rectangle } from "pixi.js";
-import { isCoarsePointer } from "@/lib/responsive";
+import { getUiControlHeight } from "@/themes/typography";
 import gsap from "gsap";
 import { CARD_H, CARD_W, GAME_CARD_SIZES } from "@/components/game/game.constants";
 import type { Theme } from "@/hooks/useTheme";
@@ -30,6 +30,7 @@ const BTN_W = 18;
 const BTN_H = 64;
 const BTN_RADIUS = 5;
 const BTN_HOVER_SCALE = 1.22;
+const BTN_PRESS_SCALE = 0.94;
 const BTN_ARROW_W = 6;
 const BTN_ARROW_H = 11;
 const BTN_GAP = 6;
@@ -114,13 +115,6 @@ export class StackLayer implements StackAnchorProvider {
     this.btn.visible = false;
     this.btn.eventMode = "static";
     this.btn.cursor = "pointer";
-    const btnHitPad = isCoarsePointer() ? 16 : 6;
-    this.btn.hitArea = new Rectangle(
-      -(BTN_W / 2 + btnHitPad),
-      -(BTN_H / 2 + btnHitPad),
-      BTN_W + btnHitPad * 2,
-      BTN_H + btnHitPad * 2,
-    );
     this.btn.on("pointertap", () => this.callbacks.onToggleCollapsed());
     this.btn.on("pointerdown", () => this.setBtnState("press", true));
     this.btn.on("pointerup", () => this.setBtnState("press", false));
@@ -335,6 +329,10 @@ export class StackLayer implements StackAnchorProvider {
   }
 
   hitTest(x: number, y: number): boolean {
+    if (this.btn.visible && this.btn.hitArea) {
+      const point = this.btn.toLocal({ x, y });
+      if (this.btn.hitArea.contains(point.x, point.y)) return true;
+    }
     if (!this.bounds) return false;
     if (
       x < this.bounds.x ||
@@ -346,7 +344,6 @@ export class StackLayer implements StackAnchorProvider {
     }
     const over = (b: { x: number; y: number; width: number; height: number }): boolean =>
       x >= b.x && x <= b.x + b.width && y >= b.y && y <= b.y + b.height;
-    if (this.btn.visible && over(this.btn.getBounds())) return true;
     if (this.flashSprite && over(this.flashSprite.getBounds())) return true;
     for (const sprite of this.sprites.values()) {
       if (over(sprite.container.getBounds())) return true;
@@ -461,7 +458,7 @@ export class StackLayer implements StackAnchorProvider {
       this.btnHovered = active;
     }
     gsap.killTweensOf(this.btn.scale);
-    const scale = this.btnPressed ? 0.94 : this.btnHovered ? BTN_HOVER_SCALE : 1;
+    const scale = this.btnPressed ? BTN_PRESS_SCALE : this.btnHovered ? BTN_HOVER_SCALE : 1;
     if (!animationsEnabled()) {
       this.btn.scale.set(scale);
       return;
@@ -472,6 +469,10 @@ export class StackLayer implements StackAnchorProvider {
       duration: this.btnPressed ? 0.06 : 0.14,
       ease: this.btnPressed ? "power2.out" : "power3.out",
     });
+  }
+
+  private buttonHitWidth(): number {
+    return Math.max(BTN_W + 12, getUiControlHeight() / BTN_PRESS_SCALE);
   }
 
   private layout(): void {
@@ -509,7 +510,7 @@ export class StackLayer implements StackAnchorProvider {
       fanOut,
       hoveredIndex,
       hoverScale: HOVER_SCALE,
-      buttonWidth: BTN_W,
+      buttonWidth: this.buttonHitWidth(),
       buttonGap: BTN_GAP,
       compact: this.compact,
     });
@@ -537,7 +538,7 @@ export class StackLayer implements StackAnchorProvider {
     if (n === 0) {
       this.bounds = null;
     } else if (collapsed) {
-      const halfW = (BTN_W / 2) * BTN_HOVER_SCALE + 8;
+      const halfW = (this.buttonHitWidth() / 2) * BTN_HOVER_SCALE + 8;
       const halfH = (BTN_H / 2) * BTN_HOVER_SCALE + 6;
       const x = layout.buttonX - halfW;
       this.bounds = {
@@ -576,6 +577,9 @@ export class StackLayer implements StackAnchorProvider {
       return;
     }
     this.btn.position.y = centerY;
+    const hitW = this.buttonHitWidth();
+    const hitH = Math.max(BTN_H + 12, getUiControlHeight() / BTN_PRESS_SCALE);
+    this.btn.hitArea = new Rectangle(-hitW / 2, -hitH / 2, hitW, hitH);
     const justAppeared = !this.btnVisible;
     this.btnVisible = true;
     const targetMoved = Math.abs(targetX - this.btnTargetX) > 0.5;
@@ -680,6 +684,7 @@ export class StackLayer implements StackAnchorProvider {
     sprite.eventMode = "none";
     this.flashSprite = sprite;
     this.container.addChild(sprite);
+    sprite.setHandRulesScale(scale);
     gsap.fromTo(sprite, { alpha: 0 }, { alpha: 1, duration: 0.18, ease: "power2.out" });
     gsap.fromTo(
       sprite.scale,

@@ -84,7 +84,7 @@ export function PlayHome() {
   }, [connected, listPlayers, listRooms, resumePending]);
   return (
     <div className="relative h-full min-h-0 overflow-hidden">
-      <div className="relative z-10 h-full overflow-y-auto">
+      <div className="relative z-10 h-full overflow-y-auto pb-[max(0px,calc(100dvh-var(--visual-viewport-height)-var(--visual-viewport-top)))]">
         <div
           className={cn(
             "flex min-h-full w-full flex-col gap-6 px-4 py-6 sm:gap-7 sm:px-6 sm:py-9 lg:px-8",
@@ -102,8 +102,8 @@ export function PlayHome() {
             </h1>
             <p
               className={cn(
-                "mt-2 text-sm leading-relaxed text-muted-foreground sm:text-base",
-                shortTouch && "mt-1 text-sm sm:text-sm",
+                "mt-2 text-ui-body leading-relaxed text-muted-foreground",
+                shortTouch && "mt-1 text-ui-body",
               )}
             >
               Start a match your way, or open a deck from your collection.
@@ -137,7 +137,7 @@ export function PlayHome() {
                   compact={shortTouch}
                   footer={
                     to === ROUTES.LOBBY && lobbyTeaser ? (
-                      <span className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-primary">
+                      <span className="mt-1.5 flex items-center gap-1.5 text-ui-meta font-medium text-primary">
                         <span className="relative flex h-1.5 w-1.5">
                           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-60" />
                           <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />

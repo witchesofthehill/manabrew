@@ -93,30 +93,30 @@ export function CardCustomizerModal({
     <Modal onClose={onClose} maxWidth="max-w-3xl" ariaLabel={`Customize ${card.identity.name}`}>
       <Modal.Header>
         <div>
-          <h2 className="text-base font-semibold">Customize card</h2>
-          <p className="text-sm text-muted-foreground">{card.identity.name}</p>
+          <h2 className="text-ui-body font-semibold">Customize card</h2>
+          <p className="text-ui-label text-muted-foreground">{card.identity.name}</p>
         </div>
       </Modal.Header>
       <Modal.Body className="overflow-y-auto">
-        <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,0.7fr)]">
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(14rem,0.7fr)]">
           <div className="min-w-0">
             <CardGlintInspect
               card={editor.preview}
               className="min-h-64 rounded-lg border bg-muted/20 sm:min-h-96"
             />
-            <p className="mt-2 text-xs text-muted-foreground">
+            <p className="mt-2 text-ui-meta text-muted-foreground">
               {editor.preview.identity.setCode.toUpperCase()} #{editor.preview.identity.cardNumber}
               {editor.preview.identity.foil ? " · Foil" : " · Nonfoil"}
             </p>
           </div>
           <div className="space-y-4">
-            <div className="rounded-lg border bg-muted/20 p-3 text-sm" aria-live="polite">
+            <div className="rounded-lg border bg-muted/20 p-3 text-ui-body" aria-live="polite">
               <p className="font-medium">
                 {token
                   ? "This deck's token appearance"
                   : `${editor.selected.length} selected · ${editor.pending.length} pending`}
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p className="mt-1 text-ui-body text-muted-foreground">
                 {token
                   ? "Applies to this token type produced by this deck. Other token types stay unchanged."
                   : "Click a copy to inspect and select it. Check copies to edit them together. Pending changes stay when you switch copies."}
@@ -141,7 +141,7 @@ export function CardCustomizerModal({
               }}
             />
             {(!sessionValid || editor.stale || !available || !editor.active) && (
-              <p role="status" className="text-xs text-warning">
+              <p role="status" className="text-ui-meta text-warning">
                 {!sessionValid
                   ? "The deck session changed. Close and reopen this customizer."
                   : editor.stale
@@ -150,26 +150,26 @@ export function CardCustomizerModal({
               </p>
             )}
             {!selectedRetroCompatible && (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-ui-meta text-muted-foreground">
                 {!retroIds
                   ? "Checking frame compatibility…"
                   : "Retro frames are unavailable for one or more selected copies or faces."}
               </p>
             )}
             {!pendingRetroCompatible && (
-              <p role="status" className="text-xs text-warning">
+              <p role="status" className="text-ui-meta text-warning">
                 A pending retro frame is not supported by its copy. Select that copy and choose
                 another frame before saving.
               </p>
             )}
             {!tokenSupported && (
-              <p role="status" className="text-xs text-warning">
+              <p role="status" className="text-ui-meta text-warning">
                 This token has no unambiguous engine token mapping. Custom appearance cannot be
                 saved for multiplayer.
               </p>
             )}
             {tokenSupported && token && (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-ui-body text-muted-foreground">
                 Token appearance is supported by Forge, the Rust engine, and manual games. Ironsmith
                 cannot yet match these token definitions.
               </p>

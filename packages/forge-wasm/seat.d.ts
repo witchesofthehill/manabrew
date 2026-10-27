@@ -26,6 +26,7 @@ export interface ForgeDirectiveLane {
   readonly data: Uint8Array;
   queue: unknown[];
   flushScheduled: boolean;
+  cancelled: boolean;
 }
 
 export declare function createDirectiveLane(buffer: SharedArrayBuffer): ForgeDirectiveLane;

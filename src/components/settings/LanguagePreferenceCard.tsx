@@ -18,7 +18,7 @@ export function LanguagePreferenceCard() {
         value={appLanguage}
         onValueChange={(value) => setAppLanguage(value as AppLanguagePreference)}
         aria-label="Application language"
-        className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm pointer-coarse:h-10 pointer-coarse:text-base"
+        className="min-h-9 w-full rounded-md border border-input bg-background px-2 text-ui-label touch:min-h-11"
       >
         <AppSelectOption value="system">Use system language</AppSelectOption>
         {Object.entries(APP_LOCALES).map(([locale, { label }]) => (
@@ -28,7 +28,7 @@ export function LanguagePreferenceCard() {
         ))}
       </AppSelect>
       {appLanguage === "system" && (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-ui-meta text-muted-foreground">
           Currently using {APP_LOCALES[activeLocale].label}
         </p>
       )}

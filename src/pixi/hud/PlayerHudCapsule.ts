@@ -1,4 +1,4 @@
-import { UI_FONT_FAMILY as FONT } from "@/themes/typography";
+import { getUiControlHeight, getUiFontSize, UI_FONT_FAMILY as FONT } from "@/themes/typography";
 import {
   Bounds,
   ColorMatrixFilter,
@@ -51,8 +51,6 @@ const SHALLOW_AVATAR_MIN_HEIGHT = 96;
 const SHALLOW_RESOURCE_IDENTITY_OVERLAP = 30;
 const SHALLOW_RESOURCE_RIGHT_INSET = 16;
 const SHALLOW_STATE_BLOCK_HEIGHT = 48;
-const STATE_ROW_HEIGHT = 24;
-const STATE_TOUCH_ROW_HEIGHT = 44;
 const TRAY_HORIZONTAL_PADDING = 6;
 const TRAY_VERTICAL_PADDING = 2;
 const TRAY_RADIUS = 6;
@@ -65,6 +63,7 @@ const SCRATCH_B = new Point();
 
 const styleCache = new Map<string, TextStyle>();
 function cachedTextStyle(size: number, weight: TextStyle["fontWeight"], fill: number): TextStyle {
+  size = Math.max(size, getUiFontSize("meta"));
   const shadow = getTheme().gameTheme.canvas.shadow;
   const key = `${size}|${weight}|${fill}|${shadow}`;
   let s = styleCache.get(key);
@@ -106,6 +105,7 @@ interface BadgeChip {
   count: Text;
   label: Text;
   hit: Graphics;
+  hitBounds: Rectangle;
   content: PlayerHudTooltipContent;
   badgeId?: string;
 }
@@ -208,6 +208,8 @@ export class PlayerHudCapsule {
   private avatarCy = 0;
   private avatarDia = 0;
   private contentBounds = new Bounds();
+  private readonly capsuleHitArea = new Rectangle();
+  private readonly overflowHitArea = new Rectangle();
 
   constructor(
     theme: Theme,
@@ -485,7 +487,7 @@ export class PlayerHudCapsule {
     this.width = width;
     this.height = height;
     this.column = column;
-    this.container.hitArea = new Rectangle(-4, -4, width + 8, height + 8);
+    this.container.hitArea = this.capsuleHitArea;
     this.render();
   }
 
@@ -623,7 +625,14 @@ export class PlayerHudCapsule {
       sprite.eventMode = count.eventMode = label.eventMode = "none";
       hit.eventMode = "static";
       hit.cursor = "pointer";
-      const chip: BadgeChip = { sprite, count, label, hit, content: { title: "" } };
+      const chip: BadgeChip = {
+        sprite,
+        count,
+        label,
+        hit,
+        hitBounds: new Rectangle(),
+        content: { title: "" },
+      };
       hit.on("pointerover", () =>
         this.emitHover(chip.content, hit.x + hit.width / 2, hit.y, hit.y + hit.height),
       );
@@ -649,6 +658,12 @@ export class PlayerHudCapsule {
   private render(): void {
     const { width: w, height: h } = this;
     if (w <= 0 || h <= 0) return;
+    const hitWidth = Math.max(w + 8, getUiControlHeight());
+    const hitHeight = Math.max(h + 8, getUiControlHeight());
+    this.capsuleHitArea.x = (w - hitWidth) / 2;
+    this.capsuleHitArea.y = (h - hitHeight) / 2;
+    this.capsuleHitArea.width = hitWidth;
+    this.capsuleHitArea.height = hitHeight;
     this.contentBounds.clear();
     this.life.text = String(this.spec.life);
     this.updateFilters();
@@ -799,10 +814,10 @@ export class PlayerHudCapsule {
     this.heart.visible = false;
     const hand = this.makeHandItem(short ? 26 : 32);
     hand.place(short ? w / 2 + 4 : (w - hand.w) / 2, short ? 32 : 146);
-    if (hasMana) {
-      this.layoutMana(pad, short ? 70 : 172, w - pad * 2, 2, short ? 18 : 24);
-    }
-    const stateY = hasMana ? (short ? 120 : 240) : short ? 70 : 172;
+    const resourceY = short ? 70 : 172;
+    const stateY = hasMana
+      ? this.layoutMana(pad, resourceY, w - pad * 2, 2, short ? 18 : 24) + 6
+      : resourceY;
     this.layoutStates(pad, stateY, w - pad * 2, this.panelHeight - stateY - 4, 2);
   }
 
@@ -829,7 +844,11 @@ export class PlayerHudCapsule {
     this.heart.text = "LIFE";
     this.heart.style = this.styled(8, "600", this.theme.gameTheme.textMuted);
     this.heart.anchor.set(1, 0.5);
-    this.heart.position.set(lifeX, 49);
+    this.heart.position.set(lifeX, h - this.heart.height / 2 - 2);
+    this.life.y = Math.min(
+      this.life.y,
+      this.heart.y - this.heart.height / 2 - 2 - this.life.height / 2,
+    );
     const handX = lifeX + 14;
     const hand = this.makeHandItem(30);
     hand.place(handX, 34);
@@ -915,6 +934,10 @@ export class PlayerHudCapsule {
     this.heart.style = this.styled(8, "600", this.theme.gameTheme.textMuted);
     this.heart.anchor.set(1, 0.5);
     this.heart.position.set(lifeX, 49);
+    this.life.y = Math.min(
+      this.life.y,
+      this.heart.y - this.heart.height / 2 - 2 - this.life.height / 2,
+    );
     this.makeHandItem(32).place(pad, this.compact ? 70 : 67);
     const zones = this.spec.badges
       .map((badge, index) => ({ badge, index }))
@@ -1089,7 +1112,7 @@ export class PlayerHudCapsule {
     this.ensurePips();
     const gt = this.theme.gameTheme;
     const size = 22;
-    const slotWidth = 40;
+    const slotWidth = Math.max(40, size + getUiFontSize("meta") * 2 + 8);
     let slot = 0;
     for (let i = 0; i < MANA_LETTERS.length; i++) {
       const letter = MANA_LETTERS[i]!;
@@ -1128,9 +1151,14 @@ export class PlayerHudCapsule {
     width: number,
     columns: number,
     rowHeight: number,
-  ): void {
+  ): number {
     this.ensurePips();
     const gt = this.theme.gameTheme;
+    columns = Math.max(
+      1,
+      Math.min(columns, Math.floor(width / Math.max(32, getUiFontSize("meta") + 24))),
+    );
+    rowHeight = Math.max(rowHeight, Math.ceil(getUiFontSize("meta") * 1.4) + 4);
     const cellWidth = width / columns;
     const size = Math.min(18, rowHeight - 4);
     const rows = Math.ceil(MANA_LETTERS.length / columns);
@@ -1161,7 +1189,13 @@ export class PlayerHudCapsule {
       pip.count.style = this.styled(12, "700", active ? gt.textOnTinted : gt.textGhost);
       pip.count.alpha = active ? 1 : 0.65;
       pip.count.scale.set(1);
-      pip.count.scale.x = Math.min(1, Math.max(1, cellWidth - size - 6) / pip.count.width);
+      while (
+        pip.count.width > cellWidth - size - 6 &&
+        pip.count.text.replace(/…$/, "").length > 1
+      ) {
+        pip.count.text = `${pip.count.text.replace(/…$/, "").slice(0, -1)}…`;
+      }
+      if (pip.count.width > cellWidth - size - 6) pip.count.text = "…";
       pip.count.position.set(left + size + 4, cy);
       if (pip.value !== undefined && value > pip.value && this.motionEnabled) {
         this.burstManaSplash(
@@ -1173,6 +1207,7 @@ export class PlayerHudCapsule {
       }
       pip.value = value;
     }
+    return y + (rows - 0.5) * rowHeight + TRAY_VERTICAL_PADDING;
   }
 
   private badgeIsUrgent(badge: PlayerHudSpec["badges"][number]): boolean {
@@ -1216,14 +1251,21 @@ export class PlayerHudCapsule {
         alpha: urgent ? 0.16 : 0.04,
       });
     chip.hit.position.set(x, y + 1);
+    const hitWidth = Math.max(width - 3, getUiControlHeight());
+    const hitHeight = Math.max(height - 2, getUiControlHeight());
+    chip.hitBounds.x = (width - hitWidth) / 2;
+    chip.hitBounds.y = (height - hitHeight) / 2;
+    chip.hitBounds.width = hitWidth;
+    chip.hitBounds.height = hitHeight;
+    chip.hit.hitArea = chip.hitBounds;
     chip.count.visible = badge.count !== undefined;
     chip.count.text = badge.count === undefined ? "" : String(badge.count);
     chip.count.style = this.styled(12, "700", urgent ? gt.pt.lethal : gt.textOnTinted);
     chip.count.scale.set(1);
-    chip.count.scale.x = Math.min(
-      1,
-      Math.max(1, width - size - 12) / Math.max(1, chip.count.width),
-    );
+    while (chip.count.width > width - size - 12 && chip.count.text.replace(/…$/, "").length > 1) {
+      chip.count.text = `${chip.count.text.replace(/…$/, "").slice(0, -1)}…`;
+    }
+    if (chip.count.width > width - size - 12) chip.count.text = "…";
     chip.count.position.set(x + width - 8, cy);
     const labelWidth = width - size - 14 - (chip.count.visible ? chip.count.width + 4 : 0);
     chip.label.visible = showLabel && labelWidth >= 24;
@@ -1252,7 +1294,7 @@ export class PlayerHudCapsule {
           rank(a.badge.id) - rank(b.badge.id) ||
           a.badge.id.localeCompare(b.badge.id),
       );
-    const slotWidth = 28;
+    const slotWidth = Math.max(28, getUiControlHeight());
     const visible = Math.min(states.length, Math.max(0, Math.floor(width / slotWidth)));
     for (let i = 0; i < visible; i++) {
       this.placeBadgeIcon(states[i]!.index, x + slotWidth / 2 + i * slotWidth, cy);
@@ -1276,9 +1318,10 @@ export class PlayerHudCapsule {
     chip.content = this.badgeTooltip(badge);
     chip.hit
       .clear()
-      .circle(cx, cy, 12)
+      .circle(cx, cy, Math.max(12, getUiControlHeight() / 2))
       .fill({ color: hexToNum(this.theme.gameTheme.canvas.background), alpha: 0.001 });
     chip.hit.position.set(0, 0);
+    chip.hit.hitArea = null;
   }
 
   private layoutStates(
@@ -1290,9 +1333,17 @@ export class PlayerHudCapsule {
     overflowRect?: LayoutRect,
   ): void {
     this.ensureChips();
-    const rowHeight = this.compact ? STATE_TOUCH_ROW_HEIGHT : STATE_ROW_HEIGHT;
+    const rowHeight = Math.max(getUiControlHeight(), Math.ceil(getUiFontSize("meta") * 1.4) + 8);
+    if (height < rowHeight) {
+      this.layoutCompactStateIcons(x, y + Math.max(0, height) / 2, width);
+      return;
+    }
+    columns = Math.max(
+      1,
+      Math.min(columns, Math.floor(width / Math.max(52, getUiControlHeight()))),
+    );
     const rows = Math.max(1, Math.min(3, Math.floor(height / rowHeight)));
-    const cellHeight = Math.min(rowHeight, height / rows);
+    const cellHeight = rowHeight;
     const cellWidth = width / columns;
     this.stateTray
       .roundRect(
@@ -1370,15 +1421,9 @@ export class PlayerHudCapsule {
       this.detailsIcon.position.set(rect.x + rect.width / 2, rect.y + rect.height / 2);
     }
     this.overflow.text =
-      hidden > 0
-        ? compact
-          ? `+${hidden}`
-          : rect.width < 70
-            ? `+${hidden}\nstates`
-            : `+${hidden} states`
-        : "Details";
+      hidden > 0 ? (rect.width < 96 ? `+${hidden}` : `+${hidden} states`) : "Details";
     this.overflow.style = this.styled(
-      10,
+      getUiFontSize("label"),
       danger ? "700" : "500",
       danger ? this.theme.gameTheme.pt.lethal : this.theme.gameTheme.textMuted,
     );
@@ -1392,6 +1437,13 @@ export class PlayerHudCapsule {
       color: hexToNum(danger ? this.theme.gameTheme.pt.lethal : this.theme.gameTheme.textGhost),
       alpha: danger ? 0.16 : 0.08,
     });
+    const hitWidth = Math.max(rect.width, getUiControlHeight());
+    const hitHeight = Math.max(rect.height, getUiControlHeight());
+    this.overflowHitArea.x = rect.x + (rect.width - hitWidth) / 2;
+    this.overflowHitArea.y = rect.y + (rect.height - hitHeight) / 2;
+    this.overflowHitArea.width = hitWidth;
+    this.overflowHitArea.height = hitHeight;
+    this.overflowHit.hitArea = this.overflowHitArea;
   }
 
   private applyLifeAnim(): void {

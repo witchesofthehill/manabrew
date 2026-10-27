@@ -2,7 +2,6 @@ import type { Prompt, PromptOutput, ProtocolError } from "@/protocol";
 import type { DisplayEvent } from "@/protocol/display";
 import type { CardDto, GameViewDto, PlayerDto } from "@/protocol/game";
 import type { Deck } from "@/protocol/deck";
-import type { GameLogEntry } from "@/types/gameLog";
 import type { EngineKind, GameFormat } from "@/types/server";
 import type { IronsmithDeckIssue } from "@/game";
 
@@ -56,7 +55,6 @@ export interface DeferredSnapshot {
 export interface GameState {
   gameView: ClientGameView | null;
   currentPrompt: Prompt | null;
-  gameLog: GameLogEntry[];
   protocolError: ProtocolError | null;
   isGameActive: boolean;
   debugInfo: string;
@@ -138,5 +136,4 @@ export interface GameState {
   ) => void;
   requestRestore: (checkpointId: number) => Promise<void>;
   voteRestore: (voteId: number, accept: boolean) => Promise<void>;
-  setSnapshotRecording: (enabled: boolean) => Promise<void>;
 }

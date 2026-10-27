@@ -40,16 +40,16 @@ const SIZE_TOKENS: Record<CounterSize, SizeTokens> = {
     count: "text-[7px]",
   },
   md: {
-    pill: "h-5 min-w-[1.25rem] px-1.5 gap-0.5",
+    pill: "min-h-5 min-w-[1.25rem] px-1.5 py-0.5 gap-0.5",
     symbol: "h-3.5 w-3.5",
-    text: "text-[10px]",
-    count: "text-[9px]",
+    text: "text-ui-meta",
+    count: "text-ui-meta",
   },
   lg: {
-    pill: "h-6 min-w-[1.5rem] px-2 gap-1",
+    pill: "min-h-6 min-w-[1.5rem] px-2 py-0.5 gap-1",
     symbol: "h-4 w-4",
-    text: "text-xs",
-    count: "text-[10px]",
+    text: "text-ui-meta",
+    count: "text-ui-meta",
   },
 };
 export interface CounterBadgeProps {
@@ -116,7 +116,7 @@ export function CounterSummary({ counters, className }: CounterSummaryProps) {
     .sort((a, b) => b[1] - a[1]);
   if (entries.length === 0) return null;
   return (
-    <div className={cn("flex flex-wrap items-center gap-1.5 text-sm", className)}>
+    <div className={cn("flex flex-wrap items-center gap-1.5 text-ui-meta", className)}>
       {entries.map(([type, count]) => {
         const cfg = getCounterConfig(type);
         return (
@@ -131,7 +131,7 @@ export function CounterSummary({ counters, className }: CounterSummaryProps) {
                 <span className="font-bold text-foreground tabular-nums">{count}×</span>
                 <span
                   className={cn(
-                    "inline-flex items-center justify-center rounded-full h-6 min-w-6 px-2",
+                    "inline-flex items-center justify-center rounded-full min-h-6 min-w-6 px-2 py-0.5",
                     "shadow-sm ring-1 ring-black/20 font-bold leading-none",
                     COUNTER_BG_CLASS[cfg.colorKey],
                     "text-text-on-tinted",
@@ -140,7 +140,7 @@ export function CounterSummary({ counters, className }: CounterSummaryProps) {
                   {cfg.iconName ? (
                     <GameIcon name={cfg.iconName} className="h-4 w-4 fill-current" />
                   ) : (
-                    <span className="text-xs">{cfg.label}</span>
+                    <span className="text-ui-meta">{cfg.label}</span>
                   )}
                 </span>
               </span>

@@ -112,7 +112,7 @@ export function TopBar({ override }: TopBarProps) {
         type="button"
         onClick={goHome}
         aria-label={`Manabrew Home`}
-        className="group relative flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xl border border-transparent px-0.5 py-0 motion-safe:transition-[background-color,border-color,box-shadow] hover:border-primary/30 hover:bg-primary/10 hover:shadow-sm focus-visible:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="group relative flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xl border border-transparent px-0.5 py-0 motion-safe:transition-[background-color,border-color,box-shadow] hover:border-primary/30 hover:bg-primary/10 hover:shadow-sm focus-visible:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring touch:min-w-11 text-ui-label whitespace-normal"
       >
         <ManaBrewLogo decorative height={60} className="-my-2 hidden shrink-0 sm:block" />
         <ManaBrewLogo decorative variant="symbol" height={40} className="shrink-0 sm:hidden" />
@@ -122,14 +122,14 @@ export function TopBar({ override }: TopBarProps) {
           <span className="h-5 w-px shrink-0 bg-border" aria-hidden />
           {/* Centers the title on the wordmark letters, which sit below the logo box centre. */}
           <h1
-            className="min-w-0 truncate text-sm font-medium sm:translate-y-[2px] sm:[html.light_&]:translate-y-[3px]"
+            className="min-w-0 break-words text-ui-label font-medium sm:translate-y-[2px] sm:[html.light_&]:translate-y-[3px]"
             title={title}
           >
             {title}
           </h1>
         </>
       )}
-      <div className="ml-auto flex shrink-0 items-center gap-1">
+      <div className="ml-auto flex min-w-0 shrink-0 items-center gap-1">
         <TopBarNav
           key={navigationDisabled ? "disabled-nav" : "primary-nav"}
           disabled={navigationDisabled}

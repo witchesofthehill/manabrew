@@ -23,18 +23,6 @@ export function useAutoResolvePrompt(paused = false): void {
     if (import.meta.env?.DEV) {
       console.debug(`[prompt-resolver] auto-respond ${currentPrompt.input.type}: ${result.reason}`);
     }
-    appendAutoResolutionLog(currentPrompt.input.type, result.reason);
     void respond(result.respond);
   }, [paused, currentPrompt, isWaitingForResponse, respond, showOverrides]);
-}
-
-function appendAutoResolutionLog(promptType: string, reason: string): void {
-  const entry = {
-    message: `Auto-resolved ${promptType}: ${reason}`,
-    entryType: "info" as const,
-    timestampMs: Date.now(),
-  };
-  useGameStore.setState((state) => ({
-    gameLog: [...state.gameLog.slice(-199), entry],
-  }));
 }

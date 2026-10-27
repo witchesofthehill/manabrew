@@ -79,16 +79,22 @@ export function createDirectiveLane(buffer) {
     data: new Uint8Array(buffer, HEADER_BYTES),
     queue: [],
     flushScheduled: false,
+    cancelled: false,
   };
 }
 
 export function writeDirectiveLane(lane, directive) {
+  if (lane.cancelled) return;
   lane.queue.push(directive);
   if (!lane.flushScheduled) flushDirectiveLane(lane);
 }
 
 function flushDirectiveLane(lane) {
   lane.flushScheduled = false;
+  if (lane.cancelled) {
+    lane.queue.length = 0;
+    return;
+  }
   while (lane.queue.length > 0) {
     if (Atomics.load(lane.signal, 0) !== LANE_EMPTY) {
       lane.flushScheduled = true;

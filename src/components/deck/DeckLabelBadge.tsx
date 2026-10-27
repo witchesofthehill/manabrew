@@ -14,8 +14,8 @@ function getContrastColor(hex: string, darkInk: string, lightInk: string): strin
 type Size = "sm" | "md";
 
 const SIZE_CLASSES: Record<Size, string> = {
-  sm: "text-[8px] px-1 py-0",
-  md: "text-[10px] px-1.5 py-0.5",
+  sm: "text-ui-meta px-1 py-0",
+  md: "text-ui-meta px-1.5 py-0.5",
 };
 
 interface DeckLabelBadgeProps {
@@ -28,7 +28,7 @@ export function DeckLabelBadge({ label, size = "sm", className }: DeckLabelBadge
   const themeColors = useTheme().gameTheme;
   return (
     <span
-      className={cn("rounded-full font-medium border leading-tight", SIZE_CLASSES[size], className)}
+      className={cn("rounded-full font-medium border", SIZE_CLASSES[size], className)}
       style={
         label.color
           ? {

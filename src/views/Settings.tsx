@@ -68,8 +68,9 @@ import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 function HelpMark({ description }: { description: string | undefined }) {
   if (!description) return null;
   return (
-    <span
-      className="group relative inline-flex items-center"
+    <button
+      type="button"
+      className="group relative inline-flex shrink-0 items-center justify-center touch:min-h-11 touch:min-w-11"
       tabIndex={0}
       role="button"
       aria-label={description}
@@ -78,8 +79,8 @@ function HelpMark({ description }: { description: string | undefined }) {
       <span
         role="tooltip"
         className={cn(
-          "pointer-events-none absolute left-0 top-full z-50 mt-1 w-56 whitespace-normal",
-          "rounded-md border bg-popover px-2 py-1.5 text-[11px] leading-snug text-popover-foreground shadow-lg",
+          "pointer-events-none absolute right-0 top-full z-50 mt-1 w-56 whitespace-normal",
+          "rounded-md border bg-popover px-2 py-1.5 text-ui-meta leading-snug text-popover-foreground shadow-lg",
           "opacity-0 -translate-y-1 transition-all duration-150",
           "group-hover:opacity-100 group-hover:translate-y-0",
           "group-focus-within:opacity-100 group-focus-within:translate-y-0",
@@ -87,7 +88,7 @@ function HelpMark({ description }: { description: string | undefined }) {
       >
         {description}
       </span>
-    </span>
+    </button>
   );
 }
 
@@ -262,8 +263,8 @@ export default function Settings() {
   return (
     <div
       className={cn(
-        "h-full space-y-8 overflow-y-auto px-4 py-8 sm:px-6 lg:px-8",
-        shortTouch && "space-y-4 py-4 sm:py-4",
+        "h-full space-y-8 overflow-y-auto px-4 pt-8 pb-[calc(2rem+max(0px,100dvh-var(--visual-viewport-height)-var(--visual-viewport-top)))] sm:px-6 lg:px-8",
+        shortTouch && "space-y-4 pt-4 sm:pt-4",
       )}
     >
       <section>
@@ -276,7 +277,7 @@ export default function Settings() {
               id="settings-section"
               value={activeTab}
               onValueChange={(value) => setActiveTab(value as SettingsTab)}
-              className="h-11 w-full rounded-md border border-input bg-background px-3 text-base"
+              className="min-h-11 w-full rounded-md border border-input bg-background px-3 text-ui-label"
             >
               {settingsTabs.map((tab) => (
                 <AppSelectOption key={tab.value} value={tab.value}>
@@ -293,7 +294,7 @@ export default function Settings() {
                 type="button"
                 onClick={() => setActiveTab(tab.value)}
                 className={cn(
-                  "shrink-0 whitespace-nowrap border-b-2 pb-2 text-sm font-medium transition-colors",
+                  "shrink-0 whitespace-nowrap border-b-2 pb-2 text-ui-label font-medium transition-colors touch:min-h-11 touch:min-w-11",
                   activeTab === tab.value
                     ? "border-primary text-foreground"
                     : "border-transparent text-muted-foreground hover:text-foreground",
@@ -320,7 +321,7 @@ export default function Settings() {
           <h2 className="text-lg font-semibold">Cache</h2>
           <div className="rounded-lg border bg-card/40 p-4 space-y-3 max-w-xl">
             <Label>Card Image Cache</Label>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-ui-body text-muted-foreground">
               Drops Manabrew&apos;s in-memory card textures and image object URLs, clears the
               CacheStorage API, then reloads so every card image is fetched fresh. Use this if
               battlefield card art fails to appear. For a full browser HTTP cache wipe, use the
@@ -392,8 +393,8 @@ export default function Settings() {
                 {KNOWN_RELAYS.map((relay) => (
                   <DropdownMenuItem key={relay.name} onSelect={() => void applyKnownRelay(relay)}>
                     <div className="flex flex-col">
-                      <span className="text-sm">{relay.name}</span>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-ui-label">{relay.name}</span>
+                      <span className="text-ui-meta text-muted-foreground">
                         {relay.host}:{relay.port}
                       </span>
                     </div>
@@ -410,15 +411,15 @@ export default function Settings() {
                         className="justify-between gap-2"
                       >
                         <div className="flex min-w-0 flex-col">
-                          <span className="truncate text-sm">{relay.name}</span>
-                          <span className="truncate text-xs text-muted-foreground">
+                          <span className="truncate text-ui-label">{relay.name}</span>
+                          <span className="truncate text-ui-meta text-muted-foreground">
                             {relay.host}:{relay.port}
                           </span>
                         </div>
                         <button
                           type="button"
                           aria-label={`Remove ${relay.name}`}
-                          className="shrink-0 rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                          className="shrink-0 rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal"
                           onPointerDown={(e) => e.stopPropagation()}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -444,15 +445,15 @@ export default function Settings() {
               Save current server…
             </Button>
             {server.connected && (
-              <span className="text-xs text-success flex items-center gap-1">
+              <span className="text-ui-meta text-success flex items-center gap-1">
                 <span className="h-2 w-2 rounded-full bg-success" />
                 Connected as {server.username}
               </span>
             )}
             {server.connecting && (
-              <span className="text-xs text-muted-foreground">Connecting...</span>
+              <span className="text-ui-meta text-muted-foreground">Connecting...</span>
             )}
-            {server.error && <span className="text-xs text-destructive">{server.error}</span>}
+            {server.error && <span className="text-ui-meta text-destructive">{server.error}</span>}
           </div>
           {savingServer && (
             <div className="flex flex-wrap items-center gap-2">
@@ -478,12 +479,12 @@ export default function Settings() {
               <Button size="sm" variant="ghost" onClick={() => setSavingServer(false)}>
                 Cancel
               </Button>
-              <span className="text-xs text-muted-foreground">
+              <span className="text-ui-meta text-muted-foreground">
                 Saves the current host, port, and password so you can switch back later.
               </span>
             </div>
           )}
-          <p className="text-xs text-muted-foreground">
+          <p className="text-ui-body text-muted-foreground">
             Server connection settings. Saving will disconnect and reconnect with the new
             credentials.
           </p>
@@ -492,7 +493,12 @@ export default function Settings() {
 
       {activeTab === "preferences" && (
         <section>
-          <div className={cn("grid gap-4 md:grid-cols-2 xl:grid-cols-3", shortTouch && "gap-3")}>
+          <div
+            className={cn(
+              "grid gap-4 grid-cols-[repeat(auto-fit,minmax(min(100%,22rem),1fr))]",
+              shortTouch && "gap-3",
+            )}
+          >
             <LanguagePreferenceCard />
             <PreferenceCard
               title={`Default Playmat`}
@@ -504,7 +510,7 @@ export default function Settings() {
                   onClick={() => setPlaymatEditorOpen(true)}
                   title={hasDefaultPlaymat ? `Customize playmat` : `Set playmat`}
                   className={cn(
-                    "flex aspect-video w-full items-center justify-center overflow-hidden rounded-lg border bg-muted",
+                    "flex aspect-video w-full items-center justify-center overflow-hidden rounded-lg border bg-muted touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal",
                     "motion-safe:transition-[border-color,box-shadow] hover:border-primary/40 hover:shadow-sm",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     !hasDefaultPlaymat && "border-dashed",
@@ -525,7 +531,7 @@ export default function Settings() {
                       aria-hidden
                     />
                   ) : (
-                    <span className="flex size-12 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm motion-safe:transition-opacity opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100">
+                    <span className="flex size-12 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm motion-safe:transition-opacity opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 touch:opacity-100">
                       <Plus className="h-6 w-6" />
                     </span>
                   )}
@@ -544,7 +550,7 @@ export default function Settings() {
                       prefs.setDefaultPlaymatAssetId(undefined);
                       prefs.setDefaultPlaymatSettings(undefined);
                     }}
-                    className="absolute -top-2 -right-2 flex size-6 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm motion-safe:transition-opacity opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto pointer-coarse:opacity-100 pointer-coarse:pointer-events-auto hover:border-destructive hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring before:absolute before:-inset-2.5 before:content-['']"
+                    className="absolute -top-2 -right-2 flex size-6 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm motion-safe:transition-opacity opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto touch:opacity-100 touch:pointer-events-auto hover:border-destructive hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring before:absolute before:-inset-2.5 before:content-[''] touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal"
                   >
                     <Minus className="h-3 w-3" />
                   </button>
@@ -556,12 +562,12 @@ export default function Settings() {
               title={`Battlefield Zone Column Order`}
               description={`Controls placement of Library / Graveyard / Exile in the in-field zone column.`}
             >
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,7rem),1fr))] gap-2">
                 {(["Top", "Middle", "Bottom"] as const).map((slot, index) => (
                   <div key={slot} className="space-y-1">
                     <Label
                       htmlFor={`zone-order-${index}`}
-                      className="text-xs text-muted-foreground"
+                      className="text-ui-label text-muted-foreground"
                     >
                       {slot}
                     </Label>
@@ -569,7 +575,7 @@ export default function Settings() {
                       id={`zone-order-${index}`}
                       value={zoneOrder[index]}
                       onValueChange={(value) => setZoneSlot(index, value as ZonePanelItem)}
-                      className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm pointer-coarse:h-11 pointer-coarse:text-base"
+                      className="min-h-9 w-full rounded-md border border-input bg-background px-2 text-ui-label touch:min-h-11"
                     >
                       <AppSelectOption value="library">Library</AppSelectOption>
                       <AppSelectOption value="graveyard">Graveyard</AppSelectOption>
@@ -585,7 +591,7 @@ export default function Settings() {
               value={`${Math.round(prefs.cardSizeMultiplier * 100)}%`}
               description={`Scales cards on every battlefield and your hand fan. 100% is the classic 3-row board; battlefield cards cap at a 2-row fill so the board stays playable, while the hand keeps growing past them.`}
             >
-              <div className="flex items-start gap-4">
+              <div className="flex flex-wrap items-start gap-4">
                 <div className="flex-1 space-y-3">
                   <input
                     type="range"
@@ -594,7 +600,7 @@ export default function Settings() {
                     step={5}
                     value={Math.round(prefs.cardSizeMultiplier * 100)}
                     onChange={(e) => prefs.setCardSizeMultiplier(Number(e.target.value) / 100)}
-                    className="h-11 w-full accent-primary"
+                    className="h-11 w-full accent-primary touch:min-h-11 touch:min-w-11"
                   />
                   <div className="flex flex-wrap gap-2">
                     <Button
@@ -707,7 +713,7 @@ export default function Settings() {
               title={`Battlefield Card Style`}
               description={`Manabrew shows a composed card with current game information. Realistic shows the printed scan. Art-forward uses artwork with compact labels. This setting only affects battlefield cards.`}
             >
-              <div className="flex items-start gap-4">
+              <div className="flex flex-wrap items-start gap-4">
                 <div className="flex-1 flex flex-wrap content-start gap-2">
                   <Button
                     variant={prefs.battlefieldCardStyle === "realistic" ? "selected" : "outline"}
@@ -935,7 +941,7 @@ export default function Settings() {
                 step={FLASH_STEP}
                 value={flashDurationMs}
                 onChange={(e) => setFlashDurationMs(Number(e.target.value))}
-                className="h-11 w-full accent-primary"
+                className="h-11 w-full accent-primary touch:min-h-11 touch:min-w-11"
               />
             </PreferenceCard>
           </div>
@@ -983,7 +989,7 @@ export default function Settings() {
                   System
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground">Controls app theme preference.</p>
+              <p className="text-ui-meta text-muted-foreground">Controls app theme preference.</p>
             </div>
           </div>
 
@@ -997,7 +1003,7 @@ export default function Settings() {
           </div>
 
           <div className="space-y-3 pt-2">
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <Label>App Theme Colors</Label>
               <Button
                 size="sm"
@@ -1014,7 +1020,7 @@ export default function Settings() {
                 Reset Colors
               </Button>
             </div>
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(min(100%,22rem),1fr))]">
               {APP_THEME_GROUPS.map((group) => {
                 const mode = resolvedTheme === "dark" ? "dark" : "light";
                 const q = themeColorFilter.toLowerCase();
@@ -1029,11 +1035,11 @@ export default function Settings() {
                 if (filteredKeys.length === 0) return null;
                 return (
                   <div key={group.heading} className="rounded-lg border bg-card/40 p-4 space-y-1.5">
-                    <div className="flex items-baseline gap-2">
-                      <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    <div className="flex flex-wrap items-baseline gap-2">
+                      <h4 className="text-ui-meta font-semibold uppercase tracking-wider text-muted-foreground">
                         {group.heading}
                       </h4>
-                      <span className="text-[10px] text-muted-foreground/70">
+                      <span className="text-ui-meta text-muted-foreground/70">
                         {group.description}
                       </span>
                     </div>
@@ -1046,7 +1052,7 @@ export default function Settings() {
                             key={key}
                             className="flex flex-col gap-1 rounded-md border px-2 py-1.5 min-w-0"
                           >
-                            <Label className="text-xs font-mono break-words flex items-center gap-1">
+                            <Label className="text-ui-label font-mono break-words flex items-start gap-1">
                               <span>{APP_THEME_COLOR_LABELS[key] ?? key}</span>
                               <HelpMark description={APP_THEME_COLOR_DESCRIPTIONS[key]} />
                             </Label>
@@ -1065,7 +1071,7 @@ export default function Settings() {
                                     ),
                                   )
                                 }
-                                className="h-8 w-10 shrink-0 rounded border border-input bg-transparent p-0.5 pointer-coarse:h-11 pointer-coarse:w-11"
+                                className="min-h-8 w-10 shrink-0 rounded border border-input bg-transparent p-0.5 touch:min-h-11 touch:w-11 touch:min-h-11 touch:min-w-11"
                               />
                               {editingThemeColorPath === `app.${key}` ? (
                                 <input
@@ -1082,13 +1088,13 @@ export default function Settings() {
                                       setEditingThemeColorValue("");
                                     }
                                   }}
-                                  className="h-7 min-w-0 flex-1 rounded border border-input bg-background px-1.5 text-right text-[11px] font-mono pointer-coarse:h-11 pointer-coarse:text-base"
+                                  className="min-h-7 min-w-0 flex-1 rounded border border-input bg-background px-1.5 text-right text-ui-input font-mono touch:min-h-11 touch:min-w-11"
                                   spellCheck={false}
                                 />
                               ) : (
                                 <button
                                   type="button"
-                                  className="flex-1 min-w-0 text-right text-[11px] font-mono text-muted-foreground hover:text-foreground underline-offset-2 hover:underline truncate"
+                                  className="flex-1 min-w-0 text-right text-ui-label font-mono text-muted-foreground hover:text-foreground underline-offset-2 hover:underline break-all touch:min-h-11 touch:min-w-11 whitespace-normal"
                                   onClick={() => beginThemeColorEdit(`app.${key}`, activeValue)}
                                   title={`Click to edit color value`}
                                 >
@@ -1104,19 +1110,19 @@ export default function Settings() {
                 );
               })}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-ui-meta text-muted-foreground">
               Override individual Manabrew colors for the current app mode.
             </p>
           </div>
 
           <div className="space-y-3 pt-2">
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <Label>Game Theme Colors</Label>
               <Button size="sm" variant="outline" onClick={prefs.resetGameThemeColorOverrides}>
                 Reset Colors
               </Button>
             </div>
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(min(100%,22rem),1fr))]">
               {(() => {
                 const allPaths = Object.keys(DEFAULT_GAME_THEME_COLOR_MAP);
                 const grouped = new Set<string>();
@@ -1168,11 +1174,11 @@ export default function Settings() {
                       key={group.heading}
                       className="rounded-lg border bg-card/40 p-4 space-y-1.5"
                     >
-                      <div className="flex items-baseline gap-2">
-                        <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      <div className="flex flex-wrap items-baseline gap-2">
+                        <h4 className="text-ui-meta font-semibold uppercase tracking-wider text-muted-foreground">
                           {group.heading}
                         </h4>
-                        <span className="text-[10px] text-muted-foreground/70">
+                        <span className="text-ui-meta text-muted-foreground/70">
                           {group.description}
                         </span>
                       </div>
@@ -1187,7 +1193,7 @@ export default function Settings() {
                             >
                               <Label
                                 htmlFor={`theme-color-${path}`}
-                                className="text-xs font-mono break-words flex items-center gap-1"
+                                className="text-ui-meta font-mono break-words flex items-start gap-1"
                               >
                                 <span>{path}</span>
                                 <HelpMark
@@ -1210,7 +1216,7 @@ export default function Settings() {
                                       ),
                                     )
                                   }
-                                  className="h-8 w-10 shrink-0 rounded border border-input bg-transparent p-0.5 pointer-coarse:h-11 pointer-coarse:w-11"
+                                  className="min-h-8 w-10 shrink-0 rounded border border-input bg-transparent p-0.5 touch:min-h-11 touch:w-11 touch:min-h-11 touch:min-w-11"
                                 />
                                 {editingThemeColorPath === path ? (
                                   <input
@@ -1227,7 +1233,7 @@ export default function Settings() {
                                         setEditingThemeColorValue("");
                                       }
                                     }}
-                                    className="h-7 min-w-0 flex-1 rounded border border-input bg-background px-1.5 text-right text-[11px] font-mono pointer-coarse:h-11 pointer-coarse:text-base"
+                                    className="min-h-7 min-w-0 flex-1 rounded border border-input bg-background px-1.5 text-right text-ui-input font-mono touch:min-h-11 touch:min-w-11"
                                     autoComplete="off"
                                     autoCorrect="off"
                                     autoCapitalize="off"
@@ -1236,7 +1242,7 @@ export default function Settings() {
                                 ) : (
                                   <button
                                     type="button"
-                                    className="flex-1 min-w-0 text-right text-[11px] font-mono text-muted-foreground hover:text-foreground underline-offset-2 hover:underline truncate"
+                                    className="flex-1 min-w-0 text-right text-ui-label font-mono text-muted-foreground hover:text-foreground underline-offset-2 hover:underline break-all touch:min-h-11 touch:min-w-11 whitespace-normal"
                                     onClick={() => beginThemeColorEdit(path, activeColor)}
                                     title={`Click to edit color value`}
                                   >
@@ -1252,7 +1258,7 @@ export default function Settings() {
                   ));
               })()}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-ui-meta text-muted-foreground">
               Generated from game theme keys. Defaults come from Manabrew.
             </p>
           </div>

@@ -43,7 +43,7 @@ export function LimitedSetupDialog({
       }}
     >
       <DialogContent
-        className="w-[calc(100%-2rem)] max-w-3xl"
+        className="max-w-3xl overflow-y-auto overscroll-contain"
         onCloseAutoFocus={(event) => {
           event.preventDefault();
           if (restoreFocus) triggerRef.current?.focus();
@@ -66,7 +66,7 @@ export function LimitedSetupDialog({
           />
         )}
         {setup.lastError && (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-ui-meta text-destructive">
             {setup.lastError}
           </p>
         )}

@@ -49,7 +49,7 @@ export function DeleteAccountDialog({ open, onOpenChange }: DeleteAccountDialogP
   }
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-sm overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Delete account</DialogTitle>
           <DialogDescription>
@@ -69,7 +69,7 @@ export function DeleteAccountDialog({ open, onOpenChange }: DeleteAccountDialogP
               if (e.key === "Enter" && confirmed) void handleDelete();
             }}
           />
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && <p className="text-ui-meta text-destructive">{error}</p>}
         </div>
         <DialogFooter className="gap-2">
           <Button

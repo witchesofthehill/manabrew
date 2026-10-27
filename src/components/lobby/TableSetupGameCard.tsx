@@ -110,7 +110,7 @@ export function TableSetupGameCard({
   }
   return (
     <section className="rounded-xl border bg-card/85 p-4 backdrop-blur-md">
-      <h2 className="text-sm font-semibold">The game</h2>
+      <h2 className="text-ui-label font-semibold">The game</h2>
       <div className="mt-3 space-y-4">
         <div className="flex overflow-hidden rounded-md border">
           <ModeButton
@@ -126,7 +126,7 @@ export function TableSetupGameCard({
         </div>
 
         {kind === "limited" && (
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-2">
             {LIMITED_KINDS.map((meta) => (
               <LimitedKindCard
                 key={meta.value}
@@ -140,14 +140,14 @@ export function TableSetupGameCard({
 
         {kind === "match" && (
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Format</Label>
+            <Label className="text-ui-label font-medium">Format</Label>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
                   id="room-format"
                   title={`Change format`}
-                  className="inline-flex w-full cursor-pointer items-center gap-1.5 rounded-full border bg-background/60 px-2 py-1 text-xs backdrop-blur-sm transition-colors hover:bg-background/80"
+                  className="inline-flex w-full cursor-pointer items-center gap-1.5 rounded-full border bg-background/60 px-2 py-1 text-ui-label backdrop-blur-sm transition-colors hover:bg-background/80 touch:min-h-11 touch:min-w-11 whitespace-normal"
                 >
                   <FormatBadge formatId={format.toLowerCase()} />
                   <span className="font-medium">
@@ -167,7 +167,7 @@ export function TableSetupGameCard({
                     className="gap-2"
                   >
                     <FormatBadge formatId={option.value.toLowerCase()} />
-                    <span className="text-xs">{option.label}</span>
+                    <span className="text-ui-label">{option.label}</span>
                     {format === option.value && (
                       <Check className="ml-auto h-3 w-3 text-selection-border" />
                     )}
@@ -175,7 +175,7 @@ export function TableSetupGameCard({
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-ui-meta text-muted-foreground">
               {FORMATS.find((option) => option.value === format)?.description}
             </p>
             {(format === "Draft" || format === "Sealed") && (
@@ -194,7 +194,7 @@ export function TableSetupGameCard({
         )}
 
         <div className="space-y-1.5">
-          <Label className="text-xs font-medium">
+          <Label className="text-ui-label font-medium">
             {kind === "limited" ? `Pod size` : `Players`}
           </Label>
           <div className="flex items-center gap-2">
@@ -204,14 +204,14 @@ export function TableSetupGameCard({
                 type="button"
                 onClick={() => onMaxPlayersChange(n)}
                 className={cn(
-                  "flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg border transition-colors",
+                  "flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-lg border transition-colors touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal",
                   maxPlayers === n
                     ? "border-primary bg-primary/5 text-primary"
                     : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground",
                 )}
               >
                 <Users className="h-3.5 w-3.5" />
-                <span className="text-sm font-medium">{n}</span>
+                <span className="text-ui-label font-medium">{n}</span>
               </button>
             ))}
           </div>
@@ -219,7 +219,7 @@ export function TableSetupGameCard({
 
         {isSealed && (
           <>
-            <label className="flex items-center gap-2 text-xs">
+            <label className="flex items-center gap-2 text-ui-label touch:min-h-11 touch:min-w-11">
               <input
                 type="checkbox"
                 checked={sealedUseCube}
@@ -231,9 +231,9 @@ export function TableSetupGameCard({
               />
               <span>Use a CubeCobra cube instead of a set</span>
             </label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,9rem),1fr))] gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="sealed-boosters" className="text-xs font-medium">
+                <Label htmlFor="sealed-boosters" className="text-ui-label font-medium">
                   Packs per player
                 </Label>
                 <Input
@@ -250,7 +250,7 @@ export function TableSetupGameCard({
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="sealed-seed" className="text-xs font-medium">
+                <Label htmlFor="sealed-seed" className="text-ui-label font-medium">
                   Seed
                 </Label>
                 <Input
@@ -263,7 +263,7 @@ export function TableSetupGameCard({
                 />
               </div>
             </div>
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-ui-body text-muted-foreground">
               Each player opens their own pool — pools are independent but reproducible from the
               seed.
             </p>
@@ -272,7 +272,7 @@ export function TableSetupGameCard({
 
         {(isCube || (isSealed && sealedUseCube)) && (
           <div className="space-y-1.5">
-            <Label htmlFor="cube-input" className="text-xs font-medium">
+            <Label htmlFor="cube-input" className="text-ui-label font-medium">
               Cube
             </Label>
             <div className="flex items-center gap-2">
@@ -282,7 +282,7 @@ export function TableSetupGameCard({
                 value={cubeInput}
                 onChange={(e) => setCubeInput(e.target.value)}
                 placeholder={`cubeid or cubecobra.com/\u2026`}
-                className="h-9 flex-1 text-sm pointer-coarse:text-base"
+                className="min-h-9 flex-1 text-ui-input touch:min-h-11"
                 disabled={importingCube}
               />
               <Button
@@ -302,24 +302,24 @@ export function TableSetupGameCard({
               </Button>
             </div>
             {importedCube && (
-              <p className="text-[11px] text-muted-foreground">
-                Loaded: <span className="text-foreground/90">{importedCube.name}</span> —{" "}
+              <p className="text-ui-meta text-muted-foreground">
+                Loaded: <span className="text-foreground/90">{importedCube.name}</span> —{""}
                 {importedCube.cardCount} cards
                 {importedCube.rejectedCardCount > 0 &&
                   ` · ${importedCube.rejectedCardCount} without local engine data`}
               </p>
             )}
             {cubeImportError && !importedCube && !importingCube && (
-              <p className="text-[11px] text-destructive">{cubeImportError}</p>
+              <p className="text-ui-meta text-destructive">{cubeImportError}</p>
             )}
           </div>
         )}
 
         {(isBoosterDraft || isCube) && (
           <>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,9rem),1fr))] gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="draft-rounds" className="text-xs font-medium">
+                <Label htmlFor="draft-rounds" className="text-ui-label font-medium">
                   Rounds
                 </Label>
                 <Input
@@ -334,7 +334,7 @@ export function TableSetupGameCard({
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="draft-picks-per-pass" className="text-xs font-medium">
+                <Label htmlFor="draft-picks-per-pass" className="text-ui-label font-medium">
                   Picks / pass
                 </Label>
                 <Input
@@ -349,7 +349,7 @@ export function TableSetupGameCard({
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="draft-seed" className="text-xs font-medium">
+                <Label htmlFor="draft-seed" className="text-ui-label font-medium">
                   Seed
                 </Label>
                 <Input
@@ -367,7 +367,7 @@ export function TableSetupGameCard({
               onPickSecondsChange={onDraftPickSecondsChange}
               supported={draftClockSupported}
             />
-            <label className="flex items-center gap-2 text-xs">
+            <label className="flex items-center gap-2 text-ui-label touch:min-h-11 touch:min-w-11">
               <input
                 type="checkbox"
                 checked={draftFillWithBots}
@@ -422,28 +422,28 @@ function LimitedKindCard({
       onClick={onClick}
       disabled={!meta.enabled}
       className={cn(
-        "flex flex-col items-start gap-0.5 rounded-lg border p-3 text-left transition-colors",
+        "flex flex-col items-start gap-0.5 rounded-lg border p-3 text-left transition-colors touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal",
         selected && meta.enabled
           ? "border-selection-border bg-selection"
           : "border-border enabled:hover:border-selection-border/30 enabled:hover:bg-muted/30",
         !meta.enabled && "cursor-not-allowed opacity-50",
       )}
     >
-      <span className="flex items-center gap-1.5">
+      <span className="flex flex-wrap items-center gap-1.5">
         <Icon
           className={cn(
             "h-4 w-4",
             selected && meta.enabled ? "text-selection-border" : "text-muted-foreground",
           )}
         />
-        <span className="text-sm font-medium">{meta.label}</span>
+        <span className="text-ui-label font-medium">{meta.label}</span>
         {!meta.enabled && (
-          <Badge variant="secondary" className="text-[9px]">
+          <Badge variant="secondary" className="text-ui-meta">
             coming soon
           </Badge>
         )}
       </span>
-      <span className="text-[11px] leading-snug text-muted-foreground">{meta.description}</span>
+      <span className="text-ui-body leading-snug text-muted-foreground">{meta.description}</span>
     </button>
   );
 }

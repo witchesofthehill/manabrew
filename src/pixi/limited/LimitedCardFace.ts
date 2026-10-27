@@ -1,4 +1,4 @@
-import { UI_FONT_FAMILY } from "@/themes/typography";
+import { getUiFontSize, UI_FONT_FAMILY } from "@/themes/typography";
 import { Container, Sprite, Text, Texture, type DestroyOptions } from "pixi.js";
 import { getTheme } from "@/hooks/useTheme";
 import { cardCosmeticsKey } from "@/lib/cardCosmetics";
@@ -26,8 +26,9 @@ export class LimitedCardFace extends Container {
   private readonly fallbackLabel = new Text({
     style: {
       fontFamily: UI_FONT_FAMILY,
-      fontSize: 13,
+      fontSize: getUiFontSize("label"),
       wordWrap: true,
+      breakWords: true,
     },
   });
   private ownedTexture: Texture | null = null;
@@ -35,6 +36,7 @@ export class LimitedCardFace extends Container {
   private contentKey = "";
   private cardWidth = 0;
   private cardHeight = 0;
+  private fallbackText = "";
   private tier: CardRenderTier | undefined;
   private readonly request: () => void;
 
@@ -58,6 +60,7 @@ export class LimitedCardFace extends Container {
     const theme = getTheme();
     this.image.setSize(width, height);
     this.foil.setSurface(width, height, 6, theme);
+    this.fallbackLabel.style.fontSize = getUiFontSize("label");
     this.fallbackLabel.style.fill = theme.appTheme.foreground;
     this.fallbackLabel.style.wordWrapWidth = width - 12;
     this.positionLabel();
@@ -88,12 +91,19 @@ export class LimitedCardFace extends Container {
     this.controller = controller;
     if (contentChanged) this.showTexture(Texture.EMPTY);
     this.foil.setAppearance(!!card.foil, card.cosmetics);
-    this.fallbackLabel.text = card.name;
+    this.fallbackText = card.name;
     this.positionLabel();
     void this.load({ ...card }, style === "rules", locale, tier, controller);
   }
 
   private positionLabel(): void {
+    this.fallbackLabel.text = this.fallbackText;
+    while (
+      this.fallbackLabel.height > this.cardHeight - 12 &&
+      this.fallbackLabel.text.replace(/…$/, "").length > 1
+    ) {
+      this.fallbackLabel.text = `${this.fallbackLabel.text.replace(/…$/, "").slice(0, -1)}…`;
+    }
     this.fallbackLabel.position.set(6, this.cardHeight / 2 - this.fallbackLabel.height / 2);
   }
 
@@ -160,13 +170,13 @@ export class LimitedCardFace extends Container {
       const texture = await scan;
       if (current() && texture !== Texture.EMPTY) this.showTexture(texture);
       if (current() && texture === Texture.EMPTY) {
-        this.fallbackLabel.text = `${card.name}\nImage unavailable`;
+        this.fallbackText = `${card.name}\nImage unavailable`;
         this.positionLabel();
         this.request();
       }
     } catch {
       if (current()) {
-        this.fallbackLabel.text = `${card.name}\nImage unavailable`;
+        this.fallbackText = `${card.name}\nImage unavailable`;
         this.positionLabel();
         this.request();
       }

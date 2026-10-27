@@ -8,6 +8,7 @@ import {
   type Texture,
 } from "pixi.js";
 import type { CardDto } from "@/protocol/game";
+import { getUiControlHeight, getUiFontSize } from "@/themes/typography";
 import type { BattlefieldState } from "../types";
 import { hexToNum } from "../colorUtils";
 import {
@@ -89,6 +90,9 @@ export class BattlefieldOverlay {
       state.waterbendSourceIds?.includes(card.id) ?? false,
       state.waterbentCardIds?.includes(card.id) ?? false,
       this.host.usesManaGrid(),
+      this.host.getCardScale(),
+      getUiFontSize("label"),
+      getUiControlHeight(),
       expandedMana.map((ab) => [
         ab.actionId,
         ab.description,
@@ -104,7 +108,7 @@ export class BattlefieldOverlay {
     overlay.removeChildren().forEach((c) => c.destroy({ children: true }));
 
     if (kind.isTappable && expandedMana.length > 0 && this.host.usesManaGrid()) {
-      this.drawManaGrid(overlay, card, state, expandedMana);
+      this.drawManaGrid(overlay, card, state, expandedMana, kind);
     } else {
       this.drawSingleButton(overlay, card, state, kind);
     }
@@ -149,6 +153,7 @@ export class BattlefieldOverlay {
     card: CardDto,
     state: BattlefieldState,
     abilities: ExpandedManaAbilityInfo[],
+    kind: ActionKind,
   ): void {
     const entries = abilities.map((ab) => {
       const letters =
@@ -177,6 +182,21 @@ export class BattlefieldOverlay {
     if (pending.length > 0) rows.push(pending);
 
     const btnH = this.cardHeight() / rows.length;
+    const scale = this.host.getCardScale();
+    const minControl = getUiControlHeight();
+    if (
+      btnH * scale < minControl ||
+      rows.some((row) =>
+        row.some(
+          ({ letters }) =>
+            (CARD_W * scale) / row.length <
+            Math.max(minControl, Math.max(1, letters.length) * (MIN_ICON_SCREEN_PX + 2)),
+        ),
+      )
+    ) {
+      this.drawSingleButton(overlay, card, state, kind);
+      return;
+    }
 
     rows.forEach((rowEntries, rowIndex) => {
       const btnW = CARD_W / rowEntries.length;
@@ -217,11 +237,20 @@ export class BattlefieldOverlay {
         overlay.addChild(btn);
 
         const iconLabels = letters.length > 0 ? letters : [OVERLAY_LABEL_TAP];
-        const iconSize = iconLabels.length > 2 ? 8 : rowEntries.length === 2 ? 10 : 12;
-        const iconBgSize = iconLabels.length > 2 ? 8 : rowEntries.length === 2 ? 10 : 14;
+        const iconSize = Math.max(
+          getUiFontSize("label") / scale,
+          iconLabels.length > 2 ? 8 : rowEntries.length === 2 ? 10 : 12,
+        );
+        const iconBgSize = Math.max(
+          MIN_ICON_SCREEN_PX / (2 * scale),
+          iconLabels.length > 2 ? 8 : rowEntries.length === 2 ? 10 : 14,
+        );
         const icons = iconLabels.map((iconLabel, iconIndex) => {
           const icon = this.createManaIcon(iconLabel, iconSize, iconBgSize);
-          const spacing = iconLabels.length > 2 ? 14 : 18;
+          const spacing = Math.max(
+            iconLabels.length > 2 ? 14 : 18,
+            (MIN_ICON_SCREEN_PX + 2) / scale,
+          );
           icon.x = controlX + controlW / 2 + (iconIndex - (iconLabels.length - 1) / 2) * spacing;
           icon.y = controlY + controlH / 2;
           overlay.addChild(icon);
@@ -294,7 +323,15 @@ export class BattlefieldOverlay {
     const controlH = fullCardButton ? cardHeight : 40;
 
     const btn = new Graphics();
-    if (fullCardButton) btn.hitArea = new Rectangle(0, 0, CARD_W, cardHeight);
+    const minTarget = getUiControlHeight() / this.host.getCardScale();
+    const hitW = Math.max(controlW, minTarget);
+    const hitH = Math.max(controlH, minTarget);
+    btn.hitArea = new Rectangle(
+      controlX + (controlW - hitW) / 2,
+      controlY + (controlH - hitH) / 2,
+      hitW,
+      hitH,
+    );
     const paintBtn = (highlighted: boolean) => {
       btn.clear();
       btn.roundRect(controlX, controlY, controlW, controlH, Math.min(CARD_RADIUS, controlH / 2));
@@ -305,13 +342,17 @@ export class BattlefieldOverlay {
 
     // Prefer the MTG card symbol (T / Q) when we have one — falls back to
     // the text label for generic SELECT or while the SVG is loading.
-    const centerIcon = symbol ? this.createManaIcon(symbol, 14, 18) : this.createLabelIcon(label);
+    const centerIcon = symbol
+      ? this.createManaIcon(symbol, getUiFontSize("label") / this.host.getCardScale(), 18)
+      : this.createLabelIcon(label, controlW);
     centerIcon.x = controlX + controlW / 2;
     centerIcon.y = controlY + controlH / 2;
-    const iconScale = Math.min(
-      CARD_W / (2 * 18 + 4),
-      Math.max(1, MIN_ICON_SCREEN_PX / (2 * 18 * this.host.getCardScale())),
-    );
+    const iconScale = symbol
+      ? Math.min(
+          CARD_W / (2 * 18 + 4),
+          Math.max(1, MIN_ICON_SCREEN_PX / (2 * 18 * this.host.getCardScale())),
+        )
+      : 1;
     centerIcon.scale.set(iconScale);
     overlay.addChild(centerIcon);
 
@@ -327,10 +368,16 @@ export class BattlefieldOverlay {
     );
   }
 
-  private createLabelIcon(label: string): Container {
+  private createLabelIcon(label: string, width: number): Container {
     const icon = new Container();
     icon.eventMode = "none";
-    const txt = new Text({ text: label, style: OVERLAY_LABEL_STYLE });
+    const style = OVERLAY_LABEL_STYLE.clone();
+    style.fontSize = getUiFontSize("label") / this.host.getCardScale();
+    style.wordWrap = true;
+    style.breakWords = true;
+    style.wordWrapWidth = Math.max(1, width - 8 / this.host.getCardScale());
+    style.align = "center";
+    const txt = new Text({ text: label, style });
     txt.anchor.set(0.5);
     icon.addChild(txt);
     return icon;

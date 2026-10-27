@@ -7,6 +7,22 @@ import type {
   StateUpdate,
 } from "@manabrew/protocol";
 
+export interface ForgeDecisionJournalEntry {
+  sequence: number;
+  playerIndex: number;
+  prompt: Prompt | null;
+  action: Record<string, unknown>;
+  verification: { state: string; rng: string };
+}
+
+export interface ForgeDecisionJournalBatch {
+  version: 2;
+  nextSequence: number;
+  startRequest?: string;
+  unavailableReason?: string;
+  entries: ForgeDecisionJournalEntry[];
+}
+
 export interface ForgeCardIdentity {
   name: string;
   setCode?: string;
@@ -54,6 +70,9 @@ export interface ForgeStartGameOptions {
   seed?: number;
   /** Off, the engine takes no restore snapshots. Defaults to on. */
   snapshotRecording?: boolean;
+  decisionJournal?: boolean;
+  journalRewind?: boolean;
+  gameId?: string;
 }
 
 export interface ForgeStartMultiplayerGameOptions {
@@ -74,6 +93,9 @@ export interface ForgeStartMultiplayerGameOptions {
   seed?: number;
   /** Off, the engine takes no restore snapshots. Defaults to on. */
   snapshotRecording?: boolean;
+  decisionJournal?: boolean;
+  journalRewind?: boolean;
+  gameId?: string;
 }
 
 /**

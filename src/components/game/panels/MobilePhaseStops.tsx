@@ -65,7 +65,7 @@ export function MobilePhaseStops({
         <div className="mb-3 flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2">
             <span
-              className="shrink-0 rounded-full border-2 px-3 py-1 font-game text-xs font-bold text-foreground"
+              className="shrink-0 rounded-full border-2 px-3 py-1 font-game text-ui-meta font-bold text-foreground"
               style={{
                 backgroundColor: gameTheme.phaseStrip.background,
                 borderColor: activeColor,
@@ -79,17 +79,17 @@ export function MobilePhaseStops({
               {currentShort}
             </span>
             <div className="min-w-0">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              <p className="text-ui-meta font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                 Phase stops
               </p>
-              <h2 className="truncate font-game text-sm font-semibold text-foreground">
+              <h2 className="break-words font-game text-ui-label font-semibold text-foreground">
                 {currentLabel}
               </h2>
             </div>
           </div>
           <button
             type="button"
-            className="min-h-12 rounded-lg border border-border bg-background/60 px-4 text-sm font-semibold text-foreground motion-safe:transition-[scale,background-color,border-color] active:scale-[0.98]"
+            className="min-h-12 min-w-11 shrink-0 rounded-lg border border-border bg-background/60 px-4 py-2 text-ui-label font-semibold text-foreground motion-safe:transition-[scale,background-color,border-color] active:scale-[0.98]"
             onClick={onClose}
           >
             Done
@@ -146,9 +146,11 @@ function StopRow({
   onToggle: (phase: string) => void;
 }) {
   return (
-    <div className="grid min-w-[40.5rem] grid-cols-[4.5rem_repeat(12,minmax(0,1fr))] gap-1">
+    <div className="grid min-w-[49rem] grid-cols-[7rem_repeat(12,minmax(3rem,1fr))] gap-1">
       <div className="flex min-w-0 items-center pr-1">
-        <span className="truncate text-xs font-semibold text-muted-foreground">{label}</span>
+        <span className="break-words text-ui-label font-semibold text-muted-foreground">
+          {label}
+        </span>
       </div>
       {PHASE_CONTROLS.map((phase) => {
         const enabled = stops.has(phase.id);
@@ -166,7 +168,7 @@ function StopRow({
             aria-pressed={enabled}
             title={phase.label}
             className={cn(
-              "relative flex min-h-12 min-w-0 items-center justify-center rounded-md border px-1 pb-1 font-game text-[10px] font-bold motion-safe:transition-[scale,background-color,border-color] active:scale-95",
+              "relative flex min-h-12 min-w-11 items-center justify-center rounded-md border px-1 pb-2 font-game text-ui-label font-bold motion-safe:transition-[scale,background-color,border-color] active:scale-95",
               current || enabled ? "text-foreground" : "text-muted-foreground",
             )}
             style={style}

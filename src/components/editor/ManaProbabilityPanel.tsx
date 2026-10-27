@@ -38,24 +38,27 @@ export function ManaProbabilityPanel({ deck }: { deck: EditorDeck }) {
   });
   return (
     <section className={EDITOR_PANEL_CLASS}>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Gauge className="h-4 w-4 text-primary" />
-        <h3 className="text-sm font-semibold">Mana consistency</h3>
-        <span className="text-xs text-muted-foreground">on the play</span>
+        <h3 className="text-ui-label font-semibold">Mana consistency</h3>
+        <span className="text-ui-meta text-muted-foreground">on the play</span>
       </div>
-      <div className="mt-4 grid gap-3 md:grid-cols-[minmax(10rem,0.7fr)_minmax(0,2fr)]">
+      <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(min(100%,18rem),1fr))] gap-3">
         <div className={EDITOR_SUBTLE_BLOCK_CLASS}>
-          <p className="text-xs text-muted-foreground">Two or more lands in your opener</p>
+          <p className="text-ui-body text-muted-foreground">Two or more lands in your opener</p>
           <p className="mt-1 font-mono text-2xl font-semibold tabular-nums">
             {percentage(openingTwoLands)}
           </p>
-          <p className="text-[10px] text-muted-foreground">
+          <p className="text-ui-meta text-muted-foreground">
             {lands.length} lands in {population} cards
           </p>
         </div>
         <div className="space-y-2">
           {colorRows.map(({ color, sourceCount, earliestTurn, chance }) => (
-            <div key={color} className="grid grid-cols-[auto_1fr_auto] items-center gap-3">
+            <div
+              key={color}
+              className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3"
+            >
               <ManaSymbols cost={`{${color}}`} size="sm" />
               <div>
                 <div className="h-2 overflow-hidden rounded-full bg-muted">
@@ -64,17 +67,17 @@ export function ManaProbabilityPanel({ deck }: { deck: EditorDeck }) {
                     style={{ width: percentage(chance) }}
                   />
                 </div>
-                <p className="mt-1 text-[10px] text-muted-foreground">
+                <p className="mt-1 text-ui-meta text-muted-foreground">
                   {sourceCount} sources · needed by turn {earliestTurn}
                 </p>
               </div>
-              <span className="w-10 text-right font-mono text-xs tabular-nums">
+              <span className="min-w-10 text-right font-mono text-ui-meta tabular-nums">
                 {percentage(chance)}
               </span>
             </div>
           ))}
           {colorRows.length === 0 && (
-            <p className="py-3 text-xs text-muted-foreground">
+            <p className="py-3 text-ui-body text-muted-foreground">
               Add coloured spells to see source odds.
             </p>
           )}

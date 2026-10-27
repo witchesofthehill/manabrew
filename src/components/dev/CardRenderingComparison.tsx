@@ -125,7 +125,7 @@ export function CardRenderingComparison({
             />
           )}
         </div>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-ui-body text-muted-foreground">
           Production rules preview. Actions stay inside the card and support scrolling, keyboard
           focus, and screen readers.
         </p>
@@ -152,7 +152,7 @@ export function CardRenderingComparison({
             />
           </div>
         </div>
-        <p className="text-xs text-muted-foreground">Selected printing, unchanged scan.</p>
+        <p className="text-ui-meta text-muted-foreground">Selected printing, unchanged scan.</p>
       </section>
       <section
         className="min-w-0 space-y-3 rounded-lg border border-border bg-card p-3"
@@ -178,7 +178,7 @@ export function CardRenderingComparison({
             />
           </div>
         </div>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-ui-body text-muted-foreground">
           Production GeneratedCardImage. Loading and fallback states stay inspectable on the
           element.
         </p>

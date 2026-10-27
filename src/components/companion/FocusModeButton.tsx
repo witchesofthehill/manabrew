@@ -34,7 +34,7 @@ export function FocusModeButton({ focus, onToggle }: FocusModeButtonProps) {
     <Button
       size="icon"
       variant="ghost"
-      className="size-8"
+      className="size-8 touch:min-h-11 touch:min-w-11"
       onClick={toggle}
       aria-label={focus ? `Exit focus mode` : `Focus mode`}
       title={focus ? `Exit focus mode (Esc)` : `Focus mode — hide controls`}

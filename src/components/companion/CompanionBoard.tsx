@@ -20,14 +20,14 @@ function GridBoard({ session }: CompanionBoardProps) {
   const { slots, template } = getCompanionSlots(session.layout, session.players.length);
   return (
     <div
-      className="grid size-full gap-1 p-1 sm:gap-2 sm:p-2 md:gap-3 md:p-3"
+      className="grid size-full overflow-auto overscroll-contain gap-1 p-1 sm:gap-2 sm:p-2 md:gap-3 md:p-3"
       style={{ gridTemplate: template }}
     >
       {session.players.map((player, index) => {
         const slot = slots[index];
         if (!slot) return null;
         return (
-          <div key={player.id} style={{ gridArea: slot.gridArea }} className="min-h-0 min-w-0">
+          <div key={player.id} style={{ gridArea: slot.gridArea }} className="min-h-40 min-w-40">
             <PlayerTile
               player={player}
               opponents={session.players.filter((p) => p.id !== player.id)}

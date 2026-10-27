@@ -11,7 +11,7 @@ export function DeckHistoryControls() {
       <Button
         size="icon"
         variant="ghost"
-        className="h-7 w-7 rounded-none border-r"
+        className="touch:min-w-11 touch:min-h-11 min-h-7 w-7 rounded-none border-r"
         disabled={!history.undoLabel}
         title={history.undoLabel ? `Undo ${history.undoLabel}` : `Nothing to undo`}
         onClick={undoDeckEdit}
@@ -21,7 +21,7 @@ export function DeckHistoryControls() {
       <Button
         size="icon"
         variant="ghost"
-        className="h-7 w-7 rounded-none"
+        className="touch:min-w-11 touch:min-h-11 min-h-7 w-7 rounded-none"
         disabled={!history.redoLabel}
         title={history.redoLabel ? `Redo ${history.redoLabel}` : `Nothing to redo`}
         onClick={redoDeckEdit}

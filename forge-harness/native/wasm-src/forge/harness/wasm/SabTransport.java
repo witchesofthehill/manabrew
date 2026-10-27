@@ -92,6 +92,10 @@ public final class SabTransport implements InteractiveBridge {
     static native int seatCount();
 
     @JS.Coerce
+    @JS("return globalThis.__forgePromptOffset || 0;")
+    static native int promptOffset();
+
+    @JS.Coerce
     @JS("const sabs = globalThis.__forgeSeatSabs;"
         + "return Array.isArray(sabs) ? sabs.indexOf(globalThis.__forgeSab) : 0;")
     static native int localSeat();
@@ -141,6 +145,7 @@ public final class SabTransport implements InteractiveBridge {
      */
     private final java.util.Set<Integer> botSeats;
     private final java.util.function.Supplier<String> checkpointMetrics;
+    private final java.util.function.Supplier<String> decisionJournal;
     private long checkpointNanosSinceRecv;
     private long checkpoint;
     /** When a person's answer last landed; bot answers do not move it. */
@@ -171,17 +176,19 @@ public final class SabTransport implements InteractiveBridge {
     }
 
     public SabTransport(final java.util.function.IntFunction<String> snapshots) {
-        this(snapshots, java.util.Collections.emptySet(), () -> "[]", (seat, count) -> "[]");
+        this(snapshots, java.util.Collections.emptySet(), () -> "[]", () -> "", (seat, count) -> "[]");
     }
 
     public SabTransport(final java.util.function.IntFunction<String> snapshots,
             final java.util.Set<Integer> botSeats,
             final java.util.function.Supplier<String> checkpointMetrics,
+            final java.util.function.Supplier<String> decisionJournal,
             final java.util.function.BiFunction<Integer, Integer, String> libraryTop) {
         this.snapshots = snapshots;
         this.libraryTop = libraryTop;
         this.botSeats = botSeats;
         this.checkpointMetrics = checkpointMetrics;
+        this.decisionJournal = decisionJournal;
     }
 
     @Override
@@ -191,6 +198,7 @@ public final class SabTransport implements InteractiveBridge {
 
     @Override
     public String exchange(final int playerIndex, final String promptJson) {
+        publishDecisionJournal();
         final int seat = playerIndex < 0 ? 0 : playerIndex;
         final String type = inputType(promptJson);
         final boolean dice = "diceRolled".equals(type);
@@ -204,18 +212,22 @@ public final class SabTransport implements InteractiveBridge {
             openSeat = seat;
             openPrompt = promptJson;
         }
-        while (!awaitAnswer(seat, LANE_POLL_MS)) {
-            final int lane = fullDirectiveLane();
-            if (lane >= 0) {
-                final JsonObject message = new JsonObject();
-                message.add("directive", JsonParser.parseString(takeDirective(lane)));
-                return decodeMessage(lane == hostDirectiveLane() ? HOST_SEAT : lane, message);
+        JsonObject message;
+        while (true) {
+            while (!awaitAnswer(seat, LANE_POLL_MS)) {
+                final int lane = fullDirectiveLane();
+                if (lane >= 0) {
+                    final JsonObject directive = new JsonObject();
+                    directive.add("directive", JsonParser.parseString(takeDirective(lane)));
+                    return decodeMessage(lane == hostDirectiveLane() ? HOST_SEAT : lane, directive);
+                }
             }
+            message = readResponse(seat, promptJson);
+            if (message != null) break;
         }
         openPrompt = null;
         openSeat = -1;
 
-        final JsonObject message = JsonParser.parseString(recv(seat)).getAsJsonObject();
         if (bot) {
             botMsSinceRecv += System.currentTimeMillis() - botStartedAt;
         } else {
@@ -261,7 +273,7 @@ public final class SabTransport implements InteractiveBridge {
             turnAtLastPrompt = turnNow;
         }
         if (!dice) {
-            sendTagged(seat, "prompt", "prompt", promptJson);
+            sendTagged(seat, "prompt", "prompt", wirePrompt(promptJson));
         }
         if (!bot && seat == localSeat()) {
             publishLibraryTop(seat);
@@ -280,14 +292,15 @@ public final class SabTransport implements InteractiveBridge {
 
     private String exchangeWithAllSeats(final String promptJson) {
         final int seats = Math.max(1, seatCount());
-        final JsonObject prompt = JsonParser.parseString(promptJson).getAsJsonObject();
+        final JsonObject prompt = JsonParser.parseString(wirePrompt(promptJson)).getAsJsonObject();
         for (int seat = 0; seat < seats; seat++) {
             prompt.addProperty("decidingPlayerId", "player-" + seat);
             sendTagged(seat, "prompt", "prompt", prompt.toString());
         }
         String result = null;
         for (int seat = 0; seat < seats; seat++) {
-            final JsonObject message = JsonParser.parseString(recv(seat)).getAsJsonObject();
+            JsonObject message;
+            do { message = readResponse(seat, promptJson); } while (message == null);
             if (result == null || message.has("directive")) {
                 result = decodeMessage(seat, message);
             }
@@ -300,7 +313,7 @@ public final class SabTransport implements InteractiveBridge {
 
     private static String decodeMessage(final int seat, final JsonObject message) {
         if (message.has("action")) {
-            return message.get("action").toString();
+            return seatAction(seat, message.getAsJsonObject("action"));
         }
         if (message.has("directive")) {
             final JsonObject canonical = new JsonObject();
@@ -309,7 +322,31 @@ public final class SabTransport implements InteractiveBridge {
             canonical.addProperty("player", seat);
             return canonical.toString();
         }
-        return message.toString();
+        return seatAction(seat, message);
+    }
+
+    private static String seatAction(final int seat, final JsonObject action) {
+        if (action.has("player") || (action.has("type") && "directive".equals(action.get("type").getAsString()))) {
+            action.addProperty("player", seat);
+        }
+        return action.toString();
+    }
+
+    private static String wirePrompt(final String json) {
+        final JsonObject prompt = JsonParser.parseString(json).getAsJsonObject();
+        prompt.addProperty("promptId", prompt.get("promptId").getAsLong() + promptOffset());
+        return prompt.toString();
+    }
+
+    private static JsonObject readResponse(final int seat, final String promptJson) {
+        final JsonObject prompt = JsonParser.parseString(wirePrompt(promptJson)).getAsJsonObject();
+        prompt.addProperty("decidingPlayerId", "player-" + seat);
+        final JsonObject message = JsonParser.parseString(recv(seat)).getAsJsonObject();
+        if (!message.has("promptId") || message.get("promptId").getAsLong() == 0
+                || message.get("promptId").equals(prompt.get("promptId"))) return message;
+        sendTagged(seat, "error", "error", "{\"code\":\"stalePrompt\",\"message\":\"That decision is no longer open.\"}");
+        sendTagged(seat, "prompt", "prompt", prompt.toString());
+        return null;
     }
 
     /**
@@ -365,12 +402,40 @@ public final class SabTransport implements InteractiveBridge {
         }
     }
 
+    @Override
+    public void requestRewind(final String snapshot) {
+        waitForRewind(snapshot);
+    }
+
+    @JS(args = {"snapshot"}, value = "const control = new Int32Array(globalThis.__forgeRewindControl);"
+        + "Atomics.store(control, 0, 0);"
+        + "postMessage({ type: 'event', event: 'forge:rewind', payload: JSON.parse(snapshot) });"
+        + "while (Atomics.load(control, 0) === 0) Atomics.wait(control, 0, 0);")
+    private static native void waitForRewind(String snapshot);
+
+    @Override
+    public void replayReady() {
+        awaitReplayActivation();
+    }
+
+    @JS("const control = new Int32Array(globalThis.__forgeRewindControl);"
+        + "postMessage({ type: 'event', event: 'forge:replay_ready', payload: {} });"
+        + "while (Atomics.load(control, 0) !== 2) Atomics.wait(control, 0, 0);")
+    private static native void awaitReplayActivation();
+
     // The client reads state.gameView, matching GameSnapshotEventDto on
     // the Rust side; a bare game view leaves the board unmounted.
     private String stateFrame(final String view) {
         return "{\"checkpointId\":" + (++checkpoint)
                 + ",\"label\":\"forge\",\"gameView\":" + view
                 + ",\"timestampMs\":" + System.currentTimeMillis() + "}";
+    }
+
+    private void publishDecisionJournal() {
+        final String batch = decisionJournal.get();
+        if (!batch.isEmpty()) {
+            post("forge:journal", batch);
+        }
     }
 
     private void publishCheckpointMetrics() {
@@ -383,6 +448,7 @@ public final class SabTransport implements InteractiveBridge {
     }
 
     public void publishGameOver(final String engineError) {
+        publishDecisionJournal();
         publishCheckpointMetrics();
         final int seats = Math.max(1, seatCount());
         for (int seat = 0; seat < seats; seat++) {

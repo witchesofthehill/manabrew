@@ -6,6 +6,13 @@
 
 - Specialize host Card Glint shaders for the requested finish and omit animated surface code from other finishes.
 
+## [3.65.3](https://github.com/witchesofthehill/manabrew/compare/v3.65.2...v3.65.3) (2026-10-27)
+
+### Fixes
+
+* **forge:** resolve commander aliases consistently ([#1122](https://github.com/witchesofthehill/manabrew/issues/1122)) ([30b6981](https://github.com/witchesofthehill/manabrew/commit/30b6981cf5a5721866fccc505c43da0927a3bcc6))
+* **ui:** restore desktop density while preserving touch sizing ([#1130](https://github.com/witchesofthehill/manabrew/issues/1130)) ([6c449bf](https://github.com/witchesofthehill/manabrew/commit/6c449bf9b5abd2546d822fc49f6041aa98cd45f6))
+
 ## [3.65.2](https://github.com/witchesofthehill/manabrew/compare/v3.65.1...v3.65.2) (2026-10-27)
 
 ### Fixes

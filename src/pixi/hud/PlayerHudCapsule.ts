@@ -1,4 +1,9 @@
-import { getUiControlHeight, getUiFontSize, UI_FONT_FAMILY as FONT } from "@/themes/typography";
+import {
+  getUiControlHeight,
+  getUiFontSize,
+  UI_FONT_FAMILY as FONT,
+  isTouchUi,
+} from "@/themes/typography";
 import {
   Bounds,
   ColorMatrixFilter,
@@ -63,7 +68,7 @@ const SCRATCH_B = new Point();
 
 const styleCache = new Map<string, TextStyle>();
 function cachedTextStyle(size: number, weight: TextStyle["fontWeight"], fill: number): TextStyle {
-  size = Math.max(size, getUiFontSize("meta"));
+  size = Math.max(size, getUiFontSize("meta", 0));
   const shadow = getTheme().gameTheme.canvas.shadow;
   const key = `${size}|${weight}|${fill}|${shadow}`;
   let s = styleCache.get(key);
@@ -658,8 +663,8 @@ export class PlayerHudCapsule {
   private render(): void {
     const { width: w, height: h } = this;
     if (w <= 0 || h <= 0) return;
-    const hitWidth = Math.max(w + 8, getUiControlHeight());
-    const hitHeight = Math.max(h + 8, getUiControlHeight());
+    const hitWidth = Math.max(w + 8, getUiControlHeight(0));
+    const hitHeight = Math.max(h + 8, getUiControlHeight(0));
     this.capsuleHitArea.x = (w - hitWidth) / 2;
     this.capsuleHitArea.y = (h - hitHeight) / 2;
     this.capsuleHitArea.width = hitWidth;
@@ -844,11 +849,12 @@ export class PlayerHudCapsule {
     this.heart.text = "LIFE";
     this.heart.style = this.styled(8, "600", this.theme.gameTheme.textMuted);
     this.heart.anchor.set(1, 0.5);
-    this.heart.position.set(lifeX, h - this.heart.height / 2 - 2);
-    this.life.y = Math.min(
-      this.life.y,
-      this.heart.y - this.heart.height / 2 - 2 - this.life.height / 2,
-    );
+    this.heart.position.set(lifeX, isTouchUi() ? h - this.heart.height / 2 - 2 : 49);
+    if (isTouchUi())
+      this.life.y = Math.min(
+        this.life.y,
+        this.heart.y - this.heart.height / 2 - 2 - this.life.height / 2,
+      );
     const handX = lifeX + 14;
     const hand = this.makeHandItem(30);
     hand.place(handX, 34);
@@ -934,10 +940,11 @@ export class PlayerHudCapsule {
     this.heart.style = this.styled(8, "600", this.theme.gameTheme.textMuted);
     this.heart.anchor.set(1, 0.5);
     this.heart.position.set(lifeX, 49);
-    this.life.y = Math.min(
-      this.life.y,
-      this.heart.y - this.heart.height / 2 - 2 - this.life.height / 2,
-    );
+    if (isTouchUi())
+      this.life.y = Math.min(
+        this.life.y,
+        this.heart.y - this.heart.height / 2 - 2 - this.life.height / 2,
+      );
     this.makeHandItem(32).place(pad, this.compact ? 70 : 67);
     const zones = this.spec.badges
       .map((badge, index) => ({ badge, index }))
@@ -1112,7 +1119,7 @@ export class PlayerHudCapsule {
     this.ensurePips();
     const gt = this.theme.gameTheme;
     const size = 22;
-    const slotWidth = Math.max(40, size + getUiFontSize("meta") * 2 + 8);
+    const slotWidth = Math.max(40, size + getUiFontSize("meta", 0) * 2 + 8);
     let slot = 0;
     for (let i = 0; i < MANA_LETTERS.length; i++) {
       const letter = MANA_LETTERS[i]!;
@@ -1154,11 +1161,13 @@ export class PlayerHudCapsule {
   ): number {
     this.ensurePips();
     const gt = this.theme.gameTheme;
-    columns = Math.max(
-      1,
-      Math.min(columns, Math.floor(width / Math.max(32, getUiFontSize("meta") + 24))),
-    );
-    rowHeight = Math.max(rowHeight, Math.ceil(getUiFontSize("meta") * 1.4) + 4);
+    if (isTouchUi()) {
+      columns = Math.max(
+        1,
+        Math.min(columns, Math.floor(width / Math.max(32, getUiFontSize("meta") + 24))),
+      );
+      rowHeight = Math.max(rowHeight, Math.ceil(getUiFontSize("meta") * 1.4) + 4);
+    }
     const cellWidth = width / columns;
     const size = Math.min(18, rowHeight - 4);
     const rows = Math.ceil(MANA_LETTERS.length / columns);
@@ -1251,8 +1260,8 @@ export class PlayerHudCapsule {
         alpha: urgent ? 0.16 : 0.04,
       });
     chip.hit.position.set(x, y + 1);
-    const hitWidth = Math.max(width - 3, getUiControlHeight());
-    const hitHeight = Math.max(height - 2, getUiControlHeight());
+    const hitWidth = Math.max(width - 3, getUiControlHeight(0));
+    const hitHeight = Math.max(height - 2, getUiControlHeight(0));
     chip.hitBounds.x = (width - hitWidth) / 2;
     chip.hitBounds.y = (height - hitHeight) / 2;
     chip.hitBounds.width = hitWidth;
@@ -1294,7 +1303,7 @@ export class PlayerHudCapsule {
           rank(a.badge.id) - rank(b.badge.id) ||
           a.badge.id.localeCompare(b.badge.id),
       );
-    const slotWidth = Math.max(28, getUiControlHeight());
+    const slotWidth = Math.max(28, getUiControlHeight(0));
     const visible = Math.min(states.length, Math.max(0, Math.floor(width / slotWidth)));
     for (let i = 0; i < visible; i++) {
       this.placeBadgeIcon(states[i]!.index, x + slotWidth / 2 + i * slotWidth, cy);
@@ -1318,7 +1327,7 @@ export class PlayerHudCapsule {
     chip.content = this.badgeTooltip(badge);
     chip.hit
       .clear()
-      .circle(cx, cy, Math.max(12, getUiControlHeight() / 2))
+      .circle(cx, cy, Math.max(12, getUiControlHeight(0) / 2))
       .fill({ color: hexToNum(this.theme.gameTheme.canvas.background), alpha: 0.001 });
     chip.hit.position.set(0, 0);
     chip.hit.hitArea = null;
@@ -1333,17 +1342,22 @@ export class PlayerHudCapsule {
     overflowRect?: LayoutRect,
   ): void {
     this.ensureChips();
-    const rowHeight = Math.max(getUiControlHeight(), Math.ceil(getUiFontSize("meta") * 1.4) + 8);
-    if (height < rowHeight) {
+    const rowHeight = isTouchUi()
+      ? Math.max(getUiControlHeight(), Math.ceil(getUiFontSize("meta") * 1.4) + 8)
+      : this.compact
+        ? 44
+        : 24;
+    if (isTouchUi() && height < rowHeight) {
       this.layoutCompactStateIcons(x, y + Math.max(0, height) / 2, width);
       return;
     }
-    columns = Math.max(
-      1,
-      Math.min(columns, Math.floor(width / Math.max(52, getUiControlHeight()))),
-    );
+    if (isTouchUi())
+      columns = Math.max(
+        1,
+        Math.min(columns, Math.floor(width / Math.max(52, getUiControlHeight()))),
+      );
     const rows = Math.max(1, Math.min(3, Math.floor(height / rowHeight)));
-    const cellHeight = rowHeight;
+    const cellHeight = isTouchUi() ? rowHeight : Math.min(rowHeight, height / rows);
     const cellWidth = width / columns;
     this.stateTray
       .roundRect(
@@ -1423,7 +1437,7 @@ export class PlayerHudCapsule {
     this.overflow.text =
       hidden > 0 ? (rect.width < 96 ? `+${hidden}` : `+${hidden} states`) : "Details";
     this.overflow.style = this.styled(
-      getUiFontSize("label"),
+      getUiFontSize("label", 10),
       danger ? "700" : "500",
       danger ? this.theme.gameTheme.pt.lethal : this.theme.gameTheme.textMuted,
     );
@@ -1437,8 +1451,8 @@ export class PlayerHudCapsule {
       color: hexToNum(danger ? this.theme.gameTheme.pt.lethal : this.theme.gameTheme.textGhost),
       alpha: danger ? 0.16 : 0.08,
     });
-    const hitWidth = Math.max(rect.width, getUiControlHeight());
-    const hitHeight = Math.max(rect.height, getUiControlHeight());
+    const hitWidth = Math.max(rect.width, getUiControlHeight(0));
+    const hitHeight = Math.max(rect.height, getUiControlHeight(0));
     this.overflowHitArea.x = rect.x + (rect.width - hitWidth) / 2;
     this.overflowHitArea.y = rect.y + (rect.height - hitHeight) / 2;
     this.overflowHitArea.width = hitWidth;

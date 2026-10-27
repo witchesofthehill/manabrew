@@ -1,4 +1,4 @@
-import { getUiFontSize, UI_FONT_FAMILY } from "@/themes/typography";
+import { getUiFontSize, UI_FONT_FAMILY, isTouchUi } from "@/themes/typography";
 import { Container, Graphics, Text } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
 import { hexToNum } from "../colorUtils";
@@ -121,22 +121,22 @@ export class CombatRowRenderer {
         text: String(count),
         style: {
           fontFamily: UI_FONT_FAMILY,
-          fontSize: getUiFontSize("meta"),
+          fontSize: getUiFontSize("meta", 11),
           fontWeight: "800",
           fill: hexToNum(colors.textOnTinted),
         },
       });
       text.resolution = 2;
       text.anchor.set(0.5);
-      const radius = Math.ceil(Math.max(text.width, text.height) / 2) + 4;
+      const radius = isTouchUi() ? Math.ceil(Math.max(text.width, text.height) / 2) + 4 : 10;
       const background = new Graphics()
         .circle(0, 0, radius)
         .fill({ color: hexToNum(colors.promptAction.defenseAction), alpha: 0.95 })
         .circle(0, 0, radius)
         .stroke({ color: hexToNum(colors.textOnTinted), width: 1, alpha: 0.75 });
       badge.position.set(
-        x + Math.max(0, spec.cardWidth / 2 - radius - 2),
-        spec.stripTop + spec.stripHeight / 2,
+        isTouchUi() ? x + Math.max(0, spec.cardWidth / 2 - radius - 2) : x + spec.cardWidth / 2 - 8,
+        spec.stripTop + (isTouchUi() ? spec.stripHeight / 2 : Math.min(12, spec.stripHeight / 2)),
       );
       badge.addChild(background, text);
       this.assignmentLabels.addChild(badge);
@@ -174,7 +174,7 @@ export class CombatRowRenderer {
       spec.cardWidth !== snapshot.cardWidth ||
       spec.direction !== snapshot.direction ||
       spec.stripHeight !== snapshot.stripHeight ||
-      getUiFontSize("meta") !== snapshot.fontSize ||
+      getUiFontSize("meta", 11) !== snapshot.fontSize ||
       colors.promptAction.attackAction !== snapshot.attackColor ||
       colors.textOnTinted !== snapshot.textColor ||
       colors.promptAction.defenseAction !== snapshot.defenseColor
@@ -218,7 +218,7 @@ export class CombatRowRenderer {
       attackColor: colors.promptAction.attackAction,
       defenseColor: colors.promptAction.defenseAction,
       textColor: colors.textOnTinted,
-      fontSize: getUiFontSize("meta"),
+      fontSize: getUiFontSize("meta", 11),
       attackerXs: [...spec.attackerXs],
       connectors,
     };

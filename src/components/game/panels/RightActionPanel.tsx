@@ -44,7 +44,7 @@ export function RightActionPanel({
     return !mobile && checkpoints.length > 0 ? (
       <button
         type="button"
-        className="absolute right-[calc(0.75rem+var(--safe-area-inset-right))] top-[calc(0.75rem+var(--safe-area-inset-top))] z-50 flex touch:min-h-11 touch:min-w-11 items-center gap-2 rounded-full border border-border/80 bg-card/95 px-3 py-2 font-game text-ui-label font-semibold text-foreground shadow-lg backdrop-blur-sm transition-colors hover:bg-accent"
+        className="absolute right-[calc(0.75rem+var(--safe-area-inset-right))] top-[calc(0.75rem+var(--safe-area-inset-top))] z-50 flex touch:min-h-11 touch:min-w-11 items-center gap-2 rounded-full border border-border/80 bg-card/95 px-3 py-2 font-game text-ui-label font-semibold text-foreground shadow-lg backdrop-blur-sm transition-colors hover:bg-accent non-touch:text-xs"
         aria-label={`Open journal with ${checkpoints.length} entries`}
         onClick={() => {
           setActiveTab("journal");
@@ -53,7 +53,7 @@ export function RightActionPanel({
       >
         <History className="h-4 w-4 text-primary" />
         Journal
-        <span className="min-w-5 rounded-full bg-muted px-1.5 py-0.5 text-ui-meta font-semibold tabular-nums lining-nums text-foreground">
+        <span className="min-w-5 rounded-full bg-muted px-1.5 py-0.5 text-ui-meta font-semibold tabular-nums lining-nums text-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
           {checkpoints.length}
         </span>
       </button>
@@ -93,7 +93,7 @@ export function RightActionPanel({
           <Button
             size="icon"
             variant="ghost"
-            className="h-8 w-8 touch:min-h-11 touch:min-w-11 text-muted-foreground hover:text-foreground"
+            className="h-8 w-8 touch:min-h-11 touch:min-w-11 text-muted-foreground hover:text-foreground non-touch:h-7 non-touch:w-7"
             onClick={rawToggle}
             title={`Close right panel`}
           >

@@ -8,13 +8,15 @@ interface PlayerRuleFactsProps {
 export function PlayerRuleFacts({ facts }: PlayerRuleFactsProps) {
   return (
     <section aria-label="Rules and turn">
-      <h3 className="mb-2 text-ui-meta font-semibold text-muted-foreground">Rules and turn</h3>
-      <dl className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,15rem),1fr))] gap-1.5">
+      <h3 className="mb-2 text-ui-meta font-semibold text-muted-foreground non-touch:text-xs">
+        Rules and turn
+      </h3>
+      <dl className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,15rem),1fr))] gap-1.5 non-touch:grid-cols-1 non-touch:sm:grid-cols-2">
         {facts.map((fact) => (
           <div
             key={fact.id}
             className={cn(
-              "flex min-h-10 flex-wrap items-center justify-between gap-3 rounded-md bg-muted/25 px-2.5 py-2 text-ui-meta",
+              "flex min-h-10 flex-wrap items-center justify-between gap-3 rounded-md bg-muted/25 px-2.5 py-2 text-ui-meta non-touch:text-sm",
               fact.emphasized && "bg-primary/10",
             )}
           >

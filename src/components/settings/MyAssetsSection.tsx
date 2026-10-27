@@ -82,7 +82,7 @@ export function MyAssetsSection() {
           <div className="flex flex-wrap items-baseline justify-between gap-3">
             <Label>Storage</Label>
             {loaded && (
-              <span className="text-ui-meta text-muted-foreground">
+              <span className="text-ui-meta text-muted-foreground non-touch:text-xs">
                 {formatBytes(usedBytes)} of {formatBytes(quotaBytes)} used
               </span>
             )}
@@ -109,7 +109,9 @@ export function MyAssetsSection() {
 
         {loadError ? (
           <div className="flex items-center gap-3">
-            <p className="text-ui-body text-destructive">Couldn&apos;t load your images.</p>
+            <p className="text-ui-body text-destructive non-touch:text-sm">
+              Couldn&apos;t load your images.
+            </p>
             <Button
               variant="outline"
               size="sm"
@@ -125,9 +127,9 @@ export function MyAssetsSection() {
             </Button>
           </div>
         ) : !loaded ? (
-          <p className="text-ui-body text-muted-foreground">Loading…</p>
+          <p className="text-ui-body text-muted-foreground non-touch:text-sm">Loading…</p>
         ) : assets.length === 0 ? (
-          <p className="text-ui-body text-muted-foreground">
+          <p className="text-ui-body text-muted-foreground non-touch:text-sm">
             No images yet. Upload an avatar or a playmat and it will show up here.
           </p>
         ) : (
@@ -160,7 +162,7 @@ export function MyAssetsSection() {
               your current avatar or a deck&apos;s playmat, that falls back to the default.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2">
+          <DialogFooter className="gap-2 non-touch:gap-2">
             <Button variant="ghost" size="sm" disabled={busy} onClick={() => setDeleting(null)}>
               Cancel
             </Button>
@@ -191,7 +193,7 @@ function AssetTile({
 }) {
   return (
     <div className="flex overflow-hidden rounded-lg border bg-card/60 transition-colors hover:border-primary/40">
-      <div className="min-h-[72px] w-[72px] shrink-0 bg-muted">
+      <div className="min-h-[72px] w-[72px] shrink-0 bg-muted non-touch:h-[72px] non-touch:min-h-0">
         <img
           src={asset.url}
           alt={`${KIND_LABELS[asset.kind]} image`}
@@ -203,14 +205,18 @@ function AssetTile({
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1 px-3">
         <div className="min-w-0 basis-full flex-1 sm:basis-auto space-y-1">
           <div className="flex items-center gap-2">
-            <span className="text-ui-label font-medium">{KIND_LABELS[asset.kind]}</span>
+            <span className="text-ui-label font-medium non-touch:text-sm">
+              {KIND_LABELS[asset.kind]}
+            </span>
           </div>
-          <p className="text-ui-meta text-muted-foreground">{formatBytes(asset.byteSize)}</p>
+          <p className="text-ui-meta text-muted-foreground non-touch:text-xs">
+            {formatBytes(asset.byteSize)}
+          </p>
         </div>
         <Button
           variant="ghost"
           size="icon"
-          className="min-h-7 w-7 shrink-0 touch:min-h-11 touch:min-w-11"
+          className="min-h-7 w-7 shrink-0 touch:min-h-11 touch:min-w-11 non-touch:h-7 non-touch:min-h-0"
           title={`Replace image`}
           disabled={busy}
           onClick={onReplace}
@@ -220,7 +226,7 @@ function AssetTile({
         <Button
           variant="ghost"
           size="icon"
-          className="min-h-7 w-7 shrink-0 text-destructive hover:text-destructive touch:min-h-11 touch:min-w-11"
+          className="min-h-7 w-7 shrink-0 text-destructive hover:text-destructive touch:min-h-11 touch:min-w-11 non-touch:h-7 non-touch:min-h-0"
           title={`Delete image`}
           disabled={busy}
           onClick={onDelete}

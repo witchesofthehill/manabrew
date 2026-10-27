@@ -70,10 +70,10 @@ export function CardRailPreview({
           />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-ui-meta font-bold uppercase tracking-[0.14em] text-muted-foreground">
+          <span className="block text-ui-meta font-bold uppercase tracking-[0.14em] text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
             {title}
           </span>
-          <span className="block text-ui-meta font-semibold">
+          <span className="block text-ui-meta font-semibold non-touch:text-xs">
             {state.kind === "saga"
               ? state.current > 0
                 ? `Chapter ${state.current} of ${state.max}`
@@ -133,7 +133,7 @@ export function CardRailPreview({
                 )}
                 <span
                   className={cn(
-                    "relative z-10 flex min-h-7 min-w-7 items-center justify-center rounded-full border px-1 text-ui-meta font-black tabular-nums",
+                    "relative z-10 flex min-h-7 min-w-7 items-center justify-center rounded-full border px-1 text-ui-meta font-black tabular-nums non-touch:text-[10px] non-touch:leading-[inherit] non-touch:h-7 non-touch:w-7 non-touch:px-0",
                     notch.active
                       ? cn(
                           RAIL_ACCENT_CLASSES[state.kind],
@@ -155,28 +155,28 @@ export function CardRailPreview({
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="flex items-center gap-1.5">
                     {interaction && (
-                      <kbd className="flex min-h-5 min-w-5 items-center justify-center rounded border border-border bg-muted px-1 font-mono text-ui-meta font-bold text-popover-foreground shadow-sm">
+                      <kbd className="flex min-h-5 min-w-5 items-center justify-center rounded border border-border bg-muted px-1 font-mono text-ui-meta font-bold text-popover-foreground shadow-sm non-touch:text-[10px] non-touch:leading-[inherit] non-touch:h-5">
                         {interaction.shortcut}
                       </kbd>
                     )}
-                    <span className="text-ui-meta font-bold uppercase tracking-wide text-muted-foreground">
+                    <span className="text-ui-meta font-bold uppercase tracking-wide text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
                       {state.kind === "saga" ? `Chapter ${notch.label}` : `Level ${notch.label}`}
                     </span>
                   </span>
                   {effect?.cost && (
-                    <span className="text-ui-meta font-semibold">
+                    <span className="text-ui-meta font-semibold non-touch:text-[11px] non-touch:leading-[inherit]">
                       <DynamicTextRender text={effect.cost} />
                     </span>
                   )}
                 </div>
                 {effect?.label && (
-                  <div className="mt-0.5 text-ui-label font-semibold leading-snug">
+                  <div className="mt-0.5 text-ui-label font-semibold leading-snug non-touch:text-[11px]">
                     {effect.label}
                   </div>
                 )}
                 <div
                   className={cn(
-                    "whitespace-pre-line break-words text-ui-body leading-snug",
+                    "whitespace-pre-line break-words text-ui-body leading-snug non-touch:text-[11px]",
                     !effect?.label && "mt-0.5",
                     notch.reached || interaction
                       ? "text-popover-foreground"

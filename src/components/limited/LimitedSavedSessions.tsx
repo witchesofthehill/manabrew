@@ -51,11 +51,11 @@ export function LimitedSavedSessions({ disabled, onResume }: LimitedSavedSession
   const visible = sessions.filter((session) => showArchived || !session.archived);
   return (
     <details className="rounded-lg border bg-card text-card-foreground">
-      <summary className="min-h-8 cursor-pointer px-4 py-3 text-ui-label font-medium touch:min-h-11">
+      <summary className="min-h-8 cursor-pointer px-4 py-3 text-ui-label font-medium touch:min-h-11 non-touch:text-sm non-touch:min-h-0">
         Saved Limited sessions{sessions.length > 0 ? ` · ${sessions.length}` : ""}
       </summary>
       <div className="grid gap-3 px-4 pb-4">
-        <p className="text-ui-meta text-muted-foreground">
+        <p className="text-ui-meta text-muted-foreground non-touch:text-xs">
           Saved on this device. Session recovery stays local; exported reviews contain only your
           visible cards, decisions and named builds.
         </p>
@@ -92,9 +92,9 @@ export function LimitedSavedSessions({ disabled, onResume }: LimitedSavedSession
             }}
           />
         </div>
-        {error && <p className="text-ui-meta text-destructive">{error}</p>}
+        {error && <p className="text-ui-meta text-destructive non-touch:text-sm">{error}</p>}
         {visible.length === 0 && (
-          <p className="text-ui-body text-muted-foreground">
+          <p className="text-ui-body text-muted-foreground non-touch:text-sm">
             {sessions.length
               ? "All sessions are archived."
               : "Start Draft, Winston or Sealed to save a resumable session here."}
@@ -107,8 +107,10 @@ export function LimitedSavedSessions({ disabled, onResume }: LimitedSavedSession
               className="grid gap-2 rounded-md border p-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center"
             >
               <div className="min-w-0">
-                <p className="break-words text-ui-label font-medium">{session.title}</p>
-                <p className="text-ui-meta text-muted-foreground">
+                <p className="break-words text-ui-label font-medium non-touch:text-sm">
+                  {session.title}
+                </p>
+                <p className="text-ui-meta text-muted-foreground non-touch:text-xs">
                   {session.role === "review"
                     ? "Imported review"
                     : session.role === "solo"
@@ -182,7 +184,7 @@ export function LimitedSavedSessions({ disabled, onResume }: LimitedSavedSession
                 </Button>
               </div>
               {deleteId === session.sessionId && (
-                <div className="flex flex-wrap items-center gap-2 text-ui-body lg:col-span-2">
+                <div className="flex flex-wrap items-center gap-2 text-ui-body lg:col-span-2 non-touch:text-sm">
                   <p>
                     Delete this recovery checkpoint and local review? Decks in My Decks are kept.
                   </p>

@@ -79,21 +79,21 @@ export default function Winston() {
   return (
     <LimitedTableSurface className="min-w-0 gap-2 px-4 py-3 text-ui-body sm:px-6 lg:px-8">
       <header className="z-10 flex max-h-[40%] shrink-0 flex-wrap items-center justify-between gap-2 overflow-y-auto overscroll-contain rounded-md border border-border/70 bg-background/95 px-3 py-2 shadow-sm backdrop-blur">
-        <p className="flex min-w-0 flex-wrap items-center gap-2 text-ui-meta break-words text-muted-foreground">
+        <p className="flex min-w-0 flex-wrap items-center gap-2 text-ui-meta break-words text-muted-foreground non-touch:text-sm">
           <span>Deck: {activeWinston.deckSize} cards left</span>
-          <span className="rounded bg-muted/60 px-1.5 py-0.5">
+          <span className="rounded bg-muted/60 px-1.5 py-0.5 non-touch:text-[11px] non-touch:leading-[inherit]">
             AI: {activeWinston.aiPickCount} picks
           </span>
           {activeWinston.isComplete ? (
-            <span className="rounded bg-primary/15 px-1.5 py-0.5 font-medium text-primary">
+            <span className="rounded bg-primary/15 px-1.5 py-0.5 font-medium text-primary non-touch:text-[11px] non-touch:leading-[inherit]">
               Complete
             </span>
           ) : activeWinston.awaitingHuman ? (
-            <span className="rounded bg-primary/15 px-1.5 py-0.5 font-medium text-primary">
+            <span className="rounded bg-primary/15 px-1.5 py-0.5 font-medium text-primary non-touch:text-[11px] non-touch:leading-[inherit]">
               Your turn — viewing pile {activeIdx + 1}
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1.5 rounded bg-muted/60 px-1.5 py-0.5 font-medium">
+            <span className="inline-flex items-center gap-1.5 rounded bg-muted/60 px-1.5 py-0.5 font-medium non-touch:text-[11px] non-touch:leading-[inherit]">
               <Loader2 className="h-3 w-3 animate-spin" />
               AI thinking…
             </span>
@@ -133,7 +133,7 @@ export default function Winston() {
       )}
 
       {lastError && (
-        <p className="max-h-[20%] shrink-0 overflow-y-auto overscroll-contain rounded border border-destructive/70 bg-destructive/10 p-3 text-ui-label break-words text-destructive">
+        <p className="max-h-[20%] shrink-0 overflow-y-auto overscroll-contain rounded border border-destructive/70 bg-destructive/10 p-3 text-ui-label break-words text-destructive non-touch:text-sm">
           {lastError}
         </p>
       )}

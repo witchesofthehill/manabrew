@@ -17,12 +17,14 @@ export function LimitedDraftFallback({
 }: LimitedDraftFallbackProps) {
   return (
     <div className="flex min-w-0 flex-wrap items-center gap-2">
-      <span className="shrink-0 text-ui-label text-muted-foreground">Timeout fallback</span>
+      <span className="shrink-0 text-ui-label text-muted-foreground non-touch:text-xs">
+        Timeout fallback
+      </span>
       <AppSelect
         aria-label="Nominate a timeout fallback without picking it"
         value={nominatedId ?? ""}
         disabled={disabled}
-        className="h-auto min-h-8 min-w-0 max-w-64 touch:min-h-11"
+        className="h-auto min-h-8 min-w-0 max-w-64 touch:min-h-11 non-touch:text-xs non-touch:h-8 non-touch:min-h-0"
         onValueChange={(value) => {
           void onNominate(cards.find((card) => card.id === value) ?? null);
         }}
@@ -39,7 +41,7 @@ export function LimitedDraftFallback({
           variant="ghost"
           size="sm"
           disabled={disabled}
-          className="h-auto min-h-8 px-2 touch:min-h-11"
+          className="h-auto min-h-8 px-2 touch:min-h-11 non-touch:text-xs non-touch:h-8 non-touch:min-h-0"
           onClick={() => void onNominate(null)}
         >
           Remove

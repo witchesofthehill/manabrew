@@ -42,7 +42,7 @@ export function CardGlintAppearanceNumber({
 
   return (
     <div className="grid min-w-0 gap-1.5">
-      <label htmlFor={id} className="text-ui-label text-muted-foreground">
+      <label htmlFor={id} className="text-ui-label text-muted-foreground non-touch:text-xs">
         {label}
       </label>
       <div className="flex min-w-0 flex-wrap items-center gap-3">
@@ -55,7 +55,7 @@ export function CardGlintAppearanceNumber({
             step={step}
             value={value}
             disabled={disabled}
-            className="h-9 min-w-24 flex-1 accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 touch:min-h-11"
+            className="h-9 min-w-24 flex-1 accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 touch:min-h-11 non-touch:min-w-0"
             onChange={(event) => {
               const next = event.currentTarget.valueAsNumber;
               if (Number.isFinite(next)) onChange(Math.max(min, Math.min(max, next)));

@@ -1,6 +1,7 @@
 import {
   getUiControlHeight,
   getUiFontSize,
+  isTouchUi,
   UI_FONT_FAMILY,
   type UiTextRole,
 } from "@/themes/typography";
@@ -195,7 +196,9 @@ export class RulesPreviewActions extends Container {
     this.focusedIndex = matchingIndex >= 0 ? matchingIndex : null;
     let y = 0;
     const actionFontSize = this.fontSize(ACTION_FONT_SIZE, "label");
-    const keyHeight = Math.max(KEY_HEIGHT, Math.ceil(this.fontSize(12) * 1.3) + 4);
+    const keyHeight = isTouchUi()
+      ? Math.max(KEY_HEIGHT, Math.ceil(this.fontSize(12) * 1.3) + 4)
+      : KEY_HEIGHT;
     if (spec.actions.length > 0) {
       if (spec.label) {
         y = this.addText(spec.label, y, spec.frame.mutedInk, 11, true);
@@ -240,9 +243,13 @@ export class RulesPreviewActions extends Container {
             ),
           },
         );
-        const labelTop = rowPadding + Math.max(0, (keyHeight - actionFontSize) / 2);
+        const labelTop =
+          rowPadding +
+          (isTouchUi()
+            ? Math.max(0, (keyHeight - actionFontSize) / 2)
+            : (KEY_HEIGHT - ACTION_FONT_SIZE) / 2);
         const height = Math.max(
-          getUiControlHeight() / spec.screenScale,
+          isTouchUi() ? getUiControlHeight(0) / spec.screenScale : 32,
           labelHeight + labelTop * 2,
         );
         label.position.set(labelLeft, labelTop);
@@ -409,7 +416,7 @@ export class RulesPreviewActions extends Container {
   }
 
   private fontSize(size: number, role: UiTextRole = "meta"): number {
-    return Math.max(size, getUiFontSize(role) / this.spec!.screenScale);
+    return isTouchUi() ? Math.max(size, getUiFontSize(role) / this.spec!.screenScale) : size;
   }
 
   private addText(value: string, y: number, color: string, size: number, bold = false): number {
@@ -480,9 +487,9 @@ export class RulesPreviewActions extends Container {
       text.resolution = 2;
       const width = Math.min(
         this.contentWidth,
-        Math.max(getUiControlHeight() / spec.screenScale, text.width + 16),
+        Math.max(getUiControlHeight(0) / spec.screenScale, text.width + 16),
       );
-      const height = Math.max(40, getUiControlHeight() / spec.screenScale, text.height + 16);
+      const height = Math.max(40, getUiControlHeight(0) / spec.screenScale, text.height + 16);
       if (x > 0 && x + width > this.contentWidth) {
         x = 0;
         y += rowHeight + GAP;

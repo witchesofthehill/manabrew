@@ -55,13 +55,13 @@ export function DeckSelectionTray({
       aria-label={`Actions for selected cards`}
     >
       <div className="mb-2 flex items-center sm:hidden">
-        <div className="min-w-0 flex-1 text-ui-label font-medium text-selection-border">
+        <div className="min-w-0 flex-1 text-ui-label font-medium text-selection-border non-touch:text-sm">
           {count} card{count !== 1 ? "s" : ""} selected
         </div>
         <Button
           size="sm"
           variant="ghost"
-          className="touch:min-w-11 touch:min-h-11 min-h-9"
+          className="touch:min-w-11 touch:min-h-11 min-h-9 non-touch:h-9 non-touch:min-h-0"
           onClick={onClear}
         >
           Clear
@@ -69,17 +69,19 @@ export function DeckSelectionTray({
       </div>
       <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
         <div className="mr-2 hidden sm:block">
-          <div className="text-ui-label font-medium text-selection-border">
+          <div className="text-ui-label font-medium text-selection-border non-touch:text-sm">
             {count} card{count !== 1 ? "s" : ""} selected
           </div>
-          <div className="text-ui-meta text-muted-foreground">Bulk editor</div>
+          <div className="text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
+            Bulk editor
+          </div>
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               size="sm"
               variant="outline"
-              className="touch:min-w-11 touch:min-h-11 min-h-10 shrink-0"
+              className="touch:min-w-11 touch:min-h-11 min-h-10 shrink-0 non-touch:h-10 non-touch:min-h-0 non-touch:sm:h-8"
             >
               <ArrowUpToLine className="mr-1 h-3 w-3" /> Move
               <ChevronDown className="ml-1 h-3 w-3 opacity-60" />
@@ -100,7 +102,7 @@ export function DeckSelectionTray({
             <Button
               size="sm"
               variant="outline"
-              className="touch:min-w-11 touch:min-h-11 min-h-10 shrink-0"
+              className="touch:min-w-11 touch:min-h-11 min-h-10 shrink-0 non-touch:h-10 non-touch:min-h-0 non-touch:sm:h-8"
             >
               Quantity <ChevronDown className="ml-1 h-3 w-3 opacity-60" />
             </Button>
@@ -120,7 +122,7 @@ export function DeckSelectionTray({
               <Button
                 size="sm"
                 variant="outline"
-                className="touch:min-w-11 touch:min-h-11 min-h-10 shrink-0"
+                className="touch:min-w-11 touch:min-h-11 min-h-10 shrink-0 non-touch:h-10 non-touch:min-h-0 non-touch:sm:h-8"
               >
                 <Bookmark className="mr-1 h-3 w-3" /> Tag
                 <ChevronDown className="ml-1 h-3 w-3 opacity-60" />
@@ -141,7 +143,7 @@ export function DeckSelectionTray({
               <Button
                 size="sm"
                 variant="outline"
-                className="touch:min-w-11 touch:min-h-11 min-h-10 shrink-0"
+                className="touch:min-w-11 touch:min-h-11 min-h-10 shrink-0 non-touch:h-10 non-touch:min-h-0 non-touch:sm:h-8"
               >
                 <BookmarkMinus className="mr-1 h-3 w-3" /> Untag
                 <ChevronDown className="ml-1 h-3 w-3 opacity-60" />
@@ -159,7 +161,7 @@ export function DeckSelectionTray({
         <Button
           size="sm"
           variant="outline"
-          className="touch:min-w-11 touch:min-h-11 min-h-10 shrink-0"
+          className="touch:min-w-11 touch:min-h-11 min-h-10 shrink-0 non-touch:h-10 non-touch:min-h-0 non-touch:sm:h-8"
           onClick={onPrinting}
         >
           <Images className="mr-1 h-3 w-3" /> Printing
@@ -167,7 +169,7 @@ export function DeckSelectionTray({
         <Button
           size="sm"
           variant="outline"
-          className="touch:min-w-11 touch:min-h-11 min-h-10 shrink-0"
+          className="touch:min-w-11 touch:min-h-11 min-h-10 shrink-0 non-touch:h-10 non-touch:min-h-0 non-touch:sm:h-8"
           onClick={onCopy}
         >
           <ClipboardCopy className="mr-1 h-3 w-3" /> Copy
@@ -176,7 +178,7 @@ export function DeckSelectionTray({
         <Button
           size="sm"
           variant="destructive-quiet"
-          className="touch:min-w-11 touch:min-h-11 min-h-10 shrink-0"
+          className="touch:min-w-11 touch:min-h-11 min-h-10 shrink-0 non-touch:h-10 non-touch:min-h-0 non-touch:sm:h-8"
           onClick={onRemove}
         >
           <X className="mr-1 h-3 w-3" /> Remove

@@ -50,10 +50,10 @@ export function CardGlintOfflineSection() {
       className="max-w-xl space-y-3 rounded-lg border bg-card/40 p-4"
       aria-labelledby="glint-offline-heading"
     >
-      <h3 id="glint-offline-heading" className="text-ui-label font-medium">
+      <h3 id="glint-offline-heading" className="text-ui-label font-medium non-touch:text-sm">
         Generated cards offline
       </h3>
-      <p className="text-ui-body text-muted-foreground">
+      <p className="text-ui-body text-muted-foreground non-touch:text-xs">
         Download the selected deck's frames, all renderer fonts, symbols, card records and artwork
         into this browser's storage. Both faces and saved customizations are included. Finish maps
         are generated locally and need no separate download.
@@ -72,11 +72,11 @@ export function CardGlintOfflineSection() {
         ))}
       </AppSelect>
       {decks.length === 0 && (
-        <p className="text-ui-meta text-muted-foreground">
+        <p className="text-ui-meta text-muted-foreground non-touch:text-xs">
           Save a deck before downloading its renderer assets.
         </p>
       )}
-      <p className="text-ui-body text-muted-foreground">
+      <p className="text-ui-body text-muted-foreground non-touch:text-xs">
         Frames and proprietary fonts are not bundled with Manabrew. Card Conjurer's service terms
         are personal and noncommercial, not a blanket asset redistribution license. Some source
         collections provide no asset license. Only download materials you have permission to use.
@@ -99,7 +99,7 @@ export function CardGlintOfflineSection() {
           Asset notices
         </a>
       </p>
-      <label className="flex items-start gap-2 text-ui-label text-muted-foreground touch:min-h-11 touch:min-w-11">
+      <label className="flex items-start gap-2 text-ui-label text-muted-foreground touch:min-h-11 touch:min-w-11 non-touch:text-xs">
         <input
           type="checkbox"
           checked={permission}
@@ -111,7 +111,7 @@ export function CardGlintOfflineSection() {
       <div
         role="status"
         aria-live="polite"
-        className="space-y-1 text-ui-meta text-muted-foreground"
+        className="space-y-1 text-ui-meta text-muted-foreground non-touch:text-xs"
       >
         {!available ? (
           <p>Persistent asset storage is unavailable. Use HTTPS or the desktop app.</p>
@@ -142,7 +142,7 @@ export function CardGlintOfflineSection() {
         {state.phase === "failed" && <p>Download failed: {state.message}</p>}
         {error && <p>{error}</p>}
       </div>
-      <p className="text-ui-body text-muted-foreground">
+      <p className="text-ui-body text-muted-foreground non-touch:text-xs">
         Install while connected. A first-time offline launch cannot fetch missing assets. Readiness
         applies only to this saved deck, printing choices and language, not every card or the app
         itself. Changing them requires another download. Browser storage can be evicted. This cache

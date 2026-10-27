@@ -96,7 +96,7 @@ export function TablePickerDialog({
                       loading="lazy"
                     />
                   ) : (
-                    <span className="flex aspect-[16/9] w-full items-center justify-center bg-canvas-background text-ui-label text-text-muted">
+                    <span className="flex aspect-[16/9] w-full items-center justify-center bg-canvas-background text-ui-label text-text-muted non-touch:text-[10px] non-touch:leading-[inherit]">
                       None
                     </span>
                   )}

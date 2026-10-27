@@ -138,14 +138,17 @@ export default function MultiplayerLimitedBuild() {
   };
   if (session.matchReturn?.started && !gameActive)
     return (
-      <section className="flex h-full min-h-0 min-w-0 flex-col items-center gap-3 overflow-y-auto overscroll-contain px-4 py-3 text-ui-body break-words sm:px-6 lg:px-8">
-        <p role="status" className="mt-auto shrink-0 text-ui-body text-muted-foreground">
+      <section className="flex h-full min-h-0 min-w-0 flex-col items-center gap-3 overflow-y-auto overscroll-contain px-4 py-3 text-ui-body break-words sm:px-6 lg:px-8 non-touch:text-[length:inherit] non-touch:leading-[inherit] non-touch:p-6">
+        <p
+          role="status"
+          className="mt-auto shrink-0 text-ui-body text-muted-foreground non-touch:text-sm"
+        >
           {returning
             ? "Returning to your Limited pool…"
             : "Your pool and build are retained. Confirm your return with the relay to continue."}
         </p>
         {session.lastError && (
-          <p role="alert" className="shrink-0 text-ui-label text-destructive">
+          <p role="alert" className="shrink-0 text-ui-label text-destructive non-touch:text-sm">
             {session.lastError}
           </p>
         )}
@@ -166,7 +169,7 @@ export default function MultiplayerLimitedBuild() {
         className="min-w-0 gap-2 px-4 py-3 text-ui-body sm:px-6 lg:px-8"
       >
         <header className="-mx-1 flex max-h-[40%] shrink-0 flex-wrap items-center justify-between gap-2 overflow-y-auto overscroll-contain px-1 py-1">
-          <p className="min-w-0 flex-1 basis-64 text-ui-body break-words text-muted-foreground">
+          <p className="min-w-0 flex-1 basis-64 text-ui-body break-words text-muted-foreground non-touch:text-sm">
             Open your packs to reveal your pool.
           </p>
           <LimitedSettingsButton sessionKey={session.sessionId} sharedTable />
@@ -188,7 +191,7 @@ export default function MultiplayerLimitedBuild() {
     >
       <div className="-mx-1 max-h-[40%] shrink-0 space-y-2 overflow-y-auto overscroll-contain px-1 py-1">
         <header className="flex flex-wrap items-center justify-between gap-2">
-          <p className="min-w-0 flex-1 basis-64 rounded bg-card/70 px-2 py-1 text-ui-body break-words text-muted-foreground">
+          <p className="min-w-0 flex-1 basis-64 rounded bg-card/70 px-2 py-1 text-ui-body break-words text-muted-foreground non-touch:text-xs">
             Your pool stays here after each game. Edit your deck, then ready for a casual pairing.
           </p>
           <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -236,7 +239,10 @@ export default function MultiplayerLimitedBuild() {
             />
           </div>
         </header>
-        <ul className="flex flex-wrap gap-2 text-ui-meta" aria-label="Deck readiness">
+        <ul
+          className="flex flex-wrap gap-2 text-ui-meta non-touch:text-sm"
+          aria-label="Deck readiness"
+        >
           {session.seats.map((seat) => {
             const status = session.statuses.find((s) => s.seat === seat.seat);
             return (
@@ -261,7 +267,7 @@ export default function MultiplayerLimitedBuild() {
         </ul>
         {session.series.length > 0 && (
           <ul
-            className="flex flex-wrap gap-3 text-ui-meta text-muted-foreground"
+            className="flex flex-wrap gap-3 text-ui-meta text-muted-foreground non-touch:text-sm"
             aria-label="Casual match scores"
           >
             {session.series.map((match) => (
@@ -279,13 +285,13 @@ export default function MultiplayerLimitedBuild() {
           </ul>
         )}
         {hostDisconnected && (
-          <p role="status" className="text-ui-label break-words text-destructive">
+          <p role="status" className="text-ui-label break-words text-destructive non-touch:text-sm">
             The host is disconnected. Resume the saved session on the host&apos;s device to continue
             with the same pools and builds.
           </p>
         )}
         {session.lastError && (
-          <p role="alert" className="text-ui-label break-words text-destructive">
+          <p role="alert" className="text-ui-label break-words text-destructive non-touch:text-sm">
             {session.lastError}
           </p>
         )}
@@ -293,7 +299,7 @@ export default function MultiplayerLimitedBuild() {
       {session.phase === "playing" ? (
         <p
           role="status"
-          className="max-h-[20%] shrink-0 overflow-y-auto overscroll-contain text-ui-body break-words text-muted-foreground"
+          className="max-h-[20%] shrink-0 overflow-y-auto overscroll-contain text-ui-body break-words text-muted-foreground non-touch:text-sm"
         >
           Starting your paired game…
         </p>

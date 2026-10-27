@@ -76,7 +76,7 @@ function CustomCounterForm({
         </div>
         <div className="space-y-1">
           <Label>Icon</Label>
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(2.75rem,1fr))] gap-1">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(2.75rem,1fr))] gap-1 non-touch:grid-cols-8">
             {availableIcons.map((key) => (
               <button
                 type="button"

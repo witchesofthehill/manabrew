@@ -82,19 +82,19 @@ export function LimitedCompareDialog({ current, sessionKey, open, onOpenChange }
         </DialogHeader>
 
         {choices.length === 0 ? (
-          <p className="rounded border border-border/50 bg-muted/30 p-3 text-ui-body text-muted-foreground">
+          <p className="rounded border border-border/50 bg-muted/30 p-3 text-ui-body text-muted-foreground non-touch:text-sm">
             No comparison builds yet. Keep a named build in Build configurations or use Save to My
             Decks to save a Limited deck.
           </p>
         ) : (
           <div className="grid gap-3">
-            <label className="flex flex-wrap items-center gap-2 text-ui-label">
+            <label className="flex flex-wrap items-center gap-2 text-ui-label non-touch:text-sm">
               <span className="text-muted-foreground">Compare with</span>
               <AppSelect
                 aria-label="Compare Limited build"
                 value={selectedId}
                 onValueChange={setSelectedId}
-                className="min-w-0 flex-1 rounded border border-border/70 bg-background px-2 py-1"
+                className="min-w-0 flex-1 rounded border border-border/70 bg-background px-2 py-1 non-touch:text-sm non-touch:py-1"
               >
                 <AppSelectOption value="">Choose a build</AppSelectOption>
                 {choices.map((choice) => (
@@ -117,12 +117,12 @@ export function LimitedCompareDialog({ current, sessionKey, open, onOpenChange }
           </div>
         )}
         {metadata.loading && (
-          <p role="status" className="text-ui-meta text-muted-foreground">
+          <p role="status" className="text-ui-meta text-muted-foreground non-touch:text-xs">
             Loading metadata. Unresolved cards are excluded.
           </p>
         )}
         {metadata.errors.length > 0 && (
-          <div role="alert" className="space-y-2 text-ui-meta">
+          <div role="alert" className="space-y-2 text-ui-meta non-touch:text-xs">
             <ul>
               {metadata.errors.map((error) => (
                 <li key={error}>{error}</li>
@@ -156,12 +156,14 @@ function CompareColumn({
 }) {
   return (
     <section className="rounded border border-border/50 bg-card/30 p-3">
-      <h3 className="mb-2 text-ui-label font-semibold uppercase tracking-wide text-muted-foreground">
+      <h3 className="mb-2 text-ui-label font-semibold uppercase tracking-wide text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
         {title}{" "}
         <span className="text-muted-foreground/70">({empty ? "—" : `${cards.length} cards`})</span>
       </h3>
       {empty ? (
-        <p className="text-ui-meta text-muted-foreground">Pick a build to see its breakdown.</p>
+        <p className="text-ui-meta text-muted-foreground non-touch:text-xs">
+          Pick a build to see its breakdown.
+        </p>
       ) : (
         <div className="space-y-3">
           <LimitedDeckStats cards={cards} />

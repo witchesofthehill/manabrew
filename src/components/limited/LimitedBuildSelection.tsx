@@ -17,7 +17,11 @@ export function LimitedBuildSelection({ availableSelection, move, setSelectedIds
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="shrink-0 text-ui-label tabular-nums">
+        <Button
+          variant="outline"
+          size="sm"
+          className="shrink-0 text-ui-label tabular-nums non-touch:text-xs"
+        >
           Move {availableSelection.length} selected
         </Button>
       </DropdownMenuTrigger>

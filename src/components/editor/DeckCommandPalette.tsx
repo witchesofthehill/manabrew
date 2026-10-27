@@ -60,7 +60,7 @@ export function DeckCommandPalette({ open, onOpenChange, commands }: DeckCommand
               filtered[activeIndex] ? `deck-command-${filtered[activeIndex].id}` : undefined
             }
             value={query}
-            className="min-h-11 pl-9"
+            className="min-h-11 pl-9 non-touch:h-11 non-touch:min-h-0"
             placeholder={`Type a deck command\u2026`}
             onChange={(event) => {
               setQuery(event.target.value);
@@ -98,7 +98,7 @@ export function DeckCommandPalette({ open, onOpenChange, commands }: DeckCommand
                 aria-selected={activeIndex === index}
                 disabled={command.disabled}
                 className={cn(
-                  "flex min-h-10 touch:min-h-11 touch:min-w-11 w-full flex-wrap items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-ui-label hover:bg-muted focus-visible:bg-muted focus-visible:outline-none",
+                  "flex min-h-10 touch:min-h-11 touch:min-w-11 w-full flex-wrap items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-ui-label hover:bg-muted focus-visible:bg-muted focus-visible:outline-none non-touch:text-sm",
                   activeIndex === index && "bg-muted",
                   command.disabled && "cursor-not-allowed opacity-50",
                 )}
@@ -108,14 +108,14 @@ export function DeckCommandPalette({ open, onOpenChange, commands }: DeckCommand
               >
                 <span>{command.label}</span>
                 {command.disabledReason && (
-                  <span className="text-ui-meta text-muted-foreground">
+                  <span className="text-ui-meta text-muted-foreground non-touch:text-xs">
                     {command.disabledReason}
                   </span>
                 )}
               </button>
             ))
           ) : (
-            <p className="px-3 py-8 text-center text-ui-meta text-muted-foreground">
+            <p className="px-3 py-8 text-center text-ui-meta text-muted-foreground non-touch:text-sm">
               No matching commands
             </p>
           )}

@@ -147,7 +147,7 @@ export function DevStressPresets() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className={DEV_SECTION_HEADING}>Stress scenarios</p>
-            <p className="mt-1 text-ui-body text-muted-foreground">
+            <p className="mt-1 text-ui-body text-muted-foreground non-touch:text-xs">
               Deterministic high-pressure states for the current staged card and player HUD.
             </p>
           </div>
@@ -219,8 +219,8 @@ function PresetButton({
       className="min-h-16 rounded-lg border border-border/70 bg-background/40 px-3 py-2 text-left transition-colors hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
       onClick={onClick}
     >
-      <span className="block text-ui-label font-medium">{label}</span>
-      <span className="mt-1 block text-ui-meta leading-snug text-muted-foreground">
+      <span className="block text-ui-label font-medium non-touch:text-xs">{label}</span>
+      <span className="mt-1 block text-ui-meta leading-snug text-muted-foreground non-touch:text-[10px] non-touch:leading-snug">
         {description}
       </span>
     </button>

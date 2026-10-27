@@ -1,4 +1,9 @@
-import { getUiControlHeight, getUiFontSize, UI_FONT_FAMILY as FONT } from "@/themes/typography";
+import {
+  getUiControlHeight,
+  getUiFontSize,
+  UI_FONT_FAMILY as FONT,
+  isTouchUi,
+} from "@/themes/typography";
 import {
   Application,
   Container,
@@ -190,7 +195,7 @@ export function promptText(
     role?: "body" | "label" | "meta" | "caption" | "input";
   } = {},
 ): Text {
-  size = Math.max(size, getUiFontSize(options.role ?? "meta"));
+  size = Math.max(size, getUiFontSize(options.role ?? "meta", size));
   const text = new Text({
     text: value,
     style: new TextStyle({
@@ -204,7 +209,9 @@ export function promptText(
       wordWrap: options.width != null && !options.truncate,
       wordWrapWidth: options.width,
       breakWords: true,
-      lineHeight: Math.max(options.lineHeight ?? 0, Math.ceil(size * 1.35)),
+      lineHeight: isTouchUi()
+        ? Math.max(options.lineHeight ?? 0, Math.ceil(size * 1.35))
+        : (options.lineHeight ?? Math.ceil(size * 1.35)),
     }),
   });
   if (options.truncate && options.width != null && text.width > options.width) {
@@ -236,7 +243,7 @@ export function promptRichText(
     role?: "body" | "label" | "meta" | "caption" | "input";
   } = {},
 ): PixiRichText {
-  size = Math.max(size, getUiFontSize(options.role ?? "label"));
+  size = Math.max(size, getUiFontSize(options.role ?? "label", size));
   const text = new PixiRichText();
   text.setContent(
     value,
@@ -247,7 +254,9 @@ export function promptRichText(
       fontStyle: options.style ?? "normal",
       letterSpacing: options.letterSpacing ?? 0,
       fill: hexToNum(color),
-      lineHeight: Math.max(options.lineHeight ?? 0, Math.ceil(size * 1.35)),
+      lineHeight: isTouchUi()
+        ? Math.max(options.lineHeight ?? 0, Math.ceil(size * 1.35))
+        : (options.lineHeight ?? Math.ceil(size * 1.35)),
     }),
     Math.max(1, width),
     Math.ceil(size * 1.15),

@@ -52,8 +52,8 @@ export function GuestNamePicker() {
           {busy ? `Saving\u2026` : `Save`}
         </Button>
       </div>
-      {error && <p className="text-ui-meta text-destructive">{error}</p>}
-      <p className="text-ui-meta text-muted-foreground">Playing as a guest.</p>
+      {error && <p className="text-ui-meta text-destructive non-touch:text-sm">{error}</p>}
+      <p className="text-ui-meta text-muted-foreground non-touch:text-xs">Playing as a guest.</p>
     </div>
   );
 }

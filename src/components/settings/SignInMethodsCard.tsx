@@ -87,7 +87,9 @@ export function SignInMethodsCard({ identities }: SignInMethodsCardProps) {
               <div className="min-w-0 flex-1">
                 <p className="text-ui-label font-medium leading-tight">{label}</p>
                 {identity.email && (
-                  <p className="break-all text-ui-meta text-muted-foreground">{identity.email}</p>
+                  <p className="break-all text-ui-meta text-muted-foreground non-touch:text-xs">
+                    {identity.email}
+                  </p>
                 )}
               </div>
               <Button

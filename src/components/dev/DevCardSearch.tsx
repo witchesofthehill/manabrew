@@ -112,7 +112,7 @@ export function DevCardSearch({ value, onSelect }: DevCardSearchProps) {
             }
           }}
           placeholder={`Search Scryfall`}
-          className="pl-9 pr-11"
+          className="pl-9 pr-11 non-touch:pr-9"
           spellCheck={false}
         />
         {loading ? (
@@ -120,7 +120,7 @@ export function DevCardSearch({ value, onSelect }: DevCardSearchProps) {
         ) : query ? (
           <button
             type="button"
-            className="absolute right-0 top-1/2 flex h-8 w-8 touch:h-11 touch:w-11 -translate-y-1/2 items-center justify-center text-muted-foreground hover:text-foreground"
+            className="absolute right-0 top-1/2 flex h-8 w-8 touch:h-11 touch:w-11 -translate-y-1/2 items-center justify-center text-muted-foreground hover:text-foreground non-touch:right-3 non-touch:h-4 non-touch:w-4"
             onClick={clear}
             title={`Clear card search`}
           >
@@ -135,7 +135,7 @@ export function DevCardSearch({ value, onSelect }: DevCardSearchProps) {
           role="listbox"
           className="absolute left-0 right-0 top-full z-50 mt-1 max-h-80 overflow-y-auto rounded-lg border border-border bg-popover shadow-lg"
         >
-          <div className="sticky top-0 z-10 border-b border-border bg-popover px-3 py-1.5 text-ui-meta text-muted-foreground">
+          <div className="sticky top-0 z-10 border-b border-border bg-popover px-3 py-1.5 text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
             Select a card to stage it on the battlefield
           </div>
           {results.map((card, index) => {
@@ -158,12 +158,14 @@ export function DevCardSearch({ value, onSelect }: DevCardSearchProps) {
                   className="h-14 w-10 shrink-0 rounded"
                 />
                 <span className="min-w-0 flex-1">
-                  <span className="block break-words text-ui-label font-medium">{card.name}</span>
-                  <span className="mt-0.5 block break-words text-ui-meta text-muted-foreground">
+                  <span className="block break-words text-ui-label font-medium non-touch:text-sm">
+                    {card.name}
+                  </span>
+                  <span className="mt-0.5 block break-words text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
                     {card.type_line}
                   </span>
                 </span>
-                <span className="shrink-0 font-mono text-ui-meta uppercase text-muted-foreground">
+                <span className="shrink-0 font-mono text-ui-meta uppercase text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
                   {card.set}
                 </span>
               </button>

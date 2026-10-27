@@ -24,7 +24,7 @@ function AppChrome({ colors, mode }: { colors: ThemeColors; mode: string }) {
   const g = (k: keyof ThemeColors) => colors[k];
   return (
     <div className="overflow-hidden rounded-lg border border-border">
-      <div className="flex items-center justify-between border-b border-border bg-card px-3 py-1.5 text-ui-label font-semibold uppercase tracking-wide text-muted-foreground">
+      <div className="flex items-center justify-between border-b border-border bg-card px-3 py-1.5 text-ui-label font-semibold uppercase tracking-wide text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
         {mode}
       </div>
       <div style={{ background: g("background") }} className="p-3">
@@ -32,25 +32,25 @@ function AppChrome({ colors, mode }: { colors: ThemeColors; mode: string }) {
           className="flex flex-col gap-2 rounded-lg border p-3"
           style={{ background: g("card"), borderColor: g("border"), color: g("card-foreground") }}
         >
-          <div className="text-ui-label font-semibold">Card surface</div>
-          <div className="text-ui-meta" style={{ color: g("muted-foreground") }}>
+          <div className="text-ui-label font-semibold non-touch:text-sm">Card surface</div>
+          <div className="text-ui-meta non-touch:text-xs" style={{ color: g("muted-foreground") }}>
             Muted secondary text
           </div>
           <div className="flex flex-wrap gap-1.5">
             <span
-              className="rounded px-2 py-1 text-ui-label font-semibold"
+              className="rounded px-2 py-1 text-ui-label font-semibold non-touch:text-[11px] non-touch:leading-[inherit]"
               style={{ background: g("primary"), color: g("primary-foreground") }}
             >
               Primary
             </span>
             <span
-              className="rounded px-2 py-1 text-ui-label font-semibold"
+              className="rounded px-2 py-1 text-ui-label font-semibold non-touch:text-[11px] non-touch:leading-[inherit]"
               style={{ background: g("secondary"), color: g("secondary-foreground") }}
             >
               Secondary
             </span>
             <span
-              className="rounded px-2 py-1 text-ui-label font-semibold"
+              className="rounded px-2 py-1 text-ui-label font-semibold non-touch:text-[11px] non-touch:leading-[inherit]"
               style={{ background: g("destructive"), color: g("destructive-foreground") }}
             >
               Delete
@@ -58,19 +58,19 @@ function AppChrome({ colors, mode }: { colors: ThemeColors; mode: string }) {
           </div>
           <div className="flex flex-wrap gap-1.5">
             <span
-              className="rounded-full border px-2 py-0.5 text-ui-meta"
+              className="rounded-full border px-2 py-0.5 text-ui-meta non-touch:text-[10px] non-touch:leading-[inherit]"
               style={{ borderColor: g("commander"), color: g("commander") }}
             >
               Commander
             </span>
             <span
-              className="rounded-full border px-2 py-0.5 text-ui-meta"
+              className="rounded-full border px-2 py-0.5 text-ui-meta non-touch:text-[10px] non-touch:leading-[inherit]"
               style={{ borderColor: g("warning"), color: g("warning") }}
             >
               Warning
             </span>
             <span
-              className="rounded-full border px-2 py-0.5 text-ui-meta"
+              className="rounded-full border px-2 py-0.5 text-ui-meta non-touch:text-[10px] non-touch:leading-[inherit]"
               style={{
                 background: g("selection"),
                 borderColor: g("selection-border"),
@@ -88,7 +88,9 @@ function AppChrome({ colors, mode }: { colors: ThemeColors; mode: string }) {
 function AppTokens({ colors, mode }: { colors: ThemeColors; mode: string }) {
   return (
     <div className="ds-app-token-mode space-y-1.5">
-      <div className="font-mono text-ui-label text-muted-foreground">{mode}</div>
+      <div className="font-mono text-ui-label text-muted-foreground non-touch:text-[11px] non-touch:leading-[inherit]">
+        {mode}
+      </div>
       <SwatchGrid>
         {(Object.entries(colors) as [keyof ThemeColors, string][]).map(([key, value]) => (
           <Swatch key={key} value={value} label={key} sub={APP_THEME_COLOR_LABELS[key]} />
@@ -121,7 +123,7 @@ function ThemeCard({ theme }: { theme: typeof MANABREW_THEME }) {
       <div className="space-y-3">
         {groupGameColors(theme.gameColors).map((grp) => (
           <div key={grp.name} className="ds-color-group space-y-1.5">
-            <div className="font-mono text-ui-label break-words text-muted-foreground">
+            <div className="font-mono text-ui-label break-words text-muted-foreground non-touch:text-[11px] non-touch:leading-[inherit]">
               {grp.name}
             </div>
             <SwatchGrid>
@@ -159,13 +161,13 @@ export function ColorSection() {
     >
       <div className="space-y-4">
         <Subhead>Manabrew brand families</Subhead>
-        <p className="text-ui-body text-muted-foreground">
+        <p className="text-ui-body text-muted-foreground non-touch:text-sm">
           Ember actions, purple mana and selection, and sparse sage details. These families define
           one identity, not selectable themes.
         </p>
         {Object.entries(BRAND_COLORS).map(([family, shades]) => (
           <div key={family} className="ds-color-group space-y-2">
-            <h3 className="text-ui-label font-semibold capitalize">{family}</h3>
+            <h3 className="text-ui-label font-semibold capitalize non-touch:text-sm">{family}</h3>
             <SwatchGrid>
               {Object.entries(shades).map(([shade, value]) => (
                 <Swatch key={shade} label={`${family}.${shade}`} value={value} />

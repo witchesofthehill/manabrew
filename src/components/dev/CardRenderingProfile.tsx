@@ -132,10 +132,13 @@ export function CardRenderingProfile({
       data-card-renderer="card-glint"
     >
       <h2 className="font-semibold">Presentation decision and measured cache behavior</h2>
-      <output data-testid="render-decision" className="block break-all font-mono text-ui-meta">
+      <output
+        data-testid="render-decision"
+        className="block break-all font-mono text-ui-meta non-touch:text-xs"
+      >
         {decision}
       </output>
-      <p className="text-ui-body text-muted-foreground">
+      <p className="text-ui-body text-muted-foreground non-touch:text-xs">
         Card Glint composes generated frames, not exact historical printings. A cold sample clears
         finished generated cards, not downloaded assets, fonts, or browser caches. Timings measure
         this renderer request, not GPU presentation. Native submissions, Pixi batches and separate
@@ -165,18 +168,18 @@ export function CardRenderingProfile({
           Measure warm request
         </Button>
       </div>
-      <p role="status" className="text-ui-meta text-muted-foreground">
+      <p role="status" className="text-ui-meta text-muted-foreground non-touch:text-xs">
         {busy ? "Measuring…" : message}
       </p>
       <pre
         data-testid="renderer-stats"
-        className="max-h-48 overflow-auto rounded bg-muted p-3 text-ui-meta"
+        className="max-h-48 overflow-auto rounded bg-muted p-3 text-ui-meta non-touch:text-xs"
       >
         {JSON.stringify({ ...stats, mainThreadLongTasks: longTasks.current }, null, 2)}
       </pre>
       <output
         data-testid="render-samples"
-        className="block max-h-48 overflow-auto whitespace-pre-wrap font-mono text-ui-meta"
+        className="block max-h-48 overflow-auto whitespace-pre-wrap font-mono text-ui-meta non-touch:text-xs"
       >
         {JSON.stringify(samples, null, 2)}
       </output>

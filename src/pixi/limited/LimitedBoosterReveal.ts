@@ -1,4 +1,4 @@
-import { DISPLAY_FONT_FAMILY, getUiFontSize, UI_FONT_FAMILY } from "@/themes/typography";
+import { DISPLAY_FONT_FAMILY, getUiFontSize, UI_FONT_FAMILY, isTouchUi } from "@/themes/typography";
 import { Container, FillGradient, Graphics, GraphicsContext, Sprite, Text } from "pixi.js";
 import { GAME_CARD_SIZES } from "@/components/game/game.constants";
 import { gsap } from "@/pixi/effects/gsap";
@@ -244,7 +244,7 @@ export class LimitedBoosterReveal {
     const symbolCode = new Text({
       style: {
         fontFamily: UI_FONT_FAMILY,
-        fontSize: Math.max(wrapperWidth * 0.2, getUiFontSize("label")),
+        fontSize: Math.max(wrapperWidth * 0.2, getUiFontSize("label", 0)),
         fontWeight: "bold",
         fill: theme.appTheme.foreground,
       },
@@ -254,7 +254,7 @@ export class LimitedBoosterReveal {
     const setName = new Text({
       style: {
         fontFamily: DISPLAY_FONT_FAMILY,
-        fontSize: Math.max(wrapperWidth * 0.085, getUiFontSize("label")),
+        fontSize: Math.max(wrapperWidth * 0.085, getUiFontSize("label", 0)),
         fontWeight: "bold",
         fill: theme.appTheme.foreground,
         align: "center",
@@ -271,12 +271,15 @@ export class LimitedBoosterReveal {
         : `${options.cardCount ?? cards.length}-CARD BOOSTER`,
       style: {
         fontFamily: UI_FONT_FAMILY,
-        fontSize: Math.max(wrapperWidth * (grouped ? 0.08 : 0.055), getUiFontSize("meta")),
+        fontSize: Math.max(
+          wrapperWidth * (grouped ? 0.08 : 0.055),
+          getUiFontSize("meta", grouped ? 9 : 7),
+        ),
         fontWeight: "bold",
         letterSpacing: 0.6,
         fill: theme.appTheme.foreground,
         align: "center",
-        wordWrap: true,
+        wordWrap: isTouchUi(),
         wordWrapWidth: Math.max(1, wrapperWidth - 24),
         breakWords: true,
       },
@@ -554,25 +557,43 @@ export class LimitedBoosterReveal {
     const { setName, symbolCode, packType } = this;
     if (!setName || !symbolCode || !packType) return;
     const foreground = getTheme().appTheme.foreground;
-    symbolCode.style.fontSize = Math.max(this.wrapperWidth * 0.2, getUiFontSize("label"));
+    symbolCode.style.fontSize = Math.max(this.wrapperWidth * 0.2, getUiFontSize("label", 0));
     symbolCode.style.fill = foreground;
-    setName.style.fontSize = Math.max(this.wrapperWidth * 0.085, getUiFontSize("label"));
+    setName.style.fontSize = Math.max(this.wrapperWidth * 0.085, getUiFontSize("label", 0));
     setName.style.fill = foreground;
     setName.text = this.identityName;
     const maxHeight = Math.max(Number(setName.style.fontSize) * 1.4, this.wrapperHeight * 0.17);
+    setName.scale.set(1);
     while (
+      isTouchUi() &&
       (setName.height > maxHeight || setName.width > this.wrapperWidth - 24) &&
       setName.text.replace(/…$/, "").length > 1
     ) {
       setName.text = `${setName.text.replace(/…$/, "").slice(0, -1)}…`;
     }
+    if (!isTouchUi())
+      setName.scale.set(
+        Math.min(
+          1,
+          (this.wrapperWidth - 24) / setName.width,
+          (this.wrapperHeight * 0.17) / setName.height,
+        ),
+      );
     packType.style.fontSize = Math.max(
       this.wrapperWidth * (this.packCount > 1 ? 0.08 : 0.055),
-      getUiFontSize("meta"),
+      getUiFontSize("meta", this.packCount > 1 ? 9 : 7),
     );
     packType.style.fill = foreground;
-    packType.y = this.wrapperHeight / 2 - 8 - packType.height / 2;
-    setName.y = packType.y - packType.height / 2 - 6 - setName.height / 2;
+    packType.scale.set(1);
+    if (isTouchUi()) {
+      packType.y = this.wrapperHeight / 2 - 8 - packType.height / 2;
+      setName.y = packType.y - packType.height / 2 - 6 - setName.height / 2;
+    } else {
+      packType.scale.set(Math.min(1, (this.wrapperWidth * 0.82) / packType.width));
+      packType.y =
+        this.wrapperHeight / 2 - this.wrapperHeight * (this.packCount > 1 ? 0.105 : 0.065);
+      setName.y = this.wrapperHeight / 2 - this.wrapperHeight * 0.26;
+    }
     this.request();
   }
   private readonly changed = (): void => {

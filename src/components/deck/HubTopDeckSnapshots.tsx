@@ -143,8 +143,10 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
       >
         {error ? (
           <div className="rounded-lg border border-dashed p-8 text-center">
-            <p className="text-ui-body font-medium">This ranking is unavailable</p>
-            <p className="mt-1 text-ui-meta text-muted-foreground">{error}</p>
+            <p className="text-ui-body font-medium non-touch:text-sm">
+              This ranking is unavailable
+            </p>
+            <p className="mt-1 text-ui-meta text-muted-foreground non-touch:text-xs">{error}</p>
             <Button
               variant="outline"
               size="sm"
@@ -168,8 +170,10 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
         ) : snapshot.entries.length === 0 ? (
           <div className="rounded-lg border border-dashed p-8 text-center">
             <Trophy className="mx-auto h-8 w-8 text-muted-foreground/50" />
-            <p className="mt-3 text-ui-body font-medium">No snapshot published yet</p>
-            <p className="mt-1 text-ui-meta text-muted-foreground">
+            <p className="mt-3 text-ui-body font-medium non-touch:text-sm">
+              No snapshot published yet
+            </p>
+            <p className="mt-1 text-ui-meta text-muted-foreground non-touch:text-xs">
               This ranking appears after its first evidence-backed snapshot is available.
             </p>
           </div>
@@ -178,8 +182,8 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
             {isTouch ? (
               <div
                 className={cn(
-                  "grid grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))] gap-3",
-                  shortTouch && "gap-2",
+                  "grid grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))] gap-3 non-touch:sm:gap-3",
+                  shortTouch && "gap-2 non-touch:sm:gap-2",
                 )}
               >
                 {displayedEntries.map((ranked) => (
@@ -222,7 +226,7 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
 
       <p
         className={cn(
-          "shrink-0 border-t px-4 py-2 text-ui-meta text-muted-foreground sm:px-6 lg:px-8",
+          "shrink-0 border-t px-4 py-2 text-ui-meta text-muted-foreground sm:px-6 lg:px-8 non-touch:text-[11px] non-touch:leading-[inherit]",
           shortTouch && "px-4 py-1.5",
         )}
       >

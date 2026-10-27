@@ -261,8 +261,12 @@ export function CollectionImportDialog({
               onClick={() => fileInput.current?.click()}
             >
               <FileUp className="h-8 w-8 text-primary" />
-              <span className="text-ui-label font-medium">Choose an export file</span>
-              <span className="text-ui-meta text-muted-foreground">CSV, TSV, or text</span>
+              <span className="text-ui-label font-medium non-touch:text-[length:inherit] non-touch:leading-[inherit]">
+                Choose an export file
+              </span>
+              <span className="text-ui-meta text-muted-foreground non-touch:text-xs">
+                CSV, TSV, or text
+              </span>
             </button>
             <button
               type="button"
@@ -270,8 +274,10 @@ export function CollectionImportDialog({
               onClick={() => void pasteFromClipboard()}
             >
               <ClipboardPaste className="h-8 w-8 text-primary" />
-              <span className="text-ui-label font-medium">Paste from clipboard</span>
-              <span className="text-ui-meta text-muted-foreground">
+              <span className="text-ui-label font-medium non-touch:text-[length:inherit] non-touch:leading-[inherit]">
+                Paste from clipboard
+              </span>
+              <span className="text-ui-meta text-muted-foreground non-touch:text-xs">
                 Copy rows from a spreadsheet
               </span>
             </button>
@@ -280,8 +286,10 @@ export function CollectionImportDialog({
           <div className="min-w-0 space-y-5">
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/30 px-4 py-3">
               <div className="min-w-0">
-                <p className="break-words text-ui-label font-medium">{fileName}</p>
-                <p className="text-ui-meta text-muted-foreground">
+                <p className="break-words text-ui-label font-medium non-touch:text-sm">
+                  {fileName}
+                </p>
+                <p className="text-ui-meta text-muted-foreground non-touch:text-xs">
                   {SOURCE_LABELS[parsed.source]} · {parsed.rows.length} rows detected
                 </p>
               </div>
@@ -331,13 +339,13 @@ export function CollectionImportDialog({
 
             <div className="space-y-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <h3 className="text-ui-label font-semibold">Import preview</h3>
-                <div className="flex flex-wrap items-center gap-3 text-ui-meta">
+                <h3 className="text-ui-label font-semibold non-touch:text-sm">Import preview</h3>
+                <div className="flex flex-wrap items-center gap-3 text-ui-meta non-touch:text-xs">
                   {printingValidationError && (
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="px-2"
+                      className="px-2 non-touch:text-xs non-touch:h-6"
                       onClick={() => setPrintingValidationAttempt((attempt) => attempt + 1)}
                     >
                       Retry verification
@@ -354,7 +362,7 @@ export function CollectionImportDialog({
                 </div>
               </div>
               {exactRows.length > 0 && (
-                <p className="text-ui-meta text-muted-foreground">
+                <p className="text-ui-meta text-muted-foreground non-touch:text-xs">
                   Exact printings are verified with Scryfall before import. Large collections may
                   take a while to finish checking.
                   {validatingPrintings && printingValidationProgress.total > 0
@@ -374,7 +382,7 @@ export function CollectionImportDialog({
                 <Button
                   size="sm"
                   variant={previewFilter === "ready" ? "secondary" : "ghost"}
-                  className="px-2.5 text-legality-legal"
+                  className="px-2.5 text-legality-legal non-touch:text-xs non-touch:h-7"
                   onClick={() => setPreviewFilter("ready")}
                 >
                   Ready {validRows.length}
@@ -382,14 +390,14 @@ export function CollectionImportDialog({
                 <Button
                   size="sm"
                   variant={previewFilter === "skipped" ? "secondary" : "ghost"}
-                  className="px-2.5 text-destructive"
+                  className="px-2.5 text-destructive non-touch:text-xs non-touch:h-7"
                   onClick={() => setPreviewFilter("skipped")}
                 >
                   Skipped {invalidRows}
                 </Button>
               </div>
               <div className="max-h-64 min-w-0 overflow-auto rounded-lg border">
-                <table className="w-full text-left text-ui-meta">
+                <table className="w-full text-left text-ui-meta non-touch:text-xs">
                   <thead className="sticky top-0 bg-background">
                     <tr className="border-b text-muted-foreground">
                       <th className="px-3 py-2 font-medium">Row</th>
@@ -404,7 +412,7 @@ export function CollectionImportDialog({
                     {filteredPreview.slice(0, 100).map((row) => (
                       <tr key={row.rowNumber} className="border-b last:border-0">
                         <td className="px-3 py-2 text-muted-foreground">{row.rowNumber}</td>
-                        <td className="max-w-80 break-words px-3 py-2 text-ui-label">
+                        <td className="max-w-80 break-words px-3 py-2 text-ui-label non-touch:text-[length:inherit] non-touch:leading-[inherit]">
                           {row.name || "—"}
                         </td>
                         <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">
@@ -444,7 +452,7 @@ export function CollectionImportDialog({
                 </table>
               </div>
               {filteredPreview.length > 100 && (
-                <p className="text-ui-meta text-muted-foreground">
+                <p className="text-ui-meta text-muted-foreground non-touch:text-xs">
                   Showing the first 100 of {filteredPreview.length} {previewFilter} rows. All valid
                   rows will be imported.
                 </p>
@@ -452,7 +460,9 @@ export function CollectionImportDialog({
             </div>
 
             <fieldset className="space-y-2">
-              <legend className="text-ui-label font-semibold">Import behavior</legend>
+              <legend className="text-ui-label font-semibold non-touch:text-sm">
+                Import behavior
+              </legend>
               <div className="grid gap-2 @min-[36rem]:grid-cols-2">
                 <ImportMode
                   checked={mode === "merge"}
@@ -515,10 +525,10 @@ function ColumnPicker({
   onChange: (value: number | null) => void;
 }) {
   return (
-    <label className="block min-w-0 space-y-1.5 text-ui-label font-medium">
+    <label className="block min-w-0 space-y-1.5 text-ui-label font-medium non-touch:text-xs">
       {label} {required && <span className="text-destructive">*</span>}
       <AppSelect
-        className="w-full min-w-0"
+        className="w-full min-w-0 non-touch:text-sm non-touch:h-9 non-touch:px-3"
         value={value ?? ""}
         onValueChange={(selected) => onChange(selected === "" ? null : Number(selected))}
       >
@@ -547,8 +557,10 @@ function ImportMode({
     <label className="flex min-w-0 cursor-pointer gap-3 rounded-lg border p-3 has-[:checked]:border-selection-border has-[:checked]:bg-selection touch:min-h-11 touch:min-w-11">
       <input type="radio" name="collection-import-mode" checked={checked} onChange={onChange} />
       <span className="min-w-0">
-        <span className="block text-ui-label font-medium">{title}</span>
-        <span className="block text-ui-meta text-muted-foreground">{description}</span>
+        <span className="block text-ui-label font-medium non-touch:text-sm">{title}</span>
+        <span className="block text-ui-meta text-muted-foreground non-touch:text-xs">
+          {description}
+        </span>
       </span>
     </label>
   );

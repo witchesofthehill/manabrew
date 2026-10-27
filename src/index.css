@@ -481,6 +481,12 @@
   }
 }
 
+@custom-variant non-touch {
+  @media not (any-pointer: coarse) {
+    @slot;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .deck-editor-root *,
   .deck-editor-root *::before,

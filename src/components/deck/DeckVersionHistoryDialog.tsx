@@ -76,7 +76,7 @@ export function DeckVersionHistoryDialog({
         <div className="space-y-2">
           {loadError ? (
             <div className="py-8 text-center">
-              <p className="text-ui-meta text-destructive">{loadError}</p>
+              <p className="text-ui-meta text-destructive non-touch:text-sm">{loadError}</p>
               <Button
                 variant="outline"
                 size="sm"
@@ -94,7 +94,7 @@ export function DeckVersionHistoryDialog({
               </Button>
             </div>
           ) : versions.length === 0 ? (
-            <div className="flex items-center justify-center gap-2 py-8 text-ui-meta text-muted-foreground">
+            <div className="flex items-center justify-center gap-2 py-8 text-ui-meta text-muted-foreground non-touch:text-sm">
               <Loader2 className="h-4 w-4 animate-spin" />
               Loading versions…
             </div>
@@ -105,20 +105,20 @@ export function DeckVersionHistoryDialog({
                 className="flex flex-wrap items-center gap-3 rounded-lg border bg-card p-3"
               >
                 <History className="h-4 w-4 text-muted-foreground" />
-                <div className="min-w-[min(100%,10rem)] flex-1">
-                  <p className="text-ui-label font-medium">
+                <div className="min-w-[min(100%,10rem)] flex-1 non-touch:min-w-0">
+                  <p className="text-ui-label font-medium non-touch:text-sm">
                     Version {version.versionNo}
                     {version.versionNo === currentVersionNo ? ` · Current` : ""}
                   </p>
-                  <p className="break-words text-ui-meta text-muted-foreground">
+                  <p className="break-words text-ui-meta text-muted-foreground non-touch:text-xs">
                     {version.notes || new Date(version.createdAt).toLocaleString()}
                     {version.published ? ` · Published` : ""}
                   </p>
                 </div>
                 {version.versionNo !== currentVersionNo &&
                   (confirmingVersion === version.versionNo ? (
-                    <span className="flex max-w-full flex-wrap items-center gap-2">
-                      <span className="text-ui-meta text-destructive">
+                    <span className="flex max-w-full flex-wrap items-center gap-2 non-touch:gap-1">
+                      <span className="text-ui-meta text-destructive non-touch:text-xs">
                         Replace unsaved changes?
                       </span>
                       <Button

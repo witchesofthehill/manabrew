@@ -66,7 +66,7 @@ export function AppSelect({
           ref={triggerRef}
           type="button"
           className={cn(
-            "inline-flex min-h-9 min-w-0 items-center justify-between gap-2 rounded-md border border-input bg-background px-3 py-1 text-ui-label text-foreground transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 touch:min-h-11 touch:min-w-11",
+            "inline-flex min-h-9 min-w-0 items-center justify-between gap-2 rounded-md border border-input bg-background px-3 py-1 text-ui-label text-foreground transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 touch:min-h-11 touch:min-w-11 non-touch:text-sm non-touch:h-9 non-touch:min-h-0 non-touch:py-0",
             className,
           )}
           disabled={disabled}

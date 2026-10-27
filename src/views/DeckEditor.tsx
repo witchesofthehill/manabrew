@@ -88,7 +88,7 @@ function DragTrayTarget({
     <div
       ref={setNodeRef}
       className={cn(
-        "flex min-h-14 min-w-28 flex-1 items-center justify-center gap-2 rounded-lg border border-dashed bg-background/90 px-3 py-2 text-ui-label font-medium shadow-sm transition-all",
+        "flex min-h-14 min-w-28 flex-1 items-center justify-center gap-2 rounded-lg border border-dashed bg-background/90 px-3 py-2 text-ui-label font-medium shadow-sm transition-all non-touch:text-xs",
         isOver ? "scale-105 border-primary bg-primary/15 text-primary" : "border-border",
       )}
     >
@@ -673,10 +673,10 @@ export default function DeckEditor() {
           <ScrollArea className="min-h-0 min-w-0 flex-1">
             <div className={cn("p-4 sm:px-6 lg:px-8", shortTouch && "py-2 sm:py-2")}>
               <div className="mb-3 flex flex-wrap items-center gap-2">
-                <span className="text-ui-label font-semibold uppercase tracking-wide text-muted-foreground">
+                <span className="text-ui-label font-semibold uppercase tracking-wide text-muted-foreground non-touch:text-xs">
                   My decks
                 </span>
-                <span className="text-ui-meta text-muted-foreground">
+                <span className="text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
                   ({collectionDecks.length})
                 </span>
                 {accountDecksAvailable && accountDecksSignedIn && (
@@ -692,7 +692,7 @@ export default function DeckEditor() {
                 )}
               </div>
               {accountDecksAvailable && accountDecksSignedIn && accountDecksError && (
-                <p className="mb-3 break-words text-ui-body text-destructive">
+                <p className="mb-3 break-words text-ui-body text-destructive non-touch:text-sm">
                   {accountDecksError}
                 </p>
               )}
@@ -722,17 +722,17 @@ export default function DeckEditor() {
                       onClick={() => setChoiceDialogOpen(true)}
                       className={cn(
                         "aspect-[4/3] w-full rounded-lg border-2 border-dashed border-muted-foreground/30",
-                        "flex flex-col items-center justify-center gap-1.5 p-3 touch:min-h-11 touch:min-w-11",
+                        "flex flex-col items-center justify-center gap-1.5 p-3 touch:min-h-11 touch:min-w-11 non-touch:p-0",
                         "cursor-pointer bg-muted/30 text-muted-foreground transition-all",
                         "group-hover:border-primary group-hover:bg-muted/60 group-hover:text-foreground",
                         compactAddDeck &&
                           (shortTouch
-                            ? "min-h-12 flex-row gap-3 aspect-auto"
-                            : "min-h-16 flex-row gap-3 aspect-auto"),
+                            ? "min-h-12 flex-row gap-3 aspect-auto non-touch:h-12 non-touch:min-h-0"
+                            : "min-h-16 flex-row gap-3 aspect-auto non-touch:h-16 non-touch:min-h-0"),
                       )}
                     >
                       <Plus className={cn("h-6 w-6", compactAddDeck && "h-5 w-5")} />
-                      <span className="text-ui-label font-medium">Add deck</span>
+                      <span className="text-ui-label font-medium non-touch:text-xs">Add deck</span>
                     </button>
                   </div>
 
@@ -743,10 +743,10 @@ export default function DeckEditor() {
               {!deckCatalogPending && filteredCollectionDrafts.length > 0 && (
                 <div className={cn("mt-4", filteredCollectionDecks.length > 0 && "border-t pt-4")}>
                   <div className="mb-3 flex flex-wrap items-center gap-2">
-                    <span className="text-ui-label font-semibold text-muted-foreground uppercase tracking-wide">
+                    <span className="text-ui-label font-semibold text-muted-foreground uppercase tracking-wide non-touch:text-xs">
                       Drafts
                     </span>
-                    <span className="text-ui-meta text-muted-foreground">
+                    <span className="text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
                       ({filteredCollectionDrafts.length})
                     </span>
                   </div>
@@ -759,17 +759,17 @@ export default function DeckEditor() {
               {!deckCatalogPending && publishEnabled && signedIn && (
                 <div className="mt-4 border-t pt-4">
                   <div className="mb-3 flex flex-wrap items-center gap-2">
-                    <span className="text-ui-label font-semibold uppercase tracking-wide text-muted-foreground">
+                    <span className="text-ui-label font-semibold uppercase tracking-wide text-muted-foreground non-touch:text-xs">
                       Published in Community
                     </span>
                     {!publishedDecksLoading && (
-                      <span className="text-ui-meta text-muted-foreground">
+                      <span className="text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
                         ({filteredPublishedDecks.length})
                       </span>
                     )}
                   </div>
                   {publishedDecksError ? (
-                    <div className="flex flex-wrap items-center gap-2 text-ui-body text-destructive">
+                    <div className="flex flex-wrap items-center gap-2 text-ui-body text-destructive non-touch:text-sm">
                       <span className="min-w-0 break-words">{publishedDecksError}</span>
                       <Button
                         variant="outline"
@@ -780,9 +780,11 @@ export default function DeckEditor() {
                       </Button>
                     </div>
                   ) : publishedDecksLoading && publishedDecks.length === 0 ? (
-                    <p className="text-ui-meta text-muted-foreground">Loading published decks…</p>
+                    <p className="text-ui-meta text-muted-foreground non-touch:text-sm">
+                      Loading published decks…
+                    </p>
                   ) : publishedDecks.length === 0 ? (
-                    <div className="flex flex-wrap items-center gap-2 text-ui-body text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-2 text-ui-body text-muted-foreground non-touch:text-sm">
                       <span>
                         You haven’t published a deck yet. Use the share action on any deck.
                       </span>
@@ -801,7 +803,7 @@ export default function DeckEditor() {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-ui-body text-muted-foreground">
+                    <p className="text-ui-body text-muted-foreground non-touch:text-sm">
                       No published decks match your filters.
                     </p>
                   )}
@@ -820,10 +822,10 @@ export default function DeckEditor() {
                   <div
                     className={cn("mb-3 flex flex-wrap items-center gap-2", shortTouch && "mb-2")}
                   >
-                    <span className="text-ui-label font-semibold uppercase tracking-wide text-muted-foreground">
+                    <span className="text-ui-label font-semibold uppercase tracking-wide text-muted-foreground non-touch:text-xs">
                       Starter Decks
                     </span>
-                    <span className="text-ui-meta text-muted-foreground">
+                    <span className="text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
                       ({presetSavedDecks.length})
                     </span>
                   </div>
@@ -857,7 +859,7 @@ export default function DeckEditor() {
                 filteredCollectionDrafts.length === 0 &&
                 presetSavedDecks.length === 0 &&
                 collectionDecks.length > 0 && (
-                  <p className="col-span-full pt-6 text-center text-ui-body text-muted-foreground">
+                  <p className="col-span-full pt-6 text-center text-ui-body text-muted-foreground non-touch:text-sm">
                     No decks match your filters.
                   </p>
                 )}
@@ -929,7 +931,7 @@ export default function DeckEditor() {
               placeholder={`Deck name`}
               autoFocus
             />
-            <DialogFooter className="gap-2">
+            <DialogFooter className="gap-2 non-touch:gap-2">
               <Button variant="ghost" size="sm" onClick={() => setRenamingId(null)}>
                 Cancel
               </Button>
@@ -959,7 +961,7 @@ export default function DeckEditor() {
                 from your account on every device. Publications of it in Community stay online.
               </DialogDescription>
             </DialogHeader>
-            <DialogFooter className="gap-2">
+            <DialogFooter className="gap-2 non-touch:gap-2">
               <Button
                 variant="outline"
                 size="sm"
@@ -1085,11 +1087,11 @@ export default function DeckEditor() {
                 );
               })}
               {draggedCards.length > 1 && (
-                <div className="absolute right-0 top-0 z-20 flex min-h-7 min-w-7 items-center justify-center rounded-full bg-primary px-2 text-ui-meta font-bold text-primary-foreground shadow-lg">
+                <div className="absolute right-0 top-0 z-20 flex min-h-7 min-w-7 items-center justify-center rounded-full bg-primary px-2 text-ui-meta font-bold text-primary-foreground shadow-lg non-touch:text-xs non-touch:h-7 non-touch:min-h-0">
                   {draggedCards.length}
                 </div>
               )}
-              <div className="absolute -bottom-2 left-1/2 z-30 -translate-x-1/2 whitespace-nowrap rounded-full border bg-popover/95 px-2 py-1 text-ui-meta font-medium shadow">
+              <div className="absolute -bottom-2 left-1/2 z-30 -translate-x-1/2 whitespace-nowrap rounded-full border bg-popover/95 px-2 py-1 text-ui-meta font-medium shadow non-touch:text-[10px] non-touch:leading-[inherit]">
                 Moving {draggedCards.length} card{draggedCards.length === 1 ? "" : "s"}
               </div>
             </div>
@@ -1130,7 +1132,7 @@ export default function DeckEditor() {
         <div className="fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto bg-overlay/50 p-4 backdrop-blur-sm">
           <div className="max-h-full min-w-0 max-w-sm space-y-4 overflow-y-auto rounded-xl border bg-card p-6 shadow-xl">
             <h3 className="text-lg font-semibold">Unsaved Changes</h3>
-            <p className="text-ui-body text-muted-foreground">
+            <p className="text-ui-body text-muted-foreground non-touch:text-sm">
               You have unsaved changes to your deck. Do you want to go back without saving?
             </p>
             <div className="flex flex-wrap justify-end gap-2">
@@ -1157,7 +1159,7 @@ export default function DeckEditor() {
         <div className="fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto bg-overlay/50 p-4 backdrop-blur-sm">
           <div className="max-h-full min-w-0 max-w-sm space-y-4 overflow-y-auto rounded-xl border bg-card p-6 shadow-xl">
             <h3 className="text-lg font-semibold">Unsaved Changes</h3>
-            <p className="text-ui-body text-muted-foreground">
+            <p className="text-ui-body text-muted-foreground non-touch:text-sm">
               You have unsaved changes to your deck. Do you want to leave without saving?
             </p>
             <div className="flex flex-wrap justify-end gap-2">

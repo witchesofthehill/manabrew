@@ -1,4 +1,4 @@
-import { getUiFontSize, UI_FONT_FAMILY } from "@/themes/typography";
+import { getUiFontSize, UI_FONT_FAMILY, isTouchUi } from "@/themes/typography";
 import { Container, Graphics, Text } from "pixi.js";
 import { getTheme, subscribeTheme } from "@/hooks/useTheme";
 import { hexToNum } from "@/pixi/colorUtils";
@@ -327,11 +327,13 @@ export class LimitedCardScene implements LimitedPane {
         text: header.label,
         style: {
           fontFamily: UI_FONT_FAMILY,
-          fontSize: Math.max(16, getUiFontSize("label")),
+          fontSize: Math.max(16, getUiFontSize("label", 16)),
           fontWeight: "bold",
           fill: theme.appTheme["muted-foreground"],
-          lineHeight: Math.ceil(Math.max(16, getUiFontSize("label")) * 1.25),
-          wordWrap: true,
+          lineHeight: isTouchUi()
+            ? Math.ceil(Math.max(16, getUiFontSize("label", 16)) * 1.25)
+            : undefined,
+          wordWrap: isTouchUi(),
           breakWords: true,
           wordWrapWidth: header.width,
         },

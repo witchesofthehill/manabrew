@@ -61,7 +61,7 @@ export function SetPicker({
           type="button"
           size="sm"
           variant="outline"
-          className="h-auto min-h-8 shrink-0 text-ui-label touch:min-h-11"
+          className="h-auto min-h-8 shrink-0 text-ui-label touch:min-h-11 non-touch:text-xs non-touch:h-8 non-touch:min-h-0"
           onClick={() => setChanging(true)}
         >
           Change set
@@ -84,7 +84,7 @@ export function SetPicker({
         )}
       >
         <div className="mb-3 flex flex-wrap items-center gap-2">
-          <h2 className="mr-auto text-ui-label font-semibold uppercase tracking-wide text-muted-foreground">
+          <h2 className="mr-auto text-ui-label font-semibold uppercase tracking-wide text-muted-foreground non-touch:text-xs">
             Pick a set
           </h2>
           <div
@@ -102,7 +102,7 @@ export function SetPicker({
               onChange={(e) => setQuery(e.target.value)}
               placeholder={`Search ${sets.length} sets…`}
               className={cn(
-                "h-auto min-h-8 pl-7 text-ui-input touch:min-h-11",
+                "h-auto min-h-8 pl-7 text-ui-input touch:min-h-11 non-touch:text-xs non-touch:h-8 non-touch:min-h-0",
                 variant === "column" || isTouch ? "w-full" : "w-64",
               )}
             />
@@ -114,7 +114,7 @@ export function SetPicker({
             value={typeFilter}
             onValueChange={setTypeFilter}
             aria-label="Set type"
-            className="min-h-11 w-full rounded-md border border-input bg-background px-3"
+            className="min-h-11 w-full rounded-md border border-input bg-background px-3 non-touch:text-base non-touch:h-11 non-touch:min-h-0"
           >
             {SET_TYPE_LABELS.map(({ key, label }) => {
               const count = counts[key] ?? 0;
@@ -138,7 +138,7 @@ export function SetPicker({
                   type="button"
                   onClick={() => setTypeFilter(key)}
                   className={cn(
-                    "min-h-8 rounded-full border px-2.5 py-0.5 text-ui-label transition touch:min-h-11 touch:min-w-11",
+                    "min-h-8 rounded-full border px-2.5 py-0.5 text-ui-label transition touch:min-h-11 touch:min-w-11 non-touch:text-[11px] non-touch:min-h-0 non-touch:leading-[inherit]",
                     active
                       ? "border-selection-border bg-selection text-selection-foreground"
                       : "border-border/50 text-muted-foreground hover:border-border hover:text-foreground/90",
@@ -161,7 +161,7 @@ export function SetPicker({
       >
         {!query && typeFilter === "all" && (
           <div className="mb-3">
-            <h3 className="mb-1.5 text-ui-label font-semibold uppercase tracking-wide text-muted-foreground">
+            <h3 className="mb-1.5 text-ui-label font-semibold uppercase tracking-wide text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
               Latest
             </h3>
             <div
@@ -186,7 +186,7 @@ export function SetPicker({
 
         <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,16rem),1fr))] gap-1.5">
           {filtered.length === 0 ? (
-            <div className="col-span-full py-6 text-center text-ui-body text-muted-foreground">
+            <div className="col-span-full py-6 text-center text-ui-body text-muted-foreground non-touch:text-sm">
               {query ? `No sets match "${query}".` : `No sets match the current filter.`}
             </div>
           ) : (

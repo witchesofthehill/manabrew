@@ -62,12 +62,12 @@ export function PromptDialogDevControls() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className={DEV_SECTION_HEADING}>Dialogs and screens</p>
-            <p className="mt-1 text-ui-body text-muted-foreground">
+            <p className="mt-1 text-ui-body text-muted-foreground non-touch:text-xs">
               Open the real battlefield UI with representative data. Preview actions never reach the
               engine.
             </p>
           </div>
-          <span className="rounded-full bg-muted px-2 py-1 font-mono text-ui-meta text-muted-foreground">
+          <span className="rounded-full bg-muted px-2 py-1 font-mono text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
             {visibleGroups.reduce((total, group) => total + group.options.length, 0)} views
           </span>
         </div>
@@ -75,7 +75,7 @@ export function PromptDialogDevControls() {
         <div className="mt-4 space-y-4">
           {visibleGroups.map((group) => (
             <div key={group.label}>
-              <p className="mb-2 text-ui-label font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+              <p className="mb-2 text-ui-label font-semibold uppercase tracking-[0.12em] text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
                 {group.label}
               </p>
               <div className="grid gap-2 sm:grid-cols-2">
@@ -84,7 +84,7 @@ export function PromptDialogDevControls() {
                     key={option.id}
                     type="button"
                     variant="outline"
-                    className="h-auto min-h-14 whitespace-normal justify-start gap-2 px-3 py-2 text-left"
+                    className="h-auto min-h-14 whitespace-normal justify-start gap-2 px-3 py-2 text-left non-touch:h-auto non-touch:min-h-14 non-touch:py-2"
                     disabled={loadingPreview !== null}
                     onClick={() => void openPreview(option)}
                   >
@@ -94,10 +94,10 @@ export function PromptDialogDevControls() {
                       <Eye className="h-3.5 w-3.5 shrink-0 text-primary" />
                     )}
                     <span className="min-w-0">
-                      <span className="block text-ui-label font-medium text-foreground">
+                      <span className="block text-ui-label font-medium text-foreground non-touch:text-xs">
                         {loadingPreview === option.id ? "Loading cards…" : option.label}
                       </span>
-                      <span className="mt-0.5 block text-ui-meta font-normal text-muted-foreground">
+                      <span className="mt-0.5 block text-ui-meta font-normal text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
                         {option.description}
                       </span>
                     </span>
@@ -107,7 +107,9 @@ export function PromptDialogDevControls() {
             </div>
           ))}
         </div>
-        {previewError ? <p className="mt-2 text-ui-meta text-destructive">{previewError}</p> : null}
+        {previewError ? (
+          <p className="mt-2 text-ui-meta text-destructive non-touch:text-xs">{previewError}</p>
+        ) : null}
       </section>
 
       {preview ? (

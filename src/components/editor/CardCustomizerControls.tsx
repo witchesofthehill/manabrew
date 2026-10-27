@@ -42,7 +42,7 @@ export function CardCustomizerControls({
             <div key={field} className="min-w-0 space-y-1.5">
               <label
                 id={`${labelId}-${field}`}
-                className="touch:min-h-11 block text-ui-label font-medium"
+                className="touch:min-h-11 block text-ui-label font-medium non-touch:text-sm"
               >
                 {label}
               </label>
@@ -84,7 +84,7 @@ export function CardCustomizerControls({
                     disabled={inactive}
                     onChange={(next) => onChange("rainFog", next)}
                   />
-                  <p className="text-ui-body text-muted-foreground">
+                  <p className="text-ui-body text-muted-foreground non-touch:text-xs">
                     Zero clears the fog. Water distortion and reflections remain.
                   </p>
                 </div>

@@ -79,7 +79,7 @@ export function DeckTagDialog({
             <button
               key={tag}
               type="button"
-              className="touch:min-w-11 touch:min-h-11 flex min-h-10 w-full items-center rounded-md px-3 text-left text-ui-label hover:bg-muted"
+              className="touch:min-w-11 touch:min-h-11 flex min-h-10 w-full items-center rounded-md px-3 text-left text-ui-label hover:bg-muted non-touch:text-sm"
               onClick={() => apply(tag)}
             >
               <Check className="mr-2 h-3.5 w-3.5 text-primary" />

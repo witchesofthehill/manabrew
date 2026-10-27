@@ -16,7 +16,7 @@ export function CardCountBadge({ count, className }: { count: number; className?
   return (
     <div
       className={cn(
-        "absolute top-1 left-1 bg-overlay/80 text-white text-ui-meta font-bold rounded-full min-w-5 min-h-5 px-1 flex items-center justify-center border border-white/20",
+        "absolute top-1 left-1 bg-overlay/80 text-white text-ui-meta font-bold rounded-full min-w-5 min-h-5 px-1 flex items-center justify-center border border-white/20 non-touch:text-[10px] non-touch:w-5 non-touch:h-5 non-touch:min-h-0 non-touch:min-w-0 non-touch:px-0 non-touch:leading-[inherit]",
         className,
       )}
       style={{ zIndex: 10 }}
@@ -119,7 +119,7 @@ export function CardHoverOverlay({
             size="sm"
             variant={a.variant === "primary" ? "secondary" : "ghost"}
             className={cn(
-              "touch:min-w-11 touch:min-h-11 min-h-6 w-full whitespace-normal px-1 text-ui-label",
+              "touch:min-w-11 touch:min-h-11 min-h-6 w-full whitespace-normal px-1 text-ui-label non-touch:text-xs non-touch:h-6 non-touch:min-h-0 non-touch:px-0",
               a.variant !== "primary" && "text-white/80 hover:text-white hover:bg-white/10",
             )}
             onClick={(e) => {
@@ -160,10 +160,10 @@ export function SectionHeader({
             className={cn("h-3.5 w-3.5 transition-transform", open === false && "-rotate-90")}
           />
         )}
-        <span className="text-ui-label font-semibold uppercase tracking-wide text-muted-foreground">
+        <span className="text-ui-label font-semibold uppercase tracking-wide text-muted-foreground non-touch:text-xs">
           {label}
         </span>
-        <span className="text-ui-meta text-muted-foreground/60">({count})</span>
+        <span className="text-ui-meta text-muted-foreground/60 non-touch:text-xs">({count})</span>
       </button>
       <div className="flex-1" />
       {extraContent}
@@ -173,7 +173,9 @@ export function SectionHeader({
 export function EmptyDropZone({ message = "Drop cards here" }: { message?: string }) {
   return (
     <div className="border border-dashed border-border/40 rounded py-3 text-center">
-      <p className="text-ui-meta text-muted-foreground/40">{message}</p>
+      <p className="text-ui-meta text-muted-foreground/40 non-touch:text-[10px] non-touch:leading-[inherit]">
+        {message}
+      </p>
     </div>
   );
 }

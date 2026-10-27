@@ -159,15 +159,15 @@ export function CardRenderingMechanicControls({
   if (!presets.length) return null;
   return (
     <details className="rounded-md border border-border/70 px-3 py-2" open>
-      <summary className="min-h-8 touch:min-h-11 cursor-pointer text-ui-label font-medium">
+      <summary className="min-h-8 touch:min-h-11 cursor-pointer text-ui-label font-medium non-touch:text-xs non-touch:min-h-0">
         Mechanic state boundaries
       </summary>
-      <p className="my-2 text-ui-body text-muted-foreground">
+      <p className="my-2 text-ui-body text-muted-foreground non-touch:text-xs">
         Local examples only. Level counters do not calculate P/T; edit engine P/T separately. Use
         the action-count control to show owned mechanic action examples.
       </p>
       {battle && (
-        <p className="mb-2 text-ui-body text-muted-foreground">
+        <p className="mb-2 text-ui-body text-muted-foreground non-touch:text-xs">
           The shield shows current defense on the battlefield and printed starting defense in hand.
           Zero only removes the local counter; it does not resolve a defeat trigger or grant a cast
           action. Protector is not exposed by the engine snapshot.
@@ -187,7 +187,7 @@ export function CardRenderingMechanicControls({
               size="sm"
               aria-pressed={selected}
               className={cn(
-                "h-auto whitespace-normal py-2 text-left",
+                "h-auto whitespace-normal py-2 text-left non-touch:h-auto non-touch:py-2",
                 selected && DEV_CONTROL_ACTIVE,
               )}
               onClick={() => onChange({ ...value, ...state })}

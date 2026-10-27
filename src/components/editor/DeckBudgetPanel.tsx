@@ -105,18 +105,18 @@ export function DeckBudgetPanel() {
         <div className="flex items-center gap-2">
           <CircleDollarSign className="h-4 w-4 text-primary" />
           <div>
-            <h3 className="text-ui-label font-semibold">Deck budget</h3>
-            <p className="text-ui-meta text-muted-foreground">
+            <h3 className="text-ui-label font-semibold non-touch:text-sm">Deck budget</h3>
+            <p className="text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
               Current selected printings · {PRICE_PROVIDERS[provider].label}
             </p>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <label className="flex flex-wrap items-center gap-2 text-ui-label text-muted-foreground">
+          <label className="flex flex-wrap items-center gap-2 text-ui-label text-muted-foreground non-touch:text-xs">
             Provider
             <AppSelect
               value={provider}
-              className="min-h-9 h-auto touch:min-h-11 touch:min-w-11 rounded-md border bg-background px-2 text-ui-label"
+              className="min-h-9 h-auto touch:min-h-11 touch:min-w-11 rounded-md border bg-background px-2 text-ui-label non-touch:text-xs non-touch:h-8 non-touch:min-h-0"
               onValueChange={(value) =>
                 executeDeckEdit(`Change price provider`, () =>
                   updateEditorMetadata({ priceProvider: value as PriceProvider }),
@@ -130,13 +130,13 @@ export function DeckBudgetPanel() {
               ))}
             </AppSelect>
           </label>
-          <label className="flex flex-wrap items-center gap-2 text-ui-label text-muted-foreground">
+          <label className="flex flex-wrap items-center gap-2 text-ui-label text-muted-foreground non-touch:text-xs">
             Limit
             <Input
               type="number"
               min="0"
               step="5"
-              className="min-h-9 h-auto touch:min-h-11 touch:min-w-11 w-24 text-right text-ui-input font-mono"
+              className="min-h-9 h-auto touch:min-h-11 touch:min-w-11 w-24 text-right text-ui-input font-mono non-touch:h-8 non-touch:min-h-0"
               value={budget ?? ""}
               placeholder={`None`}
               onFocus={budgetEdit.begin}
@@ -152,14 +152,14 @@ export function DeckBudgetPanel() {
               {formatPrice(total)}
             </p>
             {budget !== undefined && (
-              <p className="text-ui-meta text-muted-foreground">
+              <p className="text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
                 {overBudget
                   ? `${formatPrice(total - budget)} over`
                   : `${formatPrice(budget - total)} left`}
               </p>
             )}
             {unavailable > 0 && (
-              <p className="text-ui-meta text-muted-foreground">
+              <p className="text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
                 {unavailable === 1 ? `One card unavailable` : `${unavailable} cards unavailable`}
               </p>
             )}

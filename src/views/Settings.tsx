@@ -80,7 +80,7 @@ function HelpMark({ description }: { description: string | undefined }) {
         role="tooltip"
         className={cn(
           "pointer-events-none absolute right-0 top-full z-50 mt-1 w-56 whitespace-normal",
-          "rounded-md border bg-popover px-2 py-1.5 text-ui-meta leading-snug text-popover-foreground shadow-lg",
+          "rounded-md border bg-popover px-2 py-1.5 text-ui-meta leading-snug text-popover-foreground shadow-lg non-touch:text-[11px] non-touch:leading-snug",
           "opacity-0 -translate-y-1 transition-all duration-150",
           "group-hover:opacity-100 group-hover:translate-y-0",
           "group-focus-within:opacity-100 group-focus-within:translate-y-0",
@@ -277,7 +277,7 @@ export default function Settings() {
               id="settings-section"
               value={activeTab}
               onValueChange={(value) => setActiveTab(value as SettingsTab)}
-              className="min-h-11 w-full rounded-md border border-input bg-background px-3 text-ui-label"
+              className="min-h-11 w-full rounded-md border border-input bg-background px-3 text-ui-label non-touch:text-base non-touch:h-11 non-touch:min-h-0"
             >
               {settingsTabs.map((tab) => (
                 <AppSelectOption key={tab.value} value={tab.value}>
@@ -294,7 +294,7 @@ export default function Settings() {
                 type="button"
                 onClick={() => setActiveTab(tab.value)}
                 className={cn(
-                  "shrink-0 whitespace-nowrap border-b-2 pb-2 text-ui-label font-medium transition-colors touch:min-h-11 touch:min-w-11",
+                  "shrink-0 whitespace-nowrap border-b-2 pb-2 text-ui-label font-medium transition-colors touch:min-h-11 touch:min-w-11 non-touch:text-sm",
                   activeTab === tab.value
                     ? "border-primary text-foreground"
                     : "border-transparent text-muted-foreground hover:text-foreground",
@@ -321,7 +321,7 @@ export default function Settings() {
           <h2 className="text-lg font-semibold">Cache</h2>
           <div className="rounded-lg border bg-card/40 p-4 space-y-3 max-w-xl">
             <Label>Card Image Cache</Label>
-            <p className="text-ui-body text-muted-foreground">
+            <p className="text-ui-body text-muted-foreground non-touch:text-xs">
               Drops Manabrew&apos;s in-memory card textures and image object URLs, clears the
               CacheStorage API, then reloads so every card image is fetched fresh. Use this if
               battlefield card art fails to appear. For a full browser HTTP cache wipe, use the
@@ -393,8 +393,8 @@ export default function Settings() {
                 {KNOWN_RELAYS.map((relay) => (
                   <DropdownMenuItem key={relay.name} onSelect={() => void applyKnownRelay(relay)}>
                     <div className="flex flex-col">
-                      <span className="text-ui-label">{relay.name}</span>
-                      <span className="text-ui-meta text-muted-foreground">
+                      <span className="text-ui-label non-touch:text-sm">{relay.name}</span>
+                      <span className="text-ui-meta text-muted-foreground non-touch:text-xs">
                         {relay.host}:{relay.port}
                       </span>
                     </div>
@@ -411,15 +411,17 @@ export default function Settings() {
                         className="justify-between gap-2"
                       >
                         <div className="flex min-w-0 flex-col">
-                          <span className="truncate text-ui-label">{relay.name}</span>
-                          <span className="truncate text-ui-meta text-muted-foreground">
+                          <span className="truncate text-ui-label non-touch:text-sm">
+                            {relay.name}
+                          </span>
+                          <span className="truncate text-ui-meta text-muted-foreground non-touch:text-xs">
                             {relay.host}:{relay.port}
                           </span>
                         </div>
                         <button
                           type="button"
                           aria-label={`Remove ${relay.name}`}
-                          className="shrink-0 rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal"
+                          className="shrink-0 rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal non-touch:text-[length:inherit] non-touch:leading-[inherit]"
                           onPointerDown={(e) => e.stopPropagation()}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -445,15 +447,21 @@ export default function Settings() {
               Save current server…
             </Button>
             {server.connected && (
-              <span className="text-ui-meta text-success flex items-center gap-1">
+              <span className="text-ui-meta text-success flex items-center gap-1 non-touch:text-xs">
                 <span className="h-2 w-2 rounded-full bg-success" />
                 Connected as {server.username}
               </span>
             )}
             {server.connecting && (
-              <span className="text-ui-meta text-muted-foreground">Connecting...</span>
+              <span className="text-ui-meta text-muted-foreground non-touch:text-xs">
+                Connecting...
+              </span>
             )}
-            {server.error && <span className="text-ui-meta text-destructive">{server.error}</span>}
+            {server.error && (
+              <span className="text-ui-meta text-destructive non-touch:text-xs">
+                {server.error}
+              </span>
+            )}
           </div>
           {savingServer && (
             <div className="flex flex-wrap items-center gap-2">
@@ -479,12 +487,12 @@ export default function Settings() {
               <Button size="sm" variant="ghost" onClick={() => setSavingServer(false)}>
                 Cancel
               </Button>
-              <span className="text-ui-meta text-muted-foreground">
+              <span className="text-ui-meta text-muted-foreground non-touch:text-xs">
                 Saves the current host, port, and password so you can switch back later.
               </span>
             </div>
           )}
-          <p className="text-ui-body text-muted-foreground">
+          <p className="text-ui-body text-muted-foreground non-touch:text-xs">
             Server connection settings. Saving will disconnect and reconnect with the new
             credentials.
           </p>
@@ -550,7 +558,7 @@ export default function Settings() {
                       prefs.setDefaultPlaymatAssetId(undefined);
                       prefs.setDefaultPlaymatSettings(undefined);
                     }}
-                    className="absolute -top-2 -right-2 flex size-6 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm motion-safe:transition-opacity opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto touch:opacity-100 touch:pointer-events-auto hover:border-destructive hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring before:absolute before:-inset-2.5 before:content-[''] touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal"
+                    className="absolute -top-2 -right-2 flex size-6 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm motion-safe:transition-opacity opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto touch:opacity-100 touch:pointer-events-auto hover:border-destructive hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring before:absolute before:-inset-2.5 before:content-[''] touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal non-touch:text-[length:inherit] non-touch:leading-[inherit]"
                   >
                     <Minus className="h-3 w-3" />
                   </button>
@@ -567,7 +575,7 @@ export default function Settings() {
                   <div key={slot} className="space-y-1">
                     <Label
                       htmlFor={`zone-order-${index}`}
-                      className="text-ui-label text-muted-foreground"
+                      className="text-ui-label text-muted-foreground non-touch:text-xs"
                     >
                       {slot}
                     </Label>
@@ -575,7 +583,7 @@ export default function Settings() {
                       id={`zone-order-${index}`}
                       value={zoneOrder[index]}
                       onValueChange={(value) => setZoneSlot(index, value as ZonePanelItem)}
-                      className="min-h-9 w-full rounded-md border border-input bg-background px-2 text-ui-label touch:min-h-11"
+                      className="min-h-9 w-full rounded-md border border-input bg-background px-2 text-ui-label touch:min-h-11 non-touch:text-sm non-touch:h-9 non-touch:min-h-0"
                     >
                       <AppSelectOption value="library">Library</AppSelectOption>
                       <AppSelectOption value="graveyard">Graveyard</AppSelectOption>
@@ -989,7 +997,9 @@ export default function Settings() {
                   System
                 </Button>
               </div>
-              <p className="text-ui-meta text-muted-foreground">Controls app theme preference.</p>
+              <p className="text-ui-meta text-muted-foreground non-touch:text-xs">
+                Controls app theme preference.
+              </p>
             </div>
           </div>
 
@@ -1036,10 +1046,10 @@ export default function Settings() {
                 return (
                   <div key={group.heading} className="rounded-lg border bg-card/40 p-4 space-y-1.5">
                     <div className="flex flex-wrap items-baseline gap-2">
-                      <h4 className="text-ui-meta font-semibold uppercase tracking-wider text-muted-foreground">
+                      <h4 className="text-ui-meta font-semibold uppercase tracking-wider text-muted-foreground non-touch:text-xs">
                         {group.heading}
                       </h4>
-                      <span className="text-ui-meta text-muted-foreground/70">
+                      <span className="text-ui-meta text-muted-foreground/70 non-touch:text-[10px] non-touch:leading-[inherit]">
                         {group.description}
                       </span>
                     </div>
@@ -1052,7 +1062,7 @@ export default function Settings() {
                             key={key}
                             className="flex flex-col gap-1 rounded-md border px-2 py-1.5 min-w-0"
                           >
-                            <Label className="text-ui-label font-mono break-words flex items-start gap-1">
+                            <Label className="text-ui-label font-mono break-words flex items-start gap-1 non-touch:text-xs">
                               <span>{APP_THEME_COLOR_LABELS[key] ?? key}</span>
                               <HelpMark description={APP_THEME_COLOR_DESCRIPTIONS[key]} />
                             </Label>
@@ -1071,7 +1081,7 @@ export default function Settings() {
                                     ),
                                   )
                                 }
-                                className="min-h-8 w-10 shrink-0 rounded border border-input bg-transparent p-0.5 touch:min-h-11 touch:w-11 touch:min-h-11 touch:min-w-11"
+                                className="min-h-8 w-10 shrink-0 rounded border border-input bg-transparent p-0.5 touch:min-h-11 touch:w-11 touch:min-h-11 touch:min-w-11 non-touch:h-8 non-touch:min-h-0"
                               />
                               {editingThemeColorPath === `app.${key}` ? (
                                 <input
@@ -1088,13 +1098,13 @@ export default function Settings() {
                                       setEditingThemeColorValue("");
                                     }
                                   }}
-                                  className="min-h-7 min-w-0 flex-1 rounded border border-input bg-background px-1.5 text-right text-ui-input font-mono touch:min-h-11 touch:min-w-11"
+                                  className="min-h-7 min-w-0 flex-1 rounded border border-input bg-background px-1.5 text-right text-ui-input font-mono touch:min-h-11 touch:min-w-11 non-touch:text-[11px] non-touch:h-7 non-touch:min-h-0 non-touch:leading-[inherit]"
                                   spellCheck={false}
                                 />
                               ) : (
                                 <button
                                   type="button"
-                                  className="flex-1 min-w-0 text-right text-ui-label font-mono text-muted-foreground hover:text-foreground underline-offset-2 hover:underline break-all touch:min-h-11 touch:min-w-11 whitespace-normal"
+                                  className="flex-1 min-w-0 text-right text-ui-label font-mono text-muted-foreground hover:text-foreground underline-offset-2 hover:underline break-all touch:min-h-11 touch:min-w-11 whitespace-normal non-touch:text-[11px] non-touch:leading-[inherit]"
                                   onClick={() => beginThemeColorEdit(`app.${key}`, activeValue)}
                                   title={`Click to edit color value`}
                                 >
@@ -1110,7 +1120,7 @@ export default function Settings() {
                 );
               })}
             </div>
-            <p className="text-ui-meta text-muted-foreground">
+            <p className="text-ui-meta text-muted-foreground non-touch:text-xs">
               Override individual Manabrew colors for the current app mode.
             </p>
           </div>
@@ -1175,10 +1185,10 @@ export default function Settings() {
                       className="rounded-lg border bg-card/40 p-4 space-y-1.5"
                     >
                       <div className="flex flex-wrap items-baseline gap-2">
-                        <h4 className="text-ui-meta font-semibold uppercase tracking-wider text-muted-foreground">
+                        <h4 className="text-ui-meta font-semibold uppercase tracking-wider text-muted-foreground non-touch:text-xs">
                           {group.heading}
                         </h4>
-                        <span className="text-ui-meta text-muted-foreground/70">
+                        <span className="text-ui-meta text-muted-foreground/70 non-touch:text-[10px] non-touch:leading-[inherit]">
                           {group.description}
                         </span>
                       </div>
@@ -1193,7 +1203,7 @@ export default function Settings() {
                             >
                               <Label
                                 htmlFor={`theme-color-${path}`}
-                                className="text-ui-meta font-mono break-words flex items-start gap-1"
+                                className="text-ui-meta font-mono break-words flex items-start gap-1 non-touch:text-xs"
                               >
                                 <span>{path}</span>
                                 <HelpMark
@@ -1216,7 +1226,7 @@ export default function Settings() {
                                       ),
                                     )
                                   }
-                                  className="min-h-8 w-10 shrink-0 rounded border border-input bg-transparent p-0.5 touch:min-h-11 touch:w-11 touch:min-h-11 touch:min-w-11"
+                                  className="min-h-8 w-10 shrink-0 rounded border border-input bg-transparent p-0.5 touch:min-h-11 touch:w-11 touch:min-h-11 touch:min-w-11 non-touch:h-8 non-touch:min-h-0"
                                 />
                                 {editingThemeColorPath === path ? (
                                   <input
@@ -1233,7 +1243,7 @@ export default function Settings() {
                                         setEditingThemeColorValue("");
                                       }
                                     }}
-                                    className="min-h-7 min-w-0 flex-1 rounded border border-input bg-background px-1.5 text-right text-ui-input font-mono touch:min-h-11 touch:min-w-11"
+                                    className="min-h-7 min-w-0 flex-1 rounded border border-input bg-background px-1.5 text-right text-ui-input font-mono touch:min-h-11 touch:min-w-11 non-touch:text-[11px] non-touch:h-7 non-touch:min-h-0 non-touch:leading-[inherit]"
                                     autoComplete="off"
                                     autoCorrect="off"
                                     autoCapitalize="off"
@@ -1242,7 +1252,7 @@ export default function Settings() {
                                 ) : (
                                   <button
                                     type="button"
-                                    className="flex-1 min-w-0 text-right text-ui-label font-mono text-muted-foreground hover:text-foreground underline-offset-2 hover:underline break-all touch:min-h-11 touch:min-w-11 whitespace-normal"
+                                    className="flex-1 min-w-0 text-right text-ui-label font-mono text-muted-foreground hover:text-foreground underline-offset-2 hover:underline break-all touch:min-h-11 touch:min-w-11 whitespace-normal non-touch:text-[11px] non-touch:leading-[inherit]"
                                     onClick={() => beginThemeColorEdit(path, activeColor)}
                                     title={`Click to edit color value`}
                                   >
@@ -1258,7 +1268,7 @@ export default function Settings() {
                   ));
               })()}
             </div>
-            <p className="text-ui-meta text-muted-foreground">
+            <p className="text-ui-meta text-muted-foreground non-touch:text-xs">
               Generated from game theme keys. Defaults come from Manabrew.
             </p>
           </div>

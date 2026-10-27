@@ -159,11 +159,11 @@ export function BatchPrintingDialog({
                 <Button
                   key={set.id}
                   variant="ghost"
-                  className="touch:min-w-11 touch:min-h-11 h-auto w-full justify-start gap-3 px-3 py-2 text-left"
+                  className="touch:min-w-11 touch:min-h-11 h-auto w-full justify-start gap-3 px-3 py-2 text-left non-touch:h-auto non-touch:py-2"
                   disabled={applyingSet !== null}
                   onClick={() => void applySet(set)}
                 >
-                  <span className="w-12 shrink-0 font-mono text-ui-meta uppercase text-muted-foreground">
+                  <span className="w-12 shrink-0 font-mono text-ui-meta uppercase text-muted-foreground non-touch:text-xs">
                     {set.code}
                   </span>
                   <span className="min-w-0 flex-1 truncate">{set.name}</span>

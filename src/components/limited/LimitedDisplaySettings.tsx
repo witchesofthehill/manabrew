@@ -20,8 +20,8 @@ export function LimitedDisplaySettings({ sessionKey }: { sessionKey: string }) {
 
   return (
     <section className="space-y-4">
-      <h3 className="text-ui-label font-semibold">Cards & layout</h3>
-      <label htmlFor={cardHeightId} className="grid gap-1 text-ui-label">
+      <h3 className="text-ui-label font-semibold non-touch:text-sm">Cards & layout</h3>
+      <label htmlFor={cardHeightId} className="grid gap-1 text-ui-label non-touch:text-sm">
         <span className="flex items-center justify-between gap-2">
           Card height
           <output htmlFor={cardHeightId} className="tabular-nums text-muted-foreground">
@@ -41,7 +41,7 @@ export function LimitedDisplaySettings({ sessionKey }: { sessionKey: string }) {
         />
       </label>
       <fieldset className="space-y-2">
-        <legend className="text-ui-label">Group acquired cards</legend>
+        <legend className="text-ui-label non-touch:text-sm">Group acquired cards</legend>
         <AppSelect
           aria-label="Group cards"
           value={display.group}
@@ -56,7 +56,7 @@ export function LimitedDisplaySettings({ sessionKey }: { sessionKey: string }) {
         </AppSelect>
       </fieldset>
       <fieldset className="space-y-2">
-        <legend className="text-ui-label">Acquired card view</legend>
+        <legend className="text-ui-label non-touch:text-sm">Acquired card view</legend>
         <div className="flex gap-2">
           <Button
             variant={display.mode === "gallery" ? "selected" : "outline"}

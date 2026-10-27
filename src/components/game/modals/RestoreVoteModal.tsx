@@ -32,7 +32,7 @@ export function RestoreVoteModal({
           {restoreVote.checkpoint.decision ? "Rewind the game?" : "Restore the game?"}
         </h2>
       </Modal.Header>
-      <Modal.Body className="space-y-3">
+      <Modal.Body className="space-y-3 non-touch:text-sm">
         <p>
           {`${resolvePlayerName(restoreVote.requestedByPlayerId)} asks to go back to ${checkpointLabel(restoreVote.checkpoint)}.`}
         </p>

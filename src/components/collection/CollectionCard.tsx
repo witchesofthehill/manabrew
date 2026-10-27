@@ -37,7 +37,7 @@ export function CollectionCard({
     <Input
       type="number"
       min="0"
-      className="w-20 shrink-0 text-right font-mono"
+      className="w-20 shrink-0 text-right font-mono non-touch:h-8"
       value={quantity}
       aria-label={`Owned copies of ${displayName}`}
       onChange={(event) => onQuantityChange(Number(event.target.value))}
@@ -46,15 +46,15 @@ export function CollectionCard({
   if (view === "text") {
     return (
       <div
-        className="flex min-w-0 items-center gap-3 border-b px-4 py-3 last:border-b-0 hover:bg-muted/30"
+        className="flex min-w-0 items-center gap-3 border-b px-4 py-3 last:border-b-0 hover:bg-muted/30 non-touch:gap-4"
         onMouseEnter={(event) => card && onHover(card, event)}
         onMouseLeave={onLeave}
       >
         <div className="min-w-0 flex-1">
-          <span className="block truncate text-ui-label" title={displayName}>
+          <span className="block truncate text-ui-label non-touch:text-xs" title={displayName}>
             {displayName}
           </span>
-          <div className="flex flex-wrap gap-x-3 text-ui-meta text-muted-foreground">
+          <div className="flex flex-wrap gap-x-3 text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
             {setCode && collectorNumber && (
               <span className="break-words uppercase">
                 {setCode} #{collectorNumber}
@@ -63,7 +63,7 @@ export function CollectionCard({
             {foil !== undefined && <span>{foil ? `Foil` : `Non-foil`}</span>}
           </div>
         </div>
-        <label className="flex shrink-0 flex-col gap-1 text-ui-meta text-muted-foreground">
+        <label className="flex shrink-0 flex-col gap-1 text-ui-meta text-muted-foreground non-touch:text-xs">
           Owned
           {quantityInput}
         </label>
@@ -82,20 +82,22 @@ export function CollectionCard({
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-2 p-3 text-center text-muted-foreground">
             <ImageIcon className="h-8 w-8 opacity-40" />
-            <span className="text-ui-meta">Loading {name}…</span>
+            <span className="text-ui-meta non-touch:text-xs">Loading {name}…</span>
           </div>
         )}
       </div>
-      <div className="mt-2 space-y-2">
+      <div className="mt-2 space-y-2 non-touch:gap-2">
         <span className="block min-w-0" title={displayName}>
-          <span className="block truncate text-ui-label font-medium">{displayName}</span>
+          <span className="block truncate text-ui-label font-medium non-touch:text-sm">
+            {displayName}
+          </span>
           {setCode && collectorNumber && (
-            <span className="block break-words text-ui-meta uppercase text-muted-foreground">
+            <span className="block break-words text-ui-meta uppercase text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
               {setCode} #{collectorNumber}
             </span>
           )}
           {foil !== undefined && (
-            <span className="block text-ui-meta text-muted-foreground">
+            <span className="block text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
               {foil ? `Foil` : `Non-foil`}
             </span>
           )}

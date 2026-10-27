@@ -80,7 +80,7 @@ export function ZoneViewer({
     >
       <Modal.Header onClose={onClose}>
         <h2 className="text-base font-semibold">{title}</h2>
-        <p className="text-ui-meta text-muted-foreground">
+        <p className="text-ui-meta text-muted-foreground non-touch:text-xs">
           {cards.length} visible card{cards.length === 1 ? "" : "s"}
           {totalCount != null && totalCount > cards.length
             ? ` · ${totalCount - cards.length} hidden`

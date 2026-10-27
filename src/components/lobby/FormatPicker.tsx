@@ -10,7 +10,7 @@ export function FormatPicker({ formats = GAME_FORMATS, onSelect }: FormatPickerP
       <div className="flex w-full flex-col">
         <header className="mb-10 text-center">
           <h2 className="font-serif text-4xl font-semibold tracking-tight">Choose a format</h2>
-          <p className="mt-3 text-ui-body text-muted-foreground">
+          <p className="mt-3 text-ui-body text-muted-foreground non-touch:text-sm">
             Decide the rules of engagement before picking decks.
           </p>
           <div
@@ -33,13 +33,15 @@ function FormatTile({ format, onClick }: { format: GameFormat; onClick: () => vo
     <button
       type="button"
       onClick={onClick}
-      className="flex flex-col gap-2 rounded-lg border border-border/60 bg-card/60 p-4 text-left transition-colors duration-75 hover:border-primary/60 hover:bg-card/80 touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal"
+      className="flex flex-col gap-2 rounded-lg border border-border/60 bg-card/60 p-4 text-left transition-colors duration-75 hover:border-primary/60 hover:bg-card/80 touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal non-touch:text-[length:inherit] non-touch:leading-[inherit]"
     >
       <div className="flex items-start justify-between gap-2">
         <h3 className="text-ui-body font-semibold leading-tight">{format.name}</h3>
         <FormatBadge formatId={format.id} />
       </div>
-      <p className="text-ui-body leading-snug text-muted-foreground">{format.description}</p>
+      <p className="text-ui-body leading-snug text-muted-foreground non-touch:text-xs non-touch:leading-snug">
+        {format.description}
+      </p>
     </button>
   );
 }

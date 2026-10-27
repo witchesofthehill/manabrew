@@ -1,4 +1,4 @@
-import { getUiControlHeight, getUiFontSize } from "@/themes/typography";
+import { getUiControlHeight, getUiFontSize, isTouchUi } from "@/themes/typography";
 import { TOUCH_MOVE_SLOP_PX } from "@/lib/responsive";
 import { topModal } from "@/lib/modalStack";
 import { summarizeCombat } from "@/components/game/combatSummary";
@@ -399,7 +399,7 @@ export class PromptLayer extends PromptModalLayer {
     const action = spec.action;
     const shortScreen = this.viewportHeight <= 520;
     const minimal = this.layerPresentation.actionStyle === "minimal";
-    const touch = getUiControlHeight() >= 44;
+    const touch = isTouchUi();
     if (
       action.promptType === "gameOver" ||
       !action.selfClusterMaxHeight ||
@@ -423,7 +423,7 @@ export class PromptLayer extends PromptModalLayer {
     if (!showActionContext) this.actionContextOpen = false;
     const fixedWidth = minimal
       ? null
-      : Math.min(this.viewportWidth - 24, shortScreen || touch ? 320 : 360);
+      : Math.min(this.viewportWidth - 24, touch ? 320 : shortScreen ? 230 : 300);
     const fixedContentWidth = fixedWidth == null ? this.viewportWidth - 24 : fixedWidth - 16;
     const phaseAnchor = action.compactPhaseControl?.anchor ?? null;
     const controls = minimal
@@ -444,13 +444,15 @@ export class PromptLayer extends PromptModalLayer {
     const contextButton = !minimal && showActionContext ? this.makeActionContextButton() : null;
     const headerHeight = minimal
       ? 0
-      : Math.max(
-          34,
-          modeButton?.buttonHeight ?? 0,
-          menuButton?.height ?? 0,
-          contextButton?.buttonHeight ?? 0,
-          getUiFontSize("label") * 1.35,
-        ) + 12;
+      : !touch
+        ? 34
+        : Math.max(
+            34,
+            modeButton?.buttonHeight ?? 0,
+            menuButton?.height ?? 0,
+            contextButton?.buttonHeight ?? 0,
+            getUiFontSize("label", 0) * 1.35,
+          ) + 12;
     const sectionPaddingX = minimal ? 6 : 8;
     const sectionPaddingTop = minimal ? 4 : 8;
     const sectionPaddingBottom = minimal ? 4 : 8;
@@ -466,7 +468,7 @@ export class PromptLayer extends PromptModalLayer {
     const visibleBodyHeight = Math.min(
       bodyHeight,
       Math.max(
-        getUiControlHeight() + sectionPaddingTop + sectionPaddingBottom,
+        getUiControlHeight(0) + sectionPaddingTop + sectionPaddingBottom,
         bottomLimit - edgeMargin - headerHeight,
       ),
     );
@@ -515,7 +517,7 @@ export class PromptLayer extends PromptModalLayer {
 
     if (!minimal) {
       let right = width - 8;
-      menuButton!.container.position.set(right - menuButton!.width, 6);
+      menuButton!.container.position.set(right - menuButton!.width, touch ? 6 : 8);
       panel.addChild(menuButton!.container);
       right -= menuButton!.width + 5;
       if (showPriorityMode) {
@@ -908,6 +910,7 @@ export class PromptLayer extends PromptModalLayer {
             width: action.damageOrderCount > 0 ? (width - 6) / 2 : width,
             height: 36,
             fontWeight: "700",
+            fontSize: isTouchUi() ? undefined : 12,
           }),
         ];
         if (action.damageOrderCount > 0) {
@@ -921,6 +924,7 @@ export class PromptLayer extends PromptModalLayer {
               width: (width - 6) / 2,
               height: 36,
               fontWeight: "700",
+              fontSize: isTouchUi() ? undefined : 12,
             }),
           );
         }
@@ -942,6 +946,7 @@ export class PromptLayer extends PromptModalLayer {
             iconSize: 14,
             fontWeight: "900",
             letterSpacing: 1.68,
+            fontSize: isTouchUi() ? undefined : 14,
           });
           confirm.position.set(0, y);
           container.addChild(confirm);
@@ -988,6 +993,7 @@ export class PromptLayer extends PromptModalLayer {
             iconSize: 14,
             fontWeight: "900",
             letterSpacing: minimal ? 0.72 : 0.84,
+            fontSize: isTouchUi() ? undefined : minimal ? 12 : 14,
           },
         );
         if (hidden) this.actionPulseNodes.push({ node: button, maxAlpha: 1 });
@@ -1039,6 +1045,7 @@ export class PromptLayer extends PromptModalLayer {
               iconSize: 14,
               fontWeight: "900",
               letterSpacing: 1.12,
+              fontSize: isTouchUi() ? undefined : 14,
             }),
             this.makeButton("Mulligan", action.onMulliganDraw, {
               variant: "secondary",
@@ -1052,6 +1059,7 @@ export class PromptLayer extends PromptModalLayer {
               iconSize: 14,
               fontWeight: "900",
               letterSpacing: 1.12,
+              fontSize: isTouchUi() ? undefined : 14,
             }),
           ],
           6,
@@ -1094,6 +1102,7 @@ export class PromptLayer extends PromptModalLayer {
       fontWeight: "700",
       letterSpacing: showLabel ? 0.4 : 0,
       paddingX: touch ? 10 : 6,
+      fontSize: isTouchUi() ? undefined : minimal ? 9 : touch ? 10 : 12,
     });
   }
 
@@ -1103,7 +1112,7 @@ export class PromptLayer extends PromptModalLayer {
         ? this.viewportWidth - 24
         : Math.min(
             this.viewportWidth - 40,
-            this.viewportHeight <= 520 || getUiControlHeight() >= 44 ? 304 : 344,
+            isTouchUi() ? 304 : this.viewportHeight <= 520 ? 214 : 284,
           );
     return this.layoutWrappedActionButtons(buttons, maxWidth, gap);
   }
@@ -1129,8 +1138,8 @@ export class PromptLayer extends PromptModalLayer {
     const combo = morphed ? endCombo : passCombo;
     let height = Math.max(
       minimal ? 44 : 40,
-      getUiControlHeight(),
-      Math.ceil(getUiFontSize("label") * 1.35) + 12,
+      getUiControlHeight(0),
+      Math.ceil(getUiFontSize("label", 0) * 1.35) + 12,
     );
 
     if (minimal) {
@@ -1163,6 +1172,7 @@ export class PromptLayer extends PromptModalLayer {
           fontWeight: "900",
           letterSpacing: 1.44,
           title: morphed ? endTitle : "Pass priority",
+          fontSize: isTouchUi() ? undefined : 12,
         },
       );
       if (counting) {
@@ -1178,12 +1188,12 @@ export class PromptLayer extends PromptModalLayer {
       return this.layoutActionRow([pass, end], 4);
     }
 
-    const touch = getUiControlHeight() >= 44;
-    const labelWidth = Math.max(140, getUiFontSize("label") * 10);
-    const textEndWidth = Math.min(availableWidth, Math.max(120, getUiFontSize("label") * 10));
+    const touch = isTouchUi();
+    const labelWidth = Math.max(140, getUiFontSize("label", 0) * 10);
+    const textEndWidth = Math.min(availableWidth, Math.max(120, getUiFontSize("label", 0) * 10));
     const endIconOnly = touch && textEndWidth + labelWidth > availableWidth;
-    const endWidth = endIconOnly ? Math.max(48, getUiControlHeight()) : textEndWidth;
-    const priorityColumn = !morphed && endWidth + labelWidth > availableWidth;
+    const endWidth = endIconOnly ? Math.max(48, getUiControlHeight(0)) : textEndWidth;
+    const priorityColumn = touch && !morphed && endWidth + labelWidth > availableWidth;
     const end = morphed
       ? null
       : this.makeButton(endLabel, action.onPassEndTurn, {
@@ -1191,7 +1201,7 @@ export class PromptLayer extends PromptModalLayer {
           radius: 0,
           disabled,
           height,
-          width: priorityColumn ? availableWidth : endWidth,
+          width: touch ? (priorityColumn ? availableWidth : endWidth) : undefined,
           icon: endIconOnly ? "lucide-skip-forward" : undefined,
           iconSize: 20,
           labelPlacement: endIconOnly ? "hidden" : "inline",
@@ -1204,6 +1214,7 @@ export class PromptLayer extends PromptModalLayer {
           backgroundAlpha: 0.15,
           hoverBackgroundAlpha: 0.3,
           title: endCombo ? `${endTitle} (${comboSymbols(endCombo)})` : endTitle,
+          fontSize: isTouchUi() ? undefined : 10,
         });
     const pass = this.makeButton(
       passLabel,
@@ -1224,6 +1235,7 @@ export class PromptLayer extends PromptModalLayer {
         hoverBackgroundAlpha: morphed ? 0.2 : 0.1,
         shortcut: !touch && combo ? comboSymbols(combo) : undefined,
         title: morphed ? endTitle : "Pass priority",
+        fontSize: isTouchUi() ? undefined : 12,
       },
     );
     height = Math.max(height, pass.buttonHeight, end?.buttonHeight ?? 0);
@@ -1425,7 +1437,7 @@ export class PromptLayer extends PromptModalLayer {
       align: "center",
       letterSpacing: 0.3,
     });
-    const stripHeight = Math.max(36, getUiControlHeight(), text.height + 12);
+    const stripHeight = Math.max(36, getUiControlHeight(0), text.height + 12);
     const stripBackground = new Graphics()
       .roundRect(0, 0, stripWidth, stripHeight, 8)
       .fill({ color: hexToNum(foreground), alpha: 0.05 })
@@ -1648,6 +1660,7 @@ export class PromptLayer extends PromptModalLayer {
       iconSize: 14,
       fontWeight: "900",
       letterSpacing: 1.12,
+      fontSize: isTouchUi() ? undefined : 14,
     });
     button.position.set(0, label.height + 6);
     container.addChild(label, button);
@@ -1756,7 +1769,7 @@ export class PromptLayer extends PromptModalLayer {
       Math.ceil(text.width) + COMPACT_PHASE_PILL_PADDING_X * 2,
     );
     const pillHeight = Math.max(COMPACT_PHASE_PILL_HEIGHT, text.height + 4);
-    const touchHeight = Math.max(48, getUiControlHeight(), pillHeight + 8);
+    const touchHeight = Math.max(48, getUiControlHeight(0), pillHeight + 8);
     const pillY = (touchHeight - pillHeight) / 2;
     const background = new Graphics()
       .roundRect(0, pillY, width, pillHeight, pillHeight / 2)
@@ -1816,7 +1829,7 @@ export class PromptLayer extends PromptModalLayer {
   }
 
   private makeActionMenuButton(minimal: boolean): ActionViewLayout {
-    const size = Math.max(minimal ? 44 : 18, getUiControlHeight());
+    const size = Math.max(minimal ? 44 : 18, getUiControlHeight(0));
     const button = new Container();
     const icon = this.makeIcon(
       "lucide-settings",
@@ -1827,7 +1840,8 @@ export class PromptLayer extends PromptModalLayer {
     button.addChild(icon);
     button.eventMode = "static";
     button.cursor = "pointer";
-    button.hitArea = new Rectangle(0, 0, size, size);
+    const inset = isTouchUi() || minimal ? 0 : 10;
+    button.hitArea = new Rectangle(-inset, -inset, size + inset * 2, size + inset * 2);
     button.on("pointerover", () => {
       icon.alpha = 0.75;
     });
@@ -1927,7 +1941,7 @@ export class PromptLayer extends PromptModalLayer {
     const combo = resolveCombo("toggle-priority-mode", useKeybindingsStore.getState().overrides);
     const fullControl = state.fullControl;
     const hint = combo ? ` (${formatCombo(combo)})` : "";
-    const iconOnly = !minimal && getUiControlHeight() >= 44;
+    const iconOnly = !minimal && isTouchUi();
     const button = this.makeButton(
       minimal ? (fullControl ? "FULL" : "AUTO") : fullControl ? "FULL CTRL" : "AUTOPASS",
       () => {
@@ -1962,11 +1976,22 @@ export class PromptLayer extends PromptModalLayer {
         pressOffsetY: 1,
         borderAlpha: minimal && !fullControl ? 0 : 0.8,
         disabled,
-        width: iconOnly ? getUiControlHeight() : minimal ? 64 : undefined,
+        width: isTouchUi()
+          ? iconOnly
+            ? getUiControlHeight()
+            : minimal
+              ? 64
+              : undefined
+          : minimal
+            ? 44
+            : fullControl
+              ? 88
+              : 86,
         height: minimal ? 44 : 22,
         paddingX: 8,
         fontWeight: "700",
         letterSpacing: minimal ? 0.4 : 1.08,
+        fontSize: isTouchUi() ? undefined : minimal ? 8 : 9,
       },
     );
     if (minimal) {

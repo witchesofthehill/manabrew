@@ -27,25 +27,25 @@ export function PlaytestPlayersDialog({ open, onChoose, onCancel }: PlaytestPlay
         <div className="grid gap-3 sm:grid-cols-2">
           <button
             onClick={() => onChoose(3)}
-            className="text-left rounded-lg border p-4 transition-colors hover:border-primary/40 hover:bg-muted/30 touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal"
+            className="text-left rounded-lg border p-4 transition-colors hover:border-primary/40 hover:bg-muted/30 touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal non-touch:text-[length:inherit] non-touch:leading-[inherit]"
           >
             <div className="flex items-center gap-2 mb-1.5">
               <Users className="h-4 w-4 text-primary" />
-              <span className="font-semibold text-ui-label">4-player pod</span>
+              <span className="font-semibold text-ui-label non-touch:text-sm">4-player pod</span>
             </div>
-            <p className="text-ui-body text-muted-foreground leading-snug">
+            <p className="text-ui-body text-muted-foreground leading-snug non-touch:text-xs non-touch:leading-snug">
               You and three AI opponents. The real thing.
             </p>
           </button>
           <button
             onClick={() => onChoose(1)}
-            className="text-left rounded-lg border p-4 transition-colors hover:border-primary/40 hover:bg-muted/30 touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal"
+            className="text-left rounded-lg border p-4 transition-colors hover:border-primary/40 hover:bg-muted/30 touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal non-touch:text-[length:inherit] non-touch:leading-[inherit]"
           >
             <div className="flex items-center gap-2 mb-1.5">
               <Swords className="h-4 w-4 text-primary" />
-              <span className="font-semibold text-ui-label">1v1</span>
+              <span className="font-semibold text-ui-label non-touch:text-sm">1v1</span>
             </div>
-            <p className="text-ui-body text-muted-foreground leading-snug">
+            <p className="text-ui-body text-muted-foreground leading-snug non-touch:text-xs non-touch:leading-snug">
               You and one AI opponent. Faster turns, quicker goldfishing.
             </p>
           </button>

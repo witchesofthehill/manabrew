@@ -20,7 +20,8 @@ interface BoardPlaygroundControlsProps {
   setFocusedPlayerId: (id: string) => void;
 }
 
-const SELECT_CLASS = "max-w-full rounded-md border border-input bg-background px-2 text-foreground";
+const SELECT_CLASS =
+  "max-w-full rounded-md border border-input bg-background px-2 text-foreground non-touch:text-sm non-touch:h-9";
 
 export function BoardPlaygroundControls({
   table,
@@ -46,7 +47,7 @@ export function BoardPlaygroundControls({
   return (
     <div className="space-y-3 rounded-lg border border-border bg-card p-3">
       <div className="flex flex-wrap items-end gap-3">
-        <label className="grid min-w-0 gap-1 text-ui-label text-muted-foreground">
+        <label className="grid min-w-0 gap-1 text-ui-label text-muted-foreground non-touch:text-xs">
           Scenario
           <AppSelect
             className={SELECT_CLASS}
@@ -71,7 +72,7 @@ export function BoardPlaygroundControls({
         >
           {overview ? "Overview" : "Focused table"}
         </Button>
-        <label className="grid min-w-0 gap-1 text-ui-label text-muted-foreground">
+        <label className="grid min-w-0 gap-1 text-ui-label text-muted-foreground non-touch:text-xs">
           Focus seat
           <AppSelect
             className={SELECT_CLASS}
@@ -87,7 +88,7 @@ export function BoardPlaygroundControls({
         </label>
       </div>
       <div className="flex flex-wrap items-end gap-3">
-        <label className="grid min-w-0 gap-1 text-ui-label text-muted-foreground">
+        <label className="grid min-w-0 gap-1 text-ui-label text-muted-foreground non-touch:text-xs">
           Turn {table.turn}
           <AppSelect
             className={SELECT_CLASS}
@@ -103,7 +104,7 @@ export function BoardPlaygroundControls({
             ))}
           </AppSelect>
         </label>
-        <label className="grid min-w-0 gap-1 text-ui-label text-muted-foreground">
+        <label className="grid min-w-0 gap-1 text-ui-label text-muted-foreground non-touch:text-xs">
           Priority
           <AppSelect
             className={SELECT_CLASS}
@@ -119,7 +120,7 @@ export function BoardPlaygroundControls({
             ))}
           </AppSelect>
         </label>
-        <label className="grid min-w-0 gap-1 text-ui-label text-muted-foreground">
+        <label className="grid min-w-0 gap-1 text-ui-label text-muted-foreground non-touch:text-xs">
           Step
           <AppSelect
             className={SELECT_CLASS}
@@ -167,10 +168,13 @@ export function BoardPlaygroundControls({
           Next turn
         </Button>
         {table.players.map((player) => (
-          <label key={player.id} className="grid gap-1 text-ui-label text-muted-foreground">
+          <label
+            key={player.id}
+            className="grid gap-1 text-ui-label text-muted-foreground non-touch:text-xs"
+          >
             {player.name.split(" · ")[0]} life
             <input
-              className="h-8 touch:min-h-11 w-24 rounded-md border border-input bg-background px-2 text-ui-input text-foreground"
+              className="h-8 touch:min-h-11 w-24 rounded-md border border-input bg-background px-2 text-ui-input text-foreground non-touch:text-sm non-touch:h-9 non-touch:w-20"
               type="number"
               value={table.life[player.id]}
               onChange={(event) => {
@@ -186,16 +190,16 @@ export function BoardPlaygroundControls({
         ))}
       </div>
       <details open={manaExpanded} onToggle={(event) => setManaExpanded(event.currentTarget.open)}>
-        <summary className="min-h-8 touch:min-h-11 cursor-pointer text-ui-label font-medium text-foreground">
+        <summary className="min-h-8 touch:min-h-11 cursor-pointer text-ui-label font-medium text-foreground non-touch:text-sm non-touch:min-h-0">
           Floating mana
         </summary>
-        <p className="mt-2 text-ui-body text-muted-foreground">
+        <p className="mt-2 text-ui-body text-muted-foreground non-touch:text-xs">
           Add, spend, or clear mana without changing turn, priority, or focus.
         </p>
         <div className="mt-3 grid gap-3 lg:grid-cols-2">
           {table.players.map((player) => (
             <fieldset key={player.id} className="min-w-0 rounded-md border border-border p-2">
-              <legend className="px-1 text-ui-label font-medium text-foreground">
+              <legend className="px-1 text-ui-label font-medium text-foreground non-touch:text-xs">
                 {player.name}
               </legend>
               <div className="grid grid-cols-[repeat(auto-fit,minmax(2.75rem,1fr))] gap-1">
@@ -203,20 +207,20 @@ export function BoardPlaygroundControls({
                   const amount = table.manaPools[player.id]?.[letter] ?? 0;
                   return (
                     <div key={letter} className="grid justify-items-center gap-1">
-                      <span className="text-ui-label font-medium text-muted-foreground">
+                      <span className="text-ui-label font-medium text-muted-foreground non-touch:text-xs">
                         {letter}
                       </span>
                       <Button
                         size="icon"
                         variant="outline"
-                        className="h-8 w-8 touch:min-h-11 touch:min-w-11"
+                        className="h-8 w-8 touch:min-h-11 touch:min-w-11 non-touch:h-8"
                         aria-label={`Add ${letter} mana to ${player.name}`}
                         onClick={() => changeMana(player.id, letter, 1)}
                       >
                         +
                       </Button>
                       <output
-                        className="text-ui-label tabular-nums text-foreground"
+                        className="text-ui-label tabular-nums text-foreground non-touch:text-sm"
                         aria-label={`${player.name} ${letter} mana`}
                       >
                         {amount}
@@ -224,7 +228,7 @@ export function BoardPlaygroundControls({
                       <Button
                         size="icon"
                         variant="outline"
-                        className="h-8 w-8 touch:min-h-11 touch:min-w-11"
+                        className="h-8 w-8 touch:min-h-11 touch:min-w-11 non-touch:h-8"
                         aria-label={`Spend ${letter} mana from ${player.name}`}
                         disabled={amount === 0}
                         onClick={() => changeMana(player.id, letter, -1)}

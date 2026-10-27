@@ -86,7 +86,7 @@ export function GuestNameConflictModal() {
           <DialogTitle className="text-xl leading-tight">
             Someone stole “{stolen}” from you. Ouch!
           </DialogTitle>
-          <DialogDescription className="text-ui-body leading-relaxed">
+          <DialogDescription className="text-ui-body leading-relaxed non-touch:text-sm non-touch:leading-relaxed">
             They claimed it as a permanent account handle. Track them down in the{""}
             <span className="font-medium text-foreground">Multiplayer</span> tab and challenge them
             to a duel to reclaim your honor! Or don't - just grab another good name for now.
@@ -108,10 +108,12 @@ export function GuestNameConflictModal() {
               if (e.key === "Enter") void save();
             }}
           />
-          {error && <p className="text-center text-ui-meta text-destructive">{error}</p>}
+          {error && (
+            <p className="text-center text-ui-meta text-destructive non-touch:text-sm">{error}</p>
+          )}
         </div>
 
-        <DialogFooter className="flex-col gap-3 sm:flex-col sm:space-x-0">
+        <DialogFooter className="flex-col gap-3 sm:flex-col sm:space-x-0 non-touch:gap-3 non-touch:sm:space-x-0">
           <Button
             variant="primary"
             className="w-full"
@@ -120,11 +122,11 @@ export function GuestNameConflictModal() {
           >
             {busy ? `Claiming\u2026` : `Take this name`}
           </Button>
-          <p className="text-center text-ui-meta text-muted-foreground">
+          <p className="text-center text-ui-meta text-muted-foreground non-touch:text-xs">
             Tip:{""}
             <button
               type="button"
-              className="font-medium text-primary underline-offset-2 hover:underline touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal"
+              className="font-medium text-primary underline-offset-2 hover:underline touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal non-touch:text-[length:inherit] non-touch:leading-[inherit]"
               onClick={() => showSignIn()}
             >
               create an account

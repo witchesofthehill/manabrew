@@ -99,7 +99,7 @@ export function RejoinMatchCard({ session, onAbandoned }: RejoinMatchCardProps) 
         </span>
         <div className="min-w-0 flex-1">
           <p className="font-medium">Match in progress</p>
-          <p className="break-words text-ui-body text-muted-foreground">
+          <p className="break-words text-ui-body text-muted-foreground non-touch:text-sm">
             {currentRoom?.room_id === session.roomId
               ? `You're still seated at ${currentRoom.room_name}.`
               : `You're still seated in an online match.`}
@@ -147,7 +147,7 @@ export function RejoinMatchCard({ session, onAbandoned }: RejoinMatchCardProps) 
                 : `You will leave your seat and will not be able to rejoin this match.`}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2">
+          <DialogFooter className="gap-2 non-touch:gap-2">
             <Button
               variant="outline"
               size="sm"

@@ -49,7 +49,7 @@ export function KeyboardShortcutsDialog({
         <div className="max-h-[60dvh] space-y-4 overflow-y-auto pr-1">
           {categories.map((category) => (
             <div key={category} className="space-y-1.5">
-              <h3 className="text-ui-meta font-semibold uppercase tracking-wide text-muted-foreground">
+              <h3 className="text-ui-meta font-semibold uppercase tracking-wide text-muted-foreground non-touch:text-xs">
                 {category}
               </h3>
               <div className="space-y-1">
@@ -60,10 +60,10 @@ export function KeyboardShortcutsDialog({
                     return (
                       <div
                         key={b.id}
-                        className="flex flex-wrap items-center justify-between gap-3 text-ui-label"
+                        className="flex flex-wrap items-center justify-between gap-3 text-ui-label non-touch:text-sm"
                       >
                         <span>{b.label}</span>
-                        <kbd className="rounded border bg-muted px-1.5 py-0.5 text-ui-meta">
+                        <kbd className="rounded border bg-muted px-1.5 py-0.5 text-ui-meta non-touch:text-xs">
                           {combo ? formatCombo(combo) : "—"}
                         </kbd>
                       </div>
@@ -73,14 +73,14 @@ export function KeyboardShortcutsDialog({
             </div>
           ))}
           {filtered.length === 0 && (
-            <p className="py-8 text-center text-ui-body text-muted-foreground">
+            <p className="py-8 text-center text-ui-body text-muted-foreground non-touch:text-sm">
               No shortcuts match “{query}”.
             </p>
           )}
         </div>
       </Modal.Body>
       <Modal.Footer>
-        <p className="mr-auto text-ui-meta text-muted-foreground">
+        <p className="mr-auto text-ui-meta text-muted-foreground non-touch:text-xs">
           Customize these in Preferences → Shortcuts.
         </p>
         <Modal.Close onClose={close} variant="ghost">

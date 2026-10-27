@@ -27,11 +27,11 @@ export function BattlefieldChoiceDevControls() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className={DEV_SECTION_HEADING}>Persistent choices</p>
-          <p className="mt-1 text-ui-meta text-muted-foreground">
+          <p className="mt-1 text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
             {selected.length === 0 ? `No forced choices` : `${selected.length} forced`}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-3 text-ui-label font-medium uppercase tracking-wide">
+        <div className="flex flex-wrap items-center gap-3 text-ui-label font-medium uppercase tracking-wide non-touch:text-[10px] non-touch:leading-[inherit]">
           <button
             type="button"
             className="min-h-8 min-w-8 touch:min-h-11 touch:min-w-11 text-muted-foreground hover:text-foreground"
@@ -59,7 +59,7 @@ export function BattlefieldChoiceDevControls() {
               type="button"
               className={cn(
                 DEV_CONTROL_BUTTON,
-                "px-2 py-1.5",
+                "px-2 py-1.5 non-touch:text-[10px] non-touch:leading-[inherit]",
                 active ? DEV_CONTROL_ACTIVE : DEV_CONTROL_INACTIVE,
               )}
               onClick={() => toggle(kind)}

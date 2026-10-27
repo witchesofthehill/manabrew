@@ -102,8 +102,8 @@ export function PlayHome() {
             </h1>
             <p
               className={cn(
-                "mt-2 text-ui-body leading-relaxed text-muted-foreground",
-                shortTouch && "mt-1 text-ui-body",
+                "mt-2 text-ui-body leading-relaxed text-muted-foreground non-touch:text-sm non-touch:sm:text-base non-touch:leading-relaxed",
+                shortTouch && "mt-1 text-ui-body non-touch:text-sm non-touch:sm:text-sm",
               )}
             >
               Start a match your way, or open a deck from your collection.
@@ -137,7 +137,7 @@ export function PlayHome() {
                   compact={shortTouch}
                   footer={
                     to === ROUTES.LOBBY && lobbyTeaser ? (
-                      <span className="mt-1.5 flex items-center gap-1.5 text-ui-meta font-medium text-primary">
+                      <span className="mt-1.5 flex items-center gap-1.5 text-ui-meta font-medium text-primary non-touch:text-xs">
                         <span className="relative flex h-1.5 w-1.5">
                           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-60" />
                           <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />

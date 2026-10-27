@@ -135,14 +135,14 @@ export function PrintPickerModal({ cardName, onClose, onSelect, token }: PrintPi
                           />
                         )
                       ) : (
-                        <span className="text-ui-meta text-muted-foreground text-center">
+                        <span className="text-ui-meta text-muted-foreground text-center non-touch:text-xs">
                           No Image
                         </span>
                       )}
                     </div>
                     <div className="text-center w-full">
                       <div
-                        className="text-ui-label font-semibold break-words flex items-center justify-center gap-1"
+                        className="text-ui-label font-semibold break-words flex items-center justify-center gap-1 non-touch:text-xs"
                         title={p.set_name}
                       >
                         {setLookup.get(p.set)?.icon_svg_uri && (
@@ -154,7 +154,7 @@ export function PrintPickerModal({ cardName, onClose, onSelect, token }: PrintPi
                         )}
                         <span className="min-w-0 break-words">{p.set_name}</span>
                       </div>
-                      <div className="text-ui-meta text-muted-foreground uppercase flex gap-1 justify-center">
+                      <div className="text-ui-meta text-muted-foreground uppercase flex gap-1 justify-center non-touch:text-[10px] non-touch:leading-[inherit]">
                         <span>{p.set}</span>
                         <span>•</span>
                         <span>#{p.collector_number}</span>

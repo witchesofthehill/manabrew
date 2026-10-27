@@ -90,11 +90,11 @@ function CommandZoneCard({
           <AlertTriangle className="h-3 w-3" />
         </div>
       )}
-      <div className="absolute left-1 top-1 z-20 rounded bg-overlay/75 px-1.5 py-0.5 text-ui-meta font-semibold text-foreground shadow">
+      <div className="absolute left-1 top-1 z-20 rounded bg-overlay/75 px-1.5 py-0.5 text-ui-meta font-semibold text-foreground shadow non-touch:text-[10px] non-touch:leading-[inherit]">
         {label}
       </div>
       {!readOnly && (
-        <div className="absolute right-1 bottom-1 z-20 flex flex-col gap-1 opacity-0 transition-opacity group-hover:opacity-100 touch:opacity-100">
+        <div className="absolute right-1 bottom-1 z-20 flex flex-col gap-1 opacity-0 transition-opacity group-hover:opacity-100 touch:opacity-100 non-touch:top-1 non-touch:bottom-auto non-touch:flex-row">
           {onPickPrint && (
             <button
               type="button"
@@ -219,8 +219,12 @@ export function CommanderSlots({
       >
         <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", !open && "-rotate-90")} />
         <Crown className="h-3.5 w-3.5 text-primary" />
-        <h3 className="text-ui-label font-semibold uppercase tracking-wide">Command zone</h3>
-        <span className="text-ui-meta text-muted-foreground">Set your deck identity</span>
+        <h3 className="text-ui-label font-semibold uppercase tracking-wide non-touch:text-xs">
+          Command zone
+        </h3>
+        <span className="text-ui-meta text-muted-foreground non-touch:text-xs">
+          Set your deck identity
+        </span>
       </button>
       {open && (
         <div
@@ -260,7 +264,7 @@ export function CommanderSlots({
                 <Button
                   type="button"
                   variant="outline"
-                  className="touch:min-w-11 touch:min-h-11 min-h-10 gap-2 border-dashed"
+                  className="touch:min-w-11 touch:min-h-11 min-h-10 gap-2 border-dashed non-touch:min-h-10"
                 >
                   <Plus className="h-3.5 w-3.5" />
                   {emptyLabel}
@@ -283,7 +287,7 @@ export function CommanderSlots({
                     </DropdownMenuItem>
                   ))
                 ) : (
-                  <div className="px-2 py-3 text-ui-meta text-muted-foreground">
+                  <div className="px-2 py-3 text-ui-meta text-muted-foreground non-touch:text-xs">
                     Add an eligible card to the deck first.
                   </div>
                 )}

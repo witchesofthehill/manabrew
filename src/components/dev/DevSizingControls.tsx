@@ -41,13 +41,13 @@ export function DevSizingControls() {
   return (
     <section className={DEV_SECTION}>
       <p className={DEV_SECTION_HEADING}>Size and viewport</p>
-      <p className="mt-1 text-ui-body text-muted-foreground">
+      <p className="mt-1 text-ui-body text-muted-foreground non-touch:text-xs">
         Reflow the real Pixi board at fixed dimensions without opening browser tools.
       </p>
 
       {visibleCardSizes.length > 0 ? (
         <>
-          <p className="mb-2 mt-4 text-ui-label font-medium uppercase tracking-wide text-muted-foreground">
+          <p className="mb-2 mt-4 text-ui-label font-medium uppercase tracking-wide text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
             Card size
           </p>
           <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
@@ -70,7 +70,7 @@ export function DevSizingControls() {
 
       {visibleViewports.length > 0 ? (
         <>
-          <p className="mb-2 mt-4 text-ui-label font-medium uppercase tracking-wide text-muted-foreground">
+          <p className="mb-2 mt-4 text-ui-label font-medium uppercase tracking-wide text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
             Board viewport
           </p>
           <div className="grid grid-cols-2 gap-1.5">
@@ -92,7 +92,7 @@ export function DevSizingControls() {
               >
                 <span className="block break-words">{option.label}</span>
                 {option.width != null ? (
-                  <span className="mt-0.5 block font-mono text-ui-meta font-normal opacity-70">
+                  <span className="mt-0.5 block font-mono text-ui-meta font-normal opacity-70 non-touch:text-[9px] non-touch:leading-[inherit]">
                     {option.width}×{option.height}
                   </span>
                 ) : null}

@@ -38,16 +38,21 @@ export function DeckIntentPanel({ deck }: { deck: EditorDeck }) {
     <section className={EDITOR_PANEL_CLASS}>
       <div className="flex flex-wrap items-center gap-2">
         <Compass className="h-4 w-4 text-primary" />
-        <h3 className="text-ui-label font-semibold">Deck intent</h3>
-        <span className="text-ui-meta text-muted-foreground">local analysis</span>
+        <h3 className="text-ui-label font-semibold non-touch:text-sm">Deck intent</h3>
+        <span className="text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
+          local analysis
+        </span>
       </div>
-      <p className="mt-3 max-w-4xl text-ui-body leading-relaxed text-muted-foreground">
+      <p className="mt-3 max-w-4xl text-ui-body leading-relaxed text-muted-foreground non-touch:text-sm non-touch:leading-relaxed">
         {sentences.join(" ")}
       </p>
       {leadingRoles.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-2">
           {leadingRoles.map(([role, count]) => (
-            <span key={role} className="rounded-full bg-background/60 px-2.5 py-1 text-ui-meta">
+            <span
+              key={role}
+              className="rounded-full bg-background/60 px-2.5 py-1 text-ui-meta non-touch:text-xs"
+            >
               {CARD_ROLE_LABELS[role] ?? role} · {count}
             </span>
           ))}

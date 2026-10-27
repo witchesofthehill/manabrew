@@ -29,8 +29,12 @@ export function VersionInfo() {
           <Tag className="size-4" />
         </span>
         <div className="leading-tight">
-          <span className="block text-ui-label font-semibold text-foreground">Manabrew</span>
-          <span className="block text-ui-caption text-muted-foreground">Version {APP_VERSION}</span>
+          <span className="block text-ui-label font-semibold text-foreground non-touch:text-sm">
+            Manabrew
+          </span>
+          <span className="block text-ui-caption text-muted-foreground non-touch:text-xs">
+            Version {APP_VERSION}
+          </span>
         </div>
       </div>
 
@@ -51,14 +55,14 @@ export function VersionInfo() {
             {downloading ? downloadLabel : `Update to ${version}`}
           </Button>
         ) : check === "latest" ? (
-          <span className="flex items-center gap-1.5 text-ui-meta font-medium text-muted-foreground">
+          <span className="flex items-center gap-1.5 text-ui-meta font-medium text-muted-foreground non-touch:text-xs">
             <CircleCheck className="size-4 text-primary" />
             You&apos;re on latest
           </span>
         ) : (
           <div className="flex items-center gap-2">
             {check === "error" && (
-              <span className="text-ui-meta text-muted-foreground">
+              <span className="text-ui-meta text-muted-foreground non-touch:text-xs">
                 Couldn&apos;t reach the update server
               </span>
             )}

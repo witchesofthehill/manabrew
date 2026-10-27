@@ -179,7 +179,7 @@ export function TablesList({
               </h2>
               <p
                 className={cn(
-                  "ml-2 mt-2 text-ui-meta text-muted-foreground",
+                  "ml-2 mt-2 text-ui-meta text-muted-foreground non-touch:text-xs",
                   shortTouch && "hidden",
                 )}
               >
@@ -195,7 +195,7 @@ export function TablesList({
                   onChange={(e) => setSearch(e.target.value)}
                   aria-label="Search tables"
                   placeholder="Search tables…"
-                  className="min-h-8 pl-8 text-ui-input touch:min-h-11"
+                  className="min-h-8 pl-8 text-ui-input touch:min-h-11 non-touch:text-sm non-touch:h-8 non-touch:min-h-0"
                 />
               </div>
               <Button
@@ -203,13 +203,13 @@ export function TablesList({
                 onClick={onRefresh}
                 disabled={refreshDisabled || refreshing}
                 title="Refresh tables"
-                className="min-h-8 w-8 shrink-0 touch:min-h-11 touch:w-11 touch:min-h-11 touch:min-w-11"
+                className="min-h-8 w-8 shrink-0 touch:min-h-11 touch:w-11 touch:min-h-11 touch:min-w-11 non-touch:h-8 non-touch:min-h-0"
               >
                 <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
               </Button>
             </div>
 
-            <p className="ml-2 text-ui-meta text-muted-foreground">
+            <p className="ml-2 text-ui-meta text-muted-foreground non-touch:text-xs">
               {visibleRooms.length} {visibleRooms.length === 1 ? `table` : `tables`}
             </p>
 
@@ -227,7 +227,7 @@ export function TablesList({
               </div>
             ) : (
               <div className="flex flex-col items-center gap-3 py-5 text-center">
-                <p className="text-ui-body text-muted-foreground">
+                <p className="text-ui-body text-muted-foreground non-touch:text-sm">
                   {hasTables ? "No tables match your search." : "No player tables are waiting."}
                 </p>
                 {!hasTables && (

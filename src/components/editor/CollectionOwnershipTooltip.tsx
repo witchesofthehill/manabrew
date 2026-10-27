@@ -79,25 +79,27 @@ export function CollectionOwnershipTooltip({
             <Layers3 className="h-4 w-4 text-primary" />
           )}
           <div className="min-w-0">
-            <p className="text-ui-label font-semibold">Collection tracker</p>
-            <p className="text-ui-meta text-muted-foreground">
+            <p className="text-ui-label font-semibold non-touch:text-[length:inherit] non-touch:leading-[inherit]">
+              Collection tracker
+            </p>
+            <p className="text-ui-meta text-muted-foreground non-touch:text-[11px] non-touch:leading-[inherit]">
               {ownership === "exact" ? `Exact printing owned` : `Owned in another printing`}
             </p>
           </div>
-          <span className="ml-auto font-mono text-ui-meta tabular-nums">
+          <span className="ml-auto font-mono text-ui-meta tabular-nums non-touch:text-xs">
             {Math.min(summary.owned, summary.required)}/{summary.required}
           </span>
         </div>
 
         <div className="space-y-1.5">
-          <p className="text-ui-label font-semibold uppercase tracking-wider text-muted-foreground">
+          <p className="text-ui-label font-semibold uppercase tracking-wider text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
             Needed for deck
           </p>
           <PrintingRow quantity={summary.required} label={requiredPrinting} exact />
         </div>
 
         <div className="space-y-1.5">
-          <p className="text-ui-label font-semibold uppercase tracking-wider text-muted-foreground">
+          <p className="text-ui-label font-semibold uppercase tracking-wider text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
             Found in collection
           </p>
           {printings.map((printing, index) => {
@@ -120,7 +122,7 @@ export function CollectionOwnershipTooltip({
 
         <Link
           to={`${ROUTES.MY_COLLECTION}?q=${encodeURIComponent(card.identity.name)}`}
-          className="flex touch:min-h-11 touch:min-w-11 items-center justify-center gap-1.5 rounded-md bg-muted/60 px-2 py-1.5 text-ui-label font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex touch:min-h-11 touch:min-w-11 items-center justify-center gap-1.5 rounded-md bg-muted/60 px-2 py-1.5 text-ui-label font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring non-touch:text-[11px] non-touch:leading-[inherit]"
           onClick={(event) => event.stopPropagation()}
         >
           View in My Collection <ExternalLink className="h-3 w-3" />
@@ -140,11 +142,16 @@ function PrintingRow({
 }) {
   return (
     <div className="flex items-center gap-2 rounded-md bg-muted/25 px-2 py-1.5">
-      <span className="min-w-5 shrink-0 text-right font-mono text-ui-meta tabular-nums">
+      <span className="min-w-5 shrink-0 text-right font-mono text-ui-meta tabular-nums non-touch:text-xs non-touch:w-5 non-touch:min-w-0">
         {quantity}
       </span>
-      <span className="min-w-0 flex-1 break-words text-ui-meta">{label}</span>
-      <span className={cn("text-ui-meta", exact ? "text-legality-legal" : "text-muted-foreground")}>
+      <span className="min-w-0 flex-1 break-words text-ui-meta non-touch:text-xs">{label}</span>
+      <span
+        className={cn(
+          "text-ui-meta non-touch:text-[10px] non-touch:leading-[inherit]",
+          exact ? "text-legality-legal" : "text-muted-foreground",
+        )}
+      >
         {exact ? `exact` : `other`}
       </span>
     </div>

@@ -41,7 +41,7 @@ export function CardRenderingCounterControls({
           const count = card.counters[type] ?? 0;
           return (
             <div key={type} className="flex flex-wrap items-end gap-1">
-              <div className="min-w-24 flex-1">
+              <div className="min-w-24 flex-1 non-touch:min-w-0">
                 <CardRenderingTextField
                   label={`${label} counters`}
                   numeric

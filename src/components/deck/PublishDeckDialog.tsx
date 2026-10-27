@@ -146,18 +146,18 @@ export function PublishDeckDialog({
           </DialogDescription>
         </DialogHeader>
         {signedIn ? (
-          <p className="text-ui-body text-muted-foreground">
+          <p className="text-ui-body text-muted-foreground non-touch:text-sm">
             Publishing as <span className="font-medium text-foreground">@{account.handle}</span>
           </p>
         ) : (
-          <p className="text-ui-body text-muted-foreground">
+          <p className="text-ui-body text-muted-foreground non-touch:text-sm">
             Publishing needs a Manabrew account, so the deck stays yours and you can remove it from
             any device.
           </p>
         )}
         {signedIn && (
           <div className="space-y-1.5">
-            <label htmlFor="deckhub-title" className="text-ui-label font-medium">
+            <label htmlFor="deckhub-title" className="text-ui-label font-medium non-touch:text-sm">
               Title
             </label>
             <Input
@@ -166,14 +166,14 @@ export function PublishDeckDialog({
               onChange={(event) => setTitle(event.target.value)}
               maxLength={100}
             />
-            <p className="text-ui-meta text-muted-foreground">
+            <p className="text-ui-meta text-muted-foreground non-touch:text-xs">
               How the deck appears in Community. Defaults to the deck name.
             </p>
           </div>
         )}
         {capabilities?.tags && signedIn && (
           <div className="space-y-1.5">
-            <label htmlFor="deckhub-tags" className="text-ui-label font-medium">
+            <label htmlFor="deckhub-tags" className="text-ui-label font-medium non-touch:text-sm">
               Discovery tags
             </label>
             <Input
@@ -183,15 +183,15 @@ export function PublishDeckDialog({
               placeholder={`control, budget, tokens`}
               maxLength={200}
             />
-            <p className="text-ui-meta text-muted-foreground">
+            <p className="text-ui-meta text-muted-foreground non-touch:text-xs">
               Up to 10 tags, separated by commas.
             </p>
           </div>
         )}
         {!capabilitiesLoaded && capabilitiesError && (
-          <p className="text-ui-meta text-destructive">{capabilitiesError}</p>
+          <p className="text-ui-meta text-destructive non-touch:text-sm">{capabilitiesError}</p>
         )}
-        <DialogFooter className="gap-2">
+        <DialogFooter className="gap-2 non-touch:gap-2">
           <Button variant="ghost" size="sm" disabled={busy} onClick={() => handleOpenChange(false)}>
             Cancel
           </Button>

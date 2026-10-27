@@ -34,7 +34,7 @@ export function LimitedWorkspaceTabs({
           variant="ghost"
           onClick={() => onChange(tab.value)}
           className={cn(
-            "h-auto min-h-8 whitespace-normal text-ui-label touch:min-h-11",
+            "h-auto min-h-8 whitespace-normal text-ui-label touch:min-h-11 non-touch:text-xs non-touch:h-8 non-touch:min-h-0",
             value === tab.value && "bg-secondary text-secondary-foreground",
           )}
         >

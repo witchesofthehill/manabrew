@@ -494,7 +494,7 @@ export function DeckVsSelector({
         placeholder={shortTouch ? "Search decks…" : "Filter decks…"}
         value={deckSearch}
         onChange={(event) => setDeckSearch(event.target.value)}
-        className="min-h-9 w-full rounded-md border bg-background pl-9 pr-3 text-ui-input focus:outline-none focus:ring-1 focus:ring-primary touch:min-h-11 touch:min-w-11"
+        className="min-h-9 w-full rounded-md border bg-background pl-9 pr-3 text-ui-input focus:outline-none focus:ring-1 focus:ring-primary touch:min-h-11 touch:min-w-11 non-touch:text-sm non-touch:h-9 non-touch:min-h-0"
         autoComplete="off"
         autoCorrect="off"
         autoCapitalize="off"
@@ -512,7 +512,7 @@ export function DeckVsSelector({
             aria-label="Filter decks by format"
             value={selectedFormat ?? ""}
             onValueChange={(value) => changeFormat(value || null)}
-            className="min-h-11 max-w-44 shrink-0 text-ui-label font-medium"
+            className="min-h-11 max-w-44 shrink-0 text-ui-label font-medium non-touch:text-base non-touch:h-11 non-touch:min-h-0"
           >
             <AppSelectOption value="">All formats</AppSelectOption>
             {GAME_FORMATS.map((format) => (
@@ -539,7 +539,7 @@ export function DeckVsSelector({
                   aria-pressed={selectedFormat === format.id}
                   onClick={() => changeFormat(format.id)}
                   className={cn(
-                    "min-h-9 shrink-0 rounded-full border px-2.5 py-1 text-ui-label font-medium transition-colors motion-reduce:transition-none touch:min-h-11 touch:px-3 touch:min-w-11 whitespace-normal",
+                    "min-h-9 shrink-0 rounded-full border px-2.5 py-1 text-ui-label font-medium transition-colors motion-reduce:transition-none touch:min-h-11 touch:px-3 touch:min-w-11 whitespace-normal non-touch:text-[11px] non-touch:leading-[inherit]",
                     selectedFormat === format.id
                       ? "border-primary/50 bg-primary/15 text-primary"
                       : "border-border/70 text-muted-foreground hover:border-border hover:text-foreground",
@@ -550,7 +550,7 @@ export function DeckVsSelector({
               ))}
             </div>
             <p
-              className="hidden shrink-0 text-right text-ui-meta font-medium text-muted-foreground lg:block"
+              className="hidden shrink-0 text-right text-ui-meta font-medium text-muted-foreground lg:block non-touch:text-xs"
               aria-live="polite"
             >
               {pickingSide === "player"
@@ -575,11 +575,11 @@ export function DeckVsSelector({
         )}
       >
         <div>
-          <p className="text-ui-meta uppercase tracking-wider text-muted-foreground font-semibold pt-2 pb-1">
+          <p className="text-ui-meta uppercase tracking-wider text-muted-foreground font-semibold pt-2 pb-1 non-touch:text-[10px] non-touch:leading-[inherit]">
             Your Decks
           </p>
           {filteredUserDecks.length === 0 ? (
-            <p className="text-ui-meta text-muted-foreground italic py-2">
+            <p className="text-ui-meta text-muted-foreground italic py-2 non-touch:text-xs">
               No decks yet — build one in{""}
               <Link
                 to={ROUTES.DECK_EDITOR}
@@ -638,11 +638,11 @@ export function DeckVsSelector({
             hubDecks.error !== null ||
             hubDeckEntries.length > 0) && (
             <div>
-              <p className="pb-1 text-ui-meta font-semibold uppercase tracking-wider text-muted-foreground">
+              <p className="pb-1 text-ui-meta font-semibold uppercase tracking-wider text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
                 Community
               </p>
               {hubDecks.error ? (
-                <div className="flex flex-wrap items-center gap-2 py-2 text-ui-meta text-destructive">
+                <div className="flex flex-wrap items-center gap-2 py-2 text-ui-meta text-destructive non-touch:text-xs">
                   <span className="min-w-0 break-words">{hubDecks.error}</span>
                   <Button variant="outline" size="sm" onClick={hubDecks.retry}>
                     Retry
@@ -666,7 +666,7 @@ export function DeckVsSelector({
                   ))}
                 </div>
               ) : hubDeckEntries.length === 0 ? (
-                <p className="py-2 text-ui-meta italic text-muted-foreground">
+                <p className="py-2 text-ui-meta italic text-muted-foreground non-touch:text-xs">
                   No Community decks match this format and search.
                 </p>
               ) : (
@@ -721,11 +721,11 @@ export function DeckVsSelector({
           )}
 
         <div>
-          <p className="text-ui-meta uppercase tracking-wider text-muted-foreground font-semibold pb-1">
+          <p className="text-ui-meta uppercase tracking-wider text-muted-foreground font-semibold pb-1 non-touch:text-[10px] non-touch:leading-[inherit]">
             Starter Decks
           </p>
           {filteredDecks.length === 0 ? (
-            <p className="text-ui-meta text-muted-foreground italic py-2">
+            <p className="text-ui-meta text-muted-foreground italic py-2 non-touch:text-xs">
               No starter decks for this format.
             </p>
           ) : (
@@ -783,7 +783,7 @@ export function DeckVsSelector({
               setPickingSide("player");
             }}
           />
-          <span className="text-center text-ui-meta font-bold tracking-wider text-muted-foreground/60">
+          <span className="text-center text-ui-meta font-bold tracking-wider text-muted-foreground/60 non-touch:text-xs">
             VS
           </span>
           <DeckSlot
@@ -813,7 +813,7 @@ export function DeckVsSelector({
                     e.stopPropagation();
                     handleRandomOpponent();
                   }}
-                  className="inline-flex w-8 shrink-0 items-center justify-center gap-0.5 rounded-r-md text-ui-label text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground touch:w-11 touch:min-h-11 touch:min-w-11 whitespace-normal"
+                  className="inline-flex w-8 shrink-0 items-center justify-center gap-0.5 rounded-r-md text-ui-label text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground touch:w-11 touch:min-h-11 touch:min-w-11 whitespace-normal non-touch:text-[10px] non-touch:leading-[inherit]"
                   title="Random AI deck"
                 >
                   <Shuffle className="h-3 w-3" />
@@ -823,7 +823,7 @@ export function DeckVsSelector({
           />
         </div>
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-shrink-0 sm:items-center">
-          <div className="flex min-h-8 w-full items-center justify-center gap-1.5 rounded-md border border-input bg-background px-3 text-ui-label touch:min-h-11 sm:w-auto">
+          <div className="flex min-h-8 w-full items-center justify-center gap-1.5 rounded-md border border-input bg-background px-3 text-ui-label touch:min-h-11 sm:w-auto non-touch:text-sm non-touch:h-8 non-touch:min-h-0">
             <EngineMark engine="Forge" className="h-3.5 w-3.5" />
             Forge
           </div>
@@ -894,7 +894,7 @@ function DeckSlot({
   return (
     <div
       className={cn(
-        "group inline-flex min-h-8 min-w-0 w-full items-stretch rounded-md border text-ui-label transition-colors touch:min-h-11 sm:min-w-24",
+        "group inline-flex min-h-8 min-w-0 w-full items-stretch rounded-md border text-ui-label transition-colors touch:min-h-11 sm:min-w-24 non-touch:text-xs",
         isActive ? "ring-1" : "border-border/40 hover:border-border hover:bg-muted/40",
       )}
       style={{
@@ -907,10 +907,10 @@ function DeckSlot({
       <button
         type="button"
         onClick={onClick}
-        className="inline-flex min-w-0 flex-1 flex-wrap items-center gap-1.5 rounded-l-md px-2 py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal"
+        className="inline-flex min-w-0 flex-1 flex-wrap items-center gap-1.5 rounded-l-md px-2 py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal non-touch:text-[length:inherit] non-touch:leading-[inherit]"
       >
         <span
-          className="inline-flex shrink-0 items-center gap-0.5 font-bold text-ui-label uppercase tracking-wider"
+          className="inline-flex shrink-0 items-center gap-0.5 font-bold text-ui-label uppercase tracking-wider non-touch:text-[10px] non-touch:leading-[inherit]"
           style={{ color: sideColor }}
         >
           {icon}
@@ -925,14 +925,14 @@ function DeckSlot({
           {deck?.name ?? `pick a deck`}
         </span>
         {isActive ? (
-          <span className="shrink-0 text-ui-meta font-semibold uppercase tracking-wide text-primary">
+          <span className="shrink-0 text-ui-meta font-semibold uppercase tracking-wide text-primary non-touch:text-[9px] non-touch:leading-[inherit]">
             Selecting
           </span>
         ) : isConfirmed ? (
           <Check className="h-3 w-3 shrink-0 text-primary" />
         ) : (
           deck && (
-            <span className="shrink-0 text-ui-meta font-semibold uppercase tracking-wide text-muted-foreground">
+            <span className="shrink-0 text-ui-meta font-semibold uppercase tracking-wide text-muted-foreground non-touch:text-[9px] non-touch:leading-[inherit]">
               Suggested
             </span>
           )
@@ -942,7 +942,7 @@ function DeckSlot({
         <button
           type="button"
           onClick={onClear}
-          className="inline-flex w-8 shrink-0 items-center justify-center rounded-r-md text-muted-foreground transition-colors hover:bg-muted/60 hover:text-destructive touch:w-11 touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal"
+          className="inline-flex w-8 shrink-0 items-center justify-center rounded-r-md text-muted-foreground transition-colors hover:bg-muted/60 hover:text-destructive touch:w-11 touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal non-touch:text-[length:inherit] non-touch:leading-[inherit]"
           title="Clear"
         >
           <X className="h-2.5 w-2.5" />

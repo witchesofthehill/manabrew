@@ -89,7 +89,10 @@ export function CollectionQuickAdd({
     [],
   );
   return (
-    <div ref={containerRef} className="relative min-w-0 basis-56 flex-1 sm:max-w-xs">
+    <div
+      ref={containerRef}
+      className="relative min-w-0 basis-56 flex-1 sm:max-w-xs non-touch:min-w-56"
+    >
       <div className="relative">
         <Plus className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
@@ -130,8 +133,10 @@ export function CollectionQuickAdd({
 
       {quantityCard ? (
         <div className="absolute left-0 right-0 top-full z-50 mt-1 rounded-md border bg-popover p-3 shadow-lg">
-          <p className="break-words text-ui-label font-medium">{quantityCard.name}</p>
-          <p className="mt-0.5 text-ui-meta text-muted-foreground">
+          <p className="break-words text-ui-label font-medium non-touch:text-sm">
+            {quantityCard.name}
+          </p>
+          <p className="mt-0.5 text-ui-meta text-muted-foreground non-touch:text-xs">
             {getCount(quantityCard.name)} currently owned
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -146,7 +151,7 @@ export function CollectionQuickAdd({
               type="number"
               min="1"
               value={quantity}
-              className="w-16 text-center font-mono"
+              className="w-16 text-center font-mono non-touch:h-8"
               onChange={(event) => setQuantity(Math.max(1, Number(event.target.value) || 1))}
             />
             <Button variant="outline" size="icon" onClick={() => setQuantity((count) => count + 1)}>
@@ -163,8 +168,8 @@ export function CollectionQuickAdd({
           </div>
         </div>
       ) : open && results.length > 0 ? (
-        <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-80 min-w-0 overflow-y-auto rounded-md border bg-popover shadow-lg">
-          <div className="sticky top-0 z-10 border-b bg-popover px-2 py-1 text-ui-meta text-muted-foreground">
+        <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-80 min-w-0 overflow-y-auto rounded-md border bg-popover shadow-lg non-touch:min-w-72">
+          <div className="sticky top-0 z-10 border-b bg-popover px-2 py-1 text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
             Click or press Enter to add one to your collection
           </div>
           {results.map((card, index) => {
@@ -194,11 +199,11 @@ export function CollectionQuickAdd({
                       className="h-11 w-8 shrink-0 rounded"
                     />
                   )}
-                  <span className="min-w-0 flex-1">
+                  <span className="min-w-0 flex-1 non-touch:text-xs">
                     <span className="block break-words text-ui-label font-medium">
                       {displayName}
                     </span>
-                    <span className="block text-ui-meta text-muted-foreground">
+                    <span className="block text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
                       {getCount(card.name)} owned
                     </span>
                   </span>
@@ -214,7 +219,7 @@ export function CollectionQuickAdd({
                     setOpen(false);
                   }}
                 >
-                  <span className="text-ui-label font-semibold">×N</span>
+                  <span className="text-ui-label font-semibold non-touch:text-xs">×N</span>
                 </button>
               </div>
             );

@@ -512,7 +512,7 @@ export default function Lobby() {
                 <Users /> {chatEnabled ? `Players & chat` : `Players`}
                 <span
                   className={cn(
-                    "rounded-full px-1.5 py-0.5 text-ui-meta",
+                    "rounded-full px-1.5 py-0.5 text-ui-meta non-touch:text-[10px] non-touch:leading-[inherit]",
                     pendingInviteCount > 0
                       ? "bg-primary text-primary-foreground"
                       : "bg-muted text-muted-foreground",

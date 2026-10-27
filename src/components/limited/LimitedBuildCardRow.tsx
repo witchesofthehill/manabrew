@@ -54,7 +54,7 @@ export function LimitedBuildCardRow({
       <button
         type="button"
         aria-pressed={selected}
-        className="min-h-11 min-w-0 flex-1 basis-32 text-left text-ui-label focus-visible:outline-2 focus-visible:outline-primary"
+        className="min-h-11 min-w-0 flex-1 basis-32 text-left text-ui-label focus-visible:outline-2 focus-visible:outline-primary non-touch:text-sm"
         onClick={(event) => onSelect(card, event.shiftKey || event.metaKey || event.ctrlKey)}
         onPointerEnter={(event) => {
           if (event.pointerType !== "touch" && dto) onHover(dto, event);
@@ -68,7 +68,7 @@ export function LimitedBuildCardRow({
           {card.name}
           {card.foil ? " · Foil" : ""}
         </span>
-        <span className="font-mono text-ui-meta text-muted-foreground">
+        <span className="font-mono text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
           {card.setCode.toUpperCase()} {card.cardNumber}
         </span>
       </button>

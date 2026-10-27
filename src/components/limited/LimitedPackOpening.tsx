@@ -91,7 +91,11 @@ export function LimitedPackOpening({
       <header className="flex shrink-0 flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="break-words font-serif text-xl font-semibold sm:text-2xl">{setName}</h2>
-          <p role="status" aria-live="polite" className="mt-0.5 text-ui-meta text-muted-foreground">
+          <p
+            role="status"
+            aria-live="polite"
+            className="mt-0.5 text-ui-meta text-muted-foreground non-touch:text-xs"
+          >
             {preparing
               ? "Loading cards…"
               : revealing
@@ -106,11 +110,11 @@ export function LimitedPackOpening({
         )}
       </header>
       {imageError && (
-        <p role="status" className="text-ui-meta text-muted-foreground">
+        <p role="status" className="text-ui-meta text-muted-foreground non-touch:text-sm">
           Some card images could not load. Card names remain available.
         </p>
       )}
-      <div className="flex min-h-40 flex-1 flex-col gap-3 [@media(orientation:landscape)_and_(max-height:600px)]:flex-row">
+      <div className="flex min-h-40 flex-1 flex-col gap-3 [@media(orientation:landscape)_and_(max-height:600px)]:flex-row non-touch:min-h-0">
         {unopenedPacks.length > 0 && (
           <LimitedBoosterTable
             packs={packs}
@@ -141,11 +145,11 @@ export function LimitedPackOpening({
                     ? `Booster ${packs.indexOf(activePack) + 1}`
                     : "Latest boosters"}
               </h3>
-              <span className="text-ui-meta text-muted-foreground">
+              <span className="text-ui-meta text-muted-foreground non-touch:text-xs">
                 {showingPool ? poolCards.length : latestCards.length} cards
               </span>
             </div>
-            <p className="shrink-0 text-center text-ui-meta text-muted-foreground sm:hidden">
+            <p className="shrink-0 text-center text-ui-meta text-muted-foreground sm:hidden non-touch:text-xs">
               Scroll to browse cards
             </p>
             <LimitedCardCanvas
@@ -158,7 +162,7 @@ export function LimitedPackOpening({
               openingCardIds={openingCardIds}
               openingTearDirection={tearDirection}
               onOpeningComplete={finishReveal}
-              className="min-h-32 w-full flex-1"
+              className="min-h-32 w-full flex-1 non-touch:min-h-0"
             />
           </section>
         )}

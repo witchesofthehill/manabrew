@@ -58,7 +58,7 @@ export function DeckShelfRow({ label, children }: DeckShelfRowProps) {
           variant="secondary"
           aria-label={`Scroll ${label} left`}
           onClick={() => scrollByPage(-1)}
-          className="absolute -left-2 top-1/2 z-10 hidden min-h-8 w-8 -translate-y-1/2 rounded-full shadow-lg sm:inline-flex touch:min-h-11 touch:min-w-11"
+          className="absolute -left-2 top-1/2 z-10 hidden min-h-8 w-8 -translate-y-1/2 rounded-full shadow-lg sm:inline-flex touch:min-h-11 touch:min-w-11 non-touch:h-8 non-touch:min-h-0"
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
@@ -69,7 +69,7 @@ export function DeckShelfRow({ label, children }: DeckShelfRowProps) {
           variant="secondary"
           aria-label={`Scroll ${label} right`}
           onClick={() => scrollByPage(1)}
-          className="absolute -right-2 top-1/2 z-10 hidden min-h-8 w-8 -translate-y-1/2 rounded-full shadow-lg sm:inline-flex touch:min-h-11 touch:min-w-11"
+          className="absolute -right-2 top-1/2 z-10 hidden min-h-8 w-8 -translate-y-1/2 rounded-full shadow-lg sm:inline-flex touch:min-h-11 touch:min-w-11 non-touch:h-8 non-touch:min-h-0"
         >
           <ChevronRight className="h-4 w-4" />
         </Button>

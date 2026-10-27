@@ -54,7 +54,7 @@ export function DevViewportFrame({ children }: DevViewportFrameProps) {
       >
         {children}
       </div>
-      <span className="pointer-events-none absolute bottom-2 left-2 max-w-[calc(100%-1rem)] rounded-md border border-border/70 bg-card/95 px-2 py-1 font-mono text-ui-meta text-muted-foreground shadow-sm">
+      <span className="pointer-events-none absolute bottom-2 left-2 max-w-[calc(100%-1rem)] rounded-md border border-border/70 bg-card/95 px-2 py-1 font-mono text-ui-meta text-muted-foreground shadow-sm non-touch:text-[10px] non-touch:leading-[inherit]">
         {option.label} · {option.width}×{option.height} · {Math.round(scale * 100)}%
       </span>
     </div>

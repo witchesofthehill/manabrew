@@ -27,13 +27,13 @@ export function DeckBracketPanel() {
     <section className={EDITOR_PANEL_CLASS}>
       <div className="mb-4 flex flex-wrap items-center gap-2.5">
         <Gauge className="h-4 w-4 text-muted-foreground shrink-0" />
-        <h3 className="text-ui-label font-semibold">Bracket</h3>
+        <h3 className="text-ui-label font-semibold non-touch:text-base">Bracket</h3>
         <div className="ml-auto flex items-center gap-2">
           {loading && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
           {bracket && info && style && (
             <span
               className={cn(
-                "text-ui-meta font-semibold rounded px-1.5 py-0.5 tabular-nums",
+                "text-ui-meta font-semibold rounded px-1.5 py-0.5 tabular-nums non-touch:text-xs",
                 style.badge,
               )}
             >
@@ -45,13 +45,13 @@ export function DeckBracketPanel() {
 
       {bracket && info && (
         <div className="space-y-3">
-          <p className="text-ui-body text-muted-foreground">{info.blurb}</p>
+          <p className="text-ui-body text-muted-foreground non-touch:text-sm">{info.blurb}</p>
 
           <ul className="space-y-1">
             {bracket.reasons.map((reason, i) => (
               <li
                 key={i}
-                className="text-ui-body text-muted-foreground/80 flex items-start gap-1.5"
+                className="text-ui-body text-muted-foreground/80 flex items-start gap-1.5 non-touch:text-xs"
               >
                 <span className="shrink-0 mt-0.5">&#x2022;</span>
                 <span>{reason}</span>
@@ -61,14 +61,14 @@ export function DeckBracketPanel() {
 
           {bracket.gameChangers.length > 0 && (
             <div className="space-y-1.5">
-              <span className="text-ui-meta font-semibold uppercase tracking-wider text-pt-lethal/70">
+              <span className="text-ui-meta font-semibold uppercase tracking-wider text-pt-lethal/70 non-touch:text-[10px] non-touch:leading-[inherit]">
                 Game Changers ({bracket.gameChangers.length})
               </span>
               <div className="flex flex-wrap gap-1.5">
                 {bracket.gameChangers.map((name) => (
                   <span
                     key={name}
-                    className="text-ui-label rounded bg-pt-lethal/10 text-pt-lethal px-1.5 py-0.5"
+                    className="text-ui-label rounded bg-pt-lethal/10 text-pt-lethal px-1.5 py-0.5 non-touch:text-[10px] non-touch:leading-[inherit]"
                   >
                     {name}
                   </span>
@@ -79,14 +79,14 @@ export function DeckBracketPanel() {
 
           {advice && advice.actions.length > 0 && (
             <div className={cn("space-y-1.5", EDITOR_SUBTLE_BLOCK_CLASS)}>
-              <span className="text-ui-label font-semibold uppercase tracking-wider text-muted-foreground/70">
+              <span className="text-ui-label font-semibold uppercase tracking-wider text-muted-foreground/70 non-touch:text-[10px] non-touch:leading-[inherit]">
                 To reach Bracket {advice.target}
               </span>
               <ul className="space-y-1">
                 {advice.actions.map((action, i) => (
                   <li
                     key={i}
-                    className="text-ui-body text-muted-foreground flex items-start gap-1.5"
+                    className="text-ui-body text-muted-foreground flex items-start gap-1.5 non-touch:text-xs"
                   >
                     <span className="shrink-0 mt-0.5">&#x2022;</span>
                     <span>{action}</span>
@@ -96,7 +96,7 @@ export function DeckBracketPanel() {
             </div>
           )}
 
-          <p className="text-ui-body text-muted-foreground/50 italic">
+          <p className="text-ui-body text-muted-foreground/50 italic non-touch:text-[10px] non-touch:leading-[inherit]">
             Estimate covers brackets 2–4. Bracket 1 (casual) and 5 (cEDH) are self-declared.
           </p>
         </div>

@@ -154,7 +154,7 @@ export function DebugLogOverlay() {
           }}
         />
         <button
-          className="min-h-8 touch:min-h-11 text-ui-label"
+          className="min-h-8 touch:min-h-11 text-ui-label non-touch:text-[length:inherit] non-touch:leading-[inherit] non-touch:min-h-0"
           onClick={() => {
             void navigator.clipboard
               ?.writeText(lines.map((l) => `${stamp(l.at)} ${l.text}`).join("\n"))

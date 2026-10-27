@@ -152,13 +152,15 @@ export function DeckEditorWelcome({ readOnly }: { readOnly: boolean }) {
           <DialogDescription>{current.description}</DialogDescription>
         </DialogHeader>
         <div className="rounded-lg border bg-muted/25 p-3">
-          <ul className="space-y-2 text-ui-body text-foreground">
+          <ul className="space-y-2 text-ui-body text-foreground non-touch:text-sm">
             {current.tips.map((tip) => (
               <li key={tip} className="flex gap-2">
                 <span className="text-primary" aria-hidden="true">
                   •
                 </span>
-                <span className="font-mono text-ui-body leading-relaxed">{tip}</span>
+                <span className="font-mono text-ui-body leading-relaxed non-touch:text-xs non-touch:leading-5">
+                  {tip}
+                </span>
               </li>
             ))}
           </ul>

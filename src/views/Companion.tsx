@@ -38,11 +38,11 @@ export default function Companion() {
   }, [focus]);
   if (!session) {
     return (
-      <div className="flex h-full min-h-0 flex-col items-center gap-4 overflow-y-auto overscroll-contain px-4 py-6 text-center sm:px-6 lg:px-8">
+      <div className="flex h-full min-h-0 flex-col items-center gap-4 overflow-y-auto overscroll-contain px-4 py-6 text-center sm:px-6 lg:px-8 non-touch:justify-center non-touch:p-8 non-touch:sm:px-8 non-touch:lg:px-8">
         <GameIcon icon="healing" className="size-14 shrink-0 text-muted-foreground" />
         <div className="space-y-1">
           <h2 className="text-xl font-semibold">Start tracking</h2>
-          <p className="max-w-sm text-ui-body text-muted-foreground">
+          <p className="max-w-sm text-ui-body text-muted-foreground non-touch:text-sm">
             Track life, counters, commander damage and table layout for paper play. One device
             passes around the table.
           </p>
@@ -55,17 +55,17 @@ export default function Companion() {
         </div>
         {archive.length > 0 && (
           <div className="mt-4 w-full max-w-sm space-y-1 text-left">
-            <p className="text-ui-meta font-semibold uppercase tracking-wide text-muted-foreground">
+            <p className="text-ui-meta font-semibold uppercase tracking-wide text-muted-foreground non-touch:text-xs">
               Recent games
             </p>
             <ul className="divide-y divide-border rounded-md border border-border">
               {archive.slice(0, 5).map((archived) => (
                 <li key={archived.id} className="flex items-center justify-between gap-2 px-3 py-2">
                   <div className="min-w-0 flex-1">
-                    <div className="break-words text-ui-label">
+                    <div className="break-words text-ui-label non-touch:text-sm non-touch:truncate">
                       {archived.tag || "Untitled game"}
                     </div>
-                    <div className="text-ui-meta text-muted-foreground">
+                    <div className="text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
                       {new Date(archived.createdAt).toLocaleString()} · {archived.players.length}p
                     </div>
                   </div>

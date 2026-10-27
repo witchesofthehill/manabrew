@@ -42,7 +42,7 @@ function ManaPip({
     <button
       type="button"
       className={cn(
-        "flex items-center gap-0.5 rounded-full px-1.5 py-1 text-ui-label font-semibold hover:bg-white/15 touch:min-h-11 touch:min-w-11",
+        "flex items-center gap-0.5 rounded-full px-1.5 py-1 text-ui-label font-semibold hover:bg-white/15 touch:min-h-11 touch:min-w-11 non-touch:text-xs",
       )}
       aria-label={`Mana ${color}: ${value} (tap +1, hold -1)`}
       {...bindings}

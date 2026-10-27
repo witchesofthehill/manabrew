@@ -60,12 +60,12 @@ export function StatsDialog() {
           <DialogTitle>Play stats</DialogTitle>
         </DialogHeader>
         {stats.totalGames === 0 ? (
-          <p className="text-ui-body text-muted-foreground">
+          <p className="text-ui-body text-muted-foreground non-touch:text-sm">
             No archived games yet. End a game to start collecting stats.
           </p>
         ) : (
-          <div className="space-y-4 text-ui-body">
-            <div className="grid grid-cols-2 gap-3 text-ui-meta">
+          <div className="space-y-4 text-ui-body non-touch:text-sm">
+            <div className="grid grid-cols-2 gap-3 text-ui-meta non-touch:text-xs">
               <Stat label={`Games`} value={stats.totalGames.toString()} />
               <Stat label={`Avg length`} value={formatDuration(stats.avgDurationMs)} />
               <Stat label={`Avg turns`} value={stats.avgTurns.toFixed(1)} />
@@ -74,7 +74,7 @@ export function StatsDialog() {
             <div>
               <div className="mb-1 font-medium">Wins by player</div>
               {stats.winsByName.length === 0 ? (
-                <p className="text-ui-meta text-muted-foreground">
+                <p className="text-ui-meta text-muted-foreground non-touch:text-xs">
                   No clean wins recorded (last-standing only).
                 </p>
               ) : (
@@ -97,8 +97,10 @@ export function StatsDialog() {
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0 break-words rounded-md border border-border p-2">
-      <div className="text-ui-meta uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="text-ui-body font-semibold tabular-nums">{value}</div>
+      <div className="text-ui-meta uppercase tracking-wide text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
+        {label}
+      </div>
+      <div className="text-ui-body font-semibold tabular-nums non-touch:text-base">{value}</div>
     </div>
   );
 }

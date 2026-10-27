@@ -66,7 +66,7 @@ export function RestoreRequestModal({
           {checkpoint.decision ? "Rewind the game?" : "Restore the game?"}
         </h2>
       </Modal.Header>
-      <Modal.Body className="space-y-3">
+      <Modal.Body className="space-y-3 non-touch:text-sm">
         {outcome ? (
           <p role="status">{outcome}</p>
         ) : sent ? (

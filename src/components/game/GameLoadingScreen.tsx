@@ -86,7 +86,12 @@ export function GameLoadingScreen({ debugInfo, onComplete }: GameLoadingScreenPr
         <p className={cn("text-2xl font-semibold", compactLandscape && "text-xl")}>
           Game starting…
         </p>
-        <p className={cn("text-ui-body text-muted-foreground", compactLandscape && "leading-snug")}>
+        <p
+          className={cn(
+            "text-ui-body text-muted-foreground non-touch:text-base",
+            compactLandscape && "leading-snug",
+          )}
+        >
           {slow
             ? `This is taking longer than expected. You can keep waiting, or leave and return to the lobby.`
             : `Setting the table \u2014 this usually takes a few seconds.`}
@@ -106,14 +111,14 @@ export function GameLoadingScreen({ debugInfo, onComplete }: GameLoadingScreenPr
               compactLandscape && "pb-2",
             )}
           >
-            <p className="text-ui-meta font-medium uppercase tracking-wide text-muted-foreground">
+            <p className="text-ui-meta font-medium uppercase tracking-wide text-muted-foreground non-touch:text-sm">
               Setup progress
             </p>
             <Button
               variant="ghost"
               size="sm"
               className={cn(
-                "h-auto min-h-8 touch:min-h-11 gap-1.5 whitespace-normal px-2.5 text-muted-foreground",
+                "h-auto min-h-8 touch:min-h-11 gap-1.5 whitespace-normal px-2.5 text-muted-foreground non-touch:h-7 non-touch:min-h-0 non-touch:text-xs",
                 compactLandscape && "px-2",
               )}
               onClick={() => void copyLogs()}
@@ -154,7 +159,7 @@ export function GameLoadingScreen({ debugInfo, onComplete }: GameLoadingScreenPr
                     )}
                     <span
                       className={cn(
-                        "text-ui-body transition-colors",
+                        "text-ui-body transition-colors non-touch:text-base",
                         done && "text-success",
                         active && "text-foreground",
                         !done && !active && "text-muted-foreground/60",
@@ -173,7 +178,7 @@ export function GameLoadingScreen({ debugInfo, onComplete }: GameLoadingScreenPr
           {slow && debugInfo && (
             <p
               className={cn(
-                "mt-4 break-words border-t pt-3 font-mono text-ui-meta text-muted-foreground",
+                "mt-4 break-words border-t pt-3 font-mono text-ui-meta text-muted-foreground non-touch:text-xs non-touch:truncate",
                 compactLandscape && "mt-2 pt-2",
               )}
             >
@@ -223,7 +228,7 @@ function CardProgressBar({
           style={{ width: `${percent}%` }}
         />
       </div>
-      <span className="text-ui-meta tabular-nums text-muted-foreground">
+      <span className="text-ui-meta tabular-nums text-muted-foreground non-touch:text-xs">
         {loaded}/{total}
       </span>
     </div>

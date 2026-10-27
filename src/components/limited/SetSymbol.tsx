@@ -17,7 +17,7 @@ export function SetSymbol({ setCode, className, color }: SetSymbolProps) {
     return (
       <span
         className={cn(
-          "inline-flex items-center justify-center text-ui-meta font-bold uppercase",
+          "inline-flex items-center justify-center text-ui-meta font-bold uppercase non-touch:text-[10px] non-touch:leading-[inherit]",
           className,
         )}
       >

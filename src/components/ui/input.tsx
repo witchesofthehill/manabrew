@@ -12,7 +12,7 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
         autoCapitalize="off"
         spellCheck={false}
         className={cn(
-          "flex min-h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-ui-input shadow-sm transition-colors file:border-0 file:bg-transparent file:text-ui-label file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 touch:min-h-11",
+          "flex min-h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-ui-input shadow-sm transition-colors file:border-0 file:bg-transparent file:text-ui-label file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 touch:min-h-11 non-touch:text-base non-touch:file:text-sm non-touch:md:text-sm non-touch:h-9 non-touch:min-h-0",
           className,
         )}
         ref={ref}

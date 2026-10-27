@@ -42,7 +42,7 @@ export function ComponentsSection() {
       <Panel className="space-y-3">
         {BUTTON_VARIANTS.map((variant) => (
           <div key={variant} className="flex flex-wrap items-center gap-2">
-            <span className="w-24 shrink-0 font-mono text-ui-label text-muted-foreground">
+            <span className="w-24 shrink-0 font-mono text-ui-label text-muted-foreground non-touch:text-[11px] non-touch:leading-[inherit]">
               {variant}
             </span>
             {BUTTON_SIZES.map((size) => (
@@ -118,11 +118,11 @@ export function ComponentsSection() {
         </div>
         <div className="space-y-2">
           <Subhead>Checkbox</Subhead>
-          <Panel className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <label className="flex min-h-9 items-center gap-2 text-ui-label touch:min-h-11">
+          <Panel className="flex flex-wrap items-center gap-x-4 gap-y-2 non-touch:gap-4">
+            <label className="flex min-h-9 items-center gap-2 text-ui-label touch:min-h-11 non-touch:text-sm non-touch:min-h-0">
               <Checkbox defaultChecked /> Checked
             </label>
-            <label className="flex min-h-9 items-center gap-2 text-ui-label touch:min-h-11">
+            <label className="flex min-h-9 items-center gap-2 text-ui-label touch:min-h-11 non-touch:text-sm non-touch:min-h-0">
               <Checkbox /> Unchecked
             </label>
           </Panel>
@@ -143,7 +143,10 @@ export function ComponentsSection() {
             {Object.entries(LEGALITY_STYLES).map(([key, cls]) => (
               <span
                 key={key}
-                className={cn("rounded-md border px-2 py-0.5 text-ui-meta font-semibold", cls)}
+                className={cn(
+                  "rounded-md border px-2 py-0.5 text-ui-meta font-semibold non-touch:text-xs",
+                  cls,
+                )}
               >
                 {key}
               </span>
@@ -156,14 +159,17 @@ export function ComponentsSection() {
             {RARITIES.map((r) => (
               <span
                 key={r}
-                className={cn("flex items-center gap-1.5 text-ui-meta font-semibold capitalize", {
-                  "text-rarity-common": r === "common",
-                  "text-rarity-uncommon": r === "uncommon",
-                  "text-rarity-rare": r === "rare",
-                  "text-rarity-mythic": r === "mythic",
-                  "text-rarity-special": r === "special",
-                  "text-rarity-land": r === "land",
-                })}
+                className={cn(
+                  "flex items-center gap-1.5 text-ui-meta font-semibold capitalize non-touch:text-xs",
+                  {
+                    "text-rarity-common": r === "common",
+                    "text-rarity-uncommon": r === "uncommon",
+                    "text-rarity-rare": r === "rare",
+                    "text-rarity-mythic": r === "mythic",
+                    "text-rarity-special": r === "special",
+                    "text-rarity-land": r === "land",
+                  },
+                )}
               >
                 <span className="h-2.5 w-2.5 rounded-full bg-current" />
                 {r}

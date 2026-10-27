@@ -59,10 +59,10 @@ export function DeckHealthPanel({
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" />
-            <h3 className="text-ui-label font-semibold">Deck health</h3>
+            <h3 className="text-ui-label font-semibold non-touch:text-sm">Deck health</h3>
             <span
               className={cn(
-                "rounded-full px-2 py-0.5 text-ui-meta font-semibold",
+                "rounded-full px-2 py-0.5 text-ui-meta font-semibold non-touch:text-[10px] non-touch:leading-[inherit]",
                 issueCount === 0
                   ? "bg-legality-legal/15 text-legality-legal"
                   : "bg-warning/15 text-warning",
@@ -71,14 +71,17 @@ export function DeckHealthPanel({
               {issueCount === 0 ? `Balanced` : `${issueCount} to review`}
             </span>
           </div>
-          <p className="mt-1 text-ui-body text-muted-foreground">
+          <p className="mt-1 text-ui-body text-muted-foreground non-touch:text-xs">
             {commanderDeck
               ? `Engine-derived roles compared with a practical Commander baseline.`
               : `Engine-derived roles compared with a practical 60-card baseline.`}
           </p>
         </div>
         {pending.size > 0 && (
-          <span className="text-ui-meta text-muted-foreground" aria-live="polite">
+          <span
+            className="text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]"
+            aria-live="polite"
+          >
             Analyzing {Math.min(pending.size, analyzedCount)} cards…
           </span>
         )}
@@ -96,7 +99,7 @@ export function DeckHealthPanel({
             )}
           >
             <div className="flex items-center justify-between gap-2">
-              <span className="text-ui-label font-medium">{check.label}</span>
+              <span className="text-ui-label font-medium non-touch:text-xs">{check.label}</span>
               {check.healthy ? (
                 <CheckCircle2 className="h-3.5 w-3.5 text-legality-legal" />
               ) : (
@@ -105,7 +108,7 @@ export function DeckHealthPanel({
             </div>
             <p className="mt-1 font-mono text-lg font-semibold tabular-nums">
               {check.value}
-              <span className="ml-1 text-ui-meta font-normal text-muted-foreground">
+              <span className="ml-1 text-ui-meta font-normal text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
                 / {check.target} target
               </span>
             </p>
@@ -121,7 +124,7 @@ export function DeckHealthPanel({
             <Button
               size="xs"
               variant="outline"
-              className="h-auto touch:min-h-11 touch:min-w-11 whitespace-normal text-ui-label"
+              className="h-auto touch:min-h-11 touch:min-w-11 whitespace-normal text-ui-label non-touch:h-auto"
               onClick={onShowUnsupported}
             >
               <AlertTriangle className="mr-1.5 h-3.5 w-3.5 text-warning" />
@@ -132,14 +135,16 @@ export function DeckHealthPanel({
             <Button
               size="xs"
               variant="outline"
-              className="h-auto touch:min-h-11 touch:min-w-11 whitespace-normal text-ui-label"
+              className="h-auto touch:min-h-11 touch:min-w-11 whitespace-normal text-ui-label non-touch:h-auto"
               onClick={onOpenSearch}
             >
               <Search className="mr-1.5 h-3.5 w-3.5" /> Add missing pieces
             </Button>
           )}
           {validationErrors[0] && (
-            <span className="text-ui-body text-destructive">{validationErrors[0]}</span>
+            <span className="text-ui-body text-destructive non-touch:text-xs">
+              {validationErrors[0]}
+            </span>
           )}
         </div>
       )}

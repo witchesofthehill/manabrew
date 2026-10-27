@@ -106,14 +106,16 @@ export function ReplacementSuggestionsPanel({
         <div className="flex items-center gap-2">
           <ArrowRightLeft className="h-4 w-4 text-primary" />
           <div>
-            <h3 className="text-ui-label font-semibold">Explainable replacements</h3>
-            <p className="text-ui-body text-muted-foreground">
+            <h3 className="text-ui-label font-semibold non-touch:text-sm">
+              Explainable replacements
+            </h3>
+            <p className="text-ui-body text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
               Same colour identity, mana value, and primary card type.
             </p>
           </div>
         </div>
         <div className="flex min-w-0 max-w-full flex-wrap gap-2">
-          <label className="flex min-h-9 touch:min-h-11 touch:min-w-11 items-center gap-1.5 rounded-md border px-2 text-ui-label text-muted-foreground">
+          <label className="flex min-h-9 touch:min-h-11 touch:min-w-11 items-center gap-1.5 rounded-md border px-2 text-ui-label text-muted-foreground non-touch:text-xs non-touch:h-8 non-touch:min-h-0">
             <input
               type="checkbox"
               checked={ownedOnly}
@@ -132,7 +134,7 @@ export function ReplacementSuggestionsPanel({
               aria-autocomplete="list"
               aria-expanded={targetMenuOpen}
               aria-controls="replacement-target-suggestions"
-              className="min-h-9 touch:min-h-11 touch:min-w-11 w-56 max-w-full rounded-md border bg-background px-2 py-1 text-ui-input outline-none focus:ring-2 focus:ring-ring"
+              className="min-h-9 touch:min-h-11 touch:min-w-11 w-56 max-w-full rounded-md border bg-background px-2 py-1 text-ui-input outline-none focus:ring-2 focus:ring-ring non-touch:text-xs non-touch:h-8 non-touch:min-h-0 non-touch:py-0"
               value={targetQuery || target.identity.name}
               onFocus={(event) => {
                 event.currentTarget.select();
@@ -174,9 +176,9 @@ export function ReplacementSuggestionsPanel({
               <div
                 id="replacement-target-suggestions"
                 role="listbox"
-                className="absolute left-0 top-full z-30 mt-1 max-h-80 w-80 max-w-[min(100%,calc(100vw-2rem))] overflow-y-auto rounded-md border bg-popover shadow-lg"
+                className="absolute left-0 top-full z-30 mt-1 max-h-80 w-80 max-w-[min(100%,calc(100vw-2rem))] overflow-y-auto rounded-md border bg-popover shadow-lg non-touch:min-w-[300px]"
               >
-                <div className="sticky top-0 z-10 border-b bg-popover px-2 py-1 text-ui-body text-muted-foreground">
+                <div className="sticky top-0 z-10 border-b bg-popover px-2 py-1 text-ui-body text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
                   Choose a card from your deck to replace
                 </div>
                 {filteredCandidates.map((card, index) => (
@@ -205,16 +207,16 @@ export function ReplacementSuggestionsPanel({
                     }}
                   >
                     <GeneratedCardImage deckCard={card} className="h-11 w-8 shrink-0 rounded" />
-                    <span className="min-w-0 flex-1 break-words text-ui-label font-medium">
+                    <span className="min-w-0 flex-1 break-words text-ui-label font-medium non-touch:text-xs">
                       {card.identity.name}
                     </span>
-                    <span className="shrink-0 text-ui-meta text-muted-foreground">
+                    <span className="shrink-0 text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
                       MV {card.cmc}
                     </span>
                   </button>
                 ))}
                 {filteredCandidates.length === 0 && (
-                  <p className="px-2 py-3 text-ui-body text-muted-foreground">
+                  <p className="px-2 py-3 text-ui-body text-muted-foreground non-touch:text-xs">
                     No cards in this deck match your search.
                   </p>
                 )}
@@ -224,7 +226,7 @@ export function ReplacementSuggestionsPanel({
           <Button
             size="sm"
             variant="outline"
-            className="h-auto touch:min-h-11 touch:min-w-11 whitespace-normal text-ui-label"
+            className="h-auto touch:min-h-11 touch:min-w-11 whitespace-normal text-ui-label non-touch:h-8 non-touch:min-h-0"
             disabled={loading}
             onClick={() => void findSuggestions()}
           >
@@ -249,7 +251,7 @@ export function ReplacementSuggestionsPanel({
                   className="w-full rounded-lg border border-border/50 shadow-sm"
                 />
               </div>
-              <div className="mt-1 text-ui-meta text-muted-foreground">
+              <div className="mt-1 text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
                 {collectionQuantityForName(quantities, suggestion.name) > 0
                   ? `Same ${target.types[0]?.toLowerCase() ?? `card type`} · MV ${suggestion.cmc} · ${collectionQuantityForName(quantities, suggestion.name)} owned`
                   : `Same ${target.types[0]?.toLowerCase() ?? `card type`} · MV ${suggestion.cmc} · not owned`}

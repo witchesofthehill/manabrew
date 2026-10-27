@@ -3,7 +3,12 @@
  * Shows the current phase, enabled stops, and supports click-to-toggle.
  */
 
-import { getUiControlHeight, getUiFontSize, UI_FONT_FAMILY as FONT } from "@/themes/typography";
+import {
+  getUiControlHeight,
+  getUiFontSize,
+  UI_FONT_FAMILY as FONT,
+  isTouchUi,
+} from "@/themes/typography";
 import { Container, Graphics, Text, TextStyle, Sprite } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
 import { getTheme } from "@/hooks/useTheme";
@@ -95,7 +100,7 @@ const INDICATOR_OFF_TURN_ALPHA = 0.55;
 const _initTheme = getTheme().gameTheme;
 const normalStyle = new TextStyle({
   fontFamily: FONT,
-  fontSize: getUiFontSize("label"),
+  fontSize: getUiFontSize("label", 11),
   fontWeight: "600",
   fill: readableTextColor(
     _initTheme.phaseStrip.background,
@@ -106,7 +111,7 @@ const normalStyle = new TextStyle({
 });
 const activeStyle = new TextStyle({
   fontFamily: FONT,
-  fontSize: getUiFontSize("label"),
+  fontSize: getUiFontSize("label", 11),
   fontWeight: "bold",
   fill: readableTextColor(
     _initTheme.phaseStrip.background,
@@ -389,17 +394,15 @@ export class PhaseStripLayer {
   }
 
   private updateTypography(): void {
-    const tablet = !this.compact && getUiControlHeight() >= 44;
-    const fontSize = getUiFontSize(tablet ? "caption" : "label");
-    const controlHeight = tablet ? 32 : getUiControlHeight();
+    const tablet = !this.compact && isTouchUi();
+    const fontSize = getUiFontSize(tablet ? "caption" : "label", 11);
+    const controlHeight = tablet ? 32 : getUiControlHeight(0);
     normalStyle.fontSize = activeStyle.fontSize = fontSize;
     CELL_H = Math.max(28, controlHeight, Math.ceil(fontSize * 1.4) + 8);
-    COMPACT_PILL_H = Math.max(
-      22,
-      getUiControlHeight(),
-      Math.ceil(getUiFontSize("label") * 1.4) + 8,
-    );
-    INDICATOR_HIT_H = Math.max(12, getUiControlHeight());
+    COMPACT_PILL_H = isTouchUi()
+      ? Math.max(22, getUiControlHeight(), Math.ceil(getUiFontSize("label", 11) * 1.4) + 8)
+      : 22;
+    INDICATOR_HIT_H = Math.max(12, getUiControlHeight(0));
     const measurer = new Text({ text: "", style: activeStyle });
     CELL_W = Math.max(60, controlHeight);
     for (const phase of PHASES) {
@@ -564,7 +567,7 @@ export class PhaseStripLayer {
     const availableWidth = Math.max(1, this.canvasWidth - 16);
     const combatWidth = Math.min(this.combatCellW, availableWidth);
 
-    const indicatorWidth = !this.compact && getUiControlHeight() >= 44 ? 32 : getUiControlHeight();
+    const indicatorWidth = !this.compact && isTouchUi() ? 32 : getUiControlHeight(0);
     const cellWidth = Math.max(
       CELL_W,
       state.opponents.length * indicatorWidth +

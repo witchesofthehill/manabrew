@@ -75,9 +75,9 @@ export function HandleDialog({ open, onOpenChange }: HandleDialogProps) {
               if (e.key === "Enter" && handle.trim().length >= 3) void handleSave();
             }}
           />
-          {error && <p className="text-ui-meta text-destructive">{error}</p>}
+          {error && <p className="text-ui-meta text-destructive non-touch:text-sm">{error}</p>}
         </div>
-        <DialogFooter className="gap-2">
+        <DialogFooter className="gap-2 non-touch:gap-2">
           <Button variant="ghost" size="sm" disabled={busy} onClick={() => onOpenChange(false)}>
             Cancel
           </Button>

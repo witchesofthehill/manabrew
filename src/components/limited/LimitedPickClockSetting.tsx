@@ -18,7 +18,7 @@ export function LimitedPickClockSetting({
   const id = useId();
   return (
     <div className="space-y-2">
-      <label className="flex min-h-8 items-center gap-2 text-ui-label font-medium touch:min-h-11">
+      <label className="flex min-h-8 items-center gap-2 text-ui-label font-medium touch:min-h-11 non-touch:text-sm">
         <input
           type="checkbox"
           checked={pickSeconds !== undefined}
@@ -31,7 +31,7 @@ export function LimitedPickClockSetting({
       {pickSeconds !== undefined && (
         <label
           htmlFor={id}
-          className="flex flex-wrap items-center gap-2 text-ui-label text-muted-foreground"
+          className="flex flex-wrap items-center gap-2 text-ui-label text-muted-foreground non-touch:text-sm"
         >
           <Input
             id={id}
@@ -53,7 +53,7 @@ export function LimitedPickClockSetting({
           seconds per pick
         </label>
       )}
-      <p className="text-ui-meta text-muted-foreground">
+      <p className="text-ui-meta text-muted-foreground non-touch:text-xs">
         {supported
           ? "Untimed by default. When time runs out, your fallback or the AI's choice goes to Pool."
           : "Update the relay to use pick clocks."}

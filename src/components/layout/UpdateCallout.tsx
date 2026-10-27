@@ -16,15 +16,15 @@ export function UpdateCallout() {
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <ArrowDownToLine className="h-4 w-4 shrink-0 text-primary" />
         <div className="min-w-0 flex-1">
-          <p className="text-ui-label font-semibold">Update available</p>
-          <p className="text-ui-meta text-muted-foreground">
+          <p className="text-ui-label font-semibold non-touch:text-sm">Update available</p>
+          <p className="text-ui-meta text-muted-foreground non-touch:text-xs">
             Manabrew {version} is ready to install.
           </p>
         </div>
         <Button
           variant="ghost"
           size="icon"
-          className="-mr-1 min-h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground sm:hidden touch:min-h-11 touch:min-w-11"
+          className="-mr-1 min-h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground sm:hidden touch:min-h-11 touch:min-w-11 non-touch:h-6 non-touch:min-h-0"
           onClick={dismissCallout}
           aria-label={`Dismiss update`}
         >
@@ -45,7 +45,7 @@ export function UpdateCallout() {
         <Button
           variant="ghost"
           size="icon"
-          className="hidden min-h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground sm:inline-flex touch:min-h-11 touch:min-w-11"
+          className="hidden min-h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground sm:inline-flex touch:min-h-11 touch:min-w-11 non-touch:h-6 non-touch:min-h-0"
           onClick={dismissCallout}
           aria-label={`Dismiss update`}
         >

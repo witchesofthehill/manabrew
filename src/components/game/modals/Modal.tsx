@@ -160,7 +160,7 @@ export function Modal({
         aria-labelledby={ariaLabel ? undefined : titleId}
         tabIndex={-1}
         className={cn(
-          "relative bg-card border border-border rounded-xl shadow-2xl flex flex-col w-[calc(100%-1.5rem)] mx-3 min-h-0 overflow-hidden text-ui-body",
+          "relative bg-card border border-border rounded-xl shadow-2xl flex flex-col w-[calc(100%-1.5rem)] mx-3 min-h-0 overflow-hidden text-ui-body non-touch:text-base",
           maxWidth,
           maxHeight || "max-h-full",
           className,
@@ -245,7 +245,10 @@ function ModalInstructions({ children, className }: { children: ReactNode; class
       className={cn("px-4 py-2 border-b shrink-0", className)}
       style={{ backgroundColor: withAlpha(color, 0.08) }}
     >
-      <p className="text-ui-body font-semibold text-center break-words" style={{ color }}>
+      <p
+        className="text-ui-body font-semibold text-center break-words non-touch:text-sm"
+        style={{ color }}
+      >
         {children}
       </p>
     </div>
@@ -255,7 +258,7 @@ function ModalBody({ children, className }: { children: ReactNode; className?: s
   return (
     <div
       className={cn(
-        "min-h-20 overflow-y-auto overscroll-contain p-4 flex-1 text-ui-body break-words",
+        "min-h-20 overflow-y-auto overscroll-contain p-4 flex-1 text-ui-body break-words non-touch:text-base non-touch:min-h-0",
         className,
       )}
     >
@@ -267,7 +270,7 @@ function ModalFooter({ children, className }: { children: ReactNode; className?:
   return (
     <div
       className={cn(
-        "flex flex-wrap items-center justify-end gap-2 px-4 py-3 border-t shrink-0 [&_button]:h-auto [&_button]:min-h-8 [&_button]:whitespace-normal [&_button]:break-words touch:[&_button]:min-h-11 touch:[&_button]:min-w-11",
+        "flex flex-wrap items-center justify-end gap-2 px-4 py-3 border-t shrink-0 touch:[&_button]:h-auto [&_button]:whitespace-normal [&_button]:break-words touch:[&_button]:min-h-11 touch:[&_button]:min-w-11",
         className,
       )}
     >
@@ -290,7 +293,10 @@ function ModalCloseShortcut({ keybinding, onClose }: { keybinding: string; onClo
 }
 function ModalEmptyState({ message = "No cards" }: { message?: string }) {
   return (
-    <p className="text-ui-meta text-muted-foreground text-center py-8" role="status">
+    <p
+      className="text-ui-meta text-muted-foreground text-center py-8 non-touch:text-sm"
+      role="status"
+    >
       {message}
     </p>
   );

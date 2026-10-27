@@ -52,7 +52,7 @@ export function LimitedReviewBuilds({
   return (
     <section className="grid gap-3 border-t pt-3">
       <div className="flex flex-wrap items-center gap-2">
-        <h3 className="text-ui-label font-medium">Named builds</h3>
+        <h3 className="text-ui-label font-medium non-touch:text-sm">Named builds</h3>
         <AppSelect
           value={selectedId}
           onValueChange={setSelectedId}
@@ -77,7 +77,7 @@ export function LimitedReviewBuilds({
         >
           Open in builder
         </Button>
-        <span className="text-ui-meta text-muted-foreground">
+        <span className="text-ui-meta text-muted-foreground non-touch:text-xs">
           Mainboard {deck.main.length} · Sideboard {deck.sideboard.length}
         </span>
       </div>

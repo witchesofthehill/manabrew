@@ -49,8 +49,10 @@ export default function DeckHub() {
       {!capabilitiesLoaded && capabilitiesError ? (
         <div className="grid min-h-0 min-w-0 flex-1 place-items-center overflow-y-auto px-4 py-4 text-center sm:px-6 lg:px-8">
           <div className="max-w-md min-w-0">
-            <p className="text-ui-body font-medium">Community could not be reached</p>
-            <p className="mt-1 break-words text-ui-body text-muted-foreground">
+            <p className="text-ui-body font-medium non-touch:text-[length:inherit] non-touch:leading-[inherit]">
+              Community could not be reached
+            </p>
+            <p className="mt-1 break-words text-ui-body text-muted-foreground non-touch:text-sm">
               {capabilitiesError}
             </p>
             <Button
@@ -65,7 +67,7 @@ export default function DeckHub() {
           </div>
         </div>
       ) : !capabilitiesLoaded ? (
-        <div className="grid min-h-0 flex-1 place-items-center overflow-y-auto text-ui-meta text-muted-foreground">
+        <div className="grid min-h-0 flex-1 place-items-center overflow-y-auto text-ui-meta text-muted-foreground non-touch:text-sm">
           Loading Community…
         </div>
       ) : topDecks ? (

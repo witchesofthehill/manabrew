@@ -76,8 +76,8 @@ export function GameLoadingTip({ compact = false }: { compact?: boolean }) {
               <kbd
                 key={shortcut.id}
                 className={cn(
-                  "rounded-md border bg-background/60 px-2.5 py-1 font-mono text-ui-meta font-semibold text-foreground shadow-sm",
-                  compact && "px-2 py-0.5",
+                  "rounded-md border bg-background/60 px-2.5 py-1 font-mono text-ui-meta font-semibold text-foreground shadow-sm non-touch:text-sm non-touch:leading-5",
+                  compact && "px-2 py-0.5 non-touch:text-xs non-touch:leading-4",
                 )}
               >
                 {shortcut.label}
@@ -85,7 +85,14 @@ export function GameLoadingTip({ compact = false }: { compact?: boolean }) {
             ))}
           </div>
         )}
-        <p className="min-w-0 flex-1 text-ui-body font-normal text-foreground">{tip.text}</p>
+        <p
+          className={cn(
+            "min-w-0 flex-1 text-ui-body font-normal text-foreground non-touch:text-base non-touch:leading-6",
+            compact && "non-touch:text-sm non-touch:leading-5",
+          )}
+        >
+          {tip.text}
+        </p>
       </div>
     </div>
   );

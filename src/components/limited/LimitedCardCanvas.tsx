@@ -345,7 +345,7 @@ export function LimitedCardCanvas({
         between cards.
       </p>
       {error && (
-        <p role="status" className="px-3 text-ui-meta text-muted-foreground">
+        <p role="status" className="px-3 text-ui-meta text-muted-foreground non-touch:text-sm">
           Card canvas unavailable. Use the card controls below. {error}
         </p>
       )}
@@ -423,7 +423,7 @@ export function LimitedCardCanvas({
                 if (!openingActive && error) onActivate?.(cell.card);
               }}
               className={cn(
-                "absolute z-[2] cursor-pointer rounded-md p-2 text-ui-label opacity-0 focus-visible:opacity-100 focus-visible:bg-card focus-visible:text-card-foreground focus-visible:outline-2 focus-visible:outline-primary",
+                "absolute z-[2] cursor-pointer rounded-md p-2 text-ui-label opacity-0 focus-visible:opacity-100 focus-visible:bg-card focus-visible:text-card-foreground focus-visible:outline-2 focus-visible:outline-primary non-touch:text-sm",
                 onDrop && "cursor-grab active:cursor-grabbing",
                 error && "bg-card opacity-100",
                 selectedIds.includes(cell.card.id) && "ring-2 ring-selection-border",
@@ -442,7 +442,7 @@ export function LimitedCardCanvas({
           {!cards.length && (
             <p
               role="status"
-              className="absolute inset-x-0 top-8 text-center text-ui-meta text-muted-foreground"
+              className="absolute inset-x-0 top-8 text-center text-ui-meta text-muted-foreground non-touch:text-sm"
             >
               {emptyMessage}
             </p>

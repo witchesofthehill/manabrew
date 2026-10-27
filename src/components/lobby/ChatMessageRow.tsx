@@ -24,7 +24,9 @@ function formatTime(sentAtMs: number): string {
 export function ChatMessageRow({ entry, mine, player, continued, onReport }: ChatMessageRowProps) {
   if (entry.system) {
     return (
-      <p className="py-0.5 text-center text-ui-meta italic text-muted-foreground">{entry.text}</p>
+      <p className="py-0.5 text-center text-ui-meta italic text-muted-foreground non-touch:text-sm">
+        {entry.text}
+      </p>
     );
   }
   const name = stripUsernameTag(entry.from);
@@ -33,7 +35,7 @@ export function ChatMessageRow({ entry, mine, player, continued, onReport }: Cha
       username={entry.from}
       avatarUrl={entry.avatarUrl}
       className="h-7 w-7 shrink-0"
-      fallbackClassName="text-ui-meta"
+      fallbackClassName="text-ui-meta non-touch:text-xs"
     />
   );
   return (
@@ -58,7 +60,7 @@ export function ChatMessageRow({ entry, mine, player, continued, onReport }: Cha
         >
           <button
             type="button"
-            className="shrink-0 rounded-full outline-none touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal"
+            className="shrink-0 rounded-full outline-none touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal non-touch:text-[length:inherit] non-touch:leading-[inherit]"
           >
             {avatar}
           </button>
@@ -83,9 +85,9 @@ export function ChatMessageRow({ entry, mine, player, continued, onReport }: Cha
             <QualificationBadge qualification={entry.qualification} className="h-3.5 w-3.5" />
           </div>
         )}
-        <p className="break-words text-ui-body leading-snug text-foreground/90">
+        <p className="break-words text-ui-body leading-snug text-foreground/90 non-touch:text-sm non-touch:leading-snug">
           {entry.text}
-          <span className="ml-2 whitespace-nowrap align-baseline text-ui-caption text-muted-foreground/70">
+          <span className="ml-2 whitespace-nowrap align-baseline text-ui-caption text-muted-foreground/70 non-touch:text-[10px] non-touch:leading-[inherit]">
             {formatTime(entry.sentAtMs)}
           </span>
         </p>
@@ -94,7 +96,7 @@ export function ChatMessageRow({ entry, mine, player, continued, onReport }: Cha
         <Button
           size="icon"
           variant="ghost"
-          className="min-h-6 w-6 shrink-0 self-center text-muted-foreground opacity-0 touch:opacity-100 hover:text-destructive group-hover:opacity-100 focus-visible:opacity-100 touch:min-h-11 touch:min-w-11"
+          className="min-h-6 w-6 shrink-0 self-center text-muted-foreground opacity-0 touch:opacity-100 hover:text-destructive group-hover:opacity-100 focus-visible:opacity-100 touch:min-h-11 touch:min-w-11 non-touch:h-6 non-touch:min-h-0"
           onClick={() => onReport(entry)}
           aria-label={`Report ${name}`}
           title={`Report this message`}

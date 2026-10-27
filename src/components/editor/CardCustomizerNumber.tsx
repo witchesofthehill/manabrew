@@ -38,7 +38,10 @@ export function CardCustomizerNumber({
   };
   return (
     <div className="min-w-0 space-y-1.5">
-      <label htmlFor={id} className="touch:min-h-11 block text-ui-label text-muted-foreground">
+      <label
+        htmlFor={id}
+        className="touch:min-h-11 block text-ui-label text-muted-foreground non-touch:text-xs"
+      >
         {label}
       </label>
       <div className="flex min-w-0 items-center gap-2">

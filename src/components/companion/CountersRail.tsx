@@ -43,20 +43,20 @@ function CounterChip({ playerId, counter }: { playerId: string; counter: Compani
     >
       <button
         type="button"
-        className="grid size-6 shrink-0 place-items-center rounded-full text-ui-label hover:bg-white/15 @sm:size-7 touch:min-h-11 touch:min-w-11"
+        className="grid size-6 shrink-0 place-items-center rounded-full text-ui-label hover:bg-white/15 @sm:size-7 touch:min-h-11 touch:min-w-11 non-touch:text-base"
         aria-label={`Decrease ${counter.label}`}
         {...decBindings}
       >
         −
       </button>
-      <div className="flex min-w-0 flex-wrap items-center gap-1 break-words px-0.5 text-ui-meta font-medium @sm:px-1">
+      <div className="flex min-w-0 flex-wrap items-center gap-1 break-words px-0.5 text-ui-meta font-medium @sm:px-1 non-touch:text-xs non-touch:@sm:text-sm">
         <CompanionIcon iconKey={counter.iconKey} className="size-3.5 @sm:size-4" />
         <span className="tabular-nums">{counter.value}</span>
-        <span className="opacity-75">{counter.label}</span>
+        <span className="opacity-75 non-touch:hidden non-touch:@md:inline">{counter.label}</span>
       </div>
       <button
         type="button"
-        className="grid size-6 shrink-0 place-items-center rounded-full text-ui-label hover:bg-white/15 @sm:size-7 touch:min-h-11 touch:min-w-11"
+        className="grid size-6 shrink-0 place-items-center rounded-full text-ui-label hover:bg-white/15 @sm:size-7 touch:min-h-11 touch:min-w-11 non-touch:text-base"
         aria-label={`Increase ${counter.label}`}
         {...incBindings}
       >
@@ -64,7 +64,7 @@ function CounterChip({ playerId, counter }: { playerId: string; counter: Compani
       </button>
       <button
         type="button"
-        className="ml-0.5 grid size-6 shrink-0 place-items-center rounded-full text-ui-label text-white/60 hover:bg-white/15 hover:text-white touch:min-h-11 touch:min-w-11"
+        className="ml-0.5 grid size-6 shrink-0 place-items-center rounded-full text-ui-label text-white/60 hover:bg-white/15 hover:text-white touch:min-h-11 touch:min-w-11 non-touch:text-base non-touch:hidden non-touch:group-hover:grid"
         aria-label={`Remove ${counter.label}`}
         onClick={() => remove(playerId, counter.id)}
       >

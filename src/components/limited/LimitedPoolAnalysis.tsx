@@ -50,12 +50,15 @@ export function LimitedPoolAnalysis({ sessionKey, pool, deck }: Props) {
         </Button>
       </div>
       {metadata.loading && (
-        <p role="status" className="text-ui-meta text-muted-foreground">
+        <p role="status" className="text-ui-meta text-muted-foreground non-touch:text-xs">
           Loading real card metadata. Counts cover resolved cards only.
         </p>
       )}
       {metadata.errors.length > 0 && (
-        <div role="alert" className="space-y-2 rounded border border-border p-3 text-ui-meta">
+        <div
+          role="alert"
+          className="space-y-2 rounded border border-border p-3 text-ui-meta non-touch:text-xs"
+        >
           <p>
             Some card metadata could not load. Those cards are excluded, not counted as zero-cost
             cards.
@@ -75,7 +78,7 @@ export function LimitedPoolAnalysis({ sessionKey, pool, deck }: Props) {
         <LimitedAnalysisSummary title="Current mainboard" cards={analyzedMain} />
       </div>
       <details className="rounded border border-border p-3">
-        <summary className="min-h-8 cursor-pointer text-ui-label font-semibold touch:min-h-11">
+        <summary className="min-h-8 cursor-pointer text-ui-label font-semibold touch:min-h-11 non-touch:text-sm non-touch:min-h-0">
           Mainboard source probabilities
         </summary>
         <div className="mt-3">

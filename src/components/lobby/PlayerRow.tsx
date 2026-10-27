@@ -7,7 +7,7 @@ import { stripUsernameTag } from "@/lib/username";
 import type { PlayerInfo } from "@/types/server";
 
 export const PLAYER_ROW_ACTION_CLASS =
-  "min-h-8 touch:min-h-11 touch:min-w-11 whitespace-normal px-2 text-ui-label shrink-0 hover:bg-primary hover:text-primary-foreground hover:shadow";
+  "min-h-8 touch:min-h-11 touch:min-w-11 whitespace-normal px-2 text-ui-label shrink-0 hover:bg-primary hover:text-primary-foreground hover:shadow non-touch:text-[11px] non-touch:h-6 non-touch:min-h-0 non-touch:leading-[inherit]";
 
 interface PlayerRowProps {
   player: PlayerInfo;
@@ -35,7 +35,7 @@ export function PlayerRow({
       <PlayerCard player={player} status={status} action={action}>
         <button
           type="button"
-          className="-mx-1 flex min-w-0 flex-1 items-center gap-2.5 rounded-md px-1 py-0.5 text-left outline-none hover:bg-muted/40 touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal"
+          className="-mx-1 flex min-w-0 flex-1 items-center gap-2.5 rounded-md px-1 py-0.5 text-left outline-none hover:bg-muted/40 touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal non-touch:text-[length:inherit] non-touch:leading-[inherit]"
         >
           <div className="relative shrink-0">
             <PlayerAvatar username={player.username} avatarUrl={player.avatar_url} />

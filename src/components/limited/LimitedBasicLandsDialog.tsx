@@ -88,7 +88,10 @@ export function LimitedBasicLandsDialog({ sessionKey, onClose }: Props) {
           </DialogHeader>
           <fieldset disabled={adding} className="space-y-2">
             {BASIC_LAND_NAMES.map((name) => (
-              <div key={name} className="flex flex-wrap items-center justify-between gap-2">
+              <div
+                key={name}
+                className="flex flex-wrap items-center justify-between gap-2 non-touch:gap-4"
+              >
                 <Label htmlFor={`limited-basic-${name}`} className="flex items-center gap-2">
                   <ManaSymbols cost={BASIC_LAND_MANA[name]} size="lg" className="mx-0" />
                   {name}
@@ -110,7 +113,7 @@ export function LimitedBasicLandsDialog({ sessionKey, onClose }: Props) {
               </div>
             ))}
           </fieldset>
-          <p className="text-ui-meta tabular-nums text-muted-foreground">
+          <p className="text-ui-meta tabular-nums text-muted-foreground non-touch:text-sm">
             {total} basic land{total !== 1 ? "s" : ""} to add
           </p>
           <DialogFooter>

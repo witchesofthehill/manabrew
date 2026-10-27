@@ -136,7 +136,7 @@ export function DeckChangeSummary({
           </DialogHeader>
           <div className="max-h-80 space-y-1 overflow-y-auto">
             {changes.coverageDelta !== 0 && (
-              <div className="mb-2 rounded-md border px-2 py-2 text-ui-label">
+              <div className="mb-2 rounded-md border px-2 py-2 text-ui-label non-touch:text-sm">
                 Collection shortage
                 <span
                   className={cn(
@@ -152,10 +152,10 @@ export function DeckChangeSummary({
             {changes.moves.map((change) => (
               <div
                 key={`move-${change.name}`}
-                className="rounded-md px-2 py-1.5 text-ui-label odd:bg-muted/40"
+                className="rounded-md px-2 py-1.5 text-ui-label odd:bg-muted/40 non-touch:text-sm"
               >
                 <span className="font-medium">{change.name}</span>
-                <span className="ml-2 text-ui-meta text-muted-foreground">
+                <span className="ml-2 text-ui-meta text-muted-foreground non-touch:text-xs">
                   {change.from} → {change.to}
                 </span>
               </div>
@@ -163,10 +163,10 @@ export function DeckChangeSummary({
             {changes.printings.map((change) => (
               <div
                 key={`print-${change.name}`}
-                className="rounded-md px-2 py-1.5 text-ui-label odd:bg-muted/40"
+                className="rounded-md px-2 py-1.5 text-ui-label odd:bg-muted/40 non-touch:text-sm"
               >
                 <span className="font-medium">{change.name}</span>
-                <span className="ml-2 text-ui-meta text-muted-foreground">
+                <span className="ml-2 text-ui-meta text-muted-foreground non-touch:text-xs">
                   printing or appearance changed
                 </span>
               </div>
@@ -174,7 +174,7 @@ export function DeckChangeSummary({
             {changes.quantityChanges.map((change) => (
               <div
                 key={change.name}
-                className="flex min-h-9 items-center justify-between rounded-md px-2 text-ui-label odd:bg-muted/40"
+                className="flex min-h-9 items-center justify-between rounded-md px-2 text-ui-label odd:bg-muted/40 non-touch:text-sm"
               >
                 <span className="truncate">{change.name}</span>
                 <span className={cn(change.delta > 0 ? "text-legality-legal" : "text-destructive")}>

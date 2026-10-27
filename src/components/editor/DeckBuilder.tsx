@@ -1606,12 +1606,12 @@ export function DeckBuilder({
           )}
         >
           <Bookmark className="h-3.5 w-3.5 text-warning shrink-0" />
-          <span className="shrink-0 text-ui-meta font-semibold uppercase tracking-wide text-warning">
+          <span className="shrink-0 text-ui-meta font-semibold uppercase tracking-wide text-warning non-touch:text-xs">
             {readOnlySource === "hub" ? `Hub snapshot — read only` : `Starter deck — read only`}
           </span>
           <span
             className={cn(
-              "hidden min-w-0 flex-1 truncate text-ui-meta text-warning/70 sm:block",
+              "hidden min-w-0 flex-1 truncate text-ui-meta text-warning/70 sm:block non-touch:text-xs",
               shortTouch && "sm:hidden",
             )}
           >
@@ -1622,7 +1622,7 @@ export function DeckBuilder({
               <Button
                 variant="outline"
                 size="sm"
-                className="touch:min-w-11 min-h-7 touch:min-h-11"
+                className="touch:min-w-11 min-h-7 touch:min-h-11 non-touch:h-7 non-touch:min-h-0"
                 onClick={() => {
                   if (!currentDeck.id) return;
                   navigate(
@@ -1637,7 +1637,7 @@ export function DeckBuilder({
             <Button
               variant="primary"
               size="sm"
-              className="touch:min-w-11 min-h-7 touch:min-h-11"
+              className="touch:min-w-11 min-h-7 touch:min-h-11 non-touch:h-7 non-touch:min-h-0"
               onClick={handleImportReadOnlyDeck}
             >
               <Plus className="h-3.5 w-3.5 mr-1" />
@@ -1681,7 +1681,7 @@ export function DeckBuilder({
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
               <Input
                 ref={filterInputRef}
-                className="min-h-6 pl-6 pr-11 text-ui-input touch:min-h-11"
+                className="min-h-6 pl-6 pr-11 text-ui-input touch:min-h-11 non-touch:text-xs non-touch:h-6 non-touch:min-h-0 non-touch:pr-6"
                 placeholder="Filter…"
                 title="Filter by name or use tag:, type:, color:, section:, mv>=, is:owned, is:missing, is:partial, is:foil, is:combo, and - to negate"
                 value={deckFilter}
@@ -1690,7 +1690,7 @@ export function DeckBuilder({
               {deckFilter && (
                 <button
                   type="button"
-                  className="touch:min-w-11 touch:min-h-11 inline-flex items-center justify-center absolute right-0 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  className="touch:min-w-11 touch:min-h-11 inline-flex items-center justify-center absolute right-0 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground non-touch:right-2"
                   onClick={() => setDeckFilter("")}
                 >
                   <X className="h-3 w-3" />
@@ -1700,7 +1700,7 @@ export function DeckBuilder({
             {cmcFilter !== null && (
               <button
                 type="button"
-                className="touch:min-w-11 touch:min-h-11 flex shrink-0 items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-ui-label font-medium text-primary transition-colors hover:bg-primary/25"
+                className="touch:min-w-11 touch:min-h-11 flex shrink-0 items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-ui-label font-medium text-primary transition-colors hover:bg-primary/25 non-touch:text-xs"
                 title={`Clear mana value filter`}
                 onClick={() => setCmcFilter(null)}
               >
@@ -1711,7 +1711,7 @@ export function DeckBuilder({
             {collectionFilter !== "all" && (
               <button
                 type="button"
-                className="touch:min-w-11 touch:min-h-11 flex shrink-0 items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-ui-label font-medium capitalize text-primary transition-colors hover:bg-primary/25"
+                className="touch:min-w-11 touch:min-h-11 flex shrink-0 items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-ui-label font-medium capitalize text-primary transition-colors hover:bg-primary/25 non-touch:text-xs"
                 title={`Clear collection filter`}
                 onClick={() => setCollectionFilter("all")}
               >
@@ -1722,7 +1722,7 @@ export function DeckBuilder({
             {!shortTouch && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="touch:min-w-11 touch:min-h-11 flex items-center gap-1 text-ui-label text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded-md border shrink-0 transition-colors">
+                  <button className="touch:min-w-11 touch:min-h-11 flex items-center gap-1 text-ui-label text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded-md border shrink-0 transition-colors non-touch:text-xs">
                     <Group className="h-3 w-3" />
                     <span>{GROUP_BY_OPTIONS.find((o) => o.value === groupBy)?.label}</span>
                     <ChevronDown className="h-2.5 w-2.5 opacity-60" />
@@ -1744,7 +1744,7 @@ export function DeckBuilder({
             {!shortTouch && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="touch:min-w-11 touch:min-h-11 flex shrink-0 items-center gap-1 rounded-md border px-1.5 py-0.5 text-ui-label text-muted-foreground transition-colors hover:text-foreground">
+                  <button className="touch:min-w-11 touch:min-h-11 flex shrink-0 items-center gap-1 rounded-md border px-1.5 py-0.5 text-ui-label text-muted-foreground transition-colors hover:text-foreground non-touch:text-xs">
                     <span>
                       Sort: {SORT_OPTIONS.find((option) => option.value === sortBy)?.label}
                     </span>
@@ -1889,7 +1889,10 @@ export function DeckBuilder({
               />
             </div>
             {!shortTouch && !isReadOnly && (
-              <span className="shrink-0 text-ui-meta text-muted-foreground" aria-live="polite">
+              <span
+                className="shrink-0 text-ui-meta text-muted-foreground non-touch:text-[11px] non-touch:leading-[inherit]"
+                aria-live="polite"
+              >
                 {isSaving || syncState === "saving"
                   ? `Saving\u2026`
                   : hasUnsavedChanges
@@ -1920,7 +1923,7 @@ export function DeckBuilder({
                 }
                 disabled={isSaving || (!hasUnsavedChanges && !currentDeck.draft)}
                 className={cn(
-                  "touch:min-w-11 touch:min-h-11 min-h-7 shrink-0 gap-1 text-ui-label",
+                  "touch:min-w-11 touch:min-h-11 min-h-7 shrink-0 gap-1 text-ui-label non-touch:text-xs non-touch:h-7 non-touch:min-h-0",
                   !isDeckLegal && "border-warning/50 text-warning hover:bg-warning/10",
                 )}
                 title={
@@ -1953,7 +1956,7 @@ export function DeckBuilder({
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="touch:min-w-11 touch:min-h-11 min-h-7 w-7 shrink-0"
+                    className="touch:min-w-11 touch:min-h-11 min-h-7 w-7 shrink-0 non-touch:h-7 non-touch:min-h-0"
                     disabled={isReadOnly}
                     aria-label="Deck actions"
                   >
@@ -2030,7 +2033,7 @@ export function DeckBuilder({
                   <DropdownMenuItem onSelect={() => setLabelsOpen(true)}>
                     <Palette className="h-3.5 w-3.5 mr-2" /> Deck labels
                     {(currentDeck.labels?.length ?? 0) > 0 && (
-                      <span className="ml-auto text-ui-meta text-muted-foreground">
+                      <span className="ml-auto text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
                         {currentDeck.labels!.length}
                       </span>
                     )}
@@ -2038,7 +2041,7 @@ export function DeckBuilder({
                   <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                     <Bookmark className="h-3.5 w-3.5 mr-2" /> Tags
                     {(currentDeck.customTags?.length ?? 0) > 0 && (
-                      <span className="ml-auto text-ui-meta text-muted-foreground">
+                      <span className="ml-auto text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
                         {currentDeck.customTags!.length}
                       </span>
                     )}
@@ -2048,14 +2051,14 @@ export function DeckBuilder({
                       {(currentDeck.customTags ?? []).map((tag) => (
                         <DropdownMenuItem
                           key={tag}
-                          className="text-ui-label pl-8 justify-between"
+                          className="text-ui-label pl-8 justify-between non-touch:text-xs"
                           onSelect={(e) => e.preventDefault()}
                         >
                           <span>{tag}</span>
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="touch:min-w-11 touch:min-h-11 min-h-5 w-5 text-destructive shrink-0"
+                            className="touch:min-w-11 touch:min-h-11 min-h-5 w-5 text-destructive shrink-0 non-touch:h-5 non-touch:min-h-0"
                             onClick={() => {
                               executeDeckEdit(`Remove ${tag} tag`, () => removeCustomTag(tag));
                               toast.success(`Tag "${tag}" removed`);
@@ -2069,7 +2072,7 @@ export function DeckBuilder({
                   )}
                   <div className="px-2 py-1.5">
                     <Input
-                      className="touch:min-h-11 min-h-7 text-ui-input"
+                      className="touch:min-h-11 min-h-7 text-ui-input non-touch:text-xs non-touch:h-7 non-touch:min-h-0"
                       placeholder="New tag…"
                       value={newTagInput}
                       onChange={(e) => setNewTagInput(e.target.value)}
@@ -2178,7 +2181,9 @@ export function DeckBuilder({
                 />
                 {currentDeck.companion && (
                   <section className="mx-4 mb-4 rounded-lg border p-3">
-                    <h3 className="mb-2 text-ui-label font-semibold">Companion</h3>
+                    <h3 className="mb-2 text-ui-label font-semibold non-touch:text-sm">
+                      Companion
+                    </h3>
                     <CardContextMenu
                       card={currentDeck.companion}
                       count={1}
@@ -2192,7 +2197,7 @@ export function DeckBuilder({
                       <div className="group flex items-center gap-2 rounded-md hover:bg-muted/40">
                         <button
                           type="button"
-                          className="touch:min-w-11 touch:min-h-11 min-w-0 flex-1 truncate p-2 text-left text-ui-label focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          className="touch:min-w-11 touch:min-h-11 min-w-0 flex-1 truncate p-2 text-left text-ui-label focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring non-touch:text-sm"
                           onClick={() => handleShowInfo(currentDeck.companion!)}
                         >
                           {currentDeck.companion.identity.name}
@@ -2324,7 +2329,7 @@ export function DeckBuilder({
                       !analysisOpen && "-rotate-90",
                     )}
                   />
-                  <span className="text-ui-label font-semibold uppercase tracking-wider text-muted-foreground">
+                  <span className="text-ui-label font-semibold uppercase tracking-wider text-muted-foreground non-touch:text-xs">
                     Deck Analysis
                   </span>
                   <div className="h-px flex-1 bg-border/60" />
@@ -2413,7 +2418,7 @@ export function DeckBuilder({
           variant="secondary"
           size="icon"
           className={cn(
-            "touch:min-w-11 touch:min-h-11 absolute bottom-4 right-4 z-50 min-h-10 w-10 rounded-full border shadow-lg",
+            "touch:min-w-11 touch:min-h-11 absolute bottom-4 right-4 z-50 min-h-10 w-10 rounded-full border shadow-lg non-touch:h-10 non-touch:min-h-0",
             selectedCards.size > 0 && "bottom-[calc(40%+1rem)]",
           )}
           title={`Back to top`}
@@ -2616,7 +2621,7 @@ export function DeckBuilder({
           <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-overlay/50 backdrop-blur-sm">
             <div className="bg-card border rounded-xl shadow-xl p-6 max-w-sm space-y-4">
               <h3 className="text-lg font-semibold">Clear Deck</h3>
-              <p className="text-ui-body text-muted-foreground">
+              <p className="text-ui-body text-muted-foreground non-touch:text-sm">
                 Are you sure you want to clear &quot;{currentDeck.name}&quot;? This will remove all
                 cards and delete the saved deck.
               </p>

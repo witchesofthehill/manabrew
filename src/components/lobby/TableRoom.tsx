@@ -79,16 +79,20 @@ export function TableRoom({
     if (room.status !== "Lobby") {
       return (
         <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5 text-center sm:text-right">
-          <p className="text-ui-label font-medium text-primary">Game in progress</p>
-          <p className="text-ui-meta text-muted-foreground">Opening the game table...</p>
+          <p className="text-ui-label font-medium text-primary non-touch:text-sm">
+            Game in progress
+          </p>
+          <p className="text-ui-meta text-muted-foreground non-touch:text-xs">
+            Opening the game table...
+          </p>
         </div>
       );
     }
     if (needsFormat) {
       return (
         <div className="rounded-lg border border-border/60 bg-muted/30 px-4 py-2.5 text-center sm:text-right">
-          <p className="text-ui-label font-medium">Choose a format</p>
-          <p className="text-ui-meta text-muted-foreground">
+          <p className="text-ui-label font-medium non-touch:text-sm">Choose a format</p>
+          <p className="text-ui-meta text-muted-foreground non-touch:text-xs">
             Select one in Table settings to continue.
           </p>
         </div>
@@ -116,8 +120,10 @@ export function TableRoom({
     if (!isController && myPlayer?.ready) {
       return (
         <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5 text-center sm:text-right">
-          <p className="text-ui-label font-medium text-primary">You're ready</p>
-          <p className="text-ui-meta text-muted-foreground">Waiting for the host to start.</p>
+          <p className="text-ui-label font-medium text-primary non-touch:text-sm">You're ready</p>
+          <p className="text-ui-meta text-muted-foreground non-touch:text-xs">
+            Waiting for the host to start.
+          </p>
         </div>
       );
     }
@@ -162,10 +168,10 @@ export function TableRoom({
     }
     return (
       <div className="rounded-lg border border-border/60 bg-muted/30 px-4 py-2.5 text-center sm:text-right">
-        <p className="text-ui-label font-medium">
+        <p className="text-ui-label font-medium non-touch:text-sm">
           {requiredPlayers > 0 ? `Waiting for ${requiredPlayers} more` : `Waiting for players`}
         </p>
-        <p className="text-ui-meta text-muted-foreground">
+        <p className="text-ui-meta text-muted-foreground non-touch:text-xs">
           {requiredPlayers > 0
             ? `Your table is open for others to join.`
             : `Everyone at the table needs to be ready.`}
@@ -194,7 +200,7 @@ export function TableRoom({
                   <span className="font-serif text-lg font-semibold text-foreground/90 sm:text-2xl">
                     {modeLabel}
                   </span>
-                  <span className="text-ui-meta font-medium text-muted-foreground">
+                  <span className="text-ui-meta font-medium text-muted-foreground non-touch:text-xs non-touch:sm:text-sm">
                     {readyCount}/{room.players.length} ready
                   </span>
                 </span>
@@ -203,10 +209,10 @@ export function TableRoom({
           </div>
           <div className="flex flex-col gap-4 border-t border-border/60 bg-background/60 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
             <div className="min-w-0">
-              <p className="text-ui-meta font-medium uppercase tracking-wide text-muted-foreground">
+              <p className="text-ui-meta font-medium uppercase tracking-wide text-muted-foreground non-touch:text-xs">
                 Your seat
               </p>
-              <p className="mt-1 break-words text-ui-label font-medium">
+              <p className="mt-1 break-words text-ui-label font-medium non-touch:text-sm">
                 {isController
                   ? `You control when the game begins`
                   : isOpenFormat

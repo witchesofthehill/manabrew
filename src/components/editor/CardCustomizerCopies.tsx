@@ -56,7 +56,9 @@ export function CardCustomizerCopies({
   }, [deck]);
   return (
     <section className="mt-5 min-w-0 space-y-3 border-t pt-4" aria-label="Copies in this deck">
-      <h3 className="text-ui-label font-semibold">Copies in this deck · {copies.length}</h3>
+      <h3 className="text-ui-label font-semibold non-touch:text-sm">
+        Copies in this deck · {copies.length}
+      </h3>
       <ul className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-3">
         {copies.map((copy, index) => {
           const id = copy.identity.id;
@@ -110,17 +112,19 @@ export function CardCustomizerCopies({
                   loading="lazy"
                   className="w-full rounded-md"
                 />
-                <span className="mt-1 block text-ui-label font-medium">
+                <span className="mt-1 block text-ui-label font-medium non-touch:text-xs">
                   Copy {index + 1} · {sections.get(id)}
                 </span>
-                <span className="block text-ui-meta text-muted-foreground">
+                <span className="block text-ui-meta text-muted-foreground non-touch:text-xs">
                   {copy.identity.setCode.toUpperCase()} #{copy.identity.cardNumber} ·{" "}
                   {preview.identity.foil ? "Foil" : "Nonfoil"}
                 </span>
-                <span className="block text-ui-meta text-muted-foreground">{settings}</span>
+                <span className="block text-ui-meta text-muted-foreground non-touch:text-xs">
+                  {settings}
+                </span>
                 <span
                   className={cn(
-                    "block text-ui-meta",
+                    "block text-ui-meta non-touch:text-xs",
                     pendingIds.has(id) ? "font-medium text-primary" : "text-muted-foreground",
                   )}
                 >
@@ -128,7 +132,7 @@ export function CardCustomizerCopies({
                   {activeId === id ? " · Inspecting" : ""}
                 </span>
               </button>
-              <label className="mt-1 flex min-h-8 cursor-pointer items-center gap-1.5 text-ui-label touch:min-h-11">
+              <label className="mt-1 flex min-h-8 cursor-pointer items-center gap-1.5 text-ui-label touch:min-h-11 non-touch:text-xs">
                 <input
                   type="checkbox"
                   checked={selected}

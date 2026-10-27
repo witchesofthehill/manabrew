@@ -96,7 +96,10 @@ export function EditDeckHubEntryDialog({
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <label htmlFor="deckhub-entry-title" className="text-ui-label font-medium">
+            <label
+              htmlFor="deckhub-entry-title"
+              className="text-ui-label font-medium non-touch:text-sm"
+            >
               Title
             </label>
             <Input
@@ -105,10 +108,15 @@ export function EditDeckHubEntryDialog({
               maxLength={100}
               onChange={(event) => setTitle(event.target.value)}
             />
-            <p className="text-right text-ui-meta text-muted-foreground">{title.length}/100</p>
+            <p className="text-right text-ui-meta text-muted-foreground non-touch:text-xs">
+              {title.length}/100
+            </p>
           </div>
           <div className="space-y-1.5">
-            <label htmlFor="deckhub-entry-summary" className="text-ui-label font-medium">
+            <label
+              htmlFor="deckhub-entry-summary"
+              className="text-ui-label font-medium non-touch:text-sm"
+            >
               Summary
             </label>
             <textarea
@@ -116,13 +124,18 @@ export function EditDeckHubEntryDialog({
               value={summary}
               maxLength={500}
               rows={4}
-              className="w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-ui-input outline-none focus-visible:ring-2 focus-visible:ring-ring touch:min-h-11 touch:min-w-11"
+              className="w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-ui-input outline-none focus-visible:ring-2 focus-visible:ring-ring touch:min-h-11 touch:min-w-11 non-touch:text-sm"
               onChange={(event) => setSummary(event.target.value)}
             />
-            <p className="text-right text-ui-meta text-muted-foreground">{summary.length}/500</p>
+            <p className="text-right text-ui-meta text-muted-foreground non-touch:text-xs">
+              {summary.length}/500
+            </p>
           </div>
           <div className="space-y-1.5">
-            <label htmlFor="deckhub-entry-tags" className="text-ui-label font-medium">
+            <label
+              htmlFor="deckhub-entry-tags"
+              className="text-ui-label font-medium non-touch:text-sm"
+            >
               Discovery tags
             </label>
             <Input
@@ -132,18 +145,21 @@ export function EditDeckHubEntryDialog({
               placeholder={`control, budget, tokens`}
               onChange={(event) => setTagInput(event.target.value)}
             />
-            <p className="text-ui-meta text-muted-foreground">
+            <p className="text-ui-meta text-muted-foreground non-touch:text-xs">
               {tags.length}/10 tags. Each tag can contain up to 32 characters.
             </p>
           </div>
           <div className="space-y-1.5">
-            <label htmlFor="deckhub-entry-cover" className="text-ui-label font-medium">
+            <label
+              htmlFor="deckhub-entry-cover"
+              className="text-ui-label font-medium non-touch:text-sm"
+            >
               Cover card
             </label>
             <AppSelect
               id="deckhub-entry-cover"
               value={coverCardName}
-              className="w-full"
+              className="w-full non-touch:text-sm non-touch:h-10 non-touch:px-3"
               onValueChange={setCoverCardName}
             >
               <AppSelectOption value="">Automatic cover</AppSelectOption>
@@ -155,7 +171,7 @@ export function EditDeckHubEntryDialog({
             </AppSelect>
           </div>
         </div>
-        <DialogFooter className="gap-2">
+        <DialogFooter className="gap-2 non-touch:gap-2">
           <Button variant="ghost" disabled={busy} onClick={() => onOpenChange(false)}>
             Cancel
           </Button>

@@ -59,14 +59,14 @@ function CommanderDamageButton({
             className="absolute inset-0 size-full overflow-hidden rounded-full"
           />
         ) : (
-          <span className="absolute inset-0 grid place-items-center text-ui-meta font-semibold uppercase text-white">
+          <span className="absolute inset-0 grid place-items-center text-ui-meta font-semibold uppercase text-white non-touch:text-[10px] non-touch:leading-[inherit]">
             {initials(source.name)}
           </span>
         )}
         {totalDamage > 0 && (
           <span
             className={cn(
-              "absolute bottom-0 right-0 grid min-w-5 place-items-center rounded-full px-1 text-ui-meta font-bold text-white",
+              "absolute bottom-0 right-0 grid min-w-5 place-items-center rounded-full px-1 text-ui-meta font-bold text-white non-touch:text-[10px] non-touch:leading-[inherit] non-touch:-bottom-0.5 non-touch:-right-0.5",
               lethal ? "bg-destructive" : "bg-black/80",
             )}
           >

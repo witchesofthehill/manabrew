@@ -26,7 +26,7 @@ export class LimitedCardFace extends Container {
   private readonly fallbackLabel = new Text({
     style: {
       fontFamily: UI_FONT_FAMILY,
-      fontSize: getUiFontSize("label"),
+      fontSize: getUiFontSize("label", 13),
       wordWrap: true,
       breakWords: true,
     },
@@ -60,7 +60,7 @@ export class LimitedCardFace extends Container {
     const theme = getTheme();
     this.image.setSize(width, height);
     this.foil.setSurface(width, height, 6, theme);
-    this.fallbackLabel.style.fontSize = getUiFontSize("label");
+    this.fallbackLabel.style.fontSize = getUiFontSize("label", 13);
     this.fallbackLabel.style.fill = theme.appTheme.foreground;
     this.fallbackLabel.style.wordWrapWidth = width - 12;
     this.positionLabel();

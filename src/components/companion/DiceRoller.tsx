@@ -94,7 +94,7 @@ function FirstPlayerAnimation({
   }, [players, pickWinner]);
   return (
     <>
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] gap-2">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] gap-2 non-touch:grid-cols-2">
         {players.map((player) => {
           const accent = COMPANION_ACCENT_COLORS[player.accentKey];
           const active = highlight === player.id;
@@ -102,7 +102,7 @@ function FirstPlayerAnimation({
             <div
               key={player.id}
               className={cn(
-                "flex min-w-0 items-center gap-2 break-words rounded-md border-2 p-3 text-ui-label font-semibold text-white transition",
+                "flex min-w-0 items-center gap-2 break-words rounded-md border-2 p-3 text-ui-label font-semibold text-white transition non-touch:text-sm",
                 active ? "scale-105 border-white" : "border-transparent",
               )}
               style={{ backgroundColor: accent }}
@@ -113,7 +113,7 @@ function FirstPlayerAnimation({
         })}
       </div>
       {settled && highlight && (
-        <p className="break-words text-center text-ui-body text-muted-foreground">
+        <p className="break-words text-center text-ui-body text-muted-foreground non-touch:text-sm">
           <span className="font-semibold text-foreground">
             {players.find((p) => p.id === highlight)?.name}
           </span>{" "}
@@ -148,7 +148,7 @@ function NumericRoll({ sides }: { sides: number }) {
         rolling={!settled}
         accentColor={accent ?? undefined}
       />
-      <p className="text-ui-body text-muted-foreground">
+      <p className="text-ui-body text-muted-foreground non-touch:text-sm">
         {settled ? (
           <>
             <span className="font-semibold text-foreground">d{sides}</span> →{" "}
@@ -206,7 +206,7 @@ function CoinFlip() {
           </span>
         </div>
       </div>
-      <p className="text-ui-body text-muted-foreground">
+      <p className="text-ui-body text-muted-foreground non-touch:text-sm">
         {settled ? (
           <>
             Coin → <span className="font-semibold text-foreground">{value}</span>

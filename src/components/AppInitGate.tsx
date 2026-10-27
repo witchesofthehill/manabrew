@@ -86,7 +86,7 @@ export function AppInitGate({ children }: { children: ReactNode }) {
       <p
         className={cn(
           "text-xl font-semibold uppercase tracking-[0.2em] text-muted-foreground",
-          shortTouch && "text-ui-body",
+          shortTouch && "text-ui-body non-touch:text-sm",
         )}
       >
         Welcome to
@@ -151,8 +151,9 @@ export function AppInitGate({ children }: { children: ReactNode }) {
               <div className={cn("w-full space-y-5", shortTouch && "space-y-2.5")}>
                 <div
                   className={cn(
-                    "flex items-baseline justify-between gap-3 font-mono text-ui-meta uppercase tracking-[0.4em] text-muted-foreground",
-                    shortTouch && "text-ui-meta tracking-[0.3em]",
+                    "flex items-baseline justify-between gap-3 font-mono text-ui-meta uppercase tracking-[0.4em] text-muted-foreground non-touch:text-[0.65rem] non-touch:leading-[inherit]",
+                    shortTouch &&
+                      "text-ui-meta tracking-[0.3em] non-touch:text-[0.6rem] non-touch:leading-[inherit]",
                   )}
                 >
                   <span className="break-words text-foreground/80">{title}</span>
@@ -184,8 +185,9 @@ export function AppInitGate({ children }: { children: ReactNode }) {
 
                 <p
                   className={cn(
-                    "text-center font-mono text-ui-meta uppercase tracking-[0.45em] text-muted-foreground/80",
-                    shortTouch && "text-ui-meta tracking-[0.35em]",
+                    "text-center font-mono text-ui-meta uppercase tracking-[0.45em] text-muted-foreground/80 non-touch:text-[0.6rem] non-touch:leading-[inherit]",
+                    shortTouch &&
+                      "text-ui-meta tracking-[0.35em] non-touch:text-[0.55rem] non-touch:leading-[inherit]",
                   )}
                 >
                   Connecting

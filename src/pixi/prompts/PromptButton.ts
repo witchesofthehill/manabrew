@@ -1,4 +1,9 @@
-import { getUiControlHeight, getUiFontSize, UI_FONT_FAMILY as FONT } from "@/themes/typography";
+import {
+  getUiControlHeight,
+  getUiFontSize,
+  UI_FONT_FAMILY as FONT,
+  isTouchUi,
+} from "@/themes/typography";
 import { Container, Graphics, Rectangle, Sprite, Text, TextStyle, type Texture } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
 import { colorAlpha, hexToNum } from "@/pixi/colorUtils";
@@ -97,12 +102,19 @@ export class PromptButton extends Container {
       text: labelPlacement === "stacked" ? options.label.toUpperCase() : options.label,
       style: new TextStyle({
         fontFamily: FONT,
-        fontSize: Math.max(options.fontSize ?? 0, getUiFontSize("label")),
+        fontSize: Math.max(
+          options.fontSize ?? 0,
+          getUiFontSize(
+            "label",
+            options.fontSize ?? (labelPlacement === "stacked" ? 8 : options.compact ? 10 : 12),
+          ),
+        ),
         fontWeight: options.fontWeight ?? "700",
         letterSpacing:
           options.letterSpacing ??
           (labelPlacement === "stacked" ? 0.4 : options.compact ? 0.7 : 0.3),
-        wordWrap: options.width != null,
+        lineHeight: !isTouchUi() && labelPlacement === "stacked" ? 8 : undefined,
+        wordWrap: isTouchUi() && options.width != null,
         breakWords: true,
         wordWrapWidth: Math.max(
           1,
@@ -186,14 +198,15 @@ export class PromptButton extends Container {
   }
 
   get buttonWidth(): number {
-    if (this.options.width != null) return Math.max(getUiControlHeight(), this.options.width);
+    if (this.options.width != null) return Math.max(getUiControlHeight(0), this.options.width);
     const iconWidth = this.iconSprite ? (this.options.iconSize ?? 14) : 0;
     const placement = this.options.labelPlacement ?? "inline";
     const paddingX = this.options.paddingX ?? (placement === "stacked" ? 6 : 12);
-    if (placement === "hidden") return Math.max(getUiControlHeight(), 36, iconWidth + paddingX * 2);
+    if (placement === "hidden")
+      return Math.max(getUiControlHeight(0), 36, iconWidth + paddingX * 2);
     if (placement === "stacked") {
       return Math.max(
-        getUiControlHeight(),
+        getUiControlHeight(0),
         40,
         iconWidth + paddingX * 2,
         this.labelText.width + paddingX * 2,
@@ -215,13 +228,19 @@ export class PromptButton extends Container {
 
   get buttonHeight(): number {
     const placement = this.options.labelPlacement ?? "inline";
+    if (!isTouchUi()) {
+      if (this.options.height != null) return this.options.height;
+      if (placement === "stacked") return 40;
+      if (placement === "hidden") return 36;
+      return this.options.compact ? 38 : 36;
+    }
     const iconHeight = this.iconSprite ? (this.options.iconSize ?? 14) : 0;
     const labelHeight = placement === "hidden" ? 0 : this.labelText.height;
     const contentHeight =
       placement === "stacked"
         ? iconHeight + (iconHeight > 0 && labelHeight > 0 ? 4 : 0) + labelHeight
         : Math.max(iconHeight, labelHeight, this.shortcutContainer?.height ?? 0);
-    return Math.max(getUiControlHeight(), this.options.height ?? 36, contentHeight + 12);
+    return Math.max(getUiControlHeight(0), this.options.height ?? 36, contentHeight + 12);
   }
 
   setDisabled(disabled: boolean): void {
@@ -345,10 +364,11 @@ export class PromptButton extends Container {
     if (placement === "stacked") {
       const contentHeight = (this.iconSprite ? iconSize + 4 : 0) + this.labelText.height;
       const top = (height - contentHeight) / 2;
-      if (this.iconSprite) this.iconSprite.position.set(width / 2, top + iconSize / 2);
+      if (this.iconSprite)
+        this.iconSprite.position.set(width / 2, isTouchUi() ? top + iconSize / 2 : 15);
       this.labelText.position.set(
         width / 2,
-        top + (this.iconSprite ? iconSize + 4 : 0) + this.labelText.height / 2,
+        isTouchUi() ? top + (this.iconSprite ? iconSize + 4 : 0) + this.labelText.height / 2 : 28,
       );
     } else if (placement === "hidden") {
       if (this.iconSprite) this.iconSprite.position.set(width / 2, height / 2);
@@ -399,7 +419,7 @@ export class PromptButton extends Container {
       text: value,
       style: new TextStyle({
         fontFamily: FONT,
-        fontSize: getUiFontSize("meta"),
+        fontSize: getUiFontSize("meta", 10),
         fontWeight: "700",
         fill: hexToNum(this.theme.appTheme["muted-foreground"]),
       }),
@@ -407,7 +427,7 @@ export class PromptButton extends Container {
     label.anchor.set(0.5);
     label.alpha = 0.85;
     const width = Math.max(20, label.width + 12);
-    const height = Math.max(18, label.height + 4);
+    const height = isTouchUi() ? Math.max(18, label.height + 4) : 18;
     const background = new Graphics()
       .roundRect(-width / 2, -height / 2, width, height, 4)
       .fill({ color: hexToNum(this.theme.appTheme.muted), alpha: 0.95 })
@@ -425,14 +445,14 @@ export class PromptButton extends Container {
       text: value,
       style: new TextStyle({
         fontFamily: FONT,
-        fontSize: getUiFontSize("meta"),
+        fontSize: getUiFontSize("meta", 9),
         fontWeight: "700",
         fill: hexToNum(this.theme.gameTheme.textOnTinted),
       }),
     });
     label.anchor.set(0.5);
     const width = Math.max(16, label.width + 8);
-    const height = Math.max(16, label.height + 4);
+    const height = isTouchUi() ? Math.max(16, label.height + 4) : 16;
     badge.addChild(
       new Graphics()
         .roundRect(-width / 2, -height / 2, width, height, height / 2)
@@ -449,14 +469,14 @@ export class PromptButton extends Container {
       text: value,
       style: new TextStyle({
         fontFamily: FONT,
-        fontSize: getUiFontSize("label"),
+        fontSize: getUiFontSize("label", 10),
         fontWeight: "600",
         fill: hexToNum(this.theme.appTheme["popover-foreground"]),
       }),
     });
     label.anchor.set(0.5);
     const width = label.width + 16;
-    const height = Math.max(20, label.height + 8);
+    const height = isTouchUi() ? Math.max(20, label.height + 8) : 20;
     tooltip.addChild(
       new Graphics()
         .roundRect(-width / 2, -height / 2, width, height, 4)

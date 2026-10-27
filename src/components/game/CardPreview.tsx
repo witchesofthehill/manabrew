@@ -121,7 +121,9 @@ function PreviewImageStack({
       {(!displayed || terminalFailure) && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-[inherit] p-4 bg-black">
           {!terminalFailure && <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />}
-          <span className="text-ui-meta text-muted-foreground text-center">{cardName}</span>
+          <span className="text-ui-meta text-muted-foreground text-center non-touch:text-xs">
+            {cardName}
+          </span>
         </div>
       )}
       {displayed && !targetShown && !terminalFailure && (
@@ -707,7 +709,7 @@ export function CardPreview({
                   className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4 bg-black"
                 >
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                  <span className="text-ui-meta text-muted-foreground text-center">
+                  <span className="text-ui-meta text-muted-foreground text-center non-touch:text-xs">
                     {currentCardName}
                   </span>
                 </div>
@@ -776,7 +778,7 @@ export function CardPreview({
                       onFlip({ sticky: true });
                     }}
                     className={cn(
-                      "inline-flex min-h-8 touch:min-h-11 touch:min-w-11 items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-ui-label font-semibold uppercase tracking-wide text-white shadow hover:bg-black/85 touch:px-3",
+                      "inline-flex min-h-8 touch:min-h-11 touch:min-w-11 items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-ui-label font-semibold uppercase tracking-wide text-white shadow hover:bg-black/85 touch:px-3 non-touch:text-[10px] non-touch:leading-[inherit]",
                       interactive ? "pointer-events-auto" : "pointer-events-none",
                     )}
                     title={`Flip card (F) — ${showBackFace ? doubleFacedData.frontName : doubleFacedData.backName}`}
@@ -832,9 +834,9 @@ export function CardPreview({
                 />
               )}
               {!hasActions && hasFlippableFaces && (
-                <div className="px-1 text-ui-meta text-muted-foreground">
+                <div className="px-1 text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
                   <span>
-                    <kbd className="rounded border border-border bg-muted px-1 font-mono text-ui-meta">
+                    <kbd className="rounded border border-border bg-muted px-1 font-mono text-ui-meta non-touch:text-[9px] non-touch:leading-[inherit]">
                       F
                     </kbd>{" "}
                     flip

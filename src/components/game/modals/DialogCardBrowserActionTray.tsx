@@ -52,14 +52,16 @@ export function DialogCardBrowserActionTray({
   return (
     <div className="flex shrink-0 flex-wrap items-center gap-2 border-t px-3 py-3">
       <div ref={details} className="min-w-40 flex-1" aria-live="polite">
-        <p className="break-words text-ui-label font-medium">{name}</p>
-        <p className="text-ui-meta text-muted-foreground">
+        <p className="break-words text-ui-label font-medium non-touch:text-sm non-touch:truncate">
+          {name}
+        </p>
+        <p className="text-ui-meta text-muted-foreground non-touch:text-xs">
           {selectedCount > 0 ? `${selectedCount} selected · ${status}` : status}
         </p>
       </div>
       <Button
         variant="primary"
-        className="h-auto min-h-8 touch:min-h-11 min-w-0 max-w-full whitespace-normal break-words sm:min-w-48"
+        className="h-auto min-h-8 touch:min-h-11 min-w-0 max-w-full whitespace-normal break-words sm:min-w-48 non-touch:h-9 non-touch:min-w-48"
         disabled={pending || !active || (!active.legal && !active.selected)}
         onClick={() => {
           if (active && !pending && (active.legal || active.selected)) onActivate(active);

@@ -80,8 +80,8 @@ export function DeckGoalsPanel() {
       <div className="mb-3 flex items-center gap-2">
         <Target className="h-4 w-4 text-primary" />
         <div>
-          <h3 className="text-ui-label font-semibold">Deck goals</h3>
-          <p className="text-ui-body text-muted-foreground">
+          <h3 className="text-ui-label font-semibold non-touch:text-sm">Deck goals</h3>
+          <p className="text-ui-body text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
             Optional targets, separate from legality.
           </p>
         </div>
@@ -92,17 +92,17 @@ export function DeckGoalsPanel() {
             key={row.key}
             className={cn("flex flex-wrap items-center gap-2", EDITOR_SUBTLE_BLOCK_CLASS)}
           >
-            <span className="min-w-0 flex-1 text-ui-label">{row.label}</span>
+            <span className="min-w-0 flex-1 text-ui-label non-touch:text-xs">{row.label}</span>
             <span
               className={cn(
-                "text-ui-meta font-mono",
+                "text-ui-meta font-mono non-touch:text-xs",
                 row.met ? "text-legality-legal" : "text-warning",
               )}
             >
               {row.current}
             </span>
             <Input
-              className="min-h-9 h-auto touch:min-h-11 touch:min-w-11 w-24 text-right text-ui-input"
+              className="min-h-9 h-auto touch:min-h-11 touch:min-w-11 w-24 text-right text-ui-input non-touch:text-xs non-touch:h-7 non-touch:min-h-0 non-touch:w-20"
               type="number"
               min="0"
               step={row.step}
@@ -127,10 +127,12 @@ export function DeckGoalsPanel() {
                 key={tag}
                 className={cn("flex flex-wrap items-center gap-2", EDITOR_SUBTLE_BLOCK_CLASS)}
               >
-                <span className="min-w-0 flex-1 break-words text-ui-label">{tag} target</span>
+                <span className="min-w-0 flex-1 break-words text-ui-label non-touch:text-xs">
+                  {tag} target
+                </span>
                 <span
                   className={cn(
-                    "text-ui-meta font-mono",
+                    "text-ui-meta font-mono non-touch:text-xs",
                     target === undefined || current >= target
                       ? "text-legality-legal"
                       : "text-warning",
@@ -139,7 +141,7 @@ export function DeckGoalsPanel() {
                   {current}
                 </span>
                 <Input
-                  className="min-h-9 h-auto touch:min-h-11 touch:min-w-11 w-24 text-right text-ui-input"
+                  className="min-h-9 h-auto touch:min-h-11 touch:min-w-11 w-24 text-right text-ui-input non-touch:text-xs non-touch:h-7 non-touch:min-h-0 non-touch:w-20"
                   type="number"
                   min="0"
                   value={target ?? ""}

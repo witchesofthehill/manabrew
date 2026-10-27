@@ -51,7 +51,7 @@ export function TokenSection({
         >
           <ChevronDown className={cn("h-4 w-4 transition-transform", !open && "-rotate-90")} />
           <h3 className="text-ui-body font-semibold">Tokens</h3>
-          <span className="text-ui-meta text-muted-foreground/70">
+          <span className="text-ui-meta text-muted-foreground/70 non-touch:text-xs">
             {tokens.length} token{tokens.length !== 1 ? "s" : ""} produced by this deck
           </span>
         </button>
@@ -151,7 +151,7 @@ function TokenGridCard({
         >
           <CardThumbnail card={token} />
         </button>
-        <div className="absolute bottom-1 right-1 z-20 flex flex-col gap-1 opacity-0 group-hover:opacity-100 touch:opacity-100 transition-opacity">
+        <div className="absolute bottom-1 right-1 z-20 flex flex-col gap-1 opacity-0 group-hover:opacity-100 touch:opacity-100 transition-opacity non-touch:top-1 non-touch:bottom-auto non-touch:flex-row">
           {onPickPrint && (
             <button
               type="button"

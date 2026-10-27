@@ -70,18 +70,20 @@ function BrowserCardRow({
     <button
       type="button"
       data-card-name={card.identity.name}
-      className="flex w-full items-center gap-2 rounded px-1 py-1 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring touch:min-h-11 touch:min-w-11"
+      className="flex w-full items-center gap-2 rounded px-1 py-1 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring touch:min-h-11 touch:min-w-11 non-touch:gap-1"
       onClick={() => onOpen(card)}
       onPointerEnter={(event) => onPointerEnter(card, event)}
       onPointerLeave={onPointerLeave}
     >
-      <span className="w-5 shrink-0 text-right font-mono text-ui-meta text-muted-foreground">
+      <span className="w-5 shrink-0 text-right font-mono text-ui-meta text-muted-foreground non-touch:text-xs">
         {count}
       </span>
-      <span className="min-w-0 flex-1 truncate text-ui-label">{card.identity.name}</span>
+      <span className="min-w-0 flex-1 truncate text-ui-label non-touch:text-sm">
+        {card.identity.name}
+      </span>
       {card.manaCost && <ManaSymbols cost={card.manaCost} size="sm" className="shrink-0" />}
       {card.power && card.toughness && (
-        <span className="shrink-0 font-mono text-ui-meta text-muted-foreground">
+        <span className="shrink-0 font-mono text-ui-meta text-muted-foreground non-touch:text-xs">
           {card.power}/{card.toughness}
         </span>
       )}
@@ -482,7 +484,7 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
     }
   }
   return (
-    <div className="relative flex min-h-40 min-w-0 flex-1 flex-col">
+    <div className="relative flex min-h-40 min-w-0 flex-1 flex-col non-touch:min-h-0">
       <div
         className={cn(
           "max-h-[45%] shrink-0 space-y-2 overflow-y-auto border-b bg-background/95 px-3 py-2 backdrop-blur sm:px-4",
@@ -497,7 +499,7 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
               onChange={(event) => setSearch(event.target.value)}
               aria-label="Search card names, types, and rules text"
               placeholder="Search cards…"
-              className="pl-8 pr-11"
+              className="pl-8 pr-11 non-touch:text-xs non-touch:h-8 non-touch:pr-8"
             />
             {search && (
               <button
@@ -510,7 +512,7 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
               </button>
             )}
           </div>
-          <span className="shrink-0 text-ui-meta tabular-nums text-muted-foreground">
+          <span className="shrink-0 text-ui-meta tabular-nums text-muted-foreground non-touch:text-xs">
             {shownCount === totalCount ? totalCount : `${shownCount} / ${totalCount}`} cards
           </span>
         </div>
@@ -544,7 +546,9 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
           {shownCount === 0 ? (
             <div className="grid min-h-48 place-items-center text-center">
               <div>
-                <p className="text-ui-body font-medium">No cards match these filters</p>
+                <p className="text-ui-body font-medium non-touch:text-sm">
+                  No cards match these filters
+                </p>
                 <Button variant="ghost" size="sm" className="mt-2" onClick={clearFilters}>
                   Clear filters
                 </Button>
@@ -700,7 +704,7 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
 
       {loadingCardName && (
         <div className="pointer-events-none absolute inset-x-0 bottom-20 z-40 flex justify-center">
-          <span className="flex items-center gap-2 rounded-full border bg-background/95 px-3 py-1.5 text-ui-meta shadow-lg">
+          <span className="flex items-center gap-2 rounded-full border bg-background/95 px-3 py-1.5 text-ui-meta shadow-lg non-touch:text-xs">
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
             Loading {loadingCardName}…
           </span>

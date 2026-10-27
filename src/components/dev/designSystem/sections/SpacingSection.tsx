@@ -17,8 +17,12 @@ export function SpacingSection() {
               style={{ borderRadius: `var(${r.token.split(" ")[0]})` }}
             />
             <div className="text-center">
-              <div className="font-mono text-ui-label">{r.cls}</div>
-              <div className="font-mono text-ui-meta text-muted-foreground">{r.value}</div>
+              <div className="font-mono text-ui-label non-touch:text-[11px] non-touch:leading-[inherit]">
+                {r.cls}
+              </div>
+              <div className="font-mono text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
+                {r.value}
+              </div>
             </div>
           </div>
         ))}
@@ -28,11 +32,13 @@ export function SpacingSection() {
       <Panel className="space-y-2">
         {SPACING.map((n) => (
           <div key={n} className="flex items-center gap-3">
-            <span className="w-16 shrink-0 font-mono text-ui-label text-muted-foreground">
+            <span className="w-16 shrink-0 font-mono text-ui-label text-muted-foreground non-touch:text-[11px] non-touch:leading-[inherit]">
               p-{n}
             </span>
             <div className="h-4 bg-primary" style={{ width: `${n * 0.25}rem` }} />
-            <span className="font-mono text-ui-meta text-muted-foreground">{n * 0.25}rem</span>
+            <span className="font-mono text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
+              {n * 0.25}rem
+            </span>
           </div>
         ))}
       </Panel>
@@ -40,8 +46,8 @@ export function SpacingSection() {
       <Subhead>Card sizes (px)</Subhead>
       <Panel>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[420px] text-left text-ui-label">
-            <thead className="text-ui-label uppercase tracking-wide text-muted-foreground">
+          <table className="w-full min-w-[420px] text-left text-ui-label non-touch:text-sm">
+            <thead className="text-ui-label uppercase tracking-wide text-muted-foreground non-touch:text-[11px] non-touch:leading-[inherit]">
               <tr>
                 <th className="pb-2 pr-4 font-semibold">Surface</th>
                 <th className="pb-2 pr-4 font-semibold">Dimensions</th>
@@ -51,11 +57,13 @@ export function SpacingSection() {
             <tbody>
               {CARD_SIZES.map((c) => (
                 <tr key={c.token} className="border-t border-border">
-                  <td className="py-2 pr-4 text-ui-label">{c.token}</td>
-                  <td className="py-2 pr-4 font-mono text-ui-meta text-muted-foreground">
+                  <td className="py-2 pr-4 text-ui-label non-touch:text-xs">{c.token}</td>
+                  <td className="py-2 pr-4 font-mono text-ui-meta text-muted-foreground non-touch:text-xs">
                     {c.dims}
                   </td>
-                  <td className="py-2 font-mono text-ui-meta text-muted-foreground">{c.where}</td>
+                  <td className="py-2 font-mono text-ui-meta text-muted-foreground non-touch:text-xs">
+                    {c.where}
+                  </td>
                 </tr>
               ))}
             </tbody>

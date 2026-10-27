@@ -83,7 +83,7 @@ export function TableRoomSidebar({
     <aside className="grid content-start gap-4 grid-cols-[repeat(auto-fit,minmax(min(100%,20rem),1fr))] xl:grid-cols-1">
       <section className="rounded-xl border bg-card/85 p-4 backdrop-blur-md">
         <h2 className="truncate font-serif text-xl font-semibold">{room.room_name}</h2>
-        <dl className="mt-3 space-y-3 text-ui-label">
+        <dl className="mt-3 space-y-3 text-ui-label non-touch:text-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <dt className="text-muted-foreground">Format</dt>
             <dd>
@@ -136,7 +136,7 @@ export function TableRoomSidebar({
                         >
                           {count} players
                           {blockedByFormat && (
-                            <span className="ml-2 text-ui-meta text-muted-foreground">
+                            <span className="ml-2 text-ui-meta text-muted-foreground non-touch:text-xs">
                               (Not available in "{room.format}")
                             </span>
                           )}
@@ -164,7 +164,7 @@ export function TableRoomSidebar({
                       onClick={copyPassword}
                       title={`Copy password`}
                       aria-label={`Copy password`}
-                      className="-my-1 min-h-7 w-7 touch:min-h-11 touch:min-w-11"
+                      className="-my-1 min-h-7 w-7 touch:min-h-11 touch:min-w-11 non-touch:h-7 non-touch:min-h-0"
                     >
                       {copiedPassword ? <Check /> : <Copy />}
                     </Button>
@@ -211,7 +211,7 @@ export function TableRoomSidebar({
       </section>
 
       <section className="rounded-xl border bg-card/85 p-4 backdrop-blur-md">
-        <h2 className="text-ui-label font-semibold">Table controls</h2>
+        <h2 className="text-ui-label font-semibold non-touch:text-sm">Table controls</h2>
         <div className="mt-3 grid gap-2">
           {inLobby && !isOpenFormat && !needsDeck && (
             <Button variant="outline" onClick={onOpenDeckDialog}>

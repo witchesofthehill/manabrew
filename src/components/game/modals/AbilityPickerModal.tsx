@@ -48,7 +48,9 @@ export function ActionPickerModal({
     <Modal maxWidth="max-w-4xl" onClose={pending ? undefined : onCancel}>
       <Modal.Header onClose={pending ? undefined : onCancel}>
         <h2 className="text-base font-semibold">{title}</h2>
-        <p className="text-ui-meta text-muted-foreground">{source.identity.name}</p>
+        <p className="text-ui-meta text-muted-foreground non-touch:text-xs">
+          {source.identity.name}
+        </p>
       </Modal.Header>
       <Modal.Body className="grid gap-4 md:grid-cols-[minmax(240px,320px)_minmax(0,1fr)]">
         <DialogCardInspector
@@ -58,14 +60,14 @@ export function ActionPickerModal({
           highlight={highlight}
         />
         <div className="min-w-0 space-y-3">
-          <p className="text-ui-body text-muted-foreground">
+          <p className="text-ui-body text-muted-foreground non-touch:text-xs">
             Inspect the card, then choose an available action. Viewing another face does not change
             the action you choose.
           </p>
           {error && (
             <p
               role="alert"
-              className="rounded-lg border border-destructive p-3 text-ui-body text-destructive"
+              className="rounded-lg border border-destructive p-3 text-ui-body text-destructive non-touch:text-sm"
             >
               {error}
             </p>
@@ -91,7 +93,7 @@ export function ActionPickerModal({
                 key={option.actionId ?? `${option.kind}-${index}`}
                 variant="outline"
                 disabled={pending}
-                className="h-auto min-h-12 w-full flex-wrap justify-between gap-3 whitespace-normal px-4 py-3 text-left hover:border-card-ring focus-visible:ring-card-ring"
+                className="h-auto min-h-12 w-full flex-wrap justify-between gap-3 whitespace-normal px-4 py-3 text-left hover:border-card-ring focus-visible:ring-card-ring non-touch:h-auto non-touch:min-h-12"
                 onPointerEnter={() => setHighlight(option.kind === "ability" ? option.label : "")}
                 onFocus={() => setHighlight(option.kind === "ability" ? option.label : "")}
                 onClick={() => {
@@ -110,13 +112,13 @@ export function ActionPickerModal({
               </Button>
             ))}
             {!options.length && (
-              <p role="status" className="p-4 text-ui-meta text-muted-foreground">
+              <p role="status" className="p-4 text-ui-meta text-muted-foreground non-touch:text-sm">
                 No actions are currently available for this card.
               </p>
             )}
           </div>
           {pending && (
-            <p role="status" className="text-ui-meta text-muted-foreground">
+            <p role="status" className="text-ui-meta text-muted-foreground non-touch:text-sm">
               Waiting for the game to respond…
             </p>
           )}

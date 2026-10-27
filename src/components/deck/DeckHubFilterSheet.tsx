@@ -24,18 +24,18 @@ export function DeckHubFilterSheet(props: DeckHubFilterSheetProps) {
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="outline" className="relative gap-2">
+        <Button variant="outline" className="relative gap-2 non-touch:h-10">
           <SlidersHorizontal className="h-4 w-4" />
           Filters
           {props.activeFilterCount > 0 && (
-            <span className="rounded-full bg-primary px-1.5 text-ui-meta text-primary-foreground">
+            <span className="rounded-full bg-primary px-1.5 text-ui-meta text-primary-foreground non-touch:text-xs">
               {props.activeFilterCount}
             </span>
           )}
         </Button>
       </SheetTrigger>
       <SheetContent className="flex w-full flex-col sm:max-w-md">
-        <SheetHeader className="pr-8">
+        <SheetHeader className="pr-8 non-touch:pr-8">
           <SheetTitle>Community filters</SheetTitle>
           <SheetDescription>Refine the published decks shown in the grid.</SheetDescription>
         </SheetHeader>

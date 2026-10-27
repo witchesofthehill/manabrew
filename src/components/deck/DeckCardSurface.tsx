@@ -52,11 +52,11 @@ export function DeckCardSurface({
   return (
     <div
       className={cn(
-        "group relative flex flex-col justify-end overflow-hidden rounded-lg border bg-muted transition-all hover:border-primary hover:ring-2 hover:ring-primary",
+        "group relative flex flex-col justify-end overflow-hidden rounded-lg border bg-muted transition-all hover:border-primary hover:ring-2 hover:ring-primary non-touch:block",
         variant === "list"
-          ? "min-h-40"
+          ? "min-h-40 non-touch:h-32 non-touch:min-h-0 non-touch:sm:h-36"
           : variant === "stage"
-            ? "aspect-[4/3] md:aspect-auto md:min-h-full"
+            ? "aspect-[4/3] md:aspect-auto md:min-h-full non-touch:md:h-full"
             : variant === "hero"
               ? "aspect-[4/3] sm:aspect-[16/7]"
               : "aspect-[4/3]",
@@ -87,24 +87,24 @@ export function DeckCardSurface({
         />
       </button>
       {topLeft && (
-        <div className="relative z-20 mb-auto ml-1.5 mt-1.5 min-h-11 max-w-[calc(100%-4.5rem)]">
+        <div className="relative z-20 mb-auto ml-1.5 mt-1.5 min-h-11 max-w-[calc(100%-4.5rem)] non-touch:absolute non-touch:left-1.5 non-touch:top-1.5 non-touch:ml-0 non-touch:mt-0 non-touch:mb-0 non-touch:min-h-0">
           {topLeft}
         </div>
       )}
       <span
         className={cn(
-          "pointer-events-none relative z-10 block px-2 pb-2 pt-14",
-          topLeft && "pt-3",
+          "pointer-events-none relative z-10 block px-2 pb-2 pt-14 non-touch:pt-8 non-touch:absolute non-touch:bottom-0 non-touch:left-0 non-touch:right-0",
+          topLeft && "pt-3 non-touch:pt-8",
           variant === "list" &&
-            "ml-24 flex flex-col justify-center px-3 pb-3 pr-14 pt-14 sm:ml-48 sm:px-4",
+            "ml-24 flex flex-col justify-center px-3 pb-3 pr-14 pt-14 sm:ml-48 sm:px-4 non-touch:pb-0 non-touch:pt-0 non-touch:inset-y-0 non-touch:left-32 non-touch:ml-0 non-touch:sm:left-48 non-touch:sm:ml-0",
         )}
       >
         <span
           className={cn(
-            "block truncate text-ui-label font-semibold text-text-on-tinted",
+            "block truncate text-ui-label font-semibold text-text-on-tinted non-touch:text-sm non-touch:leading-tight",
             DECK_NAME_SHADOW_CLASS,
-            variant === "list" && "text-foreground shadow-none",
-            variant === "hero" && "text-lg sm:text-2xl",
+            variant === "list" && "text-foreground shadow-none non-touch:text-base",
+            variant === "hero" && "text-lg sm:text-2xl non-touch:text-lg non-touch:sm:text-2xl",
             titleClassName,
           )}
           title={title}
@@ -115,9 +115,9 @@ export function DeckCardSurface({
           <button
             type="button"
             className={cn(
-              "pointer-events-auto relative block max-w-full truncate text-left text-ui-meta text-text-on-tinted/85 hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring touch:min-h-11 touch:min-w-11",
+              "pointer-events-auto relative block max-w-full truncate text-left text-ui-meta text-text-on-tinted/85 hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring touch:min-h-11 touch:min-w-11 non-touch:text-[11px] non-touch:leading-[inherit]",
               DECK_NAME_SHADOW_CLASS,
-              variant === "list" && "mt-1 text-muted-foreground shadow-none",
+              variant === "list" && "mt-1 text-muted-foreground shadow-none non-touch:text-xs",
             )}
             aria-label={subtitleAriaLabel}
             onClick={onSubtitleClick}
@@ -127,9 +127,9 @@ export function DeckCardSurface({
         ) : subtitle ? (
           <span
             className={cn(
-              "block truncate text-ui-meta text-text-on-tinted/85",
+              "block truncate text-ui-meta text-text-on-tinted/85 non-touch:text-[11px] non-touch:leading-[inherit]",
               DECK_NAME_SHADOW_CLASS,
-              variant === "list" && "mt-1 text-muted-foreground shadow-none",
+              variant === "list" && "mt-1 text-muted-foreground shadow-none non-touch:text-xs",
             )}
           >
             {subtitle}
@@ -138,7 +138,7 @@ export function DeckCardSurface({
         {supportingText && (
           <span
             className={cn(
-              "mt-1 block truncate text-ui-meta text-text-on-tinted/80",
+              "mt-1 block truncate text-ui-meta text-text-on-tinted/80 non-touch:text-[10px] non-touch:leading-[inherit]",
               DECK_NAME_SHADOW_CLASS,
               variant === "list" && "text-muted-foreground shadow-none",
             )}
@@ -150,7 +150,7 @@ export function DeckCardSurface({
         <span className="mt-1 flex flex-wrap items-center gap-1">{footer}</span>
         {variant === "list" && description && (
           <span
-            className="mt-2 line-clamp-1 text-ui-body text-muted-foreground"
+            className="mt-2 line-clamp-1 text-ui-body text-muted-foreground non-touch:text-xs"
             title={description}
           >
             {description}

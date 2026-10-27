@@ -1,4 +1,4 @@
-import { getUiControlHeight, getUiFontSize, UI_FONT_FAMILY } from "@/themes/typography";
+import { getUiControlHeight, getUiFontSize, UI_FONT_FAMILY, isTouchUi } from "@/themes/typography";
 import {
   Container,
   Graphics,
@@ -282,7 +282,7 @@ export class CommandZonePreviewLayer {
         style: {
           fill: hexToNum(this.theme.appTheme["popover-foreground"]),
           fontFamily: UI_FONT_FAMILY,
-          fontSize: getUiFontSize("label"),
+          fontSize: getUiFontSize("label", 10),
           fontWeight: "700",
         },
       });
@@ -512,23 +512,27 @@ export class CommandZonePreviewLayer {
   }
 
   private castButtonWidth(entry: PreviewEntry): number {
-    return Math.max(
-      CAST_BUTTON_WIDTH,
-      getUiControlHeight(),
-      entry.castButtonLabel.width + CAST_BUTTON_ICON_SIZE + 24,
-    );
+    return isTouchUi()
+      ? Math.max(
+          CAST_BUTTON_WIDTH,
+          getUiControlHeight(),
+          entry.castButtonLabel.width + CAST_BUTTON_ICON_SIZE + 24,
+        )
+      : CAST_BUTTON_WIDTH;
   }
 
   private paintCastButton(entry: PreviewEntry, hovered: boolean): void {
     const foreground = hovered
       ? this.theme.appTheme["primary-foreground"]
       : this.theme.appTheme["popover-foreground"];
-    entry.castButtonLabel.style.fontSize = getUiFontSize("label");
+    entry.castButtonLabel.style.fontSize = getUiFontSize("label", 10);
     const width = this.castButtonWidth(entry);
-    const height = Math.max(getUiControlHeight(), entry.castButtonLabel.height + 12);
+    const height = isTouchUi()
+      ? Math.max(getUiControlHeight(), entry.castButtonLabel.height + 12)
+      : 22;
     entry.castButtonIcon.position.set(13, height / 2);
     entry.castButtonLabel.position.set(
-      CAST_BUTTON_ICON_SIZE + 16 + entry.castButtonLabel.width / 2,
+      isTouchUi() ? CAST_BUTTON_ICON_SIZE + 16 + entry.castButtonLabel.width / 2 : 37,
       height / 2,
     );
     (entry.castButton.hitArea as Rectangle).set(0, 0, width, height);

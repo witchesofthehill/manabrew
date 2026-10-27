@@ -154,7 +154,7 @@ export function LimitedManaDialog({ sessionKey, session, main, targetMainSize, o
             setTarget(Math.max(0, Math.min(targetMainSize, Number(event.target.value) || 0)))
           }
         />
-        <table className="w-full text-ui-meta">
+        <table className="w-full text-ui-meta non-touch:text-sm">
           <thead>
             <tr className="text-left text-muted-foreground">
               <th>Basic</th>
@@ -174,19 +174,19 @@ export function LimitedManaDialog({ sessionKey, session, main, targetMainSize, o
             ))}
           </tbody>
         </table>
-        <p className="text-ui-meta text-muted-foreground">
+        <p className="text-ui-meta text-muted-foreground non-touch:text-xs">
           {preview.lands} acquired lands retained. Preview:{" "}
           {preview.retained.length +
             Object.values(preview.allocation).reduce((sum, count) => sum + count, 0)}{" "}
           main cards. A multicolor land counts as a source for each color it produces.
         </p>
         {preview.unknown > 0 && (
-          <p role="status" className="text-ui-meta text-warning">
+          <p role="status" className="text-ui-meta text-warning non-touch:text-sm">
             Waiting for details of {preview.unknown} main cards.
           </p>
         )}
         {!preview.total && (
-          <p className="text-ui-body text-muted-foreground">
+          <p className="text-ui-body text-muted-foreground non-touch:text-sm">
             No colored mana costs found. Add the basics you want manually.
           </p>
         )}

@@ -32,7 +32,7 @@ export function CommanderDamageDialog({
             <GameIcon icon="crossed-swords" className="size-5" /> Commander damage
           </DialogTitle>
         </DialogHeader>
-        <div className="flex flex-wrap items-center justify-center gap-2.5 text-ui-label">
+        <div className="flex flex-wrap items-center justify-center gap-2.5 text-ui-label non-touch:text-sm">
           <span className="flex min-w-0 items-center gap-1.5 break-words font-semibold">
             <span
               className="size-3 shrink-0 rounded-full"
@@ -134,11 +134,14 @@ function DamageStepper({
         >
           <CommanderArt refs={[commander ?? null, null]} variant="avatar" className="size-full" />
         </div>
-        <span className="min-w-0 flex-1 break-words text-ui-label font-medium" title={label}>
+        <span
+          className="min-w-0 flex-1 break-words text-ui-label font-medium non-touch:text-sm non-touch:truncate"
+          title={label}
+        >
           {label}
         </span>
         {lethal && (
-          <span className="rounded-full bg-destructive px-2 py-0.5 text-ui-meta font-bold uppercase tracking-wide text-destructive-foreground">
+          <span className="rounded-full bg-destructive px-2 py-0.5 text-ui-meta font-bold uppercase tracking-wide text-destructive-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
             Lethal
           </span>
         )}

@@ -95,7 +95,7 @@ function CommanderPickerForm({
           onQueryChange={(query) => updateSlot(0, { query })}
           onPick={(pick) => updateSlot(0, { pick })}
         />
-        <label className="flex cursor-pointer items-center gap-2 text-ui-label touch:min-h-11">
+        <label className="flex cursor-pointer items-center gap-2 text-ui-label touch:min-h-11 non-touch:text-sm">
           <input
             type="checkbox"
             checked={partnerEnabled}
@@ -114,7 +114,7 @@ function CommanderPickerForm({
           />
         )}
       </div>
-      <DialogFooter className="gap-2">
+      <DialogFooter className="gap-2 non-touch:gap-2">
         <Button variant="ghost" onClick={clearAll}>
           Clear
         </Button>
@@ -181,7 +181,9 @@ function CommanderSlot({ slotLabel, query, pick, onQueryChange, onPick }: Comman
               draggable={false}
             />
           )}
-          <div className="min-w-0 flex-1 break-words text-ui-label font-medium">{pick.name}</div>
+          <div className="min-w-0 flex-1 break-words text-ui-label font-medium non-touch:text-sm non-touch:truncate">
+            {pick.name}
+          </div>
           <Button
             variant="ghost"
             size="icon"
@@ -213,7 +215,7 @@ function CommanderSlot({ slotLabel, query, pick, onQueryChange, onPick }: Comman
           <Loader2 className="pointer-events-none absolute right-2 top-1/2 size-4 -translate-y-1/2 animate-spin text-muted-foreground" />
         )}
       </div>
-      {error && <p className="text-ui-meta text-destructive">{error}</p>}
+      {error && <p className="text-ui-meta text-destructive non-touch:text-xs">{error}</p>}
       {showResults && (
         <ul className="max-h-56 space-y-1 overflow-y-auto overscroll-contain rounded-md border border-border bg-popover p-1">
           {results.map((card) => {
@@ -228,7 +230,7 @@ function CommanderSlot({ slotLabel, query, pick, onQueryChange, onPick }: Comman
                 <button
                   type="button"
                   className={cn(
-                    "flex w-full items-center gap-3 rounded-sm px-2 py-1.5 text-left text-ui-label hover:bg-accent touch:min-h-11 touch:min-w-11",
+                    "flex w-full items-center gap-3 rounded-sm px-2 py-1.5 text-left text-ui-label hover:bg-accent touch:min-h-11 touch:min-w-11 non-touch:text-sm",
                   )}
                   onClick={() =>
                     onPick({
@@ -248,7 +250,7 @@ function CommanderSlot({ slotLabel, query, pick, onQueryChange, onPick }: Comman
                   )}
                   <div className="flex min-w-0 flex-col break-words">
                     <span className="font-medium">{displayName}</span>
-                    <span className="text-ui-meta text-muted-foreground">
+                    <span className="text-ui-meta text-muted-foreground non-touch:text-xs">
                       {scryfallDisplayTypeLine(card)} · {card.set.toUpperCase()}
                     </span>
                   </div>

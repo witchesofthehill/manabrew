@@ -37,7 +37,7 @@ export function NavSheet({ disabled = false }: NavSheetProps) {
 
   function renderRow({ to, label, icon: Icon, external }: NavDestination) {
     const className = cn(
-      "flex min-h-11 w-full items-center gap-3 rounded-lg border border-transparent px-3 py-2 text-left text-ui-label transition-colors",
+      "flex min-h-11 w-full items-center gap-3 rounded-lg border border-transparent px-3 py-2 text-left text-ui-label transition-colors non-touch:text-sm non-touch:h-11 non-touch:min-h-0 non-touch:py-0",
       !external && isActive(to)
         ? "border-selection-border bg-selection font-medium text-selection-foreground"
         : "text-foreground/85 hover:bg-muted/60",
@@ -79,7 +79,7 @@ export function NavSheet({ disabled = false }: NavSheetProps) {
       <Button
         size="icon"
         variant="ghost"
-        className="min-h-10 w-10 md:pointer-fine:hidden touch:min-h-11 touch:min-w-11"
+        className="min-h-10 w-10 md:pointer-fine:hidden touch:min-h-11 touch:min-w-11 non-touch:h-10 non-touch:min-h-0"
         disabled={disabled}
         onClick={() => setOpen(true)}
         title={`Menu`}
@@ -93,7 +93,7 @@ export function NavSheet({ disabled = false }: NavSheetProps) {
           {renderRow({ to: ROUTES.PLAY, label: `Play`, icon: Swords })}
           {direct.map(renderRow)}
           <div className="pt-3">
-            <p className="px-3 pb-1 text-ui-meta font-semibold uppercase tracking-wider text-muted-foreground">
+            <p className="px-3 pb-1 text-ui-meta font-semibold uppercase tracking-wider text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
               {`More`}
             </p>
             {more.map(renderRow)}

@@ -118,7 +118,7 @@ export function GameBoardAccessibility({
   const untappable = new Set(untappableCardIds ?? []);
   const [focused, setFocused] = useState(false);
   const controlClass =
-    "w-full min-h-8 touch:min-h-11 touch:min-w-11 rounded border border-border bg-background px-3 py-2 text-left text-ui-label text-foreground whitespace-normal break-words focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+    "w-full min-h-8 touch:min-h-11 touch:min-w-11 rounded border border-border bg-background px-3 py-2 text-left text-ui-label text-foreground whitespace-normal break-words focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring non-touch:text-sm non-touch:min-h-0";
 
   return (
     <nav
@@ -138,7 +138,7 @@ export function GameBoardAccessibility({
       <section aria-labelledby="accessible-players-heading" className="space-y-1.5">
         <h3
           id="accessible-players-heading"
-          className="text-ui-meta font-semibold text-muted-foreground"
+          className="text-ui-meta font-semibold text-muted-foreground non-touch:text-sm"
         >
           Players
         </h3>
@@ -275,7 +275,7 @@ export function GameBoardAccessibility({
         <div className="flex items-center justify-between gap-2">
           <h3
             id="accessible-stack-heading"
-            className="text-ui-meta font-semibold text-muted-foreground"
+            className="text-ui-meta font-semibold text-muted-foreground non-touch:text-sm"
           >
             Stack, {stack.cards.length} object{stack.cards.length === 1 ? "" : "s"}
           </h3>
@@ -299,7 +299,7 @@ export function GameBoardAccessibility({
               Target {name}
             </button>
           ) : (
-            <p key={item.id} className="text-ui-meta text-muted-foreground">
+            <p key={item.id} className="text-ui-meta text-muted-foreground non-touch:text-sm">
               {name}, {position}
             </p>
           );
@@ -309,7 +309,7 @@ export function GameBoardAccessibility({
       <section aria-labelledby="accessible-zones-heading" className="space-y-1.5">
         <h3
           id="accessible-zones-heading"
-          className="text-ui-meta font-semibold text-muted-foreground"
+          className="text-ui-meta font-semibold text-muted-foreground non-touch:text-sm"
         >
           Zones
         </h3>
@@ -328,7 +328,10 @@ export function GameBoardAccessibility({
                 {zone.count === 1 ? "" : "s"}
               </button>
             ) : (
-              <p key={`${player.id}:${zone.key}`} className="text-ui-meta text-muted-foreground">
+              <p
+                key={`${player.id}:${zone.key}`}
+                className="text-ui-meta text-muted-foreground non-touch:text-sm"
+              >
                 {player.isSelf ? "Your" : `${player.name}'s`} {zoneName}, {zone.count} card
                 {zone.count === 1 ? "" : "s"}
               </p>

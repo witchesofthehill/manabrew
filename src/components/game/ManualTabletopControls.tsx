@@ -158,21 +158,21 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
     .slice(0, 8);
   const humanPlayerId = gameView.players[0]?.id;
   return (
-    <div className="absolute right-[calc(0.5rem+var(--safe-area-inset-right))] bottom-[calc(0.5rem+var(--safe-area-inset-bottom))] z-30 w-[320px] max-w-[calc(100%-1rem-var(--safe-area-inset-left)-var(--safe-area-inset-right))] max-h-[60%] overflow-y-auto overscroll-contain rounded-md border bg-background/95 text-ui-body shadow-sm backdrop-blur">
+    <div className="absolute right-[calc(0.5rem+var(--safe-area-inset-right))] bottom-[calc(0.5rem+var(--safe-area-inset-bottom))] z-30 w-[320px] max-w-[calc(100%-1rem-var(--safe-area-inset-left)-var(--safe-area-inset-right))] max-h-[60%] overflow-y-auto overscroll-contain rounded-md border bg-background/95 text-ui-body shadow-sm backdrop-blur non-touch:text-base">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2">
         <Badge variant="outline" className="gap-1.5">
           <Sparkles className="h-3 w-3" />
           Tabletop
         </Badge>
         <div className="flex items-center gap-2">
-          <span className="text-ui-meta text-muted-foreground">
+          <span className="text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
             {gameView.battlefield.length} permanents
           </span>
           <Button
             type="button"
             variant="ghost"
             size="icon"
-            className="text-destructive hover:text-destructive"
+            className="text-destructive hover:text-destructive non-touch:h-6 non-touch:w-6"
             title={`Exit tabletop`}
             onClick={() => void useGameStore.getState().endGame()}
           >
@@ -182,13 +182,13 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
       </div>
 
       <div className="space-y-2 p-3">
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,11rem),1fr))] gap-2">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,11rem),1fr))] gap-2 non-touch:grid-cols-2">
           {gameView.players.map((player) => (
             <div key={player.id} className="rounded-md border p-2">
               <button
                 type="button"
                 className={cn(
-                  "block min-h-8 touch:min-h-11 touch:min-w-11 max-w-full break-words text-left text-ui-label font-semibold",
+                  "block min-h-8 touch:min-h-11 touch:min-w-11 max-w-full break-words text-left text-ui-label font-semibold non-touch:text-xs non-touch:min-h-0 non-touch:truncate",
                   controllerId === player.id && "text-primary",
                 )}
                 onClick={() => setControllerId(player.id)}
@@ -196,7 +196,7 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
                 {player.name}
               </button>
               <div className="mt-2 grid grid-cols-[1fr_auto_auto] items-center gap-1">
-                <div className="flex items-center gap-1 text-ui-meta">
+                <div className="flex items-center gap-1 text-ui-meta non-touch:text-xs">
                   <Heart className="h-3 w-3 text-life" />
                   <span className="tabular-nums">{player.life}</span>
                 </div>
@@ -230,7 +230,7 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
                 </Button>
               </div>
               <div className="mt-1 grid grid-cols-[1fr_auto_auto] items-center gap-1">
-                <div className="flex items-center gap-1 text-ui-meta">
+                <div className="flex items-center gap-1 text-ui-meta non-touch:text-xs">
                   <Skull className="h-3 w-3 text-poison" />
                   <span className="tabular-nums">{player.poison}</span>
                 </div>
@@ -268,7 +268,7 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-auto gap-1 whitespace-normal px-1.5"
+                  className="h-auto gap-1 whitespace-normal px-1.5 non-touch:h-7 non-touch:text-[10px] non-touch:leading-[inherit]"
                   disabled={player.libraryCount <= 0}
                   title={`Draw a card`}
                   onClick={() =>
@@ -285,7 +285,7 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
                   type="button"
                   variant="outline"
                   size="icon"
-                  className="w-full"
+                  className="w-full non-touch:h-7"
                   disabled={player.libraryCount <= 0}
                   title={`Put top library card onto battlefield`}
                   onClick={() =>
@@ -301,7 +301,7 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
                   type="button"
                   variant="outline"
                   size="icon"
-                  className="w-full"
+                  className="w-full non-touch:h-7"
                   disabled={player.libraryCount < 2}
                   title={`Shuffle library`}
                   onClick={() =>
@@ -318,22 +318,27 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
           ))}
         </div>
 
-        <div className="grid grid-cols-2 gap-1.5">
-          <div ref={searchContainerRef} className="relative col-span-2 min-w-0">
+        <div className="grid grid-cols-2 gap-1.5 non-touch:grid-cols-[1fr_auto_auto]">
+          <div
+            ref={searchContainerRef}
+            className="relative col-span-2 min-w-0 non-touch:col-span-1"
+          >
             <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={cardName}
               onChange={(event) => handleCardNameChange(event.target.value)}
               onFocus={() => searchResults.length > 0 && setSearchOpen(true)}
               placeholder={`Search Scryfall`}
-              className="pl-7"
+              className="pl-7 non-touch:h-8 non-touch:text-xs"
             />
             {searchOpen && (
               <div className="absolute left-0 right-0 top-[calc(100%+0.25rem)] z-50 max-h-56 overflow-y-auto rounded-md border bg-popover p-1 shadow-lg">
                 {searching && searchResults.length === 0 ? (
-                  <div className="px-2 py-1.5 text-ui-meta text-muted-foreground">Searching...</div>
+                  <div className="px-2 py-1.5 text-ui-meta text-muted-foreground non-touch:text-xs">
+                    Searching...
+                  </div>
                 ) : searchResults.length === 0 ? (
-                  <div className="px-2 py-1.5 text-ui-meta text-muted-foreground">
+                  <div className="px-2 py-1.5 text-ui-meta text-muted-foreground non-touch:text-xs">
                     No cards found
                   </div>
                 ) : (
@@ -341,11 +346,13 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
                     <button
                       key={card.id}
                       type="button"
-                      className="flex min-h-8 touch:min-h-11 touch:min-w-11 w-full flex-wrap items-center justify-between gap-2 rounded px-2 py-1.5 text-left text-ui-label hover:bg-muted"
+                      className="flex min-h-8 touch:min-h-11 touch:min-w-11 w-full flex-wrap items-center justify-between gap-2 rounded px-2 py-1.5 text-left text-ui-label hover:bg-muted non-touch:text-xs non-touch:min-h-0"
                       onClick={() => selectSearchResult(card)}
                     >
-                      <span className="break-words font-medium">{scryfallDisplayName(card)}</span>
-                      <span className="shrink-0 text-ui-meta uppercase text-muted-foreground">
+                      <span className="break-words font-medium non-touch:truncate">
+                        {scryfallDisplayName(card)}
+                      </span>
+                      <span className="shrink-0 text-ui-meta uppercase text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
                         {card.set}
                       </span>
                     </button>
@@ -380,7 +387,7 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
 
         {permanents.length > 0 && (
           <div className="space-y-1.5">
-            <div className="flex items-center justify-between text-ui-meta uppercase tracking-wide text-muted-foreground">
+            <div className="flex items-center justify-between text-ui-meta uppercase tracking-wide text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
               <span>Battlefield</span>
               <span>{permanents.length}</span>
             </div>
@@ -388,9 +395,9 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
               {permanents.map((card) => (
                 <div
                   key={card.id}
-                  className="grid grid-cols-4 items-center gap-1 rounded-md border px-2 py-1.5"
+                  className="grid grid-cols-4 items-center gap-1 rounded-md border px-2 py-1.5 non-touch:grid-cols-[1fr_repeat(4,auto)]"
                 >
-                  <span className="col-span-4 break-words text-ui-label font-medium">
+                  <span className="col-span-4 break-words text-ui-label font-medium non-touch:text-xs non-touch:col-span-1 non-touch:truncate">
                     {card.identity.name}
                   </span>
                   <Button

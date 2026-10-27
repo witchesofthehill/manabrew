@@ -113,7 +113,7 @@ function GalleryRow({
   if (!entry) {
     return (
       <div
-        className="flex items-center justify-center rounded border border-dashed border-muted text-ui-caption text-muted-foreground"
+        className="flex items-center justify-center rounded border border-dashed border-muted text-ui-caption text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]"
         style={{ width, height: width * (98 / 70) }}
       >
         …
@@ -193,7 +193,7 @@ function CardSpecimens() {
             </Button>
           ))}
         </div>
-        <label className="flex items-center gap-2 text-ui-label text-muted-foreground touch:min-h-11">
+        <label className="flex items-center gap-2 text-ui-label text-muted-foreground touch:min-h-11 non-touch:text-sm">
           <input
             type="checkbox"
             className="touch:min-h-11 touch:min-w-11"
@@ -205,7 +205,7 @@ function CardSpecimens() {
       </header>
 
       <section className="space-y-3">
-        <h2 className="text-ui-label font-semibold text-muted-foreground">
+        <h2 className="text-ui-label font-semibold text-muted-foreground non-touch:text-sm">
           Battlefield size (70×98)
         </h2>
         <div className="flex flex-wrap gap-4">
@@ -216,14 +216,16 @@ function CardSpecimens() {
               style={{ width: Math.max(128, showReal ? 70 * 2 + 8 : 0) }}
             >
               <GalleryRow spec={spec} variant={variant} width={70} showReal={showReal} />
-              <span className="text-ui-meta text-muted-foreground text-center">{spec.label}</span>
+              <span className="text-ui-meta text-muted-foreground text-center non-touch:text-[10px] non-touch:leading-tight">
+                {spec.label}
+              </span>
             </div>
           ))}
         </div>
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-ui-label font-semibold text-muted-foreground">
+        <h2 className="text-ui-label font-semibold text-muted-foreground non-touch:text-sm">
           3× preview (210×294) — same component, crisp text
         </h2>
         <div className="flex flex-wrap gap-6">
@@ -234,7 +236,9 @@ function CardSpecimens() {
               style={{ width: Math.max(294, showReal ? 210 * 2 + 8 : 0) }}
             >
               <GalleryRow spec={spec} variant={variant} width={210} showReal={showReal} />
-              <span className="text-ui-meta text-muted-foreground">{spec.label}</span>
+              <span className="text-ui-meta text-muted-foreground non-touch:text-xs">
+                {spec.label}
+              </span>
             </div>
           ))}
         </div>

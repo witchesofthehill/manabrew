@@ -33,7 +33,7 @@ export function IronsmithUnsupportedDeckModal() {
             Ironsmith can&apos;t run this deck yet
           </DialogTitle>
         </DialogHeader>
-        <p className="text-ui-body text-muted-foreground">
+        <p className="text-ui-body text-muted-foreground non-touch:text-sm">
           Ironsmith is an experimental engine with partial card support. These cards aren&apos;t
           implemented yet, so the match can&apos;t start. Swap them out, or pick a different engine.
         </p>
@@ -41,13 +41,13 @@ export function IronsmithUnsupportedDeckModal() {
           {groups.map(({ player, cards }) => (
             <div key={player} className="space-y-1">
               {multiPlayer && (
-                <h3 className="text-ui-meta font-semibold uppercase tracking-wide text-muted-foreground">
+                <h3 className="text-ui-meta font-semibold uppercase tracking-wide text-muted-foreground non-touch:text-xs">
                   {player}
                 </h3>
               )}
               <ul className="space-y-0.5">
                 {cards.map((card) => (
-                  <li key={card} className="text-ui-label text-foreground">
+                  <li key={card} className="text-ui-label text-foreground non-touch:text-sm">
                     {card}
                   </li>
                 ))}

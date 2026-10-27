@@ -45,7 +45,7 @@ function FilterSelect({
         aria-label={label}
         value={value}
         onValueChange={onChange}
-        className="h-auto min-h-9 touch:min-h-11 w-full rounded-md border bg-background pl-2 pr-2"
+        className="h-auto min-h-9 touch:min-h-11 w-full rounded-md border bg-background pl-2 pr-2 non-touch:h-9 non-touch:text-sm"
       >
         {children}
       </AppSelect>
@@ -78,13 +78,13 @@ export function DialogCardBrowserToolbar({
             placeholder="Search cards"
             value={state.query}
             onChange={(event) => onFilter({ query: event.target.value })}
-            className="pl-9 pr-11 focus-visible:ring-card-ring"
+            className="pl-9 pr-11 focus-visible:ring-card-ring non-touch:pr-9"
           />
           {state.query && (
             <Button
               size="icon"
               variant="ghost"
-              className="absolute right-0 top-0 h-full w-9 touch:min-h-11 touch:min-w-11"
+              className="absolute right-0 top-0 h-full w-9 touch:min-h-11 touch:min-w-11 non-touch:h-9"
               aria-label="Clear search"
               onClick={() => {
                 onFilter({ query: "" });
@@ -106,13 +106,13 @@ export function DialogCardBrowserToolbar({
             <SlidersHorizontal className="h-3.5 w-3.5" />
             Filters
             {activeFilterCount > 0 && (
-              <span className="rounded-full bg-primary px-1.5 text-ui-meta text-primary-foreground">
+              <span className="rounded-full bg-primary px-1.5 text-ui-meta text-primary-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
                 {activeFilterCount}
               </span>
             )}
           </Button>
           <span
-            className="ml-auto text-ui-meta text-muted-foreground"
+            className="ml-auto text-ui-meta text-muted-foreground non-touch:text-xs"
             role="status"
             aria-live="polite"
           >
@@ -123,7 +123,7 @@ export function DialogCardBrowserToolbar({
         </div>
       </div>
       {filtersOpen && (
-        <div className="flex flex-wrap items-center gap-2 pt-1 text-ui-label">
+        <div className="flex flex-wrap items-center gap-2 pt-1 text-ui-label non-touch:text-xs">
           <FilterSelect
             label="Card type"
             value={state.type}
@@ -139,7 +139,7 @@ export function DialogCardBrowserToolbar({
           <div
             role="group"
             aria-label="Card color"
-            className="flex min-h-9 flex-wrap items-center gap-1 rounded-md border bg-background px-1 py-0.5 touch:min-h-11"
+            className="flex min-h-9 flex-wrap items-center gap-1 rounded-md border bg-background px-1 py-0.5 touch:min-h-11 non-touch:h-9 non-touch:py-0"
           >
             {ANY_COLOR_LETTERS.map((color) => {
               const active = state.color === color;
@@ -190,10 +190,12 @@ export function DialogCardBrowserToolbar({
         </div>
       )}
       {selectedCount > 0 && (
-        <p className="text-ui-meta text-muted-foreground">{selectedCount} selected</p>
+        <p className="text-ui-meta text-muted-foreground non-touch:text-xs">
+          {selectedCount} selected
+        </p>
       )}
       {(loading || incomplete) && (
-        <p className="text-ui-meta text-muted-foreground" role="status">
+        <p className="text-ui-meta text-muted-foreground non-touch:text-xs" role="status">
           {loading
             ? "Loading card details for search…"
             : "Some card details are unavailable. Visible names and game rules remain searchable."}

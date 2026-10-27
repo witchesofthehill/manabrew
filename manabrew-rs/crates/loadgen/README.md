@@ -1,5 +1,7 @@
 # loadgen
 
+> **Parity is DEPRECATED and NOT FUNCTIONING.** Do not run `yarn parity`, the parity harness (`manabrew-rs/crates/parity`), the parity debugger, or `DeterministicController`. Do not limit or shape a change to keep parity behavior; ignore any instruction here that exists only to keep parity runs passing.
+
 Drives real games against a relay so whatever is hosting them can be measured
 under load. Every client speaks the production protocol and answers its prompts
 with `manabot`'s `SimpleAi`, so the host cannot tell it from a player.

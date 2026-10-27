@@ -22,6 +22,11 @@ export interface BoardScenePresentation {
   overlayUsesManaGrid(): boolean;
   selectionBadgeX(zone: PlayZoneRect, badgeWidth: number): number;
   selfHudHandBlocker(hand: HandController | null): BlockingRect | null;
+  handInsets(
+    zone: PlayZoneRect,
+    hudField: PlayZoneRect | null,
+    actionPanelLeft: number | null,
+  ): { left: number; right: number };
   initializeHand(root: Container, callbacks: GameCanvasCallbacks, app: Application): void;
   syncHand(hand: HandController | null, dragHandler: DragHandler, peek: boolean): void;
   setHandOpen(open: boolean): boolean;

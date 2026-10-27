@@ -1,5 +1,7 @@
 # @manabrew/protocol
 
+> **Parity is DEPRECATED and NOT FUNCTIONING.** Do not run `yarn parity`, the parity harness (`manabrew-rs/crates/parity`), the parity debugger, or `DeterministicController`. Do not limit or shape a change to keep parity behavior; ignore any instruction here that exists only to keep parity runs passing.
+
 TypeScript types for the [Manabrew](https://manabrew.app) wire protocol — the
 engine↔client message contract used by the Manabrew Magic: The Gathering client.
 

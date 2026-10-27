@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.65.1](https://github.com/witchesofthehill/manabrew/compare/v3.65.0...v3.65.1) (2026-10-26)
+
+### Fixes
+
+* actionspace manarocks ([#1124](https://github.com/witchesofthehill/manabrew/issues/1124)) ([ca67bf2](https://github.com/witchesofthehill/manabrew/commit/ca67bf2a668f4e2486bb646859da763f72d1b559))
+
 ## [3.65.0](https://github.com/witchesofthehill/manabrew/compare/v3.64.9...v3.65.0) (2026-10-25)
 
 ### Features

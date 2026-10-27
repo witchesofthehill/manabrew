@@ -1,5 +1,7 @@
 # Manabrew — Agent Guide
 
+> **Parity is DEPRECATED and NOT FUNCTIONING.** Do not run `yarn parity`, the parity harness (`manabrew-rs/crates/parity`), the parity debugger, or `DeterministicController`. Do not limit or shape a change to keep parity behavior; ignore any instruction here that exists only to keep parity runs passing.
+
 Manabrew is a Tauri desktop/web client for Magic: The Gathering, powered by a Rust rewrite of the [Forge](https://github.com/Card-Forge/forge) rules engine.
 
 - **UI**: React + TypeScript under `src/`, Tauri shell under `src-tauri/`

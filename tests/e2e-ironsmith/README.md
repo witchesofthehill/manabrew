@@ -1,5 +1,7 @@
 # Ironsmith runtime — end-to-end tests
 
+> **Parity is DEPRECATED and NOT FUNCTIONING.** Do not run `yarn parity`, the parity harness (`manabrew-rs/crates/parity`), the parity debugger, or `DeterministicController`. Do not limit or shape a change to keep parity behavior; ignore any instruction here that exists only to keep parity runs passing.
+
 Playwright smoke tests that drive the **real web client against a real relay** to
 prove the Ironsmith trusted runtime works end to end: room creation, deck
 validation, the host WASM game, per-seat views, the prompt pipeline, bot

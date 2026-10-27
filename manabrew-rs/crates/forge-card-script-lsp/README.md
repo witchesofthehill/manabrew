@@ -1,5 +1,7 @@
 # forge-card-script-lsp
 
+> **Parity is DEPRECATED and NOT FUNCTIONING.** Do not run `yarn parity`, the parity harness (`manabrew-rs/crates/parity`), the parity debugger, or `DeterministicController`. Do not limit or shape a change to keep parity behavior; ignore any instruction here that exists only to keep parity runs passing.
+
 A [Language Server Protocol](https://microsoft.github.io/language-server-protocol/) server for the
 **Forge card-script DSL** (Magic: The Gathering card definitions). It is built on
 [`forge-card-script`](https://crates.io/crates/forge-card-script) and is part of the

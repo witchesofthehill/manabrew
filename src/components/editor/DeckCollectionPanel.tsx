@@ -198,7 +198,7 @@ export function DeckCollectionPanel({
             <Button
               size="xs"
               variant="ghost"
-              className="h-auto touch:min-h-11 touch:min-w-11 whitespace-normal text-ui-label non-touch:h-auto"
+              className="h-auto touch:min-h-11 touch:min-w-11 whitespace-normal text-ui-label non-touch:h-7 non-touch:whitespace-nowrap"
               onClick={onOptimizeOwnedPrintings}
             >
               <Sparkles className="h-3.5 w-3.5" /> Use owned printings
@@ -208,7 +208,7 @@ export function DeckCollectionPanel({
             <Button
               size="xs"
               variant="ghost"
-              className="h-auto touch:min-h-11 touch:min-w-11 whitespace-normal text-ui-label non-touch:h-auto"
+              className="h-auto touch:min-h-11 touch:min-w-11 whitespace-normal text-ui-label non-touch:h-7 non-touch:whitespace-nowrap"
               onClick={exportMissing}
             >
               <Download className="h-3.5 w-3.5" /> Missing CSV

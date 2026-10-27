@@ -104,7 +104,7 @@ export function LimitedSavedSessions({ disabled, onResume }: LimitedSavedSession
           {visible.map((session) => (
             <li
               key={session.sessionId}
-              className="grid gap-2 rounded-md border p-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center"
+              className="grid gap-2 rounded-md border p-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center non-touch:sm:grid-cols-[1fr_auto] non-touch:sm:items-center"
             >
               <div className="min-w-0">
                 <p className="break-words text-ui-label font-medium non-touch:text-sm">

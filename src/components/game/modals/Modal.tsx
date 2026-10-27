@@ -36,7 +36,7 @@ export function Modal({
   onClose,
   ariaLabel,
   maxWidth = "max-w-2xl",
-  maxHeight = "max-h-full",
+  maxHeight = "max-h-full non-touch:max-h-[min(90dvh,100%)]",
   className,
   backdropClassName,
 }: ModalProps) {
@@ -143,7 +143,7 @@ export function Modal({
     <div
       style={{ zIndex: MODAL_BASE_Z_INDEX }}
       className={cn(
-        "fixed left-[var(--visual-viewport-left,0px)] top-[var(--visual-viewport-top,0px)] flex h-[var(--visual-viewport-height,100dvh)] w-[var(--visual-viewport-width,100%)] min-h-0 flex-col items-center justify-center overflow-hidden bg-black/60 backdrop-blur-sm [padding-bottom:max(0.5rem,var(--safe-area-inset-bottom))] pl-[var(--safe-area-inset-left)] pr-[var(--safe-area-inset-right)] [padding-top:max(0.5rem,var(--safe-area-inset-top))]",
+        "fixed left-[var(--visual-viewport-left,0px)] top-[var(--visual-viewport-top,0px)] flex h-[var(--visual-viewport-height,100dvh)] w-[var(--visual-viewport-width,100%)] min-h-0 flex-col non-touch:flex-row items-center justify-center overflow-hidden bg-black/60 backdrop-blur-sm [padding-bottom:max(0.5rem,var(--safe-area-inset-bottom))] pl-[var(--safe-area-inset-left)] pr-[var(--safe-area-inset-right)] [padding-top:max(0.5rem,var(--safe-area-inset-top))]",
         isTouch && isGameActive && "game-touch-surface",
         backdropClassName,
       )}
@@ -160,7 +160,7 @@ export function Modal({
         aria-labelledby={ariaLabel ? undefined : titleId}
         tabIndex={-1}
         className={cn(
-          "relative bg-card border border-border rounded-xl shadow-2xl flex flex-col w-[calc(100%-1.5rem)] mx-3 min-h-0 overflow-hidden text-ui-body non-touch:text-base",
+          "relative bg-card border border-border rounded-xl shadow-2xl flex flex-col w-[calc(100%-1.5rem)] mx-3 min-h-0 overflow-hidden touch:text-ui-body",
           maxWidth,
           maxHeight || "max-h-full",
           className,
@@ -258,7 +258,7 @@ function ModalBody({ children, className }: { children: ReactNode; className?: s
   return (
     <div
       className={cn(
-        "min-h-20 overflow-y-auto overscroll-contain p-4 flex-1 text-ui-body break-words non-touch:text-base non-touch:min-h-0",
+        "min-h-0 touch:min-h-20 overflow-y-auto overscroll-contain p-4 flex-1 touch:text-ui-body break-words",
         className,
       )}
     >
@@ -270,7 +270,7 @@ function ModalFooter({ children, className }: { children: ReactNode; className?:
   return (
     <div
       className={cn(
-        "flex flex-wrap items-center justify-end gap-2 px-4 py-3 border-t shrink-0 touch:[&_button]:h-auto [&_button]:whitespace-normal [&_button]:break-words touch:[&_button]:min-h-11 touch:[&_button]:min-w-11",
+        "flex flex-wrap items-center justify-end gap-2 px-4 py-3 border-t shrink-0 touch:[&_button]:h-auto touch:[&_button]:whitespace-normal touch:[&_button]:break-words touch:[&_button]:min-h-11 touch:[&_button]:min-w-11",
         className,
       )}
     >

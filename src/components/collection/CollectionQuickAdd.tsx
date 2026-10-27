@@ -143,6 +143,7 @@ export function CollectionQuickAdd({
             <Button
               variant="outline"
               size="icon"
+              className="non-touch:h-8 non-touch:w-8"
               onClick={() => setQuantity((count) => Math.max(1, count - 1))}
             >
               <Minus className="h-3.5 w-3.5" />
@@ -154,7 +155,12 @@ export function CollectionQuickAdd({
               className="w-16 text-center font-mono non-touch:h-8"
               onChange={(event) => setQuantity(Math.max(1, Number(event.target.value) || 1))}
             />
-            <Button variant="outline" size="icon" onClick={() => setQuantity((count) => count + 1)}>
+            <Button
+              variant="outline"
+              size="icon"
+              className="non-touch:h-8 non-touch:w-8"
+              onClick={() => setQuantity((count) => count + 1)}
+            >
               <Plus className="h-3.5 w-3.5" />
             </Button>
             <Button
@@ -199,11 +205,11 @@ export function CollectionQuickAdd({
                       className="h-11 w-8 shrink-0 rounded"
                     />
                   )}
-                  <span className="min-w-0 flex-1 non-touch:text-xs">
-                    <span className="block break-words text-ui-label font-medium">
+                  <span className="min-w-0 flex-1 non-touch:contents">
+                    <span className="block break-words text-ui-label font-medium non-touch:min-w-0 non-touch:flex-1 non-touch:truncate non-touch:text-xs">
                       {displayName}
                     </span>
-                    <span className="block text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
+                    <span className="block text-ui-meta text-muted-foreground non-touch:shrink-0 non-touch:text-[10px] non-touch:leading-[inherit]">
                       {getCount(card.name)} owned
                     </span>
                   </span>

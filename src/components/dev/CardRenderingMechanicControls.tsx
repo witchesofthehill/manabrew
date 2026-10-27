@@ -187,7 +187,7 @@ export function CardRenderingMechanicControls({
               size="sm"
               aria-pressed={selected}
               className={cn(
-                "h-auto whitespace-normal py-2 text-left non-touch:h-auto non-touch:py-2",
+                "h-auto whitespace-normal py-2 text-left non-touch:h-8 non-touch:py-0 non-touch:whitespace-nowrap non-touch:text-center",
                 selected && DEV_CONTROL_ACTIVE,
               )}
               onClick={() => onChange({ ...value, ...state })}

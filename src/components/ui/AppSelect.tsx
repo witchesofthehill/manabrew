@@ -72,7 +72,7 @@ export function AppSelect({
           disabled={disabled}
           {...buttonProps}
         >
-          <span className="flex min-w-0 items-center gap-2 whitespace-normal text-left break-words">
+          <span className="flex min-w-0 items-center gap-2 touch:whitespace-normal touch:text-left touch:break-words non-touch:truncate">
             {selected?.props.children}
           </span>
           <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />

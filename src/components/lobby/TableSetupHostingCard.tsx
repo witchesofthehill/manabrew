@@ -167,7 +167,7 @@ export function TableSetupHostingCard({
                   type="button"
                   onClick={() => onReconnectTimeoutSChange(seconds)}
                   className={cn(
-                    "flex min-h-10 flex-1 items-center justify-center rounded-lg border transition-colors touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal non-touch:h-10 non-touch:min-h-0",
+                    "flex min-h-10 flex-1 items-center justify-center rounded-lg border transition-colors touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal non-touch:h-10 non-touch:min-h-0 non-touch:text-[length:inherit] non-touch:leading-[inherit]",
                     reconnectTimeoutS === seconds
                       ? "border-primary bg-primary/5 text-primary"
                       : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground",
@@ -206,7 +206,7 @@ function EngineOption({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex flex-col items-start gap-0.5 rounded-lg p-2.5 text-left transition-colors touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal",
+        "flex flex-col items-start gap-0.5 rounded-lg p-2.5 text-left transition-colors touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal non-touch:text-[length:inherit] non-touch:leading-[inherit]",
         selected ? "bg-selection/15" : "hover:bg-muted/50",
       )}
     >

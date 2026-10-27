@@ -127,7 +127,7 @@ export function LimitedHandSampleWorkspace({
                     <Button
                       variant="selected"
                       size="sm"
-                      className="h-auto whitespace-normal text-left non-touch:h-auto"
+                      className="h-auto whitespace-normal text-left non-touch:h-8 non-touch:whitespace-nowrap non-touch:text-center"
                       onClick={() => toggleBottom(sample.cards[index])}
                     >
                       {order + 1}. {sample.cards[index].name} · Remove

@@ -365,7 +365,7 @@ export function SignInFlow({ prefill, deferHandleStep = false, onComplete }: Sig
               className="mt-0.5"
             />
             <span>
-              I agree to the{""}
+              I agree to the{" "}
               <a
                 href={`${DOCS_URL}/terms`}
                 target="_blank"
@@ -374,9 +374,8 @@ export function SignInFlow({ prefill, deferHandleStep = false, onComplete }: Sig
                 onClick={(e) => e.stopPropagation()}
               >
                 terms
-              </a>
-              {""}
-              and the{""}
+              </a>{" "}
+              and the{" "}
               <a
                 href={`${DOCS_URL}/privacy`}
                 target="_blank"

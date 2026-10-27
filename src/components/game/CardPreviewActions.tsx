@@ -39,12 +39,12 @@ export function CardPreviewActions({
               event.currentTarget.style.borderColor = "";
             }}
           >
-            <span className="mb-0.5 flex w-full flex-wrap items-center justify-between gap-1">
+            <span className="mb-0.5 flex w-full touch:flex-wrap items-center justify-between touch:gap-1">
               <span className="flex min-h-5 min-w-[22px] items-center justify-center rounded border border-border bg-muted px-1 text-ui-meta font-bold shadow-[0_1px_0_rgba(0,0,0,0.1)] non-touch:text-xs non-touch:h-5 non-touch:px-0">
                 {shortcut}
               </span>
               {action.cost && (
-                <span className="flex flex-wrap items-center gap-0.5 text-ui-meta opacity-90 non-touch:text-[11px] non-touch:leading-[inherit]">
+                <span className="flex touch:flex-wrap items-center gap-0.5 text-ui-meta opacity-90 non-touch:text-[11px] non-touch:leading-[inherit]">
                   <DynamicTextRender text={action.cost} />
                 </span>
               )}

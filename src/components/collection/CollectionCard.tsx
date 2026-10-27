@@ -50,20 +50,23 @@ export function CollectionCard({
         onMouseEnter={(event) => card && onHover(card, event)}
         onMouseLeave={onLeave}
       >
-        <div className="min-w-0 flex-1">
-          <span className="block truncate text-ui-label non-touch:text-xs" title={displayName}>
+        <div className="min-w-0 flex-1 non-touch:contents">
+          <span
+            className="block truncate text-ui-label non-touch:min-w-0 non-touch:flex-1 non-touch:text-[length:inherit] non-touch:leading-[inherit]"
+            title={displayName}
+          >
             {displayName}
           </span>
-          <div className="flex flex-wrap gap-x-3 text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
+          <div className="flex flex-wrap gap-x-3 text-ui-meta text-muted-foreground non-touch:contents non-touch:text-[10px] non-touch:leading-[inherit]">
             {setCode && collectorNumber && (
-              <span className="break-words uppercase">
+              <span className="break-words uppercase non-touch:text-xs">
                 {setCode} #{collectorNumber}
               </span>
             )}
             {foil !== undefined && <span>{foil ? `Foil` : `Non-foil`}</span>}
           </div>
         </div>
-        <label className="flex shrink-0 flex-col gap-1 text-ui-meta text-muted-foreground non-touch:text-xs">
+        <label className="flex shrink-0 flex-col gap-1 text-ui-meta text-muted-foreground non-touch:contents non-touch:text-xs">
           Owned
           {quantityInput}
         </label>
@@ -86,8 +89,8 @@ export function CollectionCard({
           </div>
         )}
       </div>
-      <div className="mt-2 space-y-2 non-touch:gap-2">
-        <span className="block min-w-0" title={displayName}>
+      <div className="mt-2 space-y-2 non-touch:flex non-touch:items-center non-touch:space-y-0 non-touch:gap-2">
+        <span className="block min-w-0 non-touch:flex-1" title={displayName}>
           <span className="block truncate text-ui-label font-medium non-touch:text-sm">
             {displayName}
           </span>
@@ -102,8 +105,8 @@ export function CollectionCard({
             </span>
           )}
         </span>
-        <label className="flex flex-wrap items-center justify-between gap-2 text-ui-meta text-muted-foreground">
-          Owned
+        <label className="flex flex-wrap items-center justify-between gap-2 text-ui-meta text-muted-foreground non-touch:contents">
+          <span className="non-touch:hidden">Owned</span>
           {quantityInput}
         </label>
       </div>

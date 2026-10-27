@@ -479,7 +479,7 @@ export function CreateGameDialog({
                         setSelectedFormat(format);
                       }}
                       className={cn(
-                        "w-full rounded-lg border p-2.5 text-left transition-colors touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal",
+                        "w-full rounded-lg border p-2.5 text-left transition-colors touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal non-touch:text-[length:inherit] non-touch:leading-[inherit]",
                         selectedFormat.id === format.id
                           ? "border-selection-border bg-selection"
                           : "border-border hover:bg-muted/60",
@@ -815,7 +815,7 @@ export function CreateGameDialog({
             ) : selectedDeckEntry ? (
               <div className="min-w-0">
                 <span className="block break-words text-ui-label text-muted-foreground non-touch:text-sm">
-                  Selected:{""}
+                  Selected:{" "}
                   <span className="font-medium text-foreground">{selectedDeckEntry.name}</span>
                 </span>
                 {!selectedDeckValidation.legal && (

@@ -87,7 +87,7 @@ export function GuestNameConflictModal() {
             Someone stole “{stolen}” from you. Ouch!
           </DialogTitle>
           <DialogDescription className="text-ui-body leading-relaxed non-touch:text-sm non-touch:leading-relaxed">
-            They claimed it as a permanent account handle. Track them down in the{""}
+            They claimed it as a permanent account handle. Track them down in the{" "}
             <span className="font-medium text-foreground">Multiplayer</span> tab and challenge them
             to a duel to reclaim your honor! Or don't - just grab another good name for now.
           </DialogDescription>
@@ -123,15 +123,14 @@ export function GuestNameConflictModal() {
             {busy ? `Claiming\u2026` : `Take this name`}
           </Button>
           <p className="text-center text-ui-meta text-muted-foreground non-touch:text-xs">
-            Tip:{""}
+            Tip:{" "}
             <button
               type="button"
               className="font-medium text-primary underline-offset-2 hover:underline touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal non-touch:text-[length:inherit] non-touch:leading-[inherit]"
               onClick={() => showSignIn()}
             >
               create an account
-            </button>
-            {""}
+            </button>{" "}
             to claim a username for keeps - then no one can steal it!
           </p>
         </DialogFooter>

@@ -112,7 +112,7 @@ export function DialogCardBrowserToolbar({
             )}
           </Button>
           <span
-            className="ml-auto text-ui-meta text-muted-foreground non-touch:text-xs"
+            className="ml-auto non-touch:shrink-0 text-ui-meta text-muted-foreground non-touch:text-xs"
             role="status"
             aria-live="polite"
           >

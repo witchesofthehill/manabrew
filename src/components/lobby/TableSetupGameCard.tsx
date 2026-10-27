@@ -204,7 +204,7 @@ export function TableSetupGameCard({
                 type="button"
                 onClick={() => onMaxPlayersChange(n)}
                 className={cn(
-                  "flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-lg border transition-colors touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal non-touch:h-10 non-touch:min-h-0",
+                  "flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-lg border transition-colors touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal non-touch:h-10 non-touch:min-h-0 non-touch:text-[length:inherit] non-touch:leading-[inherit]",
                   maxPlayers === n
                     ? "border-primary bg-primary/5 text-primary"
                     : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground",
@@ -309,7 +309,7 @@ export function TableSetupGameCard({
             </div>
             {importedCube && (
               <p className="text-ui-meta text-muted-foreground non-touch:text-[11px] non-touch:leading-[inherit]">
-                Loaded: <span className="text-foreground/90">{importedCube.name}</span> —{""}
+                Loaded: <span className="text-foreground/90">{importedCube.name}</span> —{" "}
                 {importedCube.cardCount} cards
                 {importedCube.rejectedCardCount > 0 &&
                   ` · ${importedCube.rejectedCardCount} without local engine data`}
@@ -436,7 +436,7 @@ function LimitedKindCard({
       onClick={onClick}
       disabled={!meta.enabled}
       className={cn(
-        "flex flex-col items-start gap-0.5 rounded-lg border p-3 text-left transition-colors touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal",
+        "flex flex-col items-start gap-0.5 rounded-lg border p-3 text-left transition-colors touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal non-touch:text-[length:inherit] non-touch:leading-[inherit]",
         selected && meta.enabled
           ? "border-selection-border bg-selection"
           : "border-border enabled:hover:border-selection-border/30 enabled:hover:bg-muted/30",

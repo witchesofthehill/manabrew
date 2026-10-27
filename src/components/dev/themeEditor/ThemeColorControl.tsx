@@ -49,7 +49,7 @@ export function ThemeColorControl({
 
   return (
     <div className="space-y-1.5 border-t border-border py-3 first:border-t-0">
-      <div className="flex items-start justify-between gap-2 non-touch:gap-1">
+      <div className="flex items-start justify-between gap-2 non-touch:items-center non-touch:gap-1">
         <Label
           htmlFor={`${id}-raw`}
           className="min-w-0 leading-snug non-touch:text-xs non-touch:leading-snug"
@@ -124,7 +124,10 @@ export function ThemeColorControl({
       )}
       {parsed && (
         <div className="flex items-center gap-2 text-ui-meta text-muted-foreground non-touch:text-[10px] non-touch:leading-[inherit]">
-          <label htmlFor={`${id}-alpha`} className="text-ui-label">
+          <label
+            htmlFor={`${id}-alpha`}
+            className="text-ui-label non-touch:text-[length:inherit] non-touch:leading-[inherit]"
+          >
             Alpha
           </label>
           <input

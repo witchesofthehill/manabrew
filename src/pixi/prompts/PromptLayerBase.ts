@@ -208,7 +208,7 @@ export function promptText(
       align: options.align ?? "left",
       wordWrap: options.width != null && !options.truncate,
       wordWrapWidth: options.width,
-      breakWords: true,
+      breakWords: isTouchUi(),
       lineHeight: isTouchUi()
         ? Math.max(options.lineHeight ?? 0, Math.ceil(size * 1.35))
         : (options.lineHeight ?? Math.ceil(size * 1.35)),

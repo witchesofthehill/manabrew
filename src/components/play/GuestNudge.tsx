@@ -36,7 +36,7 @@ export function GuestNudge() {
         <UserRound className="mt-0.5 h-4 w-4 shrink-0 text-brand-accent-foreground dark:text-primary" />
         <div className="min-w-0 flex-1 space-y-1">
           <p className="text-ui-body non-touch:text-sm">
-            You are playing as{""}
+            You are playing as{" "}
             <span className="font-semibold">{stripUsernameTag(serverUsername)}</span>.
           </p>
           <p className="text-ui-body text-muted-foreground non-touch:text-xs">

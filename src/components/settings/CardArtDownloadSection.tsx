@@ -137,8 +137,8 @@ export function CardArtDownloadSection() {
         name, the set list and every ruling, so searching and pasting a decklist work offline too.
       </p>
       <p className="text-ui-body text-muted-foreground non-touch:text-xs">
-        Downloading for the <strong>{style}</strong> battlefield style. That style draws{""}
-        {variants.join(",")}, so art downloaded for one style does not cover another.
+        Downloading for the <strong>{style}</strong> battlefield style. That style draws{" "}
+        {variants.join(", ")}, so art downloaded for one style does not cover another.
       </p>
       <label className="flex items-center gap-2 text-ui-label text-muted-foreground touch:min-h-11 touch:min-w-11 non-touch:text-xs">
         <input

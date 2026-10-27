@@ -820,9 +820,10 @@ export class PlayerHudCapsule {
     const hand = this.makeHandItem(short ? 26 : 32);
     hand.place(short ? w / 2 + 4 : (w - hand.w) / 2, short ? 32 : 146);
     const resourceY = short ? 70 : 172;
-    const stateY = hasMana
-      ? this.layoutMana(pad, resourceY, w - pad * 2, 2, short ? 18 : 24) + 6
+    const manaBottom = hasMana
+      ? this.layoutMana(pad, resourceY, w - pad * 2, 2, short ? 18 : 24)
       : resourceY;
+    const stateY = hasMana ? (isTouchUi() ? manaBottom + 6 : short ? 120 : 240) : resourceY;
     this.layoutStates(pad, stateY, w - pad * 2, this.panelHeight - stateY - 4, 2);
   }
 
@@ -1198,13 +1199,17 @@ export class PlayerHudCapsule {
       pip.count.style = this.styled(12, "700", active ? gt.textOnTinted : gt.textGhost);
       pip.count.alpha = active ? 1 : 0.65;
       pip.count.scale.set(1);
-      while (
-        pip.count.width > cellWidth - size - 6 &&
-        pip.count.text.replace(/…$/, "").length > 1
-      ) {
-        pip.count.text = `${pip.count.text.replace(/…$/, "").slice(0, -1)}…`;
+      if (isTouchUi()) {
+        while (
+          pip.count.width > cellWidth - size - 6 &&
+          pip.count.text.replace(/…$/, "").length > 1
+        ) {
+          pip.count.text = `${pip.count.text.replace(/…$/, "").slice(0, -1)}…`;
+        }
+        if (pip.count.width > cellWidth - size - 6) pip.count.text = "…";
+      } else {
+        pip.count.scale.x = Math.min(1, Math.max(1, cellWidth - size - 6) / pip.count.width);
       }
-      if (pip.count.width > cellWidth - size - 6) pip.count.text = "…";
       pip.count.position.set(left + size + 4, cy);
       if (pip.value !== undefined && value > pip.value && this.motionEnabled) {
         this.burstManaSplash(
@@ -1271,10 +1276,17 @@ export class PlayerHudCapsule {
     chip.count.text = badge.count === undefined ? "" : String(badge.count);
     chip.count.style = this.styled(12, "700", urgent ? gt.pt.lethal : gt.textOnTinted);
     chip.count.scale.set(1);
-    while (chip.count.width > width - size - 12 && chip.count.text.replace(/…$/, "").length > 1) {
-      chip.count.text = `${chip.count.text.replace(/…$/, "").slice(0, -1)}…`;
+    if (isTouchUi()) {
+      while (chip.count.width > width - size - 12 && chip.count.text.replace(/…$/, "").length > 1) {
+        chip.count.text = `${chip.count.text.replace(/…$/, "").slice(0, -1)}…`;
+      }
+      if (chip.count.width > width - size - 12) chip.count.text = "…";
+    } else {
+      chip.count.scale.x = Math.min(
+        1,
+        Math.max(1, width - size - 12) / Math.max(1, chip.count.width),
+      );
     }
-    if (chip.count.width > width - size - 12) chip.count.text = "…";
     chip.count.position.set(x + width - 8, cy);
     const labelWidth = width - size - 14 - (chip.count.visible ? chip.count.width + 4 : 0);
     chip.label.visible = showLabel && labelWidth >= 24;
@@ -1435,7 +1447,17 @@ export class PlayerHudCapsule {
       this.detailsIcon.position.set(rect.x + rect.width / 2, rect.y + rect.height / 2);
     }
     this.overflow.text =
-      hidden > 0 ? (rect.width < 96 ? `+${hidden}` : `+${hidden} states`) : "Details";
+      hidden > 0
+        ? isTouchUi()
+          ? rect.width < 96
+            ? `+${hidden}`
+            : `+${hidden} states`
+          : compact
+            ? `+${hidden}`
+            : rect.width < 70
+              ? `+${hidden}\nstates`
+              : `+${hidden} states`
+        : "Details";
     this.overflow.style = this.styled(
       getUiFontSize("label", 10),
       danger ? "700" : "500",

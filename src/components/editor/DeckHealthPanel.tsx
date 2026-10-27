@@ -124,7 +124,7 @@ export function DeckHealthPanel({
             <Button
               size="xs"
               variant="outline"
-              className="h-auto touch:min-h-11 touch:min-w-11 whitespace-normal text-ui-label non-touch:h-auto"
+              className="h-auto touch:min-h-11 touch:min-w-11 whitespace-normal text-ui-label non-touch:h-7 non-touch:whitespace-nowrap"
               onClick={onShowUnsupported}
             >
               <AlertTriangle className="mr-1.5 h-3.5 w-3.5 text-warning" />
@@ -135,7 +135,7 @@ export function DeckHealthPanel({
             <Button
               size="xs"
               variant="outline"
-              className="h-auto touch:min-h-11 touch:min-w-11 whitespace-normal text-ui-label non-touch:h-auto"
+              className="h-auto touch:min-h-11 touch:min-w-11 whitespace-normal text-ui-label non-touch:h-7 non-touch:whitespace-nowrap"
               onClick={onOpenSearch}
             >
               <Search className="mr-1.5 h-3.5 w-3.5" /> Add missing pieces

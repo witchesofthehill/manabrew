@@ -101,7 +101,7 @@ export function CardRailPreview({
             "relative grid w-full grid-cols-[2rem_1fr] gap-2 border-b border-border/50 px-3 py-2 text-left text-popover-foreground last:border-b-0",
             notch.active && RAIL_ACTIVE_ROW_CLASSES[state.kind],
             interaction && [
-              "min-h-8 touch:min-h-11 touch:min-w-11 cursor-pointer transition-colors focus-visible:outline-none",
+              "touch:min-h-11 touch:min-w-11 cursor-pointer transition-colors focus-visible:outline-none",
               RAIL_INTERACTIVE_ROW_CLASSES[state.kind],
             ],
           );
@@ -152,7 +152,7 @@ export function CardRailPreview({
                 </span>
               </div>
               <div className="min-w-0">
-                <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex touch:flex-wrap items-center justify-between gap-2">
                   <span className="flex items-center gap-1.5">
                     {interaction && (
                       <kbd className="flex min-h-5 min-w-5 items-center justify-center rounded border border-border bg-muted px-1 font-mono text-ui-meta font-bold text-popover-foreground shadow-sm non-touch:text-[10px] non-touch:leading-[inherit] non-touch:h-5">
@@ -164,7 +164,7 @@ export function CardRailPreview({
                     </span>
                   </span>
                   {effect?.cost && (
-                    <span className="text-ui-meta font-semibold non-touch:text-[11px] non-touch:leading-[inherit]">
+                    <span className="non-touch:shrink-0 text-ui-meta font-semibold non-touch:text-[11px] non-touch:leading-[inherit]">
                       <DynamicTextRender text={effect.cost} />
                     </span>
                   )}

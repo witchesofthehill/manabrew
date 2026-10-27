@@ -30,7 +30,7 @@ export function CardPreviewDetails({
         )}
       </div>
 
-      <div className="flex flex-wrap items-baseline gap-2 text-ui-meta text-muted-foreground non-touch:text-xs">
+      <div className="flex touch:flex-wrap items-baseline gap-2 text-ui-meta text-muted-foreground non-touch:text-xs">
         <span className="break-words non-touch:truncate">{typeLine}</span>
         {card.power && card.toughness && (
           <span className="ml-auto shrink-0 tabular-nums lining-nums">

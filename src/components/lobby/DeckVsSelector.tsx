@@ -580,7 +580,7 @@ export function DeckVsSelector({
           </p>
           {filteredUserDecks.length === 0 ? (
             <p className="text-ui-meta text-muted-foreground italic py-2 non-touch:text-xs">
-              No decks yet — build one in{""}
+              No decks yet — build one in{" "}
               <Link
                 to={ROUTES.DECK_EDITOR}
                 className="touch:inline-flex touch:min-h-11 touch:items-center text-primary underline-offset-2 hover:underline not-italic"
@@ -761,11 +761,11 @@ export function DeckVsSelector({
 
       <div
         className={cn(
-          "grid shrink-0 gap-2 border-t bg-muted/10 px-4 py-2 xl:flex xl:items-center xl:justify-between sm:gap-3 sm:px-6 sm:py-3 lg:px-8",
+          "grid shrink-0 gap-2 border-t bg-muted/10 px-4 py-2 xl:flex xl:items-center xl:justify-between sm:gap-3 sm:px-6 sm:py-3 lg:px-8 non-touch:sm:flex non-touch:sm:items-center non-touch:sm:justify-between",
           shortTouch && "sm:px-4 sm:py-1.5",
         )}
       >
-        <div className="grid min-w-0 grid-cols-1 min-[480px]:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5 sm:flex sm:gap-2">
+        <div className="grid min-w-0 grid-cols-1 min-[480px]:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5 sm:flex sm:gap-2 non-touch:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
           <DeckSlot
             label={`YOU`}
             icon={<User className="h-3 w-3" />}

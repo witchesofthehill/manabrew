@@ -154,7 +154,7 @@ export function ComboDetailModal({
             <Button
               size="sm"
               variant="outline"
-              className="h-auto touch:min-h-11 touch:min-w-11 gap-1.5 whitespace-normal text-ui-label"
+              className="h-auto touch:min-h-11 touch:min-w-11 gap-1.5 whitespace-normal text-ui-label non-touch:whitespace-nowrap"
             >
               <ExternalLink className="h-3.5 w-3.5" />
               View on Commander Spellbook
@@ -163,7 +163,7 @@ export function ComboDetailModal({
           <Button
             size="sm"
             variant="ghost"
-            className="h-auto touch:min-h-11 touch:min-w-11 text-ui-label non-touch:h-auto"
+            className="h-auto touch:min-h-11 touch:min-w-11 text-ui-label non-touch:h-8"
             onClick={onClose}
           >
             Close

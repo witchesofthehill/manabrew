@@ -52,8 +52,7 @@ export function RoomInviteCard({
         />
         <div className="min-w-0 flex-1">
           <p className="break-words text-ui-body leading-tight non-touch:text-sm non-touch:leading-tight">
-            <span className="font-semibold">{name}</span>
-            {""}
+            <span className="font-semibold">{name}</span>{" "}
             <span className="text-muted-foreground">invited you to {modeSentence(room)}</span>
           </p>
           <p className="mt-1 flex flex-wrap items-center gap-1.5 text-ui-meta text-muted-foreground non-touch:text-xs">

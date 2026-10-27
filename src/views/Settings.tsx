@@ -518,7 +518,7 @@ export default function Settings() {
                   onClick={() => setPlaymatEditorOpen(true)}
                   title={hasDefaultPlaymat ? `Customize playmat` : `Set playmat`}
                   className={cn(
-                    "flex aspect-video w-full items-center justify-center overflow-hidden rounded-lg border bg-muted touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal",
+                    "flex aspect-video w-full items-center justify-center overflow-hidden rounded-lg border bg-muted touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal non-touch:text-[length:inherit] non-touch:leading-[inherit]",
                     "motion-safe:transition-[border-color,box-shadow] hover:border-primary/40 hover:shadow-sm",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     !hasDefaultPlaymat && "border-dashed",
@@ -1062,7 +1062,7 @@ export default function Settings() {
                             key={key}
                             className="flex flex-col gap-1 rounded-md border px-2 py-1.5 min-w-0"
                           >
-                            <Label className="text-ui-label font-mono break-words flex items-start gap-1 non-touch:text-xs">
+                            <Label className="text-ui-label font-mono break-words flex items-start gap-1 non-touch:text-xs non-touch:items-center">
                               <span>{APP_THEME_COLOR_LABELS[key] ?? key}</span>
                               <HelpMark description={APP_THEME_COLOR_DESCRIPTIONS[key]} />
                             </Label>
@@ -1203,7 +1203,7 @@ export default function Settings() {
                             >
                               <Label
                                 htmlFor={`theme-color-${path}`}
-                                className="text-ui-meta font-mono break-words flex items-start gap-1 non-touch:text-xs"
+                                className="text-ui-meta font-mono break-words flex items-start gap-1 non-touch:text-xs non-touch:items-center"
                               >
                                 <span>{path}</span>
                                 <HelpMark

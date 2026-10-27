@@ -79,8 +79,7 @@ export function CardGlintOfflineSection() {
       <p className="text-ui-body text-muted-foreground non-touch:text-xs">
         Frames and proprietary fonts are not bundled with Manabrew. Card Conjurer's service terms
         are personal and noncommercial, not a blanket asset redistribution license. Some source
-        collections provide no asset license. Only download materials you have permission to use.
-        {""}
+        collections provide no asset license. Only download materials you have permission to use.{" "}
         <a
           className="touch:inline-flex touch:min-h-11 touch:items-center underline"
           href="https://github.com/joshbirnholz/cardconjurer/blob/33f2547137fe366b40e9e8dba4eb591af190fddf/legal/index.html"
@@ -89,7 +88,7 @@ export function CardGlintOfflineSection() {
         >
           Source terms
         </a>
-        {" ·"}
+        {" · "}
         <a
           className="touch:inline-flex touch:min-h-11 touch:items-center underline"
           href="/card-glint-licenses/games-magic-NOTICE.md"
@@ -117,7 +116,7 @@ export function CardGlintOfflineSection() {
           <p>Persistent asset storage is unavailable. Use HTTPS or the desktop app.</p>
         ) : status?.ready ? (
           <p>
-            Installed for this deck and language: {status.manifest?.urls.length} resources,{""}
+            Installed for this deck and language: {status.manifest?.urls.length} resources,{" "}
             {((status.manifest?.bytes ?? 0) / 1024 / 1024).toFixed(1)} MB.
             {status.manifest?.scanOnly
               ? ` ${status.manifest.scanOnly} cards retain their original scans.`

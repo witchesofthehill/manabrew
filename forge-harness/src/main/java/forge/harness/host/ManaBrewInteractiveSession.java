@@ -968,7 +968,7 @@ public final class ManaBrewInteractiveSession {
                 presentation(payCardName, null),
                 payCardId, payCardName,
                 remainingCost != null ? remainingCost : "",
-                canConfirm, actionList));
+                canConfirm, canCancel, actionList));
     }
 
     List<String> awaitManaCombo(

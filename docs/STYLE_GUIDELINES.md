@@ -153,10 +153,20 @@ import { DynamicTextRender } from "@/components/game/DynamicTextRender";
 
 If 2+ components share the same `useState` + `useEffect` pattern, extract a custom hook:
 
-- **`useModalKeyboard(handlers)`** — for Enter/Escape key handling in modals
+- **`useKeybindings(handlers, scope)`** — configurable shortcuts scoped to the active dialog
 - **`useCardSelection(options)`** — for toggle-to-select card sets with min/max constraints
 - **`useCardPreview(dismissDeps)`** — unified mouse hover → card preview pattern with sticky & action support
 - **`HoverCardPreview`** — standard component to render the preview portal
+
+### Escape ownership
+
+One Escape press performs one eligible action after focused controls have handled it: dismiss the card preview, close the topmost dialog, handle the active game prompt, or clear background deck selection. Local edits and search controls consume Escape with `preventDefault()` and `stopPropagation()` when they act. Composition is ignored; held Escape does not dismiss successive layers.
+
+Global Escape handlers register through `src/lib/escapeKey.ts`, using the existing modal stack for scope. `Modal` owns dialog dismissal and its exit transition; `Modal.CloseShortcut` retains remappable closing shortcuts. Previews retain the configurable `preview-dismiss` shortcut as well as Escape. Hidden and closing previews yield ownership.
+
+Escape uses an active engine-supported Cancel action for cancellable targeting and mana payment. Hiding an engine modal is not cancellation: its pending decision and reopen control remain intact. Required choices, including sacrifice, must not submit an invented cancellation response.
+
+Browser fullscreen controls share `useBrowserFullscreen`. After entering fullscreen, supported web browsers are asked to lock only Escape. Unsupported or denied keyboard locking leaves ordinary browser fullscreen behavior intact; never force re-entry. The fullscreen toggle remains an explicit exit path. Native fullscreen and companion focus mode are separate.
 
 ### Hook file naming
 

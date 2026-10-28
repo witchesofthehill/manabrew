@@ -258,6 +258,7 @@ pub(super) fn pay_combat_cost<T: Responder>(
                 card_name: attacker_name,
                 mana_cost: format!("{{{cost}}}"),
                 can_confirm_from_pool: mana_pool_total >= cost,
+                can_cancel: true,
                 actions,
             },
         ),

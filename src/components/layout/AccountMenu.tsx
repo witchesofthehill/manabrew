@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { CircleUserRound, LogIn, Maximize2, Minimize2, Settings } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -10,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { isFeatureEnabled } from "@/featureFlags";
+import { useBrowserFullscreen } from "@/hooks/useBrowserFullscreen";
 import { ROUTES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { stripUsernameTag } from "@/lib/username";
@@ -35,23 +35,7 @@ export function AccountMenu({ disabled = false }: AccountMenuProps) {
   const serverUsername = usePreferencesStore((s) => s.serverUsername);
   const signedInAccount = status === "signedIn" ? account : null;
   const accountsEnabled = isFeatureEnabled("accounts");
-  const [isFullscreen, setIsFullscreen] = useState(
-    typeof document !== "undefined" && document.fullscreenElement !== null,
-  );
-
-  useEffect(() => {
-    const sync = () => setIsFullscreen(document.fullscreenElement !== null);
-    document.addEventListener("fullscreenchange", sync);
-    return () => document.removeEventListener("fullscreenchange", sync);
-  }, []);
-
-  function toggleFullscreen() {
-    if (document.fullscreenElement) {
-      void document.exitFullscreen().catch(() => undefined);
-    } else {
-      void document.documentElement.requestFullscreen().catch(() => undefined);
-    }
-  }
+  const { isFullscreen, toggleFullscreen } = useBrowserFullscreen();
 
   const displayName = signedInAccount
     ? `@${signedInAccount.handle}`

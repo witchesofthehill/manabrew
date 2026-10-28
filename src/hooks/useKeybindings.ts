@@ -7,6 +7,7 @@ import {
   hasActiveVirtualTextInput,
 } from "@/lib/keybindings";
 import { topModal } from "@/lib/modalStack";
+import { registerEscapeHandler } from "@/lib/escapeKey";
 
 function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -46,13 +47,14 @@ export function useKeybindings(
   });
 
   useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.defaultPrevented || e.isComposing || hasActiveVirtualTextInput()) return;
-      if (preservesNativeInteraction(e)) return;
+    function dispatch(e: KeyboardEvent, previewsOnly?: boolean): boolean {
+      if (e.defaultPrevented || e.isComposing || hasActiveVirtualTextInput()) return false;
+      if (preservesNativeInteraction(e)) return false;
       const editableTarget = isEditableTarget(e.target);
       const pressed = comboFromEvent(e);
-      if (!pressed) return;
+      if (!pressed) return false;
       for (const def of KEYBINDINGS) {
+        if (previewsOnly !== undefined && (def.id === "preview-dismiss") !== previewsOnly) continue;
         const handler = handlersRef.current[def.id];
         if (!handler) continue;
         const modal = topModal();
@@ -65,14 +67,33 @@ export function useKeybindings(
         if (editableTarget && !def.allowInEditable) continue;
         const combo = resolveCombo(def.id, overrides);
         if (combo && combosMatch(pressed, combo)) {
+          if (def.id === "preview-dismiss" && e.repeat) return true;
           if (handler() === false) continue;
-          e.preventDefault();
-          e.stopImmediatePropagation();
-          return;
+          return true;
         }
       }
+      return false;
     }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape" || !dispatch(e)) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+    }
+    const unregisterPreview = registerEscapeHandler({
+      priority: "preview",
+      scope: () => scope?.current,
+      handle: (event) => dispatch(event, true),
+    });
+    const unregisterShortcut = registerEscapeHandler({
+      priority: "shortcut",
+      scope: () => scope?.current,
+      handle: (event) => dispatch(event, false),
+    });
     window.addEventListener("keydown", onKeyDown, { capture: true });
-    return () => window.removeEventListener("keydown", onKeyDown, { capture: true });
+    return () => {
+      unregisterPreview();
+      unregisterShortcut();
+      window.removeEventListener("keydown", onKeyDown, { capture: true });
+    };
   }, [overrides, scope]);
 }

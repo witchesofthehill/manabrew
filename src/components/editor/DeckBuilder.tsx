@@ -6,6 +6,7 @@ import { useGameDevStore } from "@/stores/useGameDevStore";
 import { PublishDeckDialog } from "@/components/deck/PublishDeckDialog";
 import { DeckVersionHistoryDialog } from "@/components/deck/DeckVersionHistoryDialog";
 import { useKeybindings } from "@/hooks/useKeybindings";
+import { registerEscapeHandler } from "@/lib/escapeKey";
 import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 import { Button } from "@/components/ui/button";
 import { CardCustomizerModal } from "./CardCustomizerModal";
@@ -615,13 +616,26 @@ export function DeckBuilder({
         console.warn("[DeckBuilder] Failed to enrich card images:", err);
       });
   }, [currentDeck.cards, supplementaryCards, enrichDeckCards, scryfallLocale]);
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") clearSelection();
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [clearSelection]);
+  useEffect(
+    () =>
+      registerEscapeHandler({
+        priority: "selection",
+        handle: (event) => {
+          if (
+            selectedCards.size === 0 ||
+            (event.target instanceof HTMLElement &&
+              event.target.closest(
+                "input, textarea, select, [contenteditable]:not([contenteditable=false])",
+              ))
+          )
+            return false;
+          clearSelection();
+          editorScrollRef.current?.focus({ preventScroll: true });
+          return true;
+        },
+      }),
+    [clearSelection, selectedCards.size],
+  );
   function bulkAction(message: string, edit: () => void) {
     executeDeckEdit(message, edit);
     clearSelection();

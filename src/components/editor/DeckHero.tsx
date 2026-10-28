@@ -190,8 +190,11 @@ export function DeckHero({ onNameCommit }: { onNameCommit: (name: string) => voi
               onChange={(e) => setDeckName(e.target.value)}
               onBlur={finishNameEdit}
               onKeyDown={(e) => {
+                if (e.nativeEvent.isComposing) return;
                 if (e.key === "Enter") e.currentTarget.blur();
                 if (e.key === "Escape") {
+                  e.preventDefault();
+                  e.stopPropagation();
                   cancelNameEditRef.current = true;
                   setDeckName(nameBeforeEdit);
                   setEditingName(false);

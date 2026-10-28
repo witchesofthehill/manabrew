@@ -622,8 +622,8 @@
       "refs": ["CardDto"]
     },
     "PayManaCostInput": {
-      "ts": "interface PayManaCostInput {\n  presentation: PromptPresentation;\n  cardId: string;\n  cardName: string;\n  manaCost: string;\n  canConfirmFromPool: boolean;\n  actions: Array<PaymentAction>;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct PayManaCostInput {\n    pub presentation: PromptPresentation,\n    pub card_id: String,\n    pub card_name: String,\n    pub mana_cost: String,\n    pub can_confirm_from_pool: bool,\n    pub actions: Vec<PaymentAction>,\n}",
+      "ts": "interface PayManaCostInput {\n  presentation: PromptPresentation;\n  cardId: string;\n  cardName: string;\n  manaCost: string;\n  canConfirmFromPool: boolean;\n  canCancel: boolean;\n  actions: Array<PaymentAction>;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct PayManaCostInput {\n    pub presentation: PromptPresentation,\n    pub card_id: String,\n    pub card_name: String,\n    pub mana_cost: String,\n    pub can_confirm_from_pool: bool,\n    pub can_cancel: bool,\n    pub actions: Vec<PaymentAction>,\n}",
       "refs": ["PaymentAction", "PromptPresentation"]
     },
     "PaymentAction": {

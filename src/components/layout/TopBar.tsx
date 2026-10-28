@@ -16,10 +16,10 @@ function getRouteTitle(pathname: string, search: string): string | null {
   pathname = normalizePathname(pathname);
   if (pathname === ROUTES.PLAY) return null;
   if (pathname === ROUTES.PLAY_OFFLINE_CONSTRUCTED) {
-    return `Play Offline`;
+    return `Singleplayer`;
   }
   if (pathname === ROUTES.PLAY_OFFLINE_LIMITED) {
-    return `Play Offline`;
+    return `Singleplayer`;
   }
   if (pathname.startsWith(`${ROUTES.PLAY_DECK}/`)) {
     return `Play Deck`;

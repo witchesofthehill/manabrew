@@ -40,7 +40,8 @@ const TILE_ACCENTS: Record<string, TileAccent> = {
 };
 const TILE_SIZES = {
   lg: {
-    tile: "min-h-44 gap-6 p-5 text-left shadow-xl hover:shadow-2xl motion-safe:transition-[transform,border-color,box-shadow] motion-safe:hover:-translate-y-0.5 sm:min-h-52 sm:p-7 lg:min-h-60",
+    tile: "min-h-44 gap-6 p-5 text-left shadow-xl hover:shadow-2xl motion-safe:transition-[border-color,box-shadow] sm:min-h-52 sm:p-7 lg:min-h-60",
+    column: "gap-6",
     chip: "h-12 w-12",
     chipIcon: "h-5 w-5",
     watermark: "-bottom-8 -right-5 h-36 w-36 sm:h-44 sm:w-44",
@@ -49,6 +50,7 @@ const TILE_SIZES = {
   },
   sm: {
     tile: "min-h-32 gap-3 p-4 shadow-md motion-safe:transition-colors sm:min-h-36 sm:p-5",
+    column: "gap-3",
     chip: "h-9 w-9",
     chipIcon: "h-4 w-4",
     watermark: "-bottom-4 -right-4 h-24 w-24",
@@ -63,6 +65,8 @@ interface FeatureTileProps {
   icon: ComponentType<{
     className?: string;
   }>;
+  image?: string;
+  imageClassName?: string;
   tone: string;
   size?: keyof typeof TILE_SIZES;
   footer?: ReactNode;
@@ -74,6 +78,8 @@ export function FeatureTile({
   label,
   desc,
   icon: Icon,
+  image,
+  imageClassName,
   tone,
   size = "sm",
   footer,
@@ -86,39 +92,68 @@ export function FeatureTile({
     <Link
       to={to}
       className={cn(
-        "group relative flex min-w-0 flex-col justify-between overflow-hidden rounded-2xl border border-border/70 bg-card/85 backdrop-blur-md motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "group relative flex min-w-0 overflow-hidden rounded-2xl border border-border/70 bg-card/85 backdrop-blur-md motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         sizing.tile,
-        compact && "min-h-28 flex-row items-center gap-4 p-4 sm:min-h-28 sm:p-4 lg:min-h-28",
+        compact && "min-h-28 items-center gap-4 p-4 sm:min-h-28 sm:p-4 lg:min-h-28",
         accent.hoverBorder,
         className,
       )}
     >
-      <Icon
-        aria-hidden="true"
-        className={cn(
-          "absolute rotate-12",
-          sizing.watermark,
-          compact && "-bottom-6 -right-4 h-28 w-28 sm:h-28 sm:w-28",
-          accent.watermark,
-        )}
-      />
+      {!image && (
+        <Icon
+          aria-hidden="true"
+          className={cn(
+            "absolute rotate-12",
+            sizing.watermark,
+            compact && "-bottom-6 -right-4 h-28 w-28 sm:h-28 sm:w-28",
+            accent.watermark,
+          )}
+        />
+      )}
       <span
         className={cn(
-          "flex shrink-0 items-center justify-center rounded-full border",
-          sizing.chip,
-          compact && "h-11 w-11",
-          accent.chip,
+          "flex min-w-0 flex-1 flex-col justify-between",
+          sizing.column,
+          compact && "flex-row items-center gap-4",
         )}
       >
-        <Icon className={sizing.chipIcon} />
-      </span>
-      <span className="relative">
-        <span className={cn("block min-w-0", sizing.label, compact && "text-xl sm:text-xl")}>
-          {label}
+        <span
+          className={cn(
+            "flex shrink-0 items-center justify-center rounded-full border",
+            sizing.chip,
+            compact && "h-11 w-11",
+            accent.chip,
+          )}
+        >
+          <Icon className={sizing.chipIcon} />
         </span>
-        <span className={cn("block text-muted-foreground", sizing.desc)}>{desc}</span>
-        {footer}
+        <span className="relative">
+          <span className={cn("block min-w-0", sizing.label, compact && "text-xl sm:text-xl")}>
+            {label}
+          </span>
+          <span className={cn("block text-muted-foreground", sizing.desc)}>{desc}</span>
+          {footer}
+        </span>
       </span>
+      {image && (
+        <span
+          className={cn(
+            "-mb-5 flex h-0 shrink-0 flex-col justify-end self-end sm:-mb-7",
+            compact && "mb-0 self-center justify-center sm:mb-0",
+          )}
+        >
+          <img
+            src={image}
+            alt=""
+            aria-hidden="true"
+            draggable={false}
+            className={cn(
+              "pointer-events-none max-w-none origin-bottom object-contain will-change-transform motion-safe:transition-transform motion-safe:duration-500 motion-safe:ease-[cubic-bezier(0.22,1,0.36,1)] motion-safe:group-hover:scale-105 motion-safe:group-active:scale-95 motion-safe:group-active:duration-150",
+              compact ? "h-24 w-24" : imageClassName,
+            )}
+          />
+        </span>
+      )}
     </Link>
   );
 }

@@ -348,7 +348,7 @@ export function HubDeckPreviewDialog({
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onSelect={handlePlayOffline}>
                       <Swords />
-                      Play Offline
+                      Singleplayer
                     </DropdownMenuItem>
                     <DropdownMenuItem onSelect={handleMultiplayer}>
                       <Users />

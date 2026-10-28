@@ -18,6 +18,9 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         .unwrap_or_else(|| "P1P1".to_string());
     let counter_type = parse_counter_type(&counter_type_str);
 
+    let zone = crate::parsing::raw_get(&sa.ability_text, "ValidZone")
+        .and_then(crate::zone::zone_type::smart_value_of)
+        .unwrap_or(ZoneType::Battlefield);
     let targets: Vec<crate::ids::CardId> = if sa.uses_targeting() {
         sa.target_chosen.target_card.into_iter().collect()
     } else {
@@ -28,7 +31,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
             .cards
             .iter()
             .filter(|c| {
-                c.zone == ZoneType::Battlefield
+                c.zone == zone
                     && source.is_none_or(|source| {
                         valid_filter::matches_valid_card_selector_opt_in_game(
                             valid, c, source, ctx.game,
@@ -47,9 +50,17 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
             .get(&counter_type)
             .unwrap_or(&0);
         if current > 0 {
-            ctx.game
-                .card_mut(card_id)
-                .remove_counter(&counter_type, current);
+            super::effect_context::remove_counter_with_context(
+                ctx.game,
+                ctx.trigger_handler,
+                card_id,
+                &counter_type,
+                current,
+                crate::event::RunParams {
+                    player: Some(sa.activating_player),
+                    ..Default::default()
+                },
+            );
         }
     }
 }

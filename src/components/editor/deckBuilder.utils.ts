@@ -1,5 +1,6 @@
 import type { DeckCard } from "@/protocol/deck";
 import { computeCmc, isLand } from "@/lib/mana";
+import { cardCosmeticsKey } from "@/lib/cardCosmetics";
 export { scryfallToDeckCard } from "@/lib/scryfall.utils";
 export interface CardGroup {
   key: string;
@@ -7,8 +8,8 @@ export interface CardGroup {
   count: number;
 }
 export function cardPrintingKey(card: DeckCard): string {
-  const { name, setCode, cardNumber, foil } = card.identity;
-  return `${name.toLowerCase()}::${setCode.toLowerCase()}::${cardNumber.toLowerCase()}::${foil ? "foil" : "nonfoil"}`;
+  const { name, setCode, cardNumber, foil, cosmetics } = card.identity;
+  return `${name.toLowerCase()}::${setCode.toLowerCase()}::${cardNumber.toLowerCase()}::${foil ? "foil" : "nonfoil"}::${cardCosmeticsKey(cosmetics)}`;
 }
 export type ViewMode = "list" | "visual" | "stack";
 export type GroupByMode = "type" | "cmc" | "color" | "custom";

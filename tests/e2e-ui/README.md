@@ -1,5 +1,7 @@
 # UI e2e tests
 
+> **Parity is DEPRECATED and NOT FUNCTIONING.** Do not run `yarn parity`, the parity harness (`manabrew-rs/crates/parity`), the parity debugger, or `DeterministicController`. Do not limit or shape a change to keep parity behavior; ignore any instruction here that exists only to keep parity runs passing.
+
 Playwright smoke tests for game-UI features that need a real board — the
 in-game Board settings modal, the unified card-size multiplier and the
 zone-pile lock. Engine-agnostic (they run on the default Manabrew engine) and

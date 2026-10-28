@@ -94,6 +94,55 @@ impl GameLoop {
             );
         }
 
+        // Fizzle check — mirrors Java's MagicStack.hasFizzled() (CR 608.2b).
+        // A spell or ability is countered by game rules if ALL of its targets
+        // are illegal on resolution. Walk the SA chain; if every targeting node
+        // has only invalid targets, the whole thing fizzles.
+        if std::env::var("FORGE_TRIGGER_TRACE").is_ok() && entry.optional_trigger_decider.is_some()
+        {
+            eprintln!(
+                "[trigger-trace] RESOLVING optional trigger from stack: {} api={:?}",
+                stack_item_name, entry.spell_ability.api
+            );
+        }
+        if Self::has_fizzled(&mut entry.spell_ability, game) {
+            game.stack.set_resolving_fizzled(true);
+            crate::agent::notify_all_agents(
+                agents,
+                crate::agent::GameLogEvent::warning(format!(
+                    "{stack_item_name} fizzles (all targets invalid)"
+                ))
+                .with_player(entry.spell_ability.activating_player),
+            );
+            // CR 608.2b: A countered spell is still put into its owner's
+            // graveyard (or exile for flashback/escape). Only triggers and
+            // activated abilities have no physical card to move.
+            if entry.spell_ability.is_spell {
+                if let Some(card_id) = entry.spell_ability.source {
+                    let owner = game.card(card_id).owner;
+                    let dest = if entry.spell_ability.alt_cost
+                        == Some(crate::spellability::AlternativeCost::Harmonize)
+                    {
+                        apply_moved_replacement(game, card_id, ZoneType::Graveyard, Some(agents))
+                    } else if entry.spell_ability.alt_cost
+                        == Some(crate::spellability::AlternativeCost::Flashback)
+                        || entry.spell_ability.alt_cost
+                            == Some(crate::spellability::AlternativeCost::Escape)
+                    {
+                        ZoneType::Exile
+                    } else {
+                        // Apply Moved replacement WITH agents for proper RNG consumption
+                        // (e.g. Rest in Peace + Leyline of the Void both redirecting).
+                        apply_moved_replacement(game, card_id, ZoneType::Graveyard, Some(agents))
+                    };
+                    self.move_card_with_runtime(game, card_id, dest, owner, agents);
+                }
+            }
+            game.stack.finish_resolving();
+            apply_continuous_effects(game);
+            return;
+        }
+
         // Copy spells: resolve effect only. CR 707.10 / 111.11 — a copy of a
         // permanent spell becomes a token (`GameAction.changeZone` line 94).
         if entry.spell_ability.is_copy {
@@ -119,56 +168,15 @@ impl GameLoop {
                 },
                 false,
             );
-            apply_continuous_effects(game);
-            return;
-        }
-
-        // Fizzle check — mirrors Java's MagicStack.hasFizzled() (CR 608.2b).
-        // A spell or ability is countered by game rules if ALL of its targets
-        // are illegal on resolution. Walk the SA chain; if every targeting node
-        // has only invalid targets, the whole thing fizzles.
-        if std::env::var("FORGE_TRIGGER_TRACE").is_ok() && entry.optional_trigger_decider.is_some()
-        {
-            eprintln!(
-                "[trigger-trace] RESOLVING optional trigger from stack: {} api={:?}",
-                stack_item_name, entry.spell_ability.api
-            );
-        }
-        if Self::has_fizzled(&mut entry.spell_ability, game) {
-            crate::agent::notify_all_agents(
-                agents,
-                crate::agent::GameLogEvent::warning(format!(
-                    "{stack_item_name} fizzles (all targets invalid)"
-                ))
-                .with_player(entry.spell_ability.activating_player),
-            );
-            // CR 608.2b: A countered spell is still put into its owner's
-            // graveyard (or exile for flashback/escape). Only triggers and
-            // activated abilities have no physical card to move.
-            if !entry.spell_ability.is_trigger
-                && !entry.spell_ability.is_activated
-                && !entry.spell_ability.is_copy
-            {
-                if let Some(card_id) = entry.spell_ability.source {
-                    let owner = game.card(card_id).owner;
-                    let dest = if entry.spell_ability.alt_cost
-                        == Some(crate::spellability::AlternativeCost::Harmonize)
-                    {
-                        apply_moved_replacement(game, card_id, ZoneType::Graveyard, Some(agents))
-                    } else if entry.spell_ability.alt_cost
-                        == Some(crate::spellability::AlternativeCost::Flashback)
-                        || entry.spell_ability.alt_cost
-                            == Some(crate::spellability::AlternativeCost::Escape)
-                    {
-                        ZoneType::Exile
-                    } else {
-                        // Apply Moved replacement WITH agents for proper RNG consumption
-                        // (e.g. Rest in Peace + Leyline of the Void both redirecting).
-                        apply_moved_replacement(game, card_id, ZoneType::Graveyard, Some(agents))
-                    };
-                    self.move_card_with_runtime(game, card_id, dest, owner, agents);
+            if entry.spell_ability.is_spell {
+                if let Some(source) = entry.spell_ability.source {
+                    if game.card(source).copied_spell {
+                        let owner = game.card(source).owner;
+                        self.move_card_with_runtime(game, source, ZoneType::None, owner, agents);
+                    }
                 }
             }
+            game.stack.finish_resolving();
             apply_continuous_effects(game);
             return;
         }
@@ -510,27 +518,6 @@ impl GameLoop {
 
                 // Register triggers for the new permanent
                 self.trigger_handler.register_active_trigger(game, card_id);
-
-                if game.card(card_id).type_line.has_subtype("Room")
-                    && game.card(card_id).has_s_var("RoomRightSplitCost")
-                {
-                    let card_state_name = entry
-                        .spell_ability
-                        .ir
-                        .card_state_name
-                        .clone()
-                        .or_else(|| Some("LeftSplit".to_string()));
-                    self.trigger_handler.run_trigger(
-                        TriggerType::UnlockDoor,
-                        RunParams {
-                            card: Some(card_id),
-                            player: Some(player),
-                            card_state_name,
-                            ..Default::default()
-                        },
-                        true,
-                    );
-                }
 
                 // Emit ChangesZone trigger (ETB)
                 crate::ability::effects::emit_zone_trigger(

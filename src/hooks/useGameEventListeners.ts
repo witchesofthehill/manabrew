@@ -33,7 +33,8 @@ import type {
   StateUpdate,
 } from "@/protocol";
 import type { DisplayEvent } from "@/protocol/display";
-import type { GameViewDto } from "@/protocol/game";
+import type { CardIdentity, GameViewDto } from "@/protocol/game";
+import { warmLibraryTop } from "@/lib/cardFaceWarmup";
 import { RELAY_FEATURE, SERVER_ERROR_CODE } from "@/types/server";
 import type { AuthResultPayload, GameAbortedPayload, RoomMessagePayload } from "@/types/server";
 type SelfHostedNodeRoomPayload = {
@@ -294,6 +295,11 @@ export function useGameEventListeners() {
         }),
       );
       unsubscribers.push(
+        platform.events.on<{ cards?: CardIdentity[] }>("game:library_top", (payload) => {
+          if (payload?.cards?.length) warmLibraryTop(payload.cards);
+        }),
+      );
+      unsubscribers.push(
         platform.events.on<{
           message: string;
         }>("game:fatal", (payload) => {
@@ -363,11 +369,7 @@ export function useGameEventListeners() {
       );
       unsubscribers.push(
         platform.events.on<unknown>("game:log", (payload) => {
-          const entry = normalizeGameLogPayload(payload);
-          setState((state) => ({
-            gameLog: [...state.gameLog.slice(-199), entry],
-          }));
-          toastOpponentPublicAction(entry);
+          toastOpponentPublicAction(normalizeGameLogPayload(payload));
         }),
       );
       // Relay (non-host) seats receive state/display/prompt addressed per player.
@@ -489,6 +491,7 @@ export function useGameEventListeners() {
           clearActiveGameSession();
           setState({
             isGameActive: false,
+            activeEngine: null,
             gameView: null,
             currentPrompt: null,
             deferredQueue: [],

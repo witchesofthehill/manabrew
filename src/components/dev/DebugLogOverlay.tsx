@@ -76,18 +76,18 @@ export function DebugLogOverlay() {
     return (
       <button
         onClick={() => setOpen(true)}
+        className="min-h-8 touch:min-h-11 font-mono text-ui-label"
         title={`Show logs`}
         style={{
           position: "fixed",
-          right: 12,
-          bottom: 12,
+          right: "max(12px, var(--safe-area-inset-right))",
+          bottom: "max(12px, var(--safe-area-inset-bottom))",
           zIndex: 2147483000,
           padding: "6px 10px",
           borderRadius: 8,
           border: "1px solid rgba(128,128,128,0.4)",
           background: "rgba(20,20,24,0.85)",
           color: "#ddd",
-          font: "12px ui-monospace, monospace",
           cursor: "pointer",
         }}
       >
@@ -97,14 +97,16 @@ export function DebugLogOverlay() {
   }
   return (
     <div
+      className="font-mono text-ui-meta"
       style={
         {
           position: "fixed",
-          right: 12,
-          bottom: 12,
+          right: "max(12px, var(--safe-area-inset-right))",
+          bottom: "max(12px, var(--safe-area-inset-bottom))",
           zIndex: 2147483000,
-          width: "min(560px, calc(100vw - 24px))",
-          height: "min(360px, 55vh)",
+          width:
+            "min(560px, calc(100dvw - 24px - var(--safe-area-inset-left) - var(--safe-area-inset-right)))",
+          height: "min(360px, 55dvh)",
           display: "flex",
           flexDirection: "column",
           borderRadius: 10,
@@ -112,7 +114,6 @@ export function DebugLogOverlay() {
           background: "rgba(16,16,20,0.94)",
           color: "#ddd",
           "--dbg-fg": "#ddd",
-          font: "12px ui-monospace, SFMono-Regular, Menlo, monospace",
           boxShadow: "0 8px 30px rgba(0,0,0,0.5)",
         } as React.CSSProperties
       }
@@ -121,6 +122,8 @@ export function DebugLogOverlay() {
         style={{
           display: "flex",
           alignItems: "center",
+          flexWrap: "wrap",
+          flexShrink: 0,
           gap: 6,
           padding: "6px 8px",
           borderBottom: "1px solid rgba(128,128,128,0.25)",
@@ -129,6 +132,7 @@ export function DebugLogOverlay() {
         <strong style={{ fontWeight: 600 }}>logs</strong>
         <button
           onClick={() => setTransportOnly((v) => !v)}
+          className="min-h-8 touch:min-h-11 text-ui-label"
           style={chip(transportOnly)}
           title={`Only transport lines`}
         >
@@ -136,20 +140,21 @@ export function DebugLogOverlay() {
         </button>
         <input
           value={filter}
+          className="min-h-8 touch:min-h-11 text-ui-input"
           onChange={(e) => setFilter(e.target.value)}
           placeholder={`filter\u2026`}
           style={{
             flex: 1,
-            minWidth: 0,
+            minWidth: 100,
             background: "rgba(0,0,0,0.3)",
             border: "1px solid rgba(128,128,128,0.3)",
             borderRadius: 6,
             color: "#ddd",
             padding: "3px 6px",
-            font: "inherit",
           }}
         />
         <button
+          className="min-h-8 touch:min-h-11 text-ui-label"
           onClick={() => {
             void navigator.clipboard
               ?.writeText(lines.map((l) => `${stamp(l.at)} ${l.text}`).join("\n"))
@@ -161,6 +166,7 @@ export function DebugLogOverlay() {
           copy
         </button>
         <button
+          className="min-h-8 touch:min-h-11 text-ui-label"
           onClick={() => {
             buffer.length = 0;
             force((n) => n + 1);
@@ -170,7 +176,12 @@ export function DebugLogOverlay() {
         >
           clear
         </button>
-        <button onClick={() => setOpen(false)} style={chip(false)} title={`Hide`}>
+        <button
+          onClick={() => setOpen(false)}
+          className="min-h-8 min-w-8 touch:min-h-11 touch:min-w-11 text-ui-label"
+          style={chip(false)}
+          title={`Hide`}
+        >
           ✕
         </button>
       </div>
@@ -196,7 +207,6 @@ function chip(active: boolean): React.CSSProperties {
     border: "1px solid rgba(128,128,128,0.3)",
     background: active ? "rgba(94,176,239,0.25)" : "rgba(0,0,0,0.25)",
     color: "#ddd",
-    font: "inherit",
     cursor: "pointer",
   };
 }

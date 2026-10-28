@@ -58,7 +58,13 @@ const bracketDelta = (l) => {
 };
 const rustText = {};
 const definedIn = {};
-for (const f of walk(RUST_DIR, ".rs")) {
+for (const f of [
+  ...walk(RUST_DIR, ".rs"),
+  join(
+    root,
+    "manabrew-rs/crates/forge-foundation/src/sealed_product/card_cosmetics.rs",
+  ),
+]) {
   const lines = readFileSync(f, "utf8").split("\n");
   let attrs = [];
   let attrDepth = 0; // open brackets inside a multi-line attribute

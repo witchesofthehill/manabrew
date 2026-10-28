@@ -6,6 +6,7 @@ import type { PromptOverlaySpec } from "@/pixi/prompts/prompt.types";
 import type { StackSpec } from "@/pixi/stack/stack.types";
 import type { ArrowSpec } from "@/pixi/types";
 import type { GameThemeColors } from "@/themes/gameTheme";
+import { stackObjectToCard } from "@/components/game/game.utils";
 import { buildDevDialogFixtures } from "./gameplayDialogFixtures";
 import { previewInput } from "./gameplayPromptFixtures";
 import {
@@ -38,6 +39,10 @@ export function useBoardGameplayPreview(
   const [outcome, setOutcome] = useState("");
   const gameView = useMemo(() => playgroundGameView(table, zones), [table, zones]);
   const fixtures = useMemo(() => buildDevDialogFixtures(gameView, [], theme)!, [gameView, theme]);
+  const stackCardName = (id: string) => {
+    const spell = fixtures.stack.find((entry) => entry.id === id);
+    return spell ? stackObjectToCard(spell).identity.name : undefined;
+  };
   const creatures = gameView.battlefield.filter((card) => card.types.includes("Creature"));
   const ownCreatures = creatures.filter((card) => card.controllerId === LOCAL_PLAYER_ID);
   const opponentId = table.players[1]!.id;
@@ -230,7 +235,7 @@ export function useBoardGameplayPreview(
       ? () =>
           finish(
             selectedTarget
-              ? `Confirmed target: ${table.cards.find((card) => card.id === selectedTarget)?.identity.name ?? table.players.find((player) => player.id === selectedTarget)?.name ?? fixtures.stack.find((spell) => spell.id === selectedTarget)?.identity.name}.`
+              ? `Confirmed target: ${table.cards.find((card) => card.id === selectedTarget)?.identity.name ?? table.players.find((player) => player.id === selectedTarget)?.name ?? stackCardName(selectedTarget) ?? selectedTarget}.`
               : "Target selection cancelled.",
           )
       : null,
@@ -368,9 +373,7 @@ export function useBoardGameplayPreview(
     setHoveredSpell,
     selectSpell: (id: string) => {
       setSelectedTarget(id);
-      setOutcome(
-        `Selected stack spell: ${fixtures.stack.find((spell) => spell.id === id)?.identity.name ?? id}.`,
-      );
+      setOutcome(`Selected stack spell: ${stackCardName(id) ?? id}.`);
     },
     selectedTarget,
     setSelectedTarget,

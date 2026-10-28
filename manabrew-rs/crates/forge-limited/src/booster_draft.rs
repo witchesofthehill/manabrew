@@ -122,7 +122,7 @@ struct SeatSnapshot {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 enum AgentSnapshot {
-    Human(HumanLimitedAgent),
+    Human(Box<HumanLimitedAgent>),
     Ai(crate::limited_player_ai::LimitedPlayerAIState),
 }
 
@@ -454,7 +454,7 @@ impl BoosterDraft {
             .into_iter()
             .map(|seat| {
                 let agent: Box<dyn LimitedAgent> = match seat.agent {
-                    AgentSnapshot::Human(human) => Box::new(human),
+                    AgentSnapshot::Human(human) => human,
                     AgentSnapshot::Ai(state) => {
                         let mut ai = crate::limited_player_ai::LimitedPlayerAI::new(
                             self.ranker.clone(),
@@ -571,7 +571,7 @@ impl BoosterDraft {
                     is_human: s.is_human,
                     unopened_packs: s.unopened_packs.clone(),
                     agent: if let Some(human) = downcast_human_ref(s.agent.as_ref()) {
-                        AgentSnapshot::Human(human.clone())
+                        AgentSnapshot::Human(Box::new(human.clone()))
                     } else {
                         AgentSnapshot::Ai(
                             s.agent

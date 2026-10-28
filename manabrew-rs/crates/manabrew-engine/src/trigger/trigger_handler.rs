@@ -1126,6 +1126,9 @@ impl TriggerHandler {
             return;
         }
         let trigger = &card.triggers[trigger_index];
+        if !card.room_ability_active(trigger.base.card_trait_base.get_card_state_name()) {
+            return;
+        }
         if !trigger.get_active_zone().contains(&card.zone) {
             return;
         }
@@ -1456,6 +1459,26 @@ impl TriggerHandler {
             return false;
         }
         let trigger = &card.triggers[trigger_index];
+        if !card.room_ability_active(trigger.base.card_trait_base.get_card_state_name()) {
+            return false;
+        }
+        if card.zone != ZoneType::Battlefield
+            && params.origin == Some(ZoneType::Battlefield)
+            && self.looks_back_in_time(trigger)
+        {
+            if let Some(door) = trigger.base.card_trait_base.get_card_state_name() {
+                if let Some(doors) = game
+                    .get_lki_snapshot(host_card)
+                    .and_then(|snapshot| snapshot.room_unlocked_doors)
+                {
+                    if (door == forge_foundation::CardStateName::LeftSplit && !doors[0])
+                        || (door == forge_foundation::CardStateName::RightSplit && !doors[1])
+                    {
+                        return false;
+                    }
+                }
+            }
+        }
 
         // Check mode matches trigger type
         let trigger_type = trigger.mode.trigger_type();

@@ -69,7 +69,7 @@ export function DialogCardBrowserInspectorPane({
                 {pending ? "Waiting for response…" : (actionLabel?.(active) ?? defaultActionLabel)}
               </Button>
               {!active.legal && !active.selected && (
-                <p className="text-xs text-muted-foreground">
+                <p className="text-ui-meta text-muted-foreground">
                   This card can be inspected, but is not available for this action.
                 </p>
               )}
@@ -77,7 +77,7 @@ export function DialogCardBrowserInspectorPane({
           )}
         </DialogCardInspector>
       ) : (
-        <p className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+        <p className="rounded-xl border border-dashed p-8 text-center text-ui-body text-muted-foreground">
           Focus, hover or tap a card to inspect it. Arrow keys browse{searchHint}.
         </p>
       )}

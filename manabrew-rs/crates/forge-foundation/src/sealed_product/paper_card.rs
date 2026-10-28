@@ -11,6 +11,12 @@ pub struct PaperCard {
     pub rarity: Rarity,
     #[serde(default)]
     pub foil: bool,
+    #[serde(
+        default,
+        deserialize_with = "super::card_cosmetics::CardCosmetics::deserialize_optional",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub cosmetics: Option<super::card_cosmetics::CardCosmetics>,
     #[serde(default)]
     pub colors: ColorSet,
     #[serde(default)]
@@ -30,6 +36,7 @@ impl PaperCard {
             collector_number: collector_number.into(),
             rarity,
             foil: false,
+            cosmetics: None,
             colors: ColorSet::COLORLESS,
             is_double_faced: false,
         }
@@ -57,6 +64,14 @@ impl PartialEq for PaperCard {
         self.set_code.eq_ignore_ascii_case(&other.set_code)
             && self.collector_number == other.collector_number
             && self.foil == other.foil
+            && self
+                .cosmetics
+                .clone()
+                .and_then(super::card_cosmetics::CardCosmetics::normalize)
+                == other
+                    .cosmetics
+                    .clone()
+                    .and_then(super::card_cosmetics::CardCosmetics::normalize)
     }
 }
 
@@ -67,5 +82,9 @@ impl std::hash::Hash for PaperCard {
         self.set_code.to_ascii_lowercase().hash(state);
         self.collector_number.hash(state);
         self.foil.hash(state);
+        self.cosmetics
+            .clone()
+            .and_then(super::card_cosmetics::CardCosmetics::normalize)
+            .hash(state);
     }
 }

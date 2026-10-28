@@ -55,6 +55,7 @@ import type { DirectiveInput, Prompt, PromptOutput } from "@/protocol";
 import type { Deck, DeckCard } from "@/protocol/deck";
 import type { EngineKind } from "@/types/server";
 import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
+import { normalizeCardCosmetics } from "@/lib/cardCosmetics";
 import type { GameRuntime, ManualTabletopApi } from "@/game";
 import { withResolvedDeckName } from "@/lib/deckName";
 export type { GameConfig, GameState, DisplayEvent, DeferredSnapshot } from "./gameStore.types";
@@ -82,6 +83,7 @@ function manualZoneCard(card: DeckCard, playerId: string, zoneId: string): Clien
       isToken: false,
     },
     foil: identity.foil ?? false,
+    cosmetics: normalizeCardCosmetics(identity.cosmetics),
     controllerId: playerId,
     ownerId: playerId,
     zoneId,
@@ -161,11 +163,11 @@ async function initializeGame({
     const launchForge = tauriForgeRoomAvailable ? startTauriForgeAiGame : startHostedAiGame;
     set({
       isGameActive: true,
+      activeEngine: "Forge",
       fatalError: null,
       engineCrash: null,
       gameView: null,
       currentPrompt: null,
-      gameLog: [],
       protocolError: null,
       deferredQueue: [],
       isFlashing: false,
@@ -177,6 +179,7 @@ async function initializeGame({
       gameConfig: { formatId: selectedFormatId, startingLife },
       isPrefetchingCards: true,
       cardPrefetchProgress: null,
+      isRenderingCards: false,
       debugInfo: "Starting Forge engine...",
     });
     let hosted: Awaited<ReturnType<typeof launchForge>> | null = null;
@@ -198,6 +201,7 @@ async function initializeGame({
         gameId: hostedLaunch.gameId,
         isHost: false,
         username: hostedLaunch.username,
+        gauntletId: get().gauntletId ?? undefined,
         ownsForgeHost: hostedLaunch.ownsForgeHost,
         relayHost: hostedLaunch.relay?.host,
         relayPort: hostedLaunch.relay?.port,
@@ -253,12 +257,12 @@ async function initializeGame({
   const runtime = getSelectedGameRuntime();
   set({
     isGameActive: true,
+    activeEngine: engine ?? null,
     fatalError: null,
     engineCrash: null,
     ironsmithDeckError: null,
     gameView: null,
     currentPrompt: null,
-    gameLog: [],
     protocolError: null,
     deferredQueue: [],
     isFlashing: false,
@@ -273,6 +277,7 @@ async function initializeGame({
     gameDecks,
     isPrefetchingCards: true,
     cardPrefetchProgress: null,
+    isRenderingCards: false,
     debugInfo: "Starting engine...",
   });
   const engineLabel = engine === "Forge" ? "forge-wasm" : localEngineLabel();
@@ -341,15 +346,16 @@ export const useGameStore = create<GameState>()(
     (set, get) => ({
       gameView: null,
       currentPrompt: null,
-      gameLog: [],
       protocolError: null,
       isGameActive: false,
+      activeEngine: null,
       debugInfo: "",
       fatalError: null,
       engineCrash: null,
       ironsmithDeckError: null,
       isPrefetchingCards: false,
       cardPrefetchProgress: null,
+      isRenderingCards: false,
       deferredQueue: [],
       isFlashing: false,
       isWaitingForResponse: false,
@@ -358,6 +364,7 @@ export const useGameStore = create<GameState>()(
       recording: { type: "off" },
       repeatVote: null,
       gameConfig: null,
+      gauntletId: null,
       selfConceded: false,
       isMultiplayer: false,
       isHost: false,
@@ -374,7 +381,7 @@ export const useGameStore = create<GameState>()(
       updateGameView: (view) => set({ gameView: view }),
       setGameConfig: (config) => set({ gameConfig: config }),
       dismissIronsmithDeckError: () => set({ ironsmithDeckError: null }),
-      startGame: async (deck, formatId, commanderName, opponentDecks, engine) => {
+      startGame: async (deck, formatId, commanderName, opponentDecks, engine, gauntletId) => {
         if (get().isGameActive) return false;
         if (gameLaunchInFlight !== null) {
           toast.info(`The previous game is still closing. Try again in a moment.`);
@@ -382,6 +389,7 @@ export const useGameStore = create<GameState>()(
         }
         const launchGeneration = ++gameLaunchGeneration;
         gameLaunchInFlight = launchGeneration;
+        set({ gauntletId: gauntletId ?? null });
         try {
           await initializeGame({
             deck,
@@ -396,7 +404,13 @@ export const useGameStore = create<GameState>()(
           return true;
         } catch (e) {
           if (e instanceof GameLaunchCancelledError) return false;
-          set({ isGameActive: false, debugInfo: `Start failed: ${e}`, isPrefetchingCards: false });
+          set({
+            isGameActive: false,
+            activeEngine: null,
+            gauntletId: null,
+            debugInfo: `Start failed: ${e}`,
+            isPrefetchingCards: false,
+          });
           console.error("[store] Failed to start game:", e);
           if (e instanceof IronsmithUnsupportedDeckError) {
             set({ ironsmithDeckError: e.issues });
@@ -452,6 +466,7 @@ export const useGameStore = create<GameState>()(
         }
         set({
           isMultiplayer: true,
+          activeEngine: null,
           isHost: true,
           myPlayerSlot: localPlayerSlot,
           debugInfo: "Manual room host started.",
@@ -487,6 +502,7 @@ export const useGameStore = create<GameState>()(
         }
         set({
           isGameActive: true,
+          activeEngine: null,
           isMultiplayer: true,
           isHost: false,
           myPlayerSlot: localPlayerSlot,
@@ -527,10 +543,17 @@ export const useGameStore = create<GameState>()(
           gameDecks[`player-${i}`] = d;
         });
         const server = useServerStore.getState();
+        const session = peekActiveGameSession();
+        const gauntletId =
+          session?.roomId === server.currentRoom?.room_id && session?.gameId === server.gameId
+            ? (session?.gauntletId ?? null)
+            : null;
+        set({ gauntletId });
         if (server.currentRoom) {
           armActiveGameSession({
             roomId: server.currentRoom.room_id,
             gameId: server.gameId,
+            gauntletId: gauntletId ?? undefined,
             isHost: localIsHost,
             username: server.username ?? "",
           });
@@ -538,6 +561,7 @@ export const useGameStore = create<GameState>()(
         try {
           set({
             isGameActive: true,
+            activeEngine: engine ?? server.currentRoom?.engine ?? null,
             isMultiplayer: true,
             isHost: localIsHost,
             myPlayerSlot: `player-${enginePlayerIndex}`,
@@ -545,7 +569,6 @@ export const useGameStore = create<GameState>()(
             engineCrash: null,
             gameView: null,
             currentPrompt: null,
-            gameLog: [],
             protocolError: null,
             deferredQueue: [],
             isFlashing: false,
@@ -558,6 +581,7 @@ export const useGameStore = create<GameState>()(
             debugInfo: "Starting multiplayer game...",
             isPrefetchingCards: true,
             cardPrefetchProgress: null,
+            isRenderingCards: false,
             gameDecks,
           });
           const limited = useMultiplayerLimitedStore.getState();
@@ -599,6 +623,7 @@ export const useGameStore = create<GameState>()(
           if (launchGeneration !== gameLaunchGeneration) return false;
           set({
             isGameActive: false,
+            activeEngine: null,
             isMultiplayer: false,
             isHost: false,
             myPlayerSlot: null,
@@ -714,9 +739,10 @@ export const useGameStore = create<GameState>()(
         });
         set({
           isGameActive: false,
+          activeEngine: null,
+          gauntletId: null,
           gameView: null,
           currentPrompt: null,
-          gameLog: [],
           protocolError: null,
           deferredQueue: [],
           isFlashing: false,
@@ -767,7 +793,14 @@ export const useGameStore = create<GameState>()(
         }
       },
       setMultiplayerState: (isMultiplayer, isHost, myPlayerSlot) => {
-        set({ isMultiplayer, isHost, myPlayerSlot });
+        set({
+          isMultiplayer,
+          isHost,
+          myPlayerSlot,
+          activeEngine: isMultiplayer
+            ? (useServerStore.getState().currentRoom?.engine ?? null)
+            : null,
+        });
       },
       requestRestore: async (checkpointId) => {
         const { myPlayerSlot } = get();
@@ -776,17 +809,6 @@ export const useGameStore = create<GameState>()(
           playerSlot: myPlayerSlot,
           directive: { type: "requestRestore", checkpointId },
         });
-      },
-      setSnapshotRecording: async (enabled) => {
-        usePreferencesStore.getState().setSnapshotRecording(enabled);
-        try {
-          await getSelectedGameRuntime().api.sendHostDirective({
-            type: "setSnapshotRecording",
-            enabled,
-          });
-        } catch (error) {
-          toast.error(error instanceof Error ? error.message : String(error));
-        }
       },
       startRecording: () => sendRepeatDirective({ type: "startRecording" }),
       stopRecording: () => sendRepeatDirective({ type: "stopRecording" }),

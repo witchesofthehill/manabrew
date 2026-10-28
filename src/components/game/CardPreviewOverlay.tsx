@@ -13,6 +13,7 @@ import { isCreature, isLethalDamage } from "./game.utils";
 import { cn } from "@/lib/utils";
 import type { CardRailState } from "@/components/game/cardRailState";
 import { isVisibleBattlefieldKeyword } from "@/lib/battlefieldKeywords";
+import { RoomDoorOverlay } from "@/components/game/RoomDoorOverlay";
 const MAX_PREVIEW_KEYWORDS = 8;
 export function CardPreviewOverlay({
   card,
@@ -106,9 +107,10 @@ export function CardPreviewOverlay({
   }, [card.counters, showLoyalty, rail]);
   return (
     <>
+      <RoomDoorOverlay card={card} />
       {damage > 0 && (
         <div
-          className="absolute inset-0 pointer-events-none"
+          className="absolute inset-0 z-[3] pointer-events-none"
           style={{
             background: withAlpha(
               themeColors.pt.lethal,
@@ -125,7 +127,7 @@ export function CardPreviewOverlay({
                 <span
                   key={b.key}
                   className={cn(
-                    "text-[11px] font-bold px-2 py-0.5 rounded shadow-md uppercase tracking-wide",
+                    "text-ui-meta font-bold px-2 py-0.5 rounded shadow-md uppercase tracking-wide",
                     b.style,
                   )}
                 >
@@ -144,7 +146,7 @@ export function CardPreviewOverlay({
                 return (
                   <span
                     key={`${kw}-${i}`}
-                    className="inline-flex items-center gap-0.5 text-[11px] font-bold uppercase tracking-wide bg-black/75 text-white px-2 py-0.5 rounded shadow-md"
+                    className="inline-flex items-center gap-0.5 text-ui-meta font-bold uppercase tracking-wide bg-black/75 text-white px-2 py-0.5 rounded shadow-md"
                   >
                     {label}
                     {cost && <ManaSymbols cost={cost} size="sm" />}
@@ -152,7 +154,7 @@ export function CardPreviewOverlay({
                 );
               })}
               {hiddenKeywordCount > 0 && (
-                <span className="inline-flex items-center text-[11px] font-bold uppercase tracking-wide bg-black/75 text-white px-2 py-0.5 rounded shadow-md">
+                <span className="inline-flex items-center text-ui-meta font-bold uppercase tracking-wide bg-black/75 text-white px-2 py-0.5 rounded shadow-md">
                   +{hiddenKeywordCount}
                 </span>
               )}

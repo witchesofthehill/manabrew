@@ -13,14 +13,14 @@ interface HorizontalCardImageProps {
 // orientation reads correctly inside the 7:5 wrapper.
 export function HorizontalCardImage({ src, alt, className, loading }: HorizontalCardImageProps) {
   return (
-    <div className={cn("relative overflow-hidden", className)}>
+    <div className={cn("relative rounded-[inherit]", className)}>
       <ScryfallImg
         src={src}
         alt={alt}
         loading={loading}
         className={cn(
           "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-90 origin-center",
-          "h-[calc(100%*7/5)] aspect-[5/7]",
+          "h-[calc(100%*7/5)] aspect-[5/7] rounded-[inherit]",
         )}
       />
     </div>

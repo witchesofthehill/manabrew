@@ -91,7 +91,6 @@ export default function Play() {
       multiplayerStarted.current = false;
       navigate(ROUTES.LOBBY, {
         replace: true,
-        state: { topBarBackTo: ROUTES.PLAY },
       });
       return;
     }
@@ -102,7 +101,6 @@ export default function Play() {
       void cleanup.finally(() => {
         navigate(ROUTES.LOBBY, {
           replace: true,
-          state: { topBarBackTo: ROUTES.PLAY },
         });
       });
       return;
@@ -159,7 +157,6 @@ export default function Play() {
       else await server.leaveRoom();
       navigate(ROUTES.LOBBY, {
         replace: true,
-        state: { topBarBackTo: ROUTES.PLAY },
       });
     };
     const engineIndex = parseInt(myPlayerSlot.replace("player-", ""), 10);

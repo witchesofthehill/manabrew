@@ -772,6 +772,26 @@ async fn a_room_stays_on_the_relay_until_every_seat_opts_in() {
     );
 }
 
+async fn journal_rewind_keeps_the_room_and_resumes_play() {
+    scenario(
+        "a Forge game with a human and an external bot, with consumed decision history.",
+        "the human requests an earlier journal position.",
+        "the host swaps in a verified engine, preserves the room, and accepts fresh decisions.",
+    );
+    let sim = Sim::spawn(9760).await;
+    let mut alice = Client::connect(&sim.relay_url, "alice").await.unwrap();
+    alice.join(&sim.room_id, false).await.unwrap();
+    alice.spawn_node_bot(&sim.room_id).await.unwrap();
+    alice.select_deck_and_ready().await.unwrap();
+    alice.start_game(2).await.unwrap();
+    alice.answer_prompts(12).await.unwrap();
+    let game_id = alice.game_id.clone().unwrap();
+    alice.rewind_and_continue(4).await.unwrap();
+    alice.answer_prompts(3).await.unwrap();
+    alice.resync_expecting(&game_id).await.unwrap();
+    alice.answer_prompts(1).await.unwrap();
+}
+
 fn main() {
     let args = Arguments::from_args();
     let runtime = tokio::runtime::Builder::new_multi_thread()
@@ -780,7 +800,7 @@ fn main() {
         .expect("failed to build tokio runtime");
     let handle = runtime.handle().clone();
 
-    let cases: Vec<Case> = vec![
+    let mut cases: Vec<Case> = vec![
         case(
             "brief_disconnect_reclaims_seat",
             brief_disconnect_reclaims_seat,
@@ -857,6 +877,13 @@ fn main() {
             a_room_stays_on_the_relay_until_every_seat_opts_in,
         ),
     ];
+
+    if std::env::var("REGRESSION_NODE_ENGINE_BACKEND").as_deref() == Ok("forge") {
+        cases.push(case(
+            "journal_rewind_keeps_the_room_and_resumes_play",
+            journal_rewind_keeps_the_room_and_resumes_play,
+        ));
+    }
 
     if args.list {
         list(&args, &cases);

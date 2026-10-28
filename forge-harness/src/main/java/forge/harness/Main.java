@@ -337,6 +337,11 @@ public final class Main {
 
                 try {
                     switch (command) {
+                        case "getRewindRequest":
+                        case "resumeAfterFailedRewind":
+                        case "replayReady":
+                            sendOk(forge.harness.host.EngineCommands.execute(adapter, request.toString()));
+                            break;
                         case "quit":
                             System.err.println("[harness] interactive server received quit");
                             return;
@@ -364,8 +369,25 @@ public final class Main {
                                 requireString(request, "sessionId"),
                                 request.has("viewer") ? request.get("viewer").getAsInt() : -1));
                             break;
+                        case "exportReplaySnapshot":
+                            sendOk(adapter.exportReplaySnapshot(requireString(request, "sessionId"),
+                                requireString(request, "payload")));
+                            break;
+                        case "restoreReplaySnapshot":
+                            sendOk(adapter.restoreReplaySnapshot(requireString(request, "payload")));
+                            break;
                         case "getGameOver":
                             sendOk(adapter.getGameOver(requireString(request, "sessionId")));
+                            break;
+                        case "readDecisionJournal":
+                            sendOk(adapter.readDecisionJournal(requireString(request, "sessionId")));
+                            break;
+                        case "acknowledgeDecisionJournal":
+                            sendOk(adapter.acknowledgeDecisionJournal(requireString(request, "sessionId"),
+                                new java.math.BigDecimal(requireString(request, "sequence")).longValueExact()));
+                            break;
+                        case "drainDecisionJournal":
+                            sendOk(adapter.drainDecisionJournal(requireString(request, "sessionId")));
                             break;
                         case "drainCheckpointMetrics":
                             sendOk(adapter.drainCheckpointMetrics(requireString(request, "sessionId")));

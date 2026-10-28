@@ -50,7 +50,7 @@ export function LimitedHandTester({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         ref={setPreviewPortalTarget}
-        className="max-h-[90dvh] w-[calc(100%-2rem)] max-w-5xl overflow-y-auto overscroll-contain"
+        className="max-w-5xl overflow-y-auto overscroll-contain"
       >
         <DialogHeader>
           <DialogTitle>Opening hand tester</DialogTitle>
@@ -61,7 +61,7 @@ export function LimitedHandTester({
         </DialogHeader>
         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
           <div className="grid gap-1">
-            <span className="text-xs text-muted-foreground">Build to sample</span>
+            <span className="text-ui-label text-muted-foreground">Build to sample</span>
             <AppSelect aria-label="Build to sample" value={selected.id} onValueChange={setBuildId}>
               {builds.map((build) => (
                 <AppSelectOption key={build.id} value={build.id}>
@@ -71,7 +71,7 @@ export function LimitedHandTester({
             </AppSelect>
           </div>
           <div className="grid gap-1">
-            <span className="text-xs text-muted-foreground">Starting position</span>
+            <span className="text-ui-label text-muted-foreground">Starting position</span>
             <AppSelect
               aria-label="Starting position"
               value={position}
@@ -82,7 +82,7 @@ export function LimitedHandTester({
             </AppSelect>
           </div>
         </div>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-ui-meta text-muted-foreground">
           1v1 Limited uses the London mulligan, with no free first mulligan. Each mulligan
           reshuffles the entire build and draws seven, or all cards in a smaller practice build.
           Switching build or starting position deals a new opening hand.

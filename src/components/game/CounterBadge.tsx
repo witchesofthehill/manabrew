@@ -1,130 +1,11 @@
 import { cn } from "@/lib/utils";
 import type { GameThemeColors } from "@/themes/gameTheme";
-import { GameIcon, type GameIconName } from "./GameIcon";
+import { GameIcon } from "./GameIcon";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-type CounterColorKey = keyof GameThemeColors["counter"];
-interface CounterConfig {
-  iconName?: GameIconName;
-  label: string;
-  colorKey: CounterColorKey;
-  title: string;
-}
-/**
- * Known counter types and their visual identity.
- *
- * Keys must match the `CounterType` variant names produced by the Rust engine
- * (derived from `{:?}` formatting, e.g. "P1P1", "M1M1", "Loyalty").
- *
- * Colour comes from `theme.counter.<colorKey>` — see `src/themes/default.ts`
- * for the canonical palette. To add a new counter type, add an entry here
- * and a matching `counter.<name>` key to the theme.
- */
-const COUNTER_CONFIG: Record<string, CounterConfig> = {
-  P1P1: { label: "+1/+1", colorKey: "p1p1", title: "+1/+1" },
-  M1M1: { label: "−1/−1", colorKey: "m1m1", title: "−1/−1" },
-  Loyalty: {
-    iconName: "vibrating-shield",
-    label: `Loyalty`,
-    colorKey: "loyalty",
-    title: `Loyalty`,
-  },
-  Charge: {
-    iconName: "lightning-trio",
-    label: `Charge`,
-    colorKey: "charge",
-    title: `Charge`,
-  },
-  Quest: {
-    iconName: "scroll-quill",
-    label: `Quest`,
-    colorKey: "quest",
-    title: `Quest`,
-  },
-  Study: {
-    iconName: "book-aura",
-    label: `Study`,
-    colorKey: "study",
-    title: `Study`,
-  },
-  Lore: {
-    iconName: "spell-book",
-    label: `Lore`,
-    colorKey: "lore",
-    title: `Lore`,
-  },
-  Age: {
-    iconName: "hourglass",
-    label: `Age`,
-    colorKey: "age",
-    title: `Age`,
-  },
-  Time: {
-    iconName: "stopwatch",
-    label: `Time`,
-    colorKey: "time",
-    title: `Time`,
-  },
-  Fade: {
-    iconName: "ghost",
-    label: `Fade`,
-    colorKey: "fade",
-    title: `Fade`,
-  },
-  Level: {
-    iconName: "rank-3",
-    label: `Level`,
-    colorKey: "level",
-    title: `Level`,
-  },
-  Storage: {
-    iconName: "stack",
-    label: `Storage`,
-    colorKey: "storage",
-    title: `Storage`,
-  },
-  Mining: {
-    iconName: "mining",
-    label: `Mining`,
-    colorKey: "mining",
-    title: `Mining`,
-  },
-  Brick: {
-    iconName: "brick-wall",
-    label: `Brick`,
-    colorKey: "brick",
-    title: `Brick`,
-  },
-  Depletion: {
-    iconName: "battery-pack-alt",
-    label: `Depletion`,
-    colorKey: "depletion",
-    title: `Depletion`,
-  },
-  Page: {
-    iconName: "scroll-unfurled",
-    label: `Page`,
-    colorKey: "page",
-    title: `Page`,
-  },
-  Shield: {
-    iconName: "round-shield",
-    label: `Shield`,
-    colorKey: "shield",
-    title: `Shield`,
-  },
-};
-function getCounterConfig(type: string): CounterConfig {
-  return (
-    COUNTER_CONFIG[type] ?? {
-      label: type.slice(0, 3),
-      colorKey: "default",
-      title: type,
-    }
-  );
-}
+import { counterBadgePresentation, getCounterConfig } from "./cardPresentation";
 /** Static `bg-counter-*` class per counter colour key — Tailwind JIT
  *  needs the full class name in source, so we can't string-build it. */
-const COUNTER_BG_CLASS: Record<CounterColorKey, string> = {
+const COUNTER_BG_CLASS: Record<keyof GameThemeColors["counter"], string> = {
   default: "bg-counter-default",
   p1p1: "bg-counter-p1p1",
   m1m1: "bg-counter-m1m1",
@@ -159,16 +40,16 @@ const SIZE_TOKENS: Record<CounterSize, SizeTokens> = {
     count: "text-[7px]",
   },
   md: {
-    pill: "h-5 min-w-[1.25rem] px-1.5 gap-0.5",
+    pill: "min-h-5 min-w-[1.25rem] px-1.5 py-0.5 gap-0.5",
     symbol: "h-3.5 w-3.5",
-    text: "text-[10px]",
-    count: "text-[9px]",
+    text: "text-ui-meta",
+    count: "text-ui-meta",
   },
   lg: {
-    pill: "h-6 min-w-[1.5rem] px-2 gap-1",
+    pill: "min-h-6 min-w-[1.5rem] px-2 py-0.5 gap-1",
     symbol: "h-4 w-4",
-    text: "text-xs",
-    count: "text-[10px]",
+    text: "text-ui-meta",
+    count: "text-ui-meta",
   },
 };
 export interface CounterBadgeProps {
@@ -179,12 +60,8 @@ export interface CounterBadgeProps {
 }
 export function CounterBadge({ type, count, size = "sm", className }: CounterBadgeProps) {
   if (count <= 0) return null;
-  const cfg = getCounterConfig(type);
+  const cfg = counterBadgePresentation(type, count);
   const sz = SIZE_TOKENS[size];
-  // +1/+1 and -1/-1 counters read as their aggregate stat delta (e.g. three
-  // +1/+1 counters → "+3/+3") rather than a "+1/+1 ×3" label-plus-count.
-  const ptSign = type === "P1P1" ? "+" : type === "M1M1" ? "−" : null;
-  const aggregateLabel = ptSign ? `${ptSign}${count}/${ptSign}${count}` : null;
   const tooltipText = `${count} ${cfg.title} counter${count !== 1 ? `s` : ""}`;
   return (
     <Tooltip>
@@ -202,10 +79,10 @@ export function CounterBadge({ type, count, size = "sm", className }: CounterBad
           {cfg.iconName ? (
             <GameIcon name={cfg.iconName} className={cn(sz.symbol, "fill-current")} />
           ) : (
-            <span className={sz.text}>{aggregateLabel ?? cfg.label}</span>
+            <span className={sz.text}>{cfg.label}</span>
           )}
-          {!aggregateLabel && count > 1 && (
-            <span className={cn(sz.count, "opacity-90")}>{count}</span>
+          {cfg.displayCount != null && (
+            <span className={cn(sz.count, "opacity-90")}>{cfg.displayCount}</span>
           )}
         </span>
       </TooltipTrigger>
@@ -239,7 +116,7 @@ export function CounterSummary({ counters, className }: CounterSummaryProps) {
     .sort((a, b) => b[1] - a[1]);
   if (entries.length === 0) return null;
   return (
-    <div className={cn("flex flex-wrap items-center gap-1.5 text-sm", className)}>
+    <div className={cn("flex flex-wrap items-center gap-1.5 text-ui-meta", className)}>
       {entries.map(([type, count]) => {
         const cfg = getCounterConfig(type);
         return (
@@ -254,7 +131,7 @@ export function CounterSummary({ counters, className }: CounterSummaryProps) {
                 <span className="font-bold text-foreground tabular-nums">{count}×</span>
                 <span
                   className={cn(
-                    "inline-flex items-center justify-center rounded-full h-6 min-w-6 px-2",
+                    "inline-flex items-center justify-center rounded-full min-h-6 min-w-6 px-2 py-0.5",
                     "shadow-sm ring-1 ring-black/20 font-bold leading-none",
                     COUNTER_BG_CLASS[cfg.colorKey],
                     "text-text-on-tinted",
@@ -263,7 +140,7 @@ export function CounterSummary({ counters, className }: CounterSummaryProps) {
                   {cfg.iconName ? (
                     <GameIcon name={cfg.iconName} className="h-4 w-4 fill-current" />
                   ) : (
-                    <span className="text-xs">{cfg.label}</span>
+                    <span className="text-ui-meta">{cfg.label}</span>
                   )}
                 </span>
               </span>

@@ -1,7 +1,10 @@
-import { Container, Graphics, Sprite, Text, TextStyle, Texture } from "pixi.js";
+import { Container, Graphics, ImageSource, Sprite, Text, TextStyle, Texture } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
 import type { CardRailEffect, CardRailState } from "@/components/game/cardRailState";
-import { gameIconTexture } from "@/pixi/gameIconCache";
+import type { CardInteractionPanel } from "@/lib/cardRenderGeometry";
+import type { SagaChapterDto } from "@/protocol/game";
+import { cardImageLoader } from "@/lib/cardRenderArtwork";
+import { RULES_PREVIEW_FONT_SIZE } from "./RulesPreviewBody";
 import { hexToNum } from "@/pixi/colorUtils";
 import { PixiRichText } from "@/pixi/cardPreview/PixiRichText";
 import { readableTextColor } from "@/themes/gameTheme";
@@ -17,206 +20,299 @@ interface PixiCardRailPreviewOptions {
   theme: Theme;
   frame: RulesPreviewFrameStyle;
   highlightedEffect?: string;
+  sagaRail?: CardInteractionPanel["sagaRail"];
+  classLevelBand?: CardInteractionPanel["classLevelBand"];
+  sagaChapters?: SagaChapterDto[];
+  onChange: () => void;
 }
 
-const HEADER_HEIGHT = 54;
-const ROW_MIN_HEIGHT = 58;
-const CONTENT_LEFT = 51;
-const CONTENT_RIGHT = 10;
-const NODE_X = 26;
-const NODE_Y = 25;
-const NODE_RADIUS = 13.5;
+const CLASS_TEXT_INSET = 4;
+const CLASS_SECTION_GAP = 8;
+const CLASS_ACTIVE_BAND_ALPHA = 0.22;
+const ACTIVE_ABILITY_ALPHA = 0.2;
 
 function style(
   fill: string,
   fontSize: number,
   fontWeight: "400" | "500" | "600" | "700" = "400",
+  fontFamily = RULES_BODY_FONT,
 ): TextStyle {
   return new TextStyle({
     fill,
-    fontFamily: RULES_BODY_FONT,
+    fontFamily,
     fontSize,
     fontWeight,
     lineHeight: fontSize * 1.3,
   });
 }
 
+const progressionTextures = new Map<string, Promise<Texture>>();
+
+function progressionTexture(url: string): Promise<Texture> {
+  const cached = progressionTextures.get(url);
+  if (cached) return cached;
+  const loading = cardImageLoader([])([url], new AbortController().signal)
+    .then((lease) => {
+      const texture = new Texture({
+        source: new ImageSource({ resource: lease.images.get(url)!, autoGarbageCollect: false }),
+      });
+      texture.once("destroy", () => {
+        lease.dispose();
+        progressionTextures.delete(url);
+      });
+      return texture;
+    })
+    .catch((error: unknown) => {
+      progressionTextures.delete(url);
+      throw error;
+    });
+  progressionTextures.set(url, loading);
+  return loading;
+}
+
 export class PixiCardRailPreview extends Container {
   readonly contentHeight: number;
+  readonly markers = new Container();
   readonly highlightedRows: Container[] = [];
   readonly highlightedRowTop: number | null;
-  constructor({
+  constructor(options: PixiCardRailPreviewOptions) {
+    super();
+    const result =
+      options.state.kind === "saga" ? this.addSagaRows(options) : this.addClassRows(options);
+    this.contentHeight = result.height;
+    this.highlightedRowTop = result.highlightedRowTop;
+  }
+
+  private addClassRows({
     state,
     effects,
     width,
     theme,
     frame,
     highlightedEffect,
-  }: PixiCardRailPreviewOptions) {
-    super();
-    const { gameTheme } = theme;
-    const accent = state.kind === "saga" ? gameTheme.counter.lore : gameTheme.counter.level;
-    const foreground = frame.ink;
-    const muted = frame.mutedInk;
+    classLevelBand,
+    onChange,
+  }: PixiCardRailPreviewOptions): { height: number; highlightedRowTop: number | null } {
     const effectByPosition = new Map(effects.map((effect) => [effect.position, effect]));
+    const bodyStyle = style(frame.ink, RULES_PREVIEW_FONT_SIZE, "400", frame.bodyFont);
+    bodyStyle.lineHeight = RULES_PREVIEW_FONT_SIZE;
+    const reminderStyle = bodyStyle.clone();
+    reminderStyle.fill = frame.mutedInk;
+    reminderStyle.fontStyle = "italic";
+    const headerFontSize = classLevelBand?.fontSize ?? RULES_PREVIEW_FONT_SIZE;
+    let y = 0;
     let highlightedRowTop: number | null = null;
-
-    const header = new Container();
-    const iconBackground = new Graphics();
-    iconBackground.circle(14, 14, 14);
-    iconBackground.fill({ color: hexToNum(frame.ink), alpha: 0.08 });
-    const icon = new Sprite(Texture.EMPTY);
-    icon.position.set(6, 6);
-    icon.tint = hexToNum(accent);
-    const iconName = state.kind === "saga" ? "spell-book" : "rank-3";
-    void gameIconTexture(iconName)
-      .then((texture) => {
-        if (this.destroyed || icon.destroyed) return;
-        icon.texture = texture;
-        icon.setSize(16, 16);
-      })
-      .catch(() => undefined);
-    const title = new Text({
-      text: state.kind === "saga" ? i18n._(msg`LORE CHAPTERS`) : i18n._(msg`CLASS LEVELS`),
-      style: style(muted, 10, "700"),
-    });
-    title.resolution = 2;
-    title.position.set(39, 2);
-    const summaryText = new Text({
-      text:
-        state.kind === "saga"
-          ? state.current > 0
-            ? i18n._(msg`Chapter ${state.current} of ${state.max}`)
-            : i18n._(msg`Awaiting first chapter`)
-          : state.current > 0
-            ? i18n._(msg`Level ${state.current} of ${state.max}`)
-            : i18n._(msg`Awaiting first level`),
-      style: style(foreground, 12, "600"),
-    });
-    summaryText.resolution = 2;
-    summaryText.position.set(39, 19);
-    header.position.set(10, 8);
-    header.addChild(iconBackground, icon, title, summaryText);
-    this.addChild(header);
-
-    let y = HEADER_HEIGHT;
-    state.notches.forEach((notch) => {
+    for (const notch of state.notches) {
       const effect = effectByPosition.get(notch.position);
-      const row = new Container();
-      row.position.set(0, y);
       const highlighted =
         !!effect &&
         !!highlightedEffect &&
         rulesEntryMatchesStackAbility(effect.text, highlightedEffect);
-      const rowBackground = new Graphics();
-      row.addChild(rowBackground);
-
-      const meta = new Text({
-        text:
-          state.kind === "saga"
-            ? i18n._(msg`CHAPTER ${notch.label}`)
-            : i18n._(msg`LEVEL ${notch.label}`),
-        style: style(muted, 10, "700"),
-      });
-      meta.resolution = 2;
-      meta.position.set(CONTENT_LEFT, 9);
-      row.addChild(meta);
-
-      if (effect?.cost) {
+      const row = new Container();
+      row.position.set(0, y);
+      let headerHeight = 0;
+      if (notch.position > 1) {
+        const label = new Text({
+          text: i18n._(msg`Level ${notch.label}`),
+          style: style(frame.ink, headerFontSize, "400", frame.bodyFont),
+          resolution: 2,
+        });
         const cost = new PixiRichText();
-        cost.setContent(effect.cost, style(foreground, 11, "600"), 90, 14, 1);
-        cost.position.set(width - CONTENT_RIGHT - cost.width, 7);
-        row.addChild(cost);
-      }
-
-      let contentY = 29;
-      if (effect?.label) {
-        const label = new PixiRichText();
-        const labelHeight = label.setContent(
-          effect.label,
-          style(foreground, 14, "700"),
-          width - CONTENT_LEFT - CONTENT_RIGHT,
-          16,
-          2,
+        const costHeight = effect?.cost
+          ? cost.setContent(
+              `${effect.cost}:`,
+              style(frame.ink, headerFontSize, "400", frame.bodyFont),
+              Math.max(1, width - label.width - CLASS_TEXT_INSET * 3),
+              headerFontSize,
+              0,
+            )
+          : 0;
+        headerHeight = Math.max(
+          classLevelBand?.height ?? RULES_PREVIEW_FONT_SIZE * 1.5,
+          label.height + CLASS_TEXT_INSET,
+          costHeight + CLASS_TEXT_INSET,
         );
-        label.position.set(CONTENT_LEFT, contentY);
-        row.addChild(label);
-        contentY += labelHeight + 2;
+        const band = new Graphics()
+          .rect(0, 0, width, headerHeight)
+          .fill({ color: hexToNum(frame.ink), alpha: 0.08 });
+        row.addChild(band);
+        if (classLevelBand) {
+          const plate = new Sprite(Texture.EMPTY);
+          plate.setSize(width, headerHeight);
+          row.addChild(plate);
+          void progressionTexture(classLevelBand.assetUrl)
+            .then((texture) => {
+              if (this.destroyed || plate.destroyed) return;
+              plate.texture = texture;
+              plate.setSize(width, headerHeight);
+              onChange();
+            })
+            .catch(() => undefined);
+        }
+        if (notch.active || highlighted) {
+          const tint = new Graphics().rect(0, 0, width, headerHeight).fill({
+            color: hexToNum(
+              highlighted ? theme.gameTheme.activeAction.active : theme.gameTheme.counter.level,
+            ),
+            alpha: highlighted ? 0.28 : CLASS_ACTIVE_BAND_ALPHA,
+          });
+          row.addChild(tint);
+          if (!highlighted) this.highlightedRows.push(tint);
+        }
+        label.anchor.set(1, 0.5);
+        label.position.set(width - CLASS_TEXT_INSET, headerHeight / 2);
+        cost.position.set(CLASS_TEXT_INSET, (headerHeight - costHeight) / 2);
+        row.addChild(cost, label);
       }
-
-      const effectText = new PixiRichText();
-      const reminderStyle = style(muted, 14);
-      reminderStyle.fontStyle = "italic";
-      const effectHeight = effectText.setContent(
+      const rich = new PixiRichText();
+      const textHeight = rich.setContent(
         effect?.text || i18n._(msg`Effect text unavailable`),
-        style(foreground, 14),
-        width - CONTENT_LEFT - CONTENT_RIGHT,
-        16,
-        2,
+        bodyStyle,
+        Math.max(1, width - CLASS_TEXT_INSET * 2),
+        RULES_PREVIEW_FONT_SIZE,
+        0,
         { parentheticalStyle: reminderStyle },
       );
-      effectText.position.set(CONTENT_LEFT, contentY);
-      row.addChild(effectText);
-      const rowHeight = Math.max(ROW_MIN_HEIGHT, contentY + effectHeight + 10);
-
-      const timeline = new Graphics();
-      if (notch.position > 1) {
-        timeline.rect(NODE_X - 1, 0, 2, NODE_Y);
-        timeline.fill({
-          color: hexToNum(notch.reached ? accent : frame.mutedInk),
-          alpha: 0.92,
-        });
-      }
-      if (notch.position < state.max) {
-        timeline.rect(NODE_X - 1, NODE_Y, 2, rowHeight - NODE_Y);
-        timeline.fill({
-          color: hexToNum(notch.position < state.current ? accent : frame.mutedInk),
-          alpha: 0.92,
-        });
-      }
-      const node = new Graphics();
-      node.circle(NODE_X, NODE_Y, NODE_RADIUS);
-      node.fill({
-        color: hexToNum(notch.active || notch.reached ? accent : frame.ink),
-        alpha: notch.active ? 1 : notch.reached ? 0.2 : 0.08,
-      });
-      const nodeLabel = new Text({
-        text: notch.label,
-        style: style(
-          notch.active
-            ? readableTextColor(accent, gameTheme.canvas.shadow, gameTheme.textOnTinted)
-            : foreground,
-          9,
-          "700",
-        ),
-      });
-      nodeLabel.resolution = 2;
-      nodeLabel.anchor.set(0.5);
-      nodeLabel.position.set(NODE_X, NODE_Y);
-      row.addChildAt(timeline, 1);
-      row.addChild(node, nodeLabel);
-
+      rich.position.set(CLASS_TEXT_INSET, headerHeight + CLASS_SECTION_GAP);
+      row.addChild(rich);
+      const rowHeight = headerHeight + CLASS_SECTION_GAP + textHeight + CLASS_SECTION_GAP;
       if (notch.active || highlighted) {
-        rowBackground.rect(0, 0, width, rowHeight);
-        rowBackground.fill({
-          color: hexToNum(highlighted ? gameTheme.activeAction.active : accent),
-          alpha: highlighted ? 0.28 : 0.08,
+        const tint = new Graphics().rect(0, 0, width, rowHeight).fill({
+          color: hexToNum(
+            highlighted ? theme.gameTheme.activeAction.active : theme.gameTheme.counter.level,
+          ),
+          alpha: highlighted ? 0.28 : ACTIVE_ABILITY_ALPHA,
         });
+        row.addChildAt(tint, 0);
+        if (!highlighted) this.highlightedRows.push(tint);
       }
       if (highlighted) {
-        const marker = new Graphics()
-          .roundRect(0, 0, 4, rowHeight, 2)
-          .fill(hexToNum(gameTheme.activeAction.active));
-        row.addChild(marker);
         this.highlightedRows.push(row);
         highlightedRowTop ??= y;
       }
-
       this.addChild(row);
       y += rowHeight;
-    });
+    }
+    return { height: y, highlightedRowTop };
+  }
 
-    this.highlightedRowTop = highlightedRowTop;
-    this.contentHeight = y;
+  private addSagaRows({
+    state,
+    effects,
+    width,
+    theme,
+    frame,
+    highlightedEffect,
+    sagaRail,
+    sagaChapters,
+    onChange,
+  }: PixiCardRailPreviewOptions): { height: number; highlightedRowTop: number | null } {
+    const effectByPosition = new Map(effects.map((effect) => [effect.position, effect]));
+    const groups = sagaChapters?.length
+      ? sagaChapters.map((chapter) => ({ positions: chapter.chapters, text: chapter.oracle }))
+      : state.notches.map((notch) => ({
+          positions: [notch.position],
+          text: effectByPosition.get(notch.position)?.text ?? "",
+        }));
+    const groupedPositions = new Set(groups.flatMap((group) => group.positions));
+    for (const notch of state.notches) {
+      if (!groupedPositions.has(notch.position)) {
+        groups.push({
+          positions: [notch.position],
+          text: effectByPosition.get(notch.position)?.text ?? "",
+        });
+      }
+    }
+    const textX = sagaRail?.text.x ?? 0;
+    const textWidth = sagaRail?.text.width ?? width;
+    const accent = theme.gameTheme.counter.lore;
+    let y = 0;
+    let highlightedRowTop: number | null = null;
+    for (const { positions, text } of groups) {
+      const notches = state.notches.filter((notch) => positions.includes(notch.position));
+      if (notches.length === 0) continue;
+      const row = new Container();
+      const rich = new PixiRichText();
+      const bodyStyle = style(frame.ink, RULES_PREVIEW_FONT_SIZE, "400", frame.bodyFont);
+      bodyStyle.lineHeight = RULES_PREVIEW_FONT_SIZE;
+      const reminderStyle = bodyStyle.clone();
+      reminderStyle.fill = frame.mutedInk;
+      reminderStyle.fontStyle = "italic";
+      const effectText = text || i18n._(msg`Effect text unavailable`);
+      const textHeight = rich.setContent(
+        sagaRail ? effectText : `${notches.map((notch) => notch.label).join(", ")} — ${effectText}`,
+        bodyStyle,
+        textWidth,
+        RULES_PREVIEW_FONT_SIZE,
+        0,
+        { parentheticalStyle: reminderStyle },
+      );
+      const marker = sagaRail?.marker;
+      const rowHeight = Math.max(
+        textHeight,
+        marker ? marker.minimumRowHeight + (notches.length - 1) * marker.gap : 0,
+      );
+      const active = notches.some((notch) => notch.active);
+      const highlighted =
+        !!text && !!highlightedEffect && rulesEntryMatchesStackAbility(text, highlightedEffect);
+      row.position.set(textX, y);
+      if (active || highlighted) {
+        const tint = new Graphics().rect(0, 0, textWidth, rowHeight).fill({
+          color: hexToNum(highlighted ? theme.gameTheme.activeAction.active : accent),
+          alpha: highlighted ? 0.28 : ACTIVE_ABILITY_ALPHA,
+        });
+        row.addChild(tint);
+        if (!highlighted) this.highlightedRows.push(tint);
+      }
+      rich.position.set(0, (rowHeight - textHeight) / 2);
+      row.addChild(rich);
+      this.addChild(row);
+      if (highlighted) {
+        this.highlightedRows.push(row);
+        highlightedRowTop ??= y;
+      }
+      if (marker) {
+        notches.forEach((notch, index) => {
+          const centerY = y + rowHeight / 2 + (index - (notches.length - 1) / 2) * marker.gap;
+          const badge = new Sprite(Texture.EMPTY);
+          badge.position.set(marker.x, centerY - marker.height / 2);
+          badge.setSize(marker.width, marker.height);
+          badge.tint = hexToNum(notch.active || notch.reached ? accent : frame.paper);
+          void progressionTexture(marker.assetUrl)
+            .then((texture) => {
+              if (this.destroyed || badge.destroyed) return;
+              badge.texture = texture;
+              badge.setSize(marker.width, marker.height);
+              onChange();
+            })
+            .catch(() => undefined);
+          const numeral = new Text({
+            text: notch.label,
+            style: style(
+              notch.active || notch.reached
+                ? readableTextColor(
+                    accent,
+                    theme.gameTheme.canvas.shadow,
+                    theme.gameTheme.textOnTinted,
+                  )
+                : frame.ink,
+              marker.fontSize,
+              "600",
+              marker.fontFamily,
+            ),
+          });
+          numeral.resolution = 2;
+          numeral.anchor.set(0.5);
+          numeral.position.set(marker.centerX, centerY + marker.numeralOffsetY);
+          const markerRow = new Container();
+          markerRow.addChild(badge, numeral);
+          if (notch.reached && !notch.active) markerRow.alpha = 0.65;
+          this.markers.addChild(markerRow);
+          if (highlighted) this.highlightedRows.push(markerRow);
+        });
+      }
+      y += rowHeight + 8;
+    }
+    return { height: Math.max(0, y - 8), highlightedRowTop };
   }
 }

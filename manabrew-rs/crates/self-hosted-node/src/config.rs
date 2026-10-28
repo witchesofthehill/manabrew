@@ -143,7 +143,7 @@ impl Config {
                 false,
             ),
             bot_username,
-            forge_ai: env_bool("SELF_HOSTED_NODE_FORGE_AI", "FORGE_ROOM_FORGE_AI", false),
+            forge_ai: env_bool("SELF_HOSTED_NODE_FORGE_AI", "FORGE_ROOM_FORGE_AI", true),
             bot_agent: AgentKind::default(),
             bot_local_answers: env_bool("SELF_HOSTED_NODE_BOT_LOCAL_ANSWERS", "", true),
             reconnect_timeout_s: env_first("SELF_HOSTED_NODE_RECONNECT_TIMEOUT_S", "")
@@ -189,7 +189,7 @@ impl Config {
             room_password,
             bot_enabled: false,
             bot_username,
-            forge_ai: false,
+            forge_ai: true,
             bot_agent: AgentKind::default(),
             bot_local_answers: true,
             reconnect_timeout_s,

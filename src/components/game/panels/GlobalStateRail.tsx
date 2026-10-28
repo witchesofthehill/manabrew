@@ -121,7 +121,7 @@ export function GlobalStateRail({
     railItems.map(({ id, label, value, icon: Icon, emphasis }) => (
       <div
         key={id}
-        className="flex items-center gap-1.5 rounded-full border border-border/70 bg-card/95 px-2.5 py-1 font-game text-[11px] shadow-md backdrop-blur-sm"
+        className="flex flex-wrap items-center gap-1.5 rounded-full border border-border/70 bg-card/95 px-2.5 py-1 font-game text-ui-meta shadow-md backdrop-blur-sm"
       >
         <Icon
           className={

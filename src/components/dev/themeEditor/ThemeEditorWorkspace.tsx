@@ -1,4 +1,6 @@
 import { useCallback, useState, type ReactNode } from "react";
+import { useSearchParams } from "react-router-dom";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,14 +19,14 @@ function AppElementPreview() {
     >
       <div className="flex min-w-max items-start gap-6 p-3">
         <header className="w-32 shrink-0 space-y-1 pt-1">
-          <h2 id="app-element-preview-title" className="text-sm font-semibold">
+          <h2 id="app-element-preview-title" className="text-ui-label font-semibold">
             App elements
           </h2>
-          <p className="text-[11px] leading-snug text-muted-foreground">Live theme preview</p>
+          <p className="text-ui-meta text-muted-foreground">Live theme preview</p>
         </header>
 
         <div className="space-y-2">
-          <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          <div className="text-ui-label font-medium uppercase tracking-wide text-muted-foreground">
             Buttons
           </div>
           <div className="flex items-center gap-2">
@@ -52,15 +54,15 @@ function AppElementPreview() {
         </div>
 
         <div className="space-y-2">
-          <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          <div className="text-ui-label font-medium uppercase tracking-wide text-muted-foreground">
             Selection
           </div>
           <div className="flex items-center gap-4">
-            <Label className="flex items-center gap-2">
+            <Label className="flex items-center gap-2 touch:min-h-11">
               <Checkbox defaultChecked />
               Checked
             </Label>
-            <Label className="flex items-center gap-2">
+            <Label className="flex items-center gap-2 touch:min-h-11">
               <Checkbox />
               Unchecked
             </Label>
@@ -68,7 +70,7 @@ function AppElementPreview() {
         </div>
 
         <div className="space-y-2">
-          <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          <div className="text-ui-label font-medium uppercase tracking-wide text-muted-foreground">
             Badges
           </div>
           <div className="flex items-center gap-2">
@@ -79,10 +81,10 @@ function AppElementPreview() {
           </div>
         </div>
 
-        <Card className="w-52 shrink-0 shadow-sm">
+        <Card className="w-60 shrink-0 shadow-sm">
           <CardContent className="space-y-1 p-3">
-            <div className="text-sm font-semibold">Card surface</div>
-            <p className="text-xs text-muted-foreground">Foreground and muted copy</p>
+            <div className="text-ui-label font-semibold">Card surface</div>
+            <p className="text-ui-body text-muted-foreground">Foreground and muted copy</p>
           </CardContent>
         </Card>
       </div>
@@ -93,11 +95,17 @@ function AppElementPreview() {
 export function ThemeEditorWorkspace({
   children,
   specimens,
+  rendering,
+  controls,
 }: {
   children: ReactNode;
   specimens: ReactNode;
+  rendering: ReactNode;
+  controls: ReactNode;
 }) {
   const editor = useThemeDraft();
+  const [params, setParams] = useSearchParams();
+  const comparing = params.get("tab") === "rendering";
   const [invalidTokens, setInvalidTokens] = useState<Set<string>>(() => new Set());
   const onValidityChange = useCallback((token: string, invalid: boolean) => {
     setInvalidTokens((current) => {
@@ -111,34 +119,67 @@ export function ThemeEditorWorkspace({
   return (
     <div className="flex h-full min-h-0 flex-col gap-2 overflow-hidden px-4 py-3 sm:px-6 lg:px-8">
       <ThemeEditorToolbar editor={editor} hasInvalidColors={invalidTokens.size > 0} />
+      <div className="flex shrink-0 flex-wrap items-center gap-3">
+        <nav aria-label="Lab workspace" className="flex gap-1">
+          {[
+            { id: "board", label: "Board & theme" },
+            { id: "rendering", label: "Card rendering" },
+          ].map(({ id, label }) => (
+            <Button
+              key={id}
+              size="sm"
+              variant={comparing === (id === "rendering") ? "selected" : "outline"}
+              aria-pressed={comparing === (id === "rendering")}
+              onClick={() =>
+                setParams((current) => {
+                  const next = new URLSearchParams(current);
+                  next.set("tab", id);
+                  return next;
+                })
+              }
+            >
+              {label}
+            </Button>
+          ))}
+        </nav>
+        {controls}
+      </div>
       {editor.error && (
-        <p role="alert" className="shrink-0 text-xs text-destructive">
+        <p role="alert" className="shrink-0 text-ui-body text-destructive">
           {editor.error}
         </p>
       )}
       {invalidTokens.size > 0 && (
-        <p role="alert" className="shrink-0 text-xs text-destructive">
+        <p role="alert" className="shrink-0 text-ui-body text-destructive">
           Fix invalid color values before saving or exporting.
         </p>
       )}
       {editor.status && (
-        <p role="status" className="shrink-0 text-xs text-muted-foreground">
+        <p role="status" className="shrink-0 text-ui-meta text-muted-foreground">
           {editor.status}
         </p>
       )}
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden md:flex-row">
+      <div
+        className={cn(
+          "min-h-0 flex-1 flex-col gap-3 overflow-hidden md:flex-row",
+          comparing ? "hidden" : "flex",
+        )}
+      >
         <ThemeTokenRail editor={editor} onValidityChange={onValidityChange} />
         <div className="order-1 flex h-[52%] min-h-0 min-w-0 shrink-0 flex-col gap-2 md:order-2 md:h-auto md:flex-1">
           <div className="min-h-0 min-w-0 flex-1 overflow-hidden">{children}</div>
           <details className="max-h-[32%] shrink-0 overflow-auto overscroll-contain rounded-lg border border-border bg-card">
-            <summary className="cursor-pointer px-3 py-2 text-xs font-medium">
+            <summary className="cursor-pointer px-3 py-2 text-ui-label font-medium touch:min-h-11">
               Card specimens
             </summary>
             <div className="space-y-4 p-3 pt-1">{specimens}</div>
           </details>
         </div>
       </div>
-      <AppElementPreview />
+      {comparing && (
+        <div className="min-h-0 flex-1 overflow-auto overscroll-contain">{rendering}</div>
+      )}
+      {!comparing && <AppElementPreview />}
     </div>
   );
 }

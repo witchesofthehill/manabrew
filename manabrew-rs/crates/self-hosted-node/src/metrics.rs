@@ -178,17 +178,20 @@ pub fn record_jvm_gc(kind: &'static str, pause: Duration, heap_after_mb: Option<
     }
 }
 
-/// Isolate-wide GC and heap, polled from the engine rather than parsed from a
-/// log the graal fleet does not write. Cumulative, so
-/// `rate(engine_gc_pause_millis_total) / 1000` is the fraction of wall clock
-/// stopped, which is the figure that identified #684. Every room on the node
-/// shares one isolate, so a collection here stops all of them at once.
-/// The collection counters carry a `collector` label and are emitted by
-/// [`record_engine_gc_collector`]; emitting an unlabelled copy of the same name
-/// here would double every `sum`.
 pub fn record_engine_gc(_collections: i64, _pause_millis: i64, heap_used: u64, heap_max: u64) {
     gauge!(ENGINE_HEAP_USED_BYTES).set(heap_used as f64);
     gauge!(ENGINE_HEAP_MAX_BYTES).set(heap_max as f64);
+}
+
+pub fn record_engine_gc_delta(collector: &str, collections: u64, pause_millis: u64) {
+    let name = collector.to_string();
+    counter!(ENGINE_GC_COLLECTIONS, LABEL_COLLECTOR => name.clone()).increment(collections);
+    counter!(ENGINE_GC_PAUSE_MILLIS, LABEL_COLLECTOR => name).increment(pause_millis);
+}
+
+pub fn record_engine_stall_delta(stalled_millis: u64, long_stalls: u64) {
+    counter!(ENGINE_STALL_MILLIS).increment(stalled_millis);
+    counter!(ENGINE_LONG_STALLS).increment(long_stalls);
 }
 
 /// Split by collector. Incremental collections are a few milliseconds and

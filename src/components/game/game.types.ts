@@ -1,9 +1,7 @@
-import type { CardDto, CheckpointDto } from "@/protocol/game";
+import type { CardDto, CheckpointDto, DecisionHistoryDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
-import type { GameLogEntry } from "@/types/gameLog";
 import type { PromptType } from "@/protocol";
 import type { DevPromptActionOverride } from "@/stores/useGameDevStore";
-import type { HoverOptions } from "@/hooks/useCardPreview";
 
 export type PromptActionType = PromptType;
 
@@ -36,28 +34,16 @@ export const OPPONENT_SEATS: readonly Exclude<PlayerSeat, "self">[] = [
   "opponent3",
 ] as const;
 
-export interface LogCardPreviewOptions extends HoverOptions {
-  sticky?: boolean;
-}
-
 export interface RightActionPanelProps {
   collapsed: boolean;
   onToggleCollapse: () => void;
   onLeftEdgeChange?: (left: number | undefined) => void;
-  gameLog: GameLogEntry[];
-  onHoverLogCard: (
-    cardId: string | null,
-    e?: React.MouseEvent,
-    options?: LogCardPreviewOptions,
-  ) => void;
-  resolveCardName: (cardId: string) => string;
   resolvePlayerName: (playerId: string) => string;
+  resolvePlayerColor: (playerId: string) => string;
   checkpoints: CheckpointDto[];
+  decisionHistory?: DecisionHistoryDto;
   canRequestRestore: boolean;
   onRequestRestore: (checkpoint: CheckpointDto) => void;
-  snapshotRecording: boolean;
-  hostsEngine: boolean;
-  onSnapshotRecordingChange: (enabled: boolean) => void;
 }
 
 export interface PromptActionSpec {

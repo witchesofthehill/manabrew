@@ -1,19 +1,19 @@
 import type { ReactNode } from "react";
+import type { DeckCard } from "@/protocol/deck";
 
 import { CardContextMenu } from "./DeckListView";
 
 export interface CommandZoneCardMenuActions {
+  canCustomize: boolean;
   commanderLabel: string;
   customTags: string[];
   appliedTags: string[];
-  isFoil: boolean;
   isCover: boolean;
   isCoverBack: boolean;
   hasBackFace: boolean;
   onShowInfo: () => void;
   onRemoveCommander: () => void;
-  onPickPrint: () => void;
-  onToggleFoil: () => void;
+  onCustomize: () => void;
   onSetCover: () => void;
   onSetCoverBack: () => void;
   onApplyTag: (tag: string) => void;
@@ -22,15 +22,19 @@ export interface CommandZoneCardMenuActions {
 
 export function CommandZoneCardMenu({
   children,
+  card,
   actions,
 }: {
   children: ReactNode;
+  card: DeckCard;
   actions: CommandZoneCardMenuActions;
 }) {
   return (
     <CardContextMenu
+      card={card}
       count={1}
       location="main"
+      canCustomize={actions.canCustomize}
       onShowInfo={actions.onShowInfo}
       isCommander
       commanderSlot={{ noun: actions.commanderLabel, icon: "crown" }}
@@ -43,9 +47,7 @@ export function CommandZoneCardMenu({
       appliedTags={actions.appliedTags}
       onApplyTag={actions.onApplyTag}
       onCreateTag={actions.onCreateTag}
-      onPickPrint={actions.onPickPrint}
-      onToggleFoil={actions.onToggleFoil}
-      isFoil={actions.isFoil}
+      onCustomize={actions.onCustomize}
     >
       {children}
     </CardContextMenu>

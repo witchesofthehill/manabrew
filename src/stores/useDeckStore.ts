@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist, devtools, createJSONStorage } from "zustand/middleware";
 import { toast } from "sonner";
-import type { DeckCard, DeckCardIdentity, DeckFormat } from "@/protocol/deck";
+import type { CardCosmetics, DeckCard, DeckCardIdentity, DeckFormat } from "@/protocol/deck";
 import type { PlaymatSettings } from "@/protocol/game";
 import type { DeckEditorMetadata, EditorDeck } from "@/types/manabrew";
 import type { ScryfallCard } from "@/types/scryfall";
@@ -17,8 +17,11 @@ import {
   canHaveAnyNumberOf,
   copyLimitFromText,
 } from "@/lib/formats";
-import { chooseImageUrisForCard, tokenIdentityKey } from "@/stores/useScryfallStore";
-import { collectProducedTokenKeys } from "@/lib/decks";
+import { resolveTokenCustomizationScript, tokenIdentityKey } from "@/stores/useScryfallStore";
+import { collectProducedTokenKeys, deriveTokens } from "@/lib/decks";
+import { cardCosmeticsKey, normalizeCardCosmetics, randomCardWearSeed } from "@/lib/cardCosmetics";
+import { resolveCardWearAmount } from "@/lib/cardFinish";
+import { scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { resolveDeckName } from "@/lib/deckName";
 import { mergeDeckImportIntoDeck } from "@/lib/deckImport";
 /** Migrate legacy "constructed" format id to "standard". */
@@ -73,6 +76,32 @@ function isSchemeCard(card: DeckCard): boolean {
 function isPlaneCard(card: DeckCard): boolean {
   return card.types?.some((type) => type.toLowerCase() === "plane") ?? false;
 }
+function normalizeCardAppearance(card: DeckCard): DeckCard {
+  if (card.identity.cosmetics === undefined) return card;
+  const cosmetics = normalizeCardCosmetics(card.identity.cosmetics);
+  return { ...card, identity: { ...card.identity, cosmetics } };
+}
+function createCardOccurrence(card: DeckCard): DeckCard {
+  const cosmetics = card.identity.cosmetics;
+  return {
+    ...card,
+    identity: {
+      ...card.identity,
+      id: crypto.randomUUID(),
+      cosmetics:
+        resolveCardWearAmount(cosmetics) > 0
+          ? { ...cosmetics, wearSeed: randomCardWearSeed() }
+          : cosmetics,
+    },
+  };
+}
+function canAddToMain(deck: EditorDeck, card: DeckCard): boolean {
+  if (canHaveAnyNumberOf(card)) return true;
+  const format = getFormat(deck.format ?? "standard");
+  if (!format) return true;
+  const limit = copyLimitFromText(card.text) ?? format.deckRules.maxCopies;
+  return deck.cards.filter((entry) => entry.identity.name === card.identity.name).length < limit;
+}
 export function normalizeDeck(deck: EditorDeck): EditorDeck {
   const attractions = [...(deck.attractions ?? [])];
   const contraptions = [...(deck.contraptions ?? [])];
@@ -99,23 +128,56 @@ export function normalizeDeck(deck: EditorDeck): EditorDeck {
   ).commander;
   if (legacy && !commanders.some((c) => c.identity.name === legacy.identity.name)) {
     commanders.push(legacy);
-  }
-  for (const cmd of commanders) {
-    const idx = main.findIndex((card) => card.identity.name === cmd.identity.name);
+    const idx = main.findIndex((card) => card.identity.name === legacy.identity.name);
     if (idx !== -1) main.splice(idx, 1);
   }
-  const normalized: EditorDeck = {
-    ...deck,
-    name: resolveDeckName(deck.name, commanders),
-    format: migrateFormatId(deck.format ?? (commanders.length > 0 ? "commander" : "standard")),
-    cards: main,
+  const sections = [
+    main,
     sideboard,
-    ...(maybeboard && { maybeboard }),
+    maybeboard ?? [],
     attractions,
     contraptions,
     schemes,
     planes,
-    commanders: commanders.length > 0 ? commanders : undefined,
+    commanders,
+    deck.companion ? [deck.companion] : [],
+  ];
+  const reservedIds = new Set<string>();
+  for (const cards of sections) {
+    for (const card of cards) reservedIds.add(card.identity.id);
+  }
+  const seenIds = new Set<string>();
+  const copyCounts = new Map<string, number>();
+  const normalizeOccurrence = (card: DeckCard): DeckCard => {
+    const normalized = normalizeCardAppearance(card);
+    const id = card.identity.id;
+    if (!seenIds.has(id)) {
+      seenIds.add(id);
+      return normalized;
+    }
+    let count = copyCounts.get(id) ?? 0;
+    let occurrenceId: string;
+    do {
+      occurrenceId = `${id}:copy:${++count}`;
+    } while (reservedIds.has(occurrenceId));
+    copyCounts.set(id, count);
+    reservedIds.add(occurrenceId);
+    return { ...normalized, identity: { ...normalized.identity, id: occurrenceId } };
+  };
+  const normalized: EditorDeck = {
+    ...deck,
+    name: resolveDeckName(deck.name, commanders),
+    format: migrateFormatId(deck.format ?? (commanders.length > 0 ? "commander" : "standard")),
+    cards: main.map(normalizeOccurrence),
+    sideboard: sideboard.map(normalizeOccurrence),
+    ...(maybeboard && { maybeboard: maybeboard.map(normalizeOccurrence) }),
+    attractions: attractions.map(normalizeOccurrence),
+    contraptions: contraptions.map(normalizeOccurrence),
+    schemes: schemes.map(normalizeOccurrence),
+    planes: planes.map(normalizeOccurrence),
+    commanders: commanders.length > 0 ? commanders.map(normalizeOccurrence) : undefined,
+    companion: deck.companion ? normalizeOccurrence(deck.companion) : undefined,
+    tokens: deck.tokens?.map(normalizeCardAppearance),
     editor: normalizeEditorMetadata(deck),
   };
   delete (
@@ -193,11 +255,35 @@ function patchDeckCardById(deck: EditorDeck, cardId: string, patch: CardPatch): 
     schemes: normalized.schemes ? patchCards(normalized.schemes) : undefined,
     planes: normalized.planes ? patchCards(normalized.planes) : undefined,
     commanders: normalized.commanders ? patchCards(normalized.commanders) : undefined,
+    tokens: normalized.tokens ? patchCards(normalized.tokens) : undefined,
     companion:
       normalized.companion?.identity.id === cardId
         ? applyPatch(normalized.companion, patch)
         : normalized.companion,
   };
+}
+function matchesPrintingVariant(card: DeckCard, printing: DeckCardIdentity): boolean {
+  return (
+    card.identity.name === printing.name &&
+    card.identity.setCode === printing.setCode &&
+    card.identity.cardNumber === printing.cardNumber &&
+    !!card.identity.foil === !!printing.foil &&
+    cardCosmeticsKey(card.identity.cosmetics) === cardCosmeticsKey(printing.cosmetics)
+  );
+}
+export function getCardCustomizationCopy(deck: EditorDeck, cardId: string): DeckCard | undefined {
+  const matches = (card: DeckCard) => card.identity.id === cardId;
+  return (
+    deck.cards.find(matches) ??
+    deck.sideboard.find(matches) ??
+    deck.maybeboard?.find(matches) ??
+    deck.attractions?.find(matches) ??
+    deck.contraptions?.find(matches) ??
+    deck.schemes?.find(matches) ??
+    deck.planes?.find(matches) ??
+    deck.commanders?.find(matches) ??
+    (deck.companion?.identity.id === cardId ? deck.companion : undefined)
+  );
 }
 function patchDeckPrintingVariant(
   deck: EditorDeck,
@@ -205,13 +291,8 @@ function patchDeckPrintingVariant(
   patch: CardPatch,
 ): EditorDeck {
   const normalized = normalizeDeck(deck);
-  const matches = (card: DeckCard) =>
-    card.identity.name === printing.name &&
-    card.identity.setCode === printing.setCode &&
-    card.identity.cardNumber === printing.cardNumber &&
-    !!card.identity.foil === !!printing.foil;
   const patchCards = (cards: DeckCard[]) =>
-    cards.map((card) => (matches(card) ? applyPatch(card, patch) : card));
+    cards.map((card) => (matchesPrintingVariant(card, printing) ? applyPatch(card, patch) : card));
   return {
     ...normalized,
     cards: patchCards(normalized.cards),
@@ -223,12 +304,15 @@ function patchDeckPrintingVariant(
     planes: normalized.planes ? patchCards(normalized.planes) : undefined,
     commanders: normalized.commanders ? patchCards(normalized.commanders) : undefined,
     companion:
-      normalized.companion && matches(normalized.companion)
+      normalized.companion && matchesPrintingVariant(normalized.companion, printing)
         ? applyPatch(normalized.companion, patch)
         : normalized.companion,
   };
 }
-function availablePrintingFoil(printing: DeckCardIdentity, scryfallCard: ScryfallCard): boolean {
+export function availablePrintingFoil(
+  printing: DeckCardIdentity,
+  scryfallCard: ScryfallCard,
+): boolean {
   const finishes = scryfallCard.finishes ?? [];
   if (finishes.length === 0) return !!printing.foil;
   const hasFoil = finishes.some((finish) => finish === "foil" || finish === "etched");
@@ -236,6 +320,21 @@ function availablePrintingFoil(printing: DeckCardIdentity, scryfallCard: Scryfal
   if (printing.foil && !hasFoil && hasNonfoil) return false;
   if (!printing.foil && !hasNonfoil && hasFoil) return true;
   return !!printing.foil;
+}
+export function getCardPrintingPatch(printing: ScryfallCard): CardPatch {
+  const card = scryfallToDeckCard(printing);
+  return {
+    identity: {
+      setCode: card.identity.setCode,
+      cardNumber: card.identity.cardNumber,
+      oracleId: card.identity.oracleId,
+    },
+    uris: card.uris,
+    imageLanguage: card.imageLanguage,
+    layout: card.layout,
+    isDoubleFaced: card.isDoubleFaced,
+    backFace: card.backFace,
+  };
 }
 export interface SavedDeck {
   id: string;
@@ -283,6 +382,7 @@ interface DeckState {
   addToMain: (card: DeckCard) => void;
   addToSide: (card: DeckCard) => void;
   addToMaybe: (card: DeckCard) => void;
+  moveCards: (cardIds: Iterable<string>, destination: "main" | "side" | "maybe") => number;
   removeFromMaybe: (cardId: string) => void;
   removeFromMain: (cardId: string) => void;
   removeFromSide: (cardId: string) => void;
@@ -318,8 +418,21 @@ interface DeckState {
   updateCardPrint: (cardId: string, scryfallCard: ScryfallCard, foil?: boolean) => void;
   updatePrintingVariant: (printing: DeckCardIdentity, scryfallCard: ScryfallCard) => void;
   setCardFoil: (cardId: string, foil: boolean) => void;
+  setCardCosmetics: (
+    changes: readonly {
+      cardId: string;
+      cosmetics: CardCosmetics | undefined;
+      foil: boolean;
+      printing?: ScryfallCard;
+    }[],
+  ) => void;
+  setTokenCosmetics: (
+    card: DeckCard,
+    cosmetics: CardCosmetics | undefined,
+    foil: boolean,
+    printing?: ScryfallCard,
+  ) => void;
   updateTokenPrint: (token: DeckCard, scryfallCard: ScryfallCard) => void;
-  toggleFoil: (cardName: string) => void;
   resetTokenPrint: (token: DeckCard) => void;
   enrichDeckCards: (updates: Map<string, CardPatch>) => void;
   addCardToSavedDeck: (id: string, card: DeckCard) => void;
@@ -379,22 +492,11 @@ export const useDeckStore = create<DeckState>()(
         migrationError: false,
         addToMain: (card) =>
           set((state) => {
-            if (!canHaveAnyNumberOf(card)) {
-              const format = getFormat(state.currentDeck.format ?? "standard");
-              if (format) {
-                const limit = copyLimitFromText(card.text) ?? format.deckRules.maxCopies;
-                const currentCount = state.currentDeck.cards.filter(
-                  (c) => c.identity.name === card.identity.name,
-                ).length;
-                if (currentCount >= limit) {
-                  return state; // silently reject — UI will show toast via DeckBuilder
-                }
-              }
-            }
+            if (!canAddToMain(state.currentDeck, card)) return state;
             return {
               currentDeck: normalizeDeck({
                 ...state.currentDeck,
-                cards: [...state.currentDeck.cards, card],
+                cards: [...state.currentDeck.cards, createCardOccurrence(card)],
               }),
             };
           }),
@@ -402,16 +504,46 @@ export const useDeckStore = create<DeckState>()(
           set((state) => ({
             currentDeck: normalizeDeck({
               ...state.currentDeck,
-              sideboard: [...state.currentDeck.sideboard, card],
+              sideboard: [...state.currentDeck.sideboard, createCardOccurrence(card)],
             }),
           })),
         addToMaybe: (card) =>
           set((state) => ({
             currentDeck: normalizeDeck({
               ...state.currentDeck,
-              maybeboard: [...(state.currentDeck.maybeboard ?? []), card],
+              maybeboard: [...(state.currentDeck.maybeboard ?? []), createCardOccurrence(card)],
             }),
           })),
+        moveCards: (cardIds, destination) => {
+          const ids = new Set(cardIds);
+          let moved = 0;
+          set((state) => {
+            const deck = {
+              ...state.currentDeck,
+              cards: [...state.currentDeck.cards],
+              sideboard: [...state.currentDeck.sideboard],
+              maybeboard: [...(state.currentDeck.maybeboard ?? [])],
+            };
+            const target =
+              destination === "main"
+                ? "cards"
+                : destination === "side"
+                  ? "sideboard"
+                  : "maybeboard";
+            for (const source of ["cards", "sideboard", "maybeboard"] as const) {
+              if (source === target) continue;
+              deck[source] = deck[source].filter((card) => {
+                if (!ids.has(card.identity.id)) return true;
+                if (target === "cards" && !canAddToMain(deck, card)) return true;
+                deck[target].push(card);
+                moved += 1;
+                return false;
+              });
+            }
+            return moved > 0 ? { currentDeck: normalizeDeck(deck) } : state;
+          });
+          return moved;
+        },
         removeFromMaybe: (cardId) =>
           set((state) => {
             const idx = (state.currentDeck.maybeboard ?? []).findIndex(
@@ -482,15 +614,11 @@ export const useDeckStore = create<DeckState>()(
               !getFormat(format)?.deckRules.requiresCommander &&
               (deck.commanders?.length ?? 0) > 0
             ) {
-              const movedBack = (deck.commanders ?? []).map((c) => ({
-                ...c,
-                identity: { ...c.identity, id: crypto.randomUUID() },
-              }));
               return {
                 currentDeck: {
                   ...deck,
                   format,
-                  cards: [...deck.cards, ...movedBack],
+                  cards: [...deck.cards, ...(deck.commanders ?? [])],
                   commanders: undefined,
                 },
               };
@@ -571,15 +699,22 @@ export const useDeckStore = create<DeckState>()(
         setCommander: (card) =>
           set((state) => {
             const deck = normalizeDeck(state.currentDeck);
+            if (deck.commanders?.some((entry) => entry.identity.id === card.identity.id)) {
+              return state;
+            }
             const nextMain = [...deck.cards];
-            const selectedIndex = nextMain.findIndex(
-              (entry) => entry.identity.id === card.identity.id,
-            );
-            const selectedCard =
-              selectedIndex !== -1 ? nextMain.splice(selectedIndex, 1)[0] : { ...card };
+            const nextSide = [...deck.sideboard];
+            const nextMaybe = [...(deck.maybeboard ?? [])];
+            let selectedCard: DeckCard | undefined;
+            for (const cards of [nextMain, nextSide, nextMaybe]) {
+              const index = cards.findIndex((entry) => entry.identity.id === card.identity.id);
+              if (index === -1) continue;
+              selectedCard = cards.splice(index, 1)[0];
+              break;
+            }
+            selectedCard ??= createCardOccurrence(card);
             let commanders = [...(deck.commanders ?? [])];
-            const returnToMain = (c: DeckCard) =>
-              nextMain.push({ ...c, identity: { ...c.identity, id: crypto.randomUUID() } });
+            const returnToMain = (c: DeckCard) => nextMain.push(c);
             if (deck.format === "oathbreaker") {
               const oathbreakers = commanders.filter((c) => canBeOathbreaker(c));
               const spells = commanders.filter((c) => canBeSignatureSpell(c));
@@ -617,6 +752,8 @@ export const useDeckStore = create<DeckState>()(
                 name: autoRename ? commanders.map((c) => c.identity.name).join(" / ") : deck.name,
                 format: formatRequiresCommander(deck.format) ? deck.format : "commander",
                 cards: nextMain,
+                sideboard: nextSide,
+                maybeboard: nextMaybe,
                 commanders,
               },
             };
@@ -627,17 +764,14 @@ export const useDeckStore = create<DeckState>()(
             const commanders = deck.commanders ?? [];
             if (commanders.length === 0) return state;
             const toRemove = card
-              ? commanders.find((c) => c.identity.name === card.identity.name)
+              ? commanders.find((c) => c.identity.id === card.identity.id)
               : commanders[commanders.length - 1];
             if (!toRemove) return state;
             return {
               currentDeck: {
                 ...deck,
-                cards: [
-                  ...deck.cards,
-                  { ...toRemove, identity: { ...toRemove.identity, id: crypto.randomUUID() } },
-                ],
-                commanders: commanders.filter((c) => c.identity.name !== toRemove.identity.name),
+                cards: [...deck.cards, toRemove],
+                commanders: commanders.filter((c) => c.identity.id !== toRemove.identity.id),
               },
             };
           }),
@@ -647,6 +781,22 @@ export const useDeckStore = create<DeckState>()(
             const tokens = (state.currentDeck.tokens ?? []).filter(
               (candidate) => tokenIdentityKey(candidate) !== key,
             );
+            const cosmetics = normalizeCardCosmetics(token.identity.cosmetics);
+            const defaultToken = cosmetics
+              ? deriveTokens(state.currentDeck).find(
+                  (candidate) => tokenIdentityKey(candidate) === key,
+                )
+              : undefined;
+            if (defaultToken) {
+              tokens.push({
+                ...defaultToken,
+                identity: {
+                  ...defaultToken.identity,
+                  tokenScript: resolveTokenCustomizationScript(token),
+                  cosmetics,
+                },
+              });
+            }
             return {
               currentDeck: {
                 ...state.currentDeck,
@@ -656,53 +806,35 @@ export const useDeckStore = create<DeckState>()(
           }),
         updatePrint: (cardName, scryfallCard) =>
           set((state) => {
-            const uris = chooseImageUrisForCard(scryfallCard, { frontOnly: true });
-            if (!uris) throw new Error(`Scryfall card has no image uris: ${scryfallCard.name}`);
             const updates = new Map<string, CardPatch>();
-            updates.set(cardName.toLowerCase(), {
-              identity: {
-                setCode: scryfallCard.set,
-                cardNumber: scryfallCard.collector_number,
-                oracleId: scryfallCard.oracle_id,
-              },
-              uris,
-              imageLanguage: scryfallCard.lang,
-            });
+            updates.set(cardName.toLowerCase(), getCardPrintingPatch(scryfallCard));
             return {
               currentDeck: patchDeckCards(state.currentDeck, updates),
             };
           }),
         updateCardPrint: (cardId, scryfallCard, foil) =>
           set((state) => {
-            const uris = chooseImageUrisForCard(scryfallCard, { frontOnly: true });
-            if (!uris) throw new Error(`Scryfall card has no image uris: ${scryfallCard.name}`);
+            const patch = getCardPrintingPatch(scryfallCard);
             return {
               currentDeck: patchDeckCardById(state.currentDeck, cardId, {
+                ...patch,
                 identity: {
-                  setCode: scryfallCard.set,
-                  cardNumber: scryfallCard.collector_number,
-                  oracleId: scryfallCard.oracle_id,
+                  ...patch.identity,
                   ...(foil === undefined ? {} : { foil }),
                 },
-                uris,
-                imageLanguage: scryfallCard.lang,
               }),
             };
           }),
         updatePrintingVariant: (printing, scryfallCard) =>
           set((state) => {
-            const uris = chooseImageUrisForCard(scryfallCard, { frontOnly: true });
-            if (!uris) throw new Error(`Scryfall card has no image uris: ${scryfallCard.name}`);
+            const patch = getCardPrintingPatch(scryfallCard);
             return {
               currentDeck: patchDeckPrintingVariant(state.currentDeck, printing, {
+                ...patch,
                 identity: {
-                  setCode: scryfallCard.set,
-                  cardNumber: scryfallCard.collector_number,
-                  oracleId: scryfallCard.oracle_id,
+                  ...patch.identity,
                   foil: availablePrintingFoil(printing, scryfallCard),
                 },
-                uris,
-                imageLanguage: scryfallCard.lang,
               }),
             };
           }),
@@ -710,24 +842,87 @@ export const useDeckStore = create<DeckState>()(
           set((state) => ({
             currentDeck: patchDeckCardById(state.currentDeck, cardId, { identity: { foil } }),
           })),
+        setCardCosmetics: (changes) =>
+          set((state) => {
+            if (state.isReadOnly || changes.length === 0) return state;
+            const updates = new Map<string, CardPatch>();
+            for (const { cardId, cosmetics, foil, printing } of changes) {
+              const patch = printing ? getCardPrintingPatch(printing) : undefined;
+              updates.set(cardId, {
+                ...patch,
+                identity: {
+                  ...patch?.identity,
+                  cosmetics: normalizeCardCosmetics(cosmetics),
+                  foil,
+                },
+              });
+            }
+            let changed = false;
+            const customize = (card: DeckCard) => {
+              const patch = updates.get(card.identity.id);
+              if (!patch) return card;
+              changed = true;
+              return applyPatch(card, patch);
+            };
+            const deck = state.currentDeck;
+            const currentDeck = {
+              ...deck,
+              cards: deck.cards.map(customize),
+              sideboard: deck.sideboard.map(customize),
+              maybeboard: deck.maybeboard?.map(customize),
+              attractions: deck.attractions?.map(customize),
+              contraptions: deck.contraptions?.map(customize),
+              schemes: deck.schemes?.map(customize),
+              planes: deck.planes?.map(customize),
+              commanders: deck.commanders?.map(customize),
+              companion: deck.companion ? customize(deck.companion) : undefined,
+            };
+            return changed ? { currentDeck } : state;
+          }),
+        setTokenCosmetics: (card, value, foil, printing) =>
+          set((state) => {
+            if (state.isReadOnly) return state;
+            const cosmetics = normalizeCardCosmetics(value);
+            const tokens = state.currentDeck.tokens ?? [];
+            const key = tokenIdentityKey(card);
+            const tokenScript = resolveTokenCustomizationScript(card);
+            if (cosmetics && !tokenScript) return state;
+            const existing = tokens.find((candidate) => tokenIdentityKey(candidate) === key);
+            const source = existing ?? card;
+            const patch = printing ? getCardPrintingPatch(printing) : undefined;
+            const customized = applyPatch(source, {
+              ...patch,
+              identity: {
+                ...patch?.identity,
+                tokenScript,
+                cosmetics,
+                foil,
+              },
+            });
+            return {
+              currentDeck: {
+                ...state.currentDeck,
+                tokens: existing
+                  ? tokens.map((candidate) => (candidate === existing ? customized : candidate))
+                  : [...tokens, customized],
+              },
+            };
+          }),
         updateTokenPrint: (token, scryfallCard) =>
           set((state) => {
-            const uris = chooseImageUrisForCard(scryfallCard, { frontOnly: true });
-            if (!uris) throw new Error(`Scryfall card has no image uris: ${scryfallCard.name}`);
+            const patch = getCardPrintingPatch(scryfallCard);
             const key = tokenIdentityKey(token);
-            const customized: DeckCard = {
-              ...token,
-              identity: {
-                ...token.identity,
-                id: `token:${scryfallCard.id}`,
-                setCode: scryfallCard.set,
-                cardNumber: scryfallCard.collector_number,
-                oracleId: scryfallCard.oracle_id,
-              },
-              uris,
-              imageLanguage: scryfallCard.lang,
-            };
             const existing = state.currentDeck.tokens ?? [];
+            const source =
+              existing.find((candidate) => tokenIdentityKey(candidate) === key) ?? token;
+            const customized = applyPatch(source, {
+              ...patch,
+              identity: {
+                ...patch.identity,
+                tokenScript: resolveTokenCustomizationScript(token),
+                id: `token:${scryfallCard.id}`,
+              },
+            });
             const replaced = existing.some((candidate) => tokenIdentityKey(candidate) === key);
             return {
               currentDeck: {
@@ -737,48 +932,6 @@ export const useDeckStore = create<DeckState>()(
                       tokenIdentityKey(candidate) === key ? customized : candidate,
                     )
                   : [...existing, customized],
-              },
-            };
-          }),
-        toggleFoil: (cardName) =>
-          set((state) => {
-            const deck = normalizeDeck(state.currentDeck);
-            const allCopies: DeckCard[] = [
-              ...deck.cards,
-              ...deck.sideboard,
-              ...(deck.maybeboard ?? []),
-              ...(deck.attractions ?? []),
-              ...(deck.contraptions ?? []),
-              ...(deck.schemes ?? []),
-              ...(deck.planes ?? []),
-              ...(deck.commanders ?? []),
-            ];
-            const matches = allCopies.filter((c) => c.identity.name === cardName);
-            const targetFoil = !matches.every((c) => c.identity.foil);
-            const flip = (cards: DeckCard[]): DeckCard[] =>
-              cards.map((c) =>
-                c.identity.name === cardName
-                  ? { ...c, identity: { ...c.identity, foil: targetFoil } }
-                  : c,
-              );
-            return {
-              currentDeck: {
-                ...deck,
-                cards: flip(deck.cards),
-                sideboard: flip(deck.sideboard),
-                attractions: deck.attractions ? flip(deck.attractions) : deck.attractions,
-                contraptions: deck.contraptions ? flip(deck.contraptions) : deck.contraptions,
-                schemes: deck.schemes ? flip(deck.schemes) : deck.schemes,
-                planes: deck.planes ? flip(deck.planes) : deck.planes,
-                commanders: deck.commanders ? flip(deck.commanders) : deck.commanders,
-                companion:
-                  deck.companion && deck.companion.identity.name === cardName
-                    ? {
-                        ...deck.companion,
-                        identity: { ...deck.companion.identity, foil: targetFoil },
-                      }
-                    : deck.companion,
-                maybeboard: deck.maybeboard ? flip(deck.maybeboard) : deck.maybeboard,
               },
             };
           }),
@@ -942,7 +1095,10 @@ export const useDeckStore = create<DeckState>()(
                 ? s
                 : {
                     ...s,
-                    deck: normalizeDeck({ ...s.deck, cards: [...s.deck.cards, card] }),
+                    deck: normalizeDeck({
+                      ...s.deck,
+                      cards: [...s.deck.cards, createCardOccurrence(card)],
+                    }),
                     savedAt: Date.now(),
                   },
             ),
@@ -1159,7 +1315,7 @@ export const useDeckStore = create<DeckState>()(
         }),
         // Bump on any persisted-deck shape change so `migrate` runs over existing
         // users' decks — a shape change without a bump never migrates.
-        version: 7,
+        version: 8,
         migrate: (persistedState: unknown) => {
           if (!persistedState || typeof persistedState !== "object")
             return persistedState as DeckState;
@@ -1177,10 +1333,14 @@ export const useDeckStore = create<DeckState>()(
           };
         },
         merge: (persisted, current) => {
-          const p = persisted as Partial<DeckState>;
+          const p = (persisted ?? {}) as Partial<DeckState>;
           const merged = { ...current, ...p } as DeckState;
           merged.isReadOnly = false;
           merged.readOnlySource = null;
+          merged.savedDecks = merged.savedDecks.map((saved) => ({
+            ...saved,
+            deck: normalizeDeck(dropInlinePlaymat(migrateDeck(saved.deck))),
+          }));
           if (p.currentDeck && hasPendingEditorPublication()) {
             merged.currentDeck = normalizeDeck(dropInlinePlaymat(migrateDeck(p.currentDeck)));
             merged.currentDeckId = p.currentDeckId ?? null;

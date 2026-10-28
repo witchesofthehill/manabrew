@@ -6,12 +6,17 @@ import forge.harness.common.ParityCardMap;
 import forge.harness.common.ParityOrder;
 import forge.harness.common.SnapshotExtractor;
 
+import com.google.common.base.CaseFormat;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import forge.harness.protocol.*;
+import forge.card.CardStateName;
 import forge.game.Game;
+import forge.game.GameLogEntry;
+import forge.game.GameLogEntryType;
+import forge.game.GameLogVerbosity;
 import forge.game.GameSnapshot;
 import forge.game.ability.ApiType;
 import forge.game.GameEntity;
@@ -23,12 +28,15 @@ import forge.game.card.CardView;
 import forge.game.combat.Combat;
 import forge.game.combat.CombatUtil;
 import forge.game.cost.Cost;
+import forge.game.keyword.Keyword;
 import forge.game.phase.PhaseHandler;
 import forge.game.phase.PhaseType;
 import forge.game.player.Player;
 import forge.game.player.PlayerView;
 import forge.game.spellability.AbilityManaPart;
+import forge.game.spellability.AbilityStatic;
 import forge.game.spellability.AlternativeCost;
+import forge.game.spellability.OptionalCost;
 import forge.game.spellability.SpellAbility;
 import forge.game.staticability.StaticAbilityCantAttackBlock;
 import forge.game.staticability.StaticAbilityMustAttack;
@@ -59,9 +67,27 @@ public final class ManaBrewInteractiveSession {
     private final String sessionId;
     private Match match;
     private Game game;
-    private final BlockingQueue<Submission> actions = new LinkedBlockingQueue<>();
+    private HandKnowledge handKnowledge;
+    private final BlockingQueue<QueuedAction> actions = new LinkedBlockingQueue<>();
+    private record QueuedAction(JsonObject decoded, JsonObject canonical,
+            java.util.concurrent.CompletableFuture<String> snapshot) {
+        QueuedAction(JsonObject decoded, JsonObject canonical) {
+            this(decoded, canonical, null);
+        }
+    }
+    private String journalStart;
+
+    private DecisionJournal decisionJournal;
+    private DecisionHistory decisionHistory;
+    private volatile boolean replaying;
+    private volatile boolean rewindPending;
+    private Map<String, Object> restoredVote;
+    private volatile String rewindRequest;
+    private final Object rewindLock = new Object();
     private volatile String latestPromptJson;
     private String openPromptJson;
+    private volatile List<String> publishedSnapshots = List.of();
+    private volatile boolean executionFinished;
     private volatile int promptedPlayerIndex = -1;
     private long promptSeq;
     private volatile boolean closed;
@@ -74,6 +100,7 @@ public final class ManaBrewInteractiveSession {
     private static final int CHECKPOINT_TURNS = 3;
     private final Deque<Checkpoint> checkpoints = new ArrayDeque<>();
     private volatile List<Map<String, Object>> checkpointViews = List.of();
+    private int gameLogSeen;
     private int nextCheckpointId = 1;
     private int checkpointTurn = -1;
     private PhaseType checkpointPhase;
@@ -89,13 +116,13 @@ public final class ManaBrewInteractiveSession {
     private ActionRepeat actionRepeat;
     private final List<JsonObject> outboundDirectives = new ArrayList<>();
 
-    private static final class Submission {
-        private final JsonObject response;
-        private final JsonObject action;
+    static final class SessionSnapshot {
+        private final GameSnapshot game;
+        private final HandKnowledge.Snapshot handKnowledge;
 
-        private Submission(final JsonObject response, final JsonObject action) {
-            this.response = response;
-            this.action = action;
+        private SessionSnapshot(final GameSnapshot game, final HandKnowledge.Snapshot handKnowledge) {
+            this.game = game;
+            this.handKnowledge = handKnowledge;
         }
     }
 
@@ -105,7 +132,10 @@ public final class ManaBrewInteractiveSession {
         private final PhaseType phase;
         private final Player activePlayer;
         private final Player priorityPlayer;
-        private final GameSnapshot snapshot;
+        private final SessionSnapshot snapshot;
+        private String decision;
+        private int decidingPlayer;
+        private final List<String> log = new ArrayList<>();
 
         private Checkpoint(
                 final int id,
@@ -113,7 +143,7 @@ public final class ManaBrewInteractiveSession {
                 final PhaseType phase,
                 final Player activePlayer,
                 final Player priorityPlayer,
-                final GameSnapshot snapshot) {
+                final SessionSnapshot snapshot) {
             this.id = id;
             this.turn = turn;
             this.phase = phase;
@@ -150,6 +180,7 @@ public final class ManaBrewInteractiveSession {
         this.game = Objects.requireNonNull(game, "game");
         this.botSeats = Set.copyOf(botSeats);
         this.snapshotRecording = snapshotRecording;
+        this.handKnowledge = new HandKnowledge(game, botSeats);
         this.actionRepeat = new ActionRepeat(this, game);
     }
 
@@ -178,21 +209,39 @@ public final class ManaBrewInteractiveSession {
             }
             return;
         }
+        publishSnapshots();
         gameThread = new Thread(() -> {
             forge.util.MyRandom.setRandom(rng);
             try {
+                if (decisionJournal != null) {
+                    decisionJournal.awaitAcknowledgement();
+                }
                 match.startGame(game);
             } catch (RuntimeException | Error error) {
-                recordEngineError(error);
+                if (!closed) {
+                    recordEngineError(error);
+                }
+            } finally {
+                try {
+                    publishSnapshots();
+                } catch (RuntimeException | Error error) {
+                    if (!closed && engineError == null) recordEngineError(error);
+                } finally {
+                    executionFinished = true;
+                }
             }
-        }, "mana-brew-forge-" + sessionId);
+        }, (decisionJournal == null ? "mana-brew-forge-" : "Game-mana-brew-forge-") + sessionId);
         gameThread.setDaemon(true);
         gameThread.start();
     }
 
     public void close() {
         closed = true;
-        actions.offer(new Submission(null, syntheticPass()));
+        resumeAfterFailedRewind();
+        if (decisionJournal != null) {
+            decisionJournal.close();
+        }
+        actions.offer(new QueuedAction(syntheticPass(), null));
         if (game != null && !game.isGameOver()) {
             game.setGameOver(forge.game.GameEndReason.Draw);
         }
@@ -203,6 +252,9 @@ public final class ManaBrewInteractiveSession {
             } catch (InterruptedException interrupted) {
                 Thread.currentThread().interrupt();
             }
+        }
+        if (handKnowledge != null) {
+            handKnowledge.clear();
         }
     }
 
@@ -228,10 +280,51 @@ public final class ManaBrewInteractiveSession {
     }
 
     public String getSnapshotJson(final int viewer) {
+        final List<String> snapshots = publishedSnapshots;
+        if (gameThread != null && Thread.currentThread() != gameThread && !snapshots.isEmpty()) {
+            return snapshots.get(viewer >= 0 && viewer < snapshots.size() - 1 ? viewer + 1 : 0);
+        }
+        return snapshotJson(viewer);
+    }
+
+    // RPC readers must never traverse the mutable game.
+    private void publishSnapshots() {
+        if (bridge != null) return;
+        final List<String> snapshots = new ArrayList<>();
+        for (int viewer = -1; viewer < game.getRegisteredPlayers().size(); viewer++) {
+            snapshots.add(snapshotJson(viewer));
+        }
+        publishedSnapshots = List.copyOf(snapshots);
+    }
+
+    String snapshotJson(final int viewer) {
         requireAttached();
-        return InteractiveSnapshotExtractor.snapshotJson(
-                game, castingAbility, sessionId, viewer, secretChoiceVisibility, checkpointViews,
-                restoreVoteView, snapshotRecording);
+        final String snapshot = InteractiveSnapshotExtractor.snapshotJson(
+                game, castingAbility, sessionId, viewer, secretChoiceVisibility, handKnowledge,
+                checkpointViews, restoreVoteView, snapshotRecording);
+        if (decisionHistory == null) return snapshot;
+        final JsonObject view = JsonParser.parseString(snapshot).getAsJsonObject();
+        final JsonObject history = new JsonObject();
+        history.addProperty("rewinding", rewindPending);
+        history.addProperty("unavailableReason", decisionHistory.unavailableReason());
+        view.add("decisionHistory", history);
+        return view.toString();
+    }
+
+    JsonObject verificationView(final int viewer) {
+        return InteractiveSnapshotExtractor.verificationView(game, castingAbility, sessionId,
+                viewer, secretChoiceVisibility, handKnowledge);
+    }
+
+    SessionSnapshot captureSnapshot() {
+        final GameSnapshot snapshot = new GameSnapshot(game);
+        snapshot.makeCopy();
+        return new SessionSnapshot(snapshot, handKnowledge.snapshot());
+    }
+
+    void restoreSnapshot(final SessionSnapshot snapshot) {
+        snapshot.game.restoreGameState(game);
+        handKnowledge.restore(snapshot.handKnowledge);
     }
 
     void rememberSecretNumberViewer(final String sourceCardId, final Player viewer) {
@@ -255,7 +348,7 @@ public final class ManaBrewInteractiveSession {
     }
 
     public boolean isGameOver() {
-        return game != null && game.isGameOver();
+        return game != null && game.isGameOver() && (gameThread == null || executionFinished);
     }
 
     public long getStateRevision() {
@@ -266,13 +359,100 @@ public final class ManaBrewInteractiveSession {
         return closed;
     }
 
+    void enableDecisionJournal(final String startRequest, final boolean commitBarrier) {
+        if (commitBarrier && bridge != null) {
+            throw new IllegalArgumentException("journal commit barrier requires a threaded engine");
+        }
+        journalStart = startRequest;
+        decisionJournal = new DecisionJournal(startRequest, commitBarrier);
+        ParityCardMap.useNativeIds(game);
+    }
+
+    void enableDecisionHistory(final String startRequest, final JsonObject replay) {
+        decisionHistory = new DecisionHistory(startRequest, replay);
+        snapshotRecording = false;
+        replaying = replay != null;
+        if (replay != null && replay.has("restoreVote")) {
+            restoredVote = GSON.fromJson(replay.get("restoreVote"), new com.google.gson.reflect.TypeToken<Map<String, Object>>() {}.getType());
+        }
+    }
+
+    public boolean isReplaying() {
+        return replaying;
+    }
+
+    public String getRewindRequest() {
+        synchronized (rewindLock) {
+            // A directive accepted by the source must not disappear with it.
+            // Prompt responses belong to the abandoned timeline; directives do not.
+            if (rewindRequest != null && actions.stream().anyMatch(queued -> queued.canonical() != null
+                    && "directive".equals(queued.canonical().get("type").getAsString())
+                    && !isRestoreDirective(queued.decoded()))) {
+                rewindRequest = null;
+                rewindLock.notifyAll();
+            }
+            return rewindRequest == null ? "" : rewindRequest;
+        }
+    }
+
+    public void resumeAfterFailedRewind() {
+        synchronized (rewindLock) {
+            rewindRequest = null;
+            rewindLock.notifyAll();
+        }
+    }
+
+    boolean executionStopped() {
+        return gameThread == null || !gameThread.isAlive();
+    }
+
+    boolean hasDecisionJournal() {
+        return decisionJournal != null;
+    }
+
+    public String exportReplaySnapshot(final String history) {
+        if (decisionJournal == null || bridge != null || closed || game.isGameOver()) {
+            throw new IllegalStateException("replay snapshots require a live threaded journal session");
+        }
+        final var result = new java.util.concurrent.CompletableFuture<String>();
+        actions.offer(new QueuedAction(null, history == null ? null : JsonParser.parseString(history).getAsJsonObject(), result));
+        try {
+            return result.get(30, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (InterruptedException error) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("snapshot interrupted", error);
+        } catch (java.util.concurrent.ExecutionException | java.util.concurrent.TimeoutException error) {
+            throw new IllegalStateException("snapshot failed: " + error.getMessage(), error);
+        }
+    }
+
+    JsonObject replayVerification() {
+        return GameCheckpoint.verification(this, (ReplayRandom) forge.util.MyRandom.getRandom());
+    }
+
+    public String readDecisionJournal() {
+        return decisionJournal == null ? "" : decisionJournal.read();
+    }
+
+    public String acknowledgeDecisionJournal(final long sequence) {
+        if (decisionJournal == null) {
+            throw new IllegalStateException("decision journal is disabled");
+        }
+        decisionJournal.acknowledge(sequence);
+        return "";
+    }
+
+    public String drainDecisionJournal() {
+        return decisionJournal == null ? "" : decisionJournal.drain();
+    }
+
     public String submitAction(final String actionJson) {
         if (closed) {
             throw new IllegalStateException("session is closed");
         }
         final JsonObject canonical = JsonParser.parseString(actionJson).getAsJsonObject();
         final JsonObject decoded = ManabrewProtocolAdapter.decodeAction(canonical);
-        actions.offer(new Submission(canonical, decoded));
+        actions.offer(new QueuedAction(decoded, canonical));
         // No snapshot here — it would race the game thread this unblocks.
         return "";
     }
@@ -740,7 +920,7 @@ public final class ManaBrewInteractiveSession {
             final String cardId = SnapshotExtractor.javaCardId(host);
             final int abilityIndex = host.getManaAbilities().indexOf(sa);
             final String description = host.getName();
-            final String cost = simpleCostText(sa);
+            final String cost = costText(sa);
             final String produced = resolveProducedMana(sa);
             final Integer amount = sa.getManaPart() == null ? null : sa.amountOfManaGenerated(false);
             for (final ManaChoice choice : splitManaChoices(produced, amount)) {
@@ -748,14 +928,15 @@ public final class ManaBrewInteractiveSession {
                         ? "tap:" + cardId + ":" + abilityIndex + ":" + choice.color
                         : "tap:" + cardId + ":" + abilityIndex;
                 actionList.add(new PaymentAction_activateManaAbility(
-                        actionId, cardId, abilityIndex, description, true, false, cost, choice.producedMana));
+                        actionId, cardId, abilityIndex, description, true, null,
+                        cost, choice.producedMana));
             }
         }
 
         for (final Card card : convokeSources) {
             final String cardId = SnapshotExtractor.javaCardId(card);
             actionList.add(new PaymentAction_activateManaAbility(
-                    "tap:" + cardId, cardId, 0, card.getName(), true, false, null, null));
+                    "tap:" + cardId, cardId, 0, card.getName(), true, null, null, null));
         }
         for (final Card card : waterbendSources) {
             final String cardId = SnapshotExtractor.javaCardId(card);
@@ -1577,7 +1758,7 @@ public final class ManaBrewInteractiveSession {
             final SpellAbility sa = original.get(i);
             final String id = "sa-" + i;
             byId.put(id, sa);
-            final CardDto dto = InteractiveSnapshotExtractor.cardDto(game, sa.getHostCard(), false);
+            final CardDto dto = promptCard(playerId, sa.getHostCard(), false);
             items.add(new ReorderItem(id, dto, sa.getStackDescription()));
         }
         publishAgentPrompt("player-" + playerId, sourceCardId, new ReorderInput(
@@ -1959,17 +2140,96 @@ public final class ManaBrewInteractiveSession {
                     return ManabrewProtocolAdapter.decodeAction(replayed);
                 }
             }
+            JsonObject verified = null;
+            if (replaying && actions.isEmpty()) {
+                verified = replayVerification();
+                final JsonObject action = decisionHistory.replayAction(latestPromptJson, verified);
+                if (action != null) {
+                    submitAction(action.toString());
+                } else {
+                    restoreVoteView = restoredVote;
+                    if (restoredVote != null) restoreVoteCount = ((Number) restoredVote.get("voteId")).intValue();
+                    publishCheckpointViews();
+                    publishSnapshots();
+                    replaying = false;
+                    if (bridge != null) bridge.replayReady();
+                }
+            }
             if (bridge != null && actions.isEmpty() && !closed && !game.isGameOver()) {
                 submitAction(bridge.exchange(promptedPlayerIndex, latestPromptJson));
             }
-            final Submission submission = actions.poll(1, java.util.concurrent.TimeUnit.SECONDS);
-            if (submission == null) {
+            final QueuedAction queued = actions.poll(1, java.util.concurrent.TimeUnit.SECONDS);
+            if (queued == null) {
                 if (closed || game.isGameOver()) {
                     return syntheticPass();
                 }
                 continue;
             }
-            final JsonObject action = submission.action;
+            if (queued.snapshot() != null) {
+                try {
+                    queued.snapshot().complete(GameCheckpoint.capture(this, journalStart,
+                            decisionJournal.nextSequence(), queued.canonical()));
+                } catch (RuntimeException error) {
+                    queued.snapshot().completeExceptionally(error);
+                }
+                continue;
+            }
+            final JsonObject action = queued.decoded();
+            if (decisionHistory != null && isRestoreDirective(action)) {
+                if ("request_restore".equals(action.get("kind").getAsString())) {
+                    requestRestore(action.get("player").getAsInt(), action.get("checkpointId").getAsInt());
+                } else {
+                    castRestoreVote(action.get("player").getAsInt(), action.get("voteId").getAsInt(), action.get("accept").getAsBoolean());
+                }
+                if (!rewindPending && restoreApproved()) {
+                    rewindPending = true;
+                    final JsonObject snapshot = JsonParser.parseString(decisionHistory.rewind(restoreVote.checkpoint.id)).getAsJsonObject();
+                    publishRestoreVote();
+                    final Map<String, Object> approved = new LinkedHashMap<>(restoreVoteView);
+                    approved.put("status", Map.of("type", "approved"));
+                    snapshot.add("restoreVote", GSON.toJsonTree(approved));
+                    snapshot.addProperty("lastPromptId", promptSeq);
+                    announceState();
+                    if (bridge != null) {
+                        bridge.requestRewind(snapshot.toString());
+                    } else {
+                        synchronized (rewindLock) {
+                            rewindRequest = snapshot.toString();
+                            while (rewindRequest != null && !closed) rewindLock.wait();
+                        }
+                    }
+                    rewindPending = false;
+                    restoreVote.status = RestoreVoteStatus.UNAVAILABLE;
+                    publishRestoreVote();
+                }
+                announceState();
+                continue;
+            }
+            if (decisionJournal != null && queued.canonical() != null
+                    && (decisionHistory == null || decisionHistory.unavailableReason() == null)) {
+                if (isRestoreDirective(action)) {
+                    decisionJournal.invalidate("snapshot restore is unsupported by decision replay");
+                } else {
+                    final JsonObject verification = verified == null ? replayVerification() : verified;
+                    decisionJournal.record(promptedPlayerIndex, latestPromptJson, queued.canonical(), verification);
+                    if (decisionHistory != null) {
+                        decisionHistory.record(promptedPlayerIndex, latestPromptJson, queued.canonical(), verification);
+                        decisionJournal.drain();
+                        if (decisionHistory.unavailableReason() == null) {
+                            final PhaseHandler handler = game.getPhaseHandler();
+                            final Checkpoint checkpoint = new Checkpoint(decisionHistory.size(), handler.getTurn(),
+                                    handler.getPhase(), handler.getPlayerTurn(), handler.getPriorityPlayer(), null);
+                            checkpoint.decision = DecisionHistory.description(queued.canonical());
+                            checkpoint.decidingPlayer = promptedPlayerIndex;
+                            absorbGameLog();
+                            checkpoints.addLast(checkpoint);
+                            while (checkpoints.size() > 200) checkpoints.removeFirst();
+                            if (!replaying) publishCheckpointViews();
+                        }
+                    }
+                }
+                decisionJournal.awaitAcknowledgement();
+            }
             final String kind = action.has("kind") ? action.get("kind").getAsString() : "";
             if (isRestoreDirective(action)) {
                 if ("request_restore".equals(kind)) {
@@ -1998,13 +2258,14 @@ public final class ManaBrewInteractiveSession {
                 continue;
             }
             if (!"concede".equals(kind)) {
-                actionRepeat.onAnswer(submission.response);
+                actionRepeat.onAnswer(queued.canonical());
                 return action;
             }
             final int target = action.has("player")
                     ? action.get("player").getAsInt()
                     : promptedPlayerIndex;
             concedePlayer(target);
+            announceState();
             if (target != promptedPlayerIndex && !gameDecided()) {
                 continue;
             }
@@ -2048,13 +2309,15 @@ public final class ManaBrewInteractiveSession {
     }
 
     void announceState() {
+        if (!replaying) publishSnapshots();
         stateRevision++;
-        if (bridge != null) {
+        if (bridge != null && !replaying) {
             bridge.publishState();
         }
     }
 
     private void setSnapshotRecording(final boolean enabled) {
+        if (decisionHistory != null) return;
         snapshotRecording = enabled;
         if (!enabled) {
             checkpoints.clear();
@@ -2142,9 +2405,9 @@ public final class ManaBrewInteractiveSession {
         checkpointTurn = handler.getTurn();
         checkpointPhase = handler.getPhase();
         final long started = checkpointMetricsEnabled ? System.nanoTime() : 0;
-        final GameSnapshot snapshot = new GameSnapshot(game);
-        snapshot.makeCopy();
+        final SessionSnapshot snapshot = captureSnapshot();
         final long copied = checkpointMetricsEnabled ? System.nanoTime() : 0;
+        absorbGameLog();
         checkpoints.addLast(new Checkpoint(
                 nextCheckpointId++, handler.getTurn(), handler.getPhase(), handler.getPlayerTurn(),
                 handler.getPriorityPlayer(), snapshot));
@@ -2160,18 +2423,46 @@ public final class ManaBrewInteractiveSession {
         }
     }
 
+    private void absorbGameLog() {
+        final List<GameLogEntry> entries = game.getGameLog().getAllEntries();
+        final Checkpoint latest = checkpoints.peekLast();
+        if (latest != null) {
+            for (final GameLogEntry entry : entries.subList(gameLogSeen, entries.size())) {
+                if (entry.type() != GameLogEntryType.TURN
+                        && GameLogVerbosity.MEDIUM.getIncludedTypes().contains(entry.type())) {
+                    latest.log.add(entry.message());
+                }
+            }
+        }
+        gameLogSeen = entries.size();
+    }
+
     private void publishCheckpointViews() {
+        absorbGameLog();
         final List<Map<String, Object>> views = new ArrayList<>();
         for (final Checkpoint checkpoint : checkpoints) {
-            views.add(InteractiveSnapshotExtractor.checkpointView(
-                    game, checkpoint.id, checkpoint.turn, checkpoint.phase, checkpoint.activePlayer));
+            views.add(checkpointView(checkpoint));
         }
         checkpointViews = List.copyOf(views);
     }
 
+    private Map<String, Object> checkpointView(final Checkpoint checkpoint) {
+        final Map<String, Object> view = InteractiveSnapshotExtractor.checkpointView(
+                game, checkpoint.id, checkpoint.turn, checkpoint.phase, checkpoint.activePlayer);
+        if (checkpoint.decision != null) {
+            view.put("decision", checkpoint.decision);
+            view.put("decidingPlayerId", "player-" + checkpoint.decidingPlayer);
+        }
+        if (!checkpoint.log.isEmpty()) {
+            view.put("log", List.copyOf(checkpoint.log));
+        }
+        return view;
+    }
+
     private void requestRestore(final int requester, final int checkpointId) {
         final List<Player> players = game.getRegisteredPlayers();
-        if ((restoreVote != null && restoreVote.status == RestoreVoteStatus.PENDING)
+        if (requester < 0 || requester >= players.size()
+                || (restoreVote != null && restoreVote.status == RestoreVoteStatus.PENDING)
                 || players.get(requester).hasLost()) {
             return;
         }
@@ -2209,8 +2500,7 @@ public final class ManaBrewInteractiveSession {
         final Map<String, Object> view = new LinkedHashMap<>();
         view.put("voteId", restoreVote.id);
         final Checkpoint checkpoint = restoreVote.checkpoint;
-        view.put("checkpoint", InteractiveSnapshotExtractor.checkpointView(
-                game, checkpoint.id, checkpoint.turn, checkpoint.phase, checkpoint.activePlayer));
+        view.put("checkpoint", checkpointView(checkpoint));
         view.put("requestedByPlayerId", "player-" + restoreVote.requester);
         view.put("awaitingPlayerIds", awaiting);
         view.put("status", status);
@@ -2224,14 +2514,16 @@ public final class ManaBrewInteractiveSession {
         while (checkpoints.peekLast() != target) {
             checkpoints.removeLast();
         }
+        target.log.clear();
+        gameLogSeen = game.getGameLog().getAllEntries().size();
         publishCheckpointViews();
     }
 
-    void restoreSnapshot(final GameSnapshot snapshot, final Player priorityPlayer) {
+    void restoreSnapshot(final SessionSnapshot snapshot, final Player priorityPlayer) {
         game.getStack().clear();
         game.getStack().clearSimultaneousStack();
         game.getStack().clearUndoStack();
-        snapshot.restoreGameState(game);
+        restoreSnapshot(snapshot);
         game.getPhaseHandler().setPriority(priorityPlayer);
         for (final Player player : game.getPlayers()) {
             if (player.getController() instanceof ManaBrewInteractiveController) {
@@ -2272,29 +2564,35 @@ public final class ManaBrewInteractiveSession {
             if (host == null) {
                 continue;
             }
-            final String label = formatActionLabel(labels.get(i));
+            final boolean isCastAction = sa.isLandAbility() || sa.isSpell() || sa.isForetelling()
+                    || isUnlockDoorAction(sa) || isSuspendAction(sa);
+            final PlayCardMode mode = isCastAction ? playCardMode(sa) : null;
+            final String label = formatActionLabel(labels.get(i), mode);
             if (label.isEmpty()) {
                 continue;
             }
             final String cardId = SnapshotExtractor.javaCardId(host);
             final String id = "prompt-action-" + i;
-            if (sa.isLandAbility() || sa.isSpell()) {
-                actionsArray.add(new AvailableAction_cast(id, cardId, playCardMode(sa), label));
+            if (isCastAction) {
+                actionsArray.add(new AvailableAction_cast(
+                        id, cardId, mode, label, actionFaceIndex(sa, mode)));
             } else if (sa.isManaAbility()) {
                 final String description = abilityDescription(sa, label);
                 final String produced = resolveProducedMana(sa);
-                final String cost = simpleCostText(sa);
+                final String cost = costText(sa);
                 for (final ManaChoice choice : splitManaChoices(produced, sa.amountOfManaGenerated(false))) {
                     final String actionId = choice.color != null
                             ? "tap:" + cardId + ":" + i + ":" + choice.color
                             : "tap:" + cardId + ":" + i;
                     actionsArray.add(new AvailableAction_activateAbility(
-                            actionId, cardId, i, description, true, false, cost, choice.producedMana));
+                            actionId, cardId, i, description, true, null,
+                            cost, choice.producedMana));
                 }
             } else {
                 actionsArray.add(new AvailableAction_activateAbility(
                         id, cardId, i, abilityDescription(sa, label), false,
-                        sa.getApi() == ApiType.ClassLevelUp, simpleCostText(sa), null));
+                        levelUpKind(sa),
+                        costText(sa), null));
             }
         }
         for (final Card card : untappableCards) {
@@ -2309,12 +2607,72 @@ public final class ManaBrewInteractiveSession {
         return text.isEmpty() ? fallback : text;
     }
 
-    private static PlayCardMode playCardMode(final SpellAbility sa) {
-        final AlternativeCost alt = sa.getAlternativeCost();
-        if (alt == null) {
-            return new PlayCardMode_normal();
+    private static Integer actionFaceIndex(final SpellAbility sa, final PlayCardMode mode) {
+        final Card host = sa.getHostCard();
+        if (host == null || mode instanceof PlayCardMode_adventure
+                || mode instanceof PlayCardMode_backFaceLand
+                || mode instanceof PlayCardMode_unlockDoor
+                || mode instanceof PlayCardMode_roomRightSplit
+                || (host.isRoom() && mode instanceof PlayCardMode_normal)) {
+            return null;
         }
-        return new PlayCardMode_alternative(alternativeCostKind(alt));
+        return InteractiveSnapshotExtractor.stackFaceIndex(sa.getCardStateName(), host.getCurrentStateName());
+    }
+
+    private static boolean isUnlockDoorAction(final SpellAbility sa) {
+        return sa instanceof AbilityStatic && sa.getApi() == ApiType.UnlockDoor;
+    }
+
+    private static boolean isSuspendAction(final SpellAbility sa) {
+        return sa.isKeyword(Keyword.SUSPEND) && !sa.isSpell();
+    }
+
+    private static LevelUpKind levelUpKind(final SpellAbility sa) {
+        if (sa.getApi() == ApiType.ClassLevelUp) {
+            return LevelUpKind.CLASS;
+        }
+        return sa.isKeyword(Keyword.LEVEL_UP) ? LevelUpKind.CREATURE : null;
+    }
+
+    private static PlayCardMode playCardMode(final SpellAbility sa) {
+        if (isUnlockDoorAction(sa)) {
+            final RoomDoor door = switch (sa.getCardStateName()) {
+                case LeftSplit -> RoomDoor.LEFT;
+                case RightSplit -> RoomDoor.RIGHT;
+                default -> throw new IllegalArgumentException("unlock ability without a Room door");
+            };
+            return new PlayCardMode_unlockDoor(door);
+        }
+        if (isSuspendAction(sa)) {
+            return new PlayCardMode_alternative(AlternativeCostKind.SUSPEND);
+        }
+        if (sa.isForetelling()) {
+            return new PlayCardMode_foretellExile();
+        }
+        if (sa.hasParam("Prototype")) {
+            return new PlayCardMode_alternative(AlternativeCostKind.PROTOTYPE);
+        }
+        if (sa.isAdventure()) {
+            return new PlayCardMode_adventure();
+        }
+        if (sa.isOptionalCostPaid(OptionalCost.AltCost)) {
+            return new PlayCardMode_staticAlternative();
+        }
+        final AlternativeCost alt = sa.getAlternativeCost();
+        if (alt != null) {
+            return new PlayCardMode_alternative(alternativeCostKind(alt));
+        }
+        if (sa.isCastFaceDown()) {
+            return new PlayCardMode_alternative(sa.isKeyword(Keyword.MEGAMORPH)
+                    ? AlternativeCostKind.MEGAMORPH : AlternativeCostKind.MORPH);
+        }
+        if (sa.isLandAbility() && sa.getCardStateName() == CardStateName.Backside) {
+            return new PlayCardMode_backFaceLand();
+        }
+        if (sa.getHostCard().isRoom() && sa.getCardStateName() == CardStateName.RightSplit) {
+            return new PlayCardMode_roomRightSplit();
+        }
+        return new PlayCardMode_normal();
     }
 
     private static AlternativeCostKind alternativeCostKind(final AlternativeCost alt) {
@@ -2349,6 +2707,7 @@ public final class ManaBrewInteractiveSession {
     }
 
     private ChooseCardsInput chooseCardsInput(
+            final int playerId,
             final String title,
             final String description,
             final List<Card> cards,
@@ -2357,7 +2716,7 @@ public final class ManaBrewInteractiveSession {
             final int max
     ) {
         return new ChooseCardsInput(
-                presentation(title, description), richCards(cards, castable), min, max);
+                presentation(title, description), richCards(playerId, cards, castable), min, max);
     }
 
     private void publishCardChoicePrompt(
@@ -2370,9 +2729,9 @@ public final class ManaBrewInteractiveSession {
         final ChooseCardsInput input;
         if ("choose_discard".equals(kind)) {
             final int maxOut = max > 0 ? max : Math.max(min, 1);
-            input = chooseCardsInput("Discard", null, cards, true, Math.min(min, maxOut), maxOut);
+            input = chooseCardsInput(playerId, "Discard", null, cards, true, Math.min(min, maxOut), maxOut);
         } else {
-            input = chooseCardsInput("Choose cards", null, cards, true, min, max);
+            input = chooseCardsInput(playerId, "Choose cards", null, cards, true, min, max);
         }
         publishAgentPrompt("player-" + playerId, null, input);
     }
@@ -2392,11 +2751,11 @@ public final class ManaBrewInteractiveSession {
         final ChooseCardsInput input;
         if ("choose_discard".equals(kind)) {
             final int maxOut = max > 0 ? max : Math.max(min, 1);
-            input = chooseCardsInput("Discard", description, cards, true, Math.min(min, maxOut), maxOut);
+            input = chooseCardsInput(playerId, "Discard", description, cards, true, Math.min(min, maxOut), maxOut);
         } else {
             final String title = sourceName != null ? sourceName : "Choose cards";
             input = chooseCardsInput(
-                    title, description, cards, false, optionalDecline ? 0 : min, max);
+                    playerId, title, description, cards, false, optionalDecline ? 0 : min, max);
         }
         publishAgentPrompt("player-" + playerId, sourceCardId, input);
     }
@@ -2498,7 +2857,7 @@ public final class ManaBrewInteractiveSession {
                 ? "player-" + SnapshotExtractor.playerIndex(game, owner)
                 : "player-" + playerId;
         publishAgentPrompt("player-" + playerId, null, revealInput(
-                zoneKind(zone), messagePrefix, ownerPlayerId, richCards(cards, false)));
+                zoneKind(zone), messagePrefix, ownerPlayerId, richCards(playerId, cards, false)));
     }
 
     private void publishRevealCardViewsPrompt(
@@ -2515,7 +2874,7 @@ public final class ManaBrewInteractiveSession {
         for (final CardView card : cards) {
             final Card real = game.findById(card.getId());
             if (real != null) {
-                cardArray.add(InteractiveSnapshotExtractor.cardDto(game, real, false));
+                cardArray.add(promptCard(playerId, real, false));
             } else {
                 final CardDto minimal = new CardDto();
                 minimal.id = "java-card-view-" + card.getId();
@@ -2539,35 +2898,8 @@ public final class ManaBrewInteractiveSession {
     }
 
     private static ZoneKind zoneKind(final ZoneType zone) {
-        final ZoneKind kind = zone == null ? null : cardZoneKind(zone);
+        final ZoneKind kind = zone == null ? null : InteractiveSnapshotExtractor.cardZoneKind(zone);
         return kind == null ? ZoneKind.LIBRARY : kind;
-    }
-
-    private static ZoneKind cardZoneKind(final ZoneType zone) {
-        switch (zone) {
-            case Hand:
-                return ZoneKind.HAND;
-            case Graveyard:
-            case Flashback:
-                return ZoneKind.GRAVEYARD;
-            case Battlefield:
-            case Merged:
-                return ZoneKind.BATTLEFIELD;
-            case Exile:
-                return ZoneKind.EXILE;
-            case Command:
-                return ZoneKind.COMMAND;
-            case AttractionDeck:
-                return ZoneKind.ATTRACTIONS;
-            case Junkyard:
-                return ZoneKind.JUNKYARD;
-            case Library:
-                return ZoneKind.LIBRARY;
-            case Sideboard:
-                return ZoneKind.SIDEBOARD;
-            default:
-                return null;
-        }
     }
 
     private void publishNumberPrompt(
@@ -2595,7 +2927,7 @@ public final class ManaBrewInteractiveSession {
         final String title = sourceName != null ? sourceName : "Reorder";
         final List<ReorderItem> items = new java.util.ArrayList<>();
         for (final Card card : cards) {
-            final CardDto dto = InteractiveSnapshotExtractor.cardDto(game, card, false);
+            final CardDto dto = promptCard(playerId, card, false);
             items.add(new ReorderItem(dto.id, dto, null));
         }
         publishAgentPrompt("player-" + playerId, sourceCardId, new ReorderInput(
@@ -2616,7 +2948,7 @@ public final class ManaBrewInteractiveSession {
         final List<ScryDestination> zones = java.util.List.of(
                 ScryDestination.LIBRARY_TOP, surveil ? ScryDestination.GRAVEYARD : ScryDestination.LIBRARY_BOTTOM);
         publishAgentPrompt("player-" + playerId, null, new ScryInput(
-                presentation(title, description), richCards(cards, false), zones));
+                presentation(title, description), richCards(playerId, cards, false), zones));
     }
 
     private void publishCardChoicePrompt(
@@ -2635,7 +2967,7 @@ public final class ManaBrewInteractiveSession {
             publishAgentPrompt("player-" + playerId, null, new MulliganInput(handCardIds, count));
         } else {
             publishAgentPrompt("player-" + playerId, null,
-                    new MulliganPutBackInput(handCardIds, richCards(cards, false), count));
+                    new MulliganPutBackInput(handCardIds, richCards(playerId, cards, false), count));
         }
     }
 
@@ -2709,7 +3041,7 @@ public final class ManaBrewInteractiveSession {
                 attacker != null ? SnapshotExtractor.javaCardId(attacker) : null,
                 new ChooseDamageAssignmentOrderInput(
                         attacker != null ? SnapshotExtractor.javaCardId(attacker) : "",
-                        blockerIds, richCards(blockers, false)));
+                        blockerIds, richCards(playerId, blockers, false)));
     }
 
     private void publishCombatDamageAssignmentPrompt(
@@ -2988,9 +3320,10 @@ public final class ManaBrewInteractiveSession {
         openPromptJson = ManabrewProtocolAdapter.agentPrompt(
                 ++promptSeq,
                 decidingPlayerId,
-                sourceCard(sourceCardId),
+                sourceCard(promptedPlayerIndex, sourceCardId),
                 sourceAbilityText(sourceCardId),
                 input);
+        if (!replaying) publishSnapshots();
         if (!actionRepeat.replaying()) {
             latestPromptJson = openPromptJson;
         }
@@ -3027,7 +3360,8 @@ public final class ManaBrewInteractiveSession {
         }
     }
 
-    private static final com.google.gson.Gson GSON = new com.google.gson.Gson();
+    private static final com.google.gson.Gson GSON = new com.google.gson.GsonBuilder()
+            .setObjectToNumberStrategy(com.google.gson.ToNumberPolicy.LONG_OR_DOUBLE).create();
 
     private void publishAgentPrompt(final String decidingPlayerId, final String sourceCardId, final Object typedInput) {
         publishAgentPrompt(decidingPlayerId, sourceCardId, GSON.toJsonTree(typedInput).getAsJsonObject());
@@ -3037,17 +3371,22 @@ public final class ManaBrewInteractiveSession {
         return wire == null ? null : GSON.fromJson("\"" + wire + "\"", type);
     }
 
-    private List<CardDto> richCards(final List<Card> cards, final boolean castable) {
+    private List<CardDto> richCards(final int playerId, final List<Card> cards, final boolean castable) {
         final List<CardDto> out = new java.util.ArrayList<>();
         for (final Card card : cards) {
-            final CardDto dto = InteractiveSnapshotExtractor.cardDto(game, card, castable);
-            dto.zone = card.getZone() == null ? null : cardZoneKind(card.getZone().getZoneType());
-            out.add(dto);
+            out.add(promptCard(playerId, card, castable));
         }
         return out;
     }
 
-    private CardDto sourceCard(final String sourceCardId) {
+    private CardDto promptCard(final int playerId, final Card card, final boolean castable) {
+        final CardDto dto = InteractiveSnapshotExtractor.cardDto(game, card, castable);
+        handKnowledge.remember(
+                playerId < 0 ? null : game.getRegisteredPlayers().get(playerId), card, dto);
+        return dto;
+    }
+
+    private CardDto sourceCard(final int playerId, final String sourceCardId) {
         if (sourceCardId == null) {
             Card source = null;
             if (game.getStack().isResolving() && !game.getStack().isEmpty()) {
@@ -3055,11 +3394,11 @@ public final class ManaBrewInteractiveSession {
             } else if (castingAbility != null) {
                 source = castingAbility.getHostCard();
             }
-            return source == null ? null : InteractiveSnapshotExtractor.cardDto(game, source, false);
+            return source == null ? null : promptCard(playerId, source, false);
         }
         for (final Card card : game.getCardsInGame()) {
             if (sourceCardId.equals(SnapshotExtractor.javaCardId(card))) {
-                return InteractiveSnapshotExtractor.cardDto(game, card, false);
+                return promptCard(playerId, card, false);
             }
         }
         return null;
@@ -3089,7 +3428,7 @@ public final class ManaBrewInteractiveSession {
         return new PromptPresentation(title, description, null, java.util.List.of());
     }
 
-    private static String formatActionLabel(final String label) {
+    private static String formatActionLabel(final String label, final PlayCardMode mode) {
         final String normalized = stripActionSuffix(label);
         final int colon = normalized.indexOf(':');
         if (colon < 0) {
@@ -3099,7 +3438,12 @@ public final class ManaBrewInteractiveSession {
         final String rest = normalized.substring(colon + 1);
         final int hash = rest.indexOf('#');
         final String cardName = hash < 0 ? rest : rest.substring(0, hash);
-        final String altCost = hash < 0 ? null : rest.substring(hash + 1);
+        String altCost = hash < 0 ? null : rest.substring(hash + 1);
+        if (altCost == null && mode instanceof PlayCardMode_alternative alternative) {
+            altCost = CaseFormat.UPPER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, alternative.cost.name());
+        } else if (altCost == null && mode instanceof PlayCardMode_staticAlternative) {
+            altCost = "Alternative cost";
+        }
         final int bar = cardName.indexOf('|');
         final String displayName = bar < 0 ? cardName : cardName.substring(bar + 1);
         final String altSuffix = altCost == null ? "" : " (" + altCost + ")";
@@ -3282,13 +3626,12 @@ public final class ManaBrewInteractiveSession {
         return produced != null && !produced.isEmpty() ? produced : null;
     }
 
-    private static String simpleCostText(final SpellAbility sa) {
+    private static String costText(final SpellAbility sa) {
         final Cost cost = sa.getPayCosts();
-        if (cost == null) {
+        if (cost == null || cost.getCostParts().isEmpty()) {
             return null;
         }
-        final String costText = cost.toSimpleString();
-        return costText != null && !costText.isEmpty() ? costText : null;
+        return cost.isAbility() ? cost.toString() : cost.toSimpleString();
     }
 
     private static String intentFromApi(

@@ -64,13 +64,13 @@ export function PlayerMenu({ player, onPickCommander }: PlayerMenuProps) {
         <Button
           variant="ghost"
           size="icon"
-          className="size-7 rounded-full bg-black/40 text-white hover:bg-black/55 hover:text-white @md:size-8"
+          className="size-7 rounded-full bg-black/40 text-white hover:bg-black/55 hover:text-white @md:size-8 touch:min-h-11 touch:min-w-11"
           aria-label={`Player menu`}
         >
           <MoreVertical className="size-4 @md:size-5" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-52">
+      <DropdownMenuContent align="end" className="w-72 max-w-[calc(100vw-2rem)]">
         <DropdownMenuItem onSelect={onPickCommander}>
           <GameIcon icon="crossed-swords" className="mr-2 size-4" /> Choose commander…
         </DropdownMenuItem>
@@ -98,14 +98,14 @@ export function PlayerMenu({ player, onPickCommander }: PlayerMenuProps) {
           <GameIcon icon="lightning-trio" className="mr-2 size-4" /> Speed ({player.speed ?? 0}/4)
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuLabel className="text-xs">Floating mana</DropdownMenuLabel>
-        <div className="grid grid-cols-6 gap-1 px-2 pb-2">
+        <DropdownMenuLabel className="text-ui-meta">Floating mana</DropdownMenuLabel>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(2.75rem,1fr))] gap-1 px-2 pb-2">
           {MANA_COLORS.map((color) => (
             <button
               type="button"
               key={color}
               onClick={() => adjustMana(player.id, color, 1)}
-              className="grid size-7 place-items-center rounded-md hover:bg-accent pointer-coarse:size-9"
+              className="grid size-7 place-items-center rounded-md hover:bg-accent touch:min-h-11 touch:min-w-11"
               aria-label={`Add ${color} mana`}
             >
               <ScryfallImg src={manaSymbolUrl(color)} alt="" className="size-4" draggable={false} />
@@ -114,15 +114,15 @@ export function PlayerMenu({ player, onPickCommander }: PlayerMenuProps) {
         </div>
         <DropdownMenuItem onSelect={() => clearMana(player.id)}>Empty mana pool</DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuLabel className="text-xs">Accent</DropdownMenuLabel>
-        <div className="grid grid-cols-8 gap-1 px-2 pb-2">
+        <DropdownMenuLabel className="text-ui-meta">Accent</DropdownMenuLabel>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(2.75rem,1fr))] gap-1 px-2 pb-2">
           {COMPANION_ACCENT_KEYS.map((key) => (
             <button
               type="button"
               key={key}
               onClick={() => setPlayerAccent(player.id, key)}
               className={cn(
-                "size-5 rounded-full border-2",
+                "size-5 rounded-full border-2 touch:min-h-11 touch:min-w-11",
                 key === player.accentKey ? "border-foreground" : "border-transparent",
               )}
               style={{ backgroundColor: COMPANION_ACCENT_COLORS[key] }}

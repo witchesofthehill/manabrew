@@ -249,6 +249,7 @@ pub struct RunParams {
     pub counter_type: Option<String>,
     /// Number of counters added/removed.
     pub counter_amount: Option<i32>,
+    pub new_counter_amount: Option<i32>,
     // ── New fields (issue #54) ──
     /// Batch of attacker IDs (for AttackersDeclared).
     pub attacker_ids: Option<Vec<CardId>>,

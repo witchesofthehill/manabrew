@@ -1,10 +1,12 @@
+use std::collections::BTreeMap;
+
 use forge_carddb::{CardDatabase, CardRules};
 use forge_foundation::{CoreType, ZoneType};
 use manabrew_engine::card::{Card, CardInstance};
-use manabrew_engine::game::GameState;
+use manabrew_engine::game::{GameState, TokenCosmeticBinding};
 use manabrew_engine::ids::PlayerId;
 use manabrew_engine::player::RegisteredPlayer;
-use manabrew_protocol::deck_dto::{Deck, DeckCard as WireDeckCard};
+use manabrew_protocol::deck_dto::{CardCosmetics, Deck, DeckCard as WireDeckCard};
 use tracing::warn;
 
 #[derive(Debug, Clone)]
@@ -13,6 +15,8 @@ pub struct DeckCardIdentity {
     pub set_code: String,
     pub card_number: String,
     pub section: Option<String>,
+    pub foil: bool,
+    pub cosmetics: Option<CardCosmetics>,
 }
 
 pub fn deck_to_identities(deck: &Deck) -> Vec<DeckCardIdentity> {
@@ -24,6 +28,12 @@ pub fn deck_to_identities(deck: &Deck) -> Vec<DeckCardIdentity> {
                 set_code: c.identity.set_code.clone(),
                 card_number: c.identity.card_number.clone(),
                 section: Some(section.to_string()),
+                foil: c.identity.foil.unwrap_or(false),
+                cosmetics: c
+                    .identity
+                    .cosmetics
+                    .clone()
+                    .and_then(CardCosmetics::normalize),
             });
         }
     };
@@ -51,6 +61,7 @@ pub fn deck_to_identities(deck: &Deck) -> Vec<DeckCardIdentity> {
 pub struct PreparedRegisteredPlayer {
     pub registered: RegisteredPlayer,
     pub cards: Vec<(CardInstance, ZoneType)>,
+    pub token_cosmetics: BTreeMap<String, TokenCosmeticBinding>,
 }
 
 pub fn prepare_registered_player(
@@ -60,7 +71,11 @@ pub fn prepare_registered_player(
 ) -> PreparedRegisteredPlayer {
     let mut registered = RegisteredPlayer::new(name);
     let cards = prepare_cards_from_identities(db, identities, &mut registered);
-    PreparedRegisteredPlayer { registered, cards }
+    PreparedRegisteredPlayer {
+        registered,
+        cards,
+        token_cosmetics: BTreeMap::new(),
+    }
 }
 
 pub fn prepare_players(
@@ -78,6 +93,21 @@ pub fn prepare_players(
             let identities = deck_to_identities(deck);
             let mut prepared = prepare_registered_player(name.clone(), db, &identities);
             prepared.registered.starting_life = starting_life;
+            for token in deck.tokens.iter().flatten() {
+                if let Some(script) = &token.identity.token_script {
+                    prepared
+                        .token_cosmetics
+                        .entry(script.0.to_ascii_lowercase())
+                        .or_insert_with(|| TokenCosmeticBinding {
+                            foil: token.identity.foil.unwrap_or(false),
+                            cosmetics: token
+                                .identity
+                                .cosmetics
+                                .clone()
+                                .and_then(CardCosmetics::normalize),
+                        });
+                }
+            }
             if let Some(commander_name) = commander.as_deref() {
                 if !force_commander_by_name(&mut prepared, commander_name) {
                     warn!(commander_name, "commander name not found in deck");
@@ -103,6 +133,8 @@ pub fn prepare_cards_from_identities(
             if !identity.card_number.is_empty() {
                 card.card_number = Some(identity.card_number.clone());
             }
+            card.paper_foil = identity.foil;
+            card.cosmetics = identity.cosmetics.clone();
             let destination = deck_zone_for_identity(identity.section.as_deref(), &card);
             register_card_name(registered, &card.card_name, destination);
             cards.push((card, destination));
@@ -155,6 +187,7 @@ pub fn instantiate_registered_players(
 ) {
     for (idx, prepared) in prepared_players.into_iter().enumerate() {
         let pid = PlayerId(idx as u32);
+        game.token_cosmetics.insert(pid, prepared.token_cosmetics);
         game.initialize_registered_player_cards(pid, &prepared.registered, prepared.cards, None);
     }
 }

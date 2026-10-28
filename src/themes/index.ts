@@ -2,6 +2,7 @@ export type { ThemeColors } from "./appTheme";
 
 export type {
   GameThemeColors,
+  GameFontSizes,
   GameThemeColorKey,
   GameThemeColorMap,
   ManaLetter,
@@ -10,12 +11,10 @@ export {
   MANA_LETTERS,
   resolveGameThemeColors,
   flattenGameThemeToCssVars,
-  resolveGameFontSizes,
   getGameThemeColorPaths,
   toPickerHexColor,
   hexToRgb,
   withAlpha,
 } from "./gameTheme";
 
-export type { GameFontSizes, ThemePreset } from "./presets";
-export { DEFAULT_GAME_FONT_SIZES, THEME_PRESETS } from "./presets";
+export { default as MANABREW_THEME } from "./default";

@@ -54,17 +54,14 @@ export function BreweryBackdrop({ variant = "hero", className }: BreweryBackdrop
           variant === "subtle" && "opacity-30",
         )}
       />
-      <img
-        src="/manabrew_brewery_1.png"
-        alt=""
-        draggable={false}
-        className={cn(
-          "pointer-events-none absolute inset-0 size-full select-none object-cover",
-          variant === "hero" && "opacity-50 blur-md",
-          variant === "ambient" && "opacity-20 blur-xl",
-          variant === "subtle" && "opacity-10 blur-2xl",
-        )}
-      />
+      {variant === "hero" && (
+        <img
+          src="/manabrew_brewery_1.png"
+          alt=""
+          draggable={false}
+          className="pointer-events-none absolute inset-0 size-full select-none object-cover opacity-20 blur-md"
+        />
+      )}
     </div>
   );
 }

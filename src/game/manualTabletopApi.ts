@@ -6,6 +6,9 @@ import type {
   StartMultiplayerGameParams,
 } from "@/platform";
 import type { CardDto } from "@/protocol/game";
+import type { DeckCard } from "@/protocol/deck";
+import { normalizeCardCosmetics } from "@/lib/cardCosmetics";
+import { peekArchivedToken, resolveTokenCustomizationScript } from "@/stores/useScryfallStore";
 import type { DirectiveInput, Prompt } from "@/protocol";
 import type { ClientCardDto, ClientGameView, ClientPlayerDto } from "@/stores/gameStore.types";
 import type { ManualTabletopApi, ManualTabletopAction } from "./runtime.types";
@@ -230,10 +233,17 @@ export class ManualTabletopGameApi implements ManualTabletopApi {
   private gameView: ClientGameView | null = null;
   private latestPrompt: Prompt | null = null;
   private libraries: Record<string, ClientCardDto[]> = {};
+  private tokenOverrides: Record<string, DeckCard[]> = {};
 
   async startGame(params: StartGameParams): Promise<string> {
     this.gameView = createInitialGameView(params);
     this.libraries = {};
+    this.tokenOverrides = Object.fromEntries(
+      [params.deck, ...(params.opponentDecks ?? [])].map((deck, index) => [
+        `player-${index}`,
+        deck.tokens ?? [],
+      ]),
+    );
     this.emitStateUpdate();
     return MANUAL_GAME_ID;
   }
@@ -258,6 +268,7 @@ export class ManualTabletopGameApi implements ManualTabletopApi {
     this.gameView = null;
     this.latestPrompt = null;
     this.libraries = {};
+    this.tokenOverrides = {};
   }
 
   async getPrompt(): Promise<Prompt | null> {
@@ -279,6 +290,36 @@ export class ManualTabletopGameApi implements ManualTabletopApi {
     );
     this.emitStateUpdate();
     return this.gameView;
+  }
+
+  private customizeToken(card: CardDto, ownerId: string): CardDto {
+    if (!card.identity.isToken) return card;
+    const archived = peekArchivedToken({
+      tokenScript: card.identity.tokenScript,
+      setCode: card.identity.setCode,
+      cardNumber: card.identity.cardNumber,
+    });
+    const script =
+      card.identity.tokenScript ??
+      (archived ? resolveTokenCustomizationScript(archived) : undefined);
+    const override = script
+      ? this.tokenOverrides[ownerId]?.find(
+          (token) => resolveTokenCustomizationScript(token) === script,
+        )
+      : undefined;
+    return {
+      ...card,
+      identity: override
+        ? {
+            ...card.identity,
+            setCode: override.identity.setCode,
+            cardNumber: override.identity.cardNumber,
+            tokenScript: script,
+          }
+        : card.identity,
+      foil: override?.identity.foil ?? card.foil,
+      cosmetics: normalizeCardCosmetics(override?.identity.cosmetics),
+    };
   }
 
   private applyAction(
@@ -326,23 +367,35 @@ export class ManualTabletopGameApi implements ManualTabletopApi {
           poison: action.poison,
         }));
       case "createCard":
-        return addCardToZone(gameView, action.zoneId ?? "battlefield", {
-          ...action.card,
-          controllerId: action.controllerId,
-          ownerId: action.controllerId,
-          identity: { ...action.card.identity, isToken: action.card.identity.isToken ?? false },
-        });
+        return addCardToZone(
+          gameView,
+          action.zoneId ?? "battlefield",
+          this.customizeToken(
+            {
+              ...action.card,
+              controllerId: action.controllerId,
+              ownerId: action.controllerId,
+              identity: { ...action.card.identity, isToken: action.card.identity.isToken ?? false },
+            },
+            action.controllerId,
+          ),
+        );
       case "createToken":
         return {
           ...gameView,
           battlefield: [
             ...gameView.battlefield,
             {
-              ...action.card,
+              ...this.customizeToken(
+                {
+                  ...action.card,
+                  identity: { ...action.card.identity, isToken: true },
+                },
+                action.controllerId,
+              ),
               controllerId: action.controllerId,
               ownerId: action.controllerId,
               zoneId: "battlefield",
-              identity: { ...action.card.identity, isToken: true },
             },
           ],
         };

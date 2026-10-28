@@ -127,19 +127,33 @@ pub fn extract_keyword_cost_from_all<'a>(
 /// Info about a card's suspend cost.
 #[derive(Debug, Clone)]
 pub struct SuspendInfo {
-    pub mana_cost: String,
-    pub time_counters: i32,
+    pub mana_cost: forge_foundation::ManaCost,
+    pub time_counters: crate::cost::AmountSpec,
+    pub x_min: i32,
 }
 
 /// Parse suspend info from a KeywordCollection.
-/// Format: "Suspend:MANA_COST:TIME_COUNTERS" e.g. "Suspend:1 U:3"
+/// Format: "Suspend:TIME_COUNTERS:MANA_COST" e.g. "Suspend:3:1 U"
 pub fn extract_suspend(collection: &keyword_collection::KeywordCollection) -> Option<SuspendInfo> {
     for kw in collection.iter_strings() {
         if let Some(rest) = kw.strip_prefix("Suspend:") {
-            if let Some(colon_pos) = rest.rfind(':') {
+            if let Some((amount, cost)) = rest.split_once(':') {
+                let cost = cost.split('|').next().unwrap_or(cost).trim();
+                let minimum = cost
+                    .split_whitespace()
+                    .find(|token| token.starts_with("XMin"));
+                let x_min = minimum
+                    .and_then(|token| token[4..].parse().ok())
+                    .unwrap_or(0);
+                let mana_cost = if let Some(minimum) = minimum {
+                    forge_foundation::ManaCost::parse(&cost.replace(minimum, ""))
+                } else {
+                    forge_foundation::ManaCost::parse(cost)
+                };
                 return Some(SuspendInfo {
-                    mana_cost: rest[..colon_pos].trim().to_string(),
-                    time_counters: rest[colon_pos + 1..].trim().parse().unwrap_or(0),
+                    mana_cost,
+                    time_counters: crate::cost::AmountSpec::parse_or(amount, 0),
+                    x_min,
                 });
             }
         }

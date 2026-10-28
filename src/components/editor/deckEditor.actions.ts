@@ -26,14 +26,6 @@ function removeCard(card: DeckCard, zone: DeckSourceZone) {
   else store.removeFromMaybe(card.identity.id);
 }
 
-function addCard(card: DeckCard, zone: EditableDeckZone) {
-  const store = useDeckStore.getState();
-  const moved = { ...card, identity: { ...card.identity, id: crypto.randomUUID() } };
-  if (zone === "main") store.addToMain(moved);
-  else if (zone === "side") store.addToSide(moved);
-  else store.addToMaybe(moved);
-}
-
 export function moveCardCopies(
   cardName: string,
   source: EditableDeckZone,
@@ -45,11 +37,10 @@ export function moveCardCopies(
     (card) => card.identity.name.toLowerCase() === cardName.toLowerCase(),
   );
   const cards = quantity === "one" ? matches.slice(-1) : matches;
-  for (const card of cards) {
-    removeCard(card, source);
-    addCard(card, destination);
-  }
-  return cards.length;
+  return useDeckStore.getState().moveCards(
+    cards.map((card) => card.identity.id),
+    destination,
+  );
 }
 
 export function removeCardCopies(
@@ -70,17 +61,14 @@ export function moveSelectedCards(
   destination: EditableDeckZone,
 ): number {
   const names = new Set([...cardNames].map((name) => name.toLowerCase()));
-  let moved = 0;
-  for (const source of ["main", "side", "maybe"] as const) {
-    if (source === destination) continue;
-    const cards = zoneCards(source).filter((card) => names.has(card.identity.name.toLowerCase()));
-    for (const card of cards) {
-      removeCard(card, source);
-      addCard(card, destination);
-      moved += 1;
-    }
-  }
-  return moved;
+  const ids = (["main", "side", "maybe"] as const).flatMap((source) =>
+    source === destination
+      ? []
+      : zoneCards(source)
+          .filter((card) => names.has(card.identity.name.toLowerCase()))
+          .map((card) => card.identity.id),
+  );
+  return useDeckStore.getState().moveCards(ids, destination);
 }
 
 export function removeSelectedCards(cardNames: Iterable<string>): number {

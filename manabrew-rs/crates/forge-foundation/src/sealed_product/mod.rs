@@ -2,6 +2,7 @@ pub mod booster_generator;
 pub mod booster_slot;
 pub mod booster_slots;
 pub mod booster_template_registry;
+pub mod card_cosmetics;
 pub mod chaos_booster_supplier;
 pub mod foil_type;
 pub mod paper_card;

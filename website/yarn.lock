@@ -467,15 +467,15 @@
   dependencies:
     "@expressive-code/core" "^0.41.7"
 
-"@fontsource/alegreya-sans@^5.2.5":
-  version "5.2.8"
-  resolved "https://registry.yarnpkg.com/@fontsource/alegreya-sans/-/alegreya-sans-5.2.8.tgz#209c5119c3b37612e4a794e2244d5228c7bc37f8"
-  integrity sha512-kXUTR1S6dsWa7rBxaDJ3P05HodmYmxfY20aQtQ4SYVmrEYrWtaw5A1n+h+wcCF0nAMwf+CQ4M435dNuWD1YfMg==
+"@fontsource-variable/source-sans-3@^5.3.1":
+  version "5.3.1"
+  resolved "https://registry.yarnpkg.com/@fontsource-variable/source-sans-3/-/source-sans-3-5.3.1.tgz#da566169416060ced3e90b64b079dfb6b3dd83e9"
+  integrity sha512-u0p5Z/PM2e1uxYOMiodLM6NVzxHwULcB6Oi7QSr2WU/sdoLBFP/BeOZ3YYHeJ6rHsjPZA1nZweZVaV7sf2MAyQ==
 
-"@fontsource/cormorant-garamond@^5.2.5":
-  version "5.2.11"
-  resolved "https://registry.yarnpkg.com/@fontsource/cormorant-garamond/-/cormorant-garamond-5.2.11.tgz#7e2f4580b56346f710f0dd016578688138feaf1d"
-  integrity sha512-5JjpN023lhA5soijgVT0BdRGzmlijm402ppjccMd6h+vRE0mX2lJnE+41UPfnlidrkV9/rCo1mf58WZlHnB0CA==
+"@fontsource/alegreya-sans@^5.3.0":
+  version "5.3.0"
+  resolved "https://registry.yarnpkg.com/@fontsource/alegreya-sans/-/alegreya-sans-5.3.0.tgz#2a92e66f911b47e37e90ad13bfd7ba13a3093870"
+  integrity sha512-Uf0RbuwzhSS3NQrBFcRzEUm7TxDQW3qdAbQ6JIOhsIW6V+YN2dqlR99lhfEE38R3GHgMCMJBzqSp7aJxhNXSOw==
 
 "@img/colour@^1.0.0":
   version "1.1.0"

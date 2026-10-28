@@ -89,6 +89,7 @@ function computeChecksum() {
     .sort();
 
   const protocolFiles = [
+    join(root, "manabrew-rs", "crates", "forge-foundation", "src"),
     join(root, "manabrew-rs", "crates", "manabrew-protocol", "src"),
     join(root, "manabrew-rs", "crates", "manabrew-relay-protocol", "src"),
   ]
@@ -277,6 +278,8 @@ function rebuild() {
   for (const regressionClass of [
     "forge.harness.host.ManaBrewEngineAdapterTest",
     "forge.harness.host.InteractiveSnapshotExtractorTest",
+    "forge.harness.host.JournalRewindTest",
+    "forge.harness.host.ManaBrewInteractiveControllerTest",
     "forge.harness.common.HarnessPlayPlumbingTest",
     "forge.harness.common.ActionSpaceTest",
   ]) {
@@ -290,6 +293,22 @@ function rebuild() {
       );
       process.exit(regression.status ?? 1);
     }
+  }
+
+  for (const perturbation of [0, 2, 9, 13]) {
+    const regression = spawnSync(
+      "java",
+      [
+        "-XX:+UnlockExperimentalVMOptions",
+        "-XX:hashCode=0",
+        "-cp",
+        regressionClasspath,
+        "forge.harness.host.ReplayOrderingTest",
+        String(perturbation),
+      ],
+      { cwd: root, stdio: "inherit" },
+    );
+    if (regression.status !== 0) process.exit(regression.status ?? 1);
   }
 
   updateChecksum();

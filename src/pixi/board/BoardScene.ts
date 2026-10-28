@@ -1,3 +1,4 @@
+import { UI_FONT_FAMILY } from "@/themes/typography";
 import { Application, Container, Graphics, Point, Text, type FederatedPointerEvent } from "pixi.js";
 import { isCardPreviewTarget } from "@/lib/cardPreviewEvents";
 import type { CardDto, PlaymatSettings } from "@/protocol/game";
@@ -212,8 +213,7 @@ export class BoardScene {
   private hoveredRegionRef: BoardRegion | null = null;
   private hoverClearTimer: number | null = null;
 
-  private handInsetLeft = 0;
-  private handInsetRight = 0;
+  private actionPanelLeft: number | null = null;
   private handPeek = false;
   private lastCapsuleRects = new Map<string, string>();
   private autoSort = false;
@@ -392,8 +392,8 @@ export class BoardScene {
     this.app.canvas.addEventListener("pointerdown", this.stripOutsideListener);
     this.app.canvas.addEventListener("pointerdown", this.pinchDownListener);
     window.addEventListener("pointermove", this.pinchMoveListener);
-    window.addEventListener("pointerup", this.pinchUpListener);
-    window.addEventListener("pointercancel", this.pinchUpListener);
+    window.addEventListener("pointerup", this.pinchUpListener, { capture: true });
+    window.addEventListener("pointercancel", this.pinchUpListener, { capture: true });
 
     app.ticker.add(this.tick, this);
     prewarmManaSymbols();
@@ -490,6 +490,7 @@ export class BoardScene {
     this.dragHandler.setCardScale(scales.self);
     this.dragHandler.setContainerSize(this.app.renderer.width, this.app.renderer.height);
     this.syncHandPresentation();
+    this.selection?.refresh();
     // Regions laid out above sampled capsule bounds from before this pass's
     // applyDelimiters/layoutSelfBar moved them (resize/rotation) — reconcile.
     this.refreshCapsuleBlockers();
@@ -694,7 +695,7 @@ export class BoardScene {
     const maxWidth = this.presentation.hudMaxWidth;
     const desiredWidth = Math.min(availableWidth, maxWidth);
     let width = desiredWidth;
-    let bottom = field.y + field.height;
+    const bottom = field.y + field.height;
     const overlapsHand =
       hand &&
       hand.x < x + width &&
@@ -703,12 +704,8 @@ export class BoardScene {
       hand.y + hand.height > bottom - preferredHeight;
     if (overlapsHand) {
       const clearWidth = hand.x - PLAYER_HUD_HAND_GAP_PX - x;
-      const minWidth = this.presentation.hudMinWidth;
-      if (clearWidth >= Math.min(availableWidth, minWidth)) {
-        width = Math.min(width, clearWidth);
-      } else {
-        bottom = Math.min(bottom, hand.y - PLAYER_HUD_HAND_GAP_PX);
-      }
+      const minWidth = Math.min(availableWidth, this.presentation.hudMinWidth);
+      width = Math.min(width, Math.max(clearWidth, minWidth));
     }
     const height = Math.max(1, Math.min(preferredHeight, bottom - field.y));
     this.playerBars.setRect(this.localPlayerId, x, bottom - height, width, height, false);
@@ -961,6 +958,7 @@ export class BoardScene {
       },
       this.root,
     );
+    fan.setRulesViewDefault(this.handRulesViewDefault);
     fan.setCards(cards);
     this.opponentHands.set(playerId, fan);
     this.applyDelimiters();
@@ -1018,10 +1016,16 @@ export class BoardScene {
   setHandCardStyle(style: InlineCardStyle): void {
     this.handRulesViewDefault = style === "rules";
     this.hand?.setRulesViewDefault(this.handRulesViewDefault);
+    for (const fan of this.opponentHands.values()) {
+      fan.setRulesViewDefault(this.handRulesViewDefault);
+    }
   }
 
   handUsesRulesView(cardId: string): boolean {
     return this.hand?.usesRulesView(cardId) === true;
+  }
+  get handRulesKeyboardTarget() {
+    return this.hand?.handRulesKeyboardTarget ?? null;
   }
   hitTestHandRules(x: number, y: number): boolean {
     return this.hand?.hitTestRules(x, y) === true;
@@ -1049,11 +1053,13 @@ export class BoardScene {
     this.hand?.relayout();
   }
 
-  setHandInsets(left: number, right: number): void {
-    if (this.handInsetLeft === left && this.handInsetRight === right) return;
-    this.handInsetLeft = left;
-    this.handInsetRight = right;
+  setActionPanelBounds(bounds: ScreenBounds | null): void {
+    const left = bounds?.x ?? null;
+    if (this.actionPanelLeft === left) return;
+    this.actionPanelLeft = left;
     this.hand?.relayout();
+    this.layoutSelfBar();
+    this.refreshCapsuleBlockers();
   }
 
   setCombatStaging(playerId: string, staging: SceneCombatStaging | null): void {
@@ -1346,6 +1352,8 @@ export class BoardScene {
     this.applyDelimiters(); // repaint the collapse veil in the new theme colour
     if (this.promptReference) this.setPromptReference(this.promptReference);
     this.syncHandPresentation();
+    this.selection?.refresh();
+    this.overlay?.refreshAll();
   }
 
   private canvasRect(): DOMRect {
@@ -1447,7 +1455,7 @@ export class BoardScene {
     const text = new Text({
       text: content,
       style: {
-        fontFamily: "system-ui, sans-serif",
+        fontFamily: UI_FONT_FAMILY,
         fontSize: FLOATER_FONT_SIZE,
         fontWeight: "900",
         fill: color,
@@ -1568,8 +1576,19 @@ export class BoardScene {
       getPlayZone: () => {
         const zone = this.localZone();
         if (!zone) return { x: 0, y: 0, width: 0, height: 0 };
-        const left = this.handInsetLeft;
-        const right = this.handInsetRight;
+        const hudField =
+          this.barsEnabled && this.localPlayerId
+            ? (this.regions.get(this.localPlayerId)?.region.getPlaymatRect() ?? null)
+            : null;
+        const actionPanelLeft =
+          this.actionPanelLeft === null
+            ? null
+            : this.root.toLocal(
+                RECT_SCRATCH_A.set(this.actionPanelLeft, 0),
+                undefined,
+                RECT_SCRATCH_A,
+              ).x;
+        const { left, right } = this.presentation.handInsets(zone, hudField, actionPanelLeft);
         if (left <= 0 && right <= 0) return zone;
         return {
           x: zone.x + left,
@@ -2415,8 +2434,8 @@ export class BoardScene {
     this.app.canvas.removeEventListener("pointerdown", this.stripOutsideListener);
     this.app.canvas.removeEventListener("pointerdown", this.pinchDownListener);
     window.removeEventListener("pointermove", this.pinchMoveListener);
-    window.removeEventListener("pointerup", this.pinchUpListener);
-    window.removeEventListener("pointercancel", this.pinchUpListener);
+    window.removeEventListener("pointerup", this.pinchUpListener, { capture: true });
+    window.removeEventListener("pointercancel", this.pinchUpListener, { capture: true });
     this.longPress.cancel();
     this.app.canvas.removeEventListener("pointerleave", this.canvasLeaveListener);
     this.app.stage.off("pointerleave", this.canvasLeaveListener);

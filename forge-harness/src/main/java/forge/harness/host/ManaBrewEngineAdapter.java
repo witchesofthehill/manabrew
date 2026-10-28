@@ -3,6 +3,7 @@ package forge.harness.host;
 import forge.harness.common.CountingRandom;
 import forge.harness.common.HeadlessGuiBase;
 import forge.harness.common.ForgeEngineReset;
+import forge.harness.protocol.CardCosmetics;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -20,6 +21,7 @@ import forge.game.GameRules;
 import forge.game.GameType;
 import forge.game.Match;
 import forge.game.player.RegisteredPlayer;
+import forge.game.zone.ZoneType;
 import forge.gui.GuiBase;
 import forge.item.PaperCard;
 import forge.localinstance.properties.ForgePreferences;
@@ -27,7 +29,6 @@ import forge.model.FModel;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -46,8 +47,14 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class ManaBrewEngineAdapter {
     private static final Gson GSON = new Gson();
+    private static final Set<ManaBrewInteractiveSession> LIVE_SESSIONS = new HashSet<>();
+    private static final String PAUPER_COMMANDER = "PauperCommander";
+    private static final int PAUPER_COMMANDER_STARTING_LIFE = 30;
+    private static final int PAUPER_COMMANDER_DAMAGE_TO_LOSE = 16;
     private final Map<String, ManaBrewInteractiveSession> sessions = new ConcurrentHashMap<>();
     private volatile boolean initialized;
+    private String assetsDir;
+    private String replayIdentity;
 
     public ManaBrewEngineAdapter() {
     }
@@ -59,6 +66,7 @@ public final class ManaBrewEngineAdapter {
         if (assetsDir == null || assetsDir.isBlank()) {
             throw new IllegalArgumentException("assetsDir is required");
         }
+        this.assetsDir = assetsDir;
         GuiBase.setInterface(new HeadlessGuiBase(assetsDir));
         FModel.initialize(null, prefs -> {
             prefs.setPref(ForgePreferences.FPref.LOAD_CARD_SCRIPTS_LAZILY, true);
@@ -77,10 +85,30 @@ public final class ManaBrewEngineAdapter {
     }
 
     public SessionHandle startGame(final StartGameRequest request) {
+        synchronized (LIVE_SESSIONS) {
+            return startGameLocked(request);
+        }
+    }
+
+    private SessionHandle startGameLocked(final StartGameRequest request) {
         Objects.requireNonNull(request, "request");
         requireInitialized();
 
-        final CountingRandom rng = new CountingRandom(request.getSeed(), "hosted");
+        if (request.journalStart != null && request.getPlayers().stream().anyMatch(PlayerConfig::isAi)) {
+            throw new IllegalArgumentException("decision journal requires a seeded game with external decisions");
+        }
+        if (sessions.containsKey(request.getGameId())) {
+            throw new IllegalArgumentException("session already exists: " + request.getGameId());
+        }
+        if (!LIVE_SESSIONS.isEmpty() && (request.journalStart != null
+                || LIVE_SESSIONS.stream().anyMatch(ManaBrewInteractiveSession::hasDecisionJournal))) {
+            throw new IllegalStateException("decision replay requires an isolated engine process");
+        }
+        final java.util.Random rng = request.journalStart == null
+                ? new CountingRandom(request.getSeed(), "hosted") : new ReplayRandom(request.getSeed());
+        if (request.journalStart != null) {
+            forge.util.MyRandom.setRandom(rng);
+        }
 
         final int playerCount = request.getPlayers().size();
         final GameType gameType = resolveGameType(request);
@@ -88,6 +116,10 @@ public final class ManaBrewEngineAdapter {
         final GameRules rules = new GameRules(gameType);
         rules.setAppliedVariants(variants);
         rules.setSimTimeout(120);
+        final boolean pauperCommander = PAUPER_COMMANDER.equals(request.getVariant());
+        if (pauperCommander) {
+            rules.setCommanderDamageToLose(PAUPER_COMMANDER_DAMAGE_TO_LOSE);
+        }
         // The client draws its own card faces, so nothing here or in the
         // protocol ever reads Forge's rendered rules text. Building it asks
         // every conditional static ability whether it applies, and each of
@@ -97,7 +129,7 @@ public final class ManaBrewEngineAdapter {
 
         // Resetting global counters under a live session would collide its ids;
         // multiplexed processes only reset between idle periods.
-        if (sessions.isEmpty()) {
+        if (LIVE_SESSIONS.isEmpty()) {
             ForgeEngineReset.resetAllIdCounters();
             forge.StaticData.instance().resetLazyLoadedCards();
             forge.ImageKeys.clearCaches();
@@ -105,14 +137,22 @@ public final class ManaBrewEngineAdapter {
         final ManaBrewInteractiveSession session =
                 new ManaBrewInteractiveSession(request.getGameId());
         final List<RegisteredPlayer> registeredPlayers = new ArrayList<>();
+        final List<List<CardCosmeticBindings.DeckEntry>> deckEntries = new ArrayList<>();
         final Set<Integer> botSeats = new HashSet<>();
         for (PlayerConfig playerConfig : request.getPlayers()) {
             if (playerConfig.isBot()) {
                 botSeats.add(registeredPlayers.size());
             }
-            Deck deck = buildDeck(playerConfig);
+            final List<CardCosmeticBindings.DeckEntry> entries = new ArrayList<>();
+            Deck deck = buildDeck(playerConfig, entries);
+            deckEntries.add(entries);
             RegisteredPlayer registeredPlayer = RegisteredPlayer.forVariants(
                     playerCount, variants, deck, null, false, null, null);
+            if (pauperCommander) {
+                registeredPlayer.setStartingLife(PAUPER_COMMANDER_STARTING_LIFE);
+            } else if (request.startingLifeSpecified) {
+                registeredPlayer.setStartingLife(request.getStartingLife());
+            }
             if (playerConfig.isAi()) {
                 registeredPlayer.setPlayer(new ManaBrewAiLobbyPlayer(playerConfig.getName(), session));
             } else {
@@ -125,10 +165,18 @@ public final class ManaBrewEngineAdapter {
         final Match match = new Match(rules, registeredPlayers, "ManaBrew");
         final Game game = match.createGame();
         session.attach(match, game, botSeats, request.isSnapshotRecording());
+        new CardCosmeticBindings(game, deckEntries, request.getPlayers());
         if (request.checkpointMetrics) {
             session.enableCheckpointMetrics();
         }
+        if (request.journalStart != null) {
+            session.enableDecisionJournal(request.journalStart, request.journalCommitBarrier);
+        }
+        if (request.journalRewind) {
+            session.enableDecisionHistory(request.journalStart, request.replaySnapshot);
+        }
         sessions.put(session.getSessionId(), session);
+        LIVE_SESSIONS.add(session);
         session.start(rng);
 
         List<Integer> playerIndexes = new ArrayList<>();
@@ -168,6 +216,23 @@ public final class ManaBrewEngineAdapter {
         return String.valueOf(session.isGameOver());
     }
 
+    public String readDecisionJournal(final String sessionId) {
+        return getSession(sessionId).readDecisionJournal();
+    }
+
+    public String acknowledgeDecisionJournal(final String sessionId, final long sequence) {
+        return getSession(sessionId).acknowledgeDecisionJournal(sequence);
+    }
+
+    public String drainDecisionJournal(final String sessionId) {
+        return getSession(sessionId).drainDecisionJournal();
+    }
+
+    public String getLibraryTop(final String sessionId, final int playerIndex, final int count) {
+        return InteractiveSnapshotExtractor.libraryTopJson(
+                getSession(sessionId).getGame(), playerIndex, count);
+    }
+
     public String drainCheckpointMetrics(final String sessionId) {
         return getSession(sessionId).drainCheckpointMetrics();
     }
@@ -185,6 +250,25 @@ public final class ManaBrewEngineAdapter {
         return error == null ? "" : error;
     }
 
+    public boolean isReplaying(final String sessionId) {
+        return getSession(sessionId).isReplaying();
+    }
+
+    public String getRewindRequest(final String sessionId) {
+        return getSession(sessionId).getRewindRequest();
+    }
+
+    public String resumeAfterFailedRewind(final String sessionId) {
+        getSession(sessionId).resumeAfterFailedRewind();
+        return "";
+    }
+
+    public String replayReady(final String sessionId) {
+        final ManaBrewInteractiveSession session = getSession(sessionId);
+        if (session.getEngineError() != null) throw new IllegalStateException(session.getEngineError());
+        return Boolean.toString(!session.isReplaying() && session.getLatestPromptJson() != null);
+    }
+
     public String endGameJson(final String sessionId) {
         endGame(sessionId);
         JsonObject response = new JsonObject();
@@ -199,10 +283,36 @@ public final class ManaBrewEngineAdapter {
 
     public void endGame(final String sessionId) {
         requireSessionId(sessionId);
-        ManaBrewInteractiveSession session = sessions.remove(sessionId);
-        if (session != null) {
-            session.close();
+        synchronized (LIVE_SESSIONS) {
+            ManaBrewInteractiveSession session = sessions.remove(sessionId);
+            if (session != null) {
+                session.close();
+                if (session.executionStopped()) {
+                    LIVE_SESSIONS.remove(session);
+                } else {
+                    throw new IllegalStateException("engine did not stop; discard this process before replay");
+                }
+            }
         }
+    }
+
+    synchronized String replayIdentity() {
+        if (replayIdentity == null) {
+            replayIdentity = GameCheckpoint.identity(assetsDir);
+        }
+        return replayIdentity;
+    }
+
+    String replayBoundary(final String sessionId) {
+        return getSession(sessionId).exportReplaySnapshot(null);
+    }
+
+    public String exportReplaySnapshot(final String sessionId, final String history) {
+        return GameCheckpoint.withIdentity(getSession(sessionId).exportReplaySnapshot(history), replayIdentity());
+    }
+
+    public String restoreReplaySnapshot(final String snapshot) {
+        return GameCheckpoint.restore(this, snapshot);
     }
 
     private void requireInitialized() {
@@ -220,15 +330,13 @@ public final class ManaBrewEngineAdapter {
         return session;
     }
 
-    private static Deck buildDeck(final PlayerConfig playerConfig) {
+    private static Deck buildDeck(final PlayerConfig playerConfig,
+            final List<CardCosmeticBindings.DeckEntry> entries) {
         Deck deck = new Deck(playerConfig.getName());
         CardPool main = deck.getOrCreate(DeckSection.Main);
-        Map<String, PaperCard> mainByName = new HashMap<>();
+        final CardPool resolved = new CardPool();
         for (CardIdentity card : playerConfig.getDeck()) {
-            main.add(cardRequest(card), 1);
-        }
-        for (PaperCard card : main.toFlatList()) {
-            mainByName.putIfAbsent(card.getName().toLowerCase(Locale.ROOT), card);
+            addDeckEntry(main, resolved, card, ZoneType.Library, entries);
         }
         List<String> uniqueCommanders = new ArrayList<>();
         Set<String> seenCommanders = new HashSet<>();
@@ -241,32 +349,62 @@ public final class ManaBrewEngineAdapter {
             }
         }
         for (String commanderName : uniqueCommanders) {
-            PaperCard commander = mainByName.get(commanderName.toLowerCase(Locale.ROOT));
-            if (commander == null && commanderName.contains(" // ")) {
-                // Forge keys DFCs by front face; mirrors CardDatabase::get_by_card_name.
-                String frontFace = commanderName.substring(0, commanderName.indexOf(" // "));
-                commander = mainByName.get(frontFace.toLowerCase(Locale.ROOT));
+            CardCosmeticBindings.DeckEntry commander = null;
+            for (final CardCosmeticBindings.DeckEntry entry : entries) {
+                if (entry.zone == ZoneType.Library
+                        && (matchesCardName(entry.paper.getName(), commanderName)
+                                || matchesCardName(entry.identity.getName(), commanderName))
+                        && (commander == null || entry.identity.commander)) {
+                    commander = entry;
+                    if (entry.identity.commander) {
+                        break;
+                    }
+                }
             }
             if (commander == null) {
                 throw new IllegalArgumentException("commander was not found in main deck: "
                         + commanderName);
             }
-            main.remove(commander, 1);
-            deck.getOrCreate(DeckSection.Commander).add(commander, 1);
+            main.remove(commander.paper, 1);
+            deck.getOrCreate(DeckSection.Commander).add(commander.paper, 1);
+            commander.zone = ZoneType.Command;
         }
         if (!playerConfig.getSideboard().isEmpty()) {
             CardPool sideboard = deck.getOrCreate(DeckSection.Sideboard);
             for (CardIdentity card : playerConfig.getSideboard()) {
-                sideboard.add(cardRequest(card), 1);
+                addDeckEntry(sideboard, resolved, card, ZoneType.Sideboard, entries);
             }
         }
         if (!playerConfig.getAttractions().isEmpty()) {
             CardPool attractions = deck.getOrCreate(DeckSection.Attractions);
             for (CardIdentity card : playerConfig.getAttractions()) {
-                attractions.add(cardRequest(card), 1);
+                addDeckEntry(attractions, resolved, card, ZoneType.AttractionDeck, entries);
             }
         }
         return deck;
+    }
+
+    private static boolean matchesCardName(final String name, final String requestedName) {
+        if (name == null) {
+            return false;
+        }
+        final int separator = name.indexOf(" // ");
+        final int length = separator < 0 ? name.length() : separator;
+        final int requestedSeparator = requestedName.indexOf(" // ");
+        final int requestedLength = requestedSeparator < 0
+                ? requestedName.length() : requestedSeparator;
+        return length == requestedLength && name.regionMatches(true, 0, requestedName, 0, length);
+    }
+
+    private static void addDeckEntry(final CardPool pool, final CardPool resolved,
+            final CardIdentity identity, final ZoneType zone,
+            final List<CardCosmeticBindings.DeckEntry> entries) {
+        resolved.clear();
+        resolved.add(cardRequest(identity), 1);
+        for (final Map.Entry<PaperCard, Integer> entry : resolved) {
+            pool.add(entry.getKey(), entry.getValue());
+            entries.add(new CardCosmeticBindings.DeckEntry(entry.getKey(), identity, zone));
+        }
     }
 
     static String cardRequest(final CardIdentity card) {
@@ -343,7 +481,7 @@ public final class ManaBrewEngineAdapter {
                 if (entry == null) {
                     return null;
                 }
-                return flavorName.equalsIgnoreCase(entry.getFlavorName()) ? entry.name() : null;
+                return matchesCardName(entry.getFlavorName(), flavorName) ? entry.name() : null;
             }
 
             @Override
@@ -365,6 +503,7 @@ public final class ManaBrewEngineAdapter {
         if (variant != null && !variant.isBlank()) {
             switch (variant) {
                 case "Commander":
+                case PAUPER_COMMANDER:
                     return GameType.Commander;
                 case "Oathbreaker":
                     return GameType.Oathbreaker;
@@ -429,11 +568,40 @@ public final class ManaBrewEngineAdapter {
             boolean bot = playerObject.has("bot")
                     && !playerObject.get("bot").isJsonNull()
                     && playerObject.get("bot").getAsBoolean();
-            players.add(new PlayerConfig(name, deck, sideboard, attractions, commanderNames, ai, bot));
+            final PlayerConfig player = new PlayerConfig(name, deck, sideboard, attractions, commanderNames, ai, bot);
+            if (playerObject.has("tokens")) {
+                player.tokens = parseCardIdentities(playerObject.getAsJsonArray("tokens"));
+            }
+            players.add(player);
         }
         final StartGameRequest request = new StartGameRequest(
                 gameId, variant, startingLife, seed, snapshotRecording, players);
+        request.startingLifeSpecified = root.has("startingLife");
         request.checkpointMetrics = root.has("checkpointMetrics") && root.get("checkpointMetrics").getAsBoolean();
+        request.journalRewind = root.has("journalRewind") && root.get("journalRewind").getAsBoolean();
+        if (root.has("replaySnapshot")) {
+            request.replaySnapshot = root.remove("replaySnapshot").getAsJsonObject();
+        }
+        if (root.has("checkpoint") || (root.has("checkpointExport") && root.get("checkpointExport").getAsBoolean())) {
+            throw new IllegalArgumentException("GameState checkpoints are unsupported; restore a replay snapshot instead");
+        }
+        if (root.has("decisionJournal") && root.get("decisionJournal").getAsBoolean()) {
+            request.journalStart = root.toString();
+        }
+        request.journalCommitBarrier = root.has("decisionJournalCommitBarrier")
+                && root.get("decisionJournalCommitBarrier").getAsBoolean();
+        if (request.journalCommitBarrier && request.journalStart == null) {
+            throw new IllegalArgumentException("journal commit barrier requires decisionJournal");
+        }
+        if (request.journalRewind && request.journalCommitBarrier) {
+            throw new IllegalArgumentException("journal rewind owns delivery and cannot use an external commit barrier");
+        }
+        if (request.journalRewind && request.journalStart == null) {
+            throw new IllegalArgumentException("journal rewind requires decisionJournal");
+        }
+        if (request.replaySnapshot != null && !request.journalRewind) {
+            throw new IllegalArgumentException("browser replay requires journalRewind");
+        }
         return request;
     }
 
@@ -441,14 +609,19 @@ public final class ManaBrewEngineAdapter {
         List<CardIdentity> cards = new ArrayList<>();
         for (JsonElement cardValue : cardValues) {
             JsonObject cardObject = cardValue.getAsJsonObject();
-            cards.add(new CardIdentity(
+            final CardIdentity card = new CardIdentity(
                     requiredString(cardObject, "name"),
                     optionalString(cardObject, "setCode"),
                     optionalString(cardObject, "collectorNumber"),
-                    cardObject.has("foil") && cardObject.get("foil").getAsBoolean()));
+                    cardObject.has("foil") && cardObject.get("foil").getAsBoolean());
+            card.cosmetics = CardCosmeticsCodec.parse(cardObject.get("cosmetics"));
+            card.tokenScript = optionalString(cardObject, "tokenScript");
+            card.commander = cardObject.has("commander") && cardObject.get("commander").getAsBoolean();
+            cards.add(card);
         }
         return cards;
     }
+
 
     private static String requiredString(final JsonObject object, final String key) {
         String value = optionalString(object, key);
@@ -466,12 +639,17 @@ public final class ManaBrewEngineAdapter {
     }
 
     public static final class StartGameRequest {
+        private boolean journalRewind;
+        private JsonObject replaySnapshot;
         private final String gameId;
         private final String variant;
         private final int startingLife;
+        private boolean startingLifeSpecified = true;
         private final long seed;
         private final boolean snapshotRecording;
         private boolean checkpointMetrics;
+        private String journalStart;
+        private boolean journalCommitBarrier;
         private final List<PlayerConfig> players;
 
         public StartGameRequest(
@@ -526,6 +704,7 @@ public final class ManaBrewEngineAdapter {
         private final List<CardIdentity> deck;
         private final List<CardIdentity> sideboard;
         private final List<CardIdentity> attractions;
+        private List<CardIdentity> tokens = List.of();
         private final List<String> commanderNames;
         private final boolean ai;
         private final boolean bot;
@@ -570,6 +749,10 @@ public final class ManaBrewEngineAdapter {
             return attractions;
         }
 
+        List<CardIdentity> getTokens() {
+            return tokens;
+        }
+
         public List<String> getCommanderNames() {
             return commanderNames;
         }
@@ -588,6 +771,9 @@ public final class ManaBrewEngineAdapter {
         private final String setCode;
         private final String collectorNumber;
         private final boolean foil;
+        private CardCosmetics cosmetics;
+        private String tokenScript;
+        private boolean commander;
 
         public CardIdentity(
                 final String name,
@@ -618,6 +804,14 @@ public final class ManaBrewEngineAdapter {
 
         public boolean isFoil() {
             return foil;
+        }
+
+        CardCosmetics getCosmetics() {
+            return cosmetics;
+        }
+
+        String getTokenScript() {
+            return tokenScript;
         }
     }
 

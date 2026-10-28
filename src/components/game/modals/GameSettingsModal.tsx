@@ -36,14 +36,13 @@ function Choice<T extends string | boolean>({
 }) {
   return (
     <fieldset className="space-y-2">
-      <legend className="text-sm font-medium">{label}</legend>
+      <legend className="text-ui-label font-medium">{label}</legend>
       <div className="flex flex-wrap gap-2">
         {options.map((option) => (
           <Button
             key={String(option.value)}
             size="sm"
-            variant="outline"
-            className="aria-pressed:border-accent"
+            variant={value === option.value ? "selected" : "outline"}
             aria-pressed={value === option.value}
             onClick={() => onChange(option.value)}
           >
@@ -51,14 +50,16 @@ function Choice<T extends string | boolean>({
           </Button>
         ))}
       </div>
-      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+      {hint && <p className="text-ui-meta text-muted-foreground">{hint}</p>}
     </fieldset>
   );
 }
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="space-y-5 rounded-xl border bg-muted/10 p-4">
-      <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{title}</h3>
+      <h3 className="text-ui-meta font-bold uppercase tracking-wide text-muted-foreground">
+        {title}
+      </h3>
       {children}
     </section>
   );
@@ -80,7 +81,7 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
       <Modal.CloseShortcut keybinding="open-settings" onClose={onClose} />
       <Modal.Header onClose={onClose}>
         <h2 className="text-base font-semibold">Board settings</h2>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-ui-meta text-muted-foreground">
           Changes apply immediately. Card view and front/back face are separate controls.
         </p>
       </Modal.Header>
@@ -110,7 +111,7 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
             value={prefs.promptCardStyle}
             options={INLINE_CARD_STYLE_OPTIONS}
             onChange={prefs.setPromptCardStyle}
-            hint="Realistic uses printed art. Rules shows card rules and current game information. Individual cards can still be switched."
+            hint="Generated cards use Card Glint frames with current game information. Original shows the printed scan. Individual cards can still be switched."
           />
           <Choice
             label="Board hover preview view"
@@ -147,7 +148,7 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
         </Section>
         <Section title="Board appearance">
           <div className="space-y-2">
-            <label htmlFor={`${id}-size`} className="text-sm font-medium">
+            <label htmlFor={`${id}-size`} className="text-ui-label font-medium">
               Card size · {Math.round(prefs.cardSizeMultiplier * 100)}%
             </label>
             <input
@@ -158,7 +159,7 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
               step={5}
               value={prefs.cardSizeMultiplier * 100}
               onChange={(e) => prefs.setCardSizeMultiplier(Number(e.target.value) / 100)}
-              className="w-full accent-primary"
+              className="w-full min-h-8 touch:min-h-11 accent-primary"
             />
           </div>
           <Choice
@@ -207,7 +208,7 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
             hint="Pins compact touch controls to the chosen bottom corner. Desktop layout is unaffected."
           />
           <div className="space-y-2">
-            <p className="text-sm font-medium">Table background</p>
+            <p className="text-ui-label font-medium">Table background</p>
             <TableSetupTableCard
               background={prefs.boardBackgroundId}
               onBackgroundChange={prefs.setBoardBackgroundId}
@@ -215,7 +216,7 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
               className=""
               disabled={tableBackgroundLocked}
             />
-            <p className="text-xs text-muted-foreground">
+            <p className="text-ui-meta text-muted-foreground">
               {tableBackgroundLocked
                 ? "The host picked this table's background when creating it."
                 : "Used when a table does not provide its own background, including offline games."}
@@ -250,7 +251,7 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
             hint="Zone explorers support persistent tap and keyboard inspection independently."
           />
           <div className="space-y-2">
-            <label htmlFor={`${id}-delay`} className="text-sm font-medium">
+            <label htmlFor={`${id}-delay`} className="text-ui-label font-medium">
               Hover delay · {prefs.cardHoverDelayMs}ms
             </label>
             <input
@@ -261,7 +262,7 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
               step={HOVER_DELAY_STEP}
               value={prefs.cardHoverDelayMs}
               onChange={(e) => prefs.setCardHoverDelayMs(Number(e.target.value))}
-              className="w-full accent-primary"
+              className="w-full min-h-8 touch:min-h-11 accent-primary"
             />
           </div>
         </Section>

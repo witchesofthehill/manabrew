@@ -105,8 +105,6 @@ export interface BoardCanvasProps {
    *  its height when sizing cards so ~3 rows always fit the free area. */
   selfBottomReserve?: number;
   callbacks: GameCanvasCallbacks;
-  /** Bottom-corner keep-out widths for the hand fan so it centers in the gap. */
-  handInsets?: { left: number; right: number };
   isDropActive?: boolean;
   autoSort?: boolean;
   sceneRef?: React.MutableRefObject<BoardScene | null>;
@@ -157,7 +155,6 @@ export function BoardCanvasSurface({
   zoneTiles,
   selfBottomReserve,
   callbacks,
-  handInsets,
   isDropActive,
   autoSort,
   sceneRef: externalSceneRef,
@@ -334,6 +331,7 @@ export function BoardCanvasSurface({
         const theme = getTheme();
         setPixiTextStyleTheme(theme);
         newScene.setTheme(theme);
+        newScene.setHandCardStyle(usePreferencesStore.getState().handCardStyle);
 
         const parent = canvas.parentElement;
         if (parent) newScene.resize(parent.clientWidth, parent.clientHeight);
@@ -555,10 +553,6 @@ export function BoardCanvasSurface({
   useEffect(() => {
     if (phaseStripCallbacks) scene?.setPhaseStripCallbacks(phaseStripCallbacks);
   }, [scene, phaseStripCallbacks]);
-
-  useEffect(() => {
-    scene?.setHandInsets(handInsets?.left ?? 0, handInsets?.right ?? 0);
-  }, [scene, handInsets?.left, handInsets?.right]);
 
   useEffect(() => {
     scene?.setDropActive(isDropActive ?? false);

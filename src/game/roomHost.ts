@@ -1,5 +1,7 @@
 import { getPlatform } from "@/platform";
 import type { ClientGameView } from "@/stores/gameStore.types";
+import type { CardDto } from "@/protocol/game";
+import { normalizeCardCosmetics } from "@/lib/cardCosmetics";
 import type { ManualTabletopAction, SeatController } from "./runtime.types";
 import {
   MANUAL_TABLETOP_RELAY_PROTOCOL,
@@ -33,6 +35,38 @@ export interface BroadcastRoomHostConfig {
   seats: SeatController[];
 }
 
+function publicCardCosmetics<T extends CardDto>(card: T, hidden = false): T {
+  return {
+    ...card,
+    foil: !hidden && !card.isFaceDown && card.foil,
+    cosmetics: hidden || card.isFaceDown ? undefined : normalizeCardCosmetics(card.cosmetics),
+  };
+}
+
+function publicManualState(gameView: ClientGameView): ClientGameView {
+  return {
+    ...gameView,
+    battlefield: gameView.battlefield.map((card) => publicCardCosmetics(card)),
+    players: gameView.players.map((player) => ({
+      ...player,
+      hand: player.hand.map((card) => publicCardCosmetics(card, true)),
+      library: player.library.map((card) => publicCardCosmetics(card, true)),
+      graveyard: player.graveyard.map((card) => publicCardCosmetics(card)),
+      exile: player.exile.map((card) => publicCardCosmetics(card)),
+      commandZone: player.commandZone.map((card) => publicCardCosmetics(card)),
+      junkyard: player.junkyard.map((card) => publicCardCosmetics(card)),
+    })),
+    zones: gameView.zones.map((zone) => ({
+      ...zone,
+      cards: zone.cards.map((card) =>
+        card.visibility === "visible"
+          ? publicCardCosmetics(card, zone.zone === "hand" || zone.zone === "library")
+          : card,
+      ),
+    })),
+  };
+}
+
 export class BroadcastRoomHost {
   readonly localPlayerSlot: string;
   readonly mode: RoomHostMode;
@@ -48,7 +82,7 @@ export class BroadcastRoomHost {
     await this.broadcast({
       type: "manualState",
       mode: this.mode,
-      gameView,
+      gameView: publicManualState(gameView),
     });
   }
 

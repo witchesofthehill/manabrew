@@ -95,47 +95,54 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
 
     // Remove zone restriction — allow casting from exile/library/etc.
     spell_sa.ir.cast_from_play_effect = true;
+    spell_sa.ir.without_mana_cost = without_mana_cost;
+    let restriction_host =
+        crate::staticability::static_ability_cant_be_cast::restriction_host(ctx.game.card(card_id));
+    if crate::staticability::static_ability_cant_be_cast::cant_be_cast_ability_in_context(
+        &ctx.game.cards,
+        &spell_sa,
+        &restriction_host,
+        controller,
+        Some(ctx.game),
+    ) {
+        return;
+    }
 
     if !spell_sa.setup_targets(ctx.game, ctx.agents, ctx.mana_pools) {
         return;
     }
 
-    // ── Step 6: Pay mana ────────────────────────────────────────────
-    if !without_mana_cost {
-        let mc = if let Some(ref cost_str) = play_cost {
-            forge_foundation::ManaCost::parse(cost_str)
-        } else {
-            ctx.game.card(card_id).mana_cost.clone()
-        };
-
-        let available = crate::mana::calculate_available_mana(
-            &ctx.mana_pools[controller.index()],
-            ctx.game,
-            controller,
+    let mut cost = spell_sa
+        .pay_costs
+        .take()
+        .unwrap_or_else(|| crate::cost::parse_cost(""));
+    let base_mana = if without_mana_cost {
+        forge_foundation::ManaCost::parse("0")
+    } else if let Some(cost) = play_cost.as_deref() {
+        forge_foundation::ManaCost::parse(cost)
+    } else {
+        ctx.game.card(card_id).mana_cost.clone()
+    };
+    let targets: Vec<_> = spell_sa.target_chosen.target_card.into_iter().collect();
+    let card = ctx.game.card(card_id);
+    let adjustment = crate::cost::cost_adjustment::compute_cost_adjustment_for_payment(
+        ctx.game, card, controller, card.zone, &targets,
+    );
+    if let Some(raise_cost) = crate::cost::cost_adjustment::compute_raise_cost_parts_with_targets(
+        ctx.game, card, controller, card.zone, &targets,
+    ) {
+        cost.parts.extend(
+            raise_cost
+                .parts
+                .into_iter()
+                .filter(|part| !matches!(part, crate::cost::CostPart::Mana { .. })),
         );
-        if !available.can_pay(&mc) {
-            return;
-        }
-        let tapped = crate::mana::auto_tap_lands(
-            ctx.game,
-            &mut ctx.mana_pools[controller.index()],
-            controller,
-            &mc,
-            Some(card_id),
-        );
-        for &land_id in &tapped {
-            ctx.trigger_handler.run_trigger(
-                TriggerType::TapsForMana,
-                RunParams {
-                    card: Some(land_id),
-                    player: Some(controller),
-                    ..Default::default()
-                },
-                false,
-            );
-        }
-        ctx.mana_pools[controller.index()].try_pay(&mc);
     }
+    let cost = cost.copy_with_defined_mana(adjustment.apply(&base_mana));
+    if !super::cost_payment::try_pay_unless_cost(ctx, &spell_sa, card_id, controller, &cost) {
+        return;
+    }
+    spell_sa.pay_costs = Some(cost);
 
     // `ReplaceGraveyard$ <Zone>` — install a one-shot replacement that
     // reroutes the played card if it would be put into the graveyard
@@ -253,6 +260,8 @@ fn push_spell_to_stack(
     };
     let trigger_sa = entry.spell_ability.clone();
 
+    ctx.game.card_mut(card_id).cast_sa = Some(Box::new(trigger_sa.clone()));
+    ctx.game.card_mut(card_id).cast_from = cast_zone;
     ctx.game.stack.push(entry);
     ctx.move_card(card_id, ZoneType::Stack, controller);
     ctx.game.player_record_spell_cast(controller, card_id);

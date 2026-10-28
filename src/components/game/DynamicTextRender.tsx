@@ -3,16 +3,12 @@ import { Heart } from "lucide-react";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/useTheme";
+import { DYNAMIC_TEXT_TOKEN, ptModifierTone } from "@/lib/dynamicText";
 
 interface DynamicTextRenderProps {
   text: string;
   className?: string;
 }
-
-// Splits on mana groups (`{2}{R}`) and power/toughness modifiers (`+2/+2`,
-// `-1/-1`, `+0/-1`), keeping the delimiters so each renders specially.
-const TOKEN = /(\{[^}]+\}(?:\{[^}]+\})*|[+-]\d+\/[+-]\d+)/g;
-const PT_MODIFIER = /^[+-]\d+\/[+-]\d+$/;
 
 /**
  * Renders a text string with inline mana symbols and styled power/toughness
@@ -22,7 +18,7 @@ const PT_MODIFIER = /^[+-]\d+\/[+-]\d+$/;
  */
 export function DynamicTextRender({ text, className }: DynamicTextRenderProps) {
   const lifeColor = useTheme().gameTheme.life;
-  const parts = text.split(TOKEN);
+  const parts = text.split(DYNAMIC_TEXT_TOKEN);
   return (
     <span className={className}>
       {parts.map((part, i) => {
@@ -38,13 +34,14 @@ export function DynamicTextRender({ text, className }: DynamicTextRenderProps) {
         if (part.startsWith("{")) {
           return <ManaSymbols key={i} cost={part} size="em" className="mx-0 align-[-0.125em]" />;
         }
-        if (PT_MODIFIER.test(part)) {
+        const modifierTone = ptModifierTone(part);
+        if (modifierTone) {
           return (
             <span
               key={i}
               className={cn(
                 "inline-flex items-center rounded px-1 font-semibold tabular-nums",
-                part.startsWith("-")
+                modifierTone === "debuffed"
                   ? "text-pt-debuffed bg-pt-debuffed/15"
                   : "text-pt-buffed bg-pt-buffed/15",
               )}

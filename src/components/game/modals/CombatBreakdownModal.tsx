@@ -54,10 +54,10 @@ export function CombatBreakdownModal({
             <Card card={card} bare style={{ width: "100%" }} className="border-0" />
           </div>
         )}
-        <span className="min-w-0 break-words text-sm">
+        <span className="min-w-0 break-words text-ui-label">
           <span className="block font-semibold">{resolveCardName(id)}</span>
           {card?.power != null && (
-            <span className="text-xs text-muted-foreground">
+            <span className="text-ui-meta text-muted-foreground">
               {card.power}/{card.toughness}
             </span>
           )}
@@ -70,7 +70,7 @@ export function CombatBreakdownModal({
       <Modal.CloseShortcut keybinding="toggle-combat-breakdown" onClose={onClose} />
       <Modal.Header onClose={onClose}>
         <h2 className="text-base font-semibold">Combat breakdown</h2>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-ui-meta text-muted-foreground">
           {summary.attackerCount} attackers · {summary.blockedCount} blocked ·{" "}
           {summary.unblockedCount} unblocked
         </p>
@@ -86,12 +86,12 @@ export function CombatBreakdownModal({
             const blockers = blockAssignments.filter((block) => block.attackerId === id);
             return (
               <article key={id} className="rounded-xl border bg-background/50 p-2">
-                <p className="px-2 text-[10px] font-semibold uppercase text-muted-foreground">
+                <p className="px-2 text-ui-meta font-semibold uppercase text-muted-foreground">
                   Attacker
                 </p>
                 {inspectButton(id)}
                 <div className="ml-4 border-l border-border pl-2">
-                  <p className="px-2 text-xs text-muted-foreground">
+                  <p className="px-2 text-ui-meta text-muted-foreground">
                     {blockers.length ? "Blocked by" : "Unblocked"}
                   </p>
                   {blockers.map((block) => inspectButton(block.blockerId))}
@@ -109,7 +109,7 @@ export function CombatBreakdownModal({
               onChange={(state) => inspection.change(inspected.id, state)}
             />
           ) : (
-            <p className="rounded-xl border border-dashed p-6 text-sm text-muted-foreground">
+            <p className="rounded-xl border border-dashed p-6 text-ui-body text-muted-foreground">
               Select an attacker or blocker to inspect its realistic or rules view. Inspection does
               not change assignments.
             </p>

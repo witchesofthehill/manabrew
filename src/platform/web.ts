@@ -5,6 +5,7 @@
  * The game engine runs in a Web Worker for non-blocking UI.
  */
 
+import { deckHasCardCosmetics, normalizeCardCosmetics } from "@/lib/cardCosmetics";
 import type { EngineGameStats } from "@/lib/engineTelemetry";
 import {
   noteEngineThinkTime,
@@ -275,7 +276,6 @@ class WorkerBridge {
     this.eventBus = eventBus;
 
     eventBus.on<{ buffer: SharedArrayBuffer }>("game:sab", (payload) => {
-      this.directiveLanes = null;
       const seat = createSeat(payload.buffer);
       if (this.localSeat) this.dropSeat(this.localSeat);
       this.localSeat = seat;
@@ -327,6 +327,7 @@ class WorkerBridge {
     eventBus.on<{ buffers: SharedArrayBuffer[]; hostBuffer: SharedArrayBuffer; localSeat: number }>(
       "game:directive_lanes",
       (payload) => {
+        this.dropDirectiveLanes();
         this.directiveLanes = {
           lanes: payload.buffers.map(createDirectiveLane),
           host: createDirectiveLane(payload.hostBuffer),
@@ -364,8 +365,12 @@ class WorkerBridge {
 
     // The engine has nothing more to say once the game is over, so the bots
     // parked on their seats can go.
-    eventBus.on("game:over", () => this.stopLocalBots());
-    eventBus.on("game:forced_end", () => this.stopLocalBots());
+    for (const event of ["game:over", "game:forced_end"]) {
+      eventBus.on(event, () => {
+        this.stopLocalBots();
+        this.dropDirectiveLanes();
+      });
+    }
 
     // Eager so a response can't arrive before the listener exists; it
     // no-ops while remoteSeats is empty.
@@ -444,6 +449,15 @@ class WorkerBridge {
     this.seatReaders.delete(seat);
   }
 
+  private dropDirectiveLanes(): void {
+    if (!this.directiveLanes) return;
+    for (const lane of [...this.directiveLanes.lanes, this.directiveLanes.host]) {
+      lane.cancelled = true;
+      lane.queue.length = 0;
+    }
+    this.directiveLanes = null;
+  }
+
   private stopLocalBots(): void {
     for (const worker of this.localBotWorkers.values()) worker.terminate();
     this.localBotWorkers.clear();
@@ -486,6 +500,7 @@ class WorkerBridge {
       const action = payload.state.action as PromptOutput | undefined;
       if (!action) return;
       const promptId = Number(payload.state.promptId ?? 0);
+      if (!Number.isSafeInteger(promptId) || promptId <= 0) return;
       writeSeatMessage(seat, { kind: "response", promptId, action });
     });
   }
@@ -765,6 +780,7 @@ class WorkerBridge {
     }
     if (this.localSeat) this.dropSeat(this.localSeat);
     this.localSeat = null;
+    this.dropDirectiveLanes();
     for (const seat of this.remoteSeats.values()) this.dropSeat(seat);
     this.remoteSeats.clear();
     this.remotePlayerSlots.clear();
@@ -772,7 +788,10 @@ class WorkerBridge {
     // Response listener stays installed — terminate() is per-game, and a
     // second game on this (singleton) bridge still needs it.
     for (const [requestId, pending] of this.pendingRequests) {
-      if (pending.worker !== this.fallbackWorker) this.pendingRequests.delete(requestId);
+      if (pending.worker !== this.fallbackWorker) {
+        pending.reject(new Error("Game worker terminated."));
+        this.pendingRequests.delete(requestId);
+      }
     }
     this.initPromise = null;
     setForgeWasmActive(false);
@@ -811,7 +830,8 @@ class WebGameApi implements IGameApi {
       opponentDecks: params.opponentDecks,
       engine: params.engine,
       forgeAi: params.aiController === "forge",
-      snapshotRecording: usePreferencesStore.getState().snapshotRecording,
+      decisionJournal: params.engine === "Forge" && params.aiController !== "forge",
+      journalRewind: params.engine === "Forge" && params.aiController !== "forge",
     });
   }
 
@@ -822,6 +842,9 @@ class WebGameApi implements IGameApi {
 
     if (params.localIsHost) {
       this.serverApi?.setEnginePlayerNames(params.playerNames);
+      const forgeAi =
+        params.engine === "Forge" && usePreferencesStore.getState().aiController === "forge";
+      const botSeats = (params.botPlayerSlots ?? []).map(seatIndexOf);
       const limited = useMultiplayerLimitedStore.getState();
       const virtualBotNames = new Set(
         limited.matchReturn
@@ -831,9 +854,11 @@ class WebGameApi implements IGameApi {
           : [],
       );
       this.bridge.setLocalBotSlots(
-        (params.botPlayerSlots ?? []).filter((slot) =>
-          virtualBotNames.has(params.playerNames[seatIndexOf(slot)]),
-        ),
+        forgeAi
+          ? []
+          : (params.botPlayerSlots ?? []).filter((slot) =>
+              virtualBotNames.has(params.playerNames[seatIndexOf(slot)]),
+            ),
       );
       // Host runs the engine; the worker posts back one SAB per remote
       // seat (see the game:remote_sab handler in WorkerBridge).
@@ -842,8 +867,10 @@ class WebGameApi implements IGameApi {
         commanderNames: params.commanderNames,
         playerNames: params.playerNames,
         enginePlayerIndex: params.enginePlayerIndex,
-        botSeats: (params.botPlayerSlots ?? []).map(seatIndexOf),
-        snapshotRecording: usePreferencesStore.getState().snapshotRecording,
+        botSeats,
+        forgeAiSeats: forgeAi ? botSeats : [],
+        decisionJournal: params.engine === "Forge" && (!forgeAi || botSeats.length === 0),
+        journalRewind: params.engine === "Forge" && (!forgeAi || botSeats.length === 0),
         startingLife: params.startingLife,
         engine: params.engine,
       });
@@ -1028,6 +1055,7 @@ class WebServerApi implements IServerApi {
   private announcedRoom: string | null = null;
   private relayRttMs: number | null = null;
   private planeQualityReporting = false;
+  private cardCosmeticsVersion: 0 | 1 | 2 = 0;
   private pingSentAt: number | null = null;
   private directTransportOptIn = usePreferencesStore.getState().directTransport;
   private roomTransport = false;
@@ -1116,6 +1144,7 @@ class WebServerApi implements IServerApi {
   }
 
   private async openSocket(params: ServerConnectParams): Promise<void> {
+    this.cardCosmeticsVersion = 0;
     const forceRemint = this.sessionTokenRejected;
     this.sessionTokenRejected = false;
     const identity = await resolveRelayIdentity(this.sessionIdentity, params.username, forceRemint);
@@ -1191,6 +1220,7 @@ class WebServerApi implements IServerApi {
     this.stopKeepalive();
     this.ws = null;
     this.connectedAt = null;
+    this.cardCosmeticsVersion = 0;
 
     if (this.manualDisconnect) {
       this.eventBus.emit("server:disconnected", { terminal: true });
@@ -1302,6 +1332,7 @@ class WebServerApi implements IServerApi {
     this.connectParams = null;
     this.sessionIdentity = null;
     this.sessionTokenRejected = false;
+    this.cardCosmeticsVersion = 0;
     this.stopKeepalive();
     this.stopAllBots();
     const ws = this.ws;
@@ -1408,6 +1439,23 @@ class WebServerApi implements IServerApi {
   }
 
   async setDeckSelection(params: SetDeckSelectionParams): Promise<void> {
+    if (this.cardCosmeticsVersion === 0 && deckHasCardCosmetics(params.deck)) {
+      throw new Error(
+        "This server does not support customized cards. Update the server before selecting this deck.",
+      );
+    }
+    if (
+      this.cardCosmeticsVersion < 2 &&
+      deckHasCardCosmetics(
+        params.deck,
+        (cosmetics) =>
+          cosmetics.printDots?.artwork === false || cosmetics.heatDeformation !== undefined,
+      )
+    ) {
+      throw new Error(
+        "This server does not support this deck's print-dot artwork settings or Heat deformation. Update the server before selecting this deck.",
+      );
+    }
     this.send({
       type: "SetDeckSelection",
       deck_name: params.deckName,
@@ -1759,7 +1807,12 @@ class WebServerApi implements IServerApi {
       console.error("[WebServerApi] Not connected");
       return;
     }
-    const raw = JSON.stringify(msg);
+    const raw = JSON.stringify(
+      msg,
+      msg.type === "SetDeckSelection"
+        ? (key, value) => (key === "cosmetics" ? normalizeCardCosmetics(value) : value)
+        : undefined,
+    );
     if (msg.type !== "Ping") logComms("send", raw);
     this.ws.send(raw);
   }
@@ -1782,6 +1835,16 @@ class WebServerApi implements IServerApi {
       return;
     }
     logComms("recv", raw ?? msg);
+    if (type === "AuthResult") {
+      this.cardCosmeticsVersion =
+        msg.success && Array.isArray(msg.features)
+          ? msg.features.includes("card_cosmetics_v2")
+            ? 2
+            : msg.features.includes("card_cosmetics")
+              ? 1
+              : 0
+          : 0;
+    }
     if (type === "AuthResult" && msg.success) {
       this.peerSignalling =
         Array.isArray(msg.features) && (msg.features as string[]).includes("peer_signal");

@@ -1,3 +1,4 @@
+import { getUiFontFloor, UI_FONT_FAMILY } from "@/themes/typography";
 import {
   Container,
   Graphics,
@@ -283,8 +284,8 @@ export class BoardZoneTiles {
     const countText = new Text({
       text: "",
       style: {
-        fontFamily: "system-ui, sans-serif",
-        fontSize: 12,
+        fontFamily: UI_FONT_FAMILY,
+        fontSize: Math.max(12, getUiFontFloor("meta")),
         fontWeight: "900",
         fill: hexToNum(this.theme.gameTheme.textOnTinted),
       },
@@ -293,8 +294,8 @@ export class BoardZoneTiles {
     const taxText = new Text({
       text: "",
       style: {
-        fontFamily: "system-ui, sans-serif",
-        fontSize: 11,
+        fontFamily: UI_FONT_FAMILY,
+        fontSize: Math.max(11, getUiFontFloor("meta")),
         fontWeight: "700",
         fill: hexToNum(this.theme.gameTheme.textOnTinted),
       },
@@ -324,6 +325,10 @@ export class BoardZoneTiles {
     container.on("pointerenter", (event: FederatedPointerEvent) => {
       if (event.pointerType === "touch") return;
       if (tile.spec.onOpen) this.setHovered(tile, true);
+      if (tile.spec.previewCards?.length) this.showPreviewCards(tile);
+    });
+    container.on("pointermove", (event: FederatedPointerEvent) => {
+      if (event.pointerType === "touch" || event.buttons !== 0 || this.drag?.moved) return;
       if (tile.spec.previewCards?.length) this.showPreviewCards(tile);
     });
     container.on("pointerleave", () => {
@@ -761,26 +766,34 @@ export class BoardZoneTiles {
       }
 
       tile.countText.visible = hasContent;
+      tile.countText.style.fontSize = Math.max(10, Math.round(12 * k), getUiFontFloor("meta"));
+      tile.countText.text = String(spec.count);
+      const countH = Math.ceil(tile.countText.height) + 6;
       if (hasContent) {
         tile.countText.style.fill = hexToNum(gt.textOnTinted);
-        tile.countText.style.fontSize = Math.max(10, Math.round(12 * k));
-        tile.countText.text = String(spec.count);
-        const pillW = tile.countText.width + 12 * k;
-        const pillH = Math.max(16, 18 * k);
-        const pillY = cardH - pillH - 3 * k;
-        tile.outline.roundRect((cardW - pillW) / 2, pillY, pillW, pillH, pillH / 2);
+        const pillW = tile.countText.width + 12;
+        const pillY = cardH - countH - 3;
+        tile.outline.roundRect((cardW - pillW) / 2, pillY, pillW, countH, countH / 2);
         tile.outline.fill({ color: shadow, alpha: 0.94 });
-        tile.countText.position.set(cardW / 2, pillY + pillH / 2);
+        tile.countText.position.set(cardW / 2, pillY + countH / 2);
       }
 
       tile.taxText.visible = isCommand && spec.commanderTax !== undefined;
       if (tile.taxText.visible) {
         tile.taxText.text = `Tax +${spec.commanderTax}`;
         tile.taxText.style.fill = hexToNum(gt.textOnTinted);
-        tile.taxText.style.fontSize = Math.max(9, Math.round(11 * k));
-        const taxW = tile.taxText.width + 8 * k;
-        const taxH = Math.max(16, 18 * k);
-        const taxY = hasContent ? cardH - taxH * 2 - 5 * k : cardH - taxH - 3 * k;
+        tile.taxText.style.fontSize = Math.max(9, Math.round(11 * k), getUiFontFloor("meta"));
+        const taxW = tile.taxText.width + 8;
+        const taxH = Math.ceil(tile.taxText.height) + 6;
+        const taxY = hasContent ? cardH - countH - taxH - 5 : cardH - taxH - 3;
+        const hitLeft = Math.min(-padX, (cardW - taxW) / 2);
+        const hitTop = Math.min(-padY, taxY);
+        tile.container.hitArea = new Rectangle(
+          hitLeft,
+          hitTop,
+          cardW - hitLeft * 2,
+          cardH + padY - hitTop,
+        );
         tile.outline.roundRect((cardW - taxW) / 2, taxY, taxW, taxH, taxH / 2);
         tile.outline.fill({ color: shadow, alpha: 0.94 });
         tile.outline.stroke({ color, width: 1, alpha: 0.65 });

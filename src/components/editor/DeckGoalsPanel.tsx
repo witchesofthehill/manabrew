@@ -80,23 +80,29 @@ export function DeckGoalsPanel() {
       <div className="mb-3 flex items-center gap-2">
         <Target className="h-4 w-4 text-primary" />
         <div>
-          <h3 className="text-sm font-semibold">Deck goals</h3>
-          <p className="text-[10px] text-muted-foreground">
+          <h3 className="text-ui-label font-semibold">Deck goals</h3>
+          <p className="text-ui-body text-muted-foreground">
             Optional targets, separate from legality.
           </p>
         </div>
       </div>
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,20rem),1fr))] gap-2">
         {rows.map((row) => (
-          <label key={row.key} className={cn("flex items-center gap-2", EDITOR_SUBTLE_BLOCK_CLASS)}>
-            <span className="min-w-0 flex-1 text-xs">{row.label}</span>
+          <label
+            key={row.key}
+            className={cn("flex flex-wrap items-center gap-2", EDITOR_SUBTLE_BLOCK_CLASS)}
+          >
+            <span className="min-w-0 flex-1 text-ui-label">{row.label}</span>
             <span
-              className={cn("text-xs font-mono", row.met ? "text-legality-legal" : "text-warning")}
+              className={cn(
+                "text-ui-meta font-mono",
+                row.met ? "text-legality-legal" : "text-warning",
+              )}
             >
               {row.current}
             </span>
             <Input
-              className="h-7 w-20 text-right text-xs"
+              className="min-h-9 h-auto touch:min-h-11 touch:min-w-11 w-24 text-right text-ui-input"
               type="number"
               min="0"
               step={row.step}
@@ -110,18 +116,21 @@ export function DeckGoalsPanel() {
         ))}
       </div>
       {(deck.customTags ?? []).length > 0 && (
-        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        <div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(min(100%,20rem),1fr))] gap-2">
           {(deck.customTags ?? []).map((tag) => {
             const current = Object.entries(deck.cardTags ?? {}).filter(([, tags]) =>
               tags.includes(tag),
             ).length;
             const target = goals.tagTargets?.[tag];
             return (
-              <label key={tag} className={cn("flex items-center gap-2", EDITOR_SUBTLE_BLOCK_CLASS)}>
-                <span className="min-w-0 flex-1 truncate text-xs">{tag} target</span>
+              <label
+                key={tag}
+                className={cn("flex flex-wrap items-center gap-2", EDITOR_SUBTLE_BLOCK_CLASS)}
+              >
+                <span className="min-w-0 flex-1 break-words text-ui-label">{tag} target</span>
                 <span
                   className={cn(
-                    "text-xs font-mono",
+                    "text-ui-meta font-mono",
                     target === undefined || current >= target
                       ? "text-legality-legal"
                       : "text-warning",
@@ -130,7 +139,7 @@ export function DeckGoalsPanel() {
                   {current}
                 </span>
                 <Input
-                  className="h-7 w-20 text-right text-xs"
+                  className="min-h-9 h-auto touch:min-h-11 touch:min-w-11 w-24 text-right text-ui-input"
                   type="number"
                   min="0"
                   value={target ?? ""}

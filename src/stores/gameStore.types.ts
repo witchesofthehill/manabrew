@@ -8,7 +8,6 @@ import type {
 import type { DisplayEvent } from "@/protocol/display";
 import type { CardDto, GameViewDto, PlayerDto } from "@/protocol/game";
 import type { Deck } from "@/protocol/deck";
-import type { GameLogEntry } from "@/types/gameLog";
 import type { EngineKind, GameFormat } from "@/types/server";
 import type { IronsmithDeckIssue } from "@/game";
 
@@ -62,9 +61,9 @@ export interface DeferredSnapshot {
 export interface GameState {
   gameView: ClientGameView | null;
   currentPrompt: Prompt | null;
-  gameLog: GameLogEntry[];
   protocolError: ProtocolError | null;
   isGameActive: boolean;
+  activeEngine: EngineKind | null;
   debugInfo: string;
   /** Set when the host engine fails fatally (crash / invalid deck / can't
    *  start). The game view shows this instead of hanging on the loading
@@ -80,6 +79,7 @@ export interface GameState {
    *  null between games. Populated while the start-game flow is fetching
    *  Scryfall textures, before the engine is allowed to emit prompts. */
   cardPrefetchProgress: { loaded: number; total: number } | null;
+  isRenderingCards: boolean;
   isPrefetchingCards: boolean;
   deferredQueue: DeferredSnapshot[];
   isFlashing: boolean;
@@ -92,6 +92,7 @@ export interface GameState {
   recording: RecordingStatus;
   repeatVote: RepeatVoteDto | null;
   gameConfig: GameConfig | null;
+  gauntletId: string | null;
   /** Set at concede click, before the engine confirms via `status: "conceded"`. */
   selfConceded: boolean;
   isMultiplayer: boolean;
@@ -113,6 +114,7 @@ export interface GameState {
     commanderName?: string,
     opponentDecks?: Deck[],
     engine?: EngineKind,
+    gauntletId?: string,
   ) => Promise<boolean>;
   startManualTabletopGame: (deck: Deck, formatId?: string, commanderName?: string) => Promise<void>;
   startManualRoomHost: (localPlayerSlot: string) => Promise<void>;
@@ -147,5 +149,4 @@ export interface GameState {
   stopRecording: () => Promise<void>;
   requestRepeat: (iterations: number) => Promise<void>;
   voteRepeat: (voteId: number, accept: boolean) => Promise<void>;
-  setSnapshotRecording: (enabled: boolean) => Promise<void>;
 }

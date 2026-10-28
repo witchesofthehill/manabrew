@@ -1,5 +1,3 @@
-use forge_foundation::ZoneType;
-
 use super::{resolve_numeric_svar, EffectContext};
 use crate::agent::BinaryChoiceKind;
 use crate::parsing::keys;
@@ -23,9 +21,6 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
 
     let target_id = sa.target_chosen.target_card.or(sa.source);
     let Some(target_id) = target_id else { return };
-    if ctx.game.card(target_id).zone != ZoneType::Battlefield {
-        return;
-    }
 
     let counter_type = sa.ir.counter_type.clone().or_else(|| {
         // Sort keys for deterministic fallback (HashMap iteration is random).
@@ -43,7 +38,12 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
             ctx.game.card(target_id),
             &counter_type,
         );
-    let can_remove = ctx.game.card(target_id).counter_count(&counter_type) > 0;
+    let can_remove = ctx.game.card(target_id).counter_count(&counter_type) > 0
+        && crate::replacement::replace_remove_counter::can_remove_counters(
+            ctx.game,
+            target_id,
+            &counter_type,
+        );
     if !can_add && !can_remove {
         return;
     }
@@ -78,21 +78,18 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
             },
         );
     } else {
-        ctx.game
-            .card_mut(target_id)
-            .remove_counter(&counter_type, amount);
-        ctx.trigger_handler.run_trigger(
-            crate::trigger::TriggerType::CounterRemoved,
+        let removed = super::effect_context::remove_counter_with_context(
+            ctx.game,
+            ctx.trigger_handler,
+            target_id,
+            &counter_type,
+            amount,
             crate::event::RunParams {
-                card: Some(target_id),
-                counter_type: Some(format!("{counter_type:?}")),
-                counter_amount: Some(amount),
-                cause_player: Some(controller),
+                player: Some(controller),
                 ..Default::default()
             },
-            false,
         );
-        if sa.ir.remember_removed_cards {
+        if removed > 0 && sa.ir.remember_removed_cards {
             ctx.game.card_mut(source_id).add_remembered_card(target_id);
         }
     }

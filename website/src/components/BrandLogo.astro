@@ -1,0 +1,38 @@
+---
+import sprite from "../../../images/brand/logos/interactive/manabrew-logo.svg?url";
+import geometry from "../../../src/assets/brandLogoGeometry.json";
+import "../../../src/components/layout/ManaBrewLogo.css";
+
+interface Props {
+  variant?: "horizontal" | "symbol";
+  height?: number;
+  mode?: "light" | "dark" | "auto";
+  decorative?: boolean;
+}
+
+const { variant = "horizontal", height = 64, mode = "dark", decorative = false } = Astro.props;
+const modes: ("light" | "dark")[] = mode === "auto" ? ["light", "dark"] : [mode];
+---
+
+{
+  modes.map((logoMode) => {
+    const dimensions = geometry[variant][logoMode];
+    const width = (height * dimensions.width) / dimensions.height;
+    return (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        class:list={["mb-logo", logoMode === "light" ? "mb-logo-light" : "mb-logo-dark"]}
+        data-mode={mode}
+        viewBox={dimensions.viewBox}
+        width={width}
+        height={height}
+        role={decorative ? undefined : "img"}
+        aria-label={decorative ? undefined : "Manabrew"}
+        aria-hidden={decorative ? "true" : undefined}
+        focusable="false"
+      >
+        <use href={`${sprite}#mb-${variant}-${logoMode}`} />
+      </svg>
+    );
+  })
+}

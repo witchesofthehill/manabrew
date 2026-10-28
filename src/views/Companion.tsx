@@ -38,16 +38,16 @@ export default function Companion() {
   }, [focus]);
   if (!session) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
-        <GameIcon icon="healing" className="size-14 text-muted-foreground" />
+      <div className="flex h-full min-h-0 flex-col items-center gap-4 overflow-y-auto overscroll-contain px-4 py-6 text-center sm:px-6 lg:px-8">
+        <GameIcon icon="healing" className="size-14 shrink-0 text-muted-foreground" />
         <div className="space-y-1">
           <h2 className="text-xl font-semibold">Start tracking</h2>
-          <p className="max-w-sm text-sm text-muted-foreground">
+          <p className="max-w-sm text-ui-body text-muted-foreground">
             Track life, counters, commander damage and table layout for paper play. One device
             passes around the table.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap justify-center gap-2">
           <Button variant="primary" onClick={() => setNewOpen(true)}>
             Start a game
           </Button>
@@ -55,15 +55,17 @@ export default function Companion() {
         </div>
         {archive.length > 0 && (
           <div className="mt-4 w-full max-w-sm space-y-1 text-left">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <p className="text-ui-meta font-semibold uppercase tracking-wide text-muted-foreground">
               Recent games
             </p>
             <ul className="divide-y divide-border rounded-md border border-border">
               {archive.slice(0, 5).map((archived) => (
                 <li key={archived.id} className="flex items-center justify-between gap-2 px-3 py-2">
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm">{archived.tag || "Untitled game"}</div>
-                    <div className="text-[10px] text-muted-foreground">
+                    <div className="break-words text-ui-label">
+                      {archived.tag || "Untitled game"}
+                    </div>
+                    <div className="text-ui-meta text-muted-foreground">
                       {new Date(archived.createdAt).toLocaleString()} · {archived.players.length}p
                     </div>
                   </div>
@@ -105,6 +107,7 @@ export default function Companion() {
       {showChrome && (
         <div
           className={cn(
+            "max-h-[50%] shrink-0 overflow-y-auto overscroll-contain",
             focus &&
               "absolute left-[var(--safe-area-inset-left)] right-[var(--safe-area-inset-right)] top-[var(--safe-area-inset-top)] z-40 shadow-xl",
           )}

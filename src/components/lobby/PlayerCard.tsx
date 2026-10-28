@@ -59,23 +59,25 @@ export function PlayerCard({ player, status, action, side = "left", children }: 
               />
             </div>
             <div className="mt-2 flex items-center gap-1.5">
-              <span className="truncate text-base font-semibold leading-tight">{name}</span>
+              <span className="truncate text-ui-label font-semibold leading-tight">{name}</span>
               <QualificationBadge qualification={player.qualification} className="h-4 w-4" />
             </div>
-            {tag && <p className="text-xs text-muted-foreground">{tag}</p>}
+            {tag && <p className="text-ui-meta text-muted-foreground">{tag}</p>}
             {qualification && (
-              <p className="mt-1 text-xs font-medium text-format-badge-amber">{qualification}</p>
+              <p className="mt-1 text-ui-meta font-medium text-format-badge-amber">
+                {qualification}
+              </p>
             )}
-            <div className="mt-3 border-t pt-3 text-xs text-muted-foreground">{status}</div>
+            <div className="mt-3 border-t pt-3 text-ui-meta text-muted-foreground">{status}</div>
             {(action || canReport) && (
-              <div className="mt-3 flex items-center justify-between gap-2">
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                 {!canReport ? (
                   <span />
                 ) : (
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
+                    className="min-h-7 px-2 text-ui-label text-muted-foreground hover:text-destructive touch:min-h-11 touch:min-w-11"
                     onClick={() => setReporting(true)}
                   >
                     <Flag className="h-3.5 w-3.5" /> Report

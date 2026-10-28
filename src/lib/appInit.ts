@@ -7,6 +7,8 @@ import { initializeForgeRoomAvailability } from "@/stores/useForgeRoomAvailabili
 import { getEventBus, getPlatform } from "@/platform";
 import type { AppInitStage } from "@/stores/useAppInitStore";
 
+const COVER_WAIT_CAP_MS = 1_500;
+
 let initPromise: Promise<void> | null = null;
 
 function postStage(stage: AppInitStage): void {
@@ -70,9 +72,12 @@ export function initApp(): Promise<void> {
         prefetchTokenArchive().catch((e) => console.error("[appInit] token archive failed:", e)),
       ]);
       postStage("decks");
-      await prefetchDeckCovers().catch((e) =>
-        console.error("[appInit] deck cover prefetch failed:", e),
-      );
+      await Promise.race([
+        prefetchDeckCovers().catch((e) =>
+          console.error("[appInit] deck cover prefetch failed:", e),
+        ),
+        new Promise<void>((resolve) => setTimeout(resolve, COVER_WAIT_CAP_MS)),
+      ]);
     } finally {
       postStage("ready");
     }

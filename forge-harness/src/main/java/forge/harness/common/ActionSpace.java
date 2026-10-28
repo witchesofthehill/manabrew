@@ -46,10 +46,12 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 public final class ActionSpace {
     private static final String SPEND_ONLY_COLORED_ON_X =
             "Spend only colored mana on X. No more than one mana of each color may be spent this way.";
+    private static final Pattern X_COMPARISON = Pattern.compile("(EQ|NE|LT|LE|GT|GE)X(?![A-Za-z0-9])");
 
 
 
@@ -138,6 +140,7 @@ public final class ActionSpace {
 
         final List<SpellAbility> actions = new ArrayList<>();
         final Map<Card, Card> spellHosts = new IdentityHashMap<>();
+        final MaybePay maybePay = new MaybePay(player);
         boolean stackStatics = false;
         try {
         final List<SpellAbility> possible = new ArrayList<>();
@@ -157,14 +160,14 @@ public final class ActionSpace {
             final Cost payCosts = sa.getPayCosts();
             if (payCosts != null && payCosts.hasManaCost()) {
                 final Card probeHost = stackStatics ? spellHosts.get(sa.getHostCard()) : null;
-                if (!canPayMana(sa, player, lifePaymentFallback, probeHost)) {
+                if (!canPayMana(sa, player, lifePaymentFallback, probeHost, maybePay)) {
                     continue;
                 }
             }
             if (!includeManaAbilities && sa.isManaAbility()) {
                 continue;
             }
-            if (!hasValidTargets(sa)) {
+            if (!targetsDependOnAnnouncedX(sa) && !hasValidTargets(sa)) {
                 continue;
             }
             if (!sa.checkRestrictions(spellHost(sa, game, spellHosts), player)) {
@@ -187,7 +190,8 @@ public final class ActionSpace {
             final SpellAbility sa,
             final Player player,
             final boolean lifePaymentFallback,
-            final Card probeHost
+            final Card probeHost,
+            final MaybePay maybePay
     ) {
         final Set<Card> reservedSacrifices = getFixedReservedSacrifices(sa);
         final Card host = sa.getHostCard();
@@ -195,7 +199,8 @@ public final class ActionSpace {
             sa.setHostCard(probeHost);
         }
         try {
-            if (canPayCurrentManaCost(sa, player, lifePaymentFallback, reservedSacrifices)) {
+            if (canPayCurrentManaCost(sa, player, lifePaymentFallback, reservedSacrifices)
+                    || canMaybePay(sa, player, maybePay)) {
                 return true;
             }
             if (!lifePaymentFallback) {
@@ -226,6 +231,10 @@ public final class ActionSpace {
                 : (reservedSacrifices.isEmpty()
                 ? ComputerUtilMana.canPayManaCost(sa, player, 0, false)
                 : canPayManaCostWithReservedSacrifices(sa, player, reservedSacrifices));
+    }
+
+    private static boolean canMaybePay(final SpellAbility sa, final Player player, final MaybePay maybePay) {
+        return maybePay.canPay(probeManaCost(sa.getPayCosts(), sa, player, false), sa);
     }
 
     private static boolean canPayManaWithAnnouncedX(
@@ -264,6 +273,27 @@ public final class ActionSpace {
         return false;
     }
 
+    private static boolean targetsDependOnAnnouncedX(final SpellAbility sa) {
+        if (sa.getXManaCostPaid() != null || sa.getPayCosts() == null || !sa.getPayCosts().hasXInAnyCostPart()) {
+            return false;
+        }
+        final String sVar = sa.getParamOrDefault("XAlternative", sa.getSVar("X"));
+        if (!"Count$xPaid".equals(sVar) && !sVar.isEmpty()) {
+            return false;
+        }
+        for (SpellAbility current = sa; current != null; current = current.getSubAbility()) {
+            if (!current.usesTargeting()) {
+                continue;
+            }
+            for (final String valid : current.getTargetRestrictions().getValidTgts()) {
+                if (X_COMPARISON.matcher(valid).find()) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     private static boolean costDependsOnTargets(final SpellAbility sa) {
         if (sa.hasParam("ReduceCost")) {
             return true;
@@ -276,9 +306,14 @@ public final class ActionSpace {
         cards.add(host);
         for (final Card card : cards) {
             for (final StaticAbility st : card.getStaticAbilities()) {
+                if (!st.matchesValidParam("ValidCard", host)) {
+                    continue;
+                }
                 if ((st.checkMode(StaticAbilityMode.ReduceCost) || st.checkMode(StaticAbilityMode.RaiseCost))
-                        && st.hasParam("ValidTarget")
-                        && st.matchesValidParam("ValidCard", host)) {
+                        && st.hasParam("ValidTarget")) {
+                    return true;
+                }
+                if (st.checkMode(StaticAbilityMode.ReduceCost) && st.hasParam("Relative")) {
                     return true;
                 }
             }
@@ -297,6 +332,9 @@ public final class ActionSpace {
         }
         if (!current.usesTargeting()) {
             return canPayManaWithTargets(sa, current.getSubAbility(), player, reservedSacrifices);
+        }
+        if (current.getMaxTargets() > 1) {
+            return true;
         }
         current.resetTargets();
         final List<GameObject> candidates = new ArrayList<>(
@@ -610,7 +648,7 @@ public final class ActionSpace {
         return canPayManaCostFromSources(manaCost, sourceMasks);
     }
 
-    private static void addFloatingManaSources(final Player player, final List<Integer> sourceMasks) {
+    static void addFloatingManaSources(final Player player, final List<Integer> sourceMasks) {
         for (int i = 0; i < player.getManaPool().getAmountOfColor(MagicColor.WHITE); i++) {
             sourceMasks.add((int) ManaAtom.WHITE);
         }
@@ -627,7 +665,7 @@ public final class ActionSpace {
             sourceMasks.add((int) ManaAtom.GREEN);
         }
         for (int i = 0; i < player.getManaPool().getAmountOfColor(MagicColor.COLORLESS); i++) {
-            sourceMasks.add(0);
+            sourceMasks.add(ManaAtom.COLORLESS);
         }
     }
 
@@ -692,7 +730,7 @@ public final class ActionSpace {
         }
     }
 
-    private static List<Integer> mergeAlternativeManaAbility(
+    static List<Integer> mergeAlternativeManaAbility(
             final List<Integer> current,
             final List<Integer> candidate
     ) {
@@ -774,7 +812,7 @@ public final class ActionSpace {
         return true;
     }
 
-    private static List<Integer> producedManaMasks(final SpellAbility manaAbility) {
+    static List<Integer> producedManaMasks(final SpellAbility manaAbility) {
         final List<Integer> masks = new ArrayList<>();
         final AbilityManaPart manaPart = manaAbility.getManaPart();
         if (manaPart == null) {
@@ -816,13 +854,13 @@ public final class ActionSpace {
                 masks.add(tokenMask);
             }
         }
-        if (comboMask != 0) {
+        for (int i = 0; i < manaAbility.amountOfManaGenerated(false) && comboMask != 0; i++) {
             masks.add(comboMask);
         }
         return masks;
     }
 
-    private static int implicitLandManaMask(final Card card) {
+    static int implicitLandManaMask(final Card card) {
         int mask = 0;
         if (card.getType().hasSubtype("Plains")) {
             mask |= ManaAtom.WHITE;

@@ -8,9 +8,9 @@ import { LongPressGesture } from "../LongPressGesture";
 import { animationsEnabled } from "../effects/enabled";
 import { rulesCardRadius } from "../cardPreview/rulesPreviewFrame";
 import type { StackCardSpec } from "./stack.types";
-import { HandCardControls } from "../HandCardControls";
 import { getRectBorderAnchor } from "./stackLayout";
 import type { ScreenBounds } from "../types";
+import { gameCardFaceIndex } from "@/lib/gameCard";
 
 const ENTER_MS = 0.42;
 const FLASH_MS = 0.56;
@@ -26,8 +26,9 @@ export class StackCardSprite {
   readonly sourceId: string;
   private theme: Theme;
   private spec: StackCardSpec;
-  private readonly width: number;
-  private readonly height: number;
+  private previewFace: 0 | 1 | undefined;
+  private width: number;
+  private height: number;
   private readonly faceScale: number;
   private glow = new Graphics();
   private promptReference = new Graphics();
@@ -43,7 +44,6 @@ export class StackCardSprite {
   private promptReferenceColor: number | null = null;
   private longPress = new LongPressGesture();
   private touchPointerId: number | null = null;
-  private viewControls: HandCardControls;
   private readonly onToggleRules: (id: string) => void;
   private readonly onFlip: (id: string) => void;
 
@@ -58,9 +58,12 @@ export class StackCardSprite {
     onToggleRules: (id: string) => void,
     onFlip: (id: string) => void,
     onLongPressCard?: (card: StackCardSpec["card"], bounds: ScreenBounds) => void,
+    faceIndex?: 0 | 1,
+    onGeometryChange?: () => void,
   ) {
     this.theme = theme;
     this.spec = spec;
+    this.previewFace = faceIndex;
     this.sourceId = spec.sourceId;
     this.onToggleRules = onToggleRules;
     this.onFlip = onFlip;
@@ -72,16 +75,19 @@ export class StackCardSprite {
     this.promptReference.eventMode = "none";
     this.face = new CardSprite(spec.card, "hand");
     this.face.onVisualChange = onRenderRequested;
+    this.face.setPreviewFace(faceIndex ?? null);
     this.face.scale.set(this.faceScale);
+    this.face.setHandRulesScale(this.faceScale);
+    this.face.setHandRulesInteractive(!spec.isValidTarget);
     this.face.setHandRulesView(rulesView);
     this.face.setHandRulesHighlight(spec.sourceAbilityText ?? "");
     this.face.on("pointerdown", (event: FederatedPointerEvent) => {
-      if (this.face.usesHandRulesView && event.pointerType !== "touch") event.stopPropagation();
+      if (this.face.usesHandRulesView && !this.spec.isValidTarget && event.pointerType !== "touch")
+        event.stopPropagation();
     });
     this.face.on("pointertap", (event: FederatedPointerEvent) => {
-      if (this.face.usesHandRulesView) event.stopPropagation();
+      if (this.face.usesHandRulesView && !this.spec.isValidTarget) event.stopPropagation();
     });
-    this.viewControls = new HandCardControls(theme);
     this.face.position.set(0, 0);
 
     const horiz = this.face.horizontalFrame;
@@ -147,45 +153,64 @@ export class StackCardSprite {
       onHover(null);
     });
 
-    this.container.addChild(
-      this.glow,
-      this.face,
-      this.ring,
-      this.promptReference,
-      this.viewControls,
-    );
+    this.container.addChild(this.glow, this.face, this.ring, this.promptReference);
     this.syncControls();
     this.redraw();
+    this.face.onReorient = () => {
+      if (!this.syncGeometry()) return;
+      this.syncControls();
+      this.redraw();
+      onGeometryChange?.();
+      onRenderRequested?.();
+    };
   }
 
-  scrollRules(delta: number, mode: number): boolean {
-    return this.face.scrollHandRules(delta, mode);
+  scrollRules(delta: number, mode: number, x: number, y: number): boolean {
+    return this.face.scrollHandRules(delta, mode, x, y);
   }
 
   setTheme(theme: Theme): void {
     this.theme = theme;
-    this.viewControls.setTheme(theme);
+    this.syncControls();
     this.redraw();
   }
 
-  setSpec(spec: StackCardSpec): void {
+  setSpec(spec: StackCardSpec, faceIndex?: 0 | 1): void {
+    const faceChanged = faceIndex !== this.previewFace;
     const ringChanged =
       spec.seatColor !== this.spec.seatColor ||
       spec.isCasting !== this.spec.isCasting ||
       spec.isTopOfStack !== this.spec.isTopOfStack ||
       spec.isValidTarget !== this.spec.isValidTarget;
     const controlsChanged =
+      faceChanged ||
       spec.id !== this.spec.id ||
       spec.card.isDoubleFaced !== this.spec.card.isDoubleFaced ||
-      spec.card.isTransformed !== this.spec.card.isTransformed;
+      gameCardFaceIndex(spec.card) !== gameCardFaceIndex(this.spec.card);
     const dimChanged = spec.isDimmed !== this.spec.isDimmed;
     this.spec = spec;
+    this.previewFace = faceIndex;
     this.container.cursor = spec.isValidTarget ? "pointer" : "default";
+    this.face.setHandRulesInteractive(!spec.isValidTarget);
     this.face.updateCardContent(spec.card);
+    if (faceChanged) this.face.setPreviewFace(faceIndex ?? null);
+    const resized = this.syncGeometry();
     this.face.setHandRulesHighlight(spec.sourceAbilityText ?? "");
-    if (controlsChanged) this.syncControls();
+    if (controlsChanged || resized) this.syncControls();
     if (dimChanged) this.container.alpha = spec.isDimmed ? 0.6 : 1;
-    if (ringChanged) this.redraw();
+    if (ringChanged || resized) this.redraw();
+  }
+
+  private syncGeometry(): boolean {
+    const horizontal = this.face.horizontalFrame;
+    const width = (horizontal ? CARD_H : CARD_W) * this.faceScale;
+    const height = (horizontal ? CARD_W : CARD_H) * this.faceScale;
+    if (width === this.width && height === this.height) return false;
+    this.width = width;
+    this.height = height;
+    this.container.hitArea = new Rectangle(-width / 2, -height / 2, width, height);
+    if (this.promptReferenceColor != null) this.setPromptReference(this.promptReferenceColor);
+    return true;
   }
 
   setPromptReference(color: number | null): void {
@@ -307,8 +332,7 @@ export class StackCardSprite {
   }
 
   setRulesView(active: boolean): void {
-    if (this.face.usesHandRulesView === active) return;
-    this.face.setHandRulesView(active);
+    this.face.setHandRulesView(active, true);
     this.syncControls();
     this.redraw();
     if (this.promptReferenceColor != null) this.setPromptReference(this.promptReferenceColor);
@@ -392,23 +416,17 @@ export class StackCardSprite {
   }
 
   private syncControls(): void {
-    this.viewControls.setSpec(
+    this.face.setHandControls(
       this.hovered
         ? {
             rulesView: this.face.usesHandRulesView,
             horizontal: false,
-            alternateFace: this.spec.card.isTransformed,
+            alternateFace: (this.previewFace ?? gameCardFaceIndex(this.spec.card)) === 1,
             showFaceControl: this.spec.card.isDoubleFaced,
             onToggleRules: () => this.onToggleRules(this.spec.id),
             onToggleFace: () => this.onFlip(this.spec.id),
           }
         : null,
-      this.width,
-      this.face.previewControlArtTop * this.faceScale,
-      1,
-      1,
     );
-    this.viewControls.position.x -= this.width / 2;
-    this.viewControls.position.y -= this.height / 2;
   }
 }

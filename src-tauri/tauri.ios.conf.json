@@ -3,6 +3,9 @@
     "beforeBuildCommand": "yarn vite:build"
   },
   "bundle": {
+    "iOS": {
+      "minimumSystemVersion": "15.0"
+    },
     "resources": {
       "resources/cardset.rkyv": "cardset.rkyv"
     }

@@ -366,6 +366,7 @@ impl Storage {
         } else {
             0
         };
+        let starting_version = current;
         for (version, name, sql) in MIGRATIONS {
             if *version <= current {
                 continue;
@@ -396,13 +397,15 @@ impl Storage {
             current = *version;
             tracing::info!(migration = name, version, "migration ran");
         }
-        let mismatch: u32 =
-            self.conn
-                .query_row("SELECT count(*) FROM pragma_foreign_key_check", [], |row| {
-                    row.get(0)
-                })?;
-        if mismatch > 0 {
-            return Err(rusqlite::Error::InvalidQuery);
+        if current > starting_version {
+            let mismatch: u32 = self.conn.query_row(
+                "SELECT count(*) FROM pragma_foreign_key_check",
+                [],
+                |row| row.get(0),
+            )?;
+            if mismatch > 0 {
+                return Err(rusqlite::Error::InvalidQuery);
+            }
         }
         Ok(())
     }

@@ -91,7 +91,7 @@ impl SpellAbilityCondition {
         if is_true("ConditionBlessing") {
             self.variables.set_blessing(true);
         }
-        if is_true("ConditionSolved") {
+        if is_true("ConditionSolved") || get("Condition") == Some("Solved") {
             self.variables.set_solved(true);
         }
 
@@ -171,15 +171,48 @@ impl SpellAbilityCondition {
             return false;
         }
 
-        // Check presence condition
-        if let Some(ref _present_expr) = self.variables.is_present().map(|s| s.to_string()) {
-            // Presence checking requires card property matching which
-            // is handled by the card_property module. For the basic case,
-            // we check if any card matching the expression exists in the zone.
-            let _zone = self.variables.present_zone();
-            let _compare = self.variables.present_compare().map(|s| s.to_string());
-            // Full implementation delegates to card_property::card_has_property
-            // which is already used throughout the engine.
+        if self.variables.solved()
+            && !sa
+                .source
+                .is_some_and(|source| game.card(source).is_solved())
+        {
+            return false;
+        }
+
+        if let Some(present) = self.variables.is_present() {
+            let count = if let Some(defined) = self.variables.present_defined() {
+                crate::ability::ability_utils::get_defined_cards(
+                    game,
+                    sa.source,
+                    defined,
+                    Some(player),
+                )
+                .into_iter()
+                .filter(|&card| {
+                    crate::ability::ability_utils::matches_valid_cards_for_sa(
+                        game,
+                        sa,
+                        game.card(card),
+                        None,
+                        present,
+                    )
+                })
+                .count()
+            } else {
+                game.cards
+                    .iter()
+                    .filter(|card| card.zone == self.variables.present_zone())
+                    .filter(|card| {
+                        crate::ability::ability_utils::matches_valid_cards_for_sa(
+                            game, sa, card, None, present,
+                        )
+                    })
+                    .count()
+            };
+            let compare = self.variables.present_compare().unwrap_or("GE1");
+            if !crate::parsing::compare::compare_expr(count as i32, compare) {
+                return false;
+            }
         }
 
         true

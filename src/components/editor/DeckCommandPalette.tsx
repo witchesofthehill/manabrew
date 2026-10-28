@@ -43,7 +43,7 @@ export function DeckCommandPalette({ open, onOpenChange, commands }: DeckCommand
         onOpenChange(next);
       }}
     >
-      <DialogContent className="max-w-lg gap-2 p-3">
+      <DialogContent className="max-w-lg gap-2 overflow-y-auto p-3">
         <DialogHeader className="sr-only">
           <DialogTitle>Deck commands</DialogTitle>
           <DialogDescription>Search for an action to run in the deck editor.</DialogDescription>
@@ -60,7 +60,7 @@ export function DeckCommandPalette({ open, onOpenChange, commands }: DeckCommand
               filtered[activeIndex] ? `deck-command-${filtered[activeIndex].id}` : undefined
             }
             value={query}
-            className="h-11 pl-9"
+            className="min-h-11 pl-9"
             placeholder={`Type a deck command\u2026`}
             onChange={(event) => {
               setQuery(event.target.value);
@@ -83,7 +83,11 @@ export function DeckCommandPalette({ open, onOpenChange, commands }: DeckCommand
             }}
           />
         </div>
-        <div id="deck-command-results" role="listbox" className="max-h-80 overflow-y-auto py-1">
+        <div
+          id="deck-command-results"
+          role="listbox"
+          className="max-h-[min(20rem,55dvh)] overflow-y-auto py-1"
+        >
           {filtered.length > 0 ? (
             filtered.map((command, index) => (
               <button
@@ -94,7 +98,7 @@ export function DeckCommandPalette({ open, onOpenChange, commands }: DeckCommand
                 aria-selected={activeIndex === index}
                 disabled={command.disabled}
                 className={cn(
-                  "flex min-h-10 w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm hover:bg-muted focus-visible:bg-muted focus-visible:outline-none",
+                  "flex min-h-10 touch:min-h-11 touch:min-w-11 w-full flex-wrap items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-ui-label hover:bg-muted focus-visible:bg-muted focus-visible:outline-none",
                   activeIndex === index && "bg-muted",
                   command.disabled && "cursor-not-allowed opacity-50",
                 )}
@@ -104,14 +108,14 @@ export function DeckCommandPalette({ open, onOpenChange, commands }: DeckCommand
               >
                 <span>{command.label}</span>
                 {command.disabledReason && (
-                  <span className="ml-4 text-xs text-muted-foreground">
+                  <span className="text-ui-meta text-muted-foreground">
                     {command.disabledReason}
                   </span>
                 )}
               </button>
             ))
           ) : (
-            <p className="px-3 py-8 text-center text-sm text-muted-foreground">
+            <p className="px-3 py-8 text-center text-ui-meta text-muted-foreground">
               No matching commands
             </p>
           )}

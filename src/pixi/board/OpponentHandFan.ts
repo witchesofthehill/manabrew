@@ -38,6 +38,7 @@ export class OpponentHandFan {
   private hoveredIndex: number | null = null;
   private hoverLeaveTimer: number | null = null;
   private band = { x: 0, y: 0, width: 0, height: 0 };
+  private rulesViewDefault = false;
 
   constructor(host: OpponentHandFanHost, parent: Container) {
     this.host = host;
@@ -69,6 +70,10 @@ export class OpponentHandFan {
     }
     if (this.hoveredIndex !== null && this.hoveredIndex >= cards.length) this.clearHover();
     this.layout();
+  }
+  setRulesViewDefault(active: boolean): void {
+    this.rulesViewDefault = active;
+    for (const sprite of this.sprites.values()) sprite.setHandRulesView(active);
   }
 
   setBand(x: number, y: number, width: number, height: number, visible: boolean): void {
@@ -151,16 +156,19 @@ export class OpponentHandFan {
     for (let i = 0; i < count; i++) {
       const card = this.cards[i]!;
       const l = layout[i]!;
+      const scaleX = l.scaleW / CARD_W;
+      const scaleY = l.scaleH / CARD_H;
       const isHovered = this.hoveredIndex === i;
       const x = centerX + l.x;
       const y = topY - l.y + l.scaleH / 2;
       let sprite = this.sprites.get(card.id);
       if (!sprite) {
         sprite = new CardSprite(card, "hand");
+        sprite.setHandRulesView(this.rulesViewDefault);
         sprite.eventMode = "none";
         sprite.x = x;
         sprite.y = y;
-        sprite.scale.set(l.scaleW / CARD_W, l.scaleH / CARD_H);
+        sprite.scale.set(scaleX, scaleY);
         this.container.addChild(sprite);
         this.sprites.set(card.id, sprite);
       } else {
@@ -172,10 +180,11 @@ export class OpponentHandFan {
         x,
         y,
         rot,
-        scaleX: l.scaleW / CARD_W,
-        scaleY: l.scaleH / CARD_H,
+        scaleX,
+        scaleY,
         zIndex: isHovered ? Z_HAND_HOVERED : i + 1,
       });
+      sprite.setHandRulesScale(Math.max(scaleX, scaleY));
       hitZones.push(
         isHovered
           ? { index: i, card, x, y, width: l.scaleW, height: l.scaleH }

@@ -263,13 +263,18 @@ impl GameLoop {
 
                     // Room UnlockDoor: route through the activated-ability branch of
                     // play_spell_ability. Java models this as a StaticAbilityApiBased.
-                    if play.mode == crate::agent::PlayCardMode::UnlockDoor {
-                        let unlock_ab_idx = game
-                            .card(play.card_id)
-                            .activated_abilities
-                            .iter()
-                            .find(|ab| ab.is_unlock_door)
-                            .map(|ab| ab.ability_index);
+                    if let crate::agent::PlayCardMode::UnlockDoor { door } = play.mode {
+                        let unlock_ab_idx =
+                            game.card(play.card_id)
+                                .activated_abilities
+                                .iter()
+                                .find(|ab| {
+                                    ab.is_unlock_door
+                                        && ab.params.get("CardState").and_then(
+                                            forge_foundation::CardStateName::from_str_compat,
+                                        ) == Some(door)
+                                })
+                                .map(|ab| ab.ability_index);
                         if let Some(ability_idx) = unlock_ab_idx {
                             let played = self.with_shared_state_mutation(
                                 game,

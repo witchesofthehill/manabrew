@@ -114,8 +114,8 @@ export function DeckCheckpointsDialog({
             <div key={checkpoint.id} className="flex items-center gap-3 rounded-lg border p-3">
               <Clock3 className="h-4 w-4 shrink-0 text-muted-foreground" />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">{checkpoint.name}</p>
-                <p className="text-[10px] text-muted-foreground">
+                <p className="truncate text-ui-label font-medium">{checkpoint.name}</p>
+                <p className="text-ui-meta text-muted-foreground">
                   {new Date(checkpoint.createdAt).toLocaleString()} · {checkpoint.deck.cards.length}{" "}
                   main · {checkpoint.deck.sideboard.length} side
                 </p>
@@ -139,7 +139,7 @@ export function DeckCheckpointsDialog({
               <Button
                 size="icon"
                 variant="ghost"
-                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                className="touch:min-w-11 touch:min-h-11 min-h-7 w-7 text-muted-foreground hover:text-destructive"
                 aria-label={`Delete ${checkpoint.name}`}
                 onClick={() => removeCheckpoint(checkpoint.id)}
               >
@@ -148,7 +148,7 @@ export function DeckCheckpointsDialog({
             </div>
           ))}
           {deckCheckpoints.length === 0 && (
-            <p className="py-8 text-center text-xs text-muted-foreground">
+            <p className="py-8 text-center text-ui-meta text-muted-foreground">
               No checkpoints for this deck yet.
             </p>
           )}

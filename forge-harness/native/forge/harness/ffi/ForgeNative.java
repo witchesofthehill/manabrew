@@ -41,6 +41,15 @@ public final class ForgeNative {
         }
     }
 
+    @CEntryPoint(name = "forge_command")
+    static CCharPointer command(IsolateThread thread, CCharPointer requestJson) {
+        try {
+            return ok(forge.harness.host.EngineCommands.execute(ADAPTER, str(requestJson)));
+        } catch (Throwable t) {
+            return err(t);
+        }
+    }
+
     @CEntryPoint(name = "forge_submit_action")
     static CCharPointer submitAction(IsolateThread thread, CCharPointer sessionId, CCharPointer actionJson) {
         try {
@@ -72,6 +81,33 @@ public final class ForgeNative {
     static CCharPointer getGameOver(IsolateThread thread, CCharPointer sessionId) {
         try {
             return ok(ADAPTER.getGameOver(str(sessionId)));
+        } catch (Throwable t) {
+            return err(t);
+        }
+    }
+
+    @CEntryPoint(name = "forge_read_decision_journal")
+    static CCharPointer readDecisionJournal(IsolateThread thread, CCharPointer sessionId) {
+        try {
+            return ok(ADAPTER.readDecisionJournal(str(sessionId)));
+        } catch (Throwable t) {
+            return err(t);
+        }
+    }
+
+    @CEntryPoint(name = "forge_acknowledge_decision_journal")
+    static CCharPointer acknowledgeDecisionJournal(IsolateThread thread, CCharPointer sessionId, long sequence) {
+        try {
+            return ok(ADAPTER.acknowledgeDecisionJournal(str(sessionId), sequence));
+        } catch (Throwable t) {
+            return err(t);
+        }
+    }
+
+    @CEntryPoint(name = "forge_drain_decision_journal")
+    static CCharPointer drainDecisionJournal(IsolateThread thread, CCharPointer sessionId) {
+        try {
+            return ok(ADAPTER.drainDecisionJournal(str(sessionId)));
         } catch (Throwable t) {
             return err(t);
         }

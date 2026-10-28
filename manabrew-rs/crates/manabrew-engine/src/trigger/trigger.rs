@@ -989,7 +989,10 @@ impl Trigger {
         let (mut sa, svar_text) = if let Some(overriding_ability) = self.get_overriding_ability() {
             (overriding_ability.clone(), String::new())
         } else {
-            let svar_text = host.get_s_var(&self.execute).map(str::to_string).unwrap_or_else(|| {
+            let door = self.base.card_trait_base.get_card_state_name();
+            let room_face = door.and_then(|door| host.room_face(door));
+            let svar_text = room_face.and_then(|face| face.svars.get(&self.execute).map(String::as_str))
+                .or_else(|| host.get_s_var(&self.execute)).map(str::to_string).unwrap_or_else(|| {
                 panic!(
                     "Trigger::build_triggered_spell_ability missing/empty Execute SVar: host={} execute={} trigger_index={} description={}",
                     host.card_name,
@@ -998,8 +1001,16 @@ impl Trigger {
                     self.description
                 )
             });
+            let ability_text = door
+                .filter(|_| room_face.is_some())
+                .map(|door| format!("{svar_text} | CardState$ {door:?}"));
             (
-                build_spell_ability(game, host_card, &svar_text, host_controller),
+                build_spell_ability(
+                    game,
+                    host_card,
+                    ability_text.as_deref().unwrap_or(&svar_text),
+                    host_controller,
+                ),
                 svar_text,
             )
         };

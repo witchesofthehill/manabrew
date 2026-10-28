@@ -1,3 +1,4 @@
+import { UI_FONT_FAMILY } from "@/themes/typography";
 import { Container, Graphics, GraphicsContext, Text, TextStyle } from "pixi.js";
 
 export interface RollTokenVisual {
@@ -151,7 +152,7 @@ export function createRollToken(options: RollTokenOptions): RollTokenVisual {
   const value = new Text({
     text: "",
     style: new TextStyle({
-      fontFamily: "Inter, system-ui, sans-serif",
+      fontFamily: UI_FONT_FAMILY,
       fontSize: options.size * 0.38,
       fontWeight: "700",
       fill: options.foreground,

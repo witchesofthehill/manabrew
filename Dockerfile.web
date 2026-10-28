@@ -16,7 +16,7 @@ FROM rust:1.88-slim AS base
 # layer caches. The version/corepack check makes that failure mode impossible.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        curl ca-certificates build-essential pkg-config libssl-dev && \
+        curl ca-certificates build-essential pkg-config libssl-dev git && \
     curl -fsSL -o /tmp/nodesource-setup.sh https://deb.nodesource.com/setup_24.x && \
     bash /tmp/nodesource-setup.sh && \
     rm /tmp/nodesource-setup.sh && \
@@ -74,6 +74,7 @@ COPY scripts/ ./scripts/
 COPY src/ ./src/
 COPY packages/ ./packages/
 COPY public/ ./public/
+COPY images/brand/logos/interactive/ ./images/brand/logos/interactive/
 # ops/manifest.json is read by vite.config.ts to stamp the app version.
 COPY index.html tsconfig*.json vite.config.ts lingui.config.ts ./
 COPY ops/manifest.json ./ops/manifest.json
@@ -134,10 +135,12 @@ FROM node:24-slim AS website
 WORKDIR /repo/website
 COPY website/package.json website/yarn.lock ./
 RUN corepack enable && yarn install --frozen-lockfile
-COPY images/ /repo/images/
+COPY images/screenshots/ /repo/images/screenshots/
 COPY public/manabrew_brewery_1.png /repo/public/manabrew_brewery_1.png
 COPY src/themes/ /repo/src/themes/
-COPY src/assets/manaBrew.png /repo/src/assets/manaBrew.png
+COPY images/brand/logos/interactive/ /repo/images/brand/logos/interactive/
+COPY src/assets/brandLogoGeometry.json /repo/src/assets/brandLogoGeometry.json
+COPY src/components/layout/ManaBrewLogo.css /repo/src/components/layout/
 COPY website/ ./
 RUN yarn build
 

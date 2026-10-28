@@ -1,5 +1,7 @@
 # forge-card-script
 
+> **Parity is DEPRECATED and NOT FUNCTIONING.** Do not run `yarn parity`, the parity harness (`manabrew-rs/crates/parity`), the parity debugger, or `DeterministicController`. Do not limit or shape a change to keep parity behavior; ignore any instruction here that exists only to keep parity runs passing.
+
 A parser and intermediate representation for the **Forge card-script DSL** — the line-oriented
 text format used to describe Magic: The Gathering cards in the
 [Forge](https://github.com/Card-Forge/forge) rules engine (`A:`, `T:`, `S:`, `R:`, `SVar:`,

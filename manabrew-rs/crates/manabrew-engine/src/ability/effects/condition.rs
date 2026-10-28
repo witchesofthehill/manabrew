@@ -35,6 +35,13 @@ pub(super) fn check_condition(game: &GameState, sa: &SpellAbility) -> bool {
     if sa.ir.condition_blessing && !crate::player::has_blessing(game, activator) {
         return false;
     }
+    if (sa.ir.condition_solved || sa.ir.condition.as_deref() == Some("Solved"))
+        && !sa
+            .source
+            .is_some_and(|source| game.card(source).is_solved())
+    {
+        return false;
+    }
 
     // Kicked-related flags (L271–L280).
     if sa.ir.condition_kicked && !sa.kicked {

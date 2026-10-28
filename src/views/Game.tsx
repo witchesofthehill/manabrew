@@ -3,7 +3,8 @@ import { locateVisibleZone, visibleZoneCards, zoneLocationKey } from "@/lib/zone
 import { useGameStore } from "@/stores/useGameStore";
 import { useServerStore } from "@/stores/useServerStore";
 import { asDeckCard } from "@/lib/decks";
-import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
+import { gameCardFaceIndex, GAME_CARD_DEFAULTS } from "@/lib/gameCard";
+import { faceDownCardToPreviewDto } from "@/lib/scryfall.utils";
 import { partitionBoardTargets } from "@/lib/boardTargets";
 import { useGameUIStore } from "@/stores/useGameUIStore";
 import { useKeybindings } from "@/hooks/useKeybindings";
@@ -14,6 +15,7 @@ import { useShallow } from "zustand/react/shallow";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CardChoiceDto, CardDto, CheckpointDto, StackObjectDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
+import type { ActivatableAbilityInfo } from "@/protocol/prompts/common";
 import type { ClientCardDto, ClientPlayerDto } from "@/stores/gameStore.types";
 import { GameModals } from "@/components/game/GameModals";
 import { LandscapeGate } from "@/components/LandscapeGate";
@@ -21,7 +23,6 @@ import { GameLoadingScreen } from "@/components/game/GameLoadingScreen";
 import { GameFailedScreen } from "@/components/game/GameFailedScreen";
 import { WaitingForPlayerScreen } from "@/components/game/WaitingForPlayerScreen";
 import { DevViewportFrame } from "@/components/dev/DevViewportFrame";
-import { isForgeWasmActive } from "@/lib/forgeWasm";
 import { toast } from "sonner";
 import { ManualTabletopControls } from "@/components/game/ManualTabletopControls";
 import { MiddleBarDock, RepeatProgress, RightActionPanel } from "@/components/game/panels";
@@ -55,6 +56,7 @@ import { useHandScale } from "@/hooks/useHandScale";
 import { useFlashQueue } from "@/hooks/useFlashQueue";
 import { useHandDrag, type HandDragStart } from "@/hooks/useHandDrag";
 import { useCardPreview } from "@/hooks/useCardPreview";
+import { useGamePreviewFlip } from "@/hooks/useGamePreviewFlip";
 import type { PreviewFlipOptions, PreviewPointerInput } from "@/lib/cardPreview";
 import { MODAL_OPEN_EVENT, topModal } from "@/lib/modalStack";
 import { useMulliganSelection } from "@/hooks/useMulliganSelection";
@@ -73,14 +75,14 @@ import { boardBackgroundDarken, boardBackgroundUrl } from "@/pixi/board/boardBac
 import { Navigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useLimitedGameReturn } from "@/hooks/useLimitedGameReturn";
-import { peek as peekGauntletMatch } from "@/lib/gauntletReturn";
+import { peekForGame as peekGauntletMatch } from "@/lib/gauntletReturn";
 import { peekLimitedMatchReturn } from "@/game/limitedSession";
 import { intentIsHostile, intentPrefersArrow } from "@/types/promptType";
 import type { PromptType } from "@/protocol";
 import { declareAttackersOutput } from "@/components/prompts/internal/playerActions";
 import { TargetingCursor } from "@/components/game/TargetingCursor";
 import { OPPONENT_SEATS } from "@/components/game/game.types";
-import type { CombatPairing, LogCardPreviewOptions } from "@/components/game/game.types";
+import type { CombatPairing } from "@/components/game/game.types";
 import { useStackUIStore } from "@/stores/useStackUIStore";
 import {
   useGameDevStore,
@@ -92,7 +94,7 @@ import {
 import {
   isPermanentSpellCard,
   stackObjectAbilityText,
-  stackObjectToCardStub,
+  stackObjectToCard,
 } from "@/components/game/game.utils";
 import { createPortal } from "react-dom";
 import { Card } from "@/components/game/Card";
@@ -105,6 +107,8 @@ import { scryfallToSampleGameCard } from "@/lib/sampleGameCard";
 import { haptic } from "@/lib/haptics";
 import type { GameRuntime, ManualTabletopApi } from "@/game";
 const HOVER_ALLOWED_PROMPTS = new Set<PromptType>([
+  "mulligan",
+  "mulliganPutBack",
   "chooseAction",
   "chooseAttackers",
   "chooseBlockers",
@@ -171,11 +175,7 @@ function buildDebugKeywordCard(
       : null;
   const face = info?.card_faces?.[1];
   if (info && face) {
-    const selected = scryfallToSampleGameCard({
-      ...info,
-      ...face,
-      type_line: face.type_line ?? info.type_line,
-    });
+    const selected = scryfallToSampleGameCard(info, { isTransformed: true });
     base.types = selected.types;
     base.subtypes = selected.subtypes;
     base.supertypes = selected.supertypes;
@@ -251,13 +251,14 @@ export default function Game({ exitTo }: GameProps = {}) {
   useAutoResolvePrompt(interruption.waiting);
   const rawGameView = useGameStore((s) => s.gameView);
   const myPlayerSlot = useGameStore((s) => s.myPlayerSlot);
+  const gauntletId = useGameStore((s) => s.gauntletId);
   const currentPrompt = useGameStore((s) => s.currentPrompt);
   const protocolError = useGameStore((s) => s.protocolError);
   const isGameActive = useGameStore((s) => s.isGameActive);
+  const activeEngine = useGameStore((s) => s.activeEngine);
   const isPrefetchingCards = useGameStore((s) => s.isPrefetchingCards);
   const isWaitingForResponse = useGameStore((s) => s.isWaitingForResponse);
   const relinquishedPriority = useGameStore((s) => s.relinquishedPriority);
-  const gameLog = useGameStore((s) => s.gameLog);
   const debugInfo = useGameStore((s) => s.debugInfo);
   const fatalError = useGameStore((s) => s.fatalError);
   const engineCrash = useGameStore((s) => s.engineCrash);
@@ -295,7 +296,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     endGame,
     requestRestore,
     voteRestore,
-    setSnapshotRecording,
     startRecording,
     stopRecording,
     requestRepeat: sendRepeatRequest,
@@ -310,7 +310,6 @@ export default function Game({ exitTo }: GameProps = {}) {
       endGame: s.endGame,
       requestRestore: s.requestRestore,
       voteRestore: s.voteRestore,
-      setSnapshotRecording: s.setSnapshotRecording,
       startRecording: s.startRecording,
       stopRecording: s.stopRecording,
       requestRepeat: s.requestRepeat,
@@ -323,6 +322,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   const flashDurationMs = usePreferencesStore((s) => s.flashDurationMs);
   const zonePanelOrder = usePreferencesStore((s) => s.zonePanelOrder);
   const inGameCardPreviewStyle = usePreferencesStore((s) => s.inGameCardPreviewStyle);
+  const handCardStyle = usePreferencesStore((s) => s.handCardStyle);
   const cardPreviewMode = usePreferencesStore((s) => s.cardPreviewMode);
   const roomTableStyle = useServerStore((s) => s.currentRoom?.table_style);
   const boardBackgroundId = usePreferencesStore((s) => s.boardBackgroundId);
@@ -470,13 +470,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     })),
   );
   const toAbilityOption = (
-    a: {
-      cardId: string;
-      abilityIndex: number;
-      description: string;
-      isManaAbility: boolean;
-      isClassLevelUp?: boolean;
-      cost?: string;
+    a: ActivatableAbilityInfo & {
       displayManaLetters?: string[];
       colorChoice?: string;
     },
@@ -486,8 +480,9 @@ export default function Game({ exitTo }: GameProps = {}) {
     cardId: a.cardId,
     abilityIndex: a.abilityIndex,
     label: a.description,
+    abilityText: a.description,
     isManaAbility: a.isManaAbility,
-    isClassLevelUp: a.isClassLevelUp,
+    levelUp: a.levelUp,
     cost: a.cost,
     displayManaLetters: a.displayManaLetters,
     colorChoice: a.colorChoice,
@@ -501,7 +496,8 @@ export default function Game({ exitTo }: GameProps = {}) {
       arr.push({
         kind: "cast" as const,
         cardId: a.cardId,
-        mode: a.mode.type,
+        mode: a.mode,
+        faceIndex: a.faceIndex,
         label: a.label,
         actionId: a.id,
       });
@@ -532,13 +528,18 @@ export default function Game({ exitTo }: GameProps = {}) {
           abilityIndex: a.abilityIndex,
           description: a.description,
           isManaAbility: true,
-          isClassLevelUp: false,
+          levelUp: a.levelUp,
           cost: a.cost,
           producedMana: a.producedMana,
           actionId: a.id,
         },
       ]);
-      arr.push(...displayed.map((ab) => toAbilityOption(ab, ab.actionId)));
+      arr.push(
+        ...displayed.map((ab) => ({
+          ...toAbilityOption(ab, ab.actionId),
+          abilityText: a.description,
+        })),
+      );
       map.set(a.cardId, arr);
     }
     return map;
@@ -605,8 +606,11 @@ export default function Game({ exitTo }: GameProps = {}) {
     [manualApi, getManualCardActions, castOptions, abilitiesByCardId],
   );
   const getBattlefieldAbilityOptions = useCallback(
-    (card: CardDto): HandActionOption[] => abilitiesByCardId.get(card.id) ?? [],
-    [abilitiesByCardId],
+    (card: CardDto): HandActionOption[] => [
+      ...castOptions(card).filter((action) => action.mode?.type === "unlockDoor"),
+      ...(abilitiesByCardId.get(card.id) ?? []),
+    ],
+    [castOptions, abilitiesByCardId],
   );
   const getCardActions = useCallback(
     (card: CardDto): HandActionOption[] => {
@@ -737,7 +741,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   const handleBattlefieldCardAction = (card: CardDto, e?: React.MouseEvent) => {
     const abilities = getBattlefieldAbilityOptions(card);
     if (abilities.length === 0) return false;
-    if (abilities.length === 1 && !abilities[0].isClassLevelUp) {
+    if (abilities.length === 1 && abilities[0].levelUp !== "class") {
       return respondHandAction(abilities[0]);
     }
     preview.showSticky(card, e?.clientX, e?.clientY);
@@ -1821,7 +1825,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     const byId = new Map<string, ClientCardDto>();
     for (const s of gameView?.stack ?? []) {
       if (byId.has(s.sourceId)) continue;
-      byId.set(s.sourceId, stackObjectToCardStub(s));
+      byId.set(s.sourceId, stackObjectToCard(s));
     }
     return byId;
   }, [gameView?.stack]);
@@ -1845,37 +1849,53 @@ export default function Game({ exitTo }: GameProps = {}) {
     () => setCommandPreviewSequence(commandPreviewCards),
     [commandPreviewCards, setCommandPreviewSequence],
   );
+  const singleCommandPreviewCard =
+    commandZonePreview.phase !== "hidden" && commandPreviewCards.length === 1
+      ? commandPreviewCards[0]!
+      : null;
 
   const previewCardId = preview.hoveredCard?.id ?? null;
   const livePreviewCard = useMemo(() => {
     if (!previewCardId) return null;
+    const stackObject = gameView?.stack.find(
+      (object) => object.id === hoveredStackObjectIdForSpecs && object.sourceId === previewCardId,
+    );
+    if (stackObject?.sourceCard) return stackObjectToCard(stackObject);
     return (
       visibleCardsById.get(previewCardId) ??
       stackCardsBySourceId.get(previewCardId) ??
-      (preview.hoveredCard ? { ...preview.hoveredCard, zoneId: "prompt" } : null)
+      (preview.hoveredCard &&
+      !(preview.hoveredCard.isFaceDown && preview.hoveredCard.zone === "battlefield")
+        ? { ...preview.hoveredCard, zoneId: "prompt" }
+        : null)
     );
-  }, [preview.hoveredCard, previewCardId, stackCardsBySourceId, visibleCardsById]);
+  }, [
+    preview.hoveredCard,
+    previewCardId,
+    stackCardsBySourceId,
+    visibleCardsById,
+    gameView?.stack,
+    hoveredStackObjectIdForSpecs,
+  ]);
+  const inspectionPreviewCard = useMemo(
+    () =>
+      livePreviewCard ? faceDownCardToPreviewDto(livePreviewCard, activeEngine, gameDecks) : null,
+    [livePreviewCard, activeEngine, gameDecks],
+  );
+  const previewFaceCard = singleCommandPreviewCard ?? inspectionPreviewCard;
   const [previewFaceOverride, setPreviewFaceOverride] = useState<{
     cardId: string;
     showBackFace: boolean;
   } | null>(null);
   useEffect(() => {
     setPreviewFaceOverride(null);
-  }, [previewCardId]);
+  }, [previewCardId, singleCommandPreviewCard?.id]);
   const previewShowBackFace =
-    previewFaceOverride && previewFaceOverride.cardId === livePreviewCard?.id
+    previewFaceOverride && previewFaceOverride.cardId === previewFaceCard?.id
       ? previewFaceOverride.showBackFace
-      : (livePreviewCard?.isTransformed ?? false);
-  const handleFlipPreview = (options?: PreviewFlipOptions) => {
-    if (!livePreviewCard) return;
-    preview.flipCard(options);
-    const showBackFace = !previewShowBackFace;
-    setPreviewFaceOverride(
-      showBackFace === livePreviewCard.isTransformed
-        ? null
-        : { cardId: livePreviewCard.id, showBackFace },
-    );
-  };
+      : previewFaceCard
+        ? gameCardFaceIndex(previewFaceCard) === 1
+        : false;
   const hoveredCardActions = useMemo(
     () => (livePreviewCard ? getCardActions(livePreviewCard) : []),
     [getCardActions, livePreviewCard],
@@ -1924,44 +1944,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   };
 
   const promptSourceDeckCard = useResolveSourceCard(activePrompt?.sourceCard);
-  const handleLogCardHover = (
-    cardId: string | null,
-    e?: React.MouseEvent,
-    options: LogCardPreviewOptions = {},
-  ) => {
-    if (cardId) {
-      setCommandPreviewSource(null);
-      commandZonePreview.dismiss();
-    }
-    if (draggingHandCard) {
-      preview.dismiss();
-      return;
-    }
-    if (!cardId) {
-      preview.handleMouseLeave();
-      return;
-    }
-    const card = visibleCardsById.get(cardId) ?? stackCardsBySourceId.get(cardId);
-    if (!card) {
-      preview.dismiss();
-      return;
-    }
-    if (options.sticky) {
-      const anchor =
-        options.anchorOverride ??
-        (options.useAnchor && e
-          ? (e.currentTarget as HTMLElement).getBoundingClientRect()
-          : undefined);
-      preview.showSticky(
-        card,
-        e?.clientX ?? (anchor ? anchor.left + anchor.width / 2 : undefined),
-        e?.clientY ?? (anchor ? anchor.top + anchor.height / 2 : undefined),
-        anchor,
-      );
-      return;
-    }
-    preview.handleMouseEnter(card, e, { useDelay: true, ...options });
-  };
+
   const handleHoverCardGuarded = (
     card: CardDto | null,
     e?: React.MouseEvent,
@@ -2050,7 +2033,9 @@ export default function Game({ exitTo }: GameProps = {}) {
     [gameView?.players],
   );
   const resolveStackCard = (stackItem: StackObjectDto): CardDto =>
-    visibleCardsById.get(stackItem.sourceId) ?? stackCardsBySourceId.get(stackItem.sourceId)!;
+    stackItem.sourceCard
+      ? stackObjectToCard(stackItem)
+      : (visibleCardsById.get(stackItem.sourceId) ?? stackCardsBySourceId.get(stackItem.sourceId)!);
   const activeFlashCard: CardDto | null = useMemo(() => {
     if (!activeFlash || activeFlash.kind !== "card") return null;
     return (
@@ -2082,7 +2067,9 @@ export default function Game({ exitTo }: GameProps = {}) {
     !abilityPickerState &&
     commandZonePreview.phase !== "hidden";
   const previewSuppressed =
-    !preview.isSticky && !!promptType && !HOVER_ALLOWED_PROMPTS.has(promptType);
+    !(showCommandZonePreview ? commandZonePreview.isSticky : preview.isSticky) &&
+    !!promptType &&
+    !HOVER_ALLOWED_PROMPTS.has(promptType);
   const externalPreviewActive =
     !previewSuppressed &&
     ((showInGamePreview && preview.phase === "open") ||
@@ -2094,14 +2081,56 @@ export default function Game({ exitTo }: GameProps = {}) {
     preview.phase === "open" &&
     livePreviewCard != null &&
     previewViewSwitchCardIdRef.current === livePreviewCard.id;
-  const togglePreviewView = useCallback(() => {
-    if (!livePreviewCard && !commandPreviewSource) return;
+  const previewFlipIdentity = showCommandZonePreview
+    ? commandPreviewCards.map((card) => card.id).join(":")
+    : (livePreviewCard?.id ?? null);
+  const previewPresentation = `${inGameCardPreviewStyle}:${previewFlipIdentity}:${previewShowBackFace}`;
+  const previewFlip = useGamePreviewFlip(
+    previewFlipIdentity,
+    externalPreviewActive,
+    previewPresentation,
+  );
+  const requestedPreview = useRef({
+    style: inGameCardPreviewStyle,
+    showBackFace: previewShowBackFace,
+  });
+  useEffect(() => {
+    requestedPreview.current = {
+      style: inGameCardPreviewStyle,
+      showBackFace: previewShowBackFace,
+    };
+  }, [previewFlipIdentity, inGameCardPreviewStyle, previewShowBackFace, externalPreviewActive]);
+  const currentPreviewFaceCard = useRef(previewFaceCard);
+  currentPreviewFaceCard.current = previewFaceCard;
+  const requestPreviewPresentation = () => {
+    if (!previewFlipIdentity) return;
+    const target = { ...requestedPreview.current };
     if (livePreviewCard) previewViewSwitchCardIdRef.current = livePreviewCard.id;
-    const preferences = usePreferencesStore.getState();
-    preferences.setInGameCardPreviewStyle(
-      preferences.inGameCardPreviewStyle === "printed" ? "rules" : "printed",
-    );
-  }, [commandPreviewSource, livePreviewCard]);
+    previewFlip.request(`${target.style}:${previewFlipIdentity}:${target.showBackFace}`, () => {
+      usePreferencesStore.getState().setInGameCardPreviewStyle(target.style);
+      const card = currentPreviewFaceCard.current;
+      if (card) {
+        setPreviewFaceOverride(
+          target.showBackFace === (gameCardFaceIndex(card) === 1)
+            ? null
+            : { cardId: card.id, showBackFace: target.showBackFace },
+        );
+      }
+    });
+  };
+  const togglePreviewView = () => {
+    if (!livePreviewCard && !commandPreviewSource) return;
+    requestedPreview.current.style =
+      requestedPreview.current.style === "printed" ? "rules" : "printed";
+    requestPreviewPresentation();
+  };
+  const handleFlipPreview = (options?: PreviewFlipOptions) => {
+    if (!previewFaceCard) return;
+    if (singleCommandPreviewCard) commandZonePreview.flipCard(options);
+    else preview.flipCard(options);
+    requestedPreview.current.showBackFace = !requestedPreview.current.showBackFace;
+    requestPreviewPresentation();
+  };
   useKeybindings(
     externalPreviewActive
       ? {
@@ -2115,11 +2144,12 @@ export default function Game({ exitTo }: GameProps = {}) {
   );
   useEffect(() => {
     if (!gameView?.gameOver && activePrompt?.input.type !== "gameOver") return;
-    if (peekGauntletMatch() || peekLimitedMatchReturn()) return;
+    if (peekGauntletMatch(gauntletId) || peekLimitedMatchReturn()) return;
     const timer = setTimeout(() => endGame(), 3000);
     return () => clearTimeout(timer);
-  }, [gameView?.gameOver, activePrompt?.input.type, endGame]);
+  }, [gameView?.gameOver, activePrompt?.input.type, gauntletId, endGame]);
   const limitedReturn = useLimitedGameReturn({
+    gauntletId,
     gameOver: (gameView?.gameOver ?? false) || activePrompt?.input.type === "gameOver",
     winnerId: gameView?.winnerId ?? null,
     playerSlot: myPlayerSlot,
@@ -2129,9 +2159,9 @@ export default function Game({ exitTo }: GameProps = {}) {
     return <Navigate to={limitedReturn.destination ?? exitTo ?? "/lobby"} replace />;
   if (limitedReturn.error) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 px-4">
+      <div className="flex h-full min-h-0 flex-col items-center [justify-content:safe_center] gap-3 overflow-y-auto px-4 py-4 text-ui-body [&>*]:shrink-0">
         <p className="font-semibold">Game finished. Your Limited session could not be updated.</p>
-        <p className="text-sm text-destructive" role="alert">
+        <p className="text-ui-body text-destructive" role="alert">
           {limitedReturn.error}
         </p>
         <Button variant="primary" onClick={() => void limitedReturn.retry()}>
@@ -2249,7 +2279,9 @@ export default function Game({ exitTo }: GameProps = {}) {
   };
   const boardViewportRight = isActionPanelCollapsed ? undefined : rightPanelLeft;
   const commandPreview: BoardOverlayCommandPreviewSpec | null =
-    commandPreviewSource && showCommandZonePreview
+    commandPreviewSource &&
+    showCommandZonePreview &&
+    !(inGameCardPreviewStyle === "rules" && singleCommandPreviewCard)
       ? {
           cards: commandPreviewCards,
           castableCardIds: commandPreviewCards
@@ -2260,27 +2292,54 @@ export default function Game({ exitTo }: GameProps = {}) {
           suppressed: previewSuppressed,
           anchorRect: commandPreviewSource.anchorRect,
           viewportRight: boardViewportRight,
+          flip: previewFlip.command,
+          showBackFace: singleCommandPreviewCard ? previewShowBackFace : undefined,
         }
       : null;
   const rulesPreview: BoardOverlayPreviewSpec | null =
-    !commandPreview && inGameCardPreviewStyle === "rules" && showInGamePreview && livePreviewCard
+    inGameCardPreviewStyle === "rules" &&
+    showCommandZonePreview &&
+    singleCommandPreviewCard &&
+    commandPreviewSource
       ? {
-          card: livePreviewCard,
-          phase: preview.phase === "closing" ? "closing" : "open",
-          placement: preview.placement,
-          sticky: preview.isSticky,
+          card: singleCommandPreviewCard,
+          phase: commandZonePreview.phase === "closing" ? "closing" : "open",
+          placement: "auto",
+          sticky: commandZonePreview.isSticky,
           showBackFace: previewShowBackFace,
           suppressed: previewSuppressed,
-          skipEnterAnimation: skipPreviewEnterAnimation,
-          actions: hoveredCardActions,
-          reserveSidePanel:
-            hoveredCardActions.length > 0 || deriveCardRailState(livePreviewCard) != null,
-          mousePos: preview.mousePos,
-          anchorRect: preview.anchorRect,
+          skipEnterAnimation: true,
+          actions: getCardActions(singleCommandPreviewCard),
+          reserveSidePanel: false,
+          mousePos: commandZonePreview.mousePos,
+          anchorRect: commandPreviewSource.anchorRect,
           slotRect: null,
           viewportRight: boardViewportRight,
+          flip: previewFlip.rules,
         }
-      : null;
+      : !commandPreview &&
+          inGameCardPreviewStyle === "rules" &&
+          showInGamePreview &&
+          livePreviewCard &&
+          inspectionPreviewCard
+        ? {
+            card: inspectionPreviewCard,
+            phase: preview.phase === "closing" ? "closing" : "open",
+            placement: preview.placement,
+            sticky: preview.isSticky,
+            showBackFace: previewShowBackFace,
+            suppressed: previewSuppressed,
+            skipEnterAnimation: skipPreviewEnterAnimation,
+            actions: hoveredCardActions,
+            reserveSidePanel:
+              hoveredCardActions.length > 0 || deriveCardRailState(livePreviewCard) != null,
+            mousePos: preview.mousePos,
+            anchorRect: preview.anchorRect,
+            slotRect: null,
+            viewportRight: boardViewportRight,
+            flip: previewFlip.rules,
+          }
+        : null;
 
   const promptOverlaySpec: PromptOverlaySpec = {
     currentPrompt: activePrompt,
@@ -2614,16 +2673,16 @@ export default function Game({ exitTo }: GameProps = {}) {
         collapsed={isActionPanelCollapsed}
         onLeftEdgeChange={setRightPanelLeft}
         onToggleCollapse={toggleActionPanel}
-        gameLog={gameLog}
-        onHoverLogCard={handleLogCardHover}
-        resolveCardName={(cardId) => cardNameById.get(cardId) ?? cardId}
         resolvePlayerName={(playerId) => playerNameById.get(playerId) ?? playerId}
+        resolvePlayerColor={(playerId) =>
+          playerColorMap.get(playerId) ?? themeColors.playerColors.self
+        }
         checkpoints={gameView.checkpoints}
-        canRequestRestore={!iAmEliminated && !gameView.gameOver}
+        decisionHistory={gameView.decisionHistory}
+        canRequestRestore={
+          !iAmEliminated && !gameView.gameOver && !gameView.decisionHistory?.rewinding
+        }
         onRequestRestore={setRestoreTarget}
-        snapshotRecording={gameView.snapshotRecording}
-        hostsEngine={isForgeWasmActive() && (!isMultiplayer || isHost)}
-        onSnapshotRecordingChange={(enabled) => void setSnapshotRecording(enabled)}
       />
 
       {boardSurfaceEl &&
@@ -2753,10 +2812,10 @@ export default function Game({ exitTo }: GameProps = {}) {
       )}
 
       {gameView.step === "combatFirstStrikeDamage" && (
-        <div className="pointer-events-none absolute top-[calc(1rem+var(--safe-area-inset-top))] left-1/2 z-50 -translate-x-1/2">
-          <div className="flex items-center gap-2 rounded-full border border-border/70 bg-background/90 px-4 py-2 shadow-lg backdrop-blur">
-            <span className="text-sm font-semibold tracking-wide">First Strike Damage</span>
-            <span className="text-xs text-muted-foreground">
+        <div className="pointer-events-none absolute top-[calc(1rem+var(--safe-area-inset-top))] left-1/2 z-50 w-max max-w-[calc(100%-2rem)] -translate-x-1/2">
+          <div className="flex max-w-full flex-wrap items-center justify-center gap-2 rounded-full border border-border/70 bg-background/90 px-4 py-2 shadow-lg backdrop-blur">
+            <span className="text-ui-label font-semibold tracking-wide">First Strike Damage</span>
+            <span className="text-ui-meta text-muted-foreground">
               only first &amp; double strikers deal damage now
             </span>
           </div>
@@ -2814,7 +2873,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       {protocolError && (
         <div
           role="alert"
-          className="pointer-events-none absolute bottom-[calc(4rem+var(--safe-area-inset-bottom))] left-1/2 z-[9000] max-w-[min(90vw,34rem)] -translate-x-1/2 rounded-lg border border-destructive/50 bg-card/95 px-4 py-2 text-center text-sm font-semibold text-destructive shadow-xl backdrop-blur-sm"
+          className="pointer-events-none absolute bottom-[calc(4rem+var(--safe-area-inset-bottom))] left-1/2 z-[9000] max-w-[min(90vw,34rem)] -translate-x-1/2 rounded-lg border border-destructive/50 bg-card/95 px-4 py-2 text-center text-ui-meta font-semibold text-destructive shadow-xl backdrop-blur-sm"
         >
           Action rejected: {protocolError.message || protocolError.code}
         </div>
@@ -2835,6 +2894,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           >
             <Card
               card={draggingHandCard}
+              presentation={handCardStyle}
               className={cn("shadow-2xl ring-2 ring-primary playable-card")}
               style={{ width: ghostCardW, height: ghostCardH }}
             />
@@ -2846,7 +2906,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         createPortal(
           <div
             role="status"
-            className="pointer-events-none fixed z-[10000] max-w-[min(18rem,80vw)] -translate-x-1/2 rounded-full border border-border bg-card/95 px-3 py-2 text-center text-xs font-semibold text-foreground shadow-xl backdrop-blur-sm"
+            className="pointer-events-none fixed z-[10000] max-w-[min(18rem,80vw)] -translate-x-1/2 rounded-full border border-border bg-card/95 px-3 py-2 text-center text-ui-meta font-semibold text-foreground shadow-xl backdrop-blur-sm"
             style={{ left: ghostPos.x, top: ghostPos.y + ghostCardH / 2 + 12 }}
           >
             {dragFeedback}
@@ -2857,7 +2917,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         createPortal(
           <div
             role="alert"
-            className="pointer-events-none fixed z-[10000] max-w-[min(20rem,84vw)] -translate-x-1/2 -translate-y-full rounded-lg border border-destructive/50 bg-card/95 px-3 py-2 text-center text-xs font-semibold text-foreground shadow-xl backdrop-blur-sm"
+            className="pointer-events-none fixed z-[10000] max-w-[min(20rem,84vw)] -translate-x-1/2 -translate-y-full rounded-lg border border-destructive/50 bg-card/95 px-3 py-2 text-center text-ui-meta font-semibold text-foreground shadow-xl backdrop-blur-sm"
             style={{ left: rejectionFeedback.x, top: rejectionFeedback.y - 16 }}
           >
             Invalid drop. {rejectionFeedback.message}
@@ -2889,7 +2949,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         <HoverCardPreview
           preview={{
             ...preview,
-            hoveredCard: livePreviewCard,
+            hoveredCard: inspectionPreviewCard,
             showBackFace: previewShowBackFace,
             flipCard: handleFlipPreview,
           }}
@@ -2898,6 +2958,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           suppressed={previewSuppressed}
           skipEnterAnimation={skipPreviewEnterAnimation}
           onToggleView={togglePreviewView}
+          flip={previewFlip.printed}
           viewportRight={boardViewportRight}
           portalTarget={zoneCardPreview ? zonePreviewPanel : null}
         />

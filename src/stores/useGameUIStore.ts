@@ -3,6 +3,7 @@ import { devtools } from "zustand/middleware";
 import type { CardDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
 import type { Prompt } from "@/protocol";
+import type { LevelUpKind, PlayCardMode } from "@/protocol/prompts/common";
 import type { ZoneLocation, ZoneViewMode } from "@/lib/zoneView";
 import type { CardBrowserState } from "@/components/game/modals/cardBrowser";
 
@@ -10,11 +11,13 @@ export interface HandActionOption {
   kind: "cast" | "ability" | "manual-move" | "manual-tap";
   cardId: string;
   label: string;
+  abilityText?: string;
   actionId?: string;
-  mode?: string;
+  mode?: PlayCardMode;
+  faceIndex?: number;
   abilityIndex?: number;
   isManaAbility?: boolean;
-  isClassLevelUp?: boolean;
+  levelUp?: LevelUpKind;
   cost?: string;
   displayManaLetters?: string[];
   colorChoice?: string;
@@ -62,7 +65,7 @@ interface GameUIState {
   playModePicker: PlayModePickerState | null;
   viewingZone: ViewingZoneState | null;
   isActionPanelCollapsed: boolean;
-  rightPanelTab: "log" | "snapshots" | "dev";
+  rightPanelTab: "journal" | "dev";
   promptModalHidden: boolean;
   zoneBrowserStates: Record<string, CardBrowserState>;
   mobileHandState: { promptId: Prompt["promptId"] | null; open: boolean };
@@ -79,7 +82,7 @@ interface GameUIState {
   closeZoneViewer: () => void;
   toggleActionPanel: () => void;
   setActionPanelCollapsed: (collapsed: boolean) => void;
-  setRightPanelTab: (tab: "log" | "snapshots" | "dev") => void;
+  setRightPanelTab: (tab: "journal" | "dev") => void;
   toggleDevPanel: () => void;
   hidePromptModal: () => void;
   showPromptModal: () => void;
@@ -93,7 +96,7 @@ export const useGameUIStore = create<GameUIState>()(
       playModePicker: null,
       viewingZone: null,
       isActionPanelCollapsed: true,
-      rightPanelTab: "log",
+      rightPanelTab: "journal",
       promptModalHidden: false,
       zoneBrowserStates: {},
       mobileHandState: { promptId: null, open: false },

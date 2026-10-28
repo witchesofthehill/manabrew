@@ -1,5 +1,7 @@
 # Rust engine workspace
 
+> **Parity is DEPRECATED and NOT FUNCTIONING.** Do not run `yarn parity`, the parity harness (`manabrew-rs/crates/parity`), the parity debugger, or `DeterministicController`. Do not limit or shape a change to keep parity behavior; ignore any instruction here that exists only to keep parity runs passing.
+
 This is the Rust port of Forge's Java rules engine. Read the root `/AGENTS.md` first, plus `docs/agents/PARITY_PHILOSOPHY.md`. Most parity work bottoms out here.
 
 ## Required reading: the DSL spec
@@ -38,6 +40,30 @@ All under `manabrew-rs/crates/`. The relay, hub, and self-hosted node each have 
 | `self-hosted-node`         | Headless engine node (AI bots, automation). See `docs/agents/SELF_HOSTED_NODE.md`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | —                                                        |
 
 Dependency direction: `foundation`, `card-script`, `cardset-archive` ← `carddb` ← `engine` ← everything else, and `manabrew-protocol` ← `manabrew-relay-protocol`. Don't introduce cycles.
+
+Per-copy `CardCosmetics` and its closed wire types live in `forge-foundation/src/sealed_product/card_cosmetics.rs`; `manabrew-protocol` re-exports them. Printing selections use version 1, at most two inherited face layers, bounded text and finite numeric values. `Arc<CardPrintingSelection>` shares immutable appearance data across runtime snapshots; clone the handle rather than its payload. Preserve explicit per-face default values and existing PaperCard Eq/Hash grouping. Runtime deck loading binds exact physical entries before shuffle, while created copies start without inherited cosmetics. Token overrides use original owner plus exact token script, never name matching.
+
+`CardCosmetics.wearAmount` is a finite scalar in `[0, 1]` and takes precedence over legacy wear presets. Explicit zero clears both wear and its seed; positive amounts retain a nonzero seed. Keep Rust, Java codec and frontend normalization aligned.
+
+Material cosmetics use closed `CardCoating`, `CardPrintDots` and `CardFinishCoverage` objects. Zero coating/dots normalize away; omitted dot sampling retains Manabrew's period 5 in fixed 732px reference pixels. `CardPrintDots.artwork: Some(false)` excludes recipe artwork windows; omission includes artwork and explicit true normalizes away. Explicit finish coverage, including amount zero and full/one, overrides native recipe coverage and must survive normalization. Keep these objects aligned across Rust, frontend normalization and the Java codec. Browser engine artifacts must be rebuilt after foundation cosmetic changes. Strict old readers reject new material fields: use breaking protocol release semantics, not an additive-field assumption. `xtask/src/workspace.rs` includes this foundation source in both protocol owners' release inputs.
+
+Appearance serialization distinguishes viewer-filtered snapshots from explicitly authorized prompt cards. Owning a library is not permission to reveal its cosmetics. Stack sources use current visibility when historical visibility is unavailable. Hand snapshots serialize only cards the viewer controls or has `may_player_look` permission to see; hidden cards contribute only to the zone count. Keep this filtering before DTO construction so identity, rules text and appearance never enter another seat's payload.
+
+Mechanic state belongs to the card model, not display-only SVars. Rooms retain independent unlocked doors; their active-state static collection excludes locked doors so direct static consumers cannot bypass gating. Reapply trait-change baselines when doors change. Cast options evaluate each selected door through the same zone permissions and alternate/free mana-cost grants, including exile and graveyard. Copied Room spells carry their selected cast provenance into the resolving token and unlock that door on entry; ordinary battlefield copies enter locked. Cast provenance is discarded when a spell changes zones without resolving onto the battlefield.
+
+Case solved state survives LKI but is not a copiable characteristic. `has_suspend()` is keyword-only, while `is_suspended()` also requires exile and positive Time counters. Removing the last counter raises the Suspend cast trigger; it does not create a priority cast permission. Persistent Suspend haste uses timestamped keyword changes: later ability removal suppresses the grant without expiring it, and control loss or zone reset removes its lifetime record. DTOs project effective keywords; hidden faces omit intrinsic and granted keyword arrays.
+
+Counter-removal legality checks the CantHappen replacement layer and `ValidCounterType`. Legal replacement-modified cost events still count as paid under CR 118.11. `CounterType$ Any` chooses a type and an amount, with zero allowed by `UpTo`, rather than exhausting each selected type automatically.
+
+Adventure uses the secondary spell state without DFC transformation and a successful-resolution Moved replacement for its owner-only exile permission. Prototype changes copiable cost, color and P/T, persists through stack-to-battlefield, and resets on cancellation or subsequent zone changes. Evaluate static zone grants against the selected spell's characteristics and `ValidSA`, not its front face. Copied spells require independent source cards so the original leaving a zone cannot change their characteristics. Viewer-filtered stack DTOs carry the actual source/LKI and selected physical face; known ordinary `CardDto.zone` is authoritative, while stack and unknown zones remain absent.
+
+Adding a validity property requires both compiled selector classification/evaluation and the legacy property path. `IsSolved` and `FullyUnlocked` are typed `CardStateSelector` values; a legacy-only implementation silently mis-evaluates static conditions and negated selectors.
+
+Static MayPlay flags live in `StaticAbilityIr`; `base.has_param` does not retain `MayPlayDontGrantZonePermissions`. That marker follows Java's presence semantics, including when its value is `False`.
+
+Warp's owner-only exile permission must agree between action enumeration and the cast-zone guard. The existing Rust offer still lacks Java's later-turn restriction.
+
+Continuous statics with `AffectedDefined` resolve that defined-card set before applying an explicitly supplied `Affected` filter. Do not substitute the ordinary `Creature.YouControl` fallback: `AffectedDefined$ Self` must never broadcast a Level-up band's characteristics to other creatures.
 
 ## Limited session checkpoints
 

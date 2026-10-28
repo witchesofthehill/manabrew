@@ -237,11 +237,14 @@ pub struct StaticAbilityIr {
     pub valid_player: Option<CompiledSelector>,
     pub affected: Option<CompiledSelector>,
     pub affected_text: Option<String>,
+    pub affected_defined_text: Option<String>,
     pub affected_zone: Option<ZoneType>,
     pub affected_zone_text: Option<String>,
     pub affected_zones: Vec<ZoneType>,
     pub valid_zone: Vec<ZoneType>,
     pub may_play: bool,
+    pub may_play_dont_grant_zone_permissions: bool,
+    pub may_play_without_mana_cost: bool,
     /// Mana cost string from `MayPlayAltManaCost$` (e.g. Airbend's `2`).
     /// When `may_play` is true and this is set, the granted cast option uses
     /// this cost in place of the card's printed mana cost.
@@ -408,6 +411,7 @@ impl StaticAbilityIr {
             valid_player: params.selector_untracked(keys::VALID_PLAYER).cloned(),
             affected: params.selector_untracked(keys::AFFECTED).cloned(),
             affected_text: raw.get(keys::AFFECTED).map(String::to_string),
+            affected_defined_text: raw.get("AffectedDefined").map(String::to_string),
             affected_zone: raw
                 .get(keys::AFFECTED_ZONE)
                 .map(String::as_str)
@@ -418,6 +422,9 @@ impl StaticAbilityIr {
             may_play: raw
                 .get(keys::MAY_PLAY)
                 .is_some_and(|value| value.eq_ignore_ascii_case("True")),
+            may_play_dont_grant_zone_permissions: raw
+                .contains_key("MayPlayDontGrantZonePermissions"),
+            may_play_without_mana_cost: raw.contains_key("MayPlayWithoutManaCost"),
             may_play_alt_mana_cost: raw.get(keys::MAY_PLAY_ALT_MANA_COST).map(String::to_string),
             counter_type_text: raw.get(keys::COUNTER_TYPE).map(String::to_string),
             counter_type: raw
@@ -719,6 +726,9 @@ impl StaticAbility {
     }
 
     pub fn check_conditions(&self, source: &Card, game: &GameState) -> bool {
+        if !source.room_ability_active(self.base.get_card_state_name()) {
+            return false;
+        }
         let _perf_scope = crate::perf::ParamsLookupScopeGuard::enter(
             crate::perf::ParamsLookupScope::StaticAbility,
         );

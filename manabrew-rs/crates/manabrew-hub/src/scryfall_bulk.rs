@@ -2,11 +2,11 @@ use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
-use std::sync::RwLock;
 use std::time::{Duration, SystemTime};
 
 use flate2::read::GzDecoder;
 use manabrew_hub::dto::CardPrintingIdentifier;
+use parking_lot::RwLock;
 use serde::Deserialize;
 use tokio::io::AsyncWriteExt;
 
@@ -68,25 +68,14 @@ pub struct ScryfallBulkIndex {
 
 impl ScryfallBulkIndex {
     pub fn new(path: PathBuf) -> Self {
-        let index = match load_index(&path) {
-            Ok(index) => {
-                tracing::info!(path = %path.display(), printings = index.printings.len(), "loaded Scryfall bulk index");
-                Some(index)
-            }
-            Err(error) if path.exists() => {
-                tracing::warn!(%error, path = %path.display(), "failed to load Scryfall bulk index");
-                None
-            }
-            Err(_) => None,
-        };
         Self {
             path,
-            index: RwLock::new(index),
+            index: RwLock::new(None),
         }
     }
 
     pub fn verify(&self, identifiers: &[CardPrintingIdentifier]) -> Option<Vec<bool>> {
-        let index = self.index.read().unwrap();
+        let index = self.index.read();
         index
             .as_ref()
             .map(|index| identifiers.iter().map(|item| index.matches(item)).collect())
@@ -111,7 +100,23 @@ impl ScryfallBulkIndex {
     }
 
     pub async fn refresh_if_needed(&self, client: &reqwest::Client) -> Result<(), String> {
-        if self.index.read().unwrap().is_some() && file_is_fresh(&self.path) {
+        if self.index.read().is_none() {
+            let path = self.path.clone();
+            let cached = tokio::task::spawn_blocking(move || load_index(&path))
+                .await
+                .map_err(|error| error.to_string())?;
+            match cached {
+                Ok(index) => {
+                    tracing::info!(path = %self.path.display(), printings = index.printings.len(), "loaded Scryfall bulk index");
+                    *self.index.write() = Some(index);
+                }
+                Err(error) if self.path.exists() => {
+                    tracing::warn!(%error, path = %self.path.display(), "failed to load Scryfall bulk index");
+                }
+                Err(_) => {}
+            }
+        }
+        if self.index.read().is_some() && file_is_fresh(&self.path) {
             return Ok(());
         }
         let download_uri = bulk_download_uri(client).await?;
@@ -123,7 +128,7 @@ impl ScryfallBulkIndex {
             .map_err(|error| error.to_string())??;
         std::fs::rename(&temporary_path, &self.path).map_err(|error| error.to_string())?;
         let count = index.printings.len();
-        *self.index.write().unwrap() = Some(index);
+        *self.index.write() = Some(index);
         tracing::info!(path = %self.path.display(), printings = count, "refreshed Scryfall bulk index");
         Ok(())
     }

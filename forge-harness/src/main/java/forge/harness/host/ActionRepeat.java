@@ -4,7 +4,6 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import forge.game.Game;
-import forge.game.GameSnapshot;
 import forge.game.player.Player;
 import forge.harness.common.SnapshotExtractor;
 import forge.harness.protocol.*;
@@ -43,14 +42,15 @@ final class ActionRepeat {
 
     private static final class Replay {
         private final RepeatVote vote;
-        private final GameSnapshot snapshot;
+        private final ManaBrewInteractiveSession.SessionSnapshot snapshot;
         private final Player priorityPlayer;
         private final long startedAt = System.currentTimeMillis();
         private int step;
         private int completed;
         private boolean failed;
 
-        private Replay(final RepeatVote vote, final GameSnapshot snapshot, final Player priorityPlayer) {
+        private Replay(final RepeatVote vote, final ManaBrewInteractiveSession.SessionSnapshot snapshot,
+                final Player priorityPlayer) {
             this.vote = vote;
             this.snapshot = snapshot;
             this.priorityPlayer = priorityPlayer;
@@ -253,8 +253,7 @@ final class ActionRepeat {
 
     private void startReplay() {
         final long started = System.currentTimeMillis();
-        final GameSnapshot snapshot = new GameSnapshot(game);
-        snapshot.makeCopy();
+        final ManaBrewInteractiveSession.SessionSnapshot snapshot = session.captureSnapshot();
         repeatVote.recording.beginIteration();
         resetRunawayWindow();
         replay = new Replay(repeatVote, snapshot, game.getPhaseHandler().getPriorityPlayer());

@@ -30,8 +30,8 @@ export function DevCardLayoutControls() {
     "Card layouts and previews",
     "Card layouts",
     "Scryfall layout",
-    "Rules preview",
-    "Printed preview",
+    "Manabrew preview",
+    "Realistic preview",
     "Open preview playground",
   );
   const visibleLayoutCases = PREVIEW_SCENARIOS.filter((layoutCase) =>
@@ -48,7 +48,7 @@ export function DevCardLayoutControls() {
     try {
       const { info } = await useScryfallStore
         .getState()
-        .getCard({ name: scenario.name || "Serra Angel" });
+        .getCard({ name: scenario.name || "Serra Angel", setCode: scenario.setCode });
       const card = scryfallToDeckCard(info);
       setDebugCard(
         scenario.name
@@ -77,16 +77,16 @@ export function DevCardLayoutControls() {
   };
   return (
     <section className={DEV_SECTION}>
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className={DEV_SECTION_HEADING}>Card layouts and previews</p>
-          <p className="mt-1 text-xs text-muted-foreground">
+          <p className="mt-1 text-ui-body text-muted-foreground">
             Stage a scenario, then hover the staged card. Use its flip and rotate buttons to inspect
             each face.
           </p>
         </div>
         {definition?.layout ? (
-          <span className="rounded-full bg-muted px-2 py-1 font-mono text-[10px] text-muted-foreground">
+          <span className="rounded-full bg-muted px-2 py-1 font-mono text-ui-meta text-muted-foreground">
             {definition.layout}
           </span>
         ) : null}
@@ -99,14 +99,14 @@ export function DevCardLayoutControls() {
             variant={previewStyle === "rules" ? "selected" : "outline"}
             onClick={() => setPreviewStyle("rules")}
           >
-            Rules preview
+            Manabrew preview
           </Button>
           <Button
             size="sm"
             variant={previewStyle === "printed" ? "selected" : "outline"}
             onClick={() => setPreviewStyle("printed")}
           >
-            Printed preview
+            Realistic preview
           </Button>
           {import.meta.env.DEV && (
             <Button size="sm" variant="outline" asChild>
@@ -171,7 +171,7 @@ export function DevCardLayoutControls() {
         </div>
       ) : null}
 
-      {error ? <p className="mt-2 text-xs text-destructive">{error}</p> : null}
+      {error ? <p className="mt-2 text-ui-meta text-destructive">{error}</p> : null}
     </section>
   );
 }

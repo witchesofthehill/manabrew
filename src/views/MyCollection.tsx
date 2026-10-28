@@ -38,6 +38,7 @@ import { cn } from "@/lib/utils";
 import { deckCardToPreviewDto, scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useCollectionStore } from "@/stores/useCollectionStore";
+import { chooseImageUrisForCard } from "@/stores/useScryfallStore";
 export default function MyCollection() {
   useCardCollection();
   const shortScreen = useIsShortScreen();
@@ -106,34 +107,34 @@ export default function MyCollection() {
     }
   }
   return (
-    <div className="flex h-full min-h-0 w-full">
+    <div className="flex h-full min-h-0 min-w-0 w-full overflow-hidden">
       <div
         className={cn(
-          "min-w-0 flex-1 overflow-y-auto px-4 py-8 sm:px-6 lg:px-8",
+          "@container min-w-0 flex-1 overflow-y-auto px-4 py-8 sm:px-6 lg:px-8",
           shortTouch && "py-4 sm:py-4",
         )}
       >
         <div className="w-full">
           <div className="flex flex-wrap items-end justify-between gap-4">
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <LibraryBig className="h-5 w-5 text-primary" />
                 <h1 className="text-2xl font-semibold">My Collection</h1>
               </div>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <p className="mt-1 text-ui-meta text-muted-foreground">
                 {loading
                   ? `Syncing with your account\u2026`
                   : `${Object.keys(quantities).length} collection entries`}
               </p>
               {syncError && (
-                <p className="mt-1 text-sm text-destructive">
+                <p className="mt-1 break-words text-ui-body text-destructive">
                   Account sync failed. Changes are preserved locally and will retry on the next
                   edit.
                 </p>
               )}
             </div>
             {isTouch ? (
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button variant="primary" disabled={loading} onClick={() => setImportOpen(true)}>
                   <Upload className="h-4 w-4" /> Import
                 </Button>
@@ -161,7 +162,7 @@ export default function MyCollection() {
                 </DropdownMenu>
               </div>
             ) : (
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button variant="outline" disabled={loading} onClick={() => setImportOpen(true)}>
                   <Upload className="mr-1.5 h-4 w-4" /> Import
                 </Button>
@@ -185,7 +186,10 @@ export default function MyCollection() {
 
           <div className="mt-6 flex flex-wrap items-center gap-2">
             <div
-              className={cn("relative min-w-0 max-w-md flex-1", isTouch && "basis-full max-w-none")}
+              className={cn(
+                "relative min-w-0 basis-56 max-w-md flex-1",
+                isTouch && "basis-full max-w-none",
+              )}
             >
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -205,11 +209,15 @@ export default function MyCollection() {
                 const cardKey = collectionCardKey(name, setCode, collectorNumber, foil);
                 updateQuantity(cardKey, (quantities[cardKey] ?? 0) + quantity);
               }}
-              onHover={(card, event) =>
+              onHover={(card, event) => {
+                if (!chooseImageUrisForCard(card, { frontOnly: true })) {
+                  preview.handleMouseLeave();
+                  return;
+                }
                 preview.handleMouseEnter(deckCardToPreviewDto(scryfallToDeckCard(card)), event, {
                   placement: "pinned",
-                })
-              }
+                });
+              }}
               onLeave={preview.handleMouseLeave}
             />
             <div className="flex shrink-0 overflow-hidden rounded-md border">
@@ -223,7 +231,7 @@ export default function MyCollection() {
                   setVisibleRowCount(100);
                 }}
                 className={cn(
-                  "h-9 w-9 p-0 transition-colors pointer-coarse:h-11 pointer-coarse:w-11",
+                  "flex h-9 w-9 items-center justify-center p-0 transition-colors touch:min-h-11 touch:min-w-11",
                   view === "grid"
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:bg-muted",
@@ -241,7 +249,7 @@ export default function MyCollection() {
                   setVisibleRowCount(100);
                 }}
                 className={cn(
-                  "h-9 w-9 border-l p-0 transition-colors pointer-coarse:h-11 pointer-coarse:w-11",
+                  "flex h-9 w-9 items-center justify-center border-l p-0 transition-colors touch:min-h-11 touch:min-w-11",
                   view === "text"
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:bg-muted",
@@ -257,7 +265,7 @@ export default function MyCollection() {
               "mt-4",
               view === "text"
                 ? "overflow-hidden rounded-xl border"
-                : "grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 xl:grid-cols-4",
+                : "grid grid-cols-2 gap-x-4 gap-y-6 @min-[36rem]:grid-cols-3 @min-[56rem]:grid-cols-4",
             )}
           >
             {visibleRows.map(({ cardKey, name, setCode, collectorNumber, foil, quantity }) => (
@@ -281,7 +289,7 @@ export default function MyCollection() {
             {!loading && rows.length === 0 && (
               <div
                 className={cn(
-                  "px-4 py-16 text-center text-sm text-muted-foreground",
+                  "px-4 py-16 text-center text-ui-body text-muted-foreground",
                   view === "grid" && "col-span-full rounded-xl border",
                 )}
               >

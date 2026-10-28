@@ -111,6 +111,7 @@ fn expand_preset_deck(key: &str, preset: PresetDeckFile) -> io::Result<Deck> {
                     oracle_id: None,
                     token_script: None,
                     foil: Some(false),
+                    cosmetics: None,
                 },
                 rules: CardRulesSummary {
                     color: entry.colors.join(""),

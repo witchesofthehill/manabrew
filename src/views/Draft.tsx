@@ -49,9 +49,9 @@ export default function Draft() {
   const mode: DraftMode = activeDraft?.isComplete ? "building" : userMode;
   if (!activeDraft || activeDraft.sessionId !== draftId) {
     return (
-      <LimitedTableSurface className="items-center justify-center">
+      <LimitedTableSurface className="items-center justify-center overflow-y-auto overscroll-contain px-4 py-3 text-ui-body break-words sm:px-6 lg:px-8">
         {lastError ? (
-          <p className="text-destructive">{lastError}</p>
+          <p className="max-h-full shrink-0 overflow-y-auto text-destructive">{lastError}</p>
         ) : (
           <p className="text-muted-foreground">Loading draft…</p>
         )}
@@ -79,37 +79,39 @@ export default function Draft() {
   };
   const canBuild = activeDraft.pickedPile.length >= 1;
   return (
-    <LimitedTableSurface className="gap-2 px-4 py-3 sm:px-6 lg:px-8">
-      <DraftStatusBar
-        draft={activeDraft}
-        mode={mode}
-        onModeChange={setUserMode}
-        onUndo={!activeDraft.isComplete ? handleUndo : undefined}
-        canBuild={canBuild}
-        settings={<LimitedSettingsButton sessionKey={activeDraft.sessionId} quickPick />}
-      />
+    <LimitedTableSurface className="min-w-0 gap-2 px-4 py-3 text-ui-body sm:px-6 lg:px-8">
+      <div className="-mx-1 max-h-[40%] shrink-0 space-y-2 overflow-y-auto overscroll-contain px-1 py-1">
+        <DraftStatusBar
+          draft={activeDraft}
+          mode={mode}
+          onModeChange={setUserMode}
+          onUndo={!activeDraft.isComplete ? handleUndo : undefined}
+          canBuild={canBuild}
+          settings={<LimitedSettingsButton sessionKey={activeDraft.sessionId} quickPick />}
+        />
 
-      {activeDraft.isComplete && (
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-muted-foreground">
-            Your pool is complete. Build your deck, then play against the decks drafted at this
-            table.
-          </p>
-          <LimitedPlayAction
-            sessionId={activeDraft.sessionId}
-            kind="draft"
-            rounds={Math.max(0, activeDraft.seatSummaries.length - 1)}
-            deck={
-              builtDeck.sessionId === activeDraft.sessionId
-                ? builtDeck
-                : { main: [], sideboard: [] }
-            }
-          />
-        </div>
-      )}
+        {activeDraft.isComplete && (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="min-w-0 flex-1 basis-64 text-ui-body break-words text-muted-foreground">
+              Your pool is complete. Build your deck, then play against the decks drafted at this
+              table.
+            </p>
+            <LimitedPlayAction
+              sessionId={activeDraft.sessionId}
+              kind="draft"
+              rounds={Math.max(0, activeDraft.seatSummaries.length - 1)}
+              deck={
+                builtDeck.sessionId === activeDraft.sessionId
+                  ? builtDeck
+                  : { main: [], sideboard: [] }
+              }
+            />
+          </div>
+        )}
+      </div>
 
       {mode === "building" ? (
-        <div className="min-h-0 flex-1">
+        <div className="min-h-0 min-w-0 flex-1">
           <LimitedDeckBuilder
             key={activeDraft.sessionId}
             sessionKey={activeDraft.sessionId}
@@ -131,7 +133,7 @@ export default function Draft() {
       )}
 
       {lastError && (
-        <p className="rounded border border-destructive/70 bg-destructive/10 p-3 text-sm text-destructive">
+        <p className="max-h-[20%] shrink-0 overflow-y-auto overscroll-contain rounded border border-destructive/70 bg-destructive/10 p-3 text-ui-label break-words text-destructive">
           {lastError}
         </p>
       )}

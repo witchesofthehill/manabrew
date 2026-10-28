@@ -90,7 +90,7 @@ export function DeckHero({ onNameCommit }: { onNameCommit: (name: string) => voi
             title={`Customize playmat`}
             onClick={() => setEditorOpen(true)}
             className={cn(
-              "inline-flex h-8 items-center gap-2 rounded-md border bg-background/60 text-xs font-medium text-muted-foreground backdrop-blur-sm transition-colors hover:bg-background/80 hover:text-foreground pointer-coarse:h-11",
+              "touch:min-w-11 inline-flex h-8 items-center gap-2 rounded-md border bg-background/60 text-ui-label font-medium text-muted-foreground backdrop-blur-sm transition-colors hover:bg-background/80 hover:text-foreground touch:min-h-11",
               playmat || playmatColor ? "p-1 pr-2.5" : "px-2.5",
               shortTouch && "px-2 pr-2",
             )}
@@ -143,7 +143,7 @@ export function DeckHero({ onNameCommit }: { onNameCommit: (name: string) => voi
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border bg-background/60 px-2 py-0.5 text-xs backdrop-blur-sm transition-colors hover:bg-background/80 pointer-coarse:min-h-11"
+                  className="touch:min-w-11 inline-flex cursor-pointer items-center gap-1.5 rounded-full border bg-background/60 px-2 py-0.5 text-ui-label backdrop-blur-sm transition-colors hover:bg-background/80 touch:min-h-11"
                   title="Change format"
                 >
                   <FormatBadge formatId={currentDeck.format ?? "standard"} />
@@ -161,7 +161,7 @@ export function DeckHero({ onNameCommit }: { onNameCommit: (name: string) => voi
                     className="gap-2"
                   >
                     <FormatBadge formatId={f.id} />
-                    <span className="text-xs">{f.name}</span>
+                    <span className="text-ui-label">{f.name}</span>
                     {(currentDeck.format ?? "standard") === f.id && (
                       <Check className="h-3 w-3 ml-auto text-primary" />
                     )}
@@ -183,7 +183,7 @@ export function DeckHero({ onNameCommit }: { onNameCommit: (name: string) => voi
           <div className="flex items-center gap-1.5">
             <Input
               className={cn(
-                "h-10 w-80 max-w-full !text-xl font-bold",
+                "touch:min-h-11 min-h-10 w-80 max-w-full !text-xl font-bold",
                 shortTouch && "h-11 w-56 !text-lg",
               )}
               value={currentDeck.name}
@@ -204,7 +204,7 @@ export function DeckHero({ onNameCommit }: { onNameCommit: (name: string) => voi
           <button
             type="button"
             className={cn(
-              "group -ml-1.5 flex min-h-9 w-fit max-w-full items-center gap-2 rounded-md px-1.5 py-0.5 transition-colors hover:bg-background/50 pointer-coarse:min-h-11",
+              "touch:min-w-11 group -ml-1.5 flex min-h-9 w-fit max-w-full items-center gap-2 rounded-md px-1.5 py-0.5 transition-colors hover:bg-background/50 touch:min-h-11",
               shortTouch && "min-w-0",
             )}
             title="Rename deck"
@@ -219,13 +219,13 @@ export function DeckHero({ onNameCommit }: { onNameCommit: (name: string) => voi
             >
               {currentDeck.name}
             </h2>
-            <Pencil className="h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 pointer-coarse:opacity-100" />
+            <Pencil className="h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 touch:opacity-100" />
           </button>
         )}
 
         <div
           className={cn(
-            "flex flex-wrap items-center gap-2 text-xs text-muted-foreground",
+            "flex flex-wrap items-center gap-2 text-ui-meta text-muted-foreground",
             shortTouch && "ml-auto flex-nowrap",
           )}
         >

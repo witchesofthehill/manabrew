@@ -1,5 +1,7 @@
 import { LibraryBig, Swords, Users } from "lucide-react";
 import { useEffect, useState } from "react";
+import multiplayerArt from "@/assets/double-players4.webp";
+import singlePlayerArt from "@/assets/single-player2.webp";
 import { UpdateCallout } from "@/components/layout/UpdateCallout";
 import { FeatureTile } from "@/components/play/FeatureTile";
 import { GuestNudge } from "@/components/play/GuestNudge";
@@ -19,9 +21,11 @@ import { useServerStore } from "@/stores/useServerStore";
 const MODES = [
   {
     to: ROUTES.PLAY_OFFLINE_CONSTRUCTED,
-    label: `Play Offline`,
+    label: `Singleplayer`,
     desc: "Choose your decks and play against the AI at your own pace.",
     icon: Swords,
+    image: singlePlayerArt,
+    imageClassName: "h-52 w-52 -mr-3",
     tone: "primary",
   },
   {
@@ -29,6 +33,8 @@ const MODES = [
     label: `Multiplayer`,
     desc: "Join an open table or create a room for your group.",
     icon: Users,
+    image: multiplayerArt,
+    imageClassName: "h-40 w-40 sm:h-82 sm:w-82 lg:h-80 lg:w-80 -mb-4",
     tone: "secondary",
   },
 ];
@@ -84,7 +90,7 @@ export function PlayHome() {
   }, [connected, listPlayers, listRooms, resumePending]);
   return (
     <div className="relative h-full min-h-0 overflow-hidden">
-      <div className="relative z-10 h-full overflow-y-auto">
+      <div className="relative z-10 h-full overflow-y-auto pb-[max(0px,calc(100dvh-var(--visual-viewport-height)-var(--visual-viewport-top)))]">
         <div
           className={cn(
             "flex min-h-full w-full flex-col gap-6 px-4 py-6 sm:gap-7 sm:px-6 sm:py-9 lg:px-8",
@@ -94,7 +100,7 @@ export function PlayHome() {
           <header className={cn("max-w-xl sm:pt-2", shortTouch && "sm:pt-0")}>
             <h1
               className={cn(
-                "font-serif text-3xl font-light tracking-[0.02em] text-foreground sm:text-4xl",
+                "font-serif text-3xl font-semibold tracking-tight text-foreground sm:text-4xl",
                 shortTouch && "text-2xl sm:text-2xl",
               )}
             >
@@ -102,8 +108,8 @@ export function PlayHome() {
             </h1>
             <p
               className={cn(
-                "mt-2 text-sm leading-relaxed text-muted-foreground sm:text-base",
-                shortTouch && "mt-1 text-sm sm:text-sm",
+                "mt-2 text-ui-body leading-relaxed text-muted-foreground",
+                shortTouch && "mt-1 text-ui-body",
               )}
             >
               Start a match your way, or open a deck from your collection.
@@ -125,19 +131,21 @@ export function PlayHome() {
             )}
           >
             <section aria-label={`Play modes`} className="grid gap-4 md:grid-cols-2">
-              {MODES.map(({ to, label, desc, icon, tone }) => (
+              {MODES.map(({ to, label, desc, icon, image, imageClassName, tone }) => (
                 <FeatureTile
                   key={to}
                   to={to}
                   label={label}
                   desc={desc}
                   icon={icon}
+                  image={image}
+                  imageClassName={imageClassName}
                   tone={tone}
                   size="lg"
                   compact={shortTouch}
                   footer={
                     to === ROUTES.LOBBY && lobbyTeaser ? (
-                      <span className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-primary">
+                      <span className="mt-1.5 flex items-center gap-1.5 text-ui-meta font-medium text-primary">
                         <span className="relative flex h-1.5 w-1.5">
                           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-60" />
                           <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />

@@ -1,5 +1,6 @@
 import type { CardDto } from "@/protocol/game";
 import type { GameThemeColors } from "@/themes/gameTheme";
+import type { GameIconName } from "./GameIcon";
 import {
   deriveCardRailEffects,
   deriveCardRailState,
@@ -11,6 +12,29 @@ import {
   isCreature,
   isLethalDamage,
 } from "@/components/game/game.utils";
+
+const ROOM_COLLECTOR_STRIP_FRACTION = 32 / 680;
+const ROOM_DOOR_DIVIDER = (1 + ROOM_COLLECTOR_STRIP_FRACTION) / 2;
+export const ROOM_DOOR_BOUNDS = [
+  { door: "left", x: 0, width: ROOM_DOOR_DIVIDER },
+  { door: "right", x: ROOM_DOOR_DIVIDER, width: 1 - ROOM_DOOR_DIVIDER },
+] as const;
+
+export function roomDoorState(card: CardDto): number | undefined {
+  if (
+    !card.subtypes.includes("Room") ||
+    card.isFaceDown ||
+    !card.identity.name ||
+    ("visibility" in card && card.visibility === "hidden")
+  )
+    return undefined;
+  if ("zoneId" in card && card.zoneId === "stack")
+    return card.faceIndex === 0 ? 1 : card.faceIndex === 1 ? 2 : undefined;
+  if (card.zone !== "battlefield" || card.unlockedDoors === undefined) return undefined;
+  return (
+    (card.unlockedDoors.includes("left") ? 1 : 0) | (card.unlockedDoors.includes("right") ? 2 : 0)
+  );
+}
 
 export type CardStatusTone =
   | keyof GameThemeColors["cardStatus"]
@@ -28,7 +52,10 @@ export interface CardCounterPresentation {
   type: string;
   count: number;
   colorKey: keyof GameThemeColors["counter"];
-  iconName?: string;
+  iconName?: GameIconName;
+  label: string;
+  title: string;
+  displayCount: number | null;
 }
 export interface CardStatPresentation {
   power: string;
@@ -37,11 +64,6 @@ export interface CardStatPresentation {
   baseToughness?: number;
   state: "neutral" | "buffed" | "debuffed" | "lethal";
   damage: number;
-}
-export interface CardCostPresentation {
-  id: string;
-  label: string;
-  cost: string;
 }
 export interface CardProgressionPresentation {
   rail: CardRailState;
@@ -53,62 +75,145 @@ export interface CardPresentation {
   effectiveManaCost?: string;
   typeLine: string;
   rulesText: string;
-  keywords: string[];
   statuses: CardStatusPresentation[];
   counters: CardCounterPresentation[];
   stats: CardStatPresentation | null;
   loyalty: number | null;
   defense: number | null;
-  costs: CardCostPresentation[];
   progression: CardProgressionPresentation | null;
 }
 const LOYALTY_COUNTER_TYPE = "Loyalty";
 const DEFENSE_COUNTER_TYPE = "Defense";
-const COUNTER_COLOR_KEYS: Record<string, keyof GameThemeColors["counter"]> = {
-  P1P1: "p1p1",
-  M1M1: "m1m1",
-  [LOYALTY_COUNTER_TYPE]: "loyalty",
-  Charge: "charge",
-  Quest: "quest",
-  Study: "study",
-  Lore: "lore",
-  Age: "age",
-  Time: "time",
-  Fade: "fade",
-  Level: "level",
-  Storage: "storage",
-  Mining: "mining",
-  Brick: "brick",
-  Depletion: "depletion",
-  Page: "page",
-  Shield: "shield",
+type CounterColorKey = keyof GameThemeColors["counter"];
+interface CounterConfig {
+  iconName?: GameIconName;
+  label: string;
+  colorKey: CounterColorKey;
+  title: string;
+}
+const COUNTER_CONFIG: Record<string, CounterConfig> = {
+  P1P1: { label: "+1/+1", colorKey: "p1p1", title: "+1/+1" },
+  M1M1: { label: "−1/−1", colorKey: "m1m1", title: "−1/−1" },
+  Loyalty: {
+    iconName: "vibrating-shield",
+    label: `Loyalty`,
+    colorKey: "loyalty",
+    title: `Loyalty`,
+  },
+  Charge: {
+    iconName: "lightning-trio",
+    label: `Charge`,
+    colorKey: "charge",
+    title: `Charge`,
+  },
+  Quest: {
+    iconName: "scroll-quill",
+    label: `Quest`,
+    colorKey: "quest",
+    title: `Quest`,
+  },
+  Study: {
+    iconName: "book-aura",
+    label: `Study`,
+    colorKey: "study",
+    title: `Study`,
+  },
+  Lore: {
+    iconName: "spell-book",
+    label: `Lore`,
+    colorKey: "lore",
+    title: `Lore`,
+  },
+  Age: {
+    iconName: "hourglass",
+    label: `Age`,
+    colorKey: "age",
+    title: `Age`,
+  },
+  Time: {
+    iconName: "stopwatch",
+    label: `Time`,
+    colorKey: "time",
+    title: `Time`,
+  },
+  Fade: {
+    iconName: "ghost",
+    label: `Fade`,
+    colorKey: "fade",
+    title: `Fade`,
+  },
+  Level: {
+    iconName: "rank-3",
+    label: `Level`,
+    colorKey: "level",
+    title: `Level`,
+  },
+  Storage: {
+    iconName: "stack",
+    label: `Storage`,
+    colorKey: "storage",
+    title: `Storage`,
+  },
+  Mining: {
+    iconName: "mining",
+    label: `Mining`,
+    colorKey: "mining",
+    title: `Mining`,
+  },
+  Brick: {
+    iconName: "brick-wall",
+    label: `Brick`,
+    colorKey: "brick",
+    title: `Brick`,
+  },
+  Depletion: {
+    iconName: "battery-pack-alt",
+    label: `Depletion`,
+    colorKey: "depletion",
+    title: `Depletion`,
+  },
+  Page: {
+    iconName: "scroll-unfurled",
+    label: `Page`,
+    colorKey: "page",
+    title: `Page`,
+  },
+  Shield: {
+    iconName: "round-shield",
+    label: `Shield`,
+    colorKey: "shield",
+    title: `Shield`,
+  },
 };
-const COUNTER_ICON_NAMES: Record<string, string> = {
-  [LOYALTY_COUNTER_TYPE]: "vibrating-shield",
-  Charge: "lightning-trio",
-  Quest: "scroll-quill",
-  Study: "book-aura",
-  Lore: "spell-book",
-  Age: "hourglass",
-  Time: "stopwatch",
-  Fade: "ghost",
-  Level: "rank-3",
-  Storage: "stack",
-  Mining: "mining",
-  Brick: "brick-wall",
-  Depletion: "battery-pack-alt",
-  Page: "scroll-unfurled",
-  Shield: "shield",
-};
+export function getCounterConfig(type: string): CounterConfig {
+  return (
+    COUNTER_CONFIG[type] ?? {
+      label: type.slice(0, 3),
+      colorKey: "default",
+      title: type,
+    }
+  );
+}
+export function counterBadgePresentation(type: string, count: number): CardCounterPresentation {
+  const config = getCounterConfig(type);
+  const sign = type === "P1P1" ? "+" : type === "M1M1" ? "−" : null;
+  return {
+    ...config,
+    type,
+    count,
+    label: sign ? `${sign}${count}/${sign}${count}` : config.label,
+    displayCount: sign || count <= 1 ? null : count,
+  };
+}
 export function cardTypeLine(card: CardDto): string {
   const cardTypes = [...card.supertypes, ...card.types].join(" ");
   return card.subtypes.length > 0 ? `${cardTypes} — ${card.subtypes.join(" ")}` : cardTypes;
 }
 export function counterColorKey(type: string): keyof GameThemeColors["counter"] {
-  return COUNTER_COLOR_KEYS[type] ?? "default";
+  return getCounterConfig(type).colorKey;
 }
 export function counterIconName(type: string): string | undefined {
-  return COUNTER_ICON_NAMES[type];
+  return getCounterConfig(type).iconName;
 }
 function deriveStatuses(card: CardDto): CardStatusPresentation[] {
   const statuses: CardStatusPresentation[] = [];
@@ -116,9 +221,6 @@ function deriveStatuses(card: CardDto): CardStatusPresentation[] {
     statuses.push({ id, label, tone });
   if (card.wouldDieInCombat) add("doomed", "Dies in combat", "danger");
   if (card.isAttacking) add("attacking", "Attacking", "danger");
-  if (card.summoningSick && isCreature(card))
-    add("summoning-sick", "Summoning sick", "summoningSick");
-  if (card.tapped) add("tapped", "Tapped", "neutral");
   if (card.isCrewed) add("crewed", "Crewed", "positive");
   if (card.phasedOut) add("phased-out", "Phased out", "neutral");
   if (card.exerted) add("exerted", "Exerted", "exerted");
@@ -131,7 +233,6 @@ function deriveStatuses(card: CardDto): CardStatusPresentation[] {
   if (card.isCopy) add("copy", "Copy", "copy");
   if (card.identity.isToken) add("token", "Token", "token");
   if (card.isRingBearer) add("ring-bearer", "Ring-bearer", "ring");
-  if (card.foil) add("foil", "Foil", "accent");
   if (card.attachedTo) add("attached", "Attached", "neutral");
   if (card.attachmentIds.length > 0) {
     add("attachments", `Attachments ×${card.attachmentIds.length}`, "neutral");
@@ -165,28 +266,6 @@ function deriveStats(card: CardDto): CardStatPresentation | null {
     damage: card.damage,
   };
 }
-function deriveCosts(card: CardDto): CardCostPresentation[] {
-  const costs: CardCostPresentation[] = [];
-  if (card.flashbackCost)
-    costs.push({
-      id: "flashback",
-      label: `Flashback`,
-      cost: card.flashbackCost,
-    });
-  if (card.kickerCost)
-    costs.push({
-      id: "kicker",
-      label: `Kicker`,
-      cost: card.kickerCost,
-    });
-  if (card.madnessCost)
-    costs.push({
-      id: "madness",
-      label: `Madness`,
-      cost: card.madnessCost,
-    });
-  return costs;
-}
 
 export function replaceCardName(text: string, name: string): string {
   return text.includes("CARDNAME") ? text.replace(/CARDNAME/g, name) : text;
@@ -207,7 +286,6 @@ export function deriveCardPresentation(card: CardDto & { zoneId?: string }): Car
     effectiveManaCost: card.effectiveManaCost,
     typeLine: cardTypeLine(card),
     rulesText: replaceCardName(card.text, card.identity.name),
-    keywords: card.keywords,
     statuses: deriveStatuses(card),
     counters: Object.entries(card.counters)
       .filter(
@@ -216,16 +294,10 @@ export function deriveCardPresentation(card: CardDto & { zoneId?: string }): Car
           !(isPlaneswalker && type === LOYALTY_COUNTER_TYPE) &&
           !(isBattle && type === DEFENSE_COUNTER_TYPE),
       )
-      .map(([type, count]) => ({
-        type,
-        count,
-        colorKey: counterColorKey(type),
-        iconName: counterIconName(type),
-      })),
+      .map(([type, count]) => counterBadgePresentation(type, count)),
     stats: deriveStats(card),
     loyalty,
     defense,
-    costs: deriveCosts(card),
     progression: rail ? { rail, effects: deriveCardRailEffects(card, rail) } : null,
   };
 }

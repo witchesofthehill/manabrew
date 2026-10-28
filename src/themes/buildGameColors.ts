@@ -12,8 +12,6 @@ export interface BasePalette {
   placeholderStroke: string;
   canvasBackground: string;
 
-  /** Core hue set — map each to the nearest match in the preset's
-   *  canonical palette. */
   red: string; // hostile, destructive, lethal, counter
   redDeep: string; // sacrifice, loseLife, depletion, madness (deeper red)
   orange: string; // damage, fight, attack, exerted, level
@@ -50,13 +48,28 @@ export interface BasePalette {
 }
 
 import type { GameThemeColorMap } from "./gameTheme";
-import { contrastRatio, withAlpha } from "./themeColor";
+import { contrastRatio, darken, ensureTextContrast, withAlpha } from "./themeColor";
+
+export const CARD_CHANGE_COLORS = {
+  buffed: "#229c3c",
+  debuffed: "#bb365d",
+  changed: "#1685ad",
+  removed: "#b27a18",
+} as const;
+
+export const CARD_PRINTING_COLORS = {
+  paper: "#e4decb",
+  ink: "#17140f",
+  frame: "#746c60",
+  footer: "#fff",
+} as const;
 
 export function buildGameColors(p: BasePalette): GameThemeColorMap {
   const promptForeground = (background: string): string =>
     contrastRatio(p.foreground, background) >= contrastRatio(p.canvasBackground, background)
       ? p.foreground
       : p.canvasBackground;
+  const cardInk = promptForeground(p.paper);
   return {
     "activeAction.active": p.amber,
 
@@ -78,6 +91,22 @@ export function buildGameColors(p: BasePalette): GameThemeColorMap {
     "zone.graveyard": p.slate,
     "zone.exile": p.purple,
     "zone.command": p.amber,
+
+    "cardPaper.background": p.paper,
+    "cardPaper.raised": darken(p.paper, 0.04),
+    "cardPaper.ink": cardInk,
+    "cardPaper.mutedInk": ensureTextContrast(p.slate, p.paper, cardInk, 4.5),
+    "cardPaper.border": p.slate,
+
+    "cardChange.buffed": CARD_CHANGE_COLORS.buffed,
+    "cardChange.debuffed": CARD_CHANGE_COLORS.debuffed,
+    "cardChange.changed": CARD_CHANGE_COLORS.changed,
+    "cardChange.removed": CARD_CHANGE_COLORS.removed,
+
+    "cardPrinting.paper": CARD_PRINTING_COLORS.paper,
+    "cardPrinting.ink": CARD_PRINTING_COLORS.ink,
+    "cardPrinting.frame": CARD_PRINTING_COLORS.frame,
+    "cardPrinting.footer": CARD_PRINTING_COLORS.footer,
 
     "mana.W": p.manaW,
     "mana.U": p.manaU,
@@ -102,8 +131,6 @@ export function buildGameColors(p: BasePalette): GameThemeColorMap {
     textMuted: p.labelMuted,
     textGhost: p.labelGhost,
 
-    // Shadow stays a physics-black across all presets — dark-mode and
-    // light-mode surfaces still drop black shadows.
     "canvas.background": p.canvasBackground,
     "canvas.shadow": "#000000",
     "canvas.neutral": p.foreground,
@@ -143,17 +170,11 @@ export function buildGameColors(p: BasePalette): GameThemeColorMap {
     "counter.page": p.paper,
     "counter.shield": p.amber,
 
-    // Base seat mapping for presets without explicit overrides. Each
-    // preset can replace individual values while retaining palette-native hues.
     "playerColors.self": p.green,
     "playerColors.opponent1": p.amber,
     "playerColors.opponent2": p.blue,
     "playerColors.opponent3": p.pink,
 
-    // Tint the status chips rendered next to the mana pool. No fill —
-    // the hue stains both the icon and its count. Kept semantically
-    // stable across presets (monarch = regal amber, poison = infect,
-    // damage = red) so icon meaning stays consistent everywhere.
     "badges.monarch": p.amber,
     "badges.initiative": p.blue,
     "badges.poison": p.poison,
@@ -174,8 +195,6 @@ export function buildGameColors(p: BasePalette): GameThemeColorMap {
 
     "community.accent": p.purple,
 
-    // One token per format badge colour key. Each preset maps these to
-    // its own palette so format badges feel cohesive with the theme.
     "formatBadge.blue": p.blue,
     "formatBadge.amber": p.amber,
     "formatBadge.emerald": p.green,

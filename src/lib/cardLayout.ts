@@ -1,4 +1,10 @@
-const HORIZONTAL_LAYOUTS = new Set(["split", "aftermath", "battle", "room", "planar", "scheme"]);
+const HORIZONTAL_LAYOUTS: Record<string, true> = {
+  split: true,
+  aftermath: true,
+  battle: true,
+  room: true,
+  planar: true,
+};
 
 const SIDEWAYS_FRAME_LAYOUTS = new Set(["saga"]);
 
@@ -14,12 +20,16 @@ const TWO_FACE_LAYOUTS = new Set([
 ]);
 
 export function isHorizontalLayout(layout: string | undefined): boolean {
-  return !!layout && HORIZONTAL_LAYOUTS.has(layout);
+  return !!layout && HORIZONTAL_LAYOUTS[layout] === true;
 }
 
-const HORIZONTAL_TYPES = new Set(["Battle", "Plane", "Phenomenon", "Scheme"]);
+const HORIZONTAL_TYPES: Record<string, true> = {
+  Battle: true,
+  Plane: true,
+  Phenomenon: true,
+};
 
-// Type-line fallback: some battle/plane/scheme printings ship with
+// Type-line fallback: some battle printings ship with
 // `layout: "transform"` (back-face driven), so layout alone misses them.
 export function isHorizontalCard(opts: {
   layout?: string;
@@ -27,9 +37,8 @@ export function isHorizontalCard(opts: {
   typeLine?: string;
 }): boolean {
   if (isHorizontalLayout(opts.layout)) return true;
-  if (opts.types?.some((t) => HORIZONTAL_TYPES.has(t))) return true;
-  const typeWords = new Set((opts.typeLine ?? "").split(/[^A-Za-z]+/));
-  return [...HORIZONTAL_TYPES].some((t) => typeWords.has(t));
+  if (opts.types?.some((type) => HORIZONTAL_TYPES[type] === true)) return true;
+  return (opts.typeLine ?? "").split(/[^A-Za-z]+/).some((type) => HORIZONTAL_TYPES[type] === true);
 }
 
 export function isSidewaysArtLayout(layout: string | undefined): boolean {

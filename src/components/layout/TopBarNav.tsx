@@ -23,14 +23,15 @@ export function TopBarNav({ disabled = false }: TopBarNavProps) {
         <Button
           key={to}
           size="sm"
-          variant={isActive(to) ? "secondary" : "ghost"}
+          variant={isActive(to) ? "selected" : "ghost"}
+          aria-current={isActive(to) ? "page" : undefined}
           aria-label={label}
           title={label}
-          className="h-8 gap-1.5 px-2 text-xs"
+          className="min-h-10 gap-2 px-3 text-ui-label touch:min-h-11 touch:min-w-11"
           disabled={disabled}
           onClick={() => navigate(to)}
         >
-          <Icon className="h-4 w-4" />
+          <Icon className="h-5 w-5" />
           <span className="hidden xl:inline">{label}</span>
         </Button>
       ))}

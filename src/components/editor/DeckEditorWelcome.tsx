@@ -114,7 +114,7 @@ const STEPS = [
     icon: Sparkles,
     tips: [
       "Alt+3 jumps to the next editor section",
-      "Bulk actions: T tags, F toggles foil, M/S/B moves, Delete removes",
+      "Bulk actions: T tags, M/S/B moves, Delete removes",
       "Cmd/Ctrl+C and Cmd/Ctrl+V copy and paste cards; - and = adjust quantities",
       "Press ? to see every shortcut and customize them in Preferences",
     ],
@@ -152,13 +152,13 @@ export function DeckEditorWelcome({ readOnly }: { readOnly: boolean }) {
           <DialogDescription>{current.description}</DialogDescription>
         </DialogHeader>
         <div className="rounded-lg border bg-muted/25 p-3">
-          <ul className="space-y-2 text-sm text-foreground">
+          <ul className="space-y-2 text-ui-body text-foreground">
             {current.tips.map((tip) => (
               <li key={tip} className="flex gap-2">
                 <span className="text-primary" aria-hidden="true">
                   •
                 </span>
-                <span className="font-mono text-xs leading-5">{tip}</span>
+                <span className="font-mono text-ui-body leading-relaxed">{tip}</span>
               </li>
             ))}
           </ul>

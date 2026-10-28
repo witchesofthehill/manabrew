@@ -706,6 +706,9 @@ pub const FEATURE_PEER_SIGNAL: &str = "peer_signal";
 /// Names [`ClientMessage::ReportPlaneQuality`] in `AuthResult::features`.
 pub const FEATURE_PLANE_QUALITY: &str = "plane_quality";
 
+pub const FEATURE_CARD_COSMETICS: &str = "card_cosmetics";
+pub const FEATURE_CARD_COSMETICS_V2: &str = "card_cosmetics_v2";
+
 pub const FEATURES: &[&str] = &[
     FEATURE_LOCAL_GAME,
     FEATURE_ROOM_TRANSPORT,
@@ -714,6 +717,8 @@ pub const FEATURES: &[&str] = &[
     FEATURE_CHAT,
     FEATURE_ROOM_INVITES,
     FEATURE_GAME_OUTCOME,
+    FEATURE_CARD_COSMETICS,
+    FEATURE_CARD_COSMETICS_V2,
     FEATURE_LIMITED_SESSIONS,
     FEATURE_LIMITED_DRAFT_CLOCKS,
     FEATURE_LIMITED_SESSION_RECOVERY,

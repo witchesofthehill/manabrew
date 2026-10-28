@@ -13,6 +13,7 @@ import type { EditorDeck } from "@/types/manabrew";
 import { cn } from "@/lib/utils";
 import { deckOwnershipByName } from "@/lib/collection";
 import { useCollectionStore } from "@/stores/useCollectionStore";
+import { cardPrintingKey } from "@/components/editor/deckBuilder.utils";
 function coverageShortage(deck: EditorDeck, quantities: Record<string, number>): number {
   return [
     ...deckOwnershipByName(quantities, [
@@ -52,14 +53,25 @@ function cardLocations(deck: EditorDeck): Map<string, string> {
   return locations;
 }
 function printingKeys(deck: EditorDeck): Map<string, string> {
-  return new Map(
-    [...deck.cards, ...deck.sideboard, ...(deck.maybeboard ?? []), ...(deck.commanders ?? [])].map(
-      (card) => [
-        card.identity.name,
-        `${card.identity.setCode}:${card.identity.cardNumber}:${card.identity.foil ? "foil" : "nonfoil"}`,
-      ],
-    ),
-  );
+  const variants = new Map<string, string[]>();
+  const cards = [
+    ...deck.cards,
+    ...deck.sideboard,
+    ...(deck.maybeboard ?? []),
+    ...(deck.commanders ?? []),
+    ...(deck.companion ? [deck.companion] : []),
+    ...(deck.attractions ?? []),
+    ...(deck.contraptions ?? []),
+    ...(deck.schemes ?? []),
+    ...(deck.planes ?? []),
+    ...(deck.tokens ?? []),
+  ];
+  for (const card of cards) {
+    const keys = variants.get(card.identity.name) ?? [];
+    keys.push(cardPrintingKey(card));
+    variants.set(card.identity.name, keys);
+  }
+  return new Map([...variants].map(([name, keys]) => [name, JSON.stringify(keys.sort())]));
 }
 export function DeckChangeSummary({
   currentDeck,
@@ -105,7 +117,12 @@ export function DeckChangeSummary({
   if (changeCount === 0) return null;
   return (
     <>
-      <Button size="xs" variant="ghost" className="gap-1" onClick={() => setOpen(true)}>
+      <Button
+        size="xs"
+        variant="ghost"
+        className="touch:min-w-11 touch:min-h-11 gap-1"
+        onClick={() => setOpen(true)}
+      >
         <GitCompareArrows className="h-3.5 w-3.5" />
         {changeCount} changes
       </Button>
@@ -113,11 +130,13 @@ export function DeckChangeSummary({
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Changes since last save</DialogTitle>
-            <DialogDescription>Card quantity changes across the open deck.</DialogDescription>
+            <DialogDescription>
+              Card quantities, locations, printings, and appearance changes.
+            </DialogDescription>
           </DialogHeader>
           <div className="max-h-80 space-y-1 overflow-y-auto">
             {changes.coverageDelta !== 0 && (
-              <div className="mb-2 rounded-md border px-2 py-2 text-sm">
+              <div className="mb-2 rounded-md border px-2 py-2 text-ui-label">
                 Collection shortage
                 <span
                   className={cn(
@@ -133,10 +152,10 @@ export function DeckChangeSummary({
             {changes.moves.map((change) => (
               <div
                 key={`move-${change.name}`}
-                className="rounded-md px-2 py-1.5 text-sm odd:bg-muted/40"
+                className="rounded-md px-2 py-1.5 text-ui-label odd:bg-muted/40"
               >
                 <span className="font-medium">{change.name}</span>
-                <span className="ml-2 text-xs text-muted-foreground">
+                <span className="ml-2 text-ui-meta text-muted-foreground">
                   {change.from} → {change.to}
                 </span>
               </div>
@@ -144,16 +163,18 @@ export function DeckChangeSummary({
             {changes.printings.map((change) => (
               <div
                 key={`print-${change.name}`}
-                className="rounded-md px-2 py-1.5 text-sm odd:bg-muted/40"
+                className="rounded-md px-2 py-1.5 text-ui-label odd:bg-muted/40"
               >
                 <span className="font-medium">{change.name}</span>
-                <span className="ml-2 text-xs text-muted-foreground">printing changed</span>
+                <span className="ml-2 text-ui-meta text-muted-foreground">
+                  printing or appearance changed
+                </span>
               </div>
             ))}
             {changes.quantityChanges.map((change) => (
               <div
                 key={change.name}
-                className="flex min-h-9 items-center justify-between rounded-md px-2 text-sm odd:bg-muted/40"
+                className="flex min-h-9 items-center justify-between rounded-md px-2 text-ui-label odd:bg-muted/40"
               >
                 <span className="truncate">{change.name}</span>
                 <span className={cn(change.delta > 0 ? "text-legality-legal" : "text-destructive")}>

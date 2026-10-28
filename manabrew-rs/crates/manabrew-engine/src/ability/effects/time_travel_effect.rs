@@ -27,7 +27,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     for _ in 0..amount {
         let mut valid: Vec<CardId> = Vec::new();
         for &cid in ctx.game.cards_in_zone(ZoneType::Exile, controller) {
-            if ctx.game.card(cid).get_suspend_cost().is_some() {
+            if ctx.game.card(cid).is_suspended() {
                 valid.push(cid);
             }
         }
@@ -71,17 +71,19 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
                     },
                 );
             } else {
-                ctx.game.card_mut(cid).remove_counter(&CounterType::Time, 1);
-                ctx.trigger_handler.run_trigger(
-                    crate::trigger::TriggerType::CounterRemoved,
+                if ctx.game.card(cid).counter_count(&CounterType::Time) <= 0 {
+                    continue;
+                }
+                super::effect_context::remove_counter_with_context(
+                    ctx.game,
+                    ctx.trigger_handler,
+                    cid,
+                    &CounterType::Time,
+                    1,
                     crate::event::RunParams {
-                        card: Some(cid),
-                        counter_type: Some("Time".to_string()),
-                        counter_amount: Some(1),
-                        cause_player: Some(controller),
+                        player: Some(controller),
                         ..Default::default()
                     },
-                    false,
                 );
             }
         }

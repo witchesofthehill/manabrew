@@ -25,7 +25,7 @@ export function CustomCounterDialog({
 }: CustomCounterDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="overflow-y-auto overscroll-contain">
         <DialogHeader>
           <DialogTitle>Custom counter</DialogTitle>
         </DialogHeader>
@@ -76,16 +76,16 @@ function CustomCounterForm({
         </div>
         <div className="space-y-1">
           <Label>Icon</Label>
-          <div className="grid grid-cols-8 gap-1">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(2.75rem,1fr))] gap-1">
             {availableIcons.map((key) => (
               <button
                 type="button"
                 key={key}
                 onClick={() => setIconKey(key)}
                 className={cn(
-                  "grid size-9 place-items-center rounded-md border",
+                  "grid size-9 place-items-center rounded-md border touch:min-h-11 touch:min-w-11",
                   key === iconKey
-                    ? "border-selection bg-selection/15 text-selection"
+                    ? "border-selection-border bg-selection text-selection-foreground"
                     : "border-border hover:bg-muted",
                 )}
                 aria-label={key}

@@ -85,6 +85,7 @@ export function buildPlaygroundSpecs(
         key: ZONE_TILE_KEY[zone],
         count,
         topCard,
+        previewCards: zone === "command" ? cards : undefined,
         back: zone === "library",
         commander: zone === "command" ? colors[seat] : undefined,
         highlightColor:

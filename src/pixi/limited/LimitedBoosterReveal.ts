@@ -1,3 +1,4 @@
+import { DISPLAY_FONT_FAMILY, getUiFontFloor, UI_FONT_FAMILY } from "@/themes/typography";
 import { Container, FillGradient, Graphics, GraphicsContext, Sprite, Text } from "pixi.js";
 import { GAME_CARD_SIZES } from "@/components/game/game.constants";
 import { gsap } from "@/pixi/effects/gsap";
@@ -76,6 +77,8 @@ export class LimitedBoosterReveal {
   private symbol: Sprite | null = null;
   private symbolCode: Text | null = null;
   private setName: Text | null = null;
+  private packType: Text | null = null;
+  private identityName = "";
   private iconUri: string | undefined;
   private tearStrip: Container | null = null;
   private tearGlint: Graphics | null = null;
@@ -199,10 +202,9 @@ export class LimitedBoosterReveal {
     const brand = new Text({
       text: "MAGIC",
       style: {
-        fontFamily: "Alegreya",
+        fontFamily: DISPLAY_FONT_FAMILY,
         fontSize: wrapperWidth * 0.2,
         fontWeight: "bold",
-        letterSpacing: 1,
         fill: theme.appTheme.foreground,
       },
     });
@@ -241,8 +243,8 @@ export class LimitedBoosterReveal {
     symbol.visible = false;
     const symbolCode = new Text({
       style: {
-        fontFamily: "Alegreya Sans",
-        fontSize: wrapperWidth * 0.2,
+        fontFamily: UI_FONT_FAMILY,
+        fontSize: Math.max(wrapperWidth * 0.2, getUiFontFloor("label")),
         fontWeight: "bold",
         fill: theme.appTheme.foreground,
       },
@@ -251,8 +253,8 @@ export class LimitedBoosterReveal {
     symbolCode.position.copyFrom(symbol.position);
     const setName = new Text({
       style: {
-        fontFamily: "Alegreya",
-        fontSize: wrapperWidth * 0.085,
+        fontFamily: DISPLAY_FONT_FAMILY,
+        fontSize: Math.max(wrapperWidth * 0.085, getUiFontFloor("label")),
         fontWeight: "bold",
         fill: theme.appTheme.foreground,
         align: "center",
@@ -268,21 +270,28 @@ export class LimitedBoosterReveal {
         ? `${packCount} PACKS\n${cards.length} CARDS`
         : `${options.cardCount ?? cards.length}-CARD BOOSTER`,
       style: {
-        fontFamily: "Alegreya Sans",
-        fontSize: grouped ? Math.max(9, wrapperWidth * 0.08) : Math.max(7, wrapperWidth * 0.055),
+        fontFamily: UI_FONT_FAMILY,
+        fontSize: Math.max(
+          grouped ? 9 : 7,
+          wrapperWidth * (grouped ? 0.08 : 0.055),
+          getUiFontFloor("meta"),
+        ),
         fontWeight: "bold",
         letterSpacing: 0.6,
         fill: theme.appTheme.foreground,
         align: "center",
+        wordWrap: true,
+        wordWrapWidth: Math.max(1, wrapperWidth - 24),
+        breakWords: true,
       },
     });
     packType.anchor.set(0.5);
     packType.position.set(0, bottom - wrapperHeight * (grouped ? 0.105 : 0.065));
-    packType.scale.set(Math.min(1, (wrapperWidth * 0.82) / packType.width));
     lower.addChild(new Graphics(bodyDetail), symbol, symbolCode, setName, packType);
     this.symbol = symbol;
     this.symbolCode = symbolCode;
     this.setName = setName;
+    this.packType = packType;
     const seamContext = new GraphicsContext();
     for (let x = left + 5; x < right - 5; x += 9)
       seamContext.moveTo(x, seamY + 1).lineTo(Math.min(x + 5, right - 5), seamY + 1);
@@ -524,19 +533,8 @@ export class LimitedBoosterReveal {
     const symbolCode = this.symbolCode;
     const setName = this.setName;
     if (!symbol || !symbolCode || !setName) return;
-    const name = set?.name ?? setCode?.toUpperCase() ?? "Booster";
-    if (setName.text !== name) {
-      setName.text = name;
-      setName.scale.set(1);
-      setName.scale.set(
-        Math.min(
-          1,
-          (this.wrapperWidth - 24) / setName.width,
-          (this.wrapperHeight * 0.17) / setName.height,
-        ),
-      );
-      this.request();
-    }
+    this.identityName = set?.name ?? setCode?.toUpperCase() ?? "Booster";
+    this.setTheme();
     symbolCode.text = setCode?.toUpperCase() ?? "";
     const iconUri = set?.icon_svg_uri;
     if (this.iconUri === iconUri) return;
@@ -555,6 +553,32 @@ export class LimitedBoosterReveal {
         this.request();
       })
       .catch(() => undefined);
+  }
+  setTheme(): void {
+    const { setName, symbolCode, packType } = this;
+    if (!setName || !symbolCode || !packType) return;
+    const foreground = getTheme().appTheme.foreground;
+    symbolCode.style.fontSize = Math.max(this.wrapperWidth * 0.2, getUiFontFloor("label"));
+    symbolCode.style.fill = foreground;
+    setName.style.fontSize = Math.max(this.wrapperWidth * 0.085, getUiFontFloor("label"));
+    setName.style.fill = foreground;
+    setName.text = this.identityName;
+    const maxHeight = Math.max(Number(setName.style.fontSize) * 1.4, this.wrapperHeight * 0.17);
+    while (
+      (setName.height > maxHeight || setName.width > this.wrapperWidth - 24) &&
+      setName.text.replace(/…$/, "").length > 1
+    ) {
+      setName.text = `${setName.text.replace(/…$/, "").slice(0, -1)}…`;
+    }
+    packType.style.fontSize = Math.max(
+      this.packCount > 1 ? 9 : 7,
+      this.wrapperWidth * (this.packCount > 1 ? 0.08 : 0.055),
+      getUiFontFloor("meta"),
+    );
+    packType.style.fill = foreground;
+    packType.y = this.wrapperHeight / 2 - 8 - packType.height / 2;
+    setName.y = packType.y - packType.height / 2 - 6 - setName.height / 2;
+    this.request();
   }
   private readonly changed = (): void => {
     const wrapper = this.wrapper;
@@ -634,6 +658,8 @@ export class LimitedBoosterReveal {
     this.symbol = null;
     this.symbolCode = null;
     this.setName = null;
+    this.packType = null;
+    this.identityName = "";
     this.iconUri = undefined;
     this.tearStrip = null;
     this.tearGlint = null;

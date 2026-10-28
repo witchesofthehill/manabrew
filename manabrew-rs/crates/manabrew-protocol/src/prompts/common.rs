@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::game::{Mana, TargetingIntent};
+use crate::game::{Mana, RoomDoor, TargetingIntent};
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -54,6 +54,7 @@ pub enum AlternativeCostKind {
     Surge,
     WebSlinging,
     Plotted,
+    Prototype,
 }
 
 /// Mirrors the engine's `PlayCardMode`.
@@ -68,10 +69,19 @@ pub enum PlayCardMode {
     Normal,
     BackFaceLand,
     RoomRightSplit,
+    Adventure,
     Alternative { cost: AlternativeCostKind },
     StaticAlternative,
     ForetellExile,
-    UnlockDoor,
+    UnlockDoor { door: RoomDoor },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "prompts/common.ts")]
+pub enum LevelUpKind {
+    Class,
+    Creature,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -84,7 +94,7 @@ pub struct ActivatableAbilityInfo {
     pub is_mana_ability: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
-    pub is_class_level_up: Option<bool>,
+    pub level_up: Option<LevelUpKind>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub cost: Option<String>,
@@ -105,6 +115,9 @@ pub enum AvailableActionKind {
         card_id: String,
         mode: PlayCardMode,
         label: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        face_index: Option<u8>,
     },
     ActivateAbility(ActivatableAbilityInfo),
     UndoMana {

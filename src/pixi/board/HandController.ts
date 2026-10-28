@@ -245,14 +245,17 @@ export class HandController {
         );
         reorderIndicatorShown = true;
       }
+      const scaleX = (l.scaleW / CARD_W) * castScale;
+      const scaleY = (l.scaleH / CARD_H) * castScale;
       this.targets.set(card.id, {
         x: centerX + l.x,
         y: bottomY + l.y - l.scaleH / 2 + selectedDrop,
         rot,
-        scaleX: (l.scaleW / CARD_W) * castScale,
-        scaleY: (l.scaleH / CARD_H) * castScale,
+        scaleX,
+        scaleY,
         zIndex: isHovered || isCastingPermanent ? Z_HAND_HOVERED : i + 1,
       });
+      sprite.setHandRulesScale(Math.max(scaleX, scaleY));
       hitZones.push(
         isHovered
           ? {
@@ -425,12 +428,25 @@ export class HandController {
   usesRulesView(cardId: string): boolean {
     return this.sprites.get(cardId)?.usesHandRulesView === true;
   }
+
+  get handRulesKeyboardTarget() {
+    if (
+      this.host.isDestroyed() ||
+      !this.container.visible ||
+      this.lastState?.selectionMode ||
+      this.isDraggingFromHand() ||
+      this.hoveredCardId === null
+    )
+      return null;
+    const sprite = this.sprites.get(this.hoveredCardId);
+    return sprite?.visible && sprite.alpha > 0 ? sprite.handRulesKeyboardTarget : null;
+  }
   hitTestRules(x: number, y: number): boolean {
     return this.rulesSpriteAt(x, y) !== null;
   }
 
   scrollRulesAt(x: number, y: number, delta: number, mode: number): boolean {
-    return this.rulesSpriteAt(x, y)?.scrollHandRules(delta, mode) ?? false;
+    return this.rulesSpriteAt(x, y)?.scrollHandRules(delta, mode, x, y) ?? false;
   }
 
   private rulesSpriteAt(x: number, y: number): CardSprite | null {
@@ -455,9 +471,7 @@ export class HandController {
     if (this.hoveredCardId === null) return null;
     const sprite = this.sprites.get(this.hoveredCardId);
     if (!sprite) return null;
-    const active = !sprite.usesHandRulesView;
-    sprite.setHandRulesView(active);
-    return active;
+    return sprite.toggleHandRulesView();
   }
   setHoveredRulesActions(
     actions: HandActionOption[],
@@ -519,13 +533,15 @@ export class HandController {
     const cardH = Math.round(base.cardH * scale);
     const sink = this.bottomSinkFrac();
     const available = Math.max(cardW, this.host.getPlayZone().width - cardW);
+    const count = this.lastState?.cards.length ?? 0;
+    const fitSpread = count > 1 ? Math.floor((available - cardW) / (count - 1)) : 0;
     return {
       cardW,
       cardH,
       hoverLift: Math.max(Math.round(params.hoverLift * scale), Math.ceil(cardH * sink) + GAP),
       neighborPush: Math.round(params.neighborPush * scale),
       maxSpread: Math.round(params.maxSpread * scale),
-      minSpread: Math.round(params.minSpread * scale),
+      minSpread: Math.min(Math.round(params.minSpread * scale), fitSpread),
       spreadWidth: Math.min(Math.round(params.spreadWidth * scale), available),
     };
   }

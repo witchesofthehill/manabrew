@@ -29,4 +29,12 @@ public interface InteractiveBridge {
     void publishState();
 
     void publishDirective(int playerIndex, String directiveJson);
+
+    default void requestRewind(String snapshot) {
+        throw new UnsupportedOperationException("journal rewind is unavailable on this transport");
+    }
+
+    default void replayReady() {
+        throw new UnsupportedOperationException("journal rewind is unavailable on this transport");
+    }
 }

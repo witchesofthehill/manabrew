@@ -84,6 +84,7 @@ const ogImage = hero ? new URL(hero.src, Astro.site).toString() : undefined;
   .meta {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 0.9rem;
     margin: 0 0 0.6rem;
   }
@@ -112,7 +113,8 @@ const ogImage = hero ? new URL(hero.src, Astro.site).toString() : undefined;
     font-family: var(--font-display);
     font-weight: 700;
     font-size: clamp(2rem, 5.5vw, 3.2rem);
-    line-height: 1.08;
+    line-height: 1.12;
+    letter-spacing: -0.03em;
   }
 
   .hero {
@@ -133,7 +135,8 @@ const ogImage = hero ? new URL(hero.src, Astro.site).toString() : undefined;
 
   .prose :global(h2) {
     font-family: var(--font-display);
-    font-weight: 600;
+    font-weight: 700;
+    letter-spacing: -0.02em;
     font-size: clamp(1.5rem, 3.5vw, 2rem);
     color: var(--primary);
     margin: 2.2rem 0 0.6rem;
@@ -186,7 +189,7 @@ const ogImage = hero ? new URL(hero.src, Astro.site).toString() : undefined;
 
   .brewed {
     margin: 0.4rem 0 0;
-    font-family: var(--font-display);
+    font-family: var(--font-body);
     font-style: italic;
     font-size: 0.95rem;
     color: var(--muted-foreground);

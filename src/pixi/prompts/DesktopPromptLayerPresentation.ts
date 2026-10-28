@@ -8,8 +8,6 @@ const MIN_PROMPT_PANEL_WIDTH = 360;
 
 export class DesktopPromptLayerPresentation implements PromptLayerPresentation {
   readonly actionStyle = "full";
-  readonly modalBodyFit = "scroll";
-  readonly cardLayout = "grid";
   readonly selectionRowHeight = 56;
   readonly selectionRowPitch = 66;
   readonly scryHint: ScryPromptHint = {
@@ -21,12 +19,15 @@ export class DesktopPromptLayerPresentation implements PromptLayerPresentation {
     arrowOffsetX: 17,
     arrowOffsetY: 24,
     iconSize: 44,
-    fontSize: 11,
     textOffsetY: 32,
   };
 
-  modalHeight(_viewportHeight: number, requestedHeight: number): number {
-    return requestedHeight;
+  cardLayout(): "grid" {
+    return "grid";
+  }
+
+  modalHeight(viewportHeight: number, requestedHeight: number, viewportMargin: number): number {
+    return Math.min(requestedHeight, viewportHeight - viewportMargin);
   }
 
   modalPromptWidth(
@@ -88,7 +89,6 @@ export class DesktopPromptLayerPresentation implements PromptLayerPresentation {
       overlapPoolCards: false,
       zoneGap: 38,
       destinationVerticalPadding: 48,
-      labelOffset: 22,
       hint: this.scryHint,
     };
   }

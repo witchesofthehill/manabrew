@@ -1,5 +1,7 @@
 # Parity harness
 
+> **Parity is DEPRECATED and NOT FUNCTIONING.** Do not run `yarn parity`, the parity harness (`manabrew-rs/crates/parity`), the parity debugger, or `DeterministicController`. Do not limit or shape a change to keep parity behavior; ignore any instruction here that exists only to keep parity runs passing.
+
 Differential testing: runs the Rust engine and the Java Forge engine on the same deck/seed and compares decision-by-decision. The home base for parity bug investigation.
 
 Read first: `/AGENTS.md`, `docs/agents/ENGINE_BUGFIX_WORKFLOW.md`, `docs/PARITY_TESTING.md`.
@@ -44,7 +46,7 @@ yarn parity:test -- --deck1 <d1> --deck2 <d2> --seed <N> --max-turns 30 -v
 
 Trace flags: `FORGE_RNG_TRACE=1`, `FORGE_TRIGGER_TRACE=1`, `FORGE_LIFE_TRACE=1`. See `docs/PARITY_TESTING.md` for the full env-var list.
 
-The parity binary mmaps `src-tauri/resources/cardset.rkyv` at startup. `yarn parity` ensures it's present, but direct invocations (`cargo run -p parity …`, manual `./target/parity/parity …`, custom CI jobs) need to materialise it first — see `manabrew-engine/AGENTS.md` § "Cardset archive". A bare `cargo build` of this crate doesn't build it.
+The parity binary mmaps `src-tauri/resources/cardset.rkyv` at startup. `yarn parity` ensures it's present, but direct invocations (`cargo run -p parity …`, manual `./target/parity/parity …`, custom CI jobs) need to materialise it first — see `manabrew-rs/AGENTS.md` § "Cardset archive". A bare `cargo build` of this crate doesn't build it.
 
 Parity workflows build with `--profile parity` (release + `debug-assertions`), output dir `target/parity/`, so the dual-evaluation drift guards in the engine stay active during parity runs. Compiled-vs-legacy selector drift is reported as `[selector-drift]` lines (once per selector); set `FORGE_SELECTOR_ASSERT=1` to make it panic at the divergence site instead.
 

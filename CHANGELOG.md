@@ -1,5 +1,244 @@
 # Changelog
 
+## [3.67.2](https://github.com/witchesofthehill/manabrew/compare/v3.67.1...v3.67.2) (2026-10-28)
+
+### Fixes
+
+* many audit fixes ([#1145](https://github.com/witchesofthehill/manabrew/issues/1145)) ([5ec73a7](https://github.com/witchesofthehill/manabrew/commit/5ec73a78c703ff867640ff6144260399f15b14b6))
+
+## [3.67.1](https://github.com/witchesofthehill/manabrew/compare/v3.67.0...v3.67.1) (2026-10-28)
+
+### Fixes
+
+* **ui:** inspect authorized face-down cards in forge games ([#1144](https://github.com/witchesofthehill/manabrew/issues/1144)) ([0b1904e](https://github.com/witchesofthehill/manabrew/commit/0b1904e0d457a259ac85751b2db7878ad6e40b96))
+
+## [3.67.0](https://github.com/witchesofthehill/manabrew/compare/v3.66.1...v3.67.0) (2026-10-28)
+
+### Features
+
+* brewies ([#1143](https://github.com/witchesofthehill/manabrew/issues/1143)) ([101d3c4](https://github.com/witchesofthehill/manabrew/commit/101d3c47cf03b392dfbe98491cea55e633808f8b))
+
+## [3.66.1](https://github.com/witchesofthehill/manabrew/compare/v3.66.0...v3.66.1) (2026-10-28)
+
+### Fixes
+
+* desktop scaling ([#1138](https://github.com/witchesofthehill/manabrew/issues/1138)) ([32067ad](https://github.com/witchesofthehill/manabrew/commit/32067ad7aa09fda186fab355b6ce36c03d09fb77))
+
+## [3.66.0](https://github.com/witchesofthehill/manabrew/compare/v3.65.4...v3.66.0) (2026-10-28)
+
+### Features
+
+* **ui:** use hide icon for minimized prompts ([#1133](https://github.com/witchesofthehill/manabrew/issues/1133)) ([d015b60](https://github.com/witchesofthehill/manabrew/commit/d015b60ffd6b91dac6f4fbe620a34e91379f6b74))
+
+## [3.65.4](https://github.com/witchesofthehill/manabrew/compare/v3.65.3...v3.65.4) (2026-10-27)
+
+### Fixes
+
+* windows death ([#1137](https://github.com/witchesofthehill/manabrew/issues/1137)) ([2895e83](https://github.com/witchesofthehill/manabrew/commit/2895e8353a1fa7f93375a6a98557baac3f01af51))
+
+## [3.65.3](https://github.com/witchesofthehill/manabrew/compare/v3.65.2...v3.65.3) (2026-10-27)
+
+### Fixes
+
+* **forge:** resolve commander aliases consistently ([#1122](https://github.com/witchesofthehill/manabrew/issues/1122)) ([30b6981](https://github.com/witchesofthehill/manabrew/commit/30b6981cf5a5721866fccc505c43da0927a3bcc6))
+* **ui:** restore desktop density while preserving touch sizing ([#1130](https://github.com/witchesofthehill/manabrew/issues/1130)) ([6c449bf](https://github.com/witchesofthehill/manabrew/commit/6c449bf9b5abd2546d822fc49f6041aa98cd45f6))
+
+## [3.65.2](https://github.com/witchesofthehill/manabrew/compare/v3.65.1...v3.65.2) (2026-10-27)
+
+### Fixes
+
+* **ui:** improve app-wide responsiveness ([#1123](https://github.com/witchesofthehill/manabrew/issues/1123)) ([178dda1](https://github.com/witchesofthehill/manabrew/commit/178dda1e6361a76cdcd9a71d9ee71b28ca7613cd))
+
+## [3.65.1](https://github.com/witchesofthehill/manabrew/compare/v3.65.0...v3.65.1) (2026-10-26)
+
+### Fixes
+
+* actionspace manarocks ([#1124](https://github.com/witchesofthehill/manabrew/issues/1124)) ([ca67bf2](https://github.com/witchesofthehill/manabrew/commit/ca67bf2a668f4e2486bb646859da763f72d1b559))
+
+## [3.65.0](https://github.com/witchesofthehill/manabrew/compare/v3.64.9...v3.65.0) (2026-10-25)
+
+### Features
+
+* **forge:** add decision replay and snapshot restoration ([15a4afd](https://github.com/witchesofthehill/manabrew/commit/15a4afd390e809584787720ea6001f66d442adf7))
+* **forge:** replace snapshots with journal history and rewind ([f1a65c8](https://github.com/witchesofthehill/manabrew/commit/f1a65c82d5487623f2c723bf617a42499fad5a6d))
+* **forge:** journal history and verified rewind across runtimes ([#1081](https://github.com/witchesofthehill/manabrew/issues/1081)) ([c48dce6](https://github.com/witchesofthehill/manabrew/commit/c48dce63b4785692f2be1fe2814b8de31260f220))
+
+### Fixes
+
+* **forge:** harden journal replay and rewind lifecycle ([3281760](https://github.com/witchesofthehill/manabrew/commit/3281760c63e3a7058f53254d31e700a28ed75d25))
+* ui ([c1cc4ed](https://github.com/witchesofthehill/manabrew/commit/c1cc4edcbbc86e571de9cfe2a6830beddea52884))
+
+### Performance
+
+* **forge:** defer replay UI snapshots until verification ([bed06d6](https://github.com/witchesofthehill/manabrew/commit/bed06d6cca6bc7feddc312e2de0cb027c81c5940))
+
+## [3.64.9](https://github.com/witchesofthehill/manabrew/compare/v3.64.8...v3.64.9) (2026-10-25)
+
+### Fixes
+
+* **ui:** correct foldable layouts ([#1112](https://github.com/witchesofthehill/manabrew/issues/1112)) ([c88786b](https://github.com/witchesofthehill/manabrew/commit/c88786b1c510527c59ec6a8bf5fcea090df89647))
+
+## [3.64.8](https://github.com/witchesofthehill/manabrew/compare/v3.64.7...v3.64.8) (2026-10-24)
+
+### Fixes
+
+* crash engine ([#1119](https://github.com/witchesofthehill/manabrew/issues/1119)) ([a728ce8](https://github.com/witchesofthehill/manabrew/commit/a728ce88c21546af1e070fa7066f0f65dd367a7d))
+
+## [3.64.7](https://github.com/witchesofthehill/manabrew/compare/v3.64.6...v3.64.7) (2026-10-24)
+
+### Fixes
+
+* collection spam ([#1118](https://github.com/witchesofthehill/manabrew/issues/1118)) ([4c439a0](https://github.com/witchesofthehill/manabrew/commit/4c439a0ea6dd1b28412d684277c266f794a17cc8))
+
+## [3.64.6](https://github.com/witchesofthehill/manabrew/compare/v3.64.5...v3.64.6) (2026-10-23)
+
+### Fixes
+
+* x targeting action space ([#1116](https://github.com/witchesofthehill/manabrew/issues/1116)) ([f690093](https://github.com/witchesofthehill/manabrew/commit/f69009369c303e14e6e702e2e44270d1965c8bbb))
+
+## [3.64.5](https://github.com/witchesofthehill/manabrew/compare/v3.64.4...v3.64.5) (2026-10-23)
+
+### Fixes
+
+* aggressive preloading ([#1115](https://github.com/witchesofthehill/manabrew/issues/1115)) ([c72d014](https://github.com/witchesofthehill/manabrew/commit/c72d0146c348ad1a7ee1758a21be637c6eaba3da))
+
+## [3.64.4](https://github.com/witchesofthehill/manabrew/compare/v3.64.3...v3.64.4) (2026-10-23)
+
+### Fixes
+
+* bug ([#1108](https://github.com/witchesofthehill/manabrew/issues/1108)) ([00ef493](https://github.com/witchesofthehill/manabrew/commit/00ef493b70ec6397dd323ba35aaf2473e17043e7))
+
+## [3.64.3](https://github.com/witchesofthehill/manabrew/compare/v3.64.2...v3.64.3) (2026-10-22)
+
+### Fixes
+
+* **ui:** match board settings choices and compact navbar ([#1101](https://github.com/witchesofthehill/manabrew/issues/1101)) ([47c6acb](https://github.com/witchesofthehill/manabrew/commit/47c6acb155b2e02a8da2a680bacf0d22e440a407))
+
+## [3.64.2](https://github.com/witchesofthehill/manabrew/compare/v3.64.1...v3.64.2) (2026-10-22)
+
+### Fixes
+
+* preload in the background ([#1064](https://github.com/witchesofthehill/manabrew/issues/1064)) ([5a0e2f5](https://github.com/witchesofthehill/manabrew/commit/5a0e2f5d22f550ea682adbafd0188d08f7b5422b))
+
+## [3.64.1](https://github.com/witchesofthehill/manabrew/compare/v3.64.0...v3.64.1) (2026-10-22)
+
+### Fixes
+
+* **ui:** stop app start hanging on deck cover images ([#1105](https://github.com/witchesofthehill/manabrew/issues/1105)) ([28ad521](https://github.com/witchesofthehill/manabrew/commit/28ad5217b8430e56ac04031bc86c6d9e324ec7c2))
+
+## [3.64.0](https://github.com/witchesofthehill/manabrew/compare/v3.63.2...v3.64.0) (2026-10-21)
+
+### Features
+
+* **ui:** establish manabrew brand identity ([#1084](https://github.com/witchesofthehill/manabrew/issues/1084)) ([4082740](https://github.com/witchesofthehill/manabrew/commit/40827402cdfb4bceb0f1524e3a0810f81cef1a4f))
+
+## [3.63.2](https://github.com/witchesofthehill/manabrew/compare/v3.63.1...v3.63.2) (2026-10-21)
+
+### Fixes
+
+* disable foil shader overload ([#1096](https://github.com/witchesofthehill/manabrew/issues/1096)) ([b1b9d58](https://github.com/witchesofthehill/manabrew/commit/b1b9d5847b2a9aee6e3f744a4a18d305fd394ab6))
+
+## [3.63.1](https://github.com/witchesofthehill/manabrew/compare/v3.63.0...v3.63.1) (2026-10-21)
+
+### Fixes
+
+* tinybones actionspace and desktop ([#1094](https://github.com/witchesofthehill/manabrew/issues/1094)) ([00c847a](https://github.com/witchesofthehill/manabrew/commit/00c847a9ad79a143c1f3f2b2bb914fe1f4514e92))
+
+## [3.63.0](https://github.com/witchesofthehill/manabrew/compare/v3.62.2...v3.63.0) (2026-10-21)
+
+### Features
+
+* add engine-backed mechanic previews ([#1069](https://github.com/witchesofthehill/manabrew/issues/1069)) ([bb27666](https://github.com/witchesofthehill/manabrew/commit/bb276666fe7afb42d194d30049b8dc8d39e76077))
+
+## Unreleased
+
+### Fixes
+
+* Increase wide-touch body and control text to 20px and metadata to 18px after iPad readability review, without scaling card artwork.
+* Improve app-wide tablet typography, touch targets, responsive workspace density and keyboard-visible dialogs without enlarging card sprites.
+* Allow combat damage to be divided freely among blockers under current Magic rules, while preserving lethal-damage requirements for trample.
+* Preserve each Room, split and aftermath half's frame color instead of inheriting the whole card's combined colors in hand and stack previews.
+* Highlight unlocked Room doors and the door represented on the stack in both card views, with outlines that include the collector strip.
+* Preserve localized Prototype abilities and reminders, including Japanese line wrapping.
+* Place localized leveler actions in the correct band without duplicating ability text.
+* Preserve the current mana cost when previewing copies of prototyped creatures.
+* Fix the Clippy build failure caused by oversized draft checkpoint agent variants.
+* Preserve translated leveler abilities and reminders in native card rendering.
+* Match Realistic print-dot previews to production without changing scan finish geometry.
+* Check relay support for new card materials before submitting a customized deck.
+
+## [3.62.2](https://github.com/witchesofthehill/manabrew/compare/v3.62.1...v3.62.2) (2026-10-21)
+
+### Fixes
+
+* forge-bot default ([#1087](https://github.com/witchesofthehill/manabrew/issues/1087)) ([6789e0b](https://github.com/witchesofthehill/manabrew/commit/6789e0b6ca17b967b0aeebcf137da53945e7fb3b))
+
+## [3.62.1](https://github.com/witchesofthehill/manabrew/compare/v3.62.0...v3.62.1) (2026-10-20)
+
+### Fixes
+
+* relative target svar cost reduction actionspace ([#1086](https://github.com/witchesofthehill/manabrew/issues/1086)) ([7a806ec](https://github.com/witchesofthehill/manabrew/commit/7a806ec16cf8e7d586511f74df61ae0e19d4c500))
+
+## [3.62.0](https://github.com/witchesofthehill/manabrew/compare/v3.61.1...v3.62.0) (2026-10-20)
+
+### Features
+
+* pauper commander ([#1080](https://github.com/witchesofthehill/manabrew/issues/1080)) ([50365f1](https://github.com/witchesofthehill/manabrew/commit/50365f163e81fd5d4884cc70c6a59b88459b6651))
+
+## [3.61.1](https://github.com/witchesofthehill/manabrew/compare/v3.61.0...v3.61.1) (2026-10-19)
+
+### Fixes
+
+* restore tablet prompt scrolling and hide private hands ([#1067](https://github.com/witchesofthehill/manabrew/issues/1067)) ([cede8d5](https://github.com/witchesofthehill/manabrew/commit/cede8d5a6e8f03a0e4a12d9f262dbca5f6639086))
+
+## [3.61.0](https://github.com/witchesofthehill/manabrew/compare/v3.60.2...v3.61.0) (2026-10-19)
+
+### Features
+
+* **forge:** remember revealed opponent hand cards ([#1078](https://github.com/witchesofthehill/manabrew/issues/1078)) ([8f9775a](https://github.com/witchesofthehill/manabrew/commit/8f9775adba045615a0cbf6e11554a02c447298aa))
+
+## [3.60.2](https://github.com/witchesofthehill/manabrew/compare/v3.60.1...v3.60.2) (2026-10-19)
+
+### Fixes
+
+* **ui:** restore selected settings button styling ([#1077](https://github.com/witchesofthehill/manabrew/issues/1077)) ([2476055](https://github.com/witchesofthehill/manabrew/commit/24760558ee41597a5faa035b6dd975cae37d7238))
+
+## [3.60.1](https://github.com/witchesofthehill/manabrew/compare/v3.60.0...v3.60.1) (2026-10-19)
+
+### Fixes
+
+* **ui:** scope gauntlet returns to the active game ([#1076](https://github.com/witchesofthehill/manabrew/issues/1076)) ([a0aa6c1](https://github.com/witchesofthehill/manabrew/commit/a0aa6c1b3b6d2baef6ac98ca791ecef8fb1b895e))
+
+## [3.60.0](https://github.com/witchesofthehill/manabrew/compare/v3.59.0...v3.60.0) (2026-10-19)
+
+### Features
+
+* **editor:** show localized card names and English details ([#1051](https://github.com/witchesofthehill/manabrew/issues/1051)) ([134ac56](https://github.com/witchesofthehill/manabrew/commit/134ac56843a21a3802dbe0bb13bce10f3d69a407))
+
+## [3.59.0](https://github.com/witchesofthehill/manabrew/compare/v3.58.0...v3.59.0) (2026-10-18)
+
+### Features
+
+* **ui:** improve station and crew card previews ([#1065](https://github.com/witchesofthehill/manabrew/issues/1065)) ([5692021](https://github.com/witchesofthehill/manabrew/commit/5692021559d7bad88fc8fa5ca4eedb1609398dda))
+
+## [3.58.0](https://github.com/witchesofthehill/manabrew/compare/v3.57.1...v3.58.0) (2026-10-18)
+
+### Features
+
+* **ui:** integrate card glint 0.5.2 materials ([#1066](https://github.com/witchesofthehill/manabrew/issues/1066)) ([fbfa57f](https://github.com/witchesofthehill/manabrew/commit/fbfa57f4951622b51375935e3f7ce34e95797cfa))
+
+## [3.57.1](https://github.com/witchesofthehill/manabrew/compare/v3.57.0...v3.57.1) (2026-10-18)
+
+### Fixes
+
+* **ui:** use the card language for search results ([#1043](https://github.com/witchesofthehill/manabrew/issues/1043)) ([a811638](https://github.com/witchesofthehill/manabrew/commit/a81163817b78914b043836dbcd91669a3199581a))
+
+## [3.57.0](https://github.com/witchesofthehill/manabrew/compare/v3.56.1...v3.57.0) (2026-10-18)
+
+### Features
+
+* **ui:** manabrew card view !!! ([#1059](https://github.com/witchesofthehill/manabrew/issues/1059)) ([00de939](https://github.com/witchesofthehill/manabrew/commit/00de939a14cf6acf9ca2d1d7e7811cdb69091b19))
+
 ## [3.56.1](https://github.com/witchesofthehill/manabrew/compare/v3.56.0...v3.56.1) (2026-10-17)
 
 ### Fixes

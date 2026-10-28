@@ -10,7 +10,6 @@ import {
 } from "@/components/game/game.constants";
 import { centeredCardRowOffset } from "@/components/game/game.utils";
 import { CardSprite } from "@/pixi/CardSprite";
-import { bindPreviewScroll } from "@/pixi/cardPreview/previewScroll";
 import { hexToNum } from "@/pixi/colorUtils";
 import { animationsEnabled } from "@/pixi/effects/enabled";
 import { OverlayRenderScheduler, overlayResolution } from "@/pixi/overlay/overlayRuntime";
@@ -18,7 +17,7 @@ import { gsap } from "@/pixi/effects/gsap";
 import { destroyPixiApp } from "@/pixi/pixiPatches";
 import { LongPressGesture } from "@/pixi/LongPressGesture";
 import { useScryfallStore } from "@/stores/useScryfallStore";
-import { isFacelessCard } from "@/lib/gameCard";
+import { gameCardFaceIndex, isFacelessCard } from "@/lib/gameCard";
 import { getTheme } from "@/hooks/useTheme";
 import type { CardInspectionState } from "./cardInspection";
 import {
@@ -73,7 +72,6 @@ export class DialogCardPickerScene {
   private disposed = false;
   private scheduler: OverlayRenderScheduler | null = null;
   private unsubscribe: (() => void) | null = null;
-  private unbindPreviewScroll: (() => void) | null = null;
   private activeUntil = 0;
   private readonly longPress = new LongPressGesture();
   private longPressPointerId: number | null = null;
@@ -119,14 +117,6 @@ export class DialogCardPickerScene {
         ),
       );
       this.unsubscribe = useScryfallStore.subscribe(this.request);
-      this.unbindPreviewScroll = bindPreviewScroll(
-        this.canvas,
-        (clientX, clientY) => this.rulesSpriteAt(clientX, clientY) !== null,
-        (delta, mode, clientX, clientY) => {
-          this.rulesSpriteAt(clientX, clientY)?.scrollHandRules(delta, mode);
-          this.request();
-        },
-      );
       this.canvas.addEventListener("pointermove", this.request);
       this.canvas.addEventListener("pointerdown", this.request);
       this.canvas.addEventListener("wheel", this.request);
@@ -184,6 +174,7 @@ export class DialogCardPickerScene {
       gsap.killTweensOf(entry.sprite.scale);
       entry.sprite.rotation = rotated ? -Math.PI / 2 : 0;
       entry.sprite.scale.set(displayScale);
+      entry.sprite.setHandRulesScale(scale);
       entry.sprite.setChromeScale(1 / scale);
       entry.sprite.syncHandControlsScale();
       const row = Math.floor(absoluteIndex / props.columns);
@@ -240,8 +231,6 @@ export class DialogCardPickerScene {
     this.disposed = true;
     this.resetLongPress();
     this.unsubscribe?.();
-    this.unbindPreviewScroll?.();
-    this.unbindPreviewScroll = null;
     this.scheduler?.dispose();
     this.canvas.removeEventListener("pointermove", this.request);
     this.canvas.removeEventListener("pointerdown", this.request);
@@ -261,27 +250,6 @@ export class DialogCardPickerScene {
     this.activeUntil = performance.now() + 250;
     this.scheduler?.request();
   };
-  private rulesSpriteAt(clientX: number, clientY: number): CardSprite | null {
-    const rect = this.canvas.getBoundingClientRect();
-    if (rect.width <= 0 || rect.height <= 0) return null;
-    const x = ((clientX - rect.left) * this.app.screen.width) / rect.width;
-    const y = ((clientY - rect.top) * this.app.screen.height) / rect.height;
-    let result: CardSprite | null = null;
-    let topZIndex = -Infinity;
-    for (const { sprite } of this.entries.values()) {
-      if (!sprite.usesHandRulesView || !sprite.visible || sprite.alpha === 0) continue;
-      const bounds = sprite.getBounds();
-      const contains =
-        x >= bounds.x &&
-        x <= bounds.x + bounds.width &&
-        y >= bounds.y &&
-        y <= bounds.y + bounds.height;
-      if (!contains || sprite.zIndex < topZIndex) continue;
-      result = sprite;
-      topZIndex = sprite.zIndex;
-    }
-    return result;
-  }
 
   private entryFor(item: CardBrowserItem): CardEntry {
     let entry = this.entries.get(item.id);
@@ -373,7 +341,7 @@ export class DialogCardPickerScene {
     return (
       this.props.state.inspection[item.id] ?? {
         rules: this.props.defaultRules,
-        face: item.card.isTransformed ? 1 : 0,
+        face: gameCardFaceIndex(item.card),
         rotated: false,
       }
     );

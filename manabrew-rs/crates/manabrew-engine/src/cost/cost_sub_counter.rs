@@ -10,8 +10,18 @@ pub fn pay_as_decided(
     amount: i32,
     counter_type: &CounterType,
 ) -> bool {
-    game.card_mut(source).remove_counter(counter_type, amount);
-    true
+    let player = game.card(source).controller;
+    crate::ability::effects::effect_context::pay_remove_counter_cost(
+        game,
+        None,
+        source,
+        counter_type,
+        amount,
+        crate::event::RunParams {
+            player: Some(player),
+            ..Default::default()
+        },
+    )
 }
 
 /// Refund by adding counters back.
@@ -52,11 +62,25 @@ pub fn can_pay_for_player(
     {
         return super::get_sub_counter_targets(game, player, source, type_filter)
             .into_iter()
-            .any(|cid| game.card(cid).counter_count(counter_type) >= amount);
+            .any(|cid| {
+                game.card(cid).counter_count(counter_type) >= amount
+                    && (amount <= 0
+                        || crate::replacement::replace_remove_counter::can_remove_counters(
+                            game,
+                            cid,
+                            counter_type,
+                        ))
+            });
     }
     let card = game.card(source);
     if card.zone != forge_foundation::ZoneType::Battlefield || card.phased_out {
         return false;
     }
     card.counter_count(counter_type) >= amount
+        && (amount <= 0
+            || crate::replacement::replace_remove_counter::can_remove_counters(
+                game,
+                source,
+                counter_type,
+            ))
 }

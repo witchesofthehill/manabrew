@@ -11,10 +11,20 @@ import type { DisplayEvent } from "@/protocol/display";
 import type { GameViewDto, ZoneDto, ZoneKind } from "@/protocol/game";
 import { isPromptLoggingEnabled } from "@/lib/debugPrompts";
 import { GAME_CARD_DEFAULTS, hiddenZoneCard } from "@/lib/gameCard";
+import { normalizeCardCosmetics } from "@/lib/cardCosmetics";
 
 function visibleCardsOf(zone: ZoneDto): ClientCardDto[] {
   return zone.cards.flatMap((card) =>
-    card.visibility === "visible" ? [{ ...GAME_CARD_DEFAULTS, ...card, zoneId: zone.zone }] : [],
+    card.visibility === "visible"
+      ? [
+          {
+            ...GAME_CARD_DEFAULTS,
+            ...card,
+            cosmetics: card.isFaceDown ? undefined : normalizeCardCosmetics(card.cosmetics),
+            zoneId: zone.zone,
+          },
+        ]
+      : [],
   );
 }
 
@@ -40,7 +50,12 @@ function normalizeGameView(
     if (!zone) return [];
     return zone.cards.map((card) =>
       card.visibility === "visible"
-        ? { ...GAME_CARD_DEFAULTS, ...card, zoneId: zone.zone }
+        ? {
+            ...GAME_CARD_DEFAULTS,
+            ...card,
+            cosmetics: card.isFaceDown ? undefined : normalizeCardCosmetics(card.cosmetics),
+            zoneId: zone.zone,
+          }
         : hiddenZoneCard(card.id, ownerId, zone.zone),
     );
   };
@@ -89,6 +104,7 @@ function normalizeGameView(
       ? incoming.checkpoints
       : (current?.checkpoints ?? []),
     snapshotRecording: incoming.snapshotRecording ?? current?.snapshotRecording ?? false,
+    decisionHistory: incoming.decisionHistory ?? current?.decisionHistory,
     restoreVote: Array.isArray(incoming.checkpoints)
       ? (incoming.restoreVote ?? null)
       : (current?.restoreVote ?? null),
@@ -139,6 +155,19 @@ export function applyState(
   set: (partial: Partial<GameState>) => void,
   get: () => GameState,
 ) {
+  const previousVote = get().gameView?.restoreVote;
+  const vote = gameView.restoreVote;
+  if (
+    gameView.decisionHistory &&
+    vote?.status.type === "approved" &&
+    (previousVote?.voteId !== vote.voteId || previousVote?.status.type !== "approved")
+  ) {
+    set({
+      currentPrompt: null,
+      isWaitingForResponse: false,
+      relinquishedPriority: false,
+    });
+  }
   route(
     { displayEvents: [], gameView: normalizeGameView(gameView, get().gameView), prompt: null },
     `${source}: state`,
@@ -194,7 +223,34 @@ export function applyPrompt(
   notePromptArrived(prompt.input.type);
   const normalized = prompt.sourceCard
     ? { ...prompt, sourceCard: { ...GAME_CARD_DEFAULTS, ...prompt.sourceCard } }
-    : prompt;
+    : { ...prompt };
+  const input = normalized.input;
+  switch (input.type) {
+    case "mulliganPutBack":
+    case "revealCards":
+    case "scry":
+    case "chooseCards":
+      normalized.input = {
+        ...input,
+        cards: input.cards.map((card) => ({ ...GAME_CARD_DEFAULTS, ...card })),
+      };
+      break;
+    case "chooseDamageAssignmentOrder":
+      normalized.input = {
+        ...input,
+        blockerCards: input.blockerCards.map((card) => ({ ...GAME_CARD_DEFAULTS, ...card })),
+      };
+      break;
+    case "reorder":
+      normalized.input = {
+        ...input,
+        items: input.items.map((item) => ({
+          ...item,
+          card: { ...GAME_CARD_DEFAULTS, ...item.card },
+        })),
+      };
+      break;
+  }
   route(
     { displayEvents: [], gameView: null, prompt: normalized },
     `${source}: ${prompt.input.type}`,

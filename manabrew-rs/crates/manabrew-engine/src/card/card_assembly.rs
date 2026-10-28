@@ -21,21 +21,6 @@ use crate::trigger::{parse_trigger, Trigger};
 
 use super::{Card, CardOtherPart};
 
-fn mark_triggers_card_state(triggers: &mut [Trigger], card: &Card, state_name: CardStateName) {
-    let mut state = crate::card::card_state::CardState::new(card.clone(), state_name);
-    state.set_name(match state_name {
-        CardStateName::RightSplit => card
-            .svars
-            .get("RoomRightSplitName")
-            .cloned()
-            .unwrap_or_else(|| card.card_name.clone()),
-        _ => card.card_name.clone(),
-    });
-    for trigger in triggers {
-        trigger.base.set_card_state(state.clone());
-    }
-}
-
 /// Devoid as a CDA colorless override across all zones — mirrors
 /// `CardFactoryUtil.addKeywordAbility("Devoid", ...)`.
 fn intrinsic_color(face: &forge_carddb::CardFace) -> forge_foundation::ColorSet {
@@ -157,7 +142,7 @@ pub(crate) fn synthesize_derived(components: &mut ParsedComponents, existing_tri
 pub(crate) fn assemble_card(
     rules: &CardRules,
     owner: PlayerId,
-    mut components: ParsedComponents,
+    components: ParsedComponents,
 ) -> Card {
     let face = &rules.main_part;
 
@@ -189,11 +174,6 @@ pub(crate) fn assemble_card(
         card.svars.entry(k.clone()).or_insert_with(|| v.clone());
     }
 
-    if rules.split_type == forge_foundation::CardSplitType::Split
-        && card.type_line.has_subtype("Room")
-    {
-        mark_triggers_card_state(&mut components.triggers, &card, CardStateName::LeftSplit);
-    }
     for trig in components.triggers {
         card.add_trigger(trig);
     }
@@ -239,59 +219,72 @@ pub(crate) fn assemble_card(
     for re in components.replacement_effects {
         card.add_replacement_effect(re);
     }
-    // Room enchantments with Split type: generate unlock-door activated ability.
-    // Mirrors Java CardFactoryUtil: "ST$ UnlockDoor | Cost$ {mana_cost} | ..."
-    // When a Room enters the battlefield, the first door is unlocked.
-    // Paying the second door's mana cost unlocks it and fires the UnlockDoor trigger.
     if rules.split_type == forge_foundation::CardSplitType::Split
         && card.type_line.has_subtype("Room")
     {
-        if let Some(ref other_face) = rules.other_part {
-            let unlock_cost = other_face
-                .mana_cost
-                .to_string()
-                .replace('{', "")
-                .replace('}', " ")
-                .trim()
-                .to_string();
-            let unlock_name = &other_face.name;
-            card.set_s_var("RoomRightSplitName", unlock_name.as_str());
-            card.set_s_var("RoomRightSplitCost", &unlock_cost);
-            // Build an activated ability for unlocking the second door.
-            let ab_text = format!(
-                "AB$ UnlockDoor | Cost$ {unlock_cost} | SorcerySpeed$ True | CardState$ RightSplit | SpellDescription$ Unlock {unlock_name}"
-            );
-            let next_idx = card.activated_abilities.len();
-            if let Some(ab) = crate::ability::activated::parse_activated_ability(&ab_text, next_idx)
-            {
-                card.activated_abilities.push(ab);
-            }
-            // Copy other face's SVars so the Execute$ SVar can be found
-            // when the second door is unlocked via the activated ability.
-            for (k, v) in &other_face.svars {
-                card.svars.entry(k.clone()).or_insert_with(|| v.clone());
-            }
-            let mut next_trigger_id = card.triggers.len() as u32;
-            let mut other_triggers: Vec<_> = other_face
-                .triggers
-                .iter()
-                .filter_map(|raw| {
-                    parse_classified_or_warn(
-                        parse_trigger(raw, &mut next_trigger_id),
-                        "Trigger",
-                        raw,
-                    )
-                })
-                .collect();
-            mark_triggers_card_state(&mut other_triggers, &card, CardStateName::RightSplit);
-            for trig in other_triggers {
-                card.add_trigger(trig);
-            }
+        if let Some(other_face) = &rules.other_part {
+            card.activated_abilities.clear();
+            card.triggers.clear();
+            card.static_abilities.clear();
+            card.replacement_effects.clear();
+            let faces = [(face, CardStateName::LeftSplit), (other_face, CardStateName::RightSplit)].map(|(face, state_name)| {
+                let mut parsed = parse_card_components(face);
+                synthesize_derived(&mut parsed, card.triggers.len());
+                let mut state = crate::card::card_state::CardState::new(card.clone(), state_name);
+                state.set_name(face.name.clone());
+                state.s_vars.extend(face.svars.iter().map(|(key, value)| (key.clone(), value.clone())));
+                for (index, trigger) in parsed.triggers.iter_mut().enumerate() {
+                    trigger.id = (card.triggers.len() + index) as u32;
+                    trigger.base.set_card_state(state.clone());
+                }
+                for ability in &mut parsed.static_abilities {
+                    ability.base.set_card_state(&state);
+                    ability.svars.extend(face.svars.iter().map(|(key, value)| (key.clone(), value.clone())));
+                }
+                for replacement in &mut parsed.replacement_effects {
+                    replacement.base.set_card_state(state.clone());
+                }
+                let room_face = CardOtherPart {
+                    name: face.name.clone(),
+                    oracle_text: face.oracle_text.replace("\\n", "\n"),
+                    is_modal: false,
+                    type_line: face.type_line.clone(),
+                    mana_cost: face.mana_cost.clone(),
+                    color: intrinsic_color(face),
+                    base_power: face.int_power,
+                    base_toughness: face.int_toughness,
+                    keywords: crate::keyword::keyword_collection::KeywordCollection::from_strings(&face.keywords),
+                    abilities: face.abilities.clone(),
+                    triggers: parsed.triggers.clone(),
+                    static_abilities: parsed.static_abilities.clone(),
+                    replacement_effects: parsed.replacement_effects.clone(),
+                    svars: face.svars.clone(),
+                };
+                for raw in &face.abilities {
+                    let text = format!("{raw} | CardState$ {state_name:?}");
+                    if let Some(ability) = crate::ability::activated::parse_activated_ability(&text, card.activated_abilities.len()) {
+                        card.activated_abilities.push(ability);
+                    }
+                }
+                let cost = face.mana_cost.to_string().replace('{', "").replace('}', " ");
+                let text = format!("AB$ UnlockDoor | Unlock$ True | Cost$ {cost} | SorcerySpeed$ True | CardState$ {state_name:?} | SpellDescription$ Unlock {}", face.name);
+                if let Some(ability) = crate::ability::activated::parse_activated_ability(&text, card.activated_abilities.len()) {
+                    card.activated_abilities.push(ability);
+                }
+                for trigger in parsed.triggers { card.add_trigger(trigger); }
+                for replacement in parsed.replacement_effects { card.add_replacement_effect(replacement); }
+                for (key, value) in &face.svars { card.svars.entry(key.clone()).or_insert_with(|| value.clone()); }
+                room_face
+            });
+            card.room_faces = Some(Box::new(faces));
+            card.update_rooms();
         }
     }
 
     // Double-faced cards
-    if rules.split_type.is_dual_faced() {
+    if rules.split_type.is_dual_faced()
+        || rules.split_type == forge_foundation::CardSplitType::Adventure
+    {
         if let Some(ref back_face) = rules.other_part {
             let mut back_trigger_id = 0u32;
             let back_triggers: Vec<_> = back_face
@@ -330,7 +323,7 @@ pub(crate) fn assemble_card(
                 })
                 .collect();
 
-            card.other_part = Some(CardOtherPart {
+            let mut other = CardOtherPart {
                 name: back_face.name.clone(),
                 oracle_text: back_face.oracle_text.replace("\\n", "\n"),
                 is_modal: rules.split_type == forge_foundation::CardSplitType::Modal,
@@ -347,7 +340,17 @@ pub(crate) fn assemble_card(
                 static_abilities: back_static_abilities,
                 replacement_effects: back_replacement_effects,
                 svars: back_face.svars.clone(),
-            });
+            };
+            if rules.split_type == forge_foundation::CardSplitType::Adventure {
+                if let Some(replacement) =
+                    super::card_factory_util::setup_adventure_ability(&mut card)
+                {
+                    other.replacement_effects.push(replacement);
+                }
+                card.secondary_part = Some(other);
+            } else {
+                card.other_part = Some(other);
+            }
         }
     }
 

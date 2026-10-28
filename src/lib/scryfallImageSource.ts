@@ -1,6 +1,7 @@
 import { platformFetch } from "@/lib/platformFetch";
 import { lanArtUrl } from "@/lib/lanCache";
 import { getPlatform, getPlatformType } from "@/platform";
+import { cachedCardGlintAsset } from "@/lib/cardGlintAssetCache";
 
 const SCRYFALL_IMAGE_CDN_ORIGIN = "https://cards.scryfall.io/";
 
@@ -77,6 +78,8 @@ export function localCardArtRouteAvailable(): Promise<boolean> {
  * that already downloaded it, then the CDN.
  */
 async function fetchImageBytes(url: string): Promise<Blob> {
+  const installed = await cachedCardGlintAsset(url).catch(() => undefined);
+  if (installed) return installed.blob();
   const key = cacheKeyForImage(url);
   if (key) {
     const local = (await localCardArtRouteAvailable()) ? `/scryfall-img/${key}` : null;

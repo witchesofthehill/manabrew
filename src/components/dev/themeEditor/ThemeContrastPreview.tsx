@@ -1,8 +1,13 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Panel } from "@/components/dev/designSystem/kit";
-import { THEME_PRESETS, type GameThemeColorKey, type ThemeColors } from "@/themes";
-import { compositeThemeColor, contrastRatio, getGameThemeColorPaths } from "@/themes/gameTheme";
+import { MANABREW_THEME, type GameThemeColorKey, type ThemeColors } from "@/themes";
+import {
+  compositeThemeColor,
+  contrastRatio,
+  getGameThemeColorPaths,
+  readableTextColor,
+} from "@/themes/gameTheme";
 import type { Theme } from "@/hooks/useTheme";
 import type { ThemeDocument } from "@/themes/themeDocument";
 import { getGameColor } from "./themeEditorColors";
@@ -17,8 +22,15 @@ const APP_PAIRS: { label: string; foreground: keyof ThemeColors; background: key
       foreground: "primary-foreground",
       background: "primary",
     },
+    { label: "Primary hover", foreground: "primary-foreground", background: "primary-hover" },
     { label: "Secondary action", foreground: "secondary-foreground", background: "secondary" },
     { label: "Accent text", foreground: "accent-foreground", background: "accent" },
+    { label: "Sage detail", foreground: "brand-accent", background: "background" },
+    {
+      label: "Sage background",
+      foreground: "brand-accent-foreground",
+      background: "brand-accent-muted",
+    },
     {
       label: "Destructive action",
       foreground: "destructive-foreground",
@@ -47,7 +59,7 @@ function ContrastPair({
   const ink = compositeThemeColor(foreground, surface);
   const ratio = contrastRatio(ink, surface);
   return (
-    <div className="flex items-center gap-2 py-1.5 text-[11px]">
+    <div className="flex flex-wrap items-center gap-2 py-1.5 text-ui-label">
       <span
         className="rounded px-1.5 py-1 font-medium"
         style={{ color: ink, backgroundColor: surface }}
@@ -55,9 +67,9 @@ function ContrastPair({
         Aa
       </span>
       <span className="min-w-0 flex-1 break-words">{label}</span>
-      <span className="shrink-0 text-right tabular-nums">
+      <span className="ml-auto text-right tabular-nums">
         {ratio.toFixed(2)}:1
-        <span className="block text-[10px] text-muted-foreground">
+        <span className="block text-ui-meta text-muted-foreground">
           {ratio >= 4.5 ? "AA text" : ratio >= 3 ? "Large text only" : "Low text contrast"}
         </span>
       </span>
@@ -73,8 +85,7 @@ export function ThemeContrastPreview({
   document: ThemeDocument;
 }) {
   const { appTheme: app, gameTheme: game } = theme;
-  const preset = THEME_PRESETS.find((item) => item.id === document.presetId)!;
-  const page = compositeThemeColor(app.background, preset[document.mode].background);
+  const page = compositeThemeColor(app.background, MANABREW_THEME[document.mode].background);
   const canvas = compositeThemeColor(game.canvas.background, page);
   const canvasPairs: {
     label: string;
@@ -82,7 +93,6 @@ export function ThemeContrastPreview({
     background: GameThemeColorKey;
   }[] = [
     { label: "Empty-zone label", foreground: "textMuted", background: "canvas.background" },
-    { label: "Loading card name", foreground: "textGhost", background: "cardPlaceholder.fill" },
     ...(["attackAction", "defenseAction", "cancel"] as const).map((action) => ({
       label: `Prompt ${action}`,
       foreground: `promptForeground.${action}` as const,
@@ -96,7 +106,7 @@ export function ThemeContrastPreview({
   ];
   return (
     <details className="border-b border-border pb-3">
-      <summary className="cursor-pointer text-xs font-medium">
+      <summary className="cursor-pointer py-2 text-ui-label font-medium touch:min-h-11">
         React examples and text contrast
       </summary>
       <div className="space-y-3 pt-3">
@@ -118,16 +128,12 @@ export function ThemeContrastPreview({
               Disabled
             </Button>
           </div>
-          <Input
-            aria-label="Theme input example"
-            placeholder="Focus or type here"
-            className="h-8 text-xs"
-          />
-          <p className="text-[11px] text-muted-foreground">
+          <Input aria-label="Theme input example" placeholder="Focus or type here" />
+          <p className="text-ui-body text-muted-foreground">
             Muted text. Hover buttons or focus the input to inspect accents and rings.
           </p>
         </Panel>
-        <p className="text-[11px] leading-snug text-muted-foreground">
+        <p className="text-ui-body text-muted-foreground">
           Text pairs use 4.5:1 for normal text and 3:1 for large text. Alpha is composited over the
           page or canvas. Decorative borders and shadows are not text failures.
         </p>
@@ -138,7 +144,9 @@ export function ThemeContrastPreview({
               label={pair.label}
               foreground={app[pair.foreground]}
               background={app[pair.background]}
-              backdrop={pair.background === "background" ? preset[document.mode].background : page}
+              backdrop={
+                pair.background === "background" ? MANABREW_THEME[document.mode].background : page
+              }
             />
           ))}
           {canvasPairs.map((pair) => (
@@ -148,6 +156,20 @@ export function ThemeContrastPreview({
               foreground={getGameColor(game, pair.foreground)}
               background={getGameColor(game, pair.background)}
               backdrop={pair.background === "canvas.background" ? page : canvas}
+            />
+          ))}
+          {(
+            [
+              ["Loading card name", game.cardPlaceholder.fill],
+              ["Phase label", game.phaseStrip.background],
+            ] as const
+          ).map(([label, background]) => (
+            <ContrastPair
+              key={label}
+              label={label}
+              foreground={readableTextColor(background, game.canvas.shadow, game.textOnTinted)}
+              background={background}
+              backdrop={canvas}
             />
           ))}
         </div>

@@ -1,5 +1,7 @@
 # Manabrew — Agent Guide
 
+> **Parity is DEPRECATED and NOT FUNCTIONING.** Do not run `yarn parity`, the parity harness (`manabrew-rs/crates/parity`), the parity debugger, or `DeterministicController`. Do not limit or shape a change to keep parity behavior; ignore any instruction here that exists only to keep parity runs passing.
+
 Manabrew is a Tauri desktop/web client for Magic: The Gathering, powered by a Rust rewrite of the [Forge](https://github.com/Card-Forge/forge) rules engine.
 
 - **UI**: React + TypeScript under `src/`, Tauri shell under `src-tauri/`
@@ -11,9 +13,17 @@ The engine is incomplete. Most day-to-day work is **finding parity bugs** with `
 
 ## Local full stack
 
-`./dev start` builds and starts the web app, relay, Hub API, and relay-event ingester through `compose.dev.yaml`. The Hub runs its embedded SQLite migrations before listening and stores the host-visible database at `ops/hub-data/dev/hub.db`; ingested relay analytics live at `ops/hub-data/dev/events/events.db`. `./dev stop` preserves both databases and `./dev clean` deletes them together with the development cache volumes. Keep the Hub events bind writable because SQLite read-only connections still need WAL sidecars. Host tools such as DBeaver must use read-only connections while the stack runs; stop the stack before host-side writes because Docker Desktop does not safely coordinate SQLite write locks across the bind mount. Use `./dev logs` to follow all services. The web container runs `yarn vite` straight from the bind mount, so it serves whatever `src/wasm/` was last built on the host; run `yarn ensure:wasm` on the host after any Rust change or the browser keeps the old engine. Browser Forge games depend on it too: their Manabot seats run `WasmManabot` from `src/wasm/`, and a build that predates a bot change leaves the bot seat unanswered, so single player hangs at the first mulligan with no console error. Browser-hosted Forge games run the Web Image staged in `packages/forge-wasm/`, a separate artifact from the harness jar that `yarn build:harness` does not refresh; run `yarn build:forge-wasm` after any harness change. `start`, `stop`, and `logs` take optional service names (`./dev stop relay`, `./dev start relay`); a per-service stop pauses the container without removing it.
+`./dev start` builds and starts the web app, relay, Hub API, and relay-event ingester through `compose.dev.yaml`. The Hub runs its embedded SQLite migrations before listening and stores the host-visible database at `ops/hub-data/dev/hub.db`; ingested relay analytics live at `ops/hub-data/dev/events/events.db`. `./dev stop` preserves both databases and `./dev clean` deletes them together with the development cache volumes. Keep the Hub events bind writable because SQLite read-only connections still need WAL sidecars. Host tools such as DBeaver must use read-only connections while the stack runs; stop the stack before host-side writes because Docker Desktop does not safely coordinate SQLite write locks across the bind mount. Use `./dev logs` to follow all services. The web container runs `yarn vite` straight from the bind mount, so it serves whatever `src/wasm/` was last built on the host; run `yarn ensure:wasm` on the host after any Rust change or the browser keeps the old engine. Docker Desktop's bind mount can update a file's content without its modification time, so Vite's polling watcher misses the edit and keeps serving the old module; when a host edit does not reach the browser, run `docker exec manabrew-web-1 touch <files>`. Browser Forge games depend on it too: their Manabot seats run `WasmManabot` from `src/wasm/`, and a build that predates a bot change leaves the bot seat unanswered, so single player hangs at the first mulligan with no console error. Browser-hosted Forge games run the Web Image staged in `packages/forge-wasm/`, a separate artifact from the harness jar that `yarn build:harness` does not refresh; run `yarn build:forge-wasm` after any harness change. `start`, `stop`, and `logs` take optional service names (`./dev stop relay`, `./dev start relay`); a per-service stop pauses the container without removing it.
+
+The development web container owns a separate `web-node-modules` volume. Host-side dependency installs do not update it. After changing `package.json` or `yarn.lock`, run `docker compose -f compose.dev.yaml restart web` so startup reruns `yarn install --frozen-lockfile`; a browser reload or `./dev start web` on an already-running container does not rerun installation.
+
+Multiple checkouts use separate Compose project names but the same published ports. Before restarting a stack, check the running web container's `com.docker.compose.project.working_dir` label. If another checkout owns port 1420, leave that stack running; starting this checkout's stopped web container fails with a port-allocation conflict.
+
+Docker Desktop can exhaust its VM disk while macOS still has free space; `apt-get update` may then report invalid signatures. Check `df -h /` inside a container before changing repository keys. Reclaim only explicitly approved, unused build-cache volumes or increase Docker's disk limit; preserve development data and keep APT signature verification enabled.
 
 Hub migrations are immutable once any environment has applied them. Extend the schema with the next numbered migration so existing and fresh databases converge through the same sequence.
+
+For Hub startup or health-check changes, read `docs/agents/HUB.md`: parsing the cached Scryfall index can exceed the deployment health-check budget.
 
 ## Prime directive: root-cause, not symptom
 
@@ -52,6 +62,7 @@ Sub-AGENTS.md files are not auto-discovered by Codex or by Claude Code's parent-
 | `manabrew-rs/crates/manabrew-engine/src/ability/effects/AGENTS.md` | Adding or modifying a `*_effect.rs` (most parity work)                           |
 | `manabrew-rs/crates/parity/AGENTS.md`                              | Investigating a parity divergence or editing `regression.json`                   |
 | `forge-harness/src/main/java/forge/harness/AGENTS.md`              | Any change under `forge-harness/` (parity/host/common package boundaries)        |
+| `packages/forge-wasm/AGENTS.md`                                    | Any Forge WASM package runtime or decision journal change                        |
 | `scripts/AGENTS.md`                                                | Adding or running a build/parity script                                          |
 | `website/AGENTS.md`                                                | Any change under `website/` (landing at manabrew.app, docs at docs.manabrew.app) |
 
@@ -65,6 +76,7 @@ Topic spinoffs (cross-cut multiple folders):
 | `docs/agents/RELAY.md`                  | Any relay (`manabrew-server`) work — trust boundary, reconnect/resync, identity and usernames            |
 | `docs/agents/HUB.md`                    | Any hub (`manabrew-hub`) work — auth and token audiences, migrations, Deck Hub flag                      |
 | `docs/agents/SELF_HOSTED_NODE.md`       | Any self-hosted node work — game-id reconciliation, reconnect, JVM sizing, updater                       |
+| `docs/DECISION_REPLAY.md`               | Forge decision journaling, deterministic reconstruction, replay snapshots and their isolation limits     |
 | `docs/agents/LATENCY_ANALYSIS.md`       | Measuring hosted latency from capture files — what the timestamps mean, and four traps that skew results |
 | `docs/forge-dsl-semantics.md`           | Any engine work touching abilities, triggers, replacements, static abilities, costs, SVars, or the stack |
 | `docs/forge-dsl-grammar.md`             | Parser / IR changes, or when interpreting card-script syntax                                             |
@@ -126,6 +138,7 @@ The PR body itself must follow `.github/pull_request_template.md`: `Summary`, `W
 - **Never commit on your own.** Do not run `git commit` unless the developer explicitly asks for a commit in this conversation. Finishing a task, passing checks, or having a clean diff is not permission to commit — leave the changes in the working tree and report what's ready.
 - **Pull with merge, never rebase.** When integrating `main` into a feature branch, or pulling someone else's work, use `git merge` (or `git pull` with `pull.rebase=false`) — never `git rebase`, never `git pull --rebase`. The repo's history convention is merge-based; rebasing rewrites already-pushed commits and creates divergence for collaborators. This applies to every branch, every time.
 - **No unit tests** unless explicitly asked.
+- **No smoke tests or visual UI checks** unless explicitly instructed or required by higher-priority instructions. Leave manual app verification to the developer by default.
 - **UI work** must reference `docs/STYLE_GUIDELINES.md` (and `docs/agents/UI_THEME_RULES.md` for colors).
 
 ## Hygiene

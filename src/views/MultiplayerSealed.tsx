@@ -21,7 +21,6 @@ export default function MultiplayerSealed() {
   };
   useTopBarOverride({
     title: "Sealed",
-    onBack: () => void leave(ROUTES.LOBBY),
     onHome: () => void leave(ROUTES.PLAY),
     navigationDisabled: true,
   });
@@ -29,7 +28,7 @@ export default function MultiplayerSealed() {
     return (
       <div
         role="status"
-        className="flex h-full items-center justify-center p-6 text-sm text-muted-foreground"
+        className="flex h-full min-h-0 min-w-0 items-center justify-center overflow-y-auto overscroll-contain px-4 py-3 text-center text-ui-body break-words text-muted-foreground sm:px-6 lg:px-8"
       >
         Waiting for the host to deliver your Sealed packs.
       </div>

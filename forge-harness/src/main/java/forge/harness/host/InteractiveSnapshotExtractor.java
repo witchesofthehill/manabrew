@@ -15,6 +15,8 @@ import forge.harness.protocol.CardIdentity;
 import forge.harness.protocol.ClassLevelDto;
 import forge.harness.protocol.SagaChapterDto;
 import forge.harness.protocol.ManaColor;
+import forge.harness.protocol.RoomDoor;
+import forge.harness.protocol.ZoneKind;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -47,9 +49,11 @@ import forge.item.PaperToken;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -104,6 +108,7 @@ public final class InteractiveSnapshotExtractor {
             final String gameId,
             final int viewer,
             final SecretChoiceVisibility secretChoiceVisibility,
+            final HandKnowledge handKnowledge,
             final List<Map<String, Object>> checkpoints,
             final Map<String, Object> restoreVote,
             final boolean snapshotRecording
@@ -111,8 +116,24 @@ public final class InteractiveSnapshotExtractor {
         ParityCardMap.beginSnapshot(game);
         try {
             return GSON.toJson(buildGameView(
-                    game, castingAbility, gameId, viewer, secretChoiceVisibility, checkpoints, restoreVote,
-                    snapshotRecording));
+                    game, castingAbility, gameId, viewer, secretChoiceVisibility, handKnowledge,
+                    checkpoints, restoreVote, snapshotRecording));
+        } finally {
+            ParityCardMap.endSnapshot();
+        }
+    }
+
+    static com.google.gson.JsonObject verificationView(final Game game, final SpellAbility castingAbility,
+            final String gameId, final int viewer, final SecretChoiceVisibility secretChoiceVisibility,
+            final HandKnowledge handKnowledge) {
+        ParityCardMap.beginSnapshot(game);
+        try {
+            final Map<String, Object> view = buildGameView(game, castingAbility, gameId, viewer,
+                    secretChoiceVisibility, handKnowledge, List.of(), null, false);
+            view.remove("checkpoints");
+            view.remove("restoreVote");
+            view.remove("snapshotRecording");
+            return GSON.toJsonTree(view).getAsJsonObject();
         } finally {
             ParityCardMap.endSnapshot();
         }
@@ -124,6 +145,7 @@ public final class InteractiveSnapshotExtractor {
             final String gameId,
             final int viewer,
             final SecretChoiceVisibility secretChoiceVisibility,
+            final HandKnowledge handKnowledge,
             final List<Map<String, Object>> checkpoints,
             final Map<String, Object> restoreVote,
             final boolean snapshotRecording
@@ -137,9 +159,7 @@ public final class InteractiveSnapshotExtractor {
             final int index = SnapshotExtractor.playerIndex(game, player);
             final String ownerId = "player-" + index;
             players.add(toPlayer(game, player, index, viewer));
-            zones.add(zoneWithVisibility("hand", ownerId, game,
-                    player.getCardsIn(ZoneType.Hand), index, true, viewerPlayer, false,
-                    secretChoiceVisibility));
+            zones.add(handZone(game, player, index, viewerPlayer, secretChoiceVisibility, handKnowledge));
             zones.add(visibleZone("graveyard", ownerId, game, player.getCardsIn(ZoneType.Graveyard),
                     index, false, viewerPlayer, secretChoiceVisibility));
             zones.add(zoneWithVisibility("exile", ownerId, game,
@@ -219,7 +239,7 @@ public final class InteractiveSnapshotExtractor {
         view.put("priorityPlayerId", "player-" + asIndex(base.get("priority_player")));
         view.put("players", players);
         view.put("zones", zones);
-        view.put("stack", snapshotStack(game, castingAbility, activePlayerId));
+        view.put("stack", snapshotStack(game, castingAbility, activePlayerId, viewerPlayer));
         view.put("gameOver", base.get("game_over"));
         view.put("dayTime", dayTime(game));
         view.put("checkpoints", checkpoints);
@@ -435,6 +455,32 @@ public final class InteractiveSnapshotExtractor {
         return obj;
     }
 
+    private static Map<String, Object> handZone(
+            final Game game,
+            final Player owner,
+            final int ownerIndex,
+            final Player viewer,
+            final SecretChoiceVisibility secretChoiceVisibility,
+            final HandKnowledge handKnowledge
+    ) {
+        final List<JsonObject> views = new ArrayList<>();
+        int count = 0;
+        for (final Card card : owner.getCardsIn(ZoneType.Hand)) {
+            count++;
+            final CardDto dto;
+            if (shownTo(card, viewer)) {
+                dto = toCard(game, card, ownerIndex, true, viewer, secretChoiceVisibility);
+                handKnowledge.remember(viewer, card, dto);
+            } else {
+                dto = handKnowledge.recalled(viewer, card);
+            }
+            if (dto != null) {
+                views.add(visibleCard(dto));
+            }
+        }
+        return zoneEntry("hand", "player-" + ownerIndex, views, count);
+    }
+
     private static Map<String, Object> zoneWithVisibility(
             final String zone,
             final String ownerId,
@@ -488,11 +534,20 @@ public final class InteractiveSnapshotExtractor {
     private static void redact(final CardDto dto) {
         dto.finalChapter = null;
         dto.classLevel = null;
+        dto.faceIndex = null;
+        dto.unlockedDoors = null;
+        dto.isSolved = null;
+        dto.isSuspended = null;
+        dto.isOnAdventure = null;
+        dto.isPrototyped = null;
         dto.classLevels = Collections.emptyList();
         dto.sagaChapters = Collections.emptyList();
         dto.choices = Collections.emptyList();
         dto.identity = new CardIdentity("", "", "", false, null);
+        dto.cosmetics = null;
+        dto.foil = false;
         dto.text = "";
+        dto.keywordLabels = null;
         dto.manaCost = "";
         dto.flashbackCost = null;
         dto.kickerCost = null;
@@ -511,6 +566,26 @@ public final class InteractiveSnapshotExtractor {
             }
         }
         return null;
+    }
+
+    /** Hidden information: only the browser hosting the game may read it, for its own seat. */
+    public static String libraryTopJson(final Game game, final int playerIndex, final int count) {
+        final Player player = playerForIndex(game, playerIndex);
+        final List<CardIdentity> top = new ArrayList<>();
+        if (player != null) {
+            final CardCollectionView library = player.getCardsIn(ZoneType.Library);
+            for (int index = 0; index < Math.min(count, library.size()); index++) {
+                final Card card = library.get(index);
+                final IPaperCard paper = card.getPaperCard();
+                top.add(new CardIdentity(
+                        normalizeCardName(paper != null ? paper.getName() : card.getName()),
+                        paper != null ? paper.getEdition() : card.getSetCode(),
+                        paper != null ? paper.getCollectorNumber() : "",
+                        card.isToken(),
+                        null));
+            }
+        }
+        return GSON.toJson(top);
     }
 
     private static String dayTime(final Game game) {
@@ -695,8 +770,10 @@ public final class InteractiveSnapshotExtractor {
     ) {
         final CardDto dto = new CardDto();
         dto.id = SnapshotExtractor.javaCardId(card);
+        dto.zone = card.getZone() == null ? null : cardZoneKind(card.getZone().getZoneType());
         final IPaperCard paper = card.getPaperCard();
-        final String name = card.isFaceDown() && paper != null ? paper.getName() : card.getName();
+        final String name = paper != null && (card.isFaceDown() || card.getName().isEmpty())
+                ? paper.getName() : card.getName();
         dto.identity = new CardIdentity(
                 normalizeCardName(name),
                 paper != null ? paper.getEdition() : card.getSetCode(),
@@ -735,14 +812,15 @@ public final class InteractiveSnapshotExtractor {
             dto.commanderTax = 2 * owner.getCommanderCast(card);
         }
         dto.tapped = card.isTapped();
-        dto.keywords = keywords(card);
+        keywords(card, dto);
         dto.counters = counterMap(card);
         dto.mergedCardIds = mergedCardIds(card);
         dto.damage = card.getDamage();
         dto.summoningSick = card.hasSickness();
         dto.isCopy = card.isCloned() || card.getCopiedPermanent() != null;
-        dto.isDoubleFaced = card.isDoubleFaced();
+        dto.isDoubleFaced = card.isDoubleFaced() || card.isModal();
         dto.isTransformed = card.isTransformed();
+        dto.faceIndex = stackFaceIndex(null, card.getCurrentStateName());
         dto.isFaceDown = card.isFaceDown();
         dto.isBestowed = card.isBestowed();
         dto.phasedOut = card.isPhasedOut();
@@ -752,7 +830,29 @@ public final class InteractiveSnapshotExtractor {
         dto.isMadnessExiled = card.isMadness();
         dto.isPlotted = card.isPlotted();
         dto.isWarpExiled = card.isWarped();
+        if (card.isRoom() && !card.isLKI()) {
+            dto.unlockedDoors = new ArrayList<>();
+            if (card.getUnlockedRooms().contains(CardStateName.LeftSplit)) {
+                dto.unlockedDoors.add(RoomDoor.LEFT);
+            }
+            if (card.getUnlockedRooms().contains(CardStateName.RightSplit)) {
+                dto.unlockedDoors.add(RoomDoor.RIGHT);
+            }
+        }
+        dto.isSolved = card.isSolved();
+        dto.isSuspended = card.isInZone(ZoneType.Exile) && card.hasSuspend();
+        dto.isOnAdventure = card.isInZone(ZoneType.Exile) && card.isOnAdventure();
+        if (!card.isLKI()) {
+            dto.isPrototyped = card.getPrototypeTimestamp() != -1;
+        }
         dto.foil = card.hasPaperFoil();
+        if (!card.isFaceDown() || faceShownTo(card, viewerPlayer)) {
+            final var presentation = CardCosmeticBindings.get(game, card);
+            if (presentation != null) {
+                dto.cosmetics = presentation.getCosmetics();
+                dto.foil = presentation.isFoil();
+            }
+        }
 
         final Card attachedTo = card.getAttachedTo();
         if (attachedTo != null) {
@@ -800,6 +900,33 @@ public final class InteractiveSnapshotExtractor {
             dto.effectiveManaCost = effectiveManaCost(card);
         }
         return dto;
+    }
+
+    static ZoneKind cardZoneKind(final ZoneType zone) {
+        switch (zone) {
+            case Hand:
+                return ZoneKind.HAND;
+            case Graveyard:
+            case Flashback:
+                return ZoneKind.GRAVEYARD;
+            case Battlefield:
+            case Merged:
+                return ZoneKind.BATTLEFIELD;
+            case Exile:
+                return ZoneKind.EXILE;
+            case Command:
+                return ZoneKind.COMMAND;
+            case AttractionDeck:
+                return ZoneKind.ATTRACTIONS;
+            case Junkyard:
+                return ZoneKind.JUNKYARD;
+            case Library:
+                return ZoneKind.LIBRARY;
+            case Sideboard:
+                return ZoneKind.SIDEBOARD;
+            default:
+                return null;
+        }
     }
 
     private static String normalizedOracle(final Card card) {
@@ -1011,12 +1138,24 @@ public final class InteractiveSnapshotExtractor {
         return out;
     }
 
-    private static List<String> keywords(final Card card) {
-        final List<String> out = new ArrayList<>();
+    private static void keywords(final Card card, final CardDto dto) {
+        dto.keywords = new ArrayList<>();
+        dto.keywordLabels = new TreeMap<>();
+        dto.grantedKeywords = new ArrayList<>();
+        final Set<String> intrinsic = new HashSet<>();
         for (final KeywordInterface keyword : card.getKeywords()) {
-            out.add(keyword.getOriginal());
+            if (keyword.isIntrinsic()) {
+                intrinsic.add(keyword.getOriginal());
+            }
         }
-        return out;
+        for (final KeywordInterface keyword : card.getKeywords()) {
+            final String original = keyword.getOriginal();
+            dto.keywords.add(original);
+            dto.keywordLabels.put(original, keyword.getTitle());
+            if (!intrinsic.contains(original) && !dto.grantedKeywords.contains(original)) {
+                dto.grantedKeywords.add(original);
+            }
+        }
     }
 
     private static Map<String, Integer> counterMap(final Card card) {
@@ -1049,7 +1188,8 @@ public final class InteractiveSnapshotExtractor {
     private static List<Map<String, Object>> snapshotStack(
             final Game game,
             final SpellAbility castingAbility,
-            final String activePlayerId
+            final String activePlayerId,
+            final Player viewerPlayer
     ) {
         final List<Map<String, Object>> out = new ArrayList<>();
         final List<SpellAbilityStackInstance> entries = new ArrayList<>();
@@ -1062,6 +1202,7 @@ public final class InteractiveSnapshotExtractor {
             final Map<String, Object> stackItem = new LinkedHashMap<>();
             stackItem.put("id", stackItemId(item));
             final Card source = item.getSourceCard();
+            final Card visibleSource = stackSourceShownTo(source, viewerPlayer) ? source : null;
             stackItem.put("sourceId", source == null
                     ? "engine-stack-source-" + index
                     : SnapshotExtractor.javaCardId(source));
@@ -1072,22 +1213,23 @@ public final class InteractiveSnapshotExtractor {
             stackItem.put("ownerId", source != null && source.getOwner() != null
                     ? "player-" + SnapshotExtractor.playerIndex(game, source.getOwner())
                     : "");
-            final String name = source == null
-                    ? item.getStackDescription()
-                    : normalizeCardName(source.getName());
-            stackItem.put("identity", stackIdentity(name, source));
+            if (visibleSource != null) {
+                stackItem.put("sourceCard", stackSourceCard(game, visibleSource, sa, viewerPlayer));
+            } else if (source == null) {
+                stackItem.put("identity", new CardIdentity(item.getStackDescription(), "", "", false, null));
+            }
             stackItem.put("text", item.getStackDescription());
-            putIfNotBlank(stackItem, "sourceAbilityText", sourceAbilityText(sa));
+            if (visibleSource != null) {
+                putIfNotBlank(stackItem, "sourceAbilityText", sourceAbilityText(sa));
+            }
             stackItem.put("isPermanentSpell", source != null && item.isSpell() && source.isPermanent());
             stackItem.put("isCasting", false);
-            stackItem.put("isDoubleFaced", source != null
-                    && (source.isDoubleFaced() || source.isModal()));
-            stackItem.put("faceIndex", stackFaceIndex(source, sa));
             stackItem.put("targets", stackTargets(game, item.getSpellAbility()));
             out.add(stackItem);
             index++;
         }
-        final Map<String, Object> casting = castingStackEntry(game, castingAbility, activePlayerId);
+        final Map<String, Object> casting = castingStackEntry(
+                game, castingAbility, activePlayerId, viewerPlayer);
         if (casting != null) {
             out.add(casting);
         }
@@ -1097,7 +1239,8 @@ public final class InteractiveSnapshotExtractor {
     private static Map<String, Object> castingStackEntry(
             final Game game,
             final SpellAbility castingAbility,
-            final String activePlayerId
+            final String activePlayerId,
+            final Player viewerPlayer
     ) {
         if (castingAbility == null) {
             return null;
@@ -1114,6 +1257,7 @@ public final class InteractiveSnapshotExtractor {
                 return null;
             }
         }
+        final Card visibleSource = stackSourceShownTo(source, viewerPlayer) ? source : null;
         final Map<String, Object> stackItem = new LinkedHashMap<>();
         stackItem.put("id", "casting-" + castingAbility.getId());
         stackItem.put("sourceId", SnapshotExtractor.javaCardId(source));
@@ -1123,15 +1267,55 @@ public final class InteractiveSnapshotExtractor {
         stackItem.put("ownerId", source.getOwner() != null
                 ? "player-" + SnapshotExtractor.playerIndex(game, source.getOwner())
                 : "");
-        stackItem.put("identity", stackIdentity(normalizeCardName(source.getName()), source));
+        if (visibleSource != null) {
+            stackItem.put("sourceCard", stackSourceCard(game, visibleSource, castingAbility, viewerPlayer));
+        }
         stackItem.put("text", castingAbility.getStackDescription());
-        putIfNotBlank(stackItem, "sourceAbilityText", sourceAbilityText(castingAbility));
+        if (visibleSource != null) {
+            putIfNotBlank(stackItem, "sourceAbilityText", sourceAbilityText(castingAbility));
+        }
         stackItem.put("isPermanentSpell", castingAbility.isSpell() && source.isPermanent());
         stackItem.put("isCasting", true);
-        stackItem.put("isDoubleFaced", source.isDoubleFaced() || source.isModal());
-        stackItem.put("faceIndex", stackFaceIndex(source, castingAbility));
         stackItem.put("targets", stackTargets(game, castingAbility));
         return stackItem;
+    }
+
+    private static CardDto stackSourceCard(
+            final Game game,
+            final Card source,
+            final SpellAbility ability,
+            final Player viewerPlayer
+    ) {
+        final CardDto dto = toCard(
+                game, source,
+                source.getOwner() == null ? 0 : SnapshotExtractor.playerIndex(game, source.getOwner()),
+                false, viewerPlayer, null);
+        dto.faceIndex = stackFaceIndex(source, ability);
+        if (source.isLKI() && ability != null && ability.isSpell()) {
+            dto.isPrototyped = ability.hasParam("Prototype");
+        }
+        return dto;
+    }
+
+    private static boolean stackSourceShownTo(final Card source, final Player viewerPlayer) {
+        if (source == null) {
+            return false;
+        }
+        if (source.getZone() != null) {
+            return shownTo(source, viewerPlayer)
+                    && (!source.isFaceDown() || faceShownTo(source, viewerPlayer));
+        }
+        if (source.getLastKnownZone() == null) {
+            return false;
+        }
+        final ZoneType zone = source.getLastKnownZone().getZoneType();
+        final boolean visible = switch (zone) {
+            case Battlefield, Graveyard, Command, Stack, Flashback, Junkyard, Ante -> true;
+            case Exile, Merged -> !source.isFaceDown();
+            case Hand -> viewerPlayer != null && source.getController() == viewerPlayer;
+            default -> false;
+        };
+        return visible && (!source.isFaceDown() || faceShownTo(source, viewerPlayer));
     }
 
     static String sourceAbilityText(final SpellAbility ability) {
@@ -1175,7 +1359,8 @@ public final class InteractiveSnapshotExtractor {
 
     static int stackFaceIndex(final CardStateName abilityState, final CardStateName sourceState) {
         final CardStateName state = abilityState != null ? abilityState : sourceState;
-        return state == CardStateName.Backside ? 1 : 0;
+        return state == CardStateName.Backside || state == CardStateName.RightSplit
+                || state == CardStateName.Secondary ? 1 : 0;
     }
 
     private static List<Map<String, Object>> stackTargets(final Game game, final SpellAbility ability) {
@@ -1198,21 +1383,8 @@ public final class InteractiveSnapshotExtractor {
         return out;
     }
 
-    private static Map<String, Object> stackIdentity(final String name, final Card source) {
-        final IPaperCard paper = source == null ? null : source.getPaperCard();
-        final Map<String, Object> identity = new LinkedHashMap<>();
-        identity.put("name", name);
-        identity.put("setCode", source == null ? "" : (paper != null ? paper.getEdition() : source.getSetCode()));
-        identity.put("cardNumber", source == null ? "" : (paper != null ? paper.getCollectorNumber() : ""));
-        identity.put("isToken", source != null && source.isToken());
-        final String tokenScript = source == null ? null : tokenScript(source, paper);
-        if (tokenScript != null) {
-            identity.put("tokenScript", tokenScript);
-        }
-        return identity;
-    }
 
-    private static String tokenScript(final Card card, final IPaperCard paper) {
+    static String tokenScript(final Card card, final IPaperCard paper) {
         if (!card.isToken() || !(paper instanceof PaperToken token)) {
             return null;
         }

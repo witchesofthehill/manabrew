@@ -1,10 +1,9 @@
+import { getUiFontFloor, UI_FONT_FAMILY } from "@/themes/typography";
 import { Container, Graphics, Text, TextStyle } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
 import { hexToNum } from "../colorUtils";
 import type { PlayerHudTooltipContent } from "./playerHud.types";
 
-const BODY_FONT = "Inter, system-ui, -apple-system, sans-serif";
-const TITLE_FONT = "Cormorant Garamond, Georgia, serif";
 const PAD_X = 11;
 const PAD_Y = 9;
 const MAX_W = 250;
@@ -64,6 +63,10 @@ export class PlayerHudTooltip {
     const app = this.theme.appTheme;
     const accent = hexToNum(accentColor);
     this.title.text = content.title;
+    const wrapWidth = Math.max(1, Math.min(MAX_W, this.vw > 0 ? this.vw - 8 : MAX_W) - PAD_X * 2);
+    this.title.style.wordWrapWidth = wrapWidth;
+    this.activeLineStyle.wordWrapWidth = wrapWidth;
+    this.inactiveLineStyle.wordWrapWidth = wrapWidth;
     let contentW = this.title.width;
     let y = PAD_Y;
     this.title.position.set(PAD_X, y);
@@ -125,10 +128,9 @@ export class PlayerHudTooltip {
 
   private titleStyle(): TextStyle {
     return new TextStyle({
-      fontFamily: TITLE_FONT,
-      fontSize: 15,
+      fontFamily: UI_FONT_FAMILY,
+      fontSize: Math.max(15, getUiFontFloor("label")),
       fontWeight: "700",
-      letterSpacing: 0.35,
       fill: hexToNum(this.theme.appTheme["popover-foreground"]),
       wordWrap: true,
       wordWrapWidth: MAX_W - PAD_X * 2,
@@ -138,10 +140,10 @@ export class PlayerHudTooltip {
   private lineStyle(active: boolean): TextStyle {
     const app = this.theme.appTheme;
     return new TextStyle({
-      fontFamily: BODY_FONT,
-      fontSize: 11,
+      fontFamily: UI_FONT_FAMILY,
+      fontSize: Math.max(11, getUiFontFloor("meta")),
       fontWeight: active ? "600" : "400",
-      lineHeight: 15,
+      lineHeight: Math.max(15, getUiFontFloor("meta") * 1.35),
       fill: hexToNum(active ? app["popover-foreground"] : app["muted-foreground"]),
       wordWrap: true,
       wordWrapWidth: MAX_W - PAD_X * 2,

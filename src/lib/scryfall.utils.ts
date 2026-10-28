@@ -1,10 +1,13 @@
-import type { CardBackFaceSummary, DeckCard } from "@/protocol/deck";
-import type { CardDto } from "@/protocol/game";
+import type { CardBackFaceSummary, Deck, DeckCard } from "@/protocol/deck";
+import type { CardDto, EngineKind } from "@/protocol/game";
 import type { ScryfallCard } from "@/types/scryfall";
+import type { LocalizedCardDetails } from "@/lib/localizedCardDetails";
 import type { ScryfallLanguage } from "@/i18n/locales";
 import { getScryfallManaCost } from "@/api/scryfall";
 import { chooseImageUrisForCard } from "@/stores/useScryfallStore";
 import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
+import { normalizeCardCosmetics } from "@/lib/cardCosmetics";
+import { asGameDeckCard } from "@/lib/decks";
 
 export const MTG_SUPERTYPES = new Set(["Basic", "Legendary", "Snow", "World", "Ongoing"]);
 
@@ -39,6 +42,22 @@ export function scryfallDisplayName(card: ScryfallCard): string {
 
 export function scryfallDisplayTypeLine(card: ScryfallCard): string {
   return card.printed_type_line ?? card.type_line;
+}
+
+export function scryfallToSearchResult(
+  sc: ScryfallCard,
+  locale?: ScryfallLanguage,
+  preserveSearchLanguage = false,
+): {
+  card: DeckCard;
+  displayName: string;
+} {
+  const card = scryfallToDeckCard(sc);
+  const displayName =
+    !locale || preserveSearchLanguage || sc.lang === locale
+      ? scryfallDisplayName(sc)
+      : card.identity.name;
+  return { card, displayName };
 }
 
 function getFrontTypeLine(sc: ScryfallCard): string {
@@ -150,10 +169,50 @@ export function deckCardToPreviewDto(card: DeckCard): CardDto {
     choices: [],
     keywords: card.keywords ?? [],
     foil: card.identity.foil ?? false,
+    cosmetics: normalizeCardCosmetics(card.identity.cosmetics),
   };
   previewDtoByDeckCard.set(card, preview);
   deckCardByPreviewDto.set(preview, card);
   return preview;
+}
+
+export function faceDownCardToPreviewDto(
+  card: CardDto,
+  engine: EngineKind | null,
+  gameDecks: Record<string, Deck>,
+): CardDto {
+  if (
+    engine !== "Forge" ||
+    !card.isFaceDown ||
+    card.zone !== "battlefield" ||
+    !card.identity.name ||
+    ("visibility" in card && card.visibility === "hidden")
+  )
+    return card;
+  const deckCard = asGameDeckCard(gameDecks, card);
+  const preview = {
+    ...deckCardToPreviewDto(deckCard),
+    id: card.id,
+    ownerId: card.ownerId,
+    controllerId: card.controllerId,
+  };
+  deckCardByPreviewDto.set(preview, deckCard);
+  return preview;
+}
+
+export function localizedDeckCardToPreviewDto(
+  card: DeckCard,
+  details: LocalizedCardDetails,
+): CardDto {
+  const preview = deckCardToPreviewDto(card);
+  const localized = {
+    ...preview,
+    identity: { ...preview.identity, name: details.name },
+    text: details.text,
+    ...parseTypeLine(details.typeLine),
+  };
+  deckCardByPreviewDto.set(localized, card);
+  return localized;
 }
 
 export function previewDtoDeckCard(preview: CardDto): DeckCard | undefined {

@@ -454,7 +454,12 @@ pub trait TokenEffectBase {
 
     fn after_token_created(&self, ctx: &mut EffectContext, token_id: CardId) {
         let token = ctx.game.card_mut(token_id);
-        token.update_spell_abilities();
+        if token.room_faces.is_none() {
+            token.update_spell_abilities();
+        }
+        if let Some(cast_sa) = token.cast_sa.as_deref_mut() {
+            cast_sa.set_host_card_id(token_id);
+        }
 
         let bound_host = ctx.game.card(token_id).clone();
         let token = ctx.game.card_mut(token_id);

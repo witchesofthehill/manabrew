@@ -10,6 +10,7 @@ import {
 import { platformFetch } from "@/lib/platformFetch";
 import { getPlatformType } from "@/platform";
 import { loadScryfallImage } from "@/lib/scryfallImageSource";
+import { cachedCardGlintAsset } from "@/lib/cardGlintAssetCache";
 import {
   localCardNames,
   localCardRecord,
@@ -26,6 +27,7 @@ import {
   type CardIdentifier,
 } from "./scryfallBatch";
 import { DEFAULT_SCRYFALL_LANGUAGE, type ScryfallLanguage } from "@/i18n/locales";
+import { withAnyScryfallLanguage } from "@/lib/scryfallSearch";
 
 export const SCRYFALL_API = "https://api.scryfall.com";
 export const COLLECTION_BATCH_SIZE = 75;
@@ -126,9 +128,10 @@ export async function searchCards(
 ): Promise<ScryfallListResponse> {
   const orderParam = order || "cmc";
   const dirParam = dir && dir !== "auto" ? `&dir=${dir}` : "";
+  const scryfallQuery = withAnyScryfallLanguage(query);
   try {
     return await scryfallFetch<ScryfallListResponse>(
-      `${SCRYFALL_API}/cards/search?q=${encodeURIComponent(query)}&page=${page}&order=${orderParam}&unique=cards${dirParam}`,
+      `${SCRYFALL_API}/cards/search?q=${encodeURIComponent(scryfallQuery)}&page=${page}&order=${orderParam}&unique=cards${dirParam}`,
       "Failed to fetch cards from Scryfall",
     );
   } catch (error) {
@@ -368,12 +371,16 @@ export async function fetchCardsBySet(setCode: string): Promise<ScryfallCard[]> 
 }
 
 const SCRYFALL_IMAGE_MAX_RETRIES = 3;
+const SCRYFALL_IMAGE_TIMEOUT_MS = 15_000;
 
 async function fetchImageBlob(url: string, cache: RequestCache): Promise<string> {
+  const installed = await cachedCardGlintAsset(url).catch(() => undefined);
+  if (installed) return URL.createObjectURL(await installed.blob());
   const response = await fetch(url, {
     cache,
     credentials: "omit",
     mode: "cors",
+    signal: AbortSignal.timeout(SCRYFALL_IMAGE_TIMEOUT_MS),
   });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   return URL.createObjectURL(await response.blob());

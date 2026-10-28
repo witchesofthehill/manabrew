@@ -1,5 +1,5 @@
 import type { CardDto } from "@/protocol/game";
-import { isFacelessCard } from "@/lib/gameCard";
+import { gameCardFaceIndex, isFacelessCard } from "@/lib/gameCard";
 import { ANY_COLOR_LETTERS } from "@/components/game/manaUtils";
 import type { CardInspectionState } from "./cardInspection";
 
@@ -51,7 +51,7 @@ export function toggleCardBrowserRulesView(
 ): CardBrowserState {
   const inspection = state.inspection[item.id] ?? {
     rules: defaultRules,
-    face: item.card.isTransformed ? (1 as const) : (0 as const),
+    face: gameCardFaceIndex(item.card),
     rotated: false,
   };
   return {

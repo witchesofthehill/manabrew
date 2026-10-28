@@ -5,21 +5,27 @@ import {
   loadScryfallImage,
   peekScryfallImage,
 } from "@/lib/scryfallImageSource";
+import { cachedCardGlintAsset, offlineCacheAvailable } from "@/lib/cardGlintAssetCache";
 
 export function useScryfallImageSrc(url: string | undefined): string | undefined {
-  const eligible = !!url && getPlatformType() === "tauri" && isScryfallImageUrl(url);
-  const [, bumpOnLoad] = useState(0);
+  const native = !!url && getPlatformType() === "tauri" && isScryfallImageUrl(url);
+  const eligible =
+    !!url && (native || (offlineCacheAvailable() && (/^https?:/.test(url) || url.startsWith("/"))));
+  const [resolved, setResolved] = useState<{ url: string; source: string }>();
   useEffect(() => {
-    if (!eligible || peekScryfallImage(url!)) return;
+    if (!eligible || !url) return;
     let active = true;
-    loadScryfallImage(url!)
-      .then(() => {
-        if (active) bumpOnLoad((n) => n + 1);
-      })
-      .catch(() => {});
+    void (async () => {
+      const installed = native || (await cachedCardGlintAsset(url).catch(() => undefined));
+      const source = installed ? await loadScryfallImage(url) : url;
+      if (active) setResolved({ url, source });
+    })().catch(() => {
+      if (active) setResolved({ url, source: url });
+    });
     return () => {
       active = false;
     };
-  }, [url, eligible]);
-  return eligible ? peekScryfallImage(url!) : url;
+  }, [url, eligible, native]);
+  if (!eligible || !url) return url;
+  return peekScryfallImage(url) ?? (resolved?.url === url ? resolved.source : undefined);
 }

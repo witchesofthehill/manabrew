@@ -1,4 +1,5 @@
 import { CARD_W } from "@/components/game/game.constants";
+import { SHORT_SCREEN_MAX_HEIGHT_PX } from "@/lib/responsive";
 import { FIELD_INNER_EDGE_PAD_PX } from "../constants";
 import { maxScaleForRows } from "../GridLayout";
 import { computeBoardLayout, type BoardLayout } from "./boardLayout";
@@ -48,6 +49,9 @@ export const MOBILE_BATTLEFIELD_LAYOUT: BattlefieldLayoutPolicy = {
         input.opponentLayout,
       );
       sharedScale = scaleForRows(layout, 2);
+    }
+    if (input.height > SHORT_SCREEN_MAX_HEIGHT_PX) {
+      sharedScale = Math.min(sharedScale, input.cardSizeMultiplier);
     }
     return {
       layout,

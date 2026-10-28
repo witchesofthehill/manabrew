@@ -1,3 +1,4 @@
+import { getUiControlFloor, getUiFontFloor, UI_FONT_FAMILY as FONT } from "@/themes/typography";
 import {
   Application,
   Container,
@@ -42,6 +43,7 @@ import {
   setVirtualTextInputActive,
 } from "@/lib/keybindings";
 import type { CardDto } from "@/protocol";
+import { gameCardFaceIndex } from "@/lib/gameCard";
 import { PromptButton, type PromptButtonOptions } from "./PromptButton";
 import { PromptGlow } from "./PromptGlow";
 import { LongPressGesture } from "@/pixi/LongPressGesture";
@@ -73,7 +75,6 @@ export const MODAL_TYPES = new Set([
   "reorder",
   "diceRolled",
 ]);
-const FONT = "Inter, system-ui, sans-serif";
 export const PANEL_PADDING = 8;
 export const ROW_GAP = 10;
 const CARD_HOVER_Z_INDEX = 600;
@@ -186,8 +187,10 @@ export function promptText(
     letterSpacing?: number;
     lineHeight?: number;
     truncate?: boolean;
+    role?: "body" | "label" | "meta" | "caption" | "input";
   } = {},
 ): Text {
+  size = Math.max(size, getUiFontFloor(options.role ?? "meta"));
   const text = new Text({
     text: value,
     style: new TextStyle({
@@ -200,7 +203,8 @@ export function promptText(
       align: options.align ?? "left",
       wordWrap: options.width != null && !options.truncate,
       wordWrapWidth: options.width,
-      lineHeight: options.lineHeight ?? Math.ceil(size * 1.35),
+      breakWords: true,
+      lineHeight: Math.max(options.lineHeight ?? 0, Math.ceil(size * 1.35)),
     }),
   });
   if (options.truncate && options.width != null && text.width > options.width) {
@@ -229,8 +233,10 @@ export function promptRichText(
     letterSpacing?: number;
     lineHeight?: number;
     maxLines?: number;
+    role?: "body" | "label" | "meta" | "caption" | "input";
   } = {},
 ): PixiRichText {
+  size = Math.max(size, getUiFontFloor(options.role ?? "label"));
   const text = new PixiRichText();
   text.setContent(
     value,
@@ -241,9 +247,9 @@ export function promptRichText(
       fontStyle: options.style ?? "normal",
       letterSpacing: options.letterSpacing ?? 0,
       fill: hexToNum(color),
-      lineHeight: options.lineHeight ?? Math.ceil(size * 1.35),
+      lineHeight: Math.max(options.lineHeight ?? 0, Math.ceil(size * 1.35)),
     }),
-    width,
+    Math.max(1, width),
     Math.ceil(size * 1.15),
     2,
     { align: options.align, maxLines: options.maxLines },
@@ -648,23 +654,35 @@ export abstract class PromptLayerBase {
     align: "left" | "center" | "right" = "center",
   ): number {
     if (buttons.length === 0) return 0;
-    const rawTotal =
-      buttons.reduce((sum, button) => sum + button.buttonWidth, 0) + ROW_GAP * (buttons.length - 1);
-    const scale = Math.min(1, availableWidth / rawTotal);
-    const total = rawTotal * scale;
-    let x =
-      align === "left"
-        ? 0
-        : align === "right"
-          ? availableWidth - total
-          : (availableWidth - total) / 2;
+    let row: PromptButton[] = [];
+    let rowWidth = 0;
+    let rowHeight = 0;
+    let rowY = y;
+    const placeRow = () => {
+      let x =
+        align === "left"
+          ? 0
+          : align === "right"
+            ? availableWidth - rowWidth
+            : (availableWidth - rowWidth) / 2;
+      for (const button of row) {
+        button.position.set(Math.max(0, x), rowY);
+        parent.addChild(button);
+        x += button.buttonWidth + ROW_GAP;
+      }
+      rowY += rowHeight + ROW_GAP;
+      row = [];
+      rowWidth = 0;
+      rowHeight = 0;
+    };
     for (const button of buttons) {
-      button.scale.set(scale);
-      button.position.set(x, y);
-      parent.addChild(button);
-      x += (button.buttonWidth + ROW_GAP) * scale;
+      if (row.length > 0 && rowWidth + ROW_GAP + button.buttonWidth > availableWidth) placeRow();
+      rowWidth += (row.length > 0 ? ROW_GAP : 0) + button.buttonWidth;
+      rowHeight = Math.max(rowHeight, button.buttonHeight);
+      row.push(button);
     }
-    return buttons.reduce((height, button) => Math.max(height, button.buttonHeight * scale), 0);
+    placeRow();
+    return rowY - y - ROW_GAP;
   }
 
   protected makeButton(
@@ -798,7 +816,7 @@ export abstract class PromptLayerBase {
     if (!state) {
       state = {
         rulesView: usePreferencesStore.getState().promptCardStyle === "rules",
-        face: card.isTransformed ? 1 : 0,
+        face: gameCardFaceIndex(card),
         horizontalFlipped: true,
       };
       this.promptCardStates.set(card.id, state);
@@ -810,7 +828,7 @@ export abstract class PromptLayerBase {
     sprite.onVisualChange = this.callbacks.onRenderRequested;
     const state = this.promptCardState(card);
     sprite.setPreviewFace(state.face);
-    sprite.setHandRulesView(state.rulesView);
+    sprite.setHandRulesView(state.rulesView, true);
     const horizontal = sprite.horizontalFrame && !card.isDoubleFaced;
     sprite.setHandControls({
       rulesView: state.rulesView,
@@ -831,10 +849,13 @@ export abstract class PromptLayerBase {
 
   protected togglePromptCardFace(card: CardDto, sprite: CardSprite): void {
     const state = this.promptCardState(card);
-    if (card.isDoubleFaced) state.face = state.face === 0 ? 1 : 0;
-    else if (sprite.horizontalFrame) state.horizontalFlipped = !state.horizontalFlipped;
-    else return;
-    this.rebuild();
+    if (card.isDoubleFaced) {
+      state.face = state.face === 0 ? 1 : 0;
+      this.configurePromptCardSprite(sprite, card);
+    } else if (sprite.horizontalFrame) {
+      state.horizontalFlipped = !state.horizontalFlipped;
+      sprite.flipPreviewOrientation(() => this.configurePromptCardSprite(sprite, card));
+    }
   }
   protected bindPromptCardLongPress(
     target: Container,
@@ -976,7 +997,7 @@ export abstract class PromptLayerBase {
   }
 
   scrollRulesAt(x: number, y: number, delta: number, mode: number): boolean {
-    return this.rulesSpriteAt(x, y)?.scrollHandRules(delta, mode) ?? false;
+    return this.rulesSpriteAt(x, y)?.scrollHandRules(delta, mode, x, y) ?? false;
   }
 
   private rulesSpriteAt(x: number, y: number): CardSprite | null {
@@ -984,6 +1005,7 @@ export abstract class PromptLayerBase {
     let target: Container | null = this.app.renderer.events.rootBoundary.hitTest(x, y);
     let sprite: CardSprite | null = null;
     while (target && target !== this.container) {
+      if (target === this.modalBody?.body) return null;
       if (target instanceof CardSprite && target.usesHandRulesView) sprite = target;
       target = target.parent;
     }
@@ -1344,7 +1366,7 @@ export abstract class PromptLayerBase {
     if (!filter) return;
     filter.background
       .clear()
-      .roundRect(0.5, filter.y + 0.5, filter.width - 1, 39, 7.5)
+      .roundRect(0.5, filter.y + 0.5, filter.width - 1, Math.max(40, getUiControlFloor()) - 1, 7.5)
       .fill({ color: hexToNum(this.theme.appTheme.background), alpha: focused ? 0.85 : 0.72 })
       .stroke({
         color: hexToNum(focused ? this.theme.gameTheme.cardRing : this.theme.appTheme.border),

@@ -11,6 +11,10 @@ if (target !== "android" && target !== "ios") {
 
 const env = { ...process.env };
 
+if (target === "ios" && args[0] === "build") {
+  env.NODE_OPTIONS = `${env.NODE_OPTIONS || ""} --max-old-space-size=8192`.trim();
+}
+
 if (target === "android") {
   const sdkCandidates = [
     env.ANDROID_HOME,

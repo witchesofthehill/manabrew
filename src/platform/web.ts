@@ -146,7 +146,9 @@ function readSeat<T>(
     }
   };
   worker.onerror = (event) => {
+    event.preventDefault();
     if (seat.cancelled) return;
+    console.error("[SeatReader] Worker error:", event);
     const error = workerError(event);
     reportClientError(error, "engine-worker", { operation: "seat-reader" });
     onError(error, "");
@@ -323,6 +325,8 @@ class WorkerBridge {
           reportClientError(error, "bot-worker");
         };
         worker.onerror = (event) => {
+          event.preventDefault();
+          console.error("[Manabot] Worker error:", event);
           const error = workerError(event);
           reportClientError(error, "bot-worker");
         };
@@ -660,6 +664,7 @@ class WorkerBridge {
 
         this.worker.onmessage = this.handleMessage.bind(this);
         this.worker.onerror = (e) => {
+          e.preventDefault();
           console.error("[WorkerBridge] Worker error:", e);
           const error = workerError(e);
           reportClientError(error, "engine-worker");
@@ -749,11 +754,25 @@ class WorkerBridge {
       if (message.type === "response") {
         this.handleMessage(e);
       } else if (message.type === "event" && message.event === "worker:init") {
-        const payload = message.payload as { stage?: string; message?: string };
-        if (payload?.stage === "error") fail(new Error(payload.message ?? "Worker init failed"));
+        const payload = message.payload as {
+          stage?: string;
+          message?: string;
+          name?: string;
+          stack?: string;
+        };
+        if (payload?.stage === "error") {
+          const error = new Error(payload.message ?? "Worker init failed");
+          error.name = payload.name ?? "Error";
+          error.stack = payload.stack ?? "";
+          fail(error);
+        }
       }
     };
-    worker.onerror = (event) => fail(workerError(event));
+    worker.onerror = (event) => {
+      event.preventDefault();
+      console.error("[WorkerBridge] Query worker error:", event);
+      fail(workerError(event));
+    };
     this.fallbackWorker = worker;
     return worker;
   }

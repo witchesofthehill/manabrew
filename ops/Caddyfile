@@ -99,7 +99,7 @@ telemetry.manabrew.app {
             header Vary "Origin, Access-Control-Request-Method, Access-Control-Request-Headers"
             respond "" 204
         }
-        reverse_proxy alloy:12347 {
+        reverse_proxy faro-collector:12347 {
             header_up -Forwarded
             header_up -X-Forwarded-For
             header_up -X-Forwarded-Host

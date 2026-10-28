@@ -339,7 +339,7 @@ docker compose -f compose.production.yml exec manabrew-server curl -fsS http://l
 
 The iOS app ships as an **unsigned IPA** sideloaded via [SideStore](https://sidestore.io), which re-signs on-device with the user's own Apple ID (no paid Apple Developer account required; free accounts get a 7-day refresh cycle).
 
-**How it's published.** `publish.yml`'s `ios-ipa` job builds the IPA on `macos-latest` with `yarn tauri ios build --no-sign`, and the `deploy-sidestore` job (after the web deploy) regenerates `apps.json` (`scripts/gen-sidestore-source.mjs`) and rsyncs it plus `Manabrew-<version>.ipa` and `icon.png` to the host's `ops/sidestore/`. That dir is bind-mounted into the caddy container at `/srv/manabrew/sidestore` and served under `play.manabrew.app/sidestore/`.
+**How it's published.** `publish.yml`'s `ios-ipa` job builds the IPA on `macos-latest` with `yarn ios:build --no-sign`. The shared mobile wrapper gives Node an 8192 MiB heap for iOS bundling, including hidden source maps. The `deploy-sidestore` job regenerates `apps.json` and publishes the IPA through the existing SideStore path.
 
 Unreferenced `Manabrew-*.ipa` files older than 30 days are removed after a successful upload. Installers referenced by `apps.json` are always retained; cleanup refuses to run if any referenced installer is missing.
 
@@ -349,7 +349,7 @@ Unreferenced `Manabrew-*.ipa` files older than 30 days are removed after a succe
 
 ```bash
 yarn build:wasm
-yarn tauri ios build --no-sign
+yarn ios:build --no-sign
 # → src-tauri/gen/apple/build/arm64/Manabrew.ipa
 ```
 
@@ -363,7 +363,7 @@ Mobile builds skip the GraalVM/Maven harness (`tauri.{ios,android}.conf.json` ov
 
 Reporting defaults on in managed production/staging Compose and official macOS, Windows, iOS, and Android builds. Generic images and local builds stay off. Explicit `false` remains the kill switch. Reports contain only allowlisted error/build/platform/engine/normalized-route/code-location metadata, with no account, user, device, game, or session IDs, SDK session metadata, or persistent diagnostic identity. This covers frontend exceptions and forwarded engine failures, not native process crash dumps. Default-on settings do not mark the manual rollout checks below as complete.
 
-Create DNS for `telemetry.manabrew.app` pointing to the existing ingress. Caddy terminates HTTPS and exposes only `/collect` for approved origins. Alloy's receiver, administration API, metrics, and private maps stay internal. The collector accepts at most 256 KiB per request and 20 POST requests/second globally, with burst 40. Stock Caddy has no configured per-client rate limiter. CORS is not authentication, and client-supplied app/environment metadata is untrusted.
+Create DNS for `telemetry.manabrew.app` pointing to the existing ingress. Caddy exposes only `/collect` for approved origins and forwards to the isolated `manabrew-faro` image. The collector rebuilds records with the shared client privacy helpers and sends only exceptions to Loki. Alloy continues collecting backend logs and has no public Faro receiver or map cache. Limits are 256 KiB per request, 10 exceptions per batch, 20 frames per exception, four in-flight requests, and 20 POST requests/second globally with burst 40. CORS is not authentication; metadata and counts remain client claims.
 
 Managed web configuration comes from the container environment:
 
@@ -375,7 +375,7 @@ Managed web configuration comes from the container environment:
 
 Production/staging Compose set separate environments, the managed collector URL, and `FARO_ENABLED=true` by default. Recreate the web container through the normal tag-pinned deployment flow after changing settings. Generic images and ordinary local builds remain off. `ops/web-entrypoint.sh` writes safely serialized `window.__MANABREW_RUNTIME__.observability`; explicit runtime disable overrides compiled settings. Reload the frontend after changes because initialization is one-shot.
 
-Official macOS, Windows, iOS, and Android jobs set the equivalent `VITE_FARO_*` variables in `publish.yml`, with `VITE_FARO_ENABLED=true`. Packaged settings require a new build to change. Each platform still needs its manual verification before release. The approved origins include Tauri origins and the packaged macOS/Linux asset-server origin `http://localhost:9527`. Keep ingress and Alloy origin lists in sync with any asset-server change.
+Official macOS, Windows, iOS, and Android jobs set the equivalent `VITE_FARO_*` variables in `publish.yml`, with `VITE_FARO_ENABLED=true`. Packaged settings require a new build to change. Each platform still needs manual verification before release. The approved origins include Tauri origins and `http://localhost:9527`. Keep ingress and collector origin lists in sync with any asset-server change.
 
 ### Private source maps
 
@@ -383,13 +383,17 @@ Vite generates hidden maps and removes them from `dist/` before packaging. The i
 
 `target/faro-sourcemaps/<build-id>/` contains the exact emitted maps, relative asset paths, and a SHA-256 manifest. Main bundles, compiled workers, and nested Card Glint chunks retain their own paths. Worker shared chunks use `assets/worker-*` to prevent main/worker source-map collisions. Raw unminified Forge assets may remain unsymbolicated. `scripts/build-faro-web.mjs` exports runtime and maps from one Buildx Bake graph, so maps cannot come from a second rebuild.
 
-CI transfers private maps with the existing deployment SSH credentials before web rollout or public installer publication. The host needs Python 3 and rsync in addition to existing Docker prerequisites. Publication checksum-validates artifacts, rejects symlinks, and atomically renames immutable release directories into `<DEPLOY_PATH>/ops/observability/data/sourcemaps/`. Staging maps go to the production observability store because staging uses the shared collector. Source-map artifacts are authenticated Actions artifacts with seven-day retention, never GitHub Release assets.
+CI encrypts source-map artifacts with AES-256-GCM before upload. `FARO_MAPS_KEY` receives the existing `DEPLOY_SSH_KEY` secret; domain-separated SHA-256 derives the encryption key. Public Actions artifacts contain only `maps.enc`, with seven-day retention, never plaintext maps or Release assets. Consumers authenticate the complete archive before extracting and validating paths, symlinks, checksums, and immutable manifests. Rotating the SSH secret makes old encrypted artifacts unreadable without the old key or a rebuild; already-published maps are unaffected.
+
+Publication uses deployment SSH, Python 3, and rsync to atomically install immutable directories into `<DEPLOY_PATH>/ops/observability/data/sourcemaps/`. Staging uses the production collector and map store. Its images use `staging-<workflow-run-id>` across all four services, stable across partial retries. Publish maps from that run before deploying its tag. Successful staging deployment saves the tag for manual redeployment and retains current, previous rollback, and container-used images while removing unused older staging refs.
 
 Restore Cargo caches **before** downloading maps under `target/`; partial `rust-cache` restores can delete non-Cargo files there. Public web runtime registry caches use `mode=min`. Cache warming ends at the pre-frontend `builder` stage; exporting frontend build layers with `mode=max` would publish private maps.
 
-Alloy mounts the store read-only at `/var/lib/faro/sourcemaps`. Reports canonicalize compiled asset URLs to `app:///assets/...`; `app.release` selects the build directory. Downloads are disabled, including on misses. Alloy `v1.9.1` caches successful maps and misses without expiry or an entry limit. Publish maps before the first report from a release; restart Alloy after repairing a missed map or replacing unpublished local-development maps. Monitor memory across active releases; the 256 MiB initial container limit is not a bounded-cache guarantee.
+The isolated collector mounts maps read-only at `/var/lib/faro/sourcemaps`. Only canonical `app:///assets/...` paths and valid build identities reach lookup; query/fragment aliases are rejected. It verifies manifest checksums and never downloads maps. The LRU holds at most 64 maps and 96 MiB of accounted map memory, expires idle entries after five minutes, and does not retain misses. Before decoding, it rejects maps above 32 MiB or one million mapping segments. Each request permits at most eight map loads, 32 MiB of map reads, and 128 MiB of accounted decode work. Excess locations remain minified. The separate collector has a 384 MiB V8 heap and 512 MiB container limit; accounted cache size is not a measurement of total RSS.
 
 Retain old directories for the supported lifetime of installed clients and rollback, not merely Loki's 30-day event retention. Deployment synchronization preserves the data directory. Do not prune source maps as part of image, installer, or event-log cleanup.
+
+`FARO_DAILY_BYTES` defaults to 10485760, a 10 MiB daily budget for serialized outgoing event bodies. Reservations persist in `faro-data`, including across restarts, and occur before export; failed deliveries consume budget too. Exhaustion returns 429 until the next UTC day or an operator raises the limit. This bounds accepted event bytes, not all Loki index/WAL overhead or backend logs. Monitor actual disk capacity separately. Do not delete the budget volume to recover capacity.
 
 ### Rollout and rollback
 

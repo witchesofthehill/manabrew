@@ -20,3 +20,7 @@ scrape_configs:
   - job_name: alloy
     static_configs:
       - targets: ["alloy:12345"]
+
+  - job_name: faro-collector
+    static_configs:
+      - targets: ["faro-collector:12347"]

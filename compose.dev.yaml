@@ -195,40 +195,36 @@ services:
     restart: unless-stopped
     mem_limit: 384m
 
-  alloy:
-    profiles:
-      - observability
-    image: grafana/alloy:v1.9.1
-    command:
-      - run
-      - --storage.path=/var/lib/alloy/data
-      - --server.http.listen-addr=0.0.0.0:12345
-      - /etc/alloy/dev.alloy
-    ports:
-      - "127.0.0.1:${ALLOY_DEV_PORT:-12345}:12345"
-    expose:
-      - "12347"
-    volumes:
-      - ./ops/observability/alloy:/etc/alloy:ro
-      - ./target/faro-sourcemaps:/var/lib/faro/sourcemaps:ro
-      - alloy-dev-data:/var/lib/alloy/data
-    restart: unless-stopped
-    mem_limit: 256m
-    depends_on:
-      - loki
-
   faro-collector:
     profiles:
       - observability
-    image: caddy:2.10-alpine
+    build:
+      context: .
+      dockerfile: ops/observability/collector/Dockerfile
+    environment:
+      FARO_ORIGINS: "http://localhost:1420,http://127.0.0.1:1420"
+      FARO_DAILY_BYTES: "${FARO_DAILY_BYTES:-10485760}"
     ports:
-      - "127.0.0.1:${FARO_COLLECTOR_DEV_PORT:-12347}:80"
+      - "127.0.0.1:${FARO_COLLECTOR_DEV_PORT:-12347}:12347"
     volumes:
-      - ./ops/observability/alloy/collector.Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./target/faro-sourcemaps:/var/lib/faro/sourcemaps:ro
+      - faro-dev-data:/var/lib/faro/state
     restart: unless-stopped
-    mem_limit: 64m
+    mem_limit: 512m
+    cpus: 1
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:12347/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
     depends_on:
-      - alloy
+      - loki
 
   prometheus:
     profiles:
@@ -253,5 +249,5 @@ volumes:
   hub-target:
   grafana-dev-data:
   loki-dev-data:
-  alloy-dev-data:
+  faro-dev-data:
   prometheus-dev-data:

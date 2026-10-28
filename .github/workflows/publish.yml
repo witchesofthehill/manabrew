@@ -173,11 +173,16 @@ jobs:
           args: --features forge-room --config src-tauri/updater.conf.json --verbose
           retryAttempts: 2
 
-      - name: Upload private macOS maps
+      - name: Encrypt macOS source maps
+        env:
+          FARO_MAPS_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: node scripts/faro-sourcemaps.mjs seal target/faro-artifacts/maps.enc
+
+      - name: Upload encrypted macOS maps
         uses: actions/upload-artifact@v4
         with:
           name: faro-maps-macos-${{ github.sha }}
-          path: target/faro-sourcemaps/
+          path: target/faro-artifacts/maps.enc
           if-no-files-found: error
           retention-days: 7
 
@@ -349,11 +354,16 @@ jobs:
           args: --features forge-room --config src-tauri/updater.conf.json --verbose
           retryAttempts: 2
 
-      - name: Upload private Windows maps
+      - name: Encrypt Windows source maps
+        env:
+          FARO_MAPS_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: node scripts/faro-sourcemaps.mjs seal target/faro-artifacts/maps.enc
+
+      - name: Upload encrypted Windows maps
         uses: actions/upload-artifact@v4
         with:
           name: faro-maps-windows-${{ github.sha }}
-          path: target/faro-sourcemaps/
+          path: target/faro-artifacts/maps.enc
           if-no-files-found: error
           retention-days: 7
 
@@ -478,13 +488,18 @@ jobs:
             --bin build-cardset-archive
 
       - name: Tauri build (iOS, unsigned)
-        run: yarn tauri ios build --no-sign
+        run: yarn ios:build --no-sign
 
-      - name: Upload private iOS maps
+      - name: Encrypt iOS source maps
+        env:
+          FARO_MAPS_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: node scripts/faro-sourcemaps.mjs seal target/faro-artifacts/maps.enc
+
+      - name: Upload encrypted iOS maps
         uses: actions/upload-artifact@v4
         with:
           name: faro-maps-ios-${{ github.sha }}
-          path: target/faro-sourcemaps/
+          path: target/faro-artifacts/maps.enc
           if-no-files-found: error
           retention-days: 7
 
@@ -581,11 +596,16 @@ jobs:
       - name: Tauri build (Android APK, arm64)
         run: node scripts/mobile-dev.mjs android build --apk --target aarch64
 
-      - name: Upload private Android maps
+      - name: Encrypt Android source maps
+        env:
+          FARO_MAPS_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: node scripts/faro-sourcemaps.mjs seal target/faro-artifacts/maps.enc
+
+      - name: Upload encrypted Android maps
         uses: actions/upload-artifact@v4
         with:
           name: faro-maps-android-${{ github.sha }}
-          path: target/faro-sourcemaps/
+          path: target/faro-artifacts/maps.enc
           if-no-files-found: error
           retention-days: 7
 
@@ -689,17 +709,24 @@ jobs:
           name: windows-exe-${{ github.sha }}
           path: release-assets/windows
 
-      - name: Download private macOS maps
+      - name: Download encrypted macOS maps
         uses: actions/download-artifact@v4
         with:
           name: faro-maps-macos-${{ github.sha }}
-          path: target/faro-sourcemaps/
+          path: target/faro-artifacts/macos/
 
-      - name: Download private Windows maps
+      - name: Download encrypted Windows maps
         uses: actions/download-artifact@v4
         with:
           name: faro-maps-windows-${{ github.sha }}
-          path: target/faro-sourcemaps/
+          path: target/faro-artifacts/windows/
+
+      - name: Decrypt desktop source maps
+        env:
+          FARO_MAPS_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          node scripts/faro-sourcemaps.mjs unseal target/faro-artifacts/macos/maps.enc
+          node scripts/faro-sourcemaps.mjs unseal target/faro-artifacts/windows/maps.enc
 
       - name: Publish private desktop maps before installers
         env:
@@ -800,19 +827,31 @@ jobs:
         with:
           node-version: "24"
 
-      - name: Download private iOS maps
+      - name: Download encrypted iOS maps
         if: needs.ios-ipa.result == 'success'
         uses: actions/download-artifact@v4
         with:
           name: faro-maps-ios-${{ github.sha }}
-          path: target/faro-sourcemaps/
+          path: target/faro-artifacts/ios/
 
-      - name: Download private Android maps
+      - name: Download encrypted Android maps
         if: needs.android-apk.result == 'success'
         uses: actions/download-artifact@v4
         with:
           name: faro-maps-android-${{ github.sha }}
-          path: target/faro-sourcemaps/
+          path: target/faro-artifacts/android/
+
+      - name: Decrypt iOS source maps
+        if: needs.ios-ipa.result == 'success'
+        env:
+          FARO_MAPS_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: node scripts/faro-sourcemaps.mjs unseal target/faro-artifacts/ios/maps.enc
+
+      - name: Decrypt Android source maps
+        if: needs.android-apk.result == 'success'
+        env:
+          FARO_MAPS_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: node scripts/faro-sourcemaps.mjs unseal target/faro-artifacts/android/maps.enc
 
       - name: Download iOS IPA
         continue-on-error: true
@@ -958,6 +997,7 @@ jobs:
       - name: Download exact private web maps
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FARO_MAPS_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
         run: node scripts/faro-sourcemaps.mjs fetch-web "$(git rev-parse HEAD)"
 
       - name: Deploy web (xtask, from the runner)
@@ -1053,6 +1093,7 @@ jobs:
       - name: Download exact private web maps
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FARO_MAPS_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
         run: node scripts/faro-sourcemaps.mjs fetch-web "$(git rev-parse HEAD)"
 
       - name: Deploy production (xtask, from the runner)

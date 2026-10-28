@@ -133,7 +133,9 @@ function startWorker(slot: WorkerSlot): Promise<boolean> {
     slot.worker = instance;
     window.addEventListener("pagehide", terminateCardRenderWorker, { once: true });
     instance.onerror = (event) => {
+      event.preventDefault();
       if (slot.worker !== instance) return;
+      console.error("[CardRender] Worker error:", event);
       const error = workerError(event);
       reportClientError(error, "render-worker");
       reject(error);

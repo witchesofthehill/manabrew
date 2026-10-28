@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import {
   mkdirSync,
@@ -10,6 +10,7 @@ import {
   lstatSync,
 } from "node:fs";
 import path from "node:path";
+import { gzipSync, gunzipSync } from "node:zlib";
 
 const buildPattern =
   /^[0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.-]+)?-[a-f0-9]{40}-[a-z][a-z0-9-]{0,63}$/;
@@ -18,6 +19,139 @@ const run = (program, args, options = {}) =>
   execFileSync(program, args, { stdio: "inherit", ...options });
 const hash = (file) => createHash("sha256").update(readFileSync(file)).digest("hex");
 const buildVariant = (buildId) => buildId.match(/-[a-f0-9]{40}-(.+)$/)?.[1];
+const archiveMagic = Buffer.from("FAROMAPS1");
+const mapPattern = /^(?:[a-zA-Z0-9_.-]+\/)*[a-zA-Z0-9_.-]+\.map$/;
+const validMapName = (name) =>
+  mapPattern.test(name) && !name.split("/").some((part) => part === "." || part === "..");
+
+function artifactKey() {
+  const material = process.env.FARO_MAPS_KEY;
+  if (!material?.trim()) throw new Error("Missing FARO_MAPS_KEY");
+  return createHash("sha256")
+    .update("manabrew/faro-maps/aes-256-gcm/v1\0")
+    .update(material)
+    .digest();
+}
+
+function ensureDirectory(directory) {
+  const absolute = path.resolve(directory);
+  let current = path.parse(absolute).root;
+  for (const part of absolute.slice(current.length).split(path.sep).filter(Boolean)) {
+    current = path.join(current, part);
+    const entry = lstatSync(current, { throwIfNoEntry: false });
+    if (entry && (!entry.isDirectory() || entry.isSymbolicLink()))
+      throw new Error(`Unsafe artifact directory: ${current}`);
+    if (!entry) mkdirSync(current);
+  }
+}
+
+function seal(output) {
+  const key = artifactKey();
+  ensureDirectory(store);
+  const builds = readdirSync(store);
+  if (!builds.length) throw new Error("No source maps to seal");
+  for (const buildId of builds) validate(path.join(store, buildId), buildId);
+  const contents = files(store).map((name) => ({
+    name,
+    data: readFileSync(path.join(store, name)),
+  }));
+  const index = Buffer.from(JSON.stringify(contents.map(({ name, data }) => [name, data.length])));
+  const length = Buffer.alloc(4);
+  length.writeUInt32BE(index.length);
+  const archive = gzipSync(Buffer.concat([length, index, ...contents.map(({ data }) => data)]));
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", key, iv);
+  cipher.setAAD(archiveMagic);
+  const ciphertext = Buffer.concat([cipher.update(archive), cipher.final()]);
+  ensureDirectory(path.dirname(output));
+  writeFileSync(output, Buffer.concat([archiveMagic, iv, cipher.getAuthTag(), ciphertext]), {
+    mode: 0o600,
+    flag: "wx",
+  });
+}
+
+function unseal(input) {
+  const key = artifactKey();
+  const encrypted = readFileSync(input);
+  const headerLength = archiveMagic.length + 12 + 16;
+  if (
+    encrypted.length <= headerLength ||
+    !encrypted.subarray(0, archiveMagic.length).equals(archiveMagic)
+  )
+    throw new Error("Invalid encrypted source map artifact");
+  const decipher = createDecipheriv(
+    "aes-256-gcm",
+    key,
+    encrypted.subarray(archiveMagic.length, archiveMagic.length + 12),
+  );
+  decipher.setAAD(archiveMagic);
+  decipher.setAuthTag(encrypted.subarray(archiveMagic.length + 12, headerLength));
+  const compressed = Buffer.concat([
+    decipher.update(encrypted.subarray(headerLength)),
+    decipher.final(),
+  ]);
+  const archive = gunzipSync(compressed);
+  if (archive.length < 4) throw new Error("Invalid source map archive");
+  const indexEnd = 4 + archive.readUInt32BE(0);
+  if (indexEnd > archive.length) throw new Error("Invalid source map archive index");
+  const index = JSON.parse(archive.subarray(4, indexEnd).toString("utf8"));
+  if (!Array.isArray(index) || !index.length) throw new Error("Empty source map archive");
+  const names = new Set();
+  const builds = new Set();
+  let offset = indexEnd;
+  const entries = index.map((entry) => {
+    if (!Array.isArray(entry) || entry.length !== 2) throw new Error("Invalid archive entry");
+    const [name, size] = entry;
+    if (typeof name !== "string" || !Number.isSafeInteger(size) || size < 0)
+      throw new Error("Invalid archive entry");
+    const slash = name.indexOf("/");
+    const buildId = name.slice(0, slash);
+    const relative = name.slice(slash + 1);
+    if (
+      slash < 0 ||
+      !buildPattern.test(buildId) ||
+      (relative !== "manifest.json" && !validMapName(relative)) ||
+      names.has(name.toLowerCase()) ||
+      size > archive.length - offset
+    )
+      throw new Error(`Invalid archive path or size: ${name}`);
+    names.add(name.toLowerCase());
+    builds.add(buildId);
+    const data = archive.subarray(offset, offset + size);
+    offset += size;
+    return { name, data };
+  });
+  if (offset !== archive.length) throw new Error("Unexpected source map archive data");
+  ensureDirectory(store);
+  const temporary = path.join(store, `.incoming-${randomUUID()}`);
+  mkdirSync(temporary, { mode: 0o700 });
+  try {
+    for (const { name, data } of entries) {
+      const destination = path.join(temporary, name);
+      ensureDirectory(path.dirname(destination));
+      writeFileSync(destination, data, { flag: "wx", mode: 0o600 });
+    }
+    for (const buildId of builds) {
+      validate(path.join(temporary, buildId), buildId);
+      const destination = path.join(store, buildId);
+      if (!lstatSync(destination, { throwIfNoEntry: false })) continue;
+      validate(destination, buildId);
+      if (
+        !readFileSync(path.join(destination, "manifest.json")).equals(
+          readFileSync(path.join(temporary, buildId, "manifest.json")),
+        )
+      )
+        throw new Error(`Immutable build changed: ${buildId}`);
+    }
+    for (const buildId of builds) {
+      const destination = path.join(store, buildId);
+      if (!lstatSync(destination, { throwIfNoEntry: false }))
+        renameSync(path.join(temporary, buildId), destination);
+    }
+  } finally {
+    rmSync(temporary, { recursive: true, force: true });
+  }
+}
 
 function files(directory, relative = "") {
   const result = [];
@@ -32,23 +166,26 @@ function files(directory, relative = "") {
 }
 
 function validate(directory, buildId) {
-  if (!buildPattern.test(buildId) || lstatSync(directory).isSymbolicLink())
+  if (
+    !buildPattern.test(buildId) ||
+    lstatSync(directory).isSymbolicLink() ||
+    !lstatSync(directory).isDirectory()
+  )
     throw new Error("Invalid build directory");
-  const manifest = JSON.parse(readFileSync(path.join(directory, "manifest.json"), "utf8"));
   const names = files(directory).filter((name) => name !== "manifest.json");
+  const manifest = JSON.parse(readFileSync(path.join(directory, "manifest.json"), "utf8"));
   if (
     manifest.buildId !== buildId ||
+    !manifest.maps ||
+    typeof manifest.maps !== "object" ||
+    Array.isArray(manifest.maps) ||
     !names.length ||
     JSON.stringify(names) !== JSON.stringify(Object.keys(manifest.maps).sort())
   ) {
     throw new Error(`Invalid source map manifest: ${buildId}`);
   }
   for (const name of names) {
-    if (
-      !/^(?:[a-zA-Z0-9_.-]+\/)*[a-zA-Z0-9_.-]+\.map$/.test(name) ||
-      name.split("/").some((part) => part === "." || part === "..") ||
-      hash(path.join(directory, name)) !== manifest.maps[name]
-    ) {
+    if (!validMapName(name) || hash(path.join(directory, name)) !== manifest.maps[name]) {
       throw new Error(`Invalid source map: ${name}`);
     }
   }
@@ -117,19 +254,27 @@ async function fetchWeb(commit) {
         (entry) => entry.name === `faro-maps-web-${commit}` && !entry.expired,
       );
       if (artifact) {
-        mkdirSync(store, { recursive: true });
-        run("gh", [
-          "run",
-          "download",
-          String(workflow.id),
-          "--repo",
-          repository,
-          "--name",
-          artifact.name,
-          "--dir",
-          store,
-        ]);
-        return;
+        const download = path.resolve("target/faro-artifacts", `web-${randomUUID()}`);
+        ensureDirectory(download);
+        try {
+          run("gh", [
+            "run",
+            "download",
+            String(workflow.id),
+            "--repo",
+            repository,
+            "--name",
+            artifact.name,
+            "--dir",
+            download,
+          ]);
+          if (JSON.stringify(files(download)) !== JSON.stringify(["maps.enc"]))
+            throw new Error("Unexpected web map artifact contents");
+          unseal(path.join(download, "maps.enc"));
+          return;
+        } finally {
+          rmSync(download, { recursive: true, force: true });
+        }
       }
     }
     await new Promise((resolve) => setTimeout(resolve, 30000));
@@ -206,9 +351,11 @@ stage.rmdir()
 
 const [command, ...args] = process.argv.slice(2);
 if (command === "extract") extract(args[0], args[1]);
+else if (command === "seal") seal(args[0]);
+else if (command === "unseal") unseal(args[0]);
 else if (command === "fetch-web") await fetchWeb(args[0]);
 else if (command === "publish") publish(args[0], args[1], args.slice(2));
 else
   throw new Error(
-    "Usage: faro-sourcemaps.mjs extract <dist> <build-id> | fetch-web <commit> | publish <ssh-host> <private-store> <variant...>",
+    "Usage: faro-sourcemaps.mjs extract <dist> <build-id> | seal <artifact-file> | unseal <artifact-file> | fetch-web <commit> | publish <ssh-host> <private-store> <variant...>",
   );

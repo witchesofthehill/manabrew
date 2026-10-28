@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.67.1](https://github.com/witchesofthehill/manabrew/compare/v3.67.0...v3.67.1) (2026-10-28)
+
+### Fixes
+
+* **ui:** inspect authorized face-down cards in forge games ([#1144](https://github.com/witchesofthehill/manabrew/issues/1144)) ([0b1904e](https://github.com/witchesofthehill/manabrew/commit/0b1904e0d457a259ac85751b2db7878ad6e40b96))
+
 ## [3.67.0](https://github.com/witchesofthehill/manabrew/compare/v3.66.1...v3.67.0) (2026-10-28)
 
 ### Features

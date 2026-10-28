@@ -430,6 +430,7 @@ export function useGameEventListeners() {
           clearActiveGameSession();
           setState({
             isGameActive: false,
+            activeEngine: null,
             gameView: null,
             currentPrompt: null,
             deferredQueue: [],

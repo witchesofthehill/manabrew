@@ -1,5 +1,5 @@
-import type { CardBackFaceSummary, DeckCard } from "@/protocol/deck";
-import type { CardDto } from "@/protocol/game";
+import type { CardBackFaceSummary, Deck, DeckCard } from "@/protocol/deck";
+import type { CardDto, EngineKind } from "@/protocol/game";
 import type { ScryfallCard } from "@/types/scryfall";
 import type { LocalizedCardDetails } from "@/lib/localizedCardDetails";
 import type { ScryfallLanguage } from "@/i18n/locales";
@@ -7,6 +7,7 @@ import { getScryfallManaCost } from "@/api/scryfall";
 import { chooseImageUrisForCard } from "@/stores/useScryfallStore";
 import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
 import { normalizeCardCosmetics } from "@/lib/cardCosmetics";
+import { asGameDeckCard } from "@/lib/decks";
 
 export const MTG_SUPERTYPES = new Set(["Basic", "Legendary", "Snow", "World", "Ongoing"]);
 
@@ -172,6 +173,30 @@ export function deckCardToPreviewDto(card: DeckCard): CardDto {
   };
   previewDtoByDeckCard.set(card, preview);
   deckCardByPreviewDto.set(preview, card);
+  return preview;
+}
+
+export function faceDownCardToPreviewDto(
+  card: CardDto,
+  engine: EngineKind | null,
+  gameDecks: Record<string, Deck>,
+): CardDto {
+  if (
+    engine !== "Forge" ||
+    !card.isFaceDown ||
+    card.zone !== "battlefield" ||
+    !card.identity.name ||
+    ("visibility" in card && card.visibility === "hidden")
+  )
+    return card;
+  const deckCard = asGameDeckCard(gameDecks, card);
+  const preview = {
+    ...deckCardToPreviewDto(deckCard),
+    id: card.id,
+    ownerId: card.ownerId,
+    controllerId: card.controllerId,
+  };
+  deckCardByPreviewDto.set(preview, deckCard);
   return preview;
 }
 

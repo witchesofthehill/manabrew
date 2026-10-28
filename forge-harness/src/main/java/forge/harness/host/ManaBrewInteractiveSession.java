@@ -6,6 +6,7 @@ import forge.harness.common.ParityCardMap;
 import forge.harness.common.ParityOrder;
 import forge.harness.common.SnapshotExtractor;
 
+import com.google.common.base.CaseFormat;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -2509,15 +2510,16 @@ public final class ManaBrewInteractiveSession {
             if (host == null) {
                 continue;
             }
-            final String label = formatActionLabel(labels.get(i));
+            final boolean isCastAction = sa.isLandAbility() || sa.isSpell() || sa.isForetelling()
+                    || isUnlockDoorAction(sa) || isSuspendAction(sa);
+            final PlayCardMode mode = isCastAction ? playCardMode(sa) : null;
+            final String label = formatActionLabel(labels.get(i), mode);
             if (label.isEmpty()) {
                 continue;
             }
             final String cardId = SnapshotExtractor.javaCardId(host);
             final String id = "prompt-action-" + i;
-            if (sa.isLandAbility() || sa.isSpell() || sa.isForetelling()
-                    || isUnlockDoorAction(sa) || isSuspendAction(sa)) {
-                final PlayCardMode mode = playCardMode(sa);
+            if (isCastAction) {
                 actionsArray.add(new AvailableAction_cast(
                         id, cardId, mode, label, actionFaceIndex(sa, mode)));
             } else if (sa.isManaAbility()) {
@@ -3350,7 +3352,7 @@ public final class ManaBrewInteractiveSession {
         return new PromptPresentation(title, description, null, java.util.List.of());
     }
 
-    private static String formatActionLabel(final String label) {
+    private static String formatActionLabel(final String label, final PlayCardMode mode) {
         final String normalized = stripActionSuffix(label);
         final int colon = normalized.indexOf(':');
         if (colon < 0) {
@@ -3360,7 +3362,12 @@ public final class ManaBrewInteractiveSession {
         final String rest = normalized.substring(colon + 1);
         final int hash = rest.indexOf('#');
         final String cardName = hash < 0 ? rest : rest.substring(0, hash);
-        final String altCost = hash < 0 ? null : rest.substring(hash + 1);
+        String altCost = hash < 0 ? null : rest.substring(hash + 1);
+        if (altCost == null && mode instanceof PlayCardMode_alternative alternative) {
+            altCost = CaseFormat.UPPER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, alternative.cost.name());
+        } else if (altCost == null && mode instanceof PlayCardMode_staticAlternative) {
+            altCost = "Alternative cost";
+        }
         final int bar = cardName.indexOf('|');
         final String displayName = bar < 0 ? cardName : cardName.substring(bar + 1);
         final String altSuffix = altCost == null ? "" : " (" + altCost + ")";

@@ -57,6 +57,7 @@ export interface GameState {
   currentPrompt: Prompt | null;
   protocolError: ProtocolError | null;
   isGameActive: boolean;
+  activeEngine: EngineKind | null;
   debugInfo: string;
   /** Set when the host engine fails fatally (crash / invalid deck / can't
    *  start). The game view shows this instead of hanging on the loading

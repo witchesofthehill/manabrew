@@ -1,4 +1,4 @@
-import { getUiFontSize, UI_FONT_FAMILY } from "@/themes/typography";
+import { getUiFontFloor, UI_FONT_FAMILY } from "@/themes/typography";
 import { Container, Sprite, Text, Texture, type DestroyOptions } from "pixi.js";
 import { getTheme } from "@/hooks/useTheme";
 import { cardCosmeticsKey } from "@/lib/cardCosmetics";
@@ -26,7 +26,7 @@ export class LimitedCardFace extends Container {
   private readonly fallbackLabel = new Text({
     style: {
       fontFamily: UI_FONT_FAMILY,
-      fontSize: getUiFontSize("label"),
+      fontSize: Math.max(13, getUiFontFloor("label")),
       wordWrap: true,
       breakWords: true,
     },
@@ -60,7 +60,7 @@ export class LimitedCardFace extends Container {
     const theme = getTheme();
     this.image.setSize(width, height);
     this.foil.setSurface(width, height, 6, theme);
-    this.fallbackLabel.style.fontSize = getUiFontSize("label");
+    this.fallbackLabel.style.fontSize = Math.max(13, getUiFontFloor("label"));
     this.fallbackLabel.style.fill = theme.appTheme.foreground;
     this.fallbackLabel.style.wordWrapWidth = width - 12;
     this.positionLabel();

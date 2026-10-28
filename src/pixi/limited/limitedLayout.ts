@@ -1,6 +1,6 @@
 import { GAME_CARD_SIZES } from "@/components/game/game.constants";
 import { MANA_LETTERS } from "@/themes/gameTheme";
-import { getUiFontSize, UI_FONT_FAMILY } from "@/themes/typography";
+import { getUiFontFloor, UI_FONT_FAMILY } from "@/themes/typography";
 import { CanvasTextMetrics, TextStyle } from "pixi.js";
 import type { DraftCard } from "@/types/limited";
 import type { ScryfallCard } from "@/types/scryfall";
@@ -36,7 +36,7 @@ const headerStyle = new TextStyle({
 });
 
 function headerHeight(label: string, width: number): number {
-  headerStyle.fontSize = Math.max(16, getUiFontSize("label"));
+  headerStyle.fontSize = Math.max(16, getUiFontFloor("label"));
   headerStyle.lineHeight = Math.ceil(Number(headerStyle.fontSize) * 1.25);
   headerStyle.wordWrapWidth = width;
   return Math.ceil(CanvasTextMetrics.measureText(label, headerStyle).height) + 12;

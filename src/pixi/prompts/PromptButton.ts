@@ -1,4 +1,10 @@
-import { getUiControlHeight, getUiFontSize, UI_FONT_FAMILY as FONT } from "@/themes/typography";
+import {
+  getUiControlFloor,
+  getUiControlHeight,
+  getUiFontFloor,
+  isTouchUi,
+  UI_FONT_FAMILY as FONT,
+} from "@/themes/typography";
 import { Container, Graphics, Rectangle, Sprite, Text, TextStyle, type Texture } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
 import { colorAlpha, hexToNum } from "@/pixi/colorUtils";
@@ -97,7 +103,10 @@ export class PromptButton extends Container {
       text: labelPlacement === "stacked" ? options.label.toUpperCase() : options.label,
       style: new TextStyle({
         fontFamily: FONT,
-        fontSize: Math.max(options.fontSize ?? 0, getUiFontSize("label")),
+        fontSize: Math.max(
+          options.fontSize ?? (labelPlacement === "stacked" ? 8 : options.compact ? 10 : 12),
+          getUiFontFloor("label"),
+        ),
         fontWeight: options.fontWeight ?? "700",
         letterSpacing:
           options.letterSpacing ??
@@ -186,14 +195,14 @@ export class PromptButton extends Container {
   }
 
   get buttonWidth(): number {
-    if (this.options.width != null) return Math.max(getUiControlHeight(), this.options.width);
+    if (this.options.width != null) return Math.max(getUiControlFloor(), this.options.width);
     const iconWidth = this.iconSprite ? (this.options.iconSize ?? 14) : 0;
     const placement = this.options.labelPlacement ?? "inline";
     const paddingX = this.options.paddingX ?? (placement === "stacked" ? 6 : 12);
-    if (placement === "hidden") return Math.max(getUiControlHeight(), 36, iconWidth + paddingX * 2);
+    if (placement === "hidden") return Math.max(getUiControlFloor(), 36, iconWidth + paddingX * 2);
     if (placement === "stacked") {
       return Math.max(
-        getUiControlHeight(),
+        getUiControlFloor(),
         40,
         iconWidth + paddingX * 2,
         this.labelText.width + paddingX * 2,
@@ -215,13 +224,17 @@ export class PromptButton extends Container {
 
   get buttonHeight(): number {
     const placement = this.options.labelPlacement ?? "inline";
+    const authoredHeight =
+      this.options.height ??
+      (placement === "stacked" ? 40 : placement === "hidden" ? 36 : this.options.compact ? 38 : 36);
+    if (!isTouchUi()) return authoredHeight;
     const iconHeight = this.iconSprite ? (this.options.iconSize ?? 14) : 0;
     const labelHeight = placement === "hidden" ? 0 : this.labelText.height;
     const contentHeight =
       placement === "stacked"
         ? iconHeight + (iconHeight > 0 && labelHeight > 0 ? 4 : 0) + labelHeight
         : Math.max(iconHeight, labelHeight, this.shortcutContainer?.height ?? 0);
-    return Math.max(getUiControlHeight(), this.options.height ?? 36, contentHeight + 12);
+    return Math.max(getUiControlHeight(), authoredHeight, contentHeight + 12);
   }
 
   setDisabled(disabled: boolean): void {
@@ -399,7 +412,7 @@ export class PromptButton extends Container {
       text: value,
       style: new TextStyle({
         fontFamily: FONT,
-        fontSize: getUiFontSize("meta"),
+        fontSize: Math.max(10, getUiFontFloor("meta")),
         fontWeight: "700",
         fill: hexToNum(this.theme.appTheme["muted-foreground"]),
       }),
@@ -425,7 +438,7 @@ export class PromptButton extends Container {
       text: value,
       style: new TextStyle({
         fontFamily: FONT,
-        fontSize: getUiFontSize("meta"),
+        fontSize: Math.max(9, getUiFontFloor("meta")),
         fontWeight: "700",
         fill: hexToNum(this.theme.gameTheme.textOnTinted),
       }),
@@ -449,7 +462,7 @@ export class PromptButton extends Container {
       text: value,
       style: new TextStyle({
         fontFamily: FONT,
-        fontSize: getUiFontSize("label"),
+        fontSize: Math.max(10, getUiFontFloor("label")),
         fontWeight: "600",
         fill: hexToNum(this.theme.appTheme["popover-foreground"]),
       }),

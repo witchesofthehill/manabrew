@@ -1,4 +1,9 @@
-import { getUiControlHeight, getUiFontSize } from "@/themes/typography";
+import {
+  getUiControlFloor,
+  getUiControlHeight,
+  getUiFontFloor,
+  getUiFontSize,
+} from "@/themes/typography";
 import { TOUCH_MOVE_SLOP_PX } from "@/lib/responsive";
 import { topModal } from "@/lib/modalStack";
 import { summarizeCombat } from "@/components/game/combatSummary";
@@ -423,7 +428,7 @@ export class PromptLayer extends PromptModalLayer {
     if (!showActionContext) this.actionContextOpen = false;
     const fixedWidth = minimal
       ? null
-      : Math.min(this.viewportWidth - 24, shortScreen || touch ? 320 : 360);
+      : Math.min(this.viewportWidth - 24, touch ? 320 : shortScreen ? 230 : 300);
     const fixedContentWidth = fixedWidth == null ? this.viewportWidth - 24 : fixedWidth - 16;
     const phaseAnchor = action.compactPhaseControl?.anchor ?? null;
     const controls = minimal
@@ -446,11 +451,13 @@ export class PromptLayer extends PromptModalLayer {
       ? 0
       : Math.max(
           34,
-          modeButton?.buttonHeight ?? 0,
-          menuButton?.height ?? 0,
-          contextButton?.buttonHeight ?? 0,
-          getUiFontSize("label") * 1.35,
-        ) + 12;
+          Math.max(
+            modeButton?.buttonHeight ?? 0,
+            menuButton?.height ?? 0,
+            contextButton?.buttonHeight ?? 0,
+            getUiFontFloor("label") * 1.35,
+          ) + 12,
+        );
     const sectionPaddingX = minimal ? 6 : 8;
     const sectionPaddingTop = minimal ? 4 : 8;
     const sectionPaddingBottom = minimal ? 4 : 8;
@@ -466,7 +473,7 @@ export class PromptLayer extends PromptModalLayer {
     const visibleBodyHeight = Math.min(
       bodyHeight,
       Math.max(
-        getUiControlHeight() + sectionPaddingTop + sectionPaddingBottom,
+        getUiControlFloor() + sectionPaddingTop + sectionPaddingBottom,
         bottomLimit - edgeMargin - headerHeight,
       ),
     );
@@ -907,6 +914,7 @@ export class PromptLayer extends PromptModalLayer {
             disabled,
             width: action.damageOrderCount > 0 ? (width - 6) / 2 : width,
             height: 36,
+            fontSize: 12,
             fontWeight: "700",
           }),
         ];
@@ -920,6 +928,7 @@ export class PromptLayer extends PromptModalLayer {
               disabled,
               width: (width - 6) / 2,
               height: 36,
+              fontSize: 12,
               fontWeight: "700",
             }),
           );
@@ -940,6 +949,7 @@ export class PromptLayer extends PromptModalLayer {
             height: 36,
             icon: "lucide-swords",
             iconSize: 14,
+            fontSize: 14,
             fontWeight: "900",
             letterSpacing: 1.68,
           });
@@ -986,6 +996,7 @@ export class PromptLayer extends PromptModalLayer {
             paddingX: minimal ? 12 : 12,
             icon: "lucide-alert-circle",
             iconSize: 14,
+            fontSize: minimal ? 12 : 14,
             fontWeight: "900",
             letterSpacing: minimal ? 0.72 : 0.84,
           },
@@ -1037,6 +1048,7 @@ export class PromptLayer extends PromptModalLayer {
               height: 36,
               icon: "lucide-check-bold",
               iconSize: 14,
+              fontSize: 14,
               fontWeight: "900",
               letterSpacing: 1.12,
             }),
@@ -1050,6 +1062,7 @@ export class PromptLayer extends PromptModalLayer {
               height: 36,
               icon: "lucide-rotate-cw-bold",
               iconSize: 14,
+              fontSize: 14,
               fontWeight: "900",
               letterSpacing: 1.12,
             }),
@@ -1091,6 +1104,7 @@ export class PromptLayer extends PromptModalLayer {
       badge: options.badge,
       icon,
       iconSize: touch ? 16 : 14,
+      fontSize: minimal ? 9 : touch ? 10 : 12,
       fontWeight: "700",
       letterSpacing: showLabel ? 0.4 : 0,
       paddingX: touch ? 10 : 6,
@@ -1103,7 +1117,7 @@ export class PromptLayer extends PromptModalLayer {
         ? this.viewportWidth - 24
         : Math.min(
             this.viewportWidth - 40,
-            this.viewportHeight <= 520 || getUiControlHeight() >= 44 ? 304 : 344,
+            getUiControlHeight() >= 44 ? 304 : this.viewportHeight <= 520 ? 214 : 284,
           );
     return this.layoutWrappedActionButtons(buttons, maxWidth, gap);
   }
@@ -1129,8 +1143,8 @@ export class PromptLayer extends PromptModalLayer {
     const combo = morphed ? endCombo : passCombo;
     let height = Math.max(
       minimal ? 44 : 40,
-      getUiControlHeight(),
-      Math.ceil(getUiFontSize("label") * 1.35) + 12,
+      getUiControlFloor(),
+      Math.ceil(getUiFontFloor("label") * 1.35) + 12,
     );
 
     if (minimal) {
@@ -1160,6 +1174,7 @@ export class PromptLayer extends PromptModalLayer {
           width: morphed ? 168 : 120,
           height,
           paddingX: 16,
+          fontSize: 12,
           fontWeight: "900",
           letterSpacing: 1.44,
           title: morphed ? endTitle : "Pass priority",
@@ -1183,7 +1198,7 @@ export class PromptLayer extends PromptModalLayer {
     const textEndWidth = Math.min(availableWidth, Math.max(120, getUiFontSize("label") * 10));
     const endIconOnly = touch && textEndWidth + labelWidth > availableWidth;
     const endWidth = endIconOnly ? Math.max(48, getUiControlHeight()) : textEndWidth;
-    const priorityColumn = !morphed && endWidth + labelWidth > availableWidth;
+    const priorityColumn = touch && !morphed && endWidth + labelWidth > availableWidth;
     const end = morphed
       ? null
       : this.makeButton(endLabel, action.onPassEndTurn, {
@@ -1191,12 +1206,13 @@ export class PromptLayer extends PromptModalLayer {
           radius: 0,
           disabled,
           height,
-          width: priorityColumn ? availableWidth : endWidth,
+          width: !touch ? undefined : priorityColumn ? availableWidth : endWidth,
           icon: endIconOnly ? "lucide-skip-forward" : undefined,
           iconSize: 20,
           labelPlacement: endIconOnly ? "hidden" : "inline",
           tooltip: endIconOnly,
           paddingX: 14,
+          fontSize: 10,
           fontWeight: "700",
           letterSpacing: 1,
           foreground: withAlpha(this.theme.appTheme["primary-foreground"], 0.75),
@@ -1216,6 +1232,7 @@ export class PromptLayer extends PromptModalLayer {
         height,
         width: priorityColumn ? availableWidth : availableWidth - (end?.buttonWidth ?? 0),
         paddingX: 16,
+        fontSize: 12,
         fontWeight: "900",
         letterSpacing: 1.44,
         foreground: this.theme.appTheme["primary-foreground"],
@@ -1425,7 +1442,7 @@ export class PromptLayer extends PromptModalLayer {
       align: "center",
       letterSpacing: 0.3,
     });
-    const stripHeight = Math.max(36, getUiControlHeight(), text.height + 12);
+    const stripHeight = Math.max(36, getUiControlFloor(), text.height + 12);
     const stripBackground = new Graphics()
       .roundRect(0, 0, stripWidth, stripHeight, 8)
       .fill({ color: hexToNum(foreground), alpha: 0.05 })
@@ -1646,6 +1663,7 @@ export class PromptLayer extends PromptModalLayer {
       height: 36,
       icon: "lucide-check",
       iconSize: 14,
+      fontSize: 14,
       fontWeight: "900",
       letterSpacing: 1.12,
     });
@@ -1756,7 +1774,7 @@ export class PromptLayer extends PromptModalLayer {
       Math.ceil(text.width) + COMPACT_PHASE_PILL_PADDING_X * 2,
     );
     const pillHeight = Math.max(COMPACT_PHASE_PILL_HEIGHT, text.height + 4);
-    const touchHeight = Math.max(48, getUiControlHeight(), pillHeight + 8);
+    const touchHeight = Math.max(48, getUiControlFloor(), pillHeight + 8);
     const pillY = (touchHeight - pillHeight) / 2;
     const background = new Graphics()
       .roundRect(0, pillY, width, pillHeight, pillHeight / 2)
@@ -1816,7 +1834,7 @@ export class PromptLayer extends PromptModalLayer {
   }
 
   private makeActionMenuButton(minimal: boolean): ActionViewLayout {
-    const size = Math.max(minimal ? 44 : 18, getUiControlHeight());
+    const size = Math.max(minimal ? 44 : 18, getUiControlFloor());
     const button = new Container();
     const icon = this.makeIcon(
       "lucide-settings",
@@ -1962,9 +1980,10 @@ export class PromptLayer extends PromptModalLayer {
         pressOffsetY: 1,
         borderAlpha: minimal && !fullControl ? 0 : 0.8,
         disabled,
-        width: iconOnly ? getUiControlHeight() : minimal ? 64 : undefined,
+        width: iconOnly ? getUiControlHeight() : minimal ? 64 : fullControl ? 88 : 86,
         height: minimal ? 44 : 22,
         paddingX: 8,
+        fontSize: minimal ? 8 : 9,
         fontWeight: "700",
         letterSpacing: minimal ? 0.4 : 1.08,
       },

@@ -1,6 +1,6 @@
 import {
-  getUiControlHeight,
-  getUiFontSize,
+  getUiControlFloor,
+  getUiFontFloor,
   UI_FONT_FAMILY,
   type UiTextRole,
 } from "@/themes/typography";
@@ -242,7 +242,8 @@ export class RulesPreviewActions extends Container {
         );
         const labelTop = rowPadding + Math.max(0, (keyHeight - actionFontSize) / 2);
         const height = Math.max(
-          getUiControlHeight() / spec.screenScale,
+          32,
+          getUiControlFloor() / spec.screenScale,
           labelHeight + labelTop * 2,
         );
         label.position.set(labelLeft, labelTop);
@@ -409,7 +410,7 @@ export class RulesPreviewActions extends Container {
   }
 
   private fontSize(size: number, role: UiTextRole = "meta"): number {
-    return Math.max(size, getUiFontSize(role) / this.spec!.screenScale);
+    return Math.max(size, getUiFontFloor(role) / this.spec!.screenScale);
   }
 
   private addText(value: string, y: number, color: string, size: number, bold = false): number {
@@ -480,9 +481,9 @@ export class RulesPreviewActions extends Container {
       text.resolution = 2;
       const width = Math.min(
         this.contentWidth,
-        Math.max(getUiControlHeight() / spec.screenScale, text.width + 16),
+        Math.max(getUiControlFloor() / spec.screenScale, text.width + 16),
       );
-      const height = Math.max(40, getUiControlHeight() / spec.screenScale, text.height + 16);
+      const height = Math.max(40, getUiControlFloor() / spec.screenScale, text.height + 16);
       if (x > 0 && x + width > this.contentWidth) {
         x = 0;
         y += rowHeight + GAP;

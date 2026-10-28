@@ -1,4 +1,4 @@
-import { getUiControlHeight, getUiFontSize, UI_FONT_FAMILY } from "@/themes/typography";
+import { getUiControlFloor, getUiFontFloor, UI_FONT_FAMILY } from "@/themes/typography";
 import {
   Container,
   Graphics,
@@ -43,7 +43,7 @@ export class HandCardControls extends Container {
     super();
     this.theme = theme;
     this.baseControlSize = controlSize;
-    this.controlSize = Math.max(controlSize, getUiControlHeight());
+    this.controlSize = Math.max(controlSize, getUiControlFloor());
     this.eventMode = "passive";
     this.visible = false;
   }
@@ -74,7 +74,7 @@ export class HandCardControls extends Container {
   }
 
   private redraw(): void {
-    this.controlSize = Math.max(this.baseControlSize, getUiControlHeight());
+    this.controlSize = Math.max(this.baseControlSize, getUiControlFloor());
     this.removeChildren().forEach((child) => child.destroy({ children: true }));
     this.buttons.length = 0;
     const spec = this.spec;
@@ -199,7 +199,7 @@ export class HandCardControls extends Container {
       style: new TextStyle({
         fill: this.theme.appTheme["popover-foreground"],
         fontFamily: UI_FONT_FAMILY,
-        fontSize: getUiFontSize("meta"),
+        fontSize: Math.max(10, getUiFontFloor("meta")),
         fontWeight: "600",
       }),
     });

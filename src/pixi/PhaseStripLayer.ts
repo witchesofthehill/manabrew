@@ -4,8 +4,9 @@
  */
 
 import {
+  getUiControlFloor,
   getUiControlHeight,
-  getUiFontSize,
+  getUiFontFloor,
   isTouchUi,
   UI_FONT_FAMILY as FONT,
 } from "@/themes/typography";
@@ -100,7 +101,7 @@ const INDICATOR_OFF_TURN_ALPHA = 0.55;
 const _initTheme = getTheme().gameTheme;
 const normalStyle = new TextStyle({
   fontFamily: FONT,
-  fontSize: getUiFontSize("label"),
+  fontSize: 11,
   fontWeight: "600",
   fill: readableTextColor(
     _initTheme.phaseStrip.background,
@@ -111,7 +112,7 @@ const normalStyle = new TextStyle({
 });
 const activeStyle = new TextStyle({
   fontFamily: FONT,
-  fontSize: getUiFontSize("label"),
+  fontSize: 11,
   fontWeight: "bold",
   fill: readableTextColor(
     _initTheme.phaseStrip.background,
@@ -395,16 +396,16 @@ export class PhaseStripLayer {
 
   private updateTypography(): void {
     const tablet = !this.compact && getUiControlHeight() >= 44;
-    const fontSize = getUiFontSize(tablet ? "caption" : "label");
-    const controlHeight = tablet ? 32 : getUiControlHeight();
+    const fontSize = Math.max(11, getUiFontFloor(tablet ? "caption" : "label"));
+    const controlHeight = tablet ? 32 : getUiControlFloor();
     normalStyle.fontSize = activeStyle.fontSize = fontSize;
     CELL_H = Math.max(28, controlHeight, Math.ceil(fontSize * 1.4) + 8);
     COMPACT_PILL_H = Math.max(
       22,
-      getUiControlHeight(),
-      Math.ceil(getUiFontSize("label") * 1.4) + 8,
+      getUiControlFloor(),
+      Math.ceil(getUiFontFloor("label") * 1.4) + 8,
     );
-    INDICATOR_HIT_H = Math.max(12, getUiControlHeight());
+    INDICATOR_HIT_H = Math.max(12, getUiControlFloor());
     const measurer = new Text({ text: "", style: activeStyle });
     CELL_W = Math.max(60, controlHeight);
     for (const phase of PHASES) {

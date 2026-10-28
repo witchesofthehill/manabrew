@@ -1,4 +1,4 @@
-import { getUiFontSize, UI_FONT_FAMILY } from "@/themes/typography";
+import { getUiFontFloor, UI_FONT_FAMILY } from "@/themes/typography";
 import { Container, Graphics, Text, TextStyle } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
 import { hexToNum } from "../colorUtils";
@@ -129,7 +129,7 @@ export class PlayerHudTooltip {
   private titleStyle(): TextStyle {
     return new TextStyle({
       fontFamily: UI_FONT_FAMILY,
-      fontSize: Math.max(15, getUiFontSize("label")),
+      fontSize: Math.max(15, getUiFontFloor("label")),
       fontWeight: "700",
       fill: hexToNum(this.theme.appTheme["popover-foreground"]),
       wordWrap: true,
@@ -141,9 +141,9 @@ export class PlayerHudTooltip {
     const app = this.theme.appTheme;
     return new TextStyle({
       fontFamily: UI_FONT_FAMILY,
-      fontSize: getUiFontSize("meta"),
+      fontSize: Math.max(11, getUiFontFloor("meta")),
       fontWeight: active ? "600" : "400",
-      lineHeight: getUiFontSize("meta") * 1.35,
+      lineHeight: Math.max(15, getUiFontFloor("meta") * 1.35),
       fill: hexToNum(active ? app["popover-foreground"] : app["muted-foreground"]),
       wordWrap: true,
       wordWrapWidth: MAX_W - PAD_X * 2,

@@ -13,6 +13,7 @@ import { useGameStore } from "@/stores/useGameStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { animationsEnabled } from "@/pixi/effects/enabled";
 import { modalFocusables, registerModal, topModal, MODAL_BASE_Z_INDEX } from "@/lib/modalStack";
+import { registerEscapeHandler } from "@/lib/escapeKey";
 
 const ModalTitleContext = createContext<string | undefined>(undefined);
 const ModalCloseContext = createContext<(callback: () => void) => void>((callback) => callback());
@@ -122,22 +123,18 @@ export function Modal({
     }
   }, [motion]);
 
-  useEffect(() => {
-    const key = (event: KeyboardEvent) => {
-      if (
-        topModal() !== panelRef.current ||
-        event.defaultPrevented ||
-        event.isComposing ||
-        event.key !== "Escape"
-      )
-        return;
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      if (onClose) close(onClose);
-    };
-    window.addEventListener("keydown", key);
-    return () => window.removeEventListener("keydown", key);
-  }, [close, onClose]);
+  useEffect(
+    () =>
+      registerEscapeHandler({
+        priority: "modal",
+        scope: () => panelRef.current,
+        handle: () => {
+          if (onClose) close(onClose);
+          return true;
+        },
+      }),
+    [close, onClose],
+  );
 
   return createPortal(
     <div

@@ -45,8 +45,11 @@ function TagRow({ tag, first, last }: { tag: string; first: boolean; last: boole
           onChange={(event) => setName(event.target.value)}
           onBlur={finishRename}
           onKeyDown={(event) => {
+            if (event.nativeEvent.isComposing) return;
             if (event.key === "Enter") event.currentTarget.blur();
             if (event.key === "Escape") {
+              event.preventDefault();
+              event.stopPropagation();
               setName(tag);
               setEditing(false);
             }

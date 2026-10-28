@@ -149,7 +149,10 @@ export function ReplacementSuggestionsPanel({
                 setTargetMenuOpen(true);
               }}
               onKeyDown={(event) => {
-                if (event.key === "Escape") {
+                if (event.nativeEvent.isComposing) return;
+                if (event.key === "Escape" && targetMenuOpen) {
+                  event.preventDefault();
+                  event.stopPropagation();
                   setTargetMenuOpen(false);
                 } else if (event.key === "ArrowDown") {
                   event.preventDefault();

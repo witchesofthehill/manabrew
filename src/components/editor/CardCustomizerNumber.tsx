@@ -64,6 +64,7 @@ export function CardCustomizerNumber({
           onChange={(event) => setDraft({ value, text: event.currentTarget.value })}
           onBlur={commit}
           onKeyDown={(event) => {
+            if (event.nativeEvent.isComposing) return;
             if (event.key === "Enter" || event.key === "Escape") {
               event.preventDefault();
               event.stopPropagation();

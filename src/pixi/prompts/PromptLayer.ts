@@ -6,6 +6,7 @@ import {
 } from "@/themes/typography";
 import { TOUCH_MOVE_SLOP_PX } from "@/lib/responsive";
 import { topModal } from "@/lib/modalStack";
+import { registerEscapeHandler } from "@/lib/escapeKey";
 import { summarizeCombat } from "@/components/game/combatSummary";
 import {
   Application,
@@ -78,6 +79,7 @@ export class PromptLayer extends PromptModalLayer {
   private readonly unsubscribePromptPreferences: () => void;
   private readonly unsubscribePreferences: () => void;
   private readonly unsubscribeKeybindings: () => void;
+  private readonly unregisterEscape: () => void;
   private keyListener: (event: KeyboardEvent) => void;
   private onStageMove = (event: FederatedPointerEvent): void => this.moveDrag(event);
   private onStageUp = (event: FederatedPointerEvent): void => this.finishDrag(event);
@@ -106,6 +108,11 @@ export class PromptLayer extends PromptModalLayer {
     this.app.ticker.add(this.onTick);
     this.keyListener = (event) => this.handleKey(event);
     window.addEventListener("keydown", this.keyListener);
+    this.unregisterEscape = registerEscapeHandler({
+      priority: "prompt",
+      scope: () => this.app.canvas,
+      handle: (event) => this.handleEscape(event),
+    });
     window.addEventListener("keydown", this.onModifierEvent);
     window.addEventListener("keyup", this.onModifierEvent);
     window.addEventListener("pointermove", this.onModifierEvent);
@@ -223,6 +230,7 @@ export class PromptLayer extends PromptModalLayer {
     this.choiceSearchInput = null;
     setVirtualTextInputActive(this, false);
     window.removeEventListener("keydown", this.keyListener);
+    this.unregisterEscape();
     window.removeEventListener("keydown", this.onModifierEvent);
     window.removeEventListener("keyup", this.onModifierEvent);
     window.removeEventListener("pointermove", this.onModifierEvent);
@@ -1575,17 +1583,19 @@ export class PromptLayer extends PromptModalLayer {
         ),
       );
     }
-    buttons.push(
-      this.makeActionButton(
-        "Cancel",
-        "lucide-ban",
-        action.onCancelManaCost,
-        "cancel",
-        disabled,
-        minimal,
-        touch,
-      ),
-    );
+    if (info?.canCancel) {
+      buttons.push(
+        this.makeActionButton(
+          "Cancel",
+          "lucide-ban",
+          action.onCancelManaCost,
+          "cancel",
+          disabled,
+          minimal,
+          touch,
+        ),
+      );
+    }
     const rows = this.layoutWrappedActionButtons(
       buttons,
       minimal ? this.viewportWidth - 24 : availableWidth,
@@ -2344,9 +2354,49 @@ export class PromptLayer extends PromptModalLayer {
     this.rebuild();
   }
 
+  private handleEscape(event: KeyboardEvent): boolean {
+    if (
+      !this.spec ||
+      (event.target instanceof HTMLElement &&
+        event.target.closest(
+          "input, textarea, select, [contenteditable]:not([contenteditable=false])",
+        ))
+    )
+      return false;
+    if (this.modalOpen) {
+      if (this.selectionFilter) {
+        this.selectionFilter = "";
+        this.modalScrollOffset = 0;
+        this.modalScrollTarget = 0;
+        this.rebuild();
+      } else if (this.selectionFilterFocused) {
+        this.setSelectionFilterFocused(false);
+      } else if (!this.spec.gameOver) {
+        this.spec.onHideModal();
+      }
+      return true;
+    }
+    const action = this.spec.action;
+    if (action.isWaitingForResponse || action.isWaitingForOthers) return false;
+    if (actionViewKey(action) === "payManaCost") {
+      if (action.payManaCostInfo?.canCancel) action.onCancelManaCost();
+      return true;
+    }
+    if (action.targetCompletionKind === "cancel" && action.onCompleteTargets) {
+      action.onCompleteTargets();
+      return true;
+    }
+    return false;
+  }
+
   private handleKey(event: KeyboardEvent): void {
     const modal = topModal();
-    if ((modal && !modal.contains(this.app.canvas)) || event.defaultPrevented || event.isComposing)
+    if (
+      (modal && !modal.contains(this.app.canvas)) ||
+      event.defaultPrevented ||
+      event.isComposing ||
+      event.key === "Escape"
+    )
       return;
     if (!this.spec || !this.modalOpen) return;
     if (event.target === this.choiceSearchInput) return;
@@ -2383,19 +2433,6 @@ export class PromptLayer extends PromptModalLayer {
       this.modalScrollOffset = 0;
       this.modalScrollTarget = 0;
       this.rebuild();
-      return;
-    }
-    if (event.key === "Escape" && this.selectionFilter) {
-      event.preventDefault();
-      this.selectionFilter = "";
-      this.modalScrollOffset = 0;
-      this.modalScrollTarget = 0;
-      this.rebuild();
-      return;
-    }
-    if (event.key === "Escape" && !this.spec.gameOver) {
-      event.preventDefault();
-      this.spec.onHideModal();
       return;
     }
     if (!input) return;

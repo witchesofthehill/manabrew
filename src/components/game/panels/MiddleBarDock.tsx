@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type CSSProperties } from "react";
+import type { CSSProperties } from "react";
 import {
   Flag,
   Image as ImageIcon,
@@ -25,6 +25,7 @@ import {
 import { useGameStore } from "@/stores/useGameStore";
 import { getPlatformType } from "@/platform";
 import { useKeybindings } from "@/hooks/useKeybindings";
+import { useBrowserFullscreen } from "@/hooks/useBrowserFullscreen";
 interface MiddleBarDockProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -61,21 +62,7 @@ export function MiddleBarDock({
   const isWeb = getPlatformType() === "web";
   const hiddenPlaymats = useGameStore((s) => s.hiddenPlaymats);
   const togglePlaymatHidden = useGameStore((s) => s.togglePlaymatHidden);
-  const [isFullscreen, setIsFullscreen] = useState(
-    typeof document !== "undefined" && document.fullscreenElement !== null,
-  );
-  useEffect(() => {
-    const sync = () => setIsFullscreen(document.fullscreenElement !== null);
-    document.addEventListener("fullscreenchange", sync);
-    return () => document.removeEventListener("fullscreenchange", sync);
-  }, []);
-  const toggleFullscreen = useCallback(() => {
-    if (document.fullscreenElement) {
-      void document.exitFullscreen().catch(() => undefined);
-    } else {
-      void document.documentElement.requestFullscreen().catch(() => undefined);
-    }
-  }, []);
+  const { isFullscreen, toggleFullscreen } = useBrowserFullscreen();
   useKeybindings({ "toggle-fullscreen": toggleFullscreen });
   const FullscreenIcon = isFullscreen ? Minimize2 : Maximize2;
   const PanelIcon = sidePanelCollapsed ? PanelRightOpen : PanelRightClose;

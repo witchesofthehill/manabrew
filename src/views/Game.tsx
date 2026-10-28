@@ -4,6 +4,7 @@ import { useGameStore } from "@/stores/useGameStore";
 import { useServerStore } from "@/stores/useServerStore";
 import { asDeckCard } from "@/lib/decks";
 import { gameCardFaceIndex, GAME_CARD_DEFAULTS } from "@/lib/gameCard";
+import { faceDownCardToPreviewDto } from "@/lib/scryfall.utils";
 import { partitionBoardTargets } from "@/lib/boardTargets";
 import { useGameUIStore } from "@/stores/useGameUIStore";
 import { useKeybindings } from "@/hooks/useKeybindings";
@@ -251,6 +252,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   const currentPrompt = useGameStore((s) => s.currentPrompt);
   const protocolError = useGameStore((s) => s.protocolError);
   const isGameActive = useGameStore((s) => s.isGameActive);
+  const activeEngine = useGameStore((s) => s.activeEngine);
   const isPrefetchingCards = useGameStore((s) => s.isPrefetchingCards);
   const isWaitingForResponse = useGameStore((s) => s.isWaitingForResponse);
   const relinquishedPriority = useGameStore((s) => s.relinquishedPriority);
@@ -1813,7 +1815,10 @@ export default function Game({ exitTo }: GameProps = {}) {
     return (
       visibleCardsById.get(previewCardId) ??
       stackCardsBySourceId.get(previewCardId) ??
-      (preview.hoveredCard ? { ...preview.hoveredCard, zoneId: "prompt" } : null)
+      (preview.hoveredCard &&
+      !(preview.hoveredCard.isFaceDown && preview.hoveredCard.zone === "battlefield")
+        ? { ...preview.hoveredCard, zoneId: "prompt" }
+        : null)
     );
   }, [
     preview.hoveredCard,
@@ -1823,7 +1828,12 @@ export default function Game({ exitTo }: GameProps = {}) {
     gameView?.stack,
     hoveredStackObjectIdForSpecs,
   ]);
-  const previewFaceCard = singleCommandPreviewCard ?? livePreviewCard;
+  const inspectionPreviewCard = useMemo(
+    () =>
+      livePreviewCard ? faceDownCardToPreviewDto(livePreviewCard, activeEngine, gameDecks) : null,
+    [livePreviewCard, activeEngine, gameDecks],
+  );
+  const previewFaceCard = singleCommandPreviewCard ?? inspectionPreviewCard;
   const [previewFaceOverride, setPreviewFaceOverride] = useState<{
     cardId: string;
     showBackFace: boolean;
@@ -2261,9 +2271,10 @@ export default function Game({ exitTo }: GameProps = {}) {
       : !commandPreview &&
           inGameCardPreviewStyle === "rules" &&
           showInGamePreview &&
-          livePreviewCard
+          livePreviewCard &&
+          inspectionPreviewCard
         ? {
-            card: livePreviewCard,
+            card: inspectionPreviewCard,
             phase: preview.phase === "closing" ? "closing" : "open",
             placement: preview.placement,
             sticky: preview.isSticky,
@@ -2850,7 +2861,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         <HoverCardPreview
           preview={{
             ...preview,
-            hoveredCard: livePreviewCard,
+            hoveredCard: inspectionPreviewCard,
             showBackFace: previewShowBackFace,
             flipCard: handleFlipPreview,
           }}

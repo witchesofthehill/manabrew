@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.66.0](https://github.com/witchesofthehill/manabrew/compare/v3.65.4...v3.66.0) (2026-10-28)
+
+### Features
+
+* **ui:** use hide icon for minimized prompts ([#1133](https://github.com/witchesofthehill/manabrew/issues/1133)) ([d015b60](https://github.com/witchesofthehill/manabrew/commit/d015b60ffd6b91dac6f4fbe620a34e91379f6b74))
+
 ## [3.65.4](https://github.com/witchesofthehill/manabrew/compare/v3.65.3...v3.65.4) (2026-10-27)
 
 ### Fixes

@@ -318,7 +318,11 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       }
     }
     if (minimizable) {
-      const minimizeIcon = this.makeIcon("lucide-minus", 22, this.theme.appTheme.foreground);
+      const minimizeIcon = this.makeIcon(
+        "lucide-inspect-board",
+        22,
+        this.theme.appTheme.foreground,
+      );
       const minimize = new Container();
       minimize.addChild(minimizeIcon);
       minimize.eventMode = "static";
@@ -339,7 +343,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       });
       minimize.on("pointertap", () => this.spec!.onHideModal());
       minimize.accessible = true;
-      minimize.accessibleTitle = "Minimize prompt";
+      minimize.accessibleTitle = "Hide prompt to inspect battlefield";
       minimize.tabIndex = 0;
       minimize.position.set(
         width - PANEL_PADDING - Math.max(6, getUiControlFloor() / 2),

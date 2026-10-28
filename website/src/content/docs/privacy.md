@@ -117,6 +117,32 @@ minute, to show outage and maintenance notices. That request carries no
 account information, but like any web request it reaches our server with your
 IP address.
 
+## Frontend error diagnostics
+
+Frontend error reporting is on by default in the managed web app and official
+macOS, Windows, iOS, and Android builds. Generic self-hosted images and local
+development builds keep it off unless their operator enables it.
+
+The app sends failure reports to a self-hosted collector, not Grafana Cloud.
+Reports contain a fixed error category, safe compiled-asset locations, the app
+version and build, platform and engine categories, and a normalized route.
+They contain no account, user, device, game, or session IDs, no SDK session
+metadata, and no persistent diagnostic identity. We do not use these reports
+to link a failure to operational game records or count affected people or
+sessions.
+
+The reporter does not send account details, names, email addresses, tokens,
+cookies, chat or other messages, deck contents, card choices, decision
+journals, raw URLs, arbitrary error text, or console/network recordings. It
+does not record your screen. The collector necessarily receives your IP
+address at transport to accept a request, but does not add it to diagnostic
+events or retain collector access logs.
+
+Reports are restricted to maintainers and expire after 30 days. Summary alerts
+can reach the existing operations notification channel, without exception
+text, game IDs, or session IDs. These reports cover frontend exceptions and
+failures forwarded to the frontend, not native process crash dumps.
+
 ## Who is responsible, and how to reach us
 
 Manabrew is run by the maintainers of the
@@ -154,6 +180,7 @@ current behaviour rather than promises we have automated.
 | Relay game records and analytics                  | No automatic expiry yet                                                                                                                   |
 | Per-game message captures                         | A rolling 20 GB budget on the server; the oldest are dropped first, so how long a capture survives depends on how busy the relay has been |
 | Server logs and metrics                           | No automatic expiry yet                                                                                                                   |
+| Frontend error diagnostics                        | 30 days                                                                                                                                   |
 
 Where a row says "no automatic expiry yet", that is a gap we intend to close;
 ask us and we will remove your records by hand in the meantime.

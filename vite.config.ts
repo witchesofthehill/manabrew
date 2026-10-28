@@ -2,6 +2,7 @@ import path from "path";
 import { readFileSync } from "fs";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { defineConfig } from "vite";
 import type { Plugin } from "vite";
 import react from "@vitejs/plugin-react";
@@ -22,6 +23,38 @@ const appVersion = (
     packages: Record<string, string>;
   }
 ).packages["manabrew"];
+
+const buildCommit =
+  process.env.APP_BUILD_COMMIT ||
+  execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+const buildTarget = process.env.APP_BUILD_TARGET || "local-development";
+if (!/^[a-f0-9]{40}$/.test(buildCommit) || !/^[a-z][a-z0-9-]{0,63}$/.test(buildTarget)) {
+  throw new Error("Invalid APP_BUILD_COMMIT or APP_BUILD_TARGET");
+}
+const buildId = `${appVersion}-${buildCommit}-${buildTarget}`;
+
+function privateSourceMaps(): Plugin {
+  let outputDirectory: string;
+  return {
+    name: "private-source-maps",
+    apply: "build",
+    configResolved(config) {
+      outputDirectory = path.resolve(config.root, config.build.outDir);
+    },
+    closeBundle() {
+      execFileSync(
+        process.execPath,
+        [
+          path.resolve(__dirname, "scripts/faro-sourcemaps.mjs"),
+          "extract",
+          outputDirectory,
+          buildId,
+        ],
+        { stdio: "inherit" },
+      );
+    },
+  };
+}
 
 const COEP = "require-corp";
 
@@ -83,6 +116,7 @@ export default defineConfig({
     }),
     crossOriginIsolation(),
     cardGlintAssets(),
+    privateSourceMaps(),
   ],
   resolve: {
     alias: {
@@ -95,6 +129,8 @@ export default defineConfig({
   clearScreen: false,
   define: {
     __APP_VERSION__: JSON.stringify(appVersion),
+    __APP_BUILD_ID__: JSON.stringify(buildId),
+    __APP_BUILD_TARGET__: JSON.stringify(buildTarget),
   },
   server: {
     port: 1420,
@@ -151,6 +187,11 @@ export default defineConfig({
   },
   worker: {
     format: "es",
+    rollupOptions: {
+      output: {
+        chunkFileNames: "assets/worker-[name]-[hash].js",
+      },
+    },
   },
   optimizeDeps: {
     exclude: ["@/wasm/wasm", "ironsmith-wasm", "card-glint"],
@@ -158,6 +199,7 @@ export default defineConfig({
   assetsInclude: ["**/*.wasm"],
   build: {
     target: "esnext",
+    sourcemap: "hidden",
     rollupOptions: {
       output: {
         manualChunks: (id) =>

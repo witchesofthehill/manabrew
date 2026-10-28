@@ -10,6 +10,9 @@ services:
       VITE_RELAY_HOST: "localhost"
       VITE_RELAY_PORT: "9443"
       VITE_RELAY_PASSWORD: "forge"
+      VITE_FARO_ENABLED: "${VITE_FARO_ENABLED:-false}"
+      VITE_FARO_COLLECTOR_URL: "${VITE_FARO_COLLECTOR_URL:-http://localhost:12347/collect}"
+      VITE_FARO_ENVIRONMENT: "${VITE_FARO_ENVIRONMENT:-development}"
     ports:
       - "1420:1420"
     volumes:
@@ -170,13 +173,73 @@ services:
       GF_INSTALL_PLUGINS: frser-sqlite-datasource
       DISCORD_WEBHOOK_URL: https://discord.invalid/webhook-not-configured
     ports:
-      - "3000:3000"
+      - "127.0.0.1:${GRAFANA_DEV_PORT:-3000}:3000"
     volumes:
       - ./ops/observability/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./ops/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
       - ./ops/hub-data/dev/events:/var/manabrew/events
       - grafana-dev-data:/var/lib/grafana
     restart: unless-stopped
+
+  loki:
+    profiles:
+      - observability
+    image: grafana/loki:3.5.0
+    command:
+      - -config.file=/etc/loki/loki.yml
+    ports:
+      - "127.0.0.1:${LOKI_DEV_PORT:-3100}:3100"
+    volumes:
+      - ./ops/observability/loki:/etc/loki:ro
+      - loki-dev-data:/loki
+    restart: unless-stopped
+    mem_limit: 384m
+
+  faro-collector:
+    profiles:
+      - observability
+    build:
+      context: .
+      dockerfile: ops/observability/collector/Dockerfile
+    environment:
+      FARO_ORIGINS: "http://localhost:1420,http://127.0.0.1:1420"
+      FARO_DAILY_BYTES: "${FARO_DAILY_BYTES:-10485760}"
+    ports:
+      - "127.0.0.1:${FARO_COLLECTOR_DEV_PORT:-12347}:12347"
+    volumes:
+      - ./target/faro-sourcemaps:/var/lib/faro/sourcemaps:ro
+      - faro-dev-data:/var/lib/faro/state
+    restart: unless-stopped
+    mem_limit: 512m
+    cpus: 1
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:12347/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    depends_on:
+      - loki
+
+  prometheus:
+    profiles:
+      - observability
+    image: prom/prometheus:v3.4.1
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=30d
+    ports:
+      - "127.0.0.1:${PROMETHEUS_DEV_PORT:-9090}:9090"
+    volumes:
+      - ./ops/observability/prometheus/dev.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-dev-data:/prometheus
+    restart: unless-stopped
+    mem_limit: 512m
 
 volumes:
   web-node-modules:
@@ -185,3 +248,6 @@ volumes:
   relay-target:
   hub-target:
   grafana-dev-data:
+  loki-dev-data:
+  faro-dev-data:
+  prometheus-dev-data:

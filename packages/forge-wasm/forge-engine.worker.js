@@ -20,7 +20,14 @@ for (const level of ["log", "warn", "error"]) {
 }
 const postResponse = (requestId, payload) =>
   self.postMessage({ type: "response", requestId, payload });
-const postError = (requestId, error) => self.postMessage({ type: "response", requestId, error });
+const postError = (requestId, error) =>
+  self.postMessage({
+    type: "response",
+    requestId,
+    error: error instanceof Error ? error.message : String(error),
+    errorName: error instanceof Error ? error.name : undefined,
+    errorStack: error instanceof Error ? error.stack?.slice(0, 8192) : undefined,
+  });
 
 function supervise(command) {
   supervised = true;
@@ -36,7 +43,11 @@ function supervise(command) {
     candidate?.worker.terminate();
     active?.worker.terminate();
     candidate = active = null;
-    if (!started) postError(command.requestId, "Game ended before startup completed.");
+    if (!started) {
+      const error = new Error("Game ended before startup completed.");
+      error.name = "AbortError";
+      postError(command.requestId, error);
+    }
     started = true;
   };
 
@@ -63,7 +74,17 @@ function supervise(command) {
       if (instance === candidate) fail(event.message);
       else if (instance === active) {
         stop();
-        postEvent("game:forced_end", { reason: "worker_error", message: event.message });
+        postEvent("game:forced_end", {
+          reason: "worker_error",
+          message: event.message,
+          name: event.error instanceof Error ? event.error.name : "Error",
+          stack:
+            event.error instanceof Error
+              ? event.error.stack?.slice(0, 8192)
+              : event.filename
+                ? `Error: ${event.message}\n    at ${event.filename}:${event.lineno}:${event.colno}`
+                : undefined,
+        });
       }
     };
     worker.onmessage = ({ data }) => {
@@ -125,7 +146,7 @@ function supervise(command) {
   try {
     launch(null);
   } catch (error) {
-    postError(command.requestId, String(error));
+    postError(command.requestId, error);
     return;
   }
   self.onmessage = ({ data }) => {
@@ -262,7 +283,7 @@ async function startGame(requestId, args) {
   try {
     await boot();
   } catch (e) {
-    return postError(requestId, `forge engine failed to load: ${e && e.message ? e.message : e}`);
+    return postError(requestId, e);
   }
 
   const forgeAi = args && args.forgeAi === true;
@@ -333,6 +354,8 @@ async function startGame(requestId, args) {
     postEvent("game:forced_end", {
       reason: "worker_error",
       message: e && e.message ? e.message : String(e),
+      name: e instanceof Error ? e.name : undefined,
+      stack: e instanceof Error ? e.stack?.slice(0, 8192) : undefined,
     });
   }
 }
@@ -361,7 +384,7 @@ async function startMultiplayerGame(requestId, args) {
   try {
     await boot();
   } catch (e) {
-    return postError(requestId, `forge engine failed to load: ${e && e.message ? e.message : e}`);
+    return postError(requestId, e);
   }
 
   // Indexed by the engine's own player index, which is what the session hands
@@ -413,6 +436,8 @@ async function startMultiplayerGame(requestId, args) {
     postEvent("game:forced_end", {
       reason: "worker_error",
       message: e && e.message ? e.message : String(e),
+      name: e instanceof Error ? e.name : undefined,
+      stack: e instanceof Error ? e.stack?.slice(0, 8192) : undefined,
     });
   }
 }
@@ -436,7 +461,7 @@ self.onmessage = (e) => {
   if (msg.command === "wasm_init" || msg.command === "ensure_card_data") {
     return void boot().then(
       () => postResponse(msg.requestId, "ok"),
-      (err) => postError(msg.requestId, String(err)),
+      (err) => postError(msg.requestId, err),
     );
   }
   if (msg.command === "end_game") {

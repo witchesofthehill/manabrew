@@ -14,10 +14,34 @@ set -e
 #     EMAIL_SIGN_IN, forgeWasm from FORGE_WASM. Can only enable, never disable.
 #   hubApiUrl: from HUB_API_URL — deck hub + auth API origin; unset leaves the
 #     app on its compiled-in VITE_HUB_API_URL / api.manabrew.app default.
+json_string() {
+	printf '%sX' "$1" | LC_ALL=C awk '
+		BEGIN {
+			for (i = 1; i < 32; i++) controls[sprintf("%c", i)] = sprintf("\\u%04x", i)
+		}
+		{ value = value (NR > 1 ? "\n" : "") $0 }
+		END {
+			value = substr(value, 1, length(value) - 1)
+			printf "\""
+			for (i = 1; i <= length(value); i++) {
+				char = substr(value, i, 1)
+				if (char == "\\") printf "\\\\"
+				else if (char == "\"") printf "\\\""
+				else if (char in controls) printf "%s", controls[char]
+				else if (substr(value, i, 3) == "\342\200\250") { printf "\\u2028"; i += 2 }
+				else if (substr(value, i, 3) == "\342\200\251") { printf "\\u2029"; i += 2 }
+				else printf "%s", char
+			}
+			printf "\""
+		}'
+}
+
 {
 	echo 'window.__MANABREW_RUNTIME__ = {'
 	if [ -n "${RELAY_HOST:-}" ]; then
-		echo "  relay: { host: \"${RELAY_HOST}\", port: ${RELAY_PORT:-443}, password: \"${RELAY_PASSWORD:-forge}\" },"
+		port=$(printf '%s' "${RELAY_PORT:-443}" | awk '/^[0-9]+$/ && $0 + 0 > 0 && $0 + 0 < 65536 { printf "%d", $0; valid = 1 } END { if (!valid) exit 1 }')
+		printf '  relay: { host: %s, port: %s, password: %s },\n' \
+			"$(json_string "$RELAY_HOST")" "$port" "$(json_string "${RELAY_PASSWORD:-forge}")"
 	fi
 	case "$(printf '%s' "${HOSTED_AI_ENABLED:-}" | tr '[:upper:]' '[:lower:]')" in
 	1 | true | yes | on) echo '  hostedAiEnabled: true,' ;;
@@ -53,8 +77,14 @@ set -e
 		echo "  featureFlags: {${flags} },"
 	fi
 	if [ -n "${HUB_API_URL:-}" ]; then
-		echo "  hubApiUrl: \"${HUB_API_URL}\","
+		printf '  hubApiUrl: %s,\n' "$(json_string "$HUB_API_URL")"
 	fi
+	enabled=false
+	case "$(printf '%s' "${FARO_ENABLED:-}" | tr '[:upper:]' '[:lower:]')" in
+	1 | true | yes | on) enabled=true ;;
+	esac
+	printf '  observability: { enabled: %s, collectorUrl: %s, environment: %s },\n' \
+		"$enabled" "$(json_string "${FARO_COLLECTOR_URL:-}")" "$(json_string "${FARO_ENVIRONMENT:-}")"
 	echo '};'
 } >/srv/manabrew/config.js
 

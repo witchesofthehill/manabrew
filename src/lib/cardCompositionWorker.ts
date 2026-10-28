@@ -1,6 +1,8 @@
 import { composeCardRaster, disposeCardComposition } from "@/lib/cardComposition";
 import type { CardCompositionInput, CardCompositionResult } from "@/lib/cardComposition";
 import { resolveCardGlintAsset, ensureCardGlintFonts } from "@/lib/cardGlintAssets";
+import { reportClientError } from "@/lib/errorReporting";
+import { workerError } from "@/lib/workerError";
 import { loadCanvasImages } from "card-glint/magic/presentation";
 import { decodeCanvasImage } from "card-glint/canvas";
 
@@ -20,7 +22,7 @@ export type CardWorkerRequest =
 export type CardWorkerResponse =
   | { type: "ready"; supported: boolean }
   | { type: "result"; id: number; result: CardCompositionResult; stats: WorkerStats }
-  | { type: "error"; id: number; message: string; name: string; stats: WorkerStats }
+  | { type: "error"; id: number; message: string; name: string; stack?: string; stats: WorkerStats }
   | { type: "asset"; id: number; url: string }
   | { type: "images"; id: number; url: string; artwork: boolean; blob?: Blob }
   | { type: "cancelAsset"; id: number };
@@ -131,8 +133,11 @@ function startWorker(slot: WorkerSlot): Promise<boolean> {
     slot.worker = instance;
     window.addEventListener("pagehide", terminateCardRenderWorker, { once: true });
     instance.onerror = (event) => {
+      event.preventDefault();
       if (slot.worker !== instance) return;
-      const error = new Error(event.message || "Card rendering worker failed");
+      console.error("[CardRender] Worker error:", event);
+      const error = workerError(event);
+      reportClientError(error, "render-worker");
       reject(error);
       slot.rejectReady = undefined;
       instance.terminate();
@@ -258,6 +263,8 @@ function startWorker(slot: WorkerSlot): Promise<boolean> {
         } else if (job && !job.cancelled) {
           const error = new Error(message.message);
           error.name = message.name;
+          error.stack = message.stack ?? "";
+          if (error.name !== "AbortError") reportClientError(error, "render-worker");
           job.reject(error);
         }
       }
@@ -276,6 +283,11 @@ export async function composeCardOffThread(
   let supported: boolean;
   try {
     supported = await startWorker(slot);
+  } catch (error) {
+    if (!(error instanceof DOMException && error.name === "AbortError")) {
+      reportClientError(error, "render-worker", { operation: "initialize" });
+    }
+    throw error;
   } finally {
     slot.starting--;
   }

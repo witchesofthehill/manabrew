@@ -54,6 +54,9 @@ services:
       DECK_HUB: "${DECK_HUB:-1}"
       EMAIL_SIGN_IN: "${EMAIL_SIGN_IN:-1}"
       FORGE_WASM: "${FORGE_WASM:-1}"
+      FARO_ENABLED: "${FARO_ENABLED:-true}"
+      FARO_COLLECTOR_URL: "${FARO_COLLECTOR_URL:-https://telemetry.manabrew.app/collect}"
+      FARO_ENVIRONMENT: "${FARO_ENVIRONMENT:-production}"
     # No depends_on for manabrew-hub: the site must deploy/restart even if the
     # hub image is broken; caddy just 502s api. until the hub comes up.
     depends_on:
@@ -283,6 +286,39 @@ services:
     restart: unless-stopped
     mem_limit: 64m
 
+  faro-collector:
+    profiles:
+      - observability
+    image: ghcr.io/witchesofthehill/manabrew-faro:${MANABREW_IMAGE_TAG:-latest}
+    environment:
+      FARO_ORIGINS: "https://play.manabrew.app,https://staging.manabrew.app,https://manabrew.app,tauri://localhost,http://tauri.localhost,https://tauri.localhost,http://localhost:9527,http://127.0.0.1:9527"
+      FARO_DAILY_BYTES: "${FARO_DAILY_BYTES:-10485760}"
+    volumes:
+      - ./ops/observability/data/sourcemaps:/var/lib/faro/sourcemaps:ro
+      - faro-data:/var/lib/faro/state
+    expose:
+      - "12347"
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m
+    restart: unless-stopped
+    mem_limit: 512m
+    cpus: 1
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:12347/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    depends_on:
+      - loki
+
   alloy:
     profiles:
       - observability
@@ -290,13 +326,16 @@ services:
     command:
       - run
       - --storage.path=/var/lib/alloy/data
+      - --server.http.listen-addr=0.0.0.0:12345
       - /etc/alloy/config.alloy
     volumes:
       - ./ops/observability/alloy:/etc/alloy:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - alloy-data:/var/lib/alloy/data
+    expose:
+      - "12345"
     restart: unless-stopped
-    mem_limit: 128m
+    mem_limit: 256m
 
 volumes:
   caddy-data:
@@ -306,3 +345,4 @@ volumes:
   grafana-data:
   loki-data:
   alloy-data:
+  faro-data:

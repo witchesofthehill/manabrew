@@ -1,0 +1,152 @@
+{
+  "uid": "manabrew-client-errors",
+  "title": "Manabrew Client Errors",
+  "tags": ["manabrew", "ops", "frontend"],
+  "schemaVersion": 39,
+  "editable": true,
+  "timezone": "utc",
+  "time": { "from": "now-24h", "to": "now" },
+  "refresh": "1m",
+  "links": [{ "title": "Live Ops", "type": "link", "url": "/d/manabrew-live-ops" }],
+  "templating": {
+    "list": [
+      {
+        "name": "environment",
+        "label": "Environment",
+        "type": "custom",
+        "query": "production,staging,development",
+        "current": { "text": "production", "value": "production" },
+        "includeAll": false,
+        "multi": false
+      },
+      {
+        "name": "version",
+        "label": "Version regex",
+        "type": "textbox",
+        "query": ".*",
+        "current": { "text": ".*", "value": ".*" }
+      },
+      {
+        "name": "build",
+        "label": "Build regex",
+        "type": "textbox",
+        "query": ".*",
+        "current": { "text": ".*", "value": ".*" }
+      },
+      {
+        "name": "platform",
+        "label": "Platform",
+        "type": "custom",
+        "query": "web,pwa,desktop,mobile",
+        "includeAll": true,
+        "allValue": ".*",
+        "current": { "text": "All", "value": "$__all" },
+        "multi": true
+      },
+      {
+        "name": "source",
+        "label": "Source",
+        "type": "custom",
+        "query": "startup,react,unhandled,engine-worker,render-worker,bot-worker,remote-engine,engine-operation",
+        "includeAll": true,
+        "allValue": ".*",
+        "current": { "text": "All", "value": "$__all" },
+        "multi": true
+      },
+      {
+        "name": "engine",
+        "label": "Engine",
+        "type": "custom",
+        "query": "none,manabrew,forge-wasm,forge-desktop,forge-hosted,forge-remote,ironsmith,manual-tabletop",
+        "includeAll": true,
+        "allValue": ".*",
+        "current": { "text": "All", "value": "$__all" },
+        "multi": true
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Reported exceptions",
+      "description": "Eligible frontend exceptions after sanitization, deduplication, and delivery limits. Not native process crashes.",
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 5 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "instant",
+          "expr": "sum(count_over_time({app=\"manabrew-client\",environment=~\"$environment\",source=~\"$source\"} | json | __error__=\"\" | kind=\"exception\" | context_version=~\"$version\" | context_build=~\"$build\" | context_platform=~\"$platform\" | context_engine=~\"$engine\" [$__range]))"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short", "noValue": "0", "decimals": 0 },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Exceptions by source",
+      "gridPos": { "x": 6, "y": 0, "w": 18, "h": 5 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "range",
+          "legendFormat": "{{source}}",
+          "expr": "sum by (source) (count_over_time({app=\"manabrew-client\",environment=~\"$environment\",source=~\"$source\"} | json | __error__=\"\" | kind=\"exception\" | context_version=~\"$version\" | context_build=~\"$build\" | context_platform=~\"$platform\" | context_engine=~\"$engine\" [$__auto]))"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 }, "overrides": [] },
+      "options": {}
+    },
+    {
+      "id": 4,
+      "type": "table",
+      "title": "Frequent exception signatures",
+      "description": "Signatures use safe exception category, source, operation, and asset coordinates. They are not the receiver's message-only hash and are not persistent issue records.",
+      "gridPos": { "x": 0, "y": 5, "w": 24, "h": 7 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "instant",
+          "expr": "topk(20, sum by (context_signature, context_source, context_build, context_platform) (count_over_time({app=\"manabrew-client\",environment=~\"$environment\",source=~\"$source\"} | json | __error__=\"\" | kind=\"exception\" | context_version=~\"$version\" | context_build=~\"$build\" | context_platform=~\"$platform\" | context_engine=~\"$engine\" [$__range])))"
+        }
+      ],
+      "transformations": [{ "id": "labelsToFields", "options": { "mode": "columns" } }],
+      "fieldConfig": { "defaults": { "decimals": 0 }, "overrides": [] },
+      "options": { "showHeader": true }
+    },
+    {
+      "id": 5,
+      "type": "table",
+      "title": "Exception details",
+      "description": "Sanitized exception details, source-mapped stacktrace when available, and allowlisted build, platform, engine, and normalized-route metadata.",
+      "gridPos": { "x": 0, "y": 12, "w": 24, "h": 10 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "range",
+          "maxLines": 200,
+          "expr": "{app=\"manabrew-client\",environment=~\"$environment\",source=~\"$source\"} | json | __error__=\"\" | kind=\"exception\" | context_version=~\"$version\" | context_build=~\"$build\" | context_platform=~\"$platform\" | context_engine=~\"$engine\""
+        }
+      ],
+      "transformations": [
+        {
+          "id": "extractFields",
+          "options": { "source": "Line", "format": "json", "replace": true, "keepTime": true }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "custom": { "cellOptions": { "type": "auto" }, "filterable": true } },
+        "overrides": []
+      },
+      "options": { "showHeader": true, "cellHeight": "sm" }
+    }
+  ]
+}

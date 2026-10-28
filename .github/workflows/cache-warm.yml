@@ -126,6 +126,7 @@ jobs:
         with:
           context: .
           file: ${{ matrix.dockerfile }}
+          target: ${{ matrix.image == 'manabrew-web' && 'builder' || '' }}
           platforms: linux/amd64
           push: false
           cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:buildcache
@@ -563,7 +564,7 @@ jobs:
             --bin build-cardset-archive
 
       - name: Tauri build (iOS, unsigned)
-        run: yarn tauri ios build --no-sign
+        run: yarn ios:build --no-sign
 
   tauri-android:
     name: Warm Android tauri

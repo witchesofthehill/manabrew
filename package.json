@@ -171,7 +171,7 @@
     "typescript-eslint": "^8.48.0",
     "unplugin-icons": "^23.0.1",
     "vite": "^7.3.5",
-    "vitest": "^3.2.6"
+    "vitest": "^4.1.11"
   },
   "resolutions": {
     "js-yaml": "^4.2.0",

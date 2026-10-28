@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { execFileSync } from "node:child_process";
 
 import { beforeAll, describe, expect, it } from "vitest";

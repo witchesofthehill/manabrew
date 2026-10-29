@@ -122,15 +122,6 @@ public final class ForgeNative {
         }
     }
 
-    @CEntryPoint(name = "forge_drain_directives")
-    static CCharPointer drainDirectives(IsolateThread thread, CCharPointer sessionId) {
-        try {
-            return ok(ADAPTER.drainDirectives(str(sessionId)));
-        } catch (Throwable t) {
-            return err(t);
-        }
-    }
-
     @CEntryPoint(name = "forge_get_state_revision")
     static CCharPointer getStateRevision(IsolateThread thread, CCharPointer sessionId) {
         try {

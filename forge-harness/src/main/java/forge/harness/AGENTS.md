@@ -159,7 +159,7 @@ Use the session's `captureSnapshot`/`restoreSnapshot` pair for checkpoints and m
 ## External references (keep in sync)
 
 - `forge.harness.Main` is the jar `mainClass` (pom), invoked by parity, self-hosted-node (CLI flags) and `scripts/engine-bench/forge-jvm-game.py`. Keep `Main` in the root package.
-- `forge.harness.host.ManaBrewEngineAdapter` is the session API that `Main` (subprocess commands), `native/forge/harness/ffi/ForgeNative.java` (C entry points) and `native/wasm-src/forge/harness/wasm/WasmMain.java` call. Keep all three entrypoints aligned when changing its API. A new method that the node polls needs a `Main` command, a `host/EngineCommands` case (the native node worker sends every command through `forge_command`), a `ForgeNative` entry point, and the matching `JavaBridge` method in `manabrew-rs/crates/self-hosted-node/src/engine_backend/java_backend.rs`.
+- `forge.harness.host.ManaBrewEngineAdapter` is the session API that `Main` (subprocess commands), `native/forge/harness/ffi/ForgeNative.java` (C entry points) and `native/wasm-src/forge/harness/wasm/WasmMain.java` call. Keep all three entrypoints aligned when changing its API. A new method that the node polls needs a `Main` command, a `host/EngineCommands` case (the native node worker sends every command through `forge_command`), and the matching `JavaBridge` method in `manabrew-rs/crates/self-hosted-node/src/engine_backend/java_backend.rs`.
 
 ## Build / verify
 

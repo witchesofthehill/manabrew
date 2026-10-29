@@ -700,10 +700,6 @@ mod graal_ffi {
             thread: *mut graal_isolatethread_t,
             session_id: *const c_char,
         ) -> *mut c_char;
-        pub fn forge_drain_directives(
-            thread: *mut graal_isolatethread_t,
-            session_id: *const c_char,
-        ) -> *mut c_char;
         pub fn forge_get_state_revision(
             thread: *mut graal_isolatethread_t,
             session_id: *const c_char,
@@ -984,13 +980,6 @@ impl GraalEngineHandle {
         let session = cstring(session_id)?;
         self.bridge.decode(unsafe {
             graal_ffi::forge_drain_checkpoint_metrics(self.bridge.thread, session.as_ptr())
-        })
-    }
-
-    fn drain_directives(&self, session_id: &str) -> Result<String, String> {
-        let session = cstring(session_id)?;
-        self.bridge.decode(unsafe {
-            graal_ffi::forge_drain_directives(self.bridge.thread, session.as_ptr())
         })
     }
 

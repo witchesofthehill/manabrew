@@ -92,7 +92,7 @@ if (protocolRange !== `^${protocolVersion}`) {
 // two are released together: a type added to both is not on npm until then.
 const protocolDir = join(temporary, "protocol");
 run("mkdir", ["-p", protocolDir]);
-for (const file of ["package.json", "package-lock.json", "tsconfig.json", "README.md"]) {
+for (const file of ["package.json", "tsconfig.json", "README.md"]) {
   cpSync(join(root, "packages", "protocol", file), join(protocolDir, file));
 }
 run("cargo", [

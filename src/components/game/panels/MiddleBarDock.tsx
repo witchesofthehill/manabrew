@@ -3,6 +3,7 @@ import {
   Circle,
   Flag,
   Image as ImageIcon,
+  Info,
   LogOut,
   Maximize2,
   Minimize2,
@@ -98,10 +99,10 @@ export function MiddleBarDock({
   const repeatHint = canRepeat
     ? null
     : recording === "ready"
-      ? `You can repeat when you have priority and the stack is empty.`
+      ? `You can replay when you have priority and the stack is empty.`
       : recording === "recording"
-        ? `Stop recording to replay the actions.`
-        : `You need to record some actions to replay them.`;
+        ? `Stop recording to replay the combo.`
+        : `Record a combo first.`;
   const repeatItem = (
     <DropdownMenuItem
       aria-disabled={!canRepeat}
@@ -115,7 +116,7 @@ export function MiddleBarDock({
       }}
     >
       <Repeat className="mr-2 h-4 w-4" />
-      Repeat recorded actions
+      Replay combo
     </DropdownMenuItem>
   );
   return (
@@ -144,30 +145,6 @@ export function MiddleBarDock({
             Combat breakdown
           </DropdownMenuItem>
         )}
-        {(recording === "recording" || canRecord) && (
-          <DropdownMenuItem
-            disabled={!canRecord}
-            onSelect={(e) => {
-              if (recording === "recording") e.preventDefault();
-              onToggleRecording();
-            }}
-          >
-            {recording === "recording" ? (
-              <Square className="mr-2 h-4 w-4 fill-current" />
-            ) : (
-              <Circle className="mr-2 h-4 w-4 fill-current text-destructive" />
-            )}
-            {recording === "recording" ? `Stop recording` : `Record actions`}
-          </DropdownMenuItem>
-        )}
-        {repeatHint ? (
-          <Tooltip>
-            <TooltipTrigger asChild>{repeatItem}</TooltipTrigger>
-            <TooltipContent side="left">{repeatHint}</TooltipContent>
-          </Tooltip>
-        ) : (
-          repeatItem
-        )}
         {players.length > 0 && (
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
@@ -190,6 +167,44 @@ export function MiddleBarDock({
               ))}
             </DropdownMenuSubContent>
           </DropdownMenuSub>
+        )}
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel className="flex items-center gap-1.5">
+          Combo recorder
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span tabIndex={0} aria-label="About the combo recorder">
+                <Info className="h-3.5 w-3.5 text-muted-foreground" />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="left" className="max-w-64">
+              Record your combo once, then replay it as many times as you want.
+            </TooltipContent>
+          </Tooltip>
+        </DropdownMenuLabel>
+        {(recording === "recording" || canRecord) && (
+          <DropdownMenuItem
+            disabled={!canRecord}
+            onSelect={(e) => {
+              if (recording === "recording") e.preventDefault();
+              onToggleRecording();
+            }}
+          >
+            {recording === "recording" ? (
+              <Square className="mr-2 h-4 w-4 fill-current" />
+            ) : (
+              <Circle className="mr-2 h-4 w-4 fill-current text-destructive" />
+            )}
+            {recording === "recording" ? `Stop recording` : `Record combo`}
+          </DropdownMenuItem>
+        )}
+        {repeatHint ? (
+          <Tooltip>
+            <TooltipTrigger asChild>{repeatItem}</TooltipTrigger>
+            <TooltipContent side="left">{repeatHint}</TooltipContent>
+          </Tooltip>
+        ) : (
+          repeatItem
         )}
         <DropdownMenuSeparator />
         <DropdownMenuItem

@@ -29,6 +29,9 @@ PascalCase → snake_case, keep the `_effect` suffix. Don't drop or rename. If t
 
 ## Conventions
 
+- `AsLongAsInPlay` effect cards must survive turn cleanup, expire when their source leaves the battlefield, and expire permanently when their source phases out. Keep this separate from `UntilHostLeavesPlay`, which survives phasing.
+- Continuous `Affected$` filters must use the full card-selector matcher. The reduced `CardFilter` treats `IsRemembered` as a subtype and cannot select remembered permanents.
+
 - **One effect per file.** Helpers shared across effects go in `helpers.rs`, `effect_context.rs`, or `combat_helpers.rs`. Don't create new shared modules until two effects actually share.
 - **No card-specific branches.** If you find yourself writing `if card.name() == "..."`, the rule lives elsewhere — almost always in `staticability/`, `replacement/`, or a `trigger/`. Find it.
 - **Targeting and restrictions live upstream.** By the time an effect resolves, targets are validated. Don't re-validate; trust the spell-ability machinery.

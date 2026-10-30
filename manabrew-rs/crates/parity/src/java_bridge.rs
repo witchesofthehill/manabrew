@@ -295,6 +295,8 @@ pub struct MatchupRequest {
     pub command: String,
     pub deck1: String,
     pub deck2: String,
+    /// Full seat list, preferred by the Java harness over deck1/deck2.
+    pub decks: Vec<String>,
     pub seed: u64,
     pub max_turns: u32,
     pub prefer_actions: bool,
@@ -303,6 +305,8 @@ pub struct MatchupRequest {
     pub variant: String,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub commanders: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub commanders_by_player: Vec<Vec<String>>,
     /// Verbose callback logging for specific turns. Empty string = all, absent = off.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub verbose_turns: Option<String>,
@@ -465,24 +469,30 @@ impl JavaServer {
         &mut self,
         deck1: &str,
         deck2: &str,
+        extra_decks: &[String],
         seed: u64,
         max_turns: u32,
         prefer_actions: bool,
         deep: bool,
         variant: &str,
         commanders: &[String],
+        commanders_by_player: &[Vec<String>],
         verbose_turns: Option<String>,
     ) -> Result<JavaMatchupData, JavaBridgeError> {
+        let mut decks = vec![deck1.to_string(), deck2.to_string()];
+        decks.extend(extra_decks.iter().cloned());
         let request = MatchupRequest {
             command: "run".to_string(),
             deck1: deck1.to_string(),
             deck2: deck2.to_string(),
+            decks,
             seed,
             max_turns,
             prefer_actions,
             deep,
             variant: variant.to_string(),
             commanders: commanders.to_vec(),
+            commanders_by_player: commanders_by_player.to_vec(),
             verbose_turns,
         };
 
@@ -584,28 +594,34 @@ impl JavaServer {
         &mut self,
         deck1: &str,
         deck2: &str,
+        extra_decks: &[String],
         seed: u64,
         max_turns: u32,
         prefer_actions: bool,
         deep: bool,
         variant: &str,
         commanders: &[String],
+        commanders_by_player: &[Vec<String>],
         verbose_turns: Option<String>,
         mut on_entry: F,
     ) -> Result<JavaMatchupData, JavaBridgeError>
     where
         F: FnMut(usize, &ParityLogEntry) -> bool,
     {
+        let mut decks = vec![deck1.to_string(), deck2.to_string()];
+        decks.extend(extra_decks.iter().cloned());
         let request = MatchupRequest {
             command: "run".to_string(),
             deck1: deck1.to_string(),
             deck2: deck2.to_string(),
+            decks,
             seed,
             max_turns,
             prefer_actions,
             deep,
             variant: variant.to_string(),
             commanders: commanders.to_vec(),
+            commanders_by_player: commanders_by_player.to_vec(),
             verbose_turns,
         };
 

@@ -602,6 +602,43 @@ impl GameState {
         player
     }
 
+    /// Java's `Game.ingamePlayers`: players that have not left the game.
+    pub fn in_game_players(&self) -> Vec<PlayerId> {
+        self.player_order
+            .iter()
+            .copied()
+            .filter(|&pid| self.player(pid).is_alive())
+            .collect()
+    }
+
+    /// Java's `Game.getNextPlayerAfter(Player)`.
+    pub fn next_player_after_in_game(&self, player: PlayerId) -> PlayerId {
+        let in_game = self.in_game_players();
+        if in_game.is_empty() {
+            return player;
+        }
+        if let Some(idx) = in_game.iter().position(|&p| p == player) {
+            return in_game[(idx + 1) % in_game.len()];
+        }
+        let total = self.player_order.len();
+        if total == 0 {
+            return player;
+        }
+        let mut idx = self
+            .player_order
+            .iter()
+            .position(|&p| p == player)
+            .unwrap_or(0);
+        for _ in 0..total {
+            idx = (idx + 1) % total;
+            let pid = self.player_order[idx];
+            if in_game.contains(&pid) {
+                return pid;
+            }
+        }
+        player
+    }
+
     /// Return the turn number of `player`'s most recent combat phase, if
     /// known. Used by `Charm$ ChoiceRestriction$ YourLastCombat`.
     ///
@@ -750,6 +787,26 @@ mod tests {
         let game = GameState::new(&["Alice", "Bob"], 20);
         assert_eq!(game.opponent_of(PlayerId(0)), PlayerId(1));
         assert_eq!(game.opponent_of(PlayerId(1)), PlayerId(0));
+    }
+
+    #[test]
+    fn next_player_after_in_game_skips_players_who_left_the_game() {
+        let mut game = GameState::new(&["Alice", "Bob", "Carol", "Dave"], 20);
+        game.player_mut(PlayerId(1)).mark_lost(
+            crate::player::player_outcome::PlayerOutcome::Loss {
+                reason: crate::replacement::GameLossReason::LifeReachedZero,
+                spell_name: None,
+            },
+        );
+
+        assert_eq!(
+            game.in_game_players(),
+            vec![PlayerId(0), PlayerId(2), PlayerId(3)]
+        );
+        assert_eq!(game.next_player_after_in_game(PlayerId(0)), PlayerId(2));
+        assert_eq!(game.next_player_after_in_game(PlayerId(2)), PlayerId(3));
+        assert_eq!(game.next_player_after_in_game(PlayerId(3)), PlayerId(0));
+        assert_eq!(game.next_player_after_in_game(PlayerId(1)), PlayerId(2));
     }
 
     #[test]

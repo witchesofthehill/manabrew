@@ -58,6 +58,7 @@ after `--`.
 | Flag                                | Use it when                                                                                                                                                              |
 | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `--deck1 <name>` / `--deck2 <name>` | Choose the two decks for the matchup.                                                                                                                                    |
+| `--deck3 <name>` / `--deck4 <name>` | Add a third and fourth seat. See [Multiplayer games](#multiplayer-three-and-four-player-games).                                                                          |
 | `--seed <N>`                        | Reproduce the same decisions, shuffles, and random choices.                                                                                                              |
 | `--max-turns <N>`                   | Stop early once the bug has already appeared. Smaller values make runs faster.                                                                                           |
 | `--games <N>`                       | Run the same matchup repeatedly with incrementing seeds starting at `--seed`.                                                                                            |
@@ -134,3 +135,47 @@ Other useful trace env vars:
 | `FORGE_CARD_TRACE=<name>`   | Trace Rust card lookup/details for matching card names.              |
 | `FORGE_LIB_DUMP=1`          | Ask the Java harness to dump library details.                        |
 | `FORGE_TOKEN_DEBUG=1`       | Ask the Java harness to print token diagnostics.                     |
+
+## Multiplayer (three and four player) games
+
+The parity runner supports two-, three-, and four-player tables. Extra seats
+are enabled by adding `--deck3` (and optionally `--deck4`); seat order is
+`--deck1`, `--deck2`, `--deck3`, `--deck4`.
+
+```bash
+yarn parity:test \
+  -- \
+  --variant Commander \
+  --deck1 neheb_minotaur_commander --commander1 'Neheb, the Worthy' \
+  --deck2 sauron_the_dark_lord --commander2 'Sauron, the Dark Lord' \
+  --deck3 kaalia_regression_commander --commander3 'Kaalia of the Vast' \
+  --deck4 real_teval_commander --commander4 'Teval, the Balanced Scale' \
+  --seed 42 \
+  --max-turns 40
+```
+
+- `--commander1` … `--commander4` set the commander of that seat only. The
+  shared `--commander` flag still applies to every seat when no per-seat
+  commander is given.
+- Commander names must already exist in that seat's main deck; the runner
+  moves the matching card into the command zone.
+- Four-player games bypass the Java trace cache: the cache key has no
+  N-player or per-seat commander fields, so a cached 1v1 trace could be
+  returned for a pod.
+- The registered smoke pod lives in `regression.json` as
+  `fourPlayerCommanderSmoke`.
+
+### Known multiplayer gaps
+
+A pod only stays in parity as long as every deck in it is individually
+parity-stable in 1v1 — the decks that already diverge on their own
+(`kaalia_regression`, `teval`, `ashling`, `worldShaper`)
+drag a pod apart at the same card. Two engine gaps show up first in pods
+because the Commander decks lean on them:
+
+- A commander in the command zone is not offered as a cast. Java offers the
+  commander's spell ability, so it can be cast from the command zone; the
+  Rust action space only offers cards in hand.
+- An activated ability with an `IsPresent$` filter (Rivendell's scry) is
+  dropped from the action space when the filter matches nothing, while Java
+  keeps the ability in the offered set.

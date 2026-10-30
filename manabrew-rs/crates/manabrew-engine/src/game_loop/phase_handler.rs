@@ -325,10 +325,10 @@ impl GameLoop {
                     // Reset zone turn tracking for all zones.
                     game.reset_zone_turn_tracking();
                     game.reset_card_turn_tracking();
-                    let player_order = game.player_order.clone();
+                    let next_player = game.next_player_after_in_game(game.turn.active_player);
                     let extra_turn_player = game.extra_turns.front().map(|et| et.player);
                     if let Some((player, _skip)) =
-                        game.turn.advance_turn(&mut game.extra_turns, &player_order)
+                        game.turn.advance_turn(&mut game.extra_turns, next_player)
                     {
                         game.player_set_skip_untap(player);
                     }
@@ -414,8 +414,10 @@ impl GameLoop {
 
     pub fn step_draw(&mut self, game: &mut GameState, agents: &mut [Box<dyn PlayerAgent>]) {
         let active = game.active_player();
-        // Skip draw on turn 1
-        if game.turn.turn_number > 1 {
+        // Mirror Java PhaseHandler.isSkippingPhase(DRAW): only a two-player
+        // game skips the first player's draw. Multiplayer pods draw normally.
+        let skip_first_draw = game.turn.turn_number == 1 && game.players.len() == 2;
+        if !skip_first_draw {
             use crate::replacement::replacement_handler::{
                 apply_replacements_with_agents, ReplacementEvent,
             };

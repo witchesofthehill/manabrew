@@ -106,5 +106,9 @@
   {
     "name": "saga_chapter",
     "args": "--deck1 saga_chapter --deck2 saga_chapter --seed 42 --max-turns 40 --games 3 --prefer-actions --deep --investigate"
+  },
+  {
+    "name": "fourPlayerCommanderSmoke",
+    "args": "--variant Commander --deck1 neheb_minotaur_commander --commander1 'Neheb, the Worthy' --deck2 sauron_the_dark_lord --commander2 'Sauron, the Dark Lord' --deck3 kaalia_regression_commander --commander3 'Kaalia of the Vast' --deck4 real_teval_commander --commander4 'Teval, the Balanced Scale' --seed 42 --max-turns 40 --games 1"
   }
 ]

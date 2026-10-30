@@ -2,7 +2,9 @@ import { useMediaQuery } from "@/hooks/useMediaQuery";
 import {
   COARSE_POINTER_QUERY,
   DESKTOP_QUERY,
+  MOBILE_GAME_MAX_EDGE_PX,
   MOBILE_GAME_QUERY,
+  screenShortEdge,
   SHORT_SCREEN_QUERY,
   TOUCH_CAPABLE_QUERY,
 } from "@/lib/responsive";
@@ -30,5 +32,7 @@ export function useIsShortTouchScreen(): boolean {
 }
 
 export function useIsMobileGame(): boolean {
-  return useMediaQuery(MOBILE_GAME_QUERY);
+  const narrowTouch = useMediaQuery(MOBILE_GAME_QUERY);
+  const touch = useIsTouch();
+  return narrowTouch || (touch && screenShortEdge() <= MOBILE_GAME_MAX_EDGE_PX);
 }

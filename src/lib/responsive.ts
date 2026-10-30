@@ -6,7 +6,15 @@ export const SHORT_SCREEN_QUERY = `(max-height: ${SHORT_SCREEN_MAX_HEIGHT_PX}px)
 export const COARSE_POINTER_QUERY = "(pointer: coarse)";
 export const TOUCH_CAPABLE_QUERY = "(any-pointer: coarse)";
 
-export const MOBILE_GAME_QUERY = `${COARSE_POINTER_QUERY} and (max-width: 1024px), ${COARSE_POINTER_QUERY} and (max-height: 1024px)`;
+export const MOBILE_GAME_MAX_EDGE_PX = 1024;
+export const MOBILE_GAME_QUERY = `${COARSE_POINTER_QUERY} and (max-width: ${MOBILE_GAME_MAX_EDGE_PX}px)`;
+
+// The screen, not the viewport: Safari's toolbars put a 1032px-tall landscape iPad under the cutoff.
+export function screenShortEdge(): number {
+  return typeof window === "undefined"
+    ? Number.POSITIVE_INFINITY
+    : Math.min(window.screen.width, window.screen.height);
+}
 
 export const PORTRAIT_QUERY = "(orientation: portrait)";
 

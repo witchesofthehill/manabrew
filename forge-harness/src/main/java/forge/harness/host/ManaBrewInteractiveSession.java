@@ -3380,9 +3380,9 @@ public final class ManaBrewInteractiveSession {
     }
 
     private CardDto promptCard(final int playerId, final Card card, final boolean castable) {
-        final CardDto dto = InteractiveSnapshotExtractor.cardDto(game, card, castable);
-        handKnowledge.remember(
-                playerId < 0 ? null : game.getRegisteredPlayers().get(playerId), card, dto);
+        final Player viewer = playerId < 0 ? null : game.getRegisteredPlayers().get(playerId);
+        final CardDto dto = InteractiveSnapshotExtractor.cardDto(game, card, castable, viewer);
+        handKnowledge.remember(viewer, card, dto);
         return dto;
     }
 

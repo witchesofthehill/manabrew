@@ -45,7 +45,7 @@ export const CARD_SIZE_MULTIPLIER_MAX = 1.5;
 export const SOUND_VOLUME_MIN = 0;
 export const SOUND_VOLUME_MAX = 1;
 export const SOUND_VOLUME_STEP = 0.05;
-const DEFAULT_SOUND_VOLUME = 1;
+const DEFAULT_SOUND_VOLUME = 0.5;
 
 export interface PreferencesState {
   personalThemeName: string | null;

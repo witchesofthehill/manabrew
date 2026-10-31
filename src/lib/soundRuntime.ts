@@ -15,26 +15,26 @@ function soundDefinition(name: string, volume: number, cooldownMs = 0): SoundDef
 }
 
 const SOUNDS = {
-  chatMessage: soundDefinition("chat-message", 0.55, 250),
-  buttonClick: soundDefinition("button-click2", 0.5, 50),
-  roomInvite: soundDefinition("room-invite", 0.75, 1_000),
-  cardPlay: soundDefinition("card-play", 0.55),
+  chatMessage: soundDefinition("chat-message", 0, 250),
+  buttonClick: soundDefinition("button-click2", 0.3, 50),
+  roomInvite: soundDefinition("room-invite", 0, 1_000),
+  cardPlay: soundDefinition("card-play", 0.6),
   cardEnter: soundDefinition("card-etb", 0.5),
   cardTap: soundDefinition("", 0),
   cardUntap: soundDefinition("", 0),
   cardAttach: soundDefinition("", 0),
   cardTransform: soundDefinition("", 0),
-  tokenCreate: soundDefinition("card-etb", 0.7),
-  cardDiscard: soundDefinition("wood-heavy", 0.75),
-  cardDestroy: soundDefinition("wood-heavy", 0.8),
-  cardExile: soundDefinition("wood-heavy", 0.75),
+  tokenCreate: soundDefinition("", 0),
+  cardDiscard: soundDefinition("discard", 0.4),
+  cardDestroy: soundDefinition("grave", 0.2),
+  cardExile: soundDefinition("exile", 0.4),
   cardCounterAdd: soundDefinition("", 0),
   cardCounterRemove: soundDefinition("", 0),
-  cardDamage: soundDefinition("", 0),
-  instantResolve: soundDefinition("spell-resolve", 0.7),
-  sorceryResolve: soundDefinition("spell-resolve", 0.7),
+  cardDamage: soundDefinition("resolvespell", 0.4),
+  instantResolve: soundDefinition("", 0),
+  sorceryResolve: soundDefinition("", 0),
   lifeGain: soundDefinition("", 0),
-  lifeLoss: soundDefinition("", 0),
+  lifeLoss: soundDefinition("resolvespell", 0.4),
   combatBlock: soundDefinition("", 0),
   outcomeWin: soundDefinition("", 0),
   outcomeLoss: soundDefinition("", 0),
@@ -46,7 +46,7 @@ export type SoundName = keyof typeof SOUNDS;
 const loadedAssets = new Map<string, Sound>();
 const assetLoads = new Map<string, Promise<Sound | null>>();
 const lastPlayedAt = new Map<SoundName, number>();
-const SOUND_WINDOW_MS = 15;
+const SOUND_WINDOW_MS = 30;
 let pendingSoundTimer: ReturnType<typeof setTimeout> | undefined;
 let playbackGeneration = 0;
 

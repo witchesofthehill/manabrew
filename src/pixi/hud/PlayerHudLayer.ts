@@ -1,4 +1,4 @@
-import { Container } from "pixi.js";
+import { Container, type Renderer } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
 import { PlayerHudCapsule } from "./PlayerHudCapsule";
 import { PlayerHudTooltip } from "./PlayerHudTooltip";
@@ -98,6 +98,27 @@ export class PlayerHudLayer {
     if (this.compact === compact) return;
     this.compact = compact;
     for (const capsule of this.capsules.values()) capsule.setCompact(compact);
+  }
+
+  getRect(playerId: string): ScreenBounds | null {
+    return this.capsules.get(playerId)?.getRect() ?? null;
+  }
+
+  beginRectTransition(
+    playerId: string,
+    rect: ScreenBounds,
+    column: boolean,
+    renderer: Renderer,
+  ): void {
+    this.capsules.get(playerId)?.beginRectTransition(rect, column, renderer);
+  }
+
+  setVisualRect(playerId: string, rect: ScreenBounds, progress: number): void {
+    this.capsules.get(playerId)?.setVisualRect(rect, progress);
+  }
+
+  finishRectTransitions(): void {
+    for (const capsule of this.capsules.values()) capsule.finishRectTransition();
   }
   setBoundsDebug(on: boolean): void {
     if (this.boundsDebug === on) return;

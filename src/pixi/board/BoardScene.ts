@@ -57,6 +57,7 @@ import type {
 } from "../types";
 import type { StackAnchorProvider } from "../stack/stack.types";
 import { BoardRegion } from "./BoardRegion";
+import { playmatInset } from "./PlaymatLayer";
 import type { ZoneTileSpec } from "./BoardZoneTiles";
 import { PlayerHudLayer, PLAYER_HUD_HAND_GAP_PX } from "@/pixi/hud/PlayerHudLayer";
 import type { PlayerHudSpec as PlayerBarSpec } from "@/pixi/hud/playerHud.types";
@@ -190,6 +191,14 @@ export class BoardScene {
   private dragHandler: DragHandler;
   private phaseStrip: PhaseStripLayer;
   private overview = false;
+  private hybrid = false;
+  private opponentScale = 1;
+  private hybridBlockers = new Map<string, BlockingRect[]>();
+  private hybridTransition: {
+    elapsed: number;
+    delimiters: number[];
+    hud: Map<string, { from: ScreenBounds; to: ScreenBounds }>;
+  } | null = null;
   private focusLocked = false;
 
   private arrowSpecs: ArrowSpec[] = [];
@@ -415,6 +424,14 @@ export class BoardScene {
   ): void {
     if (this.destroyed) return;
     this.cardScale = scales.self;
+    const hybridChanged = this.hybrid !== (layout.opponentLayout === "hybrid");
+    this.hybrid = layout.opponentLayout === "hybrid";
+    this.opponentScale = scales.opponent;
+    if (!this.hybrid) {
+      this.hybridTransition = null;
+      this.playerBars.finishRectTransitions();
+      this.hybridBlockers.clear();
+    }
     this.overview = layout.opponentLayout === "overview";
     const seen = new Set<string>();
     let oppIndex = 0;
@@ -431,10 +448,12 @@ export class BoardScene {
       if (existing) {
         existing.zone = zone;
         existing.region.container.zIndex = zIndex;
+        existing.region.setHybridMode(this.hybrid && !spec.isLocal);
+        if (hybridChanged && !this.hybrid) existing.region.setGridBand(null, 0);
         existing.region.setOverviewMode(this.overview && !spec.isLocal);
         existing.region.setCombatRowReserved(combatRowReserved);
         existing.region.setZone(zone, orientation);
-        existing.region.setCardScale(regionScale);
+        if (!this.hybrid || spec.isLocal) existing.region.setCardScale(regionScale);
         existing.region.setPlaymatSettings(spec.playmatSettings);
         existing.region.setPlaymat(spec.playmat);
         continue;
@@ -446,6 +465,7 @@ export class BoardScene {
         regionScale,
         { orientation, combatRowReserved, presentation: this.presentation.region },
       );
+      region.setHybridMode(this.hybrid && !spec.isLocal);
       region.setPlaymatSettings(spec.playmatSettings);
       region.setOverviewMode(this.overview && !spec.isLocal);
       region.setPlaymat(spec.playmat);
@@ -471,7 +491,7 @@ export class BoardScene {
     if (!sameOpponents || this.delimCurrent.length !== oppIds.length - 1) {
       this.delimCurrent = evenDelimiters(oppIds.length);
     }
-    this.recomputeDelimTarget();
+    this.recomputeDelimTarget(true, sameOpponents && !hybridChanged);
     this.applyDelimiters();
 
     for (const [id, fan] of [...this.opponentHands]) {
@@ -537,26 +557,25 @@ export class BoardScene {
   setFocusLocked(locked: boolean): void {
     if (locked === this.focusLocked) return;
     this.focusLocked = locked;
-    if (!locked) this.recomputeDelimTarget();
+    if (this.hybrid || !locked) this.recomputeDelimTarget();
   }
 
   private focusedOpponentIds(): string[] {
+    const combatFocus =
+      this.hybrid && (this.declareAttackers || this.declareBlockers) ? [] : this.combatFocusIds;
     if (this.manualFocusId) return [this.manualFocusId];
     if (this.targetingFocusIds !== null) {
       if (!this.focusLocked && this.hoveredOpponentId) return [this.hoveredOpponentId];
       const ids = new Set(this.targetingFocusIds);
-      for (const id of this.combatFocusIds) ids.add(id);
+      for (const id of combatFocus) ids.add(id);
       if (ids.size > 0) return [...ids];
     }
     if (!this.focusLocked && this.hoveredOpponentId) return [this.hoveredOpponentId];
-    return this.combatFocusIds.length > 0
-      ? this.combatFocusIds
-      : this.focusPlayerId
-        ? [this.focusPlayerId]
-        : [];
+    return combatFocus.length > 0 ? combatFocus : this.focusPlayerId ? [this.focusPlayerId] : [];
   }
 
-  private recomputeDelimTarget(): void {
+  private recomputeDelimTarget(force = false, animate = true): void {
+    const previous = this.delimTarget;
     const n = this.opponentIds.length;
     const focused = new Set<number>();
     for (const id of this.focusedOpponentIds()) {
@@ -576,6 +595,16 @@ export class BoardScene {
       }
       this.delimTarget = target;
     }
+    if (this.hybrid) {
+      if (
+        force ||
+        previous.length !== this.delimTarget.length ||
+        previous.some((value, index) => value !== this.delimTarget[index])
+      ) {
+        this.startHybridTransition(animate);
+      }
+      return;
+    }
     for (let i = 0; i < n; i++) {
       const region = this.regions.get(this.opponentIds[i]!)?.region;
       if (!region) continue;
@@ -589,7 +618,92 @@ export class BoardScene {
     }
   }
 
+  private startHybridTransition(animate = true): void {
+    const count = this.opponentIds.length;
+    if (!this.hybrid || count === 0 || this.boardWidth <= 0) return;
+    const focused = new Set(this.focusedOpponentIds());
+    const bands = this.opponentIds.map((id, index) => {
+      const left = Math.round((index === 0 ? 0 : this.delimTarget[index - 1]!) * this.boardWidth);
+      const right = Math.round(
+        (index === count - 1 ? 1 : this.delimTarget[index]!) * this.boardWidth,
+      );
+      return { id, left, width: Math.max(1, right - left) };
+    });
+    const hud = new Map<string, { from: ScreenBounds; to: ScreenBounds }>();
+    for (const band of bands) {
+      const record = this.regions.get(band.id);
+      if (!record) continue;
+      const from = this.playerBars.getRect(band.id);
+      const field = playmatInset({ ...record.zone, x: band.left, width: band.width });
+      const column = this.presentation.hudUsesColumn(field.width);
+      const to = {
+        x: field.x,
+        y: field.y,
+        width: column ? field.width : Math.min(this.presentation.hudMaxWidth, field.width),
+        height: column ? field.height : Math.min(this.presentation.opponentHudHeight, field.height),
+      };
+      if (this.barsEnabled) {
+        this.playerBars.beginRectTransition(band.id, to, column, this.app.renderer);
+        hud.set(band.id, { from: from && from.width > 0 ? from : to, to });
+      }
+      this.hybridBlockers.set(band.id, this.barsEnabled ? this.capsuleBlockers(band.id) : []);
+    }
+    this.hybridTransition = { elapsed: 0, delimiters: [...this.delimCurrent], hud };
+    const idleScale = this.opponentScale * (count >= 3 ? 0.8 : count === 2 ? 0.9 : 1);
+    for (const band of bands) {
+      const expanded = focused.has(band.id) && band.width > this.boardWidth / count + 1;
+      this.regions
+        .get(band.id)
+        ?.region.solveHybridEndpoint(
+          expanded ? this.opponentScale : idleScale,
+          band.left,
+          band.width,
+          !expanded,
+        );
+    }
+    this.applyHybridTransition(animate && animationsEnabled() ? 0 : 1);
+    if (!animate || !animationsEnabled()) this.finishHybridTransition();
+  }
+
+  private applyHybridTransition(t: number): void {
+    const transition = this.hybridTransition;
+    if (!transition) return;
+    this.delimCurrent = this.delimTarget.map((target, index) => {
+      const from = transition.delimiters[index] ?? target;
+      return t === 1 ? target : from + (target - from) * t;
+    });
+    for (const [id, { from, to }] of transition.hud) {
+      this.playerBars.setVisualRect(
+        id,
+        {
+          x: from.x + (to.x - from.x) * t,
+          y: from.y + (to.y - from.y) * t,
+          width: from.width + (to.width - from.width) * t,
+          height: from.height + (to.height - from.height) * t,
+        },
+        t,
+      );
+    }
+    for (const id of this.opponentIds) this.regions.get(id)?.region.applyHybridTransition(t);
+    this.applyDelimiters();
+  }
+
+  private finishHybridTransition(): void {
+    for (const id of this.opponentIds) this.regions.get(id)?.region.finishHybridTransition();
+    this.hybridTransition = null;
+    this.playerBars.finishRectTransitions();
+  }
+
   private easeDelimiters(): void {
+    if (this.hybrid) {
+      const transition = this.hybridTransition;
+      if (!transition) return;
+      transition.elapsed += this.app.ticker.deltaMS;
+      const progress = animationsEnabled() ? Math.min(1, transition.elapsed / 400) : 1;
+      this.applyHybridTransition(1 - (1 - progress) ** 3);
+      if (progress === 1) this.finishHybridTransition();
+      return;
+    }
     const n = this.opponentIds.length;
     if (this.overview) return;
     if (n <= 1) return;
@@ -662,6 +776,7 @@ export class BoardScene {
           this.collapseVeil.rect(left, 0, bandW, this.topHeight + this.stripBandPx / 2);
           this.collapseVeil.fill({ color: veilColor, alpha: frac });
         }
+        if (this.hybrid) continue;
         const field = rec.region.getPlaymatRect();
         const column = this.presentation.hudUsesColumn(field.width);
         const availableWidth = Math.max(1, field.width);
@@ -727,12 +842,14 @@ export class BoardScene {
         if (state) rec.region.updateBattlefield(state);
       }
     }
+    if (this.hybrid && reserveChanged) this.startHybridTransition();
     this.applyDelimiters();
     this.refreshCapsuleBlockers();
   }
 
   private refreshCapsuleBlockers(): void {
     for (const [id, rec] of this.regions) {
+      if (this.hybrid && !rec.isLocal) continue;
       const [b] = this.gridCapsuleBlockers(id, rec.isLocal);
       const key = b ? [b.x, b.y, b.width, b.height].map((v) => Math.round(v / 4)).join(",") : "";
       if (this.lastCapsuleRects.get(id) === key) continue;
@@ -759,6 +876,7 @@ export class BoardScene {
   }
 
   private delimitersSettling(): boolean {
+    if (this.hybrid) return this.hybridTransition !== null;
     for (let i = 0; i < this.delimCurrent.length; i++) {
       const target = this.delimTarget[i] ?? this.delimCurrent[i]!;
       if (Math.abs(target - this.delimCurrent[i]!) > DELIMITER_EASE.SNAP) return true;
@@ -867,6 +985,7 @@ export class BoardScene {
     if (
       n > 0 &&
       W > 0 &&
+      (!this.hybrid || (canvasX >= 0 && canvasY >= 0)) &&
       localY >= 0 &&
       localY <= this.topHeight &&
       !this.stackProvider?.hitTest(canvasX, canvasY)
@@ -1143,7 +1262,9 @@ export class BoardScene {
   }
 
   setDeclareBlockers(active: boolean): void {
+    const changed = this.declareBlockers !== active;
     this.declareBlockers = active;
+    if (changed && this.hybrid) this.recomputeDelimTarget();
     if (!active) this.setBlockDragId(null);
   }
 
@@ -1159,7 +1280,9 @@ export class BoardScene {
     attackTargets: AttackTargetDto[],
     attackerOptions: { attackerId: string; validTargetIds: string[] }[],
   ): void {
+    const changed = this.declareAttackers !== active;
     this.declareAttackers = active;
+    if (changed && this.hybrid) this.recomputeDelimTarget();
     this.attackTargets = attackTargets;
     this.attackerOptions = attackerOptions;
     if (!active) {
@@ -1406,6 +1529,12 @@ export class BoardScene {
   private makeRegionHost(playerId: string, isLocal: boolean): RegionHost {
     return {
       getTheme: () => this.theme,
+      getCombatCardScale: (controllerId) =>
+        this.hybrid
+          ? controllerId === this.localPlayerId
+            ? this.cardScale
+            : this.opponentScale
+          : null,
       collectBlockers: () => [
         ...(isLocal ? this.localBlockers() : []),
         ...this.gridCapsuleBlockers(playerId, isLocal),
@@ -1506,6 +1635,7 @@ export class BoardScene {
   }
 
   private gridCapsuleBlockers(playerId: string, isLocal: boolean): BlockingRect[] {
+    if (this.hybrid && !isLocal) return this.hybridBlockers.get(playerId) ?? [];
     if (isLocal || this.overview) return this.capsuleBlockers(playerId);
     const record = this.regions.get(playerId);
     const index = this.opponentIds.indexOf(playerId);

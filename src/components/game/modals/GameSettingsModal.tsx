@@ -183,6 +183,7 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
             value={prefs.opponentLayout}
             options={[
               { value: "focused", label: "Focused" },
+              { value: "hybrid", label: "Hybrid" },
               { value: "overview", label: "Overview" },
             ]}
             onChange={prefs.setOpponentLayout}

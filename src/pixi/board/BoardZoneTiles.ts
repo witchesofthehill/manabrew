@@ -9,6 +9,7 @@ import {
   type FederatedPointerEvent,
 } from "pixi.js";
 import type { CardDto } from "@/protocol/game";
+import type { ScreenBounds } from "@/pixi/types";
 import type { Theme } from "@/hooks/useTheme";
 import { hexToNum } from "../colorUtils";
 import { applyIcon } from "../panelIcons";
@@ -161,6 +162,8 @@ export class BoardZoneTiles {
   private cardW = 0;
   private cardH = 0;
   private hitPad = 0;
+  private compact = false;
+  private visualRects: Map<string, ScreenBounds> | null = null;
   private draggable = false;
   private drag: {
     tile: Tile;
@@ -188,6 +191,60 @@ export class BoardZoneTiles {
     this.draggable = draggable;
     for (const tile of this.tiles.values()) {
       tile.container.cursor = tile.spec.onOpen ? "pointer" : draggable ? "grab" : "default";
+    }
+  }
+
+  setCompact(compact: boolean): void {
+    if (this.compact === compact) return;
+    this.compact = compact;
+    this.redraw();
+  }
+
+  snapshotTransforms(): Map<string, ScreenBounds> {
+    const snapshot = new Map<string, ScreenBounds>();
+    for (const [key, tile] of this.tiles) {
+      snapshot.set(key, {
+        x: tile.container.x,
+        y: tile.container.y,
+        width: this.cardW * tile.container.scale.x,
+        height: this.cardH * tile.container.scale.y,
+      });
+    }
+    return snapshot;
+  }
+
+  applyInterpolatedTransforms(
+    from: ReadonlyMap<string, ScreenBounds>,
+    to: ReadonlyMap<string, ScreenBounds>,
+    progress: number,
+  ): void {
+    const t = Math.max(0, Math.min(1, progress));
+    this.visualRects = new Map();
+    for (const [key, tile] of this.tiles) {
+      const a = from.get(key) ?? to.get(key);
+      const b = to.get(key) ?? a;
+      if (!a || !b || this.drag?.tile === tile) continue;
+      this.visualRects.set(key, {
+        x: a.x + (b.x - a.x) * t,
+        y: a.y + (b.y - a.y) * t,
+        width: a.width + (b.width - a.width) * t,
+        height: a.height + (b.height - a.height) * t,
+      });
+    }
+    this.applyVisualRects();
+  }
+
+  finishInterpolation(): void {
+    this.visualRects = null;
+  }
+
+  private applyVisualRects(): void {
+    if (this.cardW <= 0 || this.cardH <= 0) return;
+    for (const [key, rect] of this.visualRects ?? []) {
+      const tile = this.tiles.get(key);
+      if (!tile || this.drag?.tile === tile) continue;
+      tile.container.position.set(rect.x, rect.y);
+      tile.container.scale.set(rect.width / this.cardW, rect.height / this.cardH);
     }
   }
 
@@ -230,9 +287,12 @@ export class BoardZoneTiles {
     gsap.fromTo(tile.outline, { alpha: 0.45 }, { alpha: 1, duration: 0.45, ease: "power2.out" });
   }
   getTileCenter(key: string): { x: number; y: number } | null {
-    const p = this.placements.get(key);
-    if (!p) return null;
-    return { x: p.x + this.cardW / 2, y: p.y + this.cardH / 2 };
+    const tile = this.tiles.get(key);
+    if (!tile) return null;
+    return {
+      x: tile.container.x + (this.cardW * tile.container.scale.x) / 2,
+      y: tile.container.y + (this.cardH * tile.container.scale.y) / 2,
+    };
   }
 
   setGeometry(
@@ -684,13 +744,36 @@ export class BoardZoneTiles {
     const shadow = hexToNum(gt.canvas.shadow);
     const k = Math.min(1, cardW / CARD_W);
     const radius = CARD_RADIUS * k;
-    const padX = Math.max(this.hitPad, (MIN_ZONE_TARGET_PX - cardW) / 2);
-    const padY = Math.max(this.hitPad, (MIN_ZONE_TARGET_PX - cardH) / 2);
-    for (const spec of this.specs) {
+    const rank = (key: string): number =>
+      key === ZONE_TILE_KEY.library
+        ? 0
+        : key === ZONE_TILE_KEY.graveyard
+          ? 1
+          : key === ZONE_TILE_KEY.exile
+            ? 2
+            : key === ZONE_TILE_KEY.command
+              ? 3
+              : 4;
+    const renderedSpecs = this.compact
+      ? [...this.specs].sort((a, b) => rank(a.key) - rank(b.key))
+      : this.specs;
+    const compactColumns = Math.min(2, Math.max(1, renderedSpecs.length));
+    const compactRows = Math.max(1, Math.ceil(renderedSpecs.length / compactColumns));
+    const compactScale = this.compact ? 1 / Math.max(compactColumns, compactRows) : 1;
+    const padX = this.compact ? 0 : Math.max(this.hitPad, (MIN_ZONE_TARGET_PX - cardW) / 2);
+    const padY = this.compact ? 0 : Math.max(this.hitPad, (MIN_ZONE_TARGET_PX - cardH) / 2);
+    for (const [index, spec] of renderedSpecs.entries()) {
       const tile = this.tiles.get(spec.key);
       const pos = this.placements.get(spec.key);
       if (!tile || !pos) continue;
-      if (this.drag?.tile !== tile) tile.container.position.set(pos.x, pos.y);
+      tile.container.scale.set(compactScale);
+      if (this.drag?.tile !== tile) {
+        const compactX = this.compact ? (index % compactColumns) * cardW * compactScale : 0;
+        const compactY = this.compact
+          ? Math.floor(index / compactColumns) * cardH * compactScale
+          : 0;
+        tile.container.position.set(pos.x + compactX, pos.y + compactY);
+      }
       tile.container.hitArea = new Rectangle(-padX, -padY, cardW + padX * 2, cardH + padY * 2);
       const hl = spec.highlightColor ? hexToNum(spec.highlightColor) : null;
       const hasContent = spec.count > 0;
@@ -800,6 +883,7 @@ export class BoardZoneTiles {
         tile.taxText.position.set(cardW / 2, taxY + taxH / 2);
       }
     }
+    this.applyVisualRects();
   }
 
   getAnchor(key: string): { x: number; y: number } | null {

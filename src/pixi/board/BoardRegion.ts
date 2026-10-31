@@ -15,7 +15,7 @@ import {
   type GridCell,
   type GridLayoutInfo,
 } from "../GridLayout";
-import { CARD_W, CARD_H } from "@/components/game/game.constants";
+import { CARD_W, CARD_H, ZONE_TILE_KEY } from "@/components/game/game.constants";
 import { hexToNum } from "../colorUtils";
 import { getFrameRatio, lerp, safeDestroy } from "./pixiHelpers";
 import { playStomp } from "../effects/stomp";
@@ -32,6 +32,7 @@ import {
   ATTACH_OFFSET_Y,
   ATTACH_PEEK_MAX,
   ATTACH_PEEK_Y,
+  BATTLEFIELD_CARD_SCALE_FLOOR,
   BATTLEFIELD_LERP,
   BG_ALPHA_DROP,
   BG_ALPHA_IDLE,
@@ -75,17 +76,15 @@ import { COLLAPSED_OPPONENT_WIDTH_PX, type RegionOrientation } from "./boardLayo
 import { PlaymatLayer, playmatInset } from "./PlaymatLayer";
 import { CombatRowRenderer } from "./CombatRowRenderer";
 import { isCoarsePointer } from "@/lib/responsive";
+import {
+  battlefieldCardCategory,
+  semanticRowPlan,
+  type BattlefieldCardCategory,
+} from "./semanticBattlefieldLayout";
 
 const COARSE_POINTER = isCoarsePointer();
 
 type Point = ScreenPos;
-type BattlefieldCardCategory = "creature" | "land" | "other";
-
-function battlefieldCardCategory(card: CardDto): BattlefieldCardCategory {
-  if (card.types.includes("Creature")) return "creature";
-  if (card.types.includes("Land")) return "land";
-  return "other";
-}
 
 const OVERFLOW_PRIORITY: Record<BattlefieldCardCategory, number> = {
   creature: 0,
@@ -140,6 +139,12 @@ export class BoardRegion {
     uiParent: Map<string, string>;
   } | null = null;
   private cardScale: number;
+  private preferredCardScale: number;
+  private autoLayout: {
+    grid: GridLayoutInfo;
+    zones: ReturnType<BoardRegion["planZoneTiles"]>;
+    plan: ReturnType<typeof semanticRowPlan>;
+  } | null = null;
   private combatRowReserved: boolean;
   private overview = false;
   private seatColor: string;
@@ -153,6 +158,18 @@ export class BoardRegion {
   private zoneTileKeys: string[] = [];
   private readonly presentation: BoardRegionPresentation;
   private zoneTilesLocked = false;
+  private zoneTilesCondensed = false;
+  private hybridMode = false;
+  private hybridTransition: {
+    progress: number;
+    startProgress: number;
+    cards: Map<
+      string,
+      { fromX: number; fromY: number; fromScale: number; toX: number; toY: number; toScale: number }
+    >;
+    zonesFrom: ReturnType<BoardZoneTiles["snapshotTransforms"]>;
+    zonesTo: ReturnType<BoardZoneTiles["snapshotTransforms"]>;
+  } | null = null;
   private zoneSlots = new Map<string, { col: number; row: number }>();
 
   private entries = new Map<string, SpriteEntry>();
@@ -200,6 +217,7 @@ export class BoardRegion {
     this.host = host;
     this.seatColor = host.getTheme().gameTheme.canvas.neutral;
     this.cardScale = cardScale;
+    this.preferredCardScale = cardScale;
     this.combatRowReserved = options.combatRowReserved;
     this.presentation = options.presentation;
     this.mirrored = options.orientation !== "bottom";
@@ -268,6 +286,141 @@ export class BoardRegion {
     this.applyZoneTileDraggable();
   }
 
+  setHybridMode(enabled: boolean): void {
+    if (this.hybridMode === enabled) return;
+    this.hybridMode = enabled;
+    this.hybridTransition = null;
+    this.zoneTiles.finishInterpolation();
+    if (!enabled) {
+      this.zoneTilesCondensed = false;
+      this.zoneTiles.setCompact(false);
+    }
+  }
+
+  private setHybridLogicalPresentation(
+    cardScale: number,
+    gridBandX: number,
+    gridBandWidth: number,
+    zoneTilesCondensed: boolean,
+  ): void {
+    if (this.unbandedLayout === null) {
+      this.unbandedLayout = {
+        userSlots: new Map(this.userSlots),
+        zoneSlots: new Map(this.zoneSlots),
+        uiParent: new Map(
+          [...this.uiParent].filter(([childId]) => !this.nameGroupChildren.has(childId)),
+        ),
+      };
+    }
+    this.preferredCardScale = cardScale;
+    this.cardScale = cardScale;
+    this.gridBandX = gridBandX;
+    this.gridBandWidth = gridBandWidth;
+    this.zoneTilesCondensed = zoneTilesCondensed;
+    this.zoneTiles.setCompact(zoneTilesCondensed);
+    if (this.lastState) this.updateBattlefield(this.lastState);
+    else this.placeZoneTiles(this.freshGrid(), new Set());
+  }
+
+  solveHybridEndpoint(
+    cardScale: number,
+    gridBandX: number,
+    gridBandWidth: number,
+    compact: boolean,
+  ): void {
+    const source = new Map(
+      [...this.entries].map(([id, entry]) => [
+        id,
+        {
+          x: entry.sprite.x,
+          y: entry.sprite.y - entry.pose.y,
+          scale: entry.scaleBase,
+        },
+      ]),
+    );
+    const zonesFrom = this.zoneTiles.snapshotTransforms();
+    this.hybridTransition = null;
+    this.zoneTiles.finishInterpolation();
+    this.setHybridLogicalPresentation(cardScale, gridBandX, gridBandWidth, compact);
+    const cards = new Map(
+      [...this.entries]
+        .filter(([, entry]) => !entry.exiting)
+        .map(([id, entry]) => {
+          const from = source.get(id) ?? {
+            x: entry.sprite.x,
+            y: entry.sprite.y - entry.pose.y,
+            scale: entry.scaleBase,
+          };
+          return [
+            id,
+            {
+              fromX: from.x,
+              fromY: from.y,
+              fromScale: from.scale,
+              toX: entry.targetX,
+              toY: entry.targetY,
+              toScale: this.cardScaleFor(entry.sprite.card),
+            },
+          ];
+        }),
+    );
+    this.hybridTransition = {
+      progress: 0,
+      startProgress: 0,
+      cards,
+      zonesFrom,
+      zonesTo: this.zoneTiles.snapshotTransforms(),
+    };
+    this.applyHybridTransition(0);
+  }
+
+  applyHybridTransition(progress: number): void {
+    const transition = this.hybridTransition;
+    if (!transition) return;
+    transition.progress = progress;
+    const t = (progress - transition.startProgress) / (1 - transition.startProgress);
+    this.zoneTiles.applyInterpolatedTransforms(transition.zonesFrom, transition.zonesTo, t);
+    for (const [id, pose] of transition.cards) {
+      const entry = this.entries.get(id);
+      if (!entry || entry.exiting) continue;
+      entry.sprite.position.set(
+        pose.fromX + (pose.toX - pose.fromX) * t,
+        pose.fromY + (pose.toY - pose.fromY) * t + entry.pose.y,
+      );
+      entry.scaleBase = pose.fromScale + (pose.toScale - pose.fromScale) * t;
+      const fx = entry.sprite.fxScale;
+      entry.sprite.scale.set(entry.scaleBase * fx.x, entry.scaleBase * fx.y);
+    }
+  }
+
+  finishHybridTransition(): void {
+    this.applyHybridTransition(1);
+    this.hybridTransition = null;
+    this.zoneTiles.finishInterpolation();
+  }
+
+  private refreshHybridTransitionDestination(
+    zonesFrom: ReturnType<BoardZoneTiles["snapshotTransforms"]> | null,
+  ): void {
+    const transition = this.hybridTransition;
+    if (!transition) return;
+    for (const [id, entry] of this.entries) {
+      if (entry.exiting) continue;
+      transition.cards.set(id, {
+        fromX: entry.sprite.x,
+        fromY: entry.sprite.y - entry.pose.y,
+        fromScale: entry.scaleBase,
+        toX: entry.targetX,
+        toY: entry.targetY,
+        toScale: this.cardScaleFor(entry.sprite.card),
+      });
+    }
+    transition.startProgress = transition.progress;
+    transition.zonesTo = this.zoneTiles.snapshotTransforms();
+    transition.zonesFrom = zonesFrom ?? transition.zonesFrom;
+    this.applyHybridTransition(transition.progress);
+  }
+
   private applyZoneTileDraggable(): void {
     this.zoneTiles.setDraggable(
       this.presentation.zoneTilesDraggable(this.mirrored, this.zoneTilesLocked),
@@ -298,14 +451,73 @@ export class BoardRegion {
     );
   }
 
-  /** Assign each zone tile a grid cell (persisted slot, else the next free cell
-   *  scanning column-major from the player's near edge — a vertical stack up
-   *  from bottom-left for the local player, down from top-left for mirrored
-   *  opponents), reserve those cells in `occupied` so cards avoid them, and push
-   *  the pixel placements to the tile layer. Mirrored opponents extend each
-   *  column into the reserved attack-row band (synthetic row `grid.rows`) so the
-   *  stack flows into that inner-edge slot before wrapping to the next column. */
-  private placeZoneTiles(grid: GridLayoutInfo, occupied: Set<string>): void {
+  private zoneBlockPlan(grid: GridLayoutInfo, compact: boolean) {
+    const placements = new Map<string, { x: number; y: number }>();
+    const occupied = new Set<string>();
+    const order: readonly string[] = [
+      ZONE_TILE_KEY.library,
+      ZONE_TILE_KEY.graveyard,
+      ZONE_TILE_KEY.exile,
+      ZONE_TILE_KEY.command,
+    ];
+    const rank = (key: string) => {
+      const index = order.indexOf(key);
+      return index < 0 ? order.length : index;
+    };
+    const keys = [...this.zoneTileKeys].sort((a, b) => rank(a) - rank(b));
+    if (keys.length === 0) return { placements, occupied, complete: true };
+    const columns = Math.min(2, keys.length);
+    const rows = Math.ceil(keys.length / columns);
+    const width = compact ? grid.cardW : columns * grid.cardW + (columns - 1) * GAP;
+    const height = compact ? grid.cardH : rows * grid.cardH + (rows - 1) * GAP;
+    const field = playmatInset({
+      x: grid.zone.x,
+      y: this.zone.y,
+      width: grid.zone.width,
+      height: this.zone.height,
+    });
+    const x = field.x;
+    let y = this.mirrored ? field.y : field.y + field.height - height;
+    const blockers = this.collectLocalBlockers().sort((a, b) =>
+      this.mirrored ? a.y - b.y : b.y - a.y,
+    );
+    const overlaps = (rect: BlockingRect) =>
+      x < rect.x + rect.width &&
+      x + width > rect.x &&
+      y < rect.y + rect.height &&
+      y + height > rect.y;
+    for (const blocker of blockers) {
+      if (overlaps(blocker))
+        y = this.mirrored ? blocker.y + blocker.height + GAP : blocker.y - height - GAP;
+    }
+    const bottom = field.y + field.height;
+    y = Math.max(field.y, Math.min(y, bottom - height));
+    keys.forEach((key, index) =>
+      placements.set(key, {
+        x: x + (compact ? 0 : (index % columns) * (grid.cardW + GAP)),
+        y: y + (compact ? 0 : Math.floor(index / columns) * (grid.cardH + GAP)),
+      }),
+    );
+    for (const cell of grid.cells) {
+      if (overlaps({ x: cell.x, y: cell.y, width: grid.cardW, height: grid.cardH }))
+        occupied.add(cellKey(cell.col, cell.row));
+    }
+    return {
+      placements,
+      occupied,
+      complete:
+        x + width <= field.x + field.width &&
+        y >= field.y &&
+        y + height <= bottom &&
+        !blockers.some(overlaps),
+    };
+  }
+
+  private planZoneTiles(grid: GridLayoutInfo) {
+    if (this.hybridMode && this.mirrored) return this.zoneBlockPlan(grid, this.zoneTilesCondensed);
+    if (!this.mirrored && this.zoneTileKeys.length === 4 && this.zoneSlots.size === 0)
+      return this.zoneBlockPlan(grid, false);
+    const occupied = new Set<string>();
     const placements = new Map<string, { x: number; y: number }>();
     const taken = new Set<string>();
     const ignoreBlockers = this.presentation.ignoreZoneTileBlockers(this.mirrored);
@@ -346,15 +558,23 @@ export class BoardRegion {
       // blocker rather than stranding the tile at its stale geometry.
       if (!cell) cell = nextDefaultCell(true);
       if (!cell) continue;
-      this.presentation.rememberZoneSlot(key, { col: cell.col, row: cell.row }, this.zoneSlots);
       taken.add(cellKey(cell.col, cell.row));
       occupied.add(cellKey(cell.col, cell.row));
       placements.set(key, { x: cell.x, y: cell.y });
     }
+    return { placements, occupied, complete: placements.size === this.zoneTileKeys.length };
+  }
+
+  private placeZoneTiles(grid: GridLayoutInfo, occupied: Set<string>): void {
+    const plan =
+      this.autoSort && this.autoLayout?.grid === grid
+        ? this.autoLayout.zones
+        : this.planZoneTiles(grid);
+    for (const key of plan.occupied) occupied.add(key);
     this.zoneTiles.setGeometry(
       CARD_W * this.cardScale,
       CARD_H * this.cardScale,
-      placements,
+      plan.placements,
       this.touchHitPadScreen(),
     );
   }
@@ -363,7 +583,8 @@ export class BoardRegion {
     const grid = this.gridInfo;
     if (!grid) return;
     const cell = cellFromPoint(grid, centerX, centerY);
-    if (cell && !cell.blocked) this.zoneSlots.set(key, { col: cell.col, row: cell.row });
+    if (cell && !cell.blocked)
+      this.presentation.rememberZoneSlot(key, { col: cell.col, row: cell.row }, this.zoneSlots);
     // Re-place tiles (snapping the drop, or reverting an invalid one) and relayout
     // cards to avoid the new cells.
     if (this.lastState) this.updateBattlefield(this.lastState);
@@ -418,7 +639,7 @@ export class BoardRegion {
     this.updateClip();
     // The playmat fits the visible band, so re-fit it as the band eases.
     this.playmat.layout(this.bandZone(), { dropActive: this.dropActive });
-    if (this.combatRowAttackerIds.size > 0) this.applyCombatRow();
+    if (this.combatRowAttackerIds.size > 0) this.applyCombatRow(!this.hybridMode);
     if (this.attackRowDebug || this.skeletonDebug) this.drawAttackRowDebug();
   }
 
@@ -489,7 +710,8 @@ export class BoardRegion {
   }
 
   setCardScale(scale: number): void {
-    if (!Number.isFinite(scale) || scale <= 0 || scale === this.cardScale) return;
+    if (!Number.isFinite(scale) || scale <= 0 || scale === this.preferredCardScale) return;
+    this.preferredCardScale = scale;
     this.cardScale = scale;
     if (this.lastState) this.updateBattlefield(this.lastState);
     else this.placeZoneTiles(this.freshGrid(), new Set());
@@ -528,6 +750,8 @@ export class BoardRegion {
   setAutoSort(value: boolean): void {
     if (this.autoSort === value) return;
     this.autoSort = value;
+    this.cardScale = this.preferredCardScale;
+    this.autoLayout = null;
     if (this.lastState) this.updateBattlefield(this.lastState);
   }
 
@@ -563,6 +787,41 @@ export class BoardRegion {
     return this.combatRowBlocks.some((b) => b.blockerId === cardId);
   }
 
+  private isCombatRowCard(card: CardDto): boolean {
+    const id = card.attachedTo ?? card.id;
+    return this.combatRowAttackerIds.has(id) || this.combatRowBlockerIds.has(id);
+  }
+
+  private cardScaleFor(card: CardDto): number {
+    const id = card.attachedTo ?? card.id;
+    const root = this.cardById.get(id) ?? card;
+    const staged = this.combatStaging;
+    const combatant =
+      root.isAttacking ||
+      this.isCombatRowCard(card) ||
+      staged?.attackerIds.has(id) ||
+      staged?.blockerIds.has(id);
+    return combatant
+      ? (this.host.getCombatCardScale(root.controllerId) ?? this.cardScale)
+      : this.cardScale;
+  }
+
+  private battlefieldGridCards(cards: CardDto[]): CardDto[] {
+    return cards.filter(
+      (card) =>
+        this.host.getCombatCardScale(card.controllerId) === null || !this.isCombatRowCard(card),
+    );
+  }
+
+  private combatRowScale(ids: Iterable<string>): number {
+    let scale = this.cardScale;
+    for (const id of ids) {
+      const card = this.cardById.get(id);
+      if (card) scale = Math.max(scale, this.cardScaleFor(card));
+    }
+    return scale;
+  }
+
   getPlaymatRect(): PlayZoneRect {
     return this.playmatRect();
   }
@@ -585,7 +844,10 @@ export class BoardRegion {
 
   getCardPosition(cardId: string): ScreenPos | null {
     const entry = this.entries.get(cardId);
-    return entry ? this.localToCanvas(entry.targetX, entry.targetY) : null;
+    if (!entry) return null;
+    return this.hybridTransition
+      ? this.localToCanvas(entry.sprite.x, entry.sprite.y)
+      : this.localToCanvas(entry.targetX, entry.targetY);
   }
 
   getCombatTarget(cardId: string): CombatRowTarget | null {
@@ -629,12 +891,15 @@ export class BoardRegion {
   containsPointInCard(cardId: string, canvasX: number, canvasY: number, pad = 0): boolean {
     const entry = this.entries.get(cardId);
     if (!entry) return false;
-    const center = this.localToCanvas(entry.targetX, entry.targetY);
+    const center = this.hybridTransition
+      ? this.localToCanvas(entry.sprite.x, entry.sprite.y)
+      : this.localToCanvas(entry.targetX, entry.targetY);
     const horizontal = entry.sprite.horizontalFrame;
     const cardWidth = horizontal ? CARD_H : CARD_W;
     const cardHeight = horizontal ? CARD_W : this.cardHeight();
-    const halfW = (cardWidth * this.cardScale) / 2 + pad;
-    const halfH = (cardHeight * this.cardScale) / 2 + pad;
+    const scale = entry.scaleBase;
+    const halfW = (cardWidth * scale) / 2 + pad;
+    const halfH = (cardHeight * scale) / 2 + pad;
     return Math.abs(canvasX - center.x) <= halfW && Math.abs(canvasY - center.y) <= halfH;
   }
 
@@ -708,13 +973,14 @@ export class BoardRegion {
       const dragging = dragTilt !== null;
       const poseY = dragging ? 0 : entry.pose.y;
       const targetY = entry.targetY + poseY;
+      const hybridPose = this.hybridTransition?.cards.get(id);
       if (dragging && motionEnabled) {
         const positionBlend = dragPositionBlend(deltaMs);
         s.x += (entry.targetX - s.x) * positionBlend;
         s.y += (targetY - s.y) * positionBlend;
       } else if (dragging) {
         s.position.set(entry.targetX, targetY);
-      } else {
+      } else if (!hybridPose) {
         s.x = lerp(s.x, entry.targetX, BATTLEFIELD_LERP, SNAP_PX);
         s.y = lerp(s.y, targetY, BATTLEFIELD_LERP, SNAP_PX);
       }
@@ -730,10 +996,7 @@ export class BoardRegion {
         const dy = s.y - entry.targetY;
         if (dx * dx + dy * dy <= GLIDE_LAND_PX * GLIDE_LAND_PX) entry.gliding = false;
       }
-      const wantGuest =
-        this.combatRowAttackerIds.has(id) ||
-        this.combatRowBlockerIds.has(id) ||
-        entry.gliding === true;
+      const wantGuest = this.isCombatRowCard(s.card) || entry.gliding === true;
       const parent = wantGuest ? this.host.getCombatGuestLayer() : this.container;
       if (s.parent !== parent) parent.addChild(s);
       if (entry.pendingEntrance) {
@@ -793,13 +1056,15 @@ export class BoardRegion {
       s.setEntryGlowAlpha(entry.etbGlowAlpha);
 
       const isHovered = this.hoveredCardId === s.card.id;
+      const cardScale = this.cardScaleFor(s.card);
       const targetScale =
-        this.cardScale *
+        cardScale *
         (dragging ? HOVER_SCALE * DRAG_LIFT_SCALE : isHovered ? HOVER_SCALE : 1) *
         entry.pose.scale;
+      const hybridPoseForScale = this.hybridTransition?.cards.get(id);
       if (dragging && motionEnabled) {
         entry.scaleBase += (targetScale - entry.scaleBase) * dragTransformBlend(deltaMs);
-      } else {
+      } else if (!hybridPoseForScale) {
         entry.scaleBase = lerp(entry.scaleBase, targetScale, HOVER_SCALE_LERP, SNAP_SCALE);
       }
       const fx = s.fxScale;
@@ -808,7 +1073,7 @@ export class BoardRegion {
         dragging
           ? 1
           : isHovered
-            ? Math.min(1, Math.max(0, (entry.scaleBase / this.cardScale - 1) / (HOVER_SCALE - 1)))
+            ? Math.min(1, Math.max(0, (entry.scaleBase / cardScale - 1) / (HOVER_SCALE - 1)))
             : 0,
       );
 
@@ -836,6 +1101,8 @@ export class BoardRegion {
   }
 
   updateBattlefield(state: BattlefieldState): void {
+    const hybridZones = this.hybridTransition ? this.zoneTiles.snapshotTransforms() : null;
+    if (hybridZones) this.zoneTiles.finishInterpolation();
     if (this.host.isDestroyed() || !state || !Array.isArray(state.cards)) return;
     if (
       this.stackPeekAnchorId !== null &&
@@ -869,6 +1136,12 @@ export class BoardRegion {
     for (const childId of this.overflowChildren) this.uiParent.delete(childId);
     this.overflowChildren.clear();
 
+    if (this.autoSort) {
+      this.uiParent.clear();
+      this.userSlots.clear();
+      this.userPlacedCards.clear();
+      this.pendingDrop = null;
+    }
     const effectiveParent = new Map<string, string>();
     for (const c of state.cards) {
       if (c.attachedTo && cardMap.has(c.attachedTo)) {
@@ -889,6 +1162,7 @@ export class BoardRegion {
       }
     }
     const tentativeTopLevelForGrouping = state.cards.filter((c) => !effectiveParent.has(c.id));
+    if (this.autoSort) tentativeTopLevelForGrouping.sort((a, b) => a.id.localeCompare(b.id));
     this.applyNameGrouping(tentativeTopLevelForGrouping);
     for (const [childId, parentId] of [...this.uiParent]) {
       if (!currentIds.has(childId) || !currentIds.has(parentId)) continue;
@@ -898,7 +1172,14 @@ export class BoardRegion {
       }
     }
     const tentativeTopLevel = state.cards.filter((c) => !effectiveParent.has(c.id));
-    this.applyOverflowStacking(tentativeTopLevel);
+    if (this.autoSort) {
+      tentativeTopLevel.sort((a, b) => a.id.localeCompare(b.id));
+      const gridCards = this.battlefieldGridCards(tentativeTopLevel);
+      this.solveAutoBattlefield(gridCards);
+      this.applySemanticOverflowStacking(gridCards);
+    } else {
+      this.applyOverflowStacking(tentativeTopLevel);
+    }
     for (const [childId, parentId] of [...this.uiParent]) {
       if (!currentIds.has(childId) || !currentIds.has(parentId)) continue;
       if (childId === parentId) continue;
@@ -1027,38 +1308,41 @@ export class BoardRegion {
         }
       }
     }
+    this.refreshHybridTransitionDestination(hybridZones);
     if (this.skeletonDebug) this.refreshSkeletonDebug();
     if (this.attackRowDebug) this.drawAttackRowDebug();
   }
 
   private applyAttackLunge(state: BattlefieldState): void {
     const staged = this.combatStaging?.attackerIds;
-    const frontY = this.frontEdgeY();
     for (const card of state.cards) {
       if (!card.isAttacking || staged?.has(card.id)) continue;
       const entry = this.entries.get(card.id);
       if (!entry) continue;
+      const scale = this.cardScaleFor(card);
+      const frontY = this.frontEdgeY(scale);
       entry.targetY = frontY;
       entry.targetZIndex = Math.max(entry.targetZIndex, Z_COMBAT_STAGED - 1);
-      this.stackAttachments(card.id, entry.targetX, frontY, Z_COMBAT_STAGED - 1);
+      this.stackAttachments(card.id, entry.targetX, frontY, Z_COMBAT_STAGED - 1, scale);
     }
   }
 
   private applyCombatStaging(): void {
     const staging = this.combatStaging;
     if (!staging) return;
-    const frontY = this.frontEdgeY();
-    const fanStep = CARD_W * this.cardScale * COMBAT_STAGE_FAN_FRAC;
+    const scale = this.combatRowScale([...staging.attackerIds, ...staging.blockerIds]);
+    const frontY = this.frontEdgeY(scale);
+    const fanStep = CARD_W * scale * COMBAT_STAGE_FAN_FRAC;
 
     for (const id of staging.attackerIds) {
       const entry = this.entries.get(id);
       if (!entry) continue;
       entry.targetY = frontY;
       entry.targetZIndex = Z_COMBAT_STAGED;
-      this.stackAttachments(id, entry.targetX, frontY, Z_COMBAT_STAGED);
+      this.stackAttachments(id, entry.targetX, frontY, Z_COMBAT_STAGED, scale);
     }
 
-    const onAttacker = this.cardHeight() * this.cardScale * COMBAT_BLOCKER_OVERLAP_FRAC;
+    const onAttacker = this.cardHeight() * scale * COMBAT_BLOCKER_OVERLAP_FRAC;
     for (const b of staging.blockers) {
       const entry = this.entries.get(b.id);
       if (!entry) continue;
@@ -1066,36 +1350,49 @@ export class BoardRegion {
       entry.targetX = this.host.screenXToLocalX(b.laneScreenX) + offset;
       entry.targetY = b.attackerY + (this.mirrored ? -onAttacker : onAttacker);
       entry.targetZIndex = Z_COMBAT_STAGED + 1;
-      this.stackAttachments(b.id, entry.targetX, entry.targetY, Z_COMBAT_STAGED + 1);
+      this.stackAttachments(b.id, entry.targetX, entry.targetY, Z_COMBAT_STAGED + 1, scale);
     }
   }
 
-  private stackAttachments(hostId: string, x: number, y: number, baseZ: number): void {
+  private stackAttachments(
+    hostId: string,
+    x: number,
+    y: number,
+    baseZ: number,
+    scale = this.cardScale,
+  ): void {
     const attachs = this.effectiveChildrenMap.get(hostId);
     if (!attachs) return;
     attachs.forEach((attId, k) => {
       const att = this.entries.get(attId);
       if (!att) return;
       att.targetX = x;
-      att.targetY = y + (this.mirrored ? -1 : 1) * (k + 1) * ATTACH_OFFSET_Y * this.cardScale;
+      att.targetY = y + (this.mirrored ? -1 : 1) * (k + 1) * ATTACH_OFFSET_Y * scale;
       att.targetZIndex = baseZ - (k + 1);
     });
   }
 
-  private applyCombatRow(): void {
+  private applyCombatRow(updateTargets = true): void {
     if (this.combatRowAttackerIds.size === 0) {
       this.combatRow.hide();
       return;
     }
     const ids = [...this.combatRowAttackerIds];
-    const y = this.frontEdgeY();
-    const cardW = CARD_W * this.cardScale;
-    const mat = this.playmatRect();
+    const scale = this.combatRowScale([...ids, ...this.combatRowBlockerIds]);
+    const y = this.frontEdgeY(scale);
+    const cardW = CARD_W * scale;
+    const targetMat = playmatInset({
+      ...this.zone,
+      x: this.gridBandX ?? this.zone.x,
+      width: this.gridBandX === null ? this.zone.width : this.gridBandWidth,
+    });
+    const mat = this.hybridMode && updateTargets ? targetMat : this.playmatRect();
     const grid = this.gridInfo;
+    const gridLeft = grid ? grid.originX + (this.hybridMode ? mat.x - targetMat.x : 0) : undefined;
     const bandRight = mat.x + mat.width;
     const bandLeft =
-      this.mirrored && this.zoneTileKeys.length > 0 && grid
-        ? Math.min(Math.max(grid.originX + grid.cellW, mat.x), bandRight)
+      this.mirrored && this.zoneTileKeys.length > 0 && grid && gridLeft !== undefined
+        ? Math.min(Math.max(gridLeft + grid.cellW, mat.x), bandRight)
         : mat.x;
     const bandW = Math.max(0, bandRight - bandLeft);
     const fullStep = cardW * COMBAT_ROW_STEP_FRAC;
@@ -1106,14 +1403,14 @@ export class BoardRegion {
 
     const attackerX = new Map<string, number>();
     ids.forEach((id, index) => {
-      const x = startX + index * step;
-      attackerX.set(id, x);
       const entry = this.entries.get(id);
-      if (!entry) return;
+      const x = !updateTargets && entry ? entry.sprite.x : startX + index * step;
+      attackerX.set(id, x);
+      if (!entry || !updateTargets) return;
       entry.targetX = x;
       entry.targetY = y;
       entry.targetZIndex = Z_COMBAT_STAGED;
-      this.stackAttachments(id, x, y, Z_COMBAT_STAGED);
+      this.stackAttachments(id, x, y, Z_COMBAT_STAGED, scale);
     });
 
     const byAttacker = new Map<string, string[]>();
@@ -1122,7 +1419,7 @@ export class BoardRegion {
       if (list) list.push(block.blockerId);
       else byAttacker.set(block.attackerId, [block.blockerId]);
     }
-    const onAttacker = this.cardHeight() * this.cardScale * COMBAT_BLOCKER_OVERLAP_FRAC;
+    const onAttacker = this.cardHeight() * scale * COMBAT_BLOCKER_OVERLAP_FRAC;
     const fanStep = cardW * COMBAT_STAGE_FAN_FRAC;
     const connectors: { ax: number; bx: number; by: number }[] = [];
     for (const [attackerId, blockerIds] of byAttacker) {
@@ -1132,16 +1429,19 @@ export class BoardRegion {
         const entry = this.entries.get(blockerId);
         if (!entry) return;
         const offset = (index - (blockerIds.length - 1) / 2) * fanStep;
-        const bx = ax + offset;
-        const by = y + (this.mirrored ? -onAttacker : onAttacker);
-        entry.targetX = bx;
-        entry.targetY = by;
-        entry.targetZIndex = Z_COMBAT_STAGED + 1;
+        const bx = updateTargets ? ax + offset : entry.sprite.x;
+        const by = updateTargets ? y + (this.mirrored ? -onAttacker : onAttacker) : entry.sprite.y;
+        if (updateTargets) {
+          entry.targetX = bx;
+          entry.targetY = by;
+          entry.targetZIndex = Z_COMBAT_STAGED + 1;
+          this.stackAttachments(blockerId, bx, by, Z_COMBAT_STAGED + 1, scale);
+        }
         connectors.push({ ax, bx, by });
       });
     }
 
-    const halfH = (this.cardHeight() * this.cardScale) / 2;
+    const halfH = (this.cardHeight() * scale) / 2;
     const stripTop = y - halfH - COMBAT_ROW_PAD_Y;
     this.combatRow.render(
       {
@@ -1159,13 +1459,8 @@ export class BoardRegion {
     );
   }
 
-  private frontEdgeY(): number {
-    return this.presentation.frontEdgeY(
-      this.usableZone(),
-      this.mirrored,
-      this.cardScale,
-      COMBAT_ROW_PAD_Y,
-    );
+  private frontEdgeY(scale = this.cardScale): number {
+    return this.presentation.frontEdgeY(this.usableZone(), this.mirrored, scale, COMBAT_ROW_PAD_Y);
   }
   private applyNameGrouping(topLevel: CardDto[]): void {
     this.stackCounts.clear();
@@ -1173,6 +1468,7 @@ export class BoardRegion {
 
     const isStackable = (c: CardDto): boolean =>
       !c.isAttacking &&
+      !this.isCombatRowCard(c) &&
       !this.combatStaging?.blockerIds.has(c.id) &&
       !c.attachedTo &&
       !c.isBestowed &&
@@ -1201,6 +1497,85 @@ export class BoardRegion {
       }
       this.stackCounts.set(parent.id, group.length);
     }
+  }
+
+  private solveAutoBattlefield(cards: CardDto[]): void {
+    const minimum = Math.min(this.preferredCardScale, BATTLEFIELD_CARD_SCALE_FLOOR);
+    this.cardScale = this.preferredCardScale;
+    for (;;) {
+      const grid = this.freshGrid();
+      const zones = this.planZoneTiles(grid);
+      const plan = semanticRowPlan(cards, grid, zones.occupied, this.mirrored);
+      this.autoLayout = { grid, zones, plan };
+      if ((plan.fits && zones.complete) || this.cardScale <= minimum) return;
+      this.cardScale = Math.max(minimum, this.cardScale - 0.025);
+    }
+  }
+
+  private applySemanticOverflowStacking(cards: CardDto[]): void {
+    const layout = this.autoLayout;
+    if (!layout || layout.plan.fits) return;
+    for (const category of ["creature", "other", "land"] as const) {
+      const group = cards.filter((card) => battlefieldCardCategory(card) === category);
+      const keepers = group.slice(0, Math.max(1, layout.plan.capacity[category]));
+      const overflow = group.slice(keepers.length);
+      overflow.forEach((card, index) => {
+        const keeper = keepers[index % keepers.length]!;
+        this.uiParent.set(card.id, keeper.id);
+        this.overflowChildren.add(card.id);
+        for (const child of this.nameGroupChildren) {
+          if (this.uiParent.get(child) === card.id) this.uiParent.set(child, keeper.id);
+        }
+        this.stackCounts.set(
+          keeper.id,
+          (this.stackCounts.get(keeper.id) ?? 1) + (this.stackCounts.get(card.id) ?? 1),
+        );
+        this.stackCounts.delete(card.id);
+      });
+    }
+  }
+
+  private computeAutoBattlefieldGrid(cards: CardDto[]): Map<string, Point> {
+    cards = this.battlefieldGridCards(cards);
+    const layout = this.autoLayout;
+    const positions = new Map<string, Point>();
+    if (!layout) return positions;
+    const { grid, plan } = layout;
+    this.gridInfo = grid;
+    const occupied = new Set<string>();
+    this.placeZoneTiles(grid, occupied);
+    const centerX = grid.zone.x + grid.zone.width / 2;
+    for (const category of ["creature", "other", "land"] as const) {
+      const rows = plan.rows[category];
+      const anchorRow =
+        category === "other"
+          ? rows[Math.floor(rows.length / 2)]
+          : (category === "creature") !== this.mirrored
+            ? rows[0]
+            : rows.at(-1);
+      const anchorY = grid.originY + (anchorRow ?? 0) * grid.cellH + grid.cardH / 2;
+      const cells = grid.cells.filter(
+        (cell) =>
+          rows.includes(cell.row) && !cell.blocked && !occupied.has(cellKey(cell.col, cell.row)),
+      );
+      cells.sort(
+        (a, b) =>
+          (a.cx - centerX) ** 2 +
+            (a.cy - anchorY) ** 2 -
+            (b.cx - centerX) ** 2 -
+            (b.cy - anchorY) ** 2 ||
+          a.row - b.row ||
+          a.col - b.col,
+      );
+      const group = cards
+        .filter((card) => battlefieldCardCategory(card) === category)
+        .sort((a, b) => a.id.localeCompare(b.id));
+      group.forEach((card, index) => {
+        const cell = cells[index];
+        positions.set(card.id, cell ? { x: cell.cx, y: cell.cy } : { x: centerX, y: anchorY });
+      });
+    }
+    return positions;
   }
 
   private applyOverflowStacking(topLevelCandidates: CardDto[]): void {
@@ -1305,6 +1680,7 @@ export class BoardRegion {
   }
 
   private computeBattlefieldGrid(cards: CardDto[]): Map<string, Point> {
+    if (this.autoSort) return this.computeAutoBattlefieldGrid(cards);
     const positions = new Map<string, Point>();
     const zone = this.playArea();
     const grid = this.freshGrid();
@@ -1701,7 +2077,10 @@ export class BoardRegion {
   private playArea(): PlayZoneRect {
     const zone = this.presentation.playAreaZone(this.zone, this.usableZone(), this.mirrored);
     const reserve = this.combatRowReserved
-      ? combatRowReserve(this.cardScale, this.cardHeight())
+      ? combatRowReserve(
+          this.combatRowScale([...this.combatRowAttackerIds, ...this.combatRowBlockerIds]),
+          this.cardHeight(),
+        )
       : 0;
     return {
       x: this.gridBandX ?? zone.x,

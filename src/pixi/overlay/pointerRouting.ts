@@ -1,4 +1,4 @@
-import { isCardPreviewTarget } from "@/lib/cardPreviewEvents";
+import { isBoardInputBlocker, isCardPreviewTarget } from "@/lib/cardPreviewEvents";
 
 interface PointerRoutingOptions {
   canvas: HTMLCanvasElement;
@@ -81,7 +81,10 @@ export function installOverlayPointerRouting({
       refreshInteractivity();
       return;
     }
-    if (isCardPreviewTarget(event.target) && !event.composedPath().includes(canvas)) {
+    if (
+      (isCardPreviewTarget(event.target) || isBoardInputBlocker(event.target)) &&
+      !event.composedPath().includes(canvas)
+    ) {
       mouseInteractive = false;
       refreshInteractivity();
       return;
@@ -101,6 +104,7 @@ export function installOverlayPointerRouting({
 
   const onDown = (event: PointerEvent): void => {
     if (!event.isTrusted || event.pointerType !== "touch") return;
+    if (isBoardInputBlocker(event.target)) return;
     const pathIncludesCanvas = event.composedPath().includes(canvas);
     const overlay = hitTest(event.clientX, event.clientY);
     let replayTarget: EventTarget | null = null;

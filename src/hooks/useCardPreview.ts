@@ -11,6 +11,7 @@ import {
   CardPreviewMachine,
   type PreviewFlipOptions,
   type PreviewPointerInput,
+  type PreviewPlacement,
   type PreviewSnapshot,
 } from "@/lib/cardPreview";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
@@ -23,7 +24,7 @@ export const CardPreviewOwnershipContext = createContext<Set<() => void> | null>
 
 export interface HoverOptions {
   useAnchor?: boolean;
-  placement?: "auto" | "top-center" | "pinned";
+  placement?: PreviewPlacement;
   anchorOverride?: DOMRect;
   useDelay?: boolean;
   trigger?: PreviewPointerInput;
@@ -31,6 +32,7 @@ export interface HoverOptions {
 }
 export interface StickyPreviewOptions {
   allowOverModal?: boolean;
+  placement?: PreviewPlacement;
 }
 
 export interface CardPreviewController extends Omit<PreviewSnapshot, "card" | "sticky"> {
@@ -141,6 +143,7 @@ export function useCardPreview(
       if (hookOptions.useTriggerPreference && topModal() && !options.allowOverModal) return;
       claimOwnership();
       machine.stick(card, {
+        placement: options.placement,
         pointer: x != null && y != null ? { x, y } : undefined,
         anchorRect:
           anchor instanceof HTMLElement ? anchor.getBoundingClientRect() : (anchor ?? null),

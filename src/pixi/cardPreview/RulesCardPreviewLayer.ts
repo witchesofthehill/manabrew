@@ -12,7 +12,7 @@ import {
 import type { CardDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
 import type { ScryfallCard } from "@/types/scryfall";
-import type { PreviewFlipOptions, PreviewPhase } from "@/lib/cardPreview";
+import type { PreviewFlipOptions, PreviewPhase, PreviewPlacement } from "@/lib/cardPreview";
 import { isCoarsePointer } from "@/lib/responsive";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import type { Theme } from "@/hooks/useTheme";
@@ -64,6 +64,7 @@ import {
 import { loadCardBack } from "@/pixi/cardBackTexture";
 import { peekCard, useScryfallStore } from "@/stores/useScryfallStore";
 import { useGameStore } from "@/stores/useGameStore";
+import { cardControllerLabel } from "@/components/game/cardControllerLabel";
 import { asGameDeckCard } from "@/lib/decks";
 import { deckCardToPreviewDto, previewDtoDeckCard } from "@/lib/scryfall.utils";
 import { gsap } from "@/pixi/effects/gsap";
@@ -117,7 +118,7 @@ export interface RulesCardPreviewSpec {
   phase: Exclude<PreviewPhase, "hidden">;
   sticky: boolean;
   showBackFace: boolean;
-  placement: "auto" | "top-center" | "pinned";
+  placement: PreviewPlacement;
   suppressed: boolean;
   skipEnterAnimation: boolean;
   actions: HandActionOption[];
@@ -220,6 +221,7 @@ function oracleTextStyle(
 export class RulesCardPreviewLayer {
   readonly container = new Container({ isRenderGroup: true });
   private cardContainer = new Container();
+  private controllerTag = new Container();
   private fieldFace = new Container();
   private detailsContainer = new Container();
   private readonly roomState = new Graphics({ label: "room-door-state", eventMode: "none" });
@@ -355,6 +357,7 @@ export class RulesCardPreviewLayer {
       this.roomState,
       this.detailsContainer,
       this.viewControls,
+      this.controllerTag,
     );
     this.unsubscribePreferences = usePreferencesStore.subscribe((state, previous) => {
       if (state.inGameCardPreviewSize === previous.inGameCardPreviewSize) return;
@@ -1338,6 +1341,7 @@ export class RulesCardPreviewLayer {
     }
     if (detailsReady) this.revealHighlightedEffect = false;
     this.startHighlightedEffect();
+    this.drawControllerTag();
     this.layoutPanel();
     if (
       this.pendingEntry &&
@@ -1348,6 +1352,31 @@ export class RulesCardPreviewLayer {
     ) {
       this.animateIn(true);
     }
+  }
+
+  private drawControllerTag(): void {
+    this.controllerTag.removeChildren().forEach((child) => child.destroy({ children: true }));
+    const label = cardControllerLabel(
+      this.spec!.card,
+      useGameStore.getState().gameView?.players ?? [],
+    );
+    this.controllerTag.visible = label !== null;
+    this.controllerTag.eventMode = "none";
+    if (!label) return;
+    const text = new Text({ text: label, style: textStyle(this.frame.ink, 12, "600") });
+    text.style.wordWrap = true;
+    text.style.wordWrapWidth = this.panelWidth - 24;
+    text.style.align = "center";
+    text.resolution = 2;
+    text.anchor.set(0.5, 0);
+    text.position.set(this.panelWidth / 2, 4);
+    const height = text.height + 8;
+    const background = new Graphics()
+      .roundRect(4, 0, this.panelWidth - 8, height, 4)
+      .fill({ color: hexToNum(this.frame.paper), alpha: 0.96 })
+      .stroke({ color: hexToNum(this.frame.border), width: 1 });
+    this.controllerTag.addChild(background, text);
+    this.controllerTag.position.set(0, this.panelHeight - height - 4);
   }
 
   private startHighlightedEffect(): void {

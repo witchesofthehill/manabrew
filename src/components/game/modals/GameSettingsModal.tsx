@@ -179,6 +179,16 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
             onChange={prefs.setBattlefieldAutoSort}
           />
           <Choice
+            label="Attachment panel"
+            value={prefs.showAttachmentPanel}
+            options={[
+              { value: true, label: "On" },
+              { value: false, label: "Off" },
+            ]}
+            onChange={prefs.setShowAttachmentPanel}
+            hint="Show Your Attachments, grouped by board, with sortable piles and card previews."
+          />
+          <Choice
             label="Opponent layout"
             value={prefs.opponentLayout}
             options={[

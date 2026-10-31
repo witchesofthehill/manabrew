@@ -73,6 +73,8 @@ export interface PreferencesState {
 
   battlefieldAutoSort: boolean;
   setBattlefieldAutoSort: (value: boolean) => void;
+  showAttachmentPanel: boolean;
+  setShowAttachmentPanel: (value: boolean) => void;
   handOrderMode: HandOrderMode;
   setHandOrderMode: (mode: HandOrderMode) => void;
   opponentLayout: "focused" | "overview";
@@ -188,6 +190,7 @@ const PERSISTED_PREFERENCE_KEYS = [
   "defaultPlaymatSettings",
   "zonePanelOrder",
   "battlefieldAutoSort",
+  "showAttachmentPanel",
   "handOrderMode",
   "opponentLayout",
   "opponentHandFan",
@@ -316,6 +319,8 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           battlefieldAutoSort: false,
           setBattlefieldAutoSort: (battlefieldAutoSort) => set({ battlefieldAutoSort }),
+          showAttachmentPanel: true,
+          setShowAttachmentPanel: (showAttachmentPanel) => set({ showAttachmentPanel }),
           handOrderMode: "manual",
           setHandOrderMode: (handOrderMode) => set({ handOrderMode }),
 

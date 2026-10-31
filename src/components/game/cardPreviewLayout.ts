@@ -1,6 +1,7 @@
 import { GAME_CARD_SIZES, IN_GAME_CARD_PREVIEW_SCALES } from "./game.constants";
 import type { InGameCardPreviewSize } from "@/stores/usePreferencesStore";
 import { getSafeAreaInsets } from "@/lib/safeArea";
+import type { PreviewPlacement } from "@/lib/cardPreview";
 
 const { width: CARD_W, height: CARD_H } = GAME_CARD_SIZES.preview;
 const ACTIONS_PANEL_W = 220;
@@ -8,7 +9,7 @@ export const CARD_PREVIEW_ANCHOR_GAP = 12;
 export const CARD_PREVIEW_EDGE_PAD = 8;
 
 export interface PreviewLayoutInput {
-  placement: "auto" | "top-center" | "pinned";
+  placement: PreviewPlacement;
   anchorRect: DOMRect | null;
   mouseX: number;
   mouseY: number;
@@ -125,6 +126,7 @@ export function computePreviewLayout(input: PreviewLayoutInput): PreviewLayout {
     const anchorTop = anchorRect ? anchorRect.top : mouseY;
     const anchorBottom = anchorRect ? anchorRect.bottom : mouseY;
     const anchorMidY = anchorRect ? anchorRect.top + anchorRect.height / 2 : mouseY;
+    const besideTop = placement === "beside-top" ? anchorTop : anchorMidY - cardHeight / 2;
 
     const fitsRight =
       anchorRight + CARD_PREVIEW_ANCHOR_GAP + totalWidth <= viewRight - CARD_PREVIEW_EDGE_PAD;
@@ -135,14 +137,14 @@ export function computePreviewLayout(input: PreviewLayoutInput): PreviewLayout {
       cardLeft = anchorRight + CARD_PREVIEW_ANCHOR_GAP;
       panelSide = "right";
       top = Math.min(
-        Math.max(anchorMidY - cardHeight / 2, viewTop + CARD_PREVIEW_EDGE_PAD),
+        Math.max(besideTop, viewTop + CARD_PREVIEW_EDGE_PAD),
         viewBottom - cardHeight - CARD_PREVIEW_EDGE_PAD,
       );
     } else if (fitsLeft) {
       cardLeft = anchorLeft - CARD_PREVIEW_ANCHOR_GAP - cardWidth;
       panelSide = "left";
       top = Math.min(
-        Math.max(anchorMidY - cardHeight / 2, viewTop + CARD_PREVIEW_EDGE_PAD),
+        Math.max(besideTop, viewTop + CARD_PREVIEW_EDGE_PAD),
         viewBottom - cardHeight - CARD_PREVIEW_EDGE_PAD,
       );
     } else {

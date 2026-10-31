@@ -688,6 +688,30 @@ export default function Settings() {
             </PreferenceCard>
 
             <PreferenceCard
+              title="Attachment Panel"
+              description="Show Your Attachments, grouped by board, with sortable piles and card previews."
+            >
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={prefs.showAttachmentPanel ? "selected" : "outline"}
+                  size="sm"
+                  aria-pressed={prefs.showAttachmentPanel}
+                  onClick={() => prefs.setShowAttachmentPanel(true)}
+                >
+                  On
+                </Button>
+                <Button
+                  variant={!prefs.showAttachmentPanel ? "selected" : "outline"}
+                  size="sm"
+                  aria-pressed={!prefs.showAttachmentPanel}
+                  onClick={() => prefs.setShowAttachmentPanel(false)}
+                >
+                  Off
+                </Button>
+              </div>
+            </PreferenceCard>
+
+            <PreferenceCard
               title={`Zone Piles`}
               description={`"Locked" keeps the deck, graveyard, exile, and command piles fixed on the battlefield so a drag can't move them. Tapping to open still works.`}
             >

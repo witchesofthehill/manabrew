@@ -1550,7 +1550,10 @@ export class BoardRegion {
         ? applyCardOverrides(card, useGameDevStore.getState().cardOverrides)
         : card;
     if (entry.sprite.card !== overriddenCard) entry.sprite.updateCardContent(overriddenCard);
-    const stackCount = this.stackCounts.get(card.id) ?? 1;
+    const attachments = (this.effectiveChildrenMap.get(card.id) ?? []).filter(
+      (id) => this.cardById.get(id)?.attachedTo === card.id,
+    ).length;
+    const stackCount = (this.stackCounts.get(card.id) ?? 1) + attachments;
     entry.sprite.setStackCount(stackCount);
     entry.sprite.setStackBadgeInteractive(
       stackCount > 1 ? () => this.toggleStackPeek(card.id) : null,
@@ -1858,7 +1861,8 @@ export class BoardRegion {
     const anchor = state?.cards.find((c) => c.id === anchorId);
     const entry = this.entries.get(anchorId);
     if (!state || !anchor || !entry) return;
-    const pile = [anchor, ...state.cards.filter((c) => this.uiParent.get(c.id) === anchorId)];
+    const children = new Set(this.getEffectiveChildren(anchorId));
+    const pile = [anchor, ...state.cards.filter((card) => children.has(card.id))];
     const b = entry.sprite.getBounds();
     this.stackPeekAnchorId = anchorId;
     this.host.previewCards(pile, { x: b.x, y: b.y, width: b.width, height: b.height });

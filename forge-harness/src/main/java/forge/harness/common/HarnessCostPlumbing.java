@@ -1,7 +1,10 @@
 package forge.harness.common;
 
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Multiset;
 import forge.card.CardType;
 import forge.card.ColorSet;
+import forge.card.MagicColor;
 import forge.game.GameEntityCounterTable;
 import forge.game.ability.AbilityUtils;
 import forge.game.card.Card;
@@ -12,12 +15,16 @@ import forge.game.card.CardPredicates;
 import forge.game.card.CounterType;
 import forge.game.cost.*;
 import forge.game.player.Player;
+import forge.game.player.PlayerCollection;
 import forge.game.player.PlayerController;
 import forge.game.spellability.SpellAbility;
 import forge.game.spellability.SpellAbilityStackInstance;
 import forge.game.zone.ZoneType;
+import forge.util.Aggregates;
+import forge.util.Expressions;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -128,8 +135,13 @@ public final class HarnessCostPlumbing {
         }
 
         private CardCollectionView chooseCards(final CardCollectionView pool, final int amount, final String title) {
+            return chooseCards(pool, amount, amount, title);
+        }
+
+        private CardCollectionView chooseCards(
+                final CardCollectionView pool, final int min, final int max, final String title) {
             return controller.chooseCardsForEffect(
-                    pool, ability, title, amount, amount, ability.isOptionalTrigger(), null);
+                    pool, ability, title, min, max, ability.isOptionalTrigger(), null);
         }
 
         @Override
@@ -263,6 +275,14 @@ public final class HarnessCostPlumbing {
 
             String type = t;
             final int amount = cost.getAbilityAmount(ability);
+            if ("Random".equals(type)) {
+                CardCollectionView randomSubset = new CardCollection(Aggregates.random(hand, amount));
+                if (randomSubset.size() > 1 && ability.getActivatingPlayer() != null) {
+                    randomSubset = ability.getActivatingPlayer().getController()
+                            .orderMoveToZoneList(randomSubset, ZoneType.Graveyard, ability);
+                }
+                return PaymentDecision.card(randomSubset);
+            }
             final boolean withDifferentNames = type.contains("+WithDifferentNames");
             if (withDifferentNames) {
                 type = type.replace("+WithDifferentNames", "");
@@ -298,17 +318,27 @@ public final class HarnessCostPlumbing {
             }
 
             if (withSameName) {
-                final CardCollection candidates = new CardCollection();
+                CardCollection candidates = new CardCollection();
                 for (final Card c : pool) {
                     if (CardLists.count(pool, CardPredicates.nameEquals(c.getName())) > 1) {
                         candidates.add(c);
                     }
                 }
-                if (candidates.size() < amount) {
-                    return null;
+                if (amount == 0) {
+                    return PaymentDecision.card(new CardCollection());
                 }
-                final CardCollectionView selected = chooseCards(candidates, amount, "Choose cards with same name");
-                return selected == null || selected.size() < amount ? null : PaymentDecision.card(selected);
+                final CardCollection discarded = new CardCollection();
+                while (discarded.size() < amount) {
+                    final CardCollectionView one = chooseCards(candidates, 1, "Choose card with same name");
+                    if (one == null || one.size() != 1) {
+                        return null;
+                    }
+                    final Card first = one.get(0);
+                    discarded.add(first);
+                    candidates = CardLists.filter(candidates, CardPredicates.nameEquals(first.getName()));
+                    candidates.remove(first);
+                }
+                return PaymentDecision.card(discarded);
             }
 
             final CardCollectionView selected = chooseCards(pool, amount, "Choose cards to discard");
@@ -339,64 +369,218 @@ public final class HarnessCostPlumbing {
 
         @Override
         public PaymentDecision visit(final CostExile cost) {
-            final boolean fromLibrary =
-                    cost.getFrom().size() == 1 && ZoneType.Library.equals(cost.getFrom().get(0));
-            final boolean shouldAsk = "All".equals(cost.getType())
-                    || cost.payCostFromSource()
-                    || "OriginalHost".equals(cost.getType())
-                    || fromLibrary;
-            if (!confirm(cost, shouldAsk)) return null;
-
-            final String type = cost.getType();
+            String type = cost.getType();
+            Card onlyPayable = null;
             if (cost.payCostFromSource()) {
-                return PaymentDecision.card(source);
+                onlyPayable = source;
             }
-            if ("OriginalHost".equals(type) && ability.getOriginalHost() != null) {
-                return PaymentDecision.card(ability.getOriginalHost());
+            if ("OriginalHost".equals(type)) {
+                onlyPayable = ability.getOriginalHost();
             }
-            if ("All".equals(type)) {
-                return PaymentDecision.card(player.getCardsIn(cost.getFrom()));
+            if (onlyPayable != null) {
+                if (onlyPayable.canExiledBy(ability, isEffect())
+                        && onlyPayable.getZone() == player.getZone(cost.getFrom().get(0))
+                        && confirm(cost, true)) {
+                    return PaymentDecision.card(onlyPayable);
+                }
+                return null;
             }
 
-            final int amount = cost.getAbilityAmount(ability);
-            if (cost.getFrom().size() == 1 && ZoneType.Library.equals(cost.getFrom().get(0))) {
-                return PaymentDecision.card(player.getCardsIn(ZoneType.Library, amount));
+            boolean fromTopGrave = false;
+            if (type.contains("FromTopGrave")) {
+                type = type.replace("FromTopGrave", "");
+                fromTopGrave = true;
+            }
+            boolean totalCMCgreater = false;
+            String totalM = null;
+            if (type.contains("+withTotalCMCEQ")) {
+                totalM = type.split("withTotalCMCEQ")[1];
+                type = type.replace("+withTotalCMCEQ" + totalM, "");
+            }
+            if (type.contains("+withTotalCMCGE")) {
+                totalCMCgreater = true;
+                totalM = type.split("withTotalCMCGE")[1];
+                type = type.replace("+withTotalCMCGE" + totalM, "");
+            }
+            String totalManaSymbolsColor = null;
+            String totalManaSymbolsCmp = null;
+            if (type.contains("+withTotalManaSymbols_")) {
+                final String[] details = type.split("withTotalManaSymbols_")[1].split("_");
+                totalManaSymbolsColor = details[0];
+                totalManaSymbolsCmp = details[1];
+                type = type.replace("+withTotalManaSymbols_" + totalManaSymbolsColor + "_" + totalManaSymbolsCmp, "");
+            }
+            boolean sharedType = false;
+            if (type.contains("+withSharedCardType")) {
+                sharedType = true;
+                type = type.replace("+withSharedCardType", "");
+            }
+            int nTypes = -1;
+            if (type.contains("+withTypesGE")) {
+                final String num = type.split("withTypesGE")[1];
+                type = type.replace("+withTypesGE" + num, "");
+                nTypes = Integer.parseInt(num);
             }
 
-            CardCollectionView list = cost.zoneRestriction != 1
+            CardCollection list = new CardCollection(cost.zoneRestriction != 1
                     ? player.getGame().getCardsIn(cost.getFrom())
-                    : player.getCardsIn(cost.getFrom());
-            list = CardLists.filter(list, CardPredicates.canExiledBy(ability, isEffect()));
-            if (!type.contains("X") || ability.getXManaCostPaid() != null) {
-                list = CardLists.getValidCards(list, type.split(";"), player, source, ability);
+                    : player.getCardsIn(cost.getFrom()));
+
+            if ("All".equals(type)) {
+                return confirm(cost, true) ? PaymentDecision.card(list) : null;
             }
-            if (list.size() < amount) {
-                return null;
+            list = CardLists.getValidCards(list, type.split(";"), player, source, ability);
+            list = CardLists.filter(list, CardPredicates.canExiledBy(ability, isEffect()));
+
+            if (totalM != null) {
+                final int needed = Integer.parseInt(cost.getAmount().split("\\+")[0]);
+                final int total = AbilityUtils.calculateAmount(source, totalM, ability);
+                final CardCollectionView selected = chooseCards(list, needed, list.size(), "Exile for cost");
+                if (selected == null) {
+                    return null;
+                }
+                final int sum = CardLists.getTotalCMC(selected);
+                if (totalCMCgreater ? sum < total : sum != total) {
+                    return null;
+                }
+                return PaymentDecision.card(selected);
             }
 
-            final CardCollectionView selected = chooseCards(list, amount, "Exile for cost");
-            if (selected == null || selected.size() < amount) {
+            if (totalManaSymbolsColor != null) {
+                final int needed = Integer.parseInt(cost.getAmount().split("\\+")[0]);
+                final CardCollectionView selected = chooseCards(list, needed, list.size(), "Exile for cost");
+                if (selected == null) {
+                    return null;
+                }
+                final int sum = CardLists.getTotalChroma(selected, MagicColor.fromName(totalManaSymbolsColor));
+                final int right = AbilityUtils.calculateAmount(source, totalManaSymbolsCmp.substring(2), ability);
+                if (!Expressions.compare(sum, totalManaSymbolsCmp, right)) {
+                    return null;
+                }
+                return PaymentDecision.card(selected);
+            }
+
+            if (nTypes > -1) {
+                final CardCollectionView selected = chooseCards(list, 1, list.size(), "Exile for cost");
+                if (selected == null || AbilityUtils.countCardTypesFromList(selected, false) < nTypes) {
+                    return null;
+                }
+                return PaymentDecision.card(selected);
+            }
+
+            final int c = cost.getAbilityAmount(ability);
+            if (list.size() < c) {
                 return null;
             }
-            return PaymentDecision.card(selected);
+            if (c == 0) {
+                return PaymentDecision.number(c);
+            }
+
+            if (cost.getFrom().size() == 1) {
+                final ZoneType fromZone = cost.getFrom().get(0);
+                if (fromZone == ZoneType.Battlefield || fromZone == ZoneType.Hand) {
+                    final CardCollectionView selected = chooseCards(list, c, "Exile for cost");
+                    return selected == null || selected.size() < c ? null : PaymentDecision.card(selected);
+                }
+                if (fromZone == ZoneType.Library) {
+                    return confirm(cost, true) ? PaymentDecision.card(player.getCardsIn(ZoneType.Library, c)) : null;
+                }
+            }
+            if (fromTopGrave) {
+                Collections.reverse(list);
+                return PaymentDecision.card(new CardCollection(Iterables.limit(list, c)));
+            }
+            if (cost.zoneRestriction != 0) {
+                return exileFromMiscZone(cost, c, list, sharedType);
+            }
+
+            final List<Player> payableZone = new ArrayList<>();
+            for (final Player p : player.getGame().getPlayers()) {
+                final CardCollection enoughType = CardLists.filter(list, CardPredicates.isOwner(p));
+                if (enoughType.size() < c) {
+                    list.removeAll(enoughType);
+                } else {
+                    payableZone.add(p);
+                }
+            }
+            return exileFromSame(cost, list, c, payableZone);
+        }
+
+        private PaymentDecision exileFromMiscZone(
+                final CostExile cost, final int nNeeded, final CardCollection typeList, final boolean sharedType) {
+            if (cost.zoneRestriction == -1 && ability.isTrigger() && nNeeded == 1 && typeList.size() == 1) {
+                return confirm(cost, true) ? PaymentDecision.card(typeList.getFirst()) : null;
+            }
+            if (typeList.size() < nNeeded) {
+                return null;
+            }
+            if (!sharedType) {
+                final CardCollectionView chosen = chooseCards(typeList, nNeeded, "Exile for cost");
+                return chosen == null || chosen.size() < nNeeded ? null : PaymentDecision.card(chosen);
+            }
+            final CardCollectionView first = chooseCards(typeList, 1, "Exile for cost");
+            if (first == null || first.size() != 1) {
+                return null;
+            }
+            final Card anchor = first.get(0);
+            final CardCollection chosen = new CardCollection(anchor);
+            if (nNeeded > 1) {
+                final CardCollection rest = CardLists.filter(
+                        typeList, c -> c != anchor && c.sharesCardTypeWith(anchor));
+                final CardCollectionView more = chooseCards(rest, nNeeded - 1, "Exile for cost (must share a card type)");
+                if (more == null || more.size() < nNeeded - 1) {
+                    return null;
+                }
+                chosen.addAll(more);
+            }
+            return PaymentDecision.card(chosen);
+        }
+
+        private PaymentDecision exileFromSame(
+                final CostExile cost, final CardCollectionView list, final int nNeeded, final List<Player> payableZone) {
+            if (nNeeded == 0) {
+                return PaymentDecision.number(0);
+            }
+            if (payableZone.isEmpty()) {
+                return null;
+            }
+            final Player p = payableZone.size() == 1
+                    ? payableZone.get(0)
+                    : controller.chooseSingleEntityForEffect(
+                            new PlayerCollection(payableZone), ability,
+                            "Exile from whose " + cost.getFrom().get(0).name().toLowerCase() + "?", null);
+            if (p == null) {
+                return null;
+            }
+            final CardCollection typeList = CardLists.filter(list, CardPredicates.isOwner(p));
+            if (typeList.size() < nNeeded) {
+                return null;
+            }
+            final CardCollectionView selected = chooseCards(typeList, nNeeded, "Exile for cost");
+            return selected == null || selected.size() < nNeeded ? null : PaymentDecision.card(selected);
         }
 
         @Override
         public PaymentDecision visit(final CostExileFromStack cost) {
+            final String type = cost.getType();
             final List<SpellAbility> candidates = new ArrayList<>();
             for (final SpellAbilityStackInstance si : source.getGame().getStack()) {
                 final SpellAbility sp = si.getSpellAbility().getRootAbility();
-                if (si.getSourceCard().isValid(cost.getType().split(";"), source.getController(), source, sp)) {
+                if (si.getSourceCard().isValid(type.split(";"), ability.getActivatingPlayer(), source, ability)
+                        && sp.isSpell()) {
                     candidates.add(sp);
                 }
             }
-            if (candidates.isEmpty()) {
+            if ("All".equals(type)) {
+                return PaymentDecision.spellabilities(candidates);
+            }
+            final int c = cost.getAbilityAmount(ability);
+            if (candidates.size() < c) {
                 return null;
             }
-            final int amount = cost.getAbilityAmount(ability);
             final List<SpellAbility> chosen = controller.chooseSpellAbilitiesForEffect(
-                    candidates, ability, "Exile from stack for cost", amount, null);
-            return chosen == null || chosen.isEmpty() ? null : PaymentDecision.spellabilities(chosen);
+                    candidates, ability, "Exile from stack for cost", c, null);
+            return chosen == null || chosen.size() != c ? null : PaymentDecision.spellabilities(chosen);
         }
 
         @Override
@@ -415,9 +599,14 @@ public final class HarnessCostPlumbing {
         public PaymentDecision visit(final CostExert cost) {
             // no confirm: mirrors HumanPlay.payCostDuringAbilityResolve, which pays CostExert unconditionally
             if (cost.payCostFromSource()) {
-                return PaymentDecision.card(source);
+                return source.getController() == ability.getActivatingPlayer() && source.isInPlay()
+                        ? PaymentDecision.card(source)
+                        : null;
             }
             final int amount = cost.getAbilityAmount(ability);
+            if (amount == 0) {
+                return PaymentDecision.number(0);
+            }
             CardCollectionView list = player.getCardsIn(ZoneType.Battlefield);
             list = CardLists.getValidCards(list, cost.getType().split(";"), player, source, ability);
             if (list.size() < amount) {
@@ -514,9 +703,18 @@ public final class HarnessCostPlumbing {
 
         @Override
         public PaymentDecision visit(final CostGainLife cost) {
+            final int amount = cost.getAbilityAmount(ability);
             final List<Player> targets = new ArrayList<>(cost.getPotentialTargets(player, ability));
             targets.removeIf(p -> !p.canGainLife());
-            return targets.isEmpty() ? null : PaymentDecision.players(targets);
+            if (cost.getCntPlayers() == Integer.MAX_VALUE) {
+                return PaymentDecision.players(targets);
+            }
+            if (targets.isEmpty()) {
+                return null;
+            }
+            final Player chosen = controller.chooseSingleEntityForEffect(
+                    new PlayerCollection(targets), ability, "Choose an opponent to gain " + amount + " life", null);
+            return chosen == null ? null : PaymentDecision.players(List.of(chosen));
         }
 
         @Override
@@ -541,47 +739,62 @@ public final class HarnessCostPlumbing {
 
         @Override
         public PaymentDecision visit(final CostPutCardToLib cost) {
-            final boolean shouldAsk = cost.payCostFromSource() || "OriginalHost".equals(cost.getType());
-            if (!confirm(cost, shouldAsk)) return null;
+            final int amount = cost.getAbilityAmount(ability);
+            final CardCollection list = CardLists.getValidCards(
+                    cost.isSameZone() ? player.getGame().getCardsIn(cost.getFrom()) : player.getCardsIn(cost.getFrom()),
+                    cost.getType().split(";"), player, source, ability);
+
             if (cost.payCostFromSource()) {
-                return PaymentDecision.card(source);
+                return source.getZone() == player.getZone(cost.getFrom()) && confirm(cost, true)
+                        ? PaymentDecision.card(source)
+                        : null;
             }
 
-            final CardCollectionView pool;
-            if (cost.isSameZone()) {
-                final CardCollection all = new CardCollection(player.getGame().getCardsIn(cost.getFrom()));
-                final CardCollection valid = CardLists.getValidCards(
-                        all, cost.getType().split(";"), player, source, ability);
-                final int amount = cost.getAbilityAmount(ability);
-                CardCollection chosenPool = null;
-                for (final Player p : player.getGame().getPlayers()) {
-                    final CardCollection owned = CardLists.filter(valid, CardPredicates.isController(p));
-                    if (owned.size() >= amount) {
-                        chosenPool = owned;
-                        break;
-                    }
-                }
-                if (chosenPool == null) {
+            if (!cost.isSameZone()) {
+                if (list.size() < amount) {
                     return null;
                 }
-                pool = chosenPool;
-            } else {
-                CardCollectionView list = player.getCardsIn(cost.getFrom());
-                list = CardLists.getValidCards(list, cost.getType().split(";"), player, source, ability);
-                pool = list;
+                final CardCollectionView selected = chooseCards(list, amount, "Put cards to library for cost");
+                return selected == null || selected.size() < amount ? null : PaymentDecision.card(selected);
             }
 
-            final int amount = cost.getAbilityAmount(ability);
-            final CardCollectionView selected = chooseCards(pool, amount, "Put cards to library for cost");
-            if (selected == null || selected.size() < amount) {
+            if (amount == 0) {
+                return PaymentDecision.number(0);
+            }
+            final List<Player> payableZone = new ArrayList<>();
+            for (final Player p : player.getGame().getPlayers()) {
+                final CardCollection enoughType = CardLists.filter(list, CardPredicates.isOwner(p));
+                if (enoughType.size() < amount) {
+                    list.removeAll(enoughType);
+                } else {
+                    payableZone.add(p);
+                }
+            }
+            if (payableZone.isEmpty()) {
                 return null;
             }
-            return PaymentDecision.card(selected);
+            final Player p = payableZone.size() == 1
+                    ? payableZone.get(0)
+                    : controller.chooseSingleEntityForEffect(
+                            new PlayerCollection(payableZone), ability,
+                            "Put cards from whose " + cost.getFrom().name().toLowerCase() + "?", null);
+            if (p == null) {
+                return null;
+            }
+            final CardCollection typeList = CardLists.filter(list, CardPredicates.isOwner(p));
+            if (typeList.size() < amount) {
+                return null;
+            }
+            final CardCollectionView selected = chooseCards(typeList, amount, "Put cards to library for cost");
+            return selected == null || selected.size() < amount ? null : PaymentDecision.card(selected);
         }
 
         @Override
         public PaymentDecision visit(final CostPutCounter cost) {
             if (cost.payCostFromSource()) {
+                if (isEffect() && ability.hasParam("UnlessCost") && !confirm(cost, true)) {
+                    return null;
+                }
                 return PaymentDecision.card(source);
             }
             CardCollectionView list = player.getGame().getCardsIn(ZoneType.Battlefield);
@@ -609,7 +822,9 @@ public final class HarnessCostPlumbing {
                     (cost.payCostFromSource() && !isMandatory()) || "OriginalHost".equals(cost.getType());
             if (!confirm(cost, shouldAsk)) return null;
             if (cost.payCostFromSource()) {
-                if (isSacrificeReserved(source)) {
+                if (source.getController() != ability.getActivatingPlayer()
+                        || !source.canBeSacrificedBy(ability, isEffect())
+                        || isSacrificeReserved(source)) {
                     return null;
                 }
                 reserveSacrifices(List.of(source));
@@ -617,15 +832,23 @@ public final class HarnessCostPlumbing {
             }
             if ("OriginalHost".equals(cost.getType()) && ability.getOriginalHost() != null) {
                 final Card originalHost = ability.getOriginalHost();
-                if (isSacrificeReserved(originalHost)) {
+                if (originalHost.getController() != ability.getActivatingPlayer()
+                        || !originalHost.canBeSacrificedBy(ability, isEffect())
+                        || isSacrificeReserved(originalHost)) {
                     return null;
                 }
                 reserveSacrifices(List.of(originalHost));
                 return PaymentDecision.card(originalHost);
             }
+            String type = cost.getType();
+            final boolean withDifferentNames = type.contains("+WithDifferentNames");
+            if (withDifferentNames) {
+                type = type.replace("+WithDifferentNames", "");
+            }
+
             if ("All".equalsIgnoreCase(cost.getAmount())) {
                 final CardCollection all = new CardCollection(CardLists.filter(
-                        CardLists.getValidCards(player.getCardsIn(ZoneType.Battlefield), cost.getType().split(";"), player, source, ability),
+                        CardLists.getValidCards(player.getCardsIn(ZoneType.Battlefield), type.split(";"), player, source, ability),
                         CardPredicates.canBeSacrificedBy(ability, isEffect())));
                 all.removeIf(HarnessCostPlumbing.this::isSacrificeReserved);
                 reserveSacrifices(all);
@@ -633,14 +856,38 @@ public final class HarnessCostPlumbing {
             }
 
             final int amount = cost.getAbilityAmount(ability);
+            if (amount == 0) {
+                return PaymentDecision.number(0);
+            }
             CardCollection valid = new CardCollection(CardLists.getValidCards(
                     player.getCardsIn(ZoneType.Battlefield),
-                    cost.getType().split(";"),
+                    type.split(";"),
                     player,
                     source,
                     ability));
             valid = new CardCollection(CardLists.filter(valid, CardPredicates.canBeSacrificedBy(ability, isEffect())));
             valid.removeIf(HarnessCostPlumbing.this::isSacrificeReserved);
+            if (withDifferentNames) {
+                final CardCollection selected = new CardCollection();
+                CardCollection remaining = valid;
+                while (selected.size() < amount && !remaining.isEmpty()) {
+                    final CardCollectionView one = controller.choosePermanentsToSacrifice(
+                            ability, 1, 1, remaining, "Choose permanent with different name to sacrifice");
+                    if (one == null || one.size() != 1) {
+                        return null;
+                    }
+                    final Card choice = one.get(0);
+                    selected.add(choice);
+                    remaining = new CardCollection(CardLists.filter(
+                            remaining,
+                            CardPredicates.sharesNameWith(choice).negate()));
+                }
+                if (selected.size() < amount) {
+                    return null;
+                }
+                reserveSacrifices(selected);
+                return PaymentDecision.card(selected);
+            }
             if (valid.size() < amount) {
                 return null;
             }
@@ -655,10 +902,10 @@ public final class HarnessCostPlumbing {
 
         @Override
         public PaymentDecision visit(final CostReturn cost) {
-            final boolean shouldAsk = cost.payCostFromSource() || "OriginalHost".equals(cost.getType());
-            if (!confirm(cost, shouldAsk)) return null;
             if (cost.payCostFromSource()) {
-                return PaymentDecision.card(source);
+                return source.getController() == player && source.isInPlay() && confirm(cost, true)
+                        ? PaymentDecision.card(source)
+                        : null;
             }
             final int amount = cost.getAbilityAmount(ability);
             CardCollectionView list = player.getCardsIn(ZoneType.Battlefield);
@@ -675,40 +922,58 @@ public final class HarnessCostPlumbing {
 
         @Override
         public PaymentDecision visit(final CostReveal cost) {
-            CardCollectionView from = player.getCardsIn(cost.getRevealFrom());
             if (cost.payCostFromSource()) {
-                return from.contains(source) ? PaymentDecision.card(source) : null;
+                return PaymentDecision.card(source);
             }
             if ("Hand".equals(cost.getType())) {
-                return PaymentDecision.card(from);
+                return PaymentDecision.card(player.getCardsIn(ZoneType.Hand));
             }
 
-            final int amount = cost.getAbilityAmount(ability);
+            final int num = cost.getAbilityAmount(ability);
+            CardCollectionView hand = player.getCardsIn(cost.getRevealFrom());
             if ("SameColor".equals(cost.getType())) {
-                final CardCollection pool = new CardCollection(from);
-                final CardCollection chosen = new CardCollection();
-                while (chosen.size() < amount && !pool.isEmpty()) {
-                    final CardCollectionView one = chooseCards(pool, 1, "Reveal cards sharing a color");
-                    if (one == null || one.isEmpty()) {
+                final CardCollectionView all = hand;
+                final CardCollection candidates = CardLists.filter(hand, c -> {
+                    for (final Card card : all) {
+                        if (!card.equals(c) && card.sharesColorWith(c)) {
+                            return true;
+                        }
+                    }
+                    return false;
+                });
+                if (num == 0) {
+                    return PaymentDecision.number(0);
+                }
+                final CardCollectionView first = chooseCards(candidates, 1, "Reveal cards sharing a color");
+                if (first == null || first.size() != 1) {
+                    return null;
+                }
+                final Card anchor = first.get(0);
+                final CardCollection chosen = new CardCollection(anchor);
+                if (num > 1) {
+                    final CardCollection rest = CardLists.filter(
+                            candidates, c -> c != anchor && c.sharesColorWith(anchor));
+                    final CardCollectionView more = chooseCards(rest, num - 1, "Reveal cards sharing a color");
+                    if (more == null || more.size() < num - 1) {
                         return null;
                     }
-                    final Card pick = one.get(0);
-                    if (!chosen.isEmpty() && !pick.sharesColorWith(chosen.get(0))) {
-                        pool.remove(pick);
-                        continue;
-                    }
-                    chosen.add(pick);
-                    pool.remove(pick);
+                    chosen.addAll(more);
                 }
-                return chosen.size() == amount ? PaymentDecision.card(chosen) : null;
+                return PaymentDecision.card(chosen);
             }
 
-            from = CardLists.getValidCards(from, cost.getType().split(";"), player, source, ability);
-            if (from.size() < amount) {
+            hand = CardLists.getValidCards(hand, cost.getType().split(";"), player, source, ability);
+            if (hand.size() < num) {
                 return null;
             }
-            final CardCollectionView selected = chooseCards(from, amount, "Reveal for cost");
-            return selected == null || selected.size() < amount ? null : PaymentDecision.card(selected);
+            if (num == 0) {
+                return PaymentDecision.number(0);
+            }
+            if (!ability.isCastFromPlayEffect() && hand.size() == num) {
+                return PaymentDecision.card(hand);
+            }
+            final CardCollectionView selected = chooseCards(hand, num, "Reveal for cost");
+            return selected == null || selected.size() < num ? null : PaymentDecision.card(selected);
         }
 
         @Override
@@ -769,48 +1034,97 @@ public final class HarnessCostPlumbing {
 
         @Override
         public PaymentDecision visit(final CostRemoveCounter cost) {
-            final boolean shouldAsk = !(source != null && source.isPlaneswalker());
-            if (!confirm(cost, shouldAsk)) return null;
-            final boolean all = "All".equals(cost.getAmount());
-            final int amount = cost.getAbilityAmount(ability);
+            final String amount = cost.getAmount();
+            final String type = cost.getType();
+            final CounterType cntrs = cost.counter;
+            final boolean anyCounters = cntrs == null;
 
-            final CardCollection candidates = new CardCollection();
-            if (cost.payCostFromSource()) {
-                candidates.add(source);
-            } else if ("OriginalHost".equals(cost.getType())) {
-                if (ability.getOriginalHost() != null) {
-                    candidates.add(ability.getOriginalHost());
-                }
-            } else {
-                candidates.addAll(CardLists.getValidCards(
-                        player.getCardsIn(cost.zone),
-                        cost.getType().split(";"),
-                        player,
-                        source,
-                        ability));
+            int cntRemoved = 1;
+            if (!"All".equals(amount)) {
+                cntRemoved = cost.getAbilityAmount(ability);
             }
-            if (candidates.isEmpty()) {
+
+            if (cost.payCostFromSource()) {
+                final int maxCounters = anyCounters ? source.getNumAllCounters() : source.getCounters(cntrs);
+                if ("All".equals(amount)) {
+                    if (!confirm(cost, true)) return null;
+                    cntRemoved = maxCounters;
+                } else if (!ability.isPwAbility()) {
+                    if (maxCounters < cntRemoved) {
+                        return null;
+                    }
+                    if (!confirm(cost, true)) return null;
+                }
+                if (maxCounters < cntRemoved) {
+                    return null;
+                }
+                return countersDecision(generateCounterTable(source, cntrs, cntRemoved));
+            }
+            if ("OriginalHost".equals(type)) {
+                final Card origHost = ability.getOriginalHost();
+                final int maxCounters = anyCounters ? origHost.getNumAllCounters() : origHost.getCounters(cntrs);
+                if ("All".equals(amount)) {
+                    cntRemoved = maxCounters;
+                }
+                if (maxCounters < cntRemoved) {
+                    return null;
+                }
+                return countersDecision(generateCounterTable(origHost, cntrs, cntRemoved));
+            }
+
+            CardCollectionView validCards = CardLists.getValidCards(
+                    player.getCardsIn(cost.zone), type.split(";"), player, source, ability);
+            validCards = anyCounters
+                    ? CardLists.filterAnyCounters(validCards, cntRemoved)
+                    : CardLists.filter(validCards, CardPredicates.hasCounter(cntrs, cntRemoved));
+            if (validCards.isEmpty()) {
                 return null;
             }
-            final GameEntityCounterTable table = new GameEntityCounterTable();
-            for (final Card card : candidates) {
-                if (cost.counter != null) {
-                    final int available = card.getCounters(cost.counter);
-                    final int removed = all ? available : amount;
-                    if (available >= removed) {
-                        table.put(null, card, cost.counter, removed);
-                        return PaymentDecision.counters(table);
-                    }
-                } else {
-                    for (final com.google.common.collect.Multiset.Entry<CounterType> e : card.getCounters().entrySet()) {
-                        if (e.getCount() >= amount) {
-                            table.put(null, card, e.getElement(), amount);
-                            return PaymentDecision.counters(table);
-                        }
-                    }
+            final CardCollectionView selected = chooseCards(validCards, 1, "Remove counters for cost");
+            if (selected == null || selected.size() != 1) {
+                return null;
+            }
+            return countersDecision(generateCounterTable(selected.get(0), cntrs, cntRemoved));
+        }
+
+        private PaymentDecision countersDecision(final GameEntityCounterTable table) {
+            return table.isEmpty() ? null : PaymentDecision.counters(table);
+        }
+
+        private GameEntityCounterTable generateCounterTable(final Card c, final CounterType cType, int cntToRemove) {
+            final GameEntityCounterTable counterTable = new GameEntityCounterTable();
+            if (cType != null) {
+                counterTable.put(null, c, cType, cntToRemove);
+                return counterTable;
+            }
+            Multiset<CounterType> cMap = counterTable.filterToRemove(c);
+            for (final CounterType ct : new ArrayList<>(cMap.elementSet())) {
+                if (!c.canRemoveCounters(ct)) {
+                    cMap.remove(ct);
                 }
             }
-            return null;
+            if (cMap.isEmpty()) {
+                return counterTable;
+            }
+            if (cMap.size() == 1) {
+                counterTable.put(null, c, cMap.elementSet().iterator().next(), cntToRemove);
+                return counterTable;
+            }
+            while (cntToRemove > 0) {
+                final CounterType chosen = controller.chooseCounterType(
+                        new ArrayList<>(cMap.elementSet()), ability, "Choose a counter type to remove", null);
+                final int max = Math.min(cntToRemove, cMap.count(chosen));
+                final int remaining = cMap.size();
+                final int min = Math.max(1, max - remaining);
+                final int chosenAmount = controller.chooseNumber(
+                        ability, "Remove how many " + chosen.getName() + " counters?", min, max);
+                if (chosenAmount > 0) {
+                    counterTable.put(null, c, chosen, chosenAmount);
+                    cMap = counterTable.filterToRemove(c);
+                }
+                cntToRemove -= chosenAmount;
+            }
+            return counterTable;
         }
 
         @Override
@@ -843,18 +1157,25 @@ public final class HarnessCostPlumbing {
 
         @Override
         public PaymentDecision visit(final CostUnattach cost) {
-            if (!confirm(cost, true)) return null;
             final CardCollection cardToUnattach = cost.findCardToUnattach(source, player, ability);
-            if (cardToUnattach.isEmpty()) {
-                return null;
+            if (cardToUnattach.size() == 1) {
+                return confirm(cost, true) ? PaymentDecision.card(cardToUnattach.getFirst()) : null;
             }
-            final CardCollectionView selected = chooseCards(cardToUnattach, 1, "Unattach for cost");
-            return selected == null || selected.isEmpty() ? null : PaymentDecision.card(selected.get(0));
+            if (cardToUnattach.size() > 1) {
+                final int c = cost.getAbilityAmount(ability);
+                final CardCollectionView selected = chooseCards(cardToUnattach, c, "Unattach for cost");
+                return selected == null || selected.size() != c ? null : PaymentDecision.card(selected);
+            }
+            return null;
         }
 
         @Override
         public PaymentDecision visit(final CostTapType cost) {
             String type = cost.getType();
+            if ("OriginalHost".equals(type)) {
+                final Card host = ability.getOriginalHost();
+                return host.canTap() ? PaymentDecision.card(host) : null;
+            }
             boolean sameType = false;
             if (type.contains(".sharesCreatureTypeWith")) {
                 sameType = true;
@@ -890,18 +1211,31 @@ public final class HarnessCostPlumbing {
                 return PaymentDecision.card(selected);
             }
             final int amount = cost.getAbilityAmount(ability);
+            if (amount == 0) {
+                return PaymentDecision.number(0);
+            }
             if (sameType) {
-                final CardCollectionView first = chooseCards(list, 1, "Tap for cost");
-                if (first == null || first.isEmpty()) {
-                    return null;
+                final CardCollectionView all = list;
+                CardCollection candidates = CardLists.filter(list, c -> {
+                    for (final Card card : all) {
+                        if (!card.equals(c) && card.sharesCreatureTypeWith(c)) {
+                            return true;
+                        }
+                    }
+                    return false;
+                });
+                final CardCollection tapped = new CardCollection();
+                while (tapped.size() < amount) {
+                    final CardCollectionView one = chooseCards(candidates, 1, "Tap for cost");
+                    if (one == null || one.size() != 1) {
+                        return null;
+                    }
+                    final Card first = one.get(0);
+                    tapped.add(first);
+                    candidates = CardLists.filter(candidates, c -> c.sharesCreatureTypeWith(first));
+                    candidates.remove(first);
                 }
-                final Card anchor = first.get(0);
-                final CardCollection same = new CardCollection(CardLists.filter(list, CardPredicates.sharesCreatureTypeWith(anchor)));
-                if (same.size() < amount) {
-                    return null;
-                }
-                final CardCollectionView selected = chooseCards(same, amount, "Tap for cost");
-                return selected == null || selected.size() < amount ? null : PaymentDecision.card(selected);
+                return PaymentDecision.card(tapped);
             }
             if (list.size() < amount) {
                 return null;
@@ -924,6 +1258,7 @@ public final class HarnessCostPlumbing {
 
         @Override
         public PaymentDecision visit(final CostPutCounterYou cost) {
+            if (!confirm(cost, true)) return null;
             return PaymentDecision.number(cost.getAbilityAmount(ability));
         }
 

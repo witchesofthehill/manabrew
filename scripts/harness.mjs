@@ -281,6 +281,7 @@ function rebuild() {
     "forge.harness.host.JournalRewindTest",
     "forge.harness.host.ManaBrewInteractiveControllerTest",
     "forge.harness.common.HarnessPlayPlumbingTest",
+    "forge.harness.common.HarnessCostPlumbingTest",
     "forge.harness.common.ActionSpaceTest",
   ]) {
     const regression = spawnSync("java", ["-cp", regressionClasspath, regressionClass], {

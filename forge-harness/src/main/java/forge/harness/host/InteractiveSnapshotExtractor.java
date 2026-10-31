@@ -618,9 +618,13 @@ public final class InteractiveSnapshotExtractor {
         return out;
     }
 
-    static CardDto cardDto(final Game game, final Card card, final boolean castable) {
+    static CardDto cardDto(final Game game, final Card card, final boolean castable, final Player viewerPlayer) {
         final int ownerIndex = card.getOwner() != null ? SnapshotExtractor.playerIndex(game, card.getOwner()) : 0;
-        return toCard(game, card, ownerIndex, castable, null, null);
+        final CardDto dto = toCard(game, card, ownerIndex, castable, viewerPlayer, null);
+        if (card.isFaceDown() && !faceShownTo(card, viewerPlayer)) {
+            redact(dto);
+        }
+        return dto;
     }
 
     private static List<String> mergedCardIds(final Card card) {

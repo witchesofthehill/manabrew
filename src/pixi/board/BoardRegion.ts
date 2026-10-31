@@ -1406,6 +1406,7 @@ export class BoardRegion {
     const sortedUnplaced = [...unplaced].sort(
       (a, b) => catOrder.indexOf(classify(a)) - catOrder.indexOf(classify(b)),
     );
+    const placedCells = new Map<string, GridCell>();
 
     for (const c of sortedUnplaced) {
       const cat = classify(c);
@@ -1438,11 +1439,36 @@ export class BoardRegion {
       }
 
       if (picked) {
+        placedCells.set(c.id, picked);
         positions.set(c.id, { x: picked.cx, y: picked.cy });
         occupied.add(cellKey(picked.col, picked.row));
         this.userSlots.set(c.id, { col: picked.col, row: picked.row });
       } else {
         positions.set(c.id, { x: centerX, y: anchorY });
+      }
+    }
+    if (this.autoSort) {
+      for (const category of catOrder) {
+        const groups = new Map<string, CardDto[]>();
+        const cells: GridCell[] = [];
+        for (const card of sortedUnplaced) {
+          const cell = placedCells.get(card.id);
+          if (!cell || classify(card) !== category || card.isFaceDown) continue;
+          const group = groups.get(card.identity.name);
+          if (group) group.push(card);
+          else groups.set(card.identity.name, [card]);
+          cells.push(cell);
+        }
+        if (![...groups.values()].some((group) => group.length > 1)) continue;
+        const { anchorTop } = categoryConfig[category];
+        cells.sort((a, b) => (anchorTop ? a.row - b.row : b.row - a.row) || a.col - b.col);
+        const groupedCards = [...groups.values()].flat();
+        for (let index = 0; index < groupedCards.length; index++) {
+          const card = groupedCards[index]!;
+          const cell = cells[index]!;
+          positions.set(card.id, { x: cell.cx, y: cell.cy });
+          this.userSlots.set(card.id, { col: cell.col, row: cell.row });
+        }
       }
     }
     this.compressLands(cards, positions, grid.cardW);

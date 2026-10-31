@@ -15,9 +15,9 @@ function soundDefinition(name: string, volume: number, cooldownMs = 0): SoundDef
 }
 
 const SOUNDS = {
-  chatMessage: soundDefinition("chat-message", 0, 250),
+  chatMessage: soundDefinition("chat", 0, 250),
   buttonClick: soundDefinition("button-click2", 0.3, 50),
-  roomInvite: soundDefinition("room-invite", 0, 1_000),
+  roomInvite: soundDefinition("invite", 0, 1_000),
   cardPlay: soundDefinition("card-play", 0.6),
   cardEnter: soundDefinition("card-etb", 0.5),
   cardTap: soundDefinition("", 0),

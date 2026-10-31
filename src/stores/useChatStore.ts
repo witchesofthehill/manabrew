@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { toast } from "sonner";
 import { getPlatform } from "@/platform";
-import { playAppSound } from "@/lib/soundRuntime";
+import { playSound } from "@/lib/soundRuntime";
 import { useServerStore } from "@/stores/useServerStore";
 import { CHAT_ERROR_CODES, RELAY_FEATURE, USER_FACING_ERROR_MESSAGES } from "@/types/server";
 import type {
@@ -110,7 +110,7 @@ export const useChatStore = create<ChatState>()(
                 lobby: append(get().lobby, entry),
                 unread: mine ? unread : { ...unread, Lobby: unread.Lobby + 1 },
               });
-              if (notify) playAppSound("chatMessage");
+              if (notify) playSound("chatMessage");
               return;
             }
             if (payload.room_id !== get().roomId) return;
@@ -118,7 +118,7 @@ export const useChatStore = create<ChatState>()(
               room: append(get().room, entry),
               unread: mine ? unread : { ...unread, Room: unread.Room + 1 },
             });
-            if (notify) playAppSound("chatMessage");
+            if (notify) playSound("chatMessage");
           }),
         );
         unsubscribers.push(

@@ -3,7 +3,7 @@ import { useGameStore, type DeferredSnapshot } from "@/stores/useGameStore";
 import { applySnapshot } from "@/stores/gameStore.constants";
 import type { FlashItem } from "@/components/game/game.types";
 import { flashItemOf } from "@/lib/gameViewTransitions";
-import { playGameSounds } from "@/lib/gameSound";
+import { playSound } from "@/lib/soundRuntime";
 
 function applyQueuedSnapshot(snapshot: DeferredSnapshot) {
   applySnapshot(snapshot, useGameStore.setState, useGameStore.getState);
@@ -25,7 +25,7 @@ export function useFlashQueue(flashDurationMs: number) {
 
   function showFlash(flash: FlashItem) {
     isFlashingRef.current = true;
-    if (flash.kind === "card") playGameSounds(["cardPlay"]);
+    if (flash.kind === "card") playSound("cardPlay");
     setActiveFlash(flash);
   }
 

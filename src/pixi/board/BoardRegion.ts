@@ -20,7 +20,7 @@ import { hexToNum } from "../colorUtils";
 import { getFrameRatio, lerp, safeDestroy } from "./pixiHelpers";
 import { playStomp } from "../effects/stomp";
 import { animationsEnabled } from "../effects/enabled";
-import { playGameSounds } from "@/lib/gameSound";
+import { playSound } from "@/lib/soundRuntime";
 import { DRAG_LIFT_SCALE, dragPositionBlend, dragTransformBlend } from "../dragMotion";
 import {
   applyCardOverrides,
@@ -836,7 +836,7 @@ export class BoardRegion {
       }
     }
     if (exited) for (const id of exited) this.destroyEntry(id);
-    if (entered) playGameSounds(["cardEnter"]);
+    if (entered) playSound("cardEnter");
   }
 
   updateBattlefield(state: BattlefieldState): void {

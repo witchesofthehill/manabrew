@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { getPlatform } from "@/platform";
-import { playAppSound } from "@/lib/soundRuntime";
+import { playSound } from "@/lib/soundRuntime";
 import { useServerStore } from "@/stores/useServerStore";
 import { useInviteStore } from "@/stores/useInviteStore";
 import type { RoomInvitePayload } from "@/types/server";
@@ -17,7 +17,7 @@ export function useRoomInvites(): void {
         (pending) => pending.room.room_id === invite.room.room_id,
       );
       inviteStore.add(invite);
-      if (isNew) playAppSound("roomInvite");
+      if (isNew) playSound("roomInvite");
     });
   }, []);
 }

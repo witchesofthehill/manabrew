@@ -8,7 +8,7 @@ import { faceDownCardToPreviewDto } from "@/lib/scryfall.utils";
 import { partitionBoardTargets } from "@/lib/boardTargets";
 import { useGameUIStore } from "@/stores/useGameUIStore";
 import { useKeybindings } from "@/hooks/useKeybindings";
-import { playAppSound } from "@/lib/soundRuntime";
+import { playSound } from "@/lib/soundRuntime";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
 import { useAutoResolvePrompt } from "@/components/prompts/internal/useAutoResolvePrompt";
@@ -1170,12 +1170,12 @@ export default function Game({ exitTo }: GameProps = {}) {
       if (manualApi || isWaitingForResponse || document.querySelector('[role="dialog"]'))
         return false;
       if (confirmPromptRef.current()) {
-        playAppSound("buttonClick");
+        playSound("buttonClick");
         return true;
       }
       if (promptType !== "chooseAction" || !gameView) return false;
       unifiedPassRef.current();
-      playAppSound("buttonClick");
+      playSound("buttonClick");
       return true;
     },
     "pass-end-of-turn": () => {
@@ -1183,7 +1183,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         return false;
       if (promptType !== "chooseAction" || !gameView) return false;
       passEndTurnRef.current();
-      playAppSound("buttonClick");
+      playSound("buttonClick");
       return true;
     },
     "toggle-priority-mode": () => {

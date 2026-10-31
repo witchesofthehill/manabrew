@@ -6,7 +6,7 @@ import {
 } from "@/themes/typography";
 import { TOUCH_MOVE_SLOP_PX } from "@/lib/responsive";
 import { topModal } from "@/lib/modalStack";
-import { playAppSound } from "@/lib/soundRuntime";
+import { playSound } from "@/lib/soundRuntime";
 import { summarizeCombat } from "@/components/game/combatSummary";
 import {
   Application,
@@ -106,7 +106,7 @@ export class PromptLayer extends PromptModalLayer {
     this.app.stage.on("pointercancel", this.onStageCancel);
     this.app.ticker.add(this.onTick);
     this.keyListener = (event) => {
-      if (this.handleKey(event)) playAppSound("buttonClick");
+      if (this.handleKey(event)) playSound("buttonClick");
     };
     window.addEventListener("keydown", this.keyListener);
     window.addEventListener("keydown", this.onModifierEvent);

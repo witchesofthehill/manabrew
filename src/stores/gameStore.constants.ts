@@ -11,7 +11,7 @@ import type { GameViewDto, ZoneDto, ZoneKind } from "@/protocol/game";
 import { isPromptLoggingEnabled } from "@/lib/debugPrompts";
 import { GAME_CARD_DEFAULTS, hiddenZoneCard } from "@/lib/gameCard";
 import { flashItemOf, gameViewTransitions } from "@/lib/gameViewTransitions";
-import { playGameSounds, type GameSound } from "@/lib/gameSound";
+import { playSound, type SoundName } from "@/lib/soundRuntime";
 import { normalizeCardCosmetics } from "@/lib/cardCosmetics";
 
 function visibleCardsOf(zone: ZoneDto): ClientCardDto[] {
@@ -123,7 +123,7 @@ export function applySnapshot(
   set: (partial: Partial<GameState>) => void,
   get: () => GameState,
 ) {
-  const sounds: GameSound[] = [];
+  const sounds: SoundName[] = [];
   for (const transition of snapshot.transitions) {
     if (transition.kind !== "turnStart" && !flashItemOf(transition)) sounds.push(transition.kind);
   }
@@ -147,7 +147,7 @@ export function applySnapshot(
     updates.relinquishedPriority = false;
   }
   set(updates);
-  playGameSounds(sounds);
+  playSound(...sounds);
 }
 
 // Route one ordered effect: enqueue behind any pending animation, else apply now.

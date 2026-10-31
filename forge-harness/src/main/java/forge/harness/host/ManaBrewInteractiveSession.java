@@ -1956,7 +1956,8 @@ public final class ManaBrewInteractiveSession {
             final CardCollectionView valid,
             final int min,
             final int max,
-            final String message
+            final String message,
+            final boolean cancellable
     ) {
         requireAttached();
         final CardCollection chosen = new CardCollection();
@@ -1968,12 +1969,18 @@ public final class ManaBrewInteractiveSession {
             for (final Card c : remaining) {
                 candidates.add(Pair.of((GameEntity) c, (forge.game.GameObject) c));
             }
-            publishSacrificePrompt(playerId, sa, candidates, cappedMin, cappedMax, chosen.size());
+            publishSacrificePrompt(playerId, sa, candidates, cappedMin, cappedMax, chosen.size(), cancellable);
             final JsonObject action = takeActionOrNull();
             if (action == null) {
                 break;
             }
             final String actionKind = action.has("kind") ? action.get("kind").getAsString() : "";
+            if ("cancel".equals(actionKind)) {
+                if (cancellable) {
+                    return null;
+                }
+                continue;
+            }
             if ("pass".equals(actionKind) || "pass_priority".equals(actionKind)) {
                 if (chosen.size() >= cappedMin) {
                     break;
@@ -2015,7 +2022,8 @@ public final class ManaBrewInteractiveSession {
             final List<Pair<GameEntity, forge.game.GameObject>> candidates,
             final int min,
             final int max,
-            final int chosen
+            final int chosen,
+            final boolean cancellable
     ) {
         final Card source = sa == null ? null : sa.getHostCard();
         final List<TargetRef> candidateRefs = new java.util.ArrayList<>();
@@ -2028,7 +2036,7 @@ public final class ManaBrewInteractiveSession {
                 new ChooseBoardTargetsInput(
                         presentation("Sacrifice", null),
                         candidateRefs, true, enumFromWire("sacrifice", TargetingIntent.class),
-                        min, max, chosen, false));
+                        min, max, chosen, cancellable));
     }
 
     Map<GameEntity, Integer> awaitDividedAllocation(

@@ -659,8 +659,8 @@ public final class HarnessCostPlumbing {
             }
 
             if (chooseFood && canFood) {
-                final CardCollectionView chosen = controller.choosePermanentsToSacrifice(
-                        ability, 1, 1, food, "Choose Food to sacrifice");
+                final CardCollectionView chosen = hooks.chooseSacrificeForCost(
+                        food, ability, 1, "Choose Food to sacrifice", !isMandatory());
                 return chosen == null || chosen.size() != 1 ? null : PaymentDecision.card(chosen);
             }
             if (canExile) {
@@ -891,8 +891,8 @@ public final class HarnessCostPlumbing {
             if (valid.size() < amount) {
                 return null;
             }
-            final CardCollectionView selected = controller.choosePermanentsToSacrifice(
-                    ability, amount, amount, valid, "Choose permanents to sacrifice");
+            final CardCollectionView selected = hooks.chooseSacrificeForCost(
+                    valid, ability, amount, "Choose permanents to sacrifice", !isMandatory());
             if (selected == null || selected.size() < amount) {
                 return null;
             }

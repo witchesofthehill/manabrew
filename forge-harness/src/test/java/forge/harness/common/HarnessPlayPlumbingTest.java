@@ -133,6 +133,13 @@ public final class HarnessPlayPlumbingTest {
                     final CardCollection valid, final SpellAbility ability, final int totalPowerRequired) {
                 return null;
             }
+
+            @Override
+            public CardCollectionView chooseSacrificeForCost(
+                    final CardCollectionView valid, final SpellAbility ability, final int amount,
+                    final String message, final boolean cancelAllowed) {
+                return null;
+            }
         };
         final HarnessPlayPlumbing plumbing = new HarnessPlayPlumbing(
                 hooks, p, new HarnessCostPlumbing(probe, hooks, p, true), true);

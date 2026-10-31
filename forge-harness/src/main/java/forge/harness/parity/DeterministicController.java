@@ -269,6 +269,13 @@ public class DeterministicController extends PlayerController implements Harness
     }
 
     @Override
+    public CardCollectionView chooseSacrificeForCost(
+            final CardCollectionView valid, final SpellAbility sa, final int amount, final String message,
+            final boolean cancelAllowed) {
+        return choosePermanentsToSacrifice(sa, amount, amount, valid, message);
+    }
+
+    @Override
     public CostDecisionMakerBase getCostDecisionMaker(Player player, SpellAbility ability, boolean effect, String prompt) {
         return new AiCostDecision(player, ability, effect);
     }

@@ -1173,6 +1173,10 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     @Override
     public boolean confirmTrigger(final WrappedAbility sa) {
+        final SpellAbility wrapped = sa == null ? null : sa.getWrappedAbility();
+        if (wrapped != null && wrapped.hasParam("Cost") && !"0".equals(wrapped.getParam("Cost"))) {
+            return true;
+        }
         final Trigger trigger = sa == null ? null : sa.getTrigger();
         final Card host = sa == null ? null : sa.getHostCard();
         final String title = host == null
@@ -1498,7 +1502,12 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                 && cost.getCostMana() != null
                 && cost.getCostMana().getAmountOfX() > 0;
         if (manaX) {
-            bounds[1] = Math.min(bounds[1], ComputerUtilMana.determineLeftoverMana(ability, player, false));
+            probingPayability = true;
+            try {
+                bounds[1] = Math.min(bounds[1], ComputerUtilMana.determineLeftoverMana(ability, player, false));
+            } finally {
+                probingPayability = false;
+            }
         }
         final Integer chosen;
         if (bounds[0] >= bounds[1]) {

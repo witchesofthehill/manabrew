@@ -330,7 +330,7 @@ public final class ManaBrewEngineAdapter {
         return session;
     }
 
-    private static Deck buildDeck(final PlayerConfig playerConfig,
+    static Deck buildDeck(final PlayerConfig playerConfig,
             final List<CardCosmeticBindings.DeckEntry> entries) {
         Deck deck = new Deck(playerConfig.getName());
         CardPool main = deck.getOrCreate(DeckSection.Main);

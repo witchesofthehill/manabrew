@@ -40,6 +40,7 @@ import forge.game.spellability.OptionalCost;
 import forge.game.spellability.SpellAbility;
 import forge.game.staticability.StaticAbilityCantAttackBlock;
 import forge.game.staticability.StaticAbilityMustAttack;
+import forge.game.zone.CostPaymentStack;
 import forge.game.zone.ZoneType;
 import forge.item.PaperCard;
 import org.apache.commons.lang3.tuple.ImmutablePair;
@@ -1963,17 +1964,21 @@ public final class ManaBrewInteractiveSession {
         final CardCollection remaining = new CardCollection(valid);
         final int cappedMax = Math.min(max, valid.size());
         final int cappedMin = Math.min(min, cappedMax);
+        final boolean cancellable = payingOptionalCost();
         while (chosen.size() < cappedMax && !remaining.isEmpty() && !closed && !game.isGameOver()) {
             final List<Pair<GameEntity, forge.game.GameObject>> candidates = new ArrayList<>();
             for (final Card c : remaining) {
                 candidates.add(Pair.of((GameEntity) c, (forge.game.GameObject) c));
             }
-            publishSacrificePrompt(playerId, sa, candidates, cappedMin, cappedMax, chosen.size());
+            publishSacrificePrompt(playerId, sa, candidates, cappedMin, cappedMax, chosen.size(), cancellable);
             final JsonObject action = takeActionOrNull();
             if (action == null) {
                 break;
             }
             final String actionKind = action.has("kind") ? action.get("kind").getAsString() : "";
+            if (cancellable && "cancel".equals(actionKind)) {
+                return new CardCollection();
+            }
             if ("pass".equals(actionKind) || "pass_priority".equals(actionKind)) {
                 if (chosen.size() >= cappedMin) {
                     break;
@@ -2009,13 +2014,23 @@ public final class ManaBrewInteractiveSession {
         return chosen;
     }
 
+    private boolean payingOptionalCost() {
+        final CostPaymentStack.Entry paying = game.costPaymentStack.peek();
+        if (paying == null) {
+            return false;
+        }
+        final Cost cost = paying.payment().getAbility().getPayCosts();
+        return cost != null && !cost.isMandatory();
+    }
+
     private void publishSacrificePrompt(
             final int playerId,
             final SpellAbility sa,
             final List<Pair<GameEntity, forge.game.GameObject>> candidates,
             final int min,
             final int max,
-            final int chosen
+            final int chosen,
+            final boolean cancellable
     ) {
         final Card source = sa == null ? null : sa.getHostCard();
         final List<TargetRef> candidateRefs = new java.util.ArrayList<>();
@@ -2028,7 +2043,7 @@ public final class ManaBrewInteractiveSession {
                 new ChooseBoardTargetsInput(
                         presentation("Sacrifice", null),
                         candidateRefs, true, enumFromWire("sacrifice", TargetingIntent.class),
-                        min, max, chosen, false));
+                        min, max, chosen, cancellable));
     }
 
     Map<GameEntity, Integer> awaitDividedAllocation(

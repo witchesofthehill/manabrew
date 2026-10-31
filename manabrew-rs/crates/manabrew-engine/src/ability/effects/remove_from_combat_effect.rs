@@ -32,11 +32,6 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     if let Some(card_id) = target {
         if ctx.game.card(card_id).zone == ZoneType::Battlefield && ctx.game.card(card_id).tapped {
             ctx.game.card_mut(card_id).set_tapped(false);
-            ctx.game
-                .queue_notification(crate::agent::notification::GameNotification::CardTapped {
-                    card_id,
-                    tapped: false,
-                });
         }
     }
 }

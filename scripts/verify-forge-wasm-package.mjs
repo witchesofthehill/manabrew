@@ -161,7 +161,7 @@ writeFileSync(
     'import { ForgeEngine, VERSION, BUILD_COMMIT } from "@manabrew/forge-wasm";',
     'import type { ForgeDeck } from "@manabrew/forge-wasm";',
     'import { createSeat, SAB_SIZE } from "@manabrew/forge-wasm/seat";',
-    'import type { Deck, GameViewDto, Prompt } from "@manabrew/protocol";',
+    'import type { Deck, EngineDirective, GameViewDto, Prompt } from "@manabrew/protocol";',
     "const build: string[] = [VERSION, BUILD_COMMIT];",
     "void build;",
     // A deck with every zone filled has to satisfy ForgeDeck: dropping a zone
@@ -178,7 +178,7 @@ writeFileSync(
     "const engine = new ForgeEngine({",
     "  onState: (state) => { const view: GameViewDto = state.gameView; void view; },",
     "  onPrompt: (prompt) => { const p: Prompt = prompt; void p; },",
-    '  onDisplay: (event) => { void (event.kind === "cardPlayed" ? event.cardName : ""); },',
+    "  onDirective: (directive) => { const d: EngineDirective = directive; void d; },",
     "});",
     "void engine.startGame({ deck });",
     'engine.respond(1, { type: "chooseBoolean", output: { type: "decision", value: true } });',

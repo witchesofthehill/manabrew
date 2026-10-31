@@ -23,34 +23,7 @@ impl PlanarDieFace {
 #[derive(Debug, Clone)]
 pub enum GameNotification {
     Event(GameLogEvent),
-    CardPlayed {
-        player: PlayerId,
-        card_id: CardId,
-        card_name: String,
-        set_code: String,
-        identity_hidden: bool,
-    },
-    GameStarted,
-    CardMoved {
-        player: PlayerId,
-        origin: forge_foundation::ZoneType,
-        destination: forge_foundation::ZoneType,
-    },
-    CardTapped {
-        card_id: CardId,
-        tapped: bool,
-    },
-    CardDestroyed {
-        card_id: CardId,
-    },
-    LibraryShuffled {
-        player: PlayerId,
-    },
-    PlayerLifeChanged {
-        player: PlayerId,
-        old_life: i32,
-        new_life: i32,
-    },
+    CardPlayed,
     TurnChanged {
         active_player: PlayerId,
         turn_number: u32,

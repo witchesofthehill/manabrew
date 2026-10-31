@@ -1065,7 +1065,6 @@ class WebServerApi implements IServerApi {
       this.onDirectTransportPreference();
     });
 
-    // Relay engine messages (state/display/prompt) to remote players via WebSocket.
     eventBus.on<RelayMessage>("game:relay_message", ({ forPlayer, msg }) => {
       if (msg.kind === "state") {
         const state = msg.state as StateUpdate;

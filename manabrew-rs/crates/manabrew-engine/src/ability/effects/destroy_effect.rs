@@ -44,16 +44,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
             // unless `NoRegen$ True` suppresses the replacement.
             if has_regen_shield && !no_regen {
                 ctx.game.card_mut(target_card).regeneration_shields -= 1;
-                let was_tapped = ctx.game.card(target_card).tapped;
                 ctx.game.card_mut(target_card).tapped = true;
-                if !was_tapped {
-                    ctx.game.queue_notification(
-                        crate::agent::notification::GameNotification::CardTapped {
-                            card_id: target_card,
-                            tapped: true,
-                        },
-                    );
-                }
                 if always_remember {
                     if let Some(sid) = sa.source {
                         ctx.game.card_mut(sid).add_remembered_card(target_card);

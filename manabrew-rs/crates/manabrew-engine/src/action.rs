@@ -397,13 +397,6 @@ impl GameState {
             }
             apply_continuous_effects(self);
             debug_assert!(self.card_zone_location_matches_card(card_id));
-            if src_zone != dest_zone {
-                self.queue_notification(crate::agent::notification::GameNotification::CardMoved {
-                    player: src_owner,
-                    origin: src_zone,
-                    destination: dest_zone,
-                });
-            }
             return;
         }
 
@@ -744,13 +737,6 @@ impl GameState {
 
         apply_continuous_effects(self);
         debug_assert!(self.card_zone_location_matches_card(card_id));
-        if src_zone != dest_zone {
-            self.queue_notification(crate::agent::notification::GameNotification::CardMoved {
-                player: src_owner,
-                origin: src_zone,
-                destination: dest_zone,
-            });
-        }
     }
 
     /// Deal damage to a card (creature).
@@ -1288,11 +1274,6 @@ impl GameState {
                         let umbra_owner = self.cards[umbra_id.index()].owner;
                         let old_zone = self.cards[umbra_id.index()].zone;
                         self.move_card(umbra_id, ZoneType::Graveyard, umbra_owner);
-                        self.queue_notification(
-                            crate::agent::notification::GameNotification::CardDestroyed {
-                                card_id: umbra_id,
-                            },
-                        );
                         if let Some(handler) = trigger_handler.as_deref_mut() {
                             crate::ability::effects::emit_zone_trigger(
                                 handler,
@@ -1321,11 +1302,6 @@ impl GameState {
                 let mut destroy_event = ReplacementEvent::Destroy { target: cid };
                 let result = apply_replacements(self, &mut destroy_event);
                 if result != ReplacementResult::Replaced {
-                    self.queue_notification(
-                        crate::agent::notification::GameNotification::CardDestroyed {
-                            card_id: cid,
-                        },
-                    );
                     self.move_battlefield_card_to_graveyard_for_sba(
                         cid,
                         &mut trigger_handler,
@@ -1665,10 +1641,6 @@ impl GameState {
             return false; // Tap was prevented
         }
         self.cards[card_id.index()].tapped = true;
-        self.queue_notification(crate::agent::notification::GameNotification::CardTapped {
-            card_id,
-            tapped: true,
-        });
         true
     }
 
@@ -1706,10 +1678,6 @@ impl GameState {
         self.cards[card_id.index()].tapped = false;
         // `ControlGain$ LoseControl$ Untap` — revert scheduled steal now.
         crate::ability::effects::control_gain_effect::untap_hook(self, card_id);
-        self.queue_notification(crate::agent::notification::GameNotification::CardTapped {
-            card_id,
-            tapped: false,
-        });
         true
     }
 

@@ -405,18 +405,7 @@ impl GameState {
         if amount <= 0 {
             return 0;
         }
-        let old_life = self.player(player).life;
         self.player_mut(player).gain_life(amount);
-        let new_life = self.player(player).life;
-        if new_life != old_life {
-            self.queue_notification(
-                crate::agent::notification::GameNotification::PlayerLifeChanged {
-                    player,
-                    old_life,
-                    new_life,
-                },
-            );
-        }
         amount
     }
 
@@ -428,18 +417,7 @@ impl GameState {
         if amount <= 0 {
             return 0;
         }
-        let old_life = self.player(player).life;
         self.player_mut(player).lose_life(amount);
-        let new_life = self.player(player).life;
-        if new_life != old_life {
-            self.queue_notification(
-                crate::agent::notification::GameNotification::PlayerLifeChanged {
-                    player,
-                    old_life,
-                    new_life,
-                },
-            );
-        }
         amount
     }
 
@@ -469,18 +447,7 @@ impl GameState {
         if final_amount <= 0 {
             return 0;
         }
-        let old_life = self.player(player).life;
         self.player_mut(player).deal_damage(final_amount);
-        let new_life = self.player(player).life;
-        if new_life != old_life {
-            self.queue_notification(
-                crate::agent::notification::GameNotification::PlayerLifeChanged {
-                    player,
-                    old_life,
-                    new_life,
-                },
-            );
-        }
         final_amount
     }
 
@@ -501,19 +468,7 @@ impl GameState {
     }
 
     pub fn player_set_life(&mut self, player: PlayerId, amount: i32) -> i32 {
-        let old_life = self.player(player).life;
-        let difference = self.player_mut(player).set_life(amount);
-        let new_life = self.player(player).life;
-        if new_life != old_life {
-            self.queue_notification(
-                crate::agent::notification::GameNotification::PlayerLifeChanged {
-                    player,
-                    old_life,
-                    new_life,
-                },
-            );
-        }
-        difference
+        self.player_mut(player).set_life(amount)
     }
 
     pub fn player_exchange_life_totals(&mut self, a: PlayerId, b: PlayerId) {

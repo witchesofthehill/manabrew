@@ -1435,7 +1435,7 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                 self.responder
                     .send_log(GameLogEntryDto::from_event(log_event));
             }
-            GameNotification::CardPlayed { .. } => {
+            GameNotification::CardPlayed => {
                 self.emit_state();
             }
             GameNotification::TurnChanged {
@@ -1559,12 +1559,6 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                     None,
                 );
             }
-            GameNotification::GameStarted
-            | GameNotification::CardMoved { .. }
-            | GameNotification::CardDestroyed { .. }
-            | GameNotification::CardTapped { .. }
-            | GameNotification::LibraryShuffled { .. }
-            | GameNotification::PlayerLifeChanged { .. } => {}
             GameNotification::ManaPaymentResolved { .. } => {}
             GameNotification::ActivatedAbilityPaymentFailed { .. } => {
                 self.emit_state();

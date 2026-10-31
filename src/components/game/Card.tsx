@@ -252,7 +252,7 @@ function CardComponent({
           )}
         </>
       ) : faceless ? (
-        <div className="absolute inset-0 flex items-center justify-center bg-card text-xs">
+        <div className="absolute inset-0 flex items-center justify-center bg-card text-ui-meta">
           {displayName}
         </div>
       ) : (

@@ -49,6 +49,7 @@ import { PROTOCOL_VERSION } from "@/protocol";
 import type {
   ClientToServerMessage,
   DirectiveInput,
+  EngineDirective,
   Prompt,
   PromptOutput,
   StateUpdate,
@@ -212,6 +213,7 @@ type EngineMessage = {
   kind?: string;
   state?: unknown;
   prompt?: unknown;
+  directive?: unknown;
   error?: unknown;
 };
 
@@ -273,7 +275,6 @@ class WorkerBridge {
     this.eventBus = eventBus;
 
     eventBus.on<{ buffer: SharedArrayBuffer }>("game:sab", (payload) => {
-      this.directiveLanes = null;
       const seat = createSeat(payload.buffer);
       if (this.localSeat) this.dropSeat(this.localSeat);
       this.localSeat = seat;
@@ -325,6 +326,7 @@ class WorkerBridge {
     eventBus.on<{ buffers: SharedArrayBuffer[]; hostBuffer: SharedArrayBuffer; localSeat: number }>(
       "game:directive_lanes",
       (payload) => {
+        this.dropDirectiveLanes();
         this.directiveLanes = {
           lanes: payload.buffers.map(createDirectiveLane),
           host: createDirectiveLane(payload.hostBuffer),
@@ -345,10 +347,29 @@ class WorkerBridge {
       }
     });
 
+    eventBus.on<{ seat: number; directive: unknown }>(
+      "game:seat_directive",
+      ({ seat, directive }) => {
+        if (!this.directiveLanes) return;
+        if (seat === this.directiveLanes.localSeat) {
+          this.applyEngineMessage({ kind: "engineDirective", directive });
+        } else {
+          this.eventBus.emit("game:relay_message", {
+            forPlayer: `player-${seat}`,
+            msg: { kind: "engineDirective", directive },
+          });
+        }
+      },
+    );
+
     // The engine has nothing more to say once the game is over, so the bots
     // parked on their seats can go.
-    eventBus.on("game:over", () => this.stopLocalBots());
-    eventBus.on("game:forced_end", () => this.stopLocalBots());
+    for (const event of ["game:over", "game:forced_end"]) {
+      eventBus.on(event, () => {
+        this.stopLocalBots();
+        this.dropDirectiveLanes();
+      });
+    }
 
     // Eager so a response can't arrive before the listener exists; it
     // no-ops while remoteSeats is empty.
@@ -382,6 +403,9 @@ class WorkerBridge {
     switch (msg?.kind) {
       case "state":
         this.eventBus.emit("game:state", msg.state);
+        break;
+      case "engineDirective":
+        this.eventBus.emit("game:directive", msg.directive);
         break;
       case "error":
         this.eventBus.emit("game:error", msg.error);
@@ -419,6 +443,15 @@ class WorkerBridge {
     seat.cancelled = true;
     this.seatReaders.get(seat)?.terminate();
     this.seatReaders.delete(seat);
+  }
+
+  private dropDirectiveLanes(): void {
+    if (!this.directiveLanes) return;
+    for (const lane of [...this.directiveLanes.lanes, this.directiveLanes.host]) {
+      lane.cancelled = true;
+      lane.queue.length = 0;
+    }
+    this.directiveLanes = null;
   }
 
   private stopLocalBots(): void {
@@ -463,6 +496,7 @@ class WorkerBridge {
       const action = payload.state.action as PromptOutput | undefined;
       if (!action) return;
       const promptId = Number(payload.state.promptId ?? 0);
+      if (!Number.isSafeInteger(promptId) || promptId <= 0) return;
       writeSeatMessage(seat, { kind: "response", promptId, action });
     });
   }
@@ -742,6 +776,7 @@ class WorkerBridge {
     }
     if (this.localSeat) this.dropSeat(this.localSeat);
     this.localSeat = null;
+    this.dropDirectiveLanes();
     for (const seat of this.remoteSeats.values()) this.dropSeat(seat);
     this.remoteSeats.clear();
     this.remotePlayerSlots.clear();
@@ -749,7 +784,10 @@ class WorkerBridge {
     // Response listener stays installed — terminate() is per-game, and a
     // second game on this (singleton) bridge still needs it.
     for (const [requestId, pending] of this.pendingRequests) {
-      if (pending.worker !== this.fallbackWorker) this.pendingRequests.delete(requestId);
+      if (pending.worker !== this.fallbackWorker) {
+        pending.reject(new Error("Game worker terminated."));
+        this.pendingRequests.delete(requestId);
+      }
     }
     this.initPromise = null;
     setForgeWasmActive(false);
@@ -788,7 +826,8 @@ class WebGameApi implements IGameApi {
       opponentDecks: params.opponentDecks,
       engine: params.engine,
       forgeAi: params.aiController === "forge",
-      snapshotRecording: usePreferencesStore.getState().snapshotRecording,
+      decisionJournal: params.engine === "Forge" && params.aiController !== "forge",
+      journalRewind: params.engine === "Forge" && params.aiController !== "forge",
     });
   }
 
@@ -826,7 +865,8 @@ class WebGameApi implements IGameApi {
         enginePlayerIndex: params.enginePlayerIndex,
         botSeats,
         forgeAiSeats: forgeAi ? botSeats : [],
-        snapshotRecording: usePreferencesStore.getState().snapshotRecording,
+        decisionJournal: params.engine === "Forge" && (!forgeAi || botSeats.length === 0),
+        journalRewind: params.engine === "Forge" && (!forgeAi || botSeats.length === 0),
         startingLife: params.startingLife,
         engine: params.engine,
       });
@@ -1002,6 +1042,7 @@ class WebServerApi implements IServerApi {
   private relayStateSequence = 0;
   private deltaBases = new Map<string, { state: StateUpdate; fingerprint: string }>();
   private pendingRelayPrompts = new Map<string, Record<string, unknown>>();
+  private pendingRelayDirectives = new Map<string, Record<string, unknown>>();
   private enginePlayerNames: string[] = [];
   private webrtc: WebRtcPlane | null = null;
   private peerSignalling = false;
@@ -1049,6 +1090,12 @@ class WebServerApi implements IServerApi {
       } else if (msg.kind === "prompt") {
         const envelope = { kind: "prompt", forPlayer, prompt: msg.prompt };
         this.pendingRelayPrompts.set(forPlayer, envelope);
+        const targetPlayer = this.enginePlayerName(forPlayer);
+        if (targetPlayer) void this.broadcastState(envelope, targetPlayer);
+      } else if (msg.kind === "engineDirective") {
+        const directive = msg.directive as EngineDirective;
+        const envelope = { kind: "engineDirective", forPlayer, directive };
+        this.pendingRelayDirectives.set(`${forPlayer}:${directive.type}`, envelope);
         const targetPlayer = this.enginePlayerName(forPlayer);
         if (targetPlayer) void this.broadcastState(envelope, targetPlayer);
       } else if (msg.kind === "error") {
@@ -1930,6 +1977,9 @@ class WebServerApi implements IServerApi {
         case "prompt":
           this.eventBus.emit("game:remote_prompt", envelope);
           return;
+        case "engineDirective":
+          this.eventBus.emit("game:remote_directive", envelope);
+          return;
         case "error":
           this.eventBus.emit("game:remote_error", envelope);
           return;
@@ -1984,6 +2034,7 @@ class WebServerApi implements IServerApi {
     if (type === "GameStarted") {
       this.lastRelayStates.clear();
       this.pendingRelayPrompts.clear();
+      this.pendingRelayDirectives.clear();
       this.deltaBases.clear();
     }
 
@@ -1999,6 +2050,10 @@ class WebServerApi implements IServerApi {
       }
       for (const [playerSlot, envelope] of this.pendingRelayPrompts) {
         const targetPlayer = this.enginePlayerName(playerSlot);
+        if (targetPlayer) void this.broadcastState(envelope, targetPlayer);
+      }
+      for (const envelope of this.pendingRelayDirectives.values()) {
+        const targetPlayer = this.enginePlayerName(envelope.forPlayer as string);
         if (targetPlayer) void this.broadcastState(envelope, targetPlayer);
       }
       this.eventBus.emit("server:room_update", { room: msg.room });

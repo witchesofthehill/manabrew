@@ -1,4 +1,10 @@
-import { UI_FONT_FAMILY as FONT } from "@/themes/typography";
+import {
+  getUiControlFloor,
+  getUiControlHeight,
+  getUiFontFloor,
+  isTouchUi,
+  UI_FONT_FAMILY as FONT,
+} from "@/themes/typography";
 import { Container, Graphics, Rectangle, Sprite, Text, TextStyle, type Texture } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
 import { colorAlpha, hexToNum } from "@/pixi/colorUtils";
@@ -98,13 +104,22 @@ export class PromptButton extends Container {
       text: labelPlacement === "stacked" ? options.label.toUpperCase() : options.label,
       style: new TextStyle({
         fontFamily: FONT,
-        fontSize:
+        fontSize: Math.max(
           options.fontSize ?? (labelPlacement === "stacked" ? 8 : options.compact ? 10 : 12),
+          getUiFontFloor("label"),
+        ),
         fontWeight: options.fontWeight ?? "700",
         letterSpacing:
           options.letterSpacing ??
           (labelPlacement === "stacked" ? 0.4 : options.compact ? 0.7 : 0.3),
-        lineHeight: labelPlacement === "stacked" ? 8 : undefined,
+        wordWrap: options.width != null,
+        breakWords: true,
+        wordWrapWidth: Math.max(
+          1,
+          (options.width ?? 0) -
+            (options.paddingX ?? 12) * 2 -
+            (labelPlacement === "inline" && this.iconSprite ? (options.iconSize ?? 14) + 6 : 0),
+        ),
         fill: hexToNum(theme.gameTheme.textOnTinted),
         align: "center",
       }),
@@ -115,6 +130,12 @@ export class PromptButton extends Container {
     this.visual.addChild(this.labelText);
     this.shortcutContainer = options.shortcut ? this.makeShortcut(options.shortcut) : null;
     if (this.shortcutContainer) this.visual.addChild(this.shortcutContainer);
+    if (options.width != null && this.shortcutContainer && labelPlacement === "inline") {
+      this.labelText.style.wordWrapWidth = Math.max(
+        1,
+        this.labelText.style.wordWrapWidth - this.shortcutContainer.width - 6,
+      );
+    }
     this.badgeContainer = options.badge ? this.makeBadge(options.badge) : null;
     if (this.badgeContainer) this.addChild(this.badgeContainer);
     this.tooltipContainer =
@@ -177,13 +198,18 @@ export class PromptButton extends Container {
   }
 
   get buttonWidth(): number {
-    if (this.options.width != null) return this.options.width;
+    if (this.options.width != null) return Math.max(getUiControlFloor(), this.options.width);
     const iconWidth = this.iconSprite ? (this.options.iconSize ?? 14) : 0;
     const placement = this.options.labelPlacement ?? "inline";
     const paddingX = this.options.paddingX ?? (placement === "stacked" ? 6 : 12);
-    if (placement === "hidden") return Math.max(36, iconWidth + paddingX * 2);
+    if (placement === "hidden") return Math.max(getUiControlFloor(), 36, iconWidth + paddingX * 2);
     if (placement === "stacked") {
-      return Math.max(40, iconWidth + paddingX * 2, this.labelText.width + paddingX * 2);
+      return Math.max(
+        getUiControlFloor(),
+        40,
+        iconWidth + paddingX * 2,
+        this.labelText.width + paddingX * 2,
+      );
     }
     const shortcutWidth = this.shortcutContainer?.getLocalBounds().width ?? 0;
     const contentWidths = [
@@ -200,11 +226,18 @@ export class PromptButton extends Container {
   }
 
   get buttonHeight(): number {
-    if (this.options.height != null) return this.options.height;
     const placement = this.options.labelPlacement ?? "inline";
-    if (placement === "stacked") return 40;
-    if (placement === "hidden") return 36;
-    return this.options.compact ? 38 : 36;
+    const authoredHeight =
+      this.options.height ??
+      (placement === "stacked" ? 40 : placement === "hidden" ? 36 : this.options.compact ? 38 : 36);
+    if (!isTouchUi()) return authoredHeight;
+    const iconHeight = this.iconSprite ? (this.options.iconSize ?? 14) : 0;
+    const labelHeight = placement === "hidden" ? 0 : this.labelText.height;
+    const contentHeight =
+      placement === "stacked"
+        ? iconHeight + (iconHeight > 0 && labelHeight > 0 ? 4 : 0) + labelHeight
+        : Math.max(iconHeight, labelHeight, this.shortcutContainer?.height ?? 0);
+    return Math.max(getUiControlHeight(), authoredHeight, contentHeight + 12);
   }
 
   setDisabled(disabled: boolean): void {
@@ -326,8 +359,13 @@ export class PromptButton extends Container {
       .fill({ color: foreground, alpha: 0.22 });
     const iconSize = this.options.iconSize ?? 14;
     if (placement === "stacked") {
-      if (this.iconSprite) this.iconSprite.position.set(width / 2, 15);
-      this.labelText.position.set(width / 2, 28);
+      const contentHeight = (this.iconSprite ? iconSize + 4 : 0) + this.labelText.height;
+      const top = (height - contentHeight) / 2;
+      if (this.iconSprite) this.iconSprite.position.set(width / 2, top + iconSize / 2);
+      this.labelText.position.set(
+        width / 2,
+        top + (this.iconSprite ? iconSize + 4 : 0) + this.labelText.height / 2,
+      );
     } else if (placement === "hidden") {
       if (this.iconSprite) this.iconSprite.position.set(width / 2, height / 2);
     } else {
@@ -366,7 +404,7 @@ export class PromptButton extends Container {
       this.badgeContainer.position.set(width + 6 - badgeWidth / 2, 2);
     }
     if (this.tooltipContainer) {
-      this.tooltipContainer.position.set(width / 2, -18);
+      this.tooltipContainer.position.set(width / 2, -this.tooltipContainer.height / 2 - 8);
       this.tooltipContainer.visible = this.hovered || this.focused;
     }
   }
@@ -377,7 +415,7 @@ export class PromptButton extends Container {
       text: value,
       style: new TextStyle({
         fontFamily: FONT,
-        fontSize: 10,
+        fontSize: Math.max(10, getUiFontFloor("meta")),
         fontWeight: "700",
         fill: hexToNum(this.theme.appTheme["muted-foreground"]),
       }),
@@ -385,7 +423,7 @@ export class PromptButton extends Container {
     label.anchor.set(0.5);
     label.alpha = 0.85;
     const width = Math.max(20, label.width + 12);
-    const height = 18;
+    const height = Math.max(18, label.height + 4);
     const background = new Graphics()
       .roundRect(-width / 2, -height / 2, width, height, 4)
       .fill({ color: hexToNum(this.theme.appTheme.muted), alpha: 0.95 })
@@ -403,16 +441,17 @@ export class PromptButton extends Container {
       text: value,
       style: new TextStyle({
         fontFamily: FONT,
-        fontSize: 9,
+        fontSize: Math.max(9, getUiFontFloor("meta")),
         fontWeight: "700",
         fill: hexToNum(this.theme.gameTheme.textOnTinted),
       }),
     });
     label.anchor.set(0.5);
     const width = Math.max(16, label.width + 8);
+    const height = Math.max(16, label.height + 4);
     badge.addChild(
       new Graphics()
-        .roundRect(-width / 2, -8, width, 16, 8)
+        .roundRect(-width / 2, -height / 2, width, height, height / 2)
         .fill({ color: hexToNum(this.theme.gameTheme.canvas.shadow), alpha: 0.8 }),
       label,
     );
@@ -426,16 +465,17 @@ export class PromptButton extends Container {
       text: value,
       style: new TextStyle({
         fontFamily: FONT,
-        fontSize: 10,
+        fontSize: Math.max(10, getUiFontFloor("label")),
         fontWeight: "600",
         fill: hexToNum(this.theme.appTheme["popover-foreground"]),
       }),
     });
     label.anchor.set(0.5);
     const width = label.width + 16;
+    const height = Math.max(20, label.height + 8);
     tooltip.addChild(
       new Graphics()
-        .roundRect(-width / 2, -10, width, 20, 4)
+        .roundRect(-width / 2, -height / 2, width, height, 4)
         .fill({ color: hexToNum(this.theme.appTheme.popover), alpha: 0.95 }),
       label,
     );

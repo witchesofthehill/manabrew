@@ -26,7 +26,7 @@ export function LimitedCubeSource({
     <fieldset disabled={busy} className="min-w-0 space-y-4">
       <legend className="sr-only">Cube or saved pool</legend>
       <div className="space-y-2">
-        <label htmlFor={`${id}-cube`} className="block text-sm font-medium text-foreground">
+        <label htmlFor={`${id}-cube`} className="block text-ui-label font-medium text-foreground">
           CubeCobra URL or cube ID
         </label>
         <div className="flex flex-col gap-2 sm:flex-row">
@@ -49,7 +49,7 @@ export function LimitedCubeSource({
         </div>
       </div>
       <div className="space-y-2">
-        <label htmlFor={`${id}-file`} className="block text-sm font-medium text-foreground">
+        <label htmlFor={`${id}-file`} className="block text-ui-label font-medium text-foreground">
           Load pool · .json / .draft
         </label>
         <Input
@@ -66,11 +66,11 @@ export function LimitedCubeSource({
       </div>
       {cube && (
         <div role="status" className="space-y-2 rounded-md border border-border bg-muted/30 p-3">
-          <h3 className="break-words text-sm font-semibold text-foreground">{cube.name}</h3>
-          <p className="text-sm text-muted-foreground">
+          <h3 className="break-words text-ui-label font-semibold text-foreground">{cube.name}</h3>
+          <p className="text-ui-meta text-muted-foreground">
             {cube.cardCount} cards · {cube.singleton ? "Singleton" : "Non-singleton"}
           </p>
-          <p className="text-xs leading-relaxed text-muted-foreground">
+          <p className="text-ui-meta leading-relaxed text-muted-foreground">
             {cube.playableCardCount} locally recognized · {cube.rejectedCardCount} name-only
           </p>
         </div>

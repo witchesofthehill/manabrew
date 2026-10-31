@@ -1,6 +1,8 @@
 # @manabrew/forge-wasm
 
-Forge compiled to WebAssembly with GraalVM Web Image. The package runs Forge on a worker and exposes its state and prompt messages on the main thread.
+> **Parity is DEPRECATED and NOT FUNCTIONING.** Do not run `yarn parity`, the parity harness (`manabrew-rs/crates/parity`), the parity debugger, or `DeterministicController`. Do not limit or shape a change to keep parity behavior; ignore any instruction here that exists only to keep parity runs passing.
+
+Forge compiled to WebAssembly with GraalVM Web Image. The package runs Forge on a worker and exposes its state, prompt and directive messages on the main thread.
 
 It runs in a browser and on Node. The entry point differs, the API does not. It includes the Forge launcher and the WebAssembly engine, with Forge's whole asset tree — every card script, token script and edition — embedded inside the engine module at build time. Boot unpacks it into the engine's in-memory filesystem with no JavaScript boundary crossing, and the lazy card index Forge builds from it is complete, so any card can come up in a game.
 
@@ -93,9 +95,15 @@ Call `dispose()` to terminate the worker. A running Forge game is synchronous in
 
 `directive()` sends an out-of-band instruction such as a concession or a restore request. Each seat has its own directive lane, apart from its prompt buffer, and the engine reads every lane while it waits on any prompt, so a directive lands at once, even while another seat is deciding.
 
+## Decision journal
+
+`decisionJournal: true` emits `forge:journal` v2 batches through `onEvent`. Batches contain the start request, consumed inputs and verification witnesses, including hidden information; only trusted hosts may receive them. Overflow or legacy snapshot restoration sets `unavailableReason`.
+
+`journalRewind: true` keeps the journal private and exposes redacted history through `gameView.checkpoints`. Restore votes select a position; a fresh engine replays and verifies it before replacing the source. This requires external decision makers. The 64 MiB / 50,000-entry cap stops recording but preserves retained rewind positions.
+
 ## Types
 
-Messages are typed by [`@manabrew/protocol`](https://www.npmjs.com/package/@manabrew/protocol), which the package depends on: `onState` hands you a `StateUpdate`, `onPrompt` a `Prompt`, and `respond` takes a `PromptOutput`. The range tracks the protocol's major version, which is the wire compatibility boundary.
+Messages are typed by [`@manabrew/protocol`](https://www.npmjs.com/package/@manabrew/protocol), which the package depends on: `onState` hands you a `StateUpdate`, `onPrompt` a `Prompt`, `onDirective` an `EngineDirective`, and `respond` takes a `PromptOutput`. The range starts at the protocol version the package was built against and tracks its major version, which is the wire compatibility boundary.
 
 `ForgeDeck` is looser than the protocol's `Deck`, so a deck can be built from card names alone. A `Deck` satisfies it, so one fetched from a relay can be passed straight to `startGame`.
 

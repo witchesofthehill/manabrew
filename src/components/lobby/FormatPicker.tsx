@@ -10,7 +10,7 @@ export function FormatPicker({ formats = GAME_FORMATS, onSelect }: FormatPickerP
       <div className="flex w-full flex-col">
         <header className="mb-10 text-center">
           <h2 className="font-serif text-4xl font-semibold tracking-tight">Choose a format</h2>
-          <p className="mt-3 text-sm text-muted-foreground">
+          <p className="mt-3 text-ui-body text-muted-foreground">
             Decide the rules of engagement before picking decks.
           </p>
           <div
@@ -19,7 +19,7 @@ export function FormatPicker({ formats = GAME_FORMATS, onSelect }: FormatPickerP
           />
         </header>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,16rem),1fr))] gap-3">
           {formats.map((format) => (
             <FormatTile key={format.id} format={format} onClick={() => onSelect(format.id)} />
           ))}
@@ -33,13 +33,13 @@ function FormatTile({ format, onClick }: { format: GameFormat; onClick: () => vo
     <button
       type="button"
       onClick={onClick}
-      className="flex flex-col gap-2 rounded-lg border border-border/60 bg-card/60 p-4 text-left transition-colors duration-75 hover:border-primary/60 hover:bg-card/80"
+      className="flex flex-col gap-2 rounded-lg border border-border/60 bg-card/60 p-4 text-left transition-colors duration-75 hover:border-primary/60 hover:bg-card/80 touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal"
     >
       <div className="flex items-start justify-between gap-2">
-        <h3 className="text-base font-semibold leading-tight">{format.name}</h3>
+        <h3 className="text-ui-body font-semibold leading-tight">{format.name}</h3>
         <FormatBadge formatId={format.id} />
       </div>
-      <p className="text-xs leading-snug text-muted-foreground">{format.description}</p>
+      <p className="text-ui-body leading-snug text-muted-foreground">{format.description}</p>
     </button>
   );
 }

@@ -498,7 +498,10 @@ export function BoardPlayground({
         )}
       >
         <summary
-          className={cn("cursor-pointer px-3 py-2 text-xs font-medium", !themeEditor && "hidden")}
+          className={cn(
+            "min-h-8 touch:min-h-11 cursor-pointer px-3 py-2 text-ui-label font-medium",
+            !themeEditor && "hidden",
+          )}
         >
           Table and card controls
         </summary>
@@ -520,12 +523,12 @@ export function BoardPlayground({
           />
           <div className="space-y-2 rounded-lg bg-muted p-3">
             <div className="flex flex-wrap items-center gap-2">
-              <label className="text-sm font-medium" htmlFor="preview-scenario">
+              <label className="text-ui-label font-medium" htmlFor="preview-scenario">
                 Preview scenario
               </label>
               <AppSelect
                 id="preview-scenario"
-                className="h-9 max-w-full rounded-md border border-input bg-background px-2 text-sm"
+                className="max-w-full rounded-md border border-input bg-background px-2"
                 value={scenarioIndex}
                 onValueChange={(value) => void openPreviewScenario(Number(value))}
               >
@@ -588,11 +591,11 @@ export function BoardPlayground({
               >
                 Open card
               </Button>
-              <label className="flex items-center gap-2 text-sm">
+              <label className="flex flex-wrap items-center gap-2 text-ui-label">
                 Test actions
                 <AppSelect
                   aria-label="Test action count"
-                  className="h-9 rounded-md border border-input bg-background px-2"
+                  className="rounded-md border border-input bg-background px-2"
                   value={actionCount}
                   onValueChange={(value) => setActionCount(Number(value))}
                 >
@@ -603,11 +606,11 @@ export function BoardPlayground({
                   ))}
                 </AppSelect>
               </label>
-              <label className="flex items-center gap-2 text-sm">
+              <label className="flex flex-wrap items-center gap-2 text-ui-label">
                 Viewport
                 <AppSelect
                   aria-label="Preview viewport"
-                  className="h-9 rounded-md border border-input bg-background px-2"
+                  className="rounded-md border border-input bg-background px-2"
                   value={viewportIndex}
                   onValueChange={(value) => setViewportIndex(Number(value))}
                 >
@@ -619,18 +622,18 @@ export function BoardPlayground({
                 </AppSelect>
               </label>
             </form>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-ui-body text-muted-foreground">
               Each scenario opens a real Scryfall card on the living table. Flip changes the
               displayed face; rotate switches portrait and landscape without rotating rules text.
               Test actions stay local to the playground.
             </p>
             {scenarioError && (
-              <p role="alert" className="text-sm text-destructive">
+              <p role="alert" className="text-ui-meta text-destructive">
                 {scenarioError}
               </p>
             )}
             {lastAction && (
-              <p role="status" className="text-xs text-muted-foreground">
+              <p role="status" className="text-ui-meta text-muted-foreground">
                 {lastAction}
               </p>
             )}
@@ -760,7 +763,7 @@ export function BoardPlayground({
               Open selected preview
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground" aria-live="polite">
+          <p className="text-ui-meta text-muted-foreground" aria-live="polite">
             {target
               ? `Selected: ${target.identity.name} · ${table.players.find((player) => player.id === target.controllerId)?.name} · ${target.zoneId}. `
               : "Select a card to use the controls. "}

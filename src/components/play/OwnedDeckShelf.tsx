@@ -29,7 +29,7 @@ export function OwnedDeckShelf({
       <div className="flex min-h-36 flex-col items-center justify-center rounded-xl border border-dashed border-border/80 bg-muted/30 px-6 py-8 text-center">
         <LibraryBig className="mb-3 h-7 w-7 text-secondary" />
         <p className="font-medium">Your first deck is waiting to be brewed.</p>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <p className="mt-1 text-ui-body text-muted-foreground">
           Build from scratch, import a decklist, or start with a preset below.
         </p>
         <Button size="sm" variant="primary" className="mt-4" onClick={onAddDeck}>
@@ -46,7 +46,7 @@ export function OwnedDeckShelf({
         return (
           <div key={deck.id} className={cn(DECK_SHELF_CARD_CLASS, "relative")}>
             {deck.id === lastPlayedDeckId && (
-              <span className="absolute right-1.5 top-1.5 z-20 rounded bg-background/90 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary shadow-sm backdrop-blur-sm">
+              <span className="absolute right-1.5 top-1.5 z-20 rounded bg-background/90 px-1.5 py-0.5 text-ui-meta font-semibold uppercase tracking-wide text-primary shadow-sm backdrop-blur-sm">
                 Last played
               </span>
             )}

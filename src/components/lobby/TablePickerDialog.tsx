@@ -53,7 +53,7 @@ export function TablePickerDialog({
         if (!next) onCancel();
       }}
     >
-      <DialogContent className="sm:max-w-3xl">
+      <DialogContent className="sm:max-w-3xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Choose your table</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
@@ -82,7 +82,7 @@ export function TablePickerDialog({
                   aria-pressed={isSelected}
                   onClick={() => onBackgroundChange(option.id)}
                   className={cn(
-                    "overflow-hidden rounded-md border text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-card-ring",
+                    "overflow-hidden rounded-md border text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-card-ring touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal",
                     isSelected
                       ? "border-card-selection ring-1 ring-card-selection"
                       : "border-text-muted/40 hover:border-card-ring",
@@ -96,7 +96,7 @@ export function TablePickerDialog({
                       loading="lazy"
                     />
                   ) : (
-                    <span className="flex aspect-[16/9] w-full items-center justify-center bg-canvas-background text-[10px] text-text-muted">
+                    <span className="flex aspect-[16/9] w-full items-center justify-center bg-canvas-background text-ui-label text-text-muted">
                       None
                     </span>
                   )}

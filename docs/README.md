@@ -1,5 +1,7 @@
 # ManaBrew Hub data model
 
+> **Parity is DEPRECATED and NOT FUNCTIONING.** Do not run `yarn parity`, the parity harness (`manabrew-rs/crates/parity`), the parity debugger, or `DeterministicController`. Do not limit or shape a change to keep parity behavior; ignore any instruction here that exists only to keep parity runs passing.
+
 This document describes the SQLite data model used by `manabrew-hub` for accounts, account-owned decks, immutable deck versions, Community publications, presets, favorites, and Top Deck rankings.
 
 The executable source of truth is the ordered migration set in [`manabrew-rs/crates/manabrew-hub/migrations`](../manabrew-rs/crates/manabrew-hub/migrations). The SQL below shows the effective schema after all current migrations have run; it is documentation, not a replacement migration.

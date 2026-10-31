@@ -38,7 +38,7 @@ export function SetupMenu({ session, onOpenLog }: SetupMenuProps) {
         <Button
           size="icon"
           variant="outline"
-          className="size-8 sm:size-9"
+          className="size-8 sm:size-9 touch:min-h-11 touch:min-w-11"
           aria-label={`Game setup`}
           title={`Game setup`}
         >
@@ -51,18 +51,18 @@ export function SetupMenu({ session, onOpenLog }: SetupMenuProps) {
           <Button
             size="icon"
             variant="outline"
-            className="size-7"
+            className="size-7 touch:min-h-11 touch:min-w-11"
             onClick={() => setPlayerCount(session.players.length - 1)}
             disabled={session.players.length <= COMPANION_MIN_PLAYERS}
             aria-label={`Fewer players`}
           >
             <Minus className="size-3.5" />
           </Button>
-          <span className="text-sm font-semibold tabular-nums">{session.players.length}</span>
+          <span className="text-ui-label font-semibold tabular-nums">{session.players.length}</span>
           <Button
             size="icon"
             variant="outline"
-            className="size-7"
+            className="size-7 touch:min-h-11 touch:min-w-11"
             onClick={() => setPlayerCount(session.players.length + 1)}
             disabled={session.players.length >= COMPANION_MAX_PLAYERS}
             aria-label={`More players`}
@@ -79,7 +79,7 @@ export function SetupMenu({ session, onOpenLog }: SetupMenuProps) {
               key={value}
               onClick={() => setStartingLife(value)}
               className={cn(
-                "rounded-full border px-2.5 py-0.5 text-xs font-medium transition",
+                "rounded-full border px-2.5 py-0.5 text-ui-label font-medium transition touch:min-h-11 touch:min-w-11",
                 value === session.startingLife
                   ? "border-selection-border bg-selection text-selection-foreground"
                   : "border-border bg-background hover:bg-muted",
@@ -98,7 +98,7 @@ export function SetupMenu({ session, onOpenLog }: SetupMenuProps) {
           className={cn(session.commanderRules && "bg-accent")}
         >
           <GameIcon icon="crown" className="mr-2 size-4" /> Commander rules
-          {session.commanderRules && <span className="ml-auto text-xs">on</span>}
+          {session.commanderRules && <span className="ml-auto text-ui-meta">on</span>}
         </DropdownMenuItem>
         <DropdownMenuItem
           onSelect={(e) => {
@@ -108,7 +108,7 @@ export function SetupMenu({ session, onOpenLog }: SetupMenuProps) {
           className={cn(session.phasesEnabled && "bg-accent")}
         >
           <ListOrdered className="mr-2 size-4" /> Phase tracking
-          {session.phasesEnabled && <span className="ml-auto text-xs">on</span>}
+          {session.phasesEnabled && <span className="ml-auto text-ui-meta">on</span>}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuLabel>Timer mode</DropdownMenuLabel>
@@ -141,13 +141,13 @@ export function SetupMenu({ session, onOpenLog }: SetupMenuProps) {
               if (e.key === "Enter") (e.target as HTMLInputElement).blur();
             }}
             placeholder={`Untitled game`}
-            className="h-8 text-xs"
+            className="h-auto min-h-8 text-ui-input touch:min-h-11"
           />
         </div>
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={onOpenLog}>
           <ListOrdered className="mr-2 size-4" /> Game log
-          <span className="ml-auto tabular-nums text-xs text-muted-foreground">
+          <span className="ml-auto tabular-nums text-ui-meta text-muted-foreground">
             {session.history.length}
           </span>
         </DropdownMenuItem>

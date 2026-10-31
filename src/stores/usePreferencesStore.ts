@@ -121,9 +121,6 @@ export interface PreferencesState {
   preloadCardImages: boolean;
   setPreloadCardImages: (value: boolean) => void;
 
-  snapshotRecording: boolean;
-  setSnapshotRecording: (value: boolean) => void;
-
   chooseOrderOnMultipleTriggers: boolean;
   setChooseOrderOnMultipleTriggers: (value: boolean) => void;
 
@@ -214,7 +211,6 @@ const PERSISTED_PREFERENCE_KEYS = [
   "mobileHandedness",
   "hapticFeedback",
   "preloadCardImages",
-  "snapshotRecording",
   "chooseOrderOnMultipleTriggers",
   "ironsmithRuntimeEnabled",
   "directTransport",
@@ -380,8 +376,6 @@ export const usePreferencesStore = create<PreferencesState>()(
           setInGameAnimations: (inGameAnimations) => set({ inGameAnimations }),
           preloadCardImages: true,
           setPreloadCardImages: (preloadCardImages) => set({ preloadCardImages }),
-          snapshotRecording: true,
-          setSnapshotRecording: (snapshotRecording) => set({ snapshotRecording }),
 
           chooseOrderOnMultipleTriggers: true,
           setChooseOrderOnMultipleTriggers: (chooseOrderOnMultipleTriggers) =>

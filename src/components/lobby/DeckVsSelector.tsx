@@ -494,7 +494,7 @@ export function DeckVsSelector({
         placeholder={shortTouch ? "Search decks…" : "Filter decks…"}
         value={deckSearch}
         onChange={(event) => setDeckSearch(event.target.value)}
-        className="h-9 w-full rounded-md border bg-background pl-9 pr-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary pointer-coarse:h-11 pointer-coarse:text-base"
+        className="min-h-9 w-full rounded-md border bg-background pl-9 pr-3 text-ui-input focus:outline-none focus:ring-1 focus:ring-primary touch:min-h-11 touch:min-w-11"
         autoComplete="off"
         autoCorrect="off"
         autoCapitalize="off"
@@ -504,7 +504,7 @@ export function DeckVsSelector({
   );
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex h-full min-h-0 flex-col overflow-y-auto pb-[max(0px,calc(100dvh-var(--visual-viewport-height)-var(--visual-viewport-top)))]">
       {shortTouch ? (
         <div className="flex shrink-0 items-center gap-2 border-b bg-muted/5 px-4 py-1.5">
           {leadingControl}
@@ -512,7 +512,7 @@ export function DeckVsSelector({
             aria-label="Filter decks by format"
             value={selectedFormat ?? ""}
             onValueChange={(value) => changeFormat(value || null)}
-            className="h-11 max-w-44 shrink-0 text-base font-medium"
+            className="min-h-11 max-w-44 shrink-0 text-ui-label font-medium"
           >
             <AppSelectOption value="">All formats</AppSelectOption>
             {GAME_FORMATS.map((format) => (
@@ -539,7 +539,7 @@ export function DeckVsSelector({
                   aria-pressed={selectedFormat === format.id}
                   onClick={() => changeFormat(format.id)}
                   className={cn(
-                    "min-h-9 shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors motion-reduce:transition-none pointer-coarse:min-h-11 pointer-coarse:px-3",
+                    "min-h-9 shrink-0 rounded-full border px-2.5 py-1 text-ui-label font-medium transition-colors motion-reduce:transition-none touch:min-h-11 touch:px-3 touch:min-w-11 whitespace-normal",
                     selectedFormat === format.id
                       ? "border-primary/50 bg-primary/15 text-primary"
                       : "border-border/70 text-muted-foreground hover:border-border hover:text-foreground",
@@ -550,7 +550,7 @@ export function DeckVsSelector({
               ))}
             </div>
             <p
-              className="hidden shrink-0 text-right text-xs font-medium text-muted-foreground lg:block"
+              className="hidden shrink-0 text-right text-ui-meta font-medium text-muted-foreground lg:block"
               aria-live="polite"
             >
               {pickingSide === "player"
@@ -570,20 +570,20 @@ export function DeckVsSelector({
 
       <div
         className={cn(
-          "flex-1 space-y-6 overflow-y-auto px-4 pb-4 sm:px-6 lg:px-8",
+          "min-h-0 flex-1 space-y-6 overflow-y-auto px-4 pb-4 sm:px-6 lg:px-8",
           shortTouch && "space-y-3 pb-2",
         )}
       >
         <div>
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold pt-2 pb-1">
+          <p className="text-ui-meta uppercase tracking-wider text-muted-foreground font-semibold pt-2 pb-1">
             Your Decks
           </p>
           {filteredUserDecks.length === 0 ? (
-            <p className="text-xs text-muted-foreground italic py-2">
-              No decks yet — build one in{" "}
+            <p className="text-ui-meta text-muted-foreground italic py-2">
+              No decks yet — build one in{""}
               <Link
                 to={ROUTES.DECK_EDITOR}
-                className="text-primary underline-offset-2 hover:underline not-italic"
+                className="touch:inline-flex touch:min-h-11 touch:items-center text-primary underline-offset-2 hover:underline not-italic"
               >
                 My Decks
               </Link>
@@ -593,11 +593,7 @@ export function DeckVsSelector({
             <div
               className={cn(
                 "grid gap-3",
-                shortTouch
-                  ? "grid-cols-3"
-                  : denseDecks
-                    ? "grid-cols-2 md:grid-cols-3"
-                    : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5",
+                "grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))]",
               )}
             >
               {filteredUserDecks.map((entry) => {
@@ -642,11 +638,11 @@ export function DeckVsSelector({
             hubDecks.error !== null ||
             hubDeckEntries.length > 0) && (
             <div>
-              <p className="pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <p className="pb-1 text-ui-meta font-semibold uppercase tracking-wider text-muted-foreground">
                 Community
               </p>
               {hubDecks.error ? (
-                <div className="flex flex-wrap items-center gap-2 py-2 text-xs text-destructive">
+                <div className="flex flex-wrap items-center gap-2 py-2 text-ui-meta text-destructive">
                   <span className="min-w-0 break-words">{hubDecks.error}</span>
                   <Button variant="outline" size="sm" onClick={hubDecks.retry}>
                     Retry
@@ -656,11 +652,7 @@ export function DeckVsSelector({
                 <div
                   className={cn(
                     "grid gap-3 pt-1",
-                    shortTouch
-                      ? "grid-cols-3"
-                      : denseDecks
-                        ? "grid-cols-2 md:grid-cols-3"
-                        : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5",
+                    "grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))]",
                   )}
                 >
                   {Array.from({ length: 10 }, (_, index) => (
@@ -674,18 +666,14 @@ export function DeckVsSelector({
                   ))}
                 </div>
               ) : hubDeckEntries.length === 0 ? (
-                <p className="py-2 text-xs italic text-muted-foreground">
+                <p className="py-2 text-ui-meta italic text-muted-foreground">
                   No Community decks match this format and search.
                 </p>
               ) : (
                 <div
                   className={cn(
                     "grid gap-3 pt-1",
-                    shortTouch
-                      ? "grid-cols-3"
-                      : denseDecks
-                        ? "grid-cols-2 md:grid-cols-3"
-                        : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5",
+                    "grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))]",
                   )}
                 >
                   {hubDeckEntries.map((deck) => {
@@ -733,22 +721,18 @@ export function DeckVsSelector({
           )}
 
         <div>
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold pb-1">
+          <p className="text-ui-meta uppercase tracking-wider text-muted-foreground font-semibold pb-1">
             Starter Decks
           </p>
           {filteredDecks.length === 0 ? (
-            <p className="text-xs text-muted-foreground italic py-2">
+            <p className="text-ui-meta text-muted-foreground italic py-2">
               No starter decks for this format.
             </p>
           ) : (
             <div
               className={cn(
                 "grid gap-3 pt-1",
-                shortTouch
-                  ? "grid-cols-3"
-                  : denseDecks
-                    ? "grid-cols-2 md:grid-cols-3"
-                    : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5",
+                "grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))]",
               )}
             >
               {filteredDecks.map((deck) => (
@@ -777,11 +761,11 @@ export function DeckVsSelector({
 
       <div
         className={cn(
-          "grid shrink-0 gap-2 border-t bg-muted/10 px-4 py-2 sm:flex sm:items-center sm:justify-between sm:gap-3 sm:px-6 sm:py-3 lg:px-8",
+          "grid shrink-0 gap-2 border-t bg-muted/10 px-4 py-2 xl:flex xl:items-center xl:justify-between sm:gap-3 sm:px-6 sm:py-3 lg:px-8",
           shortTouch && "sm:px-4 sm:py-1.5",
         )}
       >
-        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5 sm:flex sm:gap-2">
+        <div className="grid min-w-0 grid-cols-1 min-[480px]:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5 sm:flex sm:gap-2">
           <DeckSlot
             label={`YOU`}
             icon={<User className="h-3 w-3" />}
@@ -799,7 +783,9 @@ export function DeckVsSelector({
               setPickingSide("player");
             }}
           />
-          <span className="text-xs font-bold tracking-wider text-muted-foreground/60">VS</span>
+          <span className="text-center text-ui-meta font-bold tracking-wider text-muted-foreground/60">
+            VS
+          </span>
           <DeckSlot
             label={`AI`}
             icon={<Bot className="h-3 w-3" />}
@@ -827,7 +813,7 @@ export function DeckVsSelector({
                     e.stopPropagation();
                     handleRandomOpponent();
                   }}
-                  className="inline-flex w-8 shrink-0 items-center justify-center gap-0.5 rounded-r-md text-[10px] text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground pointer-coarse:w-11"
+                  className="inline-flex w-8 shrink-0 items-center justify-center gap-0.5 rounded-r-md text-ui-label text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground touch:w-11 touch:min-h-11 touch:min-w-11 whitespace-normal"
                   title="Random AI deck"
                 >
                   <Shuffle className="h-3 w-3" />
@@ -836,8 +822,8 @@ export function DeckVsSelector({
             }
           />
         </div>
-        <div className="grid grid-flow-col auto-cols-fr gap-2 sm:flex sm:flex-shrink-0 sm:items-center">
-          <div className="flex h-8 w-full items-center justify-center gap-1.5 rounded-md border border-input bg-background px-3 text-sm pointer-coarse:h-11 sm:w-auto">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-shrink-0 sm:items-center">
+          <div className="flex min-h-8 w-full items-center justify-center gap-1.5 rounded-md border border-input bg-background px-3 text-ui-label touch:min-h-11 sm:w-auto">
             <EngineMark engine="Forge" className="h-3.5 w-3.5" />
             Forge
           </div>
@@ -908,7 +894,7 @@ function DeckSlot({
   return (
     <div
       className={cn(
-        "group inline-flex min-h-8 min-w-0 max-w-[14rem] items-stretch rounded-md border text-xs transition-colors pointer-coarse:min-h-11 sm:min-w-24",
+        "group inline-flex min-h-8 min-w-0 w-full items-stretch rounded-md border text-ui-label transition-colors touch:min-h-11 sm:min-w-24",
         isActive ? "ring-1" : "border-border/40 hover:border-border hover:bg-muted/40",
       )}
       style={{
@@ -921,10 +907,10 @@ function DeckSlot({
       <button
         type="button"
         onClick={onClick}
-        className="inline-flex min-w-0 flex-1 items-center gap-1.5 rounded-l-md px-2 py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex min-w-0 flex-1 flex-wrap items-center gap-1.5 rounded-l-md px-2 py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal"
       >
         <span
-          className="inline-flex shrink-0 items-center gap-0.5 font-bold text-[10px] uppercase tracking-wider"
+          className="inline-flex shrink-0 items-center gap-0.5 font-bold text-ui-label uppercase tracking-wider"
           style={{ color: sideColor }}
         >
           {icon}
@@ -932,21 +918,21 @@ function DeckSlot({
         </span>
         <span
           className={cn(
-            "min-w-0 flex-1 truncate",
+            "min-w-0 flex-1 break-words",
             deck ? "font-medium text-foreground/90" : "italic text-muted-foreground",
           )}
         >
           {deck?.name ?? `pick a deck`}
         </span>
         {isActive ? (
-          <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wide text-primary">
+          <span className="shrink-0 text-ui-meta font-semibold uppercase tracking-wide text-primary">
             Selecting
           </span>
         ) : isConfirmed ? (
           <Check className="h-3 w-3 shrink-0 text-primary" />
         ) : (
           deck && (
-            <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <span className="shrink-0 text-ui-meta font-semibold uppercase tracking-wide text-muted-foreground">
               Suggested
             </span>
           )
@@ -956,7 +942,7 @@ function DeckSlot({
         <button
           type="button"
           onClick={onClear}
-          className="inline-flex w-8 shrink-0 items-center justify-center rounded-r-md text-muted-foreground transition-colors hover:bg-muted/60 hover:text-destructive pointer-coarse:w-11"
+          className="inline-flex w-8 shrink-0 items-center justify-center rounded-r-md text-muted-foreground transition-colors hover:bg-muted/60 hover:text-destructive touch:w-11 touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal"
           title="Clear"
         >
           <X className="h-2.5 w-2.5" />

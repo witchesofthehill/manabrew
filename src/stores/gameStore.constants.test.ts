@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { execFileSync } from "node:child_process";
 
 import { beforeAll, describe, expect, it } from "vitest";
@@ -29,7 +30,6 @@ function makeStoreStub(myPlayerSlot: unknown) {
     gameView: null,
     deferredQueue: [],
     isFlashing: false,
-    gameLog: [],
     currentPrompt: null,
     isWaitingForResponse: false,
     myPlayerSlot,

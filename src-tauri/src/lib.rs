@@ -37,6 +37,10 @@ const RESOURCE_ENV_MAP: &[(&str, &str)] = &[
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[cfg(feature = "forge-room")]
+    if self_hosted_node::engine_backend::java_backend::run_engine_worker() {
+        return;
+    }
     let _ = rustls::crypto::ring::default_provider().install_default();
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())

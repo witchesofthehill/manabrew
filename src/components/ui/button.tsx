@@ -5,7 +5,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-']):not([class*='h-']):not([class*='w-'])]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-ui-label font-medium transition-colors touch:min-h-11 touch:min-w-11 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-']):not([class*='h-']):not([class*='w-'])]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
@@ -24,13 +24,13 @@ const buttonVariants = cva(
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
-        default: "h-9 px-4 py-2 pointer-coarse:h-11",
-        xs: "h-7 rounded-md px-2 text-xs pointer-coarse:h-11",
-        sm: "h-8 rounded-md px-3 text-xs pointer-coarse:h-11",
-        lg: "h-10 rounded-md px-8 pointer-coarse:h-12",
-        "icon-xs": "h-6 w-6 pointer-coarse:h-11 pointer-coarse:w-11",
-        "icon-sm": "h-7 w-7 pointer-coarse:h-11 pointer-coarse:w-11",
-        icon: "h-9 w-9 pointer-coarse:h-11 pointer-coarse:w-11",
+        default: "min-h-9 px-4 py-2",
+        xs: "min-h-7 rounded-md px-2 py-1",
+        sm: "min-h-8 rounded-md px-3 py-1",
+        lg: "min-h-10 rounded-md px-8 py-2 touch:min-h-12",
+        "icon-xs": "h-6 w-6",
+        "icon-sm": "h-7 w-7",
+        icon: "h-9 w-9",
       },
     },
     defaultVariants: {

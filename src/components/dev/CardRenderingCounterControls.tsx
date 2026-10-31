@@ -35,13 +35,13 @@ export function CardRenderingCounterControls({
   };
   return (
     <div className="space-y-3">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-3 xl:grid-cols-2">
         {counterTypes.map((type) => {
           const label = COUNTER_LABELS[type] ?? type;
           const count = card.counters[type] ?? 0;
           return (
-            <div key={type} className="flex items-end gap-1">
-              <div className="min-w-0 flex-1">
+            <div key={type} className="flex flex-wrap items-end gap-1">
+              <div className="min-w-24 flex-1">
                 <CardRenderingTextField
                   label={`${label} counters`}
                   numeric
@@ -54,6 +54,7 @@ export function CardRenderingCounterControls({
               <Button
                 variant="outline"
                 size="sm"
+                className="touch:min-w-11"
                 aria-label={`Remove one ${label} counter`}
                 disabled={count === 0}
                 onClick={() => setCount(type, count - 1)}
@@ -63,6 +64,7 @@ export function CardRenderingCounterControls({
               <Button
                 variant="outline"
                 size="sm"
+                className="touch:min-w-11"
                 aria-label={`Add one ${label} counter`}
                 onClick={() => setCount(type, count + 1)}
               >
@@ -71,6 +73,7 @@ export function CardRenderingCounterControls({
               <Button
                 variant="ghost"
                 size="sm"
+                className="touch:min-w-11"
                 aria-label={`Clear ${label} counters`}
                 disabled={count === 0}
                 onClick={() => setCount(type, 0)}

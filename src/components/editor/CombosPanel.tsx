@@ -40,7 +40,7 @@ function ComboRow({
     <div className="group flex w-full min-w-0 items-center gap-2 rounded-md bg-muted/25 px-2 py-1.5 transition-colors hover:bg-counter-charge/10">
       <button
         type="button"
-        className="flex min-w-0 flex-1 items-center gap-2 text-left"
+        className="flex min-w-0 touch:min-h-11 touch:min-w-11 flex-1 items-center gap-2 text-left"
         onClick={(e) => {
           e.stopPropagation();
           onOpen(combo);
@@ -50,12 +50,14 @@ function ComboRow({
           {icon}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-xs font-medium text-foreground">{title}</span>
-          <span className="block truncate text-[11px] text-muted-foreground">{subtitle}</span>
+          <span className="block break-words text-ui-label font-medium text-foreground">
+            {title}
+          </span>
+          <span className="block break-words text-ui-label text-muted-foreground">{subtitle}</span>
         </span>
       </button>
       <span
-        className="flex shrink-0 items-center gap-0.5 rounded bg-counter-charge/15 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-counter-charge"
+        className="flex shrink-0 items-center gap-0.5 rounded bg-counter-charge/15 px-1.5 py-0.5 text-ui-meta font-semibold tabular-nums text-counter-charge"
         title={`${combo.uses.length}-card combo`}
       >
         <Layers className="h-3 w-3" />
@@ -65,7 +67,7 @@ function ComboRow({
         <button
           type="button"
           title={addLabel}
-          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-counter-charge transition-colors hover:bg-counter-charge/25"
+          className="flex h-6 w-6 touch:min-h-11 touch:min-w-11 shrink-0 items-center justify-center rounded-full text-counter-charge transition-colors hover:bg-counter-charge/25"
           onClick={(e) => {
             e.stopPropagation();
             onAdd();
@@ -120,10 +122,10 @@ export function CombosPanel() {
   return (
     <>
       <section className={EDITOR_PANEL_CLASS}>
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5">
           <Sparkles className="h-4 w-4 text-counter-charge shrink-0" />
-          <h3 className="text-base font-semibold">Combos</h3>
-          <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground/70">
+          <h3 className="text-ui-label font-semibold">Combos</h3>
+          <div className="ml-auto flex items-center gap-2 text-ui-meta text-muted-foreground/70">
             {loading && <Loader2 className="h-3 w-3 animate-spin" />}
             {included.length > 0 && <span>{included.length} in deck</span>}
           </div>
@@ -132,10 +134,10 @@ export function CombosPanel() {
         <div className="mt-5 space-y-5">
           {winCombos.length > 0 && (
             <div className="space-y-2">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-warning/80">
+              <span className="text-ui-label font-semibold uppercase tracking-wider text-warning/80">
                 Win lines
               </span>
-              <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,20rem),1fr))] gap-2">
                 {winCombos.map((combo) => (
                   <ComboRow
                     key={combo.id}
@@ -158,12 +160,14 @@ export function CombosPanel() {
             <div
               className={cn(
                 "grid grid-cols-1 items-start gap-6",
-                otherCombos.length > 0 && suggestions.length > 0 && "md:grid-cols-2",
+                otherCombos.length > 0 &&
+                  suggestions.length > 0 &&
+                  "grid-cols-[repeat(auto-fit,minmax(min(100%,20rem),1fr))]",
               )}
             >
               {otherCombos.length > 0 && (
                 <div className="min-w-0 space-y-2">
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-counter-charge/80">
+                  <span className="text-ui-label font-semibold uppercase tracking-wider text-counter-charge/80">
                     In your deck
                   </span>
                   <div className="space-y-2">
@@ -183,7 +187,7 @@ export function CombosPanel() {
 
               {suggestions.length > 0 && (
                 <div className="min-w-0 space-y-2">
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                  <span className="text-ui-label font-semibold uppercase tracking-wider text-muted-foreground/60">
                     One card away
                   </span>
                   <div className="space-y-2">
@@ -206,10 +210,10 @@ export function CombosPanel() {
           )}
 
           {!loading && included.length === 0 && suggestions.length === 0 && (
-            <p className="text-xs text-muted-foreground italic">No combos detected yet.</p>
+            <p className="text-ui-body text-muted-foreground italic">No combos detected yet.</p>
           )}
 
-          <p className="text-[10px] text-muted-foreground/50">
+          <p className="text-ui-meta text-muted-foreground/50">
             Combo data from Commander Spellbook.
           </p>
         </div>

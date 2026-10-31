@@ -26,7 +26,10 @@ export const CARD_PREVIEW_EVENT_HANDLERS = {
   onMouseLeave: stopCardPreviewEvent,
   onClick: stopCardPreviewEvent,
   onDoubleClick: stopCardPreviewEvent,
-  onContextMenu: stopCardPreviewEvent,
+  onContextMenu: (event: SyntheticEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+  },
   onTouchStart: stopCardPreviewEvent,
   onTouchMove: stopCardPreviewEvent,
   onTouchEnd: stopCardPreviewEvent,

@@ -32,14 +32,14 @@ export function DeckHubTopDeckPreview({ onOpen, onAuthor }: DeckHubTopDeckPrevie
   if (bucketsLoaded && !previewBucket) return null;
   return (
     <section className="overflow-hidden rounded-2xl border border-primary/20 bg-primary/5 p-3 sm:p-4">
-      <div className="mb-3 flex items-center justify-between gap-3">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Trophy className="h-5 w-5 text-primary" />
           <h2 className="font-serif text-xl font-semibold">Top decks right now</h2>
         </div>
         <Link
           to={ROUTES.HUB_TOP}
-          className="flex min-h-8 shrink-0 items-center gap-1 text-xs font-medium text-primary hover:underline pointer-coarse:min-h-11"
+          className="flex min-h-8 shrink-0 items-center gap-1 text-ui-label font-medium text-primary hover:underline touch:min-h-11 touch:min-w-11"
         >
           See rankings
           <ArrowRight className="h-3.5 w-3.5" />
@@ -63,17 +63,11 @@ export function DeckHubTopDeckPreview({ onOpen, onAuthor }: DeckHubTopDeckPrevie
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-12 gap-3 md:aspect-[12/5] md:grid-rows-3">
+          <div className="@container grid grid-cols-[repeat(auto-fit,minmax(min(100%,16rem),1fr))] gap-3">
             {entries.map((ranked, index) => (
               <div
                 key={ranked.entry.id}
-                className={
-                  index === 0
-                    ? "col-span-12 md:col-span-7 md:row-span-3"
-                    : index === 1
-                      ? "col-span-7 row-start-2 md:col-span-5 md:col-start-8 md:row-span-2 md:row-start-1"
-                      : "col-span-5 col-start-1 row-start-3 md:col-span-5 md:col-start-8 md:row-start-3"
-                }
+                className={index === 0 ? "@min-[52rem]:col-span-2 @min-[52rem]:row-span-2" : ""}
               >
                 <DeckHubPodiumFrame rank={ranked.rank} className="flex h-full min-h-0 flex-col">
                   <DeckHubEntryCard
@@ -99,10 +93,10 @@ export function DeckHubTopDeckPreview({ onOpen, onAuthor }: DeckHubTopDeckPrevie
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-12 gap-3 md:aspect-[12/5] md:grid-rows-3">
-          <div className="col-span-12 aspect-[4/3] animate-pulse rounded-lg bg-muted md:col-span-7 md:row-span-3 md:aspect-auto" />
-          <div className="col-span-7 aspect-[4/3] animate-pulse rounded-lg bg-muted md:col-span-5 md:col-start-8 md:row-span-2 md:row-start-1 md:aspect-auto" />
-          <div className="col-span-5 aspect-[4/3] animate-pulse rounded-lg bg-muted md:col-span-5 md:col-start-8 md:row-start-3 md:aspect-auto" />
+        <div className="@container grid grid-cols-[repeat(auto-fit,minmax(min(100%,16rem),1fr))] gap-3">
+          <div className="aspect-[4/3] animate-pulse rounded-lg bg-muted @min-[52rem]:col-span-2 @min-[52rem]:row-span-2" />
+          <div className="aspect-[4/3] animate-pulse rounded-lg bg-muted" />
+          <div className="aspect-[4/3] animate-pulse rounded-lg bg-muted" />
         </div>
       )}
     </section>

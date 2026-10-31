@@ -89,7 +89,7 @@ export function LimitedBuildBoard({
               onClick={() => onZoneChange(zone.id)}
             >
               {zone.title}{" "}
-              <span className="text-xs tabular-nums text-muted-foreground">{zone.total}</span>
+              <span className="text-ui-meta tabular-nums text-muted-foreground">{zone.total}</span>
             </Button>
           ))}
         </div>
@@ -110,7 +110,7 @@ export function LimitedBuildBoard({
               style={compact ? undefined : { width: "25%" }}
             >
               {!compact && (
-                <header className="flex h-8 shrink-0 items-center gap-1 px-2">
+                <header className="flex min-h-8 shrink-0 items-center gap-1 px-2 touch:min-h-11">
                   <Button
                     variant="ghost"
                     size="sm"
@@ -123,7 +123,7 @@ export function LimitedBuildBoard({
                     disabled={shown && visibleZones.length === 1}
                   >
                     <span className="truncate">{zone.title}</span>
-                    <span className="shrink-0 font-sans text-xs tabular-nums text-muted-foreground">
+                    <span className="shrink-0 font-sans text-ui-meta tabular-nums text-muted-foreground">
                       {zone.total}
                     </span>
                     <Icon

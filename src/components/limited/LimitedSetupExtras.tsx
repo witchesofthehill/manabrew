@@ -22,17 +22,17 @@ export function LimitedSetupExtras({
   return (
     <section aria-label="More Limited options" className="space-y-3">
       {section === "templates" && (
-        <ul className="grid gap-2 text-sm md:grid-cols-2">
+        <ul className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,18rem),1fr))] gap-2 text-ui-label">
           {templates.map((template) => (
             <li key={template.id} className="rounded border border-border/40 bg-card/30 px-3 py-2">
               <div className="font-medium">{template.label}</div>
-              <div className="text-xs text-muted-foreground">{template.description}</div>
+              <div className="text-ui-meta text-muted-foreground">{template.description}</div>
             </li>
           ))}
         </ul>
       )}
       {section === "chaos" && (
-        <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,16rem),1fr))] gap-2">
           {themes.map((theme) => {
             const matched = matchSetsForTheme(theme.tag, sets);
             return (
@@ -52,8 +52,8 @@ export function LimitedSetupExtras({
                   }
                 >
                   <div>
-                    <div className="text-sm font-medium">{theme.label}</div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-ui-label font-medium">{theme.label}</div>
+                    <div className="text-ui-meta text-muted-foreground">
                       {matched.length} sets · {podSize} players
                     </div>
                   </div>

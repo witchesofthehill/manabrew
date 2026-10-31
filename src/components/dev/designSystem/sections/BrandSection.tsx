@@ -12,12 +12,12 @@ export function BrandSection() {
           <ManaBrewLogo height={72} className="shrink-0 self-start" />
           <div className="min-w-0 space-y-1.5">
             <h2 className="font-serif text-4xl font-bold tracking-tight">Design system</h2>
-            <p className="max-w-xl text-sm text-muted-foreground">
+            <p className="max-w-xl text-ui-body text-muted-foreground">
               The complete visual language for the Manabrew MTG client — color, typography, icons,
               components, card faces, and assets. Every sample is a real component, so this page
               never drifts from the app.
             </p>
-            <p className="pt-1 font-mono text-[11px] text-muted-foreground">
+            <p className="pt-1 font-mono text-ui-meta text-muted-foreground">
               Manabrew · light and dark · 2 typefaces · rendered live from src/
             </p>
           </div>

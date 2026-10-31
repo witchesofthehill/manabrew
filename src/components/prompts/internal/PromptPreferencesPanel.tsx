@@ -30,7 +30,7 @@ export function PromptPreferencesPanel() {
     <section className="space-y-6">
       <header className="space-y-1">
         <h2 className="text-lg font-semibold">Prompts</h2>
-        <p className="text-xs text-muted-foreground max-w-prose">
+        <p className="text-ui-body text-muted-foreground max-w-prose">
           The auto-resolver answers prompts that have a single legal answer (target, mode, …) and
           informational acks (RevealCards, dice rolls). Those are always automatic — no toggle. The
           list below covers optional costs you may prefer to never be asked about.
@@ -38,18 +38,18 @@ export function PromptPreferencesPanel() {
       </header>
 
       <div className="space-y-3">
-        <h3 className="text-sm font-semibold">Priority</h3>
+        <h3 className="text-ui-label font-semibold">Priority</h3>
         <div className="rounded-lg border bg-card/40 p-3 flex items-start gap-3">
           <input
             id="prompt-full-control"
             type="checkbox"
             checked={fullControl}
             onChange={(e) => setFullControl(e.target.checked)}
-            className="mt-1 accent-selection h-4 w-4"
+            className="mt-1 shrink-0 accent-selection h-4 w-4 touch:h-11 touch:w-11"
           />
           <div className="space-y-1">
             <Label htmlFor="prompt-full-control">Full control</Label>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-ui-body text-muted-foreground">
               Stop at every priority window, even when you have no possible response. When off,
               windows where you can only tap for mana pass automatically after a short delay.
             </p>
@@ -58,8 +58,8 @@ export function PromptPreferencesPanel() {
       </div>
 
       <div className="space-y-3">
-        <h3 className="text-sm font-semibold">Auto-skip optional costs</h3>
-        <div className="grid gap-3 md:grid-cols-2">
+        <h3 className="text-ui-label font-semibold">Auto-skip optional costs</h3>
+        <div className="grid gap-3 lg:grid-cols-2">
           {OPTIONAL_COST_ROWS.map((row) => {
             const skipped = showOverrides[row.promptType] === false;
             const id = `prompt-skip-${row.promptType}`;
@@ -73,11 +73,11 @@ export function PromptPreferencesPanel() {
                   type="checkbox"
                   checked={skipped}
                   onChange={(e) => setOptionalCostSkip(row.promptType, e.target.checked)}
-                  className="mt-1 accent-selection h-4 w-4"
+                  className="mt-1 shrink-0 accent-selection h-4 w-4 touch:h-11 touch:w-11"
                 />
                 <div className="space-y-1">
                   <Label htmlFor={id}>{row.label}</Label>
-                  <p className="text-xs text-muted-foreground">{row.description}</p>
+                  <p className="text-ui-body text-muted-foreground">{row.description}</p>
                 </div>
               </div>
             );
@@ -86,7 +86,7 @@ export function PromptPreferencesPanel() {
       </div>
 
       <div className="space-y-3">
-        <h3 className="text-sm font-semibold">Debug</h3>
+        <h3 className="text-ui-label font-semibold">Debug</h3>
         <div className="rounded-lg border bg-card/40 p-3 flex items-start gap-3">
           <input
             id="prompt-debug-log"
@@ -96,11 +96,11 @@ export function PromptPreferencesPanel() {
               setPromptLoggingEnabled(e.target.checked);
               setLogPrompts(e.target.checked);
             }}
-            className="mt-1 accent-selection h-4 w-4"
+            className="mt-1 shrink-0 accent-selection h-4 w-4 touch:h-11 touch:w-11"
           />
           <div className="space-y-1">
             <Label htmlFor="prompt-debug-log">Log prompts to console</Label>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-ui-body text-muted-foreground">
               Print every prompt the UI receives (not state updates) to the dev console, including
               the full JSON. Useful for reporting prompt issues.
             </p>

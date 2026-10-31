@@ -139,7 +139,7 @@ export function DeckLayoutMenu({
           <Button
             variant="outline"
             size="xs"
-            className="gap-1"
+            className="touch:min-w-11 touch:min-h-11 gap-1"
             title={compact ? `Saved views` : undefined}
           >
             <LayoutTemplate className="h-3.5 w-3.5" />
@@ -181,7 +181,7 @@ export function DeckLayoutMenu({
               <span className="flex-1 truncate">{layout.name}</span>
               <button
                 type="button"
-                className="rounded p-1 text-muted-foreground hover:text-destructive"
+                className="touch:min-w-11 touch:min-h-11 rounded p-1 text-muted-foreground hover:text-destructive"
                 title={`Delete ${layout.name}`}
                 onClick={(event) => {
                   event.preventDefault();

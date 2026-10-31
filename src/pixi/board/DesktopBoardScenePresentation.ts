@@ -5,6 +5,7 @@ import type { DragHandler } from "../DragHandler";
 import { HAND_RESERVE_TRIM } from "../constants";
 import {
   OPPONENT_PLAYER_HUD_HEIGHT_PX,
+  PLAYER_HUD_HAND_GAP_PX,
   SELF_PLAYER_HUD_HEIGHT_PX,
   SELF_PLAYER_HUD_MAX_WIDTH_PX,
   SELF_PLAYER_HUD_MIN_WIDTH_PX,
@@ -54,6 +55,22 @@ export class DesktopBoardScenePresentation implements BoardScenePresentation {
 
   selfHudHandBlocker(hand: HandController | null): BlockingRect | null {
     return hand?.getBlockerRect() ?? null;
+  }
+
+  handInsets(
+    zone: PlayZoneRect,
+    hudField: PlayZoneRect | null,
+    actionPanelLeft: number | null,
+  ): { left: number; right: number } {
+    const hudRight = hudField
+      ? hudField.x + Math.min(hudField.width, this.hudMinWidth) + PLAYER_HUD_HAND_GAP_PX
+      : zone.x;
+    const panelLeft =
+      actionPanelLeft === null ? zone.x + zone.width : actionPanelLeft - PLAYER_HUD_HAND_GAP_PX;
+    return {
+      left: Math.max(0, hudRight - zone.x),
+      right: Math.max(0, zone.x + zone.width - panelLeft),
+    };
   }
   initializeHand(_root: Container, _callbacks: GameCanvasCallbacks, _app: Application): void {}
 

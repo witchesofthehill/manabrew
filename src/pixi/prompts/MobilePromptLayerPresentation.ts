@@ -7,7 +7,6 @@ import type {
 
 export class MobilePromptLayerPresentation implements PromptLayerPresentation {
   readonly actionStyle = "minimal";
-  readonly modalBodyFit = "scale";
   readonly selectionRowHeight = 64;
   readonly selectionRowPitch = 70;
   readonly scryHint: ScryPromptHint = {
@@ -19,7 +18,6 @@ export class MobilePromptLayerPresentation implements PromptLayerPresentation {
     arrowOffsetX: 13,
     arrowOffsetY: 18,
     iconSize: 32,
-    fontSize: 10,
     textOffsetY: 22,
   };
 
@@ -38,7 +36,9 @@ export class MobilePromptLayerPresentation implements PromptLayerPresentation {
     sourceGap: number,
     hasSource: boolean,
   ): number {
-    return hasSource ? Math.max(0, viewportWidth - sourceWidth - sourceGap) : viewportWidth;
+    return hasSource && viewportWidth - sourceWidth - sourceGap >= 280
+      ? viewportWidth - sourceWidth - sourceGap
+      : viewportWidth;
   }
 
   selectionColumns(_allSingleChoice: boolean): number {
@@ -90,7 +90,6 @@ export class MobilePromptLayerPresentation implements PromptLayerPresentation {
       overlapPoolCards: true,
       zoneGap: 28,
       destinationVerticalPadding: 10,
-      labelOffset: 20,
       hint: this.scryHint,
     };
   }

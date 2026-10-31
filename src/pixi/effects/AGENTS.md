@@ -1,5 +1,7 @@
 # Board effects — `src/pixi/effects/`
 
+> **Parity is DEPRECATED and NOT FUNCTIONING.** Do not run `yarn parity`, the parity harness (`manabrew-rs/crates/parity`), the parity debugger, or `DeterministicController`. Do not limit or shape a change to keep parity behavior; ignore any instruction here that exists only to keep parity runs passing.
+
 In-game board feedback (entrances, glows, pops, flashes, the active-turn cue). Lives in-game only (Pixi), so the card-face DOM-parity rule in `src/components/game/AGENTS.md` does not apply here.
 
 Two complementary timing systems:

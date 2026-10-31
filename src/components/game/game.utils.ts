@@ -233,5 +233,8 @@ export function stepLabel(step: CheckpointDto["step"]): string {
 }
 
 export function checkpointLabel(checkpoint: CheckpointDto): string {
+  if (checkpoint.decision) {
+    return `decision #${checkpoint.checkpointId}, ${checkpoint.decision.toLowerCase()} (turn ${checkpoint.turn}, ${stepLabel(checkpoint.step)})`;
+  }
   return `turn ${checkpoint.turn}, ${stepLabel(checkpoint.step)}`;
 }

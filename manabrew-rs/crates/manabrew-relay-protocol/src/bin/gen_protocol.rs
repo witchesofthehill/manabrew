@@ -13,7 +13,7 @@ use manabrew_protocol::deck_dto::{CardPrintingSelection, Deck};
 use manabrew_protocol::display::DisplayEvent;
 use manabrew_protocol::prompts::{PromptInput, PromptOutput};
 use manabrew_protocol::transport::{
-    AgentPrompt, ClientToServerMessage, DirectiveInput, ProtocolError, StateUpdate,
+    AgentPrompt, ClientToServerMessage, DirectiveInput, EngineDirective, ProtocolError, StateUpdate,
 };
 use manabrew_relay_protocol::{ResumeRoomRequest, PROTOCOL_VERSION};
 use ts_rs::TS;
@@ -55,6 +55,7 @@ fn main() {
     AgentPrompt::export_all_to(&out).expect("export AgentPrompt");
     StateUpdate::export_all_to(&out).expect("export StateUpdate");
     DirectiveInput::export_all_to(&out).expect("export DirectiveInput");
+    EngineDirective::export_all_to(&out).expect("export EngineDirective");
     ClientToServerMessage::export_all_to(&out).expect("export ClientToServerMessage");
     ProtocolError::export_all_to(&out).expect("export ProtocolError");
     Deck::export_all_to(&out).expect("export Deck");

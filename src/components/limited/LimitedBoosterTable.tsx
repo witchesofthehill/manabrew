@@ -86,7 +86,7 @@ export function LimitedBoosterTable({
           <div className="flex shrink-0 flex-wrap items-center justify-center gap-x-4 gap-y-1">
             <p
               className={cn(
-                "text-center text-xs text-muted-foreground",
+                "text-center text-ui-meta text-muted-foreground",
                 compact && "[@media(orientation:landscape)_and_(max-height:600px)]:hidden",
               )}
               aria-live="polite"

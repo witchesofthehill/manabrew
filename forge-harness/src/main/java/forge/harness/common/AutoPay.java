@@ -1,5 +1,7 @@
 package forge.harness.common;
 
+import forge.ai.ComputerUtilMana;
+import forge.ai.PlayerControllerAi;
 import forge.card.ColorSet;
 import forge.card.MagicColor;
 import forge.card.mana.ManaAtom;
@@ -139,6 +141,7 @@ public final class AutoPay {
         final ManaPool pool = payer.getManaPool();
         final List<Card> tapped = new ArrayList<>();
 
+        boolean planned = false;
         int guard = 0;
         while (guard++ < 128) {
             final ManaCostBeingPaid unpaid = new ManaCostBeingPaid(toPay);
@@ -147,6 +150,13 @@ public final class AutoPay {
                 break;
             }
             pool.refundMana(probe);
+
+            if (!planned) {
+                planned = true;
+                if (floatPlannedMana(toPay, unpaid, saBeingPaid, effect, tapped)) {
+                    continue;
+                }
+            }
 
             final List<ManaAbilityCandidate> candidates = collectPlayableManaAbilities(saBeingPaid);
             if (candidates.isEmpty()) {
@@ -164,6 +174,55 @@ public final class AutoPay {
             tapped.add(chosen.spellAbility.getHostCard());
         }
         return tapped;
+    }
+
+    private boolean floatPlannedMana(
+            final ManaCost toPay,
+            final ManaCostBeingPaid unpaid,
+            final SpellAbility saBeingPaid,
+            final boolean effect,
+            final List<Card> tapped
+    ) {
+        final MaybePay maybePay = new MaybePay(payer);
+        List<MaybePay.Activation> plan = null;
+        if (!maybePay.hasConverters()) {
+            final CardCollection forgeSources = autoPayManaSources(toPay, saBeingPaid, effect);
+            if (forgeSources != null) {
+                plan = maybePay.plan(unpaid, saBeingPaid, forgeSources);
+            }
+        }
+        if (plan == null) {
+            plan = maybePay.plan(unpaid, saBeingPaid, null);
+        }
+        if (plan == null) {
+            return false;
+        }
+        boolean floated = false;
+        for (final MaybePay.Activation activation : plan) {
+            if (activation.choosesColors()) {
+                final List<String> colors = new ArrayList<>();
+                for (final int color : activation.colors) {
+                    colors.add(shortColor((byte) color));
+                }
+                activation.ability.getManaPart().setExpressChoice(String.join(" ", colors));
+            }
+            if (!floatManaFromSource(activation.ability, effect)) {
+                break;
+            }
+            tapped.add(activation.ability.getHostCard());
+            floated = true;
+        }
+        return floated;
+    }
+
+    private CardCollection autoPayManaSources(
+            final ManaCost toPay, final SpellAbility saBeingPaid, final boolean effect) {
+        final CardCollection[] sources = new CardCollection[1];
+        payer.runWithController(
+                () -> sources[0] = ComputerUtilMana.getManaSourcesToPayCost(
+                        new ManaCostBeingPaid(toPay), saBeingPaid, payer, effect),
+                new PlayerControllerAi(payer.getGame(), payer, payer.getOriginalLobbyPlayer()));
+        return sources[0];
     }
 
     public List<SpellAbility> manaSources(final SpellAbility saBeingPaid) {

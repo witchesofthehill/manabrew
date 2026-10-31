@@ -16,7 +16,7 @@ export function CardCountBadge({ count, className }: { count: number; className?
   return (
     <div
       className={cn(
-        "absolute top-1 left-1 bg-overlay/80 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center border border-white/20",
+        "absolute top-1 left-1 bg-overlay/80 text-white text-ui-meta font-bold rounded-full min-w-5 min-h-5 px-1 flex items-center justify-center border border-white/20",
         className,
       )}
       style={{ zIndex: 10 }}
@@ -91,10 +91,12 @@ export function CardAnalysisBadges({
 export function CardHoverOverlay({
   actions,
   rounded = "rounded-lg",
+  className,
   onMouseEnter,
   onMouseLeave,
 }: {
   actions: OverlayAction[];
+  className?: string;
   rounded?: string;
   onMouseEnter?: (e: React.MouseEvent) => void;
   onMouseLeave?: (e: React.MouseEvent) => void;
@@ -102,8 +104,9 @@ export function CardHoverOverlay({
   return (
     <div
       className={cn(
-        "absolute inset-0 bg-overlay/60 opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 pointer-events-none group-hover:pointer-events-auto pointer-coarse:pointer-events-auto",
+        "absolute inset-0 bg-overlay/60 opacity-0 group-hover:opacity-100 touch:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 pointer-events-none group-hover:pointer-events-auto touch:pointer-events-auto",
         rounded,
+        className,
       )}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
@@ -116,7 +119,7 @@ export function CardHoverOverlay({
             size="sm"
             variant={a.variant === "primary" ? "secondary" : "ghost"}
             className={cn(
-              "h-6 w-4/5 text-xs",
+              "touch:min-w-11 touch:min-h-11 min-h-6 w-full whitespace-normal px-1 text-ui-label",
               a.variant !== "primary" && "text-white/80 hover:text-white hover:bg-white/10",
             )}
             onClick={(e) => {
@@ -148,7 +151,7 @@ export function SectionHeader({
     <div className="flex items-center gap-1.5 mb-1.5 border-b border-border/40 pb-1">
       <button
         type="button"
-        className="flex min-w-0 items-center gap-1.5 rounded-sm text-left hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="touch:min-w-11 touch:min-h-11 flex min-w-0 items-center gap-1.5 rounded-sm text-left hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         aria-expanded={open}
         onClick={onToggle}
       >
@@ -157,10 +160,10 @@ export function SectionHeader({
             className={cn("h-3.5 w-3.5 transition-transform", open === false && "-rotate-90")}
           />
         )}
-        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <span className="text-ui-label font-semibold uppercase tracking-wide text-muted-foreground">
           {label}
         </span>
-        <span className="text-xs text-muted-foreground/60">({count})</span>
+        <span className="text-ui-meta text-muted-foreground/60">({count})</span>
       </button>
       <div className="flex-1" />
       {extraContent}
@@ -170,7 +173,7 @@ export function SectionHeader({
 export function EmptyDropZone({ message = "Drop cards here" }: { message?: string }) {
   return (
     <div className="border border-dashed border-border/40 rounded py-3 text-center">
-      <p className="text-[10px] text-muted-foreground/40">{message}</p>
+      <p className="text-ui-meta text-muted-foreground/40">{message}</p>
     </div>
   );
 }

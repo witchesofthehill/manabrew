@@ -88,12 +88,12 @@ function DragTrayTarget({
     <div
       ref={setNodeRef}
       className={cn(
-        "flex min-h-14 min-w-28 flex-1 items-center justify-center gap-2 rounded-lg border border-dashed bg-background/90 px-3 py-2 text-xs font-medium shadow-sm transition-all",
+        "flex min-h-14 min-w-28 flex-1 items-center justify-center gap-2 rounded-lg border border-dashed bg-background/90 px-3 py-2 text-ui-label font-medium shadow-sm transition-all",
         isOver ? "scale-105 border-primary bg-primary/15 text-primary" : "border-border",
       )}
     >
       <Icon className="h-4 w-4 shrink-0" />
-      <span className="truncate">{label}</span>
+      <span className="min-w-0 break-words">{label}</span>
     </div>
   );
 }
@@ -658,7 +658,7 @@ export default function DeckEditor() {
   if (view === "list") {
     return (
       <>
-        <div className="h-full flex flex-col">
+        <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
           <DeckListControls
             search={search}
             onSearchChange={setSearch}
@@ -670,13 +670,13 @@ export default function DeckEditor() {
             onSortChange={setSortBy}
           />
 
-          <ScrollArea className="flex-1">
+          <ScrollArea className="min-h-0 min-w-0 flex-1">
             <div className={cn("p-4 sm:px-6 lg:px-8", shortTouch && "py-2 sm:py-2")}>
-              <div className="mb-3 flex items-center gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                <span className="text-ui-label font-semibold uppercase tracking-wide text-muted-foreground">
                   My decks
                 </span>
-                <span className="text-[10px] text-muted-foreground">
+                <span className="text-ui-meta text-muted-foreground">
                   ({collectionDecks.length})
                 </span>
                 {accountDecksAvailable && accountDecksSignedIn && (
@@ -692,7 +692,9 @@ export default function DeckEditor() {
                 )}
               </div>
               {accountDecksAvailable && accountDecksSignedIn && accountDecksError && (
-                <p className="mb-3 text-sm text-destructive">{accountDecksError}</p>
+                <p className="mb-3 break-words text-ui-body text-destructive">
+                  {accountDecksError}
+                </p>
               )}
               {(deckCatalogPending ||
                 (accountDecksAvailable &&
@@ -700,7 +702,7 @@ export default function DeckEditor() {
                   accountDecksLoading &&
                   collectionDecks.length === 0)) && (
                 <div
-                  className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+                  className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))] gap-3"
                   aria-label={`Loading your decks`}
                   aria-busy="true"
                 >
@@ -713,24 +715,24 @@ export default function DeckEditor() {
                 </div>
               )}
               {!deckCatalogPending && (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))] gap-3">
                   <div className={cn("group relative", compactAddDeck && "col-span-full")}>
                     <button
                       type="button"
                       onClick={() => setChoiceDialogOpen(true)}
                       className={cn(
                         "aspect-[4/3] w-full rounded-lg border-2 border-dashed border-muted-foreground/30",
-                        "flex flex-col items-center justify-center gap-1.5",
+                        "flex flex-col items-center justify-center gap-1.5 p-3 touch:min-h-11 touch:min-w-11",
                         "cursor-pointer bg-muted/30 text-muted-foreground transition-all",
                         "group-hover:border-primary group-hover:bg-muted/60 group-hover:text-foreground",
                         compactAddDeck &&
                           (shortTouch
-                            ? "h-12 flex-row gap-3 aspect-auto"
-                            : "h-16 flex-row gap-3 aspect-auto"),
+                            ? "min-h-12 flex-row gap-3 aspect-auto"
+                            : "min-h-16 flex-row gap-3 aspect-auto"),
                       )}
                     >
                       <Plus className={cn("h-6 w-6", compactAddDeck && "h-5 w-5")} />
-                      <span className="text-xs font-medium">Add deck</span>
+                      <span className="text-ui-label font-medium">Add deck</span>
                     </button>
                   </div>
 
@@ -740,15 +742,15 @@ export default function DeckEditor() {
 
               {!deckCatalogPending && filteredCollectionDrafts.length > 0 && (
                 <div className={cn("mt-4", filteredCollectionDecks.length > 0 && "border-t pt-4")}>
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  <div className="mb-3 flex flex-wrap items-center gap-2">
+                    <span className="text-ui-label font-semibold text-muted-foreground uppercase tracking-wide">
                       Drafts
                     </span>
-                    <span className="text-[10px] text-muted-foreground">
+                    <span className="text-ui-meta text-muted-foreground">
                       ({filteredCollectionDrafts.length})
                     </span>
                   </div>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))] gap-3">
                     {filteredCollectionDrafts.map((saved) => renderCollectionDeck(saved, true))}
                   </div>
                 </div>
@@ -756,18 +758,18 @@ export default function DeckEditor() {
 
               {!deckCatalogPending && publishEnabled && signedIn && (
                 <div className="mt-4 border-t pt-4">
-                  <div className="mb-3 flex items-center gap-2">
-                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <div className="mb-3 flex flex-wrap items-center gap-2">
+                    <span className="text-ui-label font-semibold uppercase tracking-wide text-muted-foreground">
                       Published in Community
                     </span>
                     {!publishedDecksLoading && (
-                      <span className="text-[10px] text-muted-foreground">
+                      <span className="text-ui-meta text-muted-foreground">
                         ({filteredPublishedDecks.length})
                       </span>
                     )}
                   </div>
                   {publishedDecksError ? (
-                    <div className="flex flex-wrap items-center gap-2 text-sm text-destructive">
+                    <div className="flex flex-wrap items-center gap-2 text-ui-body text-destructive">
                       <span className="min-w-0 break-words">{publishedDecksError}</span>
                       <Button
                         variant="outline"
@@ -778,9 +780,9 @@ export default function DeckEditor() {
                       </Button>
                     </div>
                   ) : publishedDecksLoading && publishedDecks.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">Loading published decks…</p>
+                    <p className="text-ui-meta text-muted-foreground">Loading published decks…</p>
                   ) : publishedDecks.length === 0 ? (
-                    <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-2 text-ui-body text-muted-foreground">
                       <span>
                         You haven’t published a deck yet. Use the share action on any deck.
                       </span>
@@ -789,7 +791,7 @@ export default function DeckEditor() {
                       </Button>
                     </div>
                   ) : filteredPublishedDecks.length > 0 ? (
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))] gap-3">
                       {filteredPublishedDecks.map((deck) => (
                         <DeckHubEntryCard
                           key={deck.id}
@@ -799,7 +801,7 @@ export default function DeckEditor() {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-ui-body text-muted-foreground">
                       No published decks match your filters.
                     </p>
                   )}
@@ -815,15 +817,17 @@ export default function DeckEditor() {
                       "border-t pt-4",
                   )}
                 >
-                  <div className={cn("mb-3 flex items-center gap-2", shortTouch && "mb-2")}>
-                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <div
+                    className={cn("mb-3 flex flex-wrap items-center gap-2", shortTouch && "mb-2")}
+                  >
+                    <span className="text-ui-label font-semibold uppercase tracking-wide text-muted-foreground">
                       Starter Decks
                     </span>
-                    <span className="text-[10px] text-muted-foreground">
+                    <span className="text-ui-meta text-muted-foreground">
                       ({presetSavedDecks.length})
                     </span>
                   </div>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))] gap-3">
                     {presetSavedDecks.map((s) => (
                       <DeckGridCard
                         key={s.id}
@@ -853,7 +857,7 @@ export default function DeckEditor() {
                 filteredCollectionDrafts.length === 0 &&
                 presetSavedDecks.length === 0 &&
                 collectionDecks.length > 0 && (
-                  <p className="col-span-5 pt-6 text-center text-sm text-muted-foreground">
+                  <p className="col-span-full pt-6 text-center text-ui-body text-muted-foreground">
                     No decks match your filters.
                   </p>
                 )}
@@ -912,7 +916,7 @@ export default function DeckEditor() {
             if (!open) setRenamingId(null);
           }}
         >
-          <DialogContent className="max-w-sm">
+          <DialogContent className="max-w-sm overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Rename Deck</DialogTitle>
             </DialogHeader>
@@ -947,7 +951,7 @@ export default function DeckEditor() {
             if (!open && !deletingAccountBusy) setDeletingAccountDeck(null);
           }}
         >
-          <DialogContent className="max-w-sm">
+          <DialogContent className="max-w-sm overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Remove account deck</DialogTitle>
               <DialogDescription>
@@ -987,7 +991,7 @@ export default function DeckEditor() {
         onDragEnd={handleDragEnd}
         onDragCancel={() => setDraggedCards([])}
       >
-        <div className="h-full w-full overflow-hidden flex flex-col lg:flex-row">
+        <div className="flex h-full min-h-0 min-w-0 w-full flex-col overflow-hidden xl:flex-row">
           <div
             className={cn(
               "min-h-0 min-w-0 flex-1 overflow-hidden",
@@ -1028,7 +1032,7 @@ export default function DeckEditor() {
           {showSearch && (
             <div
               className={cn(
-                "min-h-0 min-w-0 flex-1 overflow-hidden border-t lg:border-l lg:border-t-0",
+                "min-h-0 min-w-0 flex-1 overflow-hidden border-t xl:border-l xl:border-t-0",
                 isTouch && "border-0",
               )}
             >
@@ -1044,7 +1048,7 @@ export default function DeckEditor() {
 
         {draggedCards.length > 0 && (
           <div className="pointer-events-none fixed inset-x-0 top-[calc(var(--safe-area-inset-top)+4rem)] z-[80] flex justify-center px-4">
-            <div className="pointer-events-auto flex max-w-5xl flex-wrap gap-2 rounded-xl border bg-popover/95 p-3 shadow-2xl backdrop-blur-md">
+            <div className="pointer-events-auto flex max-h-[50dvh] min-w-0 max-w-5xl flex-wrap gap-2 overflow-y-auto rounded-xl border bg-popover/95 p-3 shadow-2xl backdrop-blur-md">
               <DragTrayTarget id={DRAG_TRAY_MAIN} label={`Main deck`} icon={Layers} />
               <DragTrayTarget id={DRAG_TRAY_SIDE} label={`Sideboard`} icon={Layers} />
               <DragTrayTarget id={DRAG_TRAY_MAYBE} label={`Maybeboard`} icon={HelpCircle} />
@@ -1081,11 +1085,11 @@ export default function DeckEditor() {
                 );
               })}
               {draggedCards.length > 1 && (
-                <div className="absolute right-0 top-0 z-20 flex h-7 min-w-7 items-center justify-center rounded-full bg-primary px-2 text-xs font-bold text-primary-foreground shadow-lg">
+                <div className="absolute right-0 top-0 z-20 flex min-h-7 min-w-7 items-center justify-center rounded-full bg-primary px-2 text-ui-meta font-bold text-primary-foreground shadow-lg">
                   {draggedCards.length}
                 </div>
               )}
-              <div className="absolute -bottom-2 left-1/2 z-30 -translate-x-1/2 whitespace-nowrap rounded-full border bg-popover/95 px-2 py-1 text-[10px] font-medium shadow">
+              <div className="absolute -bottom-2 left-1/2 z-30 -translate-x-1/2 whitespace-nowrap rounded-full border bg-popover/95 px-2 py-1 text-ui-meta font-medium shadow">
                 Moving {draggedCards.length} card{draggedCards.length === 1 ? "" : "s"}
               </div>
             </div>
@@ -1094,7 +1098,7 @@ export default function DeckEditor() {
       </DndContext>
 
       <Dialog open={newTagDropOpen} onOpenChange={setNewTagDropOpen}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-sm overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create tag</DialogTitle>
             <DialogDescription>
@@ -1123,13 +1127,13 @@ export default function DeckEditor() {
       </Dialog>
 
       {showBackConfirm && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-overlay/50 backdrop-blur-sm">
-          <div className="bg-card border rounded-xl shadow-xl p-6 max-w-sm space-y-4">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto bg-overlay/50 p-4 backdrop-blur-sm">
+          <div className="max-h-full min-w-0 max-w-sm space-y-4 overflow-y-auto rounded-xl border bg-card p-6 shadow-xl">
             <h3 className="text-lg font-semibold">Unsaved Changes</h3>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-ui-body text-muted-foreground">
               You have unsaved changes to your deck. Do you want to go back without saving?
             </p>
-            <div className="flex justify-end gap-2">
+            <div className="flex flex-wrap justify-end gap-2">
               <Button variant="outline" size="sm" onClick={() => setShowBackConfirm(false)}>
                 Stay
               </Button>
@@ -1150,13 +1154,13 @@ export default function DeckEditor() {
       )}
 
       {blocker.state === "blocked" && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-overlay/50 backdrop-blur-sm">
-          <div className="bg-card border rounded-xl shadow-xl p-6 max-w-sm space-y-4">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto bg-overlay/50 p-4 backdrop-blur-sm">
+          <div className="max-h-full min-w-0 max-w-sm space-y-4 overflow-y-auto rounded-xl border bg-card p-6 shadow-xl">
             <h3 className="text-lg font-semibold">Unsaved Changes</h3>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-ui-body text-muted-foreground">
               You have unsaved changes to your deck. Do you want to leave without saving?
             </p>
-            <div className="flex justify-end gap-2">
+            <div className="flex flex-wrap justify-end gap-2">
               <Button variant="outline" size="sm" onClick={() => blocker.reset()}>
                 Stay
               </Button>

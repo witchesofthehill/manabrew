@@ -118,7 +118,7 @@ export function GameBoardAccessibility({
   const untappable = new Set(untappableCardIds ?? []);
   const [focused, setFocused] = useState(false);
   const controlClass =
-    "w-full rounded border border-border bg-background px-3 py-2 text-left text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+    "w-full min-h-8 touch:min-h-11 touch:min-w-11 rounded border border-border bg-background px-3 py-2 text-left text-ui-label text-foreground whitespace-normal break-words focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
   return (
     <nav
@@ -136,7 +136,10 @@ export function GameBoardAccessibility({
       <h2 className="text-base font-semibold text-foreground">Game board controls</h2>
 
       <section aria-labelledby="accessible-players-heading" className="space-y-1.5">
-        <h3 id="accessible-players-heading" className="text-sm font-semibold text-muted-foreground">
+        <h3
+          id="accessible-players-heading"
+          className="text-ui-meta font-semibold text-muted-foreground"
+        >
           Players
         </h3>
         {players.map((player) => (
@@ -270,7 +273,10 @@ export function GameBoardAccessibility({
 
       <section aria-labelledby="accessible-stack-heading" className="space-y-1.5">
         <div className="flex items-center justify-between gap-2">
-          <h3 id="accessible-stack-heading" className="text-sm font-semibold text-muted-foreground">
+          <h3
+            id="accessible-stack-heading"
+            className="text-ui-meta font-semibold text-muted-foreground"
+          >
             Stack, {stack.cards.length} object{stack.cards.length === 1 ? "" : "s"}
           </h3>
           <button type="button" className={controlClass} onClick={onToggleStack}>
@@ -293,7 +299,7 @@ export function GameBoardAccessibility({
               Target {name}
             </button>
           ) : (
-            <p key={item.id} className="text-sm text-muted-foreground">
+            <p key={item.id} className="text-ui-meta text-muted-foreground">
               {name}, {position}
             </p>
           );
@@ -301,7 +307,10 @@ export function GameBoardAccessibility({
       </section>
 
       <section aria-labelledby="accessible-zones-heading" className="space-y-1.5">
-        <h3 id="accessible-zones-heading" className="text-sm font-semibold text-muted-foreground">
+        <h3
+          id="accessible-zones-heading"
+          className="text-ui-meta font-semibold text-muted-foreground"
+        >
           Zones
         </h3>
         {players.flatMap((player) =>
@@ -319,7 +328,7 @@ export function GameBoardAccessibility({
                 {zone.count === 1 ? "" : "s"}
               </button>
             ) : (
-              <p key={`${player.id}:${zone.key}`} className="text-sm text-muted-foreground">
+              <p key={`${player.id}:${zone.key}`} className="text-ui-meta text-muted-foreground">
                 {player.isSelf ? "Your" : `${player.name}'s`} {zoneName}, {zone.count} card
                 {zone.count === 1 ? "" : "s"}
               </p>

@@ -24,17 +24,17 @@ export function BattlefieldChoiceDevControls() {
   const selectedKinds = new Set(selected.map((choice) => choice.kind));
   return (
     <div className="mt-4">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className={DEV_SECTION_HEADING}>Persistent choices</p>
-          <p className="mt-1 text-[10px] text-muted-foreground">
+          <p className="mt-1 text-ui-meta text-muted-foreground">
             {selected.length === 0 ? `No forced choices` : `${selected.length} forced`}
           </p>
         </div>
-        <div className="flex items-center gap-3 text-[10px] font-medium uppercase tracking-wide">
+        <div className="flex flex-wrap items-center gap-3 text-ui-label font-medium uppercase tracking-wide">
           <button
             type="button"
-            className="text-muted-foreground hover:text-foreground"
+            className="min-h-8 min-w-8 touch:min-h-11 touch:min-w-11 text-muted-foreground hover:text-foreground"
             onClick={selectAll}
           >
             All
@@ -42,7 +42,7 @@ export function BattlefieldChoiceDevControls() {
           {selected.length > 0 ? (
             <button
               type="button"
-              className="text-muted-foreground hover:text-destructive"
+              className="min-h-8 touch:min-h-11 text-muted-foreground hover:text-destructive"
               onClick={clear}
             >
               Clear all
@@ -59,7 +59,7 @@ export function BattlefieldChoiceDevControls() {
               type="button"
               className={cn(
                 DEV_CONTROL_BUTTON,
-                "truncate px-2 py-1.5 text-[10px]",
+                "px-2 py-1.5",
                 active ? DEV_CONTROL_ACTIVE : DEV_CONTROL_INACTIVE,
               )}
               onClick={() => toggle(kind)}

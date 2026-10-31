@@ -462,6 +462,25 @@
   }
 }
 
+@theme static {
+  --text-ui-body: 0.875rem;
+  --text-ui-body--line-height: 1.5;
+  --text-ui-label: 0.875rem;
+  --text-ui-label--line-height: 1.4;
+  --text-ui-meta: 0.75rem;
+  --text-ui-meta--line-height: 1.4;
+  --text-ui-caption: 0.75rem;
+  --text-ui-caption--line-height: 1.4;
+  --text-ui-input: 0.875rem;
+  --text-ui-input--line-height: 1.5;
+}
+
+@custom-variant touch {
+  @media (any-pointer: coarse) {
+    @slot;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .deck-editor-root *,
   .deck-editor-root *::before,
@@ -563,6 +582,33 @@
     --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
     --safe-area-inset-left: env(safe-area-inset-left, 0px);
     --radius: 0.5rem;
+    --ui-control-height: 2rem;
+    --visual-viewport-height: 100dvh;
+    --visual-viewport-width: 100vw;
+    --visual-viewport-top: 0px;
+    --visual-viewport-left: 0px;
+  }
+}
+
+@layer base {
+  @media (any-pointer: coarse) {
+    :root {
+      --text-ui-body: 1rem;
+      --text-ui-label: 1rem;
+      --text-ui-meta: 0.875rem;
+      --text-ui-input: 1rem;
+      --ui-control-height: 2.75rem;
+    }
+  }
+
+  @media (any-pointer: coarse) and (min-width: 48rem) {
+    :root {
+      --text-ui-body: 1.25rem;
+      --text-ui-label: 1.25rem;
+      --text-ui-meta: 1.125rem;
+      --text-ui-caption: 0.875rem;
+      --text-ui-input: 1.25rem;
+    }
   }
 }
 
@@ -586,7 +632,7 @@
     }
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground text-base touch:text-ui-body;
     font-family: var(--font-sans);
     overflow: hidden;
     overscroll-behavior: none;

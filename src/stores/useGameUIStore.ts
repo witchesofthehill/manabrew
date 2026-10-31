@@ -65,7 +65,7 @@ interface GameUIState {
   playModePicker: PlayModePickerState | null;
   viewingZone: ViewingZoneState | null;
   isActionPanelCollapsed: boolean;
-  rightPanelTab: "log" | "snapshots" | "dev";
+  rightPanelTab: "journal" | "dev";
   promptModalHidden: boolean;
   zoneBrowserStates: Record<string, CardBrowserState>;
   mobileHandState: { promptId: Prompt["promptId"] | null; open: boolean };
@@ -82,7 +82,7 @@ interface GameUIState {
   closeZoneViewer: () => void;
   toggleActionPanel: () => void;
   setActionPanelCollapsed: (collapsed: boolean) => void;
-  setRightPanelTab: (tab: "log" | "snapshots" | "dev") => void;
+  setRightPanelTab: (tab: "journal" | "dev") => void;
   toggleDevPanel: () => void;
   hidePromptModal: () => void;
   showPromptModal: () => void;
@@ -96,7 +96,7 @@ export const useGameUIStore = create<GameUIState>()(
       playModePicker: null,
       viewingZone: null,
       isActionPanelCollapsed: true,
-      rightPanelTab: "log",
+      rightPanelTab: "journal",
       promptModalHidden: false,
       zoneBrowserStates: {},
       mobileHandState: { promptId: null, open: false },

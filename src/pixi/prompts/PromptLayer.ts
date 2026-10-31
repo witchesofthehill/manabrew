@@ -1,3 +1,10 @@
+import {
+  getUiControlFloor,
+  getUiControlHeight,
+  getUiFontFloor,
+  getUiFontSize,
+} from "@/themes/typography";
+import { TOUCH_MOVE_SLOP_PX } from "@/lib/responsive";
 import { topModal } from "@/lib/modalStack";
 import { playAppSound } from "@/lib/soundRuntime";
 import { summarizeCombat } from "@/components/game/combatSummary";
@@ -64,12 +71,11 @@ const ACTION_CARD_GAP = 8;
 const COMPACT_PHASE_PILL_HEIGHT = 22;
 const COMPACT_PHASE_PILL_MIN_WIDTH = 48;
 const COMPACT_PHASE_PILL_PADDING_X = 8;
-const COMPACT_PHASE_TOUCH_HEIGHT = 48;
 
 export class PromptLayer extends PromptModalLayer {
   private phasePulseFired = false;
   private phaseBounds: Rectangle | null = null;
-  private handBounds: Rectangle | null = null;
+  private actionPanelBounds: ScreenBounds | null = null;
   private readonly unsubscribePromptPreferences: () => void;
   private readonly unsubscribePreferences: () => void;
   private readonly unsubscribeKeybindings: () => void;
@@ -158,20 +164,8 @@ export class PromptLayer extends PromptModalLayer {
     this.rebuild();
   }
 
-  setHandBounds(bounds: ScreenBounds | null): void {
-    if (this.layerPresentation.actionStyle === "minimal") return;
-    if (
-      this.handBounds?.x === bounds?.x &&
-      this.handBounds?.y === bounds?.y &&
-      this.handBounds?.width === bounds?.width &&
-      this.handBounds?.height === bounds?.height
-    ) {
-      return;
-    }
-    this.handBounds = bounds
-      ? new Rectangle(bounds.x, bounds.y, bounds.width, bounds.height)
-      : null;
-    if (!this.modalOpen) this.rebuild();
+  getActionPanelBounds(): ScreenBounds | null {
+    return this.actionPanelBounds;
   }
 
   setSpec(spec: PromptOverlaySpec | null): void {
@@ -353,6 +347,7 @@ export class PromptLayer extends PromptModalLayer {
     this.modalBody = null;
     this.container.removeChildren().forEach((child) => child.destroy({ children: true }));
     if (!this.spec || this.viewportWidth <= 0 || this.viewportHeight <= 0) {
+      this.actionPanelBounds = null;
       this.container.visible = false;
       this.presentPrompt(null);
       return;
@@ -412,12 +407,13 @@ export class PromptLayer extends PromptModalLayer {
     const action = spec.action;
     const shortScreen = this.viewportHeight <= 520;
     const minimal = this.layerPresentation.actionStyle === "minimal";
-    const touch = minimal;
+    const touch = getUiControlHeight() >= 44;
     if (
       action.promptType === "gameOver" ||
       !action.selfClusterMaxHeight ||
       action.selfClusterMaxHeight <= 0
     ) {
+      this.actionPanelBounds = null;
       this.container.visible = false;
       return;
     }
@@ -433,48 +429,69 @@ export class PromptLayer extends PromptModalLayer {
     const contextLines = this.actionContextLines();
     const showActionContext = !minimal && (contextLines.length > 0 || this.hasActionCombatInfo());
     if (!showActionContext) this.actionContextOpen = false;
-    const fixedWidth = minimal ? null : shortScreen ? 230 : 300;
+    const fixedWidth = minimal
+      ? null
+      : Math.min(this.viewportWidth - 24, touch ? 320 : shortScreen ? 230 : 300);
     const fixedContentWidth = fixedWidth == null ? this.viewportWidth - 24 : fixedWidth - 16;
     const phaseAnchor = action.compactPhaseControl?.anchor ?? null;
     const controls = minimal
       ? this.makeCompactActionControls(phaseAnchor === null, showPriorityMode, preview)
       : null;
-    const viewAvailableWidth = fixedContentWidth - (controls ? controls.width + 4 : 0);
+    const viewAvailableWidth = fixedContentWidth;
     const view = this.buildActionView(viewKey, viewAvailableWidth, minimal, touch, preview);
-    const rowWidth = view.width + (controls ? 4 + controls.width : 0);
+    const stackedControls = !!controls && view.width + controls.width + 4 > fixedContentWidth;
+    const rowWidth = controls
+      ? stackedControls
+        ? Math.max(view.width, controls.width)
+        : view.width + 4 + controls.width
+      : view.width;
     const contentWidth = fixedWidth == null ? rowWidth : fixedContentWidth;
     const width = fixedWidth ?? Math.min(this.viewportWidth - 12, Math.max(40, contentWidth + 12));
-    const headerHeight = minimal ? 0 : 34;
+    const modeButton = !minimal && showPriorityMode ? this.makePriorityModePill(preview) : null;
+    const menuButton = !minimal ? this.makeActionMenuButton(false) : null;
+    const contextButton = !minimal && showActionContext ? this.makeActionContextButton() : null;
+    const headerHeight = minimal
+      ? 0
+      : Math.max(
+          34,
+          Math.max(
+            modeButton?.buttonHeight ?? 0,
+            menuButton?.height ?? 0,
+            contextButton?.buttonHeight ?? 0,
+            getUiFontFloor("label") * 1.35,
+          ) + 12,
+        );
     const sectionPaddingX = minimal ? 6 : 8;
     const sectionPaddingTop = minimal ? 4 : 8;
     const sectionPaddingBottom = minimal ? 4 : 8;
-    const viewHeight = Math.max(view.height, controls?.height ?? 0);
+    const viewHeight =
+      stackedControls && controls
+        ? view.height + 4 + controls.height
+        : Math.max(view.height, controls?.height ?? 0);
     const bodyHeight = sectionPaddingTop + viewHeight + sectionPaddingBottom;
-    const panelHeight = headerHeight + bodyHeight;
     const leftHanded = this.leftHanded;
     const edgeMargin = minimal || shortScreen ? 6 : 12;
     const x = minimal && leftHanded ? edgeMargin : this.viewportWidth - width - edgeMargin;
+    const bottomLimit = this.viewportHeight - (minimal ? 6 : shortScreen ? 118 : 0);
+    const visibleBodyHeight = Math.min(
+      bodyHeight,
+      Math.max(
+        getUiControlFloor() + sectionPaddingTop + sectionPaddingBottom,
+        bottomLimit - edgeMargin - headerHeight,
+      ),
+    );
+    const panelHeight = headerHeight + visibleBodyHeight;
     const unclampedY = minimal
       ? this.viewportHeight - panelHeight - 6
       : shortScreen
         ? this.viewportHeight - panelHeight - 118
         : this.viewportHeight - panelHeight;
-    let y = minimal
+    const y = minimal
       ? Math.max(6, Math.min(this.viewportHeight - panelHeight - 6, unclampedY))
       : unclampedY;
-    const hand = this.handBounds;
-    if (
-      !minimal &&
-      hand &&
-      x < hand.right &&
-      x + width > hand.left &&
-      y < hand.bottom &&
-      y + panelHeight > hand.top
-    ) {
-      y = Math.max(edgeMargin, Math.min(y, hand.top - panelHeight - ACTION_CARD_GAP));
-    }
+    this.actionPanelBounds = minimal ? null : { x, y, width, height: panelHeight };
     const radius = minimal ? 16 : 8;
-    const squareBottom = !minimal && !shortScreen && y === unclampedY;
+    const squareBottom = !minimal && !shortScreen;
     const panel = new Container();
     panel.position.set(x, y + panelHeight);
     panel.pivot.set(0, panelHeight);
@@ -508,18 +525,17 @@ export class PromptLayer extends PromptModalLayer {
 
     if (!minimal) {
       let right = width - 8;
-      const menuButton = this.makeActionMenuButton(false);
-      menuButton.container.position.set(right - menuButton.width, 8);
-      panel.addChild(menuButton.container);
-      right -= menuButton.width + 5;
+      menuButton!.container.position.set(right - menuButton!.width, 6);
+      panel.addChild(menuButton!.container);
+      right -= menuButton!.width + 5;
       if (showPriorityMode) {
-        const mode = this.makePriorityModePill(preview);
+        const mode = modeButton!;
         mode.position.set(right - mode.buttonWidth, 6);
         panel.addChild(mode);
         right -= mode.buttonWidth + 6;
       }
       if (showActionContext) {
-        const info = this.makeActionContextButton();
+        const info = contextButton!;
         info.position.set(right - info.buttonWidth, 6);
         panel.addChild(info);
         right -= info.buttonWidth + 6;
@@ -530,6 +546,7 @@ export class PromptLayer extends PromptModalLayer {
         this.theme.appTheme.foreground,
         {
           weight: "700",
+          role: "label",
           width: Math.max(20, right - 8),
           letterSpacing: 1.32,
           truncate: true,
@@ -546,19 +563,72 @@ export class PromptLayer extends PromptModalLayer {
     }
 
     const contentY = headerHeight + sectionPaddingTop;
+    const actionBody = new Container();
     if (controls) {
-      view.container.position.set(sectionPaddingX, contentY + (viewHeight - view.height) / 2);
-      controls.container.position.set(
-        sectionPaddingX + view.width + 4,
-        contentY + (viewHeight - controls.height) / 2,
+      view.container.position.set(
+        sectionPaddingX,
+        contentY + (stackedControls ? 0 : (viewHeight - view.height) / 2),
       );
-      panel.addChild(view.container, controls.container);
+      controls.container.position.set(
+        sectionPaddingX +
+          (stackedControls ? Math.max(0, view.width - controls.width) : view.width + 4),
+        contentY + (stackedControls ? view.height + 4 : (viewHeight - controls.height) / 2),
+      );
+      actionBody.addChild(view.container, controls.container);
     } else {
       view.container.position.set(
         sectionPaddingX + Math.max(0, (contentWidth - view.width) / 2),
         contentY,
       );
-      panel.addChild(view.container);
+      actionBody.addChild(view.container);
+    }
+    panel.addChild(actionBody);
+    if (visibleBodyHeight < bodyHeight) {
+      const mask = new Graphics()
+        .rect(0, headerHeight, width, visibleBodyHeight)
+        .fill({ color: hexToNum(this.theme.appTheme.foreground) });
+      panel.addChild(mask);
+      actionBody.mask = mask;
+      const scroll = (offset: number) => {
+        actionBody.y = Math.max(visibleBodyHeight - bodyHeight, Math.min(0, offset));
+        this.callbacks.onRenderRequested?.();
+      };
+      panel.on("wheel", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        scroll(actionBody.y - event.deltaY * (event.deltaMode === 1 ? 16 : 1));
+      });
+      let pointerId: number | null = null;
+      let scrolledPointerId: number | null = null;
+      let startY = 0;
+      let startOffset = 0;
+      panel.on("pointerdowncapture", (event: FederatedPointerEvent) => {
+        if (event.pointerType !== "touch" || panel.toLocal(event.global).y < headerHeight) return;
+        pointerId = event.pointerId;
+        scrolledPointerId = null;
+        startY = event.global.y;
+        startOffset = actionBody.y;
+      });
+      panel.on("globalpointermove", (event: FederatedPointerEvent) => {
+        if (event.pointerId !== pointerId) return;
+        const delta = event.global.y - startY;
+        if (Math.abs(delta) < TOUCH_MOVE_SLOP_PX && scrolledPointerId === null) return;
+        scrolledPointerId = event.pointerId;
+        this.actionLongPress.cancel();
+        event.preventDefault();
+        scroll(startOffset + delta);
+      });
+      const finishScroll = () => {
+        pointerId = null;
+      };
+      panel.on("pointerup", finishScroll);
+      panel.on("pointerupoutside", finishScroll);
+      panel.on("pointercancel", finishScroll);
+      panel.on("pointertapcapture", (event: FederatedPointerEvent) => {
+        if (event.pointerId !== scrolledPointerId) return;
+        event.stopImmediatePropagation();
+        scrolledPointerId = null;
+      });
     }
 
     if (minimal) {
@@ -598,13 +668,13 @@ export class PromptLayer extends PromptModalLayer {
     if (phaseAnchor) {
       const phase = this.makeCompactPhaseButton();
       if (phase) {
-        phase.container.position.set(phaseAnchor.x, phaseAnchor.y - COMPACT_PHASE_TOUCH_HEIGHT / 2);
+        phase.container.position.set(phaseAnchor.x, phaseAnchor.y - phase.height / 2);
         this.container.addChild(phase.container);
         this.phaseBounds = new Rectangle(
           phaseAnchor.x,
-          phaseAnchor.y - COMPACT_PHASE_TOUCH_HEIGHT / 2,
+          phaseAnchor.y - phase.height / 2,
           phase.width,
-          COMPACT_PHASE_TOUCH_HEIGHT,
+          phase.height,
         );
       }
     }
@@ -641,6 +711,7 @@ export class PromptLayer extends PromptModalLayer {
         if (!minimal && action.mustAttackHint) {
           const text = promptText(action.mustAttackHint, 11, muted, {
             weight: "500",
+            role: "body",
             width: availableWidth,
             align: "center",
           });
@@ -658,6 +729,7 @@ export class PromptLayer extends PromptModalLayer {
             pending ? this.theme.appTheme.foreground : muted,
             {
               weight: pending ? "700" : "400",
+              role: "body",
               width: availableWidth,
               align: "center",
             },
@@ -738,13 +810,12 @@ export class PromptLayer extends PromptModalLayer {
             ? "Blocker selected — click the attacker to block."
             : null;
         if (error) {
-          const shown = minimal && error.length > 42 ? `${error.slice(0, 41).trimEnd()}…` : error;
           const textWidth = minimal ? Math.min(192, availableWidth) : availableWidth;
-          const text = promptText(shown, minimal ? 10 : 12, attackColor, {
+          const text = promptText(error, minimal ? 10 : 12, attackColor, {
             weight: "600",
+            role: "body",
             width: textWidth,
             align: "center",
-            truncate: minimal,
           });
           text.anchor.set(0.5, 0);
           text.position.set(textWidth / 2, y);
@@ -755,6 +826,7 @@ export class PromptLayer extends PromptModalLayer {
         if (!minimal && hint) {
           const text = promptText(hint, 11, muted, {
             style: "italic",
+            role: "body",
             width: availableWidth,
             align: "center",
           });
@@ -766,6 +838,7 @@ export class PromptLayer extends PromptModalLayer {
         } else if (!minimal && !error && action.blockRestrictionHint) {
           const text = promptText(action.blockRestrictionHint, 11, muted, {
             weight: "500",
+            role: "body",
             width: availableWidth,
             align: "center",
           });
@@ -829,7 +902,7 @@ export class PromptLayer extends PromptModalLayer {
               : `Click the next blocker (${action.damageOrderCount}/${action.damageOrderTotal}).`,
           12,
           muted,
-          { style: "italic", width, align: "center" },
+          { style: "italic", width, align: "center", role: "body" },
         );
         instruction.anchor.set(0.5, 0);
         instruction.position.set(width / 2, 0);
@@ -1042,20 +1115,14 @@ export class PromptLayer extends PromptModalLayer {
   }
 
   private layoutActionRow(buttons: PromptButton[], gap: number): ActionViewLayout {
-    const container = new Container();
-    let x = 0;
-    let height = 0;
-    for (const button of buttons) {
-      button.position.set(x, 0);
-      container.addChild(button);
-      x += button.buttonWidth + gap;
-      height = Math.max(height, button.buttonHeight);
-    }
-    return {
-      container,
-      width: Math.max(0, x - (buttons.length > 0 ? gap : 0)),
-      height,
-    };
+    const maxWidth =
+      this.layerPresentation.actionStyle === "minimal"
+        ? this.viewportWidth - 24
+        : Math.min(
+            this.viewportWidth - 40,
+            getUiControlHeight() >= 44 ? 304 : this.viewportHeight <= 520 ? 214 : 284,
+          );
+    return this.layoutWrappedActionButtons(buttons, maxWidth, gap);
   }
 
   private buildChooseActionView(
@@ -1077,7 +1144,11 @@ export class PromptLayer extends PromptModalLayer {
     const counting = this.autopassRemainingMs != null;
     const passLabel = morphed ? endLabel : counting ? "PASSING" : "PASS";
     const combo = morphed ? endCombo : passCombo;
-    const height = minimal ? 44 : 40;
+    let height = Math.max(
+      minimal ? 44 : 40,
+      getUiControlFloor(),
+      Math.ceil(getUiFontFloor("label") * 1.35) + 12,
+    );
 
     if (minimal) {
       const end = this.makeButton("", action.onPassEndTurn, {
@@ -1103,7 +1174,7 @@ export class PromptLayer extends PromptModalLayer {
           flat: true,
           radius: 20,
           disabled,
-          width: 120,
+          width: morphed ? 168 : 120,
           height,
           paddingX: 16,
           fontSize: 12,
@@ -1125,6 +1196,12 @@ export class PromptLayer extends PromptModalLayer {
       return this.layoutActionRow([pass, end], 4);
     }
 
+    const touch = getUiControlHeight() >= 44;
+    const labelWidth = Math.max(140, getUiFontSize("label") * 10);
+    const textEndWidth = Math.min(availableWidth, Math.max(120, getUiFontSize("label") * 10));
+    const endIconOnly = touch && textEndWidth + labelWidth > availableWidth;
+    const endWidth = endIconOnly ? Math.max(48, getUiControlHeight()) : textEndWidth;
+    const priorityColumn = touch && !morphed && endWidth + labelWidth > availableWidth;
     const end = morphed
       ? null
       : this.makeButton(endLabel, action.onPassEndTurn, {
@@ -1132,6 +1209,11 @@ export class PromptLayer extends PromptModalLayer {
           radius: 0,
           disabled,
           height,
+          width: !touch ? undefined : priorityColumn ? availableWidth : endWidth,
+          icon: endIconOnly ? "lucide-skip-forward" : undefined,
+          iconSize: 20,
+          labelPlacement: endIconOnly ? "hidden" : "inline",
+          tooltip: endIconOnly,
           paddingX: 14,
           fontSize: 10,
           fontWeight: "700",
@@ -1151,7 +1233,7 @@ export class PromptLayer extends PromptModalLayer {
         radius: 0,
         disabled,
         height,
-        width: availableWidth - (end?.buttonWidth ?? 0),
+        width: priorityColumn ? availableWidth : availableWidth - (end?.buttonWidth ?? 0),
         paddingX: 16,
         fontSize: 12,
         fontWeight: "900",
@@ -1160,10 +1242,11 @@ export class PromptLayer extends PromptModalLayer {
         backgroundColor: this.theme.appTheme["primary-foreground"],
         backgroundAlpha: morphed ? 0.15 : 0,
         hoverBackgroundAlpha: morphed ? 0.2 : 0.1,
-        shortcut: combo ? comboSymbols(combo) : undefined,
+        shortcut: !touch && combo ? comboSymbols(combo) : undefined,
         title: morphed ? endTitle : "Pass priority",
       },
     );
+    height = Math.max(height, pass.buttonHeight, end?.buttonHeight ?? 0);
     if (counting) {
       this.addAutopassFill(
         pass,
@@ -1173,28 +1256,31 @@ export class PromptLayer extends PromptModalLayer {
         this.theme.appTheme["primary-foreground"],
       );
     }
+    const totalHeight = priorityColumn ? height * 2 : height;
     const container = new Container();
     const clipped = new Container();
     const surface = new Graphics()
-      .roundRect(0, 0, availableWidth, height, 8)
+      .roundRect(0, 0, availableWidth, totalHeight, 8)
       .fill({ color: hexToNum(this.theme.appTheme.primary) });
     const mask = new Graphics()
-      .roundRect(0, 0, availableWidth, height, 8)
+      .roundRect(0, 0, availableWidth, totalHeight, 8)
       .fill({ color: 0xffffff });
-    const ring = new Graphics().roundRect(0.5, 0.5, availableWidth - 1, height - 1, 7.5).stroke({
-      color: hexToNum(this.theme.appTheme["primary-foreground"]),
-      width: 1,
-      alpha: 0.2,
-    });
+    const ring = new Graphics()
+      .roundRect(0.5, 0.5, availableWidth - 1, totalHeight - 1, 7.5)
+      .stroke({
+        color: hexToNum(this.theme.appTheme["primary-foreground"]),
+        width: 1,
+        alpha: 0.2,
+      });
     surface.eventMode = "none";
     mask.eventMode = "none";
     ring.eventMode = "none";
     clipped.addChild(surface, pass);
     if (end) {
-      end.position.x = pass.buttonWidth;
+      end.position.set(priorityColumn ? 0 : pass.buttonWidth, priorityColumn ? height : 0);
       const divider = new Graphics()
-        .moveTo(pass.buttonWidth, 0)
-        .lineTo(pass.buttonWidth, height)
+        .moveTo(priorityColumn ? 0 : pass.buttonWidth, priorityColumn ? height : 0)
+        .lineTo(priorityColumn ? availableWidth : pass.buttonWidth, height)
         .stroke({
           color: hexToNum(this.theme.appTheme["primary-foreground"]),
           width: 1,
@@ -1206,7 +1292,7 @@ export class PromptLayer extends PromptModalLayer {
     clipped.mask = mask;
     container.addChild(mask, clipped, ring);
     this.priorityButtons = { pass, end };
-    return { container, width: availableWidth, height };
+    return { container, width: availableWidth, height: totalHeight };
   }
 
   private buildNoActionView(availableWidth: number, minimal: boolean): ActionViewLayout {
@@ -1224,6 +1310,7 @@ export class PromptLayer extends PromptModalLayer {
       const label = promptText("WAITING FOR OTHERS", 11, color, {
         weight: "600",
         letterSpacing: 1.54,
+        width: Math.max(1, width - hourglassWidth - labelGap),
       });
       label.anchor.set(0, 0.5);
       label.alpha = 0.9;
@@ -1342,23 +1429,25 @@ export class PromptLayer extends PromptModalLayer {
           touch,
         )
       : null;
-    const stripWidth = Math.max(
-      110,
-      Math.min(
-        minimal
-          ? 208
-          : availableWidth -
-              (source ? ACTION_CARD_SIZE.width + ACTION_CARD_GAP : 0) -
-              (completion ? completion.buttonWidth + 6 : 0),
-        availableWidth,
-      ),
+    const sourceWidth = !minimal && source ? ACTION_CARD_SIZE.width + ACTION_CARD_GAP : 0;
+    const rowWidth = Math.max(1, availableWidth - sourceWidth);
+    const stackCompletion = !!completion && rowWidth < 110 + completion.buttonWidth + 6;
+    const stripWidth = Math.min(
+      minimal ? 208 : rowWidth,
+      Math.max(44, rowWidth - (!stackCompletion && completion ? completion.buttonWidth + 6 : 0)),
     );
     const strip = new Container();
     const foreground = minimal
       ? this.theme.gameTheme.textOnTinted
       : this.theme.appTheme["card-foreground"];
+    const text = promptRichText(label, 12, foreground, Math.max(1, stripWidth - 38), {
+      weight: "600",
+      align: "center",
+      letterSpacing: 0.3,
+    });
+    const stripHeight = Math.max(36, getUiControlFloor(), text.height + 12);
     const stripBackground = new Graphics()
-      .roundRect(0, 0, stripWidth, 36, 8)
+      .roundRect(0, 0, stripWidth, stripHeight, 8)
       .fill({ color: hexToNum(foreground), alpha: 0.05 })
       .stroke({
         color: hexToNum(foreground),
@@ -1366,23 +1455,22 @@ export class PromptLayer extends PromptModalLayer {
         alpha: 0.2,
       });
     const crosshair = this.makeIcon("lucide-crosshair", 14, foreground);
-    crosshair.position.set(14, 18);
+    crosshair.position.set(14, stripHeight / 2);
     crosshair.alpha = 0.8;
     this.actionPulseNodes.push({ node: crosshair, maxAlpha: 0.8 });
-    const text = promptRichText(label, 12, foreground, stripWidth - 38, {
-      weight: "600",
-      align: "center",
-      letterSpacing: 0.3,
-      maxLines: 1,
-    });
-    text.position.set(32, (36 - text.height) / 2);
+    text.position.set(32, (stripHeight - text.height) / 2);
     text.alpha = 0.8;
     strip.addChild(stripBackground, crosshair, text);
     if (minimal) {
       let y = 0;
       if (source) {
         source.position.set(
-          (Math.max(stripWidth, completion ? stripWidth + completion.buttonWidth + 6 : stripWidth) -
+          (Math.max(
+            stripWidth,
+            completion && !stackCompletion
+              ? stripWidth + completion.buttonWidth + 6
+              : (completion?.buttonWidth ?? 0),
+          ) -
             ACTION_CARD_SIZE.width) /
             2,
           0,
@@ -1394,11 +1482,24 @@ export class PromptLayer extends PromptModalLayer {
       container.addChild(strip);
       let width = stripWidth;
       if (completion) {
-        completion.position.set(stripWidth + 6, y);
+        completion.position.set(
+          stackCompletion ? 0 : stripWidth + 6,
+          y + (stackCompletion ? stripHeight + 8 : 0),
+        );
         container.addChild(completion);
-        width += 6 + completion.buttonWidth;
+        width = stackCompletion
+          ? Math.max(width, completion.buttonWidth)
+          : width + 6 + completion.buttonWidth;
       }
-      return { container, width, height: y + Math.max(36, completion?.buttonHeight ?? 0) };
+      return {
+        container,
+        width,
+        height:
+          y +
+          (stackCompletion && completion
+            ? stripHeight + 8 + completion.buttonHeight
+            : Math.max(stripHeight, completion?.buttonHeight ?? 0)),
+      };
     }
     let x = 0;
     if (source) {
@@ -1406,19 +1507,28 @@ export class PromptLayer extends PromptModalLayer {
       container.addChild(source);
       x = ACTION_CARD_SIZE.width + ACTION_CARD_GAP;
     }
-    const actionRowY = source ? (ACTION_CARD_SIZE.height - 36) / 2 : 0;
+    const actionRowY = source ? Math.max(0, (ACTION_CARD_SIZE.height - stripHeight) / 2) : 0;
     strip.position.set(x, actionRowY);
     container.addChild(strip);
     x += stripWidth;
     if (completion) {
-      completion.position.set(x + 6, actionRowY);
+      completion.position.set(
+        stackCompletion ? sourceWidth : x + 6,
+        actionRowY + (stackCompletion ? stripHeight + 8 : 0),
+      );
       container.addChild(completion);
-      x += 6 + completion.buttonWidth;
+      x = stackCompletion
+        ? sourceWidth + Math.max(stripWidth, completion.buttonWidth)
+        : x + 6 + completion.buttonWidth;
     }
     return {
       container,
       width: x,
-      height: source ? ACTION_CARD_SIZE.height : Math.max(36, completion?.buttonHeight ?? 0),
+      height: Math.max(
+        source ? ACTION_CARD_SIZE.height : 0,
+        actionRowY + stripHeight,
+        completion ? completion.y + completion.buttonHeight : 0,
+      ),
     };
   }
 
@@ -1541,6 +1651,7 @@ export class PromptLayer extends PromptModalLayer {
       canConfirm ? this.theme.appTheme.foreground : this.theme.appTheme["muted-foreground"],
       {
         weight: "600",
+        width,
         letterSpacing: 0.8,
       },
     );
@@ -1659,33 +1770,29 @@ export class PromptLayer extends PromptModalLayer {
         this.theme.gameTheme.canvas.shadow,
         this.theme.gameTheme.textOnTinted,
       ),
-      { weight: "800" },
+      { weight: "800", role: "label" },
     );
     const width = Math.max(
       COMPACT_PHASE_PILL_MIN_WIDTH,
       Math.ceil(text.width) + COMPACT_PHASE_PILL_PADDING_X * 2,
     );
-    const pillY = (COMPACT_PHASE_TOUCH_HEIGHT - COMPACT_PHASE_PILL_HEIGHT) / 2;
+    const pillHeight = Math.max(COMPACT_PHASE_PILL_HEIGHT, text.height + 4);
+    const touchHeight = Math.max(48, getUiControlFloor(), pillHeight + 8);
+    const pillY = (touchHeight - pillHeight) / 2;
     const background = new Graphics()
-      .roundRect(0, pillY, width, COMPACT_PHASE_PILL_HEIGHT, COMPACT_PHASE_PILL_HEIGHT / 2)
+      .roundRect(0, pillY, width, pillHeight, pillHeight / 2)
       .fill({ color: hexToNum(this.theme.gameTheme.phaseStrip.background) })
-      .roundRect(0, pillY, width, COMPACT_PHASE_PILL_HEIGHT, COMPACT_PHASE_PILL_HEIGHT / 2)
+      .roundRect(0, pillY, width, pillHeight, pillHeight / 2)
       .stroke({ color: hexToNum(control.color), width: 2, alignment: 0.5 });
     text.anchor.set(0.5);
-    text.position.set(width / 2, COMPACT_PHASE_TOUCH_HEIGHT / 2);
+    text.position.set(width / 2, touchHeight / 2);
     const button = new Container();
     button.addChild(background, text);
     if (control.pulse && animationsEnabled()) {
       if (!this.phasePulseFired) {
         this.phasePulseFired = true;
         const ring = new Graphics()
-          .roundRect(
-            -4,
-            pillY - 4,
-            width + 8,
-            COMPACT_PHASE_PILL_HEIGHT + 8,
-            (COMPACT_PHASE_PILL_HEIGHT + 8) / 2,
-          )
+          .roundRect(-4, pillY - 4, width + 8, pillHeight + 8, (pillHeight + 8) / 2)
           .stroke({ color: hexToNum(control.color), width: 2, alignment: 0.5 });
         ring.eventMode = "none";
         button.addChild(ring);
@@ -1705,7 +1812,7 @@ export class PromptLayer extends PromptModalLayer {
     }
     button.eventMode = "static";
     button.cursor = "pointer";
-    button.hitArea = new Rectangle(0, 0, width, COMPACT_PHASE_TOUCH_HEIGHT);
+    button.hitArea = new Rectangle(0, 0, width, touchHeight);
     button.accessible = true;
     button.accessibleTitle = "Open phase stops";
     button.tabIndex = 0;
@@ -1725,12 +1832,12 @@ export class PromptLayer extends PromptModalLayer {
     return {
       container: button,
       width,
-      height: COMPACT_PHASE_TOUCH_HEIGHT,
+      height: touchHeight,
     };
   }
 
   private makeActionMenuButton(minimal: boolean): ActionViewLayout {
-    const size = minimal ? 44 : 18;
+    const size = Math.max(minimal ? 44 : 18, getUiControlFloor());
     const button = new Container();
     const icon = this.makeIcon(
       "lucide-settings",
@@ -1741,8 +1848,7 @@ export class PromptLayer extends PromptModalLayer {
     button.addChild(icon);
     button.eventMode = "static";
     button.cursor = "pointer";
-    const inset = minimal ? 0 : 10;
-    button.hitArea = new Rectangle(-inset, -inset, size + inset * 2, size + inset * 2);
+    button.hitArea = new Rectangle(0, 0, size, size);
     button.on("pointerover", () => {
       icon.alpha = 0.75;
     });
@@ -1842,6 +1948,7 @@ export class PromptLayer extends PromptModalLayer {
     const combo = resolveCombo("toggle-priority-mode", useKeybindingsStore.getState().overrides);
     const fullControl = state.fullControl;
     const hint = combo ? ` (${formatCombo(combo)})` : "";
+    const iconOnly = !minimal && getUiControlHeight() >= 44;
     const button = this.makeButton(
       minimal ? (fullControl ? "FULL" : "AUTO") : fullControl ? "FULL CTRL" : "AUTOPASS",
       () => {
@@ -1853,8 +1960,9 @@ export class PromptLayer extends PromptModalLayer {
           ? `Full control — you stop at every priority window${hint}`
           : `Autopass: dead priority windows pass automatically${hint}`,
         icon: fullControl ? "lucide-hand" : "lucide-zap",
-        iconSize: minimal ? 16 : 12,
-        labelPlacement: minimal ? "stacked" : undefined,
+        iconSize: iconOnly ? 20 : minimal ? 16 : 12,
+        labelPlacement: iconOnly ? "hidden" : minimal ? "stacked" : undefined,
+        tooltip: iconOnly,
         outline: true,
         foreground: fullControl
           ? this.theme.appTheme["selection-foreground"]
@@ -1875,7 +1983,7 @@ export class PromptLayer extends PromptModalLayer {
         pressOffsetY: 1,
         borderAlpha: minimal && !fullControl ? 0 : 0.8,
         disabled,
-        width: minimal ? 44 : fullControl ? 88 : 86,
+        width: iconOnly ? getUiControlHeight() : minimal ? 64 : fullControl ? 88 : 86,
         height: minimal ? 44 : 22,
         paddingX: 8,
         fontSize: minimal ? 8 : 9,
@@ -1926,6 +2034,7 @@ export class PromptLayer extends PromptModalLayer {
         ACTION_CARD_SIZE.height / sprite.height,
       );
       sprite.scale.set(scale);
+      sprite.setHandRulesScale(scale);
       sprite.position.set(sprite.pivot.x * scale, sprite.pivot.y * scale);
     };
     sprite.onReorient = place;
@@ -2043,48 +2152,27 @@ export class PromptLayer extends PromptModalLayer {
     const muted = this.theme.appTheme["muted-foreground"];
     let y = 0;
     let visible = false;
-
-    if (action.combatPairings.length > 0) {
+    for (const pairing of action.combatPairings) {
       visible = true;
-      const pairingsHeight = 16 + action.combatPairings.length * 16;
-      container.addChild(
-        new Graphics()
-          .roundRect(0, y, availableWidth, pairingsHeight, 8)
-          .fill({ color: hexToNum(destructive), alpha: 0.1 }),
+      const attacker = promptText(pairing.attacker, 12, this.theme.appTheme.foreground, {
+        weight: "600",
+        width: availableWidth - 16,
+      });
+      const defender = promptText(
+        `${pairing.attacker === "You" ? "attack" : "attacks"} ${pairing.defender}${pairing.count > 1 ? ` ×${pairing.count}` : ""}`,
+        12,
+        destructive,
+        { weight: "600", width: availableWidth - 16 },
       );
-      for (const [index, pairing] of action.combatPairings.entries()) {
-        const rowY = y + 12 + index * 16;
-        const attacker = promptText(pairing.attacker, 12, this.theme.appTheme.foreground, {
-          weight: "600",
-        });
-        attacker.position.set(8, rowY - attacker.height / 2);
-        const verb = promptText(pairing.attacker === "You" ? "attack" : "attacks", 12, muted);
-        verb.position.set(
-          Math.min(availableWidth - 100, 14 + attacker.width),
-          rowY - verb.height / 2,
-        );
-        const defender = promptText(pairing.defender, 12, destructive, { weight: "600" });
-        defender.position.set(
-          Math.min(availableWidth - defender.width - 28, verb.x + verb.width + 6),
-          rowY - defender.height / 2,
-        );
-        container.addChild(attacker, verb, defender);
-        if (pairing.count > 1) {
-          const count = promptText(`×${pairing.count}`, 10, destructive, { weight: "700" });
-          count.anchor.set(1, 0.5);
-          count.position.set(availableWidth - 8, rowY);
-          const badgeWidth = count.width + 8;
-          container.addChild(
-            new Graphics()
-              .roundRect(availableWidth - badgeWidth - 6, rowY - 8, badgeWidth, 16, 3)
-              .fill({ color: hexToNum(destructive), alpha: 0.15 }),
-            count,
-          );
-        }
-      }
-      y += pairingsHeight + 8;
+      const height = attacker.height + defender.height + 20;
+      const background = new Graphics()
+        .roundRect(0, y, availableWidth, height, 8)
+        .fill({ color: hexToNum(destructive), alpha: 0.1 });
+      attacker.position.set(8, y + 8);
+      defender.position.set(8, attacker.y + attacker.height + 4);
+      container.addChild(background, attacker, defender);
+      y += height + 8;
     }
-
     const isAttackDecl = action.promptType === "chooseAttackers";
     const isBlockDecl = action.promptType === "chooseBlockers";
     const activeAttackers = isAttackDecl ? action.pendingAttackers : action.attackerIds;
@@ -2105,65 +2193,57 @@ export class PromptLayer extends PromptModalLayer {
           action.combatDefenderLife != null &&
           incomingDamage >= action.combatDefenderLife);
       const showIncoming = isBlockDecl || sample;
-      const height = firstStrike ? 50 : 34;
-      container.addChild(
-        new Graphics()
-          .roundRect(0, y, availableWidth, height, 8)
-          .fill({ color: hexToNum(destructive), alpha: 0.1 })
-          .stroke({ color: hexToNum(destructive), width: 1, alpha: 0.25 }),
-      );
+      const details = [
+        promptText(
+          `${attackerCount} ${attackerCount === 1 ? "attacker" : "attackers"}`,
+          12,
+          this.theme.appTheme.foreground,
+          {
+            weight: "600",
+            width: availableWidth - 32,
+          },
+        ),
+        ...(showIncoming
+          ? [
+              promptText(`${blockedCount} blocked · ${unblockedCount} open`, 12, muted, {
+                width: availableWidth - 32,
+              }),
+            ]
+          : []),
+        promptText(
+          `${showIncoming ? "Est." : "Open"} ${incomingDamage}${lethal ? " · LETHAL?" : ""}`,
+          12,
+          lethal ? destructive : this.theme.appTheme.foreground,
+          {
+            weight: lethal ? "700" : "600",
+            width: availableWidth - 32,
+          },
+        ),
+        ...(firstStrike
+          ? [
+              promptText("First or double strike", 12, this.theme.appTheme.warning, {
+                weight: "500",
+                width: availableWidth - 32,
+              }),
+            ]
+          : []),
+      ];
+      const height = 16 + details.reduce((total, text) => total + text.height + 4, 0);
+      const background = new Graphics()
+        .roundRect(0, y, availableWidth, height, 8)
+        .fill({ color: hexToNum(destructive), alpha: 0.1 })
+        .stroke({ color: hexToNum(destructive), width: 1, alpha: 0.25 });
       const swords = this.makeIcon("lucide-swords", 14, destructive);
-      swords.position.set(14, y + 17);
-      const count = promptText(
-        `${attackerCount} ${attackerCount === 1 ? "attacker" : "attackers"}`,
-        12,
-        this.theme.appTheme.foreground,
-        { weight: "600" },
-      );
-      count.position.set(24, y + 17 - count.height / 2);
-      container.addChild(swords, count);
-      let x = count.x + count.width + 8;
-      if (showIncoming) {
-        const blocks = promptText(`${blockedCount} blocked · ${unblockedCount} open`, 12, muted);
-        blocks.position.set(x, y + 17 - blocks.height / 2);
-        container.addChild(blocks);
-        x += blocks.width + 8;
-      }
-      const damage = promptText(
-        `${showIncoming ? "Est." : "Open"} ${incomingDamage}`,
-        12,
-        lethal ? destructive : this.theme.appTheme.foreground,
-        { weight: lethal ? "700" : "600" },
-      );
-      damage.position.set(
-        Math.min(x, availableWidth - damage.width - (isBlockDecl ? 30 : 8)),
-        y + 17 - damage.height / 2,
-      );
-      container.addChild(damage);
-      if (firstStrike) {
-        const strike = promptText("First or double strike", 12, this.theme.appTheme.warning, {
-          weight: "500",
-        });
-        const zap = this.makeIcon("lucide-zap", 12, this.theme.appTheme.warning);
-        zap.position.set(14, y + 40);
-        strike.position.set(24, y + 40 - strike.height / 2);
-        container.addChild(zap, strike);
-      }
-      if (lethal) {
-        const lethalLabel = promptText("LETHAL?", 10, destructive, {
-          weight: "700",
-          letterSpacing: 0.5,
-        });
-        lethalLabel.anchor.set(1, 0.5);
-        lethalLabel.position.set(
-          availableWidth - (isBlockDecl ? 30 : 8),
-          y + (firstStrike ? 40 : 17),
-        );
-        container.addChild(lethalLabel);
+      swords.position.set(14, y + 18);
+      container.addChild(background, swords);
+      let textY = y + 8;
+      for (const text of details) {
+        text.position.set(24, textY);
+        container.addChild(text);
+        textY += text.height + 4;
       }
       y += height;
     }
-
     return visible ? { container, width: availableWidth, height: y } : null;
   }
 
@@ -2174,7 +2254,7 @@ export class PromptLayer extends PromptModalLayer {
     titleValue: string,
   ): void {
     const lines = this.actionContextLines();
-    const width = Math.min(320, Math.max(240, panelX + panelWidth - 8));
+    const width = Math.min(this.viewportWidth - 16, 320, Math.max(240, panelX + panelWidth - 8));
     const popover = new Container();
     const title = promptText(titleValue.toUpperCase(), 11, this.theme.appTheme.foreground, {
       weight: "700",
@@ -2198,7 +2278,9 @@ export class PromptLayer extends PromptModalLayer {
       }
     }
     for (const line of lines) {
-      const text = promptRichText(line, 11, this.theme.appTheme["muted-foreground"], width - 24);
+      const text = promptRichText(line, 11, this.theme.appTheme["muted-foreground"], width - 24, {
+        role: "body",
+      });
       text.position.set(12, y);
       popover.addChild(text);
       y += text.height + 4;
@@ -2211,19 +2293,50 @@ export class PromptLayer extends PromptModalLayer {
     }
     const contentHeight = y + 4;
     const height = Math.min(contentHeight, this.viewportHeight * 0.55, Math.max(48, panelY - 16));
-    popover.addChildAt(this.makeActionPanelSurface(width, height, 8, false), 0);
+    const content = new Container();
+    for (const child of [...popover.children]) content.addChild(child);
+    popover.addChild(this.makeActionPanelSurface(width, height, 8, false), content);
     if (height < contentHeight) {
       const mask = new Graphics()
         .rect(0, 0, width, height)
         .fill({ color: hexToNum(this.theme.appTheme.foreground) });
       popover.addChild(mask);
-      popover.mask = mask;
+      content.mask = mask;
+      const scroll = (offset: number) => {
+        content.y = Math.max(height - contentHeight, Math.min(0, offset));
+        this.callbacks.onRenderRequested?.();
+      };
+      popover.on("wheel", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        scroll(content.y - event.deltaY * (event.deltaMode === 1 ? 16 : 1));
+      });
+      let pointerId: number | null = null;
+      let startY = 0;
+      let startOffset = 0;
+      popover.on("pointerdown", (event: FederatedPointerEvent) => {
+        if (event.pointerType !== "touch") return;
+        pointerId = event.pointerId;
+        startY = event.global.y;
+        startOffset = content.y;
+      });
+      popover.on("globalpointermove", (event: FederatedPointerEvent) => {
+        if (event.pointerId !== pointerId) return;
+        scroll(startOffset + event.global.y - startY);
+      });
+      const finishScroll = () => {
+        pointerId = null;
+      };
+      popover.on("pointerup", finishScroll);
+      popover.on("pointerupoutside", finishScroll);
+      popover.on("pointercancel", finishScroll);
     }
     popover.position.set(
       Math.max(8, panelX + panelWidth - width),
       Math.max(8, panelY - height - 8),
     );
-    popover.eventMode = "none";
+    popover.eventMode = "static";
+    popover.hitArea = new Rectangle(0, 0, width, height);
     popover.zIndex = 20;
     this.container.addChild(popover);
   }

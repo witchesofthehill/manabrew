@@ -659,8 +659,8 @@ export function BoardOverlayCanvasSurface({
             );
           }
 
-          promptLayer?.setHandBounds(currentScene?.getHandScreenBounds() ?? null);
           promptLayer?.update(deltaMs);
+          currentScene?.setActionPanelBounds(promptLayer?.getActionPanelBounds() ?? null);
 
           const definitions = currentScene?.getArrowDefs() ?? [];
           arrow?.update(definitions, deltaMs);

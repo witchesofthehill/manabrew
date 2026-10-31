@@ -48,7 +48,7 @@ export function PresetDeckShelf({
           })}
         </DeckShelfRow>
       ) : (
-        <p className="px-2 text-xs italic text-muted-foreground">
+        <p className="px-2 text-ui-meta italic text-muted-foreground">
           {loaded ? `No preset decks are available.` : `Loading preset decks\u2026`}
         </p>
       )}

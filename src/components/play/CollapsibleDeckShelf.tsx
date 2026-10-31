@@ -23,11 +23,11 @@ export function CollapsibleDeckShelf({
         type="button"
         aria-expanded={open}
         onClick={() => onOpenChange(!open)}
-        className="flex min-h-10 w-full items-center justify-between gap-3 rounded-lg px-2 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+        className="flex min-h-10 w-full items-center justify-between gap-3 rounded-lg px-2 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal"
       >
-        <span>
-          <span className="text-sm font-semibold">{title}</span>
-          <span className="ml-2 text-xs text-muted-foreground">{count}</span>
+        <span className="flex min-w-0 flex-wrap items-baseline gap-x-2">
+          <span className="text-ui-label font-semibold">{title}</span>
+          <span className="text-ui-meta text-muted-foreground">{count}</span>
         </span>
         <ChevronDown
           className={cn(

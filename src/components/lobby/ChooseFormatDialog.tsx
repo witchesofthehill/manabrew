@@ -45,7 +45,7 @@ export function ChooseFormatDialog({ room, onClose, onSelect }: ChooseFormatDial
     <Dialog open={room != null} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-4xl p-0 overflow-hidden">
         <DialogTitle className="sr-only">Choose a format</DialogTitle>
-        <div className="h-[min(42rem,85dvh)]">
+        <div className="h-[min(42rem,calc(var(--visual-viewport-height,100dvh)-2rem-var(--safe-area-inset-top)-var(--safe-area-inset-bottom)))]">
           <FormatPicker formats={PICKER_FORMATS} onSelect={handleSelect} />
         </div>
       </DialogContent>

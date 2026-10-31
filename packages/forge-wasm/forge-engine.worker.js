@@ -5,6 +5,7 @@ let wasmUrl = null;
 
 let booting = null;
 let gameRunning = false;
+let supervised = false;
 
 const postEvent = (event, payload) => self.postMessage({ type: "event", event, payload });
 
@@ -20,6 +21,142 @@ for (const level of ["log", "warn", "error"]) {
 const postResponse = (requestId, payload) =>
   self.postMessage({ type: "response", requestId, payload });
 const postError = (requestId, error) => self.postMessage({ type: "response", requestId, error });
+
+function supervise(command) {
+  supervised = true;
+  let active;
+  let candidate;
+  let timer;
+  let ended = false;
+  let started = false;
+  let directiveLanes;
+  const stop = () => {
+    ended = true;
+    clearTimeout(timer);
+    candidate?.worker.terminate();
+    active?.worker.terminate();
+    candidate = active = null;
+    if (!started) postError(command.requestId, "Game ended before startup completed.");
+    started = true;
+  };
+
+  const fail = (message) => {
+    if (ended) return;
+    candidate?.worker.terminate();
+    candidate = null;
+    clearTimeout(timer);
+    Atomics.store(new Int32Array(active.control), 0, 1);
+    Atomics.notify(new Int32Array(active.control), 0);
+    postEvent("forge:log", { level: "error", text: `Rewind failed: ${message}` });
+  };
+
+  const launch = (snapshot) => {
+    const control = new SharedArrayBuffer(4);
+    const promptOffset = snapshot
+      ? active.promptOffset + snapshot.lastPromptId + 1 - snapshot.prompt.promptId
+      : 0;
+    const worker = new Worker(self.location.href);
+    const instance = { worker, control, buffered: [], promptOffset };
+    if (snapshot) candidate = instance;
+    else active = instance;
+    worker.onerror = (event) => {
+      if (instance === candidate) fail(event.message);
+      else if (instance === active) {
+        stop();
+        postEvent("game:forced_end", { reason: "worker_error", message: event.message });
+      }
+    };
+    worker.onmessage = ({ data }) => {
+      if (ended || (instance !== active && instance !== candidate)) return;
+      if (data.type === "event" && data.event === "worker:init") {
+        worker.postMessage({
+          ...command,
+          args: {
+            ...command.args,
+            forgeLeaf: true,
+            rewindControl: control,
+            promptOffset,
+            replaySnapshot: snapshot,
+            rewindDirectiveLanes: snapshot ? directiveLanes : undefined,
+          },
+        });
+        return;
+      }
+      if (data.type === "event" && data.event === "forge:rewind" && instance === active) {
+        if (candidate) return;
+        try {
+          launch(data.payload);
+          timer = setTimeout(() => fail("Replay timed out. The current game was kept."), 120000);
+        } catch (error) {
+          fail(String(error));
+        }
+        return;
+      }
+      if (instance === candidate) {
+        if (data.error || data.event === "game:forced_end" || data.event === "game:over") {
+          fail(data.error || data.payload?.message || "Replay ended before verification.");
+        } else if (data.event === "forge:replay_ready") {
+          clearTimeout(timer);
+          active.worker.terminate();
+          active = instance;
+          candidate = null;
+          for (const message of instance.buffered) {
+            if (message.event !== "game:directive_lanes") self.postMessage(message);
+          }
+          instance.buffered = [];
+          Atomics.store(new Int32Array(control), 0, 2);
+          Atomics.notify(new Int32Array(control), 0);
+        } else if (["game:sab", "game:remote_sab", "game:directive_lanes"].includes(data.event)) {
+          instance.buffered.push(data);
+        }
+        return;
+      }
+      if (data.type === "response" && data.requestId === command.requestId) {
+        started = true;
+        if (data.error) stop();
+      }
+      if (data.event === "game:directive_lanes") directiveLanes = data.payload;
+      if (data.event === "game:forced_end" || data.event === "game:over") stop();
+      if (data.event !== "forge:journal") self.postMessage(data);
+    };
+    return instance;
+  };
+
+  try {
+    launch(null);
+  } catch (error) {
+    postError(command.requestId, String(error));
+    return;
+  }
+  self.onmessage = ({ data }) => {
+    if (data?.type !== "command") return;
+    if (data.command === "end_game") {
+      stop();
+      postResponse(data.requestId, null);
+    } else if (ended) {
+      postError(data.requestId, "Game has ended.");
+    } else if (["respond", "get_prompt", "get_game_view"].includes(data.command)) {
+      // Gameplay uses SABs. The leaf's event loop is blocked for the entire game.
+      postResponse(data.requestId, null);
+    } else if (["wasm_init", "ensure_card_data"].includes(data.command)) {
+      postResponse(data.requestId, "ok");
+    } else {
+      postError(data.requestId, `Forge cannot handle ${data.command} while a game is active.`);
+    }
+  };
+}
+
+function runGame(request, args) {
+  self.__forgeRewindControl = args.rewindControl;
+  self.__forgePromptOffset = args.promptOffset ?? 0;
+  if (args.replaySnapshot) {
+    request = JSON.parse(args.replaySnapshot.journal.startRequest);
+    request.replaySnapshot = args.replaySnapshot;
+  }
+  const result = self.__forgeStartGame(JSON.stringify(request));
+  const error = result && JSON.parse(String(result)).error;
+  if (error) throw new Error(error);
+}
 
 function boot() {
   if (booting) return booting;
@@ -100,12 +237,11 @@ function gameSeed(args) {
   return Number.isInteger(seed) && seed > 0 ? seed % 2147483647 : Date.now() % 2147483647;
 }
 
-function shareDirectiveLanes(seatCount, localSeat) {
-  const buffers = Array.from(
-    { length: seatCount },
-    () => new SharedArrayBuffer(DIRECTIVE_LANE_BYTES),
-  );
-  const hostBuffer = new SharedArrayBuffer(DIRECTIVE_LANE_BYTES);
+function shareDirectiveLanes(seatCount, localSeat, retained) {
+  const buffers =
+    retained?.buffers ??
+    Array.from({ length: seatCount }, () => new SharedArrayBuffer(DIRECTIVE_LANE_BYTES));
+  const hostBuffer = retained?.hostBuffer ?? new SharedArrayBuffer(DIRECTIVE_LANE_BYTES);
   self.__forgeDirectiveLanes = buffers;
   self.__forgeHostLane = hostBuffer;
   postEvent("game:directive_lanes", { buffers, hostBuffer, localSeat });
@@ -141,17 +277,19 @@ async function startGame(requestId, args) {
   seatBuffers.slice(1).forEach((buffer, index) => {
     postEvent("game:remote_sab", { buffer, playerSlot: `player-${index + 1}` });
   });
-  shareDirectiveLanes(seatBuffers.length, 0);
+  shareDirectiveLanes(seatBuffers.length, 0, args.rewindDirectiveLanes);
   postResponse(requestId, "game-started");
 
   const variant = forgeVariant(humanDeck);
   const commanderGame = variant !== "Constructed";
   const request = {
-    gameId: `forge-${Date.now()}`,
+    gameId: args.gameId || `forge-${Date.now()}`,
     variant,
     startingLife: (args && args.startingLife) || (commanderGame ? 40 : 20),
     seed: gameSeed(args),
     snapshotRecording: !args || args.snapshotRecording !== false,
+    decisionJournal: args?.decisionJournal === true,
+    journalRewind: args?.journalRewind === true,
     players: [
       {
         name: "You",
@@ -187,7 +325,7 @@ async function startGame(requestId, args) {
   // Blocks the worker for the whole game, which is the point: the engine parks
   // on Atomics.wait whenever the human seat has to decide.
   try {
-    self.__forgeStartGame(JSON.stringify(request));
+    runGame(request, args);
     gameRunning = false;
     postEvent("game:over", {});
   } catch (e) {
@@ -238,17 +376,19 @@ async function startMultiplayerGame(requestId, args) {
     if (index === localPlayerIndex) return;
     postEvent("game:remote_sab", { buffer, playerSlot: `player-${index}` });
   });
-  shareDirectiveLanes(seatBuffers.length, localPlayerIndex);
+  shareDirectiveLanes(seatBuffers.length, localPlayerIndex, args.rewindDirectiveLanes);
   postResponse(requestId, "multiplayer-started");
 
   const variant = forgeVariant(decks[0]);
   const commanderGame = variant !== "Constructed";
   const request = {
-    gameId: `forge-${Date.now()}`,
+    gameId: args.gameId || `forge-${Date.now()}`,
     variant,
     startingLife: (args && args.startingLife) || (commanderGame ? 40 : 20),
     seed: gameSeed(args),
     snapshotRecording: !args || args.snapshotRecording !== false,
+    decisionJournal: args?.decisionJournal === true,
+    journalRewind: args?.journalRewind === true,
     players: decks.map((deck, index) => ({
       name: playerNames[index] || `Player ${index + 1}`,
       ai: forgeAiSeats.has(index),
@@ -265,7 +405,7 @@ async function startMultiplayerGame(requestId, args) {
   );
 
   try {
-    self.__forgeStartGame(JSON.stringify(request));
+    runGame(request, args);
     gameRunning = false;
     postEvent("game:over", {});
   } catch (e) {
@@ -280,6 +420,15 @@ async function startMultiplayerGame(requestId, args) {
 self.onmessage = (e) => {
   const msg = e.data;
   if (!msg || msg.type !== "command") return;
+  if (
+    !supervised &&
+    !msg.args?.forgeLeaf &&
+    msg.args?.journalRewind &&
+    (msg.command === "start_game" || msg.command === "start_multiplayer_game")
+  ) {
+    supervise(msg);
+    return;
+  }
   if (msg.command === "start_game") return void startGame(msg.requestId, msg.args);
   if (msg.command === "start_multiplayer_game") {
     return void startMultiplayerGame(msg.requestId, msg.args);

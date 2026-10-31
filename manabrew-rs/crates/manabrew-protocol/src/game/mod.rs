@@ -155,6 +155,17 @@ pub struct GameViewDto {
     pub restore_vote: Option<RestoreVoteDto>,
     #[serde(default)]
     pub snapshot_recording: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub decision_history: Option<DecisionHistoryDto>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "game/index.ts")]
+pub struct DecisionHistoryDto {
+    pub rewinding: bool,
+    pub unavailable_reason: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -190,6 +201,14 @@ pub struct CheckpointDto {
     pub turn: u32,
     pub step: StepKind,
     pub active_player_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub decision: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub deciding_player_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub log: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

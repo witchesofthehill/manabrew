@@ -29,7 +29,7 @@ export function ConcedeGameModal({ onConfirm, onCancel, hosting = false }: Conce
       <Modal.Header>
         <h2 className="text-base font-semibold">Concede the game?</h2>
       </Modal.Header>
-      <Modal.Body className="space-y-3 text-sm">
+      <Modal.Body className="space-y-3">
         <p>You forfeit the game. This cannot be undone.</p>
         {hosting && (
           <p className="text-muted-foreground">

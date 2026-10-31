@@ -36,7 +36,7 @@ import { GeneratedCardImage } from "@/components/game/GeneratedCardImage";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { usePreferredPrintsStore } from "@/stores/usePreferredPrintsStore";
 import { useDeckStore } from "@/stores/useDeckStore";
-import { PrintPickerModal } from "@/components/editor/PrintPickerModal";
+import { CardPrintingPicker } from "@/components/editor/CardPrintingPicker";
 import { getScryfallManaCost } from "@/api/scryfall";
 import { frontFaceName, scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { cardFaceImageUris } from "@/lib/cardImage";
@@ -54,7 +54,6 @@ import { useIsUnsupported } from "@/stores/useCardSupportStore";
 interface DeckEditorActions {
   onAddOne: (cardName: string) => void;
   onRemoveOne: (cardName: string) => void;
-  onPickPrint: (cardName: string) => void;
   onSetCommander: (cardName: string) => void;
   isCommander?: boolean;
   commanderSlot?: CommanderSlot;
@@ -66,7 +65,6 @@ interface DeckEditorActions {
   onSetCover?: (cardName: string, face: 0 | 1) => void;
   token?: DeckCard;
   printing?: DeckCardIdentity;
-  onUpdateTokenPrint?: (tokenName: string, print: ScryfallCard) => void;
 }
 interface CardDetailModalProps {
   card: ScryfallCard;
@@ -108,14 +106,7 @@ export function CardDetailModal({
   const rulingsLoading = !rulingsData;
   const { setPreferredPrint } = usePreferredPrintsStore();
   const setLookup = useSetLookup();
-  const {
-    savedDecks,
-    currentDeck,
-    addToMain,
-    addCardToSavedDeck,
-    updatePrint,
-    updatePrintingVariant,
-  } = useDeckStore();
+  const { savedDecks, currentDeck, addToMain, addCardToSavedDeck } = useDeckStore();
   const collectionQuantities = useCollectionStore((state) => state.quantities);
   const cardId = initialCard?.id;
   const [prevCardId, setPrevCardId] = useState(cardId);
@@ -185,6 +176,38 @@ export function CardDetailModal({
         (candidate) => tokenIdentityKey(candidate) === tokenIdentityKey(token),
       ) ?? token)
     : exactDeckCard;
+  const canCustomize = !!deckEditorActions && !!customizationCard && !readOnly;
+  const customizationSetCode = customizationCard?.identity.setCode;
+  const customizationCardNumber = customizationCard?.identity.cardNumber;
+  const customizationPrintingKey = `${customizationSetCode ?? ""}::${customizationCardNumber ?? ""}`;
+  const [previousCustomizationPrinting, setPreviousCustomizationPrinting] =
+    useState(customizationPrintingKey);
+  if (previousCustomizationPrinting !== customizationPrintingKey) {
+    setPreviousCustomizationPrinting(customizationPrintingKey);
+    setSelectedPrint(null);
+    setFaceIndex(0);
+  }
+  useEffect(() => {
+    if (!customizationSetCode || !customizationCardNumber) return;
+    if (
+      customizationSetCode === initialCard.set &&
+      customizationCardNumber === initialCard.collector_number
+    )
+      return;
+    let cancelled = false;
+    void useScryfallStore
+      .getState()
+      .getCard({ setCode: customizationSetCode, collectorNumber: customizationCardNumber })
+      .then((entry) => {
+        if (!cancelled) setSelectedPrint(entry.info);
+      })
+      .catch(() => {
+        if (!cancelled) toast.error(`Could not fetch info for "${initialCard.name}"`);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [customizationSetCode, customizationCardNumber, initialCard]);
   const matchingDeckCard =
     exactDeckCard ?? deckCards.find((candidate) => candidate.identity.name === deckCardName);
   const foil = !!(
@@ -304,18 +327,13 @@ export function CardDetailModal({
   function handleSelectPrint(print: ScryfallCard) {
     setSelectedPrint(print);
     setFaceIndex(0);
-    const newEntry = updatePrinting(print);
-    setPreferredPrint(initialCard!.oracle_id, {
-      set: print.set,
-      collectorNumber: print.collector_number,
-      imageUrl: newEntry.uris.png,
-    });
-    if (deckEditorActions?.token && deckEditorActions.onUpdateTokenPrint) {
-      deckEditorActions.onUpdateTokenPrint(deckCardName, print);
-    } else if (deckEditorActions?.printing) {
-      updatePrintingVariant(exactDeckCard?.identity ?? deckEditorActions.printing, print);
-    } else if (deckEditorActions) {
-      updatePrint(deckCardName, print);
+    if (!deckEditorActions) {
+      const newEntry = updatePrinting(print);
+      setPreferredPrint(initialCard.oracle_id, {
+        set: print.set,
+        collectorNumber: print.collector_number,
+        imageUrl: newEntry.uris.png,
+      });
     }
   }
   return (
@@ -323,7 +341,6 @@ export function CardDetailModal({
       <Modal
         onClose={onClose}
         maxWidth="max-w-4xl"
-        maxHeight="max-h-[90dvh] max-sm:max-h-[calc(100dvh-var(--safe-area-inset-top)-0.5rem)]"
         className="max-sm:mt-auto max-sm:mx-0 max-sm:rounded-b-none"
       >
         <Modal.Header onClose={onClose}>
@@ -333,7 +350,7 @@ export function CardDetailModal({
               <Button
                 variant="outline"
                 size="sm"
-                className="shrink-0"
+                className="touch:min-w-11 touch:min-h-11 shrink-0"
                 onClick={() => setEnglishMode({ key: cardKey, enabled: !showEnglish })}
                 aria-pressed={showEnglish}
               >
@@ -341,7 +358,7 @@ export function CardDetailModal({
               </Button>
             )}
             {isDoubleFaced && (
-              <span className="text-xs text-muted-foreground shrink-0">
+              <span className="text-ui-meta text-muted-foreground shrink-0">
                 {faceIndex === 0 ? `Front face` : `Back face`}
               </span>
             )}
@@ -359,7 +376,7 @@ export function CardDetailModal({
             >
               Previous card
             </Button>
-            <span className="text-xs text-muted-foreground">
+            <span className="text-ui-meta text-muted-foreground">
               {navigation.position} / {navigation.total}
             </span>
             <Button
@@ -434,13 +451,13 @@ export function CardDetailModal({
                         isHorizontalActiveFace ? "aspect-[7/5]" : "aspect-[5/7]",
                       )}
                     >
-                      <span className="text-muted-foreground text-sm">No Image</span>
+                      <span className="text-muted-foreground text-ui-label">No Image</span>
                     </div>
                   )}
                   <Button
                     variant="outline"
                     size="sm"
-                    className="mt-2 w-full"
+                    className="touch:min-w-11 touch:min-h-11 mt-2 w-full"
                     onClick={() => setPresentation(generated ? "printed" : "rules")}
                   >
                     {generated ? "Show Realistic card" : "Show Manabrew card"}
@@ -450,7 +467,7 @@ export function CardDetailModal({
                     <Button
                       variant="outline"
                       size="sm"
-                      className="w-full mt-2 gap-1.5"
+                      className="touch:min-w-11 touch:min-h-11 w-full mt-2 gap-1.5"
                       onClick={() => setFaceIndex(faceIndex === 0 ? 1 : 0)}
                     >
                       <RotateCcw className="h-3.5 w-3.5" />
@@ -460,29 +477,29 @@ export function CardDetailModal({
                     </Button>
                   )}
 
-                  {!deckEditorActions && (
+                  {!canCustomize && (
                     <Button
                       variant="outline"
                       size="sm"
-                      className="w-full mt-2 gap-1"
-                      onClick={() => setShowPrints(true)}
+                      className="touch:min-w-11 touch:min-h-11 w-full mt-2 gap-1"
+                      onClick={() => setShowPrints((shown) => !shown)}
                     >
                       <ImageIcon className="h-3.5 w-3.5" />
-                      Show All Printings
+                      {showPrints ? "Hide Printings" : "Show All Printings"}
                     </Button>
                   )}
                 </div>
 
                 <div className="flex-1 min-w-0 space-y-3">
                   <div>
-                    <div className="text-sm font-semibold text-muted-foreground">Type</div>
-                    <div className="text-sm">{typeLine}</div>
+                    <div className="text-ui-label font-semibold text-muted-foreground">Type</div>
+                    <div className="text-ui-body">{typeLine}</div>
                   </div>
 
                   {deckEditorActions && matchingDeckCard && (
                     <div className="space-y-2 rounded-lg border bg-muted/20 p-3">
-                      <div className="text-sm font-semibold">Deck inspector</div>
-                      <div className="flex flex-wrap gap-1.5 text-xs">
+                      <div className="text-ui-label font-semibold">Deck inspector</div>
+                      <div className="flex flex-wrap gap-1.5 text-ui-meta">
                         {zoneCounts.main > 0 && (
                           <Badge variant="outline">Main {zoneCounts.main}</Badge>
                         )}
@@ -499,7 +516,7 @@ export function CardDetailModal({
                           {matchingDeckCard.identity.foil ? `Foil` : `Non-foil`}
                         </Badge>
                       </div>
-                      <div className="flex items-center gap-2 text-xs">
+                      <div className="flex items-center gap-2 text-ui-meta">
                         <LibraryBig className="h-3.5 w-3.5 text-muted-foreground" />
                         <span>
                           {exactOwnership === "exact"
@@ -509,7 +526,7 @@ export function CardDetailModal({
                               : `Not in collection`}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 text-xs">
+                      <div className="flex items-center gap-2 text-ui-meta">
                         {unsupported ? (
                           <AlertTriangle className="h-3.5 w-3.5 text-warning" />
                         ) : (
@@ -528,7 +545,7 @@ export function CardDetailModal({
                               key={tag}
                               variant="outline"
                               size="sm"
-                              className="h-6 gap-1 px-2 text-xs"
+                              className="touch:min-w-11 touch:min-h-11 min-h-6 gap-1 px-2 text-ui-label"
                               onClick={() => deckEditorActions.onUntagCard?.(deckCardName, tag)}
                             >
                               <Tag className="h-3 w-3" />
@@ -543,8 +560,10 @@ export function CardDetailModal({
 
                   {oracleText && (
                     <div>
-                      <div className="text-sm font-semibold text-muted-foreground">Oracle Text</div>
-                      <div className="text-sm whitespace-pre-wrap bg-muted/30 rounded p-2 border">
+                      <div className="text-ui-label font-semibold text-muted-foreground">
+                        Oracle Text
+                      </div>
+                      <div className="text-ui-body whitespace-pre-wrap bg-muted/30 rounded p-2 border">
                         {oracleText}
                       </div>
                     </div>
@@ -553,19 +572,23 @@ export function CardDetailModal({
                   {power && toughness && (
                     <div className="flex gap-4">
                       <div>
-                        <span className="text-sm font-semibold text-muted-foreground">P/T:</span>
-                        <span className="text-sm font-bold">
+                        <span className="text-ui-meta font-semibold text-muted-foreground">
+                          P/T:
+                        </span>
+                        <span className="text-ui-meta font-bold">
                           {power}/{toughness}
                         </span>
                       </div>
                       <div>
-                        <span className="text-sm font-semibold text-muted-foreground">CMC:</span>
-                        <span className="text-sm">{card.cmc}</span>
+                        <span className="text-ui-meta font-semibold text-muted-foreground">
+                          CMC:
+                        </span>
+                        <span className="text-ui-meta">{card.cmc}</span>
                       </div>
                     </div>
                   )}
 
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-ui-meta">
                     <div className="flex items-center gap-1">
                       <span className="font-semibold text-muted-foreground">Set:</span>
                       {setLookup.get(card.set)?.icon_svg_uri && (
@@ -589,21 +612,23 @@ export function CardDetailModal({
                     </div>
                   </div>
 
-                  <div className="text-sm">
+                  <div className="text-ui-meta">
                     <span className="font-semibold text-muted-foreground">Artist:</span>
                     <span>{card.artist}</span>
                   </div>
 
                   {card.edhrec_rank && (
-                    <div className="text-sm">
+                    <div className="text-ui-meta">
                       <span className="font-semibold text-muted-foreground">EDHREC Rank:</span>
                       <span>#{card.edhrec_rank.toLocaleString()}</span>
                     </div>
                   )}
 
                   <div>
-                    <div className="text-sm font-semibold text-muted-foreground mb-1">Prices</div>
-                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm">
+                    <div className="text-ui-label font-semibold text-muted-foreground mb-1">
+                      Prices
+                    </div>
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-ui-meta">
                       {card.prices.usd && <span>USD ${card.prices.usd}</span>}
                       {card.prices.usd_foil && <span>Foil ${card.prices.usd_foil}</span>}
                       {card.prices.eur && <span>EUR €{card.prices.eur}</span>}
@@ -615,10 +640,20 @@ export function CardDetailModal({
                   </div>
                 </div>
               </div>
+              {showPrints && !canCustomize && (
+                <CardPrintingPicker
+                  cardName={card.name}
+                  token={token}
+                  printing={renderCard.identity}
+                  onSelect={handleSelectPrint}
+                />
+              )}
 
               <div>
-                <div className="text-sm font-semibold text-muted-foreground mb-1">Legalities</div>
-                <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+                <div className="text-ui-label font-semibold text-muted-foreground mb-1">
+                  Legalities
+                </div>
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,13rem),1fr))] gap-1.5">
                   {Object.entries(FORMAT_DISPLAY).map(([key, label]) => {
                     const status = card.legalities[key] ?? "not_legal";
                     return (
@@ -626,7 +661,7 @@ export function CardDetailModal({
                         key={key}
                         variant="outline"
                         className={cn(
-                          "text-xs justify-between px-2 py-0.5",
+                          "text-ui-meta flex-wrap justify-between gap-2 whitespace-normal px-2 py-0.5",
                           LEGALITY_STYLES[status],
                         )}
                       >
@@ -639,7 +674,7 @@ export function CardDetailModal({
               </div>
 
               <div>
-                <div className="text-sm font-semibold text-muted-foreground mb-1">
+                <div className="text-ui-label font-semibold text-muted-foreground mb-1">
                   Rulings {rulings.length > 0 && `(${rulings.length})`}
                 </div>
                 {rulingsLoading && (
@@ -648,12 +683,12 @@ export function CardDetailModal({
                   </div>
                 )}
                 {!rulingsLoading && rulings.length === 0 && (
-                  <p className="text-sm text-muted-foreground">No rulings available.</p>
+                  <p className="text-ui-label text-muted-foreground">No rulings available.</p>
                 )}
                 {rulings.length > 0 && (
                   <div className="space-y-1.5 max-h-48 overflow-y-auto">
                     {rulings.map((r, i) => (
-                      <div key={i} className="text-xs border rounded p-2 bg-muted/20">
+                      <div key={i} className="text-ui-body border rounded p-2 bg-muted/20">
                         <div className="text-muted-foreground mb-0.5">
                           {r.published_at} — {r.source}
                         </div>
@@ -683,7 +718,7 @@ export function CardDetailModal({
                   >
                     <Minus className="h-3.5 w-3.5" />
                   </Button>
-                  <span className="min-w-6 px-1 text-center text-xs font-semibold tabular-nums">
+                  <span className="min-w-6 px-1 text-center text-ui-meta font-semibold tabular-nums">
                     {currentDeck.cards.filter((c) => c.identity.name === deckCardName).length}
                   </span>
                   <Button
@@ -700,15 +735,7 @@ export function CardDetailModal({
                 </div>
 
                 <div className="flex items-center rounded-md border bg-muted/30 p-0.5">
-                  <Button
-                    size="icon-sm"
-                    variant="ghost"
-                    title={`Change printing`}
-                    onClick={() => setShowPrints(true)}
-                  >
-                    <ImageIcon className="h-3.5 w-3.5" />
-                  </Button>
-                  {customizationCard && (
+                  {canCustomize && (
                     <Button
                       size="icon-sm"
                       variant="ghost"
@@ -737,7 +764,10 @@ export function CardDetailModal({
                     <Button
                       size="icon"
                       variant="ghost"
-                      className={cn("h-7 w-7", deckEditorActions.isCommander && "text-commander")}
+                      className={cn(
+                        "touch:min-w-11 touch:min-h-11 min-h-7 w-7",
+                        deckEditorActions.isCommander && "text-commander",
+                      )}
                       title={
                         deckEditorActions.isCommander
                           ? `Remove as ${commanderSlot.noun}`
@@ -760,7 +790,7 @@ export function CardDetailModal({
                       size="icon"
                       variant="ghost"
                       className={cn(
-                        "h-7 w-7",
+                        "touch:min-w-11 touch:min-h-11 min-h-7 w-7",
                         currentDeck.coverCardName === deckCardName && "text-primary",
                       )}
                       title={
@@ -780,7 +810,7 @@ export function CardDetailModal({
                     <Button
                       size="sm"
                       variant="outline"
-                      className="gap-1 h-8"
+                      className="touch:min-w-11 touch:min-h-11 gap-1 min-h-8"
                       onClick={() => setShowDeckPicker((v) => !v)}
                     >
                       <Tag className="h-3.5 w-3.5" />
@@ -792,7 +822,7 @@ export function CardDetailModal({
                           <button
                             key={tag}
                             type="button"
-                            className="w-full text-left px-3 py-1.5 text-sm hover:bg-muted flex items-center gap-2"
+                            className="touch:min-w-11 touch:min-h-11 w-full text-left px-3 py-1.5 text-ui-label hover:bg-muted flex items-center gap-2"
                             onClick={() => {
                               deckEditorActions.onTagCard!(deckCardName, tag);
                               setShowDeckPicker(false);
@@ -808,7 +838,7 @@ export function CardDetailModal({
                         )}
                         <div className="px-2 py-1 flex items-center gap-1">
                           <Input
-                            className="h-7 text-xs flex-1"
+                            className="touch:min-h-11 min-h-7 text-ui-input flex-1"
                             placeholder={`New tag\u2026`}
                             value={newTagInput}
                             onChange={(e) => setNewTagInput(e.target.value)}
@@ -820,7 +850,7 @@ export function CardDetailModal({
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="h-7 w-7 shrink-0"
+                            className="touch:min-w-11 touch:min-h-11 min-h-7 w-7 shrink-0"
                             disabled={!newTagInput.trim()}
                             onClick={handleAddNewTag}
                           >
@@ -837,7 +867,7 @@ export function CardDetailModal({
                 <Button
                   variant="primary"
                   size="sm"
-                  className="gap-1"
+                  className="touch:min-w-11 touch:min-h-11 gap-1"
                   onClick={() => setShowDeckPicker((v) => !v)}
                 >
                   <Plus className="h-3.5 w-3.5" />
@@ -847,17 +877,17 @@ export function CardDetailModal({
 
                 {showDeckPicker && (
                   <div className="absolute bottom-full left-0 mb-1 w-64 bg-popover border rounded-md shadow-lg py-1 z-10">
-                    <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">
+                    <div className="px-2 py-1 text-ui-label font-semibold text-muted-foreground">
                       Select a deck
                     </div>
                     {currentDeck.name && (
                       <button
                         type="button"
-                        className="w-full text-left px-3 py-1.5 text-sm hover:bg-muted flex items-center gap-2"
+                        className="touch:min-w-11 touch:min-h-11 w-full text-left px-3 py-1.5 text-ui-label hover:bg-muted flex items-center gap-2"
                         onClick={handleAddToCurrentDeck}
                       >
                         <span className="flex-1 truncate">{currentDeck.name}</span>
-                        <Badge variant="outline" className="text-[10px] px-1 py-0 shrink-0">
+                        <Badge variant="outline" className="text-ui-meta px-1 py-0 shrink-0">
                           editing
                         </Badge>
                       </button>
@@ -868,18 +898,18 @@ export function CardDetailModal({
                         <button
                           key={s.id}
                           type="button"
-                          className="w-full text-left px-3 py-1.5 text-sm hover:bg-muted flex items-center gap-2"
+                          className="touch:min-w-11 touch:min-h-11 w-full text-left px-3 py-1.5 text-ui-label hover:bg-muted flex items-center gap-2"
                           onClick={() => handleAddToSavedDeck(s.id, s.deck.name)}
                         >
                           <span className="flex-1 truncate">{s.deck.name}</span>
-                          <span className="text-xs text-muted-foreground shrink-0">
+                          <span className="text-ui-meta text-muted-foreground shrink-0">
                             {s.deck.cards.length} cards
                           </span>
                         </button>
                       ))}
                     </ScrollArea>
                     {savedDecks.length === 0 && !currentDeck.name && (
-                      <div className="px-3 py-2 text-sm text-muted-foreground">
+                      <div className="px-3 py-2 text-ui-label text-muted-foreground">
                         No decks available
                       </div>
                     )}
@@ -894,15 +924,7 @@ export function CardDetailModal({
         </Modal.Footer>
       </Modal>
 
-      {showPrints && (
-        <PrintPickerModal
-          cardName={card.name}
-          onClose={() => setShowPrints(false)}
-          onSelect={handleSelectPrint}
-          token={deckEditorActions?.token}
-        />
-      )}
-      {customizing && customizationCard && !readOnly && (
+      {customizing && canCustomize && customizationCard && (
         <CardCustomizerModal
           card={customizationCard}
           token={!!token}

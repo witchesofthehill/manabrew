@@ -160,19 +160,22 @@ export function DeckCollectionPanel({
   }
   return (
     <section className={EDITOR_PANEL_CLASS}>
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <LibraryBig className="h-4 w-4 text-primary" />
           <div>
-            <h3 className="text-sm font-semibold">Collection coverage</h3>
-            <p className="text-[10px] text-muted-foreground">
+            <h3 className="text-ui-label font-semibold">Collection coverage</h3>
+            <p className="text-ui-meta text-muted-foreground">
               {accountId ? `Synced to your account` : `Saved on this device`}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span
-            className={cn("text-xs", missing.length > 0 ? "text-warning" : "text-legality-legal")}
+            className={cn(
+              "text-ui-meta",
+              missing.length > 0 ? "text-warning" : "text-legality-legal",
+            )}
           >
             {loading
               ? `Syncing\u2026`
@@ -185,19 +188,29 @@ export function DeckCollectionPanel({
                 : `${missing.length} cards missing`}
           </span>
           {missing.length > 0 && estimatedTotal > 0 && (
-            <span className="text-xs font-mono text-muted-foreground">
+            <span className="text-ui-meta font-mono text-muted-foreground">
               est. {provider === "cardmarket" ? "€" : provider === "cardhoarder" ? "" : "$"}
               {estimatedTotal.toFixed(2)}
               {provider === "cardhoarder" ? " tix" : ""}
             </span>
           )}
           {(missing.length > 0 || otherPrintingCount > 0) && onOptimizeOwnedPrintings && (
-            <Button size="xs" variant="ghost" onClick={onOptimizeOwnedPrintings}>
+            <Button
+              size="xs"
+              variant="ghost"
+              className="h-auto touch:min-h-11 touch:min-w-11 whitespace-normal text-ui-label"
+              onClick={onOptimizeOwnedPrintings}
+            >
               <Sparkles className="h-3.5 w-3.5" /> Use owned printings
             </Button>
           )}
           {missing.length > 0 && (
-            <Button size="xs" variant="ghost" onClick={exportMissing}>
+            <Button
+              size="xs"
+              variant="ghost"
+              className="h-auto touch:min-h-11 touch:min-w-11 whitespace-normal text-ui-label"
+              onClick={exportMissing}
+            >
               <Download className="h-3.5 w-3.5" /> Missing CSV
             </Button>
           )}
@@ -224,7 +237,9 @@ export function DeckCollectionPanel({
         <div
           className={cn(
             "mt-4",
-            view === "text" ? "grid gap-2 sm:grid-cols-2 lg:grid-cols-3" : "flex flex-wrap gap-4",
+            view === "text"
+              ? "grid grid-cols-[repeat(auto-fit,minmax(min(100%,20rem),1fr))] gap-2"
+              : "flex flex-wrap gap-4",
           )}
         >
           {missing.map(([key, entry]) => (
@@ -232,17 +247,26 @@ export function DeckCollectionPanel({
               key={key}
               className={cn(
                 view === "text"
-                  ? cn("flex items-center gap-2", EDITOR_SUBTLE_BLOCK_CLASS)
-                  : "block min-w-0",
+                  ? cn("flex flex-wrap items-center gap-2", EDITOR_SUBTLE_BLOCK_CLASS)
+                  : "block min-w-0 max-w-full",
               )}
-              style={view === "grid" ? { width: cardWidth } : undefined}
+              style={view === "grid" ? { width: Math.max(cardWidth, 224) } : undefined}
               onMouseEnter={(event) => onHover?.(entry.card, event)}
               onMouseLeave={onLeave}
             >
-              {view === "grid" && <CardThumbnail card={entry.card} loading="lazy" />}
-              <span className={cn("flex flex-wrap items-center gap-2", view === "grid" && "mt-2")}>
-                <span className="min-w-0 flex-1 truncate text-xs">{entry.name}</span>
-                <span className="text-[10px] text-muted-foreground">
+              {view === "grid" && (
+                <div style={{ width: cardWidth, maxWidth: "100%" }}>
+                  <CardThumbnail card={entry.card} loading="lazy" />
+                </div>
+              )}
+              <span
+                className={cn(
+                  "flex min-w-0 flex-wrap items-center gap-2",
+                  view === "grid" && "mt-2",
+                )}
+              >
+                <span className="min-w-0 flex-1 break-words text-ui-label">{entry.name}</span>
+                <span className="text-ui-meta text-muted-foreground">
                   {ownership.get(key)?.status === "partial"
                     ? `partially owned · need ${ownership.get(key)?.shortage ?? entry.quantity}`
                     : `not owned · need ${ownership.get(key)?.shortage ?? entry.quantity}`}
@@ -250,7 +274,7 @@ export function DeckCollectionPanel({
                 <Input
                   type="number"
                   min="0"
-                  className="h-7 w-16 text-right font-mono text-xs"
+                  className="min-h-9 h-auto touch:min-h-11 touch:min-w-11 w-20 text-right font-mono text-ui-input"
                   aria-label={`Owned copies of ${entry.name}`}
                   value={collectionQuantityForName(quantities, entry.name)}
                   onChange={(event) =>
@@ -260,6 +284,7 @@ export function DeckCollectionPanel({
                 <Button
                   type="button"
                   size="icon-sm"
+                  className="touch:min-h-11 touch:min-w-11"
                   variant={acquisition[key] === "ordered" ? "selected" : "ghost"}
                   title={`Mark as ordered`}
                   aria-pressed={acquisition[key] === "ordered"}
@@ -275,6 +300,7 @@ export function DeckCollectionPanel({
                 <Button
                   type="button"
                   size="icon-sm"
+                  className="touch:min-h-11 touch:min-w-11"
                   variant={acquisition[key] === "proxy" ? "selected" : "ghost"}
                   title={`Mark as proxied`}
                   aria-pressed={acquisition[key] === "proxy"}
@@ -313,7 +339,10 @@ function ViewButton({
       title={label}
       aria-label={label}
       aria-pressed={active}
-      className={cn("rounded-none shadow-none", bordered && "border-l")}
+      className={cn(
+        "touch:min-h-11 touch:min-w-11 rounded-none shadow-none",
+        bordered && "border-l",
+      )}
       onClick={onClick}
     >
       {children}

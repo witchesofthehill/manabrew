@@ -12,13 +12,13 @@ export function DevCounterControl({ label, value, onClear, onBump }: DevCounterC
   const query = useDevPanelSearch();
   if (!matchesDevPanelSearch(query, label)) return null;
   return (
-    <div className="flex min-h-10 items-center gap-1 rounded-lg border border-border/60 bg-background/40 p-1">
-      <span className="min-w-0 flex-1 truncate pl-2 text-xs font-medium" title={label}>
+    <div className="flex min-h-10 flex-wrap items-center gap-1 rounded-lg border border-border/60 bg-background/40 p-1">
+      <span className="min-w-20 flex-1 break-words pl-2 text-ui-label font-medium" title={label}>
         {label}
       </span>
       <button
         type="button"
-        className="h-7 w-7 rounded-md border border-border/70 text-xs hover:bg-accent/50 pointer-coarse:h-10 pointer-coarse:w-10"
+        className="h-8 w-8 touch:min-h-11 touch:min-w-11 rounded-md border border-border/70 text-ui-label hover:bg-accent/50"
         onClick={() => onBump(-1)}
       >
         −
@@ -26,7 +26,7 @@ export function DevCounterControl({ label, value, onClear, onBump }: DevCounterC
       <button
         type="button"
         className={cn(
-          "h-7 min-w-8 rounded-md px-1 font-mono text-xs tabular-nums hover:bg-accent/50 pointer-coarse:h-10",
+          "h-8 min-w-8 touch:min-h-11 touch:min-w-11 rounded-md px-1 font-mono text-ui-label tabular-nums hover:bg-accent/50",
           value != null ? "text-primary" : "text-muted-foreground",
         )}
         onClick={onClear}
@@ -37,7 +37,7 @@ export function DevCounterControl({ label, value, onClear, onBump }: DevCounterC
       </button>
       <button
         type="button"
-        className="h-7 w-7 rounded-md border border-border/70 text-xs hover:bg-accent/50 pointer-coarse:h-10 pointer-coarse:w-10"
+        className="h-8 w-8 touch:min-h-11 touch:min-w-11 rounded-md border border-border/70 text-ui-label hover:bg-accent/50"
         onClick={() => onBump(1)}
       >
         +

@@ -129,18 +129,18 @@ export function CardArtDownloadSection() {
   return (
     <div className="rounded-lg border bg-card/40 p-4 space-y-3 max-w-xl">
       <Label>Card Art On This Machine</Label>
-      <p className="text-xs text-muted-foreground">
+      <p className="text-ui-body text-muted-foreground">
         Art is kept on disk once drawn, so a board does not fetch it twice, and a deliberate
         download is never dropped when the cache is trimmed for space. Either download also keeps
         what each card <em>is</em>, which is what a board with no internet needs to know which
         picture to draw — pictures alone are not enough. Every card additionally keeps every card
         name, the set list and every ruling, so searching and pasting a decklist work offline too.
       </p>
-      <p className="text-xs text-muted-foreground">
-        Downloading for the <strong>{style}</strong> battlefield style. That style draws{" "}
-        {variants.join(", ")}, so art downloaded for one style does not cover another.
+      <p className="text-ui-body text-muted-foreground">
+        Downloading for the <strong>{style}</strong> battlefield style. That style draws{""}
+        {variants.join(",")}, so art downloaded for one style does not cover another.
       </p>
-      <label className="flex items-center gap-2 text-xs text-muted-foreground">
+      <label className="flex items-center gap-2 text-ui-label text-muted-foreground touch:min-h-11 touch:min-w-11">
         <input
           type="checkbox"
           checked={everyStyle}
@@ -148,18 +148,18 @@ export function CardArtDownloadSection() {
         />
         Cover every battlefield style (larger download)
       </label>
-      <p className="text-xs text-muted-foreground">
+      <p className="text-ui-meta text-muted-foreground">
         {stats
           ? `On disk: ${stats.files} image${stats.files === 1 ? "" : "s"}, ${formatBytes(stats.bytes)} — ${stats.pinnedFiles} of them downloaded on purpose (${formatBytes(stats.pinnedBytes)}).`
           : `Reading the cache\u2026`}
       </p>
-      <p className="text-xs text-muted-foreground">
+      <p className="text-ui-meta text-muted-foreground">
         {cards > 0
           ? `Card data: ${cards.toLocaleString()} cards, so this machine can play and host those offline.`
           : `No card data yet — without it a board with no internet stays blank however much art is cached.`}
       </p>
       {progress && (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-ui-meta text-muted-foreground">
           {progress.done} of {progress.total} — {formatBytes(progress.bytes)} downloaded.
         </p>
       )}

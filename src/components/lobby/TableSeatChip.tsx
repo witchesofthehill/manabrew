@@ -67,7 +67,7 @@ export function TableSeatChip({
         onClick={onTakeSeat}
         style={style}
         className={cn(
-          "flex h-9 w-9 items-center justify-center rounded-full border border-dashed border-primary/50 bg-card text-primary/70 shadow-sm transition-[transform,background-color,border-color] hover:scale-110 hover:border-primary hover:bg-primary/15 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none motion-reduce:hover:scale-100",
+          "flex min-h-9 w-9 items-center justify-center rounded-full border border-dashed border-primary/50 bg-card text-primary/70 shadow-sm transition-[transform,background-color,border-color] hover:scale-110 hover:border-primary hover:bg-primary/15 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none motion-reduce:hover:scale-100 touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal",
           size === "room" && "h-12 w-12 sm:h-14 sm:w-14",
           className,
         )}
@@ -92,8 +92,8 @@ export function TableSeatChip({
     >
       <div
         className={cn(
-          "relative flex h-9 w-9 items-center justify-center rounded-full border-2 border-card bg-card text-[10px] font-bold shadow-md",
-          size === "room" && "h-12 w-12 text-xs sm:h-14 sm:w-14 sm:text-sm",
+          "relative flex h-9 w-9 items-center justify-center rounded-full border-2 border-card bg-card text-ui-meta font-bold shadow-md",
+          size === "room" && "h-12 w-12 text-ui-meta sm:h-14 sm:w-14",
           player.is_bot ? "text-muted-foreground" : "text-primary",
           ready && "ring-2 ring-primary/70",
         )}
@@ -139,7 +139,7 @@ export function TableSeatChip({
               event.stopPropagation();
               onRemove();
             }}
-            className="absolute -left-2.5 -top-2.5 flex h-7 w-7 items-center justify-center rounded-full border border-border bg-background text-muted-foreground hover:text-destructive pointer-coarse:-left-5 pointer-coarse:-top-5 pointer-coarse:h-11 pointer-coarse:w-11"
+            className="absolute -left-2.5 -top-2.5 flex min-h-7 w-7 items-center justify-center rounded-full border border-border bg-background text-muted-foreground hover:text-destructive touch:-left-5 touch:-top-5 touch:min-h-11 touch:w-11 touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal"
           >
             <X aria-hidden="true" className="h-3 w-3" />
           </button>
@@ -155,8 +155,8 @@ export function TableSeatChip({
           {nameLabel && (
             <span
               className={cn(
-                "max-w-16 truncate text-[10px] font-medium leading-tight",
-                size === "room" && "hidden max-w-24 text-xs sm:block",
+                "max-w-16 truncate text-ui-meta font-medium leading-tight",
+                size === "room" && "hidden max-w-24 text-ui-meta sm:block",
                 isYou && "font-semibold text-primary",
               )}
             >
@@ -166,8 +166,8 @@ export function TableSeatChip({
           {statusLabel && (
             <span
               className={cn(
-                "max-w-16 truncate text-[9px] leading-tight text-muted-foreground",
-                size === "room" && "hidden max-w-24 text-[10px] sm:block",
+                "max-w-16 truncate text-ui-meta leading-tight text-muted-foreground",
+                size === "room" && "hidden max-w-24 text-ui-meta sm:block",
               )}
             >
               {statusLabel}

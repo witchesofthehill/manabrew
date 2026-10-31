@@ -127,7 +127,7 @@ export function CardPreviewOverlay({
                 <span
                   key={b.key}
                   className={cn(
-                    "text-[11px] font-bold px-2 py-0.5 rounded shadow-md uppercase tracking-wide",
+                    "text-ui-meta font-bold px-2 py-0.5 rounded shadow-md uppercase tracking-wide",
                     b.style,
                   )}
                 >
@@ -146,7 +146,7 @@ export function CardPreviewOverlay({
                 return (
                   <span
                     key={`${kw}-${i}`}
-                    className="inline-flex items-center gap-0.5 text-[11px] font-bold uppercase tracking-wide bg-black/75 text-white px-2 py-0.5 rounded shadow-md"
+                    className="inline-flex items-center gap-0.5 text-ui-meta font-bold uppercase tracking-wide bg-black/75 text-white px-2 py-0.5 rounded shadow-md"
                   >
                     {label}
                     {cost && <ManaSymbols cost={cost} size="sm" />}
@@ -154,7 +154,7 @@ export function CardPreviewOverlay({
                 );
               })}
               {hiddenKeywordCount > 0 && (
-                <span className="inline-flex items-center text-[11px] font-bold uppercase tracking-wide bg-black/75 text-white px-2 py-0.5 rounded shadow-md">
+                <span className="inline-flex items-center text-ui-meta font-bold uppercase tracking-wide bg-black/75 text-white px-2 py-0.5 rounded shadow-md">
                   +{hiddenKeywordCount}
                 </span>
               )}

@@ -623,9 +623,15 @@ public final class HarnessCostPlumbing {
                 reserveSacrifices(List.of(originalHost));
                 return PaymentDecision.card(originalHost);
             }
+            String type = cost.getType();
+            final boolean withDifferentNames = type.contains("+WithDifferentNames");
+            if (withDifferentNames) {
+                type = type.replace("+WithDifferentNames", "");
+            }
+
             if ("All".equalsIgnoreCase(cost.getAmount())) {
                 final CardCollection all = new CardCollection(CardLists.filter(
-                        CardLists.getValidCards(player.getCardsIn(ZoneType.Battlefield), cost.getType().split(";"), player, source, ability),
+                        CardLists.getValidCards(player.getCardsIn(ZoneType.Battlefield), type.split(";"), player, source, ability),
                         CardPredicates.canBeSacrificedBy(ability, isEffect())));
                 all.removeIf(HarnessCostPlumbing.this::isSacrificeReserved);
                 reserveSacrifices(all);
@@ -635,12 +641,33 @@ public final class HarnessCostPlumbing {
             final int amount = cost.getAbilityAmount(ability);
             CardCollection valid = new CardCollection(CardLists.getValidCards(
                     player.getCardsIn(ZoneType.Battlefield),
-                    cost.getType().split(";"),
+                    type.split(";"),
                     player,
                     source,
                     ability));
             valid = new CardCollection(CardLists.filter(valid, CardPredicates.canBeSacrificedBy(ability, isEffect())));
             valid.removeIf(HarnessCostPlumbing.this::isSacrificeReserved);
+            if (withDifferentNames) {
+                final CardCollection selected = new CardCollection();
+                CardCollection remaining = valid;
+                while (selected.size() < amount && !remaining.isEmpty()) {
+                    final CardCollectionView one = controller.choosePermanentsToSacrifice(
+                            ability, 1, 1, remaining, "Choose permanent with different name to sacrifice");
+                    if (one == null || one.size() != 1) {
+                        return null;
+                    }
+                    final Card choice = one.get(0);
+                    selected.add(choice);
+                    remaining = new CardCollection(CardLists.filter(
+                            remaining,
+                            CardPredicates.sharesNameWith(choice).negate()));
+                }
+                if (selected.size() < amount) {
+                    return null;
+                }
+                reserveSacrifices(selected);
+                return PaymentDecision.card(selected);
+            }
             if (valid.size() < amount) {
                 return null;
             }

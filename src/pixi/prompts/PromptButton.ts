@@ -11,6 +11,7 @@ import { colorAlpha, hexToNum } from "@/pixi/colorUtils";
 import { gameIconTexture } from "@/pixi/gameIconCache";
 import { animationsEnabled } from "@/pixi/effects/enabled";
 import { gsap } from "@/pixi/effects/gsap";
+import { playSound } from "@/lib/soundRuntime";
 
 const PRESS_SECONDS = 0.08;
 const RELEASE_SECONDS = 0.18;
@@ -144,7 +145,9 @@ export class PromptButton extends Container {
       this.addChild(this.tooltipContainer);
     }
     this.on("pointertap", () => {
-      if (!this.options.disabled) this.options.onPress?.();
+      if (this.options.disabled) return;
+      playSound("buttonClick");
+      this.options.onPress?.();
     });
     this.on("pointerdown", () => {
       if (this.options.disabled) return;

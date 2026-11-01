@@ -245,10 +245,6 @@ impl<R: Responder> PromptAgent<R> {
             .present(&AgentMessage::State(StateUpdate { game_view }));
     }
 
-    pub(crate) fn emit_display(&mut self, event: DisplayEvent) {
-        self.responder.present(&AgentMessage::Display(event));
-    }
-
     pub(crate) fn view(&self) -> GameViewDto {
         self.latest_view.clone().unwrap_or_else(|| GameViewDto {
             game_id: self.game_id.clone(),
@@ -1439,18 +1435,7 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                 self.responder
                     .send_log(GameLogEntryDto::from_event(log_event));
             }
-            GameNotification::CardPlayed {
-                player,
-                card_id,
-                card_name,
-                set_code,
-            } => {
-                self.emit_display(DisplayEvent::CardPlayed {
-                    card_id: card_id_str(card_id),
-                    card_name,
-                    set_code,
-                    player_id: player_id_str(player),
-                });
+            GameNotification::CardPlayed => {
                 self.emit_state();
             }
             GameNotification::TurnChanged {
@@ -1461,8 +1446,8 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                 let active_player_name = self
                     .latest_view
                     .as_ref()
-                    .and_then(|v| v.players.iter().find(|p| p.id == player_id))
-                    .map(|p| p.name.clone())
+                    .and_then(|view| view.players.iter().find(|player| player.id == player_id))
+                    .map(|player| player.name.clone())
                     .unwrap_or_else(|| format!("Player {}", active_player.0));
                 self.responder.send_log(GameLogEntryDto::from_event(
                     manabrew_engine::agent::GameLogEvent::rule(format!(
@@ -1470,11 +1455,6 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                     ))
                     .with_player(active_player),
                 ));
-                self.emit_display(DisplayEvent::TurnChanged {
-                    active_player_id: player_id,
-                    active_player_name,
-                    turn_number,
-                });
                 self.emit_state();
             }
             GameNotification::PhaseChanged { .. } | GameNotification::StateChanged => {

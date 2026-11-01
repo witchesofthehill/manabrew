@@ -74,8 +74,8 @@ fn authorize_game_message(
                 .ok()
                 .map(|_| GameMessageSource::Player)
         }
-        "state" | "stateDelta" | "display" | "prompt" | "engineDirective" | "error" | "log"
-        | "snapshot" | "fatal" => room.is_host(player_id).then_some(GameMessageSource::Engine),
+        "state" | "stateDelta" | "prompt" | "engineDirective" | "error" | "log" | "snapshot"
+        | "fatal" => room.is_host(player_id).then_some(GameMessageSource::Engine),
         "roomRelay" => {
             let protocol = state.get("protocol").and_then(serde_json::Value::as_str)?;
             if protocol == "draft-v1" || protocol == "limited-session-v1" {

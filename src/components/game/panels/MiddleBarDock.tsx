@@ -13,6 +13,7 @@ import {
   Settings2,
   Square,
   Swords,
+  Volume2,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -36,6 +37,7 @@ interface MiddleBarDockProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onOpenSettings: () => void;
+  onOpenSoundSettings: () => void;
   onOpenCombat?: () => void;
   onConcede: () => void;
   eliminated: boolean;
@@ -62,6 +64,7 @@ export function MiddleBarDock({
   open,
   onOpenChange,
   onOpenSettings,
+  onOpenSoundSettings,
   onOpenCombat,
   onConcede,
   eliminated,
@@ -138,6 +141,10 @@ export function MiddleBarDock({
         <DropdownMenuItem onSelect={() => onOpenSettings()}>
           <Settings2 className="mr-2 h-4 w-4" />
           Board settings
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={onOpenSoundSettings}>
+          <Volume2 className="mr-2 h-4 w-4" />
+          Sound settings
         </DropdownMenuItem>
         {onOpenCombat && (
           <DropdownMenuItem onSelect={onOpenCombat}>

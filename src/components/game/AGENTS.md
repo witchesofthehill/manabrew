@@ -87,7 +87,9 @@ All game modals use the `Modal` compound:
 </Modal>
 ```
 
-Use `Modal.Close` for buttons and `Modal.CloseShortcut` for remappable keybindings that dismiss a dialog so both paths finish the exit transition before unmounting. `Modal` owns the nested-dialog stack, focus containment, topmost Escape handling, backdrop dismissal, and reduced-motion-aware entry and exit transitions.
+Use `Modal.Close` for buttons and `Modal.CloseShortcut` for remappable keybindings that dismiss a dialog so both paths finish the exit transition before unmounting. `Modal` owns the nested-dialog stack, focus containment, topmost Escape handling, backdrop dismissal, reduced-motion-aware entry and exit transitions, and the button-click sound for every button in its panel. Do not add click sounds to individual modal buttons.
+
+Keep app-wide mute and volume controls in the cog menu's separate `SoundSettingsModal`, using the shared `SoundControls`. `GameSettingsModal` owns board and prompt preferences, not audio.
 
 The Modal backdrop follows root `--visual-viewport-*` bounds and safe-area padding. Its body and, under extreme height constraints, the enclosing header/footer column scroll. Keep primary actions reachable without scaling labels. React controls use semantic UI text roles; Pixi keeps its authored desktop sizes and applies `getUiFontFloor` and `getUiControlFloor` as touch-only minimums, with measured geometry and inverse parent-scale compensation for card-attached controls. Card printing remains proportional.
 

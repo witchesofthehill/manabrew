@@ -58,9 +58,9 @@ fn main() {
     EngineDirective::export_all_to(&out).expect("export EngineDirective");
     ClientToServerMessage::export_all_to(&out).expect("export ClientToServerMessage");
     ProtocolError::export_all_to(&out).expect("export ProtocolError");
-    DisplayEvent::export_all_to(&out).expect("export DisplayEvent");
     Deck::export_all_to(&out).expect("export Deck");
     CardPrintingSelection::export_all_to(&out).expect("export CardPrintingSelection");
+    DisplayEvent::export_all_to(&out).expect("export DisplayEvent");
     ResumeRoomRequest::export_all_to(&out).expect("export ResumeRoomRequest");
 
     let prompts_dir = out.join("prompts");

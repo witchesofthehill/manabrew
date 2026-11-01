@@ -95,7 +95,6 @@ pub fn run_smoke_game(max_prompts: usize) -> Result<(), String> {
         session.submit_action(&serde_json::to_string(&pass).map_err(|err| err.to_string())?)?;
         prompts_seen += 1;
     }
-
     let snapshot_json = session.get_snapshot(Some(0))?;
     let snapshot: Value = serde_json::from_str(&snapshot_json)
         .map_err(|err| format!("failed to parse java-forge smoke snapshot: {err}"))?;
@@ -147,6 +146,21 @@ pub fn run_graal_smoke() -> Result<(), String> {
 
     let session_id = engine.start_game(&request.to_json().map_err(|err| err.to_string())?)?;
     info!(session_id, "graal-forge smoke session started");
+    let mut prompted = false;
+    for _ in 0..600 {
+        if engine.get_prompt(&session_id, 0)?.is_some()
+            || engine.get_prompt(&session_id, 1)?.is_some()
+        {
+            prompted = true;
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    if !prompted {
+        engine.end_game(&session_id)?;
+        return Err("graal-forge smoke produced no prompt".to_string());
+    }
+    info!("graal-forge smoke prompt");
     engine.end_game(&session_id)?;
     Ok(())
 }
@@ -967,7 +981,6 @@ impl GraalEngineHandle {
         })?;
         Ok((!prompt.is_empty()).then_some(prompt))
     }
-
     fn is_game_over(&self, session_id: &str) -> Result<bool, String> {
         let session = cstring(session_id)?;
         let value = self.bridge.decode(unsafe {
@@ -1753,7 +1766,6 @@ fn run_hosted_engine_game_inner(
                 }
             }
         }
-
         let revision = engine.state_revision(&session_id)?;
         if revision != state_revision {
             state_revision = revision;

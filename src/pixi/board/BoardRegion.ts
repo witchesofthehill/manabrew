@@ -20,6 +20,7 @@ import { hexToNum } from "../colorUtils";
 import { getFrameRatio, lerp, safeDestroy } from "./pixiHelpers";
 import { playStomp } from "../effects/stomp";
 import { animationsEnabled } from "../effects/enabled";
+import { playSound } from "@/lib/soundRuntime";
 import { DRAG_LIFT_SCALE, dragPositionBlend, dragTransformBlend } from "../dragMotion";
 import {
   applyCardOverrides,
@@ -675,6 +676,7 @@ export class BoardRegion {
 
   animate(deltaMs: number): void {
     let exited: string[] | null = null;
+    let entered = false;
     const now = performance.now();
     const frameRatio = getFrameRatio();
     const motionEnabled = animationsEnabled();
@@ -741,6 +743,7 @@ export class BoardRegion {
         const dy = s.y - entry.targetY;
         if (dx * dx + dy * dy < ENTRANCE_LAND_PX * ENTRANCE_LAND_PX) {
           entry.pendingEntrance = false;
+          entered = true;
           this.playEntranceFx(entry, s.card);
         }
       }
@@ -833,6 +836,7 @@ export class BoardRegion {
       }
     }
     if (exited) for (const id of exited) this.destroyEntry(id);
+    if (entered) playSound("cardEnter");
   }
 
   updateBattlefield(state: BattlefieldState): void {

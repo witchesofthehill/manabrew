@@ -6,6 +6,7 @@ description: How a Manabrew engine talks to a client - the prompt protocol for i
 {/* SPDX-License-Identifier: CC-BY-4.0 - see the License section below. */}
 
 import { Card, CardGrid } from "@astrojs/starlight/components";
+import ProtocolType from "../../../components/ProtocolType.astro";
 
 Manabrew separates the **engine** (the rules) from the **client** (the UI). Any
 engine that speaks this protocol can drive the a Manabrew client, and any client
@@ -27,7 +28,7 @@ Enforcing the rules is up to the particular engine implementing the protocol.
 
 ## Message families
 
-The engine → client channel carries **five separate kinds of message**:
+The engine → client channel carries **four separate kinds of message**:
 
 <CardGrid>
   <Card title="state" icon="seti:db">
@@ -35,11 +36,6 @@ The engine → client channel carries **five separate kinds of message**:
     [`gameView`](/protocol/game-view/)⁠, or a [`patch`](/protocol/game-view/#state-patches) against
     the client’s current view. StateUpdate is the **only** carrier of authoritative game state; the
     client applies updates in order and renders from the resulting view.
-  </Card>
-  <Card title="display" icon="sparkles">
-    [**⚠️ Work in Progress**] A `DisplayEvent` - a transient, potentially very frequent UI display
-    information. Carries no authoritative state. This could be used to sync up the fields, as well
-    as the cursors positions of the players for multiplayer "livelyness".
   </Card>
   <Card title="prompt" icon="comment">
     An `AgentPrompt` - a **call to action**. The engine has paused and needs a decision from a
@@ -118,6 +114,14 @@ type ProtocolErrorCode =
   | "unknownActionId"
   | "invalidShape";
 ```
+
+## Display events
+
+`DisplayEvent` is retained in the Rust and TypeScript protocol packages for
+independent implementations. The reference runtime does not currently emit it,
+and the active `StateUpdate` transport does not carry display events.
+
+<ProtocolType type="DisplayEvent" />
 
 ## The prompt catalogue
 

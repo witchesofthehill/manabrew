@@ -134,7 +134,6 @@ export class ForgeEngine {
       if (seat && message.prompt?.input?.type === "gameOver") seat.cancelled = true;
       this.options.onPrompt?.(message.prompt, playerSlot);
     }
-    if (message?.kind === "display") this.options.onDisplay?.(message.event, playerSlot);
     if (message?.kind === "engineDirective") {
       this.options.onDirective?.(message.directive, playerSlot);
     }

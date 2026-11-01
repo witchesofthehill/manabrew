@@ -8,4 +8,5 @@ export { RepeatRequestModal } from "./RepeatRequestModal";
 export { RepeatVoteModal } from "./RepeatVoteModal";
 export { RestoreRequestModal } from "./RestoreRequestModal";
 export { RestoreVoteModal } from "./RestoreVoteModal";
+export { SoundSettingsModal } from "./SoundSettingsModal";
 export { ZoneViewer } from "./ZoneViewer";

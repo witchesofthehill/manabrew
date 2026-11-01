@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::display::DisplayEvent;
 use crate::game::{CardDto, GameViewDto};
 use crate::prompts::{PromptInput, PromptOutput};
 
@@ -9,7 +8,6 @@ use crate::prompts::{PromptInput, PromptOutput};
 #[allow(clippy::large_enum_variant)]
 pub enum AgentMessage {
     State(StateUpdate),
-    Display(DisplayEvent),
     Prompt(AgentPrompt),
     Directive(EngineDirective),
     Error(ProtocolError),

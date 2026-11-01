@@ -3,10 +3,9 @@ import { execFileSync } from "node:child_process";
 
 import { beforeAll, describe, expect, it } from "vitest";
 
-import { applyDisplay, applyPrompt, applyState } from "./gameStore.constants";
+import { applyPrompt, applyState } from "./gameStore.constants";
 import type { GameState } from "./gameStore.types";
 import type { Prompt } from "@/protocol";
-import type { DisplayEvent } from "@/protocol/display";
 import type { GameViewDto } from "@/protocol/game";
 
 // Corpus = one example of every AgentPromptInner variant, generated on demand by
@@ -75,9 +74,15 @@ describe("UI message handling (engine -> store)", () => {
     expect((store.get() as { currentPrompt: unknown }).currentPrompt).toBeNull();
   });
 
-  it("applyDisplay enqueues an animation and never sets a prompt", () => {
+  it("a flashed state change enqueues behind its flash and never sets a prompt", () => {
     const store = makeStoreStub("player-0");
-    applyDisplay({ kind: "cardPlayed" } as DisplayEvent, "test", store.set, store.get);
+    applyState({ gameId: "g", turn: 1 } as GameViewDto, "test", store.set, store.get);
+    applyState(
+      { gameId: "g", turn: 2, activePlayerId: "player-0" } as GameViewDto,
+      "test",
+      store.set,
+      store.get,
+    );
     const s = store.get() as { deferredQueue: unknown[]; currentPrompt: unknown };
     expect(s.deferredQueue.length).toBe(1);
     expect(s.currentPrompt).toBeNull();

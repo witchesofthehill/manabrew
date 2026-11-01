@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.69.0](https://github.com/witchesofthehill/manabrew/compare/v3.68.3...v3.69.0) (2026-10-31)
+
+### Features
+
+* sounds!!!!!!! ([#893](https://github.com/witchesofthehill/manabrew/issues/893)) ([a14be1e](https://github.com/witchesofthehill/manabrew/commit/a14be1eec3434610b1a7c3adabea1abf6619e62c))
+
 ## [3.68.3](https://github.com/witchesofthehill/manabrew/compare/v3.68.2...v3.68.3) (2026-10-31)
 
 ### Fixes

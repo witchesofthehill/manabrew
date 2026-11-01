@@ -7,10 +7,11 @@ import type {
   ClientPlayerDto,
 } from "./gameStore.types";
 import type { EngineDirective, Prompt, ProtocolError } from "@/protocol";
-import type { DisplayEvent } from "@/protocol/display";
 import type { GameViewDto, ZoneDto, ZoneKind } from "@/protocol/game";
 import { isPromptLoggingEnabled } from "@/lib/debugPrompts";
 import { GAME_CARD_DEFAULTS, hiddenZoneCard } from "@/lib/gameCard";
+import { flashItemOf, gameViewTransitions } from "@/lib/gameViewTransitions";
+import { playSound, type SoundName } from "@/lib/soundRuntime";
 import { normalizeCardCosmetics } from "@/lib/cardCosmetics";
 
 function visibleCardsOf(zone: ZoneDto): ClientCardDto[] {
@@ -116,22 +117,17 @@ function normalizeGameView(
   };
 }
 
-// Route one ordered effect: enqueue behind any pending animation, else apply now.
-function route(
+// A flashed transition plays its sound when its flash starts, in useFlashQueue.
+export function applySnapshot(
   snapshot: DeferredSnapshot,
-  source: string,
   set: (partial: Partial<GameState>) => void,
   get: () => GameState,
 ) {
-  const queueLen = get().deferredQueue.length;
-  if (snapshot.displayEvents.length > 0 || queueLen > 0 || get().isFlashing) {
-    set({
-      deferredQueue: [...get().deferredQueue, snapshot],
-      debugInfo: `${source} (queued #${queueLen + 1})`,
-    });
-    return;
+  const sounds: SoundName[] = [];
+  for (const transition of snapshot.transitions) {
+    if (transition.kind !== "turnStart" && !flashItemOf(transition)) sounds.push(transition.kind);
   }
-  const updates: Partial<GameState> = { debugInfo: source };
+  const updates: Partial<GameState> = {};
   if (snapshot.gameView) {
     updates.gameView = snapshot.gameView;
     // An eliminated seat has no pending prompt: the engine consumed it (a
@@ -140,11 +136,45 @@ function route(
     if (me && me.status !== "playing") updates.currentPrompt = null;
   }
   if (snapshot.prompt) {
+    if (
+      snapshot.prompt.input.type === "chooseAction" &&
+      snapshot.prompt.promptId !== get().currentPrompt?.promptId
+    ) {
+      sounds.push("priority");
+    }
     updates.currentPrompt = snapshot.prompt;
     updates.isWaitingForResponse = false;
     updates.relinquishedPriority = false;
   }
   set(updates);
+  playSound(...sounds);
+}
+
+// Route one ordered effect: enqueue behind any pending animation, else apply now.
+function route(
+  snapshot: DeferredSnapshot,
+  source: string,
+  set: (partial: Partial<GameState>) => void,
+  get: () => GameState,
+) {
+  const queueLen = get().deferredQueue.length;
+  if (snapshot.transitions.some(flashItemOf) || queueLen > 0 || get().isFlashing) {
+    set({
+      deferredQueue: [...get().deferredQueue, snapshot],
+      debugInfo: `${source} (queued #${queueLen + 1})`,
+    });
+    return;
+  }
+  applySnapshot(snapshot, (updates) => set({ ...updates, debugInfo: source }), get);
+}
+
+function latestRoutedView(get: () => GameState): ClientGameView | null {
+  const queue = get().deferredQueue;
+  for (let index = queue.length - 1; index >= 0; index--) {
+    const view = queue[index].gameView;
+    if (view) return view;
+  }
+  return get().gameView;
 }
 
 // The sole way game state reaches the store. Applied for every player on every
@@ -168,21 +198,17 @@ export function applyState(
       relinquishedPriority: false,
     });
   }
+  const view = normalizeGameView(gameView, get().gameView);
   route(
-    { displayEvents: [], gameView: normalizeGameView(gameView, get().gameView), prompt: null },
+    {
+      transitions: gameViewTransitions(latestRoutedView(get), view, get().myPlayerSlot),
+      gameView: view,
+      prompt: null,
+    },
     `${source}: state`,
     set,
     get,
   );
-}
-
-export function applyDisplay(
-  event: DisplayEvent,
-  source: string,
-  set: (partial: Partial<GameState>) => void,
-  get: () => GameState,
-) {
-  route({ displayEvents: [event], gameView: null, prompt: null }, `${source}: display`, set, get);
 }
 
 // The engine rejected our last response. It re-sends the open prompt right
@@ -252,7 +278,7 @@ export function applyPrompt(
       break;
   }
   route(
-    { displayEvents: [], gameView: null, prompt: normalized },
+    { transitions: [], gameView: null, prompt: normalized },
     `${source}: ${prompt.input.type}`,
     set,
     get,

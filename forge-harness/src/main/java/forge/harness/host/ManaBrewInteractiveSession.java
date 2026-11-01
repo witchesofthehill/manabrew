@@ -176,6 +176,9 @@ public final class ManaBrewInteractiveSession {
     }
 
     void attach(final Match match, final Game game, final Set<Integer> botSeats, final boolean snapshotRecording) {
+        if (this.game != null) {
+            throw new IllegalStateException("session is already attached");
+        }
         this.match = Objects.requireNonNull(match, "match");
         this.game = Objects.requireNonNull(game, "game");
         this.botSeats = Set.copyOf(botSeats);
@@ -2155,8 +2158,9 @@ public final class ManaBrewInteractiveSession {
                     if (bridge != null) bridge.replayReady();
                 }
             }
-            if (bridge != null && actions.isEmpty() && !closed && !game.isGameOver()) {
-                submitAction(bridge.exchange(promptedPlayerIndex, latestPromptJson));
+            final InteractiveBridge currentBridge = bridge;
+            if (currentBridge != null && actions.isEmpty() && !closed && !game.isGameOver()) {
+                submitAction(currentBridge.exchange(promptedPlayerIndex, latestPromptJson));
             }
             final QueuedAction queued = actions.poll(1, java.util.concurrent.TimeUnit.SECONDS);
             if (queued == null) {

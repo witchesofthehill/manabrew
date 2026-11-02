@@ -305,7 +305,11 @@ export function CardDetailModal({
   const rulings = rulingsData?.data ?? [];
   const isHorizontalActiveFace = activeFace
     ? isHorizontalCard({ typeLine: activeFace.type_line })
-    : isHorizontalCard({ layout: card.layout, typeLine: card.type_line });
+    : isHorizontalCard({
+        layout: card.layout,
+        typeLine: card.type_line,
+        keywords: card.keywords,
+      });
   function handleAddToCurrentDeck() {
     addToMain(scryfallToDeckCard(card));
     setShowDeckPicker(false);

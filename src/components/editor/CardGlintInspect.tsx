@@ -72,6 +72,7 @@ export function CardGlintInspect({
           layout: card.layout || printing?.info.layout,
           types: card.types,
           typeLine: printing?.info.card_faces?.[0]?.type_line || printing?.info.type_line,
+          keywords: printing?.info.keywords ?? card.keywords,
         });
 
   useEffect(() => {

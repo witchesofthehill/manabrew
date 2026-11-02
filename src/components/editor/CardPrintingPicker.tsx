@@ -117,13 +117,21 @@ export function CardPrintingPicker({
               className={cn(
                 "relative flex w-full max-w-44 items-center justify-center overflow-hidden rounded-[4%] border-2 bg-muted transition-colors group-hover:border-selection-border",
                 selected ? "border-selection-border" : "border-transparent",
-                isHorizontalCard({ layout: print.layout, typeLine: print.type_line })
+                isHorizontalCard({
+                  layout: print.layout,
+                  typeLine: print.type_line,
+                  keywords: print.keywords,
+                })
                   ? "aspect-[7/5]"
                   : "aspect-[5/7]",
               )}
             >
               {imageUrl ? (
-                isHorizontalCard({ layout: print.layout, typeLine: print.type_line }) ? (
+                isHorizontalCard({
+                  layout: print.layout,
+                  typeLine: print.type_line,
+                  keywords: print.keywords,
+                }) ? (
                   <HorizontalCardImage
                     src={imageUrl}
                     alt={`${print.set_name} printing`}

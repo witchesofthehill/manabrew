@@ -53,7 +53,7 @@ export class ClientErrorsInstrumentation extends ErrorsInstrumentation {
     const onerror: OnErrorEventHandler = (...args) => {
       try {
         original = args[4] ?? args[0];
-        if (original instanceof Error && !original.message) {
+        if (!(original instanceof Error) || !original.message) {
           this.report(original, [
             {
               filename: args[1] ?? "",
@@ -62,6 +62,7 @@ export class ClientErrorsInstrumentation extends ErrorsInstrumentation {
               colno: args[3],
             },
           ]);
+          return previousOnerror?.apply(window, args);
         }
         handling = true;
         return sdkOnerror?.apply(window, args);

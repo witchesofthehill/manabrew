@@ -238,7 +238,7 @@ async function fetchWeb(commit) {
         "gh",
         [
           "api",
-          `repos/${repository}/actions/workflows/docker-images.yml/runs?head_sha=${commit}&event=push&per_page=20`,
+          `repos/${repository}/actions/workflows/docker-images.yml/runs?head_sha=${commit}&per_page=20`,
         ],
         { encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] },
       ),

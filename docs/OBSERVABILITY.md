@@ -23,6 +23,8 @@ Faro SDK `2.13.0` sends frontend exceptions through Caddy to the isolated Node c
 
 Filters cover environment, version, immutable build, platform, source, and engine. Sources are `startup`, `react`, `unhandled`, `engine-worker`, `render-worker`, `bot-worker`, `remote-engine`, and `engine-operation`. Normal cancellation, renderer capability fallback, and ordinary protocol rejections are excluded. Recovery behavior and local console diagnostics remain unchanged.
 
+The `unhandled` source covers uncaught exceptions and unhandled promise rejections, including non-Error thrown values. Global error handling preserves the existing `window.onerror` callback and reports each exception once.
+
 The collector emits flat JSON. `type`, `value`, and `stacktrace` describe fixed error categories and code locations; `app_release` identifies the build. `context_source`, `context_operation`, `context_platform`, `context_build_target`, `context_route`, `context_engine`, and `context_signature` carry allowlisted context. Only `app`, `environment`, and `source` become Loki labels. Signatures use sanitized minified coordinates, so source-map cache state does not change grouping.
 
 ```logql

@@ -134,7 +134,6 @@ async fn main() {
             }
         });
     }
-    refresh_top_deck_snapshots(&state);
     let ranking_state = Arc::clone(&state);
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(ranking_refresh_interval);

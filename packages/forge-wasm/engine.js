@@ -64,6 +64,13 @@ export class ForgeEngine {
             seat === this.localSeatIndex ? LOCAL_SEAT : `player-${seat}`,
           );
         }
+        if (message.event === "game:seat_directive") {
+          const { seat, directive } = message.payload;
+          this.dispatchMessage(
+            { kind: "engineDirective", directive },
+            seat === this.localSeatIndex ? LOCAL_SEAT : `player-${seat}`,
+          );
+        }
         if (["game:over", "game:forced_end"].includes(message.event)) {
           this.dropDirectiveLanes();
           if (message.event === "game:forced_end") {
@@ -127,7 +134,9 @@ export class ForgeEngine {
       if (seat && message.prompt?.input?.type === "gameOver") seat.cancelled = true;
       this.options.onPrompt?.(message.prompt, playerSlot);
     }
-    if (message?.kind === "display") this.options.onDisplay?.(message.event, playerSlot);
+    if (message?.kind === "engineDirective") {
+      this.options.onDirective?.(message.directive, playerSlot);
+    }
     if (message?.kind === "error") this.options.onError?.(message.error, playerSlot);
   }
 

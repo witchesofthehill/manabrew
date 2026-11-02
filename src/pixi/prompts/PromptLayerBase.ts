@@ -1,4 +1,4 @@
-import { getUiControlHeight, getUiFontSize, UI_FONT_FAMILY as FONT } from "@/themes/typography";
+import { getUiControlFloor, getUiFontFloor, UI_FONT_FAMILY as FONT } from "@/themes/typography";
 import {
   Application,
   Container,
@@ -190,7 +190,7 @@ export function promptText(
     role?: "body" | "label" | "meta" | "caption" | "input";
   } = {},
 ): Text {
-  size = Math.max(size, getUiFontSize(options.role ?? "meta"));
+  size = Math.max(size, getUiFontFloor(options.role ?? "meta"));
   const text = new Text({
     text: value,
     style: new TextStyle({
@@ -236,7 +236,7 @@ export function promptRichText(
     role?: "body" | "label" | "meta" | "caption" | "input";
   } = {},
 ): PixiRichText {
-  size = Math.max(size, getUiFontSize(options.role ?? "label"));
+  size = Math.max(size, getUiFontFloor(options.role ?? "label"));
   const text = new PixiRichText();
   text.setContent(
     value,
@@ -1366,7 +1366,7 @@ export abstract class PromptLayerBase {
     if (!filter) return;
     filter.background
       .clear()
-      .roundRect(0.5, filter.y + 0.5, filter.width - 1, Math.max(40, getUiControlHeight()) - 1, 7.5)
+      .roundRect(0.5, filter.y + 0.5, filter.width - 1, Math.max(40, getUiControlFloor()) - 1, 7.5)
       .fill({ color: hexToNum(this.theme.appTheme.background), alpha: focused ? 0.85 : 0.72 })
       .stroke({
         color: hexToNum(focused ? this.theme.gameTheme.cardRing : this.theme.appTheme.border),

@@ -463,7 +463,7 @@
 }
 
 @theme static {
-  --text-ui-body: 1rem;
+  --text-ui-body: 0.875rem;
   --text-ui-body--line-height: 1.5;
   --text-ui-label: 0.875rem;
   --text-ui-label--line-height: 1.4;
@@ -593,6 +593,7 @@
 @layer base {
   @media (any-pointer: coarse) {
     :root {
+      --text-ui-body: 1rem;
       --text-ui-label: 1rem;
       --text-ui-meta: 0.875rem;
       --text-ui-input: 1rem;
@@ -631,7 +632,7 @@
     }
   }
   body {
-    @apply bg-background text-foreground text-ui-body;
+    @apply bg-background text-foreground text-base touch:text-ui-body;
     font-family: var(--font-sans);
     overflow: hidden;
     overscroll-behavior: none;

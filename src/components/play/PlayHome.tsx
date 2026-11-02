@@ -1,5 +1,7 @@
 import { LibraryBig, Swords, Users } from "lucide-react";
 import { useEffect, useState } from "react";
+import multiplayerArt from "@/assets/double-players4.webp";
+import singlePlayerArt from "@/assets/single-player2.webp";
 import { UpdateCallout } from "@/components/layout/UpdateCallout";
 import { FeatureTile } from "@/components/play/FeatureTile";
 import { GuestNudge } from "@/components/play/GuestNudge";
@@ -19,9 +21,11 @@ import { useServerStore } from "@/stores/useServerStore";
 const MODES = [
   {
     to: ROUTES.PLAY_OFFLINE_CONSTRUCTED,
-    label: `Play Offline`,
+    label: `Singleplayer`,
     desc: "Choose your decks and play against the AI at your own pace.",
     icon: Swords,
+    image: singlePlayerArt,
+    imageClassName: "h-52 w-52 -mr-3",
     tone: "primary",
   },
   {
@@ -29,6 +33,8 @@ const MODES = [
     label: `Multiplayer`,
     desc: "Join an open table or create a room for your group.",
     icon: Users,
+    image: multiplayerArt,
+    imageClassName: "h-40 w-40 sm:h-82 sm:w-82 lg:h-80 lg:w-80 -mb-4",
     tone: "secondary",
   },
 ];
@@ -125,13 +131,15 @@ export function PlayHome() {
             )}
           >
             <section aria-label={`Play modes`} className="grid gap-4 md:grid-cols-2">
-              {MODES.map(({ to, label, desc, icon, tone }) => (
+              {MODES.map(({ to, label, desc, icon, image, imageClassName, tone }) => (
                 <FeatureTile
                   key={to}
                   to={to}
                   label={label}
                   desc={desc}
                   icon={icon}
+                  image={image}
+                  imageClassName={imageClassName}
                   tone={tone}
                   size="lg"
                   compact={shortTouch}

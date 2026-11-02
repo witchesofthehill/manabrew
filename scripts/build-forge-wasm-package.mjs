@@ -83,11 +83,19 @@ const expectedVersion = process.env.FORGE_WASM_VERSION;
 if (expectedVersion && manifest.version !== expectedVersion) {
   throw new Error(`Package version ${manifest.version} does not match release ${expectedVersion}.`);
 }
-writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 
 // package.json is the only version written by hand; the rest are stamped from
 // it and the tree, rather than asking a release to keep several files in step
-// (which is how @manabrew/protocol shipped a stale one).
+// (which is how @manabrew/protocol shipped a stale one). The protocol range
+// starts at the protocol this package's types were built against.
+const protocolVersion = readFileSync(
+  join(root, "manabrew-rs", "crates", "manabrew-protocol", "Cargo.toml"),
+  "utf8",
+).match(/^version = "(.*)"$/m)?.[1];
+if (!protocolVersion) throw new Error("manabrew-protocol/Cargo.toml declares no version.");
+manifest.dependencies["@manabrew/protocol"] = `^${protocolVersion}`;
+writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+
 const head = spawnSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" });
 const buildCommit = head.status === 0 ? head.stdout.trim() : "unknown";
 

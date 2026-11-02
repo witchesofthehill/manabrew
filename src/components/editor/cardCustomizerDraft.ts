@@ -1,6 +1,8 @@
 import { cardCosmeticsKey, normalizeCardCosmetics, randomCardWearSeed } from "@/lib/cardCosmetics";
 import { resolveCardWearAmount } from "@/lib/cardFinish";
 import type { CardCosmetics, CardPrintingFace, DeckCard } from "@/protocol/deck";
+import { availablePrintingFoil, getCardPrintingPatch } from "@/stores/useDeckStore";
+import type { ScryfallCard } from "@/types/scryfall";
 
 export type CosmeticField =
   | "finish"
@@ -15,9 +17,11 @@ export type CosmeticField =
   | "printDotsArtwork";
 export interface CardCustomizationDraft {
   source: DeckCard;
+  printing?: ScryfallCard;
   cosmetics: CardCosmetics | undefined;
   foil: boolean;
   wearSeed: number | undefined;
+  finishEdited?: boolean;
 }
 
 export function createCustomizationDraft(card: DeckCard): CardCustomizationDraft {
@@ -27,6 +31,25 @@ export function createCustomizationDraft(card: DeckCard): CardCustomizationDraft
     cosmetics,
     foil: !!card.identity.foil,
     wearSeed: cosmetics?.wearSeed,
+  };
+}
+
+export function changeCustomizationPrinting(
+  draft: CardCustomizationDraft,
+  printing: ScryfallCard,
+): CardCustomizationDraft {
+  const original =
+    printing.set === draft.source.identity.setCode &&
+    printing.collector_number === draft.source.identity.cardNumber;
+  return {
+    ...draft,
+    printing: original ? undefined : printing,
+    foil:
+      draft.finishEdited && draft.cosmetics?.finish
+        ? draft.cosmetics.finish !== "regular"
+        : original
+          ? !!draft.source.identity.foil
+          : availablePrintingFoil(draft.source.identity, printing),
   };
 }
 
@@ -87,10 +110,13 @@ export function changeCustomizationField(
   return {
     ...draft,
     wearSeed,
+    finishEdited: field === "finish" ? true : draft.finishEdited,
     foil:
       field === "finish"
         ? value === "printing"
-          ? !!draft.source.identity.foil
+          ? draft.printing
+            ? availablePrintingFoil(draft.source.identity, draft.printing)
+            : !!draft.source.identity.foil
           : value !== "regular"
         : draft.foil,
     cosmetics: normalizeCardCosmetics({
@@ -130,6 +156,9 @@ export function changeCustomizationField(
 
 export function customizationDraftChanged(draft: CardCustomizationDraft): boolean {
   return (
+    (draft.printing !== undefined &&
+      (draft.printing.set !== draft.source.identity.setCode ||
+        draft.printing.collector_number !== draft.source.identity.cardNumber)) ||
     draft.foil !== !!draft.source.identity.foil ||
     cardCosmeticsKey(draft.cosmetics) !== cardCosmeticsKey(draft.source.identity.cosmetics)
   );
@@ -147,8 +176,7 @@ export function customizationSourceChanged(source: DeckCard, current: DeckCard):
 }
 
 export function customizationFieldValue(
-  copies: readonly DeckCard[],
-  drafts: ReadonlyMap<string, CardCustomizationDraft>,
+  cosmetics: CardCosmetics | undefined,
   field: CosmeticField,
 ): string {
   const fallback =
@@ -160,40 +188,40 @@ export function customizationFieldValue(
           field === "heatDeformation"
         ? "0"
         : "printing";
-  const values = copies.map((copy) => {
-    const draft = drafts.get(copy.identity.id);
-    const cosmetics = draft ? draft.cosmetics : copy.identity.cosmetics;
-    let value: string | number | boolean | undefined;
-    switch (field) {
-      case "wearAmount":
-        value = resolveCardWearAmount(cosmetics);
-        break;
-      case "cardstockAmount":
-        value = cosmetics?.cardstock?.amount;
-        break;
-      case "printDotsAmount":
-        value = cosmetics?.printDots?.amount;
-        break;
-      case "printDotsInset":
-        value = cosmetics?.printDots?.inset;
-        break;
-      case "printDotsArtwork":
-        value = cosmetics?.printDots?.artwork ?? true;
-        break;
-      default:
-        value = cosmetics?.[field];
-    }
-    return String(value ?? fallback);
-  });
-  return values.some((value) => value !== values[0]) ? "mixed" : (values[0] ?? fallback);
+  let value: string | number | boolean | undefined;
+  switch (field) {
+    case "wearAmount":
+      value = resolveCardWearAmount(cosmetics);
+      break;
+    case "cardstockAmount":
+      value = cosmetics?.cardstock?.amount;
+      break;
+    case "printDotsAmount":
+      value = cosmetics?.printDots?.amount;
+      break;
+    case "printDotsInset":
+      value = cosmetics?.printDots?.inset;
+      break;
+    case "printDotsArtwork":
+      value = cosmetics?.printDots?.artwork ?? true;
+      break;
+    default:
+      value = cosmetics?.[field];
+  }
+  return String(value ?? fallback);
 }
 
-export function customizationPreview(
-  copy: DeckCard,
-  drafts: ReadonlyMap<string, CardCustomizationDraft>,
-): DeckCard {
-  const draft = drafts.get(copy.identity.id);
-  return draft
-    ? { ...copy, identity: { ...copy.identity, foil: draft.foil, cosmetics: draft.cosmetics } }
-    : copy;
+export function customizationPreview(copy: DeckCard, draft?: CardCustomizationDraft): DeckCard {
+  if (!draft) return copy;
+  const patch = draft.printing ? getCardPrintingPatch(draft.printing) : undefined;
+  return {
+    ...copy,
+    ...patch,
+    identity: {
+      ...copy.identity,
+      ...patch?.identity,
+      foil: draft.foil,
+      cosmetics: draft.cosmetics,
+    },
+  };
 }

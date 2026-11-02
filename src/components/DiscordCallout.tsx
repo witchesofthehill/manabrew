@@ -20,7 +20,7 @@ export function DiscordCallout() {
         <span className="block text-ui-label font-semibold text-foreground">
           Join our community
         </span>
-        <span className="block text-ui-body text-muted-foreground">
+        <span className="block text-ui-meta text-muted-foreground">
           Brewers, drafters, and bug hunters hang out on Discord — pull up a chair.
         </span>
       </span>

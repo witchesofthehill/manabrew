@@ -36,7 +36,7 @@ import { GeneratedCardImage } from "@/components/game/GeneratedCardImage";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { usePreferredPrintsStore } from "@/stores/usePreferredPrintsStore";
 import { useDeckStore } from "@/stores/useDeckStore";
-import { PrintPickerModal } from "@/components/editor/PrintPickerModal";
+import { CardPrintingPicker } from "@/components/editor/CardPrintingPicker";
 import { getScryfallManaCost } from "@/api/scryfall";
 import { frontFaceName, scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { cardFaceImageUris } from "@/lib/cardImage";
@@ -54,7 +54,6 @@ import { useIsUnsupported } from "@/stores/useCardSupportStore";
 interface DeckEditorActions {
   onAddOne: (cardName: string) => void;
   onRemoveOne: (cardName: string) => void;
-  onPickPrint: (cardName: string) => void;
   onSetCommander: (cardName: string) => void;
   isCommander?: boolean;
   commanderSlot?: CommanderSlot;
@@ -66,7 +65,6 @@ interface DeckEditorActions {
   onSetCover?: (cardName: string, face: 0 | 1) => void;
   token?: DeckCard;
   printing?: DeckCardIdentity;
-  onUpdateTokenPrint?: (tokenName: string, print: ScryfallCard) => void;
 }
 interface CardDetailModalProps {
   card: ScryfallCard;
@@ -108,14 +106,7 @@ export function CardDetailModal({
   const rulingsLoading = !rulingsData;
   const { setPreferredPrint } = usePreferredPrintsStore();
   const setLookup = useSetLookup();
-  const {
-    savedDecks,
-    currentDeck,
-    addToMain,
-    addCardToSavedDeck,
-    updatePrint,
-    updatePrintingVariant,
-  } = useDeckStore();
+  const { savedDecks, currentDeck, addToMain, addCardToSavedDeck } = useDeckStore();
   const collectionQuantities = useCollectionStore((state) => state.quantities);
   const cardId = initialCard?.id;
   const [prevCardId, setPrevCardId] = useState(cardId);
@@ -185,6 +176,38 @@ export function CardDetailModal({
         (candidate) => tokenIdentityKey(candidate) === tokenIdentityKey(token),
       ) ?? token)
     : exactDeckCard;
+  const canCustomize = !!deckEditorActions && !!customizationCard && !readOnly;
+  const customizationSetCode = customizationCard?.identity.setCode;
+  const customizationCardNumber = customizationCard?.identity.cardNumber;
+  const customizationPrintingKey = `${customizationSetCode ?? ""}::${customizationCardNumber ?? ""}`;
+  const [previousCustomizationPrinting, setPreviousCustomizationPrinting] =
+    useState(customizationPrintingKey);
+  if (previousCustomizationPrinting !== customizationPrintingKey) {
+    setPreviousCustomizationPrinting(customizationPrintingKey);
+    setSelectedPrint(null);
+    setFaceIndex(0);
+  }
+  useEffect(() => {
+    if (!customizationSetCode || !customizationCardNumber) return;
+    if (
+      customizationSetCode === initialCard.set &&
+      customizationCardNumber === initialCard.collector_number
+    )
+      return;
+    let cancelled = false;
+    void useScryfallStore
+      .getState()
+      .getCard({ setCode: customizationSetCode, collectorNumber: customizationCardNumber })
+      .then((entry) => {
+        if (!cancelled) setSelectedPrint(entry.info);
+      })
+      .catch(() => {
+        if (!cancelled) toast.error(`Could not fetch info for "${initialCard.name}"`);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [customizationSetCode, customizationCardNumber, initialCard]);
   const matchingDeckCard =
     exactDeckCard ?? deckCards.find((candidate) => candidate.identity.name === deckCardName);
   const foil = !!(
@@ -304,18 +327,13 @@ export function CardDetailModal({
   function handleSelectPrint(print: ScryfallCard) {
     setSelectedPrint(print);
     setFaceIndex(0);
-    const newEntry = updatePrinting(print);
-    setPreferredPrint(initialCard!.oracle_id, {
-      set: print.set,
-      collectorNumber: print.collector_number,
-      imageUrl: newEntry.uris.png,
-    });
-    if (deckEditorActions?.token && deckEditorActions.onUpdateTokenPrint) {
-      deckEditorActions.onUpdateTokenPrint(deckCardName, print);
-    } else if (deckEditorActions?.printing) {
-      updatePrintingVariant(exactDeckCard?.identity ?? deckEditorActions.printing, print);
-    } else if (deckEditorActions) {
-      updatePrint(deckCardName, print);
+    if (!deckEditorActions) {
+      const newEntry = updatePrinting(print);
+      setPreferredPrint(initialCard.oracle_id, {
+        set: print.set,
+        collectorNumber: print.collector_number,
+        imageUrl: newEntry.uris.png,
+      });
     }
   }
   return (
@@ -459,15 +477,15 @@ export function CardDetailModal({
                     </Button>
                   )}
 
-                  {!deckEditorActions && (
+                  {!canCustomize && (
                     <Button
                       variant="outline"
                       size="sm"
                       className="touch:min-w-11 touch:min-h-11 w-full mt-2 gap-1"
-                      onClick={() => setShowPrints(true)}
+                      onClick={() => setShowPrints((shown) => !shown)}
                     >
                       <ImageIcon className="h-3.5 w-3.5" />
-                      Show All Printings
+                      {showPrints ? "Hide Printings" : "Show All Printings"}
                     </Button>
                   )}
                 </div>
@@ -622,6 +640,14 @@ export function CardDetailModal({
                   </div>
                 </div>
               </div>
+              {showPrints && !canCustomize && (
+                <CardPrintingPicker
+                  cardName={card.name}
+                  token={token}
+                  printing={renderCard.identity}
+                  onSelect={handleSelectPrint}
+                />
+              )}
 
               <div>
                 <div className="text-ui-label font-semibold text-muted-foreground mb-1">
@@ -709,15 +735,7 @@ export function CardDetailModal({
                 </div>
 
                 <div className="flex items-center rounded-md border bg-muted/30 p-0.5">
-                  <Button
-                    size="icon-sm"
-                    variant="ghost"
-                    title={`Change printing`}
-                    onClick={() => setShowPrints(true)}
-                  >
-                    <ImageIcon className="h-3.5 w-3.5" />
-                  </Button>
-                  {customizationCard && (
+                  {canCustomize && (
                     <Button
                       size="icon-sm"
                       variant="ghost"
@@ -906,15 +924,7 @@ export function CardDetailModal({
         </Modal.Footer>
       </Modal>
 
-      {showPrints && (
-        <PrintPickerModal
-          cardName={card.name}
-          onClose={() => setShowPrints(false)}
-          onSelect={handleSelectPrint}
-          token={deckEditorActions?.token}
-        />
-      )}
-      {customizing && customizationCard && !readOnly && (
+      {customizing && canCustomize && customizationCard && (
         <CardCustomizerModal
           card={customizationCard}
           token={!!token}

@@ -8,5 +8,12 @@
   { "name": "forge.game.trigger.Trigger", "fields": [{ "name": "maxId" }] },
   { "name": "forge.game.replacement.ReplacementEffect", "fields": [{ "name": "maxId" }] },
   { "name": "forge.game.staticability.StaticAbility", "fields": [{ "name": "maxId" }] },
-  { "name": "forge.game.Game", "fields": [{ "name": "maxId" }] }
+  {
+    "name": "forge.game.Game",
+    "fields": [
+      { "name": "maxId" },
+      { "name": "cardsCreatedThisTurn" },
+      { "name": "triggersFiredThisTurn" }
+    ]
+  }
 ]

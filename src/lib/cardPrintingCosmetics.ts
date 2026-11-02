@@ -86,6 +86,14 @@ function normalizeOverrides(value: unknown, inherited = false): CardPrintingOver
   const input = cosmeticRecord(value);
   if (!input) return undefined;
   const result: CardPrintingOverrides = {};
+  const calibration = option(input.calibration, [
+    "auto",
+    "printing",
+    "source",
+    "m21-modern",
+    "8ed-eighth",
+  ] as const);
+  if (calibration) result.calibration = calibration;
   for (const key of ["artist", "legalText", "collectorNumber"] as const) {
     const text = input[key];
     if (typeof text === "string" && text.length <= 2048) result[key] = text;

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { Loader2, Pause, Play, RotateCcw } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import type { DeckCard } from "@/protocol/deck";
 import { CardGlintInspectScene } from "@/lib/cardGlintInspect";
 import type { CardInspectState } from "@/lib/cardGlintInspect";
@@ -8,7 +8,6 @@ import { isEtchedOnlyPrinting, resolveCardFinish } from "@/lib/cardFinish";
 import { isHorizontalCard, isTwoFaceLayout } from "@/lib/cardLayout";
 import { useCard, useScryfallStore } from "@/stores/useScryfallStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { DEFAULT_CARD_POSE, MAX_CARD_TILT } from "@/lib/cardLighting";
 import type { CardLightingMode, CardPose } from "@/lib/cardLighting";
@@ -20,6 +19,8 @@ const subscribeMotion = (notify: () => void) => {
 };
 const motionSnapshot = () => motionPreference.matches;
 const KEYBOARD_TILT_STEP = 0.08;
+const INSPECT_LABEL =
+  "touch:min-h-11 text-ui-label font-medium text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50";
 
 export function CardGlintInspect({
   card,
@@ -46,7 +47,6 @@ export function CardGlintInspect({
   const [state, setState] = useState<CardInspectState>({ status: "loading" });
   const [requestedFaceIndex, setFaceIndex] = useState<0 | 1>(0);
   const [original, setOriginal] = useState(false);
-  const [paused, setPaused] = useState(false);
   const reducedMotion = useSyncExternalStore(subscribeMotion, motionSnapshot);
   const animations = usePreferencesStore((value) => value.inGameAnimations);
   const locale = useScryfallStore((value) => value.locale);
@@ -60,7 +60,7 @@ export function CardGlintInspect({
     card.identity.cosmetics,
     isEtchedOnlyPrinting(printing?.info.finishes),
   );
-  const animated = !paused && !reducedMotion && animations;
+  const animated = !reducedMotion && animations;
   const hasBack = !!card.backFace || isTwoFaceLayout(card.layout || printing?.info.layout);
   const faceIndex = hasBack ? (controlledFaceIndex ?? requestedFaceIndex) : 0;
   const landscape =
@@ -229,19 +229,19 @@ export function CardGlintInspect({
           </p>
         )}
       </div>
-      <div className="mt-3 flex flex-wrap items-center justify-center gap-1">
-        <Button
-          variant="ghost"
-          size="sm"
+      <div className="mt-1 flex flex-wrap items-center justify-center gap-4">
+        <button
+          type="button"
+          className={INSPECT_LABEL}
           onClick={() => setOriginal((value) => !value)}
           aria-pressed={original}
         >
           {original ? "Show Manabrew" : "Show Realistic"}
-        </Button>
+        </button>
         {hasBack && (
-          <Button
-            variant="ghost"
-            size="sm"
+          <button
+            type="button"
+            className={INSPECT_LABEL}
             onClick={() => {
               if (controlledFaceIndex !== undefined) onFlipFace?.();
               else setFaceIndex((value) => (value === 0 ? 1 : 0));
@@ -249,34 +249,15 @@ export function CardGlintInspect({
             disabled={controlledFaceIndex !== undefined && !onFlipFace}
           >
             {faceIndex === 0 ? "Back face" : "Front face"}
-          </Button>
+          </button>
         )}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setPaused((value) => !value)}
-          disabled={reducedMotion || !animations}
-          aria-label={paused ? "Resume card motion" : "Pause card motion"}
-          aria-pressed={paused}
-        >
-          {paused || reducedMotion || !animations ? (
-            <Play className="h-4 w-4" />
-          ) : (
-            <Pause className="h-4 w-4" />
-          )}
-        </Button>
-        <Button variant="ghost" size="icon" onClick={resetPose} aria-label="Reset card view">
-          <RotateCcw className="h-4 w-4" />
-        </Button>
       </div>
-      <p className="mt-2 text-center text-ui-meta text-muted-foreground" role="status">
+      <p className="mt-1 text-center text-ui-meta text-muted-foreground" role="status">
         {state.status === "loading"
           ? "Preparing card…"
           : state.original && !original
             ? "Selected printing layout preserved."
-            : pose || lighting === "studio"
-              ? "Use pose controls or arrow keys to tilt. Pointer hits move water."
-              : "Move over the card or use arrow keys to tilt."}
+            : null}
       </p>
       <p className="sr-only">{card.text}</p>
     </section>

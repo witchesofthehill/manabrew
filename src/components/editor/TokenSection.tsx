@@ -18,7 +18,7 @@ export interface TokenSectionProps {
   onShowInfo?: (token: DeckCard) => void;
   onInspect?: (token: DeckCard, anchor: HTMLElement | DOMRect) => void;
   onDismiss?: () => void;
-  onPickPrint?: (token: DeckCard) => void;
+  onCustomize?: (token: DeckCard) => void;
   onResetPrint?: (token: DeckCard) => void;
   onHover?: (token: DeckCard, e: MouseEvent) => void;
   onLeave?: () => void;
@@ -32,7 +32,7 @@ export function TokenSection({
   onShowInfo,
   onInspect,
   onDismiss,
-  onPickPrint,
+  onCustomize,
   onResetPrint,
   onHover,
   onLeave,
@@ -73,7 +73,7 @@ export function TokenSection({
                 onShowInfo={onShowInfo}
                 onInspect={onInspect}
                 onDismiss={onDismiss}
-                onPickPrint={onPickPrint}
+                onCustomize={onCustomize}
                 onReset={onResetPrint}
                 onHover={onHover}
                 onLeave={onLeave}
@@ -92,7 +92,7 @@ function TokenGridCard({
   onShowInfo,
   onInspect,
   onDismiss,
-  onPickPrint,
+  onCustomize,
   onReset,
   onHover,
   onLeave,
@@ -103,7 +103,7 @@ function TokenGridCard({
   onShowInfo?: (token: DeckCard) => void;
   onInspect?: (token: DeckCard, anchor: HTMLElement | DOMRect) => void;
   onDismiss?: () => void;
-  onPickPrint?: (token: DeckCard) => void;
+  onCustomize?: (token: DeckCard) => void;
   onReset?: (token: DeckCard) => void;
   onHover?: (token: DeckCard, e: MouseEvent) => void;
   onLeave?: () => void;
@@ -119,12 +119,11 @@ function TokenGridCard({
   return (
     <CardContextMenu
       card={token}
-      token
       count={1}
       location="main"
       canCustomize={canCustomize}
       onShowInfo={onShowInfo ? () => onShowInfo(token) : undefined}
-      onPickPrint={onPickPrint ? () => onPickPrint(token) : undefined}
+      onCustomize={onCustomize ? () => onCustomize(token) : undefined}
     >
       <div className="relative group">
         <button
@@ -151,21 +150,22 @@ function TokenGridCard({
         >
           <CardThumbnail card={token} />
         </button>
-        <div className="absolute bottom-1 right-1 z-20 flex flex-col gap-1 opacity-0 group-hover:opacity-100 touch:opacity-100 transition-opacity">
-          {onPickPrint && (
+        <div className="absolute top-1 right-1 z-20 flex gap-1 opacity-0 group-hover:opacity-100 touch:top-auto touch:bottom-1 touch:flex-col touch:opacity-100 transition-opacity">
+          {canCustomize && onCustomize && (
             <button
               type="button"
               className="touch:min-w-11 touch:min-h-11 rounded-full p-0.5 shadow bg-overlay/70 text-muted-foreground hover:text-foreground transition-colors"
-              title={`Change printing`}
+              title={`Customize card`}
+              aria-label={`Customize card for ${name} token`}
               onClick={(e) => {
                 e.stopPropagation();
-                onPickPrint(token);
+                onCustomize(token);
               }}
             >
               <Palette className="h-3.5 w-3.5" />
             </button>
           )}
-          {customized && onReset && (
+          {canCustomize && customized && onReset && (
             <button
               type="button"
               className="touch:min-w-11 touch:min-h-11 rounded-full p-0.5 shadow bg-overlay/70 text-muted-foreground hover:text-destructive transition-colors"

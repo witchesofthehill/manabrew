@@ -1,4 +1,4 @@
-import { DISPLAY_FONT_FAMILY, getUiFontSize, UI_FONT_FAMILY } from "@/themes/typography";
+import { DISPLAY_FONT_FAMILY, getUiFontFloor, UI_FONT_FAMILY } from "@/themes/typography";
 import { Container, FillGradient, Graphics, GraphicsContext, Sprite, Text } from "pixi.js";
 import { GAME_CARD_SIZES } from "@/components/game/game.constants";
 import { gsap } from "@/pixi/effects/gsap";
@@ -244,7 +244,7 @@ export class LimitedBoosterReveal {
     const symbolCode = new Text({
       style: {
         fontFamily: UI_FONT_FAMILY,
-        fontSize: Math.max(wrapperWidth * 0.2, getUiFontSize("label")),
+        fontSize: Math.max(wrapperWidth * 0.2, getUiFontFloor("label")),
         fontWeight: "bold",
         fill: theme.appTheme.foreground,
       },
@@ -254,7 +254,7 @@ export class LimitedBoosterReveal {
     const setName = new Text({
       style: {
         fontFamily: DISPLAY_FONT_FAMILY,
-        fontSize: Math.max(wrapperWidth * 0.085, getUiFontSize("label")),
+        fontSize: Math.max(wrapperWidth * 0.085, getUiFontFloor("label")),
         fontWeight: "bold",
         fill: theme.appTheme.foreground,
         align: "center",
@@ -271,7 +271,11 @@ export class LimitedBoosterReveal {
         : `${options.cardCount ?? cards.length}-CARD BOOSTER`,
       style: {
         fontFamily: UI_FONT_FAMILY,
-        fontSize: Math.max(wrapperWidth * (grouped ? 0.08 : 0.055), getUiFontSize("meta")),
+        fontSize: Math.max(
+          grouped ? 9 : 7,
+          wrapperWidth * (grouped ? 0.08 : 0.055),
+          getUiFontFloor("meta"),
+        ),
         fontWeight: "bold",
         letterSpacing: 0.6,
         fill: theme.appTheme.foreground,
@@ -554,9 +558,9 @@ export class LimitedBoosterReveal {
     const { setName, symbolCode, packType } = this;
     if (!setName || !symbolCode || !packType) return;
     const foreground = getTheme().appTheme.foreground;
-    symbolCode.style.fontSize = Math.max(this.wrapperWidth * 0.2, getUiFontSize("label"));
+    symbolCode.style.fontSize = Math.max(this.wrapperWidth * 0.2, getUiFontFloor("label"));
     symbolCode.style.fill = foreground;
-    setName.style.fontSize = Math.max(this.wrapperWidth * 0.085, getUiFontSize("label"));
+    setName.style.fontSize = Math.max(this.wrapperWidth * 0.085, getUiFontFloor("label"));
     setName.style.fill = foreground;
     setName.text = this.identityName;
     const maxHeight = Math.max(Number(setName.style.fontSize) * 1.4, this.wrapperHeight * 0.17);
@@ -567,8 +571,9 @@ export class LimitedBoosterReveal {
       setName.text = `${setName.text.replace(/…$/, "").slice(0, -1)}…`;
     }
     packType.style.fontSize = Math.max(
+      this.packCount > 1 ? 9 : 7,
       this.wrapperWidth * (this.packCount > 1 ? 0.08 : 0.055),
-      getUiFontSize("meta"),
+      getUiFontFloor("meta"),
     );
     packType.style.fill = foreground;
     packType.y = this.wrapperHeight / 2 - 8 - packType.height / 2;

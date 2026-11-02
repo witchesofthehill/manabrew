@@ -32,6 +32,7 @@ pub struct GameReplayCache {
     pub last_state: Option<Value>,
     pub last_state_by_slot: HashMap<String, Value>,
     pub pending_prompts: HashMap<String, Value>,
+    pub pending_directives: HashMap<(String, String), Value>,
     pub queued_inputs: HashMap<String, Vec<QueuedEngineInput>>,
     pub outcome: ReportedOutcome,
 }
@@ -52,6 +53,7 @@ impl GameReplayCache {
             last_state: None,
             last_state_by_slot: HashMap::new(),
             pending_prompts: HashMap::new(),
+            pending_directives: HashMap::new(),
             queued_inputs: HashMap::new(),
             outcome: ReportedOutcome::default(),
         }
@@ -97,6 +99,14 @@ impl GameReplayCache {
                 if let Some(slot) = envelope.get("forPlayer").and_then(Value::as_str) {
                     self.pending_prompts
                         .insert(slot.to_string(), envelope.clone());
+                }
+            }
+            Some("engineDirective") => {
+                let slot = envelope.get("forPlayer").and_then(Value::as_str);
+                let kind = envelope.pointer("/directive/type").and_then(Value::as_str);
+                if let (Some(slot), Some(kind)) = (slot, kind) {
+                    self.pending_directives
+                        .insert((slot.to_string(), kind.to_string()), envelope.clone());
                 }
             }
             Some("response") => {

@@ -51,6 +51,7 @@ import { PROTOCOL_VERSION } from "@/protocol";
 import type {
   ClientToServerMessage,
   DirectiveInput,
+  EngineDirective,
   Prompt,
   PromptOutput,
   StateUpdate,
@@ -222,8 +223,8 @@ type WorkerMessage = WorkerResponse | WorkerEvent;
 type EngineMessage = {
   kind?: string;
   state?: unknown;
-  event?: unknown;
   prompt?: unknown;
+  directive?: unknown;
   error?: unknown;
 };
 
@@ -395,6 +396,20 @@ class WorkerBridge {
       reportClientError(error, "engine-operation", { operation: "rewind" });
     });
 
+    eventBus.on<{ seat: number; directive: unknown }>(
+      "game:seat_directive",
+      ({ seat, directive }) => {
+        if (!this.directiveLanes) return;
+        if (seat === this.directiveLanes.localSeat) {
+          this.applyEngineMessage({ kind: "engineDirective", directive });
+        } else {
+          this.eventBus.emit("game:relay_message", {
+            forPlayer: `player-${seat}`,
+            msg: { kind: "engineDirective", directive },
+          });
+        }
+      },
+    );
     // The engine has nothing more to say once the game is over, so the bots
     // parked on their seats can go.
     for (const event of ["game:over", "game:forced_end"]) {
@@ -413,7 +428,7 @@ class WorkerBridge {
     // `arrivedAt` is stamped in the seat reader before the parse, so parsing a
     // state frame counts as this machine's work, the same cut the relay socket
     // makes.
-    if (msg?.kind === "state" || msg?.kind === "prompt" || msg?.kind === "display") {
+    if (msg?.kind === "state" || msg?.kind === "prompt") {
       noteReplyFrameArrived(arrivedAt);
     }
     try {
@@ -437,8 +452,8 @@ class WorkerBridge {
       case "state":
         this.eventBus.emit("game:state", msg.state);
         break;
-      case "display":
-        this.eventBus.emit("game:display", msg.event);
+      case "engineDirective":
+        this.eventBus.emit("game:directive", msg.directive);
         break;
       case "error":
         this.eventBus.emit("game:error", msg.error);
@@ -1098,8 +1113,8 @@ class WebServerApi implements IServerApi {
   >();
   private relayStateSequence = 0;
   private deltaBases = new Map<string, { state: StateUpdate; fingerprint: string }>();
-  private lastRelayDisplay: string | null = null;
   private pendingRelayPrompts = new Map<string, Record<string, unknown>>();
+  private pendingRelayDirectives = new Map<string, Record<string, unknown>>();
   private enginePlayerNames: string[] = [];
   private webrtc: WebRtcPlane | null = null;
   private peerSignalling = false;
@@ -1122,7 +1137,6 @@ class WebServerApi implements IServerApi {
       this.onDirectTransportPreference();
     });
 
-    // Relay engine messages (state/display/prompt) to remote players via WebSocket.
     eventBus.on<RelayMessage>("game:relay_message", ({ forPlayer, msg }) => {
       if (msg.kind === "state") {
         const state = msg.state as StateUpdate;
@@ -1144,14 +1158,15 @@ class WebServerApi implements IServerApi {
             : { kind: "state", forPlayer, state, fingerprint },
           targetPlayer,
         );
-      } else if (msg.kind === "display") {
-        const json = JSON.stringify(msg.event);
-        if (json === this.lastRelayDisplay) return;
-        this.lastRelayDisplay = json;
-        this.broadcastState({ kind: "display", event: msg.event });
       } else if (msg.kind === "prompt") {
         const envelope = { kind: "prompt", forPlayer, prompt: msg.prompt };
         this.pendingRelayPrompts.set(forPlayer, envelope);
+        const targetPlayer = this.enginePlayerName(forPlayer);
+        if (targetPlayer) void this.broadcastState(envelope, targetPlayer);
+      } else if (msg.kind === "engineDirective") {
+        const directive = msg.directive as EngineDirective;
+        const envelope = { kind: "engineDirective", forPlayer, directive };
+        this.pendingRelayDirectives.set(`${forPlayer}:${directive.type}`, envelope);
         const targetPlayer = this.enginePlayerName(forPlayer);
         if (targetPlayer) void this.broadcastState(envelope, targetPlayer);
       } else if (msg.kind === "error") {
@@ -1959,10 +1974,7 @@ class WebServerApi implements IServerApi {
       const forPlayer = (envelope as { forPlayer?: string }).forPlayer;
       if (
         frameAt !== undefined &&
-        (envelope.kind === "state" ||
-          envelope.kind === "stateDelta" ||
-          envelope.kind === "prompt" ||
-          envelope.kind === "display")
+        (envelope.kind === "state" || envelope.kind === "stateDelta" || envelope.kind === "prompt")
       ) {
         noteReplyFrameArrived(frameAt);
       }
@@ -2033,11 +2045,11 @@ class WebServerApi implements IServerApi {
           });
           return;
         }
-        case "display":
-          this.eventBus.emit("game:remote_display", envelope);
-          return;
         case "prompt":
           this.eventBus.emit("game:remote_prompt", envelope);
+          return;
+        case "engineDirective":
+          this.eventBus.emit("game:remote_directive", envelope);
           return;
         case "error":
           this.eventBus.emit("game:remote_error", envelope);
@@ -2092,8 +2104,8 @@ class WebServerApi implements IServerApi {
 
     if (type === "GameStarted") {
       this.lastRelayStates.clear();
-      this.lastRelayDisplay = null;
       this.pendingRelayPrompts.clear();
+      this.pendingRelayDirectives.clear();
       this.deltaBases.clear();
     }
 
@@ -2109,6 +2121,10 @@ class WebServerApi implements IServerApi {
       }
       for (const [playerSlot, envelope] of this.pendingRelayPrompts) {
         const targetPlayer = this.enginePlayerName(playerSlot);
+        if (targetPlayer) void this.broadcastState(envelope, targetPlayer);
+      }
+      for (const envelope of this.pendingRelayDirectives.values()) {
+        const targetPlayer = this.enginePlayerName(envelope.forPlayer as string);
         if (targetPlayer) void this.broadcastState(envelope, targetPlayer);
       }
       this.eventBus.emit("server:room_update", { room: msg.room });

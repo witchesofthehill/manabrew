@@ -52,14 +52,14 @@ import { useMultiplayerLimitedStore } from "./useMultiplayerLimitedStore";
 import { isTauriForgeRoomAvailable } from "./useForgeRoomAvailabilityStore";
 import { usePreferencesStore } from "./usePreferencesStore";
 import type { ClientCardDto, ClientGameView, GameState } from "./gameStore.types";
-import type { Prompt, PromptOutput } from "@/protocol";
+import type { DirectiveInput, Prompt, PromptOutput } from "@/protocol";
 import type { Deck, DeckCard } from "@/protocol/deck";
 import type { EngineKind } from "@/types/server";
 import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
 import { normalizeCardCosmetics } from "@/lib/cardCosmetics";
 import type { GameRuntime, ManualTabletopApi } from "@/game";
 import { withResolvedDeckName } from "@/lib/deckName";
-export type { GameConfig, GameState, DisplayEvent, DeferredSnapshot } from "./gameStore.types";
+export type { GameConfig, GameState, DeferredSnapshot } from "./gameStore.types";
 let gameLaunchGeneration = 0;
 let gameLaunchInFlight: number | null = null;
 export function cancelPendingGameLaunch(): void {
@@ -165,6 +165,7 @@ async function initializeGame({
     const launchForge = tauriForgeRoomAvailable ? startTauriForgeAiGame : startHostedAiGame;
     set({
       isGameActive: true,
+      activeEngine: "Forge",
       fatalError: null,
       engineCrash: null,
       gameView: null,
@@ -175,6 +176,8 @@ async function initializeGame({
       isWaitingForResponse: false,
       seatAddressedStates: false,
       relinquishedPriority: false,
+      recording: { type: "off" },
+      repeatVote: null,
       gameConfig: { formatId: selectedFormatId, startingLife },
       isPrefetchingCards: true,
       cardPrefetchProgress: null,
@@ -257,6 +260,7 @@ async function initializeGame({
   const runtime = getSelectedGameRuntime();
   set({
     isGameActive: true,
+    activeEngine: engine ?? null,
     fatalError: null,
     engineCrash: null,
     ironsmithDeckError: null,
@@ -268,6 +272,8 @@ async function initializeGame({
     isWaitingForResponse: false,
     seatAddressedStates: false,
     relinquishedPriority: false,
+    recording: { type: "off" },
+    repeatVote: null,
     myPlayerSlot: "player-0",
     selfConceded: false,
     gameConfig: { formatId: selectedFormatId, startingLife },
@@ -334,6 +340,11 @@ async function initializeGame({
     throw error;
   }
 }
+async function sendRepeatDirective(directive: DirectiveInput): Promise<void> {
+  const { myPlayerSlot } = useGameStore.getState();
+  if (!myPlayerSlot) throw new Error("No local player is available to record actions.");
+  await getSelectedGameRuntime().api.sendDirective({ playerSlot: myPlayerSlot, directive });
+}
 export const useGameStore = create<GameState>()(
   devtools(
     (set, get) => ({
@@ -341,6 +352,7 @@ export const useGameStore = create<GameState>()(
       currentPrompt: null,
       protocolError: null,
       isGameActive: false,
+      activeEngine: null,
       debugInfo: "",
       fatalError: null,
       engineCrash: null,
@@ -353,6 +365,8 @@ export const useGameStore = create<GameState>()(
       isWaitingForResponse: false,
       seatAddressedStates: false,
       relinquishedPriority: false,
+      recording: { type: "off" },
+      repeatVote: null,
       gameConfig: null,
       gauntletId: null,
       selfConceded: false,
@@ -397,6 +411,7 @@ export const useGameStore = create<GameState>()(
           setErrorReportingEngine(null);
           set({
             isGameActive: false,
+            activeEngine: null,
             gauntletId: null,
             debugInfo: `Start failed: ${e}`,
             isPrefetchingCards: false,
@@ -456,6 +471,7 @@ export const useGameStore = create<GameState>()(
         }
         set({
           isMultiplayer: true,
+          activeEngine: null,
           isHost: true,
           myPlayerSlot: localPlayerSlot,
           debugInfo: "Manual room host started.",
@@ -491,6 +507,7 @@ export const useGameStore = create<GameState>()(
         }
         set({
           isGameActive: true,
+          activeEngine: null,
           isMultiplayer: true,
           isHost: false,
           myPlayerSlot: localPlayerSlot,
@@ -549,6 +566,7 @@ export const useGameStore = create<GameState>()(
         try {
           set({
             isGameActive: true,
+            activeEngine: engine ?? server.currentRoom?.engine ?? null,
             isMultiplayer: true,
             isHost: localIsHost,
             myPlayerSlot: `player-${enginePlayerIndex}`,
@@ -562,6 +580,8 @@ export const useGameStore = create<GameState>()(
             isWaitingForResponse: false,
             seatAddressedStates: false,
             relinquishedPriority: false,
+            recording: { type: "off" },
+            repeatVote: null,
             selfConceded: false,
             debugInfo: "Starting multiplayer game...",
             isPrefetchingCards: true,
@@ -609,6 +629,7 @@ export const useGameStore = create<GameState>()(
           setErrorReportingEngine(null);
           set({
             isGameActive: false,
+            activeEngine: null,
             isMultiplayer: false,
             isHost: false,
             myPlayerSlot: null,
@@ -725,6 +746,7 @@ export const useGameStore = create<GameState>()(
         setErrorReportingEngine(null);
         set({
           isGameActive: false,
+          activeEngine: null,
           gauntletId: null,
           gameView: null,
           currentPrompt: null,
@@ -734,6 +756,8 @@ export const useGameStore = create<GameState>()(
           isWaitingForResponse: false,
           seatAddressedStates: false,
           relinquishedPriority: false,
+          recording: { type: "off" },
+          repeatVote: null,
           selfConceded: false,
           engineCrash: null,
           isMultiplayer: false,
@@ -776,7 +800,14 @@ export const useGameStore = create<GameState>()(
         }
       },
       setMultiplayerState: (isMultiplayer, isHost, myPlayerSlot) => {
-        set({ isMultiplayer, isHost, myPlayerSlot });
+        set({
+          isMultiplayer,
+          isHost,
+          myPlayerSlot,
+          activeEngine: isMultiplayer
+            ? (useServerStore.getState().currentRoom?.engine ?? null)
+            : null,
+        });
       },
       requestRestore: async (checkpointId) => {
         const { myPlayerSlot } = get();
@@ -786,6 +817,10 @@ export const useGameStore = create<GameState>()(
           directive: { type: "requestRestore", checkpointId },
         });
       },
+      startRecording: () => sendRepeatDirective({ type: "startRecording" }),
+      stopRecording: () => sendRepeatDirective({ type: "stopRecording" }),
+      requestRepeat: (iterations) => sendRepeatDirective({ type: "requestRepeat", iterations }),
+      voteRepeat: (voteId, accept) => sendRepeatDirective({ type: "repeatVote", voteId, accept }),
       voteRestore: async (voteId, accept) => {
         const { myPlayerSlot } = get();
         if (!myPlayerSlot) throw new Error("No local player is available to vote.");

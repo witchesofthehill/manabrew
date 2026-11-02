@@ -1,4 +1,4 @@
-import { getUiFontSize, UI_FONT_FAMILY } from "@/themes/typography";
+import { getUiFontFloor, UI_FONT_FAMILY } from "@/themes/typography";
 import {
   Container,
   Graphics,
@@ -285,7 +285,7 @@ export class BoardZoneTiles {
       text: "",
       style: {
         fontFamily: UI_FONT_FAMILY,
-        fontSize: getUiFontSize("meta"),
+        fontSize: Math.max(12, getUiFontFloor("meta")),
         fontWeight: "900",
         fill: hexToNum(this.theme.gameTheme.textOnTinted),
       },
@@ -295,7 +295,7 @@ export class BoardZoneTiles {
       text: "",
       style: {
         fontFamily: UI_FONT_FAMILY,
-        fontSize: getUiFontSize("meta"),
+        fontSize: Math.max(11, getUiFontFloor("meta")),
         fontWeight: "700",
         fill: hexToNum(this.theme.gameTheme.textOnTinted),
       },
@@ -766,7 +766,7 @@ export class BoardZoneTiles {
       }
 
       tile.countText.visible = hasContent;
-      tile.countText.style.fontSize = getUiFontSize("meta");
+      tile.countText.style.fontSize = Math.max(10, Math.round(12 * k), getUiFontFloor("meta"));
       tile.countText.text = String(spec.count);
       const countH = Math.ceil(tile.countText.height) + 6;
       if (hasContent) {
@@ -782,7 +782,7 @@ export class BoardZoneTiles {
       if (tile.taxText.visible) {
         tile.taxText.text = `Tax +${spec.commanderTax}`;
         tile.taxText.style.fill = hexToNum(gt.textOnTinted);
-        tile.taxText.style.fontSize = getUiFontSize("meta");
+        tile.taxText.style.fontSize = Math.max(9, Math.round(11 * k), getUiFontFloor("meta"));
         const taxW = tile.taxText.width + 8;
         const taxH = Math.ceil(tile.taxText.height) + 6;
         const taxY = hasContent ? cardH - countH - taxH - 5 : cardH - taxH - 3;

@@ -2,6 +2,7 @@
 
 import { spawnSync } from "node:child_process";
 import {
+  cpSync,
   existsSync,
   mkdtempSync,
   readFileSync,
@@ -75,6 +76,47 @@ if (!/^[0-9a-f]{40}$/.test(stampOf("BUILD_COMMIT") ?? "")) {
   throw new Error(`stamp.js exports BUILD_COMMIT ${stampOf("BUILD_COMMIT")}, expected a commit.`);
 }
 
+const protocolVersion = readFileSync(
+  join(root, "manabrew-rs", "crates", "manabrew-protocol", "Cargo.toml"),
+  "utf8",
+).match(/^version = "(.*)"$/m)?.[1];
+const protocolRange = JSON.parse(readFileSync(join(packageDir, "package.json"), "utf8"))
+  .dependencies["@manabrew/protocol"];
+if (protocolRange !== `^${protocolVersion}`) {
+  throw new Error(
+    `The manifest asks for @manabrew/protocol ${protocolRange}, the tree holds ${protocolVersion}.`,
+  );
+}
+
+// The consumer checks the package against the protocol in this tree, as the
+// two are released together: a type added to both is not on npm until then.
+const protocolDir = join(temporary, "protocol");
+run("mkdir", ["-p", protocolDir]);
+for (const file of ["package.json", "tsconfig.json", "README.md"]) {
+  cpSync(join(root, "packages", "protocol", file), join(protocolDir, file));
+}
+run("cargo", [
+  "run",
+  "-q",
+  "-p",
+  "manabrew-relay-protocol",
+  "--bin",
+  "gen-protocol",
+  "--",
+  join(protocolDir, "src"),
+]);
+run(
+  "npm",
+  ["version", protocolVersion, "--no-git-tag-version", "--allow-same-version"],
+  protocolDir,
+);
+run("npm", ["install", "--no-audit", "--no-fund"], protocolDir);
+run("npm", ["run", "build"], protocolDir);
+const protocolPacked = JSON.parse(
+  run("npm", ["pack", "--json", "--pack-destination", temporary], protocolDir),
+)[0];
+run("cp", [join(temporary, protocolPacked.filename), join(temporary, "protocol.tgz")]);
+
 const packed = JSON.parse(
   run("npm", ["pack", "--json", "--pack-destination", temporary], packageDir),
 )[0];
@@ -97,9 +139,11 @@ writeFileSync(
     type: "module",
     dependencies: {
       "@manabrew/forge-wasm": "file:../package.tgz",
+      "@manabrew/protocol": "file:../protocol.tgz",
       typescript: "^5.9.3",
       vite: "^7.3.5",
     },
+    overrides: { "@manabrew/protocol": "$@manabrew/protocol" },
   }),
 );
 writeFileSync(join(consumer, "index.html"), '<script type="module" src="/src.js"></script>\n');
@@ -117,7 +161,7 @@ writeFileSync(
     'import { ForgeEngine, VERSION, BUILD_COMMIT } from "@manabrew/forge-wasm";',
     'import type { ForgeDeck } from "@manabrew/forge-wasm";',
     'import { createSeat, SAB_SIZE } from "@manabrew/forge-wasm/seat";',
-    'import type { Deck, GameViewDto, Prompt } from "@manabrew/protocol";',
+    'import type { Deck, EngineDirective, GameViewDto, Prompt } from "@manabrew/protocol";',
     "const build: string[] = [VERSION, BUILD_COMMIT];",
     "void build;",
     // A deck with every zone filled has to satisfy ForgeDeck: dropping a zone
@@ -134,7 +178,7 @@ writeFileSync(
     "const engine = new ForgeEngine({",
     "  onState: (state) => { const view: GameViewDto = state.gameView; void view; },",
     "  onPrompt: (prompt) => { const p: Prompt = prompt; void p; },",
-    '  onDisplay: (event) => { void (event.kind === "cardPlayed" ? event.cardName : ""); },',
+    "  onDirective: (directive) => { const d: EngineDirective = directive; void d; },",
     "});",
     "void engine.startGame({ deck });",
     'engine.respond(1, { type: "chooseBoolean", output: { type: "decision", value: true } });',

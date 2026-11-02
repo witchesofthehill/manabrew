@@ -323,10 +323,10 @@ impl GameLoop {
                     let origin_zone = game.card_current_zone(play.card_id);
                     let played =
                         self.with_shared_state_mutation(game, agents, |this, game, agents| {
-                            let card_name = game.card(play.card_id).card_name.clone();
                             if game.card(play.card_id).is_land()
                                 || play.mode == crate::agent::PlayCardMode::BackFaceLand
                             {
+                                let card_name = game.card(play.card_id).card_name.clone();
                                 this.play_land(
                                     game,
                                     agents,
@@ -360,21 +360,12 @@ impl GameLoop {
                             }
                         });
                     if let Some(PlaySpellAbilityResult::CardPlayed {
-                        card_id: played_id,
-                        card_name: played_name,
+                        card_id: played_id, ..
                     }) = played
                     {
-                        let set_code = game.card(played_id).set_code.clone().unwrap_or_default();
                         for agent in agents.iter_mut() {
                             agent.snapshot_state(game, &self.mana_pools);
-                            agent.notify(
-                                crate::agent::notification::GameNotification::CardPlayed {
-                                    player: priority_player,
-                                    card_id: played_id,
-                                    card_name: played_name.clone(),
-                                    set_code: set_code.clone(),
-                                },
-                            );
+                            agent.notify(crate::agent::notification::GameNotification::CardPlayed);
                         }
                         // Process SpellCast / BecomesTarget triggers immediately so they
                         // go on the stack ABOVE the spell (resolving before it).

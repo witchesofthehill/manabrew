@@ -1,4 +1,10 @@
-import { getUiControlHeight, getUiFontSize } from "@/themes/typography";
+import {
+  getUiControlFloor,
+  getUiControlHeight,
+  getUiFontFloor,
+  getUiFontSize,
+  isTouchUi,
+} from "@/themes/typography";
 import {
   Container,
   type FederatedWheelEvent,
@@ -146,7 +152,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     presentation: PromptPresentation,
     minimizable = true,
     footerHeight = 0,
-    footerContentHeight = getUiControlHeight(),
+    footerContentHeight = 36,
     cardHints = false,
     headerLayout: PromptModalHeaderLayout = "stacked",
     titleStyle: { size: number; color: string } | null = null,
@@ -158,7 +164,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     footerHintWidth: number;
   } {
     const sourceCard = this.spec?.gameOver ? null : this.promptSourceCard();
-    footerContentHeight = Math.max(footerContentHeight, getUiControlHeight());
+    footerContentHeight = Math.max(footerContentHeight, getUiControlFloor());
     if (footerHeight > 0) footerHeight = Math.max(footerHeight, footerContentHeight + 16);
     const modalHeight = this.layerPresentation.modalHeight(
       this.viewportHeight,
@@ -312,12 +318,16 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       }
     }
     if (minimizable) {
-      const minimizeIcon = this.makeIcon("lucide-minus", 22, this.theme.appTheme.foreground);
+      const minimizeIcon = this.makeIcon(
+        "lucide-inspect-board",
+        22,
+        this.theme.appTheme.foreground,
+      );
       const minimize = new Container();
       minimize.addChild(minimizeIcon);
       minimize.eventMode = "static";
       minimize.cursor = "pointer";
-      const targetSize = getUiControlHeight();
+      const targetSize = Math.max(32, getUiControlFloor());
       minimize.hitArea = new Rectangle(-targetSize / 2, -targetSize / 2, targetSize, targetSize);
       minimize.on("pointerover", () => {
         minimizeIcon.alpha = 0.75;
@@ -333,9 +343,12 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       });
       minimize.on("pointertap", () => this.spec!.onHideModal());
       minimize.accessible = true;
-      minimize.accessibleTitle = "Minimize prompt";
+      minimize.accessibleTitle = "Hide prompt to inspect battlefield";
       minimize.tabIndex = 0;
-      minimize.position.set(width - PANEL_PADDING - targetSize / 2, 12 + targetSize / 2);
+      minimize.position.set(
+        width - PANEL_PADDING - Math.max(6, getUiControlFloor() / 2),
+        Math.max(20, 12 + getUiControlFloor() / 2),
+      );
       header.addChild(minimize);
     }
 
@@ -577,26 +590,35 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     const bounds = state.body.getLocalBounds();
     state.body.mask = mask;
     const contentHeight = Math.max(0, bounds.y + bounds.height);
-    let footerWidth = 0;
-    let footerTop = 0;
-    let footerRowHeight = 0;
-    for (const child of state.footer.children) {
-      if (!child.visible) continue;
-      const childBounds = child.getLocalBounds();
-      const childWidth = childBounds.width;
-      const childHeight = childBounds.height;
-      if (footerWidth > 0 && footerWidth + ROW_GAP + childWidth > state.width - PANEL_PADDING * 2) {
-        footerWidth = 0;
-        footerTop += footerRowHeight + ROW_GAP;
-        footerRowHeight = 0;
+    const footerAvailableWidth = state.width - PANEL_PADDING * 2;
+    const placedFooter = state.footer.getLocalBounds();
+    if (
+      isTouchUi() ||
+      placedFooter.x < 0 ||
+      placedFooter.x + placedFooter.width > footerAvailableWidth + 1
+    ) {
+      let footerWidth = 0;
+      let footerTop = 0;
+      let footerRowHeight = 0;
+      for (const child of state.footer.children) {
+        if (!child.visible) continue;
+        const childBounds = child.getLocalBounds();
+        const childWidth = childBounds.width;
+        const childHeight = childBounds.height;
+        if (footerWidth > 0 && footerWidth + ROW_GAP + childWidth > footerAvailableWidth) {
+          footerWidth = 0;
+          footerTop += footerRowHeight + ROW_GAP;
+          footerRowHeight = 0;
+        }
+        if (footerWidth > 0) footerWidth += ROW_GAP;
+        child.position.set(footerWidth - childBounds.x, footerTop - childBounds.y);
+        footerWidth += childWidth;
+        footerRowHeight = Math.max(footerRowHeight, childHeight);
       }
-      if (footerWidth > 0) footerWidth += ROW_GAP;
-      child.position.set(footerWidth - childBounds.x, footerTop - childBounds.y);
-      footerWidth += childWidth;
-      footerRowHeight = Math.max(footerRowHeight, childHeight);
     }
     if (state.footerHeight > 0) {
-      state.footerContentHeight = footerTop + footerRowHeight;
+      const footerBounds = state.footer.getLocalBounds();
+      state.footerContentHeight = Math.max(0, footerBounds.y + footerBounds.height);
       state.footerHeight = Math.max(state.footerHeight, state.footerContentHeight + 16);
     }
     const fittedHeight = Math.min(
@@ -1051,7 +1073,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
         ? this.theme.appTheme.foreground
         : this.theme.appTheme["muted-foreground"],
     );
-    searchIcon.position.set(16, Math.max(40, getUiControlHeight()) / 2);
+    searchIcon.position.set(16, Math.max(40, getUiControlFloor()) / 2);
     const showResultCount = width >= CHOICE_SEARCH_COUNT_MIN_WIDTH;
     const searchText = promptText(
       this.selectionFilter || placeholder,
@@ -1651,7 +1673,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
 
     const total = [...this.counts.values()].reduce((sum, value) => sum + value, 0);
     let y = 4;
-    const controlSize = Math.max(34, getUiControlHeight());
+    const controlSize = Math.max(34, getUiControlFloor());
     const quantityWidth = controlSize * 3 + 16;
     const stackedControls = availableWidth < quantityWidth + 200;
     const rowHeight =
@@ -1831,8 +1853,8 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     };
     const numberLayout = this.layerPresentation.numberControlLayout(availableWidth);
     const controlGap = numberLayout.gap;
-    const edgeWidth = Math.max(numberLayout.edgeWidth, getUiControlHeight());
-    const stepWidth = Math.max(numberLayout.stepWidth, getUiControlHeight());
+    const edgeWidth = Math.max(numberLayout.edgeWidth, getUiControlFloor());
+    const stepWidth = Math.max(numberLayout.stepWidth, getUiControlFloor());
     const valueWidth = Math.max(
       numberLayout.minimumValueWidth,
       availableWidth - edgeWidth * 2 - stepWidth * 2 - controlGap * 4,
@@ -2051,7 +2073,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
         (dragX, dragY) => this.previewReorderGap(id, cardWidth, dragX, dragY),
       );
       const rank = new Graphics()
-        .circle(0, 0, Math.max(13, getUiFontSize("meta") * 1.2))
+        .circle(0, 0, Math.max(13, getUiFontFloor("meta") * 1.2))
         .fill(hexToNum(index === 0 ? this.theme.gameTheme.cardRing : this.theme.appTheme.muted));
       const rankText = promptText(
         String(index + 1),
@@ -2207,7 +2229,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       const first = previewIndex === 0;
       visual.rank
         .clear()
-        .circle(0, 0, Math.max(13, getUiFontSize("meta") * 1.2))
+        .circle(0, 0, Math.max(13, getUiFontFloor("meta") * 1.2))
         .fill(hexToNum(first ? this.theme.gameTheme.cardRing : this.theme.appTheme.muted));
       visual.rankText.text = String(previewIndex + 1);
       visual.rankText.tint = hexToNum(
@@ -2926,7 +2948,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       icon.position.set(centerX, centerY);
       body.addChild(icon);
     }
-    const hint = promptText(this.scryDestinationHint(destination), getUiFontSize("label"), color, {
+    const hint = promptText(this.scryDestinationHint(destination), 11, color, {
       weight: "600",
       align: "center",
       width: rect.width - 12,
@@ -3209,8 +3231,8 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     body.addChild(guidance);
 
     let y = guidance.y + guidance.height + 12;
-    const controlSize = Math.max(36, getUiControlHeight());
-    const lethalWidth = Math.max(104, Math.ceil(getUiFontSize("label") * 7) + 20);
+    const controlSize = Math.max(36, getUiControlFloor());
+    const lethalWidth = Math.max(80, Math.ceil(getUiFontFloor("label") * 7) + 20);
     const controlsWidth = lethalWidth + controlSize * 3 + 32;
     const stackedControls = availableWidth < controlsWidth + 180;
     const splitControls = availableWidth < controlsWidth + 24;
@@ -3342,6 +3364,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
             width: lethalWidth,
             height: controlSize,
             paddingX: 6,
+            fontSize: 9,
             letterSpacing: 0.3,
             borderColor: lethalReached
               ? this.theme.gameTheme.promptAction.attackAction
@@ -3986,6 +4009,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       height: 44,
       icon: "lucide-log-out",
     });
+    button.position.set((panelWidth - PANEL_PADDING * 2 - button.buttonWidth) / 2, 0);
     footer.addChild(button);
     this.finalizeModalScroll();
   }

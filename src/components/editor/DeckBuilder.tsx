@@ -8,7 +8,7 @@ import { DeckVersionHistoryDialog } from "@/components/deck/DeckVersionHistoryDi
 import { useKeybindings } from "@/hooks/useKeybindings";
 import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 import { Button } from "@/components/ui/button";
-import { PrintPickerModal } from "./PrintPickerModal";
+import { CardCustomizerModal } from "./CardCustomizerModal";
 import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
@@ -208,8 +208,9 @@ export function DeckBuilder({
   const hubEnabled = isFeatureEnabled("deckHub");
   const accountsEnabled = isFeatureEnabled("accounts");
   const publishEnabled = hubEnabled && accountsEnabled;
-  const [printPickerCard, setPrintPickerCard] = useState<DeckCard | null>(null);
-  const [tokenPrintPicker, setTokenPrintPicker] = useState<DeckCard | null>(null);
+  const [customization, setCustomization] = useState<{ card: DeckCard; token: boolean } | null>(
+    null,
+  );
   const [detailCard, setDetailCard] = useState<ScryfallCard | null>(null);
   const [detailToken, setDetailToken] = useState<DeckCard | null>(null);
   const [detailPrinting, setDetailPrinting] = useState<DeckCardIdentity | null>(null);
@@ -261,13 +262,14 @@ export function DeckBuilder({
     untagCard,
     setCoverCard,
     setStackPositions,
-    updatePrintingVariant,
-    updateTokenPrint,
     resetTokenPrint,
     updateAccountDeckVersion,
     linkSavedDeckToAccount,
     loadAccountDeck,
   } = useDeckStore();
+  function handleCustomize(card: DeckCard) {
+    if (!isReadOnly) setCustomization({ card, token: false });
+  }
   const allowIllegalDecks = useGameDevStore((s) => s.allowIllegalDecks);
   const importIntoCurrentDeck = useDeckTextImportIntoCurrent();
   const { selectedCards, toggleCard, rangeSelect, clearSelection, selectCards } =
@@ -2131,7 +2133,7 @@ export function DeckBuilder({
                     );
                   }}
                   onLeave={preview.handleMouseLeave}
-                  onPickPrint={setPrintPickerCard}
+                  onCustomize={handleCustomize}
                   contextMenuFor={(card, label) => {
                     const name = card.identity.name;
                     const isCover =
@@ -2148,7 +2150,7 @@ export function DeckBuilder({
                       hasBackFace: !!card.backFace,
                       onShowInfo: () => handleShowInfo(card),
                       onRemoveCommander: () => handleRemoveCommander(card),
-                      onPickPrint: () => setPrintPickerCard(card),
+                      onCustomize: () => handleCustomize(card),
                       onSetCover: () => {
                         executeDeckEdit(`Change deck cover`, () =>
                           setCoverCard(isCover ? undefined : name, 0),
@@ -2185,8 +2187,8 @@ export function DeckBuilder({
                       location="side"
                       canCustomize={!isReadOnly}
                       onShowInfo={() => handleShowInfo(currentDeck.companion!)}
-                      onPickPrint={
-                        isReadOnly ? undefined : () => setPrintPickerCard(currentDeck.companion!)
+                      onCustomize={
+                        isReadOnly ? undefined : () => handleCustomize(currentDeck.companion!)
                       }
                     >
                       <div className="group flex items-center gap-2 rounded-md hover:bg-muted/40">
@@ -2242,7 +2244,7 @@ export function DeckBuilder({
                     onMoveAllFromMaybeToMain={handleMoveAllFromMaybeToMain}
                     onMoveOneFromMaybeToSide={handleMoveOneFromMaybeToSide}
                     onMoveAllFromMaybeToSide={handleMoveAllFromMaybeToSide}
-                    onPickPrint={setPrintPickerCard}
+                    onCustomize={handleCustomize}
                     onHover={(card, e, details) => {
                       const previewCard = deckCardToPreviewDto(card);
                       const localized = details
@@ -2339,7 +2341,7 @@ export function DeckBuilder({
                         cardSize={cardSize}
                         canCustomize={!isReadOnly}
                         onShowInfo={handleShowTokenInfo}
-                        onPickPrint={setTokenPrintPicker}
+                        onCustomize={(card) => setCustomization({ card, token: true })}
                         onResetPrint={(token) =>
                           executeDeckEdit(`Reset ${token.identity.name} token printing`, () =>
                             resetTokenPrint(token),
@@ -2450,29 +2452,13 @@ export function DeckBuilder({
           />
         )}
 
-        <PrintPickerModal
-          cardName={printPickerCard?.identity.name ?? null}
-          onClose={() => setPrintPickerCard(null)}
-          onSelect={(print) => {
-            if (printPickerCard) {
-              executeDeckEdit(`Change ${printPickerCard.identity.name} printing`, () =>
-                updatePrintingVariant(printPickerCard.identity, print),
-              );
-            }
-          }}
-        />
-        <PrintPickerModal
-          cardName={tokenPrintPicker?.identity.name ?? null}
-          token={tokenPrintPicker ?? undefined}
-          onClose={() => setTokenPrintPicker(null)}
-          onSelect={(sc) => {
-            if (tokenPrintPicker) {
-              executeDeckEdit(`Change ${tokenPrintPicker.identity.name} token printing`, () =>
-                updateTokenPrint(tokenPrintPicker, sc),
-              );
-            }
-          }}
-        />
+        {customization && !isReadOnly && (
+          <CardCustomizerModal
+            card={customization.card}
+            token={customization.token}
+            onClose={() => setCustomization(null)}
+          />
+        )}
         {detailCard && (
           <CardDetailModal
             card={detailCard}
@@ -2486,10 +2472,6 @@ export function DeckBuilder({
               printing: detailPrinting ?? undefined,
               onAddOne: handleAddOneToMainByName,
               onRemoveOne: handleRemoveOneFromMain,
-              onPickPrint: (name) => {
-                const card = allDeckCards().find((candidate) => candidate.identity.name === name);
-                if (card) setPrintPickerCard(card);
-              },
               onSetCommander: (name) => {
                 const existing = currentDeck.commanders?.find((c) => c.identity.name === name);
                 if (existing) {
@@ -2524,13 +2506,6 @@ export function DeckBuilder({
                 );
               },
               token: detailToken ?? undefined,
-              onUpdateTokenPrint: (_name, print) => {
-                if (detailToken) {
-                  executeDeckEdit(`Change ${detailToken.identity.name} token printing`, () =>
-                    updateTokenPrint(detailToken, print),
-                  );
-                }
-              },
             }}
           />
         )}

@@ -392,6 +392,9 @@ public final class Main {
                         case "drainCheckpointMetrics":
                             sendOk(adapter.drainCheckpointMetrics(requireString(request, "sessionId")));
                             break;
+                        case "drainDirectives":
+                            sendOk(adapter.drainDirectives(requireString(request, "sessionId")));
+                            break;
                         case "getStateRevision":
                             sendOk(adapter.getStateRevision(requireString(request, "sessionId")));
                             break;

@@ -36,7 +36,7 @@ function CommandZoneCard({
   onRemove,
   onHover,
   onLeave,
-  onPickPrint,
+  onCustomize,
   menuActions,
 }: {
   card: DeckCard;
@@ -46,7 +46,7 @@ function CommandZoneCard({
   onRemove: () => void;
   onHover?: (card: DeckCard, event: ReactPointerEvent<HTMLElement>) => void;
   onLeave?: () => void;
-  onPickPrint?: (card: DeckCard) => void;
+  onCustomize?: (card: DeckCard) => void;
   menuActions?: CommandZoneCardMenuActions;
 }) {
   const unsupported = useIsUnsupported(card.identity.name);
@@ -94,17 +94,17 @@ function CommandZoneCard({
         {label}
       </div>
       {!readOnly && (
-        <div className="absolute right-1 bottom-1 z-20 flex flex-col gap-1 opacity-0 transition-opacity group-hover:opacity-100 touch:opacity-100">
-          {onPickPrint && (
+        <div className="absolute right-1 top-1 z-20 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 touch:top-auto touch:bottom-1 touch:flex-col touch:opacity-100">
+          {onCustomize && (
             <button
               type="button"
               className="touch:min-w-11 touch:min-h-11 rounded-full bg-overlay/70 p-0.5 text-muted-foreground shadow transition-colors hover:text-foreground"
-              title={`Change printing`}
-              aria-label={`Change printing for ${card.identity.name}`}
+              title={`Customize card`}
+              aria-label={`Customize card for ${card.identity.name}`}
               onPointerDown={(event) => event.stopPropagation()}
               onClick={(event) => {
                 event.stopPropagation();
-                onPickPrint(card);
+                onCustomize(card);
               }}
             >
               <Palette className="h-3.5 w-3.5" />
@@ -144,7 +144,7 @@ interface CommanderSlotsProps {
   onRemoveCommander: (card: DeckCard) => void;
   onHover?: (card: DeckCard, event: ReactPointerEvent<HTMLElement>) => void;
   onLeave?: () => void;
-  onPickPrint?: (card: DeckCard) => void;
+  onCustomize?: (card: DeckCard) => void;
   contextMenuFor?: (card: DeckCard, label: string) => CommandZoneCardMenuActions;
 }
 export function CommanderSlots({
@@ -157,7 +157,7 @@ export function CommanderSlots({
   onRemoveCommander,
   onHover,
   onLeave,
-  onPickPrint,
+  onCustomize,
   contextMenuFor,
 }: CommanderSlotsProps) {
   const [open, setOpen] = useDeckSectionOpen();
@@ -242,7 +242,7 @@ export function CommanderSlots({
               onRemove={() => onRemoveCommander(card)}
               onHover={onHover}
               onLeave={onLeave}
-              onPickPrint={onPickPrint}
+              onCustomize={onCustomize}
               menuActions={
                 readOnly
                   ? undefined

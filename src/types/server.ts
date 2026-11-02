@@ -1,6 +1,7 @@
 import type {
   DirectiveInput,
   DraftConfig,
+  EngineDirective,
   EngineKind,
   GameFormat,
   PlayerDeckInfo,
@@ -10,7 +11,6 @@ import type {
   SealedConfig,
   StateUpdate,
 } from "@/protocol";
-import type { DisplayEvent } from "@/protocol/display";
 export type { DraftConfig, EngineKind, GameFormat, PlayerDeckInfo, SealedConfig } from "@/protocol";
 
 export type AiController = "manabot" | "forge";
@@ -145,13 +145,14 @@ export type StateEnvelope =
       patch: unknown;
     }
   | {
-      kind: "display";
-      event: DisplayEvent;
-    }
-  | {
       kind: "prompt";
       forPlayer: string;
       prompt: Prompt;
+    }
+  | {
+      kind: "engineDirective";
+      forPlayer: string;
+      directive: EngineDirective;
     }
   | {
       kind: "error";

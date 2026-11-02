@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.69.2](https://github.com/witchesofthehill/manabrew/compare/v3.69.1...v3.69.2) (2026-11-02)
+
+### Fixes
+
+* **ui:** restore hybrid desktop density and compact home layout ([#1140](https://github.com/witchesofthehill/manabrew/issues/1140)) ([e022b84](https://github.com/witchesofthehill/manabrew/commit/e022b84f5e7dfb10fee80a02b1fb9d39ff1db66e))
+
 ## [3.69.1](https://github.com/witchesofthehill/manabrew/compare/v3.69.0...v3.69.1) (2026-11-02)
 
 ### Fixes

@@ -2,7 +2,7 @@
 
 Inventory of every Grafana panel and queryable data source in the stack. Config lives under `ops/observability/`; metric names are defined in code (`manabrew-server/src/metrics.rs`, `self-hosted-node/src/metrics.rs`) and the analytics schema in `scripts/ingest-events.py`. Keep this file in sync when adding a panel, metric, event, or column.
 
-Frontend exception reporting uses the Faro SDK, an isolated self-hosted collector, and Loki. Managed web and official macOS/Windows/iOS/Android builds report by default; generic/local builds stay off. Explicit `false` disables reporting. See the [rollout gates](FARO_IMPLEMENTATION_PLAN.md) and [deployment settings](DEPLOY.md#frontend-error-reporting).
+Frontend exception reporting uses the Faro SDK, an isolated self-hosted collector, and Loki. Managed web and official macOS/Windows/iOS/Android builds report by default; generic/local builds stay off. Explicit `false` disables reporting. See [deployment settings](DEPLOY.md#frontend-error-reporting) and [rollout and rollback](DEPLOY.md#rollout-and-rollback).
 
 ## Dashboards
 

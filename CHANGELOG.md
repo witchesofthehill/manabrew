@@ -13,6 +13,7 @@
 - Await SDK printing/coating shader readiness before GPU preparation, flush host shader links before polling, and reuse completed Pixi programs without relinking; keep Heat source content visible while GPU resources are pending.
 - Render DOM foil overlays in bounded atlas pages before copying their output crops.
 - Upgrade Card Glint to 0.7.13 for native shader compilation fixes and updated frame calibration, with matching offline and finish-cache revisions.
+- Restore in-game and DOM card foiling by enabling the shared Card Glint feature flag.
 
 ## [3.65.3](https://github.com/witchesofthehill/manabrew/compare/v3.65.2...v3.65.3) (2026-10-27)
 

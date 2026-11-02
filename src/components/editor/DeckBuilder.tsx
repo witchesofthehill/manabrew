@@ -53,7 +53,12 @@ import type { ScryfallCard } from "@/types/scryfall";
 import type { ScryfallLanguage } from "@/i18n/locales";
 import { localizedCardDetailsKey, type LocalizedCardDetails } from "@/lib/localizedCardDetails";
 import type { EditorDeck } from "@/types/manabrew";
-import { chooseImageUrisForCard, useScryfallStore } from "@/stores/useScryfallStore";
+import {
+  chooseImageUrisForCard,
+  peekCard,
+  useScryfallStore,
+  type ScryfallCardLookup,
+} from "@/stores/useScryfallStore";
 import {
   deckCardToPreviewDto,
   frontFaceName,
@@ -211,9 +216,12 @@ export function DeckBuilder({
   const [customization, setCustomization] = useState<{ card: DeckCard; token: boolean } | null>(
     null,
   );
-  const [detailCard, setDetailCard] = useState<ScryfallCard | null>(null);
-  const [detailToken, setDetailToken] = useState<DeckCard | null>(null);
-  const [detailPrinting, setDetailPrinting] = useState<DeckCardIdentity | null>(null);
+  const [detail, setDetail] = useState<{
+    name: string;
+    card: ScryfallCard | null;
+    token: DeckCard | null;
+    printing: DeckCardIdentity | null;
+  } | null>(null);
   const [localizedDetailsResult, setLocalizedDetailsResult] = useState<{
     key: string;
     details: ReadonlyMap<string, LocalizedCardDetails | null>;
@@ -930,32 +938,45 @@ export function DeckBuilder({
   function handleRemoveOneFromMaybe(cardName: string) {
     removeCopies(cardName, "maybe", "one");
   }
+  function openDetail(
+    lookup: ScryfallCardLookup,
+    name: string,
+    token: DeckCard | null,
+    printing: DeckCardIdentity | null,
+  ) {
+    const store = useScryfallStore.getState();
+    const request = { name, card: peekCard(store.cards, lookup), token, printing };
+    setDetail(request);
+    if (request.card) return;
+    store
+      .getCard(lookup)
+      .then((sc) =>
+        setDetail((current) => (current === request ? { ...request, card: sc.info } : current)),
+      )
+      .catch(() => {
+        setDetail((current) => (current === request ? null : current));
+        toast.error(`Could not fetch info for "${name}"`);
+      });
+  }
   function handleShowInfo(deckCard: DeckCard) {
-    setDetailToken(null);
-    setDetailPrinting(deckCard.identity);
-    useScryfallStore
-      .getState()
-      .getCard({
+    openDetail(
+      {
         name: deckCard.identity.name,
         setCode: deckCard.identity.setCode,
         collectorNumber: deckCard.identity.cardNumber,
-      })
-      .then((sc) => setDetailCard(sc.info))
-      .catch(() => toast.error(`Could not fetch info for "${deckCard.identity.name}"`));
+      },
+      deckCard.identity.name,
+      null,
+      deckCard.identity,
+    );
   }
   function handleShowTokenInfo(token: DeckCard) {
-    useScryfallStore
-      .getState()
-      .getCard({
-        setCode: token.identity.setCode,
-        collectorNumber: token.identity.cardNumber,
-      })
-      .then((sc) => {
-        setDetailToken(token);
-        setDetailPrinting(null);
-        setDetailCard(sc.info);
-      })
-      .catch(() => toast.error(`Could not fetch info for "${token.identity.name}"`));
+    openDetail(
+      { setCode: token.identity.setCode, collectorNumber: token.identity.cardNumber },
+      token.identity.name,
+      token,
+      null,
+    );
   }
   function handleRemoveOneFromSide(cardName: string) {
     const source = currentDeck.sideboard.some((card) => card.identity.name === cardName)
@@ -2459,17 +2480,14 @@ export function DeckBuilder({
             onClose={() => setCustomization(null)}
           />
         )}
-        {detailCard && (
+        {detail && (
           <CardDetailModal
-            card={detailCard}
+            card={detail.card}
+            name={detail.name}
             readOnly={isReadOnly}
-            onClose={() => {
-              setDetailCard(null);
-              setDetailToken(null);
-              setDetailPrinting(null);
-            }}
+            onClose={() => setDetail(null)}
             deckEditorActions={{
-              printing: detailPrinting ?? undefined,
+              printing: detail.printing ?? undefined,
               onAddOne: handleAddOneToMainByName,
               onRemoveOne: handleRemoveOneFromMain,
               onSetCommander: (name) => {
@@ -2483,11 +2501,11 @@ export function DeckBuilder({
               },
               isCommander:
                 currentDeck.commanders?.some(
-                  (c) => c.identity.name === frontFaceName(detailCard.name),
+                  (c) => c.identity.name === frontFaceName(detail.name),
                 ) ?? false,
               commanderSlot: commanderSlotFor(
                 [...currentDeck.cards, ...(currentDeck.commanders ?? [])].find(
-                  (c) => c.identity.name === frontFaceName(detailCard.name),
+                  (c) => c.identity.name === frontFaceName(detail.name),
                 ),
                 currentDeck.format,
               ),
@@ -2505,7 +2523,7 @@ export function DeckBuilder({
                   setCoverCard(isCurrent ? undefined : name, face),
                 );
               },
-              token: detailToken ?? undefined,
+              token: detail.token ?? undefined,
             }}
           />
         )}

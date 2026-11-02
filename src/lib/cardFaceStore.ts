@@ -1,9 +1,9 @@
 import { APP_VERSION } from "@/lib/constants";
-import { offlineCacheAvailable } from "@/lib/cardGlintAssetCache";
+import { CARD_GLINT_CACHE, offlineCacheAvailable } from "@/lib/cardGlintAssetCache";
 import type { CardRaster } from "@/lib/cardRenderTypes";
 
 const STORE_PREFIX = "manabrew-card-faces-";
-const STORE_NAME = `${STORE_PREFIX}${APP_VERSION}`;
+const STORE_NAME = `${STORE_PREFIX}${APP_VERSION}-${CARD_GLINT_CACHE}`;
 const MAX_STORED_FACES = 1500;
 const TRIM_EVERY_WRITES = 50;
 const FACE_QUALITY = 0.92;

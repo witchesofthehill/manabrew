@@ -1,6 +1,5 @@
 import { useId } from "react";
 import { AppSelect, AppSelectOption } from "@/components/ui/AppSelect";
-import { CardCalibrationCoverage } from "@/components/editor/CardCalibrationCoverage";
 import type { CardCustomizerEditor } from "@/components/editor/useCardCustomizerDraft";
 import type { CardCustomizerCalibrationState } from "@/components/editor/useCardCustomizerCalibration";
 import {
@@ -8,6 +7,8 @@ import {
   type CardCalibrationOption,
 } from "@/lib/cardPrintingCalibration";
 import type { CardPrintingCalibration } from "@/protocol/deck";
+
+const FACE_LABELS = ["Front", "Back"] as const;
 
 export function CardCustomizerCalibration({
   editor,
@@ -24,11 +25,12 @@ export function CardCustomizerCalibration({
   const unavailable = CARD_CALIBRATION_CHOICES.map((choice) => ({
     ...choice,
     supported: false,
-    reason: calibration.pending
-      ? "Checking face compatibility…"
-      : "Face compatibility is unavailable.",
+    reason: calibration.pending ? "Checking this card…" : "Unavailable for this card.",
   }));
   const count = Math.max(resolution?.faces.length ?? 0, printing?.faces?.length ?? 0, 1);
+  const faces = ([0, 1] as const)
+    .slice(0, count)
+    .filter((index) => count > 1 || printing?.faces?.[index]?.overrides?.calibration !== undefined);
   const controls: {
     label: string;
     value?: CardPrintingCalibration;
@@ -36,78 +38,75 @@ export function CardCustomizerCalibration({
     options: readonly CardCalibrationOption[];
   }[] = [
     {
-      label: "Card calibration",
+      label: "Frame colors",
       value: printing?.overrides?.calibration,
       options: resolution?.options ?? unavailable,
     },
-    ...Array.from({ length: Math.min(count, 2) }, (_, index) => ({
-      label: resolution?.faces[index]?.name ?? `Face ${index + 1}`,
+    ...faces.map((index) => ({
+      label: `${FACE_LABELS[index]} · ${resolution?.faces[index]?.name ?? `Face ${index + 1}`}`,
       value: printing?.faces?.[index]?.overrides?.calibration,
-      index: index as 0 | 1,
+      index,
       options: resolution?.faces[index]?.options ?? unavailable,
     })),
   ];
   return (
-    <section aria-label="Printing calibration" className="space-y-3 border-t pt-4">
-      <h3 className="text-ui-label font-semibold">Printing calibration</h3>
-      <p className="text-ui-body text-muted-foreground">
-        Choose a color policy without changing the selected printing or its content. Face settings
-        override the card setting; existing/default behavior keeps the renderer's original policy.
-      </p>
+    <section aria-label="Frame colors" className="space-y-3">
       <div className="grid gap-3 lg:grid-cols-2">
-        {controls.map((control, index) => (
-          <div key={index} className="min-w-0 space-y-1.5">
-            <label id={`${labelId}-${index}`} className="block text-ui-label font-medium">
-              {control.label}
-            </label>
-            <AppSelect
-              value={control.value ?? "default"}
-              aria-labelledby={`${labelId}-${index}`}
-              disabled={disabled}
-              className="w-full"
-              onValueChange={(value) => {
-                if (disabled) return;
-                if (value === "default") editor.editCalibration(undefined, control.index);
-                else {
-                  const choice = control.options.find((option) => option.value === value);
-                  if (choice?.supported) editor.editCalibration(choice.value, control.index);
-                }
-              }}
-            >
-              <AppSelectOption value="default">
-                {control.index === undefined ? "Existing/default behavior" : "Inherit card setting"}
-              </AppSelectOption>
-              {control.options.map((option) => (
-                <AppSelectOption
-                  key={option.value}
-                  value={option.value}
-                  disabled={!option.supported}
-                >
-                  <span>
-                    {option.label}
-                    {!option.supported && option.reason && (
-                      <span className="block text-ui-meta text-muted-foreground">
-                        {option.reason}
-                      </span>
-                    )}
-                  </span>
+        {controls.map((control, index) => {
+          const selected = control.options.find((option) => option.value === control.value);
+          return (
+            <div key={index} className="min-w-0 space-y-1.5">
+              <label
+                id={`${labelId}-${index}`}
+                className="touch:min-h-11 block text-ui-label font-medium"
+              >
+                {control.label}
+              </label>
+              <AppSelect
+                value={control.value ?? "default"}
+                aria-labelledby={`${labelId}-${index}`}
+                disabled={disabled}
+                className="w-full"
+                onValueChange={(value) => {
+                  if (disabled) return;
+                  if (value === "default") editor.editCalibration(undefined, control.index);
+                  else {
+                    const choice = control.options.find((option) => option.value === value);
+                    if (choice?.supported) editor.editCalibration(choice.value, control.index);
+                  }
+                }}
+              >
+                <AppSelectOption value="default">
+                  {control.index === undefined ? "Default" : "Same as card"}
                 </AppSelectOption>
-              ))}
-            </AppSelect>
-          </div>
-        ))}
+                {control.options.map((option) => (
+                  <AppSelectOption
+                    key={option.value}
+                    value={option.value}
+                    disabled={!option.supported}
+                  >
+                    <span>
+                      {option.label}
+                      {!option.supported && option.reason && (
+                        <span className="block text-ui-meta text-muted-foreground">
+                          {option.reason}
+                        </span>
+                      )}
+                    </span>
+                  </AppSelectOption>
+                ))}
+              </AppSelect>
+              {selected && (
+                <p className="text-ui-meta text-muted-foreground">{selected.description}</p>
+              )}
+            </div>
+          );
+        })}
       </div>
-      {calibration.pending && (
-        <p role="status" className="text-ui-meta text-muted-foreground">
-          Checking calibration compatibility and coverage…
-        </p>
-      )}
       {calibration.error && (
         <p role="status" className="text-ui-meta text-warning">
-          Calibration could not be resolved: {calibration.error}{" "}
-          {calibration.valid
-            ? "Existing/default behavior is unchanged."
-            : "Clear calibration overrides or choose another printing before saving."}
+          Frame colors could not be checked: {calibration.error}
+          {!calibration.valid && " Choose Default before saving."}
         </p>
       )}
       {resolution && !resolution.valid && (
@@ -115,16 +114,9 @@ export function CardCustomizerCalibration({
           {resolution.errors.map((error, index) => (
             <p key={index}>{error}</p>
           ))}
-          <p>Choose a compatible calibration or clear the override before saving.</p>
+          <p>Choose another option or Default before saving.</p>
         </div>
       )}
-      {resolution?.faces.map((face) => (
-        <CardCalibrationCoverage key={face.index} face={face} />
-      ))}
-      <p className="text-ui-meta text-muted-foreground">
-        SDK coverage describes measured components, inherited defaults, and source/fallback paths.
-        It does not certify physical color accuracy or your display.
-      </p>
     </section>
   );
 }

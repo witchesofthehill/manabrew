@@ -1,4 +1,3 @@
-import { DEFAULT_PRINT_DOTS } from "card-glint/finish";
 import { cardCosmeticsKey, normalizeCardCosmetics, randomCardWearSeed } from "@/lib/cardCosmetics";
 import { resolveCardWearAmount } from "@/lib/cardFinish";
 import type {
@@ -19,9 +18,7 @@ export type CosmeticField =
   | "rainFog"
   | "heatDeformation"
   | "cardstockAmount"
-  | "printDotsAmount"
-  | "printDotsInset"
-  | "printDotsArtwork";
+  | "printDotsAmount";
 export interface CardCustomizationDraft {
   source: DeckCard;
   printing?: ScryfallCard;
@@ -120,21 +117,12 @@ export function changeCustomizationField(
       cosmetics: normalizeCardCosmetics({ ...cosmetics, cardstock: { amount: Number(value) } }),
     };
   }
-  if (field === "printDotsAmount" || field === "printDotsInset" || field === "printDotsArtwork") {
-    const key = {
-      printDotsAmount: "amount",
-      printDotsInset: "inset",
-      printDotsArtwork: "artwork",
-    }[field];
+  if (field === "printDotsAmount") {
     return {
       ...draft,
       cosmetics: normalizeCardCosmetics({
         ...cosmetics,
-        printDots: {
-          ...cosmetics?.printDots,
-          amount: cosmetics?.printDots?.amount ?? 0,
-          [key]: field === "printDotsArtwork" ? value === "true" : Number(value),
-        },
+        printDots: { ...cosmetics?.printDots, amount: Number(value) },
       }),
     };
   }
@@ -218,12 +206,10 @@ export function customizationFieldValue(
   const fallback =
     field === "rainFog"
       ? "1"
-      : field === "printDotsInset"
-        ? String(DEFAULT_PRINT_DOTS.inset)
-        : field === "cardstockAmount" || field === "printDotsAmount" || field === "heatDeformation"
-          ? "0"
-          : "printing";
-  let value: string | number | boolean | undefined;
+      : field === "cardstockAmount" || field === "printDotsAmount" || field === "heatDeformation"
+        ? "0"
+        : "printing";
+  let value: string | number | undefined;
   switch (field) {
     case "wearAmount":
       value = resolveCardWearAmount(cosmetics);
@@ -233,12 +219,6 @@ export function customizationFieldValue(
       break;
     case "printDotsAmount":
       value = cosmetics?.printDots?.amount;
-      break;
-    case "printDotsInset":
-      value = cosmetics?.printDots?.inset;
-      break;
-    case "printDotsArtwork":
-      value = cosmetics?.printDots?.artwork ?? DEFAULT_PRINT_DOTS.artwork;
       break;
     default:
       value = cosmetics?.[field];

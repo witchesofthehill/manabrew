@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { CardCustomizerControls } from "@/components/editor/CardCustomizerControls";
 import { CardCustomizerCalibration } from "@/components/editor/CardCustomizerCalibration";
 import type { CardCustomizerCalibrationState } from "@/components/editor/useCardCustomizerCalibration";
@@ -12,6 +13,7 @@ export function CardCustomizerSettings({
   retroCompatible,
   frameSupported,
   calibration,
+  children,
 }: {
   editor: CardCustomizerEditor;
   token: boolean;
@@ -21,9 +23,10 @@ export function CardCustomizerSettings({
   retroCompatible: boolean | undefined;
   frameSupported: boolean;
   calibration: CardCustomizerCalibrationState;
+  children: ReactNode;
 }) {
   return (
-    <div className="space-y-4">
+    <div className="flex h-full flex-col gap-4">
       {token && (
         <div className="rounded-lg border bg-muted/20 p-3 text-ui-body">
           <p className="font-medium">This deck's token appearance</p>
@@ -79,6 +82,7 @@ export function CardCustomizerSettings({
           cannot yet match these token definitions.
         </p>
       )}
+      {children}
     </div>
   );
 }

@@ -2,7 +2,6 @@ import {
   printingCalibrationOptions,
   resolvePrintingCalibration,
   type PrintingCalibrationChoice,
-  type PrintingCalibrationReport,
 } from "card-glint/magic/presentation";
 import { captureCardInput, prepareCard, type PreparedCard } from "@/lib/cardRenderSnapshot";
 import { cardGlintFace } from "@/lib/cardRenderFace";
@@ -12,6 +11,7 @@ import type { CardPrintingCalibration, CardPrintingFace, DeckCard } from "@/prot
 export interface CardCalibrationOption {
   value: CardPrintingCalibration;
   label: string;
+  description: string;
   supported: boolean;
   reason?: string;
 }
@@ -22,7 +22,6 @@ export interface CardCalibrationFace {
   value?: CardPrintingCalibration;
   effective?: CardPrintingCalibration;
   options: CardCalibrationOption[];
-  report?: PrintingCalibrationReport;
   restriction?: string;
   error?: string;
 }
@@ -35,11 +34,36 @@ export interface CardCalibrationResolution {
 }
 
 export const CARD_CALIBRATION_CHOICES: readonly CardCalibrationOption[] = [
-  { value: "auto", label: "Automatic", supported: true },
-  { value: "printing", label: "Exact printing", supported: true },
-  { value: "source", label: "Source colors", supported: true },
-  { value: "m21-modern", label: "Modern · M21 defaults", supported: false },
-  { value: "8ed-eighth", label: "Eighth · 8ED defaults", supported: false },
+  {
+    value: "auto",
+    label: "Automatic",
+    description: "Colors measured from this printing, with gaps filled from a similar frame.",
+    supported: true,
+  },
+  {
+    value: "printing",
+    label: "This printing only",
+    description: "Only colors measured from this exact printing.",
+    supported: true,
+  },
+  {
+    value: "source",
+    label: "No correction",
+    description: "The frame template's own colors, without set color correction.",
+    supported: true,
+  },
+  {
+    value: "m21-modern",
+    label: "Core Set 2021 colors",
+    description: "Borrows the Core Set 2021 frame and border colors.",
+    supported: false,
+  },
+  {
+    value: "8ed-eighth",
+    label: "Eighth Edition colors",
+    description: "Borrows the Eighth Edition frame and border colors.",
+    supported: false,
+  },
 ];
 
 function withoutCalibration(layer: CardPrintingFace): CardPrintingFace {
@@ -94,10 +118,9 @@ function inspectFace(
     unsupported && !unsupported.supported
       ? (unsupported.reason ?? "This calibration is incompatible with the selected face.")
       : undefined;
-  let report: PrintingCalibrationReport | undefined;
   if (!restriction && !error) {
     try {
-      report = resolvePrintingCalibration({
+      resolvePrintingCalibration({
         ...face,
         ...(effective === undefined ? {} : { calibration: sdkChoice(effective) }),
       });
@@ -106,7 +129,7 @@ function inspectFace(
         cause instanceof Error ? cause.message : "Calibration coverage could not be resolved.";
     }
   }
-  return { index, name: face.name, value, effective, options, report, restriction, error };
+  return { index, name: face.name, value, effective, options, restriction, error };
 }
 
 export async function resolveCardPrintingCalibration(

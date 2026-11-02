@@ -156,6 +156,8 @@ export class OpponentHandFan {
     for (let i = 0; i < count; i++) {
       const card = this.cards[i]!;
       const l = layout[i]!;
+      const scaleX = l.scaleW / CARD_W;
+      const scaleY = l.scaleH / CARD_H;
       const isHovered = this.hoveredIndex === i;
       const x = centerX + l.x;
       const y = topY - l.y + l.scaleH / 2;
@@ -166,7 +168,7 @@ export class OpponentHandFan {
         sprite.eventMode = "none";
         sprite.x = x;
         sprite.y = y;
-        sprite.scale.set(l.scaleW / CARD_W, l.scaleH / CARD_H);
+        sprite.scale.set(scaleX, scaleY);
         this.container.addChild(sprite);
         this.sprites.set(card.id, sprite);
       } else {
@@ -178,10 +180,11 @@ export class OpponentHandFan {
         x,
         y,
         rot,
-        scaleX: l.scaleW / CARD_W,
-        scaleY: l.scaleH / CARD_H,
+        scaleX,
+        scaleY,
         zIndex: isHovered ? Z_HAND_HOVERED : i + 1,
       });
+      sprite.setHandRulesScale(Math.max(scaleX, scaleY));
       hitZones.push(
         isHovered
           ? { index: i, card, x, y, width: l.scaleW, height: l.scaleH }

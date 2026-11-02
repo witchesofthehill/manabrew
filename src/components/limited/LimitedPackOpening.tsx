@@ -83,12 +83,15 @@ export function LimitedPackOpening({
     <section
       aria-label="Open sealed boosters"
       aria-busy={preparing || revealing}
-      className={cn("flex h-full min-h-0 flex-col overflow-hidden", compact ? "gap-2" : "gap-4")}
+      className={cn(
+        "flex h-full min-h-0 flex-col overflow-y-auto overscroll-contain",
+        compact ? "gap-2" : "gap-4",
+      )}
     >
-      <header className="flex shrink-0 items-start justify-between gap-3">
-        <div>
-          <h2 className="font-serif text-xl font-semibold sm:text-2xl">{setName}</h2>
-          <p role="status" aria-live="polite" className="mt-0.5 text-xs text-muted-foreground">
+      <header className="flex shrink-0 flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="break-words font-serif text-xl font-semibold sm:text-2xl">{setName}</h2>
+          <p role="status" aria-live="polite" className="mt-0.5 text-ui-meta text-muted-foreground">
             {preparing
               ? "Loading cards…"
               : revealing
@@ -103,11 +106,11 @@ export function LimitedPackOpening({
         )}
       </header>
       {imageError && (
-        <p role="status" className="text-sm text-muted-foreground">
+        <p role="status" className="text-ui-meta text-muted-foreground">
           Some card images could not load. Card names remain available.
         </p>
       )}
-      <div className="flex min-h-0 flex-1 flex-col gap-3 [@media(orientation:landscape)_and_(max-height:600px)]:flex-row">
+      <div className="flex min-h-40 flex-1 flex-col gap-3 [@media(orientation:landscape)_and_(max-height:600px)]:flex-row">
         {unopenedPacks.length > 0 && (
           <LimitedBoosterTable
             packs={packs}
@@ -130,7 +133,7 @@ export function LimitedPackOpening({
             aria-label={showingPool ? "Opened card pool" : "Latest booster cards"}
             className="flex min-h-0 min-w-0 flex-1 flex-col gap-1"
           >
-            <div className="flex shrink-0 items-baseline justify-center gap-2">
+            <div className="flex shrink-0 flex-wrap items-baseline justify-center gap-2">
               <h3 className="text-lg font-semibold">
                 {showingPool
                   ? "Pool"
@@ -138,11 +141,11 @@ export function LimitedPackOpening({
                     ? `Booster ${packs.indexOf(activePack) + 1}`
                     : "Latest boosters"}
               </h3>
-              <span className="text-xs text-muted-foreground">
+              <span className="text-ui-meta text-muted-foreground">
                 {showingPool ? poolCards.length : latestCards.length} cards
               </span>
             </div>
-            <p className="shrink-0 text-center text-xs text-muted-foreground sm:hidden">
+            <p className="shrink-0 text-center text-ui-meta text-muted-foreground sm:hidden">
               Scroll to browse cards
             </p>
             <LimitedCardCanvas
@@ -155,7 +158,7 @@ export function LimitedPackOpening({
               openingCardIds={openingCardIds}
               openingTearDirection={tearDirection}
               onOpeningComplete={finishReveal}
-              className="min-h-0 w-full flex-1"
+              className="min-h-32 w-full flex-1"
             />
           </section>
         )}
@@ -163,7 +166,7 @@ export function LimitedPackOpening({
       {openedCount > 0 && (
         <footer
           className={cn(
-            "flex shrink-0 items-center gap-3 border-t border-border/50 pt-2",
+            "flex shrink-0 flex-wrap items-center gap-3 border-t border-border/50 pt-2",
             allOpened ? "justify-end" : "justify-between",
           )}
         >

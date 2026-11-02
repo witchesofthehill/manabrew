@@ -1,5 +1,13 @@
 import { useState } from "react";
-import { CloudUpload, LibraryBig, Pencil, Share2, Swords, Trash2 } from "lucide-react";
+import {
+  CloudUpload,
+  LibraryBig,
+  MoreHorizontal,
+  Pencil,
+  Share2,
+  Swords,
+  Trash2,
+} from "lucide-react";
 import { DeckCardSurface } from "@/components/deck/DeckCardSurface";
 import { DeckCardPlayButton } from "@/components/deck/DeckCardPlayButton";
 import { DeckCoverImage } from "@/components/deck/deckCover";
@@ -17,6 +25,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { EngineKind } from "@/protocol";
 import type { SavedDeck } from "@/stores/useDeckStore";
 interface DeckGridCardProps {
@@ -72,79 +86,59 @@ export function DeckGridCard({
         }
         topRight={
           actionsVisible ? (
-            <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100">
-              {onPlaytest && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
                 <Button
                   variant="secondary"
-                  size="icon-xs"
-                  aria-label="Playtest vs AI"
-                  title="Playtest vs AI"
-                  onClick={onPlaytest}
+                  size="icon-sm"
+                  className="bg-background/80 backdrop-blur-sm hover:bg-background"
+                  aria-label={`Actions for ${deck.deck.name}`}
                 >
-                  <Swords className="h-3 w-3" />
+                  <MoreHorizontal className="h-4 w-4" />
                 </Button>
-              )}
-              {onViewInHub && (
-                <Button
-                  size="icon"
-                  variant="secondary"
-                  className="h-6 w-6 bg-background/80 backdrop-blur-sm hover:bg-background"
-                  aria-label={`View in Community`}
-                  title={`View in Community`}
-                  onClick={onViewInHub}
-                >
-                  <LibraryBig className="h-3 w-3" />
-                </Button>
-              )}
-              {!readOnly && onPublish && (
-                <Button
-                  size="icon"
-                  variant="secondary"
-                  className="h-6 w-6 bg-background/80 backdrop-blur-sm hover:bg-background"
-                  aria-label={`Publish to Community`}
-                  title={`Publish to Community`}
-                  onClick={onPublish}
-                >
-                  <Share2 className="h-3 w-3" />
-                </Button>
-              )}
-              {!readOnly && onSaveToAccount && (
-                <Button
-                  size="icon"
-                  variant="secondary"
-                  className="h-6 w-6 bg-background/80 backdrop-blur-sm hover:bg-background"
-                  aria-label={`Save to account`}
-                  title={`Save to account`}
-                  onClick={onSaveToAccount}
-                >
-                  <CloudUpload className="h-3 w-3" />
-                </Button>
-              )}
-              {!readOnly && onRename && (
-                <Button
-                  size="icon"
-                  variant="secondary"
-                  className="h-6 w-6 bg-background/80 backdrop-blur-sm hover:bg-background"
-                  aria-label={`Rename`}
-                  title={`Rename`}
-                  onClick={onRename}
-                >
-                  <Pencil className="h-3 w-3" />
-                </Button>
-              )}
-              {!readOnly && onDelete && (
-                <Button
-                  size="icon"
-                  variant="secondary"
-                  className="h-6 w-6 bg-background/80 text-destructive backdrop-blur-sm hover:bg-background hover:text-destructive"
-                  aria-label={`Delete`}
-                  title={`Delete`}
-                  onClick={() => setConfirmDelete(true)}
-                >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
-              )}
-            </div>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {onPlaytest && (
+                  <DropdownMenuItem onSelect={onPlaytest}>
+                    <Swords className="h-4 w-4" />
+                    Playtest vs AI
+                  </DropdownMenuItem>
+                )}
+                {onViewInHub && (
+                  <DropdownMenuItem onSelect={onViewInHub}>
+                    <LibraryBig className="h-4 w-4" />
+                    View in Community
+                  </DropdownMenuItem>
+                )}
+                {!readOnly && onPublish && (
+                  <DropdownMenuItem onSelect={onPublish}>
+                    <Share2 className="h-4 w-4" />
+                    Publish to Community
+                  </DropdownMenuItem>
+                )}
+                {!readOnly && onSaveToAccount && (
+                  <DropdownMenuItem onSelect={onSaveToAccount}>
+                    <CloudUpload className="h-4 w-4" />
+                    Save to account
+                  </DropdownMenuItem>
+                )}
+                {!readOnly && onRename && (
+                  <DropdownMenuItem onSelect={onRename}>
+                    <Pencil className="h-4 w-4" />
+                    Rename
+                  </DropdownMenuItem>
+                )}
+                {!readOnly && onDelete && (
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onSelect={() => setConfirmDelete(true)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           ) : undefined
         }
         footer={
@@ -155,19 +149,19 @@ export function DeckGridCard({
               <DeckLabelBadge key={label.name} label={label} size="sm" />
             ))}
             {badge && (
-              <span className="rounded-full border border-border/70 bg-background/80 px-1.5 py-0.5 text-[9px] font-medium text-foreground backdrop-blur-sm">
+              <span className="rounded-full border border-border/70 bg-background/80 px-1.5 py-0.5 text-ui-meta font-medium text-foreground backdrop-blur-sm">
                 {badge}
               </span>
             )}
             {engines?.map((engine) => (
               <span
                 key={engine}
-                className="rounded-full border border-border/70 bg-background/80 px-1.5 py-0.5 text-[9px] font-medium text-foreground backdrop-blur-sm"
+                className="rounded-full border border-border/70 bg-background/80 px-1.5 py-0.5 text-ui-meta font-medium text-foreground backdrop-blur-sm"
               >
                 {engine} engine
               </span>
             ))}
-            <span className="ml-auto text-[10px] text-text-on-tinted/85">
+            <span className="ml-auto text-ui-meta text-text-on-tinted/85">
               {displayCards.length} cards
             </span>
           </>

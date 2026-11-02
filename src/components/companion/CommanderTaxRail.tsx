@@ -12,7 +12,7 @@ export function CommanderTaxRail({ player, commanderRules }: CommanderTaxRailPro
     (slot) => slot === 0 || player.commanders[slot] || (player.commanderCasts?.[slot] ?? 0) > 0,
   );
   return (
-    <div className="flex items-center gap-1 rounded-full bg-black/45 px-1 py-0.5 text-white shadow ring-1 ring-white/10 backdrop-blur">
+    <div className="flex max-w-full flex-wrap items-center gap-1 rounded-full bg-black/45 px-1 py-0.5 text-white shadow ring-1 ring-white/10 backdrop-blur">
       {slots.map((slot) => (
         <TaxPip
           key={slot}
@@ -34,7 +34,7 @@ function TaxPip({ playerId, slot, casts }: { playerId: string; slot: 0 | 1; cast
   return (
     <button
       type="button"
-      className="flex items-center gap-0.5 rounded-full px-1.5 py-1 text-xs font-semibold hover:bg-white/15"
+      className="flex items-center gap-0.5 rounded-full px-1.5 py-1 text-ui-label font-semibold hover:bg-white/15 touch:min-h-11 touch:min-w-11"
       aria-label={`Commander tax: pay ${tax} generic (tap +1 cast, hold -1)`}
       title={`Commander tax \u2014 tap +1 cast, hold -1`}
       {...bindings}

@@ -70,7 +70,7 @@ export function GameLoadingScreen({ debugInfo, onComplete }: GameLoadingScreenPr
   return (
     <div
       className={cn(
-        "flex h-full flex-col items-center justify-center gap-6 px-6 py-6",
+        "flex h-full min-h-0 flex-col items-center [justify-content:safe_center] gap-6 overflow-y-auto px-6 py-6 [&>*]:shrink-0",
         isTouch &&
           "[padding-bottom:max(1.5rem,var(--safe-area-inset-bottom))] [padding-left:max(1.5rem,var(--safe-area-inset-left))] [padding-right:max(1.5rem,var(--safe-area-inset-right))] [padding-top:max(1.5rem,var(--safe-area-inset-top))]",
         compactLandscape &&
@@ -86,12 +86,7 @@ export function GameLoadingScreen({ debugInfo, onComplete }: GameLoadingScreenPr
         <p className={cn("text-2xl font-semibold", compactLandscape && "text-xl")}>
           Game starting…
         </p>
-        <p
-          className={cn(
-            "text-base text-muted-foreground",
-            compactLandscape && "text-sm leading-snug",
-          )}
-        >
+        <p className={cn("text-ui-body text-muted-foreground", compactLandscape && "leading-snug")}>
           {slow
             ? `This is taking longer than expected. You can keep waiting, or leave and return to the lobby.`
             : `Setting the table \u2014 this usually takes a few seconds.`}
@@ -105,16 +100,20 @@ export function GameLoadingScreen({ debugInfo, onComplete }: GameLoadingScreenPr
         )}
       >
         <div className={cn("px-6 py-4", compactLandscape && "px-4 py-3")}>
-          <div className={cn("flex items-center justify-between pb-3", compactLandscape && "pb-2")}>
-            <p className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+          <div
+            className={cn(
+              "flex flex-wrap items-center justify-between gap-2 pb-3",
+              compactLandscape && "pb-2",
+            )}
+          >
+            <p className="text-ui-meta font-medium uppercase tracking-wide text-muted-foreground">
               Setup progress
             </p>
             <Button
               variant="ghost"
               size="sm"
               className={cn(
-                "h-7 gap-1.5 px-2.5 text-xs text-muted-foreground",
-                isTouch && "min-h-11",
+                "h-auto min-h-8 touch:min-h-11 gap-1.5 whitespace-normal px-2.5 text-muted-foreground",
                 compactLandscape && "px-2",
               )}
               onClick={() => void copyLogs()}
@@ -155,8 +154,7 @@ export function GameLoadingScreen({ debugInfo, onComplete }: GameLoadingScreenPr
                     )}
                     <span
                       className={cn(
-                        "text-base transition-colors",
-                        compactLandscape && "text-sm",
+                        "text-ui-body transition-colors",
                         done && "text-success",
                         active && "text-foreground",
                         !done && !active && "text-muted-foreground/60",
@@ -175,7 +173,7 @@ export function GameLoadingScreen({ debugInfo, onComplete }: GameLoadingScreenPr
           {slow && debugInfo && (
             <p
               className={cn(
-                "mt-4 truncate border-t pt-3 font-mono text-xs text-muted-foreground",
+                "mt-4 break-words border-t pt-3 font-mono text-ui-meta text-muted-foreground",
                 compactLandscape && "mt-2 pt-2",
               )}
             >
@@ -189,7 +187,7 @@ export function GameLoadingScreen({ debugInfo, onComplete }: GameLoadingScreenPr
       <Button
         variant="outline"
         className={cn(
-          isTouch && "min-h-11",
+          "touch:min-h-11",
           compactLandscape && "col-start-1 row-start-2 self-start justify-self-start",
         )}
         onClick={() => void endGame()}
@@ -225,7 +223,7 @@ function CardProgressBar({
           style={{ width: `${percent}%` }}
         />
       </div>
-      <span className="text-xs tabular-nums text-muted-foreground">
+      <span className="text-ui-meta tabular-nums text-muted-foreground">
         {loaded}/{total}
       </span>
     </div>

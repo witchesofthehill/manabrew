@@ -42,15 +42,18 @@ export function LibraryZoneTile({ count, onClick, label = "Lib" }: LibraryZoneTi
           />
         )}
         <span
-          className="absolute bottom-0 left-0 right-0 flex justify-center py-0.5 font-extrabold leading-none tabular-nums text-white"
-          style={{ backgroundColor: "rgba(0, 0, 0, 0.62)", fontSize: fontSizes.zoneCount }}
+          className="absolute bottom-0 left-0 right-0 flex justify-center py-0.5 text-ui-meta font-extrabold leading-none tabular-nums text-white"
+          style={{
+            backgroundColor: "rgba(0, 0, 0, 0.62)",
+            fontSize: `max(${fontSizes.zoneCount}px, var(--text-ui-meta))`,
+          }}
         >
           {count}
         </span>
       </button>
       <span
-        className="uppercase tracking-wide text-muted-foreground"
-        style={{ fontSize: fontSizes.zoneLabel }}
+        className="text-ui-meta uppercase tracking-wide text-muted-foreground"
+        style={{ fontSize: `max(${fontSizes.zoneLabel}px, var(--text-ui-meta))` }}
       >
         {label}
       </span>

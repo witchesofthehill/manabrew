@@ -24,11 +24,11 @@ export function DeckHubFilterSheet(props: DeckHubFilterSheetProps) {
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="outline" className="relative h-10 gap-2">
+        <Button variant="outline" className="relative gap-2">
           <SlidersHorizontal className="h-4 w-4" />
           Filters
           {props.activeFilterCount > 0 && (
-            <span className="rounded-full bg-primary px-1.5 text-xs text-primary-foreground">
+            <span className="rounded-full bg-primary px-1.5 text-ui-meta text-primary-foreground">
               {props.activeFilterCount}
             </span>
           )}

@@ -10,9 +10,7 @@ import type { DeckHubEntrySummary } from "@/api/hubTypes";
 import { FORMAT_DISPLAY, ROUTES } from "@/lib/constants";
 import { useHubStore } from "@/stores/useHubStore";
 import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
-import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { cn } from "@/lib/utils";
-import { PORTRAIT_QUERY } from "@/lib/responsive";
 interface DeckHubResultsProps {
   entries: DeckHubEntrySummary[];
   loading: boolean;
@@ -64,8 +62,6 @@ export function DeckHubResults({
   const shortScreen = useIsShortScreen();
   const isTouch = useIsTouch();
   const shortTouch = shortScreen && isTouch;
-  const portrait = useMediaQuery(PORTRAIT_QUERY);
-  const shortLandscape = shortTouch && !portrait;
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0 });
   }, [resetKey]);
@@ -88,18 +84,18 @@ export function DeckHubResults({
         <div className={cn("p-4 sm:px-6 lg:px-8", shortTouch && "p-2 sm:px-4")}>
           {!isTouch && (
             <div className="mb-3 flex items-center justify-between gap-3">
-              <p className="text-xs text-muted-foreground">
+              <p className="text-ui-meta text-muted-foreground">
                 {loaded
                   ? `${total.toLocaleString()} ${total === 1 ? "publication" : "publications"}`
                   : "Loading publications…"}
               </p>
-              {loading && loaded && <p className="text-xs text-muted-foreground">Updating…</p>}
+              {loading && loaded && <p className="text-ui-meta text-muted-foreground">Updating…</p>}
             </div>
           )}
           {error ? (
             <div className="rounded-lg border border-dashed p-8 text-center">
-              <p className="text-sm font-medium">Community could not be loaded</p>
-              <p className="mt-1 text-xs text-muted-foreground">{error}</p>
+              <p className="text-ui-body font-medium">Community could not be loaded</p>
+              <p className="mt-1 text-ui-meta text-muted-foreground">{error}</p>
               <Button variant="outline" size="sm" className="mt-4" onClick={onRetry}>
                 Retry
               </Button>
@@ -112,8 +108,8 @@ export function DeckHubResults({
               {!loaded ? (
                 <div
                   className={cn(
-                    "grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5",
-                    shortLandscape && "grid-cols-3 gap-2 md:grid-cols-3",
+                    "grid grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))] gap-3",
+                    shortTouch && "gap-2",
                   )}
                 >
                   {Array.from({ length: 10 }, (_, index) => (
@@ -126,7 +122,7 @@ export function DeckHubResults({
                   <p className="mt-3 text-lg font-semibold">
                     {hasFilters ? "No publications match" : "No decks here yet"}
                   </p>
-                  <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+                  <p className="mt-1 max-w-sm text-ui-body text-muted-foreground">
                     {hasFilters
                       ? "Try broadening the filters or searching for another card or commander."
                       : "Publish a version from My Decks to make its exact card snapshot discoverable."}
@@ -173,15 +169,15 @@ export function DeckHubResults({
                               label
                             )}
                           </h2>
-                          <span className="text-xs text-muted-foreground">
+                          <span className="text-ui-meta text-muted-foreground">
                             {groupedEntries.length}
                           </span>
                         </div>
                       )}
                       <div
                         className={cn(
-                          "grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5",
-                          shortLandscape && "grid-cols-3 gap-2 md:grid-cols-3",
+                          "grid grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))] gap-3",
+                          shortTouch && "gap-2",
                         )}
                       >
                         {groupedEntries.map((entry) => (
@@ -197,10 +193,10 @@ export function DeckHubResults({
                       </div>
                     </section>
                   ))}
-                  <div ref={loadMoreRef} className="flex h-14 items-center justify-center">
+                  <div ref={loadMoreRef} className="flex min-h-14 items-center justify-center">
                     {loading && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
                     {!hasMore && entries.length > 0 && (
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-ui-meta text-muted-foreground">
                         You’ve reached the end of Community.
                       </span>
                     )}

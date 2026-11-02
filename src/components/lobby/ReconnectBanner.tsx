@@ -57,7 +57,7 @@ export function ReconnectBanner({ className }: ReconnectBannerProps) {
     <div
       role="status"
       className={cn(
-        "absolute left-1/2 top-[calc(0.5rem+var(--safe-area-inset-top))] z-[9000] flex min-h-11 max-w-[min(90vw,36rem)] -translate-x-1/2 items-center gap-2 rounded-full border bg-card/95 px-4 py-2 text-xs font-semibold text-foreground shadow-xl backdrop-blur-sm",
+        "absolute left-1/2 top-[calc(0.5rem+var(--safe-area-inset-top))] z-[9000] flex min-h-11 max-w-[min(90vw,36rem)] -translate-x-1/2 items-center gap-2 rounded-full border bg-card/95 px-4 py-2 text-ui-meta font-semibold text-foreground shadow-xl backdrop-blur-sm",
         reconnect.phase === "failed" ? "border-destructive/50" : "border-border/80",
         className,
       )}
@@ -69,7 +69,7 @@ export function ReconnectBanner({ className }: ReconnectBannerProps) {
           reconnect.phase === "failed" ? "text-destructive" : "text-primary",
         )}
       />
-      <span className="truncate">{message}</span>
+      <span className="break-words">{message}</span>
     </div>
   );
 }

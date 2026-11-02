@@ -156,21 +156,23 @@ export default function Gauntlet() {
 
   if (!gauntlet || !progress) {
     return (
-      <LimitedTableSurface className="items-center justify-center text-muted-foreground">
-        {lastError ?? "Loading Limited session…"}
+      <LimitedTableSurface className="items-center justify-center overflow-y-auto overscroll-contain px-4 py-3 text-ui-body break-words text-muted-foreground sm:px-6 lg:px-8">
+        <p className="max-h-full shrink-0 overflow-y-auto">
+          {lastError ?? "Loading Limited session…"}
+        </p>
       </LimitedTableSurface>
     );
   }
   const score = gauntletScore(gauntlet);
   return (
-    <LimitedTableSurface className="gap-2 px-4 py-3 sm:px-6 lg:px-8">
-      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-card px-3 py-2">
-        <div>
-          <p className="text-sm font-semibold">
+    <LimitedTableSurface className="min-w-0 gap-2 px-4 py-3 text-ui-body sm:px-6 lg:px-8">
+      <header className="flex max-h-[40%] shrink-0 flex-wrap items-center justify-between gap-3 overflow-y-auto overscroll-contain rounded-md border border-border bg-card px-3 py-2">
+        <div className="min-w-0 flex-1 basis-64 break-words">
+          <p className="text-ui-label font-semibold">
             Round {gauntlet.currentRound} of {gauntlet.rounds} · {score.wins}–{score.losses} · Best
             of {progress.bestOf}
           </p>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-ui-meta text-muted-foreground">
             {gauntlet.completed
               ? "Session complete. Your pool and builds remain available."
               : score.matchOver
@@ -178,7 +180,7 @@ export default function Gauntlet() {
                 : `Against ${gauntlet.currentOpponent?.deckName ?? "AI"}. Edit your deck between games.`}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           {!gauntlet.completed &&
             (score.matchOver ? (
               <Button variant="primary" onClick={() => void advance()} disabled={launching}>
@@ -208,7 +210,7 @@ export default function Gauntlet() {
           />
         </div>
       </header>
-      <div className="min-h-0 flex-1">
+      <div className="min-h-0 min-w-0 flex-1">
         {matchDecks ? (
           <LimitedDeckBuilder
             key={progress.sessionKey}
@@ -223,11 +225,14 @@ export default function Gauntlet() {
             onChange={(deck) => setBuiltDeck({ gauntletId: gauntlet.gauntletId, ...deck })}
           />
         ) : (
-          <p className="text-sm text-muted-foreground">Loading card pool…</p>
+          <p className="text-ui-body text-muted-foreground">Loading card pool…</p>
         )}
       </div>
       {lastError && (
-        <p className="shrink-0 text-sm text-destructive" role="alert">
+        <p
+          className="max-h-[20%] shrink-0 overflow-y-auto overscroll-contain text-ui-label break-words text-destructive"
+          role="alert"
+        >
           {lastError}
         </p>
       )}

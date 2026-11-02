@@ -16,7 +16,14 @@ export class HandRulesCardFace extends Container {
   private onSelectAction: ((action: HandActionOption) => void) | null = null;
   private highlightedEffect = "";
 
-  constructor(card: CardDto, faceIndex: 0 | 1, width: number, height: number, theme: Theme) {
+  constructor(
+    card: CardDto,
+    faceIndex: 0 | 1,
+    width: number,
+    height: number,
+    theme: Theme,
+    parentScale: number,
+  ) {
     super();
     this.card = card;
     this.faceIndex = faceIndex;
@@ -34,6 +41,7 @@ export class HandRulesCardFace extends Container {
       onSelectAction: (action) => this.onSelectAction?.(action),
     });
     this.addChild(this.preview.container);
+    this.preview.setParentScale(parentScale);
     this.sync();
   }
   get imageReady(): boolean {
@@ -76,6 +84,9 @@ export class HandRulesCardFace extends Container {
   }
   setRasterProjection(width: number, height: number, flipping: boolean): void {
     this.preview.setRasterProjection(width, height, flipping);
+  }
+  setParentScale(scale: number): void {
+    this.preview.setParentScale(scale);
   }
   setTheme(theme: Theme): void {
     this.preview.setTheme(theme);

@@ -19,29 +19,29 @@ export function PreviewCardInfo({ card }: { card: PreviewCard }) {
     <CardPreviewDetails card={card}>
       <div className="flex flex-wrap items-center gap-1.5">
         {mainCopies > 0 && (
-          <span className="rounded-full border bg-background/60 px-2 py-0.5 text-[10px] text-muted-foreground">
+          <span className="rounded-full border bg-background/60 px-2 py-0.5 text-ui-meta text-muted-foreground">
             {mainCopies} in deck
           </span>
         )}
         {sideCopies > 0 && (
-          <span className="rounded-full border bg-background/60 px-2 py-0.5 text-[10px] text-muted-foreground">
+          <span className="rounded-full border bg-background/60 px-2 py-0.5 text-ui-meta text-muted-foreground">
             {sideCopies} sideboard
           </span>
         )}
         {isGameChanger && (
-          <span className="flex items-center gap-1 rounded-full bg-pt-lethal/15 px-2 py-0.5 text-[10px] font-medium text-pt-lethal">
+          <span className="flex items-center gap-1 rounded-full bg-pt-lethal/15 px-2 py-0.5 text-ui-meta font-medium text-pt-lethal">
             <Gem className="h-3 w-3" /> Game Changer
           </span>
         )}
         {isCombo && (
-          <span className="flex items-center gap-1 rounded-full bg-counter-charge/15 px-2 py-0.5 text-[10px] font-medium text-counter-charge">
+          <span className="flex items-center gap-1 rounded-full bg-counter-charge/15 px-2 py-0.5 text-ui-meta font-medium text-counter-charge">
             <Sparkles className="h-3 w-3" /> Combo piece
           </span>
         )}
         {tags.map((tag) => (
           <span
             key={tag}
-            className="flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] text-primary"
+            className="flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-ui-meta text-primary"
           >
             <Bookmark className="h-3 w-3" /> {tag}
           </span>
@@ -49,7 +49,7 @@ export function PreviewCardInfo({ card }: { card: PreviewCard }) {
         {roles.map((role) => (
           <span
             key={role}
-            className="rounded-full border bg-background/60 px-2 py-0.5 text-[10px] text-muted-foreground"
+            className="rounded-full border bg-background/60 px-2 py-0.5 text-ui-meta text-muted-foreground"
           >
             {CARD_ROLE_LABELS[role] ?? role}
           </span>

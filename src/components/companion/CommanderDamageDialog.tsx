@@ -26,20 +26,26 @@ export function CommanderDamageDialog({
   const targetAccent = COMPANION_ACCENT_COLORS[target.accentKey];
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-sm overflow-y-auto overscroll-contain">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <GameIcon icon="crossed-swords" className="size-5" /> Commander damage
           </DialogTitle>
         </DialogHeader>
-        <div className="flex items-center justify-center gap-2.5 text-sm">
-          <span className="flex items-center gap-1.5 font-semibold">
-            <span className="size-3 rounded-full" style={{ backgroundColor: sourceAccent }} />
+        <div className="flex flex-wrap items-center justify-center gap-2.5 text-ui-label">
+          <span className="flex min-w-0 items-center gap-1.5 break-words font-semibold">
+            <span
+              className="size-3 shrink-0 rounded-full"
+              style={{ backgroundColor: sourceAccent }}
+            />
             {source.name}
           </span>
           <ArrowRight className="size-4 text-muted-foreground" />
-          <span className="flex items-center gap-1.5 font-semibold">
-            <span className="size-3 rounded-full" style={{ backgroundColor: targetAccent }} />
+          <span className="flex min-w-0 items-center gap-1.5 break-words font-semibold">
+            <span
+              className="size-3 shrink-0 rounded-full"
+              style={{ backgroundColor: targetAccent }}
+            />
             {target.name}
           </span>
         </div>
@@ -121,26 +127,26 @@ function DamageStepper({
   );
   return (
     <div className="rounded-xl border border-border bg-card/40 p-3">
-      <div className="mb-2.5 flex items-center gap-2">
+      <div className="mb-2.5 flex flex-wrap items-center gap-2">
         <div
           className="size-8 shrink-0 overflow-hidden rounded-full ring-1 ring-white/15"
           style={{ backgroundColor: accent }}
         >
           <CommanderArt refs={[commander ?? null, null]} variant="avatar" className="size-full" />
         </div>
-        <span className="min-w-0 flex-1 truncate text-sm font-medium" title={label}>
+        <span className="min-w-0 flex-1 break-words text-ui-label font-medium" title={label}>
           {label}
         </span>
         {lethal && (
-          <span className="rounded-full bg-destructive px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-destructive-foreground">
+          <span className="rounded-full bg-destructive px-2 py-0.5 text-ui-meta font-bold uppercase tracking-wide text-destructive-foreground">
             Lethal
           </span>
         )}
       </div>
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <button
           type="button"
-          className="grid size-14 touch-none select-none place-items-center rounded-full bg-muted text-3xl font-light text-foreground transition active:scale-95 active:bg-muted/70"
+          className="grid size-14 shrink-0 touch-none select-none place-items-center rounded-full bg-muted text-3xl font-light text-foreground transition active:scale-95 active:bg-muted/70"
           aria-label={`Decrease commander damage`}
           {...dec}
         >
@@ -148,7 +154,7 @@ function DamageStepper({
         </button>
         <span
           className={cn(
-            "min-w-[3rem] text-center text-5xl font-black tabular-nums",
+            "min-w-[3rem] max-w-full break-all text-center text-5xl font-black tabular-nums",
             lethal && "text-destructive",
           )}
         >
@@ -156,7 +162,7 @@ function DamageStepper({
         </span>
         <button
           type="button"
-          className="grid size-14 touch-none select-none place-items-center rounded-full bg-muted text-3xl font-light text-foreground transition active:scale-95 active:bg-muted/70"
+          className="grid size-14 shrink-0 touch-none select-none place-items-center rounded-full bg-muted text-3xl font-light text-foreground transition active:scale-95 active:bg-muted/70"
           aria-label={`Increase commander damage`}
           {...inc}
         >

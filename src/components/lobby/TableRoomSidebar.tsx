@@ -80,11 +80,11 @@ export function TableRoomSidebar({
     }
   }
   return (
-    <aside className="grid content-start gap-4 sm:grid-cols-2 xl:grid-cols-1">
+    <aside className="grid content-start gap-4 grid-cols-[repeat(auto-fit,minmax(min(100%,20rem),1fr))] xl:grid-cols-1">
       <section className="rounded-xl border bg-card/85 p-4 backdrop-blur-md">
         <h2 className="truncate font-serif text-xl font-semibold">{room.room_name}</h2>
-        <dl className="mt-3 space-y-3 text-sm">
-          <div className="flex items-center justify-between gap-3">
+        <dl className="mt-3 space-y-3 text-ui-label">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <dt className="text-muted-foreground">Format</dt>
             <dd>
               {inLobby && isController && !isLimitedRoom && onSetFormat ? (
@@ -111,7 +111,7 @@ export function TableRoomSidebar({
               )}
             </dd>
           </div>
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <dt className="text-muted-foreground">Seats</dt>
             <dd>
               {inLobby && isController && !isLimitedRoom && onSetMaxPlayers ? (
@@ -136,7 +136,7 @@ export function TableRoomSidebar({
                         >
                           {count} players
                           {blockedByFormat && (
-                            <span className="ml-2 text-xs text-muted-foreground">
+                            <span className="ml-2 text-ui-meta text-muted-foreground">
                               (Not available in "{room.format}")
                             </span>
                           )}
@@ -150,7 +150,7 @@ export function TableRoomSidebar({
               )}
             </dd>
           </div>
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <dt className="text-muted-foreground">Privacy</dt>
             <dd className="flex items-center gap-1.5">
               {room.password_protected ? (
@@ -164,7 +164,7 @@ export function TableRoomSidebar({
                       onClick={copyPassword}
                       title={`Copy password`}
                       aria-label={`Copy password`}
-                      className="-my-1 h-7 w-7"
+                      className="-my-1 min-h-7 w-7 touch:min-h-11 touch:min-w-11"
                     >
                       {copiedPassword ? <Check /> : <Copy />}
                     </Button>
@@ -177,15 +177,15 @@ export function TableRoomSidebar({
           </div>
           {room.draft_config && (
             <>
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <dt className="text-muted-foreground">Packs</dt>
                 <dd className="font-medium">{room.draft_config.rounds}</dd>
               </div>
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <dt className="text-muted-foreground">Picks per pass</dt>
                 <dd className="font-medium">{room.draft_config.picks_per_pass}</dd>
               </div>
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <dt className="text-muted-foreground">Pick clock</dt>
                 <dd className="font-medium">
                   {room.draft_config.pick_seconds
@@ -193,7 +193,7 @@ export function TableRoomSidebar({
                     : "Untimed"}
                 </dd>
               </div>
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <dt className="text-muted-foreground">Empty seats</dt>
                 <dd className="text-right font-medium">
                   {room.draft_config.fill_with_bots ? `Fill with bots` : `Humans only`}
@@ -202,7 +202,7 @@ export function TableRoomSidebar({
             </>
           )}
           {room.sealed_config && (
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <dt className="text-muted-foreground">Packs per player</dt>
               <dd className="font-medium">{room.sealed_config.num_boosters}</dd>
             </div>
@@ -211,7 +211,7 @@ export function TableRoomSidebar({
       </section>
 
       <section className="rounded-xl border bg-card/85 p-4 backdrop-blur-md">
-        <h2 className="text-sm font-semibold">Table controls</h2>
+        <h2 className="text-ui-label font-semibold">Table controls</h2>
         <div className="mt-3 grid gap-2">
           {inLobby && !isOpenFormat && !needsDeck && (
             <Button variant="outline" onClick={onOpenDeckDialog}>

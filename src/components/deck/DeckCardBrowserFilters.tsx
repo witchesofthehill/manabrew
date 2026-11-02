@@ -150,7 +150,7 @@ function ViewControl({
             aria-label={`${option.label} view`}
             aria-pressed={value === option.value}
             className={cn(
-              "flex h-8 w-8 items-center justify-center border-r text-muted-foreground transition-colors last:border-r-0 pointer-coarse:h-11 pointer-coarse:w-11",
+              "flex h-8 w-8 items-center justify-center border-r text-muted-foreground transition-colors last:border-r-0 touch:min-h-11 touch:min-w-11",
               value === option.value ? "bg-selection text-selection-foreground" : "hover:bg-muted",
             )}
             onClick={() => onChange(option.value)}
@@ -179,7 +179,7 @@ function ColorControl({
           aria-label={`Filter by ${COLOR_LABELS[color]} identity`}
           aria-pressed={colors.includes(color)}
           className={cn(
-            "flex h-8 w-8 items-center justify-center rounded opacity-45 transition-opacity hover:opacity-80 pointer-coarse:h-11 pointer-coarse:w-11",
+            "flex h-8 w-8 items-center justify-center rounded opacity-45 transition-opacity hover:opacity-80 touch:min-h-11 touch:min-w-11",
             colors.includes(color) && "bg-selection opacity-100 ring-1 ring-selection-border",
           )}
           onClick={() => onToggle(color)}
@@ -227,7 +227,7 @@ export function DeckCardBrowserFilters({
           onClick={() => onZoneChange(option.value)}
         >
           {option.label}
-          <span className="text-[10px] tabular-nums text-muted-foreground">{option.count}</span>
+          <span className="text-ui-meta tabular-nums text-muted-foreground">{option.count}</span>
         </Button>
       ))}
     </div>
@@ -236,7 +236,7 @@ export function DeckCardBrowserFilters({
     <AppSelect
       value={groupBy}
       aria-label={`Group cards by`}
-      className="h-9 rounded-md border border-input bg-background px-2 text-sm pointer-coarse:h-10 pointer-coarse:text-base"
+      className="min-w-0"
       onValueChange={(value) => onGroupByChange(value as GroupByMode)}
     >
       {GROUP_BY_OPTIONS.filter((option) => option.value !== "custom").map((option) => (
@@ -250,7 +250,7 @@ export function DeckCardBrowserFilters({
     <AppSelect
       value={cardType}
       aria-label={`Filter by card type`}
-      className="h-9 rounded-md border border-input bg-background px-2 text-sm pointer-coarse:h-10 pointer-coarse:text-base"
+      className="min-w-0"
       onValueChange={(value) => onCardTypeChange(value as BrowserCardTypeFilter)}
     >
       {CARD_TYPE_OPTIONS.map((option) => (
@@ -264,7 +264,7 @@ export function DeckCardBrowserFilters({
     <AppSelect
       value={manaValue}
       aria-label={`Filter by mana value`}
-      className="h-9 rounded-md border border-input bg-background px-2 text-sm pointer-coarse:h-10 pointer-coarse:text-base"
+      className="min-w-0"
       onValueChange={(value) => onManaValueChange(value as BrowserManaValueFilter)}
     >
       {MANA_VALUE_OPTIONS.map((value) => (
@@ -286,13 +286,13 @@ export function DeckCardBrowserFilters({
               <SlidersHorizontal className="h-3.5 w-3.5" />
               Filters
               {activeFilterCount > 0 && (
-                <span className="rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground">
+                <span className="rounded-full bg-primary px-1.5 text-ui-meta text-primary-foreground">
                   {activeFilterCount}
                 </span>
               )}
             </Button>
           </SheetTrigger>
-          <SheetContent side="bottom" className="max-h-[85dvh] overflow-y-auto rounded-t-xl">
+          <SheetContent side="bottom" className="overflow-y-auto rounded-t-xl">
             <SheetHeader className="pr-8 text-left">
               <SheetTitle>Card filters</SheetTitle>
               <SheetDescription>
@@ -301,20 +301,22 @@ export function DeckCardBrowserFilters({
             </SheetHeader>
             <div className="mt-5 space-y-5">
               <div>
-                <p className="mb-2 text-xs font-medium text-muted-foreground">Deck section</p>
+                <p className="mb-2 text-ui-label font-medium text-muted-foreground">Deck section</p>
                 {zoneControl}
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-2">
                 {groupControl}
                 {typeControl}
-                <div className="col-span-2">{manaControl}</div>
+                {manaControl}
               </div>
               <div>
-                <p className="mb-2 text-xs font-medium text-muted-foreground">Color identity</p>
+                <p className="mb-2 text-ui-label font-medium text-muted-foreground">
+                  Color identity
+                </p>
                 <ColorControl colors={colors} onToggle={onColorToggle} />
               </div>
               {viewMode !== "list" && (
-                <label className="block text-xs font-medium text-muted-foreground">
+                <label className="block text-ui-label font-medium text-muted-foreground">
                   Card size
                   <input
                     type="range"
@@ -322,13 +324,13 @@ export function DeckCardBrowserFilters({
                     max={6}
                     step={1}
                     value={cardSize}
-                    className="mt-3 block h-2 w-full cursor-pointer accent-primary"
+                    className="mt-3 block h-2 w-full cursor-pointer accent-primary touch:min-h-11 touch:min-w-11"
                     onChange={(event) => onCardSizeChange(Number(event.target.value))}
                   />
                 </label>
               )}
             </div>
-            <div className="mt-6 grid grid-cols-2 gap-2">
+            <div className="mt-6 flex flex-wrap gap-2">
               <Button variant="outline" disabled={!hasFilters} onClick={onClear}>
                 Clear filters
               </Button>
@@ -340,12 +342,7 @@ export function DeckCardBrowserFilters({
         </Sheet>
       </div>
 
-      <div
-        className={cn(
-          "-mx-1 hidden items-center gap-1 overflow-x-auto px-1 pb-1 no-scrollbar sm:flex",
-          shortTouch && "sm:hidden",
-        )}
-      >
+      <div className={cn("hidden flex-wrap items-center gap-2 sm:flex", shortTouch && "sm:hidden")}>
         {zoneControl}
         <div className="mx-1 h-5 w-px shrink-0 bg-border" />
         {groupControl}
@@ -362,7 +359,7 @@ export function DeckCardBrowserFilters({
             step={1}
             value={cardSize}
             aria-label={`Card size`}
-            className="h-1 w-24 shrink-0 cursor-pointer accent-primary sm:w-32"
+            className="h-1 w-24 shrink-0 cursor-pointer accent-primary touch:min-h-11 touch:min-w-11 sm:w-32"
             onChange={(event) => onCardSizeChange(Number(event.target.value))}
           />
         )}

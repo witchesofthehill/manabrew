@@ -8,7 +8,7 @@
  * rewritten in place whenever the preset or overrides change.
  */
 
-import { UI_FONT_FAMILY as SYSTEM_FONT_FAMILY } from "@/themes/typography";
+import { getUiFontFloor, UI_FONT_FAMILY as SYSTEM_FONT_FAMILY } from "@/themes/typography";
 import { TextStyle } from "pixi.js";
 import { CARD_W } from "@/components/game/game.constants";
 import type { Theme } from "@/hooks/useTheme";
@@ -21,14 +21,14 @@ const initialTheme = getTheme().gameTheme;
 
 export const OVERLAY_LABEL_STYLE = new TextStyle({
   fontFamily: SYSTEM_FONT_FAMILY,
-  fontSize: 9,
+  fontSize: Math.max(9, getUiFontFloor("meta")),
   fontWeight: "bold",
   fill: initialTheme.textOnTinted,
 });
 
 export const GHOST_LABEL_STYLE = new TextStyle({
   fontFamily: SYSTEM_FONT_FAMILY,
-  fontSize: 9,
+  fontSize: Math.max(9, getUiFontFloor("meta")),
   fill: initialTheme.textGhost,
   fontWeight: "500",
   wordWrap: true,
@@ -38,14 +38,14 @@ export const GHOST_LABEL_STYLE = new TextStyle({
 
 export const EMPTY_LABEL_STYLE = new TextStyle({
   fontFamily: SYSTEM_FONT_FAMILY,
-  fontSize: 12,
+  fontSize: Math.max(12, getUiFontFloor("meta")),
   fill: initialTheme.textMuted,
   fontStyle: "italic",
 });
 
 export const SELECTION_BADGE_STYLE = new TextStyle({
   fontFamily: SYSTEM_FONT_FAMILY,
-  fontSize: 10,
+  fontSize: Math.max(10, getUiFontFloor("meta")),
   fill: initialTheme.textOnTinted,
 });
 
@@ -54,6 +54,10 @@ export const SELECTION_BADGE_STYLE = new TextStyle({
  * active theme. Call on each theme-change tick.
  */
 export function setPixiTextStyleTheme(theme: Theme): void {
+  OVERLAY_LABEL_STYLE.fontSize = Math.max(9, getUiFontFloor("meta"));
+  SELECTION_BADGE_STYLE.fontSize = Math.max(10, getUiFontFloor("meta"));
+  GHOST_LABEL_STYLE.fontSize = Math.max(9, getUiFontFloor("meta"));
+  EMPTY_LABEL_STYLE.fontSize = Math.max(12, getUiFontFloor("meta"));
   OVERLAY_LABEL_STYLE.fill = theme.gameTheme.textOnTinted;
   SELECTION_BADGE_STYLE.fill = theme.gameTheme.textOnTinted;
   GHOST_LABEL_STYLE.fill = theme.gameTheme.textGhost;

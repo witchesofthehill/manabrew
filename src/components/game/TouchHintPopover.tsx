@@ -11,7 +11,7 @@ export function TouchHintPopover({ anchorRect, children, className }: TouchHintP
   return createPortal(
     <div
       className={cn(
-        "pointer-events-none fixed z-[9000] flex flex-col gap-1.5 overflow-hidden rounded-lg border border-border/70 bg-card/95 px-3 py-2 shadow-lg backdrop-blur-sm",
+        "pointer-events-none fixed z-[9000] flex flex-col gap-1.5 overflow-hidden rounded-lg border border-border/70 bg-card/95 px-3 py-2 text-ui-meta break-words shadow-lg backdrop-blur-sm",
         className,
       )}
       style={{

@@ -245,7 +245,7 @@ function GeneratedCardCanvas({
                   draggable={false}
                 />
               ) : (
-                <span className="absolute inset-0 flex items-center justify-center rounded-[inherit] bg-card p-2 text-center text-xs text-card-foreground">
+                <span className="absolute inset-0 flex items-center justify-center rounded-[inherit] bg-card p-2 text-center text-ui-meta text-card-foreground">
                   {name}
                 </span>
               )))}

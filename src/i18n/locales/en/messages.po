@@ -14,7 +14,7 @@ msgstr ""
 "Plural-Forms: \n"
 
 #. placeholder {0}: display.stats.damage
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1302
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1312
 msgid "{0} damage"
 msgstr "{0} damage"
 
@@ -33,7 +33,7 @@ msgstr "Current characteristics"
 
 #. placeholder {0}: display.stats.power
 #. placeholder {1}: display.stats.toughness
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1102
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1111
 msgid "Current P/T: {0}/{1}"
 msgstr "Current P/T: {0}/{1}"
 
@@ -41,7 +41,7 @@ msgstr "Current P/T: {0}/{1}"
 msgid "Current power and toughness"
 msgstr "Current power and toughness"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1692
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1702
 msgid "Defense"
 msgstr "Defense"
 
@@ -58,11 +58,11 @@ msgstr "Face-down card"
 msgid "Face-down permanent"
 msgstr "Face-down permanent"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1274
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1283
 msgid "Flip back · F"
 msgstr "Flip back · F"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1274
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1283
 msgid "Flip front · F"
 msgstr "Flip front · F"
 
@@ -84,7 +84,7 @@ msgstr "Level {0}"
 msgid "Locked"
 msgstr "Locked"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1691
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1701
 msgid "Loyalty"
 msgstr "Loyalty"
 
@@ -104,11 +104,11 @@ msgstr "Not suspended"
 msgid "On an Adventure"
 msgstr "On an Adventure"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1096
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1105
 msgid "On an Adventure · available actions are listed on their spell half"
 msgstr "On an Adventure · available actions are listed on their spell half"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1290
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1300
 msgid "Original printing · generated frame unavailable"
 msgstr "Original printing · generated frame unavailable"
 
@@ -116,7 +116,7 @@ msgstr "Original printing · generated frame unavailable"
 msgid "Printed alternative"
 msgstr "Printed alternative"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1288
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1298
 msgid "Printed face · live state belongs to the other face"
 msgstr "Printed face · live state belongs to the other face"
 

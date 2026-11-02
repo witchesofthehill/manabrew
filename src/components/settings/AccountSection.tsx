@@ -24,8 +24,8 @@ export function AccountSection() {
           <div className="mt-5 border-t border-border/70 pt-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="space-y-1">
-                <p className="text-sm font-medium">Sync your decks on every device</p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-ui-label font-medium">Sync your decks on every device</p>
+                <p className="text-ui-body text-muted-foreground">
                   An account keeps your decks and Community publications yours wherever you play.
                   Playing never requires one.
                 </p>

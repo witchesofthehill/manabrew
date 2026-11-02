@@ -92,7 +92,7 @@ export function LimitedBuildZone({
               {cards.map((card, index) => (
                 <Fragment key={card.id}>
                   {labels[index] && labels[index] !== labels[index - 1] && (
-                    <li className="px-2 pt-3 text-xs font-semibold capitalize text-muted-foreground">
+                    <li className="px-2 pt-3 text-ui-label font-semibold capitalize text-muted-foreground">
                       {labels[index]}
                     </li>
                   )}
@@ -118,7 +118,7 @@ export function LimitedBuildZone({
         )
       ) : (
         <div className="flex min-h-24 flex-1 items-start justify-center px-2 pt-8">
-          <p className="max-w-48 rounded bg-card/40 px-2 py-1 text-center text-xs text-foreground">
+          <p className="max-w-48 rounded bg-card/40 px-2 py-1 text-center text-ui-meta text-foreground">
             {total
               ? "No cards match your filters."
               : zone === "main"

@@ -37,7 +37,7 @@ export function CollectionCard({
     <Input
       type="number"
       min="0"
-      className="h-8 w-20 text-right font-mono"
+      className="w-20 shrink-0 text-right font-mono"
       value={quantity}
       aria-label={`Owned copies of ${displayName}`}
       onChange={(event) => onQuantityChange(Number(event.target.value))}
@@ -46,23 +46,27 @@ export function CollectionCard({
   if (view === "text") {
     return (
       <div
-        className="flex items-center gap-4 border-b px-4 py-3 last:border-b-0 hover:bg-muted/30"
+        className="flex min-w-0 items-center gap-3 border-b px-4 py-3 last:border-b-0 hover:bg-muted/30"
         onMouseEnter={(event) => card && onHover(card, event)}
         onMouseLeave={onLeave}
       >
-        <span className="min-w-0 flex-1 truncate">{displayName}</span>
-        {setCode && collectorNumber && (
-          <span className="text-xs uppercase text-muted-foreground">
-            {setCode} #{collectorNumber}
+        <div className="min-w-0 flex-1">
+          <span className="block truncate text-ui-label" title={displayName}>
+            {displayName}
           </span>
-        )}
-        {foil !== undefined && (
-          <span className="text-[10px] font-medium text-muted-foreground">
-            {foil ? `Foil` : `Non-foil`}
-          </span>
-        )}
-        <span className="text-xs text-muted-foreground">Owned</span>
-        {quantityInput}
+          <div className="flex flex-wrap gap-x-3 text-ui-meta text-muted-foreground">
+            {setCode && collectorNumber && (
+              <span className="break-words uppercase">
+                {setCode} #{collectorNumber}
+              </span>
+            )}
+            {foil !== undefined && <span>{foil ? `Foil` : `Non-foil`}</span>}
+          </div>
+        </div>
+        <label className="flex shrink-0 flex-col gap-1 text-ui-meta text-muted-foreground">
+          Owned
+          {quantityInput}
+        </label>
       </div>
     );
   }
@@ -78,25 +82,28 @@ export function CollectionCard({
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-2 p-3 text-center text-muted-foreground">
             <ImageIcon className="h-8 w-8 opacity-40" />
-            <span className="text-xs">Loading {name}…</span>
+            <span className="text-ui-meta">Loading {name}…</span>
           </div>
         )}
       </div>
-      <div className="mt-2 flex items-center gap-2">
-        <span className="min-w-0 flex-1" title={displayName}>
-          <span className="block truncate text-sm font-medium">{displayName}</span>
+      <div className="mt-2 space-y-2">
+        <span className="block min-w-0" title={displayName}>
+          <span className="block truncate text-ui-label font-medium">{displayName}</span>
           {setCode && collectorNumber && (
-            <span className="block truncate text-[10px] uppercase text-muted-foreground">
+            <span className="block break-words text-ui-meta uppercase text-muted-foreground">
               {setCode} #{collectorNumber}
             </span>
           )}
           {foil !== undefined && (
-            <span className="block text-[10px] text-muted-foreground">
+            <span className="block text-ui-meta text-muted-foreground">
               {foil ? `Foil` : `Non-foil`}
             </span>
           )}
         </span>
-        {quantityInput}
+        <label className="flex flex-wrap items-center justify-between gap-2 text-ui-meta text-muted-foreground">
+          Owned
+          {quantityInput}
+        </label>
       </div>
     </article>
   );

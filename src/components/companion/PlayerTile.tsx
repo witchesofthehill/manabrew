@@ -109,6 +109,7 @@ export function PlayerTile({
         }}
       >
         <CommanderArt refs={player.commanders} />
+        {externalLifeInput && <div className="absolute inset-0 touch-none" aria-hidden />}
 
         {!externalLifeInput && (
           <>
@@ -128,11 +129,20 @@ export function PlayerTile({
         )}
         <TapFlash decTick={flashDec} incTick={flashInc} />
 
-        <div className="pointer-events-none absolute inset-0 z-20 flex flex-col p-1.5 text-white @xs:p-2 @md:p-3">
-          <div className="pointer-events-auto flex items-start gap-1.5 @md:gap-2">
+        <div
+          className={cn(
+            "pointer-events-none absolute inset-0 z-20 flex flex-col gap-2 overflow-y-auto overscroll-contain p-1.5 text-white @xs:p-2 @md:p-3",
+            (commanderRules || hasCommanderArt(opponents)) && opponents.length > 0 && "@md:pr-16",
+            externalLifeInput && "pb-36 @xs:pb-36 @md:pb-36",
+          )}
+        >
+          <div
+            data-companion-no-body-drag
+            className="pointer-events-auto flex shrink-0 touch-pan-y flex-wrap items-start gap-1.5 @md:gap-2"
+          >
             <button
               type="button"
-              className="grid size-8 place-items-center overflow-hidden rounded-full bg-black/40 ring-1 ring-white/20 @xs:size-9 @md:size-11"
+              className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-black/40 ring-1 ring-white/20 @xs:size-9 @md:size-11 touch:min-h-11 touch:min-w-11"
               onClick={() => setPickerOpen(true)}
               aria-label={`Choose commander`}
             >
@@ -142,12 +152,12 @@ export function PlayerTile({
                 <GameIcon icon="crossed-swords" className="size-4 text-white/70 @md:size-5" />
               )}
             </button>
-            <div className="flex min-w-0 flex-1 flex-col">
+            <div className="flex min-w-0 flex-1 basis-full flex-col @xs:basis-0">
               {renaming ? (
                 <Input
                   autoFocus
                   defaultValue={player.name}
-                  className="h-7 bg-black/30 text-sm text-white placeholder:text-white/50"
+                  className="min-h-9 bg-black/30 text-ui-input text-white placeholder:text-white/50 touch:min-h-11"
                   onBlur={(e) => {
                     const name = e.target.value.trim();
                     if (name) renamePlayer(player.id, name);
@@ -161,7 +171,7 @@ export function PlayerTile({
               ) : (
                 <button
                   type="button"
-                  className="hidden self-start truncate text-left text-xs font-semibold tracking-wide drop-shadow @xs:block @md:text-sm"
+                  className="min-h-8 max-w-full self-start whitespace-normal break-words text-left text-ui-label font-semibold tracking-wide drop-shadow touch:min-h-11 touch:min-w-11"
                   onClick={() => setRenaming(true)}
                   title={`Rename`}
                 >
@@ -173,18 +183,18 @@ export function PlayerTile({
                 <StatusChips player={player} />
               </div>
             </div>
-            <div className="flex shrink-0 items-center gap-0.5 @md:gap-1">
+            <div className="flex max-w-full shrink-0 flex-wrap items-center gap-0.5 @md:gap-1">
               <AddCounterMenu player={player} />
               <PlayerMenu player={player} onPickCommander={() => setPickerOpen(true)} />
             </div>
           </div>
 
-          <div className="relative flex flex-1 items-center justify-center">
+          <div className="relative flex min-h-24 flex-1 shrink-0 touch-none items-center justify-center">
             {pendingAmount !== 0 && (
               <div
                 key={pendingAmount}
                 className={cn(
-                  "absolute -top-2 grid place-items-center rounded-full px-1.5 py-0.5 text-xs font-bold shadow @sm:px-2 @sm:text-base",
+                  "absolute top-0 grid place-items-center rounded-full px-1.5 py-0.5 text-ui-meta font-bold shadow @sm:px-2",
                   pendingAmount > 0 ? "bg-emerald-500/90" : "bg-rose-600/90",
                 )}
               >
@@ -196,7 +206,7 @@ export function PlayerTile({
                 autoFocus
                 type="number"
                 defaultValue={player.life}
-                className="pointer-events-auto w-20 rounded-md border border-white/30 bg-black/50 text-center text-3xl font-extrabold text-white outline-none @xs:w-24 @xs:text-4xl @sm:w-28 @sm:text-5xl"
+                className="pointer-events-auto min-h-11 w-20 max-w-full rounded-md border border-white/30 bg-black/50 text-center text-3xl font-extrabold text-white outline-none @xs:w-24 @xs:text-4xl @sm:w-28 @sm:text-5xl"
                 onBlur={(e) => {
                   const value = Number.parseInt(e.target.value, 10);
                   if (!Number.isNaN(value)) setLife(player.id, value);
@@ -210,7 +220,7 @@ export function PlayerTile({
             ) : (
               <button
                 type="button"
-                className="pointer-events-auto select-none text-[clamp(2rem,22cqi,8rem)] font-black leading-none tabular-nums drop-shadow-md"
+                className="pointer-events-auto min-h-11 min-w-11 max-w-full select-none break-all text-[clamp(2rem,22cqi,8rem)] font-black leading-none tabular-nums drop-shadow-md"
                 onClick={() => setLifeEditing(true)}
                 aria-label={`Edit life total`}
               >
@@ -219,7 +229,10 @@ export function PlayerTile({
             )}
           </div>
 
-          <div className="pointer-events-auto flex items-end gap-1.5">
+          <div
+            data-companion-no-body-drag
+            className="pointer-events-auto flex shrink-0 touch-pan-y flex-wrap items-end gap-1.5"
+          >
             <CountersRail
               playerId={player.id}
               counters={player.counters}
@@ -227,13 +240,19 @@ export function PlayerTile({
             />
             <ManaPoolRail playerId={player.id} pool={player.manaPool} />
           </div>
+          {opponents.length > 0 && (commanderRules || hasCommanderArt(opponents)) && (
+            <div
+              data-companion-no-body-drag
+              className="pointer-events-auto shrink-0 touch-pan-y @md:absolute @md:bottom-2 @md:right-2 @md:top-2 @md:z-30 @md:overflow-y-auto @md:overscroll-contain @md:px-1 @md:py-1"
+            >
+              <CommanderDamageStrip
+                target={player}
+                opponents={opponents}
+                className="flex-row flex-wrap justify-center @md:flex-col @md:flex-nowrap"
+              />
+            </div>
+          )}
         </div>
-
-        {opponents.length > 0 && (commanderRules || hasCommanderArt(opponents)) && (
-          <div className="pointer-events-auto absolute right-1 top-1/2 z-30 -translate-y-1/2 @md:right-2">
-            <CommanderDamageStrip target={player} opponents={opponents} />
-          </div>
-        )}
 
         <CommanderPickerDialog
           open={pickerOpen}

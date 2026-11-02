@@ -102,7 +102,7 @@ export function CardRenderingFixtureControls({
           <AppSelectOption value="oracle">Printed previews: Oracle wording</AppSelectOption>
         </AppSelect>
       )}
-      <label className="flex items-center gap-2 text-sm">
+      <label className="flex min-h-8 touch:min-h-11 items-center gap-2 text-ui-label">
         <input
           type="checkbox"
           checked={live}
@@ -110,7 +110,7 @@ export function CardRenderingFixtureControls({
         />
         Live stats / counters
       </label>
-      <label className="flex items-center gap-2 text-sm">
+      <label className="flex min-h-8 touch:min-h-11 items-center gap-2 text-ui-label">
         <input
           type="checkbox"
           checked={granted}

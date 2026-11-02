@@ -28,14 +28,17 @@ export function StatusBanner() {
         )}
       >
         <Icon className={cn("mt-0.5 h-4 w-4 shrink-0", accent)} />
-        <div className="min-w-0 flex-1 text-sm text-foreground">
+        <div className="min-w-0 flex-1 text-ui-meta text-foreground">
           <span>{current.message}</span>
           {current.link && (
             <a
               href={current.link.url}
               target="_blank"
               rel="noopener noreferrer"
-              className={cn("ml-2 font-semibold underline underline-offset-2", accent)}
+              className={cn(
+                "touch:inline-flex touch:min-h-11 touch:items-center ml-2 font-semibold underline underline-offset-2",
+                accent,
+              )}
             >
               {current.link.label}
             </a>
@@ -44,7 +47,7 @@ export function StatusBanner() {
         <Button
           variant="ghost"
           size="icon"
-          className="-mr-1 h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
+          className="-mr-1 min-h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground touch:min-h-11 touch:min-w-11"
           onClick={() => dismiss(current.id)}
         >
           <X className="h-3.5 w-3.5" />

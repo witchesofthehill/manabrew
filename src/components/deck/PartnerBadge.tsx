@@ -5,7 +5,7 @@ export function PartnerBadge({ label, className }: { label: string | null; class
     <Badge
       variant="outline"
       className={cn(
-        "h-4 max-w-[10rem] shrink-0 truncate px-1 text-[9px]",
+        "max-w-[10rem] shrink-0 truncate px-1 text-ui-meta",
         label ? "border-commander/50 text-commander" : "border-warning/50 text-warning",
         className,
       )}

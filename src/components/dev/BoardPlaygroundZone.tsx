@@ -31,8 +31,8 @@ export function BoardPlaygroundZone({
     >
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-3 py-2">
         <div>
-          <h3 className="text-sm font-medium capitalize">{zone.zone}</h3>
-          <p className="text-xs text-muted-foreground">
+          <h3 className="text-ui-label font-medium capitalize">{zone.zone}</h3>
+          <p className="text-ui-meta text-muted-foreground">
             {actionableCount} actionable · {items.length - actionableCount} browse-only.
             <span className="hidden md:inline">
               {" "}

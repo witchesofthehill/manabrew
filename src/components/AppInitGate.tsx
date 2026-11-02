@@ -86,7 +86,7 @@ export function AppInitGate({ children }: { children: ReactNode }) {
       <p
         className={cn(
           "text-xl font-semibold uppercase tracking-[0.2em] text-muted-foreground",
-          shortTouch && "text-sm",
+          shortTouch && "text-ui-body",
         )}
       >
         Welcome to
@@ -151,11 +151,11 @@ export function AppInitGate({ children }: { children: ReactNode }) {
               <div className={cn("w-full space-y-5", shortTouch && "space-y-2.5")}>
                 <div
                   className={cn(
-                    "flex items-baseline justify-between font-mono text-[0.65rem] uppercase tracking-[0.4em] text-muted-foreground",
-                    shortTouch && "text-[0.6rem] tracking-[0.3em]",
+                    "flex items-baseline justify-between gap-3 font-mono text-ui-meta uppercase tracking-[0.4em] text-muted-foreground",
+                    shortTouch && "text-ui-meta tracking-[0.3em]",
                   )}
                 >
-                  <span className="truncate text-foreground/80">{title}</span>
+                  <span className="break-words text-foreground/80">{title}</span>
                   <span className="tabular-nums">{pct.toString().padStart(3, "0")}%</span>
                 </div>
 
@@ -184,8 +184,8 @@ export function AppInitGate({ children }: { children: ReactNode }) {
 
                 <p
                   className={cn(
-                    "text-center font-mono text-[0.6rem] uppercase tracking-[0.45em] text-muted-foreground/80",
-                    shortTouch && "text-[0.55rem] tracking-[0.35em]",
+                    "text-center font-mono text-ui-meta uppercase tracking-[0.45em] text-muted-foreground/80",
+                    shortTouch && "text-ui-meta tracking-[0.35em]",
                   )}
                 >
                   Connecting
@@ -239,7 +239,7 @@ export function AppInitGate({ children }: { children: ReactNode }) {
               filter: blur(0);
             }
           }
-        `}</style>
+`}</style>
       </div>
     </>
   );

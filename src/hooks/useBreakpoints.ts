@@ -1,13 +1,19 @@
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import {
   COARSE_POINTER_QUERY,
+  COMPACT_HOME_QUERY,
   DESKTOP_QUERY,
   MOBILE_GAME_QUERY,
   SHORT_SCREEN_QUERY,
+  TOUCH_CAPABLE_QUERY,
 } from "@/lib/responsive";
 
 export function useIsTouch(): boolean {
   return useMediaQuery(COARSE_POINTER_QUERY);
+}
+
+export function useHasTouchPointer(): boolean {
+  return useMediaQuery(TOUCH_CAPABLE_QUERY);
 }
 
 export function useIsDesktop(): boolean {
@@ -16,6 +22,10 @@ export function useIsDesktop(): boolean {
 
 export function useIsShortScreen(): boolean {
   return useMediaQuery(SHORT_SCREEN_QUERY);
+}
+
+export function useIsCompactHomeScreen(): boolean {
+  return useMediaQuery(COMPACT_HOME_QUERY);
 }
 
 export function useIsShortTouchScreen(): boolean {

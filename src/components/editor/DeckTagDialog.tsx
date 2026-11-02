@@ -64,7 +64,7 @@ export function DeckTagDialog({
           <Input
             autoFocus
             value={query}
-            className="pl-9"
+            className="touch:min-h-11 pl-9"
             placeholder={`Ramp, removal, combo\u2026`}
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={(event) => {
@@ -79,7 +79,7 @@ export function DeckTagDialog({
             <button
               key={tag}
               type="button"
-              className="flex min-h-10 w-full items-center rounded-md px-3 text-left text-sm hover:bg-muted"
+              className="touch:min-w-11 touch:min-h-11 flex min-h-10 w-full items-center rounded-md px-3 text-left text-ui-label hover:bg-muted"
               onClick={() => apply(tag)}
             >
               <Check className="mr-2 h-3.5 w-3.5 text-primary" />
@@ -87,7 +87,11 @@ export function DeckTagDialog({
             </button>
           ))}
           {query.trim() && !exactMatch && (
-            <Button variant="ghost" className="w-full justify-start" onClick={createAndApply}>
+            <Button
+              variant="ghost"
+              className="touch:min-w-11 touch:min-h-11 w-full justify-start"
+              onClick={createAndApply}
+            >
               <Plus className="mr-2 h-3.5 w-3.5" /> Create “{query.trim()}”
             </Button>
           )}

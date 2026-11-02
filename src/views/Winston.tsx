@@ -39,9 +39,9 @@ export default function Winston() {
   const mode: WinstonMode = activeWinston?.isComplete ? "building" : userMode;
   if (!activeWinston || activeWinston.sessionId !== winstonId) {
     return (
-      <LimitedTableSurface className="items-center justify-center">
+      <LimitedTableSurface className="items-center justify-center overflow-y-auto overscroll-contain px-4 py-3 text-ui-body break-words sm:px-6 lg:px-8">
         {lastError ? (
-          <p className="text-destructive">{lastError}</p>
+          <p className="max-h-full shrink-0 overflow-y-auto text-destructive">{lastError}</p>
         ) : (
           <p className="text-muted-foreground">Loading Winston draft…</p>
         )}
@@ -77,29 +77,29 @@ export default function Winston() {
     await submitPass();
   };
   return (
-    <LimitedTableSurface className="gap-2 px-4 py-3 sm:px-6 lg:px-8">
-      <header className="z-10 flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-md border border-border/70 bg-background/95 px-3 py-2 shadow-sm backdrop-blur">
-        <p className="flex items-center gap-2 text-sm text-muted-foreground">
+    <LimitedTableSurface className="min-w-0 gap-2 px-4 py-3 text-ui-body sm:px-6 lg:px-8">
+      <header className="z-10 flex max-h-[40%] shrink-0 flex-wrap items-center justify-between gap-2 overflow-y-auto overscroll-contain rounded-md border border-border/70 bg-background/95 px-3 py-2 shadow-sm backdrop-blur">
+        <p className="flex min-w-0 flex-wrap items-center gap-2 text-ui-meta break-words text-muted-foreground">
           <span>Deck: {activeWinston.deckSize} cards left</span>
-          <span className="rounded bg-muted/60 px-1.5 py-0.5 text-[11px]">
+          <span className="rounded bg-muted/60 px-1.5 py-0.5">
             AI: {activeWinston.aiPickCount} picks
           </span>
           {activeWinston.isComplete ? (
-            <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[11px] font-medium text-primary">
+            <span className="rounded bg-primary/15 px-1.5 py-0.5 font-medium text-primary">
               Complete
             </span>
           ) : activeWinston.awaitingHuman ? (
-            <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[11px] font-medium text-primary">
+            <span className="rounded bg-primary/15 px-1.5 py-0.5 font-medium text-primary">
               Your turn — viewing pile {activeIdx + 1}
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1.5 rounded bg-muted/60 px-1.5 py-0.5 text-[11px] font-medium">
+            <span className="inline-flex items-center gap-1.5 rounded bg-muted/60 px-1.5 py-0.5 font-medium">
               <Loader2 className="h-3 w-3 animate-spin" />
               AI thinking…
             </span>
           )}
         </p>
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           {canBuild && (
             <LimitedModeToggle
               mode={mode}
@@ -112,7 +112,7 @@ export default function Winston() {
       </header>
 
       {mode === "building" ? (
-        <div className="min-h-0 flex-1">
+        <div className="min-h-0 min-w-0 flex-1">
           <LimitedDeckBuilder
             key={activeWinston.sessionId}
             sessionKey={activeWinston.sessionId}
@@ -133,7 +133,7 @@ export default function Winston() {
       )}
 
       {lastError && (
-        <p className="rounded border border-destructive/70 bg-destructive/10 p-3 text-sm text-destructive">
+        <p className="max-h-[20%] shrink-0 overflow-y-auto overscroll-contain rounded border border-destructive/70 bg-destructive/10 p-3 text-ui-label break-words text-destructive">
           {lastError}
         </p>
       )}
@@ -142,7 +142,7 @@ export default function Winston() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Pass the last pile?</DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-ui-body">
               Passing the last pile means you'll draw the top card of the deck instead. The pile you
               skip stays on the table for the next player. Are you sure?
             </DialogDescription>

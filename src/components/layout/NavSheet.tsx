@@ -37,7 +37,7 @@ export function NavSheet({ disabled = false }: NavSheetProps) {
 
   function renderRow({ to, label, icon: Icon, external }: NavDestination) {
     const className = cn(
-      "flex h-11 w-full items-center gap-3 rounded-lg border border-transparent px-3 text-sm transition-colors",
+      "flex min-h-11 w-full items-center gap-3 rounded-lg border border-transparent px-3 py-2 text-left text-ui-label transition-colors",
       !external && isActive(to)
         ? "border-selection-border bg-selection font-medium text-selection-foreground"
         : "text-foreground/85 hover:bg-muted/60",
@@ -79,7 +79,7 @@ export function NavSheet({ disabled = false }: NavSheetProps) {
       <Button
         size="icon"
         variant="ghost"
-        className="h-10 w-10 md:pointer-fine:hidden"
+        className="min-h-10 w-10 md:pointer-fine:hidden touch:min-h-11 touch:min-w-11"
         disabled={disabled}
         onClick={() => setOpen(true)}
         title={`Menu`}
@@ -87,13 +87,13 @@ export function NavSheet({ disabled = false }: NavSheetProps) {
         <Menu className="h-5 w-5" />
         <span className="sr-only">{`Menu`}</span>
       </Button>
-      <SheetContent side="bottom" className="max-h-[85dvh] overflow-y-auto rounded-t-2xl px-3 pb-6">
+      <SheetContent side="bottom" className="overflow-y-auto rounded-t-2xl px-3 pb-6">
         <SheetTitle className="sr-only">{`Menu`}</SheetTitle>
         <div className="pt-2">
           {renderRow({ to: ROUTES.PLAY, label: `Play`, icon: Swords })}
           {direct.map(renderRow)}
           <div className="pt-3">
-            <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <p className="px-3 pb-1 text-ui-meta font-semibold uppercase tracking-wider text-muted-foreground">
               {`More`}
             </p>
             {more.map(renderRow)}

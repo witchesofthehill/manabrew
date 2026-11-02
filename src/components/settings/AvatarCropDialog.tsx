@@ -92,7 +92,7 @@ export function AvatarCropDialog({ file, onCancel, onConfirm }: AvatarCropDialog
   const displayedHeight = imageSize ? imageSize.height * scale : 0;
   return (
     <Dialog open={file != null} onOpenChange={(open) => !open && onCancel()}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-sm overflow-y-auto">
         <DialogTitle>Crop avatar</DialogTitle>
         <DialogDescription>Drag to position, use the slider to zoom.</DialogDescription>
 
@@ -141,7 +141,7 @@ export function AvatarCropDialog({ file, onCancel, onConfirm }: AvatarCropDialog
             value={zoom}
             onChange={(e) => onZoomChange(Number(e.target.value))}
             aria-label={`Zoom`}
-            className="w-full accent-primary"
+            className="h-11 w-full accent-primary touch:min-h-11 touch:min-w-11"
           />
         </div>
 

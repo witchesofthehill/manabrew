@@ -71,7 +71,7 @@ export function LeaveGameModal({
       </Modal.Header>
       <Modal.Instructions>{copy.body}</Modal.Instructions>
       {(pending || error) && (
-        <Modal.Body className="space-y-3 text-sm">
+        <Modal.Body className="space-y-3">
           {pending && <p role="status">{concedes ? "Conceding…" : "Leaving…"}</p>}
           {error && (
             <p role="alert" className="text-destructive">

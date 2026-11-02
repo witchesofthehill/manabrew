@@ -36,7 +36,7 @@ export function CommunityDeckShelf({
       onOpenChange={onOpenChange}
     >
       {error ? (
-        <div className="flex items-center gap-2 px-2 text-xs text-destructive">
+        <div className="flex flex-wrap items-center gap-2 px-2 text-ui-meta text-destructive">
           <span className="min-w-0 flex-1">{error}</span>
           <Button variant="outline" size="sm" onClick={retry}>
             Retry
@@ -70,7 +70,7 @@ export function CommunityDeckShelf({
           ))}
         </DeckShelfRow>
       ) : (
-        <p className="px-2 text-xs italic text-muted-foreground">
+        <p className="px-2 text-ui-meta italic text-muted-foreground">
           No Community decks are available.
         </p>
       )}

@@ -55,7 +55,7 @@ function getDeckTypeBreakdown(
   if (creatures > 0) parts.push(`${creatures} creature${creatures === 1 ? "" : "s"}`);
   if (spells > 0) parts.push(`${spells} spell${spells === 1 ? "" : "s"}`);
   if (lands > 0) parts.push(`${lands} land${lands === 1 ? "" : "s"}`);
-  return parts.join(" · ");
+  return parts.join(" ·");
 }
 export function DeckSelectionCard({
   name,
@@ -148,7 +148,7 @@ export function DeckSelectionCard({
       pressed={Boolean(hasVsSide || isSelected)}
       titleAttribute={!isLegal ? validationError : undefined}
       className={cn(
-        dense && "h-24 aspect-auto",
+        dense && "min-h-40 aspect-auto",
         !dense && "sm:min-h-[172px]",
         !hasVsSide &&
           isSelected &&
@@ -220,7 +220,7 @@ export function DeckSelectionCard({
               ) : fallbackColorLabel ? (
                 <span
                   className={cn(
-                    "text-[10px]",
+                    "text-ui-meta",
                     cover ? "text-text-on-tinted/85" : "text-muted-foreground",
                   )}
                 >
@@ -233,7 +233,7 @@ export function DeckSelectionCard({
             <DeckLabelBadge key={label.name} label={label} size="sm" />
           ))}
           {!dense && (
-            <span className="text-[10px] text-text-on-tinted/85">
+            <span className="text-ui-meta text-text-on-tinted/85">
               {isHub
                 ? `Community · ${cardCount ?? cards.length} cards`
                 : isPreset
@@ -242,7 +242,7 @@ export function DeckSelectionCard({
             </span>
           )}
           {badge && (
-            <Badge variant="outline" className="ml-auto h-4 px-1 text-[9px]">
+            <Badge variant="outline" className="ml-auto min-h-5 px-1 text-ui-meta">
               {badge}
             </Badge>
           )}

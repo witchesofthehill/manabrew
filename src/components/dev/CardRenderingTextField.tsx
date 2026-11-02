@@ -19,7 +19,7 @@ export function CardRenderingTextField({
   const [draft, setDraft] = useState(value);
   const [editing, setEditing] = useState(false);
   return (
-    <label className="grid gap-1.5 text-xs font-medium text-muted-foreground">
+    <label className="grid gap-1.5 text-ui-label font-medium text-muted-foreground">
       {label}
       <Input
         aria-label={label}

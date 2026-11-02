@@ -98,17 +98,17 @@ export function ReportPlayerDialog({ player, onClose }: ReportPlayerDialogProps)
   if (sent) {
     return (
       <Dialog open={player != null} onOpenChange={(open) => !open && close()}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-sm overflow-y-auto">
           <DialogTitle className="flex items-center gap-2">
             <ShieldCheck className="h-4 w-4 text-success" />
             Thank you
           </DialogTitle>
           <DialogDescription>Your report has been sent.</DialogDescription>
-          <p className="text-sm text-foreground/90">
+          <p className="text-ui-body text-foreground/90">
             Your help is valuable in keeping Manabrew safe for everyone. A maintainer will look at
             this promptly and take action where it is warranted.
           </p>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-ui-body text-muted-foreground">
             You won&apos;t hear back about the outcome, but every report is read by a person.
           </p>
           <DialogFooter>
@@ -122,7 +122,7 @@ export function ReportPlayerDialog({ player, onClose }: ReportPlayerDialogProps)
   }
   return (
     <Dialog open={player != null} onOpenChange={(open) => !open && close()}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-sm overflow-y-auto">
         <DialogTitle className="flex items-center gap-2">
           <Flag className="h-4 w-4" />
           Report {player ? stripUsernameTag(player.username) : ""}
@@ -136,7 +136,7 @@ export function ReportPlayerDialog({ player, onClose }: ReportPlayerDialogProps)
             <label
               key={option.value}
               className={cn(
-                "flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 text-sm hover:bg-muted/40",
+                "flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 text-ui-label hover:bg-muted/40 touch:min-h-11 touch:min-w-11",
                 reason === option.value && "bg-muted/60",
               )}
             >
@@ -153,7 +153,7 @@ export function ReportPlayerDialog({ player, onClose }: ReportPlayerDialogProps)
           ))}
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="report-details" className="text-xs text-muted-foreground">
+          <Label htmlFor="report-details" className="text-ui-label text-muted-foreground">
             Anything else? (optional)
           </Label>
           <textarea
@@ -162,7 +162,7 @@ export function ReportPlayerDialog({ player, onClose }: ReportPlayerDialogProps)
             maxLength={DETAILS_MAX_CHARS}
             onChange={(e) => setDetails(e.target.value)}
             rows={3}
-            className="w-full resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            className="w-full resize-none rounded-md border border-input bg-transparent px-3 py-2 text-ui-input shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring touch:min-h-11 touch:min-w-11"
           />
         </div>
         <DialogFooter>

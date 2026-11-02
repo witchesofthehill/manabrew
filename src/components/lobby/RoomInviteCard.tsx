@@ -48,14 +48,15 @@ export function RoomInviteCard({
           username={from}
           avatarUrl={fromAvatarUrl}
           className="h-8 w-8 shrink-0"
-          fallbackClassName="text-xs"
+          fallbackClassName="text-ui-meta"
         />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm leading-tight">
-            <span className="font-semibold">{name}</span>{" "}
+          <p className="break-words text-ui-body leading-tight">
+            <span className="font-semibold">{name}</span>
+            {""}
             <span className="text-muted-foreground">invited you to {modeSentence(room)}</span>
           </p>
-          <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+          <p className="mt-1 flex flex-wrap items-center gap-1.5 text-ui-meta text-muted-foreground">
             <span className="truncate font-medium text-foreground/80">{room.room_name}</span>
             {room.password_protected && (
               <LockKeyhole
@@ -74,7 +75,7 @@ export function RoomInviteCard({
           </p>
         </div>
       </div>
-      <div className="flex justify-end gap-2">
+      <div className="flex flex-wrap justify-end gap-2">
         <Button size="sm" variant="ghost" onClick={onIgnore}>
           Ignore
         </Button>

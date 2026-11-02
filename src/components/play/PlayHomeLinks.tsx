@@ -25,11 +25,11 @@ import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/useAuthStore";
 const TOOL_GRID_BY_COUNT: Record<number, string> = {
   2: "sm:grid-cols-2",
-  3: "sm:grid-cols-3",
+  3: "sm:grid-cols-2 xl:grid-cols-3",
   4: "sm:grid-cols-2 lg:grid-cols-4",
 };
 const UTILITY_ROW_CLASS =
-  "flex min-w-0 items-center gap-3 px-4 py-3 text-sm hover:bg-muted/50 motion-safe:transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring";
+  "flex min-w-0 items-center gap-3 px-4 py-3 text-ui-label hover:bg-muted/50 motion-safe:transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring";
 const TOOLS = [
   {
     to: ROUTES.SEARCH,
@@ -64,7 +64,12 @@ export function PlayHomeLinks() {
   return (
     <>
       <section aria-label={`More ways to play and tools`}>
-        <div className={cn("grid gap-4", TOOL_GRID_BY_COUNT[tools.length] ?? "sm:grid-cols-3")}>
+        <div
+          className={cn(
+            "grid gap-4",
+            TOOL_GRID_BY_COUNT[tools.length] ?? "sm:grid-cols-2 xl:grid-cols-3",
+          )}
+        >
           {tools.map(({ to, label, desc, icon, tone }, index) => (
             <FeatureTile
               key={to}
@@ -111,7 +116,7 @@ export function PlayHomeLinks() {
 
       <footer className="flex flex-col gap-3 border-t border-border/50 pt-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="text-xs text-muted-foreground">Manabrew v{APP_VERSION}</span>
+          <span className="text-ui-caption text-muted-foreground">Manabrew v{APP_VERSION}</span>
           <div className="flex items-center gap-1">
             <Button asChild variant="ghost" size="icon-sm" title={`Discord`}>
               <a href={DISCORD_INVITE_URL} target="_blank" rel="noreferrer">

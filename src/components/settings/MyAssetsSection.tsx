@@ -79,10 +79,10 @@ export function MyAssetsSection() {
       <h2 className="text-lg font-semibold">Manage uploaded assets here</h2>
       <div className="max-w-2xl space-y-4 rounded-lg border bg-card/40 p-5">
         <div className="space-y-2">
-          <div className="flex items-baseline justify-between gap-3">
+          <div className="flex flex-wrap items-baseline justify-between gap-3">
             <Label>Storage</Label>
             {loaded && (
-              <span className="text-xs text-muted-foreground">
+              <span className="text-ui-meta text-muted-foreground">
                 {formatBytes(usedBytes)} of {formatBytes(quotaBytes)} used
               </span>
             )}
@@ -109,7 +109,7 @@ export function MyAssetsSection() {
 
         {loadError ? (
           <div className="flex items-center gap-3">
-            <p className="text-sm text-destructive">Couldn&apos;t load your images.</p>
+            <p className="text-ui-body text-destructive">Couldn&apos;t load your images.</p>
             <Button
               variant="outline"
               size="sm"
@@ -125,13 +125,13 @@ export function MyAssetsSection() {
             </Button>
           </div>
         ) : !loaded ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
+          <p className="text-ui-body text-muted-foreground">Loading…</p>
         ) : assets.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-ui-body text-muted-foreground">
             No images yet. Upload an avatar or a playmat and it will show up here.
           </p>
         ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,18rem),1fr))] gap-3">
             {assets.map((asset) => (
               <AssetTile
                 key={asset.id}
@@ -152,7 +152,7 @@ export function MyAssetsSection() {
         onChange={onReplacePicked}
       />
       <Dialog open={!!deleting} onOpenChange={(open) => !open && setDeleting(null)}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-sm overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Delete image</DialogTitle>
             <DialogDescription>
@@ -191,7 +191,7 @@ function AssetTile({
 }) {
   return (
     <div className="flex overflow-hidden rounded-lg border bg-card/60 transition-colors hover:border-primary/40">
-      <div className="h-[72px] w-[72px] shrink-0 bg-muted">
+      <div className="min-h-[72px] w-[72px] shrink-0 bg-muted">
         <img
           src={asset.url}
           alt={`${KIND_LABELS[asset.kind]} image`}
@@ -200,17 +200,17 @@ function AssetTile({
           className="size-full object-cover"
         />
       </div>
-      <div className="flex min-w-0 flex-1 items-center gap-1 px-3">
-        <div className="min-w-0 flex-1 space-y-1">
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1 px-3">
+        <div className="min-w-0 basis-full flex-1 sm:basis-auto space-y-1">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">{KIND_LABELS[asset.kind]}</span>
+            <span className="text-ui-label font-medium">{KIND_LABELS[asset.kind]}</span>
           </div>
-          <p className="text-xs text-muted-foreground">{formatBytes(asset.byteSize)}</p>
+          <p className="text-ui-meta text-muted-foreground">{formatBytes(asset.byteSize)}</p>
         </div>
         <Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7 shrink-0"
+          className="min-h-7 w-7 shrink-0 touch:min-h-11 touch:min-w-11"
           title={`Replace image`}
           disabled={busy}
           onClick={onReplace}
@@ -220,7 +220,7 @@ function AssetTile({
         <Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7 shrink-0 text-destructive hover:text-destructive"
+          className="min-h-7 w-7 shrink-0 text-destructive hover:text-destructive touch:min-h-11 touch:min-w-11"
           title={`Delete image`}
           disabled={busy}
           onClick={onDelete}

@@ -44,7 +44,7 @@ function CommanderDamageButton({
     <>
       <button
         type="button"
-        className="group relative size-8 overflow-hidden rounded-full transition active:scale-95 @md:size-10"
+        className="group relative size-8 shrink-0 rounded-full transition active:scale-95 @md:size-10 touch:min-h-11 touch:min-w-11"
         style={{
           backgroundColor: accentColor,
           boxShadow: `0 0 0 2.5px ${accentColor}, 0 0 0 4px rgba(0,0,0,0.5)`,
@@ -56,17 +56,17 @@ function CommanderDamageButton({
           <CommanderArt
             refs={source.commanders}
             variant="avatar"
-            className="absolute inset-0 size-full"
+            className="absolute inset-0 size-full overflow-hidden rounded-full"
           />
         ) : (
-          <span className="absolute inset-0 grid place-items-center text-[10px] font-semibold uppercase text-white">
+          <span className="absolute inset-0 grid place-items-center text-ui-meta font-semibold uppercase text-white">
             {initials(source.name)}
           </span>
         )}
         {totalDamage > 0 && (
           <span
             className={cn(
-              "absolute -bottom-0.5 -right-0.5 grid min-w-5 place-items-center rounded-full px-1 text-[10px] font-bold text-white",
+              "absolute bottom-0 right-0 grid min-w-5 place-items-center rounded-full px-1 text-ui-meta font-bold text-white",
               lethal ? "bg-destructive" : "bg-black/80",
             )}
           >

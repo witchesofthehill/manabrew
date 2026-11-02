@@ -34,7 +34,7 @@ export function OfflinePlayShell({ children }: OfflinePlayShellProps) {
       aria-label="Offline play mode"
       value={location.pathname}
       onValueChange={(value) => navigate(value, { replace: true })}
-      className="h-11 shrink-0 text-base font-medium"
+      className="min-h-11 shrink-0 text-ui-label font-medium"
     >
       {TABS.map(({ to, label, icon: Icon }) => (
         <AppSelectOption key={to} value={to}>
@@ -60,7 +60,7 @@ export function OfflinePlayShell({ children }: OfflinePlayShellProps) {
             replace
             aria-current={active ? "page" : undefined}
             className={cn(
-              "group flex min-w-0 items-center gap-2.5 rounded-xl px-3 py-2.5 transition-[background-color,color,box-shadow] motion-reduce:transition-none pointer-coarse:min-h-11 sm:px-4",
+              "group flex min-w-0 items-center gap-2.5 rounded-xl px-3 py-2.5 transition-[background-color,color,box-shadow] motion-reduce:transition-none touch:min-h-11 sm:px-4",
               compact && "gap-2 px-3 py-1 sm:px-3 sm:py-1",
               active
                 ? "bg-selection text-selection-foreground shadow-sm ring-1 ring-selection-border"
@@ -79,10 +79,10 @@ export function OfflinePlayShell({ children }: OfflinePlayShellProps) {
               <Icon className="h-4 w-4" />
             </span>
             <span className="min-w-0 text-left">
-              <span className="block truncate text-sm font-semibold">{label}</span>
+              <span className="block break-words text-ui-label font-semibold">{label}</span>
               <span
                 className={cn(
-                  "hidden truncate text-[11px] text-muted-foreground sm:block",
+                  "hidden break-words text-ui-meta text-muted-foreground sm:block",
                   compact && "sm:hidden",
                 )}
               >

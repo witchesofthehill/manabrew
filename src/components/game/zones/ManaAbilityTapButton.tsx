@@ -37,7 +37,7 @@ export const ManaAbilityTapButton = memo(function ManaAbilityTapButton({
   return (
     <button
       className={cn(
-        "group/mana flex h-full w-full items-center justify-center transition-all hover:brightness-125",
+        "group/mana flex h-full w-full touch:min-h-11 touch:min-w-11 items-center justify-center transition-all hover:brightness-125",
         className,
       )}
       style={{ backgroundColor: bgColor }}
@@ -51,8 +51,8 @@ export const ManaAbilityTapButton = memo(function ManaAbilityTapButton({
     >
       <div
         className={cn(
-          "flex items-center justify-center rounded-full bg-black/40 shadow-lg transition-transform group-hover/mana:scale-110",
-          small ? "h-6 w-6 p-0.5" : "h-8 w-8 p-1",
+          "flex min-h-8 min-w-8 touch:min-h-11 touch:min-w-11 items-center justify-center rounded-full bg-black/40 shadow-lg transition-transform group-hover/mana:scale-110",
+          small ? "p-0.5" : "p-1",
         )}
       >
         {letter ? (
@@ -63,13 +63,11 @@ export const ManaAbilityTapButton = memo(function ManaAbilityTapButton({
             loading="lazy"
           />
         ) : (
-          <span className={cn("font-bold text-white", small ? "text-[7px]" : "text-[9px]")}>
-            TAP
-          </span>
+          <span className="text-ui-label font-bold text-white">TAP</span>
         )}
       </div>
       {hintRect && (
-        <TouchHintPopover anchorRect={hintRect} className="whitespace-nowrap text-[11px]">
+        <TouchHintPopover anchorRect={hintRect}>
           <DynamicTextRender className="align-middle" text={`Tap: ${description}`} />
         </TouchHintPopover>
       )}

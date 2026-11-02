@@ -5,6 +5,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { gameCardFaceIndex, isFacelessCard } from "@/lib/gameCard";
 import { cn } from "@/lib/utils";
 import { GAME_CARD_SIZES } from "@/components/game/game.constants";
+import { getUiFontSize } from "@/themes/typography";
 import type { CardBrowserItem, CardBrowserState } from "./cardBrowser";
 
 interface Props {
@@ -34,10 +35,18 @@ export function DialogCardGrid({ items, state, onInspect, onScroll, intentColor 
   }, [initialScrollTop]);
   const columns = Math.max(
     1,
-    Math.floor((viewport.width + GAP) / (GAME_CARD_SIZES.hand.width + GAP)),
+    Math.floor(
+      (viewport.width + GAP) /
+        (Math.max(GAME_CARD_SIZES.hand.width, getUiFontSize("label") * 9) + GAP),
+    ),
   );
   const cellWidth = (viewport.width - GAP * (columns - 1)) / columns;
-  const rowHeight = GAME_CARD_SIZES.hand.height + 48;
+  const rowHeight =
+    GAME_CARD_SIZES.hand.height +
+    getUiFontSize("label") * 3 +
+    getUiFontSize("meta") * 1.5 +
+    GAP +
+    12;
   const rows = Math.ceil(items.length / columns);
   const top = Math.min(state.scrollTop, Math.max(0, rows * rowHeight - viewport.height));
   const start = Math.max(0, Math.floor(top / rowHeight) - 1) * columns;
@@ -68,7 +77,7 @@ export function DialogCardGrid({ items, state, onInspect, onScroll, intentColor 
       ref={host}
       role="listbox"
       aria-label="Cards in this view"
-      className="min-h-56 flex-1 overflow-auto overscroll-contain pr-2"
+      className="min-h-0 flex-1 overflow-auto overscroll-contain pr-2"
       onScroll={(event) => onScroll(event.currentTarget.scrollTop)}
       onKeyDown={(event) => {
         if (event.altKey || event.ctrlKey || event.metaKey) return;
@@ -137,7 +146,7 @@ export function DialogCardGrid({ items, state, onInspect, onScroll, intentColor 
               onClick={() => onInspect(item.id, true)}
             >
               <div
-                className="flex w-full flex-1 items-center"
+                className="flex w-full shrink-0 items-center"
                 style={{ maxWidth: GAME_CARD_SIZES.hand.width }}
               >
                 <Card
@@ -152,10 +161,10 @@ export function DialogCardGrid({ items, state, onInspect, onScroll, intentColor 
                   resolution="normal"
                 />
               </div>
-              <span className="mt-1 line-clamp-1 w-full text-center text-xs font-medium">
+              <span className="mt-1 line-clamp-2 w-full shrink-0 break-words text-center text-ui-label font-medium">
                 {name}
               </span>
-              <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+              <span className="flex shrink-0 items-center justify-center gap-1 text-ui-meta text-muted-foreground">
                 {item.selected && <Check className="h-3 w-3 text-card-selection" />}
                 {item.position ??
                   (item.selected ? "Selected" : item.legal ? "Action available" : "Inspect")}
@@ -165,7 +174,7 @@ export function DialogCardGrid({ items, state, onInspect, onScroll, intentColor 
         })}
       </div>
       {!items.length && (
-        <p className="p-8 text-center text-sm text-muted-foreground" role="status">
+        <p className="p-8 text-center text-ui-body text-muted-foreground" role="status">
           No matching cards. Clear or change the filters.
         </p>
       )}

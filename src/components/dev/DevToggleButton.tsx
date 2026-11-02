@@ -17,7 +17,7 @@ export function DevToggleButton({ label, active, onClick }: DevToggleButtonProps
       type="button"
       className={cn(
         DEV_CONTROL_BUTTON,
-        "truncate py-1.5",
+        "py-1.5",
         active ? DEV_CONTROL_ACTIVE : DEV_CONTROL_INACTIVE,
       )}
       onClick={onClick}

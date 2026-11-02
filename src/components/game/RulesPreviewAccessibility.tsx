@@ -270,7 +270,7 @@ export function RulesPreviewAccessibility({
                 : "sr-only",
               focused &&
                 (control.actionIndex === undefined
-                  ? "bg-popover text-popover-foreground text-sm"
+                  ? "bg-popover text-popover-foreground text-ui-label"
                   : "bg-transparent"),
             )}
             style={

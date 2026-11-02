@@ -263,14 +263,14 @@ export function PrintingOptimizerDialog({
         onOpenChange(next);
       }}
     >
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="overflow-y-auto max-w-2xl">
         <DialogHeader>
           <DialogTitle>Optimize deck printings</DialogTitle>
           <DialogDescription>
             Choose a policy, review every proposed change, then apply it as one undoable edit.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))]">
           <PolicyButton
             icon={WalletCards}
             label={`Owned printings`}
@@ -302,14 +302,14 @@ export function PrintingOptimizerDialog({
         {changes.length === 0 && skipped.length === 0 && !loading && (
           <div className="flex items-center justify-between gap-4 rounded-lg border bg-muted/30 p-3">
             <div>
-              <p className="text-sm font-medium">Ready to scan {allCards.length} cards</p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-ui-label font-medium">Ready to scan {allCards.length} cards</p>
+              <p className="text-ui-body text-muted-foreground">
                 Nothing changes until you review and apply the proposal.
               </p>
             </div>
             <Button
               variant="primary"
-              className="shrink-0 gap-2"
+              className="touch:min-w-11 touch:min-h-11 shrink-0 gap-2"
               disabled={allCards.length === 0}
               onClick={() => void buildProposal(selectedPolicy)}
             >
@@ -319,7 +319,7 @@ export function PrintingOptimizerDialog({
         )}
         {loading && (
           <div className="space-y-2 rounded-lg border bg-muted/30 p-4">
-            <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center justify-between text-ui-label">
               <span className="flex items-center gap-2 font-medium">
                 <Loader2 className="h-4 w-4 animate-spin" /> Scanning available printings
               </span>
@@ -333,7 +333,7 @@ export function PrintingOptimizerDialog({
                 style={{ width: `${Math.max(progress * 100, 4)}%` }}
               />
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-ui-body text-muted-foreground">
               Large decks can take a moment. Requests are grouped and safely paced through the
               shared card-data service.
             </p>
@@ -356,7 +356,7 @@ export function PrintingOptimizerDialog({
             <div className="flex items-center justify-between rounded-lg border bg-muted/30 px-4 py-3">
               <div>
                 <p className="font-medium">Proposal ready</p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-ui-meta text-muted-foreground">
                   {changes.length === 1
                     ? `One copy will change · one undoable edit`
                     : `${changes.length} copies will change · one undoable edit`}
@@ -377,20 +377,24 @@ export function PrintingOptimizerDialog({
               {changes.map((change) => (
                 <div
                   key={change.cardId}
-                  className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 px-3 py-2 text-xs"
+                  className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto] gap-3 px-3 py-2 text-ui-meta"
                 >
-                  <span className="truncate font-medium">{change.name}</span>
-                  <span className="text-right text-muted-foreground">
+                  <span className="break-words text-ui-label font-medium">{change.name}</span>
+                  <span className="break-words text-muted-foreground sm:text-right">
                     {change.from} → {change.to}
                   </span>
                 </div>
               ))}
             </div>
             <div className="flex items-center justify-between gap-3">
-              <p className="text-xs text-muted-foreground">
+              <p className="text-ui-meta text-muted-foreground">
                 Review the exact before and after printing.
               </p>
-              <Button variant="primary" className="gap-1" onClick={applyProposal}>
+              <Button
+                variant="primary"
+                className="touch:min-w-11 touch:min-h-11 gap-1"
+                onClick={applyProposal}
+              >
                 <Check className="h-3.5 w-3.5" /> Apply {changes.length} changes
               </Button>
             </div>
@@ -399,7 +403,7 @@ export function PrintingOptimizerDialog({
         {skipped.length > 0 && (
           <div className="space-y-2 rounded-lg border border-warning/40 bg-warning/5 p-3">
             <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2 text-sm font-medium text-warning">
+              <div className="flex items-center gap-2 text-ui-label font-medium text-warning">
                 <TriangleAlert className="h-4 w-4" />
                 {skipped.length === 1
                   ? `Could not convert one copy`
@@ -415,10 +419,10 @@ export function PrintingOptimizerDialog({
               {skipped.map((item) => (
                 <div
                   key={item.cardId}
-                  className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 py-2 text-xs"
+                  className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto] gap-3 py-2 text-ui-meta"
                 >
-                  <span className="truncate font-medium">{item.name}</span>
-                  <span className="text-right text-muted-foreground">
+                  <span className="break-words text-ui-label font-medium">{item.name}</span>
+                  <span className="break-words text-muted-foreground sm:text-right">
                     {item.printing} · {item.reason}
                   </span>
                 </div>
@@ -451,7 +455,7 @@ function PolicyButton({
     <Button
       variant="outline"
       className={cn(
-        "h-auto min-h-24 items-start justify-start gap-3 whitespace-normal p-4 text-left",
+        "touch:min-w-11 touch:min-h-11 h-auto min-h-24 items-start justify-start gap-3 whitespace-normal p-4 text-left",
         selected && "border-selection-border bg-selection ring-1 ring-selection-border",
       )}
       disabled={disabled}
@@ -464,7 +468,7 @@ function PolicyButton({
       )}
       <span>
         <span className="block font-semibold">{label}</span>
-        <span className="block text-xs font-normal text-muted-foreground">{detail}</span>
+        <span className="block text-ui-body font-normal text-muted-foreground">{detail}</span>
       </span>
     </Button>
   );

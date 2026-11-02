@@ -40,11 +40,11 @@ export function TableSetupHostingCard({
           : `The Manabrew engine is a work in progress and may have bugs or missing cards. For the most stable experience, play on the Forge engine.`;
   return (
     <section className="rounded-xl border bg-card/85 p-4 backdrop-blur-md">
-      <h2 className="text-sm font-semibold">Hosting</h2>
+      <h2 className="text-ui-label font-semibold">Hosting</h2>
       <div className="mt-3 space-y-4">
         {kind === "match" ? (
           <details className="group rounded-lg border border-border/70 bg-muted/20">
-            <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-xs font-medium [&::-webkit-details-marker]:hidden">
+            <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-ui-label font-medium [&::-webkit-details-marker]:hidden touch:min-h-11 touch:min-w-11">
               Engine
               <span className="flex items-center gap-1 font-normal text-muted-foreground">
                 <EngineMark engine={engine} className="h-3.5 w-3.5" />
@@ -68,7 +68,7 @@ export function TableSetupHostingCard({
                   }
                   label={`Forge`}
                   badge={
-                    <Badge variant="outline" className="text-[9px]">
+                    <Badge variant="outline" className="text-ui-meta">
                       {isTauri ? `on this device` : hostedNode ? `on a node` : `in this browser`}
                     </Badge>
                   }
@@ -95,7 +95,7 @@ export function TableSetupHostingCard({
                 }
                 label={`Manabrew`}
                 badge={
-                  <Badge variant="outline" className="text-[9px]">
+                  <Badge variant="outline" className="text-ui-meta">
                     in-browser
                   </Badge>
                 }
@@ -117,12 +117,12 @@ export function TableSetupHostingCard({
                   label={`Ironsmith`}
                   badge={
                     <>
-                      <Badge variant="outline" className="text-[9px]">
+                      <Badge variant="outline" className="text-ui-meta">
                         trusted
                       </Badge>
                       <Badge
                         variant="outline"
-                        className="border-warning/40 text-[9px] text-warning"
+                        className="border-warning/40 text-ui-meta text-warning"
                       >
                         experimental
                       </Badge>
@@ -134,7 +134,7 @@ export function TableSetupHostingCard({
             </div>
           </details>
         ) : (
-          <div className="flex items-center gap-2 rounded-lg border border-border/70 bg-muted/20 px-3 py-2.5 text-xs font-medium">
+          <div className="flex items-center gap-2 rounded-lg border border-border/70 bg-muted/20 px-3 py-2.5 text-ui-meta font-medium">
             Engine
             <span className="flex items-center gap-1 font-normal text-muted-foreground">
               <GameIcon name="beer-stein" className="h-3.5 w-3.5" />
@@ -143,14 +143,14 @@ export function TableSetupHostingCard({
           </div>
         )}
         {!(kind === "match" && engine === "Forge") && (
-          <div className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
+          <div className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-ui-meta text-warning">
             <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             <p>{warningText}</p>
           </div>
         )}
         {kind === "match" && !(engine === "Forge" && hostedNode) && (
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Reconnect timeout</Label>
+            <Label className="text-ui-label font-medium">Reconnect timeout</Label>
             <div className="flex items-center gap-2">
               {RECONNECT_TIMEOUT_OPTIONS.map((seconds) => (
                 <button
@@ -158,17 +158,17 @@ export function TableSetupHostingCard({
                   type="button"
                   onClick={() => onReconnectTimeoutSChange(seconds)}
                   className={cn(
-                    "flex h-10 flex-1 items-center justify-center rounded-lg border transition-colors",
+                    "flex min-h-10 flex-1 items-center justify-center rounded-lg border transition-colors touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal",
                     reconnectTimeoutS === seconds
                       ? "border-primary bg-primary/5 text-primary"
                       : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground",
                   )}
                 >
-                  <span className="text-sm font-medium">{seconds}s</span>
+                  <span className="text-ui-label font-medium">{seconds}s</span>
                 </button>
               ))}
             </div>
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-ui-meta text-muted-foreground">
               How long the game waits for a disconnected player before it is aborted.
             </p>
           </div>
@@ -197,16 +197,16 @@ function EngineOption({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex flex-col items-start gap-0.5 rounded-lg p-2.5 text-left transition-colors",
+        "flex flex-col items-start gap-0.5 rounded-lg p-2.5 text-left transition-colors touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal",
         selected ? "bg-selection/15" : "hover:bg-muted/50",
       )}
     >
       <span className="flex flex-wrap items-center gap-1.5">
         {mark}
-        <span className="text-xs font-medium">{label}</span>
+        <span className="text-ui-label font-medium">{label}</span>
         {badge}
       </span>
-      <span className="text-[10px] leading-tight text-muted-foreground">{description}</span>
+      <span className="text-ui-body leading-tight text-muted-foreground">{description}</span>
     </button>
   );
 }

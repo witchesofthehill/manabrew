@@ -1,14 +1,19 @@
 import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import {
+  Circle,
   Flag,
   Image as ImageIcon,
+  Info,
   LogOut,
   Maximize2,
   Minimize2,
   PanelRightClose,
   PanelRightOpen,
+  Repeat,
   Settings2,
+  Square,
   Swords,
+  Volume2,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -25,16 +30,25 @@ import {
 import { useGameStore } from "@/stores/useGameStore";
 import { getPlatformType } from "@/platform";
 import { useKeybindings } from "@/hooks/useKeybindings";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
+import type { RecordingStatus } from "@/protocol";
 interface MiddleBarDockProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onOpenSettings: () => void;
+  onOpenSoundSettings: () => void;
   onOpenCombat?: () => void;
   onConcede: () => void;
   eliminated: boolean;
   onLeave: () => void;
   sidePanelCollapsed: boolean;
   onToggleSidePanel: () => void;
+  recording: RecordingStatus["type"];
+  canRecord: boolean;
+  canRepeat: boolean;
+  onToggleRecording: () => void;
+  onRepeat: () => void;
   /** Every seat, for the per-player playmat show/hide toggles. `color` is the
    *  player's seat colour (full opacity, matching their Pixi avatar ring) used as
    *  the row's hover background; `textColor` is the readable text over it. */
@@ -50,12 +64,18 @@ export function MiddleBarDock({
   open,
   onOpenChange,
   onOpenSettings,
+  onOpenSoundSettings,
   onOpenCombat,
   onConcede,
   eliminated,
   onLeave,
   sidePanelCollapsed,
   onToggleSidePanel,
+  recording,
+  canRecord,
+  canRepeat,
+  onToggleRecording,
+  onRepeat,
   players,
 }: MiddleBarDockProps) {
   const isWeb = getPlatformType() === "web";
@@ -79,16 +99,35 @@ export function MiddleBarDock({
   useKeybindings({ "toggle-fullscreen": toggleFullscreen });
   const FullscreenIcon = isFullscreen ? Minimize2 : Maximize2;
   const PanelIcon = sidePanelCollapsed ? PanelRightOpen : PanelRightClose;
+  const repeatHint = canRepeat
+    ? null
+    : recording === "ready"
+      ? `You can replay when you have priority and the stack is empty.`
+      : recording === "recording"
+        ? `Stop recording to replay the combo.`
+        : `Record a combo first.`;
+  const repeatItem = (
+    <DropdownMenuItem
+      aria-disabled={!canRepeat}
+      className={cn(!canRepeat && "text-muted-foreground opacity-60")}
+      onSelect={(e) => {
+        if (!canRepeat) {
+          e.preventDefault();
+          return;
+        }
+        onRepeat();
+      }}
+    >
+      <Repeat className="mr-2 h-4 w-4" />
+      Replay combo
+    </DropdownMenuItem>
+  );
   return (
     <DropdownMenu open={open} onOpenChange={onOpenChange}>
       <DropdownMenuTrigger asChild>
         <span aria-hidden className="pointer-events-none absolute bottom-14 right-6 h-0 w-0" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="end"
-        side="top"
-        className="[&_[role=menuitem]]:pointer-coarse:min-h-12"
-      >
+      <DropdownMenuContent align="end" side="top">
         {isWeb && (
           <DropdownMenuItem onSelect={() => toggleFullscreen()}>
             <FullscreenIcon className="mr-2 h-4 w-4" />
@@ -102,6 +141,10 @@ export function MiddleBarDock({
         <DropdownMenuItem onSelect={() => onOpenSettings()}>
           <Settings2 className="mr-2 h-4 w-4" />
           Board settings
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={onOpenSoundSettings}>
+          <Volume2 className="mr-2 h-4 w-4" />
+          Sound settings
         </DropdownMenuItem>
         {onOpenCombat && (
           <DropdownMenuItem onSelect={onOpenCombat}>
@@ -131,6 +174,44 @@ export function MiddleBarDock({
               ))}
             </DropdownMenuSubContent>
           </DropdownMenuSub>
+        )}
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel className="flex items-center gap-1.5">
+          Combo recorder
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span tabIndex={0} aria-label="About the combo recorder">
+                <Info className="h-3.5 w-3.5 text-muted-foreground" />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="left" className="max-w-64">
+              Record your combo once, then replay it as many times as you want.
+            </TooltipContent>
+          </Tooltip>
+        </DropdownMenuLabel>
+        {(recording === "recording" || canRecord) && (
+          <DropdownMenuItem
+            disabled={!canRecord}
+            onSelect={(e) => {
+              if (recording === "recording") e.preventDefault();
+              onToggleRecording();
+            }}
+          >
+            {recording === "recording" ? (
+              <Square className="mr-2 h-4 w-4 fill-current" />
+            ) : (
+              <Circle className="mr-2 h-4 w-4 fill-current text-destructive" />
+            )}
+            {recording === "recording" ? `Stop recording` : `Record combo`}
+          </DropdownMenuItem>
+        )}
+        {repeatHint ? (
+          <Tooltip>
+            <TooltipTrigger asChild>{repeatItem}</TooltipTrigger>
+            <TooltipContent side="left">{repeatHint}</TooltipContent>
+          </Tooltip>
+        ) : (
+          repeatItem
         )}
         <DropdownMenuSeparator />
         <DropdownMenuItem

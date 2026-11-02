@@ -55,7 +55,7 @@ export function PlayerSheetModal({ spec, onClose }: PlayerSheetModalProps) {
           </span>
           <div className="min-w-0 flex-1">
             <h2 className="break-words text-lg font-semibold">{spec.name}</h2>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-ui-meta text-muted-foreground">
               {spec.isSelf ? "You" : spec.isBot ? "Bot player" : "Player details"}
             </p>
           </div>
@@ -63,10 +63,10 @@ export function PlayerSheetModal({ spec, onClose }: PlayerSheetModalProps) {
             <div className="text-3xl font-bold leading-none tabular-nums lining-nums">
               {spec.life}
             </div>
-            <div className="mt-1 text-[10px] font-semibold uppercase tracking-wide">Life</div>
+            <div className="mt-1 text-ui-meta font-semibold uppercase tracking-wide">Life</div>
           </div>
         </div>
-        <div className="mt-3 flex flex-wrap gap-1.5 text-[11px] font-semibold">
+        <div className="mt-3 flex flex-wrap gap-1.5 text-ui-meta font-semibold">
           {spec.isActiveTurn && (
             <span className="rounded-full border border-active-action-active/30 bg-active-action-active/10 px-2 py-1 text-active-action-active">
               Active turn
@@ -102,11 +102,13 @@ export function PlayerSheetModal({ spec, onClose }: PlayerSheetModalProps) {
         </div>
       </Modal.Header>
 
-      <Modal.Body className="min-h-0 space-y-6">
-        <div className="grid gap-5 md:grid-cols-2">
+      <Modal.Body className="space-y-6">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,17rem),1fr))] gap-5">
           <section aria-label="Cards and zones">
-            <h3 className="mb-2 text-xs font-semibold text-muted-foreground">Cards and zones</h3>
-            <div className="grid grid-cols-2 gap-2">
+            <h3 className="mb-2 text-ui-meta font-semibold text-muted-foreground">
+              Cards and zones
+            </h3>
+            <div className="grid grid-cols-[repeat(2,minmax(0,1fr))] gap-2">
               <HandSummary
                 count={hand?.count ?? 0}
                 revealedCards={hand?.revealedCards ?? []}
@@ -121,7 +123,7 @@ export function PlayerSheetModal({ spec, onClose }: PlayerSheetModalProps) {
           </section>
 
           <section aria-label="Floating mana">
-            <h3 className="mb-2 text-xs font-semibold text-muted-foreground">Floating mana</h3>
+            <h3 className="mb-2 text-ui-meta font-semibold text-muted-foreground">Floating mana</h3>
             <dl className="grid grid-cols-3 gap-1.5">
               {MANA_LETTERS.map((letter) => {
                 const count = spec.manaPool[letter] ?? 0;
@@ -136,7 +138,7 @@ export function PlayerSheetModal({ spec, onClose }: PlayerSheetModalProps) {
                     <dt className={cn("flex items-center", count === 0 && "opacity-45")}>
                       <ManaSymbols cost={letter} size="lg" className="mx-0" />
                     </dt>
-                    <dd className="text-sm font-semibold tabular-nums lining-nums">{count}</dd>
+                    <dd className="text-ui-meta font-semibold tabular-nums lining-nums">{count}</dd>
                   </div>
                 );
               })}
@@ -214,10 +216,10 @@ function HandSummary({
       ) : (
         <CardsInHandIcon count={visibleCards} className="h-12 w-16" />
       )}
-      <div className="min-w-0 shrink-0">
-        <p className="text-xs text-muted-foreground">Cards in hand</p>
+      <div className="min-w-0">
+        <p className="text-ui-meta text-muted-foreground">Cards in hand</p>
         <p className="text-xl font-bold tabular-nums lining-nums">{count}</p>
-        {onView && <span className="text-xs text-muted-foreground">View</span>}
+        {onView && <span className="text-ui-label text-muted-foreground">View</span>}
       </div>
     </Element>
   );
@@ -231,9 +233,9 @@ function ResourceTile({ badge }: { badge: PlayerHudBadge }) {
         className="h-4 w-4 shrink-0"
         style={{ color: badge.color }}
       />
-      <span className="min-w-0 flex-1 truncate text-xs">{badge.label}</span>
-      <span className="text-sm font-bold tabular-nums lining-nums">{badge.count ?? 0}</span>
-      {badge.onTap && <span className="text-xs text-muted-foreground">View</span>}
+      <span className="min-w-0 flex-1 break-words text-ui-label">{badge.label}</span>
+      <span className="text-ui-meta font-bold tabular-nums lining-nums">{badge.count ?? 0}</span>
+      {badge.onTap && <span className="text-ui-label text-muted-foreground">View</span>}
     </>
   );
   const actionStyle = badge.actionable
@@ -244,7 +246,7 @@ function ResourceTile({ badge }: { badge: PlayerHudBadge }) {
       }
     : undefined;
   const className =
-    "flex min-h-11 pointer-coarse:min-h-12 w-full items-center gap-2 rounded-md border bg-muted/25 px-2.5 py-2 text-left";
+    "flex min-h-11 touch:min-w-11 w-full flex-wrap items-center gap-2 rounded-md border bg-muted/25 px-2.5 py-2 text-left";
 
   return badge.onTap ? (
     <button
@@ -268,13 +270,13 @@ function ResourceTile({ badge }: { badge: PlayerHudBadge }) {
 function BadgeSection({ title, badges }: { title: string; badges: PlayerHudBadge[] }) {
   return (
     <section aria-label={title}>
-      <h3 className="mb-2 text-xs font-semibold text-muted-foreground">{title}</h3>
-      <ul className="grid gap-1.5 sm:grid-cols-2">
+      <h3 className="mb-2 text-ui-meta font-semibold text-muted-foreground">{title}</h3>
+      <ul className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,15rem),1fr))] gap-1.5">
         {badges.map((badge) => (
-          <li key={badge.id} className={cn(badge.id === "ring" && "sm:col-span-2")}>
+          <li key={badge.id} className={cn(badge.id === "ring" && "col-span-full")}>
             <BadgeRow badge={badge} />
             {badge.id === "ring" && (
-              <ol className="mb-2 ml-8 mt-2 list-decimal space-y-2 pl-4 text-xs">
+              <ol className="mb-2 ml-8 mt-2 list-decimal space-y-2 pl-4 text-ui-body">
                 {RING_ABILITIES.map((ability, index) => {
                   const active = index < (badge.count ?? 0);
                   return (
@@ -303,23 +305,23 @@ function BadgeRow({ badge }: { badge: PlayerHudBadge }) {
       />
       <span className="min-w-0 flex-1 break-words">{badge.label}</span>
       {badge.lethal && (
-        <span className="shrink-0 text-xs font-semibold text-pt-lethal">Lethal</span>
+        <span className="shrink-0 text-ui-meta font-semibold text-pt-lethal">Lethal</span>
       )}
       {badge.count !== undefined && (
         <span
           className={cn(
-            "shrink-0 font-bold tabular-nums lining-nums",
+            "shrink-0 text-ui-meta font-bold tabular-nums lining-nums",
             badge.lethal && "text-pt-lethal",
           )}
         >
           {badge.count}
         </span>
       )}
-      {badge.onTap && <span className="shrink-0 text-xs text-muted-foreground">View</span>}
+      {badge.onTap && <span className="shrink-0 text-ui-label text-muted-foreground">View</span>}
     </>
   );
   const className = cn(
-    "flex min-h-11 pointer-coarse:min-h-12 w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm",
+    "flex min-h-11 touch:min-w-11 w-full flex-wrap items-center gap-2 rounded-md px-2.5 py-2 text-left text-ui-label",
     badge.lethal ? "bg-pt-lethal/10" : "bg-muted/20",
   );
 

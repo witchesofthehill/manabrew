@@ -81,7 +81,7 @@ export function LimitedBuildActions({
     <>
       <div className="flex min-w-0 max-w-full shrink-0 flex-wrap items-center gap-1 [&>button]:shrink-0">
         <span
-          className="mr-1 whitespace-nowrap px-2 text-xs tabular-nums text-foreground"
+          className="mr-1 px-2 text-ui-meta tabular-nums text-foreground"
           title={`${
             deck.main.length < targetMainSize
               ? `${targetMainSize - deck.main.length} more mainboard cards needed`

@@ -55,17 +55,17 @@ export function StatsDialog() {
           <Trophy className="mr-2 size-4" /> Stats ({stats.totalGames})
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="overflow-y-auto overscroll-contain">
         <DialogHeader>
           <DialogTitle>Play stats</DialogTitle>
         </DialogHeader>
         {stats.totalGames === 0 ? (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-ui-body text-muted-foreground">
             No archived games yet. End a game to start collecting stats.
           </p>
         ) : (
-          <div className="space-y-4 text-sm">
-            <div className="grid grid-cols-2 gap-3 text-xs">
+          <div className="space-y-4 text-ui-body">
+            <div className="grid grid-cols-2 gap-3 text-ui-meta">
               <Stat label={`Games`} value={stats.totalGames.toString()} />
               <Stat label={`Avg length`} value={formatDuration(stats.avgDurationMs)} />
               <Stat label={`Avg turns`} value={stats.avgTurns.toFixed(1)} />
@@ -74,15 +74,15 @@ export function StatsDialog() {
             <div>
               <div className="mb-1 font-medium">Wins by player</div>
               {stats.winsByName.length === 0 ? (
-                <p className="text-xs text-muted-foreground">
+                <p className="text-ui-meta text-muted-foreground">
                   No clean wins recorded (last-standing only).
                 </p>
               ) : (
                 <ul className="space-y-0.5 text-muted-foreground">
                   {stats.winsByName.map((row) => (
-                    <li key={row.name} className="flex justify-between">
-                      <span>{row.name}</span>
-                      <span className="tabular-nums">{row.wins}</span>
+                    <li key={row.name} className="flex justify-between gap-2">
+                      <span className="min-w-0 break-words">{row.name}</span>
+                      <span className="shrink-0 tabular-nums">{row.wins}</span>
                     </li>
                   ))}
                 </ul>
@@ -96,9 +96,9 @@ export function StatsDialog() {
 }
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border border-border p-2">
-      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="text-base font-semibold tabular-nums">{value}</div>
+    <div className="min-w-0 break-words rounded-md border border-border p-2">
+      <div className="text-ui-meta uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="text-ui-body font-semibold tabular-nums">{value}</div>
     </div>
   );
 }

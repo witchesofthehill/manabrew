@@ -29,7 +29,10 @@ export function SetStudyPicker({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="w-full justify-between sm:w-72">
+        <Button
+          variant="outline"
+          className="touch:min-w-11 touch:min-h-11 w-full justify-between sm:w-72"
+        >
           <span className="truncate">
             {selected?.name ?? (value ? value.toUpperCase() : "Choose a set…")}
           </span>

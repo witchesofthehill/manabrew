@@ -111,16 +111,16 @@ export function LimitedSetReference({
     >
       <DialogContent
         ref={setPreviewPortalTarget}
-        className="flex max-h-[90dvh] max-w-3xl flex-col overflow-hidden"
+        className="flex max-w-3xl flex-col overflow-y-auto overscroll-contain"
       >
-        <DialogHeader>
+        <DialogHeader className="shrink-0">
           <DialogTitle>Set reference</DialogTitle>
           <DialogDescription>
             Bundled set themes and rules notes. Card inspection uses shared card metadata; uncached
             cards and external sources need a connection.
           </DialogDescription>
         </DialogHeader>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
           <AppSelect
             value={selectedCode}
             onValueChange={(code) => {
@@ -151,7 +151,7 @@ export function LimitedSetReference({
             All bundled guides
           </Button>
         </div>
-        <div className="min-h-0 space-y-4 overflow-y-auto pr-1 text-sm">
+        <div className="min-h-16 space-y-4 overflow-y-auto overscroll-contain pr-1 text-ui-body">
           {mixed && (
             <p className="rounded border border-border bg-muted/30 p-3">
               {format === "cube" ? "Cube reference" : "Mixed-set reference"}. These are the original
@@ -168,14 +168,14 @@ export function LimitedSetReference({
             <section className="space-y-3">
               <h2 className="text-base font-semibold">{setName}</h2>
               <details className="rounded border border-border p-3" open>
-                <summary className="min-h-8 cursor-pointer font-medium">
+                <summary className="min-h-8 cursor-pointer text-ui-label font-medium touch:min-h-11">
                   Coverage and sources
                 </summary>
                 <p className="my-2 text-muted-foreground">
                   {guide?.coverage ??
                     "No authored set guide is bundled for this set. Current card text, individual rulings and the official rules remain available below. No set-specific archetype or pick advice is inferred."}
                 </p>
-                <p className="mb-2 text-xs text-muted-foreground">
+                <p className="mb-2 text-ui-meta text-muted-foreground">
                   Guide text is bundled for offline reading. Card buttons inspect an exact pool
                   printing when available, otherwise shared default metadata. Historical articles
                   may predate rules changes; current Oracle text and rules take precedence.
@@ -184,7 +184,7 @@ export function LimitedSetReference({
                   {guide?.sources.map((source) => (
                     <li key={source.url}>
                       <a
-                        className="text-primary underline underline-offset-4"
+                        className="inline-flex items-center text-ui-label text-primary underline underline-offset-4 touch:min-h-11"
                         href={source.url}
                         target="_blank"
                         rel="noopener noreferrer"
@@ -195,7 +195,7 @@ export function LimitedSetReference({
                   ))}
                   <li>
                     <a
-                      className="text-primary underline underline-offset-4"
+                      className="inline-flex items-center text-ui-label text-primary underline underline-offset-4 touch:min-h-11"
                       href={LIMITED_RULES_URL}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -205,7 +205,7 @@ export function LimitedSetReference({
                   </li>
                   <li>
                     <a
-                      className="text-primary underline underline-offset-4"
+                      className="inline-flex items-center text-ui-label text-primary underline underline-offset-4 touch:min-h-11"
                       href={LIMITED_GATHERER_URL}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -239,8 +239,8 @@ export function LimitedSetReference({
             </section>
           )}
         </div>
-        <div className="flex items-center justify-between gap-3 border-t border-border pt-3">
-          <p role="status" className="text-xs text-muted-foreground">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
+          <p role="status" className="text-ui-meta text-muted-foreground">
             {inspection
               ? inspection.error
                 ? `Card details unavailable for ${inspection.name}. Reconnect and select the card to retry.`

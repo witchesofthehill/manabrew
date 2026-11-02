@@ -65,8 +65,8 @@ export function CardGlintAppearanceLab({
     >
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
-          <h2 className="font-semibold">Card Glint material workbench</h2>
-          <p className="max-w-3xl text-xs text-muted-foreground">
+          <h2 className="text-ui-label font-semibold">Card Glint material workbench</h2>
+          <p className="max-w-3xl text-ui-body text-muted-foreground">
             Coating, print dots, wear, fog and coverage also apply to the production comparisons
             below. Deformation, printing reflections and holograms affect only this native preview.
             Nothing is saved.
@@ -87,13 +87,13 @@ export function CardGlintAppearanceLab({
         </div>
       </header>
       {copyState.failed === settings && (
-        <p role="alert" className="text-xs text-destructive">
+        <p role="alert" className="text-ui-body text-destructive">
           Clipboard access failed. Select and copy the JSON below.
         </p>
       )}
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(15rem,20rem)_minmax(0,1fr)]">
         <div className="min-w-0 space-y-2 lg:sticky lg:top-3">
-          <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-ui-meta text-muted-foreground">
             <span>{CARD_FINISH_PRESETS.find((preset) => preset.id === finish)?.label}</span>
             <span>Native renderer</span>
           </div>
@@ -107,7 +107,7 @@ export function CardGlintAppearanceLab({
             onPoseChange={onPoseChange}
             className="rounded-md border border-border bg-background"
           />
-          <p className="text-xs text-muted-foreground">
+          <p className="text-ui-body text-muted-foreground">
             Uses the selected printing. Live game-state edits below do not change this preview.
           </p>
         </div>
@@ -123,7 +123,7 @@ export function CardGlintAppearanceLab({
             open={copyState.failed === settings}
             className="rounded-md border border-border p-3"
           >
-            <summary className="cursor-pointer text-xs font-medium">
+            <summary className="cursor-pointer py-2 text-ui-label font-medium touch:min-h-11">
               Candidate settings JSON
             </summary>
             <textarea
@@ -131,7 +131,7 @@ export function CardGlintAppearanceLab({
               readOnly
               value={settings}
               rows={10}
-              className="mt-3 w-full resize-y rounded-md border border-input bg-background p-2 font-mono text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="mt-3 w-full resize-y rounded-md border border-input bg-background p-2 font-mono text-ui-input text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               onFocus={(event) => event.currentTarget.select()}
             />
           </details>

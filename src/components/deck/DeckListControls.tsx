@@ -42,7 +42,7 @@ const SORT_OPTIONS: {
   },
 ];
 const SELECT_CLS =
-  "h-9 min-w-0 flex-1 cursor-pointer rounded border bg-background px-2 text-xs pointer-coarse:h-11 pointer-coarse:text-base";
+  "min-h-9 min-w-32 flex-1 cursor-pointer rounded border bg-background px-2 py-1 text-ui-label touch:min-h-11 touch:min-w-32";
 interface DeckListControlsProps {
   search: string;
   onSearchChange: (v: string) => void;
@@ -73,24 +73,29 @@ export function DeckListControls({
   return (
     <div
       className={cn(
-        "mt-2 flex shrink-0 items-center gap-1 px-4 py-1.5 sm:px-6 lg:px-8",
+        "mt-2 flex shrink-0 flex-wrap items-center gap-2 px-4 py-1.5 sm:px-6 lg:px-8",
         isTouch && "flex-wrap gap-2 py-2",
       )}
     >
-      <div className={cn("relative min-w-0 flex-[2]", isTouch && "w-full flex-none sm:flex-1")}>
+      <div
+        className={cn(
+          "relative min-w-[min(100%,14rem)] flex-[2]",
+          isTouch && "w-full flex-none sm:flex-1",
+        )}
+      >
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           aria-label="Search decks"
           placeholder="Search decks…"
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
-          className="h-9 pl-9 pr-11 text-xs pointer-coarse:h-11 pointer-coarse:text-base"
+          className="pl-9 pr-11"
         />
         {search && (
           <button
             type="button"
             aria-label="Clear deck search"
-            className="absolute right-0 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center text-muted-foreground hover:text-foreground pointer-coarse:h-11 pointer-coarse:w-11"
+            className="absolute right-0 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center text-muted-foreground hover:text-foreground touch:min-h-11 touch:min-w-11"
             onClick={() => onSearchChange("")}
           >
             <X className="h-3.5 w-3.5" />
@@ -100,7 +105,7 @@ export function DeckListControls({
 
       <div
         className={cn(
-          "flex min-w-0 flex-[1] items-center gap-1",
+          "flex min-w-[min(100%,18rem)] flex-[1] flex-wrap items-center gap-2",
           isTouch && "w-full flex-none gap-2 sm:w-auto sm:flex-1",
         )}
       >
@@ -125,7 +130,7 @@ export function DeckListControls({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
             <DropdownMenuItem onSelect={() => onFormatChange("")} className="gap-2">
-              <span className="text-xs">All formats</span>
+              <span>All formats</span>
               {!formatFilter && <Check className="ml-auto h-3 w-3 text-primary" />}
             </DropdownMenuItem>
             {GAME_FORMATS.map((format) => (
@@ -135,7 +140,7 @@ export function DeckListControls({
                 className="gap-2"
               >
                 <FormatBadge formatId={format.id} />
-                <span className="text-xs">{format.name}</span>
+                <span>{format.name}</span>
                 {formatFilter === format.id && <Check className="ml-auto h-3 w-3 text-primary" />}
               </DropdownMenuItem>
             ))}
@@ -206,13 +211,13 @@ export function DeckListControls({
                 title={`Filter by ${COLOR_LABEL[color]}`}
                 onClick={() => onColorToggle(color)}
                 className={cn(
-                  "h-4 w-4 shrink-0 overflow-hidden rounded-full border-2 transition-all focus:outline-none",
+                  "flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 transition-all focus:outline-none touch:min-h-11 touch:min-w-11",
                   active
                     ? "scale-110 border-selection-border"
                     : "border-transparent opacity-40 hover:opacity-70",
                 )}
               >
-                <ScryfallImg src={manaSymbolUrl(color)} alt={color} className="h-full w-full" />
+                <ScryfallImg src={manaSymbolUrl(color)} alt={color} className="h-4 w-4" />
               </button>
             );
           })
@@ -224,7 +229,7 @@ export function DeckListControls({
             aria-label={`Clear all filters`}
             title={`Clear all filters`}
             onClick={clearAll}
-            className="inline-flex h-9 w-9 shrink-0 items-center justify-center text-muted-foreground hover:text-foreground pointer-coarse:h-11 pointer-coarse:w-11"
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center text-muted-foreground hover:text-foreground touch:min-h-11 touch:min-w-11"
           >
             <X className="h-4 w-4" />
           </button>

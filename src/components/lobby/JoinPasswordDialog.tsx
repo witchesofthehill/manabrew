@@ -54,7 +54,7 @@ export function JoinPasswordDialog({ room, onClose, onJoin }: JoinPasswordDialog
   }
   return (
     <Dialog open={room != null} onOpenChange={(open) => !open && close()}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-sm overflow-y-auto">
         <DialogTitle className="flex items-center gap-2">
           <Lock className="h-4 w-4" />
           Password-Protected Table
@@ -86,10 +86,10 @@ export function JoinPasswordDialog({ room, onClose, onJoin }: JoinPasswordDialog
                 if (e.key === "Enter") void submit();
               }}
               aria-label={`Password`}
-              className="absolute inset-0 h-full w-full cursor-text opacity-0"
+              className="absolute inset-0 h-full w-full cursor-text opacity-0 touch:min-h-11 touch:min-w-11 text-ui-input"
             />
             {password.length === 0 && !focused && (
-              <span className="text-sm text-muted-foreground">Enter password</span>
+              <span className="text-ui-input text-muted-foreground">Enter password</span>
             )}
             {password.split("").map((_, i) => {
               const isSelected = focused && i >= selection.start && i < selection.end;
@@ -111,7 +111,7 @@ export function JoinPasswordDialog({ room, onClose, onJoin }: JoinPasswordDialog
               <span className="animate-password-caret h-7 w-0.5 shrink-0 rounded-full bg-foreground" />
             )}
           </div>
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && <p className="text-ui-meta text-destructive">{error}</p>}
         </div>
 
         <DialogFooter>

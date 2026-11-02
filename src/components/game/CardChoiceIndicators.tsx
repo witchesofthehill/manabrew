@@ -39,7 +39,7 @@ export function CardChoiceIndicators({
             "inline-flex min-w-0 items-center justify-center rounded font-bold shadow-md",
             "bg-card-status-choice/95 text-text-on-tinted",
             expanded
-              ? "gap-1.5 px-2 py-1 text-[11px]"
+              ? "gap-1.5 px-2 py-1 text-ui-meta"
               : "max-w-full gap-0.5 px-1.5 py-0.5 text-[7px] leading-none",
           )}
         >

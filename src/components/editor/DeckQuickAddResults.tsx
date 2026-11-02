@@ -23,8 +23,8 @@ export function DeckQuickAddResults({
   getCount,
 }: DeckQuickAddResultsProps) {
   return (
-    <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-80 min-w-[300px] overflow-y-auto rounded-md border bg-popover shadow-lg">
-      <div className="sticky top-0 z-10 border-b bg-popover px-2 py-1 text-[10px] text-muted-foreground">
+    <div className="absolute right-0 top-full z-50 mt-1 max-h-[min(24rem,60dvh)] w-96 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-md border bg-popover shadow-lg">
+      <div className="sticky top-0 z-10 border-b bg-popover px-2 py-1 text-ui-meta text-muted-foreground">
         Click or press Enter to add one to the main deck
       </div>
       {results.map((card, index) => {
@@ -41,7 +41,7 @@ export function DeckQuickAddResults({
           >
             <button
               type="button"
-              className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1 text-left"
+              className="touch:min-w-11 touch:min-h-11 flex min-w-0 flex-1 items-center gap-2 px-2 py-1 text-left"
               title={`Add one ${displayName} to main deck`}
               onClick={() => onQuickAdd(card)}
             >
@@ -51,15 +51,17 @@ export function DeckQuickAddResults({
                   className="h-11 w-8 shrink-0 rounded"
                 />
               )}
-              <span className="min-w-0 flex-1 truncate text-xs font-medium">{displayName}</span>
-              <span className="shrink-0 text-[10px] text-muted-foreground">
+              <span className="min-w-0 flex-1 truncate text-ui-label font-medium">
+                {displayName}
+              </span>
+              <span className="shrink-0 text-ui-meta text-muted-foreground">
                 {getCount(card.name)} in deck
               </span>
               <Plus className="h-3.5 w-3.5 shrink-0 text-primary" />
             </button>
             <button
               type="button"
-              className="mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-background hover:text-foreground"
+              className="touch:min-w-11 touch:min-h-11 mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-background hover:text-foreground"
               title={`More ways to add ${displayName}`}
               onClick={() => onOptions(card)}
             >

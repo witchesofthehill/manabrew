@@ -23,7 +23,7 @@ interface AccountMenuProps {
 }
 
 const MENU_ITEM_CLASS =
-  "my-0.5 gap-2.5 rounded-md bg-transparent px-2.5 py-2 text-[13px] focus:bg-muted focus:text-foreground pointer-coarse:py-2.5";
+  "my-0.5 min-h-8 touch:min-h-11 gap-2.5 whitespace-normal rounded-md bg-transparent px-2.5 py-2 text-ui-label focus:bg-muted focus:text-foreground touch:py-2.5";
 
 export function AccountMenu({ disabled = false }: AccountMenuProps) {
   const navigate = useNavigate();
@@ -93,14 +93,14 @@ export function AccountMenu({ disabled = false }: AccountMenuProps) {
           aria-label={signedInAccount ? `Account: @${signedInAccount.handle}` : `Account menu`}
           title={signedInAccount ? `@${signedInAccount.handle}` : displayName || `Account`}
           className={cn(
-            "relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border/70 bg-muted pointer-coarse:h-11 pointer-coarse:w-11",
+            "relative flex min-h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border/70 bg-muted touch:min-h-11 touch:w-11 touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal",
             "motion-safe:transition-[border-color,box-shadow] hover:border-primary/40 hover:shadow-sm",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
             "data-[state=open]:border-primary/50 data-[state=open]:ring-2 data-[state=open]:ring-ring",
             isSettingsRoute && "border-primary/50",
           )}
         >
-          {renderAvatar("text-sm pointer-coarse:text-base")}
+          {renderAvatar("text-ui-label")}
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -111,18 +111,20 @@ export function AccountMenu({ disabled = false }: AccountMenuProps) {
       >
         <div className="flex items-center gap-3 px-2 pb-2.5 pt-1.5">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border/70 bg-muted">
-            {renderAvatar("text-base")}
+            {renderAvatar("text-ui-body")}
           </span>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold leading-tight">{displayName || `Guest`}</p>
-            <p className="truncate text-xs text-muted-foreground">
+            <p className="break-words text-ui-label font-semibold leading-tight">
+              {displayName || `Guest`}
+            </p>
+            <p className="break-words text-ui-meta text-muted-foreground">
               {signedInAccount ? `Signed in` : `Playing as a guest`}
             </p>
           </div>
           <Button
             size="icon"
             variant="ghost"
-            className="size-8 shrink-0"
+            className="size-8 shrink-0 touch:min-h-11 touch:min-w-11"
             onClick={toggleFullscreen}
             aria-label={isFullscreen ? `Exit fullscreen` : `Fullscreen`}
             title={isFullscreen ? `Exit fullscreen` : `Fullscreen`}

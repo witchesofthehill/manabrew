@@ -61,13 +61,13 @@ export function DeckHubCuratedSections({ onOpen, onAuthor }: DeckHubCuratedSecti
 
         <section className="rounded-2xl border border-border/70 bg-muted/20 p-3 sm:p-4">
           <div className="mb-3 h-7 w-40 animate-pulse rounded bg-muted" />
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <div className="@container grid grid-cols-[repeat(auto-fit,minmax(min(100%,16rem),1fr))] gap-3">
             {Array.from({ length: 4 }, (_, index) => (
               <div
                 key={index}
                 className={cn(
                   "aspect-[4/3] animate-pulse rounded-lg bg-muted",
-                  index === 0 && "col-span-2 row-span-2",
+                  index === 0 && "@min-[52rem]:col-span-2 @min-[52rem]:row-span-2",
                 )}
               />
             ))}
@@ -105,9 +105,12 @@ export function DeckHubCuratedSections({ onOpen, onAuthor }: DeckHubCuratedSecti
       {popular.length > 0 && (
         <section className="rounded-2xl border border-border/70 bg-muted/20 p-3 sm:p-4">
           <SectionHeading title={`Most favorited`} />
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <div className="@container grid grid-cols-[repeat(auto-fit,minmax(min(100%,16rem),1fr))] gap-3">
             {popular.map((entry, index) => (
-              <div key={entry.id} className={index === 0 ? "col-span-2 row-span-2" : ""}>
+              <div
+                key={entry.id}
+                className={index === 0 ? "@min-[52rem]:col-span-2 @min-[52rem]:row-span-2" : ""}
+              >
                 <DeckHubEntryCard
                   entry={entry}
                   onOpen={() => onOpen(entry.id)}

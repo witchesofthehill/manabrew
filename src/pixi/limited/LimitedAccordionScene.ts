@@ -19,17 +19,25 @@ export class LimitedAccordionScene implements LimitedPane {
   private current = [0.25, 0.5, 0.75];
   private target = [0.25, 0.5, 0.75];
   private open = [true, true, true, true];
+  private readonly expandedIndices: number[] = [];
   private width = 0;
   private height = 0;
+  private readonly sections: NodeListOf<HTMLElement>;
+  private headerHeight = 0;
 
   constructor(host: HTMLElement) {
     this.host = host;
+    this.sections = host.querySelectorAll<HTMLElement>("[data-limited-section]");
     this.root.addChild(this.veil);
     this.dividers = new BattlefieldDividers(getTheme(), () => this.renderer.request());
     this.root.addChild(this.dividers.root);
     this.renderer = acquireLimitedRenderer(this);
     this.observer = new ResizeObserver(() => this.resize());
     this.observer.observe(host);
+    for (const section of this.sections) {
+      const header = section.querySelector("header");
+      if (header) this.observer.observe(header);
+    }
     this.unsubscribeTheme = subscribeTheme(() => {
       this.dividers.setTheme(getTheme());
       this.paint();
@@ -45,11 +53,22 @@ export class LimitedAccordionScene implements LimitedPane {
   private resize(): void {
     this.width = this.host.clientWidth;
     this.height = this.host.clientHeight;
+    this.headerHeight = 0;
+    for (const section of this.sections) {
+      this.headerHeight = Math.max(
+        this.headerHeight,
+        section.querySelector("header")?.clientHeight ?? 0,
+      );
+    }
     this.retarget();
     this.renderer.request();
   }
   private retarget(): void {
     const count = this.open.length;
+    this.expandedIndices.length = 0;
+    for (let index = 0; index < count; index++) {
+      if (this.open[index]) this.expandedIndices.push(index);
+    }
     const expanded = this.open.filter(Boolean).length;
     const collapsed = collapsedOpponentWidth(this.width, count);
     const expandedWidth = expanded
@@ -60,7 +79,7 @@ export class LimitedAccordionScene implements LimitedPane {
       edge += open ? expandedWidth : collapsed;
       return this.width ? edge / this.width : 0;
     });
-    for (const section of this.host.querySelectorAll<HTMLElement>("[data-limited-section]")) {
+    for (const section of this.sections) {
       section.style.setProperty(
         "--limited-section-width",
         `${Math.max(collapsed, expandedWidth)}px`,
@@ -72,29 +91,33 @@ export class LimitedAccordionScene implements LimitedPane {
     setFrameRatio(deltaMs);
     const animated = animationsEnabled();
     let moving = false;
+    let unsettled = false;
     for (let index = 0; index < this.target.length; index++) {
       const next = animated
         ? lerp(this.current[index], this.target[index], DELIMITER_EASE.FACTOR, DELIMITER_EASE.SNAP)
         : this.target[index];
       moving ||= next !== this.current[index];
+      unsettled ||= next !== this.target[index];
       this.current[index] = next;
     }
     if (moving) this.paint();
-    return moving || this.current.some((edge, index) => edge !== this.target[index]);
+    return moving || unsettled;
   };
   readonly frame = (): boolean => {
     this.dividers.setAnimated(animationsEnabled() && this.width > 0);
     return false;
   };
   private paint(): void {
-    const sections = this.host.querySelectorAll<HTMLElement>("[data-limited-section]");
+    const sections = this.sections;
     const collapsed = collapsedOpponentWidth(this.width, this.open.length);
     const veilStart = collapsed * 2;
-    const headerHeight = sections[0]?.querySelector("header")?.clientHeight ?? 0;
+    const headerHeight = this.headerHeight;
     const contentHeight = Math.max(0, this.height - headerHeight);
     this.dividers.root.y = headerHeight;
     this.veil.clear();
-    sections.forEach((section, index) => {
+    const veilColor = hexToNum(getTheme().gameTheme.canvas.background);
+    for (let index = 0; index < sections.length; index++) {
+      const section = sections[index]!;
       const left = Math.round((index === 0 ? 0 : this.current[index - 1]) * this.width);
       const right = Math.round(
         (index === this.open.length - 1 ? 1 : this.current[index]) * this.width,
@@ -105,15 +128,9 @@ export class LimitedAccordionScene implements LimitedPane {
       if (fraction > 0.001)
         this.veil
           .rect(left, headerHeight, bandWidth, contentHeight)
-          .fill({ color: hexToNum(getTheme().gameTheme.canvas.background), alpha: fraction });
-    });
-    this.dividers.draw(
-      this.width,
-      contentHeight,
-      this.current,
-      this.open.flatMap((open, index) => (open ? [index] : [])),
-      collapsed,
-    );
+          .fill({ color: veilColor, alpha: fraction });
+    }
+    this.dividers.draw(this.width, contentHeight, this.current, this.expandedIndices, collapsed);
   }
   destroy(): void {
     this.observer.disconnect();

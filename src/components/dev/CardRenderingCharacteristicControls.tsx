@@ -30,7 +30,7 @@ export function CardRenderingCharacteristicControls({
     Number.isFinite(Number(card.toughness));
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 lg:grid-cols-3">
         {TYPE_FIELDS.map((key) => (
           <CardRenderingTextField
             key={key}
@@ -53,7 +53,7 @@ export function CardRenderingCharacteristicControls({
           />
         ))}
       </div>
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 lg:grid-cols-3">
         {(["power", "toughness"] as const).map((key) => (
           <CardRenderingTextField
             key={key}
@@ -132,7 +132,7 @@ export function CardRenderingCharacteristicControls({
           Automatic P/T
         </Button>
       </div>
-      <p className="text-xs text-muted-foreground">
+      <p className="text-ui-body text-muted-foreground">
         P/T edits set final values. Automatic P/T follows the fixture and +1/+1 or −1/−1 counter
         changes. Clear a P/T field to remove that stat. Printed characteristics and the scan stay
         unchanged.

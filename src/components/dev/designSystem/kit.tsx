@@ -29,7 +29,7 @@ export function Section({
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-controls={`${id}-content`}
-        className="ds-section-toggle flex w-full items-center gap-3 text-left"
+        className="ds-section-toggle flex min-h-9 w-full items-center gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring touch:min-h-11"
       >
         <ChevronRight
           className={cn(
@@ -43,7 +43,7 @@ export function Section({
         id={`${id}-content`}
         className={cn("ds-section-content space-y-6 pt-4", !open && "hidden")}
       >
-        {intro && <p className="max-w-2xl text-sm text-muted-foreground">{intro}</p>}
+        {intro && <p className="max-w-2xl text-ui-body text-muted-foreground">{intro}</p>}
         {children}
       </div>
     </section>
@@ -51,14 +51,14 @@ export function Section({
 }
 export function Subhead({ children }: { children: React.ReactNode }) {
   return (
-    <h3 className="ds-subhead text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+    <h3 className="ds-subhead text-ui-label font-semibold uppercase tracking-[0.08em] text-muted-foreground">
       {children}
     </h3>
   );
 }
 export function Panel({ className, children }: { className?: string; children: React.ReactNode }) {
   return (
-    <div className={cn("ds-panel rounded-lg border border-border bg-card p-5", className)}>
+    <div className={cn("ds-panel min-w-0 rounded-lg border border-border bg-card p-5", className)}>
       {children}
     </div>
   );
@@ -74,7 +74,7 @@ export function CopyChip({ value, className }: { value: string; className?: stri
         window.setTimeout(() => setCopied(false), 1200);
       }}
       className={cn(
-        "rounded font-mono text-[11px] text-muted-foreground transition-colors hover:text-foreground",
+        "inline-flex min-h-8 max-w-full items-center rounded font-mono text-ui-label break-all text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring touch:min-h-11 touch:min-w-11",
         className,
       )}
       title={`Copy ${value}`}
@@ -100,8 +100,8 @@ export function Swatch({ value, label, sub }: { value: string; label: string; su
         <div className="h-full w-full" style={{ background: value }} />
       </div>
       <div className="space-y-0.5 p-2">
-        <div className="truncate text-[11px] font-semibold leading-tight">{label}</div>
-        {sub && <div className="truncate text-[10px] text-muted-foreground">{sub}</div>}
+        <div className="text-ui-label font-semibold break-words">{label}</div>
+        {sub && <div className="text-ui-meta break-words text-muted-foreground">{sub}</div>}
         <CopyChip value={value} />
       </div>
     </div>
@@ -109,7 +109,7 @@ export function Swatch({ value, label, sub }: { value: string; label: string; su
 }
 export function SwatchGrid({ children }: { children: React.ReactNode }) {
   return (
-    <div className="ds-swatch-grid grid grid-cols-[repeat(auto-fill,minmax(112px,1fr))] gap-2">
+    <div className="ds-swatch-grid grid grid-cols-[repeat(auto-fill,minmax(min(100%,160px),1fr))] gap-2">
       {children}
     </div>
   );
@@ -118,7 +118,7 @@ export function Tile({ label, children }: { label: string; children: React.React
   return (
     <div className="ds-tile flex flex-col items-center gap-2 rounded-lg border border-border bg-card p-3 text-center">
       <div className="flex min-h-9 items-center justify-center">{children}</div>
-      <span className="text-[10px] leading-tight text-muted-foreground">{label}</span>
+      <span className="text-ui-meta break-words text-muted-foreground">{label}</span>
     </div>
   );
 }
@@ -126,7 +126,7 @@ export function TileGrid({ min = 92, children }: { min?: number; children: React
   return (
     <div
       className="grid gap-2"
-      style={{ gridTemplateColumns: `repeat(auto-fill,minmax(${min}px,1fr))` }}
+      style={{ gridTemplateColumns: `repeat(auto-fill,minmax(min(100%,${min}px),1fr))` }}
     >
       {children}
     </div>

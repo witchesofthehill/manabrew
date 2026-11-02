@@ -174,6 +174,7 @@ export class DialogCardPickerScene {
       gsap.killTweensOf(entry.sprite.scale);
       entry.sprite.rotation = rotated ? -Math.PI / 2 : 0;
       entry.sprite.scale.set(displayScale);
+      entry.sprite.setHandRulesScale(scale);
       entry.sprite.setChromeScale(1 / scale);
       entry.sprite.syncHandControlsScale();
       const row = Math.floor(absoluteIndex / props.columns);

@@ -33,7 +33,10 @@ interface NumberFieldProps {
 }
 function NumberField({ id, label, value, min, max, onChange }: NumberFieldProps) {
   return (
-    <label htmlFor={id} className="flex flex-col gap-2 text-sm font-medium text-foreground">
+    <label
+      htmlFor={id}
+      className="flex min-w-0 flex-col gap-2 text-ui-label font-medium text-foreground"
+    >
       {label}
       <Input
         id={id}
@@ -57,7 +60,7 @@ export function LimitedSetupOptions(props: LimitedSetupOptionsProps) {
   return (
     <fieldset disabled={props.disabled} className="min-w-0 space-y-4">
       <legend className="mb-3 font-serif text-lg font-semibold text-foreground">Options</legend>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-3">
         {props.mode === "sealed" && (
           <NumberField
             id={`${id}-sealed-packs`}
@@ -90,7 +93,7 @@ export function LimitedSetupOptions(props: LimitedSetupOptionsProps) {
         )}
         {variants.length > 0 && (
           <div className="space-y-2">
-            <span id={`${id}-variant-label`} className="block text-sm font-medium">
+            <span id={`${id}-variant-label`} className="block text-ui-label font-medium">
               Booster variant
             </span>
             <AppSelect
@@ -118,10 +121,10 @@ export function LimitedSetupOptions(props: LimitedSetupOptionsProps) {
         />
       )}
       <details className="border-t border-border/60 pt-3">
-        <summary className="w-fit cursor-pointer rounded-sm text-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        <summary className="min-h-8 w-fit cursor-pointer rounded-sm text-ui-label text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring touch:min-h-11">
           Advanced
         </summary>
-        <div className="mt-3 grid grid-cols-2 gap-3">
+        <div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-3">
           {props.mode === "draft" && (
             <NumberField
               id={`${id}-picks`}
@@ -134,7 +137,7 @@ export function LimitedSetupOptions(props: LimitedSetupOptionsProps) {
           )}
           <label
             htmlFor={`${id}-seed`}
-            className="flex flex-col gap-2 text-sm font-medium text-foreground"
+            className="flex min-w-0 flex-col gap-2 text-ui-label font-medium text-foreground"
           >
             Seed (optional)
             <Input

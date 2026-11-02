@@ -61,7 +61,7 @@ export function CardGlintAppearanceHologram({ value, onChange }: CardGlintAppear
           <AppSelectOption value="rectangle">Rectangle</AppSelectOption>
         </AppSelect>
       </label>
-      <div className="grid min-w-0 gap-3 sm:grid-cols-2">
+      <div className="grid min-w-0 gap-3 sm:grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))]">
         <CardGlintAppearanceNumber
           label="Hologram strength"
           value={hologram?.strength ?? 0.5}
@@ -99,7 +99,7 @@ export function CardGlintAppearanceHologram({ value, onChange }: CardGlintAppear
           />
         ))}
       </div>
-      <p className="text-xs text-muted-foreground">
+      <p className="text-ui-body text-muted-foreground">
         Native keeps the card recipe's hologram; Off removes it. Coordinates start at the top-left.
         Width and height can extend past the card and are clipped at its edge.
       </p>

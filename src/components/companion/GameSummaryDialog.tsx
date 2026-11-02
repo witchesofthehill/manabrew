@@ -14,7 +14,7 @@ export function GameSummaryDialog() {
   const dismissSummary = useCompanionStore((s) => s.dismissSummary);
   return (
     <Dialog open={Boolean(summary)} onOpenChange={(open) => !open && dismissSummary()}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md overflow-y-auto overscroll-contain">
         <DialogHeader>
           <DialogTitle>Game summary</DialogTitle>
         </DialogHeader>
@@ -36,21 +36,21 @@ function SummaryBody({
     <>
       <div className="space-y-3">
         {winner && <p className="text-center text-lg font-semibold">🏆 {winner.name} wins</p>}
-        <div className="rounded-md border border-border p-3 text-sm">
+        <div className="rounded-md border border-border p-3 text-ui-body">
           <div className="mb-1 font-medium">Final scores</div>
           <ul className="space-y-0.5 text-muted-foreground">
             {session.players.map((p) => (
               <li key={p.id} className="flex justify-between gap-2">
-                <span className="truncate">
+                <span className="min-w-0 break-words">
                   {p.name}
                   {p.isDead ? ` (eliminated)` : ""}
                 </span>
-                <span className="tabular-nums">{p.life}</span>
+                <span className="shrink-0 tabular-nums">{p.life}</span>
               </li>
             ))}
           </ul>
         </div>
-        <div className="grid grid-cols-2 gap-3 text-xs text-muted-foreground">
+        <div className="grid grid-cols-2 gap-3 text-ui-meta text-muted-foreground">
           <div>
             <div className="font-medium text-foreground">Length</div>
             <div>{formatDuration(lengthMs)}</div>

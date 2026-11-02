@@ -4,6 +4,7 @@ import { GAME_CARD_SIZES } from "@/components/game/game.constants";
 import { CardHoverPreview } from "@/components/game/CardHoverPreview";
 import { LimitedBoosterOverlay } from "@/components/limited/LimitedBoosterOverlay";
 import { useCardPreview } from "@/hooks/useCardPreview";
+import { useTheme } from "@/hooks/useTheme";
 import { refToDeckCard } from "@/lib/limited.utils";
 import { deckCardToPreviewDto } from "@/lib/scryfall.utils";
 import { cn } from "@/lib/utils";
@@ -76,6 +77,7 @@ export function LimitedCardCanvas({
   emptyMessage = "No cards in this zone.",
   previewPortalTarget,
 }: LimitedCardCanvasProps) {
+  const theme = useTheme();
   const scrollHost = useRef<HTMLDivElement>(null);
   const canvasHost = useRef<HTMLDivElement>(null);
   const scene = useRef<LimitedCardScene | null>(null);
@@ -155,24 +157,23 @@ export function LimitedCardCanvas({
     },
     [cards, locale],
   );
-  const layout = useMemo(
-    () =>
-      limitedLayout(
-        cards,
-        viewport.width,
-        cardSize ??
-          (presentation === "spread" ? GAME_CARD_SIZES.prompt.width : GAME_CARD_SIZES.hand.width),
-        groupBy,
-        (card) =>
-          peekCard(bucket, {
-            name: card.name,
-            setCode: card.setCode,
-            collectorNumber: card.cardNumber,
-          }),
-        { presentation, height: viewport.height },
-      ),
-    [cards, viewport.width, viewport.height, cardSize, groupBy, bucket, presentation],
-  );
+  const layout = useMemo(() => {
+    void theme;
+    return limitedLayout(
+      cards,
+      viewport.width,
+      cardSize ??
+        (presentation === "spread" ? GAME_CARD_SIZES.prompt.width : GAME_CARD_SIZES.hand.width),
+      groupBy,
+      (card) =>
+        peekCard(bucket, {
+          name: card.name,
+          setCode: card.setCode,
+          collectorNumber: card.cardNumber,
+        }),
+      { presentation, height: viewport.height },
+    );
+  }, [cards, viewport.width, viewport.height, cardSize, groupBy, bucket, presentation, theme]);
   const inspect = useCallback(
     (card: DraftCard | null, sticky: boolean) => {
       if (getSnapshot().sticky && !sticky) return;
@@ -344,7 +345,7 @@ export function LimitedCardCanvas({
         between cards.
       </p>
       {error && (
-        <p role="status" className="px-3 text-sm text-muted-foreground">
+        <p role="status" className="px-3 text-ui-meta text-muted-foreground">
           Card canvas unavailable. Use the card controls below. {error}
         </p>
       )}
@@ -422,7 +423,7 @@ export function LimitedCardCanvas({
                 if (!openingActive && error) onActivate?.(cell.card);
               }}
               className={cn(
-                "absolute z-[2] cursor-pointer rounded-md p-2 text-sm opacity-0 focus-visible:opacity-100 focus-visible:bg-card focus-visible:text-card-foreground focus-visible:outline-2 focus-visible:outline-primary",
+                "absolute z-[2] cursor-pointer rounded-md p-2 text-ui-label opacity-0 focus-visible:opacity-100 focus-visible:bg-card focus-visible:text-card-foreground focus-visible:outline-2 focus-visible:outline-primary",
                 onDrop && "cursor-grab active:cursor-grabbing",
                 error && "bg-card opacity-100",
                 selectedIds.includes(cell.card.id) && "ring-2 ring-selection-border",
@@ -441,7 +442,7 @@ export function LimitedCardCanvas({
           {!cards.length && (
             <p
               role="status"
-              className="absolute inset-x-0 top-8 text-center text-sm text-muted-foreground"
+              className="absolute inset-x-0 top-8 text-center text-ui-meta text-muted-foreground"
             >
               {emptyMessage}
             </p>

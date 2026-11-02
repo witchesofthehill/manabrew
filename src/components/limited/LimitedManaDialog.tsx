@@ -135,7 +135,7 @@ export function LimitedManaDialog({ sessionKey, session, main, targetMainSize, o
         if (!open && !applying) onClose();
       }}
     >
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg overflow-y-auto overscroll-contain">
         <DialogHeader>
           <DialogTitle>Suggest basic lands</DialogTitle>
           <DialogDescription>
@@ -154,7 +154,7 @@ export function LimitedManaDialog({ sessionKey, session, main, targetMainSize, o
             setTarget(Math.max(0, Math.min(targetMainSize, Number(event.target.value) || 0)))
           }
         />
-        <table className="w-full text-sm">
+        <table className="w-full text-ui-meta">
           <thead>
             <tr className="text-left text-muted-foreground">
               <th>Basic</th>
@@ -174,19 +174,19 @@ export function LimitedManaDialog({ sessionKey, session, main, targetMainSize, o
             ))}
           </tbody>
         </table>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-ui-meta text-muted-foreground">
           {preview.lands} acquired lands retained. Preview:{" "}
           {preview.retained.length +
             Object.values(preview.allocation).reduce((sum, count) => sum + count, 0)}{" "}
           main cards. A multicolor land counts as a source for each color it produces.
         </p>
         {preview.unknown > 0 && (
-          <p role="status" className="text-sm text-warning">
+          <p role="status" className="text-ui-meta text-warning">
             Waiting for details of {preview.unknown} main cards.
           </p>
         )}
         {!preview.total && (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-ui-body text-muted-foreground">
             No colored mana costs found. Add the basics you want manually.
           </p>
         )}

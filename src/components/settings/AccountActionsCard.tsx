@@ -16,8 +16,8 @@ function ActionRow({ title, description, action }: ActionRowProps) {
   return (
     <div className="flex flex-col gap-3 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between">
       <div className="space-y-0.5">
-        <p className="text-sm font-medium">{title}</p>
-        <p className="text-xs text-muted-foreground">{description}</p>
+        <p className="text-ui-label font-medium">{title}</p>
+        <p className="text-ui-body text-muted-foreground">{description}</p>
       </div>
       {action}
     </div>
@@ -85,18 +85,18 @@ export function AccountActionsCard() {
             }
           />
         </div>
-        <p className="border-t border-border/70 pt-3 text-xs text-muted-foreground">
+        <p className="border-t border-border/70 pt-3 text-ui-meta text-muted-foreground">
           <a
-            className="underline underline-offset-2 hover:text-foreground"
+            className="touch:inline-flex touch:min-h-11 touch:items-center underline underline-offset-2 hover:text-foreground"
             href={`${DOCS_URL}/terms`}
             target="_blank"
             rel="noreferrer"
           >
             Terms
           </a>
-          {" · "}
+          {" ·"}
           <a
-            className="underline underline-offset-2 hover:text-foreground"
+            className="touch:inline-flex touch:min-h-11 touch:items-center underline underline-offset-2 hover:text-foreground"
             href={`${DOCS_URL}/privacy`}
             target="_blank"
             rel="noreferrer"

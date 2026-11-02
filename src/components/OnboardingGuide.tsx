@@ -62,10 +62,10 @@ export function OnboardingGuide({ compact = false }: { compact?: boolean }) {
         >
           <section.icon className="mt-0.5 size-4 shrink-0 text-primary" />
           <div className="space-y-0.5">
-            <h3 className="text-sm font-semibold text-foreground">{section.heading}</h3>
+            <h3 className="text-ui-label font-semibold text-foreground">{section.heading}</h3>
             <p
               className={cn(
-                "text-sm leading-relaxed text-muted-foreground",
+                "text-ui-body leading-relaxed text-muted-foreground",
                 compact && "leading-snug",
               )}
             >

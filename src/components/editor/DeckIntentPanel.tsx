@@ -36,18 +36,18 @@ export function DeckIntentPanel({ deck }: { deck: EditorDeck }) {
   ].filter(Boolean);
   return (
     <section className={EDITOR_PANEL_CLASS}>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Compass className="h-4 w-4 text-primary" />
-        <h3 className="text-sm font-semibold">Deck intent</h3>
-        <span className="text-[10px] text-muted-foreground">local analysis</span>
+        <h3 className="text-ui-label font-semibold">Deck intent</h3>
+        <span className="text-ui-meta text-muted-foreground">local analysis</span>
       </div>
-      <p className="mt-3 max-w-4xl text-sm leading-relaxed text-muted-foreground">
+      <p className="mt-3 max-w-4xl text-ui-body leading-relaxed text-muted-foreground">
         {sentences.join(" ")}
       </p>
       {leadingRoles.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-2">
           {leadingRoles.map(([role, count]) => (
-            <span key={role} className="rounded-full bg-background/60 px-2.5 py-1 text-xs">
+            <span key={role} className="rounded-full bg-background/60 px-2.5 py-1 text-ui-meta">
               {CARD_ROLE_LABELS[role] ?? role} · {count}
             </span>
           ))}

@@ -186,17 +186,17 @@ export function PlaymatEditorModal({
                 </div>
               )}
               {dragActive && (
-                <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-md border-2 border-dashed border-primary bg-overlay/50 text-sm font-medium text-primary-foreground">
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-md border-2 border-dashed border-primary bg-overlay/50 text-ui-label font-medium text-primary-foreground">
                   Drop image to use as playmat
                 </div>
               )}
             </div>
             {settings.fit === "cover" && (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-ui-meta text-muted-foreground">
                 Drag to reposition · scroll or pinch to zoom · drop or paste an image
               </p>
             )}
-            <label className="mt-1 flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+            <label className="touch:min-h-11 mt-1 flex cursor-pointer items-center gap-2 text-ui-label text-muted-foreground">
               <Checkbox
                 checked={showSampleCards}
                 onCheckedChange={(v) => setShowSampleCards(v === true)}
@@ -207,20 +207,20 @@ export function PlaymatEditorModal({
 
           {uploadAvailable && (
             <section className="space-y-2.5">
-              <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <Label className="text-ui-label font-semibold uppercase tracking-wide text-muted-foreground">
                 Background image
               </Label>
               <input
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
-                className="hidden"
+                className="touch:min-h-11 hidden"
                 onChange={onPick}
               />
               <Button
                 variant="outline"
                 size="sm"
-                className="w-full"
+                className="touch:min-w-11 touch:min-h-11 w-full"
                 onClick={() => fileInputRef.current?.click()}
               >
                 <ImagePlus className="h-4 w-4" />
@@ -234,7 +234,7 @@ export function PlaymatEditorModal({
                       type="button"
                       onClick={() => void applyPreset(p.url)}
                       title={p.name}
-                      className="h-12 w-[5.5rem] shrink-0 overflow-hidden rounded-md border transition-[transform,border-color] hover:scale-[1.04] hover:border-primary"
+                      className="touch:min-w-11 touch:min-h-11 h-12 w-[5.5rem] shrink-0 overflow-hidden rounded-md border transition-[transform,border-color] hover:scale-[1.04] hover:border-primary"
                     >
                       <img
                         src={p.url}
@@ -252,14 +252,14 @@ export function PlaymatEditorModal({
           {playmat && (
             <section className="space-y-2.5">
               <div className="flex items-center gap-1.5">
-                <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <Label className="text-ui-label font-semibold uppercase tracking-wide text-muted-foreground">
                   Image
                 </Label>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button
                       type="button"
-                      className="text-muted-foreground transition-colors hover:text-foreground"
+                      className="touch:min-w-11 touch:min-h-11 text-muted-foreground transition-colors hover:text-foreground"
                       aria-label={`Playmat image tips`}
                     >
                       <Info className="size-3.5" />
@@ -274,7 +274,7 @@ export function PlaymatEditorModal({
                 </Tooltip>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-muted-foreground">Placement</Label>
+                <Label className="text-ui-label font-medium text-muted-foreground">Placement</Label>
                 <div className="inline-flex w-full rounded-lg border bg-muted/40 p-1">
                   {(["cover", "fit", "stretch"] as const).map((mode) => (
                     <button
@@ -282,7 +282,7 @@ export function PlaymatEditorModal({
                       type="button"
                       onClick={() => update({ fit: mode })}
                       className={cn(
-                        "flex-1 rounded-md px-3 py-1.5 text-xs font-medium capitalize transition-colors",
+                        "touch:min-w-11 touch:min-h-11 flex-1 rounded-md px-3 py-1.5 text-ui-label font-medium capitalize transition-colors",
                         settings.fit === mode
                           ? "bg-selection text-selection-foreground shadow-sm"
                           : "text-muted-foreground hover:text-foreground",
@@ -295,7 +295,7 @@ export function PlaymatEditorModal({
               </div>
               {settings.fit === "cover" && (
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-muted-foreground">
+                  <Label className="text-ui-label font-medium text-muted-foreground">
                     Vertical framing
                   </Label>
                   <div className="inline-flex w-full rounded-lg border bg-muted/40 p-1">
@@ -313,7 +313,7 @@ export function PlaymatEditorModal({
                         aria-label={label}
                         onClick={() => update({ offsetY: oy })}
                         className={cn(
-                          "flex flex-1 items-center justify-center rounded-md px-3 py-1.5 transition-colors",
+                          "touch:min-w-11 touch:min-h-11 flex flex-1 items-center justify-center rounded-md px-3 py-1.5 transition-colors",
                           Math.abs(settings.offsetY - oy) < 0.001
                             ? "bg-selection text-selection-foreground shadow-sm"
                             : "text-muted-foreground hover:text-foreground",
@@ -325,7 +325,7 @@ export function PlaymatEditorModal({
                   </div>
                 </div>
               )}
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))]">
                 {settings.fit === "cover" && (
                   <SliderControl
                     label={`Zoom`}
@@ -365,10 +365,10 @@ export function PlaymatEditorModal({
           )}
 
           <section className="space-y-2.5">
-            <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <Label className="text-ui-label font-semibold uppercase tracking-wide text-muted-foreground">
               Table
             </Label>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))]">
               <SliderControl
                 label={`Cloth texture`}
                 value={`${Math.round(settings.texture * 100)}%`}
@@ -378,13 +378,13 @@ export function PlaymatEditorModal({
                 onChange={(v) => update({ texture: v / 100 })}
               />
               <div className="space-y-2 rounded-lg border bg-card/40 p-3">
-                <Label className="text-xs font-medium">Background color</Label>
+                <Label className="text-ui-label font-medium">Background color</Label>
                 <div className="flex items-center gap-2">
                   <input
                     type="color"
                     value={settings.color || "#000000"}
                     onChange={(e) => update({ color: clampPlaymatColor(e.target.value) })}
-                    className="h-8 w-10 shrink-0 cursor-pointer rounded border border-input bg-transparent p-0.5"
+                    className="touch:min-h-11 min-h-8 w-10 shrink-0 cursor-pointer rounded border border-input bg-transparent p-0.5"
                   />
                   <input
                     value={bgHex}
@@ -397,13 +397,13 @@ export function PlaymatEditorModal({
                     onBlur={() => setBgHex(settings.color)}
                     spellCheck={false}
                     autoComplete="off"
-                    className="h-8 min-w-0 flex-1 rounded border border-input bg-background px-2 font-mono text-xs uppercase pointer-coarse:text-base"
+                    className="touch:min-h-11 min-h-8 min-w-0 flex-1 rounded border border-input bg-background px-2 font-mono text-ui-input uppercase"
                   />
                   {settings.color && (
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="shrink-0 px-2"
+                      className="touch:min-w-11 touch:min-h-11 shrink-0 px-2"
                       onClick={() => update({ color: "" })}
                     >
                       Clear
@@ -415,10 +415,10 @@ export function PlaymatEditorModal({
           </section>
 
           <section className="space-y-2.5">
-            <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <Label className="text-ui-label font-semibold uppercase tracking-wide text-muted-foreground">
               Border
             </Label>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))]">
               <SliderControl
                 label={`Width`}
                 value={`${settings.borderWidth}px`}
@@ -428,13 +428,13 @@ export function PlaymatEditorModal({
                 onChange={(v) => update({ borderWidth: v })}
               />
               <div className="space-y-2 rounded-lg border bg-card/40 p-3">
-                <Label className="text-xs font-medium">Color</Label>
+                <Label className="text-ui-label font-medium">Color</Label>
                 <div className="flex items-center gap-2">
                   <input
                     type="color"
                     value={settings.borderColor}
                     onChange={(e) => update({ borderColor: clampBorderColor(e.target.value) })}
-                    className="h-8 w-10 shrink-0 cursor-pointer rounded border border-input bg-transparent p-0.5"
+                    className="touch:min-h-11 min-h-8 w-10 shrink-0 cursor-pointer rounded border border-input bg-transparent p-0.5"
                   />
                   <input
                     value={borderHex}
@@ -446,7 +446,7 @@ export function PlaymatEditorModal({
                     onBlur={() => setBorderHex(settings.borderColor)}
                     spellCheck={false}
                     autoComplete="off"
-                    className="h-8 min-w-0 flex-1 rounded border border-input bg-background px-2 font-mono text-xs uppercase pointer-coarse:text-base"
+                    className="touch:min-h-11 min-h-8 min-w-0 flex-1 rounded border border-input bg-background px-2 font-mono text-ui-input uppercase"
                   />
                 </div>
               </div>
@@ -480,7 +480,12 @@ export function PlaymatEditorModal({
             Remove playmat
           </Button>
         )}
-        <Button variant="ghost" size="sm" className="ml-auto" onClick={onClose}>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="touch:min-w-11 touch:min-h-11 ml-auto"
+          onClick={onClose}
+        >
           Done
         </Button>
       </Modal.Footer>
@@ -506,12 +511,12 @@ function SliderControl({
   return (
     <div className="group space-y-2.5 rounded-lg border bg-card/40 p-3 transition-colors hover:border-primary/40">
       <div className="flex items-center justify-between">
-        <Label className="text-xs font-medium">{label}</Label>
-        <span className="rounded-full bg-primary/10 px-2 py-0.5 font-mono text-[11px] font-semibold tabular-nums text-primary">
+        <Label className="text-ui-label font-medium">{label}</Label>
+        <span className="rounded-full bg-primary/10 px-2 py-0.5 font-mono text-ui-meta font-semibold tabular-nums text-primary">
           {value}
         </span>
       </div>
-      <div className="relative flex h-4 items-center">
+      <div className="relative flex min-h-4 touch:min-h-11 items-center">
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
           <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
         </div>
@@ -528,7 +533,7 @@ function SliderControl({
           value={current}
           onChange={(e) => onChange(Number(e.target.value))}
           aria-label={label}
-          className="absolute inset-0 w-full cursor-pointer opacity-0"
+          className="touch:min-h-11 absolute inset-0 w-full cursor-pointer opacity-0"
         />
       </div>
     </div>

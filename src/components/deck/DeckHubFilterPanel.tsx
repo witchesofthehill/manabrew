@@ -91,13 +91,13 @@ export function DeckHubFilterPanel({
           onChange={(event) => onChange({ search: event.target.value })}
           aria-label={`Search Community`}
           placeholder={`Search decks or authors`}
-          className="h-10 pl-9 pr-9 pointer-coarse:text-base"
+          className="pl-9 pr-11"
         />
         {filters.search && (
           <button
             type="button"
             aria-label={`Clear search`}
-            className="absolute right-1 top-1/2 -translate-y-1/2 rounded p-2 text-muted-foreground hover:text-foreground"
+            className="absolute right-0 top-1/2 flex -translate-y-1/2 items-center justify-center rounded p-2 text-muted-foreground hover:text-foreground touch:min-h-11 touch:min-w-11"
             onClick={() => onChange({ search: "" })}
           >
             <X className="h-4 w-4" />
@@ -105,11 +105,11 @@ export function DeckHubFilterPanel({
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,9rem),1fr))] gap-2">
         <AppSelect
           value={filters.sort}
           aria-label={`Sort Community decks`}
-          className="h-9 min-w-0 rounded-md border border-input bg-background px-2 text-sm pointer-coarse:text-base"
+          className="min-w-0"
           onValueChange={(value) => onChange({ sort: value as DeckHubDiscoveryFilters["sort"] })}
         >
           <AppSelectOption value="newest">Newest</AppSelectOption>
@@ -119,7 +119,7 @@ export function DeckHubFilterPanel({
         <AppSelect
           value={filters.group}
           aria-label={`Group Community results`}
-          className="h-9 min-w-0 rounded-md border border-input bg-background px-2 text-sm pointer-coarse:text-base"
+          className="min-w-0"
           onValueChange={(value) => onChange({ group: value as DeckHubDiscoveryFilters["group"] })}
         >
           <AppSelectOption value="none">No groups</AppSelectOption>
@@ -131,8 +131,8 @@ export function DeckHubFilterPanel({
       </div>
 
       <div className="space-y-2">
-        <span className="text-sm font-medium">Source</span>
-        <div className="grid grid-cols-3 gap-2">
+        <span className="text-ui-label font-medium">Source</span>
+        <div className="flex flex-wrap gap-2">
           {(["all", "community", "presets"] as const).map((source) => (
             <Button
               key={source}
@@ -149,7 +149,7 @@ export function DeckHubFilterPanel({
       </div>
 
       <div className="space-y-2">
-        <span className="text-sm font-medium">Formats</span>
+        <span className="text-ui-label font-medium">Formats</span>
         <div className="flex flex-wrap gap-1.5">
           {formats.map((format) => (
             <Button
@@ -167,7 +167,7 @@ export function DeckHubFilterPanel({
       </div>
 
       <div className="space-y-2">
-        <span className="text-sm font-medium">Color identity</span>
+        <span className="text-ui-label font-medium">Color identity</span>
         <div className="flex flex-wrap gap-2">
           {MANA_LETTERS.map((color) => (
             <Button
@@ -185,7 +185,7 @@ export function DeckHubFilterPanel({
         <AppSelect
           value={filters.colorMatch}
           aria-label={`Color identity match`}
-          className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm pointer-coarse:text-base"
+          className="w-full"
           onValueChange={(value) =>
             onChange({ colorMatch: value as DeckHubDiscoveryFilters["colorMatch"] })
           }
@@ -224,7 +224,7 @@ export function DeckHubFilterPanel({
         userTags &&
         userTags.length > 0 && (
           <div className="space-y-2">
-            <span className="text-sm font-medium">Tags</span>
+            <span className="text-ui-label font-medium">Tags</span>
             <div className="flex flex-wrap gap-1.5">
               {userTags.map((tag) => (
                 <Button

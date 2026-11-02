@@ -39,7 +39,7 @@ export function OpenTableCard({ room, currentRoomId, joining, onJoin }: OpenTabl
       )}
     >
       <div className="flex items-center gap-1.5">
-        <h3 className="min-w-0 flex-1 truncate text-sm font-semibold">{room.room_name}</h3>
+        <h3 className="min-w-0 flex-1 break-words text-ui-label font-semibold">{room.room_name}</h3>
         {room.official && (
           <span
             role="img"
@@ -61,13 +61,13 @@ export function OpenTableCard({ room, currentRoomId, joining, onJoin }: OpenTabl
           </span>
         )}
         {!isCompatible && (
-          <span className="inline-flex items-center rounded bg-format-badge-rose/15 px-2 py-0.5 text-xs font-semibold leading-tight text-format-badge-rose">
+          <span className="inline-flex items-center rounded bg-format-badge-rose/15 px-2 py-0.5 text-ui-meta font-semibold leading-tight text-format-badge-rose">
             Incompatible
           </span>
         )}
       </div>
       {/* Rendered even with no host so the seat ring lines up across the row. */}
-      <p className="-mt-1.5 truncate text-[11px] text-muted-foreground">
+      <p className="-mt-1.5 break-words text-ui-meta text-muted-foreground">
         {showHost ? `Hosted by ${stripUsernameTag(room.host)}` : " "}
       </p>
 
@@ -77,24 +77,24 @@ export function OpenTableCard({ room, currentRoomId, joining, onJoin }: OpenTabl
         className="max-w-72"
         centerContent={
           <span className="flex flex-col items-center gap-0.5">
-            <span className="flex items-center gap-1 text-[11px] font-semibold text-foreground/85">
+            <span className="flex items-center gap-1 text-ui-meta font-semibold text-foreground/85">
               <EngineMark engine={room.engine} className="h-3 w-3" />
               {room.engine}
             </span>
-            <span className="max-w-28 truncate text-[10px] text-muted-foreground">
+            <span className="max-w-40 break-words text-ui-meta text-muted-foreground">
               {limitedLabel ?? modeLabel}
             </span>
           </span>
         }
       />
 
-      <div className="mt-auto flex items-center justify-between gap-2 pt-1">
-        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-1">
+        <span className="flex items-center gap-1.5 text-ui-meta text-muted-foreground">
           <Users aria-hidden="true" className="h-3.5 w-3.5" />
           {room.players.length}/{room.max_players} seated
         </span>
         {isMyRoom ? (
-          <Badge variant="secondary" className="text-[10px]">
+          <Badge variant="secondary" className="text-ui-meta">
             Seated
           </Badge>
         ) : canJoin ? (
@@ -110,9 +110,9 @@ export function OpenTableCard({ room, currentRoomId, joining, onJoin }: OpenTabl
             {joining ? `Joining\u2026` : `Join table`}
           </Button>
         ) : room.status === "InGame" ? (
-          <span className="text-xs text-muted-foreground">Playing</span>
+          <span className="text-ui-meta text-muted-foreground">Playing</span>
         ) : isFull ? (
-          <span className="text-xs text-muted-foreground">Full</span>
+          <span className="text-ui-meta text-muted-foreground">Full</span>
         ) : null}
       </div>
     </article>

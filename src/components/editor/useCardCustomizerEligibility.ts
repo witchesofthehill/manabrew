@@ -27,38 +27,54 @@ function supportsRetroCopy(card: DeckCard, printing?: ScryfallCard): boolean {
   );
 }
 
-export function useCardCustomizerEligibility(copies: readonly DeckCard[]) {
+export function useCardCustomizerEligibility(card: DeckCard): boolean | undefined {
   const locale = useScryfallStore((state) => state.locale);
+  const printingKey = JSON.stringify([
+    card.identity.id,
+    card.identity.name,
+    card.identity.setCode,
+    card.identity.cardNumber,
+    card.layout,
+    card.isDoubleFaced,
+    card.types,
+    card.subtypes,
+    card.text,
+    card.backFace?.typeLine,
+    card.backFace?.oracleText,
+  ]);
   const [resolved, setResolved] = useState<{
-    copies: readonly DeckCard[];
+    printingKey: string;
     locale: string;
-    supported: ReadonlySet<string>;
+    supported: boolean;
   }>();
   useEffect(() => {
+    if (resolved?.printingKey === printingKey && resolved.locale === locale) return;
     let alive = true;
-    void Promise.all(
-      copies.map(async (card) => {
-        let printing: ScryfallCard | undefined;
-        try {
-          printing = (
-            await useScryfallStore.getState().getCard({
-              name: card.identity.name,
-              setCode: card.identity.setCode || undefined,
-              cardNumber: card.identity.cardNumber || undefined,
-            })
-          ).info;
-        } catch {
-          printing = undefined;
-        }
-        return supportsRetroCopy(card, printing) ? card.identity.id : undefined;
-      }),
-    ).then((ids) => {
+    void (async () => {
+      let printing: ScryfallCard | undefined;
+      try {
+        printing = (
+          await useScryfallStore.getState().getCard({
+            name: card.identity.name,
+            setCode: card.identity.setCode || undefined,
+            cardNumber: card.identity.cardNumber || undefined,
+          })
+        ).info;
+      } catch {
+        printing = undefined;
+      }
       if (alive)
-        setResolved({ copies, locale, supported: new Set(ids.filter((id) => id !== undefined)) });
-    });
+        setResolved({
+          printingKey,
+          locale,
+          supported: supportsRetroCopy(card, printing),
+        });
+    })();
     return () => {
       alive = false;
     };
-  }, [copies, locale]);
-  return resolved?.copies === copies && resolved.locale === locale ? resolved.supported : undefined;
+  }, [card, locale, printingKey, resolved]);
+  return resolved?.printingKey === printingKey && resolved.locale === locale
+    ? resolved.supported
+    : undefined;
 }

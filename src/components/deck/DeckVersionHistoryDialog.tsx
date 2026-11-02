@@ -73,10 +73,10 @@ export function DeckVersionHistoryDialog({
             creates a new version.
           </DialogDescription>
         </DialogHeader>
-        <div className="max-h-[60dvh] space-y-2 overflow-y-auto">
+        <div className="space-y-2">
           {loadError ? (
             <div className="py-8 text-center">
-              <p className="text-sm text-destructive">{loadError}</p>
+              <p className="text-ui-meta text-destructive">{loadError}</p>
               <Button
                 variant="outline"
                 size="sm"
@@ -94,7 +94,7 @@ export function DeckVersionHistoryDialog({
               </Button>
             </div>
           ) : versions.length === 0 ? (
-            <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
+            <div className="flex items-center justify-center gap-2 py-8 text-ui-meta text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
               Loading versions…
             </div>
@@ -102,23 +102,25 @@ export function DeckVersionHistoryDialog({
             versions.map((version) => (
               <div
                 key={version.id}
-                className="flex items-center gap-3 rounded-lg border bg-card p-3"
+                className="flex flex-wrap items-center gap-3 rounded-lg border bg-card p-3"
               >
                 <History className="h-4 w-4 text-muted-foreground" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium">
+                <div className="min-w-[min(100%,10rem)] flex-1">
+                  <p className="text-ui-label font-medium">
                     Version {version.versionNo}
                     {version.versionNo === currentVersionNo ? ` · Current` : ""}
                   </p>
-                  <p className="truncate text-xs text-muted-foreground">
+                  <p className="break-words text-ui-meta text-muted-foreground">
                     {version.notes || new Date(version.createdAt).toLocaleString()}
                     {version.published ? ` · Published` : ""}
                   </p>
                 </div>
                 {version.versionNo !== currentVersionNo &&
                   (confirmingVersion === version.versionNo ? (
-                    <span className="flex shrink-0 items-center gap-1">
-                      <span className="text-xs text-destructive">Replace unsaved changes?</span>
+                    <span className="flex max-w-full flex-wrap items-center gap-2">
+                      <span className="text-ui-meta text-destructive">
+                        Replace unsaved changes?
+                      </span>
                       <Button
                         variant="ghost"
                         size="sm"

@@ -51,7 +51,7 @@ export function CardGlintAppearanceControls({
           resetKey={value}
           onChange={(amount) => onChange({ ...value, deformation: { kind: "heat", amount } })}
         />
-        <p className="text-xs text-muted-foreground">
+        <p className="text-ui-body text-muted-foreground">
           Fog needs Rain; coating needs a non-Regular finish; deformation needs Heat. Inactive
           values are kept when you switch finishes.
         </p>
@@ -75,7 +75,7 @@ export function CardGlintAppearanceControls({
       </fieldset>
       <fieldset className={APPEARANCE_GROUP}>
         <legend className={APPEARANCE_LEGEND}>Print dots</legend>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-ui-body text-muted-foreground">
           Available on every finish. Original scans may already contain print dots.
         </p>
         <CardGlintAppearanceNumber
@@ -107,7 +107,7 @@ export function CardGlintAppearanceControls({
           resetKey={value}
           onChange={(inset) => onChange({ ...value, printDots: { ...dots, inset } })}
         />
-        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+        <label className="flex items-center gap-2 text-ui-label text-muted-foreground touch:min-h-11">
           <Checkbox
             checked={dots.artwork !== false}
             onCheckedChange={(checked) =>

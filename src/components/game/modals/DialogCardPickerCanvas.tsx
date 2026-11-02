@@ -43,7 +43,7 @@ export function DialogCardPickerCanvas(props: DialogCardPickerCanvasProps) {
         style={{ height: props.height }}
       />
       {error && (
-        <p className="absolute inset-x-4 top-4 z-20 rounded-lg bg-card p-3 text-sm text-destructive">
+        <p className="absolute inset-x-4 top-4 z-20 rounded-lg bg-card p-3 text-ui-meta text-destructive">
           Card renderer unavailable: {error}
         </p>
       )}

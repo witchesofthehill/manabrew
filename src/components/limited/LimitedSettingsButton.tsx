@@ -43,19 +43,19 @@ export function LimitedSettingsButton({
           <Settings className="h-4 w-4" aria-hidden="true" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="flex max-h-[85dvh] flex-col overflow-hidden sm:max-w-lg [&>button]:right-2 [&>button]:top-2 [&>button]:flex [&>button]:h-11 [&>button]:w-11 [&>button]:items-center [&>button]:justify-center">
+      <DialogContent className="flex flex-col overflow-y-auto overscroll-contain sm:max-w-lg [&>button]:right-2 [&>button]:top-2 [&>button]:flex [&>button]:h-11 [&>button]:w-11 [&>button]:items-center [&>button]:justify-center">
         <DialogHeader className="shrink-0 pr-8">
           <DialogTitle>Limited settings</DialogTitle>
           <DialogDescription>
             Changes apply immediately and are saved. Draft clocks keep running.
           </DialogDescription>
         </DialogHeader>
-        <div className="min-h-0 space-y-5 overflow-y-auto">
+        <div className="min-h-16 space-y-5 overflow-y-auto overscroll-contain">
           <LimitedDisplaySettings sessionKey={sessionKey} />
           <section className="space-y-4 border-t border-border pt-4">
-            <h3 className="text-sm font-semibold">Card rendering</h3>
+            <h3 className="text-ui-label font-semibold">Card rendering</h3>
             <fieldset className="space-y-2">
-              <legend className="text-sm">Card view</legend>
+              <legend className="text-ui-label">Card view</legend>
               <AppSelect
                 aria-label="Card view"
                 value={previewStyle}
@@ -72,12 +72,12 @@ export function LimitedSettingsButton({
                   </AppSelectOption>
                 ))}
               </AppSelect>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-ui-meta text-muted-foreground">
                 Applies to cards on the Limited table and their hover previews.
               </p>
             </fieldset>
             <fieldset className="space-y-2">
-              <legend className="text-sm">Preview size</legend>
+              <legend className="text-ui-label">Preview size</legend>
               <AppSelect
                 aria-label="Preview size"
                 value={previewSize}
@@ -98,8 +98,8 @@ export function LimitedSettingsButton({
           </section>
           {quickPick && (
             <section className="space-y-2 border-t border-border pt-4">
-              <h3 className="text-sm font-semibold">Picking</h3>
-              <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm">
+              <h3 className="text-ui-label font-semibold">Picking</h3>
+              <label className="flex min-h-11 cursor-pointer items-center gap-3 text-ui-label">
                 <input
                   type="checkbox"
                   checked={quickPickEnabled}
@@ -110,14 +110,14 @@ export function LimitedSettingsButton({
                 />
                 Quick pick
               </label>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-ui-meta text-muted-foreground">
                 Select a card to pick it straight into your pool.
               </p>
             </section>
           )}
           <section className="space-y-4 border-t border-border pt-4">
-            <h3 className="text-sm font-semibold">Table appearance</h3>
-            <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm">
+            <h3 className="text-ui-label font-semibold">Table appearance</h3>
+            <label className="flex min-h-11 cursor-pointer items-center gap-3 text-ui-label">
               <input
                 type="checkbox"
                 checked={animations}
@@ -128,13 +128,13 @@ export function LimitedSettingsButton({
               />
               Decorative animations
             </label>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-ui-meta text-muted-foreground">
               System reduced-motion preferences still apply.
             </p>
             <fieldset className="space-y-2">
-              <legend className="text-sm">Table background</legend>
+              <legend className="text-ui-label">Table background</legend>
               {sharedTable ? (
-                <p className="text-xs text-muted-foreground">
+                <p className="text-ui-meta text-muted-foreground">
                   The room controls this table's background.
                 </p>
               ) : (

@@ -22,19 +22,21 @@ function WinBannerInner({ winner }: { winner: CompanionPlayer }) {
   if (dismissed) return null;
   const accent = COMPANION_ACCENT_COLORS[winner.accentKey];
   return (
-    <div className="pointer-events-none absolute inset-0 z-50 grid place-items-center bg-black/40 backdrop-blur-sm">
-      <div className="pointer-events-auto flex max-w-sm flex-col items-center gap-4 rounded-2xl border border-white/10 bg-card px-6 py-5 text-center shadow-2xl">
+    <div className="pointer-events-none absolute inset-0 z-50 grid place-items-center bg-black/40 p-2 backdrop-blur-sm">
+      <div className="pointer-events-auto flex max-h-full w-full max-w-sm flex-col items-center gap-4 overflow-y-auto overscroll-contain rounded-2xl border border-white/10 bg-card px-6 py-5 text-center shadow-2xl">
         <div
-          className="grid size-14 place-items-center rounded-full text-white"
+          className="grid size-14 shrink-0 place-items-center rounded-full text-white"
           style={{ backgroundColor: accent }}
         >
           <GameIcon icon="trophy-cup" className="size-8" />
         </div>
         <div>
-          <p className="text-sm uppercase tracking-wide text-muted-foreground">Last standing</p>
-          <h2 className="text-2xl font-bold">{winner.name}</h2>
+          <p className="text-ui-meta uppercase tracking-wide text-muted-foreground">
+            Last standing
+          </p>
+          <h2 className="break-words text-2xl font-bold">{winner.name}</h2>
         </div>
-        <div className="flex gap-2">
+        <div className="flex shrink-0 flex-wrap justify-center gap-2">
           <Button variant="outline" onClick={() => setDismissed(true)}>
             Keep playing
           </Button>

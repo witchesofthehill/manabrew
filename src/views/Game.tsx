@@ -4,9 +4,11 @@ import { useGameStore } from "@/stores/useGameStore";
 import { useServerStore } from "@/stores/useServerStore";
 import { asDeckCard } from "@/lib/decks";
 import { gameCardFaceIndex, GAME_CARD_DEFAULTS } from "@/lib/gameCard";
+import { faceDownCardToPreviewDto } from "@/lib/scryfall.utils";
 import { partitionBoardTargets } from "@/lib/boardTargets";
 import { useGameUIStore } from "@/stores/useGameUIStore";
 import { useKeybindings } from "@/hooks/useKeybindings";
+import { playSound } from "@/lib/soundRuntime";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
 import { useAutoResolvePrompt } from "@/components/prompts/internal/useAutoResolvePrompt";
@@ -22,15 +24,19 @@ import { GameLoadingScreen } from "@/components/game/GameLoadingScreen";
 import { GameFailedScreen } from "@/components/game/GameFailedScreen";
 import { WaitingForPlayerScreen } from "@/components/game/WaitingForPlayerScreen";
 import { DevViewportFrame } from "@/components/dev/DevViewportFrame";
+import { toast } from "sonner";
 import { ManualTabletopControls } from "@/components/game/ManualTabletopControls";
-import { MiddleBarDock, RightActionPanel } from "@/components/game/panels";
+import { MiddleBarDock, RepeatProgress, RightActionPanel } from "@/components/game/panels";
 import {
   ConcedeGameModal,
+  RepeatRequestModal,
+  RepeatVoteModal,
   RestoreRequestModal,
   RestoreVoteModal,
   EliminatedModal,
   GameSettingsModal,
   LeaveGameModal,
+  SoundSettingsModal,
 } from "@/components/game/modals";
 import type { StackCardSpec, StackSpec } from "@/pixi/stack/stack.types";
 import { useCastingState } from "@/hooks/useCastingState";
@@ -251,6 +257,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   const currentPrompt = useGameStore((s) => s.currentPrompt);
   const protocolError = useGameStore((s) => s.protocolError);
   const isGameActive = useGameStore((s) => s.isGameActive);
+  const activeEngine = useGameStore((s) => s.activeEngine);
   const isPrefetchingCards = useGameStore((s) => s.isPrefetchingCards);
   const isWaitingForResponse = useGameStore((s) => s.isWaitingForResponse);
   const relinquishedPriority = useGameStore((s) => s.relinquishedPriority);
@@ -285,13 +292,32 @@ export default function Game({ exitTo }: GameProps = {}) {
   const hostingForgeRoom = useServerStore((s) => s.hostingForgeRoom);
   const selectedRuntime = getSelectedGameRuntime();
   const manualApi = isManualTabletopApi(selectedRuntime) ? selectedRuntime.api : null;
-  const { respond, concede, endGame, requestRestore, voteRestore, gameDecks } = useGameStore(
+  const {
+    respond,
+    concede,
+    endGame,
+    requestRestore,
+    voteRestore,
+    startRecording,
+    stopRecording,
+    requestRepeat: sendRepeatRequest,
+    voteRepeat,
+    recording,
+    repeatVote,
+    gameDecks,
+  } = useGameStore(
     useShallow((s) => ({
       respond: s.respond,
       concede: s.concede,
       endGame: s.endGame,
       requestRestore: s.requestRestore,
       voteRestore: s.voteRestore,
+      startRecording: s.startRecording,
+      stopRecording: s.stopRecording,
+      requestRepeat: s.requestRepeat,
+      voteRepeat: s.voteRepeat,
+      recording: s.recording,
+      repeatVote: s.repeatVote,
       gameDecks: s.gameDecks,
     })),
   );
@@ -326,12 +352,14 @@ export default function Game({ exitTo }: GameProps = {}) {
   const [handCardLifted, setHandCardLifted] = useState(false);
   const [boardMenuOpen, setBoardMenuOpen] = useState(false);
   const [gameSettingsOpen, setGameSettingsOpen] = useState(false);
+  const [soundSettingsOpen, setSoundSettingsOpen] = useState(false);
   const [eliminatedModalOpen, setEliminatedModalOpen] = useState(false);
   const eliminatedModalShownRef = useRef(false);
   const [leaveGameModalOpen, setLeaveGameModalOpen] = useState(false);
   const [concedeModalOpen, setConcedeModalOpen] = useState(false);
   const [restoreTarget, setRestoreTarget] = useState<CheckpointDto | null>(null);
   const closeRestoreModal = useCallback(() => setRestoreTarget(null), []);
+  const [repeatModalOpen, setRepeatModalOpen] = useState(false);
   const [combatDetailsOpen, setCombatDetailsOpen] = useState(false);
   const [introDone, setIntroDone] = useState(false);
   const handleLoadingComplete = useCallback(() => setIntroDone(true), []);
@@ -1139,16 +1167,24 @@ export default function Game({ exitTo }: GameProps = {}) {
     },
     "toggle-dev-panel": () => useGameUIStore.getState().toggleDevPanel(),
     "pass-priority": () => {
-      if (manualApi || document.querySelector('[role="dialog"]')) return false;
-      if (confirmPromptRef.current()) return true;
-      if (promptType !== "chooseAction") return false;
+      if (manualApi || isWaitingForResponse || document.querySelector('[role="dialog"]'))
+        return false;
+      if (confirmPromptRef.current()) {
+        playSound("buttonClick");
+        return true;
+      }
+      if (promptType !== "chooseAction" || !gameView) return false;
       unifiedPassRef.current();
+      playSound("buttonClick");
       return true;
     },
     "pass-end-of-turn": () => {
-      if (manualApi) return;
-      if (document.querySelector('[role="dialog"]')) return;
-      if (promptType === "chooseAction") passEndTurnRef.current();
+      if (manualApi || isWaitingForResponse || document.querySelector('[role="dialog"]'))
+        return false;
+      if (promptType !== "chooseAction" || !gameView) return false;
+      passEndTurnRef.current();
+      playSound("buttonClick");
+      return true;
     },
     "toggle-priority-mode": () => {
       if (manualApi) return;
@@ -1211,6 +1247,32 @@ export default function Game({ exitTo }: GameProps = {}) {
   const ownsEngine = isHost || hostingForgeRoom;
   const gameContinuesWithoutMe = opponents.filter((p) => p.status === "playing").length >= 2;
   const handleConcede = useCallback(() => setConcedeModalOpen(true), []);
+  const canRecord =
+    !!chooseActionInput && gameView?.stack.length === 0 && !isWaitingForResponse && !iAmEliminated;
+  const canRepeat =
+    canRecord &&
+    recording.type === "ready" &&
+    repeatVote?.status.type !== "pending" &&
+    repeatVote?.status.type !== "running";
+  const toggleRecording = useCallback(() => {
+    const send = recording.type === "recording" ? stopRecording : startRecording;
+    console.info(
+      `[repeat] sending ${recording.type === "recording" ? "stopRecording" : "startRecording"}`,
+    );
+    send().catch((error: unknown) =>
+      toast.error(error instanceof Error ? error.message : String(error)),
+    );
+  }, [recording.type, startRecording, stopRecording]);
+  const requestRepeat = useCallback(
+    async (iterations: number) => {
+      if (useGameStore.getState().currentPrompt?.input.type !== "chooseAction") {
+        throw new Error("You no longer have priority.");
+      }
+      console.info(`[repeat] sending repeat x${iterations}`);
+      await sendRepeatRequest(iterations);
+    },
+    [sendRepeatRequest],
+  );
   const handleConcedeConfirm = useCallback(async () => {
     await concede();
     setConcedeModalOpen(false);
@@ -1249,6 +1311,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       setConcedeModalOpen(false);
       setLeaveGameModalOpen(false);
       setGameSettingsOpen(false);
+      setSoundSettingsOpen(false);
       setCombatDetailsOpen(false);
       closeZoneViewer();
       closePlayModePicker();
@@ -1813,7 +1876,10 @@ export default function Game({ exitTo }: GameProps = {}) {
     return (
       visibleCardsById.get(previewCardId) ??
       stackCardsBySourceId.get(previewCardId) ??
-      (preview.hoveredCard ? { ...preview.hoveredCard, zoneId: "prompt" } : null)
+      (preview.hoveredCard &&
+      !(preview.hoveredCard.isFaceDown && preview.hoveredCard.zone === "battlefield")
+        ? { ...preview.hoveredCard, zoneId: "prompt" }
+        : null)
     );
   }, [
     preview.hoveredCard,
@@ -1823,7 +1889,12 @@ export default function Game({ exitTo }: GameProps = {}) {
     gameView?.stack,
     hoveredStackObjectIdForSpecs,
   ]);
-  const previewFaceCard = singleCommandPreviewCard ?? livePreviewCard;
+  const inspectionPreviewCard = useMemo(
+    () =>
+      livePreviewCard ? faceDownCardToPreviewDto(livePreviewCard, activeEngine, gameDecks) : null,
+    [livePreviewCard, activeEngine, gameDecks],
+  );
+  const previewFaceCard = singleCommandPreviewCard ?? inspectionPreviewCard;
   const [previewFaceOverride, setPreviewFaceOverride] = useState<{
     cardId: string;
     showBackFace: boolean;
@@ -1977,14 +2048,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     stackItem.sourceCard
       ? stackObjectToCard(stackItem)
       : (visibleCardsById.get(stackItem.sourceId) ?? stackCardsBySourceId.get(stackItem.sourceId)!);
-  const activeFlashCard: CardDto | null = useMemo(() => {
-    if (!activeFlash || activeFlash.kind !== "card") return null;
-    return (
-      visibleCardsById.get(activeFlash.cardId) ??
-      stackCardsBySourceId.get(activeFlash.cardId) ??
-      null
-    );
-  }, [activeFlash, visibleCardsById, stackCardsBySourceId]);
+  const activeFlashCard: CardDto | null = activeFlash?.kind === "card" ? activeFlash.card : null;
   const zonePreviewPanel = viewingZone && modalPanel === topModal() ? modalPanel : null;
   useEffect(() => {
     zonePreviewScope.current = zonePreviewPanel;
@@ -2100,9 +2164,9 @@ export default function Game({ exitTo }: GameProps = {}) {
     return <Navigate to={limitedReturn.destination ?? exitTo ?? "/lobby"} replace />;
   if (limitedReturn.error) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 px-4">
+      <div className="flex h-full min-h-0 flex-col items-center [justify-content:safe_center] gap-3 overflow-y-auto px-4 py-4 text-ui-body [&>*]:shrink-0">
         <p className="font-semibold">Game finished. Your Limited session could not be updated.</p>
-        <p className="text-sm text-destructive" role="alert">
+        <p className="text-ui-body text-destructive" role="alert">
           {limitedReturn.error}
         </p>
         <Button variant="primary" onClick={() => void limitedReturn.retry()}>
@@ -2209,11 +2273,8 @@ export default function Game({ exitTo }: GameProps = {}) {
   const stackSpec: StackSpec = {
     cards: stackCards,
     flash:
-      shouldRenderStackFlashCard && activeFlashCard && activeFlash
-        ? {
-            token: `${activeFlash.cardId}:${activeFlash.cardName}:${activeFlash.setCode}`,
-            card: activeFlashCard,
-          }
+      shouldRenderStackFlashCard && activeFlashCard
+        ? { token: activeFlashCard.id, card: activeFlashCard }
         : null,
     showPreStackFlash: shouldShowPreStackFlash,
     collapsed: debugStackCard === null && stackCollapsed,
@@ -2261,9 +2322,10 @@ export default function Game({ exitTo }: GameProps = {}) {
       : !commandPreview &&
           inGameCardPreviewStyle === "rules" &&
           showInGamePreview &&
-          livePreviewCard
+          livePreviewCard &&
+          inspectionPreviewCard
         ? {
-            card: livePreviewCard,
+            card: inspectionPreviewCard,
             phase: preview.phase === "closing" ? "closing" : "open",
             placement: preview.placement,
             sticky: preview.isSticky,
@@ -2407,6 +2469,12 @@ export default function Game({ exitTo }: GameProps = {}) {
     onHideModal: hidePromptModal,
     onShowModal: showPromptModal,
   };
+  const openRepeatVote =
+    repeatVote?.status.type === "pending" &&
+    myPlayerSlot &&
+    repeatVote.awaitingPlayerIds.includes(myPlayerSlot)
+      ? repeatVote
+      : null;
   const openRestoreVote =
     gameView.restoreVote?.status.type === "pending" &&
     myPlayerSlot &&
@@ -2622,35 +2690,54 @@ export default function Game({ exitTo }: GameProps = {}) {
       {boardSurfaceEl &&
         createPortal(
           !manualApi && (
-            <MiddleBarDock
-              open={boardMenuOpen}
-              onOpenChange={setBoardMenuOpen}
-              onOpenSettings={() => setGameSettingsOpen(true)}
-              onOpenCombat={() => setCombatDetailsOpen(true)}
-              onConcede={handleConcede}
-              eliminated={iAmEliminated}
-              onLeave={handleLeave}
-              sidePanelCollapsed={isActionPanelCollapsed}
-              onToggleSidePanel={toggleActionPanel}
-              players={gameView.players.map((player) => {
-                const color = playerColorMap.get(player.id) ?? themeColors.playerColors.self;
-                return {
-                  id: player.id,
-                  name: player.name,
-                  color,
-                  textColor: readableTextColor(
+            <>
+              {repeatVote?.status.type === "running" && (
+                <RepeatProgress
+                  vote={repeatVote}
+                  completed={repeatVote.status.completed}
+                  playerName={
+                    playerNameById.get(repeatVote.requestedByPlayerId) ??
+                    repeatVote.requestedByPlayerId
+                  }
+                />
+              )}
+              <MiddleBarDock
+                open={boardMenuOpen}
+                onOpenChange={setBoardMenuOpen}
+                onOpenSettings={() => setGameSettingsOpen(true)}
+                onOpenSoundSettings={() => setSoundSettingsOpen(true)}
+                onOpenCombat={() => setCombatDetailsOpen(true)}
+                onConcede={handleConcede}
+                eliminated={iAmEliminated}
+                onLeave={handleLeave}
+                sidePanelCollapsed={isActionPanelCollapsed}
+                onToggleSidePanel={toggleActionPanel}
+                recording={recording.type}
+                canRecord={canRecord}
+                canRepeat={canRepeat}
+                onToggleRecording={toggleRecording}
+                onRepeat={() => setRepeatModalOpen(true)}
+                players={gameView.players.map((player) => {
+                  const color = playerColorMap.get(player.id) ?? themeColors.playerColors.self;
+                  return {
+                    id: player.id,
+                    name: player.name,
                     color,
-                    themeColors.canvas.shadow,
-                    themeColors.textOnTinted,
-                  ),
-                };
-              })}
-            />
+                    textColor: readableTextColor(
+                      color,
+                      themeColors.canvas.shadow,
+                      themeColors.textOnTinted,
+                    ),
+                  };
+                })}
+              />
+            </>
           ),
           boardSurfaceEl,
         )}
 
       {gameSettingsOpen && <GameSettingsModal onClose={() => setGameSettingsOpen(false)} />}
+      {soundSettingsOpen && <SoundSettingsModal onClose={() => setSoundSettingsOpen(false)} />}
       {combatDetailsOpen && (
         <CombatBreakdownModal
           attackerIds={
@@ -2685,6 +2772,22 @@ export default function Game({ exitTo }: GameProps = {}) {
           onLeave={leaveEndsWithConcede ? handleLeaveConcede : handleLeaveConfirm}
         />
       )}
+      {openRepeatVote && (
+        <RepeatVoteModal
+          key={openRepeatVote.voteId}
+          repeatVote={openRepeatVote}
+          resolvePlayerName={(playerId) => playerNameById.get(playerId) ?? playerId}
+          onVote={(accept) => voteRepeat(openRepeatVote.voteId, accept)}
+        />
+      )}
+      {repeatModalOpen && recording.type === "ready" && (
+        <RepeatRequestModal
+          actions={recording.actions}
+          multiplayer={isMultiplayer}
+          onConfirm={requestRepeat}
+          onClose={() => setRepeatModalOpen(false)}
+        />
+      )}
       {openRestoreVote && (
         <RestoreVoteModal
           key={openRestoreVote.voteId}
@@ -2713,10 +2816,10 @@ export default function Game({ exitTo }: GameProps = {}) {
       )}
 
       {gameView.step === "combatFirstStrikeDamage" && (
-        <div className="pointer-events-none absolute top-[calc(1rem+var(--safe-area-inset-top))] left-1/2 z-50 -translate-x-1/2">
-          <div className="flex items-center gap-2 rounded-full border border-border/70 bg-background/90 px-4 py-2 shadow-lg backdrop-blur">
-            <span className="text-sm font-semibold tracking-wide">First Strike Damage</span>
-            <span className="text-xs text-muted-foreground">
+        <div className="pointer-events-none absolute top-[calc(1rem+var(--safe-area-inset-top))] left-1/2 z-50 w-max max-w-[calc(100%-2rem)] -translate-x-1/2">
+          <div className="flex max-w-full flex-wrap items-center justify-center gap-2 rounded-full border border-border/70 bg-background/90 px-4 py-2 shadow-lg backdrop-blur">
+            <span className="text-ui-label font-semibold tracking-wide">First Strike Damage</span>
+            <span className="text-ui-meta text-muted-foreground">
               only first &amp; double strikers deal damage now
             </span>
           </div>
@@ -2774,7 +2877,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       {protocolError && (
         <div
           role="alert"
-          className="pointer-events-none absolute bottom-[calc(4rem+var(--safe-area-inset-bottom))] left-1/2 z-[9000] max-w-[min(90vw,34rem)] -translate-x-1/2 rounded-lg border border-destructive/50 bg-card/95 px-4 py-2 text-center text-sm font-semibold text-destructive shadow-xl backdrop-blur-sm"
+          className="pointer-events-none absolute bottom-[calc(4rem+var(--safe-area-inset-bottom))] left-1/2 z-[9000] max-w-[min(90vw,34rem)] -translate-x-1/2 rounded-lg border border-destructive/50 bg-card/95 px-4 py-2 text-center text-ui-meta font-semibold text-destructive shadow-xl backdrop-blur-sm"
         >
           Action rejected: {protocolError.message || protocolError.code}
         </div>
@@ -2807,7 +2910,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         createPortal(
           <div
             role="status"
-            className="pointer-events-none fixed z-[10000] max-w-[min(18rem,80vw)] -translate-x-1/2 rounded-full border border-border bg-card/95 px-3 py-2 text-center text-xs font-semibold text-foreground shadow-xl backdrop-blur-sm"
+            className="pointer-events-none fixed z-[10000] max-w-[min(18rem,80vw)] -translate-x-1/2 rounded-full border border-border bg-card/95 px-3 py-2 text-center text-ui-meta font-semibold text-foreground shadow-xl backdrop-blur-sm"
             style={{ left: ghostPos.x, top: ghostPos.y + ghostCardH / 2 + 12 }}
           >
             {dragFeedback}
@@ -2818,7 +2921,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         createPortal(
           <div
             role="alert"
-            className="pointer-events-none fixed z-[10000] max-w-[min(20rem,84vw)] -translate-x-1/2 -translate-y-full rounded-lg border border-destructive/50 bg-card/95 px-3 py-2 text-center text-xs font-semibold text-foreground shadow-xl backdrop-blur-sm"
+            className="pointer-events-none fixed z-[10000] max-w-[min(20rem,84vw)] -translate-x-1/2 -translate-y-full rounded-lg border border-destructive/50 bg-card/95 px-3 py-2 text-center text-ui-meta font-semibold text-foreground shadow-xl backdrop-blur-sm"
             style={{ left: rejectionFeedback.x, top: rejectionFeedback.y - 16 }}
           >
             Invalid drop. {rejectionFeedback.message}
@@ -2850,7 +2953,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         <HoverCardPreview
           preview={{
             ...preview,
-            hoveredCard: livePreviewCard,
+            hoveredCard: inspectionPreviewCard,
             showBackFace: previewShowBackFace,
             flipCard: handleFlipPreview,
           }}

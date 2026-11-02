@@ -8,6 +8,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppInitGate } from "@/components/AppInitGate";
 import { SignInDialog } from "@/components/auth/SignInDialog";
 import { useApplyTheme, useThemePreviewMode } from "@/hooks/useTheme";
+import { useVisualViewport } from "@/hooks/useVisualViewport";
 import { useGameDevStore } from "@/stores/useGameDevStore";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { lazy, Suspense, useEffect } from "react";
@@ -106,6 +107,7 @@ function LocalizedApplication({ devToolsEnabled }: { devToolsEnabled: boolean })
 }
 
 function App() {
+  useVisualViewport();
   const devToolsEnabled = useGameDevStore((s) => s.devToolsEnabled);
   useEffect(() => {
     void initApp();

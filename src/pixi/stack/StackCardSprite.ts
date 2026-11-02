@@ -77,6 +77,7 @@ export class StackCardSprite {
     this.face.onVisualChange = onRenderRequested;
     this.face.setPreviewFace(faceIndex ?? null);
     this.face.scale.set(this.faceScale);
+    this.face.setHandRulesScale(this.faceScale);
     this.face.setHandRulesInteractive(!spec.isValidTarget);
     this.face.setHandRulesView(rulesView);
     this.face.setHandRulesHighlight(spec.sourceAbilityText ?? "");
@@ -170,6 +171,7 @@ export class StackCardSprite {
 
   setTheme(theme: Theme): void {
     this.theme = theme;
+    this.syncControls();
     this.redraw();
   }
 

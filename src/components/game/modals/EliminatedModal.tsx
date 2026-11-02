@@ -12,7 +12,7 @@ export function EliminatedModal({ heading, hosting, onObserve, onLeave }: Elimin
       <Modal.Header>
         <h2 className="text-base font-semibold">{heading}</h2>
       </Modal.Header>
-      <Modal.Body className="text-sm">
+      <Modal.Body>
         <p>
           {hosting
             ? `Your seat is out, but this app still hosts the table. Stay connected so the other players can finish. You can leave through the game menu, which will warn you before ending their game.`

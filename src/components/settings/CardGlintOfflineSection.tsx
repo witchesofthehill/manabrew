@@ -50,10 +50,10 @@ export function CardGlintOfflineSection() {
       className="max-w-xl space-y-3 rounded-lg border bg-card/40 p-4"
       aria-labelledby="glint-offline-heading"
     >
-      <h3 id="glint-offline-heading" className="text-sm font-medium">
+      <h3 id="glint-offline-heading" className="text-ui-label font-medium">
         Generated cards offline
       </h3>
-      <p className="text-xs text-muted-foreground">
+      <p className="text-ui-body text-muted-foreground">
         Download the selected deck's frames, all renderer fonts, symbols, card records and artwork
         into this browser's storage. Both faces and saved customizations are included. Finish maps
         are generated locally and need no separate download.
@@ -72,25 +72,26 @@ export function CardGlintOfflineSection() {
         ))}
       </AppSelect>
       {decks.length === 0 && (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-ui-meta text-muted-foreground">
           Save a deck before downloading its renderer assets.
         </p>
       )}
-      <p className="text-xs text-muted-foreground">
+      <p className="text-ui-body text-muted-foreground">
         Frames and proprietary fonts are not bundled with Manabrew. Card Conjurer's service terms
         are personal and noncommercial, not a blanket asset redistribution license. Some source
-        collections provide no asset license. Only download materials you have permission to use.{" "}
+        collections provide no asset license. Only download materials you have permission to use.
+        {""}
         <a
-          className="underline"
+          className="touch:inline-flex touch:min-h-11 touch:items-center underline"
           href="https://github.com/joshbirnholz/cardconjurer/blob/33f2547137fe366b40e9e8dba4eb591af190fddf/legal/index.html"
           target="_blank"
           rel="noreferrer"
         >
           Source terms
         </a>
-        {" · "}
+        {" ·"}
         <a
-          className="underline"
+          className="touch:inline-flex touch:min-h-11 touch:items-center underline"
           href="/card-glint-licenses/games-magic-NOTICE.md"
           target="_blank"
           rel="noreferrer"
@@ -98,7 +99,7 @@ export function CardGlintOfflineSection() {
           Asset notices
         </a>
       </p>
-      <label className="flex items-start gap-2 text-xs text-muted-foreground">
+      <label className="flex items-start gap-2 text-ui-label text-muted-foreground touch:min-h-11 touch:min-w-11">
         <input
           type="checkbox"
           checked={permission}
@@ -107,12 +108,16 @@ export function CardGlintOfflineSection() {
         />
         I have permission to download these source assets for my personal use.
       </label>
-      <div role="status" aria-live="polite" className="space-y-1 text-xs text-muted-foreground">
+      <div
+        role="status"
+        aria-live="polite"
+        className="space-y-1 text-ui-meta text-muted-foreground"
+      >
         {!available ? (
           <p>Persistent asset storage is unavailable. Use HTTPS or the desktop app.</p>
         ) : status?.ready ? (
           <p>
-            Installed for this deck and language: {status.manifest?.urls.length} resources,{" "}
+            Installed for this deck and language: {status.manifest?.urls.length} resources,{""}
             {((status.manifest?.bytes ?? 0) / 1024 / 1024).toFixed(1)} MB.
             {status.manifest?.scanOnly
               ? ` ${status.manifest.scanOnly} cards retain their original scans.`
@@ -137,7 +142,7 @@ export function CardGlintOfflineSection() {
         {state.phase === "failed" && <p>Download failed: {state.message}</p>}
         {error && <p>{error}</p>}
       </div>
-      <p className="text-xs text-muted-foreground">
+      <p className="text-ui-body text-muted-foreground">
         Install while connected. A first-time offline launch cannot fetch missing assets. Readiness
         applies only to this saved deck, printing choices and language, not every card or the app
         itself. Changing them requires another download. Browser storage can be evicted. This cache

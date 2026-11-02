@@ -17,7 +17,7 @@ export function CardFoilControls() {
       role="group"
       aria-label="Card finish preview controls"
     >
-      <label className="flex items-center gap-2 text-xs">
+      <label className="flex min-h-8 touch:min-h-11 items-center gap-2 text-ui-label">
         <input
           type="checkbox"
           checked={foilAll}
@@ -36,7 +36,7 @@ export function CardFoilControls() {
           </AppSelectOption>
         ))}
       </AppSelect>
-      <span className="text-xs text-muted-foreground">Lab only. Card Glint finishes.</span>
+      <span className="text-ui-meta text-muted-foreground">Lab only. Card Glint finishes.</span>
     </div>
   );
 }

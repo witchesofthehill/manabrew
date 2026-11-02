@@ -11,12 +11,12 @@ interface PreferenceCardProps {
 export function PreferenceCard({ title, description, value, children }: PreferenceCardProps) {
   return (
     <div className="flex flex-col gap-3 rounded-lg border bg-brand-accent-muted/20 p-4 dark:bg-card/40 sm:p-5">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-start justify-between gap-2">
         <Label className="text-brand-accent-foreground dark:text-foreground">{title}</Label>
-        {value && <span className="text-xs font-mono text-muted-foreground">{value}</span>}
+        {value && <span className="text-ui-meta font-mono text-muted-foreground">{value}</span>}
       </div>
       {children}
-      <p className="mt-auto pt-1 text-xs text-muted-foreground">{description}</p>
+      <p className="mt-auto pt-1 text-ui-body text-muted-foreground">{description}</p>
     </div>
   );
 }

@@ -48,7 +48,7 @@ export function SetPicker({
   if (variant === "inline" && selected && !changing) {
     if (renderSelected) return renderSelected(selected, () => setChanging(true));
     return (
-      <section className="flex items-center gap-2 rounded-lg border border-border/70 bg-card/40 p-2">
+      <section className="flex flex-wrap items-center gap-2 rounded-lg border border-border/70 bg-card/40 p-2">
         <div className="min-w-0 flex-1">
           <SetTile
             set={selected}
@@ -61,7 +61,7 @@ export function SetPicker({
           type="button"
           size="sm"
           variant="outline"
-          className="h-8 shrink-0 text-xs pointer-coarse:h-11"
+          className="h-auto min-h-8 shrink-0 text-ui-label touch:min-h-11"
           onClick={() => setChanging(true)}
         >
           Change set
@@ -84,7 +84,7 @@ export function SetPicker({
         )}
       >
         <div className="mb-3 flex flex-wrap items-center gap-2">
-          <h2 className="mr-auto text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <h2 className="mr-auto text-ui-label font-semibold uppercase tracking-wide text-muted-foreground">
             Pick a set
           </h2>
           <div
@@ -102,7 +102,7 @@ export function SetPicker({
               onChange={(e) => setQuery(e.target.value)}
               placeholder={`Search ${sets.length} sets…`}
               className={cn(
-                "h-8 pl-7 text-xs pointer-coarse:h-11 pointer-coarse:text-base",
+                "h-auto min-h-8 pl-7 text-ui-input touch:min-h-11",
                 variant === "column" || isTouch ? "w-full" : "w-64",
               )}
             />
@@ -114,7 +114,7 @@ export function SetPicker({
             value={typeFilter}
             onValueChange={setTypeFilter}
             aria-label="Set type"
-            className="h-11 w-full rounded-md border border-input bg-background px-3 text-base"
+            className="min-h-11 w-full rounded-md border border-input bg-background px-3"
           >
             {SET_TYPE_LABELS.map(({ key, label }) => {
               const count = counts[key] ?? 0;
@@ -138,7 +138,7 @@ export function SetPicker({
                   type="button"
                   onClick={() => setTypeFilter(key)}
                   className={cn(
-                    "rounded-full border px-2.5 py-0.5 text-[11px] transition",
+                    "min-h-8 rounded-full border px-2.5 py-0.5 text-ui-label transition touch:min-h-11 touch:min-w-11",
                     active
                       ? "border-selection-border bg-selection text-selection-foreground"
                       : "border-border/50 text-muted-foreground hover:border-border hover:text-foreground/90",
@@ -161,11 +161,14 @@ export function SetPicker({
       >
         {!query && typeFilter === "all" && (
           <div className="mb-3">
-            <h3 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <h3 className="mb-1.5 text-ui-label font-semibold uppercase tracking-wide text-muted-foreground">
               Latest
             </h3>
             <div
-              className={cn("flex flex-wrap gap-1.5", isTouch && "grid grid-cols-2 sm:grid-cols-4")}
+              className={cn(
+                "flex flex-wrap gap-1.5",
+                isTouch && "grid grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))]",
+              )}
             >
               {recents.map((s) => (
                 <SetTile
@@ -181,9 +184,9 @@ export function SetPicker({
           </div>
         )}
 
-        <div className="grid grid-cols-1 gap-1.5 @lg:grid-cols-2 @3xl:grid-cols-3 @5xl:grid-cols-4">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,16rem),1fr))] gap-1.5">
           {filtered.length === 0 ? (
-            <div className="col-span-full py-6 text-center text-sm text-muted-foreground">
+            <div className="col-span-full py-6 text-center text-ui-body text-muted-foreground">
               {query ? `No sets match "${query}".` : `No sets match the current filter.`}
             </div>
           ) : (

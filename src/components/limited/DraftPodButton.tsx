@@ -14,16 +14,20 @@ export function DraftPodButton({ seats }: DraftPodButtonProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button size="sm" variant="ghost" className="h-8 gap-1.5 px-2 text-xs">
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-auto min-h-8 gap-1.5 px-2 text-ui-label touch:min-h-11"
+        >
           <Users className="h-3.5 w-3.5" />
           Pod ({seats.length})
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-60">
-        <DropdownMenuLabel className="text-xs uppercase tracking-wide text-muted-foreground">
+        <DropdownMenuLabel className="text-ui-meta uppercase tracking-wide text-muted-foreground">
           Pod
         </DropdownMenuLabel>
-        <ul className="space-y-1 px-2 pb-2 text-sm">
+        <ul className="space-y-1 px-2 pb-2 text-ui-label">
           {seats.map((s) => (
             <li
               key={s.seat}
@@ -32,7 +36,7 @@ export function DraftPodButton({ seats }: DraftPodButtonProps) {
               <span className={s.isHuman ? "font-semibold" : ""}>
                 {s.seat}. {s.name}
               </span>
-              <span className="shrink-0 text-right text-[11px] text-muted-foreground">
+              <span className="shrink-0 text-right text-ui-meta text-muted-foreground">
                 <span className="block">
                   {s.currentPackSize ?? 0} cards
                   {(s.packsWaiting ?? 0) > 0 ? ` · ${s.packsWaiting ?? 0} waiting` : ""}

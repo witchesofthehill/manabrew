@@ -177,7 +177,12 @@ export function TablesList({
               >
                 Tables from other players
               </h2>
-              <p className={cn("ml-2 mt-2 text-xs text-muted-foreground", shortTouch && "hidden")}>
+              <p
+                className={cn(
+                  "ml-2 mt-2 text-ui-meta text-muted-foreground",
+                  shortTouch && "hidden",
+                )}
+              >
                 Join a table that is already waiting for players.
               </p>
             </div>
@@ -190,7 +195,7 @@ export function TablesList({
                   onChange={(e) => setSearch(e.target.value)}
                   aria-label="Search tables"
                   placeholder="Search tables…"
-                  className="h-8 pl-8 text-sm pointer-coarse:h-11 pointer-coarse:text-base"
+                  className="min-h-8 pl-8 text-ui-input touch:min-h-11"
                 />
               </div>
               <Button
@@ -198,18 +203,18 @@ export function TablesList({
                 onClick={onRefresh}
                 disabled={refreshDisabled || refreshing}
                 title="Refresh tables"
-                className="h-8 w-8 shrink-0 pointer-coarse:h-11 pointer-coarse:w-11"
+                className="min-h-8 w-8 shrink-0 touch:min-h-11 touch:w-11 touch:min-h-11 touch:min-w-11"
               >
                 <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
               </Button>
             </div>
 
-            <p className="ml-2 text-xs text-muted-foreground">
+            <p className="ml-2 text-ui-meta text-muted-foreground">
               {visibleRooms.length} {visibleRooms.length === 1 ? `table` : `tables`}
             </p>
 
             {visibleRooms.length > 0 ? (
-              <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+              <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))]">
                 {visibleRooms.map((room) => (
                   <OpenTableCard
                     key={room.room_id}
@@ -222,7 +227,7 @@ export function TablesList({
               </div>
             ) : (
               <div className="flex flex-col items-center gap-3 py-5 text-center">
-                <p className="text-sm text-muted-foreground">
+                <p className="text-ui-body text-muted-foreground">
                   {hasTables ? "No tables match your search." : "No player tables are waiting."}
                 </p>
                 {!hasTables && (

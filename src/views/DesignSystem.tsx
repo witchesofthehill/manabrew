@@ -49,14 +49,14 @@ export default function DesignSystem() {
               <a
                 key={s.id}
                 href={`#${s.id}`}
-                className="shrink-0 whitespace-nowrap rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
+                className="inline-flex min-h-8 shrink-0 items-center whitespace-nowrap rounded-full border border-border px-2.5 py-1 text-ui-label text-muted-foreground transition-colors hover:border-primary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring touch:min-h-11 touch:min-w-11"
               >
                 {s.label}
               </a>
             ))}
           </nav>
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
-            <p className="text-xs text-muted-foreground" role="status">
+            <p className="text-ui-meta text-muted-foreground" role="status">
               {preparing
                 ? "Preparing fonts, card examples, and images…"
                 : "Export every section, including collapsed content. Choose Save as PDF in the print dialog."}

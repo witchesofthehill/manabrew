@@ -35,7 +35,7 @@ export function GuestNamePicker() {
   return (
     <div className="space-y-2">
       <Label htmlFor="guest-username">Username</Label>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center [&>input]:min-w-0 [&>input]:flex-1 gap-2">
         <Input
           id="guest-username"
           value={name}
@@ -52,8 +52,8 @@ export function GuestNamePicker() {
           {busy ? `Saving\u2026` : `Save`}
         </Button>
       </div>
-      {error && <p className="text-sm text-destructive">{error}</p>}
-      <p className="text-xs text-muted-foreground">Playing as a guest.</p>
+      {error && <p className="text-ui-meta text-destructive">{error}</p>}
+      <p className="text-ui-meta text-muted-foreground">Playing as a guest.</p>
     </div>
   );
 }

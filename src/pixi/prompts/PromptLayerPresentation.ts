@@ -7,7 +7,6 @@ export interface ScryPromptHint {
   arrowOffsetX: number;
   arrowOffsetY: number;
   iconSize: number;
-  fontSize: number;
   textOffsetY: number;
 }
 
@@ -20,13 +19,11 @@ export interface ScryPromptLayout {
   overlapPoolCards: boolean;
   zoneGap: number;
   destinationVerticalPadding: number;
-  labelOffset: number;
   hint: ScryPromptHint;
 }
 
 export interface PromptLayerPresentation {
   readonly actionStyle: "full" | "minimal";
-  readonly modalBodyFit: "scroll" | "scale";
   cardLayout(viewportHeight: number): "grid" | "horizontal-scroll";
   readonly selectionRowHeight: number;
   readonly scryHint: ScryPromptHint;

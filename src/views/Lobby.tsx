@@ -487,7 +487,7 @@ export default function Lobby() {
     }
   }
   return (
-    <div className="flex h-full w-full min-h-0">
+    <div className="flex h-full w-full min-h-0 pb-[max(0px,calc(100dvh-var(--visual-viewport-height)-var(--visual-viewport-top)))]">
       <div className="flex min-w-0 flex-1 flex-col">
         {(!connected || (!showDesktopPanel && !!myUsername)) && (
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 px-4 py-2 sm:px-6 lg:px-8">
@@ -512,7 +512,7 @@ export default function Lobby() {
                 <Users /> {chatEnabled ? `Players & chat` : `Players`}
                 <span
                   className={cn(
-                    "rounded-full px-1.5 py-0.5 text-[10px]",
+                    "rounded-full px-1.5 py-0.5 text-ui-meta",
                     pendingInviteCount > 0
                       ? "bg-primary text-primary-foreground"
                       : "bg-muted text-muted-foreground",

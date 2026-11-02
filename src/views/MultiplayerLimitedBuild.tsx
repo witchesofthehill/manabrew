@@ -138,18 +138,23 @@ export default function MultiplayerLimitedBuild() {
   };
   if (session.matchReturn?.started && !gameActive)
     return (
-      <section className="flex h-full flex-col items-center justify-center gap-3 p-6">
-        <p role="status" className="text-sm text-muted-foreground">
+      <section className="flex h-full min-h-0 min-w-0 flex-col items-center gap-3 overflow-y-auto overscroll-contain px-4 py-3 text-ui-body break-words sm:px-6 lg:px-8">
+        <p role="status" className="mt-auto shrink-0 text-ui-body text-muted-foreground">
           {returning
             ? "Returning to your Limited pool…"
             : "Your pool and build are retained. Confirm your return with the relay to continue."}
         </p>
         {session.lastError && (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="shrink-0 text-ui-label text-destructive">
             {session.lastError}
           </p>
         )}
-        <Button variant="primary" disabled={returning} onClick={() => void returnToBuild()}>
+        <Button
+          variant="primary"
+          className="mb-auto max-w-full shrink-0 whitespace-normal"
+          disabled={returning}
+          onClick={() => void returnToBuild()}
+        >
           Retry return to pool
         </Button>
       </section>
@@ -158,130 +163,142 @@ export default function MultiplayerLimitedBuild() {
     return (
       <LimitedTableSurface
         backgroundId={session.originalRoom.table_style}
-        className="gap-2 px-4 py-3 sm:px-6 lg:px-8"
+        className="min-w-0 gap-2 px-4 py-3 text-ui-body sm:px-6 lg:px-8"
       >
-        <header className="flex shrink-0 flex-wrap items-center justify-between gap-2">
-          <p className="text-sm text-muted-foreground">Open your packs to reveal your pool.</p>
+        <header className="-mx-1 flex max-h-[40%] shrink-0 flex-wrap items-center justify-between gap-2 overflow-y-auto overscroll-contain px-1 py-1">
+          <p className="min-w-0 flex-1 basis-64 text-ui-body break-words text-muted-foreground">
+            Open your packs to reveal your pool.
+          </p>
           <LimitedSettingsButton sessionKey={session.sessionId} sharedTable />
         </header>
-        <LimitedPackOpening
-          key={session.sessionId}
-          sessionKey={session.sessionId}
-          packs={session.sealed.packs}
-          onComplete={() => void completeLimitedOpening()}
-        />
+        <div className="min-h-0 min-w-0 flex-1">
+          <LimitedPackOpening
+            key={session.sessionId}
+            sessionKey={session.sessionId}
+            packs={session.sealed.packs}
+            onComplete={() => void completeLimitedOpening()}
+          />
+        </div>
       </LimitedTableSurface>
     );
   return (
     <LimitedTableSurface
       backgroundId={session.originalRoom.table_style}
-      className="gap-2 px-4 py-3 sm:px-6 lg:px-8"
+      className="min-w-0 gap-2 px-4 py-3 text-ui-body sm:px-6 lg:px-8"
     >
-      <header className="flex shrink-0 flex-wrap items-center justify-between gap-2">
-        <p className="rounded bg-card/70 px-2 py-1 text-xs text-muted-foreground">
-          Your pool stays here after each game. Edit your deck, then ready for a casual pairing.
-        </p>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={() =>
-              void requestLimitedResync().catch((error) => session.setError(String(error)))
-            }
-          >
-            Sync with host
-          </Button>
-          {amHost && (
-            <AppSelect
-              value={String(session.bestOf)}
-              onValueChange={(value) =>
-                void setLimitedBestOf(value === "1" ? 1 : 3).catch((error) =>
-                  session.setError(String(error)),
-                )
-              }
-              aria-label="Match length"
-              disabled={
-                session.statuses.some((status) => status.playing) ||
-                session.series.some(
-                  (match) => !match.complete && match.wins.some((wins) => wins > 0),
-                )
-              }
-            >
-              <AppSelectOption value="1">Single game</AppSelectOption>
-              <AppSelectOption value="3">Best of three</AppSelectOption>
-            </AppSelect>
-          )}
-          {amHost && (
+      <div className="-mx-1 max-h-[40%] shrink-0 space-y-2 overflow-y-auto overscroll-contain px-1 py-1">
+        <header className="flex flex-wrap items-center justify-between gap-2">
+          <p className="min-w-0 flex-1 basis-64 rounded bg-card/70 px-2 py-1 text-ui-body break-words text-muted-foreground">
+            Your pool stays here after each game. Edit your deck, then ready for a casual pairing.
+          </p>
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
             <Button
-              variant="primary"
-              disabled={!allReady || starting || session.phase === "playing"}
-              onClick={() => void start()}
+              variant="outline"
+              onClick={() =>
+                void requestLimitedResync().catch((error) => session.setError(String(error)))
+              }
             >
-              {starting ? "Pairing…" : "Play paired games"}
+              Sync with host
             </Button>
-          )}
-          <LimitedSettingsButton
-            sessionKey={session.sessionId}
-            quickPick={session.kind === "draft"}
-            sharedTable
-          />
-        </div>
-      </header>
-      <ul className="flex shrink-0 flex-wrap gap-2 text-sm" aria-label="Deck readiness">
-        {session.seats.map((seat) => {
-          const status = session.statuses.find((s) => s.seat === seat.seat);
-          return (
-            <li
-              key={seat.seat}
-              className={cn(
-                "rounded-md bg-card/80 px-2 py-1",
-                status?.ready ? "text-selection-border" : "text-muted-foreground",
-              )}
-            >
-              <span className="font-semibold">{seat.displayName}</span> ·{" "}
-              {status?.playing
-                ? "Playing"
-                : status?.ready
-                  ? "Deck ready"
-                  : session.kind === "sealed" && !status?.opened
-                    ? "Opening packs"
-                    : "Building"}
-            </li>
-          );
-        })}
-      </ul>
-      {session.series.length > 0 && (
-        <ul
-          className="flex flex-wrap gap-3 text-sm text-muted-foreground"
-          aria-label="Casual match scores"
-        >
-          {session.series.map((match) => (
-            <li key={match.seats.join("-")} className="rounded bg-card/70 px-2 py-1">
-              {match.seats
-                .map((id) => session.seats.find((seat) => seat.seat === id)?.displayName)
-                .join(" / ")}{" "}
-              · {match.wins.join(" - ")}
-              {match.complete ? " · Match complete" : " · Sideboard between games"}
-            </li>
-          ))}
+            {amHost && (
+              <AppSelect
+                value={String(session.bestOf)}
+                onValueChange={(value) =>
+                  void setLimitedBestOf(value === "1" ? 1 : 3).catch((error) =>
+                    session.setError(String(error)),
+                  )
+                }
+                aria-label="Match length"
+                disabled={
+                  session.statuses.some((status) => status.playing) ||
+                  session.series.some(
+                    (match) => !match.complete && match.wins.some((wins) => wins > 0),
+                  )
+                }
+              >
+                <AppSelectOption value="1">Single game</AppSelectOption>
+                <AppSelectOption value="3">Best of three</AppSelectOption>
+              </AppSelect>
+            )}
+            {amHost && (
+              <Button
+                variant="primary"
+                disabled={!allReady || starting || session.phase === "playing"}
+                onClick={() => void start()}
+              >
+                {starting ? "Pairing…" : "Play paired games"}
+              </Button>
+            )}
+            <LimitedSettingsButton
+              sessionKey={session.sessionId}
+              quickPick={session.kind === "draft"}
+              sharedTable
+            />
+          </div>
+        </header>
+        <ul className="flex flex-wrap gap-2 text-ui-meta" aria-label="Deck readiness">
+          {session.seats.map((seat) => {
+            const status = session.statuses.find((s) => s.seat === seat.seat);
+            return (
+              <li
+                key={seat.seat}
+                className={cn(
+                  "min-w-0 rounded-md bg-card/80 px-2 py-1 break-words",
+                  status?.ready ? "text-selection-border" : "text-muted-foreground",
+                )}
+              >
+                <span className="font-semibold">{seat.displayName}</span> ·{" "}
+                {status?.playing
+                  ? "Playing"
+                  : status?.ready
+                    ? "Deck ready"
+                    : session.kind === "sealed" && !status?.opened
+                      ? "Opening packs"
+                      : "Building"}
+              </li>
+            );
+          })}
         </ul>
-      )}
-      {hostDisconnected && (
-        <p role="status" className="text-sm text-destructive">
-          The host is disconnected. Resume the saved session on the host&apos;s device to continue
-          with the same pools and builds.
-        </p>
-      )}
-      {session.lastError && (
-        <p role="alert" className="text-sm text-destructive">
-          {session.lastError}
-        </p>
-      )}
+        {session.series.length > 0 && (
+          <ul
+            className="flex flex-wrap gap-3 text-ui-meta text-muted-foreground"
+            aria-label="Casual match scores"
+          >
+            {session.series.map((match) => (
+              <li
+                key={match.seats.join("-")}
+                className="min-w-0 rounded bg-card/70 px-2 py-1 break-words"
+              >
+                {match.seats
+                  .map((id) => session.seats.find((seat) => seat.seat === id)?.displayName)
+                  .join(" / ")}{" "}
+                · {match.wins.join(" - ")}
+                {match.complete ? " · Match complete" : " · Sideboard between games"}
+              </li>
+            ))}
+          </ul>
+        )}
+        {hostDisconnected && (
+          <p role="status" className="text-ui-label break-words text-destructive">
+            The host is disconnected. Resume the saved session on the host&apos;s device to continue
+            with the same pools and builds.
+          </p>
+        )}
+        {session.lastError && (
+          <p role="alert" className="text-ui-label break-words text-destructive">
+            {session.lastError}
+          </p>
+        )}
+      </div>
       {session.phase === "playing" ? (
-        <p role="status" className="text-sm text-muted-foreground">
+        <p
+          role="status"
+          className="max-h-[20%] shrink-0 overflow-y-auto overscroll-contain text-ui-body break-words text-muted-foreground"
+        >
           Starting your paired game…
         </p>
       ) : (
-        <div className="min-h-0 flex-1">
+        <div className="min-h-0 min-w-0 flex-1">
           <LimitedDeckBuilder
             key={session.sessionId}
             sessionKey={session.sessionId}

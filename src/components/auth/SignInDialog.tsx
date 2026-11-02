@@ -15,7 +15,7 @@ export function SignInDialog() {
 
   return (
     <Dialog open={open} onOpenChange={(next) => (next ? undefined : hide())}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="sr-only">Sign in or create an account</DialogTitle>
           <DialogDescription className="sr-only">

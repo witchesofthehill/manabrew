@@ -44,7 +44,7 @@ export function NewSessionDialog({
 }: NewSessionDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md overflow-y-auto overscroll-contain">
         <DialogHeader>
           <DialogTitle>New game</DialogTitle>
         </DialogHeader>
@@ -165,29 +165,29 @@ function NewSessionForm({
           </div>
         </div>
 
-        <label className="flex cursor-pointer items-center gap-2 text-sm">
+        <label className="flex cursor-pointer items-center gap-2 text-ui-label touch:min-h-11">
           <input
             type="checkbox"
             checked={commanderRules}
             onChange={(e) => updateCommanderRules(e.target.checked)}
-            className="size-4 accent-selection"
+            className="size-4 shrink-0 accent-selection"
           />
           Commander rules (40 life, 21 cmd damage lethal)
         </label>
 
-        <label className="flex cursor-pointer items-center gap-2 text-sm">
+        <label className="flex cursor-pointer items-center gap-2 text-ui-label touch:min-h-11">
           <input
             type="checkbox"
             checked={oathbreaker}
             onChange={(e) => setOathbreaker(e.target.checked)}
-            className="size-4 accent-selection"
+            className="size-4 shrink-0 accent-selection"
           />
           Oathbreaker (partner slot becomes Signature Spell)
         </label>
 
         <div className="space-y-1">
           <Label>Layout</Label>
-          <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] gap-1.5">
             {layoutChoices.map((option) => (
               <LayoutCard
                 key={option}
@@ -201,12 +201,12 @@ function NewSessionForm({
         </div>
 
         {hasExistingSession && (
-          <label className="flex cursor-pointer items-center gap-2 text-sm">
+          <label className="flex cursor-pointer items-center gap-2 text-ui-label touch:min-h-11">
             <input
               type="checkbox"
               checked={carryRoster}
               onChange={(e) => setCarryRoster(e.target.checked)}
-              className="size-4 accent-selection"
+              className="size-4 shrink-0 accent-selection"
             />
             Keep names, colors and commanders from current game
           </label>
@@ -251,7 +251,7 @@ function LayoutCard({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex flex-col items-center gap-1.5 rounded-md border p-2 text-center text-[11px] font-medium transition",
+        "flex min-w-0 flex-col items-center gap-1.5 rounded-md border p-2 text-center text-ui-label font-medium transition touch:min-h-11 touch:min-w-11",
         active
           ? "border-selection-border bg-selection text-selection-foreground"
           : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -261,7 +261,7 @@ function LayoutCard({
       title={label}
     >
       <LayoutIcon layout={layout} className="size-9" />
-      <span className="truncate leading-tight">{label}</span>
+      <span className="whitespace-normal break-words leading-tight">{label}</span>
     </button>
   );
 }
@@ -279,7 +279,7 @@ function PillButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "rounded-full border px-3 py-1 text-xs font-medium transition",
+        "rounded-full border px-3 py-1 text-ui-label font-medium transition touch:min-h-11 touch:min-w-11",
         active
           ? "border-selection-border bg-selection text-selection-foreground"
           : "border-border bg-background text-foreground hover:bg-muted",

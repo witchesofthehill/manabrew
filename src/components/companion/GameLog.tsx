@@ -21,13 +21,15 @@ export function GameLog({ session, open, onOpenChange }: GameLogProps) {
   };
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-80 overflow-y-auto p-0">
+      <SheetContent side="right" className="w-80 max-w-full overflow-y-auto overscroll-contain p-0">
         <SheetHeader className="px-4 py-3">
           <SheetTitle>Game log</SheetTitle>
         </SheetHeader>
         <ol className="divide-y divide-border">
           {history.length === 0 && (
-            <li className="px-4 py-6 text-center text-sm text-muted-foreground">No events yet.</li>
+            <li className="px-4 py-6 text-center text-ui-body text-muted-foreground">
+              No events yet.
+            </li>
           )}
           {history
             .map((event, index) => ({ event, index }))
@@ -36,18 +38,18 @@ export function GameLog({ session, open, onOpenChange }: GameLogProps) {
               <li
                 key={`${event.at}-${index}`}
                 className={cn(
-                  "flex items-center justify-between gap-2 px-4 py-2 text-sm",
+                  "flex items-center justify-between gap-2 px-4 py-2 text-ui-body",
                   index === history.length - 1 && "bg-accent/50",
                 )}
               >
                 <div className="min-w-0 flex-1">
-                  <div className="truncate">{describeEvent(event, session)}</div>
-                  <div className="text-[10px] text-muted-foreground">{formatTime(event.at)}</div>
+                  <div className="break-words">{describeEvent(event, session)}</div>
+                  <div className="text-ui-meta text-muted-foreground">{formatTime(event.at)}</div>
                 </div>
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="size-7"
+                  className="size-7 touch:min-h-11 touch:min-w-11"
                   onClick={() => undoTo(index)}
                   title={`Rewind to this point`}
                   aria-label={`Rewind to this point`}

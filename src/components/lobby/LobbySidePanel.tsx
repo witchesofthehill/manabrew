@@ -76,7 +76,7 @@ export function LobbySidePanel({
         type="button"
         onClick={() => setTab(key)}
         className={cn(
-          "flex flex-1 items-center justify-center gap-1.5 border-b-2 py-2.5 text-sm font-medium",
+          "flex flex-1 items-center justify-center gap-1.5 border-b-2 py-2.5 text-ui-label font-medium touch:min-h-11 touch:min-w-11 whitespace-normal",
           tab === key
             ? "border-primary text-foreground"
             : "border-transparent text-muted-foreground",
@@ -85,7 +85,7 @@ export function LobbySidePanel({
         <Icon className="h-4 w-4" />
         {label}
         {key === "chat" && unread > 0 && tab !== "chat" && (
-          <span className="rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground">
+          <span className="rounded-full bg-primary px-1.5 text-ui-meta text-primary-foreground">
             {unread}
           </span>
         )}

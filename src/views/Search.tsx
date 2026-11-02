@@ -5,7 +5,7 @@ export default function Search() {
   const [params, setParams] = useSearchParams();
   const setCode = params.get("set") ?? "";
   return (
-    <div className="h-full w-full">
+    <div className="h-full min-h-0 min-w-0 w-full overflow-hidden">
       <CardSearch
         key={setCode}
         standalone

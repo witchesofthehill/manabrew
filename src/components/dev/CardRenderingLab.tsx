@@ -203,7 +203,7 @@ export default function CardRenderingLab() {
         historicalWording={historicalPrinting ? wording : undefined}
         onWordingChange={setWording}
       />
-      <p role="status" className="text-sm text-muted-foreground">
+      <p role="status" className="break-words text-ui-meta text-muted-foreground">
         {lastAction ||
           (entry
             ? `${entry.info.name} · ${entry.info.set.toUpperCase()} #${entry.info.collector_number} · ${entry.info.lang} · ${entry.info.id}`

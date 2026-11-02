@@ -36,7 +36,7 @@ export function CommanderPickerDialog({
 }: CommanderPickerDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl">
+      <DialogContent className="max-w-xl overflow-y-auto overscroll-contain">
         <DialogHeader>
           <DialogTitle>Choose commander</DialogTitle>
         </DialogHeader>
@@ -95,12 +95,12 @@ function CommanderPickerForm({
           onQueryChange={(query) => updateSlot(0, { query })}
           onPick={(pick) => updateSlot(0, { pick })}
         />
-        <label className="flex cursor-pointer items-center gap-2 text-sm">
+        <label className="flex cursor-pointer items-center gap-2 text-ui-label touch:min-h-11">
           <input
             type="checkbox"
             checked={partnerEnabled}
             onChange={(e) => setPartnerEnabled(e.target.checked)}
-            className="size-4 accent-selection"
+            className="size-4 shrink-0 accent-selection"
           />
           {partnerLabel} slot
         </label>
@@ -177,11 +177,11 @@ function CommanderSlot({ slotLabel, query, pick, onQueryChange, onPick }: Comman
             <ScryfallImg
               src={pick.imageUrl}
               alt=""
-              className="h-12 w-9 rounded-sm object-cover"
+              className="h-12 w-9 shrink-0 rounded-sm object-cover"
               draggable={false}
             />
           )}
-          <div className="flex-1 truncate text-sm font-medium">{pick.name}</div>
+          <div className="min-w-0 flex-1 break-words text-ui-label font-medium">{pick.name}</div>
           <Button
             variant="ghost"
             size="icon"
@@ -213,9 +213,9 @@ function CommanderSlot({ slotLabel, query, pick, onQueryChange, onPick }: Comman
           <Loader2 className="pointer-events-none absolute right-2 top-1/2 size-4 -translate-y-1/2 animate-spin text-muted-foreground" />
         )}
       </div>
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      {error && <p className="text-ui-meta text-destructive">{error}</p>}
       {showResults && (
-        <ul className="max-h-56 space-y-1 overflow-y-auto rounded-md border border-border bg-popover p-1">
+        <ul className="max-h-56 space-y-1 overflow-y-auto overscroll-contain rounded-md border border-border bg-popover p-1">
           {results.map((card) => {
             const imageUrl =
               card.image_uris?.art_crop ??
@@ -228,7 +228,7 @@ function CommanderSlot({ slotLabel, query, pick, onQueryChange, onPick }: Comman
                 <button
                   type="button"
                   className={cn(
-                    "flex w-full items-center gap-3 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent",
+                    "flex w-full items-center gap-3 rounded-sm px-2 py-1.5 text-left text-ui-label hover:bg-accent touch:min-h-11 touch:min-w-11",
                   )}
                   onClick={() =>
                     onPick({
@@ -242,13 +242,13 @@ function CommanderSlot({ slotLabel, query, pick, onQueryChange, onPick }: Comman
                     <ScryfallImg
                       src={imageUrl}
                       alt=""
-                      className="size-8 rounded-sm object-cover"
+                      className="size-8 shrink-0 rounded-sm object-cover"
                       draggable={false}
                     />
                   )}
-                  <div className="flex flex-col">
+                  <div className="flex min-w-0 flex-col break-words">
                     <span className="font-medium">{displayName}</span>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-ui-meta text-muted-foreground">
                       {scryfallDisplayTypeLine(card)} · {card.set.toUpperCase()}
                     </span>
                   </div>

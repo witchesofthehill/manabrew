@@ -41,16 +41,16 @@ export function DevSizingControls() {
   return (
     <section className={DEV_SECTION}>
       <p className={DEV_SECTION_HEADING}>Size and viewport</p>
-      <p className="mt-1 text-xs text-muted-foreground">
+      <p className="mt-1 text-ui-body text-muted-foreground">
         Reflow the real Pixi board at fixed dimensions without opening browser tools.
       </p>
 
       {visibleCardSizes.length > 0 ? (
         <>
-          <p className="mb-2 mt-4 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          <p className="mb-2 mt-4 text-ui-label font-medium uppercase tracking-wide text-muted-foreground">
             Card size
           </p>
-          <div className="grid grid-cols-4 gap-1.5">
+          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
             {visibleCardSizes.map((size) => (
               <button
                 key={size}
@@ -70,10 +70,10 @@ export function DevSizingControls() {
 
       {visibleViewports.length > 0 ? (
         <>
-          <p className="mb-2 mt-4 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          <p className="mb-2 mt-4 text-ui-label font-medium uppercase tracking-wide text-muted-foreground">
             Board viewport
           </p>
-          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-5">
+          <div className="grid grid-cols-2 gap-1.5">
             {visibleViewports.map((option) => (
               <button
                 key={option.value}
@@ -90,9 +90,9 @@ export function DevSizingControls() {
                     : `${option.width}×${option.height}`
                 }
               >
-                <span className="block truncate">{option.label}</span>
+                <span className="block break-words">{option.label}</span>
                 {option.width != null ? (
-                  <span className="mt-0.5 block font-mono text-[9px] font-normal opacity-70">
+                  <span className="mt-0.5 block font-mono text-ui-meta font-normal opacity-70">
                     {option.width}×{option.height}
                   </span>
                 ) : null}

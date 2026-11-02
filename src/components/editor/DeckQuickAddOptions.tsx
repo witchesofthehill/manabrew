@@ -50,7 +50,7 @@ export function DeckQuickAddOptions({
     );
   }
   return (
-    <div className="absolute left-0 top-full z-50 mt-1 min-w-80 rounded-md border bg-popover p-2 text-popover-foreground shadow-lg">
+    <div className="absolute right-0 top-full z-50 mt-1 w-96 max-w-[calc(100vw-2rem)] rounded-md border bg-popover p-2 text-popover-foreground shadow-lg">
       <div className="mb-2 flex items-center gap-2">
         {chooseImageUrisForCard(card, { frontOnly: true }) && (
           <GeneratedCardImage
@@ -59,8 +59,8 @@ export function DeckQuickAddOptions({
           />
         )}
         <div className="min-w-0 flex-1">
-          <div className="truncate text-xs font-medium">{displayName}</div>
-          <div className="text-[10px] text-muted-foreground">Configure addition</div>
+          <div className="truncate text-ui-label font-medium">{displayName}</div>
+          <div className="text-ui-meta text-muted-foreground">Configure addition</div>
         </div>
         <Button
           type="button"
@@ -72,15 +72,15 @@ export function DeckQuickAddOptions({
           <X className="h-3 w-3" />
         </Button>
       </div>
-      <div className="flex items-center gap-1">
-        <label className="flex h-7 shrink-0 items-center rounded border bg-muted/40 px-1 text-[10px] text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-1">
+        <label className="touch:min-h-11 flex min-h-7 shrink-0 items-center rounded border bg-muted/40 px-1 text-ui-label text-muted-foreground">
           <input
             autoFocus
             type="number"
             min={1}
             max={99}
             value={quantity}
-            className="w-8 bg-transparent text-center text-xs font-medium text-foreground outline-none"
+            className="touch:min-h-11 w-12 bg-transparent text-center text-ui-input font-medium text-foreground outline-none"
             title={`Quantity`}
             onChange={(event) =>
               onQuantityChange(Math.max(1, Math.min(99, Number(event.target.value) || 1)))
@@ -93,7 +93,7 @@ export function DeckQuickAddOptions({
         </label>
         <AppSelect
           value={destination}
-          className="h-7 shrink-0 rounded border bg-background px-1 text-xs outline-none focus:ring-1 focus:ring-ring"
+          className="touch:min-h-11 min-h-7 shrink-0 rounded border bg-background px-1 text-ui-label outline-none focus:ring-1 focus:ring-ring"
           title={`Deck section`}
           onValueChange={(value) =>
             onDestinationChange(value as DeckQuickAddRequest["destination"])
@@ -109,7 +109,7 @@ export function DeckQuickAddOptions({
               type="button"
               size="sm"
               variant="outline"
-              className="h-7 shrink-0 gap-1 px-2"
+              className="touch:min-w-11 touch:min-h-11 min-h-7 shrink-0 gap-1 px-2"
               title={`Choose deck tags`}
             >
               <Bookmark className="h-3 w-3" />
@@ -129,7 +129,7 @@ export function DeckQuickAddOptions({
                 </DropdownMenuCheckboxItem>
               ))
             ) : (
-              <div className="px-2 py-1.5 text-xs text-muted-foreground">No deck tags yet</div>
+              <div className="px-2 py-1.5 text-ui-meta text-muted-foreground">No deck tags yet</div>
             )}
           </DropdownMenuContent>
         </DropdownMenu>
@@ -137,7 +137,7 @@ export function DeckQuickAddOptions({
           variant="primary"
           type="button"
           size="sm"
-          className="h-7 shrink-0 gap-1 px-2"
+          className="touch:min-w-11 touch:min-h-11 min-h-7 shrink-0 gap-1 px-2"
           onClick={onAdd}
         >
           <Plus className="h-3 w-3" />

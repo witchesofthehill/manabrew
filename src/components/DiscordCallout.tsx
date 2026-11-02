@@ -17,8 +17,10 @@ export function DiscordCallout() {
         <DiscordIcon className="size-5" />
       </span>
       <span className="relative flex-1 space-y-0.5">
-        <span className="block text-sm font-semibold text-foreground">Join our community</span>
-        <span className="block text-xs text-muted-foreground">
+        <span className="block text-ui-label font-semibold text-foreground">
+          Join our community
+        </span>
+        <span className="block text-ui-meta text-muted-foreground">
           Brewers, drafters, and bug hunters hang out on Discord — pull up a chair.
         </span>
       </span>

@@ -45,12 +45,14 @@ export default function DeckHub() {
     setSearchParams(next, { replace: true });
   }
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
       {!capabilitiesLoaded && capabilitiesError ? (
-        <div className="grid min-h-0 flex-1 place-items-center px-6 text-center">
-          <div className="max-w-md">
-            <p className="font-medium">Community could not be reached</p>
-            <p className="mt-1 text-sm text-muted-foreground">{capabilitiesError}</p>
+        <div className="grid min-h-0 min-w-0 flex-1 place-items-center overflow-y-auto px-4 py-4 text-center sm:px-6 lg:px-8">
+          <div className="max-w-md min-w-0">
+            <p className="text-ui-body font-medium">Community could not be reached</p>
+            <p className="mt-1 break-words text-ui-body text-muted-foreground">
+              {capabilitiesError}
+            </p>
             <Button
               variant="outline"
               size="sm"
@@ -63,7 +65,7 @@ export default function DeckHub() {
           </div>
         </div>
       ) : !capabilitiesLoaded ? (
-        <div className="grid min-h-0 flex-1 place-items-center text-sm text-muted-foreground">
+        <div className="grid min-h-0 flex-1 place-items-center overflow-y-auto text-ui-meta text-muted-foreground">
           Loading Community…
         </div>
       ) : topDecks ? (

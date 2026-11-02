@@ -17,7 +17,7 @@ interface PlayerNotesDialogProps {
 export function PlayerNotesDialog({ open, onOpenChange, player }: PlayerNotesDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="overflow-y-auto overscroll-contain">
         <DialogHeader>
           <DialogTitle>Notes — {player.name}</DialogTitle>
         </DialogHeader>
@@ -37,7 +37,7 @@ function PlayerNotesForm({ player, onClose }: { player: CompanionPlayer; onClose
         rows={6}
         autoFocus
         placeholder={`e.g. needs 1 mountain \u00B7 holding a Counterspell \u00B7 planeswalker at 4`}
-        className="w-full resize-y rounded-md border border-input bg-transparent p-2 text-sm pointer-coarse:text-base focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        className="min-h-24 w-full resize-y rounded-md border border-input bg-transparent p-2 text-ui-input focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring touch:min-h-11"
       />
       <DialogFooter>
         <Button variant="ghost" onClick={onClose}>

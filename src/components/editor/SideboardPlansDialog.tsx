@@ -56,7 +56,7 @@ export function SideboardPlansDialog({
         onOpenChange(nextOpen);
       }}
     >
-      <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
+      <DialogContent className="max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Sideboard plans</DialogTitle>
           <DialogDescription>
@@ -81,7 +81,7 @@ export function SideboardPlansDialog({
             <section key={plan.id} className="rounded-xl border bg-card/40 p-4">
               <div className="flex items-center gap-2">
                 <Input
-                  className="h-8 font-semibold"
+                  className="touch:min-h-11 min-h-8 font-semibold"
                   value={plan.matchup}
                   onFocus={planEdit.begin}
                   onChange={(event) => updatePlan(plan.id, { matchup: event.target.value })}
@@ -90,7 +90,7 @@ export function SideboardPlansDialog({
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                  className="touch:min-w-11 touch:min-h-11 min-h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
                   aria-label={`Delete ${plan.matchup}`}
                   onClick={() =>
                     executeDeckEdit(`Delete sideboard plan`, () =>
@@ -101,11 +101,11 @@ export function SideboardPlansDialog({
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <label className="text-xs font-medium">
+              <div className="mt-3 grid gap-3 grid-cols-[repeat(auto-fit,minmax(min(100%,16rem),1fr))]">
+                <label className="touch:min-h-11 text-ui-label font-medium">
                   Bring in
                   <textarea
-                    className="mt-1 min-h-24 w-full resize-y rounded-md border bg-background px-3 py-2 text-xs"
+                    className="touch:min-h-11 mt-1 min-h-24 w-full resize-y rounded-md border bg-background px-3 py-2 text-ui-input"
                     value={plan.bringIn}
                     placeholder="2 Negate\n1 Rest in Peace"
                     onFocus={planEdit.begin}
@@ -113,10 +113,10 @@ export function SideboardPlansDialog({
                     onBlur={planEdit.commit}
                   />
                 </label>
-                <label className="text-xs font-medium">
+                <label className="touch:min-h-11 text-ui-label font-medium">
                   Take out
                   <textarea
-                    className="mt-1 min-h-24 w-full resize-y rounded-md border bg-background px-3 py-2 text-xs"
+                    className="touch:min-h-11 mt-1 min-h-24 w-full resize-y rounded-md border bg-background px-3 py-2 text-ui-input"
                     value={plan.takeOut}
                     placeholder={`2 slow removal\n1 top-end threat`}
                     onFocus={planEdit.begin}
@@ -125,10 +125,10 @@ export function SideboardPlansDialog({
                   />
                 </label>
               </div>
-              <label className="mt-3 block text-xs font-medium">
+              <label className="touch:min-h-11 mt-3 block text-ui-label font-medium">
                 Matchup notes
                 <textarea
-                  className="mt-1 min-h-16 w-full resize-y rounded-md border bg-background px-3 py-2 text-xs"
+                  className="touch:min-h-11 mt-1 min-h-16 w-full resize-y rounded-md border bg-background px-3 py-2 text-ui-input"
                   value={plan.notes}
                   placeholder={`What matters after boarding?`}
                   onFocus={planEdit.begin}
@@ -139,7 +139,7 @@ export function SideboardPlansDialog({
             </section>
           ))}
           {plans.length === 0 && (
-            <p className="py-8 text-center text-xs text-muted-foreground">
+            <p className="py-8 text-center text-ui-meta text-muted-foreground">
               Add a matchup to start a sideboard guide.
             </p>
           )}

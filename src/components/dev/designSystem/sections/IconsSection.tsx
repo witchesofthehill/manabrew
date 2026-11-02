@@ -19,13 +19,13 @@ export function IconsSection() {
         <Subhead>lucide-react — UI chrome</Subhead>
         {LUCIDE_GROUPS.map((grp) => (
           <div key={grp.group} className="space-y-2">
-            <div className="font-mono text-[11px] text-muted-foreground">{grp.group}</div>
+            <div className="font-mono text-ui-label text-muted-foreground">{grp.group}</div>
             <TileGrid>
               {grp.names.map((name) => {
                 const Icon = lucideByName[name];
                 return (
                   <Tile key={name} label={name}>
-                    {Icon ? <Icon className="h-5 w-5" /> : <span className="text-xs">?</span>}
+                    {Icon ? <Icon className="h-5 w-5" /> : <span className="text-ui-label">?</span>}
                   </Tile>
                 );
               })}
@@ -56,10 +56,10 @@ export function IconsSection() {
       <Subhead>Mana symbols — ManaSymbols (Scryfall SVG)</Subhead>
       <Panel className="space-y-3">
         {MANA_COSTS.map((m) => (
-          <div key={m.label} className="flex items-center gap-3">
-            <span className="w-28 shrink-0 text-xs text-muted-foreground">{m.label}</span>
+          <div key={m.label} className="flex flex-wrap items-center gap-3">
+            <span className="w-28 shrink-0 text-ui-label text-muted-foreground">{m.label}</span>
             <ManaSymbols cost={m.cost} size="lg" />
-            <span className="font-mono text-[11px] text-muted-foreground">{m.cost}</span>
+            <span className="font-mono text-ui-meta text-muted-foreground">{m.cost}</span>
           </div>
         ))}
       </Panel>

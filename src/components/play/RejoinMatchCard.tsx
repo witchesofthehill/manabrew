@@ -99,13 +99,13 @@ export function RejoinMatchCard({ session, onAbandoned }: RejoinMatchCardProps) 
         </span>
         <div className="min-w-0 flex-1">
           <p className="font-medium">Match in progress</p>
-          <p className="truncate text-sm text-muted-foreground">
+          <p className="break-words text-ui-body text-muted-foreground">
             {currentRoom?.room_id === session.roomId
               ? `You're still seated at ${currentRoom.room_name}.`
               : `You're still seated in an online match.`}
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex flex-wrap shrink-0 items-center gap-2">
           <Button
             size="sm"
             variant="ghost"
@@ -138,7 +138,7 @@ export function RejoinMatchCard({ session, onAbandoned }: RejoinMatchCardProps) 
           if (!abandoning) setConfirmAbandon(open);
         }}
       >
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-sm overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Abandon match?</DialogTitle>
             <DialogDescription>

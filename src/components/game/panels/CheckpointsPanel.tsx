@@ -42,7 +42,7 @@ export function CheckpointsPanel({
       <div
         role="status"
         className={cn(
-          "flex items-start gap-2 rounded-md bg-muted/40 px-2.5 py-2 text-xs",
+          "flex items-start gap-2 rounded-md bg-muted/40 px-2.5 py-2 text-ui-meta",
           decisionHistory?.unavailableReason ? "text-foreground" : "text-muted-foreground",
         )}
       >
@@ -58,7 +58,7 @@ export function CheckpointsPanel({
         </span>
       </div>
       {checkpoints.length === 0 ? (
-        <p className="px-1 text-xs italic text-muted-foreground">Nothing recorded yet.</p>
+        <p className="px-1 text-ui-meta italic text-muted-foreground">Nothing recorded yet.</p>
       ) : (
         <div className="-mx-1 min-h-0 flex-1 overflow-y-auto px-1">
           {groupByTurn(checkpoints).map(([turn, steps]) => {
@@ -69,10 +69,10 @@ export function CheckpointsPanel({
             return (
               <section key={turn} className="pb-2">
                 <header className="sticky top-0 z-10 flex items-center gap-2 bg-card py-1.5">
-                  <span className="font-game text-xs font-semibold tabular-nums lining-nums text-foreground">
+                  <span className="font-game text-ui-meta font-semibold tabular-nums lining-nums text-foreground">
                     {`Turn ${turn}`}
                   </span>
-                  <span className="flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <span className="flex min-w-0 items-center gap-1.5 text-ui-meta text-muted-foreground">
                     <span
                       className="h-2 w-2 shrink-0 rounded-full"
                       style={{ backgroundColor: resolvePlayerColor(activePlayerId) }}
@@ -98,20 +98,20 @@ export function CheckpointsPanel({
                         <button
                           type="button"
                           aria-expanded={open}
-                          className="group flex w-full items-center gap-2.5 rounded-md px-1.5 py-1 text-left hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:min-h-11"
+                          className="group flex w-full touch:min-h-11 touch:min-w-11 items-center gap-2.5 rounded-md px-1.5 py-1 text-left hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                           onClick={() => toggleRun(newest.checkpointId)}
                         >
                           <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-dashed border-border text-muted-foreground">
                             <ChevronsRight className="h-3.5 w-3.5" aria-hidden />
                           </span>
                           <span className="min-w-0 flex-1">
-                            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1.5 text-ui-label text-muted-foreground">
                               Priority passes
-                              <span className="rounded-full bg-muted px-1.5 text-[10px] font-semibold tabular-nums lining-nums text-foreground">
+                              <span className="rounded-full bg-muted px-1.5 text-ui-meta font-semibold tabular-nums lining-nums text-foreground">
                                 {entry.checkpoints.length}
                               </span>
                             </span>
-                            <span className="block truncate text-[11px] text-muted-foreground">
+                            <span className="block truncate text-ui-meta text-muted-foreground">
                               {stepLabel(oldest.step) === stepLabel(newest.step)
                                 ? stepLabel(newest.step)
                                 : `${stepLabel(oldest.step)} → ${stepLabel(newest.step)}`}

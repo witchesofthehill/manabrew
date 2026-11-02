@@ -83,7 +83,7 @@ function CardTile({
   if (!entry) {
     return (
       <div
-        className="flex items-center justify-center rounded border border-dashed border-border text-[10px] text-muted-foreground"
+        className="flex items-center justify-center rounded border border-dashed border-border text-ui-meta text-muted-foreground"
         style={size}
         data-design-system-pending
       >
@@ -118,7 +118,7 @@ function CardSpecimens({ variant }: { variant: Variant }) {
           className="ds-card-specimen flex flex-col items-center gap-1.5"
         >
           <CardTile spec={spec} variant={variant} width={140} />
-          <span className="max-w-[140px] text-center text-[11px] leading-tight text-muted-foreground">
+          <span className="max-w-[140px] text-center text-ui-meta text-muted-foreground">
             {spec.label}
           </span>
         </div>
@@ -135,14 +135,15 @@ export function CardsSection() {
       title={`Card faces`}
       intro="The battlefield card renderer used in-game (DOM path). Three styles — realistic Scryfall image, art-forward, and mini-frame — across representative card types and states."
     >
-      <div className="ds-screen-only inline-flex overflow-hidden rounded-md border border-border">
+      <div className="ds-screen-only inline-flex max-w-full flex-wrap rounded-md border border-border">
         {VARIANTS.map((v) => (
           <button
             key={v.id}
             type="button"
             onClick={() => setVariant(v.id)}
+            aria-pressed={variant === v.id}
             className={cn(
-              "px-3 py-1.5 text-sm transition-colors",
+              "min-h-9 min-w-0 px-3 py-1.5 text-ui-label transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring touch:min-h-11 touch:min-w-11",
               variant === v.id ? "bg-primary text-primary-foreground" : "bg-card hover:bg-muted",
             )}
           >

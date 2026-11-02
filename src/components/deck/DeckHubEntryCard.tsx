@@ -46,7 +46,7 @@ export function DeckHubEntryCard({
       type="button"
       size="sm"
       variant="secondary"
-      className="h-8 gap-1 bg-background/90 px-2 shadow-sm backdrop-blur-sm pointer-coarse:min-w-11"
+      className="gap-1 bg-background/90 px-2 shadow-sm backdrop-blur-sm"
       aria-label={entry.favorited ? "Remove from favorites" : "Add to favorites"}
       aria-pressed={entry.favorited}
       aria-busy={favoritePending}
@@ -55,18 +55,18 @@ export function DeckHubEntryCard({
     >
       <Heart className={cn("h-3.5 w-3.5", entry.favorited && "fill-current text-primary")} />
       {entry.favoriteCount > 0 && (
-        <span className="text-xs tabular-nums">{entry.favoriteCount}</span>
+        <span className="text-ui-meta tabular-nums">{entry.favoriteCount}</span>
       )}
     </Button>
   ) : entry.favoriteCount > 0 ? (
-    <span className="flex h-8 items-center gap-1 rounded-md bg-background/90 px-2 text-xs shadow-sm backdrop-blur-sm">
+    <span className="flex min-h-8 items-center gap-1 rounded-md bg-background/90 px-2 text-ui-meta shadow-sm backdrop-blur-sm">
       <Heart className="h-3.5 w-3.5" />
       <span className="tabular-nums">{entry.favoriteCount}</span>
     </span>
   ) : null;
   const rankMarker = rank ? (
     <span
-      className="flex h-7 min-w-7 shrink-0 items-center justify-center rounded-full border border-[var(--podium-color)] bg-background/90 px-1.5 text-xs font-semibold tabular-nums lining-nums text-[var(--podium-color)] shadow-sm backdrop-blur-sm"
+      className="flex min-h-7 min-w-7 shrink-0 items-center justify-center rounded-full border border-[var(--podium-color)] bg-background/90 px-1.5 text-ui-meta font-semibold tabular-nums lining-nums text-[var(--podium-color)] shadow-sm backdrop-blur-sm"
       role={rank <= 3 ? "img" : undefined}
       aria-label={
         rank === 1
@@ -93,7 +93,7 @@ export function DeckHubEntryCard({
     <div className="pointer-events-none flex max-w-full items-center gap-1 overflow-hidden">
       {rankMarker}
       {entry.sourceKind === "preset" && (
-        <span className="shrink-0 whitespace-nowrap rounded-full border bg-background/90 px-2 py-1 text-[10px] font-medium backdrop-blur-sm">
+        <span className="shrink-0 whitespace-nowrap rounded-full border bg-background/90 px-2 py-1 text-ui-meta font-medium backdrop-blur-sm">
           Official preset
         </span>
       )}
@@ -102,7 +102,7 @@ export function DeckHubEntryCard({
           {discoveryTags.slice(0, 2).map((tag) => (
             <span
               key={tag.id}
-              className="truncate rounded-full border bg-background/90 px-2 py-1 text-[10px] font-medium backdrop-blur-sm"
+              className="truncate rounded-full border bg-background/90 px-2 py-1 text-ui-meta font-medium backdrop-blur-sm"
             >
               {tag.name}
             </span>
@@ -139,14 +139,14 @@ export function DeckHubEntryCard({
             loading="lazy"
             className={cn(
               "absolute h-full object-cover",
-              variant === "list" ? "inset-y-0 left-0 w-32 sm:w-48" : "inset-0 w-full",
+              variant === "list" ? "inset-y-0 left-0 w-24 sm:w-48" : "inset-0 w-full",
             )}
           />
         ) : (
           <span
             className={cn(
               "absolute flex items-center justify-center",
-              variant === "list" ? "inset-y-0 left-0 w-32 sm:w-48" : "inset-0",
+              variant === "list" ? "inset-y-0 left-0 w-24 sm:w-48" : "inset-0",
             )}
           >
             <Layers className="h-10 w-10 text-muted-foreground opacity-30" />
@@ -162,14 +162,14 @@ export function DeckHubEntryCard({
           {entry.engines?.map((engine) => (
             <span
               key={engine}
-              className="rounded-full border border-border/70 bg-background/80 px-1.5 py-0.5 text-[9px] font-medium text-foreground backdrop-blur-sm"
+              className="rounded-full border border-border/70 bg-background/80 px-1.5 py-0.5 text-ui-meta font-medium text-foreground backdrop-blur-sm"
             >
               {engine} engine
             </span>
           ))}
           <span
             className={cn(
-              "ml-auto text-[10px] text-text-on-tinted/85",
+              "ml-auto text-ui-meta text-text-on-tinted/85",
               variant === "list" && "text-muted-foreground",
             )}
           >

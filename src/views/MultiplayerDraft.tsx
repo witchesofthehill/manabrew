@@ -54,7 +54,7 @@ export default function MultiplayerDraft() {
     return (
       <LimitedTableSurface
         backgroundId={roomBackground}
-        className="items-center justify-center gap-2 text-sm text-muted-foreground"
+        className="items-center justify-center gap-2 overflow-y-auto overscroll-contain px-4 py-3 text-center text-ui-body break-words text-muted-foreground sm:px-6 lg:px-8"
       >
         <Loader2 className="h-4 w-4 animate-spin" />
         Waiting for the host to deal your pack…
@@ -65,17 +65,22 @@ export default function MultiplayerDraft() {
   const hostDisconnected =
     room && !room.players.find((player) => player.username === room.host)?.connected;
   return (
-    <LimitedTableSurface backgroundId={roomBackground} className="gap-2 px-4 py-3 sm:px-6 lg:px-8">
-      <DraftStatusBar
-        draft={draft.state}
-        seatLabel={own ? `Seat ${own.seat} · ${own.displayName}` : undefined}
-        isHost={draft.amHost}
-        waitingLabel="Waiting for the pod…"
-        viewerSeat={draft.mySeat ?? undefined}
-        settings={
-          <LimitedSettingsButton sessionKey={draft.state.sessionId} quickPick sharedTable />
-        }
-      />
+    <LimitedTableSurface
+      backgroundId={roomBackground}
+      className="min-w-0 gap-2 px-4 py-3 text-ui-body sm:px-6 lg:px-8"
+    >
+      <div className="-mx-1 max-h-[40%] shrink-0 overflow-y-auto overscroll-contain px-1 py-1">
+        <DraftStatusBar
+          draft={draft.state}
+          seatLabel={own ? `Seat ${own.seat} · ${own.displayName}` : undefined}
+          isHost={draft.amHost}
+          waitingLabel="Waiting for the pod…"
+          viewerSeat={draft.mySeat ?? undefined}
+          settings={
+            <LimitedSettingsButton sessionKey={draft.state.sessionId} quickPick sharedTable />
+          }
+        />
+      </div>
       <DraftWorkspace
         draft={draft.state}
         openingSetCode={draft.config?.setCode}
@@ -86,16 +91,16 @@ export default function MultiplayerDraft() {
         conspiracyHooks={conspiracyHooks}
         pickPending={draft.pickPending}
       />
-      {hostDisconnected && (
-        <p role="status" className="text-sm text-destructive">
-          The host is disconnected. Resume the saved session on the host&apos;s device to continue
-          with the same pod and pools.
-        </p>
-      )}
-      {draft.lastError && (
-        <p role="alert" className="text-sm text-destructive">
-          {draft.lastError}
-        </p>
+      {(hostDisconnected || draft.lastError) && (
+        <div className="max-h-[20%] shrink-0 space-y-2 overflow-y-auto overscroll-contain text-ui-label break-words text-destructive">
+          {hostDisconnected && (
+            <p role="status">
+              The host is disconnected. Resume the saved session on the host&apos;s device to
+              continue with the same pod and pools.
+            </p>
+          )}
+          {draft.lastError && <p role="alert">{draft.lastError}</p>}
+        </div>
       )}
     </LimitedTableSurface>
   );

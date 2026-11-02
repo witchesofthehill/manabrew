@@ -19,9 +19,9 @@ export function LimitedManaAnalysis({ cards }: { cards: AnalyzedLimitedCard[] })
   const earlierSeen = Math.min(cards.length, 5 + turn + Number(onDraw));
   const excluded = cards.filter((card) => card.source.excluded.length > 0);
   return (
-    <section className="space-y-3 text-xs">
+    <section className="space-y-3 text-ui-meta">
       <div className="flex flex-wrap items-end gap-3">
-        <label className="space-y-1">
+        <label className="space-y-1 text-ui-label">
           <span className="block text-muted-foreground">Starting position</span>
           <AppSelect
             aria-label="Starting position"
@@ -32,7 +32,7 @@ export function LimitedManaAnalysis({ cards }: { cards: AnalyzedLimitedCard[] })
             <AppSelectOption value="draw">On the draw</AppSelectOption>
           </AppSelect>
         </label>
-        <label className="space-y-1">
+        <label className="space-y-1 text-ui-label">
           <span className="block text-muted-foreground">Turn</span>
           <Input
             aria-label="Mana analysis turn"
@@ -46,7 +46,7 @@ export function LimitedManaAnalysis({ cards }: { cards: AnalyzedLimitedCard[] })
             }
           />
         </label>
-        <label className="space-y-1">
+        <label className="space-y-1 text-ui-label">
           <span className="block text-muted-foreground">Sources needed per color</span>
           <Input
             aria-label="Sources needed per color"
@@ -61,7 +61,7 @@ export function LimitedManaAnalysis({ cards }: { cards: AnalyzedLimitedCard[] })
             }
           />
         </label>
-        <label className="min-w-0 flex-1 space-y-1">
+        <label className="min-w-0 flex-1 basis-48 space-y-1 text-ui-label">
           <span className="block text-muted-foreground">Use a spell's printed pips</span>
           <AppSelect
             aria-label="Spell mana requirements"
@@ -159,7 +159,7 @@ export function LimitedManaAnalysis({ cards }: { cards: AnalyzedLimitedCard[] })
         </p>
       )}
       <details className="rounded border border-border p-3">
-        <summary className="cursor-pointer font-semibold">
+        <summary className="min-h-8 cursor-pointer text-ui-label font-semibold touch:min-h-11">
           Model assumptions and excluded sources
         </summary>
         <div className="mt-3 space-y-2 text-muted-foreground">

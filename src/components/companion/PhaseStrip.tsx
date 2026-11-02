@@ -53,7 +53,7 @@ export function PhaseStrip() {
     return active ? COMPANION_ACCENT_COLORS[active.accentKey] : null;
   });
   return (
-    <div className="flex shrink-0 items-center gap-0.5 border-b border-border bg-card/40 px-2 py-1 text-[10px] sm:gap-1 sm:text-xs">
+    <div className="flex shrink-0 flex-wrap items-center gap-1 border-b border-border bg-card/40 px-2 py-1 text-ui-label">
       {PHASES.map((p) => {
         const isActive = phase === p.id;
         return (
@@ -62,7 +62,7 @@ export function PhaseStrip() {
             key={p.id}
             onClick={() => setPhase(p.id)}
             className={cn(
-              "flex-1 rounded px-1.5 py-1 font-semibold uppercase tracking-wide transition",
+              "flex-1 rounded px-1.5 py-1 font-semibold uppercase tracking-wide transition touch:min-h-11 touch:min-w-11",
               isActive
                 ? activeAccent
                   ? "text-white shadow-sm"

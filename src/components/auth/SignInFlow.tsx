@@ -172,7 +172,7 @@ export function SignInFlow({ prefill, deferHandleStep = false, onComplete }: Sig
         <h2 className="text-lg font-semibold leading-none tracking-tight text-foreground">
           {step === "handle" ? "Pick your handle" : "Sign in or create an account"}
         </h2>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-ui-body text-muted-foreground">
           {step === "handle"
             ? "Your handle is the public name other players see in Community. You can change it later in Preferences."
             : "Your account syncs your decks and keeps publications yours on any device."}
@@ -182,7 +182,7 @@ export function SignInFlow({ prefill, deferHandleStep = false, onComplete }: Sig
       {step === "start" && (
         <div className="space-y-4">
           {providersError ? (
-            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm">
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-ui-label">
               <p>Sign-in methods could not be loaded.</p>
               <Button variant="outline" size="sm" className="mt-2" onClick={loadProviders}>
                 Try again
@@ -233,7 +233,7 @@ export function SignInFlow({ prefill, deferHandleStep = false, onComplete }: Sig
                 <>
                   <div className="flex items-center gap-3">
                     <div className="h-px flex-1 bg-border" />
-                    <span className="text-xs uppercase text-muted-foreground">or</span>
+                    <span className="text-ui-caption uppercase text-muted-foreground">or</span>
                     <div className="h-px flex-1 bg-border" />
                   </div>
                   <div className="space-y-2">
@@ -266,9 +266,9 @@ export function SignInFlow({ prefill, deferHandleStep = false, onComplete }: Sig
 
       {step === "email-code" && (
         <div className="space-y-2">
-          <p className="text-sm text-muted-foreground">
-            We sent a code to <span className="font-medium text-foreground">{email}</span>. Enter it
-            here, or click the link in the email.
+          <p className="text-ui-body text-muted-foreground">
+            We sent a code to <span className="break-all font-medium text-foreground">{email}</span>
+            . Enter it here, or click the link in the email.
           </p>
           <Label htmlFor="signin-code">Code</Label>
           <Input
@@ -304,7 +304,7 @@ export function SignInFlow({ prefill, deferHandleStep = false, onComplete }: Sig
 
       {step === "desktop-code" && (
         <div className="space-y-2">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-ui-body text-muted-foreground">
             Finish signing in with your browser, then enter the code it shows you.
           </p>
           <Label htmlFor="desktop-code">Code</Label>
@@ -356,29 +356,30 @@ export function SignInFlow({ prefill, deferHandleStep = false, onComplete }: Sig
             />
           </div>
 
-          <label className="flex cursor-pointer select-none items-start gap-2.5 text-sm">
+          <label className="flex cursor-pointer select-none items-start gap-2.5 text-ui-label touch:min-h-11 touch:min-w-11">
             <Checkbox
               checked={termsAgreed}
               onCheckedChange={(value) => setTermsAgreed(value === true)}
               className="mt-0.5"
             />
             <span>
-              I agree to the{" "}
+              I agree to the{""}
               <a
                 href={`${DOCS_URL}/terms`}
                 target="_blank"
                 rel="noreferrer"
-                className="underline underline-offset-2"
+                className="touch:inline-flex touch:min-h-11 touch:items-center underline underline-offset-2"
                 onClick={(e) => e.stopPropagation()}
               >
                 terms
-              </a>{" "}
-              and the{" "}
+              </a>
+              {""}
+              and the{""}
               <a
                 href={`${DOCS_URL}/privacy`}
                 target="_blank"
                 rel="noreferrer"
-                className="underline underline-offset-2"
+                className="touch:inline-flex touch:min-h-11 touch:items-center underline underline-offset-2"
                 onClick={(e) => e.stopPropagation()}
               >
                 privacy policy
@@ -386,7 +387,7 @@ export function SignInFlow({ prefill, deferHandleStep = false, onComplete }: Sig
             </span>
           </label>
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
               variant="primary"
               className="flex-1"
@@ -402,7 +403,7 @@ export function SignInFlow({ prefill, deferHandleStep = false, onComplete }: Sig
         </div>
       )}
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && <p className="text-ui-meta text-destructive">{error}</p>}
     </div>
   );
 }

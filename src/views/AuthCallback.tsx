@@ -84,7 +84,7 @@ export default function AuthCallback() {
   }, [navigate]);
   return (
     <div className="flex h-full items-center justify-center">
-      <p className="text-sm text-muted-foreground">Completing sign-in…</p>
+      <p className="text-ui-body text-muted-foreground">Completing sign-in…</p>
     </div>
   );
 }

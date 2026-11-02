@@ -70,10 +70,10 @@ export function CardRailPreview({
           />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+          <span className="block text-ui-meta font-bold uppercase tracking-[0.14em] text-muted-foreground">
             {title}
           </span>
-          <span className="block text-xs font-semibold">
+          <span className="block text-ui-meta font-semibold">
             {state.kind === "saga"
               ? state.current > 0
                 ? `Chapter ${state.current} of ${state.max}`
@@ -101,7 +101,7 @@ export function CardRailPreview({
             "relative grid w-full grid-cols-[2rem_1fr] gap-2 border-b border-border/50 px-3 py-2 text-left text-popover-foreground last:border-b-0",
             notch.active && RAIL_ACTIVE_ROW_CLASSES[state.kind],
             interaction && [
-              "cursor-pointer transition-colors focus-visible:outline-none pointer-coarse:min-h-10",
+              "min-h-8 touch:min-h-11 touch:min-w-11 cursor-pointer transition-colors focus-visible:outline-none",
               RAIL_INTERACTIVE_ROW_CLASSES[state.kind],
             ],
           );
@@ -133,7 +133,7 @@ export function CardRailPreview({
                 )}
                 <span
                   className={cn(
-                    "relative z-10 flex h-7 w-7 items-center justify-center rounded-full border text-[10px] font-black tabular-nums",
+                    "relative z-10 flex min-h-7 min-w-7 items-center justify-center rounded-full border px-1 text-ui-meta font-black tabular-nums",
                     notch.active
                       ? cn(
                           RAIL_ACCENT_CLASSES[state.kind],
@@ -152,31 +152,31 @@ export function CardRailPreview({
                 </span>
               </div>
               <div className="min-w-0">
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="flex items-center gap-1.5">
                     {interaction && (
-                      <kbd className="flex h-5 min-w-5 items-center justify-center rounded border border-border bg-muted px-1 font-mono text-[10px] font-bold text-popover-foreground shadow-sm">
+                      <kbd className="flex min-h-5 min-w-5 items-center justify-center rounded border border-border bg-muted px-1 font-mono text-ui-meta font-bold text-popover-foreground shadow-sm">
                         {interaction.shortcut}
                       </kbd>
                     )}
-                    <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                    <span className="text-ui-meta font-bold uppercase tracking-wide text-muted-foreground">
                       {state.kind === "saga" ? `Chapter ${notch.label}` : `Level ${notch.label}`}
                     </span>
                   </span>
                   {effect?.cost && (
-                    <span className="shrink-0 text-[11px] font-semibold">
+                    <span className="text-ui-meta font-semibold">
                       <DynamicTextRender text={effect.cost} />
                     </span>
                   )}
                 </div>
                 {effect?.label && (
-                  <div className="mt-0.5 text-[11px] font-semibold leading-snug">
+                  <div className="mt-0.5 text-ui-label font-semibold leading-snug">
                     {effect.label}
                   </div>
                 )}
                 <div
                   className={cn(
-                    "whitespace-pre-line text-[11px] leading-snug",
+                    "whitespace-pre-line break-words text-ui-body leading-snug",
                     !effect?.label && "mt-0.5",
                     notch.reached || interaction
                       ? "text-popover-foreground"

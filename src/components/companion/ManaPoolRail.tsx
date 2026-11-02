@@ -14,7 +14,7 @@ export function ManaPoolRail({ playerId, pool }: ManaPoolRailProps) {
   const hasAnyMana = pool ? MANA_COLORS.some((c) => (pool[c] ?? 0) > 0) : false;
   if (!hasAnyMana) return null;
   return (
-    <div className="flex items-center gap-1 rounded-full bg-black/45 px-1 py-0.5 text-white shadow ring-1 ring-white/10 backdrop-blur">
+    <div className="flex max-w-full flex-wrap items-center gap-1 rounded-full bg-black/45 px-1 py-0.5 text-white shadow ring-1 ring-white/10 backdrop-blur">
       {MANA_COLORS.map((color) => {
         const value = pool?.[color] ?? 0;
         if (value === 0) return null;
@@ -42,7 +42,7 @@ function ManaPip({
     <button
       type="button"
       className={cn(
-        "flex items-center gap-0.5 rounded-full px-1.5 py-1 text-xs font-semibold hover:bg-white/15",
+        "flex items-center gap-0.5 rounded-full px-1.5 py-1 text-ui-label font-semibold hover:bg-white/15 touch:min-h-11 touch:min-w-11",
       )}
       aria-label={`Mana ${color}: ${value} (tap +1, hold -1)`}
       {...bindings}

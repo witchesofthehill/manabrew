@@ -86,7 +86,7 @@ export function LimitedBuildSaveActions({
           if (!busy) setOpen(value);
         }}
       >
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md overflow-y-auto overscroll-contain">
           <DialogHeader>
             <DialogTitle>Save to My Decks</DialogTitle>
             <DialogDescription>
@@ -109,11 +109,11 @@ export function LimitedBuildSaveActions({
               autoFocus
               disabled={busy}
             />
-            <p className="text-sm text-muted-foreground">
+            <p className="text-ui-meta text-muted-foreground">
               Mainboard {deck.main.length} · Complete sideboard {deck.sideboard.length}
             </p>
             {deck.main.length < targetMainSize && (
-              <p className="text-sm text-warning">
+              <p className="text-ui-meta text-warning">
                 {targetMainSize - deck.main.length} more Mainboard cards needed.{" "}
                 {requireCompleteToSave
                   ? "Complete the deck before saving."

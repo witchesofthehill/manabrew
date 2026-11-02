@@ -30,7 +30,7 @@ export function LimitedDraftClock({
               : "Waiting for a pack"
         }
         className={cn(
-          "inline-flex items-center gap-1.5 rounded border border-border px-2 py-1 text-xs font-medium tabular-nums",
+          "inline-flex items-center gap-1.5 rounded border border-border px-2 py-1 text-ui-meta font-medium tabular-nums",
           activeSeat && !clock.paused && remainingSeconds <= 10
             ? "text-destructive"
             : "text-muted-foreground",
@@ -47,7 +47,7 @@ export function LimitedDraftClock({
         <Button
           variant="ghost"
           size="sm"
-          className="h-8 gap-1 px-2 text-xs"
+          className="h-auto min-h-8 gap-1 px-2 touch:min-h-11"
           onClick={() => {
             void pauseDraftClock(sessionId, !clock.paused).catch((error: unknown) =>
               toast.error(

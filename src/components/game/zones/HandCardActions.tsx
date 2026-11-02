@@ -38,7 +38,7 @@ export function HandCardActions({ card, actions, onSelectAction }: HandCardActio
 
   return (
     <div
-      className="flex flex-col gap-1.5 z-[200] w-[220px]"
+      className="flex max-h-[min(32rem,70dvh)] max-w-[calc(100vw-1rem)] flex-col gap-1.5 overflow-y-auto overscroll-contain z-[200] w-[220px]"
       onMouseDown={(e) => {
         e.stopPropagation();
       }}
@@ -51,7 +51,7 @@ export function HandCardActions({ card, actions, onSelectAction }: HandCardActio
             onSelectAction(action);
           }}
           className={cn(
-            "group w-full text-left rounded-lg text-xs font-medium",
+            "group shrink-0 min-h-8 touch:min-h-11 touch:min-w-11 w-full text-left rounded-lg text-ui-label font-medium break-words",
             "bg-popover text-popover-foreground border border-border",
             "backdrop-blur-md shadow-lg",
             "transition-all duration-150 ease-out",
@@ -66,17 +66,17 @@ export function HandCardActions({ card, actions, onSelectAction }: HandCardActio
             e.currentTarget.style.borderColor = "";
           }}
         >
-          <span className="flex items-center justify-between w-full pointer-events-none mb-0.5">
-            <span className="text-[12px] font-bold min-w-[22px] h-5 flex items-center justify-center rounded border border-border bg-muted shadow-[0_1px_0_rgba(0,0,0,0.1)]">
+          <span className="flex flex-wrap items-center justify-between gap-1 w-full pointer-events-none mb-0.5">
+            <span className="text-ui-meta font-bold min-w-[22px] min-h-5 px-1 flex items-center justify-center rounded border border-border bg-muted shadow-[0_1px_0_rgba(0,0,0,0.1)]">
               {idx + 1}
             </span>
             {action.cost && (
-              <span className="flex items-center gap-0.5 text-[11px] opacity-90">
+              <span className="flex flex-wrap items-center gap-0.5 text-ui-meta opacity-90">
                 <DynamicTextRender text={action.cost} />
               </span>
             )}
           </span>
-          <span className="leading-snug text-[13px] font-semibold pointer-events-none">
+          <span className="leading-snug text-ui-label font-semibold pointer-events-none">
             <DynamicTextRender
               text={localizeRulesPreviewText(action.label, info ?? null, gameCardFaceIndex(card))}
             />

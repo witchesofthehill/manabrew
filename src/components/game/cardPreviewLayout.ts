@@ -14,7 +14,6 @@ export interface PreviewLayoutInput {
   mouseY: number;
   horizontal: boolean;
   hasPanel: boolean;
-  panelHeight: number;
   slot: HTMLElement | null;
   viewportRight?: number;
   viewportBottom?: number;
@@ -31,7 +30,6 @@ export interface PreviewLayout {
   cardHeight: number;
   sidePanelWidth: number;
   panelSide: "left" | "right";
-  panelScale: number;
   slotMarginLeft: number;
 }
 export interface PreviewCardDimensionsInput {
@@ -66,7 +64,7 @@ export function computePreviewCardDimensions(input: PreviewCardDimensionsInput):
 }
 
 export function computePreviewLayout(input: PreviewLayoutInput): PreviewLayout {
-  const { placement, anchorRect, mouseX, mouseY, horizontal, hasPanel, panelHeight, slot } = input;
+  const { placement, anchorRect, mouseX, mouseY, horizontal, hasPanel, slot } = input;
 
   const safe = getSafeAreaInsets();
   const viewLeft = Math.max(safe.left, input.viewportLeft ?? 0);
@@ -101,8 +99,6 @@ export function computePreviewLayout(input: PreviewLayoutInput): PreviewLayout {
     size: input.size,
     maxCardHeight: input.maxCardHeight,
   });
-  const availableHeight = Math.max(1, usableHeight - 16);
-  let panelScale = hasPanel && panelHeight > 0 ? Math.min(1, availableHeight / panelHeight) : 1;
   const totalWidth = cardWidth + panelSpace;
 
   const panelFitsRightOf = (left: number) =>
@@ -178,12 +174,6 @@ export function computePreviewLayout(input: PreviewLayoutInput): PreviewLayout {
     viewTop + CARD_PREVIEW_EDGE_PAD,
     Math.min(top, viewBottom - cardHeight - CARD_PREVIEW_EDGE_PAD),
   );
-  if (!slot && hasPanel && panelHeight > 0) {
-    panelScale = Math.min(
-      1,
-      Math.max(0.1, (viewBottom - top - CARD_PREVIEW_EDGE_PAD) / panelHeight),
-    );
-  }
 
   const slotMarginLeft = slot
     ? Math.max(
@@ -199,7 +189,6 @@ export function computePreviewLayout(input: PreviewLayoutInput): PreviewLayout {
     cardHeight,
     sidePanelWidth,
     panelSide,
-    panelScale,
     slotMarginLeft,
   };
 }

@@ -22,14 +22,14 @@ export function CardPreviewDetails({
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2 pt-3">
       <div className="flex items-start justify-between gap-2">
-        <span className="text-sm font-semibold leading-tight">{card.identity.name}</span>
+        <span className="text-ui-label font-semibold leading-tight">{card.identity.name}</span>
         {card.manaCost && (
           <ManaSymbols cost={card.manaCost} size="sm" className="mt-0.5 shrink-0" />
         )}
       </div>
 
-      <div className="flex items-baseline gap-2 text-xs text-muted-foreground">
-        <span className="truncate">{typeLine}</span>
+      <div className="flex flex-wrap items-baseline gap-2 text-ui-meta text-muted-foreground">
+        <span className="break-words">{typeLine}</span>
         {card.power && card.toughness && (
           <span className="ml-auto shrink-0 tabular-nums lining-nums">
             {card.power}/{card.toughness}
@@ -39,7 +39,7 @@ export function CardPreviewDetails({
 
       {card.text && (
         <div className="min-h-0 flex-1 overflow-y-auto rounded-md border border-border/40 bg-muted/20 p-2.5">
-          <div className="space-y-1.5 text-xs leading-relaxed text-muted-foreground">
+          <div className="space-y-1.5 text-ui-body leading-relaxed text-muted-foreground">
             {card.text.split("\n").map((line, index) => (
               <p key={`${index}-${line}`}>
                 <DynamicTextRender text={line} />

@@ -70,8 +70,8 @@ export default function Limited({ leadingControl }: LimitedProps) {
       ? (selectedSet?.name ?? "Choose a set")
       : (setup.cube?.name ?? "Choose a cube or pool");
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden px-4 pt-4 sm:px-6 lg:grid lg:grid-cols-[minmax(0,1fr)_18rem] lg:grid-rows-[auto_minmax(0,1fr)_auto] lg:gap-x-8 lg:px-8">
-      <div className="-mx-1 min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 lg:contents">
+    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden px-4 pt-4 text-ui-body sm:px-6 lg:grid lg:grid-cols-[minmax(0,1fr)_18rem] lg:grid-rows-[auto_minmax(0,1fr)_auto] lg:gap-x-8 lg:px-8">
+      <div className="-mx-1 min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-1 lg:contents">
         <header className="mb-5 lg:col-span-2">
           <LimitedModeSelector
             mode={setup.mode}
@@ -87,7 +87,7 @@ export default function Limited({ leadingControl }: LimitedProps) {
                     size="icon"
                     aria-label="More Limited options"
                     disabled={setup.busy}
-                    className="ml-auto"
+                    className="ml-auto touch:min-h-11 touch:min-w-11"
                   >
                     <MoreHorizontal className="h-5 w-5" />
                   </Button>
@@ -127,7 +127,7 @@ export default function Limited({ leadingControl }: LimitedProps) {
               value={setup.source}
               onValueChange={(value) => setup.setSource(value === "custom" ? "custom" : "set")}
               disabled={setup.busy}
-              className="w-44"
+              className="w-48 max-w-full"
             >
               <AppSelectOption value="set">Set boosters</AppSelectOption>
               <AppSelectOption value="custom">Cube / saved pool</AppSelectOption>
@@ -194,16 +194,11 @@ export default function Limited({ leadingControl }: LimitedProps) {
           />
         </section>
       </div>
-      <footer className="shrink-0 border-t border-border/60 bg-background pt-3 pb-[max(0.75rem,var(--safe-area-inset-bottom))] lg:col-start-2 lg:row-start-3">
-        <div className="flex items-center gap-3 lg:flex-col lg:items-stretch">
-          <div className="min-w-0 flex-1" aria-live="polite">
-            <p className="truncate text-base font-semibold text-foreground" title={sourceTitle}>
-              {sourceTitle}
-            </p>
-            <p
-              className="line-clamp-2 text-xs leading-relaxed text-muted-foreground lg:line-clamp-none"
-              title={summary}
-            >
+      <footer className="-mx-1 max-h-[45%] shrink-0 overflow-y-auto overscroll-contain border-t border-border/60 bg-background px-1 pt-3 pb-[max(0.75rem,var(--safe-area-inset-bottom))] lg:col-start-2 lg:row-start-3 lg:max-h-[40dvh]">
+        <div className="flex flex-wrap items-center gap-3 lg:flex-col lg:items-stretch">
+          <div className="min-w-0 basis-48 flex-1 lg:basis-auto" aria-live="polite">
+            <p className="text-ui-body font-semibold break-words text-foreground">{sourceTitle}</p>
+            <p className="text-ui-meta leading-relaxed break-words text-muted-foreground">
               {summary}
             </p>
           </div>
@@ -211,14 +206,14 @@ export default function Limited({ leadingControl }: LimitedProps) {
             variant="primary"
             onClick={setup.start}
             disabled={setup.startBlocked}
-            className="min-h-11 shrink-0"
+            className="min-h-11 max-w-full shrink-0 whitespace-normal touch:min-w-11"
           >
             {startLabel}
             <ArrowRight aria-hidden="true" className="ml-2 h-4 w-4" />
           </Button>
         </div>
         {!panel && setup.lastError && (
-          <p role="alert" className="mt-2 max-h-20 overflow-y-auto text-sm text-destructive">
+          <p role="alert" className="mt-2 text-ui-label break-words text-destructive">
             {setup.lastError}
           </p>
         )}
@@ -249,7 +244,7 @@ export default function Limited({ leadingControl }: LimitedProps) {
               <span className="font-serif text-lg font-semibold text-foreground/90">
                 {setup.pendingDraftStart.format}
               </span>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-ui-meta text-muted-foreground">
                 You + {setup.pendingDraftStart.seatCount - 1} AI{" "}
                 {setup.pendingDraftStart.seatCount === 2 ? "seat" : "seats"}
               </p>

@@ -157,7 +157,7 @@ function InsightSectionPanel({
     >
       <button
         type="button"
-        className="flex min-h-9 w-full items-center gap-2 text-left text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex min-h-9 touch:min-h-11 touch:min-w-11 w-full items-center gap-2 text-left text-ui-label font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         aria-expanded={open}
         aria-controls={`deck-insight-section-${id}`}
         onClick={onToggle}

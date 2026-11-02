@@ -51,7 +51,7 @@ export function LimitedSetConfiguration({
                 <h3 className="break-words font-serif text-2xl font-semibold leading-tight text-foreground sm:text-3xl">
                   {set.name}
                 </h3>
-                <p className="mt-1 text-xs text-muted-foreground">
+                <p className="mt-1 text-ui-meta text-muted-foreground">
                   {set.card_count} cards
                   {boosterCount !== null && ` · ${boosterCount} cards per booster`}
                 </p>
@@ -71,7 +71,7 @@ export function LimitedSetConfiguration({
       />
       {selectedSet && (
         <>
-          <div role="status" aria-live="polite" className="text-xs text-muted-foreground">
+          <div role="status" aria-live="polite" className="text-ui-meta text-muted-foreground">
             {loading && <p>Loading booster details…</p>}
             {prefetching === selectedCode && <p>Preparing card images…</p>}
           </div>

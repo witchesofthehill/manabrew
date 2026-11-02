@@ -57,12 +57,12 @@ export function DeckHealthPanel({
     <section className={EDITOR_PANEL_CLASS}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-semibold">Deck health</h3>
+            <h3 className="text-ui-label font-semibold">Deck health</h3>
             <span
               className={cn(
-                "rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                "rounded-full px-2 py-0.5 text-ui-meta font-semibold",
                 issueCount === 0
                   ? "bg-legality-legal/15 text-legality-legal"
                   : "bg-warning/15 text-warning",
@@ -71,20 +71,20 @@ export function DeckHealthPanel({
               {issueCount === 0 ? `Balanced` : `${issueCount} to review`}
             </span>
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">
+          <p className="mt-1 text-ui-body text-muted-foreground">
             {commanderDeck
               ? `Engine-derived roles compared with a practical Commander baseline.`
               : `Engine-derived roles compared with a practical 60-card baseline.`}
           </p>
         </div>
         {pending.size > 0 && (
-          <span className="text-[10px] text-muted-foreground" aria-live="polite">
+          <span className="text-ui-meta text-muted-foreground" aria-live="polite">
             Analyzing {Math.min(pending.size, analyzedCount)} cards…
           </span>
         )}
       </div>
 
-      <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-2">
         {checks.map((check) => (
           <div
             key={check.label}
@@ -96,7 +96,7 @@ export function DeckHealthPanel({
             )}
           >
             <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-medium">{check.label}</span>
+              <span className="text-ui-label font-medium">{check.label}</span>
               {check.healthy ? (
                 <CheckCircle2 className="h-3.5 w-3.5 text-legality-legal" />
               ) : (
@@ -105,7 +105,7 @@ export function DeckHealthPanel({
             </div>
             <p className="mt-1 font-mono text-lg font-semibold tabular-nums">
               {check.value}
-              <span className="ml-1 text-[10px] font-normal text-muted-foreground">
+              <span className="ml-1 text-ui-meta font-normal text-muted-foreground">
                 / {check.target} target
               </span>
             </p>
@@ -118,18 +118,28 @@ export function DeckHealthPanel({
         checks.some((check) => !check.healthy)) && (
         <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border/50 pt-3">
           {unsupportedNames.size > 0 && (
-            <Button size="xs" variant="outline" onClick={onShowUnsupported}>
+            <Button
+              size="xs"
+              variant="outline"
+              className="h-auto touch:min-h-11 touch:min-w-11 whitespace-normal text-ui-label"
+              onClick={onShowUnsupported}
+            >
               <AlertTriangle className="mr-1.5 h-3.5 w-3.5 text-warning" />
               Show {unsupportedNames.size} unsupported
             </Button>
           )}
           {checks.some((check) => !check.healthy) && onOpenSearch && (
-            <Button size="xs" variant="outline" onClick={onOpenSearch}>
+            <Button
+              size="xs"
+              variant="outline"
+              className="h-auto touch:min-h-11 touch:min-w-11 whitespace-normal text-ui-label"
+              onClick={onOpenSearch}
+            >
               <Search className="mr-1.5 h-3.5 w-3.5" /> Add missing pieces
             </Button>
           )}
           {validationErrors[0] && (
-            <span className="text-xs text-destructive">{validationErrors[0]}</span>
+            <span className="text-ui-body text-destructive">{validationErrors[0]}</span>
           )}
         </div>
       )}

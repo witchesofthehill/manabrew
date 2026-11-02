@@ -46,10 +46,10 @@ export function KeybindingsPanel() {
   const categories = [...new Set(filtered.map((b) => b.category))];
   return (
     <section className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold">Keyboard shortcuts</h2>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-ui-meta text-muted-foreground">
             Click a shortcut, then press the key combination you want.
           </p>
         </div>
@@ -69,12 +69,12 @@ export function KeybindingsPanel() {
       </div>
 
       {categories.length === 0 && (
-        <p className="text-sm text-muted-foreground">No shortcuts match “{filter}”.</p>
+        <p className="text-ui-body text-muted-foreground">No shortcuts match “{filter}”.</p>
       )}
 
       {categories.map((category) => (
         <div key={category} className="space-y-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <h3 className="text-ui-meta font-semibold uppercase tracking-wide text-muted-foreground">
             {category}
           </h3>
           <div className="divide-y rounded-md border">
@@ -85,13 +85,16 @@ export function KeybindingsPanel() {
                 const isCapturing = capturingId === b.id;
                 const isCustom = !!overrides[b.id];
                 return (
-                  <div key={b.id} className="flex items-center justify-between gap-3 px-3 py-2">
-                    <span className="text-sm">{b.label}</span>
+                  <div
+                    key={b.id}
+                    className="flex flex-wrap items-center justify-between gap-3 px-3 py-2"
+                  >
+                    <span className="text-ui-label">{b.label}</span>
                     <div className="flex items-center gap-1.5">
                       <Button
                         size="sm"
                         variant={isCapturing ? "selected" : "outline"}
-                        className={cn("h-7 min-w-24 text-xs", isCapturing && "animate-pulse")}
+                        className={cn("h-7 min-w-24 text-ui-label", isCapturing && "animate-pulse")}
                         onClick={() => setCapturingId(isCapturing ? null : b.id)}
                       >
                         {isCapturing ? `Press keys…` : combo ? formatCombo(combo) : `Unbound`}

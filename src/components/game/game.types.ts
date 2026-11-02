@@ -17,9 +17,7 @@ export interface CombatPairing {
   count: number;
 }
 
-export type FlashItem =
-  | { kind: "card"; cardId: string; cardName: string; setCode: string }
-  | { kind: "turn"; playerId: string; playerName: string };
+export type FlashItem = { kind: "card"; card: CardDto } | { kind: "turn"; playerId: string };
 
 /** Seat identifier used to resolve per-player theme colours. Source of
  *  truth for `playerColors.<seat>` theme keys and for `OPPONENT_SEATS`

@@ -593,15 +593,20 @@
 @layer base {
   @media (any-pointer: coarse) {
     :root {
-      --text-ui-body: 1rem;
-      --text-ui-label: 1rem;
-      --text-ui-meta: 0.875rem;
       --text-ui-input: 1rem;
       --ui-control-height: 2.75rem;
     }
   }
 
-  @media (any-pointer: coarse) and (min-width: 48rem) {
+  @media (pointer: coarse) {
+    :root {
+      --text-ui-body: 1rem;
+      --text-ui-label: 1rem;
+      --text-ui-meta: 0.875rem;
+    }
+  }
+
+  @media (pointer: coarse) and (min-width: 48rem) and (height > 50rem) {
     :root {
       --text-ui-body: 1.25rem;
       --text-ui-label: 1.25rem;
@@ -632,7 +637,7 @@
     }
   }
   body {
-    @apply bg-background text-foreground text-base touch:text-ui-body;
+    @apply bg-background text-foreground text-base pointer-coarse:text-ui-body;
     font-family: var(--font-sans);
     overflow: hidden;
     overscroll-behavior: none;

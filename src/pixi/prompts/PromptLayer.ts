@@ -2401,6 +2401,11 @@ export class PromptLayer extends PromptModalLayer {
       this.spec.onHideModal();
       return;
     }
+    if (primaryActionKey && !event.repeat && this.spec.action.promptType === "chooseBlockers") {
+      event.preventDefault();
+      this.spec.action.onPassPriority();
+      return true;
+    }
     if (!input) return;
     if (input.type === "chooseNumber" && input.max - input.min + 1 > 10) {
       const parsed = Number(this.numberBuffer);

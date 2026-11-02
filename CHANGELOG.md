@@ -1,5 +1,26 @@
 # Changelog
 
+## [3.70.0](https://github.com/witchesofthehill/manabrew/compare/v3.69.2...v3.70.0) (2026-11-02)
+
+### Features
+
+* **ui:** upgrade card glint and specialize finish shaders ([#1114](https://github.com/witchesofthehill/manabrew/issues/1114)) ([289f97b](https://github.com/witchesofthehill/manabrew/commit/289f97b0d6f52a2912590406f2578fbbbd9c4124))
+
+## Unreleased
+
+### Features
+
+- Add saved Card Glint calibration policies and named M21/Eighth profiles to Customize, with per-face inheritance, SDK coverage reports, and compatibility checks.
+- Advertise `card_cosmetics_v3` and reject calibration-bearing deck selections on older relays without changing saved decks.
+
+### Fixes
+
+- Specialize host Card Glint shaders before compilation with `GLINT_FINISH_KIND`, excluding unrelated finish code.
+- Await SDK printing/coating shader readiness before GPU preparation, flush host shader links before polling, and reuse completed Pixi programs without relinking; keep Heat source content visible while GPU resources are pending.
+- Render DOM foil overlays in bounded atlas pages before copying their output crops.
+- Upgrade Card Glint to 0.7.13 for native shader compilation fixes and updated frame calibration, with matching offline and finish-cache revisions.
+- Restore in-game and DOM card foiling by enabling the shared Card Glint feature flag.
+
 ## [3.69.2](https://github.com/witchesofthehill/manabrew/compare/v3.69.1...v3.69.2) (2026-11-02)
 
 ### Fixes
@@ -209,6 +230,8 @@
 * Preserve translated leveler abilities and reminders in native card rendering.
 * Match Realistic print-dot previews to production without changing scan finish geometry.
 * Check relay support for new card materials before submitting a customized deck.
+* Upgrade Card Glint to 0.6.12, adopting its printing defaults and Oracle flavor selection while preserving explicit cosmetic overrides.
+* Prepare print dots and cardstock on each renderer's GPU, preserving bounded batching caches and restoring cached printing correctly after context loss.
 
 ## [3.62.2](https://github.com/witchesofthehill/manabrew/compare/v3.62.1...v3.62.2) (2026-10-21)
 

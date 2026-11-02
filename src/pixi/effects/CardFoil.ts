@@ -1,11 +1,8 @@
 import {
   Container,
-  type Mesh,
   Point,
   type DestroyOptions,
   type FederatedPointerEvent,
-  type MeshGeometry,
-  type Shader,
   type Texture,
   type Sprite,
 } from "pixi.js";
@@ -27,7 +24,7 @@ import {
 
 export class CardFoil extends Container {
   private finish: CardFoilShader | null = null;
-  private sheen: Mesh<MeshGeometry, Shader> | null = null;
+  private sheen: CardFoilMesh | null = null;
   private sweep: gsap.core.Tween | null = null;
   private readonly pose = { phase: 0 };
   private readonly localPointer = new Point();
@@ -126,7 +123,8 @@ export class CardFoil extends Container {
     this.finish.setTexture(this.surfaceVisible() ? this.texture : null, this.textureUvs);
     if (this.sourceSprite)
       this.sourceSprite.renderable =
-        this.sourceRenderable && !(this.visible && this.finish.uniforms.heatDeformation > 0);
+        this.sourceRenderable &&
+        !(this.visible && this.sheen?.rendered && this.finish.uniforms.heatDeformation > 0);
     if (!this.canAnimate()) {
       this.sweep?.pause();
       if (
@@ -181,6 +179,7 @@ export class CardFoil extends Container {
       this.sourceSprite = sourceSprite ?? null;
       this.sourceRenderable = sourceSprite?.renderable ?? true;
     }
+    if (this.sheen && texture !== this.texture) this.sheen.rendered = false;
     this.hasTexture = !!texture && !texture.destroyed;
     this.texture = this.hasTexture ? texture : null;
     this.textureUvs = uvs;
@@ -217,7 +216,9 @@ export class CardFoil extends Container {
     const mode =
       useCardFinishPreview.getState().mode ??
       resolveCardFinish(this.physicalFoil, this.cosmetics, this.etched);
+    const program = this.finish?.shader.glProgram;
     this.finish?.setMode(mode, this.cosmetics);
+    if (this.sheen && program !== this.finish?.shader.glProgram) this.sheen.rendered = false;
     this.visible = this.enabled && this.hasTexture && hasCardFinishEffects(mode, this.cosmetics);
     this.syncAnimation();
     this.requestRender();

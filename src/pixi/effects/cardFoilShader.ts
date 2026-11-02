@@ -1,4 +1,4 @@
-import { SurfaceMotion, surfaceSeed } from "card-glint/finish";
+import { DEFAULT_PRINT_DOTS, SurfaceMotion, surfaceSeed } from "card-glint/finish";
 import { MeshGeometry, Shader, Texture, UniformGroup } from "pixi.js";
 import type { CardLightingMode } from "@/lib/cardLighting";
 import { getCardFoilProgram, MAX_CARD_FOIL_EXCLUSIONS } from "./cardFoilPrograms";
@@ -50,6 +50,8 @@ export interface CardFoilUniforms {
   hasCoverage: number;
   facePrepared: number;
   printingPrepared: number;
+  faceEncoding: Float32Array;
+  printingEncoding: Float32Array;
   cardstockAmount: number;
   regularPrinting: number;
   surfaceTime: number;
@@ -82,6 +84,7 @@ export interface CardFoilShader {
   setArtWindows(regions: readonly CardFoilRegion[]): void;
   setExclusions(regions: readonly CardFoilRegion[]): void;
   update(time: number, hovering: boolean): void;
+  invalidate(): void;
   destroy(): void;
 }
 
@@ -126,6 +129,8 @@ export function createCardFoilShader(invalidate: () => void): CardFoilShader {
     hasCoverage: { value: 0, type: "f32" },
     facePrepared: { value: 0, type: "f32" },
     printingPrepared: { value: 0, type: "f32" },
+    faceEncoding: { value: new Float32Array(2), type: "vec2<f32>" },
+    printingEncoding: { value: new Float32Array(2), type: "vec2<f32>" },
     cardstockAmount: { value: 0, type: "f32" },
     regularPrinting: { value: 1, type: "f32" },
     surfaceTime: { value: 0, type: "f32" },
@@ -140,13 +145,21 @@ export function createCardFoilShader(invalidate: () => void): CardFoilShader {
     studioLighting: { value: 0, type: "f32" },
     cardNormal: { value: new Float32Array([0, 0, 1]), type: "vec3<f32>" },
     facePixelSize: { value: new Float32Array([1, 1]), type: "vec2<f32>" },
-    printDotsInfo: { value: new Float32Array([0, 5, 0.5, 0]), type: "vec4<f32>" },
+    printDotsInfo: {
+      value: new Float32Array([
+        0,
+        DEFAULT_PRINT_DOTS.period,
+        DEFAULT_PRINT_DOTS.variation,
+        DEFAULT_PRINT_DOTS.inset,
+      ]),
+      type: "vec4<f32>",
+    },
     printArtwork: { value: 1, type: "f32" },
     faceProcedural: { value: 0, type: "f32" },
     printingProcedural: { value: 0, type: "f32" },
   });
   const shader = new Shader({
-    glProgram: getCardFoilProgram(false, false),
+    glProgram: getCardFoilProgram(false, false, 0),
     resources: {
       foilUniforms: group,
       face: Texture.EMPTY.source,
@@ -163,9 +176,24 @@ export function createCardFoilShader(invalidate: () => void): CardFoilShader {
     printing: Texture.EMPTY,
     coverage: Texture.EMPTY,
   };
+  const syncProgram = () => {
+    shader.glProgram = getCardFoilProgram(
+      false,
+      group.uniforms.faceProcedural > 0 || group.uniforms.printingProcedural > 0,
+      group.uniforms.previewKind,
+    );
+  };
   const bindTexture = (role: CardFoilTextureRole, texture: Texture) => {
     textures[role] = texture;
     shader.resources[role] = texture.source;
+    if (role === "face" || role === "printing") {
+      const encoding = group.uniforms[role === "face" ? "faceEncoding" : "printingEncoding"];
+      encoding[0] = texture.source.alphaMode === "no-premultiply-alpha" ? 0 : 1;
+      encoding[1] =
+        texture.source.format === "rgba8unorm-srgb" || texture.source.format === "bgra8unorm-srgb"
+          ? 1
+          : 0;
+    }
   };
   const motion = new SurfaceMotion();
   const normal: [number, number, number] = [0, 0, 1];
@@ -193,7 +221,7 @@ export function createCardFoilShader(invalidate: () => void): CardFoilShader {
         console.error("Card Glint cardstock unavailable", error);
       }
     }
-    if ((mode === "regular" || !source) && cardstockLease) {
+    if ((group.uniforms.cardstockAmount <= 0 || !source) && cardstockLease) {
       shader.resources.cardstockMap = Texture.EMPTY.source;
       cardstockLease.release();
       cardstockLease = null;
@@ -223,7 +251,7 @@ export function createCardFoilShader(invalidate: () => void): CardFoilShader {
     bindTexture("coverage", Texture.EMPTY);
     group.uniforms.faceProcedural = 0;
     group.uniforms.printingProcedural = 0;
-    shader.glProgram = getCardFoilProgram(false, false);
+    syncProgram();
     group.uniforms.hasPrinting = 0;
     group.uniforms.hasCoverage = 0;
     group.uniforms.facePrepared = 0;
@@ -246,9 +274,9 @@ export function createCardFoilShader(invalidate: () => void): CardFoilShader {
       dots && dots.amount > 0
         ? {
             amount: dots.amount,
-            period: dots.period ?? 5,
-            variation: dots.variation ?? 0.5,
-            inset: dots.inset ?? 0,
+            period: dots.period ?? DEFAULT_PRINT_DOTS.period,
+            variation: dots.variation ?? DEFAULT_PRINT_DOTS.variation,
+            inset: dots.inset ?? DEFAULT_PRINT_DOTS.inset,
             ...(dots.artwork === false ? { artwork: false as const } : {}),
           }
         : undefined;
@@ -310,16 +338,13 @@ export function createCardFoilShader(invalidate: () => void): CardFoilShader {
         group.uniforms.printingProcedural = printing[1]?.procedural ? 1 : 0;
         group.uniforms.printDotsInfo.set([
           settings?.amount ?? 0,
-          settings?.period ?? 5,
-          settings?.variation ?? 0.5,
-          settings?.inset ?? 0,
+          settings?.period ?? DEFAULT_PRINT_DOTS.period,
+          settings?.variation ?? DEFAULT_PRINT_DOTS.variation,
+          settings?.inset ?? DEFAULT_PRINT_DOTS.inset,
         ]);
         group.uniforms.printArtwork =
           settings?.artwork === false && (layers?.artWindows ?? artWindows).length > 0 ? 0 : 1;
-        shader.glProgram = getCardFoilProgram(
-          false,
-          printing.some((lease) => lease.procedural),
-        );
+        syncProgram();
         if (layers) {
           group.uniforms.cornerRadius = layers.cornerRadius;
           setArtWindows(layers.artWindows);
@@ -386,6 +411,9 @@ export function createCardFoilShader(invalidate: () => void): CardFoilShader {
     uniforms: group.uniforms,
     geometry: resources.geometry,
     textures,
+    invalidate() {
+      if (!destroyed) invalidate();
+    },
     get artWindowCount() {
       return (opticalLease?.artWindows ?? artWindows).length;
     },
@@ -459,6 +487,7 @@ export function createCardFoilShader(invalidate: () => void): CardFoilShader {
         shader.resources.caustics = poolLease.texture.source;
       }
       syncMaterial();
+      syncProgram();
     },
     setArtWindows(regions: readonly CardFoilRegion[]) {
       if (artWindows === regions) return;

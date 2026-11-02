@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.70.0](https://github.com/witchesofthehill/manabrew/compare/v3.69.2...v3.70.0) (2026-11-02)
+
+### Features
+
+* **ui:** upgrade card glint and specialize finish shaders ([#1114](https://github.com/witchesofthehill/manabrew/issues/1114)) ([289f97b](https://github.com/witchesofthehill/manabrew/commit/289f97b0d6f52a2912590406f2578fbbbd9c4124))
+
 ## Unreleased
 
 ### Features

@@ -2,9 +2,9 @@
 
 ## Scope
 
-Audited the released changes from 0.6.12 through 0.7.3 and integrated the missing calibration controls, saved data, compatibility checks and reporting. The application still installs the official 0.7.3 release tarball. No fork, private SDK import or unpublished API is required.
+Audited the released changes from 0.6.12 through 0.7.3 and integrated the missing calibration controls, saved data, compatibility checks and reporting. The application now installs the official 0.7.13 release tarball. No fork or private SDK import is required.
 
-UI acceptance is manual. No application UI was launched, interacted with, captured or visually verified for this change.
+The original calibration acceptance checklist below remains manual. The 0.7.13 update was exercised on Windows Chromium with AMD Radeon RX 7800 XT through ANGLE Direct3D11: the Ashling ECC #1 customizer rendered Prismatic, and an isolated DOM smoke rendered all ten finishes with print dots and coating. Cold SDK helper readiness deferred preparation, completed three links only after their completion queries succeeded, and kept the longest synchronous preparation call to 1.5 ms in that run. The original browser-wide freeze was not reproduced after the update; this does not establish Firefox or other driver coverage.
 
 ## Released change coverage
 
@@ -155,4 +155,4 @@ Build warnings remain for mixed static/dynamic imports and large chunks. The Rus
 
 Inherited calibration does not certify the receiving printing, and SDK reports do not calibrate a physical display. The release notes retain text-wrap, source-bevel/texture and land-symbol residuals. Experimental reconstructed Alpha frames and calibration-authoring tools are not imported into the application.
 
-[Upstream GPU PR #12](https://github.com/vishvananda/card-glint/pull/12) remains separate from released 0.7.3. Native asynchronous mask readback, `FinishTextures.ready()` and context-local `FinishTextures.caustics(time)` are not consumed through private imports or casts. The previously implemented host graphics changes remain in place, but this report does not present them as newly released SDK features.
+The 0.7.13 update consumes released native asynchronous mask readback and `FinishTextures.ready()` without private imports or casts. Host shaders define `GLINT_FINISH_KIND` before SDK GLSL to exclude unrelated finish branches, and host program submission flushes before completion polling. Pool retains its existing canvas bridge. These host changes need no additional upstream patch.

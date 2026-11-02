@@ -129,7 +129,7 @@ let maskGeneration = 0;
 let resources: FinishResources | null = null;
 let caustics: CausticsEntry | null = null;
 let cardstock: { texture: Texture; refs: number } | null = null;
-const SDK_REVISION = "0.7.3";
+const SDK_REVISION = "0.7.13";
 
 function finishResources(): FinishResources {
   resources ??= new FinishResources();
@@ -260,7 +260,12 @@ function gpuTexture(width: number, height: number, finish: GpuFinish): Texture {
 }
 
 export class CardFinishGpuResources {
-  private helper: FinishTextures | null = null;
+  private helper: {
+    textures: FinishTextures;
+    ready: boolean;
+    error: Error | null;
+    callbacks: Set<() => void>;
+  } | null = null;
   private prepared = new WeakMap<TextureSource, WebGLTexture>();
   private readonly resident = new Map<TextureSource, () => void>();
   private borrowedBytes = 0;
@@ -269,7 +274,8 @@ export class CardFinishGpuResources {
   private vao: WebGLVertexArrayObject | null = null;
   private framebuffer: WebGLFramebuffer | null = null;
   private readonly lost = () => {
-    this.helper?.dispose();
+    this.helper?.textures.dispose();
+    this.helper?.callbacks.clear();
     this.helper = null;
     this.clearAccounting();
     this.prepared = new WeakMap();
@@ -297,7 +303,31 @@ export class CardFinishGpuResources {
     if (gl.isContextLost()) return false;
     let destination = renderer.texture.getGlSource(source);
     if (this.prepared.get(source) === destination.texture) return false;
-    this.helper ??= new FinishTextures(gl);
+    if (!this.helper) {
+      const pending: NonNullable<CardFinishGpuResources["helper"]> = (this.helper = {
+        textures: new FinishTextures(gl),
+        ready: false,
+        error: null,
+        callbacks: new Set<() => void>(),
+      });
+      const settle = (error: Error | null) => {
+        if (this.helper !== pending) return;
+        pending.error = error;
+        pending.ready = true;
+        const callbacks = [...pending.callbacks];
+        pending.callbacks.clear();
+        for (const callback of callbacks) callback();
+      };
+      void pending.textures.ready().then(
+        () => settle(null),
+        (error: unknown) => settle(error instanceof Error ? error : new Error(String(error))),
+      );
+    }
+    if (this.helper.error) throw this.helper.error;
+    if (!this.helper.ready) {
+      this.helper.callbacks.add(invalidate);
+      return null;
+    }
     if (finish.input) {
       const input = finish.input;
       if (input.destroyed) throw new Error("Cannot prepare printing from a destroyed source");
@@ -316,7 +346,7 @@ export class CardFinishGpuResources {
           (compatible ? 0 : input.pixelWidth * input.pixelHeight * 4),
       );
       try {
-        const result = this.helper.printDots(
+        const result = this.helper.textures.printDots(
           { texture: normalized, width: input.pixelWidth, height: input.pixelHeight },
           finish.settings,
           finish.artWindows?.map(({ x, y, width, height }) => [x, y, width, height]),
@@ -329,7 +359,7 @@ export class CardFinishGpuResources {
         renderer.texture.resetState();
       }
     } else {
-      const map = this.helper.cardstock();
+      const map = this.helper.textures.cardstock();
       if (!this.borrowedBytes) {
         this.borrowedBytes = mipBytes(map.width, map.height);
         preparationStats.gpuBorrowedCardstockBytes += this.borrowedBytes;
@@ -501,7 +531,8 @@ export class CardFinishGpuResources {
   destroy(): void {
     this.renderer.canvas.removeEventListener("webglcontextlost", this.lost);
     const gl = this.renderer.gl as WebGL2RenderingContext;
-    this.helper?.dispose();
+    this.helper?.textures.dispose();
+    this.helper?.callbacks.clear();
     this.clearAccounting();
     if (this.vao) gl.deleteVertexArray(this.vao);
     if (this.framebuffer) gl.deleteFramebuffer(this.framebuffer);

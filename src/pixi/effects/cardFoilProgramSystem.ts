@@ -66,6 +66,7 @@ export class CardFoilProgramSystem extends GlShaderSystem {
         gl.attachShader(program, shader);
       }
       gl.linkProgram(program);
+      gl.flush();
     } catch (error) {
       this.deleteProgram(pending);
       this.programs.delete(source._key);

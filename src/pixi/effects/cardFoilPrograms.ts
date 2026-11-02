@@ -228,6 +228,7 @@ ${commonSampling}
 #define GLINT_HOST_BINDINGS
 #define GLINT_FACE_SIZE_BINDING
 #define GLINT_POINTER_BINDING
+#define GLINT_FINISH_KIND ${kind}
 const float previewKind=${kind.toFixed(1)};
 uniform vec2 facePixelSize;
 uniform float hasMask;

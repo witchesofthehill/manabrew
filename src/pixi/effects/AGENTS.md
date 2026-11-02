@@ -30,7 +30,7 @@ Two complementary timing systems:
 
 ## Adding an effect
 
-Use a GSAP timeline for transient motion, driving `fxScale` or other plain props. Use `pulse()` or one-shot math for simple tick-driven effects. Fire effects from the existing battlefield state diff.
+Use a GSAP timeline for transient motion, driving `fxScale` or other plain props. Use `pulse()` or one-shot math for simple tick-driven effects. Fire effects from the existing battlefield state diff; for sound, use the changes in `lib/gameViewTransitions.ts`. The entrance landing is the one Pixi sound: `BoardRegion.animate` plays `cardEnter` once per frame in which a card lands.
 
 ## Current effects
 

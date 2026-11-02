@@ -199,6 +199,14 @@ public final class WasmMain {
         // nothing here survives a reload.
         System.setProperty("user.home", FORGE_HOME);
         prepareHome();
+        // Web Image cannot walk the stack, so tinylog's caller lookup returns
+        // null and throws on every log call. forge-gui's tinylog.properties
+        // needs the caller twice: {class-name} in its format and level@
+        // overrides. This configuration needs neither.
+        org.tinylog.configuration.Configuration.replace(java.util.Map.of(
+                "writer", "console",
+                "writer.level", "info",
+                "writer.format", "[{level}] {tag}: {message}"));
 
         long t0 = System.currentTimeMillis();
         System.out.println("[wasm] availableProcessors=" + Runtime.getRuntime().availableProcessors());

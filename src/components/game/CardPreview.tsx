@@ -526,6 +526,7 @@ export function CardPreview({
         <div
           className="fixed inset-0 z-[9998] bg-black/30 animate-preview-fade-in"
           onClick={onDismiss}
+          onContextMenu={(event) => event.preventDefault()}
         />
       )}
       {phase === "open" && !suppressed && placement !== "pinned" && (

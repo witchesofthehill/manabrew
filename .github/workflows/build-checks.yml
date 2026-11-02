@@ -71,6 +71,9 @@ jobs:
               'scripts/build-forge-wasm-package.mjs',
               'scripts/verify-forge-wasm-package.mjs',
               'manabrew-rs/crates/forge-cardset-archive/',
+              'manabrew-rs/crates/manabrew-protocol/',
+              'manabrew-rs/crates/manabrew-relay-protocol/',
+              'packages/protocol/',
               'forge',
               '.github/workflows/build-checks.yml',
             ];

@@ -104,18 +104,8 @@ export function beginForgeWasmTrial(): void {
   localStorage.setItem(STORAGE_KEYS.FORGE_WASM_VALIDATION, JSON.stringify(pending));
 }
 
-function isIOS(): boolean {
-  const userAgent = navigator.userAgent;
-  return (
-    /iPad|iPhone|iPod/.test(userAgent) ||
-    (/Macintosh/.test(userAgent) && navigator.maxTouchPoints > 1)
-  );
-}
-
 export function forgeWasmGate(): EngineGate {
   if (typeof window === "undefined") return "unknown";
-  // iOS is untested with the 72 MB module.
-  if (isIOS()) return "ios";
   if (!window.crossOriginIsolated || typeof window.SharedArrayBuffer === "undefined") {
     return "isolation";
   }

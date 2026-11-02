@@ -253,3 +253,6 @@ export const HOVER_DELAY_STEP = 50;
 export const AUTOPASS_DELAY_MIN_MS = 700;
 export const AUTOPASS_DELAY_MAX_MS = 1500;
 export const TRIGGER_ORDER_PROMPT_TITLE = "Order triggered abilities";
+
+export const REPEAT_LIMIT = 50;
+export const REPEAT_QUICK_PICKS = [5, 10, 20];

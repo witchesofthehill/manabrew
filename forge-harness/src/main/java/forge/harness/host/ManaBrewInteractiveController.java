@@ -151,8 +151,11 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     @Override
     public List<SpellAbility> chooseSpellAbilityToPlay() {
-        if (session.restoreIfApproved()) {
+        if (session.restoreIfApproved() || session.actionRepeat().revertFailedRepeat()) {
             return new ArrayList<>();
+        }
+        if (session.actionRepeat().passesDuringReplay(player)) {
+            return null;
         }
         if (exhaustStackIds != null) {
             if (PriorityFastForward.exhaustEnded(game, exhaustStackIds)) {

@@ -1,5 +1,53 @@
 # Changelog
 
+## [3.69.0](https://github.com/witchesofthehill/manabrew/compare/v3.68.3...v3.69.0) (2026-10-31)
+
+### Features
+
+* sounds!!!!!!! ([#893](https://github.com/witchesofthehill/manabrew/issues/893)) ([a14be1e](https://github.com/witchesofthehill/manabrew/commit/a14be1eec3434610b1a7c3adabea1abf6619e62c))
+
+## [3.68.3](https://github.com/witchesofthehill/manabrew/compare/v3.68.2...v3.68.3) (2026-10-31)
+
+### Fixes
+
+* remove webkit check ([#1160](https://github.com/witchesofthehill/manabrew/issues/1160)) ([25cf85f](https://github.com/witchesofthehill/manabrew/commit/25cf85f7acf7f0530ac9ba51463729f080f66f1c))
+
+## [3.68.2](https://github.com/witchesofthehill/manabrew/compare/v3.68.1...v3.68.2) (2026-10-31)
+
+### Fixes
+
+* misc controller issues ([#1158](https://github.com/witchesofthehill/manabrew/issues/1158)) ([cbcccdb](https://github.com/witchesofthehill/manabrew/commit/cbcccdb662b769be8f4eddf53e21da84fdb46143))
+
+## [3.68.1](https://github.com/witchesofthehill/manabrew/compare/v3.68.0...v3.68.1) (2026-10-29)
+
+### Fixes
+
+* **ui:** prevent browser context menu on card previews ([#1126](https://github.com/witchesofthehill/manabrew/issues/1126)) ([787f938](https://github.com/witchesofthehill/manabrew/commit/787f938e9ffb8b814f222748875e7e776e2fcd5d))
+
+## [3.68.0](https://github.com/witchesofthehill/manabrew/compare/v3.67.2...v3.68.0) (2026-10-29)
+
+### Features
+
+* record + repeat ([#1061](https://github.com/witchesofthehill/manabrew/issues/1061)) ([8b33025](https://github.com/witchesofthehill/manabrew/commit/8b33025765914991e7a8b58254b8cfc64d64318a))
+
+## [3.67.2](https://github.com/witchesofthehill/manabrew/compare/v3.67.1...v3.67.2) (2026-10-28)
+
+### Fixes
+
+* many audit fixes ([#1145](https://github.com/witchesofthehill/manabrew/issues/1145)) ([5ec73a7](https://github.com/witchesofthehill/manabrew/commit/5ec73a78c703ff867640ff6144260399f15b14b6))
+
+## [3.67.1](https://github.com/witchesofthehill/manabrew/compare/v3.67.0...v3.67.1) (2026-10-28)
+
+### Fixes
+
+* **ui:** inspect authorized face-down cards in forge games ([#1144](https://github.com/witchesofthehill/manabrew/issues/1144)) ([0b1904e](https://github.com/witchesofthehill/manabrew/commit/0b1904e0d457a259ac85751b2db7878ad6e40b96))
+
+## [3.67.0](https://github.com/witchesofthehill/manabrew/compare/v3.66.1...v3.67.0) (2026-10-28)
+
+### Features
+
+* brewies ([#1143](https://github.com/witchesofthehill/manabrew/issues/1143)) ([101d3c4](https://github.com/witchesofthehill/manabrew/commit/101d3c47cf03b392dfbe98491cea55e633808f8b))
+
 ## [3.66.1](https://github.com/witchesofthehill/manabrew/compare/v3.66.0...v3.66.1) (2026-10-28)
 
 ### Fixes

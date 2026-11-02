@@ -1,39 +1,32 @@
 import { useEffect, useRef, useState } from "react";
-import { useGameStore } from "@/stores/useGameStore";
+import { useGameStore, type DeferredSnapshot } from "@/stores/useGameStore";
+import { applySnapshot } from "@/stores/gameStore.constants";
 import type { FlashItem } from "@/components/game/game.types";
-import type { GameViewDto } from "@/protocol/game";
+import { flashItemOf } from "@/lib/gameViewTransitions";
+import { playSound } from "@/lib/soundRuntime";
+
+function applyQueuedSnapshot(snapshot: DeferredSnapshot) {
+  applySnapshot(snapshot, useGameStore.setState, useGameStore.getState);
+}
 
 export function useFlashQueue(flashDurationMs: number) {
   const deferredQueue = useGameStore((s) => s.deferredQueue);
   const [activeFlash, setActiveFlash] = useState<FlashItem | null>(null);
   const flashQueueRef = useRef<FlashItem[]>([]);
   const isFlashingRef = useRef(false);
-  const deferredStateRef = useRef<{ gameView: unknown; prompt: unknown } | null>(null);
+  const deferredSnapshotRef = useRef<DeferredSnapshot | null>(null);
 
-  function applyDeferredState() {
-    const deferred = deferredStateRef.current;
+  function applyDeferredSnapshot() {
+    const deferred = deferredSnapshotRef.current;
     if (!deferred) return;
-    deferredStateRef.current = null;
-    applySnapshotFields(deferred.gameView, deferred.prompt);
+    deferredSnapshotRef.current = null;
+    applyQueuedSnapshot(deferred);
   }
 
-  function applySnapshotFields(gameView: unknown, prompt: unknown) {
-    const updates: Record<string, unknown> = {};
-    if (gameView) {
-      updates.gameView = gameView;
-      // Mirror route(): an eliminated seat has no pending prompt.
-      const view = gameView as GameViewDto;
-      const me = view.players?.find((p) => p.id === useGameStore.getState().myPlayerSlot);
-      if (me && me.status !== "playing") updates.currentPrompt = null;
-    }
-    if (prompt) {
-      updates.currentPrompt = prompt;
-      updates.isWaitingForResponse = false;
-      // Mirror route(): a fresh prompt means we hold priority again, so clear the
-      // optimistic relinquished flag or the board stays stuck "waiting for others".
-      updates.relinquishedPriority = false;
-    }
-    if (Object.keys(updates).length > 0) useGameStore.setState(updates);
+  function showFlash(flash: FlashItem) {
+    isFlashingRef.current = true;
+    if (flash.kind === "card") playSound("cardPlay");
+    setActiveFlash(flash);
   }
 
   function startNextSnapshot() {
@@ -47,8 +40,9 @@ export function useFlashQueue(flashDurationMs: number) {
     const [snapshot, ...rest] = queue;
     useGameStore.setState({ deferredQueue: rest });
 
-    if (snapshot.displayEvents.length === 0) {
-      applySnapshotFields(snapshot.gameView, snapshot.prompt);
+    const flashes = snapshot.transitions.flatMap((transition) => flashItemOf(transition) ?? []);
+    if (flashes.length === 0) {
+      applyQueuedSnapshot(snapshot);
       if (rest.length > 0) {
         setTimeout(startNextSnapshot, 0);
       } else {
@@ -58,31 +52,11 @@ export function useFlashQueue(flashDurationMs: number) {
       return;
     }
 
-    deferredStateRef.current = { gameView: snapshot.gameView, prompt: snapshot.prompt };
-
-    for (const evt of snapshot.displayEvents) {
-      if (evt.kind === "cardPlayed") {
-        flashQueueRef.current.push({
-          kind: "card",
-          cardId: evt.cardId!,
-          cardName: evt.cardName!,
-          setCode: evt.setCode ?? "",
-        });
-      } else if (evt.kind === "turnChanged") {
-        flashQueueRef.current.push({
-          kind: "turn",
-          playerId: evt.activePlayerId!,
-          playerName: evt.activePlayerName!,
-        });
-      }
-    }
-
-    const first = flashQueueRef.current.shift();
-    if (first) {
-      isFlashingRef.current = true;
-      useGameStore.setState({ isFlashing: true });
-      setActiveFlash(first);
-    }
+    deferredSnapshotRef.current = snapshot;
+    const [first, ...others] = flashes;
+    flashQueueRef.current.push(...others);
+    useGameStore.setState({ isFlashing: true });
+    showFlash(first);
   }
 
   // The store's `isFlashing` flag and the deferred queue are drained ONLY by
@@ -95,7 +69,7 @@ export function useFlashQueue(flashDurationMs: number) {
     return () => {
       isFlashingRef.current = false;
       flashQueueRef.current = [];
-      deferredStateRef.current = null;
+      deferredSnapshotRef.current = null;
       useGameStore.setState({ isFlashing: false, deferredQueue: [] });
     };
   }, []);
@@ -113,10 +87,9 @@ export function useFlashQueue(flashDurationMs: number) {
     if (!activeFlash) {
       const next = flashQueueRef.current.shift();
       if (next) {
-        isFlashingRef.current = true;
-        setActiveFlash(next);
+        showFlash(next);
       } else {
-        applyDeferredState();
+        applyDeferredSnapshot();
         const queue = useGameStore.getState().deferredQueue;
         if (queue.length > 0) {
           setTimeout(startNextSnapshot, 10);

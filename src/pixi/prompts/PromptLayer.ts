@@ -6,6 +6,7 @@ import {
 } from "@/themes/typography";
 import { TOUCH_MOVE_SLOP_PX } from "@/lib/responsive";
 import { topModal } from "@/lib/modalStack";
+import { playSound } from "@/lib/soundRuntime";
 import { summarizeCombat } from "@/components/game/combatSummary";
 import {
   Application,
@@ -104,7 +105,9 @@ export class PromptLayer extends PromptModalLayer {
     this.app.stage.on("pointerupoutside", this.onStageUp);
     this.app.stage.on("pointercancel", this.onStageCancel);
     this.app.ticker.add(this.onTick);
-    this.keyListener = (event) => this.handleKey(event);
+    this.keyListener = (event) => {
+      if (this.handleKey(event)) playSound("buttonClick");
+    };
     window.addEventListener("keydown", this.keyListener);
     window.addEventListener("keydown", this.onModifierEvent);
     window.addEventListener("keyup", this.onModifierEvent);
@@ -2344,7 +2347,7 @@ export class PromptLayer extends PromptModalLayer {
     this.rebuild();
   }
 
-  private handleKey(event: KeyboardEvent): void {
+  private handleKey(event: KeyboardEvent): boolean | void {
     const modal = topModal();
     if ((modal && !modal.contains(this.app.canvas)) || event.defaultPrevented || event.isComposing)
       return;
@@ -2360,7 +2363,7 @@ export class PromptLayer extends PromptModalLayer {
     if (this.spec.gameOver && primaryActionKey && !event.repeat) {
       event.preventDefault();
       this.spec.gameOver.onEndGame();
-      return;
+      return true;
     }
     const input = this.spec.currentPrompt?.input;
     const searchingCards = input?.type === "chooseCards" && input.cards.length > 1;
@@ -2437,6 +2440,7 @@ export class PromptLayer extends PromptModalLayer {
       ) {
         event.preventDefault();
         this.spec.respond({ type: "numberDecision", chosenNumber: parsed });
+        return true;
       }
       return;
     }
@@ -2444,14 +2448,17 @@ export class PromptLayer extends PromptModalLayer {
     if (input.type === "chooseBoolean") {
       event.preventDefault();
       this.spec.respond({ type: "decision", value: true });
+      return true;
     } else if (input.type === "revealCards") {
       event.preventDefault();
       this.spec.respond({ type: "revealCardsAcknowledged" });
+      return true;
     } else if (input.type === "chooseCards") {
       const chosen = [...this.selectedIds];
       if (chosen.length >= input.min && chosen.length <= input.max) {
         event.preventDefault();
         this.spec.respond({ type: "chooseCardsDecision", chosenCardIds: chosen });
+        return true;
       }
     } else if (input.type === "chooseColor") {
       const total = [...this.counts.values()].reduce((sum, value) => sum + value, 0);
@@ -2462,6 +2469,7 @@ export class PromptLayer extends PromptModalLayer {
         }
         event.preventDefault();
         this.spec.respond({ type: "colorDecision", chosenColors });
+        return true;
       }
     } else if (input.type === "chooseFromSelection") {
       const total = this.selectionTotal(input.options);
@@ -2471,10 +2479,12 @@ export class PromptLayer extends PromptModalLayer {
           .sort(([left], [right]) => Number(left) - Number(right))
           .flatMap(([index, count]) => Array.from({ length: count }, () => Number(index)));
         this.spec.respond({ type: "selectionDecision", chosenIndices });
+        return true;
       }
     } else if (input.type === "reorder") {
       event.preventDefault();
       this.spec.respond({ type: "reorderDecision", orderedIds: [...this.order] });
+      return true;
     } else if (input.type === "scry") {
       if ((this.scryItems.pool ?? []).length === 0) {
         event.preventDefault();
@@ -2484,6 +2494,7 @@ export class PromptLayer extends PromptModalLayer {
             [...(this.scryItems[`zone-${index}`] ?? [])].reverse(),
           ),
         });
+        return true;
       }
     } else if (input.type === "chooseDamageAssignmentOrder") {
       if (
@@ -2492,10 +2503,12 @@ export class PromptLayer extends PromptModalLayer {
       ) {
         event.preventDefault();
         this.spec.damageOrder.onConfirm();
+        return true;
       }
     } else if (input.type === "diceRolled" && this.rollElapsedMs >= this.rollDurationMs) {
       event.preventDefault();
       this.spec.respond({ type: "diceRolledAcknowledged" });
+      return true;
     } else if (input.type === "chooseCombatDamageAssignment") {
       const assignees = [...input.blockerIds, ...(input.defenderId ? [input.defenderId] : [])];
       const remaining =
@@ -2510,6 +2523,7 @@ export class PromptLayer extends PromptModalLayer {
             damage: this.damageAssigned[assigneeId] ?? 0,
           })),
         });
+        return true;
       }
     }
   }

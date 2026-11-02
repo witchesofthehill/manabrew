@@ -122,6 +122,16 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     }
 
     @Override
+    public CardCollectionView chooseSacrificeForCost(
+            final CardCollectionView valid, final SpellAbility sa, final int amount, final String message,
+            final boolean cancelAllowed) {
+        if (probingPayability) {
+            return choosePermanentsToSacrifice(sa, amount, amount, valid, message);
+        }
+        return session.awaitSacrificeChoice(me(), sa, valid, amount, amount, message, cancelAllowed);
+    }
+
+    @Override
     public boolean mulliganKeepHand(final Player mulliganingPlayer, final int cardsToReturn) {
         final boolean keep = session.awaitMulliganDecision(me(), cardsToReturn);
         if (keep && cardsToReturn > 0) {
@@ -898,7 +908,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             CardLists.sortByCmcDesc(sorted);
             return new CardCollection(sorted.subList(0, Math.max(min, Math.min(cappedMax, 1))));
         }
-        return session.awaitSacrificeChoice(me(), sa, validTargets, min, cappedMax, message);
+        return session.awaitSacrificeChoice(me(), sa, validTargets, min, cappedMax, message, false);
     }
 
     @Override

@@ -15,4 +15,7 @@ public interface HarnessPlayHooks {
     void markFailedPaymentCard(Card card);
 
     CardCollectionView chooseTapTypeForCost(CardCollection valid, SpellAbility ability, int totalPowerRequired);
+
+    CardCollectionView chooseSacrificeForCost(
+            CardCollectionView valid, SpellAbility ability, int amount, String message, boolean cancelAllowed);
 }

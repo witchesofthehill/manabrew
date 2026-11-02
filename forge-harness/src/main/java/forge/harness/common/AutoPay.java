@@ -140,6 +140,7 @@ public final class AutoPay {
     public List<Card> floatManaForCost(final ManaCost toPay, final SpellAbility saBeingPaid, final boolean effect) {
         final ManaPool pool = payer.getManaPool();
         final List<Card> tapped = new ArrayList<>();
+        final Set<SpellAbility> refused = new LinkedHashSet<>();
 
         boolean planned = false;
         int guard = 0;
@@ -153,12 +154,13 @@ public final class AutoPay {
 
             if (!planned) {
                 planned = true;
-                if (floatPlannedMana(toPay, unpaid, saBeingPaid, effect, tapped)) {
+                if (floatPlannedMana(toPay, unpaid, saBeingPaid, effect, tapped, refused)) {
                     continue;
                 }
             }
 
             final List<ManaAbilityCandidate> candidates = collectPlayableManaAbilities(saBeingPaid);
+            candidates.removeIf(candidate -> refused.contains(candidate.spellAbility));
             if (candidates.isEmpty()) {
                 break;
             }
@@ -181,7 +183,8 @@ public final class AutoPay {
             final ManaCostBeingPaid unpaid,
             final SpellAbility saBeingPaid,
             final boolean effect,
-            final List<Card> tapped
+            final List<Card> tapped,
+            final Set<SpellAbility> refused
     ) {
         final MaybePay maybePay = new MaybePay(payer);
         List<MaybePay.Activation> plan = null;
@@ -207,6 +210,7 @@ public final class AutoPay {
                 activation.ability.getManaPart().setExpressChoice(String.join(" ", colors));
             }
             if (!floatManaFromSource(activation.ability, effect)) {
+                refused.add(activation.ability);
                 break;
             }
             tapped.add(activation.ability.getHostCard());

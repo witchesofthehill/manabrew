@@ -39,9 +39,17 @@ export function getUiFontSize(role: UiTextRole): number {
   return typographySizes[role];
 }
 
+export function getUiFontFloor(role: UiTextRole): number {
+  return isTouchUi() ? getUiFontSize(role) : 0;
+}
+
 export function getUiControlHeight(): number {
   if (!typographyInitialized) refreshUiTypography();
   return typographySizes.controlHeight;
+}
+
+export function getUiControlFloor(): number {
+  return isTouchUi() ? getUiControlHeight() : 0;
 }
 
 export function isTouchUi(): boolean {

@@ -3,6 +3,7 @@ import { CardCustomizerNumber } from "@/components/editor/CardCustomizerNumber";
 import { CardCustomizerSurfaceWear } from "@/components/editor/CardCustomizerSurfaceWear";
 import { CardCustomizerMaterials } from "@/components/editor/CardCustomizerMaterials";
 import { AppSelect, AppSelectOption } from "@/components/ui/AppSelect";
+import { isFeatureEnabled } from "@/featureFlags";
 import {
   customizationFieldValue,
   type CosmeticField,
@@ -22,6 +23,7 @@ export function CardCustomizerControls({
   onChange: (field: CosmeticField, value: string) => void;
 }) {
   const labelId = useId();
+  const finishDisabled = disabled || !isFeatureEnabled("cardFoil");
   const controls = [
     { field: "finish", label: "Finish", presets: CARD_FINISH_PRESETS },
     { field: "frame", label: "Frame", presets: CARD_FRAME_PRESETS },
@@ -46,7 +48,7 @@ export function CardCustomizerControls({
                   value={value}
                   onValueChange={(next) => onChange(field, next)}
                   aria-labelledby={`${labelId}-${field}`}
-                  disabled={disabled}
+                  disabled={field === "finish" ? finishDisabled : disabled}
                   className="touch:min-h-11 w-full"
                 >
                   {field === "finish" && (
@@ -70,7 +72,7 @@ export function CardCustomizerControls({
                     value={customizationFieldValue(cosmetics, "rainFog")}
                     min={0}
                     max={2}
-                    disabled={disabled}
+                    disabled={finishDisabled}
                     onChange={(next) => onChange("rainFog", next)}
                   />
                   <p className="text-ui-body text-muted-foreground">
@@ -85,14 +87,14 @@ export function CardCustomizerControls({
                   min={0}
                   max={0.02}
                   step={0.0001}
-                  disabled={disabled}
+                  disabled={finishDisabled}
                   onChange={(next) => onChange("heatDeformation", next)}
                 />
               )}
               {field === "wearAmount" && (
                 <CardCustomizerSurfaceWear
                   wear={value}
-                  disabled={disabled}
+                  disabled={finishDisabled}
                   onWearChange={(next) => onChange("wearAmount", next)}
                 />
               )}
@@ -100,7 +102,11 @@ export function CardCustomizerControls({
           );
         })}
       </div>
-      <CardCustomizerMaterials cosmetics={cosmetics} disabled={disabled} onChange={onChange} />
+      <CardCustomizerMaterials
+        cosmetics={cosmetics}
+        disabled={finishDisabled}
+        onChange={onChange}
+      />
     </section>
   );
 }

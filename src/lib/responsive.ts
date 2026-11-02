@@ -3,10 +3,13 @@ export const DESKTOP_QUERY = "(min-width: 768px)";
 export const SHORT_SCREEN_MAX_HEIGHT_PX = 520;
 export const SHORT_SCREEN_QUERY = `(max-height: ${SHORT_SCREEN_MAX_HEIGHT_PX}px)`;
 
+export const COMPACT_HOME_MAX_HEIGHT_PX = 800;
+export const COMPACT_HOME_QUERY = `${SHORT_SCREEN_QUERY}, ${DESKTOP_QUERY} and (max-height: ${COMPACT_HOME_MAX_HEIGHT_PX}px)`;
+
 export const COARSE_POINTER_QUERY = "(pointer: coarse)";
 export const TOUCH_CAPABLE_QUERY = "(any-pointer: coarse)";
 
-export const MOBILE_GAME_QUERY = `${COARSE_POINTER_QUERY} and (max-width: 1024px), ${COARSE_POINTER_QUERY} and (max-height: 1024px)`;
+export const MOBILE_GAME_QUERY = `${COARSE_POINTER_QUERY} and (max-width: 640px), ${COARSE_POINTER_QUERY} and (max-height: 640px)`;
 
 export const PORTRAIT_QUERY = "(orientation: portrait)";
 

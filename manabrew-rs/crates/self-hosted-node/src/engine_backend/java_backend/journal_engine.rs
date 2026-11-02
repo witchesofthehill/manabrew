@@ -79,6 +79,10 @@ impl JournalEngine {
         self.bridge.borrow_mut().drain_checkpoint_metrics(session)
     }
 
+    pub(super) fn drain_directives(&self, session: &str) -> Result<String, String> {
+        self.bridge.borrow_mut().drain_directives(session)
+    }
+
     pub(super) fn end_game(&self, session: &str) -> Result<(), String> {
         self.bridge.borrow_mut().end_game(session)
     }

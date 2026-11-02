@@ -1,4 +1,4 @@
-import { getUiFontSize, UI_FONT_FAMILY } from "@/themes/typography";
+import { getUiFontFloor, UI_FONT_FAMILY } from "@/themes/typography";
 import { Container, Graphics, Text } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
 import { hexToNum } from "../colorUtils";
@@ -121,7 +121,7 @@ export class CombatRowRenderer {
         text: String(count),
         style: {
           fontFamily: UI_FONT_FAMILY,
-          fontSize: getUiFontSize("meta"),
+          fontSize: Math.max(11, getUiFontFloor("meta")),
           fontWeight: "800",
           fill: hexToNum(colors.textOnTinted),
         },
@@ -174,7 +174,7 @@ export class CombatRowRenderer {
       spec.cardWidth !== snapshot.cardWidth ||
       spec.direction !== snapshot.direction ||
       spec.stripHeight !== snapshot.stripHeight ||
-      getUiFontSize("meta") !== snapshot.fontSize ||
+      Math.max(11, getUiFontFloor("meta")) !== snapshot.fontSize ||
       colors.promptAction.attackAction !== snapshot.attackColor ||
       colors.textOnTinted !== snapshot.textColor ||
       colors.promptAction.defenseAction !== snapshot.defenseColor
@@ -218,7 +218,7 @@ export class CombatRowRenderer {
       attackColor: colors.promptAction.attackAction,
       defenseColor: colors.promptAction.defenseAction,
       textColor: colors.textOnTinted,
-      fontSize: getUiFontSize("meta"),
+      fontSize: Math.max(11, getUiFontFloor("meta")),
       attackerXs: [...spec.attackerXs],
       connectors,
     };

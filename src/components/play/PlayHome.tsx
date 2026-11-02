@@ -1,5 +1,7 @@
 import { LibraryBig, Swords, Users } from "lucide-react";
 import { useEffect, useState } from "react";
+import multiplayerArt from "@/assets/double-players4.webp";
+import singlePlayerArt from "@/assets/single-player2.webp";
 import { UpdateCallout } from "@/components/layout/UpdateCallout";
 import { FeatureTile } from "@/components/play/FeatureTile";
 import { GuestNudge } from "@/components/play/GuestNudge";
@@ -8,7 +10,7 @@ import { PlayHomeLinks } from "@/components/play/PlayHomeLinks";
 import { RejoinMatchCard } from "@/components/play/RejoinMatchCard";
 import { isFeatureEnabled } from "@/featureFlags";
 import { useQuickPlay } from "@/hooks/useQuickPlay";
-import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
+import { useIsCompactHomeScreen } from "@/hooks/useBreakpoints";
 import { peekActiveGameSession } from "@/lib/activeGameSession";
 import { ROUTES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -19,9 +21,11 @@ import { useServerStore } from "@/stores/useServerStore";
 const MODES = [
   {
     to: ROUTES.PLAY_OFFLINE_CONSTRUCTED,
-    label: `Play Offline`,
+    label: `Singleplayer`,
     desc: "Choose your decks and play against the AI at your own pace.",
     icon: Swords,
+    image: singlePlayerArt,
+    imageClassName: "h-52 w-52 -mr-3",
     tone: "primary",
   },
   {
@@ -29,15 +33,15 @@ const MODES = [
     label: `Multiplayer`,
     desc: "Join an open table or create a room for your group.",
     icon: Users,
+    image: multiplayerArt,
+    imageClassName: "h-40 w-40 sm:h-82 sm:w-82 lg:h-80 lg:w-80 -mb-4",
     tone: "secondary",
   },
 ];
 export function PlayHome() {
   const { quickPlay, quickPlayPreset, quickPlayCommunity, pendingDeckId, playersDialog } =
     useQuickPlay();
-  const shortScreen = useIsShortScreen();
-  const isTouch = useIsTouch();
-  const shortTouch = shortScreen && isTouch;
+  const compact = useIsCompactHomeScreen();
   const [resumeSession, setResumeSession] = useState(peekActiveGameSession);
   const resumePending = resumeSession !== null;
   const connected = useServerStore((state) => state.connected);
@@ -88,14 +92,14 @@ export function PlayHome() {
         <div
           className={cn(
             "flex min-h-full w-full flex-col gap-6 px-4 py-6 sm:gap-7 sm:px-6 sm:py-9 lg:px-8",
-            shortTouch && "gap-3 py-3 sm:gap-3 sm:py-3",
+            compact && "gap-3 py-3 sm:gap-3 sm:py-3",
           )}
         >
-          <header className={cn("max-w-xl sm:pt-2", shortTouch && "sm:pt-0")}>
+          <header className={cn("max-w-xl sm:pt-2", compact && "sm:pt-0")}>
             <h1
               className={cn(
                 "font-serif text-3xl font-semibold tracking-tight text-foreground sm:text-4xl",
-                shortTouch && "text-2xl sm:text-2xl",
+                compact && "text-2xl sm:text-2xl",
               )}
             >
               Ready to play?
@@ -103,7 +107,7 @@ export function PlayHome() {
             <p
               className={cn(
                 "mt-2 text-ui-body leading-relaxed text-muted-foreground",
-                shortTouch && "mt-1 text-ui-body",
+                compact && "mt-1 text-ui-body",
               )}
             >
               Start a match your way, or open a deck from your collection.
@@ -125,16 +129,18 @@ export function PlayHome() {
             )}
           >
             <section aria-label={`Play modes`} className="grid gap-4 md:grid-cols-2">
-              {MODES.map(({ to, label, desc, icon, tone }) => (
+              {MODES.map(({ to, label, desc, icon, image, imageClassName, tone }) => (
                 <FeatureTile
                   key={to}
                   to={to}
                   label={label}
                   desc={desc}
                   icon={icon}
+                  image={image}
+                  imageClassName={imageClassName}
                   tone={tone}
                   size="lg"
-                  compact={shortTouch}
+                  compact={compact}
                   footer={
                     to === ROUTES.LOBBY && lobbyTeaser ? (
                       <span className="mt-1.5 flex items-center gap-1.5 text-ui-meta font-medium text-primary">

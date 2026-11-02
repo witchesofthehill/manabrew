@@ -1,4 +1,4 @@
-import { getUiControlHeight, getUiFontSize, UI_FONT_FAMILY } from "@/themes/typography";
+import { getUiControlFloor, getUiFontFloor, UI_FONT_FAMILY } from "@/themes/typography";
 import {
   Container,
   Graphics,
@@ -282,7 +282,7 @@ export class CommandZonePreviewLayer {
         style: {
           fill: hexToNum(this.theme.appTheme["popover-foreground"]),
           fontFamily: UI_FONT_FAMILY,
-          fontSize: getUiFontSize("label"),
+          fontSize: Math.max(10, getUiFontFloor("label")),
           fontWeight: "700",
         },
       });
@@ -514,7 +514,7 @@ export class CommandZonePreviewLayer {
   private castButtonWidth(entry: PreviewEntry): number {
     return Math.max(
       CAST_BUTTON_WIDTH,
-      getUiControlHeight(),
+      getUiControlFloor(),
       entry.castButtonLabel.width + CAST_BUTTON_ICON_SIZE + 24,
     );
   }
@@ -523,9 +523,9 @@ export class CommandZonePreviewLayer {
     const foreground = hovered
       ? this.theme.appTheme["primary-foreground"]
       : this.theme.appTheme["popover-foreground"];
-    entry.castButtonLabel.style.fontSize = getUiFontSize("label");
+    entry.castButtonLabel.style.fontSize = Math.max(10, getUiFontFloor("label"));
     const width = this.castButtonWidth(entry);
-    const height = Math.max(getUiControlHeight(), entry.castButtonLabel.height + 12);
+    const height = Math.max(22, getUiControlFloor(), entry.castButtonLabel.height + 8);
     entry.castButtonIcon.position.set(13, height / 2);
     entry.castButtonLabel.position.set(
       CAST_BUTTON_ICON_SIZE + 16 + entry.castButtonLabel.width / 2,

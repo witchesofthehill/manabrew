@@ -132,8 +132,8 @@ const mana = preset.gameColors;
 
       <section class="gallery">
         <figure class="shot-wide">
-          <Image src={deckLibrary} alt="Browsing your deck library in Manabrew" widths={[640, 1280, 1920]} sizes="(max-width: 900px) 100vw, 1080px" />
-          <figcaption>Your deck library</figcaption>
+          <Image src={deckLibrary} alt="The Manabrew home screen with your decks" widths={[640, 1280, 1920]} sizes="(max-width: 900px) 100vw, 1080px" />
+          <figcaption>Home</figcaption>
         </figure>
         <div class="shot-pair">
           <figure>
@@ -295,8 +295,9 @@ const mana = preset.gameColors;
     align-items: center;
     justify-content: space-between;
     flex-wrap: wrap;
-    gap: 0.5rem 1rem;
-    padding: 1.1rem clamp(1rem, 4vw, 3rem);
+    gap: 0.5rem 1.5rem;
+    padding: 0.75rem clamp(1rem, 4vw, 3rem);
+    border-bottom: 1px solid var(--border);
     background: var(--card);
   }
 
@@ -309,31 +310,27 @@ const mana = preset.gameColors;
 
   .wordmark :global(.mb-logo) {
     display: block;
-    width: 16.5rem;
+    width: auto;
     max-width: 100%;
-    height: auto;
+    height: 3.25rem;
   }
 
   .nav nav {
     display: flex;
-    gap: clamp(0.9rem, 3vw, 1.8rem);
+    gap: clamp(0.9rem, 2.5vw, 1.75rem);
     flex-wrap: wrap;
   }
 
   .nav nav a {
-    color: var(--foreground);
+    color: var(--muted-foreground);
     text-decoration: none;
     font-weight: 500;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    font-size: 0.8rem;
+    font-size: 0.95rem;
+    transition: color 120ms ease;
   }
 
   .nav nav a:hover {
     color: var(--foreground);
-    text-decoration: underline;
-    text-decoration-color: var(--primary);
-    text-underline-offset: 0.2em;
   }
 
   .hero {
@@ -375,7 +372,7 @@ const mana = preset.gameColors;
     z-index: 1;
     width: min(64rem, 100%);
     margin-inline: auto;
-    padding: 10rem clamp(1rem, 4vw, 3rem) clamp(5.5rem, 16vh, 9rem);
+    padding: 7rem clamp(1rem, 4vw, 3rem) clamp(5.5rem, 16vh, 9rem);
   }
 
   .kicker {
@@ -590,14 +587,16 @@ const mana = preset.gameColors;
   }
 
 
-  @media (max-width: 32rem) {
+  @media (max-width: 26rem) {
+    .wordmark :global(.mb-logo) {
+      height: 2.75rem;
+    }
+  }
+
+  @media (max-width: 22rem) {
     .nav nav {
       width: 100%;
       justify-content: space-between;
-    }
-
-    .hero-inner {
-      padding-top: 11rem;
     }
   }
   @media (prefers-reduced-motion: no-preference) {

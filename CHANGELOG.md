@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixes
+
+* **ui:** allow Space to declare no blockers ([#1050](https://github.com/witchesofthehill/manabrew/issues/1050)).
+
 ## [3.69.2](https://github.com/witchesofthehill/manabrew/compare/v3.69.1...v3.69.2) (2026-11-02)
 
 ### Fixes

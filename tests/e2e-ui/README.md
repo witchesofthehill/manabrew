@@ -33,6 +33,18 @@ Each script prints `PASS: …` and exits 0, or `FAIL: …` and exits non-zero.
 Env knobs: `BASE`, `RELAY_HOST`, `RELAY_PORT`, `RELAY_PW`, `DECK` (as in the
 Ironsmith suite), plus `SHOT=<dir>` to write screenshots of the key states.
 
+### No-blocks keyboard regression
+
+`no-blocks-keyboard.mjs` mounts the real game view with the existing playground
+fixture and captures outputs at the game store's response boundary. It requires
+only the Vite dev server and Playwright with Chrome, not a relay or engine.
+It covers Space declaring no blockers, pending-response suppression, editable
+focus, and remapping the pass-priority shortcut.
+
+```bash
+BASE=http://127.0.0.1:1420 node tests/e2e-ui/no-blocks-keyboard.mjs
+```
+
 ## The browser Forge engine
 
 `forge-wasm-*.mjs` drive Forge compiled to WebAssembly, the offline engine.

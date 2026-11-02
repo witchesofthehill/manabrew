@@ -65,6 +65,8 @@ jobs:
             dockerfile: manabrew-rs/crates/self-hosted-node/Dockerfile
           - image: manabrew-hub
             dockerfile: manabrew-rs/crates/manabrew-hub/Dockerfile
+          - image: manabrew-faro
+            dockerfile: ops/observability/collector/Dockerfile
     steps:
       - uses: actions/checkout@v4
         with:
@@ -170,11 +172,17 @@ jobs:
           WEB_CACHE_TO: ${{ github.ref_type != 'tag' && format('ghcr.io/{0}/manabrew-web:buildcache-runtime', github.repository_owner) || '' }}
         run: node scripts/build-faro-web.mjs
 
-      - name: Upload private web maps
+      - name: Encrypt web source maps
+        if: matrix.image == 'manabrew-web'
+        env:
+          FARO_MAPS_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: node scripts/faro-sourcemaps.mjs seal target/faro-artifacts/maps.enc
+
+      - name: Upload encrypted web maps
         if: matrix.image == 'manabrew-web'
         uses: actions/upload-artifact@v4
         with:
           name: faro-maps-web-${{ steps.source.outputs.commit }}
-          path: target/faro-sourcemaps/
+          path: target/faro-artifacts/maps.enc
           if-no-files-found: error
           retention-days: 7

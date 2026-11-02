@@ -1,5 +1,5 @@
 import { getStackFramesFromError, InternalLoggerLevel } from "@grafana/faro-web-sdk";
-import type { Faro } from "@grafana/faro-web-sdk";
+import type { ExceptionStackFrame, Faro } from "@grafana/faro-web-sdk";
 import { getClientPlatform } from "@/platform/clientPlatform";
 import { ClientErrorsInstrumentation } from "@/lib/errorReportingInstrumentation";
 import { createClientErrorTransport } from "@/lib/errorReportingTransport";
@@ -17,7 +17,11 @@ import type { ClientErrorSource } from "@/lib/errorReportingPrivacy";
 
 export type { ClientErrorSource } from "@/lib/errorReportingPrivacy";
 
-type ErrorContext = { componentStack?: string; operation?: string };
+type ErrorContext = {
+  componentStack?: string;
+  operation?: string;
+  stackFrames?: ExceptionStackFrame[];
+};
 const DUPLICATE_WINDOW_MS = 2000;
 const MAX_RECENT_ERRORS = 100;
 let faro: Faro | undefined;
@@ -62,8 +66,8 @@ export function initializeErrorReporting(): void {
     if (!config) return;
     const delivery = createClientErrorTransport(config.collectorUrl);
     disposeTransport = delivery.dispose;
-    instrumentation = new ClientErrorsInstrumentation((error) =>
-      reportClientError(error, "unhandled"),
+    instrumentation = new ClientErrorsInstrumentation((error, stackFrames) =>
+      reportClientError(error, "unhandled", { stackFrames }),
     );
     faro = delivery.initialize({
       app: {
@@ -100,14 +104,14 @@ export function reportClientError(
     if (isError) reportedErrors.add(error);
     const type = safeErrorName(isError ? error.name : "Error");
     const value = safeErrorMessage(isError ? error.message : error);
-    const frames = isError ? safeFrames(getStackFramesFromError(error)) : [];
+    const parsedFrames = isError ? getStackFramesFromError(error) : [];
+    const frames = safeFrames(parsedFrames.length ? parsedFrames : context?.stackFrames);
     if (!isError) {
       const signature = errorSignature(
         type,
         typeof error === "string" ? error.slice(0, 4096) : value,
-        frames,
-        source,
-        context?.operation,
+        [],
+        "unhandled",
       );
       const now = Date.now();
       const previous = recentStrings.get(signature);

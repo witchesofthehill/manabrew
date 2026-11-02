@@ -16,7 +16,7 @@
 //!   --only S...  pull + force-recreate the named compose services (config
 //!                changes to bind-mounted files, e.g. grafana provisioning)
 //!   --staging    roll the staging slot out (compose.staging.yml on the prod
-//!                box, `:staging` images); --branch names what is deployed
+//!                box); --tag pins the build, --branch names what is deployed
 //!   --local      build and run this checkout on THIS machine
 //!                (compose.selfhost.yml — own relay, published ports)
 //!   --ref R      fetch config at this exact ref (sha/tag/branch) instead of
@@ -74,12 +74,13 @@ const GATE_CRATES: [&str; 5] = [
     "manabrew-server",
     "manabrew-hub",
 ];
-const OBS_SERVICES: [&str; 6] = [
+const OBS_SERVICES: [&str; 7] = [
     "prometheus",
     "pushgateway",
     "grafana",
     "loki",
     "alloy",
+    "faro-collector",
     "events-ingester",
 ];
 // docker-images.yml builds the release images in a separate workflow with no
@@ -180,10 +181,10 @@ fn parse(args: &[String]) -> Result<Opts> {
             other => bail!("unknown deploy argument `{other}`"),
         }
     }
-    // The staging slot's images are always `:staging`; the local stack builds
-    // from the checkout and pins no tag at all.
+    // A manual staging rollout without --tag reuses the slot's saved build.
+    // The local stack builds from the checkout and pins no tag at all.
     let tag = match &mode {
-        Mode::Staging { .. } => tag.unwrap_or_else(|| "staging".to_string()),
+        Mode::Staging { .. } => tag.unwrap_or_default(),
         Mode::Local => tag.unwrap_or_else(|| "local".to_string()),
         _ => {
             let tag = tag
@@ -834,56 +835,84 @@ fn print_summary(
 }
 
 // ── Staging slot ─────────────────────────────────────────────────────
-// compose.staging.yml on the prod box (/opt/manabrew-staging), always the
-// `:staging` images the same workflow run just built; `branch` names what the
-// slot serves. Every deploy gets the hosted-AI node, so a preview is playable.
+// compose.staging.yml on the prod box (/opt/manabrew-staging), with all four
+// app images pinned to one workflow build. Every deploy gets the hosted-AI
+// node, so a preview is playable.
 fn deploy_staging(root: &Path, opts: &Opts, branch: &str) -> Result<()> {
     let profile = "--profile hosted-ai ";
     let list = STAGING_SERVICES.join(" ");
+    let tag = if opts.tag.is_empty() {
+        ssh(
+            root,
+            &opts.host,
+            &format!(
+                "cd '{}' && {{ [ ! -f ./.env ] || . ./.env; }} && \
+                 saved_tag=${{MANABREW_IMAGE_TAG:-}}; export MANABREW_IMAGE_TAG=inspect; \
+                 cid=$(docker compose -f {STAGING_COMPOSE} {profile}ps -q {STAGING_WEB} 2>/dev/null | head -1); \
+                 ref=''; [ -z \"$cid\" ] || ref=$(docker inspect --format '{{{{.Config.Image}}}}' \"$cid\"); \
+                 case \"$ref\" in '{GHCR}/manabrew-web:staging') tag=$saved_tag ;; \
+                   '{GHCR}/manabrew-web:'*) tag=${{ref##*:}} ;; \
+                   *) tag=$saved_tag ;; esac; printf '%s' \"$tag\"",
+                opts.path
+            ),
+        )?
+        .trim()
+        .to_string()
+    } else {
+        opts.tag.clone()
+    };
+    if tag.is_empty() {
+        bail!("no staging build saved on the box; pass --tag staging-<run-id>");
+    }
+    if tag.len() > 128
+        || !tag.starts_with(|c: char| c.is_ascii_alphanumeric() || c == '_')
+        || !tag
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || "_.-".contains(c))
+    {
+        bail!("`{tag}` is not a Docker image tag");
+    }
 
     let (config, label) = config_source(root, opts)?;
     sync_config(root, opts, &config, &label)?;
 
-    println!("⬇️ pulling :{} images ({list})", opts.tag);
+    println!("⬇️ pulling :{tag} images ({list})");
     ssh_streamed(
         root,
         &opts.host,
         &format!(
             "{}; for i in $(seq 1 {STAGING_PULL_ATTEMPTS}); do \
-               if docker compose -f {STAGING_COMPOSE} pull --quiet {list} >/dev/null 2>&1; then \
+               if docker compose -f {STAGING_COMPOSE} {profile}pull --quiet {list} >/dev/null 2>&1; then \
                  echo \"images ready after $i attempt(s)\"; exit 0; fi; \
                echo \"pull attempt $i/{STAGING_PULL_ATTEMPTS} failed (CI images not pushed yet?); retry in {PULL_RETRY_SECS}s\" >&2; \
                sleep {PULL_RETRY_SECS}; \
              done; echo 'staging images never appeared on ghcr' >&2; exit 1",
-            env_preamble(&opts.path, &opts.tag)
+            env_preamble(&opts.path, &tag)
         ),
     )?;
 
-    // The `:staging` tag is mutable, so an unhealthy rollout cannot be undone
-    // by redeploying a tag — snapshot each running service's image id and
-    // re-tag it back over the ghcr ref instead.
+    // Save exact running image IDs, including the profiled AI node. Rollback
+    // uses a Compose override so immutable build tags are never repointed.
     let snapshot = ssh(
         root,
         &opts.host,
         &format!(
             "{}; for s in {list}; do \
-               ref=$(docker compose -f {STAGING_COMPOSE} config \"$s\" 2>/dev/null | awk '/^ *image:/ {{print $2; exit}}'); \
                cid=$(docker compose -f {STAGING_COMPOSE} {profile}ps -q \"$s\" 2>/dev/null | head -1); \
                old=''; [ -n \"$cid\" ] && old=$(docker inspect --format '{{{{.Image}}}}' \"$cid\" 2>/dev/null); \
-               echo \"$s|$ref|$old\"; done",
-            env_preamble(&opts.path, &opts.tag)
+               echo \"$s|$old\"; done",
+            env_preamble(&opts.path, &tag)
         ),
     )?;
-    let rollback: Vec<(String, String, String)> = snapshot
+    let rollback: Vec<(&str, &str)> = snapshot
         .lines()
-        .filter_map(|l| {
-            let mut parts = l.trim().split('|');
-            match (parts.next(), parts.next(), parts.next()) {
-                (Some(s), Some(r), Some(o)) if !r.is_empty() && !o.is_empty() => {
-                    Some((s.to_string(), r.to_string(), o.to_string()))
-                }
-                _ => None,
-            }
+        .filter_map(|line| {
+            let (service, image) = line.trim().split_once('|')?;
+            (STAGING_SERVICES.contains(&service)
+                && image.strip_prefix("sha256:").is_some_and(|digest| {
+                    digest.len() == 64 && digest.chars().all(|c| c.is_ascii_hexdigit())
+                }))
+            .then_some((service, image))
         })
         .collect();
 
@@ -891,30 +920,31 @@ fn deploy_staging(root: &Path, opts: &Opts, branch: &str) -> Result<()> {
     let up = compose_in(
         STAGING_COMPOSE,
         &opts.path,
-        &opts.tag,
+        &tag,
         &format!("{profile}up -d --remove-orphans --wait --wait-timeout 180"),
     );
     if ssh_streamed(root, &opts.host, &up).is_err() {
         if rollback.is_empty() {
             bail!("staging rollout unhealthy and nothing was running to roll back to");
         }
-        eprintln!("⚠️ staging rollout unhealthy — re-tagging the previous images");
-        let tags = rollback
-            .iter()
-            .map(|(_, r, o)| format!("docker tag '{o}' '{r}'"))
-            .collect::<Vec<_>>()
-            .join(" && ");
+        eprintln!("⚠️ staging rollout unhealthy; restoring the previous images");
+        let mut overrides = "services:\n".to_string();
+        for (service, image) in &rollback {
+            overrides.push_str(&format!("  {service}:\n    image: {image}\n"));
+        }
         let rolled = rollback
             .iter()
-            .map(|(s, ..)| s.as_str())
+            .map(|(service, _)| *service)
             .collect::<Vec<_>>()
             .join(" ");
         ssh_streamed(
             root,
             &opts.host,
             &format!(
-                "{}; {tags} && docker compose -f {STAGING_COMPOSE} {profile}up -d --no-deps {rolled}",
-                env_preamble(&opts.path, &opts.tag)
+                "{}; rollback_file=$(mktemp) && trap 'rm -f \"$rollback_file\"' EXIT && \
+                 printf '%s' '{overrides}' > \"$rollback_file\" && \
+                 docker compose -f {STAGING_COMPOSE} -f \"$rollback_file\" {profile}up -d --no-deps --pull never {rolled}",
+                env_preamble(&opts.path, &tag)
             ),
         )?;
         bail!("staging rollout was unhealthy; rolled back {rolled}");
@@ -926,17 +956,56 @@ fn deploy_staging(root: &Path, opts: &Opts, branch: &str) -> Result<()> {
         &compose_in(
             STAGING_COMPOSE,
             &opts.path,
-            &opts.tag,
+            &tag,
             &format!("exec -T {STAGING_WEB} caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile"),
         ),
     )?;
 
-    // Every deploy pulls a fresh `:staging` tag and leaves the previous one
-    // dangling on a disk shared with production. `image prune` (no -a) only
-    // touches dangling images, and the rollback re-tag has already happened.
-    let reclaimed = ssh(root, &opts.host, "docker image prune -f | tail -1")
-        .map(|s| s.trim().to_string())
-        .unwrap_or_else(|_| "prune failed (see log)".to_string());
+    // Save the selected build for manual compose commands and bare staging
+    // redeploys. Failed rollouts leave the previous saved tag untouched.
+    ssh_streamed(
+        root,
+        &opts.host,
+        &format!(
+            "cd '{}' && touch .env && chmod 600 .env && \
+             {{ grep -v '^MANABREW_IMAGE_TAG=' .env || true; printf '%s\\n' 'MANABREW_IMAGE_TAG={tag}'; }} \
+             > .env.image-tag && chmod 600 .env.image-tag && mv .env.image-tag .env",
+            opts.path
+        ),
+    )?;
+
+    // Per-run tags are not dangling. Remove only stale staging refs in our
+    // four app repositories, keeping rollback images and every container image.
+    let previous_images = rollback
+        .iter()
+        .map(|(_, image)| *image)
+        .collect::<Vec<_>>()
+        .join(" ");
+    let reclaimed = ssh(
+        root,
+        &opts.host,
+        &format!(
+            "protected=' {previous_images} '; containers=$(docker ps -aq) || exit 1; \
+             for cid in $containers; do \
+               image=$(docker inspect --format '{{{{.Image}}}}' \"$cid\") || exit 1; \
+               protected=\"$protected$image \"; \
+             done; \
+             candidates=$(docker image ls --no-trunc --format '{{{{.Repository}}}}:{{{{.Tag}}}}|{{{{.ID}}}}') || exit 1; \
+             removed=0; for entry in $candidates; do \
+               ref=${{entry%|*}}; image=${{entry##*|}}; \
+               case \"$ref\" in \
+                 {GHCR}/manabrew-web:staging-[0-9]*|{GHCR}/manabrew-server:staging-[0-9]*|\
+                 {GHCR}/manabrew-hub:staging-[0-9]*|{GHCR}/manabrew-node:staging-[0-9]*) ;; \
+                 *) continue ;; \
+               esac; \
+               [ \"${{ref##*:}}\" = '{tag}' ] && continue; \
+               case \"$protected\" in *\" $image \"*) continue ;; esac; \
+               if docker image rm \"$ref\" >/dev/null; then removed=$((removed + 1)); fi; \
+             done; printf 'removed %s unused staging image ref(s)' \"$removed\""
+        ),
+    )
+    .map(|s| s.trim().to_string())
+    .unwrap_or_else(|_| "cleanup failed (see log)".to_string());
 
     let recent = run(
         root,
@@ -950,7 +1019,7 @@ fn deploy_staging(root: &Path, opts: &Opts, branch: &str) -> Result<()> {
          🤖 **Hosted AI:** on\n\
          🧹 **Reclaimed:** {reclaimed}\n\n\
          📝 **Recent commits:**\n{recent}",
-        opts.tag,
+        tag,
     );
     Ok(())
 }

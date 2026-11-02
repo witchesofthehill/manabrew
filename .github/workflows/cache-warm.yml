@@ -564,7 +564,7 @@ jobs:
             --bin build-cardset-archive
 
       - name: Tauri build (iOS, unsigned)
-        run: yarn tauri ios build --no-sign
+        run: yarn ios:build --no-sign
 
   tauri-android:
     name: Warm Android tauri

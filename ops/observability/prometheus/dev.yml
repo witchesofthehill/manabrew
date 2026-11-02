@@ -7,9 +7,9 @@ scrape_configs:
     static_configs:
       - targets: ["relay:9444"]
 
-  - job_name: alloy
+  - job_name: faro-collector
     static_configs:
-      - targets: ["alloy:12345"]
+      - targets: ["faro-collector:12347"]
 
   - job_name: prometheus
     static_configs:

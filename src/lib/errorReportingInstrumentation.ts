@@ -1,10 +1,11 @@
 import { ErrorsInstrumentation } from "@grafana/faro-web-sdk";
+import type { ExceptionStackFrame } from "@grafana/faro-web-sdk";
 
 export class ClientErrorsInstrumentation extends ErrorsInstrumentation {
   private restoreHandlers?: () => void;
-  private readonly report: (error: unknown) => void;
+  private readonly report: (error: unknown, stackFrames?: ExceptionStackFrame[]) => void;
 
-  constructor(report: (error: unknown) => void) {
+  constructor(report: (error: unknown, stackFrames?: ExceptionStackFrame[]) => void) {
     super();
     this.report = report;
   }
@@ -17,7 +18,7 @@ export class ClientErrorsInstrumentation extends ErrorsInstrumentation {
     let handling = false;
     this.api = {
       ...this.api,
-      pushError: (error) => this.report(handling ? original : error),
+      pushError: (error, options) => this.report(handling ? original : error, options?.stackFrames),
     };
     // Faro discards rejection identity and has no error-handler teardown in 2.13.0.
     window.addEventListener = ((type: string, listener: EventListener) => {
@@ -28,11 +29,12 @@ export class ClientErrorsInstrumentation extends ErrorsInstrumentation {
       rejectionListener = (event) => {
         try {
           original = (event as PromiseRejectionEvent).reason;
-          if (original instanceof Error && !original.message) this.report(original);
+          if (!(original instanceof Error) || !original.message) {
+            this.report(original);
+            return;
+          }
           handling = true;
-          listener({
-            reason: original instanceof Error ? original : new Error("Non-Error rejection"),
-          } as unknown as Event);
+          listener({ reason: original } as unknown as Event);
         } catch {
           this.report(undefined);
         } finally {
@@ -51,7 +53,16 @@ export class ClientErrorsInstrumentation extends ErrorsInstrumentation {
     const onerror: OnErrorEventHandler = (...args) => {
       try {
         original = args[4] ?? args[0];
-        if (original instanceof Error && !original.message) this.report(original);
+        if (original instanceof Error && !original.message) {
+          this.report(original, [
+            {
+              filename: args[1] ?? "",
+              function: "?",
+              lineno: args[2],
+              colno: args[3],
+            },
+          ]);
+        }
         handling = true;
         return sdkOnerror?.apply(window, args);
       } catch {

@@ -47,7 +47,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: Alloy metrics target is unreachable; frontend error ingestion may be unavailable
+          summary: frontend collector or its Loki delivery target is unavailable
         data:
           - refId: A
             relativeTimeRange:
@@ -55,7 +55,7 @@ groups:
               to: 0
             datasourceUid: prometheus
             model:
-              expr: up{job="alloy"}
+              expr: min(up{job="faro-collector"}) * min(faro_collector_loki_ready)
               instant: true
               refId: A
           - refId: C
@@ -78,7 +78,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: Alloy has sustained Faro export failures or dropped Loki entries
+          summary: frontend collector has sustained export failures or Loki has dropped entries
         data:
           - refId: A
             relativeTimeRange:
@@ -86,7 +86,7 @@ groups:
               to: 0
             datasourceUid: prometheus
             model:
-              expr: (sum(increase(faro_receiver_exporter_errors_total[5m])) or vector(0)) + (sum(increase(loki_write_dropped_entries_total[5m])) or vector(0))
+              expr: (sum(increase(faro_collector_export_errors_total[5m])) or vector(0)) + (sum(increase(loki_write_dropped_entries_total[5m])) or vector(0))
               instant: true
               refId: A
           - refId: C
@@ -99,3 +99,65 @@ groups:
                 - evaluator:
                     type: gt
                     params: [0]
+
+      - uid: client-telemetry-budget
+        title: client telemetry daily budget nearly exhausted
+        condition: C
+        for: 1m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: warning
+        annotations:
+          summary: frontend reports have reserved over 90 percent of the daily byte budget
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: faro_collector_daily_bytes / faro_collector_daily_limit_bytes
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              refId: C
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0.9]
+
+      - uid: client-telemetry-memory
+        title: client telemetry memory pressure
+        condition: C
+        for: 2m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: warning
+        annotations:
+          summary: isolated frontend collector RSS exceeds 80 percent of its 512 MiB limit
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: faro_collector_resident_memory_bytes
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              refId: C
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [429496729.6]

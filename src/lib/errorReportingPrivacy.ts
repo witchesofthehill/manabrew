@@ -40,7 +40,7 @@ const ENGINES: Record<string, true> = {
   "manual-tabletop": true,
   none: true,
 };
-const OPERATIONS: Record<string, true> = {
+export const OPERATIONS: Record<string, true> = {
   initialize: true,
   "query-worker": true,
   rewind: true,
@@ -48,7 +48,7 @@ const OPERATIONS: Record<string, true> = {
   "seat-reader": true,
   "engine-crash": true,
 };
-const ROUTES: Record<string, true> = {
+export const ROUTES: Record<string, true> = {
   play: true,
   lobby: true,
   search: true,

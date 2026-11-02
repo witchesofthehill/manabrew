@@ -4,7 +4,7 @@ Status: implementation is present on `feat/faro-error-reporting`. Managed produc
 
 ## Decision and scope
 
-Use the Grafana Faro Web SDK to report frontend failures to a self-hosted Alloy receiver, store them in the existing Loki, and investigate them through provisioned Grafana dashboards and alerts.
+Use the Grafana Faro Web SDK to report frontend failures to the isolated collector, store them in existing Loki, and investigate them through provisioned Grafana dashboards and alerts.
 
 The deliverable is actionable frontend error reporting for the managed web app and supported packaged Tauri frontends. Each report needs a readable stack where source maps exist, the exact frontend build, and allowlisted runtime categories without personal identifiers. Engine failures that are already delivered to the frontend need explicit reporting too.
 
@@ -27,9 +27,9 @@ Other exclusions: session replay, general product analytics, automatic console c
 | Platform detection    | `src/platform/clientPlatform.ts` defines web, PWA, desktop, and mobile                                                                           | Reuse detection rather than adding a second Tauri probe                                               |
 | Build version         | `vite.config.ts` reads `ops/manifest.json` and defines `__APP_VERSION__`                                                                         | Keep that version source; add an immutable build/artifact identifier                                  |
 | Runtime configuration | `ops/web-entrypoint.sh` generates `window.__MANABREW_RUNTIME__`; types are in `src/vite-env.d.ts`                                                | Configure managed web deployments at runtime; published self-hosted images must remain off by default |
-| Collection            | `ops/observability/alloy/config.alloy` forwards Docker logs to Loki                                                                              | Add a separate Faro input without replacing container log collection                                  |
-| Versions and limits   | `compose.production.yml` pins Alloy `v1.9.1`, Loki `3.5.0`, and Grafana `11.6.1`; Alloy starts with a 256 MiB memory limit                       | Verify configuration support against the selected image and measure resource use                      |
-| Local observability   | `compose.dev.yaml` provides local Loki/Alloy under the observability profile                                                                     | Keep local ingestion opt-in rather than sending development reports to production                     |
+| Collection            | Alloy forwards backend Docker logs; an isolated Node collector validates Faro input and writes exceptions to Loki                                | Keep public exception processing out of backend logging                                               |
+| Versions and limits   | `compose.production.yml` pins the existing observability images and a separately built `manabrew-faro` image                                     | Bound map admission, caching, request work, and event bytes                                           |
+| Local observability   | `compose.dev.yaml` builds the collector beside local Loki under the observability profile                                                        | Keep local ingestion opt-in with separate storage                                                     |
 | Retention             | `ops/observability/loki/loki.yml` specifies 720 hours                                                                                            | Start with the existing 30-day event retention                                                        |
 | Release paths         | `Dockerfile.web`, `.github/workflows/docker-images.yml`, `staging-deploy.yml`, and `publish.yml` build shipped frontends                         | Source maps must come from each exact build, including separate desktop/mobile bundles                |
 
@@ -68,13 +68,13 @@ Never send account, user, device, game, or session IDs, SDK session metadata, or
 
 ### 1. Prove the ingestion contract and pin compatible versions
 
-Files: `ops/observability/alloy/config.alloy`, `compose.production.yml`, `compose.dev.yaml`, and opt-in development configuration if separation is needed.
+Files: `ops/observability/collector/`, `compose.production.yml`, `compose.dev.yaml`, and the existing backend Alloy configuration.
 
-- Select and pin compatible Faro packages. Start with `@grafana/faro-web-sdk`; add `@grafana/faro-react` only if its integration provides behavior we actually use.
-- Validate `faro.receiver`, JSON output, request limits, and filesystem source-map resolution against the selected Alloy image. Current online documentation may describe options absent from `v1.9.1`.
-- If a required feature is unavailable, make the smallest supported Alloy upgrade and verify the existing Docker-to-Loki path as well. Do not upgrade the whole observability stack by default.
-- Add the receiver on an internal container port and route its logs through a dedicated processing stage into the existing Loki writer. No traces output is required.
-- Add local Loki and Alloy under an explicit observability profile, with development-only ports bound to loopback and separate storage. Do not mount the production data directory or discover the developer's unrelated Docker containers.
+- Pin the Faro SDK and trace-mapping dependency.
+- Share the client privacy helpers with the collector build, and rebuild incoming records instead of forwarding arbitrary bodies.
+- Bound request size, batches, frames, concurrency, source-map admission/work/cache, and persisted daily event bytes.
+- Keep backend Docker-to-Loki collection independent of public exception traffic.
+- Run local collector/Loki under the observability profile with loopback-only ports and separate storage.
 - Inspect actual Faro exception payloads in Loki, including the SDK envelope. Confirm session/user/device metadata is absent. Freeze field names and any necessary transformations before writing dashboards.
 
 Acceptance: a synthetic, sanitized Faro exception reaches local Loki with the expected environment and fields. Existing container log ingestion remains intact. Validation uses the pinned binaries, not only a syntax inspection.
@@ -161,7 +161,7 @@ Files: a new dashboard under `ops/observability/grafana/dashboards/`, existing a
 - Keep backend-game correlation outside Faro; the payload contains no game IDs.
 - Do not collect session lifecycle data or display affected-session, affected-user, or crash-free-user metrics.
 - Reuse the existing contact-point/routing conventions. Trigger the production error-burst alert at 10 or more exceptions in 10 minutes, based on event count only.
-- Scrape Alloy's private metrics and add collector/export failure monitoring. Verify metric names for the pinned image. No-client-traffic periods are not themselves ingestion failures.
+- Scrape the collector's private metrics and monitor health, export failures, byte budget, and memory. Public DNS/TLS/Caddy reachability still requires an external check.
 - Alert on sustained collector/export failures separately from app error bursts. Group notifications by bounded operational dimensions. Do not place exception text or personal context into Discord notifications.
 
 Acceptance: non-UI Loki queries return the expected reports and grouping from controlled fixtures; Grafana provisioning loads; alert rules evaluate against synthetic data and route a controlled notification. Dashboard appearance is left for the user's manual review.
@@ -170,15 +170,15 @@ Acceptance: non-UI Loki queries return the expected reports and grouping from co
 
 Default-on settings do not complete the rollout gates below. Browser/PWA/packaged WebView behavior, release CI, production DNS/TLS, and privacy authorization remain manual deployment gates. No UI or platform verification is claimed.
 
-The revised contract passed a throwaway non-UI harness using the actual SDK and isolated Caddy → Alloy → Loki ingestion. Captured requests and stored events excluded hostile identity/content sentinels and game/session identifiers; SDK metadata contained only the app, and stored events contained no nonempty identity or IP fields. Reporting initialized without session storage, runtime disable overrode compiled enablement, owner/global propagation did not duplicate reports, and clearing engine context produced `none`. The provisioned alert's actual LogQL returned nine exceptions below its threshold and ten above it; every dashboard query executed successfully. This checks the query and threshold boundary, not scheduled Grafana evaluation or notification delivery.
+Current non-UI verification exercised the actual SDK: primitive startup ownership deduplicates across global rejection capture, repeated Error identity stays deduplicated, and stackless global events retain sanitized filename/line/column. Five expected reports excluded seeded private text and non-app SDK metadata. A separate Node scenario ran the actual bridge/renderer code with fake workers: all five owned ErrorEvent handlers canceled propagation, query initialization retained name/stack, and rejected Errors preserved identity. Actual browser/WebView behavior remains manual.
 
-Parsed Compose configuration confirmed managed production/staging default to enabled and honor explicit `false`; all four official packaging jobs enable reporting. `yarn tsc -b`, targeted ESLint, formatting, and `yarn vite build` passed for this revision.
+The isolated collector image built and became healthy against Loki. Direct HTTP submissions proved removal of raw messages, user/session fields, arbitrary context, and client-supplied function names. Alias, path, batch/frame, and body limits were exercised. Real main, engine-worker, render-worker, and nested Card Glint locations reached Loki. Three identical batch events retained distinct timestamps. Daily-budget exhaustion returned 429 and survived a collector restart; a Loki outage returned 503, updated readiness/export metrics, and consumed its reservation. Recovery returned 202.
 
-Earlier non-UI verification recorded worker-failure ownership and transport queue behavior. It also recorded source-map resolution for actual Vite main/engine/bot/render/nested Card Glint maps and both main/worker WASM helper maps, with all 27 maps absent from `dist/`. Worker shared chunks have distinct paths to prevent main/worker map overwrite. Earlier SSH/rsync publication checks covered immutable artifact identities and map retention; entrypoint checks covered serialization and explicit runtime disable. These records are not a rerun against the revised reporting contract.
+Resolver scenarios exercised 64-entry eviction, five-minute expiry, non-retained misses, pre-decode segment rejection, and load/read/decode budget boundaries. Two hundred coordinates of the admitted real main map required no additional map loads.
 
-Actual map decoding brought Alloy to 120.5 MiB under the previous 128 MiB limit; the initial limit is now 256 MiB. Resolving seven precise locations under each of two artifact identities using the actual Vite maps passed without a collector restart; measured memory was 199.5 MiB for Alloy and 90.06 MiB for Loki. This is a two-identity load exercise, not packaged-platform verification. The pinned map cache has no expiry or entry bound. Concurrent-release capacity and public-ingress cache growth remain staging rollout checks, not a claim of production headroom.
+Authenticated artifact scenarios covered exact roundtrip bytes, wrong keys, tampering, archive paths/symlinks/sizes, checksums, and immutable collisions. Actual xtask-generated staging shell was exercised through fake SSH/rsync/Docker for exact tags, manual selection, rollback image IDs, and scoped old-image retention. No production host or cleanup command was used.
 
-The earlier implementation record also includes syntax, supervisor, Alloy, Caddy, and Bake-graph checks. Those checks were not rerun for this identifier-removal revision. A complete Docker release build, registry publication, and installer CI remain unverified here.
+`yarn vite:build` passed with an 8192 MiB Node heap, including `tsc -b` and hidden maps. The iOS wrapper passed argument/environment verification. Targeted ESLint, formatting, Compose parsing, and pinned Caddy/Alloy/Prometheus configuration validation passed. Grafana 11.6.1 loaded all five alert rules; their queries executed against isolated Loki/Prometheus. Scheduled evaluation and notifications were not exercised. Full iOS packaging, registry publication, hosted rollout, and platform UI acceptance remain unverified locally.
 
 Verification checklist for the integration owner when requested:
 
@@ -186,7 +186,7 @@ Verification checklist for the integration owner when requested:
 - Use a throwaway non-UI SDK harness with browser APIs stubbed only as needed to inspect real serialized transport output. This proves configuration and sanitization, not browser/WebView compatibility. Do not add permanent unit tests unless requested.
 - Exercise the actual collector-to-Loki path with HTTP payloads, real minified frames, local private maps, outage/limit cases, and old/new artifacts. Observe stored events, not only HTTP success responses.
 - Validate private-map lookup against malicious URL/release inputs, including traversal attempts. Keep map mounts read-only, disable URL downloads, and verify lookups stay within approved artifact directories.
-- Measure bounded client queue behavior, ingest volume, and Alloy/Loki memory/disk growth under error bursts. Revisit the current 256 MiB Alloy and 384 MiB Loki limits only with evidence.
+- Observe collector RSS and Loki disk usage during staging acceptance. Cache accounting and event-byte quotas are not physical disk/RSS measurements.
 - Leave actual browser/PWA/packaged WebView checks to the user unless explicitly requested. The manual matrix covers browser exceptions, React recovery, startup failures, workers, multiple games, collector outage, desktop origins/CSP, and supported mobile builds. Passing a Node harness does not mark these cases complete.
 
 Rollout order:
@@ -216,7 +216,7 @@ Update `docs/OBSERVABILITY.md` with event fields, dashboard queries, alert thres
 ## References
 
 - [Faro SDK and supported environments](https://github.com/grafana/faro-web-sdk)
-- [Alloy Faro receiver, source maps, and security](https://grafana.com/docs/alloy/latest/reference/components/faro.receiver/)
+- [Source-map lookup implementation](https://github.com/jridgewell/trace-mapping)
 - [Grafana Cloud Frontend Observability](https://grafana.com/docs/grafana-cloud/monitor-applications/frontend-observability/)
 
 The references describe current upstream behavior. The implementation must validate features against the versions actually pinned in this repository.

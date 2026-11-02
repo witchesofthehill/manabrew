@@ -2,7 +2,7 @@
 
 Inventory of every Grafana panel and queryable data source in the stack. Config lives under `ops/observability/`; metric names are defined in code (`manabrew-server/src/metrics.rs`, `self-hosted-node/src/metrics.rs`) and the analytics schema in `scripts/ingest-events.py`. Keep this file in sync when adding a panel, metric, event, or column.
 
-Frontend exception reporting uses self-hosted Faro, Alloy, and Loki. Managed production/staging web and official macOS, Windows, iOS, and Android builds report by default; generic images and local builds stay off. Explicit `false` disables reporting. Manual rollout checks remain in [Faro implementation plan](FARO_IMPLEMENTATION_PLAN.md). Deployment settings and private-map publication are in [DEPLOY.md](DEPLOY.md#frontend-error-reporting).
+Frontend exception reporting uses the Faro SDK, an isolated self-hosted collector, and Loki. Managed web and official macOS/Windows/iOS/Android builds report by default; generic/local builds stay off. Explicit `false` disables reporting. See the [rollout gates](FARO_IMPLEMENTATION_PLAN.md) and [deployment settings](DEPLOY.md#frontend-error-reporting).
 
 ## Dashboards
 
@@ -15,15 +15,15 @@ For local product-dashboard testing, start the normal stack and the dev Grafana 
 docker compose -f compose.dev.yaml --profile observability up -d grafana
 ```
 
-Open `http://localhost:3000` and sign in with `admin` / `admin`. The SQLite dashboards use `ops/hub-data/dev/events/events.db`, refreshed from the local Hub every five minutes. To run the Loki/Prometheus dashboards locally, start `grafana prometheus faro-collector alloy loki` with the observability profile. Their ports bind only to loopback; the dev Alloy configuration does not discover Docker containers.
+Open `http://localhost:3000` and sign in with `admin` / `admin`. The SQLite dashboards use `ops/hub-data/dev/events/events.db`. For Loki/Prometheus dashboards, start `grafana prometheus faro-collector loki` with the observability profile. Development ports bind only to loopback; no Docker log discovery is enabled.
 
 ### Client errors (`client-errors.json`)
 
-Faro SDK `2.13.0` sends eligible frontend exceptions to `/collect`, through Caddy and Alloy `v1.9.1` into Loki. The dashboard counts delivered exceptions, not affected sessions or users. It does not measure crash-free users.
+Faro SDK `2.13.0` sends frontend exceptions through Caddy to the isolated Node collector, which enforces the shared privacy policy, resolves private maps, and writes to Loki. Backend container logs still use Alloy. The dashboard counts delivered exceptions, not affected sessions or users.
 
 Filters cover environment, version, immutable build, platform, source, and engine. Sources are `startup`, `react`, `unhandled`, `engine-worker`, `render-worker`, `bot-worker`, `remote-engine`, and `engine-operation`. Normal cancellation, renderer capability fallback, and ordinary protocol rejections are excluded. Recovery behavior and local console diagnostics remain unchanged.
 
-The receiver emits flat JSON. `type`, `value`, and `stacktrace` describe the fixed error category and safe code locations; `app_release` is the exact build identity. `context_source`, `context_operation`, `context_platform`, `context_build_target`, `context_route`, `context_engine`, and `context_signature` carry allowlisted context. Only `app`, `environment`, and `source` become Loki labels. Signatures include the safe error category, source, operation, and asset coordinates. The receiver's `hash` is message-only and is not the grouping key.
+The collector emits flat JSON. `type`, `value`, and `stacktrace` describe fixed error categories and code locations; `app_release` identifies the build. `context_source`, `context_operation`, `context_platform`, `context_build_target`, `context_route`, `context_engine`, and `context_signature` carry allowlisted context. Only `app`, `environment`, and `source` become Loki labels. Signatures use sanitized minified coordinates, so source-map cache state does not change grouping.
 
 ```logql
 {app="manabrew-client",environment="production"} | json | kind="exception"
@@ -40,16 +40,16 @@ For an isolated local collector without starting the app:
 ```bash
 LOKI_DEV_PORT=13100 GRAFANA_DEV_PORT=13000 \
   docker compose -p manabrew-faro-local -f compose.dev.yaml \
-  --profile observability up -d faro-collector alloy loki
+  --profile observability up -d --build faro-collector loki
 ```
 
 The collector is `http://127.0.0.1:12347/collect`; allowed browser origins are `http://localhost:1420` and `http://127.0.0.1:1420`. For a local frontend build set `VITE_FARO_ENABLED=true`, `VITE_FARO_ENVIRONMENT=development`, and `VITE_FARO_COLLECTOR_URL` to that collector. A runtime `observability` object takes precedence, including an explicit disable. Initialization runs once per page load.
 
-Local `local-development` builds replace their unpublished maps in `target/faro-sourcemaps/`. Restart only the isolated Alloy service after rebuilding to discard cached locations. Published release directories remain immutable, including a local-development identity once published.
+Local `local-development` builds replace unpublished maps under `target/faro-sourcemaps/`. The collector checks size/mtime before reusing a map and retains no misses, so missing maps become available without a restart. Published directories remain immutable.
 
-Alloy metrics are private on port 12345. Monitor receiver requests/exceptions, source-map file-read status, `faro_receiver_exporter_errors_total`, Loki batch retries, and dropped entries. No-client-traffic periods do not imply a collector outage.
+Collector metrics and `/health` are private on port 12347. Health includes Loki readiness. Prometheus scrapes `faro-collector`; alerts cover unreachable/unready collection, sustained export failures, daily budget usage above 90 percent, and RSS above 80 percent of the 512 MiB limit. These checks do not establish public DNS/TLS/Caddy reachability. No-client-traffic periods are not failures.
 
-The pinned receiver caches successful maps and misses without expiry or an entry limit. Real main/worker/Card Glint maps brought the isolated Alloy process to 120.5 MiB under its former 128 MiB limit; the initial limit is now 256 MiB. This is not a cache-size guarantee. Monitor process/container memory and `faro_receiver_sourcemap_cache_size`, and exercise concurrent old/new build variants in staging before enablement. Public ingestion can also create cache misses; exact-origin CORS is not authentication.
+Metrics include `faro_collector_accepted_total`, `rejected_total`, `export_errors_total`, `mapped_frames_total`, `unmapped_frames_total`, `cache_entries`, `cache_bytes`, `cache_hits_total`, `cache_misses_total`, `cache_evictions_total`, `daily_bytes`, `daily_limit_bytes`, `resident_memory_bytes`, and `loki_ready`, all with the `faro_collector_` prefix. Cache bytes are an accounting estimate, not RSS. Read [collector limits](DEPLOY.md#private-source-maps) before changing quotas or interpreting partial source mapping.
 
 ### Executive Health (`executive.json`)
 

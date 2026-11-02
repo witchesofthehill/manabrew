@@ -71,6 +71,7 @@ function supervise(command) {
     if (snapshot) candidate = instance;
     else active = instance;
     worker.onerror = (event) => {
+      event.preventDefault();
       if (instance === candidate) fail(event.message);
       else if (instance === active) {
         stop();

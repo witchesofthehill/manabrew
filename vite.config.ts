@@ -26,7 +26,10 @@ const appVersion = (
 
 const buildCommit =
   process.env.APP_BUILD_COMMIT ||
-  execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+  execFileSync("git", ["-c", `safe.directory=${__dirname}`, "rev-parse", "HEAD"], {
+    cwd: __dirname,
+    encoding: "utf8",
+  }).trim();
 const buildTarget = process.env.APP_BUILD_TARGET || "local-development";
 if (!/^[a-f0-9]{40}$/.test(buildCommit) || !/^[a-z][a-z0-9-]{0,63}$/.test(buildTarget)) {
   throw new Error("Invalid APP_BUILD_COMMIT or APP_BUILD_TARGET");

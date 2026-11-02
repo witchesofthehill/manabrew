@@ -365,6 +365,8 @@ Reporting defaults on in managed production/staging Compose and official macOS, 
 
 Create DNS for `telemetry.manabrew.app` pointing to the existing ingress. Caddy exposes only `/collect` for approved origins and forwards to the isolated `manabrew-faro` image. The collector rebuilds records with the shared client privacy helpers and sends only exceptions to Loki. Alloy continues collecting backend logs and has no public Faro receiver or map cache. Limits are 256 KiB per request, 10 exceptions per batch, 20 frames per exception, four in-flight requests, and 20 POST requests/second globally with burst 40. CORS is not authentication; metadata and counts remain client claims.
 
+When Grafana is running, both early web-only and full production deployments reconcile observability before reloading ingress or replacing the web client. The deploy tool pulls the tag-pinned collector image and waits for collector health even when the configuration sync reports no changes. Collector failure stops the new web rollout. An intentionally stopped observability stack stays stopped, and older release configurations without a collector do not require its image. This configuration requires deploy tool version 3; older binaries refuse it before changing the server.
+
 Managed web configuration comes from the container environment:
 
 | Variable             | Purpose                                              |
@@ -379,7 +381,7 @@ Official macOS, Windows, iOS, and Android jobs set the equivalent `VITE_FARO_*` 
 
 ### Private source maps
 
-Vite generates hidden maps and removes them from `dist/` before packaging. The identity is `<manifest-app-version>-<40-character-checkout-SHA>-<variant>`; variants distinguish `web`, `staging-web`, `macos-arm64`, `windows-x86-64`, `ios-aarch64`, and `android-aarch64`. Local builds use `local-development`. Keep `__APP_VERSION__` sourced from `ops/manifest.json`.
+Vite generates hidden maps and removes them from `dist/` before packaging. The identity is `<manifest-app-version>-<40-character-checkout-SHA>-<variant>`; variants distinguish `web`, `staging-web`, `macos-arm64`, `windows-x86-64`, `ios-aarch64`, and `android-aarch64`. Local builds use `local-development`. Keep `__APP_VERSION__` sourced from `ops/manifest.json`. Vite scopes Git's ownership exception to its checkout path for the commit lookup, so root-owned development containers can read a non-root-owned bind mount without changing global Git trust.
 
 `target/faro-sourcemaps/<build-id>/` contains the exact emitted maps, relative asset paths, and a SHA-256 manifest. Main bundles, compiled workers, and nested Card Glint chunks retain their own paths. Worker shared chunks use `assets/worker-*` to prevent main/worker source-map collisions. Raw unminified Forge assets may remain unsymbolicated. `scripts/build-faro-web.mjs` exports runtime and maps from one Buildx Bake graph, so maps cannot come from a second rebuild.
 

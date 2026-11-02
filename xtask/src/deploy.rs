@@ -40,7 +40,7 @@ const RELEASED_MANIFEST_URL: &str =
 
 // Bumped when a config ref starts needing newer deploy logic; compared
 // against `ops/deploy-tool-version` in the fetched config.
-const DEPLOY_TOOL_VERSION: u32 = 2;
+const DEPLOY_TOOL_VERSION: u32 = 3;
 
 // The deploy-config subset of the repo, taken from the fetched ref.
 const CONFIG_PATHS: [&str; 5] = [
@@ -577,6 +577,7 @@ fn deploy(root: &Path, opts: &Opts) -> Result<()> {
         images.push(format!("{GHCR}/manabrew-hub:{}", opts.tag));
     }
     pull_images(root, opts, &images)?;
+    let obs_note = reconcile_observability(root, opts, &itemized)?;
 
     // ingress is created on first deploy and never touched again — bouncing
     // the container that holds 80/443 severs every live relay websocket, and
@@ -675,11 +676,6 @@ fn deploy(root: &Path, opts: &Opts) -> Result<()> {
         }
     }
 
-    let mut obs_note = String::new();
-    if !web_only {
-        obs_note = recreate_observability_if_changed(root, opts, &itemized)?;
-    }
-
     print_summary(root, opts, prev.as_deref(), &list, &relay_note, &obs_note);
     Ok(())
 }
@@ -692,43 +688,79 @@ fn deploy(root: &Path, opts: &Opts) -> Result<()> {
 // also gets a direct staleness probe (a file-level bind mount keeps exposing
 // the replaced inode until a recreate, and the running process silently drops
 // any analytics fields its stale script doesn't know).
-fn recreate_observability_if_changed(root: &Path, opts: &Opts, itemized: &str) -> Result<String> {
-    let changed = changed_in_sync(
-        itemized,
-        &["ops/observability/", "scripts/ingest-events.py"],
-    );
-    if !changed && !ingester_script_stale(root, opts)? {
-        return Ok(String::new());
-    }
-    let reason = if changed {
-        "config changed"
-    } else {
-        "ingester script stale (a previous deploy failed after the sync)"
-    };
+fn reconcile_observability(root: &Path, opts: &Opts, itemized: &str) -> Result<String> {
     let probe = compose(
         &opts.path,
         &opts.tag,
         "--profile observability ps -q grafana",
     );
     if ssh(root, &opts.host, &probe)?.trim().is_empty() {
-        return Ok(format!(
-            "📊 **Observability:** {reason} but stack not running — skipped\n"
-        ));
+        return Ok("📊 **Observability:** stack not running — skipped\n".to_string());
     }
-    let list = OBS_SERVICES.join(" ");
-    println!("📊 observability {reason} — recreating {list}");
-    ssh_streamed(
+    let configured = ssh(
         root,
         &opts.host,
         &compose(
             &opts.path,
             &opts.tag,
-            &format!("--profile observability up -d --no-deps --force-recreate {list}"),
+            "--profile observability config --services",
         ),
     )?;
-    Ok(format!(
-        "📊 **Observability:** {reason} — recreated {list}\n"
-    ))
+    let collector_configured = configured
+        .lines()
+        .any(|service| service == "faro-collector");
+    if collector_configured {
+        pull_images(root, opts, &[format!("{GHCR}/manabrew-faro:{}", opts.tag)])?;
+    }
+    let changed = changed_in_sync(
+        itemized,
+        &["ops/observability/", "scripts/ingest-events.py"],
+    );
+    let reason = if changed {
+        Some("config changed")
+    } else if ingester_script_stale(root, opts)? {
+        Some("ingester script stale (a previous deploy failed after the sync)")
+    } else {
+        None
+    };
+    let mut note = String::new();
+    if let Some(reason) = reason {
+        let mut list =
+            String::with_capacity(OBS_SERVICES.iter().map(|service| service.len() + 1).sum());
+        for service in OBS_SERVICES {
+            if !configured.lines().any(|configured| configured == service) {
+                continue;
+            }
+            if !list.is_empty() {
+                list.push(' ');
+            }
+            list.push_str(service);
+        }
+        println!("📊 observability {reason} — recreating {list}");
+        ssh_streamed(
+            root,
+            &opts.host,
+            &compose(
+                &opts.path,
+                &opts.tag,
+                &format!("--profile observability up -d --no-deps --force-recreate {list}"),
+            ),
+        )?;
+        note = format!("📊 **Observability:** {reason} — recreated {list}\n");
+    }
+    if collector_configured {
+        ssh_streamed(
+            root,
+            &opts.host,
+            &compose(
+                &opts.path,
+                &opts.tag,
+                "--profile observability up -d --no-deps --wait --wait-timeout 180 faro-collector",
+            ),
+        )?;
+        note.push_str("📊 **Frontend collector:** reconciled and healthy\n");
+    }
+    Ok(note)
 }
 
 fn ingester_script_stale(root: &Path, opts: &Opts) -> Result<bool> {

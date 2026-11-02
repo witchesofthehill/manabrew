@@ -125,7 +125,11 @@ export function applySnapshot(
 ) {
   const sounds: SoundName[] = [];
   for (const transition of snapshot.transitions) {
-    if (transition.kind !== "turnStart" && !flashItemOf(transition)) sounds.push(transition.kind);
+    if (transition.kind === "turnStart") {
+      if (transition.playerId === get().myPlayerSlot) sounds.push("roomInvite");
+    } else if (!flashItemOf(transition)) {
+      sounds.push(transition.kind);
+    }
   }
   const updates: Partial<GameState> = {};
   if (snapshot.gameView) {

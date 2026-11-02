@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixes
+
+* **ui:** play the existing invite sound when the local player's turn starts ([#1163](https://github.com/witchesofthehill/manabrew/issues/1163)).
+
 ## [3.69.2](https://github.com/witchesofthehill/manabrew/compare/v3.69.1...v3.69.2) (2026-11-02)
 
 ### Fixes

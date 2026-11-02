@@ -24,6 +24,7 @@ import forge.game.trigger.WrappedAbility;
 import forge.game.zone.ZoneType;
 import forge.gui.GuiBase;
 import forge.harness.common.HeadlessGuiBase;
+import forge.harness.common.SnapshotExtractor;
 import forge.item.IPaperCard;
 import forge.localinstance.properties.ForgePreferences.FPref;
 import forge.model.FModel;
@@ -52,6 +53,7 @@ public final class ManaBrewInteractiveControllerTest {
         run("trampleAssignsPastKorFirewalker", () -> trampleAssignsPastBlockerByToughness("Kor Firewalker", 2), failures);
         run("trampleAssignsPastDarksteelMyr", () -> trampleAssignsPastBlockerByToughness("Darksteel Myr", 1), failures);
         run("costedTriggerIsNotConfirmedUpFront", ManaBrewInteractiveControllerTest::costedTriggerIsNotConfirmedUpFront, failures);
+        run("swordOfSinewAndSteelCanTargetArtifactCreature", ManaBrewInteractiveControllerTest::swordOfSinewAndSteelCanTargetArtifactCreature, failures);
         run("sacrificeCostCanBeCancelled", ManaBrewInteractiveControllerTest::sacrificeCostCanBeCancelled, failures);
         run("announcedXCountsImprovise", ManaBrewInteractiveControllerTest::announcedXCountsImprovise, failures);
         run("flavorNamedCommanderIsFoundInTheDeck", ManaBrewInteractiveControllerTest::flavorNamedCommanderIsFoundInTheDeck, failures);
@@ -115,6 +117,30 @@ public final class ManaBrewInteractiveControllerTest {
 
         assertTrue(accepted, "a costed optional trigger was declined before its cost was offered");
         assertTrue(f.bridge.prompts.isEmpty(), "a costed optional trigger asked for confirmation: " + f.bridge.prompts);
+    }
+
+    private static void swordOfSinewAndSteelCanTargetArtifactCreature() {
+        final Fixture f = new Fixture();
+        final Card sword = f.add("Sword of Sinew and Steel", f.p, ZoneType.Battlefield);
+        final Card ornithopter = f.add("Ornithopter", f.game.getPlayers().get(1), ZoneType.Battlefield);
+        f.game.getAction().checkStaticAbilities();
+        final SpellAbility ability = sword.getTriggers().get(0).ensureAbility();
+        ability.setActivatingPlayer(f.p);
+        final JsonObject target = new JsonObject();
+        target.addProperty("kind", "card");
+        target.addProperty("id", SnapshotExtractor.javaCardId(ornithopter));
+        f.bridge.answers.add(input -> {
+            assertEquals("chooseBoardTargets", input.get("type").getAsString(), "prompt type");
+            assertTrue(input.getAsJsonArray("candidates").contains(target),
+                    "artifact creature missing from target candidates: " + input);
+            return "{\"type\":\"chooseBoardTargets\",\"output\":{\"type\":\"boardTargets\",\"chosen\":[" + target + "]}}";
+        });
+
+        f.controller.playSpellAbilityNoStack(ability, true);
+
+        assertEquals(1, f.bridge.prompts.size(), "prompts");
+        assertTrue(ornithopter.getOwner().getCardsIn(ZoneType.Graveyard).contains(ornithopter),
+                "targeted Ornithopter was not destroyed: " + ornithopter.getZone());
     }
 
     private static void sacrificeCostCanBeCancelled() {

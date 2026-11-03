@@ -1,5 +1,15 @@
 # Changelog
 
+## [3.71.0](https://github.com/witchesofthehill/manabrew/compare/v3.70.2...v3.71.0) (2026-11-03)
+
+### Features
+
+* **ui:** accept Space for no blocks ([#1168](https://github.com/witchesofthehill/manabrew/issues/1168)) ([e315a27](https://github.com/witchesofthehill/manabrew/commit/e315a275d0e2e9872135702aa3b85ce4a68246db))
+
+### Fixes
+
+* **ui:** keep aftermath card previews portrait ([#1166](https://github.com/witchesofthehill/manabrew/issues/1166)) ([468c5fc](https://github.com/witchesofthehill/manabrew/commit/468c5fcc07f04296137d128e397f30e2e305d01c))
+
 ## [3.70.2](https://github.com/witchesofthehill/manabrew/compare/v3.70.1...v3.70.2) (2026-11-03)
 
 ### Fixes

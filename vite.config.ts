@@ -132,6 +132,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/spellbook-api/, ""),
       },
+      "/edhrec-api": {
+        target: "https://json.edhrec.com",
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/edhrec-api/, "/pages"),
+      },
       "/cubecobra-download": {
         target: "https://cubecobra.com",
         changeOrigin: true,

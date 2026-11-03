@@ -26,6 +26,7 @@
         { "url": "https://archidekt.com/*" },
         { "url": "https://api2.moxfield.com/*" },
         { "url": "https://backend.commanderspellbook.com/*" },
+        { "url": "https://json.edhrec.com/pages/combos/*" },
         { "url": "https://api.scryfall.com/*" },
         { "url": "https://cards.scryfall.io/*" },
         { "url": "https://backs.scryfall.io/*" },

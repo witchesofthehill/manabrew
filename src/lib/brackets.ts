@@ -1,5 +1,6 @@
 import type { Deck } from "@/protocol/deck";
 import type { SpellbookCombo } from "@/api/commanderSpellbook";
+import type { EdhrecComboVote } from "@/api/edhrec";
 import { normalizeCardName } from "@/lib/gameChangers";
 
 export type Bracket = 1 | 2 | 3 | 4 | 5;
@@ -41,6 +42,8 @@ export interface BracketAssessment {
   gameChangers: string[];
   massLandDenial: string[];
   earlyCombos: number;
+  lateCombos: number;
+  communityCombos: { id: string; names: string; vote: EdhrecComboVote }[];
   reasons: string[];
 }
 
@@ -54,6 +57,7 @@ export function assessBracket(
   deck: Deck,
   gameChangers: Set<string>,
   includedCombos: SpellbookCombo[],
+  comboVotes: Map<string, EdhrecComboVote> = new Map(),
 ): BracketAssessment {
   const deckCards = [...deck.cards, ...(deck.commanders ?? [])];
 
@@ -74,7 +78,18 @@ export function assessBracket(
     }
   }
 
-  const earlyCombos = includedCombos.filter(isEarlyTwoCardCombo).length;
+  const communityCombos = includedCombos.flatMap((combo) => {
+    const vote = comboVotes.get(combo.id);
+    return vote
+      ? [{ id: combo.id, names: combo.uses.map((u) => u.card.name).join(" + "), vote }]
+      : [];
+  });
+  const fallbackCombos = includedCombos.filter(
+    (combo) => !comboVotes.has(combo.id) && isEarlyTwoCardCombo(combo),
+  ).length;
+  const earlyCombos =
+    communityCombos.filter((combo) => combo.vote.bracket === 4).length + fallbackCombos;
+  const lateCombos = communityCombos.filter((combo) => combo.vote.bracket === 3).length;
   const reasons: string[] = [];
   let bracket: Bracket;
 
@@ -86,18 +101,39 @@ export function assessBracket(
     reasons.push(`Mass land denial: ${massLandDenial.join(", ")}`);
   } else if (earlyCombos > 0) {
     bracket = 4;
-    reasons.push(`${earlyCombos} two-card infinite combo${earlyCombos === 1 ? "" : "s"}`);
+    reasons.push(`${earlyCombos} combo${earlyCombos === 1 ? "" : "s"} requiring Bracket 4`);
   } else if (gameChangerNames.length >= 1) {
     bracket = 3;
     reasons.push(
       `${gameChangerNames.length} Game Changer${gameChangerNames.length === 1 ? "" : "s"} (1–3)`,
     );
+  } else if (lateCombos > 0) {
+    bracket = 3;
   } else {
     bracket = 2;
-    reasons.push("No Game Changers, mass land denial, or early combos detected");
+    reasons.push("No Game Changers, mass land denial, or combos requiring Bracket 3–4 detected");
   }
 
-  return { bracket, gameChangers: gameChangerNames, massLandDenial, earlyCombos, reasons };
+  if (lateCombos > 0) {
+    reasons.push(
+      `${lateCombos} late-game combo${lateCombos === 1 ? "" : "s"} requiring Bracket 3 (EDHREC community vote)`,
+    );
+  }
+  if (fallbackCombos > 0) {
+    reasons.push(
+      `${fallbackCombos} combo${fallbackCombos === 1 ? "" : "s"} without an EDHREC vote: using the conservative two-card combo estimate`,
+    );
+  }
+
+  return {
+    bracket,
+    gameChangers: gameChangerNames,
+    massLandDenial,
+    earlyCombos,
+    lateCombos,
+    communityCombos,
+    reasons,
+  };
 }
 
 /** Actionable steps to drop the deck to the next-lower bracket, or null when
@@ -105,7 +141,7 @@ export function assessBracket(
 export function bracketAdvice(
   assessment: BracketAssessment,
 ): { target: Bracket; actions: string[] } | null {
-  const { bracket, gameChangers, massLandDenial, earlyCombos } = assessment;
+  const { bracket, gameChangers, massLandDenial, earlyCombos, lateCombos } = assessment;
   if (bracket >= 4) {
     const actions: string[] = [];
     if (gameChangers.length >= 4) {
@@ -116,17 +152,23 @@ export function bracketAdvice(
       actions.push(`Remove mass land denial: ${massLandDenial.join(", ")}`);
     }
     if (earlyCombos > 0) {
-      actions.push(`Remove ${earlyCombos} early two-card combo${earlyCombos === 1 ? "" : "s"}`);
+      actions.push(
+        `Remove ${earlyCombos} combo${earlyCombos === 1 ? "" : "s"} requiring Bracket 4`,
+      );
     }
     return { target: 3, actions };
   }
-  if (bracket === 3 && gameChangers.length > 0) {
-    return {
-      target: 2,
-      actions: [
+  if (bracket === 3) {
+    const actions: string[] = [];
+    if (gameChangers.length > 0) {
+      actions.push(
         `Cut all ${gameChangers.length} Game Changer${gameChangers.length === 1 ? "" : "s"}`,
-      ],
-    };
+      );
+    }
+    if (lateCombos > 0) {
+      actions.push(`Remove ${lateCombos} late-game combo${lateCombos === 1 ? "" : "s"}`);
+    }
+    return { target: 2, actions };
   }
   return null;
 }

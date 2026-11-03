@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.70.1](https://github.com/witchesofthehill/manabrew/compare/v3.70.0...v3.70.1) (2026-11-03)
+
+### Fixes
+
+* **ui:** prevent printed-card flash in deck editor ([#1172](https://github.com/witchesofthehill/manabrew/issues/1172)) ([fc1751e](https://github.com/witchesofthehill/manabrew/commit/fc1751eaa543a3f239b0fc75e2ca610508b101e7))
+
 ## [3.70.0](https://github.com/witchesofthehill/manabrew/compare/v3.69.2...v3.70.0) (2026-11-02)
 
 ### Features

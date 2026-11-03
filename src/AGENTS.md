@@ -344,6 +344,8 @@ Multiplayer ownership, targeted snapshots and retained paired rooms are document
 
 ## Deck analysis — combos & bracket
 
+Combo bracket placement prefers EDHREC's `comboVote` (`api/edhrec.ts`): `any` maps to the estimator's floor of 2, `3` to late-game combos, and `4-5` to 4. Spellbook's `bracketTag` is an automatic estimate, not the EDHREC community vote. EDHREC still uses card-only combo IDs for Spellbook variants with `--template` suffixes. Votes are cached for one day; missing votes retain the conservative two-card heuristic and are labeled as fallback estimates. Keep the EDHREC proxy in Vite and both Caddyfiles aligned with the desktop HTTP capability.
+
 Commander deck analysis (combos, Game Changers, bracket estimate) lives in `stores/useDeckAnalysisStore.ts`, driven by `hooks/useDeckAnalysis.ts` (mounted once in `DeckBuilder`). Combos come from Commander Spellbook (`api/commanderSpellbook.ts`); the Game Changers list and bracket logic come from Scryfall + `lib/brackets.ts` (`lib/gameChangers.ts`). Card cells read membership via the name-keyed selectors `useIsComboCard` / `useIsGameChangerCard` — the same pattern as `useIsUnsupported`, so no prop-drilling through `DeckListView`. This is deck-level analysis, not card lookup; it is exempt from the "Scryfall store only" rule above.
 
 ## Engine ↔ UI DTOs

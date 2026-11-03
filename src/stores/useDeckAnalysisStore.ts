@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { Deck } from "@/protocol/deck";
 import { findMyCombos, type SpellbookCombo } from "@/api/commanderSpellbook";
+import { fetchComboVotes } from "@/api/edhrec";
 import { fetchGameChangers, normalizeCardName } from "@/lib/gameChangers";
 import { assessBracket, type BracketAssessment } from "@/lib/brackets";
 
@@ -46,7 +47,7 @@ export const useDeckAnalysisStore = create<DeckAnalysisState>((set, get) => ({
     const signature = deckAnalysisSignature(deck);
     if (signature === get().lastSignature && !get().error) return;
 
-    set({ loading: true, error: null, lastSignature: signature });
+    set({ ...EMPTY, loading: true, lastSignature: signature });
 
     const commanders = (deck.commanders ?? []).map((c) => c.identity.name);
     const main = deck.cards.map((c) => c.identity.name);
@@ -54,12 +55,11 @@ export const useDeckAnalysisStore = create<DeckAnalysisState>((set, get) => ({
     try {
       const [gameChangers, combos] = await Promise.all([
         fetchGameChangers(),
-        findMyCombos(commanders, main).catch((err) => {
-          console.warn("[deck-analysis] combo lookup failed", err);
-          return { identity: "", included: [], almostIncluded: [] };
-        }),
+        findMyCombos(commanders, main),
       ]);
 
+      if (get().lastSignature !== signature) return;
+      const community = await fetchComboVotes(combos.included);
       if (get().lastSignature !== signature) return;
 
       const comboCardNames = new Set<string>();
@@ -73,7 +73,10 @@ export const useDeckAnalysisStore = create<DeckAnalysisState>((set, get) => ({
         almostIncluded: combos.almostIncluded,
         comboCardNames,
         gameChangerNames: gameChangers,
-        bracket: assessBracket(deck, gameChangers, combos.included),
+        bracket: assessBracket(deck, gameChangers, combos.included, community.votes),
+        error: community.unavailable
+          ? "Some EDHREC votes could not be loaded. Unrated combos use the fallback estimate."
+          : null,
       });
     } catch (err) {
       if (get().lastSignature !== signature) return;

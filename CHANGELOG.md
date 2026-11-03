@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.70.2](https://github.com/witchesofthehill/manabrew/compare/v3.70.1...v3.70.2) (2026-11-03)
+
+### Fixes
+
+* **editor:** use edhrec community votes for combo brackets ([#1171](https://github.com/witchesofthehill/manabrew/issues/1171)) ([a92645a](https://github.com/witchesofthehill/manabrew/commit/a92645aa8442a2fafed740b898191a7db2193b07))
+
 ## [3.70.1](https://github.com/witchesofthehill/manabrew/compare/v3.70.0...v3.70.1) (2026-11-03)
 
 ### Fixes

@@ -108,6 +108,7 @@ export const computeGridLayout = (
   leftAlign = false,
   cardHeight: number = CARD_H,
   anchor: GridAnchor = "center",
+  reservedTrailingCols = 0,
 ): GridLayoutInfo => {
   const cardW = CARD_W * cardScale;
   const cardH = cardHeight * cardScale;
@@ -139,8 +140,9 @@ export const computeGridLayout = (
   const topMargin = anchor === "top" ? 0 : anchor === "bottom" ? freeH : freeH / 2;
   const originY = zone.y + topMargin;
 
-  const cells: GridCell[] = new Array(cols * rows);
-  for (let col = 0; col < cols; col++) {
+  const placedCols = Math.max(1, cols - reservedTrailingCols);
+  const cells: GridCell[] = new Array(placedCols * rows);
+  for (let col = 0; col < placedCols; col++) {
     for (let row = 0; row < rows; row++) {
       const x = originX + col * strideX;
       const y = originY + row * cellH;
@@ -170,7 +172,7 @@ export const computeGridLayout = (
     cardH,
     cellW: strideX,
     cellH,
-    cols,
+    cols: placedCols,
     rows,
     originX,
     originY,

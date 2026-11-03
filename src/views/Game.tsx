@@ -2347,6 +2347,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     currentPrompt: activePrompt,
     localPlayerId: me.id,
     gameView,
+    turnColor: playerColorMap.get(gameView.activePlayerId) ?? themeColors.playerColors.self,
     sourceDeckCard: promptSourceDeckCard,
     action: {
       promptType,

@@ -238,3 +238,12 @@ export function checkpointLabel(checkpoint: CheckpointDto): string {
   }
   return `turn ${checkpoint.turn}, ${stepLabel(checkpoint.step)}`;
 }
+
+export function togglePhaseStops(
+  steps: readonly string[],
+  stops: ReadonlySet<string> | undefined,
+  toggle: (step: string) => void,
+): void {
+  const on = steps.some((step) => stops?.has(step));
+  for (const step of steps) if (!!stops?.has(step) === on) toggle(step);
+}

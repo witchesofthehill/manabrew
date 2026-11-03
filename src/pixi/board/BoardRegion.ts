@@ -297,6 +297,7 @@ export class BoardRegion {
       this.zoneTileKeys.length > 0,
       this.cardHeight(),
       this.presentation.gridAnchor(this.mirrored),
+      this.presentation.reservedTrailingColumns(this.mirrored),
     );
   }
 
@@ -2128,15 +2129,7 @@ export class BoardRegion {
   }
 
   drawDropGrid(localX: number, localY: number): void {
-    const grid = computeGridLayout(
-      this.playArea(),
-      0,
-      this.collectLocalBlockers(),
-      this.cardScale,
-      this.zoneTileKeys.length > 0,
-      this.cardHeight(),
-      this.presentation.gridAnchor(this.mirrored),
-    );
+    const grid = this.freshGrid();
     const color = hexToNum(this.host.getTheme().gameTheme.activeAction.active);
     const gfx = this.gridSkeletonGfx;
     gfx.clear();

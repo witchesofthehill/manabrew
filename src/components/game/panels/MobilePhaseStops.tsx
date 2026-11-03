@@ -13,7 +13,7 @@ export const PHASE_CONTROLS = PHASES.filter((phase) => phase.id !== "untap").map
   currentSteps: [phase.id],
 }));
 
-interface OpponentStops {
+export interface OpponentStops {
   id: string;
   name: string;
   color: string;

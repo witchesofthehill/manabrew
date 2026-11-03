@@ -26,6 +26,11 @@ export class DesktopBoardRegionPresentation implements BoardRegionPresentation {
   gridAnchor(mirrored: boolean): GridAnchor {
     return mirrored ? "bottom" : "top";
   }
+
+  reservedTrailingColumns(mirrored: boolean): number {
+    return mirrored ? 0 : 1;
+  }
+
   ignoreZoneTileBlockers(): boolean {
     return false;
   }

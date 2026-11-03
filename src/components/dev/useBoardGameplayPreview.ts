@@ -290,6 +290,7 @@ export function useBoardGameplayPreview(
           currentPrompt: modal,
           localPlayerId: LOCAL_PLAYER_ID,
           gameView,
+          turnColor: theme.playerColors.self,
           action,
           damageOrder: null,
           gameOver: null,

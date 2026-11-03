@@ -32,6 +32,10 @@ export class MobileBoardRegionPresentation implements BoardRegionPresentation {
     return mirrored ? "center" : "bottom";
   }
 
+  reservedTrailingColumns(): number {
+    return 0;
+  }
+
   localBlockers(mirrored: boolean, blockers: BlockingRect[]): BlockingRect[] {
     return mirrored ? blockers : [];
   }

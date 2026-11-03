@@ -15,6 +15,7 @@ export interface BoardRegionPresentation {
   zoneTilesDraggable(mirrored: boolean, locked: boolean): boolean;
   ignoreZoneTileBlockers(mirrored: boolean): boolean;
   gridAnchor(mirrored: boolean): GridAnchor;
+  reservedTrailingColumns(mirrored: boolean): number;
   localBlockers(mirrored: boolean, blockers: BlockingRect[]): BlockingRect[];
   gridRows(rowCount: number, mirrored: boolean): number[];
   storedZoneSlot(

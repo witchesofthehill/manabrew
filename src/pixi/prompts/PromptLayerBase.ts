@@ -472,6 +472,7 @@ export function samePromptPresentation(
   if (
     left.currentPrompt !== right.currentPrompt ||
     left.gameView !== right.gameView ||
+    left.turnColor !== right.turnColor ||
     left.sourceDeckCard !== right.sourceDeckCard ||
     left.modalHidden !== right.modalHidden ||
     !sameActionPresentation(left.action, right.action)

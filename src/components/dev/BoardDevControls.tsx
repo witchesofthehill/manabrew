@@ -165,9 +165,10 @@ export function BoardDevControls() {
       {showPhaseStrip ? (
         <section className={DEV_SECTION}>
           <p className={DEV_SECTION_HEADING}>Phase strip</p>
-          <div className="mt-3 grid grid-cols-3 gap-2">
+          <div className="mt-3 grid grid-cols-2 gap-2">
             {(
               [
+                ["drawer", "Action panel"],
                 ["rail", "Right rail"],
                 ["hand", "Center"],
                 ["plate", "Above player"],

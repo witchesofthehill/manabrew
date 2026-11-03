@@ -36,6 +36,7 @@ export interface PromptOverlaySpec {
   currentPrompt: Prompt | null;
   localPlayerId: string;
   gameView: ClientGameView;
+  turnColor: string;
   sourceDeckCard?: DeckCard;
   action: PromptActionSpec;
   damageOrder: DamageOrderPromptSpec | null;

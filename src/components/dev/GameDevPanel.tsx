@@ -115,7 +115,7 @@ export function GameDevPanel() {
       Number(showPlayerPanelBounds) +
       Number(showGridSkeleton) +
       Number(showAttackRows) +
-      Number(phaseStripStyle !== "rail") +
+      Number(phaseStripStyle !== "drawer") +
       Number(devToolsEnabled) +
       Number(debugViewportPreset !== "native"),
     prompt: promptActionOverride == null ? 0 : 1,

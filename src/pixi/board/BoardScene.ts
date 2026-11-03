@@ -20,6 +20,7 @@ import {
   PhaseStripLayer,
   type PhaseStripCallbacks,
   type PhaseStripState,
+  type PhaseDrawerOutline,
   type PhaseStripStyle,
 } from "../PhaseStripLayer";
 import { DragHandler } from "../DragHandler";
@@ -209,6 +210,7 @@ export class BoardScene {
   private hoverClearTimer: number | null = null;
 
   private actionPanelLeft: number | null = null;
+  private actionPanelBounds: ScreenBounds | null = null;
   private handPeek = false;
   private lastCapsuleRects = new Map<string, string>();
   private autoSort = false;
@@ -326,6 +328,12 @@ export class BoardScene {
       const rect = this.canvasRect();
       const canvasX = e.clientX - rect.left;
       const canvasY = e.clientY - rect.top;
+      const stripPoint = this.root.toLocal(
+        RECT_SCRATCH_A.set(canvasX, canvasY),
+        undefined,
+        RECT_SCRATCH_A,
+      );
+      this.phaseStrip.handlePointerMove(stripPoint.x, stripPoint.y);
       if (
         this.activeGesturePointerId === null &&
         !this.hand?.isDraggingFromHand() &&
@@ -924,10 +932,26 @@ export class BoardScene {
       );
       plateRect = { x: tl.x, y: tl.y, width: br.x - tl.x, height: br.y - tl.y };
     }
+    const action = this.actionPanelBounds;
+    let actionRect: BlockingRect | null = null;
+    if (action) {
+      const tl = this.root.toLocal(
+        RECT_SCRATCH_A.set(action.x, action.y),
+        undefined,
+        RECT_SCRATCH_A,
+      );
+      const br = this.root.toLocal(
+        RECT_SCRATCH_B.set(action.x + action.width, action.y + action.height),
+        undefined,
+        RECT_SCRATCH_B,
+      );
+      actionRect = { x: tl.x, y: tl.y, width: br.x - tl.x, height: br.y - tl.y };
+    }
     this.phaseStrip.setFrame({
       field: zone,
       hand: this.hand?.getFanRect() ?? null,
       plate: plateRect,
+      action: actionRect,
       gridBottom:
         zone.y + zone.height - this.presentation.localHandReserve(this.handReserveBottom()),
     });
@@ -1080,7 +1104,30 @@ export class BoardScene {
     this.hand?.relayout();
   }
 
+  getPhaseDrawerOutline(): PhaseDrawerOutline | null {
+    const outline = this.phaseStrip.getDrawerOutline();
+    if (!outline) return null;
+    const toScreen = (r: BlockingRect): BlockingRect => {
+      const tl = this.root.toGlobal(RECT_SCRATCH_A.set(r.x, r.y), RECT_SCRATCH_A);
+      const br = this.root.toGlobal(
+        RECT_SCRATCH_B.set(r.x + r.width, r.y + r.height),
+        RECT_SCRATCH_B,
+      );
+      return { x: tl.x, y: tl.y, width: br.x - tl.x, height: br.y - tl.y };
+    };
+    return {
+      base: outline.base && toScreen(outline.base),
+      tower: toScreen(outline.tower),
+      radius: outline.radius * this.root.scale.x,
+    };
+  }
+
+  setActionPanelSurface(color: number | null): void {
+    this.phaseStrip.setSurfaceColor(color);
+  }
+
   setActionPanelBounds(bounds: ScreenBounds | null): void {
+    this.actionPanelBounds = bounds;
     const left = bounds?.x ?? null;
     if (this.actionPanelLeft === left) return;
     this.actionPanelLeft = left;

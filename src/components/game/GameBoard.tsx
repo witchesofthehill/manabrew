@@ -23,6 +23,7 @@ import type { PromptOverlaySpec } from "@/pixi/prompts/prompt.types";
 import type { PhaseStripCallbacks, PhaseStripState } from "@/pixi/PhaseStripLayer";
 import { buildPlayerHudBadges, buildZoneBadges } from "@/components/game/panels/playerHudBadges";
 import { PlayerSheetModal } from "@/components/game/panels/PlayerSheetModal";
+import { PhaseStopsModal } from "@/components/game/modals/PhaseStopsModal";
 import { CardInspectModal } from "@/components/game/modals/CardInspectModal";
 import { GlobalStateRail } from "@/components/game/panels/GlobalStateRail";
 import { DesktopGameScene } from "@/components/game/DesktopGameScene";
@@ -339,6 +340,7 @@ export function GameBoard({
   const [dragAttackerId, setDragAttackerId] = useState<string | null>(null);
   const [sheetPlayerId, setSheetPlayerId] = useState<string | null>(null);
   const [inspectedHandCard, setInspectedHandCard] = useState<CardDto | null>(null);
+  const [phaseDetailsOpen, setPhaseDetailsOpen] = useState(false);
   const closePlayerSheet = useCallback(() => setSheetPlayerId(null), [setSheetPlayerId]);
   const gameOver = useGameStore((state) => state.gameView?.gameOver);
 
@@ -711,8 +713,9 @@ export function GameBoard({
     (): PhaseStripCallbacks => ({
       onToggleSelfPhase: toggleSelfStop,
       onToggleOpponentPhase: toggleOpponentStop,
+      onOpenPhaseDetails: () => setPhaseDetailsOpen(true),
     }),
-    [toggleSelfStop, toggleOpponentStop],
+    [toggleSelfStop, toggleOpponentStop, setPhaseDetailsOpen],
   );
   const boardRef = useRef<HTMLDivElement>(null);
   const setBoardRef = useCallback(
@@ -1814,6 +1817,21 @@ export function GameBoard({
     onTogglePreviewView,
     onLongPressCard,
   };
+  const phaseStops = {
+    currentStep: step,
+    selfStops,
+    activeColor: activePhaseColor,
+    selfColor: playerColors.self,
+    opponents: opponents.map((opponent, index) => ({
+      id: opponent.id,
+      name: stripUsernameTag(opponent.name),
+      color: playerColors[OPPONENT_SEATS[index] ?? "opponent1"],
+      stops: opponentStopsMap.get(opponent.id) ?? new Set(DEFAULT_OPPONENT_STOPS),
+    })),
+    onToggleSelf: toggleSelfStop,
+    onToggleOpponent: toggleOpponentStop,
+  };
+
   return (
     <div
       ref={setBoardRef}
@@ -1924,20 +1942,7 @@ export function GameBoard({
           handSelectionMode={!!handSelectionMode}
           onDismissHoverPreview={onDismissHoverPreview}
           onClosePlayerSheet={closePlayerSheet}
-          phaseStops={{
-            currentStep: step,
-            selfStops,
-            activeColor: activePhaseColor,
-            selfColor: playerColors.self,
-            opponents: opponents.map((opponent, index) => ({
-              id: opponent.id,
-              name: stripUsernameTag(opponent.name),
-              color: playerColors[OPPONENT_SEATS[index] ?? "opponent1"],
-              stops: opponentStopsMap.get(opponent.id) ?? new Set(DEFAULT_OPPONENT_STOPS),
-            })),
-            onToggleSelf: toggleSelfStop,
-            onToggleOpponent: toggleOpponentStop,
-          }}
+          phaseStops={phaseStops}
         />
       ) : (
         <DesktopGameScene
@@ -1947,6 +1952,9 @@ export function GameBoard({
         />
       )}
       {sheetSpec && <PlayerSheetModal spec={sheetSpec} onClose={closePlayerSheet} />}
+      {phaseDetailsOpen && (
+        <PhaseStopsModal {...phaseStops} onClose={() => setPhaseDetailsOpen(false)} />
+      )}
       {inspectedHandCard && (
         <CardInspectModal card={inspectedHandCard} onClose={() => setInspectedHandCard(null)} />
       )}

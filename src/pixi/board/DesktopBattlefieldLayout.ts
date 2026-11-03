@@ -1,14 +1,5 @@
-import {
-  BATTLEFIELD_MIN_ROWS,
-  BATTLEFIELD_MIN_ROWS_LARGEST,
-  FIELD_INNER_EDGE_PAD_PX,
-} from "../constants";
-import {
-  battlefieldScaleForMultiplier,
-  maxScaleForRows,
-  scaleForRowsWithCombatRow,
-  scaleForRowsWithHalfLane,
-} from "../GridLayout";
+import { FIELD_INNER_EDGE_PAD_PX } from "../constants";
+import { battlefieldScaleForMultiplier, scaleForRowsWithCombatRow } from "../GridLayout";
 import { computeBoardLayout } from "./boardLayout";
 import { playmatGridArea } from "./PlaymatLayer";
 import type { BattlefieldLayoutPolicy, BattlefieldLayoutResult } from "./battlefieldLayoutPolicy";
@@ -41,12 +32,7 @@ export const DESKTOP_BATTLEFIELD_LAYOUT: BattlefieldLayoutPolicy = {
     const selfFromSeam = selfGrid.y + selfGrid.height - layout.self.y;
     const selfScale = Math.max(
       Number.EPSILON,
-      Math.min(
-        battlefieldScaleForMultiplier(selfUsable, input.cardSizeMultiplier),
-        scaleForRowsWithCombatRow(selfUsable, BATTLEFIELD_MIN_ROWS_LARGEST),
-        maxScaleForRows(selfGrid.height, BATTLEFIELD_MIN_ROWS),
-        scaleForRowsWithHalfLane(selfFromSeam, BATTLEFIELD_MIN_ROWS),
-      ),
+      battlefieldScaleForMultiplier(selfGrid.height, selfFromSeam, input.cardSizeMultiplier),
     );
     const opponentUsables = layout.opponents.map((opponent) =>
       playmatTrim(Math.max(1, opponent.rect.height)),

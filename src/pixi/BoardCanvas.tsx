@@ -634,12 +634,6 @@ export function BoardCanvasSurface({
     scene?.setAttackRowDebug(showAttackRows);
   }, [scene, showAttackRows]);
 
-  const phaseStripStyle = useGameDevStore((s) => s.phaseStripStyle);
-
-  useEffect(() => {
-    scene?.setPhaseStripStyle(phaseStripStyle);
-  }, [scene, phaseStripStyle]);
-
   const roomTableStyle = useServerStore((s) => s.currentRoom?.table_style);
   const boardBackground = usePreferencesStore((s) => s.boardBackgroundId);
   const backgroundId = roomTableStyle ?? boardBackground;

@@ -81,14 +81,20 @@ export const scaleForRowsWithHalfLane = (usableH: number, rows: number): number 
   (usableH - COMBAT_ROW_PAD_Y + GAP - rows * (0.5 + GAP)) /
   (CARD_H * ((1 + CELL_BREATHING_FRAC) * rows + 0.5));
 
-/** Card scale for the user's size multiplier: 1 (100%) is the classic
- *  3-row-board size, and the multiplier grows the cards continuously from
- *  there — clamped to a `BATTLEFIELD_MIN_ROWS_LARGEST`-row fill plus the
- *  combat band, so the board never degrades below that row count. Applies to
- *  every battlefield; each field clamps against its own height. */
-export const battlefieldScaleForMultiplier = (usableH: number, multiplier: number): number => {
-  const base = scaleForRowsWithCombatRow(usableH, BATTLEFIELD_MIN_ROWS);
-  const max = scaleForRowsWithCombatRow(usableH, BATTLEFIELD_MIN_ROWS_LARGEST);
+/** Card scale for the user's size multiplier: 1 (100%) is the largest size
+ *  that fits `BATTLEFIELD_MIN_ROWS` rows in the grid area below the lane, and
+ *  the multiplier grows the cards continuously from there, clamped to a
+ *  `BATTLEFIELD_MIN_ROWS_LARGEST`-row fill so the board never degrades below
+ *  that row count. */
+export const battlefieldScaleForMultiplier = (
+  gridH: number,
+  fromSeam: number,
+  multiplier: number,
+): number => {
+  const fit = (rows: number) =>
+    Math.min(maxScaleForRows(gridH, rows), scaleForRowsWithHalfLane(fromSeam, rows));
+  const base = fit(BATTLEFIELD_MIN_ROWS);
+  const max = fit(BATTLEFIELD_MIN_ROWS_LARGEST);
   return Math.max(BATTLEFIELD_CARD_SCALE_FLOOR, Math.min(base * multiplier, max));
 };
 

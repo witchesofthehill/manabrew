@@ -21,7 +21,6 @@ import {
   type PhaseStripCallbacks,
   type PhaseStripState,
   type PhaseDrawerOutline,
-  type PhaseStripStyle,
 } from "../PhaseStripLayer";
 import { DragHandler } from "../DragHandler";
 import { dropCellFromPoint, type GridCell } from "../GridLayout";
@@ -166,7 +165,6 @@ export class BoardScene {
     world: { x: number; y: number };
   } | null = null;
   private pinchDownListener: (e: PointerEvent) => void;
-  private stripOutsideListener: (e: PointerEvent) => void;
   private gestureCancelListener: (e: PointerEvent) => void;
   private pinchMoveListener: (e: PointerEvent) => void;
   private pinchUpListener: (e: PointerEvent) => void;
@@ -383,12 +381,6 @@ export class BoardScene {
       if (this.activeGesturePointerId === e.pointerId) this.abortActiveGesture();
     };
     window.addEventListener("pointercancel", this.gestureCancelListener);
-    this.stripOutsideListener = (e: PointerEvent) => {
-      const rect = this.canvasRect();
-      const p = this.root.toLocal(new Point(e.clientX - rect.left, e.clientY - rect.top));
-      this.phaseStrip.handleOutsidePointerDown(p.x, p.y);
-    };
-    this.app.canvas.addEventListener("pointerdown", this.stripOutsideListener);
     this.app.canvas.addEventListener("pointerdown", this.pinchDownListener);
     window.addEventListener("pointermove", this.pinchMoveListener);
     window.addEventListener("pointerup", this.pinchUpListener, { capture: true });
@@ -915,65 +907,19 @@ export class BoardScene {
     this.activeGesturePointerId = e.pointerId;
   }
 
-  private syncPhaseStripFrame(): void {
-    const zone = this.localZone();
-    if (!zone) {
-      this.phaseStrip.setFrame(null);
+  private syncPhaseStripAction(): void {
+    const action = this.actionPanelBounds;
+    if (!action || !this.localZone()) {
+      this.phaseStrip.setAction(null);
       return;
     }
-    const plate = this.getLocalCapsuleBounds();
-    let plateRect: BlockingRect | null = null;
-    if (plate) {
-      const tl = this.root.toLocal(RECT_SCRATCH_A.set(plate.x, plate.y), undefined, RECT_SCRATCH_A);
-      const br = this.root.toLocal(
-        RECT_SCRATCH_B.set(plate.x + plate.width, plate.y + plate.height),
-        undefined,
-        RECT_SCRATCH_B,
-      );
-      plateRect = { x: tl.x, y: tl.y, width: br.x - tl.x, height: br.y - tl.y };
-    }
-    const action = this.actionPanelBounds;
-    let actionRect: BlockingRect | null = null;
-    if (action) {
-      const tl = this.root.toLocal(
-        RECT_SCRATCH_A.set(action.x, action.y),
-        undefined,
-        RECT_SCRATCH_A,
-      );
-      const br = this.root.toLocal(
-        RECT_SCRATCH_B.set(action.x + action.width, action.y + action.height),
-        undefined,
-        RECT_SCRATCH_B,
-      );
-      actionRect = { x: tl.x, y: tl.y, width: br.x - tl.x, height: br.y - tl.y };
-    }
-    this.phaseStrip.setFrame({
-      field: zone,
-      hand: this.hand?.getFanRect() ?? null,
-      plate: plateRect,
-      action: actionRect,
-      gridBottom:
-        zone.y + zone.height - this.presentation.localHandReserve(this.handReserveBottom()),
-    });
-  }
-
-  private phaseStripBlockers(): BlockingRect[] {
-    this.syncPhaseStripFrame();
-    const b = this.phaseStrip.getBounds();
-    if (!b) return [];
-    const tl = this.root.toGlobal(RECT_SCRATCH_A.set(b.x, b.y), RECT_SCRATCH_A);
-    const br = this.root.toGlobal(
-      RECT_SCRATCH_B.set(b.x + b.width, b.y + b.height),
+    const tl = this.root.toLocal(RECT_SCRATCH_A.set(action.x, action.y), undefined, RECT_SCRATCH_A);
+    const br = this.root.toLocal(
+      RECT_SCRATCH_B.set(action.x + action.width, action.y + action.height),
+      undefined,
       RECT_SCRATCH_B,
     );
-    return [{ x: tl.x, y: tl.y, width: br.x - tl.x, height: br.y - tl.y }];
-  }
-
-  setPhaseStripStyle(style: PhaseStripStyle): void {
-    this.phaseStrip.setStyle(style);
-    const region = this.localRegion();
-    const state = region?.getLastState();
-    if (region && state) region.updateBattlefield(state);
+    this.phaseStrip.setAction({ x: tl.x, y: tl.y, width: br.x - tl.x, height: br.y - tl.y });
   }
 
   private localRegion(): BoardRegion | null {
@@ -1478,7 +1424,7 @@ export class BoardScene {
     return {
       getTheme: () => this.theme,
       collectBlockers: () => [
-        ...(isLocal ? [...this.localBlockers(), ...this.phaseStripBlockers()] : []),
+        ...(isLocal ? this.localBlockers() : []),
         ...this.gridCapsuleBlockers(playerId, isLocal),
       ],
       getEntrySeed: (cardId) => this.entrySeedFor(playerId, isLocal, cardId),
@@ -2199,7 +2145,7 @@ export class BoardScene {
     this.hand?.animate();
     for (const fan of this.opponentHands.values()) fan.animate();
     this.playerBars.tick();
-    this.syncPhaseStripFrame();
+    this.syncPhaseStripAction();
     this.phaseStrip.tick();
     this.phaseStrip.setDimAlpha(
       lerp(this.phaseStrip.getDimAlpha(), this.phaseStripAlphaTarget, 0.2, 0.01),
@@ -2504,7 +2450,6 @@ export class BoardScene {
     this.cancelHoverClear();
     window.removeEventListener("pointermove", this.cursorListener);
     window.removeEventListener("pointercancel", this.gestureCancelListener);
-    this.app.canvas.removeEventListener("pointerdown", this.stripOutsideListener);
     this.app.canvas.removeEventListener("pointerdown", this.pinchDownListener);
     window.removeEventListener("pointermove", this.pinchMoveListener);
     window.removeEventListener("pointerup", this.pinchUpListener, { capture: true });

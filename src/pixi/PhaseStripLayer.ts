@@ -4,14 +4,10 @@ import type { Theme } from "@/hooks/useTheme";
 import { getTheme } from "@/hooks/useTheme";
 import { readableTextColor } from "@/themes/gameTheme";
 import { hexToNum, mixNum } from "./colorUtils";
-import { isCoarsePointer } from "@/lib/responsive";
 import { PHASE_BAR_ENTRIES, PHASES as STEP_DEFS } from "@/components/game/game.constants";
 import { togglePhaseStops } from "@/components/game/game.utils";
-import type { StepKind } from "@/protocol";
 import { animationsEnabled } from "./effects/enabled";
 import type { BlockingRect } from "./board/types";
-
-export type PhaseStripStyle = "rail" | "hand" | "plate" | "drawer";
 
 export interface PhaseDrawerOutline {
   base: BlockingRect | null;
@@ -19,19 +15,10 @@ export interface PhaseDrawerOutline {
   radius: number;
 }
 
-export interface PhaseStripFrame {
-  field: BlockingRect;
-  hand: BlockingRect | null;
-  plate: BlockingRect | null;
-  action: BlockingRect | null;
-  gridBottom: number;
-}
-
 interface PhaseSpec {
   id: string;
   short: string;
   subPhases?: string[];
-  labelPhase?: string;
 }
 
 const COMBAT_SUB_PHASES: string[] = STEP_DEFS.filter((p) => p.combat).map((p) => p.id);
@@ -46,14 +33,9 @@ const PHASES: PhaseSpec[] = PHASE_BAR_ENTRIES.map((entry) =>
         id: entry.id,
         short: entry.short,
         subPhases: [...entry.steps],
-        labelPhase: "combatDeclareAttackers" satisfies StepKind,
       }
     : { id: entry.id, short: entry.short },
 );
-
-const STEP_ORDER = STEP_DEFS.filter((p) => p.id !== "untap");
-const CLEANUP_STEP: StepKind = "cleanup";
-const END_STEP: StepKind = "endOfTurn";
 
 const CELL_R = 4;
 const DRAWER_R = CELL_R * 1.5;
@@ -62,28 +44,7 @@ const RAIL_CELL_W = 56;
 const RAIL_CELL_H = 24;
 const RAIL_COMBAT_H = 34;
 const RAIL_GAP = 4;
-const RAIL_EDGE_PAD = 8;
-const RAIL_ACTION_CLEARANCE = 160;
 const RAIL_PANEL_PAD = 6;
-
-const BAR_CELL_W = 40;
-const BAR_COMBAT_W = 60;
-
-const CENTER_CELL_W = 36;
-const CENTER_EXPAND_W = 22;
-const CENTER_H = 22;
-const CENTER_HAND_GAP = 4;
-
-const EXPANDED_GAP = 6;
-const EXPANDED_PAD = 8;
-const EXPANDED_ROW_LABEL_W = 14;
-const EXPANDED_COL_W = 30;
-const EXPANDED_GROUP_GAP = 6;
-const EXPANDED_HEADER_H = 16;
-const EXPANDED_ROW_H = 18;
-const EXPANDED_TOGGLE_W = 14;
-const EXPANDED_TOGGLE_H = 8;
-const EXPANDED_SEAT_DOT_R = 4;
 
 const DRAWER_INSET = 8;
 const DRAWER_EASE = 0.3;
@@ -100,20 +61,9 @@ const DRAWER_RIM_HIT_OUT = 18;
 const DRAWER_RIM_HIT_IN = 4;
 const DRAWER_PULSE_MS = 1400;
 
-const PLATE_MAX_H = 22;
-const PLATE_MIN_H = 16;
-const PLATE_GAP = 2;
-
-const SURFACE_ALPHA = 0.94;
 const BORDER_ALPHA = 0.5;
-const DIVIDER_ALPHA = 0.35;
 const SHADOW_ALPHA = 0.4;
-const ACTIVE_FILL_ALPHA = 0.22;
-const HOVER_FILL_ALPHA = 0.08;
 const INACTIVE_TEXT_ALPHA = 0.72;
-const PANEL_INDICATOR_H = 2;
-const PANEL_INDICATOR_HOVER_H = 3;
-const PANEL_INDICATOR_INSET = 4;
 
 const COMBAT_PIP_W = 4;
 const COMBAT_PIP_H = 4;
@@ -134,14 +84,7 @@ function easeOut(t: number): number {
   return 1 - t1 * t1 * t1;
 }
 
-const INDICATOR_H = 4;
-const INDICATOR_HOVER_H = 6;
-const INDICATOR_GAP = 3;
-const INDICATOR_MARGIN = 3;
-const INDICATOR_HIT = 12;
 const INDICATOR_GHOST_ALPHA = 0.35;
-// My stops only fire on my turn — fade them while an opponent is acting.
-const INDICATOR_OFF_TURN_ALPHA = 0.55;
 
 const _initTheme = getTheme().gameTheme;
 const _initForeground = readableTextColor(
@@ -163,28 +106,6 @@ const activeStyle = new TextStyle({
   fill: _initForeground,
   align: "center",
 });
-const drawerActiveStyle = new TextStyle({
-  fontFamily: FONT,
-  fontSize: 11,
-  fontWeight: "bold",
-  fill: _initForeground,
-  align: "center",
-});
-const panelStyle = new TextStyle({
-  fontFamily: FONT,
-  fontSize: 11,
-  fontWeight: "bold",
-  fill: getTheme().appTheme.foreground,
-  align: "center",
-});
-const headerStyle = new TextStyle({
-  fontFamily: FONT,
-  fontSize: 9,
-  fontWeight: "bold",
-  fill: getTheme().appTheme.foreground,
-  align: "center",
-});
-
 interface Point2 {
   x: number;
   y: number;
@@ -217,7 +138,6 @@ interface PhaseIndicatorData {
   self: Point2[];
   opp: Point2[][];
   selfEnabled: boolean;
-  selfOffTurn: boolean;
   selfColor: number;
   oppEnabled: boolean[];
   oppColors: number[];
@@ -231,7 +151,6 @@ interface PhaseCell {
   id: string;
   defaultLabel: string;
   subPhases?: string[];
-  labelPhase?: string;
   detailsHitArea: Graphics;
   flashStart: number;
   selfIndicator: Graphics;
@@ -283,22 +202,6 @@ function fillHit(g: Graphics, r: CellRect, color: number): void {
   g.fill({ color, alpha: 0.001 });
 }
 
-function strokeLine(g: Graphics, points: Point2[], width: number, color: number, alpha: number) {
-  const [a, b] = points;
-  if (!a || !b) return;
-  g.moveTo(a.x, a.y);
-  g.lineTo(b.x, b.y);
-  g.stroke({ width, color, alpha, cap: "round" });
-}
-
-function plateWidth(): number {
-  return (PHASES.length - 1) * BAR_CELL_W + BAR_COMBAT_W;
-}
-
-function centerWidth(): number {
-  return (PHASES.length - 1) * CENTER_CELL_W + CENTER_EXPAND_W;
-}
-
 function contains(r: CellRect, x: number, y: number): boolean {
   return x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 }
@@ -313,9 +216,6 @@ export class PhaseStripLayer {
   private panel: Graphics;
   private expandButton: Graphics;
   private expandHovered = false;
-  private expandRect: CellRect | null = null;
-  private expandedPanel: Container;
-  private expandedRect: CellRect | null = null;
   private expanded = false;
   private prevStep: string | null = null;
   private prevIsActiveTurn = false;
@@ -323,11 +223,8 @@ export class PhaseStripLayer {
    *  doesn't flip during cleanup (engine advances the active player
    *  before the new turn's first phase). */
   private displayActivePlayerId: string | null = null;
-  private style: PhaseStripStyle = "rail";
-  private frame: PhaseStripFrame | null = null;
-  private pointerInside = false;
+  private action: BlockingRect | null = null;
   private dimAlpha = 1;
-  private forceShowIndicators = false;
   private realState: PhaseStripState | null = null;
   private sweepQueue: { step: string; activePlayerId: string }[] = [];
   private sweepNextAt = 0;
@@ -349,12 +246,6 @@ export class PhaseStripLayer {
     this.container = new Container();
     this.container.label = "phaseStrip";
     this.container.eventMode = "static";
-    this.container.on("pointerenter", () => {
-      this.pointerInside = true;
-    });
-    this.container.on("pointerleave", () => {
-      this.pointerInside = false;
-    });
 
     this.panelShadow = new Graphics();
     this.panelShadow.alpha = SHADOW_ALPHA;
@@ -379,7 +270,7 @@ export class PhaseStripLayer {
       const detailsHitArea = new Graphics();
       detailsHitArea.cursor = "pointer";
       detailsHitArea.on("pointerdown", () => {
-        if (this.style === "drawer" && this.expanded) this.callbacks.onOpenPhaseDetails?.();
+        if (this.expanded) this.callbacks.onOpenPhaseDetails?.();
       });
       this.container.addChild(detailsHitArea);
 
@@ -436,7 +327,6 @@ export class PhaseStripLayer {
         id: p.id,
         defaultLabel: p.short,
         subPhases: p.subPhases,
-        labelPhase: p.labelPhase,
         detailsHitArea,
         flashStart: 0,
         selfIndicator,
@@ -469,9 +359,6 @@ export class PhaseStripLayer {
       this.refresh();
     });
     this.container.addChild(this.expandButton);
-
-    this.expandedPanel = new Container();
-    this.container.addChild(this.expandedPanel);
   }
 
   getDimAlpha(): number {
@@ -483,53 +370,21 @@ export class PhaseStripLayer {
     this.container.alpha = alpha;
   }
 
-  setStyle(style: PhaseStripStyle): void {
-    if (this.style === style) return;
-    this.style = style;
-    this.expanded = false;
-    this.drawerOffset = 0;
-    this.peekLift = 0;
-    this.lickShow = 0;
-    this.refresh();
-  }
-
   setSurfaceColor(color: number | null): void {
     if (this.surfaceColor === color) return;
     this.surfaceColor = color;
     this.refresh();
   }
 
-  setFrame(frame: PhaseStripFrame | null): void {
-    const prev = this.frame;
-    if (
-      prev?.gridBottom === frame?.gridBottom &&
-      sameRect(prev?.field ?? null, frame?.field ?? null) &&
-      sameRect(prev?.hand ?? null, frame?.hand ?? null) &&
-      sameRect(prev?.plate ?? null, frame?.plate ?? null) &&
-      sameRect(prev?.action ?? null, frame?.action ?? null)
-    ) {
-      return;
-    }
-    this.frame = frame && {
-      field: copyRect(frame.field)!,
-      hand: copyRect(frame.hand),
-      plate: copyRect(frame.plate),
-      action: copyRect(frame.action),
-      gridBottom: frame.gridBottom,
-    };
+  setAction(action: BlockingRect | null): void {
+    if (sameRect(this.action, action)) return;
+    this.action = copyRect(action);
     this.refresh();
   }
 
-  handleOutsidePointerDown(x: number, y: number): void {
-    if (!this.expanded || this.style === "drawer") return;
-    if (this.expandedRect && contains(this.expandedRect, x, y)) return;
-    if (this.expandRect && contains(this.expandRect, x, y)) return;
-    this.setExpanded(false);
-  }
-
   handlePointerMove(x: number, y: number): void {
-    const action = this.frame?.action;
-    if (this.style !== "drawer" || !action) {
+    const action = this.action;
+    if (!action) {
       this.drawerHovered = false;
       this.railHovered = false;
       this.hoveredRow = -1;
@@ -566,9 +421,9 @@ export class PhaseStripLayer {
   }
 
   getDrawerOutline(): PhaseDrawerOutline | null {
-    const action = this.frame?.action;
+    const action = this.action;
     const top = this.drawerLick ?? this.drawerTab;
-    if (this.style !== "drawer" || !action || !top || !this.container.visible) return null;
+    if (!action || !top || !this.container.visible) return null;
     const panel = this.drawerPanelRect();
     return {
       base:
@@ -580,17 +435,6 @@ export class PhaseStripLayer {
     };
   }
 
-  getBounds(): BlockingRect | null {
-    if (!this.container.visible || !this.frame || this.style !== "rail") return null;
-    const panel = this.railPanelRect(this.lastState?.opponents.length ?? 0);
-    return {
-      x: panel.x,
-      y: panel.y,
-      width: this.frame.field.x + this.frame.field.width - panel.x,
-      height: panel.h,
-    };
-  }
-
   setTheme(theme: Theme): void {
     this.theme = theme;
     const foreground = readableTextColor(
@@ -599,9 +443,6 @@ export class PhaseStripLayer {
       theme.gameTheme.textOnTinted,
     );
     normalStyle.fill = foreground;
-    activeStyle.fill = foreground;
-    panelStyle.fill = theme.appTheme.foreground;
-    headerStyle.fill = theme.appTheme.foreground;
     this.refresh();
   }
 
@@ -664,75 +505,6 @@ export class PhaseStripLayer {
     this.refresh();
   }
 
-  private railColumns(oppCount: number): { cellX: number; selfX: number; oppX: number[] } {
-    const field = this.frame!.field;
-    const oppW = oppCount * INDICATOR_H + Math.max(0, oppCount - 1) * INDICATOR_GAP;
-    const right = field.x + field.width - RAIL_EDGE_PAD;
-    const cellX = right - oppW - (oppCount ? INDICATOR_MARGIN : 0) - RAIL_CELL_W;
-    const oppX = Array.from(
-      { length: oppCount },
-      (_, i) =>
-        cellX +
-        RAIL_CELL_W +
-        INDICATOR_MARGIN +
-        INDICATOR_H / 2 +
-        i * (INDICATOR_H + INDICATOR_GAP),
-    );
-    return { cellX, selfX: cellX - INDICATOR_MARGIN - INDICATOR_H / 2, oppX };
-  }
-
-  private railHeight(): number {
-    let total = 0;
-    for (const cell of this.cells) total += cell.subPhases ? RAIL_COMBAT_H : RAIL_CELL_H;
-    return total + RAIL_GAP * (this.cells.length - 1);
-  }
-
-  private railTop(): number {
-    const field = this.frame!.field;
-    const bottom = field.y + field.height - RAIL_ACTION_CLEARANCE;
-    return Math.max(field.y + RAIL_EDGE_PAD, bottom - this.railHeight());
-  }
-
-  private railPanelRect(oppCount: number): CellRect {
-    const { cellX, selfX, oppX } = this.railColumns(oppCount);
-    const left = selfX - INDICATOR_H / 2 - RAIL_PANEL_PAD;
-    const lastOpp = oppX[oppX.length - 1];
-    const right =
-      (lastOpp === undefined ? cellX + RAIL_CELL_W : lastOpp + INDICATOR_H / 2) + RAIL_PANEL_PAD;
-    const top = this.railTop() - RAIL_PANEL_PAD;
-    return { x: left, y: top, w: right - left, h: this.railHeight() + RAIL_PANEL_PAD * 2 };
-  }
-
-  private railGeometry(oppCount: number): CellGeometry[] {
-    const { cellX, selfX, oppX } = this.railColumns(oppCount);
-    const oppHitW = INDICATOR_H + INDICATOR_GAP;
-    let y = this.railTop();
-    return this.cells.map((cell) => {
-      const h = cell.subPhases ? RAIL_COMBAT_H : RAIL_CELL_H;
-      const top = y;
-      y += h + RAIL_GAP;
-      const lineTop = top + INDICATOR_H / 2;
-      const lineBottom = top + h - INDICATOR_H / 2;
-      return {
-        rect: { x: cellX, y: top, w: RAIL_CELL_W, h },
-        label: { x: cellX + RAIL_CELL_W / 2, y: cell.subPhases ? top + 12 : top + h / 2 },
-        pips: cell.subPhases
-          ? { x: cellX + (RAIL_CELL_W - COMBAT_PIPS_W) / 2, y: top + h - 10 }
-          : null,
-        self: [
-          { x: selfX, y: lineTop },
-          { x: selfX, y: lineBottom },
-        ],
-        selfHit: { x: selfX - INDICATOR_HIT / 2, y: top, w: INDICATOR_HIT, h },
-        opp: oppX.map((x) => [
-          { x, y: lineTop },
-          { x, y: lineBottom },
-        ]),
-        oppHit: oppX.map((x) => ({ x: x - oppHitW / 2, y: top, w: oppHitW, h })),
-      };
-    });
-  }
-
   private drawerOpponents(): number {
     return this.lastState?.opponents.length ?? 0;
   }
@@ -751,7 +523,7 @@ export class PhaseStripLayer {
   }
 
   private drawerPanelRect(): CellRect {
-    const action = this.frame!.action!;
+    const action = this.action!;
     const w = RAIL_PANEL_PAD * 2 + RAIL_CELL_W;
     return {
       x: action.x + action.width - DRAWER_INSET - w,
@@ -762,7 +534,7 @@ export class PhaseStripLayer {
   }
 
   private drawerGeometry(step: string): CellGeometry[] {
-    const action = this.frame!.action!;
+    const action = this.action!;
     const panel = this.drawerPanelRect();
     const oppCount = this.drawerOpponents();
     const selfX = panel.x;
@@ -842,100 +614,7 @@ export class PhaseStripLayer {
     });
   }
 
-  private centerBarRect(): CellRect | null {
-    const hand = this.frame?.hand;
-    if (!hand) return null;
-    const w = centerWidth();
-    return {
-      x: hand.x + hand.width / 2 - w / 2,
-      y: hand.y - CENTER_HAND_GAP - CENTER_H,
-      w,
-      h: CENTER_H,
-    };
-  }
-
-  private centerGeometry(): CellGeometry[] | null {
-    const bar = this.centerBarRect();
-    if (!bar) return null;
-    const selfY = bar.y + bar.h - 1 - PANEL_INDICATOR_HOVER_H / 2;
-    let x = bar.x;
-    return this.cells.map((cell) => {
-      if (cell.id === CLEANUP_STEP) {
-        return {
-          rect: { x: 0, y: 0, w: 0, h: 0 },
-          label: { x: 0, y: 0 },
-          pips: null,
-          self: [],
-          selfHit: { x: 0, y: 0, w: 0, h: 0 },
-          opp: [],
-          oppHit: [],
-          hidden: true,
-        };
-      }
-      const left = x;
-      x += CENTER_CELL_W;
-      const rect = { x: left, y: bar.y, w: CENTER_CELL_W, h: bar.h };
-      return {
-        rect,
-        label: { x: left + CENTER_CELL_W / 2, y: bar.y + bar.h / 2 },
-        pips: null,
-        self: [
-          { x: left + PANEL_INDICATOR_INSET, y: selfY },
-          { x: left + CENTER_CELL_W - PANEL_INDICATOR_INSET, y: selfY },
-        ],
-        selfHit: rect,
-        opp: [],
-        oppHit: [],
-      };
-    });
-  }
-
-  private plateBarRect(): CellRect | null {
-    const frame = this.frame;
-    if (!frame?.plate) return null;
-    const bottom = frame.plate.y - PLATE_GAP;
-    const h = Math.min(PLATE_MAX_H, Math.max(PLATE_MIN_H, bottom - frame.gridBottom));
-    return { x: frame.plate.x, y: bottom - h, w: plateWidth(), h };
-  }
-
-  private plateGeometry(oppCount: number): CellGeometry[] | null {
-    const bar = this.plateBarRect();
-    if (!bar) return null;
-    const half = bar.h / 2;
-    const selfY = bar.y + bar.h - 1 - PANEL_INDICATOR_HOVER_H / 2;
-    const oppY = bar.y + 1 + PANEL_INDICATOR_HOVER_H / 2;
-    let x = bar.x;
-    return this.cells.map((cell) => {
-      const w = cell.subPhases ? BAR_COMBAT_W : BAR_CELL_W;
-      const left = x;
-      x += w;
-      const segW = (w - INDICATOR_GAP * Math.max(0, oppCount - 1)) / Math.max(1, oppCount);
-      const segX = (i: number) => left + i * (segW + INDICATOR_GAP);
-      return {
-        rect: { x: left, y: bar.y, w, h: bar.h },
-        label: { x: left + w / 2, y: bar.y + half },
-        pips: null,
-        self: [
-          { x: left + PANEL_INDICATOR_INSET, y: selfY },
-          { x: left + w - PANEL_INDICATOR_INSET, y: selfY },
-        ],
-        selfHit: { x: left, y: bar.y + half, w, h: half },
-        opp: Array.from({ length: oppCount }, (_, i) => [
-          { x: segX(i) + PANEL_INDICATOR_INSET, y: oppY },
-          { x: segX(i) + segW - PANEL_INDICATOR_INSET, y: oppY },
-        ]),
-        oppHit: Array.from({ length: oppCount }, (_, i) => ({
-          x: segX(i),
-          y: bar.y,
-          w: segW,
-          h: half,
-        })),
-      };
-    });
-  }
-
   private isCurrent(cell: PhaseCell, step: string): boolean {
-    if (this.style === "hand" && step === CLEANUP_STEP) return cell.id === END_STEP;
     return cell.subPhases ? cell.subPhases.includes(step) : step === cell.id;
   }
 
@@ -944,7 +623,6 @@ export class PhaseStripLayer {
     const t = this.theme.gameTheme;
     const app = this.theme.appTheme;
     const foreground = readableTextColor(t.phaseStrip.background, t.canvas.shadow, t.textOnTinted);
-    this.forceShowIndicators = isCoarsePointer();
 
     const pc = t.playerColors;
     const selfColor = hexToNum(pc.self);
@@ -965,7 +643,7 @@ export class PhaseStripLayer {
         : t.textMuted;
     const turnColor = hexToNum(turnHex);
     const activeInk = readableTextColor(turnHex, t.canvas.shadow, t.textOnTinted);
-    drawerActiveStyle.fill = activeInk;
+    activeStyle.fill = activeInk;
 
     const turnJustStarted = state.isActiveTurn && !this.prevIsActiveTurn;
     this.prevIsActiveTurn = state.isActiveTurn;
@@ -977,63 +655,34 @@ export class PhaseStripLayer {
     }
     this.prevStep = state.currentStep;
 
-    const oppCount = state.opponents.length;
-    const center = this.style === "hand";
-    const drawer = this.style === "drawer";
-    const railLike = this.style === "rail" || drawer;
-    const panelStyled = !railLike;
-    const action = this.frame?.action ?? null;
-    const geometry =
-      !this.frame || (drawer && !action)
-        ? null
-        : drawer
-          ? this.drawerGeometry(state.currentStep)
-          : railLike
-            ? this.railGeometry(oppCount)
-            : center
-              ? this.centerGeometry()
-              : this.plateGeometry(oppCount);
+    const action = this.action;
 
     this.panel.clear();
     this.panelShadow.clear();
     this.expandButton.clear();
-    this.expandRect = null;
     this.drawerTab = null;
     this.drawerLick = null;
-    this.container.renderable = geometry !== null;
-    if (!geometry) {
-      this.renderExpanded(null, state, selfColor, oppColors, turnColor);
+    this.container.renderable = action !== null;
+    if (!action) {
       this.container.hitArea = new Rectangle(0, 0, 0, 0);
       return;
     }
+    const geometry = this.drawerGeometry(state.currentStep);
 
     const neutral = hexToNum(t.canvas.neutral);
     const surface = hexToNum(t.phaseStrip.background);
     const drawerSurface = this.surfaceColor ?? hexToNum(app.card);
     const border = hexToNum(app.border);
-    const panelBar = center ? this.centerBarRect() : panelStyled ? this.plateBarRect() : null;
-    const railPanel = drawer
-      ? this.drawerPanelRect()
-      : railLike
-        ? this.railPanelRect(oppCount)
-        : null;
-    if (railPanel && action && drawer) railPanel.h = Math.max(0, action.y - railPanel.y + DRAWER_R);
-    if (panelBar) {
-      this.panelShadow
-        .roundRect(panelBar.x, panelBar.y + 2, panelBar.w, panelBar.h, CELL_R)
-        .fill({ color: hexToNum(t.canvas.shadow) });
-      this.panel
-        .roundRect(panelBar.x, panelBar.y, panelBar.w, panelBar.h, CELL_R)
-        .fill({ color: hexToNum(app.card), alpha: SURFACE_ALPHA })
-        .stroke({ color: border, width: 1, alpha: BORDER_ALPHA });
-    } else if (railPanel && railPanel.h > 0) {
+    const railPanel = this.drawerPanelRect();
+    railPanel.h = Math.max(0, action.y - railPanel.y + DRAWER_R);
+    if (railPanel.h > 0) {
       const r = railPanel;
       this.panelShadow
         .roundRect(r.x, r.y + 2, r.w, r.h, DRAWER_R)
         .fill({ color: hexToNum(t.canvas.shadow) });
       this.panel
         .roundRect(r.x, r.y, r.w, r.h, DRAWER_R)
-        .fill({ color: drawer ? drawerSurface : hexToNum(app.card) })
+        .fill({ color: drawerSurface })
         .stroke({ color: border, width: 1, alpha: BORDER_ALPHA });
     }
 
@@ -1042,6 +691,7 @@ export class PhaseStripLayer {
     let maxX = -Infinity;
     let maxY = -Infinity;
     const include = (r: CellRect) => {
+      if (r.w <= 0 || r.h <= 0) return;
       minX = Math.min(minX, r.x);
       minY = Math.min(minY, r.y);
       maxX = Math.max(maxX, r.x + r.w);
@@ -1070,24 +720,11 @@ export class PhaseStripLayer {
       const isActive = this.isCurrent(cell, state.currentStep);
       const phaseIds = cell.subPhases ?? [cell.id];
 
-      if (panelBar && rect.x > panelBar.x) {
-        this.panel.moveTo(rect.x, rect.y + 4).lineTo(rect.x, rect.y + rect.h - 4);
-      }
-
       cell.text.text =
         cell.subPhases && isActive
           ? (COMBAT_LABELS[state.currentStep] ?? cell.defaultLabel)
-          : center && cell.subPhases
-            ? (COMBAT_LABELS[cell.labelPhase!] ?? cell.defaultLabel)
-            : cell.defaultLabel;
-      cell.text.style = panelStyled
-        ? panelStyle
-        : drawer && isActive
-          ? drawerActiveStyle
-          : isActive
-            ? activeStyle
-            : normalStyle;
-      cell.text.alpha = panelStyled && !isActive ? INACTIVE_TEXT_ALPHA : 1;
+          : cell.defaultLabel;
+      cell.text.style = isActive ? activeStyle : normalStyle;
       cell.text.position.set(geo.label.x, geo.label.y);
       cell.text.visible = true;
 
@@ -1100,9 +737,8 @@ export class PhaseStripLayer {
             const activePip = pi === currentIdx;
             const pipW = activePip ? COMBAT_PIP_ACTIVE_W : COMBAT_PIP_W;
             cell.pips.roundRect(px, geo.pips.y, pipW, COMBAT_PIP_H, COMBAT_PIP_H / 2);
-            const ink = drawer && isActive ? hexToNum(activeInk) : hexToNum(foreground);
             cell.pips.fill({
-              color: activePip ? (drawer && isActive ? ink : turnColor) : ink,
+              color: hexToNum(isActive ? activeInk : foreground),
               alpha: activePip ? 1 : INDICATOR_GHOST_ALPHA,
             });
             px += pipW + COMBAT_PIP_GAP;
@@ -1116,36 +752,23 @@ export class PhaseStripLayer {
 
       const radius = Math.min(CELL_R, rect.h / 2);
       cell.bg.clear();
-      const opensDetails = drawer && this.expanded && !geo.lifted && !geo.peek;
+      const opensDetails = this.expanded && !geo.lifted && !geo.peek;
       cell.detailsHitArea.eventMode = opensDetails ? "static" : "none";
       if (opensDetails) fillHit(cell.detailsHitArea, rect, neutral);
       else cell.detailsHitArea.clear();
-      if (drawer && railPanel && action) {
-        if (geo.lifted) {
-          const tab = {
-            x: railPanel.x,
-            y: rect.y - RAIL_PANEL_PAD,
-            w: railPanel.w,
-            h: action.y - rect.y + RAIL_PANEL_PAD,
-          };
-          this.drawerTab = tab;
-          cell.bg.roundRect(tab.x, tab.y, tab.w, tab.h + DRAWER_R, DRAWER_R);
-          cell.bg.fill({ color: drawerSurface });
-        }
-        cell.bg.roundRect(rect.x, rect.y, rect.w, rect.h, radius);
-        cell.bg.fill({ color: isActive ? turnColor : surface });
-      } else if (!panelStyled) {
-        cell.bg.roundRect(rect.x, rect.y, rect.w, rect.h, radius);
-        cell.bg.fill({ color: surface });
+      if (geo.lifted) {
+        const tab = {
+          x: railPanel.x,
+          y: rect.y - RAIL_PANEL_PAD,
+          w: railPanel.w,
+          h: action.y - rect.y + RAIL_PANEL_PAD,
+        };
+        this.drawerTab = tab;
+        cell.bg.roundRect(tab.x, tab.y, tab.w, tab.h + DRAWER_R, DRAWER_R);
+        cell.bg.fill({ color: drawerSurface });
       }
-      if (isActive && !drawer) {
-        if (panelStyled) {
-          cell.bg.roundRect(rect.x, rect.y, rect.w, rect.h, radius);
-          cell.bg.fill({ color: turnColor, alpha: ACTIVE_FILL_ALPHA });
-        }
-        cell.bg.roundRect(rect.x, rect.y, rect.w, rect.h, radius);
-        cell.bg.stroke({ color: turnColor, width: 2, alignment: panelStyled ? 1 : 0.5 });
-      }
+      cell.bg.roundRect(rect.x, rect.y, rect.w, rect.h, radius);
+      cell.bg.fill({ color: isActive ? turnColor : surface });
 
       fillHit(cell.selfHitArea, geo.selfHit, neutral);
       include(rect);
@@ -1165,7 +788,6 @@ export class PhaseStripLayer {
         self: geo.self,
         opp: geo.opp,
         selfEnabled: phaseIds.some((ph) => state.selfEnabledPhases.has(ph)),
-        selfOffTurn: !isMeActive,
         selfColor,
         oppEnabled: state.opponents.map((opp) => {
           const stops = state.opponentEnabledPhases.get(opp.id);
@@ -1177,43 +799,19 @@ export class PhaseStripLayer {
       cell.flashColor = turnColor;
     }
 
-    if (panelBar) {
-      if (center) {
-        const r = {
-          x: panelBar.x + panelBar.w - CENTER_EXPAND_W,
-          y: panelBar.y,
-          w: CENTER_EXPAND_W,
-          h: panelBar.h,
-        };
-        this.panel.moveTo(r.x, r.y + 4).lineTo(r.x, r.y + r.h - 4);
-        this.drawExpandButton(r);
-      }
-      this.panel.stroke({ color: border, width: 1, alpha: DIVIDER_ALPHA });
-    }
-
-    const expandedRect = this.renderExpanded(
-      center && this.expanded ? panelBar : null,
-      state,
-      selfColor,
-      oppColors,
-      turnColor,
-    );
-    if (expandedRect) include(expandedRect);
-    if (railPanel && railPanel.h > 0) include(railPanel);
+    include(railPanel);
     if (this.drawerTab) include(this.drawerTab);
-    if (drawer && action && railPanel) {
-      const top = Math.min(railPanel.y, this.drawerTab?.y ?? railPanel.y, action.y);
-      const base = this.drawerTab ?? railPanel;
-      const lickH = DRAWER_LICK_H * this.lickShow;
-      if (lickH >= 1) {
-        const lick = { x: base.x, y: top - lickH, w: base.w, h: lickH };
-        this.drawDrawerLick(lick);
-        include(lick);
-      }
-      const tab = this.drawerTab;
-      if (tab && !this.expanded) {
-        this.expandButton.rect(tab.x, tab.y, tab.w, tab.h).fill({ color: neutral, alpha: 0.001 });
-      }
+    const top = Math.min(railPanel.y, this.drawerTab?.y ?? railPanel.y, action.y);
+    const base = this.drawerTab ?? railPanel;
+    const lickH = DRAWER_LICK_H * this.lickShow;
+    if (lickH >= 1) {
+      const lick = { x: base.x, y: top - lickH, w: base.w, h: lickH };
+      this.drawDrawerLick(lick);
+      include(lick);
+    }
+    const tab = this.drawerTab;
+    if (tab && !this.expanded) {
+      this.expandButton.rect(tab.x, tab.y, tab.w, tab.h).fill({ color: neutral, alpha: 0.001 });
     }
     this.container.hitArea = new Rectangle(minX, minY, maxX - minX, maxY - minY);
   }
@@ -1250,181 +848,15 @@ export class PhaseStripLayer {
     });
   }
 
-  private drawExpandButton(r: CellRect): void {
-    this.expandRect = r;
-    const fg = hexToNum(this.theme.appTheme.foreground);
-    const g = this.expandButton;
-    g.rect(r.x, r.y, r.w, r.h).fill({
-      color: fg,
-      alpha: this.expandHovered || this.expanded ? HOVER_FILL_ALPHA : 0.001,
-    });
-    const cx = r.x + r.w / 2;
-    const cy = r.y + r.h / 2;
-    const s = 4;
-    if (this.expanded) {
-      g.poly([cx - s, cy + s / 2, cx + s, cy + s / 2, cx, cy - s / 2]);
-    } else {
-      g.poly([cx - s, cy - s / 2, cx + s, cy - s / 2, cx, cy + s / 2]);
-    }
-    g.fill({ color: fg, alpha: this.expanded ? 1 : INACTIVE_TEXT_ALPHA });
-  }
-
-  private renderExpanded(
-    bar: CellRect | null,
-    state: PhaseStripState,
-    selfColor: number,
-    oppColors: number[],
-    turnColor: number,
-  ): CellRect | null {
-    for (const child of this.expandedPanel.removeChildren()) child.destroy({ children: true });
-    this.expandedRect = null;
-    if (!bar) return null;
-
-    const app = this.theme.appTheme;
-    const t = this.theme.gameTheme;
-    const combatStart = SWEEP_STEP_ORDER.indexOf(COMBAT_SUB_PHASES[0]!);
-    const groupOf = (id: string) =>
-      COMBAT_SUB_PHASES.includes(id) ? 1 : SWEEP_STEP_ORDER.indexOf(id) < combatStart ? 0 : 2;
-    const columns: { id: string; short: string; x: number }[] = [];
-    let x = EXPANDED_PAD + EXPANDED_ROW_LABEL_W;
-    let group = 0;
-    for (const step of STEP_ORDER) {
-      const g = groupOf(step.id);
-      if (g !== group) {
-        x += EXPANDED_GROUP_GAP;
-        group = g;
-      }
-      columns.push({ id: step.id, short: step.short, x });
-      x += EXPANDED_COL_W;
-    }
-    const rows = [
-      { color: selfColor, stops: state.selfEnabledPhases, opponentId: null as string | null },
-      ...state.opponents.map((opp, i) => ({
-        color: oppColors[i]!,
-        stops: state.opponentEnabledPhases.get(opp.id) ?? new Set<string>(),
-        opponentId: opp.id as string | null,
-      })),
-    ];
-    const w = x + EXPANDED_PAD;
-    const h = EXPANDED_PAD * 2 + EXPANDED_HEADER_H + rows.length * EXPANDED_ROW_H;
-    const rect = {
-      x: bar.x + bar.w / 2 - w / 2,
-      y: bar.y - EXPANDED_GAP - h,
-      w,
-      h,
-    };
-    this.expandedRect = rect;
-
-    const shadow = new Graphics()
-      .roundRect(rect.x, rect.y + 3, w, h, CELL_R * 1.5)
-      .fill({ color: hexToNum(t.canvas.shadow) });
-    shadow.alpha = SHADOW_ALPHA;
-    shadow.filters = [new BlurFilter({ strength: 10 })];
-    const surface = new Graphics()
-      .roundRect(rect.x, rect.y, w, h, CELL_R * 1.5)
-      .fill({ color: hexToNum(app.card), alpha: SURFACE_ALPHA })
-      .stroke({ color: hexToNum(app.border), width: 1, alpha: BORDER_ALPHA });
-    surface.eventMode = "static";
-    this.expandedPanel.addChild(shadow, surface);
-
-    const headerY = rect.y + EXPANDED_PAD + EXPANDED_HEADER_H / 2;
-    for (const col of columns) {
-      const cx = rect.x + col.x + EXPANDED_COL_W / 2;
-      const current = state.currentStep === col.id;
-      if (current) {
-        surface
-          .roundRect(
-            rect.x + col.x + 1,
-            rect.y + EXPANDED_PAD - 2,
-            EXPANDED_COL_W - 2,
-            h - EXPANDED_PAD * 2 + 4,
-            CELL_R,
-          )
-          .fill({ color: turnColor, alpha: ACTIVE_FILL_ALPHA });
-      }
-      const label = new Text({ text: col.short, style: headerStyle });
-      label.anchor.set(0.5, 0.5);
-      label.position.set(cx, headerY);
-      label.alpha = current ? 1 : INACTIVE_TEXT_ALPHA;
-      this.expandedPanel.addChild(label);
-    }
-
-    rows.forEach((row, ri) => {
-      const cy =
-        rect.y + EXPANDED_PAD + EXPANDED_HEADER_H + ri * EXPANDED_ROW_H + EXPANDED_ROW_H / 2;
-      surface
-        .circle(rect.x + EXPANDED_PAD + EXPANDED_ROW_LABEL_W / 2 - 2, cy, EXPANDED_SEAT_DOT_R)
-        .fill({ color: row.color });
-      for (const col of columns) {
-        const enabled = row.stops.has(col.id);
-        const cx = rect.x + col.x + EXPANDED_COL_W / 2;
-        const toggle = new Graphics();
-        toggle
-          .rect(cx - EXPANDED_COL_W / 2, cy - EXPANDED_ROW_H / 2, EXPANDED_COL_W, EXPANDED_ROW_H)
-          .fill({ color: hexToNum(t.canvas.neutral), alpha: 0.001 });
-        toggle.roundRect(
-          cx - EXPANDED_TOGGLE_W / 2,
-          cy - EXPANDED_TOGGLE_H / 2,
-          EXPANDED_TOGGLE_W,
-          EXPANDED_TOGGLE_H,
-          EXPANDED_TOGGLE_H / 2,
-        );
-        if (enabled) toggle.fill({ color: row.color });
-        else toggle.stroke({ color: row.color, width: 1, alpha: INDICATOR_GHOST_ALPHA * 1.5 });
-        toggle.eventMode = "static";
-        toggle.cursor = "pointer";
-        toggle.on("pointerdown", () => {
-          if (row.opponentId) this.callbacks.onToggleOpponentPhase?.(row.opponentId, col.id);
-          else this.callbacks.onToggleSelfPhase?.(col.id);
-        });
-        this.expandedPanel.addChild(toggle);
-      }
-    });
-    return rect;
-  }
-
   private drawIndicators(): void {
-    const panelStyled = this.style !== "rail" && this.style !== "drawer";
-    const center = this.style === "hand";
-    const lineH = panelStyled ? PANEL_INDICATOR_H : INDICATOR_H;
-    const hoverH = panelStyled ? PANEL_INDICATOR_HOVER_H : INDICATOR_HOVER_H;
-    const showAllEmpty = !center && (this.forceShowIndicators || this.pointerInside);
-    const fg = hexToNum(this.theme.appTheme.foreground);
     for (const cell of this.cells) {
       const d = cell.indicators;
       if (!d) continue;
       if (d.rim) {
         this.drawRimBars(cell, d);
-        continue;
-      }
-
-      cell.selfIndicator.clear();
-      if (center && cell.selfHovered) {
-        cell.selfIndicator
-          .rect(d.rect.x, d.rect.y, d.rect.w, d.rect.h)
-          .fill({ color: fg, alpha: HOVER_FILL_ALPHA });
-      }
-      if (d.selfEnabled || showAllEmpty || (center && cell.selfHovered)) {
-        strokeLine(
-          cell.selfIndicator,
-          d.self,
-          cell.selfHovered && !center ? hoverH : lineH,
-          d.selfColor,
-          d.selfEnabled ? (d.selfOffTurn ? INDICATOR_OFF_TURN_ALPHA : 1) : INDICATOR_GHOST_ALPHA,
-        );
-      }
-
-      cell.oppIndicators.clear();
-      for (let oi = 0; oi < d.opp.length; oi++) {
-        const enabled = d.oppEnabled[oi];
-        if (!enabled && !showAllEmpty) continue;
-        strokeLine(
-          cell.oppIndicators,
-          d.opp[oi]!,
-          cell.oppHovered[oi] ? hoverH : lineH,
-          d.oppColors[oi]!,
-          enabled ? 1 : INDICATOR_GHOST_ALPHA,
-        );
+      } else {
+        cell.selfIndicator.clear();
+        cell.oppIndicators.clear();
       }
     }
   }
@@ -1486,33 +918,31 @@ export class PhaseStripLayer {
   }
 
   tick(): void {
-    if (this.style === "drawer") {
-      const ease = (value: number, target: number) => {
-        const next = value + (target - value) * DRAWER_EASE;
-        return !animationsEnabled() || Math.abs(target - next) < 0.5 ? target : next;
-      };
-      const easeUnit = (value: number, target: number) =>
-        !animationsEnabled() || Math.abs(target - value) < 0.01
-          ? target
-          : value + (target - value) * DRAWER_EASE;
-      const offsetTarget = this.expanded ? this.drawerFullHeight() : 0;
-      const liftTarget = this.drawerHovered && !this.expanded ? 1 : 0;
-      const lickTarget = this.expanded || this.drawerHovered ? 1 : 0;
-      if (
-        this.drawerOffset !== offsetTarget ||
-        this.peekLift !== liftTarget ||
-        this.lickShow !== lickTarget
-      ) {
-        this.drawerOffset = ease(this.drawerOffset, offsetTarget);
-        this.peekLift = easeUnit(this.peekLift, liftTarget);
-        this.lickShow = easeUnit(this.lickShow, lickTarget);
-        this.refresh();
-      }
-      this.rimOpen = easeUnit(this.rimOpen, this.railHovered ? 1 : 0);
-      this.cells.forEach((cell, i) => {
-        cell.zoom = easeUnit(cell.zoom, i === this.hoveredRow ? 1 : 0);
-      });
+    const ease = (value: number, target: number) => {
+      const next = value + (target - value) * DRAWER_EASE;
+      return !animationsEnabled() || Math.abs(target - next) < 0.5 ? target : next;
+    };
+    const easeUnit = (value: number, target: number) =>
+      !animationsEnabled() || Math.abs(target - value) < 0.01
+        ? target
+        : value + (target - value) * DRAWER_EASE;
+    const offsetTarget = this.expanded ? this.drawerFullHeight() : 0;
+    const liftTarget = this.drawerHovered && !this.expanded ? 1 : 0;
+    const lickTarget = this.expanded || this.drawerHovered ? 1 : 0;
+    if (
+      this.drawerOffset !== offsetTarget ||
+      this.peekLift !== liftTarget ||
+      this.lickShow !== lickTarget
+    ) {
+      this.drawerOffset = ease(this.drawerOffset, offsetTarget);
+      this.peekLift = easeUnit(this.peekLift, liftTarget);
+      this.lickShow = easeUnit(this.lickShow, lickTarget);
+      this.refresh();
     }
+    this.rimOpen = easeUnit(this.rimOpen, this.railHovered ? 1 : 0);
+    this.cells.forEach((cell, i) => {
+      cell.zoom = easeUnit(cell.zoom, i === this.hoveredRow ? 1 : 0);
+    });
     if (!animationsEnabled() && this.sweepQueue.length && this.realState) {
       this.sweepQueue = [];
       this.render(this.realState);

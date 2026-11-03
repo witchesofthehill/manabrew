@@ -497,6 +497,24 @@ fn evaluate_svar_expr(ctx: &EffectContext, sa: &SpellAbility, expr: &str) -> i32
             .parent_target_card
             .map(|id| ctx.game.card(id).toughness())
             .unwrap_or(0),
+        // Power / toughness of the card remembered by a delayed/immediate
+        // trigger. Used by Thorin, Mountain-king: SVar:X:TriggerRemembered$CardPower
+        "TriggerRemembered$CardPower" | "TriggerRemembered$CardToughness" => sa
+            .trigger_remembered
+            .iter()
+            .find_map(|value| match value {
+                crate::event::AbilityValue::Card(id) => Some(*id),
+                _ => None,
+            })
+            .map(|id| {
+                let card = ctx.game.card(id);
+                if expr.ends_with("Power") {
+                    card.power()
+                } else {
+                    card.toughness()
+                }
+            })
+            .unwrap_or(0),
         _ => 0,
     }
 }

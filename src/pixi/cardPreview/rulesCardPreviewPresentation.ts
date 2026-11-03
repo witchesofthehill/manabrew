@@ -618,6 +618,7 @@ export function resolveRulesPreviewDisplay(options: {
     layout: isTwoHalfLayout(layout) ? layout : undefined,
     types: face ? undefined : card.types,
     typeLine: face?.typeLine ?? info?.type_line,
+    keywords: info?.keywords ?? card.keywords,
   });
 
   if (faceless) {

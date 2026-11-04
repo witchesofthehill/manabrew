@@ -80,6 +80,8 @@ Use `GAME_CARD_SIZES` from `game.constants.ts`. These are the only base card dim
 
 Responsive layout may scale a base size to fit available space. Do not add a context-specific card size without a distinct semantic role.
 
+Card orientation uses the shared `isHorizontalCard` predicate with printing keywords. Aftermath cards stay portrait even when Scryfall reports `layout: "split"`; regular split cards and Rooms stay landscape.
+
 ## 3. Component Patterns
 
 ### Modal structure

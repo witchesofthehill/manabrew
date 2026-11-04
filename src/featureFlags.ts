@@ -27,7 +27,7 @@ export const featureFlags = {
   // Phase drawer attached to the desktop action panel.
   phaseDrawer: false,
   // Horizontal phase bar on the desktop action panel, following the active player.
-  // It replaces the "Your turn" notch.
+  // It replaces the "Your turn" band.
   turnPhaseBar: false,
 } as const;
 

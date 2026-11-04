@@ -31,6 +31,7 @@ import {
   GAME_CARD_SIZES,
   PHASES,
 } from "@/components/game/game.constants";
+import { passPriorityLabel, usePhaseStopStore } from "@/stores/usePhaseStopStore";
 import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { type PromptActionViewKey, useGameDevStore } from "@/stores/useGameDevStore";
@@ -80,13 +81,11 @@ const ACTION_CARD_GAP = 8;
 const COMPACT_PHASE_PILL_HEIGHT = 22;
 const COMPACT_PHASE_PILL_MIN_WIDTH = 48;
 const COMPACT_PHASE_PILL_PADDING_X = 8;
-const TURN_NOTCH_HEIGHT = 26;
-const TURN_NOTCH_PAD_X = 12;
-const TURN_NOTCH_RADIUS = 6;
-const TURN_NOTCH_W = 232;
-const PHASE_PILL_H = 18;
-const PHASE_PILL_W = 88;
-const PHASE_PILL_GAP = 8;
+const ACTION_CONTROL_RADIUS = 6;
+const ACTION_MENU_ICON_SIZE = 14;
+const PANEL_PAD_X = 12;
+const TITLE_ROW_MIN_HEIGHT = 36;
+const TURN_BAND_HEIGHT = 28;
 const TURN_BORDER_WIDTH = 2;
 const PRIORITY_BADGE_RADIUS = 20;
 const PRIORITY_BADGE_OVERLAP = 10;
@@ -98,10 +97,10 @@ export class PromptLayer extends PromptModalLayer {
   private actionPanelAttachment: PhaseDrawerOutline | null = null;
   private actionBorder: { graphics: Graphics; shape: PromptPanelShape; color: number } | null =
     null;
-  private actionNotch: PromptGlowAttachment | null = null;
   private priorityBadge: { container: Container; baseY: number } | null = null;
   private priorityViewHeight: number | null = null;
   private readonly unsubscribePromptPreferences: () => void;
+  private readonly unsubscribePhaseStops: () => void;
   private readonly unsubscribePreferences: () => void;
   private readonly unsubscribeKeybindings: () => void;
   private keyListener: (event: KeyboardEvent) => void;
@@ -146,6 +145,7 @@ export class PromptLayer extends PromptModalLayer {
       this.resetAutopassState();
       this.rebuild();
     });
+    this.unsubscribePhaseStops = usePhaseStopStore.subscribe(() => this.rebuild());
     this.unsubscribePreferences = usePreferencesStore.subscribe((state, previous) => {
       if (
         state.promptCardStyle === previous.promptCardStyle &&
@@ -221,7 +221,7 @@ export class PromptLayer extends PromptModalLayer {
       width: r.width,
       height: r.height,
     });
-    const attachments: PromptGlowAttachment[] = this.actionNotch ? [this.actionNotch] : [];
+    const attachments: PromptGlowAttachment[] = [];
     if (panel && outline) {
       attachments.push({
         base: outline.base && local(outline.base),
@@ -307,6 +307,7 @@ export class PromptLayer extends PromptModalLayer {
     this.app.stage.off("globalpointermove", this.onStageMove);
     this.app.stage.off("pointerup", this.onStageUp);
     this.unsubscribePromptPreferences();
+    this.unsubscribePhaseStops();
     this.unsubscribePreferences();
     this.unsubscribeKeybindings();
     this.app.stage.off("pointerupoutside", this.onStageUp);
@@ -405,7 +406,6 @@ export class PromptLayer extends PromptModalLayer {
     this.priorityButtons = null;
     this.actionGlow = null;
     this.actionBorder = null;
-    this.actionNotch = null;
     this.priorityBadge = null;
     this.actionPulseNodes = [];
     this.modalOpen = false;
@@ -509,7 +509,8 @@ export class PromptLayer extends PromptModalLayer {
     const fixedWidth = minimal
       ? null
       : Math.min(this.viewportWidth - 24, touch ? 320 : shortScreen ? 230 : 300);
-    const fixedContentWidth = fixedWidth == null ? this.viewportWidth - 24 : fixedWidth - 16;
+    const fixedContentWidth =
+      fixedWidth == null ? this.viewportWidth - 24 : fixedWidth - PANEL_PAD_X * 2;
     const phaseAnchor = action.compactPhaseControl?.anchor ?? null;
     const controls = minimal
       ? this.makeCompactActionControls(phaseAnchor === null, showPriorityMode, preview)
@@ -527,20 +528,39 @@ export class PromptLayer extends PromptModalLayer {
     const modeButton = !minimal && showPriorityMode ? this.makePriorityModePill(preview) : null;
     const menuButton = !minimal ? this.makeActionMenuButton(false) : null;
     const contextButton = !minimal && showActionContext ? this.makeActionContextButton() : null;
-    const headerHeight = minimal
-      ? 0
-      : Math.max(
-          34,
-          Math.max(
-            modeButton?.buttonHeight ?? 0,
-            menuButton?.height ?? 0,
-            contextButton?.buttonHeight ?? 0,
-            getUiFontFloor("label") * 1.35,
-          ) + 12,
-        );
-    const sectionPaddingX = minimal ? 6 : 8;
-    const sectionPaddingTop = minimal ? 4 : 8;
-    const sectionPaddingBottom = minimal ? 4 : 8;
+    const gameView = spec.gameView;
+    const activeName = gameView.players.find((p) => p.id === gameView.activePlayerId)?.name;
+    const turnLabel =
+      minimal || isFeatureEnabled("turnPhaseBar")
+        ? null
+        : gameView.activePlayerId === spec.localPlayerId
+          ? "Your turn"
+          : activeName
+            ? `${stripUsernameTag(activeName)}'s turn`
+            : null;
+    const bandHeight = turnLabel
+      ? Math.max(TURN_BAND_HEIGHT, getUiFontFloor("label") * 1.35 + 8)
+      : 0;
+    const titleRowHeight = Math.max(
+      TITLE_ROW_MIN_HEIGHT,
+      Math.max(
+        modeButton?.buttonHeight ?? 0,
+        menuButton?.height ?? 0,
+        contextButton?.buttonHeight ?? 0,
+        getUiFontFloor("label") * 1.35,
+      ) + 12,
+    );
+    const headerHeight = minimal ? 0 : bandHeight + titleRowHeight;
+    const input = spec.currentPrompt?.input;
+    const panelTitle = hasAction
+      ? actionTitle(
+          effectivePromptType,
+          input && "presentation" in input ? input.presentation.title : undefined,
+        )
+      : "Waiting";
+    const sectionPaddingX = minimal ? 6 : PANEL_PAD_X;
+    const sectionPaddingTop = minimal ? 4 : 0;
+    const sectionPaddingBottom = minimal ? 4 : PANEL_PAD_X;
     const viewHeight =
       stackedControls && controls
         ? view.height + 4 + controls.height
@@ -575,55 +595,28 @@ export class PromptLayer extends PromptModalLayer {
     panel.eventMode = "static";
     panel.hitArea = new Rectangle(0, 0, width, panelHeight);
     panel.accessible = true;
-    panel.accessibleTitle = hasAction ? actionTitle(effectivePromptType) : "Waiting";
+    panel.accessibleTitle = panelTitle;
     panel.tabIndex = -1;
 
-    const turnColor = this.spec!.turnColor;
+    const turnColor = spec.turnColor;
     const panelShape = { width, height: panelHeight, radius, squareBottom };
-    const gameView = this.spec!.gameView;
-    const activeName = gameView.players.find((p) => p.id === gameView.activePlayerId)?.name;
-    const turnLabel =
-      minimal || isFeatureEnabled("turnPhaseBar")
-        ? null
-        : gameView.activePlayerId === this.spec!.localPlayerId
-          ? "Your turn"
-          : activeName
-            ? `${stripUsernameTag(activeName)}'s turn`
-            : null;
+    const bandInk = readableTextColor(
+      turnColor,
+      this.theme.gameTheme.canvas.shadow,
+      this.theme.gameTheme.textOnTinted,
+    );
     const phaseName = PHASES.find((phase) => phase.id === gameView.step)?.label;
     const phaseText =
       turnLabel && phaseName
-        ? promptText(
-            phaseName,
-            11,
-            readableTextColor(
-              turnColor,
-              this.theme.gameTheme.canvas.shadow,
-              this.theme.gameTheme.textOnTinted,
-            ),
-            { weight: "700", role: "label" },
-          )
+        ? promptText(phaseName, 12, bandInk, { weight: "700", role: "label" })
         : null;
-    const notchWidth = Math.min(TURN_NOTCH_W, width);
     const turnText = turnLabel
-      ? promptText(turnLabel, 14, turnColor, {
+      ? promptText(turnLabel, 12, bandInk, {
           weight: "700",
           role: "label",
-          width: notchWidth - TURN_NOTCH_PAD_X * 2 - PHASE_PILL_W - PHASE_PILL_GAP,
+          width: width - PANEL_PAD_X * 2 - (phaseText ? phaseText.width + PANEL_PAD_X : 0),
           truncate: true,
         })
-      : null;
-    this.actionNotch = turnText
-      ? {
-          base: null,
-          tower: {
-            x: 0,
-            y: -TURN_NOTCH_HEIGHT,
-            width: notchWidth,
-            height: TURN_NOTCH_HEIGHT,
-          },
-          radius: TURN_NOTCH_RADIUS,
-        }
       : null;
     if (hasAction && !minimal) {
       const attacking =
@@ -654,34 +647,24 @@ export class PromptLayer extends PromptModalLayer {
       );
       if (this.actionGlow) panel.addChild(this.actionGlow.spill);
       panel.addChild(background);
-      const notch = this.actionNotch?.tower;
-      if (notch && turnText) {
-        const r = TURN_NOTCH_RADIUS;
-        const right = notch.x + notch.width;
-        const bottom = Math.max(r, radius);
-        const notchFill = new Graphics()
-          .moveTo(notch.x, bottom)
-          .lineTo(notch.x, notch.y + r)
-          .quadraticCurveTo(notch.x, notch.y, notch.x + r, notch.y)
-          .lineTo(right - r, notch.y)
-          .quadraticCurveTo(right, notch.y, right, notch.y + r)
-          .lineTo(right, bottom)
+      if (turnText) {
+        const band = new Graphics()
+          .moveTo(0, bandHeight)
+          .lineTo(0, radius)
+          .quadraticCurveTo(0, 0, radius, 0)
+          .lineTo(width - radius, 0)
+          .quadraticCurveTo(width, 0, width, radius)
+          .lineTo(width, bandHeight)
           .closePath()
-          .fill({ color: this.actionSurfaceColor() });
-        notchFill.eventMode = "none";
+          .fill({ color: hexToNum(turnColor) });
+        band.eventMode = "none";
         turnText.anchor.set(0, 0.5);
-        turnText.position.set(notch.x + TURN_NOTCH_PAD_X, notch.y + notch.height / 2);
-        panel.addChild(notchFill, turnText);
+        turnText.position.set(PANEL_PAD_X, bandHeight / 2);
+        panel.addChild(band, turnText);
         if (phaseText) {
-          const pillX = notch.x + notch.width - TURN_NOTCH_PAD_X - PHASE_PILL_W;
-          const pillY = notch.y + (notch.height - PHASE_PILL_H) / 2;
-          const pill = new Graphics()
-            .roundRect(pillX, pillY, PHASE_PILL_W, PHASE_PILL_H, PHASE_PILL_H / 2)
-            .fill({ color: hexToNum(turnColor) });
-          pill.eventMode = "none";
-          phaseText.anchor.set(0.5);
-          phaseText.position.set(pillX + PHASE_PILL_W / 2, pillY + PHASE_PILL_H / 2);
-          panel.addChild(pill, phaseText);
+          phaseText.anchor.set(1, 0.5);
+          phaseText.position.set(width - PANEL_PAD_X, bandHeight / 2);
+          panel.addChild(phaseText);
         }
       }
       panel.addChild(this.actionBorder!.graphics);
@@ -689,45 +672,35 @@ export class PromptLayer extends PromptModalLayer {
     }
 
     if (!minimal) {
-      let right = width - 8;
-      menuButton!.container.position.set(right - menuButton!.width, 6);
+      const rowCenter = bandHeight + titleRowHeight / 2;
+      let right = width - PANEL_PAD_X + (menuButton!.width - ACTION_MENU_ICON_SIZE) / 2;
+      menuButton!.container.position.set(
+        right - menuButton!.width,
+        rowCenter - menuButton!.height / 2,
+      );
       panel.addChild(menuButton!.container);
       right -= menuButton!.width + 5;
       if (showPriorityMode) {
         const mode = modeButton!;
-        mode.position.set(right - mode.buttonWidth, 6);
+        mode.position.set(right - mode.buttonWidth, rowCenter - mode.buttonHeight / 2);
         panel.addChild(mode);
         right -= mode.buttonWidth + 6;
       }
       const infoWidth = showActionContext ? contextButton!.buttonWidth + 4 : 0;
-      const title = promptText(
-        (hasAction ? actionTitle(effectivePromptType) : "Waiting").toUpperCase(),
-        11,
+      const title = promptRichText(
+        panelTitle,
+        15,
         this.theme.appTheme.foreground,
-        {
-          weight: "700",
-          role: "label",
-          width: Math.max(20, right - 8 - infoWidth),
-          letterSpacing: 1.32,
-          truncate: true,
-        },
+        Math.max(20, right - PANEL_PAD_X - infoWidth),
+        { weight: "600", role: "label", maxLines: 1 },
       );
-      title.position.set(8, 9);
-      title.alpha = 0.9;
+      title.position.set(PANEL_PAD_X, rowCenter - title.height / 2);
       panel.addChild(title);
       if (showActionContext) {
         const info = contextButton!;
-        info.position.set(
-          title.x + title.width + 4,
-          title.y + title.height / 2 - info.buttonHeight / 2,
-        );
+        info.position.set(title.x + title.width + 4, rowCenter - info.buttonHeight / 2);
         panel.addChild(info);
       }
-      panel.addChild(
-        new Graphics()
-          .rect(0, headerHeight - 1, width, 1)
-          .fill({ color: hexToNum(this.theme.appTheme.border), alpha: 0.7 }),
-      );
     }
 
     const contentY = headerHeight + sectionPaddingTop;
@@ -820,12 +793,7 @@ export class PromptLayer extends PromptModalLayer {
       panel.on("pointerdown", (event: FederatedPointerEvent) => {
         this.actionLongPress.start(event, "action-panel", () => {
           this.actionContextOpen = true;
-          this.renderActionContextPopover(
-            x,
-            y,
-            width,
-            hasAction ? actionTitle(effectivePromptType) : "Waiting",
-          );
+          this.renderActionContextPopover(x, y, width, panelTitle);
         });
       });
       panel.on("globalpointermove", (event: FederatedPointerEvent) => {
@@ -864,12 +832,7 @@ export class PromptLayer extends PromptModalLayer {
       }
     }
     if (this.actionContextOpen && showActionContext) {
-      this.renderActionContextPopover(
-        x,
-        y,
-        width,
-        hasAction ? actionTitle(effectivePromptType) : "Waiting",
-      );
+      this.renderActionContextPopover(x, y, width, panelTitle);
     }
     if (minimal && action.dimmed) this.container.visible = false;
   }
@@ -1098,7 +1061,7 @@ export class PromptLayer extends PromptModalLayer {
             action: "attackAction",
             flat: true,
             shadow: true,
-            radius: 8,
+            radius: ACTION_CONTROL_RADIUS,
             disabled,
             width: action.damageOrderCount > 0 ? (width - 6) / 2 : width,
             height: 36,
@@ -1112,7 +1075,7 @@ export class PromptLayer extends PromptModalLayer {
               action: "attackAction",
               flat: true,
               shadow: true,
-              radius: 8,
+              radius: ACTION_CONTROL_RADIUS,
               disabled,
               width: (width - 6) / 2,
               height: 36,
@@ -1131,7 +1094,7 @@ export class PromptLayer extends PromptModalLayer {
             action: "attackAction",
             flat: true,
             shadow: true,
-            radius: 8,
+            radius: ACTION_CONTROL_RADIUS,
             disabled,
             width,
             height: 36,
@@ -1170,26 +1133,25 @@ export class PromptLayer extends PromptModalLayer {
       case "promptRequired": {
         const hidden = this.spec!.modalHidden;
         const button = this.makeButton(
-          minimal ? "PROMPT" : hidden ? "PROMPT REQUIRED" : "PROMPT OPEN",
+          minimal ? "PROMPT" : hidden ? "Open prompt" : "Prompt open",
           this.spec!.onShowModal,
           {
             title: hidden ? "Prompt required. Click to reopen." : "Prompt is open.",
-            action: "cancel",
+            action: "priority",
             flat: true,
-            radius: minimal ? 20 : 8,
+            radius: minimal ? 20 : ACTION_CONTROL_RADIUS,
             shadow: true,
             disabled,
-            width: minimal ? undefined : 200,
+            width: minimal ? undefined : availableWidth,
             height: minimal ? 40 : 36,
             paddingX: minimal ? 12 : 12,
             icon: "lucide-alert-circle",
             iconSize: 14,
             fontSize: minimal ? 12 : 14,
-            fontWeight: "900",
-            letterSpacing: minimal ? 0.72 : 0.84,
+            fontWeight: minimal ? "900" : "700",
+            letterSpacing: minimal ? 0.72 : 0,
           },
         );
-        if (hidden) this.actionPulseNodes.push({ node: button, maxAlpha: 1 });
         return { container: button, width: button.buttonWidth, height: button.buttonHeight };
       }
       case "payManaCost":
@@ -1230,7 +1192,7 @@ export class PromptLayer extends PromptModalLayer {
               action: "priority",
               flat: true,
               shadow: true,
-              radius: 8,
+              radius: ACTION_CONTROL_RADIUS,
               disabled,
               width: (width - 6) / 2,
               height: 36,
@@ -1244,7 +1206,7 @@ export class PromptLayer extends PromptModalLayer {
               variant: "secondary",
               flat: true,
               shadow: true,
-              radius: 8,
+              radius: ACTION_CONTROL_RADIUS,
               disabled,
               width: (width - 6) / 2,
               height: 36,
@@ -1283,7 +1245,7 @@ export class PromptLayer extends PromptModalLayer {
       flat: true,
       shadow: true,
       compact: minimal,
-      radius: 8,
+      radius: ACTION_CONTROL_RADIUS,
       disabled,
       height: minimal || touch ? 48 : undefined,
       labelPlacement: showLabel ? "stacked" : "hidden",
@@ -1327,7 +1289,19 @@ export class PromptLayer extends PromptModalLayer {
     const passCombo = resolveCombo("pass-priority", useKeybindingsStore.getState().overrides);
     const morphed = this.endTurnModifiersHeld;
     const counting = this.autopassRemainingMs != null;
-    const passLabel = morphed ? endLabel : counting ? "PASSING" : "PASS";
+    const passLabel = morphed
+      ? endLabel
+      : minimal
+        ? counting
+          ? "PASSING"
+          : "PASS"
+        : counting
+          ? "AUTO-PASSING"
+          : passPriorityLabel(
+              this.spec!.gameView,
+              this.spec!.localPlayerId,
+              this.spec!.gameView.battlefield.some((card) => card.isAttacking),
+            );
     const combo = morphed ? endCombo : passCombo;
     let height = Math.max(
       minimal ? 44 : 40,
@@ -1422,7 +1396,7 @@ export class PromptLayer extends PromptModalLayer {
         paddingX: 16,
         fontSize: 12,
         fontWeight: "900",
-        letterSpacing: 1.44,
+        letterSpacing: 0.6,
         foreground: this.theme.appTheme["primary-foreground"],
         backgroundColor: this.theme.appTheme["primary-foreground"],
         backgroundAlpha: morphed ? 0.15 : 0,
@@ -1445,13 +1419,13 @@ export class PromptLayer extends PromptModalLayer {
     const container = new Container();
     const clipped = new Container();
     const surface = new Graphics()
-      .roundRect(0, 0, availableWidth, totalHeight, 8)
+      .roundRect(0, 0, availableWidth, totalHeight, ACTION_CONTROL_RADIUS)
       .fill({ color: hexToNum(this.theme.appTheme.primary) });
     const mask = new Graphics()
-      .roundRect(0, 0, availableWidth, totalHeight, 8)
+      .roundRect(0, 0, availableWidth, totalHeight, ACTION_CONTROL_RADIUS)
       .fill({ color: 0xffffff });
     const ring = new Graphics()
-      .roundRect(0.5, 0.5, availableWidth - 1, totalHeight - 1, 7.5)
+      .roundRect(0.5, 0.5, availableWidth - 1, totalHeight - 1, ACTION_CONTROL_RADIUS - 0.5)
       .stroke({
         color: hexToNum(this.theme.appTheme["primary-foreground"]),
         width: 1,
@@ -1633,7 +1607,7 @@ export class PromptLayer extends PromptModalLayer {
     });
     const stripHeight = Math.max(36, getUiControlFloor(), text.height + 12);
     const stripBackground = new Graphics()
-      .roundRect(0, 0, stripWidth, stripHeight, 8)
+      .roundRect(0, 0, stripWidth, stripHeight, ACTION_CONTROL_RADIUS)
       .fill({ color: hexToNum(foreground), alpha: 0.05 })
       .stroke({
         color: hexToNum(foreground),
@@ -1846,7 +1820,7 @@ export class PromptLayer extends PromptModalLayer {
     const button = this.makeButton("CONFIRM", action.onMulliganPutBackConfirm, {
       flat: true,
       shadow: true,
-      radius: 8,
+      radius: ACTION_CONTROL_RADIUS,
       disabled: !canConfirm,
       width,
       height: 36,
@@ -2047,7 +2021,7 @@ export class PromptLayer extends PromptModalLayer {
     const button = new Container();
     const icon = this.makeIcon(
       "lucide-settings",
-      14,
+      ACTION_MENU_ICON_SIZE,
       minimal ? this.theme.gameTheme.textOnTinted : this.theme.appTheme["card-foreground"],
     );
     icon.position.set(size / 2, size / 2);
@@ -2368,7 +2342,7 @@ export class PromptLayer extends PromptModalLayer {
       );
       const height = attacker.height + defender.height + 20;
       const background = new Graphics()
-        .roundRect(0, y, availableWidth, height, 8)
+        .roundRect(0, y, availableWidth, height, ACTION_CONTROL_RADIUS)
         .fill({ color: hexToNum(destructive), alpha: 0.1 });
       attacker.position.set(8, y + 8);
       defender.position.set(8, attacker.y + attacker.height + 4);
@@ -2432,7 +2406,7 @@ export class PromptLayer extends PromptModalLayer {
       ];
       const height = 16 + details.reduce((total, text) => total + text.height + 4, 0);
       const background = new Graphics()
-        .roundRect(0, y, availableWidth, height, 8)
+        .roundRect(0, y, availableWidth, height, ACTION_CONTROL_RADIUS)
         .fill({ color: hexToNum(destructive), alpha: 0.1 })
         .stroke({ color: hexToNum(destructive), width: 1, alpha: 0.25 });
       const swords = this.makeIcon("lucide-swords", 14, destructive);

@@ -312,7 +312,10 @@ export function promptTypeForView(
   return override;
 }
 
-export function actionTitle(promptType: PromptOverlaySpec["action"]["promptType"]): string {
+export function actionTitle(
+  promptType: PromptOverlaySpec["action"]["promptType"],
+  presentationTitle?: string,
+): string {
   switch (promptType) {
     case "chooseAction":
       return "Priority";
@@ -330,7 +333,7 @@ export function actionTitle(promptType: PromptOverlaySpec["action"]["promptType"
     case "mulliganPutBack":
       return "Mulligan";
     default:
-      return "Action Required";
+      return presentationTitle || "Action Required";
   }
 }
 export function isAutopassWindow(spec: PromptOverlaySpec | null): boolean {

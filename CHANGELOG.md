@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.71.1](https://github.com/witchesofthehill/manabrew/compare/v3.71.0...v3.71.1) (2026-11-04)
+
+### Fixes
+
+* visibility issue ([#1179](https://github.com/witchesofthehill/manabrew/issues/1179)) ([f2c0489](https://github.com/witchesofthehill/manabrew/commit/f2c0489247281504ef4d8c5c3efad1fbc1b9fe67))
+
 ## [3.71.0](https://github.com/witchesofthehill/manabrew/compare/v3.70.2...v3.71.0) (2026-11-03)
 
 ### Features

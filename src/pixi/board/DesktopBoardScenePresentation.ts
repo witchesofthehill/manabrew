@@ -1,5 +1,6 @@
 import { Point, type Application, type Container } from "pixi.js";
 import { CARD_H } from "@/components/game/game.constants";
+import { isFeatureEnabled } from "@/featureFlags";
 import type { GameCanvasCallbacks, PlayZoneRect } from "../types";
 import type { DragHandler } from "../DragHandler";
 import { HAND_RESERVE_TRIM } from "../constants";
@@ -7,10 +8,10 @@ import {
   OPPONENT_PLAYER_HUD_HEIGHT_PX,
   PLAYER_HUD_HAND_GAP_PX,
   SELF_PLAYER_HUD_HEIGHT_PX,
-  SELF_PLAYER_HUD_MAX_WIDTH_PX,
   SELF_PLAYER_HUD_MIN_WIDTH_PX,
   type PlayerHudLayer,
 } from "../hud/PlayerHudLayer";
+import { PLAYER_PANEL_WIDTH } from "../hud/PlayerPhaseBars";
 import type { PhaseStripLayer } from "../PhaseStripLayer";
 import { DesktopBoardRegionPresentation } from "./DesktopBoardRegionPresentation";
 import type { BoardScenePresentation } from "./BoardScenePresentation";
@@ -24,17 +25,18 @@ export class DesktopBoardScenePresentation implements BoardScenePresentation {
   readonly region = new DesktopBoardRegionPresentation();
   readonly opponentHudHeight = OPPONENT_PLAYER_HUD_HEIGHT_PX;
   readonly selfHudHeight = SELF_PLAYER_HUD_HEIGHT_PX;
-  readonly hudMaxWidth = SELF_PLAYER_HUD_MAX_WIDTH_PX;
+  readonly hudMaxWidth = PLAYER_PANEL_WIDTH;
   readonly hudMinWidth = SELF_PLAYER_HUD_MIN_WIDTH_PX;
   readonly cardHeight = CARD_H;
   readonly showsOpponentHands = true;
+  readonly showsPlayerPhaseBars = true;
 
   configurePlayerBars(layer: PlayerHudLayer): void {
     layer.setCompact(false);
   }
 
   configurePhaseStrip(layer: PhaseStripLayer): void {
-    layer.container.visible = true;
+    layer.container.visible = isFeatureEnabled("phaseDrawer");
   }
 
   configureHand(hand: HandController): void {

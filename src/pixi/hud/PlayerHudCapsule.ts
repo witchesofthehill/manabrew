@@ -47,6 +47,7 @@ const OFFLINE_ICON_NAME = "aerial-signal";
 const DETAILS_ICON_NAME = "info";
 const PANEL_PADDING = 10;
 const AVATAR_DIAMETER = 44;
+const SQUARE_AVATAR_CORNER = 6;
 const SHALLOW_AVATAR_MIN_HEIGHT = 96;
 const SHALLOW_RESOURCE_IDENTITY_OVERLAP = 30;
 const SHALLOW_RESOURCE_RIGHT_INSET = 16;
@@ -182,6 +183,8 @@ export class PlayerHudCapsule {
   private height = 0;
   private column = false;
   private compact = false;
+  private squareAvatar = false;
+  private edgeShift = 0;
   private boundsDebug = false;
   private avatarUrl: string | null = null;
   private renderedLife: number | null = null;
@@ -434,6 +437,18 @@ export class PlayerHudCapsule {
     ]);
   }
 
+  setEdgeShift(dy: number): void {
+    this.edgeShift = dy;
+    this.container.pivot.y = -dy;
+  }
+
+  setSquareAvatar(square: boolean): void {
+    if (this.squareAvatar === square) return;
+    this.squareAvatar = square;
+    this.lastSig = "";
+    this.render();
+  }
+
   setCompact(compact: boolean): void {
     if (this.compact === compact) return;
     this.compact = compact;
@@ -542,13 +557,29 @@ export class PlayerHudCapsule {
     return null;
   }
 
+  private get rowPlate(): boolean {
+    return !this.column && !this.compact;
+  }
+
+  private traceAvatar(g: Graphics, grow = 0): Graphics {
+    const cx = this.avatarCx;
+    const cy = this.avatarCy;
+    const r = this.avatarDia / 2 + grow;
+    if (!this.rowPlate || !this.squareAvatar) return g.circle(cx, cy, r);
+    return g.roundRect(cx - r, cy - r, r * 2, r * 2, SQUARE_AVATAR_CORNER);
+  }
+
   private drawAvatar(cx: number, cy: number, diameter: number, visible: boolean): void {
     const gt = this.theme.gameTheme;
     const r = diameter / 2;
     const hasImage = !!this.avatarTex;
+    const row = this.rowPlate;
     if (visible) {
-      this.bg.circle(cx, cy, r);
-      this.bg.fill({ color: hexToNum(gt.canvas.shadow), alpha: 0.65 });
+      this.traceAvatar(this.bg).fill(
+        row
+          ? { color: hexToNum(gt.phaseStrip.background) }
+          : { color: hexToNum(gt.canvas.shadow), alpha: 0.65 },
+      );
     }
     this.avatarFx.clear();
     this.avatarFx.visible = visible;
@@ -560,13 +591,13 @@ export class PlayerHudCapsule {
       this.avatarPhoto.width = tex.width * cover;
       this.avatarPhoto.height = tex.height * cover;
       this.avatarPhoto.position.set(cx, cy);
-      this.avatarMask
-        .clear()
-        .circle(cx, cy, r)
-        .fill({ color: hexToNum(gt.textOnTinted) });
+      this.traceAvatar(this.avatarMask.clear()).fill({ color: hexToNum(gt.textOnTinted) });
     }
-    this.avatarFx.circle(cx, cy, r - 1);
-    this.avatarFx.stroke({ color: hexToNum(this.spec.color), width: 2, alpha: 0.95 });
+    this.traceAvatar(this.avatarFx, -1).stroke({
+      color: hexToNum(this.spec.color),
+      width: 2,
+      alpha: row ? 1 : 0.95,
+    });
     this.bot.visible = visible && !hasImage && this.spec.isBot;
     if (this.bot.visible) {
       const tex = this.iconTexture(BOT_ICON_NAME);
@@ -652,7 +683,7 @@ export class PlayerHudCapsule {
     const b = this.contentBounds;
     const tl = this.container.toGlobal(SCRATCH_A.set(b.minX, b.minY), SCRATCH_A);
     const br = this.container.toGlobal(SCRATCH_B.set(b.maxX, b.maxY), SCRATCH_B);
-    return { x: tl.x, y: tl.y, width: br.x - tl.x, height: br.y - tl.y };
+    return { x: tl.x, y: tl.y - this.edgeShift, width: br.x - tl.x, height: br.y - tl.y };
   }
 
   private render(): void {
@@ -854,7 +885,7 @@ export class PlayerHudCapsule {
     hand.place(handX, 34);
     const dividerX = handX + hand.w + 8;
     const stateLeft = dividerX + 10;
-    const badgeRight = Math.max(stateLeft, w - (this.spec.isSelf ? 44 : PANEL_PADDING));
+    const badgeRight = Math.max(stateLeft, w - PANEL_PADDING);
     const visibleStates = this.layoutCompactStateIcons(stateLeft, 34, badgeRight - stateLeft);
     if (visibleStates > 0) {
       this.stateTray
@@ -1571,10 +1602,7 @@ export class PlayerHudCapsule {
 
   private washDamage(): void {
     const gt = this.theme.gameTheme;
-    const r = this.avatarDia / 2;
-    this.damageWash.clear();
-    this.damageWash.circle(this.avatarCx, this.avatarCy, r);
-    this.damageWash.fill({ color: hexToNum(gt.pt.lethal), alpha: 0.55 });
+    this.traceAvatar(this.damageWash.clear()).fill({ color: hexToNum(gt.pt.lethal), alpha: 0.55 });
     this.damageWash.visible = true;
     gsap.killTweensOf(this.damageWash);
     gsap.fromTo(
@@ -1647,15 +1675,13 @@ export class PlayerHudCapsule {
             : game.cardSelection;
     this.targetRing.clear();
     if (actionableZone) {
-      this.targetRing.circle(this.avatarCx, this.avatarCy, this.avatarDia / 2 + 4);
-      this.targetRing.stroke({
+      this.traceAvatar(this.targetRing, 4).stroke({
         color: hexToNum(color),
         width: 6,
         alpha: 0.2,
       });
     }
-    this.targetRing.circle(this.avatarCx, this.avatarCy, this.avatarDia / 2 + 1);
-    this.targetRing.stroke({
+    this.traceAvatar(this.targetRing, 1).stroke({
       color: hexToNum(color),
       width: 2,
       alpha: 1,
@@ -1669,17 +1695,22 @@ export class PlayerHudCapsule {
       this.flashRing.visible = flashing;
       this.flashRing.alpha = 1;
       if (flashing) {
-        this.flashRing.circle(this.avatarCx, this.avatarCy, this.avatarDia / 2 + 4);
-        this.flashRing.stroke({ color: hexToNum(this.spec.color), width: 2, alpha: 0.8 });
+        this.traceAvatar(this.flashRing, 4).stroke({
+          color: hexToNum(this.spec.color),
+          width: 2,
+          alpha: 0.8,
+        });
       }
       this.prevFlashing = flashing;
       return;
     }
     if (flashing && !this.prevFlashing && this.motionEnabled) {
-      const r = this.avatarDia / 2;
       this.flashRing.clear();
-      this.flashRing.circle(this.avatarCx, this.avatarCy, r);
-      this.flashRing.stroke({ color: hexToNum(this.spec.color), width: 3, alpha: 1 });
+      this.traceAvatar(this.flashRing).stroke({
+        color: hexToNum(this.spec.color),
+        width: 3,
+        alpha: 1,
+      });
       this.flashRing.visible = true;
       this.flashTween?.kill();
       this.flashTween = gsap.fromTo(

@@ -7,6 +7,7 @@ import {
 import { TOUCH_MOVE_SLOP_PX } from "@/lib/responsive";
 import { topModal } from "@/lib/modalStack";
 import { stripUsernameTag } from "@/lib/username";
+import { isFeatureEnabled } from "@/featureFlags";
 import { playSound } from "@/lib/soundRuntime";
 import { summarizeCombat } from "@/components/game/combatSummary";
 import {
@@ -82,7 +83,10 @@ const COMPACT_PHASE_PILL_PADDING_X = 8;
 const TURN_NOTCH_HEIGHT = 26;
 const TURN_NOTCH_PAD_X = 12;
 const TURN_NOTCH_RADIUS = 6;
-const TURN_NOTCH_RESERVED_W = 120;
+const TURN_NOTCH_W = 232;
+const PHASE_PILL_H = 18;
+const PHASE_PILL_W = 88;
+const PHASE_PILL_GAP = 8;
 const TURN_BORDER_WIDTH = 2;
 const PRIORITY_BADGE_RADIUS = 20;
 const PRIORITY_BADGE_OVERLAP = 10;
@@ -578,18 +582,34 @@ export class PromptLayer extends PromptModalLayer {
     const panelShape = { width, height: panelHeight, radius, squareBottom };
     const gameView = this.spec!.gameView;
     const activeName = gameView.players.find((p) => p.id === gameView.activePlayerId)?.name;
-    const turnLabel = minimal
-      ? null
-      : gameView.activePlayerId === this.spec!.localPlayerId
-        ? "Your turn"
-        : activeName
-          ? `${stripUsernameTag(activeName)}'s turn`
-          : null;
+    const turnLabel =
+      minimal || isFeatureEnabled("turnPhaseBar")
+        ? null
+        : gameView.activePlayerId === this.spec!.localPlayerId
+          ? "Your turn"
+          : activeName
+            ? `${stripUsernameTag(activeName)}'s turn`
+            : null;
+    const phaseName = PHASES.find((phase) => phase.id === gameView.step)?.label;
+    const phaseText =
+      turnLabel && phaseName
+        ? promptText(
+            phaseName,
+            11,
+            readableTextColor(
+              turnColor,
+              this.theme.gameTheme.canvas.shadow,
+              this.theme.gameTheme.textOnTinted,
+            ),
+            { weight: "700", role: "label" },
+          )
+        : null;
+    const notchWidth = Math.min(TURN_NOTCH_W, width);
     const turnText = turnLabel
       ? promptText(turnLabel, 14, turnColor, {
           weight: "700",
           role: "label",
-          width: width - TURN_NOTCH_RESERVED_W,
+          width: notchWidth - TURN_NOTCH_PAD_X * 2 - PHASE_PILL_W - PHASE_PILL_GAP,
           truncate: true,
         })
       : null;
@@ -599,7 +619,7 @@ export class PromptLayer extends PromptModalLayer {
           tower: {
             x: 0,
             y: -TURN_NOTCH_HEIGHT,
-            width: turnText.width + TURN_NOTCH_PAD_X * 2,
+            width: notchWidth,
             height: TURN_NOTCH_HEIGHT,
           },
           radius: TURN_NOTCH_RADIUS,
@@ -652,6 +672,17 @@ export class PromptLayer extends PromptModalLayer {
         turnText.anchor.set(0, 0.5);
         turnText.position.set(notch.x + TURN_NOTCH_PAD_X, notch.y + notch.height / 2);
         panel.addChild(notchFill, turnText);
+        if (phaseText) {
+          const pillX = notch.x + notch.width - TURN_NOTCH_PAD_X - PHASE_PILL_W;
+          const pillY = notch.y + (notch.height - PHASE_PILL_H) / 2;
+          const pill = new Graphics()
+            .roundRect(pillX, pillY, PHASE_PILL_W, PHASE_PILL_H, PHASE_PILL_H / 2)
+            .fill({ color: hexToNum(turnColor) });
+          pill.eventMode = "none";
+          phaseText.anchor.set(0.5);
+          phaseText.position.set(pillX + PHASE_PILL_W / 2, pillY + PHASE_PILL_H / 2);
+          panel.addChild(pill, phaseText);
+        }
       }
       panel.addChild(this.actionBorder!.graphics);
       if (this.actionGlow) panel.addChild(this.actionGlow);

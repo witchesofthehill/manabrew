@@ -28,6 +28,7 @@ export class MobileBoardScenePresentation implements BoardScenePresentation {
   readonly hudMinWidth = MOBILE_PLAYER_HUD_MIN_WIDTH_PX;
   readonly cardHeight = CARD_W;
   readonly showsOpponentHands = false;
+  readonly showsPlayerPhaseBars = false;
 
   configurePlayerBars(layer: PlayerHudLayer): void {
     layer.setCompact(true);

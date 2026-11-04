@@ -24,6 +24,11 @@ export const featureFlags = {
   emailSignIn: true,
   forgeWasm: false,
   cardFoil: true,
+  // Phase drawer attached to the desktop action panel.
+  phaseDrawer: false,
+  // Horizontal phase bar on the desktop action panel, following the active player.
+  // It replaces the "Your turn" notch.
+  turnPhaseBar: false,
 } as const;
 
 export type FeatureFlag = keyof typeof featureFlags;

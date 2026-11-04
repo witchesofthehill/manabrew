@@ -622,6 +622,12 @@ export function BoardCanvasSurface({
     scene?.setPlayerPanelBoundsDebug(showPlayerPanelBounds);
   }, [scene, showPlayerPanelBounds]);
 
+  const squareAvatars = useGameDevStore((s) => s.squareAvatars);
+
+  useEffect(() => {
+    scene?.setSquareAvatars(squareAvatars);
+  }, [scene, squareAvatars]);
+
   const showGridSkeleton = useGameDevStore((s) => s.showGridSkeleton);
 
   useEffect(() => {

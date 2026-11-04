@@ -24,6 +24,7 @@ import com.google.gson.JsonObject;
 import forge.ImageKeys;
 import forge.card.ColorSet;
 import forge.card.CardStateName;
+import forge.card.CardTypeView;
 import forge.card.MagicColor;
 import forge.card.mana.ManaAtom;
 import forge.game.Game;
@@ -31,6 +32,7 @@ import forge.game.GameEntity;
 import forge.ai.ComputerUtilCombat;
 import forge.game.card.Card;
 import forge.game.card.CardCollectionView;
+import forge.game.card.CardState;
 import forge.game.card.CounterEnumType;
 import forge.game.card.CounterType;
 import forge.game.combat.Combat;
@@ -787,9 +789,9 @@ public final class InteractiveSnapshotExtractor {
         dto.color = colorString(card.getColor());
         dto.manaCost = card.getManaCost() == null ? "" : card.getManaCost().toString();
         dto.cmc = card.getCMC();
-        dto.types = coreTypes(card);
-        dto.subtypes = subtypes(card);
-        dto.supertypes = supertypes(card);
+        dto.types = coreTypes(card.getType());
+        dto.subtypes = subtypes(card.getType());
+        dto.supertypes = supertypes(card.getType());
         if (card.isCreature()) {
             dto.power = String.valueOf(card.getNetPower());
             dto.toughness = String.valueOf(card.getNetToughness());
@@ -805,9 +807,9 @@ public final class InteractiveSnapshotExtractor {
                 dto.classLevel = card.getClassLevel();
             }
         }
-        dto.classLevels = classLevels(card);
-        dto.sagaChapters = sagaChapters(card);
-        dto.text = normalizedOracle(card);
+        dto.classLevels = classLevels(card.getCurrentState());
+        dto.sagaChapters = sagaChapters(card.getCurrentState());
+        dto.text = normalizedOracle(card.getCurrentState());
         dto.choices = choices(game, card, viewerPlayer, secretChoiceVisibility);
         dto.controllerId = "player-" + SnapshotExtractor.playerIndex(game, card.getController());
         dto.ownerId = "player-" + ownerIndex;
@@ -816,7 +818,8 @@ public final class InteractiveSnapshotExtractor {
             dto.commanderTax = 2 * owner.getCommanderCast(card);
         }
         dto.tapped = card.isTapped();
-        keywords(card, dto);
+        final List<KeywordInterface> keywords = card.getKeywords();
+        keywords(keywords, dto);
         dto.counters = counterMap(card);
         dto.mergedCardIds = mergedCardIds(card);
         dto.damage = card.getDamage();
@@ -868,9 +871,9 @@ public final class InteractiveSnapshotExtractor {
         }
         dto.attachmentIds = attachmentIds;
 
-        dto.flashbackCost = keywordCost(card, "Flashback");
-        dto.kickerCost = keywordCost(card, "Kicker");
-        dto.madnessCost = keywordCost(card, "Madness");
+        dto.flashbackCost = keywordCost(keywords, "Flashback");
+        dto.kickerCost = keywordCost(keywords, "Kicker");
+        dto.madnessCost = keywordCost(keywords, "Madness");
 
         final Combat combat = game.getCombat();
         if (combat != null) {
@@ -903,7 +906,35 @@ public final class InteractiveSnapshotExtractor {
         if (castable) {
             dto.effectiveManaCost = effectiveManaCost(card);
         }
+        if (card.isFaceDown() && card.isInZone(ZoneType.Exile) && shownTo(card, viewerPlayer)) {
+            alternateState(dto, card, card.getAlternateState());
+        }
         return dto;
+    }
+
+    private static void alternateState(final CardDto dto, final Card card, final CardState face) {
+        dto.isFaceDown = false;
+        dto.faceIndex = stackFaceIndex(null, face.getStateName());
+        dto.color = colorString(face.getColor());
+        dto.manaCost = face.getManaCost().toString();
+        dto.cmc = face.getManaCost().getCMC();
+        dto.types = coreTypes(face.getType());
+        dto.subtypes = subtypes(face.getType());
+        dto.supertypes = supertypes(face.getType());
+        if (face.getType().isCreature()) {
+            dto.power = String.valueOf(face.getBasePower());
+            dto.toughness = String.valueOf(face.getBaseToughness());
+            dto.basePower = face.getBasePower();
+            dto.baseToughness = face.getBaseToughness();
+        }
+        dto.classLevels = classLevels(face);
+        dto.sagaChapters = sagaChapters(face);
+        dto.text = normalizedOracle(face);
+        final List<KeywordInterface> keywords = card.getKeywords(face);
+        keywords(keywords, dto);
+        dto.flashbackCost = keywordCost(keywords, "Flashback");
+        dto.kickerCost = keywordCost(keywords, "Kicker");
+        dto.madnessCost = keywordCost(keywords, "Madness");
     }
 
     static ZoneKind cardZoneKind(final ZoneType zone) {
@@ -933,18 +964,18 @@ public final class InteractiveSnapshotExtractor {
         }
     }
 
-    private static String normalizedOracle(final Card card) {
-        return card.getOracleText().replace("\\n", "\n");
+    private static String normalizedOracle(final CardState state) {
+        return state.getOracleText().replace("\\n", "\n");
     }
 
-    private static List<ClassLevelDto> classLevels(final Card card) {
-        if (!card.isClassCard() || card.isFaceDown()) {
+    private static List<ClassLevelDto> classLevels(final CardState state) {
+        if (!state.getType().hasStringType("Class")) {
             return Collections.emptyList();
         }
         final List<ClassLevelDto> levels = new ArrayList<>();
         levels.add(new ClassLevelDto(1, "", null));
         int current = 0;
-        for (final String rawLine : normalizedOracle(card).split("\\R")) {
+        for (final String rawLine : normalizedOracle(state).split("\\R")) {
             final String line = rawLine.trim();
             if (line.isEmpty()) {
                 continue;
@@ -973,13 +1004,13 @@ public final class InteractiveSnapshotExtractor {
         return levels;
     }
 
-    private static List<SagaChapterDto> sagaChapters(final Card card) {
-        if (!card.getType().hasSubtype("Saga") || card.isFaceDown()) {
+    private static List<SagaChapterDto> sagaChapters(final CardState state) {
+        if (!state.getType().hasSubtype("Saga")) {
             return Collections.emptyList();
         }
         final List<SagaChapterDto> chapters = new ArrayList<>();
         SagaChapterDto current = null;
-        for (final String rawLine : normalizedOracle(card).split("\\R")) {
+        for (final String rawLine : normalizedOracle(state).split("\\R")) {
             final String line = rawLine.trim();
             if (line.isEmpty()) {
                 continue;
@@ -1047,8 +1078,8 @@ public final class InteractiveSnapshotExtractor {
         return total > 0 ? total : null;
     }
 
-    private static String keywordCost(final Card card, final String name) {
-        for (final KeywordInterface keyword : card.getKeywords()) {
+    private static String keywordCost(final List<KeywordInterface> keywords, final String name) {
+        for (final KeywordInterface keyword : keywords) {
             final String original = keyword.getOriginal();
             if (original == null || !original.startsWith(name)) {
                 continue;
@@ -1118,41 +1149,41 @@ public final class InteractiveSnapshotExtractor {
         return sb.toString();
     }
 
-    private static List<String> coreTypes(final Card card) {
+    private static List<String> coreTypes(final CardTypeView cardType) {
         final List<String> out = new ArrayList<>();
-        for (final Object type : card.getType().getCoreTypes()) {
+        for (final Object type : cardType.getCoreTypes()) {
             out.add(String.valueOf(type));
         }
         return out;
     }
 
-    private static List<String> subtypes(final Card card) {
+    private static List<String> subtypes(final CardTypeView cardType) {
         final List<String> out = new ArrayList<>();
-        for (final String subtype : card.getType().getSubtypes()) {
+        for (final String subtype : cardType.getSubtypes()) {
             out.add(subtype);
         }
         return out;
     }
 
-    private static List<String> supertypes(final Card card) {
+    private static List<String> supertypes(final CardTypeView cardType) {
         final List<String> out = new ArrayList<>();
-        for (final Object supertype : card.getType().getSupertypes()) {
+        for (final Object supertype : cardType.getSupertypes()) {
             out.add(String.valueOf(supertype));
         }
         return out;
     }
 
-    private static void keywords(final Card card, final CardDto dto) {
+    private static void keywords(final List<KeywordInterface> keywords, final CardDto dto) {
         dto.keywords = new ArrayList<>();
         dto.keywordLabels = new TreeMap<>();
         dto.grantedKeywords = new ArrayList<>();
         final Set<String> intrinsic = new HashSet<>();
-        for (final KeywordInterface keyword : card.getKeywords()) {
+        for (final KeywordInterface keyword : keywords) {
             if (keyword.isIntrinsic()) {
                 intrinsic.add(keyword.getOriginal());
             }
         }
-        for (final KeywordInterface keyword : card.getKeywords()) {
+        for (final KeywordInterface keyword : keywords) {
             final String original = keyword.getOriginal();
             dto.keywords.add(original);
             dto.keywordLabels.put(original, keyword.getTitle());

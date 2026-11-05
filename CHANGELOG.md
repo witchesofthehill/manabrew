@@ -43,6 +43,7 @@
 
 ### Fixes
 
+- Preserve distinct card names in CubeCobra draft pools when imported cards have no collector numbers, instead of collapsing each set to its first card.
 - Specialize host Card Glint shaders before compilation with `GLINT_FINISH_KIND`, excluding unrelated finish code.
 - Await SDK printing/coating shader readiness before GPU preparation, flush host shader links before polling, and reuse completed Pixi programs without relinking; keep Heat source content visible while GPU resources are pending.
 - Render DOM foil overlays in bounded atlas pages before copying their output crops.

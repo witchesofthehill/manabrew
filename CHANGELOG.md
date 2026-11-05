@@ -44,7 +44,7 @@
 ### Fixes
 
 - Preserve distinct card names in CubeCobra draft pools when imported cards have no collector numbers, instead of collapsing each set to its first card.
-- Resolve alternate printed card names through Scryfall's exact-name endpoint when collection lookups miss them, preserving the matching printing's artwork.
+- Resolve imported card images by canonical, printed, and flavor names, including English reflavors and multiface aliases, while retaining set and exact-printing constraints.
 - Specialize host Card Glint shaders before compilation with `GLINT_FINISH_KIND`, excluding unrelated finish code.
 - Await SDK printing/coating shader readiness before GPU preparation, flush host shader links before polling, and reuse completed Pixi programs without relinking; keep Heat source content visible while GPU resources are pending.
 - Render DOM foil overlays in bounded atlas pages before copying their output crops.

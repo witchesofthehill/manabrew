@@ -240,17 +240,30 @@ export async function fetchCardByExactName(
   setCode?: string,
   signal?: AbortSignal,
 ): Promise<ScryfallCard> {
-  const query = new URLSearchParams({ exact: name });
-  if (setCode) query.set("set", setCode.toLowerCase());
-  const card = await scryfallFetch<ScryfallCard>(
-    `${SCRYFALL_API}/cards/named?${query}`,
-    `No card matches "${name}"`,
-    { signal },
-  );
-  if (!matchesIdentifier(card, setCode ? { name, set: setCode } : { name })) {
-    throw new Error(`No card matches "${name}"`);
+  const terms = name.match(/[\p{L}\p{N}]+/gu);
+  let query = terms
+    ? terms.map((term) => `name:${term}`).join(" ")
+    : `name:${JSON.stringify(name)}`;
+  query += " lang:any";
+  if (setCode) query += ` set:${JSON.stringify(setCode.toLowerCase())}`;
+  const params = new URLSearchParams({
+    q: query,
+    unique: "prints",
+    include_extras: "true",
+  });
+  const identifier = setCode ? { name, set: setCode } : { name };
+  let url: string | undefined = `${SCRYFALL_API}/cards/search?${params}`;
+  while (url) {
+    const data: ScryfallListResponse = await scryfallFetch<ScryfallListResponse>(
+      url,
+      `No card matches "${name}"`,
+      { signal },
+    );
+    const card = data.data.find((candidate) => matchesIdentifier(candidate, identifier));
+    if (card) return card;
+    url = data.has_more ? data.next_page : undefined;
   }
-  return card;
+  throw new Error(`No card matches "${name}"`);
 }
 
 export async function fetchCardByFuzzyName(name: string): Promise<ScryfallCard> {

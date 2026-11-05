@@ -234,38 +234,6 @@ export async function fetchPrintsByOracleIds(
 export async function getCardByName(name: string, setCode?: string): Promise<ScryfallCard> {
   return enqueueCardLookup(setCode ? { name, set: setCode.toLowerCase() } : { name });
 }
-
-export async function fetchCardByExactName(
-  name: string,
-  setCode?: string,
-  signal?: AbortSignal,
-): Promise<ScryfallCard> {
-  const terms = name.match(/[\p{L}\p{N}]+/gu);
-  let query = terms
-    ? terms.map((term) => `name:${term}`).join(" ")
-    : `name:${JSON.stringify(name)}`;
-  query += " lang:any";
-  if (setCode) query += ` set:${JSON.stringify(setCode.toLowerCase())}`;
-  const params = new URLSearchParams({
-    q: query,
-    unique: "prints",
-    include_extras: "true",
-  });
-  const identifier = setCode ? { name, set: setCode } : { name };
-  let url: string | undefined = `${SCRYFALL_API}/cards/search?${params}`;
-  while (url) {
-    const data: ScryfallListResponse = await scryfallFetch<ScryfallListResponse>(
-      url,
-      `No card matches "${name}"`,
-      { signal },
-    );
-    const card = data.data.find((candidate) => matchesIdentifier(candidate, identifier));
-    if (card) return card;
-    url = data.has_more ? data.next_page : undefined;
-  }
-  throw new Error(`No card matches "${name}"`);
-}
-
 export async function fetchCardByFuzzyName(name: string): Promise<ScryfallCard> {
   try {
     return await scryfallFetch<ScryfallCard>(
@@ -343,29 +311,23 @@ export async function fetchCardCollection(
       fromCache = true;
       return { data: [...cached.values()] };
     });
-    for (const [idx, c] of batch.entries()) {
+    batch.forEach((c, idx) => {
       // A cache holds one printing per card, so an exact-printing identifier
       // has nothing to match there and the name is all it can be asked for.
       // Online that stays a miss, where a wrong printing would be a wrong card.
-      let card =
+      const card =
         data.data.find((found) => matchesIdentifier(found, ids[idx])) ??
         (fromCache
           ? data.data.find((found) => matchesIdentifier(found, { name: c.name }))
           : undefined);
-      if (!card && !fromCache && "name" in ids[idx]) {
-        card = await fetchCardByExactName(c.name, c.setCode, signal).catch((error) => {
-          if (signal?.aborted) throw error;
-          return undefined;
-        });
-      }
       // A set+number identifier carries no name, so a mistyped number would
       // silently resolve to a different card in that set — reject it instead.
-      if (!card || !matchesIdentifier(card, { name: c.name })) continue;
+      if (!card || !matchesIdentifier(card, { name: c.name })) return;
       result.set(scryfallCardKey(c.name, c.setCode, c.collectorNumber), card);
       for (const fallbackKey of [scryfallCardKey(c.name, c.setCode), scryfallCardKey(c.name)]) {
         if (!result.has(fallbackKey)) result.set(fallbackKey, card);
       }
-    }
+    });
   }
   return result;
 }

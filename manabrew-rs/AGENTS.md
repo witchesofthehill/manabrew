@@ -71,7 +71,11 @@ Continuous statics with `AffectedDefined` resolve that defined-card set before a
 
 `forge-limited` owns serializable Limited engines, physical occurrence IDs and own-seat decision history. Versioned checkpoint export/import is exposed by `src-tauri/src/limited_commands.rs` and `crates/wasm/src/limited_api.rs`; it preserves pending multiplayer submissions, undo state, ChaCha12 RNG continuation, AI/rank state and Gauntlet progress. Serialize borrowed state rather than cloning the engine or materializing an intermediate JSON tree. A complete native draft still needs its durable pool-registration handoff before the frontend marks the host complete.
 
-Limited selection resolves cards to physical pack IDs. `PaperCard` equality and hashing include name, set, collector number, foil and normalized cosmetics, matching Forge's name-sensitive identity. Cube imports can omit collector numbers, so set and collector number alone would collapse unlike cards into one print-sheet entry. An explicit pending occurrence ID takes priority so identical copies remain independently selectable.
+Limited selection resolves cards to physical pack IDs. `PaperCard` equality and hashing include name, set, collector number, foil and normalized cosmetics, matching Forge's name-sensitive identity. Name remains part of identity when custom pools omit collector numbers. An explicit pending occurrence ID takes priority so identical copies remain independently selectable.
+
+CubeCobra imports use `/cube/api/cubeJSON/<id>` because the Forge text export omits collector numbers. Import only `cards.mainboard`, one physical copy per array entry, retaining `details.name`, `details.set` and `details.collector_number`. Native and WASM pool conversions must preserve the collector number in `DeckCardIdentity.card_number` for existing exact-printing Scryfall lookups. Keep the restricted CubeCobra proxy routes in `ops/web.Caddyfile`, `ops/staging.Caddyfile` and `ops/standalone.Caddyfile` aligned with that endpoint.
+
+Exact-printing image resolution and engine support are separate checks. CubeCobra can supply printed aliases that the local card-name index does not recognize; keep `playable_card_count` independent of Scryfall image lookup.
 
 ## `manabrew-engine` crate — module map
 

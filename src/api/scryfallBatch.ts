@@ -1,11 +1,6 @@
 import type { ScryfallCard } from "@/types/scryfall";
 import { localCardRecord, localPrintingRecord } from "@/lib/localCardRecords";
-import {
-  COLLECTION_BATCH_SIZE,
-  SCRYFALL_API,
-  fetchCardByExactName,
-  scryfallFetch,
-} from "./scryfall";
+import { COLLECTION_BATCH_SIZE, SCRYFALL_API, scryfallFetch } from "./scryfall";
 
 const SCRYFALL_BATCH_DEBOUNCE_MS = 100;
 const CARD_FACE_SEPARATOR = /\s*\/\/\s*|\s+\/\s+/;
@@ -145,13 +140,7 @@ async function flushScryfallBatch(): Promise<void> {
       for (const item of slice) {
         const found = data.data.find((c) => matchesIdentifier(c, item.identifier));
         if (found) item.resolve(found);
-        else if ("name" in item.identifier) {
-          try {
-            item.resolve(await fetchCardByExactName(item.identifier.name, item.identifier.set));
-          } catch {
-            missed.push(item);
-          }
-        } else missed.push(item);
+        else missed.push(item);
       }
       if (missed.length > 0) await resolveFromCache(missed);
     } catch (err) {

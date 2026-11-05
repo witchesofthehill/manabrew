@@ -259,7 +259,7 @@ A failed card lookup is remembered for `FAILED_LOOKUP_RETRY_MS`, and repeats ins
 
 Lookup keys are normalized internally (`id:` / `set:…::cn:…` / `name:…[::set:…]`); always pass structured args, never assemble keys yourself. Token cards resolve through the same store from `public/token_archive.json`; do not add per-component token fetch/discovery hooks. A failed archive download must not prevent ordinary exact-printing card lookups from reaching Scryfall.
 
-Scryfall `printed_name` also covers English reflavors such as Through the Omenpaths. Collection misses use literal name-word searches with `lang:any` and `unique=prints`: the named endpoint and quoted/regex searches miss some printed or flavor aliases. Accept only exact normalized canonical, printed, or flavor names on the card or its faces, including combined face names; retain requested sets and paginate before declaring a miss. Internal slashes such as Choco/Mog are literal; only `//` or spaced `/` separate faces. Exact set/collector-number misses stay unresolved, and returned `card.name` stays canonical.
+Match returned Scryfall records against exact normalized canonical, printed, and flavor names on cards and faces, including combined face names. `printed_name` also covers English reflavors such as Through the Omenpaths. Preserve requested sets, exact collector numbers, and canonical `card.name`; internal slashes such as Choco/Mog are literal, while `//` or spaced `/` separate faces. Collection misses stay misses rather than starting per-card searches.
 
 Read existing cached entries through `get().cards` when prefetching printings. Immer's mapped draft type drops Pixi `Texture` private members; preserve the store-owned texture rather than casting a draft to `ScryfallEntry`.
 

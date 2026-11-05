@@ -259,6 +259,8 @@ A failed card lookup is remembered for `FAILED_LOOKUP_RETRY_MS`, and repeats ins
 
 Lookup keys are normalized internally (`id:` / `set:…::cn:…` / `name:…[::set:…]`); always pass structured args, never assemble keys yourself. Token cards resolve through the same store from `public/token_archive.json`; do not add per-component token fetch/discovery hooks. A failed archive download must not prevent ordinary exact-printing card lookups from reaching Scryfall.
 
+Scryfall collection lookups can miss `flavor_name` aliases used by CubeCobra, such as Mechagodzilla, Battle Fortress for Hangarback Walker. Resolve missed name identifiers through `/cards/named?exact=…`, retaining any requested set and matching `flavor_name` as well as canonical names. Exact set/collector-number misses stay unresolved; keep the returned `card.name` canonical.
+
 Read existing cached entries through `get().cards` when prefetching printings. Immer's mapped draft type drops Pixi `Texture` private members; preserve the store-owned texture rather than casting a draft to `ScryfallEntry`.
 
 The token archive includes English and available localized printings (`lang:any`) with image-language provenance and both faces. Preserve each face's printed power and toughness when archiving or synthesizing double-faced token metadata; the rules preview reads stats from the selected face. The store picks a matching-locale token by Oracle ID before falling back to its original printing, so preserve the selected printing's language whenever a deck image URL changes. Older archives without `imageLanguage` are treated as English.

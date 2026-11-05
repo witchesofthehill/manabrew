@@ -1,6 +1,11 @@
 import type { ScryfallCard } from "@/types/scryfall";
 import { localCardRecord, localPrintingRecord } from "@/lib/localCardRecords";
-import { COLLECTION_BATCH_SIZE, SCRYFALL_API, scryfallFetch } from "./scryfall";
+import {
+  COLLECTION_BATCH_SIZE,
+  SCRYFALL_API,
+  fetchCardByExactName,
+  scryfallFetch,
+} from "./scryfall";
 
 const SCRYFALL_BATCH_DEBOUNCE_MS = 100;
 
@@ -51,11 +56,14 @@ export function matchesIdentifier(card: ScryfallCard, id: CardIdentifier): boole
   }
   const expectedName = canonicalCardName(id.name);
   const cardName = canonicalCardName(card.name);
+  const flavorMatches = card.flavor_name && canonicalCardName(card.flavor_name) === expectedName;
   const faceMatches = card.card_faces?.some(
     (face) => canonicalCardName(face.name) === expectedName,
   );
   const splitNameMatches = cardName.split(" // ").some((part) => part === expectedName);
-  if (cardName !== expectedName && !faceMatches && !splitNameMatches) return false;
+  if (cardName !== expectedName && !flavorMatches && !faceMatches && !splitNameMatches) {
+    return false;
+  }
   return id.set ? card.set?.toLowerCase() === id.set.toLowerCase() : true;
 }
 
@@ -130,7 +138,13 @@ async function flushScryfallBatch(): Promise<void> {
       for (const item of slice) {
         const found = data.data.find((c) => matchesIdentifier(c, item.identifier));
         if (found) item.resolve(found);
-        else missed.push(item);
+        else if ("name" in item.identifier) {
+          try {
+            item.resolve(await fetchCardByExactName(item.identifier.name, item.identifier.set));
+          } catch {
+            missed.push(item);
+          }
+        } else missed.push(item);
       }
       if (missed.length > 0) await resolveFromCache(missed);
     } catch (err) {

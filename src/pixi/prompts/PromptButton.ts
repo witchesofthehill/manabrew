@@ -35,7 +35,6 @@ export interface PromptButtonOptions {
   labelPlacement?: "inline" | "stacked" | "hidden";
   flat?: boolean;
   radius?: number;
-  shadow?: boolean;
   badge?: string;
   shortcut?: string;
   tooltip?: boolean;
@@ -55,7 +54,6 @@ export interface PromptButtonOptions {
 
 export class PromptButton extends Container {
   private readonly visual = new Container();
-  private readonly shadow = new Graphics();
   private readonly background = new Graphics();
   private readonly feedback = new Graphics();
   private readonly labelText: Text;
@@ -79,7 +77,7 @@ export class PromptButton extends Container {
     this.accessibleTitle = options.title ?? options.label;
     this.tabIndex = options.disabled ? -1 : 0;
     this.addChild(this.visual);
-    this.visual.addChild(this.shadow, this.background, this.feedback);
+    this.visual.addChild(this.background, this.feedback);
     this.feedback.eventMode = "none";
     this.feedback.alpha = 0;
     const iconTexture = options.icon ? gameIconTexture(options.icon) : options.iconTexture;
@@ -288,14 +286,6 @@ export class PromptButton extends Container {
     const disabled = this.options.disabled ?? false;
     const placement = this.options.labelPlacement ?? "inline";
     const radius = this.options.radius ?? (this.options.compact ? 12 : 7);
-    this.shadow.clear();
-    if (this.options.shadow && !disabled) {
-      this.shadow
-        .roundRect(-4, 2, width + 8, height + 10, radius + 4)
-        .fill({ color, alpha: 0.08 })
-        .roundRect(-2, 3, width + 4, height + 6, radius + 2)
-        .fill({ color, alpha: 0.12 });
-    }
     this.background.clear().roundRect(0, 0, width, height, radius);
     if (this.options.flat) {
       const flatFill = this.options.backgroundColor ?? fill;

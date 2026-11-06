@@ -24,6 +24,7 @@ import {
 } from "../PhaseStripLayer";
 import { isFeatureEnabled } from "@/featureFlags";
 import { PLAYER_PANEL_EDGE_GAP, PlayerPhaseBars } from "../hud/PlayerPhaseBars";
+import { TurnPhaseBar } from "../hud/TurnPhaseBar";
 import { DragHandler } from "../DragHandler";
 import { dropCellFromPoint, type GridCell } from "../GridLayout";
 import { prewarmManaSymbols } from "../manaSymbolCache";
@@ -187,6 +188,7 @@ export class BoardScene {
   private dragHandler: DragHandler;
   private phaseStrip: PhaseStripLayer;
   private playerPhaseBars: PlayerPhaseBars;
+  private turnPhaseBar: TurnPhaseBar;
   private overview = false;
   private focusLocked = false;
 
@@ -304,9 +306,13 @@ export class BoardScene {
     this.root.addChild(this.phaseStrip.container);
     this.playerPhaseBars = new PlayerPhaseBars(this.theme);
     this.playerPhaseBars.setShiftHandler((id, dy) => this.playerBars.setEdgeShift(id, dy));
+    this.playerPhaseBars.setReserveChangeHandler(() => this.refreshCapsuleBlockers());
     this.playerPhaseBars.container.zIndex = 5700;
     this.playerPhaseBars.container.visible = this.presentation.showsPlayerPhaseBars;
     this.root.addChild(this.playerPhaseBars.container);
+    this.turnPhaseBar = new TurnPhaseBar(this.theme);
+    this.turnPhaseBar.container.zIndex = 5700;
+    this.root.addChild(this.turnPhaseBar.container);
 
     this.combatGuestLayer = new Container();
     this.combatGuestLayer.sortableChildren = true;
@@ -342,6 +348,7 @@ export class BoardScene {
       );
       this.phaseStrip.handlePointerMove(stripPoint.x, stripPoint.y);
       this.playerPhaseBars.handlePointerMove(stripPoint.x, stripPoint.y);
+      this.turnPhaseBar.handlePointerMove(stripPoint.x, stripPoint.y);
       if (
         this.activeGesturePointerId === null &&
         !this.hand?.isDraggingFromHand() &&
@@ -925,7 +932,7 @@ export class BoardScene {
     const action = this.actionPanelBounds;
     if (!action || !this.localZone()) {
       this.phaseStrip.setAction(null);
-      this.playerPhaseBars.setTurnFrame(null);
+      this.turnPhaseBar.setFrame(null);
       return;
     }
     const tl = this.root.toLocal(RECT_SCRATCH_A.set(action.x, action.y), undefined, RECT_SCRATCH_A);
@@ -936,7 +943,9 @@ export class BoardScene {
     );
     const rect = { x: tl.x, y: tl.y, width: br.x - tl.x, height: br.y - tl.y };
     this.phaseStrip.setAction(rect);
-    this.playerPhaseBars.setTurnFrame(isFeatureEnabled("turnPhaseBar") ? rect : null);
+    this.turnPhaseBar.setFrame(
+      this.presentation.showsPlayerPhaseBars && isFeatureEnabled("turnPhaseBar") ? rect : null,
+    );
   }
 
   private syncPlayerPhaseBars(): void {
@@ -1091,7 +1100,7 @@ export class BoardScene {
   }
 
   getPhaseDrawerOutline(): PhaseDrawerOutline | null {
-    const outline = this.phaseStrip.getDrawerOutline() ?? this.playerPhaseBars.getTurnOutline();
+    const outline = this.phaseStrip.getDrawerOutline() ?? this.turnPhaseBar.getOutline();
     if (!outline) return null;
     const toScreen = (r: BlockingRect): BlockingRect => {
       const tl = this.root.toGlobal(RECT_SCRATCH_A.set(r.x, r.y), RECT_SCRATCH_A);
@@ -1110,7 +1119,7 @@ export class BoardScene {
 
   setActionPanelSurface(color: number | null): void {
     this.phaseStrip.setSurfaceColor(color);
-    this.playerPhaseBars.setTurnSurface(color);
+    this.turnPhaseBar.setSurface(color);
   }
 
   setActionPanelBounds(bounds: ScreenBounds | null): void {
@@ -1285,11 +1294,13 @@ export class BoardScene {
   setPhaseStripState(state: PhaseStripState): void {
     this.phaseStrip.update(state);
     this.playerPhaseBars.setState(state);
+    this.turnPhaseBar.setState(state);
   }
 
   setPhaseStripCallbacks(cb: PhaseStripCallbacks): void {
     this.phaseStrip.setCallbacks(cb);
     this.playerPhaseBars.setCallbacks(cb);
+    this.turnPhaseBar.setCallbacks(cb);
   }
 
   protected setMobileHandOpen(open: boolean): void {
@@ -1412,6 +1423,7 @@ export class BoardScene {
     this.hand?.restyle();
     this.phaseStrip.setTheme(theme);
     this.playerPhaseBars.setTheme(theme);
+    this.turnPhaseBar.setTheme(theme);
     this.playerBars.setTheme(theme);
     for (const rec of this.regions.values()) rec.region.redrawTheme();
     this.applyDelimiters(); // repaint the collapse veil in the new theme colour
@@ -1566,9 +1578,16 @@ export class BoardScene {
     return this.presentation.localBlockers(this.hand, this.localZone(), this.root);
   }
 
+  private phaseBarReserve(playerId: string): number {
+    return this.presentation.showsPlayerPhaseBars ? this.playerPhaseBars.reserveFor(playerId) : 0;
+  }
+
   private capsuleBlockers(playerId: string): BlockingRect[] {
     const b = this.playerBars.getCapsuleBounds(playerId);
-    return b ? [b] : [];
+    if (!b) return [];
+    const reserve = this.phaseBarReserve(playerId) * this.root.scale.y;
+    const y = playerId === this.localPlayerId ? b.y - reserve : b.y;
+    return [{ ...b, y, height: b.height + reserve }];
   }
 
   private gridCapsuleBlockers(playerId: string, isLocal: boolean): BlockingRect[] {
@@ -1586,7 +1605,9 @@ export class BoardScene {
       Math.max(1, right - x),
     );
     const preferredHeight =
-      this.presentation.opponentHudHeight + (anchored ? PLATE_GRID_CLEARANCE : 0);
+      this.presentation.opponentHudHeight +
+      (anchored ? PLATE_GRID_CLEARANCE : 0) +
+      this.phaseBarReserve(playerId);
     const height = Math.min(preferredHeight, Math.max(1, record.zone.height));
     const tl = this.root.toGlobal(RECT_SCRATCH_A.set(x, record.zone.y), RECT_SCRATCH_A);
     const br = this.root.toGlobal(
@@ -2201,6 +2222,7 @@ export class BoardScene {
     this.syncPhaseStripAction();
     this.syncPlayerPhaseBars();
     this.playerPhaseBars.tick();
+    this.turnPhaseBar.tick();
     this.phaseStrip.tick();
     this.phaseStrip.setDimAlpha(
       lerp(this.phaseStrip.getDimAlpha(), this.phaseStripAlphaTarget, 0.2, 0.01),
@@ -2522,6 +2544,7 @@ export class BoardScene {
       this.dragHandler.destroy();
       this.phaseStrip.destroy();
       this.playerPhaseBars.destroy();
+      this.turnPhaseBar.destroy();
       this.playerBars.destroy();
       this.hand?.destroy();
       for (const fan of this.opponentHands.values()) fan.destroy();

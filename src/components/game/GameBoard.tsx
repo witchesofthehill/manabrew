@@ -1953,7 +1953,12 @@ export function GameBoard({
       )}
       {sheetSpec && <PlayerSheetModal spec={sheetSpec} onClose={closePlayerSheet} />}
       {phaseDetailsOpen && (
-        <PhaseStopsModal {...phaseStops} onClose={() => setPhaseDetailsOpen(false)} />
+        <PhaseStopsModal
+          {...phaseStops}
+          activePlayerId={activePlayerId}
+          myPlayerId={me.id}
+          onClose={() => setPhaseDetailsOpen(false)}
+        />
       )}
       {inspectedHandCard && (
         <CardInspectModal card={inspectedHandCard} onClose={() => setInspectedHandCard(null)} />

@@ -7,18 +7,17 @@ import { UI_FONT_FAMILY } from "@/themes/typography";
 import type { BlockingRect } from "../board/types";
 import { hexToNum, mixNum } from "../colorUtils";
 import { animationsEnabled } from "../effects/enabled";
-import type { PhaseDrawerOutline, PhaseStripCallbacks, PhaseStripState } from "../PhaseStripLayer";
+import type { PhaseStripCallbacks, PhaseStripState } from "../PhaseStripLayer";
 
-const CELL_W = 34;
-const COMBAT_CELL_W = 56;
+const CELL_W = 31;
+const COMBAT_CELL_W = 52;
+const COLLAPSE_W = 20;
 const CELL_H = 24;
 const CELL_GAP = 2;
 const PAD = 4;
 const BORDER = 2;
 const PLATE_GAP = 2;
 const OUTER_GAP = 4;
-const TURN_BAR_ID = "turn";
-const TURN_BAR_MIN_MARGIN = 8;
 const REVEAL_EASE = 0.3;
 const HOVER_SLACK = 2;
 const RADIUS = 6;
@@ -28,7 +27,9 @@ const cellWidth = (steps: readonly string[]) => (steps.length > 1 ? COMBAT_CELL_
 const BAR_W =
   PAD * 2 +
   PHASE_BAR_ENTRIES.reduce((total, entry) => total + cellWidth(entry.steps), 0) +
-  CELL_GAP * (PHASE_BAR_ENTRIES.length - 1);
+  CELL_GAP * PHASE_BAR_ENTRIES.length +
+  COLLAPSE_W;
+const COLLAPSE_X = BAR_W - PAD - COLLAPSE_W;
 const BAR_H = PAD * 2 + CELL_H;
 const BAR_TRAVEL = OUTER_GAP + BAR_H + PLATE_GAP;
 export const PLAYER_PANEL_WIDTH = BAR_W;
@@ -48,8 +49,11 @@ interface PlayerBar {
   panel: Graphics;
   seatHex: string;
   cells: BarCell[];
+  collapseShape: Graphics;
+  collapseHovered: boolean;
   hovered: number;
   panelHovered: boolean;
+  hoverSuppressed: boolean;
   open: number;
   shift: number;
   bounds: { x: number; y: number; w: number; h: number } | null;
@@ -62,9 +66,9 @@ export class PlayerPhaseBars {
   private state: PhaseStripState | null = null;
   private displayActivePlayerId: string | null = null;
   private bars = new Map<string, PlayerBar>();
+  private collapsed = new Set<string>();
   private onShift: ((playerId: string, dy: number) => void) | null = null;
-  private turnSurface: number | null = null;
-  private turnOutline: PhaseDrawerOutline | null = null;
+  private onReserveChange: (() => void) | null = null;
 
   constructor(theme: Theme) {
     this.theme = theme;
@@ -78,6 +82,14 @@ export class PlayerPhaseBars {
 
   setShiftHandler(onShift: (playerId: string, dy: number) => void): void {
     this.onShift = onShift;
+  }
+
+  setReserveChangeHandler(onReserveChange: () => void): void {
+    this.onReserveChange = onReserveChange;
+  }
+
+  reserveFor(playerId: string): number {
+    return this.collapsed.has(playerId) ? 0 : BAR_TRAVEL;
   }
 
   setCallbacks(callbacks: PhaseStripCallbacks): void {
@@ -95,9 +107,6 @@ export class PlayerPhaseBars {
         seatHex: [pc.opponent1, pc.opponent2, pc.opponent3][opponent.index] ?? pc.opponent1,
       })),
     ];
-    const activeId = this.displayActivePlayerId ?? state.activePlayerId;
-    const activeHex = seats.find((seat) => seat.id === activeId)?.seatHex ?? pc.self;
-    seats.push({ id: TURN_BAR_ID, seatHex: activeHex });
     const seen = new Set(seats.map((seat) => seat.id));
     for (const [id, bar] of this.bars) {
       if (seen.has(id)) continue;
@@ -142,42 +151,6 @@ export class PlayerPhaseBars {
     };
   }
 
-  setTurnFrame(action: BlockingRect | null): void {
-    const bar = this.bars.get(TURN_BAR_ID);
-    if (!bar) return;
-    const fits = !!action && action.width >= BAR_W + TURN_BAR_MIN_MARGIN * 2;
-    bar.container.visible = fits;
-    if (!action || !fits) {
-      this.turnOutline = null;
-      return;
-    }
-    const x = action.x + (action.width - BAR_W) / 2;
-    const y = action.y - BAR_H;
-    bar.container.position.set(x, y);
-    this.turnOutline = {
-      base: null,
-      tower: { x, y, width: BAR_W, height: BAR_H },
-      radius: RADIUS,
-    };
-  }
-
-  setTurnSurface(color: number | null): void {
-    if (this.turnSurface === color) return;
-    this.turnSurface = color;
-    const bar = this.bars.get(TURN_BAR_ID);
-    if (bar) this.draw(bar);
-  }
-
-  getTurnOutline(): PhaseDrawerOutline | null {
-    return this.turnOutline;
-  }
-
-  private ownerOf(barId: string): string {
-    return barId === TURN_BAR_ID
-      ? (this.displayActivePlayerId ?? this.state?.activePlayerId ?? barId)
-      : barId;
-  }
-
   handlePointerMove(x: number, y: number): void {
     for (const bar of this.bars.values()) {
       const b = bar.bounds;
@@ -187,14 +160,15 @@ export class PlayerPhaseBars {
         x <= b.x + b.w + HOVER_SLACK &&
         y >= b.y - HOVER_SLACK &&
         y <= b.y + b.h + HOVER_SLACK;
-      if (bar.panelHovered === over) continue;
       bar.panelHovered = over;
+      if (!over) bar.hoverSuppressed = false;
     }
   }
 
   tick(): void {
     for (const bar of this.bars.values()) {
-      const target = bar.panelHovered ? 1 : 0;
+      const revealed = bar.panelHovered && !bar.hoverSuppressed;
+      const target = !this.collapsed.has(bar.id) || revealed ? 1 : 0;
       const next = bar.open + (target - bar.open) * REVEAL_EASE;
       bar.open = !animationsEnabled() || Math.abs(target - next) < 0.01 ? target : next;
     }
@@ -212,6 +186,16 @@ export class PlayerPhaseBars {
     else this.callbacks.onToggleOpponentPhase?.(playerId, step);
   }
 
+  private toggleCollapsed(bar: PlayerBar): void {
+    if (!this.collapsed.delete(bar.id)) {
+      this.collapsed.add(bar.id);
+      bar.hoverSuppressed = true;
+      bar.collapseHovered = false;
+    }
+    this.draw(bar);
+    this.onReserveChange?.();
+  }
+
   private createBar(id: string): PlayerBar {
     const container = new Container();
     container.visible = false;
@@ -223,9 +207,12 @@ export class PlayerPhaseBars {
       panel,
       seatHex: "",
       cells: [],
+      collapseShape: new Graphics(),
+      collapseHovered: false,
       hovered: -1,
       panelHovered: false,
-      open: 0,
+      hoverSuppressed: false,
+      open: 1,
       shift: 0,
       bounds: null,
     };
@@ -245,8 +232,7 @@ export class PlayerPhaseBars {
       hit.eventMode = "static";
       hit.cursor = "pointer";
       hit.on("pointerdown", () => {
-        const owner = this.ownerOf(id);
-        togglePhaseStops(entry.steps, this.stopsOf(owner), (step) => this.toggleStop(owner, step));
+        togglePhaseStops(entry.steps, this.stopsOf(id), (step) => this.toggleStop(id, step));
       });
       hit.on("pointerover", () => {
         bar.hovered = index;
@@ -260,6 +246,21 @@ export class PlayerPhaseBars {
       bar.cells.push({ entry, x, width, shape, label });
       x += width + CELL_GAP;
     });
+    const collapseHit = new Graphics()
+      .rect(COLLAPSE_X - CELL_GAP / 2, 0, COLLAPSE_W + CELL_GAP, BAR_H)
+      .fill({ color: hexToNum(this.theme.gameTheme.canvas.neutral), alpha: 0.001 });
+    collapseHit.eventMode = "static";
+    collapseHit.cursor = "pointer";
+    collapseHit.on("pointerdown", () => this.toggleCollapsed(bar));
+    collapseHit.on("pointerover", () => {
+      bar.collapseHovered = true;
+      this.draw(bar);
+    });
+    collapseHit.on("pointerout", () => {
+      bar.collapseHovered = false;
+      this.draw(bar);
+    });
+    container.addChild(bar.collapseShape, collapseHit);
     this.container.addChild(container);
     this.bars.set(id, bar);
     return bar;
@@ -276,21 +277,14 @@ export class PlayerPhaseBars {
     const surfaceHex = t.phaseStrip.background;
     const surfaceInk = readableTextColor(surfaceHex, t.canvas.shadow, t.textOnTinted);
     const setInk = readableTextColor(t.textOnTinted, t.canvas.shadow, t.textOnTinted);
-    const turnBar = bar.id === TURN_BAR_ID;
-    const onTurn = turnBar || (this.displayActivePlayerId ?? state.activePlayerId) === bar.id;
-    const stops = this.stopsOf(this.ownerOf(bar.id));
+    const onTurn = (this.displayActivePlayerId ?? state.activePlayerId) === bar.id;
+    const stops = this.stopsOf(bar.id);
     const inset = BORDER / 2;
-    bar.panel.clear();
-    if (turnBar) {
-      bar.panel
-        .roundRect(0, 0, BAR_W, BAR_H + RADIUS, RADIUS)
-        .fill({ color: this.turnSurface ?? hexToNum(app.card) });
-    } else {
-      bar.panel
-        .roundRect(inset, inset, BAR_W - BORDER, BAR_H - BORDER, RADIUS)
-        .fill({ color: hexToNum(app.card) })
-        .stroke({ color: hexToNum(bar.seatHex), width: BORDER });
-    }
+    bar.panel
+      .clear()
+      .roundRect(inset, inset, BAR_W - BORDER, BAR_H - BORDER, RADIUS)
+      .fill({ color: hexToNum(app.card) })
+      .stroke({ color: hexToNum(bar.seatHex), width: BORDER });
     const surface = hexToNum(surfaceHex);
     const light = hexToNum(t.textOnTinted);
     const seat = hexToNum(bar.seatHex);
@@ -314,6 +308,18 @@ export class PlayerPhaseBars {
       if (current && enabled) shape.stroke({ color: light, width: 2, alignment: 1 });
       label.style.fill = current ? seatInk : enabled ? setInk : surfaceInk;
     });
+    const towardEdge = !this.collapsed.has(bar.id);
+    const tip = (bar.id === state.myPlayerId) === towardEdge ? 2 : -2;
+    const centerX = COLLAPSE_X + COLLAPSE_W / 2;
+    const centerY = PAD + CELL_H / 2;
+    bar.collapseShape
+      .clear()
+      .roundRect(COLLAPSE_X, PAD, COLLAPSE_W, CELL_H, 3)
+      .fill({ color: bar.collapseHovered ? mixNum(surface, light, 0.25) : surface })
+      .moveTo(centerX - 4, centerY - tip)
+      .lineTo(centerX, centerY + tip)
+      .lineTo(centerX + 4, centerY - tip)
+      .stroke({ color: hexToNum(surfaceInk), width: 2, cap: "round", join: "round" });
   }
 
   destroy(): void {

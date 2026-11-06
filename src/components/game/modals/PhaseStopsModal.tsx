@@ -19,7 +19,8 @@ const PHASE_DETAILS: Record<string, string> = {
 
 interface PhaseStopsModalProps {
   currentStep: StepKind;
-  activeColor: string;
+  activePlayerId: string;
+  myPlayerId: string;
   selfColor: string;
   selfStops: ReadonlySet<string>;
   opponents: OpponentStops[];
@@ -30,7 +31,8 @@ interface PhaseStopsModalProps {
 
 export function PhaseStopsModal({
   currentStep,
-  activeColor,
+  activePlayerId,
+  myPlayerId,
   selfColor,
   selfStops,
   opponents,
@@ -41,113 +43,85 @@ export function PhaseStopsModal({
   const { gameTheme } = useTheme();
   const surface = gameTheme.phaseStrip.background;
   const surfaceInk = readableTextColor(surface, gameTheme.canvas.shadow, gameTheme.textOnTinted);
-  const activeInk = readableTextColor(activeColor, gameTheme.canvas.shadow, gameTheme.textOnTinted);
+  const seats = [
+    {
+      id: myPlayerId,
+      title: "Your turn",
+      color: selfColor,
+      stops: selfStops,
+      onToggle: onToggleSelf,
+    },
+    ...opponents.map((opponent) => ({
+      id: opponent.id,
+      title: `${opponent.name}'s turn`,
+      color: opponent.color,
+      stops: opponent.stops,
+      onToggle: (step: string) => onToggleOpponent(opponent.id, step),
+    })),
+  ];
 
   return (
-    <Modal maxWidth="max-w-xl" onClose={onClose}>
+    <Modal maxWidth="max-w-4xl" onClose={onClose}>
       <Modal.Header>
         <h2 className="text-base font-semibold">Phase stops</h2>
       </Modal.Header>
-      <Modal.Instructions>Passing priority skips ahead to your next stop.</Modal.Instructions>
-      <Modal.Body className="space-y-3">
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-lg border border-border bg-background px-3 py-2.5 text-ui-meta font-semibold text-foreground">
-          <div className="flex items-stretch gap-1.5">
-            <span className="w-2 rounded-sm" style={{ backgroundColor: selfColor }} />
-            <span
-              className="flex h-11 items-center rounded-md px-2.5 font-game text-ui-label font-bold"
-              style={{ backgroundColor: surface, color: surfaceInk }}
-            >
-              M1
-            </span>
-            <span className="flex w-2 flex-col gap-[3px]">
-              {opponents.map((opponent) => (
-                <span
-                  key={opponent.id}
-                  className="flex-1 rounded-sm"
-                  style={{ backgroundColor: opponent.color }}
-                />
-              ))}
-            </span>
-          </div>
-          <div className="space-y-1">
-            <LegendRow color={selfColor} label="You" detail="your turns" />
-            {opponents.map((opponent) => (
-              <LegendRow
-                key={opponent.id}
-                color={opponent.color}
-                label={opponent.name}
-                detail="their turn"
-              />
-            ))}
-          </div>
-          <div className="space-y-1.5">
-            <span className="flex items-center gap-2">
-              <span
-                className="h-4 w-2 rounded-sm border-2"
-                style={{ borderColor: selfColor, backgroundColor: selfColor }}
-              />
-              Stop
-            </span>
-            <span className="flex items-center gap-2">
-              <span
-                className="h-4 w-2 rounded-sm border-2"
-                style={{ borderColor: selfColor, backgroundColor: gameTheme.canvas.shadow }}
-              />
-              Skip
-            </span>
-          </div>
-        </div>
-        <div
-          className="space-y-1.5 rounded-xl border-2 bg-card p-2"
-          style={{ borderColor: activeColor }}
-        >
-          {PHASE_BAR_ENTRIES.map((entry) => {
-            const current = entry.steps.includes(currentStep);
-            return (
-              <div key={entry.id} className="grid grid-cols-[1.75rem_1fr_1.75rem] gap-2">
-                <StopBar
-                  label={`You: ${entry.label} stop`}
-                  color={selfColor}
-                  dark={gameTheme.canvas.shadow}
-                  enabled={entry.steps.some((step) => selfStops.has(step))}
-                  onToggle={() => togglePhaseStops(entry.steps, selfStops, onToggleSelf)}
-                />
-                <div
-                  className="rounded-md px-3 py-2"
-                  style={{
-                    backgroundColor: current ? activeColor : surface,
-                    color: current ? activeInk : surfaceInk,
-                  }}
-                >
-                  <p className="flex items-baseline gap-2">
-                    <span className="font-game text-ui-label font-bold">{entry.short}</span>
-                    <span className="text-ui-meta font-semibold">{entry.label}</span>
-                    {current && (
-                      <span className="text-ui-caption font-bold uppercase tracking-wide">Now</span>
-                    )}
-                  </p>
-                  <p className="text-ui-meta">{PHASE_DETAILS[entry.id]}</p>
-                </div>
-                <div className="flex flex-col gap-[3px]">
-                  {opponents.map((opponent) => (
-                    <StopBar
-                      key={opponent.id}
-                      label={`${opponent.name}: ${entry.label} stop`}
-                      color={opponent.color}
-                      dark={gameTheme.canvas.shadow}
-                      enabled={entry.steps.some((step) => opponent.stops.has(step))}
-                      onToggle={() =>
-                        togglePhaseStops(entry.steps, opponent.stops, (step) =>
-                          onToggleOpponent(opponent.id, step),
-                        )
-                      }
-                    />
-                  ))}
-                </div>
+      <Modal.Instructions>
+        Passing priority skips ahead to your next stop. A filled phase is a stop.
+      </Modal.Instructions>
+      <Modal.Body className="space-y-4 overflow-x-auto">
+        {seats.map((seat) => {
+          const seatInk = readableTextColor(
+            seat.color,
+            gameTheme.canvas.shadow,
+            gameTheme.textOnTinted,
+          );
+          const active = seat.id === activePlayerId;
+          return (
+            <section key={seat.id} className="min-w-[36rem] space-y-1.5">
+              <h3 className="flex items-center gap-2 text-ui-label font-semibold text-foreground">
+                <span className="size-2.5 rounded-full" style={{ backgroundColor: seat.color }} />
+                {seat.title}
+                {active && (
+                  <span className="text-ui-caption font-bold uppercase tracking-wide text-muted-foreground">
+                    Now
+                  </span>
+                )}
+              </h3>
+              <div className="grid grid-cols-[1fr_1fr_1fr_1.6fr_1fr_1fr_1fr] gap-1.5">
+                {PHASE_BAR_ENTRIES.map((entry) => {
+                  const enabled = entry.steps.some((step) => seat.stops.has(step));
+                  return (
+                    <div key={entry.id} className="space-y-1">
+                      <button
+                        type="button"
+                        aria-label={`${entry.label} stop, ${seat.title}`}
+                        aria-pressed={enabled}
+                        title={PHASE_DETAILS[entry.id]}
+                        className="flex h-12 w-full items-center justify-center rounded-md border-2 px-1 font-game text-ui-label font-bold motion-safe:transition-[scale] active:scale-95"
+                        style={{
+                          borderColor: seat.color,
+                          backgroundColor: enabled ? seat.color : surface,
+                          color: enabled ? seatInk : surfaceInk,
+                        }}
+                        onClick={() => togglePhaseStops(entry.steps, seat.stops, seat.onToggle)}
+                      >
+                        {entry.label}
+                      </button>
+                      <div className="h-1">
+                        {active && entry.steps.includes(currentStep) && (
+                          <div
+                            className="h-full rounded-full"
+                            style={{ backgroundColor: seat.color }}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
-        </div>
+            </section>
+          );
+        })}
       </Modal.Body>
       <Modal.Footer>
         <Modal.Close onClose={onClose} variant="ghost">
@@ -155,41 +129,5 @@ export function PhaseStopsModal({
         </Modal.Close>
       </Modal.Footer>
     </Modal>
-  );
-}
-
-function LegendRow({ color, label, detail }: { color: string; label: string; detail: string }) {
-  return (
-    <span className="flex items-center gap-1.5">
-      <span className="size-2.5 rounded-full" style={{ backgroundColor: color }} />
-      {label}
-      <span className="font-normal text-muted-foreground">· {detail}</span>
-    </span>
-  );
-}
-
-function StopBar({
-  label,
-  color,
-  dark,
-  enabled,
-  onToggle,
-}: {
-  label: string;
-  color: string;
-  dark: string;
-  enabled: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      aria-pressed={enabled}
-      title={label}
-      className="min-h-6 w-full flex-1 rounded-sm border-2 motion-safe:transition-[scale] active:scale-95"
-      style={{ borderColor: color, backgroundColor: enabled ? color : dark }}
-      onClick={onToggle}
-    />
   );
 }

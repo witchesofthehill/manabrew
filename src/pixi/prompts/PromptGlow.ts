@@ -59,9 +59,12 @@ export function promptPanelOutline(
   const { width, height, radius, squareBottom } = shape;
   const bottom = squareBottom ? 0 : radius;
   const sorted = [...attachments].sort((a, b) => a.tower.x - b.tower.x);
-  const flushLeft = !!sorted[0] && sorted[0].tower.x <= 0;
+  const flushLeft = !!sorted[0] && sorted[0].tower.x <= radius;
+  const lastTower = sorted[sorted.length - 1]?.tower;
+  const flushRight = !!lastTower && lastTower.x + lastTower.width >= width - radius;
   const top = sorted.map(attachmentPath).join(" ");
-  return `M ${flushLeft ? 0 : radius},0 ${top} H ${width - radius} Q ${width},0 ${width},${radius}
+  return `M ${flushLeft ? 0 : radius},0 ${top}
+    ${flushRight ? `H ${width}` : `H ${width - radius} Q ${width},0 ${width},${radius}`}
     V ${height - bottom} Q ${width},${height} ${width - bottom},${height}
     H ${bottom} Q 0,${height} 0,${height - bottom}
     ${flushLeft ? "V 0" : `V ${radius} Q 0,0 ${radius},0`} Z`;

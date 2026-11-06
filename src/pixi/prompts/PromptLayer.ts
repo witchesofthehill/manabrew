@@ -12,7 +12,6 @@ import { playSound } from "@/lib/soundRuntime";
 import { summarizeCombat } from "@/components/game/combatSummary";
 import {
   Application,
-  BlurFilter,
   Container,
   FederatedPointerEvent,
   Graphics,
@@ -1060,7 +1059,6 @@ export class PromptLayer extends PromptModalLayer {
           this.makeButton("AUTO", action.onDefaultDamageOrder, {
             action: "attackAction",
             flat: true,
-            shadow: true,
             radius: ACTION_CONTROL_RADIUS,
             disabled,
             width: action.damageOrderCount > 0 ? (width - 6) / 2 : width,
@@ -1074,7 +1072,6 @@ export class PromptLayer extends PromptModalLayer {
             this.makeButton("UNDO", action.onUndoDamageOrder, {
               action: "attackAction",
               flat: true,
-              shadow: true,
               radius: ACTION_CONTROL_RADIUS,
               disabled,
               width: (width - 6) / 2,
@@ -1093,7 +1090,6 @@ export class PromptLayer extends PromptModalLayer {
           const confirm = this.makeButton("CONFIRM ORDER", action.onConfirmDamageOrder, {
             action: "attackAction",
             flat: true,
-            shadow: true,
             radius: ACTION_CONTROL_RADIUS,
             disabled,
             width,
@@ -1140,7 +1136,6 @@ export class PromptLayer extends PromptModalLayer {
             action: "priority",
             flat: true,
             radius: minimal ? 20 : ACTION_CONTROL_RADIUS,
-            shadow: true,
             disabled,
             width: minimal ? undefined : availableWidth,
             height: minimal ? 40 : 36,
@@ -1191,7 +1186,6 @@ export class PromptLayer extends PromptModalLayer {
             this.makeButton("Keep", action.onMulliganKeep, {
               action: "priority",
               flat: true,
-              shadow: true,
               radius: ACTION_CONTROL_RADIUS,
               disabled,
               width: (width - 6) / 2,
@@ -1205,7 +1199,6 @@ export class PromptLayer extends PromptModalLayer {
             this.makeButton("Mulligan", action.onMulliganDraw, {
               variant: "secondary",
               flat: true,
-              shadow: true,
               radius: ACTION_CONTROL_RADIUS,
               disabled,
               width: (width - 6) / 2,
@@ -1243,7 +1236,6 @@ export class PromptLayer extends PromptModalLayer {
     return this.makeButton(label, onPress, {
       ...(role === "primary" || role === "secondary" ? { variant: role } : { action: role }),
       flat: true,
-      shadow: true,
       compact: minimal,
       radius: ACTION_CONTROL_RADIUS,
       disabled,
@@ -1819,7 +1811,6 @@ export class PromptLayer extends PromptModalLayer {
     label.position.set(width / 2, 0);
     const button = this.makeButton("CONFIRM", action.onMulliganPutBackConfirm, {
       flat: true,
-      shadow: true,
       radius: ACTION_CONTROL_RADIUS,
       disabled: !canConfirm,
       width,
@@ -1866,12 +1857,6 @@ export class PromptLayer extends PromptModalLayer {
     outlined = true,
   ): Container {
     const card = this.actionSurfaceColor();
-    const shadow = new Graphics()
-      .roundRect(0, 14, width, height, radius)
-      .fill({ color: hexToNum(this.theme.gameTheme.canvas.shadow) });
-    shadow.alpha = 0.5;
-    shadow.filters = [new BlurFilter({ strength: 18 })];
-    shadow.eventMode = "none";
     const surface = new Graphics().roundRect(0, 0, width, height, radius).fill({ color: card });
     if (squareBottom) surface.rect(0, height - radius, width, radius).fill({ color: card });
     if (outlined && squareBottom) {
@@ -1889,10 +1874,7 @@ export class PromptLayer extends PromptModalLayer {
         .stroke({ color: hexToNum(this.theme.appTheme.border), width: 1, alpha: 0.35 });
     }
     surface.eventMode = "none";
-    const container = new Container();
-    container.eventMode = "none";
-    container.addChild(shadow, surface);
-    return container;
+    return surface;
   }
 
   private makeCompactActionControls(

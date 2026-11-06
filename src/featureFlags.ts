@@ -28,7 +28,7 @@ export const featureFlags = {
   phaseDrawer: false,
   // Horizontal phase bar on the desktop action panel, following the active player.
   // It replaces the "Your turn" band.
-  turnPhaseBar: false,
+  turnPhaseBar: true,
 } as const;
 
 export type FeatureFlag = keyof typeof featureFlags;

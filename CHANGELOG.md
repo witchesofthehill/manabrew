@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.71.2](https://github.com/witchesofthehill/manabrew/compare/v3.71.1...v3.71.2) (2026-11-06)
+
+### Fixes
+
+* **limited:** preserve card names in cubecobra draft pools ([#1180](https://github.com/witchesofthehill/manabrew/issues/1180)) ([2c8b8ca](https://github.com/witchesofthehill/manabrew/commit/2c8b8ca974f1ea33ef76ed65688598bf158e1894))
+
 ## [3.71.1](https://github.com/witchesofthehill/manabrew/compare/v3.71.0...v3.71.1) (2026-11-04)
 
 ### Fixes

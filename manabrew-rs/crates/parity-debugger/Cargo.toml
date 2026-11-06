@@ -1,6 +1,6 @@
 [package]
 name = "parity-debugger"
-version = "0.3.15"
+version = "0.3.17"
 edition = "2021"
 publish = false
 

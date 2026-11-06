@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { Check, Loader2 } from "lucide-react";
 import {
   cardKey,
@@ -10,6 +10,7 @@ import type { ScryfallCard } from "@/types/scryfall";
 import { isHorizontalCard } from "@/lib/cardLayout";
 import { HorizontalCardImage } from "@/components/game/HorizontalCardImage";
 import { ScryfallImg } from "@/components/ScryfallImg";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { DeckCard, DeckCardIdentity } from "@/protocol/deck";
 
@@ -33,6 +34,10 @@ export function CardPrintingPicker({
   const [error, setError] = useState<string | null>(null);
   const setLookup = useSetLookup();
   const resolvedName = token?.identity.name ?? cardName;
+  const [modalPanel, setModalPanel] = useState<HTMLElement | undefined>();
+  const rootRef = useCallback((node: HTMLDivElement | null) => {
+    setModalPanel(node?.closest<HTMLElement>("[data-modal-panel]") ?? undefined);
+  }, []);
   useEffect(() => {
     let mounted = true;
     async function fetchPrints() {
@@ -80,6 +85,7 @@ export function CardPrintingPicker({
 
   return (
     <div
+      ref={rootRef}
       className={cn(
         layout === "row"
           ? "flex min-w-0 items-start gap-3 overflow-x-auto overscroll-x-contain p-1"
@@ -97,6 +103,7 @@ export function CardPrintingPicker({
           face?.image_uris?.large ||
           print.image_uris?.normal ||
           print.image_uris?.large;
+        const setIcon = setLookup.get(print.set)?.icon_svg_uri;
         const selected =
           printing?.setCode.toLowerCase() === print.set.toLowerCase() &&
           printing.cardNumber === print.collector_number;
@@ -117,13 +124,21 @@ export function CardPrintingPicker({
               className={cn(
                 "relative flex w-full max-w-44 items-center justify-center overflow-hidden rounded-[4%] border-2 bg-muted transition-colors group-hover:border-selection-border",
                 selected ? "border-selection-border" : "border-transparent",
-                isHorizontalCard({ layout: print.layout, typeLine: print.type_line })
+                isHorizontalCard({
+                  layout: print.layout,
+                  typeLine: print.type_line,
+                  keywords: print.keywords,
+                })
                   ? "aspect-[7/5]"
                   : "aspect-[5/7]",
               )}
             >
               {imageUrl ? (
-                isHorizontalCard({ layout: print.layout, typeLine: print.type_line }) ? (
+                isHorizontalCard({
+                  layout: print.layout,
+                  typeLine: print.type_line,
+                  keywords: print.keywords,
+                }) ? (
                   <HorizontalCardImage
                     src={imageUrl}
                     alt={`${print.set_name} printing`}
@@ -147,19 +162,44 @@ export function CardPrintingPicker({
                 </span>
               )}
             </div>
-            <span className="flex w-full items-center justify-center gap-1 text-center text-ui-label font-semibold">
-              {setLookup.get(print.set)?.icon_svg_uri && (
-                <ScryfallImg
-                  src={setLookup.get(print.set)!.icon_svg_uri}
-                  alt=""
-                  className="h-3.5 w-3.5 shrink-0 brightness-0 dark:invert"
-                />
-              )}
-              <span className="min-w-0 break-words">{print.set_name}</span>
-            </span>
-            <span className="text-ui-meta uppercase text-muted-foreground">
-              {print.set} · #{print.collector_number}
-            </span>
+            {layout === "row" ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="flex h-5 items-center justify-center">
+                    {setIcon ? (
+                      <ScryfallImg
+                        src={setIcon}
+                        alt=""
+                        className="h-4 w-4 brightness-0 dark:invert"
+                      />
+                    ) : (
+                      <span className="text-ui-meta uppercase text-muted-foreground">
+                        {print.set}
+                      </span>
+                    )}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent portalContainer={modalPanel}>
+                  {print.set_name} · {print.set.toUpperCase()} #{print.collector_number}
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <>
+                <span className="flex w-full items-center justify-center gap-1 text-center text-ui-label font-semibold">
+                  {setIcon && (
+                    <ScryfallImg
+                      src={setIcon}
+                      alt=""
+                      className="h-3.5 w-3.5 shrink-0 brightness-0 dark:invert"
+                    />
+                  )}
+                  <span className="min-w-0 break-words">{print.set_name}</span>
+                </span>
+                <span className="text-ui-meta uppercase text-muted-foreground">
+                  {print.set} · #{print.collector_number}
+                </span>
+              </>
+            )}
           </button>
         );
       })}

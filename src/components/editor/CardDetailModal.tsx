@@ -66,7 +66,7 @@ interface DeckEditorActions {
   token?: DeckCard;
   printing?: DeckCardIdentity;
 }
-interface CardDetailModalProps {
+interface CardDetailContentProps {
   card: ScryfallCard;
   onClose: () => void;
   deckEditorActions?: DeckEditorActions;
@@ -79,12 +79,67 @@ interface CardDetailModalProps {
   };
 }
 export function CardDetailModal({
+  card,
+  name,
+  ...props
+}: Omit<CardDetailContentProps, "card"> & { card: ScryfallCard | null; name?: string }) {
+  return (
+    <Modal
+      onClose={props.onClose}
+      maxWidth="max-w-4xl"
+      className="max-sm:mt-auto max-sm:mx-0 max-sm:rounded-b-none"
+    >
+      {card ? (
+        <CardDetailContent card={card} {...props} />
+      ) : (
+        <CardDetailPlaceholder name={name} onClose={props.onClose} />
+      )}
+    </Modal>
+  );
+}
+
+function CardDetailPlaceholder({ name, onClose }: { name?: string; onClose: () => void }) {
+  return (
+    <>
+      <Modal.Header onClose={onClose}>
+        <h2 className="text-lg font-bold truncate">{name}</h2>
+      </Modal.Header>
+      <Modal.Body>
+        <div
+          role="status"
+          aria-label="Loading card details"
+          className="flex flex-col gap-6 sm:flex-row"
+        >
+          <div className="mx-auto aspect-[5/7] w-full max-w-64 shrink-0 animate-pulse rounded-lg bg-muted motion-reduce:animate-none sm:mx-0 sm:w-64" />
+          <div className="flex-1 space-y-3">
+            {["w-1/2", "w-full", "w-full", "w-3/4", "w-1/3"].map((width, index) => (
+              <div
+                key={index}
+                className={cn(
+                  "h-4 animate-pulse rounded bg-muted motion-reduce:animate-none",
+                  width,
+                )}
+              />
+            ))}
+          </div>
+        </div>
+      </Modal.Body>
+      <Modal.Footer>
+        <Button size="sm" variant="ghost" className="ml-auto" onClick={onClose}>
+          Close
+        </Button>
+      </Modal.Footer>
+    </>
+  );
+}
+
+function CardDetailContent({
   card: initialCard,
   onClose,
   deckEditorActions,
   readOnly = false,
   navigation,
-}: CardDetailModalProps) {
+}: CardDetailContentProps) {
   const [showPrints, setShowPrints] = useState(false);
   const [customizing, setCustomizing] = useState(false);
   const [showDeckPicker, setShowDeckPicker] = useState(false);
@@ -305,7 +360,11 @@ export function CardDetailModal({
   const rulings = rulingsData?.data ?? [];
   const isHorizontalActiveFace = activeFace
     ? isHorizontalCard({ typeLine: activeFace.type_line })
-    : isHorizontalCard({ layout: card.layout, typeLine: card.type_line });
+    : isHorizontalCard({
+        layout: card.layout,
+        typeLine: card.type_line,
+        keywords: card.keywords,
+      });
   function handleAddToCurrentDeck() {
     addToMain(scryfallToDeckCard(card));
     setShowDeckPicker(false);
@@ -338,591 +397,581 @@ export function CardDetailModal({
   }
   return (
     <>
-      <Modal
-        onClose={onClose}
-        maxWidth="max-w-4xl"
-        className="max-sm:mt-auto max-sm:mx-0 max-sm:rounded-b-none"
-      >
-        <Modal.Header onClose={onClose}>
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-bold truncate">{displayName}</h2>
-            {locale !== "en" && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="touch:min-w-11 touch:min-h-11 shrink-0"
-                onClick={() => setEnglishMode({ key: cardKey, enabled: !showEnglish })}
-                aria-pressed={showEnglish}
-              >
-                {showEnglish ? "Show translated text" : "Show English"}
-              </Button>
-            )}
-            {isDoubleFaced && (
-              <span className="text-ui-meta text-muted-foreground shrink-0">
-                {faceIndex === 0 ? `Front face` : `Back face`}
-              </span>
-            )}
-            {manaCost && <ManaSymbols cost={manaCost} size="sm" className="shrink-0" />}
-          </div>
-        </Modal.Header>
-
-        {navigation && (
-          <div className="flex shrink-0 items-center justify-between gap-3 border-b px-4 py-2">
+      <Modal.Header onClose={onClose}>
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-bold truncate">{displayName}</h2>
+          {locale !== "en" && (
             <Button
               variant="outline"
               size="sm"
-              disabled={!navigation.onPrevious}
-              onClick={navigation.onPrevious}
+              className="touch:min-w-11 touch:min-h-11 shrink-0"
+              onClick={() => setEnglishMode({ key: cardKey, enabled: !showEnglish })}
+              aria-pressed={showEnglish}
             >
-              Previous card
+              {showEnglish ? "Show translated text" : "Show English"}
             </Button>
-            <span className="text-ui-meta text-muted-foreground">
-              {navigation.position} / {navigation.total}
+          )}
+          {isDoubleFaced && (
+            <span className="text-ui-meta text-muted-foreground shrink-0">
+              {faceIndex === 0 ? `Front face` : `Back face`}
             </span>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!navigation.onNext}
-              onClick={navigation.onNext}
-            >
-              Next card
-            </Button>
-          </div>
-        )}
+          )}
+          {manaCost && <ManaSymbols cost={manaCost} size="sm" className="shrink-0" />}
+        </div>
+      </Modal.Header>
 
-        <Modal.Body className="p-0">
-          <ScrollArea className="h-full">
-            <div className="p-4 space-y-4">
-              <div className="flex flex-col gap-6 sm:flex-row">
-                <div
-                  className={cn(
-                    "mx-auto w-full shrink-0 sm:mx-0",
-                    isHorizontalActiveFace ? "max-w-96 sm:w-96" : "max-w-64 sm:w-64",
-                  )}
+      {navigation && (
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b px-4 py-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!navigation.onPrevious}
+            onClick={navigation.onPrevious}
+          >
+            Previous card
+          </Button>
+          <span className="text-ui-meta text-muted-foreground">
+            {navigation.position} / {navigation.total}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!navigation.onNext}
+            onClick={navigation.onNext}
+          >
+            Next card
+          </Button>
+        </div>
+      )}
+
+      <Modal.Body className="p-0">
+        <ScrollArea className="h-full">
+          <div className="p-4 space-y-4">
+            <div className="flex flex-col gap-6 sm:flex-row">
+              <div
+                className={cn(
+                  "mx-auto w-full shrink-0 sm:mx-0",
+                  isHorizontalActiveFace ? "max-w-96 sm:w-96" : "max-w-64 sm:w-64",
+                )}
+              >
+                {generated ? (
+                  <div
+                    className={cn(
+                      "relative w-full rounded-lg shadow-lg",
+                      isHorizontalActiveFace ? "aspect-[7/5]" : "aspect-[5/7]",
+                    )}
+                  >
+                    <GeneratedCardImage
+                      deckCard={renderCard}
+                      faceIndex={faceIndex}
+                      className={
+                        isHorizontalActiveFace
+                          ? "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-90 origin-center h-[calc(100%*7/5)] aspect-[5/7]"
+                          : "absolute inset-0 h-full w-full"
+                      }
+                    />
+                  </div>
+                ) : imageUrl ? (
+                  <div
+                    className={cn(
+                      "relative w-full rounded-lg shadow-lg",
+                      isHorizontalActiveFace ? "aspect-[7/5]" : "aspect-[5/7]",
+                    )}
+                  >
+                    {isHorizontalActiveFace ? (
+                      <HorizontalCardImage
+                        src={imageUrl}
+                        alt={displayName}
+                        className="h-full w-full rounded-[inherit]"
+                      />
+                    ) : (
+                      <ScryfallImg
+                        src={imageUrl}
+                        alt={displayName}
+                        className="absolute inset-0 h-full w-full rounded-[inherit] object-contain"
+                      />
+                    )}
+                    <CardFoilOverlay
+                      enabled
+                      foil={foil}
+                      cosmetics={cosmetics}
+                      etched={isEtchedOnlyPrinting(card.finishes)}
+                    />
+                  </div>
+                ) : (
+                  <div
+                    className={cn(
+                      "w-full rounded-lg bg-muted flex items-center justify-center",
+                      isHorizontalActiveFace ? "aspect-[7/5]" : "aspect-[5/7]",
+                    )}
+                  >
+                    <span className="text-muted-foreground text-ui-label">No Image</span>
+                  </div>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="touch:min-w-11 touch:min-h-11 mt-2 w-full"
+                  onClick={() => setPresentation(generated ? "printed" : "rules")}
                 >
-                  {generated ? (
-                    <div
-                      className={cn(
-                        "relative w-full rounded-lg shadow-lg",
-                        isHorizontalActiveFace ? "aspect-[7/5]" : "aspect-[5/7]",
-                      )}
-                    >
-                      <GeneratedCardImage
-                        deckCard={renderCard}
-                        faceIndex={faceIndex}
-                        className={
-                          isHorizontalActiveFace
-                            ? "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-90 origin-center h-[calc(100%*7/5)] aspect-[5/7]"
-                            : "absolute inset-0 h-full w-full"
-                        }
-                      />
-                    </div>
-                  ) : imageUrl ? (
-                    <div
-                      className={cn(
-                        "relative w-full rounded-lg shadow-lg",
-                        isHorizontalActiveFace ? "aspect-[7/5]" : "aspect-[5/7]",
-                      )}
-                    >
-                      {isHorizontalActiveFace ? (
-                        <HorizontalCardImage
-                          src={imageUrl}
-                          alt={displayName}
-                          className="h-full w-full rounded-[inherit]"
-                        />
-                      ) : (
-                        <ScryfallImg
-                          src={imageUrl}
-                          alt={displayName}
-                          className="absolute inset-0 h-full w-full rounded-[inherit] object-contain"
-                        />
-                      )}
-                      <CardFoilOverlay
-                        enabled
-                        foil={foil}
-                        cosmetics={cosmetics}
-                        etched={isEtchedOnlyPrinting(card.finishes)}
-                      />
-                    </div>
-                  ) : (
-                    <div
-                      className={cn(
-                        "w-full rounded-lg bg-muted flex items-center justify-center",
-                        isHorizontalActiveFace ? "aspect-[7/5]" : "aspect-[5/7]",
-                      )}
-                    >
-                      <span className="text-muted-foreground text-ui-label">No Image</span>
-                    </div>
-                  )}
+                  {generated ? "Show Realistic card" : "Show Manabrew card"}
+                </Button>
+
+                {isDoubleFaced && (
                   <Button
                     variant="outline"
                     size="sm"
-                    className="touch:min-w-11 touch:min-h-11 mt-2 w-full"
-                    onClick={() => setPresentation(generated ? "printed" : "rules")}
+                    className="touch:min-w-11 touch:min-h-11 w-full mt-2 gap-1.5"
+                    onClick={() => setFaceIndex(faceIndex === 0 ? 1 : 0)}
                   >
-                    {generated ? "Show Realistic card" : "Show Manabrew card"}
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    {faceIndex === 0
+                      ? `Show back: ${card.card_faces![1].name}`
+                      : `Show front: ${card.card_faces![0].name}`}
                   </Button>
+                )}
 
-                  {isDoubleFaced && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="touch:min-w-11 touch:min-h-11 w-full mt-2 gap-1.5"
-                      onClick={() => setFaceIndex(faceIndex === 0 ? 1 : 0)}
-                    >
-                      <RotateCcw className="h-3.5 w-3.5" />
-                      {faceIndex === 0
-                        ? `Show back: ${card.card_faces![1].name}`
-                        : `Show front: ${card.card_faces![0].name}`}
-                    </Button>
-                  )}
+                {!canCustomize && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="touch:min-w-11 touch:min-h-11 w-full mt-2 gap-1"
+                    onClick={() => setShowPrints((shown) => !shown)}
+                  >
+                    <ImageIcon className="h-3.5 w-3.5" />
+                    {showPrints ? "Hide Printings" : "Show All Printings"}
+                  </Button>
+                )}
+              </div>
 
-                  {!canCustomize && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="touch:min-w-11 touch:min-h-11 w-full mt-2 gap-1"
-                      onClick={() => setShowPrints((shown) => !shown)}
-                    >
-                      <ImageIcon className="h-3.5 w-3.5" />
-                      {showPrints ? "Hide Printings" : "Show All Printings"}
-                    </Button>
-                  )}
+              <div className="flex-1 min-w-0 space-y-3">
+                <div>
+                  <div className="text-ui-label font-semibold text-muted-foreground">Type</div>
+                  <div className="text-ui-body">{typeLine}</div>
                 </div>
 
-                <div className="flex-1 min-w-0 space-y-3">
-                  <div>
-                    <div className="text-ui-label font-semibold text-muted-foreground">Type</div>
-                    <div className="text-ui-body">{typeLine}</div>
-                  </div>
-
-                  {deckEditorActions && matchingDeckCard && (
-                    <div className="space-y-2 rounded-lg border bg-muted/20 p-3">
-                      <div className="text-ui-label font-semibold">Deck inspector</div>
-                      <div className="flex flex-wrap gap-1.5 text-ui-meta">
-                        {zoneCounts.main > 0 && (
-                          <Badge variant="outline">Main {zoneCounts.main}</Badge>
-                        )}
-                        {zoneCounts.side > 0 && (
-                          <Badge variant="outline">Side {zoneCounts.side}</Badge>
-                        )}
-                        {zoneCounts.maybe > 0 && (
-                          <Badge variant="outline">Maybe {zoneCounts.maybe}</Badge>
-                        )}
-                        {zoneCounts.command > 0 && (
-                          <Badge variant="outline">Command {zoneCounts.command}</Badge>
-                        )}
-                        <Badge variant="outline">
-                          {matchingDeckCard.identity.foil ? `Foil` : `Non-foil`}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-2 text-ui-meta">
-                        <LibraryBig className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span>
-                          {exactOwnership === "exact"
-                            ? `Exact printing owned · ${owned} total`
-                            : exactOwnership === "other"
-                              ? `Owned in another printing · ${owned} total`
-                              : `Not in collection`}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 text-ui-meta">
-                        {unsupported ? (
-                          <AlertTriangle className="h-3.5 w-3.5 text-warning" />
-                        ) : (
-                          <Check className="h-3.5 w-3.5 text-legality-legal" />
-                        )}
-                        <span>
-                          {unsupported
-                            ? `Unsupported by the Manabrew and Forge engines`
-                            : `Supported by the Manabrew and Forge engines`}
-                        </span>
-                      </div>
-                      {!readOnly && appliedTags.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {appliedTags.map((tag) => (
-                            <Button
-                              key={tag}
-                              variant="outline"
-                              size="sm"
-                              className="touch:min-w-11 touch:min-h-11 min-h-6 gap-1 px-2 text-ui-label"
-                              onClick={() => deckEditorActions.onUntagCard?.(deckCardName, tag)}
-                            >
-                              <Tag className="h-3 w-3" />
-                              {tag}
-                              <Minus className="h-3 w-3" />
-                            </Button>
-                          ))}
-                        </div>
+                {deckEditorActions && matchingDeckCard && (
+                  <div className="space-y-2 rounded-lg border bg-muted/20 p-3">
+                    <div className="text-ui-label font-semibold">Deck inspector</div>
+                    <div className="flex flex-wrap gap-1.5 text-ui-meta">
+                      {zoneCounts.main > 0 && (
+                        <Badge variant="outline">Main {zoneCounts.main}</Badge>
                       )}
+                      {zoneCounts.side > 0 && (
+                        <Badge variant="outline">Side {zoneCounts.side}</Badge>
+                      )}
+                      {zoneCounts.maybe > 0 && (
+                        <Badge variant="outline">Maybe {zoneCounts.maybe}</Badge>
+                      )}
+                      {zoneCounts.command > 0 && (
+                        <Badge variant="outline">Command {zoneCounts.command}</Badge>
+                      )}
+                      <Badge variant="outline">
+                        {matchingDeckCard.identity.foil ? `Foil` : `Non-foil`}
+                      </Badge>
                     </div>
-                  )}
-
-                  {oracleText && (
-                    <div>
-                      <div className="text-ui-label font-semibold text-muted-foreground">
-                        Oracle Text
-                      </div>
-                      <div className="text-ui-body whitespace-pre-wrap bg-muted/30 rounded p-2 border">
-                        {oracleText}
-                      </div>
+                    <div className="flex items-center gap-2 text-ui-meta">
+                      <LibraryBig className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span>
+                        {exactOwnership === "exact"
+                          ? `Exact printing owned · ${owned} total`
+                          : exactOwnership === "other"
+                            ? `Owned in another printing · ${owned} total`
+                            : `Not in collection`}
+                      </span>
                     </div>
-                  )}
-
-                  {power && toughness && (
-                    <div className="flex gap-4">
-                      <div>
-                        <span className="text-ui-meta font-semibold text-muted-foreground">
-                          P/T:
-                        </span>
-                        <span className="text-ui-meta font-bold">
-                          {power}/{toughness}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-ui-meta font-semibold text-muted-foreground">
-                          CMC:
-                        </span>
-                        <span className="text-ui-meta">{card.cmc}</span>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-ui-meta">
-                    <div className="flex items-center gap-1">
-                      <span className="font-semibold text-muted-foreground">Set:</span>
-                      {setLookup.get(card.set)?.icon_svg_uri && (
-                        <ScryfallImg
-                          src={setLookup.get(card.set)!.icon_svg_uri}
-                          alt=""
-                          className="h-4 w-4 shrink-0 brightness-0 dark:invert"
-                        />
+                    <div className="flex items-center gap-2 text-ui-meta">
+                      {unsupported ? (
+                        <AlertTriangle className="h-3.5 w-3.5 text-warning" />
+                      ) : (
+                        <Check className="h-3.5 w-3.5 text-legality-legal" />
                       )}
                       <span>
-                        {card.set_name} ({card.set.toUpperCase()})
+                        {unsupported
+                          ? `Unsupported by the Manabrew and Forge engines`
+                          : `Supported by the Manabrew and Forge engines`}
+                      </span>
+                    </div>
+                    {!readOnly && appliedTags.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {appliedTags.map((tag) => (
+                          <Button
+                            key={tag}
+                            variant="outline"
+                            size="sm"
+                            className="touch:min-w-11 touch:min-h-11 min-h-6 gap-1 px-2 text-ui-label"
+                            onClick={() => deckEditorActions.onUntagCard?.(deckCardName, tag)}
+                          >
+                            <Tag className="h-3 w-3" />
+                            {tag}
+                            <Minus className="h-3 w-3" />
+                          </Button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {oracleText && (
+                  <div>
+                    <div className="text-ui-label font-semibold text-muted-foreground">
+                      Oracle Text
+                    </div>
+                    <div className="text-ui-body whitespace-pre-wrap bg-muted/30 rounded p-2 border">
+                      {oracleText}
+                    </div>
+                  </div>
+                )}
+
+                {power && toughness && (
+                  <div className="flex gap-4">
+                    <div>
+                      <span className="text-ui-meta font-semibold text-muted-foreground">P/T:</span>
+                      <span className="text-ui-meta font-bold">
+                        {power}/{toughness}
                       </span>
                     </div>
                     <div>
-                      <span className="font-semibold text-muted-foreground">Rarity:</span>
-                      <span className="capitalize">{card.rarity}</span>
-                    </div>
-                    <div>
-                      <span className="font-semibold text-muted-foreground"># </span>
-                      <span>{card.collector_number}</span>
+                      <span className="text-ui-meta font-semibold text-muted-foreground">CMC:</span>
+                      <span className="text-ui-meta">{card.cmc}</span>
                     </div>
                   </div>
+                )}
 
-                  <div className="text-ui-meta">
-                    <span className="font-semibold text-muted-foreground">Artist:</span>
-                    <span>{card.artist}</span>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-ui-meta">
+                  <div className="flex items-center gap-1">
+                    <span className="font-semibold text-muted-foreground">Set:</span>
+                    {setLookup.get(card.set)?.icon_svg_uri && (
+                      <ScryfallImg
+                        src={setLookup.get(card.set)!.icon_svg_uri}
+                        alt=""
+                        className="h-4 w-4 shrink-0 brightness-0 dark:invert"
+                      />
+                    )}
+                    <span>
+                      {card.set_name} ({card.set.toUpperCase()})
+                    </span>
                   </div>
-
-                  {card.edhrec_rank && (
-                    <div className="text-ui-meta">
-                      <span className="font-semibold text-muted-foreground">EDHREC Rank:</span>
-                      <span>#{card.edhrec_rank.toLocaleString()}</span>
-                    </div>
-                  )}
-
                   <div>
-                    <div className="text-ui-label font-semibold text-muted-foreground mb-1">
-                      Prices
-                    </div>
-                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-ui-meta">
-                      {card.prices.usd && <span>USD ${card.prices.usd}</span>}
-                      {card.prices.usd_foil && <span>Foil ${card.prices.usd_foil}</span>}
-                      {card.prices.eur && <span>EUR €{card.prices.eur}</span>}
-                      {card.prices.tix && <span>TIX {card.prices.tix}</span>}
-                      {!card.prices.usd && !card.prices.eur && !card.prices.tix && (
-                        <span className="text-muted-foreground">No price data</span>
-                      )}
-                    </div>
+                    <span className="font-semibold text-muted-foreground">Rarity:</span>
+                    <span className="capitalize">{card.rarity}</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-muted-foreground"># </span>
+                    <span>{card.collector_number}</span>
                   </div>
                 </div>
-              </div>
-              {showPrints && !canCustomize && (
-                <CardPrintingPicker
-                  cardName={card.name}
-                  token={token}
-                  printing={renderCard.identity}
-                  onSelect={handleSelectPrint}
-                />
-              )}
 
-              <div>
-                <div className="text-ui-label font-semibold text-muted-foreground mb-1">
-                  Legalities
+                <div className="text-ui-meta">
+                  <span className="font-semibold text-muted-foreground">Artist:</span>
+                  <span>{card.artist}</span>
                 </div>
-                <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,13rem),1fr))] gap-1.5">
-                  {Object.entries(FORMAT_DISPLAY).map(([key, label]) => {
-                    const status = card.legalities[key] ?? "not_legal";
-                    return (
-                      <Badge
-                        key={key}
-                        variant="outline"
-                        className={cn(
-                          "text-ui-meta flex-wrap justify-between gap-2 whitespace-normal px-2 py-0.5",
-                          LEGALITY_STYLES[status],
-                        )}
-                      >
-                        <span>{label}</span>
-                        <span className="capitalize">{status.replace("_", " ")}</span>
-                      </Badge>
-                    );
-                  })}
-                </div>
-              </div>
 
-              <div>
-                <div className="text-ui-label font-semibold text-muted-foreground mb-1">
-                  Rulings {rulings.length > 0 && `(${rulings.length})`}
+                {card.edhrec_rank && (
+                  <div className="text-ui-meta">
+                    <span className="font-semibold text-muted-foreground">EDHREC Rank:</span>
+                    <span>#{card.edhrec_rank.toLocaleString()}</span>
+                  </div>
+                )}
+
+                <div>
+                  <div className="text-ui-label font-semibold text-muted-foreground mb-1">
+                    Prices
+                  </div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-ui-meta">
+                    {card.prices.usd && <span>USD ${card.prices.usd}</span>}
+                    {card.prices.usd_foil && <span>Foil ${card.prices.usd_foil}</span>}
+                    {card.prices.eur && <span>EUR €{card.prices.eur}</span>}
+                    {card.prices.tix && <span>TIX {card.prices.tix}</span>}
+                    {!card.prices.usd && !card.prices.eur && !card.prices.tix && (
+                      <span className="text-muted-foreground">No price data</span>
+                    )}
+                  </div>
                 </div>
-                {rulingsLoading && (
-                  <div className="flex justify-center py-4">
-                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                  </div>
-                )}
-                {!rulingsLoading && rulings.length === 0 && (
-                  <p className="text-ui-label text-muted-foreground">No rulings available.</p>
-                )}
-                {rulings.length > 0 && (
-                  <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                    {rulings.map((r, i) => (
-                      <div key={i} className="text-ui-body border rounded p-2 bg-muted/20">
-                        <div className="text-muted-foreground mb-0.5">
-                          {r.published_at} — {r.source}
-                        </div>
-                        <div>{r.comment}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
             </div>
-          </ScrollArea>
-        </Modal.Body>
+            {showPrints && !canCustomize && (
+              <CardPrintingPicker
+                cardName={card.name}
+                token={token}
+                printing={renderCard.identity}
+                onSelect={handleSelectPrint}
+              />
+            )}
 
-        <Modal.Footer>
-          <div className="flex w-full flex-wrap items-center justify-between gap-2">
-            {deckEditorActions && !readOnly ? (
-              <div className="flex items-center gap-1">
-                <div className="flex items-center rounded-md border bg-muted/30 p-0.5">
-                  <Button
-                    size="icon-sm"
-                    variant="ghost"
-                    title={`Remove one copy`}
-                    onClick={() => {
-                      deckEditorActions.onRemoveOne(deckCardName);
-                      toast.success(`Removed one ${deckCardName}`);
-                    }}
-                  >
-                    <Minus className="h-3.5 w-3.5" />
-                  </Button>
-                  <span className="min-w-6 px-1 text-center text-ui-meta font-semibold tabular-nums">
-                    {currentDeck.cards.filter((c) => c.identity.name === deckCardName).length}
-                  </span>
-                  <Button
-                    size="icon-sm"
-                    variant="ghost"
-                    title={`Add one copy`}
-                    onClick={() => {
-                      deckEditorActions.onAddOne(deckCardName);
-                      toast.success(`Added ${deckCardName}`);
-                    }}
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-
-                <div className="flex items-center rounded-md border bg-muted/30 p-0.5">
-                  {canCustomize && (
-                    <Button
-                      size="icon-sm"
-                      variant="ghost"
-                      title="Customize card"
-                      aria-label="Customize card"
-                      onClick={() => setCustomizing(true)}
-                    >
-                      <Palette className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
-                  {isDoubleFaced && (
-                    <Button
-                      size="icon-sm"
-                      variant="ghost"
-                      title={
-                        faceIndex === 0
-                          ? `Flip to back: ${card.card_faces![1].name}`
-                          : `Flip to front: ${card.card_faces![0].name}`
-                      }
-                      onClick={() => setFaceIndex(faceIndex === 0 ? 1 : 0)}
-                    >
-                      <RotateCcw className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
-                  {formatRequiresCommander(deckEditorActions.deckFormat) && (
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className={cn(
-                        "touch:min-w-11 touch:min-h-11 min-h-7 w-7",
-                        deckEditorActions.isCommander && "text-commander",
-                      )}
-                      title={
-                        deckEditorActions.isCommander
-                          ? `Remove as ${commanderSlot.noun}`
-                          : `Set as ${commanderSlot.noun}`
-                      }
-                      onClick={() => {
-                        deckEditorActions.onSetCommander(deckCardName);
-                        toast.success(
-                          deckEditorActions.isCommander
-                            ? `Removed ${deckCardName} as ${commanderSlot.noun}`
-                            : `Set ${deckCardName} as ${commanderSlot.noun}`,
-                        );
-                      }}
-                    >
-                      <GameIcon name={commanderSlot.icon} className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
-                  {deckEditorActions.onSetCover && (
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className={cn(
-                        "touch:min-w-11 touch:min-h-11 min-h-7 w-7",
-                        currentDeck.coverCardName === deckCardName && "text-primary",
-                      )}
-                      title={
-                        currentDeck.coverCardName === deckCardName
-                          ? `Remove deck cover`
-                          : `Set as deck cover`
-                      }
-                      onClick={() => deckEditorActions.onSetCover?.(deckCardName, faceIndex)}
-                    >
-                      <GameIcon name="book-cover" className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
-                </div>
-
-                {deckEditorActions.onTagCard && (
-                  <div className="relative ml-1">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="touch:min-w-11 touch:min-h-11 gap-1 min-h-8"
-                      onClick={() => setShowDeckPicker((v) => !v)}
-                    >
-                      <Tag className="h-3.5 w-3.5" />
-                      <ChevronDown className="h-3 w-3 opacity-60" />
-                    </Button>
-                    {showDeckPicker && (
-                      <div className="absolute bottom-full left-0 mb-1 w-48 bg-popover border rounded-md shadow-lg py-1 z-10">
-                        {(deckEditorActions.customTags ?? []).map((tag) => (
-                          <button
-                            key={tag}
-                            type="button"
-                            className="touch:min-w-11 touch:min-h-11 w-full text-left px-3 py-1.5 text-ui-label hover:bg-muted flex items-center gap-2"
-                            onClick={() => {
-                              deckEditorActions.onTagCard!(deckCardName, tag);
-                              setShowDeckPicker(false);
-                              toast.success(`Tagged "${deckCardName}" with "${tag}"`);
-                            }}
-                          >
-                            <Tag className="h-3 w-3 text-primary/60" />
-                            <span className="flex-1 truncate">{tag}</span>
-                          </button>
-                        ))}
-                        {(deckEditorActions.customTags ?? []).length > 0 && (
-                          <div className="border-t my-1" />
-                        )}
-                        <div className="px-2 py-1 flex items-center gap-1">
-                          <Input
-                            className="touch:min-h-11 min-h-7 text-ui-input flex-1"
-                            placeholder={`New tag\u2026`}
-                            value={newTagInput}
-                            onChange={(e) => setNewTagInput(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") handleAddNewTag();
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="touch:min-w-11 touch:min-h-11 min-h-7 w-7 shrink-0"
-                            disabled={!newTagInput.trim()}
-                            onClick={handleAddNewTag}
-                          >
-                            <Check className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
+            <div>
+              <div className="text-ui-label font-semibold text-muted-foreground mb-1">
+                Legalities
               </div>
-            ) : !readOnly ? (
-              <div className="relative">
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,13rem),1fr))] gap-1.5">
+                {Object.entries(FORMAT_DISPLAY).map(([key, label]) => {
+                  const status = card.legalities[key] ?? "not_legal";
+                  return (
+                    <Badge
+                      key={key}
+                      variant="outline"
+                      className={cn(
+                        "text-ui-meta flex-wrap justify-between gap-2 whitespace-normal px-2 py-0.5",
+                        LEGALITY_STYLES[status],
+                      )}
+                    >
+                      <span>{label}</span>
+                      <span className="capitalize">{status.replace("_", " ")}</span>
+                    </Badge>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <div className="text-ui-label font-semibold text-muted-foreground mb-1">
+                Rulings {rulings.length > 0 && `(${rulings.length})`}
+              </div>
+              {rulingsLoading && (
+                <div className="flex justify-center py-4">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              )}
+              {!rulingsLoading && rulings.length === 0 && (
+                <p className="text-ui-label text-muted-foreground">No rulings available.</p>
+              )}
+              {rulings.length > 0 && (
+                <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                  {rulings.map((r, i) => (
+                    <div key={i} className="text-ui-body border rounded p-2 bg-muted/20">
+                      <div className="text-muted-foreground mb-0.5">
+                        {r.published_at} — {r.source}
+                      </div>
+                      <div>{r.comment}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </ScrollArea>
+      </Modal.Body>
+
+      <Modal.Footer>
+        <div className="flex w-full flex-wrap items-center justify-between gap-2">
+          {deckEditorActions && !readOnly ? (
+            <div className="flex items-center gap-1">
+              <div className="flex items-center rounded-md border bg-muted/30 p-0.5">
                 <Button
-                  variant="primary"
-                  size="sm"
-                  className="touch:min-w-11 touch:min-h-11 gap-1"
-                  onClick={() => setShowDeckPicker((v) => !v)}
+                  size="icon-sm"
+                  variant="ghost"
+                  title={`Remove one copy`}
+                  onClick={() => {
+                    deckEditorActions.onRemoveOne(deckCardName);
+                    toast.success(`Removed one ${deckCardName}`);
+                  }}
+                >
+                  <Minus className="h-3.5 w-3.5" />
+                </Button>
+                <span className="min-w-6 px-1 text-center text-ui-meta font-semibold tabular-nums">
+                  {currentDeck.cards.filter((c) => c.identity.name === deckCardName).length}
+                </span>
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
+                  title={`Add one copy`}
+                  onClick={() => {
+                    deckEditorActions.onAddOne(deckCardName);
+                    toast.success(`Added ${deckCardName}`);
+                  }}
                 >
                   <Plus className="h-3.5 w-3.5" />
-                  Add to Deck
-                  <ChevronDown className="h-3 w-3 ml-1" />
                 </Button>
+              </div>
 
-                {showDeckPicker && (
-                  <div className="absolute bottom-full left-0 mb-1 w-64 bg-popover border rounded-md shadow-lg py-1 z-10">
-                    <div className="px-2 py-1 text-ui-label font-semibold text-muted-foreground">
-                      Select a deck
-                    </div>
-                    {currentDeck.name && (
-                      <button
-                        type="button"
-                        className="touch:min-w-11 touch:min-h-11 w-full text-left px-3 py-1.5 text-ui-label hover:bg-muted flex items-center gap-2"
-                        onClick={handleAddToCurrentDeck}
-                      >
-                        <span className="flex-1 truncate">{currentDeck.name}</span>
-                        <Badge variant="outline" className="text-ui-meta px-1 py-0 shrink-0">
-                          editing
-                        </Badge>
-                      </button>
+              <div className="flex items-center rounded-md border bg-muted/30 p-0.5">
+                {canCustomize && (
+                  <Button
+                    size="icon-sm"
+                    variant="ghost"
+                    title="Customize card"
+                    aria-label="Customize card"
+                    onClick={() => setCustomizing(true)}
+                  >
+                    <Palette className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+                {isDoubleFaced && (
+                  <Button
+                    size="icon-sm"
+                    variant="ghost"
+                    title={
+                      faceIndex === 0
+                        ? `Flip to back: ${card.card_faces![1].name}`
+                        : `Flip to front: ${card.card_faces![0].name}`
+                    }
+                    onClick={() => setFaceIndex(faceIndex === 0 ? 1 : 0)}
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+                {formatRequiresCommander(deckEditorActions.deckFormat) && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className={cn(
+                      "touch:min-w-11 touch:min-h-11 min-h-7 w-7",
+                      deckEditorActions.isCommander && "text-commander",
                     )}
-                    {savedDecks.length > 0 && <div className="border-t my-1" />}
-                    <ScrollArea className={savedDecks.length > 6 ? "max-h-48" : ""}>
-                      {savedDecks.map((s) => (
-                        <button
-                          key={s.id}
-                          type="button"
-                          className="touch:min-w-11 touch:min-h-11 w-full text-left px-3 py-1.5 text-ui-label hover:bg-muted flex items-center gap-2"
-                          onClick={() => handleAddToSavedDeck(s.id, s.deck.name)}
-                        >
-                          <span className="flex-1 truncate">{s.deck.name}</span>
-                          <span className="text-ui-meta text-muted-foreground shrink-0">
-                            {s.deck.cards.length} cards
-                          </span>
-                        </button>
-                      ))}
-                    </ScrollArea>
-                    {savedDecks.length === 0 && !currentDeck.name && (
-                      <div className="px-3 py-2 text-ui-label text-muted-foreground">
-                        No decks available
-                      </div>
+                    title={
+                      deckEditorActions.isCommander
+                        ? `Remove as ${commanderSlot.noun}`
+                        : `Set as ${commanderSlot.noun}`
+                    }
+                    onClick={() => {
+                      deckEditorActions.onSetCommander(deckCardName);
+                      toast.success(
+                        deckEditorActions.isCommander
+                          ? `Removed ${deckCardName} as ${commanderSlot.noun}`
+                          : `Set ${deckCardName} as ${commanderSlot.noun}`,
+                      );
+                    }}
+                  >
+                    <GameIcon name={commanderSlot.icon} className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+                {deckEditorActions.onSetCover && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className={cn(
+                      "touch:min-w-11 touch:min-h-11 min-h-7 w-7",
+                      currentDeck.coverCardName === deckCardName && "text-primary",
                     )}
-                  </div>
+                    title={
+                      currentDeck.coverCardName === deckCardName
+                        ? `Remove deck cover`
+                        : `Set as deck cover`
+                    }
+                    onClick={() => deckEditorActions.onSetCover?.(deckCardName, faceIndex)}
+                  >
+                    <GameIcon name="book-cover" className="h-3.5 w-3.5" />
+                  </Button>
                 )}
               </div>
-            ) : null}
-            <Button size="sm" variant="ghost" onClick={onClose}>
-              Close
-            </Button>
-          </div>
-        </Modal.Footer>
-      </Modal>
+
+              {deckEditorActions.onTagCard && (
+                <div className="relative ml-1">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="touch:min-w-11 touch:min-h-11 gap-1 min-h-8"
+                    onClick={() => setShowDeckPicker((v) => !v)}
+                  >
+                    <Tag className="h-3.5 w-3.5" />
+                    <ChevronDown className="h-3 w-3 opacity-60" />
+                  </Button>
+                  {showDeckPicker && (
+                    <div className="absolute bottom-full left-0 mb-1 w-48 bg-popover border rounded-md shadow-lg py-1 z-10">
+                      {(deckEditorActions.customTags ?? []).map((tag) => (
+                        <button
+                          key={tag}
+                          type="button"
+                          className="touch:min-w-11 touch:min-h-11 w-full text-left px-3 py-1.5 text-ui-label hover:bg-muted flex items-center gap-2"
+                          onClick={() => {
+                            deckEditorActions.onTagCard!(deckCardName, tag);
+                            setShowDeckPicker(false);
+                            toast.success(`Tagged "${deckCardName}" with "${tag}"`);
+                          }}
+                        >
+                          <Tag className="h-3 w-3 text-primary/60" />
+                          <span className="flex-1 truncate">{tag}</span>
+                        </button>
+                      ))}
+                      {(deckEditorActions.customTags ?? []).length > 0 && (
+                        <div className="border-t my-1" />
+                      )}
+                      <div className="px-2 py-1 flex items-center gap-1">
+                        <Input
+                          className="touch:min-h-11 min-h-7 text-ui-input flex-1"
+                          placeholder={`New tag\u2026`}
+                          value={newTagInput}
+                          onChange={(e) => setNewTagInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleAddNewTag();
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="touch:min-w-11 touch:min-h-11 min-h-7 w-7 shrink-0"
+                          disabled={!newTagInput.trim()}
+                          onClick={handleAddNewTag}
+                        >
+                          <Check className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : !readOnly ? (
+            <div className="relative">
+              <Button
+                variant="primary"
+                size="sm"
+                className="touch:min-w-11 touch:min-h-11 gap-1"
+                onClick={() => setShowDeckPicker((v) => !v)}
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add to Deck
+                <ChevronDown className="h-3 w-3 ml-1" />
+              </Button>
+
+              {showDeckPicker && (
+                <div className="absolute bottom-full left-0 mb-1 w-64 bg-popover border rounded-md shadow-lg py-1 z-10">
+                  <div className="px-2 py-1 text-ui-label font-semibold text-muted-foreground">
+                    Select a deck
+                  </div>
+                  {currentDeck.name && (
+                    <button
+                      type="button"
+                      className="touch:min-w-11 touch:min-h-11 w-full text-left px-3 py-1.5 text-ui-label hover:bg-muted flex items-center gap-2"
+                      onClick={handleAddToCurrentDeck}
+                    >
+                      <span className="flex-1 truncate">{currentDeck.name}</span>
+                      <Badge variant="outline" className="text-ui-meta px-1 py-0 shrink-0">
+                        editing
+                      </Badge>
+                    </button>
+                  )}
+                  {savedDecks.length > 0 && <div className="border-t my-1" />}
+                  <ScrollArea className={savedDecks.length > 6 ? "max-h-48" : ""}>
+                    {savedDecks.map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        className="touch:min-w-11 touch:min-h-11 w-full text-left px-3 py-1.5 text-ui-label hover:bg-muted flex items-center gap-2"
+                        onClick={() => handleAddToSavedDeck(s.id, s.deck.name)}
+                      >
+                        <span className="flex-1 truncate">{s.deck.name}</span>
+                        <span className="text-ui-meta text-muted-foreground shrink-0">
+                          {s.deck.cards.length} cards
+                        </span>
+                      </button>
+                    ))}
+                  </ScrollArea>
+                  {savedDecks.length === 0 && !currentDeck.name && (
+                    <div className="px-3 py-2 text-ui-label text-muted-foreground">
+                      No decks available
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : null}
+          <Button size="sm" variant="ghost" onClick={onClose}>
+            Close
+          </Button>
+        </div>
+      </Modal.Footer>
 
       {customizing && canCustomize && customizationCard && (
         <CardCustomizerModal

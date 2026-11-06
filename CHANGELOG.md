@@ -1,5 +1,76 @@
 # Changelog
 
+## [3.71.2](https://github.com/witchesofthehill/manabrew/compare/v3.71.1...v3.71.2) (2026-11-06)
+
+### Fixes
+
+* **limited:** preserve card names in cubecobra draft pools ([#1180](https://github.com/witchesofthehill/manabrew/issues/1180)) ([2c8b8ca](https://github.com/witchesofthehill/manabrew/commit/2c8b8ca974f1ea33ef76ed65688598bf158e1894))
+
+## [3.71.1](https://github.com/witchesofthehill/manabrew/compare/v3.71.0...v3.71.1) (2026-11-04)
+
+### Fixes
+
+* visibility issue ([#1179](https://github.com/witchesofthehill/manabrew/issues/1179)) ([f2c0489](https://github.com/witchesofthehill/manabrew/commit/f2c0489247281504ef4d8c5c3efad1fbc1b9fe67))
+
+## [3.71.0](https://github.com/witchesofthehill/manabrew/compare/v3.70.2...v3.71.0) (2026-11-03)
+
+### Features
+
+* **ui:** accept Space for no blocks ([#1168](https://github.com/witchesofthehill/manabrew/issues/1168)) ([e315a27](https://github.com/witchesofthehill/manabrew/commit/e315a275d0e2e9872135702aa3b85ce4a68246db))
+
+### Fixes
+
+* **ui:** keep aftermath card previews portrait ([#1166](https://github.com/witchesofthehill/manabrew/issues/1166)) ([468c5fc](https://github.com/witchesofthehill/manabrew/commit/468c5fcc07f04296137d128e397f30e2e305d01c))
+
+## [3.70.2](https://github.com/witchesofthehill/manabrew/compare/v3.70.1...v3.70.2) (2026-11-03)
+
+### Fixes
+
+* **editor:** use edhrec community votes for combo brackets ([#1171](https://github.com/witchesofthehill/manabrew/issues/1171)) ([a92645a](https://github.com/witchesofthehill/manabrew/commit/a92645aa8442a2fafed740b898191a7db2193b07))
+
+## [3.70.1](https://github.com/witchesofthehill/manabrew/compare/v3.70.0...v3.70.1) (2026-11-03)
+
+### Fixes
+
+* **ui:** prevent printed-card flash in deck editor ([#1172](https://github.com/witchesofthehill/manabrew/issues/1172)) ([fc1751e](https://github.com/witchesofthehill/manabrew/commit/fc1751eaa543a3f239b0fc75e2ca610508b101e7))
+
+## [3.70.0](https://github.com/witchesofthehill/manabrew/compare/v3.69.2...v3.70.0) (2026-11-02)
+
+### Features
+
+* **ui:** upgrade card glint and specialize finish shaders ([#1114](https://github.com/witchesofthehill/manabrew/issues/1114)) ([289f97b](https://github.com/witchesofthehill/manabrew/commit/289f97b0d6f52a2912590406f2578fbbbd9c4124))
+
+## Unreleased
+
+### Features
+
+- Add saved Card Glint calibration policies and named M21/Eighth profiles to Customize, with per-face inheritance, SDK coverage reports, and compatibility checks.
+- Advertise `card_cosmetics_v3` and reject calibration-bearing deck selections on older relays without changing saved decks.
+
+### Fixes
+
+- Preserve distinct card names in CubeCobra draft pools when imported cards have no collector numbers, instead of collapsing each set to its first card.
+- Preserve CubeCobra set and collector-number identifiers so imported printed and flavor names resolve through existing Scryfall batches, without per-card search fallbacks.
+- Specialize host Card Glint shaders before compilation with `GLINT_FINISH_KIND`, excluding unrelated finish code.
+- Await SDK printing/coating shader readiness before GPU preparation, flush host shader links before polling, and reuse completed Pixi programs without relinking; keep Heat source content visible while GPU resources are pending.
+- Render DOM foil overlays in bounded atlas pages before copying their output crops.
+- Upgrade Card Glint to 0.7.13 for native shader compilation fixes and updated frame calibration, with matching offline and finish-cache revisions.
+- Restore in-game and DOM card foiling by enabling the shared Card Glint feature flag.
+- **ui:** allow Space to declare no blockers ([#1050](https://github.com/witchesofthehill/manabrew/issues/1050)).
+
+## [3.69.2](https://github.com/witchesofthehill/manabrew/compare/v3.69.1...v3.69.2) (2026-11-02)
+
+### Fixes
+
+* **ui:** restore hybrid desktop density and compact home layout ([#1140](https://github.com/witchesofthehill/manabrew/issues/1140)) ([e022b84](https://github.com/witchesofthehill/manabrew/commit/e022b84f5e7dfb10fee80a02b1fb9d39ff1db66e))
+
+## [3.69.1](https://github.com/witchesofthehill/manabrew/compare/v3.69.0...v3.69.1) (2026-11-02)
+
+### Fixes
+
+* update landing ([#1165](https://github.com/witchesofthehill/manabrew/issues/1165)) ([fa9ab5a](https://github.com/witchesofthehill/manabrew/commit/fa9ab5a08ea9b14a30c04c8dd4772bbc1ef037fa))
+* more harness bugs ([#1159](https://github.com/witchesofthehill/manabrew/issues/1159)) ([f081bc3](https://github.com/witchesofthehill/manabrew/commit/f081bc3cd8835dc670f19fb665c8aec838c7d86d))
+
 ## [3.69.0](https://github.com/witchesofthehill/manabrew/compare/v3.68.3...v3.69.0) (2026-10-31)
 
 ### Features
@@ -196,6 +267,8 @@
 * Preserve translated leveler abilities and reminders in native card rendering.
 * Match Realistic print-dot previews to production without changing scan finish geometry.
 * Check relay support for new card materials before submitting a customized deck.
+* Upgrade Card Glint to 0.6.12, adopting its printing defaults and Oracle flavor selection while preserving explicit cosmetic overrides.
+* Prepare print dots and cardstock on each renderer's GPU, preserving bounded batching caches and restoring cached printing correctly after context loss.
 
 ## [3.62.2](https://github.com/witchesofthehill/manabrew/compare/v3.62.1...v3.62.2) (2026-10-21)
 

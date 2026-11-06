@@ -65,6 +65,16 @@
         header Cross-Origin-Resource-Policy "same-origin"
     }
 
+    @edhrec path_regexp edhrec ^/edhrec-api/combos/([a-z-]+)/([0-9-]+)\.json$
+    handle @edhrec {
+        rewrite * /pages/combos/{re.edhrec.1}/{re.edhrec.2}.json
+        reverse_proxy https://json.edhrec.com {
+            header_up Host json.edhrec.com
+            header_down -Access-Control-Allow-Origin
+        }
+        header Cross-Origin-Resource-Policy "same-origin"
+    }
+
     @spellbook path_regexp spellbook ^/spellbook-api/(.*)$
     handle @spellbook {
         rewrite * /{re.spellbook.1}
@@ -78,9 +88,9 @@
         header Cross-Origin-Resource-Policy "same-origin"
     }
 
-    @cubecobra path_regexp cubecobra ^/cubecobra-download/cube/download/forge/([A-Za-z0-9-]+)$
+    @cubecobra path_regexp cubecobra ^/cubecobra-download/cube/api/cubeJSON/([A-Za-z0-9-]+)$
     handle @cubecobra {
-        rewrite * /cube/download/forge/{re.cubecobra.1}
+        rewrite * /cube/api/cubeJSON/{re.cubecobra.1}
         reverse_proxy https://cubecobra.com {
             header_up Host cubecobra.com
             header_down -Access-Control-Allow-Origin

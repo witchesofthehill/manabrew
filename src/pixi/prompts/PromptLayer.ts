@@ -147,7 +147,8 @@ export class PromptLayer extends PromptModalLayer {
       if (
         state.promptCardStyle === previous.promptCardStyle &&
         state.mobileHandedness === previous.mobileHandedness &&
-        state.inGameCardPreviewSize === previous.inGameCardPreviewSize
+        state.inGameCardPreviewSize === previous.inGameCardPreviewSize &&
+        state.phaseStopLayout === previous.phaseStopLayout
       ) {
         return;
       }

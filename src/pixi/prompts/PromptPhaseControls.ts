@@ -13,6 +13,8 @@ import {
   isTouchUi,
 } from "@/themes/typography";
 import { hexToNum } from "@/pixi/colorUtils";
+import { animationsEnabled } from "@/pixi/effects/enabled";
+import { gsap } from "@/pixi/effects/gsap";
 import { PromptButton } from "./PromptButton";
 import { promptText } from "./PromptLayerBase";
 import type { PromptOverlaySpec } from "./prompt.types";
@@ -23,6 +25,8 @@ const INDICATOR_HEIGHT = 4;
 const INDICATOR_MARGIN = 3;
 const INDICATOR_HIT_HEIGHT = 12;
 const INDICATOR_GHOST_ALPHA = 0.35;
+const HOVER_SCALE = 1.3;
+const HOVER_SECONDS = 0.14;
 const PAD = 12;
 
 export class PromptPhaseControls extends Container {
@@ -77,7 +81,8 @@ export class PromptPhaseControls extends Container {
         PAD + Math.floor(index / columns) * (rowHeight + ROW_GAP),
       );
       group.eventMode = "static";
-      group.hitArea = new Rectangle(0, 0, phaseWidth, rowHeight);
+      const hitArea = new Rectangle(0, 0, phaseWidth, rowHeight);
+      group.hitArea = hitArea;
       const phaseY = opponents.length > 0 ? indicatorHeight : 0;
       const current = entry.steps.includes(spec.gameView.step);
       const background = new Graphics()
@@ -89,17 +94,43 @@ export class PromptPhaseControls extends Container {
       label.position.set(phaseWidth / 2, phaseY + cellHeight / 2);
       group.addChild(background, label);
       const ghosts: Graphics[] = [];
+      const opponentControls = new Container();
+      opponentControls.pivot.set(phaseWidth / 2, indicatorHeight);
+      opponentControls.position.set(phaseWidth / 2, indicatorHeight);
+      const opponentScale = opponentControls.scale;
+      let hovered = false;
+      const setHovered = (value: boolean) => {
+        if (hovered === value || opponents.length === 0) return;
+        hovered = value;
+        const x = value ? Math.min(HOVER_SCALE, 1 + (PAD * 2) / phaseWidth) : 1;
+        const y = value ? 1 + PAD / indicatorHeight : 1;
+        const growX = (phaseWidth * (x - 1)) / 2;
+        const growY = indicatorHeight * (y - 1);
+        hitArea.x = -growX;
+        hitArea.y = -growY;
+        hitArea.width = phaseWidth + growX * 2;
+        hitArea.height = rowHeight + growY;
+        if (value) content.setChildIndex(group, content.children.length - 1);
+        gsap.killTweensOf(opponentScale);
+        if (!animationsEnabled()) {
+          opponentScale.set(x, y);
+          return;
+        }
+        gsap.to(opponentScale, { x, y, duration: HOVER_SECONDS, ease: "power2.out" });
+      };
+      group.on("destroyed", () => gsap.killTweensOf(opponentScale));
       players.forEach((player, playerIndex) => {
         const self = playerIndex === 0;
         const enabled = entry.steps.some((step) => player.stops.has(step));
         const markerWidth = self
           ? phaseWidth
           : (phaseWidth - Math.max(0, opponents.length - 1) * GAP) / opponents.length;
+        const targetWidth = self ? phaseWidth : phaseWidth / opponents.length;
         const button = new PromptButton(theme, {
           label: `${player.name}: ${entry.label}, ${enabled ? "stop" : "skip"}`,
           labelPlacement: "hidden",
           tooltip: true,
-          width: markerWidth,
+          width: targetWidth,
           height: indicatorHeight,
           paddingX: 0,
           flat: true,
@@ -114,7 +145,7 @@ export class PromptPhaseControls extends Container {
             }),
         });
         button.position.set(
-          self ? 0 : (playerIndex - 1) * (markerWidth + GAP),
+          self ? 0 : (playerIndex - 1) * targetWidth,
           self ? phaseY + cellHeight : 0,
         );
         const markerY = self
@@ -123,7 +154,10 @@ export class PromptPhaseControls extends Container {
         const marker = new Graphics()
           .roundRect(0, 0, markerWidth, INDICATOR_HEIGHT, INDICATOR_HEIGHT / 2)
           .fill({ color: hexToNum(player.color) });
-        marker.y = markerY;
+        marker.position.set(
+          (self ? 0 : (playerIndex - 1) * (markerWidth + GAP)) - button.x,
+          markerY,
+        );
         marker.eventMode = "none";
         marker.alpha = enabled
           ? self && spec.gameView.activePlayerId !== spec.localPlayerId
@@ -133,22 +167,59 @@ export class PromptPhaseControls extends Container {
             ? INDICATOR_GHOST_ALPHA
             : 0;
         if (!enabled) ghosts.push(marker);
+        const markerBorder = new Graphics()
+          .roundRect(0, 0, markerWidth, INDICATOR_HEIGHT, INDICATOR_HEIGHT / 2)
+          .stroke({
+            color: hexToNum(
+              readableTextColor(
+                player.color,
+                theme.gameTheme.canvas.shadow,
+                theme.gameTheme.textOnTinted,
+              ),
+            ),
+            width: 1,
+            alignment: 1,
+          });
+        markerBorder.position.copyFrom(marker.position);
+        markerBorder.eventMode = "none";
+        markerBorder.visible = false;
+        let pointerOver = false;
+        let focused = false;
+        const syncMarker = () => {
+          const active = pointerOver || focused;
+          markerBorder.visible = active;
+          if (self) {
+            marker.scale.y = markerBorder.scale.y = active ? 1.5 : 1;
+            marker.y = markerBorder.y = active ? markerY - 1 : markerY;
+          }
+        };
         button.on("pointerover", () => {
-          marker.scale.y = 1.5;
-          marker.y = markerY - 1;
+          pointerOver = true;
+          syncMarker();
         });
         button.on("pointerout", () => {
-          marker.scale.y = 1;
-          marker.y = markerY;
+          pointerOver = false;
+          syncMarker();
         });
-        button.addChild(marker);
-        group.addChild(button);
+        button.on("focusin", () => {
+          focused = true;
+          syncMarker();
+        });
+        button.on("focusout", () => {
+          focused = false;
+          syncMarker();
+        });
+        button.addChild(marker, markerBorder);
+        (self ? group : opponentControls).addChild(button);
       });
-      group.on("pointerenter", () => {
+      group.addChild(opponentControls);
+      group.on("pointerenter", (event: FederatedPointerEvent) => {
         for (const ghost of ghosts) ghost.alpha = INDICATOR_GHOST_ALPHA;
+        if (event.pointerType !== "touch") setHovered(true);
       });
       group.on("pointerleave", () => {
         for (const ghost of ghosts) ghost.alpha = isTouchUi() ? INDICATOR_GHOST_ALPHA : 0;
+        setHovered(false);
       });
       content.addChild(group);
     });

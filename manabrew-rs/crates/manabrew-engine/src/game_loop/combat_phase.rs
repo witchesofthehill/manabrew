@@ -47,11 +47,12 @@ impl GameLoop {
         let must_attackers = if available_attackers.is_empty() {
             Vec::new()
         } else {
-            let requirements = combat::attack_requirement::compute_attack_requirements(
-                &game.cards,
-                &available_attackers,
-                defending,
-            );
+            let requirements =
+                combat::attack_requirement::compute_attack_requirements_with_defenders(
+                    &game.cards,
+                    &available_attackers,
+                    &possible_defenders,
+                );
             combat::attack_requirement::must_attack_ids(&requirements)
         };
 
@@ -151,18 +152,21 @@ impl GameLoop {
                 // Crawlspace's "ValidDefender$ You" only restricts attacks against
                 // the Crawlspace controller, not attacks against planeswalkers.
                 if !invalid {
-                    let defender_max =
-                        crate::staticability::static_ability_attack_restrict::attack_restrict_num_for_defender(
-                            &game.cards,
-                            defending,
-                        );
-                    if let Some(max) = defender_max {
-                        let attackers_to_defender = picked
-                            .iter()
-                            .filter(|(_, def)| def.controlling_player(game) == defending)
-                            .count();
-                        if attackers_to_defender > max as usize {
-                            invalid = true;
+                    for defender in possible_defenders.iter().filter_map(|d| d.as_player()) {
+                        let defender_max =
+                            crate::staticability::static_ability_attack_restrict::attack_restrict_num_for_defender(
+                                &game.cards,
+                                defender,
+                            );
+                        if let Some(max) = defender_max {
+                            let attackers_to_defender = picked
+                                .iter()
+                                .filter(|(_, def)| def.controlling_player(game) == defender)
+                                .count();
+                            if attackers_to_defender > max as usize {
+                                invalid = true;
+                                break;
+                            }
                         }
                     }
                 }
@@ -660,30 +664,64 @@ impl GameLoop {
             self.set_phase(game, agents, PhaseType::CombatDeclareBlockers);
         }
         if self.combat.has_attackers() {
-            // Run DeclareBlocker replacement effects before declaring blockers.
-            {
-                use crate::replacement::replacement_handler::{
-                    apply_replacements, ReplacementEvent,
-                };
-                use crate::replacement::ReplacementResult;
-                let mut event = ReplacementEvent::DeclareBlocker { player: defending };
-                let result = apply_replacements(game, &mut event);
-                if result == ReplacementResult::Skipped || result == ReplacementResult::Replaced {
-                    // Blockers phase was prevented — skip to damage
-                }
-            }
-
             // Declare Blockers — freeze the stack during declarations.
             game.stack.freeze_stack();
             self.set_phase(game, agents, PhaseType::CombatDeclareBlockers);
-            let attacker_card_ids: Vec<CardId> =
-                self.combat.attackers.iter().map(|(a, _)| *a).collect();
-            let available_blockers = combat::get_available_blockers(game, defending);
-            let legal_blockers =
-                combat::filter_legal_blockers(game, &attacker_card_ids, &available_blockers);
-            let has_any_legal_blocker = !legal_blockers.is_empty();
 
-            if has_any_legal_blocker {
+            // Java's PhaseHandler iterates every attacked player in turn order
+            // after the active player. Each defending player declares blockers
+            // only against attackers headed at them.
+            let attacked_players: Vec<PlayerId> = {
+                let mut players = Vec::new();
+                let mut p = game.next_player(active);
+                while p != active {
+                    if self
+                        .combat
+                        .attackers
+                        .iter()
+                        .any(|(_, d)| d.controlling_player(game) == p)
+                    {
+                        players.push(p);
+                    }
+                    p = game.next_player(p);
+                }
+                players
+            };
+
+            for defending in attacked_players {
+                let defender_attackers: Vec<CardId> = self
+                    .combat
+                    .attackers
+                    .iter()
+                    .filter(|(_, d)| d.controlling_player(game) == defending)
+                    .map(|(a, _)| *a)
+                    .collect();
+                if defender_attackers.is_empty() {
+                    continue;
+                }
+
+                // Run DeclareBlocker replacement effects for this defender.
+                {
+                    use crate::replacement::replacement_handler::{
+                        apply_replacements, ReplacementEvent,
+                    };
+                    use crate::replacement::ReplacementResult;
+                    let mut event = ReplacementEvent::DeclareBlocker { player: defending };
+                    let result = apply_replacements(game, &mut event);
+                    if result == ReplacementResult::Skipped || result == ReplacementResult::Replaced
+                    {
+                        // This player's blockers phase was prevented.
+                        continue;
+                    }
+                }
+
+                let available_blockers = combat::get_available_blockers(game, defending);
+                let legal_blockers =
+                    combat::filter_legal_blockers(game, &defender_attackers, &available_blockers);
+                if legal_blockers.is_empty() {
+                    continue;
+                }
+
                 agents[defending.index()].snapshot_state(game, &self.mana_pools);
                 self.game_log.log(
                     GameLogEntryType::PriorityWaiting,
@@ -709,7 +747,7 @@ impl GameLoop {
                     let def_agent = &mut agents[defending.index()];
                     def_agent.choose_blockers(
                         defending,
-                        &attacker_card_ids,
+                        &defender_attackers,
                         &available_blockers,
                         max_blockers,
                     )
@@ -730,7 +768,13 @@ impl GameLoop {
                     ),
                 );
 
+                let mut declared_this_player: Vec<(CardId, CardId)> = Vec::new();
                 for (blocker, attacker) in chosen_blockers.into_iter() {
+                    // A creature can only block an attacker headed at its
+                    // controller, so ignore any cross-defender assignment.
+                    if !defender_attackers.contains(&attacker) {
+                        continue;
+                    }
                     // Validate: use comprehensive evasion check
                     if !combat::can_creature_block(game, blocker, attacker) {
                         continue; // illegal block
@@ -740,6 +784,7 @@ impl GameLoop {
                         attacker,
                         game.card(blocker).zone_timestamp,
                     );
+                    declared_this_player.push((blocker, attacker));
 
                     // Fire Blocks trigger for each (blocker, attacker) pair
                     self.trigger_handler.run_trigger(
@@ -757,7 +802,7 @@ impl GameLoop {
                 // Block cost checking (War Cadence effects)
                 {
                     let mut block_cost_failures = Vec::new();
-                    for &(blocker_id, attacker_id) in &self.combat.blockers {
+                    for &(blocker_id, attacker_id) in &declared_this_player {
                         let cost = combat::block_cost::get_block_cost(
                             &game.cards,
                             game.card(blocker_id),
@@ -786,11 +831,14 @@ impl GameLoop {
                         .retain(|(b, a)| !(b == blocker_id && a == attacker_id));
                 }
 
-                // Must-block enforcement: auto-assign blockers to required targets
-                let all_legal_blockers: Vec<CardId> = available_blockers.clone();
-                for &blocker_id in &all_legal_blockers {
-                    let must_targets =
-                        combat::compute_must_block_targets(game, &self.combat, blocker_id);
+                // Must-block enforcement: auto-assign this player's blockers
+                // only to attackers headed at this player.
+                for &blocker_id in &legal_blockers {
+                    let must_targets: Vec<CardId> =
+                        combat::compute_must_block_targets(game, &self.combat, blocker_id)
+                            .into_iter()
+                            .filter(|target| defender_attackers.contains(target))
+                            .collect();
                     if must_targets.is_empty() {
                         continue;
                     }
@@ -813,8 +861,15 @@ impl GameLoop {
                     }
                 }
 
-                // Record damage history for blockers
-                for &(blocker_id, attacker_id) in &self.combat.blockers {
+                // Record damage history for this player's final blockers.
+                let player_blocks: Vec<(CardId, CardId)> = self
+                    .combat
+                    .blockers
+                    .iter()
+                    .filter(|(blocker, _)| game.card(*blocker).controller == defending)
+                    .copied()
+                    .collect();
+                for &(blocker_id, attacker_id) in &player_blocks {
                     game.card_mut(blocker_id).damage_history.record_block();
                     game.card_mut(attacker_id)
                         .damage_history
@@ -824,10 +879,8 @@ impl GameLoop {
                 // Publish finalized blocker assignments for UI snapshots in this combat.
                 game.turn.combat_block_assignments = self.combat.blockers.clone();
 
-                if !self.combat.blockers.is_empty() {
-                    let blockers_msg = self
-                        .combat
-                        .blockers
+                if !player_blocks.is_empty() {
+                    let blockers_msg = player_blocks
                         .iter()
                         .map(|(blocker_id, attacker_id)| {
                             let blocker_name = game.card(*blocker_id).card_name.clone();

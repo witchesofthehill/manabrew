@@ -164,6 +164,14 @@ struct Cli {
     #[arg(long, default_value = "green_stompy")]
     deck2: String,
 
+    /// Optional deck for player 3. Supplying this enables a three-player game.
+    #[arg(long)]
+    deck3: Option<String>,
+
+    /// Optional deck for player 4. Requires --deck3; enables a four-player game.
+    #[arg(long)]
+    deck4: Option<String>,
+
     /// RNG seed for reproducibility
     #[arg(long, default_value_t = 42)]
     seed: u64,
@@ -248,9 +256,17 @@ struct Cli {
     #[arg(long)]
     fuzz: bool,
 
+    /// Print the fuzz card-pool inventory as JSON and exit
+    #[arg(long)]
+    inventory: bool,
+
     /// Number of fuzz iterations (default: 100)
     #[arg(long, default_value_t = 100)]
     iterations: usize,
+
+    /// Skip the first N fuzz iterations, keeping the master-seed stream aligned
+    #[arg(long, default_value_t = 0)]
+    fuzz_start: usize,
 
     /// Master seed for fuzz reproducibility (default: 42)
     #[arg(long, default_value_t = 42)]
@@ -271,9 +287,26 @@ struct Cli {
     variant: String,
 
     /// Commander card names for Commander variants. Repeat this flag for multiple commanders.
+    /// This list is shared by every seat. Use --commander1..4 for per-seat commanders.
     /// Required when variant is Commander, Oathbreaker, TinyLeaders, or Brawl.
     #[arg(long = "commander")]
     commander: Vec<String>,
+
+    /// Commander cards for player 1. Repeat for partner commanders. Overrides --commander for this seat.
+    #[arg(long = "commander1")]
+    commander1: Vec<String>,
+
+    /// Commander cards for player 2. Repeat for partner commanders. Overrides --commander for this seat.
+    #[arg(long = "commander2")]
+    commander2: Vec<String>,
+
+    /// Commander cards for player 3. Repeat for partner commanders. Overrides --commander for this seat.
+    #[arg(long = "commander3")]
+    commander3: Vec<String>,
+
+    /// Commander cards for player 4. Repeat for partner commanders. Overrides --commander for this seat.
+    #[arg(long = "commander4")]
+    commander4: Vec<String>,
 
     /// Run continuous parity testing: execute games, store in SQLite, exit with threshold check
     #[arg(long)]
@@ -363,9 +396,25 @@ impl Cli {
 }
 
 fn build_config(cli: &Cli, deck1: &str, deck2: &str, seed: u64) -> RunConfig {
+    let extra_decks: Vec<String> = cli.deck3.iter().chain(cli.deck4.iter()).cloned().collect();
+    let commanders_by_player = if cli.commander1.is_empty()
+        && cli.commander2.is_empty()
+        && cli.commander3.is_empty()
+        && cli.commander4.is_empty()
+    {
+        Vec::new()
+    } else {
+        vec![
+            cli.commander1.clone(),
+            cli.commander2.clone(),
+            cli.commander3.clone(),
+            cli.commander4.clone(),
+        ]
+    };
     RunConfig {
         deck1: deck1.to_string(),
         deck2: deck2.to_string(),
+        extra_decks,
         seed,
         max_turns: cli.max_turns,
         cards_dir: cli.cards_dir.clone(),
@@ -378,6 +427,7 @@ fn build_config(cli: &Cli, deck1: &str, deck2: &str, seed: u64) -> RunConfig {
         java_heap: cli.java_heap.clone(),
         variant: cli.variant.clone(),
         commanders: cli.commander.clone(),
+        commanders_by_player,
         full_log: cli.full_log,
         live_log: cli.live_log.clone(),
     }
@@ -422,8 +472,17 @@ fn main() {
     }
 
     let cli = Cli::parse();
+    if cli.deck4.is_some() && cli.deck3.is_none() {
+        eprintln!("[parity] --deck4 requires --deck3");
+        std::process::exit(2);
+    }
     let games_flag_present =
         std::env::args().any(|arg| arg == "--games" || arg.starts_with("--games="));
+
+    if cli.inventory {
+        run_inventory_mode(&cli);
+        return;
+    }
 
     if cli.analyze && !cli.serve {
         #[cfg(feature = "analyze")]
@@ -1500,6 +1559,24 @@ fn format_full_log_for_results(results: &[MatchupResult]) -> String {
     out
 }
 
+#[derive(serde::Serialize)]
+struct InventoryReport {
+    stats: parity::card_pool::PoolStats,
+    cards: Vec<String>,
+}
+
+fn run_inventory_mode(cli: &Cli) {
+    let data = load_data_or_exit(cli);
+    let (pool, stats) = CardPool::discover(data.db.as_ref());
+    let report = InventoryReport {
+        stats,
+        cards: pool.cards.into_iter().map(|card| card.name).collect(),
+    };
+    let output =
+        serde_json::to_string_pretty(&report).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"));
+    write_output(cli, &output);
+}
+
 fn run_fuzz_mode(cli: &Cli) {
     if cli.is_verbose() {
         eprintln!(
@@ -1551,9 +1628,15 @@ fn run_fuzz_mode(cli: &Cli) {
 
     // Derive per-iteration seeds from master seed
     let mut master_rng = JavaRandom::new(cli.master_seed as i64);
+    for _ in 0..cli.fuzz_start {
+        master_rng.next_int(i32::MAX);
+        master_rng.next_int(i32::MAX);
+        master_rng.next_int(i32::MAX);
+    }
 
     let mut results: Vec<FuzzResult> = Vec::new();
     let total = cli.iterations;
+    let first_iteration = cli.fuzz_start;
 
     for iteration in 0..total {
         let deck1_seed = master_rng.next_int(i32::MAX) as u64;
@@ -1572,6 +1655,7 @@ fn run_fuzz_mode(cli: &Cli) {
         let config = RunConfig {
             deck1: format!("inline:{deck1_inline}"),
             deck2: format!("inline:{deck2_inline}"),
+            extra_decks: Vec::new(),
             seed: game_seed,
             max_turns: cli.max_turns,
             cards_dir: cli.cards_dir.clone(),
@@ -1584,9 +1668,17 @@ fn run_fuzz_mode(cli: &Cli) {
             java_heap: cli.java_heap.clone(),
             variant: "Constructed".to_string(),
             commanders: vec![],
+            commanders_by_player: Vec::new(),
             full_log: false,
             live_log: None,
         };
+
+        eprintln!(
+            "[parity] fuzz iteration {}/{} seed={}",
+            first_iteration + iteration + 1,
+            first_iteration + total,
+            game_seed
+        );
 
         let matchup_result = if let Some(ref mut srv) = server {
             if srv.is_alive() {
@@ -1626,11 +1718,12 @@ fn run_fuzz_mode(cli: &Cli) {
 
         if cli.is_verbose() {
             let n = iteration + 1;
+            let absolute = first_iteration + iteration;
             match matchup_result.status {
                 MatchupStatus::Pass => {
                     eprintln!(
                         "[parity] [{}/{}] iteration={} seed={} ... PASS ({} snapshots)",
-                        n, total, iteration, game_seed, matchup_result.snapshots_compared
+                        n, total, absolute, game_seed, matchup_result.snapshots_compared
                     );
                 }
                 MatchupStatus::Skipped => {
@@ -1638,7 +1731,7 @@ fn run_fuzz_mode(cli: &Cli) {
                         "[parity] [{}/{}] iteration={} seed={} ... SKIPPED: {}",
                         n,
                         total,
-                        iteration,
+                        absolute,
                         game_seed,
                         matchup_result.skip_reason.as_deref().unwrap_or("ignored")
                     );
@@ -1646,7 +1739,7 @@ fn run_fuzz_mode(cli: &Cli) {
                 MatchupStatus::Fail => {
                     eprintln!(
                         "[parity] [{}/{}] iteration={} seed={} ... FAIL ({} divergences)",
-                        n, total, iteration, game_seed, matchup_result.divergence_count
+                        n, total, absolute, game_seed, matchup_result.divergence_count
                     );
                 }
                 MatchupStatus::Error => {
@@ -1654,7 +1747,7 @@ fn run_fuzz_mode(cli: &Cli) {
                         "[parity] [{}/{}] iteration={} seed={} ... ERROR: {}",
                         n,
                         total,
-                        iteration,
+                        absolute,
                         game_seed,
                         matchup_result.error_message.as_deref().unwrap_or("unknown")
                     );
@@ -1663,7 +1756,7 @@ fn run_fuzz_mode(cli: &Cli) {
         }
 
         results.push(FuzzResult {
-            iteration,
+            iteration: first_iteration + iteration,
             game_seed,
             deck1_spec: deck1_inline,
             deck2_spec: deck2_inline,
@@ -2438,6 +2531,7 @@ fn run_serve_mode(cli: &Cli) {
                     let config = RunConfig {
                         deck1: queued_job.deck1.clone(),
                         deck2: queued_job.deck2.clone(),
+                        extra_decks: Vec::new(),
                         seed: queued_job.seed,
                         max_turns: queued_job.max_turns,
                         deep: queued_job.deep,
@@ -2450,6 +2544,7 @@ fn run_serve_mode(cli: &Cli) {
                         java_heap: cjh.clone(),
                         variant: queued_job.variant.clone(),
                         commanders: queued_job.commanders.clone(),
+                        commanders_by_player: Vec::new(),
                         full_log: false,
                         live_log: None,
                     };
@@ -2650,6 +2745,7 @@ fn run_serve_mode(cli: &Cli) {
         let config = RunConfig {
             deck1: job.deck1.clone(),
             deck2: job.deck2.clone(),
+            extra_decks: Vec::new(),
             seed: job.seed,
             max_turns: cli_max_turns,
             cards_dir: cli_cards_dir.clone(),
@@ -2661,6 +2757,7 @@ fn run_serve_mode(cli: &Cli) {
             java_heap: cli_java_heap.clone(),
             variant: "Constructed".to_string(),
             commanders: vec![],
+            commanders_by_player: Vec::new(),
             full_log: false,
             log_snapshots: false,
             live_log: None,

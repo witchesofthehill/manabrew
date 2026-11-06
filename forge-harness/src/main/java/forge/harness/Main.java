@@ -62,6 +62,8 @@ public final class Main {
         // Parse CLI arguments
         String deck1Name = "red_burn";
         String deck2Name = "green_stompy";
+        String deck3Name = null;
+        String deck4Name = null;
         long seed = 42;
         int maxTurns = 10;
         boolean preferActions = false;
@@ -71,6 +73,10 @@ public final class Main {
         boolean interactiveServerMode = false;
         String variant = "Constructed";
         String commandersArg = null;
+        String commanders1Arg = null;
+        String commanders2Arg = null;
+        String commanders3Arg = null;
+        String commanders4Arg = null;
         String verboseTurnsArg = null;
 
         for (int i = 0; i < args.length; i++) {
@@ -80,6 +86,12 @@ public final class Main {
                     break;
                 case "--deck2":
                     if (i + 1 < args.length) deck2Name = args[++i];
+                    break;
+                case "--deck3":
+                    if (i + 1 < args.length) deck3Name = args[++i];
+                    break;
+                case "--deck4":
+                    if (i + 1 < args.length) deck4Name = args[++i];
                     break;
                 case "--seed":
                     if (i + 1 < args.length) seed = Long.parseLong(args[++i]);
@@ -108,6 +120,18 @@ public final class Main {
                 case "--commanders":
                     if (i + 1 < args.length) commandersArg = args[++i];
                     break;
+                case "--commanders1":
+                    if (i + 1 < args.length) commanders1Arg = args[++i];
+                    break;
+                case "--commanders2":
+                    if (i + 1 < args.length) commanders2Arg = args[++i];
+                    break;
+                case "--commanders3":
+                    if (i + 1 < args.length) commanders3Arg = args[++i];
+                    break;
+                case "--commanders4":
+                    if (i + 1 < args.length) commanders4Arg = args[++i];
+                    break;
                 case "--verbose-turns":
                     if (i + 1 < args.length) verboseTurnsArg = args[++i];
                     break;
@@ -120,12 +144,21 @@ public final class Main {
             }
         }
 
-        // Parse commanders from comma-separated list
-        List<String> commanders = new ArrayList<>();
-        if (commandersArg != null && !commandersArg.isEmpty()) {
-            for (String cmd : commandersArg.split(",")) {
-                commanders.add(cmd.trim());
-            }
+        // The server protocol sends JSON arrays; comma splitting is CLI-only.
+        List<String> commanders = parseCommanderList(commandersArg);
+        List<String> deckNames = new ArrayList<>();
+        deckNames.add(deck1Name);
+        deckNames.add(deck2Name);
+        if (deck3Name != null) deckNames.add(deck3Name);
+        if (deck4Name != null) deckNames.add(deck4Name);
+
+        List<List<String>> commandersByPlayer = new ArrayList<>();
+        if (commanders1Arg != null || commanders2Arg != null
+                || commanders3Arg != null || commanders4Arg != null) {
+            commandersByPlayer.add(parseCommanderList(commanders1Arg));
+            commandersByPlayer.add(parseCommanderList(commanders2Arg));
+            commandersByPlayer.add(parseCommanderList(commanders3Arg));
+            commandersByPlayer.add(parseCommanderList(commanders4Arg));
         }
 
         // Resolve forge-gui assets directory
@@ -177,7 +210,7 @@ public final class Main {
         } else if (serverMode) {
             runServerMode();
         } else {
-            runOneShot(deck1Name, deck2Name, seed, maxTurns, preferActions, deep, variant, commanders, verboseTurns);
+            runOneShot(deckNames, seed, maxTurns, preferActions, deep, variant, commanders, commandersByPlayer, verboseTurns);
         }
     }
 
@@ -185,23 +218,23 @@ public final class Main {
      * Original one-shot mode: run a single game and exit.
      */
     private static void runOneShot(
-        String deck1Name,
-        String deck2Name,
+        List<String> deckNames,
         long seed,
         int maxTurns,
         boolean preferActions,
         boolean deep,
         String variant,
         List<String> commanders,
+        List<List<String>> commandersByPlayer,
         int[] verboseTurns
     ) {
         // In one-shot mode, protocol output goes to real System.out
         protocolOut = System.out;
 
-        System.err.printf("[harness] Running: %s vs %s | seed=%d | max_turns=%d | variant=%s%n",
-            deck1Name, deck2Name, seed, maxTurns, variant);
+        System.err.printf("[harness] Running: %s | seed=%d | max_turns=%d | variant=%s%n",
+            String.join(" vs ", deckNames), seed, maxTurns, variant);
 
-        runGame(deck1Name, deck2Name, seed, maxTurns, preferActions, deep, variant, commanders, verboseTurns);
+        runGame(deckNames, seed, maxTurns, preferActions, deep, variant, commanders, commandersByPlayer, verboseTurns);
 
         System.err.println("[harness] Done.");
         protocolOut.flush();
@@ -249,9 +282,18 @@ public final class Main {
                     continue;
                 }
 
-                // Extract parameters
-                String deck1 = request.has("deck1") ? request.get("deck1").getAsString() : "red_burn";
-                String deck2 = request.has("deck2") ? request.get("deck2").getAsString() : "green_stompy";
+                // `decks` is the N-player form; deck1/deck2 stay for old clients.
+                List<String> gameDecks = new ArrayList<>();
+                if (request.has("decks") && request.get("decks").isJsonArray()) {
+                    for (var elem : request.get("decks").getAsJsonArray()) {
+                        gameDecks.add(elem.getAsString());
+                    }
+                } else {
+                    gameDecks.add(request.has("deck1") ? request.get("deck1").getAsString() : "red_burn");
+                    gameDecks.add(request.has("deck2") ? request.get("deck2").getAsString() : "green_stompy");
+                    if (request.has("deck3")) gameDecks.add(request.get("deck3").getAsString());
+                    if (request.has("deck4")) gameDecks.add(request.get("deck4").getAsString());
+                }
                 long gameSeed = request.has("seed") ? request.get("seed").getAsLong() : 42;
                 int gameMaxTurns = request.has("max_turns") ? request.get("max_turns").getAsInt() : 10;
                 boolean gamePreferActions = request.has("prefer_actions") && request.get("prefer_actions").getAsBoolean();
@@ -263,17 +305,29 @@ public final class Main {
                         gameCommanders.add(elem.getAsString());
                     }
                 }
+                List<List<String>> gameCommandersByPlayer = new ArrayList<>();
+                if (request.has("commanders_by_player") && request.get("commanders_by_player").isJsonArray()) {
+                    for (var seatElem : request.get("commanders_by_player").getAsJsonArray()) {
+                        List<String> seatCommanders = new ArrayList<>();
+                        if (seatElem.isJsonArray()) {
+                            for (var elem : seatElem.getAsJsonArray()) {
+                                seatCommanders.add(elem.getAsString());
+                            }
+                        }
+                        gameCommandersByPlayer.add(seatCommanders);
+                    }
+                }
                 int[] gameVerboseTurns = null;
                 if (request.has("verbose_turns")) {
                     String vt = request.get("verbose_turns").getAsString();
                     gameVerboseTurns = parseVerboseTurns(vt);
                 }
 
-                System.err.printf("[harness] Request: %s vs %s | seed=%d | max_turns=%d | variant=%s%n",
-                    deck1, deck2, gameSeed, gameMaxTurns, gameVariant);
+                System.err.printf("[harness] Request: %s | seed=%d | max_turns=%d | variant=%s%n",
+                    String.join(" vs ", gameDecks), gameSeed, gameMaxTurns, gameVariant);
 
                 try {
-                    runGame(deck1, deck2, gameSeed, gameMaxTurns, gamePreferActions, gameDeep, gameVariant, gameCommanders, gameVerboseTurns);
+                    runGame(gameDecks, gameSeed, gameMaxTurns, gamePreferActions, gameDeep, gameVariant, gameCommanders, gameCommandersByPlayer, gameVerboseTurns);
                     protocolOut.println("{\"done\":true,\"error\":null}");
                 } catch (Exception e) {
                     System.err.println("[harness] Game error: " + e.getMessage());
@@ -443,68 +497,76 @@ public final class Main {
      * Snapshots are written to {@link #protocolOut} (not System.out).
      */
     private static void runGame(
-        String deck1Name,
-        String deck2Name,
+        List<String> deckNames,
         long seed,
         int maxTurns,
         boolean preferActions,
         boolean deep,
         String variant,
         List<String> commanders,
+        List<List<String>> commandersByPlayer,
         int[] verboseTurns
     ) {
-        // Build decks
-        Deck deck1 = PresetDecks.buildDeck(deck1Name);
-        Deck deck2 = PresetDecks.buildDeck(deck2Name);
-
-        if (deck1 == null) {
-            throw new IllegalArgumentException("Unknown deck: " + deck1Name +
-                ". Available: " + Arrays.toString(PresetDecks.availablePresets()));
+        if (deckNames == null || deckNames.size() < 2) {
+            throw new IllegalArgumentException("At least two decks are required");
         }
-        if (deck2 == null) {
-            throw new IllegalArgumentException("Unknown deck: " + deck2Name +
-                ". Available: " + Arrays.toString(PresetDecks.availablePresets()));
+
+        // Build decks
+        List<Deck> decks = new ArrayList<>();
+        for (String deckName : deckNames) {
+            Deck deck = PresetDecks.buildDeck(deckName);
+            if (deck == null) {
+                throw new IllegalArgumentException("Unknown deck: " + deckName +
+                    ". Available: " + Arrays.toString(PresetDecks.availablePresets()));
+            }
+            decks.add(deck);
         }
 
         // Assign commanders from existing main-deck cards if provided.
-        // Contract: --commander names must already be present in each player's main deck.
+        // Contract: commander names must already be present in each seat's main deck.
         // Move one matching card per commander from Main -> Commander section.
-        if (commanders != null && !commanders.isEmpty()) {
+        for (int seat = 0; seat < decks.size(); seat++) {
+            List<String> seatCommanders = commandersByPlayer != null && !commandersByPlayer.isEmpty()
+                ? (seat < commandersByPlayer.size() ? commandersByPlayer.get(seat) : List.of())
+                : commanders;
+            if (seatCommanders == null || seatCommanders.isEmpty()) {
+                continue;
+            }
+
+            Deck deck = decks.get(seat);
             List<String> uniqueCommanders = new ArrayList<>();
             Set<String> seen = new HashSet<>();
-            for (String cmdName : commanders) {
+            for (String cmdName : seatCommanders) {
                 String key = cmdName.toLowerCase(Locale.ROOT);
                 if (seen.add(key)) {
                     uniqueCommanders.add(cmdName);
                 }
             }
 
-            for (Deck deck : Arrays.asList(deck1, deck2)) {
-                CardPool main = deck.getMain();
-                CardPool commanderSection = deck.getOrCreate(DeckSection.Commander);
-                for (String cmdName : uniqueCommanders) {
-                    PaperCard mainCommander = null;
-                    for (PaperCard c : main.toFlatList()) {
-                        if (c.getName().equalsIgnoreCase(cmdName)) {
-                            mainCommander = c;
-                            break;
-                        }
+            CardPool main = deck.getMain();
+            CardPool commanderSection = deck.getOrCreate(DeckSection.Commander);
+            for (String cmdName : uniqueCommanders) {
+                PaperCard mainCommander = null;
+                for (PaperCard c : main.toFlatList()) {
+                    if (c.getName().equalsIgnoreCase(cmdName)) {
+                        mainCommander = c;
+                        break;
                     }
-                    if (mainCommander == null) {
-                        throw new IllegalArgumentException(
-                            "Commander \"" + cmdName + "\" was not found in main deck for " + deck.getName()
-                        );
-                    }
-                    main.remove(mainCommander, 1);
-                    commanderSection.add(mainCommander, 1);
                 }
+                if (mainCommander == null) {
+                    throw new IllegalArgumentException(
+                        "Commander \"" + cmdName + "\" was not found in main deck for " + deck.getName()
+                    );
+                }
+                main.remove(mainCommander, 1);
+                commanderSection.add(mainCommander, 1);
             }
         }
 
-        System.err.printf("[harness] Deck 1: %s (%d cards)%n", deck1Name,
-            deck1.getMain().countAll());
-        System.err.printf("[harness] Deck 2: %s (%d cards)%n", deck2Name,
-            deck2.getMain().countAll());
+        for (int seat = 0; seat < decks.size(); seat++) {
+            System.err.printf("[harness] Deck %d: %s (%d cards)%n", seat + 1,
+                deckNames.get(seat), decks.get(seat).getMain().countAll());
+        }
 
         // Parse variant to GameType
         GameType gameType = parseGameType(variant);
@@ -527,16 +589,14 @@ public final class Main {
 
         List<RegisteredPlayer> players = new ArrayList<>();
 
-        // Create registered players with variant support
-        RegisteredPlayer rp1 = RegisteredPlayer.forVariants(
-            2, appliedVariants, deck1, null, false, null, null);
-        rp1.setPlayer(new DeterministicLobbyPlayer("Player1", agentRng, preferActions, false, verboseTurns));
-        players.add(rp1);
-
-        RegisteredPlayer rp2 = RegisteredPlayer.forVariants(
-            2, appliedVariants, deck2, null, false, null, null);
-        rp2.setPlayer(new DeterministicLobbyPlayer("Player2", agentRng, preferActions, false, verboseTurns));
-        players.add(rp2);
+        // `forVariants` takes the table size so Brawl can adjust starting life.
+        for (int seat = 0; seat < decks.size(); seat++) {
+            RegisteredPlayer registered = RegisteredPlayer.forVariants(
+                decks.size(), appliedVariants, decks.get(seat), null, false, null, null);
+            registered.setPlayer(new DeterministicLobbyPlayer(
+                "Player" + (seat + 1), agentRng, preferActions, false, verboseTurns));
+            players.add(registered);
+        }
 
         Match match = new Match(rules, players, "ParityTest");
         Game game = match.createGame();
@@ -676,6 +736,20 @@ public final class Main {
         return "";
     }
 
+    private static List<String> parseCommanderList(String arg) {
+        List<String> commanders = new ArrayList<>();
+        if (arg == null || arg.isEmpty()) {
+            return commanders;
+        }
+        for (String cmd : arg.split(",")) {
+            String trimmed = cmd.trim();
+            if (!trimmed.isEmpty()) {
+                commanders.add(trimmed);
+            }
+        }
+        return commanders;
+    }
+
     /**
      * Parse verbose turns from a comma-separated string.
      * Returns null if input is null (verbose off), empty array if input is empty (all turns),
@@ -706,13 +780,19 @@ public final class Main {
         System.err.println("Options:");
         System.err.println("  --deck1 <name>       Preset deck for player 1 (default: red_burn)");
         System.err.println("  --deck2 <name>       Preset deck for player 2 (default: green_stompy)");
+        System.err.println("  --deck3 <name>       Optional preset deck for player 3");
+        System.err.println("  --deck4 <name>       Optional preset deck for player 4 (requires --deck3)");
         System.err.println("  --seed <number>      RNG seed (default: 42)");
         System.err.println("  --max-turns <n>      Maximum turns (default: 10)");
         System.err.println("  --prefer-actions     Bias random choices toward acting instead of passing");
         System.err.println("  --forge-home <path>  Path to forge-gui/ assets directory");
         System.err.println("  --server             Run in server mode (stdin/stdout JSONL protocol)");
         System.err.println("  --variant <type>     Game variant: Constructed, Commander, Oathbreaker, TinyLeaders, Brawl");
-        System.err.println("  --commanders <names> Comma-separated commander card names");
+        System.err.println("  --commanders <names> Comma-separated commander card names (shared by all seats)");
+        System.err.println("  --commanders1 <names> Comma-separated commander names for seat 1");
+        System.err.println("  --commanders2 <names> Comma-separated commander names for seat 2");
+        System.err.println("  --commanders3 <names> Comma-separated commander names for seat 3");
+        System.err.println("  --commanders4 <names> Comma-separated commander names for seat 4");
         System.err.println("  --verbose-turns <t>  Verbose callback logging for specific turns (e.g. 21 or 21,22; empty = all)");
         System.err.println("  --help               Show this help");
         System.err.println();

@@ -1187,6 +1187,11 @@ impl PlayerAgent for DeterministicAgent {
                     current < self.snapshot_max_blockers_for_attacker(snap, *attacker)
                 });
             }
+            // Java's blocker chooser only visits blockers that can block at
+            // least one attacker; the BlockRestrict limit still forces a roll.
+            if !at_limit && legal_attackers.is_empty() {
+                continue;
+            }
             let choice = choice_space::pick_index_with_pass(
                 legal_attackers.len(),
                 &mut self.rng.borrow_mut(),

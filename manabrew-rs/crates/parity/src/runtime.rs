@@ -73,12 +73,14 @@ impl JavaServerPool {
         &self,
         deck1: &str,
         deck2: &str,
+        extra_decks: &[String],
         seed: u64,
         max_turns: u32,
         prefer_actions: bool,
         deep: bool,
         variant: &str,
         commanders: &[String],
+        commanders_by_player: &[Vec<String>],
         verbose_turns: Option<String>,
         on_snapshot: F,
     ) -> Result<JavaMatchupData, JavaBridgeError>
@@ -93,12 +95,14 @@ impl JavaServerPool {
                 return server.run_matchup_streaming(
                     deck1,
                     deck2,
+                    extra_decks,
                     seed,
                     max_turns,
                     prefer_actions,
                     deep,
                     variant,
                     commanders,
+                    commanders_by_player,
                     verbose_turns,
                     on_snapshot,
                 );
@@ -110,12 +114,14 @@ impl JavaServerPool {
         server.run_matchup_streaming(
             deck1,
             deck2,
+            extra_decks,
             seed,
             max_turns,
             prefer_actions,
             deep,
             variant,
             commanders,
+            commanders_by_player,
             verbose_turns,
             on_snapshot,
         )
@@ -126,23 +132,27 @@ impl JavaServerPool {
         &self,
         deck1: &str,
         deck2: &str,
+        extra_decks: &[String],
         seed: u64,
         max_turns: u32,
         prefer_actions: bool,
         deep: bool,
         variant: &str,
         commanders: &[String],
+        commanders_by_player: &[Vec<String>],
         verbose_turns: Option<String>,
     ) -> Result<JavaMatchupData, JavaBridgeError> {
         self.run_matchup_streaming(
             deck1,
             deck2,
+            extra_decks,
             seed,
             max_turns,
             prefer_actions,
             deep,
             variant,
             commanders,
+            commanders_by_player,
             verbose_turns,
             |_, _| true,
         )
@@ -213,12 +223,14 @@ impl<'a> ParityRuntime<'a> {
                     .run_matchup(
                         &config.deck1,
                         &config.deck2,
+                        &config.extra_decks,
                         config.seed,
                         config.max_turns,
                         config.prefer_actions,
                         config.deep,
                         &config.variant,
                         &config.commanders,
+                        &config.commanders_by_player,
                         config.verbose.to_java_arg(),
                     )
                     .map_err(|err| err.to_string())
@@ -264,12 +276,14 @@ impl<'a> ParityRuntime<'a> {
                     .run_matchup_streaming(
                         &config.deck1,
                         &config.deck2,
+                        &config.extra_decks,
                         config.seed,
                         config.max_turns,
                         config.prefer_actions,
                         config.deep,
                         &config.variant,
                         &config.commanders,
+                        &config.commanders_by_player,
                         config.verbose.to_java_arg(),
                         |_, entry| on_java_entry(entry),
                     )
@@ -289,12 +303,14 @@ impl<'a> ParityRuntime<'a> {
                 pool.run_matchup(
                     &config.deck1,
                     &config.deck2,
+                    &config.extra_decks,
                     config.seed,
                     config.max_turns,
                     config.prefer_actions,
                     config.deep,
                     &config.variant,
                     &config.commanders,
+                    &config.commanders_by_player,
                     config.verbose.to_java_arg(),
                 )
                 .map_err(|err| err.to_string())
@@ -345,34 +361,41 @@ impl<'a> ParityRuntime<'a> {
         cache: Option<&JavaCache>,
     ) -> RuntimeMatchup {
         let start = Instant::now();
+        // The Java cache key has no N-player or per-seat commander fields.
+        let cacheable = config.extra_decks.is_empty() && config.commanders_by_player.is_empty();
 
         if let Some(c) = cache {
-            if let Some(cached_java) = c.get(
-                &config.deck1,
-                &config.deck2,
-                config.seed,
-                config.max_turns,
-                config.prefer_actions,
-                config.deep,
-                &config.variant,
-                &config.commanders,
-            ) {
-                let rust_trace = match self.run_rust_trace(config) {
-                    Ok(t) => t,
-                    Err(e) => {
-                        return RuntimeMatchup {
-                            result: MatchupResult::error(config, format!("Rust engine error: {e}")),
-                            duration_ms: start.elapsed().as_millis() as u64,
-                            cache_hit: false,
-                        };
-                    }
-                };
-                let result = compare_and_attach_coverage(config, rust_trace, &cached_java);
-                return RuntimeMatchup {
-                    result,
-                    duration_ms: start.elapsed().as_millis() as u64,
-                    cache_hit: true,
-                };
+            if cacheable {
+                if let Some(cached_java) = c.get(
+                    &config.deck1,
+                    &config.deck2,
+                    config.seed,
+                    config.max_turns,
+                    config.prefer_actions,
+                    config.deep,
+                    &config.variant,
+                    &config.commanders,
+                ) {
+                    let rust_trace = match self.run_rust_trace(config) {
+                        Ok(t) => t,
+                        Err(e) => {
+                            return RuntimeMatchup {
+                                result: MatchupResult::error(
+                                    config,
+                                    format!("Rust engine error: {e}"),
+                                ),
+                                duration_ms: start.elapsed().as_millis() as u64,
+                                cache_hit: false,
+                            };
+                        }
+                    };
+                    let result = compare_and_attach_coverage(config, rust_trace, &cached_java);
+                    return RuntimeMatchup {
+                        result,
+                        duration_ms: start.elapsed().as_millis() as u64,
+                        cache_hit: true,
+                    };
+                }
             }
         }
 
@@ -383,12 +406,14 @@ impl<'a> ParityRuntime<'a> {
                 pool.run_matchup(
                     &config.deck1,
                     &config.deck2,
+                    &config.extra_decks,
                     config.seed,
                     config.max_turns,
                     config.prefer_actions,
                     config.deep,
                     &config.variant,
                     &config.commanders,
+                    &config.commanders_by_player,
                     config.verbose.to_java_arg(),
                 )
                 .map_err(|err| err.to_string())
@@ -420,7 +445,7 @@ impl<'a> ParityRuntime<'a> {
             }
         };
 
-        if result.status != MatchupStatus::Error {
+        if result.status != MatchupStatus::Error && cacheable {
             if let Some(c) = cache {
                 let _ = c.put(
                     &config.deck1,
@@ -596,6 +621,7 @@ mod tests {
         RunConfig {
             deck1: "red_burn".to_string(),
             deck2: "green_stompy".to_string(),
+            extra_decks: Vec::new(),
             seed: 42,
             max_turns: 10,
             cards_dir: None,
@@ -608,6 +634,7 @@ mod tests {
             java_heap: "512m".to_string(),
             variant: "Constructed".to_string(),
             commanders: vec![],
+            commanders_by_player: Vec::new(),
             full_log: false,
             live_log: None,
         }

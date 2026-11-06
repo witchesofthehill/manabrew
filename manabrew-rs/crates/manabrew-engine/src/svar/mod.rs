@@ -1602,6 +1602,79 @@ pub fn resolve_count_svar_for_sa(
         return do_x_math(highest_life, operators, game, source_id, controller, sa);
     }
 
+    // Java: `Player.getOpponentLostLifeThisTurn`.
+    if let Some(rest) = expr.strip_prefix("Count$LifeOppsLostThisTurn") {
+        let operators = rest.strip_prefix('/').unwrap_or(rest);
+        let lost =
+            crate::player::player_collection::PlayerCollection::opponents_of(game, controller)
+                .into_iter()
+                .map(|pid| game.player(pid).life_lost_this_turn)
+                .sum::<i32>();
+        return do_x_math(lost, operators, game, source_id, controller, sa);
+    }
+
+    // Count$ThisTurnEntered_<Zone>[_from_<Zone>]_<Valid>
+    // Count$LastTurnEntered_<Zone>[_from_<Zone>]_<Valid>
+    for (prefix, this_turn) in [
+        ("Count$ThisTurnEntered", true),
+        ("Count$LastTurnEntered", false),
+    ] {
+        let Some(rest) = expr.strip_prefix(prefix) else {
+            continue;
+        };
+        let (body, operators) = match rest.split_once('/') {
+            Some((body, operators)) => (body, operators),
+            None => (rest, ""),
+        };
+        let parts: Vec<&str> = body.trim_start_matches('_').splitn(4, '_').collect();
+        if parts.len() < 2 {
+            continue;
+        }
+        let Some(destination) = crate::ability::ability_utils::parse_zone_type(parts[0]) else {
+            continue;
+        };
+        let has_from = parts[1].eq_ignore_ascii_case("from");
+        let origin = if has_from {
+            parts
+                .get(2)
+                .and_then(|z| crate::ability::ability_utils::parse_zone_type(z))
+        } else {
+            None
+        };
+        let valid = if has_from {
+            parts.get(3).copied().unwrap_or("")
+        } else {
+            parts[1]
+        };
+        let cards = if this_turn {
+            crate::card::card_util::get_this_turn_entered(
+                game,
+                destination,
+                origin,
+                valid,
+                source_id,
+                controller,
+            )
+        } else {
+            crate::card::card_util::get_last_turn_entered(
+                game,
+                destination,
+                origin,
+                valid,
+                source_id,
+                controller,
+            )
+        };
+        return do_x_math(
+            cards.len() as i32,
+            operators,
+            game,
+            source_id,
+            controller,
+            sa,
+        );
+    }
+
     // Count$Metalcraft.A.B — return A if controller has 3+ artifacts, else B.
     if let Some(rest) = expr.strip_prefix("Count$Metalcraft.") {
         let parts: Vec<&str> = rest.splitn(2, '.').collect();
@@ -2306,6 +2379,65 @@ mod tests {
 
         let sa = SpellAbility::new_simple(Some(host_id), p0, "DB$ LoseLife | LifeAmount$ X");
         assert_eq!(resolve_numeric_svar(&game, &sa, "LifeAmount", -1), 11);
+    }
+
+    #[test]
+    fn resolves_life_opps_lost_this_turn() {
+        let mut game = GameState::new(&["A", "B", "C"], 20);
+        let p0 = PlayerId(0);
+        let p1 = PlayerId(1);
+        let p2 = PlayerId(2);
+
+        game.player_mut(p1).life_lost_this_turn = 3;
+        game.player_mut(p2).life_lost_this_turn = 4;
+        game.player_mut(p0).life_lost_this_turn = 99;
+
+        assert_eq!(
+            crate::svar::resolve_count_svar_for_sa(
+                "Count$LifeOppsLostThisTurn",
+                &game,
+                CardId(0),
+                p0,
+                &SpellAbility::new_empty(None, p0),
+            ),
+            7
+        );
+    }
+
+    #[test]
+    fn resolves_this_turn_entered_graveyard_from_battlefield_creature() {
+        let mut game = GameState::new(&["A", "B"], 20);
+        let p0 = PlayerId(0);
+
+        let mut dead = Card::new(
+            CardId(0),
+            "Dead Rat".to_string(),
+            p0,
+            CardTypeLine::parse("Creature Rat"),
+            ManaCost::parse(""),
+            ColorSet::COLORLESS,
+            Some(1),
+            Some(1),
+            vec![],
+            vec![],
+        );
+        dead.zone = forge_foundation::ZoneType::Graveyard;
+        let dead_id = game.create_card(dead);
+        game.add_card_to_zone(forge_foundation::ZoneType::Graveyard, p0, dead_id);
+        game.zone_mut(forge_foundation::ZoneType::Graveyard, p0)
+            .save_lki(dead_id, forge_foundation::ZoneType::Battlefield);
+
+        let sa = SpellAbility::new_empty(None, p0);
+        assert_eq!(
+            crate::svar::resolve_count_svar_for_sa(
+                "Count$ThisTurnEntered_Graveyard_from_Battlefield_Creature",
+                &game,
+                CardId(0),
+                p0,
+                &sa,
+            ),
+            1
+        );
     }
 
     #[test]

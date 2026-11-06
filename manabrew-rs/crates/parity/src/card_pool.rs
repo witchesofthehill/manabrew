@@ -37,7 +37,7 @@ pub struct PoolCard {
 }
 
 /// Statistics about pool discovery.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct PoolStats {
     pub total_scanned: usize,
     pub included: usize,
@@ -46,6 +46,8 @@ pub struct PoolStats {
     pub excluded_unusable_type: usize,
     pub excluded_parse_failure: usize,
     pub excluded_unimplemented_effect: usize,
+    pub missing_apis: BTreeMap<String, usize>,
+    pub missing_api_examples: BTreeMap<String, Vec<String>>,
     pub param_diagnostics_missing_delimiter: usize,
     pub param_diagnostics_empty_key: usize,
     pub param_diagnostics_duplicate_key_same_value: usize,
@@ -161,7 +163,7 @@ pub struct ScriptScanStats {
     pub semantic_raw_examples: Vec<ScriptScanExample>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct ScriptScanExample {
     pub file: String,
     pub line_no: usize,
@@ -290,6 +292,8 @@ impl CardPool {
             excluded_unusable_type: 0,
             excluded_parse_failure: 0,
             excluded_unimplemented_effect: 0,
+            missing_apis: BTreeMap::new(),
+            missing_api_examples: BTreeMap::new(),
             param_diagnostics_missing_delimiter: 0,
             param_diagnostics_empty_key: 0,
             param_diagnostics_duplicate_key_same_value: 0,
@@ -401,8 +405,14 @@ impl CardPool {
             }
 
             // 5. All effect API types must be implemented
-            if !check_abilities_implemented(face) {
+            if let Some(api) = first_unimplemented_api(face) {
                 stats.excluded_unimplemented_effect += 1;
+                *stats.missing_apis.entry(api.clone()).or_default() += 1;
+                stats
+                    .missing_api_examples
+                    .entry(api)
+                    .or_default()
+                    .push(face.name.clone());
                 continue;
             }
 
@@ -428,6 +438,13 @@ impl CardPool {
 
         // Sort cards by name for deterministic iteration
         cards.sort_by(|a, b| a.name.cmp(&b.name));
+        for examples in stats.missing_api_examples.values_mut() {
+            examples.sort();
+            examples.truncate(5);
+        }
+        stats
+            .examples
+            .sort_by(|a, b| a.file.cmp(&b.file).then_with(|| a.line_no.cmp(&b.line_no)));
 
         (CardPool { cards }, stats)
     }
@@ -951,13 +968,11 @@ fn selector_predicate_shape(raw: &str) -> String {
         .to_string()
 }
 
-/// Check that all effect API types referenced by a card's abilities (and their
-/// sub-ability chains via SVars) are in the implemented set.
-fn check_abilities_implemented(face: &CardFace) -> bool {
+fn first_unimplemented_api(face: &CardFace) -> Option<String> {
     // Check all spell abilities
     for raw in &face.abilities {
-        if !check_ability_chain_implemented(raw, &face.svars, 0) {
-            return false;
+        if let Some(api) = first_unimplemented_api_in_chain(raw, &face.svars, 0) {
+            return Some(api);
         }
     }
 
@@ -966,8 +981,8 @@ fn check_abilities_implemented(face: &CardFace) -> bool {
         let params = Params::from_raw(raw);
         if let Some(execute_svar) = params.get(keys::EXECUTE) {
             if let Some(svar_text) = face.svars.get(execute_svar) {
-                if !check_ability_chain_implemented(svar_text, &face.svars, 0) {
-                    return false;
+                if let Some(api) = first_unimplemented_api_in_chain(svar_text, &face.svars, 0) {
+                    return Some(api);
                 }
             }
         }
@@ -978,14 +993,14 @@ fn check_abilities_implemented(face: &CardFace) -> bool {
         let params = Params::from_raw(raw);
         if let Some(execute_svar) = params.get(keys::EXECUTE) {
             if let Some(svar_text) = face.svars.get(execute_svar) {
-                if !check_ability_chain_implemented(svar_text, &face.svars, 0) {
-                    return false;
+                if let Some(api) = first_unimplemented_api_in_chain(svar_text, &face.svars, 0) {
+                    return Some(api);
                 }
             }
         }
     }
 
-    true
+    None
 }
 
 fn record_param_diagnostics(face: &CardFace, stats: &mut PoolStats) {
@@ -1097,16 +1112,14 @@ fn record_raw_param_diagnostics(
     }
 }
 
-/// Recursively validate that an ability string and its SubAbility chain
-/// only reference implemented API types. Depth-limited to 10 to prevent
-/// infinite loops from circular SVar references.
-fn check_ability_chain_implemented(
+/// Depth-limited to 10 to prevent infinite loops from circular SVar references.
+fn first_unimplemented_api_in_chain(
     raw: &str,
     svars: &BTreeMap<String, String>,
     depth: usize,
-) -> bool {
+) -> Option<String> {
     if depth > 10 {
-        return false;
+        return Some("SubAbility depth limit".to_string());
     }
 
     let params = Params::from_raw(raw);
@@ -1121,11 +1134,11 @@ fn check_ability_chain_implemented(
         match ApiType::smart_value_of(api_str) {
             Some(api) => {
                 if !IMPLEMENTED_API_TYPES.contains(&api) {
-                    return false;
+                    return Some(api_str.to_string());
                 }
             }
             None => {
-                return false;
+                return Some(api_str.to_string());
             }
         }
     }
@@ -1133,11 +1146,11 @@ fn check_ability_chain_implemented(
     // Follow SubAbility chain
     if let Some(sub_svar_name) = params.get(keys::SUB_ABILITY) {
         if let Some(sub_text) = svars.get(sub_svar_name) {
-            if !check_ability_chain_implemented(sub_text, svars, depth + 1) {
-                return false;
+            if let Some(api) = first_unimplemented_api_in_chain(sub_text, svars, depth + 1) {
+                return Some(api);
             }
         }
     }
 
-    true
+    None
 }

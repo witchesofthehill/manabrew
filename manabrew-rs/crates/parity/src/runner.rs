@@ -875,6 +875,8 @@ impl PlayerAgent for CapturingAgent {
 pub struct RunConfig {
     pub deck1: String,
     pub deck2: String,
+    /// Optional third and fourth seats.
+    pub extra_decks: Vec<String>,
     pub seed: u64,
     pub max_turns: u32,
     pub cards_dir: Option<String>,
@@ -887,12 +889,26 @@ pub struct RunConfig {
     pub java_heap: String,
     /// Game variant: "Constructed", "Commander", "Oathbreaker", "TinyLeaders", "Brawl".
     pub variant: String,
-    /// Commander card names for Commander variants.
+    /// Commander card names shared by every seat.
     pub commanders: Vec<String>,
+    /// Per-seat commander lists; an empty entry means no commander.
+    pub commanders_by_player: Vec<Vec<String>>,
     /// Store full callback logs (for --full-log display).
     pub full_log: bool,
     /// Write Rust-side parity entries as they are recorded.
     pub live_log: Option<PathBuf>,
+}
+
+fn commanders_for_player<'a>(config: &'a RunConfig, player: PlayerId) -> &'a [String] {
+    if config.commanders_by_player.is_empty() {
+        &config.commanders
+    } else {
+        config
+            .commanders_by_player
+            .get(player.index())
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
 }
 
 pub struct LoadedData {
@@ -1028,11 +1044,18 @@ pub fn run_with_data_streaming(
     stream_tx: Option<Sender<ParityLogEntry>>,
 ) -> Result<GameTrace, String> {
     let _t_total = Instant::now();
-    // Resolve deck lists — supports preset names, inline: specs, and file: specs
+    // Resolve deck lists — supports preset names, inline: specs, and file: specs.
     let decks_dirs = deck_search_dirs(config.decks_dir.as_deref());
     let _t_resolve = Instant::now();
-    let deck1_spec = resolve_deck_spec(&config.deck1, &decks_dirs)?;
-    let deck2_spec = resolve_deck_spec(&config.deck2, &decks_dirs)?;
+    let deck_specs: Vec<String> = std::iter::once(config.deck1.clone())
+        .chain(std::iter::once(config.deck2.clone()))
+        .chain(config.extra_decks.iter().cloned())
+        .collect();
+    let mut resolved_specs = Vec::with_capacity(deck_specs.len());
+    for spec in &deck_specs {
+        resolved_specs.push(resolve_deck_spec(spec, &decks_dirs)?);
+    }
+    let num_players = resolved_specs.len();
 
     // Determine starting life based on variant
     let starting_life = match config.variant.as_str() {
@@ -1044,44 +1067,44 @@ pub fn run_with_data_streaming(
     };
 
     // Set up game
-    let p0 = PlayerId(0);
-    let p1 = PlayerId(1);
-    let mut game = GameState::new(&["Player1", "Player2"], starting_life);
+    let player_names: Vec<String> = (1..=num_players).map(|i| format!("Player{i}")).collect();
+    let player_name_refs: Vec<&str> = player_names.iter().map(String::as_str).collect();
+    let mut game = GameState::new(&player_name_refs, starting_life);
 
     let _t_build = Instant::now();
-    build_deck_from_spec(
-        &mut game,
-        &data.db,
-        p0,
-        &deck1_spec,
-        config.verbose.is_any(),
-    );
-    build_deck_from_spec(
-        &mut game,
-        &data.db,
-        p1,
-        &deck2_spec,
-        config.verbose.is_any(),
-    );
+    for (index, spec) in resolved_specs.iter().enumerate() {
+        build_deck_from_spec(
+            &mut game,
+            &data.db,
+            PlayerId(index as u32),
+            spec,
+            config.verbose.is_any(),
+        );
+    }
 
     // Set up commanders if in a commander variant
     let is_commander_variant = matches!(
         config.variant.as_str(),
         "Commander" | "Oathbreaker" | "TinyLeaders" | "Brawl"
     );
-    if is_commander_variant && !config.commanders.is_empty() {
-        let mut unique_commanders: Vec<&str> = Vec::new();
-        let mut seen = HashSet::new();
-        for commander_name in &config.commanders {
-            let key = commander_name.to_ascii_lowercase();
-            if seen.insert(key) {
-                unique_commanders.push(commander_name.as_str());
+    if is_commander_variant {
+        for &pid in &game.player_order.clone() {
+            let commander_names = commanders_for_player(config, pid);
+            if commander_names.is_empty() {
+                continue;
             }
-        }
 
-        // For each player, find commander cards already present in library and move to command zone.
-        // Contract: --commander names must already be in the main deck list.
-        for &pid in &[p0, p1] {
+            let mut unique_commanders: Vec<&str> = Vec::new();
+            let mut seen = HashSet::new();
+            for commander_name in commander_names {
+                let key = commander_name.to_ascii_lowercase();
+                if seen.insert(key) {
+                    unique_commanders.push(commander_name.as_str());
+                }
+            }
+
+            // For each player, find commander cards already present in library and move to command zone.
+            // Contract: commander names must already be in the seat's main deck list.
             for commander_name in &unique_commanders {
                 let card_id = game
                     .cards_in_zone(ZoneType::Library, pid)
@@ -1113,12 +1136,12 @@ pub fn run_with_data_streaming(
         }
         // Set commander_damage_enabled based on variant
         let commander_damage_enabled = config.variant == "Commander";
-        for &pid in &[p0, p1] {
+        for &pid in &game.player_order.clone() {
             game.player_mut(pid).commander_damage_enabled = commander_damage_enabled;
         }
     }
 
-    let mut game_loop = GameLoop::new(2);
+    let mut game_loop = GameLoop::new(num_players);
     game_loop.set_provide_priority_action_space(false);
     let abort_signal = Arc::new(AtomicBool::new(false));
     game_loop.set_abort_signal(Arc::clone(&abort_signal));
@@ -1143,8 +1166,10 @@ pub fn run_with_data_streaming(
         let mut writer = live_log.lock().unwrap();
         let _ = writeln!(
             writer,
-            "# rust live parity log deck1={} deck2={} seed={} max_turns={}",
-            config.deck1, config.deck2, config.seed, config.max_turns
+            "# rust live parity log decks={} seed={} max_turns={}",
+            deck_specs.join(","),
+            config.seed,
+            config.max_turns
         );
         let _ = writer.flush();
     }
@@ -1233,42 +1258,27 @@ pub fn run_with_data_streaming(
     // Both agents share the same game RNG so random effects match Java's MyRandom.
     // Both agents share the same snapshot_index so callbacks from either player
     // reference the correct snapshot position (matching Java's approach).
-    let agents: Vec<Box<dyn PlayerAgent>> = vec![
-        Box::new(CapturingAgent::new(
-            p0,
-            config.verbose.clone(),
-            config.prefer_actions,
-            Arc::clone(&shared_log),
-            Arc::clone(&shared_covered_cards),
-            Arc::clone(&shared_snapshot_index),
-            stream_tx.clone(),
-            live_log.clone(),
-            Rc::clone(&agent_rng),
-            Rc::clone(&game_rng),
-            Arc::clone(&parity_map),
-            !config.deep,
-            config.deep,
-            false,
-            Arc::clone(&abort_signal),
-        )),
-        Box::new(CapturingAgent::new(
-            p1,
-            config.verbose.clone(),
-            config.prefer_actions,
-            Arc::clone(&shared_log),
-            Arc::clone(&shared_covered_cards),
-            Arc::clone(&shared_snapshot_index),
-            stream_tx,
-            live_log.clone(),
-            Rc::clone(&agent_rng),
-            Rc::clone(&game_rng),
-            Arc::clone(&parity_map),
-            false,
-            config.deep,
-            false,
-            Arc::clone(&abort_signal),
-        )),
-    ];
+    let agents: Vec<Box<dyn PlayerAgent>> = (0..num_players)
+        .map(|index| {
+            Box::new(CapturingAgent::new(
+                PlayerId(index as u32),
+                config.verbose.clone(),
+                config.prefer_actions,
+                Arc::clone(&shared_log),
+                Arc::clone(&shared_covered_cards),
+                Arc::clone(&shared_snapshot_index),
+                stream_tx.clone(),
+                live_log.clone(),
+                Rc::clone(&agent_rng),
+                Rc::clone(&game_rng),
+                Arc::clone(&parity_map),
+                index == 0 && !config.deep,
+                config.deep,
+                false,
+                Arc::clone(&abort_signal),
+            )) as Box<dyn PlayerAgent>
+        })
+        .collect();
 
     // Wire the Java-compatible RNG into the game loop so that effect-level
     // shuffles, coin flips, and dice rolls consume the same PRNG instance

@@ -45,7 +45,10 @@ impl GameLoop {
         let mut priority_player = game.active_player();
         let mut last_notified_priority: Option<PlayerId> = None;
         let mut passed_count = 0;
-        let num_players = game.players.len();
+        // CR 117.3d: the stack resolves once every player still in the game
+        // has passed. Java's `Game.getNextPlayerAfter` skips players that left
+        // the game, so they must not count towards the threshold.
+        let num_players = game.in_game_players().len().max(1);
         while passed_count < num_players {
             if game.game_over {
                 return;

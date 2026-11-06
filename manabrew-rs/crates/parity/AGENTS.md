@@ -71,6 +71,27 @@ Pick the smallest seed/turn budget that reliably triggers the bug. The matrix ru
 
 Edit `parity_ignore.json`. Every entry needs a written reason. Don't ignore a divergence to make CI green — investigate first.
 
+### Run a three- or four-player pod
+
+Extra seats are enabled with `--deck3` / `--deck4`; commanders are set per seat
+with `--commander1` … `--commander4`.
+
+```bash
+yarn parity:test -- \
+  --variant Commander \
+  --deck1 <d1> --commander1 '<commander 1>' \
+  --deck2 <d2> --commander2 '<commander 2>' \
+  --deck3 <d3> --commander3 '<commander 3>' \
+  --deck4 <d4> --commander4 '<commander 4>' \
+  --seed 42 --max-turns 40
+```
+
+The Java harness receives the seat list through the `decks` and
+`commanders_by_player` request fields (`forge-harness/src/main/java/forge/harness/Main.java`).
+N-player games bypass the Java trace cache because the cache key has no
+N-player fields. The `fourPlayerCommanderSmoke` entry in `regression.json` is
+the four-player smoke pod.
+
 ## Conventions
 
 - **Both engines share an RNG seed.** Anything that consumes randomness must be threaded through `game_rng` (Rust) and the matching `MyRandom` path (Java). New RNG callsites that drift cause every downstream divergence.

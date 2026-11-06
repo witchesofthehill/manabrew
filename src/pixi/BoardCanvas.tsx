@@ -49,7 +49,6 @@ import type {
   PlayZoneRect,
   ScreenBounds,
 } from "./types";
-import type { PhaseStripCallbacks, PhaseStripState } from "./PhaseStripLayer";
 
 export interface BoardCanvasRegion {
   playerId: string;
@@ -89,8 +88,6 @@ export interface BoardCanvasProps {
    *  `chooseAttackers` prompt, and per-attacker validity. */
   attackTargets?: AttackTargetDto[];
   attackerOptions?: { attackerId: string; validTargetIds: string[] }[];
-  phaseStrip: PhaseStripState;
-  phaseStripCallbacks?: PhaseStripCallbacks;
 
   opponentLayout?: "focused" | "overview";
   focusLocked?: boolean;
@@ -140,8 +137,6 @@ export function BoardCanvasSurface({
   declareAttackers,
   attackTargets,
   attackerOptions,
-  phaseStrip,
-  phaseStripCallbacks,
   layoutPolicy,
   syncScenePresentation,
   opponentLayout = "focused",
@@ -544,14 +539,6 @@ export function BoardCanvasSurface({
   useEffect(() => {
     scene?.applyCombatBlocks(combatBlocks ?? []);
   }, [scene, combatBlocks, regions]);
-
-  useEffect(() => {
-    scene?.setPhaseStripState(phaseStrip);
-  }, [scene, phaseStrip]);
-
-  useEffect(() => {
-    if (phaseStripCallbacks) scene?.setPhaseStripCallbacks(phaseStripCallbacks);
-  }, [scene, phaseStripCallbacks]);
 
   useEffect(() => {
     scene?.setDropActive(isDropActive ?? false);

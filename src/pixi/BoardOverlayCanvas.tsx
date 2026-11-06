@@ -661,8 +661,6 @@ export function BoardOverlayCanvasSurface({
 
           promptLayer?.update(deltaMs);
           currentScene?.setActionPanelBounds(promptLayer?.getActionPanelBounds() ?? null);
-          promptLayer?.setActionPanelAttachment(currentScene?.getPhaseDrawerOutline() ?? null);
-          currentScene?.setActionPanelSurface(promptLayer?.actionSurfaceColor() ?? null);
 
           const definitions = currentScene?.getArrowDefs() ?? [];
           arrow?.update(definitions, deltaMs);

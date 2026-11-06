@@ -12,6 +12,8 @@ export const MOBILE_PLAYER_HUD_MAX_WIDTH_PX = 96;
 export const MOBILE_PLAYER_HUD_MIN_WIDTH_PX = 88;
 export const PLAYER_HUD_HAND_GAP_PX = 8;
 export const MOBILE_PLAYER_HUD_HEIGHT_PX = 36;
+export const PLAYER_PANEL_WIDTH = 280;
+export const PLAYER_PANEL_EDGE_GAP = 12;
 
 // Above this y a capsule is a top-anchored opponent, so its tooltip drops below
 // the badge instead of rising above it (off the top edge).
@@ -100,10 +102,6 @@ export class PlayerHudLayer {
     this.compact = compact;
     for (const capsule of this.capsules.values()) capsule.setCompact(compact);
   }
-  setEdgeShift(playerId: string, dy: number): void {
-    this.capsules.get(playerId)?.setEdgeShift(dy);
-  }
-
   setSquareAvatars(square: boolean): void {
     if (this.squareAvatars === square) return;
     this.squareAvatars = square;

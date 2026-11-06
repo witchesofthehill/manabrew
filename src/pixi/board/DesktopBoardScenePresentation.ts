@@ -1,18 +1,16 @@
 import { Point, type Application, type Container } from "pixi.js";
 import { CARD_H } from "@/components/game/game.constants";
-import { isFeatureEnabled } from "@/featureFlags";
 import type { GameCanvasCallbacks, PlayZoneRect } from "../types";
 import type { DragHandler } from "../DragHandler";
 import { HAND_RESERVE_TRIM } from "../constants";
 import {
   OPPONENT_PLAYER_HUD_HEIGHT_PX,
   PLAYER_HUD_HAND_GAP_PX,
+  PLAYER_PANEL_WIDTH,
   SELF_PLAYER_HUD_HEIGHT_PX,
   SELF_PLAYER_HUD_MIN_WIDTH_PX,
   type PlayerHudLayer,
 } from "../hud/PlayerHudLayer";
-import { PLAYER_PANEL_WIDTH } from "../hud/PlayerPhaseBars";
-import type { PhaseStripLayer } from "../PhaseStripLayer";
 import { DesktopBoardRegionPresentation } from "./DesktopBoardRegionPresentation";
 import type { BoardScenePresentation } from "./BoardScenePresentation";
 import type { HandController } from "./HandController";
@@ -29,14 +27,10 @@ export class DesktopBoardScenePresentation implements BoardScenePresentation {
   readonly hudMinWidth = SELF_PLAYER_HUD_MIN_WIDTH_PX;
   readonly cardHeight = CARD_H;
   readonly showsOpponentHands = true;
-  readonly showsPlayerPhaseBars = true;
+  readonly edgeAnchoredPlayerBars = true;
 
   configurePlayerBars(layer: PlayerHudLayer): void {
     layer.setCompact(false);
-  }
-
-  configurePhaseStrip(layer: PhaseStripLayer): void {
-    layer.container.visible = isFeatureEnabled("phaseDrawer");
   }
 
   configureHand(hand: HandController): void {

@@ -184,7 +184,6 @@ export class PlayerHudCapsule {
   private column = false;
   private compact = false;
   private squareAvatar = false;
-  private edgeShift = 0;
   private boundsDebug = false;
   private avatarUrl: string | null = null;
   private renderedLife: number | null = null;
@@ -437,11 +436,6 @@ export class PlayerHudCapsule {
     ]);
   }
 
-  setEdgeShift(dy: number): void {
-    this.edgeShift = dy;
-    this.container.pivot.y = -dy;
-  }
-
   setSquareAvatar(square: boolean): void {
     if (this.squareAvatar === square) return;
     this.squareAvatar = square;
@@ -683,7 +677,7 @@ export class PlayerHudCapsule {
     const b = this.contentBounds;
     const tl = this.container.toGlobal(SCRATCH_A.set(b.minX, b.minY), SCRATCH_A);
     const br = this.container.toGlobal(SCRATCH_B.set(b.maxX, b.maxY), SCRATCH_B);
-    return { x: tl.x, y: tl.y - this.edgeShift, width: br.x - tl.x, height: br.y - tl.y };
+    return { x: tl.x, y: tl.y, width: br.x - tl.x, height: br.y - tl.y };
   }
 
   private render(): void {

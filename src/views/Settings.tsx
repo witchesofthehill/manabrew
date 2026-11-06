@@ -837,7 +837,7 @@ export default function Settings() {
 
             <PreferenceCard
               title={`Opponent layout`}
-              description={`Focus on one opponent, or keep every opponent field equally visible.`}
+              description={`Choose a focused field, a hover-expanding hybrid view, or an equal overview.`}
             >
               <div className="flex flex-wrap gap-2">
                 <Button
@@ -846,6 +846,13 @@ export default function Settings() {
                   onClick={() => prefs.setOpponentLayout("focused")}
                 >
                   Focused
+                </Button>
+                <Button
+                  variant={prefs.opponentLayout === "hybrid" ? "selected" : "outline"}
+                  size="sm"
+                  onClick={() => prefs.setOpponentLayout("hybrid")}
+                >
+                  Hybrid
                 </Button>
                 <Button
                   variant={prefs.opponentLayout === "overview" ? "selected" : "outline"}

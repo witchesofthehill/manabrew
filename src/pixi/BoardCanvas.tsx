@@ -92,7 +92,7 @@ export interface BoardCanvasProps {
   phaseStrip: PhaseStripState;
   phaseStripCallbacks?: PhaseStripCallbacks;
 
-  opponentLayout?: "focused" | "overview";
+  opponentLayout?: "focused" | "overview" | "hybrid";
   focusLocked?: boolean;
   focusedOpponentId?: string | null;
   combatFocusIds?: string[];

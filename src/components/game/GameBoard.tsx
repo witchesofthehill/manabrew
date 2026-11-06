@@ -739,12 +739,13 @@ export function GameBoard({
   // otherwise the sticky one on ours (defaulting to the first opponent). The
   // scene owns + eases the delimiters, draws the grips, and applies the clip —
   const focusedOpponentId = useMemo(() => {
+    if (opponentLayout === "hybrid") return null;
     if (!isSelfTurn) return activePlayerId;
     if (stickyOpponentId && opponents.some((op) => op.id === stickyOpponentId)) {
       return stickyOpponentId;
     }
     return opponents[0]?.id ?? null;
-  }, [isSelfTurn, activePlayerId, stickyOpponentId, opponents]);
+  }, [opponentLayout, isSelfTurn, activePlayerId, stickyOpponentId, opponents]);
 
   const combatFocusIds = useMemo(() => {
     const ids = new Set<string>();
@@ -1759,12 +1760,16 @@ export function GameBoard({
     opponentLayout,
     focusLocked:
       !!sheetPlayerId ||
-      pendingAttackers.length > 0 ||
-      !!pendingAttacker ||
-      !!pendingBlocker ||
-      !!dragAttackerId ||
-      !!dragBlockerId ||
-      !!draggingCardId,
+      (!(
+        opponentLayout === "hybrid" &&
+        (promptType === "chooseAttackers" || promptType === "chooseBlockers")
+      ) &&
+        (pendingAttackers.length > 0 ||
+          !!pendingAttacker ||
+          !!pendingBlocker ||
+          !!dragAttackerId ||
+          !!dragBlockerId ||
+          !!draggingCardId)),
     arrowSpecs: arrowSpecs ?? [],
     castingArrow,
     declareBlockers: promptType === "chooseBlockers",

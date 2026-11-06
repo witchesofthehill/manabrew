@@ -19,6 +19,7 @@ export type BattlefieldCardStyle = "realistic" | "art" | "frame";
 export type InGameCardPreviewStyle = "printed" | "rules";
 export type InGameCardPreviewSize = "small" | "medium" | "large";
 export type InlineCardStyle = "printed" | "rules";
+export type OpponentLayout = "focused" | "overview" | "hybrid";
 export type OpponentHandFanMode = "always" | "revealed" | "never";
 
 const CARD_VIEW_DEFAULTS = {
@@ -85,8 +86,8 @@ export interface PreferencesState {
   setBattlefieldAutoSort: (value: boolean) => void;
   handOrderMode: HandOrderMode;
   setHandOrderMode: (mode: HandOrderMode) => void;
-  opponentLayout: "focused" | "overview";
-  setOpponentLayout: (layout: "focused" | "overview") => void;
+  opponentLayout: OpponentLayout;
+  setOpponentLayout: (layout: OpponentLayout) => void;
   opponentHandFan: OpponentHandFanMode;
   setOpponentHandFan: (mode: OpponentHandFanMode) => void;
 

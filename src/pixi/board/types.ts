@@ -109,6 +109,7 @@ export interface OverlayHost {
  *  event wiring) without owning them. */
 export interface RegionHost {
   getTheme(): Theme;
+  getCombatCardScale(controllerId: string): number | null;
   collectBlockers(): BlockingRect[];
   /** Seed transform for a newly-entering battlefield sprite (mirror of a
    *  hand sprite / stack card / hand-fan origin). `glide` is set when the seed

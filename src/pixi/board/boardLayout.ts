@@ -18,7 +18,7 @@ export interface BoardLayout {
   opponents: OpponentRegion[];
   dividerY: number;
   stripBandPx: number;
-  opponentLayout: "focused" | "overview";
+  opponentLayout: "focused" | "overview" | "hybrid";
 }
 
 /** Fixed vertical band, in px, reserved at the center for the phase strip. */
@@ -38,7 +38,7 @@ export function computeBoardLayout(
   selfBottomReserve = 0,
   compact = false,
   selfFieldShare = 0.5,
-  opponentLayout: "focused" | "overview" = "focused",
+  opponentLayout: "focused" | "overview" | "hybrid" = "focused",
 ): BoardLayout {
   const count = Math.max(1, opponentCount);
   const bandPx = compact ? 0 : STRIP_BAND_PX;
@@ -56,16 +56,18 @@ export function computeBoardLayout(
   const topHeight = usable - selfHeight;
   const dividerY = topHeight + band / 2;
   const overview = opponentLayout === "overview" && !compact && opponentCount > 1;
+  const hybrid = opponentLayout === "hybrid" && !compact && opponentCount > 1;
 
   const opponentHeight = overview ? topHeight / count : topHeight;
   const opponents: OpponentRegion[] = [];
   for (let i = 0; i < count; i++) {
-    const x = overview ? 0 : i * collapsedOpponentWidth(width, count);
+    const sharedWidth = overview || hybrid;
+    const x = sharedWidth ? 0 : i * collapsedOpponentWidth(width, count);
     opponents.push({
       rect: {
         x,
         y: overview ? i * opponentHeight : 0,
-        width: Math.max(1, width - x),
+        width: sharedWidth ? width : Math.max(1, width - x),
         height: opponentHeight,
       },
       orientation: "top",
@@ -77,6 +79,6 @@ export function computeBoardLayout(
     opponents,
     dividerY,
     stripBandPx: band,
-    opponentLayout: overview ? "overview" : "focused",
+    opponentLayout: overview ? "overview" : hybrid ? "hybrid" : "focused",
   };
 }

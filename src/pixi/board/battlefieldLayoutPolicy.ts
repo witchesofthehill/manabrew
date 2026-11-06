@@ -6,7 +6,7 @@ export interface BattlefieldLayoutInput {
   height: number;
   opponentCount: number;
   requestedBottomReserve: number;
-  opponentLayout: "focused" | "overview";
+  opponentLayout: "focused" | "overview" | "hybrid";
   observedHandReserve: number;
   cardSizeMultiplier: number;
   handViewportScale: number;

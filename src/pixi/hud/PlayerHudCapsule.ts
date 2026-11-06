@@ -10,6 +10,7 @@ import {
   Text,
   Texture,
   TextStyle,
+  type Renderer,
 } from "pixi.js";
 import { gsap } from "@/pixi/effects/gsap";
 import { animationsEnabled } from "@/pixi/effects/enabled";
@@ -47,6 +48,8 @@ const OFFLINE_ICON_NAME = "aerial-signal";
 const DETAILS_ICON_NAME = "info";
 const PANEL_PADDING = 10;
 const AVATAR_DIAMETER = 44;
+const FLOATING_MANA_SIZE = 22;
+const FLOATING_MANA_OFFSET = 16;
 const SHALLOW_AVATAR_MIN_HEIGHT = 96;
 const SHALLOW_RESOURCE_IDENTITY_OVERLAP = 30;
 const SHALLOW_RESOURCE_RIGHT_INSET = 16;
@@ -124,6 +127,9 @@ interface LayoutRect {
 
 export class PlayerHudCapsule {
   readonly container: Container;
+  private content = new Container();
+  private transitionImage: Sprite | null = null;
+  private visualRect: ScreenBounds | null = null;
   private theme: Theme;
   private onTarget: () => void;
   private onShowSheet: () => void;
@@ -225,6 +231,7 @@ export class PlayerHudCapsule {
     this.onHover = onHover;
 
     this.container = new Container();
+    this.container.addChild(this.content);
     this.container.eventMode = "static";
     this.container.cursor = "pointer";
     this.container.on("pointertap", () => {
@@ -312,7 +319,7 @@ export class PlayerHudCapsule {
       })
       .catch((error) => console.warn("[hud] hand card back load failed", error));
 
-    this.container.addChild(
+    this.content.addChild(
       this.bg,
       this.boundsOutline,
       this.manaTray,
@@ -482,13 +489,90 @@ export class PlayerHudCapsule {
   }
 
   setRect(x: number, y: number, width: number, height: number, column: boolean): void {
+    this.finishRectTransition();
     this.container.position.set(x, y);
+    this.container.scale.set(1);
     if (this.width === width && this.height === height && this.column === column) return;
     this.width = width;
     this.height = height;
     this.column = column;
     this.container.hitArea = this.capsuleHitArea;
     this.render();
+  }
+
+  getRect(): ScreenBounds {
+    return (
+      this.visualRect ?? {
+        x: this.container.x,
+        y: this.container.y,
+        width: this.width * this.container.scale.x,
+        height: this.height * this.container.scale.y,
+      }
+    );
+  }
+
+  beginRectTransition(rect: ScreenBounds, column: boolean, renderer: Renderer): void {
+    let image: Sprite | null = null;
+    if (
+      this.width > 0 &&
+      (this.width !== rect.width ||
+        this.height !== rect.height ||
+        this.column !== column ||
+        this.transitionImage)
+    ) {
+      const bounds = this.container.getLocalBounds();
+      const alpha = this.container.alpha;
+      const filters = this.container.filters;
+      this.container.alpha = 1;
+      this.container.filters = null;
+      try {
+        image = new Sprite(
+          renderer.generateTexture({
+            target: this.container,
+            frame: new Rectangle(
+              bounds.x,
+              bounds.y,
+              Math.ceil(bounds.width),
+              Math.ceil(bounds.height),
+            ),
+          }),
+        );
+      } finally {
+        this.container.alpha = alpha;
+        this.container.filters = filters ? [...filters] : null;
+      }
+      image.position.set(bounds.x, bounds.y);
+      image.eventMode = "none";
+    }
+    this.setRect(rect.x, rect.y, rect.width, rect.height, column);
+    if (image) {
+      this.transitionImage = image;
+      this.container.addChildAt(image, 0);
+      this.content.alpha = 0;
+    }
+  }
+
+  setVisualRect(rect: ScreenBounds, progress: number): void {
+    this.visualRect = rect;
+    this.container.position.set(rect.x, rect.y);
+    this.container.scale.set(1);
+    if (this.transitionImage) {
+      this.transitionImage.alpha = 1 - progress;
+      this.content.alpha = progress;
+    }
+  }
+
+  finishRectTransition(): void {
+    const image = this.transitionImage;
+    if (image) {
+      image.parent?.removeChild(image);
+      const texture = image.texture;
+      image.destroy();
+      texture.destroy(true);
+      this.transitionImage = null;
+    }
+    this.content.alpha = 1;
+    this.visualRect = null;
   }
 
   private textStyle(size: number, weight: TextStyle["fontWeight"] = "700"): TextStyle {
@@ -866,7 +950,11 @@ export class PlayerHudCapsule {
           width: 1,
         });
     }
-    this.layoutFloatingMana(16, this.spec.isSelf ? -16 : h + 16);
+    const manaY = this.spec.isSelf ? -FLOATING_MANA_OFFSET : h + FLOATING_MANA_OFFSET;
+    const top = Math.min(0, manaY - FLOATING_MANA_SIZE / 2);
+    const bottom = Math.max(h, manaY + FLOATING_MANA_SIZE / 2);
+    this.extendContent(0, top, w, bottom - top);
+    this.layoutFloatingMana(16, manaY);
   }
 
   private renderCapsule(w: number, h: number): void {
@@ -1111,7 +1199,7 @@ export class PlayerHudCapsule {
   private layoutFloatingMana(x: number, cy: number): void {
     this.ensurePips();
     const gt = this.theme.gameTheme;
-    const size = 22;
+    const size = FLOATING_MANA_SIZE;
     const slotWidth = Math.max(40, size + getUiFontFloor("meta") * 2 + 8);
     let slot = 0;
     for (let i = 0; i < MANA_LETTERS.length; i++) {
@@ -1795,6 +1883,7 @@ export class PlayerHudCapsule {
   }
 
   destroy(): void {
+    this.finishRectTransition();
     this.unsubscribeHandStyle?.();
     this.unsubscribeLocale?.();
     for (const request of this.handFaceRequests) request?.abort();

@@ -5,7 +5,7 @@ export type PreviewCard = CardDto & { zoneId?: string };
 export interface PreviewPointerInput {
   buttons: number;
 }
-export type PreviewPlacement = "auto" | "top-center" | "pinned";
+export type PreviewPlacement = "auto" | "top-center" | "beside-top" | "pinned";
 export type PreviewPhase = "hidden" | "open" | "closing";
 
 /**

@@ -59,7 +59,7 @@ import { useFlashQueue } from "@/hooks/useFlashQueue";
 import { useHandDrag, type HandDragStart } from "@/hooks/useHandDrag";
 import { useCardPreview } from "@/hooks/useCardPreview";
 import { useGamePreviewFlip } from "@/hooks/useGamePreviewFlip";
-import type { PreviewFlipOptions, PreviewPointerInput } from "@/lib/cardPreview";
+import type { PreviewFlipOptions, PreviewPointerInput, PreviewPlacement } from "@/lib/cardPreview";
 import { MODAL_OPEN_EVENT, topModal } from "@/lib/modalStack";
 import { useMulliganSelection } from "@/hooks/useMulliganSelection";
 import { HoverCardPreview } from "@/components/game/HoverCardPreview";
@@ -1962,7 +1962,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     e?: React.MouseEvent,
     options: {
       useAnchor?: boolean;
-      placement?: "auto" | "top-center";
+      placement?: PreviewPlacement;
       anchorOverride?: DOMRect;
       trigger?: PreviewPointerInput;
     } = {},
@@ -2577,7 +2577,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           onHoverZoneCards={handleHoverZoneCards}
           onRightClickCard={
             cardPreviewMode === "right-click"
-              ? (card, rect) => {
+              ? (card, rect, placement) => {
                   setCommandPreviewSource(null);
                   commandZonePreview.dismiss();
                   preview.showSticky(
@@ -2585,6 +2585,7 @@ export default function Game({ exitTo }: GameProps = {}) {
                     rect.left + rect.width / 2,
                     rect.top + rect.height / 2,
                     rect,
+                    { placement },
                   );
                 }
               : undefined
@@ -2596,11 +2597,12 @@ export default function Game({ exitTo }: GameProps = {}) {
           onPreviewPointerEnter={handlePreviewPointerEnter}
           onPreviewPointerLeave={handlePreviewPointerLeave}
           onTogglePreviewView={togglePreviewView}
-          onLongPressCard={(card, rect) => {
+          onLongPressCard={(card, rect, placement) => {
             setCommandPreviewSource(null);
             commandZonePreview.dismiss();
             preview.showSticky(card, rect.left + rect.width / 2, rect.top + rect.height / 2, rect, {
               allowOverModal: true,
+              placement,
             });
           }}
           onHandHoverChange={setHandCardLifted}

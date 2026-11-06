@@ -34,7 +34,12 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import { useGameStore } from "@/stores/useGameStore";
 import { useServerStore } from "@/stores/useServerStore";
 import { useGameDevStore } from "@/stores/useGameDevStore";
-import type { ArrowSpec, BattlefieldState, GameCanvasCallbacks } from "@/pixi/types";
+import type {
+  ArrowSpec,
+  BattlefieldState,
+  GameCanvasCallbacks,
+  HoverPlacement,
+} from "@/pixi/types";
 import { usePhaseStopStore, DEFAULT_OPPONENT_STOPS } from "@/stores/usePhaseStopStore";
 import type { PromptType } from "@/protocol";
 import { OPPONENT_SEATS } from "@/components/game/game.types";
@@ -50,6 +55,8 @@ import { GAP, HAND_BOTTOM_SINK_FRAC, HAND_RESERVE_TRIM } from "@/pixi/constants"
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { ReconnectBanner } from "@/components/lobby/ReconnectBanner";
 import { GameBoardAccessibility } from "@/components/game/GameBoardAccessibility";
+import { RemoteAttachmentPile } from "@/components/game/RemoteAttachmentPile";
+import { buildAttachmentSections } from "@/components/game/attachmentPanel";
 function promptOf<TType extends PromptType>(
   prompt: Prompt | null | undefined,
   type: TType,
@@ -164,13 +171,13 @@ interface GameBoardProps {
     e?: React.MouseEvent,
     options?: {
       useAnchor?: boolean;
-      placement?: "auto" | "top-center";
+      placement?: HoverPlacement;
       anchorOverride?: DOMRect;
       trigger?: PreviewPointerInput;
     },
   ) => void;
   onHoverZoneCards: (cards: CardDto[] | null, anchor?: DOMRect) => void;
-  onRightClickCard?: (card: CardDto, anchor: DOMRect) => void;
+  onRightClickCard?: (card: CardDto, anchor: DOMRect, placement?: HoverPlacement) => void;
   onDismissHoverPreview?: () => void;
   rulesPreview?: BoardOverlayPreviewSpec | null;
   commandPreview?: BoardOverlayCommandPreviewSpec | null;
@@ -178,7 +185,7 @@ interface GameBoardProps {
   onPreviewPointerEnter?: () => void;
   onPreviewPointerLeave?: () => void;
   onTogglePreviewView?: () => void;
-  onLongPressCard?: (card: CardDto, anchor: DOMRect) => void;
+  onLongPressCard?: (card: CardDto, anchor: DOMRect, placement?: HoverPlacement) => void;
   onHandHoverChange?: (hovering: boolean) => void;
   getHandActions?: (card: CardDto) => HandActionOption[];
   onSelectHandAction?: (action: HandActionOption) => void;
@@ -327,6 +334,7 @@ export function GameBoard({
     ((1 - HAND_BOTTOM_SINK_FRAC) * HAND_CARD_BASE.cardH * vScale + GAP) * HAND_RESERVE_TRIM,
   );
   const opponentLayout = usePreferencesStore((s) => s.opponentLayout);
+  const showAttachmentPanel = usePreferencesStore((s) => s.showAttachmentPanel);
 
   const isTargetingPrompt = promptType === "chooseBoardTargets";
   const chooseActionPrompt = promptOf(currentPrompt, "chooseAction");
@@ -1598,9 +1606,10 @@ export function GameBoard({
     const moveToDefender = (id: string, defList: CardDto[]) => {
       const card = cardById.get(id);
       if (!card) return;
-      const ctrl = cardsByController.get(card.controllerId);
-      const idx = ctrl?.findIndex((c) => c.id === id) ?? -1;
-      if (ctrl && idx >= 0) ctrl.splice(idx, 1);
+      for (const cards of cardsByController.values()) {
+        const index = cards.findIndex((entry) => entry.id === id);
+        if (index >= 0) cards.splice(index, 1);
+      }
       defList.push(card);
       for (const child of attachedTo.get(id) ?? []) moveToDefender(child.id, defList);
     };
@@ -1670,6 +1679,34 @@ export function GameBoard({
     playerColors,
   ]);
 
+  const attachmentSections = useMemo(
+    () =>
+      showAttachmentPanel
+        ? buildAttachmentSections(battlefield, unifiedRegions, me.id, [me, ...opponents])
+        : [],
+    [battlefield, unifiedRegions, me, opponents, showAttachmentPanel],
+  );
+  const [highlightedAttachmentId, setHighlightedAttachmentId] = useState<string | null>(null);
+  const highlightedAttachment = attachmentSections
+    .flatMap((section) => section.cards)
+    .find((entry) => entry.card.id === highlightedAttachmentId);
+  if (highlightedAttachmentId && !highlightedAttachment) setHighlightedAttachmentId(null);
+  const attachmentArrows = useMemo(
+    (): ArrowSpec[] => [
+      ...(arrowSpecs ?? []),
+      ...(highlightedAttachment?.target && highlightedAttachment.playerId
+        ? [
+            {
+              from: { kind: "attachment-proxy" as const, id: highlightedAttachment.card.id },
+              to: { kind: "card" as const, id: highlightedAttachment.target.id },
+              type: "placement" as const,
+              hostile: false,
+            },
+          ]
+        : []),
+    ],
+    [arrowSpecs, highlightedAttachment],
+  );
   const sheetPlayer = [me, ...opponents].find((player) => player.id === sheetPlayerId);
   const baseSheetSpec =
     sheetPlayerId && !gameOver
@@ -1765,7 +1802,7 @@ export function GameBoard({
       !!dragAttackerId ||
       !!dragBlockerId ||
       !!draggingCardId,
-    arrowSpecs: arrowSpecs ?? [],
+    arrowSpecs: attachmentArrows,
     castingArrow,
     declareBlockers: promptType === "chooseBlockers",
     combatBlocks: combatAssignmentsAll,
@@ -1777,7 +1814,10 @@ export function GameBoard({
     focusedOpponentId,
     combatFocusIds,
     targetingFocusIds,
-    manualFocusId,
+    manualFocusId:
+      highlightedAttachment?.playerId && highlightedAttachment.playerId !== me.id
+        ? highlightedAttachment.playerId
+        : manualFocusId,
     playerBars: playerBarSpecs,
     showPlayerBars: true,
     zoneTiles: zoneTilesByPlayer,
@@ -1944,6 +1984,32 @@ export function GameBoard({
           battlefieldContainerRef={battlefieldContainerRef}
           board={boardSceneProps}
           overlay={{ ...overlaySceneProps, promptSpec: promptOverlaySpec ?? null }}
+        />
+      )}
+      {showAttachmentPanel && (
+        <RemoteAttachmentPile
+          sections={attachmentSections}
+          onHighlight={(entry) => setHighlightedAttachmentId(entry?.card.id ?? null)}
+          onHover={(card, anchor) =>
+            onHoverCard(card, undefined, {
+              useAnchor: true,
+              anchorOverride: anchor,
+              placement: "beside-top",
+            })
+          }
+          onRightClick={
+            onRightClickCard
+              ? (card, anchor) => onRightClickCard(card, anchor, "beside-top")
+              : undefined
+          }
+          onLongPress={
+            onLongPressCard
+              ? (card, anchor) => onLongPressCard(card, anchor, "beside-top")
+              : undefined
+          }
+          onLeave={() => onHoverCard(null)}
+          onDismissPreview={onDismissHoverPreview ?? (() => onHoverCard(null))}
+          previewActive={externalPreviewActive}
         />
       )}
       {sheetSpec && <PlayerSheetModal spec={sheetSpec} onClose={closePlayerSheet} />}

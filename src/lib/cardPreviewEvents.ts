@@ -8,6 +8,10 @@ export function isCardPreviewTarget(target: EventTarget | null | undefined): boo
   return target instanceof Element && target.closest("[data-card-preview]") !== null;
 }
 
+export function isBoardInputBlocker(target: EventTarget | null | undefined): boolean {
+  return target instanceof Element && target.closest("[data-board-input-blocker]") !== null;
+}
+
 export const CARD_PREVIEW_EVENT_HANDLERS = {
   onPointerDown: stopCardPreviewEvent,
   onPointerUp: stopCardPreviewEvent,

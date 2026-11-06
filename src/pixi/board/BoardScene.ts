@@ -1,6 +1,6 @@
 import { UI_FONT_FAMILY } from "@/themes/typography";
 import { Application, Container, Graphics, Point, Text, type FederatedPointerEvent } from "pixi.js";
-import { isCardPreviewTarget } from "@/lib/cardPreviewEvents";
+import { isBoardInputBlocker, isCardPreviewTarget } from "@/lib/cardPreviewEvents";
 import type { CardDto, PlaymatSettings } from "@/protocol/game";
 import type { AttackTargetDto, TargetRef } from "@/protocol/prompts/common";
 import {
@@ -274,7 +274,7 @@ export class BoardScene {
         y <= this.canvasH &&
         (this.activeGesturePointerId !== null ||
           this.hand?.isDraggingFromHand() ||
-          !this.overlayHitTest?.(x, y)),
+          (!this.overlayHitTest?.(x, y) && !this.domBlocksBoardInput(x, y))),
     };
 
     this.dragHandler = new DragHandler();
@@ -335,7 +335,7 @@ export class BoardScene {
       if (
         this.activeGesturePointerId === null &&
         !this.hand?.isDraggingFromHand() &&
-        this.overlayHitTest?.(canvasX, canvasY)
+        (this.overlayHitTest?.(canvasX, canvasY) || isBoardInputBlocker(e.target))
       ) {
         if (this.hand?.hasActiveHover()) this.hand.resetHover();
         this.updateHoveredOpponent(-1, -1);
@@ -1365,6 +1365,11 @@ export class BoardScene {
     return this.canvasDomRect;
   }
 
+  private domBlocksBoardInput(x: number, y: number): boolean {
+    const rect = this.canvasRect();
+    return isBoardInputBlocker(document.elementFromPoint(rect.left + x, rect.top + y));
+  }
+
   resize(width: number, height: number): void {
     if (this.destroyed) return;
     this.app.renderer.resize(width, height);
@@ -2204,7 +2209,8 @@ export class BoardScene {
       castDragging ||
       !!this.blockDragBlockerId ||
       !!this.attackDragAttackerId ||
-      !!this.hoveredCombatArrow;
+      !!this.hoveredCombatArrow ||
+      this.arrowSpecs.some((spec) => spec.from.kind === "attachment-proxy");
     // Suppress the (card-anchored) combat arrows while the accordion eases so they
     // don't lag their moving targets — but keep live drag/casting arrows, or the
     // player loses targeting feedback exactly when combat opens the fields.
@@ -2379,6 +2385,11 @@ export class BoardScene {
 
   private resolveArrowEndpoint(ep: ArrowEndpoint, canvasRect: DOMRect): ScreenPos | null {
     switch (ep.kind) {
+      case "attachment-proxy":
+        return this.domCenterCanvasLocal(
+          `[data-attachment-proxy="${CSS.escape(ep.id)}"]`,
+          canvasRect,
+        );
       case "card": {
         for (const rec of this.regions.values()) {
           const pos = rec.region.getCardPosition(ep.id);

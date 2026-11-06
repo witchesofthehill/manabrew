@@ -5,66 +5,28 @@ import { gsap } from "@/pixi/effects/gsap";
 const ORBIT_MS = 8000;
 const BREATH_MS = 3600;
 
-interface GlowRect {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-export interface PromptGlowAttachment {
-  base: GlowRect | null;
-  tower: GlowRect;
-  radius: number;
-}
-
 export interface PromptPanelShape {
   width: number;
   height: number;
   radius: number;
   squareBottom: boolean;
+  tab?: { x: number; width: number; height: number; radius: number };
 }
 
-function attachmentPath(a: PromptGlowAttachment): string {
-  const r = a.radius;
-  const t = a.tower;
-  const tx0 = t.x;
-  const tx1 = t.x + t.width;
-  const column = (x0: number, x1: number, top: number) =>
-    `H ${x0} V ${top + r} Q ${x0},${top} ${x0 + r},${top} H ${x1 - r} Q ${x1},${top} ${x1},${top + r} V 0`;
-  const base = a.base;
-  if (!base) return column(tx0, tx1, t.y);
-  const bx0 = base.x;
-  const bx1 = base.x + base.width;
-  const rb = Math.min(r, base.height);
-  const stepLeft = tx0 - bx0 > rb;
-  const stepRight = bx1 - tx1 > rb;
-  if (!stepLeft && !stepRight) return column(bx0, bx1, t.y);
-  const left = stepLeft
-    ? `H ${bx0} V ${base.y + rb} Q ${bx0},${base.y} ${bx0 + rb},${base.y} H ${tx0}`
-    : `H ${bx0}`;
-  const towerX0 = stepLeft ? tx0 : bx0;
-  const towerX1 = stepRight ? tx1 : bx1;
-  const right = stepRight
-    ? `V ${base.y} H ${bx1 - rb} Q ${bx1},${base.y} ${bx1},${base.y + rb} V 0`
-    : "V 0";
-  return `${left} V ${t.y + r} Q ${towerX0},${t.y} ${towerX0 + r},${t.y}
-    H ${towerX1 - r} Q ${towerX1},${t.y} ${towerX1},${t.y + r} ${right}`;
-}
-
-export function promptPanelOutline(
-  shape: PromptPanelShape,
-  attachments: PromptGlowAttachment[],
-): string {
-  const { width, height, radius, squareBottom } = shape;
+export function promptPanelOutline(shape: PromptPanelShape): string {
+  const { width, height, radius, squareBottom, tab } = shape;
   const bottom = squareBottom ? 0 : radius;
-  const sorted = [...attachments].sort((a, b) => a.tower.x - b.tower.x);
-  const flushLeft = !!sorted[0] && sorted[0].tower.x <= 0;
-  const top = sorted.map(attachmentPath).join(" ");
-  return `M ${flushLeft ? 0 : radius},0 ${top} H ${width - radius} Q ${width},0 ${width},${radius}
+  const top = tab
+    ? `H ${tab.x} V ${-tab.height + tab.radius}
+       Q ${tab.x},${-tab.height} ${tab.x + tab.radius},${-tab.height}
+       H ${tab.x + tab.width - tab.radius}
+       Q ${tab.x + tab.width},${-tab.height} ${tab.x + tab.width},${-tab.height + tab.radius}
+       V 0`
+    : "";
+  return `M ${radius},0 ${top} H ${width - radius} Q ${width},0 ${width},${radius}
     V ${height - bottom} Q ${width},${height} ${width - bottom},${height}
     H ${bottom} Q 0,${height} 0,${height - bottom}
-    ${flushLeft ? "V 0" : `V ${radius} Q 0,0 ${radius},0`} Z`;
+    V ${radius} Q 0,0 ${radius},0 Z`;
 }
 
 interface PromptGlowOptions extends PromptPanelShape {
@@ -74,13 +36,12 @@ interface PromptGlowOptions extends PromptPanelShape {
 
 export class PromptGlow extends Container {
   readonly spill = new Graphics();
-  private readonly spillMask = new Graphics();
   private readonly halo = new Graphics();
   private readonly edge = new Graphics();
   private readonly flare = new Graphics();
   private readonly glint = new Graphics();
   private orbit: gsap.core.Tween | null = null;
-  private attachments: PromptGlowAttachment[] = [];
+  private readonly motionPath = { path: "", autoRotate: true, useRadians: true };
   private elapsed = 0;
   private emphasis = 0;
   private readonly options: PromptGlowOptions;
@@ -91,17 +52,8 @@ export class PromptGlow extends Container {
     this.eventMode = "none";
     this.spill.eventMode = "none";
     this.spill.filters = [new BlurFilter({ strength: 14 })];
-    this.addChild(this.spillMask, this.halo, this.edge, this.flare, this.glint);
-    this.draw();
-  }
-
-  setAttachments(attachments: PromptGlowAttachment[]): void {
-    this.attachments = attachments;
-    this.draw();
-  }
-
-  private draw(): void {
-    const { color, highlight } = this.options;
+    this.addChild(this.halo, this.edge, this.flare, this.glint);
+    const { color, highlight } = options;
     this.glint
       .clear()
       .ellipse(-8, 0, 14, 3.5)
@@ -110,12 +62,20 @@ export class PromptGlow extends Container {
       .fill({ color: highlight, alpha: 0.45 })
       .circle(0, 0, 2.2)
       .fill({ color: highlight, alpha: 0.95 });
-    const outline = promptPanelOutline(this.options, this.attachments);
+    this.draw();
+  }
+
+  setHeight(height: number): void {
+    if (height === this.options.height) return;
+    this.options.height = height;
+    this.draw();
+  }
+
+  private draw(): void {
+    const { color, highlight } = this.options;
+    const outline = promptPanelOutline(this.options);
     const path = new GraphicsPath(outline);
-    this.spill
-      .clear()
-      .path(new GraphicsPath(promptPanelOutline(this.options, [])))
-      .stroke({ color, width: 20 });
+    this.spill.clear().path(path).stroke({ color, width: 20 });
     this.halo
       .clear()
       .path(path)
@@ -125,27 +85,17 @@ export class PromptGlow extends Container {
     this.edge.clear().path(path).stroke({ color, width: 1 });
     this.flare.clear().path(path).stroke({ color: highlight, width: 1.5 });
 
-    this.spillMask.clear();
-    if (this.attachments.length > 0) {
-      for (const { base, tower, radius: r } of this.attachments) {
-        if (base) this.spillMask.roundRect(base.x, base.y, base.width, base.height + r, r);
-        this.spillMask.roundRect(tower.x, tower.y, tower.width, tower.height + r, r);
-      }
-      this.spillMask.fill({ color });
-      if (this.spill.mask !== this.spillMask) {
-        this.spill.setMask({ mask: this.spillMask, inverse: true });
-      }
+    this.motionPath.path = outline;
+    if (this.orbit) {
+      this.orbit.invalidate();
     } else {
-      this.spill.mask = null;
+      this.orbit = gsap.to(this.glint, {
+        motionPath: this.motionPath,
+        duration: ORBIT_MS / 1000,
+        ease: "none",
+        paused: true,
+      });
     }
-
-    this.orbit?.kill();
-    this.orbit = gsap.to(this.glint, {
-      motionPath: { path: outline, autoRotate: true, useRadians: true },
-      duration: ORBIT_MS / 1000,
-      ease: "none",
-      paused: true,
-    });
     this.update(this.elapsed, this.emphasis);
   }
 

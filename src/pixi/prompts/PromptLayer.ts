@@ -7,7 +7,6 @@ import {
 import { TOUCH_MOVE_SLOP_PX } from "@/lib/responsive";
 import { topModal } from "@/lib/modalStack";
 import { stripUsernameTag } from "@/lib/username";
-import { isFeatureEnabled } from "@/featureFlags";
 import { playSound } from "@/lib/soundRuntime";
 import { summarizeCombat } from "@/components/game/combatSummary";
 import {
@@ -48,18 +47,13 @@ import {
 } from "@/components/game/panels/promptContextHints";
 import type { CardDto } from "@/protocol";
 import { PromptButton } from "./PromptButton";
-import {
-  PromptGlow,
-  promptPanelOutline,
-  type PromptGlowAttachment,
-  type PromptPanelShape,
-} from "./PromptGlow";
+import { PromptGlow, promptPanelOutline } from "./PromptGlow";
+import { PromptPhaseControls } from "./PromptPhaseControls";
 import { animationsEnabled } from "@/pixi/effects/enabled";
 import { gsap } from "@/pixi/effects/gsap";
 import type { PromptLayerCallbacks, PromptOverlaySpec } from "./prompt.types";
 import type { PromptLayerPresentation } from "./PromptLayerPresentation";
 import type { ScreenBounds } from "@/pixi/types";
-import type { PhaseDrawerOutline } from "@/pixi/PhaseStripLayer";
 import {
   type ActionViewLayout,
   FILTER_CARET_PERIOD_MS,
@@ -89,14 +83,17 @@ const TURN_BAND_HEIGHT = 28;
 const TURN_BORDER_WIDTH = 2;
 const PRIORITY_BADGE_RADIUS = 20;
 const PRIORITY_BADGE_OVERLAP = 10;
+const PHASE_REVEAL_SECONDS = 0.22;
+const PHASE_TAB_HEIGHT = 24;
+const PHASE_TAB_OVERLAP = 4;
 
 export class PromptLayer extends PromptModalLayer {
   private phasePulseFired = false;
   private phaseBounds: Rectangle | null = null;
   private actionPanelBounds: ScreenBounds | null = null;
-  private actionPanelAttachment: PhaseDrawerOutline | null = null;
-  private actionBorder: { graphics: Graphics; shape: PromptPanelShape; color: number } | null =
-    null;
+  private phaseControlsOpen = false;
+  private phaseExpansion = { value: 0 };
+  private phaseLayout: ((progress: number) => void) | null = null;
   private priorityBadge: { container: Container; baseY: number } | null = null;
   private priorityViewHeight: number | null = null;
   private readonly unsubscribePromptPreferences: () => void;
@@ -193,50 +190,26 @@ export class PromptLayer extends PromptModalLayer {
     return this.actionPanelBounds;
   }
 
-  setActionPanelAttachment(outline: PhaseDrawerOutline | null): void {
-    const prev = this.actionPanelAttachment;
-    const same = (a: ScreenBounds | null, b: ScreenBounds | null) =>
-      a === b ||
-      (!!a && !!b && a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height);
-    if (
-      prev === outline ||
-      (!!prev &&
-        !!outline &&
-        prev.radius === outline.radius &&
-        same(prev.base, outline.base) &&
-        same(prev.tower, outline.tower))
-    ) {
+  private togglePhaseControls(): void {
+    this.phaseControlsOpen = !this.phaseControlsOpen;
+    gsap.killTweensOf(this.phaseExpansion);
+    this.rebuild();
+    const value = this.phaseControlsOpen ? 1 : 0;
+    if (!animationsEnabled()) {
+      this.phaseExpansion.value = value;
+      this.rebuild();
       return;
     }
-    this.actionPanelAttachment = outline;
-    this.applyActionPanelAttachment();
-  }
-
-  private applyActionPanelAttachment(): void {
-    const panel = this.actionPanelBounds;
-    const outline = this.actionPanelAttachment;
-    const local = (r: ScreenBounds) => ({
-      x: r.x - panel!.x,
-      y: r.y - panel!.y,
-      width: r.width,
-      height: r.height,
+    gsap.to(this.phaseExpansion, {
+      value,
+      duration: PHASE_REVEAL_SECONDS,
+      ease: "power2.out",
+      onUpdate: () => {
+        this.phaseLayout?.(this.phaseExpansion.value);
+        this.callbacks.onRenderRequested?.();
+      },
+      onComplete: () => this.rebuild(),
     });
-    const attachments: PromptGlowAttachment[] = [];
-    if (panel && outline) {
-      attachments.push({
-        base: outline.base && local(outline.base),
-        tower: local(outline.tower),
-        radius: outline.radius,
-      });
-    }
-    this.actionGlow?.setAttachments(attachments);
-    const border = this.actionBorder;
-    if (border) {
-      border.graphics
-        .clear()
-        .path(new GraphicsPath(promptPanelOutline(border.shape, attachments)))
-        .stroke({ color: border.color, width: TURN_BORDER_WIDTH });
-    }
   }
 
   setSpec(spec: PromptOverlaySpec | null): void {
@@ -325,6 +298,7 @@ export class PromptLayer extends PromptModalLayer {
     this.actionGlowTween?.kill();
     this.stopWaitingAnimation();
     gsap.killTweensOf(this.actionFeedback);
+    gsap.killTweensOf(this.phaseExpansion);
     this.clearReorderCardVisuals();
     this.container.destroy({ children: true });
   }
@@ -405,7 +379,7 @@ export class PromptLayer extends PromptModalLayer {
     this.autopassFill = null;
     this.priorityButtons = null;
     this.actionGlow = null;
-    this.actionBorder = null;
+    this.phaseLayout = null;
     this.priorityBadge = null;
     this.actionPulseNodes = [];
     this.modalOpen = false;
@@ -530,17 +504,20 @@ export class PromptLayer extends PromptModalLayer {
     const contextButton = !minimal && showActionContext ? this.makeActionContextButton() : null;
     const gameView = spec.gameView;
     const activeName = gameView.players.find((p) => p.id === gameView.activePlayerId)?.name;
-    const turnLabel =
-      minimal || isFeatureEnabled("turnPhaseBar")
-        ? null
-        : gameView.activePlayerId === spec.localPlayerId
-          ? "Your turn"
-          : activeName
-            ? `${stripUsernameTag(activeName)}'s turn`
-            : null;
-    const bandHeight = turnLabel
-      ? Math.max(TURN_BAND_HEIGHT, getUiFontFloor("label") * 1.35 + 8)
-      : 0;
+    const turnLabel = minimal
+      ? null
+      : gameView.activePlayerId === spec.localPlayerId
+        ? "Your turn"
+        : activeName
+          ? `${stripUsernameTag(activeName)}'s turn`
+          : null;
+    const bandHeight = minimal
+      ? 0
+      : Math.max(TURN_BAND_HEIGHT, getUiControlHeight(), getUiFontFloor("label") * 1.35 + 8);
+    const phaseTabHeight = minimal
+      ? 0
+      : Math.max(PHASE_TAB_HEIGHT, getUiControlFloor(), getUiFontFloor("label") * 1.35 + 8);
+    const phaseTabRise = minimal ? 0 : phaseTabHeight - PHASE_TAB_OVERLAP;
     const titleRowHeight = Math.max(
       TITLE_ROW_MIN_HEIGHT,
       Math.max(
@@ -550,7 +527,7 @@ export class PromptLayer extends PromptModalLayer {
         getUiFontFloor("label") * 1.35,
       ) + 12,
     );
-    const headerHeight = minimal ? 0 : bandHeight + titleRowHeight;
+    const baseHeaderHeight = minimal ? 0 : bandHeight + titleRowHeight;
     const input = spec.currentPrompt?.input;
     const panelTitle = hasAction
       ? actionTitle(
@@ -566,6 +543,25 @@ export class PromptLayer extends PromptModalLayer {
         ? view.height + 4 + controls.height
         : Math.max(view.height, controls?.height ?? 0);
     const bodyHeight = sectionPaddingTop + viewHeight + sectionPaddingBottom;
+    const phaseControls =
+      !minimal && (this.phaseControlsOpen || this.phaseExpansion.value > 0)
+        ? new PromptPhaseControls(
+            this.theme,
+            spec,
+            width,
+            Math.max(
+              getUiControlHeight(),
+              this.viewportHeight -
+                (shortScreen ? 118 : 0) -
+                baseHeaderHeight -
+                bodyHeight -
+                phaseTabRise -
+                12,
+            ),
+          )
+        : null;
+    const phaseHeight = phaseControls?.contentHeight ?? 0;
+    const headerHeight = baseHeaderHeight + phaseHeight;
     const leftHanded = this.leftHanded;
     const edgeMargin = minimal || shortScreen ? 6 : 12;
     const x = minimal && leftHanded ? edgeMargin : this.viewportWidth - width - edgeMargin;
@@ -574,7 +570,7 @@ export class PromptLayer extends PromptModalLayer {
       bodyHeight,
       Math.max(
         getUiControlFloor() + sectionPaddingTop + sectionPaddingBottom,
-        bottomLimit - edgeMargin - headerHeight,
+        bottomLimit - edgeMargin - headerHeight - phaseTabRise,
       ),
     );
     const panelHeight = headerHeight + visibleBodyHeight;
@@ -586,38 +582,77 @@ export class PromptLayer extends PromptModalLayer {
     const y = minimal
       ? Math.max(6, Math.min(this.viewportHeight - panelHeight - 6, unclampedY))
       : unclampedY;
-    this.actionPanelBounds = minimal ? null : { x, y, width, height: panelHeight };
+    this.actionPanelBounds = minimal
+      ? null
+      : { x, y: y - phaseTabRise, width, height: panelHeight + phaseTabRise };
     const radius = minimal ? 16 : 8;
     const squareBottom = !minimal && !shortScreen;
     const panel = new Container();
     panel.position.set(x, y + panelHeight);
     panel.pivot.set(0, panelHeight);
     panel.eventMode = "static";
-    panel.hitArea = new Rectangle(0, 0, width, panelHeight);
+    panel.hitArea = new Rectangle(0, -phaseTabRise, width, panelHeight + phaseTabRise);
     panel.accessible = true;
     panel.accessibleTitle = panelTitle;
     panel.tabIndex = -1;
 
     const turnColor = spec.turnColor;
-    const panelShape = { width, height: panelHeight, radius, squareBottom };
     const bandInk = readableTextColor(
       turnColor,
       this.theme.gameTheme.canvas.shadow,
       this.theme.gameTheme.textOnTinted,
     );
     const phaseName = PHASES.find((phase) => phase.id === gameView.step)?.label;
-    const phaseText =
-      turnLabel && phaseName
-        ? promptText(phaseName, 12, bandInk, { weight: "700", role: "label" })
-        : null;
+    const phaseTab = minimal
+      ? null
+      : new PromptButton(this.theme, {
+          label: phaseName ?? "Phase stops",
+          title: `${phaseName ?? "Phase stops"}: ${this.phaseControlsOpen ? "hide" : "show"} phase stops`,
+          icon: this.phaseControlsOpen ? "lucide-chevron-down" : "lucide-chevron-up",
+          iconSize: 14,
+          height: phaseTabHeight,
+          fontSize: 12,
+          paddingX: 10,
+          radius: PHASE_TAB_OVERLAP,
+          flat: true,
+          backgroundColor: turnColor,
+          foreground: bandInk,
+          pressOffsetY: 0,
+          onPress: () => this.togglePhaseControls(),
+        });
+    if (phaseTab) {
+      phaseTab.position.set(width - PANEL_PAD_X - phaseTab.buttonWidth, -phaseTabRise);
+    }
+    const panelShape = {
+      width,
+      height: panelHeight,
+      radius,
+      squareBottom,
+      tab: phaseTab
+        ? {
+            x: phaseTab.x,
+            width: phaseTab.buttonWidth,
+            height: phaseTabRise,
+            radius: PHASE_TAB_OVERLAP,
+          }
+        : undefined,
+    };
     const turnText = turnLabel
       ? promptText(turnLabel, 12, bandInk, {
           weight: "700",
           role: "label",
-          width: width - PANEL_PAD_X * 2 - (phaseText ? phaseText.width + PANEL_PAD_X : 0),
+          width: width - PANEL_PAD_X * 2,
           truncate: true,
         })
       : null;
+    const turnBand = new Container();
+    const phaseSurfaces: Container[] = [];
+    const border = minimal
+      ? null
+      : new Graphics()
+          .path(new GraphicsPath(promptPanelOutline(panelShape)))
+          .stroke({ color: hexToNum(turnColor), width: TURN_BORDER_WIDTH });
+    if (border) border.eventMode = "none";
     if (hasAction && !minimal) {
       const attacking =
         effectivePromptType === "chooseAttackers" && action.pendingAttackers.length > 0;
@@ -626,15 +661,6 @@ export class PromptLayer extends PromptModalLayer {
         color: hexToNum(attacking ? this.theme.gameTheme.promptAction.attackAction : turnColor),
         highlight: hexToNum(this.theme.appTheme.foreground),
       });
-    }
-    if (!minimal) {
-      this.actionBorder = {
-        graphics: new Graphics(),
-        shape: panelShape,
-        color: hexToNum(turnColor),
-      };
-      this.actionBorder.graphics.eventMode = "none";
-      this.applyActionPanelAttachment();
     }
 
     if (!minimal) {
@@ -646,6 +672,7 @@ export class PromptLayer extends PromptModalLayer {
         false,
       );
       if (this.actionGlow) panel.addChild(this.actionGlow.spill);
+      phaseSurfaces.push(background);
       panel.addChild(background);
       if (turnText) {
         const band = new Graphics()
@@ -660,19 +687,57 @@ export class PromptLayer extends PromptModalLayer {
         band.eventMode = "none";
         turnText.anchor.set(0, 0.5);
         turnText.position.set(PANEL_PAD_X, bandHeight / 2);
-        panel.addChild(band, turnText);
-        if (phaseText) {
-          phaseText.anchor.set(1, 0.5);
-          phaseText.position.set(width - PANEL_PAD_X, bandHeight / 2);
-          panel.addChild(phaseText);
-        }
+        turnBand.addChild(band, turnText);
       }
-      panel.addChild(this.actionBorder!.graphics);
+      panel.addChild(turnBand, border!);
       if (this.actionGlow) panel.addChild(this.actionGlow);
+    }
+    if (phaseTab) turnBand.addChildAt(phaseTab, 0);
+    if (phaseControls) {
+      const clip = new Graphics()
+        .rect(0, 0, width, phaseHeight)
+        .fill({ color: hexToNum(this.theme.appTheme.foreground) });
+      panel.addChild(phaseControls, clip);
+      phaseControls.mask = clip;
+      for (const surface of phaseSurfaces) {
+        surface.pivot.y = panelHeight;
+        surface.y = panelHeight;
+      }
+      this.phaseLayout = (progress) => {
+        const hiddenHeight = phaseHeight * (1 - progress);
+        const visibleHeight = panelHeight - hiddenHeight;
+        for (const surface of phaseSurfaces) surface.scale.y = visibleHeight / panelHeight;
+        border!.y = hiddenHeight;
+        if (this.actionGlow) {
+          this.actionGlow.y = hiddenHeight;
+          this.actionGlow.spill.y = hiddenHeight;
+          this.actionGlow.setHeight(visibleHeight);
+        }
+        if (panelShape.height !== visibleHeight) {
+          panelShape.height = visibleHeight;
+          border!
+            .clear()
+            .path(new GraphicsPath(promptPanelOutline(panelShape)))
+            .stroke({ color: hexToNum(turnColor), width: TURN_BORDER_WIDTH });
+        }
+        turnBand.y = hiddenHeight;
+        phaseControls.y = bandHeight + hiddenHeight;
+        phaseControls.visible = progress > 0;
+        phaseControls.eventMode = progress === 1 ? "static" : "none";
+        clip.y = bandHeight + hiddenHeight;
+        clip.scale.y = progress;
+        const hitArea = panel.hitArea as Rectangle;
+        hitArea.y = hiddenHeight - phaseTabRise;
+        hitArea.height = visibleHeight + phaseTabRise;
+        this.actionPanelBounds!.y = y + hiddenHeight - phaseTabRise;
+        this.actionPanelBounds!.height = visibleHeight + phaseTabRise;
+        this.actionBounds!.y = y + hiddenHeight - phaseTabRise;
+        this.actionBounds!.height = visibleHeight + phaseTabRise;
+      };
     }
 
     if (!minimal) {
-      const rowCenter = bandHeight + titleRowHeight / 2;
+      const rowCenter = bandHeight + phaseHeight + titleRowHeight / 2;
       let right = width - PANEL_PAD_X + (menuButton!.width - ACTION_MENU_ICON_SIZE) / 2;
       menuButton!.container.position.set(
         right - menuButton!.width,
@@ -817,7 +882,8 @@ export class PromptLayer extends PromptModalLayer {
     }
 
     this.container.addChild(panel);
-    this.actionBounds = new Rectangle(x, y, width, panelHeight);
+    this.actionBounds = new Rectangle(x, y - phaseTabRise, width, panelHeight + phaseTabRise);
+    this.phaseLayout?.(this.phaseExpansion.value);
     if (phaseAnchor) {
       const phase = this.makeCompactPhaseButton();
       if (phase) {
@@ -1853,7 +1919,7 @@ export class PromptLayer extends PromptModalLayer {
     return container;
   }
 
-  actionSurfaceColor(): number {
+  private actionSurfaceColor(): number {
     const baseCard = hexToNum(this.theme.appTheme.card);
     return this.ambientColor == null ? baseCard : mixNum(baseCard, this.ambientColor, 0.35);
   }
@@ -2727,6 +2793,11 @@ export class PromptLayer extends PromptModalLayer {
             FILTER_CARET_PERIOD_MS / 2);
     }
     if (!motionEnabled && this.entranceTween) this.entranceTween.progress(1);
+    if (!motionEnabled && gsap.isTweening(this.phaseExpansion)) {
+      gsap.killTweensOf(this.phaseExpansion);
+      this.phaseExpansion.value = this.phaseControlsOpen ? 1 : 0;
+      this.rebuild();
+    }
     if (this.waitingTimeline && motionEnabled !== this.waitingAnimationActive) {
       this.waitingAnimationActive = motionEnabled;
       if (motionEnabled) this.waitingTimeline.restart();

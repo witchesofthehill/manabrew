@@ -20,10 +20,8 @@ import type { BoardScene } from "@/pixi/board/BoardScene";
 import { boardAmbientColor, boardBackgroundUrl } from "@/pixi/board/boardBackgrounds";
 import type { PlayerHudSpec, PlayerHudBadge, PlayerHudFact } from "@/pixi/hud/playerHud.types";
 import type { PromptOverlaySpec } from "@/pixi/prompts/prompt.types";
-import type { PhaseStripCallbacks, PhaseStripState } from "@/pixi/PhaseStripLayer";
 import { buildPlayerHudBadges, buildZoneBadges } from "@/components/game/panels/playerHudBadges";
 import { PlayerSheetModal } from "@/components/game/panels/PlayerSheetModal";
-import { PhaseStopsModal } from "@/components/game/modals/PhaseStopsModal";
 import { CardInspectModal } from "@/components/game/modals/CardInspectModal";
 import { GlobalStateRail } from "@/components/game/panels/GlobalStateRail";
 import { DesktopGameScene } from "@/components/game/DesktopGameScene";
@@ -340,7 +338,6 @@ export function GameBoard({
   const [dragAttackerId, setDragAttackerId] = useState<string | null>(null);
   const [sheetPlayerId, setSheetPlayerId] = useState<string | null>(null);
   const [inspectedHandCard, setInspectedHandCard] = useState<CardDto | null>(null);
-  const [phaseDetailsOpen, setPhaseDetailsOpen] = useState(false);
   const closePlayerSheet = useCallback(() => setSheetPlayerId(null), [setSheetPlayerId]);
   const gameOver = useGameStore((state) => state.gameView?.gameOver);
 
@@ -692,31 +689,6 @@ export function GameBoard({
   const opponentStopsMap = usePhaseStopStore((s) => s.opponentStops);
   const toggleOpponentStop = usePhaseStopStore((s) => s.toggleOpponentStop);
 
-  const pixiPhaseStrip = useMemo((): PhaseStripState => {
-    const oppEnabled = new Map<string, Set<string>>();
-    for (const op of opponents) {
-      oppEnabled.set(op.id, opponentStopsMap.get(op.id) ?? new Set(DEFAULT_OPPONENT_STOPS));
-    }
-    return {
-      currentStep: step,
-      isActiveTurn: activePlayerId === me.id,
-      activePlayerId,
-      myPlayerId: me.id,
-      selfEnabledPhases: selfStops,
-      opponentEnabledPhases: oppEnabled,
-      opponents: opponents.map((op, i) => ({ id: op.id, index: i })),
-      isInteractive: true,
-    };
-  }, [step, activePlayerId, me.id, selfStops, opponents, opponentStopsMap]);
-
-  const pixiPhaseStripCallbacks = useMemo(
-    (): PhaseStripCallbacks => ({
-      onToggleSelfPhase: toggleSelfStop,
-      onToggleOpponentPhase: toggleOpponentStop,
-      onOpenPhaseDetails: () => setPhaseDetailsOpen(true),
-    }),
-    [toggleSelfStop, toggleOpponentStop, setPhaseDetailsOpen],
-  );
   const boardRef = useRef<HTMLDivElement>(null);
   const setBoardRef = useCallback(
     (el: HTMLDivElement | null) => {
@@ -1775,8 +1747,6 @@ export function GameBoard({
     declareAttackers: promptType === "chooseAttackers",
     attackTargets: chooseAttackersPrompt?.input.attackTargets ?? [],
     attackerOptions: chooseAttackersPrompt?.input.attackers ?? [],
-    phaseStrip: pixiPhaseStrip,
-    phaseStripCallbacks: pixiPhaseStripCallbacks,
     focusedOpponentId,
     combatFocusIds,
     targetingFocusIds,
@@ -1952,14 +1922,6 @@ export function GameBoard({
         />
       )}
       {sheetSpec && <PlayerSheetModal spec={sheetSpec} onClose={closePlayerSheet} />}
-      {phaseDetailsOpen && (
-        <PhaseStopsModal
-          {...phaseStops}
-          activePlayerId={activePlayerId}
-          myPlayerId={me.id}
-          onClose={() => setPhaseDetailsOpen(false)}
-        />
-      )}
       {inspectedHandCard && (
         <CardInspectModal card={inspectedHandCard} onClose={() => setInspectedHandCard(null)} />
       )}

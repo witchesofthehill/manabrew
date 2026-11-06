@@ -16,15 +16,6 @@ import { hexToNum } from "../colorUtils";
 import type { Theme } from "@/hooks/useTheme";
 import { getTheme } from "@/hooks/useTheme";
 import type { ArrowDef } from "../ArrowLayer";
-import {
-  PhaseStripLayer,
-  type PhaseStripCallbacks,
-  type PhaseStripState,
-  type PhaseDrawerOutline,
-} from "../PhaseStripLayer";
-import { isFeatureEnabled } from "@/featureFlags";
-import { PLAYER_PANEL_EDGE_GAP, PlayerPhaseBars } from "../hud/PlayerPhaseBars";
-import { TurnPhaseBar } from "../hud/TurnPhaseBar";
 import { DragHandler } from "../DragHandler";
 import { dropCellFromPoint, type GridCell } from "../GridLayout";
 import { prewarmManaSymbols } from "../manaSymbolCache";
@@ -62,7 +53,11 @@ import type {
 import type { StackAnchorProvider } from "../stack/stack.types";
 import { BoardRegion } from "./BoardRegion";
 import type { ZoneTileSpec } from "./BoardZoneTiles";
-import { PlayerHudLayer, PLAYER_HUD_HAND_GAP_PX } from "@/pixi/hud/PlayerHudLayer";
+import {
+  PlayerHudLayer,
+  PLAYER_HUD_HAND_GAP_PX,
+  PLAYER_PANEL_EDGE_GAP,
+} from "@/pixi/hud/PlayerHudLayer";
 import type { PlayerHudSpec as PlayerBarSpec } from "@/pixi/hud/playerHud.types";
 import { isAttackerTap } from "./combatRouting";
 import { BattlefieldOverlay } from "./BattlefieldOverlay";
@@ -177,7 +172,6 @@ export class BoardScene {
   // Dragging one of our own already-declared attackers (staged as a guest in an
   // opponent's band) back toward our field to un-declare it.
   private unassignDrag: { cardId: string; region: BoardRegion; overOwn: boolean } | null = null;
-  private phaseStripAlphaTarget = 1;
   private readonly presentation: BoardScenePresentation;
   private tapSuppressedPointers = new Set<number>();
 
@@ -186,9 +180,6 @@ export class BoardScene {
   private selection: SelectionController | null = null;
   private overlay: BattlefieldOverlay | null = null;
   private dragHandler: DragHandler;
-  private phaseStrip: PhaseStripLayer;
-  private playerPhaseBars: PlayerPhaseBars;
-  private turnPhaseBar: TurnPhaseBar;
   private overview = false;
   private focusLocked = false;
 
@@ -214,7 +205,6 @@ export class BoardScene {
   private hoverClearTimer: number | null = null;
 
   private actionPanelLeft: number | null = null;
-  private actionPanelBounds: ScreenBounds | null = null;
   private handPeek = false;
   private lastCapsuleRects = new Map<string, string>();
   private autoSort = false;
@@ -300,20 +290,6 @@ export class BoardScene {
     this.playerBars.container.visible = false;
     this.root.addChild(this.playerBars.container);
 
-    this.phaseStrip = new PhaseStripLayer(this.theme);
-    this.phaseStrip.container.zIndex = 7000;
-    this.presentation.configurePhaseStrip(this.phaseStrip);
-    this.root.addChild(this.phaseStrip.container);
-    this.playerPhaseBars = new PlayerPhaseBars(this.theme);
-    this.playerPhaseBars.setShiftHandler((id, dy) => this.playerBars.setEdgeShift(id, dy));
-    this.playerPhaseBars.setReserveChangeHandler(() => this.refreshCapsuleBlockers());
-    this.playerPhaseBars.container.zIndex = 5700;
-    this.playerPhaseBars.container.visible = this.presentation.showsPlayerPhaseBars;
-    this.root.addChild(this.playerPhaseBars.container);
-    this.turnPhaseBar = new TurnPhaseBar(this.theme);
-    this.turnPhaseBar.container.zIndex = 5700;
-    this.root.addChild(this.turnPhaseBar.container);
-
     this.combatGuestLayer = new Container();
     this.combatGuestLayer.sortableChildren = true;
     this.combatGuestLayer.zIndex = Z_COMBAT_GUEST;
@@ -341,14 +317,6 @@ export class BoardScene {
       const rect = this.canvasRect();
       const canvasX = e.clientX - rect.left;
       const canvasY = e.clientY - rect.top;
-      const stripPoint = this.root.toLocal(
-        RECT_SCRATCH_A.set(canvasX, canvasY),
-        undefined,
-        RECT_SCRATCH_A,
-      );
-      this.phaseStrip.handlePointerMove(stripPoint.x, stripPoint.y);
-      this.playerPhaseBars.handlePointerMove(stripPoint.x, stripPoint.y);
-      this.turnPhaseBar.handlePointerMove(stripPoint.x, stripPoint.y);
       if (
         this.activeGesturePointerId === null &&
         !this.hand?.isDraggingFromHand() &&
@@ -675,7 +643,7 @@ export class BoardScene {
         const maxWidth = this.presentation.hudMaxWidth;
         const barW = column ? availableWidth : Math.min(maxWidth, availableWidth);
         const barH = column ? availableHeight : Math.min(playerHudHeight, availableHeight);
-        const edgeAnchored = this.presentation.showsPlayerPhaseBars && !column;
+        const edgeAnchored = this.presentation.edgeAnchoredPlayerBars && !column;
         const barX = edgeAnchored ? left + PLAYER_PANEL_EDGE_GAP : field.x;
         const barY = edgeAnchored ? rec.zone.y : field.y;
         this.playerBars.setRect(this.opponentIds[i]!, barX, barY, barW, barH, column);
@@ -703,7 +671,7 @@ export class BoardScene {
     const maxWidth = this.presentation.hudMaxWidth;
     const desiredWidth = Math.min(availableWidth, maxWidth);
     let width = desiredWidth;
-    const anchored = this.presentation.showsPlayerPhaseBars;
+    const anchored = this.presentation.edgeAnchoredPlayerBars;
     const x = anchored ? record.zone.x + PLAYER_PANEL_EDGE_GAP : field.x;
     const bottom = anchored ? record.zone.y + record.zone.height : field.y + field.height;
     const overlapsHand =
@@ -928,49 +896,6 @@ export class BoardScene {
     this.activeGesturePointerId = e.pointerId;
   }
 
-  private syncPhaseStripAction(): void {
-    const action = this.actionPanelBounds;
-    if (!action || !this.localZone()) {
-      this.phaseStrip.setAction(null);
-      this.turnPhaseBar.setFrame(null);
-      return;
-    }
-    const tl = this.root.toLocal(RECT_SCRATCH_A.set(action.x, action.y), undefined, RECT_SCRATCH_A);
-    const br = this.root.toLocal(
-      RECT_SCRATCH_B.set(action.x + action.width, action.y + action.height),
-      undefined,
-      RECT_SCRATCH_B,
-    );
-    const rect = { x: tl.x, y: tl.y, width: br.x - tl.x, height: br.y - tl.y };
-    this.phaseStrip.setAction(rect);
-    this.turnPhaseBar.setFrame(
-      this.presentation.showsPlayerPhaseBars && isFeatureEnabled("turnPhaseBar") ? rect : null,
-    );
-  }
-
-  private syncPlayerPhaseBars(): void {
-    if (!this.presentation.showsPlayerPhaseBars) return;
-    for (const id of this.regions.keys()) {
-      const plate = this.barsEnabled ? this.playerBars.getCapsuleBounds(id) : null;
-      if (!plate) {
-        this.playerPhaseBars.setFrame(id, null, null);
-        continue;
-      }
-      const tl = this.root.toLocal(RECT_SCRATCH_A.set(plate.x, plate.y), undefined, RECT_SCRATCH_A);
-      const br = this.root.toLocal(
-        RECT_SCRATCH_B.set(plate.x + plate.width, plate.y + plate.height),
-        undefined,
-        RECT_SCRATCH_B,
-      );
-      const record = this.regions.get(id)!;
-      this.playerPhaseBars.setFrame(
-        id,
-        { x: tl.x, y: tl.y, width: br.x - tl.x, height: br.y - tl.y },
-        record.region.getPlaymatRect(),
-      );
-    }
-  }
-
   private localRegion(): BoardRegion | null {
     return this.localPlayerId ? (this.regions.get(this.localPlayerId)?.region ?? null) : null;
   }
@@ -1016,7 +941,7 @@ export class BoardScene {
     if (region && region === this.hoveredRegionRef && this.hoveredCardId) {
       this.syncHoveredCombatTarget(region, this.hoveredCardId);
     }
-    this.refreshPhaseStripDim();
+    this.refreshCombatDim();
   }
 
   pruneCardPositions(liveIds: ReadonlySet<string>): void {
@@ -1025,7 +950,7 @@ export class BoardScene {
     }
   }
 
-  private refreshPhaseStripDim(): void {
+  private refreshCombatDim(): void {
     let active = false;
     for (const rec of this.regions.values()) {
       if (rec.region.getLastState()?.cards.some((c) => c.isAttacking)) {
@@ -1033,7 +958,6 @@ export class BoardScene {
         break;
       }
     }
-    this.phaseStripAlphaTarget = 1;
     for (const rec of this.regions.values()) rec.region.setCombatDim(active);
   }
 
@@ -1099,31 +1023,7 @@ export class BoardScene {
     this.hand?.relayout();
   }
 
-  getPhaseDrawerOutline(): PhaseDrawerOutline | null {
-    const outline = this.phaseStrip.getDrawerOutline() ?? this.turnPhaseBar.getOutline();
-    if (!outline) return null;
-    const toScreen = (r: BlockingRect): BlockingRect => {
-      const tl = this.root.toGlobal(RECT_SCRATCH_A.set(r.x, r.y), RECT_SCRATCH_A);
-      const br = this.root.toGlobal(
-        RECT_SCRATCH_B.set(r.x + r.width, r.y + r.height),
-        RECT_SCRATCH_B,
-      );
-      return { x: tl.x, y: tl.y, width: br.x - tl.x, height: br.y - tl.y };
-    };
-    return {
-      base: outline.base && toScreen(outline.base),
-      tower: toScreen(outline.tower),
-      radius: outline.radius * this.root.scale.x,
-    };
-  }
-
-  setActionPanelSurface(color: number | null): void {
-    this.phaseStrip.setSurfaceColor(color);
-    this.turnPhaseBar.setSurface(color);
-  }
-
   setActionPanelBounds(bounds: ScreenBounds | null): void {
-    this.actionPanelBounds = bounds;
     const left = bounds?.x ?? null;
     if (this.actionPanelLeft === left) return;
     this.actionPanelLeft = left;
@@ -1199,7 +1099,7 @@ export class BoardScene {
       );
       rec.region.container.zIndex = staged ? Z_STAGED_REGION : rec.isLocal ? 100 : 50;
     }
-    this.refreshPhaseStripDim();
+    this.refreshCombatDim();
   }
 
   setArrowSpecs(specs: ArrowSpec[]): void {
@@ -1289,18 +1189,6 @@ export class BoardScene {
       return oppId;
     }
     return null;
-  }
-
-  setPhaseStripState(state: PhaseStripState): void {
-    this.phaseStrip.update(state);
-    this.playerPhaseBars.setState(state);
-    this.turnPhaseBar.setState(state);
-  }
-
-  setPhaseStripCallbacks(cb: PhaseStripCallbacks): void {
-    this.phaseStrip.setCallbacks(cb);
-    this.playerPhaseBars.setCallbacks(cb);
-    this.turnPhaseBar.setCallbacks(cb);
   }
 
   protected setMobileHandOpen(open: boolean): void {
@@ -1421,9 +1309,6 @@ export class BoardScene {
     this.dividers.setTheme(theme);
     setCardSpriteTheme(theme);
     this.hand?.restyle();
-    this.phaseStrip.setTheme(theme);
-    this.playerPhaseBars.setTheme(theme);
-    this.turnPhaseBar.setTheme(theme);
     this.playerBars.setTheme(theme);
     for (const rec of this.regions.values()) rec.region.redrawTheme();
     this.applyDelimiters(); // repaint the collapse veil in the new theme colour
@@ -1578,16 +1463,9 @@ export class BoardScene {
     return this.presentation.localBlockers(this.hand, this.localZone(), this.root);
   }
 
-  private phaseBarReserve(playerId: string): number {
-    return this.presentation.showsPlayerPhaseBars ? this.playerPhaseBars.reserveFor(playerId) : 0;
-  }
-
   private capsuleBlockers(playerId: string): BlockingRect[] {
     const b = this.playerBars.getCapsuleBounds(playerId);
-    if (!b) return [];
-    const reserve = this.phaseBarReserve(playerId) * this.root.scale.y;
-    const y = playerId === this.localPlayerId ? b.y - reserve : b.y;
-    return [{ ...b, y, height: b.height + reserve }];
+    return b ? [b] : [];
   }
 
   private gridCapsuleBlockers(playerId: string, isLocal: boolean): BlockingRect[] {
@@ -1599,15 +1477,13 @@ export class BoardScene {
     const right = this.boardWidth - (this.opponentIds.length - index - 1) * collapsedWidth;
     const x = record.zone.x;
     const maxWidth = this.presentation.hudMaxWidth;
-    const anchored = this.presentation.showsPlayerPhaseBars;
+    const anchored = this.presentation.edgeAnchoredPlayerBars;
     const width = Math.min(
       maxWidth + (anchored ? PLAYER_PANEL_EDGE_GAP : 0),
       Math.max(1, right - x),
     );
     const preferredHeight =
-      this.presentation.opponentHudHeight +
-      (anchored ? PLATE_GRID_CLEARANCE : 0) +
-      this.phaseBarReserve(playerId);
+      this.presentation.opponentHudHeight + (anchored ? PLATE_GRID_CLEARANCE : 0);
     const height = Math.min(preferredHeight, Math.max(1, record.zone.height));
     const tl = this.root.toGlobal(RECT_SCRATCH_A.set(x, record.zone.y), RECT_SCRATCH_A);
     const br = this.root.toGlobal(
@@ -2219,14 +2095,6 @@ export class BoardScene {
     this.hand?.animate();
     for (const fan of this.opponentHands.values()) fan.animate();
     this.playerBars.tick();
-    this.syncPhaseStripAction();
-    this.syncPlayerPhaseBars();
-    this.playerPhaseBars.tick();
-    this.turnPhaseBar.tick();
-    this.phaseStrip.tick();
-    this.phaseStrip.setDimAlpha(
-      lerp(this.phaseStrip.getDimAlpha(), this.phaseStripAlphaTarget, 0.2, 0.01),
-    );
     this.animateFloaters(frameRatio);
     this.domRectTick++;
     this.captureStackSeeds();
@@ -2542,9 +2410,6 @@ export class BoardScene {
     this.app.stage.off("pointertapcapture", this.onStageTapCapture);
     try {
       this.dragHandler.destroy();
-      this.phaseStrip.destroy();
-      this.playerPhaseBars.destroy();
-      this.turnPhaseBar.destroy();
       this.playerBars.destroy();
       this.hand?.destroy();
       for (const fan of this.opponentHands.values()) fan.destroy();

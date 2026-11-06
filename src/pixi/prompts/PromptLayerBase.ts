@@ -578,8 +578,7 @@ export abstract class PromptLayerBase {
   protected endTurnModifiersHeld = false;
   protected actionContextOpen = false;
   protected actionGlow: PromptGlow | null = null;
-  protected actionFeedback = { glow: 0, press: 0 };
-  protected actionGlowTween: gsap.core.Timeline | null = null;
+  protected actionFeedback = { press: 0 };
   protected actionFeedbackEndTurn = false;
   protected priorityButtons: { pass: PromptButton; end: PromptButton | null } | null = null;
   protected actionPulseNodes: Array<{ node: Container; maxAlpha: number }> = [];

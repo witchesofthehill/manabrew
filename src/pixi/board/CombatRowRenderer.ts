@@ -18,8 +18,6 @@ export interface CombatRowRenderSpec {
   stripWidth: number;
   stripHeight: number;
   cardWidth: number;
-  direction: -1 | 1;
-  attackerXs: number[];
   connectors: CombatRowConnector[];
 }
 
@@ -30,13 +28,11 @@ interface RenderSnapshot {
   stripWidth: number;
   stripHeight: number;
   cardWidth: number;
-  direction: -1 | 1;
   attackColor: string;
   defenseColor: string;
   textColor: string;
   fontSize: number;
   connectors: readonly number[];
-  attackerXs: readonly number[];
 }
 
 export class CombatRowRenderer {
@@ -80,18 +76,6 @@ export class CombatRowRenderer {
     this.pressure.visible = true;
 
     const attackColor = hexToNum(colors.promptAction.attackAction);
-    this.graphics.roundRect(spec.stripLeft, spec.stripTop, spec.stripWidth, spec.stripHeight, 10);
-    this.graphics.fill({ color: attackColor, alpha: 0.22 });
-    this.graphics.roundRect(spec.stripLeft, spec.stripTop, spec.stripWidth, spec.stripHeight, 10);
-    this.graphics.stroke({ color: attackColor, width: 1.5, alpha: 0.6 });
-
-    const edgeY = spec.direction > 0 ? spec.stripTop + spec.stripHeight - 1 : spec.stripTop + 1;
-    for (const x of spec.attackerXs) {
-      this.graphics.moveTo(x - 8, edgeY - spec.direction * 5);
-      this.graphics.lineTo(x, edgeY);
-      this.graphics.lineTo(x + 8, edgeY - spec.direction * 5);
-    }
-    this.graphics.stroke({ color: attackColor, width: 2, alpha: 0.9 });
 
     if (spec.connectors.length > 0) {
       for (const connector of spec.connectors) {
@@ -141,16 +125,6 @@ export class CombatRowRenderer {
       badge.addChild(background, text);
       this.assignmentLabels.addChild(badge);
     }
-
-    this.pressure
-      .roundRect(
-        spec.stripLeft + 1,
-        spec.stripTop + 1,
-        spec.stripWidth - 2,
-        spec.stripHeight - 2,
-        9,
-      )
-      .stroke({ color: attackColor, width: 4, alpha: 0.34 });
   }
 
   tick(now: number, motionEnabled: boolean): void {
@@ -172,7 +146,6 @@ export class CombatRowRenderer {
       spec.stripTop !== snapshot.stripTop ||
       spec.stripWidth !== snapshot.stripWidth ||
       spec.cardWidth !== snapshot.cardWidth ||
-      spec.direction !== snapshot.direction ||
       spec.stripHeight !== snapshot.stripHeight ||
       Math.max(11, getUiFontFloor("meta")) !== snapshot.fontSize ||
       colors.promptAction.attackAction !== snapshot.attackColor ||
@@ -180,10 +153,6 @@ export class CombatRowRenderer {
       colors.promptAction.defenseAction !== snapshot.defenseColor
     ) {
       return false;
-    }
-    if (spec.attackerXs.length !== snapshot.attackerXs.length) return false;
-    for (let index = 0; index < spec.attackerXs.length; index++) {
-      if (spec.attackerXs[index] !== snapshot.attackerXs[index]) return false;
     }
     if (spec.connectors.length * 3 !== snapshot.connectors.length) return false;
     for (let index = 0; index < spec.connectors.length; index++) {
@@ -213,13 +182,11 @@ export class CombatRowRenderer {
       stripTop: spec.stripTop,
       stripWidth: spec.stripWidth,
       cardWidth: spec.cardWidth,
-      direction: spec.direction,
       stripHeight: spec.stripHeight,
       attackColor: colors.promptAction.attackAction,
       defenseColor: colors.promptAction.defenseAction,
       textColor: colors.textOnTinted,
       fontSize: Math.max(11, getUiFontFloor("meta")),
-      attackerXs: [...spec.attackerXs],
       connectors,
     };
   }

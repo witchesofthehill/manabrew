@@ -471,8 +471,10 @@ export function BoardOverlayCanvasSurface({
         const parent = canvas.parentElement;
         const width = Math.max(1, parent?.clientWidth ?? canvas.clientWidth);
         const height = Math.max(1, parent?.clientHeight ?? canvas.clientHeight);
+        if (import.meta.env.DEV) Object.assign(window, { __mbOverlayApp: app });
         await app.init({
           canvas,
+          gcActive: false,
           backgroundAlpha: 0,
           antialias: true,
           autoDensity: true,

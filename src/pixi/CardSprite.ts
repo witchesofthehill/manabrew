@@ -634,6 +634,7 @@ export class CardSprite extends Container {
     this.edgeGlowMask
       .roundRect(0, 0, this.cw, this.ch, CARD_RADIUS)
       .fill(hexToNum(activeTheme.gameTheme.canvas.neutral));
+    this.edgeGlowMask.visible = false;
     this.addChild(this.edgeGlowMask);
     this.edgeGlowGfx = new Graphics();
     this.edgeGlowGfx.visible = false;
@@ -1604,6 +1605,7 @@ export class CardSprite extends Container {
     this.edgeGlowGfx.clear();
     if (!attacking && !sick) {
       this.edgeGlowGfx.visible = false;
+      this.edgeGlowMask.visible = false;
       this.glowPulsing = false;
       return;
     }
@@ -1630,6 +1632,7 @@ export class CardSprite extends Container {
       });
     }
     this.edgeGlowGfx.visible = true;
+    this.edgeGlowMask.visible = true;
     this.edgeGlowGfx.alpha = 1;
     this.glowPulsing = sick && !attacking;
   }

@@ -15,7 +15,6 @@ export interface BattlefieldLayoutInput {
 export interface BattlefieldLayoutResult {
   layout: BoardLayout;
   scales: { self: number; opponent: number };
-  combatRowReserved: boolean;
   handScale: number;
   selfClusterMaxHeight: number;
 }
@@ -28,5 +27,4 @@ export interface BattlefieldLayoutPolicy {
     observedHandReserve: number,
     requestedBottomReserve: number,
   ): number;
-  showPhaseDivider: boolean;
 }

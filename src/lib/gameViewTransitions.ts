@@ -1,11 +1,11 @@
 import type { FlashItem } from "@/components/game/game.types";
 import { stackObjectToCard } from "@/components/game/game.utils";
-import type { ZoneKind } from "@/protocol/game";
+import type { StepKind, ZoneKind } from "@/protocol/game";
 import type { ClientCardDto, ClientGameView } from "@/stores/gameStore.types";
 
 export type GameViewTransition =
   | { kind: "cardPlay"; card: ClientCardDto | null }
-  | { kind: "turnStart"; playerId: string }
+  | { kind: "turnStart"; playerId: string; turn: number; step: StepKind }
   | {
       kind:
         | "cardTap"
@@ -69,7 +69,12 @@ export function gameViewTransitions(
     (previousPlayers.get(playerId)?.landsPlayedThisTurn ?? 0);
 
   if (next.turn !== previous.turn) {
-    transitions.push({ kind: "turnStart", playerId: next.activePlayerId });
+    transitions.push({
+      kind: "turnStart",
+      playerId: next.activePlayerId,
+      turn: next.turn,
+      step: next.step,
+    });
   }
 
   for (const player of next.players) {
@@ -171,6 +176,9 @@ export function flashItemOf(transition: GameViewTransition): FlashItem | null {
   if (transition.kind === "cardPlay") {
     return transition.card ? { kind: "card", card: transition.card } : null;
   }
-  if (transition.kind === "turnStart") return { kind: "turn", playerId: transition.playerId };
+  if (transition.kind === "turnStart") {
+    const { playerId, turn, step } = transition;
+    return { kind: "turn", playerId, turn, step };
+  }
   return null;
 }

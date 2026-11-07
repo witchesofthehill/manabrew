@@ -1,5 +1,6 @@
 import { CARD_W } from "@/components/game/game.constants";
 import { SHORT_SCREEN_MAX_HEIGHT_PX } from "@/lib/responsive";
+import { cardSizeScale } from "@/stores/usePreferencesStore";
 import { FIELD_INNER_EDGE_PAD_PX } from "../constants";
 import { maxScaleForRows } from "../GridLayout";
 import { computeBoardLayout, type BoardLayout } from "./boardLayout";
@@ -18,8 +19,6 @@ function scaleForRows(layout: BoardLayout, selfRows: number): number {
 }
 
 export const MOBILE_BATTLEFIELD_LAYOUT: BattlefieldLayoutPolicy = {
-  showPhaseDivider: false,
-
   effectiveBottomReserve() {
     return 0;
   },
@@ -51,12 +50,11 @@ export const MOBILE_BATTLEFIELD_LAYOUT: BattlefieldLayoutPolicy = {
       sharedScale = scaleForRows(layout, 2);
     }
     if (input.height > SHORT_SCREEN_MAX_HEIGHT_PX) {
-      sharedScale = Math.min(sharedScale, input.cardSizeMultiplier);
+      sharedScale = Math.min(sharedScale, cardSizeScale(input.cardSizeMultiplier));
     }
     return {
       layout,
       scales: { self: sharedScale, opponent: sharedScale },
-      combatRowReserved: false,
       handScale: 1,
       selfClusterMaxHeight: Math.max(1, layout.self.height),
     };

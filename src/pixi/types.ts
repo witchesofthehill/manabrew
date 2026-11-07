@@ -130,6 +130,7 @@ export interface BattlefieldState {
   hostileTargetCardIds?: string[];
   ownerRingByCard?: Record<string, string>;
   combatRowAttackerIds?: string[];
+  combatForwardIds?: string[];
   combatRowBlocks?: CombatAssignmentDto[];
   combatRowTargets?: CombatRowTarget[];
 }

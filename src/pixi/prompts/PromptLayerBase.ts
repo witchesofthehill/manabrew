@@ -312,7 +312,10 @@ export function promptTypeForView(
   return override;
 }
 
-export function actionTitle(promptType: PromptOverlaySpec["action"]["promptType"]): string {
+export function actionTitle(
+  promptType: PromptOverlaySpec["action"]["promptType"],
+  presentationTitle?: string,
+): string {
   switch (promptType) {
     case "chooseAction":
       return "Priority";
@@ -330,7 +333,7 @@ export function actionTitle(promptType: PromptOverlaySpec["action"]["promptType"
     case "mulliganPutBack":
       return "Mulligan";
     default:
-      return "Action Required";
+      return presentationTitle || "Action Required";
   }
 }
 export function isAutopassWindow(spec: PromptOverlaySpec | null): boolean {
@@ -472,6 +475,7 @@ export function samePromptPresentation(
   if (
     left.currentPrompt !== right.currentPrompt ||
     left.gameView !== right.gameView ||
+    left.turnColor !== right.turnColor ||
     left.sourceDeckCard !== right.sourceDeckCard ||
     left.modalHidden !== right.modalHidden ||
     !sameActionPresentation(left.action, right.action)
@@ -574,8 +578,7 @@ export abstract class PromptLayerBase {
   protected endTurnModifiersHeld = false;
   protected actionContextOpen = false;
   protected actionGlow: PromptGlow | null = null;
-  protected actionFeedback = { glow: 0, press: 0 };
-  protected actionGlowTween: gsap.core.Timeline | null = null;
+  protected actionFeedback = { press: 0 };
   protected actionFeedbackEndTurn = false;
   protected priorityButtons: { pass: PromptButton; end: PromptButton | null } | null = null;
   protected actionPulseNodes: Array<{ node: Container; maxAlpha: number }> = [];

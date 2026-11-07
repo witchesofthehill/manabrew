@@ -3,16 +3,19 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "
 import path from "node:path";
 import {
   CLIENT_ERROR_SOURCES,
+  MAX_STACK_FRAMES,
   OPERATIONS,
   ROUTES,
   errorSignature,
-  safeAssetUrl,
+  safeStackLocation,
   safeComponentStack,
   safeEngine,
   safeErrorMessage,
   safeErrorName,
+  safeErrorCauses,
   safeFrames,
 } from "../../../src/lib/errorReportingPrivacy.ts";
+import { safeErrorDiagnostics } from "../../../src/lib/errorReportingDiagnostics.ts";
 import { SourceMaps } from "./sourcemaps.mjs";
 
 const MAX_BODY_BYTES = 256 * 1024;
@@ -88,11 +91,11 @@ function sanitize(body) {
     const incoming = exception.stacktrace?.frames ?? [];
     if (
       !Array.isArray(incoming) ||
-      incoming.length > 20 ||
+      incoming.length > MAX_STACK_FRAMES ||
       incoming.some(
         (frame) =>
           !frame ||
-          frame.filename !== safeAssetUrl(frame.filename) ||
+          frame.filename !== safeStackLocation(frame.filename) ||
           [frame.lineno, frame.colno].some(
             (value) =>
               value !== undefined &&
@@ -118,10 +121,12 @@ function sanitize(body) {
         : "/other";
     return {
       frames,
+      causes: safeErrorCauses(input.error_causes),
       record: {
         kind: "exception",
         type,
         value,
+        ...safeErrorDiagnostics(input),
         app_name: "manabrew-client",
         app_version: release[1],
         app_release: app.release,
@@ -181,17 +186,28 @@ async function collect(request) {
     };
     const streams = new Map();
     let storedBytes = 0;
-    for (const { frames, record } of entries) {
-      const resolved = frames.map((frame) => {
-        const mapped = maps.frame(record.app_release, frame, requestMaps);
-        counters[mapped === frame ? "unmapped_frames" : "mapped_frames"]++;
-        return mapped;
-      });
-      record.stacktrace = resolved
-        .map(
-          (frame) =>
-            `at ${frame.function} (${frame.filename}${frame.lineno ? `:${frame.lineno}:${frame.colno ?? 1}` : ""})`,
-        )
+    const resolveStack = (release, frames) =>
+      frames
+        .map((frame) => {
+          const mapped = maps.frame(release, frame, requestMaps);
+          counters[mapped === frame ? "unmapped_frames" : "mapped_frames"]++;
+          return `at ${mapped.function} (${mapped.filename}${mapped.lineno ? `:${mapped.lineno}:${mapped.colno ?? 1}` : mapped.colno ? `:${mapped.colno}` : ""})`;
+        })
+        .join("\n");
+    for (const { frames, causes, record } of entries) {
+      record.stacktrace = [
+        `${record.type}: ${record.value}`,
+        resolveStack(record.app_release, frames),
+        ...causes.map((cause, index) =>
+          [
+            `${cause.relation === "cause" ? "Caused by" : "Aggregate error"} #${index + 1} of #${cause.parent}: ${cause.type}: ${cause.value}`,
+            resolveStack(record.app_release, cause.frames),
+          ]
+            .filter(Boolean)
+            .join("\n"),
+        ),
+      ]
+        .filter(Boolean)
         .join("\n");
       const line = JSON.stringify(record);
       storedBytes += Buffer.byteLength(line);

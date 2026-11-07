@@ -1,8 +1,6 @@
 import { BlurFilter, Container, Graphics, GraphicsPath } from "pixi.js";
 import { animationsEnabled } from "@/pixi/effects/enabled";
-import { gsap } from "@/pixi/effects/gsap";
 
-const ORBIT_MS = 8000;
 const BREATH_MS = 3600;
 
 export interface PromptPanelShape {
@@ -33,16 +31,12 @@ export function promptPanelOutline(shape: PromptPanelShape): string {
 
 interface PromptGlowOptions extends PromptPanelShape {
   color: number;
-  highlight: number;
 }
 
 export class PromptGlow extends Container {
   readonly spill = new Graphics();
   private readonly halo = new Graphics();
   private readonly edge = new Graphics();
-  private readonly glint = new Graphics();
-  private orbit: gsap.core.Tween | null = null;
-  private readonly motionPath = { path: "", autoRotate: true, useRadians: true };
   private elapsed = 0;
   private readonly options: PromptGlowOptions;
 
@@ -52,16 +46,7 @@ export class PromptGlow extends Container {
     this.eventMode = "none";
     this.spill.eventMode = "none";
     this.spill.filters = [new BlurFilter({ strength: 14 })];
-    this.addChild(this.halo, this.edge, this.glint);
-    const { color, highlight } = options;
-    this.glint
-      .clear()
-      .ellipse(-8, 0, 14, 3.5)
-      .fill({ color, alpha: 0.25 })
-      .ellipse(-5, 0, 9, 1.5)
-      .fill({ color: highlight, alpha: 0.45 })
-      .circle(0, 0, 2.2)
-      .fill({ color: highlight, alpha: 0.95 });
+    this.addChild(this.halo, this.edge);
     this.draw();
   }
 
@@ -76,8 +61,7 @@ export class PromptGlow extends Container {
 
   private draw(): void {
     const { color } = this.options;
-    const outline = promptPanelOutline(this.options);
-    const path = new GraphicsPath(outline);
+    const path = new GraphicsPath(promptPanelOutline(this.options));
     this.spill.clear().path(path).stroke({ color, width: 20 });
     this.halo
       .clear()
@@ -87,17 +71,6 @@ export class PromptGlow extends Container {
       .stroke({ color, width: 3, alpha: 0.32 });
     this.edge.clear().path(path).stroke({ color, width: 1 });
 
-    this.motionPath.path = outline;
-    if (this.orbit) {
-      this.orbit.invalidate();
-    } else {
-      this.orbit = gsap.to(this.glint, {
-        motionPath: this.motionPath,
-        duration: ORBIT_MS / 1000,
-        ease: "none",
-        paused: true,
-      });
-    }
     this.update(this.elapsed);
   }
 
@@ -108,12 +81,9 @@ export class PromptGlow extends Container {
     this.spill.alpha = 0.1 + breath * 0.12;
     this.halo.alpha = 0.4 + breath * 0.15;
     this.edge.alpha = 0.55 + breath * 0.2;
-    this.glint.visible = animated;
-    if (animated) this.orbit?.progress((elapsed % ORBIT_MS) / ORBIT_MS);
   }
 
   override destroy(): void {
-    this.orbit?.kill();
     super.destroy({ children: true });
   }
 }

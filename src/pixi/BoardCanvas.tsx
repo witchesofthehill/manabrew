@@ -262,6 +262,7 @@ export function BoardCanvasSurface({
         await app.init({
           canvas,
           preference: "webgl",
+          gcActive: false,
           backgroundAlpha: 0,
           antialias: true,
           autoDensity: true,

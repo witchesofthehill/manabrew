@@ -936,7 +936,7 @@ export default function Settings() {
             <PreferenceCard
               title={`Flash duration`}
               value={`${flashDurationMs}ms`}
-              description={`Card-play and turn-start flash duration.`}
+              description={`Card-play flash duration.`}
             >
               <input
                 type="range"

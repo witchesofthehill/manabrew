@@ -116,6 +116,7 @@ export function PromptModalPreview({ preview, fixtures, onClose }: PromptModalPr
       currentPrompt: prompt,
       localPlayerId: fixtures.me.id,
       turnColor,
+      turnHandoff: null,
       gameView:
         input.type === "chooseCombatDamageAssignment" ||
         input.type === "chooseDamageAssignmentOrder"

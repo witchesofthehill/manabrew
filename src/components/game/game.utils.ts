@@ -92,6 +92,18 @@ export function manaAbilityInfos(
       : [],
   );
 }
+export function relayAvatarUrl(
+  name: string,
+  players: readonly { username: string; avatar_url?: string | null }[],
+  decks: readonly { username: string; avatar_url?: string | null }[],
+): string | null {
+  return (
+    players.find((player) => player.username === name)?.avatar_url ??
+    decks.find((deck) => deck.username === name)?.avatar_url ??
+    null
+  );
+}
+
 export function getInitials(name: string): string {
   return name
     .split(" ")

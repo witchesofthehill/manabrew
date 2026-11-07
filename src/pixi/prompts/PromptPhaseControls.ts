@@ -32,6 +32,10 @@ const PAD = 12;
 const HEADER_HEIGHT = 28;
 const COLLAPSE_SIZE = 20;
 
+export function phaseTileLabel(entry: (typeof PHASE_BAR_ENTRIES)[number]): string {
+  return entry.id === "combat" ? "COM" : entry.short;
+}
+
 export function phaseTileLayout(width: number, opponentCount: number) {
   const availableWidth = width - PAD * 2;
   const minCellWidth = Math.max(
@@ -47,11 +51,14 @@ export function phaseTileLayout(width: number, opponentCount: number) {
     columns,
     phaseWidth,
     columnX: (index: number) => PAD + (index % columns) * (phaseWidth + GAP),
+    columnAt: (x: number) =>
+      Math.min(PHASE_BAR_ENTRIES.length - 1, Math.round((x - PAD) / (phaseWidth + GAP))),
   };
 }
 
 export class PromptPhaseControls extends Container {
   readonly contentHeight: number;
+  private currentTile: Graphics | null = null;
 
   constructor(
     theme: Theme,
@@ -124,10 +131,13 @@ export class PromptPhaseControls extends Container {
       const step = spec.gameView.step;
       const stepShort = PHASES.find((phase) => phase.id === step)?.short;
       const { columns, phaseWidth, columnX } = phaseTileLayout(width, opponents.length);
+      const tiles = new Container();
+      const currentLayer = new Container();
+      content.addChild(tiles, currentLayer);
       PHASE_BAR_ENTRIES.forEach((entry, index) => {
         const current = entry.steps.includes(step);
         const label = promptText(
-          current && stepShort ? stepShort : entry.id === "combat" ? "COM" : entry.short,
+          current && stepShort ? stepShort : phaseTileLabel(entry),
           getUiFontSize("meta"),
           current ? turnInk : ink,
           { weight: "700" },
@@ -142,11 +152,22 @@ export class PromptPhaseControls extends Container {
         const phaseY = opponents.length > 0 ? indicatorHeight : 0;
         const background = new Graphics()
           .roundRect(0, phaseY, phaseWidth, cellHeight, 4)
-          .fill({ color: hexToNum(current ? spec.turnColor : surface) });
+          .fill({ color: hexToNum(surface) });
         background.eventMode = "none";
+        background.position.copyFrom(group.position);
+        tiles.addChild(background);
+        if (current) {
+          const currentTile = new Graphics()
+            .roundRect(0, phaseY, phaseWidth, cellHeight, 4)
+            .fill({ color: hexToNum(spec.turnColor) });
+          currentTile.eventMode = "none";
+          currentTile.position.copyFrom(group.position);
+          currentLayer.addChild(currentTile);
+          this.currentTile = currentTile;
+        }
         label.anchor.set(0.5);
         label.position.set(phaseWidth / 2, phaseY + cellHeight / 2);
-        group.addChild(background, label);
+        group.addChild(label);
         const markerSyncs: Array<() => void> = [];
         const opponentControls = new Container();
         let groupHovered = false;
@@ -291,5 +312,9 @@ export class PromptPhaseControls extends Container {
       event.stopImmediatePropagation();
       scrolledPointerId = null;
     });
+  }
+
+  setCurrentTileX(x: number): void {
+    if (this.currentTile) this.currentTile.x = x;
   }
 }

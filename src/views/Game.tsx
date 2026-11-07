@@ -2,6 +2,7 @@ import { CombatBreakdownModal } from "@/components/game/modals/CombatBreakdownMo
 import { locateVisibleZone, visibleZoneCards, zoneLocationKey } from "@/lib/zoneView";
 import { useGameStore } from "@/stores/useGameStore";
 import { useServerStore } from "@/stores/useServerStore";
+import { useAuthStore } from "@/stores/useAuthStore";
 import { asDeckCard } from "@/lib/decks";
 import { gameCardFaceIndex, GAME_CARD_DEFAULTS } from "@/lib/gameCard";
 import { faceDownCardToPreviewDto } from "@/lib/scryfall.utils";
@@ -71,6 +72,7 @@ import { useMultiplayerInterruption } from "@/hooks/useMultiplayerInterruption";
 import { useLiveGameNavigationGuard } from "@/hooks/useLiveGameNavigationGuard";
 import { GameBoard } from "@/components/game/GameBoard";
 import { buildCombatRows } from "@/components/game/combatRows";
+import { stripUsernameTag } from "@/lib/username";
 import { readableTextColor, withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
 import { boardBackgroundDarken, boardBackgroundUrl } from "@/pixi/board/boardBackgrounds";
@@ -97,6 +99,7 @@ import {
   isPermanentSpellCard,
   stackObjectAbilityText,
   stackObjectToCard,
+  relayAvatarUrl,
 } from "@/components/game/game.utils";
 import { createPortal } from "react-dom";
 import { Card } from "@/components/game/Card";
@@ -2343,11 +2346,36 @@ export default function Game({ exitTo }: GameProps = {}) {
           }
         : null;
 
+  const turnHandoffPlayer =
+    activeFlash?.kind === "turn"
+      ? gameView.players.find((player) => player.id === activeFlash.playerId)
+      : undefined;
   const promptOverlaySpec: PromptOverlaySpec = {
     currentPrompt: activePrompt,
     localPlayerId: me.id,
     gameView,
     turnColor: playerColorMap.get(gameView.activePlayerId) ?? themeColors.playerColors.self,
+    turnHandoff:
+      activeFlash?.kind === "turn" && turnHandoffPlayer
+        ? {
+            turn: activeFlash.turn,
+            playerId: activeFlash.playerId,
+            step: activeFlash.step,
+            color: playerColorMap.get(activeFlash.playerId) ?? themeColors.playerColors.self,
+            label:
+              activeFlash.playerId === me.id
+                ? "Your turn"
+                : `${stripUsernameTag(turnHandoffPlayer.name)}'s turn`,
+            avatarUrl:
+              activeFlash.playerId === me.id
+                ? (useAuthStore.getState().account?.avatarUrl ?? null)
+                : relayAvatarUrl(
+                    turnHandoffPlayer.name,
+                    useServerStore.getState().players,
+                    useServerStore.getState().playerDecks,
+                  ),
+          }
+        : null,
     sourceDeckCard: promptSourceDeckCard,
     action: {
       promptType,

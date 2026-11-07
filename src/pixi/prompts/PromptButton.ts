@@ -238,6 +238,10 @@ export class PromptButton extends Container {
     return Math.max(getUiControlHeight(), authoredHeight, contentHeight + 12);
   }
 
+  setLabel(label: string): void {
+    this.labelText.text = label;
+  }
+
   setDisabled(disabled: boolean): void {
     this.options = { ...this.options, disabled };
     this.eventMode = disabled ? "none" : "static";

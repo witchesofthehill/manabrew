@@ -291,6 +291,7 @@ export function useBoardGameplayPreview(
           localPlayerId: LOCAL_PLAYER_ID,
           gameView,
           turnColor: theme.playerColors.self,
+          turnHandoff: null,
           action,
           damageOrder: null,
           gameOver: null,

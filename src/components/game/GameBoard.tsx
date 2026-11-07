@@ -38,7 +38,7 @@ import { usePhaseStopStore, DEFAULT_OPPONENT_STOPS } from "@/stores/usePhaseStop
 import type { PromptType } from "@/protocol";
 import { OPPONENT_SEATS } from "@/components/game/game.types";
 import { useTheme } from "@/hooks/useTheme";
-import { manaAbilityInfos } from "@/components/game/game.utils";
+import { manaAbilityInfos, relayAvatarUrl } from "@/components/game/game.utils";
 import { useHandScale } from "@/hooks/useHandScale";
 import { useIsMobileGame } from "@/hooks/useBreakpoints";
 import { useHandOrder } from "@/hooks/useHandOrder";
@@ -783,9 +783,7 @@ export function GameBoard({
     const map = new Map<string, string>();
     if (myAvatar) map.set(me.id, myAvatar);
     for (const op of opponents) {
-      const entry = playerDecks.find((d) => d.username === op.name);
-      const avatarUrl =
-        relayPlayers.find((p) => p.username === op.name)?.avatar_url ?? entry?.avatar_url;
+      const avatarUrl = relayAvatarUrl(op.name, relayPlayers, playerDecks);
       if (avatarUrl) map.set(op.id, avatarUrl);
     }
     return map;

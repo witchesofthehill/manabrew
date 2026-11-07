@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import {
+  ANONYMOUS_FUNCTION,
   CLIENT_ERROR_SOURCES,
   MAX_STACK_FRAMES,
   OPERATIONS,
@@ -191,7 +192,12 @@ async function collect(request) {
         .map((frame) => {
           const mapped = maps.frame(release, frame, requestMaps);
           counters[mapped === frame ? "unmapped_frames" : "mapped_frames"]++;
-          return `at ${mapped.function} (${mapped.filename}${mapped.lineno ? `:${mapped.lineno}:${mapped.colno ?? 1}` : mapped.colno ? `:${mapped.colno}` : ""})`;
+          const location = `${mapped.filename}${mapped.lineno ? `:${mapped.lineno}:${mapped.colno ?? 1}` : mapped.colno ? `:${mapped.colno}` : ""}`;
+          return !mapped.function ||
+            mapped.function === "?" ||
+            mapped.function === ANONYMOUS_FUNCTION
+            ? `at ${location}`
+            : `at ${mapped.function} (${location})`;
         })
         .join("\n");
     for (const { frames, causes, record } of entries) {

@@ -1,6 +1,7 @@
 import { TransportItemType } from "@grafana/faro-web-sdk";
 import type { BeforeSendHook, ExceptionStackFrame } from "@grafana/faro-web-sdk";
 import { safeErrorDiagnostics } from "@/lib/errorReportingDiagnostics";
+import { redactErrorText } from "@/lib/errorReportingRedaction";
 
 export const CLIENT_ERROR_SOURCES = [
   "startup",
@@ -69,20 +70,12 @@ export const ROUTES: Record<string, true> = {
   "card-mock": true,
   "design-system": true,
 };
-const SAFE_MESSAGES: Record<string, true> = {
-  "Non-Error rejection": true,
-  "Cannot access properties of null or undefined": true,
-  "Network request failed": true,
-  "Module loading failed": true,
-  "Maximum call stack size exceeded": true,
-  "WebAssembly runtime failure": true,
-  "Client operation failed": true,
-};
 export const MAX_STACK_FRAMES = 50;
 export const MAX_ERROR_CAUSES = 5;
 export const MAX_CAUSE_FRAMES = 20;
 const MAX_CAUSE_CONTEXT_LENGTH = 16384;
 const MAX_COMPONENT_FRAMES = 20;
+export const ANONYMOUS_FUNCTION = "<anonymous>";
 const STACK_LOCATIONS = {
   console: "app:///console",
   eval: "app:///eval",
@@ -98,33 +91,7 @@ export function safeErrorName(name: unknown): string {
 }
 
 export function safeErrorMessage(value: unknown): string {
-  if (typeof value !== "string") return "Non-Error rejection";
-  const message = value.slice(0, 2048);
-  if (Object.hasOwn(SAFE_MESSAGES, message)) return message;
-  if (/^(?:Cannot read|Cannot set) properties of (?:undefined|null)/.test(message)) {
-    return "Cannot access properties of null or undefined";
-  }
-  if (
-    /^(?:Failed to fetch$|NetworkError when attempting to fetch resource|Load failed\b)/.test(
-      message,
-    )
-  ) {
-    return "Network request failed";
-  }
-  if (
-    /^(?:Failed to fetch dynamically imported module|Importing a module script failed)/.test(
-      message,
-    )
-  ) {
-    return "Module loading failed";
-  }
-  if (/^(?:Maximum call stack size exceeded|too much recursion)$/.test(message)) {
-    return "Maximum call stack size exceeded";
-  }
-  if (/^(?:unreachable|memory access out of bounds|out of bounds memory access)$/.test(message)) {
-    return "WebAssembly runtime failure";
-  }
-  return "Client operation failed";
+  return typeof value === "string" ? redactErrorText(value) : "Non-Error rejection";
 }
 
 export function safeAssetUrl(value: unknown): string | undefined {
@@ -146,14 +113,27 @@ export function safeStackLocation(value: unknown): string | undefined {
   if (asset) return asset;
   if (typeof value !== "string" || value.length > 2048) return undefined;
   if (Object.values(STACK_LOCATIONS).some((location) => location === value)) return value;
-  if (/^(?:VM\d+|debugger eval code)$/.test(value)) return STACK_LOCATIONS.console;
-  if (/^(?:eval|<anonymous>)$/.test(value)) return STACK_LOCATIONS.eval;
+  if (/^(?:VM\d{1,9}|debugger eval code)$/.test(value) || value === ANONYMOUS_FUNCTION)
+    return value;
+  if (value === "eval") return STACK_LOCATIONS.eval;
   if (/^(?:native|\[native code\])$/.test(value)) return STACK_LOCATIONS.native;
   if (/^wasm:\/\//.test(value)) return STACK_LOCATIONS.wasm;
   if (/^blob:/.test(value)) return STACK_LOCATIONS.blob;
   if (/^(?:https?|tauri|asset):\/\//.test(value)) return STACK_LOCATIONS.external;
   if (/^(?:file:\/\/|\/|[A-Za-z]:\\)/.test(value)) return STACK_LOCATIONS.local;
   return undefined;
+}
+
+function safeStackFunction(value: unknown): string {
+  if (
+    typeof value !== "string" ||
+    value.length > 200 ||
+    !/^(?:(?:async|new|bound|get|set) )?[\p{L}\p{N}_$.[\]<>-]+(?: \[as [\p{L}\p{N}_$.]+\])?$/u.test(
+      value,
+    )
+  )
+    return ANONYMOUS_FUNCTION;
+  return redactErrorText(value);
 }
 
 export function safeFrames(frames: ExceptionStackFrame[] = []): ExceptionStackFrame[] {
@@ -173,7 +153,7 @@ export function safeFrames(frames: ExceptionStackFrame[] = []): ExceptionStackFr
     return [
       {
         filename,
-        function: wasmFunction ?? "?",
+        function: wasmFunction ?? safeStackFunction(frame.function),
         ...(Number.isSafeInteger(frame.lineno) &&
         frame.lineno! > 0 &&
         frame.lineno! <= 1_000_000_000

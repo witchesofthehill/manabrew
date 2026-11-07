@@ -137,7 +137,7 @@ export class SourceMaps {
       const source = normalized.match(/(?:^|\/)((?:src|packages|node_modules)\/[^?#\n\r]+)$/)?.[1];
       const resolved = {
         filename: (source ?? path.posix.basename(normalized)).slice(0, 256),
-        function: (original.name ?? "?").slice(0, 128),
+        function: (original.name ?? frame.function ?? "?").slice(0, 128),
         lineno: original.line,
         colno: original.column + 1,
       };

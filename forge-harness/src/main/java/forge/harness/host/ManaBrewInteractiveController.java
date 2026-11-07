@@ -183,6 +183,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                     passUntilMaxPhase = currentPhase;
                 }
                 if (PriorityFastForward.canSkip(game, passUntilThroughCombat)) {
+                    session.announceHeldStep();
                     return null;
                 }
             }

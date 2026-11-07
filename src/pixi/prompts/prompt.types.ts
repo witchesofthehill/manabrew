@@ -1,6 +1,6 @@
 import type { PromptActionSpec } from "@/components/game/game.types";
 import type { DeckCard } from "@/protocol/deck";
-import type { CardDto, PlayerDto } from "@/protocol/game";
+import type { CardDto, PlayerDto, StepKind } from "@/protocol/game";
 import type { ClientGameView } from "@/stores/gameStore.types";
 import type { Prompt, PromptOutput } from "@/protocol";
 import type { TargetRef } from "@/protocol/prompts/common";
@@ -32,10 +32,21 @@ export interface PromptLayerCallbacks {
   onLongPressCard?: (card: CardDto, bounds: ScreenBounds) => void;
 }
 
+export interface TurnHandoffSpec {
+  turn: number;
+  playerId: string;
+  step: StepKind;
+  color: string;
+  label: string;
+  avatarUrl: string | null;
+}
+
 export interface PromptOverlaySpec {
   currentPrompt: Prompt | null;
   localPlayerId: string;
   gameView: ClientGameView;
+  turnColor: string;
+  turnHandoff: TurnHandoffSpec | null;
   sourceDeckCard?: DeckCard;
   action: PromptActionSpec;
   damageOrder: DamageOrderPromptSpec | null;

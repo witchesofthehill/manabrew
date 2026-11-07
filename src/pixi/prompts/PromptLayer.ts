@@ -10,10 +10,10 @@ import { playSound } from "@/lib/soundRuntime";
 import { summarizeCombat } from "@/components/game/combatSummary";
 import {
   Application,
-  BlurFilter,
   Container,
   FederatedPointerEvent,
   Graphics,
+  GraphicsPath,
   Rectangle,
   type Ticker,
 } from "pixi.js";
@@ -26,8 +26,10 @@ import {
   AUTOPASS_DELAY_MAX_MS,
   AUTOPASS_DELAY_MIN_MS,
   GAME_CARD_SIZES,
+  PHASE_BAR_ENTRIES,
   PHASES,
 } from "@/components/game/game.constants";
+import { passPriorityLabel, usePhaseStopStore } from "@/stores/usePhaseStopStore";
 import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { type PromptActionViewKey, useGameDevStore } from "@/stores/useGameDevStore";
@@ -42,12 +44,14 @@ import {
   ATTACK_DRAG_HINT,
   getPromptContextLines,
 } from "@/components/game/panels/promptContextHints";
-import type { CardDto } from "@/protocol";
+import type { CardDto, StepKind } from "@/protocol";
 import { PromptButton } from "./PromptButton";
-import { PromptGlow } from "./PromptGlow";
+import { PromptGlow, promptPanelOutline } from "./PromptGlow";
+import { PromptPhaseControls, phaseTileLabel, phaseTileLayout } from "./PromptPhaseControls";
+import { PromptTurnBanner, TURN_IMPACT_SECONDS } from "./PromptTurnBanner";
 import { animationsEnabled } from "@/pixi/effects/enabled";
 import { gsap } from "@/pixi/effects/gsap";
-import type { PromptLayerCallbacks, PromptOverlaySpec } from "./prompt.types";
+import type { PromptLayerCallbacks, PromptOverlaySpec, TurnHandoffSpec } from "./prompt.types";
 import type { PromptLayerPresentation } from "./PromptLayerPresentation";
 import type { ScreenBounds } from "@/pixi/types";
 import {
@@ -71,12 +75,43 @@ const ACTION_CARD_GAP = 8;
 const COMPACT_PHASE_PILL_HEIGHT = 22;
 const COMPACT_PHASE_PILL_MIN_WIDTH = 48;
 const COMPACT_PHASE_PILL_PADDING_X = 8;
+const ACTION_CONTROL_RADIUS = 6;
+const ACTION_MENU_ICON_SIZE = 14;
+const PANEL_PAD_X = 12;
+const TITLE_ROW_MIN_HEIGHT = 36;
+const TURN_BORDER_WIDTH = 2;
+const PRIORITY_BADGE_RADIUS = 20;
+const PRIORITY_BADGE_OVERLAP = 10;
+const PHASE_REVEAL_SECONDS = 0.22;
+const PHASE_TAB_DROP_SECONDS = 0.25;
+const PHASE_TAB_RISE_SECONDS = 0.3;
+const PHASE_TAB_HEIGHT = 24;
+const PHASE_TAB_OVERLAP = 4;
 
 export class PromptLayer extends PromptModalLayer {
   private phasePulseFired = false;
   private phaseBounds: Rectangle | null = null;
   private actionPanelBounds: ScreenBounds | null = null;
+  private phaseControlsOpen = false;
+  private phaseExpansion = { value: 0 };
+  private phaseTabSlide = { x: 0, rise: 1 };
+  private phaseTabPlaced = false;
+  private phaseTabIndex = 0;
+  private phaseColumns: ReturnType<typeof phaseTileLayout> | null = null;
+  private placePhaseTab: ((x: number) => void) | null = null;
+  private phaseTabSweep: gsap.core.Timeline | null = null;
+  private heldTurn: {
+    fromTurn: number;
+    turnColor: string;
+    step: StepKind;
+    activePlayerId: string;
+  } | null = null;
+  private readonly turnBanner: PromptTurnBanner;
+  private phaseLayout: ((progress: number) => void) | null = null;
+  private priorityBadge: { container: Container; baseY: number } | null = null;
+  private priorityViewHeight: number | null = null;
   private readonly unsubscribePromptPreferences: () => void;
+  private readonly unsubscribePhaseStops: () => void;
   private readonly unsubscribePreferences: () => void;
   private readonly unsubscribeKeybindings: () => void;
   private keyListener: (event: KeyboardEvent) => void;
@@ -100,6 +135,8 @@ export class PromptLayer extends PromptModalLayer {
     callbacks: PromptLayerCallbacks = {},
   ) {
     super(app, presentation, callbacks);
+    this.turnBanner = new PromptTurnBanner(() => this.callbacks.onRenderRequested?.());
+    this.app.stage.addChild(this.turnBanner.container);
     this.app.stage.on("globalpointermove", this.onStageMove);
     this.app.stage.on("pointerup", this.onStageUp);
     this.app.stage.on("pointerupoutside", this.onStageUp);
@@ -121,11 +158,13 @@ export class PromptLayer extends PromptModalLayer {
       this.resetAutopassState();
       this.rebuild();
     });
+    this.unsubscribePhaseStops = usePhaseStopStore.subscribe(() => this.rebuild());
     this.unsubscribePreferences = usePreferencesStore.subscribe((state, previous) => {
       if (
         state.promptCardStyle === previous.promptCardStyle &&
         state.mobileHandedness === previous.mobileHandedness &&
-        state.inGameCardPreviewSize === previous.inGameCardPreviewSize
+        state.inGameCardPreviewSize === previous.inGameCardPreviewSize &&
+        state.phaseStopLayout === previous.phaseStopLayout
       ) {
         return;
       }
@@ -168,16 +207,91 @@ export class PromptLayer extends PromptModalLayer {
     return this.actionPanelBounds;
   }
 
+  private togglePhaseControls(): void {
+    this.phaseControlsOpen = !this.phaseControlsOpen;
+    gsap.killTweensOf(this.phaseExpansion);
+    this.rebuild();
+    const value = this.phaseControlsOpen ? 1 : 0;
+    if (!animationsEnabled()) {
+      this.phaseExpansion.value = value;
+      this.rebuild();
+      return;
+    }
+    gsap.to(this.phaseExpansion, {
+      value,
+      duration: PHASE_REVEAL_SECONDS,
+      ease: "power2.out",
+      onUpdate: () => {
+        this.phaseLayout?.(this.phaseExpansion.value);
+        this.callbacks.onRenderRequested?.();
+      },
+      onComplete: () => this.rebuild(),
+    });
+  }
+
+  private startTurnHandoff(handoff: TurnHandoffSpec): void {
+    const spec = this.spec!;
+    this.turnBanner.show(this.theme, handoff, this.layoutWidth, this.viewportHeight);
+    const columns = this.phaseColumns;
+    if (!columns || !animationsEnabled()) return;
+    const lastX = columns.columnX(PHASE_BAR_ENTRIES.length - 1);
+    const firstX = columns.columnX(0);
+    const targetIndex = Math.max(
+      0,
+      PHASE_BAR_ENTRIES.findIndex((entry) => entry.steps.includes(handoff.step)),
+    );
+    const targetX = columns.columnX(targetIndex);
+    const slide = this.phaseTabSlide;
+    this.phaseTabSweep?.kill();
+    gsap.killTweensOf(slide);
+    const fromTurn = spec.gameView.turn;
+    this.heldTurn = {
+      fromTurn,
+      turnColor: this.heldTurn?.turnColor ?? spec.turnColor,
+      step: this.heldTurn?.step ?? spec.gameView.step,
+      activePlayerId: this.heldTurn?.activePlayerId ?? spec.gameView.activePlayerId,
+    };
+    this.phaseTabSweep = gsap
+      .timeline({
+        onUpdate: () => {
+          this.placePhaseTab?.(slide.x);
+          this.callbacks.onRenderRequested?.();
+        },
+        onComplete: () => {
+          this.phaseTabSweep = null;
+          this.releaseHeldTurn();
+          this.rebuild();
+        },
+      })
+      .to(slide, {
+        x: lastX,
+        duration: TURN_IMPACT_SECONDS - PHASE_TAB_DROP_SECONDS,
+        ease: "sine.inOut",
+      })
+      .to(slide, { rise: 0, duration: PHASE_TAB_DROP_SECONDS, ease: "power2.in" })
+      .call(() => {
+        this.heldTurn = {
+          fromTurn,
+          turnColor: handoff.color,
+          step: handoff.step,
+          activePlayerId: handoff.playerId,
+        };
+        this.phaseTabIndex = targetIndex;
+        slide.x = firstX;
+        this.rebuild();
+      })
+      .to(slide, { rise: 1, duration: PHASE_TAB_RISE_SECONDS, ease: "back.out(1.4)" })
+      .to(slide, { x: targetX, duration: 0.4, ease: "sine.inOut" });
+  }
+
+  private releaseHeldTurn(): void {
+    if (!this.phaseTabSweep && this.spec?.gameView.turn !== this.heldTurn?.fromTurn) {
+      this.heldTurn = null;
+    }
+  }
+
   setSpec(spec: PromptOverlaySpec | null): void {
     const previousSpec = this.spec;
-    const hadPriority =
-      previousSpec?.action.promptType === "chooseAction" &&
-      !previousSpec.action.isWaitingForResponse &&
-      !previousSpec.action.isWaitingForOthers;
-    const hasPriority =
-      spec?.action.promptType === "chooseAction" &&
-      !spec.action.isWaitingForResponse &&
-      !spec.action.isWaitingForOthers;
     const nextActionPromptType = spec?.action.promptType;
     if (nextActionPromptType !== this.actionPromptType) {
       this.actionPromptType = nextActionPromptType;
@@ -196,13 +310,15 @@ export class PromptLayer extends PromptModalLayer {
       }
     }
     this.spec = spec;
+    const handoff = spec?.turnHandoff;
+    if (handoff && handoff.turn !== previousSpec?.turnHandoff?.turn) this.startTurnHandoff(handoff);
+    this.releaseHeldTurn();
     if (!promptChanged && overrideChanged) this.resetAutopassState();
     const modalUnavailable = !!spec?.modalHidden || !!spec?.action.isWaitingForResponse;
     if (modalUnavailable) this.selectionFilterFocused = false;
     if (this.drag && !promptChanged && !modalUnavailable) return;
     if (!presentationChanged) return;
     this.rebuild();
-    if (hasPriority && (promptChanged || !hadPriority)) this.flashActionGlow();
   }
 
   get blocksBoard(): boolean {
@@ -236,6 +352,7 @@ export class PromptLayer extends PromptModalLayer {
     this.app.stage.off("globalpointermove", this.onStageMove);
     this.app.stage.off("pointerup", this.onStageUp);
     this.unsubscribePromptPreferences();
+    this.unsubscribePhaseStops();
     this.unsubscribePreferences();
     this.unsubscribeKeybindings();
     this.app.stage.off("pointerupoutside", this.onStageUp);
@@ -250,9 +367,12 @@ export class PromptLayer extends PromptModalLayer {
     this.stopRollAnimation();
     if (this.rollHighlightText) gsap.killTweensOf(this.rollHighlightText);
     this.clearScryCardTiles();
-    this.actionGlowTween?.kill();
     this.stopWaitingAnimation();
     gsap.killTweensOf(this.actionFeedback);
+    gsap.killTweensOf(this.phaseExpansion);
+    gsap.killTweensOf(this.phaseTabSlide);
+    this.phaseTabSweep?.kill();
+    this.turnBanner.destroy();
     this.clearReorderCardVisuals();
     this.container.destroy({ children: true });
   }
@@ -333,6 +453,11 @@ export class PromptLayer extends PromptModalLayer {
     this.autopassFill = null;
     this.priorityButtons = null;
     this.actionGlow = null;
+    if (!this.phaseTabSweep) gsap.killTweensOf(this.phaseTabSlide);
+    this.phaseColumns = null;
+    this.placePhaseTab = null;
+    this.phaseLayout = null;
+    this.priorityBadge = null;
     this.actionPulseNodes = [];
     this.modalOpen = false;
     if (
@@ -427,12 +552,16 @@ export class PromptLayer extends PromptModalLayer {
       ? viewKey === "chooseAction" || viewKey === "noAction"
       : isNoActionView || action.promptType === "chooseAction";
     const contextLines = this.actionContextLines();
-    const showActionContext = !minimal && (contextLines.length > 0 || this.hasActionCombatInfo());
+    const showActionContext =
+      !minimal &&
+      effectivePromptType !== "chooseAction" &&
+      (contextLines.length > 0 || this.hasActionCombatInfo());
     if (!showActionContext) this.actionContextOpen = false;
     const fixedWidth = minimal
       ? null
       : Math.min(this.viewportWidth - 24, touch ? 320 : shortScreen ? 230 : 300);
-    const fixedContentWidth = fixedWidth == null ? this.viewportWidth - 24 : fixedWidth - 16;
+    const fixedContentWidth =
+      fixedWidth == null ? this.viewportWidth - 24 : fixedWidth - PANEL_PAD_X * 2;
     const phaseAnchor = action.compactPhaseControl?.anchor ?? null;
     const controls = minimal
       ? this.makeCompactActionControls(phaseAnchor === null, showPriorityMode, preview)
@@ -450,25 +579,68 @@ export class PromptLayer extends PromptModalLayer {
     const modeButton = !minimal && showPriorityMode ? this.makePriorityModePill(preview) : null;
     const menuButton = !minimal ? this.makeActionMenuButton(false) : null;
     const contextButton = !minimal && showActionContext ? this.makeActionContextButton() : null;
-    const headerHeight = minimal
+    const held = this.heldTurn;
+    const phaseSpec = held
+      ? {
+          ...spec,
+          turnColor: held.turnColor,
+          gameView: {
+            ...spec.gameView,
+            step: held.step,
+            activePlayerId: held.activePlayerId,
+          },
+        }
+      : spec;
+    const gameView = phaseSpec.gameView;
+    const phaseTabHeight = minimal
       ? 0
-      : Math.max(
-          34,
-          Math.max(
-            modeButton?.buttonHeight ?? 0,
-            menuButton?.height ?? 0,
-            contextButton?.buttonHeight ?? 0,
-            getUiFontFloor("label") * 1.35,
-          ) + 12,
-        );
-    const sectionPaddingX = minimal ? 6 : 8;
-    const sectionPaddingTop = minimal ? 4 : 8;
-    const sectionPaddingBottom = minimal ? 4 : 8;
+      : Math.max(PHASE_TAB_HEIGHT, getUiControlFloor(), getUiFontFloor("label") * 1.35 + 8);
+    const phaseTabRise = minimal ? 0 : phaseTabHeight - PHASE_TAB_OVERLAP;
+    const titleRowHeight = Math.max(
+      TITLE_ROW_MIN_HEIGHT,
+      Math.max(
+        modeButton?.buttonHeight ?? 0,
+        menuButton?.height ?? 0,
+        contextButton?.buttonHeight ?? 0,
+        getUiFontFloor("label") * 1.35,
+      ) + 12,
+    );
+    const baseHeaderHeight = minimal ? 0 : titleRowHeight;
+    const input = spec.currentPrompt?.input;
+    const panelTitle = hasAction
+      ? actionTitle(
+          effectivePromptType,
+          input && "presentation" in input ? input.presentation.title : undefined,
+        )
+      : "Waiting";
+    const sectionPaddingX = minimal ? 6 : PANEL_PAD_X;
+    const sectionPaddingTop = minimal ? 4 : 0;
+    const sectionPaddingBottom = minimal ? 4 : PANEL_PAD_X;
     const viewHeight =
       stackedControls && controls
         ? view.height + 4 + controls.height
         : Math.max(view.height, controls?.height ?? 0);
     const bodyHeight = sectionPaddingTop + viewHeight + sectionPaddingBottom;
+    const phaseControls =
+      !minimal && (this.phaseControlsOpen || this.phaseExpansion.value > 0)
+        ? new PromptPhaseControls(
+            this.theme,
+            phaseSpec,
+            width,
+            () => this.togglePhaseControls(),
+            Math.max(
+              getUiControlHeight(),
+              this.viewportHeight -
+                (shortScreen ? 118 : 0) -
+                baseHeaderHeight -
+                bodyHeight -
+                phaseTabRise -
+                12,
+            ),
+          )
+        : null;
+    const phaseHeight = phaseControls?.contentHeight ?? 0;
+    const headerHeight = baseHeaderHeight + phaseHeight;
     const leftHanded = this.leftHanded;
     const edgeMargin = minimal || shortScreen ? 6 : 12;
     const x = minimal && leftHanded ? edgeMargin : this.viewportWidth - width - edgeMargin;
@@ -477,7 +649,7 @@ export class PromptLayer extends PromptModalLayer {
       bodyHeight,
       Math.max(
         getUiControlFloor() + sectionPaddingTop + sectionPaddingBottom,
-        bottomLimit - edgeMargin - headerHeight,
+        bottomLimit - edgeMargin - headerHeight - phaseTabRise,
       ),
     );
     const panelHeight = headerHeight + visibleBodyHeight;
@@ -489,77 +661,208 @@ export class PromptLayer extends PromptModalLayer {
     const y = minimal
       ? Math.max(6, Math.min(this.viewportHeight - panelHeight - 6, unclampedY))
       : unclampedY;
-    this.actionPanelBounds = minimal ? null : { x, y, width, height: panelHeight };
+    this.actionPanelBounds = minimal
+      ? null
+      : { x, y: y - phaseTabRise, width, height: panelHeight + phaseTabRise };
     const radius = minimal ? 16 : 8;
     const squareBottom = !minimal && !shortScreen;
     const panel = new Container();
     panel.position.set(x, y + panelHeight);
     panel.pivot.set(0, panelHeight);
     panel.eventMode = "static";
-    panel.hitArea = new Rectangle(0, 0, width, panelHeight);
+    panel.hitArea = new Rectangle(0, -phaseTabRise, width, panelHeight + phaseTabRise);
     panel.accessible = true;
-    panel.accessibleTitle = hasAction ? actionTitle(effectivePromptType) : "Waiting";
+    panel.accessibleTitle = panelTitle;
     panel.tabIndex = -1;
 
+    const turnColor = phaseSpec.turnColor;
+    const tabInk = readableTextColor(
+      turnColor,
+      this.theme.gameTheme.canvas.shadow,
+      this.theme.gameTheme.textOnTinted,
+    );
+    const phase = PHASES.find((entry) => entry.id === gameView.step);
+    const phaseIndex = PHASE_BAR_ENTRIES.findIndex((entry) => entry.steps.includes(gameView.step));
+    if (phaseIndex >= 0) this.phaseTabIndex = phaseIndex;
+    const phaseTiles = phaseTileLayout(width, gameView.players.length - 1);
+    if (!minimal) this.phaseColumns = phaseTiles;
+    const phaseTabX = phaseTiles.columnX(this.phaseTabIndex);
+    const phaseTab = minimal
+      ? null
+      : new PromptButton(this.theme, {
+          label: phase?.short ?? "",
+          title: `${phase?.label ?? "Phase"}: ${this.phaseControlsOpen ? "hide" : "show"} phase stops`,
+          width: phaseTiles.phaseWidth,
+          height: phaseTabHeight,
+          fontSize: 11,
+          fontWeight: "700",
+          paddingX: 0,
+          radius: PHASE_TAB_OVERLAP,
+          flat: true,
+          backgroundColor: turnColor,
+          foreground: tabInk,
+          pressOffsetY: 0,
+          onPress: () => this.togglePhaseControls(),
+        });
+    if (phaseTab) phaseTab.position.set(phaseTabX, -phaseTabRise);
+    const panelShape = {
+      width,
+      height: panelHeight,
+      radius,
+      squareBottom,
+      tab: phaseTab
+        ? {
+            x: phaseTab.x,
+            width: phaseTab.buttonWidth,
+            height: phaseTabRise,
+            radius: PHASE_TAB_OVERLAP,
+          }
+        : undefined,
+    };
+    const phaseTabLayer = new Container();
+    const phaseSurfaces: Container[] = [];
+    const border = minimal ? null : new Graphics();
+    if (border) border.eventMode = "none";
+    const drawBorder = () =>
+      border!
+        .clear()
+        .path(new GraphicsPath(promptPanelOutline(panelShape)))
+        .stroke({ color: hexToNum(turnColor), width: TURN_BORDER_WIDTH })
+        .rect(panelShape.tab!.x, 0, panelShape.tab!.width, TURN_BORDER_WIDTH / 2)
+        .fill({ color: hexToNum(turnColor) });
+    if (border) drawBorder();
     if (hasAction && !minimal) {
-      const glowColor =
-        effectivePromptType === "chooseAttackers" && action.pendingAttackers.length > 0
-          ? this.theme.gameTheme.promptAction.attackAction
-          : this.theme.gameTheme.cardRing;
+      const attacking =
+        effectivePromptType === "chooseAttackers" && action.pendingAttackers.length > 0;
       this.actionGlow = new PromptGlow({
-        width,
-        height: panelHeight,
-        radius,
-        squareBottom,
-        color: hexToNum(glowColor),
-        highlight: hexToNum(this.theme.appTheme.foreground),
+        ...panelShape,
+        color: hexToNum(attacking ? this.theme.gameTheme.promptAction.attackAction : turnColor),
       });
     }
 
     if (!minimal) {
-      const background = this.makeActionPanelSurface(width, panelHeight, radius, squareBottom);
+      const background = this.makeActionPanelSurface(
+        width,
+        panelHeight,
+        radius,
+        squareBottom,
+        false,
+      );
       if (this.actionGlow) panel.addChild(this.actionGlow.spill);
-      panel.addChild(background);
+      phaseSurfaces.push(background);
+      panel.addChild(phaseTabLayer, background, border!);
       if (this.actionGlow) panel.addChild(this.actionGlow);
+    }
+    if (phaseTab) phaseTabLayer.addChild(phaseTab);
+    if (phaseControls) {
+      const clip = new Graphics()
+        .rect(0, 0, width, phaseHeight)
+        .fill({ color: hexToNum(this.theme.appTheme.foreground) });
+      panel.addChild(phaseControls, clip);
+      phaseControls.mask = clip;
+      for (const surface of phaseSurfaces) {
+        surface.pivot.y = panelHeight;
+        surface.y = panelHeight;
+      }
+      this.phaseLayout = (progress) => {
+        const hiddenHeight = phaseHeight * (1 - progress);
+        const visibleHeight = panelHeight - hiddenHeight;
+        const tabRise = phaseTabRise * (1 - progress);
+        panelShape.height = visibleHeight;
+        panelShape.tab!.height = tabRise;
+        for (const surface of phaseSurfaces) surface.scale.y = visibleHeight / panelHeight;
+        border!.y = hiddenHeight;
+        drawBorder();
+        if (this.actionGlow) {
+          this.actionGlow.y = hiddenHeight;
+          this.actionGlow.spill.y = hiddenHeight;
+          this.actionGlow.setHeight(visibleHeight);
+        }
+        phaseTabLayer.y = hiddenHeight + phaseTabRise - tabRise;
+        phaseTab!.visible = progress < 1;
+        phaseControls.y = hiddenHeight;
+        phaseControls.visible = progress > 0;
+        phaseControls.eventMode = progress === 1 ? "static" : "none";
+        clip.y = hiddenHeight;
+        clip.scale.y = progress;
+        const hitArea = panel.hitArea as Rectangle;
+        hitArea.y = hiddenHeight - tabRise;
+        hitArea.height = visibleHeight + tabRise;
+        this.actionPanelBounds!.y = y + hiddenHeight - tabRise;
+        this.actionPanelBounds!.height = visibleHeight + tabRise;
+        this.actionBounds!.y = y + hiddenHeight - tabRise;
+        this.actionBounds!.height = visibleHeight + tabRise;
+      };
+    }
+    if (phaseTab) {
+      const placeTab = (tabX: number) => {
+        phaseTab.x = tabX;
+        panelShape.tab!.x = tabX;
+        const { rise } = this.phaseTabSlide;
+        if (!phaseControls) {
+          panelShape.tab!.height = phaseTabRise * rise;
+          phaseTabLayer.y = phaseTabRise * (1 - rise);
+        }
+        drawBorder();
+        this.actionGlow?.redraw();
+        phaseControls?.setCurrentTileX(tabX);
+        phaseControls?.setCurrentTileRise(rise);
+        if (this.phaseTabSweep) {
+          phaseTab.setLabel(phaseTileLabel(PHASE_BAR_ENTRIES[phaseTiles.columnAt(tabX)]));
+        }
+      };
+      this.placePhaseTab = placeTab;
+      const startX = this.phaseTabPlaced ? this.phaseTabSlide.x : phaseTabX;
+      this.phaseTabPlaced = true;
+      this.phaseTabSlide.x = startX;
+      if (this.phaseTabSweep) {
+        placeTab(startX);
+      } else if (startX < phaseTabX && animationsEnabled()) {
+        placeTab(startX);
+        gsap.to(this.phaseTabSlide, {
+          x: phaseTabX,
+          duration: PHASE_REVEAL_SECONDS,
+          ease: "power2.out",
+          onUpdate: () => {
+            placeTab(this.phaseTabSlide.x);
+            this.callbacks.onRenderRequested?.();
+          },
+        });
+      } else {
+        this.phaseTabSlide.x = phaseTabX;
+      }
     }
 
     if (!minimal) {
-      let right = width - 8;
-      menuButton!.container.position.set(right - menuButton!.width, 6);
+      const rowCenter = phaseHeight + titleRowHeight / 2;
+      let right = width - PANEL_PAD_X + (menuButton!.width - ACTION_MENU_ICON_SIZE) / 2;
+      menuButton!.container.position.set(
+        right - menuButton!.width,
+        rowCenter - menuButton!.height / 2,
+      );
       panel.addChild(menuButton!.container);
       right -= menuButton!.width + 5;
       if (showPriorityMode) {
         const mode = modeButton!;
-        mode.position.set(right - mode.buttonWidth, 6);
+        mode.position.set(right - mode.buttonWidth, rowCenter - mode.buttonHeight / 2);
         panel.addChild(mode);
         right -= mode.buttonWidth + 6;
       }
+      const infoWidth = showActionContext ? contextButton!.buttonWidth + 4 : 0;
+      const title = promptRichText(
+        panelTitle,
+        15,
+        this.theme.appTheme.foreground,
+        Math.max(20, right - PANEL_PAD_X - infoWidth),
+        { weight: "600", role: "label", maxLines: 1 },
+      );
+      title.position.set(PANEL_PAD_X, rowCenter - title.height / 2);
+      panel.addChild(title);
       if (showActionContext) {
         const info = contextButton!;
-        info.position.set(right - info.buttonWidth, 6);
+        info.position.set(title.x + title.width + 4, rowCenter - info.buttonHeight / 2);
         panel.addChild(info);
-        right -= info.buttonWidth + 6;
       }
-      const title = promptText(
-        (hasAction ? actionTitle(effectivePromptType) : "Waiting").toUpperCase(),
-        11,
-        this.theme.appTheme.foreground,
-        {
-          weight: "700",
-          role: "label",
-          width: Math.max(20, right - 8),
-          letterSpacing: 1.32,
-          truncate: true,
-        },
-      );
-      title.position.set(8, 9);
-      title.alpha = 0.9;
-      panel.addChild(title);
-      panel.addChild(
-        new Graphics()
-          .rect(0, headerHeight - 1, width, 1)
-          .fill({ color: hexToNum(this.theme.appTheme.border), alpha: 0.7 }),
-      );
     }
 
     const contentY = headerHeight + sectionPaddingTop;
@@ -583,6 +886,23 @@ export class PromptLayer extends PromptModalLayer {
       actionBody.addChild(view.container);
     }
     panel.addChild(actionBody);
+    const pass = this.priorityButtons?.pass;
+    if (
+      !minimal &&
+      pass &&
+      effectivePromptType === "chooseAction" &&
+      !action.isWaitingForResponse &&
+      !action.isWaitingForOthers
+    ) {
+      const container = this.makePriorityBadge();
+      const baseY = contentY + pass.buttonHeight / 2;
+      container.position.set(
+        view.container.x - PRIORITY_BADGE_RADIUS + PRIORITY_BADGE_OVERLAP,
+        baseY,
+      );
+      panel.addChild(container);
+      this.priorityBadge = { container, baseY };
+    }
     if (visibleBodyHeight < bodyHeight) {
       const mask = new Graphics()
         .rect(0, headerHeight, width, visibleBodyHeight)
@@ -635,12 +955,7 @@ export class PromptLayer extends PromptModalLayer {
       panel.on("pointerdown", (event: FederatedPointerEvent) => {
         this.actionLongPress.start(event, "action-panel", () => {
           this.actionContextOpen = true;
-          this.renderActionContextPopover(
-            x,
-            y,
-            width,
-            hasAction ? actionTitle(effectivePromptType) : "Waiting",
-          );
+          this.renderActionContextPopover(x, y, width, panelTitle);
         });
       });
       panel.on("globalpointermove", (event: FederatedPointerEvent) => {
@@ -664,7 +979,8 @@ export class PromptLayer extends PromptModalLayer {
     }
 
     this.container.addChild(panel);
-    this.actionBounds = new Rectangle(x, y, width, panelHeight);
+    this.actionBounds = new Rectangle(x, y - phaseTabRise, width, panelHeight + phaseTabRise);
+    this.phaseLayout?.(this.phaseExpansion.value);
     if (phaseAnchor) {
       const phase = this.makeCompactPhaseButton();
       if (phase) {
@@ -679,12 +995,7 @@ export class PromptLayer extends PromptModalLayer {
       }
     }
     if (this.actionContextOpen && showActionContext) {
-      this.renderActionContextPopover(
-        x,
-        y,
-        width,
-        hasAction ? actionTitle(effectivePromptType) : "Waiting",
-      );
+      this.renderActionContextPopover(x, y, width, panelTitle);
     }
     if (minimal && action.dimmed) this.container.visible = false;
   }
@@ -912,8 +1223,7 @@ export class PromptLayer extends PromptModalLayer {
           this.makeButton("AUTO", action.onDefaultDamageOrder, {
             action: "attackAction",
             flat: true,
-            shadow: true,
-            radius: 8,
+            radius: ACTION_CONTROL_RADIUS,
             disabled,
             width: action.damageOrderCount > 0 ? (width - 6) / 2 : width,
             height: 36,
@@ -926,8 +1236,7 @@ export class PromptLayer extends PromptModalLayer {
             this.makeButton("UNDO", action.onUndoDamageOrder, {
               action: "attackAction",
               flat: true,
-              shadow: true,
-              radius: 8,
+              radius: ACTION_CONTROL_RADIUS,
               disabled,
               width: (width - 6) / 2,
               height: 36,
@@ -945,8 +1254,7 @@ export class PromptLayer extends PromptModalLayer {
           const confirm = this.makeButton("CONFIRM ORDER", action.onConfirmDamageOrder, {
             action: "attackAction",
             flat: true,
-            shadow: true,
-            radius: 8,
+            radius: ACTION_CONTROL_RADIUS,
             disabled,
             width,
             height: 36,
@@ -985,26 +1293,24 @@ export class PromptLayer extends PromptModalLayer {
       case "promptRequired": {
         const hidden = this.spec!.modalHidden;
         const button = this.makeButton(
-          minimal ? "PROMPT" : hidden ? "PROMPT REQUIRED" : "PROMPT OPEN",
+          minimal ? "PROMPT" : hidden ? "Open prompt" : "Prompt open",
           this.spec!.onShowModal,
           {
             title: hidden ? "Prompt required. Click to reopen." : "Prompt is open.",
-            action: "cancel",
+            action: "priority",
             flat: true,
-            radius: minimal ? 20 : 8,
-            shadow: true,
+            radius: minimal ? 20 : ACTION_CONTROL_RADIUS,
             disabled,
-            width: minimal ? undefined : 200,
+            width: minimal ? undefined : availableWidth,
             height: minimal ? 40 : 36,
             paddingX: minimal ? 12 : 12,
             icon: "lucide-alert-circle",
             iconSize: 14,
             fontSize: minimal ? 12 : 14,
-            fontWeight: "900",
-            letterSpacing: minimal ? 0.72 : 0.84,
+            fontWeight: minimal ? "900" : "700",
+            letterSpacing: minimal ? 0.72 : 0,
           },
         );
-        if (hidden) this.actionPulseNodes.push({ node: button, maxAlpha: 1 });
         return { container: button, width: button.buttonWidth, height: button.buttonHeight };
       }
       case "payManaCost":
@@ -1044,8 +1350,7 @@ export class PromptLayer extends PromptModalLayer {
             this.makeButton("Keep", action.onMulliganKeep, {
               action: "priority",
               flat: true,
-              shadow: true,
-              radius: 8,
+              radius: ACTION_CONTROL_RADIUS,
               disabled,
               width: (width - 6) / 2,
               height: 36,
@@ -1058,8 +1363,7 @@ export class PromptLayer extends PromptModalLayer {
             this.makeButton("Mulligan", action.onMulliganDraw, {
               variant: "secondary",
               flat: true,
-              shadow: true,
-              radius: 8,
+              radius: ACTION_CONTROL_RADIUS,
               disabled,
               width: (width - 6) / 2,
               height: 36,
@@ -1096,9 +1400,8 @@ export class PromptLayer extends PromptModalLayer {
     return this.makeButton(label, onPress, {
       ...(role === "primary" || role === "secondary" ? { variant: role } : { action: role }),
       flat: true,
-      shadow: true,
       compact: minimal,
-      radius: 8,
+      radius: ACTION_CONTROL_RADIUS,
       disabled,
       height: minimal || touch ? 48 : undefined,
       labelPlacement: showLabel ? "stacked" : "hidden",
@@ -1142,7 +1445,19 @@ export class PromptLayer extends PromptModalLayer {
     const passCombo = resolveCombo("pass-priority", useKeybindingsStore.getState().overrides);
     const morphed = this.endTurnModifiersHeld;
     const counting = this.autopassRemainingMs != null;
-    const passLabel = morphed ? endLabel : counting ? "PASSING" : "PASS";
+    const passLabel = morphed
+      ? endLabel
+      : minimal
+        ? counting
+          ? "PASSING"
+          : "PASS"
+        : counting
+          ? "AUTO-PASSING"
+          : passPriorityLabel(
+              this.spec!.gameView,
+              this.spec!.localPlayerId,
+              this.spec!.gameView.battlefield.some((card) => card.isAttacking),
+            );
     const combo = morphed ? endCombo : passCombo;
     let height = Math.max(
       minimal ? 44 : 40,
@@ -1237,7 +1552,7 @@ export class PromptLayer extends PromptModalLayer {
         paddingX: 16,
         fontSize: 12,
         fontWeight: "900",
-        letterSpacing: 1.44,
+        letterSpacing: 0.6,
         foreground: this.theme.appTheme["primary-foreground"],
         backgroundColor: this.theme.appTheme["primary-foreground"],
         backgroundAlpha: morphed ? 0.15 : 0,
@@ -1260,13 +1575,13 @@ export class PromptLayer extends PromptModalLayer {
     const container = new Container();
     const clipped = new Container();
     const surface = new Graphics()
-      .roundRect(0, 0, availableWidth, totalHeight, 8)
+      .roundRect(0, 0, availableWidth, totalHeight, ACTION_CONTROL_RADIUS)
       .fill({ color: hexToNum(this.theme.appTheme.primary) });
     const mask = new Graphics()
-      .roundRect(0, 0, availableWidth, totalHeight, 8)
+      .roundRect(0, 0, availableWidth, totalHeight, ACTION_CONTROL_RADIUS)
       .fill({ color: 0xffffff });
     const ring = new Graphics()
-      .roundRect(0.5, 0.5, availableWidth - 1, totalHeight - 1, 7.5)
+      .roundRect(0.5, 0.5, availableWidth - 1, totalHeight - 1, ACTION_CONTROL_RADIUS - 0.5)
       .stroke({
         color: hexToNum(this.theme.appTheme["primary-foreground"]),
         width: 1,
@@ -1292,13 +1607,14 @@ export class PromptLayer extends PromptModalLayer {
     clipped.mask = mask;
     container.addChild(mask, clipped, ring);
     this.priorityButtons = { pass, end };
+    this.priorityViewHeight = totalHeight;
     return { container, width: availableWidth, height: totalHeight };
   }
 
   private buildNoActionView(availableWidth: number, minimal: boolean): ActionViewLayout {
     const container = new Container();
     const width = minimal ? 30 : availableWidth;
-    const height = 48;
+    const height = minimal ? 48 : (this.priorityViewHeight ?? 48);
     const color = this.theme.appTheme["muted-foreground"];
     const hourglassWidth = 21;
     const labelGap = 11;
@@ -1447,7 +1763,7 @@ export class PromptLayer extends PromptModalLayer {
     });
     const stripHeight = Math.max(36, getUiControlFloor(), text.height + 12);
     const stripBackground = new Graphics()
-      .roundRect(0, 0, stripWidth, stripHeight, 8)
+      .roundRect(0, 0, stripWidth, stripHeight, ACTION_CONTROL_RADIUS)
       .fill({ color: hexToNum(foreground), alpha: 0.05 })
       .stroke({
         color: hexToNum(foreground),
@@ -1659,8 +1975,7 @@ export class PromptLayer extends PromptModalLayer {
     label.position.set(width / 2, 0);
     const button = this.makeButton("CONFIRM", action.onMulliganPutBackConfirm, {
       flat: true,
-      shadow: true,
-      radius: 8,
+      radius: ACTION_CONTROL_RADIUS,
       disabled: !canConfirm,
       width,
       height: 36,
@@ -1675,27 +1990,41 @@ export class PromptLayer extends PromptModalLayer {
     return { container, width, height: label.height + 6 + button.buttonHeight };
   }
 
+  private makePriorityBadge(): Container {
+    const r = PRIORITY_BADGE_RADIUS;
+    const base = hexToNum(this.theme.appTheme.primary);
+    const ink = hexToNum(this.theme.appTheme["primary-foreground"]);
+    const badge = new Graphics()
+      .circle(0, 0, r)
+      .fill({ color: base })
+      .stroke({ color: ink, width: 3, alignment: 0 })
+      .roundRect(-3.5, -r * 0.62, 7, r * 0.8, 3.5)
+      .fill({ color: ink })
+      .circle(0, r * 0.52, 4)
+      .fill({ color: ink });
+    const container = new Container();
+    container.eventMode = "none";
+    container.addChild(badge);
+    return container;
+  }
+
+  private actionSurfaceColor(): number {
+    const baseCard = hexToNum(this.theme.appTheme.card);
+    return this.ambientColor == null ? baseCard : mixNum(baseCard, this.ambientColor, 0.35);
+  }
+
   private makeActionPanelSurface(
     width: number,
     height: number,
     radius: number,
     squareBottom: boolean,
+    outlined = true,
   ): Container {
-    const baseCard = hexToNum(this.theme.appTheme.card);
-    const card = this.ambientColor == null ? baseCard : mixNum(baseCard, this.ambientColor, 0.35);
-    const shadow = new Graphics()
-      .roundRect(0, 14, width, height, radius)
-      .fill({ color: hexToNum(this.theme.gameTheme.canvas.shadow) });
-    shadow.alpha = 0.5;
-    shadow.filters = [new BlurFilter({ strength: 18 })];
-    shadow.eventMode = "none";
-    const surface = new Graphics()
-      .roundRect(0, 0, width, height, radius)
-      .fill({ color: card, alpha: 0.75 });
-    if (squareBottom) {
+    const card = this.actionSurfaceColor();
+    const surface = new Graphics().roundRect(0, 0, width, height, radius).fill({ color: card });
+    if (squareBottom) surface.rect(0, height - radius, width, radius).fill({ color: card });
+    if (outlined && squareBottom) {
       surface
-        .rect(0, height - radius, width, radius)
-        .fill({ color: card, alpha: 0.75 })
         .moveTo(0, height)
         .lineTo(0, radius)
         .quadraticCurveTo(0, 0, radius, 0)
@@ -1703,16 +2032,13 @@ export class PromptLayer extends PromptModalLayer {
         .quadraticCurveTo(width, 0, width, radius)
         .lineTo(width, height)
         .stroke({ color: hexToNum(this.theme.appTheme.border), width: 1, alpha: 0.35 });
-    } else {
+    } else if (outlined) {
       surface
         .roundRect(0, 0, width, height, radius)
         .stroke({ color: hexToNum(this.theme.appTheme.border), width: 1, alpha: 0.35 });
     }
     surface.eventMode = "none";
-    const container = new Container();
-    container.eventMode = "none";
-    container.addChild(shadow, surface);
-    return container;
+    return surface;
   }
 
   private makeCompactActionControls(
@@ -1841,7 +2167,7 @@ export class PromptLayer extends PromptModalLayer {
     const button = new Container();
     const icon = this.makeIcon(
       "lucide-settings",
-      14,
+      ACTION_MENU_ICON_SIZE,
       minimal ? this.theme.gameTheme.textOnTinted : this.theme.appTheme["card-foreground"],
     );
     icon.position.set(size / 2, size / 2);
@@ -1888,20 +2214,16 @@ export class PromptLayer extends PromptModalLayer {
       {
         title: open ? "Hide prompt details" : "Show prompt details",
         icon: "lucide-info",
-        iconSize: 12,
+        iconSize: 14,
         labelPlacement: "hidden",
-        outline: true,
-        foreground: this.theme.appTheme["accent-foreground"],
-        backgroundColor: this.theme.appTheme.accent,
-        backgroundAlpha: open ? 0.95 : 0.5,
-        borderColor: this.theme.appTheme.border,
-        hoverBackgroundAlpha: 1,
-        hoverBorderAlpha: 1,
-        pressOffsetY: 1,
-        borderAlpha: open ? 0.3 : 0.6,
-        width: 22,
-        height: 22,
-        paddingX: 4,
+        flat: true,
+        foreground: open ? this.theme.appTheme.foreground : this.theme.appTheme["muted-foreground"],
+        backgroundColor: this.theme.appTheme.foreground,
+        backgroundAlpha: 0,
+        hoverBackgroundAlpha: 0.08,
+        width: 20,
+        height: 20,
+        paddingX: 3,
       },
     );
   }
@@ -2098,15 +2420,6 @@ export class PromptLayer extends PromptModalLayer {
     this.autopassRemainingMs = this.autopassTotalMs;
   }
 
-  private flashActionGlow(): void {
-    if (!this.actionGlow || !animationsEnabled()) return;
-    this.actionGlowTween?.kill();
-    this.actionGlowTween = gsap
-      .timeline()
-      .to(this.actionFeedback, { glow: 1, duration: 0.1, ease: "power2.out" })
-      .to(this.actionFeedback, { glow: 0, duration: 0.6, ease: "sine.out" });
-  }
-
   private bumpActionPanel(endTurn = false): void {
     if (
       !this.spec ||
@@ -2131,12 +2444,10 @@ export class PromptLayer extends PromptModalLayer {
 
   private syncActionFeedback(elapsed: number): void {
     if (!animationsEnabled()) {
-      this.actionGlowTween?.kill();
       gsap.killTweensOf(this.actionFeedback);
-      this.actionFeedback.glow = 0;
       this.actionFeedback.press = 0;
     }
-    this.actionGlow?.update(elapsed, this.actionFeedback.glow);
+    this.actionGlow?.update(elapsed);
     const buttons = this.priorityButtons;
     if (!buttons) return;
     buttons.pass.setPressFeedback(
@@ -2166,7 +2477,7 @@ export class PromptLayer extends PromptModalLayer {
       );
       const height = attacker.height + defender.height + 20;
       const background = new Graphics()
-        .roundRect(0, y, availableWidth, height, 8)
+        .roundRect(0, y, availableWidth, height, ACTION_CONTROL_RADIUS)
         .fill({ color: hexToNum(destructive), alpha: 0.1 });
       attacker.position.set(8, y + 8);
       defender.position.set(8, attacker.y + attacker.height + 4);
@@ -2230,7 +2541,7 @@ export class PromptLayer extends PromptModalLayer {
       ];
       const height = 16 + details.reduce((total, text) => total + text.height + 4, 0);
       const background = new Graphics()
-        .roundRect(0, y, availableWidth, height, 8)
+        .roundRect(0, y, availableWidth, height, ACTION_CONTROL_RADIUS)
         .fill({ color: hexToNum(destructive), alpha: 0.1 })
         .stroke({ color: hexToNum(destructive), width: 1, alpha: 0.25 });
       const swords = this.makeIcon("lucide-swords", 14, destructive);
@@ -2534,6 +2845,15 @@ export class PromptLayer extends PromptModalLayer {
     this.updateDragMotion(deltaMs);
     this.updateScrollMotion(deltaMs);
     this.syncActionFeedback(elapsed);
+    if (this.priorityBadge) {
+      const { container, baseY } = this.priorityBadge;
+      container.visible = this.autopassRemainingMs == null;
+      const wave = (period: number) =>
+        motionEnabled ? Math.sin((elapsed / period) * Math.PI * 2) : 0;
+      container.y = baseY + wave(1100) * 4;
+      container.scale.set(1 + wave(700) * 0.07);
+      container.rotation = wave(1700) * 0.09;
+    }
     if (this.selectionFilterView) {
       this.selectionFilterView.caret.visible =
         this.selectionFilterFocused &&
@@ -2542,6 +2862,12 @@ export class PromptLayer extends PromptModalLayer {
             FILTER_CARET_PERIOD_MS / 2);
     }
     if (!motionEnabled && this.entranceTween) this.entranceTween.progress(1);
+    if (!motionEnabled) this.phaseTabSweep?.progress(1);
+    if (!motionEnabled && gsap.isTweening(this.phaseExpansion)) {
+      gsap.killTweensOf(this.phaseExpansion);
+      this.phaseExpansion.value = this.phaseControlsOpen ? 1 : 0;
+      this.rebuild();
+    }
     if (this.waitingTimeline && motionEnabled !== this.waitingAnimationActive) {
       this.waitingAnimationActive = motionEnabled;
       if (motionEnabled) this.waitingTimeline.restart();

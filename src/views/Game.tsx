@@ -2,6 +2,7 @@ import { CombatBreakdownModal } from "@/components/game/modals/CombatBreakdownMo
 import { locateVisibleZone, visibleZoneCards, zoneLocationKey } from "@/lib/zoneView";
 import { useGameStore } from "@/stores/useGameStore";
 import { useServerStore } from "@/stores/useServerStore";
+import { useAuthStore } from "@/stores/useAuthStore";
 import { asDeckCard } from "@/lib/decks";
 import { gameCardFaceIndex, GAME_CARD_DEFAULTS } from "@/lib/gameCard";
 import { faceDownCardToPreviewDto } from "@/lib/scryfall.utils";
@@ -71,6 +72,7 @@ import { useMultiplayerInterruption } from "@/hooks/useMultiplayerInterruption";
 import { useLiveGameNavigationGuard } from "@/hooks/useLiveGameNavigationGuard";
 import { GameBoard } from "@/components/game/GameBoard";
 import { buildCombatRows } from "@/components/game/combatRows";
+import { stripUsernameTag } from "@/lib/username";
 import { readableTextColor, withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
 import { boardBackgroundDarken, boardBackgroundUrl } from "@/pixi/board/boardBackgrounds";
@@ -97,6 +99,7 @@ import {
   isPermanentSpellCard,
   stackObjectAbilityText,
   stackObjectToCard,
+  relayAvatarUrl,
 } from "@/components/game/game.utils";
 import { createPortal } from "react-dom";
 import { Card } from "@/components/game/Card";
@@ -1546,7 +1549,8 @@ export default function Game({ exitTo }: GameProps = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [gameView?.combatAssignments?.map((a) => `${a.blockerId}:${a.attackerId}`).join(",")],
   );
-  const combatRows = useMemo(
+  const headsUp = gameView?.players.length === 2;
+  const declaredCombatRows = useMemo(
     () =>
       gameView
         ? buildCombatRows({
@@ -1562,6 +1566,14 @@ export default function Game({ exitTo }: GameProps = {}) {
           })
         : [],
     [gameView, combatAssignments, blockAssignments, attackAssignments],
+  );
+  const combatRows = useMemo(
+    () => (headsUp ? [] : declaredCombatRows),
+    [headsUp, declaredCombatRows],
+  );
+  const combatForwardIds = useMemo(
+    () => (headsUp ? declaredCombatRows.flatMap((row) => row.attackerIds) : []),
+    [headsUp, declaredCombatRows],
   );
   const oppCombatAttackerIds = useMemo(
     () => new Set(combatRows.flatMap((r) => r.attackerIds)),
@@ -1626,8 +1638,13 @@ export default function Game({ exitTo }: GameProps = {}) {
   }, [gameView?.players]);
 
   const attackArrows = useMemo(
-    () => activeAttackers.filter((attacker) => !oppCombatAttackerIds.has(attacker.attackerId)),
-    [activeAttackers, oppCombatAttackerIds],
+    () =>
+      activeAttackers.filter(
+        (attacker) =>
+          !oppCombatAttackerIds.has(attacker.attackerId) &&
+          !(headsUp && attacker.targetKind === "player"),
+      ),
+    [activeAttackers, oppCombatAttackerIds, headsUp],
   );
   const arrowBlocks = useMemo(
     () => combatAssignments.filter((a) => !oppCombatAttackerIds.has(a.attackerId)),
@@ -2343,10 +2360,36 @@ export default function Game({ exitTo }: GameProps = {}) {
           }
         : null;
 
+  const turnHandoffPlayer =
+    activeFlash?.kind === "turn"
+      ? gameView.players.find((player) => player.id === activeFlash.playerId)
+      : undefined;
   const promptOverlaySpec: PromptOverlaySpec = {
     currentPrompt: activePrompt,
     localPlayerId: me.id,
     gameView,
+    turnColor: playerColorMap.get(gameView.activePlayerId) ?? themeColors.playerColors.self,
+    turnHandoff:
+      activeFlash?.kind === "turn" && turnHandoffPlayer
+        ? {
+            turn: activeFlash.turn,
+            playerId: activeFlash.playerId,
+            step: activeFlash.step,
+            color: playerColorMap.get(activeFlash.playerId) ?? themeColors.playerColors.self,
+            label:
+              activeFlash.playerId === me.id
+                ? "Your turn"
+                : `${stripUsernameTag(turnHandoffPlayer.name)}'s turn`,
+            avatarUrl:
+              activeFlash.playerId === me.id
+                ? (useAuthStore.getState().account?.avatarUrl ?? null)
+                : relayAvatarUrl(
+                    turnHandoffPlayer.name,
+                    useServerStore.getState().players,
+                    useServerStore.getState().playerDecks,
+                  ),
+          }
+        : null,
     sourceDeckCard: promptSourceDeckCard,
     action: {
       promptType,
@@ -2561,6 +2604,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           blockAssignments={blockAssignments}
           combatAssignments={combatAssignments}
           combatRows={combatRows}
+          combatForwardIds={combatForwardIds}
           arrowSpecs={arrowSpecs}
           castingArrow={castingArrow}
           playerIsTargetable={playerIsTargetable}

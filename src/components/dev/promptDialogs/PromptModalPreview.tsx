@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import { HoverCardPreview } from "@/components/game/HoverCardPreview";
 import type { PromptActionSpec } from "@/components/game/game.types";
 import { useCardPreview } from "@/hooks/useCardPreview";
+import { useTheme } from "@/hooks/useTheme";
 import { useIsMobileGame } from "@/hooks/useBreakpoints";
 import { registerModal } from "@/lib/modalStack";
 import type { BoardOverlayPreviewSpec } from "@/pixi/BoardOverlayCanvas";
@@ -72,6 +73,7 @@ export function PromptModalPreview({ preview, fixtures, onClose }: PromptModalPr
         }
       : null;
   const externalPreviewActive = previewCard !== null && cardPreview.phase === "open";
+  const turnColor = useTheme().gameTheme.playerColors.self;
   const spec = useMemo<PromptOverlaySpec>(() => {
     const action: PromptActionSpec = {
       promptType: input.type,
@@ -113,6 +115,8 @@ export function PromptModalPreview({ preview, fixtures, onClose }: PromptModalPr
     return {
       currentPrompt: prompt,
       localPlayerId: fixtures.me.id,
+      turnColor,
+      turnHandoff: null,
       gameView:
         input.type === "chooseCombatDamageAssignment" ||
         input.type === "chooseDamageAssignmentOrder"
@@ -163,7 +167,7 @@ export function PromptModalPreview({ preview, fixtures, onClose }: PromptModalPr
       onHideModal: onClose,
       onShowModal: noAction,
     };
-  }, [blockerCards, damageOrder, fixtures, input.type, onClose, preview, prompt]);
+  }, [blockerCards, damageOrder, fixtures, input.type, onClose, preview, prompt, turnColor]);
 
   return createPortal(
     <>

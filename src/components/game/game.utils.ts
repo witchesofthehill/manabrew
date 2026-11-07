@@ -92,6 +92,18 @@ export function manaAbilityInfos(
       : [],
   );
 }
+export function relayAvatarUrl(
+  name: string,
+  players: readonly { username: string; avatar_url?: string | null }[],
+  decks: readonly { username: string; avatar_url?: string | null }[],
+): string | null {
+  return (
+    players.find((player) => player.username === name)?.avatar_url ??
+    decks.find((deck) => deck.username === name)?.avatar_url ??
+    null
+  );
+}
+
 export function getInitials(name: string): string {
   return name
     .split(" ")
@@ -237,4 +249,13 @@ export function checkpointLabel(checkpoint: CheckpointDto): string {
     return `decision #${checkpoint.checkpointId}, ${checkpoint.decision.toLowerCase()} (turn ${checkpoint.turn}, ${stepLabel(checkpoint.step)})`;
   }
   return `turn ${checkpoint.turn}, ${stepLabel(checkpoint.step)}`;
+}
+
+export function togglePhaseStops(
+  steps: readonly string[],
+  stops: ReadonlySet<string> | undefined,
+  toggle: (step: string) => void,
+): void {
+  const on = steps.some((step) => stops?.has(step));
+  for (const step of steps) if (!!stops?.has(step) === on) toggle(step);
 }

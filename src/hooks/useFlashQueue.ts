@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useGameStore, type DeferredSnapshot } from "@/stores/useGameStore";
 import { applySnapshot } from "@/stores/gameStore.constants";
+import { TURN_HANDOFF_MS } from "@/components/game/game.constants";
 import type { FlashItem } from "@/components/game/game.types";
 import { flashItemOf } from "@/lib/gameViewTransitions";
 import { playSound } from "@/lib/soundRuntime";
@@ -100,9 +101,12 @@ export function useFlashQueue(flashDurationMs: number) {
       }
       return;
     }
-    const timer = setTimeout(() => {
-      setActiveFlash(null);
-    }, flashDurationMs);
+    const timer = setTimeout(
+      () => {
+        setActiveFlash(null);
+      },
+      activeFlash.kind === "turn" ? TURN_HANDOFF_MS : flashDurationMs,
+    );
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeFlash, flashDurationMs]);

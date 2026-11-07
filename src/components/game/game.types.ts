@@ -1,4 +1,4 @@
-import type { CardDto, CheckpointDto, DecisionHistoryDto } from "@/protocol/game";
+import type { CardDto, CheckpointDto, DecisionHistoryDto, StepKind } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
 import type { PromptType } from "@/protocol";
 import type { DevPromptActionOverride } from "@/stores/useGameDevStore";
@@ -17,7 +17,9 @@ export interface CombatPairing {
   count: number;
 }
 
-export type FlashItem = { kind: "card"; card: CardDto } | { kind: "turn"; playerId: string };
+export type FlashItem =
+  | { kind: "card"; card: CardDto }
+  | { kind: "turn"; playerId: string; turn: number; step: StepKind };
 
 /** Seat identifier used to resolve per-player theme colours. Source of
  *  truth for `playerColors.<seat>` theme keys and for `OPPONENT_SEATS`

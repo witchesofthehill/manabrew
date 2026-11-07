@@ -473,6 +473,7 @@ export function BoardOverlayCanvasSurface({
         const height = Math.max(1, parent?.clientHeight ?? canvas.clientHeight);
         await app.init({
           canvas,
+          gcActive: false,
           backgroundAlpha: 0,
           antialias: true,
           autoDensity: true,

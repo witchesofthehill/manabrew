@@ -231,7 +231,9 @@ export class PromptLayer extends PromptModalLayer {
 
   private startTurnHandoff(handoff: TurnHandoffSpec): void {
     const spec = this.spec!;
-    this.turnBanner.show(this.theme, handoff, this.layoutWidth, this.viewportHeight);
+    if (usePreferencesStore.getState().turnBanner) {
+      this.turnBanner.show(this.theme, handoff, this.layoutWidth, this.viewportHeight);
+    }
     const columns = this.phaseColumns;
     if (!columns || !animationsEnabled()) return;
     const lastX = columns.columnX(PHASE_BAR_ENTRIES.length - 1);

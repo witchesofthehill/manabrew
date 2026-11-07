@@ -251,6 +251,10 @@ export function checkpointLabel(checkpoint: CheckpointDto): string {
   return `turn ${checkpoint.turn}, ${stepLabel(checkpoint.step)}`;
 }
 
+export function gameRound(turn: number, playerCount: number): number {
+  return Math.ceil(turn / playerCount);
+}
+
 export function togglePhaseStops(
   steps: readonly string[],
   stops: ReadonlySet<string> | undefined,

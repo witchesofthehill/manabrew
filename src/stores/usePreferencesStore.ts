@@ -93,6 +93,8 @@ export interface PreferencesState {
   setOpponentHandFan: (mode: OpponentHandFanMode) => void;
   phaseStopLayout: "compact" | "per-player";
   setPhaseStopLayout: (layout: "compact" | "per-player") => void;
+  turnBanner: boolean;
+  setTurnBanner: (enabled: boolean) => void;
 
   // One knob for card size: battlefield cards on ALL fields plus the hand
   // fan. 1 = the largest board that keeps 3 rows; 1.5 = the 2-row fill that
@@ -208,6 +210,7 @@ const PERSISTED_PREFERENCE_KEYS = [
   "opponentLayout",
   "opponentHandFan",
   "phaseStopLayout",
+  "turnBanner",
   "cardSizeMultiplier",
   "lockZoneTiles",
   "battlefieldCardStyle",
@@ -409,6 +412,9 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           phaseStopLayout: "compact",
           setPhaseStopLayout: (phaseStopLayout) => set({ phaseStopLayout }),
+
+          turnBanner: true,
+          setTurnBanner: (turnBanner) => set({ turnBanner }),
 
           hapticFeedback: true,
           setHapticFeedback: (hapticFeedback) => set({ hapticFeedback }),

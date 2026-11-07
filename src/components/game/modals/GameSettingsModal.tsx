@@ -20,6 +20,7 @@ import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
 import { HAND_ORDER_OPTIONS } from "@/lib/handOrder";
 import { TableSetupTableCard } from "@/components/lobby/TableSetupTableCard";
 import { useServerStore } from "@/stores/useServerStore";
+import { PhaseLayoutChoice } from "./PhaseLayoutChoice";
 
 function Choice<T extends string | boolean>({
   label,
@@ -147,6 +148,13 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
           />
         </Section>
         <Section title="Board appearance">
+          <PhaseLayoutChoice />
+          <Choice
+            label="Turn banner"
+            value={prefs.turnBanner}
+            options={ON_OFF}
+            onChange={prefs.setTurnBanner}
+          />
           <div className="space-y-2">
             <label htmlFor={`${id}-size`} className="text-ui-label font-medium">
               Card size · {Math.round(prefs.cardSizeMultiplier * 100)}%

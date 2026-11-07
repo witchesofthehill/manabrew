@@ -34,6 +34,7 @@ export interface PromptLayerCallbacks {
 
 export interface TurnHandoffSpec {
   turn: number;
+  round: number;
   playerId: string;
   step: StepKind;
   color: string;

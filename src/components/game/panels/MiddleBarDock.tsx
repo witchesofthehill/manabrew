@@ -10,7 +10,6 @@ import {
   PanelRightClose,
   PanelRightOpen,
   Repeat,
-  Rows3,
   Settings2,
   Square,
   Swords,
@@ -22,8 +21,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
@@ -31,7 +28,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useGameStore } from "@/stores/useGameStore";
-import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { getPlatformType } from "@/platform";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -85,8 +81,6 @@ export function MiddleBarDock({
   const isWeb = getPlatformType() === "web";
   const hiddenPlaymats = useGameStore((s) => s.hiddenPlaymats);
   const togglePlaymatHidden = useGameStore((s) => s.togglePlaymatHidden);
-  const phaseStopLayout = usePreferencesStore((s) => s.phaseStopLayout);
-  const setPhaseStopLayout = usePreferencesStore((s) => s.setPhaseStopLayout);
   const [isFullscreen, setIsFullscreen] = useState(
     typeof document !== "undefined" && document.fullscreenElement !== null,
   );
@@ -152,21 +146,6 @@ export function MiddleBarDock({
           <Volume2 className="mr-2 h-4 w-4" />
           Sound settings
         </DropdownMenuItem>
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger>
-            <Rows3 className="mr-2 h-4 w-4" />
-            Phase controls
-          </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent>
-            <DropdownMenuRadioGroup
-              value={phaseStopLayout}
-              onValueChange={(value) => setPhaseStopLayout(value as typeof phaseStopLayout)}
-            >
-              <DropdownMenuRadioItem value="compact">Compact</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="per-player">Per player</DropdownMenuRadioItem>
-            </DropdownMenuRadioGroup>
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
         {onOpenCombat && (
           <DropdownMenuItem onSelect={onOpenCombat}>
             <Swords className="mr-2 h-4 w-4" />

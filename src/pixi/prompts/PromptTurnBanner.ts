@@ -1,4 +1,4 @@
-import { Container, FillGradient, Graphics, Sprite, SplitText, Text, TextStyle } from "pixi.js";
+import { Container, Graphics, Sprite, SplitText, Text, TextStyle } from "pixi.js";
 import { TURN_HANDOFF_MS } from "@/components/game/game.constants";
 import type { Theme } from "@/hooks/useTheme";
 import { hexToNum, mixNum } from "@/pixi/colorUtils";
@@ -14,40 +14,24 @@ export const TURN_IMPACT_SECONDS = 0.55;
 const TOTAL_SECONDS = TURN_HANDOFF_MS / 1000;
 const RAILS_AT = 0.1;
 const TITLE_AT = TURN_IMPACT_SECONDS + 0.1;
-const CREST_AT = TURN_IMPACT_SECONDS + 0.2;
+const DETAIL_AT = TURN_IMPACT_SECONDS + 0.2;
 const EXIT_AT = TOTAL_SECONDS - 0.45;
-const FONT_HEIGHT_SHARE = 0.11;
-const FONT_WIDTH_SHARE = 0.075;
-const BAND_FONT_RATIO = 2.1;
-const BLADE_WIDTH_SHARE = 0.42;
-const RAIL_WIDTH_SHARE = 0.49;
-const TIP_BAND_RATIO = 0.55;
-const AVATAR_BAND_RATIO = 0.38;
-const AVATAR_RING = 3;
+const FONT_HEIGHT_SHARE = 0.07;
+const FONT_WIDTH_SHARE = 0.05;
+const BAND_FONT_RATIO = 2.4;
+const TURN_FONT_RATIO = 0.34;
+const TURN_INK_MIX = 0.7;
+const TURN_TOP_PAD_RATIO = 0.12;
+const AVATAR_BAND_RATIO = 0.28;
+const AVATAR_RING = 2;
+const RAIL_HEIGHT = 2;
+const EDGE_PAD = 24;
 const Z_INDEX = 9_998;
-
-function bladePoints(half: number, halfHeight: number, tip: number): number[] {
-  return [
-    -half,
-    0,
-    tip - half,
-    -halfHeight,
-    half - tip,
-    -halfHeight,
-    half,
-    0,
-    half - tip,
-    halfHeight,
-    tip - half,
-    halfHeight,
-  ];
-}
 
 export class PromptTurnBanner {
   readonly container = new Container();
   private readonly onFrame: () => void;
   private timeline: gsap.core.Timeline | null = null;
-  private gradient: FillGradient | null = null;
 
   constructor(onFrame: () => void) {
     this.onFrame = onFrame;
@@ -58,32 +42,18 @@ export class PromptTurnBanner {
 
   show(theme: Theme, handoff: TurnHandoffSpec, width: number, height: number): void {
     this.clear();
-    const { label, turn, color, avatarUrl } = handoff;
+    const { label, round, color, avatarUrl } = handoff;
     const fontSize = Math.round(Math.min(height * FONT_HEIGHT_SHARE, width * FONT_WIDTH_SHARE));
     const bandHeight = fontSize * BAND_FONT_RATIO;
     const halfHeight = bandHeight / 2;
-    const half = width * BLADE_WIDTH_SHARE;
-    const tip = bandHeight * TIP_BAND_RATIO;
     const surface = theme.gameTheme.phaseStrip.background;
     const surfaceFill = hexToNum(surface);
     const seat = hexToNum(color);
     const ink = hexToNum(
       readableTextColor(surface, theme.gameTheme.canvas.shadow, theme.gameTheme.textOnTinted),
     );
-    const edgeFill = mixNum(surfaceFill, seat, 0.16);
-    const coreFill = mixNum(surfaceFill, seat, 0.34);
-    const accent = mixNum(seat, ink, 0.45);
-
-    this.gradient = new FillGradient({
-      start: { x: 0, y: 0 },
-      end: { x: 1, y: 0 },
-      colorStops: [
-        { offset: 0, color: edgeFill },
-        { offset: 0.5, color: coreFill },
-        { offset: 1, color: edgeFill },
-      ],
-    });
-    const body = new Graphics().poly(bladePoints(half, halfHeight, tip)).fill(this.gradient);
+    const strip = () => new Graphics().rect(-width / 2, -halfHeight, width, bandHeight);
+    const body = strip().fill({ color: surfaceFill });
 
     const title = new SplitText({
       text: label,
@@ -92,36 +62,40 @@ export class PromptTurnBanner {
         fontSize,
         fontWeight: "700",
         fill: ink,
-        letterSpacing: 1,
-        dropShadow: {
-          color: seat,
-          alpha: 1,
-          angle: Math.PI / 2,
-          blur: 0,
-          distance: Math.max(2, fontSize * 0.05),
-        },
       },
     });
+    const turnText = new Text({
+      text: `Turn ${round}`,
+      style: new TextStyle({
+        fontFamily: DISPLAY_FONT_FAMILY,
+        fontSize: Math.round(fontSize * TURN_FONT_RATIO),
+        fontWeight: "700",
+        fill: mixNum(surfaceFill, ink, TURN_INK_MIX),
+      }),
+    });
+    turnText.anchor.set(0.5);
     const titleBounds = title.getLocalBounds();
     const avatarTexture = avatarUrl ? cachedAvatarTexture(avatarUrl) : null;
     const avatarRadius = bandHeight * AVATAR_BAND_RATIO;
-    const avatarSpace = avatarTexture ? avatarRadius * 2 + fontSize * 0.4 : 0;
-    const titleRoom = (half - tip - avatarSpace) * 2;
+    const gap = fontSize * 0.5;
+    const avatarSpace = avatarTexture ? avatarRadius * 2 + gap : 0;
+    const titleRoom = width - (EDGE_PAD + avatarSpace) * 2;
     const titleScale = Math.min(1, titleRoom / titleBounds.width);
+    const titleWidth = titleBounds.width * titleScale;
     title.pivot.set(titleBounds.x + titleBounds.width / 2, titleBounds.y + titleBounds.height / 2);
     title.scale.set(titleScale);
     title.y = fontSize * 0.08;
 
-    const clip = new Graphics().poly(bladePoints(half, halfHeight, tip)).fill({ color: seat });
+    const clip = strip().fill({ color: seat });
     const clipped = new Container();
     clipped.addChild(title);
     clipped.mask = clip;
-    const blade = new Container();
-    blade.addChild(body, clipped, clip);
+    const band = new Container();
+    band.addChild(body, clipped, clip);
 
     const avatar = new Container();
     if (avatarTexture) {
-      const ring = new Graphics().circle(0, 0, avatarRadius + AVATAR_RING).fill({ color: accent });
+      const ring = new Graphics().circle(0, 0, avatarRadius + AVATAR_RING).fill({ color: seat });
       const photo = new Sprite(avatarTexture);
       const cover = (avatarRadius * 2) / Math.min(avatarTexture.width, avatarTexture.height);
       photo.anchor.set(0.5);
@@ -129,41 +103,20 @@ export class PromptTurnBanner {
       const photoMask = new Graphics().circle(0, 0, avatarRadius).fill({ color: seat });
       photo.mask = photoMask;
       avatar.addChild(ring, photo, photoMask);
-      avatar.x = avatarRadius - avatarSpace - (titleBounds.width * titleScale) / 2;
-      blade.addChild(avatar);
+      avatar.x = -titleWidth / 2 - gap - avatarRadius;
+      band.addChild(avatar);
     }
 
-    const railY = halfHeight + fontSize * 0.2;
-    const railReach = width * RAIL_WIDTH_SHARE;
     const rails = new Graphics();
-    for (const y of [-railY, railY]) {
-      rails.poly([-railReach, y, 0, y - 2, railReach, y, 0, y + 2]).fill({ color: accent });
+    for (const y of [-halfHeight - RAIL_HEIGHT, halfHeight]) {
+      rails.rect(-width / 2, y, width, RAIL_HEIGHT).fill({ color: seat });
     }
 
-    const crestRadius = fontSize * 0.62;
-    const crest = new Container();
-    crest.y = -halfHeight;
-    const crestShape = new Graphics()
-      .poly([0, -crestRadius, crestRadius, 0, 0, crestRadius, -crestRadius, 0])
-      .fill({ color: seat })
-      .stroke({ color: accent, width: 3, alignment: 1 });
-    const crestInk = hexToNum(
-      readableTextColor(color, theme.gameTheme.canvas.shadow, theme.gameTheme.textOnTinted),
-    );
-    const turnText = new Text({
-      text: String(turn),
-      style: new TextStyle({
-        fontFamily: DISPLAY_FONT_FAMILY,
-        fontSize: Math.round(crestRadius * 0.85),
-        fontWeight: "700",
-        fill: crestInk,
-      }),
-    });
-    turnText.anchor.set(0.5);
-    turnText.scale.set(Math.min(1, crestRadius / turnText.width));
-    crest.addChild(crestShape, turnText);
+    const turnBadge = new Container();
+    turnBadge.y = fontSize * TURN_TOP_PAD_RATIO + turnText.height / 2 - halfHeight;
+    turnBadge.addChild(turnText);
 
-    this.container.addChild(rails, blade, crest);
+    this.container.addChild(rails, band, turnBadge);
     this.container.position.set(width / 2, height / 2);
     this.container.visible = true;
 
@@ -184,7 +137,7 @@ export class PromptTurnBanner {
         RAILS_AT,
       )
       .fromTo(
-        blade.scale,
+        band.scale,
         { y: 0 },
         { y: 1, duration: 0.3, ease: "back.out(1.7)" },
         TURN_IMPACT_SECONDS,
@@ -200,22 +153,16 @@ export class PromptTurnBanner {
         TITLE_AT,
       )
       .fromTo(
-        crest.scale,
+        turnBadge.scale,
         { x: 0, y: 0 },
         { x: 1, y: 1, duration: 0.3, ease: "back.out(2.2)" },
-        CREST_AT,
+        DETAIL_AT,
       )
       .fromTo(
         avatar.scale,
         { x: 0, y: 0 },
         { x: 1, y: 1, duration: 0.3, ease: "back.out(2.2)" },
-        CREST_AT,
-      )
-      .fromTo(
-        crest,
-        { rotation: -Math.PI / 2 },
-        { rotation: 0, duration: 0.3, ease: "power2.out" },
-        CREST_AT,
+        DETAIL_AT,
       )
       .to(
         title.chars,
@@ -227,9 +174,9 @@ export class PromptTurnBanner {
         },
         EXIT_AT,
       )
-      .to(crest.scale, { x: 0, y: 0, duration: 0.18, ease: "back.in(2)" }, EXIT_AT)
+      .to(turnBadge.scale, { x: 0, y: 0, duration: 0.18, ease: "back.in(2)" }, EXIT_AT)
       .to(avatar.scale, { x: 0, y: 0, duration: 0.18, ease: "back.in(2)" }, EXIT_AT)
-      .to(blade.scale, { y: 0, duration: 0.2, ease: "power3.in" }, EXIT_AT + 0.18)
+      .to(band.scale, { y: 0, duration: 0.2, ease: "power3.in" }, EXIT_AT + 0.18)
       .to(rails.scale, { x: 0, duration: 0.25, ease: "power3.in" }, EXIT_AT + 0.2);
 
     this.onFrame();
@@ -238,15 +185,12 @@ export class PromptTurnBanner {
   destroy(): void {
     this.timeline?.kill();
     this.container.destroy({ children: true });
-    this.gradient?.destroy();
   }
 
   private clear(): void {
     this.timeline?.kill();
     this.timeline = null;
     this.container.removeChildren().forEach((child) => child.destroy({ children: true }));
-    this.gradient?.destroy();
-    this.gradient = null;
     this.container.visible = false;
     this.onFrame();
   }

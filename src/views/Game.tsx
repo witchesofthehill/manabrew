@@ -101,6 +101,7 @@ import {
   stackObjectAbilityText,
   stackObjectToCard,
   relayAvatarUrl,
+  gameRound,
 } from "@/components/game/game.utils";
 import { createPortal } from "react-dom";
 import { Card } from "@/components/game/Card";
@@ -2375,6 +2376,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       activeFlash?.kind === "turn" && turnHandoffPlayer
         ? {
             turn: activeFlash.turn,
+            round: gameRound(activeFlash.turn, gameView.players.length),
             playerId: activeFlash.playerId,
             step: activeFlash.step,
             color: playerColorMap.get(activeFlash.playerId) ?? themeColors.playerColors.self,
@@ -2504,7 +2506,7 @@ export default function Game({ exitTo }: GameProps = {}) {
             winnerId: gameView.winnerId,
             me,
             opponents,
-            turn: gameView.turn,
+            turn: gameRound(gameView.turn, gameView.players.length),
             engineCrash,
             onEndGame: () => void endGame(),
           }

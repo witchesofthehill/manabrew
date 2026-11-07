@@ -55,4 +55,5 @@ export interface PromptOverlaySpec {
   respond: (output: PromptOutput["output"]) => void;
   onHideModal: () => void;
   onShowModal: () => void;
+  onOpenPhaseStopsHelp: () => void;
 }

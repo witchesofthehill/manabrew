@@ -314,6 +314,7 @@ export function useBoardGameplayPreview(
           },
           onHideModal: () => setModalHidden(true),
           onShowModal: () => setModalHidden(false),
+          onOpenPhaseStopsHelp: () => undefined,
         };
   const stackSpec: StackSpec = {
     cards: stackVisible

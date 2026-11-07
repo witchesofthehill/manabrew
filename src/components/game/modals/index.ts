@@ -4,6 +4,7 @@ export { EliminatedModal } from "./EliminatedModal";
 export { GameSettingsModal } from "./GameSettingsModal";
 export { LeaveGameModal } from "./LeaveGameModal";
 export { Modal } from "./Modal";
+export { PhaseStopsHelpModal } from "./PhaseStopsHelpModal";
 export { RepeatRequestModal } from "./RepeatRequestModal";
 export { RepeatVoteModal } from "./RepeatVoteModal";
 export { RestoreRequestModal } from "./RestoreRequestModal";

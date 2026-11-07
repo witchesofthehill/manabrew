@@ -32,10 +32,6 @@ const PAD = 12;
 const HEADER_HEIGHT = 28;
 const COLLAPSE_SIZE = 20;
 
-export function phaseTileLabel(entry: (typeof PHASE_BAR_ENTRIES)[number]): string {
-  return entry.id === "combat" ? "COM" : entry.short;
-}
-
 export function phaseTileLayout(width: number, opponentCount: number) {
   const availableWidth = width - PAD * 2;
   const minCellWidth = Math.max(
@@ -106,7 +102,23 @@ export class PromptPhaseControls extends Container {
       onPress: onCollapse,
     });
     collapse.position.set(width - PAD - collapseSize, (headerHeight - collapseSize) / 2);
-    content.addChild(heading, collapse);
+    const help = new PromptButton(theme, {
+      label: "Explain phase stops",
+      labelPlacement: "hidden",
+      icon: "lucide-circle-help",
+      iconSize: 14,
+      flat: true,
+      foreground: theme.appTheme.foreground,
+      backgroundColor: theme.appTheme.foreground,
+      backgroundAlpha: 0,
+      hoverBackgroundAlpha: 0.08,
+      width: collapseSize,
+      height: collapseSize,
+      paddingX: 3,
+      onPress: spec.onOpenPhaseStopsHelp,
+    });
+    help.position.set(PAD + heading.width + GAP, (headerHeight - collapseSize) / 2);
+    content.addChild(heading, help, collapse);
     let fullHeight: number;
     if (usePreferencesStore.getState().phaseStopLayout === "per-player") {
       const rows = new PromptPlayerPhaseRows(theme, spec, players, width - PAD * 2);
@@ -137,7 +149,7 @@ export class PromptPhaseControls extends Container {
       PHASE_BAR_ENTRIES.forEach((entry, index) => {
         const current = entry.steps.includes(step);
         const label = promptText(
-          current && stepShort ? stepShort : phaseTileLabel(entry),
+          current && stepShort ? stepShort : entry.short,
           getUiFontSize("meta"),
           current ? turnInk : ink,
           { weight: "700" },

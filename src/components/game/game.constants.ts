@@ -91,7 +91,7 @@ export const PHASE_BAR_ENTRIES: readonly {
   if (!phase.combat)
     return [{ id: phase.id, label: phase.label, short: phase.short, steps: [phase.id] }];
   if (phase.id !== COMBAT_STEPS[0]) return [];
-  return [{ id: "combat", label: "Combat", short: "COMBAT", steps: COMBAT_STEPS }];
+  return [{ id: "combat", label: "Combat", short: "ATK", steps: COMBAT_STEPS }];
 });
 export const TURN_HANDOFF_MS = 2800;
 export { MANA_LETTERS as MANA_KEYS } from "@/themes/gameTheme";

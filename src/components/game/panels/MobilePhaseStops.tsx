@@ -48,7 +48,7 @@ export function MobilePhaseStops({
 
   const currentPhase = PHASES.find((phase) => phase.id === currentStep);
   const currentLabel = currentPhase?.label ?? currentStep;
-  const currentShort = currentPhase?.combat ? "COM" : (currentPhase?.short ?? currentStep);
+  const currentShort = currentPhase?.combat ? "ATK" : (currentPhase?.short ?? currentStep);
 
   return (
     <div className="pointer-events-auto absolute inset-0 z-[3]">

@@ -69,7 +69,7 @@ export class PromptPlayerPhaseRows extends Container {
         const current =
           player.id === spec.gameView.activePlayerId && entry.steps.includes(spec.gameView.step);
         const button = new PromptButton(theme, {
-          label: entry.id === "combat" ? "COM" : entry.short,
+          label: entry.short,
           title: `${player.name}: ${entry.label}, ${enabled ? "stop" : "skip"}`,
           width: cellWidth,
           height: cellHeight,

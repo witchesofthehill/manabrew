@@ -166,6 +166,7 @@ export function PromptModalPreview({ preview, fixtures, onClose }: PromptModalPr
       respond: onClose,
       onHideModal: onClose,
       onShowModal: noAction,
+      onOpenPhaseStopsHelp: noAction,
     };
   }, [blockerCards, damageOrder, fixtures, input.type, onClose, preview, prompt, turnColor]);
 

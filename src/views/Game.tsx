@@ -36,6 +36,7 @@ import {
   RestoreVoteModal,
   EliminatedModal,
   GameSettingsModal,
+  PhaseStopsHelpModal,
   LeaveGameModal,
   SoundSettingsModal,
 } from "@/components/game/modals";
@@ -356,6 +357,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   const [boardMenuOpen, setBoardMenuOpen] = useState(false);
   const [gameSettingsOpen, setGameSettingsOpen] = useState(false);
   const [soundSettingsOpen, setSoundSettingsOpen] = useState(false);
+  const [phaseStopsHelpOpen, setPhaseStopsHelpOpen] = useState(false);
   const [eliminatedModalOpen, setEliminatedModalOpen] = useState(false);
   const eliminatedModalShownRef = useRef(false);
   const [leaveGameModalOpen, setLeaveGameModalOpen] = useState(false);
@@ -2511,6 +2513,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     respond: (output) => void respond(output),
     onHideModal: hidePromptModal,
     onShowModal: showPromptModal,
+    onOpenPhaseStopsHelp: () => setPhaseStopsHelpOpen(true),
   };
   const openRepeatVote =
     repeatVote?.status.type === "pending" &&
@@ -2782,6 +2785,14 @@ export default function Game({ exitTo }: GameProps = {}) {
 
       {gameSettingsOpen && <GameSettingsModal onClose={() => setGameSettingsOpen(false)} />}
       {soundSettingsOpen && <SoundSettingsModal onClose={() => setSoundSettingsOpen(false)} />}
+      {phaseStopsHelpOpen && (
+        <PhaseStopsHelpModal
+          gameView={gameView}
+          localPlayerId={me.id}
+          turnColor={promptOverlaySpec.turnColor}
+          onClose={() => setPhaseStopsHelpOpen(false)}
+        />
+      )}
       {combatDetailsOpen && (
         <CombatBreakdownModal
           attackerIds={

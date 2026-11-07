@@ -47,7 +47,7 @@ import {
 import type { CardDto, StepKind } from "@/protocol";
 import { PromptButton } from "./PromptButton";
 import { PromptGlow, promptPanelOutline } from "./PromptGlow";
-import { PromptPhaseControls, phaseTileLabel, phaseTileLayout } from "./PromptPhaseControls";
+import { PromptPhaseControls, phaseTileLayout } from "./PromptPhaseControls";
 import { PromptTurnBanner, TURN_IMPACT_SECONDS } from "./PromptTurnBanner";
 import { animationsEnabled } from "@/pixi/effects/enabled";
 import { gsap } from "@/pixi/effects/gsap";
@@ -808,7 +808,7 @@ export class PromptLayer extends PromptModalLayer {
         phaseControls?.setCurrentTileX(tabX);
         phaseControls?.setCurrentTileRise(rise);
         if (this.phaseTabSweep) {
-          phaseTab.setLabel(phaseTileLabel(PHASE_BAR_ENTRIES[phaseTiles.columnAt(tabX)]));
+          phaseTab.setLabel(PHASE_BAR_ENTRIES[phaseTiles.columnAt(tabX)].short);
         }
       };
       this.placePhaseTab = placeTab;

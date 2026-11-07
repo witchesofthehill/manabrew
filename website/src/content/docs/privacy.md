@@ -124,17 +124,39 @@ macOS, Windows, iOS, and Android builds. Generic self-hosted images and local
 development builds keep it off unless their operator enables it.
 
 The app sends failure reports to a self-hosted collector, not Grafana Cloud.
-Reports contain a fixed error category, safe compiled-asset locations, the app
-version and build, platform and engine categories, and a normalized route.
-They contain no account, user, device, game, or session IDs, no SDK session
-metadata, and no persistent diagnostic identity. We do not use these reports
-to link a failure to operational game records or count affected people or
-sessions.
+Reports retain bounded error and related cause text, filtered stack traces,
+the app version and build, platform and engine categories, and a normalized
+route. Code-like function names are retained after best-effort scrubbing.
+App code locations are restricted to approved app assets and can be resolved
+using private source maps. Other recognized locations use generic categories
+such as console, eval, WebAssembly, or external code, without their URLs or
+local paths. Browser-generated `VM` numbers and `<anonymous>` locations may
+remain as code-location labels, not user identity.
+Report metadata excludes account, user, device, game, and session IDs, SDK
+session metadata, and persistent diagnostic identity. We do not use these
+reports to link a failure to operational game records or count affected people
+or sessions.
 
-The reporter does not send account details, names, email addresses, tokens,
-cookies, chat or other messages, deck contents, card choices, decision
-journals, raw URLs, arbitrary error text, or console/network recordings. It
-does not record your screen. The collector necessarily receives your IP
+At the time of an error, reports may include the browser family and major
+version, operating-system family, browser connectivity state and connection
+category, page visibility, viewport-width bucket and orientation, page-age
+bucket, cross-origin isolation and secure-context state, and whether a
+service worker controls the page. We do not send the raw user-agent string,
+exact display dimensions, hardware identifiers, or an absolute page-start
+timestamp. Omitting identifiers does not guarantee that combinations of
+diagnostic fields are anonymous.
+
+The app and collector apply bounded, best-effort scrubbing to recognizable
+email addresses, guest handles, credentials, labeled personal fields, URLs
+and local paths, IP addresses, UUIDs, and long numeric or opaque tokens in
+error text. Arbitrary personal names and sensitive free prose may evade
+these patterns. Do not put personal data or secrets in errors; scrubbing
+cannot guarantee removal of all sensitive information or anonymity.
+
+The reporter rebuilds context from an allowlist rather than collecting account
+details, cookies, chat or other messages, deck contents, card choices, decision
+journals, request bodies, arbitrary app stores, or console/network recordings.
+It does not record your screen. The collector necessarily receives your IP
 address at transport to accept a request, but does not add it to diagnostic
 events or retain collector access logs.
 

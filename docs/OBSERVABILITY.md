@@ -25,15 +25,46 @@ Filters cover environment, version, immutable build, platform, source, and engin
 
 The `unhandled` source covers uncaught exceptions and unhandled promise rejections, including non-Error thrown values. Global error handling preserves the existing `window.onerror` callback and reports each exception once.
 
-The collector emits flat JSON. `type`, `value`, and `stacktrace` describe fixed error categories and code locations; `app_release` identifies the build. `context_source`, `context_operation`, `context_platform`, `context_build_target`, `context_route`, `context_engine`, and `context_signature` carry allowlisted context. Only `app`, `environment`, and `source` become Loki labels. Signatures use sanitized minified coordinates, so source-map cache state does not change grouping.
+The collector emits flat JSON. `type` contains an allowlisted error type, and `value` retains bounded error text after targeted best-effort scrubbing. `stacktrace` includes the scrubbed header, captured code locations and code-like function names, and bounded `Error.cause`/`AggregateError` descendants with scrubbed messages. `app_release` identifies the build. `context_source`, `context_operation`, `context_platform`, `context_build_target`, `context_route`, `context_engine`, and `context_signature` carry allowlisted context. Only `app`, `environment`, and `source` become Loki labels. Signatures use sanitized minified coordinates, so source-map cache state does not change grouping.
 
 ```logql
 {app="manabrew-client",environment="production"} | json | kind="exception"
 ```
 
-Reports contain no account, user, device, game, or session IDs, SDK session metadata, or persistent diagnostic identity. They cannot link a frontend exception to backend game records. The collector necessarily receives the sender's IP address at transport, but does not add it to diagnostic events or retain collector access logs.
+Report metadata excludes account, user, device, game, and session IDs, SDK session metadata, and persistent diagnostic identity. It provides no identity key to link a frontend exception to backend game records or count unique affected people. Existing Activity and Engagement dashboards still define a player by their full relay handle, including the guest suffix; error counts and signatures are not a second user-identity scheme. The collector necessarily receives the sender's IP address at transport, but does not add it to diagnostic events or retain collector access logs.
 
-Arbitrary messages become fixed safe categories. Asset frames retain only approved hashed `/assets/` paths and positive line/column coordinates. Function names, raw URLs, URL credentials, queries, fragments, user-agent metadata, names, email addresses, tokens, cookies, console output, network bodies, chat, deck contents, and decision journals are not sent. Source maps restore developer source locations inside authenticated Loki/Grafana, not in the client payload.
+Stacks retain up to 50 root frames and five cause/aggregate descendants with at most 20 additional frames in total. App frames keep approved hashed `/assets/` paths; private maps restore developer source locations and function names inside authenticated Loki/Grafana. Browser-generated `VM` numbers, `debugger eval code`, and `<anonymous>` locations are retained as code-location labels, not user identity. Other recognized locations become fixed `app:///console`, `app:///eval`, `app:///native`, `app:///wasm`, `app:///blob`, `app:///external`, or `app:///local` markers. Origins, blob IDs, and local paths are removed from frame locations. Bounded code-like runtime function names survive filtering and targeted scrubbing; other function labels become `<anonymous>`. WASM function indices and numeric offsets are retained. Available positive line/column coordinates survive filtering. Missing maps leave compiled locations intact, and only approved app asset paths trigger map lookup.
+
+Error and cause text is retained after bounded best-effort scrubbing of recognizable email addresses, guest handles, credentials, labeled personal fields, URLs and local paths, IP addresses, UUIDs, and long numeric or opaque tokens. These patterns cannot reliably detect arbitrary personal names or sensitive free prose, so do not put personal data or secrets in errors. Scrubbing does not guarantee anonymity or removal of all sensitive data. Context is rebuilt from allowlisted fields; raw user-agent strings, cookies, console output, request/network bodies, chat, deck contents, decision journals, and arbitrary app stores are not collected as context. Neither the original `Error.stack` header nor arbitrary cause objects are uploaded.
+
+Each error also captures the following bounded `diagnostic_*` fields when available. The client and collector independently enforce the same schema; unknown keys and values are omitted. These are error-time snapshots, not independent page-view, click, or session events.
+
+| Field                                  | Retained values                                                                     |
+| -------------------------------------- | ----------------------------------------------------------------------------------- |
+| `diagnostic_browser`                   | Chrome, Chromium, Edge, Firefox, Safari, Opera, or Samsung Internet family          |
+| `diagnostic_browser_major`             | Major version only, from 1 to 999                                                   |
+| `diagnostic_os`                        | Windows, macOS, iOS, Android, Linux, or ChromeOS family                             |
+| `diagnostic_network`                   | `online` or `offline`, as reported by the browser                                   |
+| `diagnostic_connection`                | `slow-2g`, `2g`, `3g`, or `4g` when supported                                       |
+| `diagnostic_visibility`                | `visible`, `hidden`, or `prerender`                                                 |
+| `diagnostic_viewport`                  | Width bucket: under 640, 640–1023, 1024–1439, or 1440+ CSS pixels                   |
+| `diagnostic_orientation`               | `portrait` or `landscape`                                                           |
+| `diagnostic_page_uptime`               | Under 10 seconds, 10 seconds–1 minute, 1–10 minutes, 10 minutes–1 hour, or 1+ hours |
+| `diagnostic_cross_origin_isolated`     | Boolean                                                                             |
+| `diagnostic_secure_context`            | Boolean                                                                             |
+| `diagnostic_service_worker_controlled` | Boolean                                                                             |
+
+Browser/OS classification is approximate, and `online` does not establish collector reachability. No high-entropy client hints, exact screen dimensions, hardware identifiers, or absolute page-start timestamp are collected. Omitting explicit identifiers does not guarantee that combinations of diagnostic fields are anonymous.
+
+To check production delivery from the app's developer console, throw asynchronously so the page's global handler receives the exception:
+
+```js
+setTimeout(() => {
+  throw new Error("Faro production smoke test");
+}, 100);
+```
+
+Expect a `/collect` POST with HTTP 202, then inspect `stacktrace` in the Client Errors dashboard's Exception details or with the Loki query above. The message retains `Faro production smoke test`, with available positive line/column coordinates. The console frame may retain a browser `VM` label or `<anonymous>`, or use a synthetic `app:///console` or `app:///eval` marker. This validates reporting, not source-map resolution or native crash capture. Source maps require an error from a shipped app asset. Test outside an active game.
 
 Events expire under Loki's existing 30-day retention. Client batches contain at most 10 items; transport queues at most 20 batches with one request in flight, a five-second timeout, and two attempts. There is no persistent retry queue. Offline clients, abrupt termination, static module failures before initialization, and WebView/process termination can lose reports. Native Rust/Forge dumps, OS kills, and rules correctness are outside this coverage.
 

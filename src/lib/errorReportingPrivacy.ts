@@ -1,5 +1,7 @@
 import { TransportItemType } from "@grafana/faro-web-sdk";
 import type { BeforeSendHook, ExceptionStackFrame } from "@grafana/faro-web-sdk";
+import { safeErrorDiagnostics } from "@/lib/errorReportingDiagnostics";
+import { redactErrorText } from "@/lib/errorReportingRedaction";
 
 export const CLIENT_ERROR_SOURCES = [
   "startup",
@@ -68,49 +70,28 @@ export const ROUTES: Record<string, true> = {
   "card-mock": true,
   "design-system": true,
 };
-const SAFE_MESSAGES: Record<string, true> = {
-  "Non-Error rejection": true,
-  "Cannot access properties of null or undefined": true,
-  "Network request failed": true,
-  "Module loading failed": true,
-  "Maximum call stack size exceeded": true,
-  "WebAssembly runtime failure": true,
-  "Client operation failed": true,
-};
-const MAX_FRAMES = 20;
+export const MAX_STACK_FRAMES = 50;
+export const MAX_ERROR_CAUSES = 5;
+export const MAX_CAUSE_FRAMES = 20;
+const MAX_CAUSE_CONTEXT_LENGTH = 16384;
+const MAX_COMPONENT_FRAMES = 20;
+export const ANONYMOUS_FUNCTION = "<anonymous>";
+const STACK_LOCATIONS = {
+  console: "app:///console",
+  eval: "app:///eval",
+  native: "app:///native",
+  wasm: "app:///wasm",
+  blob: "app:///blob",
+  external: "app:///external",
+  local: "app:///local",
+} as const;
 
 export function safeErrorName(name: unknown): string {
   return typeof name === "string" && Object.hasOwn(ERROR_NAMES, name) ? name : "Error";
 }
 
 export function safeErrorMessage(value: unknown): string {
-  if (typeof value !== "string") return "Non-Error rejection";
-  const message = value.slice(0, 2048);
-  if (Object.hasOwn(SAFE_MESSAGES, message)) return message;
-  if (/^(?:Cannot read|Cannot set) properties of (?:undefined|null)/.test(message)) {
-    return "Cannot access properties of null or undefined";
-  }
-  if (
-    /^(?:Failed to fetch$|NetworkError when attempting to fetch resource|Load failed\b)/.test(
-      message,
-    )
-  ) {
-    return "Network request failed";
-  }
-  if (
-    /^(?:Failed to fetch dynamically imported module|Importing a module script failed)/.test(
-      message,
-    )
-  ) {
-    return "Module loading failed";
-  }
-  if (/^(?:Maximum call stack size exceeded|too much recursion)$/.test(message)) {
-    return "Maximum call stack size exceeded";
-  }
-  if (/^(?:unreachable|memory access out of bounds|out of bounds memory access)$/.test(message)) {
-    return "WebAssembly runtime failure";
-  }
-  return "Client operation failed";
+  return typeof value === "string" ? redactErrorText(value) : "Non-Error rejection";
 }
 
 export function safeAssetUrl(value: unknown): string | undefined {
@@ -127,21 +108,102 @@ export function safeAssetUrl(value: unknown): string | undefined {
   }
 }
 
+export function safeStackLocation(value: unknown): string | undefined {
+  const asset = safeAssetUrl(value);
+  if (asset) return asset;
+  if (typeof value !== "string" || value.length > 2048) return undefined;
+  if (Object.values(STACK_LOCATIONS).some((location) => location === value)) return value;
+  if (/^(?:VM\d{1,9}|debugger eval code)$/.test(value) || value === ANONYMOUS_FUNCTION)
+    return value;
+  if (value === "eval") return STACK_LOCATIONS.eval;
+  if (/^(?:native|\[native code\])$/.test(value)) return STACK_LOCATIONS.native;
+  if (/^wasm:\/\//.test(value)) return STACK_LOCATIONS.wasm;
+  if (/^blob:/.test(value)) return STACK_LOCATIONS.blob;
+  if (/^(?:https?|tauri|asset):\/\//.test(value)) return STACK_LOCATIONS.external;
+  if (/^(?:file:\/\/|\/|[A-Za-z]:\\)/.test(value)) return STACK_LOCATIONS.local;
+  return undefined;
+}
+
+function safeStackFunction(value: unknown): string {
+  if (
+    typeof value !== "string" ||
+    value.length > 200 ||
+    !/^(?:(?:async|new|bound|get|set) )?[\p{L}\p{N}_$.[\]<>-]+(?: \[as [\p{L}\p{N}_$.]+\])?$/u.test(
+      value,
+    )
+  )
+    return ANONYMOUS_FUNCTION;
+  return redactErrorText(value);
+}
+
 export function safeFrames(frames: ExceptionStackFrame[] = []): ExceptionStackFrame[] {
-  return frames.slice(0, MAX_FRAMES).flatMap((frame) => {
-    const filename = safeAssetUrl(frame.filename);
+  return frames.slice(0, MAX_STACK_FRAMES).flatMap((frame) => {
+    const filename = safeStackLocation(frame.filename);
     if (!filename) return [];
+    const wasmFunction =
+      filename === STACK_LOCATIONS.wasm
+        ? (frame.filename?.match(/wasm-function\[\d{1,9}\]/)?.[0] ??
+          frame.function?.match(/^wasm-function\[\d{1,9}\]$/)?.[0])
+        : undefined;
+    const wasmOffset =
+      filename === STACK_LOCATIONS.wasm
+        ? frame.filename?.match(/:0x([0-9a-f]{1,8})$/i)?.[1]
+        : undefined;
+    const colno = frame.colno ?? (wasmOffset ? Number.parseInt(wasmOffset, 16) : undefined);
     return [
       {
         filename,
-        function: "?",
-        ...(Number.isSafeInteger(frame.lineno) && frame.lineno! > 0
+        function: wasmFunction ?? safeStackFunction(frame.function),
+        ...(Number.isSafeInteger(frame.lineno) &&
+        frame.lineno! > 0 &&
+        frame.lineno! <= 1_000_000_000
           ? { lineno: frame.lineno }
           : {}),
-        ...(Number.isSafeInteger(frame.colno) && frame.colno! > 0 ? { colno: frame.colno } : {}),
+        ...(Number.isSafeInteger(colno) && colno! > 0 && colno! <= 1_000_000_000 ? { colno } : {}),
       },
     ];
   });
+}
+
+export type ErrorCause = {
+  parent: number;
+  relation: "cause" | "aggregate";
+  type: string;
+  value: string;
+  frames: ExceptionStackFrame[];
+};
+
+export function safeErrorCauses(value: unknown): ErrorCause[] {
+  if (typeof value !== "string" || value.length > MAX_CAUSE_CONTEXT_LENGTH) return [];
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (!Array.isArray(parsed)) return [];
+    const causes: ErrorCause[] = [];
+    let remainingFrames = MAX_CAUSE_FRAMES;
+    for (const input of parsed.slice(0, MAX_ERROR_CAUSES)) {
+      if (
+        !input ||
+        !Number.isSafeInteger(input.parent) ||
+        input.parent < 0 ||
+        input.parent > causes.length ||
+        (input.relation !== "cause" && input.relation !== "aggregate") ||
+        !Array.isArray(input.frames)
+      )
+        break;
+      const frames = safeFrames(input.frames).slice(0, remainingFrames);
+      remainingFrames -= frames.length;
+      causes.push({
+        parent: input.parent,
+        relation: input.relation,
+        type: safeErrorName(input.type),
+        value: safeErrorMessage(input.value),
+        frames,
+      });
+    }
+    return causes;
+  } catch {
+    return [];
+  }
 }
 
 export function safeComponentStack(value: unknown): string {
@@ -149,7 +211,7 @@ export function safeComponentStack(value: unknown): string {
   return value
     .slice(0, 8192)
     .split("\n")
-    .slice(0, MAX_FRAMES)
+    .slice(0, MAX_COMPONENT_FRAMES)
     .flatMap((line) => {
       const location = line.match(
         /((?:https?:\/\/|tauri:\/\/|asset:\/\/|app:\/\/\/)[^\s)]+):(\d{1,9}):(\d{1,9})(?:\)|$)/,
@@ -206,6 +268,7 @@ export function createPrivacyFilter(environment: string): BeforeSendHook {
       const type = safeErrorName(payload.type);
       const value = safeErrorMessage(payload.value);
       const context: Record<string, string> = {
+        ...safeErrorDiagnostics(input),
         engine: safeEngine(input.engine),
         build: __APP_BUILD_ID__,
         version: __APP_VERSION__,
@@ -228,6 +291,8 @@ export function createPrivacyFilter(environment: string): BeforeSendHook {
       const componentStack = safeComponentStack(input.component_stack);
       if (componentStack) context.component_stack = componentStack;
       if (operation) context.operation = operation;
+      const causes = safeErrorCauses(input.error_causes);
+      if (causes.length) context.error_causes = JSON.stringify(causes);
       return {
         type: TransportItemType.EXCEPTION,
         payload: {

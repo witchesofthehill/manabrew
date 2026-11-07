@@ -16,6 +16,7 @@ const RAILS_AT = 0.1;
 const TITLE_AT = TURN_IMPACT_SECONDS + 0.1;
 const DETAIL_AT = TURN_IMPACT_SECONDS + 0.2;
 const EXIT_AT = TOTAL_SECONDS - 0.45;
+const FADE_SECONDS = 0.15;
 const FONT_HEIGHT_SHARE = 0.07;
 const FONT_WIDTH_SHARE = 0.05;
 const BAND_FONT_RATIO = 2.4;
@@ -176,8 +177,11 @@ export class PromptTurnBanner {
       )
       .to(turnBadge.scale, { x: 0, y: 0, duration: 0.18, ease: "back.in(2)" }, EXIT_AT)
       .to(avatar.scale, { x: 0, y: 0, duration: 0.18, ease: "back.in(2)" }, EXIT_AT)
-      .to(band.scale, { y: 0, duration: 0.2, ease: "power3.in" }, EXIT_AT + 0.18)
-      .to(rails.scale, { x: 0, duration: 0.25, ease: "power3.in" }, EXIT_AT + 0.2);
+      .to(
+        [band, rails],
+        { alpha: 0, duration: FADE_SECONDS, ease: "power1.out" },
+        TOTAL_SECONDS - FADE_SECONDS,
+      );
 
     this.onFrame();
   }

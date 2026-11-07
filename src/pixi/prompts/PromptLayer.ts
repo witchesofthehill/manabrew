@@ -686,7 +686,7 @@ export class PromptLayer extends PromptModalLayer {
     const phase = PHASES.find((entry) => entry.id === gameView.step);
     const phaseIndex = PHASE_BAR_ENTRIES.findIndex((entry) => entry.steps.includes(gameView.step));
     if (phaseIndex >= 0) this.phaseTabIndex = phaseIndex;
-    const phaseTiles = phaseTileLayout(width, gameView.players.length - 1);
+    const phaseTiles = phaseTileLayout(width);
     if (!minimal) this.phaseColumns = phaseTiles;
     const phaseTabX = phaseTiles.columnX(this.phaseTabIndex);
     const phaseTab = minimal

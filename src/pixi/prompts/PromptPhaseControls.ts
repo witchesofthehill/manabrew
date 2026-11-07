@@ -16,7 +16,7 @@ import {
 import { hexToNum, mixNum } from "@/pixi/colorUtils";
 import { PromptButton } from "./PromptButton";
 import { promptText } from "./PromptLayerBase";
-import { PromptPlayerPhaseRows } from "./PromptPlayerPhaseRows";
+import { phaseColumnCount, PromptPlayerPhaseRows } from "./PromptPlayerPhaseRows";
 import type { PromptOverlaySpec } from "./prompt.types";
 
 const GAP = 4;
@@ -32,16 +32,9 @@ const PAD = 12;
 const HEADER_HEIGHT = 28;
 const COLLAPSE_SIZE = 20;
 
-export function phaseTileLayout(width: number, opponentCount: number) {
+export function phaseTileLayout(width: number) {
   const availableWidth = width - PAD * 2;
-  const minCellWidth = Math.max(
-    getUiControlHeight(),
-    opponentCount * getUiControlFloor() + Math.max(0, opponentCount - 1) * GAP,
-  );
-  const columns = Math.min(
-    PHASE_BAR_ENTRIES.length,
-    Math.max(1, Math.floor((availableWidth + GAP) / (minCellWidth + GAP))),
-  );
+  const columns = phaseColumnCount(availableWidth);
   const phaseWidth = (availableWidth - GAP * (columns - 1)) / columns;
   return {
     columns,
@@ -142,7 +135,7 @@ export class PromptPhaseControls extends Container {
       );
       const step = spec.gameView.step;
       const stepShort = PHASES.find((phase) => phase.id === step)?.short;
-      const { columns, phaseWidth, columnX } = phaseTileLayout(width, opponents.length);
+      const { columns, phaseWidth, columnX } = phaseTileLayout(width);
       const tiles = new Container();
       const currentLayer = new Container();
       content.addChild(tiles, currentLayer);

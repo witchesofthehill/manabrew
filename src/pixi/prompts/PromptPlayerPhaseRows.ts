@@ -5,7 +5,7 @@ import type { Theme } from "@/hooks/useTheme";
 import { hexToNum } from "@/pixi/colorUtils";
 import { usePhaseStopStore } from "@/stores/usePhaseStopStore";
 import { readableTextColor } from "@/themes/gameTheme";
-import { getUiControlHeight, getUiFontSize } from "@/themes/typography";
+import { getUiControlHeight, getUiFontSize, isTouchUi } from "@/themes/typography";
 import { PromptButton } from "./PromptButton";
 import { promptText } from "./PromptLayerBase";
 import type { PromptOverlaySpec } from "./prompt.types";
@@ -21,6 +21,14 @@ interface PhaseStopPlayer {
   stops: ReadonlySet<string>;
 }
 
+export function phaseColumnCount(availableWidth: number): number {
+  if (isTouchUi()) return PHASE_BAR_ENTRIES.length;
+  return Math.min(
+    PHASE_BAR_ENTRIES.length,
+    Math.max(1, Math.floor((availableWidth + GAP) / (getUiControlHeight() + GAP))),
+  );
+}
+
 export class PromptPlayerPhaseRows extends Container {
   readonly contentHeight: number;
 
@@ -33,10 +41,7 @@ export class PromptPlayerPhaseRows extends Container {
     super();
     const stops = usePhaseStopStore.getState();
     const cellHeight = getUiControlHeight();
-    const columns = Math.min(
-      PHASE_BAR_ENTRIES.length,
-      Math.max(1, Math.floor((width + GAP) / (cellHeight + GAP))),
-    );
+    const columns = phaseColumnCount(width);
     const cellWidth = (width - GAP * (columns - 1)) / columns;
     const phaseRows = Math.ceil(PHASE_BAR_ENTRIES.length / columns);
     const surface = theme.gameTheme.phaseStrip.background;

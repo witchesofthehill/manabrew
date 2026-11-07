@@ -1,8 +1,10 @@
-import { getStackFramesFromError, InternalLoggerLevel } from "@grafana/faro-web-sdk";
+import { InternalLoggerLevel } from "@grafana/faro-web-sdk";
 import type { ExceptionStackFrame, Faro } from "@grafana/faro-web-sdk";
 import { getClientPlatform } from "@/platform/clientPlatform";
 import { ClientErrorsInstrumentation } from "@/lib/errorReportingInstrumentation";
 import { createClientErrorTransport } from "@/lib/errorReportingTransport";
+import { collectErrorDiagnostics } from "@/lib/errorReportingDiagnostics";
+import { errorCauses, errorStackFrames } from "@/lib/errorReportingStack";
 import {
   createPrivacyFilter,
   errorSignature,
@@ -104,8 +106,9 @@ export function reportClientError(
     if (isError) reportedErrors.add(error);
     const type = safeErrorName(isError ? error.name : "Error");
     const value = safeErrorMessage(isError ? error.message : error);
-    const parsedFrames = isError ? getStackFramesFromError(error) : [];
-    const frames = safeFrames(parsedFrames.length ? parsedFrames : context?.stackFrames);
+    const parsedFrames = isError ? errorStackFrames(error) : [];
+    const frames = parsedFrames.length ? parsedFrames : safeFrames(context?.stackFrames);
+    const causes = errorCauses(error);
     if (!isError) {
       const signature = errorSignature(
         type,
@@ -132,10 +135,12 @@ export function reportClientError(
         build_target: __APP_BUILD_TARGET__,
         source,
         route: normalizedRoute(),
+        ...collectErrorDiagnostics(),
         ...(context?.componentStack
           ? { component_stack: safeComponentStack(context.componentStack) }
           : {}),
         ...(context?.operation ? { operation: context.operation } : {}),
+        ...(causes ? { error_causes: causes } : {}),
       },
     });
   } catch {

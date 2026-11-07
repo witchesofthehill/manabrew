@@ -117,6 +117,7 @@ export class SourceMaps {
   }
 
   frame(release, frame, request) {
+    if (!frame.filename.startsWith("app:///assets/")) return frame;
     const key = `${frame.filename}:${frame.lineno}:${frame.colno}`;
     if (request.frames.has(key)) return request.frames.get(key) ?? frame;
     request.frames.set(key, undefined);

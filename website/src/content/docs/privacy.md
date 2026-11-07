@@ -124,12 +124,24 @@ macOS, Windows, iOS, and Android builds. Generic self-hosted images and local
 development builds keep it off unless their operator enables it.
 
 The app sends failure reports to a self-hosted collector, not Grafana Cloud.
-Reports contain a fixed error category, safe compiled-asset locations, the app
-version and build, platform and engine categories, and a normalized route.
+Reports contain fixed error categories, privacy-filtered stack traces and
+related error causes, the app version and build, platform and engine
+categories, and a normalized route. App code locations can be resolved using
+private source maps. Other recognized locations use generic categories such
+as console, eval, WebAssembly, or external code, without their URLs or paths.
 They contain no account, user, device, game, or session IDs, no SDK session
 metadata, and no persistent diagnostic identity. We do not use these reports
 to link a failure to operational game records or count affected people or
 sessions.
+
+At the time of an error, reports may include the browser family and major
+version, operating-system family, browser connectivity state and connection
+category, page visibility, viewport-width bucket and orientation, page-age
+bucket, cross-origin isolation and secure-context state, and whether a
+service worker controls the page. We do not send the raw user-agent string,
+exact display dimensions, hardware identifiers, or an absolute page-start
+timestamp. Omitting identifiers does not guarantee that combinations of
+diagnostic fields are anonymous.
 
 The reporter does not send account details, names, email addresses, tokens,
 cookies, chat or other messages, deck contents, card choices, decision

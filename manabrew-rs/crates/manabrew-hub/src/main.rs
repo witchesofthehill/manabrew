@@ -26,6 +26,8 @@ use crate::storage::{AnalyticsImportOutcome, ReplaceSnapshotOutcome, Storage};
 
 const ASSET_SWEEP_INTERVAL: Duration = Duration::from_secs(5 * 60);
 const ASSET_SWEEP_BATCH: u32 = 200;
+const SNAPSHOT_COMPRESS_INTERVAL: Duration = Duration::from_secs(1);
+const SNAPSHOT_COMPRESS_BATCH: u32 = 50;
 const RANKING_QUERY_LIMIT: u32 = 100;
 const RANKING_RESULT_LIMIT: usize = 25;
 const MIN_WIN_RATE_GAMES: u32 = 20;
@@ -134,6 +136,26 @@ async fn main() {
             }
         });
     }
+    let snapshot_state = Arc::clone(&state);
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(SNAPSHOT_COMPRESS_INTERVAL);
+        loop {
+            interval.tick().await;
+            let compressed = snapshot_state
+                .storage
+                .lock()
+                .unwrap()
+                .compress_text_snapshots(SNAPSHOT_COMPRESS_BATCH);
+            match compressed {
+                Ok(0) => break,
+                Ok(_) => {}
+                Err(error) => {
+                    tracing::warn!(%error, "deck snapshot compression stopped");
+                    break;
+                }
+            }
+        }
+    });
     let ranking_state = Arc::clone(&state);
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(ranking_refresh_interval);

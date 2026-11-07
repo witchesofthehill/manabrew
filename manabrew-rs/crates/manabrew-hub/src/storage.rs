@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::io::{Read, Write};
 use std::time::Duration;
 
 use manabrew_hub::dto::{
@@ -10,7 +11,11 @@ use manabrew_hub::dto::{
     TopDeckSnapshot, TopDeckSnapshotEntry,
 };
 
+use flate2::read::GzDecoder;
+use flate2::write::GzEncoder;
+use flate2::Compression;
 use manabrew_protocol::deck_dto::{deck_fingerprint, Deck, DeckCard, DeckFormat};
+use rusqlite::types::{Type, ValueRef};
 use rusqlite::{params, Connection, OptionalExtension, Result as SqlResult, Row, Transaction};
 use sha2::{Digest, Sha256};
 
@@ -1027,7 +1032,7 @@ impl Storage {
                 deck_colors(deck),
                 display_cards(deck).count() as u32,
                 commander_names_json(deck),
-                snapshot_json,
+                compress_snapshot(&snapshot_json)?,
                 sha256_hex(snapshot_json.as_bytes()),
                 now,
             ],
@@ -1116,7 +1121,7 @@ impl Storage {
                             deck_colors(&preset.deck),
                             display_cards(&preset.deck).count() as u32,
                             commander_names_json(&preset.deck),
-                            snapshot_json,
+                            compress_snapshot(&snapshot_json)?,
                             content_hash,
                             now,
                         ],
@@ -1217,19 +1222,12 @@ impl Storage {
                  WHERE d.kind = 'preset' AND d.preset_key = ?1 COLLATE NOCASE
                    AND d.deleted_at IS NULL",
                 params![preset_key],
-                |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+                |row| Ok((row.get::<_, String>(0)?, read_snapshot(row, 1)?)),
             )
             .optional()?;
-        let Some((source_deck_id, snapshot_json)) = source else {
+        let Some((source_deck_id, mut deck)) = source else {
             return Ok(None);
         };
-        let mut deck: Deck = serde_json::from_str(&snapshot_json).map_err(|error| {
-            rusqlite::Error::FromSqlConversionFailure(
-                1,
-                rusqlite::types::Type::Text,
-                Box::new(error),
-            )
-        })?;
         let deck_id = uuid::Uuid::new_v4().to_string();
         let version_id = uuid::Uuid::new_v4().to_string();
         deck.id = Some(deck_id.clone());
@@ -1263,7 +1261,7 @@ impl Storage {
                 deck_colors(&deck),
                 display_cards(&deck).count() as u32,
                 commander_names_json(&deck),
-                fork_snapshot,
+                compress_snapshot(&fork_snapshot)?,
                 sha256_hex(fork_snapshot.as_bytes()),
                 now,
             ],
@@ -1271,6 +1269,28 @@ impl Storage {
         insert_deck_cards(&tx, &version_id, &deck)?;
         tx.commit()?;
         self.get_account_deck(account_id, &deck_id)
+    }
+
+    pub fn compress_text_snapshots(&self, limit: u32) -> SqlResult<usize> {
+        let tx = self.conn.unchecked_transaction()?;
+        let rows = {
+            let mut stmt = tx.prepare(
+                "SELECT id, snapshot_json FROM deck_versions
+                 WHERE typeof(snapshot_json) = 'text' LIMIT ?1",
+            )?;
+            let rows = stmt.query_map(params![limit], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })?;
+            rows.collect::<SqlResult<Vec<_>>>()?
+        };
+        for (id, json) in &rows {
+            tx.execute(
+                "UPDATE deck_versions SET snapshot_json = ?2 WHERE id = ?1",
+                params![id, compress_snapshot(json)?],
+            )?;
+        }
+        tx.commit()?;
+        Ok(rows.len())
     }
 
     pub fn list_owned_decks(&self, account_id: &str) -> SqlResult<Vec<AccountDeckSummary>> {
@@ -1318,14 +1338,7 @@ impl Storage {
                 params![deck_id, account_id],
                 |row| {
                     let summary = map_account_deck_summary(row)?;
-                    let snapshot_json: String = row.get(11)?;
-                    let mut deck: Deck = serde_json::from_str(&snapshot_json).map_err(|error| {
-                        rusqlite::Error::FromSqlConversionFailure(
-                            11,
-                            rusqlite::types::Type::Text,
-                            Box::new(error),
-                        )
-                    })?;
+                    let mut deck: Deck = read_snapshot(row, 11)?;
                     deck.playmat_asset_id = row.get(12)?;
                     deck.playmat_url = public_asset_url(
                         self.asset_base_url.as_deref(),
@@ -1416,7 +1429,7 @@ impl Storage {
                 deck_colors(deck),
                 display_cards(deck).count() as u32,
                 commander_names_json(deck),
-                snapshot_json,
+                compress_snapshot(&snapshot_json)?,
                 content_hash,
                 now,
             ],
@@ -1524,14 +1537,7 @@ impl Storage {
                         published: row.get(3)?,
                         created_at: row.get(4)?,
                     };
-                    let snapshot_json: String = row.get(5)?;
-                    let deck = serde_json::from_str(&snapshot_json).map_err(|error| {
-                        rusqlite::Error::FromSqlConversionFailure(
-                            5,
-                            rusqlite::types::Type::Text,
-                            Box::new(error),
-                        )
-                    })?;
+                    let deck = read_snapshot(row, 5)?;
                     Ok(DeckVersionDetail { summary, deck })
                 },
             )
@@ -1777,14 +1783,7 @@ impl Storage {
                 params![entry_ref, viewer_account_id],
                 |row| {
                     let entry = map_deckhub_entry_summary(row)?;
-                    let snapshot_json: String = row.get(14)?;
-                    let deck: Deck = serde_json::from_str(&snapshot_json).map_err(|error| {
-                        rusqlite::Error::FromSqlConversionFailure(
-                            14,
-                            rusqlite::types::Type::Text,
-                            Box::new(error),
-                        )
-                    })?;
+                    let deck: Deck = read_snapshot(row, 14)?;
                     Ok(DeckHubEntryDetail {
                         entry,
                         deck: public_deck(deck),
@@ -2715,14 +2714,7 @@ impl Storage {
                  ORDER BY v.deck_id ASC, v.version_no ASC",
             )?
             .query_map(params![account_id], |row| {
-                let snapshot_json: String = row.get(6)?;
-                let deck = serde_json::from_str(&snapshot_json).map_err(|error| {
-                    rusqlite::Error::FromSqlConversionFailure(
-                        6,
-                        rusqlite::types::Type::Text,
-                        Box::new(error),
-                    )
-                })?;
+                let deck = read_snapshot(row, 6)?;
                 Ok((
                     row.get::<_, String>(0)?,
                     DeckVersionDetail {
@@ -3043,6 +3035,35 @@ struct AnalyticsDeckPlay {
     winner: Option<String>,
 }
 
+fn compress_snapshot(json: &str) -> SqlResult<Vec<u8>> {
+    let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+    encoder
+        .write_all(json.as_bytes())
+        .and_then(|()| encoder.finish())
+        .map_err(|error| rusqlite::Error::ToSqlConversionFailure(Box::new(error)))
+}
+
+fn snapshot_text(row: &Row, index: usize) -> SqlResult<String> {
+    match row.get_ref(index)? {
+        ValueRef::Blob(bytes) => {
+            let mut json = String::new();
+            GzDecoder::new(bytes)
+                .read_to_string(&mut json)
+                .map_err(|error| {
+                    rusqlite::Error::FromSqlConversionFailure(index, Type::Blob, Box::new(error))
+                })?;
+            Ok(json)
+        }
+        _ => row.get(index),
+    }
+}
+
+fn read_snapshot(row: &Row, index: usize) -> SqlResult<Deck> {
+    serde_json::from_str(&snapshot_text(row, index)?).map_err(|error| {
+        rusqlite::Error::FromSqlConversionFailure(index, Type::Text, Box::new(error))
+    })
+}
+
 fn published_deck_matches(conn: &Connection, id: &str, fingerprint: &str) -> SqlResult<bool> {
     let snapshot_json = conn
         .query_row(
@@ -3051,7 +3072,7 @@ fn published_deck_matches(conn: &Connection, id: &str, fingerprint: &str) -> Sql
              JOIN deck_versions v ON v.id = e.published_version_id
              WHERE e.id = ?1 AND e.status = 'published'",
             params![id],
-            |row| row.get::<_, String>(0),
+            |row| snapshot_text(row, 0),
         )
         .optional()?;
     Ok(snapshot_json
@@ -3389,10 +3410,7 @@ fn sha256_hex(bytes: &[u8]) -> String {
 fn map_deckhub_entry_summary(row: &Row) -> SqlResult<DeckHubEntrySummary> {
     let format: Option<String> = row.get(10)?;
     let commanders: String = row.get(11)?;
-    let snapshot_json: String = row.get(14)?;
-    let deck: Deck = serde_json::from_str(&snapshot_json).map_err(|error| {
-        rusqlite::Error::FromSqlConversionFailure(14, rusqlite::types::Type::Text, Box::new(error))
-    })?;
+    let deck: Deck = read_snapshot(row, 14)?;
     let cover_card_name: Option<String> = row
         .get::<_, Option<String>>(16)?
         .or_else(|| deck.cover_card_name.clone());
@@ -4342,5 +4360,66 @@ mod tests {
         assert_eq!(detail.entry.card_count, 1);
         assert_eq!(detail.entry.colors, "C");
         assert_eq!(detail.deck.cards[0].identity.name, "Lightning Bolt");
+    }
+
+    fn snapshot_type(storage: &Storage) -> String {
+        storage
+            .conn
+            .query_row(
+                "SELECT typeof(snapshot_json) FROM deck_versions v
+                 JOIN decks d ON d.id = v.deck_id WHERE d.kind = 'user'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap()
+    }
+
+    #[test]
+    fn deck_snapshots_are_stored_compressed_and_text_rows_convert_in_place() {
+        let storage = accounts();
+        let deck = Deck {
+            name: "Packed".into(),
+            ..Deck::default()
+        };
+        let CreateDeckOutcome::Created(created) = storage
+            .create_account_deck("acct-1", deck, None, NOW)
+            .unwrap()
+        else {
+            panic!("deck was not created");
+        };
+        let deck_id = created.summary.id.clone();
+        assert_eq!(snapshot_type(&storage), "blob");
+
+        let (json, content_hash): (String, String) = storage
+            .conn
+            .query_row(
+                "SELECT snapshot_json, content_hash FROM deck_versions WHERE deck_id = ?1",
+                params![deck_id],
+                |row| Ok((snapshot_text(row, 0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(sha256_hex(json.as_bytes()), content_hash);
+
+        storage
+            .conn
+            .execute(
+                "UPDATE deck_versions SET snapshot_json = ?2 WHERE deck_id = ?1",
+                params![deck_id, json],
+            )
+            .unwrap();
+        assert_eq!(snapshot_type(&storage), "text");
+        let read = |storage: &Storage| {
+            storage
+                .get_account_deck("acct-1", &deck_id)
+                .unwrap()
+                .unwrap()
+                .deck
+                .name
+        };
+        assert_eq!(read(&storage), "Packed");
+
+        while storage.compress_text_snapshots(50).unwrap() > 0 {}
+        assert_eq!(snapshot_type(&storage), "blob");
+        assert_eq!(read(&storage), "Packed");
     }
 }

@@ -174,6 +174,7 @@ export class BoardRegion {
   private promptReferenceCardId: string | null = null;
   private promptReferenceColor: number | null = null;
   private combatRowAttackerIds = new Set<string>();
+  private combatForwardIds = new Set<string>();
   private combatRowBlocks: CombatAssignmentDto[] = [];
   private combatRowTargets = new Map<string, CombatRowTarget>();
   private combatRowTargetCardIds = new Set<string>();
@@ -536,6 +537,7 @@ export class BoardRegion {
       card.isAttacking ||
       this.entries.get(id)?.sprite.card.isAttacking ||
       this.combatRowAttackerIds.has(id) ||
+      this.combatForwardIds.has(id) ||
       this.combatRowBlockerIds.has(id) ||
       this.combatRowTargetCardIds.has(id)
     )
@@ -719,7 +721,9 @@ export class BoardRegion {
       }
       const wantGuest =
         this.combatRowAttackerIds.has(id) ||
+        this.combatForwardIds.has(id) ||
         this.combatRowBlockerIds.has(id) ||
+        this.combatStaging?.blockerIds.has(id) === true ||
         entry.gliding === true;
       const parent = wantGuest ? this.host.getCombatGuestLayer() : this.container;
       if (s.parent !== parent) parent.addChild(s);
@@ -837,6 +841,7 @@ export class BoardRegion {
     const isFirstState = this.lastState === null;
     this.lastState = state;
     this.combatRowAttackerIds = new Set(state.combatRowAttackerIds ?? []);
+    this.combatForwardIds = new Set(state.combatForwardIds ?? []);
     this.combatRowBlocks = state.combatRowBlocks ?? [];
     this.combatRowBlockerIds = new Set(this.combatRowBlocks.map((b) => b.blockerId));
     this.combatRowTargets = new Map(
@@ -1024,7 +1029,7 @@ export class BoardRegion {
     const staged = this.combatStaging?.attackerIds;
     const frontY = this.frontEdgeY();
     for (const card of state.cards) {
-      if (!card.isAttacking || staged?.has(card.id)) continue;
+      if (!card.isAttacking || staged?.has(card.id) || this.combatForwardIds.has(card.id)) continue;
       const entry = this.entries.get(card.id);
       if (!entry) continue;
       entry.targetY = frontY;
@@ -1041,7 +1046,7 @@ export class BoardRegion {
 
     for (const id of staging.attackerIds) {
       const entry = this.entries.get(id);
-      if (!entry) continue;
+      if (!entry || this.combatForwardIds.has(id)) continue;
       entry.targetY = frontY;
       entry.targetZIndex = Z_COMBAT_STAGED;
       this.stackAttachments(id, entry.targetX, frontY, Z_COMBAT_STAGED);
@@ -1071,7 +1076,53 @@ export class BoardRegion {
     });
   }
 
+  private applyCombatForward(): void {
+    const grid = this.gridInfo;
+    if (this.combatForwardIds.size === 0 || !grid) return;
+    const step = this.mirrored ? 1 : -1;
+    const cellByCenter = new Map(grid.cells.map((cell) => [`${cell.cx},${cell.cy}`, cell]));
+    const cellOf = (id: string): GridCell | undefined => {
+      const point = this.gridTargets.get(id);
+      return point && cellByCenter.get(`${point.x},${point.y}`);
+    };
+    const taken = new Set<string>();
+    for (const key of this.zoneTileKeys) {
+      const slot = this.presentation.storedZoneSlot(key, this.zoneSlots);
+      if (slot) taken.add(cellKey(slot.col, slot.row));
+    }
+    for (const id of this.gridTargets.keys()) {
+      const cell = this.combatForwardIds.has(id) ? undefined : cellOf(id);
+      if (cell) taken.add(cellKey(cell.col, cell.row));
+    }
+    const nextFreeCell = (cell: GridCell): GridCell | null => {
+      for (let row = cell.row + step; ; row += step) {
+        const next = cellAt(grid, cell.col, row);
+        if (!next) return null;
+        if (!next.blocked && !taken.has(cellKey(next.col, next.row))) return next;
+      }
+    };
+    const frontRank = (cell: GridCell | undefined) => (cell ? -step * cell.row : -Infinity);
+    const attackers = [...this.combatForwardIds].sort(
+      (a, b) => frontRank(cellOf(a)) - frontRank(cellOf(b)),
+    );
+    const frontY = this.frontEdgeY();
+    const laneCols = new Set<number>();
+    for (const id of attackers) {
+      const entry = this.entries.get(id);
+      if (!entry) continue;
+      const cell = cellOf(id);
+      const forward = cell ? nextFreeCell(cell) : null;
+      if (forward) taken.add(cellKey(forward.col, forward.row));
+      const laneTaken = !!cell && laneCols.has(cell.col);
+      if (cell && !forward) laneCols.add(cell.col);
+      entry.targetY = forward?.cy ?? (laneTaken ? cell.cy : frontY);
+      entry.targetZIndex = Z_COMBAT_STAGED;
+      this.stackAttachments(id, entry.targetX, entry.targetY, Z_COMBAT_STAGED);
+    }
+  }
+
   private applyCombatRow(): void {
+    this.applyCombatForward();
     if (this.combatRowAttackerIds.size === 0) {
       this.combatRow.hide();
       return;
@@ -1158,6 +1209,7 @@ export class BoardRegion {
 
     const isStackable = (c: CardDto): boolean =>
       !c.isAttacking &&
+      !this.combatForwardIds.has(c.id) &&
       !this.combatStaging?.blockerIds.has(c.id) &&
       !c.attachedTo &&
       !c.isBestowed &&

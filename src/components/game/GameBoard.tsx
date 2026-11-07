@@ -139,6 +139,7 @@ interface GameBoardProps {
     attackerId: string;
   }[];
   combatRows: CombatRow[];
+  combatForwardIds?: string[];
   arrowSpecs?: ArrowSpec[];
   castingArrow?: {
     sourceCardId: string;
@@ -255,6 +256,7 @@ export function GameBoard({
   blockAssignments,
   combatAssignments,
   combatRows,
+  combatForwardIds,
   arrowSpecs,
   castingArrow,
   playerIsTargetable,
@@ -1554,6 +1556,7 @@ export function GameBoard({
       orderedCardIds: damageOrder,
       selectableCardIds: selectableBattlefieldCardIds,
       hostileTargeting,
+      combatForwardIds,
       ...rowFields(combatRow),
     });
     const selfCards = [...pixiBattlefield.cards];
@@ -1604,6 +1607,7 @@ export function GameBoard({
         state: {
           ...pixiBattlefield,
           cards: selfCards,
+          combatForwardIds,
           ...rowFields(combatRowByDefender.get(me.id)),
           ownerRingByCard,
         },
@@ -1629,6 +1633,7 @@ export function GameBoard({
     opponentPermanentsByPlayer,
     battlefield,
     combatRows,
+    combatForwardIds,
     ownerRingByCard,
     pixiBattlefield,
     promptType,

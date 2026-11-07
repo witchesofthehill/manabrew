@@ -1549,7 +1549,8 @@ export default function Game({ exitTo }: GameProps = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [gameView?.combatAssignments?.map((a) => `${a.blockerId}:${a.attackerId}`).join(",")],
   );
-  const combatRows = useMemo(
+  const headsUp = gameView?.players.length === 2;
+  const declaredCombatRows = useMemo(
     () =>
       gameView
         ? buildCombatRows({
@@ -1565,6 +1566,14 @@ export default function Game({ exitTo }: GameProps = {}) {
           })
         : [],
     [gameView, combatAssignments, blockAssignments, attackAssignments],
+  );
+  const combatRows = useMemo(
+    () => (headsUp ? [] : declaredCombatRows),
+    [headsUp, declaredCombatRows],
+  );
+  const combatForwardIds = useMemo(
+    () => (headsUp ? declaredCombatRows.flatMap((row) => row.attackerIds) : []),
+    [headsUp, declaredCombatRows],
   );
   const oppCombatAttackerIds = useMemo(
     () => new Set(combatRows.flatMap((r) => r.attackerIds)),
@@ -1629,8 +1638,13 @@ export default function Game({ exitTo }: GameProps = {}) {
   }, [gameView?.players]);
 
   const attackArrows = useMemo(
-    () => activeAttackers.filter((attacker) => !oppCombatAttackerIds.has(attacker.attackerId)),
-    [activeAttackers, oppCombatAttackerIds],
+    () =>
+      activeAttackers.filter(
+        (attacker) =>
+          !oppCombatAttackerIds.has(attacker.attackerId) &&
+          !(headsUp && attacker.targetKind === "player"),
+      ),
+    [activeAttackers, oppCombatAttackerIds, headsUp],
   );
   const arrowBlocks = useMemo(
     () => combatAssignments.filter((a) => !oppCombatAttackerIds.has(a.attackerId)),
@@ -2590,6 +2604,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           blockAssignments={blockAssignments}
           combatAssignments={combatAssignments}
           combatRows={combatRows}
+          combatForwardIds={combatForwardIds}
           arrowSpecs={arrowSpecs}
           castingArrow={castingArrow}
           playerIsTargetable={playerIsTargetable}

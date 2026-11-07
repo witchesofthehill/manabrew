@@ -22,11 +22,11 @@ export type InlineCardStyle = "printed" | "rules";
 export type OpponentHandFanMode = "always" | "revealed" | "never";
 
 const CARD_VIEW_DEFAULTS = {
-  battlefieldCardStyle: "realistic",
-  inGameCardPreviewStyle: "printed",
-  handCardStyle: "printed",
+  battlefieldCardStyle: "art",
+  inGameCardPreviewStyle: "rules",
+  handCardStyle: "rules",
   stackCardStyle: "rules",
-  promptCardStyle: "printed",
+  promptCardStyle: "rules",
 } as const;
 
 export interface LastRoomSetup {

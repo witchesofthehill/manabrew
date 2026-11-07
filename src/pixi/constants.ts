@@ -98,12 +98,6 @@ export const OPPONENT_HAND_SCALE = 0.7;
 export const OPPONENT_HAND_SINK_FRAC = 0.72;
 export const COMBAT_BLOCKER_OVERLAP_FRAC = 0.4;
 export const COMBAT_ROW_STEP_FRAC = 1.12;
-export const COMBAT_ARROW_WIDTH_FRAC = 0.3;
-export const COMBAT_ARROW_SPACING_FRAC = 0.62;
-export const COMBAT_ARROW_ALPHA = 0.6;
-export const COMBAT_ARROW_ROWS = 2;
-export const COMBAT_ARROW_PERIOD_MS = 3200;
-export const COMBAT_ARROW_EDGE_FADE = 0.4;
 export const Z_STAGED_REGION = 8000;
 // Combat-row attackers that travelled in from another player's field render in
 // an unclipped scene layer (above every region's accordion mask) so they glide

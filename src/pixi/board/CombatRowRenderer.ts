@@ -1,20 +1,9 @@
 import { getUiFontFloor, UI_FONT_FAMILY } from "@/themes/typography";
-import { Container, Graphics, Sprite, Text, type Texture } from "pixi.js";
+import { Container, Graphics, Text } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
 import { hexToNum } from "../colorUtils";
-import { gameIconTexture } from "../gameIconCache";
-import {
-  COMBAT_ARROW_ALPHA,
-  COMBAT_ARROW_EDGE_FADE,
-  COMBAT_ARROW_SPACING_FRAC,
-  COMBAT_ARROW_PERIOD_MS,
-  COMBAT_ARROW_ROWS,
-  COMBAT_ARROW_WIDTH_FRAC,
-  Z_COMBAT_STAGED,
-} from "../constants";
+import { Z_COMBAT_STAGED } from "../constants";
 import { pulse } from "../effects/animation";
-
-const COMBAT_ARROW_ICON = "plain-arrow";
 
 interface CombatRowConnector {
   ax: number;
@@ -29,9 +18,6 @@ export interface CombatRowRenderSpec {
   stripWidth: number;
   stripHeight: number;
   cardWidth: number;
-  arrowLeft: number;
-  arrowWidth: number;
-  direction: 1 | -1;
   connectors: CombatRowConnector[];
 }
 
@@ -42,9 +28,6 @@ interface RenderSnapshot {
   stripWidth: number;
   stripHeight: number;
   cardWidth: number;
-  arrowLeft: number;
-  arrowWidth: number;
-  direction: 1 | -1;
   attackColor: string;
   defenseColor: string;
   textColor: string;
@@ -56,17 +39,11 @@ export class CombatRowRenderer {
   private graphics = new Graphics();
   private pressure = new Graphics();
   private assignmentLabels = new Container();
-  private arrows = new Container();
-  private arrowTexture: Texture | null = null;
-  private arrowBand: { top: number; height: number; direction: 1 | -1; size: number } | null = null;
   private snapshot: RenderSnapshot | null = null;
   private container: Container;
 
   constructor(container: Container) {
     this.container = container;
-    this.arrows.eventMode = "none";
-    this.arrows.zIndex = Z_COMBAT_STAGED - 6;
-    this.container.addChild(this.arrows);
     this.graphics.eventMode = "none";
     this.graphics.zIndex = Z_COMBAT_STAGED - 5;
     this.container.addChild(this.graphics);
@@ -86,7 +63,6 @@ export class CombatRowRenderer {
     this.graphics.clear();
     this.pressure.clear();
     this.clearAssignmentLabels();
-    this.clearArrows();
     this.pressure.visible = false;
   }
 
@@ -100,7 +76,6 @@ export class CombatRowRenderer {
     this.pressure.visible = true;
 
     const attackColor = hexToNum(colors.promptAction.attackAction);
-    this.buildArrows(spec, attackColor);
 
     if (spec.connectors.length > 0) {
       for (const connector of spec.connectors) {
@@ -155,71 +130,6 @@ export class CombatRowRenderer {
   tick(now: number, motionEnabled: boolean): void {
     if (!this.pressure.visible) return;
     this.pressure.alpha = motionEnabled ? pulse(now, 1250, 0.28, 0.9) : 0.58;
-    this.tickArrows(now, motionEnabled);
-  }
-
-  private buildArrows(spec: CombatRowRenderSpec, color: number): void {
-    this.clearArrows();
-    const spacing = spec.cardWidth * COMBAT_ARROW_SPACING_FRAC;
-    const columns = Math.floor(spec.arrowWidth / spacing);
-    if (columns < 1) return;
-    this.arrowBand = {
-      top: spec.stripTop,
-      height: spec.stripHeight,
-      direction: spec.direction,
-      size: spec.cardWidth * COMBAT_ARROW_WIDTH_FRAC,
-    };
-    const firstX = spec.arrowLeft + (spec.arrowWidth - (columns - 1) * spacing) / 2;
-    const fade = spacing * 1.5;
-    for (let index = 0; index < COMBAT_ARROW_ROWS; index++) {
-      const row = new Container();
-      row.alpha = 0;
-      for (let column = 0; column < columns; column++) {
-        const arrow = new Sprite();
-        arrow.anchor.set(0.5);
-        arrow.tint = color;
-        arrow.x = firstX + column * spacing;
-        const edge = Math.min(arrow.x - spec.arrowLeft, spec.arrowLeft + spec.arrowWidth - arrow.x);
-        arrow.alpha = edgeFade(edge / fade);
-        row.addChild(arrow);
-      }
-      this.arrows.addChild(row);
-    }
-    if (this.arrowTexture) this.applyArrowTexture(this.arrowTexture);
-    else
-      void gameIconTexture(COMBAT_ARROW_ICON).then((texture) => {
-        this.arrowTexture = texture;
-        this.applyArrowTexture(texture);
-      });
-  }
-
-  private applyArrowTexture(texture: Texture): void {
-    const band = this.arrowBand;
-    if (!band) return;
-    for (const row of this.arrows.children) {
-      for (const arrow of row.children as Sprite[]) {
-        arrow.texture = texture;
-        arrow.scale.set(band.size / texture.width, (band.direction * band.size) / texture.height);
-      }
-    }
-  }
-
-  private tickArrows(now: number, motionEnabled: boolean): void {
-    const band = this.arrowBand;
-    if (!band) return;
-    const cycle = motionEnabled ? (now % COMBAT_ARROW_PERIOD_MS) / COMBAT_ARROW_PERIOD_MS : 0.25;
-    this.arrows.children.forEach((row, index) => {
-      const progress = (cycle + index / COMBAT_ARROW_ROWS) % 1;
-      const travelled = band.direction === 1 ? progress : 1 - progress;
-      row.y = band.top + travelled * band.height;
-      row.alpha =
-        COMBAT_ARROW_ALPHA * edgeFade(Math.min(progress, 1 - progress) / COMBAT_ARROW_EDGE_FADE);
-    });
-  }
-
-  private clearArrows(): void {
-    this.arrows.removeChildren().forEach((row) => row.destroy({ children: true }));
-    this.arrowBand = null;
   }
 
   private clearAssignmentLabels(): void {
@@ -236,9 +146,6 @@ export class CombatRowRenderer {
       spec.stripTop !== snapshot.stripTop ||
       spec.stripWidth !== snapshot.stripWidth ||
       spec.cardWidth !== snapshot.cardWidth ||
-      spec.arrowLeft !== snapshot.arrowLeft ||
-      spec.arrowWidth !== snapshot.arrowWidth ||
-      spec.direction !== snapshot.direction ||
       spec.stripHeight !== snapshot.stripHeight ||
       Math.max(11, getUiFontFloor("meta")) !== snapshot.fontSize ||
       colors.promptAction.attackAction !== snapshot.attackColor ||
@@ -275,9 +182,6 @@ export class CombatRowRenderer {
       stripTop: spec.stripTop,
       stripWidth: spec.stripWidth,
       cardWidth: spec.cardWidth,
-      arrowLeft: spec.arrowLeft,
-      arrowWidth: spec.arrowWidth,
-      direction: spec.direction,
       stripHeight: spec.stripHeight,
       attackColor: colors.promptAction.attackAction,
       defenseColor: colors.promptAction.defenseAction,
@@ -286,9 +190,4 @@ export class CombatRowRenderer {
       connectors,
     };
   }
-}
-
-function edgeFade(distance: number): number {
-  const t = Math.max(0, Math.min(1, distance));
-  return t * t * (3 - 2 * t);
 }

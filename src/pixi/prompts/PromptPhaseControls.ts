@@ -161,7 +161,8 @@ export class PromptPhaseControls extends Container {
             .roundRect(0, phaseY, phaseWidth, cellHeight, 4)
             .fill({ color: hexToNum(spec.turnColor) });
           currentTile.eventMode = "none";
-          currentTile.position.copyFrom(group.position);
+          currentTile.pivot.y = phaseY + cellHeight;
+          currentTile.position.set(group.x, group.y + phaseY + cellHeight);
           currentLayer.addChild(currentTile);
           this.currentTile = currentTile;
         }
@@ -316,5 +317,9 @@ export class PromptPhaseControls extends Container {
 
   setCurrentTileX(x: number): void {
     if (this.currentTile) this.currentTile.x = x;
+  }
+
+  setCurrentTileRise(rise: number): void {
+    if (this.currentTile) this.currentTile.scale.y = rise;
   }
 }

@@ -83,6 +83,8 @@ const TURN_BORDER_WIDTH = 2;
 const PRIORITY_BADGE_RADIUS = 20;
 const PRIORITY_BADGE_OVERLAP = 10;
 const PHASE_REVEAL_SECONDS = 0.22;
+const PHASE_TAB_DROP_SECONDS = 0.25;
+const PHASE_TAB_RISE_SECONDS = 0.3;
 const PHASE_TAB_HEIGHT = 24;
 const PHASE_TAB_OVERLAP = 4;
 
@@ -92,7 +94,7 @@ export class PromptLayer extends PromptModalLayer {
   private actionPanelBounds: ScreenBounds | null = null;
   private phaseControlsOpen = false;
   private phaseExpansion = { value: 0 };
-  private phaseTabSlide = { x: 0 };
+  private phaseTabSlide = { x: 0, rise: 1 };
   private phaseTabPlaced = false;
   private phaseTabIndex = 0;
   private phaseColumns: ReturnType<typeof phaseTileLayout> | null = null;
@@ -240,7 +242,6 @@ export class PromptLayer extends PromptModalLayer {
     );
     const targetX = columns.columnX(targetIndex);
     const slide = this.phaseTabSlide;
-    const leg = (x: number) => ({ x, duration: TURN_IMPACT_SECONDS, ease: "sine.inOut" });
     this.phaseTabSweep?.kill();
     gsap.killTweensOf(slide);
     const fromTurn = spec.gameView.turn;
@@ -262,7 +263,12 @@ export class PromptLayer extends PromptModalLayer {
           this.rebuild();
         },
       })
-      .to(slide, leg(lastX))
+      .to(slide, {
+        x: lastX,
+        duration: TURN_IMPACT_SECONDS - PHASE_TAB_DROP_SECONDS,
+        ease: "sine.inOut",
+      })
+      .to(slide, { rise: 0, duration: PHASE_TAB_DROP_SECONDS, ease: "power2.in" })
       .call(() => {
         this.heldTurn = {
           fromTurn,
@@ -271,10 +277,11 @@ export class PromptLayer extends PromptModalLayer {
           activePlayerId: handoff.playerId,
         };
         this.phaseTabIndex = targetIndex;
+        slide.x = firstX;
         this.rebuild();
       })
-      .to(slide, leg(firstX))
-      .to(slide, leg(targetX));
+      .to(slide, { rise: 1, duration: PHASE_TAB_RISE_SECONDS, ease: "back.out(1.4)" })
+      .to(slide, { x: targetX, duration: 0.4, ease: "sine.inOut" });
   }
 
   private releaseHeldTurn(): void {
@@ -714,17 +721,16 @@ export class PromptLayer extends PromptModalLayer {
     };
     const phaseTabLayer = new Container();
     const phaseSurfaces: Container[] = [];
-    const border = minimal
-      ? null
-      : new Graphics()
-          .path(new GraphicsPath(promptPanelOutline(panelShape)))
-          .stroke({ color: hexToNum(turnColor), width: TURN_BORDER_WIDTH });
+    const border = minimal ? null : new Graphics();
     if (border) border.eventMode = "none";
     const drawBorder = () =>
       border!
         .clear()
         .path(new GraphicsPath(promptPanelOutline(panelShape)))
-        .stroke({ color: hexToNum(turnColor), width: TURN_BORDER_WIDTH });
+        .stroke({ color: hexToNum(turnColor), width: TURN_BORDER_WIDTH })
+        .rect(panelShape.tab!.x, 0, panelShape.tab!.width, TURN_BORDER_WIDTH / 2)
+        .fill({ color: hexToNum(turnColor) });
+    if (border) drawBorder();
     if (hasAction && !minimal) {
       const attacking =
         effectivePromptType === "chooseAttackers" && action.pendingAttackers.length > 0;
@@ -792,9 +798,15 @@ export class PromptLayer extends PromptModalLayer {
       const placeTab = (tabX: number) => {
         phaseTab.x = tabX;
         panelShape.tab!.x = tabX;
+        const { rise } = this.phaseTabSlide;
+        if (!phaseControls) {
+          panelShape.tab!.height = phaseTabRise * rise;
+          phaseTabLayer.y = phaseTabRise * (1 - rise);
+        }
         drawBorder();
         this.actionGlow?.redraw();
         phaseControls?.setCurrentTileX(tabX);
+        phaseControls?.setCurrentTileRise(rise);
         if (this.phaseTabSweep) {
           phaseTab.setLabel(phaseTileLabel(PHASE_BAR_ENTRIES[phaseTiles.columnAt(tabX)]));
         }
@@ -805,7 +817,7 @@ export class PromptLayer extends PromptModalLayer {
       this.phaseTabSlide.x = startX;
       if (this.phaseTabSweep) {
         placeTab(startX);
-      } else if (startX !== phaseTabX && animationsEnabled()) {
+      } else if (startX < phaseTabX && animationsEnabled()) {
         placeTab(startX);
         gsap.to(this.phaseTabSlide, {
           x: phaseTabX,

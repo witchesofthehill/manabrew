@@ -9,12 +9,12 @@ import { readableTextColor } from "@/themes/gameTheme";
 import { DISPLAY_FONT_FAMILY } from "@/themes/typography";
 import type { TurnHandoffSpec } from "./prompt.types";
 
-export const TURN_IMPACT_SECONDS = 0.4;
+export const TURN_IMPACT_SECONDS = 0.55;
 
 const TOTAL_SECONDS = TURN_HANDOFF_MS / 1000;
 const RAILS_AT = 0.1;
-const TITLE_AT = 0.5;
-const CREST_AT = 0.6;
+const TITLE_AT = TURN_IMPACT_SECONDS + 0.1;
+const CREST_AT = TURN_IMPACT_SECONDS + 0.2;
 const EXIT_AT = TOTAL_SECONDS - 0.45;
 const FONT_HEIGHT_SHARE = 0.11;
 const FONT_WIDTH_SHARE = 0.075;

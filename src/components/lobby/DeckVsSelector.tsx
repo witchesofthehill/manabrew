@@ -1,15 +1,15 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { usePresetDecks } from "@/stores/usePresetDecksStore";
 import { Button } from "@/components/ui/button";
 import { AppSelect, AppSelectOption } from "@/components/ui/AppSelect";
 import { FormatBadge } from "@/components/game/FormatBadge";
 import { EngineMark } from "@/components/lobby/EngineMark";
-import { PlaytestPlayersDialog } from "@/components/lobby/PlaytestPlayersDialog";
 import { TablePickerDialog } from "@/components/lobby/TablePickerDialog";
 import { DeckSelectionCard } from "./DeckSelectionCard";
 import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
-import { cn, pickRandom, pickRandomDistinct } from "@/lib/utils";
+import { useTheme } from "@/hooks/useTheme";
+import { cn, pickRandom } from "@/lib/utils";
 import { toast } from "sonner";
 import { ROUTES } from "@/lib/constants";
 import { resolveAiOpponent } from "@/lib/aiOpponent";
@@ -24,28 +24,29 @@ import { useOwnedDecks } from "@/hooks/useOwnedDecks";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import type { Deck } from "@/protocol/deck";
-import { Check, Loader2, Search, Shuffle, Swords, User, Bot, X } from "lucide-react";
+import { Loader2, Search, Swords } from "lucide-react";
 import { resolveCoverCard } from "@/components/deck/deckCover.utils";
 import { useHubDeckSearch } from "@/hooks/useHubDeckSearch";
 import { useHubStore } from "@/stores/useHubStore";
-import { useCardPoolStore } from "@/stores/useCardPoolStore";
 import { useCardPool } from "@/hooks/useCardPool";
 import type { DeckHubEntrySummary } from "@/api/hubTypes";
-interface SelectedDeck {
-  id: string;
-  sourceId: string;
-  name: string;
-  desc?: string;
-  color?: string;
-  sourceDeck: Deck;
-  source: "local" | "preset" | "hub";
-  formatId?: string;
-  commanderName?: string;
-  coverCardName?: string;
-}
+import type { DeckAssignment, SelectedDeck } from "./deckSelection.types";
+import { OfflineRoster } from "./OfflineRoster";
+import {
+  createOfflineRoster,
+  FIRST_BOT_SEAT_ID,
+  offlineRosterReducer,
+  PLAYER_SEAT_ID,
+} from "./offlineRoster.state";
+import {
+  isOfflinePodFormat,
+  offlineSelectionError,
+  prepareOfflineGame,
+} from "./offlineRoster.utils";
 interface DeckVsSelectorProps {
   preSelectedDeckId?: string;
   preSelectedHubDeckId?: string;
+  preSelectedDeck?: SelectedDeck;
   leadingControl?: ReactNode;
   onStart: (
     playerDeck: Deck,
@@ -54,11 +55,11 @@ interface DeckVsSelectorProps {
     commanderName?: string,
   ) => Promise<boolean>;
 }
-type PickingSide = "player" | "opponent" | null;
 type PlayFormatId = string;
 export function DeckVsSelector({
   preSelectedDeckId,
   preSelectedHubDeckId,
+  preSelectedDeck,
   leadingControl,
   onStart,
 }: DeckVsSelectorProps) {
@@ -72,23 +73,18 @@ export function DeckVsSelector({
   const preSelectedFormat = getFormat(preSelectedFormatId);
   const preSelectedCommanderName = preSelectedSavedDeck?.deck.commanders?.[0]?.identity.name;
   const preSelectedDeckEntry: SelectedDeck | null =
-    preSelectedSavedDeck &&
-    preSelectedFormat &&
-    validateDeckSections(
-      { deck: preSelectedSavedDeck.deck, commanderName: preSelectedCommanderName },
-      preSelectedFormat,
-      useCardPoolStore.getState(),
-    ).legal
+    preSelectedDeck ??
+    (preSelectedSavedDeck && preSelectedFormat
       ? {
           id: `local:${preSelectedSavedDeck.id}`,
           sourceId: preSelectedSavedDeck.id,
           name: preSelectedSavedDeck.deck.name,
           sourceDeck: preSelectedSavedDeck.deck,
-          source: "local" as const,
+          source: "local",
           formatId: preSelectedFormatId,
           commanderName: preSelectedCommanderName,
         }
-      : null;
+      : null);
   const lastOfflineFormatId = usePreferencesStore((state) => state.lastOfflineFormatId);
   const lastAiOpponent = usePreferencesStore((state) => state.lastAiOpponent);
   const boardBackground = usePreferencesStore((state) => state.boardBackgroundId);
@@ -97,23 +93,37 @@ export function DeckVsSelector({
     !preSelectedDeckEntry && lastOfflineFormatId && getFormat(lastOfflineFormatId)
       ? lastOfflineFormatId
       : null;
-  const [playerDeck, setPlayerDeck] = useState<SelectedDeck | null>(preSelectedDeckEntry);
-  const [opponentDeck, setOpponentDeck] = useState<SelectedDeck | null>(null);
-  const [pickingSide, setPickingSide] = useState<PickingSide>(
-    preSelectedDeckEntry ? "opponent" : "player",
+  const [roster, dispatchRoster] = useReducer(
+    offlineRosterReducer,
+    preSelectedDeckEntry,
+    createOfflineRoster,
   );
+  const theme = useTheme().gameTheme;
+  const seatColors = [
+    theme.playerColors.self,
+    theme.playerColors.opponent1,
+    theme.playerColors.opponent2,
+    theme.playerColors.opponent3,
+  ];
+  const opponentDeck = roster.seats[1].deck;
+  const suggestedOpponent = roster.seats.find((seat) => seat.id === FIRST_BOT_SEAT_ID);
+  const assignments: DeckAssignment[] = roster.seats.map((seat, index) => ({
+    id: seat.id,
+    label: index === 0 ? "You" : `Bot ${index}`,
+    color: seatColors[index],
+  }));
+  const assignmentsForDeck = (id: string) =>
+    assignments.filter((_, index) => roster.seats[index].deck?.id === id);
   const [selectedFormat, setSelectedFormat] = useState<PlayFormatId | null>(
     preSelectedDeckEntry?.formatId ?? rememberedFormatId,
   );
-  const [opponentConfirmed, setOpponentConfirmed] = useState(false);
   const [deckSearch, setDeckSearch] = useState("");
   const [starting, setStarting] = useState(false);
-  const [playersDialogOpen, setPlayersDialogOpen] = useState(false);
   const [tableDialogOpen, setTableDialogOpen] = useState(false);
   const [loadingHubDeckId, setLoadingHubDeckId] = useState<string | null>(null);
+  const [loadingSeatId, setLoadingSeatId] = useState<string | null>(null);
   const selectedFormatRef = useRef(selectedFormat);
   selectedFormatRef.current = selectedFormat;
-  const opponentTouchedRef = useRef(false);
   const offlineEngine = resolveOfflineEngine();
   const { details: accountDeckDetails } = useAccountDecks();
   const forkedPresetKeys = new Set(
@@ -147,22 +157,26 @@ export function DeckVsSelector({
       return;
     restoredHubDeckRef.current = preSelectedHubDeckId;
     const requestId = ++hubSelectionRequestIdRef.current;
+    setLoadingSeatId(PLAYER_SEAT_ID);
     setLoadingHubDeckId(preSelectedHubDeckId);
     void loadHubDeck(preSelectedHubDeckId)
       .then((detail) => {
         if (hubSelectionRequestIdRef.current !== requestId) return;
         const formatId = detail.deck.format ?? detail.format ?? "standard";
-        setPlayerDeck({
-          id: `hub:${detail.id}`,
-          sourceId: detail.id,
-          name: detail.title,
-          sourceDeck: detail.deck,
-          source: "hub",
-          formatId,
-          commanderName: detail.deck.commanders?.[0]?.identity.name,
+        dispatchRoster({
+          type: "assign",
+          seatId: PLAYER_SEAT_ID,
+          deck: {
+            id: `hub:${detail.id}`,
+            sourceId: detail.id,
+            name: detail.title,
+            sourceDeck: detail.deck,
+            source: "hub",
+            formatId,
+            commanderName: detail.deck.commanders?.[0]?.identity.name,
+          },
         });
         setSelectedFormat(formatId);
-        setPickingSide("opponent");
       })
       .catch((err) => {
         if (hubSelectionRequestIdRef.current !== requestId) return;
@@ -175,7 +189,10 @@ export function DeckVsSelector({
         });
       })
       .finally(() => {
-        if (hubSelectionRequestIdRef.current === requestId) setLoadingHubDeckId(null);
+        if (hubSelectionRequestIdRef.current === requestId) {
+          setLoadingHubDeckId(null);
+          setLoadingSeatId(null);
+        }
       });
   }, [hubDecks.enabled, hubRestoreAttempt, loadHubDeck, preSelectedHubDeckId]);
   const searchLower = deckSearch.toLowerCase();
@@ -218,7 +235,7 @@ export function DeckVsSelector({
     (deck) => selectedFormat === null || deck.formatId === selectedFormat,
   );
   const cardPool = useCardPool(
-    [...formatFilteredUserDecks, playerDeck, opponentDeck].flatMap((entry) =>
+    [...formatFilteredUserDecks, ...roster.seats.map((seat) => seat.deck)].flatMap((entry) =>
       entry
         ? [
             {
@@ -256,7 +273,13 @@ export function DeckVsSelector({
     ? formatFilteredUserDecks.filter((deck) => deck.name.toLowerCase().includes(searchLower))
     : formatFilteredUserDecks;
   useEffect(() => {
-    if (!selectedFormat || opponentDeck || opponentTouchedRef.current) return;
+    if (
+      !selectedFormat ||
+      !suggestedOpponent ||
+      suggestedOpponent.deck ||
+      suggestedOpponent.touched
+    )
+      return;
     const resolved = resolveAiOpponent({
       presets: presetDecks,
       savedDecks,
@@ -265,49 +288,44 @@ export function DeckVsSelector({
     });
     if (!resolved) return;
     const source = resolved.source === "preset" ? "preset" : "local";
-    setOpponentDeck({
-      id: `${source}:${resolved.id}`,
-      sourceId: resolved.id,
-      name: resolved.deck.name,
-      desc: resolved.deck.description,
-      color: resolved.deck.color,
-      sourceDeck: resolved.deck,
-      source,
-      formatId: selectedFormat,
-      commanderName: resolved.deck.commanders?.[0]?.identity.name,
-      coverCardName: resolved.deck.coverCardName,
+    dispatchRoster({
+      type: "suggest",
+      deck: {
+        id: `${source}:${resolved.id}`,
+        sourceId: resolved.id,
+        name: resolved.deck.name,
+        desc: resolved.deck.description,
+        color: resolved.deck.color,
+        sourceDeck: resolved.deck,
+        source,
+        formatId: selectedFormat,
+        commanderName: resolved.deck.commanders?.[0]?.identity.name,
+        coverCardName: resolved.deck.coverCardName,
+      },
     });
-  }, [selectedFormat, opponentDeck, presetDecks, savedDecks, lastAiOpponent]);
+  }, [selectedFormat, suggestedOpponent, presetDecks, savedDecks, lastAiOpponent]);
   function invalidateHubSelection() {
     hubSelectionRequestIdRef.current += 1;
     setLoadingHubDeckId(null);
+    setLoadingSeatId(null);
   }
   function changeFormat(formatId: PlayFormatId | null) {
     if (formatId === selectedFormat) return;
     invalidateHubSelection();
-    opponentTouchedRef.current = false;
-    setPlayerDeck(null);
-    setOpponentDeck(null);
-    setOpponentConfirmed(false);
-    setPickingSide("player");
+    dispatchRoster({ type: "reset" });
     setSelectedFormat(formatId);
   }
-  function assignDeck(selected: SelectedDeck, hubRequestId?: number) {
+  function assignDeck(
+    selected: SelectedDeck,
+    seatId = roster.activeSeatId ?? PLAYER_SEAT_ID,
+    hubRequestId?: number,
+  ) {
     if (hubRequestId === undefined) {
       invalidateHubSelection();
     } else if (hubSelectionRequestIdRef.current !== hubRequestId) {
       return;
     }
-    if (pickingSide === "player" || pickingSide === null) {
-      setPlayerDeck(selected);
-      setPickingSide("opponent");
-      return;
-    }
-    if (pickingSide !== "opponent") return;
-    opponentTouchedRef.current = true;
-    setOpponentDeck(selected);
-    setOpponentConfirmed(true);
-    setPickingSide(playerDeck ? null : "player");
+    dispatchRoster({ type: "assign", seatId, deck: selected });
   }
   function selectDeck(deck: Deck) {
     const formatId = deck.format ?? "standard";
@@ -327,8 +345,10 @@ export function DeckVsSelector({
     });
   }
   async function selectHubDeck(summary: DeckHubEntrySummary) {
+    const seatId = roster.activeSeatId ?? PLAYER_SEAT_ID;
     const requestId = ++hubSelectionRequestIdRef.current;
     setLoadingHubDeckId(summary.id);
+    setLoadingSeatId(seatId);
     try {
       const detail = await loadHubDeck(summary.id);
       if (hubSelectionRequestIdRef.current !== requestId) return;
@@ -352,114 +372,78 @@ export function DeckVsSelector({
           formatId,
           commanderName: deck.commanders?.[0]?.identity.name,
         },
+        seatId,
         requestId,
       );
     } catch (err) {
       if (hubSelectionRequestIdRef.current !== requestId) return;
       toast.error(err instanceof Error ? err.message : `Failed to load Community deck`);
     } finally {
-      if (hubSelectionRequestIdRef.current === requestId) setLoadingHubDeckId(null);
+      if (hubSelectionRequestIdRef.current === requestId) {
+        setLoadingHubDeckId(null);
+        setLoadingSeatId(null);
+      }
     }
   }
   function selectUserDeck(entry: SelectedDeck) {
     if (!selectedFormat && entry.formatId) setSelectedFormat(entry.formatId);
     assignDeck(entry);
   }
-  function handleRandomOpponent() {
+  function handleRandomOpponent(seatId: string) {
     if (!selectedFormat) return;
-    const random = pickRandom(formatFilteredPresets);
-    if (!random) return;
-    invalidateHubSelection();
-    const sourceId = random.id ?? random.name;
-    opponentTouchedRef.current = true;
-    setOpponentDeck({
-      id: `preset:${sourceId}`,
-      sourceId,
-      name: random.name,
-      desc: random.description,
-      color: random.color,
-      sourceDeck: random,
-      source: "preset",
-      formatId: selectedFormat,
-      commanderName: random.commanders?.[0]?.identity.name,
-      coverCardName: random.coverCardName,
-    });
-    setOpponentConfirmed(true);
-    setPickingSide(playerDeck ? null : "player");
+    const candidates = [
+      ...formatFilteredPresets.map(
+        (deck): SelectedDeck => ({
+          id: `preset:${deck.id ?? deck.name}`,
+          sourceId: deck.id ?? deck.name,
+          name: deck.name,
+          sourceDeck: deck,
+          source: "preset",
+          formatId: selectedFormat,
+          commanderName: deck.commanders?.[0]?.identity.name,
+        }),
+      ),
+      ...formatFilteredUserDecks,
+    ].filter((selected) => !offlineSelectionError(selected, selectedFormat, cardPool));
+    const random = pickRandom(candidates);
+    if (!random) {
+      toast.error("No playable decks are available for this format.");
+      return;
+    }
+    assignDeck(random, seatId);
   }
   function handleFight() {
-    if (!playerDeck || !opponentDeck || starting) return;
+    if (!isReady || starting) return;
     setTableDialogOpen(true);
   }
 
   function handleTableChosen() {
     setTableDialogOpen(false);
-    if (playerDeck?.formatId === "commander" || playerDeck?.formatId === "paupercommander") {
-      setPlayersDialogOpen(true);
-      return;
-    }
-    void startFight(1);
+    void startFight();
   }
-  async function startFight(opponentCount: number) {
-    if (!playerDeck || !opponentDeck || starting) return;
-    const empty = [playerDeck, opponentDeck].find(
-      (d) => d.sourceDeck.cards.length === 0 && (d.sourceDeck.commanders?.length ?? 0) === 0,
-    );
-    if (empty) {
-      toast.error(`"${empty.name}" has no cards`);
-      return;
-    }
-    for (const selected of [playerDeck, opponentDeck]) {
-      if (selected.source !== "hub") continue;
-      const format = getFormat(selected.formatId ?? "standard");
-      if (!format) continue;
-      const validation = validateDeckSections(
-        { deck: selected.sourceDeck, commanderName: selected.commanderName },
-        format,
-        cardPool,
-      );
-      if (!validation.legal) {
-        toast.warning(validation.errors[0] ?? `"${selected.name}" is not legal`);
-        return;
-      }
-    }
-    const excluded = new Set([
-      getDeckFingerprint(playerDeck.sourceDeck),
-      getDeckFingerprint(opponentDeck.sourceDeck),
-    ]);
-    const additionalOpponents = pickRandomDistinct(
-      formatFilteredPresets.filter(
-        (preset) =>
-          preset.cards.length + (preset.commanders?.length ?? 0) > 0 &&
-          !excluded.has(getDeckFingerprint(preset)),
-      ),
-      opponentCount - 1,
-    );
-    if (additionalOpponents.length !== opponentCount - 1) {
-      toast.error(`Not enough distinct Commander decks are available for a 4-player game.`);
-      return;
-    }
+  async function startFight() {
+    if (!launch || !opponentDeck || !isReady || starting) return;
     setStarting(true);
     const started = await onStart(
-      playerDeck.sourceDeck,
-      [opponentDeck.sourceDeck, ...additionalOpponents],
-      playerDeck.formatId,
-      playerDeck.commanderName,
+      launch.playerDeck.sourceDeck,
+      launch.opponentDecks,
+      launch.playerDeck.formatId,
+      launch.playerDeck.commanderName,
     );
     if (!started) {
       setStarting(false);
       return;
     }
-    if (playerDeck.source === "hub" || playerDeck.source === "preset") {
-      void reportPublishedDeckPlay(playerDeck.sourceId, playerDeck.sourceDeck);
+    if (launch.playerDeck.source === "hub" || launch.playerDeck.source === "preset") {
+      void reportPublishedDeckPlay(launch.playerDeck.sourceId, launch.playerDeck.sourceDeck);
     }
-    if (playerDeck.source === "preset") {
-      savePresetToAccountOnUse(playerDeck.sourceId);
+    if (launch.playerDeck.source === "preset") {
+      savePresetToAccountOnUse(launch.playerDeck.sourceId);
     }
     const prefs = usePreferencesStore.getState();
-    if (playerDeck.formatId) prefs.setLastOfflineFormatId(playerDeck.formatId);
-    if (playerDeck.source === "local" && playerDeck.sourceId !== "current") {
-      prefs.setLastPlayedDeckId(playerDeck.sourceId);
+    if (launch.playerDeck.formatId) prefs.setLastOfflineFormatId(launch.playerDeck.formatId);
+    if (launch.playerDeck.source === "local" && launch.playerDeck.sourceId !== "current") {
+      prefs.setLastPlayedDeckId(launch.playerDeck.sourceId);
     }
     if (opponentDeck.source === "preset") {
       prefs.setLastAiOpponent({ kind: "preset", id: opponentDeck.sourceId });
@@ -467,24 +451,10 @@ export function DeckVsSelector({
       prefs.setLastAiOpponent({ kind: "saved", id: opponentDeck.sourceId });
     }
   }
-  const hubSelectionIsLegal = (selected: SelectedDeck | null) => {
-    if (!selected || selected.source !== "hub") return true;
-    const format = getFormat(selected.formatId ?? "standard");
-    return (
-      !format ||
-      validateDeckSections(
-        { deck: selected.sourceDeck, commanderName: selected.commanderName },
-        format,
-        cardPool,
-      ).legal
-    );
-  };
-  const isReady =
-    !!playerDeck &&
-    !!opponentDeck &&
-    opponentConfirmed &&
-    hubSelectionIsLegal(playerDeck) &&
-    hubSelectionIsLegal(opponentDeck);
+  const { errors: seatErrors, launch } = prepareOfflineGame(roster, selectedFormat, cardPool);
+  const isReady = loadingHubDeckId === null && launch !== null;
+  const isCommander = isOfflinePodFormat(selectedFormat);
+  const activeAssignment = assignments.find((assignment) => assignment.id === roster.activeSeatId);
   const searchControl = (
     <div className="relative min-w-0 flex-1">
       <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -553,15 +523,7 @@ export function DeckVsSelector({
               className="hidden shrink-0 text-right text-ui-meta font-medium text-muted-foreground lg:block"
               aria-live="polite"
             >
-              {pickingSide === "player"
-                ? isReady
-                  ? "Choose your deck or fight"
-                  : "Choose your deck"
-                : pickingSide === "opponent"
-                  ? isReady
-                    ? "Choose the AI deck or fight"
-                    : "Choose the AI deck"
-                  : "Matchup ready"}
+              {activeAssignment ? `Choose a deck for ${activeAssignment.label}` : "Matchup ready"}
             </p>
           </div>
           <div className="shrink-0 px-4 pb-2 pt-3 sm:px-6 lg:px-8">{searchControl}</div>
@@ -619,8 +581,8 @@ export function DeckVsSelector({
                     labels={entry.sourceDeck?.labels}
                     isPreset={false}
                     isSelected={false}
-                    isPlayerDeck={playerDeck?.id === entry.id}
-                    isOpponentDeck={opponentDeck?.id === entry.id}
+                    assignments={assignmentsForDeck(entry.id)}
+                    disabled={starting}
                     formatId={entry.sourceDeck?.format ?? entry.formatId ?? "standard"}
                     dense={denseDecks}
                     isTouch={isTouch}
@@ -677,9 +639,9 @@ export function DeckVsSelector({
                   )}
                 >
                   {hubDeckEntries.map((deck) => {
-                    const selected = [playerDeck, opponentDeck].find(
-                      (entry) => entry?.source === "hub" && entry.sourceId === deck.id,
-                    );
+                    const selected = roster.seats
+                      .map((seat) => seat.deck)
+                      .find((entry) => entry?.source === "hub" && entry.sourceId === deck.id);
                     const format = selected ? getFormat(selected.formatId ?? "standard") : null;
                     const validation =
                       selected && format
@@ -705,8 +667,8 @@ export function DeckVsSelector({
                         isSelected={false}
                         isLegal={validation.legal}
                         validationError={validation.errors[0]}
-                        isPlayerDeck={playerDeck?.id === `hub:${deck.id}`}
-                        isOpponentDeck={opponentDeck?.id === `hub:${deck.id}`}
+                        assignments={assignmentsForDeck(`hub:${deck.id}`)}
+                        disabled={starting}
                         formatId={deck.format ?? "standard"}
                         dense={denseDecks}
                         isTouch={isTouch}
@@ -746,8 +708,8 @@ export function DeckVsSelector({
                   coverFallbackClassName="absolute inset-0 bg-gradient-to-br from-muted-foreground/10 via-muted/40 to-muted-foreground/20"
                   isPreset={true}
                   isSelected={false}
-                  isPlayerDeck={playerDeck?.id === `preset:${deck.id ?? deck.name}`}
-                  isOpponentDeck={opponentDeck?.id === `preset:${deck.id ?? deck.name}`}
+                  assignments={assignmentsForDeck(`preset:${deck.id ?? deck.name}`)}
+                  disabled={starting}
                   formatId={deck.format ?? "standard"}
                   dense={denseDecks}
                   isTouch={isTouch}
@@ -765,63 +727,33 @@ export function DeckVsSelector({
           shortTouch && "sm:px-4 sm:py-1.5",
         )}
       >
-        <div className="grid min-w-0 grid-cols-1 min-[480px]:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5 sm:flex sm:gap-2">
-          <DeckSlot
-            label={`YOU`}
-            icon={<User className="h-3 w-3" />}
-            deck={playerDeck}
-            sideColor="var(--player-colors-self)"
-            isActive={pickingSide === "player"}
-            isConfirmed={!!playerDeck && pickingSide !== "player"}
-            onClick={() => {
-              invalidateHubSelection();
-              setPickingSide("player");
-            }}
-            onClear={() => {
-              invalidateHubSelection();
-              setPlayerDeck(null);
-              setPickingSide("player");
-            }}
-          />
-          <span className="text-center text-ui-meta font-bold tracking-wider text-muted-foreground/60">
-            VS
-          </span>
-          <DeckSlot
-            label={`AI`}
-            icon={<Bot className="h-3 w-3" />}
-            deck={opponentDeck}
-            sideColor="var(--player-colors-opponent1)"
-            isActive={pickingSide === "opponent"}
-            isConfirmed={!!opponentDeck && opponentConfirmed && pickingSide !== "opponent"}
-            onClick={() => {
-              invalidateHubSelection();
-              setOpponentConfirmed(false);
-              setPickingSide("opponent");
-            }}
-            onClear={() => {
-              invalidateHubSelection();
-              opponentTouchedRef.current = true;
-              setOpponentDeck(null);
-              setOpponentConfirmed(false);
-              setPickingSide("opponent");
-            }}
-            placeholderExtra={
-              !opponentDeck && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleRandomOpponent();
-                  }}
-                  className="inline-flex w-8 shrink-0 items-center justify-center gap-0.5 rounded-r-md text-ui-label text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground touch:w-11 touch:min-h-11 touch:min-w-11 whitespace-normal"
-                  title="Random AI deck"
-                >
-                  <Shuffle className="h-3 w-3" />
-                </button>
-              )
-            }
-          />
-        </div>
+        <OfflineRoster
+          roster={roster}
+          assignments={assignments}
+          errors={seatErrors}
+          loadingSeatId={loadingSeatId}
+          multiplayer={isCommander}
+          compact={denseDecks}
+          disabled={starting}
+          randomAvailable={!!selectedFormat}
+          onSelect={(seatId) => {
+            invalidateHubSelection();
+            dispatchRoster({ type: "select", seatId });
+          }}
+          onClear={(seatId) => {
+            invalidateHubSelection();
+            dispatchRoster({ type: "clear", seatId });
+          }}
+          onRemove={(seatId) => {
+            invalidateHubSelection();
+            dispatchRoster({ type: "remove", seatId });
+          }}
+          onRandom={handleRandomOpponent}
+          onAdd={() => {
+            invalidateHubSelection();
+            dispatchRoster({ type: "add" });
+          }}
+        />
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-shrink-0 sm:items-center">
           <div className="flex min-h-8 w-full items-center justify-center gap-1.5 rounded-md border border-input bg-background px-3 text-ui-label touch:min-h-11 sm:w-auto">
             <EngineMark engine="Forge" className="h-3.5 w-3.5" />
@@ -844,20 +776,20 @@ export function DeckVsSelector({
           </Button>
         </div>
       </div>
-      <PlaytestPlayersDialog
-        open={playersDialogOpen}
-        onChoose={(opponentCount) => {
-          setPlayersDialogOpen(false);
-          void startFight(opponentCount);
-        }}
-        onCancel={() => setPlayersDialogOpen(false)}
-      />
       <TablePickerDialog
         open={tableDialogOpen}
         background={boardBackground}
         onBackgroundChange={setBoardBackground}
         onStart={handleTableChosen}
         onCancel={() => setTableDialogOpen(false)}
+        maxPlayers={roster.seats.length}
+        players={roster.seats.map((seat, index) => ({
+          username: assignments[index].label,
+          is_bot: index > 0,
+          selected_deck_name: seat.deck?.name,
+          ready: seat.confirmed && !seatErrors[index],
+          connected: true,
+        }))}
         centerContent={
           selectedFormat ? (
             <span className="font-serif text-lg font-semibold text-foreground/90">
@@ -866,90 +798,6 @@ export function DeckVsSelector({
           ) : undefined
         }
       />
-    </div>
-  );
-}
-interface DeckSlotProps {
-  label: string;
-  icon: ReactNode;
-  deck: SelectedDeck | null;
-  sideColor: string;
-  isActive: boolean;
-  isConfirmed: boolean;
-  onClick: () => void;
-  onClear: () => void;
-  placeholderExtra?: ReactNode;
-}
-function DeckSlot({
-  label,
-  icon,
-  deck,
-  sideColor,
-  isActive,
-  isConfirmed,
-  onClick,
-  onClear,
-  placeholderExtra,
-}: DeckSlotProps) {
-  return (
-    <div
-      className={cn(
-        "group inline-flex min-h-8 min-w-0 w-full items-stretch rounded-md border text-ui-label transition-colors touch:min-h-11 sm:min-w-24",
-        isActive ? "ring-1" : "border-border/40 hover:border-border hover:bg-muted/40",
-      )}
-      style={{
-        borderColor: isActive ? sideColor : undefined,
-        boxShadow: isActive
-          ? `inset 0 0 0 1px color-mix(in srgb, ${sideColor} 35%, transparent)`
-          : undefined,
-      }}
-    >
-      <button
-        type="button"
-        onClick={onClick}
-        className="inline-flex min-w-0 flex-1 flex-wrap items-center gap-1.5 rounded-l-md px-2 py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal"
-      >
-        <span
-          className="inline-flex shrink-0 items-center gap-0.5 font-bold text-ui-label uppercase tracking-wider"
-          style={{ color: sideColor }}
-        >
-          {icon}
-          {label}
-        </span>
-        <span
-          className={cn(
-            "min-w-0 flex-1 break-words",
-            deck ? "font-medium text-foreground/90" : "italic text-muted-foreground",
-          )}
-        >
-          {deck?.name ?? `pick a deck`}
-        </span>
-        {isActive ? (
-          <span className="shrink-0 text-ui-meta font-semibold uppercase tracking-wide text-primary">
-            Selecting
-          </span>
-        ) : isConfirmed ? (
-          <Check className="h-3 w-3 shrink-0 text-primary" />
-        ) : (
-          deck && (
-            <span className="shrink-0 text-ui-meta font-semibold uppercase tracking-wide text-muted-foreground">
-              Suggested
-            </span>
-          )
-        )}
-      </button>
-      {deck ? (
-        <button
-          type="button"
-          onClick={onClear}
-          className="inline-flex w-8 shrink-0 items-center justify-center rounded-r-md text-muted-foreground transition-colors hover:bg-muted/60 hover:text-destructive touch:w-11 touch:min-h-11 touch:min-w-11 text-ui-label whitespace-normal"
-          title="Clear"
-        >
-          <X className="h-2.5 w-2.5" />
-        </button>
-      ) : (
-        placeholderExtra
-      )}
     </div>
   );
 }

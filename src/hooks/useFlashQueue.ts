@@ -13,6 +13,7 @@ function applyQueuedSnapshot(snapshot: DeferredSnapshot) {
 export function useFlashQueue(flashDurationMs: number) {
   const deferredQueue = useGameStore((s) => s.deferredQueue);
   const [activeFlash, setActiveFlash] = useState<FlashItem | null>(null);
+  const [pendingActivePlayerId, setPendingActivePlayerId] = useState<string | null>(null);
   const flashQueueRef = useRef<FlashItem[]>([]);
   const isFlashingRef = useRef(false);
   const deferredSnapshotRef = useRef<DeferredSnapshot | null>(null);
@@ -21,6 +22,7 @@ export function useFlashQueue(flashDurationMs: number) {
     const deferred = deferredSnapshotRef.current;
     if (!deferred) return;
     deferredSnapshotRef.current = null;
+    setPendingActivePlayerId(null);
     applyQueuedSnapshot(deferred);
   }
 
@@ -54,6 +56,7 @@ export function useFlashQueue(flashDurationMs: number) {
     }
 
     deferredSnapshotRef.current = snapshot;
+    setPendingActivePlayerId(snapshot.gameView?.activePlayerId ?? null);
     const [first, ...others] = flashes;
     flashQueueRef.current.push(...others);
     useGameStore.setState({ isFlashing: true });
@@ -111,5 +114,5 @@ export function useFlashQueue(flashDurationMs: number) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeFlash, flashDurationMs]);
 
-  return activeFlash;
+  return { activeFlash, pendingActivePlayerId };
 }

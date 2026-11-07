@@ -251,6 +251,14 @@ export function checkpointLabel(checkpoint: CheckpointDto): string {
   return `turn ${checkpoint.turn}, ${stepLabel(checkpoint.step)}`;
 }
 
+export function opponentsInTurnOrder<T extends { id: string }>(
+  players: readonly T[],
+  localPlayerId: string,
+): T[] {
+  const index = players.findIndex((player) => player.id === localPlayerId);
+  return [...players.slice(index + 1), ...players.slice(0, Math.max(0, index))];
+}
+
 export function gameRound(turn: number, playerCount: number): number {
   return Math.ceil(turn / playerCount);
 }

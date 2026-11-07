@@ -12,7 +12,7 @@ import {
 import type { BattlefieldCardStyle, InlineCardStyle } from "@/stores/usePreferencesStore";
 import type { HandCardControlsSpec } from "../HandCardControls";
 import type { HandActionOption } from "@/stores/useGameUIStore";
-import { hexToNum } from "../colorUtils";
+import { hexToNum, mixNum } from "../colorUtils";
 import type { Theme } from "@/hooks/useTheme";
 import { getTheme } from "@/hooks/useTheme";
 import type { ArrowDef } from "../ArrowLayer";
@@ -91,6 +91,8 @@ const RECT_SCRATCH_B = new Point();
 const BOARD_ZOOM_MAX = 2.25;
 const BOARD_ZOOM_SNAP_BACK = 1.05;
 const ATTACK_ARROW_LANE_PX = 18;
+const COLUMN_FLOOR_PX = 2;
+const COLUMN_FLOOR_MIX = 0.45;
 /** Extra px around a planeswalker/battle card that still counts as targeting it
  *  while dragging an attacker — makes small opponent permanents easy to hit. */
 const ATTACK_TARGET_HIT_PAD = 44;
@@ -277,7 +279,7 @@ export class BoardScene {
     this.root.addChild(this.collapseVeil);
 
     this.dividers = new BattlefieldDividers(this.theme, () => this.overlayInvalidation?.());
-    this.dividers.root.zIndex = 5560;
+    this.dividers.root.zIndex = 5610;
     this.root.addChild(this.dividers.root);
 
     this.playerBars = new PlayerHudLayer(
@@ -618,6 +620,7 @@ export class BoardScene {
     const collapsedWidth = collapsedOpponentWidth(W, n);
     const veilStart = collapsedWidth * 2;
     const veilColor = hexToNum(this.theme.gameTheme.canvas.background);
+    const floorColor = mixNum(veilColor, hexToNum(this.theme.gameTheme.cardRing), COLUMN_FLOOR_MIX);
     for (let i = 0; i < n; i++) {
       const rec = this.regions.get(this.opponentIds[i]!);
       if (!rec) continue;
@@ -635,6 +638,8 @@ export class BoardScene {
         if (frac > 0.001) {
           this.collapseVeil.rect(left, 0, bandW, this.topHeight);
           this.collapseVeil.fill({ color: veilColor, alpha: frac });
+          this.collapseVeil.rect(left, this.topHeight - COLUMN_FLOOR_PX, bandW, COLUMN_FLOOR_PX);
+          this.collapseVeil.fill({ color: floorColor, alpha: frac });
         }
         const field = rec.region.getPlaymatRect();
         const column = this.presentation.hudUsesColumn(field.width);

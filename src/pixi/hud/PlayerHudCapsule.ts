@@ -57,6 +57,7 @@ const TRAY_VERTICAL_PADDING = 2;
 const TRAY_RADIUS = 6;
 const STATE_ORDER = ["incoming-damage", "poison", "commander", "monarch", "initiative"];
 
+const COMMANDER_ART_BRIGHTNESS = 0.38;
 const iconTextures = new Map<string, Texture>();
 
 const SCRATCH_A = new Point();
@@ -138,6 +139,10 @@ export class PlayerHudCapsule {
   private flashRing = new Graphics();
   private promptReferenceRing = new Graphics();
   private avatarTex: Texture | null = null;
+  private commanderArt = new Sprite();
+  private commanderArtMask = new Graphics();
+  private commanderArtDim = new ColorMatrixFilter();
+  private commanderArtCardId: string | null = null;
   private avatarPhoto = new Sprite();
   private avatarMask = new Graphics();
   private avatarFx = new Graphics();
@@ -273,6 +278,11 @@ export class PlayerHudCapsule {
     this.life = new Text({ text: String(spec.life), style: this.textStyle(15) });
     this.life.anchor.set(0, 0.5);
     this.lifeFloat = new Text({ text: "", style: this.textStyle(16) });
+    this.commanderArt.anchor.set(0.5);
+    this.commanderArt.eventMode = "none";
+    this.commanderArt.mask = this.commanderArtMask;
+    this.commanderArtDim.brightness(COMMANDER_ART_BRIGHTNESS, false);
+    this.commanderArt.filters = [this.commanderArtDim];
     this.lifeFloat.anchor.set(0.5);
     this.lifeFloat.visible = false;
     this.handCount = new Text({ text: "", style: this.textStyle(13) });
@@ -315,6 +325,8 @@ export class PlayerHudCapsule {
       .catch((error) => console.warn("[hud] hand card back load failed", error));
 
     this.container.addChild(
+      this.commanderArtMask,
+      this.commanderArt,
       this.bg,
       this.boundsOutline,
       this.manaTray,
@@ -409,6 +421,7 @@ export class PlayerHudCapsule {
     const sig = PlayerHudCapsule.signature(spec);
     this.spec = spec;
     this.updateAvatarTexture(spec.avatarUrl);
+    this.updateCommanderArt(spec.commander);
     if (sig === this.lastSig) return;
     this.lastSig = sig;
     this.render();
@@ -433,6 +446,7 @@ export class PlayerHudCapsule {
       s.isBot,
       s.manaPool,
       s.badges,
+      s.commander?.id,
     ]);
   }
 
@@ -506,6 +520,38 @@ export class PlayerHudCapsule {
 
   private styled(size: number, weight: TextStyle["fontWeight"], fill: string): TextStyle {
     return cachedTextStyle(size, weight, hexToNum(fill));
+  }
+
+  private updateCommanderArt(card: CardDto | undefined): void {
+    const id = card?.id ?? null;
+    if (id === this.commanderArtCardId) return;
+    this.commanderArtCardId = id;
+    this.commanderArt.texture = Texture.EMPTY;
+    if (!card) return;
+    const deckCard = asGameDeckCard(useGameStore.getState().gameDecks, card);
+    void useScryfallStore
+      .getState()
+      .getCardTexture(deckCard, "art", gameCardFaceIndex(card))
+      .then((texture) => {
+        if (this.container.destroyed || this.commanderArtCardId !== id) return;
+        this.commanderArt.texture = texture;
+        this.render();
+      })
+      .catch((error: unknown) =>
+        console.warn("[hud] commander art load failed", card.identity.name, error),
+      );
+  }
+
+  private layoutCommanderArt(w: number, h: number): void {
+    const texture = this.commanderArt.texture;
+    if (texture === Texture.EMPTY) return;
+    this.commanderArt.visible = true;
+    this.commanderArt.scale.set(Math.max(w / texture.width, h / texture.height));
+    this.commanderArt.position.set(w / 2, h / 2);
+    this.commanderArtMask
+      .clear()
+      .rect(0, 0, w, h)
+      .fill({ color: hexToNum(this.theme.gameTheme.canvas.background) });
   }
 
   private updateAvatarTexture(url: string | undefined): void {
@@ -697,6 +743,7 @@ export class PlayerHudCapsule {
 
     this.bg.clear();
     this.handFan.visible = false;
+    this.commanderArt.visible = false;
     this.manaTray.clear();
     this.stateTray.clear();
     this.detailsIcon.visible = false;
@@ -831,6 +878,7 @@ export class PlayerHudCapsule {
     this.panelHeight = Math.min(h, 352);
     this.identityHeight = short ? 62 : 130;
     this.identityWidth = w;
+    this.layoutCommanderArt(w, h);
     this.drawPlate(w, this.panelHeight);
     this.avatarCx = w / 2;
     this.avatarCy = 34;
@@ -1825,6 +1873,7 @@ export class PlayerHudCapsule {
     this.unsubscribeLocale?.();
     for (const request of this.handFaceRequests) request?.abort();
     for (const sprite of this.handBacks) sprite.texture = Texture.EMPTY;
+    this.commanderArt.texture = Texture.EMPTY;
     for (const texture of this.handFaceTextures) texture?.destroy(true);
     this.combatPulse?.kill();
     this.targetTween?.kill();

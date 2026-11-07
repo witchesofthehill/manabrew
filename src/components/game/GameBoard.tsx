@@ -115,6 +115,7 @@ interface GameBoardProps {
   myCommandZone?: CardDto[];
   playableIds: Set<string>;
   activePlayerId: string;
+  pendingActivePlayerId: string | null;
   priorityPlayerId: string;
   step: StepKind;
   promptType?: PromptType;
@@ -241,6 +242,7 @@ export function GameBoard({
   myCommandZone,
   playableIds,
   activePlayerId,
+  pendingActivePlayerId,
   priorityPlayerId,
   step,
   promptType,
@@ -354,6 +356,11 @@ export function GameBoard({
   if (isTargetingPrompt !== prevTargetingPrompt) {
     setPrevTargetingPrompt(isTargetingPrompt);
     if (isTargetingPrompt) setManualFocusId(null);
+  }
+  const [prevTurnFlashPlayerId, setPrevTurnFlashPlayerId] = useState(turnFlashPlayerId);
+  if (turnFlashPlayerId !== prevTurnFlashPlayerId) {
+    setPrevTurnFlashPlayerId(turnFlashPlayerId);
+    if (turnFlashPlayerId) setManualFocusId(null);
   }
   const [prevActivePlayerId, setPrevActivePlayerId] = useState(activePlayerId);
   if (activePlayerId !== prevActivePlayerId) {
@@ -712,16 +719,18 @@ export function GameBoard({
       : activeOpponentSeat
         ? playerColors[activeOpponentSeat]
         : gameTheme.textMuted;
-  // The opponent whose field auto-expands: the active one on their turn,
+  // The opponent whose field auto-expands: the active one on their turn, taken from
+  // the snapshot still being flashed so the turn banner and its card flashes agree,
   // otherwise the sticky one on ours (defaulting to the first opponent). The
   // scene owns + eases the delimiters, draws the grips, and applies the clip —
   const focusedOpponentId = useMemo(() => {
-    if (!isSelfTurn) return activePlayerId;
+    const turnPlayerId = pendingActivePlayerId ?? activePlayerId;
+    if (opponents.some((op) => op.id === turnPlayerId)) return turnPlayerId;
     if (stickyOpponentId && opponents.some((op) => op.id === stickyOpponentId)) {
       return stickyOpponentId;
     }
     return opponents[0]?.id ?? null;
-  }, [isSelfTurn, activePlayerId, stickyOpponentId, opponents]);
+  }, [pendingActivePlayerId, activePlayerId, stickyOpponentId, opponents]);
 
   const combatFocusIds = useMemo(() => {
     const ids = new Set<string>();
@@ -1202,6 +1211,7 @@ export function GameBoard({
         },
         badges,
         ruleFacts,
+        commander: player.commandZone[0],
       };
     };
     return [

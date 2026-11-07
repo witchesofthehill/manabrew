@@ -1,6 +1,6 @@
 import { Container, Graphics, Rectangle, type FederatedPointerEvent } from "pixi.js";
 import { PHASE_BAR_ENTRIES, PHASES } from "@/components/game/game.constants";
-import { togglePhaseStops } from "@/components/game/game.utils";
+import { opponentsInTurnOrder, togglePhaseStops } from "@/components/game/game.utils";
 import type { Theme } from "@/hooks/useTheme";
 import { TOUCH_MOVE_SLOP_PX } from "@/lib/responsive";
 import { stripUsernameTag } from "@/lib/username";
@@ -62,7 +62,7 @@ export class PromptPhaseControls extends Container {
     const stops = usePhaseStopStore.getState();
     const { playerColors } = theme.gameTheme;
     const opponentColors = [playerColors.opponent1, playerColors.opponent2, playerColors.opponent3];
-    const opponents = spec.gameView.players.filter((player) => player.id !== spec.localPlayerId);
+    const opponents = opponentsInTurnOrder(spec.gameView.players, spec.localPlayerId);
     const players = [
       { id: spec.localPlayerId, name: "You", color: playerColors.self, stops: stops.selfStops },
       ...opponents.map((player, index) => ({

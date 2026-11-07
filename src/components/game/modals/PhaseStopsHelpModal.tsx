@@ -1,3 +1,4 @@
+import { opponentsInTurnOrder } from "@/components/game/game.utils";
 import { useTheme } from "@/hooks/useTheme";
 import { stripUsernameTag } from "@/lib/username";
 import type { ClientGameView } from "@/stores/gameStore.types";
@@ -36,15 +37,13 @@ export function PhaseStopsHelpModal({
       stops: selfStops,
       toggle: toggleSelfStop,
     },
-    ...gameView.players
-      .filter((player) => player.id !== localPlayerId)
-      .map((player, index) => ({
-        id: player.id,
-        name: stripUsernameTag(player.name),
-        color: opponentColors[index] ?? playerColors.opponent1,
-        stops: opponentStops.get(player.id) ?? DEFAULT_OPPONENT_STOPS,
-        toggle: (step: string) => toggleOpponentStop(player.id, step),
-      })),
+    ...opponentsInTurnOrder(gameView.players, localPlayerId).map((player, index) => ({
+      id: player.id,
+      name: stripUsernameTag(player.name),
+      color: opponentColors[index] ?? playerColors.opponent1,
+      stops: opponentStops.get(player.id) ?? DEFAULT_OPPONENT_STOPS,
+      toggle: (step: string) => toggleOpponentStop(player.id, step),
+    })),
   ];
   const Diagram = perPlayer ? PhaseStopRowsDiagram : PhaseStopCompactDiagram;
 

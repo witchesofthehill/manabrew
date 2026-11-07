@@ -102,6 +102,7 @@ import {
   stackObjectToCard,
   relayAvatarUrl,
   gameRound,
+  opponentsInTurnOrder,
 } from "@/components/game/game.utils";
 import { createPortal } from "react-dom";
 import { Card } from "@/components/game/Card";
@@ -1149,7 +1150,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     }
     respondHandAction(action);
   };
-  const activeFlash = useFlashQueue(flashDurationMs);
+  const { activeFlash, pendingActivePlayerId } = useFlashQueue(flashDurationMs);
   const [priorityHighlightPlayerId, setPriorityHighlightPlayerId] = useState<string | null>(null);
   useEffect(() => {
     const next = gameView?.priorityPlayerId ?? null;
@@ -1246,7 +1247,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     placementIntentRef.current = null;
   }, [activePrompt, casting.castingCardId, gameView, me]);
   const opponents = useMemo(
-    () => gameView?.players?.filter((p) => p.id !== me?.id) ?? [],
+    () => (gameView && me ? opponentsInTurnOrder(gameView.players, me.id) : []),
     [gameView?.players, me?.id],
   );
   const iAmEliminated = selfConceded || (me != null && me.status !== "playing");
@@ -2590,6 +2591,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           myCommandZone={me?.commandZone ?? []}
           playableIds={playableIds}
           activePlayerId={gameView.activePlayerId}
+          pendingActivePlayerId={pendingActivePlayerId}
           priorityPlayerId={effectivePriorityHighlightPlayerId}
           monarchId={gameView.monarchId ?? null}
           initiativeHolderId={gameView.initiativeHolderId ?? null}

@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.73.0](https://github.com/witchesofthehill/manabrew/compare/v3.72.0...v3.73.0) (2026-11-07)
+
+### Features
+
+* **observability:** retain diagnostic stacks and runtime context ([#1184](https://github.com/witchesofthehill/manabrew/issues/1184)) ([c3bb8fd](https://github.com/witchesofthehill/manabrew/commit/c3bb8fdd0894b623e341eb83231f6f4ef74c92bb))
+
 ## [3.72.0](https://github.com/witchesofthehill/manabrew/compare/v3.71.2...v3.72.0) (2026-11-07)
 
 ### Features

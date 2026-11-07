@@ -1,4 +1,5 @@
 import { beginGame, noteAnswerSent } from "@/lib/engineTelemetry";
+import { setErrorReportingEngine } from "@/lib/errorReporting";
 import {
   engineReportGameId,
   forgeHostLabel,
@@ -159,6 +160,7 @@ async function initializeGame({
   const useHostedForge =
     (platformType === "tauri" && !tauriForgeRoomAvailable) ||
     (platformType === "web" && !isForgeWasmSupported() && isHostedEngineAvailable());
+  setErrorReportingEngine(null);
   if (engine === "Forge" && opponentDecks?.length && (tauriForgeRoomAvailable || useHostedForge)) {
     const launchForge = tauriForgeRoomAvailable ? startTauriForgeAiGame : startHostedAiGame;
     set({
@@ -224,6 +226,7 @@ async function initializeGame({
       // this tab, and never under a "forge" runtime, so the launch is the only
       // place that can name it.
       beginGame(forgeHostLabel(tauriForgeRoomAvailable));
+      setErrorReportingEngine(forgeHostLabel(tauriForgeRoomAvailable));
       await hostedRuntime.api.startMultiplayerGame({
         playerNames: hostedLaunch.playerOrder,
         decks: hostedLaunch.decks,
@@ -289,6 +292,7 @@ async function initializeGame({
     startingLife,
     decks: gameDecks,
   });
+  setErrorReportingEngine(engineLabel);
   const firstForgeStart = engine === "Forge" && platformType === "web" && !hasForgeWasmVerdict();
   if (firstForgeStart) beginForgeWasmTrial();
   try {
@@ -404,6 +408,7 @@ export const useGameStore = create<GameState>()(
           return true;
         } catch (e) {
           if (e instanceof GameLaunchCancelledError) return false;
+          setErrorReportingEngine(null);
           set({
             isGameActive: false,
             activeEngine: null,
@@ -593,14 +598,14 @@ export const useGameStore = create<GameState>()(
           const runtime =
             engine === "Ironsmith" ? selectGameRuntime("ironsmith") : resetSelectedGameRuntime();
           set({ debugInfo: "Starting engine..." });
-          beginGame(
-            roomEngineLabel(
-              engine,
-              localIsHost,
-              getPlatform().type,
-              useServerStore.getState().currentRoom?.hosted ?? false,
-            ),
+          const engineLabel = roomEngineLabel(
+            engine,
+            localIsHost,
+            getPlatform().type,
+            useServerStore.getState().currentRoom?.hosted ?? false,
           );
+          beginGame(engineLabel);
+          setErrorReportingEngine(engineLabel);
           await runtime.api.startMultiplayerGame({
             playerNames,
             decks,
@@ -621,6 +626,7 @@ export const useGameStore = create<GameState>()(
           return true;
         } catch (e) {
           if (launchGeneration !== gameLaunchGeneration) return false;
+          setErrorReportingEngine(null);
           set({
             isGameActive: false,
             activeEngine: null,
@@ -737,6 +743,7 @@ export const useGameStore = create<GameState>()(
               }
             : undefined,
         });
+        setErrorReportingEngine(null);
         set({
           isGameActive: false,
           activeEngine: null,

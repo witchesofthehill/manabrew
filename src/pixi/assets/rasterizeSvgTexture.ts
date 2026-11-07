@@ -30,11 +30,7 @@ export function rasterizeSvgTexture(svg: string, width: number, height = width):
           const context = canvas.getContext("2d");
           if (!context) throw new Error("2d context unavailable");
           context.drawImage(loadedImage, 0, 0, width, height);
-          resolve(
-            new Texture({
-              source: new ImageSource({ resource: canvas, autoGenerateMipmaps: true }),
-            }),
-          );
+          resolve(new Texture({ source: new ImageSource({ resource: canvas }) }));
         } catch (error) {
           reject(error);
         } finally {

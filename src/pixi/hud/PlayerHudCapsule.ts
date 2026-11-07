@@ -578,6 +578,7 @@ export class PlayerHudCapsule {
     this.avatarFx.clear();
     this.avatarFx.visible = visible;
     this.avatarPhoto.visible = hasImage && visible;
+    this.avatarMask.visible = this.avatarPhoto.visible;
     if (hasImage) {
       const tex = this.avatarTex!;
       const cover = diameter / Math.min(tex.width, tex.height);

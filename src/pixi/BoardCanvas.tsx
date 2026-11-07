@@ -259,6 +259,7 @@ export function BoardCanvasSurface({
 
     void (async () => {
       try {
+        if (import.meta.env.DEV) Object.assign(window, { __mbBoardApp: app });
         await app.init({
           canvas,
           preference: "webgl",

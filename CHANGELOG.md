@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.72.0](https://github.com/witchesofthehill/manabrew/compare/v3.71.2...v3.72.0) (2026-11-07)
+
+### Features
+
+* **observability:** add self-hosted frontend error reporting ([#1134](https://github.com/witchesofthehill/manabrew/issues/1134)) ([aea7a1c](https://github.com/witchesofthehill/manabrew/commit/aea7a1c84205182b5a89cb3ec1b2487ba30f66fc))
+
 ## [3.71.2](https://github.com/witchesofthehill/manabrew/compare/v3.71.1...v3.71.2) (2026-11-06)
 
 ### Fixes

@@ -1067,7 +1067,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       return true;
     }
     if (promptType === "chooseBlockers") {
-      if (blockAssignments.length === 0 || blockRequirement) return false;
+      if (blockRequirement) return false;
       respond({ type: "declareBlockers", assignments: blockAssignments });
       return true;
     }

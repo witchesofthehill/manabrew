@@ -34,7 +34,7 @@ export const PREVIEW_SCENARIOS: PreviewScenario[] = [
   },
   { label: "Battle / creature back", name: "Invasion of Zendikar", back: true },
   { label: "Split / both halves", name: "Fire // Ice", scry: ["landscape", "mixed"] },
-  { label: "Aftermath / both halves", name: "Cut // Ribbons", scry: ["landscape", "mixed"] },
+  { label: "Aftermath / both halves", name: "Cut // Ribbons", scry: ["mixed"] },
   {
     label: "Room / both doors",
     name: "Roaring Furnace // Steaming Sauna",

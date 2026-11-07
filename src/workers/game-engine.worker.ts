@@ -64,6 +64,8 @@ interface WorkerResponse {
   requestId: string;
   payload?: unknown;
   error?: string;
+  errorName?: string;
+  errorStack?: string;
 }
 
 interface WorkerEvent {
@@ -126,7 +128,12 @@ async function initWasm(): Promise<void> {
       // worker is unrecoverable at this point but a parent reload re-spawns
       // the worker module and the cycle starts over.
       wasmInitPromise = null;
-      postEvent("worker:init", { stage: "error", message });
+      postEvent("worker:init", {
+        stage: "error",
+        message,
+        name: error instanceof Error ? error.name : undefined,
+        stack: error instanceof Error ? error.stack?.slice(0, 8192) : undefined,
+      });
       throw error;
     }
   })();
@@ -335,6 +342,8 @@ function runInteractiveGame(requestId: string, args?: Record<string, unknown>): 
     postEvent("game:forced_end", {
       reason: "worker_error",
       message: msg,
+      name: e instanceof Error ? e.name : undefined,
+      stack: e instanceof Error ? e.stack?.slice(0, 8192) : undefined,
     });
   }
 }
@@ -413,6 +422,8 @@ function runMultiplayerHostGame(requestId: string, args?: Record<string, unknown
     postEvent("game:forced_end", {
       reason: "worker_error",
       message: msg,
+      name: e instanceof Error ? e.name : undefined,
+      stack: e instanceof Error ? e.stack?.slice(0, 8192) : undefined,
     });
   }
 }
@@ -591,11 +602,13 @@ function postResponse(requestId: string, payload?: unknown): void {
   self.postMessage(message);
 }
 
-function postError(requestId: string, error: string): void {
+function postError(requestId: string, error: unknown): void {
   const message: WorkerResponse = {
     type: "response",
     requestId,
-    error,
+    error: error instanceof Error ? error.message : String(error),
+    errorName: error instanceof Error ? error.name : undefined,
+    errorStack: error instanceof Error ? error.stack?.slice(0, 8192) : undefined,
   };
   self.postMessage(message);
 }
@@ -636,7 +649,7 @@ self.onmessage = async (e: MessageEvent<WorkerCommand>) => {
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       console.error("[GameWorker] start_game error:", msg);
-      postError(requestId, msg);
+      postError(requestId, error);
     }
     return;
   }
@@ -649,7 +662,7 @@ self.onmessage = async (e: MessageEvent<WorkerCommand>) => {
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       console.error("[GameWorker] start_multiplayer_game error:", msg);
-      postError(requestId, msg);
+      postError(requestId, error);
     }
     return;
   }
@@ -660,7 +673,7 @@ self.onmessage = async (e: MessageEvent<WorkerCommand>) => {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("[GameWorker] Command error:", command, errorMessage);
-    postError(requestId, errorMessage);
+    postError(requestId, error);
   }
 };
 

@@ -1,5 +1,39 @@
 # Changelog
 
+## [3.73.0](https://github.com/witchesofthehill/manabrew/compare/v3.72.0...v3.73.0) (2026-11-07)
+
+### Features
+
+* **observability:** retain diagnostic stacks and runtime context ([#1184](https://github.com/witchesofthehill/manabrew/issues/1184)) ([c3bb8fd](https://github.com/witchesofthehill/manabrew/commit/c3bb8fdd0894b623e341eb83231f6f4ef74c92bb))
+
+## [3.72.0](https://github.com/witchesofthehill/manabrew/compare/v3.71.2...v3.72.0) (2026-11-07)
+
+### Features
+
+* **observability:** add self-hosted frontend error reporting ([#1134](https://github.com/witchesofthehill/manabrew/issues/1134)) ([aea7a1c](https://github.com/witchesofthehill/manabrew/commit/aea7a1c84205182b5a89cb3ec1b2487ba30f66fc))
+
+## [3.71.2](https://github.com/witchesofthehill/manabrew/compare/v3.71.1...v3.71.2) (2026-11-06)
+
+### Fixes
+
+* **limited:** preserve card names in cubecobra draft pools ([#1180](https://github.com/witchesofthehill/manabrew/issues/1180)) ([2c8b8ca](https://github.com/witchesofthehill/manabrew/commit/2c8b8ca974f1ea33ef76ed65688598bf158e1894))
+
+## [3.71.1](https://github.com/witchesofthehill/manabrew/compare/v3.71.0...v3.71.1) (2026-11-04)
+
+### Fixes
+
+* visibility issue ([#1179](https://github.com/witchesofthehill/manabrew/issues/1179)) ([f2c0489](https://github.com/witchesofthehill/manabrew/commit/f2c0489247281504ef4d8c5c3efad1fbc1b9fe67))
+
+## [3.71.0](https://github.com/witchesofthehill/manabrew/compare/v3.70.2...v3.71.0) (2026-11-03)
+
+### Features
+
+* **ui:** accept Space for no blocks ([#1168](https://github.com/witchesofthehill/manabrew/issues/1168)) ([e315a27](https://github.com/witchesofthehill/manabrew/commit/e315a275d0e2e9872135702aa3b85ce4a68246db))
+
+### Fixes
+
+* **ui:** keep aftermath card previews portrait ([#1166](https://github.com/witchesofthehill/manabrew/issues/1166)) ([468c5fc](https://github.com/witchesofthehill/manabrew/commit/468c5fcc07f04296137d128e397f30e2e305d01c))
+
 ## [3.70.2](https://github.com/witchesofthehill/manabrew/compare/v3.70.1...v3.70.2) (2026-11-03)
 
 ### Fixes
@@ -27,11 +61,14 @@
 
 ### Fixes
 
+- Preserve distinct card names in CubeCobra draft pools when imported cards have no collector numbers, instead of collapsing each set to its first card.
+- Preserve CubeCobra set and collector-number identifiers so imported printed and flavor names resolve through existing Scryfall batches, without per-card search fallbacks.
 - Specialize host Card Glint shaders before compilation with `GLINT_FINISH_KIND`, excluding unrelated finish code.
 - Await SDK printing/coating shader readiness before GPU preparation, flush host shader links before polling, and reuse completed Pixi programs without relinking; keep Heat source content visible while GPU resources are pending.
 - Render DOM foil overlays in bounded atlas pages before copying their output crops.
 - Upgrade Card Glint to 0.7.13 for native shader compilation fixes and updated frame calibration, with matching offline and finish-cache revisions.
 - Restore in-game and DOM card foiling by enabling the shared Card Glint feature flag.
+- **ui:** allow Space to declare no blockers ([#1050](https://github.com/witchesofthehill/manabrew/issues/1050)).
 
 ## [3.69.2](https://github.com/witchesofthehill/manabrew/compare/v3.69.1...v3.69.2) (2026-11-02)
 

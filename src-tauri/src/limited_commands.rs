@@ -197,7 +197,7 @@ pub async fn limited_import_cube(
                 token_script: None,
                 name: entry.name.clone(),
                 set_code: entry.set_code.clone().unwrap_or_default(),
-                card_number: String::new(),
+                card_number: entry.collector_number.clone().unwrap_or_default(),
                 foil: None,
                 cosmetics: None,
             });

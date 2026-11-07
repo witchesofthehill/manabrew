@@ -17,6 +17,8 @@ source. There is no idle spare or shadow engine.
 - Browser/WebView: `forge-engine.worker.js` supervises the engine and buffers
   candidate SABs until `forge:replay_ready`. Directive lanes and queued directives
   survive promotion; prompt IDs advance so stale responses cannot be accepted.
+  The supervisor cancels owned child-worker error events and forwards the failure,
+  preventing a second propagated report at the page's worker boundary.
 - JVM/native: `journal_engine.rs` owns subprocess reconstruction and promotion.
   Replay has a 120-second total deadline; subprocess RPCs have 60-second deadlines
   and poll cancellation every 20 ms. Failed transports are killed and reaped,

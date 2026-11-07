@@ -3,6 +3,7 @@ import { localCardRecord, localPrintingRecord } from "@/lib/localCardRecords";
 import { COLLECTION_BATCH_SIZE, SCRYFALL_API, scryfallFetch } from "./scryfall";
 
 const SCRYFALL_BATCH_DEBOUNCE_MS = 100;
+const CARD_FACE_SEPARATOR = /\s*\/\/\s*|\s+\/\s+/;
 
 export type CardIdentifier =
   | { id: string }
@@ -50,12 +51,21 @@ export function matchesIdentifier(card: ScryfallCard, id: CardIdentifier): boole
     );
   }
   const expectedName = canonicalCardName(id.name);
-  const cardName = canonicalCardName(card.name);
-  const faceMatches = card.card_faces?.some(
-    (face) => canonicalCardName(face.name) === expectedName,
-  );
-  const splitNameMatches = cardName.split(" // ").some((part) => part === expectedName);
-  if (cardName !== expectedName && !faceMatches && !splitNameMatches) return false;
+  const names = [card.name, card.printed_name, card.flavor_name];
+  if (card.card_faces) {
+    for (const face of card.card_faces) {
+      names.push(face.name, face.printed_name, face.flavor_name);
+    }
+    for (const field of ["printed_name", "flavor_name"] as const) {
+      names.push(card.card_faces.map((face) => face[field] ?? face.name).join(" // "));
+    }
+  }
+  const nameMatches = names.some((name) => {
+    if (!name) return false;
+    const canonical = canonicalCardName(name);
+    return canonical === expectedName || canonical.split(" // ").includes(expectedName);
+  });
+  if (!nameMatches) return false;
   return id.set ? card.set?.toLowerCase() === id.set.toLowerCase() : true;
 }
 
@@ -63,7 +73,7 @@ export function canonicalCardName(name: string): string {
   return name
     .trim()
     .toLowerCase()
-    .split(/\s*\/{1,2}\s*/)
+    .split(CARD_FACE_SEPARATOR)
     .map((part) => part.trim())
     .join(" // ");
 }
@@ -72,8 +82,8 @@ export function canonicalCardName(name: string): string {
 // full DFC display name returns not_found. Strip the back-face half before
 // sending; matchesIdentifier still accepts the full name on the way back.
 export function normalizeIdentifierForRequest(id: CardIdentifier): CardIdentifier {
-  if ("name" in id && /\/{1,2}/.test(id.name)) {
-    const front = id.name.split(/\s*\/{1,2}\s*/)[0]?.trim();
+  if ("name" in id && CARD_FACE_SEPARATOR.test(id.name)) {
+    const front = id.name.split(CARD_FACE_SEPARATOR)[0]?.trim();
     if (front) return { ...id, name: front };
   }
   return id;

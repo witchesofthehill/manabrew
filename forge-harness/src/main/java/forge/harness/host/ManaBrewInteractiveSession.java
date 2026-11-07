@@ -109,8 +109,6 @@ public final class ManaBrewInteractiveSession {
     private int restoreVoteCount;
     private volatile Map<String, Object> restoreVoteView;
     private volatile long stateRevision;
-    private int heldStepTurn = -1;
-    private PhaseType heldStepPhase;
     private volatile boolean snapshotRecording;
     private boolean checkpointMetricsEnabled;
     private final List<long[]> checkpointTimings = new ArrayList<>();
@@ -2335,14 +2333,6 @@ public final class ManaBrewInteractiveSession {
         if (bridge != null && !replaying) {
             bridge.publishState();
         }
-    }
-
-    void announceHeldStep() {
-        final PhaseHandler handler = game.getPhaseHandler();
-        if (handler.getTurn() == heldStepTurn && handler.getPhase() == heldStepPhase) return;
-        heldStepTurn = handler.getTurn();
-        heldStepPhase = handler.getPhase();
-        announceState();
     }
 
     private void setSnapshotRecording(final boolean enabled) {

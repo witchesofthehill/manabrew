@@ -77,7 +77,7 @@ loki.manabrew.app {
     reverse_proxy loki:3100
 }
 
-telemetry.manabrew.app {
+faro.manabrew.app {
     log {
         output discard
     }

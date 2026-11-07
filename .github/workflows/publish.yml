@@ -54,7 +54,7 @@ jobs:
     env:
       APP_BUILD_TARGET: macos-arm64
       VITE_FARO_ENABLED: "true"
-      VITE_FARO_COLLECTOR_URL: https://telemetry.manabrew.app/collect
+      VITE_FARO_COLLECTOR_URL: https://faro.manabrew.app/collect
       VITE_FARO_ENVIRONMENT: production
     steps:
       - uses: actions/checkout@v4
@@ -234,7 +234,7 @@ jobs:
     env:
       APP_BUILD_TARGET: windows-x86-64
       VITE_FARO_ENABLED: "true"
-      VITE_FARO_COLLECTOR_URL: https://telemetry.manabrew.app/collect
+      VITE_FARO_COLLECTOR_URL: https://faro.manabrew.app/collect
       VITE_FARO_ENVIRONMENT: production
     steps:
       - uses: actions/checkout@v4
@@ -425,7 +425,7 @@ jobs:
     env:
       APP_BUILD_TARGET: ios-aarch64
       VITE_FARO_ENABLED: "true"
-      VITE_FARO_COLLECTOR_URL: https://telemetry.manabrew.app/collect
+      VITE_FARO_COLLECTOR_URL: https://faro.manabrew.app/collect
       VITE_FARO_ENVIRONMENT: production
     steps:
       - uses: actions/checkout@v4
@@ -526,7 +526,7 @@ jobs:
     env:
       APP_BUILD_TARGET: android-aarch64
       VITE_FARO_ENABLED: "true"
-      VITE_FARO_COLLECTOR_URL: https://telemetry.manabrew.app/collect
+      VITE_FARO_COLLECTOR_URL: https://faro.manabrew.app/collect
       VITE_FARO_ENVIRONMENT: production
     steps:
       - uses: actions/checkout@v4

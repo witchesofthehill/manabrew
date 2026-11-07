@@ -24,7 +24,7 @@ services:
       EMAIL_SIGN_IN: "${EMAIL_SIGN_IN:-1}"
       FORGE_WASM: "${FORGE_WASM:-1}"
       FARO_ENABLED: "${FARO_ENABLED:-true}"
-      FARO_COLLECTOR_URL: "${FARO_COLLECTOR_URL:-https://telemetry.manabrew.app/collect}"
+      FARO_COLLECTOR_URL: "${FARO_COLLECTOR_URL:-https://faro.manabrew.app/collect}"
       FARO_ENVIRONMENT: "${FARO_ENVIRONMENT:-staging}"
       # Hub API is same-origin (path-routed in ops/staging.Caddyfile).
       HUB_API_URL: "https://staging.manabrew.app"

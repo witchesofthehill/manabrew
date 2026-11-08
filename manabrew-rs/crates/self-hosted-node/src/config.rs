@@ -71,7 +71,7 @@ impl Config {
     pub fn from_env() -> Self {
         let username = format!("self-hosted-node-{}", uuid::Uuid::new_v4());
         let bot_username = env_first("SELF_HOSTED_NODE_BOT_USERNAME", "FORGE_ROOM_BOT_USERNAME")
-            .unwrap_or_else(|| format!("{username}-bot"));
+            .unwrap_or_else(|| "Bot".into());
         let host_deck_id = env_first("SELF_HOSTED_NODE_DECK", "FORGE_ROOM_NODE_DECK")
             .unwrap_or_else(|| "ashling_limitless_commander".into());
         let bot_deck_id = env_first("SELF_HOSTED_NODE_BOT_DECK", "FORGE_ROOM_BOT_DECK")
@@ -170,7 +170,6 @@ impl Config {
         table_style: Option<String>,
     ) -> Self {
         let username = format!("forge-host-{}", uuid::Uuid::new_v4());
-        let bot_username = format!("{username}-bot");
         Self {
             backend: EngineBackendKind::Forge,
             relay_url,
@@ -188,7 +187,7 @@ impl Config {
             official_key: None,
             room_password,
             bot_enabled: false,
-            bot_username,
+            bot_username: "Bot".into(),
             forge_ai: true,
             bot_agent: AgentKind::default(),
             bot_local_answers: true,

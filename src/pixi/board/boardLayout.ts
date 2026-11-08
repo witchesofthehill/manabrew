@@ -17,12 +17,8 @@ export interface BoardLayout {
   self: PlayZoneRect;
   opponents: OpponentRegion[];
   dividerY: number;
-  stripBandPx: number;
   opponentLayout: "focused" | "overview";
 }
-
-/** Fixed vertical band, in px, reserved at the center for the phase strip. */
-export const STRIP_BAND_PX = 30;
 
 export const COLLAPSED_OPPONENT_WIDTH_PX = 112;
 export const DELIMITER_EASE = { FACTOR: 0.25, SNAP: 0.0005 } as const;
@@ -41,9 +37,7 @@ export function computeBoardLayout(
   opponentLayout: "focused" | "overview" = "focused",
 ): BoardLayout {
   const count = Math.max(1, opponentCount);
-  const bandPx = compact ? 0 : STRIP_BAND_PX;
-  const band = Math.min(bandPx, Math.max(0, height - 2));
-  const usable = Math.max(0, height - band);
+  const usable = Math.max(0, height);
   const fraction =
     usable > 0
       ? Math.min(0.8, Math.max(0.2, selfFieldShare + selfBottomReserve / (2 * usable)))
@@ -54,7 +48,7 @@ export function computeBoardLayout(
     ? requestedSelfHeight
     : Math.min(requestedSelfHeight, Math.floor(usable - minimumTop));
   const topHeight = usable - selfHeight;
-  const dividerY = topHeight + band / 2;
+  const dividerY = topHeight;
   const overview = opponentLayout === "overview" && !compact && opponentCount > 1;
 
   const opponentHeight = overview ? topHeight / count : topHeight;
@@ -73,10 +67,9 @@ export function computeBoardLayout(
   }
 
   return {
-    self: { x: 0, y: topHeight + band, width, height: selfHeight },
+    self: { x: 0, y: topHeight, width, height: selfHeight },
     opponents,
     dividerY,
-    stripBandPx: band,
     opponentLayout: overview ? "overview" : "focused",
   };
 }

@@ -323,6 +323,11 @@ impl CardDatabase {
             if !card.name_lower.as_str().is_ascii() {
                 cards.add_normalized_name(card.display_name());
             }
+            if card.raw.as_str().contains("FlavorName:") {
+                if let Some(rules) = cards.lazy_parse_by_lower(card.name_lower.as_str()) {
+                    cards.register_flavor_aliases_for_card(rules);
+                }
+            }
         }
         let cards_result = LoadResult {
             loaded: archive.cards.len(),
@@ -401,16 +406,15 @@ impl CardDatabase {
 
     fn register_flavor_aliases_for_card(&mut self, card: &CardRules) {
         let canonical = card.name();
-        if let Some(alias) = &card.main_part.flavor_name {
-            self.register_flavor_alias(alias, &canonical);
-        }
-        if let Some(other) = &card.other_part {
-            if let Some(alias) = &other.flavor_name {
-                self.register_flavor_alias(alias, &canonical);
-            }
-        }
-        for face in card.specialized_parts.values() {
-            if let Some(alias) = &face.flavor_name {
+        let faces = std::iter::once(&card.main_part)
+            .chain(card.other_part.as_ref())
+            .chain(card.specialized_parts.values());
+        for face in faces {
+            let variant_aliases = face
+                .functional_variants
+                .values()
+                .filter_map(|variant| variant.flavor_name.as_ref());
+            for alias in face.flavor_name.iter().chain(variant_aliases) {
                 self.register_flavor_alias(alias, &canonical);
             }
         }

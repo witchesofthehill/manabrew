@@ -42,6 +42,8 @@ pub struct CardFace {
 
     // Attraction lights
     pub attraction_lights: Vec<u32>,
+
+    pub functional_variants: BTreeMap<String, CardFace>,
 }
 
 impl CardFace {
@@ -68,6 +70,7 @@ impl CardFace {
             svars: BTreeMap::new(),
             non_ability_text: None,
             attraction_lights: Vec::new(),
+            functional_variants: BTreeMap::new(),
         }
     }
 

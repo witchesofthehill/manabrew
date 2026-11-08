@@ -7,12 +7,13 @@ import type { ScreenBounds, ScreenPos } from "@/pixi/types";
 
 export const SELF_PLAYER_HUD_HEIGHT_PX = 58;
 export const OPPONENT_PLAYER_HUD_HEIGHT_PX = 58;
-export const SELF_PLAYER_HUD_MAX_WIDTH_PX = 400;
 export const SELF_PLAYER_HUD_MIN_WIDTH_PX = 272;
 export const MOBILE_PLAYER_HUD_MAX_WIDTH_PX = 96;
 export const MOBILE_PLAYER_HUD_MIN_WIDTH_PX = 88;
 export const PLAYER_HUD_HAND_GAP_PX = 8;
 export const MOBILE_PLAYER_HUD_HEIGHT_PX = 36;
+export const PLAYER_PANEL_WIDTH = 280;
+export const PLAYER_PANEL_EDGE_GAP = 12;
 
 // Above this y a capsule is a top-anchored opponent, so its tooltip drops below
 // the badge instead of rising above it (off the top edge).
@@ -27,6 +28,7 @@ export class PlayerHudLayer {
   private tooltip: PlayerHudTooltip;
   private compact = false;
   private boundsDebug = false;
+  private squareAvatars = false;
 
   constructor(
     theme: Theme,
@@ -73,6 +75,7 @@ export class PlayerHudLayer {
         this.capsules.set(spec.playerId, capsule);
         capsule.setCompact(this.compact);
         capsule.setBoundsDebug(this.boundsDebug);
+        capsule.setSquareAvatar(this.squareAvatars);
       }
       capsule.setSpec(spec);
     }
@@ -99,6 +102,12 @@ export class PlayerHudLayer {
     this.compact = compact;
     for (const capsule of this.capsules.values()) capsule.setCompact(compact);
   }
+  setSquareAvatars(square: boolean): void {
+    if (this.squareAvatars === square) return;
+    this.squareAvatars = square;
+    for (const capsule of this.capsules.values()) capsule.setSquareAvatar(square);
+  }
+
   setBoundsDebug(on: boolean): void {
     if (this.boundsDebug === on) return;
     this.boundsDebug = on;

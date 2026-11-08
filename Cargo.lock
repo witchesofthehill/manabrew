@@ -2668,7 +2668,7 @@ dependencies = [
 
 [[package]]
 name = "forge-carddb"
-version = "0.3.11"
+version = "0.4.0"
 dependencies = [
  "deunicode",
  "forge-card-script",
@@ -4318,7 +4318,7 @@ checksum = "11d3d7f243d5c5a8b9bb5d6dd2b1602c0cb0b9db1621bafc7ed66e35ff9fe092"
 
 [[package]]
 name = "loadgen"
-version = "0.3.18"
+version = "0.3.19"
 dependencies = [
  "futures-util",
  "manabot",
@@ -4402,7 +4402,7 @@ dependencies = [
 
 [[package]]
 name = "manabot"
-version = "0.17.12"
+version = "0.17.13"
 dependencies = [
  "bitflags 2.11.0",
  "futures-util",
@@ -4421,7 +4421,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew"
-version = "3.73.0"
+version = "3.74.0"
 dependencies = [
  "flate2",
  "forge-carddb",
@@ -4460,7 +4460,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew-agent-interface"
-version = "0.19.2"
+version = "0.19.3"
 dependencies = [
  "forge-foundation",
  "manabrew-engine",
@@ -4491,7 +4491,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew-engine"
-version = "0.13.2"
+version = "0.13.3"
 dependencies = [
  "dyn-clone",
  "forge-card-script",
@@ -4611,7 +4611,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew_game_runtime"
-version = "0.4.11"
+version = "0.4.12"
 dependencies = [
  "forge-carddb",
  "forge-foundation",
@@ -5677,7 +5677,7 @@ dependencies = [
 
 [[package]]
 name = "parity"
-version = "0.7.5"
+version = "0.7.6"
 dependencies = [
  "axum",
  "chrono",
@@ -5704,7 +5704,7 @@ dependencies = [
 
 [[package]]
 name = "parity-debugger"
-version = "0.3.17"
+version = "0.3.18"
 dependencies = [
  "eframe",
  "egui",
@@ -7116,7 +7116,7 @@ dependencies = [
 
 [[package]]
 name = "self-hosted-node"
-version = "0.48.2"
+version = "0.48.3"
 dependencies = [
  "forge-carddb",
  "forge-foundation",
@@ -9313,7 +9313,7 @@ dependencies = [
 
 [[package]]
 name = "wasm"
-version = "0.14.2"
+version = "0.14.3"
 dependencies = [
  "console_error_panic_hook",
  "forge-carddb",

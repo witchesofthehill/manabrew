@@ -6,12 +6,11 @@ import { HAND_RESERVE_TRIM } from "../constants";
 import {
   OPPONENT_PLAYER_HUD_HEIGHT_PX,
   PLAYER_HUD_HAND_GAP_PX,
+  PLAYER_PANEL_WIDTH,
   SELF_PLAYER_HUD_HEIGHT_PX,
-  SELF_PLAYER_HUD_MAX_WIDTH_PX,
   SELF_PLAYER_HUD_MIN_WIDTH_PX,
   type PlayerHudLayer,
 } from "../hud/PlayerHudLayer";
-import type { PhaseStripLayer } from "../PhaseStripLayer";
 import { DesktopBoardRegionPresentation } from "./DesktopBoardRegionPresentation";
 import type { BoardScenePresentation } from "./BoardScenePresentation";
 import type { HandController } from "./HandController";
@@ -24,18 +23,14 @@ export class DesktopBoardScenePresentation implements BoardScenePresentation {
   readonly region = new DesktopBoardRegionPresentation();
   readonly opponentHudHeight = OPPONENT_PLAYER_HUD_HEIGHT_PX;
   readonly selfHudHeight = SELF_PLAYER_HUD_HEIGHT_PX;
-  readonly hudMaxWidth = SELF_PLAYER_HUD_MAX_WIDTH_PX;
+  readonly hudMaxWidth = PLAYER_PANEL_WIDTH;
   readonly hudMinWidth = SELF_PLAYER_HUD_MIN_WIDTH_PX;
   readonly cardHeight = CARD_H;
   readonly showsOpponentHands = true;
+  readonly edgeAnchoredPlayerBars = true;
 
   configurePlayerBars(layer: PlayerHudLayer): void {
     layer.setCompact(false);
-  }
-
-  configurePhaseStrip(layer: PhaseStripLayer): void {
-    layer.setCompact(false);
-    layer.container.visible = true;
   }
 
   configureHand(hand: HandController): void {

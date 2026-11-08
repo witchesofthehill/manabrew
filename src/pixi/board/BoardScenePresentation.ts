@@ -1,7 +1,6 @@
 import type { Application, Container } from "pixi.js";
 import type { GameCanvasCallbacks, PlayZoneRect } from "../types";
 import type { DragHandler } from "../DragHandler";
-import type { PhaseStripLayer } from "../PhaseStripLayer";
 import type { PlayerHudLayer } from "../hud/PlayerHudLayer";
 import type { BlockingRect } from "./types";
 import type { BoardRegionPresentation } from "./BoardRegionPresentation";
@@ -15,8 +14,8 @@ export interface BoardScenePresentation {
   readonly hudMinWidth: number;
   readonly cardHeight: number;
   readonly showsOpponentHands: boolean;
+  readonly edgeAnchoredPlayerBars: boolean;
   configurePlayerBars(layer: PlayerHudLayer): void;
-  configurePhaseStrip(layer: PhaseStripLayer): void;
   configureHand(hand: HandController): void;
   hudUsesColumn(fieldWidth: number): boolean;
   overlayUsesManaGrid(): boolean;

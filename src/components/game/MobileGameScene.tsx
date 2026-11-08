@@ -151,13 +151,6 @@ export function MobileGameScene({
     }),
     [boardCallbacksBase, closeMobileChrome, onDismissHoverPreview, setMobileHandOpen],
   );
-  const phaseStripCallbacks = useMemo(
-    () => ({
-      ...board.phaseStripCallbacks,
-      onOpenCompactControls: openMobilePhaseStops,
-    }),
-    [board.phaseStripCallbacks, openMobilePhaseStops],
-  );
   const localCapsuleBounds = scene?.getLocalCapsuleBounds() ?? null;
   const mobilePromptSpec = useMemo<PromptOverlaySpec | null>(() => {
     if (!promptSpec) return null;
@@ -210,7 +203,6 @@ export function MobileGameScene({
           {...board}
           callbacks={boardCallbacks}
           focusLocked={board.focusLocked || mobileHandOpen}
-          phaseStripCallbacks={phaseStripCallbacks}
           mobileHandOpen={mobileHandOpen}
           mobileHandPeek={mobileHandPeek}
           mobileHandControlBounds={mobileHandControlBounds}

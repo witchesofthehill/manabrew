@@ -1,6 +1,6 @@
 [package]
 name = "forge-carddb"
-version = "0.3.11"
+version = "0.4.0"
 edition = "2021"
 license.workspace = true
 description = "Card database for the manabrew engine: parses Forge card scripts into CardRules"

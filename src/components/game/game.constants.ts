@@ -81,6 +81,19 @@ export const PHASES: readonly {
     short: "CL",
   },
 ];
+const COMBAT_STEPS = PHASES.filter((phase) => phase.combat).map((phase) => phase.id);
+export const PHASE_BAR_ENTRIES: readonly {
+  id: string;
+  label: string;
+  short: string;
+  steps: readonly StepKind[];
+}[] = PHASES.filter((phase) => phase.id !== "untap").flatMap((phase) => {
+  if (!phase.combat)
+    return [{ id: phase.id, label: phase.label, short: phase.short, steps: [phase.id] }];
+  if (phase.id !== COMBAT_STEPS[0]) return [];
+  return [{ id: "combat", label: "Combat", short: "ATK", steps: COMBAT_STEPS }];
+});
+export const TURN_HANDOFF_MS = 2800;
 export { MANA_LETTERS as MANA_KEYS } from "@/themes/gameTheme";
 export const ZONE_COLUMN_RESERVED_PX = 120;
 export const ZONE_TILE_KEY = {

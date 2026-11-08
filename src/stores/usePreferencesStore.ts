@@ -22,11 +22,11 @@ export type InlineCardStyle = "printed" | "rules";
 export type OpponentHandFanMode = "always" | "revealed" | "never";
 
 const CARD_VIEW_DEFAULTS = {
-  battlefieldCardStyle: "realistic",
-  inGameCardPreviewStyle: "printed",
-  handCardStyle: "printed",
+  battlefieldCardStyle: "art",
+  inGameCardPreviewStyle: "rules",
+  handCardStyle: "rules",
   stackCardStyle: "rules",
-  promptCardStyle: "printed",
+  promptCardStyle: "rules",
 } as const;
 
 export interface LastRoomSetup {
@@ -36,11 +36,13 @@ export interface LastRoomSetup {
   players: number | null;
 }
 
-export const CARD_SIZE_MULTIPLIER_MIN = 0.75;
-// Under the 2-rows-minimum battlefield rule, a 2-row fill is only ~1.35-1.5x
-// the classic 3-row size on ANY display — a knob past 150% would be a lie
-// (the old 300% top was one: everything saturated around 150%).
+export const CARD_SIZE_MULTIPLIER_MIN = 0.5;
+// Under the 2-rows-minimum battlefield rule, a 2-row fill is only ~1.4x the
+// largest 3-row size on ANY display; a knob past 150% would be a lie.
 export const CARD_SIZE_MULTIPLIER_MAX = 1.5;
+export const CARD_SIZE_CLASSIC_SCALE = 1.5;
+
+export const cardSizeScale = (multiplier: number): number => multiplier * CARD_SIZE_CLASSIC_SCALE;
 
 export const SOUND_VOLUME_MIN = 0;
 export const SOUND_VOLUME_MAX = 1;
@@ -89,11 +91,15 @@ export interface PreferencesState {
   setOpponentLayout: (layout: "focused" | "overview") => void;
   opponentHandFan: OpponentHandFanMode;
   setOpponentHandFan: (mode: OpponentHandFanMode) => void;
+  phaseStopLayout: "compact" | "per-player";
+  setPhaseStopLayout: (layout: "compact" | "per-player") => void;
+  turnBanner: boolean;
+  setTurnBanner: (enabled: boolean) => void;
 
   // One knob for card size: battlefield cards on ALL fields plus the hand
-  // fan. 1 = the classic 3-row board; 1.5 = the 2-row fill that is the
-  // geometric max under the 2-rows-minimum rule (a 1-row board is
-  // unplayable). Each field clamps against its own height; the hand
+  // fan. 1 = the largest board that keeps 3 rows; 1.5 = the 2-row fill that
+  // is the geometric max under the 2-rows-minimum rule (a 1-row board is
+  // unplayable). The hand and the mobile cap read it through `cardSizeScale`. Each field clamps against its own height; the hand
   // (viewport-scaled, following the slider at half rate — useHandScale)
   // grows past the battlefield's cap, up to a fraction of the field height
   // (BoardCanvas.reconfigure).
@@ -203,6 +209,8 @@ const PERSISTED_PREFERENCE_KEYS = [
   "handOrderMode",
   "opponentLayout",
   "opponentHandFan",
+  "phaseStopLayout",
+  "turnBanner",
   "cardSizeMultiplier",
   "lockZoneTiles",
   "battlefieldCardStyle",
@@ -401,6 +409,12 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           opponentHandFan: "revealed",
           setOpponentHandFan: (opponentHandFan) => set({ opponentHandFan }),
+
+          phaseStopLayout: "compact",
+          setPhaseStopLayout: (phaseStopLayout) => set({ phaseStopLayout }),
+
+          turnBanner: true,
+          setTurnBanner: (turnBanner) => set({ turnBanner }),
 
           hapticFeedback: true,
           setHapticFeedback: (hapticFeedback) => set({ hapticFeedback }),

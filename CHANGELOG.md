@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.74.0](https://github.com/witchesofthehill/manabrew/compare/v3.73.0...v3.74.0) (2026-11-07)
+
+### Features
+
+* **ui:** move phasebar to the side ([#1176](https://github.com/witchesofthehill/manabrew/issues/1176)) ([7a1509c](https://github.com/witchesofthehill/manabrew/commit/7a1509ce86e1b37d21afded18b490737d1014733))
+
 ## [3.73.0](https://github.com/witchesofthehill/manabrew/compare/v3.72.0...v3.73.0) (2026-11-07)
 
 ### Features

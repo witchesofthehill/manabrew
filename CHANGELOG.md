@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.77.0](https://github.com/witchesofthehill/manabrew/compare/v3.76.0...v3.77.0) (2026-11-09)
+
+### Features
+
+* **ui:** arrange related battlefield cards together ([#1153](https://github.com/witchesofthehill/manabrew/issues/1153)) ([68d4bbc](https://github.com/witchesofthehill/manabrew/commit/68d4bbc4fbee4fb65f960e1d26eea10ca44defe9))
+
 ## [3.76.0](https://github.com/witchesofthehill/manabrew/compare/v3.75.0...v3.76.0) (2026-11-09)
 
 ### Features

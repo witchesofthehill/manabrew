@@ -1,4 +1,4 @@
-import { AlertCircle, Bot, Check, User } from "lucide-react";
+import { AlertCircle, Check } from "lucide-react";
 import { DeckCardSurface } from "@/components/deck/DeckCardSurface";
 import { DeckLabelBadge } from "@/components/deck/DeckLabelBadge";
 import { FormatBadge } from "@/components/game/FormatBadge";
@@ -15,6 +15,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { readableTextColor } from "@/themes/gameTheme";
 import type { DeckCard, DeckLabel } from "@/protocol/deck";
 import { ScryfallImg } from "@/components/ScryfallImg";
+import type { DeckAssignment } from "@/components/lobby/deckSelection.types";
 interface DeckSelectionCardProps {
   name: string;
   desc?: string;
@@ -32,8 +33,7 @@ interface DeckSelectionCardProps {
   isSelected: boolean;
   isLegal?: boolean;
   validationError?: string;
-  isPlayerDeck?: boolean;
-  isOpponentDeck?: boolean;
+  assignments?: DeckAssignment[];
   formatId?: string;
   dense?: boolean;
   isTouch?: boolean;
@@ -74,8 +74,7 @@ export function DeckSelectionCard({
   isSelected,
   isLegal = true,
   validationError,
-  isPlayerDeck,
-  isOpponentDeck,
+  assignments = [],
   formatId,
   dense,
   isTouch = false,
@@ -85,14 +84,6 @@ export function DeckSelectionCard({
   onActivate,
 }: DeckSelectionCardProps) {
   const theme = useTheme().gameTheme;
-  const selfPlayerChipStyle: React.CSSProperties = {
-    backgroundColor: theme.playerColors.self,
-    color: readableTextColor(theme.playerColors.self, theme.canvas.shadow, theme.textOnTinted),
-  };
-  const opponentPlayerChipStyle: React.CSSProperties = {
-    backgroundColor: theme.playerColors.opponent1,
-    color: readableTextColor(theme.playerColors.opponent1, theme.canvas.shadow, theme.textOnTinted),
-  };
   const colorCost = isHub
     ? (color ?? "")
         .split("")
@@ -109,53 +100,40 @@ export function DeckSelectionCard({
       : getDeckTypeBreakdown(cards);
   const fallbackColorLabel = !isPreset && !isHub && getDeckColors(cards).length === 0;
   const showManaRow = !!colorCost || fallbackColorLabel;
-  const hasVsSide = isPlayerDeck || isOpponentDeck;
-  const assignment =
-    isPlayerDeck && isOpponentDeck
-      ? ", assigned to you and the AI"
-      : isPlayerDeck
-        ? ", assigned to you"
-        : isOpponentDeck
-          ? ", assigned to the AI"
-          : isSelected
-            ? ", selected"
-            : "";
-  // Derive side-specific inline styles from theme CSS vars
-  const sideStyle: React.CSSProperties | undefined = hasVsSide
-    ? (() => {
-        const bothSides = isPlayerDeck && isOpponentDeck;
-        const cssVar = bothSides
-          ? "var(--player-colors-opponent1)"
-          : isPlayerDeck
-            ? "var(--player-colors-self)"
-            : "var(--player-colors-opponent1)";
-        return {
-          borderColor: cssVar,
-          boxShadow: `0 0 0 1px ${cssVar}`,
-        };
-      })()
+  const firstAssignment = assignments[0];
+  const hasAssignments = firstAssignment !== undefined;
+  const assignmentDescription = hasAssignments
+    ? `, assigned to ${assignments.map((assignment) => assignment.label).join(", ")}`
+    : isSelected
+      ? ", selected"
+      : "";
+  const assignmentStyle: React.CSSProperties | undefined = firstAssignment
+    ? {
+        borderColor: firstAssignment.color,
+        boxShadow: `0 0 0 1px ${firstAssignment.color}`,
+      }
     : undefined;
   return (
     <DeckCardSurface
       title={name}
-      ariaLabel={`${name}${assignment}${isLegal ? "" : ", not legal"}`}
+      ariaLabel={`${name}${assignmentDescription}${isLegal ? "" : ", not legal"}`}
       onOpen={onSelect}
       onDoubleClick={() => {
         if (!isTouch) onActivate?.();
       }}
       disabled={disabled}
       loading={loading}
-      pressed={Boolean(hasVsSide || isSelected)}
+      pressed={hasAssignments || isSelected}
       titleAttribute={!isLegal ? validationError : undefined}
       className={cn(
         dense && "min-h-40 aspect-auto",
         !dense && "sm:min-h-[172px]",
-        !hasVsSide &&
+        !hasAssignments &&
           isSelected &&
           "border-selection-border bg-selection ring-1 ring-selection-border",
-        !hasVsSide && !isSelected && !isLegal && "border-warning/50",
+        !hasAssignments && !isSelected && !isLegal && "border-warning/50",
       )}
-      style={sideStyle}
+      style={assignmentStyle}
       titleClassName={titleColorClass}
       supportingText={!isLegal ? validationError : !dense ? breakdown : undefined}
       cover={
@@ -171,24 +149,33 @@ export function DeckSelectionCard({
         )
       }
       topRight={
-        <div className="pointer-events-none flex items-center gap-1">
-          {isPlayerDeck && (
-            <span
-              className="flex h-5 w-5 items-center justify-center rounded-full"
-              style={selfPlayerChipStyle}
+        <div className="pointer-events-none flex items-start gap-1">
+          {hasAssignments && (
+            <div
+              className={cn(
+                "grid justify-items-end gap-1",
+                assignments.length > 1 && "grid-cols-2",
+              )}
             >
-              <User aria-hidden="true" className="h-3 w-3" />
-            </span>
+              {assignments.map((assignment) => (
+                <span
+                  key={assignment.id}
+                  className="inline-flex h-5 items-center rounded-full px-1.5 text-ui-meta font-semibold whitespace-nowrap"
+                  style={{
+                    backgroundColor: assignment.color,
+                    color: readableTextColor(
+                      assignment.color,
+                      theme.canvas.shadow,
+                      theme.textOnTinted,
+                    ),
+                  }}
+                >
+                  {assignment.label}
+                </span>
+              ))}
+            </div>
           )}
-          {isOpponentDeck && (
-            <span
-              className="flex h-5 w-5 items-center justify-center rounded-full"
-              style={opponentPlayerChipStyle}
-            >
-              <Bot aria-hidden="true" className="h-3 w-3" />
-            </span>
-          )}
-          {!hasVsSide && isSelected && (
+          {!hasAssignments && isSelected && (
             <Check
               className={cn(
                 "h-3.5 w-3.5",

@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.75.0](https://github.com/witchesofthehill/manabrew/compare/v3.74.0...v3.75.0) (2026-11-09)
+
+### Features
+
+* **ui:** assign commander bot decks by seat ([#1187](https://github.com/witchesofthehill/manabrew/issues/1187)) ([90d9f22](https://github.com/witchesofthehill/manabrew/commit/90d9f223a23f6f7d03fd75f6a53fec1a86d0fd77))
+
 ## [3.74.0](https://github.com/witchesofthehill/manabrew/compare/v3.73.0...v3.74.0) (2026-11-07)
 
 ### Features

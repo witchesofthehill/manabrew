@@ -39,8 +39,7 @@ const MODES = [
   },
 ];
 export function PlayHome() {
-  const { quickPlay, quickPlayPreset, quickPlayCommunity, pendingDeckId, playersDialog } =
-    useQuickPlay();
+  const { quickPlay, quickPlayPreset, quickPlayCommunity, pendingDeckId } = useQuickPlay();
   const compact = useIsShortScreen();
   const [resumeSession, setResumeSession] = useState(peekActiveGameSession);
   const resumePending = resumeSession !== null;
@@ -196,7 +195,6 @@ export function PlayHome() {
           </div>
         </div>
       </div>
-      {playersDialog}
     </div>
   );
 }

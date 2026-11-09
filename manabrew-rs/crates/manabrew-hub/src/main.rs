@@ -26,8 +26,11 @@ use crate::storage::{AnalyticsImportOutcome, ReplaceSnapshotOutcome, Storage};
 
 const ASSET_SWEEP_INTERVAL: Duration = Duration::from_secs(5 * 60);
 const ASSET_SWEEP_BATCH: u32 = 200;
-const HISTORY_PRUNE_INTERVAL: Duration = Duration::from_secs(1);
-const HISTORY_PRUNE_BATCH: u32 = 50;
+// Pruning shares the storage mutex with every request. Each version carries a
+// ~100 KB snapshot and ~80 card rows, so batches stay small and start after boot.
+const HISTORY_PRUNE_DELAY: Duration = Duration::from_secs(120);
+const HISTORY_PRUNE_INTERVAL: Duration = Duration::from_millis(500);
+const HISTORY_PRUNE_BATCH: u32 = 5;
 const RANKING_QUERY_LIMIT: u32 = 100;
 const RANKING_RESULT_LIMIT: usize = 25;
 const MIN_WIN_RATE_GAMES: u32 = 20;
@@ -138,14 +141,21 @@ async fn main() {
     }
     let prune_state = Arc::clone(&state);
     tokio::spawn(async move {
+        tokio::time::sleep(HISTORY_PRUNE_DELAY).await;
         let mut interval = tokio::time::interval(HISTORY_PRUNE_INTERVAL);
+        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
         loop {
             interval.tick().await;
-            let pruned = prune_state
-                .storage
-                .lock()
-                .unwrap()
-                .prune_deck_history(HISTORY_PRUNE_BATCH);
+            let batch_state = Arc::clone(&prune_state);
+            let pruned = tokio::task::spawn_blocking(move || {
+                batch_state
+                    .storage
+                    .lock()
+                    .unwrap()
+                    .prune_deck_history(HISTORY_PRUNE_BATCH)
+            })
+            .await
+            .expect("deck history prune task");
             match pruned {
                 Ok(0) => break,
                 Ok(_) => {}

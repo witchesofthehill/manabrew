@@ -7,7 +7,6 @@ export const MAX_OFFLINE_BOTS = 3;
 export interface OfflineSeat {
   id: string;
   deck: SelectedDeck | null;
-  confirmed: boolean;
   touched: boolean;
 }
 
@@ -27,15 +26,12 @@ type OfflineRosterAction =
   | { type: "reset" };
 
 function emptySeat(id: string): OfflineSeat {
-  return { id, deck: null, confirmed: false, touched: false };
+  return { id, deck: null, touched: false };
 }
 
 export function createOfflineRoster(playerDeck: SelectedDeck | null): OfflineRosterState {
   return {
-    seats: [
-      { ...emptySeat(PLAYER_SEAT_ID), deck: playerDeck, confirmed: !!playerDeck },
-      emptySeat(FIRST_BOT_SEAT_ID),
-    ],
+    seats: [{ ...emptySeat(PLAYER_SEAT_ID), deck: playerDeck }, emptySeat(FIRST_BOT_SEAT_ID)],
     activeSeatId: playerDeck ? FIRST_BOT_SEAT_ID : PLAYER_SEAT_ID,
     nextBotId: 2,
   };
@@ -54,27 +50,29 @@ export function offlineRosterReducer(
       const target = state.seats.find((seat) => seat.id === action.seatId);
       if (!target) return state;
       const seats = state.seats.map((seat) =>
-        seat.id === action.seatId
-          ? { ...seat, deck: action.deck, confirmed: true, touched: true }
-          : seat,
+        seat.id === action.seatId ? { ...seat, deck: action.deck, touched: true } : seat,
       );
       return {
         ...state,
         seats,
-        activeSeatId: target.confirmed
-          ? action.seatId
-          : (seats.find((seat) => !seat.confirmed)?.id ?? null),
+        activeSeatId: target.deck ? action.seatId : (seats.find((seat) => !seat.deck)?.id ?? null),
       };
     }
-    case "suggest":
+    case "suggest": {
+      const target = state.seats.find((seat) => seat.id === FIRST_BOT_SEAT_ID);
+      if (!target || target.deck || target.touched) return state;
+      const seats = state.seats.map((seat) =>
+        seat.id === FIRST_BOT_SEAT_ID ? { ...seat, deck: action.deck } : seat,
+      );
       return {
         ...state,
-        seats: state.seats.map((seat) =>
-          seat.id === FIRST_BOT_SEAT_ID && !seat.deck && !seat.touched
-            ? { ...seat, deck: action.deck }
-            : seat,
-        ),
+        seats,
+        activeSeatId:
+          state.activeSeatId === FIRST_BOT_SEAT_ID
+            ? (seats.find((seat) => !seat.deck)?.id ?? null)
+            : state.activeSeatId,
       };
+    }
     case "clear":
       return {
         ...state,
@@ -100,7 +98,7 @@ export function offlineRosterReducer(
         seats,
         activeSeatId:
           state.activeSeatId === action.seatId
-            ? (seats.find((seat) => !seat.confirmed)?.id ?? PLAYER_SEAT_ID)
+            ? (seats.find((seat) => !seat.deck)?.id ?? PLAYER_SEAT_ID)
             : state.activeSeatId,
       };
     }

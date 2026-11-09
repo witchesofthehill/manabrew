@@ -1,3 +1,6 @@
+import brewyBlue from "@/assets/brewy-blue.png";
+import brewyPink from "@/assets/brewy-pink.png";
+import brewyYellow from "@/assets/brewy-yellow.png";
 import type { StepKind } from "@/protocol";
 import { scryfallAssetUrl } from "@/lib/scryfallAssets";
 import type { InGameCardPreviewSize } from "@/stores/usePreferencesStore";
@@ -269,3 +272,5 @@ export const TRIGGER_ORDER_PROMPT_TITLE = "Order triggered abilities";
 
 export const REPEAT_LIMIT = 50;
 export const REPEAT_QUICK_PICKS = [5, 10, 20];
+
+export const BREWY_BOT_AVATARS = [brewyBlue, brewyYellow, brewyPink];

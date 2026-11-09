@@ -725,6 +725,7 @@ export function DeckVsSelector({
         className={cn(
           "grid shrink-0 gap-2 border-t bg-muted/10 px-4 py-2 xl:flex xl:items-center xl:justify-between sm:gap-3 sm:px-6 sm:py-3 lg:px-8",
           shortTouch && "sm:px-4 sm:py-1.5",
+          denseDecks && "flex items-center",
         )}
       >
         <OfflineRoster
@@ -754,7 +755,7 @@ export function DeckVsSelector({
             dispatchRoster({ type: "add" });
           }}
         />
-        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-shrink-0 sm:items-center">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-shrink-0 sm:items-center sm:justify-end">
           <div className="flex min-h-8 w-full items-center justify-center gap-1.5 rounded-md border border-input bg-background px-3 text-ui-label touch:min-h-11 sm:w-auto">
             <EngineMark engine="Forge" className="h-3.5 w-3.5" />
             Forge
@@ -787,7 +788,7 @@ export function DeckVsSelector({
           username: assignments[index].label,
           is_bot: index > 0,
           selected_deck_name: seat.deck?.name,
-          ready: seat.confirmed && !seatErrors[index],
+          ready: !seatErrors[index],
           connected: true,
         }))}
         centerContent={

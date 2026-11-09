@@ -26,6 +26,8 @@ use crate::storage::{AnalyticsImportOutcome, ReplaceSnapshotOutcome, Storage};
 
 const ASSET_SWEEP_INTERVAL: Duration = Duration::from_secs(5 * 60);
 const ASSET_SWEEP_BATCH: u32 = 200;
+const HISTORY_PRUNE_INTERVAL: Duration = Duration::from_secs(1);
+const HISTORY_PRUNE_BATCH: u32 = 50;
 const RANKING_QUERY_LIMIT: u32 = 100;
 const RANKING_RESULT_LIMIT: usize = 25;
 const MIN_WIN_RATE_GAMES: u32 = 20;
@@ -134,6 +136,26 @@ async fn main() {
             }
         });
     }
+    let prune_state = Arc::clone(&state);
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(HISTORY_PRUNE_INTERVAL);
+        loop {
+            interval.tick().await;
+            let pruned = prune_state
+                .storage
+                .lock()
+                .unwrap()
+                .prune_deck_history(HISTORY_PRUNE_BATCH);
+            match pruned {
+                Ok(0) => break,
+                Ok(_) => {}
+                Err(error) => {
+                    tracing::warn!(%error, "deck history prune stopped");
+                    break;
+                }
+            }
+        }
+    });
     let ranking_state = Arc::clone(&state);
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(ranking_refresh_interval);

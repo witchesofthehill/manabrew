@@ -1,5 +1,5 @@
 {
-  "version": 303,
+  "version": 304,
   "packages": {
     "forge-card-script": "0.1.3",
     "forge-card-script-lsp": "0.1.3",
@@ -9,12 +9,12 @@
     "forge-limited": "0.5.2",
     "loadgen": "0.3.19",
     "manabot": "0.17.13",
-    "manabrew": "3.75.0",
+    "manabrew": "3.76.0",
     "manabrew-agent-interface": "0.19.3",
     "manabrew-art-cache": "0.3.0",
     "manabrew-engine": "0.13.3",
     "manabrew-engine-macros": "0.2.0",
-    "manabrew-hub": "0.22.10",
+    "manabrew-hub": "0.23.0",
     "manabrew-lan-discovery": "0.2.1",
     "manabrew-protocol": "6.4.1",
     "manabrew-relay-protocol": "6.3.1",

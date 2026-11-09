@@ -53,6 +53,7 @@ jobs:
     timeout-minutes: 60
     env:
       APP_BUILD_TARGET: macos-arm64
+      NODE_OPTIONS: --max-old-space-size=6144
       VITE_FARO_ENABLED: "true"
       VITE_FARO_COLLECTOR_URL: https://faro.manabrew.app/collect
       VITE_FARO_ENVIRONMENT: production
@@ -424,6 +425,7 @@ jobs:
     timeout-minutes: 60
     env:
       APP_BUILD_TARGET: ios-aarch64
+      NODE_OPTIONS: --max-old-space-size=6144
       VITE_FARO_ENABLED: "true"
       VITE_FARO_COLLECTOR_URL: https://faro.manabrew.app/collect
       VITE_FARO_ENVIRONMENT: production

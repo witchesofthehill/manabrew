@@ -24,15 +24,16 @@ type ErrorContext = {
   operation?: string;
   stackFrames?: ExceptionStackFrame[];
 };
-const DUPLICATE_WINDOW_MS = 2000;
-const MAX_RECENT_ERRORS = 100;
+const MAX_REPORTS_PER_SIGNATURE = 5;
+const MAX_REPORTS_PER_PAGE = 200;
 let faro: Faro | undefined;
 let instrumentation: ClientErrorsInstrumentation | undefined;
 let disposeTransport: (() => void) | undefined;
 let initialized = false;
 let engine = "none";
 const reportedErrors = new WeakSet<Error>();
-const recentStrings = new Map<string, number>();
+const reportsBySignature = new Map<string, number>();
+let reportsThisPage = 0;
 
 function reportingConfig(): { collectorUrl: string; environment: string } | undefined {
   const runtime = window.__MANABREW_RUNTIME__?.observability;
@@ -109,20 +110,18 @@ export function reportClientError(
     const parsedFrames = isError ? errorStackFrames(error) : [];
     const frames = parsedFrames.length ? parsedFrames : safeFrames(context?.stackFrames);
     const causes = errorCauses(error);
-    if (!isError) {
-      const signature = errorSignature(
-        type,
-        typeof error === "string" ? error.slice(0, 4096) : value,
-        [],
-        "unhandled",
-      );
-      const now = Date.now();
-      const previous = recentStrings.get(signature);
-      if (previous !== undefined && now - previous < DUPLICATE_WINDOW_MS) return;
-      if (recentStrings.size >= MAX_RECENT_ERRORS)
-        recentStrings.delete(recentStrings.keys().next().value!);
-      recentStrings.set(signature, now);
-    }
+    if (reportsThisPage >= MAX_REPORTS_PER_PAGE) return;
+    const signature = errorSignature(
+      type,
+      typeof error === "string" ? error.slice(0, 4096) : value,
+      frames,
+      source,
+      context?.operation,
+    );
+    const reported = reportsBySignature.get(signature) ?? 0;
+    if (reported >= MAX_REPORTS_PER_SIGNATURE) return;
+    reportsBySignature.set(signature, reported + 1);
+    reportsThisPage++;
     faro.api.pushError(new Error(value), {
       type,
       stackFrames: frames,
@@ -160,7 +159,8 @@ function disposeErrorReporting(): void {
   faro = undefined;
   instrumentation = undefined;
   engine = "none";
-  recentStrings.clear();
+  reportsBySignature.clear();
+  reportsThisPage = 0;
 }
 
 if (import.meta.hot) import.meta.hot.dispose(disposeErrorReporting);

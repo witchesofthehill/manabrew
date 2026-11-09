@@ -59,7 +59,7 @@ import type {
 import { APP_VERSION } from "@/lib/constants";
 import { logComms } from "@/lib/commsLog";
 import { resolveRelayIdentity, type RelayIdentity } from "@/lib/relayIdentity";
-import { getClientPlatform } from "./clientPlatform";
+import { getAcquisitionSource, getClientPlatform } from "./clientPlatform";
 import {
   rememberSpawnedBot,
   forgetSpawnedBot,
@@ -1250,6 +1250,7 @@ class WebServerApi implements IServerApi {
           client_platform: getClientPlatform(),
           client_version: APP_VERSION,
           engine_gate: forgeWasmGate(),
+          acquisition_source: getAcquisitionSource(),
         });
         this.startKeepalive();
         resolve();

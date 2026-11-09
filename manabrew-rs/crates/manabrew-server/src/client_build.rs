@@ -7,7 +7,7 @@
 //! against that seat, because installed desktop builds lag the server by
 //! however long it takes the player to relaunch the app.
 
-use crate::protocol::{ClientPlatform, EngineGate};
+use crate::protocol::{ClientPlatform, EngineGate, ACQUISITION_SOURCES};
 
 /// Cap on the version string a client may report. Anything can open a socket
 /// and send anything, and this string reaches the analytics log.
@@ -39,6 +39,7 @@ impl Version {
 pub struct ClientBuild {
     pub platform: ClientPlatform,
     pub engine_gate: EngineGate,
+    pub acquisition_source: Option<&'static str>,
     version: Option<Version>,
     raw_version: Option<String>,
 }
@@ -59,6 +60,7 @@ impl ClientBuild {
         Self {
             platform,
             engine_gate,
+            acquisition_source: None,
             version: raw_version.as_deref().and_then(Version::parse),
             raw_version,
         }
@@ -76,6 +78,14 @@ impl ClientBuild {
         self.version
             .is_some_and(|version| version >= MIN_STATE_PATCH_VERSION)
     }
+}
+
+pub fn acquisition_source(raw: &str) -> &'static str {
+    ACQUISITION_SOURCES
+        .iter()
+        .find(|known| **known == raw)
+        .copied()
+        .unwrap_or("other")
 }
 
 #[cfg(test)]

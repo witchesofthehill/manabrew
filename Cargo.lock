@@ -4520,7 +4520,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew-hub"
-version = "0.23.0"
+version = "0.23.1"
 dependencies = [
  "aws-lc-rs",
  "aws-sdk-s3",

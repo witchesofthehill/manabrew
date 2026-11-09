@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.78.1](https://github.com/witchesofthehill/manabrew/compare/v3.78.0...v3.78.1) (2026-11-09)
+
+### Fixes
+
+* bad bug on singleplayer ([#1196](https://github.com/witchesofthehill/manabrew/issues/1196)) ([0590e6d](https://github.com/witchesofthehill/manabrew/commit/0590e6da6cae56a6d1ca30e6115510a4323c6f04))
+
 ## [3.78.0](https://github.com/witchesofthehill/manabrew/compare/v3.77.0...v3.78.0) (2026-11-09)
 
 ### Features

@@ -4,7 +4,6 @@ import { usePresetDecks } from "@/stores/usePresetDecksStore";
 import { Button } from "@/components/ui/button";
 import { AppSelect, AppSelectOption } from "@/components/ui/AppSelect";
 import { FormatBadge } from "@/components/game/FormatBadge";
-import { EngineMark } from "@/components/lobby/EngineMark";
 import { TablePickerDialog } from "@/components/lobby/TablePickerDialog";
 import { DeckSelectionCard } from "./DeckSelectionCard";
 import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
@@ -755,27 +754,17 @@ export function DeckVsSelector({
             dispatchRoster({ type: "add" });
           }}
         />
-        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-shrink-0 sm:items-center sm:justify-end">
-          <div className="flex min-h-8 w-full items-center justify-center gap-1.5 rounded-md border border-input bg-background px-3 text-ui-label touch:min-h-11 sm:w-auto">
-            <EngineMark engine="Forge" className="h-3.5 w-3.5" />
-            Forge
-          </div>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={handleFight}
-            disabled={!isReady || starting}
-            aria-busy={starting}
-            className="w-full gap-1.5 sm:w-auto"
-          >
-            {starting ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Swords className="h-3.5 w-3.5" />
-            )}
-            {starting ? `Starting\u2026` : `Fight!`}
-          </Button>
-        </div>
+        <Button
+          variant="primary"
+          size="lg"
+          onClick={handleFight}
+          disabled={!isReady || starting}
+          aria-busy={starting}
+          className="min-h-14 w-full shrink-0 gap-2 px-10 text-ui-body font-bold sm:w-auto sm:min-w-48 sm:justify-self-end"
+        >
+          {starting ? <Loader2 className="size-5 animate-spin" /> : <Swords className="size-5" />}
+          {starting ? `Starting\u2026` : `Fight!`}
+        </Button>
       </div>
       <TablePickerDialog
         open={tableDialogOpen}

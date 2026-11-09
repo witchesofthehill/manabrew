@@ -8,10 +8,10 @@ use crate::{game::PlaymatSettings, TokenScript};
 pub use forge_foundation::sealed_product::card_cosmetics::{
     CardArtMode, CardArtPlacement, CardBorderPreset, CardCoating, CardCollectorFormat,
     CardCosmetics, CardFinish, CardFinishCoverage, CardFinishCoverageArea, CardFramePreset,
-    CardFutureTreatment, CardPrintDots, CardPrintingBorder, CardPrintingColor,
-    CardPrintingElementOverride, CardPrintingElements, CardPrintingFace, CardPrintingOverrides,
-    CardPrintingPreset, CardPrintingSelection, CardSecurityStamp, CardSetSymbolMask,
-    CardSymbolStyle, CardWearPreset, CardWordingMode,
+    CardFutureTreatment, CardPrintDots, CardPrintingBorder, CardPrintingCalibration,
+    CardPrintingColor, CardPrintingElementOverride, CardPrintingElements, CardPrintingFace,
+    CardPrintingOverrides, CardPrintingPreset, CardPrintingSelection, CardSecurityStamp,
+    CardSetSymbolMask, CardSymbolStyle, CardWearPreset, CardWordingMode,
 };
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]

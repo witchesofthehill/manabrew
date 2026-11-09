@@ -282,6 +282,8 @@ interface GameDevState {
   setShowPlayerPanelBounds: (value: boolean) => void;
   showGridSkeleton: boolean;
   setShowGridSkeleton: (value: boolean) => void;
+  squareAvatars: boolean;
+  setSquareAvatars: (value: boolean) => void;
   showAttackRows: boolean;
   setShowAttackRows: (value: boolean) => void;
   setPromptActionOverride: (value: DevPromptActionOverride | null) => void;
@@ -350,6 +352,8 @@ export const useGameDevStore = create<GameDevState>()(
       setShowPlayerPanelBounds: (value) => set({ showPlayerPanelBounds: value }),
       showGridSkeleton: false,
       setShowGridSkeleton: (value) => set({ showGridSkeleton: value }),
+      squareAvatars: false,
+      setSquareAvatars: (value) => set({ squareAvatars: value }),
       showAttackRows: false,
       setShowAttackRows: (value) => set({ showAttackRows: value }),
       setPromptActionOverride: (value) => set({ promptActionOverride: value }),
@@ -466,6 +470,7 @@ export const useGameDevStore = create<GameDevState>()(
           showHoverAreas: false,
           showPlayerPanelBounds: false,
           showGridSkeleton: false,
+          squareAvatars: false,
           showAttackRows: false,
         }),
     }),

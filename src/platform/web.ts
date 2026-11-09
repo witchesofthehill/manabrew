@@ -6,6 +6,8 @@
  */
 
 import { deckHasCardCosmetics, normalizeCardCosmetics } from "@/lib/cardCosmetics";
+import { reportClientError } from "@/lib/errorReporting";
+import { workerError } from "@/lib/workerError";
 import type { EngineGameStats } from "@/lib/engineTelemetry";
 import {
   noteEngineThinkTime,
@@ -140,8 +142,17 @@ function readSeat<T>(
       noteSeatMessage(seat, message);
       onMessage(message, json, arrivedAt);
     } catch (error) {
+      reportClientError(error, "engine-worker", { operation: "seat-reader" });
       onError(error, json);
     }
+  };
+  worker.onerror = (event) => {
+    event.preventDefault();
+    if (seat.cancelled) return;
+    console.error("[SeatReader] Worker error:", event);
+    const error = workerError(event);
+    reportClientError(error, "engine-worker", { operation: "seat-reader" });
+    onError(error, "");
   };
   worker.postMessage({ buffer: seat.buffer });
   return worker;
@@ -198,6 +209,8 @@ interface WorkerResponse {
   requestId: string;
   payload?: unknown;
   error?: string;
+  errorName?: string;
+  errorStack?: string;
 }
 
 interface WorkerEvent {
@@ -243,7 +256,12 @@ class WorkerBridge {
   private worker: Worker | null = null;
   private pendingRequests = new Map<
     string,
-    { resolve: (value: unknown) => void; reject: (error: Error) => void; worker: Worker }
+    {
+      resolve: (value: unknown) => void;
+      reject: (error: Error) => void;
+      worker: Worker;
+      command: string;
+    }
   >();
   private eventBus: WebEventBus;
   private initPromise: Promise<void> | null = null;
@@ -298,6 +316,23 @@ class WorkerBridge {
         const worker = new Worker(new URL("../workers/manabot.worker.ts", import.meta.url), {
           type: "module",
         });
+        worker.onmessage = (
+          event: MessageEvent<{ type: string; message?: string; name?: string; stack?: string }>,
+        ) => {
+          if (event.data.type !== "error") return;
+          const error = new Error(event.data.message ?? "Bot worker failed");
+          error.name = event.data.name ?? "Error";
+          error.stack = event.data.stack ?? "";
+          reportClientError(error, "bot-worker");
+        };
+        worker.onerror = (event) => {
+          event.preventDefault();
+          console.error("[Manabot] Worker error:", event);
+          const error = workerError(event);
+          reportClientError(error, "bot-worker");
+        };
+        worker.onmessageerror = () =>
+          reportClientError(new Error("Bot worker message could not be decoded"), "bot-worker");
         worker.postMessage({ buffer: payload.buffer, playerSlot });
         this.localBotWorkers.set(playerSlot, worker);
         return;
@@ -347,6 +382,24 @@ class WorkerBridge {
       }
     });
 
+    eventBus.on<{ reason?: string; message?: string; name?: string; stack?: string }>(
+      "game:forced_end",
+      (payload) => {
+        if (payload?.reason !== "worker_error") return;
+        const error = new Error(payload.message ?? "Engine worker failed");
+        error.name = payload.name ?? "Error";
+        error.stack = payload.stack ?? "";
+        reportClientError(error, "engine-worker");
+      },
+    );
+
+    eventBus.on<{ level?: string; text?: string }>("forge:log", (payload) => {
+      if (payload?.level !== "error" || !payload.text?.startsWith("Rewind failed:")) return;
+      const error = new Error("Engine rewind failed");
+      error.stack = "";
+      reportClientError(error, "engine-operation", { operation: "rewind" });
+    });
+
     eventBus.on<{ seat: number; directive: unknown }>(
       "game:seat_directive",
       ({ seat, directive }) => {
@@ -361,7 +414,6 @@ class WorkerBridge {
         }
       },
     );
-
     // The engine has nothing more to say once the game is over, so the bots
     // parked on their seats can go.
     for (const event of ["game:over", "game:forced_end"]) {
@@ -627,27 +679,41 @@ class WorkerBridge {
 
         this.worker.onmessage = this.handleMessage.bind(this);
         this.worker.onerror = (e) => {
+          e.preventDefault();
           console.error("[WorkerBridge] Worker error:", e);
-          const error = new Error(`Worker error: ${e.message}`);
+          const error = workerError(e);
+          reportClientError(error, "engine-worker");
           reject(error);
           for (const pending of this.pendingRequests.values()) pending.reject(error);
           this.pendingRequests.clear();
         };
+        this.worker.onmessageerror = () =>
+          reportClientError(
+            new Error("Engine worker message could not be decoded"),
+            "engine-worker",
+          );
 
-        const unsubscribe = this.eventBus.on<{ stage?: string; message?: string }>(
-          "worker:init",
-          (payload) => {
-            if (payload?.stage === "ready") {
-              unsubscribe();
-              if (DEBUG_TRANSPORT) console.log("[WorkerBridge] Worker reported ready");
-              resolve();
-            } else if (payload?.stage === "error") {
-              unsubscribe();
-              reject(new Error(payload.message ?? "Worker init failed"));
-            }
-          },
-        );
+        const unsubscribe = this.eventBus.on<{
+          stage?: string;
+          message?: string;
+          name?: string;
+          stack?: string;
+        }>("worker:init", (payload) => {
+          if (payload?.stage === "ready") {
+            unsubscribe();
+            if (DEBUG_TRANSPORT) console.log("[WorkerBridge] Worker reported ready");
+            resolve();
+          } else if (payload?.stage === "error") {
+            unsubscribe();
+            const error = new Error(payload.message ?? "Worker init failed");
+            error.name = payload.name ?? "Error";
+            error.stack = payload.stack ?? "";
+            reportClientError(error, "engine-worker", { operation: "initialize" });
+            reject(error);
+          }
+        });
       } catch (error) {
+        reportClientError(error, "engine-worker", { operation: "initialize" });
         reject(error);
       }
     });
@@ -661,7 +727,16 @@ class WorkerBridge {
       if (pending) {
         this.pendingRequests.delete(message.requestId);
         if (message.error) {
-          pending.reject(new Error(message.error));
+          const error = new Error(message.error);
+          error.name = message.errorName ?? "Error";
+          error.stack = message.errorStack ?? "";
+          if (
+            error.name !== "AbortError" &&
+            (pending.command === "start_game" || pending.command === "start_multiplayer_game")
+          ) {
+            reportClientError(error, "engine-operation", { operation: "start-game" });
+          }
+          pending.reject(error);
         } else {
           pending.resolve(message.payload);
         }
@@ -678,6 +753,7 @@ class WorkerBridge {
     });
     const fail = (error: Error) => {
       if (this.fallbackWorker !== worker) return;
+      reportClientError(error, "engine-worker", { operation: "query-worker" });
       this.fallbackWorker = null;
       worker.onmessage = null;
       worker.onerror = null;
@@ -693,11 +769,25 @@ class WorkerBridge {
       if (message.type === "response") {
         this.handleMessage(e);
       } else if (message.type === "event" && message.event === "worker:init") {
-        const payload = message.payload as { stage?: string; message?: string };
-        if (payload?.stage === "error") fail(new Error(payload.message ?? "Worker init failed"));
+        const payload = message.payload as {
+          stage?: string;
+          message?: string;
+          name?: string;
+          stack?: string;
+        };
+        if (payload?.stage === "error") {
+          const error = new Error(payload.message ?? "Worker init failed");
+          error.name = payload.name ?? "Error";
+          error.stack = payload.stack ?? "";
+          fail(error);
+        }
       }
     };
-    worker.onerror = (event) => fail(new Error(`Worker error: ${event.message}`));
+    worker.onerror = (event) => {
+      event.preventDefault();
+      console.error("[WorkerBridge] Query worker error:", event);
+      fail(workerError(event));
+    };
     this.fallbackWorker = worker;
     return worker;
   }
@@ -735,6 +825,7 @@ class WorkerBridge {
 
     return new Promise((resolve, reject) => {
       this.pendingRequests.set(requestId, {
+        command,
         resolve: resolve as (value: unknown) => void,
         reject,
         worker: target,
@@ -1050,7 +1141,7 @@ class WebServerApi implements IServerApi {
   private announcedRoom: string | null = null;
   private relayRttMs: number | null = null;
   private planeQualityReporting = false;
-  private cardCosmeticsVersion: 0 | 1 | 2 = 0;
+  private cardCosmeticsVersion: 0 | 1 | 2 | 3 = 0;
   private pingSentAt: number | null = null;
   private directTransportOptIn = usePreferencesStore.getState().directTransport;
   private roomTransport = false;
@@ -1445,6 +1536,19 @@ class WebServerApi implements IServerApi {
         "This server does not support this deck's print-dot artwork settings or Heat deformation. Update the server before selecting this deck.",
       );
     }
+    if (
+      this.cardCosmeticsVersion < 3 &&
+      deckHasCardCosmetics(
+        params.deck,
+        (cosmetics) =>
+          cosmetics.printing?.overrides?.calibration !== undefined ||
+          !!cosmetics.printing?.faces?.some((face) => face.overrides?.calibration !== undefined),
+      )
+    ) {
+      throw new Error(
+        "This server does not support this deck's printing calibration. Update the server before selecting this deck.",
+      );
+    }
     this.send({
       type: "SetDeckSelection",
       deck_name: params.deckName,
@@ -1827,11 +1931,13 @@ class WebServerApi implements IServerApi {
     if (type === "AuthResult") {
       this.cardCosmeticsVersion =
         msg.success && Array.isArray(msg.features)
-          ? msg.features.includes("card_cosmetics_v2")
-            ? 2
-            : msg.features.includes("card_cosmetics")
-              ? 1
-              : 0
+          ? msg.features.includes("card_cosmetics_v3")
+            ? 3
+            : msg.features.includes("card_cosmetics_v2")
+              ? 2
+              : msg.features.includes("card_cosmetics")
+                ? 1
+                : 0
           : 0;
     }
     if (type === "AuthResult" && msg.success) {

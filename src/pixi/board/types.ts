@@ -139,6 +139,7 @@ export interface RegionHost {
   /** Px to trim off the bottom of this region's felt so it clears the hand
    *  fan (local player only; 0 for opponents). */
   getHandReserveBottom(): number;
+  getGridColumns(): { x: number; width: number } | null;
   spawnFloatingText(canvasX: number, canvasY: number, content: string, color: number): void;
   previewCard(card: CardDto | null, bounds?: ScreenBounds): void;
   previewCards(cards: CardDto[] | null, bounds?: ScreenBounds): void;

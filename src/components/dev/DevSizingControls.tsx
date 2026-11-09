@@ -11,7 +11,7 @@ import {
 import { DEV_VIEWPORT_OPTIONS } from "./devViewportPresets";
 import { matchesDevPanelSearch, useDevPanelSearch } from "./devPanelSearchContext";
 
-const CARD_SIZE_PRESETS = [0.75, 1, 1.25, 1.5] as const;
+const CARD_SIZE_PRESETS = [0.5, 1, 1.25, 1.5] as const;
 export function DevSizingControls() {
   const cardSize = usePreferencesStore((s) => s.cardSizeMultiplier);
   const setCardSize = usePreferencesStore((s) => s.setCardSizeMultiplier);

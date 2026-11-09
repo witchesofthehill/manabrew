@@ -16,11 +16,7 @@ import {
 } from "./constants";
 import type { PlayZoneRect } from "./types";
 
-/** Vertical band a field reserves at its inner edge while combat presentation
- *  is active. `BoardRegion.playArea` carves the same height occupied by the
- *  current battlefield card footprint. */
-export const combatRowReserve = (cardScale: number, cardHeight: number = CARD_H): number =>
-  cardHeight * cardScale + COMBAT_ROW_PAD_Y * 2 + COMBAT_STAGE_PADDING_PX;
+export type GridAnchor = "top" | "center" | "bottom";
 
 export interface GridBlocker {
   x: number;
@@ -66,11 +62,10 @@ export const maxScaleForRows = (
   return (cellH - GAP) / (cardHeight * (1 + CELL_BREATHING_FRAC));
 };
 
-/** Scale at which `rows` whole rows plus the combat-row band the field must
- *  reserve exactly fill `usableH`. The band is itself a card height, so
- *  estimating it from a band-less scale (the old two-pass) starves the grid at
- *  1-2 rows; this is the joint solve, derived from
- *  `maxScaleForRows(usableH - combatRowReserve(s), rows) = s`. */
+/** Scale at which `rows` whole rows plus one card-height band (card height
+ *  plus `COMBAT_ROW_PAD_Y * 2 + COMBAT_STAGE_PADDING_PX`) exactly fill
+ *  `usableH`. Desktop sizes cards with this solve so the band survives as free
+ *  grid headroom; attackers stage across the seam instead of inside it. */
 export const scaleForRowsWithCombatRow = (usableH: number, rows: number): number => {
   const bandFixed = COMBAT_ROW_PAD_Y * 2 + COMBAT_STAGE_PADDING_PX;
   return (
@@ -79,14 +74,27 @@ export const scaleForRowsWithCombatRow = (usableH: number, rows: number): number
   );
 };
 
-/** Card scale for the user's size multiplier: 1 (100%) is the classic
- *  3-row-board size, and the multiplier grows the cards continuously from
- *  there — clamped to a `BATTLEFIELD_MIN_ROWS_LARGEST`-row fill plus the
- *  combat band, so the board never degrades below that row count. Applies to
- *  every battlefield; each field clamps against its own height. */
-export const battlefieldScaleForMultiplier = (usableH: number, multiplier: number): number => {
-  const base = scaleForRowsWithCombatRow(usableH, BATTLEFIELD_MIN_ROWS);
-  const max = scaleForRowsWithCombatRow(usableH, BATTLEFIELD_MIN_ROWS_LARGEST);
+/** Scale at which `rows` whole rows plus half of the shared seam lane (half a
+ *  card height plus `COMBAT_ROW_PAD_Y`) exactly fill `usableH`, measured from
+ *  the seam. */
+export const scaleForRowsWithHalfLane = (usableH: number, rows: number): number =>
+  (usableH - COMBAT_ROW_PAD_Y + GAP - rows * (0.5 + GAP)) /
+  (CARD_H * ((1 + CELL_BREATHING_FRAC) * rows + 0.5));
+
+/** Card scale for the user's size multiplier: 1 (100%) is the largest size
+ *  that fits `BATTLEFIELD_MIN_ROWS` rows in the grid area below the lane, and
+ *  the multiplier grows the cards continuously from there, clamped to a
+ *  `BATTLEFIELD_MIN_ROWS_LARGEST`-row fill so the board never degrades below
+ *  that row count. */
+export const battlefieldScaleForMultiplier = (
+  gridH: number,
+  fromSeam: number,
+  multiplier: number,
+): number => {
+  const fit = (rows: number) =>
+    Math.min(maxScaleForRows(gridH, rows), scaleForRowsWithHalfLane(fromSeam, rows));
+  const base = fit(BATTLEFIELD_MIN_ROWS);
+  const max = fit(BATTLEFIELD_MIN_ROWS_LARGEST);
   return Math.max(BATTLEFIELD_CARD_SCALE_FLOOR, Math.min(base * multiplier, max));
 };
 
@@ -105,7 +113,8 @@ export const computeGridLayout = (
   cardScale: number,
   leftAlign = false,
   cardHeight: number = CARD_H,
-  bottomAnchor = false,
+  anchor: GridAnchor = "center",
+  reservedTrailingCols = 0,
 ): GridLayoutInfo => {
   const cardW = CARD_W * cardScale;
   const cardH = cardHeight * cardScale;
@@ -127,26 +136,21 @@ export const computeGridLayout = (
   const rows = Math.max(1, Math.floor((usableH + GAP) / cellH));
 
   const gridH = rows * cellH - GAP;
-  // Center the middle column's card center on the zone's visual center
-  // (aligned with the phase strip combat cell). The middle column index
-  // is (cols-1)/2 since cols is always odd.
-  const zoneCenterX = zone.x + zone.width / 2;
-  const midCol = (cols - 1) / 2;
-  // Card center for midCol: originX + midCol * cellW + cardW/2 = zoneCenterX.
-  // Left-aligned grids (on-grid zone tiles) centre the grid block in the usable
-  // width so the leftover space is split evenly on both sides of the playmat.
-  const gridW = cols * cellW - GAP;
-  const originX = leftAlign
-    ? zone.x + leftPad + Math.max(0, (usableW - gridW) / 2)
-    : zoneCenterX - midCol * cellW - cardW / 2;
+  // Justify columns: the leftover width widens every gap so the outer cards
+  // sit on the usable edges. With an odd count this also puts the middle
+  // column's card center on the zone's visual center.
+  const strideX = cols > 1 ? Math.max(cellW, (usableW - cardW) / (cols - 1)) : cellW;
+  const gridW = (cols - 1) * strideX + cardW;
+  const originX = zone.x + leftPad + Math.max(0, (usableW - gridW) / 2);
   const freeH = Math.max(0, usableH - gridH);
-  const topMargin = bottomAnchor ? freeH : freeH / 2;
+  const topMargin = anchor === "top" ? 0 : anchor === "bottom" ? freeH : freeH / 2;
   const originY = zone.y + topMargin;
 
-  const cells: GridCell[] = new Array(cols * rows);
-  for (let col = 0; col < cols; col++) {
+  const placedCols = Math.max(1, cols - reservedTrailingCols);
+  const cells: GridCell[] = new Array(placedCols * rows);
+  for (let col = 0; col < placedCols; col++) {
     for (let row = 0; row < rows; row++) {
-      const x = originX + col * cellW;
+      const x = originX + col * strideX;
       const y = originY + row * cellH;
       // A cell is blocked when its full footprint overlaps any keep-out
       // rect. This is the strict test — if the card can't fit entirely
@@ -172,9 +176,9 @@ export const computeGridLayout = (
     zone,
     cardW,
     cardH,
-    cellW,
+    cellW: strideX,
     cellH,
-    cols,
+    cols: placedCols,
     rows,
     originX,
     originY,

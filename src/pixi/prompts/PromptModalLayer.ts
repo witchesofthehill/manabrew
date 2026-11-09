@@ -13,6 +13,7 @@ import {
   Rectangle,
 } from "pixi.js";
 import { OPPONENT_SEATS } from "@/components/game/game.types";
+import { opponentsInTurnOrder } from "@/components/game/game.utils";
 import { hexToNum } from "@/pixi/colorUtils";
 import { CardSprite } from "@/pixi/CardSprite";
 import { loadManaSymbolTexture } from "@/pixi/manaSymbolCache";
@@ -3762,9 +3763,9 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     const colors = this.theme.gameTheme.playerColors;
     if (!playerId || playerId === this.spec?.localPlayerId) return colors.self;
     const opponentIndex = this.spec
-      ? this.spec.gameView.players
-          .filter((player) => player.id !== this.spec!.localPlayerId)
-          .findIndex((player) => player.id === playerId)
+      ? opponentsInTurnOrder(this.spec.gameView.players, this.spec.localPlayerId).findIndex(
+          (player) => player.id === playerId,
+        )
       : 0;
     const seat = OPPONENT_SEATS[Math.max(0, Math.min(OPPONENT_SEATS.length - 1, opponentIndex))]!;
     return colors[seat];

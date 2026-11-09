@@ -10,7 +10,7 @@ import { PlayHomeLinks } from "@/components/play/PlayHomeLinks";
 import { RejoinMatchCard } from "@/components/play/RejoinMatchCard";
 import { isFeatureEnabled } from "@/featureFlags";
 import { useQuickPlay } from "@/hooks/useQuickPlay";
-import { useIsCompactHomeScreen } from "@/hooks/useBreakpoints";
+import { useIsShortScreen } from "@/hooks/useBreakpoints";
 import { peekActiveGameSession } from "@/lib/activeGameSession";
 import { ROUTES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -39,9 +39,8 @@ const MODES = [
   },
 ];
 export function PlayHome() {
-  const { quickPlay, quickPlayPreset, quickPlayCommunity, pendingDeckId, playersDialog } =
-    useQuickPlay();
-  const compact = useIsCompactHomeScreen();
+  const { quickPlay, quickPlayPreset, quickPlayCommunity, pendingDeckId } = useQuickPlay();
+  const compact = useIsShortScreen();
   const [resumeSession, setResumeSession] = useState(peekActiveGameSession);
   const resumePending = resumeSession !== null;
   const connected = useServerStore((state) => state.connected);
@@ -196,7 +195,6 @@ export function PlayHome() {
           </div>
         </div>
       </div>
-      {playersDialog}
     </div>
   );
 }

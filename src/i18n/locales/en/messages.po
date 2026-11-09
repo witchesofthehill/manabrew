@@ -50,11 +50,11 @@ msgstr "Defense"
 msgid "Effect text unavailable"
 msgstr "Effect text unavailable"
 
-#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:625
+#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:626
 msgid "Face-down card"
 msgstr "Face-down card"
 
-#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:627
+#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:628
 msgid "Face-down permanent"
 msgstr "Face-down permanent"
 
@@ -124,7 +124,7 @@ msgstr "Printed face · live state belongs to the other face"
 msgid "Printed power and toughness"
 msgstr "Printed power and toughness"
 
-#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:653
+#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:654
 msgid "Prototype"
 msgstr "Prototype"
 

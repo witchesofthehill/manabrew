@@ -2,6 +2,7 @@ import { CombatBreakdownModal } from "@/components/game/modals/CombatBreakdownMo
 import { locateVisibleZone, visibleZoneCards, zoneLocationKey } from "@/lib/zoneView";
 import { useGameStore } from "@/stores/useGameStore";
 import { useServerStore } from "@/stores/useServerStore";
+import { useAuthStore } from "@/stores/useAuthStore";
 import { asDeckCard } from "@/lib/decks";
 import { gameCardFaceIndex, GAME_CARD_DEFAULTS } from "@/lib/gameCard";
 import { faceDownCardToPreviewDto } from "@/lib/scryfall.utils";
@@ -35,6 +36,7 @@ import {
   RestoreVoteModal,
   EliminatedModal,
   GameSettingsModal,
+  PhaseStopsHelpModal,
   LeaveGameModal,
   SoundSettingsModal,
 } from "@/components/game/modals";
@@ -71,6 +73,7 @@ import { useMultiplayerInterruption } from "@/hooks/useMultiplayerInterruption";
 import { useLiveGameNavigationGuard } from "@/hooks/useLiveGameNavigationGuard";
 import { GameBoard } from "@/components/game/GameBoard";
 import { buildCombatRows } from "@/components/game/combatRows";
+import { stripUsernameTag } from "@/lib/username";
 import { readableTextColor, withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
 import { boardBackgroundDarken, boardBackgroundUrl } from "@/pixi/board/boardBackgrounds";
@@ -97,6 +100,9 @@ import {
   isPermanentSpellCard,
   stackObjectAbilityText,
   stackObjectToCard,
+  relayAvatarUrl,
+  gameRound,
+  opponentsInTurnOrder,
 } from "@/components/game/game.utils";
 import { createPortal } from "react-dom";
 import { Card } from "@/components/game/Card";
@@ -353,6 +359,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   const [boardMenuOpen, setBoardMenuOpen] = useState(false);
   const [gameSettingsOpen, setGameSettingsOpen] = useState(false);
   const [soundSettingsOpen, setSoundSettingsOpen] = useState(false);
+  const [phaseStopsHelpOpen, setPhaseStopsHelpOpen] = useState(false);
   const [eliminatedModalOpen, setEliminatedModalOpen] = useState(false);
   const eliminatedModalShownRef = useRef(false);
   const [leaveGameModalOpen, setLeaveGameModalOpen] = useState(false);
@@ -1060,7 +1067,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       return true;
     }
     if (promptType === "chooseBlockers") {
-      if (blockAssignments.length === 0 || blockRequirement) return false;
+      if (blockRequirement) return false;
       respond({ type: "declareBlockers", assignments: blockAssignments });
       return true;
     }
@@ -1143,7 +1150,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     }
     respondHandAction(action);
   };
-  const activeFlash = useFlashQueue(flashDurationMs);
+  const { activeFlash, pendingActivePlayerId } = useFlashQueue(flashDurationMs);
   const [priorityHighlightPlayerId, setPriorityHighlightPlayerId] = useState<string | null>(null);
   useEffect(() => {
     const next = gameView?.priorityPlayerId ?? null;
@@ -1240,7 +1247,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     placementIntentRef.current = null;
   }, [activePrompt, casting.castingCardId, gameView, me]);
   const opponents = useMemo(
-    () => gameView?.players?.filter((p) => p.id !== me?.id) ?? [],
+    () => (gameView && me ? opponentsInTurnOrder(gameView.players, me.id) : []),
     [gameView?.players, me?.id],
   );
   const iAmEliminated = selfConceded || (me != null && me.status !== "playing");
@@ -1546,7 +1553,8 @@ export default function Game({ exitTo }: GameProps = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [gameView?.combatAssignments?.map((a) => `${a.blockerId}:${a.attackerId}`).join(",")],
   );
-  const combatRows = useMemo(
+  const headsUp = gameView?.players.length === 2;
+  const declaredCombatRows = useMemo(
     () =>
       gameView
         ? buildCombatRows({
@@ -1562,6 +1570,14 @@ export default function Game({ exitTo }: GameProps = {}) {
           })
         : [],
     [gameView, combatAssignments, blockAssignments, attackAssignments],
+  );
+  const combatRows = useMemo(
+    () => (headsUp ? [] : declaredCombatRows),
+    [headsUp, declaredCombatRows],
+  );
+  const combatForwardIds = useMemo(
+    () => (headsUp ? declaredCombatRows.flatMap((row) => row.attackerIds) : []),
+    [headsUp, declaredCombatRows],
   );
   const oppCombatAttackerIds = useMemo(
     () => new Set(combatRows.flatMap((r) => r.attackerIds)),
@@ -1626,8 +1642,13 @@ export default function Game({ exitTo }: GameProps = {}) {
   }, [gameView?.players]);
 
   const attackArrows = useMemo(
-    () => activeAttackers.filter((attacker) => !oppCombatAttackerIds.has(attacker.attackerId)),
-    [activeAttackers, oppCombatAttackerIds],
+    () =>
+      activeAttackers.filter(
+        (attacker) =>
+          !oppCombatAttackerIds.has(attacker.attackerId) &&
+          !(headsUp && attacker.targetKind === "player"),
+      ),
+    [activeAttackers, oppCombatAttackerIds, headsUp],
   );
   const arrowBlocks = useMemo(
     () => combatAssignments.filter((a) => !oppCombatAttackerIds.has(a.attackerId)),
@@ -2343,10 +2364,37 @@ export default function Game({ exitTo }: GameProps = {}) {
           }
         : null;
 
+  const turnHandoffPlayer =
+    activeFlash?.kind === "turn"
+      ? gameView.players.find((player) => player.id === activeFlash.playerId)
+      : undefined;
   const promptOverlaySpec: PromptOverlaySpec = {
     currentPrompt: activePrompt,
     localPlayerId: me.id,
     gameView,
+    turnColor: playerColorMap.get(gameView.activePlayerId) ?? themeColors.playerColors.self,
+    turnHandoff:
+      activeFlash?.kind === "turn" && turnHandoffPlayer
+        ? {
+            turn: activeFlash.turn,
+            round: gameRound(activeFlash.turn, gameView.players.length),
+            playerId: activeFlash.playerId,
+            step: activeFlash.step,
+            color: playerColorMap.get(activeFlash.playerId) ?? themeColors.playerColors.self,
+            label:
+              activeFlash.playerId === me.id
+                ? "Your turn"
+                : `${stripUsernameTag(turnHandoffPlayer.name)}'s turn`,
+            avatarUrl:
+              activeFlash.playerId === me.id
+                ? (useAuthStore.getState().account?.avatarUrl ?? null)
+                : relayAvatarUrl(
+                    turnHandoffPlayer.name,
+                    useServerStore.getState().players,
+                    useServerStore.getState().playerDecks,
+                  ),
+          }
+        : null,
     sourceDeckCard: promptSourceDeckCard,
     action: {
       promptType,
@@ -2459,7 +2507,7 @@ export default function Game({ exitTo }: GameProps = {}) {
             winnerId: gameView.winnerId,
             me,
             opponents,
-            turn: gameView.turn,
+            turn: gameRound(gameView.turn, gameView.players.length),
             engineCrash,
             onEndGame: () => void endGame(),
           }
@@ -2468,6 +2516,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     respond: (output) => void respond(output),
     onHideModal: hidePromptModal,
     onShowModal: showPromptModal,
+    onOpenPhaseStopsHelp: () => setPhaseStopsHelpOpen(true),
   };
   const openRepeatVote =
     repeatVote?.status.type === "pending" &&
@@ -2542,6 +2591,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           myCommandZone={me?.commandZone ?? []}
           playableIds={playableIds}
           activePlayerId={gameView.activePlayerId}
+          pendingActivePlayerId={pendingActivePlayerId}
           priorityPlayerId={effectivePriorityHighlightPlayerId}
           monarchId={gameView.monarchId ?? null}
           initiativeHolderId={gameView.initiativeHolderId ?? null}
@@ -2561,6 +2611,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           blockAssignments={blockAssignments}
           combatAssignments={combatAssignments}
           combatRows={combatRows}
+          combatForwardIds={combatForwardIds}
           arrowSpecs={arrowSpecs}
           castingArrow={castingArrow}
           playerIsTargetable={playerIsTargetable}
@@ -2738,6 +2789,14 @@ export default function Game({ exitTo }: GameProps = {}) {
 
       {gameSettingsOpen && <GameSettingsModal onClose={() => setGameSettingsOpen(false)} />}
       {soundSettingsOpen && <SoundSettingsModal onClose={() => setSoundSettingsOpen(false)} />}
+      {phaseStopsHelpOpen && (
+        <PhaseStopsHelpModal
+          gameView={gameView}
+          localPlayerId={me.id}
+          turnColor={promptOverlaySpec.turnColor}
+          onClose={() => setPhaseStopsHelpOpen(false)}
+        />
+      )}
       {combatDetailsOpen && (
         <CombatBreakdownModal
           attackerIds={

@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { PlaytestPlayersDialog } from "@/components/lobby/PlaytestPlayersDialog";
+import type { SelectedDeck } from "@/components/lobby/deckSelection.types";
+import { isOfflinePodFormat } from "@/components/lobby/offlineRoster.utils";
 import { resolveAiOpponent } from "@/lib/aiOpponent";
 import { ROUTES } from "@/lib/constants";
 import { reportPublishedDeckPlay } from "@/lib/deckPlayEvidence";
@@ -9,7 +10,6 @@ import { getFormat } from "@/lib/formats";
 import { resolveOfflineEngine } from "@/lib/offlineEngine";
 import { presetSupportsEngine, type PresetDeck } from "@/lib/presetDecks";
 import { savePresetToAccountOnUse } from "@/lib/presetDeckAccount";
-import { pickRandomDistinct } from "@/lib/utils";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { useGameStore } from "@/stores/useGameStore";
 import { useHubStore } from "@/stores/useHubStore";
@@ -17,20 +17,6 @@ import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { prefetchPresetDecks, usePresetDecksStore } from "@/stores/usePresetDecksStore";
 import type { Deck } from "@/protocol/deck";
 import type { EngineKind } from "@/protocol";
-type PendingPod =
-  | {
-      kind: "saved";
-      savedDeckId: string;
-    }
-  | {
-      kind: "preset";
-      preset: PresetDeck;
-    }
-  | {
-      kind: "community";
-      entryId: string;
-      deck: Deck;
-    };
 async function ensurePresets(engine: EngineKind): Promise<PresetDeck[]> {
   if (usePresetDecksStore.getState().decks.length === 0) {
     await prefetchPresetDecks();
@@ -40,32 +26,22 @@ async function ensurePresets(engine: EngineKind): Promise<PresetDeck[]> {
 async function resolveOpponents(
   engine: EngineKind,
   formatId: string,
-  opponentCount: number,
 ): Promise<{
   decks: Deck[];
   remember: ReturnType<typeof resolveAiOpponent>;
 }> {
   const presets = await ensurePresets(engine);
-  if (opponentCount === 1) {
-    const opponent = resolveAiOpponent({
-      presets,
-      savedDecks: useDeckStore.getState().savedDecks,
-      formatId,
-      last: usePreferencesStore.getState().lastAiOpponent,
-    });
-    return { decks: opponent ? [opponent.deck] : [], remember: opponent };
-  }
-  const pool = presets.filter(
-    (preset) =>
-      (preset.format ?? "standard") === formatId &&
-      preset.cards.length + (preset.commanders?.length ?? 0) > 0,
-  );
-  return { decks: pickRandomDistinct(pool, opponentCount), remember: null };
+  const opponent = resolveAiOpponent({
+    presets,
+    savedDecks: useDeckStore.getState().savedDecks,
+    formatId,
+    last: usePreferencesStore.getState().lastAiOpponent,
+  });
+  return { decks: opponent ? [opponent.deck] : [], remember: opponent };
 }
 export function useQuickPlay() {
   const navigate = useNavigate();
   const [pendingDeckId, setPendingDeckId] = useState<string | null>(null);
-  const [pendingPod, setPendingPod] = useState<PendingPod | null>(null);
   const pendingRef = useRef(false);
   const mountedRef = useRef(true);
   useEffect(() => {
@@ -75,7 +51,7 @@ export function useQuickPlay() {
     };
   }, []);
   const startSaved = useCallback(
-    async (savedDeckId: string, opponentCount: number) => {
+    async (savedDeckId: string) => {
       if (pendingRef.current) return;
       const saved = useDeckStore.getState().savedDecks.find((entry) => entry.id === savedDeckId);
       if (!saved) return;
@@ -93,7 +69,7 @@ export function useQuickPlay() {
           return;
         }
         const engine = resolveOfflineEngine();
-        const opponents = await resolveOpponents(engine, formatId, opponentCount);
+        const opponents = await resolveOpponents(engine, formatId);
         if (!mountedRef.current) return;
         if (opponents.decks.length === 0) {
           toast.error(`No AI deck available for this format \u2014 pick one yourself.`);
@@ -123,7 +99,7 @@ export function useQuickPlay() {
     },
     [navigate],
   );
-  const startPreset = useCallback(async (preset: PresetDeck, opponentCount: number) => {
+  const startPreset = useCallback(async (preset: PresetDeck) => {
     if (pendingRef.current) return;
     const presetId = preset.id ?? preset.name;
     pendingRef.current = true;
@@ -131,7 +107,7 @@ export function useQuickPlay() {
     try {
       const formatId = preset.format ?? "standard";
       const engine = resolveOfflineEngine();
-      const opponents = await resolveOpponents(engine, formatId, opponentCount);
+      const opponents = await resolveOpponents(engine, formatId);
       if (!mountedRef.current) return;
       if (opponents.decks.length === 0) {
         toast.error(`No AI deck available for this format \u2014 pick one yourself.`);
@@ -163,14 +139,14 @@ export function useQuickPlay() {
       if (mountedRef.current) setPendingDeckId(null);
     }
   }, []);
-  const startCommunity = useCallback(async (entryId: string, deck: Deck, opponentCount: number) => {
+  const startCommunity = useCallback(async (entryId: string, deck: Deck) => {
     if (pendingRef.current) return;
     pendingRef.current = true;
     setPendingDeckId(entryId);
     try {
       const formatId = deck.format ?? "standard";
       const engine = resolveOfflineEngine();
-      const opponents = await resolveOpponents(engine, formatId, opponentCount);
+      const opponents = await resolveOpponents(engine, formatId);
       if (!mountedRef.current) return;
       if (opponents.decks.length === 0) {
         toast.error(`No AI deck available for this format \u2014 pick one yourself.`);
@@ -200,13 +176,23 @@ export function useQuickPlay() {
       if (pendingRef.current) return;
       const saved = useDeckStore.getState().savedDecks.find((entry) => entry.id === savedDeckId);
       if (!saved) return;
-      if ((saved.deck.format ?? "standard") === "commander") {
-        setPendingPod({ kind: "saved", savedDeckId });
+      const formatId = saved.deck.format ?? "standard";
+      if (isOfflinePodFormat(formatId)) {
+        const preSelectedDeck: SelectedDeck = {
+          id: `local:${savedDeckId}`,
+          sourceId: savedDeckId,
+          name: saved.deck.name,
+          sourceDeck: saved.deck,
+          source: "local",
+          formatId,
+          commanderName: saved.deck.commanders?.[0]?.identity.name,
+        };
+        navigate(ROUTES.PLAY_OFFLINE_CONSTRUCTED, { state: { preSelectedDeck } });
         return;
       }
-      await startSaved(savedDeckId, 1);
+      await startSaved(savedDeckId);
     },
-    [startSaved],
+    [navigate, startSaved],
   );
   const quickPlayPreset = useCallback(
     async (preset: PresetDeck) => {
@@ -222,13 +208,26 @@ export function useQuickPlay() {
         );
         return;
       }
-      if (formatId === "commander") {
-        setPendingPod({ kind: "preset", preset });
+      if (isOfflinePodFormat(formatId)) {
+        const sourceId = preset.id ?? preset.name;
+        const preSelectedDeck: SelectedDeck = {
+          id: `preset:${sourceId}`,
+          sourceId,
+          name: preset.name,
+          desc: preset.description,
+          color: preset.color,
+          sourceDeck: preset,
+          source: "preset",
+          formatId,
+          commanderName: preset.commanders?.[0]?.identity.name,
+          coverCardName: preset.coverCardName,
+        };
+        navigate(ROUTES.PLAY_OFFLINE_CONSTRUCTED, { state: { preSelectedDeck } });
         return;
       }
-      await startPreset(preset, 1);
+      await startPreset(preset);
     },
-    [startPreset],
+    [navigate, startPreset],
   );
   const quickPlayCommunity = useCallback(
     async (entryId: string) => {
@@ -237,6 +236,7 @@ export function useQuickPlay() {
       setPendingDeckId(entryId);
       try {
         const entry = await useHubStore.getState().loadEntry(entryId);
+        if (!mountedRef.current) return;
         const formatId = entry.deck.format ?? entry.format ?? "standard";
         if (getFormat(formatId) === undefined) {
           toast.error(`This Community deck uses an unsupported format.`);
@@ -249,12 +249,22 @@ export function useQuickPlay() {
           );
           return;
         }
-        if (formatId === "commander") {
-          setPendingPod({ kind: "community", entryId, deck: entry.deck });
+        if (isOfflinePodFormat(formatId)) {
+          const preSelectedDeck: SelectedDeck = {
+            id: `hub:${entryId}`,
+            sourceId: entryId,
+            name: entry.deck.name,
+            sourceDeck: entry.deck,
+            source: "hub",
+            formatId,
+            commanderName: entry.deck.commanders?.[0]?.identity.name,
+            coverCardName: entry.deck.coverCardName,
+          };
+          navigate(ROUTES.PLAY_OFFLINE_CONSTRUCTED, { state: { preSelectedDeck } });
           return;
         }
         pendingRef.current = false;
-        await startCommunity(entryId, entry.deck, 1);
+        await startCommunity(entryId, entry.deck);
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Failed to load Community deck");
       } finally {
@@ -262,20 +272,7 @@ export function useQuickPlay() {
         if (mountedRef.current) setPendingDeckId(null);
       }
     },
-    [startCommunity],
+    [navigate, startCommunity],
   );
-  const playersDialog: ReactNode = pendingPod ? (
-    <PlaytestPlayersDialog
-      open
-      onChoose={(opponentCount) => {
-        const pod = pendingPod;
-        setPendingPod(null);
-        if (pod.kind === "saved") void startSaved(pod.savedDeckId, opponentCount);
-        else if (pod.kind === "preset") void startPreset(pod.preset, opponentCount);
-        else void startCommunity(pod.entryId, pod.deck, opponentCount);
-      }}
-      onCancel={() => setPendingPod(null)}
-    />
-  ) : null;
-  return { quickPlay, quickPlayPreset, quickPlayCommunity, pendingDeckId, playersDialog };
+  return { quickPlay, quickPlayPreset, quickPlayCommunity, pendingDeckId };
 }

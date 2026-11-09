@@ -13,6 +13,8 @@ export function BoardDevControls() {
   const showHoverAreas = useGameDevStore((s) => s.showHoverAreas);
   const showPlayerPanelBounds = useGameDevStore((s) => s.showPlayerPanelBounds);
   const showGridSkeleton = useGameDevStore((s) => s.showGridSkeleton);
+  const squareAvatars = useGameDevStore((s) => s.squareAvatars);
+  const setSquareAvatars = useGameDevStore((s) => s.setSquareAvatars);
   const showAttackRows = useGameDevStore((s) => s.showAttackRows);
   const debugStackCardEnabled = useGameDevStore((s) => s.debugStackCardEnabled);
   const setDevToolsEnabled = useGameDevStore((s) => s.setDevToolsEnabled);
@@ -132,6 +134,14 @@ export function BoardDevControls() {
               searchTerms={["Board guides"]}
               checked={showPlayerPanelBounds}
               onChange={setShowPlayerPanelBounds}
+            />
+            <GuideToggle
+              icon={PanelTop}
+              label={`Square avatars`}
+              description={`Square player avatars instead of circles`}
+              searchTerms={["Board guides"]}
+              checked={squareAvatars}
+              onChange={setSquareAvatars}
             />
             <GuideToggle
               icon={Grid3X3}

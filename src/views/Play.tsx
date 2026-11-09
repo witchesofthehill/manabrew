@@ -3,6 +3,7 @@ import { matchPath, Navigate, useLocation, useNavigate } from "react-router-dom"
 import { cancelPendingGameLaunch, useGameStore } from "@/stores/useGameStore";
 import { useServerStore } from "@/stores/useServerStore";
 import { OfflinePlaySetup } from "@/components/play/OfflinePlaySetup";
+import type { SelectedDeck } from "@/components/lobby/deckSelection.types";
 import { OfflinePlayShell } from "@/components/play/OfflinePlayShell";
 import { PlayHome } from "@/components/play/PlayHome";
 import { DeckPlayActions } from "@/components/play/DeckPlayActions";
@@ -51,6 +52,14 @@ export default function Play() {
     "preSelectedHubDeckId" in routeState &&
     typeof routeState.preSelectedHubDeckId === "string"
       ? routeState.preSelectedHubDeckId
+      : undefined;
+  const preSelectedDeck =
+    routeState &&
+    typeof routeState === "object" &&
+    "preSelectedDeck" in routeState &&
+    routeState.preSelectedDeck &&
+    typeof routeState.preSelectedDeck === "object"
+      ? (routeState.preSelectedDeck as SelectedDeck)
       : undefined;
   const mpState = useMemo(
     () => (isLiveEngineGameRouteState(routeState) ? routeState : null),
@@ -239,6 +248,7 @@ export default function Play() {
           leadingControl={modeToggle}
           preSelectedDeckId={preSelectedDeckId}
           preSelectedHubDeckId={preSelectedHubDeckId}
+          preSelectedDeck={preSelectedDeck}
           onStart={(playerDeck, opponentDecks, formatId, commanderName) =>
             startGame(playerDeck, formatId, commanderName, opponentDecks, resolveOfflineEngine())
           }

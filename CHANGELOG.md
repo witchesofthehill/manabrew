@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.76.0](https://github.com/witchesofthehill/manabrew/compare/v3.75.0...v3.76.0) (2026-11-09)
+
+### Features
+
+* **hub:** drop deck version history ([#1186](https://github.com/witchesofthehill/manabrew/issues/1186)) ([b41c53b](https://github.com/witchesofthehill/manabrew/commit/b41c53bde87081975a93b26842fff7a1df2082a5))
+
 ## [3.75.0](https://github.com/witchesofthehill/manabrew/compare/v3.74.0...v3.75.0) (2026-11-09)
 
 ### Features

@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.78.0](https://github.com/witchesofthehill/manabrew/compare/v3.77.0...v3.78.0) (2026-11-09)
+
+### Features
+
+* **observability:** record acquisition source and cap repeating client errors ([#1194](https://github.com/witchesofthehill/manabrew/issues/1194)) ([366304e](https://github.com/witchesofthehill/manabrew/commit/366304e74cc2a52927b90181d6d262f0bf6a062b))
+
 ## [3.77.0](https://github.com/witchesofthehill/manabrew/compare/v3.76.0...v3.77.0) (2026-11-09)
 
 ### Features

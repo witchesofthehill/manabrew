@@ -1,6 +1,6 @@
 [package]
 name = "self-hosted-node"
-version = "0.48.3"
+version = "0.49.0"
 edition = "2021"
 license.workspace = true
 description = "Headless manabrew engine node for hosting AI games"
@@ -18,14 +18,14 @@ name = "self-hosted-node"
 path = "src/main.rs"
 
 [dependencies]
-manabrew-relay-protocol = { path = "../manabrew-relay-protocol", version = "6.3.1" }
-manabrew-agent-interface = { path = "../manabrew-agent-interface", version = "0.19.3" }
+manabrew-relay-protocol = { path = "../manabrew-relay-protocol", version = "6.4.0" }
+manabrew-agent-interface = { path = "../manabrew-agent-interface", version = "0.19.4" }
 manabrew-protocol = { path = "../manabrew-protocol", version = "6.4.1" }
-manabot = { path = "../manabot/", version = "0.17.13" }
+manabot = { path = "../manabot/", version = "0.18.0" }
 forge-carddb = { path = "../forge-carddb", version = "0.4.0" }
 manabrew-engine = { path = "../manabrew-engine", version = "0.13.3" }
 forge-foundation = { path = "../forge-foundation", version = "0.7.1" }
-manabrew_game_runtime = { path = "../manabrew-game-runtime", version = "0.4.12" }
+manabrew_game_runtime = { path = "../manabrew-game-runtime", version = "0.4.13" }
 memmap2 = "0.9"
 tokio = { version = "1", features = ["full"] }
 tokio-tungstenite = { version = "0.24", features = ["native-tls"] }

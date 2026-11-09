@@ -1,10 +1,12 @@
 import { DeckVsSelector } from "@/components/lobby/DeckVsSelector";
+import type { SelectedDeck } from "@/components/lobby/deckSelection.types";
 import type { Deck } from "@/protocol/deck";
 import type { ReactNode } from "react";
 
 interface OfflinePlaySetupProps {
   preSelectedDeckId?: string;
   preSelectedHubDeckId?: string;
+  preSelectedDeck?: SelectedDeck;
   leadingControl?: ReactNode;
   onStart: (
     playerDeck: Deck,
@@ -17,6 +19,7 @@ interface OfflinePlaySetupProps {
 export function OfflinePlaySetup({
   preSelectedDeckId,
   preSelectedHubDeckId,
+  preSelectedDeck,
   leadingControl,
   onStart,
 }: OfflinePlaySetupProps) {
@@ -25,6 +28,7 @@ export function OfflinePlaySetup({
       <DeckVsSelector
         preSelectedDeckId={preSelectedDeckId}
         preSelectedHubDeckId={preSelectedHubDeckId}
+        preSelectedDeck={preSelectedDeck}
         leadingControl={leadingControl}
         onStart={onStart}
       />

@@ -2750,6 +2750,7 @@ impl RelayClient {
                 client_platform: ClientPlatform::Unknown,
                 client_version: None,
                 engine_gate: EngineGate::Unknown,
+                acquisition_source: None,
             })
             .await?;
         client.wait_for_auth().await?;

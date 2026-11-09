@@ -113,6 +113,7 @@ jobs:
               'website/',
               'images/screenshots/',
               'src/themes/',
+              'src/lib/acquisitionSource.ts',
               'images/brand/logos/interactive/',
               'src/assets/brandLogoGeometry.json',
               'src/components/layout/ManaBrewLogo.css',

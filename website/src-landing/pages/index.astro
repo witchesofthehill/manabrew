@@ -180,6 +180,20 @@ const mana = preset.gameColors;
       </p>
     </footer>
     <script>
+      import { ACQUISITION_PARAM, classifyAcquisition } from "../../../src/lib/acquisitionSource";
+
+      const source = classifyAcquisition(window.location.href, document.referrer);
+      if (source !== "direct") {
+        for (const link of document.querySelectorAll<HTMLAnchorElement>(
+          'a[href^="https://play.manabrew.app"]',
+        )) {
+          const url = new URL(link.href);
+          url.searchParams.set(ACQUISITION_PARAM, source);
+          link.href = url.href;
+        }
+      }
+    </script>
+    <script>
       // ── Bubble tuning knobs ──────────────────────────────────────────
       const BUBBLES = {
         sizeMin: 18, // smallest bubble diameter (px)

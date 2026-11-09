@@ -397,7 +397,7 @@ The isolated collector mounts maps read-only at `/var/lib/faro/sourcemaps`. Only
 
 Retain old directories for the supported lifetime of installed clients and rollback, not merely Loki's 30-day event retention. Deployment synchronization preserves the data directory. Do not prune source maps as part of image, installer, or event-log cleanup.
 
-`FARO_DAILY_BYTES` defaults to 10485760, a 10 MiB daily budget for serialized outgoing event bodies. Reservations persist in `faro-data`, including across restarts, and occur before export; failed deliveries consume budget too. Exhaustion returns 429 until the next UTC day or an operator raises the limit. This bounds accepted event bytes, not all Loki index/WAL overhead or backend logs. Monitor actual disk capacity separately. Do not delete the budget volume to recover capacity.
+`FARO_DAILY_BYTES` defaults to 10485760, a 10 MiB daily budget for serialized outgoing event bodies. Reservations persist in `faro-data`, including across restarts, and occur before export; failed deliveries consume budget too. Exhaustion returns 429 until the next UTC day or an operator raises the limit. This bounds accepted event bytes, not all Loki index/WAL overhead or backend logs. Monitor actual disk capacity separately. Do not delete the budget volume to recover capacity. `FARO_SIGNATURE_DAILY_BYTES` (default `FARO_DAILY_BYTES / 20`) caps any one error signature's share of that budget, in memory, so it resets on collector restart.
 
 ### Rollout and rollback
 

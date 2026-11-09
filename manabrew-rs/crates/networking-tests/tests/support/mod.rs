@@ -380,6 +380,7 @@ impl Client {
                 client_platform: ClientPlatform::Unknown,
                 client_version: version.map(str::to_string),
                 engine_gate: EngineGate::Unknown,
+                acquisition_source: None,
             },
         )
         .await?;

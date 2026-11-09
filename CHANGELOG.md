@@ -1,5 +1,35 @@
 # Changelog
 
+## [3.78.2](https://github.com/witchesofthehill/manabrew/compare/v3.78.1...v3.78.2) (2026-11-09)
+
+### Fixes
+
+* singleplayer button ([#1198](https://github.com/witchesofthehill/manabrew/issues/1198)) ([d281212](https://github.com/witchesofthehill/manabrew/commit/d28121203b1d01acd2ff5ad3251c2690b736d3f6))
+
+## [3.78.1](https://github.com/witchesofthehill/manabrew/compare/v3.78.0...v3.78.1) (2026-11-09)
+
+### Fixes
+
+* bad bug on singleplayer ([#1196](https://github.com/witchesofthehill/manabrew/issues/1196)) ([0590e6d](https://github.com/witchesofthehill/manabrew/commit/0590e6da6cae56a6d1ca30e6115510a4323c6f04))
+
+## [3.78.0](https://github.com/witchesofthehill/manabrew/compare/v3.77.0...v3.78.0) (2026-11-09)
+
+### Features
+
+* **observability:** record acquisition source and cap repeating client errors ([#1194](https://github.com/witchesofthehill/manabrew/issues/1194)) ([366304e](https://github.com/witchesofthehill/manabrew/commit/366304e74cc2a52927b90181d6d262f0bf6a062b))
+
+## [3.77.0](https://github.com/witchesofthehill/manabrew/compare/v3.76.0...v3.77.0) (2026-11-09)
+
+### Features
+
+* **ui:** arrange related battlefield cards together ([#1153](https://github.com/witchesofthehill/manabrew/issues/1153)) ([68d4bbc](https://github.com/witchesofthehill/manabrew/commit/68d4bbc4fbee4fb65f960e1d26eea10ca44defe9))
+
+## [3.76.0](https://github.com/witchesofthehill/manabrew/compare/v3.75.0...v3.76.0) (2026-11-09)
+
+### Features
+
+* **hub:** drop deck version history ([#1186](https://github.com/witchesofthehill/manabrew/issues/1186)) ([b41c53b](https://github.com/witchesofthehill/manabrew/commit/b41c53bde87081975a93b26842fff7a1df2082a5))
+
 ## [3.75.0](https://github.com/witchesofthehill/manabrew/compare/v3.74.0...v3.75.0) (2026-11-09)
 
 ### Features

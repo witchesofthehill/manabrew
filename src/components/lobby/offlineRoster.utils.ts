@@ -28,7 +28,7 @@ export function prepareOfflineGame(
   cardPool: CardPool,
 ) {
   const errors = roster.seats.map((seat) => offlineSelectionError(seat.deck, formatId, cardPool));
-  const ready = roster.seats.every((seat, index) => seat.confirmed && !errors[index]);
+  const ready = errors.every((error) => !error);
   return {
     errors,
     launch: ready

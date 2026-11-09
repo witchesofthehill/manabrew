@@ -39,12 +39,15 @@ export function OfflineRoster({
   return (
     <div
       className={cn(
-        "min-w-0 gap-2 xl:flex-1",
-        compact ? "flex overflow-x-auto pb-1" : "grid grid-cols-2 xl:flex",
+        "min-w-0 gap-2",
+        compact ? "flex flex-1 overflow-x-auto pb-1" : "grid grid-cols-2 sm:flex xl:flex-1",
       )}
     >
       {roster.seats.map((seat, index) => (
-        <div key={seat.id} className={cn("min-w-0", compact ? "w-52 shrink-0" : "xl:flex-1")}>
+        <div
+          key={seat.id}
+          className={cn("min-w-0", compact ? "w-64 shrink-0" : "sm:flex-1 sm:basis-0")}
+        >
           <OfflineDeckSlot
             seat={seat}
             assignment={assignments[index]}
@@ -66,7 +69,7 @@ export function OfflineRoster({
           variant="outline"
           disabled={disabled}
           onClick={onAdd}
-          className="h-auto min-h-16 shrink-0 gap-2 border-dashed px-4 xl:w-28"
+          className="h-auto min-h-14 shrink-0 gap-2 border-dashed px-4 sm:w-28"
         >
           <Plus className="size-4" />
           Add bot

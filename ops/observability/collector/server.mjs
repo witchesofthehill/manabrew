@@ -21,6 +21,9 @@ import { SourceMaps } from "./sourcemaps.mjs";
 
 const MAX_BODY_BYTES = 256 * 1024;
 const DAILY_BYTES = Number(process.env.FARO_DAILY_BYTES ?? 10 * 1024 * 1024);
+const SIGNATURE_DAILY_BYTES = Number(
+  process.env.FARO_SIGNATURE_DAILY_BYTES ?? Math.floor(DAILY_BYTES / 20),
+);
 const MAX_INFLIGHT = 4;
 const origins = new Set((process.env.FARO_ORIGINS ?? "").split(",").filter(Boolean));
 const loki = process.env.LOKI_URL ?? "http://loki:3100";
@@ -35,13 +38,21 @@ const counters = {
   export_errors: 0,
   mapped_frames: 0,
   unmapped_frames: 0,
+  signature_capped: 0,
 };
+let signatureBytes = { day: "", bytes: new Map() };
 let inflight = 0;
 let tokens = 40;
 let lastRefill = performance.now();
 let lokiReady = false;
 let lastTimestamp = 0n;
-if (!origins.size || !Number.isSafeInteger(DAILY_BYTES) || DAILY_BYTES <= 0)
+if (
+  !origins.size ||
+  !Number.isSafeInteger(DAILY_BYTES) ||
+  DAILY_BYTES <= 0 ||
+  !Number.isSafeInteger(SIGNATURE_DAILY_BYTES) ||
+  SIGNATURE_DAILY_BYTES <= 0
+)
   throw new Error("Invalid collector configuration");
 mkdirSync(stateDirectory, { recursive: true });
 let budget = existsSync(stateFile)
@@ -64,6 +75,12 @@ function reserve(bytes) {
   renameSync(`${stateFile}.tmp`, stateFile);
   budget = next;
   return true;
+}
+
+function signatureUsage() {
+  const day = currentBudget().day;
+  if (signatureBytes.day !== day) signatureBytes = { day, bytes: new Map() };
+  return signatureBytes.bytes;
 }
 
 function reject(status) {
@@ -186,6 +203,8 @@ async function collect(request) {
       work: { loads: 0, readBytes: 0, decodedBytes: 0 },
     };
     const streams = new Map();
+    const usage = signatureUsage();
+    const requestSignatureBytes = new Map();
     let storedBytes = 0;
     const resolveStack = (release, frames) =>
       frames
@@ -216,7 +235,16 @@ async function collect(request) {
         .filter(Boolean)
         .join("\n");
       const line = JSON.stringify(record);
-      storedBytes += Buffer.byteLength(line);
+      const lineBytes = Buffer.byteLength(line);
+      const signature = record.context_signature;
+      const signatureTotal =
+        (usage.get(signature) ?? 0) + (requestSignatureBytes.get(signature) ?? 0) + lineBytes;
+      if (signatureTotal > SIGNATURE_DAILY_BYTES) {
+        counters.signature_capped++;
+        continue;
+      }
+      requestSignatureBytes.set(signature, (requestSignatureBytes.get(signature) ?? 0) + lineBytes);
+      storedBytes += lineBytes;
       const key = `${record.app_environment}/${record.context_source}`;
       if (!streams.has(key))
         streams.set(key, {
@@ -231,7 +259,10 @@ async function collect(request) {
       lastTimestamp = timestamp > lastTimestamp ? timestamp : lastTimestamp + 1n;
       streams.get(key).values.push([lastTimestamp.toString(), line]);
     }
+    if (!streams.size) return;
     if (!reserve(storedBytes)) reject(429);
+    for (const [signature, bytes] of requestSignatureBytes)
+      usage.set(signature, (usage.get(signature) ?? 0) + bytes);
     try {
       const response = await fetch(`${loki}/loki/api/v1/push`, {
         method: "POST",
@@ -247,7 +278,10 @@ async function collect(request) {
       lokiReady = false;
       reject(503);
     }
-    counters.accepted += entries.length;
+    counters.accepted += [...streams.values()].reduce(
+      (total, { values }) => total + values.length,
+      0,
+    );
   } finally {
     inflight--;
   }
@@ -287,6 +321,8 @@ const server = createServer(
         `faro_collector_cache_evictions_total ${maps.evictions}`,
         `faro_collector_daily_bytes ${currentBudget().bytes}`,
         `faro_collector_daily_limit_bytes ${DAILY_BYTES}`,
+        `faro_collector_signature_daily_limit_bytes ${SIGNATURE_DAILY_BYTES}`,
+        `faro_collector_signatures_tracked ${signatureUsage().size}`,
         `faro_collector_resident_memory_bytes ${process.memoryUsage().rss}`,
       );
       response

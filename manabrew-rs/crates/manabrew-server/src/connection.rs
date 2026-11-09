@@ -1021,6 +1021,7 @@ pub async fn handle_connection(
             version: client.version().map(str::to_string),
             reconnected,
             engine_gate: client.engine_gate.as_str().to_string(),
+            acquisition_source: client.acquisition_source,
         });
     }
 
@@ -1223,8 +1224,12 @@ async fn authenticate(
             client_platform,
             client_version,
             engine_gate,
+            acquisition_source,
         } => {
-            let client = ClientBuild::new(client_platform, client_version, engine_gate);
+            let mut client = ClientBuild::new(client_platform, client_version, engine_gate);
+            client.acquisition_source = acquisition_source
+                .as_deref()
+                .map(crate::client_build::acquisition_source);
             if password != state.server_key {
                 let reply = ServerMessage::AuthResult {
                     success: false,

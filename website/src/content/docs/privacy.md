@@ -37,6 +37,14 @@ table is whatever you typed when joining. Like any server, the relay also
 keeps operational logs and metrics; logs can contain usernames and connection
 addresses.
 
+When the app connects to the public relay, it also says roughly where the
+visit came from: one word from a fixed list (`direct`, `landing`, `reddit`,
+`discord`, `search`, `ai`, `youtube`, `social`, `github`, `other`). The app
+works it out in your browser from the referring site and any `utm_source` in
+the link. The referring address itself is never sent. The landing page passes
+the same word on to the app when you click through. We use it to count which
+communities send new players.
+
 A self-hosted relay records none of this. Game recording is off unless the
 operator turns it on.
 

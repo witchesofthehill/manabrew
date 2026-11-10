@@ -508,7 +508,6 @@ async fn host_one_room(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     if let Some(label) = &label {
         config.username = format!("{}-{label}", config.username);
-        config.bot_username = format!("{}-{label}", config.bot_username);
         config.room_name = format!("{} ({label})", config.room_name);
     }
 
@@ -1045,11 +1044,7 @@ fn spawn_bots(config: &Config, decks: &[DeckSelection], room_id: &str, bot_state
     };
     let open_seats = config.max_players.saturating_sub(1) as usize;
     for (index, deck) in decks.iter().take(open_seats).enumerate() {
-        let username = if index == 0 {
-            config.bot_username.clone()
-        } else {
-            format!("{} {}", config.bot_username, index + 1)
-        };
+        let username = format!("{}{}", config.bot_username, index + 1);
         let relay_url = config.relay_url.clone();
         let bot_config = BotConfig {
             username,

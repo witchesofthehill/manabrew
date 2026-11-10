@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.79.3](https://github.com/witchesofthehill/manabrew/compare/v3.79.2...v3.79.3) (2026-11-10)
+
+### Fixes
+
+* **ui:** dedupe pixi onrender registrations and drop card-glint layout noise ([#1205](https://github.com/witchesofthehill/manabrew/issues/1205)) ([57a89c3](https://github.com/witchesofthehill/manabrew/commit/57a89c35aaeca32b00fcf2a45e2a8e5c1ab8b3ba))
+
 ## [3.79.2](https://github.com/witchesofthehill/manabrew/compare/v3.79.1...v3.79.2) (2026-11-10)
 
 ## [3.79.1](https://github.com/witchesofthehill/manabrew/compare/v3.79.0...v3.79.1) (2026-11-10)

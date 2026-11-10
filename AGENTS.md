@@ -70,19 +70,19 @@ Sub-AGENTS.md files are not auto-discovered by Codex or by Claude Code's parent-
 
 Topic spinoffs (cross-cut multiple folders):
 
-| File                                    | Read it when                                                                                             |
-| --------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `docs/agents/PARITY_PHILOSOPHY.md`      | Any engine work                                                                                          |
-| `docs/agents/ENGINE_BUGFIX_WORKFLOW.md` | Investigating a parity divergence                                                                        |
-| `docs/agents/UI_THEME_RULES.md`         | Any UI change that involves color                                                                        |
-| `docs/agents/RELAY.md`                  | Any relay (`manabrew-server`) work — trust boundary, reconnect/resync, identity and usernames            |
-| `docs/agents/HUB.md`                    | Any hub (`manabrew-hub`) work — auth and token audiences, migrations, Deck Hub flag                      |
-| `docs/agents/SELF_HOSTED_NODE.md`       | Any self-hosted node work — game-id reconciliation, reconnect, JVM sizing, updater                       |
-| `docs/DECISION_REPLAY.md`               | Forge decision journaling, deterministic reconstruction, replay snapshots and their isolation limits     |
-| `docs/agents/LATENCY_ANALYSIS.md`       | Measuring hosted latency from capture files — what the timestamps mean, and four traps that skew results |
-| `docs/forge-dsl-semantics.md`           | Any engine work touching abilities, triggers, replacements, static abilities, costs, SVars, or the stack |
-| `docs/forge-dsl-grammar.md`             | Parser / IR changes, or when interpreting card-script syntax                                             |
-| `docs/OBSERVABILITY.md`                 | Faro collector or client-error Grafana work: result conversion, occurrence limits, privacy               |
+| File                                    | Read it when                                                                                                          |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `docs/agents/PARITY_PHILOSOPHY.md`      | Any engine work                                                                                                       |
+| `docs/agents/ENGINE_BUGFIX_WORKFLOW.md` | Investigating a parity divergence                                                                                     |
+| `docs/agents/UI_THEME_RULES.md`         | Any UI change that involves color                                                                                     |
+| `docs/agents/RELAY.md`                  | Any relay (`manabrew-server`) work — trust boundary, reconnect/resync, identity and usernames                         |
+| `docs/agents/HUB.md`                    | Any hub (`manabrew-hub`) work — auth and token audiences, migrations, Deck Hub flag                                   |
+| `docs/agents/SELF_HOSTED_NODE.md`       | Any self-hosted node work — game-id reconciliation, reconnect, JVM sizing, updater                                    |
+| `docs/DECISION_REPLAY.md`               | Forge decision journaling, deterministic reconstruction, replay snapshots and their isolation limits                  |
+| `docs/agents/LATENCY_ANALYSIS.md`       | Measuring hosted latency from capture files — what the timestamps mean, and four traps that skew results              |
+| `docs/forge-dsl-semantics.md`           | Any engine work touching abilities, triggers, replacements, static abilities, costs, SVars, or the stack              |
+| `docs/forge-dsl-grammar.md`             | Parser / IR changes, or when interpreting card-script syntax                                                          |
+| `docs/OBSERVABILITY.md`                 | Client-error Grafana queries: `:json` does not quote scalars; interpolation, result conversion, query limits, privacy |
 
 These files start minimal and grow over time. If a section outgrows its file, split it into a new doc under `docs/agents/` and add it to this map.
 

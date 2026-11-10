@@ -215,6 +215,14 @@ async function initializeGame({
       hostedLaunch.playerOrder.forEach((_, index) => {
         hostedDecks[`player-${index}`] = hostedLaunch.decks[index];
       });
+      if (tauriForgeRoomAvailable) {
+        void beginOfflineGame({
+          engine: forgeHostLabel(true),
+          format: selectedFormatId,
+          startingLife: hostedLaunch.startingLife,
+          decks: hostedDecks,
+        });
+      }
       set({
         isMultiplayer: true,
         isHost: false,
@@ -243,6 +251,7 @@ async function initializeGame({
       return;
     } catch (error) {
       if (hosted) {
+        abandonOfflineGame();
         clearActiveGameSession();
         await useServerStore.getState().leaveRoom();
         if (hosted.relay) await stopLocalHostedAiRelay();
@@ -598,11 +607,12 @@ export const useGameStore = create<GameState>()(
           const runtime =
             engine === "Ironsmith" ? selectGameRuntime("ironsmith") : resetSelectedGameRuntime();
           set({ debugInfo: "Starting engine..." });
+          const serverState = useServerStore.getState();
           const engineLabel = roomEngineLabel(
             engine,
-            localIsHost,
+            localIsHost || serverState.hostingForgeRoom,
             getPlatform().type,
-            useServerStore.getState().currentRoom?.hosted ?? false,
+            !!serverState.currentRoom?.hosted && !!serverState.currentRoom?.official,
           );
           beginGame(engineLabel);
           setErrorReportingEngine(engineLabel);
@@ -733,7 +743,7 @@ export const useGameStore = create<GameState>()(
           format: get().gameConfig?.formatId ?? null,
           endReason: get().engineCrash ? "error" : get().gameView?.gameOver ? "gameOver" : "left",
           gameId: engineReportGameId(
-            wasMultiplayer,
+            wasMultiplayer && !activeSession?.relayHost,
             useServerStore.getState().gameId,
             currentOfflineGameId(),
           ),

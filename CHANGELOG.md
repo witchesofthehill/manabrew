@@ -1,5 +1,7 @@
 # Changelog
 
+## [3.79.4](https://github.com/witchesofthehill/manabrew/compare/v3.79.3...v3.79.4) (2026-11-10)
+
 ## [3.79.3](https://github.com/witchesofthehill/manabrew/compare/v3.79.2...v3.79.3) (2026-11-10)
 
 ### Fixes

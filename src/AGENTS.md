@@ -307,7 +307,7 @@ Booster Draft uses exclusive Pack and Pool / build tabs at every viewport size f
 
 Restoring a borrowed drag root cancels GSAP tweens targeting both the root and its scale point. Multi-card selections can span panes, so a follower can be removed while its lead and settlement timeline remain alive. Cancel those targets before returning the root to its pane; a later card removal destroys its transform objects.
 
-Bring an already-parented drag lead to the front with `motionLayer.addChild(lead)`. The installed Pixi's `setChildIndex`/`addChildAt` reorder path duplicates descendant `onRender` registrations; removing the lead then leaves a null foil callback that breaks the shared renderer.
+Bring an already-parented drag lead to the front with `motionLayer.addChild(lead)`. The installed Pixi's `setChildIndex`/`addChildAt` reorder path duplicates descendant `onRender` registrations. `installPixiPatches` makes `RenderGroup` registration idempotent and skips cleared callbacks, so a stale entry no longer breaks the shared renderer, but same-parent `addChild` is still the cheaper reorder.
 
 Inspection-only touch presses do not require a `data-limited-table` ancestor. Check table connectivity and ownership only after a drag activates or while it settles; detached hosts still cancel every press.
 

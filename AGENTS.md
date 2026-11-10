@@ -82,6 +82,7 @@ Topic spinoffs (cross-cut multiple folders):
 | `docs/agents/LATENCY_ANALYSIS.md`       | Measuring hosted latency from capture files — what the timestamps mean, and four traps that skew results |
 | `docs/forge-dsl-semantics.md`           | Any engine work touching abilities, triggers, replacements, static abilities, costs, SVars, or the stack |
 | `docs/forge-dsl-grammar.md`             | Parser / IR changes, or when interpreting card-script syntax                                             |
+| `docs/OBSERVABILITY.md`                 | Faro collector or client-error Grafana work: result conversion, occurrence limits, privacy               |
 
 These files start minimal and grow over time. If a section outgrows its file, split it into a new doc under `docs/agents/` and add it to this map.
 

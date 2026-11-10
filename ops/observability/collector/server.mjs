@@ -187,11 +187,13 @@ async function collect(request) {
     };
     const streams = new Map();
     let storedBytes = 0;
-    const resolveStack = (release, frames) =>
+    const resolveStack = (release, frames, mapping) =>
       frames
         .map((frame) => {
           const mapped = maps.frame(release, frame, requestMaps);
           counters[mapped === frame ? "unmapped_frames" : "mapped_frames"]++;
+          mapping.total++;
+          if (mapped !== frame) mapping.mapped++;
           const location = `${mapped.filename}${mapped.lineno ? `:${mapped.lineno}:${mapped.colno ?? 1}` : mapped.colno ? `:${mapped.colno}` : ""}`;
           return !mapped.function ||
             mapped.function === "?" ||
@@ -201,13 +203,14 @@ async function collect(request) {
         })
         .join("\n");
     for (const { frames, causes, record } of entries) {
+      const mapping = { mapped: 0, total: 0 };
       record.stacktrace = [
         `${record.type}: ${record.value}`,
-        resolveStack(record.app_release, frames),
+        resolveStack(record.app_release, frames, mapping),
         ...causes.map((cause, index) =>
           [
             `${cause.relation === "cause" ? "Caused by" : "Aggregate error"} #${index + 1} of #${cause.parent}: ${cause.type}: ${cause.value}`,
-            resolveStack(record.app_release, cause.frames),
+            resolveStack(record.app_release, cause.frames, mapping),
           ]
             .filter(Boolean)
             .join("\n"),
@@ -215,6 +218,8 @@ async function collect(request) {
       ]
         .filter(Boolean)
         .join("\n");
+      record.stack_mapped_frames = mapping.mapped;
+      record.stack_total_frames = mapping.total;
       const line = JSON.stringify(record);
       storedBytes += Buffer.byteLength(line);
       const key = `${record.app_environment}/${record.context_source}`;

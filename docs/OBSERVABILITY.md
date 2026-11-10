@@ -17,11 +17,29 @@ docker compose -f compose.dev.yaml --profile observability up -d grafana
 
 Open `http://localhost:3000` and sign in with `admin` / `admin`. The SQLite dashboards use `ops/hub-data/dev/events/events.db`. For Loki/Prometheus dashboards, start `grafana prometheus faro-collector loki` with the observability profile. Development ports bind only to loopback; no Docker log discovery is enabled.
 
-### Client errors (`client-errors.json`)
+### Client error browser (`client-errors.json`, `client-error-detail.json`)
 
 Faro SDK `2.13.0` sends frontend exceptions through Caddy to the isolated Node collector, which enforces the shared privacy policy, resolves private maps, and writes to Loki. Backend container logs still use Alloy. The dashboard counts delivered exceptions, not affected sessions or users.
 
-Filters cover environment, version, immutable build, platform, source, and engine. Sources are `startup`, `react`, `unhandled`, `engine-worker`, `render-worker`, `bot-worker`, `remote-engine`, and `engine-operation`. Normal cancellation, renderer capability fallback, and ordinary protocol rejections are excluded. Recovery behavior and local console diagnostics remain unchanged.
+The overview at `/d/manabrew-client-errors` shows one row per exact signature, combining matching reports across builds and platforms rather than splitting rows by that metadata. Each row has its type, scrubbed message, full-range occurrence count, last receive time, first captured frame, latest release/platform, and source. Metadata comes from a most-recent matching report. The summary counts cover the entire filtered time range, not only the loaded groups.
+
+Filters cover environment, error type, literal message/release searches, platform, source, and engine. Searches are case-sensitive; they do not interpret regular expressions. Smoke-test reports are hidden by default and can be included with **Smoke tests → Include**. Sources are `startup`, `react`, `unhandled`, `engine-worker`, `render-worker`, `bot-worker`, `remote-engine`, and `engine-operation`. Normal cancellation, renderer capability fallback, and ordinary protocol rejections are excluded. Recovery behavior and local console diagnostics remain unchanged.
+
+**Rank groups by** selects the globally most frequent or most recent signatures before applying **Group limit**, which supports 50, 100, or 250 groups. Table headers sort the loaded groups; table pagination does not retrieve more groups. Raise the limit or narrow the filters when the total exceeds it. Exact signatures remain build-sensitive and can also differ across browser evaluations; they are not cross-release issue identities.
+
+Click a message or signature to open `/d/manabrew-client-error-detail` with the common filters and absolute time range preserved. The detail dashboard shows the matching report count, timeline, release/platform/browser/engine breakdowns, and a bounded occurrence list. Build, route, operation, browser, and OS regular-expression filters apply to every detail query. An empty signature returns no events.
+
+The occurrence list loads the newest 200 reports by default; **Loaded occurrences** supports 200, 500, 1000, or 5000. Its count and breakdown panels still cover every matching stored report in the time range. Pagination only paginates loaded rows. Use the occurrence panel's **Explore** action to browse older reports, or narrow the dashboard time range. All browsing remains bounded by Loki's 30-day retention.
+
+Click an **Occurrence ns** value to inspect that exact report's readable stack and cause chain. Nanosecond timestamps remain strings so reports received within the same millisecond are distinguishable. Selection changes only the stack and the collapsed **Advanced** raw-context panel, not group-wide counts or breakdowns. **Use latest occurrence** clears the selection. Share the resulting dashboard URL to preserve filters, time range, signature, and selected report.
+
+New collector records include `stack_mapped_frames` and `stack_total_frames`, counting root and cause/aggregate frames together. The selected stack shows these counts without inferring source-map success from filenames. Missing fields on historical records mean `Unknown`; zero mapped frames is a recorded result, and zero total frames means no captured frames. No user/session identity, new Loki label, persistent issue state, or cross-release fingerprint is added.
+
+Loki metric aggregation is bounded at 10,000 series in `ops/observability/loki/loki.yml`; its default 500-series limit prevents grouping larger error sets even when the displayed table is capped. Queries discard unused diagnostic labels before aggregation. Narrow the time range or filters if the backend limit is reached.
+
+Existing Loki processes must be restarted to load the changed query limit; preserve their data volumes. New mapping counts require the updated collector image. Grafana loads both dashboards through the existing file provider.
+
+Grafana 11.6's Loki datasource converts instant metrics into tables with numeric fields named `Value #A`, `Value #B`, and so on before dashboard transformations. Preserve those field names when changing transformations. The overview joins counts and latest metadata within one LogQL query so independently evaluated, tied top-k selections cannot create incomplete or duplicate rows. Its receive-time label is converted back to a numeric timestamp for display. Log-query `maxLines` is numeric and cannot be templated; the occurrence browser uses separately guarded numeric-cap targets so only the chosen target returns rows.
 
 The `unhandled` source covers uncaught exceptions and unhandled promise rejections, including non-Error thrown values. Global error handling preserves the existing `window.onerror` callback and reports each exception once.
 
@@ -64,7 +82,7 @@ setTimeout(() => {
 }, 100);
 ```
 
-Expect a `/collect` POST with HTTP 202, then inspect `stacktrace` in the Client Errors dashboard's Exception details or with the Loki query above. The message retains `Faro production smoke test`, with available positive line/column coordinates. The console frame may retain a browser `VM` label or `<anonymous>`, or use a synthetic `app:///console` or `app:///eval` marker. This validates reporting, not source-map resolution or native crash capture. Source maps require an error from a shipped app asset. Test outside an active game.
+Expect a `/collect` POST with HTTP 202, then select **Smoke tests → Include** in the Client Errors overview, open the smoke-test group, and inspect its stack in the detail dashboard or with the Loki query above. The message retains `Faro production smoke test`, with available positive line/column coordinates. The console frame may retain a browser `VM` label or `<anonymous>`, or use a synthetic `app:///console` or `app:///eval` marker. This validates reporting, not source-map resolution or native crash capture. Source maps require an error from a shipped app asset. Test outside an active game.
 
 Events expire under Loki's existing 30-day retention. Client batches contain at most 10 items; transport queues at most 20 batches with one request in flight, a five-second timeout, and two attempts. There is no persistent retry queue. Offline clients, abrupt termination, static module failures before initialization, and WebView/process termination can lose reports. Native Rust/Forge dumps, OS kills, and rules correctness are outside this coverage.
 

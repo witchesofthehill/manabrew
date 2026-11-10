@@ -1,0 +1,973 @@
+{
+  "uid": "manabrew-client-error-detail",
+  "title": "Manabrew Client Error Detail",
+  "description": "One exact stored client-error signature, its full-range occurrence counts and one latest or selected sanitized event.",
+  "tags": ["manabrew", "ops", "frontend"],
+  "schemaVersion": 39,
+  "editable": true,
+  "timezone": "utc",
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "refresh": "1m",
+  "links": [
+    {
+      "title": "Back to client errors",
+      "type": "link",
+      "url": "/d/manabrew-client-errors?from=${__from}&to=${__to}&${environment:queryparam}&${error_type:queryparam}&${message:queryparam}&${version:queryparam}&${platform:queryparam}&${source:queryparam}&${engine:queryparam}&${smoke:queryparam}",
+      "includeVars": false,
+      "keepTime": false,
+      "targetBlank": false
+    },
+    {
+      "title": "Use latest occurrence",
+      "type": "link",
+      "url": "/d/manabrew-client-error-detail?from=${__from}&to=${__to}&${environment:queryparam}&${error_type:queryparam}&${message:queryparam}&${version:queryparam}&${platform:queryparam}&${source:queryparam}&${engine:queryparam}&${smoke:queryparam}&${signature:queryparam}&${build:queryparam}&${route:queryparam}&${operation:queryparam}&${browser:queryparam}&${os:queryparam}&${row_limit:queryparam}&var-occurrence=.*",
+      "includeVars": false,
+      "keepTime": false,
+      "targetBlank": false
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "environment",
+        "label": "Environment",
+        "type": "custom",
+        "query": "production,staging,development",
+        "multi": false,
+        "includeAll": false,
+        "current": {
+          "text": "production",
+          "value": "production"
+        }
+      },
+      {
+        "name": "error_type",
+        "label": "Error type",
+        "type": "custom",
+        "query": "Error,TypeError,RangeError,ReferenceError,SyntaxError,URIError,EvalError,AggregateError,RuntimeError,CompileError,LinkError,AbortError,NetworkError,SecurityError,InvalidStateError",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "message",
+        "label": "Message contains",
+        "type": "textbox",
+        "query": "",
+        "current": {
+          "text": "",
+          "value": ""
+        }
+      },
+      {
+        "name": "version",
+        "label": "Release contains",
+        "type": "textbox",
+        "query": "",
+        "current": {
+          "text": "",
+          "value": ""
+        }
+      },
+      {
+        "name": "platform",
+        "label": "Platform",
+        "type": "custom",
+        "query": "web,pwa,desktop,mobile",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "source",
+        "label": "Source",
+        "type": "custom",
+        "query": "startup,react,unhandled,engine-worker,render-worker,bot-worker,remote-engine,engine-operation",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "engine",
+        "label": "Engine",
+        "type": "custom",
+        "query": "none,manabrew,forge-wasm,forge-desktop,forge-hosted,forge-remote,ironsmith,manual-tabletop",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "smoke",
+        "label": "Smoke tests",
+        "type": "custom",
+        "query": "Hide : Faro production smoke test, Include : a^",
+        "multi": false,
+        "includeAll": false,
+        "current": {
+          "text": "Hide",
+          "value": "Faro production smoke test"
+        }
+      },
+      {
+        "name": "signature",
+        "label": "Exact signature",
+        "type": "textbox",
+        "query": "",
+        "current": {
+          "text": "",
+          "value": ""
+        }
+      },
+      {
+        "name": "occurrence",
+        "label": "Occurrence ns regex",
+        "type": "textbox",
+        "hide": 2,
+        "query": ".*",
+        "current": {
+          "text": ".*",
+          "value": ".*"
+        }
+      },
+      {
+        "name": "build",
+        "label": "Build regex",
+        "description": "Advanced filter. Use .* to include missing values on older records.",
+        "type": "textbox",
+        "query": ".*",
+        "current": {
+          "text": ".*",
+          "value": ".*"
+        }
+      },
+      {
+        "name": "route",
+        "label": "Route regex",
+        "description": "Advanced filter. Use .* to include missing values on older records.",
+        "type": "textbox",
+        "query": ".*",
+        "current": {
+          "text": ".*",
+          "value": ".*"
+        }
+      },
+      {
+        "name": "operation",
+        "label": "Operation regex",
+        "description": "Advanced filter. Use .* to include missing values on older records.",
+        "type": "textbox",
+        "query": ".*",
+        "current": {
+          "text": ".*",
+          "value": ".*"
+        }
+      },
+      {
+        "name": "browser",
+        "label": "Browser regex",
+        "description": "Advanced filter. Use .* to include missing values on older records.",
+        "type": "textbox",
+        "query": ".*",
+        "current": {
+          "text": ".*",
+          "value": ".*"
+        }
+      },
+      {
+        "name": "os",
+        "label": "OS regex",
+        "description": "Advanced filter. Use .* to include missing values on older records.",
+        "type": "textbox",
+        "query": ".*",
+        "current": {
+          "text": ".*",
+          "value": ".*"
+        }
+      },
+      {
+        "name": "row_limit",
+        "label": "Loaded occurrences",
+        "type": "custom",
+        "query": "200,500,1000,5000",
+        "multi": false,
+        "includeAll": false,
+        "current": {
+          "text": "200",
+          "value": "200"
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "Selected signature",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 18,
+        "h": 5
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "```text\n${signature}\n```\nIf Exact signature is empty, this dashboard returns no events. Select a signature in [Client errors](/d/manabrew-client-errors?from=${__from}&to=${__to}&${environment:queryparam}&${error_type:queryparam}&${message:queryparam}&${version:queryparam}&${platform:queryparam}&${source:queryparam}&${engine:queryparam}&${smoke:queryparam}). The signature is an exact stored fingerprint, not a persistent issue or user identity.\n\nAll panels use the common and advanced filters above. Occurrence selection changes only the stack and raw context, not the group counts or breakdowns."
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Stored occurrences",
+      "description": "All stored occurrences of this exact signature matching the filters in the selected time range. Independent of the loaded occurrence row limit. Stored reports are sanitized, deduplicated and delivery-limited; this is not an affected-user or native-crash count.",
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "queryType": "instant",
+          "editorMode": "code",
+          "expr": "sum(count_over_time({app=\"manabrew-client\",environment=~\"${environment:regex}\",source=~\"${source:regex}\"} | json | __error__=\"\" | kind=\"exception\" | type=~\"${error_type:regex}\" | context_platform=~\"${platform:regex}\" | context_engine=~\"${engine:regex}\" | context_signature!=\"\" | value!~${smoke:json} | label_format browser_original=`{{ __line__ }}` | line_format \"{{ .context_version }}\" |= ${version:json} | line_format \"{{ .value }}\" |= ${message:json} | line_format \"{{ .browser_original }}\" | drop browser_original | context_signature=${signature:json} | context_build=~${build:json} | context_route=~${route:json} | context_operation=~${operation:json} | diagnostic_browser=~${browser:json} | diagnostic_os=~${os:json} | keep source [$__range])) or vector(0)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "none",
+        "graphMode": "none",
+        "textMode": "value",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Occurrence timeline",
+      "description": "Stored occurrences in each automatic interval, across every occurrence of the selected signature. Selecting one occurrence does not change this query.",
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 24,
+        "h": 7
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "queryType": "range",
+          "editorMode": "code",
+          "expr": "sum(count_over_time({app=\"manabrew-client\",environment=~\"${environment:regex}\",source=~\"${source:regex}\"} | json | __error__=\"\" | kind=\"exception\" | type=~\"${error_type:regex}\" | context_platform=~\"${platform:regex}\" | context_engine=~\"${engine:regex}\" | context_signature!=\"\" | value!~${smoke:json} | label_format browser_original=`{{ __line__ }}` | line_format \"{{ .context_version }}\" |= ${version:json} | line_format \"{{ .value }}\" |= ${message:json} | line_format \"{{ .browser_original }}\" | drop browser_original | context_signature=${signature:json} | context_build=~${build:json} | context_route=~${route:json} | context_operation=~${operation:json} | diagnostic_browser=~${browser:json} | diagnostic_os=~${os:json} | keep source [$__auto]))",
+          "legendFormat": "Occurrences"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 20,
+            "lineWidth": 1
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "type": "table",
+      "title": "By release",
+      "description": "Full selected time range, independent of the loaded row limit. Missing stored metadata is Unknown.",
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 6,
+        "h": 7
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "queryType": "instant",
+          "editorMode": "code",
+          "expr": "sum by (breakdown) (count_over_time({app=\"manabrew-client\",environment=~\"${environment:regex}\",source=~\"${source:regex}\"} | json | __error__=\"\" | kind=\"exception\" | type=~\"${error_type:regex}\" | context_platform=~\"${platform:regex}\" | context_engine=~\"${engine:regex}\" | context_signature!=\"\" | value!~${smoke:json} | label_format browser_original=`{{ __line__ }}` | line_format \"{{ .context_version }}\" |= ${version:json} | line_format \"{{ .value }}\" |= ${message:json} | line_format \"{{ .browser_original }}\" | drop browser_original | context_signature=${signature:json} | context_build=~${build:json} | context_route=~${route:json} | context_operation=~${operation:json} | diagnostic_browser=~${browser:json} | diagnostic_os=~${os:json} | label_format breakdown=`{{ if .context_version }}{{ .context_version }}{{ else }}Unknown{{ end }}` | keep source, breakdown [$__range]))"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": ["breakdown", "Value #A"]
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "indexByName": {
+              "breakdown": 0,
+              "Value #A": 1
+            },
+            "renameByName": {
+              "breakdown": "Release",
+              "Value #A": "Occurrences"
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Occurrences",
+                "desc": true
+              }
+            ]
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "enablePagination": true
+      }
+    },
+    {
+      "id": 5,
+      "type": "table",
+      "title": "By platform",
+      "description": "Full selected time range, independent of the loaded row limit. Missing stored metadata is Unknown.",
+      "gridPos": {
+        "x": 6,
+        "y": 12,
+        "w": 6,
+        "h": 7
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "queryType": "instant",
+          "editorMode": "code",
+          "expr": "sum by (breakdown) (count_over_time({app=\"manabrew-client\",environment=~\"${environment:regex}\",source=~\"${source:regex}\"} | json | __error__=\"\" | kind=\"exception\" | type=~\"${error_type:regex}\" | context_platform=~\"${platform:regex}\" | context_engine=~\"${engine:regex}\" | context_signature!=\"\" | value!~${smoke:json} | label_format browser_original=`{{ __line__ }}` | line_format \"{{ .context_version }}\" |= ${version:json} | line_format \"{{ .value }}\" |= ${message:json} | line_format \"{{ .browser_original }}\" | drop browser_original | context_signature=${signature:json} | context_build=~${build:json} | context_route=~${route:json} | context_operation=~${operation:json} | diagnostic_browser=~${browser:json} | diagnostic_os=~${os:json} | label_format breakdown=`{{ if .context_platform }}{{ .context_platform }}{{ else }}Unknown{{ end }}` | keep source, breakdown [$__range]))"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": ["breakdown", "Value #A"]
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "indexByName": {
+              "breakdown": 0,
+              "Value #A": 1
+            },
+            "renameByName": {
+              "breakdown": "Platform",
+              "Value #A": "Occurrences"
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Occurrences",
+                "desc": true
+              }
+            ]
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "enablePagination": true
+      }
+    },
+    {
+      "id": 6,
+      "type": "table",
+      "title": "By browser",
+      "description": "Full selected time range, independent of the loaded row limit. Missing stored metadata is Unknown.",
+      "gridPos": {
+        "x": 12,
+        "y": 12,
+        "w": 6,
+        "h": 7
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "queryType": "instant",
+          "editorMode": "code",
+          "expr": "sum by (breakdown) (count_over_time({app=\"manabrew-client\",environment=~\"${environment:regex}\",source=~\"${source:regex}\"} | json | __error__=\"\" | kind=\"exception\" | type=~\"${error_type:regex}\" | context_platform=~\"${platform:regex}\" | context_engine=~\"${engine:regex}\" | context_signature!=\"\" | value!~${smoke:json} | label_format browser_original=`{{ __line__ }}` | line_format \"{{ .context_version }}\" |= ${version:json} | line_format \"{{ .value }}\" |= ${message:json} | line_format \"{{ .browser_original }}\" | drop browser_original | context_signature=${signature:json} | context_build=~${build:json} | context_route=~${route:json} | context_operation=~${operation:json} | diagnostic_browser=~${browser:json} | diagnostic_os=~${os:json} | label_format breakdown=`{{ if .diagnostic_browser }}{{ .diagnostic_browser }}{{ if .diagnostic_browser_major }} {{ .diagnostic_browser_major }}{{ end }}{{ else }}Unknown{{ end }}` | keep source, breakdown [$__range]))"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": ["breakdown", "Value #A"]
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "indexByName": {
+              "breakdown": 0,
+              "Value #A": 1
+            },
+            "renameByName": {
+              "breakdown": "Browser",
+              "Value #A": "Occurrences"
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Occurrences",
+                "desc": true
+              }
+            ]
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "enablePagination": true
+      }
+    },
+    {
+      "id": 7,
+      "type": "table",
+      "title": "By engine",
+      "description": "Full selected time range, independent of the loaded row limit. Missing stored metadata is Unknown.",
+      "gridPos": {
+        "x": 18,
+        "y": 12,
+        "w": 6,
+        "h": 7
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "queryType": "instant",
+          "editorMode": "code",
+          "expr": "sum by (breakdown) (count_over_time({app=\"manabrew-client\",environment=~\"${environment:regex}\",source=~\"${source:regex}\"} | json | __error__=\"\" | kind=\"exception\" | type=~\"${error_type:regex}\" | context_platform=~\"${platform:regex}\" | context_engine=~\"${engine:regex}\" | context_signature!=\"\" | value!~${smoke:json} | label_format browser_original=`{{ __line__ }}` | line_format \"{{ .context_version }}\" |= ${version:json} | line_format \"{{ .value }}\" |= ${message:json} | line_format \"{{ .browser_original }}\" | drop browser_original | context_signature=${signature:json} | context_build=~${build:json} | context_route=~${route:json} | context_operation=~${operation:json} | diagnostic_browser=~${browser:json} | diagnostic_os=~${os:json} | label_format breakdown=`{{ if .context_engine }}{{ .context_engine }}{{ else }}Unknown{{ end }}` | keep source, breakdown [$__range]))"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": ["breakdown", "Value #A"]
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "indexByName": {
+              "breakdown": 0,
+              "Value #A": 1
+            },
+            "renameByName": {
+              "breakdown": "Engine",
+              "Value #A": "Occurrences"
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Occurrences",
+                "desc": true
+              }
+            ]
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "enablePagination": true
+      }
+    },
+    {
+      "id": 8,
+      "type": "logs",
+      "title": "Latest / selected occurrence stack and cause chain",
+      "description": "Latest matching stored occurrence by receive time, unless an occurrence link selected an exact nanosecond timestamp. Mapping counts come only from stored stack_mapped_frames and stack_total_frames. Historical records without those fields show Unknown, never Unmapped. Causes and aggregate-error relations are already included in the stored stacktrace. A selected timestamp outside the filters or time range returns no event.",
+      "gridPos": {
+        "x": 0,
+        "y": 19,
+        "w": 24,
+        "h": 12
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "queryType": "range",
+          "editorMode": "code",
+          "expr": "{app=\"manabrew-client\",environment=~\"${environment:regex}\",source=~\"${source:regex}\"} | json | __error__=\"\" | kind=\"exception\" | type=~\"${error_type:regex}\" | context_platform=~\"${platform:regex}\" | context_engine=~\"${engine:regex}\" | context_signature!=\"\" | value!~${smoke:json} | label_format browser_original=`{{ __line__ }}` | line_format \"{{ .context_version }}\" |= ${version:json} | line_format \"{{ .value }}\" |= ${message:json} | line_format \"{{ .browser_original }}\" | drop browser_original | context_signature=${signature:json} | context_build=~${build:json} | context_route=~${route:json} | context_operation=~${operation:json} | diagnostic_browser=~${browser:json} | diagnostic_os=~${os:json} | label_format occurrence_ns=`{{ __timestamp__ | unixEpochNanos }}` | occurrence_ns=~${occurrence:json} | line_format \"{{ __timestamp__ }}\\nOccurrence ns: {{ .occurrence_ns }}\\nRelease: {{ .context_version }} | Platform: {{ .context_platform }} | Source: {{ .source }} | Operation: {{ .context_operation }}\\nMapped frames: {{ if .stack_mapped_frames }}{{ .stack_mapped_frames }}{{ else }}Unknown{{ end }} / Total frames: {{ if .stack_total_frames }}{{ .stack_total_frames }}{{ else }}Unknown{{ end }}\\n\\n{{ .stacktrace }}{{ if .context_component_stack }}\\n\\nReact component stack\\n{{ .context_component_stack }}{{ end }}\"",
+          "direction": "backward",
+          "maxLines": 1
+        }
+      ],
+      "options": {
+        "showTime": false,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": false,
+        "enableLogDetails": true,
+        "sortOrder": "Descending",
+        "dedupStrategy": "none"
+      },
+      "links": [
+        {
+          "title": "Use latest occurrence",
+          "url": "/d/manabrew-client-error-detail?from=${__from}&to=${__to}&${environment:queryparam}&${error_type:queryparam}&${message:queryparam}&${version:queryparam}&${platform:queryparam}&${source:queryparam}&${engine:queryparam}&${smoke:queryparam}&${signature:queryparam}&${build:queryparam}&${route:queryparam}&${operation:queryparam}&${browser:queryparam}&${os:queryparam}&${row_limit:queryparam}&var-occurrence=.*",
+          "targetBlank": false
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "text",
+      "title": "Occurrence browser limits",
+      "gridPos": {
+        "x": 0,
+        "y": 31,
+        "w": 24,
+        "h": 5
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "The table loads the latest **${row_limit}** matching occurrences, newest first. Pagination only pages through those loaded rows. The total and timeline count the full selected time range.\n\nChoose an **Occurrence ns** link to show that exact stored event in the stack and Advanced raw context. [Use latest occurrence](/d/manabrew-client-error-detail?from=${__from}&to=${__to}&${environment:queryparam}&${error_type:queryparam}&${message:queryparam}&${version:queryparam}&${platform:queryparam}&${source:queryparam}&${engine:queryparam}&${smoke:queryparam}&${signature:queryparam}&${build:queryparam}&${route:queryparam}&${operation:queryparam}&${browser:queryparam}&${os:queryparam}&${row_limit:queryparam}&var-occurrence=.*) to clear the selection. The nanosecond receive timestamp is a stored-event locator, not a new report identity.\n\nFor older events, open the table panel menu and choose **Explore**, then narrow or move the time range and run the query. Storage retention is 30 days. The table intentionally excludes stacks and large diagnostics."
+      }
+    },
+    {
+      "id": 10,
+      "type": "table",
+      "title": "Stored occurrences, latest ${row_limit}",
+      "description": "Receive timestamp, release and allowlisted occurrence metadata only. JSON projection keeps the nanosecond timestamp a string so Grafana does not round it. The operation may be empty. Use the Occurrence ns link to select the exact event. Query direction is backward and the row limit is explicit. Panel menu Explore provides the same filtered query for older events.",
+      "gridPos": {
+        "x": 0,
+        "y": 36,
+        "w": 24,
+        "h": 11
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "queryType": "range",
+          "editorMode": "code",
+          "expr": "{app=\"manabrew-client\",environment=~\"${environment:regex}\",source=~\"${source:regex}\"} | label_format browser_row_limit=\"200\" | browser_row_limit=${row_limit:json} | drop browser_row_limit | json | __error__=\"\" | kind=\"exception\" | type=~\"${error_type:regex}\" | context_platform=~\"${platform:regex}\" | context_engine=~\"${engine:regex}\" | context_signature!=\"\" | value!~${smoke:json} | label_format browser_original=`{{ __line__ }}` | line_format \"{{ .context_version }}\" |= ${version:json} | line_format \"{{ .value }}\" |= ${message:json} | line_format \"{{ .browser_original }}\" | drop browser_original | context_signature=${signature:json} | context_build=~${build:json} | context_route=~${route:json} | context_operation=~${operation:json} | diagnostic_browser=~${browser:json} | diagnostic_os=~${os:json} | label_format occurrence_ns=`{{ __timestamp__ | unixEpochNanos }}` | line_format `{\"occurrence_ns\":\"{{ .occurrence_ns }}\",\"version\":\"{{ .context_version }}\",\"platform\":\"{{ .context_platform }}\",\"source\":\"{{ .source }}\",\"operation\":\"{{ .context_operation }}\"}`",
+          "direction": "backward",
+          "maxLines": 200
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "queryType": "range",
+          "editorMode": "code",
+          "expr": "{app=\"manabrew-client\",environment=~\"${environment:regex}\",source=~\"${source:regex}\"} | label_format browser_row_limit=\"500\" | browser_row_limit=${row_limit:json} | drop browser_row_limit | json | __error__=\"\" | kind=\"exception\" | type=~\"${error_type:regex}\" | context_platform=~\"${platform:regex}\" | context_engine=~\"${engine:regex}\" | context_signature!=\"\" | value!~${smoke:json} | label_format browser_original=`{{ __line__ }}` | line_format \"{{ .context_version }}\" |= ${version:json} | line_format \"{{ .value }}\" |= ${message:json} | line_format \"{{ .browser_original }}\" | drop browser_original | context_signature=${signature:json} | context_build=~${build:json} | context_route=~${route:json} | context_operation=~${operation:json} | diagnostic_browser=~${browser:json} | diagnostic_os=~${os:json} | label_format occurrence_ns=`{{ __timestamp__ | unixEpochNanos }}` | line_format `{\"occurrence_ns\":\"{{ .occurrence_ns }}\",\"version\":\"{{ .context_version }}\",\"platform\":\"{{ .context_platform }}\",\"source\":\"{{ .source }}\",\"operation\":\"{{ .context_operation }}\"}`",
+          "direction": "backward",
+          "maxLines": 500
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "queryType": "range",
+          "editorMode": "code",
+          "expr": "{app=\"manabrew-client\",environment=~\"${environment:regex}\",source=~\"${source:regex}\"} | label_format browser_row_limit=\"1000\" | browser_row_limit=${row_limit:json} | drop browser_row_limit | json | __error__=\"\" | kind=\"exception\" | type=~\"${error_type:regex}\" | context_platform=~\"${platform:regex}\" | context_engine=~\"${engine:regex}\" | context_signature!=\"\" | value!~${smoke:json} | label_format browser_original=`{{ __line__ }}` | line_format \"{{ .context_version }}\" |= ${version:json} | line_format \"{{ .value }}\" |= ${message:json} | line_format \"{{ .browser_original }}\" | drop browser_original | context_signature=${signature:json} | context_build=~${build:json} | context_route=~${route:json} | context_operation=~${operation:json} | diagnostic_browser=~${browser:json} | diagnostic_os=~${os:json} | label_format occurrence_ns=`{{ __timestamp__ | unixEpochNanos }}` | line_format `{\"occurrence_ns\":\"{{ .occurrence_ns }}\",\"version\":\"{{ .context_version }}\",\"platform\":\"{{ .context_platform }}\",\"source\":\"{{ .source }}\",\"operation\":\"{{ .context_operation }}\"}`",
+          "direction": "backward",
+          "maxLines": 1000
+        },
+        {
+          "refId": "D",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "queryType": "range",
+          "editorMode": "code",
+          "expr": "{app=\"manabrew-client\",environment=~\"${environment:regex}\",source=~\"${source:regex}\"} | label_format browser_row_limit=\"5000\" | browser_row_limit=${row_limit:json} | drop browser_row_limit | json | __error__=\"\" | kind=\"exception\" | type=~\"${error_type:regex}\" | context_platform=~\"${platform:regex}\" | context_engine=~\"${engine:regex}\" | context_signature!=\"\" | value!~${smoke:json} | label_format browser_original=`{{ __line__ }}` | line_format \"{{ .context_version }}\" |= ${version:json} | line_format \"{{ .value }}\" |= ${message:json} | line_format \"{{ .browser_original }}\" | drop browser_original | context_signature=${signature:json} | context_build=~${build:json} | context_route=~${route:json} | context_operation=~${operation:json} | diagnostic_browser=~${browser:json} | diagnostic_os=~${os:json} | label_format occurrence_ns=`{{ __timestamp__ | unixEpochNanos }}` | line_format `{\"occurrence_ns\":\"{{ .occurrence_ns }}\",\"version\":\"{{ .context_version }}\",\"platform\":\"{{ .context_platform }}\",\"source\":\"{{ .source }}\",\"operation\":\"{{ .context_operation }}\"}`",
+          "direction": "backward",
+          "maxLines": 5000
+        }
+      ],
+      "transformations": [
+        {
+          "id": "extractFields",
+          "options": {
+            "source": "Line",
+            "format": "json",
+            "replace": true,
+            "keepTime": true
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": ["Time", "occurrence_ns", "version", "platform", "source", "operation"]
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "indexByName": {
+              "Time": 0,
+              "version": 1,
+              "platform": 2,
+              "source": 3,
+              "operation": 4,
+              "occurrence_ns": 5
+            },
+            "renameByName": {
+              "Time": "Received at",
+              "version": "Release",
+              "platform": "Platform",
+              "source": "Source",
+              "operation": "Operation",
+              "occurrence_ns": "Occurrence ns"
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Received at",
+                "desc": true
+              }
+            ]
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Received at"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "dateTimeAsIso"
+              },
+              {
+                "id": "custom.width",
+                "value": 240
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Occurrence ns"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 240
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Show this occurrence stack and context",
+                    "url": "/d/manabrew-client-error-detail?from=${__from}&to=${__to}&${environment:queryparam}&${error_type:queryparam}&${message:queryparam}&${version:queryparam}&${platform:queryparam}&${source:queryparam}&${engine:queryparam}&${smoke:queryparam}&${signature:queryparam}&${build:queryparam}&${route:queryparam}&${operation:queryparam}&${browser:queryparam}&${os:queryparam}&${row_limit:queryparam}&var-occurrence=${__value.raw}",
+                    "targetBlank": false,
+                    "oneClick": true
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "enablePagination": true
+      }
+    },
+    {
+      "id": 11,
+      "type": "row",
+      "title": "Advanced",
+      "collapsed": true,
+      "gridPos": {
+        "x": 0,
+        "y": 47,
+        "w": 24,
+        "h": 1
+      },
+      "panels": [
+        {
+          "id": 12,
+          "type": "text",
+          "title": "Advanced filters and stored context",
+          "gridPos": {
+            "x": 0,
+            "y": 48,
+            "w": 24,
+            "h": 6
+          },
+          "options": {
+            "mode": "markdown",
+            "content": "Build regex, Route regex, Operation regex, Browser regex and OS regex apply to every query on this dashboard. Use `.*` to include records with missing optional fields. Patterns match complete stored values. Browser and OS are the allowlisted diagnostic family values, not user-agent strings.\n\nOccurrence selection: `${occurrence}`. `.*` means latest. A table link supplies an exact Loki nanosecond receive timestamp. [Use latest occurrence](/d/manabrew-client-error-detail?from=${__from}&to=${__to}&${environment:queryparam}&${error_type:queryparam}&${message:queryparam}&${version:queryparam}&${platform:queryparam}&${source:queryparam}&${engine:queryparam}&${smoke:queryparam}&${signature:queryparam}&${build:queryparam}&${route:queryparam}&${operation:queryparam}&${browser:queryparam}&${os:queryparam}&${row_limit:queryparam}&var-occurrence=.*).\n\nExpand a raw log entry below for its stored JSON fields and context. This is the same latest or selected event as the stack panel. Historical records can omit diagnostic and mapping-count fields; omission means Unknown. No raw identity, user identifier or new fingerprint is added by this dashboard."
+          }
+        },
+        {
+          "id": 13,
+          "type": "logs",
+          "title": "Latest / selected occurrence raw JSON and context",
+          "description": "One unmodified sanitized stored JSON event. Expand the log entry for its fields. The selected occurrence predicate applies here and in the stack panel only. Newly stored mapping counts are stack_mapped_frames and stack_total_frames; missing historical values mean Unknown.",
+          "gridPos": {
+            "x": 0,
+            "y": 54,
+            "w": 24,
+            "h": 12
+          },
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "loki",
+                "uid": "loki"
+              },
+              "queryType": "range",
+              "editorMode": "code",
+              "expr": "{app=\"manabrew-client\",environment=~\"${environment:regex}\",source=~\"${source:regex}\"} | json | __error__=\"\" | kind=\"exception\" | type=~\"${error_type:regex}\" | context_platform=~\"${platform:regex}\" | context_engine=~\"${engine:regex}\" | context_signature!=\"\" | value!~${smoke:json} | label_format browser_original=`{{ __line__ }}` | line_format \"{{ .context_version }}\" |= ${version:json} | line_format \"{{ .value }}\" |= ${message:json} | line_format \"{{ .browser_original }}\" | drop browser_original | context_signature=${signature:json} | context_build=~${build:json} | context_route=~${route:json} | context_operation=~${operation:json} | diagnostic_browser=~${browser:json} | diagnostic_os=~${os:json} | label_format occurrence_ns=`{{ __timestamp__ | unixEpochNanos }}` | occurrence_ns=~${occurrence:json}",
+              "direction": "backward",
+              "maxLines": 1
+            }
+          ],
+          "options": {
+            "showTime": true,
+            "showLabels": false,
+            "showCommonLabels": false,
+            "wrapLogMessage": true,
+            "prettifyLogMessage": true,
+            "enableLogDetails": true,
+            "sortOrder": "Descending",
+            "dedupStrategy": "none"
+          }
+        }
+      ]
+    }
+  ]
+}

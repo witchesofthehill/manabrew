@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.79.1](https://github.com/witchesofthehill/manabrew/compare/v3.79.0...v3.79.1) (2026-11-10)
+
+### Fixes
+
+* **tauri:** desktop engine telemetry and local AI tables - give desktop some love ([#1201](https://github.com/witchesofthehill/manabrew/issues/1201)) ([f866545](https://github.com/witchesofthehill/manabrew/commit/f866545d36dea8e3e47eb0dd26f136d3e1bc5695))
+
 ## [3.79.0](https://github.com/witchesofthehill/manabrew/compare/v3.78.2...v3.79.0) (2026-11-09)
 
 ### Features

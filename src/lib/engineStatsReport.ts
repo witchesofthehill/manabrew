@@ -58,8 +58,9 @@ export function forgeHostLabel(onThisMachine: boolean): string {
  * A local host names the engine exactly. Every other seat is measuring a wire
  * as well as an engine, and the two remote cases are not the same machine or
  * the same cost: a node runs on the fleet, a peer runs in another player's
- * browser or desktop app. The room says which — `RoomInfo.hosted` is true only
- * for a node-hosted room — so the label says which too, or the fleet's timings
+ * browser or desktop app. A desktop's embedded Forge node sets `RoomInfo.hosted`
+ * like a fleet node does; only the fleet's rooms are also `official`. The label
+ * keeps them apart, or the fleet's timings
  * and a peer's are pooled into one number that describes neither.
  */
 export function roomEngineLabel(

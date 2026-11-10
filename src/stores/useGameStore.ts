@@ -598,11 +598,12 @@ export const useGameStore = create<GameState>()(
           const runtime =
             engine === "Ironsmith" ? selectGameRuntime("ironsmith") : resetSelectedGameRuntime();
           set({ debugInfo: "Starting engine..." });
+          const serverState = useServerStore.getState();
           const engineLabel = roomEngineLabel(
             engine,
-            localIsHost,
+            localIsHost || serverState.hostingForgeRoom,
             getPlatform().type,
-            useServerStore.getState().currentRoom?.hosted ?? false,
+            !!serverState.currentRoom?.hosted && !!serverState.currentRoom?.official,
           );
           beginGame(engineLabel);
           setErrorReportingEngine(engineLabel);

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useIsDesktop, useIsTouch } from "@/hooks/useBreakpoints";
+import { leaveRoomWithClientAnalytics } from "@/lib/clientAnalyticsLobby";
 import { useServerStore } from "@/stores/useServerStore";
 import { useInviteStore } from "@/stores/useInviteStore";
 import { useMultiplayerDraftStore } from "@/stores/useMultiplayerDraftStore";
@@ -191,7 +192,7 @@ export default function Lobby() {
       setConfirmLeaveHostedGame(true);
       return;
     }
-    void leaveRoom();
+    void leaveRoomWithClientAnalytics();
   };
   const draftMode = useMultiplayerDraftStore((s) => s.mode);
   const draftSessionId = useMultiplayerDraftStore((s) => s.sessionId);

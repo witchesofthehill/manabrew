@@ -293,6 +293,7 @@ services:
     environment:
       FARO_ORIGINS: "https://play.manabrew.app,https://staging.manabrew.app,https://manabrew.app,tauri://localhost,http://tauri.localhost,https://tauri.localhost,http://localhost:9527,http://127.0.0.1:9527"
       FARO_DAILY_BYTES: "${FARO_DAILY_BYTES:-10485760}"
+      FARO_ANALYTICS_DAILY_BYTES: "${FARO_ANALYTICS_DAILY_BYTES:-10485760}"
     volumes:
       - ./ops/observability/data/sourcemaps:/var/lib/faro/sourcemaps:ro
       - faro-data:/var/lib/faro/state

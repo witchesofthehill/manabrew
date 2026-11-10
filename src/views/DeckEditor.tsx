@@ -404,8 +404,9 @@ export default function DeckEditor() {
     name: string,
     formatId: DeckFormat | undefined,
     onProgress: (fraction: number) => void,
+    source: "text" | "clipboard",
   ) {
-    const id = await importDeckText(entries, name, formatId, onProgress);
+    const id = await importDeckText(entries, name, formatId, onProgress, source);
     handleSelectDeck(id);
   }
   function returnToDeckList() {

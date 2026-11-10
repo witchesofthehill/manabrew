@@ -1,4 +1,5 @@
 import { createServer } from "node:http";
+import { createHmac, randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import {
@@ -17,10 +18,15 @@ import {
   safeFrames,
 } from "../../../src/lib/errorReportingPrivacy.ts";
 import { safeErrorDiagnostics } from "../../../src/lib/errorReportingDiagnostics.ts";
+import {
+  CLIENT_ANALYTICS_DOMAIN,
+  safeClientAnalyticsEvent,
+} from "../../../src/lib/clientAnalyticsPrivacy.ts";
 import { SourceMaps } from "./sourcemaps.mjs";
 
 const MAX_BODY_BYTES = 256 * 1024;
 const DAILY_BYTES = Number(process.env.FARO_DAILY_BYTES ?? 10 * 1024 * 1024);
+const ANALYTICS_DAILY_BYTES = Number(process.env.FARO_ANALYTICS_DAILY_BYTES ?? 10 * 1024 * 1024);
 const SIGNATURE_DAILY_BYTES = Number(
   process.env.FARO_SIGNATURE_DAILY_BYTES ?? Math.floor(DAILY_BYTES / 20),
 );
@@ -29,6 +35,8 @@ const origins = new Set((process.env.FARO_ORIGINS ?? "").split(",").filter(Boole
 const loki = process.env.LOKI_URL ?? "http://loki:3100";
 const stateDirectory = process.env.FARO_STATE_DIR ?? "/var/lib/faro/state";
 const stateFile = path.join(stateDirectory, "budget.json");
+const analyticsStateFile = path.join(stateDirectory, "analytics-budget.json");
+const analyticsKeyFile = path.join(stateDirectory, "analytics-hmac.key");
 const maps = new SourceMaps(process.env.FARO_MAPS_DIR ?? "/var/lib/faro/sourcemaps");
 const releasePattern =
   /^([0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.-]+)?)-[a-f0-9]{40}-([a-z][a-z0-9-]{0,63})$/;
@@ -39,17 +47,29 @@ const counters = {
   mapped_frames: 0,
   unmapped_frames: 0,
   signature_capped: 0,
+  rate_limited: 0,
+  concurrency_limited: 0,
+  budget_limited: 0,
 };
 let signatureBytes = { day: "", bytes: new Map() };
-let inflight = 0;
-let tokens = 40;
-let lastRefill = performance.now();
+const analyticsCounters = {
+  accepted: 0,
+  rejected: 0,
+  export_errors: 0,
+  rate_limited: 0,
+  concurrency_limited: 0,
+  budget_limited: 0,
+};
+const errorPool = { inflight: 0, tokens: 40, lastRefill: performance.now() };
+const analyticsPool = { inflight: 0, tokens: 40, lastRefill: performance.now() };
 let lokiReady = false;
 let lastTimestamp = 0n;
 if (
   !origins.size ||
   !Number.isSafeInteger(DAILY_BYTES) ||
   DAILY_BYTES <= 0 ||
+  !Number.isSafeInteger(ANALYTICS_DAILY_BYTES) ||
+  ANALYTICS_DAILY_BYTES <= 0 ||
   !Number.isSafeInteger(SIGNATURE_DAILY_BYTES) ||
   SIGNATURE_DAILY_BYTES <= 0
 )
@@ -60,6 +80,20 @@ let budget = existsSync(stateFile)
   : { day: "", bytes: 0 };
 if (typeof budget.day !== "string" || !Number.isSafeInteger(budget.bytes) || budget.bytes < 0)
   throw new Error("Invalid collector budget state");
+let analyticsBudget = existsSync(analyticsStateFile)
+  ? JSON.parse(readFileSync(analyticsStateFile, "utf8"))
+  : { day: "", bytes: 0 };
+if (
+  typeof analyticsBudget.day !== "string" ||
+  !Number.isSafeInteger(analyticsBudget.bytes) ||
+  analyticsBudget.bytes < 0
+)
+  throw new Error("Invalid analytics budget state");
+if (!existsSync(analyticsKeyFile)) {
+  writeFileSync(analyticsKeyFile, randomBytes(32), { mode: 0o600, flag: "wx" });
+}
+const analyticsKey = readFileSync(analyticsKeyFile);
+if (analyticsKey.length !== 32) throw new Error("Invalid analytics HMAC key");
 
 function currentBudget() {
   const day = new Date().toISOString().slice(0, 10);
@@ -77,6 +111,38 @@ function reserve(bytes) {
   return true;
 }
 
+function currentAnalyticsBudget() {
+  const day = new Date().toISOString().slice(0, 10);
+  if (analyticsBudget.day !== day) analyticsBudget = { day, bytes: 0 };
+  return analyticsBudget;
+}
+
+function reserveAnalytics(bytes) {
+  const current = currentAnalyticsBudget();
+  if (current.bytes + bytes > ANALYTICS_DAILY_BYTES) return false;
+  const next = { day: current.day, bytes: current.bytes + bytes };
+  writeFileSync(`${analyticsStateFile}.tmp`, JSON.stringify(next), { mode: 0o600 });
+  renameSync(`${analyticsStateFile}.tmp`, analyticsStateFile);
+  analyticsBudget = next;
+  return true;
+}
+
+function acquire(pool, metrics) {
+  const now = performance.now();
+  pool.tokens = Math.min(40, pool.tokens + ((now - pool.lastRefill) * 20) / 1000);
+  pool.lastRefill = now;
+  if (pool.tokens < 1) {
+    metrics.rate_limited++;
+    reject(429);
+  }
+  if (pool.inflight >= MAX_INFLIGHT) {
+    metrics.concurrency_limited++;
+    reject(429);
+  }
+  pool.tokens--;
+  pool.inflight++;
+}
+
 function signatureUsage() {
   const day = currentBudget().day;
   if (signatureBytes.day !== day) signatureBytes = { day, bytes: new Map() };
@@ -87,7 +153,7 @@ function reject(status) {
   throw Object.assign(new Error("Collector request rejected"), { status });
 }
 
-function sanitize(body) {
+function sanitizeApp(body) {
   const app = body?.meta?.app;
   const release =
     typeof app?.release === "string" &&
@@ -97,11 +163,49 @@ function sanitize(body) {
     app?.name !== "manabrew-client" ||
     !release ||
     app.version !== release[1] ||
-    !["production", "staging", "development"].includes(app.environment) ||
-    !Array.isArray(body.exceptions) ||
-    body.exceptions.length < 1 ||
-    body.exceptions.length > 10
+    !["production", "staging", "development"].includes(app.environment)
   )
+    reject(400);
+  return { app, release };
+}
+
+function sanitizeEvents(body) {
+  const { app, release } = sanitizeApp(body);
+  if (!Array.isArray(body.events) || body.events.length < 1 || body.events.length > 10) reject(400);
+  return body.events.map((input) => {
+    if (input?.domain !== CLIENT_ANALYTICS_DOMAIN) reject(400);
+    const event = safeClientAnalyticsEvent(input.name, input.attributes);
+    if (!event) reject(400);
+    const { platform, relay_username, ...attributes } = event.attributes;
+    if (!["web", "pwa", "desktop", "mobile"].includes(platform)) reject(400);
+    return {
+      kind: "event",
+      event_name: event.name,
+      ...Object.fromEntries(
+        Object.entries(attributes).map(([key, value]) => [`event_${key}`, value]),
+      ),
+      context_platform: platform,
+      ...(relay_username
+        ? {
+            context_user_id: createHmac("sha256", analyticsKey)
+              .update("manabrew-client-analytics:v1\0")
+              .update(app.environment)
+              .update("\0")
+              .update(relay_username)
+              .digest("hex"),
+          }
+        : {}),
+      app_name: "manabrew-client",
+      app_version: release[1],
+      app_release: app.release,
+      app_environment: app.environment,
+    };
+  });
+}
+
+function sanitize(body) {
+  const { app, release } = sanitizeApp(body);
+  if (!Array.isArray(body.exceptions) || body.exceptions.length < 1 || body.exceptions.length > 10)
     reject(400);
   return body.exceptions.map((exception) => {
     const input = exception?.context;
@@ -168,13 +272,143 @@ function sanitize(body) {
   });
 }
 
+async function collectEvents(records) {
+  const lines = records.map((record) => JSON.stringify(record));
+  const storedBytes = lines.reduce((total, line) => total + Buffer.byteLength(line), 0);
+  if (!reserveAnalytics(storedBytes)) {
+    analyticsCounters.budget_limited++;
+    reject(429);
+  }
+  const values = lines.map((line) => {
+    const timestamp = BigInt(Date.now()) * 1_000_000n;
+    lastTimestamp = timestamp > lastTimestamp ? timestamp : lastTimestamp + 1n;
+    return [lastTimestamp.toString(), line];
+  });
+  try {
+    const response = await fetch(`${loki}/loki/api/v1/push`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        streams: [
+          {
+            stream: {
+              app: "manabrew-client",
+              environment: records[0].app_environment,
+              source: "analytics",
+            },
+            values,
+          },
+        ],
+      }),
+      signal: AbortSignal.timeout(4000),
+    });
+    await response.body?.cancel();
+    if (!response.ok) throw new Error("Loki rejected telemetry");
+    lokiReady = true;
+  } catch {
+    analyticsCounters.export_errors++;
+    lokiReady = false;
+    reject(503);
+  }
+  analyticsCounters.accepted += records.length;
+}
+
+async function collectExceptions(entries) {
+  if (currentBudget().bytes >= DAILY_BYTES) {
+    counters.budget_limited++;
+    reject(429);
+  }
+  const requestMaps = {
+    frames: new Map(),
+    failed: new Set(),
+    work: { loads: 0, readBytes: 0, decodedBytes: 0 },
+  };
+  const streams = new Map();
+  const usage = signatureUsage();
+  const requestSignatureBytes = new Map();
+  let storedBytes = 0;
+  const resolveStack = (release, frames) =>
+    frames
+      .map((frame) => {
+        const mapped = maps.frame(release, frame, requestMaps);
+        counters[mapped === frame ? "unmapped_frames" : "mapped_frames"]++;
+        const location = `${mapped.filename}${mapped.lineno ? `:${mapped.lineno}:${mapped.colno ?? 1}` : mapped.colno ? `:${mapped.colno}` : ""}`;
+        return !mapped.function || mapped.function === "?" || mapped.function === ANONYMOUS_FUNCTION
+          ? `at ${location}`
+          : `at ${mapped.function} (${location})`;
+      })
+      .join("\n");
+  for (const { frames, causes, record } of entries) {
+    record.stacktrace = [
+      `${record.type}: ${record.value}`,
+      resolveStack(record.app_release, frames),
+      ...causes.map((cause, index) =>
+        [
+          `${cause.relation === "cause" ? "Caused by" : "Aggregate error"} #${index + 1} of #${cause.parent}: ${cause.type}: ${cause.value}`,
+          resolveStack(record.app_release, cause.frames),
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      ),
+    ]
+      .filter(Boolean)
+      .join("\n");
+    const line = JSON.stringify(record);
+    const lineBytes = Buffer.byteLength(line);
+    const signature = record.context_signature;
+    const signatureTotal =
+      (usage.get(signature) ?? 0) + (requestSignatureBytes.get(signature) ?? 0) + lineBytes;
+    if (signatureTotal > SIGNATURE_DAILY_BYTES) {
+      counters.signature_capped++;
+      continue;
+    }
+    requestSignatureBytes.set(signature, (requestSignatureBytes.get(signature) ?? 0) + lineBytes);
+    storedBytes += lineBytes;
+    const key = `${record.app_environment}/${record.context_source}`;
+    if (!streams.has(key))
+      streams.set(key, {
+        stream: {
+          app: record.app_name,
+          environment: record.app_environment,
+          source: record.context_source,
+        },
+        values: [],
+      });
+    const timestamp = BigInt(Date.now()) * 1_000_000n;
+    lastTimestamp = timestamp > lastTimestamp ? timestamp : lastTimestamp + 1n;
+    streams.get(key).values.push([lastTimestamp.toString(), line]);
+  }
+  if (!streams.size) return;
+  if (!reserve(storedBytes)) {
+    counters.budget_limited++;
+    reject(429);
+  }
+  for (const [signature, bytes] of requestSignatureBytes)
+    usage.set(signature, (usage.get(signature) ?? 0) + bytes);
+  try {
+    const response = await fetch(`${loki}/loki/api/v1/push`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ streams: [...streams.values()] }),
+      signal: AbortSignal.timeout(4000),
+    });
+    await response.body?.cancel();
+    if (!response.ok) throw new Error("Loki rejected telemetry");
+    lokiReady = true;
+  } catch {
+    counters.export_errors++;
+    lokiReady = false;
+    reject(503);
+  }
+  counters.accepted += [...streams.values()].reduce(
+    (total, { values }) => total + values.length,
+    0,
+  );
+}
+
 async function collect(request) {
-  const now = performance.now();
-  tokens = Math.min(40, tokens + ((now - lastRefill) * 20) / 1000);
-  lastRefill = now;
-  if (tokens < 1 || inflight >= MAX_INFLIGHT || currentBudget().bytes >= DAILY_BYTES) reject(429);
-  tokens--;
-  inflight++;
+  let metrics = counters;
+  let pool;
   try {
     if (
       request.headers["content-encoding"] ||
@@ -196,94 +430,31 @@ async function collect(request) {
     } catch {
       reject(400);
     }
-    const entries = sanitize(body);
-    const requestMaps = {
-      frames: new Map(),
-      failed: new Set(),
-      work: { loads: 0, readBytes: 0, decodedBytes: 0 },
-    };
-    const streams = new Map();
-    const usage = signatureUsage();
-    const requestSignatureBytes = new Map();
-    let storedBytes = 0;
-    const resolveStack = (release, frames) =>
-      frames
-        .map((frame) => {
-          const mapped = maps.frame(release, frame, requestMaps);
-          counters[mapped === frame ? "unmapped_frames" : "mapped_frames"]++;
-          const location = `${mapped.filename}${mapped.lineno ? `:${mapped.lineno}:${mapped.colno ?? 1}` : mapped.colno ? `:${mapped.colno}` : ""}`;
-          return !mapped.function ||
-            mapped.function === "?" ||
-            mapped.function === ANONYMOUS_FUNCTION
-            ? `at ${location}`
-            : `at ${mapped.function} (${location})`;
-        })
-        .join("\n");
-    for (const { frames, causes, record } of entries) {
-      record.stacktrace = [
-        `${record.type}: ${record.value}`,
-        resolveStack(record.app_release, frames),
-        ...causes.map((cause, index) =>
-          [
-            `${cause.relation === "cause" ? "Caused by" : "Aggregate error"} #${index + 1} of #${cause.parent}: ${cause.type}: ${cause.value}`,
-            resolveStack(record.app_release, cause.frames),
-          ]
-            .filter(Boolean)
-            .join("\n"),
-        ),
-      ]
-        .filter(Boolean)
-        .join("\n");
-      const line = JSON.stringify(record);
-      const lineBytes = Buffer.byteLength(line);
-      const signature = record.context_signature;
-      const signatureTotal =
-        (usage.get(signature) ?? 0) + (requestSignatureBytes.get(signature) ?? 0) + lineBytes;
-      if (signatureTotal > SIGNATURE_DAILY_BYTES) {
-        counters.signature_capped++;
-        continue;
-      }
-      requestSignatureBytes.set(signature, (requestSignatureBytes.get(signature) ?? 0) + lineBytes);
-      storedBytes += lineBytes;
-      const key = `${record.app_environment}/${record.context_source}`;
-      if (!streams.has(key))
-        streams.set(key, {
-          stream: {
-            app: record.app_name,
-            environment: record.app_environment,
-            source: record.context_source,
-          },
-          values: [],
-        });
-      const timestamp = BigInt(Date.now()) * 1_000_000n;
-      lastTimestamp = timestamp > lastTimestamp ? timestamp : lastTimestamp + 1n;
-      streams.get(key).values.push([lastTimestamp.toString(), line]);
+    if (!body || typeof body !== "object" || Array.isArray(body)) reject(400);
+    const analytics =
+      Object.hasOwn(body, "events") &&
+      (!Array.isArray(body.events) || body.events.length > 0 || !Object.hasOwn(body, "exceptions"));
+    metrics = analytics ? analyticsCounters : counters;
+    const signal = analytics ? "events" : "exceptions";
+    for (const key of ["events", "exceptions", "logs", "measurements", "traces"]) {
+      if (
+        key !== signal &&
+        body[key] !== undefined &&
+        (!Array.isArray(body[key]) || body[key].length > 0)
+      )
+        reject(400);
     }
-    if (!streams.size) return;
-    if (!reserve(storedBytes)) reject(429);
-    for (const [signature, bytes] of requestSignatureBytes)
-      usage.set(signature, (usage.get(signature) ?? 0) + bytes);
-    try {
-      const response = await fetch(`${loki}/loki/api/v1/push`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ streams: [...streams.values()] }),
-        signal: AbortSignal.timeout(4000),
-      });
-      await response.body?.cancel();
-      if (!response.ok) throw new Error("Loki rejected telemetry");
-      lokiReady = true;
-    } catch {
-      counters.export_errors++;
-      lokiReady = false;
-      reject(503);
-    }
-    counters.accepted += [...streams.values()].reduce(
-      (total, { values }) => total + values.length,
-      0,
-    );
+    const entries = analytics ? sanitizeEvents(body) : sanitize(body);
+    const selected = analytics ? analyticsPool : errorPool;
+    acquire(selected, metrics);
+    pool = selected;
+    if (analytics) await collectEvents(entries);
+    else await collectExceptions(entries);
+  } catch (error) {
+    metrics.rejected++;
+    throw error;
   } finally {
-    inflight--;
+    if (pool) pool.inflight--;
   }
 }
 
@@ -313,6 +484,11 @@ const server = createServer(
         ([name, value]) => `faro_collector_${name}_total ${value}`,
       );
       metrics.push(
+        ...Object.entries(analyticsCounters).map(
+          ([name, value]) => `faro_collector_analytics_${name}_total ${value}`,
+        ),
+      );
+      metrics.push(
         `faro_collector_loki_ready ${Number(lokiReady)}`,
         `faro_collector_cache_entries ${maps.entries.size}`,
         `faro_collector_cache_bytes ${maps.bytes}`,
@@ -323,6 +499,12 @@ const server = createServer(
         `faro_collector_daily_limit_bytes ${DAILY_BYTES}`,
         `faro_collector_signature_daily_limit_bytes ${SIGNATURE_DAILY_BYTES}`,
         `faro_collector_signatures_tracked ${signatureUsage().size}`,
+        `faro_collector_analytics_daily_bytes ${currentAnalyticsBudget().bytes}`,
+        `faro_collector_analytics_daily_limit_bytes ${ANALYTICS_DAILY_BYTES}`,
+        `faro_collector_inflight ${errorPool.inflight}`,
+        `faro_collector_analytics_inflight ${analyticsPool.inflight}`,
+        `faro_collector_rate_tokens ${errorPool.tokens}`,
+        `faro_collector_analytics_rate_tokens ${analyticsPool.tokens}`,
         `faro_collector_resident_memory_bytes ${process.memoryUsage().rss}`,
       );
       response
@@ -355,7 +537,6 @@ const server = createServer(
       await collect(request);
       response.writeHead(202).end();
     } catch (error) {
-      counters.rejected++;
       const status = error.status ?? 503;
       if (status === 429) response.setHeader("Retry-After", "60");
       response.setHeader("Connection", "close");

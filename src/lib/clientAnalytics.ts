@@ -1,0 +1,78 @@
+import { InternalLoggerLevel } from "@grafana/faro-web-sdk";
+import type { Faro } from "@grafana/faro-web-sdk";
+import { getClientPlatform } from "@/platform/clientPlatform";
+import { relayUsername } from "@/lib/relayUsername";
+import { clientTelemetryConfig } from "@/lib/clientTelemetryConfig";
+import { createClientTelemetryTransport } from "@/lib/clientTelemetryTransport";
+import {
+  CLIENT_ANALYTICS_DOMAIN,
+  createAnalyticsPrivacyFilter,
+  safeClientAnalyticsEvent,
+} from "@/lib/clientAnalyticsPrivacy";
+import type { ClientAnalyticsAttributes, ClientAnalyticsEvent } from "@/lib/clientAnalyticsPrivacy";
+
+const MAX_EVENTS_PER_PAGE = 500;
+let faro: Faro | undefined;
+let disposeTransport: (() => void) | undefined;
+let initialized = false;
+let eventsThisPage = 0;
+
+export function initializeClientAnalytics(): void {
+  if (initialized) return;
+  initialized = true;
+  try {
+    const config = clientTelemetryConfig();
+    if (!config) return;
+    const delivery = createClientTelemetryTransport(config.collectorUrl);
+    disposeTransport = delivery.dispose;
+    faro = delivery.initialize({
+      app: {
+        name: "manabrew-client",
+        version: __APP_VERSION__,
+        release: __APP_BUILD_ID__,
+        environment: config.environment,
+      },
+      instrumentations: [],
+      metas: [],
+      sessionTracking: { enabled: false },
+      preventGlobalExposure: true,
+      isolate: true,
+      dedupe: false,
+      internalLoggerLevel: InternalLoggerLevel.OFF,
+      batching: { enabled: true, itemLimit: 10, sendTimeout: 1000 },
+      transports: [delivery.transport],
+      beforeSend: createAnalyticsPrivacyFilter(config.environment),
+    });
+  } catch {
+    disposeClientAnalytics();
+  }
+}
+
+export function trackClientEvent<N extends ClientAnalyticsEvent>(
+  name: N,
+  attributes: ClientAnalyticsAttributes<N>,
+): void {
+  if (!faro || eventsThisPage >= MAX_EVENTS_PER_PAGE) return;
+  try {
+    const event = safeClientAnalyticsEvent(name, {
+      ...attributes,
+      platform: getClientPlatform(),
+      relay_username: relayUsername(),
+    });
+    if (!event) return;
+    eventsThisPage++;
+    faro.api.pushEvent(event.name, event.attributes, CLIENT_ANALYTICS_DOMAIN, { skipDedupe: true });
+  } catch {
+    return;
+  }
+}
+
+function disposeClientAnalytics(): void {
+  faro?.pause();
+  disposeTransport?.();
+  disposeTransport = undefined;
+  faro = undefined;
+  eventsThisPage = 0;
+}
+
+if (import.meta.hot) import.meta.hot.dispose(disposeClientAnalytics);

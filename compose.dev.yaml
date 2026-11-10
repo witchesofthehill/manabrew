@@ -204,6 +204,7 @@ services:
     environment:
       FARO_ORIGINS: "http://localhost:1420,http://127.0.0.1:1420"
       FARO_DAILY_BYTES: "${FARO_DAILY_BYTES:-10485760}"
+      FARO_ANALYTICS_DAILY_BYTES: "${FARO_ANALYTICS_DAILY_BYTES:-10485760}"
     ports:
       - "127.0.0.1:${FARO_COLLECTOR_DEV_PORT:-12347}:12347"
     volumes:

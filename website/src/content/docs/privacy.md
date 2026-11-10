@@ -6,7 +6,8 @@ description: What Manabrew stores, what it sends, and what it never collects.
 The short version: **no ads, no third-party tracking, and accounts are
 optional.** Games played on the public relay are recorded, offline use of an
 exact Community publication is reported for aggregate rankings, and you can
-explicitly save or publish decks. These are described below.
+explicitly save or publish decks. The app also sends limited aggregate usage
+events when frontend reporting is enabled. These are described below.
 
 ## What stays on your machine
 
@@ -173,6 +174,47 @@ can reach the existing operations notification channel, without exception
 text, game IDs, or session IDs. These reports cover frontend exceptions and
 failures forwarded to the frontend, not native process crash dumps.
 
+## Aggregate client usage
+
+The same frontend reporting setting also enables explicit usage events in the
+managed app and official builds. These go to our self-hosted collector, not
+Grafana Cloud or an advertising service.
+
+Events describe screen categories, deck-import success or failure, leaving a
+room before a game starts or waiting until it starts, deck exports, and
+playtest initiation. Imports distinguish creating a deck from adding cards and
+text input from the explicit clipboard action. An import can be partially
+successful when some cards cannot be found. Timings use broad buckets rather
+than exact durations. Events also include the app version/build, environment,
+and whether the client is web, PWA, desktop, or mobile.
+
+To correlate activity, the app includes your current relay username with each
+usage event, including the full guest suffix such as `@1234`. Signed-in
+accounts use their account handle. This username reaches our collector over
+HTTPS. Before storing an event, the collector replaces it with a stable
+identifier calculated using HMAC-SHA-256 and a private server key. Raw
+usernames are not stored in these usage records.
+
+The same full username produces the same identifier across launches and
+devices within one environment. Changing a guest name, signing in under an
+account handle, or signing out separates subsequent activity under the new
+handle. Different people sharing a handle can appear as one, and one person
+using several handles can appear as several.
+
+This is pseudonymous data, not anonymous data. Maintainers holding the private
+key can match a known relay username to its identifier and relate app activity
+to relay game records. Error-report metadata remains separate and does not
+receive this identifier.
+
+We do not collect automatic click streams or add account IDs, device IDs,
+game IDs, session IDs, or SDK session tracking to these events. They contain
+no deck/card contents, clipboard contents, search text, raw paths, query
+strings, or arbitrary text.
+
+Usage records are restricted to maintainers and expire after 30 days. The
+collector receives the sender's IP address to accept the request but does not
+add it to usage records or retain collector access logs.
+
 ## Who is responsible, and how to reach us
 
 Manabrew is run by the maintainers of the
@@ -185,16 +227,17 @@ in public, say so and we will arrange somewhere private.
 
 ## Why we are allowed to process this
 
-| What                                                                          | Why we may do it                                                         |
-| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| Running your account, syncing your decks, serving your publications           | Performing the service you asked us for                                  |
-| Sending a sign-in code by email                                               | Performing the service you asked us for                                  |
-| Recording relay games, keeping message captures, operational logs and metrics | Our legitimate interest in keeping the service working and debuggable    |
-| Aggregate Top Deck rankings                                                   | Our legitimate interest in making the app useful                         |
-| Offline play reports from published decks                                     | Our legitimate interest in ranking decks; the report carries no username |
+| What                                                                          | Why we may do it                                                          |
+| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Running your account, syncing your decks, serving your publications           | Performing the service you asked us for                                   |
+| Sending a sign-in code by email                                               | Performing the service you asked us for                                   |
+| Recording relay games, keeping message captures, operational logs and metrics | Our legitimate interest in keeping the service working and debuggable     |
+| Aggregate Top Deck rankings                                                   | Our legitimate interest in making the app useful                          |
+| Offline play reports from published decks                                     | Our legitimate interest in ranking decks; the report carries no username  |
+| Frontend diagnostics and aggregate client usage                               | Our legitimate interest in finding failures and understanding feature use |
 
 You can object to anything resting on legitimate interests - see below. We do
-not sell data, we do not advertise, and we do not profile you.
+not sell data or advertise.
 
 ## How long we keep things
 
@@ -211,6 +254,7 @@ current behaviour rather than promises we have automated.
 | Per-game message captures                         | A rolling 20 GB budget on the server; the oldest are dropped first, so how long a capture survives depends on how busy the relay has been |
 | Server logs and metrics                           | No automatic expiry yet                                                                                                                   |
 | Frontend error diagnostics                        | 30 days                                                                                                                                   |
+| Aggregate client usage                            | 30 days                                                                                                                                   |
 
 Where a row says "no automatic expiry yet", that is a gap we intend to close;
 ask us and we will remove your records by hand in the meantime.

@@ -2,7 +2,7 @@
 
 Inventory of every Grafana panel and queryable data source in the stack. Config lives under `ops/observability/`; metric names are defined in code (`manabrew-server/src/metrics.rs`, `self-hosted-node/src/metrics.rs`) and the analytics schema in `scripts/ingest-events.py`. Keep this file in sync when adding a panel, metric, event, or column.
 
-Frontend exception reporting uses the Faro SDK, an isolated self-hosted collector, and Loki. Managed web and official macOS/Windows/iOS/Android builds report by default; generic/local builds stay off. Explicit `false` disables reporting. See [deployment settings](DEPLOY.md#frontend-error-reporting) and [rollout and rollback](DEPLOY.md#rollout-and-rollback).
+Frontend exception reporting and explicit client analytics use the Faro SDK, an isolated self-hosted collector, and Loki. Managed web and official macOS/Windows/iOS/Android builds report by default; generic/local builds stay off. Explicit `false` disables both. See [deployment settings](DEPLOY.md#frontend-error-reporting) and [rollout and rollback](DEPLOY.md#rollout-and-rollback).
 
 ## Dashboards
 
@@ -83,6 +83,52 @@ Local `local-development` builds replace unpublished maps under `target/faro-sou
 Collector metrics and `/health` are private on port 12347. Health includes Loki readiness. The collector also caps bytes per `context_signature` per UTC day (`FARO_SIGNATURE_DAILY_BYTES`, default 1/20 of the daily budget) and drops the excess as `faro_collector_signature_capped_total`, so one repeating error cannot exhaust the shared budget; the client separately reports each signature at most five times and at most 200 errors per page load. Prometheus scrapes `faro-collector`; `cargo xtask deploy` sends Prometheus `SIGHUP` so a changed scrape config takes effect without a recreate; alerts cover unreachable/unready collection, sustained export failures, daily budget usage above 90 percent, and RSS above 80 percent of the 512 MiB limit. These checks do not establish public DNS/TLS/Caddy reachability. No-client-traffic periods are not failures.
 
 Metrics include `faro_collector_accepted_total`, `rejected_total`, `export_errors_total`, `mapped_frames_total`, `unmapped_frames_total`, `cache_entries`, `cache_bytes`, `cache_hits_total`, `cache_misses_total`, `cache_evictions_total`, `daily_bytes`, `daily_limit_bytes`, `resident_memory_bytes`, and `loki_ready`, all with the `faro_collector_` prefix. Cache bytes are an accounting estimate, not RSS. Read [collector limits](DEPLOY.md#private-source-maps) before changing quotas or interpreting partial source mapping.
+
+### Client analytics (`client-analytics.json`)
+
+Explicit client interactions, separate from backend game/account metrics. The dashboard shows screen views, import and lobby outcomes, feature uses, platform categories, and an activity log filterable by pseudonymous user ID. Counts are delivered events, not unique people or sessions. A user ID groups the same full relay handle across launches, not necessarily the same person. Offline clients, abrupt termination, queue limits, retries, and quotas can lose or duplicate events. Collector arrival order is not guaranteed action order. Backend gameplay and account metrics remain authoritative.
+
+| Event          | Attributes                              | Meaning                                                                                                                                                                                                                                                     |
+| -------------- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `screen_view`  | `screen`                                | Allowlisted route category on pathname changes; query/hash changes do not count. Auth callbacks and developer routes are excluded.                                                                                                                          |
+| `deck_import`  | `source`, `mode`, `outcome`, `duration` | Completed create/add imports from text or the explicit clipboard action. Outcomes are `success`, `partial` for missing cards, or `failure`. An editor-session change that cancels application emits no result. Printing substitutions alone remain success. |
+| `lobby_wait`   | `outcome`, `duration`                   | Confirmed room waiting followed by `started` or explicit `left`, including switching rooms through an invite. Disconnects and room refreshes do not imply abandonment. This is not a matchmaking queue or a completed-game metric.                          |
+| `feature_used` | `feature`                               | Successful deck clipboard export or nonempty-deck playtest initiation, including opening Commander setup. Playtest initiation does not claim a game successfully started.                                                                                   |
+
+Duration buckets are `under-1s`, `1-10s`, `10-60s`, `1-5m`, and `5m-plus`. Import sources are `text` and `clipboard`; modes are `create` and `add`; features are `deck_export` and `deck_playtest`. Screen values and every event-specific attribute live in `src/lib/clientAnalyticsPrivacy.ts`.
+
+Use the client wrapper from an action handler:
+
+```ts
+import { trackClientEvent } from "@/lib/clientAnalytics";
+
+function handleExportSuccess() {
+  trackClientEvent("feature_used", { feature: "deck_export" });
+}
+```
+
+`trackClientEvent(name, attributes)` is typed against `CLIENT_ANALYTICS_SCHEMA`. Add new event names and approved attribute values there before adding a callsite. The collector consumes the same schema, so deploy its update before clients send a new event. Keep handler attributes categorical and bounded; do not supply identity fields. Do not send raw paths, query strings, URLs, account/device/game/session IDs, deck/card contents, search text, or arbitrary prose. Call only at the owning action boundary, rather than duplicating the same interaction across component layers. Do not import Faro in app handlers.
+
+The wrapper automatically supplies platform metadata and `relay_username` from the shared `relayUsername()` helper at event creation. Signed-in accounts use their account handle; guests use the full persisted name including `@NNNN`. Renames, sign-in, and sign-out affect subsequent events, not events already queued. Callers cannot override the identity. Handles retain exact case and suffix, must be nonempty, at most 256 UTF-16 code units, and contain neither surrounding whitespace nor Unicode control characters. Invalid handles reject the event rather than truncating or merging identities. Missing handles from older clients remain uncorrelated events.
+
+The isolated SDK instance has no automatic instrumentation, SDK session tracking, SDK-generated persistent identity, or default page/browser/user metadata. Its privacy filter reconstructs app metadata and the event from allowlists, including the explicit transport-only relay handle. Reporting is a no-op when disabled or unavailable. It sends at most 500 events per page load, in batches of at most 10, with a separate bounded transport queue. Repeated legitimate events are not deduplicated. This does not guarantee exactly-once delivery.
+
+The collector independently rebuilds each record as `kind="event"`, `event_name`, approved `event_*` attributes, `context_platform`, optional `context_user_id`, and app name/version/release/environment. `context_user_id` is the hexadecimal HMAC-SHA-256 of `manabrew-client-analytics:v1\0<environment>\0<full-relay-handle>`, using a collector-only random key. The raw handle is received over HTTPS but discarded before writing Loki records. Other client identity metadata and client-supplied user IDs are dropped. Only `app`, `environment`, and `source="analytics"` become Loki labels; user IDs stay in JSON fields. Records expire after 30 days under the existing Loki retention.
+
+This is pseudonymous, not anonymous: maintainers holding the key can recompute an ID for a known handle and relate activity to relay game records. Different environments use different IDs. Renaming or moving between guest and account handles creates separate histories, while the same account handle across devices shares one. The collector does not authenticate these client identity claims, so the ID is neither account proof nor authorization. Exception reports retain their existing identity-free metadata and do not receive this ID.
+
+Paste a record's `context_user_id` into the dashboard's **Activity user ID** field to inspect that handle's delivered activity. The filter applies only to the activity log, not the aggregate panels. Empty shows all activity, including older records without an ID. Equivalent query:
+
+```logql
+{app="manabrew-client",environment="production",source="analytics"}
+  | json | kind="event" | context_user_id="<64-character-HMAC>"
+```
+
+```logql
+{app="manabrew-client",environment="production",source="analytics"} | json | kind="event"
+```
+
+Analytics reserves bytes in its own persisted budget and has independent rate/concurrency pools. `FARO_ANALYTICS_DAILY_BYTES` defaults to 10 MiB per UTC day. Metrics use `faro_collector_analytics_`: counters `accepted_total`, `rejected_total`, `export_errors_total`, `rate_limited_total`, `concurrency_limited_total`, and `budget_limited_total`; gauges `daily_bytes`, `daily_limit_bytes`, `inflight`, and `rate_tokens`. Accepted counts records; rejected counts requests. Analytics quota exhaustion cannot consume the exception byte budget. Collector/Loki process and host failures can still affect both.
 
 ### Executive Health (`executive.json`)
 

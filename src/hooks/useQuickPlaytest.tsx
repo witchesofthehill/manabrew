@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import type { SelectedDeck } from "@/components/lobby/deckSelection.types";
 import { isOfflinePodFormat } from "@/components/lobby/offlineRoster.utils";
 import { ROUTES } from "@/lib/constants";
+import { trackClientEvent } from "@/lib/clientAnalytics";
 import { resolveOfflineEngine } from "@/lib/offlineEngine";
 import { pickRandomDistinct } from "@/lib/utils";
 import { savePresetToAccountOnUse } from "@/lib/presetDeckAccount";
@@ -41,6 +42,7 @@ export function useQuickPlaytest(): {
       return;
     }
     const formatId = deck.format ?? "standard";
+    trackClientEvent("feature_used", { feature: "deck_playtest" });
     if (isOfflinePodFormat(formatId)) {
       const preset = savedDeckId
         ? undefined

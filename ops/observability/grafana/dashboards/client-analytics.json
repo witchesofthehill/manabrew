@@ -1,0 +1,130 @@
+{
+  "uid": "manabrew-client-analytics",
+  "title": "Manabrew Client Analytics",
+  "tags": ["manabrew", "product", "frontend"],
+  "schemaVersion": 39,
+  "editable": true,
+  "timezone": "utc",
+  "time": { "from": "now-24h", "to": "now" },
+  "refresh": "1m",
+  "description": "Explicit client events correlated by a server-generated pseudonymous context_user_id derived from the full relay handle. Raw handles are not stored in Loki. Counts measure delivered events, not people or sessions. Loki labels are app, environment and source=analytics. JSON fields include kind=event, event_name, context_platform, context_user_id when available, app_name, app_version, app_release and app_environment. Event-specific fields are event_screen, event_source, event_mode, event_outcome, event_duration and event_feature. Duration values are buckets, not milliseconds. The activity user ID filter applies only to the activity log. Client identity claims are not authenticated.",
+  "links": [{ "title": "Client errors", "type": "link", "url": "/d/manabrew-client-errors" }],
+  "templating": {
+    "list": [
+      {
+        "name": "environment",
+        "label": "Environment",
+        "type": "custom",
+        "query": "production,staging,development",
+        "current": { "text": "production", "value": "production" },
+        "includeAll": false,
+        "multi": false
+      },
+      {
+        "name": "user_id",
+        "label": "Activity user ID",
+        "description": "Paste a pseudonymous context_user_id to filter the activity log; empty shows all delivered activity.",
+        "type": "textbox",
+        "query": "",
+        "current": { "text": "", "value": "" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "table",
+      "title": "Screen views",
+      "description": "screen_view events grouped by event_screen. Screens are allowlisted categories, never paths or URLs.",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "instant",
+          "expr": "sum by (event_screen) (count_over_time({app=\"manabrew-client\",environment=\"$environment\",source=\"analytics\"} | json | __error__=\"\" | kind=\"event\" | event_name=\"screen_view\" [$__range]))"
+        }
+      ],
+      "transformations": [{ "id": "labelsToFields", "options": { "mode": "columns" } }],
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 }, "overrides": [] },
+      "options": { "showHeader": true }
+    },
+    {
+      "id": 2,
+      "type": "table",
+      "title": "Import and lobby outcomes",
+      "description": "deck_import and lobby_wait counts grouped by event_name and event_outcome. Import outcomes are success, partial or failure; lobby outcomes are started or left. These are interaction counts, not completed-game counts.",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "instant",
+          "expr": "sum by (event_name, event_outcome) (count_over_time({app=\"manabrew-client\",environment=\"$environment\",source=\"analytics\"} | json | __error__=\"\" | kind=\"event\" | event_name=~\"deck_import|lobby_wait\" [$__range]))"
+        }
+      ],
+      "transformations": [{ "id": "labelsToFields", "options": { "mode": "columns" } }],
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 }, "overrides": [] },
+      "options": { "showHeader": true }
+    },
+    {
+      "id": 3,
+      "type": "table",
+      "title": "Feature uses",
+      "description": "feature_used events grouped by event_feature: deck_export or deck_playtest. No deck or card contents are recorded.",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "instant",
+          "expr": "sum by (event_feature) (count_over_time({app=\"manabrew-client\",environment=\"$environment\",source=\"analytics\"} | json | __error__=\"\" | kind=\"event\" | event_name=\"feature_used\" [$__range]))"
+        }
+      ],
+      "transformations": [{ "id": "labelsToFields", "options": { "mode": "columns" } }],
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 }, "overrides": [] },
+      "options": { "showHeader": true }
+    },
+    {
+      "id": 4,
+      "type": "table",
+      "title": "Events by platform",
+      "description": "All accepted event counts grouped by context_platform: web, pwa, desktop or mobile. This does not identify devices or count unique installations.",
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "instant",
+          "expr": "sum by (context_platform) (count_over_time({app=\"manabrew-client\",environment=\"$environment\",source=\"analytics\"} | json | __error__=\"\" | kind=\"event\" [$__range]))"
+        }
+      ],
+      "transformations": [{ "id": "labelsToFields", "options": { "mode": "columns" } }],
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 }, "overrides": [] },
+      "options": { "showHeader": true }
+    },
+    {
+      "id": 5,
+      "type": "logs",
+      "title": "Client activity by pseudonymous user",
+      "description": "Filter with Activity user ID from a record's context_user_id. The same full relay handle links across launches in this environment; renames and account/guest changes are separate histories. Raw handles are never analytics record fields or Loki labels. Older uncorrelated events appear only when the filter is empty. Entries are ordered by collector arrival, not guaranteed action order.",
+      "gridPos": { "x": 0, "y": 16, "w": 24, "h": 10 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "range",
+          "expr": "{app=\"manabrew-client\",environment=\"$environment\",source=\"analytics\"} | json | __error__=\"\" | kind=\"event\" | context_user_id=~\"^${user_id:regex}.*$\""
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "sortOrder": "Ascending",
+        "enableLogDetails": true
+      }
+    }
+  ]
+}

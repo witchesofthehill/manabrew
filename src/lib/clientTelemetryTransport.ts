@@ -1,7 +1,7 @@
 import { FetchTransport, initializeFaro } from "@grafana/faro-web-sdk";
 import type { BrowserConfig } from "@grafana/faro-web-sdk";
 
-export function createClientErrorTransport(collectorUrl: string) {
+export function createClientTelemetryTransport(collectorUrl: string) {
   const controller = new AbortController();
   const listeners: { type: string; listener: EventListener }[] = [];
   const documentListeners: { type: string; listener: EventListener }[] = [];

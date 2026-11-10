@@ -174,9 +174,10 @@ function reportEngineGame(): void {
   // Read before the offline record is closed: reporting the game clears it, and
   // the engine report below needs the same id to file itself against.
   const offlineGameId = currentOfflineGameId();
+  const localRelayGame = !!peekActiveGameSession()?.relayHost;
   if (state.isMultiplayer) reportHostOutcome(state);
-  if (!state.isMultiplayer) {
-    clearLocalGame();
+  if (!state.isMultiplayer) clearLocalGame();
+  if (!state.isMultiplayer || localRelayGame) {
     const seats = offlineSeats(state.gameView);
     const winnerId = state.gameView?.winnerId ?? null;
     reportOfflineGame({
@@ -195,7 +196,7 @@ function reportEngineGame(): void {
     // reading the flag alone filed finished games as quits.
     endReason: state.engineCrash ? "error" : isOver(state) ? "gameOver" : "left",
     gameId: engineReportGameId(
-      state.isMultiplayer,
+      state.isMultiplayer && !localRelayGame,
       useServerStore.getState().gameId,
       offlineGameId,
     ),

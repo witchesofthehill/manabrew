@@ -20,6 +20,8 @@ import { relayUsername } from "@/lib/relayUsername";
 import { useOwnedDecks } from "@/hooks/useOwnedDecks";
 import { startDraftAsHost, type DraftHostParticipant } from "@/game/draftHost";
 import { buildEngineGameRouteState } from "@/game/engineGameLaunch";
+import { localAiTableLaunch } from "@/game/localAiTable";
+import { useGameStore } from "@/stores/useGameStore";
 import { startMpSealed } from "@/game/sealedStart";
 import { limitedGameLaunch } from "@/game/limitedSession";
 import { getDeckFingerprint } from "@/lib/decks";
@@ -163,6 +165,7 @@ export default function Lobby() {
   const [botDeckTarget, setBotDeckTarget] = useState<string | null>(null);
   const [startingLimited, setStartingLimited] = useState(false);
   const [startingGame, setStartingGame] = useState(false);
+  const mySelection = useRef<{ deck: Deck; commanderName?: string } | null>(null);
   const [roomPasswords, setRoomPasswords] = useState<Record<string, string>>({});
   const [confirmLeaveHostedGame, setConfirmLeaveHostedGame] = useState(false);
   useEffect(() => {
@@ -330,6 +333,7 @@ export default function Lobby() {
   ) {
     try {
       await setDeckSelection(deckName, deck, commanderName, publishedDeckId);
+      mySelection.current = { deck, commanderName };
       const fingerprint = getDeckFingerprint(deck);
       const savedId = savedDecks.find(
         (saved) => getDeckFingerprint(saved.deck) === fingerprint,
@@ -360,6 +364,24 @@ export default function Lobby() {
     const room = currentRoom;
     if (!room || startingGame) return;
     setStartingGame(true);
+    const local = localAiTableLaunch(room, username, hostingForgeRoom, mySelection.current);
+    if (local) {
+      try {
+        const started = await useGameStore
+          .getState()
+          .startGame(
+            local.playerDeck,
+            local.formatId,
+            local.commanderName,
+            local.opponentDecks,
+            "Forge",
+          );
+        if (started) navigate(ROUTES.PLAY);
+      } finally {
+        setStartingGame(false);
+      }
+      return;
+    }
     const ackPromise = awaitGameStartedAck(room.room_id);
     ackPromise.catch(() => {});
     try {

@@ -6,6 +6,8 @@ The relay is the source of truth for which game a room is running: the node tags
 
 Reconnects to the relay with backoff instead of exiting on socket loss, and resumes its room (`ResumeRoom` + snapshot re-broadcast from `HostSnapshot` in `host.rs`) so a relay restart doesn't kill hosted games. The bot client (`manabot::run_bot`) reconnects the same way: it retakes its seat via `JoinRoom` and pulls `RequestResync` to resume mid-game.
 
+Bot usernames must be unique across the whole relay, not per room. A bot signs in with an unsigned token, so the relay has only its name: a second live `Bot1` is refused as a duplicate, and the hosted-AI client times out waiting for the seat. `spawn_bots` appends a random `@NNNN` tag, which the UI strips at render time like a guest tag.
+
 The published `manabrew-node` image uses Oracle GraalVM with `--gc=G1` (`GRAALVM_IMAGE`, `FORGE_GC`) and `--features graal-forge`. The node starts one child of its own executable per game (`--forge-engine-worker`), loading the native harness library there; no JVM is shipped. Approved journal rewind starts a second process, verifies the complete input prefix and target boundary, and swaps only on success. Failure keeps the original game. See `docs/DECISION_REPLAY.md`.
 
 Hosted gameplay no longer uses the shared isolate or prewarmed JVM pool. `SELF_HOSTED_NODE_SHARED_ISOLATE` and `SELF_HOSTED_NODE_GAMES_PER_JVM` apply only to legacy benchmark paths. Each active game loads its own card database, and rewind temporarily doubles that game's engine footprint. Size `SELF_HOSTED_NODE_MAX_GAMES` and container memory for that peak. G1 supports one isolate per process, which this design preserves. Native startup validates assets; each game pays cold engine initialization.

@@ -182,6 +182,11 @@ pub const PLANE_OUTCOMES: &[&str] = &[
     PLANE_OUTCOME_TIMEOUT,
 ];
 
+pub const ACQUISITION_SOURCES: &[&str] = &[
+    "direct", "landing", "reddit", "discord", "search", "ai", "youtube", "social", "github",
+    "other",
+];
+
 /// Longest `candidate_pair` the relay records.
 pub const MAX_CANDIDATE_PAIR_BYTES: usize = 64;
 
@@ -227,6 +232,9 @@ pub enum ClientMessage {
         client_version: Option<String>,
         #[serde(default)]
         engine_gate: EngineGate,
+        // One of `ACQUISITION_SOURCES`; the relay records anything else as `other`.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        acquisition_source: Option<String>,
     },
 
     Ping,

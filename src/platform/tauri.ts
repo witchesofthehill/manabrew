@@ -32,6 +32,13 @@ import { usePreferencesStore } from "@/stores/usePreferencesStore";
 
 // Tauri Server API — delegates to the web relay client, except Forge hosting
 
+/** The embedded relay (loopback or LAN) runs with analytics disabled and drops reports silently. */
+function isEmbeddedRelay(connection: ServerConnectParams): boolean {
+  if (connection.lan) return true;
+  const host = connection.host.trim().toLowerCase();
+  return host === "127.0.0.1" || host === "localhost" || host === "::1" || host === "[::1]";
+}
+
 class TauriServerApi implements IServerApi {
   private connection: ServerConnectParams | null = null;
   private readonly inner: IServerApi;
@@ -117,6 +124,9 @@ class TauriServerApi implements IServerApi {
     return this.inner.startGame(params);
   }
   reportEngineStats(stats: EngineGameStats, gameId?: string | null): Promise<void> {
+    if (this.connection && isEmbeddedRelay(this.connection)) {
+      return Promise.reject(new Error("this relay does not file engine reports"));
+    }
     return this.inner.reportEngineStats(stats, gameId);
   }
   reportGameOutcome(gameId: string, outcome: GameOutcomeReport): Promise<void> {

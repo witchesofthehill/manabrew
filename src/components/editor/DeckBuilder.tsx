@@ -4,7 +4,6 @@ import { useAccountDecksStore } from "@/stores/useAccountDecksStore";
 import { fetchAccountDeck, HubRequestError } from "@/api/hub";
 import { useGameDevStore } from "@/stores/useGameDevStore";
 import { PublishDeckDialog } from "@/components/deck/PublishDeckDialog";
-import { DeckVersionHistoryDialog } from "@/components/deck/DeckVersionHistoryDialog";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 import { Button } from "@/components/ui/button";
@@ -243,7 +242,6 @@ export function DeckBuilder({
   const saveInFlightRef = useRef(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(false);
   const [checkpointsOpen, setCheckpointsOpen] = useState(false);
   const [sideboardPlansOpen, setSideboardPlansOpen] = useState(false);
   const isReadOnly = useDeckStore((s) => s.isReadOnly);
@@ -1130,7 +1128,7 @@ export function DeckBuilder({
         if (changedDuringSave) useDeckStore.setState({ currentDeck: latestDeck });
         else rebaseDeckHistory(beforeAccountUpdate, useDeckStore.getState().currentDeck);
         setSyncState("synced");
-        if (!quiet) toast.success(`Saved version ${detail.currentVersionNo} to your account`);
+        if (!quiet) toast.success("Saved to your account");
       } else {
         setSyncState("local");
         if (!quiet) showAccountSaveNudge();
@@ -2033,13 +2031,6 @@ export function DeckBuilder({
                       <Share2 className="h-3.5 w-3.5 mr-2" /> Publish to Community
                     </DropdownMenuItem>
                   )}
-                  {accountsEnabled &&
-                    accountSavedDeck?.accountDeckId &&
-                    accountSavedDeck.accountVersionNo && (
-                      <DropdownMenuItem onSelect={() => setHistoryOpen(true)}>
-                        <History className="mr-2 h-3.5 w-3.5" /> Version history
-                      </DropdownMenuItem>
-                    )}
                   <DropdownMenuItem onSelect={handleSaveDraft}>
                     <FileBox className="h-3.5 w-3.5 mr-2" /> Save as draft
                   </DropdownMenuItem>
@@ -2576,22 +2567,6 @@ export function DeckBuilder({
             resumeInEditor
           />
         ) : null}
-        {accountsEnabled &&
-          accountSavedDeck?.accountDeckId &&
-          accountSavedDeck.accountVersionNo && (
-            <DeckVersionHistoryDialog
-              open={historyOpen}
-              onOpenChange={setHistoryOpen}
-              deckId={accountSavedDeck.accountDeckId}
-              currentVersionNo={accountSavedDeck.accountVersionNo}
-              hasUnsavedChanges={hasUnsavedChanges}
-              onRestore={(deck, versionNo) => {
-                useDeckStore.getState().loadDeck(deck);
-                resetDeckHistory();
-                toast.info(`Version ${versionNo} loaded. Save to create a new version.`);
-              }}
-            />
-          )}
         <DeckSaveConflictDialog
           conflict={saveConflict}
           busy={isSaving}

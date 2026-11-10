@@ -180,7 +180,7 @@ impl Config {
             room_name,
             max_players,
             max_games: 1,
-            state_delta: false,
+            state_delta: true,
             format,
             auto_start: false,
             engine_enabled: true,

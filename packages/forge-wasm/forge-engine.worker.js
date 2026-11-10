@@ -325,8 +325,8 @@ async function startGame(requestId, args) {
       ...aiDecks.map((deck, i) => ({
         name: forgeAi
           ? i > 0
-            ? `Forge bot ${i + 1}`
-            : "Forge bot"
+            ? `Brewy bot ${i + 1}`
+            : "Brewy bot"
           : i > 0
             ? `Manabot ${i + 1}`
             : "Manabot",

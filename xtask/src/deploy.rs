@@ -748,6 +748,17 @@ fn reconcile_observability(root: &Path, opts: &Opts, itemized: &str) -> Result<S
         )?;
         note = format!("📊 **Observability:** {reason} — recreated {list}\n");
     }
+    if reason.is_none() {
+        ssh(
+            root,
+            &opts.host,
+            &compose(
+                &opts.path,
+                &opts.tag,
+                "--profile observability kill -s HUP prometheus",
+            ),
+        )?;
+    }
     if collector_configured {
         ssh_streamed(
             root,

@@ -101,6 +101,7 @@ import {
   stackObjectAbilityText,
   stackObjectToCard,
   relayAvatarUrl,
+  botAvatarUrl,
   gameRound,
   opponentsInTurnOrder,
 } from "@/components/game/game.utils";
@@ -2388,11 +2389,14 @@ export default function Game({ exitTo }: GameProps = {}) {
             avatarUrl:
               activeFlash.playerId === me.id
                 ? (useAuthStore.getState().account?.avatarUrl ?? null)
-                : relayAvatarUrl(
+                : (relayAvatarUrl(
                     turnHandoffPlayer.name,
                     useServerStore.getState().players,
                     useServerStore.getState().playerDecks,
-                  ),
+                  ) ??
+                  (turnHandoffPlayer.isHuman
+                    ? null
+                    : botAvatarUrl(turnHandoffPlayer.id, opponents))),
           }
         : null,
     sourceDeckCard: promptSourceDeckCard,

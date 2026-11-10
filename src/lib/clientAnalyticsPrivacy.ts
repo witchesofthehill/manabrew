@@ -23,6 +23,7 @@ export const CLIENT_ANALYTICS_SCHEMA = {
       "about",
       "other",
     ],
+    url: "url",
   },
   deck_import: {
     source: ["text", "clipboard"],
@@ -43,7 +44,9 @@ export type ClientAnalyticsEvent = keyof typeof CLIENT_ANALYTICS_SCHEMA;
 export type ClientAnalyticsAttributes<N extends ClientAnalyticsEvent> = {
   [K in keyof (typeof CLIENT_ANALYTICS_SCHEMA)[N]]: (typeof CLIENT_ANALYTICS_SCHEMA)[N][K] extends readonly string[]
     ? (typeof CLIENT_ANALYTICS_SCHEMA)[N][K][number]
-    : never;
+    : (typeof CLIENT_ANALYTICS_SCHEMA)[N][K] extends "url"
+      ? string
+      : never;
 };
 
 export function safeClientAnalyticsEvent(name: unknown, attributes: unknown) {
@@ -76,9 +79,16 @@ export function safeClientAnalyticsEvent(name: unknown, attributes: unknown) {
   }
   for (const [key, allowed] of Object.entries(schema)) {
     const value = input[key];
-    if (typeof value !== "string" || !(allowed as readonly string[]).includes(value))
-      return undefined;
-    safe[key] = value;
+    if (allowed === "url") {
+      if (value === undefined) continue;
+      const url = analyticsPageUrl(value);
+      if (!url) return undefined;
+      safe[key] = url;
+    } else {
+      if (typeof value !== "string" || !(allowed as readonly string[]).includes(value))
+        return undefined;
+      safe[key] = value;
+    }
   }
   return { name: name as ClientAnalyticsEvent, attributes: safe };
 }
@@ -101,6 +111,34 @@ export function analyticsScreen(
   return (CLIENT_ANALYTICS_SCHEMA.screen_view.screen as readonly string[]).includes(segment)
     ? (segment as ClientAnalyticsAttributes<"screen_view">["screen"])
     : "other";
+}
+
+export function analyticsPageUrl(value: unknown, base?: string): string | undefined {
+  if (
+    typeof value !== "string" ||
+    value.length > 2048 ||
+    value.trim() !== value ||
+    /\p{Cc}/u.test(value)
+  )
+    return undefined;
+  try {
+    const url = new URL(value, base);
+    if (
+      !["http:", "https:", "tauri:"].includes(url.protocol) ||
+      !url.hostname ||
+      /^\/(?:auth|callback|dev|card-mock|design-system)(?:\/|$)/i.test(
+        decodeURIComponent(url.pathname),
+      )
+    )
+      return undefined;
+    url.username = "";
+    url.password = "";
+    url.search = "";
+    url.hash = "";
+    return url.href.length <= 2048 ? url.href : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export function createAnalyticsPrivacyFilter(environment: string): BeforeSendHook {

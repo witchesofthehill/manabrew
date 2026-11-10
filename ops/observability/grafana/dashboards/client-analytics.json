@@ -7,7 +7,7 @@
   "timezone": "utc",
   "time": { "from": "now-24h", "to": "now" },
   "refresh": "1m",
-  "description": "Explicit client events correlated by a server-generated pseudonymous context_user_id derived from the full relay handle. Raw handles are not stored in Loki. Counts measure delivered events, not people or sessions. Loki labels are app, environment and source=analytics. JSON fields include kind=event, event_name, context_platform, context_user_id when available, app_name, app_version, app_release and app_environment. Event-specific fields are event_screen, event_source, event_mode, event_outcome, event_duration and event_feature. Duration values are buckets, not milliseconds. The activity user ID filter applies only to the activity log. Client identity claims are not authenticated.",
+  "description": "Explicit client events correlated by the full readable relay handle stored as context_user_id and displayed as Activity user ID. Guest handles include their suffix; account handles may identify people. Counts measure delivered events, not people or sessions. Loki labels are app, environment and source=analytics. JSON fields include kind=event, event_name, context_platform, context_user_id when available, app_name, app_version, app_release and app_environment. Event-specific fields are event_screen, event_url, event_source, event_mode, event_outcome, event_duration and event_feature. Page URLs retain origin and pathname, including path IDs, but exclude credentials, query strings and fragments. Duration values are buckets, not milliseconds. The activity user ID filter applies only to the activity log. Client identity claims are not authenticated.",
   "links": [{ "title": "Client errors", "type": "link", "url": "/d/manabrew-client-errors" }],
   "templating": {
     "list": [
@@ -23,7 +23,7 @@
       {
         "name": "user_id",
         "label": "Activity user ID",
-        "description": "Paste a pseudonymous context_user_id to filter the activity log; empty shows all delivered activity.",
+        "description": "Enter the readable relay handle, including its guest suffix, or a prefix to filter the activity log; empty shows all delivered activity.",
         "type": "textbox",
         "query": "",
         "current": { "text": "", "value": "" }
@@ -35,14 +35,14 @@
       "id": 1,
       "type": "table",
       "title": "Screen views",
-      "description": "screen_view events grouped by event_screen. Screens are allowlisted categories, never paths or URLs.",
+      "description": "screen_view events grouped by screen category and visited page URL. URLs retain origin and pathname, including path IDs, but exclude credentials, query strings and fragments. Auth callbacks and developer routes are excluded. Older events have no event_url.",
       "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
       "datasource": { "type": "loki", "uid": "loki" },
       "targets": [
         {
           "refId": "A",
           "queryType": "instant",
-          "expr": "sum by (event_screen) (count_over_time({app=\"manabrew-client\",environment=\"$environment\",source=\"analytics\"} | json | __error__=\"\" | kind=\"event\" | event_name=\"screen_view\" [$__range]))"
+          "expr": "sum by (event_screen, event_url) (count_over_time({app=\"manabrew-client\",environment=\"$environment\",source=\"analytics\"} | json | __error__=\"\" | kind=\"event\" | event_name=\"screen_view\" [$__range]))"
         }
       ],
       "transformations": [{ "id": "labelsToFields", "options": { "mode": "columns" } }],
@@ -106,8 +106,8 @@
     {
       "id": 5,
       "type": "logs",
-      "title": "Client activity by pseudonymous user",
-      "description": "Filter with Activity user ID from a record's context_user_id. The same full relay handle links across launches in this environment; renames and account/guest changes are separate histories. Raw handles are never analytics record fields or Loki labels. Older uncorrelated events appear only when the filter is empty. Entries are ordered by collector arrival, not guaranteed action order.",
+      "title": "Client activity by relay user",
+      "description": "Activity user ID is the full readable relay handle from relay_username, stored as context_user_id, for example player-gpf64i@6564. Enter a handle or prefix; empty shows all activity. Renames and account/guest changes are separate histories. Handles are JSON fields, never Loki labels. Earlier hashed records remain unchanged and cannot be found by their readable handle. Entries are ordered by collector arrival, not guaranteed action order.",
       "gridPos": { "x": 0, "y": 16, "w": 24, "h": 10 },
       "datasource": { "type": "loki", "uid": "loki" },
       "targets": [

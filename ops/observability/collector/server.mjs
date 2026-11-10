@@ -1,5 +1,4 @@
 import { createServer } from "node:http";
-import { createHmac, randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import {
@@ -36,7 +35,6 @@ const loki = process.env.LOKI_URL ?? "http://loki:3100";
 const stateDirectory = process.env.FARO_STATE_DIR ?? "/var/lib/faro/state";
 const stateFile = path.join(stateDirectory, "budget.json");
 const analyticsStateFile = path.join(stateDirectory, "analytics-budget.json");
-const analyticsKeyFile = path.join(stateDirectory, "analytics-hmac.key");
 const maps = new SourceMaps(process.env.FARO_MAPS_DIR ?? "/var/lib/faro/sourcemaps");
 const releasePattern =
   /^([0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.-]+)?)-[a-f0-9]{40}-([a-z][a-z0-9-]{0,63})$/;
@@ -89,11 +87,6 @@ if (
   analyticsBudget.bytes < 0
 )
   throw new Error("Invalid analytics budget state");
-if (!existsSync(analyticsKeyFile)) {
-  writeFileSync(analyticsKeyFile, randomBytes(32), { mode: 0o600, flag: "wx" });
-}
-const analyticsKey = readFileSync(analyticsKeyFile);
-if (analyticsKey.length !== 32) throw new Error("Invalid analytics HMAC key");
 
 function currentBudget() {
   const day = new Date().toISOString().slice(0, 10);
@@ -185,16 +178,7 @@ function sanitizeEvents(body) {
         Object.entries(attributes).map(([key, value]) => [`event_${key}`, value]),
       ),
       context_platform: platform,
-      ...(relay_username
-        ? {
-            context_user_id: createHmac("sha256", analyticsKey)
-              .update("manabrew-client-analytics:v1\0")
-              .update(app.environment)
-              .update("\0")
-              .update(relay_username)
-              .digest("hex"),
-          }
-        : {}),
+      ...(relay_username ? { context_user_id: relay_username } : {}),
       app_name: "manabrew-client",
       app_version: release[1],
       app_release: app.release,

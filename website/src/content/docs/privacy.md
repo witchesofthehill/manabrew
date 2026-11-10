@@ -180,36 +180,41 @@ The same frontend reporting setting also enables explicit usage events in the
 managed app and official builds. These go to our self-hosted collector, not
 Grafana Cloud or an advertising service.
 
-Events describe screen categories, deck-import success or failure, leaving a
-room before a game starts or waiting until it starts, deck exports, and
-playtest initiation. Imports distinguish creating a deck from adding cards and
+Events describe visited screens and page URLs, deck-import success or failure,
+leaving a room before a game starts or waiting until it starts, deck exports,
+and playtest initiation. Imports distinguish creating a deck from adding cards and
 text input from the explicit clipboard action. An import can be partially
 successful when some cards cannot be found. Timings use broad buckets rather
 than exact durations. Events also include the app version/build, environment,
 and whether the client is web, PWA, desktop, or mobile.
 
+For screen views, the stored URL includes the site's origin and page path,
+including identifiers in paths such as game or Limited-session IDs. We strip
+URL credentials, query strings, and fragments. Sign-in callback and developer
+pages are excluded. Changing only a query string or fragment does not create
+another screen-view event.
+
 To correlate activity, the app includes your current relay username with each
 usage event, including the full guest suffix such as `@1234`. Signed-in
 accounts use their account handle. This username reaches our collector over
-HTTPS. Before storing an event, the collector replaces it with a stable
-identifier calculated using HMAC-SHA-256 and a private server key. Raw
-usernames are not stored in these usage records.
+HTTPS and is stored in readable form with the event as its Activity user ID.
+It is not hashed.
 
-The same full username produces the same identifier across launches and
-devices within one environment. Changing a guest name, signing in under an
+The same full username links activity across launches and devices and is
+recognizable across environments. Changing a guest name, signing in under an
 account handle, or signing out separates subsequent activity under the new
 handle. Different people sharing a handle can appear as one, and one person
 using several handles can appear as several.
 
-This is pseudonymous data, not anonymous data. Maintainers holding the private
-key can match a known relay username to its identifier and relate app activity
-to relay game records. Error-report metadata remains separate and does not
-receive this identifier.
+This is identifiable usage history, not anonymous data. Maintainers can read
+your relay username alongside app activity and relate it directly to relay
+game records. Error-report metadata remains separate and does not receive
+this Activity user ID.
 
-We do not collect automatic click streams or add account IDs, device IDs,
-game IDs, session IDs, or SDK session tracking to these events. They contain
-no deck/card contents, clipboard contents, search text, raw paths, query
-strings, or arbitrary text.
+We do not collect automatic click streams or enable SDK session tracking.
+Apart from identifiers in page paths, we do not add account, device, game, or
+session IDs. Events contain no deck/card contents, clipboard contents, search
+text, query strings, or arbitrary text.
 
 Usage records are restricted to maintainers and expire after 30 days. The
 collector receives the sender's IP address to accept the request but does not

@@ -21,7 +21,7 @@ Open `http://localhost:3000` and sign in with `admin` / `admin`. The SQLite dash
 
 Faro SDK `2.13.0` sends frontend exceptions through Caddy to the isolated Node collector, which enforces the shared privacy policy, resolves private maps, and writes to Loki. Backend container logs still use Alloy. The dashboard counts delivered exceptions, not affected sessions or users.
 
-Filters cover environment, version, immutable build, platform, source, and engine. Sources are `startup`, `react`, `unhandled`, `engine-worker`, `render-worker`, `bot-worker`, `remote-engine`, and `engine-operation`. Normal cancellation, renderer capability fallback, and ordinary protocol rejections are excluded. Recovery behavior and local console diagnostics remain unchanged.
+Filters cover environment, version, immutable build, platform, source, and engine. Sources are `startup`, `react`, `unhandled`, `engine-worker`, `render-worker`, `bot-worker`, `remote-engine`, and `engine-operation`. Normal cancellation, renderer capability fallback, Card Glint layout limits that fall back to the original scan, and ordinary protocol rejections are excluded. Recovery behavior and local console diagnostics remain unchanged.
 
 The `unhandled` source covers uncaught exceptions and unhandled promise rejections, including non-Error thrown values. Global error handling preserves the existing `window.onerror` callback and reports each exception once.
 

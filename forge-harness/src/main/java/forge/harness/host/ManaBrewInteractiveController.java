@@ -34,6 +34,7 @@ import forge.game.ability.AbilityUtils;
 import forge.game.ability.ApiType;
 import forge.game.ability.effects.RollDiceEffect;
 import forge.game.card.*;
+import forge.game.card.sticker.Sticker;
 import forge.game.combat.Combat;
 import forge.game.combat.CombatUtil;
 import forge.game.cost.*;
@@ -1615,6 +1616,41 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             rememberSecretTypeViewer(sa);
         }
         return result;
+    }
+
+    @Override
+    public Sticker chooseSticker(final List<Sticker> options, final Card target,
+            final SpellAbility sa, final boolean isOptional) {
+        final List<SelectionOption> choices = new ArrayList<>();
+        for (final Sticker sticker : options) {
+            final String label = sticker.getTickets() == 0 ? sticker.getDescription()
+                    : "{TK}".repeat(sticker.getTickets()) + " - " + sticker.getDescription();
+            choices.add(new SelectionOption(label, 1, false));
+        }
+        final List<Integer> selected = session.awaitModeChoice(
+                me(), choices, isOptional ? 0 : 1, 1, "Choose a sticker",
+                "Put a sticker on " + target.getName(), SnapshotExtractor.javaCardId(target));
+        return selected.isEmpty() ? null : options.get(selected.get(0));
+    }
+
+    @Override
+    public int chooseStickerNamePosition(final Sticker sticker, final Card target) {
+        if (target.getName().isBlank() || target.stickerWouldFillBlank()) {
+            return 0;
+        }
+        final int words = target.getName().split(" ").length;
+        final List<SelectionOption> positions = new ArrayList<>();
+        for (int at = 0; at <= words; at++) {
+            positions.add(new SelectionOption(Card.addStickerWord(target.getName(), sticker.getWord(), at), 1, false));
+        }
+        return session.awaitModeChoice(me(), positions, 1, 1, "Choose sticker name position",
+                null, SnapshotExtractor.javaCardId(target)).get(0);
+    }
+
+    @Override
+    public Card chooseCardToKeepStickers(final CardCollectionView options) {
+        return chooseSingleEntityForEffect(options, null, null, "Choose a card to keep stickers",
+                false, null, null);
     }
 
     @Override

@@ -25,6 +25,8 @@ Dependency rule (do not violate): `parity → common`, `host → common`, `Main 
 
 RPCs read immutable seat views published on the game thread before prompts, revisions and game over. Never traverse live Forge zones from RPC threads. During replay, defer UI views and checkpoint rows until the verified destination, but retain per-input verification and remembered-hand updates.
 
+`MyRandom.getRandom()` returns Forge's draw-counting wrapper, not the RNG installed with `setRandom`. Keep the original session RNG for `ReplayRandom` verification. Cross-version journals remain unsupported.
+
 ### Host payability probes must stay silent
 
 `ManaBrewInteractiveController` sets `probingPayability` while engine code runs feasibility tests (`ActionSpace.getPossibleActions` → `ComputerUtilMana.canPayManaCost`, the `ComputerUtilCost.canPayCost` pre-checks, and the `determineLeftoverMana` cap on an announced X, which otherwise counts no convoke or improvise). These test paths call regular `PlayerController` choosers (`chooseCardsForConvokeOrImprovise`, `chooseCardsToDelve`, `choosePermanentsToSacrifice` via offering/emerge, `choosePlayerToAssistPayment`) — in native Forge only the AI ever hits them. Any chooser reachable from `CostAdjustment`/`ComputerUtilMana` must check the flag and answer silently (maximally permissive) instead of round-tripping to the UI. The real prompt happens once, in `payManaCost`, via `CostAdjustment.adjust(..., test=false, ...)` mirroring `HumanPlay.payManaCost` (taps convoked creatures, collects delve cards; `handleOfferingConvokeAndDelve` mirrors the HumanPlay helper). `DeterministicController` mirrors the same `probingPayability` flag around `ActionSpace.getPossibleActions` so its `chooseCardsForConvokeOrImprovise` returns the optimistic greedy estimate during action-space probing and declines (empty) during real payment.
@@ -172,6 +174,8 @@ javac -d /tmp/out -cp target/forge-harness-jar-with-dependencies.jar $(find src/
 **After a `forge` submodule bump, do a _clean_ rebuild** (`mvn -pl forge-harness -am clean package -DskipTests`). `ensure`/`package` are incremental and key off source mtime, not the classpath — so a Forge change recompiles `forge/` but reuses the harness `.class` files compiled against the **old** Forge, silently shipping a broken jar (missing newer card enums like `CardSplitType.Prepare`, or synthetic `switch`-map classes like `SnapshotExtractor$1` → deck-load failures or a runtime `NoClassDefFoundError`). A Forge API change may also require updating the `PlayerController` overrides in `host/ManaBrewInteractiveController` + `parity/DeterministicController` (and call sites in `common/HarnessPlayPlumbing`) before it compiles. Keep the submodule pinned to the recorded gitlink with `git submodule update --init forge`; only `--remote` advances it. Build with JDK 18–21 — newer JDKs (e.g. 26) fail to compile Forge.
 
 If a merged harness cannot find a Forge API, compare the `forge` gitlink with main before changing the harness. Git can retain a branch's rollback when main's pin is unchanged since the merge base.
+
+For the Star Trek upstream merge, read `docs/FORGE_STAR_TREK_INTEGRATION.md` before changing Beam me up serialization or validating Station/Assimilate. The pin alone does not provide full-set support.
 
 ## Crash reporting
 

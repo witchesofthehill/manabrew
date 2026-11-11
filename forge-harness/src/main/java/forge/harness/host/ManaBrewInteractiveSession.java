@@ -68,6 +68,7 @@ public final class ManaBrewInteractiveSession {
     private final String sessionId;
     private Match match;
     private Game game;
+    private Random gameRandom;
     private HandKnowledge handKnowledge;
     private final BlockingQueue<QueuedAction> actions = new LinkedBlockingQueue<>();
     private record QueuedAction(JsonObject decoded, JsonObject canonical,
@@ -203,7 +204,7 @@ public final class ManaBrewInteractiveSession {
 
     public void start(final Random rng) {
         requireAttached();
-        Objects.requireNonNull(rng, "rng");
+        gameRandom = Objects.requireNonNull(rng, "rng");
         if (bridge != null) {
             forge.util.MyRandom.setRandom(rng);
             try {
@@ -431,7 +432,7 @@ public final class ManaBrewInteractiveSession {
     }
 
     JsonObject replayVerification() {
-        return GameCheckpoint.verification(this, (ReplayRandom) forge.util.MyRandom.getRandom());
+        return GameCheckpoint.verification(this, (ReplayRandom) gameRandom);
     }
 
     public String readDecisionJournal() {

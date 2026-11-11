@@ -1,0 +1,185 @@
+{
+  "uid": "manabrew-client-analytics",
+  "title": "Manabrew Client Analytics",
+  "tags": ["manabrew", "product", "frontend"],
+  "schemaVersion": 39,
+  "editable": true,
+  "timezone": "utc",
+  "time": { "from": "now-24h", "to": "now" },
+  "refresh": "1m",
+  "description": "Explicit client activity correlated by the exact readable relay handle, including case and guest suffix. Loki interaction panels count delivered events, not people. The first observed match funnel uses durable collector SQLite summaries across visits and devices for each environment and handle. Its time range selects handles by first observation; stages and recorded click totals reflect their current lifetime status, even when completion arrived outside the selected range. Recording begins with this instrumentation, with no historical or synthetic-data backfill and no claim of first-ever play. Client identity claims are not authenticated. Handles remain JSON fields, never Loki labels. Page URLs exclude credentials, query strings and fragments. The Activity user ID prefix filter applies to the activity log and both funnel panels, not the other interaction panels.",
+  "links": [{ "title": "Client errors", "type": "link", "url": "/d/manabrew-client-errors" }],
+  "templating": {
+    "list": [
+      {
+        "name": "environment",
+        "label": "Environment",
+        "type": "custom",
+        "query": "production,staging,development",
+        "current": { "text": "production", "value": "production" },
+        "includeAll": false,
+        "multi": false
+      },
+      {
+        "name": "user_id",
+        "label": "Activity user ID",
+        "description": "Exact-case readable relay handle or prefix, including the guest suffix. Filters the activity log and both first observed match funnel panels only. Empty shows all handles. SQL quotes, percent signs and underscores are literal characters.",
+        "type": "textbox",
+        "query": "",
+        "current": { "text": "", "value": "" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "table",
+      "title": "Screen views",
+      "description": "screen_view events grouped by screen category and visited page URL. URLs retain origin and pathname, including path IDs, but exclude credentials, query strings and fragments. Auth callbacks and developer routes are excluded. Older events have no event_url.",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "instant",
+          "expr": "sum by (event_screen, event_url) (count_over_time({app=\"manabrew-client\",environment=\"$environment\",source=\"analytics\"} | json | __error__=\"\" | kind=\"event\" | event_name=\"screen_view\" [$__range]))"
+        }
+      ],
+      "transformations": [{ "id": "labelsToFields", "options": { "mode": "columns" } }],
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 }, "overrides": [] },
+      "options": { "showHeader": true }
+    },
+    {
+      "id": 2,
+      "type": "table",
+      "title": "Import and lobby outcomes",
+      "description": "deck_import and lobby_wait counts grouped by event_name and event_outcome. Import outcomes are success, partial or failure; lobby outcomes are started or left. These are interaction counts, not completed-game counts.",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "instant",
+          "expr": "sum by (event_name, event_outcome) (count_over_time({app=\"manabrew-client\",environment=\"$environment\",source=\"analytics\"} | json | __error__=\"\" | kind=\"event\" | event_name=~\"deck_import|lobby_wait\" [$__range]))"
+        }
+      ],
+      "transformations": [{ "id": "labelsToFields", "options": { "mode": "columns" } }],
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 }, "overrides": [] },
+      "options": { "showHeader": true }
+    },
+    {
+      "id": 3,
+      "type": "table",
+      "title": "Feature uses",
+      "description": "feature_used events grouped by event_feature: deck_export or deck_playtest. No deck or card contents are recorded.",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "instant",
+          "expr": "sum by (event_feature) (count_over_time({app=\"manabrew-client\",environment=\"$environment\",source=\"analytics\"} | json | __error__=\"\" | kind=\"event\" | event_name=\"feature_used\" [$__range]))"
+        }
+      ],
+      "transformations": [{ "id": "labelsToFields", "options": { "mode": "columns" } }],
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 }, "overrides": [] },
+      "options": { "showHeader": true }
+    },
+    {
+      "id": 4,
+      "type": "table",
+      "title": "Events by platform",
+      "description": "All accepted event counts grouped by context_platform: web, pwa, desktop or mobile. This does not identify devices or count unique installations.",
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "instant",
+          "expr": "sum by (context_platform) (count_over_time({app=\"manabrew-client\",environment=\"$environment\",source=\"analytics\"} | json | __error__=\"\" | kind=\"event\" [$__range]))"
+        }
+      ],
+      "transformations": [{ "id": "labelsToFields", "options": { "mode": "columns" } }],
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 }, "overrides": [] },
+      "options": { "showHeader": true }
+    },
+    {
+      "id": 5,
+      "type": "logs",
+      "title": "Client activity by relay user",
+      "description": "Activity user ID is the full readable relay handle from relay_username, stored as context_user_id, for example player-gpf64i@6564. Enter a handle or prefix; empty shows all activity. Renames and account/guest changes are separate histories. Handles are JSON fields, never Loki labels. Earlier hashed records remain unchanged and cannot be found by their readable handle. Entries are ordered by collector arrival, not guaranteed action order.",
+      "gridPos": { "x": 0, "y": 16, "w": 24, "h": 10 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "range",
+          "expr": "{app=\"manabrew-client\",environment=\"$environment\",source=\"analytics\"} | json | __error__=\"\" | kind=\"event\" | context_user_id=~\"^${user_id:regex}.*$\""
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "sortOrder": "Ascending",
+        "enableLogDetails": true
+      }
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "First observed match funnel",
+      "description": "Distinct exact relay handles first observed in the selected environment and time range. Stages are cumulative: a confirmed game also implies a match request. Completion is a playable game against AI or other players, not a deck-editor playtest, spectator session or engine-validation run. Current lifetime status is shown for the selected cohort, not only transitions inside the time range. No historical or synthetic-data backfill. The Activity user ID prefix filter applies.",
+      "gridPos": { "x": 0, "y": 26, "w": 24, "h": 5 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "client-funnel-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT count(*) AS \"First observed handles\", count(match_requested_at) AS \"Match requested\", count(game_started_at) AS \"Started first observed match\" FROM client_funnel_players WHERE environment = ${environment:sqlstring} AND first_observed_at >= $__from AND first_observed_at <= $__to AND substr(relay_username, 1, length(${user_id:sqlstring})) = ${user_id:sqlstring} COLLATE BINARY",
+          "rawQueryText": "SELECT count(*) AS \"First observed handles\", count(match_requested_at) AS \"Match requested\", count(game_started_at) AS \"Started first observed match\" FROM client_funnel_players WHERE environment = ${environment:sqlstring} AND first_observed_at >= $__from AND first_observed_at <= $__to AND substr(relay_username, 1, length(${user_id:sqlstring})) = ${user_id:sqlstring} COLLATE BINARY",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 }, "overrides": [] },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "orientation": "horizontal",
+        "textMode": "value_and_name",
+        "colorMode": "none",
+        "graphMode": "none"
+      }
+    },
+    {
+      "id": 7,
+      "type": "table",
+      "title": "Recorded clicks to first observed match by player",
+      "description": "One row per exact environment and relay handle, preserving case and guest suffix. The time picker selects the first-observed cohort. Recorded clicks sum positive per-visit cumulative high-water increases across visits and devices. Completion freezes the total on the first game_started checkpoint received by the collector. Later or out-of-order checkpoints cannot change a completed total. Pending players show clicks so far. Clicks before instrumentation or missing deliveries cannot be reconstructed. Timestamps are collector receipt times; handles and game claims are client-provided. The Activity user ID prefix filter applies.",
+      "gridPos": { "x": 0, "y": 31, "w": 24, "h": 10 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "client-funnel-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT relay_username AS \"Relay handle\", CASE WHEN game_started_at IS NOT NULL THEN 'game_started' WHEN match_requested_at IS NOT NULL THEN 'match_requested' ELSE 'observed' END AS \"Stage\", CASE WHEN game_started_at IS NULL THEN 'Pending' ELSE 'Completed' END AS \"Status\", CASE WHEN game_started_at IS NOT NULL THEN recorded_clicks END AS \"Recorded clicks to first match\", CASE WHEN game_started_at IS NULL THEN recorded_clicks END AS \"Clicks so far\", first_observed_at AS \"First observed\", match_requested_at AS \"Match requested\", game_started_at AS \"First observed match\", last_observed_at AS \"Last checkpoint\" FROM client_funnel_players WHERE environment = ${environment:sqlstring} AND first_observed_at >= $__from AND first_observed_at <= $__to AND substr(relay_username, 1, length(${user_id:sqlstring})) = ${user_id:sqlstring} COLLATE BINARY ORDER BY first_observed_at DESC, relay_username COLLATE BINARY",
+          "rawQueryText": "SELECT relay_username AS \"Relay handle\", CASE WHEN game_started_at IS NOT NULL THEN 'game_started' WHEN match_requested_at IS NOT NULL THEN 'match_requested' ELSE 'observed' END AS \"Stage\", CASE WHEN game_started_at IS NULL THEN 'Pending' ELSE 'Completed' END AS \"Status\", CASE WHEN game_started_at IS NOT NULL THEN recorded_clicks END AS \"Recorded clicks to first match\", CASE WHEN game_started_at IS NULL THEN recorded_clicks END AS \"Clicks so far\", first_observed_at AS \"First observed\", match_requested_at AS \"Match requested\", game_started_at AS \"First observed match\", last_observed_at AS \"Last checkpoint\" FROM client_funnel_players WHERE environment = ${environment:sqlstring} AND first_observed_at >= $__from AND first_observed_at <= $__to AND substr(relay_username, 1, length(${user_id:sqlstring})) = ${user_id:sqlstring} COLLATE BINARY ORDER BY first_observed_at DESC, relay_username COLLATE BINARY",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "decimals": 0 },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^(First observed|Match requested|First observed match|Last checkpoint)$"
+            },
+            "properties": [{ "id": "unit", "value": "dateTimeAsIso" }]
+          }
+        ]
+      },
+      "options": { "showHeader": true, "cellHeight": "sm", "footer": { "show": false } }
+    }
+  ]
+}

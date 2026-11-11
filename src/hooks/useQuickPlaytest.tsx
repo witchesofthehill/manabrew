@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import type { SelectedDeck } from "@/components/lobby/deckSelection.types";
 import { isOfflinePodFormat } from "@/components/lobby/offlineRoster.utils";
 import { ROUTES } from "@/lib/constants";
+import { trackClientEvent } from "@/lib/clientAnalytics";
 import { resolveOfflineEngine } from "@/lib/offlineEngine";
 import { pickRandomDistinct } from "@/lib/utils";
 import { savePresetToAccountOnUse } from "@/lib/presetDeckAccount";
@@ -23,6 +24,7 @@ export function useQuickPlaytest(): {
       1,
     );
     void startGame(
+      "playtest",
       deck,
       formatId,
       deck.commanders?.[0]?.identity.name,
@@ -41,6 +43,7 @@ export function useQuickPlaytest(): {
       return;
     }
     const formatId = deck.format ?? "standard";
+    trackClientEvent("feature_used", { feature: "deck_playtest" });
     if (isOfflinePodFormat(formatId)) {
       const preset = savedDeckId
         ? undefined
@@ -64,7 +67,9 @@ export function useQuickPlaytest(): {
         commanderName: deck.commanders?.[0]?.identity.name,
         coverCardName: deck.coverCardName,
       };
-      navigate(ROUTES.PLAY_OFFLINE_CONSTRUCTED, { state: { preSelectedDeck } });
+      navigate(ROUTES.PLAY_OFFLINE_CONSTRUCTED, {
+        state: { preSelectedDeck, gamePurpose: "playtest" },
+      });
       return;
     }
     start(deck);

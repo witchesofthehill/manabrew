@@ -67,6 +67,7 @@ import {
 } from "@/lib/scryfall.utils";
 import { DROP_ZONE, DEFAULT_DECK_NAME, ROUTES, STORAGE_KEYS } from "@/lib/constants";
 import { parseDeckListText } from "@/lib/deckImport";
+import { trackClientEvent } from "@/lib/clientAnalytics";
 import { useDroppable } from "@dnd-kit/core";
 import { cn } from "@/lib/utils";
 import {
@@ -697,7 +698,7 @@ export function DeckBuilder({
         toast.error(`Clipboard does not contain a recognized card list`);
         return;
       }
-      await importIntoCurrentDeck(entries, "", undefined, () => undefined);
+      await importIntoCurrentDeck(entries, "", undefined, () => undefined, "clipboard");
     } catch {
       toast.error(`Could not read cards from the clipboard`);
     }
@@ -1087,12 +1088,18 @@ export function DeckBuilder({
   }
   function handleExport() {
     const text = exportToArena(currentDeck);
-    navigator.clipboard.writeText(text).then(() => toast.success(`Deck copied to clipboard`));
+    navigator.clipboard.writeText(text).then(() => {
+      trackClientEvent("feature_used", { feature: "deck_export" });
+      toast.success(`Deck copied to clipboard`);
+    });
   }
   function handleExactExport() {
     navigator.clipboard
       .writeText(exportWithPrintings(currentDeck))
-      .then(() => toast.success(`Exact printings copied to clipboard`))
+      .then(() => {
+        trackClientEvent("feature_used", { feature: "deck_export" });
+        toast.success(`Exact printings copied to clipboard`);
+      })
       .catch(() => toast.error(`Could not write to the clipboard`));
   }
   async function handleSave(deckOverride?: EditorDeck, quiet = false) {

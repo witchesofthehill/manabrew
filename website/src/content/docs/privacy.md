@@ -6,7 +6,8 @@ description: What Manabrew stores, what it sends, and what it never collects.
 The short version: **no ads, no third-party tracking, and accounts are
 optional.** Games played on the public relay are recorded, offline use of an
 exact Community publication is reported for aggregate rankings, and you can
-explicitly save or publish decks. These are described below.
+explicitly save or publish decks. The app also sends limited usage events and
+first-game funnel checkpoints when frontend reporting is enabled.
 
 ## What stays on your machine
 
@@ -173,6 +174,73 @@ can reach the existing operations notification channel, without exception
 text, game IDs, or session IDs. These reports cover frontend exceptions and
 failures forwarded to the frontend, not native process crash dumps.
 
+## Aggregate client usage
+
+The same frontend reporting setting also enables explicit usage events in the
+managed app and official builds. These go to our self-hosted collector, not
+Grafana Cloud or an advertising service.
+
+Events describe visited screens and page URLs, deck-import success or failure,
+leaving a room before a game starts or waiting until it starts, deck exports,
+and playtest initiation. Imports distinguish creating a deck from adding cards and
+text input from the explicit clipboard action. An import can be partially
+successful when some cards cannot be found. Import and waiting durations use
+broad buckets. Events also include the app version/build, environment, and
+whether the client is web, PWA, desktop, or mobile.
+
+For screen views, the stored URL includes the site's origin and page path,
+including identifiers in paths such as game or Limited-session IDs. We strip
+URL credentials, query strings, and fragments. Sign-in callback and developer
+pages are excluded. Changing only a query string or fragment does not create
+another screen-view event.
+
+To correlate activity, the app includes your current relay username with each
+usage event, including the full guest suffix such as `@1234`. Signed-in
+accounts use their account handle. This username reaches our collector over
+HTTPS and is stored in readable form with the event as its Activity user ID.
+It is not hashed.
+
+The same full username links activity across launches and devices and is
+recognizable across environments. Changing a guest name, signing in under an
+account handle, or signing out separates subsequent activity under the new
+handle. Different people sharing a handle can appear as one, and one person
+using several handles can appear as several.
+
+This is identifiable usage history, not anonymous data. Maintainers can read
+your relay username alongside app activity and relate it directly to relay
+game records. Error-report metadata remains separate and does not receive
+this Activity user ID.
+
+The first-game funnel counts primary clicks and taps during navigation and
+setup until your first observed match against AI or other players. It does not
+count keyboard activation, scrolling, or game-board interactions. Deck-editor
+playtests, spectators, and engine-validation runs cannot complete the funnel.
+The count starts when this instrumentation is enabled, so it is not a record
+of your historical first-ever game.
+
+Checkpoints contain a cumulative count, a milestone category, and a random
+visit token generated in memory. They do not contain clicked elements, click
+coordinates, input values, or clicked text. The token lets the collector avoid
+counting retries twice; it is not a persistent device identifier. Counts
+accumulate across visits and devices under the same environment and relay
+handle, and freeze when the first game-start checkpoint is received.
+
+We do not enable SDK session tracking. Apart from the relay handle,
+identifiers in page paths, and the funnel visit token, usage events contain
+no separate account, device, game, or session IDs. They contain no deck/card
+contents, clipboard contents, search text, query strings, or arbitrary text.
+
+Raw usage events are restricted to maintainers and expire after 30 days. The
+first-game summary keeps your handle, recorded click count, and milestone
+timestamps until explicitly deleted. Pending visit high-water counts remain
+until a match completes or the summary is deleted; completion deletes those
+visit details. These handle-keyed summaries are separate from accounts, so
+account deletion does not remove them. Contact us to have them removed.
+
+Delivery failures can leave counts incomplete. The collector receives the
+sender's IP address to accept the request but does not add it to usage
+records or retain collector access logs.
+
 ## Who is responsible, and how to reach us
 
 Manabrew is run by the maintainers of the
@@ -185,16 +253,17 @@ in public, say so and we will arrange somewhere private.
 
 ## Why we are allowed to process this
 
-| What                                                                          | Why we may do it                                                         |
-| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| Running your account, syncing your decks, serving your publications           | Performing the service you asked us for                                  |
-| Sending a sign-in code by email                                               | Performing the service you asked us for                                  |
-| Recording relay games, keeping message captures, operational logs and metrics | Our legitimate interest in keeping the service working and debuggable    |
-| Aggregate Top Deck rankings                                                   | Our legitimate interest in making the app useful                         |
-| Offline play reports from published decks                                     | Our legitimate interest in ranking decks; the report carries no username |
+| What                                                                          | Why we may do it                                                          |
+| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Running your account, syncing your decks, serving your publications           | Performing the service you asked us for                                   |
+| Sending a sign-in code by email                                               | Performing the service you asked us for                                   |
+| Recording relay games, keeping message captures, operational logs and metrics | Our legitimate interest in keeping the service working and debuggable     |
+| Aggregate Top Deck rankings                                                   | Our legitimate interest in making the app useful                          |
+| Offline play reports from published decks                                     | Our legitimate interest in ranking decks; the report carries no username  |
+| Frontend diagnostics, client usage, and first-game funnels                    | Our legitimate interest in finding failures and understanding feature use |
 
 You can object to anything resting on legitimate interests - see below. We do
-not sell data, we do not advertise, and we do not profile you.
+not sell data or advertise.
 
 ## How long we keep things
 
@@ -211,6 +280,8 @@ current behaviour rather than promises we have automated.
 | Per-game message captures                         | A rolling 20 GB budget on the server; the oldest are dropped first, so how long a capture survives depends on how busy the relay has been |
 | Server logs and metrics                           | No automatic expiry yet                                                                                                                   |
 | Frontend error diagnostics                        | 30 days                                                                                                                                   |
+| Raw client usage events                           | 30 days                                                                                                                                   |
+| First-game summaries and pending visit counts     | Until explicitly deleted; pending visit details are deleted when the first observed match starts                                          |
 
 Where a row says "no automatic expiry yet", that is a gap we intend to close;
 ask us and we will remove your records by hand in the meantime.

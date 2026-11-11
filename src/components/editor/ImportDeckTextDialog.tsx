@@ -30,6 +30,7 @@ interface ImportDeckTextDialogProps {
     name: string,
     formatId: DeckFormat | undefined,
     onProgress: (fraction: number) => void,
+    source: "text" | "clipboard",
   ) => Promise<boolean | void>;
 }
 const GUIDE_STEPS = [
@@ -45,6 +46,7 @@ export function ImportDeckTextDialog({
   mode = "create",
 }: ImportDeckTextDialogProps) {
   const [text, setText] = useState("");
+  const [source, setSource] = useState<"text" | "clipboard">("text");
   const [customName, setCustomName] = useState<string | null>(null);
   const [formatId, setFormatId] = useState<DeckFormat | "">("");
   const [importing, setImporting] = useState(false);
@@ -52,6 +54,7 @@ export function ImportDeckTextDialog({
   const [reviewing, setReviewing] = useState(false);
   const close = useCallback(() => {
     setText("");
+    setSource("text");
     setCustomName(null);
     setFormatId("");
     setImporting(false);
@@ -87,7 +90,10 @@ export function ImportDeckTextDialog({
   const pasteFromClipboard = useCallback(async () => {
     try {
       const clip = await navigator.clipboard.readText();
-      if (clip.trim()) setText(clip);
+      if (clip.trim()) {
+        setText(clip);
+        setSource("clipboard");
+      }
     } catch {
       toast.error(`Couldn't read the clipboard \u2014 paste manually instead`);
     }
@@ -97,14 +103,14 @@ export function ImportDeckTextDialog({
     setImporting(true);
     setProgress(0);
     try {
-      const applied = await onImport(entries, name, formatId || undefined, setProgress);
+      const applied = await onImport(entries, name, formatId || undefined, setProgress, source);
       if (applied !== false) close();
       else setImporting(false);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : `Import failed`);
       setImporting(false);
     }
-  }, [valid, importing, entries, name, formatId, onImport, close]);
+  }, [valid, importing, entries, name, formatId, onImport, close, source]);
   return (
     <Dialog
       open={open}
@@ -294,6 +300,7 @@ export function ImportDeckTextDialog({
                 <textarea
                   autoFocus
                   value={text}
+                  onPaste={() => setSource("clipboard")}
                   onChange={(e) => {
                     setText(e.target.value);
                     setReviewing(false);

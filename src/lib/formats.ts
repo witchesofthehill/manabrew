@@ -346,9 +346,10 @@ export function validateDeck(
   cardNames: string[],
   format: GameFormat,
   copyLimits?: ReadonlyMap<string, number>,
+  maxDeckSize = format.deckRules.maxDeckSize,
 ): DeckValidation {
   const errors: string[] = [];
-  const { minDeckSize, maxDeckSize, maxCopies } = format.deckRules;
+  const { minDeckSize, maxCopies } = format.deckRules;
   if (cardNames.length < minDeckSize) {
     errors.push(`Deck must have at least ${minDeckSize} cards (has ${cardNames.length})`);
   }
@@ -381,6 +382,9 @@ function getCardIdentity(card?: DeckCard): string[] {
     return [...new Set(card.colorIdentity)];
   }
   return [...new Set((card.color ?? "").split("").filter(Boolean))];
+}
+function removesMaxDeckSize(card: DeckCard): boolean {
+  return /no maximum deck size/i.test(card.text);
 }
 function hasPartner(card?: DeckCard): boolean {
   if (!card) return false;
@@ -622,10 +626,12 @@ export function validateDeckSections(
     const limit = copyLimitFromText(c.text);
     if (limit !== null) copyLimits.set(c.identity.name, limit);
   }
+  const noMaxDeckSize = commanders.some(removesMaxDeckSize);
   const baseValidation = validateDeck(
     [...mainDeck, ...commanders].map((c) => c.identity.name),
     format,
     copyLimits,
+    noMaxDeckSize ? null : format.deckRules.maxDeckSize,
   );
   errors.push(...baseValidation.errors);
   if (sideboard.length > format.deckRules.sideboardMax) {
@@ -652,7 +658,7 @@ export function validateDeckSections(
   }
   if (format.deckRules.requiresCommander) {
     const expectedMainSize = format.deckRules.minDeckSize - commanders.length;
-    if (mainDeck.length !== expectedMainSize) {
+    if (!noMaxDeckSize && mainDeck.length !== expectedMainSize) {
       errors.push(
         `${format.name} deck must have exactly ${expectedMainSize} non-commander cards (has ${mainDeck.length})`,
       );

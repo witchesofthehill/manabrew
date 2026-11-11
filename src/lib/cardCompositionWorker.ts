@@ -264,7 +264,8 @@ function startWorker(slot: WorkerSlot): Promise<boolean> {
           const error = new Error(message.message);
           error.name = message.name;
           error.stack = message.stack ?? "";
-          if (error.name !== "AbortError") reportClientError(error, "render-worker");
+          if (error.name !== "AbortError" && !CARD_GLINT_LAYOUT_LIMITS.has(error.message))
+            reportClientError(error, "render-worker");
           job.reject(error);
         }
       }
@@ -272,6 +273,15 @@ function startWorker(slot: WorkerSlot): Promise<boolean> {
   });
   return slot.ready;
 }
+
+// Card Glint throws plain errors when a face exceeds its layout; the caller
+// falls back to the original scan, so these are outcomes, not exceptions.
+const CARD_GLINT_LAYOUT_LIMITS = new Set([
+  "Magic rules text does not fit the available area.",
+  "Standard template text exceeds its minimum readable size.",
+  "No ordinary colorless or artifact Saga plate is available.",
+  "Mana asset has no separable glyph.",
+]);
 
 export async function composeCardOffThread(
   input: CardCompositionInput,

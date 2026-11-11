@@ -102,6 +102,7 @@ import {
   stackObjectToCard,
   relayAvatarUrl,
   botAvatarUrl,
+  isBotSeat,
   gameRound,
   opponentsInTurnOrder,
 } from "@/components/game/game.utils";
@@ -1251,6 +1252,11 @@ export default function Game({ exitTo }: GameProps = {}) {
     () => (gameView && me ? opponentsInTurnOrder(gameView.players, me.id) : []),
     [gameView?.players, me?.id],
   );
+  const roomPlayers = useServerStore((s) => s.currentRoom?.players);
+  const botOpponents = useMemo(
+    () => opponents.filter((op) => isBotSeat(op, roomPlayers)),
+    [opponents, roomPlayers],
+  );
   const iAmEliminated = selfConceded || (me != null && me.status !== "playing");
   const ownsEngine = isHost || hostingForgeRoom;
   const gameContinuesWithoutMe = opponents.filter((p) => p.status === "playing").length >= 2;
@@ -2394,9 +2400,9 @@ export default function Game({ exitTo }: GameProps = {}) {
                     useServerStore.getState().players,
                     useServerStore.getState().playerDecks,
                   ) ??
-                  (turnHandoffPlayer.isHuman
-                    ? null
-                    : botAvatarUrl(turnHandoffPlayer.id, opponents))),
+                  (isBotSeat(turnHandoffPlayer, roomPlayers)
+                    ? botAvatarUrl(turnHandoffPlayer.id, botOpponents)
+                    : null)),
           }
         : null,
     sourceDeckCard: promptSourceDeckCard,

@@ -518,6 +518,8 @@ pub struct Card {
     /// Host card this temporary effect is linked to; when host leaves the
     /// battlefield, this effect expires.
     pub temp_effect_host: Option<CardId>,
+    #[serde(default)]
+    pub temp_effect_phase_out_host: Option<CardId>,
     /// Forget remembered cards when they move from this origin zone.
     pub forget_on_moved_origin: Option<ZoneType>,
     /// Exile this effect when remembered cards become empty after forget logic.
@@ -902,6 +904,7 @@ impl Card {
             lose_control_condition: None,
             temp_effect_until_eot: false,
             temp_effect_host: None,
+            temp_effect_phase_out_host: None,
             forget_on_moved_origin: None,
             exile_when_no_remembered: false,
             exiled_by: None,

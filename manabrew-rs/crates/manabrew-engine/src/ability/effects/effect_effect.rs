@@ -432,12 +432,14 @@ pub enum EffectDuration {
     EndOfTurn,
     Permanent,
     UntilHostLeavesPlay,
+    AsLongAsInPlay,
     UntilHostLeavesPlayOrEOT,
 }
 
 fn apply_duration_flags(effect: &mut Card, duration: Option<&AbilityDuration>, source_id: CardId) {
     let d = match duration {
         Some(AbilityDuration::UntilHostLeavesPlay) => EffectDuration::UntilHostLeavesPlay,
+        Some(AbilityDuration::AsLongAsInPlay) => EffectDuration::AsLongAsInPlay,
         Some(AbilityDuration::UntilHostLeavesPlayOrEot) => EffectDuration::UntilHostLeavesPlayOrEOT,
         Some(AbilityDuration::Unsupported(raw)) if raw.eq_ignore_ascii_case("Permanent") => {
             EffectDuration::Permanent
@@ -448,6 +450,10 @@ fn apply_duration_flags(effect: &mut Card, duration: Option<&AbilityDuration>, s
         EffectDuration::Permanent => {}
         EffectDuration::UntilHostLeavesPlay => {
             effect.set_temp_effect_host(Some(source_id));
+        }
+        EffectDuration::AsLongAsInPlay => {
+            effect.set_temp_effect_host(Some(source_id));
+            effect.temp_effect_phase_out_host = Some(source_id);
         }
         EffectDuration::UntilHostLeavesPlayOrEOT => {
             effect.set_temp_effect_host(Some(source_id));

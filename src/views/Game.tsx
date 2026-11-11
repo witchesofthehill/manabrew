@@ -16,6 +16,7 @@ import { useAutoResolvePrompt } from "@/components/prompts/internal/useAutoResol
 import { useShallow } from "zustand/react/shallow";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CardChoiceDto, CardDto, CheckpointDto, StackObjectDto } from "@/protocol/game";
+import type { AiLabPlaybackSpeed } from "@/platform/types";
 import type { DeckCard } from "@/protocol/deck";
 import type { ActivatableAbilityInfo } from "@/protocol/prompts/common";
 import type { ClientCardDto, ClientPlayerDto } from "@/stores/gameStore.types";
@@ -79,7 +80,6 @@ import { useTheme } from "@/hooks/useTheme";
 import { boardBackgroundDarken, boardBackgroundUrl } from "@/pixi/board/boardBackgrounds";
 import { Navigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Pause, Play } from "lucide-react";
 import { useLimitedGameReturn } from "@/hooks/useLimitedGameReturn";
 import { peekForGame as peekGauntletMatch } from "@/lib/gauntletReturn";
 import { peekLimitedMatchReturn } from "@/game/limitedSession";
@@ -354,6 +354,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [rightPanelLeft, setRightPanelLeft] = useState<number>();
   const [aiLabPaused, setAiLabPaused] = useState(false);
+  const [aiLabSpeed, setAiLabSpeed] = useState<AiLabPlaybackSpeed>(1);
   const aiLabPausedRef = useRef(false);
   const toggleAiLabPause = useCallback(async () => {
     const nextPaused = !aiLabPausedRef.current;
@@ -370,10 +371,24 @@ export default function Game({ exitTo }: GameProps = {}) {
       toast.error(error instanceof Error ? error.message : "Could not change the AI simulation state.");
     }
   }, []);
+  const changeAiLabSpeed = useCallback(async (nextSpeed: AiLabPlaybackSpeed) => {
+    const api = getSelectedGameRuntime().api;
+    if (!api.setSpectatorSpeed) {
+      toast.error("Playback speed is not supported by this game runtime.");
+      return;
+    }
+    try {
+      await api.setSpectatorSpeed(nextSpeed);
+      setAiLabSpeed(nextSpeed);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not change AI playback speed.");
+    }
+  }, []);
   useEffect(() => {
     if (!isAiLabSpectator) {
       aiLabPausedRef.current = false;
       setAiLabPaused(false);
+      setAiLabSpeed(1);
       return;
     }
     aiLabPausedRef.current = false;
@@ -1207,7 +1222,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     return () => clearTimeout(timer);
   }, [gameView?.priorityPlayerId, priorityHighlightPlayerId]);
   useGameEventListeners();
-  useGamePrefetch(preloadCardImages ? "full" : "visible");
+  useGamePrefetch(isAiLabSpectator || preloadCardImages ? "full" : "visible", isAiLabSpectator);
   useKeybindings({
     "open-settings": () => setGameSettingsOpen(true),
     "toggle-stack": () => useStackUIStore.getState().toggleCollapsed(),
@@ -2452,6 +2467,15 @@ export default function Game({ exitTo }: GameProps = {}) {
       isWaitingForResponse,
       isWaitingForOthers:
         relinquishedPriority || (isWaitingForResponse && gameView.priorityPlayerId !== me.id),
+      aiLabControls:
+        isAiLabSpectator && !gameView.gameOver
+          ? {
+              paused: aiLabPaused,
+              speed: aiLabSpeed,
+              onTogglePause: () => void toggleAiLabPause(),
+              onSpeedChange: (speed) => void changeAiLabSpeed(speed),
+            }
+          : undefined,
       availableAttackerIds:
         chooseAttackersInput?.attackers.map((attacker) => attacker.attackerId) ?? [],
       pendingAttackers,
@@ -2614,20 +2638,6 @@ export default function Game({ exitTo }: GameProps = {}) {
         />
       )}
       <LandscapeGate />
-      {isAiLabSpectator && gameView && !gameView.gameOver && (
-        <div className="pointer-events-auto absolute left-[calc(0.75rem+var(--safe-area-inset-left))] top-[calc(0.75rem+var(--safe-area-inset-top))] z-[9002]">
-          <Button
-            variant={aiLabPaused ? "primary" : "outline"}
-            size="sm"
-            className="gap-2 shadow-lg backdrop-blur-sm"
-            onClick={() => void toggleAiLabPause()}
-            aria-label={aiLabPaused ? "Resume AI game" : "Pause AI game"}
-          >
-            {aiLabPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
-            {aiLabPaused ? "Resume AI" : "Pause AI"}
-          </Button>
-        </div>
-      )}
       <DevViewportFrame>
         <GameBoard
           boardSceneRef={boardSceneRef}

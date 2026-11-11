@@ -9,6 +9,8 @@ export interface AiSimulationSeatStats {
   mulligans: number;
   promptTypes: Record<string, number>;
   actionLabels: Record<string, number>;
+  /** Counts keyed by the matching deck card identity ID. */
+  cardUses: Record<string, number>;
 }
 
 export interface AiSimulationGameResult {
@@ -33,9 +35,10 @@ export interface AiSimulationDeckSummary {
   games: number;
   wins: number;
   winRate: number;
-  average: Omit<AiSimulationSeatStats, "promptTypes" | "actionLabels">;
+  average: Omit<AiSimulationSeatStats, "promptTypes" | "actionLabels" | "cardUses">;
   promptTypes: Record<string, number>;
   actionLabels: Record<string, number>;
+  cardUses: Record<string, number>;
 }
 
 export interface AiSimulationSummary {

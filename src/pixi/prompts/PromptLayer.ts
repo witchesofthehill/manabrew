@@ -304,7 +304,13 @@ export class PromptLayer extends PromptModalLayer {
       !sameGameOverPresentation(previousSpec?.gameOver, spec?.gameOver);
     const overrideChanged =
       previousSpec?.action.promptActionOverride !== spec?.action.promptActionOverride;
-    const presentationChanged = promptChanged || !samePromptPresentation(previousSpec, spec);
+    const previousAiControls = previousSpec?.action.aiLabControls;
+    const nextAiControls = spec?.action.aiLabControls;
+    const aiControlsChanged =
+      previousAiControls?.paused !== nextAiControls?.paused ||
+      previousAiControls?.speed !== nextAiControls?.speed;
+    const presentationChanged =
+      promptChanged || aiControlsChanged || !samePromptPresentation(previousSpec, spec);
     if (promptChanged) {
       this.resetLocalState(spec);
       if (spec?.currentPrompt && MODAL_TYPES.has(spec.currentPrompt.input.type)) {
@@ -1615,6 +1621,76 @@ export class PromptLayer extends PromptModalLayer {
 
   private buildNoActionView(availableWidth: number, minimal: boolean): ActionViewLayout {
     const container = new Container();
+    const controls = this.spec?.action.aiLabControls;
+    if (controls) {
+      this.stopWaitingAnimation();
+      const gap = 4;
+      const width = availableWidth;
+      const minimumSpeedRowWidth = 3 * 54 + 2 * gap;
+      const stacked = minimal || width < 286;
+      const rowWidth = stacked ? Math.max(width, minimumSpeedRowWidth) : width;
+      const buttonHeight = minimal ? 40 : 38;
+      const height = stacked ? buttonHeight * 2 + gap : buttonHeight;
+      const pauseWidth = stacked
+        ? Math.min(112, Math.max(92, rowWidth * 0.56))
+        : Math.min(112, Math.max(88, rowWidth - 3 * 58 - gap * 3));
+      const speedWidth = stacked
+        ? (rowWidth - 2 * gap) / 3
+        : (rowWidth - pauseWidth - 3 * gap) / 3;
+      const pauseButton = this.makeButton(controls.paused ? "Resume" : "Pause", controls.onTogglePause, {
+        variant: controls.paused ? "primary" : "secondary",
+        compact: true,
+        flat: true,
+        radius: ACTION_CONTROL_RADIUS,
+        width: pauseWidth,
+        height: buttonHeight,
+        icon: controls.paused ? "lucide-play" : "lucide-pause",
+        iconSize: 14,
+        labelPlacement: "inline",
+        tooltip: false,
+        title: controls.paused ? "Resume AI game" : "Pause AI game",
+        fontSize: 11,
+        fontWeight: "800",
+        paddingX: 8,
+      });
+      pauseButton.position.set(
+        stacked ? (rowWidth - pauseWidth) / 2 : 0,
+        stacked ? 0 : (height - pauseButton.buttonHeight) / 2,
+      );
+      container.addChild(pauseButton);
+      const speeds: Array<{ speed: 0.5 | 1 | 2; icon: string }> = [
+        { speed: 0.5, icon: "lucide-rewind" },
+        { speed: 1, icon: "lucide-play" },
+        { speed: 2, icon: "lucide-fast-forward" },
+      ];
+      speeds.forEach(({ speed, icon }, index) => {
+        const selected = controls.speed === speed;
+        const button = this.makeButton(`${speed}x`, () => controls.onSpeedChange(speed), {
+          variant: selected ? "primary" : "secondary",
+          compact: true,
+          flat: true,
+          radius: ACTION_CONTROL_RADIUS,
+          width: speedWidth,
+          height: buttonHeight,
+          icon,
+          iconSize: 12,
+          labelPlacement: "inline",
+          tooltip: false,
+          title: `Set AI playback speed to ${speed}x`,
+          fontSize: 10,
+          fontWeight: selected ? "900" : "700",
+          paddingX: 4,
+          backgroundAlpha: selected ? 0.95 : 0.55,
+        });
+        button.position.set(
+          stacked ? index * (speedWidth + gap) : pauseWidth + gap + index * (speedWidth + gap),
+          stacked ? buttonHeight + gap : (height - button.buttonHeight) / 2,
+        );
+        container.addChild(button);
+      });
+      return { container, width: rowWidth, height };
+    }
+
     const width = minimal ? 30 : availableWidth;
     const height = minimal ? 48 : (this.priorityViewHeight ?? 48);
     const color = this.theme.appTheme["muted-foreground"];

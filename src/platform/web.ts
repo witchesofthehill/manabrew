@@ -23,6 +23,7 @@ import type {
   IEventBus,
   PlatformFeature,
   StartGameParams,
+  AiLabPlaybackSpeed,
   StartMultiplayerGameParams,
   RespondParams,
   SendDirectiveParams,
@@ -528,7 +529,9 @@ class WorkerBridge {
     this.localBotSlots = new Set(slots);
     this.spectatorMode = spectatorMode;
     if (spectatorMode) {
-      this.spectatorPauseControl = new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT);
+      // [0] = paused flag, [1] = decision delay in milliseconds (1x default).
+      this.spectatorPauseControl = new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT * 2);
+      Atomics.store(new Int32Array(this.spectatorPauseControl), 1, 120);
     }
   }
 
@@ -540,6 +543,15 @@ class WorkerBridge {
     if (!this.spectatorPauseControl) return;
     const control = new Int32Array(this.spectatorPauseControl);
     Atomics.store(control, 0, paused ? 1 : 0);
+    Atomics.notify(control, 0);
+  }
+
+  setSpectatorSpeed(speed: AiLabPlaybackSpeed): void {
+    if (!this.spectatorPauseControl) return;
+    const delayMs = speed === 0.5 ? 240 : speed === 2 ? 60 : 120;
+    const control = new Int32Array(this.spectatorPauseControl);
+    Atomics.store(control, 1, delayMs);
+    // Wake a pacing wait so the new speed takes effect immediately.
     Atomics.notify(control, 0);
   }
 
@@ -1009,6 +1021,7 @@ class WebGameApi implements IGameApi {
   private isMultiplayer = false;
   private isHost = false;
   private myPlayerSlot: string | null = null;
+  private watchOnly = false;
 
   constructor(bridge: WorkerBridge) {
     this.bridge = bridge;
@@ -1147,6 +1160,11 @@ class WebGameApi implements IGameApi {
   async setSpectatorPaused(paused: boolean): Promise<void> {
     if (!this.watchOnly) return;
     this.bridge.setSpectatorPaused(paused);
+  }
+
+  async setSpectatorSpeed(speed: AiLabPlaybackSpeed): Promise<void> {
+    if (!this.watchOnly) return;
+    this.bridge.setSpectatorSpeed(speed);
   }
 
   async endGame(): Promise<void> {

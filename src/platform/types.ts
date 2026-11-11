@@ -13,6 +13,8 @@ import type {
 import type { Deck } from "@/protocol/deck";
 import type { DirectiveInput, Prompt, PromptOutput, ResumeRoomRequest } from "@/protocol";
 
+export type AiLabPlaybackSpeed = 0.5 | 1 | 2;
+
 export interface StartGameParams {
   deck: Deck;
   startingLife: number;
@@ -139,6 +141,9 @@ export interface IGameApi {
 
   /** Pause or resume an AI Lab spectator game when the runtime supports it. */
   setSpectatorPaused?(paused: boolean): Promise<void>;
+
+  /** Set the AI Lab decision playback speed. */
+  setSpectatorSpeed?(speed: AiLabPlaybackSpeed): Promise<void>;
 
   getPrompt(): Promise<Prompt | null>;
 }

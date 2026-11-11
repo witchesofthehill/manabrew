@@ -108,16 +108,19 @@ function renderOpeningHand(since: number): Promise<unknown> | undefined {
   return libraryTopRendered(since, LIBRARY_TOP_ARRIVAL_MS);
 }
 
-function renderDeckPools(): void {
+function renderDeckPools(): Promise<void> {
   const { gameDecks, myPlayerSlot } = useGameStore.getState();
   const decks = Object.entries(gameDecks);
-  void warmDeckFaces(
+  return warmDeckFaces(
     decks.filter(([slot]) => slot === myPlayerSlot).map(([, deck]) => deck),
     decks.filter(([slot]) => slot !== myPlayerSlot).map(([, deck]) => deck),
   );
 }
 
-export function useGamePrefetch(mode: GamePrefetchMode): void {
+export function useGamePrefetch(
+  mode: GamePrefetchMode,
+  waitForCompleteDeck = false,
+): void {
   const gameView = useGameStore((s) => s.gameView);
   const isPrefetchingCards = useGameStore((s) => s.isPrefetchingCards);
   const startedRef = useRef(false);
@@ -140,18 +143,31 @@ export function useGamePrefetch(mode: GamePrefetchMode): void {
     const deckCards = Object.values(decks).flatMap(getDeckCardPool);
     const visibleCards = cardsToPrefetchImmediately(gameView, decks);
     const waitForDeck =
-      mode === "full" && usePreferencesStore.getState().battlefieldCardStyle !== "frame";
+      mode === "full" &&
+      (waitForCompleteDeck || usePreferencesStore.getState().battlefieldCardStyle !== "frame");
     const ready = Promise.all([
       prefetchCards(visibleCards).then(renderOpeningCards),
       waitForDeck ? prefetchAllCards(visibleCards, deckCards) : undefined,
       renderOpeningHand(loadingSinceRef.current),
-    ]);
-    const cap = new Promise<void>((resolve) => setTimeout(resolve, GAME_LOADING_CAP_MS));
-    void Promise.race([ready, cap]).finally(() => {
-      useGameStore.setState({ isPrefetchingCards: false });
-      renderDeckPools();
+    ]).then(async () => {
+      // AI Lab waits for every deck image and rendered card face before
+      // revealing the spectator board.
+      if (waitForCompleteDeck) await renderDeckPools();
     });
-    if (waitForDeck) return;
+    const cap = new Promise<void>((resolve) => setTimeout(resolve, GAME_LOADING_CAP_MS));
+    const completion = waitForCompleteDeck ? ready : Promise.race([ready, cap]);
+    void completion
+      .catch((error) => console.warn("[game prefetch] card preparation failed:", error))
+      .finally(() => {
+        useGameStore.setState({ isPrefetchingCards: false });
+        if (!waitForCompleteDeck) void renderDeckPools();
+      });
+    if (waitForDeck) {
+      return () => {
+        cancelled = true;
+        cancelIdle();
+      };
+    }
     void prefetchCards(likelyCards).then(() => {
       if (cancelled) return;
       cancelIdle = scheduleIdle(() => {
@@ -165,5 +181,5 @@ export function useGamePrefetch(mode: GamePrefetchMode): void {
       cancelled = true;
       cancelIdle();
     };
-  }, [gameView, isPrefetchingCards, mode]);
+  }, [gameView, isPrefetchingCards, mode, waitForCompleteDeck]);
 }

@@ -102,6 +102,13 @@ public final class SabTransport implements InteractiveBridge {
     static native void waitWhilePaused();
 
     @JS.Coerce
+    @JS("const shared = globalThis.__forgePauseControl; if (!shared) return; "
+        + "const control = new Int32Array(shared); "
+        + "const delay = Math.max(0, Atomics.load(control, 1)); "
+        + "if (delay > 0 && Atomics.load(control, 0) === 0) Atomics.wait(control, 0, 0, delay);")
+    static native void paceBotDecision();
+
+    @JS.Coerce
     @JS("const sabs = globalThis.__forgeSeatSabs;"
         + "return Array.isArray(sabs) ? sabs.indexOf(globalThis.__forgeSab) : 0;")
     static native int localSeat();
@@ -221,14 +228,20 @@ public final class SabTransport implements InteractiveBridge {
         JsonObject message;
         while (true) {
             waitWhilePaused();
-            while (!awaitAnswer(seat, LANE_POLL_MS)) {
+            if (!awaitAnswer(seat, LANE_POLL_MS)) {
                 final int lane = fullDirectiveLane();
                 if (lane >= 0) {
                     final JsonObject directive = new JsonObject();
                     directive.add("directive", JsonParser.parseString(takeDirective(lane)));
                     return decodeMessage(lane == hostDirectiveLane() ? HOST_SEAT : lane, directive);
                 }
+                continue;
             }
+            // Polling can already be in progress when the user clicks Pause.
+            // Recheck immediately after the response arrives, then apply the
+            // playback delay before advancing the visible game state.
+            waitWhilePaused();
+            if (bot) paceBotDecision();
             waitWhilePaused();
             message = readResponse(seat, promptJson);
             if (message != null) break;
@@ -308,7 +321,17 @@ public final class SabTransport implements InteractiveBridge {
         String result = null;
         for (int seat = 0; seat < seats; seat++) {
             JsonObject message;
-            do { message = readResponse(seat, promptJson); } while (message == null);
+            while (true) {
+                waitWhilePaused();
+                if (!awaitAnswer(seat, LANE_POLL_MS)) {
+                    continue;
+                }
+                waitWhilePaused();
+                if (botSeats.contains(seat)) paceBotDecision();
+                waitWhilePaused();
+                message = readResponse(seat, promptJson);
+                if (message != null) break;
+            }
             if (result == null || message.has("directive")) {
                 result = decodeMessage(seat, message);
             }

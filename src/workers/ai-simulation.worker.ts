@@ -41,11 +41,22 @@ function blankSeatStats(): AiSimulationSeatStats {
     mulligans: 0,
     promptTypes: {},
     actionLabels: {},
+    cardUses: {},
   };
 }
 
 function increment(target: Record<string, number>, key: string): void {
   target[key] = (target[key] ?? 0) + 1;
+}
+
+function findDeckCardByLabel(
+  deck: Deck,
+  label: string | undefined,
+): Deck["cards"][number] | undefined {
+  if (!label) return undefined;
+  return [...deck.cards, ...(deck.commanders ?? [])]
+    .filter((card) => card.identity.name && label.includes(card.identity.name))
+    .sort((left, right) => right.identity.name.length - left.identity.name.length)[0];
 }
 
 function percentile(values: number[], fraction: number): number {
@@ -76,6 +87,7 @@ function aggregate(
     mulligans: 0,
     promptTypes: {} as Record<string, number>,
     actionLabels: {} as Record<string, number>,
+    cardUses: {} as Record<string, number>,
   }));
   const seatWins = decks.map((_, seat) => ({ seat, wins: 0, games: 0 }));
   const turns: number[] = [];
@@ -109,6 +121,9 @@ function aggregate(
       }
       for (const [key, value] of Object.entries(seat.stats.actionLabels)) {
         total.actionLabels[key] = (total.actionLabels[key] ?? 0) + value;
+      }
+      for (const [cardId, count] of Object.entries(seat.stats.cardUses)) {
+        total.cardUses[cardId] = (total.cardUses[cardId] ?? 0) + count;
       }
     }
 
@@ -164,6 +179,7 @@ function aggregate(
         },
         promptTypes: total.promptTypes,
         actionLabels: total.actionLabels,
+        cardUses: total.cardUses,
       };
     }),
     seatWins,
@@ -232,7 +248,13 @@ async function playOneGame(
       stats.prompts += 1;
       const input = prompt.input as unknown as {
         type?: string;
-        actions?: Array<{ id?: string; type?: string; label?: string; description?: string }>;
+        actions?: Array<{
+          id?: string;
+          type?: string;
+          label?: string;
+          description?: string;
+          cardId?: string;
+        }>;
       };
       increment(stats.promptTypes, input.type ?? "unknown");
       const decisionStartedAt = performance.now();
@@ -256,6 +278,9 @@ async function playOneGame(
         if (selected?.type === "cast") {
           stats.casts += 1;
           if ((selected.label ?? "").startsWith("Play ")) stats.landPlays += 1;
+          const deckCard = findDeckCardByLabel(orderedDecks[index]!, selected.label);
+          const cardKey = deckCard?.identity.id || deckCard?.identity.name;
+          if (cardKey) increment(stats.cardUses, cardKey);
         } else {
           stats.abilities += 1;
         }

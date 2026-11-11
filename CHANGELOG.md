@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.79.6](https://github.com/witchesofthehill/manabrew/compare/v3.79.5...v3.79.6) (2026-11-11)
+
+### Fixes
+
+* no max sizew ([#1211](https://github.com/witchesofthehill/manabrew/issues/1211)) ([01c0b2e](https://github.com/witchesofthehill/manabrew/commit/01c0b2ef20ed60bb60f979d70127db5680bbb06c))
+
 ## [3.79.5](https://github.com/witchesofthehill/manabrew/compare/v3.79.4...v3.79.5) (2026-11-10)
 
 ### Fixes

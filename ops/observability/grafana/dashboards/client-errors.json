@@ -1,13 +1,24 @@
 {
   "uid": "manabrew-client-errors",
   "title": "Manabrew Client Errors",
+  "description": "Grouped, privacy-filtered client errors. Exact signatures are build-sensitive; counts are received reports, not affected people.",
   "tags": ["manabrew", "ops", "frontend"],
   "schemaVersion": 39,
   "editable": true,
   "timezone": "utc",
-  "time": { "from": "now-24h", "to": "now" },
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
   "refresh": "1m",
-  "links": [{ "title": "Live Ops", "type": "link", "url": "/d/manabrew-live-ops" }],
+  "links": [
+    {
+      "title": "Live Ops",
+      "type": "link",
+      "url": "/d/manabrew-live-ops",
+      "keepTime": true
+    }
+  ],
   "templating": {
     "list": [
       {
@@ -15,53 +26,120 @@
         "label": "Environment",
         "type": "custom",
         "query": "production,staging,development",
-        "current": { "text": "production", "value": "production" },
+        "multi": false,
         "includeAll": false,
-        "multi": false
+        "current": {
+          "text": "production",
+          "value": "production"
+        }
+      },
+      {
+        "name": "error_type",
+        "label": "Error type",
+        "type": "custom",
+        "query": "Error,TypeError,RangeError,ReferenceError,SyntaxError,URIError,EvalError,AggregateError,RuntimeError,CompileError,LinkError,AbortError,NetworkError,SecurityError,InvalidStateError",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "message",
+        "label": "Message contains",
+        "type": "textbox",
+        "query": "",
+        "current": {
+          "text": "",
+          "value": ""
+        }
       },
       {
         "name": "version",
-        "label": "Version regex",
+        "label": "Release contains",
         "type": "textbox",
-        "query": ".*",
-        "current": { "text": ".*", "value": ".*" }
-      },
-      {
-        "name": "build",
-        "label": "Build regex",
-        "type": "textbox",
-        "query": ".*",
-        "current": { "text": ".*", "value": ".*" }
+        "query": "",
+        "current": {
+          "text": "",
+          "value": ""
+        }
       },
       {
         "name": "platform",
         "label": "Platform",
         "type": "custom",
         "query": "web,pwa,desktop,mobile",
+        "multi": true,
         "includeAll": true,
         "allValue": ".*",
-        "current": { "text": "All", "value": "$__all" },
-        "multi": true
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
       },
       {
         "name": "source",
         "label": "Source",
         "type": "custom",
         "query": "startup,react,unhandled,engine-worker,render-worker,bot-worker,remote-engine,engine-operation",
+        "multi": true,
         "includeAll": true,
         "allValue": ".*",
-        "current": { "text": "All", "value": "$__all" },
-        "multi": true
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
       },
       {
         "name": "engine",
         "label": "Engine",
         "type": "custom",
         "query": "none,manabrew,forge-wasm,forge-desktop,forge-hosted,forge-remote,ironsmith,manual-tabletop",
+        "multi": true,
         "includeAll": true,
         "allValue": ".*",
-        "current": { "text": "All", "value": "$__all" },
-        "multi": true
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "smoke",
+        "label": "Smoke tests",
+        "type": "custom",
+        "query": "Hide : Faro production smoke test, Include : a^",
+        "multi": false,
+        "includeAll": false,
+        "current": {
+          "text": "Hide",
+          "value": "Faro production smoke test"
+        }
+      },
+      {
+        "name": "rank",
+        "label": "Rank groups by",
+        "type": "custom",
+        "query": "Most frequent : 0, Most recent : 1",
+        "multi": false,
+        "includeAll": false,
+        "current": {
+          "text": "Most frequent",
+          "value": "0"
+        }
+      },
+      {
+        "name": "groups",
+        "label": "Group limit",
+        "type": "custom",
+        "query": "50,100,250",
+        "multi": false,
+        "includeAll": false,
+        "current": {
+          "text": "100",
+          "value": "100"
+        }
       }
     ]
   },
@@ -69,84 +147,311 @@
     {
       "id": 1,
       "type": "stat",
-      "title": "Reported exceptions",
-      "description": "Eligible frontend exceptions after sanitization, deduplication, and delivery limits. Not native process crashes.",
-      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 5 },
-      "datasource": { "type": "loki", "uid": "loki" },
+      "title": "Received error reports",
+      "description": "All matching stored reports in the selected time range, before the group-table limit. Client deduplication and delivery limits apply.",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
       "targets": [
         {
           "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
           "queryType": "instant",
-          "expr": "sum(count_over_time({app=\"manabrew-client\",environment=~\"$environment\",source=~\"$source\"} | json | __error__=\"\" | kind=\"exception\" | context_version=~\"$version\" | context_build=~\"$build\" | context_platform=~\"$platform\" | context_engine=~\"$engine\" [$__range]))"
+          "editorMode": "code",
+          "expr": "sum(count_over_time({app=\"manabrew-client\",environment=~\"${environment:regex}\",source=~\"${source:regex}\"} | json | __error__=\"\" | kind=\"exception\" | type=~\"${error_type:regex}\" | context_platform=~\"${platform:regex}\" | context_engine=~\"${engine:regex}\" | context_signature!=\"\" | label_format browser_match=`{{ and (or (eq (urldecode \"${smoke:percentencode}\") \"a^\") (ne .value (urldecode \"${smoke:percentencode}\"))) (contains (urldecode \"${version:percentencode}\") .context_version) (contains (urldecode \"${message:percentencode}\") .value) }}` | browser_match=\"true\" | drop browser_match | keep source [$__range])) or vector(0)"
         }
       ],
       "fieldConfig": {
-        "defaults": { "unit": "short", "noValue": "0", "decimals": 0 },
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0"
+        },
         "overrides": []
       },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } }
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"]
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Exact error groups",
+      "description": "Distinct exact signatures matching the filters, before the table limit. Signatures can differ across builds and browser evaluations.",
+      "gridPos": {
+        "x": 4,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "queryType": "instant",
+          "editorMode": "code",
+          "expr": "count(sum by (context_signature) (count_over_time({app=\"manabrew-client\",environment=~\"${environment:regex}\",source=~\"${source:regex}\"} | json | __error__=\"\" | kind=\"exception\" | type=~\"${error_type:regex}\" | context_platform=~\"${platform:regex}\" | context_engine=~\"${engine:regex}\" | context_signature!=\"\" | label_format browser_match=`{{ and (or (eq (urldecode \"${smoke:percentencode}\") \"a^\") (ne .value (urldecode \"${smoke:percentencode}\"))) (contains (urldecode \"${version:percentencode}\") .context_version) (contains (urldecode \"${message:percentencode}\") .value) }}` | browser_match=\"true\" | drop browser_match | keep context_signature [$__range]))) or vector(0)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"]
+        }
+      }
     },
     {
       "id": 3,
       "type": "timeseries",
-      "title": "Exceptions by source",
-      "gridPos": { "x": 6, "y": 0, "w": 18, "h": 5 },
-      "datasource": { "type": "loki", "uid": "loki" },
+      "title": "Reports by error type",
+      "description": "Counts of stored reports per interval. Select a time range or error type to narrow the groups below.",
+      "gridPos": {
+        "x": 8,
+        "y": 0,
+        "w": 16,
+        "h": 4
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
       "targets": [
         {
           "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
           "queryType": "range",
-          "legendFormat": "{{source}}",
-          "expr": "sum by (source) (count_over_time({app=\"manabrew-client\",environment=~\"$environment\",source=~\"$source\"} | json | __error__=\"\" | kind=\"exception\" | context_version=~\"$version\" | context_build=~\"$build\" | context_platform=~\"$platform\" | context_engine=~\"$engine\" [$__auto]))"
+          "editorMode": "code",
+          "expr": "sum by (type) (count_over_time({app=\"manabrew-client\",environment=~\"${environment:regex}\",source=~\"${source:regex}\"} | json | __error__=\"\" | kind=\"exception\" | type=~\"${error_type:regex}\" | context_platform=~\"${platform:regex}\" | context_engine=~\"${engine:regex}\" | context_signature!=\"\" | label_format browser_match=`{{ and (or (eq (urldecode \"${smoke:percentencode}\") \"a^\") (ne .value (urldecode \"${smoke:percentencode}\"))) (contains (urldecode \"${version:percentencode}\") .context_version) (contains (urldecode \"${message:percentencode}\") .value) }}` | browser_match=\"true\" | drop browser_match | keep type [$__auto]))",
+          "legendFormat": "{{type}}"
         }
       ],
-      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 }, "overrides": [] },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0"
+        },
+        "overrides": []
+      },
       "options": {}
     },
     {
       "id": 4,
       "type": "table",
-      "title": "Frequent exception signatures",
-      "description": "Signatures use safe exception category, source, operation, and asset coordinates. They are not the receiver's message-only hash and are not persistent issue records.",
-      "gridPos": { "x": 0, "y": 5, "w": 24, "h": 7 },
-      "datasource": { "type": "loki", "uid": "loki" },
+      "title": "Error groups · up to $groups",
+      "description": "One row per exact signature, combining matching platforms and releases. Type/message/location/release/platform describe a most-recent matching report. Rank groups by chooses the globally most frequent or most recent groups before the limit; column headers sort only the loaded rows. Click a message or signature for all matching occurrences.",
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 24,
+        "h": 13
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
       "targets": [
         {
           "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
           "queryType": "instant",
-          "expr": "topk(20, sum by (context_signature, context_source, context_build, context_platform) (count_over_time({app=\"manabrew-client\",environment=~\"$environment\",source=~\"$source\"} | json | __error__=\"\" | kind=\"exception\" | context_version=~\"$version\" | context_build=~\"$build\" | context_platform=~\"$platform\" | context_engine=~\"$engine\" [$__range])))"
-        }
-      ],
-      "transformations": [{ "id": "labelsToFields", "options": { "mode": "columns" } }],
-      "fieldConfig": { "defaults": { "decimals": 0 }, "overrides": [] },
-      "options": { "showHeader": true }
-    },
-    {
-      "id": 5,
-      "type": "table",
-      "title": "Exception details",
-      "description": "Sanitized exception details, source-mapped stacktrace when available, and allowlisted build, platform, engine, and normalized-route metadata.",
-      "gridPos": { "x": 0, "y": 12, "w": 24, "h": 10 },
-      "datasource": { "type": "loki", "uid": "loki" },
-      "targets": [
-        {
-          "refId": "A",
-          "queryType": "range",
-          "maxLines": 200,
-          "expr": "{app=\"manabrew-client\",environment=~\"$environment\",source=~\"$source\"} | json | __error__=\"\" | kind=\"exception\" | context_version=~\"$version\" | context_build=~\"$build\" | context_platform=~\"$platform\" | context_engine=~\"$engine\""
-        }
-      ],
-      "transformations": [
-        {
-          "id": "extractFields",
-          "options": { "source": "Line", "format": "json", "replace": true, "keepTime": true }
+          "editorMode": "code",
+          "expr": "(sum by (context_signature) (count_over_time({app=\"manabrew-client\",environment=~\"${environment:regex}\",source=~\"${source:regex}\"} | json | __error__=\"\" | kind=\"exception\" | type=~\"${error_type:regex}\" | context_platform=~\"${platform:regex}\" | context_engine=~\"${engine:regex}\" | context_signature!=\"\" | label_format browser_match=`{{ and (or (eq (urldecode \"${smoke:percentencode}\") \"a^\") (ne .value (urldecode \"${smoke:percentencode}\"))) (contains (urldecode \"${version:percentencode}\") .context_version) (contains (urldecode \"${message:percentencode}\") .value) }}` | browser_match=\"true\" | drop browser_match | keep context_signature [$__range])) and on (context_signature) topk(${groups:raw}, (1 - ${rank:raw}) * sum by (context_signature) (count_over_time({app=\"manabrew-client\",environment=~\"${environment:regex}\",source=~\"${source:regex}\"} | json | __error__=\"\" | kind=\"exception\" | type=~\"${error_type:regex}\" | context_platform=~\"${platform:regex}\" | context_engine=~\"${engine:regex}\" | context_signature!=\"\" | label_format browser_match=`{{ and (or (eq (urldecode \"${smoke:percentencode}\") \"a^\") (ne .value (urldecode \"${smoke:percentencode}\"))) (contains (urldecode \"${version:percentencode}\") .context_version) (contains (urldecode \"${message:percentencode}\") .value) }}` | browser_match=\"true\" | drop browser_match | keep context_signature [$__range])) + ${rank:raw} * max by (context_signature) (max_over_time({app=\"manabrew-client\",environment=~\"${environment:regex}\",source=~\"${source:regex}\"} | json | __error__=\"\" | kind=\"exception\" | type=~\"${error_type:regex}\" | context_platform=~\"${platform:regex}\" | context_engine=~\"${engine:regex}\" | context_signature!=\"\" | label_format browser_match=`{{ and (or (eq (urldecode \"${smoke:percentencode}\") \"a^\") (ne .value (urldecode \"${smoke:percentencode}\"))) (contains (urldecode \"${version:percentencode}\") .context_version) (contains (urldecode \"${message:percentencode}\") .value) }}` | browser_match=\"true\" | drop browser_match | keep context_signature | label_format browser_timestamp=`{{ __timestamp__ | unixEpochMillis }}` | unwrap browser_timestamp | __error__=\"\" [$__range])))) * on (context_signature) group_left (type,value,location,context_version,context_platform,context_source,browser_seen) (topk by (context_signature) (1, max by (context_signature, type, value, location, context_version, context_platform, context_source, browser_seen) (max_over_time({app=\"manabrew-client\",environment=~\"${environment:regex}\",source=~\"${source:regex}\"} | json | __error__=\"\" | kind=\"exception\" | type=~\"${error_type:regex}\" | context_platform=~\"${platform:regex}\" | context_engine=~\"${engine:regex}\" | context_signature!=\"\" | label_format browser_match=`{{ and (or (eq (urldecode \"${smoke:percentencode}\") \"a^\") (ne .value (urldecode \"${smoke:percentencode}\"))) (contains (urldecode \"${version:percentencode}\") .context_version) (contains (urldecode \"${message:percentencode}\") .value) }}` | browser_match=\"true\" | drop browser_match | label_format location=`{{ if contains \"\\nat \" .stacktrace }}{{ regexReplaceAll \"(?s)^.*?\\n(at [^\\n]+).*$\" .stacktrace \"$1\" }}{{ else }}No captured frame{{ end }}`, browser_timestamp=`{{ __timestamp__ | unixEpochMillis }}`, browser_seen=`{{ __timestamp__ | unixEpochMillis }}` | keep context_signature,type,value,location,context_version,context_platform,context_source,browser_timestamp,browser_seen | unwrap browser_timestamp | __error__=\"\" [$__range]))) > bool 0)"
         }
       ],
       "fieldConfig": {
-        "defaults": { "custom": { "cellOptions": { "type": "auto" }, "filterable": true } },
-        "overrides": []
+        "defaults": {
+          "custom": {
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "minWidth": 90
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Message"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "View occurrences and stack",
+                    "url": "/d/manabrew-client-error-detail?from=${__from}&to=${__to}&${environment:queryparam}&${error_type:queryparam}&${message:queryparam}&${version:queryparam}&${platform:queryparam}&${source:queryparam}&${engine:queryparam}&${smoke:queryparam}&var-signature=${__data.fields[\"context_signature\"]:percentencode}",
+                    "targetBlank": false
+                  }
+                ]
+              },
+              {
+                "id": "custom.width",
+                "value": 360
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "context_signature"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Signature"
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "View occurrences and stack",
+                    "url": "/d/manabrew-client-error-detail?from=${__from}&to=${__to}&${environment:queryparam}&${error_type:queryparam}&${message:queryparam}&${version:queryparam}&${platform:queryparam}&${source:queryparam}&${engine:queryparam}&${smoke:queryparam}&var-signature=${__data.fields[\"context_signature\"]:percentencode}",
+                    "targetBlank": false
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Last seen"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "dateTimeAsIso"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Occurrences"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "First frame"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 300
+              }
+            ]
+          }
+        ]
       },
-      "options": { "showHeader": true, "cellHeight": "sm" }
+      "options": {
+        "showHeader": true,
+        "cellHeight": "md",
+        "enablePagination": true,
+        "sortBy": [
+          {
+            "displayName": "Occurrences",
+            "desc": true
+          }
+        ]
+      },
+      "transformations": [
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "targetField": "browser_seen",
+                "destinationType": "number"
+              }
+            ]
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "indexByName": {
+              "type": 0,
+              "value": 1,
+              "Value #A": 2,
+              "browser_seen": 3,
+              "location": 4,
+              "context_version": 5,
+              "context_platform": 6,
+              "context_source": 7,
+              "context_signature": 8
+            },
+            "renameByName": {
+              "type": "Type",
+              "value": "Message",
+              "Value #A": "Occurrences",
+              "browser_seen": "Last seen",
+              "location": "First frame",
+              "context_version": "Latest release",
+              "context_platform": "Latest platform",
+              "context_source": "Source"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "text",
+      "title": "Reading this browser",
+      "gridPos": {
+        "x": 0,
+        "y": 17,
+        "w": 24,
+        "h": 3
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "Choose **Rank groups by** to select the most frequent or most recent groups across the full filtered range. Header sorting and table pagination affect only the loaded groups. Raise **Group limit** or narrow the filters when the group total exceeds the limit.\n\nClick a message to browse occurrences, stacks, causes and diagnostic context. Release and message searches are literal and case-sensitive. Smoke tests are hidden by default. Counts represent received reports, not unique people or every thrown exception. Exact signatures may split across releases; retained history is limited to 30 days. Loki metric aggregation is bounded at 10,000 series; narrow the time range or filters if that backend limit is reached."
+      }
     }
   ]
 }

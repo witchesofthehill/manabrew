@@ -137,6 +137,9 @@ export interface IGameApi {
 
   endGame(): Promise<void>;
 
+  /** Pause or resume an AI Lab spectator game when the runtime supports it. */
+  setSpectatorPaused?(paused: boolean): Promise<void>;
+
   getPrompt(): Promise<Prompt | null>;
 }
 

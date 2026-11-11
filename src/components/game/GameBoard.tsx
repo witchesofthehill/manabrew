@@ -1710,18 +1710,22 @@ export function GameBoard({
           s.isEliminated ? "eliminated" : null,
           s.isDisconnected ? "disconnected" : null,
         ].filter(Boolean);
-        const who = s.isSelf ? "You" : s.name;
+        const who = s.isSelf && !s.isBot ? "You" : s.name;
         return `${who}: ${s.life} life${tags.length ? ` (${tags.join(", ")})` : ""}`;
       })
       .join(". ");
-    const turn = active ? `${active.isSelf ? "Your" : `${active.name}'s`} turn. ` : "";
+    const turn = active
+      ? `${active.isSelf && !active.isBot ? "Your" : `${active.name}'s`} turn. `
+      : "";
     return `${turn}${players}.`;
   }, [playerBarSpecs]);
   const combatA11y = useMemo(() => {
     const nameOf = (id: string) =>
-      id === me.id
+      id === me.id && me.isHuman
         ? "You"
-        : stripUsernameTag(opponents.find((o) => o.id === id)?.name ?? "a player");
+        : stripUsernameTag(
+            id === me.id ? me.name : (opponents.find((o) => o.id === id)?.name ?? "a player"),
+          );
     const pairs = new Map<
       string,
       {
@@ -1749,7 +1753,7 @@ export function GameBoard({
           `${p.attacker} ${p.attacker === "You" ? "attack" : "attacks"} ${p.defender} with ${p.count} ${p.count === 1 ? "attacker" : "attackers"}`,
       )
       .join(". ")}.`;
-  }, [battlefield, opponents, me.id]);
+  }, [battlefield, opponents, me.id, me.name, me.isHuman]);
   const boardSceneProps = {
     regions: unifiedRegions,
     hand: pixiHand,

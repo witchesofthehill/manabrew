@@ -277,6 +277,9 @@ class WorkerBridge {
   // their buffers.
   private localBotSlots = new Set<string>();
   private localBotWorkers = new Map<string, Worker>();
+  private spectatorMode = false;
+  private spectatorHandZones = new Map<string, Record<string, unknown>>();
+  private spectatorPauseControl: SharedArrayBuffer | null = null;
   // Only the Forge worker has directive lanes; the Rust worker still takes a
   // directive through the seat buffer.
   private directiveLanes: {
@@ -297,7 +300,7 @@ class WorkerBridge {
       if (this.localSeat) this.dropSeat(this.localSeat);
       this.localSeat = seat;
       if (this.localBotSlots.has("player-0")) {
-        this.startLocalBotWorker(payload.buffer, "player-0", true);
+        this.startLocalBotWorker(payload.buffer, "player-0", this.spectatorMode);
         return;
       }
       if (DEBUG_TRANSPORT) console.log("[WorkerBridge] Received local SAB, starting reader");
@@ -316,7 +319,7 @@ class WorkerBridge {
     eventBus.on<{ buffer: SharedArrayBuffer; playerSlot: string }>("game:remote_sab", (payload) => {
       const { playerSlot } = payload;
       if (this.localBotSlots.has(playerSlot)) {
-        this.startLocalBotWorker(payload.buffer, playerSlot);
+        this.startLocalBotWorker(payload.buffer, playerSlot, this.spectatorMode);
         return;
       }
       const seat = createSeat(payload.buffer);
@@ -353,6 +356,16 @@ class WorkerBridge {
     );
 
     eventBus.on<{ seat: number; state: unknown }>("game:seat_state", ({ seat, state }) => {
+      if (this.spectatorMode) {
+        // Forge's built-in AI seats have no Manabot worker; their seat-addressed
+        // state still provides the private hand view needed by the spectator.
+        this.dispatchSpectatorEngineMessage(
+          `player-${seat}`,
+          { kind: "state", state } as EngineMessage,
+          performance.now(),
+        );
+        return;
+      }
       if (!this.directiveLanes) return;
       if (seat === this.directiveLanes.localSeat) {
         this.applyEngineMessage({ kind: "state", state });
@@ -408,6 +421,48 @@ class WorkerBridge {
     // Eager so a response can't arrive before the listener exists; it
     // no-ops while remoteSeats is empty.
     this.installRemoteResponseListener();
+  }
+
+  private dispatchSpectatorEngineMessage(
+    playerSlot: string,
+    message: EngineMessage,
+    arrivedAt: number,
+  ): void {
+    if (message?.kind !== "state" || !message.state || typeof message.state !== "object") {
+      this.dispatchEngineMessage(message, arrivedAt);
+      return;
+    }
+    const state = message.state as {
+      gameView?: {
+        players?: Array<Record<string, unknown>>;
+        zones?: Array<Record<string, unknown>>;
+      };
+      [key: string]: unknown;
+    };
+    const view = state.gameView;
+    if (!view?.zones || !Array.isArray(view.zones)) {
+      this.dispatchEngineMessage(message, arrivedAt);
+      return;
+    }
+
+    // Every seat's view reveals its own hand. Retain those hand zones and
+    // merge them into the latest board snapshot without exposing libraries.
+    const ownHand = view.zones.find(
+      (zone) => zone.zone === "hand" && zone.ownerId === playerSlot,
+    );
+    if (ownHand) this.spectatorHandZones.set(playerSlot, ownHand);
+    const zones = view.zones.map((zone) => {
+      if (zone.zone !== "hand" || typeof zone.ownerId !== "string") return zone;
+      return this.spectatorHandZones.get(zone.ownerId) ?? zone;
+    });
+    const players = view.players?.map((player) => ({ ...player, isHuman: false }));
+    this.dispatchEngineMessage(
+      {
+        ...message,
+        state: { ...state, gameView: { ...view, zones, players } },
+      } as EngineMessage,
+      arrivedAt,
+    );
   }
 
   private dispatchEngineMessage(msg: EngineMessage, arrivedAt: number): void {
@@ -468,9 +523,24 @@ class WorkerBridge {
    * Which seats Manabots take at the next table. Set before the engine
    * starts, and kept across the worker swap `invoke` may do on the way there.
    */
-  setLocalBotSlots(slots: Iterable<string>): void {
+  setLocalBotSlots(slots: Iterable<string>, spectatorMode = false): void {
     this.stopLocalBots();
     this.localBotSlots = new Set(slots);
+    this.spectatorMode = spectatorMode;
+    if (spectatorMode) {
+      this.spectatorPauseControl = new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT);
+    }
+  }
+
+  getSpectatorPauseControl(): SharedArrayBuffer | undefined {
+    return this.spectatorPauseControl ?? undefined;
+  }
+
+  setSpectatorPaused(paused: boolean): void {
+    if (!this.spectatorPauseControl) return;
+    const control = new Int32Array(this.spectatorPauseControl);
+    Atomics.store(control, 0, paused ? 1 : 0);
+    Atomics.notify(control, 0);
   }
 
   private startLocalBotWorker(
@@ -493,7 +563,8 @@ class WorkerBridge {
     ) => {
       if (event.data.type === "state" && mirrorState && event.data.json) {
         try {
-          this.dispatchEngineMessage(
+          this.dispatchSpectatorEngineMessage(
+            playerSlot,
             JSON.parse(event.data.json) as EngineMessage,
             performance.now(),
           );
@@ -538,6 +609,10 @@ class WorkerBridge {
   private stopLocalBots(): void {
     for (const worker of this.localBotWorkers.values()) worker.terminate();
     this.localBotWorkers.clear();
+    this.setSpectatorPaused(false);
+    this.spectatorPauseControl = null;
+    this.spectatorMode = false;
+    this.spectatorHandZones.clear();
   }
 
   setEnginePlayerNames(playerNames: string[]): void {
@@ -837,7 +912,19 @@ class WorkerBridge {
       let forgeWasm = this.worker ? this.workerIsForgeWasm : isForgeWasmHostingEnabled();
       if (startsGame) forgeWasm = args?.engine === "Forge";
       if (startsGame && this.worker && this.workerIsForgeWasm !== forgeWasm) {
+        // An AI Lab launch may switch the shared bridge from the default
+        // Manabrew worker to Forge WASM. terminate() must stop the old seat
+        // workers, but the new Forge worker still needs the bot-seat routing,
+        // spectator state mirroring, and pause buffer configured by startGame.
+        const botSetup = {
+          slots: [...this.localBotSlots],
+          spectatorMode: this.spectatorMode,
+          pauseControl: this.spectatorPauseControl,
+        };
         this.terminate();
+        this.localBotSlots = new Set(botSetup.slots);
+        this.spectatorMode = botSetup.spectatorMode;
+        this.spectatorPauseControl = botSetup.pauseControl;
       }
       await this.init(forgeWasm);
       if (startsGame && this.workerIsForgeWasm) {
@@ -933,27 +1020,38 @@ class WebGameApi implements IGameApi {
 
   async startGame(params: StartGameParams): Promise<string> {
     const externalBotSeats =
-      params.engine === "Forge" && params.aiController !== "forge"
+      params.engine === "Forge" && (params.watchOnly || params.aiController !== "forge")
         ? (params.opponentDecks?.length ? params.opponentDecks : [params.deck]).map(
             (_, index) => `player-${index + 1}`,
           )
         : [];
+    this.watchOnly = params.watchOnly === true;
     this.bridge.setLocalBotSlots(
-      params.watchOnly ? ["player-0", ...externalBotSeats] : externalBotSeats,
+      this.watchOnly ? ["player-0", ...externalBotSeats] : externalBotSeats,
+      this.watchOnly,
     );
-    return this.bridge.invoke<string>("start_game", {
-      deck: params.deck,
-      startingLife: params.startingLife,
-      commanderName: params.commanderName,
-      opponentDecks: params.opponentDecks,
-      engine: params.engine,
-      watchOnly: params.watchOnly === true,
-      forgeAi: params.aiController === "forge",
-      decisionJournal: params.engine === "Forge" && params.aiController !== "forge",
-      journalRewind: params.engine === "Forge" && params.aiController !== "forge",
-    });
+    try {
+      return await this.bridge.invoke<string>("start_game", {
+        deck: params.deck,
+        startingLife: params.startingLife,
+        commanderName: params.commanderName,
+        opponentDecks: params.opponentDecks,
+        engine: params.engine,
+        watchOnly: this.watchOnly,
+        // AI Lab uses Manabot-driven seats so every decision is journaled
+        // and can be deterministically replayed, regardless of the normal
+        // single-player AI preference.
+        forgeAi: !this.watchOnly && params.aiController === "forge",
+        decisionJournal: params.engine === "Forge" && (this.watchOnly || params.aiController !== "forge"),
+        journalRewind: params.engine === "Forge" && (this.watchOnly || params.aiController !== "forge"),
+        pauseControl: this.watchOnly ? this.bridge.getSpectatorPauseControl() : undefined,
+      });
+    } catch (error) {
+      this.watchOnly = false;
+      this.bridge.setLocalBotSlots([]);
+      throw error;
+    }
   }
-
   async startMultiplayerGame(params: StartMultiplayerGameParams): Promise<void> {
     this.isMultiplayer = true;
     this.isHost = params.localIsHost;
@@ -1046,7 +1144,13 @@ class WebGameApi implements IGameApi {
     this.bridge.deliverHostDirective(directive);
   }
 
+  async setSpectatorPaused(paused: boolean): Promise<void> {
+    if (!this.watchOnly) return;
+    this.bridge.setSpectatorPaused(paused);
+  }
+
   async endGame(): Promise<void> {
+    this.watchOnly = false;
     this.isMultiplayer = false;
     this.isHost = false;
     this.myPlayerSlot = null;

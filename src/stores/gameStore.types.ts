@@ -93,6 +93,8 @@ export interface GameState {
   gauntletId: string | null;
   /** Set at concede click, before the engine confirms via `status: "conceded"`. */
   selfConceded: boolean;
+  /** True only while this client is spectating an offline AI Lab game. */
+  isAiLabSpectator: boolean;
   isMultiplayer: boolean;
   isHost: boolean;
   myPlayerSlot: string | null;

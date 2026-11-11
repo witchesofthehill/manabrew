@@ -79,6 +79,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { boardBackgroundDarken, boardBackgroundUrl } from "@/pixi/board/boardBackgrounds";
 import { Navigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Pause, Play } from "lucide-react";
 import { useLimitedGameReturn } from "@/hooks/useLimitedGameReturn";
 import { peekForGame as peekGauntletMatch } from "@/lib/gauntletReturn";
 import { peekLimitedMatchReturn } from "@/game/limitedSession";
@@ -274,6 +275,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   const engineCrash = useGameStore((s) => s.engineCrash);
   const isMultiplayer = useGameStore((s) => s.isMultiplayer);
   const isHost = useGameStore((s) => s.isHost);
+  const isAiLabSpectator = useGameStore((s) => s.isAiLabSpectator);
   const selfConceded = useGameStore((s) => s.selfConceded);
   const gameView = useMemo(() => {
     if (!rawGameView || !selfConceded || !myPlayerSlot) return rawGameView;
@@ -351,6 +353,44 @@ export default function Game({ exitTo }: GameProps = {}) {
     )?.devExtraOpponents ?? 0;
   const containerRef = useRef<HTMLDivElement>(null);
   const [rightPanelLeft, setRightPanelLeft] = useState<number>();
+  const [aiLabPaused, setAiLabPaused] = useState(false);
+  const aiLabPausedRef = useRef(false);
+  const toggleAiLabPause = useCallback(async () => {
+    const nextPaused = !aiLabPausedRef.current;
+    const api = getSelectedGameRuntime().api;
+    if (!api.setSpectatorPaused) {
+      toast.error("Pause is not supported by this game runtime.");
+      return;
+    }
+    try {
+      await api.setSpectatorPaused(nextPaused);
+      aiLabPausedRef.current = nextPaused;
+      setAiLabPaused(nextPaused);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not change the AI simulation state.");
+    }
+  }, []);
+  useEffect(() => {
+    if (!isAiLabSpectator) {
+      aiLabPausedRef.current = false;
+      setAiLabPaused(false);
+      return;
+    }
+    aiLabPausedRef.current = false;
+    setAiLabPaused(false);
+    return () => {
+      if (aiLabPausedRef.current) {
+        const api = getSelectedGameRuntime().api;
+        if (api.setSpectatorPaused) void api.setSpectatorPaused(false).catch(() => undefined);
+        aiLabPausedRef.current = false;
+      }
+    };
+  }, [isAiLabSpectator]);
+  useEffect(() => {
+    if (!gameView?.gameOver) return;
+    aiLabPausedRef.current = false;
+    setAiLabPaused(false);
+  }, [gameView?.gameOver]);
   const boardSceneRef = useRef<BoardScene | null>(null);
   const placementIntentRef = useRef<{
     cardId: string;
@@ -1612,7 +1652,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   );
   const combatPairings = useMemo<CombatPairing[]>(() => {
     const nameOf = (id: string) =>
-      id === myPlayerSlot
+      id === myPlayerSlot && !isAiLabSpectator
         ? `You`
         : (gameView?.players?.find((p) => p.id === id)?.name ?? `A player`);
     const pairs = new Map<string, CombatPairing>();
@@ -1630,7 +1670,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         });
     }
     return [...pairs.values()];
-  }, [gameView?.battlefield, gameView?.players, myPlayerSlot]);
+  }, [gameView?.battlefield, gameView?.players, myPlayerSlot, isAiLabSpectator]);
   const cardZoneTiles = useMemo(() => {
     const map = new Map<
       string,
@@ -2389,7 +2429,7 @@ export default function Game({ exitTo }: GameProps = {}) {
             step: activeFlash.step,
             color: playerColorMap.get(activeFlash.playerId) ?? themeColors.playerColors.self,
             label:
-              activeFlash.playerId === me.id
+              activeFlash.playerId === me.id && !isAiLabSpectator
                 ? "Your turn"
                 : `${stripUsernameTag(turnHandoffPlayer.name)}'s turn`,
             avatarUrl:
@@ -2574,6 +2614,20 @@ export default function Game({ exitTo }: GameProps = {}) {
         />
       )}
       <LandscapeGate />
+      {isAiLabSpectator && gameView && !gameView.gameOver && (
+        <div className="pointer-events-auto absolute left-[calc(0.75rem+var(--safe-area-inset-left))] top-[calc(0.75rem+var(--safe-area-inset-top))] z-[9002]">
+          <Button
+            variant={aiLabPaused ? "primary" : "outline"}
+            size="sm"
+            className="gap-2 shadow-lg backdrop-blur-sm"
+            onClick={() => void toggleAiLabPause()}
+            aria-label={aiLabPaused ? "Resume AI game" : "Pause AI game"}
+          >
+            {aiLabPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
+            {aiLabPaused ? "Resume AI" : "Pause AI"}
+          </Button>
+        </div>
+      )}
       <DevViewportFrame>
         <GameBoard
           boardSceneRef={boardSceneRef}

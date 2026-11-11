@@ -16,16 +16,16 @@ const TABS = [
     icon: Swords,
   },
   {
-    to: ROUTES.PLAY_OFFLINE_AI,
-    label: `AI Lab`,
-    hint: `Watch & simulate`,
-    icon: Bot,
-  },
-  {
     to: ROUTES.PLAY_OFFLINE_LIMITED,
     label: `Limited`,
     hint: `Draft & sealed`,
     icon: Boxes,
+  },
+  {
+    to: ROUTES.PLAY_OFFLINE_AI,
+    label: `AI Lab`,
+    hint: `Watch & simulate`,
+    icon: Bot,
   },
 ];
 export function OfflinePlayShell({ children }: OfflinePlayShellProps) {

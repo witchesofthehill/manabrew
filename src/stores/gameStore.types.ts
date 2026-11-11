@@ -56,11 +56,16 @@ export interface DeferredSnapshot {
   prompt: Prompt | null;
 }
 
+export type GamePurpose = "match" | "playtest" | "manual";
+
 export interface GameState {
   gameView: ClientGameView | null;
   currentPrompt: Prompt | null;
   protocolError: ProtocolError | null;
   isGameActive: boolean;
+  gamePurpose: GamePurpose | null;
+  gameLaunchReady: boolean;
+  gameLaunchHandle: string | null;
   activeEngine: EngineKind | null;
   debugInfo: string;
   /** Set when the host engine fails fatally (crash / invalid deck / can't
@@ -107,6 +112,7 @@ export interface GameState {
   updateGameView: (view: ClientGameView) => void;
   setGameConfig: (config: GameConfig) => void;
   startGame: (
+    purpose: GamePurpose,
     deck: Deck,
     formatId?: string,
     commanderName?: string,

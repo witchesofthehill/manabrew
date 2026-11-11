@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import {
   ANONYMOUS_FUNCTION,
@@ -22,6 +22,7 @@ import {
   safeClientAnalyticsEvent,
 } from "../../../src/lib/clientAnalyticsPrivacy.ts";
 import { SourceMaps } from "./sourcemaps.mjs";
+import { ClientFunnel } from "./client-funnel.mjs";
 
 const MAX_BODY_BYTES = 256 * 1024;
 const DAILY_BYTES = Number(process.env.FARO_DAILY_BYTES ?? 10 * 1024 * 1024);
@@ -54,6 +55,7 @@ const analyticsCounters = {
   accepted: 0,
   rejected: 0,
   export_errors: 0,
+  funnel_errors: 0,
   rate_limited: 0,
   concurrency_limited: 0,
   budget_limited: 0,
@@ -62,6 +64,7 @@ const errorPool = { inflight: 0, tokens: 40, lastRefill: performance.now() };
 const analyticsPool = { inflight: 0, tokens: 40, lastRefill: performance.now() };
 let lokiReady = false;
 let lastTimestamp = 0n;
+let clientFunnel;
 if (
   !origins.size ||
   !Number.isSafeInteger(DAILY_BYTES) ||
@@ -73,6 +76,14 @@ if (
 )
   throw new Error("Invalid collector configuration");
 mkdirSync(stateDirectory, { recursive: true });
+for (const file of [
+  stateFile,
+  analyticsStateFile,
+  `${stateFile}.tmp`,
+  `${analyticsStateFile}.tmp`,
+]) {
+  if (existsSync(file)) chmodSync(file, 0o600);
+}
 let budget = existsSync(stateFile)
   ? JSON.parse(readFileSync(stateFile, "utf8"))
   : { day: "", bytes: 0 };
@@ -87,6 +98,11 @@ if (
   analyticsBudget.bytes < 0
 )
   throw new Error("Invalid analytics budget state");
+try {
+  clientFunnel = new ClientFunnel(stateDirectory);
+} catch {
+  analyticsCounters.funnel_errors++;
+}
 
 function currentBudget() {
   const day = new Date().toISOString().slice(0, 10);
@@ -293,6 +309,17 @@ async function collectEvents(records) {
     analyticsCounters.export_errors++;
     lokiReady = false;
     reject(503);
+  }
+  if (
+    records.some((record) => record.event_name === "first_game_funnel" && record.context_user_id)
+  ) {
+    try {
+      clientFunnel ??= new ClientFunnel(stateDirectory);
+      clientFunnel.record(records);
+    } catch {
+      analyticsCounters.funnel_errors++;
+      reject(503);
+    }
   }
   analyticsCounters.accepted += records.length;
 }

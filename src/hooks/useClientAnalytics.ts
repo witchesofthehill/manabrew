@@ -1,8 +1,16 @@
 import { useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
-import { trackClientEvent } from "@/lib/clientAnalytics";
+import { isClientAnalyticsEnabled, trackClientEvent } from "@/lib/clientAnalytics";
 import { analyticsPageUrl, analyticsScreen } from "@/lib/clientAnalyticsPrivacy";
 import { observeClientAnalyticsLobby, resetClientAnalyticsLobby } from "@/lib/clientAnalyticsLobby";
+import {
+  listenClientAnalyticsFunnel,
+  observeClientAnalyticsGame,
+  observeClientAnalyticsIdentity,
+} from "@/lib/clientAnalyticsFunnel";
+import { useAuthStore } from "@/stores/useAuthStore";
+import { useGameStore } from "@/stores/useGameStore";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useServerStore } from "@/stores/useServerStore";
 
 export function useClientAnalytics() {
@@ -19,7 +27,22 @@ export function useClientAnalytics() {
   }, [pathname, url]);
 
   useEffect(() => {
-    if (excluded) {
+    if (excluded || !isClientAnalyticsEnabled()) return;
+    observeClientAnalyticsGame(useGameStore.getState());
+    const stopListening = listenClientAnalyticsFunnel();
+    const unsubscribeGame = useGameStore.subscribe(observeClientAnalyticsGame);
+    const unsubscribeAuth = useAuthStore.subscribe(observeClientAnalyticsIdentity);
+    const unsubscribePreferences = usePreferencesStore.subscribe(observeClientAnalyticsIdentity);
+    return () => {
+      stopListening?.();
+      unsubscribeGame();
+      unsubscribeAuth();
+      unsubscribePreferences();
+    };
+  }, [excluded, pathname]);
+
+  useEffect(() => {
+    if (excluded || !isClientAnalyticsEnabled()) {
       resetClientAnalyticsLobby();
       return;
     }

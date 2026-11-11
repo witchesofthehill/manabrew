@@ -38,13 +38,18 @@ export const CLIENT_ANALYTICS_SCHEMA = {
   feature_used: {
     feature: ["deck_export", "deck_playtest"],
   },
+  first_game_funnel: {
+    stage: ["observed", "match_requested", "game_started"],
+    visit_id: "uuid",
+    clicks: "count",
+  },
 } as const;
 
 export type ClientAnalyticsEvent = keyof typeof CLIENT_ANALYTICS_SCHEMA;
 export type ClientAnalyticsAttributes<N extends ClientAnalyticsEvent> = {
   [K in keyof (typeof CLIENT_ANALYTICS_SCHEMA)[N]]: (typeof CLIENT_ANALYTICS_SCHEMA)[N][K] extends readonly string[]
     ? (typeof CLIENT_ANALYTICS_SCHEMA)[N][K][number]
-    : (typeof CLIENT_ANALYTICS_SCHEMA)[N][K] extends "url"
+    : (typeof CLIENT_ANALYTICS_SCHEMA)[N][K] extends "url" | "uuid" | "count"
       ? string
       : never;
 };
@@ -77,6 +82,7 @@ export function safeClientAnalyticsEvent(name: unknown, attributes: unknown) {
       return undefined;
     safe.relay_username = input.relay_username;
   }
+  if (name === "first_game_funnel" && !safe.relay_username) return undefined;
   for (const [key, allowed] of Object.entries(schema)) {
     const value = input[key];
     if (allowed === "url") {
@@ -84,6 +90,19 @@ export function safeClientAnalyticsEvent(name: unknown, attributes: unknown) {
       const url = analyticsPageUrl(value);
       if (!url) return undefined;
       safe[key] = url;
+    } else if (allowed === "uuid") {
+      if (
+        typeof value !== "string" ||
+        value.length !== 36 ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(value)
+      )
+        return undefined;
+      safe[key] = value;
+    } else if (allowed === "count") {
+      if (typeof value !== "string" || value.length > 9) return undefined;
+      const count = Number(value);
+      if (!Number.isInteger(count) || count < 0 || String(count) !== value) return undefined;
+      safe[key] = value;
     } else {
       if (typeof value !== "string" || !(allowed as readonly string[]).includes(value))
         return undefined;

@@ -178,6 +178,7 @@ services:
       - ./ops/observability/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./ops/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
       - ./ops/hub-data/dev/events:/var/manabrew/events
+      - faro-dev-data:/var/manabrew/client-funnel:ro
       - grafana-dev-data:/var/lib/grafana
     restart: unless-stopped
 

@@ -19,3 +19,12 @@ datasources:
     type: frser-sqlite-datasource
     jsonData:
       path: /var/manabrew/events/events.db
+
+  - name: Client first observed match
+    uid: client-funnel-sqlite
+    type: frser-sqlite-datasource
+    editable: false
+    jsonData:
+      path: /var/manabrew/client-funnel/client-funnel.db
+      pathOptions: "mode=ro&_pragma=query_only(1)&_pragma=busy_timeout(1000)"
+      attachLimit: 0

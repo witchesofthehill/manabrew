@@ -17,6 +17,38 @@ let disposeTransport: (() => void) | undefined;
 let initialized = false;
 let eventsThisPage = 0;
 
+export function isClientAnalyticsEnabled(): boolean {
+  return faro !== undefined;
+}
+
+export function captureClientEvent<N extends ClientAnalyticsEvent>(
+  name: N,
+  attributes: ClientAnalyticsAttributes<N>,
+): (() => void) | undefined {
+  if (!faro) return;
+  const event = safeClientAnalyticsEvent(name, {
+    ...attributes,
+    platform: getClientPlatform(),
+    relay_username: relayUsername(),
+  });
+  if (event) return () => pushClientEvent(event);
+}
+
+function pushClientEvent(event: { name: string; attributes: Record<string, string> }): void {
+  if (!faro || (event.name !== "first_game_funnel" && eventsThisPage >= MAX_EVENTS_PER_PAGE))
+    return;
+  if (event.name !== "first_game_funnel") eventsThisPage++;
+  const batching = faro.config.batching;
+  try {
+    if (event.name === "first_game_funnel") faro.config.batching = { enabled: false };
+    faro.api.pushEvent(event.name, event.attributes, CLIENT_ANALYTICS_DOMAIN, { skipDedupe: true });
+  } catch {
+    return;
+  } finally {
+    faro.config.batching = batching;
+  }
+}
+
 export function initializeClientAnalytics(): void {
   if (initialized) return;
   initialized = true;
@@ -52,7 +84,7 @@ export function trackClientEvent<N extends ClientAnalyticsEvent>(
   name: N,
   attributes: ClientAnalyticsAttributes<N>,
 ): void {
-  if (!faro || eventsThisPage >= MAX_EVENTS_PER_PAGE) return;
+  if (!faro) return;
   try {
     const event = safeClientAnalyticsEvent(name, {
       ...attributes,
@@ -60,8 +92,7 @@ export function trackClientEvent<N extends ClientAnalyticsEvent>(
       relay_username: relayUsername(),
     });
     if (!event) return;
-    eventsThisPage++;
-    faro.api.pushEvent(event.name, event.attributes, CLIENT_ANALYTICS_DOMAIN, { skipDedupe: true });
+    pushClientEvent(event);
   } catch {
     return;
   }

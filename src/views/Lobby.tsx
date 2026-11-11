@@ -371,6 +371,7 @@ export default function Lobby() {
         const started = await useGameStore
           .getState()
           .startGame(
+            "match",
             local.playerDeck,
             local.formatId,
             local.commanderName,

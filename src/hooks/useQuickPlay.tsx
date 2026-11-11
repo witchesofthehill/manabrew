@@ -80,7 +80,14 @@ export function useQuickPlay() {
         }
         const started = await useGameStore
           .getState()
-          .startGame(deck, formatId, deck.commanders?.[0]?.identity.name, opponents.decks, engine);
+          .startGame(
+            "match",
+            deck,
+            formatId,
+            deck.commanders?.[0]?.identity.name,
+            opponents.decks,
+            engine,
+          );
         if (!started) return;
         const prefs = usePreferencesStore.getState();
         prefs.setLastOfflineFormatId(formatId);
@@ -116,6 +123,7 @@ export function useQuickPlay() {
       const started = await useGameStore
         .getState()
         .startGame(
+          "match",
           preset,
           formatId,
           preset.commanders?.[0]?.identity.name,
@@ -154,7 +162,14 @@ export function useQuickPlay() {
       }
       const started = await useGameStore
         .getState()
-        .startGame(deck, formatId, deck.commanders?.[0]?.identity.name, opponents.decks, engine);
+        .startGame(
+          "match",
+          deck,
+          formatId,
+          deck.commanders?.[0]?.identity.name,
+          opponents.decks,
+          engine,
+        );
       if (!started) return;
       void reportPublishedDeckPlay(entryId, deck);
       const prefs = usePreferencesStore.getState();

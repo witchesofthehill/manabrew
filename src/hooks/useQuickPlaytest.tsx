@@ -24,6 +24,7 @@ export function useQuickPlaytest(): {
       1,
     );
     void startGame(
+      "playtest",
       deck,
       formatId,
       deck.commanders?.[0]?.identity.name,
@@ -66,7 +67,9 @@ export function useQuickPlaytest(): {
         commanderName: deck.commanders?.[0]?.identity.name,
         coverCardName: deck.coverCardName,
       };
-      navigate(ROUTES.PLAY_OFFLINE_CONSTRUCTED, { state: { preSelectedDeck } });
+      navigate(ROUTES.PLAY_OFFLINE_CONSTRUCTED, {
+        state: { preSelectedDeck, gamePurpose: "playtest" },
+      });
       return;
     }
     start(deck);

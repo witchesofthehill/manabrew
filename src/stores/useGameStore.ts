@@ -1,5 +1,7 @@
 import { beginGame, noteAnswerSent } from "@/lib/engineTelemetry";
 import { setErrorReportingEngine } from "@/lib/errorReporting";
+import { relayUsername } from "@/lib/relayUsername";
+import { trackClientMatchRequested } from "@/lib/clientAnalyticsFunnel";
 import {
   engineReportGameId,
   forgeHostLabel,
@@ -361,6 +363,9 @@ export const useGameStore = create<GameState>()(
       currentPrompt: null,
       protocolError: null,
       isGameActive: false,
+      gamePurpose: null,
+      gameLaunchReady: false,
+      gameLaunchHandle: null,
       activeEngine: null,
       debugInfo: "",
       fatalError: null,
@@ -394,7 +399,15 @@ export const useGameStore = create<GameState>()(
       updateGameView: (view) => set({ gameView: view }),
       setGameConfig: (config) => set({ gameConfig: config }),
       dismissIronsmithDeckError: () => set({ ironsmithDeckError: null }),
-      startGame: async (deck, formatId, commanderName, opponentDecks, engine, gauntletId) => {
+      startGame: async (
+        purpose,
+        deck,
+        formatId,
+        commanderName,
+        opponentDecks,
+        engine,
+        gauntletId,
+      ) => {
         if (get().isGameActive) return false;
         if (gameLaunchInFlight !== null) {
           toast.info(`The previous game is still closing. Try again in a moment.`);
@@ -402,7 +415,13 @@ export const useGameStore = create<GameState>()(
         }
         const launchGeneration = ++gameLaunchGeneration;
         gameLaunchInFlight = launchGeneration;
-        set({ gauntletId: gauntletId ?? null });
+        if (purpose === "match") trackClientMatchRequested();
+        set({
+          gauntletId: gauntletId ?? null,
+          gamePurpose: purpose,
+          gameLaunchReady: false,
+          gameLaunchHandle: relayUsername(),
+        });
         try {
           await initializeGame({
             deck,
@@ -414,12 +433,14 @@ export const useGameStore = create<GameState>()(
             get,
             isLaunchCurrent: () => launchGeneration === gameLaunchGeneration,
           });
+          set({ gameLaunchReady: true });
           return true;
         } catch (e) {
           if (e instanceof GameLaunchCancelledError) return false;
           setErrorReportingEngine(null);
           set({
             isGameActive: false,
+            gameLaunchReady: false,
             activeEngine: null,
             gauntletId: null,
             debugInfo: `Start failed: ${e}`,
@@ -439,6 +460,7 @@ export const useGameStore = create<GameState>()(
       startManualTabletopGame: async (deck, formatId, commanderName) => {
         selectGameRuntime("manual-tabletop");
         const started = await get().startGame(
+          "manual",
           deck,
           formatId ?? deck.format ?? "standard",
           commanderName,
@@ -516,6 +538,9 @@ export const useGameStore = create<GameState>()(
         }
         set({
           isGameActive: true,
+          gamePurpose: "manual",
+          gameLaunchReady: false,
+          gameLaunchHandle: null,
           activeEngine: null,
           isMultiplayer: true,
           isHost: false,
@@ -563,6 +588,12 @@ export const useGameStore = create<GameState>()(
             ? (session?.gauntletId ?? null)
             : null;
         set({ gauntletId });
+        trackClientMatchRequested();
+        set({
+          gamePurpose: "match",
+          gameLaunchReady: false,
+          gameLaunchHandle: relayUsername(),
+        });
         if (server.currentRoom) {
           armActiveGameSession({
             roomId: server.currentRoom.room_id,
@@ -576,6 +607,7 @@ export const useGameStore = create<GameState>()(
           set({
             isGameActive: true,
             activeEngine: engine ?? server.currentRoom?.engine ?? null,
+            fatalError: null,
             isMultiplayer: true,
             isHost: localIsHost,
             myPlayerSlot: `player-${enginePlayerIndex}`,
@@ -632,13 +664,14 @@ export const useGameStore = create<GameState>()(
             await runtime.api.endGame();
             return false;
           }
-          set({ debugInfo: "Multiplayer game started." });
+          set({ gameLaunchReady: true, debugInfo: "Multiplayer game started." });
           return true;
         } catch (e) {
           if (launchGeneration !== gameLaunchGeneration) return false;
           setErrorReportingEngine(null);
           set({
             isGameActive: false,
+            gameLaunchReady: false,
             activeEngine: null,
             isMultiplayer: false,
             isHost: false,
@@ -729,6 +762,7 @@ export const useGameStore = create<GameState>()(
       },
       endGame: async () => {
         gameLaunchGeneration += 1;
+        set({ gameLaunchReady: false });
         const activeSession = peekActiveGameSession();
         clearActiveGameSession();
         const runtime = getSelectedGameRuntime();
@@ -756,6 +790,9 @@ export const useGameStore = create<GameState>()(
         setErrorReportingEngine(null);
         set({
           isGameActive: false,
+          gamePurpose: null,
+          gameLaunchReady: false,
+          gameLaunchHandle: null,
           activeEngine: null,
           gauntletId: null,
           gameView: null,

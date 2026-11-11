@@ -61,6 +61,13 @@ export default function Play() {
     typeof routeState.preSelectedDeck === "object"
       ? (routeState.preSelectedDeck as SelectedDeck)
       : undefined;
+  const gamePurpose =
+    routeState &&
+    typeof routeState === "object" &&
+    "gamePurpose" in routeState &&
+    routeState.gamePurpose === "playtest"
+      ? "playtest"
+      : "match";
   const mpState = useMemo(
     () => (isLiveEngineGameRouteState(routeState) ? routeState : null),
     [routeState],
@@ -250,7 +257,14 @@ export default function Play() {
           preSelectedHubDeckId={preSelectedHubDeckId}
           preSelectedDeck={preSelectedDeck}
           onStart={(playerDeck, opponentDecks, formatId, commanderName) =>
-            startGame(playerDeck, formatId, commanderName, opponentDecks, resolveOfflineEngine())
+            startGame(
+              gamePurpose,
+              playerDeck,
+              formatId,
+              commanderName,
+              opponentDecks,
+              resolveOfflineEngine(),
+            )
           }
         />
       )}

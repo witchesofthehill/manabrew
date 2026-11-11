@@ -2018,6 +2018,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             final ManaBrewInteractiveSession.SessionSnapshot sessionSnapshot, final CardCollection cardsToDelve) {
         final ManaPool pool = player.getManaPool();
         final Map<Integer, Card> sessionTapped = new LinkedHashMap<>();
+        final List<SpellAbility> sessionManaAbilities = new ArrayList<>();
         final Map<Integer, ManaCostShard> sessionConvoke = new LinkedHashMap<>();
         final Map<Integer, ManaCostShard> sessionWaterbend = new LinkedHashMap<>();
         final CardCollection waterbentCards = new CardCollection();
@@ -2072,6 +2073,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                     final Card source = chosen.getHostCard();
                     if (autoPay.floatManaFromSource(chosen, effect) && source != null) {
                         sessionTapped.put(source.getId(), source);
+                        sessionManaAbilities.add(chosen);
                     }
                     break;
                 }
@@ -2084,6 +2086,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                         sessionTapped.remove(untap.getId());
                     } else {
                         untapSource(untap, sessionTapped);
+                        sessionManaAbilities.removeIf(ability -> ability.getHostCard() == untap);
                     }
                     break;
                 }
@@ -2098,6 +2101,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                 case DELVE: {
                     payDelve(unpaid, cardsToDelve, choice.delveCard());
                     if (unpaid.isPaid()) {
+                        sa.getPayingManaAbilities().addAll(sessionManaAbilities);
                         return true;
                     }
                     break;
@@ -2119,6 +2123,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                         }
                     }
                     if (unpaid.isPaid()) {
+                        sa.getPayingManaAbilities().addAll(sessionManaAbilities);
                         return true;
                     }
                     break;
@@ -2128,7 +2133,10 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                         if (delve) {
                             autoDelve(unpaid, cardsToDelve, delvePaymentSources(player, unpaid, cardsToDelve));
                         }
-                        for (final Card source : autoPay.floatManaForCost(unpaid.toManaCost(), sa, effect)) {
+                        final int firstActivation = sessionManaAbilities.size();
+                        autoPay.floatManaForCost(unpaid.toManaCost(), sa, effect, sessionManaAbilities);
+                        for (int i = firstActivation; i < sessionManaAbilities.size(); i++) {
+                            final Card source = sessionManaAbilities.get(i).getHostCard();
                             sessionTapped.put(source.getId(), source);
                         }
                         autoWaterbend(unpaid, sa, pool, maxWaterbend, sessionWaterbend, waterbentCards);
@@ -2141,6 +2149,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                     }
                     pool.payManaCostFromPool(unpaid, sa, false, sa.getPayingMana());
                     if (unpaid.isPaid()) {
+                        sa.getPayingManaAbilities().addAll(sessionManaAbilities);
                         return true;
                     }
                     break;

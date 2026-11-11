@@ -48,6 +48,8 @@ TypeScript `number` does not distinguish integer and fractional Rust fields. `JA
 
 Protocol generators replace their output directories. Do not run `yarn gen:types`, `yarn gen:protocol-docs`, `yarn build:harness`, or commands that invoke them concurrently; one process can delete files while another is exporting them. Format Rust before running `yarn gen:protocol-docs`: its JSON embeds Rust source verbatim, so formatting afterward makes the committed artifact stale.
 
+Direct Java prompt generation needs `node scripts/gen-harness-prompts.mjs forge-harness/src/main/java`. Without the output argument it writes under `target/generated-sources`, which the harness Maven build does not compile.
+
 Card Glint is installed from its official prebuilt release tarball, including JavaScript, declarations and WASM. Consumers do not build Card Glint or need its Rust toolchain. Do not add application-side download, patch or renderer-build scripts. Restart the development web service after dependency changes so its separate node-modules volume reruns installation.
 
 `gen-harness-prompts.mjs` maps `CardCosmetics.wearSeed` to Java `Long`, `wearAmount` and rain density/artwork scalars to `Double`, and numeric coordinate tuples to `List<Double>`; integer conversion loses fractional wear and custom artwork positions. Keep generated Java derived from fresh protocol bindings. Harness input checksums include `forge-foundation` because cosmetic wire types live there, not in the protocol crate. Protocol documentation reads that shared source too.

@@ -2458,7 +2458,7 @@ public final class ManaBrewInteractiveSession {
     }
 
     private void publishCheckpointViews() {
-        absorbGameLog();
+        if (!replaying) absorbGameLog();
         final List<Map<String, Object>> views = new ArrayList<>();
         for (final Checkpoint checkpoint : checkpoints) {
             views.add(checkpointView(checkpoint));
@@ -2698,6 +2698,7 @@ public final class ManaBrewInteractiveSession {
     private static AlternativeCostKind alternativeCostKind(final AlternativeCost alt) {
         switch (alt) {
             case Awaken: return AlternativeCostKind.AWAKEN;
+            case BeamMeUp: return AlternativeCostKind.BEAM_ME_UP;
             case Bestow: return AlternativeCostKind.BESTOW;
             case Blitz: return AlternativeCostKind.BLITZ;
             case Dash: return AlternativeCostKind.DASH;
@@ -3463,6 +3464,9 @@ public final class ManaBrewInteractiveSession {
             altCost = CaseFormat.UPPER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, alternative.cost.name());
         } else if (altCost == null && mode instanceof PlayCardMode_staticAlternative) {
             altCost = "Alternative cost";
+        }
+        if ("BeamMeUp".equals(altCost)) {
+            altCost = "Beam me up";
         }
         final int bar = cardName.indexOf('|');
         final String displayName = bar < 0 ? cardName : cardName.substring(bar + 1);

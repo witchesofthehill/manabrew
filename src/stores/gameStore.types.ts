@@ -113,6 +113,7 @@ export interface GameState {
     opponentDecks?: Deck[],
     engine?: EngineKind,
     gauntletId?: string,
+    watchOnly?: boolean,
   ) => Promise<boolean>;
   startManualTabletopGame: (deck: Deck, formatId?: string, commanderName?: string) => Promise<void>;
   startManualRoomHost: (localPlayerSlot: string) => Promise<void>;

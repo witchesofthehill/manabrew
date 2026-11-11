@@ -8,6 +8,7 @@ import { PLAYER_SEAT_ID, type OfflineSeat } from "./offlineRoster.state";
 
 interface OfflineDeckSlotProps {
   seat: OfflineSeat;
+  spectator?: boolean;
   assignment: DeckAssignment;
   active: boolean;
   loading: boolean;
@@ -25,6 +26,7 @@ const SLOT_ACTION_CLASS = "size-8 shrink-0 touch:size-11";
 
 export function OfflineDeckSlot({
   seat,
+  spectator = false,
   assignment,
   active,
   loading,
@@ -38,6 +40,7 @@ export function OfflineDeckSlot({
   onRandom,
 }: OfflineDeckSlotProps) {
   const isPlayer = seat.id === PLAYER_SEAT_ID;
+  const isHumanSeat = isPlayer && !spectator;
   const seatError = seat.deck ? error : undefined;
   return (
     <div
@@ -58,7 +61,7 @@ export function OfflineDeckSlot({
         <span className="relative size-10 shrink-0 overflow-hidden rounded-md bg-muted touch:hidden">
           {seat.deck ? (
             <DeckCoverImage cover={resolveCoverCard(seat.deck.sourceDeck)} alt="" />
-          ) : isPlayer ? (
+          ) : isHumanSeat ? (
             <User className="m-2.5 size-5 text-muted-foreground" />
           ) : (
             <Bot className="m-2.5 size-5 text-muted-foreground" />

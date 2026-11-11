@@ -296,6 +296,10 @@ class WorkerBridge {
       const seat = createSeat(payload.buffer);
       if (this.localSeat) this.dropSeat(this.localSeat);
       this.localSeat = seat;
+      if (this.localBotSlots.has("player-0")) {
+        this.startLocalBotWorker(payload.buffer, "player-0", true);
+        return;
+      }
       if (DEBUG_TRANSPORT) console.log("[WorkerBridge] Received local SAB, starting reader");
       this.seatReaders.set(
         seat,
@@ -312,29 +316,7 @@ class WorkerBridge {
     eventBus.on<{ buffer: SharedArrayBuffer; playerSlot: string }>("game:remote_sab", (payload) => {
       const { playerSlot } = payload;
       if (this.localBotSlots.has(playerSlot)) {
-        this.localBotWorkers.get(playerSlot)?.terminate();
-        const worker = new Worker(new URL("../workers/manabot.worker.ts", import.meta.url), {
-          type: "module",
-        });
-        worker.onmessage = (
-          event: MessageEvent<{ type: string; message?: string; name?: string; stack?: string }>,
-        ) => {
-          if (event.data.type !== "error") return;
-          const error = new Error(event.data.message ?? "Bot worker failed");
-          error.name = event.data.name ?? "Error";
-          error.stack = event.data.stack ?? "";
-          reportClientError(error, "bot-worker");
-        };
-        worker.onerror = (event) => {
-          event.preventDefault();
-          console.error("[Manabot] Worker error:", event);
-          const error = workerError(event);
-          reportClientError(error, "bot-worker");
-        };
-        worker.onmessageerror = () =>
-          reportClientError(new Error("Bot worker message could not be decoded"), "bot-worker");
-        worker.postMessage({ buffer: payload.buffer, playerSlot });
-        this.localBotWorkers.set(playerSlot, worker);
+        this.startLocalBotWorker(payload.buffer, playerSlot);
         return;
       }
       const seat = createSeat(payload.buffer);
@@ -489,6 +471,53 @@ class WorkerBridge {
   setLocalBotSlots(slots: Iterable<string>): void {
     this.stopLocalBots();
     this.localBotSlots = new Set(slots);
+  }
+
+  private startLocalBotWorker(
+    buffer: SharedArrayBuffer,
+    playerSlot: string,
+    mirrorState = false,
+  ): void {
+    this.localBotWorkers.get(playerSlot)?.terminate();
+    const worker = new Worker(new URL("../workers/manabot.worker.ts", import.meta.url), {
+      type: "module",
+    });
+    worker.onmessage = (
+      event: MessageEvent<{
+        type: string;
+        message?: string;
+        name?: string;
+        stack?: string;
+        json?: string;
+      }>,
+    ) => {
+      if (event.data.type === "state" && mirrorState && event.data.json) {
+        try {
+          this.dispatchEngineMessage(
+            JSON.parse(event.data.json) as EngineMessage,
+            performance.now(),
+          );
+        } catch (error) {
+          reportClientError(error, "bot-worker");
+        }
+        return;
+      }
+      if (event.data.type !== "error") return;
+      const error = new Error(event.data.message ?? "Bot worker failed");
+      error.name = event.data.name ?? "Error";
+      error.stack = event.data.stack ?? "";
+      reportClientError(error, "bot-worker");
+    };
+    worker.onerror = (event) => {
+      event.preventDefault();
+      console.error("[Manabot] Worker error:", event);
+      const error = workerError(event);
+      reportClientError(error, "bot-worker");
+    };
+    worker.onmessageerror = () =>
+      reportClientError(new Error("Bot worker message could not be decoded"), "bot-worker");
+    worker.postMessage({ buffer, playerSlot, mirrorState });
+    this.localBotWorkers.set(playerSlot, worker);
   }
 
   private dropSeat(seat: ForgeSeat): void {
@@ -903,12 +932,14 @@ class WebGameApi implements IGameApi {
   }
 
   async startGame(params: StartGameParams): Promise<string> {
-    this.bridge.setLocalBotSlots(
+    const externalBotSeats =
       params.engine === "Forge" && params.aiController !== "forge"
         ? (params.opponentDecks?.length ? params.opponentDecks : [params.deck]).map(
             (_, index) => `player-${index + 1}`,
           )
-        : [],
+        : [];
+    this.bridge.setLocalBotSlots(
+      params.watchOnly ? ["player-0", ...externalBotSeats] : externalBotSeats,
     );
     return this.bridge.invoke<string>("start_game", {
       deck: params.deck,
@@ -916,6 +947,7 @@ class WebGameApi implements IGameApi {
       commanderName: params.commanderName,
       opponentDecks: params.opponentDecks,
       engine: params.engine,
+      watchOnly: params.watchOnly === true,
       forgeAi: params.aiController === "forge",
       decisionJournal: params.engine === "Forge" && params.aiController !== "forge",
       journalRewind: params.engine === "Forge" && params.aiController !== "forge",

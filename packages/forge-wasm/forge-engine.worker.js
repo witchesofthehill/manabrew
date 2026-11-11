@@ -288,6 +288,7 @@ async function startGame(requestId, args) {
   }
 
   const forgeAi = args && args.forgeAi === true;
+  const watchOnly = args && args.watchOnly === true;
   const seatBuffers = (forgeAi ? [humanDeck] : [humanDeck, ...aiDecks]).map(
     () => new SharedArrayBuffer(SAB_SIZE),
   );
@@ -314,8 +315,9 @@ async function startGame(requestId, args) {
     journalRewind: args?.journalRewind === true,
     players: [
       {
-        name: "You",
+        name: watchOnly ? "Manabot 1" : "You",
         ai: false,
+        bot: watchOnly,
         deck: flatten(humanDeck),
         sideboard: identities(humanDeck.sideboard || []),
         attractions: identities(humanDeck.attractions || []),

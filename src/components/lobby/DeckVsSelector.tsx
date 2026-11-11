@@ -47,6 +47,8 @@ interface DeckVsSelectorProps {
   preSelectedHubDeckId?: string;
   preSelectedDeck?: SelectedDeck;
   leadingControl?: ReactNode;
+  spectator?: boolean;
+  onSimulate?: (decks: Deck[], formatId: string, games: number) => Promise<boolean>;
   onStart: (
     playerDeck: Deck,
     opponentDecks: Deck[],
@@ -60,6 +62,8 @@ export function DeckVsSelector({
   preSelectedHubDeckId,
   preSelectedDeck,
   leadingControl,
+  spectator = false,
+  onSimulate,
   onStart,
 }: DeckVsSelectorProps) {
   const denseDecks = useIsShortScreen();
@@ -108,7 +112,7 @@ export function DeckVsSelector({
   const suggestedOpponent = roster.seats.find((seat) => seat.id === FIRST_BOT_SEAT_ID);
   const assignments: DeckAssignment[] = roster.seats.map((seat, index) => ({
     id: seat.id,
-    label: index === 0 ? "You" : `Bot ${index}`,
+    label: spectator ? `AI ${index + 1}` : index === 0 ? "You" : `Bot ${index}`,
     color: seatColors[index],
   }));
   const assignmentsForDeck = (id: string) =>
@@ -118,6 +122,7 @@ export function DeckVsSelector({
   );
   const [deckSearch, setDeckSearch] = useState("");
   const [starting, setStarting] = useState(false);
+  const [simulationGames, setSimulationGames] = useState(10);
   const [tableDialogOpen, setTableDialogOpen] = useState(false);
   const [loadingHubDeckId, setLoadingHubDeckId] = useState<string | null>(null);
   const [loadingSeatId, setLoadingSeatId] = useState<string | null>(null);
@@ -423,31 +428,53 @@ export function DeckVsSelector({
   async function startFight() {
     if (!launch || !opponentDeck || !isReady || starting) return;
     setStarting(true);
-    const started = await onStart(
-      launch.playerDeck.sourceDeck,
-      launch.opponentDecks,
-      launch.playerDeck.formatId,
-      launch.playerDeck.commanderName,
-    );
-    if (!started) {
+    try {
+      const started = await onStart(
+        launch.playerDeck.sourceDeck,
+        launch.opponentDecks,
+        launch.playerDeck.formatId,
+        launch.playerDeck.commanderName,
+      );
+      if (!started) return;
+      if (!spectator) {
+        if (launch.playerDeck.source === "hub" || launch.playerDeck.source === "preset") {
+          void reportPublishedDeckPlay(launch.playerDeck.sourceId, launch.playerDeck.sourceDeck);
+        }
+        if (launch.playerDeck.source === "preset") {
+          savePresetToAccountOnUse(launch.playerDeck.sourceId);
+        }
+      }
+      const prefs = usePreferencesStore.getState();
+      if (launch.playerDeck.formatId) prefs.setLastOfflineFormatId(launch.playerDeck.formatId);
+      if (!spectator) {
+        if (launch.playerDeck.source === "local" && launch.playerDeck.sourceId !== "current") {
+          prefs.setLastPlayedDeckId(launch.playerDeck.sourceId);
+        }
+        if (opponentDeck.source === "preset") {
+          prefs.setLastAiOpponent({ kind: "preset", id: opponentDeck.sourceId });
+        } else if (opponentDeck.source === "local" && opponentDeck.sourceId !== "current") {
+          prefs.setLastAiOpponent({ kind: "saved", id: opponentDeck.sourceId });
+        }
+      }
+    } finally {
       setStarting(false);
-      return;
     }
-    if (launch.playerDeck.source === "hub" || launch.playerDeck.source === "preset") {
-      void reportPublishedDeckPlay(launch.playerDeck.sourceId, launch.playerDeck.sourceDeck);
-    }
-    if (launch.playerDeck.source === "preset") {
-      savePresetToAccountOnUse(launch.playerDeck.sourceId);
-    }
-    const prefs = usePreferencesStore.getState();
-    if (launch.playerDeck.formatId) prefs.setLastOfflineFormatId(launch.playerDeck.formatId);
-    if (launch.playerDeck.source === "local" && launch.playerDeck.sourceId !== "current") {
-      prefs.setLastPlayedDeckId(launch.playerDeck.sourceId);
-    }
-    if (opponentDeck.source === "preset") {
-      prefs.setLastAiOpponent({ kind: "preset", id: opponentDeck.sourceId });
-    } else if (opponentDeck.source === "local" && opponentDeck.sourceId !== "current") {
-      prefs.setLastAiOpponent({ kind: "saved", id: opponentDeck.sourceId });
+  }
+  async function startSimulation() {
+    if (!launch || !isReady || starting || !spectator || !onSimulate) return;
+    setStarting(true);
+    try {
+      await onSimulate(
+        [launch.playerDeck.sourceDeck, ...launch.opponentDecks],
+        launch.playerDeck.formatId ?? selectedFormat ?? "standard",
+        simulationGames,
+      );
+      const formatId = launch.playerDeck.formatId ?? selectedFormat;
+      if (formatId) usePreferencesStore.getState().setLastOfflineFormatId(formatId);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not start simulation.");
+    } finally {
+      setStarting(false);
     }
   }
   const { errors: seatErrors, launch } = prepareOfflineGame(roster, selectedFormat, cardPool);
@@ -732,7 +759,8 @@ export function DeckVsSelector({
           assignments={assignments}
           errors={seatErrors}
           loadingSeatId={loadingSeatId}
-          multiplayer={isCommander}
+          multiplayer={isCommander || spectator}
+          spectator={spectator}
           compact={denseDecks}
           disabled={starting}
           randomAvailable={!!selectedFormat}
@@ -754,17 +782,47 @@ export function DeckVsSelector({
             dispatchRoster({ type: "add" });
           }}
         />
-        <Button
-          variant="primary"
-          size="lg"
-          onClick={handleFight}
-          disabled={!isReady || starting}
-          aria-busy={starting}
-          className="min-h-14 w-full shrink-0 gap-2 px-10 text-ui-body font-bold sm:w-auto sm:min-w-48 sm:justify-self-end"
-        >
-          {starting ? <Loader2 className="size-5 animate-spin" /> : <Swords className="size-5" />}
-          {starting ? `Starting\u2026` : `Fight!`}
-        </Button>
+        <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+          {spectator && onSimulate && (
+            <div className="flex items-center gap-2">
+              <label htmlFor="ai-simulation-games" className="text-ui-meta text-muted-foreground">
+                Games
+              </label>
+              <select
+                id="ai-simulation-games"
+                aria-label="Number of simulation games"
+                value={simulationGames}
+                onChange={(event) => setSimulationGames(Number(event.target.value))}
+                disabled={starting}
+                className="min-h-11 rounded-md border bg-background px-2 text-ui-label"
+              >
+                {[5, 10, 25, 50, 100].map((count) => (
+                  <option key={count} value={count}>{count}</option>
+                ))}
+              </select>
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() => void startSimulation()}
+                disabled={!isReady || starting}
+                className="min-h-14 gap-2 px-4 text-ui-body font-semibold"
+              >
+                Simulate
+              </Button>
+            </div>
+          )}
+          <Button
+            variant="primary"
+            size="lg"
+            onClick={handleFight}
+            disabled={!isReady || starting}
+            aria-busy={starting}
+            className="min-h-14 w-full gap-2 px-10 text-ui-body font-bold sm:w-auto sm:min-w-48"
+          >
+            {starting ? <Loader2 className="size-5 animate-spin" /> : <Swords className="size-5" />}
+            {starting ? `Starting\u2026` : spectator ? `Watch AI game` : `Fight!`}
+          </Button>
+        </div>
       </div>
       <TablePickerDialog
         open={tableDialogOpen}
@@ -775,7 +833,7 @@ export function DeckVsSelector({
         maxPlayers={roster.seats.length}
         players={roster.seats.map((seat, index) => ({
           username: assignments[index].label,
-          is_bot: index > 0,
+          is_bot: spectator || index > 0,
           selected_deck_name: seat.deck?.name,
           ready: !seatErrors[index],
           connected: true,

@@ -20,6 +20,8 @@ export interface StartGameParams {
   opponentDecks: Deck[] | null;
   engine?: EngineKind;
   aiController?: AiController;
+  /** Run every seat as an AI while keeping the game board visible. */
+  watchOnly?: boolean;
 }
 
 export interface StartMultiplayerGameParams {

@@ -1,5 +1,5 @@
 import path from "path";
-import { readFileSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
@@ -35,6 +35,11 @@ if (!/^[a-f0-9]{40}$/.test(buildCommit) || !/^[a-z][a-z0-9-]{0,63}$/.test(buildT
   throw new Error("Invalid APP_BUILD_COMMIT or APP_BUILD_TARGET");
 }
 const buildId = `${appVersion}-${buildCommit}-${buildTarget}`;
+const aiSimulationEnabled =
+  ["staging-web", "web"].includes(buildTarget) ||
+  (buildTarget === "local-development" &&
+    existsSync(path.resolve(__dirname, "packages/forge-wasm/forgeharness.js")) &&
+    existsSync(path.resolve(__dirname, "packages/forge-wasm/forgeharness.js.wasm")));
 
 function privateSourceMaps(): Plugin {
   let outputDirectory: string;
@@ -44,7 +49,7 @@ function privateSourceMaps(): Plugin {
     configResolved(config) {
       outputDirectory = path.resolve(config.root, config.build.outDir);
     },
-    closeBundle() {
+    writeBundle() {
       execFileSync(
         process.execPath,
         [
@@ -123,6 +128,14 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
+      ...(!aiSimulationEnabled
+        ? {
+            "@/components/play/AiSimulationPanel": path.resolve(
+              __dirname,
+              "./src/components/play/AiSimulationPanel.unavailable.tsx",
+            ),
+          }
+        : {}),
       "@": path.resolve(__dirname, "./src"),
       // The client shares the Forge seat and card-selection modules with the
       // published @manabrew/forge-wasm package rather than keeping a copy.
@@ -131,6 +144,7 @@ export default defineConfig({
   },
   clearScreen: false,
   define: {
+    __AI_SIMULATION_ENABLED__: JSON.stringify(aiSimulationEnabled),
     __APP_VERSION__: JSON.stringify(appVersion),
     __APP_BUILD_ID__: JSON.stringify(buildId),
     __APP_BUILD_TARGET__: JSON.stringify(buildTarget),

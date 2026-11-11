@@ -8,6 +8,8 @@ interface OfflinePlaySetupProps {
   preSelectedHubDeckId?: string;
   preSelectedDeck?: SelectedDeck;
   leadingControl?: ReactNode;
+  spectator?: boolean;
+  onSimulate?: (decks: Deck[], formatId: string, games: number) => Promise<boolean>;
   onStart: (
     playerDeck: Deck,
     opponentDecks: Deck[],
@@ -21,6 +23,8 @@ export function OfflinePlaySetup({
   preSelectedHubDeckId,
   preSelectedDeck,
   leadingControl,
+  spectator = false,
+  onSimulate,
   onStart,
 }: OfflinePlaySetupProps) {
   return (
@@ -30,6 +34,8 @@ export function OfflinePlaySetup({
         preSelectedHubDeckId={preSelectedHubDeckId}
         preSelectedDeck={preSelectedDeck}
         leadingControl={leadingControl}
+        spectator={spectator}
+        onSimulate={onSimulate}
         onStart={onStart}
       />
     </div>

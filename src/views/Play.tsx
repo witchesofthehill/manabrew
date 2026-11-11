@@ -1,8 +1,11 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { matchPath, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { cancelPendingGameLaunch, useGameStore } from "@/stores/useGameStore";
 import { useServerStore } from "@/stores/useServerStore";
 import { OfflinePlaySetup } from "@/components/play/OfflinePlaySetup";
+import { AiSimulationPanel } from "@/components/play/AiSimulationPanel";
+import { getFormat } from "@/lib/formats";
+import type { Deck } from "@/protocol/deck";
 import type { SelectedDeck } from "@/components/lobby/deckSelection.types";
 import { OfflinePlayShell } from "@/components/play/OfflinePlayShell";
 import { PlayHome } from "@/components/play/PlayHome";
@@ -27,6 +30,11 @@ export default function Play() {
   const { isGameActive, gameView, startGame, startMultiplayerGame, setMultiplayerState } =
     useGameStore();
   const multiplayerStarted = useRef(false);
+  const [simulationRequest, setSimulationRequest] = useState<{
+    decks: Deck[];
+    games: number;
+    startingLife: number;
+  } | null>(null);
   const gameWasActive = useRef(false);
   const pathname =
     location.pathname.length > 1 ? location.pathname.replace(/\/+$/, "") : location.pathname;
@@ -238,21 +246,54 @@ export default function Play() {
       <OfflinePlayShell>{(modeToggle) => <Limited leadingControl={modeToggle} />}</OfflinePlayShell>
     );
   }
-  if (pathname !== ROUTES.PLAY_OFFLINE_CONSTRUCTED) {
+  const spectatorMode = pathname === ROUTES.PLAY_OFFLINE_AI;
+  if (pathname !== ROUTES.PLAY_OFFLINE_CONSTRUCTED && !spectatorMode) {
     return <Navigate to={ROUTES.PLAY} replace />;
   }
   return (
     <OfflinePlayShell>
       {(modeToggle) => (
-        <OfflinePlaySetup
-          leadingControl={modeToggle}
-          preSelectedDeckId={preSelectedDeckId}
-          preSelectedHubDeckId={preSelectedHubDeckId}
-          preSelectedDeck={preSelectedDeck}
-          onStart={(playerDeck, opponentDecks, formatId, commanderName) =>
-            startGame(playerDeck, formatId, commanderName, opponentDecks, resolveOfflineEngine())
-          }
-        />
+        <>
+          <OfflinePlaySetup
+            leadingControl={modeToggle}
+            preSelectedDeckId={preSelectedDeckId}
+            preSelectedHubDeckId={preSelectedHubDeckId}
+            preSelectedDeck={preSelectedDeck}
+            spectator={spectatorMode}
+            onStart={(playerDeck, opponentDecks, formatId, commanderName) =>
+              startGame(
+                playerDeck,
+                formatId,
+                commanderName,
+                opponentDecks,
+                resolveOfflineEngine(),
+                undefined,
+                spectatorMode,
+              )
+            }
+            onSimulate={
+              __AI_SIMULATION_ENABLED__ && spectatorMode
+                ? (decks, formatId, games) => {
+                    const selectedFormat = formatId || decks[0]?.format || "standard";
+                    setSimulationRequest({
+                      decks,
+                      games,
+                      startingLife: getFormat(selectedFormat)?.deckRules.startingLife ?? 20,
+                    });
+                    return Promise.resolve(true);
+                  }
+                : undefined
+            }
+          />
+          {__AI_SIMULATION_ENABLED__ && simulationRequest && (
+            <AiSimulationPanel
+              decks={simulationRequest.decks}
+              games={simulationRequest.games}
+              startingLife={simulationRequest.startingLife}
+              onClose={() => setSimulationRequest(null)}
+            />
+          )}
+        </>
       )}
     </OfflinePlayShell>
   );

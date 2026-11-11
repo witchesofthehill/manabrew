@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Boxes, Swords } from "lucide-react";
+import { Bot, Boxes, Swords } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AppSelect, AppSelectOption } from "@/components/ui/AppSelect";
 import { ROUTES } from "@/lib/constants";
@@ -14,6 +14,12 @@ const TABS = [
     label: `Constructed`,
     hint: `Deck vs AI`,
     icon: Swords,
+  },
+  {
+    to: ROUTES.PLAY_OFFLINE_AI,
+    label: `AI Lab`,
+    hint: `Watch & simulate`,
+    icon: Bot,
   },
   {
     to: ROUTES.PLAY_OFFLINE_LIMITED,
@@ -47,7 +53,7 @@ export function OfflinePlayShell({ children }: OfflinePlayShellProps) {
   const renderTabs = () => (
     <div
       className={cn(
-        "mx-auto grid w-full max-w-xl grid-cols-2 rounded-2xl border border-border/70 bg-background/80 p-1.5 shadow-xl backdrop-blur-md",
+        "mx-auto grid w-full max-w-3xl grid-cols-3 rounded-2xl border border-border/70 bg-background/80 p-1.5 shadow-xl backdrop-blur-md",
         compact && "rounded-xl p-1",
       )}
     >

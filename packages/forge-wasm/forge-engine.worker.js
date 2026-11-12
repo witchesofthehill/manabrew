@@ -288,10 +288,13 @@ async function startGame(requestId, args) {
   }
 
   const forgeAi = args && args.forgeAi === true;
-  const seatBuffers = (forgeAi ? [humanDeck] : [humanDeck, ...aiDecks]).map(
+  const watchOnly = args && args.watchOnly === true;
+  const seatBuffers = (forgeAi && !watchOnly ? [humanDeck] : [humanDeck, ...aiDecks]).map(
     () => new SharedArrayBuffer(SAB_SIZE),
   );
-  self.__forgeSeatSabs = forgeAi ? null : seatBuffers;
+  // AI Lab needs an observer state lane for every seat, including games that
+  // would otherwise use Forge's built-in AI controller.
+  self.__forgeSeatSabs = forgeAi && !watchOnly ? null : seatBuffers;
   self.__forgeSab = seatBuffers[0];
   gameRunning = true;
 
@@ -300,6 +303,7 @@ async function startGame(requestId, args) {
     postEvent("game:remote_sab", { buffer, playerSlot: `player-${index + 1}` });
   });
   shareDirectiveLanes(seatBuffers.length, 0, args.rewindDirectiveLanes);
+  self.__forgePauseControl = args?.pauseControl ?? null;
   postResponse(requestId, "game-started");
 
   const variant = forgeVariant(humanDeck);
@@ -314,8 +318,9 @@ async function startGame(requestId, args) {
     journalRewind: args?.journalRewind === true,
     players: [
       {
-        name: "You",
+        name: watchOnly ? "Manabot 1" : "You",
         ai: false,
+        bot: watchOnly,
         deck: flatten(humanDeck),
         sideboard: identities(humanDeck.sideboard || []),
         attractions: identities(humanDeck.attractions || []),
@@ -358,6 +363,8 @@ async function startGame(requestId, args) {
       name: e instanceof Error ? e.name : undefined,
       stack: e instanceof Error ? e.stack?.slice(0, 8192) : undefined,
     });
+  } finally {
+    self.__forgePauseControl = null;
   }
 }
 

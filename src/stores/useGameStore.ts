@@ -140,6 +140,7 @@ async function initializeGame({
   get,
   commanderName,
   engine,
+  watchOnly,
   isLaunchCurrent,
 }: {
   deck: Deck;
@@ -147,6 +148,7 @@ async function initializeGame({
   formatId?: string;
   commanderName?: string;
   engine?: EngineKind;
+  watchOnly?: boolean;
   set: (partial: Partial<GameState>) => void;
   get: () => GameState;
   isLaunchCurrent: () => boolean;
@@ -157,11 +159,16 @@ async function initializeGame({
   const startingLife = format?.deckRules.startingLife ?? DEFAULT_STARTING_LIFE;
   const platformType = getPlatform().type;
   const tauriForgeRoomAvailable = platformType === "tauri" && isTauriForgeRoomAvailable();
+  if (watchOnly && engine === "Forge" && platformType === "web" && !isForgeWasmSupported()) {
+    throw new Error(
+      "AI Lab spectator games require the local Forge WASM engine. Hosted Forge currently supports human-controlled seats only.",
+    );
+  }
   const useHostedForge =
     (platformType === "tauri" && !tauriForgeRoomAvailable) ||
     (platformType === "web" && !isForgeWasmSupported() && isHostedEngineAvailable());
   setErrorReportingEngine(null);
-  if (engine === "Forge" && opponentDecks?.length && (tauriForgeRoomAvailable || useHostedForge)) {
+  if (!watchOnly && engine === "Forge" && opponentDecks?.length && (tauriForgeRoomAvailable || useHostedForge)) {
     const launchForge = tauriForgeRoomAvailable ? startTauriForgeAiGame : startHostedAiGame;
     set({
       isGameActive: true,
@@ -284,6 +291,7 @@ async function initializeGame({
     recording: { type: "off" },
     repeatVote: null,
     myPlayerSlot: "player-0",
+    isAiLabSpectator: watchOnly === true,
     selfConceded: false,
     gameConfig: { formatId: selectedFormatId, startingLife },
     gameDecks,
@@ -312,6 +320,7 @@ async function initializeGame({
       opponentDecks: opponentDecks ?? null,
       engine,
       aiController: usePreferencesStore.getState().aiController,
+      watchOnly,
     });
     const result = await (firstForgeStart ? withForgeStartTimeout(start) : start);
     if (!isLaunchCurrent()) {
@@ -343,6 +352,7 @@ async function initializeGame({
         get,
         commanderName,
         engine,
+        watchOnly,
         isLaunchCurrent,
       });
     }
@@ -379,6 +389,7 @@ export const useGameStore = create<GameState>()(
       gameConfig: null,
       gauntletId: null,
       selfConceded: false,
+      isAiLabSpectator: false,
       isMultiplayer: false,
       isHost: false,
       myPlayerSlot: null,
@@ -394,7 +405,7 @@ export const useGameStore = create<GameState>()(
       updateGameView: (view) => set({ gameView: view }),
       setGameConfig: (config) => set({ gameConfig: config }),
       dismissIronsmithDeckError: () => set({ ironsmithDeckError: null }),
-      startGame: async (deck, formatId, commanderName, opponentDecks, engine, gauntletId) => {
+      startGame: async (deck, formatId, commanderName, opponentDecks, engine, gauntletId, watchOnly) => {
         if (get().isGameActive) return false;
         if (gameLaunchInFlight !== null) {
           toast.info(`The previous game is still closing. Try again in a moment.`);
@@ -410,6 +421,7 @@ export const useGameStore = create<GameState>()(
             formatId,
             commanderName,
             engine,
+            watchOnly,
             set,
             get,
             isLaunchCurrent: () => launchGeneration === gameLaunchGeneration,
@@ -421,6 +433,7 @@ export const useGameStore = create<GameState>()(
           set({
             isGameActive: false,
             activeEngine: null,
+            isAiLabSpectator: false,
             gauntletId: null,
             debugInfo: `Start failed: ${e}`,
             isPrefetchingCards: false,
@@ -576,6 +589,7 @@ export const useGameStore = create<GameState>()(
           set({
             isGameActive: true,
             activeEngine: engine ?? server.currentRoom?.engine ?? null,
+            isAiLabSpectator: false,
             isMultiplayer: true,
             isHost: localIsHost,
             myPlayerSlot: `player-${enginePlayerIndex}`,
@@ -757,6 +771,7 @@ export const useGameStore = create<GameState>()(
         set({
           isGameActive: false,
           activeEngine: null,
+          isAiLabSpectator: false,
           gauntletId: null,
           gameView: null,
           currentPrompt: null,

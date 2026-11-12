@@ -51,6 +51,12 @@ export interface PromptActionSpec {
   promptActionOverride?: DevPromptActionOverride | null;
   isWaitingForResponse: boolean;
   isWaitingForOthers: boolean;
+  aiLabControls?: {
+    paused: boolean;
+    speed: 0.5 | 1 | 2;
+    onTogglePause: () => void;
+    onSpeedChange: (speed: 0.5 | 1 | 2) => void;
+  };
   availableAttackerIds: string[];
   pendingAttackers: string[];
   onPassPriority: () => void;

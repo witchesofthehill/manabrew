@@ -11,6 +11,7 @@ interface OfflineRosterProps {
   errors: (string | undefined)[];
   loadingSeatId: string | null;
   multiplayer: boolean;
+  spectator?: boolean;
   compact: boolean;
   disabled: boolean;
   randomAvailable: boolean;
@@ -27,6 +28,7 @@ export function OfflineRoster({
   errors,
   loadingSeatId,
   multiplayer,
+  spectator = false,
   compact,
   disabled,
   randomAvailable,
@@ -51,6 +53,7 @@ export function OfflineRoster({
           <OfflineDeckSlot
             seat={seat}
             assignment={assignments[index]}
+            spectator={spectator}
             active={roster.activeSeatId === seat.id}
             loading={loadingSeatId === seat.id}
             disabled={disabled}

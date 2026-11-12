@@ -56,7 +56,7 @@ export function PlayerSheetModal({ spec, onClose }: PlayerSheetModalProps) {
           <div className="min-w-0 flex-1">
             <h2 className="break-words text-lg font-semibold">{spec.name}</h2>
             <p className="text-ui-meta text-muted-foreground">
-              {spec.isSelf ? "You" : spec.isBot ? "Bot player" : "Player details"}
+              {spec.isBot ? "Bot player" : spec.isSelf ? "You" : "Player details"}
             </p>
           </div>
           <div className="shrink-0 text-right" style={{ color: theme.life }}>

@@ -93,6 +93,8 @@ export interface GameState {
   gauntletId: string | null;
   /** Set at concede click, before the engine confirms via `status: "conceded"`. */
   selfConceded: boolean;
+  /** True only while this client is spectating an offline AI Lab game. */
+  isAiLabSpectator: boolean;
   isMultiplayer: boolean;
   isHost: boolean;
   myPlayerSlot: string | null;
@@ -113,6 +115,7 @@ export interface GameState {
     opponentDecks?: Deck[],
     engine?: EngineKind,
     gauntletId?: string,
+    watchOnly?: boolean,
   ) => Promise<boolean>;
   startManualTabletopGame: (deck: Deck, formatId?: string, commanderName?: string) => Promise<void>;
   startManualRoomHost: (localPlayerSlot: string) => Promise<void>;

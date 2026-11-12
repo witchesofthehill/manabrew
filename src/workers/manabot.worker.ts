@@ -25,6 +25,8 @@ const HEADER_BYTES = 8;
 interface SeatCommand {
   buffer: SharedArrayBuffer;
   playerSlot: string;
+  /** Mirror local spectator state snapshots to the UI; the bot still owns the SAB reader. */
+  mirrorState?: boolean;
 }
 
 const decoder = new TextDecoder();
@@ -70,7 +72,7 @@ function frameKind(json: string): string {
   return match ? match[1] : "";
 }
 
-function play(buffer: SharedArrayBuffer, playerSlot: string): never {
+function play(buffer: SharedArrayBuffer, playerSlot: string, mirrorState: boolean): never {
   const signal = new Int32Array(buffer, 0, 2);
   const data = new Uint8Array(buffer, HEADER_BYTES);
   const agent = new WasmManabot();
@@ -85,6 +87,7 @@ function play(buffer: SharedArrayBuffer, playerSlot: string): never {
     const kind = frameKind(json);
     if (kind === "state") {
       pendingState = json;
+      if (mirrorState) self.postMessage({ type: "state", playerSlot, json });
       continue;
     }
     if (kind !== "prompt") continue;
@@ -103,7 +106,7 @@ function play(buffer: SharedArrayBuffer, playerSlot: string): never {
 }
 
 self.onmessage = async (event: MessageEvent<SeatCommand>) => {
-  const { buffer, playerSlot } = event.data;
+  const { buffer, playerSlot, mirrorState = false } = event.data;
   if (!(buffer instanceof SharedArrayBuffer) || buffer.byteLength !== SAB_SIZE) {
     console.error(
       `[Manabot] ${playerSlot}: seat buffer is not a ${SAB_SIZE}-byte SharedArrayBuffer`,
@@ -118,5 +121,5 @@ self.onmessage = async (event: MessageEvent<SeatCommand>) => {
     throw error;
   }
   // Never returns: the seat lives until the bridge terminates this worker.
-  play(buffer, playerSlot);
+  play(buffer, playerSlot, mirrorState);
 };

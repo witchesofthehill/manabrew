@@ -16,6 +16,7 @@ import { useAutoResolvePrompt } from "@/components/prompts/internal/useAutoResol
 import { useShallow } from "zustand/react/shallow";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CardChoiceDto, CardDto, CheckpointDto, StackObjectDto } from "@/protocol/game";
+import type { AiLabPlaybackSpeed } from "@/platform/types";
 import type { DeckCard } from "@/protocol/deck";
 import type { ActivatableAbilityInfo } from "@/protocol/prompts/common";
 import type { ClientCardDto, ClientPlayerDto } from "@/stores/gameStore.types";
@@ -274,6 +275,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   const engineCrash = useGameStore((s) => s.engineCrash);
   const isMultiplayer = useGameStore((s) => s.isMultiplayer);
   const isHost = useGameStore((s) => s.isHost);
+  const isAiLabSpectator = useGameStore((s) => s.isAiLabSpectator);
   const selfConceded = useGameStore((s) => s.selfConceded);
   const gameView = useMemo(() => {
     if (!rawGameView || !selfConceded || !myPlayerSlot) return rawGameView;
@@ -351,6 +353,59 @@ export default function Game({ exitTo }: GameProps = {}) {
     )?.devExtraOpponents ?? 0;
   const containerRef = useRef<HTMLDivElement>(null);
   const [rightPanelLeft, setRightPanelLeft] = useState<number>();
+  const [aiLabPaused, setAiLabPaused] = useState(false);
+  const [aiLabSpeed, setAiLabSpeed] = useState<AiLabPlaybackSpeed>(1);
+  const aiLabPausedRef = useRef(false);
+  const toggleAiLabPause = useCallback(async () => {
+    const nextPaused = !aiLabPausedRef.current;
+    const api = getSelectedGameRuntime().api;
+    if (!api.setSpectatorPaused) {
+      toast.error("Pause is not supported by this game runtime.");
+      return;
+    }
+    try {
+      await api.setSpectatorPaused(nextPaused);
+      aiLabPausedRef.current = nextPaused;
+      setAiLabPaused(nextPaused);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not change the AI simulation state.");
+    }
+  }, []);
+  const changeAiLabSpeed = useCallback(async (nextSpeed: AiLabPlaybackSpeed) => {
+    const api = getSelectedGameRuntime().api;
+    if (!api.setSpectatorSpeed) {
+      toast.error("Playback speed is not supported by this game runtime.");
+      return;
+    }
+    try {
+      await api.setSpectatorSpeed(nextSpeed);
+      setAiLabSpeed(nextSpeed);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not change AI playback speed.");
+    }
+  }, []);
+  useEffect(() => {
+    if (!isAiLabSpectator) {
+      aiLabPausedRef.current = false;
+      setAiLabPaused(false);
+      setAiLabSpeed(1);
+      return;
+    }
+    aiLabPausedRef.current = false;
+    setAiLabPaused(false);
+    return () => {
+      if (aiLabPausedRef.current) {
+        const api = getSelectedGameRuntime().api;
+        if (api.setSpectatorPaused) void api.setSpectatorPaused(false).catch(() => undefined);
+        aiLabPausedRef.current = false;
+      }
+    };
+  }, [isAiLabSpectator]);
+  useEffect(() => {
+    if (!gameView?.gameOver) return;
+    aiLabPausedRef.current = false;
+    setAiLabPaused(false);
+  }, [gameView?.gameOver]);
   const boardSceneRef = useRef<BoardScene | null>(null);
   const placementIntentRef = useRef<{
     cardId: string;
@@ -1167,7 +1222,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     return () => clearTimeout(timer);
   }, [gameView?.priorityPlayerId, priorityHighlightPlayerId]);
   useGameEventListeners();
-  useGamePrefetch(preloadCardImages ? "full" : "visible");
+  useGamePrefetch(isAiLabSpectator || preloadCardImages ? "full" : "visible", isAiLabSpectator);
   useKeybindings({
     "open-settings": () => setGameSettingsOpen(true),
     "toggle-stack": () => useStackUIStore.getState().toggleCollapsed(),
@@ -1612,7 +1667,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   );
   const combatPairings = useMemo<CombatPairing[]>(() => {
     const nameOf = (id: string) =>
-      id === myPlayerSlot
+      id === myPlayerSlot && !isAiLabSpectator
         ? `You`
         : (gameView?.players?.find((p) => p.id === id)?.name ?? `A player`);
     const pairs = new Map<string, CombatPairing>();
@@ -1630,7 +1685,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         });
     }
     return [...pairs.values()];
-  }, [gameView?.battlefield, gameView?.players, myPlayerSlot]);
+  }, [gameView?.battlefield, gameView?.players, myPlayerSlot, isAiLabSpectator]);
   const cardZoneTiles = useMemo(() => {
     const map = new Map<
       string,
@@ -2389,7 +2444,7 @@ export default function Game({ exitTo }: GameProps = {}) {
             step: activeFlash.step,
             color: playerColorMap.get(activeFlash.playerId) ?? themeColors.playerColors.self,
             label:
-              activeFlash.playerId === me.id
+              activeFlash.playerId === me.id && !isAiLabSpectator
                 ? "Your turn"
                 : `${stripUsernameTag(turnHandoffPlayer.name)}'s turn`,
             avatarUrl:
@@ -2412,6 +2467,15 @@ export default function Game({ exitTo }: GameProps = {}) {
       isWaitingForResponse,
       isWaitingForOthers:
         relinquishedPriority || (isWaitingForResponse && gameView.priorityPlayerId !== me.id),
+      aiLabControls:
+        isAiLabSpectator && !gameView.gameOver
+          ? {
+              paused: aiLabPaused,
+              speed: aiLabSpeed,
+              onTogglePause: () => void toggleAiLabPause(),
+              onSpeedChange: (speed) => void changeAiLabSpeed(speed),
+            }
+          : undefined,
       availableAttackerIds:
         chooseAttackersInput?.attackers.map((attacker) => attacker.attackerId) ?? [],
       pendingAttackers,

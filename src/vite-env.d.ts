@@ -46,6 +46,7 @@ interface Window {
   __ANDROID_SAFE_AREA__?: { getInsets(): string };
 }
 
+declare const __AI_SIMULATION_ENABLED__: boolean;
 declare const __APP_VERSION__: string;
 declare const __APP_BUILD_ID__: string;
 declare const __APP_BUILD_TARGET__: string;

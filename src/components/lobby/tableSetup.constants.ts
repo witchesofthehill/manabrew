@@ -58,6 +58,11 @@ export const FORMATS: {
     description: `100-card singleton, 40 life`,
   },
   {
+    value: "DuelCommander",
+    label: `Duel Commander`,
+    description: `1v1 Commander, 20 life`,
+  },
+  {
     value: "PauperCommander",
     label: `Pauper Commander`,
     description: `100-card singleton, 30 life, commons`,

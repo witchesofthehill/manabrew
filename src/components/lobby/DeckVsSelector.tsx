@@ -116,6 +116,8 @@ export function DeckVsSelector({
   const [selectedFormat, setSelectedFormat] = useState<PlayFormatId | null>(
     preSelectedDeckEntry?.formatId ?? rememberedFormatId,
   );
+  const deckFormat =
+    selectedFormat === null ? null : (getFormat(selectedFormat)?.deckFormat ?? selectedFormat);
   const [deckSearch, setDeckSearch] = useState("");
   const [starting, setStarting] = useState(false);
   const [tableDialogOpen, setTableDialogOpen] = useState(false);
@@ -135,7 +137,7 @@ export function DeckVsSelector({
   );
   const hubDecks = useHubDeckSearch(
     deckSearch,
-    selectedFormat ?? undefined,
+    deckFormat ?? undefined,
     true,
     [offlineEngine],
     "community",
@@ -196,7 +198,7 @@ export function DeckVsSelector({
   }, [hubDecks.enabled, hubRestoreAttempt, loadHubDeck, preSelectedHubDeckId]);
   const searchLower = deckSearch.toLowerCase();
   const formatFilteredPresets = presetDecks.filter(
-    (deck) => selectedFormat === null || (deck.format ?? "standard") === selectedFormat,
+    (deck) => deckFormat === null || (deck.format ?? "standard") === deckFormat,
   );
   const filteredDecks = searchLower
     ? formatFilteredPresets.filter(
@@ -231,7 +233,7 @@ export function DeckVsSelector({
     };
   });
   const formatFilteredUserDecks = userDeckEntries.filter(
-    (deck) => selectedFormat === null || deck.formatId === selectedFormat,
+    (deck) => deckFormat === null || deck.formatId === deckFormat,
   );
   const cardPool = useCardPool(
     [...formatFilteredUserDecks, ...roster.seats.map((seat) => seat.deck)].flatMap((entry) =>
@@ -272,17 +274,12 @@ export function DeckVsSelector({
     ? formatFilteredUserDecks.filter((deck) => deck.name.toLowerCase().includes(searchLower))
     : formatFilteredUserDecks;
   useEffect(() => {
-    if (
-      !selectedFormat ||
-      !suggestedOpponent ||
-      suggestedOpponent.deck ||
-      suggestedOpponent.touched
-    )
+    if (!deckFormat || !suggestedOpponent || suggestedOpponent.deck || suggestedOpponent.touched)
       return;
     const resolved = resolveAiOpponent({
       presets: presetDecks,
       savedDecks,
-      formatId: selectedFormat,
+      formatId: deckFormat,
       last: lastAiOpponent,
     });
     if (!resolved) return;
@@ -297,12 +294,12 @@ export function DeckVsSelector({
         color: resolved.deck.color,
         sourceDeck: resolved.deck,
         source,
-        formatId: selectedFormat,
+        formatId: deckFormat,
         commanderName: resolved.deck.commanders?.[0]?.identity.name,
         coverCardName: resolved.deck.coverCardName,
       },
     });
-  }, [selectedFormat, suggestedOpponent, presetDecks, savedDecks, lastAiOpponent]);
+  }, [deckFormat, suggestedOpponent, presetDecks, savedDecks, lastAiOpponent]);
   function invalidateHubSelection() {
     hubSelectionRequestIdRef.current += 1;
     setLoadingHubDeckId(null);
@@ -354,7 +351,7 @@ export function DeckVsSelector({
       const deck = detail.deck;
       const formatId = deck.format ?? summary.format ?? "standard";
       const currentFormat = selectedFormatRef.current;
-      if (currentFormat && formatId !== currentFormat) {
+      if (currentFormat && formatId !== (getFormat(currentFormat)?.deckFormat ?? currentFormat)) {
         toast.error(
           `"${detail.title}" is not a ${getFormat(currentFormat)?.name ?? currentFormat} deck`,
         );
@@ -389,7 +386,7 @@ export function DeckVsSelector({
     assignDeck(entry);
   }
   function handleRandomOpponent(seatId: string) {
-    if (!selectedFormat) return;
+    if (!deckFormat) return;
     const candidates = [
       ...formatFilteredPresets.map(
         (deck): SelectedDeck => ({
@@ -398,12 +395,12 @@ export function DeckVsSelector({
           name: deck.name,
           sourceDeck: deck,
           source: "preset",
-          formatId: selectedFormat,
+          formatId: deckFormat,
           commanderName: deck.commanders?.[0]?.identity.name,
         }),
       ),
       ...formatFilteredUserDecks,
-    ].filter((selected) => !offlineSelectionError(selected, selectedFormat, cardPool));
+    ].filter((selected) => !offlineSelectionError(selected, deckFormat, cardPool));
     const random = pickRandom(candidates);
     if (!random) {
       toast.error("No playable decks are available for this format.");
@@ -426,7 +423,7 @@ export function DeckVsSelector({
     const started = await onStart(
       launch.playerDeck.sourceDeck,
       launch.opponentDecks,
-      launch.playerDeck.formatId,
+      selectedFormat ?? undefined,
       launch.playerDeck.commanderName,
     );
     if (!started) {
@@ -440,7 +437,7 @@ export function DeckVsSelector({
       savePresetToAccountOnUse(launch.playerDeck.sourceId);
     }
     const prefs = usePreferencesStore.getState();
-    if (launch.playerDeck.formatId) prefs.setLastOfflineFormatId(launch.playerDeck.formatId);
+    if (selectedFormat) prefs.setLastOfflineFormatId(selectedFormat);
     if (launch.playerDeck.source === "local" && launch.playerDeck.sourceId !== "current") {
       prefs.setLastPlayedDeckId(launch.playerDeck.sourceId);
     }
@@ -450,7 +447,7 @@ export function DeckVsSelector({
       prefs.setLastAiOpponent({ kind: "saved", id: opponentDeck.sourceId });
     }
   }
-  const { errors: seatErrors, launch } = prepareOfflineGame(roster, selectedFormat, cardPool);
+  const { errors: seatErrors, launch } = prepareOfflineGame(roster, deckFormat, cardPool);
   const isReady = loadingHubDeckId === null && launch !== null;
   const isCommander = isOfflinePodFormat(selectedFormat);
   const activeAssignment = assignments.find((assignment) => assignment.id === roster.activeSeatId);

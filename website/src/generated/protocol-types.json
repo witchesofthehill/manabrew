@@ -584,8 +584,8 @@
       "refs": []
     },
     "GameFormat": {
-      "ts": "type GameFormat =\n  | \"Any\"\n  | \"Standard\"\n  | \"Pioneer\"\n  | \"Modern\"\n  | \"Legacy\"\n  | \"Vintage\"\n  | \"Pauper\"\n  | \"Premodern\"\n  | \"Commander\"\n  | \"PauperCommander\"\n  | \"Brawl\"\n  | \"Oathbreaker\"\n  | \"Draft\"\n  | \"Sealed\";",
-      "rust": "pub enum GameFormat {\n    Any,\n    Standard,\n    Pioneer,\n    Modern,\n    Legacy,\n    Vintage,\n    Pauper,\n    Premodern,\n    Commander,\n    PauperCommander,\n    Brawl,\n    Oathbreaker,\n    Draft,\n    Sealed,\n}",
+      "ts": "type GameFormat =\n  | \"Any\"\n  | \"Standard\"\n  | \"Pioneer\"\n  | \"Modern\"\n  | \"Legacy\"\n  | \"Vintage\"\n  | \"Pauper\"\n  | \"Premodern\"\n  | \"Commander\"\n  | \"DuelCommander\"\n  | \"PauperCommander\"\n  | \"Brawl\"\n  | \"Oathbreaker\"\n  | \"Draft\"\n  | \"Sealed\";",
+      "rust": "pub enum GameFormat {\n    Any,\n    Standard,\n    Pioneer,\n    Modern,\n    Legacy,\n    Vintage,\n    Pauper,\n    Premodern,\n    Commander,\n    DuelCommander,\n    PauperCommander,\n    Brawl,\n    Oathbreaker,\n    Draft,\n    Sealed,\n}",
       "refs": []
     },
     "GameOverInput": {

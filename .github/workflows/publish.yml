@@ -163,6 +163,10 @@ jobs:
           RUST_LOG: self_hosted_node=info
         run: cargo run -p self-hosted-node --features graal-forge
 
+      - name: Clear restored source maps
+        shell: bash
+        run: rm -rf target/faro-sourcemaps
+
       - name: Tauri build (macOS)
         uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f
         env:
@@ -345,6 +349,10 @@ jobs:
           RUST_LOG: self_hosted_node=info
         run: cargo run -p self-hosted-node --features graal-forge
 
+      - name: Clear restored source maps
+        shell: bash
+        run: rm -rf target/faro-sourcemaps
+
       - name: Tauri build (Windows)
         uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f
         env:
@@ -489,6 +497,10 @@ jobs:
           cargo run -p forge-cardset-archive --features build --release \
             --bin build-cardset-archive
 
+      - name: Clear restored source maps
+        shell: bash
+        run: rm -rf target/faro-sourcemaps
+
       - name: Tauri build (iOS, unsigned)
         run: yarn ios:build --no-sign
 
@@ -594,6 +606,10 @@ jobs:
         run: |
           cargo run -p forge-cardset-archive --features build --release \
             --bin build-cardset-archive
+
+      - name: Clear restored source maps
+        shell: bash
+        run: rm -rf target/faro-sourcemaps
 
       - name: Tauri build (Android APK, arm64)
         run: node scripts/mobile-dev.mjs android build --apk --target aarch64

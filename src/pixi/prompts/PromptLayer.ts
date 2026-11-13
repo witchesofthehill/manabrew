@@ -20,7 +20,7 @@ import {
 import type { Theme } from "@/hooks/useTheme";
 import { readableTextColor, withAlpha } from "@/themes/gameTheme";
 import { hexToNum, mixNum } from "@/pixi/colorUtils";
-import { CardSprite } from "@/pixi/CardSprite";
+import { CardSprite, isRealisticOnlyCard } from "@/pixi/CardSprite";
 import {
   ACTION_DRAWER_BUMP_EVENT,
   AUTOPASS_DELAY_MAX_MS,
@@ -2350,7 +2350,9 @@ export class PromptLayer extends PromptModalLayer {
     const container = new Container();
     const sprite = new CardSprite(card, "hand");
     sprite.onVisualChange = this.callbacks.onRenderRequested;
-    sprite.setHandRulesView(usePreferencesStore.getState().promptCardStyle === "rules");
+    sprite.setHandRulesView(
+      usePreferencesStore.getState().promptCardStyle === "rules" && !isRealisticOnlyCard(card),
+    );
     const place = () => {
       sprite.scale.set(1);
       const scale = Math.min(

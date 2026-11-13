@@ -377,6 +377,7 @@ export interface MatchProposalPayload {
   pod_size: number;
   players: number;
   expires_s: number;
+  busy: number;
 }
 export interface MatchFoundPayload {
   room: RoomInfo;

@@ -577,13 +577,15 @@ pub enum ServerMessage {
         players: u32,
     },
 
-    /// A pod formed. Every member must send `AcceptMatch` before the relay
-    /// seats it; a decline or timeout returns the others to the queue.
+    /// A pod formed. The relay seats it once every member sent `AcceptMatch`
+    /// and none is in a local game; `busy` members are still finishing one.
     MatchProposal {
         bracket: u8,
         pod_size: u8,
         players: u32,
         expires_s: u32,
+        #[serde(default)]
+        busy: u32,
     },
 
     MatchFound {

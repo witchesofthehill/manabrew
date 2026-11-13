@@ -2608,6 +2608,11 @@ fn handle_client_message(
                 matchmaking::queue_status(&queue, player_id)
             };
             send_msg(sender, &status);
+            matchmaking::record_player(state, player_id, "enter", |entry, event| {
+                event.pod_sizes = entry.pod_sizes.clone();
+                event.brackets = entry.decks.iter().map(|deck| deck.bracket).collect();
+                event.can_host = Some(entry.can_host);
+            });
         }
 
         ClientMessage::AcceptQueueStep { bracket } => {
@@ -2621,6 +2626,9 @@ fn handle_client_message(
                 Ok(status) => {
                     info!("[queue] '{}' accepted bracket {}", username, bracket);
                     send_msg(sender, &status);
+                    matchmaking::record_player(state, player_id, "step_accept", |_, event| {
+                        event.bracket = Some(bracket);
+                    });
                 }
                 Err(msg) => send_error(sender, &ServerError::InvalidQueue(msg)),
             }
@@ -2637,12 +2645,14 @@ fn handle_client_message(
                 Ok(status) => {
                     info!("[queue] '{}' accepted bot fill", username);
                     send_msg(sender, &status);
+                    matchmaking::record_player(state, player_id, "bot_fill_accept", |_, _| {});
                 }
                 Err(msg) => send_error(sender, &ServerError::InvalidQueue(msg)),
             }
         }
 
         ClientMessage::AcceptMatch => {
+            matchmaking::record_player(state, player_id, "match_accept", |_, _| {});
             state
                 .queue
                 .lock()
@@ -2651,6 +2661,7 @@ fn handle_client_message(
         }
 
         ClientMessage::DeclineMatch => {
+            matchmaking::record_player(state, player_id, "match_decline", |_, _| {});
             let requeued = state
                 .queue
                 .lock()
@@ -2661,6 +2672,7 @@ fn handle_client_message(
         }
 
         ClientMessage::LeaveQueue => {
+            matchmaking::record_player(state, player_id, "leave", |_, _| {});
             let requeued = state.queue.lock().expect("queue lock").leave(player_id);
             matchmaking::send_statuses(state, requeued.iter().chain([&player_id.to_string()]));
         }

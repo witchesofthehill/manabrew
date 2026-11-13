@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use serde_json::Value;
 use tokio::sync::mpsc;
 
-pub use event::{AnalyticsEvent, CardEntry, GameEndReason, SeatInfo};
+pub use event::{AnalyticsEvent, CardEntry, GameEndReason, MatchmakingEvent, SeatInfo};
 
 use crate::config::ServerConfig;
 use crate::lobby::StartedGame;

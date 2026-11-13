@@ -61,6 +61,7 @@ pub struct Room {
     pub chat: ChatHistory,
     pub matchmade_bracket: Option<u8>,
     pub matchmade_bot_fill: bool,
+    pub pool_max_players: Option<u8>,
 }
 
 impl Room {
@@ -138,6 +139,7 @@ impl Room {
             chat: ChatHistory::default(),
             matchmade_bracket: None,
             matchmade_bot_fill: false,
+            pool_max_players: None,
         }
     }
 
@@ -220,6 +222,13 @@ impl Room {
     pub fn remove_player(&mut self, player_id: &str) -> Option<RoomSlot> {
         if let Some(idx) = self.players.iter().position(|p| p.player_id == player_id) {
             let slot = self.players.remove(idx);
+            if self.hosted && self.players.is_empty() {
+                if let Some(max_players) = self.pool_max_players.take() {
+                    self.max_players = max_players;
+                }
+                self.matchmade_bracket = None;
+                self.matchmade_bot_fill = false;
+            }
             if self.host_player_id == player_id && self.limited_session_id.is_none() {
                 if let Some(new_host) = self.players.first() {
                     self.host_player_id = new_host.player_id.clone();

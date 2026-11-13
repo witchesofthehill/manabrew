@@ -2322,6 +2322,7 @@ class WebServerApi implements IServerApi {
           pod_size: msg.pod_size,
           players: msg.players,
           expires_s: msg.expires_s,
+          busy: msg.busy ?? 0,
         },
       ],
       RoomInvite: [

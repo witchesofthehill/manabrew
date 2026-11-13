@@ -8,10 +8,12 @@ import { commanderQueueDecks } from "@/lib/queueDecks";
 import { cn } from "@/lib/utils";
 import {
   POD_SIZES,
+  podSizesFor,
   tableLabel,
   useMatchmakingStore,
   type PodSize,
 } from "@/stores/useMatchmakingStore";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useServerStore } from "@/stores/useServerStore";
 import { RELAY_FEATURE, type QueueBracketCount } from "@/types/server";
 
@@ -29,8 +31,19 @@ export function FindGameCard() {
   const supported = useServerStore((state) => state.relayFeatures).includes(
     RELAY_FEATURE.Matchmaking,
   );
-  const { phase, podSizes, queuedAt, brackets, waiting, offer, botFillOffer, botFill, proposal } =
-    useMatchmakingStore();
+  const {
+    phase,
+    auto,
+    podSizes,
+    queuedAt,
+    brackets,
+    waiting,
+    offer,
+    botFillOffer,
+    botFill,
+    proposal,
+  } = useMatchmakingStore();
+  const openToHumans = usePreferencesStore((state) => state.openToHumanMatches);
   const [eitherSize, setEitherSize] = useState(true);
   const [preparing, setPreparing] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -46,25 +59,22 @@ export function FindGameCard() {
   async function find(size: PodSize) {
     setPreparing(true);
     try {
-      const decks = await commanderQueueDecks(ownedDecks);
+      const decks = await commanderQueueDecks(ownedDecks.map(({ deck }) => deck));
       if (decks.length === 0) {
         toast.error("Save a Commander deck with a commander to find a game.");
         return;
       }
-      const sizes: PodSize[] = eitherSize
-        ? [
-            size,
-            ...POD_SIZES.filter((other) => other !== size).sort(
-              (a, b) => Math.abs(a - size) - Math.abs(b - size),
-            ),
-          ]
-        : [size];
-      await useMatchmakingStore.getState().enter(sizes, decks);
+      await useMatchmakingStore.getState().enter(podSizesFor(size, eitherSize), decks);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not join the queue.");
     } finally {
       setPreparing(false);
     }
+  }
+
+  function setOpenToHumans(open: boolean) {
+    usePreferencesStore.getState().setOpenToHumanMatches(open);
+    if (!open && auto) void useMatchmakingStore.getState().leave();
   }
 
   const elapsed = queuedAt ? Math.max(0, Math.floor((now - queuedAt) / 1000)) : 0;
@@ -84,7 +94,9 @@ export function FindGameCard() {
           <h2 className="text-ui-label font-medium text-foreground">Find a Commander game</h2>
           <p className="mt-0.5 text-ui-body leading-snug text-muted-foreground">
             {phase === "proposed" && proposal
-              ? `Match found at bracket ${proposal.bracket}. Waiting for every player to accept.`
+              ? proposal.busy > 0
+                ? `Match found at bracket ${proposal.bracket}. Waiting for ${proposal.busy === 1 ? "1 player" : `${proposal.busy} players`} to finish a game.`
+                : `Match found at bracket ${proposal.bracket}. Waiting for every player to accept.`
               : queued
                 ? `Looking for a ${tables} · ${elapsed}s · your brackets ${brackets.join(", ")}`
                 : "Queue all your Commander decks. You play the first one that finds a full table."}
@@ -103,9 +115,19 @@ export function FindGameCard() {
 
       {queued && (
         <p className="text-ui-meta text-muted-foreground">
-          You can play against Manabot while you wait. We ask before you join a match.
+          {auto
+            ? "Queued with the deck from your game against Manabot. A match starts when your game ends."
+            : "You can play against Manabot while you wait. A match starts when your game ends."}
         </p>
       )}
+
+      <label className="flex items-center gap-2 text-ui-meta text-muted-foreground">
+        <Checkbox
+          checked={openToHumans}
+          onCheckedChange={(checked) => setOpenToHumans(checked === true)}
+        />
+        Look for human players while I play Commander against Manabot
+      </label>
 
       {!queued && (
         <label className="flex items-center gap-2 text-ui-meta text-muted-foreground">
@@ -113,7 +135,7 @@ export function FindGameCard() {
             checked={eitherSize}
             onCheckedChange={(checked) => setEitherSize(checked === true)}
           />
-          Also accept other table sizes
+          Also accept the other pod size (3 or 4 players)
         </label>
       )}
 

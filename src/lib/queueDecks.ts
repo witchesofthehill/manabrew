@@ -3,7 +3,6 @@ import { fetchGameChangers } from "@/lib/gameChangers";
 import { findMyCombos } from "@/api/commanderSpellbook";
 import { fetchComboVotes } from "@/api/edhrec";
 import type { Deck } from "@/protocol/deck";
-import type { SavedDeck } from "@/stores/useDeckStore";
 import type { QueuedDeck } from "@/types/server";
 
 const ANALYSIS_CONCURRENCY = 4;
@@ -23,10 +22,10 @@ async function deckBracket(deck: Deck): Promise<number> {
   }
 }
 
-export async function commanderQueueDecks(decks: SavedDeck[]): Promise<QueuedDeck[]> {
-  const commanderDecks = decks
-    .map(({ deck }) => deck)
-    .filter((deck) => deck.format === "commander" && (deck.commanders?.length ?? 0) > 0);
+export async function commanderQueueDecks(decks: Deck[]): Promise<QueuedDeck[]> {
+  const commanderDecks = decks.filter(
+    (deck) => deck.format === "commander" && (deck.commanders?.length ?? 0) > 0,
+  );
   const queued: QueuedDeck[] = [];
   for (let i = 0; i < commanderDecks.length; i += ANALYSIS_CONCURRENCY) {
     const batch = commanderDecks.slice(i, i + ANALYSIS_CONCURRENCY);

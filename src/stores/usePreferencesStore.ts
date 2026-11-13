@@ -182,6 +182,8 @@ export interface PreferencesState {
   setLastAiOpponent: (opponent: AiOpponentRef) => void;
 
   lastRoomSetup: LastRoomSetup | null;
+  openToHumanMatches: boolean;
+  setOpenToHumanMatches: (open: boolean) => void;
   setLastRoomSetup: (setup: LastRoomSetup) => void;
   tableBackground: BoardBackgroundId;
   mobileHandedness: "right" | "left";
@@ -238,6 +240,7 @@ const PERSISTED_PREFERENCE_KEYS = [
   "lastOfflineFormatId",
   "lastAiOpponent",
   "lastRoomSetup",
+  "openToHumanMatches",
   "tableBackground",
 ] as const satisfies readonly (keyof PreferencesState)[];
 
@@ -472,6 +475,8 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           lastRoomSetup: null,
           setLastRoomSetup: (lastRoomSetup) => set({ lastRoomSetup }),
+          openToHumanMatches: true,
+          setOpenToHumanMatches: (openToHumanMatches) => set({ openToHumanMatches }),
           tableBackground: DEFAULT_BOARD_BACKGROUND_ID,
           setTableBackground: (tableBackground) => set({ tableBackground }),
         };

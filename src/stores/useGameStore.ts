@@ -13,6 +13,7 @@ import {
   currentOfflineGameId,
 } from "@/lib/offlinePlayRecord";
 import { announceLocalGame, clearLocalGame } from "@/lib/localGamePresence";
+import { useMatchmakingStore } from "@/stores/useMatchmakingStore";
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { toast } from "sonner";
@@ -295,6 +296,7 @@ async function initializeGame({
   const engineLabel = engine === "Forge" ? "forge-wasm" : localEngineLabel();
   beginGame(engineLabel);
   announceLocalGame("Singleplayer");
+  void useMatchmakingStore.getState().autoEnter(deck, Object.keys(gameDecks).length);
   void beginOfflineGame({
     engine: engineLabel,
     format: selectedFormatId ?? null,

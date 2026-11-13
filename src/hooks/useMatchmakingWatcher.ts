@@ -15,6 +15,7 @@ export function useMatchmakingWatcher(): void {
   const navigate = useNavigate();
   const phase = useMatchmakingStore((s) => s.phase);
   const proposal = useMatchmakingStore((s) => s.proposal);
+  const accepted = useMatchmakingStore((s) => s.accepted);
   const match = useMatchmakingStore((s) => s.match);
 
   useEffect(() => {
@@ -24,11 +25,11 @@ export function useMatchmakingWatcher(): void {
   }, [match, navigate, phase]);
 
   useEffect(() => {
-    if (phase !== "proposed" || !proposal || !localGameActive()) return;
+    if (phase !== "proposed" || !proposal || accepted || !localGameActive()) return;
     const id = toast(`Match found: bracket ${proposal.bracket} ${tableLabel(proposal.pod_size)}`, {
-      description: "Joining ends your current game.",
+      description: "It starts when this game ends, or join now.",
       duration: proposal.expires_s * 1000,
-      action: { label: "Join", onClick: () => void joinFromLocalGame() },
+      action: { label: "Join now", onClick: () => void joinFromLocalGame() },
       cancel: {
         label: "Leave queue",
         onClick: () => void useMatchmakingStore.getState().declineMatch(),
@@ -37,5 +38,5 @@ export function useMatchmakingWatcher(): void {
     return () => {
       toast.dismiss(id);
     };
-  }, [phase, proposal]);
+  }, [accepted, phase, proposal]);
 }

@@ -19,7 +19,6 @@ const STATUS_EVERY_TICKS: u64 = 5;
 const STEP_OFFER_AFTER: Duration = Duration::from_secs(30);
 const BOT_FILL_OFFER_AFTER: Duration = Duration::from_secs(30);
 const PROPOSAL_TIMEOUT: Duration = Duration::from_secs(30);
-const BUSY_HOLD: Duration = Duration::from_secs(300);
 const MIN_BRACKET: u8 = 1;
 const MAX_BRACKET: u8 = 5;
 const MAX_QUEUED_DECKS: usize = 32;
@@ -100,20 +99,7 @@ pub struct MatchQueue {
 pub struct Proposal {
     pub pod: Pod,
     pub created: Instant,
-    pub busy_at_start: HashSet<String>,
     pub accepted: HashSet<String>,
-}
-
-impl Proposal {
-    fn expired(&self, now: Instant) -> bool {
-        let age = now.duration_since(self.created);
-        age >= BUSY_HOLD
-            || (age >= PROPOSAL_TIMEOUT
-                && self.pod.members.iter().any(|entry| {
-                    !self.busy_at_start.contains(&entry.player_id)
-                        && !self.accepted.contains(&entry.player_id)
-                }))
-    }
 }
 
 #[derive(Debug)]
@@ -148,17 +134,14 @@ impl MatchQueue {
     }
 
     fn propose(&mut self, pod: Pod, now: Instant, busy: &HashSet<String>) -> u32 {
-        let busy_at_start: HashSet<String> = pod
+        let count = pod
             .members
             .iter()
             .filter(|entry| busy.contains(&entry.player_id))
-            .map(|entry| entry.player_id.clone())
-            .collect();
-        let count = busy_at_start.len() as u32;
+            .count() as u32;
         self.proposals.push(Proposal {
             pod,
             created: now,
-            busy_at_start,
             accepted: HashSet::new(),
         });
         count
@@ -215,15 +198,13 @@ impl MatchQueue {
             });
             if all_live && all_ready {
                 ready.push(proposal.pod);
-            } else if all_live && !proposal.expired(now) {
+            } else if all_live && now.duration_since(proposal.created) < PROPOSAL_TIMEOUT {
                 self.proposals.push(proposal);
             } else {
                 let (keep, lose): (Vec<_>, Vec<_>) =
                     proposal.pod.members.into_iter().partition(|entry| {
                         live.contains(&entry.player_id)
-                            && (!all_live
-                                || proposal.accepted.contains(&entry.player_id)
-                                || proposal.busy_at_start.contains(&entry.player_id))
+                            && (!all_live || proposal.accepted.contains(&entry.player_id))
                     });
                 dropped.extend(lose);
                 requeued.extend(self.requeue(keep));
@@ -575,11 +556,7 @@ fn run_tick(state: &Arc<ServerState>, now: Instant, send_status: bool) {
                     bracket,
                     pod_size,
                     players,
-                    expires_s: if busy > 0 {
-                        BUSY_HOLD.as_secs() as u32
-                    } else {
-                        PROPOSAL_TIMEOUT.as_secs() as u32
-                    },
+                    expires_s: PROPOSAL_TIMEOUT.as_secs() as u32,
                     busy,
                 };
                 (ids, msg)

@@ -578,7 +578,7 @@ pub enum ServerMessage {
     },
 
     /// A pod formed. The relay seats it once every member sent `AcceptMatch`
-    /// and none is in a local game; `busy` members are still finishing one.
+    /// and left any local game; `busy` members were in one when it formed.
     MatchProposal {
         bracket: u8,
         pod_size: u8,

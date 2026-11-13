@@ -27,7 +27,7 @@ export function useMatchmakingWatcher(): void {
   useEffect(() => {
     if (phase !== "proposed" || !proposal || accepted || !localGameActive()) return;
     const id = toast(`Match found: bracket ${proposal.bracket} ${tableLabel(proposal.pod_size)}`, {
-      description: "It starts when this game ends, or join now.",
+      description: "Join within 30 seconds. Joining ends this game.",
       duration: proposal.expires_s * 1000,
       action: { label: "Join now", onClick: () => void joinFromLocalGame() },
       cancel: {

@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { create } from "zustand";
 import { ownedDecksNow } from "@/hooks/useOwnedDecks";
 import { forgeWasmGate } from "@/lib/forgeWasm";
@@ -32,6 +33,7 @@ export function podSizesFor(size: PodSize, otherPodSize: boolean): PodSize[] {
 }
 
 const RELAY_WAIT_MS = 10_000;
+const ASK_TO_QUEUE_MS = 20_000;
 const MAX_QUEUED_DECKS = 32;
 
 function deckKey(deck: Deck): string {
@@ -114,6 +116,26 @@ function waitForRelay(): Promise<boolean> {
   });
 }
 
+function askToQueue(): Promise<boolean | null> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const settle = (answer: boolean | null) => {
+      if (settled) return;
+      settled = true;
+      resolve(answer);
+    };
+    toast("Look for human players while you play?", {
+      description:
+        "We queue your Commander decks. When a table is found you get 30 seconds to join, which ends this game. You can change this on the Play page.",
+      duration: ASK_TO_QUEUE_MS,
+      action: { label: "Yes", onClick: () => settle(true) },
+      cancel: { label: "No thanks", onClick: () => settle(false) },
+      onDismiss: () => settle(null),
+      onAutoClose: () => settle(null),
+    });
+  });
+}
+
 let unsubscribers: Array<() => void> = [];
 
 function listen(set: (partial: Partial<MatchmakingState>) => void, get: () => MatchmakingState) {
@@ -187,9 +209,17 @@ export const useMatchmakingStore = create<MatchmakingState>((set, get) => ({
     });
   },
   async autoEnter(deck, seats) {
-    if (!usePreferencesStore.getState().openToHumanMatches || get().phase !== "idle") return;
+    const preferences = usePreferencesStore.getState();
+    if (preferences.openToHumanMatches === false || get().phase !== "idle") return;
     if (seats < 2 || seats > 4) return;
     if (deck.format !== "commander" || !deck.commanders?.length) return;
+    if (!(await waitForRelay())) return;
+    if (preferences.openToHumanMatches === null) {
+      const answer = await askToQueue();
+      if (answer === null) return;
+      usePreferencesStore.getState().setOpenToHumanMatches(answer);
+      if (!answer) return;
+    }
     const seen = new Set<string>();
     const decks = [deck, ...ownedDecksNow().map((owned) => owned.deck)].filter((candidate) => {
       const key = deckKey(candidate);
@@ -198,7 +228,7 @@ export const useMatchmakingStore = create<MatchmakingState>((set, get) => ({
       return true;
     });
     const queued = (await commanderQueueDecks(decks)).slice(0, MAX_QUEUED_DECKS);
-    if (queued.length === 0 || !(await waitForRelay()) || get().phase !== "idle") return;
+    if (queued.length === 0 || !relayReady() || get().phase !== "idle") return;
     await get().enter(podSizesFor(seats as PodSize, true), queued, true);
   },
   async acceptStep(bracket) {

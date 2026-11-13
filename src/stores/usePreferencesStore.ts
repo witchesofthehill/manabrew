@@ -182,7 +182,7 @@ export interface PreferencesState {
   setLastAiOpponent: (opponent: AiOpponentRef) => void;
 
   lastRoomSetup: LastRoomSetup | null;
-  openToHumanMatches: boolean;
+  openToHumanMatches: boolean | null;
   setOpenToHumanMatches: (open: boolean) => void;
   setLastRoomSetup: (setup: LastRoomSetup) => void;
   tableBackground: BoardBackgroundId;
@@ -475,7 +475,7 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           lastRoomSetup: null,
           setLastRoomSetup: (lastRoomSetup) => set({ lastRoomSetup }),
-          openToHumanMatches: true,
+          openToHumanMatches: null,
           setOpenToHumanMatches: (openToHumanMatches) => set({ openToHumanMatches }),
           tableBackground: DEFAULT_BOARD_BACKGROUND_ID,
           setTableBackground: (tableBackground) => set({ tableBackground }),

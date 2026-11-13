@@ -116,14 +116,14 @@ export function FindGameCard() {
       {queued && (
         <p className="text-ui-meta text-muted-foreground">
           {auto
-            ? "Queued from your game against Manabot with all your Commander decks. A match starts when your game ends."
-            : "You can play against Manabot while you wait. A match starts when your game ends."}
+            ? "Queued from your game against Manabot with all your Commander decks. When a table is found you get 30 seconds to join."
+            : "You can play against Manabot while you wait. When a table is found you get 30 seconds to join."}
         </p>
       )}
 
       <label className="flex items-center gap-2 text-ui-meta text-muted-foreground">
         <Checkbox
-          checked={openToHumans}
+          checked={openToHumans === true}
           onCheckedChange={(checked) => setOpenToHumans(checked === true)}
         />
         Look for human players while I play Commander against Manabot

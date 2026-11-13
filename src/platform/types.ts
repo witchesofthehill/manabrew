@@ -101,7 +101,7 @@ export interface InviteToRoomParams {
 
 export interface EnterQueueParams {
   format: GameFormat;
-  podSize: number;
+  podSizes: number[];
   decks: QueuedDeck[];
   canHost: boolean;
 }
@@ -157,6 +157,8 @@ export interface IServerApi {
   enterQueue(params: EnterQueueParams): Promise<void>;
   acceptQueueStep(bracket: number): Promise<void>;
   acceptBotFill(): Promise<void>;
+  acceptMatch(): Promise<void>;
+  declineMatch(): Promise<void>;
   leaveQueue(): Promise<void>;
   createRoom(params: CreateRoomParams): Promise<string | null>;
   stopRoom(): Promise<void>;

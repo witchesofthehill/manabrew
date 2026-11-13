@@ -2558,11 +2558,11 @@ fn handle_client_message(
 
         ClientMessage::EnterQueue {
             format,
-            pod_size,
+            pod_sizes,
             decks,
             can_host,
         } => {
-            if let Err(err) = matchmaking::validate_entry(&format, pod_size, &decks) {
+            if let Err(err) = matchmaking::validate_entry(&format, &pod_sizes, &decks) {
                 send_error(sender, &err);
                 return;
             }
@@ -2583,11 +2583,11 @@ fn handle_client_message(
                 return;
             }
             info!(
-                "[queue] '{}' queued {} deck(s) for {:?} pods of {} (can_host={})",
+                "[queue] '{}' queued {} deck(s) for {:?} pods of {:?} (can_host={})",
                 username,
                 decks.len(),
                 format,
-                pod_size,
+                pod_sizes,
                 can_host
             );
             let status = {
@@ -2596,7 +2596,7 @@ fn handle_client_message(
                     player_id: player_id.to_string(),
                     username: username.to_string(),
                     format,
-                    pod_size,
+                    pod_sizes,
                     decks,
                     steps: Vec::new(),
                     can_host,
@@ -2642,13 +2642,27 @@ fn handle_client_message(
             }
         }
 
+        ClientMessage::AcceptMatch => {
+            state
+                .queue
+                .lock()
+                .expect("queue lock")
+                .accept_match(player_id);
+        }
+
+        ClientMessage::DeclineMatch => {
+            let requeued = state
+                .queue
+                .lock()
+                .expect("queue lock")
+                .decline_match(player_id);
+            info!("[queue] '{}' declined a match", username);
+            matchmaking::send_statuses(state, requeued.iter().chain([&player_id.to_string()]));
+        }
+
         ClientMessage::LeaveQueue => {
-            let status = {
-                let mut queue = state.queue.lock().expect("queue lock");
-                queue.leave(player_id);
-                matchmaking::queue_status(&queue, player_id)
-            };
-            send_msg(sender, &status);
+            let requeued = state.queue.lock().expect("queue lock").leave(player_id);
+            matchmaking::send_statuses(state, requeued.iter().chain([&player_id.to_string()]));
         }
 
         ClientMessage::TurnChange {
@@ -2726,6 +2740,7 @@ fn msg_type_of(msg: &ServerMessage) -> &'static str {
         ServerMessage::QueueStatus { .. } => "QueueStatus",
         ServerMessage::QueueStepOffer { .. } => "QueueStepOffer",
         ServerMessage::QueueBotFillOffer { .. } => "QueueBotFillOffer",
+        ServerMessage::MatchProposal { .. } => "MatchProposal",
         ServerMessage::MatchFound { .. } => "MatchFound",
     }
 }
@@ -2761,6 +2776,8 @@ fn client_msg_type(msg: &ClientMessage) -> &'static str {
         ClientMessage::EnterQueue { .. } => "EnterQueue",
         ClientMessage::AcceptQueueStep { .. } => "AcceptQueueStep",
         ClientMessage::AcceptBotFill => "AcceptBotFill",
+        ClientMessage::AcceptMatch => "AcceptMatch",
+        ClientMessage::DeclineMatch => "DeclineMatch",
         ClientMessage::LeaveQueue => "LeaveQueue",
     }
 }

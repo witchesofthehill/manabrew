@@ -1,13 +1,17 @@
 import { Loader2, Users, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useOwnedDecks } from "@/hooks/useOwnedDecks";
-import { ROUTES } from "@/lib/constants";
 import { commanderQueueDecks } from "@/lib/queueDecks";
 import { cn } from "@/lib/utils";
-import { useMatchmakingStore, type PodSize } from "@/stores/useMatchmakingStore";
+import {
+  POD_SIZES,
+  tableLabel,
+  useMatchmakingStore,
+  type PodSize,
+} from "@/stores/useMatchmakingStore";
 import { useServerStore } from "@/stores/useServerStore";
 import { RELAY_FEATURE, type QueueBracketCount } from "@/types/server";
 
@@ -20,14 +24,14 @@ function playersLabel(count: number): string {
 }
 
 export function FindGameCard() {
-  const navigate = useNavigate();
   const ownedDecks = useOwnedDecks();
   const connected = useServerStore((state) => state.connected);
   const supported = useServerStore((state) => state.relayFeatures).includes(
     RELAY_FEATURE.Matchmaking,
   );
-  const { phase, podSize, queuedAt, brackets, waiting, offer, botFillOffer, botFill, match } =
+  const { phase, podSizes, queuedAt, brackets, waiting, offer, botFillOffer, botFill, proposal } =
     useMatchmakingStore();
+  const [eitherSize, setEitherSize] = useState(true);
   const [preparing, setPreparing] = useState(false);
   const [now, setNow] = useState(() => Date.now());
 
@@ -36,12 +40,6 @@ export function FindGameCard() {
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, [phase]);
-
-  useEffect(() => {
-    if (phase !== "matched" || !match) return;
-    useMatchmakingStore.getState().clearMatch();
-    navigate(ROUTES.LOBBY);
-  }, [match, navigate, phase]);
 
   if (!connected || !supported) return null;
 
@@ -53,7 +51,15 @@ export function FindGameCard() {
         toast.error("Save a Commander deck with a commander to find a game.");
         return;
       }
-      await useMatchmakingStore.getState().enter(size, decks);
+      const sizes: PodSize[] = eitherSize
+        ? [
+            size,
+            ...POD_SIZES.filter((other) => other !== size).sort(
+              (a, b) => Math.abs(a - size) - Math.abs(b - size),
+            ),
+          ]
+        : [size];
+      await useMatchmakingStore.getState().enter(sizes, decks);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not join the queue.");
     } finally {
@@ -62,7 +68,8 @@ export function FindGameCard() {
   }
 
   const elapsed = queuedAt ? Math.max(0, Math.floor((now - queuedAt) / 1000)) : 0;
-  const queued = phase === "queued";
+  const queued = phase === "queued" || phase === "proposed";
+  const tables = podSizes.map(tableLabel).join(" or ");
 
   return (
     <section
@@ -76,9 +83,11 @@ export function FindGameCard() {
         <div className="min-w-0 flex-1">
           <h2 className="text-ui-label font-medium text-foreground">Find a Commander game</h2>
           <p className="mt-0.5 text-ui-body leading-snug text-muted-foreground">
-            {queued
-              ? `Looking for a ${podSize === 2 ? "1v1" : "4-player pod"} · ${elapsed}s · your brackets ${brackets.join(", ")}`
-              : "Queue all your Commander decks. You play the first one that finds a full table."}
+            {phase === "proposed" && proposal
+              ? `Match found at bracket ${proposal.bracket}. Waiting for every player to accept.`
+              : queued
+                ? `Looking for a ${tables} · ${elapsed}s · your brackets ${brackets.join(", ")}`
+                : "Queue all your Commander decks. You play the first one that finds a full table."}
           </p>
         </div>
         {queued && (
@@ -92,9 +101,25 @@ export function FindGameCard() {
         )}
       </div>
 
+      {queued && (
+        <p className="text-ui-meta text-muted-foreground">
+          You can play against Manabot while you wait. We ask before you join a match.
+        </p>
+      )}
+
+      {!queued && (
+        <label className="flex items-center gap-2 text-ui-meta text-muted-foreground">
+          <Checkbox
+            checked={eitherSize}
+            onCheckedChange={(checked) => setEitherSize(checked === true)}
+          />
+          Also accept other table sizes
+        </label>
+      )}
+
       {!queued && (
         <div className="flex flex-wrap gap-2">
-          {([4, 2] as const).map((size) => (
+          {POD_SIZES.map((size) => (
             <Button
               key={size}
               size="sm"
@@ -103,7 +128,7 @@ export function FindGameCard() {
               onClick={() => void find(size)}
             >
               {preparing && <Loader2 className="animate-spin" />}
-              {size === 4 ? "4-player pod" : "1v1"}
+              {tableLabel(size)}
             </Button>
           ))}
         </div>

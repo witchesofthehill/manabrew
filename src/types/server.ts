@@ -372,6 +372,12 @@ export interface QueueStepOfferPayload {
 export interface QueueBotFillOfferPayload {
   players: number;
 }
+export interface MatchProposalPayload {
+  bracket: number;
+  pod_size: number;
+  players: number;
+  expires_s: number;
+}
 export interface MatchFoundPayload {
   room: RoomInfo;
   host: string;

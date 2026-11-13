@@ -381,7 +381,7 @@ pub enum ClientMessage {
 
     EnterQueue {
         format: GameFormat,
-        pod_size: u8,
+        pod_sizes: Vec<u8>,
         decks: Vec<QueuedDeck>,
         #[serde(default)]
         can_host: bool,
@@ -392,6 +392,10 @@ pub enum ClientMessage {
     },
 
     AcceptBotFill,
+
+    AcceptMatch,
+
+    DeclineMatch,
 
     LeaveQueue,
 }
@@ -571,6 +575,15 @@ pub enum ServerMessage {
     /// opts in. A partial pod forms only when every member opted in.
     QueueBotFillOffer {
         players: u32,
+    },
+
+    /// A pod formed. Every member must send `AcceptMatch` before the relay
+    /// seats it; a decline or timeout returns the others to the queue.
+    MatchProposal {
+        bracket: u8,
+        pod_size: u8,
+        players: u32,
+        expires_s: u32,
     },
 
     MatchFound {

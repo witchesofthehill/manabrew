@@ -1472,7 +1472,7 @@ class WebServerApi implements IServerApi {
     this.send({
       type: "EnterQueue",
       format: params.format,
-      pod_size: params.podSize,
+      pod_sizes: params.podSizes,
       decks: params.decks,
       can_host: params.canHost,
     });
@@ -1484,6 +1484,14 @@ class WebServerApi implements IServerApi {
 
   async acceptBotFill(): Promise<void> {
     this.send({ type: "AcceptBotFill" });
+  }
+
+  async acceptMatch(): Promise<void> {
+    this.send({ type: "AcceptMatch" });
+  }
+
+  async declineMatch(): Promise<void> {
+    this.send({ type: "DeclineMatch" });
   }
 
   async leaveQueue(): Promise<void> {
@@ -2307,6 +2315,15 @@ class WebServerApi implements IServerApi {
         { down: msg.down, up: msg.up, waiting: msg.waiting },
       ],
       QueueBotFillOffer: ["server:queue_bot_fill_offer", { players: msg.players }],
+      MatchProposal: [
+        "server:match_proposal",
+        {
+          bracket: msg.bracket,
+          pod_size: msg.pod_size,
+          players: msg.players,
+          expires_s: msg.expires_s,
+        },
+      ],
       RoomInvite: [
         "server:room_invite",
         { from: msg.from, room: msg.room, password: msg.password },

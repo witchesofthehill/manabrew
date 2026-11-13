@@ -15,8 +15,9 @@ use manabrew_relay_protocol::{DEFAULT_RECONNECT_TIMEOUT_S, PROTOCOL_VERSION};
 
 const QUEUE_TICK: Duration = Duration::from_secs(1);
 const STATUS_EVERY_TICKS: u64 = 5;
-const STEP_OFFER_AFTER: Duration = Duration::from_secs(45);
-const BOT_FILL_OFFER_AFTER: Duration = Duration::from_secs(60);
+const STEP_OFFER_AFTER: Duration = Duration::from_secs(30);
+const BOT_FILL_OFFER_AFTER: Duration = Duration::from_secs(30);
+const PROPOSAL_TIMEOUT: Duration = Duration::from_secs(30);
 const MIN_BRACKET: u8 = 1;
 const MAX_BRACKET: u8 = 5;
 const MAX_QUEUED_DECKS: usize = 32;
@@ -28,7 +29,7 @@ pub struct QueueEntry {
     pub player_id: String,
     pub username: String,
     pub format: GameFormat,
-    pub pod_size: u8,
+    pub pod_sizes: Vec<u8>,
     pub decks: Vec<QueuedDeck>,
     pub steps: Vec<u8>,
     pub can_host: bool,
@@ -69,8 +70,12 @@ impl QueueEntry {
             .expect("queue entries hold at least one deck")
     }
 
+    fn accepts_size(&self, pod_size: u8) -> bool {
+        self.pod_sizes.contains(&pod_size)
+    }
+
     fn same_table(&self, other: &QueueEntry) -> bool {
-        self.format == other.format && self.pod_size == other.pod_size
+        self.format == other.format && self.pod_sizes.iter().any(|size| other.accepts_size(*size))
     }
 
     fn step_options(&self) -> (Option<u8>, Option<u8>) {
@@ -86,11 +91,20 @@ impl QueueEntry {
 #[derive(Debug, Default)]
 pub struct MatchQueue {
     entries: Vec<QueueEntry>,
+    proposals: Vec<Proposal>,
+}
+
+#[derive(Debug)]
+pub struct Proposal {
+    pub pod: Pod,
+    pub deadline: Instant,
+    pub accepted: HashSet<String>,
 }
 
 #[derive(Debug)]
 pub struct Pod {
     pub bracket: u8,
+    pub pod_size: u8,
     pub host: usize,
     pub members: Vec<QueueEntry>,
     pub bot_fill: bool,
@@ -103,10 +117,95 @@ impl MatchQueue {
         self.entries.sort_by_key(|entry| entry.queued_at);
     }
 
-    pub fn leave(&mut self, player_id: &str) -> bool {
-        let before = self.entries.len();
+    pub fn leave(&mut self, player_id: &str) -> Vec<String> {
         self.entries.retain(|entry| entry.player_id != player_id);
-        self.entries.len() != before
+        self.decline_match(player_id)
+    }
+
+    fn requeue(&mut self, entries: Vec<QueueEntry>) -> Vec<String> {
+        let ids = entries
+            .iter()
+            .map(|entry| entry.player_id.clone())
+            .collect();
+        for entry in entries {
+            self.enter(entry);
+        }
+        ids
+    }
+
+    fn propose(&mut self, pod: Pod, now: Instant) {
+        self.proposals.push(Proposal {
+            pod,
+            deadline: now + PROPOSAL_TIMEOUT,
+            accepted: HashSet::new(),
+        });
+    }
+
+    fn proposal_of(&self, player_id: &str) -> Option<usize> {
+        self.proposals.iter().position(|proposal| {
+            proposal
+                .pod
+                .members
+                .iter()
+                .any(|entry| entry.player_id == player_id)
+        })
+    }
+
+    pub fn accept_match(&mut self, player_id: &str) {
+        if let Some(i) = self.proposal_of(player_id) {
+            self.proposals[i].accepted.insert(player_id.to_string());
+        }
+    }
+
+    pub fn decline_match(&mut self, player_id: &str) -> Vec<String> {
+        let Some(i) = self.proposal_of(player_id) else {
+            return Vec::new();
+        };
+        let proposal = self.proposals.remove(i);
+        self.requeue(
+            proposal
+                .pod
+                .members
+                .into_iter()
+                .filter(|entry| entry.player_id != player_id)
+                .collect(),
+        )
+    }
+
+    fn resolve_proposals(
+        &mut self,
+        now: Instant,
+        live: &HashSet<String>,
+    ) -> (Vec<Pod>, Vec<String>, Vec<String>) {
+        let mut ready = Vec::new();
+        let mut dropped = Vec::new();
+        let mut requeued = Vec::new();
+        for proposal in std::mem::take(&mut self.proposals) {
+            let all_live = proposal
+                .pod
+                .members
+                .iter()
+                .all(|entry| live.contains(&entry.player_id));
+            let all_accepted = proposal
+                .pod
+                .members
+                .iter()
+                .all(|entry| proposal.accepted.contains(&entry.player_id));
+            if all_live && all_accepted {
+                ready.push(proposal.pod);
+            } else if all_live && now < proposal.deadline {
+                self.proposals.push(proposal);
+            } else {
+                let (keep, lose): (Vec<_>, Vec<_>) =
+                    proposal.pod.members.into_iter().partition(|entry| {
+                        live.contains(&entry.player_id)
+                            && (!all_live || proposal.accepted.contains(&entry.player_id))
+                    });
+                dropped.extend(lose.into_iter().map(|entry| entry.player_id));
+                requeued.extend(self.requeue(keep));
+            }
+        }
+        (ready, dropped, requeued)
     }
 
     pub fn accept_step(&mut self, player_id: &str, bracket: u8) -> Result<(), String> {
@@ -147,6 +246,7 @@ impl MatchQueue {
     pub fn get(&self, player_id: &str) -> Option<&QueueEntry> {
         self.entries
             .iter()
+            .chain(self.proposals.iter().flat_map(|p| p.pod.members.iter()))
             .find(|entry| entry.player_id == player_id)
     }
 
@@ -180,55 +280,62 @@ impl MatchQueue {
 
     fn take_one(&mut self) -> Option<Pod> {
         for anchor in 0..self.entries.len() {
-            for bracket in self.entries[anchor].brackets() {
-                let accepting: Vec<usize> = (0..self.entries.len())
-                    .filter(|&i| {
-                        i == anchor
-                            || (self.entries[i].same_table(&self.entries[anchor])
-                                && self.entries[i].accepts(bracket))
-                    })
-                    .collect();
-                let Some(&host) = accepting.iter().find(|&&i| self.entries[i].can_host) else {
-                    continue;
-                };
-                let pod_size = self.entries[anchor].pod_size as usize;
-                let mut chosen = vec![host];
-                if host != anchor {
-                    chosen.push(anchor);
+            for pod_size in self.entries[anchor].pod_sizes.clone() {
+                for bracket in self.entries[anchor].brackets() {
+                    if let Some(pod) = self.take_at(anchor, pod_size, bracket) {
+                        return Some(pod);
+                    }
                 }
-                chosen.extend(
-                    accepting
-                        .iter()
-                        .copied()
-                        .filter(|i| *i != host && *i != anchor)
-                        .take(pod_size.saturating_sub(chosen.len())),
-                );
-                let full = chosen.len() == pod_size;
-                let bot_fill =
-                    !full && chosen.len() >= 2 && chosen.iter().all(|&i| self.entries[i].bot_fill);
-                if !full && !bot_fill {
-                    continue;
-                }
-                let host_id = self.entries[host].player_id.clone();
-                let mut members = Vec::with_capacity(chosen.len());
-                chosen.sort_unstable_by(|a, b| b.cmp(a));
-                for i in chosen {
-                    members.push(self.entries.remove(i));
-                }
-                members.sort_by_key(|entry| entry.queued_at);
-                let host = members
-                    .iter()
-                    .position(|entry| entry.player_id == host_id)
-                    .expect("host is a member");
-                return Some(Pod {
-                    bracket,
-                    host,
-                    members,
-                    bot_fill,
-                });
             }
         }
         None
+    }
+
+    fn take_at(&mut self, anchor: usize, pod_size: u8, bracket: u8) -> Option<Pod> {
+        let accepting: Vec<usize> = (0..self.entries.len())
+            .filter(|&i| {
+                i == anchor
+                    || (self.entries[i].format == self.entries[anchor].format
+                        && self.entries[i].accepts_size(pod_size)
+                        && self.entries[i].accepts(bracket))
+            })
+            .collect();
+        let &host = accepting.iter().find(|&&i| self.entries[i].can_host)?;
+        let mut chosen = vec![host];
+        if host != anchor {
+            chosen.push(anchor);
+        }
+        chosen.extend(
+            accepting
+                .iter()
+                .copied()
+                .filter(|i| *i != host && *i != anchor)
+                .take((pod_size as usize).saturating_sub(chosen.len())),
+        );
+        let full = chosen.len() == pod_size as usize;
+        let bot_fill =
+            !full && chosen.len() >= 2 && chosen.iter().all(|&i| self.entries[i].bot_fill);
+        if !full && !bot_fill {
+            return None;
+        }
+        let host_id = self.entries[host].player_id.clone();
+        let mut members = Vec::with_capacity(chosen.len());
+        chosen.sort_unstable_by(|a, b| b.cmp(a));
+        for i in chosen {
+            members.push(self.entries.remove(i));
+        }
+        members.sort_by_key(|entry| entry.queued_at);
+        let host = members
+            .iter()
+            .position(|entry| entry.player_id == host_id)
+            .expect("host is a member");
+        Some(Pod {
+            bracket,
+            pod_size,
+            host,
+            members,
+            bot_fill,
+        })
     }
 
     fn due_offers(&mut self, now: Instant) -> Vec<(String, Option<u8>, Option<u8>)> {
@@ -270,15 +377,19 @@ impl MatchQueue {
 
 pub fn validate_entry(
     format: &GameFormat,
-    pod_size: u8,
+    pod_sizes: &[u8],
     decks: &[QueuedDeck],
 ) -> Result<(), ServerError> {
     if *format == GameFormat::Any {
         return Err(ServerError::InvalidQueue("choose a format".into()));
     }
-    if !(MIN_POD..=MAX_POD).contains(&pod_size) {
+    if pod_sizes.is_empty()
+        || pod_sizes
+            .iter()
+            .any(|size| !(MIN_POD..=MAX_POD).contains(size))
+    {
         return Err(ServerError::InvalidQueue(format!(
-            "pod size must be between {MIN_POD} and {MAX_POD}"
+            "pod sizes must be between {MIN_POD} and {MAX_POD}"
         )));
     }
     if decks.is_empty() || decks.len() > MAX_QUEUED_DECKS {
@@ -318,6 +429,18 @@ fn send(state: &Arc<ServerState>, player_id: &str, msg: &ServerMessage) {
     }
 }
 
+pub fn send_statuses<'a>(state: &Arc<ServerState>, player_ids: impl Iterator<Item = &'a String>) {
+    let statuses: Vec<_> = {
+        let queue = state.queue.lock().expect("queue lock");
+        player_ids
+            .map(|id| (id.clone(), queue_status(&queue, id)))
+            .collect()
+    };
+    for (player_id, msg) in statuses {
+        send(state, &player_id, &msg);
+    }
+}
+
 pub async fn matchmaking_loop(state: Arc<ServerState>) {
     let mut ticker = tokio::time::interval(QUEUE_TICK);
     ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
@@ -340,10 +463,25 @@ fn run_tick(state: &Arc<ServerState>, now: Instant, send_status: bool) {
         .filter(|player| player.connected && player.room_id.is_none())
         .map(|player| player.key().clone())
         .collect();
-    let (pods, offers, bot_offers, statuses) = {
+    let (ready, dropped, requeued, proposals, offers, bot_offers, statuses) = {
         let mut queue = state.queue.lock().expect("queue lock");
         queue.retain_live(&live);
-        let pods = queue.take_pods();
+        let (ready, dropped, requeued) = queue.resolve_proposals(now, &live);
+        let proposals: Vec<_> = queue
+            .take_pods()
+            .into_iter()
+            .map(|pod| {
+                let ids: Vec<String> = pod.members.iter().map(|e| e.player_id.clone()).collect();
+                let msg = ServerMessage::MatchProposal {
+                    bracket: pod.bracket,
+                    pod_size: pod.pod_size,
+                    players: pod.members.len() as u32,
+                    expires_s: PROPOSAL_TIMEOUT.as_secs() as u32,
+                };
+                queue.propose(pod, now);
+                (ids, msg)
+            })
+            .collect();
         let offers: Vec<_> = queue
             .due_offers(now)
             .into_iter()
@@ -370,8 +508,17 @@ fn run_tick(state: &Arc<ServerState>, now: Instant, send_status: bool) {
         } else {
             Vec::new()
         };
-        (pods, offers, bot_offers, statuses)
+        (
+            ready, dropped, requeued, proposals, offers, bot_offers, statuses,
+        )
     };
+
+    send_statuses(state, dropped.iter().chain(requeued.iter()));
+    for (ids, msg) in proposals {
+        for player_id in ids {
+            send(state, &player_id, &msg);
+        }
+    }
 
     for (player_id, msg) in statuses {
         send(state, &player_id, &msg);
@@ -390,7 +537,7 @@ fn run_tick(state: &Arc<ServerState>, now: Instant, send_status: bool) {
             &ServerMessage::QueueBotFillOffer { players },
         );
     }
-    for pod in pods {
+    for pod in ready {
         seat_pod(state, pod);
     }
 }
@@ -405,6 +552,7 @@ fn requeue(state: &Arc<ServerState>, members: Vec<QueueEntry>) {
 fn seat_pod(state: &Arc<ServerState>, pod: Pod) {
     let Pod {
         bracket,
+        pod_size,
         host,
         members,
         bot_fill,
@@ -422,7 +570,7 @@ fn seat_pod(state: &Arc<ServerState>, pod: Pod) {
         PROTOCOL_VERSION,
         host_entry.player_id.clone(),
         host_entry.username.clone(),
-        host_entry.pod_size,
+        pod_size,
         host_entry.format.clone(),
         EngineKind::Forge,
         true,

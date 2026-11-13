@@ -4,6 +4,7 @@ import { isFeatureEnabled } from "@/featureFlags";
 import { useServerStore } from "@/stores/useServerStore";
 import { useChatStore } from "@/stores/useChatStore";
 import { useRoomInvites } from "@/hooks/useRoomInvites";
+import { useMatchmakingWatcher } from "@/hooks/useMatchmakingWatcher";
 import { useGameStore } from "@/stores/useGameStore";
 import { cn } from "@/lib/utils";
 import { useGameSessionResume } from "@/hooks/useGameSessionResume";
@@ -85,6 +86,7 @@ export function AppShell() {
 
   useEffect(() => useChatStore.getState().setupListeners(), []);
   useRoomInvites();
+  useMatchmakingWatcher();
 
   useEffect(() => {
     if (accountsEnabled) void useAuthStore.getState().hydrate();

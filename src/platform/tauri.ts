@@ -109,6 +109,12 @@ class TauriServerApi implements IServerApi {
   acceptBotFill(): Promise<void> {
     return this.inner.acceptBotFill();
   }
+  acceptMatch(): Promise<void> {
+    return this.inner.acceptMatch();
+  }
+  declineMatch(): Promise<void> {
+    return this.inner.declineMatch();
+  }
   leaveQueue(): Promise<void> {
     return this.inner.leaveQueue();
   }

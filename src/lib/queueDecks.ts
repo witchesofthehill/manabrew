@@ -1,6 +1,7 @@
 import { assessBracket } from "@/lib/brackets";
 import { fetchGameChangers } from "@/lib/gameChangers";
-import { analyzeDeckBracket } from "@/stores/useDeckAnalysisStore";
+import { findMyCombos } from "@/api/commanderSpellbook";
+import { fetchComboVotes } from "@/api/edhrec";
 import type { Deck } from "@/protocol/deck";
 import type { SavedDeck } from "@/stores/useDeckStore";
 import type { QueuedDeck } from "@/types/server";
@@ -8,11 +9,17 @@ import type { QueuedDeck } from "@/types/server";
 const ANALYSIS_CONCURRENCY = 4;
 
 async function deckBracket(deck: Deck): Promise<number> {
+  const gameChangers = await fetchGameChangers();
   try {
-    return (await analyzeDeckBracket(deck)).bracket.bracket;
+    const combos = await findMyCombos(
+      (deck.commanders ?? []).map((c) => c.identity.name),
+      deck.cards.map((c) => c.identity.name),
+    );
+    const community = await fetchComboVotes(combos.included);
+    return assessBracket(deck, gameChangers, combos.included, community.votes).bracket;
   } catch (error) {
     console.warn("[matchmaking] combo analysis failed, using Game Changers only", error);
-    return assessBracket(deck, await fetchGameChangers(), []).bracket;
+    return assessBracket(deck, gameChangers, []).bracket;
   }
 }
 

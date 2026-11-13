@@ -38,6 +38,22 @@ export function deckAnalysisSignature(deck: Deck): string {
   return JSON.stringify([deck.format ?? "", commanders, main]);
 }
 
+export async function analyzeDeckBracket(deck: Deck) {
+  const commanders = (deck.commanders ?? []).map((c) => c.identity.name);
+  const main = deck.cards.map((c) => c.identity.name);
+  const [gameChangers, combos] = await Promise.all([
+    fetchGameChangers(),
+    findMyCombos(commanders, main),
+  ]);
+  const community = await fetchComboVotes(combos.included);
+  return {
+    gameChangers,
+    combos,
+    community,
+    bracket: assessBracket(deck, gameChangers, combos.included, community.votes),
+  };
+}
+
 export const useDeckAnalysisStore = create<DeckAnalysisState>((set, get) => ({
   ...EMPTY,
   gameChangerNames: new Set(),
@@ -49,17 +65,8 @@ export const useDeckAnalysisStore = create<DeckAnalysisState>((set, get) => ({
 
     set({ ...EMPTY, loading: true, lastSignature: signature });
 
-    const commanders = (deck.commanders ?? []).map((c) => c.identity.name);
-    const main = deck.cards.map((c) => c.identity.name);
-
     try {
-      const [gameChangers, combos] = await Promise.all([
-        fetchGameChangers(),
-        findMyCombos(commanders, main),
-      ]);
-
-      if (get().lastSignature !== signature) return;
-      const community = await fetchComboVotes(combos.included);
+      const { gameChangers, combos, community, bracket } = await analyzeDeckBracket(deck);
       if (get().lastSignature !== signature) return;
 
       const comboCardNames = new Set<string>();
@@ -73,7 +80,7 @@ export const useDeckAnalysisStore = create<DeckAnalysisState>((set, get) => ({
         almostIncluded: combos.almostIncluded,
         comboCardNames,
         gameChangerNames: gameChangers,
-        bracket: assessBracket(deck, gameChangers, combos.included, community.votes),
+        bracket,
         error: community.unavailable
           ? "Some EDHREC votes could not be loaded. Unrated combos use the fallback estimate."
           : null,

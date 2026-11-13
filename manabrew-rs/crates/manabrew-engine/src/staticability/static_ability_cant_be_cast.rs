@@ -236,15 +236,11 @@ pub fn apply_cant_be_activated_ability(
     }
 
     // Activator check
-    if !valid_filter::matches_valid_player_selector_opt(
+    valid_filter::matches_valid_player_selector_opt(
         st_ab.ir.activator.as_ref(),
         activator,
         source.controller,
-    ) {
-        return false;
-    }
-
-    true
+    )
 }
 
 /// Mirrors Java's `StaticAbilityCantBeCast.cantPlayLandAbility`.

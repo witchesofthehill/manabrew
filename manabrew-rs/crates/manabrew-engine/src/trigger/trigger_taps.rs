@@ -60,10 +60,7 @@ impl TriggerBehavior for TriggerTaps {
                 return false;
             }
         }
-        if self.require_first_time && params.first_time != Some(true) {
-            return false;
-        }
-        true
+        !self.require_first_time || params.first_time == Some(true)
     }
 
     fn set_triggering_objects(

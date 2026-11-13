@@ -96,10 +96,7 @@ pub fn can_replace(
         }
     }
     // Mirrors Java `ReplaceMoved.canReplace()` L103: only gate ETB chains.
-    if destination == ZoneType::Battlefield && !effect.can_replace_etb(source_card, moving_card) {
-        return false;
-    }
-    true
+    destination != ZoneType::Battlefield || effect.can_replace_etb(source_card, moving_card)
 }
 
 /// Mirrors Java `ReplacementHandler.executeReplacement()` for Moved.

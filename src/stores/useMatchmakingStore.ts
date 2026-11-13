@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { ownedDecksNow } from "@/hooks/useOwnedDecks";
 import { forgeWasmGate } from "@/lib/forgeWasm";
 import { localGameActive, onLocalGameEnd } from "@/lib/localGamePresence";
 import { commanderQueueDecks } from "@/lib/queueDecks";
@@ -31,6 +32,11 @@ export function podSizesFor(size: PodSize, otherPodSize: boolean): PodSize[] {
 }
 
 const RELAY_WAIT_MS = 10_000;
+const MAX_QUEUED_DECKS = 32;
+
+function deckKey(deck: Deck): string {
+  return `${deck.name}|${deck.commanders?.map((card) => card.identity.name).join("+") ?? ""}`;
+}
 
 interface StepOffer {
   down: number | null;
@@ -183,7 +189,15 @@ export const useMatchmakingStore = create<MatchmakingState>((set, get) => ({
   async autoEnter(deck, seats) {
     if (!usePreferencesStore.getState().openToHumanMatches || get().phase !== "idle") return;
     if (seats < 2 || seats > 4) return;
-    const queued = await commanderQueueDecks([deck]);
+    if (deck.format !== "commander" || !deck.commanders?.length) return;
+    const seen = new Set<string>();
+    const decks = [deck, ...ownedDecksNow().map((owned) => owned.deck)].filter((candidate) => {
+      const key = deckKey(candidate);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    const queued = (await commanderQueueDecks(decks)).slice(0, MAX_QUEUED_DECKS);
     if (queued.length === 0 || !(await waitForRelay()) || get().phase !== "idle") return;
     await get().enter(podSizesFor(seats as PodSize, true), queued, true);
   },

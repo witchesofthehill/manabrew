@@ -116,7 +116,7 @@ export function FindGameCard() {
       {queued && (
         <p className="text-ui-meta text-muted-foreground">
           {auto
-            ? "Queued with the deck from your game against Manabot. A match starts when your game ends."
+            ? "Queued from your game against Manabot with all your Commander decks. A match starts when your game ends."
             : "You can play against Manabot while you wait. A match starts when your game ends."}
         </p>
       )}

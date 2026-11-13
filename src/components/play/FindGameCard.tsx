@@ -26,7 +26,8 @@ export function FindGameCard() {
   const supported = useServerStore((state) => state.relayFeatures).includes(
     RELAY_FEATURE.Matchmaking,
   );
-  const { phase, podSize, queuedAt, brackets, waiting, offer, match } = useMatchmakingStore();
+  const { phase, podSize, queuedAt, brackets, waiting, offer, botFillOffer, botFill, match } =
+    useMatchmakingStore();
   const [preparing, setPreparing] = useState(false);
   const [now, setNow] = useState(() => Date.now());
 
@@ -77,7 +78,7 @@ export function FindGameCard() {
           <p className="mt-0.5 text-ui-body leading-snug text-muted-foreground">
             {queued
               ? `Looking for a ${podSize === 2 ? "1v1" : "4-player pod"} · ${elapsed}s · your brackets ${brackets.join(", ")}`
-              : "Queue all your Commander decks. You play the first one that finds a table. Empty seats fill with Manabot."}
+              : "Queue all your Commander decks. You play the first one that finds a full table."}
           </p>
         </div>
         {queued && (
@@ -115,10 +116,41 @@ export function FindGameCard() {
         </p>
       )}
 
+      {queued && botFill && (
+        <p className="text-ui-meta text-muted-foreground">
+          Starting with Manabot in empty seats once another player agrees.
+        </p>
+      )}
+
+      {queued && botFillOffer !== null && (
+        <div className="flex flex-col gap-2 rounded-lg border border-secondary/60 bg-secondary/10 p-3">
+          <p className="text-ui-body text-foreground">
+            {botFillOffer === 1 ? "1 player shares" : `${botFillOffer} players share`} your bracket,
+            but the table is not full. Start now with Manabot in the empty seats?
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => void useMatchmakingStore.getState().acceptBotFill()}
+            >
+              Fill with Manabot
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => useMatchmakingStore.getState().dismissBotFill()}
+            >
+              Wait for players
+            </Button>
+          </div>
+        </div>
+      )}
+
       {queued && offer && (
         <div className="flex flex-col gap-2 rounded-lg border border-secondary/60 bg-secondary/10 p-3">
           <p className="text-ui-body text-foreground">
-            No one is queued at your bracket yet. Play one bracket away?
+            Your table is not full yet. Also accept players one bracket away?
           </p>
           <div className="flex flex-wrap gap-2">
             {[offer.down, offer.up].map((bracket, index) =>

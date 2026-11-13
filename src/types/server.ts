@@ -54,6 +54,7 @@ export interface RoomInfo {
   draft_config?: DraftConfig;
   sealed_config?: SealedConfig;
   matchmade_bracket?: number;
+  matchmade_bot_fill?: boolean;
 }
 export interface RoomPlayerInfo {
   username: string;
@@ -367,6 +368,9 @@ export interface QueueStepOfferPayload {
   down?: number | null;
   up?: number | null;
   waiting: QueueBracketCount[];
+}
+export interface QueueBotFillOfferPayload {
+  players: number;
 }
 export interface MatchFoundPayload {
   room: RoomInfo;

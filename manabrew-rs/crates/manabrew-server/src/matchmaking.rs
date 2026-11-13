@@ -15,8 +15,8 @@ use manabrew_relay_protocol::{DEFAULT_RECONNECT_TIMEOUT_S, PROTOCOL_VERSION};
 
 const QUEUE_TICK: Duration = Duration::from_secs(1);
 const STATUS_EVERY_TICKS: u64 = 5;
-const FILL_WITH_BOTS_AFTER: Duration = Duration::from_secs(20);
 const STEP_OFFER_AFTER: Duration = Duration::from_secs(45);
+const BOT_FILL_OFFER_AFTER: Duration = Duration::from_secs(60);
 const MIN_BRACKET: u8 = 1;
 const MAX_BRACKET: u8 = 5;
 const MAX_QUEUED_DECKS: usize = 32;
@@ -34,6 +34,8 @@ pub struct QueueEntry {
     pub can_host: bool,
     pub queued_at: Instant,
     pub offered: bool,
+    pub bot_fill: bool,
+    pub bot_fill_offered: bool,
 }
 
 impl QueueEntry {
@@ -91,6 +93,7 @@ pub struct Pod {
     pub bracket: u8,
     pub host: usize,
     pub members: Vec<QueueEntry>,
+    pub bot_fill: bool,
 }
 
 impl MatchQueue {
@@ -120,6 +123,27 @@ impl MatchQueue {
         Ok(())
     }
 
+    pub fn accept_bot_fill(&mut self, player_id: &str) -> Result<(), String> {
+        let entry = self
+            .entries
+            .iter_mut()
+            .find(|entry| entry.player_id == player_id)
+            .ok_or("not queued")?;
+        entry.bot_fill = true;
+        Ok(())
+    }
+
+    fn compatible_players(&self, entry: &QueueEntry) -> u32 {
+        self.entries
+            .iter()
+            .filter(|other| {
+                other.player_id != entry.player_id
+                    && other.same_table(entry)
+                    && entry.brackets().iter().any(|b| other.accepts(*b))
+            })
+            .count() as u32
+    }
+
     pub fn get(&self, player_id: &str) -> Option<&QueueEntry> {
         self.entries
             .iter()
@@ -146,17 +170,16 @@ impl MatchQueue {
             .collect()
     }
 
-    pub fn take_pods(&mut self, now: Instant) -> Vec<Pod> {
+    pub fn take_pods(&mut self) -> Vec<Pod> {
         let mut pods = Vec::new();
-        while let Some(pod) = self.take_one(now) {
+        while let Some(pod) = self.take_one() {
             pods.push(pod);
         }
         pods
     }
 
-    fn take_one(&mut self, now: Instant) -> Option<Pod> {
+    fn take_one(&mut self) -> Option<Pod> {
         for anchor in 0..self.entries.len() {
-            let waited = now.duration_since(self.entries[anchor].queued_at);
             for bracket in self.entries[anchor].brackets() {
                 let accepting: Vec<usize> = (0..self.entries.len())
                     .filter(|&i| {
@@ -181,8 +204,9 @@ impl MatchQueue {
                         .take(pod_size.saturating_sub(chosen.len())),
                 );
                 let full = chosen.len() == pod_size;
-                let fill = chosen.len() >= 2 && waited >= FILL_WITH_BOTS_AFTER;
-                if !full && !fill {
+                let bot_fill =
+                    !full && chosen.len() >= 2 && chosen.iter().all(|&i| self.entries[i].bot_fill);
+                if !full && !bot_fill {
                     continue;
                 }
                 let host_id = self.entries[host].player_id.clone();
@@ -200,6 +224,7 @@ impl MatchQueue {
                     bracket,
                     host,
                     members,
+                    bot_fill,
                 });
             }
         }
@@ -219,6 +244,27 @@ impl MatchQueue {
             }
         }
         offers
+    }
+
+    fn due_bot_fill_offers(&mut self, now: Instant) -> Vec<(String, u32)> {
+        let due: Vec<(usize, u32)> = self
+            .entries
+            .iter()
+            .enumerate()
+            .filter(|(_, entry)| {
+                !entry.bot_fill
+                    && !entry.bot_fill_offered
+                    && now.duration_since(entry.queued_at) >= BOT_FILL_OFFER_AFTER
+            })
+            .map(|(i, entry)| (i, self.compatible_players(entry)))
+            .filter(|(_, players)| *players > 0)
+            .collect();
+        due.into_iter()
+            .map(|(i, players)| {
+                self.entries[i].bot_fill_offered = true;
+                (self.entries[i].player_id.clone(), players)
+            })
+            .collect()
     }
 }
 
@@ -294,10 +340,10 @@ fn run_tick(state: &Arc<ServerState>, now: Instant, send_status: bool) {
         .filter(|player| player.connected && player.room_id.is_none())
         .map(|player| player.key().clone())
         .collect();
-    let (pods, offers, statuses) = {
+    let (pods, offers, bot_offers, statuses) = {
         let mut queue = state.queue.lock().expect("queue lock");
         queue.retain_live(&live);
-        let pods = queue.take_pods(now);
+        let pods = queue.take_pods();
         let offers: Vec<_> = queue
             .due_offers(now)
             .into_iter()
@@ -309,6 +355,7 @@ fn run_tick(state: &Arc<ServerState>, now: Instant, send_status: bool) {
                 (player_id, down, up, waiting)
             })
             .collect();
+        let bot_offers = queue.due_bot_fill_offers(now);
         let statuses: Vec<_> = if send_status {
             queue
                 .entries
@@ -323,7 +370,7 @@ fn run_tick(state: &Arc<ServerState>, now: Instant, send_status: bool) {
         } else {
             Vec::new()
         };
-        (pods, offers, statuses)
+        (pods, offers, bot_offers, statuses)
     };
 
     for (player_id, msg) in statuses {
@@ -334,6 +381,13 @@ fn run_tick(state: &Arc<ServerState>, now: Instant, send_status: bool) {
             state,
             &player_id,
             &ServerMessage::QueueStepOffer { down, up, waiting },
+        );
+    }
+    for (player_id, players) in bot_offers {
+        send(
+            state,
+            &player_id,
+            &ServerMessage::QueueBotFillOffer { players },
         );
     }
     for pod in pods {
@@ -353,6 +407,7 @@ fn seat_pod(state: &Arc<ServerState>, pod: Pod) {
         bracket,
         host,
         members,
+        bot_fill,
     } = pod;
     let host_entry = members[host].clone();
     if state.rooms.len() >= state.max_rooms {
@@ -379,6 +434,7 @@ fn seat_pod(state: &Arc<ServerState>, pod: Pod) {
         None,
     );
     room.matchmade_bracket = Some(bracket);
+    room.matchmade_bot_fill = bot_fill;
     for entry in &members {
         if entry.player_id != host_entry.player_id {
             room.add_player(entry.player_id.clone(), entry.username.clone(), false)

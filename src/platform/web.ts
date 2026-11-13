@@ -1482,6 +1482,10 @@ class WebServerApi implements IServerApi {
     this.send({ type: "AcceptQueueStep", bracket });
   }
 
+  async acceptBotFill(): Promise<void> {
+    this.send({ type: "AcceptBotFill" });
+  }
+
   async leaveQueue(): Promise<void> {
     this.send({ type: "LeaveQueue" });
   }
@@ -2302,6 +2306,7 @@ class WebServerApi implements IServerApi {
         "server:queue_step_offer",
         { down: msg.down, up: msg.up, waiting: msg.waiting },
       ],
+      QueueBotFillOffer: ["server:queue_bot_fill_offer", { players: msg.players }],
       RoomInvite: [
         "server:room_invite",
         { from: msg.from, room: msg.room, password: msg.password },

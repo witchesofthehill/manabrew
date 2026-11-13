@@ -106,6 +106,9 @@ class TauriServerApi implements IServerApi {
   acceptQueueStep(bracket: number): Promise<void> {
     return this.inner.acceptQueueStep(bracket);
   }
+  acceptBotFill(): Promise<void> {
+    return this.inner.acceptBotFill();
+  }
   leaveQueue(): Promise<void> {
     return this.inner.leaveQueue();
   }

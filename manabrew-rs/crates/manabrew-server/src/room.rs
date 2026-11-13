@@ -60,6 +60,7 @@ pub struct Room {
     pub transports: HashMap<String, TransportEndpoint>,
     pub chat: ChatHistory,
     pub matchmade_bracket: Option<u8>,
+    pub matchmade_bot_fill: bool,
 }
 
 impl Room {
@@ -136,6 +137,7 @@ impl Room {
             transports: HashMap::new(),
             chat: ChatHistory::default(),
             matchmade_bracket: None,
+            matchmade_bot_fill: false,
         }
     }
 
@@ -418,6 +420,7 @@ impl Room {
             draft_config: self.draft_config.clone(),
             sealed_config: self.sealed_config.clone(),
             matchmade_bracket: self.matchmade_bracket,
+            matchmade_bot_fill: self.matchmade_bot_fill,
         }
     }
 }

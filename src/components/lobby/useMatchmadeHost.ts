@@ -26,7 +26,11 @@ export function useMatchmadeHost({ room, username, spawnBot, start }: MatchmadeH
     const commanderPresets = presets.filter(
       (deck) => deck.format === "commander" && (deck.commanders?.length ?? 0) > 0,
     );
-    if (filledRoom.current !== room.room_id && commanderPresets.length > 0) {
+    if (
+      room.matchmade_bot_fill &&
+      filledRoom.current !== room.room_id &&
+      commanderPresets.length > 0
+    ) {
       filledRoom.current = room.room_id;
       const stamp = Date.now().toString(36);
       for (let seat = room.players.length; seat < room.max_players; seat += 1) {

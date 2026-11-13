@@ -391,6 +391,8 @@ pub enum ClientMessage {
         bracket: u8,
     },
 
+    AcceptBotFill,
+
     LeaveQueue,
 }
 
@@ -556,12 +558,19 @@ pub enum ServerMessage {
         waiting: Vec<QueueBracketCount>,
     },
 
-    /// Nobody shares one of the queued brackets yet. The client asks the
+    /// No full pod formed at the queued brackets yet. The client asks the
     /// player whether to take an adjacent one; `AcceptQueueStep` widens it.
     QueueStepOffer {
         down: Option<u8>,
         up: Option<u8>,
         waiting: Vec<QueueBracketCount>,
+    },
+
+    /// Players share a bracket but the pod is not full. The client asks
+    /// whether to start with Manabot in the empty seats; `AcceptBotFill`
+    /// opts in. A partial pod forms only when every member opted in.
+    QueueBotFillOffer {
+        players: u32,
     },
 
     MatchFound {
@@ -668,6 +677,8 @@ pub struct RoomInfo {
     pub sealed_config: Option<SealedConfig>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub matchmade_bracket: Option<u8>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub matchmade_bot_fill: bool,
 }
 
 pub const DEFAULT_RECONNECT_TIMEOUT_S: u32 = 60;

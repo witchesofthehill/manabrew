@@ -156,6 +156,7 @@ export interface IServerApi {
   inviteToRoom(params: InviteToRoomParams): Promise<void>;
   enterQueue(params: EnterQueueParams): Promise<void>;
   acceptQueueStep(bracket: number): Promise<void>;
+  acceptBotFill(): Promise<void>;
   leaveQueue(): Promise<void>;
   createRoom(params: CreateRoomParams): Promise<string | null>;
   stopRoom(): Promise<void>;

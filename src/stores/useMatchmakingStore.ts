@@ -3,6 +3,7 @@ import { forgeWasmGate } from "@/lib/forgeWasm";
 import { getPlatform } from "@/platform";
 import type {
   MatchFoundPayload,
+  QueueBotFillOfferPayload,
   QueueBracketCount,
   QueuedDeck,
   QueueStatusPayload,
@@ -23,10 +24,14 @@ interface MatchmakingState {
   brackets: number[];
   waiting: QueueBracketCount[];
   offer: StepOffer | null;
+  botFillOffer: number | null;
+  botFill: boolean;
   match: MatchFoundPayload | null;
   enter(podSize: PodSize, decks: QueuedDeck[]): Promise<void>;
   acceptStep(bracket: number): Promise<void>;
   dismissOffer(): void;
+  acceptBotFill(): Promise<void>;
+  dismissBotFill(): void;
   leave(): Promise<void>;
   clearMatch(): void;
 }
@@ -39,7 +44,15 @@ function listen(set: (partial: Partial<MatchmakingState>) => void) {
   unsubscribers = [
     events.on<QueueStatusPayload>("server:queue_status", (payload) => {
       if (!payload.queued) {
-        set({ phase: "idle", queuedAt: null, brackets: [], waiting: [], offer: null });
+        set({
+          phase: "idle",
+          queuedAt: null,
+          brackets: [],
+          waiting: [],
+          offer: null,
+          botFillOffer: null,
+          botFill: false,
+        });
         return;
       }
       set({ brackets: payload.brackets, waiting: payload.waiting });
@@ -50,11 +63,14 @@ function listen(set: (partial: Partial<MatchmakingState>) => void) {
         waiting: payload.waiting,
       });
     }),
+    events.on<QueueBotFillOfferPayload>("server:queue_bot_fill_offer", (payload) => {
+      set({ botFillOffer: payload.players });
+    }),
     events.on<MatchFoundPayload>("server:match_found", (payload) => {
-      set({ phase: "matched", match: payload, offer: null, queuedAt: null });
+      set({ phase: "matched", match: payload, offer: null, botFillOffer: null, queuedAt: null });
     }),
     events.on("server:disconnected", () => {
-      set({ phase: "idle", queuedAt: null, offer: null });
+      set({ phase: "idle", queuedAt: null, offer: null, botFillOffer: null, botFill: false });
     }),
   ];
 }
@@ -66,6 +82,8 @@ export const useMatchmakingStore = create<MatchmakingState>((set) => ({
   brackets: [],
   waiting: [],
   offer: null,
+  botFillOffer: null,
+  botFill: false,
   match: null,
   async enter(podSize, decks) {
     const server = getPlatform().server;
@@ -78,6 +96,8 @@ export const useMatchmakingStore = create<MatchmakingState>((set) => ({
       brackets: [...new Set(decks.map((deck) => deck.bracket))],
       waiting: [],
       offer: null,
+      botFillOffer: null,
+      botFill: false,
       match: null,
     });
     await server.enterQueue({
@@ -94,8 +114,15 @@ export const useMatchmakingStore = create<MatchmakingState>((set) => ({
   dismissOffer() {
     set({ offer: null });
   },
+  async acceptBotFill() {
+    set({ botFillOffer: null, botFill: true });
+    await getPlatform().server?.acceptBotFill();
+  },
+  dismissBotFill() {
+    set({ botFillOffer: null });
+  },
   async leave() {
-    set({ phase: "idle", queuedAt: null, offer: null });
+    set({ phase: "idle", queuedAt: null, offer: null, botFillOffer: null, botFill: false });
     await getPlatform().server?.leaveQueue();
   },
   clearMatch() {

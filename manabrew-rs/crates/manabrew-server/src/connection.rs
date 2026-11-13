@@ -2602,6 +2602,8 @@ fn handle_client_message(
                     can_host,
                     queued_at: std::time::Instant::now(),
                     offered: false,
+                    bot_fill: false,
+                    bot_fill_offered: false,
                 });
                 matchmaking::queue_status(&queue, player_id)
             };
@@ -2618,6 +2620,22 @@ fn handle_client_message(
             match result {
                 Ok(status) => {
                     info!("[queue] '{}' accepted bracket {}", username, bracket);
+                    send_msg(sender, &status);
+                }
+                Err(msg) => send_error(sender, &ServerError::InvalidQueue(msg)),
+            }
+        }
+
+        ClientMessage::AcceptBotFill => {
+            let result = {
+                let mut queue = state.queue.lock().expect("queue lock");
+                queue
+                    .accept_bot_fill(player_id)
+                    .map(|()| matchmaking::queue_status(&queue, player_id))
+            };
+            match result {
+                Ok(status) => {
+                    info!("[queue] '{}' accepted bot fill", username);
                     send_msg(sender, &status);
                 }
                 Err(msg) => send_error(sender, &ServerError::InvalidQueue(msg)),
@@ -2707,6 +2725,7 @@ fn msg_type_of(msg: &ServerMessage) -> &'static str {
         ServerMessage::RoomInvite { .. } => "RoomInvite",
         ServerMessage::QueueStatus { .. } => "QueueStatus",
         ServerMessage::QueueStepOffer { .. } => "QueueStepOffer",
+        ServerMessage::QueueBotFillOffer { .. } => "QueueBotFillOffer",
         ServerMessage::MatchFound { .. } => "MatchFound",
     }
 }
@@ -2741,6 +2760,7 @@ fn client_msg_type(msg: &ClientMessage) -> &'static str {
         ClientMessage::InviteToRoom { .. } => "InviteToRoom",
         ClientMessage::EnterQueue { .. } => "EnterQueue",
         ClientMessage::AcceptQueueStep { .. } => "AcceptQueueStep",
+        ClientMessage::AcceptBotFill => "AcceptBotFill",
         ClientMessage::LeaveQueue => "LeaveQueue",
     }
 }

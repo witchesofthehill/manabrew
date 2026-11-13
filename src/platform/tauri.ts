@@ -26,6 +26,7 @@ import type {
   SpawnAiBotParams,
   SendChatParams,
   InviteToRoomParams,
+  EnterQueueParams,
 } from "./types";
 import type { GameOutcomeReport, LocalGameKind, RoomRelayEnvelope } from "@/types/server";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
@@ -98,6 +99,15 @@ class TauriServerApi implements IServerApi {
   }
   inviteToRoom(params: InviteToRoomParams): Promise<void> {
     return this.inner.inviteToRoom(params);
+  }
+  enterQueue(params: EnterQueueParams): Promise<void> {
+    return this.inner.enterQueue(params);
+  }
+  acceptQueueStep(bracket: number): Promise<void> {
+    return this.inner.acceptQueueStep(bracket);
+  }
+  leaveQueue(): Promise<void> {
+    return this.inner.leaveQueue();
   }
   joinRoom(params: JoinRoomParams): Promise<void> {
     return this.inner.joinRoom(params);

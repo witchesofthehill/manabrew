@@ -16,6 +16,7 @@ use crate::client_build::ClientBuild;
 use crate::error::ServerError;
 use crate::identity::{self, SessionIdentity};
 use crate::lobby;
+use crate::matchmaking;
 use crate::metrics;
 use crate::protocol::{
     ChatMessage, ChatScope, ClientMessage, RoomStatus, ServerMessage, CHAT_MESSAGE_MAX_CHARS,
@@ -2555,6 +2556,83 @@ fn handle_client_message(
             }
         }
 
+        ClientMessage::EnterQueue {
+            format,
+            pod_size,
+            decks,
+            can_host,
+        } => {
+            if let Err(err) = matchmaking::validate_entry(&format, pod_size, &decks) {
+                send_error(sender, &err);
+                return;
+            }
+            let (room_id, is_service) = state
+                .players
+                .get(player_id)
+                .map(|p| (p.room_id.clone(), p.is_service))
+                .unwrap_or((None, true));
+            if is_service {
+                send_error(
+                    sender,
+                    &ServerError::InvalidQueue("bots cannot queue".into()),
+                );
+                return;
+            }
+            if let Some(room_id) = room_id {
+                send_error(sender, &ServerError::AlreadyInRoom(room_id));
+                return;
+            }
+            info!(
+                "[queue] '{}' queued {} deck(s) for {:?} pods of {} (can_host={})",
+                username,
+                decks.len(),
+                format,
+                pod_size,
+                can_host
+            );
+            let status = {
+                let mut queue = state.queue.lock().expect("queue lock");
+                queue.enter(matchmaking::QueueEntry {
+                    player_id: player_id.to_string(),
+                    username: username.to_string(),
+                    format,
+                    pod_size,
+                    decks,
+                    steps: Vec::new(),
+                    can_host,
+                    queued_at: std::time::Instant::now(),
+                    offered: false,
+                });
+                matchmaking::queue_status(&queue, player_id)
+            };
+            send_msg(sender, &status);
+        }
+
+        ClientMessage::AcceptQueueStep { bracket } => {
+            let result = {
+                let mut queue = state.queue.lock().expect("queue lock");
+                queue
+                    .accept_step(player_id, bracket)
+                    .map(|()| matchmaking::queue_status(&queue, player_id))
+            };
+            match result {
+                Ok(status) => {
+                    info!("[queue] '{}' accepted bracket {}", username, bracket);
+                    send_msg(sender, &status);
+                }
+                Err(msg) => send_error(sender, &ServerError::InvalidQueue(msg)),
+            }
+        }
+
+        ClientMessage::LeaveQueue => {
+            let status = {
+                let mut queue = state.queue.lock().expect("queue lock");
+                queue.leave(player_id);
+                matchmaking::queue_status(&queue, player_id)
+            };
+            send_msg(sender, &status);
+        }
+
         ClientMessage::TurnChange {
             new_active_player,
             turn_number,
@@ -2627,6 +2705,9 @@ fn msg_type_of(msg: &ServerMessage) -> &'static str {
         ServerMessage::ChatMessage(_) => "ChatMessage",
         ServerMessage::ChatHistory { .. } => "ChatHistory",
         ServerMessage::RoomInvite { .. } => "RoomInvite",
+        ServerMessage::QueueStatus { .. } => "QueueStatus",
+        ServerMessage::QueueStepOffer { .. } => "QueueStepOffer",
+        ServerMessage::MatchFound { .. } => "MatchFound",
     }
 }
 
@@ -2658,6 +2739,9 @@ fn client_msg_type(msg: &ClientMessage) -> &'static str {
         ClientMessage::ReportPlaneQuality { .. } => "ReportPlaneQuality",
         ClientMessage::SendChat { .. } => "SendChat",
         ClientMessage::InviteToRoom { .. } => "InviteToRoom",
+        ClientMessage::EnterQueue { .. } => "EnterQueue",
+        ClientMessage::AcceptQueueStep { .. } => "AcceptQueueStep",
+        ClientMessage::LeaveQueue => "LeaveQueue",
     }
 }
 

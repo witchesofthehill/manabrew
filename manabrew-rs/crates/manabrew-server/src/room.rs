@@ -59,6 +59,7 @@ pub struct Room {
     /// Announced endpoints by player id. Only the relay binds one to a username.
     pub transports: HashMap<String, TransportEndpoint>,
     pub chat: ChatHistory,
+    pub matchmade_bracket: Option<u8>,
 }
 
 impl Room {
@@ -134,6 +135,7 @@ impl Room {
             limited_matches: Vec::new(),
             transports: HashMap::new(),
             chat: ChatHistory::default(),
+            matchmade_bracket: None,
         }
     }
 
@@ -415,6 +417,7 @@ impl Room {
             status: self.status.clone(),
             draft_config: self.draft_config.clone(),
             sealed_config: self.sealed_config.clone(),
+            matchmade_bracket: self.matchmade_bracket,
         }
     }
 }

@@ -43,6 +43,7 @@ import { toast } from "sonner";
 import { Settings, Users } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { findOrHostLanRelay, isUnreachable } from "@/lib/lanRelay";
+import { useMatchmadeHost } from "@/components/lobby/useMatchmadeHost";
 
 const START_GAME_ACK_TIMEOUT_MS = 5000;
 function awaitGameStartedAck(roomId: string): Promise<void> {
@@ -508,6 +509,12 @@ export default function Lobby() {
       toast.error(error instanceof Error ? error.message : `Failed to change player count.`);
     }
   }
+  useMatchmadeHost({
+    room: currentRoom,
+    username,
+    spawnBot,
+    start: handleStartGame,
+  });
   return (
     <div className="flex h-full w-full min-h-0 pb-[max(0px,calc(100dvh-var(--visual-viewport-height)-var(--visual-viewport-top)))]">
       <div className="flex min-w-0 flex-1 flex-col">

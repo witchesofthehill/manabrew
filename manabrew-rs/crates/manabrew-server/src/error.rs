@@ -23,6 +23,7 @@ pub enum ServerError {
     InvalidChatMessage(String),
     ChatRateLimited,
     AccountRequired,
+    InvalidQueue(String),
     WebSocket(Box<tokio_tungstenite::tungstenite::Error>),
     Serde(serde_json::Error),
 }
@@ -51,6 +52,7 @@ impl fmt::Display for ServerError {
             Self::InvalidChatMessage(msg) => write!(f, "Invalid chat message: {msg}"),
             Self::ChatRateLimited => write!(f, "You are sending messages too quickly"),
             Self::AccountRequired => write!(f, "Sign in to chat in General"),
+            Self::InvalidQueue(msg) => write!(f, "Cannot join the queue: {msg}"),
             Self::WebSocket(e) => write!(f, "WebSocket error: {e}"),
             Self::Serde(e) => write!(f, "Serialization error: {e}"),
         }
@@ -83,6 +85,7 @@ impl ServerError {
             Self::InvalidChatMessage(_) => "invalid_chat_message",
             Self::ChatRateLimited => "chat_rate_limited",
             Self::AccountRequired => "account_required",
+            Self::InvalidQueue(_) => "invalid_queue",
             Self::WebSocket(_) => "websocket_error",
             Self::Serde(_) => "parse_error",
         }

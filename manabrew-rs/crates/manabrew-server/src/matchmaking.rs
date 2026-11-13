@@ -1,0 +1,467 @@
+use std::collections::{BTreeMap, HashSet};
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+
+use tracing::info;
+
+use crate::connection::emit_to;
+use crate::error::ServerError;
+use crate::protocol::{
+    EngineKind, GameFormat, QueueBracketCount, QueuedDeck, RoomInfo, ServerMessage,
+};
+use crate::room::Room;
+use crate::state::ServerState;
+use manabrew_relay_protocol::{DEFAULT_RECONNECT_TIMEOUT_S, PROTOCOL_VERSION};
+
+const QUEUE_TICK: Duration = Duration::from_secs(1);
+const STATUS_EVERY_TICKS: u64 = 5;
+const FILL_WITH_BOTS_AFTER: Duration = Duration::from_secs(20);
+const STEP_OFFER_AFTER: Duration = Duration::from_secs(45);
+const MIN_BRACKET: u8 = 1;
+const MAX_BRACKET: u8 = 5;
+const MAX_QUEUED_DECKS: usize = 32;
+const MIN_POD: u8 = 2;
+const MAX_POD: u8 = 4;
+
+#[derive(Debug, Clone)]
+pub struct QueueEntry {
+    pub player_id: String,
+    pub username: String,
+    pub format: GameFormat,
+    pub pod_size: u8,
+    pub decks: Vec<QueuedDeck>,
+    pub steps: Vec<u8>,
+    pub can_host: bool,
+    pub queued_at: Instant,
+    pub offered: bool,
+}
+
+impl QueueEntry {
+    fn deck_brackets(&self) -> Vec<u8> {
+        let mut seen = HashSet::new();
+        self.decks
+            .iter()
+            .map(|deck| deck.bracket)
+            .filter(|bracket| seen.insert(*bracket))
+            .collect()
+    }
+
+    fn brackets(&self) -> Vec<u8> {
+        let mut brackets = self.deck_brackets();
+        for step in &self.steps {
+            if !brackets.contains(step) {
+                brackets.push(*step);
+            }
+        }
+        brackets
+    }
+
+    fn accepts(&self, bracket: u8) -> bool {
+        self.decks.iter().any(|deck| deck.bracket == bracket) || self.steps.contains(&bracket)
+    }
+
+    fn deck_for(&self, bracket: u8) -> &QueuedDeck {
+        self.decks
+            .iter()
+            .min_by_key(|deck| deck.bracket.abs_diff(bracket))
+            .expect("queue entries hold at least one deck")
+    }
+
+    fn same_table(&self, other: &QueueEntry) -> bool {
+        self.format == other.format && self.pod_size == other.pod_size
+    }
+
+    fn step_options(&self) -> (Option<u8>, Option<u8>) {
+        let brackets = self.brackets();
+        let low = brackets.iter().copied().min().unwrap_or(MIN_BRACKET);
+        let high = brackets.iter().copied().max().unwrap_or(MAX_BRACKET);
+        let down = (low > MIN_BRACKET).then(|| low - 1);
+        let up = (high < MAX_BRACKET).then(|| high + 1);
+        (down, up)
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct MatchQueue {
+    entries: Vec<QueueEntry>,
+}
+
+#[derive(Debug)]
+pub struct Pod {
+    pub bracket: u8,
+    pub host: usize,
+    pub members: Vec<QueueEntry>,
+}
+
+impl MatchQueue {
+    pub fn enter(&mut self, entry: QueueEntry) {
+        self.leave(&entry.player_id);
+        self.entries.push(entry);
+        self.entries.sort_by_key(|entry| entry.queued_at);
+    }
+
+    pub fn leave(&mut self, player_id: &str) -> bool {
+        let before = self.entries.len();
+        self.entries.retain(|entry| entry.player_id != player_id);
+        self.entries.len() != before
+    }
+
+    pub fn accept_step(&mut self, player_id: &str, bracket: u8) -> Result<(), String> {
+        let entry = self
+            .entries
+            .iter_mut()
+            .find(|entry| entry.player_id == player_id)
+            .ok_or("not queued")?;
+        let (down, up) = entry.step_options();
+        if Some(bracket) != down && Some(bracket) != up {
+            return Err(format!("bracket {bracket} is not one step from your decks"));
+        }
+        entry.steps.push(bracket);
+        Ok(())
+    }
+
+    pub fn get(&self, player_id: &str) -> Option<&QueueEntry> {
+        self.entries
+            .iter()
+            .find(|entry| entry.player_id == player_id)
+    }
+
+    fn retain_live(&mut self, live: &HashSet<String>) {
+        self.entries.retain(|entry| live.contains(&entry.player_id));
+    }
+
+    pub fn waiting_for(&self, entry: &QueueEntry) -> Vec<QueueBracketCount> {
+        let mut counts = BTreeMap::new();
+        for other in &self.entries {
+            if other.player_id == entry.player_id || !other.same_table(entry) {
+                continue;
+            }
+            for bracket in other.brackets() {
+                *counts.entry(bracket).or_insert(0u32) += 1;
+            }
+        }
+        counts
+            .into_iter()
+            .map(|(bracket, players)| QueueBracketCount { bracket, players })
+            .collect()
+    }
+
+    pub fn take_pods(&mut self, now: Instant) -> Vec<Pod> {
+        let mut pods = Vec::new();
+        while let Some(pod) = self.take_one(now) {
+            pods.push(pod);
+        }
+        pods
+    }
+
+    fn take_one(&mut self, now: Instant) -> Option<Pod> {
+        for anchor in 0..self.entries.len() {
+            let waited = now.duration_since(self.entries[anchor].queued_at);
+            for bracket in self.entries[anchor].brackets() {
+                let accepting: Vec<usize> = (0..self.entries.len())
+                    .filter(|&i| {
+                        i == anchor
+                            || (self.entries[i].same_table(&self.entries[anchor])
+                                && self.entries[i].accepts(bracket))
+                    })
+                    .collect();
+                let Some(&host) = accepting.iter().find(|&&i| self.entries[i].can_host) else {
+                    continue;
+                };
+                let pod_size = self.entries[anchor].pod_size as usize;
+                let mut chosen = vec![host];
+                if host != anchor {
+                    chosen.push(anchor);
+                }
+                chosen.extend(
+                    accepting
+                        .iter()
+                        .copied()
+                        .filter(|i| *i != host && *i != anchor)
+                        .take(pod_size.saturating_sub(chosen.len())),
+                );
+                let full = chosen.len() == pod_size;
+                let fill = chosen.len() >= 2 && waited >= FILL_WITH_BOTS_AFTER;
+                if !full && !fill {
+                    continue;
+                }
+                let host_id = self.entries[host].player_id.clone();
+                let mut members = Vec::with_capacity(chosen.len());
+                chosen.sort_unstable_by(|a, b| b.cmp(a));
+                for i in chosen {
+                    members.push(self.entries.remove(i));
+                }
+                members.sort_by_key(|entry| entry.queued_at);
+                let host = members
+                    .iter()
+                    .position(|entry| entry.player_id == host_id)
+                    .expect("host is a member");
+                return Some(Pod {
+                    bracket,
+                    host,
+                    members,
+                });
+            }
+        }
+        None
+    }
+
+    fn due_offers(&mut self, now: Instant) -> Vec<(String, Option<u8>, Option<u8>)> {
+        let mut offers = Vec::new();
+        for entry in &mut self.entries {
+            if entry.offered || now.duration_since(entry.queued_at) < STEP_OFFER_AFTER {
+                continue;
+            }
+            entry.offered = true;
+            let (down, up) = entry.step_options();
+            if down.is_some() || up.is_some() {
+                offers.push((entry.player_id.clone(), down, up));
+            }
+        }
+        offers
+    }
+}
+
+pub fn validate_entry(
+    format: &GameFormat,
+    pod_size: u8,
+    decks: &[QueuedDeck],
+) -> Result<(), ServerError> {
+    if *format == GameFormat::Any {
+        return Err(ServerError::InvalidQueue("choose a format".into()));
+    }
+    if !(MIN_POD..=MAX_POD).contains(&pod_size) {
+        return Err(ServerError::InvalidQueue(format!(
+            "pod size must be between {MIN_POD} and {MAX_POD}"
+        )));
+    }
+    if decks.is_empty() || decks.len() > MAX_QUEUED_DECKS {
+        return Err(ServerError::InvalidQueue(format!(
+            "queue between 1 and {MAX_QUEUED_DECKS} decks"
+        )));
+    }
+    if decks
+        .iter()
+        .any(|deck| !(MIN_BRACKET..=MAX_BRACKET).contains(&deck.bracket))
+    {
+        return Err(ServerError::InvalidQueue(format!(
+            "brackets run from {MIN_BRACKET} to {MAX_BRACKET}"
+        )));
+    }
+    Ok(())
+}
+
+pub fn queue_status(queue: &MatchQueue, player_id: &str) -> ServerMessage {
+    match queue.get(player_id) {
+        Some(entry) => ServerMessage::QueueStatus {
+            queued: true,
+            brackets: entry.brackets(),
+            waiting: queue.waiting_for(entry),
+        },
+        None => ServerMessage::QueueStatus {
+            queued: false,
+            brackets: Vec::new(),
+            waiting: Vec::new(),
+        },
+    }
+}
+
+fn send(state: &Arc<ServerState>, player_id: &str, msg: &ServerMessage) {
+    if let Ok(json) = serde_json::to_string(msg) {
+        emit_to(state, player_id, msg, &json);
+    }
+}
+
+pub async fn matchmaking_loop(state: Arc<ServerState>) {
+    let mut ticker = tokio::time::interval(QUEUE_TICK);
+    ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    let mut tick: u64 = 0;
+    loop {
+        ticker.tick().await;
+        tick += 1;
+        run_tick(
+            &state,
+            Instant::now(),
+            tick.is_multiple_of(STATUS_EVERY_TICKS),
+        );
+    }
+}
+
+fn run_tick(state: &Arc<ServerState>, now: Instant, send_status: bool) {
+    let live: HashSet<String> = state
+        .players
+        .iter()
+        .filter(|player| player.connected && player.room_id.is_none())
+        .map(|player| player.key().clone())
+        .collect();
+    let (pods, offers, statuses) = {
+        let mut queue = state.queue.lock().expect("queue lock");
+        queue.retain_live(&live);
+        let pods = queue.take_pods(now);
+        let offers: Vec<_> = queue
+            .due_offers(now)
+            .into_iter()
+            .map(|(player_id, down, up)| {
+                let waiting = queue
+                    .get(&player_id)
+                    .map(|entry| queue.waiting_for(entry))
+                    .unwrap_or_default();
+                (player_id, down, up, waiting)
+            })
+            .collect();
+        let statuses: Vec<_> = if send_status {
+            queue
+                .entries
+                .iter()
+                .map(|entry| {
+                    (
+                        entry.player_id.clone(),
+                        queue_status(&queue, &entry.player_id),
+                    )
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
+        (pods, offers, statuses)
+    };
+
+    for (player_id, msg) in statuses {
+        send(state, &player_id, &msg);
+    }
+    for (player_id, down, up, waiting) in offers {
+        send(
+            state,
+            &player_id,
+            &ServerMessage::QueueStepOffer { down, up, waiting },
+        );
+    }
+    for pod in pods {
+        seat_pod(state, pod);
+    }
+}
+
+fn requeue(state: &Arc<ServerState>, members: Vec<QueueEntry>) {
+    let mut queue = state.queue.lock().expect("queue lock");
+    for entry in members {
+        queue.enter(entry);
+    }
+}
+
+fn seat_pod(state: &Arc<ServerState>, pod: Pod) {
+    let Pod {
+        bracket,
+        host,
+        members,
+    } = pod;
+    let host_entry = members[host].clone();
+    if state.rooms.len() >= state.max_rooms {
+        requeue(state, members);
+        return;
+    }
+
+    let room_id = uuid::Uuid::new_v4().to_string();
+    let mut room = Room::new(
+        room_id.clone(),
+        format!("Matchmade bracket {bracket} pod"),
+        PROTOCOL_VERSION,
+        host_entry.player_id.clone(),
+        host_entry.username.clone(),
+        host_entry.pod_size,
+        host_entry.format.clone(),
+        EngineKind::Forge,
+        true,
+        None,
+        None,
+        false,
+        None,
+        DEFAULT_RECONNECT_TIMEOUT_S,
+        None,
+    );
+    room.matchmade_bracket = Some(bracket);
+    for entry in &members {
+        if entry.player_id != host_entry.player_id {
+            room.add_player(entry.player_id.clone(), entry.username.clone(), false)
+                .expect("a new room has a seat for every pod member");
+        }
+        let deck = entry.deck_for(bracket);
+        room.set_deck_selection(
+            &entry.player_id,
+            deck.deck_name.clone(),
+            deck.deck.clone(),
+            deck.published_deck_id.clone(),
+            deck.commander_name.clone(),
+            None,
+        )
+        .expect("pod member is seated");
+        room.set_ready(&entry.player_id, true)
+            .expect("pod member is seated");
+    }
+    let info: RoomInfo = room.to_room_info();
+    let resume_token = room.resume_token.clone();
+    state.rooms.insert(room_id.clone(), room);
+
+    let mut seated = Vec::new();
+    let mut lost = Vec::new();
+    for entry in &members {
+        let claimed = state
+            .players
+            .get_mut(&entry.player_id)
+            .is_some_and(|mut player| {
+                if player.connected && player.room_id.is_none() {
+                    player.room_id = Some(room_id.clone());
+                    true
+                } else {
+                    false
+                }
+            });
+        if claimed {
+            seated.push(entry);
+        } else {
+            lost.push(entry.player_id.clone());
+        }
+    }
+    if !lost.is_empty() {
+        info!(
+            "[queue] pod {} lost {} member(s) before seating, returning the rest to the queue",
+            &room_id[..8],
+            lost.len()
+        );
+        state.rooms.remove(&room_id);
+        for entry in &seated {
+            if let Some(mut player) = state.players.get_mut(&entry.player_id) {
+                player.room_id = None;
+            }
+        }
+        requeue(
+            state,
+            members
+                .into_iter()
+                .filter(|entry| !lost.contains(&entry.player_id))
+                .collect(),
+        );
+        return;
+    }
+
+    info!(
+        "[queue] matched {} player(s) at bracket {} into room {} hosted by '{}'",
+        members.len(),
+        bracket,
+        &room_id[..8],
+        host_entry.username
+    );
+    for entry in &members {
+        let is_host = entry.player_id == host_entry.player_id;
+        send(
+            state,
+            &entry.player_id,
+            &ServerMessage::MatchFound {
+                room: info.clone(),
+                host: host_entry.username.clone(),
+                bracket,
+                deck_name: entry.deck_for(bracket).deck_name.clone(),
+                resume_token: is_host.then(|| resume_token.clone()),
+            },
+        );
+    }
+}

@@ -146,6 +146,8 @@ Any `manabrew-protocol` or `manabrew-relay-protocol` type change needs three reg
 
 CI uses the latest stable Rust toolchain and runs `node scripts/clippy.mjs` (`cargo clippy --workspace --lib --bins -- -D warnings`). Reproduce Clippy failures with the compiler version shown in the failed job: a stable update can introduce diagnostics in unchanged code. Rust 1.100.0 expanded `needless_bool` to flag final boolean guards and `needless_range_loop` to flag indexed mana-pool iteration; an older local toolchain can miss these failures.
 
+The debugger's file picker uses `ashpd` only on Linux/BSD, so macOS workspace checks do not validate that dependency. `rfd` 0.14 pulls in `ashpd` 0.8, which fails Rust 1.100.0 type inference in its clipboard portal; keep `rfd` at 0.15.4 or newer and verify the Linux Clippy job after dependency changes.
+
 ## Cardset archive
 
 Every engine entrypoint (Tauri runtime, parity binary, self-hosted node, debugger) mmaps a single rkyv archive at startup: `src-tauri/resources/cardset.rkyv`. It bundles cards, tokens, editions, block data, and `lists/TypeLists.txt`. Path override: `CARDSET_ARCHIVE` env var. The web build has its own content-addressed copy at `public/wasm/cardset.<sha8>.rkyv` (resolved via `public/wasm/cardset.manifest.json`) produced by `yarn build:wasm`.

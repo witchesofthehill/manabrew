@@ -21,6 +21,7 @@ const HOST_SELECTABLE_FORMATS: GameFormat[] = [
   "Pauper",
   "Premodern",
   "Commander",
+  "DuelCommander",
   "PauperCommander",
   "Brawl",
   "Oathbreaker",

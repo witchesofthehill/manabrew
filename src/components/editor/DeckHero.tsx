@@ -154,7 +154,7 @@ export function DeckHero({ onNameCommit }: { onNameCommit: (name: string) => voi
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
-                {GAME_FORMATS.map((f) => (
+                {GAME_FORMATS.filter((f) => !f.deckFormat).map((f) => (
                   <DropdownMenuItem
                     key={f.id}
                     onSelect={() => setDeckFormat(f.id as DeckFormat)}

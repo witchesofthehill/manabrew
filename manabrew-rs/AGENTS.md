@@ -144,7 +144,9 @@ Any `manabrew-protocol` or `manabrew-relay-protocol` type change needs three reg
 
 `yarn gen:types` must remain idempotent because lint and build invoke it repeatedly in the same worktree. The protocol generator recreates `src/protocol/`, and xtask removes `src/api/hubTypes.ts` before ts-rs exports; do not change either path to append to existing generated files.
 
-Known debt (as of 2026-07): `yarn lint:rust` (`cargo clippy --workspace -D warnings`) fails on a cold cache with ~110 pre-existing warnings in `manabrew-engine`, `forge-limited`, and `manabrew-server` (mostly `unused_variables`, `needless_bool`). Warm incremental caches hide them until a dependency edit forces a re-check, so a lint failure in crates your diff never touched is probably this — verify against `main` before assuming your change caused it. The parity regression suite (`regression.json`) likewise has pre-existing failing entries (e.g. `kaalia_regression`, `keyword_advanced`, `starter_*`); baseline on `main` before attributing failures to your change.
+CI uses the latest stable Rust toolchain and runs `node scripts/clippy.mjs` (`cargo clippy --workspace --lib --bins -- -D warnings`). Reproduce Clippy failures with the compiler version shown in the failed job: a stable update can introduce diagnostics in unchanged code. Rust 1.100.0 expanded `needless_bool` to flag final boolean guards and `needless_range_loop` to flag indexed mana-pool iteration; an older local toolchain can miss these failures.
+
+The debugger's file picker uses `ashpd` only on Linux/BSD, so macOS workspace checks do not validate that dependency. `rfd` 0.14 pulls in `ashpd` 0.8, which fails Rust 1.100.0 type inference in its clipboard portal; keep `rfd` at 0.15.4 or newer and verify the Linux Clippy job after dependency changes.
 
 ## Cardset archive
 

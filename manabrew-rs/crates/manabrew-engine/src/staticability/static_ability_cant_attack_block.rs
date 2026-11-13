@@ -470,15 +470,12 @@ pub fn can_block_tapped(game: &GameState, cards: &[Card], card: &Card) -> bool {
 
 /// Mirrors Java's `StaticAbilityCantAttackBlock.applyBlockTapped()`.
 fn apply_block_tapped(game: &GameState, st_ab: &StaticAbility, card: &Card, source: &Card) -> bool {
-    if !valid_filter::matches_valid_card_selector_opt_in_game(
+    valid_filter::matches_valid_card_selector_opt_in_game(
         st_ab.ir.valid_card.as_ref(),
         card,
         source,
         game,
-    ) {
-        return false;
-    }
-    true
+    )
 }
 
 // ── canAttackHaste ──────────────────────────────────────────────────────────
@@ -641,15 +638,12 @@ pub fn apply_attack_vigilance_ability(
     card: &Card,
     source: &Card,
 ) -> bool {
-    if !valid_filter::matches_valid_card_selector_opt_in_game(
+    valid_filter::matches_valid_card_selector_opt_in_game(
         st_ab.ir.valid_card.as_ref(),
         card,
         source,
         game,
-    ) {
-        return false;
-    }
-    true
+    )
 }
 
 // ── getAttackCost ───────────────────────────────────────────────────────────

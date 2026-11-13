@@ -552,13 +552,7 @@ impl SpellAbility {
             current = sa.sub_ability.as_deref_mut();
         }
 
-        if !crate::staticability::static_ability_must_target::meets_must_target_restriction(
-            game, self,
-        ) {
-            return false;
-        }
-
-        true
+        crate::staticability::static_ability_must_target::meets_must_target_restriction(game, self)
     }
 
     /// Create a simple SpellAbility for tests and triggers.

@@ -1494,6 +1494,14 @@ class WebServerApi implements IServerApi {
     this.send({ type: "DeclineMatch" });
   }
 
+  async announceTable(bracket: number | null): Promise<void> {
+    this.send({ type: "AnnounceTable", bracket });
+  }
+
+  async answerTableCall(roomId: string, join: boolean): Promise<void> {
+    this.send({ type: "AnswerTableCall", room_id: roomId, join });
+  }
+
   async leaveQueue(): Promise<void> {
     this.send({ type: "LeaveQueue" });
   }
@@ -2323,6 +2331,17 @@ class WebServerApi implements IServerApi {
           players: msg.players,
           expires_s: msg.expires_s,
           busy: msg.busy ?? 0,
+        },
+      ],
+      TableCall: [
+        "server:table_call",
+        {
+          room_id: msg.room_id,
+          host: msg.host,
+          bracket: msg.bracket,
+          seats: msg.seats,
+          pod_size: msg.pod_size,
+          expires_s: msg.expires_s,
         },
       ],
       RoomInvite: [

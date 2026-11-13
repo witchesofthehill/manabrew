@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -19,6 +19,7 @@ const STATUS_EVERY_TICKS: u64 = 5;
 const STEP_OFFER_AFTER: Duration = Duration::from_secs(30);
 const BOT_FILL_OFFER_AFTER: Duration = Duration::from_secs(30);
 const PROPOSAL_TIMEOUT: Duration = Duration::from_secs(30);
+const TABLE_CALL_TIMEOUT: Duration = Duration::from_secs(30);
 const MIN_BRACKET: u8 = 1;
 const MAX_BRACKET: u8 = 5;
 const MAX_QUEUED_DECKS: usize = 32;
@@ -93,6 +94,33 @@ impl QueueEntry {
 pub struct MatchQueue {
     entries: Vec<QueueEntry>,
     proposals: Vec<Proposal>,
+    calls: Vec<TableCall>,
+    asked: HashMap<String, HashSet<String>>,
+}
+
+#[derive(Debug)]
+pub struct TableCall {
+    pub room_id: String,
+    pub bracket: u8,
+    pub pod_size: u8,
+    pub created: Instant,
+    pub joiners: Vec<QueueEntry>,
+}
+
+#[derive(Debug, Clone)]
+pub struct OpenTable {
+    pub room_id: String,
+    pub host: String,
+    pub bracket: u8,
+    pub pod_size: u8,
+    pub seats: u8,
+}
+
+#[derive(Debug, Default)]
+struct CallWork {
+    calls: Vec<(Vec<String>, ServerMessage)>,
+    seat: Vec<(String, u8, Vec<QueueEntry>)>,
+    overflow: Vec<Pod>,
 }
 
 #[derive(Debug)]
@@ -119,7 +147,114 @@ impl MatchQueue {
 
     pub fn leave(&mut self, player_id: &str) -> Vec<String> {
         self.entries.retain(|entry| entry.player_id != player_id);
+        for call in &mut self.calls {
+            call.joiners.retain(|entry| entry.player_id != player_id);
+        }
         self.decline_match(player_id)
+    }
+
+    pub fn answer_call(&mut self, player_id: &str, room_id: &str, join: bool) -> bool {
+        let Some(call) = self.calls.iter().position(|call| call.room_id == room_id) else {
+            return false;
+        };
+        if !join {
+            return true;
+        }
+        let Some(i) = self
+            .entries
+            .iter()
+            .position(|entry| entry.player_id == player_id)
+        else {
+            return false;
+        };
+        let entry = self.entries.remove(i);
+        self.calls[call].joiners.push(entry);
+        true
+    }
+
+    pub fn reset_table(&mut self, room_id: &str) -> Vec<String> {
+        self.asked.remove(room_id);
+        let joiners: Vec<QueueEntry> = self
+            .calls
+            .iter_mut()
+            .filter(|call| call.room_id == room_id)
+            .flat_map(|call| std::mem::take(&mut call.joiners))
+            .collect();
+        self.calls.retain(|call| call.room_id != room_id);
+        self.requeue(joiners)
+    }
+
+    fn run_calls(&mut self, now: Instant, tables: &[OpenTable]) -> CallWork {
+        let mut work = CallWork::default();
+        let open: HashMap<&str, &OpenTable> = tables
+            .iter()
+            .map(|table| (table.room_id.as_str(), table))
+            .collect();
+        self.asked
+            .retain(|room_id, _| open.contains_key(room_id.as_str()));
+        for mut call in std::mem::take(&mut self.calls) {
+            let table = open
+                .get(call.room_id.as_str())
+                .filter(|table| table.bracket == call.bracket);
+            if let Some(table) = table {
+                let take = (table.seats as usize).min(call.joiners.len());
+                if take > 0 {
+                    let seated: Vec<QueueEntry> = call.joiners.drain(..take).collect();
+                    work.seat.push((call.room_id.clone(), call.bracket, seated));
+                }
+            }
+            if !call.joiners.is_empty() {
+                work.overflow.push(Pod {
+                    bracket: call.bracket,
+                    pod_size: call.pod_size,
+                    members: std::mem::take(&mut call.joiners),
+                    bot_fill: false,
+                });
+            }
+            if now.duration_since(call.created) < TABLE_CALL_TIMEOUT {
+                self.calls.push(call);
+            }
+        }
+        for table in tables {
+            if self.calls.iter().any(|call| call.room_id == table.room_id) {
+                continue;
+            }
+            let asked = self.asked.entry(table.room_id.clone()).or_default();
+            let invited: Vec<String> = self
+                .entries
+                .iter()
+                .filter(|entry| {
+                    entry.username != table.host
+                        && entry.accepts(table.bracket)
+                        && entry.accepts_size(table.pod_size)
+                        && !asked.contains(&entry.player_id)
+                })
+                .map(|entry| entry.player_id.clone())
+                .collect();
+            if invited.is_empty() {
+                continue;
+            }
+            asked.extend(invited.iter().cloned());
+            self.calls.push(TableCall {
+                room_id: table.room_id.clone(),
+                bracket: table.bracket,
+                pod_size: table.pod_size,
+                created: now,
+                joiners: Vec::new(),
+            });
+            work.calls.push((
+                invited,
+                ServerMessage::TableCall {
+                    room_id: table.room_id.clone(),
+                    host: table.host.clone(),
+                    bracket: table.bracket,
+                    seats: table.seats,
+                    pod_size: table.pod_size,
+                    expires_s: TABLE_CALL_TIMEOUT.as_secs() as u32,
+                },
+            ));
+        }
+        work
     }
 
     fn requeue(&mut self, entries: Vec<QueueEntry>) -> Vec<String> {
@@ -252,6 +387,7 @@ impl MatchQueue {
         self.entries
             .iter()
             .chain(self.proposals.iter().flat_map(|p| p.pod.members.iter()))
+            .chain(self.calls.iter().flat_map(|call| call.joiners.iter()))
             .find(|entry| entry.player_id == player_id)
     }
 
@@ -521,6 +657,11 @@ fn run_tick(state: &Arc<ServerState>, now: Instant, send_status: bool) {
         .filter(|room| pool_room_is_free(room))
         .map(|room| room.max_players)
         .collect();
+    let tables: Vec<OpenTable> = state
+        .rooms
+        .iter()
+        .filter_map(|room| open_table(&room))
+        .collect();
     let busy: HashSet<String> = state
         .players
         .iter()
@@ -528,7 +669,7 @@ fn run_tick(state: &Arc<ServerState>, now: Instant, send_status: bool) {
         .map(|player| player.key().clone())
         .collect();
     let mut events = Vec::new();
-    let (ready, dropped, requeued, proposals, offers, bot_offers, statuses) = {
+    let (ready, dropped, requeued, proposals, offers, bot_offers, statuses, call_work) = {
         let mut queue = state.queue.lock().expect("queue lock");
         for entry in queue.retain_live(&live) {
             events.push(event("dropped", &[&entry], now));
@@ -538,6 +679,24 @@ fn run_tick(state: &Arc<ServerState>, now: Instant, send_status: bool) {
             events.push(event("proposal_dropped", &[entry], now));
         }
         let dropped: Vec<String> = dropped.into_iter().map(|entry| entry.player_id).collect();
+        let call_work = queue.run_calls(now, &tables);
+        for (invited, msg) in &call_work.calls {
+            if let ServerMessage::TableCall {
+                room_id,
+                bracket,
+                pod_size,
+                ..
+            } = msg
+            {
+                let entries: Vec<&QueueEntry> =
+                    invited.iter().filter_map(|id| queue.get(id)).collect();
+                let mut called = event("table_call", &entries, now);
+                called.room_id = Some(room_id.clone());
+                called.bracket = Some(*bracket);
+                called.pod_size = Some(*pod_size);
+                events.push(called);
+            }
+        }
         let proposals: Vec<_> = queue
             .take_pods(&mut hosted)
             .into_iter()
@@ -591,7 +750,7 @@ fn run_tick(state: &Arc<ServerState>, now: Instant, send_status: bool) {
             Vec::new()
         };
         (
-            ready, dropped, requeued, proposals, offers, bot_offers, statuses,
+            ready, dropped, requeued, proposals, offers, bot_offers, statuses, call_work,
         )
     };
     for event in events {
@@ -621,8 +780,117 @@ fn run_tick(state: &Arc<ServerState>, now: Instant, send_status: bool) {
             &ServerMessage::QueueBotFillOffer { players },
         );
     }
-    for pod in ready {
+    for (invited, msg) in call_work.calls {
+        for player_id in invited {
+            send(state, &player_id, &msg);
+        }
+    }
+    for (room_id, bracket, joiners) in call_work.seat {
+        seat_at_table(state, &room_id, bracket, joiners);
+    }
+    for pod in ready.into_iter().chain(call_work.overflow) {
         seat_pod(state, pod);
+    }
+}
+
+fn open_table(room: &Room) -> Option<OpenTable> {
+    let bracket = room.table_bracket?;
+    let open = room.status == RoomStatus::Lobby
+        && room.players.len() < room.max_players as usize
+        && matches!(room.format, GameFormat::Any | GameFormat::Commander)
+        && room.password.is_none()
+        && room.draft_config.is_none()
+        && room.sealed_config.is_none()
+        && room.limited_session_id.is_none();
+    open.then(|| OpenTable {
+        room_id: room.room_id.clone(),
+        host: room.host_username.clone(),
+        bracket,
+        pod_size: room.max_players,
+        seats: room.max_players - room.players.len() as u8,
+    })
+}
+
+fn release_sessions(state: &Arc<ServerState>, members: &[QueueEntry]) {
+    for entry in members {
+        if let Some(mut player) = state.players.get_mut(&entry.player_id) {
+            player.room_id = None;
+        }
+    }
+}
+
+fn seat_at_table(state: &Arc<ServerState>, room_id: &str, bracket: u8, joiners: Vec<QueueEntry>) {
+    let free = state
+        .rooms
+        .get(room_id)
+        .filter(|room| room.status == RoomStatus::Lobby)
+        .map(|room| (room.max_players as usize).saturating_sub(room.players.len()))
+        .unwrap_or(0);
+    let mut seated = joiners;
+    let rest = seated.split_off(free.min(seated.len()));
+    requeue(state, rest);
+    if seated.is_empty() {
+        return;
+    }
+    let lost = claim_sessions(state, room_id, &seated);
+    if !lost.is_empty() {
+        requeue(
+            state,
+            seated
+                .into_iter()
+                .filter(|entry| !lost.contains(&entry.player_id))
+                .collect(),
+        );
+        return;
+    }
+    let fits = state.rooms.get_mut(room_id).is_some_and(|mut room| {
+        let fits = room.status == RoomStatus::Lobby
+            && room.players.len() + seated.len() <= room.max_players as usize;
+        if fits {
+            seat_members(&mut room, &seated, bracket);
+        }
+        fits
+    });
+    if !fits {
+        release_sessions(state, &seated);
+        requeue(state, seated);
+        return;
+    }
+    let Some((info, host)) = state
+        .rooms
+        .get(room_id)
+        .map(|room| (room.to_room_info(), room.host_username.clone()))
+    else {
+        return;
+    };
+    let members: Vec<&QueueEntry> = seated.iter().collect();
+    let mut joined = event("table_seated", &members, Instant::now());
+    joined.room_id = Some(room_id.to_string());
+    joined.bracket = Some(bracket);
+    record(state, joined);
+    info!(
+        "[queue] {} player(s) joined open table {} at bracket {}",
+        seated.len(),
+        &room_id[..8],
+        bracket
+    );
+    broadcast_to_room(
+        state,
+        room_id,
+        &ServerMessage::RoomUpdate { room: info.clone() },
+    );
+    for entry in &seated {
+        send(
+            state,
+            &entry.player_id,
+            &ServerMessage::MatchFound {
+                room: info.clone(),
+                host: host.clone(),
+                bracket,
+                deck_name: entry.deck_for(bracket).deck_name.clone(),
+                resume_token: None,
+            },
+        );
     }
 }
 
@@ -674,7 +942,6 @@ fn free_pool_room(state: &Arc<ServerState>, pod_size: u8) -> Option<String> {
 }
 
 fn seat_members(room: &mut Room, members: &[QueueEntry], bracket: u8) {
-    room.matchmade_bracket = Some(bracket);
     for entry in members {
         if !room.players.iter().any(|p| p.player_id == entry.player_id) {
             room.add_player(entry.player_id.clone(), entry.username.clone(), false)
@@ -756,6 +1023,8 @@ fn seat_in_pool_room(state: &Arc<ServerState>, room_id: String, pod: Pod) {
         room.pool_max_players = Some(room.max_players);
         room.max_players = pod_size;
         room.matchmade_bot_fill = bot_fill;
+        room.matchmade_bracket = Some(bracket);
+        room.table_bracket = (members.len() < pod_size as usize && !bot_fill).then_some(bracket);
         seat_members(&mut room, &members, bracket);
         (room.to_room_info(), room.host_username.clone())
     };
@@ -846,6 +1115,8 @@ fn seat_in_browser_room(state: &Arc<ServerState>, pod: Pod) {
         None,
     );
     room.matchmade_bot_fill = bot_fill;
+    room.matchmade_bracket = Some(bracket);
+    room.table_bracket = (members.len() < pod_size as usize && !bot_fill).then_some(bracket);
     seat_members(&mut room, &members, bracket);
     let info: RoomInfo = room.to_room_info();
     let resume_token = room.resume_token.clone();

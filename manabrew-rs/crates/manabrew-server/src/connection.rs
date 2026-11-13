@@ -2671,6 +2671,52 @@ fn handle_client_message(
             matchmaking::send_statuses(state, requeued.iter().chain([&player_id.to_string()]));
         }
 
+        ClientMessage::AnnounceTable { bracket } => {
+            let Some(room_id) = state.players.get(player_id).and_then(|p| p.room_id.clone()) else {
+                return;
+            };
+            let info = state.rooms.get_mut(&room_id).and_then(|mut room| {
+                let eligible = room.host_player_id == player_id
+                    && !room.hosted
+                    && room.matchmade_bracket.is_none()
+                    && room.status == RoomStatus::Lobby
+                    && bracket.is_none_or(|b| (1..=5).contains(&b));
+                if !eligible || room.table_bracket == bracket {
+                    return None;
+                }
+                room.table_bracket = bracket;
+                Some(room.to_room_info())
+            });
+            if let Some(info) = info {
+                info!(
+                    "[queue] '{}' announced table {} at bracket {:?}",
+                    username,
+                    &room_id[..8],
+                    bracket
+                );
+                let requeued = state
+                    .queue
+                    .lock()
+                    .expect("queue lock")
+                    .reset_table(&room_id);
+                matchmaking::send_statuses(state, requeued.iter());
+                broadcast_to_room(state, &room_id, &ServerMessage::RoomUpdate { room: info });
+            }
+        }
+
+        ClientMessage::AnswerTableCall { room_id, join } => {
+            let action = if join { "table_join" } else { "table_decline" };
+            let call_room = room_id.clone();
+            matchmaking::record_player(state, player_id, action, move |_, event| {
+                event.room_id = Some(call_room);
+            });
+            state
+                .queue
+                .lock()
+                .expect("queue lock")
+                .answer_call(player_id, &room_id, join);
+        }
+
         ClientMessage::LeaveQueue => {
             matchmaking::record_player(state, player_id, "leave", |_, _| {});
             let requeued = state.queue.lock().expect("queue lock").leave(player_id);
@@ -2753,6 +2799,7 @@ fn msg_type_of(msg: &ServerMessage) -> &'static str {
         ServerMessage::QueueStepOffer { .. } => "QueueStepOffer",
         ServerMessage::QueueBotFillOffer { .. } => "QueueBotFillOffer",
         ServerMessage::MatchProposal { .. } => "MatchProposal",
+        ServerMessage::TableCall { .. } => "TableCall",
         ServerMessage::MatchFound { .. } => "MatchFound",
     }
 }
@@ -2790,6 +2837,8 @@ fn client_msg_type(msg: &ClientMessage) -> &'static str {
         ClientMessage::AcceptBotFill => "AcceptBotFill",
         ClientMessage::AcceptMatch => "AcceptMatch",
         ClientMessage::DeclineMatch => "DeclineMatch",
+        ClientMessage::AnnounceTable { .. } => "AnnounceTable",
+        ClientMessage::AnswerTableCall { .. } => "AnswerTableCall",
         ClientMessage::LeaveQueue => "LeaveQueue",
     }
 }

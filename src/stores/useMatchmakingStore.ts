@@ -3,6 +3,7 @@ import { create } from "zustand";
 import { ownedDecksNow } from "@/hooks/useOwnedDecks";
 import { forgeWasmGate } from "@/lib/forgeWasm";
 import { localGameActive, onLocalGameEnd } from "@/lib/localGamePresence";
+import { playSound } from "@/lib/soundRuntime";
 import { commanderQueueDecks } from "@/lib/queueDecks";
 import { getPlatform } from "@/platform";
 import type { Deck } from "@/protocol/deck";
@@ -17,6 +18,7 @@ import {
   type QueuedDeck,
   type QueueStatusPayload,
   type QueueStepOfferPayload,
+  type TableCallPayload,
 } from "@/types/server";
 
 export type PodSize = 2 | 3 | 4;
@@ -35,6 +37,25 @@ export function podSizesFor(size: PodSize, otherPodSize: boolean): PodSize[] {
 const RELAY_WAIT_MS = 10_000;
 const ASK_TO_QUEUE_MS = 20_000;
 const MAX_QUEUED_DECKS = 32;
+
+export function requestCallNotifications(): void {
+  if (typeof Notification === "undefined" || Notification.permission !== "default") return;
+  void Notification.requestPermission().catch(() => undefined);
+}
+
+function notifyTableCall(call: TableCallPayload): void {
+  playSound("roomInvite");
+  if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+  if (!document.hidden) return;
+  const notification = new Notification(`A ${tableLabel(call.pod_size)} needs players`, {
+    body: `${call.host} opened a bracket ${call.bracket} table. ${call.seats} seat(s) open.`,
+    tag: `table-call-${call.room_id}`,
+  });
+  notification.onclick = () => {
+    window.focus();
+    notification.close();
+  };
+}
 
 function deckKey(deck: Deck): string {
   return `${deck.name}|${deck.commanders?.map((card) => card.identity.name).join("+") ?? ""}`;
@@ -58,6 +79,8 @@ interface MatchmakingState {
   proposal: MatchProposalPayload | null;
   accepted: boolean;
   match: MatchFoundPayload | null;
+  tableCall: TableCallPayload | null;
+  answerTableCall(join: boolean): Promise<void>;
   enter(podSizes: PodSize[], decks: QueuedDeck[], auto?: boolean): Promise<void>;
   autoEnter(deck: Deck, seats: number): Promise<void>;
   acceptStep(bracket: number): Promise<void>;
@@ -128,7 +151,13 @@ function askToQueue(): Promise<boolean | null> {
       description:
         "We queue your Commander decks. When a table is found you get 30 seconds to join, which ends this game. You can change this on the Play page.",
       duration: ASK_TO_QUEUE_MS,
-      action: { label: "Yes", onClick: () => settle(true) },
+      action: {
+        label: "Yes",
+        onClick: () => {
+          requestCallNotifications();
+          settle(true);
+        },
+      },
       cancel: { label: "No thanks", onClick: () => settle(false) },
       onDismiss: () => settle(null),
       onAutoClose: () => settle(null),
@@ -172,11 +201,15 @@ function listen(set: (partial: Partial<MatchmakingState>) => void, get: () => Ma
       });
       if (!localGameActive()) void get().acceptMatch();
     }),
+    events.on<TableCallPayload>("server:table_call", (payload) => {
+      set({ tableCall: payload });
+      notifyTableCall(payload);
+    }),
     events.on<MatchFoundPayload>("server:match_found", (payload) => {
-      set({ ...IDLE, phase: "matched", match: payload });
+      set({ ...IDLE, phase: "matched", match: payload, tableCall: null });
     }),
     events.on("server:disconnected", () => {
-      set({ ...IDLE });
+      set({ ...IDLE, tableCall: null });
     }),
     onLocalGameEnd(() => {
       if (get().phase === "proposed" && !get().accepted) void get().acceptMatch();
@@ -188,10 +221,18 @@ export const useMatchmakingStore = create<MatchmakingState>((set, get) => ({
   ...IDLE,
   podSizes: [4],
   match: null,
+  tableCall: null,
+  async answerTableCall(join) {
+    const call = get().tableCall;
+    if (!call) return;
+    set({ tableCall: null });
+    await getPlatform().server?.answerTableCall(call.room_id, join);
+  },
   async enter(podSizes, decks, auto = false) {
     const server = getPlatform().server;
     if (!server) throw new Error("Multiplayer is not available.");
     listen(set, get);
+    if (!auto) requestCallNotifications();
     set({
       ...IDLE,
       phase: "queued",
@@ -254,7 +295,7 @@ export const useMatchmakingStore = create<MatchmakingState>((set, get) => ({
     await getPlatform().server?.declineMatch();
   },
   async leave() {
-    set({ ...IDLE });
+    set({ ...IDLE, tableCall: null });
     await getPlatform().server?.leaveQueue();
   },
   clearMatch() {

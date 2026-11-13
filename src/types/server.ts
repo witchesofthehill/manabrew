@@ -55,6 +55,7 @@ export interface RoomInfo {
   sealed_config?: SealedConfig;
   matchmade_bracket?: number;
   matchmade_bot_fill?: boolean;
+  table_bracket?: number;
 }
 export interface RoomPlayerInfo {
   username: string;
@@ -378,6 +379,14 @@ export interface MatchProposalPayload {
   players: number;
   expires_s: number;
   busy: number;
+}
+export interface TableCallPayload {
+  room_id: string;
+  host: string;
+  bracket: number;
+  seats: number;
+  pod_size: number;
+  expires_s: number;
 }
 export interface MatchFoundPayload {
   room: RoomInfo;

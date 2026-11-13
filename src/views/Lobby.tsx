@@ -44,6 +44,7 @@ import { Settings, Users } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { findOrHostLanRelay, isUnreachable } from "@/lib/lanRelay";
 import { useMatchmadeHost } from "@/components/lobby/useMatchmadeHost";
+import { commanderQueueDecks } from "@/lib/queueDecks";
 
 const START_GAME_ACK_TIMEOUT_MS = 5000;
 function awaitGameStartedAck(roomId: string): Promise<void> {
@@ -326,6 +327,17 @@ export default function Lobby() {
     }
     if (format) await setFormat(format);
   }
+  async function announceTable(deck: Deck) {
+    const room = currentRoom;
+    const server = getPlatform().server;
+    if (!room || !server || room.host !== username) return;
+    if (room.hosted || room.matchmade_bracket || room.status !== "Lobby") return;
+    if (room.format !== "Commander" && room.format !== "Any") return;
+    if (room.password_protected || room.draft_config || room.sealed_config) return;
+    if (!useServerStore.getState().hasRelayFeature(RELAY_FEATURE.Matchmaking)) return;
+    const [queued] = await commanderQueueDecks([deck]);
+    if (queued && queued.bracket !== room.table_bracket) await server.announceTable(queued.bracket);
+  }
   async function handleDeckSelection(
     deckName: string,
     deck: Deck,
@@ -346,6 +358,7 @@ export default function Lobby() {
       if (username && username === controllerName) {
         await setReady(true);
       }
+      void announceTable(deck);
     } catch (error) {
       toast.error(`Failed to set deck: ${String(error)}`);
     }

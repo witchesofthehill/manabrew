@@ -159,6 +159,8 @@ export interface IServerApi {
   acceptBotFill(): Promise<void>;
   acceptMatch(): Promise<void>;
   declineMatch(): Promise<void>;
+  announceTable(bracket: number | null): Promise<void>;
+  answerTableCall(roomId: string, join: boolean): Promise<void>;
   leaveQueue(): Promise<void>;
   createRoom(params: CreateRoomParams): Promise<string | null>;
   stopRoom(): Promise<void>;

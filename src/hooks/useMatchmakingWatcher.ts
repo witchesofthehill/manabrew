@@ -11,12 +11,18 @@ async function joinFromLocalGame() {
   await useMatchmakingStore.getState().acceptMatch();
 }
 
+async function joinTable() {
+  if (localGameActive()) await useGameStore.getState().endGame();
+  await useMatchmakingStore.getState().answerTableCall(true);
+}
+
 export function useMatchmakingWatcher(): void {
   const navigate = useNavigate();
   const phase = useMatchmakingStore((s) => s.phase);
   const proposal = useMatchmakingStore((s) => s.proposal);
   const accepted = useMatchmakingStore((s) => s.accepted);
   const match = useMatchmakingStore((s) => s.match);
+  const tableCall = useMatchmakingStore((s) => s.tableCall);
 
   useEffect(() => {
     if (phase !== "matched" || !match) return;
@@ -39,4 +45,23 @@ export function useMatchmakingWatcher(): void {
       toast.dismiss(id);
     };
   }, [accepted, phase, proposal]);
+
+  useEffect(() => {
+    if (!tableCall) return;
+    const id = toast(`${tableCall.host} needs players for a ${tableLabel(tableCall.pod_size)}`, {
+      description: `Bracket ${tableCall.bracket}, ${tableCall.seats} seat(s) open. First to join get the seats.${
+        localGameActive() ? " Joining ends this game." : ""
+      }`,
+      duration: tableCall.expires_s * 1000,
+      action: { label: "Join", onClick: () => void joinTable() },
+      cancel: {
+        label: "No thanks",
+        onClick: () => void useMatchmakingStore.getState().answerTableCall(false),
+      },
+      onAutoClose: () => useMatchmakingStore.setState({ tableCall: null }),
+    });
+    return () => {
+      toast.dismiss(id);
+    };
+  }, [tableCall]);
 }

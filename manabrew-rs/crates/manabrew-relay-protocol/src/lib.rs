@@ -397,6 +397,15 @@ pub enum ClientMessage {
 
     DeclineMatch,
 
+    AnnounceTable {
+        bracket: Option<u8>,
+    },
+
+    AnswerTableCall {
+        room_id: String,
+        join: bool,
+    },
+
     LeaveQueue,
 }
 
@@ -588,6 +597,18 @@ pub enum ServerMessage {
         busy: u32,
     },
 
+    /// An open table at one of the player's queued brackets needs players.
+    /// The first `AnswerTableCall` joins take the seats; extra joins open a
+    /// new table that is called the same way.
+    TableCall {
+        room_id: String,
+        host: String,
+        bracket: u8,
+        seats: u8,
+        pod_size: u8,
+        expires_s: u32,
+    },
+
     MatchFound {
         room: RoomInfo,
         host: String,
@@ -694,6 +715,8 @@ pub struct RoomInfo {
     pub matchmade_bracket: Option<u8>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub matchmade_bot_fill: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub table_bracket: Option<u8>,
 }
 
 pub const DEFAULT_RECONNECT_TIMEOUT_S: u32 = 60;

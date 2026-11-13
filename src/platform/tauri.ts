@@ -115,6 +115,12 @@ class TauriServerApi implements IServerApi {
   declineMatch(): Promise<void> {
     return this.inner.declineMatch();
   }
+  announceTable(bracket: number | null): Promise<void> {
+    return this.inner.announceTable(bracket);
+  }
+  answerTableCall(roomId: string, join: boolean): Promise<void> {
+    return this.inner.answerTableCall(roomId, join);
+  }
   leaveQueue(): Promise<void> {
     return this.inner.leaveQueue();
   }

@@ -143,7 +143,7 @@ pub fn can_replace(
             return false;
         }
     }
-    if !counter_map.iter().any(|entry| {
+    counter_map.iter().any(|entry| {
         let source_matches = effect
             .ir
             .valid_source_selector
@@ -166,10 +166,7 @@ pub fn can_replace(
                 entry.counters.contains_key(&expected)
             });
         source_matches && type_matches
-    }) {
-        return false;
-    }
-    true
+    })
 }
 
 /// Mirrors Java `ReplacementHandler.executeReplacement()` for AddCounter.

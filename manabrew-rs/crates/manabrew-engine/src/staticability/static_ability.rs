@@ -1021,10 +1021,7 @@ impl CardFilter {
                 return false;
             }
         }
-        if self.shares_creature_type_with_source && !shares_creature_type_with(card, source) {
-            return false;
-        }
-        true
+        !self.shares_creature_type_with_source || shares_creature_type_with(card, source)
     }
 
     /// Context-aware matching for predicates that require game lookups

@@ -80,6 +80,12 @@ export const GAME_LOADING_TIPS: readonly GameLoadingTip[] = [
     keybindingIds: ["toggle-priority-mode"],
   },
   {
+    id: "toggle-ignore-card",
+    text: "Grey out a hovered card so its actions no longer stop autopass. Press again to restore it.",
+    audience: "desktop",
+    keybindingIds: ["toggle-ignore-card"],
+  },
+  {
     id: "cycle-hand-order",
     text: "Cycle through the available ways to sort your hand.",
     audience: "desktop",

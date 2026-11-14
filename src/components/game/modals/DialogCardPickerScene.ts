@@ -418,6 +418,9 @@ export class DialogCardPickerScene {
             : [],
       ),
     );
+    const ignoredIds = new Set(
+      this.props.items.filter((item) => item.ignored).map((item) => item.id),
+    );
     const motionEnabled = animationsEnabled();
     const motionChanged = motionEnabled !== this.motionEnabled;
     this.motionEnabled = motionEnabled;
@@ -431,6 +434,7 @@ export class DialogCardPickerScene {
       const focused = hovered || active;
       const emphasized = selected || ((clickable || highlighted) && focused);
       const zoomed = focused && !clickable && !selected && !highlighted;
+      entry.sprite.setIgnored(ignoredIds.has(id));
       entry.sprite.setPlayableRing(actionColor !== undefined && !emphasized ? actionColor : null);
       const targetScale = entry.baseScale * (zoomed ? PASSIVE_CARD_HOVER_SCALE : 1);
       if (motionChanged || entry.targetScale !== targetScale) {

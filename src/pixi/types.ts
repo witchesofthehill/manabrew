@@ -133,11 +133,13 @@ export interface BattlefieldState {
   combatForwardIds?: string[];
   combatRowBlocks?: CombatAssignmentDto[];
   combatRowTargets?: CombatRowTarget[];
+  ignoredCardIds?: Set<string>;
 }
 
 export interface HandState {
   cards: CardDto[];
   playableIds?: Set<string>;
+  ignoredIds?: Set<string>;
   draggingCardId?: string;
   reorderingCardId?: string;
   draggingIsPermanent?: boolean;

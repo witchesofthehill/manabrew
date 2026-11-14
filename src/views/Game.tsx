@@ -1201,6 +1201,12 @@ export default function Game({ exitTo }: GameProps = {}) {
       const prefs = usePromptPreferencesStore.getState();
       prefs.setFullControl(!prefs.fullControl);
     },
+    "toggle-ignore-card": () => {
+      if (promptType && promptType !== "chooseAction") return false;
+      const card = preview.hoveredCard ?? commandZonePreview.hoveredCard;
+      if (!card) return false;
+      useGameStore.getState().toggleCardIgnored(card.id);
+    },
   });
   const me =
     gameView?.players?.find((p) => p.id === myPlayerSlot) ??

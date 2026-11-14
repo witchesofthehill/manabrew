@@ -33,6 +33,7 @@ import {
 import { computePreviewCardDimensions } from "@/components/game/cardPreviewLayout";
 import { getSafeAreaInsets } from "@/lib/safeArea";
 import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
+import { useGameStore } from "@/stores/useGameStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { type PromptActionViewKey } from "@/stores/useGameDevStore";
 import { resolveCombo, useKeybindingsStore } from "@/stores/useKeybindingsStore";
@@ -338,13 +339,17 @@ export function actionTitle(
 }
 export function isAutopassWindow(spec: PromptOverlaySpec | null): boolean {
   const input = spec?.currentPrompt?.input;
+  const ignored = useGameStore.getState().ignoredCardIds;
   return (
     spec != null &&
     input?.type === "chooseAction" &&
     spec.action.promptActionOverride == null &&
     !spec.action.isWaitingForResponse &&
     !usePromptPreferencesStore.getState().fullControl &&
-    input.actions.every((action) => action.type === "activateAbility" && action.isManaAbility)
+    input.actions.every(
+      (action) =>
+        (action.type === "activateAbility" && action.isManaAbility) || ignored.has(action.cardId),
+    )
   );
 }
 

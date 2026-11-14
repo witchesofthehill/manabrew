@@ -37,6 +37,7 @@ interface Props {
   initialState?: CardBrowserState;
   onStateChange?: (state: CardBrowserState) => void;
   onLongPressCard?: (card: CardBrowserItem["card"], anchor: DOMRect) => void;
+  onToggleIgnored?: (item: CardBrowserItem) => void;
 }
 
 export function DialogCardBrowser({
@@ -54,6 +55,7 @@ export function DialogCardBrowser({
   initialState,
   onStateChange,
   onLongPressCard,
+  onToggleIgnored,
 }: Props) {
   const [state, setState] = useState<CardBrowserState>(() =>
     createCardBrowserState(initialState, picker),
@@ -146,6 +148,7 @@ export function DialogCardBrowser({
             },
           }
         : {}),
+      ...(onToggleIgnored && active ? { "toggle-ignore-card": () => onToggleIgnored(active) } : {}),
     },
     scope,
   );

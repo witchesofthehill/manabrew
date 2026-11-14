@@ -59,11 +59,7 @@ pub fn is_possible_activated(sa: &SpellAbility, game: &GameState) -> bool {
 
     // The activating player must be alive
     let player = game.player(sa.activating_player);
-    if !player.is_alive() {
-        return false;
-    }
-
-    true
+    player.is_alive()
 }
 
 /// Check cant-be-activated restrictions from static abilities.

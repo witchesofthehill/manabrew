@@ -410,10 +410,7 @@ impl ReplacementEffect {
             .as_deref()
             .map(|v| v.starts_with("Card.Self"))
             .unwrap_or(false);
-        if !targets_self_only && source.id == affected.id {
-            return false;
-        }
-        true
+        targets_self_only || source.id != affected.id
     }
 
     /// Mirrors Java `ReplacementEffect.setReplacingObjects(runParams, sa)`.

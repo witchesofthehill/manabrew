@@ -105,11 +105,16 @@ export function relayAvatarUrl(
   );
 }
 
-export function botAvatarUrl(
-  playerId: string,
-  players: readonly { id: string; isHuman: boolean }[],
-): string {
-  const bots = players.filter((player) => !player.isHuman);
+export function isBotSeat(
+  player: { name: string; isHuman: boolean },
+  roomPlayers: readonly { username: string; is_bot?: boolean }[] | undefined,
+): boolean {
+  if (player.isHuman) return false;
+  const seat = roomPlayers?.find((roomPlayer) => roomPlayer.username === player.name);
+  return seat ? seat.is_bot === true : true;
+}
+
+export function botAvatarUrl(playerId: string, bots: readonly { id: string }[]): string {
   return BREWY_BOT_AVATARS[bots.findIndex((bot) => bot.id === playerId) % BREWY_BOT_AVATARS.length];
 }
 

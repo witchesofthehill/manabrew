@@ -298,10 +298,7 @@ impl GameLoop {
                     )),
                 )
             };
-            if !can_pay_cost {
-                return false;
-            }
-            true
+            can_pay_cost
         };
 
         for card_id in battlefield {

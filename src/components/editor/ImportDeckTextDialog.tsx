@@ -37,7 +37,9 @@ const GUIDE_STEPS = [
   `Click the ••• menu, then Export.`,
   `Choose "Copy Plain Text" and copy it to your clipboard.`,
 ];
-const IMPORT_FORMATS = GAME_FORMATS.filter((format) => format.id !== "oathbreaker");
+const IMPORT_FORMATS = GAME_FORMATS.filter(
+  (format) => format.id !== "oathbreaker" && !format.deckFormat,
+);
 export function ImportDeckTextDialog({
   open,
   onOpenChange,
@@ -264,7 +266,11 @@ export function ImportDeckTextDialog({
                       id="import-deck-format"
                       value={formatId}
                       onValueChange={(value) =>
-                        setFormatId(IMPORT_FORMATS.find((format) => format.id === value)?.id ?? "")
+                        setFormatId(
+                          (IMPORT_FORMATS.find((format) => format.id === value)?.id as
+                            | DeckFormat
+                            | undefined) ?? "",
+                        )
                       }
                       className="touch:min-h-11 min-h-9 w-full cursor-pointer rounded-md border bg-background px-2 text-ui-label"
                     >

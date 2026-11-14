@@ -133,7 +133,7 @@ export function DeckListControls({
               <span>All formats</span>
               {!formatFilter && <Check className="ml-auto h-3 w-3 text-primary" />}
             </DropdownMenuItem>
-            {GAME_FORMATS.map((format) => (
+            {GAME_FORMATS.filter((format) => !format.deckFormat).map((format) => (
               <DropdownMenuItem
                 key={format.id}
                 onSelect={() => onFormatChange(format.id)}

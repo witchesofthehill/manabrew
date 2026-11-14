@@ -1,5 +1,27 @@
 # Changelog
 
+## [3.80.0](https://github.com/witchesofthehill/manabrew/compare/v3.79.7...v3.80.0) (2026-11-13)
+
+### Features
+
+* support duel commander ([#1213](https://github.com/witchesofthehill/manabrew/issues/1213)) ([9635050](https://github.com/witchesofthehill/manabrew/commit/9635050868810bf79bf549acb5fcfc5aba4c0a6c))
+
+## [3.79.7](https://github.com/witchesofthehill/manabrew/compare/v3.79.6...v3.79.7) (2026-11-13)
+
+## [3.79.6](https://github.com/witchesofthehill/manabrew/compare/v3.79.5...v3.79.6) (2026-11-11)
+
+### Fixes
+
+* no max sizew ([#1211](https://github.com/witchesofthehill/manabrew/issues/1211)) ([01c0b2e](https://github.com/witchesofthehill/manabrew/commit/01c0b2ef20ed60bb60f979d70127db5680bbb06c))
+
+## [3.79.5](https://github.com/witchesofthehill/manabrew/compare/v3.79.4...v3.79.5) (2026-11-10)
+
+### Fixes
+
+* brewy showing for all ([#1207](https://github.com/witchesofthehill/manabrew/issues/1207)) ([bcd02cb](https://github.com/witchesofthehill/manabrew/commit/bcd02cb06056b1e26c310e8f0eee1405bfcbb355))
+
+## [3.79.4](https://github.com/witchesofthehill/manabrew/compare/v3.79.3...v3.79.4) (2026-11-10)
+
 ## [3.79.3](https://github.com/witchesofthehill/manabrew/compare/v3.79.2...v3.79.3) (2026-11-10)
 
 ### Fixes

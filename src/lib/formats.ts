@@ -2,7 +2,8 @@
 // For our limited card pool, we combine both into a single GameFormat interface.
 import type { Deck, DeckCard, DeckFormat } from "@/protocol/deck";
 export interface GameFormat {
-  id: DeckFormat;
+  id: DeckFormat | "duelcommander";
+  deckFormat?: DeckFormat;
   name: string;
   shortName: string;
   description: string;
@@ -239,6 +240,23 @@ export const GAME_FORMATS: GameFormat[] = [
     bannedCards: [],
   },
   {
+    id: "duelcommander",
+    deckFormat: "commander",
+    name: "Duel Commander",
+    shortName: "DC",
+    description: `Commander decks, 1v1, 20 life`,
+    badgeColor: "purple",
+    deckRules: {
+      minDeckSize: 100,
+      maxDeckSize: 100,
+      maxCopies: 1,
+      sideboardMax: 10,
+      startingLife: 20,
+      requiresCommander: true,
+    },
+    bannedCards: [],
+  },
+  {
     id: "paupercommander",
     name: "Pauper Commander",
     shortName: "PDH",
@@ -346,9 +364,10 @@ export function validateDeck(
   cardNames: string[],
   format: GameFormat,
   copyLimits?: ReadonlyMap<string, number>,
+  maxDeckSize = format.deckRules.maxDeckSize,
 ): DeckValidation {
   const errors: string[] = [];
-  const { minDeckSize, maxDeckSize, maxCopies } = format.deckRules;
+  const { minDeckSize, maxCopies } = format.deckRules;
   if (cardNames.length < minDeckSize) {
     errors.push(`Deck must have at least ${minDeckSize} cards (has ${cardNames.length})`);
   }
@@ -381,6 +400,9 @@ function getCardIdentity(card?: DeckCard): string[] {
     return [...new Set(card.colorIdentity)];
   }
   return [...new Set((card.color ?? "").split("").filter(Boolean))];
+}
+function removesMaxDeckSize(card: DeckCard): boolean {
+  return /no maximum deck size/i.test(card.text);
 }
 function hasPartner(card?: DeckCard): boolean {
   if (!card) return false;
@@ -622,10 +644,12 @@ export function validateDeckSections(
     const limit = copyLimitFromText(c.text);
     if (limit !== null) copyLimits.set(c.identity.name, limit);
   }
+  const noMaxDeckSize = commanders.some(removesMaxDeckSize);
   const baseValidation = validateDeck(
     [...mainDeck, ...commanders].map((c) => c.identity.name),
     format,
     copyLimits,
+    noMaxDeckSize ? null : format.deckRules.maxDeckSize,
   );
   errors.push(...baseValidation.errors);
   if (sideboard.length > format.deckRules.sideboardMax) {
@@ -652,7 +676,7 @@ export function validateDeckSections(
   }
   if (format.deckRules.requiresCommander) {
     const expectedMainSize = format.deckRules.minDeckSize - commanders.length;
-    if (mainDeck.length !== expectedMainSize) {
+    if (!noMaxDeckSize && mainDeck.length !== expectedMainSize) {
       errors.push(
         `${format.name} deck must have exactly ${expectedMainSize} non-commander cards (has ${mainDeck.length})`,
       );

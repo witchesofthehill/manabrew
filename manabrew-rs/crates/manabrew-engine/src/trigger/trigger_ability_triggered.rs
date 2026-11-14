@@ -196,11 +196,7 @@ impl TriggerBehavior for TriggerAbilityTriggered {
             }
         }
 
-        if self.triggered_own_ability && !causes.contains(&source) {
-            return false;
-        }
-
-        true
+        !self.triggered_own_ability || causes.contains(&source)
     }
 
     fn set_triggering_objects(

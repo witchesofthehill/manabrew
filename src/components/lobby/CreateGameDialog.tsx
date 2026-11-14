@@ -85,9 +85,10 @@ export function CreateGameDialog({
   const [starting, setStarting] = useState(false);
   const selectedFormatRef = useRef(selectedFormat);
   selectedFormatRef.current = selectedFormat;
+  const deckFormatId = selectedFormat.deckFormat ?? selectedFormat.id;
   const hubDecks = useHubDeckSearch(
     deckSearch,
-    selectedFormat.id,
+    deckFormatId,
     open,
     engineKind ? [engineKind] : availableEngines(),
     "community",
@@ -130,7 +131,7 @@ export function CreateGameDialog({
       .then((detail) => {
         if (hubSelectionRequestIdRef.current !== requestId) return;
         const formatId = detail.deck.format ?? detail.format ?? "standard";
-        if (formatId !== selectedFormat.id) {
+        if (formatId !== deckFormatId) {
           restoredHubDeckRef.current = null;
           toast.error(`"${detail.title}" is not a ${selectedFormat.name} deck`);
           return;
@@ -151,7 +152,7 @@ export function CreateGameDialog({
     loadHubDeck,
     open,
     preSelectedHubDeckId,
-    selectedFormat.id,
+    deckFormatId,
     selectedFormat.name,
   ]);
   const currentDeckFingerprint = getDeckFingerprint(currentDeck);
@@ -228,14 +229,14 @@ export function CreateGameDialog({
   }));
   const allDecks = [...userDecks, ...hubDeckEntries, ...presetDeckEntries];
   const searchLower = deckSearch.toLowerCase();
-  const formatPresetEntries = presetDeckEntries.filter((d) => d.formatId === selectedFormat.id);
+  const formatPresetEntries = presetDeckEntries.filter((d) => d.formatId === deckFormatId);
   const filteredPresetEntries = searchLower
     ? formatPresetEntries.filter(
         (d) =>
           d.name.toLowerCase().includes(searchLower) || d.desc?.toLowerCase().includes(searchLower),
       )
     : formatPresetEntries;
-  const formatUserDecks = userDecks.filter((d) => d.formatId === selectedFormat.id);
+  const formatUserDecks = userDecks.filter((d) => d.formatId === deckFormatId);
   const filteredUserDecks = searchLower
     ? formatUserDecks.filter((d) => d.name.toLowerCase().includes(searchLower))
     : formatUserDecks;
@@ -245,7 +246,7 @@ export function CreateGameDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDeck]);
   const selectedDeckEntry = allDecks.find(
-    (d) => d.id === selectedDeck && d.formatId === selectedFormat.id,
+    (d) => d.id === selectedDeck && d.formatId === deckFormatId,
   );
   const userDeckValidationInput = (d: (typeof filteredUserDecks)[number]) => ({
     deck: d.sourceDeck,
@@ -356,7 +357,7 @@ export function CreateGameDialog({
         commanderName: detail.deck.commanders?.[0]?.identity.name,
       };
       const currentFormat = selectedFormatRef.current;
-      if (entry.formatId !== currentFormat.id) {
+      if (entry.formatId !== (currentFormat.deckFormat ?? currentFormat.id)) {
         toast.error(`"${detail.title}" is not a ${currentFormat.name} deck`);
         return;
       }
@@ -380,7 +381,7 @@ export function CreateGameDialog({
       toast.error(`Please select a deck`);
       return;
     }
-    if (entry.formatId !== selectedFormat.id) {
+    if (entry.formatId !== deckFormatId) {
       toast.error(`Please select a deck for this format`);
       return;
     }

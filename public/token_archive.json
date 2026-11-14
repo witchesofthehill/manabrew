@@ -1,6 +1,6 @@
 {
   "schemaVersion": 5,
-  "generatedAt": "2026-09-23T14:28:14.109Z",
+  "generatedAt": "2026-11-11T18:31:43.315Z",
   "source": {
     "type": "scryfall-search",
     "query": "include:extras type:token lang:any",
@@ -9,10 +9,10 @@
     "forgeEditions": "forge/forge-gui/res/editions"
   },
   "counts": {
-    "scryfallTokenCandidates": 2892,
-    "tokens": 2892,
-    "sourceCardsWithTokenScripts": 3411,
-    "tokenScriptsWithPrints": 729
+    "scryfallTokenCandidates": 2948,
+    "tokens": 2948,
+    "sourceCardsWithTokenScripts": 3495,
+    "tokenScriptsWithPrints": 746
   },
   "cardTokenScripts": {
     "a killer among us": ["r_1_1_goblin", "u_1_1_merfolk", "w_1_1_human"],
@@ -70,6 +70,7 @@
     "abundant countryside": ["c_1_1_shapeshifter_changeling"],
     "abzan ascendancy": ["w_1_1_spirit_flying"],
     "abzan monument": ["w_x_x_spirit"],
+    "academy instructor": ["r_1_1_officer"],
     "academy manufactor": ["c_a_clue_draw", "c_a_food_sac", "c_a_treasure_sac"],
     "access denied": ["c_1_1_a_thopter_flying"],
     "acererak the archlich": ["b_2_2_zombie"],
@@ -81,6 +82,7 @@
     "adipose offspring": ["w_2_2_alien"],
     "adorned crocodile": ["b_2_2_zombie_druid"],
     "advent of the wurm": ["g_5_5_wurm_trample"],
+    "adversary by algorithm": ["c_3_3_a_illusion"],
     "adverse conditions": ["c_1_1_eldrazi_scion_sac"],
     "aerid konstrari": ["rg_a_heartwood"],
     "aerie worshippers": ["u_2_2_e_bird_flying"],
@@ -159,6 +161,7 @@
     "ant-man, colony commander": ["g_1_1_insect"],
     "ant-man, elusive avenger": ["c_a_treasure_sac"],
     "ant-man's army": ["c_a_food_sac", "c_a_treasure_sac"],
+    "antagonist incorporator": ["c_1_1_a_borg"],
     "antiquities on the loose": ["rw_2_2_spirit"],
     "aphelia, viper whisperer": ["b_1_1_snake_deathtouch"],
     "aphemia, the cacophony": ["b_2_2_zombie"],
@@ -190,6 +193,7 @@
     "arnim zola, bio-fanatic": ["b_2_1_villain_menace"],
     "arterial alchemy": ["c_a_blood_draw"],
     "artifact mutation": ["g_1_1_saproling"],
+    "artificial anomaly": ["new_planet"],
     "artistic process": ["ur_3_3_elemental_flying"],
     "aryel, knight of windgrace": ["w_2_2_knight_vigilance"],
     "ashiok, nightmare muse": ["ub_2_3_nightmare_mill"],
@@ -203,6 +207,7 @@
     "assemble the entmoot": ["g_x_x_treefolk"],
     "assemble the legion": ["rw_1_1_soldier_haste"],
     "assemble the rank and vile": ["b_2_2_zombie"],
+    "assembly specialist": ["c_1_1_a_borg"],
     "assure": ["gw_2_2_elf_knight_vigilance"],
     "astrid peth": ["c_a_food_sac"],
     "at knifepoint": ["r_1_1_mercenary_tappump"],
@@ -348,6 +353,7 @@
     "bloody betrayal": ["c_a_blood_draw"],
     "blooming blast": ["c_a_treasure_sac"],
     "blot out the sky": ["wb_2_1_inkling_flying"],
+    "boarding action": ["r_2_1_klingon_warrior_haste"],
     "body of research": ["gu_0_0_fractal"],
     "boggart mischief": ["br_1_1_goblin"],
     "boggart mob": ["b_1_1_goblin_rogue"],
@@ -358,6 +364,7 @@
     "bonny pall, clearcutter": ["beau"],
     "boomer scrapper": ["c_a_junk_sac_exileplay"],
     "bootleggers' stash": ["c_a_treasure_sac"],
+    "borg incursion": ["c_1_1_a_borg"],
     "boris devilboon": ["minor_demon"],
     "born to drive": ["c_1_1_pilot_crewbuff"],
     "borough backup": ["w_3_2_hero_vigilance"],
@@ -444,7 +451,11 @@
     "canoptek scarab swarm": ["c_1_1_a_insect_flying"],
     "canyon crawler": ["c_a_food_sac"],
     "captain america, liberator": ["w_1_1_soldier"],
+    "captain benjamin sisko": ["r_1_1_officer"],
     "captain james t. kirk": ["r_1_1_officer"],
+    "captain janeway, endgame": ["r_1_1_officer"],
+    "captain jean-luc picard": ["r_1_1_officer"],
+    "captain jonathan archer": ["porthos"],
     "captain lannery storm": ["c_a_treasure_sac"],
     "captain of the watch": ["w_1_1_soldier"],
     "captain's call": ["w_1_1_soldier"],
@@ -536,8 +547,11 @@
     "clackbridge troll": ["w_0_1_goat"],
     "clarion cathars": ["w_1_1_human"],
     "clarion spirit": ["w_1_1_spirit_flying"],
+    "class-4 tactical cube": ["c_1_1_a_borg"],
     "clavileño, first of the blessed": ["wb_4_3_vampire_demon_flying"],
     "clay-fired bricks": ["c_1_1_a_gnome"],
+    "cleveland booker, empath": ["rg_2_2_worm_noblock"],
+    "cloak and phaser": ["b_2_2_romulan"],
     "cloakwood hermit": ["g_1_1_squirrel"],
     "cloud, ex-soldier": ["c_a_treasure_sac"],
     "cloudgoat ranger": ["w_1_1_kithkin_soldier"],
@@ -549,10 +563,12 @@
     "cobra trap": ["g_1_1_snake"],
     "cogworker's puzzleknot": ["c_1_1_a_servo"],
     "coin of mastery": ["c_a_treasure_sac"],
+    "collective override": ["c_1_1_a_borg"],
     "collector's vault": ["c_a_treasure_sac"],
     "combat calligrapher": ["wb_2_1_inkling_flying"],
     "combine chrysalis": ["g_4_4_beast"],
     "comet, stellar pup": ["g_1_1_squirrel"],
+    "command the stage": ["cadet"],
     "commander sofia daguerre": ["c_a_junk_sac_exileplay"],
     "commander's authority": ["w_1_1_human"],
     "commanding presence": ["w_1_1_human_soldier"],
@@ -568,6 +584,7 @@
     "concord with the kami": ["c_1_1_spirit"],
     "confront the assault": ["w_1_1_spirit_flying"],
     "conqueror's pledge": ["w_1_1_kor_soldier"],
+    "conquest mission": ["c_1_1_a_borg"],
     "conscripted infantry": ["c_1_1_a_soldier"],
     "construct a cosmic cube": ["b_2_1_villain_menace"],
     "consuming blob": ["g_x_y_ooze_types_graveyard"],
@@ -645,6 +662,7 @@
     "cutthroat negotiator": ["c_a_treasure_sac"],
     "cybernetica datasmith": ["c_4_4_a_robot_noblock"],
     "cynette, jelly drover": ["u_1_1_jellyfish_flying"],
+    "d-7 battle cruiser": ["r_2_1_klingon_warrior_haste"],
     "daily bugle newspaper": ["c_a_treasure_sac"],
     "dáin ironfoot": ["axe"],
     "dalek intensive care": ["b_3_3_a_dalek_menace"],
@@ -662,9 +680,11 @@
     "darksteel splicer": ["c_3_3_a_phyrexian_golem"],
     "darling of the masses": ["gw_1_1_citizen"],
     "daryl, hunter of walkers": ["walker"],
+    "data, professor of humanities": ["u_1_1_faerie_flying"],
     "daughter of the deep": ["u_1_1_merfolk"],
     "dauntless cathar": ["w_1_1_spirit_flying"],
     "dauntless scrapbot": ["c_a_lander_sac_search"],
+    "david and carol marcus, creators": ["new_planet"],
     "davros, dalek creator": ["b_3_3_a_dalek_menace"],
     "dawn of hope": ["w_1_1_soldier_lifelink"],
     "dawnhart mentor": ["w_1_1_human"],
@@ -696,6 +716,7 @@
     "defiled crypt": ["b_2_2_e_horror"],
     "defiler of faith": ["w_1_1_soldier"],
     "delight in the hunt": ["b_3_3_horror"],
+    "deliver from chaos": ["c_1_1_a_borg"],
     "delve too deep": ["br_7_7_demon"],
     "demonic covenant": ["b_5_5_demon_flying"],
     "demonic rising": ["b_5_5_demon_flying"],
@@ -748,6 +769,7 @@
     "domri, chaos bringer": ["rg_4_4_beast_trample"],
     "don andres, the renegade": ["c_a_treasure_sac"],
     "donatello, the brains": ["c_a_mutagen_sac"],
+    "done for the day": ["c_a_treasure_sac"],
     "doom foretold": ["w_2_2_knight_vigilance"],
     "doomed artisan": ["c_x_x_a_sculpture_total_sculptures"],
     "doomed dissenter": ["b_2_2_zombie"],
@@ -934,6 +956,7 @@
     "everquill phoenix": ["feather"],
     "evil boros charm": ["c_1_1_spirit_lifelink_haste"],
     "evil comes to fruition": ["g_0_1_plant", "g_3_3_elemental"],
+    "excalbian gamemaster": ["r_1_1_officer"],
     "excavation explosion": ["c_a_powerstone"],
     "excavation technique": ["c_a_treasure_sac"],
     "exhibition magician": ["c_a_treasure_sac", "gw_1_1_citizen"],
@@ -1112,6 +1135,7 @@
     "garruk, unleashed": ["g_3_3_beast"],
     "garruk, veiled butcher": ["g_4_4_beast_trample"],
     "garruk's lost wolf": ["role_huntsman"],
+    "gaseous anomaly": ["new_planet"],
     "gather the townsfolk": ["w_1_1_human"],
     "gather the white lotus": ["w_1_1_ally"],
     "gavi, nest warden": ["rw_2_2_dinosaur_cat"],
@@ -1128,11 +1152,13 @@
     "generous gift": ["g_3_3_elephant"],
     "generous plunderer": ["c_a_treasure_sac"],
     "genesis chamber": ["c_1_1_a_myr"],
+    "genesis effect": ["new_planet"],
     "genesis of the daleks": ["b_3_3_a_dalek_menace"],
     "genghis frog": ["c_a_mutagen_sac"],
     "genku, future shaper": ["b_1_1_rat_lifelink", "u_1_2_moonfolk_flying", "w_2_2_fox_vigilance"],
     "geology enthusiast": ["c_a_powerstone"],
     "geometric nexus": ["gu_0_0_fractal"],
+    "georgiou, terran emperor": ["r_1_1_officer"],
     "geralf, the fleshwright": ["ub_2_2_zombie_rogue"],
     "geralf, visionary stitcher": ["u_x_x_zombie"],
     "germinate recruits": ["cadet"],
@@ -1150,6 +1176,7 @@
     "ghoulish procession": ["b_2_2_zombie_decayed"],
     "giant caterpillar": ["butterfly"],
     "giant inheritance": ["role_monster"],
+    "giant mana cake": ["c_a_food_sac"],
     "giant opportunity": ["c_a_food_sac", "g_7_7_giant"],
     "giant's amulet": ["u_4_4_giant_wizard"],
     "giant's skewer": ["c_a_food_sac"],
@@ -1185,6 +1212,7 @@
     "glittermonger": ["c_a_treasure_sac"],
     "glóin, dwarf emissary": ["c_a_treasure_sac"],
     "gloomwidow's feast": ["g_1_2_spider_reach"],
+    "glory to the empire!": ["r_2_1_klingon_warrior_haste"],
     "gluntch, the bestower": ["c_a_treasure_sac"],
     "gluttonous guest": ["c_a_blood_draw"],
     "gluttonous troll": ["c_a_food_sac"],
@@ -1194,6 +1222,7 @@
     "gnottvold slumbermound": ["g_4_4_troll_warrior_trample"],
     "go-shintai of life's origin": ["c_1_1_e_shrine"],
     "go-shintai of shared purpose": ["c_1_1_spirit"],
+    "goblin airbrusher": ["c_a_treasure_sac"],
     "goblin assault": ["r_1_1_goblin_haste"],
     "goblin gang leader": ["r_1_1_goblin"],
     "goblin gathering": ["r_1_1_goblin"],
@@ -1247,6 +1276,7 @@
     "grakmaw, skyclave ravager": ["bg_x_x_hydra"],
     "grand crescendo": ["gw_1_1_citizen"],
     "grand entryway": ["w_1_1_e_glimmer"],
+    "grand nagus zek": ["c_a_treasure_sac"],
     "grand ossuary": ["g_1_1_saproling"],
     "grandmother goby": ["u_1_1_merfolk"],
     "grave birthing": ["c_1_1_eldrazi_scion_sac"],
@@ -1270,6 +1300,7 @@
     "greta, sweettooth scourge": ["c_a_food_sac"],
     "griffin aerie": ["w_2_2_griffin_flying"],
     "griffin guide": ["w_2_2_griffin_flying"],
+    "grilka, widowed warrior": ["c_a_treasure_sac"],
     "grim bounty": ["c_a_treasure_sac"],
     "grim hireling": ["c_a_treasure_sac"],
     "grim reaper's scythe": ["b_2_2_zombie"],
@@ -1294,6 +1325,7 @@
     "gutter grime": ["g_x_x_ooze_gutter_grime"],
     "gwaihir, greatest of the eagles": ["w_3_3_bird_flying_attacks"],
     "gwyllion hedge-mage": ["w_1_1_kithkin_soldier"],
+    "gwyndala, the progeny": ["neuroflux_heirloom"],
     "gylwain, casting director": ["role_monster", "role_royal", "role_sorcerer"],
     "gyome, master chef": ["c_a_food_sac"],
     "gysahl greens": ["g_2_2_bird_landfall"],
@@ -1337,6 +1369,7 @@
     "hedron fields of agadeem": ["c_7_7_eldrazi_annihilator"],
     "hei bai, forest guardian": ["c_1_1_spirit_spiritshadow"],
     "heidegger, shinra executive": ["w_1_1_soldier"],
+    "hela, mistress of darkness": ["b_2_2_zombie"],
     "heliod, god of the sun": ["w_2_1_e_cleric"],
     "hell to pay": ["c_a_treasure_sac"],
     "hellion crucible": ["r_4_4_hellion_haste"],
@@ -1374,6 +1407,8 @@
     "hold the perimeter": ["r_1_1_goblin_noblock", "w_1_2_soldier_defender"],
     "hollow scavenger": ["c_a_food_sac"],
     "hollowhenge overlord": ["g_2_2_wolf"],
+    "holo-engineer": ["c_3_3_a_illusion"],
+    "hologram stalker": ["c_3_3_a_illusion"],
     "homarid spawning bed": ["u_1_1_camarid"],
     "honden of life's web": ["c_1_1_spirit"],
     "honk!": ["c_a_food_sac"],
@@ -1445,6 +1480,7 @@
     "imperial oath": ["w_2_2_samurai_vigilance"],
     "imperious perfect": ["g_1_1_elf_warrior"],
     "impetuous lootmonger": ["c_a_treasure_sac"],
+    "impossible choice": ["r_1_1_officer"],
     "improbable alliance": ["u_1_1_faerie_flying"],
     "improvised weaponry": ["c_a_treasure_sac"],
     "impulsive pilferer": ["c_a_treasure_sac"],
@@ -1542,6 +1578,7 @@
     "jiang yanggu, never alone": ["mowu"],
     "jinnie fay, jetmir's second": ["g_2_2_cat_haste", "g_3_1_dog_vigilance"],
     "jirina kudro": ["w_1_1_human"],
+    "join the collective": ["c_1_1_a_borg"],
     "join the dance": ["w_1_1_human"],
     "join the maestros": ["b_4_3_ogre_warrior"],
     "join the ranks": ["w_1_1_soldier_ally"],
@@ -1644,7 +1681,9 @@
     "knightly valor": ["w_2_2_knight_vigilance"],
     "knowledge seeker": ["c_a_clue_draw"],
     "knuckles the echidna": ["c_a_treasure_sac"],
+    "kobayashi maru scenario": ["r_1_1_officer"],
     "koilos roc": ["c_a_powerstone"],
+    "koloth, tribble hunter": ["w_1_1_tribble_noblock"],
     "koma and toski, compleated": ["toskis_coil"],
     "koma, cosmos serpent": ["komas_coil"],
     "koma, world-eater": ["komas_coil"],
@@ -1668,6 +1707,8 @@
     "kykar, zephyr awakener": ["w_1_1_spirit_flying"],
     "kyoshi battle fan": ["w_1_1_ally"],
     "kyoshi warriors": ["w_1_1_ally"],
+    "l'rell, fierce visionary": ["r_2_1_klingon_warrior_haste"],
+    "la forge, thoughtful as ever": ["u_1_1_faerie_flying"],
     "lab rats": ["b_1_1_rat"],
     "lacerate flesh": ["c_a_blood_draw"],
     "lae'zel, githyanki warrior": ["w_1_1_soldier"],
@@ -1722,6 +1763,7 @@
     "lluwen, imperfect naturalist": ["bg_1_1_worm"],
     "lobelia sackville-baggins": ["c_a_treasure_sac"],
     "locke, treasure hunter": ["c_a_treasure_sac"],
+    "locutus of borg": ["c_1_1_a_borg"],
     "lolth, spider queen": ["b_2_1_spider_menace_reach"],
     "lonesome unicorn": ["w_2_2_knight_vigilance"],
     "long-bodied grey dog": ["c_a_treasure_sac"],
@@ -1759,8 +1801,10 @@
     "luxurious locomotive": ["c_a_treasure_sac"],
     "lyra, tolarian archangel": ["u_3_3_angel_flying"],
     "lys alana huntmaster": ["g_1_1_elf_warrior"],
+    "m'ress, crew coordinator": ["r_1_1_officer"],
     "maalfeld twins": ["b_2_2_zombie"],
     "mabel, heir to cragflame": ["cragflame"],
+    "maco strike team": ["r_1_1_officer"],
     "mad ratter": ["b_1_1_rat"],
     "madame hydra": ["b_2_1_villain_menace"],
     "madame masque": ["b_2_1_villain_menace"],
@@ -1778,6 +1822,7 @@
     "magus of the bridge": ["b_2_2_zombie"],
     "mahadi, emporium master": ["c_a_treasure_sac"],
     "maja, bretagard protector": ["w_1_1_human_warrior"],
+    "make it so": ["r_1_1_officer"],
     "make mischief": ["r_1_1_devil_burn"],
     "make your mark": ["rw_3_2_spirit"],
     "malcator, purity overseer": ["c_3_3_a_phyrexian_golem"],
@@ -1831,6 +1876,7 @@
     "masterful replication": ["c_3_3_a_golem"],
     "mastermind plum": ["c_a_treasure_sac"],
     "match the odds": ["w_1_1_ally"],
+    "maturation chamber": ["c_1_1_a_borg"],
     "maul splicer": ["c_3_3_a_phyrexian_golem"],
     "mausoleum guard": ["w_1_1_spirit_flying"],
     "maverick thopterist": ["c_1_1_a_thopter_flying"],
@@ -1982,6 +2028,7 @@
     "necron monolith": ["b_2_2_a_necron_warrior"],
     "necropolis of azar": ["spawn_of_azar"],
     "necrotic hex": ["b_2_2_zombie"],
+    "neelix, moral support": ["c_a_food_sac"],
     "negan, the cold-blooded": ["c_a_treasure_sac"],
     "nemata, grove guardian": ["g_1_1_saproling"],
     "nemata, primeval warden": ["g_1_1_saproling"],
@@ -2053,6 +2100,7 @@
     "ojutai's summons": ["u_2_2_djinn_monk_flying"],
     "oketra the true": ["w_1_1_warrior_vigilance"],
     "oketra's monument": ["w_1_1_warrior_vigilance"],
+    "oko, lord of the fae": ["w_2_2_ox"],
     "oko, lorwyn liege": ["g_3_3_elk"],
     "oko, the ringleader": ["g_3_3_elk"],
     "oko, thief of crowns": ["c_a_food_sac"],
@@ -2170,6 +2218,7 @@
     "phelddagrif": ["g_1_1_hippo"],
     "phenomenon investigators": ["b_2_2_e_horror"],
     "pheres-band raiders": ["g_3_3_e_centaur"],
+    "photosynthetic physician": ["r_1_1_officer"],
     "phylath, world sculptor": ["g_0_1_plant"],
     "phyrexian ironworks": ["c_3_3_a_phyrexian_golem"],
     "phyrexian processor": ["b_x_x_phyrexian_minion"],
@@ -2269,6 +2318,7 @@
     "pure reflection": ["w_x_x_reflection"],
     "purphoros's intervention": ["r_x_1_elemental_trample_haste"],
     "pursued whale": ["r_1_1_pirate_noblock_all_attack"],
+    "quark, humble proprietor": ["c_a_treasure_sac"],
     "quarrel's end": ["w_1_1_human_soldier"],
     "quartzwood crasher": ["g_x_x_dinosaur_beast_trample"],
     "queen allenal of ruadach": ["w_1_1_soldier"],
@@ -2280,6 +2330,7 @@
     "questing phelddagrif": ["g_1_1_hippo"],
     "quina, qu gourmet": ["g_1_1_frog"],
     "quintorius kand": ["rw_3_2_spirit"],
+    "quintorius, fate splitter": ["cadet"],
     "quintorius, field historian": ["rw_3_2_spirit"],
     "quintorius, history chaser": ["rw_3_2_spirit"],
     "quintorius, loremaster": ["rw_3_2_spirit"],
@@ -2379,6 +2430,7 @@
     "repair and recharge": ["c_a_powerstone"],
     "repel intruders": ["w_1_1_kithkin_soldier"],
     "replicating ring": ["replicated_ring"],
+    "replicator": ["c_a_food_sac"],
     "requiem angel": ["w_1_1_spirit_flying"],
     "resculpt": ["ur_4_4_elemental"],
     "research": ["r_3_1_elemental"],
@@ -2412,6 +2464,7 @@
     "riders of rohan": ["r_2_2_human_knight_trample_haste"],
     "riders of the mark": ["w_1_1_human_soldier"],
     "riftmarked knight": ["b_2_2_knight_flanking_pro_white_haste"],
+    "right of vengeance": ["r_2_1_klingon_warrior_haste"],
     "righteous confluence": ["w_2_2_knight_vigilance"],
     "riku of many paths": ["u_1_1_bird_flying"],
     "riling dawnbreaker": ["w_2_2_soldier"],
@@ -2419,6 +2472,7 @@
     "rinoa heartilly": ["angelo"],
     "riptide island": ["c_1_1_sliver"],
     "riptide replicator": ["riptide_replicator"],
+    "rise from the nether": ["b_3_1_mindless_one"],
     "rise from the tides": ["b_2_2_zombie"],
     "rise of eagles": ["u_2_2_e_bird_flying"],
     "rise of the ants": ["g_3_3_insect"],
@@ -2426,6 +2480,7 @@
     "rise of the hobgoblins": ["rw_1_1_goblin_soldier"],
     "rise of the varmints": ["g_2_1_varmint"],
     "risen necroregent": ["b_2_2_zombie"],
+    "rite of ascension": ["r_2_1_klingon_warrior_haste"],
     "rite of belzenlok": ["b_0_1_cleric", "b_6_6_demon_flying_trample_aristocrat"],
     "rite of the dragoncaller": ["r_5_5_dragon_flying"],
     "rite of the raging storm": ["lightning_rager"],
@@ -2449,7 +2504,9 @@
     "rocketeer boostbuggy": ["c_a_treasure_sac"],
     "rocky roads": ["c_1_1_pilot_crewsaddlebuff"],
     "rohgahh, kher keep overlord": ["kobolds_of_kher_keep", "r_4_4_dragon_flying"],
+    "rok-tahk, budding scientist": ["murf"],
     "rolling hamsphere": ["r_1_1_hamster"],
+    "rom and leeta, unlikely pair": ["c_a_treasure_sac"],
     "rooftop bypass": ["b_1_1_assassin_menace"],
     "roost of drakes": ["u_2_2_drake_flying"],
     "rootcast apprenticeship": ["g_1_1_squirrel"],
@@ -2532,6 +2589,7 @@
       "u_1_1_camarid",
       "w_1_1_citizen"
     ],
+    "sassy gremlin blood": ["c_a_treasure_sac"],
     "satyr nyx-smith": ["r_3_1_e_elemental_haste"],
     "satyr's cunning": ["r_1_1_satyr_noblock"],
     "saurian explorer": ["new_planet"],
@@ -2540,6 +2598,7 @@
     "savage thallid": ["g_1_1_saproling"],
     "savor": ["c_a_food_sac"],
     "savvy hunter": ["c_a_food_sac"],
+    "savvy profiteer": ["c_a_treasure_sac"],
     "sawtusk demolisher": ["g_3_3_beast"],
     "sazacap's brew": ["u_1_1_fish"],
     "scalestorm summoner": ["r_3_1_dinosaur"],
@@ -2592,6 +2651,7 @@
     "seize the storm": ["r_x_x_elemental_trample_grave_exile"],
     "sek'kuar, deathkeeper": ["br_3_1_graveborn_haste"],
     "sekki, seasons' guide": ["c_1_1_spirit"],
+    "sela, tal shiar paradox": ["b_2_2_romulan"],
     "selenia, the cursed heart": ["selenias_curse"],
     "selesnya charm": ["w_2_2_knight_vigilance"],
     "selesnya evangel": ["g_1_1_saproling"],
@@ -2639,6 +2699,7 @@
     "shroofus sproutsire": ["g_1_1_saproling"],
     "shuri, vibranium technologist": ["c_1_1_a_robot_hero_flying"],
     "shuri's fabricator": ["c_a_vibranium"],
+    "shuttlecraft galileo": ["r_1_1_officer"],
     "shy town": ["r_2_2_warrior_haste_coward"],
     "sibling rivalry": ["c_a_powerstone"],
     "sidequest: catch a fish": ["c_a_food_sac"],
@@ -2659,6 +2720,7 @@
     "silvergill mentor": ["wu_1_1_merfolk"],
     "silverwing squadron": ["w_2_2_knight_vigilance"],
     "simulacrum synthesizer": ["c_0_0_a_construct_total_artifacts"],
+    "sins of the father": ["r_2_1_klingon_warrior_haste"],
     "siona, captain of the pyleas": ["w_1_1_human_soldier"],
     "skeletal swarming": ["b_1_1_skeleton"],
     "skeletal vampire": ["b_1_1_bat_flying"],
@@ -2735,6 +2797,7 @@
     "soundwave, sonic spy": ["laserbeak", "ravage"],
     "sourbread auntie": ["br_1_1_goblin"],
     "sparkspitter": ["spark_elemental"],
+    "spatial anomaly": ["new_planet"],
     "spawn-gang commander": ["c_0_1_eldrazi_spawn_sac"],
     "spawnbed protector": ["c_1_1_eldrazi_scion_sac"],
     "spawning bed": ["c_1_1_eldrazi_scion_sac"],
@@ -2783,6 +2846,7 @@
     "sporeweb weaver": ["g_1_1_saproling"],
     "sporogenesis": ["g_1_1_saproling"],
     "sporoloth ancient": ["g_1_1_saproling"],
+    "spot, felis catus": ["c_a_food_sac"],
     "springheart nantuko": ["g_1_1_insect"],
     "springjack pasture": ["w_0_1_goat"],
     "springjack shepherd": ["w_0_1_goat"],
@@ -2800,6 +2864,7 @@
     "squirrel squatters": ["g_1_1_squirrel"],
     "squirrel wrangler": ["g_1_1_squirrel"],
     "sram's expertise": ["c_1_1_a_servo"],
+    "stable wormhole": ["new_planet"],
     "staff of the storyteller": ["w_1_1_spirit_flying"],
     "staff of titania": ["g_1_1_forest_dryad"],
     "stalactite dagger": ["c_1_1_shapeshifter_changeling"],
@@ -2840,6 +2905,7 @@
     "storm-kiln artist": ["c_a_treasure_sac"],
     "stormchaser's talent": ["ur_1_1_otter_prowess"],
     "stormfront riders": ["w_1_1_soldier"],
+    "stratagem emulator": ["c_1_1_a_borg"],
     "strefan, maurer progenitor": ["c_a_blood_draw"],
     "strength of arms": ["w_1_1_human_soldier"],
     "stridehangar automaton": ["c_1_1_a_thopter_flying"],
@@ -2847,6 +2913,7 @@
     "strike it rich": ["c_a_treasure_sac"],
     "strix serenade": ["u_2_2_bird_flying"],
     "stroke of midnight": ["w_1_1_human"],
+    "subspace anomaly": ["new_planet", "r_1_1_officer"],
     "subterranean tremors": ["r_8_8_lizard"],
     "sudden breakthrough": ["c_a_treasure_sac"],
     "suki, courageous rescuer": ["w_1_1_ally"],
@@ -2921,11 +2988,14 @@
     "teferi, temporal pilgrim": ["u_2_2_spirit_vigilance_drawcounter"],
     "tegwyll's scouring": ["b_1_1_faerie_rogue_flying"],
     "tellah, great sage": ["c_1_1_hero"],
+    "temporal anomaly": ["new_planet"],
+    "temporal conqueror": ["c_a_treasure_sac"],
     "tempt with bunnies": ["w_1_1_rabbit"],
     "tempt with vengeance": ["r_1_1_elemental_haste"],
     "tempting contract": ["c_a_treasure_sac"],
     "tempting witch": ["c_a_food_sac"],
     "temur monument": ["g_5_5_elephant"],
+    "tenacious drone": ["c_1_1_a_borg"],
     "tend the pests": ["bg_1_1_pest_lifegain"],
     "tend the sprigs": ["g_3_4_treefolk_reach"],
     "tendershoot dryad": ["g_1_1_saproling"],
@@ -2981,7 +3051,9 @@
     "the crystal's chosen": ["c_1_1_hero"],
     "the curse of fenric": ["g_3_3_mutant_deathtouch"],
     "the dalek emperor": ["b_3_3_a_dalek_menace"],
+    "the destruction of praxis": ["r_2_1_klingon_warrior_haste"],
     "the dining car": ["c_a_food_sac"],
+    "the duras sisters": ["r_2_1_klingon_warrior_haste"],
     "the eagles are coming!": ["w_4_4_bird_soldier_flying"],
     "the earth king": ["g_4_4_bear"],
     "the elder dragon war": ["r_4_4_dragon_flying"],
@@ -3005,6 +3077,7 @@
     "the hive": ["wasp"],
     "the hunger tide rises": ["bg_1_1_insect"],
     "the huntsman's redemption": ["g_3_3_beast"],
+    "the inner light": ["c_a_treasure_sac"],
     "the iron guardian stirs": ["c_4_6_a_golem"],
     "the keeper of the yellow hat": ["yellow_hat"],
     "the last ronin's technique": ["w_1_1_ninja_turtle_spirit"],
@@ -3138,7 +3211,9 @@
     "treasure vault": ["c_a_treasure_sac"],
     "treebeard, gracious host": ["c_a_food_sac"],
     "treetop freedom fighters": ["w_1_1_ally"],
+    "trendy circus pirate": ["g_1_1_squirrel"],
     "trial of strength": ["g_4_2_beast"],
+    "tribble cluster": ["w_1_1_tribble_noblock"],
     "tribune of rot": ["g_1_1_saproling"],
     "tribute to horobi": ["b_1_1_rat_rogue"],
     "triceraton commander": ["w_2_2_dinosaur_soldier"],
@@ -3150,6 +3225,7 @@
       "c_3_3_a_golem_vigilance"
     ],
     "triskelavus": ["c_1_1_a_triskelavite_flying_ammo"],
+    "troi, winging it": ["u_1_1_faerie_flying"],
     "trostani discordant": ["w_1_1_soldier_lifelink"],
     "trostani's summoner": ["g_3_3_centaur", "g_4_4_rhino_trample", "w_2_2_knight_vigilance"],
     "trove of temptation": ["c_a_treasure_sac"],
@@ -3173,11 +3249,15 @@
     "twisted sewer-witch": ["b_1_1_rat_noblock", "role_wicked"],
     "twitching doll": ["g_2_2_spider_reach"],
     "tymaret calls the dead": ["b_2_2_zombie"],
+    "type-03 borg vessel": ["c_1_1_a_borg"],
     "typhoid mary, fractured": ["c_a_treasure_sac"],
     "tyranid harridan": ["u_1_1_tyranid_gargoyle_flying"],
     "tyranid invasion": ["g_3_3_tyranid_warrior_trample"],
     "tyvar kell": ["g_1_1_elf_warrior"],
     "u.s.agent, john walker": ["sturdy_shield"],
+    "u.s.s. cerritos, following up": ["r_1_1_officer"],
+    "u.s.s. enterprise-a, free spirit": ["r_1_1_officer"],
+    "u.s.s. stargazer, here and there": ["c_4_3_a_spacecraft_illusion_flying"],
     "ugin, the ineffable": ["c_2_2_spirit"],
     "uktabi kong": ["g_1_1_ape"],
     "ulamog's dreadsire": ["c_10_10_eldrazi"],
@@ -3413,6 +3493,9 @@
     "wooden cane": ["r_2_2_mutant"],
     "woodwork prodigy": ["rg_a_heartwood"],
     "words of wilding": ["g_2_2_bear"],
+    "worf, defiant commander": ["r_2_1_klingon_warrior_haste"],
+    "worf, son of mogh": ["r_1_1_officer"],
+    "worf, still not merry": ["u_1_1_faerie_flying"],
     "workshop warchief": ["g_4_4_rhino_warrior"],
     "worldspine wurm": ["g_5_5_wurm_trample"],
     "worldwalker helm": ["c_a_map_sac_explore"],
@@ -3439,6 +3522,7 @@
     "xorn": ["c_a_treasure_sac"],
     "xyris, the writhing storm": ["g_1_1_snake"],
     "yavimaya sapherd": ["g_1_1_saproling"],
+    "yawgmoth merfolk soul": ["w_1_1_a_clown_robot"],
     "yes man, personal securitron": ["w_1_1_soldier"],
     "yotia declares war": ["ornithopter"],
     "yotian courier": ["c_a_powerstone"],
@@ -3491,7 +3575,6 @@
       "377d9749-3d78-4a33-93d1-2e673f6e2e28",
       "4414f9fa-dfda-4714-9f87-cb5e8914b07a",
       "51544192-095a-457c-8642-fd0ca49952d8",
-      "53c05e53-84c7-4796-ae02-d778faa5afa6",
       "5b2d7144-e2f2-48eb-b899-b4b3521e0159",
       "61f94e32-3b22-4c47-b866-1f36a7f3c734",
       "760dcba4-c0f1-4843-9c39-393c629aae8e",
@@ -3513,6 +3596,7 @@
     "b_0_0_phyrexian_germ": [
       "113959ba-be71-47ce-93e2-b81157034822",
       "216e9c9c-e63e-451d-a340-ffa6206edcb6",
+      "53c05e53-84c7-4796-ae02-d778faa5afa6",
       "5ec719dc-6b07-4b1d-a79c-84ebced33422",
       "65c65445-1016-4fd3-963e-1c9eb252d4a6",
       "7dfd481c-94ad-4a2e-a396-3d4a10bacc33",
@@ -3634,7 +3718,7 @@
       "1abb1ab0-f8f4-44e8-b8a7-df37a8782e76",
       "6894192e-782b-49ef-b9fc-28b76e2268ab"
     ],
-    "b_1_1_slug": ["6e2ae34f-4558-46e0-95c5-e00d813fa355"],
+    "b_1_1_slug": ["381c156f-7a9b-45df-b09e-6559c8c36280", "6e2ae34f-4558-46e0-95c5-e00d813fa355"],
     "b_1_1_snail": ["d9bb0a91-b73e-465b-8c0e-50fc28e66fda"],
     "b_1_1_snake_deathtouch": [
       "13e4832d-8530-4b85-b738-51d0c18f28ec",
@@ -3728,6 +3812,7 @@
       "4cecd5c6-d6c8-4cd5-97a3-cddaf051af15",
       "4cf9feeb-23c3-4c3b-bc04-f50380d20197",
       "59bad855-ff86-4f98-bf18-0982c7aea9c5",
+      "5e16386a-d478-475b-8e9b-edef62cae02b",
       "610728a4-b97c-46bb-9e0d-b1bc7096b29c",
       "657fa00d-ddb5-49e6-a01e-82038cccfe30",
       "6b0a71ed-f693-4228-9077-93c62d057ef9",
@@ -3795,6 +3880,7 @@
       "8f37ef2b-e390-4c0e-abf2-482623581d47"
     ],
     "b_2_2_rogue_menace": ["4b633d7b-6d61-4b1a-8d65-6e1f3d5ffba7"],
+    "b_2_2_romulan": ["a507f7fc-1438-4680-af2f-e7131c4d7d0b"],
     "b_2_2_skeleton_pirate": ["2ec83fe2-173b-4aa6-bfa1-892b092bd1f6"],
     "b_2_2_vampire_flying": [
       "5d9e999f-7033-4ccd-933a-eac4105b3edc",
@@ -3834,6 +3920,7 @@
       "4cf9feeb-23c3-4c3b-bc04-f50380d20197",
       "59bad855-ff86-4f98-bf18-0982c7aea9c5",
       "5a561f84-5696-44a5-8dc1-227af883341d",
+      "5e16386a-d478-475b-8e9b-edef62cae02b",
       "610728a4-b97c-46bb-9e0d-b1bc7096b29c",
       "657fa00d-ddb5-49e6-a01e-82038cccfe30",
       "6b0a71ed-f693-4228-9077-93c62d057ef9",
@@ -3911,6 +3998,7 @@
       "96e8f429-5a66-4bcd-8a1f-69f9b79c0f5b",
       "9c6a885f-1471-4827-b4b6-13db766c94bb"
     ],
+    "b_3_1_mindless_one": ["21d44eef-8dbc-4f2f-9be3-d6c43d4b405c"],
     "b_3_3_a_dalek_menace": [
       "8fde90b3-cd39-4ac5-b326-9ecc3d7d0d04",
       "f176f6ec-1ff8-4cd4-b7a6-b95830532f6a"
@@ -4082,6 +4170,10 @@
     ],
     "c_0_4_a_wall_defender": ["dbdd5d53-65e7-42c3-a325-791f11335e62"],
     "c_0_4_wall_defender": ["82d35a61-3c87-405d-b857-cf43067cb1c4"],
+    "c_1_1_a_borg": [
+      "60c52ea5-28b9-413d-9be5-aaadfbd8022b",
+      "662d060a-719c-42bf-8bee-cf602a045ff0"
+    ],
     "c_1_1_a_construct": [
       "0f5715cf-fbf6-4b13-af91-525edc7706ea",
       "2770f887-7e96-44d1-864a-8c0504a39785",
@@ -4360,6 +4452,7 @@
       "f27efb56-7fd4-4d0e-b641-a152b3ef8953",
       "f3cf61ad-c9fb-405e-a0a9-0ab147a984b4"
     ],
+    "c_3_3_a_illusion": ["d760eee8-e49a-4662-8bfc-fcf8ed2ad2d8"],
     "c_3_3_a_phyrexian_golem": [
       "46161339-7173-4265-9691-106be5536b2d",
       "4ee5119d-f76c-44c7-bf82-34aabb4d2e69",
@@ -4392,6 +4485,10 @@
       "b10d8407-03a8-4ab8-a30a-4d9b651be863",
       "d41faa34-e156-4ca3-a528-dc78a442d261",
       "f0ab540b-14dc-45cb-bdbb-ce6bca3c1796"
+    ],
+    "c_4_3_a_spacecraft_illusion_flying": [
+      "4990678f-162e-407d-8ab2-5ecf38de280a",
+      "9d300512-cc4d-4cf0-bd49-6536352a856c"
     ],
     "c_4_4_a_construct": [
       "0bf43942-6814-4b31-9705-fd16336ed5ef",
@@ -4454,9 +4551,11 @@
       "15866ed4-1ca3-427f-99ba-ee26ede9ae18",
       "16d39733-ebc8-45b3-8846-7b5809772933",
       "233d3d41-1559-464a-a41e-096eb3b8a968",
+      "24c80ef6-747d-47b7-8e1f-148f5dfacc32",
       "267c4604-0366-471b-bad0-4e666d45310f",
       "271afa7e-2126-4497-b871-9795b7355d69",
       "291e6490-6727-45ae-90ba-de2ff8f63162",
+      "306c8271-ddfc-45a4-bd23-bf31212f813d",
       "33648889-2715-40f0-81fa-b6571d0bb0c9",
       "3d66ec9c-7e5d-47ca-bce4-46798152d1f4",
       "43eab560-8ead-4383-afb9-9180a214704b",
@@ -4557,6 +4656,7 @@
       "da1fca2e-4ea7-4c5f-bd58-f9529dfb6f37",
       "db202f04-61e7-4e12-848e-6c1761956a58",
       "dc1660fd-ef35-4b95-b901-af3dda687f08",
+      "dd703147-f546-45af-8511-2d108afd0ad2",
       "e2b62092-57df-4d95-b2b9-961794e7c20b",
       "e4a685df-00dd-434a-baef-d04541ab4b9a",
       "e4b7e3b5-2f3c-4eb7-abc9-322a049a9e1a",
@@ -4656,6 +4756,7 @@
       "9bf983b7-eadd-466e-b1d9-19315ab39f4f",
       "9c8f66e1-4eab-4d51-b10e-9cedd607d709",
       "9e7db254-48c7-4870-b060-70050908abff",
+      "a23b05a9-5476-493d-8de7-7c14e726e9be",
       "a3a684b7-27e0-4d9e-a064-9e03c6e50c89",
       "a7d41725-95ed-455f-9e5e-d10f7e2f9c29",
       "ab0cda01-10b5-4a1b-b2bb-ad8bb296590f",
@@ -4664,6 +4765,7 @@
       "b4f61b5e-9c53-40b1-b93e-3ffa351ff052",
       "b7644ff8-d3fb-4d67-b9f8-07ed2259b8a9",
       "b883958b-1d82-4c1a-9f19-ab20fc01d5f4",
+      "b8e8c3b4-3b8d-48a4-b427-a2b8ac3e2f8b",
       "ba7638ef-114b-4055-9855-390f82b7d5c5",
       "bb8e8440-ebb4-4c03-89d6-0ff8e91e8d95",
       "bbe8bced-9524-47f6-a600-bf4ddc072698",
@@ -4721,7 +4823,8 @@
       "5a4c5954-da2b-498a-9e86-eb4d6dc95cb8",
       "6188c0f0-0346-46d4-8a45-ae2749bf246f",
       "7db68985-a1d5-4bd5-bfc6-c7208689d7df",
-      "ae98a532-2e83-46bc-b391-cc0ab20ea0da"
+      "ae98a532-2e83-46bc-b391-cc0ab20ea0da",
+      "c6244ae8-5676-4f6c-b488-f47dd4709dac"
     ],
     "c_x_x_a_phyrexian_horror": [
       "248ae300-40cc-4e6f-8fa6-2bd6ab85fee6",
@@ -4734,6 +4837,7 @@
       "ae98a532-2e83-46bc-b391-cc0ab20ea0da",
       "af3aa149-00fa-4932-b004-f64c8b5d3ca7",
       "b10d8407-03a8-4ab8-a30a-4d9b651be863",
+      "c6244ae8-5676-4f6c-b488-f47dd4709dac",
       "d41faa34-e156-4ca3-a528-dc78a442d261",
       "f0ab540b-14dc-45cb-bdbb-ce6bca3c1796"
     ],
@@ -4845,6 +4949,7 @@
       "315c45f4-7bc9-45d5-bbf5-2533cf80af60",
       "355eaeb4-582f-4b74-b573-3dd68f376317",
       "4bb75376-3b3c-4957-bf87-952f8cfc1da7",
+      "72ac66e9-4b4b-4540-b310-e7b3dc04c305",
       "805945e7-dea2-476d-a274-b6e801ccb95e",
       "808b9201-6fc5-4613-85d6-6e66c6e36a8e",
       "87cbace2-8507-44b6-8d57-2d409a036e50",
@@ -4876,6 +4981,7 @@
       "3fb9b1f2-28c6-4061-b6a3-67bf68c2292a",
       "43d7c6dc-4d0b-4a05-8b79-5dd728a74bb3",
       "599b5074-86a5-4666-8cf4-3deb83c09ba0",
+      "627d71a5-cacb-4dbb-a804-83a24be1dd9f",
       "67563770-a392-4f69-b93b-6029da639993",
       "69b9f3ad-4569-440a-bce3-c5f571ba90a3",
       "6bdefa47-2c39-4630-b8c4-bf1931cf2918",
@@ -4883,6 +4989,7 @@
       "84da9c36-5d9c-4e29-b6cc-c5c10e490f2e",
       "8bbc680c-31c4-48bc-b55f-c5651d823e87",
       "8e85e215-29d0-4ff6-9e42-9ce84b5280cf",
+      "98d54f5e-1584-48e7-bb8e-5bb1520c2d93",
       "9d3d855d-93a1-4ec4-af19-e544f271ae10",
       "a5bc4cb0-60d4-4c8f-a420-8bfe635154cd",
       "aa47df37-f246-4f80-a944-008cdf347dad",
@@ -5144,6 +5251,8 @@
       "17e0924c-e4b7-482d-9076-1d3b8ff09e9b",
       "4b2ee605-3c7a-4769-978d-3199bdc7c504",
       "8343e00c-5fc6-46a0-a238-3759338dced4",
+      "9fc2b0f6-f126-47a2-8316-febf92e90006",
+      "a73b0752-c59f-43de-a7c9-d952a2b59062",
       "d6756ba1-3d1d-4d6e-8e71-92d4e537d478",
       "ee2d434d-5d9b-4475-b421-6d004c988997"
     ],
@@ -5157,6 +5266,7 @@
       "0d720a76-58ad-4a7a-8bd9-f6137648e6c4",
       "1f2c9241-9cba-4c99-85cc-7e74286d1dc1",
       "1fafa701-b509-4050-a994-ec4258a3ea95",
+      "215c8aec-f26f-4777-aa90-252e537f5df9",
       "29eea3f8-9c71-4ac7-8e67-0559d8ad3214",
       "2aa672bb-60f3-4601-8c14-f486a54f615b",
       "367a011d-07c4-4367-af3b-864107e3f5df",
@@ -5199,6 +5309,7 @@
       "c622237d-92e5-4efc-aec4-0a18efd6fb38",
       "c94010f1-cd4b-4f65-8a0e-2df6eec058ec",
       "ca697323-bdc8-4fa0-a0ba-c2dd4deff68c",
+      "ca8e8a9a-d673-4644-9eec-f4f549307d9b",
       "d02d5670-fff3-4011-8e45-e6843e4e8988",
       "d270aeed-b15f-46f9-97ba-ccce562caefa",
       "d51a6408-0311-4daa-bfb2-b2f6f8fcbc3e",
@@ -5273,6 +5384,7 @@
       "48c184d8-159a-47e3-8107-c7e7c5788e1d",
       "495d3391-6311-418e-b55a-10c0af751026",
       "4b059b47-374e-4745-aaac-2130ce70219a",
+      "b14352e0-98c8-4dbe-bee7-569ff5b439e3",
       "b938d2e0-7e90-4f57-b363-5c68a6207d6c",
       "e54486a4-f432-4e50-8639-799e036d0657"
     ],
@@ -5505,6 +5617,8 @@
       "40135aa8-d531-427d-ab5c-9a2192f61bf9",
       "56d196ad-4acf-4241-bc7a-dc8ec3a38498",
       "b7171de9-476d-4bfa-8cc0-b4fbc168cf4d",
+      "bb355701-39e2-428e-a62b-feac0bdada72",
+      "f801903a-5db6-4566-ad33-2c1de8ac4287",
       "fa605271-03c0-401b-a470-4301898c2124"
     ],
     "gw_1_1_elf_warrior": [
@@ -5604,13 +5718,17 @@
     "moloid": ["57bcf5f4-da1e-4b6a-85ef-aad91d2276cf"],
     "mowu": ["5868190d-18f6-43b6-af83-9e0ef585687d", "b10441dd-9029-4f95-9566-d3771ebd36bd"],
     "munitions": ["a16f931a-9fa3-45b1-8d54-04b6b5bf7b71"],
+    "murf": ["d1b52f55-6147-4da6-983c-6ca3e1867723"],
     "nalaar_aetherjet": ["8f712a61-12c3-4d8e-93be-2b00dce4acbc"],
+    "neuroflux_heirloom": ["d811c3c3-6b5b-4b42-be4f-0a455313ccd3"],
+    "new_planet": ["21d855f7-fd5c-4eb4-b997-a905849806b9"],
     "ornithopter": ["a63d3174-75af-4dfa-b2f9-c4330c755af1"],
     "phobos": ["447bd736-6b47-440c-86ed-db54bd655274"],
     "plaguebearer_of_nurgle": [
       "9e458d71-3b76-4088-93f6-b87649615f3c",
       "b19d2866-87e7-40ab-9684-0593caeb223e"
     ],
+    "porthos": ["edd98ca8-9a23-4fb5-9719-27ac2795bfa3"],
     "primo_the_indivisible": [
       "c990db6b-e1f2-4802-b8b1-80a8b768be0e",
       "ca9de169-fb85-43cc-8527-9829d7cb5bc5"
@@ -5644,6 +5762,7 @@
     "r_1_1_elemental": [
       "0574973b-a0d1-4e17-9ed7-42a98d25bb8d",
       "0f7cb791-ac35-4c69-aa85-23e14b821c6a",
+      "40116092-622d-4dbb-9f32-6ccebbd9559b",
       "462bb611-5a02-441c-ae8a-911b75436864",
       "4ace3018-7d6e-4b77-9487-f280fd723d12",
       "5411b47d-a7b5-491a-a13b-a2b8bacaa419",
@@ -5810,6 +5929,18 @@
       "388180bd-cc96-4b18-9ddd-18a3f7e06282",
       "e49c80ac-5c90-4fd2-ad40-cc77af160f64"
     ],
+    "r_1_1_officer": [
+      "012b04de-d9a5-4b12-afc8-cdf54bc42fc9",
+      "155a3f1d-0897-4acd-b83a-82c48356dd66",
+      "5a24fb46-e819-4a4f-813f-eda0e96af606",
+      "5a8d4b2c-ec98-46e2-bf8d-da441d9c9cdf",
+      "7de20787-fc26-4cb7-bfe1-d7d8c13082cc",
+      "a0547a22-fd86-492f-9143-af5dae0e69af",
+      "b0ac658c-b34a-4794-9b36-91c63f903f65",
+      "b1e8a7db-b245-4903-b41f-6d2ee06401cb",
+      "d676cbef-8e31-4ae6-8dfe-6b84160f71e0",
+      "d88565c6-a8e9-4726-94af-c56ffd96d33e"
+    ],
     "r_1_1_phyrexian_goblin": [
       "01e437a1-6d74-4006-8598-06284444c837",
       "2edc7304-9094-46b1-8aad-295a76cf95b3",
@@ -5849,6 +5980,11 @@
     "r_2_1_goblin_haste": [
       "72230a1b-90ba-4564-9164-90cffdf34b93",
       "79707ef3-9ac8-4774-b34b-f227546ff4bd"
+    ],
+    "r_2_1_klingon_warrior_haste": [
+      "060f77cd-2779-4f28-83b3-a7e11f64140b",
+      "9c2ae742-7ebf-4e26-b423-598e4f3d176d",
+      "b7897f31-509e-4099-b9b4-c6214b80f29d"
     ],
     "r_2_2_alien_warrior": [
       "6155e7ce-3e8c-4bb3-941d-dac686d4eb57",
@@ -6054,6 +6190,7 @@
       "831fbc86-e328-4c26-a8b2-35feb24f6430",
       "baa93038-2849-4c26-ab4f-1d50d276659f"
     ],
+    "rg_2_2_worm_noblock": ["e7cde898-fc1f-4261-8f71-cfc4275bab54"],
     "rg_4_4_beast_trample": [
       "33521793-69f2-4a95-a4da-d28add4e5e93",
       "87ec9ade-1e06-43c9-97df-55465cabdf32"
@@ -6280,6 +6417,7 @@
       "783acf43-0286-42fa-ad00-e32b21ddb33f",
       "7b9f04f7-587e-4774-8aaa-09e8520efacb",
       "870375a1-4d19-4ec6-9e90-6c69eed8302f",
+      "ac0260f4-9d56-4590-b944-66a9171a22d0",
       "eea4e628-4ae2-4e33-a3b6-176ed87c1840"
     ],
     "u_1_1_tyranid_gargoyle_flying": ["20171707-0670-42dd-a6c4-f0aa56fc0cd1"],
@@ -6354,6 +6492,7 @@
     "u_3_2_reflection": ["ab1c23b2-ac39-46b1-aa2b-7d6cbedba767"],
     "u_3_3_a_robot_warrior": ["c2b4e93b-6b27-4dd3-a6dd-a75d6fab14dc"],
     "u_3_3_angel_flying": ["5165055a-89e1-471b-ac96-732e593c910b"],
+    "u_3_3_e_spirit_sorcerer_flying": ["3b9c4950-9890-4977-87a0-6eba840e1f66"],
     "u_3_3_fish_hatches_whale": [
       "1f3cea7c-d092-410d-8c32-af0f4c8bc878",
       "3abd270d-55d0-40f8-9864-4a7d7b9310ff",
@@ -6398,10 +6537,12 @@
       "f62080da-a11b-4da3-bb8f-57f543bf076a",
       "f9576efe-03eb-49da-bb00-5bf8e50877fb"
     ],
+    "u_empower_jace": ["8d1e424f-6407-4f8c-bed2-eaf148237c81"],
     "u_x_x_dog_illusion_cardsinhand": ["ce3c0bd9-8a37-4164-9937-f35d1c210fe8"],
     "u_x_x_illusion": [
       "13374c5a-d39d-40c8-b9eb-c283dbad2cb9",
       "2300635e-7771-4676-a5a5-29a9d8f49f1a",
+      "4f4c6c9f-2cb5-4450-b1be-aeb50cb7cbe0",
       "b6b43dc2-eaa4-4369-8c8c-b17c64326c5b",
       "f6469938-5af9-4f0a-9f2e-603c833e48ba"
     ],
@@ -6449,6 +6590,7 @@
       "8ba20bb4-a476-448d-bb39-23f8dd59e5a8",
       "e3c88b9d-6ac2-4d38-8551-23998d76e6ee"
     ],
+    "ur_4_4_giant": ["0689b1b8-84be-4cc8-be4b-4461fefa885b"],
     "ur_5_5_elemental_flying": [
       "123f4998-2fee-4533-97ea-3afba67e6b80",
       "160579e7-4563-4576-84d7-56643217096e",
@@ -6888,6 +7030,10 @@
       "f52ac58b-c6d7-4d17-ad2e-1c959f9089b0",
       "f89b99b9-9720-4177-b664-aac310fc1bea"
     ],
+    "w_1_1_tribble_noblock": [
+      "81d2498f-ee5e-4d8d-80f8-eb71c3755faa",
+      "ee3b1218-7ab3-461b-b1b2-818fb61f33ce"
+    ],
     "w_1_1_vampire_lifelink": [
       "03a2f3c3-fbcb-4b21-8f86-232c0db80c1f",
       "0484390e-1167-4407-84de-7ddc726e8926",
@@ -7050,6 +7196,7 @@
       "e1e5dbd5-5fba-4d09-aa27-359505042651",
       "ecba3428-716d-4dab-b2ee-baf8d9bf5ec8"
     ],
+    "w_3_3_angel_flying_vigilance": ["481ff636-8343-4eb2-93cf-48b94c9ecfdb"],
     "w_3_3_bird_flying": [
       "5988dc9e-724f-4645-8769-b94c5ef631b9",
       "5a84671e-cbe8-467e-9a8a-bbecba6158fa",
@@ -7201,6 +7348,7 @@
       "2af2f485-ee1c-468f-9854-a9529c38ec55",
       "2b57d024-2ff6-467f-bb4e-37270be60104",
       "550b47b9-661d-469e-a4de-f3c59606c839",
+      "6bd5937e-115c-411f-b3f0-ab3410726b98",
       "7e76e46c-936c-4039-95ec-1bb4c1c71e78",
       "b2ef67fc-b544-4fb3-8362-a29d4533fdd7",
       "c9deae5c-80d4-4701-b425-91853b7ee03b",
@@ -8996,6 +9144,36 @@
     },
     {
       "identity": {
+        "id": "token:481ff636-8343-4eb2-93cf-48b94c9ecfdb",
+        "name": "Angel",
+        "setCode": "tmdd",
+        "cardNumber": "3",
+        "oracleId": "9d256142-cae2-45d2-ab8f-5b390b403481",
+        "foil": false
+      },
+      "color": "W",
+      "colorIdentity": [],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Creature"],
+      "subtypes": ["Angel"],
+      "supertypes": ["Token"],
+      "power": "3",
+      "toughness": "3",
+      "text": "Flying, vigilance",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/4/8/481ff636-8343-4eb2-93cf-48b94c9ecfdb.jpg?1791637012",
+        "normal": "https://cards.scryfall.io/normal/front/4/8/481ff636-8343-4eb2-93cf-48b94c9ecfdb.jpg?1791637012",
+        "large": "https://cards.scryfall.io/large/front/4/8/481ff636-8343-4eb2-93cf-48b94c9ecfdb.jpg?1791637012",
+        "png": "https://cards.scryfall.io/png/front/4/8/481ff636-8343-4eb2-93cf-48b94c9ecfdb.png?1791637012",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/4/8/481ff636-8343-4eb2-93cf-48b94c9ecfdb.jpg?1791637012",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/4/8/481ff636-8343-4eb2-93cf-48b94c9ecfdb.jpg?1791637012"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
         "id": "token:91808554-23ab-44f9-92a1-87ee7d58cd9a",
         "name": "Angel",
         "setCode": "tmh1",
@@ -10192,6 +10370,66 @@
         "png": "https://cards.scryfall.io/png/front/0/7/07b28aff-eb3d-4e8c-8837-e32b482d10a0.png?1783911677",
         "art_crop": "https://cards.scryfall.io/art_crop/front/0/7/07b28aff-eb3d-4e8c-8837-e32b482d10a0.jpg?1783911677",
         "border_crop": "https://cards.scryfall.io/border_crop/front/0/7/07b28aff-eb3d-4e8c-8837-e32b482d10a0.jpg?1783911677"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
+        "id": "token:a73b0752-c59f-43de-a7c9-d952a2b59062",
+        "name": "Ape",
+        "setCode": "ttrc",
+        "cardNumber": "3",
+        "oracleId": "6736e171-ed7d-4259-8a42-f5936ebad532",
+        "foil": false
+      },
+      "color": "G",
+      "colorIdentity": ["G"],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Creature"],
+      "subtypes": ["Ape"],
+      "supertypes": ["Token"],
+      "power": "3",
+      "toughness": "3",
+      "text": "",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/a/7/a73b0752-c59f-43de-a7c9-d952a2b59062.jpg?1793363302",
+        "normal": "https://cards.scryfall.io/normal/front/a/7/a73b0752-c59f-43de-a7c9-d952a2b59062.jpg?1793363302",
+        "large": "https://cards.scryfall.io/large/front/a/7/a73b0752-c59f-43de-a7c9-d952a2b59062.jpg?1793363302",
+        "png": "https://cards.scryfall.io/png/front/a/7/a73b0752-c59f-43de-a7c9-d952a2b59062.png?1793363302",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/a/7/a73b0752-c59f-43de-a7c9-d952a2b59062.jpg?1793363302",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/a/7/a73b0752-c59f-43de-a7c9-d952a2b59062.jpg?1793363302"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
+        "id": "token:9fc2b0f6-f126-47a2-8316-febf92e90006",
+        "name": "Ape",
+        "setCode": "ttrc",
+        "cardNumber": "10",
+        "oracleId": "6736e171-ed7d-4259-8a42-f5936ebad532",
+        "foil": false
+      },
+      "color": "G",
+      "colorIdentity": ["G"],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Creature"],
+      "subtypes": ["Ape"],
+      "supertypes": ["Token"],
+      "power": "3",
+      "toughness": "3",
+      "text": "",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/9/f/9fc2b0f6-f126-47a2-8316-febf92e90006.jpg?1793363555",
+        "normal": "https://cards.scryfall.io/normal/front/9/f/9fc2b0f6-f126-47a2-8316-febf92e90006.jpg?1793363555",
+        "large": "https://cards.scryfall.io/large/front/9/f/9fc2b0f6-f126-47a2-8316-febf92e90006.jpg?1793363555",
+        "png": "https://cards.scryfall.io/png/front/9/f/9fc2b0f6-f126-47a2-8316-febf92e90006.png?1793363555",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/9/f/9fc2b0f6-f126-47a2-8316-febf92e90006.jpg?1793363555",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/9/f/9fc2b0f6-f126-47a2-8316-febf92e90006.jpg?1793363555"
       },
       "imageLanguage": "en",
       "layout": "token"
@@ -14546,6 +14784,66 @@
     },
     {
       "identity": {
+        "id": "token:215c8aec-f26f-4777-aa90-252e537f5df9",
+        "name": "Beast",
+        "setCode": "ttrc",
+        "cardNumber": "4",
+        "oracleId": "6bb61f34-5d57-4eaa-a02c-f5d08c1ee920",
+        "foil": false
+      },
+      "color": "G",
+      "colorIdentity": ["G"],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Creature"],
+      "subtypes": ["Beast"],
+      "supertypes": ["Token"],
+      "power": "3",
+      "toughness": "3",
+      "text": "",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/2/1/215c8aec-f26f-4777-aa90-252e537f5df9.jpg?1793363331",
+        "normal": "https://cards.scryfall.io/normal/front/2/1/215c8aec-f26f-4777-aa90-252e537f5df9.jpg?1793363331",
+        "large": "https://cards.scryfall.io/large/front/2/1/215c8aec-f26f-4777-aa90-252e537f5df9.jpg?1793363331",
+        "png": "https://cards.scryfall.io/png/front/2/1/215c8aec-f26f-4777-aa90-252e537f5df9.png?1793363331",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/2/1/215c8aec-f26f-4777-aa90-252e537f5df9.jpg?1793363331",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/2/1/215c8aec-f26f-4777-aa90-252e537f5df9.jpg?1793363331"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
+        "id": "token:ca8e8a9a-d673-4644-9eec-f4f549307d9b",
+        "name": "Beast",
+        "setCode": "ttrc",
+        "cardNumber": "11",
+        "oracleId": "6bb61f34-5d57-4eaa-a02c-f5d08c1ee920",
+        "foil": false
+      },
+      "color": "G",
+      "colorIdentity": ["G"],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Creature"],
+      "subtypes": ["Beast"],
+      "supertypes": ["Token"],
+      "power": "3",
+      "toughness": "3",
+      "text": "",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/c/a/ca8e8a9a-d673-4644-9eec-f4f549307d9b.jpg?1793363664",
+        "normal": "https://cards.scryfall.io/normal/front/c/a/ca8e8a9a-d673-4644-9eec-f4f549307d9b.jpg?1793363664",
+        "large": "https://cards.scryfall.io/large/front/c/a/ca8e8a9a-d673-4644-9eec-f4f549307d9b.jpg?1793363664",
+        "png": "https://cards.scryfall.io/png/front/c/a/ca8e8a9a-d673-4644-9eec-f4f549307d9b.png?1793363664",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/c/a/ca8e8a9a-d673-4644-9eec-f4f549307d9b.jpg?1793363664",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/c/a/ca8e8a9a-d673-4644-9eec-f4f549307d9b.jpg?1793363664"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
         "id": "token:5aaf1eac-279f-4264-93f6-9058a6a83d0a",
         "name": "Beast",
         "setCode": "twho",
@@ -17393,6 +17691,66 @@
     },
     {
       "identity": {
+        "id": "token:60c52ea5-28b9-413d-9be5-aaadfbd8022b",
+        "name": "Borg",
+        "setCode": "ttrk",
+        "cardNumber": "19",
+        "oracleId": "3e5f8b8d-b8e6-48a2-a596-ee45e7e56038",
+        "foil": false
+      },
+      "color": "",
+      "colorIdentity": [],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Artifact", "Creature"],
+      "subtypes": ["Borg"],
+      "supertypes": ["Token"],
+      "power": "1",
+      "toughness": "1",
+      "text": "",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/6/0/60c52ea5-28b9-413d-9be5-aaadfbd8022b.jpg?1793364865",
+        "normal": "https://cards.scryfall.io/normal/front/6/0/60c52ea5-28b9-413d-9be5-aaadfbd8022b.jpg?1793364865",
+        "large": "https://cards.scryfall.io/large/front/6/0/60c52ea5-28b9-413d-9be5-aaadfbd8022b.jpg?1793364865",
+        "png": "https://cards.scryfall.io/png/front/6/0/60c52ea5-28b9-413d-9be5-aaadfbd8022b.png?1793364865",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/6/0/60c52ea5-28b9-413d-9be5-aaadfbd8022b.jpg?1793364865",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/6/0/60c52ea5-28b9-413d-9be5-aaadfbd8022b.jpg?1793364865"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
+        "id": "token:662d060a-719c-42bf-8bee-cf602a045ff0",
+        "name": "Borg",
+        "setCode": "ttrk",
+        "cardNumber": "20",
+        "oracleId": "3e5f8b8d-b8e6-48a2-a596-ee45e7e56038",
+        "foil": false
+      },
+      "color": "",
+      "colorIdentity": [],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Artifact", "Creature"],
+      "subtypes": ["Borg"],
+      "supertypes": ["Token"],
+      "power": "1",
+      "toughness": "1",
+      "text": "",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/6/6/662d060a-719c-42bf-8bee-cf602a045ff0.jpg?1793364924",
+        "normal": "https://cards.scryfall.io/normal/front/6/6/662d060a-719c-42bf-8bee-cf602a045ff0.jpg?1793364924",
+        "large": "https://cards.scryfall.io/large/front/6/6/662d060a-719c-42bf-8bee-cf602a045ff0.jpg?1793364924",
+        "png": "https://cards.scryfall.io/png/front/6/6/662d060a-719c-42bf-8bee-cf602a045ff0.png?1793364924",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/6/6/662d060a-719c-42bf-8bee-cf602a045ff0.jpg?1793364924",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/6/6/662d060a-719c-42bf-8bee-cf602a045ff0.jpg?1793364924"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
         "id": "token:af1a8115-127d-4268-a4d0-95360862e5fb",
         "name": "Brainiac",
         "setCode": "tust",
@@ -19883,6 +20241,66 @@
     },
     {
       "identity": {
+        "id": "token:bb355701-39e2-428e-a62b-feac0bdada72",
+        "name": "Citizen",
+        "setCode": "ttrc",
+        "cardNumber": "6",
+        "oracleId": "ffbc4833-01db-45f8-b8b4-c2e2c8235d0c",
+        "foil": false
+      },
+      "color": "GW",
+      "colorIdentity": ["G", "W"],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Creature"],
+      "subtypes": ["Citizen"],
+      "supertypes": ["Token"],
+      "power": "1",
+      "toughness": "1",
+      "text": "",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/b/b/bb355701-39e2-428e-a62b-feac0bdada72.jpg?1793363381",
+        "normal": "https://cards.scryfall.io/normal/front/b/b/bb355701-39e2-428e-a62b-feac0bdada72.jpg?1793363381",
+        "large": "https://cards.scryfall.io/large/front/b/b/bb355701-39e2-428e-a62b-feac0bdada72.jpg?1793363381",
+        "png": "https://cards.scryfall.io/png/front/b/b/bb355701-39e2-428e-a62b-feac0bdada72.png?1793363381",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/b/b/bb355701-39e2-428e-a62b-feac0bdada72.jpg?1793363381",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/b/b/bb355701-39e2-428e-a62b-feac0bdada72.jpg?1793363381"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
+        "id": "token:f801903a-5db6-4566-ad33-2c1de8ac4287",
+        "name": "Citizen",
+        "setCode": "ttrc",
+        "cardNumber": "13",
+        "oracleId": "ffbc4833-01db-45f8-b8b4-c2e2c8235d0c",
+        "foil": false
+      },
+      "color": "GW",
+      "colorIdentity": ["G", "W"],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Creature"],
+      "subtypes": ["Citizen"],
+      "supertypes": ["Token"],
+      "power": "1",
+      "toughness": "1",
+      "text": "",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/f/8/f801903a-5db6-4566-ad33-2c1de8ac4287.jpg?1793363573",
+        "normal": "https://cards.scryfall.io/normal/front/f/8/f801903a-5db6-4566-ad33-2c1de8ac4287.jpg?1793363573",
+        "large": "https://cards.scryfall.io/large/front/f/8/f801903a-5db6-4566-ad33-2c1de8ac4287.jpg?1793363573",
+        "png": "https://cards.scryfall.io/png/front/f/8/f801903a-5db6-4566-ad33-2c1de8ac4287.png?1793363573",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/f/8/f801903a-5db6-4566-ad33-2c1de8ac4287.jpg?1793363573",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/f/8/f801903a-5db6-4566-ad33-2c1de8ac4287.jpg?1793363573"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
         "id": "token:165164e7-5693-4d65-b789-8ed8a222365b",
         "name": "Citizen",
         "setCode": "tuma",
@@ -21460,6 +21878,62 @@
     },
     {
       "identity": {
+        "id": "token:306c8271-ddfc-45a4-bd23-bf31212f813d",
+        "name": "Clue",
+        "setCode": "ttrk",
+        "cardNumber": "21",
+        "oracleId": "496e1083-c792-40a4-adf4-fec1d559cd5e",
+        "foil": false
+      },
+      "color": "",
+      "colorIdentity": [],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Artifact"],
+      "subtypes": ["Clue"],
+      "supertypes": ["Token"],
+      "text": "{2}, Sacrifice this token: Draw a card.",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/3/0/306c8271-ddfc-45a4-bd23-bf31212f813d.jpg?1793365062",
+        "normal": "https://cards.scryfall.io/normal/front/3/0/306c8271-ddfc-45a4-bd23-bf31212f813d.jpg?1793365062",
+        "large": "https://cards.scryfall.io/large/front/3/0/306c8271-ddfc-45a4-bd23-bf31212f813d.jpg?1793365062",
+        "png": "https://cards.scryfall.io/png/front/3/0/306c8271-ddfc-45a4-bd23-bf31212f813d.png?1793365062",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/3/0/306c8271-ddfc-45a4-bd23-bf31212f813d.jpg?1793365062",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/3/0/306c8271-ddfc-45a4-bd23-bf31212f813d.jpg?1793365062"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
+        "id": "token:24c80ef6-747d-47b7-8e1f-148f5dfacc32",
+        "name": "Clue",
+        "setCode": "ttrk",
+        "cardNumber": "22",
+        "oracleId": "496e1083-c792-40a4-adf4-fec1d559cd5e",
+        "foil": false
+      },
+      "color": "",
+      "colorIdentity": [],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Artifact"],
+      "subtypes": ["Clue"],
+      "supertypes": ["Token"],
+      "text": "{2}, Sacrifice this token: Draw a card.",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/2/4/24c80ef6-747d-47b7-8e1f-148f5dfacc32.jpg?1793364960",
+        "normal": "https://cards.scryfall.io/normal/front/2/4/24c80ef6-747d-47b7-8e1f-148f5dfacc32.jpg?1793364960",
+        "large": "https://cards.scryfall.io/large/front/2/4/24c80ef6-747d-47b7-8e1f-148f5dfacc32.jpg?1793364960",
+        "png": "https://cards.scryfall.io/png/front/2/4/24c80ef6-747d-47b7-8e1f-148f5dfacc32.png?1793364960",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/2/4/24c80ef6-747d-47b7-8e1f-148f5dfacc32.jpg?1793364960",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/2/4/24c80ef6-747d-47b7-8e1f-148f5dfacc32.jpg?1793364960"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
         "id": "token:e69b3894-a78f-446b-9777-3c33731aa2ac",
         "name": "Clue",
         "setCode": "tvoc",
@@ -22970,6 +23444,34 @@
     },
     {
       "identity": {
+        "id": "token:4b976756-e988-4211-95c2-0e3587118488",
+        "name": "Copy",
+        "setCode": "plst",
+        "cardNumber": "TBLC-1",
+        "oracleId": "88c78601-87f0-45e7-b2e0-e7ffcfb1cb70",
+        "foil": false
+      },
+      "color": "",
+      "colorIdentity": [],
+      "manaCost": "",
+      "cmc": 0,
+      "types": [],
+      "subtypes": [],
+      "supertypes": ["Token"],
+      "text": "(This token can be used to represent a token that's a copy of a permanent.)",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/4/b/4b976756-e988-4211-95c2-0e3587118488.jpg?1791939754",
+        "normal": "https://cards.scryfall.io/normal/front/4/b/4b976756-e988-4211-95c2-0e3587118488.jpg?1791939754",
+        "large": "https://cards.scryfall.io/large/front/4/b/4b976756-e988-4211-95c2-0e3587118488.jpg?1791939754",
+        "png": "https://cards.scryfall.io/png/front/4/b/4b976756-e988-4211-95c2-0e3587118488.png?1791939754",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/4/b/4b976756-e988-4211-95c2-0e3587118488.jpg?1791939754",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/4/b/4b976756-e988-4211-95c2-0e3587118488.jpg?1791939754"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
         "id": "token:b0e32098-4745-418a-9562-6d3d7523782f",
         "name": "Copy",
         "setCode": "plst",
@@ -23322,12 +23824,12 @@
       "supertypes": ["Token"],
       "text": "(This token can be used to represent a token that's a copy of a permanent.)",
       "uris": {
-        "small": "https://cards.scryfall.io/small/front/6/1/61328aec-ba26-4142-a774-96924303786d.jpg?1783904333",
-        "normal": "https://cards.scryfall.io/normal/front/6/1/61328aec-ba26-4142-a774-96924303786d.jpg?1783904333",
-        "large": "https://cards.scryfall.io/large/front/6/1/61328aec-ba26-4142-a774-96924303786d.jpg?1783904333",
-        "png": "https://cards.scryfall.io/png/front/6/1/61328aec-ba26-4142-a774-96924303786d.png?1783904333",
-        "art_crop": "https://cards.scryfall.io/art_crop/front/6/1/61328aec-ba26-4142-a774-96924303786d.jpg?1783904333",
-        "border_crop": "https://cards.scryfall.io/border_crop/front/6/1/61328aec-ba26-4142-a774-96924303786d.jpg?1783904333"
+        "small": "https://cards.scryfall.io/small/front/6/1/61328aec-ba26-4142-a774-96924303786d.jpg?1793031115",
+        "normal": "https://cards.scryfall.io/normal/front/6/1/61328aec-ba26-4142-a774-96924303786d.jpg?1793031115",
+        "large": "https://cards.scryfall.io/large/front/6/1/61328aec-ba26-4142-a774-96924303786d.jpg?1793031115",
+        "png": "https://cards.scryfall.io/png/front/6/1/61328aec-ba26-4142-a774-96924303786d.png?1793031115",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/6/1/61328aec-ba26-4142-a774-96924303786d.jpg?1793031115",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/6/1/61328aec-ba26-4142-a774-96924303786d.jpg?1793031115"
       },
       "imageLanguage": "en",
       "layout": "token"
@@ -23866,6 +24368,62 @@
     },
     {
       "identity": {
+        "id": "token:d5549cce-eea6-4392-af06-95d98451906c",
+        "name": "Copy",
+        "setCode": "ttrc",
+        "cardNumber": "1",
+        "oracleId": "88c78601-87f0-45e7-b2e0-e7ffcfb1cb70",
+        "foil": false
+      },
+      "color": "",
+      "colorIdentity": [],
+      "manaCost": "",
+      "cmc": 0,
+      "types": [],
+      "subtypes": [],
+      "supertypes": ["Token"],
+      "text": "(This token can be used to represent a token that's a copy of a permanent.)",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/d/5/d5549cce-eea6-4392-af06-95d98451906c.jpg?1793359670",
+        "normal": "https://cards.scryfall.io/normal/front/d/5/d5549cce-eea6-4392-af06-95d98451906c.jpg?1793359670",
+        "large": "https://cards.scryfall.io/large/front/d/5/d5549cce-eea6-4392-af06-95d98451906c.jpg?1793359670",
+        "png": "https://cards.scryfall.io/png/front/d/5/d5549cce-eea6-4392-af06-95d98451906c.png?1793359670",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/d/5/d5549cce-eea6-4392-af06-95d98451906c.jpg?1793359670",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/d/5/d5549cce-eea6-4392-af06-95d98451906c.jpg?1793359670"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
+        "id": "token:2115c141-f2fb-4bfd-a8b5-2943bad9f418",
+        "name": "Copy",
+        "setCode": "ttrc",
+        "cardNumber": "8",
+        "oracleId": "88c78601-87f0-45e7-b2e0-e7ffcfb1cb70",
+        "foil": false
+      },
+      "color": "",
+      "colorIdentity": [],
+      "manaCost": "",
+      "cmc": 0,
+      "types": [],
+      "subtypes": [],
+      "supertypes": ["Token"],
+      "text": "(This token can be used to represent a token that's a copy of a permanent.)",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/2/1/2115c141-f2fb-4bfd-a8b5-2943bad9f418.jpg?1793363498",
+        "normal": "https://cards.scryfall.io/normal/front/2/1/2115c141-f2fb-4bfd-a8b5-2943bad9f418.jpg?1793363498",
+        "large": "https://cards.scryfall.io/large/front/2/1/2115c141-f2fb-4bfd-a8b5-2943bad9f418.jpg?1793363498",
+        "png": "https://cards.scryfall.io/png/front/2/1/2115c141-f2fb-4bfd-a8b5-2943bad9f418.png?1793363498",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/2/1/2115c141-f2fb-4bfd-a8b5-2943bad9f418.jpg?1793363498",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/2/1/2115c141-f2fb-4bfd-a8b5-2943bad9f418.jpg?1793363498"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
         "id": "token:dd2942a8-68e8-4f73-956f-f19c690fa512",
         "name": "Copy",
         "setCode": "tvow",
@@ -24148,10 +24706,10 @@
         "oracleId": "8b6c301f-ccbc-47e3-a03c-dc9f397555c3",
         "foil": false
       },
-      "color": "",
-      "colorIdentity": [],
-      "manaCost": "",
-      "cmc": 0,
+      "color": "U",
+      "colorIdentity": ["U"],
+      "manaCost": "{2}{U}",
+      "cmc": 3,
       "types": ["Creature"],
       "subtypes": ["Human", "Scientist", "Hero"],
       "supertypes": ["Token", "Legendary"],
@@ -24159,12 +24717,12 @@
       "toughness": "2",
       "text": "The \"legend rule\" doesn't apply to creatures you control.\nAt the beginning of combat on your turn, if you've cast a noncreature spell this turn, create a token that's a copy of Council of Reeds.\n(This token's mana cost is {2}{U}.)",
       "uris": {
-        "small": "https://cards.scryfall.io/small/front/b/1/b1776802-c1d7-4d4d-926f-ab3748942b62.jpg?1783902813",
-        "normal": "https://cards.scryfall.io/normal/front/b/1/b1776802-c1d7-4d4d-926f-ab3748942b62.jpg?1783902813",
-        "large": "https://cards.scryfall.io/large/front/b/1/b1776802-c1d7-4d4d-926f-ab3748942b62.jpg?1783902813",
-        "png": "https://cards.scryfall.io/png/front/b/1/b1776802-c1d7-4d4d-926f-ab3748942b62.png?1783902813",
-        "art_crop": "https://cards.scryfall.io/art_crop/front/b/1/b1776802-c1d7-4d4d-926f-ab3748942b62.jpg?1783902813",
-        "border_crop": "https://cards.scryfall.io/border_crop/front/b/1/b1776802-c1d7-4d4d-926f-ab3748942b62.jpg?1783902813"
+        "small": "https://cards.scryfall.io/small/front/b/1/b1776802-c1d7-4d4d-926f-ab3748942b62.jpg?1792371811",
+        "normal": "https://cards.scryfall.io/normal/front/b/1/b1776802-c1d7-4d4d-926f-ab3748942b62.jpg?1792371811",
+        "large": "https://cards.scryfall.io/large/front/b/1/b1776802-c1d7-4d4d-926f-ab3748942b62.jpg?1792371811",
+        "png": "https://cards.scryfall.io/png/front/b/1/b1776802-c1d7-4d4d-926f-ab3748942b62.png?1792371811",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/b/1/b1776802-c1d7-4d4d-926f-ab3748942b62.jpg?1792371811",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/b/1/b1776802-c1d7-4d4d-926f-ab3748942b62.jpg?1792371811"
       },
       "imageLanguage": "en",
       "layout": "token"
@@ -24178,10 +24736,10 @@
         "oracleId": "8b6c301f-ccbc-47e3-a03c-dc9f397555c3",
         "foil": false
       },
-      "color": "",
-      "colorIdentity": [],
-      "manaCost": "",
-      "cmc": 0,
+      "color": "U",
+      "colorIdentity": ["U"],
+      "manaCost": "{2}{U}",
+      "cmc": 3,
       "types": ["Creature"],
       "subtypes": ["Human", "Scientist", "Hero"],
       "supertypes": ["Token", "Legendary"],
@@ -31294,6 +31852,36 @@
     },
     {
       "identity": {
+        "id": "token:40116092-622d-4dbb-9f32-6ccebbd9559b",
+        "name": "Elemental",
+        "setCode": "sld",
+        "cardNumber": "2906",
+        "oracleId": "1a6c2152-71ca-46be-ab83-c84633442257",
+        "foil": false
+      },
+      "color": "R",
+      "colorIdentity": ["R"],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Creature"],
+      "subtypes": ["Elemental"],
+      "supertypes": ["Token"],
+      "power": "1",
+      "toughness": "1",
+      "text": "",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/4/0/40116092-622d-4dbb-9f32-6ccebbd9559b.jpg?1793708206",
+        "normal": "https://cards.scryfall.io/normal/front/4/0/40116092-622d-4dbb-9f32-6ccebbd9559b.jpg?1793708206",
+        "large": "https://cards.scryfall.io/large/front/4/0/40116092-622d-4dbb-9f32-6ccebbd9559b.jpg?1793708206",
+        "png": "https://cards.scryfall.io/png/front/4/0/40116092-622d-4dbb-9f32-6ccebbd9559b.png?1793708206",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/4/0/40116092-622d-4dbb-9f32-6ccebbd9559b.jpg?1793708206",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/4/0/40116092-622d-4dbb-9f32-6ccebbd9559b.jpg?1793708206"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
         "id": "token:462bb611-5a02-441c-ae8a-911b75436864",
         "name": "Elemental",
         "setCode": "t2x2",
@@ -35559,12 +36147,12 @@
       "toughness": "1",
       "text": "",
       "uris": {
-        "small": "https://cards.scryfall.io/small/front/1/2/120ecded-7968-4bb9-ab85-9cc5ad031e0e.jpg?1785224594",
-        "normal": "https://cards.scryfall.io/normal/front/1/2/120ecded-7968-4bb9-ab85-9cc5ad031e0e.jpg?1785224594",
-        "large": "https://cards.scryfall.io/large/front/1/2/120ecded-7968-4bb9-ab85-9cc5ad031e0e.jpg?1785224594",
-        "png": "https://cards.scryfall.io/png/front/1/2/120ecded-7968-4bb9-ab85-9cc5ad031e0e.png?1785224594",
-        "art_crop": "https://cards.scryfall.io/art_crop/front/1/2/120ecded-7968-4bb9-ab85-9cc5ad031e0e.jpg?1785224594",
-        "border_crop": "https://cards.scryfall.io/border_crop/front/1/2/120ecded-7968-4bb9-ab85-9cc5ad031e0e.jpg?1785224594"
+        "small": "https://cards.scryfall.io/small/front/1/2/120ecded-7968-4bb9-ab85-9cc5ad031e0e.jpg?1794097123",
+        "normal": "https://cards.scryfall.io/normal/front/1/2/120ecded-7968-4bb9-ab85-9cc5ad031e0e.jpg?1794097123",
+        "large": "https://cards.scryfall.io/large/front/1/2/120ecded-7968-4bb9-ab85-9cc5ad031e0e.jpg?1794097123",
+        "png": "https://cards.scryfall.io/png/front/1/2/120ecded-7968-4bb9-ab85-9cc5ad031e0e.png?1794097123",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/1/2/120ecded-7968-4bb9-ab85-9cc5ad031e0e.jpg?1794097123",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/1/2/120ecded-7968-4bb9-ab85-9cc5ad031e0e.jpg?1794097123"
       },
       "imageLanguage": "en",
       "layout": "token"
@@ -35589,12 +36177,12 @@
       "toughness": "1",
       "text": "",
       "uris": {
-        "small": "https://cards.scryfall.io/small/front/e/9/e9db3b46-a9cf-4221-830a-dbed7ad76ead.jpg?1786455971",
-        "normal": "https://cards.scryfall.io/normal/front/e/9/e9db3b46-a9cf-4221-830a-dbed7ad76ead.jpg?1786455971",
-        "large": "https://cards.scryfall.io/large/front/e/9/e9db3b46-a9cf-4221-830a-dbed7ad76ead.jpg?1786455971",
-        "png": "https://cards.scryfall.io/png/front/e/9/e9db3b46-a9cf-4221-830a-dbed7ad76ead.png?1786455971",
-        "art_crop": "https://cards.scryfall.io/art_crop/front/e/9/e9db3b46-a9cf-4221-830a-dbed7ad76ead.jpg?1786455971",
-        "border_crop": "https://cards.scryfall.io/border_crop/front/e/9/e9db3b46-a9cf-4221-830a-dbed7ad76ead.jpg?1786455971"
+        "small": "https://cards.scryfall.io/small/front/e/9/e9db3b46-a9cf-4221-830a-dbed7ad76ead.jpg?1794099359",
+        "normal": "https://cards.scryfall.io/normal/front/e/9/e9db3b46-a9cf-4221-830a-dbed7ad76ead.jpg?1794099359",
+        "large": "https://cards.scryfall.io/large/front/e/9/e9db3b46-a9cf-4221-830a-dbed7ad76ead.jpg?1794099359",
+        "png": "https://cards.scryfall.io/png/front/e/9/e9db3b46-a9cf-4221-830a-dbed7ad76ead.png?1794099359",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/e/9/e9db3b46-a9cf-4221-830a-dbed7ad76ead.jpg?1794099359",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/e/9/e9db3b46-a9cf-4221-830a-dbed7ad76ead.jpg?1794099359"
       },
       "imageLanguage": "en",
       "layout": "token"
@@ -35619,12 +36207,12 @@
       "toughness": "1",
       "text": "",
       "uris": {
-        "small": "https://cards.scryfall.io/small/front/e/c/ecbfc4bf-56be-4275-b36b-c2c57f93ad15.jpg?1786455868",
-        "normal": "https://cards.scryfall.io/normal/front/e/c/ecbfc4bf-56be-4275-b36b-c2c57f93ad15.jpg?1786455868",
-        "large": "https://cards.scryfall.io/large/front/e/c/ecbfc4bf-56be-4275-b36b-c2c57f93ad15.jpg?1786455868",
-        "png": "https://cards.scryfall.io/png/front/e/c/ecbfc4bf-56be-4275-b36b-c2c57f93ad15.png?1786455868",
-        "art_crop": "https://cards.scryfall.io/art_crop/front/e/c/ecbfc4bf-56be-4275-b36b-c2c57f93ad15.jpg?1786455868",
-        "border_crop": "https://cards.scryfall.io/border_crop/front/e/c/ecbfc4bf-56be-4275-b36b-c2c57f93ad15.jpg?1786455868"
+        "small": "https://cards.scryfall.io/small/front/e/c/ecbfc4bf-56be-4275-b36b-c2c57f93ad15.jpg?1794174882",
+        "normal": "https://cards.scryfall.io/normal/front/e/c/ecbfc4bf-56be-4275-b36b-c2c57f93ad15.jpg?1794174882",
+        "large": "https://cards.scryfall.io/large/front/e/c/ecbfc4bf-56be-4275-b36b-c2c57f93ad15.jpg?1794174882",
+        "png": "https://cards.scryfall.io/png/front/e/c/ecbfc4bf-56be-4275-b36b-c2c57f93ad15.png?1794174882",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/e/c/ecbfc4bf-56be-4275-b36b-c2c57f93ad15.jpg?1794174882",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/e/c/ecbfc4bf-56be-4275-b36b-c2c57f93ad15.jpg?1794174882"
       },
       "imageLanguage": "en",
       "layout": "token"
@@ -36195,6 +36783,36 @@
         "png": "https://cards.scryfall.io/png/front/8/0/808b9201-6fc5-4613-85d6-6e66c6e36a8e.png?1783934463",
         "art_crop": "https://cards.scryfall.io/art_crop/front/8/0/808b9201-6fc5-4613-85d6-6e66c6e36a8e.jpg?1783934463",
         "border_crop": "https://cards.scryfall.io/border_crop/front/8/0/808b9201-6fc5-4613-85d6-6e66c6e36a8e.jpg?1783934463"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
+        "id": "token:72ac66e9-4b4b-4540-b310-e7b3dc04c305",
+        "name": "Elf Warrior",
+        "setCode": "tmdd",
+        "cardNumber": "11",
+        "oracleId": "dac8a765-6845-4b57-bb79-4ec463436f92",
+        "foil": false
+      },
+      "color": "G",
+      "colorIdentity": ["G"],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Creature"],
+      "subtypes": ["Elf", "Warrior"],
+      "supertypes": ["Token"],
+      "power": "1",
+      "toughness": "1",
+      "text": "",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/7/2/72ac66e9-4b4b-4540-b310-e7b3dc04c305.jpg?1791637257",
+        "normal": "https://cards.scryfall.io/normal/front/7/2/72ac66e9-4b4b-4540-b310-e7b3dc04c305.jpg?1791637257",
+        "large": "https://cards.scryfall.io/large/front/7/2/72ac66e9-4b4b-4540-b310-e7b3dc04c305.jpg?1791637257",
+        "png": "https://cards.scryfall.io/png/front/7/2/72ac66e9-4b4b-4540-b310-e7b3dc04c305.png?1791637257",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/7/2/72ac66e9-4b4b-4540-b310-e7b3dc04c305.jpg?1791637257",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/7/2/72ac66e9-4b4b-4540-b310-e7b3dc04c305.jpg?1791637257"
       },
       "imageLanguage": "en",
       "layout": "token"
@@ -39342,6 +39960,34 @@
     },
     {
       "identity": {
+        "id": "token:dd703147-f546-45af-8511-2d108afd0ad2",
+        "name": "Food",
+        "setCode": "ttrk",
+        "cardNumber": "23",
+        "oracleId": "a468338f-635e-4206-89d6-72d723071d45",
+        "foil": false
+      },
+      "color": "",
+      "colorIdentity": [],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Artifact"],
+      "subtypes": ["Food"],
+      "supertypes": ["Token"],
+      "text": "{2}, {T}, Sacrifice this token: You gain 3 life.",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/d/d/dd703147-f546-45af-8511-2d108afd0ad2.jpg?1793364343",
+        "normal": "https://cards.scryfall.io/normal/front/d/d/dd703147-f546-45af-8511-2d108afd0ad2.jpg?1793364343",
+        "large": "https://cards.scryfall.io/large/front/d/d/dd703147-f546-45af-8511-2d108afd0ad2.jpg?1793364343",
+        "png": "https://cards.scryfall.io/png/front/d/d/dd703147-f546-45af-8511-2d108afd0ad2.png?1793364343",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/d/d/dd703147-f546-45af-8511-2d108afd0ad2.jpg?1793364343",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/d/d/dd703147-f546-45af-8511-2d108afd0ad2.jpg?1793364343"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
         "id": "token:01136e91-1ad3-4e01-8f7e-2718c3a9da27",
         "name": "Food",
         "setCode": "tunf",
@@ -39942,6 +40588,36 @@
         "png": "https://cards.scryfall.io/png/front/e/3/e3c84944-23b8-40d7-9b25-c746b08b4dc4.png?1783906132",
         "art_crop": "https://cards.scryfall.io/art_crop/front/e/3/e3c84944-23b8-40d7-9b25-c746b08b4dc4.jpg?1783906132",
         "border_crop": "https://cards.scryfall.io/border_crop/front/e/3/e3c84944-23b8-40d7-9b25-c746b08b4dc4.jpg?1783906132"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
+        "id": "token:b14352e0-98c8-4dbe-bee7-569ff5b439e3",
+        "name": "Frog Lizard",
+        "setCode": "plst",
+        "cardNumber": "TLCC-13",
+        "oracleId": "8653c69b-99a9-4881-a14c-68ba928c34d5",
+        "foil": false
+      },
+      "color": "G",
+      "colorIdentity": ["G"],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Creature"],
+      "subtypes": ["Frog", "Lizard"],
+      "supertypes": ["Token"],
+      "power": "3",
+      "toughness": "3",
+      "text": "",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/b/1/b14352e0-98c8-4dbe-bee7-569ff5b439e3.jpg?1791939789",
+        "normal": "https://cards.scryfall.io/normal/front/b/1/b14352e0-98c8-4dbe-bee7-569ff5b439e3.jpg?1791939789",
+        "large": "https://cards.scryfall.io/large/front/b/1/b14352e0-98c8-4dbe-bee7-569ff5b439e3.jpg?1791939789",
+        "png": "https://cards.scryfall.io/png/front/b/1/b14352e0-98c8-4dbe-bee7-569ff5b439e3.png?1791939789",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/b/1/b14352e0-98c8-4dbe-bee7-569ff5b439e3.jpg?1791939789",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/b/1/b14352e0-98c8-4dbe-bee7-569ff5b439e3.jpg?1791939789"
       },
       "imageLanguage": "en",
       "layout": "token"
@@ -40638,36 +41314,6 @@
     },
     {
       "identity": {
-        "id": "token:53c05e53-84c7-4796-ae02-d778faa5afa6",
-        "name": "Germ",
-        "setCode": "tfdc",
-        "cardNumber": "4",
-        "oracleId": "bb549594-35f6-4ac6-9f1f-cfb35784d99e",
-        "foil": false
-      },
-      "color": "B",
-      "colorIdentity": ["B"],
-      "manaCost": "",
-      "cmc": 0,
-      "types": ["Creature"],
-      "subtypes": ["Germ"],
-      "supertypes": ["Token"],
-      "power": "0",
-      "toughness": "0",
-      "text": "",
-      "uris": {
-        "small": "https://cards.scryfall.io/small/front/5/3/53c05e53-84c7-4796-ae02-d778faa5afa6.jpg?1789754688",
-        "normal": "https://cards.scryfall.io/normal/front/5/3/53c05e53-84c7-4796-ae02-d778faa5afa6.jpg?1789754688",
-        "large": "https://cards.scryfall.io/large/front/5/3/53c05e53-84c7-4796-ae02-d778faa5afa6.jpg?1789754688",
-        "png": "https://cards.scryfall.io/png/front/5/3/53c05e53-84c7-4796-ae02-d778faa5afa6.png?1789754688",
-        "art_crop": "https://cards.scryfall.io/art_crop/front/5/3/53c05e53-84c7-4796-ae02-d778faa5afa6.jpg?1789754688",
-        "border_crop": "https://cards.scryfall.io/border_crop/front/5/3/53c05e53-84c7-4796-ae02-d778faa5afa6.jpg?1789754688"
-      },
-      "imageLanguage": "en",
-      "layout": "token"
-    },
-    {
-      "identity": {
         "id": "token:760dcba4-c0f1-4843-9c39-393c629aae8e",
         "name": "Germ",
         "setCode": "tmbs",
@@ -40812,6 +41458,36 @@
         "png": "https://cards.scryfall.io/png/front/3/c/3c1debc4-0b12-4848-b551-90680ab8c0ab.png?1783932481",
         "art_crop": "https://cards.scryfall.io/art_crop/front/3/c/3c1debc4-0b12-4848-b551-90680ab8c0ab.jpg?1783932481",
         "border_crop": "https://cards.scryfall.io/border_crop/front/3/c/3c1debc4-0b12-4848-b551-90680ab8c0ab.jpg?1783932481"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
+        "id": "token:0689b1b8-84be-4cc8-be4b-4461fefa885b",
+        "name": "Giant",
+        "setCode": "tmdd",
+        "cardNumber": "12",
+        "oracleId": "22be49fa-33a6-47fa-9bfc-f06e044d3cdc",
+        "foil": false
+      },
+      "color": "RU",
+      "colorIdentity": ["R", "U"],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Creature"],
+      "subtypes": ["Giant"],
+      "supertypes": ["Token"],
+      "power": "4",
+      "toughness": "4",
+      "text": "",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/0/6/0689b1b8-84be-4cc8-be4b-4461fefa885b.jpg?1791637288",
+        "normal": "https://cards.scryfall.io/normal/front/0/6/0689b1b8-84be-4cc8-be4b-4461fefa885b.jpg?1791637288",
+        "large": "https://cards.scryfall.io/large/front/0/6/0689b1b8-84be-4cc8-be4b-4461fefa885b.jpg?1791637288",
+        "png": "https://cards.scryfall.io/png/front/0/6/0689b1b8-84be-4cc8-be4b-4461fefa885b.png?1791637288",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/0/6/0689b1b8-84be-4cc8-be4b-4461fefa885b.jpg?1791637288",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/0/6/0689b1b8-84be-4cc8-be4b-4461fefa885b.jpg?1791637288"
       },
       "imageLanguage": "en",
       "layout": "token"
@@ -41037,8 +41713,8 @@
       },
       "color": "",
       "colorIdentity": [],
-      "manaCost": "",
-      "cmc": 0,
+      "manaCost": "{1}",
+      "cmc": 1,
       "types": ["Artifact", "Creature"],
       "subtypes": ["Food", "Golem"],
       "supertypes": ["Token"],
@@ -41046,12 +41722,12 @@
       "toughness": "1",
       "text": "Haste\n{1}: This token can't be blocked this turn except by creatures with haste.\n{2}, {T}, Sacrifice this token: You gain 3 life.\n(This token's mana cost is {1}.)",
       "uris": {
-        "small": "https://cards.scryfall.io/small/front/d/c/dc2dff97-a68b-497f-a004-1e14ba5116ea.jpg?1789737618",
-        "normal": "https://cards.scryfall.io/normal/front/d/c/dc2dff97-a68b-497f-a004-1e14ba5116ea.jpg?1789737618",
-        "large": "https://cards.scryfall.io/large/front/d/c/dc2dff97-a68b-497f-a004-1e14ba5116ea.jpg?1789737618",
-        "png": "https://cards.scryfall.io/png/front/d/c/dc2dff97-a68b-497f-a004-1e14ba5116ea.png?1789737618",
-        "art_crop": "https://cards.scryfall.io/art_crop/front/d/c/dc2dff97-a68b-497f-a004-1e14ba5116ea.jpg?1789737618",
-        "border_crop": "https://cards.scryfall.io/border_crop/front/d/c/dc2dff97-a68b-497f-a004-1e14ba5116ea.jpg?1789737618"
+        "small": "https://cards.scryfall.io/small/front/d/c/dc2dff97-a68b-497f-a004-1e14ba5116ea.jpg?1792371861",
+        "normal": "https://cards.scryfall.io/normal/front/d/c/dc2dff97-a68b-497f-a004-1e14ba5116ea.jpg?1792371861",
+        "large": "https://cards.scryfall.io/large/front/d/c/dc2dff97-a68b-497f-a004-1e14ba5116ea.jpg?1792371861",
+        "png": "https://cards.scryfall.io/png/front/d/c/dc2dff97-a68b-497f-a004-1e14ba5116ea.png?1792371861",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/d/c/dc2dff97-a68b-497f-a004-1e14ba5116ea.jpg?1792371861",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/d/c/dc2dff97-a68b-497f-a004-1e14ba5116ea.jpg?1792371861"
       },
       "imageLanguage": "en",
       "layout": "token"
@@ -46787,6 +47463,36 @@
     },
     {
       "identity": {
+        "id": "token:c6244ae8-5676-4f6c-b488-f47dd4709dac",
+        "name": "Horror",
+        "setCode": "plst",
+        "cardNumber": "TC18-22",
+        "oracleId": "7f03946b-e602-4624-bf1e-ed240b883fca",
+        "foil": false
+      },
+      "color": "",
+      "colorIdentity": [],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Artifact", "Creature"],
+      "subtypes": ["Horror"],
+      "supertypes": ["Token"],
+      "power": "*",
+      "toughness": "*",
+      "text": "",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/c/6/c6244ae8-5676-4f6c-b488-f47dd4709dac.jpg?1791939774",
+        "normal": "https://cards.scryfall.io/normal/front/c/6/c6244ae8-5676-4f6c-b488-f47dd4709dac.jpg?1791939774",
+        "large": "https://cards.scryfall.io/large/front/c/6/c6244ae8-5676-4f6c-b488-f47dd4709dac.jpg?1791939774",
+        "png": "https://cards.scryfall.io/png/front/c/6/c6244ae8-5676-4f6c-b488-f47dd4709dac.png?1791939774",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/c/6/c6244ae8-5676-4f6c-b488-f47dd4709dac.jpg?1791939774",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/c/6/c6244ae8-5676-4f6c-b488-f47dd4709dac.jpg?1791939774"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
         "id": "token:fadae5ee-1973-4905-8b37-69e826523905",
         "name": "Horror",
         "setCode": "tc14",
@@ -50128,6 +50834,36 @@
     },
     {
       "identity": {
+        "id": "token:4f4c6c9f-2cb5-4450-b1be-aeb50cb7cbe0",
+        "name": "Illusion",
+        "setCode": "plst",
+        "cardNumber": "TM3C-6",
+        "oracleId": "ec406831-a1d0-4e41-bd09-f76d0ba206ae",
+        "foil": false
+      },
+      "color": "U",
+      "colorIdentity": ["U"],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Creature"],
+      "subtypes": ["Illusion"],
+      "supertypes": ["Token"],
+      "power": "*",
+      "toughness": "*",
+      "text": "",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/4/f/4f4c6c9f-2cb5-4450-b1be-aeb50cb7cbe0.jpg?1791939811",
+        "normal": "https://cards.scryfall.io/normal/front/4/f/4f4c6c9f-2cb5-4450-b1be-aeb50cb7cbe0.jpg?1791939811",
+        "large": "https://cards.scryfall.io/large/front/4/f/4f4c6c9f-2cb5-4450-b1be-aeb50cb7cbe0.jpg?1791939811",
+        "png": "https://cards.scryfall.io/png/front/4/f/4f4c6c9f-2cb5-4450-b1be-aeb50cb7cbe0.png?1791939811",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/4/f/4f4c6c9f-2cb5-4450-b1be-aeb50cb7cbe0.jpg?1791939811",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/4/f/4f4c6c9f-2cb5-4450-b1be-aeb50cb7cbe0.jpg?1791939811"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
         "id": "token:42a6bc0b-e76d-4c45-b39d-0186d9bc9c42",
         "name": "Illusion",
         "setCode": "tafc",
@@ -50392,6 +51128,36 @@
         "png": "https://cards.scryfall.io/png/front/f/6/f6469938-5af9-4f0a-9f2e-603c833e48ba.png?1783903575",
         "art_crop": "https://cards.scryfall.io/art_crop/front/f/6/f6469938-5af9-4f0a-9f2e-603c833e48ba.jpg?1783903575",
         "border_crop": "https://cards.scryfall.io/border_crop/front/f/6/f6469938-5af9-4f0a-9f2e-603c833e48ba.jpg?1783903575"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
+        "id": "token:d760eee8-e49a-4662-8bfc-fcf8ed2ad2d8",
+        "name": "Illusion",
+        "setCode": "ttrk",
+        "cardNumber": "24",
+        "oracleId": "9c29576c-a807-408f-b6d2-111c1f93f902",
+        "foil": false
+      },
+      "color": "",
+      "colorIdentity": [],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Artifact", "Creature"],
+      "subtypes": ["Illusion"],
+      "supertypes": ["Token"],
+      "power": "3",
+      "toughness": "3",
+      "text": "",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/d/7/d760eee8-e49a-4662-8bfc-fcf8ed2ad2d8.jpg?1793364353",
+        "normal": "https://cards.scryfall.io/normal/front/d/7/d760eee8-e49a-4662-8bfc-fcf8ed2ad2d8.jpg?1793364353",
+        "large": "https://cards.scryfall.io/large/front/d/7/d760eee8-e49a-4662-8bfc-fcf8ed2ad2d8.jpg?1793364353",
+        "png": "https://cards.scryfall.io/png/front/d/7/d760eee8-e49a-4662-8bfc-fcf8ed2ad2d8.png?1793364353",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/d/7/d760eee8-e49a-4662-8bfc-fcf8ed2ad2d8.jpg?1793364353",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/d/7/d760eee8-e49a-4662-8bfc-fcf8ed2ad2d8.jpg?1793364353"
       },
       "imageLanguage": "en",
       "layout": "token"
@@ -50817,6 +51583,36 @@
       },
       "isDoubleFaced": true,
       "layout": "double_faced_token"
+    },
+    {
+      "identity": {
+        "id": "token:6bd5937e-115c-411f-b3f0-ab3410726b98",
+        "name": "Inkling",
+        "setCode": "plst",
+        "cardNumber": "TSTX-4",
+        "oracleId": "fbdbff76-c1ea-47ea-bfcc-7c64c23dad70",
+        "foil": false
+      },
+      "color": "BW",
+      "colorIdentity": ["B", "W"],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Creature"],
+      "subtypes": ["Inkling"],
+      "supertypes": ["Token"],
+      "power": "2",
+      "toughness": "1",
+      "text": "Flying",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/6/b/6bd5937e-115c-411f-b3f0-ab3410726b98.jpg?1791939866",
+        "normal": "https://cards.scryfall.io/normal/front/6/b/6bd5937e-115c-411f-b3f0-ab3410726b98.jpg?1791939866",
+        "large": "https://cards.scryfall.io/large/front/6/b/6bd5937e-115c-411f-b3f0-ab3410726b98.jpg?1791939866",
+        "png": "https://cards.scryfall.io/png/front/6/b/6bd5937e-115c-411f-b3f0-ab3410726b98.png?1791939866",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/6/b/6bd5937e-115c-411f-b3f0-ab3410726b98.jpg?1791939866",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/6/b/6bd5937e-115c-411f-b3f0-ab3410726b98.jpg?1791939866"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
     },
     {
       "identity": {
@@ -52470,6 +53266,66 @@
     },
     {
       "identity": {
+        "id": "token:627d71a5-cacb-4dbb-a804-83a24be1dd9f",
+        "name": "Insect",
+        "setCode": "ttrc",
+        "cardNumber": "5",
+        "oracleId": "c39cd31f-c4a2-4ca8-b4f9-b2e6289743bc",
+        "foil": false
+      },
+      "color": "G",
+      "colorIdentity": ["G"],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Creature"],
+      "subtypes": ["Insect"],
+      "supertypes": ["Token"],
+      "power": "1",
+      "toughness": "1",
+      "text": "",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/6/2/627d71a5-cacb-4dbb-a804-83a24be1dd9f.jpg?1793363355",
+        "normal": "https://cards.scryfall.io/normal/front/6/2/627d71a5-cacb-4dbb-a804-83a24be1dd9f.jpg?1793363355",
+        "large": "https://cards.scryfall.io/large/front/6/2/627d71a5-cacb-4dbb-a804-83a24be1dd9f.jpg?1793363355",
+        "png": "https://cards.scryfall.io/png/front/6/2/627d71a5-cacb-4dbb-a804-83a24be1dd9f.png?1793363355",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/6/2/627d71a5-cacb-4dbb-a804-83a24be1dd9f.jpg?1793363355",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/6/2/627d71a5-cacb-4dbb-a804-83a24be1dd9f.jpg?1793363355"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
+        "id": "token:98d54f5e-1584-48e7-bb8e-5bb1520c2d93",
+        "name": "Insect",
+        "setCode": "ttrc",
+        "cardNumber": "12",
+        "oracleId": "c39cd31f-c4a2-4ca8-b4f9-b2e6289743bc",
+        "foil": false
+      },
+      "color": "G",
+      "colorIdentity": ["G"],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Creature"],
+      "subtypes": ["Insect"],
+      "supertypes": ["Token"],
+      "power": "1",
+      "toughness": "1",
+      "text": "",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/9/8/98d54f5e-1584-48e7-bb8e-5bb1520c2d93.jpg?1793363638",
+        "normal": "https://cards.scryfall.io/normal/front/9/8/98d54f5e-1584-48e7-bb8e-5bb1520c2d93.jpg?1793363638",
+        "large": "https://cards.scryfall.io/large/front/9/8/98d54f5e-1584-48e7-bb8e-5bb1520c2d93.jpg?1793363638",
+        "png": "https://cards.scryfall.io/png/front/9/8/98d54f5e-1584-48e7-bb8e-5bb1520c2d93.png?1793363638",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/9/8/98d54f5e-1584-48e7-bb8e-5bb1520c2d93.jpg?1793363638",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/9/8/98d54f5e-1584-48e7-bb8e-5bb1520c2d93.jpg?1793363638"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
         "id": "token:0ff2e2bd-b8e9-4563-85ad-fdbb0607fb7c",
         "name": "Insect",
         "setCode": "ttsr",
@@ -53030,6 +53886,96 @@
         "png": "https://cards.scryfall.io/png/front/0/6/061cb705-695a-4f65-adbf-869ebb4eb946.png?1783942700",
         "art_crop": "https://cards.scryfall.io/art_crop/front/0/6/061cb705-695a-4f65-adbf-869ebb4eb946.jpg?1783942700",
         "border_crop": "https://cards.scryfall.io/border_crop/front/0/6/061cb705-695a-4f65-adbf-869ebb4eb946.jpg?1783942700"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
+        "id": "token:9c2ae742-7ebf-4e26-b423-598e4f3d176d",
+        "name": "Klingon Warrior",
+        "setCode": "ttrk",
+        "cardNumber": "3",
+        "oracleId": "ed94019b-7db2-41dd-9046-d41cc098a7be",
+        "foil": false
+      },
+      "color": "R",
+      "colorIdentity": ["R"],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Creature"],
+      "subtypes": ["Klingon", "Warrior"],
+      "supertypes": ["Token"],
+      "power": "2",
+      "toughness": "1",
+      "text": "Haste",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/9/c/9c2ae742-7ebf-4e26-b423-598e4f3d176d.jpg?1793363848",
+        "normal": "https://cards.scryfall.io/normal/front/9/c/9c2ae742-7ebf-4e26-b423-598e4f3d176d.jpg?1793363848",
+        "large": "https://cards.scryfall.io/large/front/9/c/9c2ae742-7ebf-4e26-b423-598e4f3d176d.jpg?1793363848",
+        "png": "https://cards.scryfall.io/png/front/9/c/9c2ae742-7ebf-4e26-b423-598e4f3d176d.png?1793363848",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/9/c/9c2ae742-7ebf-4e26-b423-598e4f3d176d.jpg?1793363848",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/9/c/9c2ae742-7ebf-4e26-b423-598e4f3d176d.jpg?1793363848"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
+        "id": "token:060f77cd-2779-4f28-83b3-a7e11f64140b",
+        "name": "Klingon Warrior",
+        "setCode": "ttrk",
+        "cardNumber": "4",
+        "oracleId": "ed94019b-7db2-41dd-9046-d41cc098a7be",
+        "foil": false
+      },
+      "color": "R",
+      "colorIdentity": ["R"],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Creature"],
+      "subtypes": ["Klingon", "Warrior"],
+      "supertypes": ["Token"],
+      "power": "2",
+      "toughness": "1",
+      "text": "Haste",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/0/6/060f77cd-2779-4f28-83b3-a7e11f64140b.jpg?1793364562",
+        "normal": "https://cards.scryfall.io/normal/front/0/6/060f77cd-2779-4f28-83b3-a7e11f64140b.jpg?1793364562",
+        "large": "https://cards.scryfall.io/large/front/0/6/060f77cd-2779-4f28-83b3-a7e11f64140b.jpg?1793364562",
+        "png": "https://cards.scryfall.io/png/front/0/6/060f77cd-2779-4f28-83b3-a7e11f64140b.png?1793364562",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/0/6/060f77cd-2779-4f28-83b3-a7e11f64140b.jpg?1793364562",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/0/6/060f77cd-2779-4f28-83b3-a7e11f64140b.jpg?1793364562"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
+        "id": "token:b7897f31-509e-4099-b9b4-c6214b80f29d",
+        "name": "Klingon Warrior",
+        "setCode": "ttrk",
+        "cardNumber": "5",
+        "oracleId": "ed94019b-7db2-41dd-9046-d41cc098a7be",
+        "foil": false
+      },
+      "color": "R",
+      "colorIdentity": ["R"],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Creature"],
+      "subtypes": ["Klingon", "Warrior"],
+      "supertypes": ["Token"],
+      "power": "2",
+      "toughness": "1",
+      "text": "Haste",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/b/7/b7897f31-509e-4099-b9b4-c6214b80f29d.jpg?1793364577",
+        "normal": "https://cards.scryfall.io/normal/front/b/7/b7897f31-509e-4099-b9b4-c6214b80f29d.jpg?1793364577",
+        "large": "https://cards.scryfall.io/large/front/b/7/b7897f31-509e-4099-b9b4-c6214b80f29d.jpg?1793364577",
+        "png": "https://cards.scryfall.io/png/front/b/7/b7897f31-509e-4099-b9b4-c6214b80f29d.png?1793364577",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/b/7/b7897f31-509e-4099-b9b4-c6214b80f29d.jpg?1793364577",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/b/7/b7897f31-509e-4099-b9b4-c6214b80f29d.jpg?1793364577"
       },
       "imageLanguage": "en",
       "layout": "token"
@@ -56218,6 +57164,36 @@
     },
     {
       "identity": {
+        "id": "token:21d44eef-8dbc-4f2f-9be3-d6c43d4b405c",
+        "name": "Mindless-One",
+        "setCode": "tmdd",
+        "cardNumber": "9",
+        "oracleId": "1a0d84f7-d7fd-4794-b6ca-565fc111d701",
+        "foil": false
+      },
+      "color": "B",
+      "colorIdentity": ["B"],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Creature"],
+      "subtypes": ["Mindless-One"],
+      "supertypes": ["Token"],
+      "power": "3",
+      "toughness": "1",
+      "text": "",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/2/1/21d44eef-8dbc-4f2f-9be3-d6c43d4b405c.jpg?1793064475",
+        "normal": "https://cards.scryfall.io/normal/front/2/1/21d44eef-8dbc-4f2f-9be3-d6c43d4b405c.jpg?1793064475",
+        "large": "https://cards.scryfall.io/large/front/2/1/21d44eef-8dbc-4f2f-9be3-d6c43d4b405c.jpg?1793064475",
+        "png": "https://cards.scryfall.io/png/front/2/1/21d44eef-8dbc-4f2f-9be3-d6c43d4b405c.png?1793064475",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/2/1/21d44eef-8dbc-4f2f-9be3-d6c43d4b405c.jpg?1793064475",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/2/1/21d44eef-8dbc-4f2f-9be3-d6c43d4b405c.jpg?1793064475"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
         "id": "token:a9930d11-4772-4fc2-abbd-9af0a9b23a3e",
         "name": "Minion",
         "setCode": "tdde",
@@ -56973,6 +57949,36 @@
         "png": "https://cards.scryfall.io/png/front/a/1/a16f931a-9fa3-45b1-8d54-04b6b5bf7b71.png?1783905784",
         "art_crop": "https://cards.scryfall.io/art_crop/front/a/1/a16f931a-9fa3-45b1-8d54-04b6b5bf7b71.jpg?1783905784",
         "border_crop": "https://cards.scryfall.io/border_crop/front/a/1/a16f931a-9fa3-45b1-8d54-04b6b5bf7b71.jpg?1783905784"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
+        "id": "token:d1b52f55-6147-4da6-983c-6ca3e1867723",
+        "name": "Murf",
+        "setCode": "ttrk",
+        "cardNumber": "16",
+        "oracleId": "cfdba6a5-6e15-4dac-8c88-b755bf618ded",
+        "foil": false
+      },
+      "color": "G",
+      "colorIdentity": ["G"],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Creature"],
+      "subtypes": ["Ooze", "Slug"],
+      "supertypes": ["Token", "Legendary"],
+      "power": "0",
+      "toughness": "1",
+      "text": "Indestructible",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/d/1/d1b52f55-6147-4da6-983c-6ca3e1867723.jpg?1793363930",
+        "normal": "https://cards.scryfall.io/normal/front/d/1/d1b52f55-6147-4da6-983c-6ca3e1867723.jpg?1793363930",
+        "large": "https://cards.scryfall.io/large/front/d/1/d1b52f55-6147-4da6-983c-6ca3e1867723.jpg?1793363930",
+        "png": "https://cards.scryfall.io/png/front/d/1/d1b52f55-6147-4da6-983c-6ca3e1867723.png?1793363930",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/d/1/d1b52f55-6147-4da6-983c-6ca3e1867723.jpg?1793363930",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/d/1/d1b52f55-6147-4da6-983c-6ca3e1867723.jpg?1793363930"
       },
       "imageLanguage": "en",
       "layout": "token"
@@ -57995,6 +59001,62 @@
     },
     {
       "identity": {
+        "id": "token:d811c3c3-6b5b-4b42-be4f-0a455313ccd3",
+        "name": "Neuroflux Heirloom",
+        "setCode": "ttrk",
+        "cardNumber": "25",
+        "oracleId": "6fada0dc-3783-4f45-a321-a44c7071adc5",
+        "foil": false
+      },
+      "color": "",
+      "colorIdentity": [],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Artifact"],
+      "subtypes": ["Equipment"],
+      "supertypes": ["Token"],
+      "text": "Equipped creature gets +1/+1.\nEquip {2}",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/d/8/d811c3c3-6b5b-4b42-be4f-0a455313ccd3.jpg?1793364366",
+        "normal": "https://cards.scryfall.io/normal/front/d/8/d811c3c3-6b5b-4b42-be4f-0a455313ccd3.jpg?1793364366",
+        "large": "https://cards.scryfall.io/large/front/d/8/d811c3c3-6b5b-4b42-be4f-0a455313ccd3.jpg?1793364366",
+        "png": "https://cards.scryfall.io/png/front/d/8/d811c3c3-6b5b-4b42-be4f-0a455313ccd3.png?1793364366",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/d/8/d811c3c3-6b5b-4b42-be4f-0a455313ccd3.jpg?1793364366",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/d/8/d811c3c3-6b5b-4b42-be4f-0a455313ccd3.jpg?1793364366"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
+        "id": "token:21d855f7-fd5c-4eb4-b997-a905849806b9",
+        "name": "New Planet",
+        "setCode": "ttrk",
+        "cardNumber": "27",
+        "oracleId": "d01f45d8-36ae-49c4-9f1c-ba9bce6da2bc",
+        "foil": false
+      },
+      "color": "",
+      "colorIdentity": [],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Land"],
+      "subtypes": ["Planet"],
+      "supertypes": ["Token"],
+      "text": "{T}: Add one mana of any color.",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/2/1/21d855f7-fd5c-4eb4-b997-a905849806b9.jpg?1793364386",
+        "normal": "https://cards.scryfall.io/normal/front/2/1/21d855f7-fd5c-4eb4-b997-a905849806b9.jpg?1793364386",
+        "large": "https://cards.scryfall.io/large/front/2/1/21d855f7-fd5c-4eb4-b997-a905849806b9.jpg?1793364386",
+        "png": "https://cards.scryfall.io/png/front/2/1/21d855f7-fd5c-4eb4-b997-a905849806b9.png?1793364386",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/2/1/21d855f7-fd5c-4eb4-b997-a905849806b9.jpg?1793364386",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/2/1/21d855f7-fd5c-4eb4-b997-a905849806b9.jpg?1793364386"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
         "id": "token:c528581f-f671-45ae-8d7a-ae26a4e62ceb",
         "name": "Nightmare",
         "setCode": "tthb",
@@ -58259,6 +59321,306 @@
         "png": "https://cards.scryfall.io/png/front/9/f/9fc10475-5eaf-47ea-a45c-3948a632f365.png?1783909757",
         "art_crop": "https://cards.scryfall.io/art_crop/front/9/f/9fc10475-5eaf-47ea-a45c-3948a632f365.jpg?1783909757",
         "border_crop": "https://cards.scryfall.io/border_crop/front/9/f/9fc10475-5eaf-47ea-a45c-3948a632f365.jpg?1783909757"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
+        "id": "token:d676cbef-8e31-4ae6-8dfe-6b84160f71e0",
+        "name": "Officer",
+        "setCode": "ttrk",
+        "cardNumber": "6",
+        "oracleId": "e9452def-ea12-4262-9714-86e5cfffaadc",
+        "foil": false
+      },
+      "color": "R",
+      "colorIdentity": ["R"],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Creature"],
+      "subtypes": ["Officer"],
+      "supertypes": ["Token"],
+      "power": "1",
+      "toughness": "1",
+      "text": "",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/d/6/d676cbef-8e31-4ae6-8dfe-6b84160f71e0.jpg?1793363893",
+        "normal": "https://cards.scryfall.io/normal/front/d/6/d676cbef-8e31-4ae6-8dfe-6b84160f71e0.jpg?1793363893",
+        "large": "https://cards.scryfall.io/large/front/d/6/d676cbef-8e31-4ae6-8dfe-6b84160f71e0.jpg?1793363893",
+        "png": "https://cards.scryfall.io/png/front/d/6/d676cbef-8e31-4ae6-8dfe-6b84160f71e0.png?1793363893",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/d/6/d676cbef-8e31-4ae6-8dfe-6b84160f71e0.jpg?1793363893",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/d/6/d676cbef-8e31-4ae6-8dfe-6b84160f71e0.jpg?1793363893"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
+        "id": "token:a0547a22-fd86-492f-9143-af5dae0e69af",
+        "name": "Officer",
+        "setCode": "ttrk",
+        "cardNumber": "7",
+        "oracleId": "e9452def-ea12-4262-9714-86e5cfffaadc",
+        "foil": false
+      },
+      "color": "R",
+      "colorIdentity": ["R"],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Creature"],
+      "subtypes": ["Officer"],
+      "supertypes": ["Token"],
+      "power": "1",
+      "toughness": "1",
+      "text": "",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/a/0/a0547a22-fd86-492f-9143-af5dae0e69af.jpg?1793364627",
+        "normal": "https://cards.scryfall.io/normal/front/a/0/a0547a22-fd86-492f-9143-af5dae0e69af.jpg?1793364627",
+        "large": "https://cards.scryfall.io/large/front/a/0/a0547a22-fd86-492f-9143-af5dae0e69af.jpg?1793364627",
+        "png": "https://cards.scryfall.io/png/front/a/0/a0547a22-fd86-492f-9143-af5dae0e69af.png?1793364627",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/a/0/a0547a22-fd86-492f-9143-af5dae0e69af.jpg?1793364627",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/a/0/a0547a22-fd86-492f-9143-af5dae0e69af.jpg?1793364627"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
+        "id": "token:155a3f1d-0897-4acd-b83a-82c48356dd66",
+        "name": "Officer",
+        "setCode": "ttrk",
+        "cardNumber": "8",
+        "oracleId": "e9452def-ea12-4262-9714-86e5cfffaadc",
+        "foil": false
+      },
+      "color": "R",
+      "colorIdentity": ["R"],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Creature"],
+      "subtypes": ["Officer"],
+      "supertypes": ["Token"],
+      "power": "1",
+      "toughness": "1",
+      "text": "",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/1/5/155a3f1d-0897-4acd-b83a-82c48356dd66.jpg?1793364678",
+        "normal": "https://cards.scryfall.io/normal/front/1/5/155a3f1d-0897-4acd-b83a-82c48356dd66.jpg?1793364678",
+        "large": "https://cards.scryfall.io/large/front/1/5/155a3f1d-0897-4acd-b83a-82c48356dd66.jpg?1793364678",
+        "png": "https://cards.scryfall.io/png/front/1/5/155a3f1d-0897-4acd-b83a-82c48356dd66.png?1793364678",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/1/5/155a3f1d-0897-4acd-b83a-82c48356dd66.jpg?1793364678",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/1/5/155a3f1d-0897-4acd-b83a-82c48356dd66.jpg?1793364678"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
+        "id": "token:7de20787-fc26-4cb7-bfe1-d7d8c13082cc",
+        "name": "Officer",
+        "setCode": "ttrk",
+        "cardNumber": "9",
+        "oracleId": "e9452def-ea12-4262-9714-86e5cfffaadc",
+        "foil": false
+      },
+      "color": "R",
+      "colorIdentity": ["R"],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Creature"],
+      "subtypes": ["Officer"],
+      "supertypes": ["Token"],
+      "power": "1",
+      "toughness": "1",
+      "text": "",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/7/d/7de20787-fc26-4cb7-bfe1-d7d8c13082cc.jpg?1793364694",
+        "normal": "https://cards.scryfall.io/normal/front/7/d/7de20787-fc26-4cb7-bfe1-d7d8c13082cc.jpg?1793364694",
+        "large": "https://cards.scryfall.io/large/front/7/d/7de20787-fc26-4cb7-bfe1-d7d8c13082cc.jpg?1793364694",
+        "png": "https://cards.scryfall.io/png/front/7/d/7de20787-fc26-4cb7-bfe1-d7d8c13082cc.png?1793364694",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/7/d/7de20787-fc26-4cb7-bfe1-d7d8c13082cc.jpg?1793364694",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/7/d/7de20787-fc26-4cb7-bfe1-d7d8c13082cc.jpg?1793364694"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
+        "id": "token:b0ac658c-b34a-4794-9b36-91c63f903f65",
+        "name": "Officer",
+        "setCode": "ttrk",
+        "cardNumber": "10",
+        "oracleId": "e9452def-ea12-4262-9714-86e5cfffaadc",
+        "foil": false
+      },
+      "color": "R",
+      "colorIdentity": ["R"],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Creature"],
+      "subtypes": ["Officer"],
+      "supertypes": ["Token"],
+      "power": "1",
+      "toughness": "1",
+      "text": "",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/b/0/b0ac658c-b34a-4794-9b36-91c63f903f65.jpg?1793364705",
+        "normal": "https://cards.scryfall.io/normal/front/b/0/b0ac658c-b34a-4794-9b36-91c63f903f65.jpg?1793364705",
+        "large": "https://cards.scryfall.io/large/front/b/0/b0ac658c-b34a-4794-9b36-91c63f903f65.jpg?1793364705",
+        "png": "https://cards.scryfall.io/png/front/b/0/b0ac658c-b34a-4794-9b36-91c63f903f65.png?1793364705",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/b/0/b0ac658c-b34a-4794-9b36-91c63f903f65.jpg?1793364705",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/b/0/b0ac658c-b34a-4794-9b36-91c63f903f65.jpg?1793364705"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
+        "id": "token:b1e8a7db-b245-4903-b41f-6d2ee06401cb",
+        "name": "Officer",
+        "setCode": "ttrk",
+        "cardNumber": "11",
+        "oracleId": "e9452def-ea12-4262-9714-86e5cfffaadc",
+        "foil": false
+      },
+      "color": "R",
+      "colorIdentity": ["R"],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Creature"],
+      "subtypes": ["Officer"],
+      "supertypes": ["Token"],
+      "power": "1",
+      "toughness": "1",
+      "text": "",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/b/1/b1e8a7db-b245-4903-b41f-6d2ee06401cb.jpg?1793364717",
+        "normal": "https://cards.scryfall.io/normal/front/b/1/b1e8a7db-b245-4903-b41f-6d2ee06401cb.jpg?1793364717",
+        "large": "https://cards.scryfall.io/large/front/b/1/b1e8a7db-b245-4903-b41f-6d2ee06401cb.jpg?1793364717",
+        "png": "https://cards.scryfall.io/png/front/b/1/b1e8a7db-b245-4903-b41f-6d2ee06401cb.png?1793364717",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/b/1/b1e8a7db-b245-4903-b41f-6d2ee06401cb.jpg?1793364717",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/b/1/b1e8a7db-b245-4903-b41f-6d2ee06401cb.jpg?1793364717"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
+        "id": "token:d88565c6-a8e9-4726-94af-c56ffd96d33e",
+        "name": "Officer",
+        "setCode": "ttrk",
+        "cardNumber": "12",
+        "oracleId": "e9452def-ea12-4262-9714-86e5cfffaadc",
+        "foil": false
+      },
+      "color": "R",
+      "colorIdentity": ["R"],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Creature"],
+      "subtypes": ["Officer"],
+      "supertypes": ["Token"],
+      "power": "1",
+      "toughness": "1",
+      "text": "",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/d/8/d88565c6-a8e9-4726-94af-c56ffd96d33e.jpg?1793364728",
+        "normal": "https://cards.scryfall.io/normal/front/d/8/d88565c6-a8e9-4726-94af-c56ffd96d33e.jpg?1793364728",
+        "large": "https://cards.scryfall.io/large/front/d/8/d88565c6-a8e9-4726-94af-c56ffd96d33e.jpg?1793364728",
+        "png": "https://cards.scryfall.io/png/front/d/8/d88565c6-a8e9-4726-94af-c56ffd96d33e.png?1793364728",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/d/8/d88565c6-a8e9-4726-94af-c56ffd96d33e.jpg?1793364728",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/d/8/d88565c6-a8e9-4726-94af-c56ffd96d33e.jpg?1793364728"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
+        "id": "token:5a8d4b2c-ec98-46e2-bf8d-da441d9c9cdf",
+        "name": "Officer",
+        "setCode": "ttrk",
+        "cardNumber": "13",
+        "oracleId": "e9452def-ea12-4262-9714-86e5cfffaadc",
+        "foil": false
+      },
+      "color": "R",
+      "colorIdentity": ["R"],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Creature"],
+      "subtypes": ["Officer"],
+      "supertypes": ["Token"],
+      "power": "1",
+      "toughness": "1",
+      "text": "",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/5/a/5a8d4b2c-ec98-46e2-bf8d-da441d9c9cdf.jpg?1793364738",
+        "normal": "https://cards.scryfall.io/normal/front/5/a/5a8d4b2c-ec98-46e2-bf8d-da441d9c9cdf.jpg?1793364738",
+        "large": "https://cards.scryfall.io/large/front/5/a/5a8d4b2c-ec98-46e2-bf8d-da441d9c9cdf.jpg?1793364738",
+        "png": "https://cards.scryfall.io/png/front/5/a/5a8d4b2c-ec98-46e2-bf8d-da441d9c9cdf.png?1793364738",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/5/a/5a8d4b2c-ec98-46e2-bf8d-da441d9c9cdf.jpg?1793364738",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/5/a/5a8d4b2c-ec98-46e2-bf8d-da441d9c9cdf.jpg?1793364738"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
+        "id": "token:5a24fb46-e819-4a4f-813f-eda0e96af606",
+        "name": "Officer",
+        "setCode": "ttrk",
+        "cardNumber": "14",
+        "oracleId": "e9452def-ea12-4262-9714-86e5cfffaadc",
+        "foil": false
+      },
+      "color": "R",
+      "colorIdentity": ["R"],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Creature"],
+      "subtypes": ["Officer"],
+      "supertypes": ["Token"],
+      "power": "1",
+      "toughness": "1",
+      "text": "",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/5/a/5a24fb46-e819-4a4f-813f-eda0e96af606.jpg?1793364750",
+        "normal": "https://cards.scryfall.io/normal/front/5/a/5a24fb46-e819-4a4f-813f-eda0e96af606.jpg?1793364750",
+        "large": "https://cards.scryfall.io/large/front/5/a/5a24fb46-e819-4a4f-813f-eda0e96af606.jpg?1793364750",
+        "png": "https://cards.scryfall.io/png/front/5/a/5a24fb46-e819-4a4f-813f-eda0e96af606.png?1793364750",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/5/a/5a24fb46-e819-4a4f-813f-eda0e96af606.jpg?1793364750",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/5/a/5a24fb46-e819-4a4f-813f-eda0e96af606.jpg?1793364750"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
+        "id": "token:012b04de-d9a5-4b12-afc8-cdf54bc42fc9",
+        "name": "Officer",
+        "setCode": "ttrk",
+        "cardNumber": "15",
+        "oracleId": "e9452def-ea12-4262-9714-86e5cfffaadc",
+        "foil": false
+      },
+      "color": "R",
+      "colorIdentity": ["R"],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Creature"],
+      "subtypes": ["Officer"],
+      "supertypes": ["Token"],
+      "power": "1",
+      "toughness": "1",
+      "text": "",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/0/1/012b04de-d9a5-4b12-afc8-cdf54bc42fc9.jpg?1793364763",
+        "normal": "https://cards.scryfall.io/normal/front/0/1/012b04de-d9a5-4b12-afc8-cdf54bc42fc9.jpg?1793364763",
+        "large": "https://cards.scryfall.io/large/front/0/1/012b04de-d9a5-4b12-afc8-cdf54bc42fc9.jpg?1793364763",
+        "png": "https://cards.scryfall.io/png/front/0/1/012b04de-d9a5-4b12-afc8-cdf54bc42fc9.png?1793364763",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/0/1/012b04de-d9a5-4b12-afc8-cdf54bc42fc9.jpg?1793364763",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/0/1/012b04de-d9a5-4b12-afc8-cdf54bc42fc9.jpg?1793364763"
       },
       "imageLanguage": "en",
       "layout": "token"
@@ -60605,6 +61967,36 @@
     },
     {
       "identity": {
+        "id": "token:53c05e53-84c7-4796-ae02-d778faa5afa6",
+        "name": "Phyrexian Germ",
+        "setCode": "tfdc",
+        "cardNumber": "4",
+        "oracleId": "a1c2af93-83c0-4974-b4db-abf95981d4e3",
+        "foil": false
+      },
+      "color": "B",
+      "colorIdentity": ["B"],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Creature"],
+      "subtypes": ["Phyrexian", "Germ"],
+      "supertypes": ["Token"],
+      "power": "0",
+      "toughness": "0",
+      "text": "",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/5/3/53c05e53-84c7-4796-ae02-d778faa5afa6.jpg?1790977617",
+        "normal": "https://cards.scryfall.io/normal/front/5/3/53c05e53-84c7-4796-ae02-d778faa5afa6.jpg?1790977617",
+        "large": "https://cards.scryfall.io/large/front/5/3/53c05e53-84c7-4796-ae02-d778faa5afa6.jpg?1790977617",
+        "png": "https://cards.scryfall.io/png/front/5/3/53c05e53-84c7-4796-ae02-d778faa5afa6.png?1790977617",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/5/3/53c05e53-84c7-4796-ae02-d778faa5afa6.jpg?1790977617",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/5/3/53c05e53-84c7-4796-ae02-d778faa5afa6.jpg?1790977617"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
         "id": "token:b53e0681-603e-4180-bc86-3dadf214e61a",
         "name": "Phyrexian Germ",
         "setCode": "tmh2",
@@ -61319,6 +62711,36 @@
         "png": "https://cards.scryfall.io/png/front/5/a/5a90e8ab-5a76-4834-9cd6-186af939ea41.png?1783918174",
         "art_crop": "https://cards.scryfall.io/art_crop/front/5/a/5a90e8ab-5a76-4834-9cd6-186af939ea41.jpg?1783918174",
         "border_crop": "https://cards.scryfall.io/border_crop/front/5/a/5a90e8ab-5a76-4834-9cd6-186af939ea41.jpg?1783918174"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
+        "id": "token:f85b3716-0352-4401-afae-e5927f2acae0",
+        "name": "Phyrexian Minion",
+        "setCode": "sld",
+        "cardNumber": "2446",
+        "oracleId": "6488080c-132c-4c5e-8ea2-1b689c519d83",
+        "foil": false
+      },
+      "color": "B",
+      "colorIdentity": ["B"],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Creature"],
+      "subtypes": ["Phyrexian", "Minion"],
+      "supertypes": ["Token"],
+      "power": "*",
+      "toughness": "*",
+      "text": "",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/f/8/f85b3716-0352-4401-afae-e5927f2acae0.jpg?1794305276",
+        "normal": "https://cards.scryfall.io/normal/front/f/8/f85b3716-0352-4401-afae-e5927f2acae0.jpg?1794305276",
+        "large": "https://cards.scryfall.io/large/front/f/8/f85b3716-0352-4401-afae-e5927f2acae0.jpg?1794305276",
+        "png": "https://cards.scryfall.io/png/front/f/8/f85b3716-0352-4401-afae-e5927f2acae0.png?1794305276",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/f/8/f85b3716-0352-4401-afae-e5927f2acae0.jpg?1794305276",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/f/8/f85b3716-0352-4401-afae-e5927f2acae0.jpg?1794305276"
       },
       "imageLanguage": "en",
       "layout": "token"
@@ -62744,6 +64166,36 @@
         "png": "https://cards.scryfall.io/png/front/e/8/e8d52626-dc94-4897-9c4a-3e1988fb5e11.png?1783911675",
         "art_crop": "https://cards.scryfall.io/art_crop/front/e/8/e8d52626-dc94-4897-9c4a-3e1988fb5e11.jpg?1783911675",
         "border_crop": "https://cards.scryfall.io/border_crop/front/e/8/e8d52626-dc94-4897-9c4a-3e1988fb5e11.jpg?1783911675"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
+        "id": "token:edd98ca8-9a23-4fb5-9719-27ac2795bfa3",
+        "name": "Porthos",
+        "setCode": "ttrk",
+        "cardNumber": "17",
+        "oracleId": "b34257a7-12b6-46c4-8a5c-9a5e73cf7c1d",
+        "foil": false
+      },
+      "color": "G",
+      "colorIdentity": ["G"],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Creature"],
+      "subtypes": ["Dog"],
+      "supertypes": ["Token", "Legendary"],
+      "power": "1",
+      "toughness": "1",
+      "text": "",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/e/d/edd98ca8-9a23-4fb5-9719-27ac2795bfa3.jpg?1793363946",
+        "normal": "https://cards.scryfall.io/normal/front/e/d/edd98ca8-9a23-4fb5-9719-27ac2795bfa3.jpg?1793363946",
+        "large": "https://cards.scryfall.io/large/front/e/d/edd98ca8-9a23-4fb5-9719-27ac2795bfa3.jpg?1793363946",
+        "png": "https://cards.scryfall.io/png/front/e/d/edd98ca8-9a23-4fb5-9719-27ac2795bfa3.png?1793363946",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/e/d/edd98ca8-9a23-4fb5-9719-27ac2795bfa3.jpg?1793363946",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/e/d/edd98ca8-9a23-4fb5-9719-27ac2795bfa3.jpg?1793363946"
       },
       "imageLanguage": "en",
       "layout": "token"
@@ -64834,6 +66286,36 @@
         "png": "https://cards.scryfall.io/png/front/4/b/4b633d7b-6d61-4b1a-8d65-6e1f3d5ffba7.png?1783935354",
         "art_crop": "https://cards.scryfall.io/art_crop/front/4/b/4b633d7b-6d61-4b1a-8d65-6e1f3d5ffba7.jpg?1783935354",
         "border_crop": "https://cards.scryfall.io/border_crop/front/4/b/4b633d7b-6d61-4b1a-8d65-6e1f3d5ffba7.jpg?1783935354"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
+        "id": "token:a507f7fc-1438-4680-af2f-e7131c4d7d0b",
+        "name": "Romulan",
+        "setCode": "ttrk",
+        "cardNumber": "2",
+        "oracleId": "074d5472-3916-4661-9bee-0dcd1da509dd",
+        "foil": false
+      },
+      "color": "B",
+      "colorIdentity": ["B"],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Creature"],
+      "subtypes": ["Romulan"],
+      "supertypes": ["Token"],
+      "power": "2",
+      "toughness": "2",
+      "text": "",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/a/5/a507f7fc-1438-4680-af2f-e7131c4d7d0b.jpg?1793363737",
+        "normal": "https://cards.scryfall.io/normal/front/a/5/a507f7fc-1438-4680-af2f-e7131c4d7d0b.jpg?1793363737",
+        "large": "https://cards.scryfall.io/large/front/a/5/a507f7fc-1438-4680-af2f-e7131c4d7d0b.jpg?1793363737",
+        "png": "https://cards.scryfall.io/png/front/a/5/a507f7fc-1438-4680-af2f-e7131c4d7d0b.png?1793363737",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/a/5/a507f7fc-1438-4680-af2f-e7131c4d7d0b.jpg?1793363737",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/a/5/a507f7fc-1438-4680-af2f-e7131c4d7d0b.jpg?1793363737"
       },
       "imageLanguage": "en",
       "layout": "token"
@@ -69664,6 +71146,36 @@
     },
     {
       "identity": {
+        "id": "token:381c156f-7a9b-45df-b09e-6559c8c36280",
+        "name": "Slug",
+        "setCode": "plst",
+        "cardNumber": "TVOW-6",
+        "oracleId": "dfa4ad2d-3ef2-4863-a9d7-340d8ca8d3d9",
+        "foil": false
+      },
+      "color": "B",
+      "colorIdentity": ["B"],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Creature"],
+      "subtypes": ["Slug"],
+      "supertypes": ["Token"],
+      "power": "1",
+      "toughness": "1",
+      "text": "",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/3/8/381c156f-7a9b-45df-b09e-6559c8c36280.jpg?1791939881",
+        "normal": "https://cards.scryfall.io/normal/front/3/8/381c156f-7a9b-45df-b09e-6559c8c36280.jpg?1791939881",
+        "large": "https://cards.scryfall.io/large/front/3/8/381c156f-7a9b-45df-b09e-6559c8c36280.jpg?1791939881",
+        "png": "https://cards.scryfall.io/png/front/3/8/381c156f-7a9b-45df-b09e-6559c8c36280.png?1791939881",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/3/8/381c156f-7a9b-45df-b09e-6559c8c36280.jpg?1791939881",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/3/8/381c156f-7a9b-45df-b09e-6559c8c36280.jpg?1791939881"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
         "id": "token:6e2ae34f-4558-46e0-95c5-e00d813fa355",
         "name": "Slug",
         "setCode": "tvow",
@@ -73460,6 +74972,66 @@
       },
       "imageLanguage": "en",
       "layout": "token"
+    },
+    {
+      "identity": {
+        "id": "token:9d300512-cc4d-4cf0-bd49-6536352a856c",
+        "name": "Spacecraft Illusion",
+        "setCode": "ttrc",
+        "cardNumber": "7",
+        "oracleId": "58a98cf1-2169-4628-9799-278addc2efd2",
+        "foil": false
+      },
+      "color": "",
+      "colorIdentity": [],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Artifact", "Creature"],
+      "subtypes": ["Spacecraft", "Illusion"],
+      "supertypes": ["Token"],
+      "power": "4",
+      "toughness": "3",
+      "text": "Flying",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/9/d/9d300512-cc4d-4cf0-bd49-6536352a856c.jpg?1793363399",
+        "normal": "https://cards.scryfall.io/normal/front/9/d/9d300512-cc4d-4cf0-bd49-6536352a856c.jpg?1793363399",
+        "large": "https://cards.scryfall.io/large/front/9/d/9d300512-cc4d-4cf0-bd49-6536352a856c.jpg?1793363399",
+        "png": "https://cards.scryfall.io/png/front/9/d/9d300512-cc4d-4cf0-bd49-6536352a856c.png?1793363399",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/9/d/9d300512-cc4d-4cf0-bd49-6536352a856c.jpg?1793363399",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/9/d/9d300512-cc4d-4cf0-bd49-6536352a856c.jpg?1793363399"
+      },
+      "imageLanguage": "en",
+      "layout": "normal"
+    },
+    {
+      "identity": {
+        "id": "token:4990678f-162e-407d-8ab2-5ecf38de280a",
+        "name": "Spacecraft Illusion",
+        "setCode": "ttrc",
+        "cardNumber": "14",
+        "oracleId": "58a98cf1-2169-4628-9799-278addc2efd2",
+        "foil": false
+      },
+      "color": "",
+      "colorIdentity": [],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Artifact", "Creature"],
+      "subtypes": ["Spacecraft", "Illusion"],
+      "supertypes": ["Token"],
+      "power": "4",
+      "toughness": "3",
+      "text": "Flying",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/4/9/4990678f-162e-407d-8ab2-5ecf38de280a.jpg?1793363594",
+        "normal": "https://cards.scryfall.io/normal/front/4/9/4990678f-162e-407d-8ab2-5ecf38de280a.jpg?1793363594",
+        "large": "https://cards.scryfall.io/large/front/4/9/4990678f-162e-407d-8ab2-5ecf38de280a.jpg?1793363594",
+        "png": "https://cards.scryfall.io/png/front/4/9/4990678f-162e-407d-8ab2-5ecf38de280a.png?1793363594",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/4/9/4990678f-162e-407d-8ab2-5ecf38de280a.jpg?1793363594",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/4/9/4990678f-162e-407d-8ab2-5ecf38de280a.jpg?1793363594"
+      },
+      "imageLanguage": "en",
+      "layout": "normal"
     },
     {
       "identity": {
@@ -77708,6 +79280,36 @@
     },
     {
       "identity": {
+        "id": "token:3b9c4950-9890-4977-87a0-6eba840e1f66",
+        "name": "Spirit Sorcerer Token",
+        "setCode": "tmdd",
+        "cardNumber": "8",
+        "oracleId": "9c3c0e04-b222-4bc9-adbe-a3b37cc8c44e",
+        "foil": false
+      },
+      "color": "U",
+      "colorIdentity": ["U"],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Enchantment", "Creature"],
+      "subtypes": ["Spirit", "Sorcerer"],
+      "supertypes": ["Token"],
+      "power": "3",
+      "toughness": "3",
+      "text": "Flying",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/3/b/3b9c4950-9890-4977-87a0-6eba840e1f66.jpg?1793394615",
+        "normal": "https://cards.scryfall.io/normal/front/3/b/3b9c4950-9890-4977-87a0-6eba840e1f66.jpg?1793394615",
+        "large": "https://cards.scryfall.io/large/front/3/b/3b9c4950-9890-4977-87a0-6eba840e1f66.jpg?1793394615",
+        "png": "https://cards.scryfall.io/png/front/3/b/3b9c4950-9890-4977-87a0-6eba840e1f66.png?1793394615",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/3/b/3b9c4950-9890-4977-87a0-6eba840e1f66.jpg?1793394615",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/3/b/3b9c4950-9890-4977-87a0-6eba840e1f66.jpg?1793394615"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
         "id": "token:febc7ce0-387f-413c-a387-2952b990ff3f",
         "name": "Spirit Warrior",
         "setCode": "tktk",
@@ -79102,6 +80704,36 @@
         "png": "https://cards.scryfall.io/png/front/8/8/88fb4e41-7ce4-45ca-b365-fcde289ffe8c.png?1783909766",
         "art_crop": "https://cards.scryfall.io/art_crop/front/8/8/88fb4e41-7ce4-45ca-b365-fcde289ffe8c.jpg?1783909766",
         "border_crop": "https://cards.scryfall.io/border_crop/front/8/8/88fb4e41-7ce4-45ca-b365-fcde289ffe8c.jpg?1783909766"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
+        "id": "token:ac0260f4-9d56-4590-b944-66a9171a22d0",
+        "name": "Tentacle",
+        "setCode": "plst",
+        "cardNumber": "TMKC-9",
+        "oracleId": "82adaeee-e011-49db-af53-fda6c2b192d5",
+        "foil": false
+      },
+      "color": "U",
+      "colorIdentity": ["U"],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Creature"],
+      "subtypes": ["Tentacle"],
+      "supertypes": ["Token"],
+      "power": "1",
+      "toughness": "1",
+      "text": "",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/a/c/ac0260f4-9d56-4590-b944-66a9171a22d0.jpg?1791939832",
+        "normal": "https://cards.scryfall.io/normal/front/a/c/ac0260f4-9d56-4590-b944-66a9171a22d0.jpg?1791939832",
+        "large": "https://cards.scryfall.io/large/front/a/c/ac0260f4-9d56-4590-b944-66a9171a22d0.jpg?1791939832",
+        "png": "https://cards.scryfall.io/png/front/a/c/ac0260f4-9d56-4590-b944-66a9171a22d0.png?1791939832",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/a/c/ac0260f4-9d56-4590-b944-66a9171a22d0.jpg?1791939832",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/a/c/ac0260f4-9d56-4590-b944-66a9171a22d0.jpg?1791939832"
       },
       "imageLanguage": "en",
       "layout": "token"
@@ -81629,6 +83261,34 @@
     },
     {
       "identity": {
+        "id": "token:a23b05a9-5476-493d-8de7-7c14e726e9be",
+        "name": "Treasure",
+        "setCode": "plst",
+        "cardNumber": "TSNC-17",
+        "oracleId": "3c549374-6c37-42e0-8d88-a8555d46732d",
+        "foil": false
+      },
+      "color": "",
+      "colorIdentity": [],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Artifact"],
+      "subtypes": ["Treasure"],
+      "supertypes": ["Token"],
+      "text": "{T}, Sacrifice this token: Add one mana of any color.",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/a/2/a23b05a9-5476-493d-8de7-7c14e726e9be.jpg?1791939852",
+        "normal": "https://cards.scryfall.io/normal/front/a/2/a23b05a9-5476-493d-8de7-7c14e726e9be.jpg?1791939852",
+        "large": "https://cards.scryfall.io/large/front/a/2/a23b05a9-5476-493d-8de7-7c14e726e9be.jpg?1791939852",
+        "png": "https://cards.scryfall.io/png/front/a/2/a23b05a9-5476-493d-8de7-7c14e726e9be.png?1791939852",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/a/2/a23b05a9-5476-493d-8de7-7c14e726e9be.jpg?1791939852",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/a/2/a23b05a9-5476-493d-8de7-7c14e726e9be.jpg?1791939852"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
         "id": "token:cebcf073-07f6-4cb0-a417-e7760006fc51",
         "name": "Treasure",
         "setCode": "plst",
@@ -83673,6 +85333,34 @@
     },
     {
       "identity": {
+        "id": "token:b8e8c3b4-3b8d-48a4-b427-a2b8ac3e2f8b",
+        "name": "Treasure",
+        "setCode": "ttrk",
+        "cardNumber": "26",
+        "oracleId": "3c549374-6c37-42e0-8d88-a8555d46732d",
+        "foil": false
+      },
+      "color": "",
+      "colorIdentity": [],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Artifact"],
+      "subtypes": ["Treasure"],
+      "supertypes": ["Token"],
+      "text": "{T}, Sacrifice this token: Add one mana of any color.",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/b/8/b8e8c3b4-3b8d-48a4-b427-a2b8ac3e2f8b.jpg?1793364377",
+        "normal": "https://cards.scryfall.io/normal/front/b/8/b8e8c3b4-3b8d-48a4-b427-a2b8ac3e2f8b.jpg?1793364377",
+        "large": "https://cards.scryfall.io/large/front/b/8/b8e8c3b4-3b8d-48a4-b427-a2b8ac3e2f8b.jpg?1793364377",
+        "png": "https://cards.scryfall.io/png/front/b/8/b8e8c3b4-3b8d-48a4-b427-a2b8ac3e2f8b.png?1793364377",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/b/8/b8e8c3b4-3b8d-48a4-b427-a2b8ac3e2f8b.jpg?1793364377",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/b/8/b8e8c3b4-3b8d-48a4-b427-a2b8ac3e2f8b.jpg?1793364377"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
         "id": "token:e2ef2b17-e7cd-49e3-a84d-cc4653b1ca8b",
         "name": "Treasure",
         "setCode": "tunf",
@@ -84557,6 +86245,66 @@
         "png": "https://cards.scryfall.io/png/front/2/5/2569593a-d2f2-414c-9e61-2c34e8a5832d.png?1783939140",
         "art_crop": "https://cards.scryfall.io/art_crop/front/2/5/2569593a-d2f2-414c-9e61-2c34e8a5832d.jpg?1783939140",
         "border_crop": "https://cards.scryfall.io/border_crop/front/2/5/2569593a-d2f2-414c-9e61-2c34e8a5832d.jpg?1783939140"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
+        "id": "token:ee3b1218-7ab3-461b-b1b2-818fb61f33ce",
+        "name": "Tribble",
+        "setCode": "ttrc",
+        "cardNumber": "2",
+        "oracleId": "461aad0b-9e8c-4e80-8d13-8789da191aed",
+        "foil": false
+      },
+      "color": "",
+      "colorIdentity": [],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Creature"],
+      "subtypes": ["Tribble"],
+      "supertypes": ["Token"],
+      "power": "1",
+      "toughness": "1",
+      "text": "This token can't block.",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/e/e/ee3b1218-7ab3-461b-b1b2-818fb61f33ce.jpg?1793359678",
+        "normal": "https://cards.scryfall.io/normal/front/e/e/ee3b1218-7ab3-461b-b1b2-818fb61f33ce.jpg?1793359678",
+        "large": "https://cards.scryfall.io/large/front/e/e/ee3b1218-7ab3-461b-b1b2-818fb61f33ce.jpg?1793359678",
+        "png": "https://cards.scryfall.io/png/front/e/e/ee3b1218-7ab3-461b-b1b2-818fb61f33ce.png?1793359678",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/e/e/ee3b1218-7ab3-461b-b1b2-818fb61f33ce.jpg?1793359678",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/e/e/ee3b1218-7ab3-461b-b1b2-818fb61f33ce.jpg?1793359678"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
+        "id": "token:81d2498f-ee5e-4d8d-80f8-eb71c3755faa",
+        "name": "Tribble",
+        "setCode": "ttrc",
+        "cardNumber": "9",
+        "oracleId": "461aad0b-9e8c-4e80-8d13-8789da191aed",
+        "foil": false
+      },
+      "color": "",
+      "colorIdentity": [],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Creature"],
+      "subtypes": ["Tribble"],
+      "supertypes": ["Token"],
+      "power": "1",
+      "toughness": "1",
+      "text": "This token can't block.",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/8/1/81d2498f-ee5e-4d8d-80f8-eb71c3755faa.jpg?1793363514",
+        "normal": "https://cards.scryfall.io/normal/front/8/1/81d2498f-ee5e-4d8d-80f8-eb71c3755faa.jpg?1793363514",
+        "large": "https://cards.scryfall.io/large/front/8/1/81d2498f-ee5e-4d8d-80f8-eb71c3755faa.jpg?1793363514",
+        "png": "https://cards.scryfall.io/png/front/8/1/81d2498f-ee5e-4d8d-80f8-eb71c3755faa.png?1793363514",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/8/1/81d2498f-ee5e-4d8d-80f8-eb71c3755faa.jpg?1793363514",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/8/1/81d2498f-ee5e-4d8d-80f8-eb71c3755faa.jpg?1793363514"
       },
       "imageLanguage": "en",
       "layout": "token"
@@ -89205,6 +90953,36 @@
     },
     {
       "identity": {
+        "id": "token:e7cde898-fc1f-4261-8f71-cfc4275bab54",
+        "name": "Worm",
+        "setCode": "ttrk",
+        "cardNumber": "18",
+        "oracleId": "cce40a23-b400-4b24-a1fb-10a4907e7017",
+        "foil": false
+      },
+      "color": "GR",
+      "colorIdentity": ["G", "R"],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Creature"],
+      "subtypes": ["Worm"],
+      "supertypes": ["Token"],
+      "power": "2",
+      "toughness": "2",
+      "text": "This token can't block.",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/e/7/e7cde898-fc1f-4261-8f71-cfc4275bab54.jpg?1793411584",
+        "normal": "https://cards.scryfall.io/normal/front/e/7/e7cde898-fc1f-4261-8f71-cfc4275bab54.jpg?1793411584",
+        "large": "https://cards.scryfall.io/large/front/e/7/e7cde898-fc1f-4261-8f71-cfc4275bab54.jpg?1793411584",
+        "png": "https://cards.scryfall.io/png/front/e/7/e7cde898-fc1f-4261-8f71-cfc4275bab54.png?1793411584",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/e/7/e7cde898-fc1f-4261-8f71-cfc4275bab54.jpg?1793411584",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/e/7/e7cde898-fc1f-4261-8f71-cfc4275bab54.jpg?1793411584"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
         "id": "token:9afb58e8-f5a7-49f9-8287-77757bd3268c",
         "name": "Wraith",
         "setCode": "tltc",
@@ -92126,6 +93904,36 @@
         "png": "https://cards.scryfall.io/png/front/4/6/46769d11-a7ae-43ac-8c00-e1681955949b.png?1783941356",
         "art_crop": "https://cards.scryfall.io/art_crop/front/4/6/46769d11-a7ae-43ac-8c00-e1681955949b.jpg?1783941356",
         "border_crop": "https://cards.scryfall.io/border_crop/front/4/6/46769d11-a7ae-43ac-8c00-e1681955949b.jpg?1783941356"
+      },
+      "imageLanguage": "en",
+      "layout": "token"
+    },
+    {
+      "identity": {
+        "id": "token:5e16386a-d478-475b-8e9b-edef62cae02b",
+        "name": "Zombie",
+        "setCode": "tmdd",
+        "cardNumber": "10",
+        "oracleId": "ddc8c973-c31e-463f-be45-f3fa7d632362",
+        "foil": false
+      },
+      "color": "B",
+      "colorIdentity": ["B"],
+      "manaCost": "",
+      "cmc": 0,
+      "types": ["Creature"],
+      "subtypes": ["Zombie"],
+      "supertypes": ["Token"],
+      "power": "2",
+      "toughness": "2",
+      "text": "",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/5/e/5e16386a-d478-475b-8e9b-edef62cae02b.jpg?1791637181",
+        "normal": "https://cards.scryfall.io/normal/front/5/e/5e16386a-d478-475b-8e9b-edef62cae02b.jpg?1791637181",
+        "large": "https://cards.scryfall.io/large/front/5/e/5e16386a-d478-475b-8e9b-edef62cae02b.jpg?1791637181",
+        "png": "https://cards.scryfall.io/png/front/5/e/5e16386a-d478-475b-8e9b-edef62cae02b.png?1791637181",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/5/e/5e16386a-d478-475b-8e9b-edef62cae02b.jpg?1791637181",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/5/e/5e16386a-d478-475b-8e9b-edef62cae02b.jpg?1791637181"
       },
       "imageLanguage": "en",
       "layout": "token"

@@ -13,7 +13,7 @@ import type { ClientCardDto } from "@/stores/gameStore.types";
 import { usePreferencesStore, type InGameCardPreviewStyle } from "@/stores/usePreferencesStore";
 import { CARD_H, CARD_W } from "@/components/game/game.constants";
 import { computePreviewCardDimensions } from "@/components/game/cardPreviewLayout";
-import { CardSprite } from "@/pixi/CardSprite";
+import { CardSprite, isRealisticOnlyCard } from "@/pixi/CardSprite";
 import { getSafeAreaInsets } from "@/lib/safeArea";
 import { hexToNum } from "@/pixi/colorUtils";
 import { gsap } from "@/pixi/effects/gsap";
@@ -148,7 +148,7 @@ export class CommandZonePreviewLayer {
       for (const entry of this.entries) {
         const card = entry.sprite.card;
         const castable = spec.castableCardIds.includes(card.id);
-        entry.sprite.setHandRulesView(spec.style === "rules");
+        entry.sprite.setHandRulesView(spec.style === "rules" && !isRealisticOnlyCard(card));
         if (this.entries.length === 1 && spec.showBackFace != null) {
           entry.sprite.setPreviewFace(spec.showBackFace ? 1 : 0, false);
         }

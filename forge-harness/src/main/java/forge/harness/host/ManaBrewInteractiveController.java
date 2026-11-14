@@ -34,6 +34,7 @@ import forge.game.ability.AbilityUtils;
 import forge.game.ability.ApiType;
 import forge.game.ability.effects.RollDiceEffect;
 import forge.game.card.*;
+import forge.game.card.sticker.Sticker;
 import forge.game.combat.Combat;
 import forge.game.combat.CombatUtil;
 import forge.game.cost.*;
@@ -1618,6 +1619,41 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     }
 
     @Override
+    public Sticker chooseSticker(final List<Sticker> options, final Card target,
+            final SpellAbility sa, final boolean isOptional) {
+        final List<SelectionOption> choices = new ArrayList<>();
+        for (final Sticker sticker : options) {
+            final String label = sticker.getTickets() == 0 ? sticker.getDescription()
+                    : "{TK}".repeat(sticker.getTickets()) + " - " + sticker.getDescription();
+            choices.add(new SelectionOption(label, 1, false));
+        }
+        final List<Integer> selected = session.awaitModeChoice(
+                me(), choices, isOptional ? 0 : 1, 1, "Choose a sticker",
+                "Put a sticker on " + target.getName(), SnapshotExtractor.javaCardId(target));
+        return selected.isEmpty() ? null : options.get(selected.get(0));
+    }
+
+    @Override
+    public int chooseStickerNamePosition(final Sticker sticker, final Card target) {
+        if (target.getName().isBlank() || target.stickerWouldFillBlank()) {
+            return 0;
+        }
+        final int words = target.getName().split(" ").length;
+        final List<SelectionOption> positions = new ArrayList<>();
+        for (int at = 0; at <= words; at++) {
+            positions.add(new SelectionOption(Card.addStickerWord(target.getName(), sticker.getWord(), at), 1, false));
+        }
+        return session.awaitModeChoice(me(), positions, 1, 1, "Choose sticker name position",
+                null, SnapshotExtractor.javaCardId(target)).get(0);
+    }
+
+    @Override
+    public Card chooseCardToKeepStickers(final CardCollectionView options) {
+        return chooseSingleEntityForEffect(options, null, null, "Choose a card to keep stickers",
+                false, null, null);
+    }
+
+    @Override
     public String chooseSector(final Card assignee, final String ai, final List<String> sectors) {
         final List<String> options = sectors == null ? new ArrayList<>() : new ArrayList<>(sectors);
         final String chosen = session.awaitStringChoice(
@@ -1982,6 +2018,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             final ManaBrewInteractiveSession.SessionSnapshot sessionSnapshot, final CardCollection cardsToDelve) {
         final ManaPool pool = player.getManaPool();
         final Map<Integer, Card> sessionTapped = new LinkedHashMap<>();
+        final List<SpellAbility> sessionManaAbilities = new ArrayList<>();
         final Map<Integer, ManaCostShard> sessionConvoke = new LinkedHashMap<>();
         final Map<Integer, ManaCostShard> sessionWaterbend = new LinkedHashMap<>();
         final CardCollection waterbentCards = new CardCollection();
@@ -2036,6 +2073,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                     final Card source = chosen.getHostCard();
                     if (autoPay.floatManaFromSource(chosen, effect) && source != null) {
                         sessionTapped.put(source.getId(), source);
+                        sessionManaAbilities.add(chosen);
                     }
                     break;
                 }
@@ -2048,6 +2086,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                         sessionTapped.remove(untap.getId());
                     } else {
                         untapSource(untap, sessionTapped);
+                        sessionManaAbilities.removeIf(ability -> ability.getHostCard() == untap);
                     }
                     break;
                 }
@@ -2062,6 +2101,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                 case DELVE: {
                     payDelve(unpaid, cardsToDelve, choice.delveCard());
                     if (unpaid.isPaid()) {
+                        sa.getPayingManaAbilities().addAll(sessionManaAbilities);
                         return true;
                     }
                     break;
@@ -2083,6 +2123,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                         }
                     }
                     if (unpaid.isPaid()) {
+                        sa.getPayingManaAbilities().addAll(sessionManaAbilities);
                         return true;
                     }
                     break;
@@ -2092,7 +2133,10 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                         if (delve) {
                             autoDelve(unpaid, cardsToDelve, delvePaymentSources(player, unpaid, cardsToDelve));
                         }
-                        for (final Card source : autoPay.floatManaForCost(unpaid.toManaCost(), sa, effect)) {
+                        final int firstActivation = sessionManaAbilities.size();
+                        autoPay.floatManaForCost(unpaid.toManaCost(), sa, effect, sessionManaAbilities);
+                        for (int i = firstActivation; i < sessionManaAbilities.size(); i++) {
+                            final Card source = sessionManaAbilities.get(i).getHostCard();
                             sessionTapped.put(source.getId(), source);
                         }
                         autoWaterbend(unpaid, sa, pool, maxWaterbend, sessionWaterbend, waterbentCards);
@@ -2105,6 +2149,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                     }
                     pool.payManaCostFromPool(unpaid, sa, false, sa.getPayingMana());
                     if (unpaid.isPaid()) {
+                        sa.getPayingManaAbilities().addAll(sessionManaAbilities);
                         return true;
                     }
                     break;

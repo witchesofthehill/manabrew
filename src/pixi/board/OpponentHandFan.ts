@@ -4,7 +4,7 @@ import type { PreviewPointerInput } from "@/lib/cardPreview";
 import { isFacelessCard } from "@/lib/gameCard";
 import { HAND_CARD_BASE } from "@/components/game/game.styles";
 import { CARD_W, CARD_H } from "@/components/game/game.constants";
-import { CardSprite } from "../CardSprite";
+import { CardSprite, isRealisticOnlyCard } from "../CardSprite";
 import { computeBaseLayout, computeHandLayout, HAND_FAN_PARAMS } from "../HandLayout";
 import type { ScreenBounds } from "../types";
 import {
@@ -73,7 +73,8 @@ export class OpponentHandFan {
   }
   setRulesViewDefault(active: boolean): void {
     this.rulesViewDefault = active;
-    for (const sprite of this.sprites.values()) sprite.setHandRulesView(active);
+    for (const sprite of this.sprites.values())
+      sprite.setHandRulesView(active && !isRealisticOnlyCard(sprite.card));
   }
 
   setBand(x: number, y: number, width: number, height: number, visible: boolean): void {
@@ -164,7 +165,7 @@ export class OpponentHandFan {
       let sprite = this.sprites.get(card.id);
       if (!sprite) {
         sprite = new CardSprite(card, "hand");
-        sprite.setHandRulesView(this.rulesViewDefault);
+        sprite.setHandRulesView(this.rulesViewDefault && !isRealisticOnlyCard(card));
         sprite.eventMode = "none";
         sprite.x = x;
         sprite.y = y;

@@ -68,6 +68,7 @@ public final class ManaBrewInteractiveSession {
     private final String sessionId;
     private Match match;
     private Game game;
+    private Random gameRandom;
     private HandKnowledge handKnowledge;
     private final BlockingQueue<QueuedAction> actions = new LinkedBlockingQueue<>();
     private record QueuedAction(JsonObject decoded, JsonObject canonical,
@@ -203,7 +204,7 @@ public final class ManaBrewInteractiveSession {
 
     public void start(final Random rng) {
         requireAttached();
-        Objects.requireNonNull(rng, "rng");
+        gameRandom = Objects.requireNonNull(rng, "rng");
         if (bridge != null) {
             forge.util.MyRandom.setRandom(rng);
             try {
@@ -431,7 +432,7 @@ public final class ManaBrewInteractiveSession {
     }
 
     JsonObject replayVerification() {
-        return GameCheckpoint.verification(this, (ReplayRandom) forge.util.MyRandom.getRandom());
+        return GameCheckpoint.verification(this, (ReplayRandom) gameRandom);
     }
 
     public String readDecisionJournal() {
@@ -2457,7 +2458,7 @@ public final class ManaBrewInteractiveSession {
     }
 
     private void publishCheckpointViews() {
-        absorbGameLog();
+        if (!replaying) absorbGameLog();
         final List<Map<String, Object>> views = new ArrayList<>();
         for (final Checkpoint checkpoint : checkpoints) {
             views.add(checkpointView(checkpoint));
@@ -2697,6 +2698,7 @@ public final class ManaBrewInteractiveSession {
     private static AlternativeCostKind alternativeCostKind(final AlternativeCost alt) {
         switch (alt) {
             case Awaken: return AlternativeCostKind.AWAKEN;
+            case BeamMeUp: return AlternativeCostKind.BEAM_ME_UP;
             case Bestow: return AlternativeCostKind.BESTOW;
             case Blitz: return AlternativeCostKind.BLITZ;
             case Dash: return AlternativeCostKind.DASH;
@@ -3462,6 +3464,9 @@ public final class ManaBrewInteractiveSession {
             altCost = CaseFormat.UPPER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, alternative.cost.name());
         } else if (altCost == null && mode instanceof PlayCardMode_staticAlternative) {
             altCost = "Alternative cost";
+        }
+        if ("BeamMeUp".equals(altCost)) {
+            altCost = "Beam me up";
         }
         final int bar = cardName.indexOf('|');
         final String displayName = bar < 0 ? cardName : cardName.substring(bar + 1);

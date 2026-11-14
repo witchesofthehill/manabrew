@@ -32,6 +32,7 @@ public class HeadlessGuiBase implements IGuiBase {
     @Override public boolean isRunningOnDesktop() { return true; }
     @Override public boolean isLibgdxPort() { return false; }
     @Override public String getCurrentVersion() { return "0.0.0-harness"; }
+    @Override public String getUserAgent() { return "Manabrew/" + getCurrentVersion() + " (forge-harness; https://manabrew.app)"; }
     @Override public String getAssetsDir() { return assetsDir; }
     @Override public ImageFetcher getImageFetcher() { return null; }
     @Override public void invokeInEdtNow(Runnable runnable) { runnable.run(); }

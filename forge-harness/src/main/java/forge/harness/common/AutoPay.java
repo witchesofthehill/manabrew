@@ -137,9 +137,10 @@ public final class AutoPay {
         return payManaCostWithTrace(toPay, saBeingPaid, effect).paid;
     }
 
-    public List<Card> floatManaForCost(final ManaCost toPay, final SpellAbility saBeingPaid, final boolean effect) {
+    public void floatManaForCost(
+            final ManaCost toPay, final SpellAbility saBeingPaid, final boolean effect,
+            final List<SpellAbility> activated) {
         final ManaPool pool = payer.getManaPool();
-        final List<Card> tapped = new ArrayList<>();
 
         boolean planned = false;
         int guard = 0;
@@ -153,7 +154,7 @@ public final class AutoPay {
 
             if (!planned) {
                 planned = true;
-                if (floatPlannedMana(toPay, unpaid, saBeingPaid, effect, tapped)) {
+                if (floatPlannedMana(toPay, unpaid, saBeingPaid, effect, activated)) {
                     continue;
                 }
             }
@@ -171,9 +172,8 @@ public final class AutoPay {
             if (!floatManaFromSource(chosen.spellAbility, effect)) {
                 break;
             }
-            tapped.add(chosen.spellAbility.getHostCard());
+            activated.add(chosen.spellAbility);
         }
-        return tapped;
     }
 
     private boolean floatPlannedMana(
@@ -181,7 +181,7 @@ public final class AutoPay {
             final ManaCostBeingPaid unpaid,
             final SpellAbility saBeingPaid,
             final boolean effect,
-            final List<Card> tapped
+            final List<SpellAbility> activated
     ) {
         final MaybePay maybePay = new MaybePay(payer);
         List<MaybePay.Activation> plan = null;
@@ -209,7 +209,7 @@ public final class AutoPay {
             if (!floatManaFromSource(activation.ability, effect)) {
                 break;
             }
-            tapped.add(activation.ability.getHostCard());
+            activated.add(activation.ability);
             floated = true;
         }
         return floated;

@@ -2674,8 +2674,13 @@ export class PromptLayer extends PromptModalLayer {
     )
       return;
     if (this.spec.gameOver && primaryActionKey && !event.repeat) {
+      if (
+        event.target instanceof HTMLElement &&
+        event.target.closest("button, input, textarea, select, a, [contenteditable='true']")
+      )
+        return;
       event.preventDefault();
-      this.spec.gameOver.onEndGame();
+      if (!this.spec.gameOver.busy) this.spec.gameOver.onPlayAgain?.();
       return true;
     }
     const input = this.spec.currentPrompt?.input;

@@ -180,7 +180,7 @@ impl BotState {
                         .any(|player| player.username == self.config.username) =>
             {
                 self.phase = Phase::AwaitingGameStart;
-                if room.status == RoomStatus::InGame {
+                if room.status != RoomStatus::Lobby {
                     vec![ClientMessage::RequestResync]
                 } else {
                     vec![
@@ -197,6 +197,45 @@ impl BotState {
             }
             (Phase::AwaitingRoomJoin, ServerMessage::Error { message, .. }) => {
                 self.fail(format!("room join failed: {message}"))
+            }
+            (
+                Phase::AwaitingGameStart | Phase::Playing { .. },
+                ServerMessage::RoomUpdate { room },
+            ) if room.room_id == self.config.room_id => {
+                let Some(player) = room
+                    .players
+                    .iter()
+                    .find(|player| player.username == self.config.username)
+                else {
+                    return Vec::new();
+                };
+                match room.status {
+                    RoomStatus::Finished => {
+                        self.phase = Phase::AwaitingGameStart;
+                        self.resync_pending = false;
+                        Vec::new()
+                    }
+                    RoomStatus::Lobby => {
+                        self.phase = Phase::AwaitingGameStart;
+                        self.board = None;
+                        self.resync_pending = false;
+                        let mut messages = Vec::new();
+                        if player.selected_deck_name.is_none() {
+                            messages.push(ClientMessage::SetDeckSelection {
+                                deck_name: self.config.deck_name.clone(),
+                                deck: self.config.deck.clone(),
+                                published_deck_id: None,
+                                commander_name: self.config.commander_name.clone(),
+                                avatar_url: None,
+                            });
+                        }
+                        if !player.ready {
+                            messages.push(ClientMessage::SetReady { ready: true });
+                        }
+                        messages
+                    }
+                    RoomStatus::InGame => Vec::new(),
+                }
             }
             (
                 Phase::AwaitingGameStart | Phase::Playing { .. },

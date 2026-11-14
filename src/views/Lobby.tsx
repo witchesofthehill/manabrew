@@ -247,7 +247,7 @@ export default function Lobby() {
   }, [connected, listRooms, listPlayers]);
   useEffect(() => {
     if (!gameStarted || playerOrder.length === 0) return;
-    if (!currentRoom) return;
+    if (!currentRoom || currentRoom.status !== "InGame") return;
     if (gameRoomId !== currentRoom.room_id) return;
     const limitedLaunch = limitedGameLaunch({
       room_id: gameRoomId,

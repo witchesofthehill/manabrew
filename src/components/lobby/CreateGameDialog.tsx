@@ -9,7 +9,7 @@ import { useDeckStore } from "@/stores/useDeckStore";
 import { useAccountDecksStore } from "@/stores/useAccountDecksStore";
 import { useGameDevStore } from "@/stores/useGameDevStore";
 import type { Deck, DeckCard } from "@/protocol/deck";
-import type { EngineKind } from "@/protocol";
+import type { EngineKind, PlayerDeckInfo } from "@/protocol";
 import {
   GAME_FORMATS,
   validateDeckSections,
@@ -44,6 +44,8 @@ interface CreateGameDialogProps {
   forcedFormatId?: string;
   preSelectedDeckId?: string;
   preSelectedHubDeckId?: string;
+  preSelectedDeck?: PlayerDeckInfo;
+  rematch?: boolean;
   target?: "player" | "bot";
   onStart: (
     deck: Deck,
@@ -61,6 +63,8 @@ export function CreateGameDialog({
   forcedFormatId,
   preSelectedDeckId,
   preSelectedHubDeckId,
+  preSelectedDeck,
+  rematch = false,
   target = "player",
   onStart,
 }: CreateGameDialogProps) {
@@ -73,9 +77,11 @@ export function CreateGameDialog({
   const isTouch = useIsTouch();
   const initialFormat = GAME_FORMATS.find((f) => f.id === forcedFormatId) ?? GAME_FORMATS[0];
   const [selectedFormat, setSelectedFormat] = useState<GameFormat>(initialFormat);
-  const [selectedDeck, setSelectedDeck] = useState<string>(preSelectedDeckId ?? "current");
+  const [selectedDeck, setSelectedDeck] = useState<string>(
+    preSelectedDeck ? "previous" : (preSelectedDeckId ?? "current"),
+  );
   const [selectedCommander, setSelectedCommander] = useState<string>(
-    currentDeck.commanders?.[0]?.identity.name ?? "",
+    preSelectedDeck?.commander_name ?? currentDeck.commanders?.[0]?.identity.name ?? "",
   );
   const presetDecks = usePresetDecks(engineKind);
   const [playerCount, setPlayerCount] = useState(2);
@@ -188,6 +194,22 @@ export function CreateGameDialog({
         },
       ];
   const userDecks = [
+    ...(preSelectedDeck
+      ? [
+          {
+            id: "previous",
+            name: preSelectedDeck.deck_name,
+            badge: "previous game",
+            labels: preSelectedDeck.deck.labels,
+            sourceDeck: preSelectedDeck.deck,
+            isPreset: false as const,
+            cover: resolveCoverCard(preSelectedDeck.deck),
+            cards: allDeckCards(preSelectedDeck.deck),
+            formatId: preSelectedDeck.deck.format ?? deckFormatId,
+            commanderName: preSelectedDeck.commander_name,
+          },
+        ]
+      : []),
     ...currentDeckEntry,
     ...distinctSavedDecks.map((s) => ({
       id: s.id,
@@ -407,7 +429,12 @@ export function CreateGameDialog({
       return;
     }
     setStarting(true);
-    let publishedDeckId = entry.id.startsWith("hub:") ? entry.id.slice(4) : undefined;
+    let publishedDeckId =
+      entry.id === "previous"
+        ? preSelectedDeck?.published_deck_id
+        : entry.id.startsWith("hub:")
+          ? entry.id.slice(4)
+          : undefined;
     const savedEntry = ownedDecks.find((saved) => saved.id === entry.id);
     const rankingPresetKey = entry.isPreset
       ? entry.sourceDeck.id
@@ -457,11 +484,13 @@ export function CreateGameDialog({
             {target === "bot" ? `Choose Bot Deck` : isLobbyMode ? `Choose Deck` : `New Game`}
           </DialogTitle>
           <p className="text-ui-body text-muted-foreground mt-0.5">
-            {target === "bot"
-              ? `Select the deck the AI will play in this lobby.`
-              : isLobbyMode
-                ? `Select the deck you will play in this lobby.`
-                : `Pick a deck and battle a random AI opponent`}
+            {rematch
+              ? "Choose your deck for the next game. Other players keep their own selections."
+              : target === "bot"
+                ? `Select the deck the AI will play in this lobby.`
+                : isLobbyMode
+                  ? `Select the deck you will play in this lobby.`
+                  : `Pick a deck and battle a random AI opponent`}
           </p>
         </div>
 
@@ -848,11 +877,13 @@ export function CreateGameDialog({
               )}
               {starting
                 ? `Selecting\u2026`
-                : target === "bot"
-                  ? `Add Bot`
-                  : isLobbyMode
-                    ? `Select Deck`
-                    : `Play`}
+                : rematch
+                  ? "Ready with this deck"
+                  : target === "bot"
+                    ? `Add Bot`
+                    : isLobbyMode
+                      ? `Select Deck`
+                      : `Play`}
             </Button>
           </div>
         </div>

@@ -462,7 +462,13 @@ export function sameGameOverPresentation(
     left.me === right.me &&
     sameArray(left.opponents, right.opponents) &&
     left.turn === right.turn &&
-    left.engineCrash === right.engineCrash
+    left.engineCrash === right.engineCrash &&
+    left.statusMessage === right.statusMessage &&
+    left.playerStatuses === right.playerStatuses &&
+    left.ready === right.ready &&
+    left.busy === right.busy &&
+    !!left.onPlayAgain === !!right.onPlayAgain &&
+    !!left.onChangeDeck === !!right.onChangeDeck
   );
 }
 

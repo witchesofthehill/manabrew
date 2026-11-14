@@ -72,6 +72,12 @@ When adding a constant, type, util, or class string, **check the shared modules 
 
 The legacy per-player canvases (`PixiGameCanvas` / `PixiGameScene` / `PixiArrowsCanvas` / `PixiPhaseStripCanvas` / `OpponentHalf`) have been removed — do not reintroduce them.
 
+## Post-game actions
+
+Ordinary win, loss and draw prompts stay open with Play again, Play again with another deck, and Home. `usePostGame` owns the actions; `postGameStatus` derives named waiting and per-seat statuses. `useMultiplayerRematch` replaces the current runtime only for a new authoritative game ID, retaining the table through `endGame({ preserveRoom: true })`. A finished replay with the old ID is not a new launch.
+
+Keep Limited and gauntlet return/progression in their existing hooks. Solo classification and snapshot restoration follow `useGameStore.singlePlayerSetup`, including hosted solo games. Home tears down the session and navigates to `/play`.
+
 ## Game loading
 
 `GameLoadingScreen` keeps setup progress centered on desktop and portrait screens. Compact touch landscapes use a two-column layout with the status and exit action beside the progress card so the attached `GameLoadingTip` remains visible at short viewport heights. Configure copy, audience, keybinding IDs, cadence, and transition duration in `gameLoadingTips.ts`; keybinding tips render the player's persisted shortcuts, while touch loading screens exclude desktop-only entries.

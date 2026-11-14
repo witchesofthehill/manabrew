@@ -7,7 +7,7 @@ export interface SelectedDeck {
   desc?: string;
   color?: string;
   sourceDeck: Deck;
-  source: "local" | "preset" | "hub";
+  source: "local" | "preset" | "hub" | "snapshot";
   formatId?: string;
   commanderName?: string;
   coverCardName?: string;

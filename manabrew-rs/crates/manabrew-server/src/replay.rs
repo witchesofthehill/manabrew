@@ -27,6 +27,7 @@ pub struct GameReplayCache {
     pub game_id: String,
     pub started_at: Instant,
     pub player_order: Vec<String>,
+    pub human_player_order: Vec<String>,
     pub player_decks: Vec<PlayerDeckInfo>,
     pub starting_life: i32,
     pub last_state: Option<Value>,
@@ -42,12 +43,14 @@ impl GameReplayCache {
         game_id: String,
         player_order: Vec<String>,
         player_decks: Vec<PlayerDeckInfo>,
+        human_player_order: Vec<String>,
         starting_life: i32,
     ) -> Self {
         GameReplayCache {
             game_id,
             started_at: Instant::now(),
             player_order,
+            human_player_order,
             player_decks,
             starting_life,
             last_state: None,
@@ -193,7 +196,13 @@ mod tests {
     use serde_json::json;
 
     fn cache() -> GameReplayCache {
-        GameReplayCache::new("game-1".into(), vec!["alice".into()], Vec::new(), 40)
+        GameReplayCache::new(
+            "game-1".into(),
+            vec!["alice".into()],
+            Vec::new(),
+            vec!["alice".into()],
+            40,
+        )
     }
 
     fn full(slot: &str, state: Value) -> Value {

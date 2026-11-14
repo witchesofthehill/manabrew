@@ -3,8 +3,8 @@ use std::time::Instant;
 
 use crate::chat::ChatHistory;
 use crate::protocol::{
-    DraftConfig, EngineKind, GameFormat, PlayerDeckInfo, RoomInfo, RoomPlayerInfo, RoomStatus,
-    SealedConfig, TransportEndpoint, TransportMember,
+    DraftConfig, EngineKind, GameFormat, PlayerDeckInfo, RematchInfo, RematchIntent, RoomInfo,
+    RoomPlayerInfo, RoomStatus, SealedConfig, TransportEndpoint, TransportMember,
 };
 use crate::replay::GameReplayCache;
 use manabrew_protocol::deck_dto::Deck;
@@ -50,6 +50,7 @@ pub struct Room {
     pub reconnect_timeout_s: u32,
     pub table_style: Option<String>,
     pub replay: Option<GameReplayCache>,
+    pub rematch: Option<RematchInfo>,
     pub resume_token: String,
     pub humanless_since: Option<Instant>,
     pub limited_session_id: Option<String>,
@@ -126,6 +127,7 @@ impl Room {
             reconnect_timeout_s,
             table_style,
             replay: None,
+            rematch: None,
             resume_token: uuid::Uuid::new_v4().to_string(),
             humanless_since: None,
             limited_session_id: None,
@@ -215,8 +217,12 @@ impl Room {
 
     pub fn remove_player(&mut self, player_id: &str) -> Option<RoomSlot> {
         if let Some(idx) = self.players.iter().position(|p| p.player_id == player_id) {
+            self.cancel_rematch();
             let slot = self.players.remove(idx);
-            if self.host_player_id == player_id && self.limited_session_id.is_none() {
+            if self.host_player_id == player_id
+                && self.limited_session_id.is_none()
+                && self.status != RoomStatus::Finished
+            {
                 if let Some(new_host) = self.players.first() {
                     self.host_player_id = new_host.player_id.clone();
                     self.host_username = new_host.username.clone();
@@ -243,6 +249,17 @@ impl Room {
     pub fn set_connected(&mut self, player_id: &str, connected: bool) {
         if let Some(slot) = self.players.iter_mut().find(|p| p.player_id == player_id) {
             slot.connected = connected;
+            if !connected && !slot.is_bot {
+                if let Some(rematch) = &mut self.rematch {
+                    if let Some(player) = rematch
+                        .players
+                        .iter_mut()
+                        .find(|p| p.username == slot.username)
+                    {
+                        player.intent = RematchIntent::Deciding;
+                    }
+                }
+            }
             return;
         }
         if let Some(observer) = self.observers.iter_mut().find(|p| p.player_id == player_id) {
@@ -289,6 +306,15 @@ impl Room {
             slot.selected_commander_name = commander_name;
             slot.avatar_url = avatar_url;
             slot.ready = false;
+            if let Some(rematch) = &mut self.rematch {
+                if let Some(player) = rematch
+                    .players
+                    .iter_mut()
+                    .find(|p| p.username == slot.username)
+                {
+                    player.intent = RematchIntent::Deciding;
+                }
+            }
             Ok(())
         } else {
             Err("Player not in room".into())
@@ -367,6 +393,26 @@ impl Room {
         self.players.iter().map(|p| p.username.clone()).collect()
     }
 
+    pub fn human_player_usernames(&self) -> Vec<String> {
+        self.players
+            .iter()
+            .filter(|p| !p.is_bot)
+            .map(|p| p.username.clone())
+            .collect()
+    }
+
+    pub fn cancel_rematch(&mut self) {
+        if let Some(rematch) = &mut self.rematch {
+            rematch.cancelled = true;
+            for player in &mut rematch.players {
+                player.intent = RematchIntent::Deciding;
+            }
+            for seat in &mut self.players {
+                seat.ready = false;
+            }
+        }
+    }
+
     /// Forward-ported for future use when full player ID tracking is needed.
     #[allow(dead_code)]
     pub fn player_ids(&self) -> Vec<String> {
@@ -415,6 +461,7 @@ impl Room {
             status: self.status.clone(),
             draft_config: self.draft_config.clone(),
             sealed_config: self.sealed_config.clone(),
+            rematch: self.rematch.clone(),
         }
     }
 }

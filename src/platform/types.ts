@@ -9,6 +9,7 @@ import type {
   RoomRelayEnvelope,
   SealedConfig,
   LocalGameKind,
+  RematchIntent,
 } from "@/types/server";
 import type { Deck } from "@/protocol/deck";
 import type { DirectiveInput, Prompt, PromptOutput, ResumeRoomRequest } from "@/protocol";
@@ -158,6 +159,9 @@ export interface IServerApi {
   setMaxPlayers(params: SetMaxPlayersParams): Promise<void>;
   startGame(params?: StartServerGameParams): Promise<void>;
   endGame(gameId: string): Promise<void>;
+  finishGame(gameId: string): Promise<void>;
+  setRematchIntent(gameId: string, intent: RematchIntent): Promise<void>;
+  returnToLobby(gameId: string): Promise<void>;
   reportEngineStats(stats: EngineGameStats, gameId?: string | null): Promise<void>;
   reportGameOutcome(gameId: string, outcome: GameOutcomeReport): Promise<void>;
   requestResync(): Promise<void>;

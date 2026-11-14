@@ -3,8 +3,8 @@ use std::sync::Arc;
 use crate::analytics::{self, GameEndReason};
 use crate::error::ServerError;
 use crate::protocol::{
-    DraftConfig, EngineKind, GameFormat, PlayerDeckInfo, ResumeRoomRequest, RoomInfo, RoomStatus,
-    SealedConfig,
+    DraftConfig, EngineKind, GameFormat, PlayerDeckInfo, RematchInfo, RematchIntent,
+    RematchPlayerInfo, ResumeRoomRequest, RoomInfo, RoomStatus, SealedConfig,
 };
 use crate::replay::GameReplayCache;
 use crate::room::{Room, RoomSlot};
@@ -164,6 +164,9 @@ pub fn resume_room_sync(
         if room.is_limited_session() && room.host_username != username {
             return Err(ServerError::InvalidResumeToken);
         }
+        if room.status == RoomStatus::Finished && room.host_username != username {
+            return Err(ServerError::InvalidResumeToken);
+        }
         if room.is_limited_session() && room.status == RoomStatus::Lobby {
             room.players = resumed_slots(&spec, player_id, &username);
             room.status = RoomStatus::InGame;
@@ -171,6 +174,7 @@ pub fn resume_room_sync(
                 spec.game_id.clone(),
                 spec.player_order.clone(),
                 spec.player_decks.clone(),
+                room.human_player_usernames(),
                 spec.starting_life,
             ));
         }
@@ -257,6 +261,7 @@ pub fn resume_room_sync(
         spec.game_id,
         spec.player_order,
         spec.player_decks,
+        room.human_player_usernames(),
         spec.starting_life,
     ));
 
@@ -427,6 +432,29 @@ pub fn leave_room_sync(state: &Arc<ServerState>, player_id: &str) -> Result<(), 
             .get_mut(&room_id)
             .ok_or_else(|| ServerError::RoomNotFound(room_id.clone()))?;
 
+        if room.status == RoomStatus::Finished && room.is_host(player_id) {
+            room.cancel_rematch();
+            let room_info = room.to_room_info();
+            drop(room);
+            crate::connection::broadcast_to_room(
+                state,
+                &room_id,
+                &crate::protocol::ServerMessage::RoomUpdate { room: room_info },
+            );
+            crate::connection::broadcast_to_room(
+                state,
+                &room_id,
+                &crate::protocol::ServerMessage::GameAborted {
+                    room_id: room_id.clone(),
+                },
+            );
+            crate::cleanup::remove_room_and_clear_sessions(
+                state,
+                &room_id,
+                GameEndReason::HostLost,
+            );
+            return Ok(());
+        }
         room.remove_participant(player_id);
         let empty = room.is_empty();
         let no_connected = if room.parent_limited_room.is_some() {
@@ -544,8 +572,16 @@ pub fn set_deck_selection_sync(
             .get_mut(&room_id)
             .ok_or_else(|| ServerError::RoomNotFound(room_id.clone()))?;
 
-        if room.status != RoomStatus::Lobby {
+        if !matches!(room.status, RoomStatus::Lobby | RoomStatus::Finished) {
             return Err(ServerError::GameAlreadyStarted);
+        }
+        if room.status == RoomStatus::Finished
+            && !room
+                .players
+                .iter()
+                .any(|p| p.player_id == player_id && !p.is_bot)
+        {
+            return Err(ServerError::NotInRoom);
         }
 
         room.set_deck_selection(
@@ -656,7 +692,7 @@ pub fn start_game_sync(
             .ok_or(ServerError::NotInRoom)?
     };
 
-    let (game_id, player_order, player_decks, starting_life, room_info) = {
+    let started = {
         let mut room = state
             .rooms
             .get_mut(&room_id)
@@ -690,50 +726,223 @@ pub fn start_game_sync(
             return Err(ServerError::DeckNotSelected);
         }
 
-        room.status = RoomStatus::InGame;
-        let starting_life = match room.format {
-            GameFormat::Commander => 40,
-            GameFormat::Brawl => 25,
-            GameFormat::PauperCommander => 30,
-            GameFormat::DuelCommander
-            | GameFormat::Standard
-            | GameFormat::Pioneer
-            | GameFormat::Modern
-            | GameFormat::Legacy
-            | GameFormat::Vintage
-            | GameFormat::Pauper
-            | GameFormat::Premodern
-            | GameFormat::Oathbreaker
-            | GameFormat::Draft
-            | GameFormat::Sealed => 20,
-            GameFormat::Any => unreachable!("Any resolved to concrete format above"),
-        };
-        let player_order = room.player_usernames();
-        let player_decks = room.player_decks();
-        let game_id = uuid::Uuid::new_v4().to_string();
-        room.replay = Some(GameReplayCache::new(
-            game_id.clone(),
-            player_order.clone(),
-            player_decks.clone(),
-            starting_life,
-        ));
-        (
-            game_id,
-            player_order,
-            player_decks,
-            starting_life,
-            room.to_room_info(),
-        )
+        launch_game(&mut room)
     };
 
-    Ok(StartedGame {
+    Ok(started)
+}
+
+fn launch_game(room: &mut Room) -> StartedGame {
+    let starting_life = match room.format {
+        GameFormat::Commander => 40,
+        GameFormat::Brawl => 25,
+        GameFormat::PauperCommander => 30,
+        GameFormat::DuelCommander
+        | GameFormat::Standard
+        | GameFormat::Pioneer
+        | GameFormat::Modern
+        | GameFormat::Legacy
+        | GameFormat::Vintage
+        | GameFormat::Pauper
+        | GameFormat::Premodern
+        | GameFormat::Oathbreaker
+        | GameFormat::Draft
+        | GameFormat::Sealed => 20,
+        GameFormat::Any => unreachable!("Any resolved to concrete format before launch"),
+    };
+    let player_order = room.player_usernames();
+    let player_decks = room.player_decks();
+    let game_id = uuid::Uuid::new_v4().to_string();
+    room.status = RoomStatus::InGame;
+    room.rematch = None;
+    room.humanless_since = None;
+    room.replay = Some(GameReplayCache::new(
+        game_id.clone(),
+        player_order.clone(),
+        player_decks.clone(),
+        room.human_player_usernames(),
+        starting_life,
+    ));
+    StartedGame {
         game_id,
-        room_id,
+        room_id: room.room_id.clone(),
         player_order,
         player_decks,
         starting_life,
-        room_info,
-    })
+        room_info: room.to_room_info(),
+    }
+}
+
+pub fn finish_game_sync(
+    state: &Arc<ServerState>,
+    player_id: &str,
+    game_id: &str,
+) -> Result<(String, RoomInfo), ServerError> {
+    let room_id = state
+        .players
+        .get(player_id)
+        .and_then(|p| p.room_id.clone())
+        .ok_or(ServerError::NotInRoom)?;
+    let mut room = state
+        .rooms
+        .get_mut(&room_id)
+        .ok_or_else(|| ServerError::RoomNotFound(room_id.clone()))?;
+    if !room.is_host(player_id) {
+        return Err(ServerError::NotHost);
+    }
+    let replay = room
+        .replay
+        .as_ref()
+        .filter(|r| r.game_id == game_id)
+        .ok_or(ServerError::GameNotInProgress)?;
+    if room.status == RoomStatus::Finished {
+        return Ok((room_id, room.to_room_info()));
+    }
+    if room.status != RoomStatus::InGame
+        || room.is_limited_session()
+        || room.parent_limited_room.is_some()
+        || room.limited_session_id.is_some()
+        || !replay.outcome.reported
+        || !replay.outcome.game_over
+        || replay.outcome.fatal_message.is_some()
+    {
+        return Err(ServerError::GameNotInProgress);
+    }
+    let players = replay
+        .human_player_order
+        .iter()
+        .map(|username| RematchPlayerInfo {
+            username: username.clone(),
+            intent: RematchIntent::Deciding,
+        })
+        .collect::<Vec<_>>();
+    let cancelled = replay
+        .player_order
+        .iter()
+        .any(|username| !room.players.iter().any(|seat| seat.username == *username));
+    analytics::emit_game_ended(&state.analytics, &room, replay, GameEndReason::GameOver);
+    room.rematch = Some(RematchInfo {
+        game_id: game_id.to_string(),
+        players,
+        cancelled,
+    });
+    room.status = RoomStatus::Finished;
+    room.humanless_since = None;
+    for seat in &mut room.players {
+        seat.ready = false;
+    }
+    if let Some(replay) = &mut room.replay {
+        replay.queued_inputs.clear();
+    }
+    Ok((room_id, room.to_room_info()))
+}
+
+pub fn set_rematch_intent_sync(
+    state: &Arc<ServerState>,
+    player_id: &str,
+    game_id: &str,
+    intent: RematchIntent,
+) -> Result<(String, RoomInfo, Option<StartedGame>), ServerError> {
+    let room_id = state
+        .players
+        .get(player_id)
+        .and_then(|p| p.room_id.clone())
+        .ok_or(ServerError::NotInRoom)?;
+    let mut room = state
+        .rooms
+        .get_mut(&room_id)
+        .ok_or_else(|| ServerError::RoomNotFound(room_id.clone()))?;
+    if room.status != RoomStatus::Finished {
+        return Err(ServerError::GameNotInProgress);
+    }
+    let seat = room
+        .players
+        .iter()
+        .find(|p| p.player_id == player_id && !p.is_bot && p.connected)
+        .ok_or(ServerError::NotInRoom)?;
+    if intent == RematchIntent::Ready && seat.selected_deck.is_none() {
+        return Err(ServerError::DeckNotSelected);
+    }
+    let username = seat.username.clone();
+    let rematch = room
+        .rematch
+        .as_mut()
+        .filter(|r| r.game_id == game_id && !r.cancelled)
+        .ok_or(ServerError::GameNotInProgress)?;
+    let player = rematch
+        .players
+        .iter_mut()
+        .find(|p| p.username == username)
+        .ok_or(ServerError::NotInRoom)?;
+    player.intent = intent;
+    let started = start_ready_rematch(&mut room);
+    Ok((room_id, room.to_room_info(), started))
+}
+
+fn start_ready_rematch(room: &mut Room) -> Option<StartedGame> {
+    if room.status != RoomStatus::Finished || !room.host_connected() {
+        return None;
+    }
+    let rematch = room.rematch.as_ref()?;
+    if rematch.cancelled
+        || rematch.players.is_empty()
+        || !rematch.players.iter().all(|player| {
+            player.intent == RematchIntent::Ready
+                && room
+                    .players
+                    .iter()
+                    .any(|seat| seat.username == player.username && !seat.is_bot && seat.connected)
+        })
+        || room.players.iter().any(|seat| {
+            !seat.connected || seat.selected_deck.is_none() || seat.selected_deck_name.is_none()
+        })
+    {
+        return None;
+    }
+    Some(launch_game(room))
+}
+
+pub fn resume_ready_rematch(state: &Arc<ServerState>, room_id: &str) -> Option<StartedGame> {
+    let mut room = state.rooms.get_mut(room_id)?;
+    start_ready_rematch(&mut room)
+}
+
+pub fn return_to_lobby_sync(
+    state: &Arc<ServerState>,
+    player_id: &str,
+    game_id: &str,
+) -> Result<(String, RoomInfo), ServerError> {
+    let room_id = state
+        .players
+        .get(player_id)
+        .and_then(|p| p.room_id.clone())
+        .ok_or(ServerError::NotInRoom)?;
+    let mut room = state
+        .rooms
+        .get_mut(&room_id)
+        .ok_or_else(|| ServerError::RoomNotFound(room_id.clone()))?;
+    if room.status != RoomStatus::Finished
+        || !room
+            .rematch
+            .as_ref()
+            .is_some_and(|r| r.game_id == game_id && r.cancelled)
+    {
+        return Err(ServerError::GameNotInProgress);
+    }
+    if !room
+        .players
+        .iter()
+        .any(|p| p.player_id == player_id && !p.is_bot && p.connected)
+    {
+        return Err(ServerError::NotInRoom);
+    }
+    room.status = RoomStatus::Lobby;
+    room.rematch = None;
+    room.replay = None;
+    for seat in &mut room.players {
+        seat.ready = false;
+    }
+    Ok((room_id, room.to_room_info()))
 }
 
 pub fn end_game_sync(
@@ -777,10 +986,13 @@ pub fn reset_room_to_lobby(
     let (info, cleared, paired_limited, children) = {
         let mut room = state.rooms.get_mut(room_id)?;
         if let Some(replay) = room.replay.take() {
-            analytics::emit_game_ended(&state.analytics, &room, &replay, reason);
+            if room.status != RoomStatus::Finished {
+                analytics::emit_game_ended(&state.analytics, &room, &replay, reason);
+            }
         }
         let cleared: Vec<String> = room.players.iter().map(|p| p.player_id.clone()).collect();
         room.status = RoomStatus::Lobby;
+        room.rematch = None;
         let paired_limited = room.parent_limited_room.is_some();
         let children = if paired_limited {
             for seat in &mut room.players {

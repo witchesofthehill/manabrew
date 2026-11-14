@@ -15,7 +15,7 @@ use manabrew_protocol::prompts::{PromptInput, PromptOutput};
 use manabrew_protocol::transport::{
     AgentPrompt, ClientToServerMessage, DirectiveInput, EngineDirective, ProtocolError, StateUpdate,
 };
-use manabrew_relay_protocol::{ResumeRoomRequest, PROTOCOL_VERSION};
+use manabrew_relay_protocol::{RematchInfo, ResumeRoomRequest, PROTOCOL_VERSION};
 use ts_rs::TS;
 
 const HEADER: &str =
@@ -62,6 +62,7 @@ fn main() {
     CardPrintingSelection::export_all_to(&out).expect("export CardPrintingSelection");
     DisplayEvent::export_all_to(&out).expect("export DisplayEvent");
     ResumeRoomRequest::export_all_to(&out).expect("export ResumeRoomRequest");
+    RematchInfo::export_all_to(&out).expect("export RematchInfo");
 
     let prompts_dir = out.join("prompts");
     let mut prompts_index = String::from(HEADER);

@@ -45,6 +45,7 @@ import {
   TOKEN_EXPIRED_ERROR_FRAGMENT,
   type GameOutcomeReport,
   type LocalGameKind,
+  type RematchIntent,
 } from "@/types/server";
 import type { RoomInfo, RoomRelayEnvelope, StateEnvelope } from "@/types/server";
 import { PROTOCOL_VERSION } from "@/protocol";
@@ -1575,6 +1576,18 @@ class WebServerApi implements IServerApi {
   async endGame(gameId: string): Promise<void> {
     this.stopRoomBots(this.currentRoomId);
     this.send({ type: "EndGame", game_id: gameId });
+  }
+
+  async finishGame(gameId: string): Promise<void> {
+    this.send({ type: "FinishGame", game_id: gameId });
+  }
+
+  async setRematchIntent(gameId: string, intent: RematchIntent): Promise<void> {
+    this.send({ type: "SetRematchIntent", game_id: gameId, intent });
+  }
+
+  async returnToLobby(gameId: string): Promise<void> {
+    this.send({ type: "ReturnToLobby", game_id: gameId });
   }
 
   async reportEngineStats(stats: EngineGameStats, gameId?: string | null): Promise<void> {

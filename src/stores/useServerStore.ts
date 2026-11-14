@@ -58,6 +58,7 @@ import type {
   ReconnectingPayload,
   DisconnectedPayload,
   RelayFeature,
+  RematchIntent,
 } from "@/types/server";
 import type { Deck } from "@/protocol/deck";
 import { resendLocalGame } from "@/lib/localGamePresence";
@@ -130,6 +131,8 @@ interface ServerState {
   setMaxPlayers(maxPlayers: number): Promise<void>;
   startGame(format?: GameFormat): Promise<void>;
   endGame(): Promise<void>;
+  setRematchIntent(intent: RematchIntent): Promise<void>;
+  returnToLobby(): Promise<void>;
   inviteToRoom(username: string): Promise<void>;
   hasRelayFeature(feature: RelayFeature): boolean;
   setupListeners(): () => void;
@@ -474,6 +477,22 @@ export const useServerStore = create<ServerState>()(
         const platform = getPlatform();
         if (!platform.server) return;
         await platform.server.endGame(get().gameId);
+      },
+      async setRematchIntent(intent) {
+        const server = getPlatform().server;
+        const rematch = get().currentRoom?.rematch;
+        if (!server || !rematch || !get().hasRelayFeature("game_rematch")) {
+          throw new Error("This table does not support rematches. Update the server.");
+        }
+        await server.setRematchIntent(rematch.game_id, intent);
+      },
+      async returnToLobby() {
+        const server = getPlatform().server;
+        const rematch = get().currentRoom?.rematch;
+        if (!server || !rematch || !get().hasRelayFeature("game_rematch")) {
+          throw new Error("This table does not support rematches. Update the server.");
+        }
+        await server.returnToLobby(rematch.game_id);
       },
       async inviteToRoom(username) {
         const platform = getPlatform();

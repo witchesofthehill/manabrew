@@ -59,6 +59,10 @@ pub struct Room {
     /// Announced endpoints by player id. Only the relay binds one to a username.
     pub transports: HashMap<String, TransportEndpoint>,
     pub chat: ChatHistory,
+    pub matchmade_bracket: Option<u8>,
+    pub matchmade_bot_fill: bool,
+    pub pool_max_players: Option<u8>,
+    pub table_bracket: Option<u8>,
 }
 
 impl Room {
@@ -134,6 +138,10 @@ impl Room {
             limited_matches: Vec::new(),
             transports: HashMap::new(),
             chat: ChatHistory::default(),
+            matchmade_bracket: None,
+            matchmade_bot_fill: false,
+            pool_max_players: None,
+            table_bracket: None,
         }
     }
 
@@ -216,6 +224,14 @@ impl Room {
     pub fn remove_player(&mut self, player_id: &str) -> Option<RoomSlot> {
         if let Some(idx) = self.players.iter().position(|p| p.player_id == player_id) {
             let slot = self.players.remove(idx);
+            if self.hosted && self.players.is_empty() {
+                if let Some(max_players) = self.pool_max_players.take() {
+                    self.max_players = max_players;
+                }
+                self.matchmade_bracket = None;
+                self.matchmade_bot_fill = false;
+                self.table_bracket = None;
+            }
             if self.host_player_id == player_id && self.limited_session_id.is_none() {
                 if let Some(new_host) = self.players.first() {
                     self.host_player_id = new_host.player_id.clone();
@@ -415,6 +431,9 @@ impl Room {
             status: self.status.clone(),
             draft_config: self.draft_config.clone(),
             sealed_config: self.sealed_config.clone(),
+            matchmade_bracket: self.matchmade_bracket,
+            matchmade_bot_fill: self.matchmade_bot_fill,
+            table_bracket: self.table_bracket,
         }
     }
 }

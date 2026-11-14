@@ -16,6 +16,7 @@ use crate::client_build::ClientBuild;
 use crate::error::ServerError;
 use crate::identity::{self, SessionIdentity};
 use crate::lobby;
+use crate::matchmaking;
 use crate::metrics;
 use crate::protocol::{
     ChatMessage, ChatScope, ClientMessage, RoomStatus, ServerMessage, CHAT_MESSAGE_MAX_CHARS,
@@ -2555,6 +2556,173 @@ fn handle_client_message(
             }
         }
 
+        ClientMessage::EnterQueue {
+            format,
+            pod_sizes,
+            decks,
+            can_host,
+        } => {
+            if let Err(err) = matchmaking::validate_entry(&format, &pod_sizes, &decks) {
+                send_error(sender, &err);
+                return;
+            }
+            let (room_id, is_service) = state
+                .players
+                .get(player_id)
+                .map(|p| (p.room_id.clone(), p.is_service))
+                .unwrap_or((None, true));
+            if is_service {
+                send_error(
+                    sender,
+                    &ServerError::InvalidQueue("bots cannot queue".into()),
+                );
+                return;
+            }
+            if let Some(room_id) = room_id {
+                send_error(sender, &ServerError::AlreadyInRoom(room_id));
+                return;
+            }
+            info!(
+                "[queue] '{}' queued {} deck(s) for {:?} pods of {:?} (can_host={})",
+                username,
+                decks.len(),
+                format,
+                pod_sizes,
+                can_host
+            );
+            let status = {
+                let mut queue = state.queue.lock().expect("queue lock");
+                queue.enter(matchmaking::QueueEntry {
+                    player_id: player_id.to_string(),
+                    username: username.to_string(),
+                    format,
+                    pod_sizes,
+                    decks,
+                    steps: Vec::new(),
+                    can_host,
+                    queued_at: std::time::Instant::now(),
+                    offered: false,
+                    bot_fill: false,
+                    bot_fill_offered: false,
+                });
+                matchmaking::queue_status(&queue, player_id)
+            };
+            send_msg(sender, &status);
+            matchmaking::record_player(state, player_id, "enter", |entry, event| {
+                event.pod_sizes = entry.pod_sizes.clone();
+                event.brackets = entry.decks.iter().map(|deck| deck.bracket).collect();
+                event.can_host = Some(entry.can_host);
+            });
+        }
+
+        ClientMessage::AcceptQueueStep { bracket } => {
+            let result = {
+                let mut queue = state.queue.lock().expect("queue lock");
+                queue
+                    .accept_step(player_id, bracket)
+                    .map(|()| matchmaking::queue_status(&queue, player_id))
+            };
+            match result {
+                Ok(status) => {
+                    info!("[queue] '{}' accepted bracket {}", username, bracket);
+                    send_msg(sender, &status);
+                    matchmaking::record_player(state, player_id, "step_accept", |_, event| {
+                        event.bracket = Some(bracket);
+                    });
+                }
+                Err(msg) => send_error(sender, &ServerError::InvalidQueue(msg)),
+            }
+        }
+
+        ClientMessage::AcceptBotFill => {
+            let result = {
+                let mut queue = state.queue.lock().expect("queue lock");
+                queue
+                    .accept_bot_fill(player_id)
+                    .map(|()| matchmaking::queue_status(&queue, player_id))
+            };
+            match result {
+                Ok(status) => {
+                    info!("[queue] '{}' accepted bot fill", username);
+                    send_msg(sender, &status);
+                    matchmaking::record_player(state, player_id, "bot_fill_accept", |_, _| {});
+                }
+                Err(msg) => send_error(sender, &ServerError::InvalidQueue(msg)),
+            }
+        }
+
+        ClientMessage::AcceptMatch => {
+            matchmaking::record_player(state, player_id, "match_accept", |_, _| {});
+            state
+                .queue
+                .lock()
+                .expect("queue lock")
+                .accept_match(player_id);
+        }
+
+        ClientMessage::DeclineMatch => {
+            matchmaking::record_player(state, player_id, "match_decline", |_, _| {});
+            let requeued = state
+                .queue
+                .lock()
+                .expect("queue lock")
+                .decline_match(player_id);
+            info!("[queue] '{}' declined a match", username);
+            matchmaking::send_statuses(state, requeued.iter().chain([&player_id.to_string()]));
+        }
+
+        ClientMessage::AnnounceTable { bracket } => {
+            let Some(room_id) = state.players.get(player_id).and_then(|p| p.room_id.clone()) else {
+                return;
+            };
+            let info = state.rooms.get_mut(&room_id).and_then(|mut room| {
+                let eligible = room.host_player_id == player_id
+                    && !room.hosted
+                    && room.matchmade_bracket.is_none()
+                    && room.status == RoomStatus::Lobby
+                    && bracket.is_none_or(|b| (1..=5).contains(&b));
+                if !eligible || room.table_bracket == bracket {
+                    return None;
+                }
+                room.table_bracket = bracket;
+                Some(room.to_room_info())
+            });
+            if let Some(info) = info {
+                info!(
+                    "[queue] '{}' announced table {} at bracket {:?}",
+                    username,
+                    &room_id[..8],
+                    bracket
+                );
+                let requeued = state
+                    .queue
+                    .lock()
+                    .expect("queue lock")
+                    .reset_table(&room_id);
+                matchmaking::send_statuses(state, requeued.iter());
+                broadcast_to_room(state, &room_id, &ServerMessage::RoomUpdate { room: info });
+            }
+        }
+
+        ClientMessage::AnswerTableCall { room_id, join } => {
+            let action = if join { "table_join" } else { "table_decline" };
+            let call_room = room_id.clone();
+            matchmaking::record_player(state, player_id, action, move |_, event| {
+                event.room_id = Some(call_room);
+            });
+            state
+                .queue
+                .lock()
+                .expect("queue lock")
+                .answer_call(player_id, &room_id, join);
+        }
+
+        ClientMessage::LeaveQueue => {
+            matchmaking::record_player(state, player_id, "leave", |_, _| {});
+            let requeued = state.queue.lock().expect("queue lock").leave(player_id);
+            matchmaking::send_statuses(state, requeued.iter().chain([&player_id.to_string()]));
+        }
+
         ClientMessage::TurnChange {
             new_active_player,
             turn_number,
@@ -2627,6 +2795,12 @@ fn msg_type_of(msg: &ServerMessage) -> &'static str {
         ServerMessage::ChatMessage(_) => "ChatMessage",
         ServerMessage::ChatHistory { .. } => "ChatHistory",
         ServerMessage::RoomInvite { .. } => "RoomInvite",
+        ServerMessage::QueueStatus { .. } => "QueueStatus",
+        ServerMessage::QueueStepOffer { .. } => "QueueStepOffer",
+        ServerMessage::QueueBotFillOffer { .. } => "QueueBotFillOffer",
+        ServerMessage::MatchProposal { .. } => "MatchProposal",
+        ServerMessage::TableCall { .. } => "TableCall",
+        ServerMessage::MatchFound { .. } => "MatchFound",
     }
 }
 
@@ -2658,6 +2832,14 @@ fn client_msg_type(msg: &ClientMessage) -> &'static str {
         ClientMessage::ReportPlaneQuality { .. } => "ReportPlaneQuality",
         ClientMessage::SendChat { .. } => "SendChat",
         ClientMessage::InviteToRoom { .. } => "InviteToRoom",
+        ClientMessage::EnterQueue { .. } => "EnterQueue",
+        ClientMessage::AcceptQueueStep { .. } => "AcceptQueueStep",
+        ClientMessage::AcceptBotFill => "AcceptBotFill",
+        ClientMessage::AcceptMatch => "AcceptMatch",
+        ClientMessage::DeclineMatch => "DeclineMatch",
+        ClientMessage::AnnounceTable { .. } => "AnnounceTable",
+        ClientMessage::AnswerTableCall { .. } => "AnswerTableCall",
+        ClientMessage::LeaveQueue => "LeaveQueue",
     }
 }
 

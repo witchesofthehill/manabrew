@@ -225,6 +225,32 @@ pub enum AnalyticsEvent {
         room_id: String,
         username: String,
     },
+    Matchmaking(MatchmakingEvent),
+}
+
+#[derive(Debug, Default, Serialize)]
+pub struct MatchmakingEvent {
+    pub ts: String,
+    pub action: &'static str,
+    pub usernames: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub room_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bracket: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pod_size: Option<u8>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub pod_sizes: Vec<u8>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub brackets: Vec<u8>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub waited_s: Vec<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub can_host: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hosted: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bot_fill: Option<bool>,
 }
 
 #[derive(Serialize)]

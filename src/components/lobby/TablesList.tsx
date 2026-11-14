@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChooseFormatDialog } from "@/components/lobby/ChooseFormatDialog";
+import { FindGameCard } from "@/components/lobby/FindGameCard";
 import { JoinPasswordDialog } from "@/components/lobby/JoinPasswordDialog";
 import { MultiplayerStartPanel } from "@/components/lobby/MultiplayerStartPanel";
 import { OpenTableCard } from "@/components/lobby/OpenTableCard";
@@ -166,6 +167,8 @@ export function TablesList({
           )}
         >
           <MultiplayerStartPanel disabled={disabled} onSetUp={onNewGame} />
+
+          <FindGameCard />
 
           <section className={cn("space-y-3", shortTouch && "space-y-2")}>
             <div>

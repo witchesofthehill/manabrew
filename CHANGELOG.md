@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.80.1](https://github.com/witchesofthehill/manabrew/compare/v3.80.0...v3.80.1) (2026-11-14)
+
+### Fixes
+
+* **tauri:** keep lobby auto-connect off the shared relay during local ai handoff ([#1223](https://github.com/witchesofthehill/manabrew/issues/1223)) ([dff3f98](https://github.com/witchesofthehill/manabrew/commit/dff3f9853f21ee9ac925b50d1339edb7a310f215))
+
 ## [3.80.0](https://github.com/witchesofthehill/manabrew/compare/v3.79.7...v3.80.0) (2026-11-13)
 
 ### Features

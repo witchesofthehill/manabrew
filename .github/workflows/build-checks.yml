@@ -197,7 +197,7 @@ jobs:
           node-version: "24"
 
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.100.0
         with:
           targets: wasm32-unknown-unknown
 
@@ -282,7 +282,7 @@ jobs:
         run: npm install --global yarn
 
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.100.0
         with:
           targets: wasm32-unknown-unknown
 
@@ -378,7 +378,7 @@ jobs:
           node-version: "24"
 
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.100.0
         with:
           components: clippy, rustfmt
 
@@ -409,7 +409,7 @@ jobs:
           clean: true
 
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.100.0
 
       - name: Set up mold linker
         uses: rui314/setup-mold@v1
@@ -443,7 +443,7 @@ jobs:
           clean: true
 
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.100.0
 
       - name: Set up mold linker
         uses: rui314/setup-mold@v1
@@ -469,7 +469,7 @@ jobs:
           clean: true
 
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.100.0
 
       - name: Set up mold linker
         uses: rui314/setup-mold@v1
@@ -503,7 +503,7 @@ jobs:
           clean: true
 
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.100.0
 
       - name: Set up mold linker
         uses: rui314/setup-mold@v1
@@ -540,7 +540,7 @@ jobs:
         run: npm install --global yarn
 
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.100.0
 
       - name: Cargo cache
         uses: Swatinem/rust-cache@v2
@@ -614,7 +614,7 @@ jobs:
         run: npm install --global yarn
 
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.100.0
         with:
           targets: aarch64-apple-ios,wasm32-unknown-unknown
 
@@ -687,7 +687,7 @@ jobs:
           java-version: "17"
 
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.100.0
         with:
           targets: aarch64-linux-android,wasm32-unknown-unknown
 
@@ -753,7 +753,7 @@ jobs:
           node-version: "24"
 
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.100.0
 
       - name: Set up mold linker
         uses: rui314/setup-mold@v1
@@ -812,7 +812,7 @@ jobs:
           cache: "maven"
 
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.100.0
 
       - name: Cargo cache
         uses: Swatinem/rust-cache@v2
@@ -906,7 +906,7 @@ jobs:
           cache: "maven"
 
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.100.0
 
       - name: Set up mold linker
         uses: rui314/setup-mold@v1
@@ -986,7 +986,7 @@ jobs:
           cache: "maven"
 
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.100.0
 
       - name: Cargo cache
         uses: Swatinem/rust-cache@v2
@@ -1086,7 +1086,7 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.100.0
 
       - name: Install git-cliff
         uses: taiki-e/install-action@v2

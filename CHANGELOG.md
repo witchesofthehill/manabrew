@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.80.2](https://github.com/witchesofthehill/manabrew/compare/v3.80.1...v3.80.2) (2026-11-14)
+
+### Fixes
+
+* rulebreakers ([#1219](https://github.com/witchesofthehill/manabrew/issues/1219)) ([33b3ff7](https://github.com/witchesofthehill/manabrew/commit/33b3ff72778c9d2c308aab8181b647af7a0d0aad))
+
 ## [3.80.1](https://github.com/witchesofthehill/manabrew/compare/v3.80.0...v3.80.1) (2026-11-14)
 
 ### Fixes

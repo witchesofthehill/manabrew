@@ -1,6 +1,7 @@
 // Mirrors Forge's DeckFormat (structural rules) + GameFormat (card legality).
 // For our limited card pool, we combine both into a single GameFormat interface.
 import { commanderRulebreakers } from "@/lib/rulebreakers";
+import type { DeckLegality } from "@/lib/rulebreakers/rulebreaker";
 import type { Deck, DeckCard, DeckFormat } from "@/protocol/deck";
 export interface GameFormat {
   id: DeckFormat | "duelcommander";
@@ -645,7 +646,7 @@ export function validateDeckSections(
   const identitySource =
     format.id === "oathbreaker" ? commanders.filter((c) => canBeOathbreaker(c)) : commanders;
   const commanderIdentity = new Set(identitySource.flatMap((cmd) => getCardIdentity(cmd)));
-  const legality = commanderRulebreakers(commanders).reduce(
+  const legality = commanderRulebreakers(commanders).reduce<DeckLegality>(
     (current, rulebreaker) => rulebreaker.apply(current),
     {
       commanderIdentity,

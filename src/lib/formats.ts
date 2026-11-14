@@ -2,7 +2,8 @@
 // For our limited card pool, we combine both into a single GameFormat interface.
 import type { Deck, DeckCard, DeckFormat } from "@/protocol/deck";
 export interface GameFormat {
-  id: DeckFormat;
+  id: DeckFormat | "duelcommander";
+  deckFormat?: DeckFormat;
   name: string;
   shortName: string;
   description: string;
@@ -234,6 +235,23 @@ export const GAME_FORMATS: GameFormat[] = [
       maxCopies: 1,
       sideboardMax: 10,
       startingLife: 40,
+      requiresCommander: true,
+    },
+    bannedCards: [],
+  },
+  {
+    id: "duelcommander",
+    deckFormat: "commander",
+    name: "Duel Commander",
+    shortName: "DC",
+    description: `Commander decks, 1v1, 20 life`,
+    badgeColor: "purple",
+    deckRules: {
+      minDeckSize: 100,
+      maxDeckSize: 100,
+      maxCopies: 1,
+      sideboardMax: 10,
+      startingLife: 20,
       requiresCommander: true,
     },
     bannedCards: [],

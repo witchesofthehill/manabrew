@@ -695,7 +695,8 @@ pub fn start_game_sync(
             GameFormat::Commander => 40,
             GameFormat::Brawl => 25,
             GameFormat::PauperCommander => 30,
-            GameFormat::Standard
+            GameFormat::DuelCommander
+            | GameFormat::Standard
             | GameFormat::Pioneer
             | GameFormat::Modern
             | GameFormat::Legacy

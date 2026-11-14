@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.80.0](https://github.com/witchesofthehill/manabrew/compare/v3.79.7...v3.80.0) (2026-11-13)
+
+### Features
+
+* support duel commander ([#1213](https://github.com/witchesofthehill/manabrew/issues/1213)) ([9635050](https://github.com/witchesofthehill/manabrew/commit/9635050868810bf79bf549acb5fcfc5aba4c0a6c))
+
 ## [3.79.7](https://github.com/witchesofthehill/manabrew/compare/v3.79.6...v3.79.7) (2026-11-13)
 
 ## [3.79.6](https://github.com/witchesofthehill/manabrew/compare/v3.79.5...v3.79.6) (2026-11-11)

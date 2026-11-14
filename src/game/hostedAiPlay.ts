@@ -341,6 +341,8 @@ function serverFormatFromId(formatId: string): GameFormat {
       return "Premodern";
     case "commander":
       return "Commander";
+    case "duelcommander":
+      return "DuelCommander";
     case "paupercommander":
       return "PauperCommander";
     case "brawl":

@@ -25,6 +25,7 @@ import { useGameStore } from "@/stores/useGameStore";
 import { startMpSealed } from "@/game/sealedStart";
 import { limitedGameLaunch } from "@/game/limitedSession";
 import { getDeckFingerprint } from "@/lib/decks";
+import { getFormat } from "@/lib/formats";
 import { ROUTES } from "@/lib/constants";
 import { stripUsernameTag } from "@/lib/username";
 import { cn } from "@/lib/utils";
@@ -152,11 +153,11 @@ export default function Lobby() {
   const [preferredSavedDeckId] = useState(initialPreferredSavedDeckId);
   const [preferredHubDeckId] = useState(initialPreferredHubDeckId);
   const lastPlayedSavedDeck = savedDecks.find((saved) => saved.id === prefs.lastPlayedDeckId);
+  const roomFormatId = currentRoom?.format ? currentRoom.format.toLowerCase() : "standard";
+  const roomDeckFormat = getFormat(roomFormatId)?.deckFormat ?? roomFormatId;
   const deckDialogPreSelectedId =
     preferredSavedDeckId ??
-    (lastPlayedSavedDeck &&
-    (lastPlayedSavedDeck.deck.format ?? "standard") ===
-      (currentRoom?.format ? currentRoom.format.toLowerCase() : "standard")
+    (lastPlayedSavedDeck && (lastPlayedSavedDeck.deck.format ?? "standard") === roomDeckFormat
       ? lastPlayedSavedDeck.id
       : undefined);
   const [deckDialogOpen, setDeckDialogOpen] = useState(false);
@@ -651,7 +652,7 @@ export default function Lobby() {
         onOpenChange={setDeckDialogOpen}
         mode="lobby"
         engineKind={currentRoom?.engine}
-        forcedFormatId={currentRoom?.format ? currentRoom.format.toLowerCase() : "standard"}
+        forcedFormatId={roomFormatId}
         preSelectedDeckId={deckDialogPreSelectedId}
         preSelectedHubDeckId={preferredHubDeckId}
         onStart={(deck, _formatId, commanderName, _playerCount, publishedDeckId) => {
@@ -666,7 +667,7 @@ export default function Lobby() {
         }}
         mode="lobby"
         engineKind={currentRoom?.engine}
-        forcedFormatId={currentRoom?.format ? currentRoom.format.toLowerCase() : "standard"}
+        forcedFormatId={roomFormatId}
         target="bot"
         onStart={(deck, _formatId, commanderName) => {
           if (botDeckTarget) {

@@ -3,7 +3,7 @@ import type { CardDto } from "@/protocol/game";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import type { PreviewPointerInput } from "@/lib/cardPreview";
 import type { HandCardControlsSpec } from "../HandCardControls";
-import { CardSprite } from "../CardSprite";
+import { CardSprite, isRealisticOnlyCard } from "../CardSprite";
 import { getTheme } from "@/hooks/useTheme";
 import type { HandState, ScreenBounds, ScreenPos } from "../types";
 import { hexToNum } from "../colorUtils";
@@ -139,7 +139,8 @@ export class HandController {
   setRulesViewDefault(active: boolean): void {
     if (this.rulesViewDefault === active) return;
     this.rulesViewDefault = active;
-    for (const sprite of this.sprites.values()) sprite.setHandRulesView(active);
+    for (const sprite of this.sprites.values())
+      sprite.setHandRulesView(active && !isRealisticOnlyCard(sprite.card));
   }
 
   isDraggingPermanent(): boolean {
@@ -614,7 +615,7 @@ export class HandController {
 
   private createSprite(card: CardDto): CardSprite {
     const sprite = new CardSprite(card, "hand");
-    sprite.setHandRulesView(this.rulesViewDefault);
+    sprite.setHandRulesView(this.rulesViewDefault && !isRealisticOnlyCard(card));
     sprite.eventMode = "static";
     sprite.cursor = "grab";
     sprite.onReorient = () => this.relayout();

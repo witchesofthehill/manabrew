@@ -739,6 +739,9 @@ jobs:
           name: faro-maps-windows-${{ github.sha }}
           path: target/faro-artifacts/windows/
 
+      - name: Clear restored source maps
+        run: rm -rf target/faro-sourcemaps
+
       - name: Decrypt desktop source maps
         env:
           FARO_MAPS_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
@@ -1012,6 +1015,9 @@ jobs:
         with:
           shared-key: xtask-deploy
           save-if: false
+      - name: Clear restored source maps
+        run: rm -rf target/faro-sourcemaps
+
       - name: Download exact private web maps
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -1108,6 +1114,9 @@ jobs:
         with:
           shared-key: xtask-deploy
           save-if: false
+      - name: Clear restored source maps
+        run: rm -rf target/faro-sourcemaps
+
       - name: Download exact private web maps
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

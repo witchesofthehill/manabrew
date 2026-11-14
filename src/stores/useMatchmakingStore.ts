@@ -1,24 +1,17 @@
-import { toast } from "sonner";
 import { create } from "zustand";
-import { ownedDecksNow } from "@/hooks/useOwnedDecks";
 import { forgeWasmGate } from "@/lib/forgeWasm";
 import { localGameActive, onLocalGameEnd } from "@/lib/localGamePresence";
 import { playSound } from "@/lib/soundRuntime";
-import { commanderQueueDecks } from "@/lib/queueDecks";
 import { getPlatform } from "@/platform";
-import type { Deck } from "@/protocol/deck";
-import { usePreferencesStore } from "@/stores/usePreferencesStore";
-import { useServerStore } from "@/stores/useServerStore";
-import {
-  RELAY_FEATURE,
-  type MatchFoundPayload,
-  type MatchProposalPayload,
-  type QueueBotFillOfferPayload,
-  type QueueBracketCount,
-  type QueuedDeck,
-  type QueueStatusPayload,
-  type QueueStepOfferPayload,
-  type TableCallPayload,
+import type {
+  MatchFoundPayload,
+  MatchProposalPayload,
+  QueueBotFillOfferPayload,
+  QueueBracketCount,
+  QueuedDeck,
+  QueueStatusPayload,
+  QueueStepOfferPayload,
+  TableCallPayload,
 } from "@/types/server";
 
 export type PodSize = 2 | 3 | 4;
@@ -34,11 +27,7 @@ export function podSizesFor(size: PodSize, otherPodSize: boolean): PodSize[] {
   return [size, size === 4 ? 3 : 4];
 }
 
-const RELAY_WAIT_MS = 10_000;
-const ASK_TO_QUEUE_MS = 20_000;
-const MAX_QUEUED_DECKS = 32;
-
-export function requestCallNotifications(): void {
+function requestCallNotifications(): void {
   if (typeof Notification === "undefined" || Notification.permission !== "default") return;
   void Notification.requestPermission().catch(() => undefined);
 }
@@ -57,10 +46,6 @@ function notifyTableCall(call: TableCallPayload): void {
   };
 }
 
-function deckKey(deck: Deck): string {
-  return `${deck.name}|${deck.commanders?.map((card) => card.identity.name).join("+") ?? ""}`;
-}
-
 interface StepOffer {
   down: number | null;
   up: number | null;
@@ -69,7 +54,6 @@ interface StepOffer {
 interface MatchmakingState {
   phase: "idle" | "queued" | "proposed" | "matched";
   podSizes: PodSize[];
-  auto: boolean;
   queuedAt: number | null;
   brackets: number[];
   waiting: QueueBracketCount[];
@@ -81,8 +65,7 @@ interface MatchmakingState {
   match: MatchFoundPayload | null;
   tableCall: TableCallPayload | null;
   answerTableCall(join: boolean): Promise<void>;
-  enter(podSizes: PodSize[], decks: QueuedDeck[], auto?: boolean): Promise<void>;
-  autoEnter(deck: Deck, seats: number): Promise<void>;
+  enter(podSizes: PodSize[], decks: QueuedDeck[]): Promise<void>;
   acceptStep(bracket: number): Promise<void>;
   dismissOffer(): void;
   acceptBotFill(): Promise<void>;
@@ -96,7 +79,6 @@ interface MatchmakingState {
 const IDLE: Pick<
   MatchmakingState,
   | "phase"
-  | "auto"
   | "queuedAt"
   | "brackets"
   | "waiting"
@@ -107,7 +89,6 @@ const IDLE: Pick<
   | "accepted"
 > = {
   phase: "idle",
-  auto: false,
   queuedAt: null,
   brackets: [],
   waiting: [],
@@ -117,53 +98,6 @@ const IDLE: Pick<
   proposal: null,
   accepted: false,
 };
-
-function relayReady(): boolean {
-  const server = useServerStore.getState();
-  return server.connected && server.hasRelayFeature(RELAY_FEATURE.Matchmaking);
-}
-
-function waitForRelay(): Promise<boolean> {
-  if (relayReady()) return Promise.resolve(true);
-  return new Promise((resolve) => {
-    const timer = setTimeout(() => {
-      unsubscribe();
-      resolve(false);
-    }, RELAY_WAIT_MS);
-    const unsubscribe = useServerStore.subscribe(() => {
-      if (!relayReady()) return;
-      clearTimeout(timer);
-      unsubscribe();
-      resolve(true);
-    });
-  });
-}
-
-function askToQueue(): Promise<boolean | null> {
-  return new Promise((resolve) => {
-    let settled = false;
-    const settle = (answer: boolean | null) => {
-      if (settled) return;
-      settled = true;
-      resolve(answer);
-    };
-    toast("Look for human players while you play?", {
-      description:
-        "We queue your Commander decks. When a table is found you get 30 seconds to join, which ends this game. You can change this on the Play page.",
-      duration: ASK_TO_QUEUE_MS,
-      action: {
-        label: "Yes",
-        onClick: () => {
-          requestCallNotifications();
-          settle(true);
-        },
-      },
-      cancel: { label: "No thanks", onClick: () => settle(false) },
-      onDismiss: () => settle(null),
-      onAutoClose: () => settle(null),
-    });
-  });
-}
 
 let unsubscribers: Array<() => void> = [];
 
@@ -228,15 +162,14 @@ export const useMatchmakingStore = create<MatchmakingState>((set, get) => ({
     set({ tableCall: null });
     await getPlatform().server?.answerTableCall(call.room_id, join);
   },
-  async enter(podSizes, decks, auto = false) {
+  async enter(podSizes, decks) {
     const server = getPlatform().server;
     if (!server) throw new Error("Multiplayer is not available.");
     listen(set, get);
-    if (!auto) requestCallNotifications();
+    requestCallNotifications();
     set({
       ...IDLE,
       phase: "queued",
-      auto,
       podSizes,
       queuedAt: Date.now(),
       brackets: [...new Set(decks.map((deck) => deck.bracket))],
@@ -248,29 +181,6 @@ export const useMatchmakingStore = create<MatchmakingState>((set, get) => ({
       decks,
       canHost: forgeWasmGate() === "in_browser",
     });
-  },
-  async autoEnter(deck, seats) {
-    const preferences = usePreferencesStore.getState();
-    if (preferences.openToHumanMatches === false || get().phase !== "idle") return;
-    if (seats < 2 || seats > 4) return;
-    if (deck.format !== "commander" || !deck.commanders?.length) return;
-    if (!(await waitForRelay())) return;
-    if (preferences.openToHumanMatches === null) {
-      const answer = await askToQueue();
-      if (answer === null) return;
-      usePreferencesStore.getState().setOpenToHumanMatches(answer);
-      if (!answer) return;
-    }
-    const seen = new Set<string>();
-    const decks = [deck, ...ownedDecksNow().map((owned) => owned.deck)].filter((candidate) => {
-      const key = deckKey(candidate);
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-    const queued = (await commanderQueueDecks(decks)).slice(0, MAX_QUEUED_DECKS);
-    if (queued.length === 0 || !relayReady() || get().phase !== "idle") return;
-    await get().enter(podSizesFor(seats as PodSize, true), queued, true);
   },
   async acceptStep(bracket) {
     set({ offer: null });

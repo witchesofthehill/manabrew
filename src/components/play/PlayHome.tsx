@@ -4,7 +4,6 @@ import multiplayerArt from "@/assets/double-players4.webp";
 import singlePlayerArt from "@/assets/single-player2.webp";
 import { UpdateCallout } from "@/components/layout/UpdateCallout";
 import { FeatureTile } from "@/components/play/FeatureTile";
-import { FindGameCard } from "@/components/play/FindGameCard";
 import { GuestNudge } from "@/components/play/GuestNudge";
 import { PlayDeckShelf } from "@/components/play/PlayDeckShelf";
 import { PlayHomeLinks } from "@/components/play/PlayHomeLinks";
@@ -155,7 +154,6 @@ export function PlayHome() {
                 />
               ))}
             </section>
-            <FindGameCard />
           </div>
 
           <div

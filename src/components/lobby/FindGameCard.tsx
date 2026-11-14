@@ -13,7 +13,6 @@ import {
   useMatchmakingStore,
   type PodSize,
 } from "@/stores/useMatchmakingStore";
-import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useServerStore } from "@/stores/useServerStore";
 import { RELAY_FEATURE, type QueueBracketCount } from "@/types/server";
 
@@ -25,25 +24,17 @@ function playersLabel(count: number): string {
   return count === 1 ? "1 player waiting" : `${count} players waiting`;
 }
 
+const KEEP_GOING =
+  "Keep playing against Manabot or use the rest of the app. We ping you when a table needs players, and you get 30 seconds to join.";
+
 export function FindGameCard() {
   const ownedDecks = useOwnedDecks();
   const connected = useServerStore((state) => state.connected);
   const supported = useServerStore((state) => state.relayFeatures).includes(
     RELAY_FEATURE.Matchmaking,
   );
-  const {
-    phase,
-    auto,
-    podSizes,
-    queuedAt,
-    brackets,
-    waiting,
-    offer,
-    botFillOffer,
-    botFill,
-    proposal,
-  } = useMatchmakingStore();
-  const openToHumans = usePreferencesStore((state) => state.openToHumanMatches);
+  const { phase, podSizes, queuedAt, brackets, waiting, offer, botFillOffer, botFill, proposal } =
+    useMatchmakingStore();
   const [eitherSize, setEitherSize] = useState(true);
   const [preparing, setPreparing] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -65,16 +56,14 @@ export function FindGameCard() {
         return;
       }
       await useMatchmakingStore.getState().enter(podSizesFor(size, eitherSize), decks);
+      toast.success("You're in the queue", {
+        description: KEEP_GOING,
+      });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not join the queue.");
     } finally {
       setPreparing(false);
     }
-  }
-
-  function setOpenToHumans(open: boolean) {
-    usePreferencesStore.getState().setOpenToHumanMatches(open);
-    if (!open && auto) void useMatchmakingStore.getState().leave();
   }
 
   const elapsed = queuedAt ? Math.max(0, Math.floor((now - queuedAt) / 1000)) : 0;
@@ -113,21 +102,7 @@ export function FindGameCard() {
         )}
       </div>
 
-      {queued && (
-        <p className="text-ui-meta text-muted-foreground">
-          {auto
-            ? "Queued from your game against Manabot with all your Commander decks. When a table is found you get 30 seconds to join."
-            : "You can play against Manabot while you wait. When a table is found you get 30 seconds to join."}
-        </p>
-      )}
-
-      <label className="flex items-center gap-2 text-ui-meta text-muted-foreground">
-        <Checkbox
-          checked={openToHumans === true}
-          onCheckedChange={(checked) => setOpenToHumans(checked === true)}
-        />
-        Look for human players while I play Commander against Manabot
-      </label>
+      <p className="text-ui-meta text-muted-foreground">{KEEP_GOING}</p>
 
       {!queued && (
         <label className="flex items-center gap-2 text-ui-meta text-muted-foreground">

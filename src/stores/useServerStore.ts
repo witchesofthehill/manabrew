@@ -78,6 +78,7 @@ interface ServerState {
   /** Set when the session is on a relay or room found on this network rather
    *  than the configured one, for the lobby to say so. */
   lanTarget: LanTarget | null;
+  switchingRelay: boolean;
 
   rooms: RoomInfo[];
   currentRoom: RoomInfo | null;
@@ -205,6 +206,7 @@ export const useServerStore = create<ServerState>()(
       reconnect: { phase: "idle", attempt: 0 },
       relayFeatures: [],
       lanTarget: null,
+      switchingRelay: false,
       rooms: [],
       currentRoom: null,
       roomPassword: null,
@@ -255,7 +257,7 @@ export const useServerStore = create<ServerState>()(
       // as soon as it opens, and a lookup that lived only in the lobby ran
       // after that, when there was nothing left to decide.
       async connectPreferred(username) {
-        if (get().connected || get().connecting) return;
+        if (get().connected || get().connecting || get().switchingRelay) return;
         set({ connecting: true, error: null });
         const found = await findLanRelay();
         const prefs = usePreferencesStore.getState();

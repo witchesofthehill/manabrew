@@ -114,6 +114,7 @@ export default function Lobby() {
     startingLife,
     connect,
     connectPreferred,
+    switchingRelay,
     lanTarget,
     listRooms,
     listPlayers,
@@ -232,9 +233,17 @@ export default function Lobby() {
   // configured one.
   useEffect(() => {
     const name = relayUsername();
-    if (connected || connecting || error || !name) return;
+    if (connected || connecting || error || switchingRelay || !name) return;
     void connectPreferred(name);
-  }, [connectPreferred, connected, connecting, error, prefs.serverUsername, accountHandle]);
+  }, [
+    connectPreferred,
+    connected,
+    connecting,
+    error,
+    switchingRelay,
+    prefs.serverUsername,
+    accountHandle,
+  ]);
 
   // Poll lobby data every 5s while connected
   useEffect(() => {

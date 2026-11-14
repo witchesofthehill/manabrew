@@ -146,7 +146,7 @@ Extending a closed wire enum is a breaking protocol change: older Rust consumers
 
 `yarn gen:types` must remain idempotent because lint and build invoke it repeatedly in the same worktree. The protocol generator recreates `src/protocol/`, and xtask removes `src/api/hubTypes.ts` before ts-rs exports; do not change either path to append to existing generated files.
 
-CI uses the latest stable Rust toolchain and runs `node scripts/clippy.mjs` (`cargo clippy --workspace --lib --bins -- -D warnings`). Reproduce Clippy failures with the compiler version shown in the failed job: a stable update can introduce diagnostics in unchanged code. Rust 1.100.0 expanded `needless_bool` to flag final boolean guards and `needless_range_loop` to flag indexed mana-pool iteration; an older local toolchain can miss these failures.
+The Rust toolchain is pinned in the root `rust-toolchain.toml` and in every `dtolnay/rust-toolchain@<version>` ref under `.github/workflows/`; bump both together in one PR. A new stable release once reached CI unannounced and broke it twice: new Clippy lints, and Cargo 1.100.0's build-dir layout, which moved `OUT_DIR` one level deeper. CI runs `node scripts/clippy.mjs` (`cargo clippy --workspace --lib --bins -- -D warnings`). Rust 1.100.0 expanded `needless_bool` to flag final boolean guards and `needless_range_loop` to flag indexed mana-pool iteration; an older local toolchain can miss these failures.
 
 The debugger's file picker uses `ashpd` only on Linux/BSD, so macOS workspace checks do not validate that dependency. `rfd` 0.14 pulls in `ashpd` 0.8, which fails Rust 1.100.0 type inference in its clipboard portal; keep `rfd` at 0.15.4 or newer and verify the Linux Clippy job after dependency changes.
 

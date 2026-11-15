@@ -1,0 +1,54 @@
+:80 {
+	root * /srv/manabrew
+
+	encode zstd gzip
+
+	# Runtime relay config (rewritten from RELAY_* env on start) — never cache it.
+	@config path /config.js
+	handle @config {
+		header Cache-Control "no-store"
+		file_server
+	}
+
+	# Mana symbol proxy: served same-origin so symbols never depend on the
+	# box's direct egress to svgs.scryfall.io and stay COEP-clean. The app
+	# points here via VITE_SCRYFALL_SYMBOL_BASE=/scryfall-symbols/.
+	@scryfall path_regexp scryfall ^/scryfall-symbols/(.*)$
+	handle @scryfall {
+		rewrite * /card-symbols/{re.scryfall.1}
+		reverse_proxy https://svgs.scryfall.io {
+			header_up Host svgs.scryfall.io
+			header_down -Access-Control-Allow-Origin
+			header_down -Cross-Origin-Resource-Policy
+			header_down -Cache-Control
+		}
+		header Cache-Control "public, max-age=604800"
+		header Cross-Origin-Resource-Policy "same-origin"
+	}
+
+	@cubecobra path_regexp cubecobra ^/cubecobra-download/cube/api/cubeJSON/([A-Za-z0-9-]+)$
+	handle @cubecobra {
+		rewrite * /cube/api/cubeJSON/{re.cubecobra.1}
+		reverse_proxy https://cubecobra.com {
+			header_up Host cubecobra.com
+			header_down -Access-Control-Allow-Origin
+			header_down -Set-Cookie
+		}
+		header Cross-Origin-Resource-Policy "same-origin"
+	}
+
+	@hub path /api/*
+	handle @hub {
+		reverse_proxy hub:9500
+	}
+
+	handle {
+		header {
+			Cross-Origin-Opener-Policy "same-origin"
+			Cross-Origin-Embedder-Policy "require-corp"
+			Cross-Origin-Resource-Policy "same-origin"
+		}
+		try_files {path} /index.html
+		file_server
+	}
+}

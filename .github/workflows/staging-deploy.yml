@@ -211,7 +211,7 @@ jobs:
           node-version: "24"
 
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.100.0
 
       - name: Cargo cache
         uses: Swatinem/rust-cache@v2
@@ -221,6 +221,8 @@ jobs:
         with:
           name: faro-maps-staging-web
           path: target/faro-artifacts/
+      - name: Clear restored source maps
+        run: rm -rf target/faro-sourcemaps
       - name: Decrypt private staging maps
         env:
           FARO_MAPS_KEY: ${{ secrets.DEPLOY_SSH_KEY }}

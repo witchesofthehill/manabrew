@@ -144,7 +144,7 @@ jobs:
           submodules: recursive
 
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.100.0
 
       # Default-ld swap: no RUSTFLAGS change, caches stay compatible. Keep
       # in sync with build-checks.yml.
@@ -180,7 +180,7 @@ jobs:
           submodules: recursive
 
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.100.0
 
       - name: Set up mold linker
         uses: rui314/setup-mold@v1
@@ -220,7 +220,7 @@ jobs:
         run: npm install --global yarn
 
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.100.0
         with:
           targets: wasm32-unknown-unknown
 
@@ -282,7 +282,7 @@ jobs:
           cache: yarn
 
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.100.0
         with:
           targets: wasm32-unknown-unknown
 
@@ -400,7 +400,7 @@ jobs:
           cache: yarn
 
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.100.0
         with:
           targets: wasm32-unknown-unknown
 
@@ -521,7 +521,7 @@ jobs:
         run: npm install --global yarn
 
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.100.0
         with:
           targets: aarch64-apple-ios,wasm32-unknown-unknown
 
@@ -593,7 +593,7 @@ jobs:
           java-version: "17"
 
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.100.0
         with:
           targets: aarch64-linux-android,wasm32-unknown-unknown
 

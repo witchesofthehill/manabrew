@@ -391,6 +391,14 @@ export const useGameStore = create<GameState>()(
           else next.add(playerId);
           return { hiddenPlaymats: next };
         }),
+      ignoredCardIds: new Set<string>(),
+      toggleCardIgnored: (cardId) =>
+        set((state) => {
+          const next = new Set(state.ignoredCardIds);
+          if (next.has(cardId)) next.delete(cardId);
+          else next.add(cardId);
+          return { ignoredCardIds: next };
+        }),
       updateGameView: (view) => set({ gameView: view }),
       setGameConfig: (config) => set({ gameConfig: config }),
       dismissIronsmithDeckError: () => set({ ironsmithDeckError: null }),
@@ -775,6 +783,7 @@ export const useGameStore = create<GameState>()(
           myPlayerSlot: null,
           gameDecks: {},
           hiddenPlaymats: new Set<string>(),
+          ignoredCardIds: new Set<string>(),
         });
         stopActiveManualRoomSync();
         resetSelectedGameRuntime();

@@ -104,6 +104,8 @@ export interface GameState {
    *  Never synced — it only affects this client's board. Cleared on game end. */
   hiddenPlaymats: Set<string>;
   togglePlaymatHidden: (playerId: string) => void;
+  ignoredCardIds: Set<string>;
+  toggleCardIgnored: (cardId: string) => void;
   updateGameView: (view: ClientGameView) => void;
   setGameConfig: (config: GameConfig) => void;
   startGame: (

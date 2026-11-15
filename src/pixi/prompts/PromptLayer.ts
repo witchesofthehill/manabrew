@@ -31,6 +31,7 @@ import {
 } from "@/components/game/game.constants";
 import { passPriorityLabel, usePhaseStopStore } from "@/stores/usePhaseStopStore";
 import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
+import { useGameStore } from "@/stores/useGameStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { type PromptActionViewKey, useGameDevStore } from "@/stores/useGameDevStore";
 import { resolveCombo, useKeybindingsStore } from "@/stores/useKeybindingsStore";
@@ -111,6 +112,7 @@ export class PromptLayer extends PromptModalLayer {
   private priorityBadge: { container: Container; baseY: number } | null = null;
   private priorityViewHeight: number | null = null;
   private readonly unsubscribePromptPreferences: () => void;
+  private readonly unsubscribeIgnoredCards: () => void;
   private readonly unsubscribePhaseStops: () => void;
   private readonly unsubscribePreferences: () => void;
   private readonly unsubscribeKeybindings: () => void;
@@ -155,6 +157,11 @@ export class PromptLayer extends PromptModalLayer {
     window.addEventListener(ACTION_DRAWER_BUMP_EVENT, this.onActionBump);
     this.unsubscribePromptPreferences = usePromptPreferencesStore.subscribe((state, previous) => {
       if (state.fullControl === previous.fullControl) return;
+      this.resetAutopassState();
+      this.rebuild();
+    });
+    this.unsubscribeIgnoredCards = useGameStore.subscribe((state, previous) => {
+      if (state.ignoredCardIds === previous.ignoredCardIds) return;
       this.resetAutopassState();
       this.rebuild();
     });
@@ -354,6 +361,7 @@ export class PromptLayer extends PromptModalLayer {
     this.app.stage.off("globalpointermove", this.onStageMove);
     this.app.stage.off("pointerup", this.onStageUp);
     this.unsubscribePromptPreferences();
+    this.unsubscribeIgnoredCards();
     this.unsubscribePhaseStops();
     this.unsubscribePreferences();
     this.unsubscribeKeybindings();

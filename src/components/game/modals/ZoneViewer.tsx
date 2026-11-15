@@ -6,6 +6,7 @@ import {
 import type { CardDto } from "@/protocol/game";
 import { useTheme } from "@/hooks/useTheme";
 import { useGameUIStore } from "@/stores/useGameUIStore";
+import { useGameStore } from "@/stores/useGameStore";
 import { zoneLocationKey, type ZoneLocation, type ZoneViewMode } from "@/lib/zoneView";
 import { Modal } from "./Modal";
 import { DialogCardBrowser } from "./DialogCardBrowser";
@@ -55,6 +56,9 @@ export function ZoneViewer({
   const theme = useTheme().gameTheme;
   const key = zoneLocationKey(source, title);
   const saveState = useGameUIStore((s) => s.saveZoneBrowserState);
+  const ignoredCardIds = useGameStore((s) => s.ignoredCardIds);
+  const toggleCardIgnored = useGameStore((s) => s.toggleCardIgnored);
+  const ignorable = mode === "browse" || mode === "cast";
   const items = useMemo(() => {
     const legal = new Set(clickableCardIds);
     const selected = new Set(selectedCardIds);
@@ -63,9 +67,19 @@ export function ZoneViewer({
       card,
       selected: selected.has(card.id),
       highlightColor: highlightedCardColors?.[card.id],
+      ignored: ignorable && ignoredCardIds.has(card.id),
       legal: !!onClickCard && (mode === "manual" || legal.has(card.id) || selected.has(card.id)),
     }));
-  }, [cards, mode, onClickCard, clickableCardIds, selectedCardIds, highlightedCardColors]);
+  }, [
+    cards,
+    mode,
+    onClickCard,
+    clickableCardIds,
+    selectedCardIds,
+    highlightedCardColors,
+    ignorable,
+    ignoredCardIds,
+  ]);
   const color =
     targetHostile === undefined
       ? theme.cardRing
@@ -110,6 +124,7 @@ export function ZoneViewer({
           item.selected ? (selectedLabel ?? "Undo selection") : (clickLabel ?? ACTION_LABELS[mode])
         }
         onLongPressCard={onLongPressCard}
+        onToggleIgnored={ignorable ? (item) => toggleCardIgnored(item.id) : undefined}
       />
     </Modal>
   );

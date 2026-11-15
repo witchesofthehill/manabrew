@@ -42,10 +42,10 @@ async function encodeUnderBudget(
     const width = Math.max(1, Math.round(baseW * scale));
     const height = Math.max(1, Math.round(baseH * scale));
     const canvas = createCanvas(width, height);
-    get2dContext(canvas).drawImage(source, 0, 0, width, height);
+    const ctx = get2dContext(canvas);
+    ctx.drawImage(source, 0, 0, width, height);
     for (const quality of QUALITY_LADDER) {
-      const blob = await canvasToWebp(canvas, quality);
-      if (blob.type !== WEBP_MIME) throw new Error("WebP encoding unsupported");
+      const blob = await encodeWebp(canvas, ctx, quality);
       if (blob.size <= maxBytes) return blob;
     }
     scale *= SHRINK_FACTOR;
@@ -74,6 +74,26 @@ function createCanvas(width: number, height: number): HTMLCanvasElement | Offscr
   canvas.width = width;
   canvas.height = height;
   return canvas;
+}
+
+// Safari (and every iOS browser) cannot encode WebP from a canvas. It returns
+// a PNG instead, so after the first miss we switch to a wasm encoder.
+let canvasEncodesWebp = true;
+
+async function encodeWebp(
+  canvas: HTMLCanvasElement | OffscreenCanvas,
+  ctx: Canvas2D,
+  quality: number,
+): Promise<Blob> {
+  if (canvasEncodesWebp) {
+    const blob = await canvasToWebp(canvas, quality);
+    if (blob.type === WEBP_MIME) return blob;
+    canvasEncodesWebp = false;
+  }
+  const { default: encode } = await import("@jsquash/webp/encode");
+  const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const bytes = await encode(pixels, { quality: Math.round(quality * 100) });
+  return new Blob([bytes], { type: WEBP_MIME });
 }
 
 async function canvasToWebp(

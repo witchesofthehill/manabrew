@@ -1004,6 +1004,13 @@
     "@jridgewell/resolve-uri" "^3.1.0"
     "@jridgewell/sourcemap-codec" "^1.4.14"
 
+"@jsquash/webp@1.5.0":
+  version "1.5.0"
+  resolved "https://registry.yarnpkg.com/@jsquash/webp/-/webp-1.5.0.tgz#1e8ce357cde2decf4f880a8c436f8f1529cd3f48"
+  integrity sha512-KggLoj2MnRSfIqTeKe1EmbljTX2vuV7mh79k89PCL1pyqiDULcPM1L47twxXt0hkb68F70bXiL31MxsuoZtKFw==
+  dependencies:
+    wasm-feature-detect "^1.2.11"
+
 "@lingui/babel-plugin-extract-messages@6.6.0":
   version "6.6.0"
   resolved "https://registry.yarnpkg.com/@lingui/babel-plugin-extract-messages/-/babel-plugin-extract-messages-6.6.0.tgz#2c4f00e55c719c58c56b47330eb01526e882d6f4"
@@ -2486,15 +2493,14 @@ caniuse-lite@^1.0.30001766:
   resolved "https://registry.npmjs.org/caniuse-lite/-/caniuse-lite-1.0.30001770.tgz"
   integrity sha512-x/2CLQ1jHENRbHg5PSId2sXq1CIO1CISvwWAj027ltMVG2UNgW+w9oH2+HzgEIRFembL8bUlXtfbBHR1fCg2xw==
 
-"card-glint@https://github.com/vishvananda/card-glint/releases/download/v0.7.13/card-glint-0.7.13.tgz":
-  version "0.7.13"
-  resolved "https://github.com/vishvananda/card-glint/releases/download/v0.7.13/card-glint-0.7.13.tgz#979dfe8d842372d21d00dbd1756cdff49aefb50b"
-
 caniuse-lite@^1.0.30001806:
   version "1.0.30001819"
   resolved "https://registry.npmjs.org/caniuse-lite/-/caniuse-lite-1.0.30001819.tgz#4a0f8d7552a15909ce8a0c1dc2ccad9c8c0fab9d"
   integrity sha512-LFUqIIAwpzsIuevnKnsR9qnStBcgzPShTX61lBwN9uFkkf8o8zLiebEjbW8AYtZiF+1YKDWfdt/pWDtMuG8Xwg==
 
+"card-glint@https://github.com/vishvananda/card-glint/releases/download/v0.7.13/card-glint-0.7.13.tgz":
+  version "0.7.13"
+  resolved "https://github.com/vishvananda/card-glint/releases/download/v0.7.13/card-glint-0.7.13.tgz#979dfe8d842372d21d00dbd1756cdff49aefb50b"
 
 chai@^6.2.2:
   version "6.3.0"
@@ -4693,6 +4699,11 @@ w3c-xmlserializer@^5.0.0:
   integrity sha512-o8qghlI8NZHU1lLPrpi2+Uq7abh4GGPpYANlalzWxyWteJOCsr/P+oPBA49TOLu5FTZO4d3F9MnWJfiMo4BkmA==
   dependencies:
     xml-name-validator "^5.0.0"
+
+wasm-feature-detect@^1.2.11:
+  version "1.10.1"
+  resolved "https://registry.yarnpkg.com/wasm-feature-detect/-/wasm-feature-detect-1.10.1.tgz#61e5455fe97cfdac95634c7576c98c2ebab51609"
+  integrity sha512-+wz9+WpMKgQ7H1tm41nJbFwAvwX4DqY0jNY8Blw5Qe6hHg1yhCJ+AqU0R4lgX7p3pyo8irYIl1+mMNoBwSj2Zg==
 
 web-vitals@^6.0.0:
   version "6.2.3"

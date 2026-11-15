@@ -17,7 +17,6 @@ import { reportPublishedDeckPlay } from "@/lib/deckPlayEvidence";
 import { GAME_FORMATS, getFormat, validateDeckSections } from "@/lib/formats";
 import { resolveOfflineEngine } from "@/lib/offlineEngine";
 import { hubEntryEngines, supportsEngine } from "@/lib/engines";
-import { savePresetToAccountOnUse } from "@/lib/presetDeckAccount";
 import { useAccountDecks } from "@/hooks/useAccountDecks";
 import { useOwnedDecks } from "@/hooks/useOwnedDecks";
 import { useDeckStore } from "@/stores/useDeckStore";
@@ -443,9 +442,6 @@ export function DeckVsSelector({
     }
     if (launch.playerDeck.source === "hub" || launch.playerDeck.source === "preset") {
       void reportPublishedDeckPlay(launch.playerDeck.sourceId, launch.playerDeck.sourceDeck);
-    }
-    if (launch.playerDeck.source === "preset") {
-      savePresetToAccountOnUse(launch.playerDeck.sourceId);
     }
     const prefs = usePreferencesStore.getState();
     if (selectedFormat) prefs.setLastOfflineFormatId(selectedFormat);

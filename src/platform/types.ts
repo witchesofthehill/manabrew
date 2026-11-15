@@ -113,10 +113,11 @@ export interface SetMaxPlayersParams {
 
 export type BotAgentKind = "simple";
 
-export interface SpawnAiBotParams extends SetDeckSelectionParams {
+export interface SpawnAiBotParams extends Partial<SetDeckSelectionParams> {
   roomId: string;
   username: string;
   roomPassword?: string | null;
+  seatIndex?: number;
   /** Defaults to `"simple"` when omitted. */
   agent?: BotAgentKind;
 }
@@ -168,6 +169,8 @@ export interface IServerApi {
   broadcastState(state: Record<string, unknown>, targetPlayer?: string): Promise<void>;
   sendRoomMessage(message: RoomRelayEnvelope): Promise<void>;
   spawnAiBot(params: SpawnAiBotParams): Promise<void>;
+  restoreAiBots(roomId: string): Promise<string[]>;
+  setAiBotDeck(username: string, params: SetDeckSelectionParams): Promise<void>;
   removeAiBot(username: string): Promise<void>;
 }
 

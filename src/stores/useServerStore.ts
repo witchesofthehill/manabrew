@@ -371,6 +371,10 @@ export const useServerStore = create<ServerState>()(
         const { currentRoom, gameId, playerOrder, playerDecks, startingLife, roomPassword } = get();
         if (!platform.server?.resumeRoom || !currentRoom || playerOrder.length === 0 || !gameId)
           return;
+        const seatIndices = playerOrder.map(
+          (username) =>
+            currentRoom.players.find((player) => player.username === username)?.seat_index,
+        );
         await platform.server.resumeRoom({
           room_id: currentRoom.room_id,
           room_name: currentRoom.room_name,
@@ -384,6 +388,9 @@ export const useServerStore = create<ServerState>()(
           draft_config: currentRoom.draft_config,
           sealed_config: currentRoom.sealed_config,
           player_order: playerOrder,
+          seat_indices: seatIndices.every((seat): seat is number => seat !== undefined)
+            ? seatIndices
+            : undefined,
           player_decks: playerDecks,
           starting_life: startingLife,
           bot_players: currentRoom.players.filter((p) => p.is_bot).map((p) => p.username),

@@ -1,6 +1,7 @@
 import { useDeckStore } from "@/stores/useDeckStore";
 import { useNavigate } from "react-router-dom";
 import { useAccountDecksStore } from "@/stores/useAccountDecksStore";
+import { useAuthStore } from "@/stores/useAuthStore";
 import { fetchAccountDeck, HubRequestError } from "@/api/hub";
 import { useGameDevStore } from "@/stores/useGameDevStore";
 import { PublishDeckDialog } from "@/components/deck/PublishDeckDialog";
@@ -1290,9 +1291,40 @@ export function DeckBuilder({
       toggleCard(cardName);
     }
   }
-  function handleImportReadOnlyDeck() {
+  async function handleImportReadOnlyDeck() {
+    if (saveInFlightRef.current) return;
     const importedName = currentDeck.name;
-    const importedId = importReadOnlyDeck();
+    let importedId: string | null;
+    if (readOnlySource === "preset") {
+      const auth = useAuthStore.getState();
+      if (!accountsEnabled || auth.status !== "signedIn") {
+        toast.error("Sign in to save starter decks to My Decks");
+        return;
+      }
+      if (!currentDeck.id) {
+        toast.error("This starter deck has no preset identifier");
+        return;
+      }
+      saveInFlightRef.current = true;
+      setIsSaving(true);
+      try {
+        const detail = await useAccountDecksStore.getState().forkPreset(currentDeck.id);
+        if (
+          useDeckStore.getState().editorSessionId !== editorSessionId ||
+          useAuthStore.getState().account?.id !== auth.account?.id
+        )
+          return;
+        importedId = loadAccountDeck(detail.id, detail.currentVersionNo, detail.deck as EditorDeck);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Failed to save starter deck");
+        return;
+      } finally {
+        saveInFlightRef.current = false;
+        setIsSaving(false);
+      }
+    } else {
+      importedId = importReadOnlyDeck();
+    }
     if (!importedId) return;
     onReadOnlyDeckImported?.(importedId);
     toast.success(`Copied "${importedName}" to My Decks`);
@@ -1659,6 +1691,7 @@ export function DeckBuilder({
               variant="primary"
               size="sm"
               className="touch:min-w-11 min-h-7 touch:min-h-11"
+              disabled={isSaving}
               onClick={handleImportReadOnlyDeck}
             >
               <Plus className="h-3.5 w-3.5 mr-1" />

@@ -12,6 +12,14 @@ The relay is the multiplayer trust boundary. Only the room's engine host may emi
 
 Per-seat `State`, `Prompt`, and `Error` envelopes can contain hidden information. A hosted node must set `BroadcastState.target_player` for all three; this transport target is the authenticated relay username, not an engine slot. `fromPlayer` and encrypted `private.to` remain engine slots. `forPlayer` inside the envelope is for client dispatch and replay indexing, not transport privacy.
 
+## Physical lobby seats
+
+`room_seats` advertises `JoinRoom.seat_index` and `RoomPlayerInfo.seat_index`. Explicit positions must be free and below `max_players`; invalid requests return `invalid_seat` before mutation. Unspecified joins take the lowest free position. Existing disconnected seats are reclaimed by username without moving them.
+
+`RoomSlot.seat_index` controls lobby placement only. Preserve `Room.players` join order for engine slots, controller selection, and `player_order`; never sort it by physical position. Departures leave other positions unchanged. Capacity reductions relocate only out-of-range occupants. Limited child rooms have their own positions and leave parent positions intact.
+
+`ResumeRoom.seat_indices` aligns with `player_order`; indices must be unique and in range. Retained positions take precedence, while missing positions use free slots. Browser bot recovery parameters follow authoritative room positions after resizing; a lobby bot disconnect is a departure, so its next join must request the updated position.
+
 ## Completed games and rematches
 
 `game_rematch` gates `FinishGame`, `SetRematchIntent` and `ReturnToLobby`. After final state and `ReportGameOutcome`, the engine host sends `FinishGame` for a successful ordinary game. The relay enters `Finished`, retains seats, deck snapshots, settings and final replay, and records completion once. Crashes, aborts, Limited parents and child matches keep their existing teardown paths.

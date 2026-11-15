@@ -140,6 +140,42 @@ pub fn resume_room_sync(
     player_id: &str,
     spec: ResumeRoomRequest,
 ) -> Result<ResumedRoom, ServerError> {
+    if !(2..=8).contains(&spec.max_players) {
+        return Err(ServerError::InvalidSeatAssignment(
+            "Room capacity must be between 2 and 8".into(),
+        ));
+    }
+    if spec.player_order.len() > usize::from(spec.max_players) {
+        return Err(ServerError::InvalidSeatAssignment(
+            "Player roster exceeds room capacity".into(),
+        ));
+    }
+    if spec
+        .player_order
+        .iter()
+        .enumerate()
+        .any(|(index, username)| spec.player_order[..index].contains(username))
+    {
+        return Err(ServerError::InvalidSeatAssignment(
+            "Player roster contains duplicate usernames".into(),
+        ));
+    }
+    if let Some(indices) = &spec.seat_indices {
+        if indices.len() != spec.player_order.len() {
+            return Err(ServerError::InvalidSeatAssignment(
+                "Seat indices must align with player_order".into(),
+            ));
+        }
+        if indices
+            .iter()
+            .enumerate()
+            .any(|(index, seat)| *seat >= spec.max_players || indices[..index].contains(seat))
+        {
+            return Err(ServerError::InvalidSeatAssignment(
+                "Seat indices must be unique and within room capacity".into(),
+            ));
+        }
+    }
     let (username, current_room_id) = {
         let player = state
             .players
@@ -167,8 +203,18 @@ pub fn resume_room_sync(
         if room.status == RoomStatus::Finished && room.host_username != username {
             return Err(ServerError::InvalidResumeToken);
         }
+        if spec
+            .seat_indices
+            .as_ref()
+            .is_some_and(|indices| indices.iter().any(|seat| *seat >= room.max_players))
+        {
+            return Err(ServerError::InvalidSeatAssignment(
+                "Seat index exceeds the retained room's capacity".into(),
+            ));
+        }
         if room.is_limited_session() && room.status == RoomStatus::Lobby {
-            room.players = resumed_slots(&spec, player_id, &username);
+            let restored_players = resumed_slots(&spec, player_id, &username, Some(&room))?;
+            room.players = restored_players;
             room.status = RoomStatus::InGame;
             room.replay = Some(GameReplayCache::new(
                 spec.game_id.clone(),
@@ -234,7 +280,7 @@ pub fn resume_room_sync(
         None => false,
     };
 
-    let restored_players = resumed_slots(&spec, player_id, &username);
+    let restored_players = resumed_slots(&spec, player_id, &username, None)?;
     let mut room = Room::new(
         spec.room_id.clone(),
         spec.room_name,
@@ -287,17 +333,62 @@ pub fn resume_room_sync(
     Ok(resumed)
 }
 
-fn resumed_slots(spec: &ResumeRoomRequest, player_id: &str, username: &str) -> Vec<RoomSlot> {
+fn resumed_slots(
+    spec: &ResumeRoomRequest,
+    player_id: &str,
+    username: &str,
+    retained: Option<&Room>,
+) -> Result<Vec<RoomSlot>, ServerError> {
+    let max_players = retained.map_or(spec.max_players, |room| room.max_players);
+    let retained_index = |username: &str| {
+        retained.and_then(|room| {
+            room.players
+                .iter()
+                .find(|seat| seat.username == username)
+                .map(|seat| seat.seat_index)
+        })
+    };
+    let mut occupied = 0u8;
+    for (index, username) in spec.player_order.iter().enumerate() {
+        if let Some(seat) = retained_index(username)
+            .or_else(|| spec.seat_indices.as_ref().map(|indices| indices[index]))
+        {
+            if seat >= max_players || occupied & (1 << seat) != 0 {
+                return Err(ServerError::InvalidSeatAssignment(
+                    "Resumed seats conflict with the retained room's positions".into(),
+                ));
+            }
+            occupied |= 1 << seat;
+        }
+    }
     spec.player_order
         .iter()
-        .map(|seat_username| {
+        .enumerate()
+        .map(|(index, seat_username)| {
+            let seat_index = match retained_index(seat_username)
+                .or_else(|| spec.seat_indices.as_ref().map(|indices| indices[index]))
+            {
+                Some(seat) => seat,
+                None => {
+                    let seat = (0..max_players)
+                        .find(|seat| occupied & (1 << *seat) == 0)
+                        .ok_or_else(|| {
+                            ServerError::InvalidSeatAssignment(
+                                "Player roster exceeds the retained room's capacity".into(),
+                            )
+                        })?;
+                    occupied |= 1 << seat;
+                    seat
+                }
+            };
             let deck = spec
                 .player_decks
                 .iter()
                 .find(|deck| &deck.username == seat_username);
             let is_bot = spec.bot_players.contains(seat_username);
             let is_requester = !spec.hosted && seat_username == username;
-            RoomSlot {
+            Ok(RoomSlot {
+                seat_index,
                 player_id: if is_requester {
                     player_id.to_string()
                 } else {
@@ -312,7 +403,7 @@ fn resumed_slots(spec: &ResumeRoomRequest, player_id: &str, username: &str) -> V
                 published_deck_id: deck.and_then(|d| d.published_deck_id.clone()),
                 selected_commander_name: deck.and_then(|d| d.commander_name.clone()),
                 avatar_url: deck.and_then(|d| d.avatar_url.clone()),
-            }
+            })
         })
         .collect()
 }
@@ -332,6 +423,7 @@ pub fn join_room_sync(
     observe: bool,
     as_bot: bool,
     password: Option<String>,
+    seat_index: Option<u8>,
 ) -> Result<(RoomInfo, bool), ServerError> {
     {
         if let Some(player) = state.players.get(player_id) {
@@ -361,31 +453,20 @@ pub fn join_room_sync(
             }
         }
 
-        if room.status != RoomStatus::Lobby {
-            if observe {
-                return Err(ServerError::GameAlreadyStarted);
-            }
-            let slot = room
-                .players
-                .iter_mut()
-                .find(|slot| slot.username == username && slot.is_bot == as_bot && !slot.connected)
-                .ok_or(ServerError::GameAlreadyStarted)?;
+        if let Some(slot) = room.players.iter_mut().find(|slot| {
+            !observe && slot.username == username && slot.is_bot == as_bot && !slot.connected
+        }) {
             slot.player_id = player_id.to_string();
             slot.connected = true;
             (room.to_room_info(), true)
+        } else if room.status != RoomStatus::Lobby {
+            return Err(ServerError::GameAlreadyStarted);
         } else {
             if observe {
                 room.add_observer(player_id.to_string(), username)
                     .map_err(|_| ServerError::AlreadyInRoom(room_id.to_string()))?;
             } else {
-                room.add_player(player_id.to_string(), username, as_bot)
-                    .map_err(|msg| {
-                        if msg.contains("full") {
-                            ServerError::RoomFull(room_id.to_string())
-                        } else {
-                            ServerError::AlreadyInRoom(room_id.to_string())
-                        }
-                    })?;
+                room.add_player(player_id.to_string(), username, as_bot, seat_index)?;
             }
             (room.to_room_info(), false)
         }
@@ -673,7 +754,7 @@ pub fn set_max_players_sync(
         }
 
         let floor = (room.players.len() as u8).max(2);
-        room.max_players = max_players.clamp(floor, 4);
+        room.set_max_players(max_players.clamp(floor, floor.max(4)));
     }
 
     Ok(room_id)

@@ -1,41 +1,15 @@
-import { useState, useEffect, useRef } from "react";
-import { usePresetDecks } from "@/stores/usePresetDecksStore";
 import { Button } from "@/components/ui/button";
-import { AppSelect, AppSelectOption } from "@/components/ui/AppSelect";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
-import { useDeckStore } from "@/stores/useDeckStore";
-import { useAccountDecksStore } from "@/stores/useAccountDecksStore";
-import { useGameDevStore } from "@/stores/useGameDevStore";
-import type { Deck, DeckCard } from "@/protocol/deck";
-import type { EngineKind, PlayerDeckInfo } from "@/protocol";
-import {
-  GAME_FORMATS,
-  validateDeckSections,
-  commanderPairLabel,
-  type GameFormat,
-} from "@/lib/formats";
-import { PartnerBadge } from "@/components/deck/PartnerBadge";
+import { GAME_FORMATS } from "@/lib/formats";
 import { FormatBadge } from "@/components/game/FormatBadge";
-import { DeckSelectionCard } from "./DeckSelectionCard";
-import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
-import { useOwnedDecks } from "@/hooks/useOwnedDecks";
-import { resolveCoverCard } from "@/components/deck/deckCover.utils";
-import { savePresetToAccountOnUse } from "@/lib/presetDeckAccount";
-import {
-  availableEngines,
-  hubEntryEngines,
-  supportsAvailableEngine,
-  supportsEngine,
-} from "@/lib/engines";
 import { cn } from "@/lib/utils";
-import { Loader2, Search, Shuffle, Swords } from "lucide-react";
-import { getDeckFingerprint } from "@/lib/decks";
-import { useHubDeckSearch } from "@/hooks/useHubDeckSearch";
-import { useCardPool } from "@/hooks/useCardPool";
-import { useHubStore } from "@/stores/useHubStore";
-import type { DeckHubEntryDetail, DeckHubEntrySummary } from "@/api/hubTypes";
+import { Loader2, Shuffle, Swords } from "lucide-react";
+import type { Deck } from "@/protocol/deck";
+import type { EngineKind, PlayerDeckInfo } from "@/protocol";
+import { useDeckSelection } from "./useDeckSelection";
+import { DeckSelectionList } from "./DeckSelectionList";
+import { DeckSelectionCommander } from "./DeckSelectionCommander";
 interface CreateGameDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -53,7 +27,7 @@ interface CreateGameDialogProps {
     commanderName?: string,
     playerCount?: number,
     publishedDeckId?: string,
-  ) => void;
+  ) => void | Promise<void>;
 }
 export function CreateGameDialog({
   open,
@@ -68,400 +42,32 @@ export function CreateGameDialog({
   target = "player",
   onStart,
 }: CreateGameDialogProps) {
-  const currentDeck = useDeckStore((state) => state.currentDeck);
-  const ownedDecks = useOwnedDecks();
-  const accountDeckDetails = useAccountDecksStore((state) => state.details);
-  const allowIllegalDecks = useGameDevStore((s) => s.allowIllegalDecks);
-  const isLobbyMode = mode === "lobby";
-  const denseDecks = useIsShortScreen();
-  const isTouch = useIsTouch();
-  const initialFormat = GAME_FORMATS.find((f) => f.id === forcedFormatId) ?? GAME_FORMATS[0];
-  const [selectedFormat, setSelectedFormat] = useState<GameFormat>(initialFormat);
-  const [selectedDeck, setSelectedDeck] = useState<string>(
-    preSelectedDeck ? "previous" : (preSelectedDeckId ?? "current"),
-  );
-  const [selectedCommander, setSelectedCommander] = useState<string>(
-    preSelectedDeck?.commander_name ?? currentDeck.commanders?.[0]?.identity.name ?? "",
-  );
-  const presetDecks = usePresetDecks(engineKind);
-  const [playerCount, setPlayerCount] = useState(2);
-  const [deckSearch, setDeckSearch] = useState("");
-  const [loadedHubDecks, setLoadedHubDecks] = useState<Record<string, DeckHubEntryDetail>>({});
-  const [loadingHubDeckId, setLoadingHubDeckId] = useState<string | null>(null);
-  const [starting, setStarting] = useState(false);
-  const selectedFormatRef = useRef(selectedFormat);
-  selectedFormatRef.current = selectedFormat;
-  const deckFormatId = selectedFormat.deckFormat ?? selectedFormat.id;
-  const hubDecks = useHubDeckSearch(
-    deckSearch,
-    deckFormatId,
+  const model = useDeckSelection({
     open,
-    engineKind ? [engineKind] : availableEngines(),
-    "community",
-  );
-  const hubSearchResults = hubDecks.decks.filter((entry) =>
-    engineKind
-      ? supportsEngine(hubEntryEngines(entry), engineKind)
-      : supportsAvailableEngine(hubEntryEngines(entry)),
-  );
-  const loadHubDeck = useHubStore((state) => state.loadEntry);
-  const restoredHubDeckRef = useRef<string | null>(null);
-  const hubSelectionRequestIdRef = useRef(0);
-  useEffect(() => {
-    if (!forcedFormatId) return;
-    const forced = GAME_FORMATS.find((f) => f.id === forcedFormatId);
-    if (forced) {
-      hubSelectionRequestIdRef.current += 1;
-      setLoadingHubDeckId(null);
-      setSelectedFormat(forced);
-    }
-  }, [forcedFormatId]);
-  useEffect(() => {
-    if (preSelectedDeckId) {
-      hubSelectionRequestIdRef.current += 1;
-      setLoadingHubDeckId(null);
-      setSelectedDeck(preSelectedDeckId);
-    }
-  }, [preSelectedDeckId]);
-  useEffect(() => {
-    if (!open || !hubDecks.enabled) {
-      hubSelectionRequestIdRef.current += 1;
-      setLoadingHubDeckId(null);
-      return;
-    }
-    if (!preSelectedHubDeckId || restoredHubDeckRef.current === preSelectedHubDeckId) return;
-    restoredHubDeckRef.current = preSelectedHubDeckId;
-    const requestId = ++hubSelectionRequestIdRef.current;
-    setLoadingHubDeckId(preSelectedHubDeckId);
-    void loadHubDeck(preSelectedHubDeckId)
-      .then((detail) => {
-        if (hubSelectionRequestIdRef.current !== requestId) return;
-        const formatId = detail.deck.format ?? detail.format ?? "standard";
-        if (formatId !== deckFormatId) {
-          restoredHubDeckRef.current = null;
-          toast.error(`"${detail.title}" is not a ${selectedFormat.name} deck`);
-          return;
-        }
-        setLoadedHubDecks((current) => ({ ...current, [detail.id]: detail }));
-        setSelectedDeck(`hub:${detail.id}`);
-      })
-      .catch((err) => {
-        if (hubSelectionRequestIdRef.current !== requestId) return;
-        restoredHubDeckRef.current = null;
-        toast.error(err instanceof Error ? err.message : `Failed to load Community deck`);
-      })
-      .finally(() => {
-        if (hubSelectionRequestIdRef.current === requestId) setLoadingHubDeckId(null);
-      });
-  }, [
-    hubDecks.enabled,
-    loadHubDeck,
-    open,
+    onOpenChange,
+    mode,
+    engineKind,
+    forcedFormatId,
+    preSelectedDeckId,
     preSelectedHubDeckId,
-    deckFormatId,
-    selectedFormat.name,
-  ]);
-  const currentDeckFingerprint = getDeckFingerprint(currentDeck);
-  const distinctSavedDecks = ownedDecks.filter(
-    (saved) =>
-      saved.id === preSelectedDeckId || getDeckFingerprint(saved.deck) !== currentDeckFingerprint,
-  );
-  const currentDeckIsPlayable =
-    currentDeck.cards.length > 0 || (currentDeck.commanders?.length ?? 0) > 0;
-  const allDeckCards = (d: Deck): DeckCard[] => [
-    ...d.cards,
-    ...d.sideboard,
-    ...(d.attractions ?? []),
-    ...(d.contraptions ?? []),
-    ...(d.schemes ?? []),
-    ...(d.planes ?? []),
-    ...(d.commanders ?? []),
-  ];
-  const currentDeckEntry = !currentDeckIsPlayable
-    ? []
-    : [
-        {
-          id: "current",
-          name: currentDeck.name,
-          badge: "editing",
-          labels: currentDeck.labels,
-          sourceDeck: currentDeck,
-          isPreset: false as const,
-          cover: resolveCoverCard(currentDeck),
-          cards: allDeckCards(currentDeck),
-          formatId: currentDeck.format ?? "standard",
-          commanderName: currentDeck.commanders?.[0]?.identity.name,
-        },
-      ];
-  const userDecks = [
-    ...(preSelectedDeck
-      ? [
-          {
-            id: "previous",
-            name: preSelectedDeck.deck_name,
-            badge: "previous game",
-            labels: preSelectedDeck.deck.labels,
-            sourceDeck: preSelectedDeck.deck,
-            isPreset: false as const,
-            cover: resolveCoverCard(preSelectedDeck.deck),
-            cards: allDeckCards(preSelectedDeck.deck),
-            formatId: preSelectedDeck.deck.format ?? deckFormatId,
-            commanderName: preSelectedDeck.commander_name,
-          },
-        ]
-      : []),
-    ...currentDeckEntry,
-    ...distinctSavedDecks.map((s) => ({
-      id: s.id,
-      name: s.deck.name,
-      badge: (s.deck.draft ? "draft" : null) as string | null,
-      labels: s.deck.labels,
-      sourceDeck: s.deck,
-      isPreset: false as const,
-      cover: resolveCoverCard(s.deck),
-      cards: allDeckCards(s.deck),
-      formatId: s.deck.format ?? "standard",
-      commanderName: s.deck.commanders?.[0]?.identity.name,
-    })),
-  ];
-  const presetDeckEntries = presetDecks.map((deck) => ({
-    id: `preset__${deck.id ?? deck.name}`,
-    name: deck.name,
-    desc: deck.description,
-    color: deck.color,
-    sourceDeck: deck,
-    isPreset: true as const,
-    cover: resolveCoverCard(deck),
-    cards: [...deck.cards, ...(deck.commanders ?? [])],
-    formatId: deck.format ?? "standard",
-    commanderName: deck.commanders?.[0]?.identity.name,
-  }));
-  const hubDeckEntries = Object.values(loadedHubDecks).map((detail) => ({
-    id: `hub:${detail.id}`,
-    name: detail.title,
-    desc: detail.summary,
-    color: detail.colors,
-    badge: "Community",
-    sourceDeck: detail.deck,
-    isPreset: false as const,
-    cover: resolveCoverCard(detail.deck),
-    cards: allDeckCards(detail.deck),
-    formatId: detail.deck.format ?? detail.format ?? "standard",
-    commanderName: detail.deck.commanders?.[0]?.identity.name,
-  }));
-  const allDecks = [...userDecks, ...hubDeckEntries, ...presetDeckEntries];
-  const searchLower = deckSearch.toLowerCase();
-  const formatPresetEntries = presetDeckEntries.filter((d) => d.formatId === deckFormatId);
-  const filteredPresetEntries = searchLower
-    ? formatPresetEntries.filter(
-        (d) =>
-          d.name.toLowerCase().includes(searchLower) || d.desc?.toLowerCase().includes(searchLower),
-      )
-    : formatPresetEntries;
-  const formatUserDecks = userDecks.filter((d) => d.formatId === deckFormatId);
-  const filteredUserDecks = searchLower
-    ? formatUserDecks.filter((d) => d.name.toLowerCase().includes(searchLower))
-    : formatUserDecks;
-  useEffect(() => {
-    const entry = allDecks.find((d) => d.id === selectedDeck);
-    setSelectedCommander(entry?.commanderName ?? "");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDeck]);
-  const selectedDeckEntry = allDecks.find(
-    (d) => d.id === selectedDeck && d.formatId === deckFormatId,
-  );
-  const userDeckValidationInput = (d: (typeof filteredUserDecks)[number]) => ({
-    deck: d.sourceDeck,
-    commanderName: selectedFormat.deckRules.requiresCommander
-      ? d.id === selectedDeck
-        ? selectedCommander || d.commanderName
-        : d.commanderName
-      : undefined,
+    preSelectedDeck,
+    target,
+    onStart,
   });
-  const hubDeckValidationInput = (deck: Deck) => ({
-    deck,
-    commanderName: deck.commanders?.[0]?.identity.name,
-  });
-  const cardPool = useCardPool([
-    ...filteredUserDecks.map((d) => ({
-      input: userDeckValidationInput(d),
-      format: selectedFormat,
-    })),
-    ...(selectedDeckEntry && !selectedDeckEntry.isPreset
-      ? [
-          {
-            input: {
-              deck: selectedDeckEntry.sourceDeck,
-              commanderName: selectedCommander || selectedDeckEntry.commanderName,
-            },
-            format: selectedFormat,
-          },
-        ]
-      : []),
-    ...hubSearchResults.flatMap((deck) =>
-      loadedHubDecks[deck.id]
-        ? [{ input: hubDeckValidationInput(loadedHubDecks[deck.id].deck), format: selectedFormat }]
-        : [],
-    ),
-  ]);
-  const selectedDeckCommanders = selectedDeckEntry?.sourceDeck.commanders ?? [];
-  const selectedPartnerLabel = commanderPairLabel(
-    selectedDeckCommanders,
-    selectedDeckEntry?.sourceDeck.format,
-  );
-  const legendaryCreatures = selectedDeckEntry
-    ? Array.from(
-        new Map([
-          ...(selectedDeckEntry.commanderName
-            ? [
-                [selectedDeckEntry.commanderName, selectedDeckEntry.commanderName] as [
-                  string,
-                  string,
-                ],
-              ]
-            : []),
-          ...selectedDeckEntry.cards
-            .filter((c) => c.supertypes?.includes("Legendary") && c.types?.includes("Creature"))
-            .map((c) => [c.identity.name, c.identity.name] as [string, string]),
-        ]).values(),
-      )
-    : [];
-  const needsCommander = selectedFormat.deckRules.requiresCommander;
-  const commanderValid = !needsCommander || selectedCommander !== "";
-  const selectedDeckIsVisible =
-    [...filteredUserDecks, ...filteredPresetEntries].some((entry) => entry.id === selectedDeck) ||
-    hubSearchResults.some((entry) => `hub:${entry.id}` === selectedDeck) ||
-    (selectedDeck.startsWith("hub:") && selectedDeckEntry !== undefined);
-  const selectedDeckValidation = selectedDeckEntry
-    ? selectedDeckEntry.isPreset
-      ? { legal: true, errors: [] as string[] }
-      : validateDeckSections(
-          {
-            deck: selectedDeckEntry.sourceDeck,
-            commanderName: selectedCommander || selectedDeckEntry.commanderName,
-          },
-          selectedFormat,
-          cardPool,
-        )
-    : { legal: false, errors: [] as string[] };
-  const isReady =
-    selectedDeckIsVisible && (selectedDeckValidation.legal || allowIllegalDecks) && commanderValid;
-  function invalidateHubSelection() {
-    hubSelectionRequestIdRef.current += 1;
-    setLoadingHubDeckId(null);
-  }
-  function selectDeck(deckId: string) {
-    invalidateHubSelection();
-    setSelectedDeck(deckId);
-  }
-  function handleOpenChange(nextOpen: boolean) {
-    if (!nextOpen) invalidateHubSelection();
-    onOpenChange(nextOpen);
-  }
-  async function selectHubDeck(summary: DeckHubEntrySummary, activate = false) {
-    const requestId = ++hubSelectionRequestIdRef.current;
-    setLoadingHubDeckId(summary.id);
-    try {
-      const detail = await loadHubDeck(summary.id);
-      if (hubSelectionRequestIdRef.current !== requestId) return;
-      setLoadedHubDecks((current) => ({ ...current, [detail.id]: detail }));
-      const entry = {
-        id: `hub:${detail.id}`,
-        name: detail.title,
-        desc: detail.summary,
-        color: detail.colors,
-        badge: "Community",
-        sourceDeck: detail.deck,
-        isPreset: false as const,
-        cover: resolveCoverCard(detail.deck),
-        cards: allDeckCards(detail.deck),
-        formatId: detail.deck.format ?? detail.format ?? "standard",
-        commanderName: detail.deck.commanders?.[0]?.identity.name,
-      };
-      const currentFormat = selectedFormatRef.current;
-      if (entry.formatId !== (currentFormat.deckFormat ?? currentFormat.id)) {
-        toast.error(`"${detail.title}" is not a ${currentFormat.name} deck`);
-        return;
-      }
-      setSelectedDeck(entry.id);
-      if (activate) handleCreate(entry, entry.commanderName);
-    } catch (err) {
-      if (hubSelectionRequestIdRef.current !== requestId) return;
-      toast.error(err instanceof Error ? err.message : `Failed to load Community deck`);
-    } finally {
-      if (hubSelectionRequestIdRef.current === requestId) setLoadingHubDeckId(null);
-    }
-  }
-  async function handleCreate(
-    entry: (typeof allDecks)[number] | undefined = selectedDeckIsVisible
-      ? selectedDeckEntry
-      : undefined,
-    commanderOverride?: string,
-  ) {
-    if (starting) return;
-    if (!entry) {
-      toast.error(`Please select a deck`);
-      return;
-    }
-    if (entry.formatId !== deckFormatId) {
-      toast.error(`Please select a deck for this format`);
-      return;
-    }
-    if (entry.sourceDeck.cards.length === 0 && (entry.sourceDeck.commanders?.length ?? 0) === 0) {
-      toast.error(`"${entry.name}" has no cards`);
-      return;
-    }
-    const commander =
-      commanderOverride ?? (needsCommander ? selectedCommander : entry.commanderName);
-    const validation = entry.isPreset
-      ? { legal: true, errors: [] as string[] }
-      : validateDeckSections(
-          { deck: entry.sourceDeck, commanderName: commander || entry.commanderName },
-          selectedFormat,
-          cardPool,
-        );
-    if (!validation.legal && !allowIllegalDecks) {
-      toast.warning(validation.errors[0] ?? `Deck is not legal in this format`);
-      return;
-    }
-    if (needsCommander && !(commander || entry.commanderName)) {
-      toast.error(`Please select a commander`);
-      return;
-    }
-    setStarting(true);
-    let publishedDeckId =
-      entry.id === "previous"
-        ? preSelectedDeck?.published_deck_id
-        : entry.id.startsWith("hub:")
-          ? entry.id.slice(4)
-          : undefined;
-    const savedEntry = ownedDecks.find((saved) => saved.id === entry.id);
-    const rankingPresetKey = entry.isPreset
-      ? entry.sourceDeck.id
-      : savedEntry?.accountDeckId
-        ? accountDeckDetails[savedEntry.accountDeckId]?.derivedFromPresetKey
-        : undefined;
-    if (isLobbyMode && target !== "bot" && rankingPresetKey && hubDecks.enabled) {
-      try {
-        const published = await loadHubDeck(rankingPresetKey);
-        if (getDeckFingerprint(published.deck) === getDeckFingerprint(entry.sourceDeck)) {
-          publishedDeckId = published.id;
-        }
-      } catch {
-        publishedDeckId = undefined;
-      }
-    }
-    handleOpenChange(false);
-    if (entry.isPreset) savePresetToAccountOnUse(entry.sourceDeck.id);
-    onStart(
-      entry.sourceDeck,
-      selectedFormat.id,
-      selectedFormat.deckRules.requiresCommander ? commander || entry.commanderName : undefined,
-      playerCount,
-      publishedDeckId,
-    );
-    setStarting(false);
-  }
+  const isLobbyMode = mode === "lobby";
+  const {
+    selectedFormat,
+    setSelectedFormat,
+    playerCount,
+    setPlayerCount,
+    selectedDeckEntry,
+    selectedDeckValidation,
+    isReady,
+    starting,
+    handleCreate,
+    handleOpenChange,
+    invalidateHubSelection,
+  } = model;
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
@@ -552,55 +158,7 @@ export function CreateGameDialog({
                 </div>
               </div>
 
-              {needsCommander && (
-                <div>
-                  <SectionLabel>Commander</SectionLabel>
-                  <div className="mt-2 space-y-1.5">
-                    {selectedPartnerLabel ? (
-                      <div className="flex flex-wrap items-center gap-1.5 rounded border border-border bg-background px-2 py-1.5 text-ui-meta">
-                        <span className="truncate">{selectedDeckCommanders[0].identity.name}</span>
-                        <span className="text-muted-foreground">+</span>
-                        <span className="truncate">{selectedDeckCommanders[1].identity.name}</span>
-                        <PartnerBadge label={selectedPartnerLabel} />
-                      </div>
-                    ) : (
-                      <>
-                        {legendaryCreatures.length === 0 && (
-                          <p className="text-ui-meta text-muted-foreground italic">
-                            No legendaries in deck — type a name below.
-                          </p>
-                        )}
-                        {legendaryCreatures.length > 0 ? (
-                          <AppSelect
-                            className="w-full rounded border border-border bg-background px-2 py-1.5 text-ui-label "
-                            value={selectedCommander}
-                            onValueChange={setSelectedCommander}
-                            aria-label="Commander"
-                          >
-                            <AppSelectOption value="">— Choose —</AppSelectOption>
-                            {legendaryCreatures.map((name) => (
-                              <AppSelectOption key={name} value={name}>
-                                {name}
-                              </AppSelectOption>
-                            ))}
-                          </AppSelect>
-                        ) : (
-                          <input
-                            className="w-full rounded border border-border bg-background px-2 py-1.5 text-ui-input touch:min-h-11 touch:min-w-11"
-                            placeholder={`Card name`}
-                            value={selectedCommander}
-                            onChange={(event) => setSelectedCommander(event.target.value)}
-                            autoComplete="off"
-                            autoCorrect="off"
-                            autoCapitalize="off"
-                            spellCheck={false}
-                          />
-                        )}
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
+              <DeckSelectionCommander model={model} />
 
               <div>
                 <SectionLabel>
@@ -630,203 +188,13 @@ export function CreateGameDialog({
             </div>
           )}
 
-          <div className="flex min-h-64 shrink-0 flex-1 flex-col sm:min-h-0 sm:shrink">
-            <div className="px-4 pt-4 pb-2 bg-background">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-                <input
-                  type="text"
-                  aria-label={`Filter decks`}
-                  placeholder={`Filter decks...`}
-                  value={deckSearch}
-                  onChange={(e) => setDeckSearch(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 rounded-md border bg-background text-ui-input focus:outline-none focus:ring-1 focus:ring-primary touch:min-h-11 touch:min-w-11"
-                  autoComplete="off"
-                  autoCorrect="off"
-                  autoCapitalize="off"
-                  spellCheck={false}
-                />
+          <div className="flex min-h-64 flex-1 flex-col sm:min-h-0">
+            {isLobbyMode && (
+              <div className="px-4 pt-3">
+                <DeckSelectionCommander model={model} />
               </div>
-            </div>
-
-            <div className="min-h-0 flex-1 sm:overflow-y-auto">
-              <div className="p-4 pt-2">
-                <SectionLabel>Your Decks</SectionLabel>
-                <p className="text-ui-meta text-muted-foreground mt-0.5 mb-3">
-                  Decks you've built in the editor.
-                </p>
-                {filteredUserDecks.length === 0 ? (
-                  <p className="text-ui-meta text-muted-foreground italic">
-                    {searchLower
-                      ? `No saved decks match your search.`
-                      : `No saved decks. Build one in the Deck Editor.`}
-                  </p>
-                ) : (
-                  <div
-                    className={cn(
-                      "grid gap-3",
-                      "grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))]",
-                    )}
-                  >
-                    {filteredUserDecks.map((d) => {
-                      const validation = validateDeckSections(
-                        userDeckValidationInput(d),
-                        selectedFormat,
-                        cardPool,
-                      );
-                      return (
-                        <DeckSelectionCard
-                          key={d.id}
-                          name={d.name}
-                          badge={d.badge}
-                          labels={d.labels}
-                          cards={d.cards}
-                          cover={d.cover}
-                          isPreset={d.isPreset}
-                          isSelected={selectedDeck === d.id}
-                          isLegal={validation.legal}
-                          validationError={validation.errors[0]}
-                          dense={denseDecks}
-                          isTouch={isTouch}
-                          onSelect={() => selectDeck(d.id)}
-                          onActivate={() => handleCreate(d, d.commanderName)}
-                        />
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              <div className="mx-4 border-t" />
-
-              {hubDecks.enabled &&
-                (deckSearch.trim() !== "" ||
-                  hubDecks.loading ||
-                  hubDecks.error !== null ||
-                  hubSearchResults.length > 0) && (
-                  <div className="p-4">
-                    <SectionLabel>Community</SectionLabel>
-                    <p className="text-ui-meta text-muted-foreground mt-0.5 mb-3">
-                      Community decks are downloaded when selected.
-                    </p>
-                    {hubDecks.error ? (
-                      <div className="flex flex-wrap items-center gap-2 text-ui-meta text-destructive">
-                        <span className="min-w-0 break-words">{hubDecks.error}</span>
-                        <Button variant="outline" size="sm" onClick={hubDecks.retry}>
-                          Retry
-                        </Button>
-                      </div>
-                    ) : hubDecks.loading && hubSearchResults.length === 0 ? (
-                      <div
-                        className={cn(
-                          "grid gap-3",
-                          "grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))]",
-                        )}
-                      >
-                        {Array.from({ length: 10 }, (_, index) => (
-                          <div
-                            key={index}
-                            className={cn(
-                              "animate-pulse rounded-lg bg-muted",
-                              denseDecks ? "h-24" : "aspect-[4/3] sm:min-h-[172px]",
-                            )}
-                          />
-                        ))}
-                      </div>
-                    ) : hubSearchResults.length === 0 ? (
-                      <p className="text-ui-meta text-muted-foreground italic">
-                        No Community decks match your search.
-                      </p>
-                    ) : (
-                      <div
-                        className={cn(
-                          "grid gap-3",
-                          "grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))]",
-                        )}
-                      >
-                        {hubSearchResults.map((deck) => {
-                          const loaded = loadedHubDecks[deck.id];
-                          const format = loaded
-                            ? GAME_FORMATS.find((item) => item.id === selectedFormat.id)
-                            : null;
-                          const validation =
-                            loaded && format
-                              ? validateDeckSections(
-                                  hubDeckValidationInput(loaded.deck),
-                                  format,
-                                  cardPool,
-                                )
-                              : { legal: true, errors: [] as string[] };
-                          return (
-                            <DeckSelectionCard
-                              key={deck.id}
-                              name={
-                                loadingHubDeckId === deck.id ? `Loading ${deck.title}…` : deck.title
-                              }
-                              color={deck.colors}
-                              author={deck.author}
-                              cardCount={deck.cardCount + deck.commanders.length}
-                              badge="Community"
-                              cards={[]}
-                              cover={undefined}
-                              coverImageUrl={deck.coverImageUrl}
-                              isPreset={false}
-                              isHub
-                              isSelected={selectedDeck === `hub:${deck.id}`}
-                              isLegal={validation.legal}
-                              validationError={validation.errors[0]}
-                              dense={denseDecks}
-                              isTouch={isTouch}
-                              loading={loadingHubDeckId === deck.id}
-                              onSelect={() => void selectHubDeck(deck)}
-                              onActivate={() => void selectHubDeck(deck, true)}
-                            />
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-              <div className="mx-4 border-t" />
-
-              <div className="p-4">
-                <SectionLabel>Starter Decks</SectionLabel>
-                <p className="text-ui-meta text-muted-foreground mt-0.5 mb-3">
-                  Pre-built themed decks — always legal, great for testing mechanics.
-                </p>
-                {filteredPresetEntries.length === 0 ? (
-                  <p className="text-ui-meta text-muted-foreground italic">
-                    No preset decks match your search.
-                  </p>
-                ) : (
-                  <div
-                    className={cn(
-                      "grid gap-3",
-                      "grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))]",
-                    )}
-                  >
-                    {filteredPresetEntries.map((deck) => (
-                      <DeckSelectionCard
-                        key={deck.id}
-                        name={deck.name}
-                        desc={deck.desc}
-                        color={deck.color}
-                        cards={deck.cards}
-                        cover={deck.cover}
-                        isPreset={deck.isPreset}
-                        isSelected={selectedDeck === deck.id}
-                        isLegal={true}
-                        dense={denseDecks}
-                        isTouch={isTouch}
-                        onSelect={() => selectDeck(deck.id)}
-                        onActivate={() => handleCreate(deck, deck.commanderName)}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
+            )}
+            <DeckSelectionList model={model} />
           </div>
         </div>
 
@@ -879,11 +247,9 @@ export function CreateGameDialog({
                 ? `Selecting\u2026`
                 : rematch
                   ? "Ready with this deck"
-                  : target === "bot"
-                    ? `Add Bot`
-                    : isLobbyMode
-                      ? `Select Deck`
-                      : `Play`}
+                  : isLobbyMode
+                    ? `Select Deck`
+                    : `Play`}
             </Button>
           </div>
         </div>

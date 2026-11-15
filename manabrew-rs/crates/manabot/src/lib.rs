@@ -12,7 +12,7 @@ pub mod agent;
 mod state;
 
 pub use agent::{AgentKind, BotAgent, BotResponder, SimpleAi};
-pub use state::{BotConfig, BotState};
+pub use state::{BotConfig, BotDeckSelection, BotState};
 
 #[cfg(feature = "native")]
 mod native;

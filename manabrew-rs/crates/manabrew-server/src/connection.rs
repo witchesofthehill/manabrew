@@ -265,12 +265,14 @@ fn pair_limited_matches(
         room.players = pair
             .players
             .into_iter()
-            .map(|player| {
+            .enumerate()
+            .map(|(seat_index, player)| {
                 let original = parent
                     .players
                     .iter()
                     .find(|seat| seat.username == player.username);
                 crate::room::RoomSlot {
+                    seat_index: seat_index as u8,
                     player_id: original
                         .map(|seat| seat.player_id.clone())
                         .unwrap_or_else(|| format!("virtual-{}", uuid::Uuid::new_v4())),
@@ -1720,6 +1722,7 @@ fn handle_client_message(
             observe,
             as_bot,
             password,
+            seat_index,
         } => {
             info!(
                 "[lobby] '{}' joining room {} (observe={}, bot={})",
@@ -1728,7 +1731,9 @@ fn handle_client_message(
                 observe,
                 as_bot
             );
-            match lobby::join_room_sync(state, player_id, &room_id, observe, as_bot, password) {
+            match lobby::join_room_sync(
+                state, player_id, &room_id, observe, as_bot, password, seat_index,
+            ) {
                 Ok((info, rejoined)) => {
                     if !rejoined {
                         state.analytics.emit(AnalyticsEvent::SeatJoined {

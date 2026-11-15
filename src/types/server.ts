@@ -48,6 +48,7 @@ export interface RoomInfo {
 }
 export interface RoomPlayerInfo {
   username: string;
+  seat_index?: number;
   ready: boolean;
   connected: boolean;
   is_bot?: boolean;
@@ -212,6 +213,7 @@ export const RELAY_FEATURE = {
   LocalGame: "local_game",
   Chat: "chat",
   RoomInvites: "room_invites",
+  RoomSeats: "room_seats",
   GameOutcome: "game_outcome",
   GameRematch: "game_rematch",
   LimitedSessions: "limited_sessions",

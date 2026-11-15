@@ -11,7 +11,7 @@ use crate::shell_bridge::{ShellBridge, ShellCommand};
 use crate::updater::{run_stale_monitor, StaleConfig};
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
-use manabot::{run_bot, BotConfig, BotResponder};
+use manabot::{run_bot, BotConfig, BotDeckSelection, BotResponder};
 use manabrew_agent_interface::agent_impl::Responder;
 use manabrew_agent_interface::ids_codec::{parse_player_slot, player_slot};
 use manabrew_agent_interface::prompt::{AgentMessage, ClientToServerMessage, PromptOutput};
@@ -724,6 +724,7 @@ async fn establish_room(
         client
             .send(&ClientMessage::JoinRoom {
                 room_id: room_id.clone(),
+                seat_index: None,
                 observe: !config.host_plays,
                 as_bot: false,
                 password: config.room_password.clone(),
@@ -949,6 +950,17 @@ fn resume_room_request(
         draft_config: room_info.draft_config.clone(),
         sealed_config: room_info.sealed_config.clone(),
         player_order: game.player_order.clone(),
+        seat_indices: game
+            .player_order
+            .iter()
+            .map(|username| {
+                room_info
+                    .players
+                    .iter()
+                    .find(|seat| &seat.username == username)
+                    .and_then(|seat| seat.seat_index)
+            })
+            .collect(),
         player_decks: game.player_decks.clone(),
         starting_life: game.starting_life,
         bot_players: room_info
@@ -1193,10 +1205,15 @@ fn spawn_bots(config: &Config, decks: &[DeckSelection], room_id: &str, bot_state
             username,
             password: config.password.clone(),
             room_id: room_id.to_string(),
+            seat_index: None,
             room_password: config.room_password.clone(),
-            deck_name: deck.name.clone(),
-            deck: deck.deck.clone(),
-            commander_name: deck.commander_name.clone(),
+            selection: Some(BotDeckSelection {
+                deck_name: deck.name.clone(),
+                deck: deck.deck.clone(),
+                published_deck_id: None,
+                commander_name: deck.commander_name.clone(),
+                avatar_url: None,
+            }),
             agent: config.bot_agent,
             answer_delay_ms: None,
         };

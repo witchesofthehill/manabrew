@@ -277,6 +277,8 @@ pub enum ClientMessage {
 
     JoinRoom {
         room_id: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        seat_index: Option<u8>,
         #[serde(default)]
         observe: bool,
         #[serde(default)]
@@ -587,6 +589,9 @@ pub struct ResumeRoomRequest {
     #[ts(optional)]
     pub sealed_config: Option<SealedConfig>,
     pub player_order: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub seat_indices: Option<Vec<u8>>,
     pub player_decks: Vec<PlayerDeckInfo>,
     pub starting_life: i32,
     #[serde(default)]
@@ -677,6 +682,8 @@ pub struct DraftConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RoomPlayerInfo {
     pub username: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub seat_index: Option<u8>,
     pub ready: bool,
     pub connected: bool,
     #[serde(default)]
@@ -720,6 +727,7 @@ pub const FEATURE_LIMITED_SESSIONS: &str = "limited_sessions";
 pub const FEATURE_LIMITED_DRAFT_CLOCKS: &str = "limited_draft_clocks";
 pub const FEATURE_LIMITED_SESSION_RECOVERY: &str = "limited_session_recovery";
 pub const FEATURE_GAME_REMATCH: &str = "game_rematch";
+pub const FEATURE_ROOM_SEATS: &str = "room_seats";
 
 /// Names [`ClientMessage::AnnounceTransport`] in `AuthResult::features`.
 pub const FEATURE_ROOM_TRANSPORT: &str = "room_transport";
@@ -743,6 +751,7 @@ pub const FEATURES: &[&str] = &[
     FEATURE_ROOM_INVITES,
     FEATURE_GAME_OUTCOME,
     FEATURE_GAME_REMATCH,
+    FEATURE_ROOM_SEATS,
     FEATURE_CARD_COSMETICS,
     FEATURE_CARD_COSMETICS_V2,
     FEATURE_CARD_COSMETICS_V3,

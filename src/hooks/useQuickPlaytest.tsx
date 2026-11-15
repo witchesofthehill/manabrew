@@ -7,7 +7,6 @@ import type { SinglePlayerSetup } from "@/game/singlePlayerSetup";
 import { ROUTES } from "@/lib/constants";
 import { resolveOfflineEngine } from "@/lib/offlineEngine";
 import { pickRandomDistinct } from "@/lib/utils";
-import { savePresetToAccountOnUse } from "@/lib/presetDeckAccount";
 import { useGameStore } from "@/stores/useGameStore";
 import { usePresetDecks, usePresetDecksStore } from "@/stores/usePresetDecksStore";
 import type { Deck } from "@/protocol/deck";
@@ -58,11 +57,7 @@ export function useQuickPlaytest(): {
       aiEngine,
       undefined,
       setup,
-    ).then((started) => {
-      if (started && presetDecks.some((preset) => preset.id === deck.id)) {
-        savePresetToAccountOnUse(deck.id);
-      }
-    });
+    );
     navigate("/play");
   }
   function quickPlaytest(deck: Deck, savedDeckId?: string) {

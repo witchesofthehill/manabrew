@@ -27,7 +27,7 @@ export function localAiTableLaunch(
   const opponentDecks: Deck[] = [];
   for (const player of others) {
     const bot = bots.get(player.username);
-    if (!player.is_bot || !bot) return null;
+    if (!player.is_bot || !bot?.deck) return null;
     opponentDecks.push(bot.deck);
   }
   return {

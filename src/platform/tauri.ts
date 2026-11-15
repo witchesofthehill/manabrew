@@ -162,6 +162,12 @@ class TauriServerApi implements IServerApi {
   spawnAiBot(params: SpawnAiBotParams): Promise<void> {
     return this.inner.spawnAiBot(params);
   }
+  restoreAiBots(roomId: string): Promise<string[]> {
+    return this.inner.restoreAiBots(roomId);
+  }
+  setAiBotDeck(username: string, params: SetDeckSelectionParams): Promise<void> {
+    return this.inner.setAiBotDeck(username, params);
+  }
   removeAiBot(username: string): Promise<void> {
     return this.inner.removeAiBot(username);
   }

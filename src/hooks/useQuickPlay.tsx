@@ -12,7 +12,6 @@ import { reportPublishedDeckPlay } from "@/lib/deckPlayEvidence";
 import { getFormat } from "@/lib/formats";
 import { resolveOfflineEngine } from "@/lib/offlineEngine";
 import { presetSupportsEngine, type PresetDeck } from "@/lib/presetDecks";
-import { savePresetToAccountOnUse } from "@/lib/presetDeckAccount";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { useGameStore } from "@/stores/useGameStore";
 import { useHubStore } from "@/stores/useHubStore";
@@ -166,7 +165,6 @@ export function useQuickPlay() {
         );
       if (!started) return;
       void reportPublishedDeckPlay(presetId, preset);
-      savePresetToAccountOnUse(preset.id);
       const prefs = usePreferencesStore.getState();
       prefs.setLastOfflineFormatId(formatId);
       if (opponents.remember) {

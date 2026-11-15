@@ -103,14 +103,13 @@ import {
   stackObjectAbilityText,
   stackObjectToCard,
   relayAvatarUrl,
-  botAvatarUrl,
-  isBotSeat,
   gameRound,
   opponentsInTurnOrder,
 } from "@/components/game/game.utils";
 import { createPortal } from "react-dom";
 import { Card } from "@/components/game/Card";
 import { cn } from "@/lib/utils";
+import { gameBotAvatarUrls } from "@/lib/botAvatars";
 import { applyManualTabletopAction, getSelectedGameRuntime } from "@/game";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { deriveCardRailState, parsePrintedCardRailMetadata } from "@/components/game/cardRailState";
@@ -1256,9 +1255,9 @@ export default function Game({ exitTo }: GameProps = {}) {
     [gameView?.players, me?.id],
   );
   const roomPlayers = useServerStore((s) => s.currentRoom?.players);
-  const botOpponents = useMemo(
-    () => opponents.filter((op) => isBotSeat(op, roomPlayers)),
-    [opponents, roomPlayers],
+  const botAvatars = useMemo(
+    () => gameBotAvatarUrls(gameView?.players ?? [], roomPlayers),
+    [gameView?.players, roomPlayers],
   );
   const iAmEliminated = selfConceded || (me != null && me.status !== "playing");
   const ownsEngine = isHost || hostingForgeRoom;
@@ -2400,14 +2399,12 @@ export default function Game({ exitTo }: GameProps = {}) {
             avatarUrl:
               activeFlash.playerId === me.id
                 ? (useAuthStore.getState().account?.avatarUrl ?? null)
-                : (relayAvatarUrl(
+                : (botAvatars.get(turnHandoffPlayer.name) ??
+                  relayAvatarUrl(
                     turnHandoffPlayer.name,
                     useServerStore.getState().players,
                     useServerStore.getState().playerDecks,
-                  ) ??
-                  (isBotSeat(turnHandoffPlayer, roomPlayers)
-                    ? botAvatarUrl(turnHandoffPlayer.id, botOpponents)
-                    : null)),
+                  )),
           }
         : null,
     sourceDeckCard: promptSourceDeckCard,

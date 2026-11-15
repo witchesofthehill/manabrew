@@ -1599,7 +1599,8 @@ fn is_commander_variant(format: GameFormat) -> bool {
 fn java_game_variant(format: GameFormat) -> &'static str {
     match format {
         GameFormat::Any => "",
-        GameFormat::Commander | GameFormat::DuelCommander => "Commander",
+        GameFormat::Commander => "Commander",
+        GameFormat::DuelCommander => "DuelCommander",
         GameFormat::PauperCommander => "PauperCommander",
         GameFormat::Brawl => "Brawl",
         GameFormat::Oathbreaker => "Oathbreaker",

@@ -252,7 +252,7 @@ export const GAME_FORMATS: GameFormat[] = [
       minDeckSize: 100,
       maxDeckSize: 100,
       maxCopies: 1,
-      sideboardMax: 10,
+      sideboardMax: 0,
       startingLife: 20,
       requiresCommander: true,
     },

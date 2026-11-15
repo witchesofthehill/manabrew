@@ -51,6 +51,7 @@ public final class ManaBrewEngineAdapter {
     private static final String PAUPER_COMMANDER = "PauperCommander";
     private static final int PAUPER_COMMANDER_STARTING_LIFE = 30;
     private static final int PAUPER_COMMANDER_DAMAGE_TO_LOSE = 16;
+    private static final String DUEL_COMMANDER = "DuelCommander";
     private final Map<String, ManaBrewInteractiveSession> sessions = new ConcurrentHashMap<>();
     private volatile boolean initialized;
     private String assetsDir;
@@ -119,6 +120,9 @@ public final class ManaBrewEngineAdapter {
         final boolean pauperCommander = PAUPER_COMMANDER.equals(request.getVariant());
         if (pauperCommander) {
             rules.setCommanderDamageToLose(PAUPER_COMMANDER_DAMAGE_TO_LOSE);
+        }
+        if (DUEL_COMMANDER.equals(request.getVariant())) {
+            rules.setCommanderDamageToLose(Integer.MAX_VALUE);
         }
         // The client draws its own card faces, so nothing here or in the
         // protocol ever reads Forge's rendered rules text. Building it asks
@@ -503,6 +507,7 @@ public final class ManaBrewEngineAdapter {
         if (variant != null && !variant.isBlank()) {
             switch (variant) {
                 case "Commander":
+                case DUEL_COMMANDER:
                 case PAUPER_COMMANDER:
                     return GameType.Commander;
                 case "Oathbreaker":

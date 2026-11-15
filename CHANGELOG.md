@@ -1,5 +1,16 @@
 # Changelog
 
+## [3.81.0](https://github.com/witchesofthehill/manabrew/compare/v3.80.3...v3.81.0) (2026-11-15)
+
+### Features
+
+* remove cards from Audotpass ([#1229](https://github.com/witchesofthehill/manabrew/issues/1229)) ([66b7b41](https://github.com/witchesofthehill/manabrew/commit/66b7b41c73dd43d2fabfb71825e9e0a9529d6a95))
+
+### Fixes
+
+* **assets:** encode WebP in wasm when the canvas cannot (Safari, iOS) ([#1227](https://github.com/witchesofthehill/manabrew/issues/1227)) ([afcc2ed](https://github.com/witchesofthehill/manabrew/commit/afcc2ed8e45497025849624c729fd9f59848d443))
+* **forge-wasm:** pass the solo trial on the first prompt, not on start ([#1228](https://github.com/witchesofthehill/manabrew/issues/1228)) ([25e13cc](https://github.com/witchesofthehill/manabrew/commit/25e13cce4c8f25b56ecaf29db4063819c7894aad))
+
 ## [3.80.3](https://github.com/witchesofthehill/manabrew/compare/v3.80.2...v3.80.3) (2026-11-14)
 
 ## [3.80.2](https://github.com/witchesofthehill/manabrew/compare/v3.80.1...v3.80.2) (2026-11-14)

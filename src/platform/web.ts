@@ -1486,8 +1486,8 @@ class WebServerApi implements IServerApi {
     this.send({ type: "AcceptBotFill" });
   }
 
-  async acceptMatch(): Promise<void> {
-    this.send({ type: "AcceptMatch" });
+  async acceptMatch(deckIndex?: number): Promise<void> {
+    this.send({ type: "AcceptMatch", deck_index: deckIndex });
   }
 
   async declineMatch(): Promise<void> {
@@ -1498,8 +1498,8 @@ class WebServerApi implements IServerApi {
     this.send({ type: "AnnounceTable", bracket });
   }
 
-  async answerTableCall(roomId: string, join: boolean): Promise<void> {
-    this.send({ type: "AnswerTableCall", room_id: roomId, join });
+  async answerTableCall(roomId: string, join: boolean, deckIndex?: number): Promise<void> {
+    this.send({ type: "AnswerTableCall", room_id: roomId, join, deck_index: deckIndex });
   }
 
   async leaveQueue(): Promise<void> {

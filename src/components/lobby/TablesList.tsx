@@ -168,7 +168,7 @@ export function TablesList({
         >
           <MultiplayerStartPanel disabled={disabled} onSetUp={onNewGame} />
 
-          <FindGameCard />
+          <FindGameCard disabled={disabled} />
 
           <section className={cn("space-y-3", shortTouch && "space-y-2")}>
             <div>

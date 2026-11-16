@@ -109,8 +109,8 @@ class TauriServerApi implements IServerApi {
   acceptBotFill(): Promise<void> {
     return this.inner.acceptBotFill();
   }
-  acceptMatch(): Promise<void> {
-    return this.inner.acceptMatch();
+  acceptMatch(deckIndex?: number): Promise<void> {
+    return this.inner.acceptMatch(deckIndex);
   }
   declineMatch(): Promise<void> {
     return this.inner.declineMatch();
@@ -118,8 +118,8 @@ class TauriServerApi implements IServerApi {
   announceTable(bracket: number | null): Promise<void> {
     return this.inner.announceTable(bracket);
   }
-  answerTableCall(roomId: string, join: boolean): Promise<void> {
-    return this.inner.answerTableCall(roomId, join);
+  answerTableCall(roomId: string, join: boolean, deckIndex?: number): Promise<void> {
+    return this.inner.answerTableCall(roomId, join, deckIndex);
   }
   leaveQueue(): Promise<void> {
     return this.inner.leaveQueue();

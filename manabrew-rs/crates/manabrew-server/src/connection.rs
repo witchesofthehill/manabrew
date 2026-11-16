@@ -2598,6 +2598,7 @@ fn handle_client_message(
                     format,
                     pod_sizes,
                     decks,
+                    selected_deck: None,
                     steps: Vec::new(),
                     can_host,
                     queued_at: std::time::Instant::now(),
@@ -2651,13 +2652,16 @@ fn handle_client_message(
             }
         }
 
-        ClientMessage::AcceptMatch => {
+        ClientMessage::AcceptMatch { deck_index } => {
             matchmaking::record_player(state, player_id, "match_accept", |_, _| {});
-            state
+            let result = state
                 .queue
                 .lock()
                 .expect("queue lock")
-                .accept_match(player_id);
+                .accept_match(player_id, deck_index);
+            if let Err(message) = result {
+                send_error(sender, &ServerError::InvalidQueue(message));
+            }
         }
 
         ClientMessage::DeclineMatch => {
@@ -2704,17 +2708,24 @@ fn handle_client_message(
             }
         }
 
-        ClientMessage::AnswerTableCall { room_id, join } => {
+        ClientMessage::AnswerTableCall {
+            room_id,
+            join,
+            deck_index,
+        } => {
             let action = if join { "table_join" } else { "table_decline" };
             let call_room = room_id.clone();
             matchmaking::record_player(state, player_id, action, move |_, event| {
                 event.room_id = Some(call_room);
             });
-            state
+            let result = state
                 .queue
                 .lock()
                 .expect("queue lock")
-                .answer_call(player_id, &room_id, join);
+                .answer_call(player_id, &room_id, join, deck_index);
+            if let Err(message) = result {
+                send_error(sender, &ServerError::InvalidQueue(message));
+            }
         }
 
         ClientMessage::LeaveQueue => {
@@ -2835,7 +2846,7 @@ fn client_msg_type(msg: &ClientMessage) -> &'static str {
         ClientMessage::EnterQueue { .. } => "EnterQueue",
         ClientMessage::AcceptQueueStep { .. } => "AcceptQueueStep",
         ClientMessage::AcceptBotFill => "AcceptBotFill",
-        ClientMessage::AcceptMatch => "AcceptMatch",
+        ClientMessage::AcceptMatch { .. } => "AcceptMatch",
         ClientMessage::DeclineMatch => "DeclineMatch",
         ClientMessage::AnnounceTable { .. } => "AnnounceTable",
         ClientMessage::AnswerTableCall { .. } => "AnswerTableCall",

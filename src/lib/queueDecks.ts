@@ -41,3 +41,10 @@ export async function commanderQueueDecks(decks: Deck[]): Promise<QueuedDeck[]> 
   }
   return queued;
 }
+
+export function queueDeckChoices(decks: QueuedDeck[], bracket: number) {
+  const distance = Math.min(...decks.map((deck) => Math.abs(deck.bracket - bracket)));
+  return decks
+    .map((deck, index) => ({ deck, index }))
+    .filter(({ deck }) => Math.abs(deck.bracket - bracket) === distance);
+}

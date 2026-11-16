@@ -157,10 +157,10 @@ export interface IServerApi {
   enterQueue(params: EnterQueueParams): Promise<void>;
   acceptQueueStep(bracket: number): Promise<void>;
   acceptBotFill(): Promise<void>;
-  acceptMatch(): Promise<void>;
+  acceptMatch(deckIndex?: number): Promise<void>;
   declineMatch(): Promise<void>;
   announceTable(bracket: number | null): Promise<void>;
-  answerTableCall(roomId: string, join: boolean): Promise<void>;
+  answerTableCall(roomId: string, join: boolean, deckIndex?: number): Promise<void>;
   leaveQueue(): Promise<void>;
   createRoom(params: CreateRoomParams): Promise<string | null>;
   stopRoom(): Promise<void>;

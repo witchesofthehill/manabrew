@@ -33,6 +33,7 @@ pub struct QueueEntry {
     pub format: GameFormat,
     pub pod_sizes: Vec<u8>,
     pub decks: Vec<QueuedDeck>,
+    pub selected_deck: Option<usize>,
     pub steps: Vec<u8>,
     pub can_host: bool,
     pub queued_at: Instant,
@@ -68,8 +69,29 @@ impl QueueEntry {
     fn deck_for(&self, bracket: u8) -> &QueuedDeck {
         self.decks
             .iter()
-            .min_by_key(|deck| deck.bracket.abs_diff(bracket))
+            .enumerate()
+            .min_by_key(|(index, deck)| {
+                (
+                    deck.bracket.abs_diff(bracket),
+                    Some(*index) != self.selected_deck,
+                )
+            })
+            .map(|(_, deck)| deck)
             .expect("queue entries hold at least one deck")
+    }
+
+    fn select_deck(&mut self, bracket: u8, index: Option<usize>) -> Result<(), String> {
+        if let Some(index) = index {
+            let deck = self
+                .decks
+                .get(index)
+                .ok_or("That deck is not in your search.")?;
+            if deck.bracket.abs_diff(bracket) != self.deck_for(bracket).bracket.abs_diff(bracket) {
+                return Err("Choose a deck that fits this table's bracket.".into());
+            }
+        }
+        self.selected_deck = index;
+        Ok(())
     }
 
     fn accepts_size(&self, pod_size: u8) -> bool {
@@ -153,23 +175,30 @@ impl MatchQueue {
         self.decline_match(player_id)
     }
 
-    pub fn answer_call(&mut self, player_id: &str, room_id: &str, join: bool) -> bool {
+    pub fn answer_call(
+        &mut self,
+        player_id: &str,
+        room_id: &str,
+        join: bool,
+        deck_index: Option<usize>,
+    ) -> Result<bool, String> {
         let Some(call) = self.calls.iter().position(|call| call.room_id == room_id) else {
-            return false;
+            return Ok(false);
         };
         if !join {
-            return true;
+            return Ok(true);
         }
         let Some(i) = self
             .entries
             .iter()
             .position(|entry| entry.player_id == player_id)
         else {
-            return false;
+            return Ok(false);
         };
+        self.entries[i].select_deck(self.calls[call].bracket, deck_index)?;
         let entry = self.entries.remove(i);
         self.calls[call].joiners.push(entry);
-        true
+        Ok(true)
     }
 
     pub fn reset_table(&mut self, room_id: &str) -> Vec<String> {
@@ -292,10 +321,23 @@ impl MatchQueue {
         })
     }
 
-    pub fn accept_match(&mut self, player_id: &str) {
+    pub fn accept_match(
+        &mut self,
+        player_id: &str,
+        deck_index: Option<usize>,
+    ) -> Result<(), String> {
         if let Some(i) = self.proposal_of(player_id) {
-            self.proposals[i].accepted.insert(player_id.to_string());
+            let proposal = &mut self.proposals[i];
+            let entry = proposal
+                .pod
+                .members
+                .iter_mut()
+                .find(|entry| entry.player_id == player_id)
+                .expect("proposal member");
+            entry.select_deck(proposal.pod.bracket, deck_index)?;
+            proposal.accepted.insert(player_id.to_string());
         }
+        Ok(())
     }
 
     pub fn decline_match(&mut self, player_id: &str) -> Vec<String> {

@@ -44,6 +44,7 @@ import { toast } from "sonner";
 import { Settings, Users } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { findOrHostLanRelay, isUnreachable } from "@/lib/lanRelay";
+import { MatchmakingLaunch } from "@/components/lobby/MatchmakingLaunch";
 import { useMatchmadeHost } from "@/components/lobby/useMatchmadeHost";
 import { commanderQueueDecks } from "@/lib/queueDecks";
 
@@ -168,6 +169,7 @@ export default function Lobby() {
   const [botDeckTarget, setBotDeckTarget] = useState<string | null>(null);
   const [startingLimited, setStartingLimited] = useState(false);
   const [startingGame, setStartingGame] = useState(false);
+  const [viewMatchmadeRoom, setViewMatchmadeRoom] = useState<string | null>(null);
   const mySelection = useRef<{ deck: Deck; commanderName?: string } | null>(null);
   const [roomPasswords, setRoomPasswords] = useState<Record<string, string>>({});
   const [confirmLeaveHostedGame, setConfirmLeaveHostedGame] = useState(false);
@@ -529,6 +531,15 @@ export default function Lobby() {
     spawnBot,
     start: handleStartGame,
   });
+  if (currentRoom?.matchmade_bracket && viewMatchmadeRoom !== currentRoom.room_id) {
+    return (
+      <MatchmakingLaunch
+        room={currentRoom}
+        username={username}
+        onViewTable={() => setViewMatchmadeRoom(currentRoom.room_id)}
+      />
+    );
+  }
   return (
     <div className="flex h-full w-full min-h-0 pb-[max(0px,calc(100dvh-var(--visual-viewport-height)-var(--visual-viewport-top)))]">
       <div className="flex min-w-0 flex-1 flex-col">

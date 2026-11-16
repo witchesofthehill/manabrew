@@ -393,7 +393,10 @@ pub enum ClientMessage {
 
     AcceptBotFill,
 
-    AcceptMatch,
+    AcceptMatch {
+        #[serde(default)]
+        deck_index: Option<usize>,
+    },
 
     DeclineMatch,
 
@@ -404,6 +407,8 @@ pub enum ClientMessage {
     AnswerTableCall {
         room_id: String,
         join: bool,
+        #[serde(default)]
+        deck_index: Option<usize>,
     },
 
     LeaveQueue,

@@ -44,7 +44,9 @@ export function GameChat() {
       <SheetContent side="left" className="flex flex-col">
         <SheetHeader>
           <SheetTitle>Chat</SheetTitle>
-          <SheetDescription>Talk to your table or the general lobby.</SheetDescription>
+          <SheetDescription>
+            Chat is monitored. Keep it respectful—the banhammer is ready.
+          </SheetDescription>
         </SheetHeader>
         <ChatPanel
           key={currentRoom.room_id}

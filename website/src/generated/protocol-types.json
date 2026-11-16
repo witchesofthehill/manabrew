@@ -143,8 +143,8 @@
       "refs": []
     },
     "AttackerOptionDto": {
-      "ts": "interface AttackerOptionDto {\n  attackerId: string;\n  validTargetIds: Array<string>;\n  mustAttack: boolean;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct AttackerOptionDto {\n    pub attacker_id: String,\n    pub valid_target_ids: Vec<String>,\n    pub must_attack: bool,\n}",
+      "ts": "interface AttackerOptionDto {\n  attackerId: string;\n  validTargetIds: Array<string>;\n  mustAttack: boolean;\n  suggestedTargetId?: string;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct AttackerOptionDto {\n    pub attacker_id: String,\n    pub valid_target_ids: Vec<String>,\n    pub must_attack: bool,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub suggested_target_id: Option<String>,\n}",
       "refs": []
     },
     "AvailableAction": {

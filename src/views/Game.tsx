@@ -21,6 +21,7 @@ import type { ActivatableAbilityInfo } from "@/protocol/prompts/common";
 import type { ClientCardDto, ClientPlayerDto } from "@/stores/gameStore.types";
 import { GameModals } from "@/components/game/GameModals";
 import { LandscapeGate } from "@/components/LandscapeGate";
+import { GameChat } from "@/components/game/panels/GameChat";
 import { GameLoadingScreen } from "@/components/game/GameLoadingScreen";
 import { GameFailedScreen } from "@/components/game/GameFailedScreen";
 import { WaitingForPlayerScreen } from "@/components/game/WaitingForPlayerScreen";
@@ -2580,6 +2581,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         />
       )}
       <LandscapeGate />
+      {isMultiplayer && <GameChat />}
       <DevViewportFrame>
         <GameBoard
           boardSceneRef={boardSceneRef}

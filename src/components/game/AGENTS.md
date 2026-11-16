@@ -84,6 +84,8 @@ The legacy per-player canvases (`PixiGameCanvas` / `PixiGameScene` / `PixiArrows
 
 ## Modal pattern
 
+Multiplayer games expose `panels/GameChat.tsx`, a non-modal sheet around the shared lobby `ChatPanel`. Chat history, unread counts, notifications, and transport remain owned by `useChatStore`; the game only adds an entry point for relays advertising `RELAY_FEATURE.Chat`. Mount `ChatPanel` only while the sheet is open so hidden chat does not mark messages read or suppress notifications.
+
 All game modals use the `Modal` compound:
 
 ```tsx

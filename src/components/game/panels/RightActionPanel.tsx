@@ -9,6 +9,7 @@ import { TAB_BUTTON_BASE, TAB_ACTIVE, TAB_INACTIVE } from "../game.styles";
 import { CheckpointsPanel } from "./CheckpointsPanel";
 import { GameDevPanel } from "@/components/dev/GameDevPanel";
 export function RightActionPanel({
+  actions,
   collapsed,
   onToggleCollapse: rawToggle,
   resolvePlayerName,
@@ -41,23 +42,28 @@ export function RightActionPanel({
   }, [collapsed, onLeftEdgeChange]);
 
   if (collapsed) {
-    return !mobile && checkpoints.length > 0 ? (
-      <button
-        type="button"
-        className="absolute right-[calc(0.75rem+var(--safe-area-inset-right))] top-[calc(0.75rem+var(--safe-area-inset-top))] z-50 flex touch:min-h-11 touch:min-w-11 items-center gap-2 rounded-full border border-border/80 bg-card/95 px-3 py-2 font-game text-ui-label font-semibold text-foreground shadow-lg backdrop-blur-sm transition-colors hover:bg-accent"
-        aria-label={`Open journal with ${checkpoints.length} entries`}
-        onClick={() => {
-          setActiveTab("journal");
-          rawToggle();
-        }}
-      >
-        <History className="h-4 w-4 text-primary" />
-        Journal
-        <span className="min-w-5 rounded-full bg-muted px-1.5 py-0.5 text-ui-meta font-semibold tabular-nums lining-nums text-foreground">
-          {checkpoints.length}
-        </span>
-      </button>
-    ) : null;
+    return (
+      <div className="absolute right-[calc(0.75rem+var(--safe-area-inset-right))] top-[calc(0.75rem+var(--safe-area-inset-top))] z-50 flex items-center gap-2">
+        {actions}
+        {!mobile && checkpoints.length > 0 && (
+          <button
+            type="button"
+            className="flex touch:min-h-11 touch:min-w-11 items-center gap-2 rounded-full border border-border/80 bg-card/95 px-3 py-2 font-game text-ui-label font-semibold text-foreground shadow-lg backdrop-blur-sm transition-colors hover:bg-accent"
+            aria-label={`Open journal with ${checkpoints.length} entries`}
+            onClick={() => {
+              setActiveTab("journal");
+              rawToggle();
+            }}
+          >
+            <History className="h-4 w-4 text-primary" />
+            Journal
+            <span className="min-w-5 rounded-full bg-muted px-1.5 py-0.5 text-ui-meta font-semibold tabular-nums lining-nums text-foreground">
+              {checkpoints.length}
+            </span>
+          </button>
+        )}
+      </div>
+    );
   }
 
   return (
@@ -90,15 +96,18 @@ export function RightActionPanel({
               </button>
             ) : null}
           </div>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-8 w-8 touch:min-h-11 touch:min-w-11 text-muted-foreground hover:text-foreground"
-            onClick={rawToggle}
-            title={`Close right panel`}
-          >
-            <PanelRightClose className="h-3.5 w-3.5" />
-          </Button>
+          <div className="flex items-center gap-2">
+            {actions}
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8 touch:min-h-11 touch:min-w-11 text-muted-foreground hover:text-foreground"
+              onClick={rawToggle}
+              title={`Close right panel`}
+            >
+              <PanelRightClose className="h-3.5 w-3.5" />
+            </Button>
+          </div>
         </div>
 
         {activeTab === "journal" ? (

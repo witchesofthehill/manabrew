@@ -2581,7 +2581,6 @@ export default function Game({ exitTo }: GameProps = {}) {
         />
       )}
       <LandscapeGate />
-      {isMultiplayer && <GameChat />}
       <DevViewportFrame>
         <GameBoard
           boardSceneRef={boardSceneRef}
@@ -2741,6 +2740,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       {manualApi && <ManualTabletopControls gameView={gameView} api={manualApi} />}
 
       <RightActionPanel
+        actions={isMultiplayer ? <GameChat /> : undefined}
         collapsed={isActionPanelCollapsed}
         onLeftEdgeChange={setRightPanelLeft}
         onToggleCollapse={toggleActionPanel}

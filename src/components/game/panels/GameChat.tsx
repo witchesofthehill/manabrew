@@ -29,19 +29,23 @@ export function GameChat() {
       <SheetTrigger asChild>
         <Button
           variant="outline"
-          size="sm"
-          className="absolute bottom-[calc(7rem+var(--safe-area-inset-bottom))] left-[calc(0.75rem+var(--safe-area-inset-left))] z-50 shadow-sm"
+          size="icon"
+          className="relative h-10 w-10 shrink-0 touch:min-h-11 touch:min-w-11 rounded-full border-border/80 bg-card/95 shadow-lg backdrop-blur-sm"
+          aria-label={unread > 0 ? `Open chat, ${unread} unread messages` : "Open chat"}
+          title="Open chat"
         >
           <MessageSquare className="h-4 w-4" />
-          Chat
           {unread > 0 && (
-            <span className="rounded-full bg-primary px-1.5 text-ui-meta text-primary-foreground">
+            <span
+              aria-hidden="true"
+              className="absolute -right-1 -top-1 min-w-5 rounded-full bg-primary px-1.5 text-ui-meta text-primary-foreground"
+            >
               {unread > 99 ? "99+" : unread}
             </span>
           )}
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="flex flex-col">
+      <SheetContent side="right" className="z-[9002] flex flex-col">
         <SheetHeader>
           <SheetTitle>Chat</SheetTitle>
           <SheetDescription>

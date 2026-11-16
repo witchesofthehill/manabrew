@@ -2,7 +2,6 @@ import type { CardDto, CheckpointDto, DecisionHistoryDto, StepKind } from "@/pro
 import type { DeckCard } from "@/protocol/deck";
 import type { PromptType } from "@/protocol";
 import type { DevPromptActionOverride } from "@/stores/useGameDevStore";
-import type { ReactNode } from "react";
 
 export type PromptActionType = PromptType;
 
@@ -36,7 +35,7 @@ export const OPPONENT_SEATS: readonly Exclude<PlayerSeat, "self">[] = [
 ] as const;
 
 export interface RightActionPanelProps {
-  actions?: ReactNode;
+  showChat?: boolean;
   collapsed: boolean;
   onToggleCollapse: () => void;
   onLeftEdgeChange?: (left: number | undefined) => void;

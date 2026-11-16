@@ -7,9 +7,12 @@ import { useLayoutEffect, useRef } from "react";
 import type { RightActionPanelProps } from "../game.types";
 import { TAB_BUTTON_BASE, TAB_ACTIVE, TAB_INACTIVE } from "../game.styles";
 import { CheckpointsPanel } from "./CheckpointsPanel";
+import { GameChat, GameChatButton } from "./GameChat";
+import { useServerStore } from "@/stores/useServerStore";
+import { RELAY_FEATURE } from "@/types/server";
 import { GameDevPanel } from "@/components/dev/GameDevPanel";
 export function RightActionPanel({
-  actions,
+  showChat = false,
   collapsed,
   onToggleCollapse: rawToggle,
   resolvePlayerName,
@@ -21,9 +24,26 @@ export function RightActionPanel({
   onLeftEdgeChange,
 }: RightActionPanelProps) {
   const mobile = useIsMobileGame();
+  const chatAvailable = useServerStore(
+    (s) => !!s.currentRoom && s.hasRelayFeature(RELAY_FEATURE.Chat),
+  );
+  const chatEnabled = showChat && chatAvailable;
   const storedActiveTab = useGameUIStore((s) => s.rightPanelTab);
-  const activeTab = storedActiveTab === "dev" && !import.meta.env.DEV ? "journal" : storedActiveTab;
+  const activeTab =
+    (storedActiveTab === "dev" && !import.meta.env.DEV) ||
+    (storedActiveTab === "chat" && !chatEnabled)
+      ? "journal"
+      : storedActiveTab;
   const setActiveTab = useGameUIStore((s) => s.setRightPanelTab);
+  const chatButton = chatEnabled ? (
+    <GameChatButton
+      active={!collapsed && activeTab === "chat"}
+      onClick={() => {
+        setActiveTab("chat");
+        if (collapsed) rawToggle();
+      }}
+    />
+  ) : null;
   const panelRef = useRef<HTMLElement>(null);
   useLayoutEffect(() => {
     const panel = panelRef.current;
@@ -44,7 +64,7 @@ export function RightActionPanel({
   if (collapsed) {
     return (
       <div className="absolute right-[calc(0.75rem+var(--safe-area-inset-right))] top-[calc(0.75rem+var(--safe-area-inset-top))] z-50 flex items-center gap-2">
-        {actions}
+        {chatButton}
         {!mobile && checkpoints.length > 0 && (
           <button
             type="button"
@@ -69,6 +89,9 @@ export function RightActionPanel({
   return (
     <aside
       ref={panelRef}
+      aria-label={
+        activeTab === "chat" ? "Chat" : activeTab === "journal" ? "Journal" : "Developer tools"
+      }
       className={cn(
         "absolute right-[calc(0.375rem+var(--safe-area-inset-right))] top-[calc(0.375rem+var(--safe-area-inset-top))] bottom-[calc(0.375rem+var(--safe-area-inset-bottom))] z-[9001] rounded-lg bg-card/95 backdrop-blur-sm transition-[width,background-color,border-color] overflow-visible border border-border/70 shadow-[0_20px_60px_rgba(0,0,0,0.45)]",
         mobile
@@ -78,7 +101,7 @@ export function RightActionPanel({
             : "w-80",
       )}
     >
-      <div className="h-full p-3 flex flex-col gap-3 overflow-y-auto">
+      <div className="h-full min-h-0 p-3 flex flex-col gap-3 overflow-y-auto">
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
             <button
@@ -97,7 +120,7 @@ export function RightActionPanel({
             ) : null}
           </div>
           <div className="flex items-center gap-2">
-            {actions}
+            {chatButton}
             <Button
               size="icon"
               variant="ghost"
@@ -119,6 +142,8 @@ export function RightActionPanel({
             resolvePlayerName={resolvePlayerName}
             resolvePlayerColor={resolvePlayerColor}
           />
+        ) : activeTab === "chat" ? (
+          <GameChat />
         ) : (
           <GameDevPanel />
         )}

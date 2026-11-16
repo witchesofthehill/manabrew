@@ -65,7 +65,7 @@ interface GameUIState {
   playModePicker: PlayModePickerState | null;
   viewingZone: ViewingZoneState | null;
   isActionPanelCollapsed: boolean;
-  rightPanelTab: "journal" | "dev";
+  rightPanelTab: "journal" | "chat" | "dev";
   promptModalHidden: boolean;
   zoneBrowserStates: Record<string, CardBrowserState>;
   mobileHandState: { promptId: Prompt["promptId"] | null; open: boolean };
@@ -82,7 +82,7 @@ interface GameUIState {
   closeZoneViewer: () => void;
   toggleActionPanel: () => void;
   setActionPanelCollapsed: (collapsed: boolean) => void;
-  setRightPanelTab: (tab: "journal" | "dev") => void;
+  setRightPanelTab: (tab: "journal" | "chat" | "dev") => void;
   toggleDevPanel: () => void;
   hidePromptModal: () => void;
   showPromptModal: () => void;

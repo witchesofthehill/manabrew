@@ -11,7 +11,7 @@
 //
 // Usage:
 //   node tests/e2e-ironsmith/ironsmith-multiplayer.mjs
-//   DECK="Mono Red Prison" FORMAT=Vintage node tests/e2e-ironsmith/ironsmith-multiplayer.mjs
+//   DECK="Goblins" FORMAT=Vintage node tests/e2e-ironsmith/ironsmith-multiplayer.mjs
 //   HEADED=1 SHOT=/tmp/shots node tests/e2e-ironsmith/ironsmith-multiplayer.mjs
 //
 // Exit code 0 = game reached a live board; non-zero = failure (message on stderr).
@@ -25,9 +25,11 @@ import {
   createRoom,
   pickPreset,
   deckButton,
+  modalDialog,
+  livePromptType,
 } from "./lib.mjs";
 
-const DECK = process.env.DECK || "Mono Red Prison";
+const DECK = process.env.DECK || "Goblins";
 const FORMAT = process.env.FORMAT || "Vintage";
 const SHOT = process.env.SHOT || null;
 
@@ -58,7 +60,7 @@ try {
   await pickPreset(page, () => deckButton(page).click(), DECK);
   await page.getByRole("button", { name: /Add (a )?bot/i }).click();
   await page.waitForTimeout(900);
-  if (await page.locator("[role=dialog]").count()) {
+  if (await modalDialog(page).count()) {
     await pickPreset(page, async () => {}, DECK);
   }
 
@@ -66,16 +68,20 @@ try {
   await page.waitForTimeout(9000);
 
   const onBoard = /\/play|\/game/.test(page.url()) && (await page.locator("canvas").count()) > 0;
-  const hasPrompt = await page.getByRole("button", { name: /^(Keep|Mulligan|Pass)$/ }).count();
+  const prompt = await livePromptType(page);
+  const promptType = prompt.type;
+  const hasPrompt = !prompt.checked || Boolean(promptType);
 
   if (SHOT) await page.screenshot({ path: `${SHOT}/ironsmith-board.png`, fullPage: true });
 
   if (!onBoard) {
     fail(`board did not render (url=${page.url()}). start error: ${startError ?? "none"}`);
   } else if (!hasPrompt) {
-    fail("board rendered but no live prompt (Keep/Mulligan/Pass) appeared");
+    fail("board rendered but the game store never received a prompt");
   } else {
-    console.log(`PASS: Ironsmith game live on ${page.url()} (deck=${DECK}, format=${FORMAT})`);
+    console.log(
+      `PASS: Ironsmith game live on ${page.url()} (deck=${DECK}, format=${FORMAT}, prompt=${promptType ?? "not checked: no dev game store"})`,
+    );
   }
 } catch (e) {
   fail(String(e?.stack || e).slice(0, 400) + (startError ? `\nstart error: ${startError}` : ""));

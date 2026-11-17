@@ -2739,6 +2739,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       {manualApi && <ManualTabletopControls gameView={gameView} api={manualApi} />}
 
       <RightActionPanel
+        showChat={isMultiplayer}
         collapsed={isActionPanelCollapsed}
         onLeftEdgeChange={setRightPanelLeft}
         onToggleCollapse={toggleActionPanel}

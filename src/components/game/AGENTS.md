@@ -84,6 +84,8 @@ The legacy per-player canvases (`PixiGameCanvas` / `PixiGameScene` / `PixiArrows
 
 ## Modal pattern
 
+Multiplayer games expose `panels/GameChat.tsx` inside the existing `RightActionPanel` journal shell. Its icon-only trigger shares the top-right toolbar with the journal and selects the `chat` panel view; the shared collapse control closes either view. Chat history, unread counts, notifications, and transport remain owned by `useChatStore`; the game only adds an entry point for relays advertising `RELAY_FEATURE.Chat`. Mount `ChatPanel` only while the panel is expanded with chat selected so hidden chat does not mark messages read or suppress notifications.
+
 All game modals use the `Modal` compound:
 
 ```tsx

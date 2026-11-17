@@ -1,5 +1,5 @@
 use dashmap::DashMap;
-use std::sync::Mutex;
+use std::sync::{Mutex, OnceLock};
 use std::time::Instant;
 use tokio::sync::mpsc;
 use tokio_tungstenite::tungstenite::Message;
@@ -76,6 +76,7 @@ impl From<&ConnectedPlayer> for UsernameSession {
 }
 
 pub struct ServerState {
+    pub discord_chat: OnceLock<crate::discord_chat::ChatBridge>,
     pub players: DashMap<String, ConnectedPlayer>,
     pub rooms: DashMap<String, Room>,
     pub server_key: String,
@@ -103,6 +104,7 @@ impl ServerState {
         seal: Option<MessageSealer>,
     ) -> Self {
         ServerState {
+            discord_chat: OnceLock::new(),
             players: DashMap::new(),
             rooms: DashMap::new(),
             server_key,

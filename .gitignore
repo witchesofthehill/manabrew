@@ -113,6 +113,9 @@ ops/observability/data/
 /src/api/hubTypes.ts
 # Deck hub runtime data (hub.db bind mount; never committed)
 ops/hub-data/
+ops/discord-data/
+discord-chat.json
+discord-chat.json.tmp
 # Tauri mobile staged assets — copied from src-tauri/resources by the mobile
 # build (tauri.conf.json resources map); scaffolding stays tracked, assets not.
 src-tauri/gen/android/app/src/main/assets/

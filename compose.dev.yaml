@@ -53,6 +53,11 @@ services:
       DECK_HUB: "1"
       MANABREW_HUB_DECK_PLAYS_URL: "http://hub:9500"
       MANABREW_HUB_JWKS_URL: "http://hub:9500/api/auth/jwks"
+      DISCORD_BOT_TOKEN: "${DISCORD_BOT_TOKEN:-}"
+      DISCORD_CHAT_GUILD_ID: "${DISCORD_CHAT_GUILD_ID:-}"
+      DISCORD_CHAT_CHANNEL_ID: "${DISCORD_CHAT_CHANNEL_ID:-}"
+      DISCORD_CHAT_ADMIN_ROLE_IDS: "${DISCORD_CHAT_ADMIN_ROLE_IDS:-}"
+      DISCORD_CHAT_STATE_PATH: "/discord/chat.json"
       MANABREW_HUB_DECK_PLAYS_TOKEN: "forge"
       SECRET_MANABREW_KEY: "forge-dev"
       RUST_LOG: "manabrew_server=info"
@@ -65,6 +70,7 @@ services:
       - cargo-registry:/usr/local/cargo/registry
       - cargo-git:/usr/local/cargo/git
       - ./ops/hub-data/dev/events:/events
+      - ./ops/discord-data/dev:/discord
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:9444/health"]
       interval: 15s

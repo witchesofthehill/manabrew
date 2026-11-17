@@ -1,6 +1,7 @@
 import initIronsmith, { WasmGame } from "ironsmith-wasm";
 import ironsmithWasmModuleUrl from "ironsmith-wasm/ironsmith_bg.wasm?url";
 import { getPlatform } from "@/platform";
+import type { WasmManabot } from "@/wasm/wasm";
 import { createRoomRelayEnvelope, isRoomRelayProtocol } from "./roomRelay";
 import type {
   IGameApi,
@@ -189,6 +190,7 @@ export class IronsmithTrustedGameApi implements IGameApi {
   private playerNames: string[] = [];
   private playerSlots: string[] = [];
   private botPlayerSlots = new Set<string>();
+  private botAgents = new Map<string, WasmManabot>();
   private prompts = new Map<string, Prompt>();
   private roomRelayUnsubscribe: (() => void) | null = null;
   private keyPairPromise: Promise<CryptoKeyPair | null> | null = null;
@@ -298,7 +300,13 @@ export class IronsmithTrustedGameApi implements IGameApi {
     return this.localPlayerSlot ? (this.prompts.get(this.localPlayerSlot) ?? null) : null;
   }
 
+  private clearBotAgents(): void {
+    for (const agent of this.botAgents.values()) agent.free();
+    this.botAgents.clear();
+  }
+
   private resetGame(): void {
+    this.clearBotAgents();
     this.game?.free();
     this.game = null;
     this.config = null;
@@ -469,10 +477,23 @@ export class IronsmithTrustedGameApi implements IGameApi {
     for (const slot of this.botPlayerSlots) {
       if (!this.game) return;
       const index = Number(slot.replace("player-", ""));
-      const { prompt } = this.readManabrewView(index);
+      const { prompt, gameView } = this.readManabrewView(index);
       if (!prompt || prompt.decidingPlayerId !== slot) continue;
-      const action = botPromptOutput(prompt);
-      if (!action) continue;
+      const game = this.game;
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      if (this.game !== game || (this.isMultiplayer && !this.isHost)) return;
+      let agent = this.botAgents.get(slot);
+      if (!agent) {
+        const wasm = await import("@/wasm/wasm");
+        await wasm.default();
+        if (this.game !== game || (this.isMultiplayer && !this.isHost)) return;
+        agent = new wasm.WasmManabot();
+        this.botAgents.set(slot, agent);
+      }
+      agent.observe_state(JSON.stringify({ gameView }));
+      const response = agent.decide(JSON.stringify(prompt));
+      if (!response) throw new Error(`Manabot did not answer ${prompt.input.type} for ${slot}`);
+      const action = JSON.parse(response) as PromptOutput;
       await this.hostApply({
         kind: "response",
         slot,
@@ -548,6 +569,7 @@ export class IronsmithTrustedGameApi implements IGameApi {
   ): Promise<void> {
     if (payload.config) {
       await ensureIronsmith();
+      this.clearBotAgents();
       this.game?.free();
       const game = new WasmGame() as IronsmithWasmGame;
       game.startManabrewMatch(payload.config);
@@ -648,6 +670,7 @@ export class IronsmithTrustedGameApi implements IGameApi {
       // Another seat hosts now. Its transcript is the game: catch up to it,
       // or restart from it if this seat got ahead of it.
       this.isHost = false;
+      this.clearBotAgents();
       this.requestSync(false);
       return;
     }
@@ -1008,113 +1031,4 @@ function base64ToBytes(value: string): Uint8Array<ArrayBuffer> {
     bytes[index] = binary.charCodeAt(index);
   }
   return bytes;
-}
-
-function botPromptOutput(prompt: Prompt): PromptOutput | null {
-  switch (prompt.input.type) {
-    case "mulligan":
-      return { type: "mulligan", output: { type: "mulliganDecision", keep: true } };
-    case "mulliganPutBack": {
-      const cards =
-        prompt.input.cards.length > 0
-          ? prompt.input.cards.map((card) => card.id)
-          : prompt.input.handCardIds;
-      return {
-        type: "mulliganPutBack",
-        output: { type: "mulliganPutBackDecision", cardIds: cards.slice(0, prompt.input.count) },
-      };
-    }
-    case "chooseAction":
-      return { type: "chooseAction", output: { type: "pass", exhaustStack: false } };
-    case "payManaCost":
-      return { type: "payManaCost", output: { type: "cancel" } };
-    case "chooseBoardTargets":
-      return {
-        type: "chooseBoardTargets",
-        output: {
-          type: "boardTargets",
-          chosen: prompt.input.candidates.slice(0, prompt.input.minTargets),
-        },
-      };
-    case "chooseAttackers":
-      return { type: "chooseAttackers", output: { type: "declareAttackers", assignments: [] } };
-    case "chooseBlockers":
-      return { type: "chooseBlockers", output: { type: "declareBlockers", assignments: [] } };
-    case "chooseBoolean":
-      return { type: "chooseBoolean", output: { type: "decision", value: false } };
-    case "chooseFromSelection": {
-      const count = Math.max(0, Math.min(prompt.input.minTotal, prompt.input.options.length));
-      return {
-        type: "chooseFromSelection",
-        output: {
-          type: "selectionDecision",
-          chosenIndices: Array.from({ length: count }, (_, index) => index),
-        },
-      };
-    }
-    case "chooseNumber":
-      return {
-        type: "chooseNumber",
-        output: { type: "numberDecision", chosenNumber: prompt.input.min },
-      };
-    case "chooseColor": {
-      const color = prompt.input.validColors[0];
-      if (!color) return null;
-      return {
-        type: "chooseColor",
-        output: { type: "colorDecision", chosenColors: { [color]: prompt.input.amount } },
-      };
-    }
-    case "chooseCards":
-      return {
-        type: "chooseCards",
-        output: {
-          type: "chooseCardsDecision",
-          chosenCardIds: prompt.input.cards.slice(0, prompt.input.min).map((card) => card.id),
-        },
-      };
-    case "reorder":
-      return {
-        type: "reorder",
-        output: {
-          type: "reorderDecision",
-          orderedIds: prompt.input.items.map((item) => item.id),
-        },
-      };
-    case "revealCards":
-      return { type: "revealCards", output: { type: "revealCardsAcknowledged" } };
-    case "scry": {
-      const firstZone = prompt.input.cards.map((card) => card.id);
-      return {
-        type: "scry",
-        output: {
-          type: "scryDecision",
-          zoneCardIds: prompt.input.zones.map((_, index) => (index === 0 ? firstZone : [])),
-        },
-      };
-    }
-    case "chooseDamageAssignmentOrder":
-      return {
-        type: "chooseDamageAssignmentOrder",
-        output: {
-          type: "damageAssignmentOrderDecision",
-          orderedBlockerIds: prompt.input.blockerIds,
-        },
-      };
-    case "chooseCombatDamageAssignment": {
-      const assigneeId = prompt.input.blockerIds[0] ?? prompt.input.defenderId;
-      if (!assigneeId) return null;
-      return {
-        type: "chooseCombatDamageAssignment",
-        output: {
-          type: "combatDamageAssignmentDecision",
-          assignments: [{ assigneeId, damage: prompt.input.totalDamage }],
-        },
-      };
-    }
-    case "diceRolled":
-      return { type: "diceRolled", output: { type: "diceRolledAcknowledged" } };
-    default:
-      return null;
-  }
 }

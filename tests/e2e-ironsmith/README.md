@@ -39,6 +39,15 @@ create room, pick deck) are engine-generic and reusable for any multiplayer flow
 ## Run
 
 ```bash
+# Real Manabot gameplay: solo and multiple bot seats play lands, creatures, and attack.
+# Also exercises agent release, transcript replay, and human-host takeover in the adapter.
+# Requires the dev server and the Manabrew WASM bundle (`yarn build:wasm`). No relay needed.
+node tests/e2e-ironsmith/ironsmith-manabot.mjs
+
+# Relay-only host selection: skip bots and never elect a bot when the last human leaves.
+# Uses Node 22+ WebSocket; no browser or dev server needed.
+node tests/e2e-ironsmith/ironsmith-bot-host.mjs
+
 # Single client + bot: game reaches a live board (mulligan → priority).
 node tests/e2e-ironsmith/ironsmith-multiplayer.mjs
 
@@ -60,7 +69,11 @@ Each prints `PASS: …` and exits 0 on success, or `FAIL: …` and exits non-zer
 
 ## How an Ironsmith game is shared
 
-Every seat runs its own copy of the Ironsmith engine. The host only orders the
+The human host runs one Manabot agent per bot seat, using that seat’s private
+view. Bot answers enter the replicated transcript, so guests replay the same
+decisions. Bot seats never host; a new human host takes over their decisions.
+
+Every human seat runs its own copy of the Ironsmith engine. The host only orders the
 inputs (prompt answers and directives) into a transcript; each seat applies it
 to its own engine and draws its own view, and a fingerprint of the public state
 on every entry lets a seat notice it has diverged and rebuild from the host's

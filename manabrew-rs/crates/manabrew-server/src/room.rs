@@ -217,14 +217,11 @@ impl Room {
         if let Some(idx) = self.players.iter().position(|p| p.player_id == player_id) {
             let slot = self.players.remove(idx);
             if self.host_player_id == player_id && self.limited_session_id.is_none() {
-                // Hand the room to a seat that can act on it: a connected
-                // human first, then any human, then whoever is left.
                 let new_host = self
                     .players
                     .iter()
                     .find(|p| p.connected && !p.is_bot)
-                    .or_else(|| self.players.iter().find(|p| !p.is_bot))
-                    .or_else(|| self.players.first());
+                    .or_else(|| self.players.iter().find(|p| !p.is_bot));
                 if let Some(new_host) = new_host {
                     self.host_player_id = new_host.player_id.clone();
                     self.host_username = new_host.username.clone();

@@ -1069,6 +1069,7 @@ fn seat_in_pool_room(state: &Arc<ServerState>, room_id: String, pod: Pod) {
         }
         room.pool_max_players = Some(room.max_players);
         room.max_players = pod_size;
+        room.format = members[0].format.clone();
         room.matchmade_bot_fill = bot_fill;
         room.matchmade_bracket = Some(bracket);
         room.auto_start = true;

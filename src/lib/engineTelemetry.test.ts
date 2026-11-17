@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 vi.hoisted(() => vi.stubGlobal("__APP_VERSION__", "test"));
+vi.mock("@/lib/soundRuntime", () => ({ playSound: vi.fn() }));
 
 import {
   beginGame,

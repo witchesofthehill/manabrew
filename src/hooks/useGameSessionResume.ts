@@ -136,7 +136,9 @@ export function useGameSessionResume() {
       );
       return;
     }
-    if (session.isHost) {
+    // A replicated engine (Ironsmith) outlives its host: the relay has handed
+    // the room to another seat, so this seat rejoins it like any guest.
+    if (session.isHost && currentRoom.host === me) {
       rlog("resync-effect: session.isHost=true → force-ending game and kicking to lobby");
       settled.current = true;
       clearActiveGameSession();
@@ -152,10 +154,11 @@ export function useGameSessionResume() {
     void getPlatform().server?.requestResync();
   }, [session, connected, currentRoom, username, navigate, recoveringLimitedHost]);
   useEffect(() => {
-    if (!session || session.isHost) return;
+    if (!session) return;
     if (isActiveGameSessionAbandonmentPending()) return;
     if (!isActiveGameSessionAtPageLoadCurrent()) return;
     if (!connected || !currentRoom || currentRoom.status !== "InGame") return;
+    if (session.isHost && currentRoom.host === (username ?? session.username)) return;
     if (currentRoom.room_id !== session.roomId) return;
     const server = getPlatform().server;
     if (!server) return;
@@ -176,7 +179,7 @@ export function useGameSessionResume() {
         console.warn(`[resume] failed to respawn bot '${bot.username}':`, error);
       });
     }
-  }, [session, connected, currentRoom]);
+  }, [session, connected, currentRoom, username]);
   useEffect(() => {
     if (!session || settled.current || !gameStarted) return;
     if (isActiveGameSessionAbandonmentPending()) return;
@@ -188,8 +191,8 @@ export function useGameSessionResume() {
       useServerStore.setState({ gameStarted: false });
       return;
     }
-    if (session.isHost) return;
     const server = useServerStore.getState();
+    if (session.isHost && currentRoom.host === (server.username ?? session.username)) return;
     const launch = buildEngineGameRouteState(
       server.username,
       server.currentRoom,

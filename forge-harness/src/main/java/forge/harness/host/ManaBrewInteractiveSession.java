@@ -2997,6 +2997,7 @@ public final class ManaBrewInteractiveSession {
             final Combat combat,
             final List<Card> availableAttackers
     ) {
+        final Map<Card, GameEntity> suggested = combat.getAttackConstraints().getLegalAttackers().getLeft();
         final List<AttackerOptionDto> attackers = new java.util.ArrayList<>();
         for (final Card a : availableAttackers) {
             final List<String> validTargetIds = new java.util.ArrayList<>();
@@ -3006,7 +3007,8 @@ public final class ManaBrewInteractiveSession {
             final boolean mustAttack =
                     a.isGoaded() || !StaticAbilityMustAttack.entitiesMustAttack(a).isEmpty();
             attackers.add(new AttackerOptionDto(
-                    SnapshotExtractor.javaCardId(a), validTargetIds, mustAttack));
+                    SnapshotExtractor.javaCardId(a), validTargetIds, mustAttack,
+                    suggested.containsKey(a) ? defenderId(suggested.get(a)) : null));
         }
         final List<AttackTargetDto> attackTargets = new java.util.ArrayList<>();
         for (final GameEntity defender : combat.getDefenders()) {

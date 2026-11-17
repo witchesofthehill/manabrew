@@ -147,6 +147,21 @@ export function useCombatState({
     }
   }
 
+  const attackPromptId =
+    currentPrompt?.input.type === "chooseAttackers" ? currentPrompt.promptId : null;
+  const [prevAttackPromptId, setPrevAttackPromptId] = useState<Prompt["promptId"] | null>(null);
+  if (prevAttackPromptId !== attackPromptId) {
+    setPrevAttackPromptId(attackPromptId);
+    if (currentPrompt?.input.type === "chooseAttackers") {
+      setAttackAssignments(
+        attackerOptions.flatMap((a) =>
+          a.suggestedTargetId ? [{ attackerId: a.attackerId, targetId: a.suggestedTargetId }] : [],
+        ),
+      );
+      setPendingAttackers([]);
+    }
+  }
+
   const playerIsTargetable =
     promptType === "chooseAttackers"
       ? (pid: string) => defenderIsTargetable(pid)

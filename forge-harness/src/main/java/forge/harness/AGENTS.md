@@ -124,6 +124,10 @@ Recording status and the vote reach clients as `EngineDirective`s, never through
 
 Web Image cannot walk the stack, so tinylog's caller lookup (`RuntimeProvider.getCallerClassName`) returns null and the log call throws a `NullPointerException`. forge-gui's `tinylog.properties` needs the caller for `{class-name}` in its format and for its `level@` overrides. So every Forge log call crashed the browser engine, for example the runaway-cap warning, which then never ended the game cleanly. `WasmMain.main` replaces the configuration with one that needs no caller before any Forge class loads. A browser-side log format must not use `{class-name}`, `{method}`, `{line}` or `level@` entries.
 
+## Attack requirements
+
+`publishAttackersPrompt` sends `suggestedTargetId` from Forge's whole-combat `AttackConstraints.getLegalAttackers()` solution. The client stages these assignments for review on each new attack prompt, so Encore tokens start aimed at their assigned opponents. `canAttack` and `validTargetIds` express restrictions, not requirements: both opponents can appear individually legal even when sending both Encore tokens to one fails `validateAttackers`. Do not narrow the target list using `MustAttack` alone; attack taxes, conflicting requirements, and limits such as Silent Arbiter need the whole-combat solution. Suggestions remain editable and Forge validates the submitted attack.
+
 ## Typed prompt emission (compile-time protocol check)
 
 The host **does not hand-build prompt JSON.** `manabrew-protocol` (Rust) is the source of truth: `scripts/gen-harness-prompts.mjs` reads its generated TS bindings and emits one Java class per prompt input + referenced shared type into `forge-harness/src/main/java/forge/harness/protocol/` (package `forge.harness.protocol.*`), each baking in its own `type` discriminator. `scripts/harness.mjs` regenerates them before every build. The package is generated, gitignored (`forge-harness/.gitignore`), and lives under the standard `src/main/java` root on purpose: m2e/JDTLS has no build-helper connector, so an out-of-tree generated-sources dir never lands on the IDE classpath. Never hand-edit anything in this package.

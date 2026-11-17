@@ -444,6 +444,35 @@ fn mark_disconnected_inner(state: &Arc<ServerState>, player_id: &str, our_genera
                     }
                 };
 
+                // A replicated engine does not die with its host: another
+                // seat takes over at once and the lost host becomes an
+                // ordinary disconnected seat.
+                let migrated = peer_host_lost
+                    && state.rooms.get_mut(rid).is_some_and(|mut room| {
+                        room.engine_survives_host_loss() && room.migrate_host()
+                    });
+                if migrated {
+                    info!(
+                        "[disconnect] in-game room {} lost its host -- another seat took over",
+                        &rid[..8]
+                    );
+                    broadcast_to_room(
+                        state,
+                        rid,
+                        &ServerMessage::PlayerDisconnected {
+                            username: username.clone(),
+                        },
+                    );
+                    if holds_seat {
+                        schedule_seat_forfeit(state.clone(), rid.clone(), player_id.to_string());
+                    }
+                    let info = state.rooms.get(rid).map(|room| room.to_room_info());
+                    if let Some(room) = info {
+                        broadcast_to_room(state, rid, &ServerMessage::RoomUpdate { room });
+                    }
+                    return;
+                }
+
                 if peer_host_lost {
                     info!(
                         "[disconnect] in-game room {} lost the seat holding its engine -- awaiting resume",

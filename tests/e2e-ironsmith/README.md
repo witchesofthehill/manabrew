@@ -15,10 +15,12 @@ create room, pick deck) are engine-generic and reusable for any multiplayer flow
 
 1. **Ironsmith wasm installed.** It ships as the `ironsmith-wasm` npm dependency,
    so a plain `yarn install` pulls it — no submodule or local wasm build.
-2. **Enable the engine.** The `ironsmithRuntime` compile flag is on, but the
-   engine is opt-in: turn it **On** under Settings → _Ironsmith engine
-   (experimental)_ (persists the `ironsmithRuntimeEnabled` preference). The tests
-   drive the real UI, so enable it there before running.
+2. **The engine opt-in.** The `ironsmithRuntime` compile flag is on, but the
+   engine is opt-in per browser (Settings → Preferences → _Ironsmith engine
+   (experimental)_, the `ironsmithRuntimeEnabled` preference). Each test runs in
+   a fresh browser context, so the helpers turn it on themselves
+   (`enableIronsmith` in `lib.mjs`) for every seat — a guest without it is
+   dropped back to the lobby when the game starts.
 3. **A relay** on `:9443` with server key `forge`:
    ```bash
    yarn dev:relay              # or: MANABREW_SERVER_KEY=forge cargo run --release -p manabrew-server
@@ -54,18 +56,20 @@ Each prints `PASS: …` and exits 0 on success, or `FAIL: …` and exits non-zer
 | `RELAY_HOST` | `localhost`             | relay host the client is pointed at         |
 | `RELAY_PORT` | `9443`                  | relay port                                  |
 | `RELAY_PW`   | `forge`                 | relay password / server key                 |
-| `DECK`       | `Mono Red Prison`       | preset deck (must be Ironsmith-validatable) |
+| `DECK`       | `Goblins`               | preset deck (must be offered for Ironsmith) |
 | `FORMAT`     | `Vintage`               | room format (widens the preset picker)      |
 | `SHOT`       | _(off)_                 | dir to write board screenshots into         |
 | `HEADED`     | _(off)_                 | `1` to watch in a real browser window       |
 
 ## Notes
 
-- **Deck choice matters.** Ironsmith's card support is experimental; many presets
-  are rejected at validation (e.g. `Izzet Lessons` → `Gran-Gran` unsupported). The
-  `real_*` / simple `starter_deck_*` pools (Mono Red Prison, Workshop, …) fare
-  best. A rejection is surfaced to the UI and the game does not start — that path
-  is itself worth testing.
+- **Deck choice matters.** Presets are per-engine: an Ironsmith table's picker
+  only lists presets that declare `engines: ["Ironsmith"]` and are legal in the
+  room's format (in Vintage that is currently `Goblins — Steven Paris`). `DECK`
+  is matched as a partial, case-insensitive name against that list.
+- **Prompt check needs the dev server.** Prompts are drawn on the board canvas,
+  so the tests read the prompt from `window.__gameStore`, which only the Vite
+  dev server exposes. Against a preview build they assert the board alone.
 - **Unique usernames.** The relay preserves an in-game seat by username; the
   helpers mint a fresh name per run (`uniqueName`) so a reload never rejoins a
   stale game and disables `New Room` / `Start Game`.

@@ -48,6 +48,10 @@ export async function controls(page) {
 export async function onboard(page, nickname) {
   await page.goto(BASE() + "/", { waitUntil: "networkidle" });
   await page.waitForTimeout(1200);
+  // A fresh context shows the terms banner, which sits over the bottom of the
+  // page and intercepts clicks on the buttons under it.
+  const terms = page.getByRole("button", { name: /Dismiss terms notice/i });
+  if (await terms.count()) await terms.click();
   const rename = page.getByRole("button", { name: /Change name/i }).first();
   if (await rename.count()) {
     await rename.click();
@@ -82,10 +86,30 @@ export async function connectLocal(page, username) {
   await page.waitForTimeout(2500);
 }
 
+/**
+ * Opt in to the experimental Ironsmith engine (Settings → Preferences). It is
+ * off by default and each test runs in a fresh browser context, so without
+ * this the engine picker has no Ironsmith option.
+ */
+export async function enableIronsmith(page) {
+  await page.goto(BASE() + "/settings", { waitUntil: "networkidle" });
+  const prefsTab = page.getByRole("button", { name: /^Preferences$/ }).first();
+  await prefsTab.waitFor({ timeout: 20000 });
+  await prefsTab.click();
+  const title = page.getByText("Ironsmith engine (experimental)", { exact: true });
+  await title.waitFor({ timeout: 20000 });
+  // The card is the nearest ancestor that holds the On/Off pair.
+  const card = title.locator("xpath=ancestor::*[.//button[normalize-space()='On']][1]");
+  await card.getByRole("button", { name: /^On$/ }).click();
+  await page.waitForTimeout(300);
+}
+
 /** Create a Match room on the given engine + format, waiting for the relay to be connected first. */
 export async function createRoom(page, { name, engine = "Ironsmith", format } = {}) {
+  if (/ironsmith/i.test(engine)) await enableIronsmith(page);
   await page.goto(BASE() + "/lobby", { waitUntil: "networkidle" });
-  const setUp = page.getByRole("button", { name: /Set up a table/i });
+  // The lobby shows the button twice (header and empty table); either works.
+  const setUp = page.getByRole("button", { name: /Set up a table/i }).first();
   for (let i = 0; i < 30 && (await setUp.isDisabled().catch(() => true)); i++) {
     await page.waitForTimeout(500);
   }
@@ -120,6 +144,14 @@ export async function createRoom(page, { name, engine = "Ironsmith", format } = 
   await page.waitForTimeout(500);
 }
 
+/**
+ * The open modal dialog. The top bar's sound controls are a permanently mounted
+ * `role=dialog` popover, so a bare `[role=dialog]` locator matches that too.
+ */
+export function modalDialog(page) {
+  return page.locator("[role=dialog][data-state=open]");
+}
+
 /** The room's deck picker button, whatever it is labelled at the time. */
 export function deckButton(page) {
   return page.getByRole("button", { name: /^(Choose a deck|Change deck|Select Deck)$/i }).first();
@@ -128,7 +160,7 @@ export function deckButton(page) {
 /** Open the deck dialog opened by `opener` and pick a preset by (partial) name. */
 export async function pickPreset(page, opener, preset) {
   await opener();
-  const dlg = page.locator("[role=dialog]");
+  const dlg = modalDialog(page);
   await dlg.waitFor({ timeout: 5000 });
   // The tiles load after the dialog opens.
   const tile = dlg.getByRole("button", { name: new RegExp(preset, "i") }).first();
@@ -147,7 +179,7 @@ export async function pickPreset(page, opener, preset) {
 /** List the preset decks the picker currently offers (format-filtered). */
 export async function listPresets(page) {
   await deckButton(page).click();
-  const dlg = page.locator("[role=dialog]");
+  const dlg = modalDialog(page);
   await dlg.waitFor();
   const names = (
     await dlg
@@ -158,4 +190,23 @@ export async function listPresets(page) {
   await page.keyboard.press("Escape");
   await page.waitForTimeout(300);
   return names;
+}
+
+/**
+ * Wait for the game to hand this client a prompt and return its type.
+ *
+ * Prompts are drawn on the board canvas, so there is no DOM button to look
+ * for. The Vite dev server exposes the game store on `window.__gameStore`; a
+ * preview/production build does not, and there `checked` is false.
+ */
+export async function livePromptType(page, { timeoutMs = 20000 } = {}) {
+  const checked = await page.evaluate(() => Boolean(window.__gameStore));
+  let type = null;
+  for (let waited = 0; checked && !type && waited < timeoutMs; waited += 500) {
+    type = await page.evaluate(
+      () => window.__gameStore.getState().currentPrompt?.input?.type ?? null,
+    );
+    if (!type) await page.waitForTimeout(500);
+  }
+  return { checked, type };
 }

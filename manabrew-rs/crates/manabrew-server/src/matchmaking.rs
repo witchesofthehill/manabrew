@@ -846,7 +846,12 @@ fn open_table(room: &Room) -> Option<OpenTable> {
         && room.limited_session_id.is_none();
     open.then(|| OpenTable {
         room_id: room.room_id.clone(),
-        host: room.host_username.clone(),
+        host: room
+            .players
+            .iter()
+            .find(|player| !player.is_bot)
+            .map(|player| player.username.clone())
+            .unwrap_or_else(|| room.host_username.clone()),
         bracket,
         pod_size: room.max_players,
         seats: room.max_players - room.players.len() as u8,
@@ -1066,6 +1071,7 @@ fn seat_in_pool_room(state: &Arc<ServerState>, room_id: String, pod: Pod) {
         room.max_players = pod_size;
         room.matchmade_bot_fill = bot_fill;
         room.matchmade_bracket = Some(bracket);
+        room.auto_start = true;
         room.table_bracket = (members.len() < pod_size as usize && !bot_fill).then_some(bracket);
         seat_members(&mut room, &members, bracket);
         (room.to_room_info(), room.host_username.clone())
@@ -1158,6 +1164,7 @@ fn seat_in_browser_room(state: &Arc<ServerState>, pod: Pod) {
     );
     room.matchmade_bot_fill = bot_fill;
     room.matchmade_bracket = Some(bracket);
+    room.auto_start = true;
     room.table_bracket = (members.len() < pod_size as usize && !bot_fill).then_some(bracket);
     seat_members(&mut room, &members, bracket);
     let info: RoomInfo = room.to_room_info();

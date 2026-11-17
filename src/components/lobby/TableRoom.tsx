@@ -1,6 +1,7 @@
 import { boardBackgroundUrl } from "@/pixi/board/boardBackgrounds";
 import { Shield, Swords } from "lucide-react";
 import { OpenTableSeats } from "@/components/lobby/OpenTableSeats";
+import { tableController, tableStartsAutomatically } from "@/components/lobby/tables.utils";
 import { TableRoomSidebar } from "@/components/lobby/TableRoomSidebar";
 import { Button } from "@/components/ui/button";
 import type { GameFormat, RoomInfo } from "@/types/server";
@@ -41,8 +42,8 @@ export function TableRoom({
   mySpawnedBots = [],
 }: TableRoomProps) {
   const myPlayer = room.players.find((player) => player.username === username);
-  const controllerName =
-    room.players.find((player) => !player.is_bot)?.username ?? room.players[0]?.username;
+  const controllerName = tableController(room);
+  const autoStart = tableStartsAutomatically(room);
   const isController = controllerName === username;
   const isLimitedRoom = !!(room.draft_config || room.sealed_config);
   const needsFormat = room.format === "Any" && !isLimitedRoom;
@@ -66,7 +67,7 @@ export function TableRoom({
     room.status === "Lobby" && !needsFormat && allOtherPlayersReady && controllerHasDeck;
   const needsDeck = !isOpenFormat && !myPlayer?.selected_deck_name;
   const readyCount = room.players.filter(
-    (player) => player.ready || player.username === controllerName,
+    (player) => player.ready || (!autoStart && player.username === controllerName),
   ).length;
   const openSeats = room.max_players - room.players.length;
   const requiredPlayers = Math.max(0, minReady - room.players.length);
@@ -117,7 +118,11 @@ export function TableRoom({
       return (
         <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5 text-center sm:text-right">
           <p className="text-ui-label font-medium text-primary">You're ready</p>
-          <p className="text-ui-meta text-muted-foreground">Waiting for the host to start.</p>
+          <p className="text-ui-meta text-muted-foreground">
+            {autoStart
+              ? "Starting automatically once the table is full and everyone is ready."
+              : "Waiting for the host to start."}
+          </p>
         </div>
       );
     }
@@ -208,7 +213,9 @@ export function TableRoom({
               </p>
               <p className="mt-1 break-words text-ui-label font-medium">
                 {isController
-                  ? `You control when the game begins`
+                  ? autoStart
+                    ? `Starts automatically when all ${room.max_players} seats are ready`
+                    : `You control when the game begins`
                   : isOpenFormat
                     ? myPlayer?.ready
                       ? `Ready to play`

@@ -1610,6 +1610,10 @@ class WebServerApi implements IServerApi {
     this.send({ type: "SetFormat", format: params.format });
   }
 
+  async setAutoStart(enabled: boolean): Promise<void> {
+    this.send({ type: "SetAutoStart", enabled });
+  }
+
   async setMaxPlayers(params: SetMaxPlayersParams): Promise<void> {
     this.send({ type: "SetMaxPlayers", max_players: params.maxPlayers });
   }

@@ -44,8 +44,8 @@ import { toast } from "sonner";
 import { Settings, Users } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { findOrHostLanRelay, isUnreachable } from "@/lib/lanRelay";
-import { MatchmakingLaunch } from "@/components/lobby/MatchmakingLaunch";
-import { useMatchmadeHost } from "@/components/lobby/useMatchmadeHost";
+import { useTableAutoStart } from "@/components/lobby/useTableAutoStart";
+import { tableController } from "@/components/lobby/tables.utils";
 import { commanderQueueDecks } from "@/lib/queueDecks";
 
 const START_GAME_ACK_TIMEOUT_MS = 5000;
@@ -169,7 +169,7 @@ export default function Lobby() {
   const [botDeckTarget, setBotDeckTarget] = useState<string | null>(null);
   const [startingLimited, setStartingLimited] = useState(false);
   const [startingGame, setStartingGame] = useState(false);
-  const [viewMatchmadeRoom, setViewMatchmadeRoom] = useState<string | null>(null);
+  const tableAnnouncement = useRef(0);
   const mySelection = useRef<{ deck: Deck; commanderName?: string } | null>(null);
   const [roomPasswords, setRoomPasswords] = useState<Record<string, string>>({});
   const [confirmLeaveHostedGame, setConfirmLeaveHostedGame] = useState(false);
@@ -331,15 +331,30 @@ export default function Lobby() {
     if (format) await setFormat(format);
   }
   async function announceTable(deck: Deck) {
-    const room = currentRoom;
+    const request = ++tableAnnouncement.current;
+    const { currentRoom: room, username: currentUsername } = useServerStore.getState();
     const server = getPlatform().server;
-    if (!room || !server || room.host !== username) return;
-    if (room.hosted || room.matchmade_bracket || room.status !== "Lobby") return;
+    if (!room || !server || tableController(room) !== currentUsername) return;
+    if (room.matchmade_bracket || room.status !== "Lobby") return;
     if (room.format !== "Commander" && room.format !== "Any") return;
     if (room.password_protected || room.draft_config || room.sealed_config) return;
     if (!useServerStore.getState().hasRelayFeature(RELAY_FEATURE.Matchmaking)) return;
-    const [queued] = await commanderQueueDecks([deck]);
-    if (queued && queued.bracket !== room.table_bracket) await server.announceTable(queued.bracket);
+    try {
+      await server.announceTable(null);
+      const [queued] = await commanderQueueDecks([deck]);
+      const current = useServerStore.getState().currentRoom;
+      if (
+        request !== tableAnnouncement.current ||
+        current?.room_id !== room.room_id ||
+        current.status !== "Lobby" ||
+        tableController(current) !== useServerStore.getState().username
+      )
+        return;
+      if (queued) await server.announceTable(queued.bracket);
+    } catch {
+      if (request === tableAnnouncement.current)
+        toast.error("Could not find queued players for your table. You can still invite friends.");
+    }
   }
   async function handleDeckSelection(
     deckName: string,
@@ -525,21 +540,12 @@ export default function Lobby() {
       toast.error(error instanceof Error ? error.message : `Failed to change player count.`);
     }
   }
-  useMatchmadeHost({
+  useTableAutoStart({
     room: currentRoom,
     username,
     spawnBot,
     start: handleStartGame,
   });
-  if (currentRoom?.matchmade_bracket && viewMatchmadeRoom !== currentRoom.room_id) {
-    return (
-      <MatchmakingLaunch
-        room={currentRoom}
-        username={username}
-        onViewTable={() => setViewMatchmadeRoom(currentRoom.room_id)}
-      />
-    );
-  }
   return (
     <div className="flex h-full w-full min-h-0 pb-[max(0px,calc(100dvh-var(--visual-viewport-height)-var(--visual-viewport-top)))]">
       <div className="flex min-w-0 flex-1 flex-col">

@@ -1,16 +1,33 @@
-import { Armchair, Plus } from "lucide-react";
+import { Armchair, Plus, Search } from "lucide-react";
 import { OpenTableSeats } from "@/components/lobby/OpenTableSeats";
 import { Button } from "@/components/ui/button";
 import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 interface MultiplayerStartPanelProps {
   disabled: boolean;
   onSetUp: () => void;
+  onFindGame?: () => void;
 }
-export function MultiplayerStartPanel({ disabled, onSetUp }: MultiplayerStartPanelProps) {
+export function MultiplayerStartPanel({
+  disabled,
+  onSetUp,
+  onFindGame,
+}: MultiplayerStartPanelProps) {
   const shortScreen = useIsShortScreen();
   const isTouch = useIsTouch();
   const compact = shortScreen && isTouch;
 
+  const actions = (
+    <div className="flex flex-col gap-2 sm:flex-row">
+      {onFindGame && (
+        <Button variant="primary" onClick={onFindGame} disabled={disabled}>
+          <Search /> Find a game
+        </Button>
+      )}
+      <Button variant={onFindGame ? "outline" : "primary"} onClick={onSetUp} disabled={disabled}>
+        <Plus /> Create a table
+      </Button>
+    </div>
+  );
   if (compact) {
     return (
       <section className="flex min-h-24 flex-wrap items-center justify-between gap-4 rounded-xl border border-border/70 bg-card/80 p-3 shadow-md backdrop-blur-md">
@@ -18,15 +35,7 @@ export function MultiplayerStartPanel({ disabled, onSetUp }: MultiplayerStartPan
           <h2 className="font-serif text-2xl font-semibold leading-tight">Pull up a chair.</h2>
           <p className="mt-1 text-ui-meta text-muted-foreground">Create a table for your group.</p>
         </div>
-        <Button
-          variant="primary"
-          size="lg"
-          className="shrink-0 px-4"
-          onClick={onSetUp}
-          disabled={disabled}
-        >
-          <Plus /> Set up
-        </Button>
+        {actions}
       </section>
     );
   }
@@ -44,9 +53,7 @@ export function MultiplayerStartPanel({ disabled, onSetUp }: MultiplayerStartPan
             <h2 className="font-serif text-xl font-semibold leading-tight sm:text-4xl">
               Pull up a chair.
             </h2>
-            <Button variant="primary" size="lg" onClick={onSetUp} disabled={disabled}>
-              <Plus /> Set up a table
-            </Button>
+            {actions}
           </div>
         </div>
       }

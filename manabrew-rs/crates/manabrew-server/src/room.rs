@@ -63,6 +63,7 @@ pub struct Room {
     pub matchmade_bot_fill: bool,
     pub pool_max_players: Option<u8>,
     pub table_bracket: Option<u8>,
+    pub auto_start: bool,
 }
 
 impl Room {
@@ -110,6 +111,7 @@ impl Room {
                 }],
             )
         };
+        let auto_start = password.is_none() && draft_config.is_none() && sealed_config.is_none();
         Room {
             room_id,
             room_name,
@@ -142,6 +144,7 @@ impl Room {
             matchmade_bot_fill: false,
             pool_max_players: None,
             table_bracket: None,
+            auto_start,
         }
     }
 
@@ -231,6 +234,9 @@ impl Room {
                 self.matchmade_bracket = None;
                 self.matchmade_bot_fill = false;
                 self.table_bracket = None;
+                self.auto_start = self.password.is_none()
+                    && self.draft_config.is_none()
+                    && self.sealed_config.is_none();
             }
             if self.host_player_id == player_id && self.limited_session_id.is_none() {
                 if let Some(new_host) = self.players.first() {
@@ -434,6 +440,7 @@ impl Room {
             matchmade_bracket: self.matchmade_bracket,
             matchmade_bot_fill: self.matchmade_bot_fill,
             table_bracket: self.table_bracket,
+            auto_start: self.auto_start,
         }
     }
 }

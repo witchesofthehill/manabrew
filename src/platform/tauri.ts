@@ -142,6 +142,10 @@ class TauriServerApi implements IServerApi {
   setFormat(params: SetFormatParams): Promise<void> {
     return this.inner.setFormat(params);
   }
+  setAutoStart(enabled: boolean): Promise<void> {
+    return this.inner.setAutoStart(enabled);
+  }
+
   setMaxPlayers(params: SetMaxPlayersParams): Promise<void> {
     return this.inner.setMaxPlayers(params);
   }

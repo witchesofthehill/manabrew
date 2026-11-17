@@ -172,6 +172,7 @@ export interface IServerApi {
   setDeckSelection(params: SetDeckSelectionParams): Promise<void>;
   setFormat(params: SetFormatParams): Promise<void>;
   setMaxPlayers(params: SetMaxPlayersParams): Promise<void>;
+  setAutoStart(enabled: boolean): Promise<void>;
   startGame(params?: StartServerGameParams): Promise<void>;
   endGame(gameId: string): Promise<void>;
   reportEngineStats(stats: EngineGameStats, gameId?: string | null): Promise<void>;

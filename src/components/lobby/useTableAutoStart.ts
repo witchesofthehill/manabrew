@@ -1,5 +1,10 @@
 import { useEffect, useRef } from "react";
 import { createRoomRelayEnvelope, SELF_HOSTED_NODE_RELAY_PROTOCOL } from "@/game/roomRelay";
+import {
+  tableController,
+  tableIsReady,
+  tableStartsAutomatically,
+} from "@/components/lobby/tables.utils";
 import { getPlatform } from "@/platform";
 import type { Deck } from "@/protocol/deck";
 import { usePresetDecks } from "@/stores/usePresetDecksStore";
@@ -11,25 +16,24 @@ interface BotDeck {
   commanderName?: string;
 }
 
-interface MatchmadeHostParams {
+interface TableAutoStartParams {
   room: RoomInfo | null;
   username: string | null;
   spawnBot(botName: string, deck: BotDeck): Promise<void>;
   start(): Promise<void>;
 }
 
-function drivesRoom(room: RoomInfo, username: string | null): boolean {
-  if (!room.hosted) return room.host === username;
-  return room.players.find((player) => !player.is_bot)?.username === username;
-}
-
-export function useMatchmadeHost({ room, username, spawnBot, start }: MatchmadeHostParams) {
+export function useTableAutoStart({ room, username, spawnBot, start }: TableAutoStartParams) {
   const presets = usePresetDecks("Forge");
   const filledRoom = useRef<string | null>(null);
   const startedRoom = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!room?.matchmade_bracket || room.status !== "Lobby" || !drivesRoom(room, username)) return;
+    if (!room || room.status !== "Lobby" || !tableStartsAutomatically(room)) {
+      startedRoom.current = null;
+      return;
+    }
+    if (tableController(room) !== username) return;
     const commanderPresets = presets.filter(
       (deck) => deck.format === "commander" && (deck.commanders?.length ?? 0) > 0,
     );
@@ -64,9 +68,7 @@ export function useMatchmadeHost({ room, username, spawnBot, start }: MatchmadeH
         decks.forEach((deck, index) => void spawnBot(`Manabot-${stamp}-${index}`, deck));
       }
     }
-    const full = room.players.length === room.max_players;
-    const ready = room.players.every((player) => player.username === username || player.ready);
-    if (full && ready && startedRoom.current !== room.room_id) {
+    if (tableIsReady(room) && startedRoom.current !== room.room_id) {
       startedRoom.current = room.room_id;
       void start();
     }

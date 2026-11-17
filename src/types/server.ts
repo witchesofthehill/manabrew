@@ -56,6 +56,7 @@ export interface RoomInfo {
   matchmade_bracket?: number;
   matchmade_bot_fill?: boolean;
   table_bracket?: number;
+  auto_start?: boolean;
 }
 export interface RoomPlayerInfo {
   username: string;

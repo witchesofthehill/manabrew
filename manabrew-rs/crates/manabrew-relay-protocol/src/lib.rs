@@ -311,6 +311,10 @@ pub enum ClientMessage {
         max_players: u8,
     },
 
+    SetAutoStart {
+        enabled: bool,
+    },
+
     StartGame {
         #[serde(default)]
         format: Option<GameFormat>,
@@ -722,6 +726,8 @@ pub struct RoomInfo {
     pub matchmade_bot_fill: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub table_bracket: Option<u8>,
+    #[serde(default)]
+    pub auto_start: bool,
 }
 
 pub const DEFAULT_RECONNECT_TIMEOUT_S: u32 = 60;

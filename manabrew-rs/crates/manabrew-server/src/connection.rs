@@ -19,8 +19,8 @@ use crate::lobby;
 use crate::matchmaking;
 use crate::metrics;
 use crate::protocol::{
-    ChatMessage, ChatScope, ClientMessage, RoomStatus, ServerMessage, CHAT_MESSAGE_MAX_CHARS,
-    CHAT_MIN_INTERVAL_MS,
+    ChatMessage, ChatScope, ClientMessage, GameFormat, RoomStatus, ServerMessage,
+    CHAT_MESSAGE_MAX_CHARS, CHAT_MIN_INTERVAL_MS,
 };
 use crate::room::Room;
 use crate::seal::{chat_seal_aad, presence_seal_aad};
@@ -1926,6 +1926,18 @@ fn handle_client_message(
             }
         }
 
+        ClientMessage::SetAutoStart { enabled } => {
+            match lobby::set_auto_start_sync(state, player_id, enabled) {
+                Ok(room_id) => {
+                    let info = state.rooms.get(&room_id).map(|room| room.to_room_info());
+                    if let Some(room) = info {
+                        broadcast_to_room(state, &room_id, &ServerMessage::RoomUpdate { room });
+                    }
+                }
+                Err(error) => send_error(sender, &error),
+            }
+        }
+
         ClientMessage::StartGame { format } => {
             info!("[game] '{}' starting game", username);
             match lobby::start_game_sync(state, player_id, format) {
@@ -2680,8 +2692,11 @@ fn handle_client_message(
                 return;
             };
             let info = state.rooms.get_mut(&room_id).and_then(|mut room| {
-                let eligible = room.host_player_id == player_id
-                    && !room.hosted
+                let eligible = room.is_controller(player_id)
+                    && room.password.is_none()
+                    && room.draft_config.is_none()
+                    && room.sealed_config.is_none()
+                    && matches!(room.format, GameFormat::Any | GameFormat::Commander)
                     && room.matchmade_bracket.is_none()
                     && room.status == RoomStatus::Lobby
                     && bracket.is_none_or(|b| (1..=5).contains(&b));
@@ -2830,6 +2845,7 @@ fn client_msg_type(msg: &ClientMessage) -> &'static str {
         ClientMessage::SetDeckSelection { .. } => "SetDeckSelection",
         ClientMessage::SetFormat { .. } => "SetFormat",
         ClientMessage::SetMaxPlayers { .. } => "SetMaxPlayers",
+        ClientMessage::SetAutoStart { .. } => "SetAutoStart",
         ClientMessage::StartGame { .. } => "StartGame",
         ClientMessage::EndGame { .. } => "EndGame",
         ClientMessage::ReportGameOutcome { .. } => "ReportGameOutcome",

@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.84.0](https://github.com/witchesofthehill/manabrew/compare/v3.83.0...v3.84.0) (2026-11-17)
+
+### Features
+
+* **ironsmith:** keep a game running when its host leaves ([#1237](https://github.com/witchesofthehill/manabrew/issues/1237)) ([3040806](https://github.com/witchesofthehill/manabrew/commit/30408066510b9ef1b8154e7bf179ac6d9d6390ed))
+
 ## [3.83.0](https://github.com/witchesofthehill/manabrew/compare/v3.82.1...v3.83.0) (2026-11-17)
 
 ### Features

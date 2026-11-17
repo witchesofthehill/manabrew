@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.82.0](https://github.com/witchesofthehill/manabrew/compare/v3.81.0...v3.82.0) (2026-11-17)
+
+### Features
+
+* **ui:** enable chat during multiplayer games ([#1230](https://github.com/witchesofthehill/manabrew/issues/1230)) ([b1eecd6](https://github.com/witchesofthehill/manabrew/commit/b1eecd61849065f35ebe244301a661bc09a123c5))
+
 ## [3.81.0](https://github.com/witchesofthehill/manabrew/compare/v3.80.3...v3.81.0) (2026-11-15)
 
 ### Features

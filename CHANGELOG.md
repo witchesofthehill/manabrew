@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.84.1](https://github.com/witchesofthehill/manabrew/compare/v3.84.0...v3.84.1) (2026-11-17)
+
+### Fixes
+
+* **combat:** preselect attacks that satisfy engine requirements ([#1232](https://github.com/witchesofthehill/manabrew/issues/1232)) ([2f035f3](https://github.com/witchesofthehill/manabrew/commit/2f035f3d200059a3649cd0acbab9385fb8a63cd7))
+* river pull and sink into stupor ([#1239](https://github.com/witchesofthehill/manabrew/issues/1239)) ([f8102be](https://github.com/witchesofthehill/manabrew/commit/f8102beb65bb0f3f3decd50b1645f9b50aa454cd))
+
 ## [3.84.0](https://github.com/witchesofthehill/manabrew/compare/v3.83.0...v3.84.0) (2026-11-17)
 
 ### Features

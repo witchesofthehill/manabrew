@@ -55,12 +55,11 @@ try {
     waitUntil: "networkidle",
   });
   await guest.waitForTimeout(1500);
-  const row = guest.locator(`text=${ROOM}`).first();
+  const row = guest.getByRole("article").filter({
+    has: guest.getByRole("heading", { name: ROOM, exact: true }),
+  });
   await row.waitFor({ timeout: 10000 });
-  await guest
-    .getByRole("button", { name: /^Join$/ })
-    .first()
-    .click();
+  await row.getByRole("button", { name: /^Join table$/ }).click();
   await guest.waitForTimeout(2000);
   await pickPreset(guest, () => deckButton(guest).click(), DECK);
 

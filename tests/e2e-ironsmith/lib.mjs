@@ -82,7 +82,8 @@ export async function connectLocal(page, username) {
   const nameField = page.locator("#server-username");
   if (await nameField.count()) await nameField.fill(username);
   await page.fill("#server-password", process.env.RELAY_PW || "forge");
-  await page.getByRole("button", { name: /Save & Reconnect/i }).click();
+  const reconnect = page.getByRole("button", { name: /Save & Reconnect/i });
+  if (await reconnect.isEnabled()) await reconnect.click();
   await page.waitForTimeout(2500);
 }
 

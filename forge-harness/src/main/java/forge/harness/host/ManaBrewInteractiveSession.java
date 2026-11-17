@@ -3120,6 +3120,11 @@ public final class ManaBrewInteractiveSession {
                     candidateRefs.add(targetRef("card", targetId(candidate)));
                 }
             }
+            for (final Pair<GameEntity, forge.game.GameObject> candidate : candidates) {
+                if ("spell".equals(targetKind(candidate))) {
+                    candidateRefs.add(targetRef("spell", targetId(candidate)));
+                }
+            }
         } else {
             for (final Pair<GameEntity, forge.game.GameObject> candidate : candidates) {
                 candidateRefs.add(targetRef(targetKind(candidate), targetId(candidate)));

@@ -44,9 +44,27 @@ node tests/e2e-ironsmith/ironsmith-multiplayer.mjs
 
 # Two humans: exercises the encrypted per-seat relay (ECDH + AES-GCM).
 node tests/e2e-ironsmith/ironsmith-two-clients.mjs
+
+# Host migration: the host's browser goes away mid-game and the guest hosts on.
+# Dev server only (it reads the game through `window.__gameStore`); takes about
+# two minutes, because it waits out the absent seat's reconnect window.
+node tests/e2e-ironsmith/ironsmith-host-migration.mjs
 ```
 
 Each prints `PASS: …` and exits 0 on success, or `FAIL: …` and exits non-zero.
+
+## How an Ironsmith game is shared
+
+Every seat runs its own copy of the Ironsmith engine. The host only orders the
+inputs (prompt answers and directives) into a transcript; each seat applies it
+to its own engine and draws its own view, and a fingerprint of the public state
+on every entry lets a seat notice it has diverged and rebuild from the host's
+transcript. Because no seat depends on the host's engine, the relay hands the
+host role to the next connected human seat when the host's seat is lost
+(`engine_survives_host_loss` / `migrate_host` in `manabrew-server`), the room
+update names the new host, and the game carries on. The lost seat forfeits when
+its reconnect window (the table's reconnect timeout) runs out, like any other
+seat.
 
 ### Env knobs
 

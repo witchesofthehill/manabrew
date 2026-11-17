@@ -211,3 +211,119 @@ export async function livePromptType(page, { timeoutMs = 20000 } = {}) {
   }
   return { checked, type };
 }
+
+// ---- Driving a live game through the dev-only store hook ---------------------
+
+// A compact reading of the seat's game (`window.__gameStore`, dev server only).
+export function readGame(page) {
+  return page.evaluate(() => {
+    const s = window.__gameStore?.getState();
+    const gv = s?.gameView;
+    if (!gv) return null;
+    // The store keeps an answered prompt until the next one arrives; only an
+    // unanswered prompt is open.
+    const p = s.isWaitingForResponse ? null : s.currentPrompt;
+    return {
+      turn: gv.turn,
+      step: gv.step,
+      gameOver: Boolean(gv.gameOver),
+      winner: gv.winnerId ?? null,
+      me: s.myPlayerSlot,
+      // Cards in the seat's own hand that it can read: its private view.
+      hand: (
+        gv.zones.find((z) => z.zone === "hand" && z.ownerId === s.myPlayerSlot)?.cards ?? []
+      ).filter((card) => card.identity?.name).length,
+      prompt: p ? { id: p.promptId, type: p.input.type, who: p.decidingPlayerId } : null,
+      // The newest prompt this seat has been shown, answered or not.
+      lastPromptId: s.currentPrompt?.promptId ?? null,
+      error: s.protocolError?.message ?? null,
+    };
+  });
+}
+
+export async function waitForGame(page, label, predicate, timeoutMs = 30000) {
+  const end = Date.now() + timeoutMs;
+  let last = null;
+  while (Date.now() < end) {
+    last = await readGame(page).catch(() => null);
+    if (last && predicate(last)) return last;
+    await page.waitForTimeout(250);
+  }
+  throw new Error(`timed out waiting for ${label}: ${JSON.stringify(last)} (url=${page.url()})`);
+}
+
+// Answers the seat's open prompt with the least eventful legal choice.
+export function answerPrompt(page) {
+  return page.evaluate(async () => {
+    const s = window.__gameStore.getState();
+    const input = s.currentPrompt?.input;
+    if (!input) return null;
+    const outputs = {
+      mulligan: { type: "mulliganDecision", keep: true },
+      chooseAction: { type: "pass", exhaustStack: false },
+    };
+    const output = outputs[input.type];
+    if (!output) return `unhandled:${input.type}`;
+    await s.respond(output);
+    return input.type;
+  });
+}
+
+// Two humans start an Ironsmith game and keep their opening hands. Returns
+// once `holder` ("host" or "guest") holds priority.
+export async function startTwoHumanGame(host, guest, { room, deck, format, holder = "guest" }) {
+  const hostName = uniqueName("Host");
+  const guestName = uniqueName("Guest");
+  await onboard(host, hostName);
+  await connectLocal(host, hostName);
+  await createRoom(host, { name: room, engine: "Ironsmith", format });
+  await pickPreset(host, () => deckButton(host).click(), deck);
+
+  await onboard(guest, guestName);
+  await connectLocal(guest, guestName);
+  await enableIronsmith(guest);
+  await guest.goto(BASE() + "/lobby", { waitUntil: "networkidle" });
+  await guest.waitForTimeout(1500);
+  const row = guest.getByRole("article").filter({
+    has: guest.getByRole("heading", { name: room, exact: true }),
+  });
+  await row.waitFor({ timeout: 10000 });
+  await row.getByRole("button", { name: /^Join table$/ }).click();
+  await guest.waitForTimeout(2000);
+  await pickPreset(guest, () => deckButton(guest).click(), deck);
+  const ready = guest.getByRole("button", { name: /^Ready( up)?$/i });
+  await ready.waitFor({ timeout: 15000 });
+  await ready.click();
+  await guest.waitForTimeout(1000);
+  await host.waitForTimeout(1000);
+  await host.getByRole("button", { name: /Start (Game|Table)/i }).click();
+
+  // Both seats build the game: the guest from the host's transcript.
+  await waitForGame(host, "host game", (s) => s.turn != null, 60000);
+  await waitForGame(guest, "guest game", (s) => s.turn != null, 90000);
+  for (let round = 0; round < 6; round++) {
+    for (const page of [host, guest]) {
+      const state = await readGame(page);
+      if (state?.prompt?.type === "mulligan" && state.prompt.who === state.me) {
+        await answerPrompt(page);
+      }
+    }
+    await host.waitForTimeout(700);
+    const [h, g] = [await readGame(host), await readGame(guest)];
+    if (h?.prompt?.type !== "mulligan" && g?.prompt?.type !== "mulligan") break;
+  }
+  const seats = { host, guest };
+  const other = holder === "guest" ? host : guest;
+  for (let round = 0; round < 12; round++) {
+    const state = await readGame(seats[holder]);
+    if (state?.prompt?.type === "chooseAction" && state.prompt.who === state.me) break;
+    const waiting = await readGame(other);
+    if (waiting?.prompt && waiting.prompt.who === waiting.me) await answerPrompt(other);
+    await host.waitForTimeout(500);
+  }
+  await waitForGame(
+    seats[holder],
+    `${holder} holds priority`,
+    (s) => s.prompt?.type === "chooseAction" && s.prompt.who === s.me,
+  );
+}

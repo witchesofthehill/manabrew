@@ -143,9 +143,14 @@ type IronsmithInput =
   | { kind: "response"; slot: string; promptId: number; action: PromptOutput }
   | { kind: "directive"; slot: string; directive: DirectiveInput };
 
-// `digest` fingerprints the public game state after the input was applied, so
-// a seat whose engine disagrees with the host's notices and resyncs.
-type IronsmithTranscriptEntry = IronsmithInput & { seq: number; digest: string };
+// `digest` fingerprints the public game state after the input was applied and
+// `rejected` says whether the host's engine refused it, so a seat whose engine
+// disagrees with the host's on either notices and resyncs.
+type IronsmithTranscriptEntry = IronsmithInput & {
+  seq: number;
+  digest: string;
+  rejected: boolean;
+};
 
 type IronsmithPrivatePayload =
   // Host to seat. `config` restarts the seat's engine from the match setup;
@@ -174,8 +179,8 @@ const SYNC_RETRY_MS = 2000;
 
 // Trusted mode encrypts per-seat payloads against casual room observers, but it
 // is not a cryptographic identity system. Seat identity is bound only to the
-// relay-authenticated username for this room, and peer keys are pinned for the
-// lifetime of this browser game session.
+// relay-authenticated username for this room; a seat's key lasts for its page
+// load and is replaced when that seat comes back from a reload.
 export class IronsmithTrustedGameApi implements IGameApi {
   private game: IronsmithWasmGame | null = null;
   private isMultiplayer = false;
@@ -344,6 +349,7 @@ export class IronsmithTrustedGameApi implements IGameApi {
       );
     }
     game.startManabrewMatch(config);
+    game.manabrewView(0);
     this.config = config;
     await this.enqueue(async () => {
       await this.broadcastPublicState();
@@ -409,6 +415,7 @@ export class IronsmithTrustedGameApi implements IGameApi {
       ...input,
       seq: this.entries.length + 1,
       digest: this.stateDigest(),
+      rejected: error !== null,
     };
     this.entries.push(entry);
     if (error && input.slot === this.localPlayerSlot) {
@@ -544,6 +551,9 @@ export class IronsmithTrustedGameApi implements IGameApi {
       this.game?.free();
       const game = new WasmGame() as IronsmithWasmGame;
       game.startManabrewMatch(payload.config);
+      // The engine opens (and numbers) a prompt when it is first read. Every
+      // live seat reads it before the first input, so a replay must too.
+      game.manabrewView(0);
       this.game = game;
       this.config = payload.config;
       this.entries = [];
@@ -580,7 +590,7 @@ export class IronsmithTrustedGameApi implements IGameApi {
     let diverged = false;
     try {
       error = this.applyToEngine(entry);
-      diverged = this.stateDigest() !== entry.digest;
+      diverged = (error !== null) !== entry.rejected || this.stateDigest() !== entry.digest;
     } catch (cause) {
       console.warn("[Ironsmith] engine failed applying the host transcript", cause);
       diverged = true;
@@ -861,10 +871,9 @@ export class IronsmithTrustedGameApi implements IGameApi {
     }
     const fingerprint = JSON.stringify(publicKey);
     if (this.peerKeyFingerprints.get(slot) === fingerprint) return false;
-    if (this.peerKeyFingerprints.has(slot)) {
-      console.warn(`[Ironsmith] ignored relay key replacement attempt for ${slot}`);
-      return false;
-    }
+    // A seat that reloaded its page comes back with a new key. The relay has
+    // already authenticated the sender as that seat, so the new key replaces
+    // the old one; nothing sent under the old key can be read by it anyway.
     try {
       const key = await crypto.subtle.importKey(
         "jwk",

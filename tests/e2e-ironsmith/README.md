@@ -49,6 +49,11 @@ node tests/e2e-ironsmith/ironsmith-two-clients.mjs
 # Dev server only (it reads the game through `window.__gameStore`); takes about
 # two minutes, because it waits out the absent seat's reconnect window.
 node tests/e2e-ironsmith/ironsmith-host-migration.mjs
+
+# Reload-rejoin: the guest reloads its page and comes back to the same game;
+# then, in a second game, the host reloads and comes back as a guest of the
+# game it started. Dev server only.
+node tests/e2e-ironsmith/ironsmith-reload-rejoin.mjs
 ```
 
 Each prints `PASS: …` and exits 0 on success, or `FAIL: …` and exits non-zero.
@@ -65,6 +70,12 @@ host role to the next connected human seat when the host's seat is lost
 update names the new host, and the game carries on. The lost seat forfeits when
 its reconnect window (the table's reconnect timeout) runs out, like any other
 seat.
+
+A seat that reloads its page loses its engine but not the game. The normal
+resume flow reseats it, it announces a new relay key (the relay has already
+authenticated it as that seat), and the host sends it the match setup and the
+transcript to rebuild from. A host that reloads has been replaced by then, so it
+comes back as a guest.
 
 ### Env knobs
 

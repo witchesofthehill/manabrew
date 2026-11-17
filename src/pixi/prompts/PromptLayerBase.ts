@@ -463,6 +463,7 @@ export function sameGameOverPresentation(
   if (left === right) return true;
   if (!left || !right) return false;
   return (
+    left.spectator === right.spectator &&
     left.winnerId === right.winnerId &&
     left.me === right.me &&
     sameArray(left.opponents, right.opponents) &&

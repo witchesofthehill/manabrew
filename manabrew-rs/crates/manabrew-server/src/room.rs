@@ -39,6 +39,7 @@ pub struct Room {
     pub hosted: bool,
     pub official: bool,
     pub password: Option<String>,
+    pub allow_spectators: bool,
     pub max_players: u8,
     pub format: GameFormat,
     pub engine: EngineKind,
@@ -114,6 +115,7 @@ impl Room {
             host_username,
             hosted: !host_plays,
             official,
+            allow_spectators: password.is_none(),
             password,
             max_players,
             format,
@@ -135,6 +137,19 @@ impl Room {
             transports: HashMap::new(),
             chat: ChatHistory::default(),
         }
+    }
+
+    pub fn can_spectate(&self) -> bool {
+        self.allow_spectators
+            && self.engine == EngineKind::Forge
+            && self.status == RoomStatus::InGame
+            && self.draft_config.is_none()
+            && self.sealed_config.is_none()
+            && self.parent_limited_room.is_none()
+            && self
+                .replay
+                .as_ref()
+                .is_some_and(|replay| replay.last_state.is_some())
     }
 
     pub fn is_full(&self) -> bool {
@@ -258,10 +273,6 @@ impl Room {
 
     pub fn has_connected_human(&self) -> bool {
         self.players.iter().any(|p| p.connected && !p.is_bot)
-            || self
-                .observers
-                .iter()
-                .any(|o| o.connected && !(self.hosted && o.player_id == self.host_player_id))
     }
 
     pub fn set_ready(&mut self, player_id: &str, ready: bool) -> Result<(), String> {
@@ -396,6 +407,13 @@ impl Room {
             hosted: self.hosted,
             official: self.official,
             password_protected: self.password.is_some(),
+            allow_spectators: self.allow_spectators,
+            can_spectate: self.can_spectate(),
+            spectator_count: self
+                .observers
+                .iter()
+                .filter(|o| o.connected && !self.is_host(&o.player_id))
+                .count(),
             players: self
                 .players
                 .iter()

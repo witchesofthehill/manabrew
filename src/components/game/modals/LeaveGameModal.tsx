@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { Modal } from "./Modal";
 import { Button } from "@/components/ui/button";
 
-export type LeaveGameMode = "engineOwner" | "seat" | "solo";
+export type LeaveGameMode = "engineOwner" | "seat" | "solo" | "spectator";
 
 interface LeaveGameModalProps {
   mode?: LeaveGameMode;
@@ -12,6 +12,11 @@ interface LeaveGameModalProps {
 }
 
 const COPY: Record<LeaveGameMode, { heading: string; body: string; leave: string }> = {
+  spectator: {
+    heading: "Stop watching?",
+    body: "The game continues. You can watch again from the lobby.",
+    leave: "Stop watching",
+  },
   engineOwner: {
     heading: "End the game for everyone?",
     body:

@@ -3908,6 +3908,8 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     if (gameOver.engineCrash) {
       heading = "Engine Crashed";
       color = this.theme.appTheme.destructive;
+    } else if (gameOver.spectator) {
+      heading = "Game Over";
     } else if (gameOver.me.status === "conceded") {
       heading = "You Conceded";
       color = this.theme.appTheme.destructive;

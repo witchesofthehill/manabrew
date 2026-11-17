@@ -35,6 +35,9 @@ export interface RoomInfo {
   hosted: boolean;
   official: boolean;
   password_protected: boolean;
+  allow_spectators?: boolean;
+  can_spectate?: boolean;
+  spectator_count?: number;
   players: RoomPlayerInfo[];
   max_players: number;
   format: GameFormat;
@@ -202,6 +205,7 @@ export function isRoomRelayEnvelope(value: unknown): value is RoomRelayEnvelope 
 }
 /** Wire features a relay lists in `AuthResult.features`. */
 export const RELAY_FEATURE = {
+  Spectators: "spectators",
   LocalGame: "local_game",
   Chat: "chat",
   RoomInvites: "room_invites",

@@ -348,6 +348,8 @@ export function GameBoard({
   const [sheetPlayerId, setSheetPlayerId] = useState<string | null>(null);
   const [inspectedHandCard, setInspectedHandCard] = useState<CardDto | null>(null);
   const closePlayerSheet = useCallback(() => setSheetPlayerId(null), [setSheetPlayerId]);
+  const isSpectator = useGameStore((state) => state.isSpectator);
+  const selfZoneOwner = isSpectator ? `${stripUsernameTag(me.name)}’s` : "Your";
   const gameOver = useGameStore((state) => state.gameView?.gameOver);
 
   // On our turn, one opponent field stays expanded (sticky) instead of an even
@@ -1267,7 +1269,7 @@ export function GameBoard({
     if (!myCommandZone || myCommandZone.length === 0) return;
     if (isTargetingPrompt && commandTargetIds.length > 0) {
       onOpenZone(
-        "Your Command Zone",
+        `${selfZoneOwner} Command Zone`,
         myCommandZone,
         onTargetFromZone,
         commandTargetIds,
@@ -1276,11 +1278,17 @@ export function GameBoard({
       return;
     }
     if (promptType === "chooseAction") {
-      onOpenZoneAndCast("Your Command Zone", myCommandZone, closePlayerSheet, commandPlayableIds);
+      onOpenZoneAndCast(
+        `${selfZoneOwner} Command Zone`,
+        myCommandZone,
+        closePlayerSheet,
+        commandPlayableIds,
+      );
     } else {
-      onOpenZone("Your Command Zone", myCommandZone);
+      onOpenZone(`${selfZoneOwner} Command Zone`, myCommandZone);
     }
   }, [
+    selfZoneOwner,
     myCommandZone,
     isTargetingPrompt,
     commandTargetIds,
@@ -1299,7 +1307,7 @@ export function GameBoard({
     }
     if (isTargetingPrompt && graveyardTargetIds.length > 0) {
       onOpenZone(
-        "Your Graveyard",
+        `${selfZoneOwner} Graveyard`,
         graveyard,
         onTargetFromZone,
         graveyardTargetIds,
@@ -1308,11 +1316,17 @@ export function GameBoard({
       return;
     }
     if (graveyardPlayableIds.length > 0 && promptType === "chooseAction") {
-      onOpenZoneAndCast("Your Graveyard", graveyard, (_cardId) => {}, graveyardPlayableIds);
+      onOpenZoneAndCast(
+        `${selfZoneOwner} Graveyard`,
+        graveyard,
+        (_cardId) => {},
+        graveyardPlayableIds,
+      );
     } else {
-      onOpenZone("Your Graveyard", graveyard);
+      onOpenZone(`${selfZoneOwner} Graveyard`, graveyard);
     }
   }, [
+    selfZoneOwner,
     delveAvailable,
     onOpenDelveZone,
     isTargetingPrompt,
@@ -1335,15 +1349,22 @@ export function GameBoard({
   }, [library, libraryPlayableIds, promptType, onOpenZoneAndCast, onOpenZone]);
   const openExile = useCallback(() => {
     if (isTargetingPrompt && exileTargetIds.length > 0) {
-      onOpenZone("Your Exile", exile, onTargetFromZone, exileTargetIds, hostileTargeting);
+      onOpenZone(
+        `${selfZoneOwner} Exile`,
+        exile,
+        onTargetFromZone,
+        exileTargetIds,
+        hostileTargeting,
+      );
       return;
     }
     if (exilePlayableIds.length > 0 && promptType === "chooseAction") {
-      onOpenZoneAndCast("Your Exile", exile, (_cardId) => {}, exilePlayableIds);
+      onOpenZoneAndCast(`${selfZoneOwner} Exile`, exile, (_cardId) => {}, exilePlayableIds);
     } else {
-      onOpenZone("Your Exile", exile);
+      onOpenZone(`${selfZoneOwner} Exile`, exile);
     }
   }, [
+    selfZoneOwner,
     isTargetingPrompt,
     exileTargetIds,
     onOpenZone,
@@ -1437,7 +1458,7 @@ export function GameBoard({
         key: ZONE_TILE_KEY.junkyard,
         count: me.junkyard.length,
         topCard: top(me.junkyard),
-        onOpen: () => onOpenZone("Your Junkyard", me.junkyard),
+        onOpen: () => onOpenZone(`${selfZoneOwner} Junkyard`, me.junkyard),
       });
     }
     const byPlayer: Record<string, ZoneTileSpec[]> = { [me.id]: self };
@@ -1526,6 +1547,7 @@ export function GameBoard({
     }
     return byPlayer;
   }, [
+    selfZoneOwner,
     me.id,
     me.libraryCount,
     me.attractionsCount,
@@ -1682,6 +1704,7 @@ export function GameBoard({
   const sheetSpec = baseSheetSpec
     ? {
         ...baseSheetSpec,
+        isSelf: baseSheetSpec.isSelf && !isSpectator,
         badges: [
           ...baseSheetSpec.badges
             .filter((badge) => !badge.zone)
@@ -1715,18 +1738,22 @@ export function GameBoard({
           s.isEliminated ? "eliminated" : null,
           s.isDisconnected ? "disconnected" : null,
         ].filter(Boolean);
-        const who = s.isSelf ? "You" : s.name;
+        const who = s.isSelf && !isSpectator ? "You" : s.name;
         return `${who}: ${s.life} life${tags.length ? ` (${tags.join(", ")})` : ""}`;
       })
       .join(". ");
-    const turn = active ? `${active.isSelf ? "Your" : `${active.name}'s`} turn. ` : "";
+    const turn = active
+      ? `${active.isSelf && !isSpectator ? "Your" : `${active.name}'s`} turn. `
+      : "";
     return `${turn}${players}.`;
-  }, [playerBarSpecs]);
+  }, [playerBarSpecs, isSpectator]);
   const combatA11y = useMemo(() => {
     const nameOf = (id: string) =>
-      id === me.id
+      id === me.id && !isSpectator
         ? "You"
-        : stripUsernameTag(opponents.find((o) => o.id === id)?.name ?? "a player");
+        : stripUsernameTag(
+            id === me.id ? me.name : (opponents.find((o) => o.id === id)?.name ?? "a player"),
+          );
     const pairs = new Map<
       string,
       {
@@ -1754,7 +1781,7 @@ export function GameBoard({
           `${p.attacker} ${p.attacker === "You" ? "attack" : "attacks"} ${p.defender} with ${p.count} ${p.count === 1 ? "attacker" : "attackers"}`,
       )
       .join(". ")}.`;
-  }, [battlefield, opponents, me.id]);
+  }, [battlefield, opponents, me.id, me.name, isSpectator]);
   const boardSceneProps = {
     regions: unifiedRegions,
     hand: pixiHand,
@@ -1868,7 +1895,7 @@ export function GameBoard({
           id: player.playerId,
           name: player.name,
           life: player.life,
-          isSelf: player.isSelf,
+          isSelf: player.isSelf && !isSpectator,
           isTargetable: player.isTargetable,
         }))}
         battlefield={battlefield}

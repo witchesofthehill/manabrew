@@ -1,4 +1,4 @@
-import { BadgeCheck, LockKeyhole, UserRoundPlus, Users } from "lucide-react";
+import { Eye, BadgeCheck, LockKeyhole, UserRoundPlus, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EngineMark } from "@/components/lobby/EngineMark";
@@ -19,6 +19,7 @@ export function OpenTableCard({ room, currentRoomId, joining, onJoin }: OpenTabl
   const isCompatible = room.protocol_version === PROTOCOL_VERSION;
   const isFull = room.players.length >= room.max_players;
   const canJoin = isCompatible && currentRoomId == null && room.status === "Lobby" && !isFull;
+  const canWatch = isCompatible && currentRoomId == null && room.can_spectate === true;
   const format = getFormat(room.format.toLowerCase());
   const modeLabel = format?.name ?? room.format;
   const limitedLabel = room.draft_config
@@ -88,6 +89,18 @@ export function OpenTableCard({ room, currentRoomId, joining, onJoin }: OpenTabl
         }
       />
 
+      {room.status === "InGame" && (
+        <div className="space-y-1 text-ui-meta text-muted-foreground">
+          <p className="font-semibold text-foreground">Playing · {modeLabel}</p>
+          {room.players.map((player) => (
+            <p key={player.username} className="break-words">
+              {stripUsernameTag(player.username)} · {player.selected_deck_name ?? "Deck not shared"}
+            </p>
+          ))}
+          {!!room.spectator_count && <p>{room.spectator_count} watching</p>}
+        </div>
+      )}
+
       <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-1">
         <span className="flex items-center gap-1.5 text-ui-meta text-muted-foreground">
           <Users aria-hidden="true" className="h-3.5 w-3.5" />
@@ -109,8 +122,19 @@ export function OpenTableCard({ room, currentRoomId, joining, onJoin }: OpenTabl
             <UserRoundPlus aria-hidden="true" className="h-3.5 w-3.5" />
             {joining ? `Joining\u2026` : `Join table`}
           </Button>
+        ) : canWatch ? (
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            disabled={joining}
+            onClick={() => onJoin(room)}
+          >
+            <Eye className="h-3.5 w-3.5" />
+            {joining ? "Joining…" : "Watch"}
+          </Button>
         ) : room.status === "InGame" ? (
-          <span className="text-ui-meta text-muted-foreground">Playing</span>
+          <span className="text-ui-meta text-muted-foreground">Not watchable</span>
         ) : isFull ? (
           <span className="text-ui-meta text-muted-foreground">Full</span>
         ) : null}

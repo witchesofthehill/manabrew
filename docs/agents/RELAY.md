@@ -12,6 +12,14 @@ The relay is the multiplayer trust boundary. Only the room's engine host may emi
 
 Per-seat `State`, `Prompt`, and `Error` envelopes can contain hidden information. A hosted node must set `BroadcastState.target_player` for all three; this transport target is the authenticated relay username, not an engine slot. `fromPlayer` and encrypted `private.to` remain engine slots. `forPlayer` inside the envelope is for client dispatch and replay indexing, not transport privacy.
 
+## Spectators
+
+`FEATURE_SPECTATORS` advertises `SetAllowSpectators` and live observation. Public tables allow spectators by default; password-protected tables default off. The controller changes the setting only in Lobby, and `ResumeRoom.allow_spectators` preserves it across relay restarts (older hosts restore privately). `RoomInfo.can_spectate` requires a running Forge game with a cached public snapshot and excludes Draft/Sealed sessions and their child matches. Local games never acquire a broadcast feed from presence alone.
+
+`JoinRoom.observe` admits watchers only when `can_spectate` is true and the password matches. Observers consume no seats, cannot submit engine inputs or room-relay messages, and cannot keep an abandoned game alive. Both start metadata and replay redact their deck lists; replay requires a current seat before returning private state, prompts or directives, even if a watcher's username appears in the original player order. Observer broadcasts carry only untargeted public state envelopes. Room reset releases watchers along with the players while retaining an engine-host observer.
+
+Browser Forge hosts generate the public snapshot with viewer `-1`, send it through the relay even when players use WebRTC, and retain it for resync. Rebuild WebImage after changing this producer. Never synthesize public snapshots by forwarding a seated player's view.
+
 ## Limited sessions
 
 `AuthResult.features` advertises `limited_sessions` and `limited_session_recovery`; clients require both before creating durable multiplayer Draft or Sealed sessions. `src/game/limitedSession.ts` coordinates the `limited-session-v1` room relay. The original room host owns generation and validates each build against its seat's acquired occurrence IDs, printing and finish. Every acquired card must appear exactly once across Main and Sideboard; added basics require real Scryfall printings, and readiness requires at least 40 main cards. Human Sealed build suggestions are opt-in.

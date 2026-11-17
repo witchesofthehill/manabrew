@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.82.1](https://github.com/witchesofthehill/manabrew/compare/v3.82.0...v3.82.1) (2026-11-17)
+
+### Fixes
+
+* **lobby:** reconcile room membership after leaving games ([#1231](https://github.com/witchesofthehill/manabrew/issues/1231)) ([bc25e0c](https://github.com/witchesofthehill/manabrew/commit/bc25e0ce5cc62809c7941ff23d81fb8c6c1d8194))
+
 ## [3.82.0](https://github.com/witchesofthehill/manabrew/compare/v3.81.0...v3.82.0) (2026-11-17)
 
 ### Features

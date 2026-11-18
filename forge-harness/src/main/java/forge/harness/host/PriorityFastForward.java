@@ -12,7 +12,17 @@ import java.util.Set;
 
 final class PriorityFastForward {
     private PriorityFastForward() {}
-    static boolean reachedTarget(final Game game, final String untilPlayer, final String untilPhase) {
+    static int targetTurn(final Game game, final String untilPlayer, final String untilPhase) {
+        final PhaseType target = parseStep(untilPhase);
+        final PhaseType current = game.getPhaseHandler().getPhase();
+        final Player active = game.getPhaseHandler().getPlayerTurn();
+        return target != null && current != null && active != null
+                && ("player-" + SnapshotExtractor.playerIndex(game, active)).equals(untilPlayer)
+                && current.isBefore(target) ? game.getPhaseHandler().getTurn() : 0;
+    }
+
+    static boolean reachedTarget(
+            final Game game, final String untilPlayer, final String untilPhase, final int targetTurn) {
         final PhaseType target = parseStep(untilPhase);
         if (target == null) {
             return true;
@@ -26,7 +36,8 @@ final class PriorityFastForward {
             return true;
         }
         final String activeSlot = "player-" + SnapshotExtractor.playerIndex(game, active);
-        return activeSlot.equals(untilPlayer) && !current.isBefore(target);
+        return targetTurn != 0 && (game.getPhaseHandler().getTurn() > targetTurn
+                || activeSlot.equals(untilPlayer) && !current.isBefore(target));
     }
 
     /**

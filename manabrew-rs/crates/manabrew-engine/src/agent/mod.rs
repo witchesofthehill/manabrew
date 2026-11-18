@@ -25,6 +25,16 @@ pub struct PassUntilTarget {
     pub player: PlayerId,
     pub phase: forge_foundation::PhaseType,
     pub through_combat: bool,
+    pub turn: Option<u32>,
+}
+
+impl PassUntilTarget {
+    pub fn reached_target(&self, game: &GameState) -> bool {
+        self.turn.is_some_and(|turn| {
+            game.turn.turn_number > turn
+                || (game.active_player() == self.player && !game.turn.phase.is_before(self.phase))
+        }) || !game.player(self.player).is_alive()
+    }
 }
 
 /// Trait for player decision-making. Decouples the engine from UI/AI.

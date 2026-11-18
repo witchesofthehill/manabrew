@@ -83,7 +83,6 @@ impl GameLoop {
 
             if let Some(target) = agents[priority_player.index()].get_pass_until() {
                 let current_phase = game.turn.phase;
-                let active = game.active_player();
                 let has_declared_attackers = self.combat.has_attackers();
                 let is_active_combat = !target.through_combat
                     && has_declared_attackers
@@ -95,9 +94,7 @@ impl GameLoop {
                             | forge_foundation::PhaseType::CombatDamage
                             | forge_foundation::PhaseType::CombatEnd
                     );
-                let reached = (active == target.player && !current_phase.is_before(target.phase))
-                    || !game.player(target.player).is_alive();
-                if reached {
+                if target.reached_target(game) {
                     agents[priority_player.index()].clear_pass_until();
                 } else if !is_active_combat && game.stack.is_empty() {
                     self.log_priority_pass(game, priority_player);

@@ -58,12 +58,7 @@ impl GameLoop {
         let pass_until_skip = must_attackers.is_empty()
             && agents[active.index()]
                 .get_pass_until()
-                .is_some_and(|target| {
-                    let reached = (active == target.player
-                        && !game.turn.phase.is_before(target.phase))
-                        || !game.player(target.player).is_alive();
-                    !reached
-                });
+                .is_some_and(|target| !target.reached_target(game));
 
         // Java's PhaseHandler uses a do-while loop: declare attackers, validate,
         // and re-prompt if invalid.  We mirror this so RNG consumption matches.

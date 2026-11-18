@@ -128,6 +128,10 @@ Use this when a parity report points at a specific failure mode:
 - **Crate-wide `#![allow(...)]`s in `lib.rs` are intentional.** They document parity trade-offs.
 - **Minimize SVar parsing — this is critical.** SVar resolution is late-bound by spec (`docs/forge-dsl-semantics.md` §5.2). Resolve SVars at the call site, lazily, and only for the SVar the engine actually needs. Do not eagerly walk the SVar graph at card construction or ability registration time. Do not pre-expand sub-ability chains into IR before they are reached. Do not re-parse the same SVar string on every reference — parse once, then reuse the parsed form. Aggressive eager parsing inflates load time, breaks the lazy semantics the spec relies on, and produces stale IR when card state changes (transform, copy, exile) alter the available SVars per invariant §10.7.
 
+## Held priority passes
+
+PromptAgent binds and expires PassUntilTarget.turn through game-state snapshots, including phase and turn changes without priority. Keep those lifecycle snapshots independent of priority callbacks. Pending future targets must survive intermediate turns, and an already-bound target must expire when its turn ends.
+
 ## Build & test
 
 The Cargo workspace manifest is at the repository root, not `manabrew-rs/Cargo.toml`; run these commands from the root.

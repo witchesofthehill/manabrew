@@ -15,6 +15,7 @@ import forge.harness.protocol.SelectionOption;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
+import com.google.common.eventbus.Subscribe;
 import forge.LobbyPlayer;
 import forge.ai.AiCostDecision;
 import forge.ai.ComputerUtilCombat;
@@ -38,6 +39,7 @@ import forge.game.card.sticker.Sticker;
 import forge.game.combat.Combat;
 import forge.game.combat.CombatUtil;
 import forge.game.cost.*;
+import forge.game.event.GameEventTurnBegan;
 import forge.game.keyword.Keyword;
 import forge.game.keyword.KeywordInterface;
 import forge.game.mana.*;
@@ -84,6 +86,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     private String passUntilPhase;
     private boolean passUntilThroughCombat;
     private int passUntilDeclaredTurn;
+    private int passUntilTargetTurn;
     private int passUntilObservedTurn;
     private PhaseType passUntilMaxPhase;
     private Set<Integer> exhaustStackIds;
@@ -102,6 +105,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         this.costPlumbing = new HarnessCostPlumbing(this, this, player, true);
         this.autoPay = new AutoPay(player, costPlumbing, true);
         this.playPlumbing = new HarnessPlayPlumbing(this, player, costPlumbing, true);
+        game.subscribeToEvents(this);
     }
 
     private int me() {
@@ -171,13 +175,11 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                 passUntilObservedTurn = game.getPhaseHandler().getTurn();
                 passUntilMaxPhase = currentPhase;
             }
-            if (PriorityFastForward.reachedTarget(game, passUntilPlayer, passUntilPhase)
+            if (PriorityFastForward.reachedTarget(game, passUntilPlayer, passUntilPhase, passUntilTargetTurn)
                     || PriorityFastForward.invalidatedByExtraTurn(
                             game, player, passUntilPlayer, passUntilDeclaredTurn)
                     || PriorityFastForward.invalidatedByExtraPhase(currentPhase, passUntilMaxPhase)) {
-                passUntilPlayer = null;
-                passUntilPhase = null;
-                passUntilThroughCombat = false;
+                clearPassUntil();
             } else {
                 if (currentPhase != null
                         && (passUntilMaxPhase == null || passUntilMaxPhase.isBefore(currentPhase))) {
@@ -214,6 +216,8 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             passUntilPhase = choice.untilPhase();
             passUntilThroughCombat = choice.throughCombat();
             passUntilDeclaredTurn = game.getPhaseHandler().getTurn();
+            passUntilTargetTurn = passUntilPhase == null ? 0
+                    : PriorityFastForward.targetTurn(game, passUntilPlayer, passUntilPhase);
             passUntilObservedTurn = passUntilDeclaredTurn;
             passUntilMaxPhase = game.getPhaseHandler().getPhase();
             exhaustStackIds = choice.exhaustStack() ? PriorityFastForward.stackIds(game) : null;
@@ -229,10 +233,28 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         }
     }
 
-    void clearHeldPass() {
+    @Subscribe
+    public void onTurnBegan(final GameEventTurnBegan event) {
+        if (passUntilPhase == null) {
+            return;
+        }
+        if (passUntilTargetTurn != 0 && event.turnNumber() > passUntilTargetTurn) {
+            clearPassUntil();
+        } else if (("player-" + SnapshotExtractor.playerIndex(
+                game, game.getPhaseHandler().getPlayerTurn())).equals(passUntilPlayer)) {
+            passUntilTargetTurn = event.turnNumber();
+        }
+    }
+
+    private void clearPassUntil() {
         passUntilPlayer = null;
         passUntilPhase = null;
         passUntilThroughCombat = false;
+        passUntilTargetTurn = 0;
+    }
+
+    void clearHeldPass() {
+        clearPassUntil();
         exhaustStackIds = null;
     }
 
@@ -385,7 +407,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     public void declareAttackers(final Player attacker, final Combat combat) {
         combat.clearAttackers();
         if (passUntilPhase != null
-                && !PriorityFastForward.reachedTarget(game, passUntilPlayer, passUntilPhase)
+                && !PriorityFastForward.reachedTarget(game, passUntilPlayer, passUntilPhase, passUntilTargetTurn)
                 && CombatUtil.validateAttackers(combat)) {
             return;
         }

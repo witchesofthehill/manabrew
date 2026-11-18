@@ -524,6 +524,19 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
     }
 
     fn snapshot_state(&mut self, game: &GameState, mana_pools: &[ManaPool]) {
+        if let Some(target) = &mut self.pass_until {
+            if target.turn.is_some_and(|turn| game.turn.turn_number > turn) {
+                self.pass_until = None;
+            } else if target.turn.is_none()
+                && game.active_player() == target.player
+                && self
+                    .latest_view
+                    .as_ref()
+                    .is_some_and(|view| view.turn != game.turn.turn_number)
+            {
+                target.turn = Some(game.turn.turn_number);
+            }
+        }
         self.source_cards = game
             .cards
             .iter()
@@ -757,10 +770,16 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
             }
             PromptOutput::ChooseAction(ChooseActionOutput::Pass { until, .. }) => {
                 self.pass_until = until.and_then(|u| {
+                    let view = self.latest_view.as_ref()?;
+                    let phase = crate::game_view_dto::step_to_phase(u.phase);
+                    let turn = (u.player_id == view.active_player_id
+                        && crate::game_view_dto::step_to_phase(view.step).is_before(phase))
+                    .then_some(view.turn);
                     Some(manabrew_engine::agent::PassUntilTarget {
                         player: crate::ids_codec::parse_player_id(&u.player_id)?,
-                        phase: crate::game_view_dto::step_to_phase(u.phase),
+                        phase,
                         through_combat: u.through_combat,
+                        turn,
                     })
                 });
                 EnginePlayerAction::PassPriority

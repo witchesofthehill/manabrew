@@ -1,6 +1,7 @@
 # Pass-until lifetime and cleanup stops
 
-Status: investigation and proposed fix. No runtime change is implemented here.
+Status: investigation with an implemented occurrence-bound expiry fix in the
+Forge harness and Rust prompt agent.
 Related issue: [#1241](https://github.com/witchesofthehill/manabrew/issues/1241).
 Investigation date: November 18, 2026.
 
@@ -34,7 +35,7 @@ The next target is that opponent's cleanup. The local player's following turn
 advances without its normal priority prompts. Selecting the stop alone does
 not send a held instruction; a subsequent pass does.
 
-### Headless results
+### Results before the fix
 
 The pinned Forge revision was
 [`62aec217f311b54bf93ef6d6cc455d7c85c29950`](https://github.com/witchesofthehill/forge/commit/62aec217f311b54bf93ef6d6cc455d7c85c29950).
@@ -178,50 +179,76 @@ the same cause.
 concerned beginning-of-combat access for Crew. Its #581 resolution concerns
 frontend passing and Full Control, not cancellation of an existing engine hold.
 
-## Proposed fix
+## Implemented fix
 
-Keep lifetime ownership in the engine. Define a held pass as a destination
-within one intended turn occurrence, and observe its lifetime even when a step
-does not give priority.
+A held pass now belongs to one occurrence of its target player's turn.
+The wire request remains the same player, phase, and combat flag.
 
-1. **Bind the intended occurrence when accepting the command.** A later phase
-   of the currently active target player belongs to the current turn.
-   A phase at or before the current phase, or another player's phase, belongs to a future
-   occurrence. Retain that distinction instead of recomputing it at each
-   priority callback.
-2. **Use the actual turn scheduler.** A pending future destination may span
-   several intermediate players' turns. Bind it when its intended target turn
-   is selected. A scheduler hook must also handle a target occurrence consumed
-   by a skipped turn, without waiting forever for a turn-start priority prompt.
-   Do not estimate the destination from the number of players.
-3. **Complete or expire independently of priority requests.** While the bound
-   occurrence is active, preserve the first legal priority at or after the
-   destination phase. If that occurrence ends without one, clear the hold at
-   its boundary so the next legal priority can reach the player.
-4. **Preserve exceptional cleanup.** When cleanup creates priority, stop there
-   and allow the engine's repeated-cleanup behavior. Do not manufacture priority
-   during ordinary cleanup or remove all cleanup stops.
-5. **Retain existing interruption rules in both engines.** Keep target-loss,
-   extra-turn, extra-phase, stack-response, and combat protections. A new
-   occurrence must not silently reuse an expired destination.
+A later phase of the currently active target player binds to the current
+turn number when the command is accepted. A phase at or before the current
+phase, or another player's phase, stays pending until that player's next
+actual turn begins. Pending targets survive intervening players' turns.
 
-For the current UI, the engines can derive this lifetime from the existing
-player/phase request. A protocol extension would be needed if a future UI
-must distinguish multiple future occurrences beyond that request's meaning.
-A cleanup-specific conditional or a new shared framework is not required by
-this proposal.
+The [Forge controller](../forge-harness/src/main/java/forge/harness/host/ManaBrewInteractiveController.java)
+subscribes to Forge's synchronous `GameEventTurnBegan` event. It binds a
+pending target when that player becomes active and clears a bound target
+when its turn has ended. This event runs even if cleanup never offers
+priority. The [completion predicate](../forge-harness/src/main/java/forge/harness/host/PriorityFastForward.java)
+also checks the bound occurrence before accepting an at-or-after phase.
+That prevents a next-turn Main 1 request from completing immediately during
+the current turn's End step.
 
-The separate Full Control expectation needs an explicit, per-seat engine
-cancellation operation that works without a pending prompt. Sending an answer
-for a nonexistent prompt risks applying it to a later decision. The frontend
-preference alone cannot provide cancellation.
+The [Rust prompt agent](../manabrew-rs/crates/manabrew-agent-interface/src/agent_impl/mod.rs)
+uses existing game-state snapshots for the same binding and expiry.
+The game loop snapshots all agents on phase and turn changes, independently
+of priority prompts. Its internal [PassUntilTarget](../manabrew-rs/crates/manabrew-engine/src/agent/mod.rs)
+carries the bound turn. Priority passing and attacker-declaration skipping
+share its completion predicate.
 
-Implementation decisions still need review: where Forge and Rust publish
-turn-selection and turn-completion events, how skipped turns consume a pending
-destination, and whether an expired target should notify the client. These
-questions do not justify retaining a hold after its bound occurrence ends.
+The engines still decide whether a step gives priority. Ordinary cleanup
+creates no new prompt. Exceptional cleanup stops at its legal priority
+window and retains repeated-cleanup behavior. Existing target-loss,
+extra-turn, extra-phase, stack-response, and combat guards remain in place.
+The Rust engine's previously missing extra-phase guard is still a separate
+limitation. Vendored Forge rules and the frontend phase controls are unchanged.
 
-### Regression cases for implementation
+### Results with the fix
+
+Temporary local diagnostics ran against the same upstream and Forge revisions
+as the investigation. No diagnostic test files are included in this PR.
+
+| Check                                            | Result                                                                                                                                        |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Original 16 Forge cases                          | Every case resumes normal local priority on the next local turn. Ordinary opponent cleanup restores eight local prompts instead of zero.      |
+| Exceptional discard-trigger cleanup              | Two local cleanup priority prompts remain available in both two-player and four-player games.                                                 |
+| Valid four-player pass across intermediate turns | The first resumed local prompt is still player-3's Main 1 on turn 4.                                                                          |
+| Next own Main 1, two and four players            | The pass survives the current End step and resumes at Main 1 of the next own turn.                                                            |
+| Future opponent cleanup across another opponent  | The pass stays held through intermediate turns and expires before the following local Upkeep.                                                 |
+| Missing first-strike and blocker steps           | The pass resumes at Combat End on the target turn.                                                                                            |
+| Next own Untap                                   | The first legal prompt is Upkeep on that occurrence, without inventing untap priority.                                                        |
+| Eight Rust engine cases                          | Both player counts resume the next Main 1 prompt. Exceptional cleanup and End targets remain interactive.                                     |
+| Rust prompt-agent lifecycle                      | Current cleanup, next own Main 1, multi-turn waiting, and expiry without any intervening priority callback all pass for two and four players. |
+
+There are 22 Forge cases in the expanded matrix. Scoped Java compilation,
+Rust compilation, formatting, and lint checks are recorded in the PR's test
+plan. The diagnostics exercise the held command directly. The earlier
+frontend checks establish that Autopass and manual Pass under Full Control
+produce that same command. No new browser UI verification was performed.
+
+### Remaining limits
+
+Future targets bind to the next turn actually played by the target player.
+An entirely skipped scheduled turn does not bind the target. Cancelling at
+that skipped occurrence would need a separate scheduler-level policy and
+integration hook. This fix does not estimate future turn numbers from seat
+counts or discard every pending target on an intermediate turn change.
+
+Full Control still cannot cancel an already-held engine instruction outside
+a pending prompt. That requires an explicit per-seat cancellation operation.
+The expiry fix prevents an already-bound target from surviving its turn,
+but does not add that separate operation.
+
+### Further regression coverage
 
 - Two and four players, every opponent position, and self-cleanup.
   The hold must expire after ordinary target cleanup and restore the next
@@ -248,6 +275,6 @@ for both engine selections. Its present held-pass case targets the local
 player's End step and checks premature prompts, not recovery from an
 unreachable opponent-cleanup target.
 
-This investigation and proposal were prepared with AI assistance and checked
+This investigation and implementation were prepared with AI assistance and checked
 against the pinned Java and Rust source and the diagnostic runs described above.
-The proposed runtime policy still requires maintainer review and implementation.
+The runtime changes require maintainer review before merging.

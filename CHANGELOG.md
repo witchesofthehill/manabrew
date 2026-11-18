@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.84.5](https://github.com/witchesofthehill/manabrew/compare/v3.84.4...v3.84.5) (2026-11-18)
+
+### Fixes
+
+* disable perf mode ([#1248](https://github.com/witchesofthehill/manabrew/issues/1248)) ([801aeb8](https://github.com/witchesofthehill/manabrew/commit/801aeb8bf76d5a624a35c1a778726440902ef267))
+
 ## [3.84.4](https://github.com/witchesofthehill/manabrew/compare/v3.84.3...v3.84.4) (2026-11-18)
 
 ### Fixes

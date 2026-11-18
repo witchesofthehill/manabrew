@@ -1,12 +1,12 @@
 import type { CSSProperties } from "react";
 
-import { PHASES } from "@/components/game/game.constants";
+import { PHASES, STOP_PHASES } from "@/components/game/game.constants";
 import { useTheme } from "@/hooks/useTheme";
 import { cn } from "@/lib/utils";
 import { readableTextColor } from "@/themes/gameTheme";
 import type { StepKind } from "@/protocol";
 
-export const PHASE_CONTROLS = PHASES.filter((phase) => phase.id !== "untap").map((phase) => ({
+export const PHASE_CONTROLS = STOP_PHASES.map((phase) => ({
   id: phase.id,
   label: phase.label,
   short: phase.short,

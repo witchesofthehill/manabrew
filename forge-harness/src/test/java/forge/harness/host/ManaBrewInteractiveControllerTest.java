@@ -14,6 +14,7 @@ import forge.game.Match;
 import forge.game.ability.AbilityFactory;
 import forge.game.card.Card;
 import forge.game.card.CardCollection;
+import forge.game.card.CounterEnumType;
 import forge.game.phase.PhaseType;
 import forge.game.player.Player;
 import forge.game.player.RegisteredPlayer;
@@ -55,6 +56,7 @@ public final class ManaBrewInteractiveControllerTest {
         run("costedTriggerIsNotConfirmedUpFront", ManaBrewInteractiveControllerTest::costedTriggerIsNotConfirmedUpFront, failures);
         run("swordOfSinewAndSteelCanTargetArtifactCreature", ManaBrewInteractiveControllerTest::swordOfSinewAndSteelCanTargetArtifactCreature, failures);
         run("sacrificeCostCanBeCancelled", ManaBrewInteractiveControllerTest::sacrificeCostCanBeCancelled, failures);
+        run("blightCostOnLoneCreatureCanBeDeclined", ManaBrewInteractiveControllerTest::blightCostOnLoneCreatureCanBeDeclined, failures);
         run("announcedXCountsImprovise", ManaBrewInteractiveControllerTest::announcedXCountsImprovise, failures);
         run("flavorNamedCommanderIsFoundInTheDeck", ManaBrewInteractiveControllerTest::flavorNamedCommanderIsFoundInTheDeck, failures);
 
@@ -159,6 +161,24 @@ public final class ManaBrewInteractiveControllerTest {
         assertEquals("chooseBoardTargets", prompt.get("type").getAsString(), "prompt type");
         assertTrue(prompt.get("cancellable").getAsBoolean(), "sacrifice cost prompt was not cancellable");
         assertEquals(2, f.p.getCardsIn(ZoneType.Battlefield).size(), "creatures on the battlefield after cancel");
+    }
+
+    private static void blightCostOnLoneCreatureCanBeDeclined() {
+        final Fixture f = new Fixture();
+        final Card scrounger = f.add("Scuzzback Scrounger", f.p, ZoneType.Battlefield);
+        final SpellAbility ability = scrounger.getTriggers().get(0).ensureAbility();
+        ability.setActivatingPlayer(f.p);
+        f.bridge.answers.add(input ->
+                "{\"type\":\"chooseCards\",\"output\":{\"type\":\"chooseCardsDecision\",\"chosenCardIds\":[]}}");
+
+        f.controller.playSpellAbilityNoStack(ability, false);
+
+        assertEquals(1, f.bridge.prompts.size(), "prompts");
+        final JsonObject prompt = f.bridge.prompts.get(0);
+        assertEquals("chooseCards", prompt.get("type").getAsString(), "prompt type");
+        assertEquals(0, prompt.get("min").getAsInt(), "blight cost prompt min");
+        assertEquals(0, scrounger.getCounters(CounterEnumType.M1M1), "-1/-1 counters after declining blight");
+        assertEquals(1, f.p.getCardsIn(ZoneType.Battlefield).size(), "permanents after declining blight");
     }
 
     private static void announcedXCountsImprovise() {

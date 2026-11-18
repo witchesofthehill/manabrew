@@ -180,6 +180,7 @@
   --animate-password-caret: password-caret 1.05s steps(1) infinite;
   --animate-update-glow: update-glow 2.2s ease-in-out infinite;
   --animate-hourglass-flip: hourglass-flip 2.4s ease-in-out infinite;
+  --animate-ellipsis: ellipsis 1.6s steps(4, jump-none) infinite;
   --animate-preview-in: preview-in 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-preview-out: preview-out 130ms ease-in both;
   --animate-preview-fade-in: preview-fade-in 150ms ease-out both;
@@ -209,6 +210,15 @@
     100% {
       opacity: 0.45;
       transform: translateY(14px) scale(0.94);
+    }
+  }
+
+  @keyframes ellipsis {
+    from {
+      clip-path: inset(0 100% 0 0);
+    }
+    to {
+      clip-path: inset(0 0 0 0);
     }
   }
 

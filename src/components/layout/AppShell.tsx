@@ -148,7 +148,7 @@ export function AppShell() {
         {accountsEnabled && <GuestNameConflictModal />}
         <RoomInviteOverlay />
         {!hideNavChrome && <TopBar override={activeTopBarOverride} />}
-        <MatchmakingStatus />
+        {hideNavChrome && <MatchmakingStatus floating />}
         <main
           className={cn(
             "relative isolate flex-1 min-h-0 overflow-auto",

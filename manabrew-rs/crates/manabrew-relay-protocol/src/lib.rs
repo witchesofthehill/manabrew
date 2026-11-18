@@ -395,6 +395,11 @@ pub enum ClientMessage {
         bracket: u8,
     },
 
+    /// Replaces every bracket searched beyond the queued decks' own.
+    SetQueueSteps {
+        steps: Vec<u8>,
+    },
+
     AcceptBotFill,
 
     AcceptMatch {
@@ -581,7 +586,8 @@ pub enum ServerMessage {
     },
 
     /// No full pod formed at the queued brackets yet. The client asks the
-    /// player whether to take an adjacent one; `AcceptQueueStep` widens it.
+    /// player whether to take an adjacent one; `AcceptQueueStep` or
+    /// `SetQueueSteps` widens it.
     QueueStepOffer {
         down: Option<u8>,
         up: Option<u8>,
@@ -604,6 +610,12 @@ pub enum ServerMessage {
         expires_s: u32,
         #[serde(default)]
         busy: u32,
+    },
+
+    /// How many members of the pending `MatchProposal` have accepted. Sent to
+    /// every member after each accept.
+    MatchProposalAccepts {
+        accepted: u32,
     },
 
     /// An open table at one of the player's queued brackets needs players.
@@ -807,6 +819,9 @@ pub struct PlayerInfo {
     /// at the same time as `room_id`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub local_game: Option<LocalGameKind>,
+    /// Brackets this player is searching for a match at; empty when not searching.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub searching_brackets: Vec<u8>,
     /// Opaque to clients: the session's IP sealed together with its handle,
     /// which only the hub can open. Carried verbatim into chat reports.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -841,9 +856,13 @@ pub const FEATURE_CARD_COSMETICS_V3: &str = "card_cosmetics_v3";
 /// Names [`ClientMessage::EnterQueue`] in `AuthResult::features`.
 pub const FEATURE_MATCHMAKING: &str = "matchmaking";
 
+/// Names [`ClientMessage::SetQueueSteps`] in `AuthResult::features`.
+pub const FEATURE_QUEUE_STEPS: &str = "queue_steps";
+
 pub const FEATURES: &[&str] = &[
     FEATURE_LOCAL_GAME,
     FEATURE_MATCHMAKING,
+    FEATURE_QUEUE_STEPS,
     FEATURE_ROOM_TRANSPORT,
     FEATURE_PEER_SIGNAL,
     FEATURE_PLANE_QUALITY,

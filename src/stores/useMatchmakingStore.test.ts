@@ -15,6 +15,7 @@ const fixture = vi.hoisted(() => ({
     declineMatch: vi.fn(),
     answerTableCall: vi.fn(),
     acceptQueueStep: vi.fn(),
+    setQueueSteps: vi.fn(),
     acceptBotFill: vi.fn(),
   },
 }));
@@ -78,13 +79,13 @@ beforeEach(async () => {
 });
 
 describe("Commander matchmaking lifecycle", () => {
-  it("plays the invitation sound when a match is ready during solo play", async () => {
+  it("plays the match-found sound when a match is ready during solo play", async () => {
     fixture.busy = true;
     await enter();
     proposal();
-    expect(playSound).toHaveBeenCalledExactlyOnceWith("roomInvite");
+    expect(playSound).toHaveBeenCalledExactlyOnceWith("matchFound");
   });
-  it("plays the invitation sound for an open table while browsing", async () => {
+  it("plays the match-found sound for an open table while browsing", async () => {
     await enter();
     emit("table_call", {
       room_id: "table",
@@ -94,7 +95,7 @@ describe("Commander matchmaking lifecycle", () => {
       seats: 1,
       expires_s: 30,
     });
-    expect(playSound).toHaveBeenCalledExactlyOnceWith("roomInvite");
+    expect(playSound).toHaveBeenCalledExactlyOnceWith("matchFound");
   });
   it("automatically accepts a single eligible deck while browsing", async () => {
     await enter([deck("Wrong", 5), deck("Exact")]);

@@ -340,6 +340,17 @@ impl MatchQueue {
         Ok(())
     }
 
+    fn proposal_accepts(&self, player_id: &str) -> Option<(Vec<String>, u32)> {
+        let proposal = &self.proposals[self.proposal_of(player_id)?];
+        let members = proposal
+            .pod
+            .members
+            .iter()
+            .map(|entry| entry.player_id.clone())
+            .collect();
+        Some((members, proposal.accepted.len() as u32))
+    }
+
     pub fn decline_match(&mut self, player_id: &str) -> Vec<String> {
         let Some(i) = self.proposal_of(player_id) else {
             return Vec::new();
@@ -404,6 +415,25 @@ impl MatchQueue {
         Ok(())
     }
 
+    pub fn set_steps(&mut self, player_id: &str, mut steps: Vec<u8>) -> Result<(), String> {
+        let entry = self
+            .entries
+            .iter_mut()
+            .find(|entry| entry.player_id == player_id)
+            .ok_or("not queued")?;
+        steps.sort_unstable();
+        steps.dedup();
+        let decks = entry.deck_brackets();
+        if let Some(step) = steps
+            .iter()
+            .find(|step| !(MIN_BRACKET..=MAX_BRACKET).contains(*step) || decks.contains(*step))
+        {
+            return Err(format!("bracket {step} is not an extra bracket"));
+        }
+        entry.steps = steps;
+        Ok(())
+    }
+
     pub fn accept_bot_fill(&mut self, player_id: &str) -> Result<(), String> {
         let entry = self
             .entries
@@ -423,6 +453,19 @@ impl MatchQueue {
                     && entry.brackets().iter().any(|b| other.accepts(*b))
             })
             .count() as u32
+    }
+
+    pub fn searching(&self) -> BTreeMap<String, Vec<u8>> {
+        self.entries
+            .iter()
+            .chain(self.proposals.iter().flat_map(|p| p.pod.members.iter()))
+            .chain(self.calls.iter().flat_map(|call| call.joiners.iter()))
+            .map(|entry| {
+                let mut brackets = entry.brackets();
+                brackets.sort_unstable();
+                (entry.player_id.clone(), brackets)
+            })
+            .collect()
     }
 
     pub fn get(&self, player_id: &str) -> Option<&QueueEntry> {
@@ -653,6 +696,21 @@ pub fn record_player(
     }
 }
 
+pub fn send_proposal_accepts(state: &Arc<ServerState>, player_id: &str) {
+    let progress = state
+        .queue
+        .lock()
+        .expect("queue lock")
+        .proposal_accepts(player_id);
+    let Some((members, accepted)) = progress else {
+        return;
+    };
+    let msg = ServerMessage::MatchProposalAccepts { accepted };
+    for member in &members {
+        send(state, member, &msg);
+    }
+}
+
 fn send(state: &Arc<ServerState>, player_id: &str, msg: &ServerMessage) {
     if let Ok(json) = serde_json::to_string(msg) {
         emit_to(state, player_id, msg, &json);
@@ -675,6 +733,7 @@ pub async fn matchmaking_loop(state: Arc<ServerState>) {
     let mut ticker = tokio::time::interval(QUEUE_TICK);
     ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     let mut tick: u64 = 0;
+    let mut searching = BTreeMap::new();
     loop {
         ticker.tick().await;
         tick += 1;
@@ -683,6 +742,11 @@ pub async fn matchmaking_loop(state: Arc<ServerState>) {
             Instant::now(),
             tick.is_multiple_of(STATUS_EVERY_TICKS),
         );
+        let current = state.queue.lock().expect("queue lock").searching();
+        if current != searching {
+            searching = current;
+            crate::connection::broadcast_player_list(&state);
+        }
     }
 }
 

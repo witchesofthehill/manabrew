@@ -503,6 +503,7 @@ pub(crate) fn emit_to(state: &Arc<ServerState>, player_id: &str, msg: &ServerMes
 }
 
 fn player_list(state: &Arc<ServerState>) -> Vec<crate::protocol::PlayerInfo> {
+    let mut searching = state.queue.lock().expect("queue lock").searching();
     state
         .players
         .iter()
@@ -521,6 +522,7 @@ fn player_list(state: &Arc<ServerState>) -> Vec<crate::protocol::PlayerInfo> {
                 .connected
                 .then(|| entry.value().local_game)
                 .flatten(),
+            searching_brackets: searching.remove(entry.key()).unwrap_or_default(),
             seal: entry.value().seal.clone(),
         })
         .collect()
@@ -2647,6 +2649,25 @@ fn handle_client_message(
             }
         }
 
+        ClientMessage::SetQueueSteps { steps } => {
+            let result = {
+                let mut queue = state.queue.lock().expect("queue lock");
+                queue
+                    .set_steps(player_id, steps.clone())
+                    .map(|()| matchmaking::queue_status(&queue, player_id))
+            };
+            match result {
+                Ok(status) => {
+                    info!("[queue] '{}' set extra brackets {:?}", username, steps);
+                    send_msg(sender, &status);
+                    matchmaking::record_player(state, player_id, "steps_set", |_, event| {
+                        event.brackets = steps;
+                    });
+                }
+                Err(msg) => send_error(sender, &ServerError::InvalidQueue(msg)),
+            }
+        }
+
         ClientMessage::AcceptBotFill => {
             let result = {
                 let mut queue = state.queue.lock().expect("queue lock");
@@ -2671,8 +2692,9 @@ fn handle_client_message(
                 .lock()
                 .expect("queue lock")
                 .accept_match(player_id, deck_index);
-            if let Err(message) = result {
-                send_error(sender, &ServerError::InvalidQueue(message));
+            match result {
+                Ok(()) => matchmaking::send_proposal_accepts(state, player_id),
+                Err(message) => send_error(sender, &ServerError::InvalidQueue(message)),
             }
         }
 
@@ -2825,6 +2847,7 @@ fn msg_type_of(msg: &ServerMessage) -> &'static str {
         ServerMessage::QueueStepOffer { .. } => "QueueStepOffer",
         ServerMessage::QueueBotFillOffer { .. } => "QueueBotFillOffer",
         ServerMessage::MatchProposal { .. } => "MatchProposal",
+        ServerMessage::MatchProposalAccepts { .. } => "MatchProposalAccepts",
         ServerMessage::TableCall { .. } => "TableCall",
         ServerMessage::MatchFound { .. } => "MatchFound",
     }
@@ -2861,6 +2884,7 @@ fn client_msg_type(msg: &ClientMessage) -> &'static str {
         ClientMessage::InviteToRoom { .. } => "InviteToRoom",
         ClientMessage::EnterQueue { .. } => "EnterQueue",
         ClientMessage::AcceptQueueStep { .. } => "AcceptQueueStep",
+        ClientMessage::SetQueueSteps { .. } => "SetQueueSteps",
         ClientMessage::AcceptBotFill => "AcceptBotFill",
         ClientMessage::AcceptMatch { .. } => "AcceptMatch",
         ClientMessage::DeclineMatch => "DeclineMatch",

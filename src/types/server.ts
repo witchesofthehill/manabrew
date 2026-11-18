@@ -76,6 +76,7 @@ export interface PlayerInfo {
   avatar_url?: string;
   room_id?: string;
   local_game?: LocalGameKind;
+  searching_brackets?: number[];
   seal?: string;
 }
 export interface AuthResultPayload {
@@ -223,6 +224,7 @@ export const RELAY_FEATURE = {
   LimitedDraftClocks: "limited_draft_clocks",
   LimitedSessionRecovery: "limited_session_recovery",
   Matchmaking: "matchmaking",
+  QueueSteps: "queue_steps",
 } as const;
 export type RelayFeature = (typeof RELAY_FEATURE)[keyof typeof RELAY_FEATURE];
 /** Engine slots, not names: the relay maps them to seats itself. */
@@ -380,6 +382,9 @@ export interface MatchProposalPayload {
   players: number;
   expires_s: number;
   busy: number;
+}
+export interface MatchProposalAcceptsPayload {
+  accepted: number;
 }
 export interface TableCallPayload {
   room_id: string;

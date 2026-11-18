@@ -10,6 +10,7 @@ import { useServerStore } from "@/stores/useServerStore";
 import { getPlatform } from "@/platform";
 import type {
   MatchFoundPayload,
+  MatchProposalAcceptsPayload,
   MatchProposalPayload,
   QueueBotFillOfferPayload,
   QueueBracketCount,
@@ -19,6 +20,7 @@ import type {
   TableCallPayload,
   ServerErrorPayload,
 } from "@/types/server";
+import { RELAY_FEATURE } from "@/types/server";
 
 export type PodSize = 2 | 3 | 4;
 
@@ -28,18 +30,13 @@ export function tableLabel(size: number): string {
   return size === 2 ? "1v1" : `${size}-player pod`;
 }
 
-export function podSizesFor(size: PodSize, otherPodSize: boolean): PodSize[] {
-  if (size === 2 || !otherPodSize) return [size];
-  return [size, size === 4 ? 3 : 4];
-}
-
 function requestCallNotifications(): void {
   if (typeof Notification === "undefined" || Notification.permission !== "default") return;
   void Notification.requestPermission().catch(() => undefined);
 }
 
 function notifyMatch(title: string, body: string, expires: number): void {
-  playSound("roomInvite");
+  playSound("matchFound");
   if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
   if (!document.hidden) return;
   try {
@@ -70,6 +67,7 @@ interface MatchmakingState {
   botFillOffer: number | null;
   botFill: boolean;
   proposal: MatchProposalPayload | null;
+  proposalAccepts: number;
   accepted: boolean;
   proposalExpiresAt: number | null;
   tableCallExpiresAt: number | null;
@@ -79,7 +77,7 @@ interface MatchmakingState {
   tableCall: TableCallPayload | null;
   answerTableCall(join: boolean, deckIndex?: number): Promise<void>;
   enter(podSizes: PodSize[], decks: Deck[]): Promise<void>;
-  acceptStep(bracket: number): Promise<void>;
+  setSteps(steps: number[]): Promise<void>;
   dismissOffer(): void;
   acceptBotFill(): Promise<void>;
   dismissBotFill(): void;
@@ -100,6 +98,7 @@ const IDLE: Pick<
   | "botFillOffer"
   | "botFill"
   | "proposal"
+  | "proposalAccepts"
   | "accepted"
   | "proposalExpiresAt"
   | "tableCallExpiresAt"
@@ -116,6 +115,7 @@ const IDLE: Pick<
   botFillOffer: null,
   botFill: false,
   proposal: null,
+  proposalAccepts: 0,
   accepted: false,
   proposalExpiresAt: null,
   tableCallExpiresAt: null,
@@ -164,6 +164,7 @@ function listen(set: (partial: Partial<MatchmakingState>) => void, get: () => Ma
       set({
         phase: "proposed",
         proposal: payload,
+        proposalAccepts: 0,
         proposalExpiresAt: Date.now() + payload.expires_s * 1000,
         tableCall: null,
         tableCallExpiresAt: null,
@@ -180,6 +181,9 @@ function listen(set: (partial: Partial<MatchmakingState>) => void, get: () => Ma
         void get()
           .acceptMatch()
           .catch(() => undefined);
+    }),
+    events.on<MatchProposalAcceptsPayload>("server:match_proposal_accepts", (payload) => {
+      if (get().phase === "proposed") set({ proposalAccepts: payload.accepted });
     }),
     events.on<TableCallPayload>("server:table_call", (payload) => {
       if (get().phase !== "queued") return;
@@ -275,8 +279,21 @@ export const useMatchmakingStore = create<MatchmakingState>((set, get) => ({
       throw error;
     }
   },
-  async acceptStep(bracket) {
-    await getPlatform().server?.acceptQueueStep(bracket);
+  async setSteps(steps) {
+    const server = getPlatform().server;
+    if (!server) return;
+    if (useServerStore.getState().hasRelayFeature(RELAY_FEATURE.QueueSteps)) {
+      await server.setQueueSteps(steps);
+    } else {
+      const decks = get().queuedDecks.map((deck) => deck.bracket);
+      const low = Math.min(...decks);
+      const high = Math.max(...decks);
+      const distance = (bracket: number) => (bracket < low ? low - bracket : bracket - high);
+      const added = steps
+        .filter((bracket) => !get().brackets.includes(bracket))
+        .sort((a, b) => distance(a) - distance(b));
+      for (const bracket of added) await server.acceptQueueStep(bracket);
+    }
     set({ offer: null });
   },
   dismissOffer() {

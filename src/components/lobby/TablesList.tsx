@@ -176,6 +176,7 @@ export function TablesList({
         >
           <MultiplayerStartPanel
             disabled={disabled}
+            searching={!matchmakingIdle}
             onSetUp={onNewGame}
             onFindGame={
               matchmakingSupported && matchmakingIdle ? () => setFindGameOpen(true) : undefined
@@ -246,7 +247,12 @@ export function TablesList({
                   {hasTables ? "No tables match your search." : "No player tables are waiting."}
                 </p>
                 {!hasTables && (
-                  <Button variant="outline" size="sm" onClick={onNewGame} disabled={disabled}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onNewGame}
+                    disabled={disabled || !matchmakingIdle}
+                  >
                     Create a table
                   </Button>
                 )}

@@ -1482,6 +1482,10 @@ class WebServerApi implements IServerApi {
     this.send({ type: "AcceptQueueStep", bracket });
   }
 
+  async setQueueSteps(steps: number[]): Promise<void> {
+    this.send({ type: "SetQueueSteps", steps });
+  }
+
   async acceptBotFill(): Promise<void> {
     this.send({ type: "AcceptBotFill" });
   }
@@ -2337,6 +2341,7 @@ class WebServerApi implements IServerApi {
           busy: msg.busy ?? 0,
         },
       ],
+      MatchProposalAccepts: ["server:match_proposal_accepts", { accepted: msg.accepted }],
       TableCall: [
         "server:table_call",
         {

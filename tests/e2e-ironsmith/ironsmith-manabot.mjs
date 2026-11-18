@@ -6,6 +6,16 @@ const base = process.env.BASE || "http://localhost:1420";
 const browser = await chromium.launch(launchOpts());
 try {
   const page = await browser.newPage();
+  let workersCreated = 0;
+  const liveWorkers = new Set();
+  const workerClosures = [];
+  page.on("worker", (worker) => {
+    if (!worker.url().includes("ironsmith.worker")) return;
+    workersCreated += 1;
+    liveWorkers.add(worker);
+    worker.on("close", () => liveWorkers.delete(worker));
+    workerClosures.push(new Promise((resolve) => worker.once("close", resolve)));
+  });
   await page.route("**/__ironsmith-manabot", (route) =>
     route.fulfill({ contentType: "text/html", body: "<!doctype html><html><body></body></html>" }),
   );
@@ -85,7 +95,7 @@ try {
           }
           if (scenario.name === "takeover") {
             for (const index of [1, 2]) {
-              const { prompt: opening } = api.readManabrewView(index);
+              const { prompt: opening } = await api.readManabrewView(index);
               if (opening?.input.type !== "mulligan") throw new Error("Expected opening hand");
               await api.respond({
                 playerSlot: `player-${index}`,
@@ -103,12 +113,13 @@ try {
               from: 0,
               entries: [...api.entries],
             };
-            if (api.botAgents.size === 0) throw new Error("No bot agent to release at handoff");
+            const engine = api.game;
             events.emit("server:room_update", { room: { host: "Seat 2" } });
             await api.work;
-            if (api.isHost || api.botAgents.size !== 0)
-              throw new Error("Former human host retained its bot agents");
+            if (api.isHost || api.game !== engine)
+              throw new Error("Former human host did not retain its replicated engine");
             await api.applySync(snapshot);
+            if (api.game === engine) throw new Error("Transcript restart retained the old worker");
             if (api.needsSync || api.entries.length !== snapshot.entries.length)
               throw new Error(
                 `Transcript replay diverged at ${api.entries.length}/${snapshot.entries.length}`,
@@ -137,7 +148,8 @@ try {
                 `Game ended before bots played and attacked: ${JSON.stringify({ scenario: scenario.name, turn: view.turn, seats, combat, damage, players: view.players })}`,
               );
             const current =
-              prompt ?? (scenario.name === "takeover" ? api.readManabrewView(2).prompt : null);
+              prompt ??
+              (scenario.name === "takeover" ? (await api.readManabrewView(2)).prompt : null);
             if (!current)
               throw new Error(`Human prompt missing in ${scenario.name} at turn ${view?.turn}`);
             prompt = null;
@@ -201,7 +213,15 @@ try {
         results.push({ scenario: scenario.name, turn: view?.turn, seats, combat, damage, errors });
       } finally {
         clearTimeout(timer);
+        const pendingView = api.game
+          ? api.readManabrewView(scenario.local).then(
+              () => "resolved",
+              (error) => error.name,
+            )
+          : null;
         await api.endGame();
+        if (pendingView && (await pendingView) !== "AbortError")
+          throw new Error("Game teardown did not cancel the pending worker request");
         if ((await api.getPrompt()) !== null) throw new Error("Game teardown retained a prompt");
         unsubscribe.forEach((stop) => stop());
       }
@@ -213,6 +233,19 @@ try {
     assert.deepEqual(result.errors, []);
     console.log(`PASS: Ironsmith Manabot ${JSON.stringify(result)}`);
   }
+  assert.ok(workersCreated >= 5, "Each game and transcript restart must own an engine worker");
+  let closeTimer;
+  try {
+    await Promise.race([
+      Promise.all(workerClosures),
+      new Promise((_, reject) => {
+        closeTimer = setTimeout(() => reject(new Error("Engine worker did not terminate")), 5000);
+      }),
+    ]);
+  } finally {
+    clearTimeout(closeTimer);
+  }
+  assert.equal(liveWorkers.size, 0, "Game teardown must terminate every engine worker");
 } catch (error) {
   console.error("FAIL:", error);
   process.exitCode = 1;

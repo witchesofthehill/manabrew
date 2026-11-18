@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.84.4](https://github.com/witchesofthehill/manabrew/compare/v3.84.3...v3.84.4) (2026-11-18)
+
+### Fixes
+
+* **ironsmith:** connect manabot and keep hosting on humans ([#1240](https://github.com/witchesofthehill/manabrew/issues/1240)) ([691a794](https://github.com/witchesofthehill/manabrew/commit/691a794ca297a5bfe601878014f54fb574730cc6))
+
 ## [3.84.3](https://github.com/witchesofthehill/manabrew/compare/v3.84.2...v3.84.3) (2026-11-18)
 
 ### Fixes

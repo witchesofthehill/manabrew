@@ -43,7 +43,11 @@ import {
   isForgeWasmSupported,
   recordForgeWasmVerdict,
 } from "@/lib/forgeWasm";
-import { FORGE_START_TIMEOUT_MESSAGE, withForgeStartTimeout } from "@/game/forgeWasmValidation";
+import {
+  FORGE_START_TIMEOUT_MESSAGE,
+  firstGameSignal,
+  withForgeStartTimeout,
+} from "@/game/forgeWasmValidation";
 import { getPlatform } from "@/platform";
 import { peek as peekGauntletMatch, clear as clearGauntletMatch } from "@/lib/gauntletReturn";
 import { applyPrompt } from "./gameStore.constants";
@@ -303,6 +307,7 @@ async function initializeGame({
   });
   setErrorReportingEngine(engineLabel);
   const firstForgeStart = engine === "Forge" && platformType === "web" && !hasForgeWasmVerdict();
+  const firstPrompt = firstForgeStart ? firstGameSignal(true) : null;
   if (firstForgeStart) beginForgeWasmTrial();
   try {
     const start = runtime.api.startGame({
@@ -313,7 +318,9 @@ async function initializeGame({
       engine,
       aiController: usePreferencesStore.getState().aiController,
     });
-    const result = await (firstForgeStart ? withForgeStartTimeout(start) : start);
+    const result = await (firstPrompt
+      ? withForgeStartTimeout(start.then((started) => firstPrompt.signal.then(() => started)))
+      : start);
     if (!isLaunchCurrent()) {
       await runtime.api.endGame();
       throw new GameLaunchCancelledError();
@@ -321,6 +328,9 @@ async function initializeGame({
     set({ debugInfo: `Game started: ${result}.` });
     if (firstForgeStart) recordForgeWasmVerdict(true);
   } catch (error) {
+    if (!isLaunchCurrent() && !(error instanceof GameLaunchCancelledError)) {
+      throw new GameLaunchCancelledError();
+    }
     // A launch that never became a game must not be reported as the next one.
     abandonOfflineGame();
     clearLocalGame();
@@ -347,6 +357,8 @@ async function initializeGame({
       });
     }
     throw error;
+  } finally {
+    firstPrompt?.stop();
   }
 }
 async function sendRepeatDirective(directive: DirectiveInput): Promise<void> {
@@ -390,6 +402,14 @@ export const useGameStore = create<GameState>()(
           if (next.has(playerId)) next.delete(playerId);
           else next.add(playerId);
           return { hiddenPlaymats: next };
+        }),
+      ignoredCardIds: new Set<string>(),
+      toggleCardIgnored: (cardId) =>
+        set((state) => {
+          const next = new Set(state.ignoredCardIds);
+          if (next.has(cardId)) next.delete(cardId);
+          else next.add(cardId);
+          return { ignoredCardIds: next };
         }),
       updateGameView: (view) => set({ gameView: view }),
       setGameConfig: (config) => set({ gameConfig: config }),
@@ -775,6 +795,7 @@ export const useGameStore = create<GameState>()(
           myPlayerSlot: null,
           gameDecks: {},
           hiddenPlaymats: new Set<string>(),
+          ignoredCardIds: new Set<string>(),
         });
         stopActiveManualRoomSync();
         resetSelectedGameRuntime();

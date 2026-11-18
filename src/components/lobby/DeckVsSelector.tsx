@@ -774,7 +774,7 @@ export function DeckVsSelector({
           username: assignments[index].label,
           is_bot: index > 0,
           selected_deck_name: seat.deck?.name,
-          ready: !seatErrors[index],
+          ready: true,
           connected: true,
         }))}
         centerContent={

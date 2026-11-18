@@ -239,7 +239,12 @@ impl Room {
                     && self.sealed_config.is_none();
             }
             if self.host_player_id == player_id && self.limited_session_id.is_none() {
-                if let Some(new_host) = self.players.first() {
+                let new_host = self
+                    .players
+                    .iter()
+                    .find(|p| p.connected && !p.is_bot)
+                    .or_else(|| self.players.iter().find(|p| !p.is_bot));
+                if let Some(new_host) = new_host {
                     self.host_player_id = new_host.player_id.clone();
                     self.host_username = new_host.username.clone();
                 }
@@ -342,6 +347,28 @@ impl Room {
                 })
             })
             .collect()
+    }
+
+    /// Whether every seat runs its own copy of the game, so any seat can take
+    /// over from a lost host. Ironsmith replicates its engine through a shared
+    /// transcript; the other engines live only on the seat that started them.
+    pub fn engine_survives_host_loss(&self) -> bool {
+        self.engine == EngineKind::Ironsmith && !self.hosted && self.limited_session_id.is_none()
+    }
+
+    /// Moves the host role to the first connected human seat other than the
+    /// current host. Returns false, changing nothing, when there is none.
+    pub fn migrate_host(&mut self) -> bool {
+        let Some(new_host) = self
+            .players
+            .iter()
+            .find(|p| p.connected && !p.is_bot && p.player_id != self.host_player_id)
+        else {
+            return false;
+        };
+        self.host_player_id = new_host.player_id.clone();
+        self.host_username = new_host.username.clone();
+        true
     }
 
     pub fn is_host(&self, player_id: &str) -> bool {
@@ -554,6 +581,41 @@ mod tests {
         assert!(r.is_controller("human"));
         r.add_player("bot".into(), "bot".into(), true).unwrap();
         assert!(!r.is_controller("bot"));
+    }
+
+    #[test]
+    fn a_lost_host_hands_a_replicated_game_to_the_next_connected_human() {
+        let mut r = room(true);
+        r.engine = EngineKind::Ironsmith;
+        r.add_player("bot".into(), "bot".into(), true).unwrap();
+        r.add_player("away".into(), "away".into(), false).unwrap();
+        r.add_player("guest".into(), "guest".into(), false).unwrap();
+        assert!(r.engine_survives_host_loss());
+
+        r.set_connected("host", false);
+        r.set_connected("away", false);
+        assert!(r.migrate_host());
+        assert!(r.is_host("guest"));
+        assert_eq!(r.host_username(), "guest");
+
+        // Nobody else is left to take it: the host stays where it is.
+        r.set_connected("guest", false);
+        assert!(!r.migrate_host());
+        assert!(r.is_host("guest"));
+    }
+
+    #[test]
+    fn engines_that_live_on_the_host_do_not_survive_losing_it() {
+        assert!(!room(true).engine_survives_host_loss());
+    }
+
+    #[test]
+    fn a_leaving_host_passes_the_room_to_a_connected_human_before_a_bot() {
+        let mut r = room(true);
+        r.add_player("bot".into(), "bot".into(), true).unwrap();
+        r.add_player("guest".into(), "guest".into(), false).unwrap();
+        r.remove_player("host");
+        assert!(r.is_host("guest"));
     }
 
     #[test]

@@ -1682,6 +1682,7 @@ export class BoardRegion {
     const theme = this.host.getTheme();
     const card = sprite.card;
     sprite.setDoomed(card.wouldDieInCombat ?? false);
+    sprite.setIgnored(state.ignoredCardIds?.has(card.id) ?? false);
     if (this.attackTargetRingId === card.id) {
       const color = hexToNum(theme.gameTheme.targeting.hostile);
       if (this.attackTargetRingPulsing) sprite.setPlayableRing(color);

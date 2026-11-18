@@ -202,7 +202,7 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    exclude: ["@/wasm/wasm", "ironsmith-wasm", "card-glint"],
+    exclude: ["@/wasm/wasm", "ironsmith-wasm", "card-glint", "@jsquash/webp"],
   },
   assetsInclude: ["**/*.wasm"],
   build: {

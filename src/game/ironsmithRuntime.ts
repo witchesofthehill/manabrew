@@ -1,6 +1,7 @@
 import initIronsmith, { WasmGame } from "ironsmith-wasm";
 import ironsmithWasmModuleUrl from "ironsmith-wasm/ironsmith_bg.wasm?url";
 import { getPlatform } from "@/platform";
+import type { WasmManabot } from "@/wasm/wasm";
 import { createRoomRelayEnvelope, isRoomRelayProtocol } from "./roomRelay";
 import type {
   IGameApi,
@@ -14,7 +15,7 @@ import type { Deck, DeckCard } from "@/protocol/deck";
 import type { DirectiveInput, GameFormat, Prompt, PromptOutput, ProtocolError } from "@/protocol";
 
 import type { GameViewDto } from "@/protocol/game";
-import type { RoomMessagePayload } from "@/types/server";
+import type { RoomInfo, RoomMessagePayload } from "@/types/server";
 
 let ironsmithInit: Promise<unknown> | null = null;
 const IRONSMITH_RELAY_PROTOCOL = "ironsmith-trusted";
@@ -132,22 +133,55 @@ interface EncryptedRelayPayload {
   data: string;
 }
 
+// Every seat runs its own copy of the engine. The host is only the sequencer:
+// it orders the inputs (prompt responses and directives) into a transcript and
+// every seat applies that transcript to its own engine, then renders its own
+// view. Because each seat already holds the whole game, any seat can take over
+// as host when the room hands it the role.
+type IronsmithMatchConfig = ReturnType<typeof matchConfig>;
+
+type IronsmithInput =
+  | { kind: "response"; slot: string; promptId: number; action: PromptOutput }
+  | { kind: "directive"; slot: string; directive: DirectiveInput };
+
+// `digest` fingerprints the public game state after the input was applied and
+// `rejected` says whether the host's engine refused it, so a seat whose engine
+// disagrees with the host's on either notices and resyncs.
+type IronsmithTranscriptEntry = IronsmithInput & {
+  seq: number;
+  digest: string;
+  rejected: boolean;
+};
+
 type IronsmithPrivatePayload =
-  | { type: "state"; state: { gameView: GameViewDto } }
-  | { type: "prompt"; prompt: Prompt }
-  | { type: "error"; error: ProtocolError }
+  // Host to seat. `config` restarts the seat's engine from the match setup;
+  // without it the entries extend what the seat already has.
+  | {
+      type: "sync";
+      config?: IronsmithMatchConfig;
+      from: number;
+      entries: IronsmithTranscriptEntry[];
+      more: boolean;
+    }
+  | { type: "entry"; entry: IronsmithTranscriptEntry }
   | { type: "fatal"; message: string }
+  // Seat to host.
+  | { type: "syncRequest"; have: number; restart: boolean }
   | { type: "response"; promptId: number; action: PromptOutput }
   | { type: "directive"; directive: DirectiveInput };
 
 type IronsmithRoomRelayPayload =
-  | { type: "hello"; seat: string; publicKey: JsonWebKey }
+  | { type: "hello"; seat: string; publicKey: JsonWebKey; transcript?: number }
   | { type: "private"; to: string; encrypted: EncryptedRelayPayload };
+
+const IRONSMITH_TRANSCRIPT_VERSION = 1;
+const SYNC_CHUNK_ENTRIES = 200;
+const SYNC_RETRY_MS = 2000;
 
 // Trusted mode encrypts per-seat payloads against casual room observers, but it
 // is not a cryptographic identity system. Seat identity is bound only to the
-// relay-authenticated username for this room, and peer keys are pinned for the
-// lifetime of this browser game session.
+// relay-authenticated username for this room; a seat's key lasts for its page
+// load and is replaced when that seat comes back from a reload.
 export class IronsmithTrustedGameApi implements IGameApi {
   private game: IronsmithWasmGame | null = null;
   private isMultiplayer = false;
@@ -156,6 +190,7 @@ export class IronsmithTrustedGameApi implements IGameApi {
   private playerNames: string[] = [];
   private playerSlots: string[] = [];
   private botPlayerSlots = new Set<string>();
+  private botAgents = new Map<string, WasmManabot>();
   private prompts = new Map<string, Prompt>();
   private roomRelayUnsubscribe: (() => void) | null = null;
   private keyPairPromise: Promise<CryptoKeyPair | null> | null = null;
@@ -164,6 +199,19 @@ export class IronsmithTrustedGameApi implements IGameApi {
   private sharedKeys = new Map<string, CryptoKey>();
   private hostPlayerSlot: string | null = null;
   private concededPlayerSlots = new Set<string>();
+  private config: IronsmithMatchConfig | null = null;
+  private entries: IronsmithTranscriptEntry[] = [];
+  // Serializes everything that touches the engine or the transcript.
+  private work: Promise<void> = Promise.resolve();
+  private needsSync = false;
+  private syncRestart = false;
+  private syncTimer: ReturnType<typeof setInterval> | null = null;
+  private roomUnsubscribes: Array<() => void> = [];
+  private versionMismatchReported = false;
+  // The local seat's last input the host has not put in the transcript yet.
+  // If the host is lost before it does, the input goes to the next host.
+  private pendingInput: IronsmithInput | null = null;
+  private resendPending = false;
 
   async startGame(params: StartGameParams): Promise<string> {
     const opponentDeck = params.opponentDecks?.[0] ?? params.deck;
@@ -183,47 +231,42 @@ export class IronsmithTrustedGameApi implements IGameApi {
   }
 
   async startMultiplayerGame(params: StartMultiplayerGameParams): Promise<void> {
+    this.resetGame();
     this.isMultiplayer = true;
     this.isHost = params.localIsHost;
     this.localPlayerSlot = `player-${params.enginePlayerIndex}`;
     this.playerNames = params.playerNames;
     this.playerSlots = params.playerNames.map((_, index) => `player-${index}`);
     this.botPlayerSlots = new Set(params.botPlayerSlots ?? []);
-    this.prompts.clear();
-    this.concededPlayerSlots.clear();
     this.hostPlayerSlot =
       params.hostPlayerSlot ?? (params.localIsHost ? this.localPlayerSlot : null);
     this.peerPublicKeys.clear();
     this.peerKeyFingerprints.clear();
     this.sharedKeys.clear();
     this.installRoomRelayListener();
+    this.installRoomListeners();
     await this.sendRelayHello();
 
-    if (!params.localIsHost) return;
-
-    await this.startHost(params);
+    if (params.localIsHost) {
+      await this.startHost(params);
+      return;
+    }
+    // A guest builds its engine from the host's transcript; load the engine
+    // while that is on its way.
+    void ensureIronsmith().catch((error) => {
+      console.warn("[Ironsmith] engine failed to load", error);
+    });
+    this.requestSync(true);
   }
 
   async respond(params: RespondParams): Promise<void> {
-    const action = params.action;
     const playerSlot = params.playerSlot ?? this.localPlayerSlot ?? "player-0";
-    if (this.isMultiplayer && !this.isHost) {
-      const hostSlot = this.hostPlayerSlot;
-      if (!hostSlot) {
-        await this.sendRelayHello();
-        throw new Error("Ironsmith host relay is not ready yet; try again in a moment.");
-      }
-      const sent = await this.sendPrivateRelay(hostSlot, {
-        type: "response",
-        promptId: params.promptId,
-        action,
-      });
-      if (!sent) {
-        throw new Error("Ironsmith private relay is not ready yet; try again in a moment.");
-      }
-      return;
-    }
-    await this.applyResponse(playerSlot, params.promptId, action);
+    await this.submit({
+      kind: "response",
+      slot: playerSlot,
+      promptId: params.promptId,
+      action: params.action,
+    });
   }
 
   async sendHostDirective(_directive: DirectiveInput): Promise<void> {
@@ -232,40 +275,24 @@ export class IronsmithTrustedGameApi implements IGameApi {
 
   async sendDirective(params: SendDirectiveParams): Promise<void> {
     const playerSlot = params.playerSlot ?? this.localPlayerSlot ?? "player-0";
-    if (this.isMultiplayer && !this.isHost) {
-      const hostSlot = this.hostPlayerSlot;
-      if (!hostSlot) {
-        await this.sendRelayHello();
-        throw new Error("Ironsmith host relay is not ready yet; try again in a moment.");
-      }
-      const sent = await this.sendPrivateRelay(hostSlot, {
-        type: "directive",
-        directive: params.directive,
-      });
-      if (!sent) {
-        throw new Error("Ironsmith private relay is not ready yet; try again in a moment.");
-      }
-      return;
-    }
-    await this.applyDirective(playerSlot, params.directive);
+    await this.submit({ kind: "directive", slot: playerSlot, directive: params.directive });
   }
 
   async endGame(): Promise<void> {
     this.roomRelayUnsubscribe?.();
     this.roomRelayUnsubscribe = null;
-    this.game?.free();
-    this.game = null;
+    for (const unsubscribe of this.roomUnsubscribes) unsubscribe();
+    this.roomUnsubscribes = [];
+    this.resetGame();
     this.isMultiplayer = false;
     this.isHost = false;
     this.localPlayerSlot = null;
     this.playerNames = [];
     this.playerSlots = [];
     this.botPlayerSlots.clear();
-    this.prompts.clear();
     this.peerPublicKeys.clear();
     this.peerKeyFingerprints.clear();
     this.sharedKeys.clear();
-    this.concededPlayerSlots.clear();
     this.hostPlayerSlot = null;
   }
 
@@ -273,12 +300,41 @@ export class IronsmithTrustedGameApi implements IGameApi {
     return this.localPlayerSlot ? (this.prompts.get(this.localPlayerSlot) ?? null) : null;
   }
 
+  private clearBotAgents(): void {
+    for (const agent of this.botAgents.values()) agent.free();
+    this.botAgents.clear();
+  }
+
+  private resetGame(): void {
+    this.clearBotAgents();
+    this.game?.free();
+    this.game = null;
+    this.config = null;
+    this.entries = [];
+    this.prompts.clear();
+    this.concededPlayerSlots.clear();
+    this.needsSync = false;
+    this.syncRestart = false;
+    this.versionMismatchReported = false;
+    this.pendingInput = null;
+    this.resendPending = false;
+    if (this.syncTimer) clearInterval(this.syncTimer);
+    this.syncTimer = null;
+  }
+
+  // Runs one piece of engine or transcript work after the ones before it.
+  private enqueue(run: () => Promise<void>): Promise<void> {
+    const next = this.work.then(run, run);
+    this.work = next.catch(() => undefined);
+    return next;
+  }
+
   private async startHost(
     params: StartMultiplayerGameParams,
     botSlots = new Set(params.botPlayerSlots ?? []),
   ): Promise<void> {
     await ensureIronsmith();
-    await this.endHostOnly();
+    this.resetGame();
     const game = new WasmGame() as IronsmithWasmGame;
     this.game = game;
     this.isHost = true;
@@ -301,103 +357,336 @@ export class IronsmithTrustedGameApi implements IGameApi {
       );
     }
     game.startManabrewMatch(config);
-    await this.publish();
+    game.manabrewView(0);
+    this.config = config;
+    await this.enqueue(async () => {
+      await this.broadcastPublicState();
+      for (const slot of this.remoteHumanSlots()) await this.sendSync(slot, 0, true);
+      await this.afterChange();
+    });
   }
 
-  private async endHostOnly(): Promise<void> {
-    this.game?.free();
-    this.game = null;
-    this.prompts.clear();
-    this.concededPlayerSlots.clear();
+  // A seat's input goes to the host, which orders it into the transcript.
+  private async submit(input: IronsmithInput): Promise<void> {
+    if (!this.isMultiplayer || this.isHost) {
+      await this.enqueue(() => this.hostApply(input));
+      return;
+    }
+    if (!this.hostPlayerSlot) {
+      await this.sendRelayHello();
+      throw new Error("Ironsmith host relay is not ready yet; try again in a moment.");
+    }
+    if (!(await this.sendToHost(input))) {
+      throw new Error("Ironsmith private relay is not ready yet; try again in a moment.");
+    }
+    this.pendingInput = input;
   }
 
-  private async applyResponse(
-    playerSlot: string,
-    promptId: number,
-    action: PromptOutput,
-  ): Promise<void> {
-    if (!this.game) return;
-    const playerIndex = Number(playerSlot.replace("player-", ""));
-    try {
-      const result = plainify(
-        this.game.manabrewRespond(playerIndex, promptId, action),
-      ) as IronsmithViewResult;
-      if (result.error) {
-        await this.publishProtocolError(playerSlot, result.error);
+  private async sendToHost(input: IronsmithInput): Promise<boolean> {
+    if (!this.hostPlayerSlot) return false;
+    return this.sendPrivateRelay(
+      this.hostPlayerSlot,
+      input.kind === "response"
+        ? { type: "response", promptId: input.promptId, action: input.action }
+        : { type: "directive", directive: input.directive },
+    );
+  }
+
+  // After a host change: an input the lost host never recorded is still the
+  // local seat's answer, so hand it to whoever hosts now.
+  private async resubmitPending(): Promise<void> {
+    if (!this.resendPending) return;
+    this.resendPending = false;
+    const input = this.pendingInput;
+    if (!input || !this.localPlayerSlot) return;
+    if (input.kind === "response") {
+      const open = this.prompts.get(this.localPlayerSlot);
+      if (Number(open?.promptId ?? -1) !== input.promptId) {
+        this.pendingInput = null;
+        return;
       }
-    } finally {
-      await this.publish();
+    }
+    if (this.isHost) {
+      this.pendingInput = null;
+      await this.hostApply(input);
+    } else {
+      await this.sendToHost(input);
     }
   }
 
-  private async applyDirective(playerSlot: string, directive: DirectiveInput): Promise<void> {
-    if (!this.game) return;
+  // Host only: apply an input, record it, and send it to every other seat.
+  // Rejected inputs are recorded too, so every engine sees the same history.
+  private async hostApply(input: IronsmithInput): Promise<void> {
+    if (!this.game || (this.isMultiplayer && !this.isHost)) return;
+    const error = this.applyToEngine(input);
+    const entry: IronsmithTranscriptEntry = {
+      ...input,
+      seq: this.entries.length + 1,
+      digest: this.stateDigest(),
+      rejected: error !== null,
+    };
+    this.entries.push(entry);
+    if (error && input.slot === this.localPlayerSlot) {
+      getPlatform().events.emit("game:error", error);
+    }
+    if (this.isMultiplayer) {
+      // The room's public view goes out first, so a seat's own (private) view,
+      // which it draws when the entry arrives, is the one left on screen.
+      await this.broadcastPublicState();
+      for (const slot of this.remoteHumanSlots()) {
+        await this.sendPrivateRelay(slot, { type: "entry", entry });
+      }
+    }
+    await this.afterChange();
+  }
+
+  private async broadcastPublicState(): Promise<void> {
+    if (!this.isMultiplayer || !this.isHost || !this.game) return;
     try {
-      if (directive.type === "concede") {
-        this.concededPlayerSlots.add(playerSlot);
-      }
-      const playerIndex = Number(playerSlot.replace("player-", ""));
-      const result = plainify(
-        this.game.manabrewApplyDirective(playerIndex, directive),
-      ) as IronsmithViewResult;
-      if (result.error) {
-        await this.publishProtocolError(playerSlot, result.error);
-      }
-    } finally {
-      await this.publish();
+      await getPlatform().server?.broadcastState({ kind: "state", state: this.readPublicState() });
+    } catch (error) {
+      console.warn("[Ironsmith] failed to publish the public game state", error);
     }
   }
 
-  private async publish(): Promise<void> {
-    if (!this.game) return;
-    const platform = getPlatform();
-    this.prompts.clear();
-    let localStateSent = false;
-    let publicStateSent = false;
-    const botResponses: Array<{ slot: string; promptId: number; action: PromptOutput }> = [];
+  private applyToEngine(input: IronsmithInput): ProtocolError | null {
+    if (!this.game) return null;
+    const playerIndex = Number(input.slot.replace("player-", ""));
+    if (input.kind === "directive") {
+      if (input.directive.type === "concede") this.concededPlayerSlots.add(input.slot);
+      const result = plainify(
+        this.game.manabrewApplyDirective(playerIndex, input.directive),
+      ) as IronsmithViewResult;
+      return result.error ?? null;
+    }
+    const result = plainify(
+      this.game.manabrewRespond(playerIndex, input.promptId, input.action),
+    ) as IronsmithViewResult;
+    return result.error ?? null;
+  }
 
-    for (const slot of this.playerSlots) {
+  private stateDigest(): string {
+    return fnv1a(JSON.stringify(plainify(this.game?.manabrewPublicState())));
+  }
+
+  // Shows the local seat its own view; the host also plays the bots.
+  private async afterChange(): Promise<void> {
+    if (!this.game) return;
+    this.emitLocalView();
+    if (this.isMultiplayer && !this.isHost) return;
+    for (const slot of this.botPlayerSlots) {
+      if (!this.game) return;
       const index = Number(slot.replace("player-", ""));
-      const { gameView, prompt, error } = this.readManabrewView(index);
-      if (this.isMultiplayer && !publicStateSent) {
-        publicStateSent = true;
-        await platform.server?.broadcastState({
-          kind: "state",
-          state: this.readPublicState(),
-        });
-      }
-      if (slot === this.localPlayerSlot) {
-        platform.events.emit("game:state", { gameView });
-        localStateSent = true;
-      } else if (this.isMultiplayer && !this.botPlayerSlots.has(slot)) {
-        await this.sendPrivateRelay(slot, { type: "state", state: { gameView } });
-      }
-
-      if (error) {
-        await this.publishProtocolError(slot, error);
-      }
+      const { prompt, gameView } = this.readManabrewView(index);
       if (!prompt || prompt.decidingPlayerId !== slot) continue;
+      const game = this.game;
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      if (this.game !== game || (this.isMultiplayer && !this.isHost)) return;
+      let agent = this.botAgents.get(slot);
+      if (!agent) {
+        const wasm = await import("@/wasm/wasm");
+        await wasm.default();
+        if (this.game !== game || (this.isMultiplayer && !this.isHost)) return;
+        agent = new wasm.WasmManabot();
+        this.botAgents.set(slot, agent);
+      }
+      agent.observe_state(JSON.stringify({ gameView }));
+      const response = agent.decide(JSON.stringify(prompt));
+      if (!response) throw new Error(`Manabot did not answer ${prompt.input.type} for ${slot}`);
+      const action = JSON.parse(response) as PromptOutput;
+      await this.hostApply({
+        kind: "response",
+        slot,
+        promptId: Number(prompt.promptId ?? 0),
+        action,
+      });
+      return;
+    }
+  }
+
+  private emitLocalView(stateOnly = false): void {
+    const slot = this.localPlayerSlot;
+    if (!this.game || !slot) return;
+    const platform = getPlatform();
+    const { gameView, prompt, error } = this.readManabrewView(Number(slot.replace("player-", "")));
+    platform.events.emit("game:state", { gameView });
+    if (stateOnly) return;
+    if (error) platform.events.emit("game:error", error);
+    if (prompt && prompt.decidingPlayerId === slot) {
       this.prompts.set(slot, prompt);
-      const autoAction =
-        this.isHost && this.botPlayerSlots.has(slot) ? botPromptOutput(prompt) : null;
-      if (autoAction) {
-        botResponses.push({ slot, promptId: Number(prompt.promptId ?? 0), action: autoAction });
-      } else if (slot === this.localPlayerSlot) {
-        platform.events.emit("game:prompt", prompt);
-      } else if (this.isMultiplayer && !this.botPlayerSlots.has(slot)) {
-        await this.sendPrivateRelay(slot, { type: "prompt", prompt });
-      }
+      platform.events.emit("game:prompt", prompt);
+    } else {
+      this.prompts.delete(slot);
     }
+  }
 
-    if (!localStateSent && this.playerSlots.length === 0) {
-      platform.events.emit("game:state", this.readManabrewView(0).state);
-    }
+  private remoteHumanSlots(): string[] {
+    return this.playerSlots.filter(
+      (slot) => slot !== this.localPlayerSlot && !this.botPlayerSlots.has(slot),
+    );
+  }
 
-    for (const botResponse of botResponses) {
-      if (this.prompts.has(botResponse.slot)) {
-        await this.applyResponse(botResponse.slot, botResponse.promptId, botResponse.action);
-      }
+  // Host only: send a seat the transcript from `have` on, or the whole match
+  // when it has to restart its engine.
+  private async sendSync(slot: string, have: number, restart: boolean): Promise<void> {
+    if (!this.config) return;
+    const from = restart || have > this.entries.length ? 0 : have;
+    const withConfig = restart || have > this.entries.length;
+    let cursor = from;
+    do {
+      const entries = this.entries.slice(cursor, cursor + SYNC_CHUNK_ENTRIES);
+      const more = cursor + entries.length < this.entries.length;
+      await this.sendPrivateRelay(slot, {
+        type: "sync",
+        ...(withConfig && cursor === from ? { config: this.config } : {}),
+        from: cursor,
+        entries,
+        more,
+      });
+      cursor += entries.length;
+    } while (cursor < this.entries.length);
+  }
+
+  // Seat only: ask the host for the transcript until it arrives. `restart`
+  // rebuilds the local engine from the match setup instead of extending it.
+  private requestSync(restart: boolean): void {
+    this.needsSync = true;
+    this.syncRestart = this.syncRestart || restart || !this.game;
+    const ask = () => {
+      if (!this.needsSync || this.isHost || !this.hostPlayerSlot) return;
+      void this.sendPrivateRelay(this.hostPlayerSlot, {
+        type: "syncRequest",
+        have: this.entries.length,
+        restart: this.syncRestart,
+      });
+    };
+    ask();
+    this.syncTimer ??= setInterval(ask, SYNC_RETRY_MS);
+  }
+
+  private async applySync(
+    payload: Extract<IronsmithPrivatePayload, { type: "sync" }>,
+  ): Promise<void> {
+    if (payload.config) {
+      await ensureIronsmith();
+      this.clearBotAgents();
+      this.game?.free();
+      const game = new WasmGame() as IronsmithWasmGame;
+      game.startManabrewMatch(payload.config);
+      // The engine opens (and numbers) a prompt when it is first read. Every
+      // live seat reads it before the first input, so a replay must too.
+      game.manabrewView(0);
+      this.game = game;
+      this.config = payload.config;
+      this.entries = [];
+      this.concededPlayerSlots.clear();
+      this.syncRestart = false;
+    } else if (this.syncRestart) {
+      // An extension of an engine this seat was told to discard.
+      return;
     }
+    if (!this.game || payload.from > this.entries.length) {
+      this.requestSync(!this.game);
+      return;
+    }
+    for (const entry of payload.entries.slice(this.entries.length - payload.from)) {
+      if (!this.applyEntry(entry)) return;
+    }
+    if (payload.more) return;
+    this.needsSync = false;
+    if (this.syncTimer) clearInterval(this.syncTimer);
+    this.syncTimer = null;
+    this.emitLocalView();
+    await this.resubmitPending();
+  }
+
+  // Applies the host's next entry to the local engine. Returns false, after
+  // asking for a restart, when this engine no longer matches the host's.
+  private applyEntry(entry: IronsmithTranscriptEntry): boolean {
+    if (!this.game) return false;
+    if (entry.seq !== this.entries.length + 1) {
+      if (entry.seq > this.entries.length + 1) this.requestSync(false);
+      return entry.seq <= this.entries.length;
+    }
+    let error: ProtocolError | null = null;
+    let diverged = false;
+    try {
+      error = this.applyToEngine(entry);
+      diverged = (error !== null) !== entry.rejected || this.stateDigest() !== entry.digest;
+    } catch (cause) {
+      console.warn("[Ironsmith] engine failed applying the host transcript", cause);
+      diverged = true;
+    }
+    if (diverged) {
+      console.warn(`[Ironsmith] local game diverged from the host at input ${entry.seq}`);
+      this.requestSync(true);
+      return false;
+    }
+    this.entries.push(entry);
+    if (entry.slot === this.localPlayerSlot) this.pendingInput = null;
+    if (error && entry.slot === this.localPlayerSlot) {
+      getPlatform().events.emit("game:error", error);
+    }
+    return true;
+  }
+
+  // The room names its host. When the host's seat is lost the room hands the
+  // role to another seat, and every seat follows.
+  private installRoomListeners(): void {
+    for (const unsubscribe of this.roomUnsubscribes) unsubscribe();
+    const events = getPlatform().events;
+    this.roomUnsubscribes = [
+      // The room's public view carries no hidden cards. A seat that receives
+      // it draws its own view again on top, whatever order the two arrived in.
+      events.on<{ state?: { kind?: string } }>("server:state_update", (payload) => {
+        if (!this.isMultiplayer || this.isHost || payload?.state?.kind !== "state") return;
+        setTimeout(() => {
+          void this.enqueue(async () => this.emitLocalView(true));
+        }, 0);
+      }),
+      events.on<{ room: RoomInfo }>("server:room_update", ({ room }) => {
+        const hostSlot = this.slotForUsername(room.host);
+        if (!this.isMultiplayer || !hostSlot || this.botPlayerSlots.has(hostSlot)) return;
+        void this.enqueue(() => this.followHost(hostSlot));
+      }),
+      events.on<{ username: string }>("server:player_left", ({ username }) => {
+        const slot = this.slotForUsername(username);
+        if (!this.isMultiplayer || !slot || slot === this.localPlayerSlot) return;
+        // A seat that left the room is out of the game.
+        void this.enqueue(async () => {
+          if (!this.isHost || !this.game || this.concededPlayerSlots.has(slot)) return;
+          if (this.readPublicState().gameView.gameOver) return;
+          await this.hostApply({ kind: "directive", slot, directive: { type: "concede" } });
+        });
+      }),
+    ];
+  }
+
+  private async followHost(hostSlot: string): Promise<void> {
+    if (hostSlot === this.hostPlayerSlot) return;
+    this.hostPlayerSlot = hostSlot;
+    this.resendPending = true;
+    if (hostSlot !== this.localPlayerSlot) {
+      // Another seat hosts now. Its transcript is the game: catch up to it,
+      // or restart from it if this seat got ahead of it.
+      this.isHost = false;
+      this.clearBotAgents();
+      this.requestSync(false);
+      return;
+    }
+    if (!this.game) {
+      getPlatform().events.emit("game:fatal", {
+        message: "The host left before this game finished loading.",
+      });
+      return;
+    }
+    this.isHost = true;
+    this.needsSync = false;
+    if (this.syncTimer) clearInterval(this.syncTimer);
+    this.syncTimer = null;
+    await this.broadcastPublicState();
+    await this.afterChange();
+    await this.resubmitPending();
   }
 
   private readManabrewView(viewer: number): {
@@ -442,15 +731,6 @@ export class IronsmithTrustedGameApi implements IGameApi {
     };
   }
 
-  private async publishProtocolError(playerSlot: string, error: ProtocolError): Promise<void> {
-    const platform = getPlatform();
-    if (playerSlot === this.localPlayerSlot) {
-      platform.events.emit("game:error", error);
-    } else if (this.isMultiplayer && !this.botPlayerSlots.has(playerSlot)) {
-      await this.sendPrivateRelay(playerSlot, { type: "error", error });
-    }
-  }
-
   private installRoomRelayListener(): void {
     this.roomRelayUnsubscribe?.();
     this.roomRelayUnsubscribe = getPlatform().events.on<
@@ -480,10 +760,22 @@ export class IronsmithTrustedGameApi implements IGameApi {
         );
         return;
       }
+      if (relayPayload.transcript !== IRONSMITH_TRANSCRIPT_VERSION) {
+        if (!this.versionMismatchReported) {
+          this.versionMismatchReported = true;
+          getPlatform().events.emit("game:fatal", {
+            message: "Every player needs the same Manabrew version to play an Ironsmith game.",
+          });
+        }
+        return;
+      }
       const changed = await this.rememberPeerKey(relayPayload.seat, relayPayload.publicKey);
       if (changed) {
         await this.sendRelayHello();
-        if (this.isHost && this.game) await this.publish();
+        if (this.isHost && this.game) {
+          const seat = relayPayload.seat;
+          await this.enqueue(() => this.sendSync(seat, 0, true));
+        }
       }
       return;
     }
@@ -492,28 +784,48 @@ export class IronsmithTrustedGameApi implements IGameApi {
     if (relayPayload.to !== this.localPlayerSlot) return;
     const privatePayload = await this.decryptPrivatePayload(sender, relayPayload.encrypted);
     if (!privatePayload) return;
-    const platform = getPlatform();
     switch (privatePayload.type) {
-      case "state":
-        platform.events.emit("game:state", privatePayload.state);
+      case "sync":
+        if (this.isHost || sender !== this.hostPlayerSlot) return;
+        await this.enqueue(() => this.applySync(privatePayload));
         return;
-      case "prompt":
-        if (this.localPlayerSlot) this.prompts.set(this.localPlayerSlot, privatePayload.prompt);
-        platform.events.emit("game:prompt", privatePayload.prompt);
-        return;
-      case "error":
-        platform.events.emit("game:error", privatePayload.error);
+      case "entry":
+        if (this.isHost || sender !== this.hostPlayerSlot) return;
+        await this.enqueue(async () => {
+          if (this.syncRestart) return;
+          if (this.applyEntry(privatePayload.entry)) this.emitLocalView();
+        });
         return;
       case "fatal":
-        platform.events.emit("game:fatal", { message: privatePayload.message });
+        if (sender !== this.hostPlayerSlot) return;
+        getPlatform().events.emit("game:fatal", { message: privatePayload.message });
+        return;
+      case "syncRequest":
+        await this.enqueue(async () => {
+          if (!this.isHost || !this.game) return;
+          await this.sendSync(sender, privatePayload.have, privatePayload.restart);
+        });
         return;
       case "response":
-        if (this.isHost) {
-          await this.applyResponse(sender, privatePayload.promptId, privatePayload.action);
-        }
+        await this.enqueue(async () => {
+          if (!this.isHost) return;
+          await this.hostApply({
+            kind: "response",
+            slot: sender,
+            promptId: privatePayload.promptId,
+            action: privatePayload.action,
+          });
+        });
         return;
       case "directive":
-        if (this.isHost) await this.applyDirective(sender, privatePayload.directive);
+        await this.enqueue(async () => {
+          if (!this.isHost) return;
+          await this.hostApply({
+            kind: "directive",
+            slot: sender,
+            directive: privatePayload.directive,
+          });
+        });
         return;
     }
   }
@@ -528,6 +840,7 @@ export class IronsmithTrustedGameApi implements IGameApi {
       type: "hello",
       seat: slot,
       publicKey,
+      transcript: IRONSMITH_TRANSCRIPT_VERSION,
     });
   }
 
@@ -581,10 +894,9 @@ export class IronsmithTrustedGameApi implements IGameApi {
     }
     const fingerprint = JSON.stringify(publicKey);
     if (this.peerKeyFingerprints.get(slot) === fingerprint) return false;
-    if (this.peerKeyFingerprints.has(slot)) {
-      console.warn(`[Ironsmith] ignored relay key replacement attempt for ${slot}`);
-      return false;
-    }
+    // A seat that reloaded its page comes back with a new key. The relay has
+    // already authenticated the sender as that seat, so the new key replaces
+    // the old one; nothing sent under the old key can be read by it anyway.
     try {
       const key = await crypto.subtle.importKey(
         "jwk",
@@ -697,6 +1009,15 @@ function plainify(value: unknown): unknown {
   return value;
 }
 
+function fnv1a(text: string): string {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
+}
+
 function bytesToBase64(bytes: Uint8Array): string {
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);
@@ -710,113 +1031,4 @@ function base64ToBytes(value: string): Uint8Array<ArrayBuffer> {
     bytes[index] = binary.charCodeAt(index);
   }
   return bytes;
-}
-
-function botPromptOutput(prompt: Prompt): PromptOutput | null {
-  switch (prompt.input.type) {
-    case "mulligan":
-      return { type: "mulligan", output: { type: "mulliganDecision", keep: true } };
-    case "mulliganPutBack": {
-      const cards =
-        prompt.input.cards.length > 0
-          ? prompt.input.cards.map((card) => card.id)
-          : prompt.input.handCardIds;
-      return {
-        type: "mulliganPutBack",
-        output: { type: "mulliganPutBackDecision", cardIds: cards.slice(0, prompt.input.count) },
-      };
-    }
-    case "chooseAction":
-      return { type: "chooseAction", output: { type: "pass", exhaustStack: false } };
-    case "payManaCost":
-      return { type: "payManaCost", output: { type: "cancel" } };
-    case "chooseBoardTargets":
-      return {
-        type: "chooseBoardTargets",
-        output: {
-          type: "boardTargets",
-          chosen: prompt.input.candidates.slice(0, prompt.input.minTargets),
-        },
-      };
-    case "chooseAttackers":
-      return { type: "chooseAttackers", output: { type: "declareAttackers", assignments: [] } };
-    case "chooseBlockers":
-      return { type: "chooseBlockers", output: { type: "declareBlockers", assignments: [] } };
-    case "chooseBoolean":
-      return { type: "chooseBoolean", output: { type: "decision", value: false } };
-    case "chooseFromSelection": {
-      const count = Math.max(0, Math.min(prompt.input.minTotal, prompt.input.options.length));
-      return {
-        type: "chooseFromSelection",
-        output: {
-          type: "selectionDecision",
-          chosenIndices: Array.from({ length: count }, (_, index) => index),
-        },
-      };
-    }
-    case "chooseNumber":
-      return {
-        type: "chooseNumber",
-        output: { type: "numberDecision", chosenNumber: prompt.input.min },
-      };
-    case "chooseColor": {
-      const color = prompt.input.validColors[0];
-      if (!color) return null;
-      return {
-        type: "chooseColor",
-        output: { type: "colorDecision", chosenColors: { [color]: prompt.input.amount } },
-      };
-    }
-    case "chooseCards":
-      return {
-        type: "chooseCards",
-        output: {
-          type: "chooseCardsDecision",
-          chosenCardIds: prompt.input.cards.slice(0, prompt.input.min).map((card) => card.id),
-        },
-      };
-    case "reorder":
-      return {
-        type: "reorder",
-        output: {
-          type: "reorderDecision",
-          orderedIds: prompt.input.items.map((item) => item.id),
-        },
-      };
-    case "revealCards":
-      return { type: "revealCards", output: { type: "revealCardsAcknowledged" } };
-    case "scry": {
-      const firstZone = prompt.input.cards.map((card) => card.id);
-      return {
-        type: "scry",
-        output: {
-          type: "scryDecision",
-          zoneCardIds: prompt.input.zones.map((_, index) => (index === 0 ? firstZone : [])),
-        },
-      };
-    }
-    case "chooseDamageAssignmentOrder":
-      return {
-        type: "chooseDamageAssignmentOrder",
-        output: {
-          type: "damageAssignmentOrderDecision",
-          orderedBlockerIds: prompt.input.blockerIds,
-        },
-      };
-    case "chooseCombatDamageAssignment": {
-      const assigneeId = prompt.input.blockerIds[0] ?? prompt.input.defenderId;
-      if (!assigneeId) return null;
-      return {
-        type: "chooseCombatDamageAssignment",
-        output: {
-          type: "combatDamageAssignmentDecision",
-          assignments: [{ assigneeId, damage: prompt.input.totalDamage }],
-        },
-      };
-    }
-    case "diceRolled":
-      return { type: "diceRolled", output: { type: "diceRolledAcknowledged" } };
-    default:
-      return null;
-  }
 }

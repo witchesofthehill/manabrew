@@ -10,6 +10,9 @@ pub struct AttackerOptionDto {
     pub attacker_id: String,
     pub valid_target_ids: Vec<String>,
     pub must_attack: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub suggested_target_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

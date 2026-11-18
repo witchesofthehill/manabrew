@@ -64,6 +64,7 @@ import {
   CARD_SHADOW,
   DAMAGE_HIT,
   EDGE_GLOW,
+  IGNORED_CARD,
   PULSE_RING,
   STAT_POP,
   SUMMONING_FILTER,
@@ -153,6 +154,10 @@ export function setCardSpriteTheme(theme: Theme): void {
     }
   }
   CardSprite.refreshTheme();
+}
+const REALISTIC_ONLY_SETS = new Set(["TRK", "TRC"]);
+export function isRealisticOnlyCard(card: CardDto): boolean {
+  return REALISTIC_ONLY_SETS.has(card.identity.setCode.toUpperCase());
 }
 let activeStyle: BattlefieldCardStyle = usePreferencesStore.getState().battlefieldCardStyle;
 export function setCardSpriteStyle(style: BattlefieldCardStyle): void {
@@ -430,6 +435,7 @@ export class CardSprite extends Container {
   private frameScrimKey = "";
   private sickFilter: ColorMatrixFilter | null = null;
   private lastFilterKey = "";
+  private ignored = false;
   private frameTypeBandH = 0;
   private frameNameBandH = 0;
   private frameCounterReserve = 0;
@@ -781,6 +787,10 @@ export class CardSprite extends Container {
     return asGameDeckCard(useGameStore.getState().gameDecks, card);
   }
 
+  private cardStyle(card = this.card): BattlefieldCardStyle {
+    return !this.isBattlefield || isRealisticOnlyCard(card) ? "realistic" : activeStyle;
+  }
+
   private hasHiddenIdentity(card = this.card): boolean {
     return (
       card.isFaceDown ||
@@ -793,7 +803,7 @@ export class CardSprite extends Container {
     if (this.hasHiddenIdentity(card)) return "hidden";
     const deckCard = this.deckCard(card);
     const faceIndex = this.previewFace ?? gameCardFaceIndex(card);
-    const style = this.isBattlefield ? activeStyle : "realistic";
+    const style = this.cardStyle(card);
     const tier = this.selectRasterTier();
     return JSON.stringify([
       style,
@@ -833,7 +843,7 @@ export class CardSprite extends Container {
     const tier = this.selectRasterTier(scale);
     if (tier === this.renderTier) return;
     this.renderTier = tier;
-    if (this.isBattlefield && activeStyle !== "realistic" && activeStyle !== "art") {
+    if (this.cardStyle() === "frame") {
       void this.loadImage();
     }
   }
@@ -971,7 +981,8 @@ export class CardSprite extends Container {
 
     const card = this.card;
     const deckCard = hidden ? undefined : this.deckCard();
-    const custom = this.isBattlefield && activeStyle !== "realistic" && !hidden;
+    const style = this.cardStyle();
+    const custom = style !== "realistic" && !hidden;
     const faceIndex = this.previewFace ?? gameCardFaceIndex(card);
     const tier = this.selectRasterTier();
     this.renderTier = tier;
@@ -981,7 +992,7 @@ export class CardSprite extends Container {
     try {
       if (hidden) {
         texture = await loadCardBack();
-      } else if (custom && activeStyle === "art") {
+      } else if (custom && style === "art") {
         texture = await useScryfallStore.getState().getCardTexture(deckCard!, "art", faceIndex);
         artwork = true;
       } else if (custom) {
@@ -1007,7 +1018,7 @@ export class CardSprite extends Container {
     } catch (error) {
       if (this.destroyed || generation !== this.loadGeneration) return;
       console.warn(
-        custom && activeStyle !== "art"
+        custom && style !== "art"
           ? "[pixi] generated card render failed"
           : "[pixi] card image load failed",
         card.identity.name,
@@ -1398,8 +1409,7 @@ export class CardSprite extends Container {
       mask.roundRect(0, 0, this.cw, this.ch, CARD_RADIUS).fill(neutral);
     }
     this.rebuildDecorations(true);
-    if (this.isBattlefield && activeStyle !== "realistic" && activeStyle !== "art")
-      void this.loadImage();
+    if (this.cardStyle() === "frame") void this.loadImage();
     this.redrawHoverDebug();
   }
 
@@ -1740,7 +1750,7 @@ export class CardSprite extends Container {
       (card.types?.some((t) => t.toLowerCase() === "creature") ?? false);
     const phased = this.isBattlefield && !!card.phasedOut;
     // Rebuild only when the state changes — updateCardContent runs every tick.
-    const key = sick ? "sick" : phased ? "phased" : "none";
+    const key = this.ignored ? "ignored" : sick ? "sick" : phased ? "phased" : "none";
     if (key === this.lastFilterKey) return;
     this.lastFilterKey = key;
     if (key === "none") {
@@ -1749,13 +1759,21 @@ export class CardSprite extends Container {
     }
     if (!this.sickFilter) this.sickFilter = new ColorMatrixFilter();
     const f = this.sickFilter;
-    if (sick) {
+    if (this.ignored) {
+      f.saturate(IGNORED_CARD.saturate, false);
+      f.brightness(IGNORED_CARD.brightness, true);
+    } else if (sick) {
       f.saturate(SUMMONING_FILTER.sickSaturate, false);
       f.brightness(SUMMONING_FILTER.sickBrightness, true);
     } else {
       f.saturate(SUMMONING_FILTER.phasedSaturate, false);
     }
     this.contentContainer.filters = [f];
+  }
+  setIgnored(active: boolean): void {
+    if (this.ignored === active) return;
+    this.ignored = active;
+    this.updateCardFilter();
   }
   private updateRingBearer(): void {
     const isBearer = !!this.card.isRingBearer;
@@ -1812,7 +1830,7 @@ export class CardSprite extends Container {
   }
   private updateKeywords(): void {
     this.keywordsContainer.removeChildren().forEach((c) => c.destroy({ children: true }));
-    const custom = this.isBattlefield && activeStyle !== "realistic";
+    const custom = this.cardStyle() !== "realistic";
     if (!custom && this.card.id !== DEBUG_KEYWORD_CARD_ID) return;
     const { shown, hidden } = battlefieldKeywords(this.card.keywords, MAX_VISIBLE_KEYWORDS);
     if (shown.length === 0) return;

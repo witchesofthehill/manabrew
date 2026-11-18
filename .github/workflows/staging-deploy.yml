@@ -211,7 +211,7 @@ jobs:
           node-version: "24"
 
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.100.0
 
       - name: Cargo cache
         uses: Swatinem/rust-cache@v2

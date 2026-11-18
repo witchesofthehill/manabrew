@@ -15,10 +15,12 @@ create room, pick deck) are engine-generic and reusable for any multiplayer flow
 
 1. **Ironsmith wasm installed.** It ships as the `ironsmith-wasm` npm dependency,
    so a plain `yarn install` pulls it — no submodule or local wasm build.
-2. **Enable the engine.** The `ironsmithRuntime` compile flag is on, but the
-   engine is opt-in: turn it **On** under Settings → _Ironsmith engine
-   (experimental)_ (persists the `ironsmithRuntimeEnabled` preference). The tests
-   drive the real UI, so enable it there before running.
+2. **The engine opt-in.** The `ironsmithRuntime` compile flag is on, but the
+   engine is opt-in per browser (Settings → Preferences → _Ironsmith engine
+   (experimental)_, the `ironsmithRuntimeEnabled` preference). Each test runs in
+   a fresh browser context, so the helpers turn it on themselves
+   (`enableIronsmith` in `lib.mjs`) for every seat — a guest without it is
+   dropped back to the lobby when the game starts.
 3. **A relay** on `:9443` with server key `forge`:
    ```bash
    yarn dev:relay              # or: MANABREW_SERVER_KEY=forge cargo run --release -p manabrew-server
@@ -37,14 +39,56 @@ create room, pick deck) are engine-generic and reusable for any multiplayer flow
 ## Run
 
 ```bash
+# Real Manabot gameplay: solo and multiple bot seats play lands, creatures, and attack.
+# Also exercises agent release, transcript replay, and human-host takeover in the adapter.
+# Requires the dev server and the Manabrew WASM bundle (`yarn build:wasm`). No relay needed.
+node tests/e2e-ironsmith/ironsmith-manabot.mjs
+
+# Relay-only host selection: skip bots and never elect a bot when the last human leaves.
+# Uses Node 22+ WebSocket; no browser or dev server needed.
+node tests/e2e-ironsmith/ironsmith-bot-host.mjs
+
 # Single client + bot: game reaches a live board (mulligan → priority).
 node tests/e2e-ironsmith/ironsmith-multiplayer.mjs
 
 # Two humans: exercises the encrypted per-seat relay (ECDH + AES-GCM).
 node tests/e2e-ironsmith/ironsmith-two-clients.mjs
+
+# Host migration: the host's browser goes away mid-game and the guest hosts on.
+# Dev server only (it reads the game through `window.__gameStore`); takes about
+# two minutes, because it waits out the absent seat's reconnect window.
+node tests/e2e-ironsmith/ironsmith-host-migration.mjs
+
+# Reload-rejoin: the guest reloads its page and comes back to the same game;
+# then, in a second game, the host reloads and comes back as a guest of the
+# game it started. Dev server only.
+node tests/e2e-ironsmith/ironsmith-reload-rejoin.mjs
 ```
 
 Each prints `PASS: …` and exits 0 on success, or `FAIL: …` and exits non-zero.
+
+## How an Ironsmith game is shared
+
+The human host runs one Manabot agent per bot seat, using that seat’s private
+view. Bot answers enter the replicated transcript, so guests replay the same
+decisions. Bot seats never host; a new human host takes over their decisions.
+
+Every human seat runs its own copy of the Ironsmith engine. The host only orders the
+inputs (prompt answers and directives) into a transcript; each seat applies it
+to its own engine and draws its own view, and a fingerprint of the public state
+on every entry lets a seat notice it has diverged and rebuild from the host's
+transcript. Because no seat depends on the host's engine, the relay hands the
+host role to the next connected human seat when the host's seat is lost
+(`engine_survives_host_loss` / `migrate_host` in `manabrew-server`), the room
+update names the new host, and the game carries on. The lost seat forfeits when
+its reconnect window (the table's reconnect timeout) runs out, like any other
+seat.
+
+A seat that reloads its page loses its engine but not the game. The normal
+resume flow reseats it, it announces a new relay key (the relay has already
+authenticated it as that seat), and the host sends it the match setup and the
+transcript to rebuild from. A host that reloads has been replaced by then, so it
+comes back as a guest.
 
 ### Env knobs
 
@@ -54,18 +98,20 @@ Each prints `PASS: …` and exits 0 on success, or `FAIL: …` and exits non-zer
 | `RELAY_HOST` | `localhost`             | relay host the client is pointed at         |
 | `RELAY_PORT` | `9443`                  | relay port                                  |
 | `RELAY_PW`   | `forge`                 | relay password / server key                 |
-| `DECK`       | `Mono Red Prison`       | preset deck (must be Ironsmith-validatable) |
+| `DECK`       | `Goblins`               | preset deck (must be offered for Ironsmith) |
 | `FORMAT`     | `Vintage`               | room format (widens the preset picker)      |
 | `SHOT`       | _(off)_                 | dir to write board screenshots into         |
 | `HEADED`     | _(off)_                 | `1` to watch in a real browser window       |
 
 ## Notes
 
-- **Deck choice matters.** Ironsmith's card support is experimental; many presets
-  are rejected at validation (e.g. `Izzet Lessons` → `Gran-Gran` unsupported). The
-  `real_*` / simple `starter_deck_*` pools (Mono Red Prison, Workshop, …) fare
-  best. A rejection is surfaced to the UI and the game does not start — that path
-  is itself worth testing.
+- **Deck choice matters.** Presets are per-engine: an Ironsmith table's picker
+  only lists presets that declare `engines: ["Ironsmith"]` and are legal in the
+  room's format (in Vintage that is currently `Goblins — Steven Paris`). `DECK`
+  is matched as a partial, case-insensitive name against that list.
+- **Prompt check needs the dev server.** Prompts are drawn on the board canvas,
+  so the tests read the prompt from `window.__gameStore`, which only the Vite
+  dev server exposes. Against a preview build they assert the board alone.
 - **Unique usernames.** The relay preserves an in-game seat by username; the
   helpers mint a fresh name per run (`uniqueName`) so a reload never rejoins a
   stale game and disables `New Room` / `Start Game`.

@@ -24,6 +24,7 @@ pub struct PromptPresentation {
 #[ts(export, export_to = "prompts/common.ts")]
 pub enum AlternativeCostKind {
     Flashback,
+    BeamMeUp,
     Spectacle,
     Evoke,
     Dash,

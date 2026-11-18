@@ -67,6 +67,10 @@ Interactive mana payment must record newly activated manual and automatic mana a
 
 "Mana of any type can be spent" (Tinybones, Heist, `ManaConvert` statics) lives on the `CostPayment` matrix. `payCost` hands that matrix to `payManaCost`, which puts it on the pool; a bare `CostPayment` is identity-only. `HarnessPlayPlumbing.applyManaConversion` mirrors the conversion block in `PlaySpellAbility.playAbility`, and every play path resets the pool with `restoreColorReplacements` afterwards, as Forge does. The action space cannot catch a missing conversion: `ComputerUtilMana` applies the MayPlay conversion by itself, so the spell is offered either way. `HarnessPlayPlumbingTest` locks the Tinybones case.
 
+### Forge performance mode stays off
+
+Do not set `FPref.PERFORMANCE_MODE`. Besides the replacement-scan skip from Card-Forge/forge#11160, it makes `Spell.canPlayFromHost` skip the copy that treats the caster as controller, so a face-down card in an opponent's exile is never castable (Thief of Sanity, Gonti, Praetor's Grasp). A four-player, 100-turn game showed no measurable speed-up from the flag. The test fixtures leave it off, so they match real sessions.
+
 ### Convoke / Improvise in payment
 
 `chooseCardsForConvokeOrImprovise` declines the upfront cost reduction outside payability probes (both controllers). Convoke/improvise is then resolved at payment time: interactively in `ManaBrewInteractiveController.payManaInteractively` (`payConvoke`/`convokePaymentSources`), and automatically in `AutoPay.payConvokeImprovise` for the committing auto-pay path (only the parity runner routes through it; the host's auto button floats mana via `AutoPay.floatManaForCost` and leaves convoke/improvise taps to explicit prompt actions). Both tap the chosen creatures/artifacts, record `sa.addTappedForConvoke`, fire the `TapAll` trigger, and reduce the cost via `ManaCostBeingPaid.payManaViaConvoke`. **Parity caveat:** the Rust engine's auto-pay does not yet tap convoke/improvise sources, so `yarn parity` diverges on convoke/improvise spells until `manabrew-engine`'s auto-pay is mirrored.

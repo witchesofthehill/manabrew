@@ -596,6 +596,9 @@ public final class ManaBrewInteractiveSession {
                         && !until.get("throughCombat").isJsonNull() && until.get("throughCombat").getAsBoolean();
                 final boolean exhaustStack = action.has("exhaustStack")
                         && !action.get("exhaustStack").isJsonNull() && action.get("exhaustStack").getAsBoolean();
+                if ("cleanup".equals(untilPhase)) {
+                    return new PriorityChoice(PriorityActionKind.PASS, null, null, null, false, exhaustStack, null, null);
+                }
                 return new PriorityChoice(PriorityActionKind.PASS, null, untilPlayer, untilPhase, throughCombat, exhaustStack, null, null);
             }
             if ("untap_land".equals(kind)) {

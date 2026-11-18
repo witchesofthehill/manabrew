@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.84.6](https://github.com/witchesofthehill/manabrew/compare/v3.84.5...v3.84.6) (2026-11-18)
+
+### Fixes
+
+* **ironsmith:** run engine and bots in a web worker ([#1249](https://github.com/witchesofthehill/manabrew/issues/1249)) ([aae20cc](https://github.com/witchesofthehill/manabrew/commit/aae20cc7caa05be30613a975ba0e1ecf3bc5aa67))
+
 ## [3.84.5](https://github.com/witchesofthehill/manabrew/compare/v3.84.4...v3.84.5) (2026-11-18)
 
 ### Fixes

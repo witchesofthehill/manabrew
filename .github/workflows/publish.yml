@@ -71,7 +71,7 @@ jobs:
           cache: yarn
 
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.100.0
         with:
           targets: wasm32-unknown-unknown
 
@@ -258,7 +258,7 @@ jobs:
           cache: yarn
 
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.100.0
         with:
           targets: wasm32-unknown-unknown
 
@@ -451,7 +451,7 @@ jobs:
           cache: yarn
 
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.100.0
         with:
           targets: aarch64-apple-ios,wasm32-unknown-unknown
 
@@ -562,7 +562,7 @@ jobs:
           java-version: "17"
 
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.100.0
         with:
           targets: aarch64-linux-android,wasm32-unknown-unknown
 
@@ -650,7 +650,7 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.100.0
         with:
           targets: x86_64-unknown-linux-musl
 
@@ -738,6 +738,9 @@ jobs:
         with:
           name: faro-maps-windows-${{ github.sha }}
           path: target/faro-artifacts/windows/
+
+      - name: Clear restored source maps
+        run: rm -rf target/faro-sourcemaps
 
       - name: Decrypt desktop source maps
         env:
@@ -949,7 +952,7 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.100.0
 
       - name: Cargo cache
         uses: Swatinem/rust-cache@v2
@@ -1005,13 +1008,16 @@ jobs:
           node-version: "24"
 
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.100.0
 
       - name: Cargo cache
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: xtask-deploy
           save-if: false
+      - name: Clear restored source maps
+        run: rm -rf target/faro-sourcemaps
+
       - name: Download exact private web maps
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -1101,13 +1107,16 @@ jobs:
           node-version: "24"
 
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.100.0
 
       - name: Cargo cache
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: xtask-deploy
           save-if: false
+      - name: Clear restored source maps
+        run: rm -rf target/faro-sourcemaps
+
       - name: Download exact private web maps
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

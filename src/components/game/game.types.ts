@@ -35,6 +35,7 @@ export const OPPONENT_SEATS: readonly Exclude<PlayerSeat, "self">[] = [
 ] as const;
 
 export interface RightActionPanelProps {
+  showChat?: boolean;
   collapsed: boolean;
   onToggleCollapse: () => void;
   onLeftEdgeChange?: (left: number | undefined) => void;

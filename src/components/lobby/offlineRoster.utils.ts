@@ -6,18 +6,26 @@ export function isOfflinePodFormat(formatId: string | null | undefined): boolean
   return formatId === "commander" || formatId === "paupercommander";
 }
 
+function offlineLaunchError(
+  selected: SelectedDeck | null,
+  formatId: string | null,
+): string | undefined {
+  if (!selected) return "Choose a deck";
+  if (selected.formatId !== formatId) return "Choose a deck for this format";
+  if (!getFormat(selected.formatId ?? "standard")) return "Unsupported format";
+  return undefined;
+}
+
 export function offlineSelectionError(
   selected: SelectedDeck | null,
   formatId: string | null,
   cardPool: CardPool,
 ): string | undefined {
-  if (!selected) return "Choose a deck";
-  if (selected.formatId !== formatId) return "Choose a deck for this format";
-  const format = getFormat(selected.formatId ?? "standard");
-  if (!format) return "Unsupported format";
+  const launchError = offlineLaunchError(selected, formatId);
+  if (launchError || !selected) return launchError;
   return validateDeckSections(
     { deck: selected.sourceDeck, commanderName: selected.commanderName },
-    format,
+    getFormat(selected.formatId ?? "standard")!,
     cardPool,
   ).errors[0];
 }
@@ -28,7 +36,7 @@ export function prepareOfflineGame(
   cardPool: CardPool,
 ) {
   const errors = roster.seats.map((seat) => offlineSelectionError(seat.deck, formatId, cardPool));
-  const ready = errors.every((error) => !error);
+  const ready = roster.seats.every((seat) => !offlineLaunchError(seat.deck, formatId));
   return {
     errors,
     launch: ready

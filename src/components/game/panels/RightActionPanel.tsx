@@ -7,8 +7,12 @@ import { useLayoutEffect, useRef } from "react";
 import type { RightActionPanelProps } from "../game.types";
 import { TAB_BUTTON_BASE, TAB_ACTIVE, TAB_INACTIVE } from "../game.styles";
 import { CheckpointsPanel } from "./CheckpointsPanel";
+import { GameChat, GameChatButton } from "./GameChat";
+import { useServerStore } from "@/stores/useServerStore";
+import { RELAY_FEATURE } from "@/types/server";
 import { GameDevPanel } from "@/components/dev/GameDevPanel";
 export function RightActionPanel({
+  showChat = false,
   collapsed,
   onToggleCollapse: rawToggle,
   resolvePlayerName,
@@ -20,9 +24,26 @@ export function RightActionPanel({
   onLeftEdgeChange,
 }: RightActionPanelProps) {
   const mobile = useIsMobileGame();
+  const chatAvailable = useServerStore(
+    (s) => !!s.currentRoom && s.hasRelayFeature(RELAY_FEATURE.Chat),
+  );
+  const chatEnabled = showChat && chatAvailable;
   const storedActiveTab = useGameUIStore((s) => s.rightPanelTab);
-  const activeTab = storedActiveTab === "dev" && !import.meta.env.DEV ? "journal" : storedActiveTab;
+  const activeTab =
+    (storedActiveTab === "dev" && !import.meta.env.DEV) ||
+    (storedActiveTab === "chat" && !chatEnabled)
+      ? "journal"
+      : storedActiveTab;
   const setActiveTab = useGameUIStore((s) => s.setRightPanelTab);
+  const chatButton = chatEnabled ? (
+    <GameChatButton
+      active={!collapsed && activeTab === "chat"}
+      onClick={() => {
+        setActiveTab("chat");
+        if (collapsed) rawToggle();
+      }}
+    />
+  ) : null;
   const panelRef = useRef<HTMLElement>(null);
   useLayoutEffect(() => {
     const panel = panelRef.current;
@@ -41,28 +62,36 @@ export function RightActionPanel({
   }, [collapsed, onLeftEdgeChange]);
 
   if (collapsed) {
-    return !mobile && checkpoints.length > 0 ? (
-      <button
-        type="button"
-        className="absolute right-[calc(0.75rem+var(--safe-area-inset-right))] top-[calc(0.75rem+var(--safe-area-inset-top))] z-50 flex touch:min-h-11 touch:min-w-11 items-center gap-2 rounded-full border border-border/80 bg-card/95 px-3 py-2 font-game text-ui-label font-semibold text-foreground shadow-lg backdrop-blur-sm transition-colors hover:bg-accent"
-        aria-label={`Open journal with ${checkpoints.length} entries`}
-        onClick={() => {
-          setActiveTab("journal");
-          rawToggle();
-        }}
-      >
-        <History className="h-4 w-4 text-primary" />
-        Journal
-        <span className="min-w-5 rounded-full bg-muted px-1.5 py-0.5 text-ui-meta font-semibold tabular-nums lining-nums text-foreground">
-          {checkpoints.length}
-        </span>
-      </button>
-    ) : null;
+    return (
+      <div className="absolute right-[calc(0.75rem+var(--safe-area-inset-right))] top-[calc(0.75rem+var(--safe-area-inset-top))] z-50 flex items-center gap-2">
+        {chatButton}
+        {!mobile && checkpoints.length > 0 && (
+          <button
+            type="button"
+            className="flex touch:min-h-11 touch:min-w-11 items-center gap-2 rounded-full border border-border/80 bg-card/95 px-3 py-2 font-game text-ui-label font-semibold text-foreground shadow-lg backdrop-blur-sm transition-colors hover:bg-accent"
+            aria-label={`Open journal with ${checkpoints.length} entries`}
+            onClick={() => {
+              setActiveTab("journal");
+              rawToggle();
+            }}
+          >
+            <History className="h-4 w-4 text-primary" />
+            Journal
+            <span className="min-w-5 rounded-full bg-muted px-1.5 py-0.5 text-ui-meta font-semibold tabular-nums lining-nums text-foreground">
+              {checkpoints.length}
+            </span>
+          </button>
+        )}
+      </div>
+    );
   }
 
   return (
     <aside
       ref={panelRef}
+      aria-label={
+        activeTab === "chat" ? "Chat" : activeTab === "journal" ? "Journal" : "Developer tools"
+      }
       className={cn(
         "absolute right-[calc(0.375rem+var(--safe-area-inset-right))] top-[calc(0.375rem+var(--safe-area-inset-top))] bottom-[calc(0.375rem+var(--safe-area-inset-bottom))] z-[9001] rounded-lg bg-card/95 backdrop-blur-sm transition-[width,background-color,border-color] overflow-visible border border-border/70 shadow-[0_20px_60px_rgba(0,0,0,0.45)]",
         mobile
@@ -72,7 +101,7 @@ export function RightActionPanel({
             : "w-80",
       )}
     >
-      <div className="h-full p-3 flex flex-col gap-3 overflow-y-auto">
+      <div className="h-full min-h-0 p-3 flex flex-col gap-3 overflow-y-auto">
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
             <button
@@ -90,15 +119,18 @@ export function RightActionPanel({
               </button>
             ) : null}
           </div>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-8 w-8 touch:min-h-11 touch:min-w-11 text-muted-foreground hover:text-foreground"
-            onClick={rawToggle}
-            title={`Close right panel`}
-          >
-            <PanelRightClose className="h-3.5 w-3.5" />
-          </Button>
+          <div className="flex items-center gap-2">
+            {chatButton}
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8 touch:min-h-11 touch:min-w-11 text-muted-foreground hover:text-foreground"
+              onClick={rawToggle}
+              title={`Close right panel`}
+            >
+              <PanelRightClose className="h-3.5 w-3.5" />
+            </Button>
+          </div>
         </div>
 
         {activeTab === "journal" ? (
@@ -110,6 +142,8 @@ export function RightActionPanel({
             resolvePlayerName={resolvePlayerName}
             resolvePlayerColor={resolvePlayerColor}
           />
+        ) : activeTab === "chat" ? (
+          <GameChat />
         ) : (
           <GameDevPanel />
         )}

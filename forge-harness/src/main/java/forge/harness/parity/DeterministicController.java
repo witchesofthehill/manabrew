@@ -40,6 +40,7 @@ import forge.deck.Deck;
 import forge.deck.DeckSection;
 import forge.game.*;
 import forge.game.card.*;
+import forge.game.card.sticker.Sticker;
 import forge.game.combat.Combat;
 import forge.game.combat.CombatUtil;
 import forge.game.mana.Mana;
@@ -1556,6 +1557,23 @@ public class DeterministicController extends PlayerController implements Harness
         final Mana result = ChoiceSpace.pickOne(manaChoices, rng);
         onCallback("choose_mana_from_pool", result == null ? "null" : result.toString(), String.valueOf(manaChoices.size()));
         return result;
+    }
+
+    @Override
+    public Sticker chooseSticker(List<Sticker> options, Card target, SpellAbility sa, boolean isOptional) {
+        return isOptional && ChoiceSpace.pickBool(rng) ? null : ChoiceSpace.pickOne(options, rng);
+    }
+
+    @Override
+    public int chooseStickerNamePosition(Sticker sticker, Card target) {
+        return target.getName().isBlank() || target.stickerWouldFillBlank()
+                ? 0 : ChoiceSpace.pickIntInRange(0, target.getName().split(" ").length, rng);
+    }
+
+    @Override
+    public Card chooseCardToKeepStickers(CardCollectionView options) {
+        return chooseSingleEntityForEffect(options, null, null, "Choose a card to keep stickers",
+                false, null, null);
     }
 
     @Override

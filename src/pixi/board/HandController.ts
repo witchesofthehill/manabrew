@@ -3,7 +3,7 @@ import type { CardDto } from "@/protocol/game";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import type { PreviewPointerInput } from "@/lib/cardPreview";
 import type { HandCardControlsSpec } from "../HandCardControls";
-import { CardSprite } from "../CardSprite";
+import { CardSprite, isRealisticOnlyCard } from "../CardSprite";
 import { getTheme } from "@/hooks/useTheme";
 import type { HandState, ScreenBounds, ScreenPos } from "../types";
 import { hexToNum } from "../colorUtils";
@@ -38,6 +38,7 @@ import { lerp, safeDestroy } from "./pixiHelpers";
 import type { BlockingRect, HandHitZone, HandHost, HandTarget } from "./types";
 
 const HAND_SELECTION_DROP_PX = 30;
+const HAND_IGNORED_DROP_PX = 24;
 
 export class HandController {
   private host: HandHost;
@@ -139,7 +140,8 @@ export class HandController {
   setRulesViewDefault(active: boolean): void {
     if (this.rulesViewDefault === active) return;
     this.rulesViewDefault = active;
-    for (const sprite of this.sprites.values()) sprite.setHandRulesView(active);
+    for (const sprite of this.sprites.values())
+      sprite.setHandRulesView(active && !isRealisticOnlyCard(sprite.card));
   }
 
   isDraggingPermanent(): boolean {
@@ -209,6 +211,11 @@ export class HandController {
       const selectionMode = state.selectionMode === true;
       const isSelected = selectionMode && (state.selectedIds?.has(card.id) ?? false);
       const selectedDrop = isSelected ? Math.round(HAND_SELECTION_DROP_PX * this.vScale) : 0;
+      const ignoredDrop =
+        !isHovered && state.ignoredIds?.has(card.id)
+          ? Math.round(HAND_IGNORED_DROP_PX * this.vScale)
+          : 0;
+      const drop = selectedDrop + ignoredDrop;
 
       let sprite = this.sprites.get(card.id);
       if (!sprite) {
@@ -249,7 +256,7 @@ export class HandController {
       const scaleY = (l.scaleH / CARD_H) * castScale;
       this.targets.set(card.id, {
         x: centerX + l.x,
-        y: bottomY + l.y - l.scaleH / 2 + selectedDrop,
+        y: bottomY + l.y - l.scaleH / 2 + drop,
         rot,
         scaleX,
         scaleY,
@@ -262,7 +269,7 @@ export class HandController {
               index: i,
               card,
               x: centerX + l.x,
-              y: bottomY + l.y - l.scaleH / 2 + selectedDrop,
+              y: bottomY + l.y - l.scaleH / 2 + drop,
               width: l.scaleW,
               height: l.scaleH,
             }
@@ -270,7 +277,7 @@ export class HandController {
               index: i,
               card,
               x: centerX + base.x,
-              y: bottomY + base.drop - dims.cardH / 2 + selectedDrop,
+              y: bottomY + base.drop - dims.cardH / 2 + drop,
               width: dims.cardW,
               height: dims.cardH,
             },
@@ -614,7 +621,7 @@ export class HandController {
 
   private createSprite(card: CardDto): CardSprite {
     const sprite = new CardSprite(card, "hand");
-    sprite.setHandRulesView(this.rulesViewDefault);
+    sprite.setHandRulesView(this.rulesViewDefault && !isRealisticOnlyCard(card));
     sprite.eventMode = "static";
     sprite.cursor = "grab";
     sprite.onReorient = () => this.relayout();
@@ -748,6 +755,7 @@ export class HandController {
     selectionMode = false,
     isSelected = false,
   ): void {
+    sprite.setIgnored(this.lastState?.ignoredIds?.has(card.id) ?? false);
     if (selectionMode) {
       const color = isSelected
         ? hexToNum(this.host.getTheme().gameTheme.cardSelection)

@@ -192,12 +192,12 @@ public final class InteractiveSnapshotExtractor {
         }
         final Map<String, List<JsonObject>> battlefieldByController = new LinkedHashMap<>();
         for (final Player player : game.getRegisteredPlayers()) {
-            final int ownerIndex = SnapshotExtractor.playerIndex(game, player);
             for (final Card card : player.getCardsIn(ZoneType.Battlefield)) {
                 final String controllerId =
                         "player-" + SnapshotExtractor.playerIndex(game, card.getController());
                 final CardDto dto = toCard(
-                        game, card, ownerIndex, false, viewerPlayer, secretChoiceVisibility);
+                        game, card, SnapshotExtractor.playerIndex(game, card.getOwner()),
+                        false, viewerPlayer, secretChoiceVisibility);
                 if (card.isFaceDown() && !faceShownTo(card, viewerPlayer)) {
                     redact(dto);
                 }

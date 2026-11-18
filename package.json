@@ -1,7 +1,7 @@
 {
   "name": "manabrew",
   "private": true,
-  "version": "3.80.0",
+  "version": "3.84.1",
   "type": "module",
   "license": "AGPL-3.0-or-later",
   "engines": {
@@ -99,6 +99,7 @@
     "@fontsource/alegreya-sans": "^5.3.0",
     "@grafana/faro-web-sdk": "2.13.0",
     "@hookform/resolvers": "^5.2.2",
+    "@jsquash/webp": "1.5.0",
     "@lingui/core": "^6.6.0",
     "@lingui/react": "^6.6.0",
     "@pixi/sound": "^6",
@@ -124,7 +125,7 @@
     "clsx": "^2.1.1",
     "gsap": "^3.15.0",
     "immer": "^11.1.4",
-    "ironsmith-wasm": "^0.1.2",
+    "ironsmith-wasm": "^0.9.1",
     "lucide-react": "^0.574.0",
     "next-themes": "^0.4.6",
     "pixi-filters": "^6.1.5",

@@ -214,6 +214,12 @@ export const KEYBINDINGS = defineKeybindings([
     defaultCombo: { key: "r" },
   },
   {
+    id: "toggle-ignore-card",
+    label: `Ignore / restore hovered card for autopass`,
+    category: "Game",
+    defaultCombo: { key: "d" },
+  },
+  {
     id: "preview-prev-action",
     label: `Previous preview action`,
     category: "Game",

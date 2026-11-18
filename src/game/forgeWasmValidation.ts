@@ -21,20 +21,21 @@ export function withForgeStartTimeout<T>(start: Promise<T>): Promise<T> {
   ]).finally(() => clearTimeout(timer));
 }
 
-function firstGameSignal(): { signal: Promise<void>; stop: () => void } {
+export function firstGameSignal(promptOnly = false): { signal: Promise<void>; stop: () => void } {
   const events = getPlatform().events;
   let stop = () => {};
   const signal = new Promise<void>((resolve, reject) => {
     const fail = (payload?: { message?: string }) =>
       reject(new Error(payload?.message ?? "engine ended the game before it started"));
     const offs = [
-      events.on("game:state", () => resolve()),
+      ...(promptOnly ? [] : [events.on("game:state", () => resolve())]),
       events.on("game:prompt", () => resolve()),
       events.on<{ message?: string }>("game:forced_end", fail),
       events.on<{ message?: string }>("game:fatal", fail),
     ];
     stop = () => offs.forEach((off) => off());
   });
+  signal.catch(() => {});
   return { signal, stop };
 }
 

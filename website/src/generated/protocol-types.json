@@ -128,8 +128,8 @@
       "refs": ["LevelUpKind", "Mana"]
     },
     "AlternativeCostKind": {
-      "ts": "type AlternativeCostKind =\n  | \"flashback\"\n  | \"spectacle\"\n  | \"evoke\"\n  | \"dash\"\n  | \"blitz\"\n  | \"escape\"\n  | \"overload\"\n  | \"madness\"\n  | \"foretell\"\n  | \"emerge\"\n  | \"suspend\"\n  | \"morph\"\n  | \"megamorph\"\n  | \"bestow\"\n  | \"warp\"\n  | \"sacrificeAlt\"\n  | \"plot\"\n  | \"awaken\"\n  | \"disturb\"\n  | \"harmonize\"\n  | \"freerunning\"\n  | \"impending\"\n  | \"mayhem\"\n  | \"moreThanMeetsTheEye\"\n  | \"mutate\"\n  | \"prowl\"\n  | \"sneak\"\n  | \"surge\"\n  | \"webSlinging\"\n  | \"plotted\"\n  | \"prototype\";",
-      "rust": "/// Mirrors the engine's `AlternativeCost` (itself a mirror of Java's).\n#[serde(rename_all = \"camelCase\")]\npub enum AlternativeCostKind {\n    Flashback,\n    Spectacle,\n    Evoke,\n    Dash,\n    Blitz,\n    Escape,\n    Overload,\n    Madness,\n    Foretell,\n    Emerge,\n    Suspend,\n    Morph,\n    Megamorph,\n    Bestow,\n    Warp,\n    SacrificeAlt,\n    Plot,\n    Awaken,\n    Disturb,\n    Harmonize,\n    Freerunning,\n    Impending,\n    Mayhem,\n    #[serde(rename = \"moreThanMeetsTheEye\")]\n    MTMtE,\n    Mutate,\n    Prowl,\n    Sneak,\n    Surge,\n    WebSlinging,\n    Plotted,\n    Prototype,\n}",
+      "ts": "type AlternativeCostKind =\n  | \"flashback\"\n  | \"beamMeUp\"\n  | \"spectacle\"\n  | \"evoke\"\n  | \"dash\"\n  | \"blitz\"\n  | \"escape\"\n  | \"overload\"\n  | \"madness\"\n  | \"foretell\"\n  | \"emerge\"\n  | \"suspend\"\n  | \"morph\"\n  | \"megamorph\"\n  | \"bestow\"\n  | \"warp\"\n  | \"sacrificeAlt\"\n  | \"plot\"\n  | \"awaken\"\n  | \"disturb\"\n  | \"harmonize\"\n  | \"freerunning\"\n  | \"impending\"\n  | \"mayhem\"\n  | \"moreThanMeetsTheEye\"\n  | \"mutate\"\n  | \"prowl\"\n  | \"sneak\"\n  | \"surge\"\n  | \"webSlinging\"\n  | \"plotted\"\n  | \"prototype\";",
+      "rust": "/// Mirrors the engine's `AlternativeCost` (itself a mirror of Java's).\n#[serde(rename_all = \"camelCase\")]\npub enum AlternativeCostKind {\n    Flashback,\n    BeamMeUp,\n    Spectacle,\n    Evoke,\n    Dash,\n    Blitz,\n    Escape,\n    Overload,\n    Madness,\n    Foretell,\n    Emerge,\n    Suspend,\n    Morph,\n    Megamorph,\n    Bestow,\n    Warp,\n    SacrificeAlt,\n    Plot,\n    Awaken,\n    Disturb,\n    Harmonize,\n    Freerunning,\n    Impending,\n    Mayhem,\n    #[serde(rename = \"moreThanMeetsTheEye\")]\n    MTMtE,\n    Mutate,\n    Prowl,\n    Sneak,\n    Surge,\n    WebSlinging,\n    Plotted,\n    Prototype,\n}",
       "refs": []
     },
     "AttackTargetDto": {
@@ -143,8 +143,8 @@
       "refs": []
     },
     "AttackerOptionDto": {
-      "ts": "interface AttackerOptionDto {\n  attackerId: string;\n  validTargetIds: Array<string>;\n  mustAttack: boolean;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct AttackerOptionDto {\n    pub attacker_id: String,\n    pub valid_target_ids: Vec<String>,\n    pub must_attack: bool,\n}",
+      "ts": "interface AttackerOptionDto {\n  attackerId: string;\n  validTargetIds: Array<string>;\n  mustAttack: boolean;\n  suggestedTargetId?: string;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct AttackerOptionDto {\n    pub attacker_id: String,\n    pub valid_target_ids: Vec<String>,\n    pub must_attack: bool,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub suggested_target_id: Option<String>,\n}",
       "refs": []
     },
     "AvailableAction": {

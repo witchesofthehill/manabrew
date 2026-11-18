@@ -64,6 +64,7 @@ public final class ParityOrder {
 
     private static String cardModeSortKey(final SpellAbility sa) {
         if (sa.isOptionalCostPaid(OptionalCost.AltCost)) return "StaticAlternative";
+        if (sa.isAlternativeCost(AlternativeCost.BeamMeUp)) return "BeamMeUp";
         if (sa.isAlternativeCost(AlternativeCost.Flashback)) return "Flashback";
         if (sa.isAlternativeCost(AlternativeCost.Spectacle)) return "Spectacle";
         if (sa.isAlternativeCost(AlternativeCost.Evoke)) return "Evoke";

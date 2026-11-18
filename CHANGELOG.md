@@ -1,5 +1,61 @@
 # Changelog
 
+## [3.84.1](https://github.com/witchesofthehill/manabrew/compare/v3.84.0...v3.84.1) (2026-11-17)
+
+### Fixes
+
+* **combat:** preselect attacks that satisfy engine requirements ([#1232](https://github.com/witchesofthehill/manabrew/issues/1232)) ([2f035f3](https://github.com/witchesofthehill/manabrew/commit/2f035f3d200059a3649cd0acbab9385fb8a63cd7))
+* river pull and sink into stupor ([#1239](https://github.com/witchesofthehill/manabrew/issues/1239)) ([f8102be](https://github.com/witchesofthehill/manabrew/commit/f8102beb65bb0f3f3decd50b1645f9b50aa454cd))
+
+## [3.84.0](https://github.com/witchesofthehill/manabrew/compare/v3.83.0...v3.84.0) (2026-11-17)
+
+### Features
+
+* **ironsmith:** keep a game running when its host leaves ([#1237](https://github.com/witchesofthehill/manabrew/issues/1237)) ([3040806](https://github.com/witchesofthehill/manabrew/commit/30408066510b9ef1b8154e7bf179ac6d9d6390ed))
+
+## [3.83.0](https://github.com/witchesofthehill/manabrew/compare/v3.82.1...v3.83.0) (2026-11-17)
+
+### Features
+
+* **ironsmith:** update ironsmith-wasm to 0.9.1 ([#1234](https://github.com/witchesofthehill/manabrew/issues/1234)) ([845658e](https://github.com/witchesofthehill/manabrew/commit/845658e66022ba0a759b90bb959d33310ac12962))
+
+## [3.82.1](https://github.com/witchesofthehill/manabrew/compare/v3.82.0...v3.82.1) (2026-11-17)
+
+### Fixes
+
+* **lobby:** reconcile room membership after leaving games ([#1231](https://github.com/witchesofthehill/manabrew/issues/1231)) ([bc25e0c](https://github.com/witchesofthehill/manabrew/commit/bc25e0ce5cc62809c7941ff23d81fb8c6c1d8194))
+
+## [3.82.0](https://github.com/witchesofthehill/manabrew/compare/v3.81.0...v3.82.0) (2026-11-17)
+
+### Features
+
+* **ui:** enable chat during multiplayer games ([#1230](https://github.com/witchesofthehill/manabrew/issues/1230)) ([b1eecd6](https://github.com/witchesofthehill/manabrew/commit/b1eecd61849065f35ebe244301a661bc09a123c5))
+
+## [3.81.0](https://github.com/witchesofthehill/manabrew/compare/v3.80.3...v3.81.0) (2026-11-15)
+
+### Features
+
+* remove cards from Audotpass ([#1229](https://github.com/witchesofthehill/manabrew/issues/1229)) ([66b7b41](https://github.com/witchesofthehill/manabrew/commit/66b7b41c73dd43d2fabfb71825e9e0a9529d6a95))
+
+### Fixes
+
+* **assets:** encode WebP in wasm when the canvas cannot (Safari, iOS) ([#1227](https://github.com/witchesofthehill/manabrew/issues/1227)) ([afcc2ed](https://github.com/witchesofthehill/manabrew/commit/afcc2ed8e45497025849624c729fd9f59848d443))
+* **forge-wasm:** pass the solo trial on the first prompt, not on start ([#1228](https://github.com/witchesofthehill/manabrew/issues/1228)) ([25e13cc](https://github.com/witchesofthehill/manabrew/commit/25e13cce4c8f25b56ecaf29db4063819c7894aad))
+
+## [3.80.3](https://github.com/witchesofthehill/manabrew/compare/v3.80.2...v3.80.3) (2026-11-14)
+
+## [3.80.2](https://github.com/witchesofthehill/manabrew/compare/v3.80.1...v3.80.2) (2026-11-14)
+
+### Fixes
+
+* rulebreakers ([#1219](https://github.com/witchesofthehill/manabrew/issues/1219)) ([33b3ff7](https://github.com/witchesofthehill/manabrew/commit/33b3ff72778c9d2c308aab8181b647af7a0d0aad))
+
+## [3.80.1](https://github.com/witchesofthehill/manabrew/compare/v3.80.0...v3.80.1) (2026-11-14)
+
+### Fixes
+
+* **tauri:** keep lobby auto-connect off the shared relay during local ai handoff ([#1223](https://github.com/witchesofthehill/manabrew/issues/1223)) ([dff3f98](https://github.com/witchesofthehill/manabrew/commit/dff3f9853f21ee9ac925b50d1339edb7a310f215))
+
 ## [3.80.0](https://github.com/witchesofthehill/manabrew/compare/v3.79.7...v3.80.0) (2026-11-13)
 
 ### Features

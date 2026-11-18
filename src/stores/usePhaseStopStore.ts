@@ -7,7 +7,7 @@
 import { create } from "zustand";
 import type { StepKind } from "@/protocol";
 import type { GameViewDto } from "@/protocol/game";
-import { PHASES } from "@/components/game/game.constants";
+import { PHASES, STOP_PHASES } from "@/components/game/game.constants";
 
 const DEFAULT_SELF_STOPS = new Set<string>([
   "main1",
@@ -53,7 +53,7 @@ export const usePhaseStopStore = create<PhaseStopState>((set, get) => ({
   },
 }));
 
-const PHASE_ORDER: readonly StepKind[] = PHASES.filter((p) => p.id !== "untap").map((p) => p.id);
+const PHASE_ORDER: readonly StepKind[] = STOP_PHASES.map((p) => p.id);
 
 // Keep in sync with PriorityFastForward.isActiveCombat: a pass cannot skip these steps.
 const NEXT_COMBAT_STEP: Partial<Record<StepKind, StepKind>> = {

@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.84.3](https://github.com/witchesofthehill/manabrew/compare/v3.84.2...v3.84.3) (2026-11-18)
+
+### Fixes
+
+* blight and optional cost ([#1245](https://github.com/witchesofthehill/manabrew/issues/1245)) ([c8ae2ca](https://github.com/witchesofthehill/manabrew/commit/c8ae2cad6b79ccb55b5ae81673e2fa89cf22a39b))
+
 ## [3.84.2](https://github.com/witchesofthehill/manabrew/compare/v3.84.1...v3.84.2) (2026-11-18)
 
 ### Fixes

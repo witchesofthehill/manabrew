@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.84.2](https://github.com/witchesofthehill/manabrew/compare/v3.84.1...v3.84.2) (2026-11-18)
+
+### Fixes
+
+* remove CL ([#1244](https://github.com/witchesofthehill/manabrew/issues/1244)) ([36d826a](https://github.com/witchesofthehill/manabrew/commit/36d826a02027d428cc3e10912a27e8e2896d3b13))
+
 ## [3.84.1](https://github.com/witchesofthehill/manabrew/compare/v3.84.0...v3.84.1) (2026-11-17)
 
 ### Fixes

@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.84.8](https://github.com/witchesofthehill/manabrew/compare/v3.84.7...v3.84.8) (2026-11-19)
+
+### Fixes
+
+* **ui:** avoid duplicate turn banners during queued updates ([#1250](https://github.com/witchesofthehill/manabrew/issues/1250)) ([e3ac71c](https://github.com/witchesofthehill/manabrew/commit/e3ac71cc5f836cf2ca94ac29253876e6ac58f5b5))
+
 ## [3.84.7](https://github.com/witchesofthehill/manabrew/compare/v3.84.6...v3.84.7) (2026-11-19)
 
 ### Fixes

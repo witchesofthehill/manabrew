@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.86.1](https://github.com/witchesofthehill/manabrew/compare/v3.86.0...v3.86.1) (2026-11-19)
+
+### Fixes
+
+* **ui:** show tap state in battlefield card choices ([#1252](https://github.com/witchesofthehill/manabrew/issues/1252)) ([e9c45ab](https://github.com/witchesofthehill/manabrew/commit/e9c45ab2d6a4b47ed1b6fa45257dc50e811d12b5))
+
+## [3.86.0](https://github.com/witchesofthehill/manabrew/compare/v3.85.0...v3.86.0) (2026-11-19)
+
+### Features
+
+* **ui:** confirm passing priority with unspent mana ([#1253](https://github.com/witchesofthehill/manabrew/issues/1253)) ([b8389b7](https://github.com/witchesofthehill/manabrew/commit/b8389b765feb6c99f8921acb9b6037a3deb40fc7))
+
 ## [3.85.0](https://github.com/witchesofthehill/manabrew/compare/v3.84.8...v3.85.0) (2026-11-19)
 
 ### Features

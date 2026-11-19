@@ -1182,6 +1182,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     );
     const cardWidth = Math.max(0, ...cardSizes.map((size) => size.width));
     const cardHeight = Math.max(0, ...cardSizes.map((size) => size.height));
+    const rowHeight = cardHeight + PROMPT_CARD_ROW_GAP;
     const columns = horizontalScroll
       ? Math.max(1, visibleCount)
       : Math.max(
@@ -1207,10 +1208,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
               cardWidth + PROMPT_CARD_GAP,
               Math.max(0, (cardAreaWidth - cardWidth) / (visibleCount - 1)),
             );
-    const height = Math.min(
-      this.viewportHeight - 24,
-      244 + rows * (cardHeight + PROMPT_CARD_ROW_GAP) + headersHeight,
-    );
+    const height = Math.min(this.viewportHeight - 24, 244 + rows * rowHeight + headersHeight);
     const { panel, body, footer } = this.createModalShell(
       width,
       height,
@@ -1330,18 +1328,21 @@ export abstract class PromptModalLayer extends PromptLayerBase {
           rowX(cardsInRow) +
             column * (horizontalScroll ? compactCardSpacing : cardWidth + PROMPT_CARD_GAP) +
             (cardWidth - cardSize.width) / 2,
-          cardsTop + row * (cardHeight + PROMPT_CARD_ROW_GAP) + (cardHeight - cardSize.height) / 2,
+          cardsTop + row * rowHeight + (cardHeight - cardSize.height) / 2,
         );
+        if (!reveal && card.zone === "battlefield") {
+          tile.accessibleTitle += card.tapped ? ", tapped" : ", untapped";
+          tile.accessibleHint = `${tile.accessibleTitle}. ${tile.accessibleHint}`;
+          if (card.tapped) tile.addChild(this.createTappedBadge(cardSize.width, cardSize.height));
+        }
         (cardRow ?? body).addChild(tile);
         position++;
       });
-      if (!horizontalScroll)
-        sectionTop +=
-          Math.ceil(section.indices.length / columns) * (cardHeight + PROMPT_CARD_ROW_GAP);
+      if (!horizontalScroll) sectionTop += Math.ceil(section.indices.length / columns) * rowHeight;
     });
     if (cardRow) {
       const panLimit = cardAreaWidth - compactScrollRowWidth;
-      const rowsHeight = rows * (cardHeight + PROMPT_CARD_ROW_GAP) + sectionHeaderHeight;
+      const rowsHeight = rows * rowHeight + sectionHeaderHeight;
       const pitch = cardWidth + compactCardSpacing;
       const promptId = this.spec?.currentPrompt?.promptId ?? null;
       if (this.compactScrollPan?.promptId !== promptId) {
@@ -1459,6 +1460,33 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       grid.position.set(confirm.x - grid.buttonWidth - 8, 0);
       footer.addChild(grid);
     }
+  }
+
+  private createTappedBadge(cardWidth: number, cardHeight: number): Container {
+    const badge = new Container();
+    badge.eventMode = "none";
+    const { card, foreground } = this.theme.appTheme;
+    const ink = ensureTextContrast(foreground, card, foreground, 4.5);
+    const label = promptText("Tapped", 12, ink, { weight: "700" });
+    const iconSize = Math.min(32, cardWidth * 0.22);
+    const width = Math.max(iconSize, label.width) + 16;
+    const height = iconSize + label.height + 12;
+    const inset = 8;
+    const controlsBottom = cardHeight * 0.12 + Math.max(20, getUiControlFloor());
+    badge.position.set(
+      cardWidth - width - inset,
+      Math.min(controlsBottom + inset, cardHeight - height - inset),
+    );
+    const background = new Graphics()
+      .roundRect(0, 0, width, height, 8)
+      .fill({ color: hexToNum(card) })
+      .stroke({ color: hexToNum(ink), width: 1, alpha: 0.55 });
+    const icon = this.makeIcon("lucide-rotate-cw-bold", iconSize, ink);
+    icon.position.set(width / 2, 6 + iconSize / 2);
+    label.anchor.set(0.5, 0);
+    label.position.set(width / 2, 6 + iconSize);
+    badge.addChild(background, icon, label);
+    return badge;
   }
 
   protected createCardTile(

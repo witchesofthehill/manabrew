@@ -21,6 +21,8 @@ export function PromptPreferencesPanel() {
   const clearShow = usePromptPreferencesStore((s) => s.clearShow);
   const fullControl = usePromptPreferencesStore((s) => s.fullControl);
   const setFullControl = usePromptPreferencesStore((s) => s.setFullControl);
+  const confirmPassWithMana = usePromptPreferencesStore((s) => s.confirmPassWithMana);
+  const setConfirmPassWithMana = usePromptPreferencesStore((s) => s.setConfirmPassWithMana);
   const [logPrompts, setLogPrompts] = useState(isPromptLoggingEnabled);
   function setOptionalCostSkip(promptType: PromptType, skip: boolean) {
     if (skip) setShow(promptType, false);
@@ -52,6 +54,22 @@ export function PromptPreferencesPanel() {
             <p className="text-ui-body text-muted-foreground">
               Stop at every priority window, even when you have no possible response. When off,
               windows where you can only tap for mana pass automatically after a short delay.
+            </p>
+          </div>
+        </div>
+        <div className="rounded-lg border bg-card/40 p-3 flex items-start gap-3">
+          <input
+            id="prompt-confirm-pass-with-mana"
+            type="checkbox"
+            checked={confirmPassWithMana}
+            onChange={(e) => setConfirmPassWithMana(e.target.checked)}
+            className="mt-1 shrink-0 accent-selection h-4 w-4 touch:h-11 touch:w-11"
+          />
+          <div className="space-y-1">
+            <Label htmlFor="prompt-confirm-pass-with-mana">Confirm passing with unspent mana</Label>
+            <p className="text-ui-body text-muted-foreground">
+              Ask before passing priority or ending the turn while you have mana in your pool and
+              the stack is empty. Also pauses autopass while mana is floating.
             </p>
           </div>
         </div>

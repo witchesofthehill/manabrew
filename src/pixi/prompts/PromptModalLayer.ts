@@ -78,6 +78,8 @@ const CARD_PROMPT_MIN_WIDTH = 360;
 const CHOICE_SEARCH_HEIGHT = 52;
 const CHOICE_SEARCH_COUNT_MIN_WIDTH = 240;
 const CARD_SECTION_HEADER_HEIGHT = 46;
+const CARD_TAP_STATE_FONT_SIZE = 12;
+const CARD_TAP_STATE_GAP = 4;
 const SCRY_POOL_DRAG_SCALE = 0.5;
 const MODAL_SCROLL_HALF_LIFE_MS = 28;
 const MODAL_SCROLL_SNAP_PIXELS = 0.5;
@@ -1182,6 +1184,12 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     );
     const cardWidth = Math.max(0, ...cardSizes.map((size) => size.width));
     const cardHeight = Math.max(0, ...cardSizes.map((size) => size.height));
+    const showTapState = !reveal && cards.some((card) => card.zone === "battlefield");
+    const tapStateFontSize = Math.max(CARD_TAP_STATE_FONT_SIZE, getUiFontFloor("meta"));
+    const tapStateHeight = showTapState
+      ? Math.ceil(tapStateFontSize * 1.35) + CARD_TAP_STATE_GAP
+      : 0;
+    const rowHeight = cardHeight + tapStateHeight + PROMPT_CARD_ROW_GAP;
     const columns = horizontalScroll
       ? Math.max(1, visibleCount)
       : Math.max(
@@ -1207,10 +1215,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
               cardWidth + PROMPT_CARD_GAP,
               Math.max(0, (cardAreaWidth - cardWidth) / (visibleCount - 1)),
             );
-    const height = Math.min(
-      this.viewportHeight - 24,
-      244 + rows * (cardHeight + PROMPT_CARD_ROW_GAP) + headersHeight,
-    );
+    const height = Math.min(this.viewportHeight - 24, 244 + rows * rowHeight + headersHeight);
     const { panel, body, footer } = this.createModalShell(
       width,
       height,
@@ -1326,22 +1331,33 @@ export abstract class PromptModalLayer extends PromptLayerBase {
         const row = horizontalScroll ? 0 : Math.floor(sectionPosition / columns);
         const column = horizontalScroll ? position : sectionPosition % columns;
         const cardsInRow = Math.min(columns, section.indices.length - row * columns);
+        const rowTop = cardsTop + row * rowHeight;
         tile.position.set(
           rowX(cardsInRow) +
             column * (horizontalScroll ? compactCardSpacing : cardWidth + PROMPT_CARD_GAP) +
             (cardWidth - cardSize.width) / 2,
-          cardsTop + row * (cardHeight + PROMPT_CARD_ROW_GAP) + (cardHeight - cardSize.height) / 2,
+          rowTop + tapStateHeight + (cardHeight - cardSize.height) / 2,
         );
         (cardRow ?? body).addChild(tile);
+        if (showTapState && card.zone === "battlefield") {
+          const state = card.tapped ? "Tapped" : "Untapped";
+          tile.accessibleTitle += `, ${state.toLowerCase()}`;
+          tile.accessibleHint = `${tile.accessibleTitle}. ${tile.accessibleHint}`;
+          const label = promptText(state, tapStateFontSize, this.theme.appTheme.foreground, {
+            weight: "600",
+          });
+          label.anchor.set(0.5, 0);
+          label.position.set(tile.x + cardSize.width / 2, rowTop);
+          label.eventMode = "none";
+          (cardRow ?? body).addChild(label);
+        }
         position++;
       });
-      if (!horizontalScroll)
-        sectionTop +=
-          Math.ceil(section.indices.length / columns) * (cardHeight + PROMPT_CARD_ROW_GAP);
+      if (!horizontalScroll) sectionTop += Math.ceil(section.indices.length / columns) * rowHeight;
     });
     if (cardRow) {
       const panLimit = cardAreaWidth - compactScrollRowWidth;
-      const rowsHeight = rows * (cardHeight + PROMPT_CARD_ROW_GAP) + sectionHeaderHeight;
+      const rowsHeight = rows * rowHeight + sectionHeaderHeight;
       const pitch = cardWidth + compactCardSpacing;
       const promptId = this.spec?.currentPrompt?.promptId ?? null;
       if (this.compactScrollPan?.promptId !== promptId) {

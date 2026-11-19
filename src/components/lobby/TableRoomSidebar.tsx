@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Bot, Check, ChevronDown, Copy, LockKeyhole, LogOut, Shield, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { TableMatchmakingSettings } from "@/components/lobby/TableMatchmakingSettings";
 import { InvitePlayersDialog } from "@/components/lobby/InvitePlayersDialog";
 import { useServerStore } from "@/stores/useServerStore";
 import { RELAY_FEATURE } from "@/types/server";
@@ -214,6 +215,7 @@ export function TableRoomSidebar({
       <section className="rounded-xl border bg-card/85 p-4 backdrop-blur-md">
         <h2 className="text-ui-label font-semibold">Table controls</h2>
         <div className="mt-3 grid gap-2">
+          <TableMatchmakingSettings room={room} isController={isController} />
           {inLobby && !isOpenFormat && !needsDeck && (
             <Button variant="outline" onClick={onOpenDeckDialog}>
               <Shield /> Change deck

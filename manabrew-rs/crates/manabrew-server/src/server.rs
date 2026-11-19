@@ -14,6 +14,7 @@ use tracing::{debug, error, info, warn};
 
 use crate::cleanup::cleanup_loop;
 use crate::connection::handle_connection;
+use crate::matchmaking::matchmaking_loop;
 use crate::protocol::ServerMessage;
 use crate::state::ServerState;
 
@@ -50,6 +51,7 @@ pub async fn serve(
     info!("[server] Max rooms: {}", state.max_rooms);
 
     tokio::spawn(cleanup_loop(state.clone()));
+    tokio::spawn(matchmaking_loop(state.clone()));
     tokio::spawn(run_health_listener(
         state.clone(),
         health_addr,

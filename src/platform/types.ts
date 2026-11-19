@@ -9,6 +9,7 @@ import type {
   RoomRelayEnvelope,
   SealedConfig,
   LocalGameKind,
+  QueuedDeck,
 } from "@/types/server";
 import type { Deck } from "@/protocol/deck";
 import type { DirectiveInput, Prompt, PromptOutput, ResumeRoomRequest } from "@/protocol";
@@ -98,6 +99,13 @@ export interface InviteToRoomParams {
   username: string;
 }
 
+export interface EnterQueueParams {
+  format: GameFormat;
+  podSizes: number[];
+  decks: QueuedDeck[];
+  canHost: boolean;
+}
+
 export interface StartServerGameParams {
   format?: GameFormat;
 }
@@ -146,6 +154,15 @@ export interface IServerApi {
   setLocalGame(kind: LocalGameKind | null): Promise<void>;
   sendChat(params: SendChatParams): Promise<void>;
   inviteToRoom(params: InviteToRoomParams): Promise<void>;
+  enterQueue(params: EnterQueueParams): Promise<void>;
+  acceptQueueStep(bracket: number): Promise<void>;
+  setQueueSteps(steps: number[]): Promise<void>;
+  acceptBotFill(): Promise<void>;
+  acceptMatch(deckIndex?: number): Promise<void>;
+  declineMatch(): Promise<void>;
+  announceTable(bracket: number | null): Promise<void>;
+  answerTableCall(roomId: string, join: boolean, deckIndex?: number): Promise<void>;
+  leaveQueue(): Promise<void>;
   createRoom(params: CreateRoomParams): Promise<string | null>;
   stopRoom(): Promise<void>;
   joinRoom(params: JoinRoomParams): Promise<void>;
@@ -156,6 +173,7 @@ export interface IServerApi {
   setDeckSelection(params: SetDeckSelectionParams): Promise<void>;
   setFormat(params: SetFormatParams): Promise<void>;
   setMaxPlayers(params: SetMaxPlayersParams): Promise<void>;
+  setAutoStart(enabled: boolean): Promise<void>;
   startGame(params?: StartServerGameParams): Promise<void>;
   endGame(gameId: string): Promise<void>;
   reportEngineStats(stats: EngineGameStats, gameId?: string | null): Promise<void>;

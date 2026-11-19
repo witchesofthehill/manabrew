@@ -8,10 +8,19 @@ import type {
   Prompt,
   PromptOutput,
   ProtocolError,
+  QueueBracketCount,
   SealedConfig,
   StateUpdate,
 } from "@/protocol";
-export type { DraftConfig, EngineKind, GameFormat, PlayerDeckInfo, SealedConfig } from "@/protocol";
+export type {
+  DraftConfig,
+  EngineKind,
+  GameFormat,
+  PlayerDeckInfo,
+  QueueBracketCount,
+  QueuedDeck,
+  SealedConfig,
+} from "@/protocol";
 
 export type AiController = "manabot" | "forge";
 
@@ -44,6 +53,10 @@ export interface RoomInfo {
   table_style?: string;
   draft_config?: DraftConfig;
   sealed_config?: SealedConfig;
+  matchmade_bracket?: number;
+  matchmade_bot_fill?: boolean;
+  table_bracket?: number;
+  auto_start?: boolean;
 }
 export interface RoomPlayerInfo {
   username: string;
@@ -63,6 +76,7 @@ export interface PlayerInfo {
   avatar_url?: string;
   room_id?: string;
   local_game?: LocalGameKind;
+  searching_brackets?: number[];
   seal?: string;
 }
 export interface AuthResultPayload {
@@ -209,6 +223,8 @@ export const RELAY_FEATURE = {
   LimitedSessions: "limited_sessions",
   LimitedDraftClocks: "limited_draft_clocks",
   LimitedSessionRecovery: "limited_session_recovery",
+  Matchmaking: "matchmaking",
+  QueueSteps: "queue_steps",
 } as const;
 export type RelayFeature = (typeof RELAY_FEATURE)[keyof typeof RELAY_FEATURE];
 /** Engine slots, not names: the relay maps them to seats itself. */
@@ -346,4 +362,41 @@ export interface ReconnectingPayload {
 }
 export interface DisconnectedPayload {
   terminal?: boolean;
+}
+export interface QueueStatusPayload {
+  queued: boolean;
+  brackets: number[];
+  waiting: QueueBracketCount[];
+}
+export interface QueueStepOfferPayload {
+  down?: number | null;
+  up?: number | null;
+  waiting: QueueBracketCount[];
+}
+export interface QueueBotFillOfferPayload {
+  players: number;
+}
+export interface MatchProposalPayload {
+  bracket: number;
+  pod_size: number;
+  players: number;
+  expires_s: number;
+  busy: number;
+}
+export interface MatchProposalAcceptsPayload {
+  accepted: number;
+}
+export interface TableCallPayload {
+  room_id: string;
+  host: string;
+  bracket: number;
+  seats: number;
+  pod_size: number;
+  expires_s: number;
+}
+export interface MatchFoundPayload {
+  room: RoomInfo;
+  host: string;
+  bracket: number;
+  deck_name: string;
 }

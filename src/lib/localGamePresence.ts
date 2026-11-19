@@ -15,16 +15,27 @@ import { useServerStore } from "@/stores/useServerStore";
 import { RELAY_FEATURE, type LocalGameKind } from "@/types/server";
 
 let announced: LocalGameKind | null = null;
+const endListeners = new Set<() => void>();
+
+export function onLocalGameEnd(listener: () => void): () => void {
+  endListeners.add(listener);
+  return () => endListeners.delete(listener);
+}
 
 export function announceLocalGame(kind: LocalGameKind): void {
   announced = kind;
   void push();
 }
 
+export function localGameActive(): boolean {
+  return announced !== null;
+}
+
 export function clearLocalGame(): void {
   if (announced === null) return;
   announced = null;
   void push();
+  for (const listener of endListeners) listener();
 }
 
 /** The relay holds this on the session, so a reconnect starts out idle. */

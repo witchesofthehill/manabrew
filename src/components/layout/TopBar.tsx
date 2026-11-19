@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { installDesktopUpdate } from "@/hooks/useDesktopUpdater";
 import { ROUTES } from "@/lib/constants";
+import { MatchmakingStatus } from "@/components/lobby/MatchmakingStatus";
 import { useDesktopUpdateStore } from "@/stores/useDesktopUpdateStore";
 import { AccountMenu } from "./AccountMenu";
 import { ManaBrewLogo } from "./ManaBrewLogo";
@@ -159,6 +160,7 @@ export function TopBar({ override }: TopBarProps) {
             </span>
           </Button>
         )}
+        <MatchmakingStatus />
         <AccountMenu disabled={navigationDisabled} />
       </div>
     </header>

@@ -8,6 +8,7 @@ pub mod draft_clock;
 pub mod error;
 pub mod identity;
 pub mod lobby;
+pub mod matchmaking;
 pub mod metrics;
 pub mod protocol;
 pub mod replay;

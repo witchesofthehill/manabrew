@@ -26,6 +26,7 @@ import type {
   SpawnAiBotParams,
   SendChatParams,
   InviteToRoomParams,
+  EnterQueueParams,
 } from "./types";
 import type { GameOutcomeReport, LocalGameKind, RoomRelayEnvelope } from "@/types/server";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
@@ -99,6 +100,33 @@ class TauriServerApi implements IServerApi {
   inviteToRoom(params: InviteToRoomParams): Promise<void> {
     return this.inner.inviteToRoom(params);
   }
+  enterQueue(params: EnterQueueParams): Promise<void> {
+    return this.inner.enterQueue(params);
+  }
+  acceptQueueStep(bracket: number): Promise<void> {
+    return this.inner.acceptQueueStep(bracket);
+  }
+  setQueueSteps(steps: number[]): Promise<void> {
+    return this.inner.setQueueSteps(steps);
+  }
+  acceptBotFill(): Promise<void> {
+    return this.inner.acceptBotFill();
+  }
+  acceptMatch(deckIndex?: number): Promise<void> {
+    return this.inner.acceptMatch(deckIndex);
+  }
+  declineMatch(): Promise<void> {
+    return this.inner.declineMatch();
+  }
+  announceTable(bracket: number | null): Promise<void> {
+    return this.inner.announceTable(bracket);
+  }
+  answerTableCall(roomId: string, join: boolean, deckIndex?: number): Promise<void> {
+    return this.inner.answerTableCall(roomId, join, deckIndex);
+  }
+  leaveQueue(): Promise<void> {
+    return this.inner.leaveQueue();
+  }
   joinRoom(params: JoinRoomParams): Promise<void> {
     return this.inner.joinRoom(params);
   }
@@ -117,6 +145,10 @@ class TauriServerApi implements IServerApi {
   setFormat(params: SetFormatParams): Promise<void> {
     return this.inner.setFormat(params);
   }
+  setAutoStart(enabled: boolean): Promise<void> {
+    return this.inner.setAutoStart(enabled);
+  }
+
   setMaxPlayers(params: SetMaxPlayersParams): Promise<void> {
     return this.inner.setMaxPlayers(params);
   }

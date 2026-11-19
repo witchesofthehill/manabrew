@@ -1,8 +1,12 @@
 import { useState } from "react";
+import { useMatchmakingStore } from "@/stores/useMatchmakingStore";
+import { useServerStore } from "@/stores/useServerStore";
+import { RELAY_FEATURE } from "@/types/server";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChooseFormatDialog } from "@/components/lobby/ChooseFormatDialog";
+import { FindGameDialog } from "@/components/lobby/FindGameDialog";
 import { JoinPasswordDialog } from "@/components/lobby/JoinPasswordDialog";
 import { MultiplayerStartPanel } from "@/components/lobby/MultiplayerStartPanel";
 import { OpenTableCard } from "@/components/lobby/OpenTableCard";
@@ -68,6 +72,11 @@ export function TablesList({
   onRemoveBot,
   mySpawnedBots = [],
 }: TablesListProps) {
+  const [findGameOpen, setFindGameOpen] = useState(false);
+  const matchmakingSupported = useServerStore((state) =>
+    state.relayFeatures.includes(RELAY_FEATURE.Matchmaking),
+  );
+  const matchmakingIdle = useMatchmakingStore((state) => state.phase === "idle");
   const [joiningRoomId, setJoiningRoomId] = useState<string | null>(null);
   const [passwordRoom, setPasswordRoom] = useState<RoomInfo | null>(null);
   const [formatRoom, setFormatRoom] = useState<RoomInfo | null>(null);
@@ -165,7 +174,14 @@ export function TablesList({
             shortTouch && "space-y-3 py-2 sm:py-2",
           )}
         >
-          <MultiplayerStartPanel disabled={disabled} onSetUp={onNewGame} />
+          <MultiplayerStartPanel
+            disabled={disabled}
+            searching={!matchmakingIdle}
+            onSetUp={onNewGame}
+            onFindGame={
+              matchmakingSupported && matchmakingIdle ? () => setFindGameOpen(true) : undefined
+            }
+          />
 
           <section className={cn("space-y-3", shortTouch && "space-y-2")}>
             <div>
@@ -231,8 +247,13 @@ export function TablesList({
                   {hasTables ? "No tables match your search." : "No player tables are waiting."}
                 </p>
                 {!hasTables && (
-                  <Button variant="primary" size="sm" onClick={onNewGame} disabled={disabled}>
-                    Set up a table
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onNewGame}
+                    disabled={disabled || !matchmakingIdle}
+                  >
+                    Create a table
                   </Button>
                 )}
               </div>
@@ -241,6 +262,7 @@ export function TablesList({
         </div>
       </ScrollArea>
 
+      <FindGameDialog open={findGameOpen} onOpenChange={setFindGameOpen} disabled={disabled} />
       <JoinPasswordDialog
         room={passwordRoom}
         onClose={() => setPasswordRoom(null)}

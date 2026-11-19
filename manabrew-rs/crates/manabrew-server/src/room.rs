@@ -59,6 +59,11 @@ pub struct Room {
     /// Announced endpoints by player id. Only the relay binds one to a username.
     pub transports: HashMap<String, TransportEndpoint>,
     pub chat: ChatHistory,
+    pub matchmade_bracket: Option<u8>,
+    pub matchmade_bot_fill: bool,
+    pub pool_max_players: Option<u8>,
+    pub table_bracket: Option<u8>,
+    pub auto_start: bool,
 }
 
 impl Room {
@@ -106,6 +111,7 @@ impl Room {
                 }],
             )
         };
+        let auto_start = password.is_none() && draft_config.is_none() && sealed_config.is_none();
         Room {
             room_id,
             room_name,
@@ -134,6 +140,11 @@ impl Room {
             limited_matches: Vec::new(),
             transports: HashMap::new(),
             chat: ChatHistory::default(),
+            matchmade_bracket: None,
+            matchmade_bot_fill: false,
+            pool_max_players: None,
+            table_bracket: None,
+            auto_start,
         }
     }
 
@@ -216,6 +227,17 @@ impl Room {
     pub fn remove_player(&mut self, player_id: &str) -> Option<RoomSlot> {
         if let Some(idx) = self.players.iter().position(|p| p.player_id == player_id) {
             let slot = self.players.remove(idx);
+            if self.hosted && self.players.is_empty() {
+                if let Some(max_players) = self.pool_max_players.take() {
+                    self.max_players = max_players;
+                }
+                self.matchmade_bracket = None;
+                self.matchmade_bot_fill = false;
+                self.table_bracket = None;
+                self.auto_start = self.password.is_none()
+                    && self.draft_config.is_none()
+                    && self.sealed_config.is_none();
+            }
             if self.host_player_id == player_id && self.limited_session_id.is_none() {
                 let new_host = self
                     .players
@@ -442,6 +464,10 @@ impl Room {
             status: self.status.clone(),
             draft_config: self.draft_config.clone(),
             sealed_config: self.sealed_config.clone(),
+            matchmade_bracket: self.matchmade_bracket,
+            matchmade_bot_fill: self.matchmade_bot_fill,
+            table_bracket: self.table_bracket,
+            auto_start: self.auto_start,
         }
     }
 }

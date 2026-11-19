@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.85.0](https://github.com/witchesofthehill/manabrew/compare/v3.84.8...v3.85.0) (2026-11-19)
+
+### Features
+
+* **game:** add post-game rematches and retained tables ([#1221](https://github.com/witchesofthehill/manabrew/issues/1221)) ([9572857](https://github.com/witchesofthehill/manabrew/commit/95728576d02d10a8acab9742046a96c8d092217e))
+
 ## [3.84.8](https://github.com/witchesofthehill/manabrew/compare/v3.84.7...v3.84.8) (2026-11-19)
 
 ### Fixes

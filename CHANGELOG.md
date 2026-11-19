@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.86.1](https://github.com/witchesofthehill/manabrew/compare/v3.86.0...v3.86.1) (2026-11-19)
+
+### Fixes
+
+* **ui:** show tap state in battlefield card choices ([#1252](https://github.com/witchesofthehill/manabrew/issues/1252)) ([e9c45ab](https://github.com/witchesofthehill/manabrew/commit/e9c45ab2d6a4b47ed1b6fa45257dc50e811d12b5))
+
 ## [3.86.0](https://github.com/witchesofthehill/manabrew/compare/v3.85.0...v3.86.0) (2026-11-19)
 
 ### Features

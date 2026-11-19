@@ -98,8 +98,14 @@ export default function Play() {
     if (gameWasActive.current && mpState?.multiplayer) {
       gameWasActive.current = false;
       multiplayerStarted.current = false;
-      navigate(ROUTES.LOBBY, {
-        replace: true,
+      const server = useServerStore.getState();
+      const cleanup = server.currentRoom?.matchmade_bracket
+        ? server.leaveRoom()
+        : Promise.resolve();
+      void cleanup.finally(() => {
+        navigate(ROUTES.LOBBY, {
+          replace: true,
+        });
       });
       return;
     }

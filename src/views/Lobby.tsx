@@ -603,6 +603,8 @@ export default function Lobby() {
             />
           ) : creatingLabel ? (
             <TableCreatingSplash label={creatingLabel} />
+          ) : currentRoom?.matchmade_bracket && !currentRoom.table_bracket ? (
+            <TableCreatingSplash label="Starting your game" />
           ) : (
             <TablesList
               rooms={rooms}

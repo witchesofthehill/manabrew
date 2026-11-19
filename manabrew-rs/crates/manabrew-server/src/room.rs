@@ -237,6 +237,13 @@ impl Room {
                 self.auto_start = self.password.is_none()
                     && self.draft_config.is_none()
                     && self.sealed_config.is_none();
+            } else if !slot.is_bot
+                && self.status == RoomStatus::Lobby
+                && self.matchmade_bracket.is_some()
+                && self.players.iter().any(|p| !p.is_bot)
+            {
+                self.matchmade_bot_fill = false;
+                self.table_bracket = self.matchmade_bracket;
             }
             if self.host_player_id == player_id && self.limited_session_id.is_none() {
                 let new_host = self

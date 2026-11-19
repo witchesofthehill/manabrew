@@ -931,9 +931,7 @@ class WebGameApi implements IGameApi {
     if (params.localIsHost) {
       this.serverApi?.setEnginePlayerNames(params.playerNames);
       const forgeAi =
-        params.engine === "Forge" &&
-        usePreferencesStore.getState().aiController === "forge" &&
-        !this.serverApi?.inMatchmadeRoom();
+        params.engine === "Forge" && usePreferencesStore.getState().aiController === "forge";
       const botSeats = (params.botPlayerSlots ?? []).map(seatIndexOf);
       const limited = useMultiplayerLimitedStore.getState();
       const virtualBotNames = new Set(
@@ -1149,7 +1147,6 @@ class WebServerApi implements IServerApi {
   private directTransportOptIn = usePreferencesStore.getState().directTransport;
   private roomTransport = false;
   private currentRoomId: string | null = null;
-  private matchmadeRoomId: string | null = null;
 
   constructor(eventBus: WebEventBus) {
     this.eventBus = eventBus;
@@ -1462,10 +1459,6 @@ class WebServerApi implements IServerApi {
 
   async inviteToRoom(params: InviteToRoomParams): Promise<void> {
     this.send({ type: "InviteToRoom", username: params.username });
-  }
-
-  inMatchmadeRoom(): boolean {
-    return this.matchmadeRoomId !== null && this.matchmadeRoomId === this.currentRoomId;
   }
 
   async enterQueue(params: EnterQueueParams): Promise<void> {
@@ -1975,7 +1968,6 @@ class WebServerApi implements IServerApi {
   private handleServerMessage(msg: Record<string, unknown>, frameAt?: number, raw?: string): void {
     if (msg.type === "MatchFound") {
       const room = msg.room as RoomInfo;
-      this.matchmadeRoomId = room.room_id;
       this.eventBus.emit("server:match_found", {
         room,
         host: msg.host,

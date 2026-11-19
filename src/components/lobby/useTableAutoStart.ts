@@ -7,6 +7,7 @@ import {
 } from "@/components/lobby/tables.utils";
 import { getPlatform } from "@/platform";
 import type { Deck } from "@/protocol/deck";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { usePresetDecks } from "@/stores/usePresetDecksStore";
 import type { RoomInfo } from "@/types/server";
 
@@ -59,7 +60,7 @@ export function useTableAutoStart({ room, username, spawnBot, start }: TableAuto
                 deck: deck.deck,
                 commanderName: deck.commanderName ?? null,
               })),
-              forgeAi: false,
+              forgeAi: usePreferencesStore.getState().aiController === "forge",
             },
           }),
         );

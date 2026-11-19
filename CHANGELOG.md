@@ -1,5 +1,29 @@
 # Changelog
 
+## [3.84.7](https://github.com/witchesofthehill/manabrew/compare/v3.84.6...v3.84.7) (2026-11-19)
+
+### Fixes
+
+* **ironsmith:** update ironsmith-wasm to 0.9.2 and send both parts of two-part cards ([#1247](https://github.com/witchesofthehill/manabrew/issues/1247)) ([f713e2d](https://github.com/witchesofthehill/manabrew/commit/f713e2d18e34d7e24955418fcabf8f8fe673dc66))
+
+## [3.84.6](https://github.com/witchesofthehill/manabrew/compare/v3.84.5...v3.84.6) (2026-11-18)
+
+### Fixes
+
+* **ironsmith:** run engine and bots in a web worker ([#1249](https://github.com/witchesofthehill/manabrew/issues/1249)) ([aae20cc](https://github.com/witchesofthehill/manabrew/commit/aae20cc7caa05be30613a975ba0e1ecf3bc5aa67))
+
+## [3.84.5](https://github.com/witchesofthehill/manabrew/compare/v3.84.4...v3.84.5) (2026-11-18)
+
+### Fixes
+
+* disable perf mode ([#1248](https://github.com/witchesofthehill/manabrew/issues/1248)) ([801aeb8](https://github.com/witchesofthehill/manabrew/commit/801aeb8bf76d5a624a35c1a778726440902ef267))
+
+## [3.84.4](https://github.com/witchesofthehill/manabrew/compare/v3.84.3...v3.84.4) (2026-11-18)
+
+### Fixes
+
+* **ironsmith:** connect manabot and keep hosting on humans ([#1240](https://github.com/witchesofthehill/manabrew/issues/1240)) ([691a794](https://github.com/witchesofthehill/manabrew/commit/691a794ca297a5bfe601878014f54fb574730cc6))
+
 ## [3.84.3](https://github.com/witchesofthehill/manabrew/compare/v3.84.2...v3.84.3) (2026-11-18)
 
 ### Fixes

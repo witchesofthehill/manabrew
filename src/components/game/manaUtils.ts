@@ -1,7 +1,26 @@
 import type { ActivatableAbilityInfo } from "@/protocol/prompts/common";
-import type { ManaLetter } from "@/themes/gameTheme";
+import { MANA_LETTERS, type ManaLetter } from "@/themes/gameTheme";
 
 export const ANY_COLOR_LETTERS = ["W", "U", "B", "R", "G"] as const satisfies readonly ManaLetter[];
+
+export interface ManaPoolEntry {
+  color: ManaLetter;
+  count: number;
+}
+
+export function getManaPoolEntries(manaPool: Record<string, number> | undefined): ManaPoolEntry[] {
+  if (!manaPool) return [];
+  const entries: ManaPoolEntry[] = [];
+  for (const color of MANA_LETTERS) {
+    const count = manaPool[color] ?? 0;
+    if (count > 0) entries.push({ color, count });
+  }
+  return entries;
+}
+
+export function hasUnspentMana(manaPool: Record<string, number> | undefined): boolean {
+  return getManaPoolEntries(manaPool).length > 0;
+}
 
 export interface ManaAbilityActionInfo extends ActivatableAbilityInfo {
   actionId?: string;

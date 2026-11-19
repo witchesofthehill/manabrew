@@ -1,3 +1,4 @@
+import { Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { getManaPoolEntries } from "@/components/game/manaUtils";
@@ -10,9 +11,16 @@ interface PassWithManaModalProps {
   manaPool: Record<string, number>;
   onConfirm: () => void;
   onCancel: () => void;
+  onOpenSetting: () => void;
 }
 
-export function PassWithManaModal({ kind, manaPool, onConfirm, onCancel }: PassWithManaModalProps) {
+export function PassWithManaModal({
+  kind,
+  manaPool,
+  onConfirm,
+  onCancel,
+  onOpenSetting,
+}: PassWithManaModalProps) {
   const entries = getManaPoolEntries(manaPool);
   const endingTurn = kind === "endTurn";
 
@@ -40,6 +48,17 @@ export function PassWithManaModal({ kind, manaPool, onConfirm, onCancel }: PassW
             </div>
           ))}
         </dl>
+        <div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="-ml-3 text-ui-meta text-muted-foreground hover:text-foreground"
+            onClick={onOpenSetting}
+          >
+            <Settings className="h-3.5 w-3.5" />
+            Turn off in board settings
+          </Button>
+        </div>
       </Modal.Body>
       <Modal.Footer className="justify-between">
         <Modal.Close data-autofocus variant="ghost" onClose={onCancel}>

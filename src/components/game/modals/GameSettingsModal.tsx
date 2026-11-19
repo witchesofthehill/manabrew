@@ -1,6 +1,7 @@
-import { useId, type ReactNode } from "react";
+import { useEffect, useId, useRef, type ReactNode, type RefObject } from "react";
 import { Modal } from "./Modal";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   CARD_SIZE_MULTIPLIER_MAX,
   CARD_SIZE_MULTIPLIER_MIN,
@@ -22,37 +23,52 @@ import { TableSetupTableCard } from "@/components/lobby/TableSetupTableCard";
 import { useServerStore } from "@/stores/useServerStore";
 import { PhaseLayoutChoice } from "./PhaseLayoutChoice";
 
+export type GameSettingsFocusTarget = "confirmPassWithMana";
+
 function Choice<T extends string | boolean>({
   label,
   hint,
   value,
   options,
   onChange,
+  fieldsetRef,
+  highlighted = false,
+  autofocusValue,
 }: {
   label: string;
   hint?: string;
   value: T;
   options: readonly { value: T; label: string }[];
   onChange: (value: T) => void;
+  fieldsetRef?: RefObject<HTMLFieldSetElement | null>;
+  highlighted?: boolean;
+  autofocusValue?: T;
 }) {
   return (
-    <fieldset className="space-y-2">
-      <legend className="text-ui-label font-medium">{label}</legend>
-      <div className="flex flex-wrap gap-2">
-        {options.map((option) => (
-          <Button
-            key={String(option.value)}
-            size="sm"
-            variant={value === option.value ? "selected" : "outline"}
-            aria-pressed={value === option.value}
-            onClick={() => onChange(option.value)}
-          >
-            {option.label}
-          </Button>
-        ))}
-      </div>
-      {hint && <p className="text-ui-meta text-muted-foreground">{hint}</p>}
-    </fieldset>
+    <div
+      className={cn(
+        highlighted && "rounded-lg border border-selection-border bg-selection/20 p-3 -mx-3",
+      )}
+    >
+      <fieldset ref={fieldsetRef} className="space-y-2">
+        <legend className="text-ui-label font-medium">{label}</legend>
+        <div className="flex flex-wrap gap-2">
+          {options.map((option) => (
+            <Button
+              key={String(option.value)}
+              size="sm"
+              variant={value === option.value ? "selected" : "outline"}
+              aria-pressed={value === option.value}
+              data-autofocus={autofocusValue === option.value ? "" : undefined}
+              onClick={() => onChange(option.value)}
+            >
+              {option.label}
+            </Button>
+          ))}
+        </div>
+        {hint && <p className="text-ui-meta text-muted-foreground">{hint}</p>}
+      </fieldset>
+    </div>
   );
 }
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -70,15 +86,26 @@ const ON_OFF = [
   { value: false, label: "Off" },
 ];
 
-export function GameSettingsModal({ onClose }: { onClose: () => void }) {
+export function GameSettingsModal({
+  onClose,
+  focusSetting,
+}: {
+  onClose: () => void;
+  focusSetting?: GameSettingsFocusTarget;
+}) {
   const prefs = usePreferencesStore();
   const fullControl = usePromptPreferencesStore((s) => s.fullControl);
   const setFullControl = usePromptPreferencesStore((s) => s.setFullControl);
   const confirmPassWithMana = usePromptPreferencesStore((s) => s.confirmPassWithMana);
   const setConfirmPassWithMana = usePromptPreferencesStore((s) => s.setConfirmPassWithMana);
   const id = useId();
+  const confirmPassRef = useRef<HTMLFieldSetElement>(null);
   const roomTableStyle = useServerStore((s) => s.currentRoom?.table_style);
   const tableBackgroundLocked = roomTableStyle != null;
+  useEffect(() => {
+    if (focusSetting !== "confirmPassWithMana") return;
+    confirmPassRef.current?.scrollIntoView({ block: "center" });
+  }, [focusSetting]);
   return (
     <Modal onClose={onClose} maxWidth="max-w-xl">
       <Modal.CloseShortcut keybinding="open-settings" onClose={onClose} />
@@ -139,6 +166,9 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
             value={confirmPassWithMana}
             options={ON_OFF}
             onChange={setConfirmPassWithMana}
+            fieldsetRef={confirmPassRef}
+            highlighted={focusSetting === "confirmPassWithMana"}
+            autofocusValue={focusSetting === "confirmPassWithMana" ? false : undefined}
             hint="Ask before passing with an empty stack while mana is in your pool. Pauses autopass while mana is floating."
           />
           <Choice

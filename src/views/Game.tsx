@@ -38,6 +38,7 @@ import {
   RestoreVoteModal,
   EliminatedModal,
   GameSettingsModal,
+  type GameSettingsFocusTarget,
   PassWithManaModal,
   type PendingPassKind,
   PhaseStopsHelpModal,
@@ -364,6 +365,9 @@ export default function Game({ exitTo }: GameProps = {}) {
   const [handCardLifted, setHandCardLifted] = useState(false);
   const [boardMenuOpen, setBoardMenuOpen] = useState(false);
   const [gameSettingsOpen, setGameSettingsOpen] = useState(false);
+  const [gameSettingsFocus, setGameSettingsFocus] = useState<GameSettingsFocusTarget | undefined>(
+    undefined,
+  );
   const [soundSettingsOpen, setSoundSettingsOpen] = useState(false);
   const [phaseStopsHelpOpen, setPhaseStopsHelpOpen] = useState(false);
   const [eliminatedModalOpen, setEliminatedModalOpen] = useState(false);
@@ -1384,6 +1388,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       setConcedeModalOpen(false);
       setLeaveGameModalOpen(false);
       setGameSettingsOpen(false);
+      setGameSettingsFocus(undefined);
       setSoundSettingsOpen(false);
       setCombatDetailsOpen(false);
       closeZoneViewer();
@@ -2875,7 +2880,15 @@ export default function Game({ exitTo }: GameProps = {}) {
           onStart={postGame.onDeckSelected}
         />
       )}
-      {gameSettingsOpen && <GameSettingsModal onClose={() => setGameSettingsOpen(false)} />}
+      {gameSettingsOpen && (
+        <GameSettingsModal
+          focusSetting={gameSettingsFocus}
+          onClose={() => {
+            setGameSettingsOpen(false);
+            setGameSettingsFocus(undefined);
+          }}
+        />
+      )}
       {soundSettingsOpen && <SoundSettingsModal onClose={() => setSoundSettingsOpen(false)} />}
       {phaseStopsHelpOpen && (
         <PhaseStopsHelpModal
@@ -2967,6 +2980,11 @@ export default function Game({ exitTo }: GameProps = {}) {
           manaPool={me.manaPool}
           onConfirm={handleConfirmPassWithMana}
           onCancel={() => setPendingPassWithMana(null)}
+          onOpenSetting={() => {
+            setPendingPassWithMana(null);
+            setGameSettingsFocus("confirmPassWithMana");
+            setGameSettingsOpen(true);
+          }}
         />
       )}
 

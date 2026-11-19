@@ -1,3 +1,5 @@
+import { getPlatform } from "@/platform";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useState } from "react";
 import { Bot, Check, ChevronDown, Copy, LockKeyhole, LogOut, Shield, UserPlus } from "lucide-react";
 import { toast } from "sonner";
@@ -67,6 +69,9 @@ export function TableRoomSidebar({
   const [copiedPassword, setCopiedPassword] = useState(false);
   const [inviting, setInviting] = useState(false);
   const invitesEnabled = useServerStore((s) => s.relayFeatures.includes(RELAY_FEATURE.RoomInvites));
+  const spectatorsEnabled = useServerStore((s) =>
+    s.relayFeatures.includes(RELAY_FEATURE.Spectators),
+  );
   const inLobby = room.status === "Lobby";
   const allowsMultiplayer = MULTIPLAYER_FORMATS.includes(room.format);
   async function copyPassword() {
@@ -176,6 +181,25 @@ export function TableRoomSidebar({
               )}
             </dd>
           </div>
+          {spectatorsEnabled && room.engine === "Forge" && !isLimitedRoom && (
+            <div className="flex items-center justify-between gap-3">
+              <dt>
+                <label htmlFor="allow-spectators">Allow spectators</label>
+              </dt>
+              <dd>
+                <Checkbox
+                  id="allow-spectators"
+                  checked={room.allow_spectators ?? false}
+                  disabled={!isController || !inLobby}
+                  onCheckedChange={(allow) =>
+                    void getPlatform()
+                      .server?.setAllowSpectators(allow === true)
+                      .catch(() => toast.error("Could not update spectators."))
+                  }
+                />
+              </dd>
+            </div>
+          )}
           {room.draft_config && (
             <>
               <div className="flex flex-wrap items-center justify-between gap-3">

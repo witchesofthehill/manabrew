@@ -17,6 +17,7 @@ export interface DamageOrderPromptSpec {
 }
 
 export interface GameOverPromptSpec {
+  spectator?: boolean;
   winnerId: string | null | undefined;
   me: PlayerDto;
   opponents: PlayerDto[];

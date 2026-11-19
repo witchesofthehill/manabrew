@@ -261,6 +261,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   useAutoResolvePrompt(interruption.waiting);
   const rawGameView = useGameStore((s) => s.gameView);
   const myPlayerSlot = useGameStore((s) => s.myPlayerSlot);
+  const isSpectator = useGameStore((s) => s.isSpectator);
   const gauntletId = useGameStore((s) => s.gauntletId);
   const currentPrompt = useGameStore((s) => s.currentPrompt);
   const protocolError = useGameStore((s) => s.protocolError);
@@ -1270,7 +1271,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     () => opponents.filter((op) => isBotSeat(op, roomPlayers)),
     [opponents, roomPlayers],
   );
-  const iAmEliminated = selfConceded || (me != null && me.status !== "playing");
+  const iAmEliminated = isSpectator || selfConceded || (me != null && me.status !== "playing");
   const ownsEngine = isHost || hostingForgeRoom;
   const gameContinuesWithoutMe = opponents.filter((p) => p.status === "playing").length >= 2;
   const handleConcede = useCallback(() => setConcedeModalOpen(true), []);
@@ -1310,7 +1311,13 @@ export default function Game({ exitTo }: GameProps = {}) {
   }, [ownsEngine, endGame]);
   const myStatus = me?.status;
   const gameOverNow = gameView?.gameOver ?? false;
-  const leaveGameMode = ownsEngine ? "engineOwner" : isMultiplayer ? "seat" : "solo";
+  const leaveGameMode = isSpectator
+    ? "spectator"
+    : ownsEngine
+      ? "engineOwner"
+      : isMultiplayer
+        ? "seat"
+        : "solo";
   // Browser back/forward mid-game asks the same question as the Leave button.
   const navigationBlocker = useLiveGameNavigationGuard(isGameActive && !gameOverNow && !fatalError);
   const navigationBlocked = navigationBlocker.state === "blocked";
@@ -1345,7 +1352,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       closeAbilityPicker();
       return;
     }
-    if (manualApi || !gameContinuesWithoutMe) return;
+    if (isSpectator || manualApi || !gameContinuesWithoutMe) return;
     if (
       (selfConceded || (myStatus && myStatus !== "playing")) &&
       !eliminatedModalShownRef.current
@@ -1355,6 +1362,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     }
   }, [
     myStatus,
+    isSpectator,
     selfConceded,
     gameOverNow,
     manualApi,
@@ -2402,11 +2410,11 @@ export default function Game({ exitTo }: GameProps = {}) {
             step: activeFlash.step,
             color: playerColorMap.get(activeFlash.playerId) ?? themeColors.playerColors.self,
             label:
-              activeFlash.playerId === me.id
+              activeFlash.playerId === me.id && !isSpectator
                 ? "Your turn"
                 : `${stripUsernameTag(turnHandoffPlayer.name)}'s turn`,
             avatarUrl:
-              activeFlash.playerId === me.id
+              activeFlash.playerId === me.id && !isSpectator
                 ? (useAuthStore.getState().account?.avatarUrl ?? null)
                 : (relayAvatarUrl(
                     turnHandoffPlayer.name,
@@ -2527,6 +2535,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     gameOver:
       gameView.gameOver || promptType === "gameOver"
         ? {
+            spectator: isSpectator,
             winnerId: gameView.winnerId,
             me,
             opponents,
@@ -2775,6 +2784,14 @@ export default function Game({ exitTo }: GameProps = {}) {
                     repeatVote.requestedByPlayerId
                   }
                 />
+              )}
+              {isSpectator && (
+                <div className="pointer-events-auto absolute left-3 top-3 z-20 flex items-center gap-3 rounded-lg border bg-background px-3 py-2 text-ui-meta text-foreground shadow-sm">
+                  <span>Watching · Public board only</span>
+                  <Button variant="ghost" size="sm" onClick={() => void endGame()}>
+                    Leave
+                  </Button>
+                </div>
               )}
               <MiddleBarDock
                 open={boardMenuOpen}

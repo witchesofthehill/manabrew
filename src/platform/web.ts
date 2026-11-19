@@ -5,6 +5,8 @@
  * The game engine runs in a Web Worker for non-blocking UI.
  */
 
+import { useGameStore } from "@/stores/useGameStore";
+import { useServerStore } from "@/stores/useServerStore";
 import { deckHasCardCosmetics, normalizeCardCosmetics } from "@/lib/cardCosmetics";
 import { reportClientError } from "@/lib/errorReporting";
 import { workerError } from "@/lib/workerError";
@@ -950,6 +952,7 @@ class WebGameApi implements IGameApi {
       // Host runs the engine; the worker posts back one SAB per remote
       // seat (see the game:remote_sab handler in WorkerBridge).
       await this.bridge.invoke("start_multiplayer_game", {
+        publicSnapshots: useServerStore.getState().currentRoom?.allow_spectators === true,
         decks: params.decks,
         commanderNames: params.commanderNames,
         playerNames: params.playerNames,
@@ -1154,6 +1157,23 @@ class WebServerApi implements IServerApi {
       if (prefs.directTransport === this.directTransportOptIn) return;
       this.directTransportOptIn = prefs.directTransport;
       this.onDirectTransportPreference();
+    });
+
+    eventBus.on<StateUpdate>("game:public_state", (state) => {
+      if (!useGameStore.getState().isHost || !this.currentRoomId) return;
+      const json = JSON.stringify(state);
+      const previous = this.lastRelayStates.get("");
+      if (previous?.json === json) return;
+      const fingerprint = `browser-${++this.relayStateSequence}`;
+      const patch = previous ? diffStateDelta(previous.state, state) : undefined;
+      this.lastRelayStates.set("", { state, json, fingerprint });
+      this.send({
+        type: "BroadcastState",
+        state:
+          previous && patch !== undefined
+            ? { kind: "stateDelta", base: previous.fingerprint, fingerprint, patch }
+            : { kind: "state", state, fingerprint },
+      });
     });
 
     eventBus.on<RelayMessage>("game:relay_message", ({ forPlayer, msg }) => {
@@ -1483,6 +1503,10 @@ class WebServerApi implements IServerApi {
 
   async stopRoom(): Promise<void> {
     // No embedded room host on web — the relay owns room lifecycle.
+  }
+
+  async setAllowSpectators(allow: boolean): Promise<void> {
+    this.send({ type: "SetAllowSpectators", allow });
   }
 
   async joinRoom(params: JoinRoomParams): Promise<void> {
@@ -2146,6 +2170,10 @@ class WebServerApi implements IServerApi {
 
     if (type === "RoomResumed") {
       for (const [playerSlot, { state, fingerprint }] of this.lastRelayStates) {
+        if (playerSlot === "") {
+          this.send({ type: "BroadcastState", state: { kind: "state", state, fingerprint } });
+          continue;
+        }
         const targetPlayer = this.enginePlayerName(playerSlot);
         if (targetPlayer) {
           void this.broadcastState(

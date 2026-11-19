@@ -561,6 +561,13 @@ export class IronsmithTrustedGameApi implements IGameApi {
   ): Promise<void> {
     const generation = this.generation;
     if (payload.config) {
+      if (
+        !this.needsSync &&
+        this.game &&
+        payload.from + payload.entries.length <= this.entries.length
+      ) {
+        return;
+      }
       this.botRecovery.clear();
       this.game?.dispose();
       this.createEngine();

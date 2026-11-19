@@ -155,7 +155,9 @@ export function modalDialog(page) {
 
 /** The room's deck picker button, whatever it is labelled at the time. */
 export function deckButton(page) {
-  return page.getByRole("button", { name: /^(Choose a deck|Change deck|Select Deck)$/i }).first();
+  return page
+    .getByRole("button", { name: /^(Choose (a |your )?deck|Change deck|Select Deck)$/i })
+    .first();
 }
 
 /** Open the deck dialog opened by `opener` and pick a preset by (partial) name. */

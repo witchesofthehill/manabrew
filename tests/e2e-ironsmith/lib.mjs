@@ -156,7 +156,7 @@ export function modalDialog(page) {
 /** The room's deck picker button, whatever it is labelled at the time. */
 export function deckButton(page) {
   return page
-    .getByRole("button", { name: /^(Choose (a |your )?deck|Change deck|Select Deck)$/i })
+    .getByRole("button", { name: /^(Your deck.*|Choose (a |your )?deck|Change deck|Select Deck)$/i })
     .first();
 }
 

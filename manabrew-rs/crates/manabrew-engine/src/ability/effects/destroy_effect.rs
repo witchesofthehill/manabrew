@@ -44,7 +44,6 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
             // unless `NoRegen$ True` suppresses the replacement.
             if has_regen_shield && !no_regen {
                 ctx.game.card_mut(target_card).regeneration_shields -= 1;
-                // Regenerating taps the creature and removes it from combat.
                 ctx.game.card_mut(target_card).tapped = true;
                 if always_remember {
                     if let Some(sid) = sa.source {

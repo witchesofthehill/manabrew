@@ -4,6 +4,11 @@ const MAX_RASTER = 256;
 const textures = new Map<string, Texture>();
 const loading = new Map<string, Promise<Texture>>();
 
+export function cachedAvatarTexture(url: string): Texture | null {
+  const cached = textures.get(url);
+  return cached && !cached.destroyed ? cached : null;
+}
+
 /** Load a player avatar into a Pixi texture by drawing it onto a canvas — the
  *  same path the mana/icon caches use. */
 export function loadAvatarTexture(url: string): Promise<Texture> {

@@ -6,7 +6,8 @@
 
 import { create } from "zustand";
 import type { StepKind } from "@/protocol";
-import { PHASES } from "@/components/game/game.constants";
+import type { GameViewDto } from "@/protocol/game";
+import { PHASES, STOP_PHASES } from "@/components/game/game.constants";
 
 const DEFAULT_SELF_STOPS = new Set<string>([
   "main1",
@@ -52,7 +53,15 @@ export const usePhaseStopStore = create<PhaseStopState>((set, get) => ({
   },
 }));
 
-const PHASE_ORDER: readonly StepKind[] = PHASES.filter((p) => p.id !== "untap").map((p) => p.id);
+const PHASE_ORDER: readonly StepKind[] = STOP_PHASES.map((p) => p.id);
+
+// Keep in sync with PriorityFastForward.isActiveCombat: a pass cannot skip these steps.
+const NEXT_COMBAT_STEP: Partial<Record<StepKind, StepKind>> = {
+  combatDeclareAttackers: "combatDeclareBlockers",
+  combatDeclareBlockers: "combatDamage",
+  combatFirstStrikeDamage: "combatDamage",
+  combatDamage: "combatEnd",
+};
 
 /**
  * Walk forward through (player, phase) slots in turn order — starting just
@@ -89,6 +98,38 @@ export function getNextStop(
     }
   }
   return null;
+}
+
+export function getPassStop(
+  gameView: GameViewDto,
+  myId: string,
+): { playerId: string; phase: StepKind } | null {
+  const store = usePhaseStopStore.getState();
+  return getNextStop(
+    gameView.players.filter((p) => p.status === "playing").map((p) => p.id),
+    gameView.activePlayerId,
+    gameView.step,
+    myId,
+    store.selfStops,
+    store.getOpponentStops,
+  );
+}
+
+function goToLabel(step: StepKind): string {
+  return `GO TO ${PHASES.find((phase) => phase.id === step)!.label.toUpperCase()}`;
+}
+
+export function passPriorityLabel(
+  gameView: GameViewDto,
+  myId: string,
+  hasAttackers: boolean,
+): string {
+  if (gameView.activePlayerId !== myId || gameView.stack.length > 0) return "PASS";
+  const combatStep = hasAttackers ? NEXT_COMBAT_STEP[gameView.step] : undefined;
+  if (combatStep) return goToLabel(combatStep);
+  const stop = getPassStop(gameView, myId);
+  if (!stop) return "PASS";
+  return stop.playerId === myId ? goToLabel(stop.phase) : "END TURN";
 }
 
 /**

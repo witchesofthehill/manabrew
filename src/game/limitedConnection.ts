@@ -11,6 +11,7 @@ export function captureLimitedConnection(
 ): LimitedConnectionRecovery {
   const server = useServerStore.getState();
   const prefs = usePreferencesStore.getState();
+  const seatIndices = room.players.map((player) => player.seat_index);
   const resume: ResumeRoomParams = {
     room_id: room.room_id,
     room_name: room.room_name,
@@ -24,6 +25,9 @@ export function captureLimitedConnection(
     draft_config: room.draft_config,
     sealed_config: room.sealed_config,
     player_order: room.players.map((player) => player.username),
+    seat_indices: seatIndices.every((seat): seat is number => seat !== undefined)
+      ? seatIndices
+      : undefined,
     player_decks: [],
     starting_life: server.startingLife,
     bot_players: room.players.filter((player) => player.is_bot).map((player) => player.username),

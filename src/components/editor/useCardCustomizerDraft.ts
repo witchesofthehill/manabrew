@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import {
+  changeCustomizationCalibration,
   changeCustomizationField,
   changeCustomizationPrinting,
   createCustomizationDraft,
@@ -9,7 +10,7 @@ import {
   type CardCustomizationDraft,
   type CosmeticField,
 } from "@/components/editor/cardCustomizerDraft";
-import type { DeckCard } from "@/protocol/deck";
+import type { CardPrintingCalibration, DeckCard } from "@/protocol/deck";
 import { deriveTokens } from "@/lib/decks";
 import { getCardCustomizationCopy } from "@/stores/useDeckStore";
 import { tokenIdentityKey } from "@/stores/useScryfallStore";
@@ -24,6 +25,7 @@ export interface CardCustomizerEditor {
   stale: boolean;
   edit: (field: CosmeticField, value: string) => void;
   editPrinting: (printing: ScryfallCard) => void;
+  editCalibration: (value: CardPrintingCalibration | undefined, faceIndex?: 0 | 1) => void;
   reset: () => void;
 }
 
@@ -59,6 +61,12 @@ export function useCardCustomizerDraft(
       changeCustomizationPrinting(current ?? createCustomizationDraft(active), printing),
     );
   };
+  const editCalibration = (value: CardPrintingCalibration | undefined, faceIndex?: 0 | 1) => {
+    if (!active || stale) return;
+    setDraft((current) =>
+      changeCustomizationCalibration(current ?? createCustomizationDraft(active), value, faceIndex),
+    );
+  };
   const reset = () => {
     if (!active || stale) return;
     setDraft((current) => {
@@ -67,5 +75,5 @@ export function useCardCustomizerDraft(
     });
   };
 
-  return { active, draft, pending, preview, stale, edit, editPrinting, reset };
+  return { active, draft, pending, preview, stale, edit, editPrinting, editCalibration, reset };
 }

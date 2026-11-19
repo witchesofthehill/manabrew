@@ -4,11 +4,10 @@ import {
   deleteAccountDeck,
   fetchAccountDeck,
   fetchAccountDecks,
-  fetchDeckVersions,
   forkPresetDeck,
   saveAccountDeck,
 } from "@/api/hub";
-import type { AccountDeckDetail, AccountDeckSummary, DeckVersionSummary } from "@/api/hubTypes";
+import type { AccountDeckDetail, AccountDeckSummary } from "@/api/hubTypes";
 import { isFeatureEnabled } from "@/featureFlags";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { withResolvedDeckName } from "@/lib/deckName";
@@ -18,7 +17,6 @@ interface AccountDecksState {
   accountId: string | null;
   decks: AccountDeckSummary[];
   details: Record<string, AccountDeckDetail>;
-  versions: Record<string, DeckVersionSummary[]>;
   loading: boolean;
   error: string | null;
   refresh: () => Promise<void>;
@@ -36,7 +34,6 @@ interface AccountDecksState {
     next: { assetId: string; url: string } | undefined,
   ) => Promise<void>;
   remove: (id: string) => Promise<void>;
-  loadVersions: (id: string) => Promise<DeckVersionSummary[]>;
   clear: () => void;
 }
 
@@ -45,7 +42,6 @@ let refreshRequest: Promise<void> | null = null;
 let refreshDirty = false;
 let deckRemovalId = 0;
 const detailRequests = new Map<string, Promise<AccountDeckDetail>>();
-const versionRequests = new Map<string, Promise<DeckVersionSummary[]>>();
 const presetForkRequests = new Map<string, Promise<AccountDeckDetail>>();
 
 function currentAccountId(): string | null {
@@ -77,17 +73,12 @@ function cacheDetail(
   state: AccountDecksState,
   accountId: string | null,
   detail: AccountDeckDetail,
-  invalidateVersions = false,
 ): Partial<AccountDecksState> {
   const sameAccount = state.accountId === accountId;
   return {
     accountId,
     decks: upsertSummary(sameAccount ? state.decks : [], detail),
     details: { ...(sameAccount ? state.details : {}), [detail.id]: detail },
-    versions: {
-      ...(sameAccount ? state.versions : {}),
-      ...(invalidateVersions ? { [detail.id]: [] } : {}),
-    },
   };
 }
 
@@ -95,7 +86,6 @@ export const useAccountDecksStore = create<AccountDecksState>((set, get) => ({
   accountId: null,
   decks: [],
   details: {},
-  versions: {},
   loading: false,
   error: null,
   refresh: async () => {
@@ -108,9 +98,8 @@ export const useAccountDecksStore = create<AccountDecksState>((set, get) => ({
       refreshRequestId += 1;
       refreshRequest = null;
       detailRequests.clear();
-      versionRequests.clear();
       presetForkRequests.clear();
-      set({ accountId, decks: [], details: {}, versions: {}, loading: false, error: null });
+      set({ accountId, decks: [], details: {}, loading: false, error: null });
     }
     if (refreshRequest) return refreshRequest;
     const requestId = ++refreshRequestId;
@@ -205,7 +194,6 @@ export const useAccountDecksStore = create<AccountDecksState>((set, get) => ({
     refreshRequestId += 1;
     refreshRequest = null;
     detailRequests.delete(id);
-    versionRequests.delete(id);
     set({ loading: false });
     const detail = await saveAccountDeck(id, {
       deck: withResolvedDeckName(deck),
@@ -213,7 +201,7 @@ export const useAccountDecksStore = create<AccountDecksState>((set, get) => ({
       notes,
     });
     if (isCurrentAccount(accountId)) {
-      set((state) => cacheDetail(state, accountId, detail, true));
+      set((state) => cacheDetail(state, accountId, detail));
     }
     return detail;
   },
@@ -254,48 +242,23 @@ export const useAccountDecksStore = create<AccountDecksState>((set, get) => ({
     refreshRequest = null;
     deckRemovalId += 1;
     detailRequests.delete(id);
-    versionRequests.delete(id);
     set({ loading: false });
     await deleteAccountDeck(id);
     if (!isCurrentAccount(accountId)) return;
     set((state) => {
       const details = { ...state.details };
-      const versions = { ...state.versions };
       delete details[id];
-      delete versions[id];
       return {
         decks: state.decks.filter((deck) => deck.id !== id),
         details,
-        versions,
       };
     });
-  },
-  loadVersions: async (id) => {
-    const accountId = requireAccountId();
-    const cached = get().versions[id];
-    if (cached?.length) return cached;
-    const pending = versionRequests.get(id);
-    if (pending) return pending;
-    const requestId = refreshRequestId;
-    const request = fetchDeckVersions(id)
-      .then((versions) => {
-        if (requestId === refreshRequestId && isCurrentAccount(accountId)) {
-          set((state) => ({ versions: { ...state.versions, [id]: versions } }));
-        }
-        return versions;
-      })
-      .finally(() => {
-        if (versionRequests.get(id) === request) versionRequests.delete(id);
-      });
-    versionRequests.set(id, request);
-    return request;
   },
   clear: () => {
     refreshRequestId += 1;
     refreshRequest = null;
     detailRequests.clear();
-    versionRequests.clear();
     presetForkRequests.clear();
-    set({ accountId: null, decks: [], details: {}, versions: {}, loading: false, error: null });
+    set({ accountId: null, decks: [], details: {}, loading: false, error: null });
   },
 }));

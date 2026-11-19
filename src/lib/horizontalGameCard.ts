@@ -37,5 +37,6 @@ export function isHorizontalGameCard(
     layout: isTwoHalfLayout(layout) ? layout : undefined,
     types: resolvedTypeLine !== undefined || face !== undefined ? undefined : card.types,
     typeLine: resolvedTypeLine ?? face?.typeLine ?? scry?.type_line,
+    keywords: scry?.keywords ?? card.keywords,
   });
 }

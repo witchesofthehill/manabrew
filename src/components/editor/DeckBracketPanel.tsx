@@ -1,6 +1,8 @@
 import { Gauge, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDeckAnalysisStore } from "@/stores/useDeckAnalysisStore";
+import { useDeckStore } from "@/stores/useDeckStore";
+import { Button } from "@/components/ui/button";
 import { BRACKET_INFO, bracketAdvice, type Bracket } from "@/lib/brackets";
 import { EDITOR_PANEL_CLASS, EDITOR_SUBTLE_BLOCK_CLASS } from "./deckEditor.styles";
 const BRACKET_STYLE: Record<
@@ -19,7 +21,11 @@ const BRACKET_STYLE: Record<
 export function DeckBracketPanel() {
   const bracket = useDeckAnalysisStore((s) => s.bracket);
   const loading = useDeckAnalysisStore((s) => s.loading);
-  if (!bracket && !loading) return null;
+  const error = useDeckAnalysisStore((s) => s.error);
+  const analyze = useDeckAnalysisStore((s) => s.analyze);
+
+  if (!bracket && !loading && !error) return null;
+
   const info = bracket ? BRACKET_INFO[bracket.bracket] : null;
   const style = bracket ? BRACKET_STYLE[bracket.bracket] : null;
   const advice = bracket ? bracketAdvice(bracket) : null;
@@ -43,6 +49,20 @@ export function DeckBracketPanel() {
         </div>
       </div>
 
+      {error && (
+        <div className="mb-3 space-y-1 text-ui-body text-muted-foreground">
+          <p>{error}</p>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={loading}
+            onClick={() => analyze(useDeckStore.getState().currentDeck)}
+          >
+            Retry analysis
+          </Button>
+        </div>
+      )}
+
       {bracket && info && (
         <div className="space-y-3">
           <p className="text-ui-body text-muted-foreground">{info.blurb}</p>
@@ -58,6 +78,24 @@ export function DeckBracketPanel() {
               </li>
             ))}
           </ul>
+
+          {bracket.communityCombos.length > 0 && (
+            <div className="space-y-1.5 text-ui-body text-muted-foreground">
+              <p className="font-semibold">EDHREC community votes</p>
+              {bracket.communityCombos.map(({ id, names, vote }) => (
+                <a
+                  key={id}
+                  href={vote.url}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="block hover:underline"
+                >
+                  {names}: Bracket {vote.bracket}+ · {vote.voteCount} votes
+                  {vote.controversial ? " · Contested" : ""}
+                </a>
+              ))}
+            </div>
+          )}
 
           {bracket.gameChangers.length > 0 && (
             <div className="space-y-1.5">
@@ -97,7 +135,8 @@ export function DeckBracketPanel() {
           )}
 
           <p className="text-ui-body text-muted-foreground/50 italic">
-            Estimate covers brackets 2–4. Bracket 1 (casual) and 5 (cEDH) are self-declared.
+            Estimate covers brackets 2–4. Bracket 1 (casual) and 5 (cEDH) are self-declared.{" "}
+            Community votes are guidance, not official bracket rulings.
           </p>
         </div>
       )}

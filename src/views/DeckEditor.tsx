@@ -123,7 +123,7 @@ export default function DeckEditor() {
   const loadPresetDeck = useDeckStore((s) => s.loadPresetDeck);
   const presetDecks = usePresetDecks();
   const presetDecksResolved = usePresetDecksResolved();
-  const { quickPlaytest, playtestDialog } = useQuickPlaytest();
+  const { quickPlaytest } = useQuickPlaytest();
   const {
     entries: publishedDecks,
     loading: publishedDecksLoading,
@@ -445,7 +445,7 @@ export default function DeckEditor() {
         key={saved.id}
         deck={saved}
         onOpen={() => (accountDeck ? handleSelectAccountDeck(saved) : handleSelectDeck(saved.id))}
-        onPlaytest={draft ? undefined : () => quickPlaytest(saved.deck)}
+        onPlaytest={draft ? undefined : () => quickPlaytest(saved.deck, saved.id)}
         onDelete={() => (accountDeck ? setDeletingAccountDeck(saved) : handleDelete(saved.id))}
         onRename={accountDeck ? undefined : () => startRename(saved.id, saved.deck.name)}
         onPublish={!draft && publishEnabled ? () => setPublishingDeck(saved) : undefined}
@@ -883,8 +883,6 @@ export default function DeckEditor() {
           onOpenChange={setImportDialogOpen}
           onImport={handleTextImport}
         />
-
-        {playtestDialog}
 
         {hubEnabled && (
           <HubDeckPreviewDialog

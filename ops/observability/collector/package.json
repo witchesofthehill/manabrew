@@ -1,0 +1,10 @@
+{
+  "name": "manabrew-faro-collector",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@grafana/faro-web-sdk": "2.13.0",
+    "@jridgewell/trace-mapping": "0.3.31",
+    "esbuild": "0.25.12"
+  }
+}

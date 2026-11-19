@@ -20,6 +20,7 @@ import forge.game.mana.ManaCostBeingPaid;
 import forge.game.player.Player;
 import forge.game.spellability.AbilityManaPart;
 import forge.game.spellability.AlternativeCost;
+import forge.game.spellability.OptionalCostValue;
 import forge.game.spellability.SpellAbility;
 import forge.game.spellability.SpellAbilityStackInstance;
 import forge.game.spellability.TargetRestrictions;
@@ -167,7 +168,8 @@ public final class ActionSpace {
             if (!includeManaAbilities && sa.isManaAbility()) {
                 continue;
             }
-            if (!targetsDependOnAnnouncedX(sa) && !hasValidTargets(sa)) {
+            if (!targetsDependOnAnnouncedX(sa) && !hasValidTargets(sa)
+                    && !hasValidTargetsWithOptionalCost(sa, spellHost(sa, game, spellHosts))) {
                 continue;
             }
             if (!sa.checkRestrictions(spellHost(sa, game, spellHosts), player)) {
@@ -973,5 +975,22 @@ public final class ActionSpace {
             current = current.getSubAbility();
         }
         return true;
+    }
+
+    private static boolean hasValidTargetsWithOptionalCost(final SpellAbility sa, final Card spellHost) {
+        final SpellAbility castSA = spellHost.getCastSA();
+        try {
+            for (final OptionalCostValue value : GameActionUtil.getOptionalCostValues(sa)) {
+                final SpellAbility variant = GameActionUtil.addOptionalCosts(sa, List.of(value));
+                variant.setHostCard(spellHost);
+                spellHost.setCastSA(variant);
+                if (hasValidTargets(variant)) {
+                    return true;
+                }
+            }
+            return false;
+        } finally {
+            spellHost.setCastSA(castSA);
+        }
     }
 }

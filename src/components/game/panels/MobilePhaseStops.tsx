@@ -1,19 +1,19 @@
 import type { CSSProperties } from "react";
 
-import { PHASES } from "@/components/game/game.constants";
+import { PHASES, STOP_PHASES } from "@/components/game/game.constants";
 import { useTheme } from "@/hooks/useTheme";
 import { cn } from "@/lib/utils";
 import { readableTextColor } from "@/themes/gameTheme";
 import type { StepKind } from "@/protocol";
 
-export const PHASE_CONTROLS = PHASES.filter((phase) => phase.id !== "untap").map((phase) => ({
+export const PHASE_CONTROLS = STOP_PHASES.map((phase) => ({
   id: phase.id,
   label: phase.label,
   short: phase.short,
   currentSteps: [phase.id],
 }));
 
-interface OpponentStops {
+export interface OpponentStops {
   id: string;
   name: string;
   color: string;
@@ -48,7 +48,7 @@ export function MobilePhaseStops({
 
   const currentPhase = PHASES.find((phase) => phase.id === currentStep);
   const currentLabel = currentPhase?.label ?? currentStep;
-  const currentShort = currentPhase?.combat ? "COM" : (currentPhase?.short ?? currentStep);
+  const currentShort = currentPhase?.combat ? "ATK" : (currentPhase?.short ?? currentStep);
 
   return (
     <div className="pointer-events-auto absolute inset-0 z-[3]">

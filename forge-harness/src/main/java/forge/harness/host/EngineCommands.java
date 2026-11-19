@@ -18,6 +18,7 @@ public final class EngineCommands {
             case "getGameOver" -> adapter.getGameOver(session);
             case "getStateRevision" -> adapter.getStateRevision(session);
             case "drainCheckpointMetrics" -> adapter.drainCheckpointMetrics(session);
+            case "drainDirectives" -> adapter.drainDirectives(session);
             case "getRewindRequest" -> adapter.getRewindRequest(session);
             case "resumeAfterFailedRewind" -> adapter.resumeAfterFailedRewind(session);
             case "replayReady" -> adapter.replayReady(session);

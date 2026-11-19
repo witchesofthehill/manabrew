@@ -49,11 +49,8 @@ pub fn apply_cant_discard_ability(
             return false;
         }
     }
-    if !super::static_ability_cant_sacrifice::matches_valid_cause(
+    super::static_ability_cant_sacrifice::matches_valid_cause(
         st_ab.ir.valid_cause_text.as_deref(),
         cause,
-    ) {
-        return false;
-    }
-    true
+    )
 }

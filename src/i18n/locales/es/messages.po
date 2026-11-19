@@ -50,11 +50,11 @@ msgstr "Defensa"
 msgid "Effect text unavailable"
 msgstr "Texto del efecto no disponible"
 
-#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:625
+#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:626
 msgid "Face-down card"
 msgstr "Carta boca abajo"
 
-#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:627
+#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:628
 msgid "Face-down permanent"
 msgstr "Permanente boca abajo"
 
@@ -124,7 +124,7 @@ msgstr "Cara impresa · el estado actual corresponde a la otra cara"
 msgid "Printed power and toughness"
 msgstr "Fuerza y resistencia impresas"
 
-#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:653
+#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:654
 msgid "Prototype"
 msgstr "Prototipo"
 

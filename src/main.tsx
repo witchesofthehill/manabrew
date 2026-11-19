@@ -8,6 +8,9 @@ import { registerConsoleHooks } from "./lib/consoleHooks";
 import { initAndroidSafeArea } from "./platform/androidSafeArea";
 import { initializeLocalization } from "./i18n/runtime";
 import { DISPLAY_FONT_FAMILY, UI_FONT_FAMILY } from "@/themes/typography";
+import { initializeErrorReporting, reportClientError } from "@/lib/errorReporting";
+
+initializeErrorReporting();
 
 async function start(): Promise<void> {
   initAndroidSafeArea();
@@ -25,4 +28,7 @@ async function start(): Promise<void> {
   createRoot(document.getElementById("root")!).render(<App />);
 }
 
-void start();
+void start().catch((error: unknown) => {
+  reportClientError(error, "startup");
+  throw error;
+});

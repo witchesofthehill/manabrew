@@ -17,6 +17,8 @@ The engine is incomplete. Most day-to-day work is **finding parity bugs** with `
 
 The development web container owns a separate `web-node-modules` volume. Host-side dependency installs do not update it. After changing `package.json` or `yarn.lock`, run `docker compose -f compose.dev.yaml restart web` so startup reruns `yarn install --frozen-lockfile`; a browser reload or `./dev start web` on an already-running container does not rerun installation.
 
+On Windows, Docker Desktop's bind mount can leave Vite's Node process in disk sleep at `p9_client_rpc` even after Vite reports ready. Check HTTP from both the host and inside the container before blaming browser shaders. If restarting/recreating only `web` does not recover it, stop that service and run `yarn vite --host 0.0.0.0` on Windows with `VITE_HUB_API_URL=http://localhost:9500`, `VITE_RELAY_HOST=localhost`, `VITE_RELAY_PORT=9443` and `VITE_RELAY_PASSWORD=forge`. Leave backend containers and data volumes intact. Stop the native Vite process before starting the Compose web service again because both use port 1420.
+
 Multiple checkouts use separate Compose project names but the same published ports. Before restarting a stack, check the running web container's `com.docker.compose.project.working_dir` label. If another checkout owns port 1420, leave that stack running; starting this checkout's stopped web container fails with a port-allocation conflict.
 
 Docker Desktop can exhaust its VM disk while macOS still has free space; `apt-get update` may then report invalid signatures. Check `df -h /` inside a container before changing repository keys. Reclaim only explicitly approved, unused build-cache volumes or increase Docker's disk limit; preserve development data and keep APT signature verification enabled.
@@ -68,18 +70,19 @@ Sub-AGENTS.md files are not auto-discovered by Codex or by Claude Code's parent-
 
 Topic spinoffs (cross-cut multiple folders):
 
-| File                                    | Read it when                                                                                             |
-| --------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `docs/agents/PARITY_PHILOSOPHY.md`      | Any engine work                                                                                          |
-| `docs/agents/ENGINE_BUGFIX_WORKFLOW.md` | Investigating a parity divergence                                                                        |
-| `docs/agents/UI_THEME_RULES.md`         | Any UI change that involves color                                                                        |
-| `docs/agents/RELAY.md`                  | Any relay (`manabrew-server`) work — trust boundary, reconnect/resync, identity and usernames            |
-| `docs/agents/HUB.md`                    | Any hub (`manabrew-hub`) work — auth and token audiences, migrations, Deck Hub flag                      |
-| `docs/agents/SELF_HOSTED_NODE.md`       | Any self-hosted node work — game-id reconciliation, reconnect, JVM sizing, updater                       |
-| `docs/DECISION_REPLAY.md`               | Forge decision journaling, deterministic reconstruction, replay snapshots and their isolation limits     |
-| `docs/agents/LATENCY_ANALYSIS.md`       | Measuring hosted latency from capture files — what the timestamps mean, and four traps that skew results |
-| `docs/forge-dsl-semantics.md`           | Any engine work touching abilities, triggers, replacements, static abilities, costs, SVars, or the stack |
-| `docs/forge-dsl-grammar.md`             | Parser / IR changes, or when interpreting card-script syntax                                             |
+| File                                    | Read it when                                                                                                          |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `docs/agents/PARITY_PHILOSOPHY.md`      | Any engine work                                                                                                       |
+| `docs/agents/ENGINE_BUGFIX_WORKFLOW.md` | Investigating a parity divergence                                                                                     |
+| `docs/agents/UI_THEME_RULES.md`         | Any UI change that involves color                                                                                     |
+| `docs/agents/RELAY.md`                  | Any relay (`manabrew-server`) work — trust boundary, reconnect/resync, identity and usernames                         |
+| `docs/agents/HUB.md`                    | Any hub (`manabrew-hub`) work — auth and token audiences, migrations, Deck Hub flag                                   |
+| `docs/agents/SELF_HOSTED_NODE.md`       | Any self-hosted node work — game-id reconciliation, reconnect, JVM sizing, updater                                    |
+| `docs/DECISION_REPLAY.md`               | Forge decision journaling, deterministic reconstruction, replay snapshots and their isolation limits                  |
+| `docs/agents/LATENCY_ANALYSIS.md`       | Measuring hosted latency from capture files — what the timestamps mean, and four traps that skew results              |
+| `docs/forge-dsl-semantics.md`           | Any engine work touching abilities, triggers, replacements, static abilities, costs, SVars, or the stack              |
+| `docs/forge-dsl-grammar.md`             | Parser / IR changes, or when interpreting card-script syntax                                                          |
+| `docs/OBSERVABILITY.md`                 | Client-error Grafana queries: `:json` does not quote scalars; interpolation, result conversion, query limits, privacy |
 
 These files start minimal and grow over time. If a section outgrows its file, split it into a new doc under `docs/agents/` and add it to this map.
 

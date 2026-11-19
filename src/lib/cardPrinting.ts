@@ -4,12 +4,28 @@ import {
   resolvePrintingPreset,
   splitPanels,
   withCardWording,
+  type PrintingOverrides,
   type PrintingSelection,
   type RenderedCardInput,
 } from "card-glint/magic/presentation";
-import type { CardCosmetics, CardPrintingSelection } from "@/protocol/deck";
+import type { CardCosmetics, CardPrintingOverrides, CardPrintingSelection } from "@/protocol/deck";
 import type { PreparedCard } from "@/lib/cardRenderSnapshot";
 import { isSemanticLayout, type SemanticCardInput } from "@/lib/cardSemanticLayout";
+
+function nativeOverrides(
+  overrides: CardPrintingOverrides | undefined,
+): PrintingOverrides | undefined {
+  if (!overrides) return undefined;
+  const { calibration, ...native } = overrides;
+  if (!calibration) return native;
+  return {
+    ...native,
+    calibration:
+      calibration === "m21-modern" || calibration === "8ed-eighth"
+        ? { profile: calibration }
+        : calibration,
+  };
+}
 
 function selectionFor(
   printing: CardPrintingSelection | undefined,
@@ -21,8 +37,8 @@ function selectionFor(
   const selection = composePrintingSelection(
     { preset: local?.preset ?? printing?.preset ?? "match" },
     { overrides: border && border !== "printing" ? { borderColor: border } : undefined },
-    { overrides: printing?.overrides, art: printing?.art },
-    { overrides: local?.overrides, art: local?.art },
+    { overrides: nativeOverrides(printing?.overrides), art: printing?.art },
+    { overrides: nativeOverrides(local?.overrides), art: local?.art },
   );
   if (local?.art?.mode === "window" && selection.art) delete selection.art.paperOpacity;
   return selection;

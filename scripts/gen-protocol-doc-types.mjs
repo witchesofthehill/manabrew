@@ -157,12 +157,11 @@ const definedUnder = (frag) =>
 
 const STATE = definedUnder(`${SEP}game${SEP}`);
 const DECK = definedUnder("deck_dto.rs").filter((t) => !STATE.includes(t));
-
 // The "shared" supporting types are derived, not hand-listed: the transitive
 // closure of every type the prompt *arguments* (the *Input types) reference,
 // minus the prompt messages and anything already homed on a page of its own
-// (game state, deck). Adding a prompt that references a new DTO grows this
-// automatically; a response-only type (e.g. ManaSourceAction) stays off it.
+// (game state, deck). Adding a prompt that references a new DTO
+// grows this automatically; a response-only type (e.g. ManaSourceAction) stays off it.
 const SHARED = (() => {
   const out = new Set();
   const queue = [
@@ -207,6 +206,7 @@ for (const name of Object.keys(tsBody)) {
 for (const name of SHARED) await emit(name);
 for (const name of STATE) await emit(name);
 for (const name of DECK) await emit(name);
+await emit("DisplayEvent");
 
 const sortKeys = (o) =>
   Object.fromEntries(

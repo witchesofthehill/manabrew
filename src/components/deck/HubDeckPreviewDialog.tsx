@@ -32,7 +32,6 @@ import type { DeckHubEntryDetail } from "@/api/hubTypes";
 import type { DeckFormat } from "@/protocol/deck";
 import type { EditorDeck } from "@/types/manabrew";
 import { ROUTES } from "@/lib/constants";
-import { savePresetToAccountOnUse } from "@/lib/presetDeckAccount";
 import { isFeatureEnabled } from "@/featureFlags";
 import { cn } from "@/lib/utils";
 interface HubDeckPreviewDialogProps {
@@ -69,6 +68,7 @@ export function HubDeckPreviewDialog({
   const addSavedDeck = useDeckStore((s) => s.addSavedDeck);
   const loadAccountDeck = useDeckStore((s) => s.loadAccountDeck);
   const loadHubDeck = useDeckStore((s) => s.loadHubDeck);
+  const loadPresetDeck = useDeckStore((s) => s.loadPresetDeck);
   const loadEntry = useHubStore((s) => s.loadEntry);
   const removeEntry = useHubStore((s) => s.removeEntry);
   const [detail, setDetail] = useState<PreviewDeckDetail | null>(null);
@@ -142,7 +142,11 @@ export function HubDeckPreviewDialog({
     .join("");
   async function handleSave() {
     if (!detail) return;
-    if (entryDetail?.presetKey && signedIn) {
+    if (entryDetail?.presetKey) {
+      if (!signedIn) {
+        toast.error("Sign in to save starter decks to My Decks");
+        return;
+      }
       setBusy(true);
       try {
         await useAccountDecksStore.getState().forkPreset(entryDetail.presetKey);
@@ -161,7 +165,11 @@ export function HubDeckPreviewDialog({
   }
   function handleOpen() {
     if (!detail) return;
-    loadHubDeck(detail.deck as EditorDeck);
+    if (entryDetail?.presetKey) {
+      loadPresetDeck({ ...detail.deck, id: entryDetail.presetKey });
+    } else {
+      loadHubDeck(detail.deck as EditorDeck);
+    }
     if (onViewSnapshot) {
       onClose();
       onViewSnapshot();
@@ -198,13 +206,11 @@ export function HubDeckPreviewDialog({
   }
   function handlePlayOffline() {
     if (!deckId) return;
-    savePresetToAccountOnUse(entryDetail?.presetKey);
     routeLaunchRef.current = true;
     navigate(ROUTES.PLAY_OFFLINE_CONSTRUCTED, { state: { preSelectedHubDeckId: deckId } });
   }
   function handleMultiplayer() {
     if (!deckId) return;
-    savePresetToAccountOnUse(entryDetail?.presetKey);
     routeLaunchRef.current = true;
     navigate(ROUTES.LOBBY, { state: { preferredHubDeckId: deckId } });
   }
@@ -348,7 +354,7 @@ export function HubDeckPreviewDialog({
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onSelect={handlePlayOffline}>
                       <Swords />
-                      Play Offline
+                      Singleplayer
                     </DropdownMenuItem>
                     <DropdownMenuItem onSelect={handleMultiplayer}>
                       <Users />

@@ -105,6 +105,16 @@ function GeneratedCardCanvas({
     ? "Face-down card"
     : (card?.identity.name ?? deckCard?.identity.name ?? "Card");
   const fallbackUrl = faceIndex === 1 ? deckCard?.backFace?.uris.normal : deckCard?.uris?.normal;
+  const fallbackImage =
+    fallback ??
+    (fallbackUrl && !fallbackUrl.startsWith("data:") ? (
+      <ScryfallImg
+        src={fallbackUrl}
+        alt=""
+        className="h-full w-full rounded-[inherit] object-contain"
+        draggable={false}
+      />
+    ) : null);
 
   useLayoutEffect(() => {
     requestRef.current = { card, deckCard, faceIndex };
@@ -236,19 +246,13 @@ function GeneratedCardCanvas({
       ) : (
         <>
           {!hasImage &&
-            (fallback ??
-              (fallbackUrl && !fallbackUrl.startsWith("data:") ? (
-                <ScryfallImg
-                  src={fallbackUrl}
-                  alt=""
-                  className="h-full w-full rounded-[inherit] object-contain"
-                  draggable={false}
-                />
-              ) : (
-                <span className="absolute inset-0 flex items-center justify-center rounded-[inherit] bg-card p-2 text-center text-ui-meta text-card-foreground">
-                  {name}
-                </span>
-              )))}
+            (state === "error" && fallbackImage ? (
+              fallbackImage
+            ) : (
+              <span className="absolute inset-0 flex items-center justify-center rounded-[inherit] bg-card p-2 text-center text-ui-meta text-card-foreground">
+                {name}
+              </span>
+            ))}
           <canvas
             ref={canvasRef}
             aria-hidden="true"
@@ -258,7 +262,7 @@ function GeneratedCardCanvas({
             )}
           />
           <CardFoilOverlay
-            enabled={!hidden && visible}
+            enabled={!hidden && visible && (hasImage || state === "error")}
             foil={!!foil}
             cosmetics={cosmetics}
             etched={isEtchedOnlyPrinting(printing?.info.finishes)}

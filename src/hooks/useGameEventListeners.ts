@@ -11,6 +11,7 @@ import { engineReportGameId, reportEngineStats } from "@/lib/engineStatsReport";
 import { currentOfflineGameId, reportOfflineGame } from "@/lib/offlinePlayRecord";
 import { offlineSeats } from "@/lib/offlineSeats";
 import { clearLocalGame } from "@/lib/localGamePresence";
+import { reportClientError, setErrorReportingEngine } from "@/lib/errorReporting";
 import { useGameStore } from "@/stores/useGameStore";
 import type { GameState } from "@/stores/useGameStore";
 import { useServerStore } from "@/stores/useServerStore";
@@ -18,13 +19,19 @@ import { SELF_RECONNECT_WINDOW_S } from "@/hooks/useMultiplayerInterruption";
 import { clearActiveGameSession, peekActiveGameSession } from "@/lib/activeGameSession";
 import { FORETELL_LOG_PREFIX, normalizeGameLogPayload, type GameLogEntry } from "@/types/gameLog";
 import {
-  applyDisplay,
+  applyEngineDirective,
   applyPrompt,
   applyProtocolError,
   applyState,
 } from "@/stores/gameStore.constants";
-import type { Prompt, StateUpdate, ProtocolError } from "@/protocol";
-import type { DisplayEvent } from "@/protocol/display";
+import type {
+  EngineDirective,
+  Prompt,
+  ProtocolError,
+  RecordingFailure,
+  RepeatVoteDto,
+  StateUpdate,
+} from "@/protocol";
 import type { CardIdentity, GameViewDto } from "@/protocol/game";
 import { warmLibraryTop } from "@/lib/cardFaceWarmup";
 import { RELAY_FEATURE, SERVER_ERROR_CODE } from "@/types/server";
@@ -159,6 +166,20 @@ function reportHostOutcome(state: GameState): void {
       fatal_message: state.fatalError ?? undefined,
       turns: view?.turn,
     })
+    .then(() => {
+      if (
+        over &&
+        !state.fatalError &&
+        !state.engineCrash &&
+        server.hasRelayFeature(RELAY_FEATURE.GameRematch) &&
+        !server.currentRoom?.draft_config &&
+        !server.currentRoom?.sealed_config &&
+        server.currentRoom?.format !== "Draft" &&
+        server.currentRoom?.format !== "Sealed"
+      ) {
+        return getPlatform().server?.finishGame(gameId);
+      }
+    })
     .catch(() => undefined);
 }
 /** Close the book on the current game. Safe to call more than once. */
@@ -167,9 +188,10 @@ function reportEngineGame(): void {
   // Read before the offline record is closed: reporting the game clears it, and
   // the engine report below needs the same id to file itself against.
   const offlineGameId = currentOfflineGameId();
+  const localRelayGame = !!peekActiveGameSession()?.relayHost;
   if (state.isMultiplayer) reportHostOutcome(state);
-  if (!state.isMultiplayer) {
-    clearLocalGame();
+  if (!state.isMultiplayer) clearLocalGame();
+  if (!state.isMultiplayer || localRelayGame) {
     const seats = offlineSeats(state.gameView);
     const winnerId = state.gameView?.winnerId ?? null;
     reportOfflineGame({
@@ -188,7 +210,7 @@ function reportEngineGame(): void {
     // reading the flag alone filed finished games as quits.
     endReason: state.engineCrash ? "error" : isOver(state) ? "gameOver" : "left",
     gameId: engineReportGameId(
-      state.isMultiplayer,
+      state.isMultiplayer && !localRelayGame,
       useServerStore.getState().gameId,
       offlineGameId,
     ),
@@ -200,19 +222,41 @@ function reportEngineGame(): void {
   });
 }
 /**
- * Sets up platform event listeners for the four engine→UI message families:
- * `state` (game view), `display` (animations), `prompt` (decisions) and
- * `error` (a rejected response — the engine re-sends the open prompt after it).
- * State and display are applied for whichever player they are addressed to;
- * a prompt or error only becomes actionable when it is addressed to this player.
+ * Sets up platform event listeners for the three engine→UI message families:
+ * `state` (game view), `prompt` (decisions) and `error` (a rejected response —
+ * the engine re-sends the open prompt after it). State is applied for whichever
+ * player it is addressed to; a prompt or error only becomes actionable when it
+ * is addressed to this player.
  */
+const RECORDING_FAILURE_MESSAGES: Record<RecordingFailure, string> = {
+  notAtPriority: "Start and stop recording while you have priority and the stack is empty.",
+  unsupportedPrompt: "Recording stopped: this kind of choice cannot be repeated.",
+  opponentActed: "Recording stopped: another player acted during the recording.",
+  empty: "Nothing was recorded. Record at least one action.",
+};
+
+function noticeRecording(status: GameState["recording"]) {
+  if (status.type === "failed") toast.error(RECORDING_FAILURE_MESSAGES[status.reason]);
+}
+
+function noticeRepeatVote(vote: RepeatVoteDto, state: GameState) {
+  const playerName = (id: string) =>
+    state.gameView?.players.find((player) => player.id === id)?.name ?? id;
+  switch (vote.status.type) {
+    case "declined":
+      toast.error(`${playerName(vote.status.playerId)} declined the repeat`);
+      break;
+    case "failed":
+      toast.error(
+        `The repeat failed in iteration ${vote.status.iteration}. The game went back to before the repeat.`,
+      );
+      break;
+  }
+}
+
 export function useGameEventListeners() {
   useEffect(() => {
     window.addEventListener("pagehide", reportEngineGame);
-    // A finished game is reported the moment it finishes, not at teardown:
-    // teardown is three seconds later, and by then the tab may be gone, the
-    // socket closed or a pooled hosted room recycled out from under the seat.
-    // Reporting twice is free — the summary is drained by the first caller.
     const unsubscribe = useGameStore.subscribe((state, previous) => {
       if (isOver(state) && !isOver(previous)) reportEngineGame();
     });
@@ -255,12 +299,6 @@ export function useGameEventListeners() {
         }),
       );
       unsubscribers.push(
-        platform.events.on<DisplayEvent>("game:display", (payload) => {
-          if (!payload?.kind) return;
-          applyDisplay(payload, "Event", setState, getState);
-        }),
-      );
-      unsubscribers.push(
         platform.events.on<{ cards?: CardIdentity[] }>("game:library_top", (payload) => {
           if (payload?.cards?.length) warmLibraryTop(payload.cards);
         }),
@@ -269,6 +307,9 @@ export function useGameEventListeners() {
         platform.events.on<{
           message: string;
         }>("game:fatal", (payload) => {
+          const error = new Error(payload?.message || "Remote engine failed");
+          error.stack = "";
+          reportClientError(error, "remote-engine");
           setState({
             fatalError: payload?.message || "The game failed to start.",
             isPrefetchingCards: false,
@@ -292,8 +333,26 @@ export function useGameEventListeners() {
           }
         }),
       );
+      const receiveEngineDirective = (directive: EngineDirective) => {
+        console.info("[repeat] engine directive", JSON.stringify(directive));
+        const { recording, repeatVote } = getState();
+        applyEngineDirective(directive, setState);
+        if (directive.type === "recording") {
+          if (directive.status.type !== recording.type) noticeRecording(directive.status);
+        } else if (
+          directive.vote.voteId !== repeatVote?.voteId ||
+          directive.vote.status.type !== repeatVote.status.type
+        ) {
+          noticeRepeatVote(directive.vote, getState());
+        }
+      };
       const handleProtocolError = (error: ProtocolError | undefined, source: string) => {
         if ((error?.code as string) === ENGINE_CRASH_CODE) {
+          const failure = new Error(error?.message || "Engine crashed");
+          failure.stack = "";
+          reportClientError(failure, source === "Remote" ? "remote-engine" : "engine-worker", {
+            operation: "engine-crash",
+          });
           setState({ engineCrash: error?.message || "Engine crashed" });
           return;
         }
@@ -316,11 +375,16 @@ export function useGameEventListeners() {
         }),
       );
       unsubscribers.push(
+        platform.events.on<EngineDirective>("game:directive", (payload) => {
+          receiveEngineDirective(payload);
+        }),
+      );
+      unsubscribers.push(
         platform.events.on<unknown>("game:log", (payload) => {
           toastOpponentPublicAction(normalizeGameLogPayload(payload));
         }),
       );
-      // Relay (non-host) seats receive state/display/prompt addressed per player.
+      // Relay (non-host) seats receive state/prompt addressed per player.
       unsubscribers.push(
         platform.events.on<{
           forPlayer?: string;
@@ -339,14 +403,6 @@ export function useGameEventListeners() {
       );
       unsubscribers.push(
         platform.events.on<{
-          event: DisplayEvent;
-        }>("game:remote_display", (payload) => {
-          if (!payload.event?.kind) return;
-          applyDisplay(payload.event, "Remote", setState, getState);
-        }),
-      );
-      unsubscribers.push(
-        platform.events.on<{
           forPlayer: string;
           prompt: Prompt;
         }>("game:remote_prompt", (payload) => {
@@ -355,6 +411,15 @@ export function useGameEventListeners() {
           if (!prompt) return;
           if (getState().selfConceded) return;
           applyPrompt(prompt, "Remote", setState, getState);
+        }),
+      );
+      unsubscribers.push(
+        platform.events.on<{
+          forPlayer: string;
+          directive: EngineDirective;
+        }>("game:remote_directive", (payload) => {
+          if (payload.forPlayer !== getState().myPlayerSlot) return;
+          receiveEngineDirective(payload.directive);
         }),
       );
       unsubscribers.push(
@@ -424,12 +489,16 @@ export function useGameEventListeners() {
           reason: string;
           message: string;
         }>("game:forced_end", (payload) => {
+          const state = getState();
+          if (!state.isGameActive || state.isRestartingGame || isOver(state)) return;
           const message = payload?.message ?? `Forced game exit`;
           const { isMultiplayer, isHost } = getState();
           const activeSession = peekActiveGameSession();
           clearActiveGameSession();
+          setErrorReportingEngine(null);
           setState({
             isGameActive: false,
+            activeEngine: null,
             gameView: null,
             currentPrompt: null,
             deferredQueue: [],

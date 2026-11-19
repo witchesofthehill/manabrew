@@ -1,6 +1,12 @@
 import { cardCosmeticsKey, normalizeCardCosmetics, randomCardWearSeed } from "@/lib/cardCosmetics";
 import { resolveCardWearAmount } from "@/lib/cardFinish";
-import type { CardCosmetics, CardPrintingFace, DeckCard } from "@/protocol/deck";
+import type {
+  CardCosmetics,
+  CardPrintingCalibration,
+  CardPrintingFace,
+  CardPrintingSelection,
+  DeckCard,
+} from "@/protocol/deck";
 import { availablePrintingFoil, getCardPrintingPatch } from "@/stores/useDeckStore";
 import type { ScryfallCard } from "@/types/scryfall";
 
@@ -12,9 +18,7 @@ export type CosmeticField =
   | "rainFog"
   | "heatDeformation"
   | "cardstockAmount"
-  | "printDotsAmount"
-  | "printDotsInset"
-  | "printDotsArtwork";
+  | "printDotsAmount";
 export interface CardCustomizationDraft {
   source: DeckCard;
   printing?: ScryfallCard;
@@ -53,6 +57,35 @@ export function changeCustomizationPrinting(
   };
 }
 
+export function changeCustomizationCalibration(
+  draft: CardCustomizationDraft,
+  value: CardPrintingCalibration | undefined,
+  faceIndex?: 0 | 1,
+): CardCustomizationDraft {
+  const printing: CardPrintingSelection = draft.cosmetics?.printing ?? {
+    version: 1,
+    preset: "match",
+  };
+  const faces = [...(printing.faces ?? [])];
+  if (faceIndex !== undefined) {
+    while (faces.length <= faceIndex) faces.push({});
+    const face = faces[faceIndex]!;
+    faces[faceIndex] = { ...face, overrides: { ...face.overrides, calibration: value } };
+  }
+  return {
+    ...draft,
+    cosmetics: normalizeCardCosmetics({
+      ...draft.cosmetics,
+      printing: {
+        ...printing,
+        ...(faceIndex === undefined
+          ? { overrides: { ...printing.overrides, calibration: value } }
+          : { faces }),
+      },
+    }),
+  };
+}
+
 function resetPrintingFrame(layer: CardPrintingFace): CardPrintingFace {
   return {
     ...layer,
@@ -84,21 +117,12 @@ export function changeCustomizationField(
       cosmetics: normalizeCardCosmetics({ ...cosmetics, cardstock: { amount: Number(value) } }),
     };
   }
-  if (field === "printDotsAmount" || field === "printDotsInset" || field === "printDotsArtwork") {
-    const key = {
-      printDotsAmount: "amount",
-      printDotsInset: "inset",
-      printDotsArtwork: "artwork",
-    }[field];
+  if (field === "printDotsAmount") {
     return {
       ...draft,
       cosmetics: normalizeCardCosmetics({
         ...cosmetics,
-        printDots: {
-          ...cosmetics?.printDots,
-          amount: cosmetics?.printDots?.amount ?? 0,
-          [key]: field === "printDotsArtwork" ? value === "true" : Number(value),
-        },
+        printDots: { ...cosmetics?.printDots, amount: Number(value) },
       }),
     };
   }
@@ -182,13 +206,10 @@ export function customizationFieldValue(
   const fallback =
     field === "rainFog"
       ? "1"
-      : field === "cardstockAmount" ||
-          field === "printDotsAmount" ||
-          field === "printDotsInset" ||
-          field === "heatDeformation"
+      : field === "cardstockAmount" || field === "printDotsAmount" || field === "heatDeformation"
         ? "0"
         : "printing";
-  let value: string | number | boolean | undefined;
+  let value: string | number | undefined;
   switch (field) {
     case "wearAmount":
       value = resolveCardWearAmount(cosmetics);
@@ -198,12 +219,6 @@ export function customizationFieldValue(
       break;
     case "printDotsAmount":
       value = cosmetics?.printDots?.amount;
-      break;
-    case "printDotsInset":
-      value = cosmetics?.printDots?.inset;
-      break;
-    case "printDotsArtwork":
-      value = cosmetics?.printDots?.artwork ?? true;
       break;
     default:
       value = cosmetics?.[field];

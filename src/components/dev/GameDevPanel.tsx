@@ -98,6 +98,7 @@ export function GameDevPanel() {
   const showPlayerPanelBounds = useGameDevStore((s) => s.showPlayerPanelBounds);
   const showGridSkeleton = useGameDevStore((s) => s.showGridSkeleton);
   const showAttackRows = useGameDevStore((s) => s.showAttackRows);
+  const squareAvatars = useGameDevStore((s) => s.squareAvatars);
   const devToolsEnabled = useGameDevStore((s) => s.devToolsEnabled);
   const resetDevSettings = useGameDevStore((s) => s.resetDevSettings);
   const counts: Record<DevWorkspace, number> = {
@@ -114,6 +115,7 @@ export function GameDevPanel() {
       Number(showPlayerPanelBounds) +
       Number(showGridSkeleton) +
       Number(showAttackRows) +
+      Number(squareAvatars) +
       Number(devToolsEnabled) +
       Number(debugViewportPreset !== "native"),
     prompt: promptActionOverride == null ? 0 : 1,

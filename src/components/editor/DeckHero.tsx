@@ -1,12 +1,7 @@
 import { useRef, useState } from "react";
-import { Check, ChevronDown, ImagePlus, Pencil } from "lucide-react";
+import { ChevronDown, ImagePlus, Pencil } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { FormatDropdown } from "@/components/FormatDropdown";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { FormatBadge } from "@/components/game/FormatBadge";
 import { DeckLabelBadge } from "@/components/deck/DeckLabelBadge";
@@ -139,36 +134,23 @@ export function DeckHero({ onNameCommit }: { onNameCommit: (name: string) => voi
           {isReadOnly ? (
             <FormatBadge formatId={currentDeck.format ?? "standard"} />
           ) : (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className="touch:min-w-11 inline-flex cursor-pointer items-center gap-1.5 rounded-full border bg-background/60 px-2 py-0.5 text-ui-label backdrop-blur-sm transition-colors hover:bg-background/80 touch:min-h-11"
-                  title="Change format"
-                >
-                  <FormatBadge formatId={currentDeck.format ?? "standard"} />
-                  <span className="font-medium">
-                    {getFormat(currentDeck.format ?? "standard")?.name}
-                  </span>
-                  <ChevronDown className="h-3 w-3 text-muted-foreground" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                {GAME_FORMATS.map((f) => (
-                  <DropdownMenuItem
-                    key={f.id}
-                    onSelect={() => setDeckFormat(f.id as DeckFormat)}
-                    className="gap-2"
-                  >
-                    <FormatBadge formatId={f.id} />
-                    <span className="text-ui-label">{f.name}</span>
-                    {(currentDeck.format ?? "standard") === f.id && (
-                      <Check className="h-3 w-3 ml-auto text-primary" />
-                    )}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <FormatDropdown
+              value={currentDeck.format ?? "standard"}
+              formats={GAME_FORMATS.filter((format) => !format.deckFormat)}
+              onValueChange={(formatId) => setDeckFormat(formatId as DeckFormat)}
+            >
+              <button
+                type="button"
+                className="touch:min-w-11 inline-flex cursor-pointer items-center gap-1.5 rounded-full border bg-background/60 px-2 py-0.5 text-ui-label backdrop-blur-sm transition-colors hover:bg-background/80 touch:min-h-11"
+                title="Change format"
+              >
+                <FormatBadge formatId={currentDeck.format ?? "standard"} />
+                <span className="font-medium">
+                  {getFormat(currentDeck.format ?? "standard")?.name}
+                </span>
+                <ChevronDown className="h-3 w-3 text-muted-foreground" />
+              </button>
+            </FormatDropdown>
           )}
           {(currentDeck.labels ?? []).map((label) => (
             <DeckLabelBadge key={label.name} label={label} size="md" />

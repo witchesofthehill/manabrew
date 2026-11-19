@@ -16,6 +16,8 @@ pub struct CustomLimited {
 pub struct CubeCardEntry {
     pub name: String,
     pub set_code: Option<String>,
+    #[serde(default)]
+    pub collector_number: Option<String>,
     pub count: u32,
 }
 
@@ -87,6 +89,7 @@ fn parse_card_entry(line: &str) -> CubeCardEntry {
     CubeCardEntry {
         name,
         set_code,
+        collector_number: None,
         count,
     }
 }

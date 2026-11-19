@@ -2,11 +2,14 @@ import { CombatBreakdownModal } from "@/components/game/modals/CombatBreakdownMo
 import { locateVisibleZone, visibleZoneCards, zoneLocationKey } from "@/lib/zoneView";
 import { useGameStore } from "@/stores/useGameStore";
 import { useServerStore } from "@/stores/useServerStore";
+import { useAuthStore } from "@/stores/useAuthStore";
 import { asDeckCard } from "@/lib/decks";
 import { gameCardFaceIndex, GAME_CARD_DEFAULTS } from "@/lib/gameCard";
+import { faceDownCardToPreviewDto } from "@/lib/scryfall.utils";
 import { partitionBoardTargets } from "@/lib/boardTargets";
 import { useGameUIStore } from "@/stores/useGameUIStore";
 import { useKeybindings } from "@/hooks/useKeybindings";
+import { playSound } from "@/lib/soundRuntime";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
 import { useAutoResolvePrompt } from "@/components/prompts/internal/useAutoResolvePrompt";
@@ -19,18 +22,25 @@ import type { ClientCardDto, ClientPlayerDto } from "@/stores/gameStore.types";
 import { GameModals } from "@/components/game/GameModals";
 import { LandscapeGate } from "@/components/LandscapeGate";
 import { GameLoadingScreen } from "@/components/game/GameLoadingScreen";
+import { CreateGameDialog } from "@/components/lobby/CreateGameDialog";
+import { usePostGame } from "@/hooks/usePostGame";
 import { GameFailedScreen } from "@/components/game/GameFailedScreen";
 import { WaitingForPlayerScreen } from "@/components/game/WaitingForPlayerScreen";
 import { DevViewportFrame } from "@/components/dev/DevViewportFrame";
+import { toast } from "sonner";
 import { ManualTabletopControls } from "@/components/game/ManualTabletopControls";
-import { MiddleBarDock, RightActionPanel } from "@/components/game/panels";
+import { MiddleBarDock, RepeatProgress, RightActionPanel } from "@/components/game/panels";
 import {
   ConcedeGameModal,
+  RepeatRequestModal,
+  RepeatVoteModal,
   RestoreRequestModal,
   RestoreVoteModal,
   EliminatedModal,
   GameSettingsModal,
+  PhaseStopsHelpModal,
   LeaveGameModal,
+  SoundSettingsModal,
 } from "@/components/game/modals";
 import type { StackCardSpec, StackSpec } from "@/pixi/stack/stack.types";
 import { useCastingState } from "@/hooks/useCastingState";
@@ -65,6 +75,7 @@ import { useMultiplayerInterruption } from "@/hooks/useMultiplayerInterruption";
 import { useLiveGameNavigationGuard } from "@/hooks/useLiveGameNavigationGuard";
 import { GameBoard } from "@/components/game/GameBoard";
 import { buildCombatRows } from "@/components/game/combatRows";
+import { stripUsernameTag } from "@/lib/username";
 import { readableTextColor, withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
 import { boardBackgroundDarken, boardBackgroundUrl } from "@/pixi/board/boardBackgrounds";
@@ -91,10 +102,14 @@ import {
   isPermanentSpellCard,
   stackObjectAbilityText,
   stackObjectToCard,
+  relayAvatarUrl,
+  gameRound,
+  opponentsInTurnOrder,
 } from "@/components/game/game.utils";
 import { createPortal } from "react-dom";
 import { Card } from "@/components/game/Card";
 import { cn } from "@/lib/utils";
+import { gameBotAvatarUrls } from "@/lib/botAvatars";
 import { applyManualTabletopAction, getSelectedGameRuntime } from "@/game";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { deriveCardRailState, parsePrintedCardRailMetadata } from "@/components/game/cardRailState";
@@ -251,6 +266,8 @@ export default function Game({ exitTo }: GameProps = {}) {
   const currentPrompt = useGameStore((s) => s.currentPrompt);
   const protocolError = useGameStore((s) => s.protocolError);
   const isGameActive = useGameStore((s) => s.isGameActive);
+  const isRestartingGame = useGameStore((s) => s.isRestartingGame);
+  const activeEngine = useGameStore((s) => s.activeEngine);
   const isPrefetchingCards = useGameStore((s) => s.isPrefetchingCards);
   const isWaitingForResponse = useGameStore((s) => s.isWaitingForResponse);
   const relinquishedPriority = useGameStore((s) => s.relinquishedPriority);
@@ -285,13 +302,32 @@ export default function Game({ exitTo }: GameProps = {}) {
   const hostingForgeRoom = useServerStore((s) => s.hostingForgeRoom);
   const selectedRuntime = getSelectedGameRuntime();
   const manualApi = isManualTabletopApi(selectedRuntime) ? selectedRuntime.api : null;
-  const { respond, concede, endGame, requestRestore, voteRestore, gameDecks } = useGameStore(
+  const {
+    respond,
+    concede,
+    endGame,
+    requestRestore,
+    voteRestore,
+    startRecording,
+    stopRecording,
+    requestRepeat: sendRepeatRequest,
+    voteRepeat,
+    recording,
+    repeatVote,
+    gameDecks,
+  } = useGameStore(
     useShallow((s) => ({
       respond: s.respond,
       concede: s.concede,
       endGame: s.endGame,
       requestRestore: s.requestRestore,
       voteRestore: s.voteRestore,
+      startRecording: s.startRecording,
+      stopRecording: s.stopRecording,
+      requestRepeat: s.requestRepeat,
+      voteRepeat: s.voteRepeat,
+      recording: s.recording,
+      repeatVote: s.repeatVote,
       gameDecks: s.gameDecks,
     })),
   );
@@ -326,12 +362,15 @@ export default function Game({ exitTo }: GameProps = {}) {
   const [handCardLifted, setHandCardLifted] = useState(false);
   const [boardMenuOpen, setBoardMenuOpen] = useState(false);
   const [gameSettingsOpen, setGameSettingsOpen] = useState(false);
+  const [soundSettingsOpen, setSoundSettingsOpen] = useState(false);
+  const [phaseStopsHelpOpen, setPhaseStopsHelpOpen] = useState(false);
   const [eliminatedModalOpen, setEliminatedModalOpen] = useState(false);
   const eliminatedModalShownRef = useRef(false);
   const [leaveGameModalOpen, setLeaveGameModalOpen] = useState(false);
   const [concedeModalOpen, setConcedeModalOpen] = useState(false);
   const [restoreTarget, setRestoreTarget] = useState<CheckpointDto | null>(null);
   const closeRestoreModal = useCallback(() => setRestoreTarget(null), []);
+  const [repeatModalOpen, setRepeatModalOpen] = useState(false);
   const [combatDetailsOpen, setCombatDetailsOpen] = useState(false);
   const [introDone, setIntroDone] = useState(false);
   const handleLoadingComplete = useCallback(() => setIntroDone(true), []);
@@ -770,7 +809,14 @@ export default function Game({ exitTo }: GameProps = {}) {
     if (must.length === 0) return null;
     const nameOf = (id: string) =>
       gameView?.battlefield.find((c) => c.id === id)?.identity.name ?? `A creature`;
-    return `Must attack if able — ${must.map((a) => nameOf(a.attackerId)).join(", ")}`;
+    return `Must attack if able — ${must
+      .map((a) => {
+        const target = chooseAttackersInput?.attackTargets.find(
+          (t) => t.id === a.suggestedTargetId,
+        );
+        return target ? `${nameOf(a.attackerId)} → ${target.label}` : nameOf(a.attackerId);
+      })
+      .join(", ")}`;
   }, [chooseAttackersInput, gameView?.battlefield]);
   const blockRestrictionHint = useMemo<string | null>(() => {
     const attackers = chooseBlockersInput?.attackers ?? [];
@@ -1032,7 +1078,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       return true;
     }
     if (promptType === "chooseBlockers") {
-      if (blockAssignments.length === 0 || blockRequirement) return false;
+      if (blockRequirement) return false;
       respond({ type: "declareBlockers", assignments: blockAssignments });
       return true;
     }
@@ -1115,7 +1161,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     }
     respondHandAction(action);
   };
-  const activeFlash = useFlashQueue(flashDurationMs);
+  const { activeFlash, pendingActivePlayerId } = useFlashQueue(flashDurationMs);
   const [priorityHighlightPlayerId, setPriorityHighlightPlayerId] = useState<string | null>(null);
   useEffect(() => {
     const next = gameView?.priorityPlayerId ?? null;
@@ -1139,22 +1185,36 @@ export default function Game({ exitTo }: GameProps = {}) {
     },
     "toggle-dev-panel": () => useGameUIStore.getState().toggleDevPanel(),
     "pass-priority": () => {
-      if (manualApi || document.querySelector('[role="dialog"]')) return false;
-      if (confirmPromptRef.current()) return true;
-      if (promptType !== "chooseAction") return false;
+      if (manualApi || isWaitingForResponse || document.querySelector('[role="dialog"]'))
+        return false;
+      if (confirmPromptRef.current()) {
+        playSound("buttonClick");
+        return true;
+      }
+      if (promptType !== "chooseAction" || !gameView) return false;
       unifiedPassRef.current();
+      playSound("buttonClick");
       return true;
     },
     "pass-end-of-turn": () => {
-      if (manualApi) return;
-      if (document.querySelector('[role="dialog"]')) return;
-      if (promptType === "chooseAction") passEndTurnRef.current();
+      if (manualApi || isWaitingForResponse || document.querySelector('[role="dialog"]'))
+        return false;
+      if (promptType !== "chooseAction" || !gameView) return false;
+      passEndTurnRef.current();
+      playSound("buttonClick");
+      return true;
     },
     "toggle-priority-mode": () => {
       if (manualApi) return;
       if (document.querySelector('[role="dialog"]')) return;
       const prefs = usePromptPreferencesStore.getState();
       prefs.setFullControl(!prefs.fullControl);
+    },
+    "toggle-ignore-card": () => {
+      if (promptType && promptType !== "chooseAction") return false;
+      const card = preview.hoveredCard ?? commandZonePreview.hoveredCard;
+      if (!card) return false;
+      useGameStore.getState().toggleCardIgnored(card.id);
     },
   });
   const me =
@@ -1204,13 +1264,44 @@ export default function Game({ exitTo }: GameProps = {}) {
     placementIntentRef.current = null;
   }, [activePrompt, casting.castingCardId, gameView, me]);
   const opponents = useMemo(
-    () => gameView?.players?.filter((p) => p.id !== me?.id) ?? [],
+    () => (gameView && me ? opponentsInTurnOrder(gameView.players, me.id) : []),
     [gameView?.players, me?.id],
+  );
+  const roomPlayers = useServerStore((s) => s.currentRoom?.players);
+  const botAvatars = useMemo(
+    () => gameBotAvatarUrls(gameView?.players ?? [], roomPlayers),
+    [gameView?.players, roomPlayers],
   );
   const iAmEliminated = selfConceded || (me != null && me.status !== "playing");
   const ownsEngine = isHost || hostingForgeRoom;
   const gameContinuesWithoutMe = opponents.filter((p) => p.status === "playing").length >= 2;
   const handleConcede = useCallback(() => setConcedeModalOpen(true), []);
+  const canRecord =
+    !!chooseActionInput && gameView?.stack.length === 0 && !isWaitingForResponse && !iAmEliminated;
+  const canRepeat =
+    canRecord &&
+    recording.type === "ready" &&
+    repeatVote?.status.type !== "pending" &&
+    repeatVote?.status.type !== "running";
+  const toggleRecording = useCallback(() => {
+    const send = recording.type === "recording" ? stopRecording : startRecording;
+    console.info(
+      `[repeat] sending ${recording.type === "recording" ? "stopRecording" : "startRecording"}`,
+    );
+    send().catch((error: unknown) =>
+      toast.error(error instanceof Error ? error.message : String(error)),
+    );
+  }, [recording.type, startRecording, stopRecording]);
+  const requestRepeat = useCallback(
+    async (iterations: number) => {
+      if (useGameStore.getState().currentPrompt?.input.type !== "chooseAction") {
+        throw new Error("You no longer have priority.");
+      }
+      console.info(`[repeat] sending repeat x${iterations}`);
+      await sendRepeatRequest(iterations);
+    },
+    [sendRepeatRequest],
+  );
   const handleConcedeConfirm = useCallback(async () => {
     await concede();
     setConcedeModalOpen(false);
@@ -1249,6 +1340,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       setConcedeModalOpen(false);
       setLeaveGameModalOpen(false);
       setGameSettingsOpen(false);
+      setSoundSettingsOpen(false);
       setCombatDetailsOpen(false);
       closeZoneViewer();
       closePlayModePicker();
@@ -1483,7 +1575,8 @@ export default function Game({ exitTo }: GameProps = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [gameView?.combatAssignments?.map((a) => `${a.blockerId}:${a.attackerId}`).join(",")],
   );
-  const combatRows = useMemo(
+  const headsUp = gameView?.players.length === 2;
+  const declaredCombatRows = useMemo(
     () =>
       gameView
         ? buildCombatRows({
@@ -1499,6 +1592,14 @@ export default function Game({ exitTo }: GameProps = {}) {
           })
         : [],
     [gameView, combatAssignments, blockAssignments, attackAssignments],
+  );
+  const combatRows = useMemo(
+    () => (headsUp ? [] : declaredCombatRows),
+    [headsUp, declaredCombatRows],
+  );
+  const combatForwardIds = useMemo(
+    () => (headsUp ? declaredCombatRows.flatMap((row) => row.attackerIds) : []),
+    [headsUp, declaredCombatRows],
   );
   const oppCombatAttackerIds = useMemo(
     () => new Set(combatRows.flatMap((r) => r.attackerIds)),
@@ -1563,8 +1664,13 @@ export default function Game({ exitTo }: GameProps = {}) {
   }, [gameView?.players]);
 
   const attackArrows = useMemo(
-    () => activeAttackers.filter((attacker) => !oppCombatAttackerIds.has(attacker.attackerId)),
-    [activeAttackers, oppCombatAttackerIds],
+    () =>
+      activeAttackers.filter(
+        (attacker) =>
+          !oppCombatAttackerIds.has(attacker.attackerId) &&
+          !(headsUp && attacker.targetKind === "player"),
+      ),
+    [activeAttackers, oppCombatAttackerIds, headsUp],
   );
   const arrowBlocks = useMemo(
     () => combatAssignments.filter((a) => !oppCombatAttackerIds.has(a.attackerId)),
@@ -1813,7 +1919,10 @@ export default function Game({ exitTo }: GameProps = {}) {
     return (
       visibleCardsById.get(previewCardId) ??
       stackCardsBySourceId.get(previewCardId) ??
-      (preview.hoveredCard ? { ...preview.hoveredCard, zoneId: "prompt" } : null)
+      (preview.hoveredCard &&
+      !(preview.hoveredCard.isFaceDown && preview.hoveredCard.zone === "battlefield")
+        ? { ...preview.hoveredCard, zoneId: "prompt" }
+        : null)
     );
   }, [
     preview.hoveredCard,
@@ -1823,7 +1932,12 @@ export default function Game({ exitTo }: GameProps = {}) {
     gameView?.stack,
     hoveredStackObjectIdForSpecs,
   ]);
-  const previewFaceCard = singleCommandPreviewCard ?? livePreviewCard;
+  const inspectionPreviewCard = useMemo(
+    () =>
+      livePreviewCard ? faceDownCardToPreviewDto(livePreviewCard, activeEngine, gameDecks) : null,
+    [livePreviewCard, activeEngine, gameDecks],
+  );
+  const previewFaceCard = singleCommandPreviewCard ?? inspectionPreviewCard;
   const [previewFaceOverride, setPreviewFaceOverride] = useState<{
     cardId: string;
     showBackFace: boolean;
@@ -1977,14 +2091,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     stackItem.sourceCard
       ? stackObjectToCard(stackItem)
       : (visibleCardsById.get(stackItem.sourceId) ?? stackCardsBySourceId.get(stackItem.sourceId)!);
-  const activeFlashCard: CardDto | null = useMemo(() => {
-    if (!activeFlash || activeFlash.kind !== "card") return null;
-    return (
-      visibleCardsById.get(activeFlash.cardId) ??
-      stackCardsBySourceId.get(activeFlash.cardId) ??
-      null
-    );
-  }, [activeFlash, visibleCardsById, stackCardsBySourceId]);
+  const activeFlashCard: CardDto | null = activeFlash?.kind === "card" ? activeFlash.card : null;
   const zonePreviewPanel = viewingZone && modalPanel === topModal() ? modalPanel : null;
   useEffect(() => {
     zonePreviewScope.current = zonePreviewPanel;
@@ -2083,12 +2190,9 @@ export default function Game({ exitTo }: GameProps = {}) {
     zoneCardPreview && externalPreviewActive ? { "toggle-card-view": togglePreviewView } : {},
     zonePreviewScope,
   );
-  useEffect(() => {
-    if (!gameView?.gameOver && activePrompt?.input.type !== "gameOver") return;
-    if (peekGauntletMatch(gauntletId) || peekLimitedMatchReturn()) return;
-    const timer = setTimeout(() => endGame(), 3000);
-    return () => clearTimeout(timer);
-  }, [gameView?.gameOver, activePrompt?.input.type, gauntletId, endGame]);
+  const completed = (gameView?.gameOver ?? false) || activePrompt?.input.type === "gameOver";
+  const managedReturn = !!peekGauntletMatch(gauntletId) || !!peekLimitedMatchReturn();
+  const postGame = usePostGame(completed, managedReturn);
   const limitedReturn = useLimitedGameReturn({
     gauntletId,
     gameOver: (gameView?.gameOver ?? false) || activePrompt?.input.type === "gameOver",
@@ -2096,6 +2200,11 @@ export default function Game({ exitTo }: GameProps = {}) {
     playerSlot: myPlayerSlot,
     endGame,
   });
+  if (!isGameActive && (isRestartingGame || postGame.busy)) {
+    return (
+      <GameLoadingScreen debugInfo="Preparing the next game" onComplete={handleLoadingComplete} />
+    );
+  }
   if (!isGameActive)
     return <Navigate to={limitedReturn.destination ?? exitTo ?? "/lobby"} replace />;
   if (limitedReturn.error) {
@@ -2209,11 +2318,8 @@ export default function Game({ exitTo }: GameProps = {}) {
   const stackSpec: StackSpec = {
     cards: stackCards,
     flash:
-      shouldRenderStackFlashCard && activeFlashCard && activeFlash
-        ? {
-            token: `${activeFlash.cardId}:${activeFlash.cardName}:${activeFlash.setCode}`,
-            card: activeFlashCard,
-          }
+      shouldRenderStackFlashCard && activeFlashCard
+        ? { token: activeFlashCard.id, card: activeFlashCard }
         : null,
     showPreStackFlash: shouldShowPreStackFlash,
     collapsed: debugStackCard === null && stackCollapsed,
@@ -2261,9 +2367,10 @@ export default function Game({ exitTo }: GameProps = {}) {
       : !commandPreview &&
           inGameCardPreviewStyle === "rules" &&
           showInGamePreview &&
-          livePreviewCard
+          livePreviewCard &&
+          inspectionPreviewCard
         ? {
-            card: livePreviewCard,
+            card: inspectionPreviewCard,
             phase: preview.phase === "closing" ? "closing" : "open",
             placement: preview.placement,
             sticky: preview.isSticky,
@@ -2281,10 +2388,38 @@ export default function Game({ exitTo }: GameProps = {}) {
           }
         : null;
 
+  const turnHandoffPlayer =
+    activeFlash?.kind === "turn"
+      ? gameView.players.find((player) => player.id === activeFlash.playerId)
+      : undefined;
   const promptOverlaySpec: PromptOverlaySpec = {
     currentPrompt: activePrompt,
     localPlayerId: me.id,
     gameView,
+    turnColor: playerColorMap.get(gameView.activePlayerId) ?? themeColors.playerColors.self,
+    turnHandoff:
+      activeFlash?.kind === "turn" && turnHandoffPlayer
+        ? {
+            turn: activeFlash.turn,
+            round: gameRound(activeFlash.turn, gameView.players.length),
+            playerId: activeFlash.playerId,
+            step: activeFlash.step,
+            color: playerColorMap.get(activeFlash.playerId) ?? themeColors.playerColors.self,
+            label:
+              activeFlash.playerId === me.id
+                ? "Your turn"
+                : `${stripUsernameTag(turnHandoffPlayer.name)}'s turn`,
+            avatarUrl:
+              activeFlash.playerId === me.id
+                ? (useAuthStore.getState().account?.avatarUrl ?? null)
+                : (botAvatars.get(turnHandoffPlayer.name) ??
+                  relayAvatarUrl(
+                    turnHandoffPlayer.name,
+                    useServerStore.getState().players,
+                    useServerStore.getState().playerDecks,
+                  )),
+          }
+        : null,
     sourceDeckCard: promptSourceDeckCard,
     action: {
       promptType,
@@ -2398,16 +2533,29 @@ export default function Game({ exitTo }: GameProps = {}) {
             winnerId: gameView.winnerId,
             me,
             opponents,
-            turn: gameView.turn,
+            turn: gameRound(gameView.turn, gameView.players.length),
             engineCrash,
-            onEndGame: () => void endGame(),
+            statusMessage: postGame.statusMessage,
+            playerStatuses: postGame.playerStatuses,
+            ready: postGame.ready,
+            busy: postGame.busy,
+            onPlayAgain: postGame.onPlayAgain,
+            onChangeDeck: postGame.onChangeDeck,
+            onHome: postGame.onHome,
           }
         : null,
     modalHidden: promptModalHidden,
     respond: (output) => void respond(output),
     onHideModal: hidePromptModal,
     onShowModal: showPromptModal,
+    onOpenPhaseStopsHelp: () => setPhaseStopsHelpOpen(true),
   };
+  const openRepeatVote =
+    repeatVote?.status.type === "pending" &&
+    myPlayerSlot &&
+    repeatVote.awaitingPlayerIds.includes(myPlayerSlot)
+      ? repeatVote
+      : null;
   const openRestoreVote =
     gameView.restoreVote?.status.type === "pending" &&
     myPlayerSlot &&
@@ -2475,6 +2623,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           myCommandZone={me?.commandZone ?? []}
           playableIds={playableIds}
           activePlayerId={gameView.activePlayerId}
+          pendingActivePlayerId={pendingActivePlayerId}
           priorityPlayerId={effectivePriorityHighlightPlayerId}
           monarchId={gameView.monarchId ?? null}
           initiativeHolderId={gameView.initiativeHolderId ?? null}
@@ -2494,6 +2643,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           blockAssignments={blockAssignments}
           combatAssignments={combatAssignments}
           combatRows={combatRows}
+          combatForwardIds={combatForwardIds}
           arrowSpecs={arrowSpecs}
           castingArrow={castingArrow}
           playerIsTargetable={playerIsTargetable}
@@ -2605,6 +2755,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       {manualApi && <ManualTabletopControls gameView={gameView} api={manualApi} />}
 
       <RightActionPanel
+        showChat={isMultiplayer}
         collapsed={isActionPanelCollapsed}
         onLeftEdgeChange={setRightPanelLeft}
         onToggleCollapse={toggleActionPanel}
@@ -2623,35 +2774,74 @@ export default function Game({ exitTo }: GameProps = {}) {
       {boardSurfaceEl &&
         createPortal(
           !manualApi && (
-            <MiddleBarDock
-              open={boardMenuOpen}
-              onOpenChange={setBoardMenuOpen}
-              onOpenSettings={() => setGameSettingsOpen(true)}
-              onOpenCombat={() => setCombatDetailsOpen(true)}
-              onConcede={handleConcede}
-              eliminated={iAmEliminated}
-              onLeave={handleLeave}
-              sidePanelCollapsed={isActionPanelCollapsed}
-              onToggleSidePanel={toggleActionPanel}
-              players={gameView.players.map((player) => {
-                const color = playerColorMap.get(player.id) ?? themeColors.playerColors.self;
-                return {
-                  id: player.id,
-                  name: player.name,
-                  color,
-                  textColor: readableTextColor(
+            <>
+              {repeatVote?.status.type === "running" && (
+                <RepeatProgress
+                  vote={repeatVote}
+                  completed={repeatVote.status.completed}
+                  playerName={
+                    playerNameById.get(repeatVote.requestedByPlayerId) ??
+                    repeatVote.requestedByPlayerId
+                  }
+                />
+              )}
+              <MiddleBarDock
+                open={boardMenuOpen}
+                onOpenChange={setBoardMenuOpen}
+                onOpenSettings={() => setGameSettingsOpen(true)}
+                onOpenSoundSettings={() => setSoundSettingsOpen(true)}
+                onOpenCombat={() => setCombatDetailsOpen(true)}
+                onConcede={handleConcede}
+                eliminated={iAmEliminated}
+                onLeave={handleLeave}
+                sidePanelCollapsed={isActionPanelCollapsed}
+                onToggleSidePanel={toggleActionPanel}
+                recording={recording.type}
+                canRecord={canRecord}
+                canRepeat={canRepeat}
+                onToggleRecording={toggleRecording}
+                onRepeat={() => setRepeatModalOpen(true)}
+                players={gameView.players.map((player) => {
+                  const color = playerColorMap.get(player.id) ?? themeColors.playerColors.self;
+                  return {
+                    id: player.id,
+                    name: player.name,
                     color,
-                    themeColors.canvas.shadow,
-                    themeColors.textOnTinted,
-                  ),
-                };
-              })}
-            />
+                    textColor: readableTextColor(
+                      color,
+                      themeColors.canvas.shadow,
+                      themeColors.textOnTinted,
+                    ),
+                  };
+                })}
+              />
+            </>
           ),
           boardSurfaceEl,
         )}
 
+      {postGame.deckPickerOpen && (
+        <CreateGameDialog
+          open
+          onOpenChange={postGame.onPickerOpenChange}
+          mode="lobby"
+          rematch
+          engineKind={postGame.room?.engine}
+          forcedFormatId={postGame.room?.format.toLowerCase()}
+          preSelectedDeck={postGame.previousDeck}
+          onStart={postGame.onDeckSelected}
+        />
+      )}
       {gameSettingsOpen && <GameSettingsModal onClose={() => setGameSettingsOpen(false)} />}
+      {soundSettingsOpen && <SoundSettingsModal onClose={() => setSoundSettingsOpen(false)} />}
+      {phaseStopsHelpOpen && (
+        <PhaseStopsHelpModal
+          gameView={gameView}
+          localPlayerId={me.id}
+          turnColor={promptOverlaySpec.turnColor}
+          onClose={() => setPhaseStopsHelpOpen(false)}
+        />
+      )}
       {combatDetailsOpen && (
         <CombatBreakdownModal
           attackerIds={
@@ -2684,6 +2874,22 @@ export default function Game({ exitTo }: GameProps = {}) {
           endsWithConcede={leaveEndsWithConcede}
           onStay={handleStay}
           onLeave={leaveEndsWithConcede ? handleLeaveConcede : handleLeaveConfirm}
+        />
+      )}
+      {openRepeatVote && (
+        <RepeatVoteModal
+          key={openRepeatVote.voteId}
+          repeatVote={openRepeatVote}
+          resolvePlayerName={(playerId) => playerNameById.get(playerId) ?? playerId}
+          onVote={(accept) => voteRepeat(openRepeatVote.voteId, accept)}
+        />
+      )}
+      {repeatModalOpen && recording.type === "ready" && (
+        <RepeatRequestModal
+          actions={recording.actions}
+          multiplayer={isMultiplayer}
+          onConfirm={requestRepeat}
+          onClose={() => setRepeatModalOpen(false)}
         />
       )}
       {openRestoreVote && (
@@ -2851,7 +3057,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         <HoverCardPreview
           preview={{
             ...preview,
-            hoveredCard: livePreviewCard,
+            hoveredCard: inspectionPreviewCard,
             showBackFace: previewShowBackFace,
             flipCard: handleFlipPreview,
           }}

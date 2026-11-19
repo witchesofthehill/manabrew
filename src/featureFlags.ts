@@ -12,8 +12,6 @@ export const featureFlags = {
   // in via Settings (`ironsmithRuntimeEnabled`) — the experimental engine ships
   // dark in prod by default.
   ironsmithRuntime: true,
-  // Deck Hub (browse/publish shared decks + top decks). Public browse, play and
-  // copy need no session; publishing and favorites also need `accounts`.
   deckHub: true,
   // Hub accounts (OAuth + email sign-in, deck ownership). Desktop never uses the
   // `WEB_APP_URL` redirect: an OAuth start with `client: "desktop"` ends on the
@@ -23,9 +21,7 @@ export const featureFlags = {
   // Email sign-in inside the accounts dialog. Code entry, so desktop-safe.
   emailSignIn: true,
   forgeWasm: false,
-  // Card Glint finish shaders. Windows browsers compile them through Direct3D,
-  // which blocks the GPU process and freezes the whole browser.
-  cardFoil: typeof navigator === "undefined" || !navigator.userAgent.includes("Windows"),
+  cardFoil: true,
 } as const;
 
 export type FeatureFlag = keyof typeof featureFlags;

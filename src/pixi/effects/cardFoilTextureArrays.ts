@@ -13,6 +13,8 @@ export const cardFoilBatchCounters = {
   idlePageBytes: 0,
   staticUploads: 0,
   staticUploadBytes: 0,
+  gpuCopies: 0,
+  gpuCopyBytes: 0,
   instanceUpdates: 0,
   instanceUploadBytes: 0,
   restores: 0,
@@ -69,10 +71,16 @@ export class CardFoilTextureArrays {
     const residentKey = `${source.uid}:${mipmaps}`;
     let resident = this.residents.get(residentKey);
     if (!resident) {
-      if (source.destroyed || !source.resource || source.pixelWidth < 1 || source.pixelHeight < 1)
-        return null;
+      if (source.destroyed || source.pixelWidth < 1 || source.pixelHeight < 1) return null;
       const r8 = source.format === "r8unorm";
-      if (!r8 && source.format !== "rgba8unorm" && source.format !== "bgra8unorm") return null;
+      if (
+        !r8 &&
+        source.format !== "rgba8unorm" &&
+        source.format !== "bgra8unorm" &&
+        source.format !== "rgba8unorm-srgb" &&
+        source.format !== "bgra8unorm-srgb"
+      )
+        return null;
       const key = `${source.pixelWidth}:${source.pixelHeight}:${source.format}:${source.alphaMode}:${mipmaps ? "trilinear" : "linear"}`;
       let page = this.pages.find(
         (candidate) => candidate.key === key && candidate.residents.some((slot) => slot === null),
@@ -161,6 +169,13 @@ export class CardFoilTextureArrays {
     };
   }
 
+  invalidate(source: TextureSource): void {
+    const linear = this.residents.get(`${source.uid}:false`);
+    const mipmapped = this.residents.get(`${source.uid}:true`);
+    if (linear) linear.dirty = true;
+    if (mipmapped) mipmapped.dirty = true;
+  }
+
   upload(page: CardFoilArrayPage): void {
     let pending = !page.allocated;
     for (const entry of page.residents) if (entry?.dirty) pending = true;
@@ -177,7 +192,12 @@ export class CardFoilTextureArrays {
       if (!entry || (!entry.dirty && !fresh) || entry.source.destroyed) continue;
       const source = entry.source;
       const bitmap = typeof ImageBitmap !== "undefined" && source.resource instanceof ImageBitmap;
-      if (source.alphaMode === "premultiply-alpha-on-upload" && !bitmap) {
+      const gpuCopy =
+        !source.resource ||
+        source.format === "rgba8unorm-srgb" ||
+        source.format === "bgra8unorm-srgb" ||
+        (source.alphaMode === "premultiply-alpha-on-upload" && !bitmap);
+      if (gpuCopy) {
         renderer.texture.resetState();
         gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.BROWSER_DEFAULT_WEBGL);
         renderer.texture.bindSource(source, 0);
@@ -230,9 +250,14 @@ export class CardFoilTextureArrays {
       }
       entry.dirty = false;
       changed = true;
-      cardFoilBatchCounters.staticUploads++;
-      cardFoilBatchCounters.staticUploadBytes +=
-        source.pixelWidth * source.pixelHeight * (source.format === "r8unorm" ? 1 : 4);
+      const bytes = source.pixelWidth * source.pixelHeight * (source.format === "r8unorm" ? 1 : 4);
+      if (gpuCopy) {
+        cardFoilBatchCounters.gpuCopies++;
+        cardFoilBatchCounters.gpuCopyBytes += bytes;
+      } else {
+        cardFoilBatchCounters.staticUploads++;
+        cardFoilBatchCounters.staticUploadBytes += bytes;
+      }
     }
     if (changed && page.source.autoGenerateMipmaps) gl.generateMipmap(gl.TEXTURE_2D_ARRAY);
     gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);

@@ -58,6 +58,7 @@ import type {
   ReconnectingPayload,
   DisconnectedPayload,
   RelayFeature,
+  RematchIntent,
 } from "@/types/server";
 import type { Deck } from "@/protocol/deck";
 import { resendLocalGame } from "@/lib/localGamePresence";
@@ -78,9 +79,11 @@ interface ServerState {
   /** Set when the session is on a relay or room found on this network rather
    *  than the configured one, for the lobby to say so. */
   lanTarget: LanTarget | null;
+  switchingRelay: boolean;
 
   rooms: RoomInfo[];
   currentRoom: RoomInfo | null;
+  leavingRoomId: string | null;
   roomPassword: string | null;
   hostingForgeRoom: boolean;
   players: PlayerInfo[];
@@ -130,6 +133,8 @@ interface ServerState {
   setMaxPlayers(maxPlayers: number): Promise<void>;
   startGame(format?: GameFormat): Promise<void>;
   endGame(): Promise<void>;
+  setRematchIntent(intent: RematchIntent): Promise<void>;
+  returnToLobby(): Promise<void>;
   inviteToRoom(username: string): Promise<void>;
   hasRelayFeature(feature: RelayFeature): boolean;
   setupListeners(): () => void;
@@ -152,6 +157,9 @@ interface PendingJoin {
   timer: ReturnType<typeof setTimeout>;
 }
 let pendingJoin: PendingJoin | null = null;
+let pendingLeave: Promise<void> | null = null;
+let pendingRoomDeparture: Promise<void> | null = null;
+let requestedLeaveRoomId: string | null = null;
 let tabSession: TabSessionHolder | null = null;
 function releaseTabSession() {
   tabSession?.release();
@@ -194,6 +202,45 @@ function settlePendingJoin(error: Error | null, roomId?: string) {
   settle(error);
   return true;
 }
+
+function reconcileRoomMembership() {
+  const state = useServerStore.getState();
+  if (state.currentRoom || state.leavingRoomId || isActiveGameSessionAbandonmentPending()) return;
+  const roomId = state.players.find((player) => player.player_id === state.playerId)?.room_id;
+  const matchReturn = useMultiplayerLimitedStore.getState().matchReturn;
+  if (matchReturn && matchReturn.roomId !== roomId) return;
+  const room = state.rooms.find((room) => room.room_id === roomId);
+  if (room) useServerStore.setState({ currentRoom: room });
+}
+
+function confirmRoomLeave(): Promise<void> {
+  const state = useServerStore.getState();
+  if (!state.leavingRoomId) return Promise.resolve();
+  if (pendingLeave) return pendingLeave;
+  if (!state.connected) return Promise.reject(new Error("Cannot leave room while disconnected."));
+  requestedLeaveRoomId = null;
+  pendingLeave = new Promise<void>((resolve, reject) => {
+    const finish = (error?: Error) => {
+      clearTimeout(timer);
+      unsubscribe();
+      if (error) reject(error);
+      else resolve();
+    };
+    const timer = setTimeout(
+      () => finish(new Error("The server has not confirmed leaving the room. Please try again.")),
+      JOIN_CONFIRM_TIMEOUT_MS,
+    );
+    const unsubscribe = useServerStore.subscribe((next) => {
+      if (!next.connected) finish(new Error("Disconnected while leaving the room."));
+      else if (!next.leavingRoomId) finish();
+    });
+    void state.listPlayers().catch((error) => finish(new Error(String(error))));
+  }).finally(() => {
+    pendingLeave = null;
+  });
+  return pendingLeave;
+}
+
 export const useServerStore = create<ServerState>()(
   devtools(
     (set, get) => ({
@@ -205,8 +252,10 @@ export const useServerStore = create<ServerState>()(
       reconnect: { phase: "idle", attempt: 0 },
       relayFeatures: [],
       lanTarget: null,
+      switchingRelay: false,
       rooms: [],
       currentRoom: null,
+      leavingRoomId: null,
       roomPassword: null,
       hostingForgeRoom: false,
       players: [],
@@ -255,7 +304,7 @@ export const useServerStore = create<ServerState>()(
       // as soon as it opens, and a lookup that lived only in the lobby ran
       // after that, when there was nothing left to decide.
       async connectPreferred(username) {
-        if (get().connected || get().connecting) return;
+        if (get().connected || get().connecting || get().switchingRelay) return;
         set({ connecting: true, error: null });
         const found = await findLanRelay();
         const prefs = usePreferencesStore.getState();
@@ -293,6 +342,7 @@ export const useServerStore = create<ServerState>()(
           username: null,
           reconnect: { phase: "idle", attempt: 0 },
           currentRoom: null,
+          leavingRoomId: null,
           roomPassword: null,
           hostingForgeRoom: false,
           gameStarted: false,
@@ -328,6 +378,8 @@ export const useServerStore = create<ServerState>()(
       ) {
         const platform = getPlatform();
         if (!platform.server) return;
+        await pendingRoomDeparture;
+        await confirmRoomLeave();
         set({ roomPassword: password ? password : null });
         const roomId = await platform.server.createRoom({
           roomName,
@@ -348,6 +400,8 @@ export const useServerStore = create<ServerState>()(
       async joinRoom(roomId, password) {
         const platform = getPlatform();
         if (!platform.server) return;
+        await pendingRoomDeparture;
+        await confirmRoomLeave();
         settlePendingJoin(new Error("join_superseded"));
         set({ roomPassword: password ? password : null });
         await platform.server.joinRoom({ roomId, password });
@@ -368,6 +422,10 @@ export const useServerStore = create<ServerState>()(
         const { currentRoom, gameId, playerOrder, playerDecks, startingLife, roomPassword } = get();
         if (!platform.server?.resumeRoom || !currentRoom || playerOrder.length === 0 || !gameId)
           return;
+        const seatIndices = playerOrder.map(
+          (username) =>
+            currentRoom.players.find((player) => player.username === username)?.seat_index,
+        );
         await platform.server.resumeRoom({
           room_id: currentRoom.room_id,
           room_name: currentRoom.room_name,
@@ -381,51 +439,77 @@ export const useServerStore = create<ServerState>()(
           draft_config: currentRoom.draft_config,
           sealed_config: currentRoom.sealed_config,
           player_order: playerOrder,
+          seat_indices: seatIndices.every((seat): seat is number => seat !== undefined)
+            ? seatIndices
+            : undefined,
           player_decks: playerDecks,
           starting_life: startingLife,
           bot_players: currentRoom.players.filter((p) => p.is_bot).map((p) => p.username),
           game_id: gameId,
         });
       },
-      async leaveRoom(requireServerLeave = false) {
-        const platform = getPlatform();
-        if (requireServerLeave) {
-          if (!platform.server) throw new Error("Multiplayer server is unavailable.");
-          await platform.server.leaveRoom();
-        }
-        teardownDraftHost();
-        useMultiplayerDraftStore.getState().clear();
-        clearLimitedSession();
-        clearSealedStart();
-        set({
-          currentRoom: null,
-          roomPassword: null,
-          hostingForgeRoom: false,
-          gameStarted: false,
-          gameRoomId: "",
-          gameId: "",
-          playerOrder: [],
-          playerDecks: [],
-          startingLife: DEFAULT_STARTING_LIFE,
-        });
-        if (!platform.server) return;
-        if (!requireServerLeave) {
-          try {
+      leaveRoom(requireServerLeave = false) {
+        if (pendingRoomDeparture) return pendingRoomDeparture;
+        pendingRoomDeparture = (async () => {
+          const platform = getPlatform();
+          set({
+            leavingRoomId:
+              get().leavingRoomId ??
+              get().currentRoom?.room_id ??
+              pendingJoin?.roomId ??
+              get().players.find((player) => player.player_id === get().playerId)?.room_id ??
+              (get().gameRoomId || null),
+          });
+          settlePendingJoin(new Error("join_cancelled"));
+          if (requireServerLeave) {
+            if (!platform.server) throw new Error("Multiplayer server is unavailable.");
             await platform.server.leaveRoom();
-          } catch (e) {
-            console.warn("server.leaveRoom() failed:", e);
+            await confirmRoomLeave();
           }
-        }
-        try {
-          await platform.server.stopRoom();
-        } catch (e) {
-          console.warn("server.stopForgeRoom() failed:", e);
-        }
-        try {
-          await get().listRooms();
-        } catch (e) {
-          console.warn("listRooms() after leaveRoom failed:", e);
-        }
+          teardownDraftHost();
+          useMultiplayerDraftStore.getState().clear();
+          clearLimitedSession();
+          clearSealedStart();
+          set({
+            currentRoom: null,
+            roomPassword: null,
+            hostingForgeRoom: false,
+            gameStarted: false,
+            gameRoomId: "",
+            gameId: "",
+            playerOrder: [],
+            playerDecks: [],
+            startingLife: DEFAULT_STARTING_LIFE,
+          });
+          if (!platform.server) return;
+          if (!requireServerLeave) {
+            try {
+              await platform.server.leaveRoom();
+            } catch (e) {
+              console.warn("server.leaveRoom() failed:", e);
+            }
+          }
+          try {
+            await platform.server.stopRoom();
+          } catch (e) {
+            console.warn("server.stopForgeRoom() failed:", e);
+          }
+          if (!requireServerLeave) {
+            try {
+              await confirmRoomLeave();
+            } catch (e) {
+              console.warn("Room departure is pending:", e);
+            }
+          }
+          try {
+            await get().listRooms();
+          } catch (e) {
+            console.warn("listRooms() after leaveRoom failed:", e);
+          }
+        })().finally(() => {
+          pendingRoomDeparture = null;
+        });
+        return pendingRoomDeparture;
       },
       async setReady(ready) {
         const platform = getPlatform();
@@ -475,6 +559,22 @@ export const useServerStore = create<ServerState>()(
         if (!platform.server) return;
         await platform.server.endGame(get().gameId);
       },
+      async setRematchIntent(intent) {
+        const server = getPlatform().server;
+        const rematch = get().currentRoom?.rematch;
+        if (!server || !rematch || !get().hasRelayFeature("game_rematch")) {
+          throw new Error("This table does not support rematches. Update the server.");
+        }
+        await server.setRematchIntent(rematch.game_id, intent);
+      },
+      async returnToLobby() {
+        const server = getPlatform().server;
+        const rematch = get().currentRoom?.rematch;
+        if (!server || !rematch || !get().hasRelayFeature("game_rematch")) {
+          throw new Error("This table does not support rematches. Update the server.");
+        }
+        await server.returnToLobby(rematch.game_id);
+      },
       async inviteToRoom(username) {
         const platform = getPlatform();
         if (!platform.server) return;
@@ -496,12 +596,14 @@ export const useServerStore = create<ServerState>()(
             setRelayCacheBase(payload.success ? (payload.art_base_url ?? null) : null);
             if (payload.success) {
               duplicateRejectionSince = null;
+              requestedLeaveRoomId = null;
               set({
                 connected: true,
                 connecting: false,
                 error: null,
                 playerId: payload.player_id,
                 username: payload.username ?? get().username,
+                players: [],
                 reconnect: { phase: "idle", attempt: 0 },
               });
               get().listRooms();
@@ -541,11 +643,32 @@ export const useServerStore = create<ServerState>()(
         unsubscribers.push(
           platform.events.on<RoomListPayload>("server:room_list", (payload) => {
             set({ rooms: payload.rooms });
+            reconcileRoomMembership();
           }),
         );
         unsubscribers.push(
           platform.events.on<PlayerListPayload>("server:player_list", (payload) => {
             set({ players: payload.players });
+            const { playerId, leavingRoomId } = get();
+            const player = payload.players.find((player) => player.player_id === playerId);
+            if (leavingRoomId && player) {
+              if (player.room_id === leavingRoomId) {
+                if (requestedLeaveRoomId !== leavingRoomId && get().connected) {
+                  requestedLeaveRoomId = leavingRoomId;
+                  void platform
+                    .server!.leaveRoom()
+                    .then(() => get().listPlayers())
+                    .catch((error) => console.warn("server.leaveRoom() failed:", error));
+                }
+              } else {
+                set({
+                  leavingRoomId: null,
+                  currentRoom:
+                    get().currentRoom?.room_id === leavingRoomId ? null : get().currentRoom,
+                });
+              }
+            }
+            reconcileRoomMembership();
           }),
         );
         unsubscribers.push(
@@ -556,10 +679,15 @@ export const useServerStore = create<ServerState>()(
         );
         unsubscribers.push(
           platform.events.on<RoomUpdatePayload>("server:room_update", (payload) => {
+            if (get().leavingRoomId === payload.room.room_id) return;
             // Only rooms we are in or joining: an update broadcast while our
             // LeaveRoom was in flight must not re-enroll us in the room.
             const inRoom = get().currentRoom?.room_id === payload.room.room_id;
             const joining = pendingJoin?.roomId === payload.room.room_id;
+            const restored =
+              !isActiveGameSessionAbandonmentPending() &&
+              get().players.find((player) => player.player_id === get().playerId)?.room_id ===
+                payload.room.room_id;
             const limited = useMultiplayerLimitedStore.getState();
             const draft = useMultiplayerDraftStore.getState();
             const reclaiming =
@@ -568,7 +696,7 @@ export const useServerStore = create<ServerState>()(
                 limited.originalRoom?.room_id === payload.room.room_id ||
                 limited.matchReturn?.roomId === payload.room.room_id ||
                 draft.roomId === payload.room.room_id);
-            if (inRoom || joining || reclaiming) {
+            if (inRoom || joining || reclaiming || restored) {
               if (!limited.matchReturn || limited.matchReturn.roomId === payload.room.room_id)
                 set({ currentRoom: payload.room });
               if (limited.originalRoom?.room_id === payload.room.room_id) {
@@ -615,6 +743,7 @@ export const useServerStore = create<ServerState>()(
         );
         unsubscribers.push(
           platform.events.on<GameStartedPayload>("server:game_started", (payload) => {
+            if (get().leavingRoomId === payload.room_id) return;
             const roomId = get().currentRoom?.room_id;
             if (roomId && payload.room_id !== roomId) return;
             set({
@@ -632,6 +761,10 @@ export const useServerStore = create<ServerState>()(
             console.error("[server] error:", payload.code, payload.message);
             if (payload.code === SERVER_ERROR_CODE.GameNotInProgress) return;
             if (CHAT_ERROR_CODES.has(payload.code as ServerErrorCode)) return;
+            if (payload.code === SERVER_ERROR_CODE.AlreadyInRoom) {
+              void get().listPlayers();
+              void get().listRooms();
+            }
             if (
               JOIN_FAILURE_CODES.has(payload.code as ServerErrorCode) &&
               settlePendingJoin(new Error(payload.code))
@@ -640,6 +773,7 @@ export const useServerStore = create<ServerState>()(
             if (payload.code === SERVER_ERROR_CODE.NotInRoom) {
               set({
                 currentRoom: null,
+                leavingRoomId: null,
                 gameStarted: false,
                 gameRoomId: "",
                 gameId: "",
@@ -667,6 +801,7 @@ export const useServerStore = create<ServerState>()(
                 error: "Disconnected from server",
                 playerId: null,
                 currentRoom: null,
+                leavingRoomId: null,
                 gameStarted: false,
                 gameRoomId: "",
                 gameId: "",

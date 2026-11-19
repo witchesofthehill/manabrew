@@ -3,10 +3,14 @@ import type { SpawnAiBotParams } from "@/platform/types";
 const KEY = "manabrew.spawnedAiBots";
 const VERSION = 1;
 
+interface SpawnedBot extends SpawnAiBotParams {
+  deckSelectionPending?: boolean;
+}
+
 interface SpawnedBotsRecord {
   version: number;
   roomId: string;
-  bots: SpawnAiBotParams[];
+  bots: SpawnedBot[];
 }
 
 function readRecord(): SpawnedBotsRecord | null {
@@ -24,17 +28,20 @@ function readRecord(): SpawnedBotsRecord | null {
   }
 }
 
-function writeRecord(roomId: string, bots: SpawnAiBotParams[]): void {
+function writeRecord(roomId: string, bots: SpawnedBot[]): void {
   localStorage.setItem(KEY, JSON.stringify({ version: VERSION, roomId, bots }));
 }
 
-export function rememberSpawnedBot(params: SpawnAiBotParams): void {
+export function rememberSpawnedBot(params: SpawnAiBotParams, deckSelectionPending = false): void {
   try {
     const record = readRecord();
     const bots =
       record?.roomId === params.roomId
-        ? [...record.bots.filter((b) => b.username !== params.username), params]
-        : [params];
+        ? [
+            ...record.bots.filter((b) => b.username !== params.username),
+            { ...params, deckSelectionPending },
+          ]
+        : [{ ...params, deckSelectionPending }];
     writeRecord(params.roomId, bots);
   } catch {
     // ignore
@@ -64,7 +71,7 @@ export function clearSpawnedBots(): void {
   }
 }
 
-export function peekSpawnedBots(roomId: string): SpawnAiBotParams[] {
+export function peekSpawnedBots(roomId: string): SpawnedBot[] {
   const record = readRecord();
   return record?.roomId === roomId ? record.bots : [];
 }

@@ -1,6 +1,5 @@
 const HORIZONTAL_LAYOUTS: Record<string, true> = {
   split: true,
-  aftermath: true,
   battle: true,
   room: true,
   planar: true,
@@ -35,7 +34,9 @@ export function isHorizontalCard(opts: {
   layout?: string;
   types?: string[];
   typeLine?: string;
+  keywords?: string[];
 }): boolean {
+  if (opts.layout === "split" && opts.keywords?.includes("Aftermath")) return false;
   if (isHorizontalLayout(opts.layout)) return true;
   if (opts.types?.some((type) => HORIZONTAL_TYPES[type] === true)) return true;
   return (opts.typeLine ?? "").split(/[^A-Za-z]+/).some((type) => HORIZONTAL_TYPES[type] === true);

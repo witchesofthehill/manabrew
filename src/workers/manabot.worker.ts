@@ -30,6 +30,15 @@ interface SeatCommand {
 const decoder = new TextDecoder();
 const encoder = new TextEncoder();
 
+function reportFailure(error: unknown): void {
+  self.postMessage({
+    type: "error",
+    name: error instanceof Error ? error.name.slice(0, 80) : "Error",
+    message: error instanceof Error ? error.message.slice(0, 1024) : "Bot worker failed",
+    stack: error instanceof Error ? error.stack?.slice(0, 8192) : undefined,
+  });
+}
+
 function takeFrame(signal: Int32Array, data: Uint8Array): string {
   for (;;) {
     const current = Atomics.load(signal, 0);
@@ -88,6 +97,7 @@ function play(buffer: SharedArrayBuffer, playerSlot: string): never {
       if (response) writeFrame(signal, data, response);
     } catch (error) {
       console.error(`[Manabot] Failed to answer ${playerSlot}:`, error);
+      reportFailure(error);
     }
   }
 }
@@ -98,9 +108,15 @@ self.onmessage = async (event: MessageEvent<SeatCommand>) => {
     console.error(
       `[Manabot] ${playerSlot}: seat buffer is not a ${SAB_SIZE}-byte SharedArrayBuffer`,
     );
+    reportFailure(new Error("Bot seat buffer is invalid"));
     return;
   }
-  await init();
+  try {
+    await init();
+  } catch (error) {
+    reportFailure(error);
+    throw error;
+  }
   // Never returns: the seat lives until the bridge terminates this worker.
   play(buffer, playerSlot);
 };

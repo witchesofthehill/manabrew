@@ -10,6 +10,7 @@ import { isFeatureEnabled } from "@/featureFlags";
 import { IRONSMITH_WASM_AVAILABLE } from "@/game/ironsmithWasmAvailable";
 import { relayUsername } from "@/lib/relayUsername";
 import { BattlefieldStylePreview } from "@/components/game/BattlefieldStylePreview";
+import { SoundControls } from "@/components/SoundControls";
 import {
   INLINE_CARD_STYLE_OPTIONS,
   IN_GAME_CARD_PREVIEW_STYLE_OPTIONS,
@@ -499,6 +500,9 @@ export default function Settings() {
               shortTouch && "gap-3",
             )}
           >
+            <PreferenceCard title="Sounds" description="Mute or set the volume for all app sounds.">
+              <SoundControls />
+            </PreferenceCard>
             <LanguagePreferenceCard />
             <PreferenceCard
               title={`Default Playmat`}
@@ -589,7 +593,7 @@ export default function Settings() {
             <PreferenceCard
               title={`Card Size`}
               value={`${Math.round(prefs.cardSizeMultiplier * 100)}%`}
-              description={`Scales cards on every battlefield and your hand fan. 100% is the classic 3-row board; battlefield cards cap at a 2-row fill so the board stays playable, while the hand keeps growing past them.`}
+              description={`Scales cards on every battlefield and your hand fan. 100% is the largest board with three rows; 150% fills each battlefield with two rows of bigger cards.`}
             >
               <div className="flex flex-wrap items-start gap-4">
                 <div className="flex-1 space-y-3">
@@ -612,7 +616,7 @@ export default function Settings() {
                       size="sm"
                       onClick={() => prefs.setCardSizeMultiplier(CARD_SIZE_MULTIPLIER_MIN)}
                     >
-                      75%
+                      50%
                     </Button>
                     <Button
                       variant={prefs.cardSizeMultiplier === 1 ? "selected" : "outline"}
@@ -932,7 +936,7 @@ export default function Settings() {
             <PreferenceCard
               title={`Flash duration`}
               value={`${flashDurationMs}ms`}
-              description={`Card-play and turn-start flash duration.`}
+              description={`Card-play flash duration.`}
             >
               <input
                 type="range"

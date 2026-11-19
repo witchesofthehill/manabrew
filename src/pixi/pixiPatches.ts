@@ -6,7 +6,7 @@
  * singleton exports, so a single import protects the whole app.
  */
 
-import { Application, TexturePool } from "pixi.js";
+import { Application, RenderGroup, TexturePool } from "pixi.js";
 
 /**
  * Tear down a Pixi `Application` without releasing resources shared by other
@@ -40,6 +40,7 @@ let patched = false;
 export function installPixiPatches(): void {
   if (patched) return;
   patched = true;
+  patchRenderGroupOnRender();
 
   // Pixi v8 crashes with `undefined is not an object (evaluating
   // 'this._texturePool[key].push')` when a texture is returned whose
@@ -69,6 +70,42 @@ export function installPixiPatches(): void {
       // Swallow so a Pixi internal bug can't crash the React tree mid
       // teardown. We log once for visibility.
       console.warn("[pixi] TexturePool.returnTexture guard swallowed:", err);
+    }
+  };
+}
+
+type OnRenderEntry = { _onRender?: ((renderer: unknown) => void) | null };
+type OnRenderList = { _onRenderContainers: OnRenderEntry[] | null };
+
+// Pixi 8.18 same-parent `addChildAt`/`setChildIndex` re-registers descendant
+// `onRender` callbacks; clearing one later leaves a stale null entry that
+// throws every frame. `removeOnRender` also splices index -1.
+export function patchRenderGroupOnRender(): void {
+  const proto = RenderGroup.prototype as unknown as {
+    addOnRender(this: OnRenderList, container: OnRenderEntry): void;
+    removeOnRender(this: OnRenderList, container: OnRenderEntry): void;
+    runOnRender(this: OnRenderList, renderer: unknown): void;
+  };
+  proto.addOnRender = function addOnRender(container) {
+    const list = this._onRenderContainers;
+    if (list && !list.includes(container)) list.push(container);
+  };
+  proto.removeOnRender = function removeOnRender(container) {
+    const list = this._onRenderContainers;
+    if (!list) return;
+    const index = list.indexOf(container);
+    if (index !== -1) list.splice(index, 1);
+  };
+  proto.runOnRender = function runOnRender(renderer) {
+    const list = this._onRenderContainers;
+    if (!list) return;
+    for (let i = 0; i < list.length; i++) {
+      const onRender = list[i]._onRender;
+      if (typeof onRender === "function") {
+        onRender.call(list[i], renderer);
+      } else {
+        list.splice(i--, 1);
+      }
     }
   };
 }

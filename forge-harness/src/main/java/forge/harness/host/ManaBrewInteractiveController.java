@@ -34,6 +34,7 @@ import forge.game.ability.AbilityUtils;
 import forge.game.ability.ApiType;
 import forge.game.ability.effects.RollDiceEffect;
 import forge.game.card.*;
+import forge.game.card.sticker.Sticker;
 import forge.game.combat.Combat;
 import forge.game.combat.CombatUtil;
 import forge.game.cost.*;
@@ -151,8 +152,11 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     @Override
     public List<SpellAbility> chooseSpellAbilityToPlay() {
-        if (session.restoreIfApproved()) {
+        if (session.restoreIfApproved() || session.actionRepeat().revertFailedRepeat()) {
             return new ArrayList<>();
+        }
+        if (session.actionRepeat().passesDuringReplay(player)) {
+            return null;
         }
         if (exhaustStackIds != null) {
             if (PriorityFastForward.exhaustEnded(game, exhaustStackIds)) {
@@ -1170,6 +1174,10 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     @Override
     public boolean confirmTrigger(final WrappedAbility sa) {
+        final SpellAbility wrapped = sa == null ? null : sa.getWrappedAbility();
+        if (wrapped != null && wrapped.hasParam("Cost") && !"0".equals(wrapped.getParam("Cost"))) {
+            return true;
+        }
         final Trigger trigger = sa == null ? null : sa.getTrigger();
         final Card host = sa == null ? null : sa.getHostCard();
         final String title = host == null
@@ -1495,7 +1503,12 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                 && cost.getCostMana() != null
                 && cost.getCostMana().getAmountOfX() > 0;
         if (manaX) {
-            bounds[1] = Math.min(bounds[1], ComputerUtilMana.determineLeftoverMana(ability, player, false));
+            probingPayability = true;
+            try {
+                bounds[1] = Math.min(bounds[1], ComputerUtilMana.determineLeftoverMana(ability, player, false));
+            } finally {
+                probingPayability = false;
+            }
         }
         final Integer chosen;
         if (bounds[0] >= bounds[1]) {
@@ -1603,6 +1616,41 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             rememberSecretTypeViewer(sa);
         }
         return result;
+    }
+
+    @Override
+    public Sticker chooseSticker(final List<Sticker> options, final Card target,
+            final SpellAbility sa, final boolean isOptional) {
+        final List<SelectionOption> choices = new ArrayList<>();
+        for (final Sticker sticker : options) {
+            final String label = sticker.getTickets() == 0 ? sticker.getDescription()
+                    : "{TK}".repeat(sticker.getTickets()) + " - " + sticker.getDescription();
+            choices.add(new SelectionOption(label, 1, false));
+        }
+        final List<Integer> selected = session.awaitModeChoice(
+                me(), choices, isOptional ? 0 : 1, 1, "Choose a sticker",
+                "Put a sticker on " + target.getName(), SnapshotExtractor.javaCardId(target));
+        return selected.isEmpty() ? null : options.get(selected.get(0));
+    }
+
+    @Override
+    public int chooseStickerNamePosition(final Sticker sticker, final Card target) {
+        if (target.getName().isBlank() || target.stickerWouldFillBlank()) {
+            return 0;
+        }
+        final int words = target.getName().split(" ").length;
+        final List<SelectionOption> positions = new ArrayList<>();
+        for (int at = 0; at <= words; at++) {
+            positions.add(new SelectionOption(Card.addStickerWord(target.getName(), sticker.getWord(), at), 1, false));
+        }
+        return session.awaitModeChoice(me(), positions, 1, 1, "Choose sticker name position",
+                null, SnapshotExtractor.javaCardId(target)).get(0);
+    }
+
+    @Override
+    public Card chooseCardToKeepStickers(final CardCollectionView options) {
+        return chooseSingleEntityForEffect(options, null, null, "Choose a card to keep stickers",
+                false, null, null);
     }
 
     @Override
@@ -1970,6 +2018,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             final ManaBrewInteractiveSession.SessionSnapshot sessionSnapshot, final CardCollection cardsToDelve) {
         final ManaPool pool = player.getManaPool();
         final Map<Integer, Card> sessionTapped = new LinkedHashMap<>();
+        final List<SpellAbility> sessionManaAbilities = new ArrayList<>();
         final Map<Integer, ManaCostShard> sessionConvoke = new LinkedHashMap<>();
         final Map<Integer, ManaCostShard> sessionWaterbend = new LinkedHashMap<>();
         final CardCollection waterbentCards = new CardCollection();
@@ -2024,6 +2073,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                     final Card source = chosen.getHostCard();
                     if (autoPay.floatManaFromSource(chosen, effect) && source != null) {
                         sessionTapped.put(source.getId(), source);
+                        sessionManaAbilities.add(chosen);
                     }
                     break;
                 }
@@ -2036,6 +2086,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                         sessionTapped.remove(untap.getId());
                     } else {
                         untapSource(untap, sessionTapped);
+                        sessionManaAbilities.removeIf(ability -> ability.getHostCard() == untap);
                     }
                     break;
                 }
@@ -2050,6 +2101,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                 case DELVE: {
                     payDelve(unpaid, cardsToDelve, choice.delveCard());
                     if (unpaid.isPaid()) {
+                        sa.getPayingManaAbilities().addAll(sessionManaAbilities);
                         return true;
                     }
                     break;
@@ -2071,6 +2123,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                         }
                     }
                     if (unpaid.isPaid()) {
+                        sa.getPayingManaAbilities().addAll(sessionManaAbilities);
                         return true;
                     }
                     break;
@@ -2080,7 +2133,10 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                         if (delve) {
                             autoDelve(unpaid, cardsToDelve, delvePaymentSources(player, unpaid, cardsToDelve));
                         }
-                        for (final Card source : autoPay.floatManaForCost(unpaid.toManaCost(), sa, effect)) {
+                        final int firstActivation = sessionManaAbilities.size();
+                        autoPay.floatManaForCost(unpaid.toManaCost(), sa, effect, sessionManaAbilities);
+                        for (int i = firstActivation; i < sessionManaAbilities.size(); i++) {
+                            final Card source = sessionManaAbilities.get(i).getHostCard();
                             sessionTapped.put(source.getId(), source);
                         }
                         autoWaterbend(unpaid, sa, pool, maxWaterbend, sessionWaterbend, waterbentCards);
@@ -2093,6 +2149,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                     }
                     pool.payManaCostFromPool(unpaid, sa, false, sa.getPayingMana());
                     if (unpaid.isPaid()) {
+                        sa.getPayingManaAbilities().addAll(sessionManaAbilities);
                         return true;
                     }
                     break;

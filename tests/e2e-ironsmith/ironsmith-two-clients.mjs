@@ -7,7 +7,7 @@
 // a live board — the guest's board can only appear via decrypted relay overlays.
 //
 // Usage: node tests/e2e-ironsmith/ironsmith-two-clients.mjs
-//        DECK="Mono Red Prison" FORMAT=Vintage SHOT=/tmp/shots node .../ironsmith-two-clients.mjs
+//        DECK="Goblins" FORMAT=Vintage SHOT=/tmp/shots node .../ironsmith-two-clients.mjs
 
 import { chromium } from "playwright";
 import {
@@ -16,11 +16,12 @@ import {
   onboard,
   connectLocal,
   createRoom,
+  enableIronsmith,
   pickPreset,
   deckButton,
 } from "./lib.mjs";
 
-const DECK = process.env.DECK || "Mono Red Prison";
+const DECK = process.env.DECK || "Goblins";
 const FORMAT = process.env.FORMAT || "Vintage";
 const SHOT = process.env.SHOT || null;
 const ROOM = "IronsmithPair" + Date.now().toString(36).slice(-4);
@@ -47,22 +48,26 @@ try {
   // Guest joins the room from the lobby.
   await onboard(guest, guestName);
   await connectLocal(guest, guestName);
+  // Every seat needs the opt-in: a guest without it is dropped back to the
+  // lobby when the Ironsmith game starts.
+  await enableIronsmith(guest);
   await guest.goto((process.env.BASE || "http://localhost:1420") + "/lobby", {
     waitUntil: "networkidle",
   });
   await guest.waitForTimeout(1500);
-  const row = guest.locator(`text=${ROOM}`).first();
+  const row = guest.getByRole("article").filter({
+    has: guest.getByRole("heading", { name: ROOM, exact: true }),
+  });
   await row.waitFor({ timeout: 10000 });
-  await guest
-    .getByRole("button", { name: /^Join$/ })
-    .first()
-    .click();
+  await row.getByRole("button", { name: /^Join table$/ }).click();
   await guest.waitForTimeout(2000);
   await pickPreset(guest, () => deckButton(guest).click(), DECK);
 
   // Guest marks ready — the host's Start button is gated on it.
-  const ready = guest.getByRole("button", { name: /^Ready$/ });
-  if (await ready.count()) await ready.click();
+  const ready = guest.getByRole("button", { name: /^Ready( up)?$/i });
+  // The button appears once the relay has acknowledged the deck.
+  await ready.waitFor({ timeout: 15000 });
+  await ready.click();
   await guest.waitForTimeout(1000);
 
   // Host starts once both seats are decked and the guest is ready.

@@ -6,8 +6,8 @@ plane. Epic: #838.
 
 ## What moves
 
-Only the engine envelopes: the host's `state`, `display`, `prompt`, `error`, `log`, `snapshot`,
-`fatal`, and the seats' `Response` and `Directive`. Everything else stays on the relay: auth,
+Only the engine envelopes: the host's `state`, `prompt`, `error`, `log`, `snapshot`, `fatal`,
+and the seats' `Response` and `Directive`. Everything else stays on the relay: auth,
 lobby, rooms, membership, `StartGame`/`GameStarted`/`EndGame`, reconnects, replay cache, analytics.
 
 ## Rules

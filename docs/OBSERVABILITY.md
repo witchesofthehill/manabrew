@@ -2,6 +2,8 @@
 
 Inventory of every Grafana panel and queryable data source in the stack. Config lives under `ops/observability/`; metric names are defined in code (`manabrew-server/src/metrics.rs`, `self-hosted-node/src/metrics.rs`) and the analytics schema in `scripts/ingest-events.py`. Keep this file in sync when adding a panel, metric, event, or column.
 
+Frontend exception reporting uses the Faro SDK, an isolated self-hosted collector, and Loki. Managed web and official macOS/Windows/iOS/Android builds report by default; generic/local builds stay off. Explicit `false` disables reporting. See [deployment settings](DEPLOY.md#frontend-error-reporting) and [rollout and rollback](DEPLOY.md#rollout-and-rollback).
+
 ## Dashboards
 
 Provisioned from `ops/observability/grafana/dashboards/` via `provisioning/dashboards/provider.yml`.
@@ -13,7 +15,94 @@ For local product-dashboard testing, start the normal stack and the dev Grafana 
 docker compose -f compose.dev.yaml --profile observability up -d grafana
 ```
 
-Open `http://localhost:3000` and sign in with `admin` / `admin`. The SQLite dashboards use `ops/hub-data/dev/events/events.db`, refreshed from the local Hub every five minutes. Live Ops Prometheus and Loki panels do not have local datasources in `compose.dev.yaml`; validate those panels against the production observability stack.
+Open `http://localhost:3000` and sign in with `admin` / `admin`. The SQLite dashboards use `ops/hub-data/dev/events/events.db`. For Loki/Prometheus dashboards, start `grafana prometheus faro-collector loki` with the observability profile. Development ports bind only to loopback; no Docker log discovery is enabled.
+
+### Client error browser (`client-errors.json`, `client-error-detail.json`)
+
+Faro SDK `2.13.0` sends frontend exceptions through Caddy to the isolated Node collector, which enforces the shared privacy policy, resolves private maps, and writes to Loki. Backend container logs still use Alloy. The dashboard counts delivered exceptions, not affected sessions or users.
+
+The overview at `/d/manabrew-client-errors` shows one row per exact signature, combining matching reports across builds and platforms rather than splitting rows by that metadata. Each row has its type, scrubbed message, full-range occurrence count, last receive time, first captured frame, latest release/platform, and source. Metadata comes from a most-recent matching report. The summary counts cover the entire filtered time range, not only the loaded groups.
+
+Filters cover environment, error type, literal message/release searches, platform, source, and engine. Searches are case-sensitive; they do not interpret regular expressions. Smoke-test reports are hidden by default and can be included with **Smoke tests → Include**. Sources are `startup`, `react`, `unhandled`, `engine-worker`, `render-worker`, `bot-worker`, `remote-engine`, and `engine-operation`. Normal cancellation, renderer capability fallback, Card Glint layout limits that fall back to the original scan, and ordinary protocol rejections are excluded. Recovery behavior and local console diagnostics remain unchanged.
+
+**Rank groups by** selects the globally most frequent or most recent signatures before applying **Group limit**, which supports 50, 100, or 250 groups. Table headers sort the loaded groups; table pagination does not retrieve more groups. Raise the limit or narrow the filters when the total exceeds it. Exact signatures remain build-sensitive and can also differ across browser evaluations; they are not cross-release issue identities.
+
+Click a message or signature to open `/d/manabrew-client-error-detail` with the common filters and absolute time range preserved. The detail dashboard shows the matching report count, timeline, release/platform/browser/engine breakdowns, and a bounded occurrence list. Build, route, operation, browser, and OS regular-expression filters apply to every detail query. An empty signature returns no events.
+
+The occurrence list loads the newest 200 reports by default; **Loaded occurrences** supports 200, 500, 1000, or 5000. Its count and breakdown panels still cover every matching stored report in the time range. Pagination only paginates loaded rows. Use the occurrence panel's **Explore** action to browse older reports, or narrow the dashboard time range. All browsing remains bounded by Loki's 30-day retention.
+
+Click an **Occurrence ns** value to inspect that exact report's readable stack and cause chain. Nanosecond timestamps remain strings so reports received within the same millisecond are distinguishable. Selection changes only the stack and the collapsed **Advanced** raw-context panel, not group-wide counts or breakdowns. **Use latest occurrence** clears the selection. Share the resulting dashboard URL to preserve filters, time range, signature, and selected report.
+
+New collector records include `stack_mapped_frames` and `stack_total_frames`, counting root and cause/aggregate frames together. The selected stack shows these counts without inferring source-map success from filenames. Missing fields on historical records mean `Unknown`; zero mapped frames is a recorded result, and zero total frames means no captured frames. No user/session identity, new Loki label, persistent issue state, or cross-release fingerprint is added.
+
+Loki metric aggregation is bounded at 10,000 series in `ops/observability/loki/loki.yml`; its default 500-series limit prevents grouping larger error sets even when the displayed table is capped. Queries discard unused diagnostic labels before aggregation. Narrow the time range or filters if the backend limit is reached.
+
+Existing Loki processes must be restarted to load the changed query limit; preserve their data volumes. New mapping counts require the updated collector image. Grafana loads both dashboards through the existing file provider.
+
+Grafana 11.6's Loki datasource converts instant metrics into tables with numeric fields named `Value #A`, `Value #B`, and so on before dashboard transformations. Preserve those field names when changing transformations. The overview joins counts and latest metadata within one LogQL query so independently evaluated, tied top-k selections cannot create incomplete or duplicate rows. Its receive-time label is converted back to a numeric timestamp for display. Log-query `maxLines` is numeric and cannot be templated; the occurrence browser uses separately guarded numeric-cap targets so only the chosen target returns rows.
+
+Grafana 11.6's [`:json` formatter](https://unpkg.com/@grafana/scenes@6.8.1/dist/esm/variables/interpolation/formatRegistry.js) leaves scalar strings unchanged; it does not add LogQL string quotes. Query inputs use `:percentencode` inside quoted template arguments and Loki's `urldecode` before comparisons. Common searches use literal `contains` comparisons; advanced filters use anchored regular expressions, with a fast path for the default `.*`. Verify queries with Grafana's shipped formatter rather than substituting values with `JSON.stringify` in API checks.
+
+The `unhandled` source covers uncaught exceptions and unhandled promise rejections, including non-Error thrown values. Global error handling preserves the existing `window.onerror` callback and reports each exception once.
+
+The collector emits flat JSON. `type` contains an allowlisted error type, and `value` retains bounded error text after targeted best-effort scrubbing. `stacktrace` includes the scrubbed header, captured code locations and code-like function names, and bounded `Error.cause`/`AggregateError` descendants with scrubbed messages. `app_release` identifies the build. `context_source`, `context_operation`, `context_platform`, `context_build_target`, `context_route`, `context_engine`, and `context_signature` carry allowlisted context. Only `app`, `environment`, and `source` become Loki labels. Signatures use sanitized minified coordinates, so source-map cache state does not change grouping.
+
+```logql
+{app="manabrew-client",environment="production"} | json | kind="exception"
+```
+
+Report metadata excludes account, user, device, game, and session IDs, SDK session metadata, and persistent diagnostic identity. It provides no identity key to link a frontend exception to backend game records or count unique affected people. Existing Activity and Engagement dashboards still define a player by their full relay handle, including the guest suffix; error counts and signatures are not a second user-identity scheme. The collector necessarily receives the sender's IP address at transport, but does not add it to diagnostic events or retain collector access logs.
+
+Stacks retain up to 50 root frames and five cause/aggregate descendants with at most 20 additional frames in total. App frames keep approved hashed `/assets/` paths; private maps restore developer source locations and function names inside authenticated Loki/Grafana. Browser-generated `VM` numbers, `debugger eval code`, and `<anonymous>` locations are retained as code-location labels, not user identity. Other recognized locations become fixed `app:///console`, `app:///eval`, `app:///native`, `app:///wasm`, `app:///blob`, `app:///external`, or `app:///local` markers. Origins, blob IDs, and local paths are removed from frame locations. Bounded code-like runtime function names survive filtering and targeted scrubbing; other function labels become `<anonymous>`. WASM function indices and numeric offsets are retained. Available positive line/column coordinates survive filtering. Missing maps leave compiled locations intact, and only approved app asset paths trigger map lookup.
+
+Error and cause text is retained after bounded best-effort scrubbing of recognizable email addresses, guest handles, credentials, labeled personal fields, URLs and local paths, IP addresses, UUIDs, and long numeric or opaque tokens. These patterns cannot reliably detect arbitrary personal names or sensitive free prose, so do not put personal data or secrets in errors. Scrubbing does not guarantee anonymity or removal of all sensitive data. Context is rebuilt from allowlisted fields; raw user-agent strings, cookies, console output, request/network bodies, chat, deck contents, decision journals, and arbitrary app stores are not collected as context. Neither the original `Error.stack` header nor arbitrary cause objects are uploaded.
+
+Each error also captures the following bounded `diagnostic_*` fields when available. The client and collector independently enforce the same schema; unknown keys and values are omitted. These are error-time snapshots, not independent page-view, click, or session events.
+
+| Field                                  | Retained values                                                                     |
+| -------------------------------------- | ----------------------------------------------------------------------------------- |
+| `diagnostic_browser`                   | Chrome, Chromium, Edge, Firefox, Safari, Opera, or Samsung Internet family          |
+| `diagnostic_browser_major`             | Major version only, from 1 to 999                                                   |
+| `diagnostic_os`                        | Windows, macOS, iOS, Android, Linux, or ChromeOS family                             |
+| `diagnostic_network`                   | `online` or `offline`, as reported by the browser                                   |
+| `diagnostic_connection`                | `slow-2g`, `2g`, `3g`, or `4g` when supported                                       |
+| `diagnostic_visibility`                | `visible`, `hidden`, or `prerender`                                                 |
+| `diagnostic_viewport`                  | Width bucket: under 640, 640–1023, 1024–1439, or 1440+ CSS pixels                   |
+| `diagnostic_orientation`               | `portrait` or `landscape`                                                           |
+| `diagnostic_page_uptime`               | Under 10 seconds, 10 seconds–1 minute, 1–10 minutes, 10 minutes–1 hour, or 1+ hours |
+| `diagnostic_cross_origin_isolated`     | Boolean                                                                             |
+| `diagnostic_secure_context`            | Boolean                                                                             |
+| `diagnostic_service_worker_controlled` | Boolean                                                                             |
+
+Browser/OS classification is approximate, and `online` does not establish collector reachability. No high-entropy client hints, exact screen dimensions, hardware identifiers, or absolute page-start timestamp are collected. Omitting explicit identifiers does not guarantee that combinations of diagnostic fields are anonymous.
+
+To check production delivery from the app's developer console, throw asynchronously so the page's global handler receives the exception:
+
+```js
+setTimeout(() => {
+  throw new Error("Faro production smoke test");
+}, 100);
+```
+
+Expect a `/collect` POST with HTTP 202, then select **Smoke tests → Include** in the Client Errors overview, open the smoke-test group, and inspect its stack in the detail dashboard or with the Loki query above. The message retains `Faro production smoke test`, with available positive line/column coordinates. The console frame may retain a browser `VM` label or `<anonymous>`, or use a synthetic `app:///console` or `app:///eval` marker. This validates reporting, not source-map resolution or native crash capture. Source maps require an error from a shipped app asset. Test outside an active game.
+
+Events expire under Loki's existing 30-day retention. Client batches contain at most 10 items; transport queues at most 20 batches with one request in flight, a five-second timeout, and two attempts. There is no persistent retry queue. Offline clients, abrupt termination, static module failures before initialization, and WebView/process termination can lose reports. Native Rust/Forge dumps, OS kills, and rules correctness are outside this coverage.
+
+For an isolated local collector without starting the app:
+
+```bash
+LOKI_DEV_PORT=13100 GRAFANA_DEV_PORT=13000 \
+  docker compose -p manabrew-faro-local -f compose.dev.yaml \
+  --profile observability up -d --build faro-collector loki
+```
+
+The collector is `http://127.0.0.1:12347/collect`; allowed browser origins are `http://localhost:1420` and `http://127.0.0.1:1420`. For a local frontend build set `VITE_FARO_ENABLED=true`, `VITE_FARO_ENVIRONMENT=development`, and `VITE_FARO_COLLECTOR_URL` to that collector. A runtime `observability` object takes precedence, including an explicit disable. Initialization runs once per page load.
+
+Local `local-development` builds replace unpublished maps under `target/faro-sourcemaps/`. The collector checks size/mtime before reusing a map and retains no misses, so missing maps become available without a restart. Published directories remain immutable.
+
+Collector metrics and `/health` are private on port 12347. Health includes Loki readiness. The collector also caps bytes per `context_signature` per UTC day (`FARO_SIGNATURE_DAILY_BYTES`, default 1/20 of the daily budget) and drops the excess as `faro_collector_signature_capped_total`, so one repeating error cannot exhaust the shared budget; the client separately reports each signature at most five times and at most 200 errors per page load. Prometheus scrapes `faro-collector`; `cargo xtask deploy` sends Prometheus `SIGHUP` so a changed scrape config takes effect without a recreate; alerts cover unreachable/unready collection, sustained export failures, daily budget usage above 90 percent, and RSS above 80 percent of the 512 MiB limit. These checks do not establish public DNS/TLS/Caddy reachability. No-client-traffic periods are not failures.
+
+Metrics include `faro_collector_accepted_total`, `rejected_total`, `export_errors_total`, `mapped_frames_total`, `unmapped_frames_total`, `cache_entries`, `cache_bytes`, `cache_hits_total`, `cache_misses_total`, `cache_evictions_total`, `daily_bytes`, `daily_limit_bytes`, `resident_memory_bytes`, and `loki_ready`, all with the `faro_collector_` prefix. Cache bytes are an accounting estimate, not RSS. Read [collector limits](DEPLOY.md#private-source-maps) before changing quotas or interpreting partial source mapping.
 
 ### Executive Health (`executive.json`)
 
@@ -257,7 +346,7 @@ The hub is the store. The relay posts every analytics event, one JSON line each,
 | `deck_cards`            | `deck_id`, `name`, `set_code`, `count`                                                                                                                                                                                       |
 | `events`                | `id`, `ts`, `event`, `room_id`, `payload` (raw JSON), `event_id` (SHA-256 of the payload, the idempotency key)                                                                                                               |
 | `engine_stats`          | `report_id`, `ts`, `source` (`relay` or `hub`), `game_id`, `engine`, `client_version`, `platform`, `format`, `seats`, `multiplayer`, `duration_s`, `end_reason`, `decisions`, `turnaround_p50/p90/max`, `engine_p50/p90/max` |
-| `client_connections`    | `id`, `ts`, `username`, classified `platform`, reconnect flag                                                                                                                                                                |
+| `client_connections`    | `id`, `ts`, `username`, classified `platform`, reconnect flag, `acquisition_source`                                                                                                                                          |
 | `plane_attempts`        | one row per `plane_quality` report: `username`, `peer`, `plane`, `outcome`, `phase`, `connect_ms`, `rtt_ms`, `relay_rtt_ms`, `candidate_pair`                                                                                |
 | `ingest_state`          | `file`, `byte_offset`; `hub:relay_events` holds the last `relay_events.id` materialised, older rows are the retired JSONL offsets                                                                                            |
 | `hub_sync_state`        | latest successful export time, Hub schema version, export duration                                                                                                                                                           |
@@ -270,7 +359,7 @@ The Hub export covers row counts for `schema_version`, `accounts`, `identities`,
 
 The Hub analytics boundary excludes emails, usernames, account IDs, provider user IDs, session/token/code/state hashes, IP addresses, private deck snapshots, raw per-account collections, and Hub game/player keys. Collection-card rankings suppress cards held by fewer than two accounts, and collection-size distributions export only aggregate buckets. Collection history starts when the exporter is deployed because the source schema stores only current collection state and a version counter. Daily source-derived aggregates are rebuilt on every refresh so late data and corrections converge.
 
-Source events (`manabrew-server/src/analytics/event.rs`, snake_case `event` tag): `client_connected`, `game_started`, `game_ended`, `deck_selected`, `seat_joined`, `seat_left`, `engine_stats`, `transport_used`, `plane_quality`. Clients classify themselves as `web`, `pwa`, `desktop`, or `mobile` during relay authentication; older clients appear as `unknown`. Raw user-agent strings are never sent or stored.
+Source events (`manabrew-server/src/analytics/event.rs`, snake_case `event` tag): `client_connected`, `game_started`, `game_ended`, `deck_selected`, `seat_joined`, `seat_left`, `engine_stats`, `transport_used`, `plane_quality`. Clients classify themselves as `web`, `pwa`, `desktop`, or `mobile` during relay authentication; older clients appear as `unknown`. Raw user-agent strings are never sent or stored. `client_connected.acquisition_source` is a bucket the client derives on page load from `?src=` (set by the landing page), `utm_source`, or the referrer host (`src/lib/acquisitionSource.ts`); the relay records anything outside `ACQUISITION_SOURCES` as `other`, and clients before the field omit it. Desktop and mobile shells always report `direct`. Read it from each username's first connection of a day; reconnects repeat it.
 
 The outcome of a game (`game_over`, `winner`, concessions, `turns`, an engine fatal) is filed by the seat that ran the engine, over the lobby socket for relay games (`ReportGameOutcome`, see `docs/agents/RELAY.md`) and over `POST /api/stats/game` for offline ones. The relay no longer reads it off the state stream, which since `docs/TRANSPORT.md` need not pass through it. `games.reported` is 1 when a report arrived, 1 for every offline row, and NULL for relay rows written before the change, whose outcome was observed. A relay row with `reported = 0` has a lifecycle `end_reason` and a `game_over` of 0 that means "nobody said", so completion rate should be read over `reported = 1` or over `reported IS NULL` from before the change, never mixed. `games.direct_seats` counts the seats the host served off the relay, from its `transport_used` report, and is NULL when none did; the report names only those seats, so read it against `player_count`.
 
@@ -292,14 +381,19 @@ Service logs shipped by Alloy (`ops/observability/alloy/config.alloy`). It disco
 
 `ops/observability/grafana/provisioning/alerting/rules.yml` (contact points and routing in `contactpoints.yml` / `policies.yml`):
 
-| Alert                       | Signal                                                                               |
-| --------------------------- | ------------------------------------------------------------------------------------ |
-| relay down                  | `up{job="relay"}`                                                                    |
-| node fleet silent           | `time() - push_time_seconds{job="self-hosted-node"}`                                 |
-| hosted rooms below expected | `sum(manabrew_node_rooms_hosted)`                                                    |
-| engine error spike          | `sum(increase(manabrew_node_engine_errors_total[10m]))`                              |
-| outdated client burst       | `sum(increase(manabrew_relay_client_rejections_total{reason="outdated_wire"}[15m]))` |
-| traffic cliff (EU daytime)  | `max_over_time(manabrew_relay_connections{kind="human"}[30m])` gated on hour-of-day  |
+| Alert                            | Signal                                                                               |
+| -------------------------------- | ------------------------------------------------------------------------------------ |
+| relay down                       | `up{job="relay"}`                                                                    |
+| node fleet silent                | `time() - push_time_seconds{job="self-hosted-node"}`                                 |
+| hosted rooms below expected      | `sum(manabrew_node_rooms_hosted)`                                                    |
+| engine error spike               | `sum(increase(manabrew_node_engine_errors_total[10m]))`                              |
+| outdated client burst            | `sum(increase(manabrew_relay_client_rejections_total{reason="outdated_wire"}[15m]))` |
+| traffic cliff (EU daytime)       | `max_over_time(manabrew_relay_connections{kind="human"}[30m])` gated on hour-of-day  |
+| client error burst               | At least 10 production exceptions in 10 minutes, based on event count only           |
+| client telemetry collector down  | Alloy scrape unavailable for two minutes, including missing scrape data              |
+| client telemetry export failures | Faro exporter errors or dropped Loki entries sustained for five minutes              |
+
+Client rules live in `client-errors.yml` and reuse the existing contact point. Notifications contain bounded operational summaries, not exception details or game/session IDs. Staging errors do not trigger the production burst alert.
 
 ## Datasources
 

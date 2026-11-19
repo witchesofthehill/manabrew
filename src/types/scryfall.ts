@@ -16,6 +16,7 @@ export interface ScryfallCard {
   tcgplayer_id?: number;
   cardmarket_id?: number;
   name: string;
+  flavor_name?: string;
   printed_name?: string;
   lang: string;
   released_at: string;
@@ -34,6 +35,7 @@ export interface ScryfallCard {
   };
   card_faces?: Array<{
     name: string;
+    flavor_name?: string;
     type_line?: string;
     printed_name?: string;
     printed_type_line?: string;

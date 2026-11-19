@@ -9,7 +9,6 @@ import {
   MOBILE_PLAYER_HUD_MIN_WIDTH_PX,
   type PlayerHudLayer,
 } from "../hud/PlayerHudLayer";
-import type { PhaseStripLayer } from "../PhaseStripLayer";
 import { MobileBoardRegionPresentation } from "./MobileBoardRegionPresentation";
 import type { BoardScenePresentation } from "./BoardScenePresentation";
 import type { HandController } from "./HandController";
@@ -28,14 +27,10 @@ export class MobileBoardScenePresentation implements BoardScenePresentation {
   readonly hudMinWidth = MOBILE_PLAYER_HUD_MIN_WIDTH_PX;
   readonly cardHeight = CARD_W;
   readonly showsOpponentHands = false;
+  readonly edgeAnchoredPlayerBars = false;
 
   configurePlayerBars(layer: PlayerHudLayer): void {
     layer.setCompact(true);
-  }
-
-  configurePhaseStrip(layer: PhaseStripLayer): void {
-    layer.setCompact(true);
-    layer.container.visible = false;
   }
 
   configureHand(hand: HandController): void {

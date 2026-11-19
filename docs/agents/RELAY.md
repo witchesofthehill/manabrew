@@ -4,13 +4,31 @@ Standalone matchmaking/lobby server. Optional — the app plays offline and self
 
 ## Trust boundary
 
-The relay is the multiplayer trust boundary. Only the room's engine host may emit engine-output envelopes (`State`, `Display`, `Prompt`, `Error`, `Log`, `Snapshot`, `Fatal`); player `Response` and `Directive` envelopes are routed only to that host after the authenticated relay username is matched against the claimed `fromPlayer` engine slot. Replay mutation happens only after this authorization. Inputs are retained with their authenticated sender until subsequent engine output acknowledges delivery, so host reconnect replay is intentionally at-least-once; prompt ID validation rejects duplicate responses and concede directives are idempotent.
+The relay is the multiplayer trust boundary. Only the room's engine host may emit engine-output envelopes (`State`, `Prompt`, `EngineDirective`, `Error`, `Log`, `Snapshot`, `Fatal`); player `Response` and `Directive` envelopes are routed only to that host after the authenticated relay username is matched against the claimed `fromPlayer` engine slot. Replay mutation happens only after this authorization. Inputs are retained with their authenticated sender until subsequent engine output acknowledges delivery, so host reconnect replay is intentionally at-least-once; prompt ID validation rejects duplicate responses and concede directives are idempotent.
 
 **The authorization check strictly deserializes every player envelope as `ClientToServerMessage` (`connection.rs`) and silently drops anything that fails to parse — no error reaches the sender — so a `manabrew-protocol`/`manabrew-relay-protocol` change (new output variant, new field without a default) dead-ends at a stale relay with zero symptoms.** A protocol change must reach every hop: relay, node/Tauri binaries, harness jar, wasm bundle. The `compose.dev.yaml` relay live-rebuilds via watchexec on the bind-mounted `manabrew-protocol`/`manabrew-relay-protocol`/`manabrew-server` sources — confirm with `docker logs -t manabrew-relay-1` that a rebuild ran after your edit rather than assuming the mount delivered the file event.
 
 ## Privacy
 
 Per-seat `State`, `Prompt`, and `Error` envelopes can contain hidden information. A hosted node must set `BroadcastState.target_player` for all three; this transport target is the authenticated relay username, not an engine slot. `fromPlayer` and encrypted `private.to` remain engine slots. `forPlayer` inside the envelope is for client dispatch and replay indexing, not transport privacy.
+
+## Physical lobby seats
+
+`room_seats` advertises `JoinRoom.seat_index` and `RoomPlayerInfo.seat_index`. Explicit positions must be free and below `max_players`; invalid requests return `invalid_seat` before mutation. Unspecified joins take the lowest free position. Existing disconnected seats are reclaimed by username without moving them.
+
+`RoomSlot.seat_index` controls lobby placement only. Preserve `Room.players` join order for engine slots, controller selection, and `player_order`; never sort it by physical position. Departures leave other positions unchanged. Capacity reductions relocate only out-of-range occupants. Limited child rooms have their own positions and leave parent positions intact.
+
+`ResumeRoom.seat_indices` aligns with `player_order`; indices must be unique and in range. Retained positions take precedence, while missing positions use free slots. Browser bot recovery parameters follow authoritative room positions after resizing; a lobby bot disconnect is a departure, so its next join must request the updated position.
+
+## Completed games and rematches
+
+`game_rematch` gates `FinishGame`, `SetRematchIntent` and `ReturnToLobby`. After final state and `ReportGameOutcome`, the engine host sends `FinishGame` for a successful ordinary game. The relay enters `Finished`, retains seats, deck snapshots, settings and final replay, and records completion once. Crashes, aborts, Limited parents and child matches keep their existing teardown paths.
+
+`RoomInfo.rematch` fixes the required human roster at the completed game's launch, including humans who left or lost earlier. Each remaining human chooses `Deciding`, `ChoosingDeck` or `Ready`; changing a deck clears only that human's consent. The relay launches one fresh game ID when every required human is connected and ready, every retained seat has a deck and connection, and the engine host is connected. Bots do not vote.
+
+A temporary disconnect clears that human's consent during reconnect grace. Explicit departure or grace expiry cancels the agreement and clears consent. A surviving participant may then send `ReturnToLobby`, preserving the remaining seats, decks and settings for explicit reconfiguration. Engine-host loss never migrates ownership.
+
+Finished-room `RequestResync` still returns the completed `GameStarted` and final state. Clients distinguish that replay from a fresh launch by room status and game ID; replay must not restart the finished engine.
 
 ## Limited sessions
 
@@ -34,13 +52,15 @@ Match results are idempotent by relay game ID. Only a completed, non-crashed gam
 
 ## Replay cache and resync
 
-In-game state is cached per room (`replay.rs`) so reconnecting clients can pull a `RequestResync` replay: GameStarted + the reconnecting seat's last state + its pending prompt. States arrive per-seat via `BroadcastState.target_player` — an address the relay routes on without reading `state` — and are cached per slot with an untargeted public fallback for observers. The room's `reconnect_timeout_s` is clamped ≤ 90s to stay under the engine's 120s auto-pass (`manabrew-game-runtime/src/mpsc_transport.rs`).
+In-game state is cached per room (`replay.rs`) so reconnecting clients can pull a `RequestResync` replay: GameStarted + the reconnecting seat's last state + its pending prompt + its latest engine directive of each kind (keyed by `forPlayer` and `directive.type`). States arrive per-seat via `BroadcastState.target_player` — an address the relay routes on without reading `state` — and are cached per slot with an untargeted public fallback for observers. The room's `reconnect_timeout_s` is clamped ≤ 90s to stay under the engine's 120s auto-pass (`manabrew-game-runtime/src/mpsc_transport.rs`).
 
 ## Restart survival
 
 Rooms survive relay restarts: `RoomCreated` returns a random `resume_token` (guards live rooms; a forgotten room is resurrected on first `ResumeRoom` claim after a restart), the host re-registers and re-primes the replay cache, and guests — humans and bots alike — retake their in-game seat by username through `JoinRoom` (resurrected bot seats start disconnected until the bot rejoins). Every game gets a relay-generated `game_id` (broadcast in `GameStarted`, preserved across restarts via `ResumeRoom`) — the identity hosted nodes reconcile their engine sessions against.
 
 ## Reconnect window and cleanup
+
+Host reassignment selects human seats only, both on disconnect migration and explicit departure. If only bots remain, retain the departed human host identity until room cleanup; never elect a bot as a fallback.
 
 The relay is the single owner of the reconnect window: a disconnected in-game seat is forfeited (removed + broadcast like a leave) once its grace expires (`schedule_seat_forfeit`), so hosts never time disconnects themselves. A non-playing host disconnect gets the same reconnect grace as players instead of killing the room. The cleanup sweep resets any in-game room that has had no connected human participant (bot seats and the hosted node's observer don't count) for `reconnect_timeout_s` + margin back to Lobby — otherwise abandoned hosted games would sit `InGame` forever and skew the live-ops gauges. Room teardown funnels through exactly two primitives — `reset_room_to_lobby` (room survives) and `remove_room_and_clear_sessions` (room dies) — sharing one session rule: disconnected sessions are removed with the room, connected ones return to the lobby; never inline a third copy.
 
@@ -92,8 +112,8 @@ An unknown `ClientMessage` is answered with a parse error rather than a disconne
 
 The inline `data:image/webp;base64,` encoding these fields used to carry is gone, not deprecated — the fields are URLs and nothing accepts a blob any more.
 
-Card appearance uses `DeckCardIdentity.cosmetics`, not image URLs: closed finish/frame/border/wear values and a uint32 wear seed, separate from physical foil. `AuthResult.features` advertises `card_cosmetics` for the legacy schema and `card_cosmetics_v2` for the schema that also accepts `printDots.artwork: false` and positive `heatDeformation`. Current relays advertise both. Version 2 includes legacy support; `card_cosmetics` alone does not promise support for new fields in these closed objects. Future closed-schema extensions need a new versioned capability.
+Card appearance uses `DeckCardIdentity.cosmetics`, not image URLs: closed finish/frame/border/wear values and a uint32 wear seed, separate from physical foil. `AuthResult.features` advertises `card_cosmetics` for the legacy schema, `card_cosmetics_v2` for `printDots.artwork: false` and positive `heatDeformation`, and `card_cosmetics_v3` for global or per-face `printing.overrides.calibration`. Current relays advertise all three; each newer version includes earlier support. Future closed-schema extensions need a new versioned capability.
 
-Clients check normalized cosmetics across Main, Sideboard, Maybeboard, commanders, companion, tokens, planes, schemes, attractions and contraptions before sending `SetDeckSelection`. Uncustomized decks need no capability; legacy cosmetics need either capability, and the new fields need version 2. Reject unsupported selections locally with an update-server error. Do not drop customization or mutate saved decks to make them compatible. Serialize normalized cosmetics so omitted defaults such as `printDots.artwork: true` and zero `heatDeformation` do not require version 2 or reach an old decoder as unknown fields. Reset support on disconnect, reconnect and failed authentication, then use only the current successful authentication's feature list. Preserve the typed payload through account saves, selection, host/node launch and resync.
+Clients check normalized cosmetics across Main, Sideboard, Maybeboard, commanders, companion, tokens, planes, schemes, attractions and contraptions before sending `SetDeckSelection`. Uncustomized decks need no capability; legacy cosmetics need any supported version, print-dot artwork exclusions and Heat deformation need version 2 or newer, and explicit calibration needs version 3. Reject unsupported selections locally with an update-server error. Do not drop customization or mutate saved decks to make them compatible. Serialize normalized cosmetics so omitted defaults such as `printDots.artwork: true` and zero `heatDeformation` do not require version 2 or reach an old decoder as unknown fields. Omitted calibration preserves legacy behavior and does not require version 3. Reset support on disconnect, reconnect and failed authentication, then use only the current successful authentication's feature list. Preserve the typed payload through account saves, selection, host/node launch and resync.
 
 Engine producers bind physical entries before shuffle and attach appearance only to visible card/stack DTOs and explicitly authorized prompt cards. Receivers never infer a hidden or remote copy's customization from deck names.

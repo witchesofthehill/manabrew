@@ -1,6 +1,7 @@
 import type {
   DirectiveInput,
   DraftConfig,
+  EngineDirective,
   EngineKind,
   GameFormat,
   PlayerDeckInfo,
@@ -10,7 +11,6 @@ import type {
   SealedConfig,
   StateUpdate,
 } from "@/protocol";
-import type { DisplayEvent } from "@/protocol/display";
 export type { DraftConfig, EngineKind, GameFormat, PlayerDeckInfo, SealedConfig } from "@/protocol";
 
 export type AiController = "manabot" | "forge";
@@ -38,19 +38,27 @@ export interface RoomInfo {
   players: RoomPlayerInfo[];
   max_players: number;
   format: GameFormat;
-  status: "Lobby" | "InGame";
+  status: "Lobby" | "InGame" | "Finished";
   engine: EngineKind;
   reconnect_timeout_s: number;
   table_style?: string;
   draft_config?: DraftConfig;
   sealed_config?: SealedConfig;
+  rematch?: RematchInfo;
 }
 export interface RoomPlayerInfo {
   username: string;
+  seat_index?: number;
   ready: boolean;
   connected: boolean;
   is_bot?: boolean;
   selected_deck_name?: string;
+}
+export type RematchIntent = "Deciding" | "ChoosingDeck" | "Ready";
+export interface RematchInfo {
+  game_id: string;
+  players: Array<{ username: string; intent: RematchIntent }>;
+  cancelled: boolean;
 }
 /** A game on the player's own machine, which the relay never sees. */
 export type LocalGameKind = "Singleplayer";
@@ -145,13 +153,14 @@ export type StateEnvelope =
       patch: unknown;
     }
   | {
-      kind: "display";
-      event: DisplayEvent;
-    }
-  | {
       kind: "prompt";
       forPlayer: string;
       prompt: Prompt;
+    }
+  | {
+      kind: "engineDirective";
+      forPlayer: string;
+      directive: EngineDirective;
     }
   | {
       kind: "error";
@@ -204,7 +213,9 @@ export const RELAY_FEATURE = {
   LocalGame: "local_game",
   Chat: "chat",
   RoomInvites: "room_invites",
+  RoomSeats: "room_seats",
   GameOutcome: "game_outcome",
+  GameRematch: "game_rematch",
   LimitedSessions: "limited_sessions",
   LimitedDraftClocks: "limited_draft_clocks",
   LimitedSessionRecovery: "limited_session_recovery",

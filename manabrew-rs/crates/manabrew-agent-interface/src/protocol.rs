@@ -59,9 +59,6 @@ pub enum StateEnvelope {
         #[serde(rename = "emitMs", default, skip_serializing_if = "Option::is_none")]
         emit_ms: Option<u32>,
     },
-    Display {
-        event: Value,
-    },
     /// Engine asks a player for a decision. `prompt` is `AgentPrompt` for the
     /// Rust engine; the Java bridge emits a different shape, so the payload is
     /// kept as raw `Value` here and parsed by the receiver.
@@ -86,6 +83,11 @@ pub enum StateEnvelope {
     Directive {
         #[serde(rename = "fromPlayer")]
         from_player: String,
+        directive: Value,
+    },
+    EngineDirective {
+        #[serde(rename = "forPlayer")]
+        for_player: String,
         directive: Value,
     },
     /// Engine log entry broadcast to observers.
@@ -157,14 +159,15 @@ impl StateEnvelope {
                 engine_ms,
                 emit_ms: None,
             },
-            AgentMessage::Display(event) => StateEnvelope::Display {
-                event: serde_json::to_value(event).unwrap_or(Value::Null),
-            },
             AgentMessage::Prompt(prompt) => StateEnvelope::Prompt {
                 for_player,
                 prompt: serde_json::to_value(prompt).unwrap_or(Value::Null),
                 engine_ms,
                 emit_ms: None,
+            },
+            AgentMessage::Directive(directive) => StateEnvelope::EngineDirective {
+                for_player,
+                directive: serde_json::to_value(directive).unwrap_or(Value::Null),
             },
             AgentMessage::Error(error) => StateEnvelope::Error {
                 for_player,

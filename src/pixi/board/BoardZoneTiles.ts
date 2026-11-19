@@ -726,6 +726,7 @@ export class BoardZoneTiles {
       }
       if (tile.back) {
         tile.back.visible = hasContent;
+        if (tile.backMask) tile.backMask.visible = hasContent;
         tile.back.width = cardW;
         tile.back.height = cardH;
         tile.back.position.set(0, 0);

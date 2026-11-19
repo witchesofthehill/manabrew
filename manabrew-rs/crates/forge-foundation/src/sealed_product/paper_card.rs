@@ -61,7 +61,8 @@ impl PaperCard {
 
 impl PartialEq for PaperCard {
     fn eq(&self, other: &Self) -> bool {
-        self.set_code.eq_ignore_ascii_case(&other.set_code)
+        self.name == other.name
+            && self.set_code.eq_ignore_ascii_case(&other.set_code)
             && self.collector_number == other.collector_number
             && self.foil == other.foil
             && self
@@ -79,6 +80,7 @@ impl Eq for PaperCard {}
 
 impl std::hash::Hash for PaperCard {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.name.hash(state);
         self.set_code.to_ascii_lowercase().hash(state);
         self.collector_number.hash(state);
         self.foil.hash(state);

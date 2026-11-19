@@ -23,12 +23,7 @@ impl PlanarDieFace {
 #[derive(Debug, Clone)]
 pub enum GameNotification {
     Event(GameLogEvent),
-    CardPlayed {
-        player: PlayerId,
-        card_id: CardId,
-        card_name: String,
-        set_code: String,
-    },
+    CardPlayed,
     TurnChanged {
         active_player: PlayerId,
         turn_number: u32,

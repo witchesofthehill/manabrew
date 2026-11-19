@@ -13,9 +13,9 @@ use manabrew_protocol::deck_dto::{CardPrintingSelection, Deck};
 use manabrew_protocol::display::DisplayEvent;
 use manabrew_protocol::prompts::{PromptInput, PromptOutput};
 use manabrew_protocol::transport::{
-    AgentPrompt, ClientToServerMessage, DirectiveInput, ProtocolError, StateUpdate,
+    AgentPrompt, ClientToServerMessage, DirectiveInput, EngineDirective, ProtocolError, StateUpdate,
 };
-use manabrew_relay_protocol::{ResumeRoomRequest, PROTOCOL_VERSION};
+use manabrew_relay_protocol::{RematchInfo, ResumeRoomRequest, PROTOCOL_VERSION};
 use ts_rs::TS;
 
 const HEADER: &str =
@@ -55,12 +55,14 @@ fn main() {
     AgentPrompt::export_all_to(&out).expect("export AgentPrompt");
     StateUpdate::export_all_to(&out).expect("export StateUpdate");
     DirectiveInput::export_all_to(&out).expect("export DirectiveInput");
+    EngineDirective::export_all_to(&out).expect("export EngineDirective");
     ClientToServerMessage::export_all_to(&out).expect("export ClientToServerMessage");
     ProtocolError::export_all_to(&out).expect("export ProtocolError");
-    DisplayEvent::export_all_to(&out).expect("export DisplayEvent");
     Deck::export_all_to(&out).expect("export Deck");
     CardPrintingSelection::export_all_to(&out).expect("export CardPrintingSelection");
+    DisplayEvent::export_all_to(&out).expect("export DisplayEvent");
     ResumeRoomRequest::export_all_to(&out).expect("export ResumeRoomRequest");
+    RematchInfo::export_all_to(&out).expect("export RematchInfo");
 
     let prompts_dir = out.join("prompts");
     let mut prompts_index = String::from(HEADER);

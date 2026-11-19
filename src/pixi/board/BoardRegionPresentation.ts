@@ -1,5 +1,6 @@
 import type { CardDto } from "@/protocol/game";
 import type { CardSprite } from "../CardSprite";
+import type { GridAnchor } from "../GridLayout";
 import type { PlayZoneRect } from "../types";
 import type { BlockingRect } from "./types";
 
@@ -13,7 +14,8 @@ export interface BoardRegionPresentation {
   configureSprite(sprite: CardSprite): void;
   zoneTilesDraggable(mirrored: boolean, locked: boolean): boolean;
   ignoreZoneTileBlockers(mirrored: boolean): boolean;
-  gridBottomAnchored(mirrored: boolean): boolean;
+  gridAnchor(mirrored: boolean): GridAnchor;
+  reservedTrailingColumns(mirrored: boolean): number;
   localBlockers(mirrored: boolean, blockers: BlockingRect[]): BlockingRect[];
   gridRows(rowCount: number, mirrored: boolean): number[];
   storedZoneSlot(
@@ -25,12 +27,7 @@ export interface BoardRegionPresentation {
     slot: { col: number; row: number },
     slots: Map<string, { col: number; row: number }>,
   ): void;
-  frontEdgeY(
-    zone: PlayZoneRect,
-    mirrored: boolean,
-    cardScale: number,
-    combatRowPadding: number,
-  ): number;
+  frontEdgeY(zone: PlayZoneRect, mirrored: boolean): number;
   compressLands(
     cards: CardDto[],
     positions: Map<string, BoardRegionPoint>,
@@ -38,6 +35,11 @@ export interface BoardRegionPresentation {
     zoneCenterX: number,
     userPlacedCards: ReadonlySet<string>,
   ): void;
-  playAreaZone(zone: PlayZoneRect, usableZone: PlayZoneRect, mirrored: boolean): PlayZoneRect;
+  playAreaZone(
+    zone: PlayZoneRect,
+    usableZone: PlayZoneRect,
+    mirrored: boolean,
+    cardScale: number,
+  ): PlayZoneRect;
   gridSkeletonAlpha(): { stroke: number; fill: number };
 }

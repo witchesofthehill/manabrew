@@ -1,6 +1,6 @@
 import type { PromptActionSpec } from "@/components/game/game.types";
 import type { DeckCard } from "@/protocol/deck";
-import type { CardDto, PlayerDto } from "@/protocol/game";
+import type { CardDto, PlayerDto, StepKind } from "@/protocol/game";
 import type { ClientGameView } from "@/stores/gameStore.types";
 import type { Prompt, PromptOutput } from "@/protocol";
 import type { TargetRef } from "@/protocol/prompts/common";
@@ -22,7 +22,13 @@ export interface GameOverPromptSpec {
   opponents: PlayerDto[];
   turn: number;
   engineCrash: string | null;
-  onEndGame: () => void;
+  statusMessage: string | null;
+  playerStatuses: Readonly<Record<string, string>>;
+  ready: boolean;
+  busy: boolean;
+  onPlayAgain: (() => void) | null;
+  onChangeDeck: (() => void) | null;
+  onHome: () => void;
 }
 
 export interface PromptLayerCallbacks {
@@ -32,10 +38,22 @@ export interface PromptLayerCallbacks {
   onLongPressCard?: (card: CardDto, bounds: ScreenBounds) => void;
 }
 
+export interface TurnHandoffSpec {
+  turn: number;
+  round: number;
+  playerId: string;
+  step: StepKind;
+  color: string;
+  label: string;
+  avatarUrl: string | null;
+}
+
 export interface PromptOverlaySpec {
   currentPrompt: Prompt | null;
   localPlayerId: string;
   gameView: ClientGameView;
+  turnColor: string;
+  turnHandoff: TurnHandoffSpec | null;
   sourceDeckCard?: DeckCard;
   action: PromptActionSpec;
   damageOrder: DamageOrderPromptSpec | null;
@@ -44,4 +62,5 @@ export interface PromptOverlaySpec {
   respond: (output: PromptOutput["output"]) => void;
   onHideModal: () => void;
   onShowModal: () => void;
+  onOpenPhaseStopsHelp: () => void;
 }

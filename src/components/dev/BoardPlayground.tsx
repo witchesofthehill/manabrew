@@ -10,7 +10,6 @@ import { DesktopBoardOverlayCanvas } from "@/pixi/DesktopBoardOverlayCanvas";
 import { MobileBoardCanvas, type MobileBoardCanvasProps } from "@/pixi/MobileBoardCanvas";
 import { MobileBoardOverlayCanvas } from "@/pixi/MobileBoardOverlayCanvas";
 import type { BoardScene } from "@/pixi/board/BoardScene";
-import type { PhaseStripState } from "@/pixi/PhaseStripLayer";
 import type { PlayerHudSpec } from "@/pixi/hud/playerHud.types";
 import type { GameCanvasCallbacks } from "@/pixi/types";
 import { useGameDevStore } from "@/stores/useGameDevStore";
@@ -126,8 +125,6 @@ export function BoardPlayground({
   const [viewingZone, setViewingZone] = useState<{ ownerId: string; zoneId: string } | null>(null);
   const [overview, setOverview] = useState(false);
   const [focusedPlayerId, setFocusedPlayerId] = useState(table.players[1]!.id);
-  const [selfStops, setSelfStops] = useState(new Set<string>(["main1", "combatDeclareAttackers"]));
-  const [opponentStops, setOpponentStops] = useState(new Map<string, Set<string>>());
   const [scenarioIndex, setScenarioIndex] = useState(0);
   const [customName, setCustomName] = useState("");
   const [loadingScenario, setLoadingScenario] = useState(false);
@@ -235,8 +232,6 @@ export function BoardPlayground({
     setViewingZone(null);
     setFocusedPlayerId(next.players[1]!.id);
     setOverview(scenario === "combat" || scenario === "player-panels");
-    setSelfStops(new Set(["main1", "combatDeclareAttackers"]));
-    setOpponentStops(new Map());
     nextId.current = 0;
     previewScenarioCardId.current = null;
     preview.dismiss();
@@ -463,30 +458,6 @@ export function BoardPlayground({
       counters: { ...(card.counters ?? {}), P1P1: (card.counters?.P1P1 ?? 0) + 1 },
     }));
   };
-  const phaseStrip = useMemo<PhaseStripState>(
-    () => ({
-      currentStep: table.step,
-      isActiveTurn: table.activePlayerId === LOCAL_PLAYER_ID,
-      activePlayerId: table.activePlayerId,
-      priorityPlayerId: table.priorityPlayerId,
-      activePlayerName: table.players.find((player) => player.id === table.activePlayerId)!.name,
-      priorityPlayerName: table.players.find((player) => player.id === table.priorityPlayerId)!
-        .name,
-      myPlayerId: LOCAL_PLAYER_ID,
-      selfEnabledPhases: selfStops,
-      opponentEnabledPhases: opponentStops,
-      opponents: table.players.slice(1).map((player, index) => ({ id: player.id, index })),
-      isInteractive: true,
-    }),
-    [
-      table.step,
-      table.activePlayerId,
-      table.priorityPlayerId,
-      table.players,
-      selfStops,
-      opponentStops,
-    ],
-  );
   return (
     <div className={cn(themeEditor ? "flex h-full min-h-0 flex-col gap-2" : "space-y-3")}>
       <details
@@ -828,25 +799,6 @@ export function BoardPlayground({
           externalPreviewActive={externalPreviewActive}
           combatBlocks={specs.blocks}
           combatFocusIds={specs.combatFocusIds}
-          phaseStrip={phaseStrip}
-          phaseStripCallbacks={{
-            onToggleSelfPhase: (id) =>
-              setSelfStops((current) => {
-                const next = new Set(current);
-                if (next.has(id)) next.delete(id);
-                else next.add(id);
-                return next;
-              }),
-            onToggleOpponentPhase: (playerId, id) =>
-              setOpponentStops((current) => {
-                const next = new Map(current);
-                const stops = new Set(next.get(playerId));
-                if (stops.has(id)) stops.delete(id);
-                else stops.add(id);
-                next.set(playerId, stops);
-                return next;
-              }),
-          }}
           selfBottomReserve={selfBottomReserve}
           mobileHandOpen={compact && mobileHandOpen}
           mobileHandControlBounds={mobileHandControlBounds}

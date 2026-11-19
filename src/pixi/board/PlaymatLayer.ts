@@ -30,6 +30,7 @@ export const DEFAULT_PLAYMAT_SETTINGS: Required<PlaymatSettings> = {
 };
 
 const PLAYMAT_PADDING = 0.04;
+const PLAYMAT_GRID_PAD = 8;
 
 export function playmatInset(rect: PlayZoneRect): PlayZoneRect {
   const pad = Math.min(rect.width, rect.height) * PLAYMAT_PADDING;
@@ -39,6 +40,20 @@ export function playmatInset(rect: PlayZoneRect): PlayZoneRect {
     width: Math.max(1, rect.width - pad * 2),
     height: Math.max(1, rect.height - pad * 2),
   };
+}
+
+export function playmatGridArea(
+  field: PlayZoneRect,
+  usable: PlayZoneRect,
+  sideOverhang: number,
+): PlayZoneRect {
+  const mat = playmatInset(field);
+  const padX = Math.max(PLAYMAT_GRID_PAD, sideOverhang);
+  const x = Math.max(usable.x, mat.x + padX);
+  const y = Math.max(usable.y, mat.y + PLAYMAT_GRID_PAD);
+  const right = Math.min(usable.x + usable.width, mat.x + mat.width - padX);
+  const bottom = Math.min(usable.y + usable.height, mat.y + mat.height - PLAYMAT_GRID_PAD);
+  return { x, y, width: Math.max(1, right - x), height: Math.max(1, bottom - y) };
 }
 
 export const PLAYMAT_ZOOM_MIN = 1;

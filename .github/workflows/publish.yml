@@ -51,6 +51,12 @@ jobs:
     name: Build macOS .dmg
     runs-on: macos-latest
     timeout-minutes: 60
+    env:
+      APP_BUILD_TARGET: macos-arm64
+      NODE_OPTIONS: --max-old-space-size=6144
+      VITE_FARO_ENABLED: "true"
+      VITE_FARO_COLLECTOR_URL: https://faro.manabrew.app/collect
+      VITE_FARO_ENVIRONMENT: production
     steps:
       - uses: actions/checkout@v4
         with:
@@ -65,7 +71,7 @@ jobs:
           cache: yarn
 
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.100.0
         with:
           targets: wasm32-unknown-unknown
 
@@ -157,6 +163,10 @@ jobs:
           RUST_LOG: self_hosted_node=info
         run: cargo run -p self-hosted-node --features graal-forge
 
+      - name: Clear restored source maps
+        shell: bash
+        run: rm -rf target/faro-sourcemaps
+
       - name: Tauri build (macOS)
         uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f
         env:
@@ -167,6 +177,19 @@ jobs:
           tauriScript: yarn tauri
           args: --features forge-room --config src-tauri/updater.conf.json --verbose
           retryAttempts: 2
+
+      - name: Encrypt macOS source maps
+        env:
+          FARO_MAPS_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: node scripts/faro-sourcemaps.mjs seal target/faro-artifacts/maps.enc
+
+      - name: Upload encrypted macOS maps
+        uses: actions/upload-artifact@v4
+        with:
+          name: faro-maps-macos-${{ github.sha }}
+          path: target/faro-artifacts/maps.enc
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Upload .dmg
         uses: actions/upload-artifact@v4
@@ -213,6 +236,11 @@ jobs:
     name: Build Windows .exe
     runs-on: windows-latest
     timeout-minutes: 90
+    env:
+      APP_BUILD_TARGET: windows-x86-64
+      VITE_FARO_ENABLED: "true"
+      VITE_FARO_COLLECTOR_URL: https://faro.manabrew.app/collect
+      VITE_FARO_ENVIRONMENT: production
     steps:
       - uses: actions/checkout@v4
         with:
@@ -230,7 +258,7 @@ jobs:
           cache: yarn
 
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.100.0
         with:
           targets: wasm32-unknown-unknown
 
@@ -321,6 +349,10 @@ jobs:
           RUST_LOG: self_hosted_node=info
         run: cargo run -p self-hosted-node --features graal-forge
 
+      - name: Clear restored source maps
+        shell: bash
+        run: rm -rf target/faro-sourcemaps
+
       - name: Tauri build (Windows)
         uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f
         env:
@@ -330,6 +362,19 @@ jobs:
           tauriScript: yarn tauri
           args: --features forge-room --config src-tauri/updater.conf.json --verbose
           retryAttempts: 2
+
+      - name: Encrypt Windows source maps
+        env:
+          FARO_MAPS_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: node scripts/faro-sourcemaps.mjs seal target/faro-artifacts/maps.enc
+
+      - name: Upload encrypted Windows maps
+        uses: actions/upload-artifact@v4
+        with:
+          name: faro-maps-windows-${{ github.sha }}
+          path: target/faro-artifacts/maps.enc
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Upload .exe
         uses: actions/upload-artifact@v4
@@ -386,6 +431,12 @@ jobs:
     # iOS-26-SDK deadline.
     runs-on: macos-15
     timeout-minutes: 60
+    env:
+      APP_BUILD_TARGET: ios-aarch64
+      NODE_OPTIONS: --max-old-space-size=6144
+      VITE_FARO_ENABLED: "true"
+      VITE_FARO_COLLECTOR_URL: https://faro.manabrew.app/collect
+      VITE_FARO_ENVIRONMENT: production
     steps:
       - uses: actions/checkout@v4
         with:
@@ -400,7 +451,7 @@ jobs:
           cache: yarn
 
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.100.0
         with:
           targets: aarch64-apple-ios,wasm32-unknown-unknown
 
@@ -446,8 +497,25 @@ jobs:
           cargo run -p forge-cardset-archive --features build --release \
             --bin build-cardset-archive
 
+      - name: Clear restored source maps
+        shell: bash
+        run: rm -rf target/faro-sourcemaps
+
       - name: Tauri build (iOS, unsigned)
-        run: yarn tauri ios build --no-sign
+        run: yarn ios:build --no-sign
+
+      - name: Encrypt iOS source maps
+        env:
+          FARO_MAPS_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: node scripts/faro-sourcemaps.mjs seal target/faro-artifacts/maps.enc
+
+      - name: Upload encrypted iOS maps
+        uses: actions/upload-artifact@v4
+        with:
+          name: faro-maps-ios-${{ github.sha }}
+          path: target/faro-artifacts/maps.enc
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Upload .ipa
         uses: actions/upload-artifact@v4
@@ -469,6 +537,11 @@ jobs:
     name: Build Android .apk
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    env:
+      APP_BUILD_TARGET: android-aarch64
+      VITE_FARO_ENABLED: "true"
+      VITE_FARO_COLLECTOR_URL: https://faro.manabrew.app/collect
+      VITE_FARO_ENVIRONMENT: production
     steps:
       - uses: actions/checkout@v4
         with:
@@ -489,7 +562,7 @@ jobs:
           java-version: "17"
 
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.100.0
         with:
           targets: aarch64-linux-android,wasm32-unknown-unknown
 
@@ -534,8 +607,25 @@ jobs:
           cargo run -p forge-cardset-archive --features build --release \
             --bin build-cardset-archive
 
+      - name: Clear restored source maps
+        shell: bash
+        run: rm -rf target/faro-sourcemaps
+
       - name: Tauri build (Android APK, arm64)
         run: node scripts/mobile-dev.mjs android build --apk --target aarch64
+
+      - name: Encrypt Android source maps
+        env:
+          FARO_MAPS_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: node scripts/faro-sourcemaps.mjs seal target/faro-artifacts/maps.enc
+
+      - name: Upload encrypted Android maps
+        uses: actions/upload-artifact@v4
+        with:
+          name: faro-maps-android-${{ github.sha }}
+          path: target/faro-artifacts/maps.enc
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Upload .apk
         uses: actions/upload-artifact@v4
@@ -560,7 +650,7 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.100.0
         with:
           targets: x86_64-unknown-linux-musl
 
@@ -637,6 +727,50 @@ jobs:
           name: windows-exe-${{ github.sha }}
           path: release-assets/windows
 
+      - name: Download encrypted macOS maps
+        uses: actions/download-artifact@v4
+        with:
+          name: faro-maps-macos-${{ github.sha }}
+          path: target/faro-artifacts/macos/
+
+      - name: Download encrypted Windows maps
+        uses: actions/download-artifact@v4
+        with:
+          name: faro-maps-windows-${{ github.sha }}
+          path: target/faro-artifacts/windows/
+
+      - name: Clear restored source maps
+        run: rm -rf target/faro-sourcemaps
+
+      - name: Decrypt desktop source maps
+        env:
+          FARO_MAPS_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          node scripts/faro-sourcemaps.mjs unseal target/faro-artifacts/macos/maps.enc
+          node scripts/faro-sourcemaps.mjs unseal target/faro-artifacts/windows/maps.enc
+
+      - name: Publish private desktop maps before installers
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          {
+            echo "Host prod-box"
+            echo "  HostName $HOST"
+            echo "  User $USER"
+            echo "  IdentityFile ~/.ssh/deploy_key"
+            echo "  StrictHostKeyChecking yes"
+          } >> ~/.ssh/config
+          node scripts/faro-sourcemaps.mjs publish prod-box \
+            "${DEPLOY_PATH:?}/ops/observability/data/sourcemaps" macos-arm64 windows-x86-64
+
       - name: Generate updater manifest (tauri.json)
         run: node scripts/gen-updater-manifest.mjs --tag "${{ github.ref_name }}" --assets release-assets --out release-assets/tauri.json
 
@@ -708,6 +842,38 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Download encrypted iOS maps
+        if: needs.ios-ipa.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: faro-maps-ios-${{ github.sha }}
+          path: target/faro-artifacts/ios/
+
+      - name: Download encrypted Android maps
+        if: needs.android-apk.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: faro-maps-android-${{ github.sha }}
+          path: target/faro-artifacts/android/
+
+      - name: Decrypt iOS source maps
+        if: needs.ios-ipa.result == 'success'
+        env:
+          FARO_MAPS_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: node scripts/faro-sourcemaps.mjs unseal target/faro-artifacts/ios/maps.enc
+
+      - name: Decrypt Android source maps
+        if: needs.android-apk.result == 'success'
+        env:
+          FARO_MAPS_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: node scripts/faro-sourcemaps.mjs unseal target/faro-artifacts/android/maps.enc
+
       - name: Download iOS IPA
         continue-on-error: true
         uses: actions/download-artifact@v4
@@ -721,6 +887,35 @@ jobs:
         with:
           name: android-apk-${{ github.sha }}
           path: mobile/android
+
+      - name: Publish private mobile maps before installers
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+          shopt -s globstar nullglob
+          variants=()
+          ios=(mobile/ios/**/*.ipa)
+          android=(mobile/android/**/*.apk)
+          if [ ${#ios[@]} -gt 0 ]; then variants+=(ios-aarch64); fi
+          if [ ${#android[@]} -gt 0 ]; then variants+=(android-aarch64); fi
+          if [ ${#variants[@]} -eq 0 ]; then exit 0; fi
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          {
+            echo "Host prod-box"
+            echo "  HostName $HOST"
+            echo "  User $USER"
+            echo "  IdentityFile ~/.ssh/deploy_key"
+            echo "  StrictHostKeyChecking yes"
+          } >> ~/.ssh/config
+          node scripts/faro-sourcemaps.mjs publish prod-box \
+            "${DEPLOY_PATH:?}/ops/observability/data/sourcemaps" "${variants[@]}"
 
       - name: Upload to release
         env:
@@ -757,7 +952,7 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.100.0
 
       - name: Cargo cache
         uses: Swatinem/rust-cache@v2
@@ -795,6 +990,9 @@ jobs:
     if: needs.deploy-gate.outputs.early == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    permissions:
+      contents: read
+      actions: read
     concurrency:
       group: wasm-deploy
       cancel-in-progress: false
@@ -805,14 +1003,26 @@ jobs:
         with:
           fetch-depth: 0
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.100.0
 
       - name: Cargo cache
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: xtask-deploy
           save-if: false
+      - name: Clear restored source maps
+        run: rm -rf target/faro-sourcemaps
+
+      - name: Download exact private web maps
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FARO_MAPS_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: node scripts/faro-sourcemaps.mjs fetch-web "$(git rev-parse HEAD)"
 
       - name: Deploy web (xtask, from the runner)
         id: deploy
@@ -836,6 +1046,8 @@ jobs:
             echo "  IdentityFile ~/.ssh/deploy_key"
             echo "  StrictHostKeyChecking yes"
           } >> ~/.ssh/config
+          node scripts/faro-sourcemaps.mjs publish prod-box \
+            "${DEPLOY_PATH:?}/ops/observability/data/sourcemaps" web
           cargo xtask deploy --tag "$GITHUB_REF_NAME" --web-only \
             --host prod-box --path "$DEPLOY_PATH" 2>&1 | tee deploy.log
           exit ${PIPESTATUS[0]}
@@ -877,6 +1089,9 @@ jobs:
     if: ${{ always() && needs.release.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    permissions:
+      contents: read
+      actions: read
     concurrency:
       group: wasm-deploy
       cancel-in-progress: false
@@ -887,14 +1102,26 @@ jobs:
         with:
           fetch-depth: 0
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.100.0
 
       - name: Cargo cache
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: xtask-deploy
           save-if: false
+      - name: Clear restored source maps
+        run: rm -rf target/faro-sourcemaps
+
+      - name: Download exact private web maps
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FARO_MAPS_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: node scripts/faro-sourcemaps.mjs fetch-web "$(git rev-parse HEAD)"
 
       - name: Deploy production (xtask, from the runner)
         id: deploy
@@ -918,6 +1145,8 @@ jobs:
             echo "  IdentityFile ~/.ssh/deploy_key"
             echo "  StrictHostKeyChecking yes"
           } >> ~/.ssh/config
+          node scripts/faro-sourcemaps.mjs publish prod-box \
+            "${DEPLOY_PATH:?}/ops/observability/data/sourcemaps" web
           cargo xtask deploy --tag "$GITHUB_REF_NAME" \
             --host prod-box --path "$DEPLOY_PATH" 2>&1 | tee deploy.log
           exit ${PIPESTATUS[0]}
@@ -951,7 +1180,7 @@ jobs:
   # files land. SideStore source URL: play.manabrew.app/sidestore/apps.json.
   deploy-sidestore:
     name: Publish SideStore source
-    needs: [deploy, ios-ipa]
+    needs: [deploy, ios-ipa, release-mobile]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     concurrency:

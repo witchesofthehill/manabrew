@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { SHORT_SCREEN_QUERY } from "@/lib/responsive";
-import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { cardSizeScale, usePreferencesStore } from "@/stores/usePreferencesStore";
 
 /** Reference viewport width — sizes are authored at this width. */
 const REF_WIDTH = 1440;
@@ -45,5 +45,5 @@ export function handSizeMultiplier(cardSizeMultiplier: number): number {
 export function useHandScale() {
   const viewportScale = useSyncExternalStore(subscribe, getSnapshot, () => 1);
   const cardSizeMultiplier = usePreferencesStore((s) => s.cardSizeMultiplier);
-  return viewportScale * handSizeMultiplier(cardSizeMultiplier);
+  return viewportScale * handSizeMultiplier(cardSizeScale(cardSizeMultiplier));
 }

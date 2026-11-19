@@ -47,6 +47,7 @@ const OFFLINE_ICON_NAME = "aerial-signal";
 const DETAILS_ICON_NAME = "info";
 const PANEL_PADDING = 10;
 const AVATAR_DIAMETER = 44;
+const SQUARE_AVATAR_CORNER = 6;
 const SHALLOW_AVATAR_MIN_HEIGHT = 96;
 const SHALLOW_RESOURCE_IDENTITY_OVERLAP = 30;
 const SHALLOW_RESOURCE_RIGHT_INSET = 16;
@@ -56,6 +57,7 @@ const TRAY_VERTICAL_PADDING = 2;
 const TRAY_RADIUS = 6;
 const STATE_ORDER = ["incoming-damage", "poison", "commander", "monarch", "initiative"];
 
+const COMMANDER_ART_BRIGHTNESS = 0.38;
 const iconTextures = new Map<string, Texture>();
 
 const SCRATCH_A = new Point();
@@ -137,6 +139,10 @@ export class PlayerHudCapsule {
   private flashRing = new Graphics();
   private promptReferenceRing = new Graphics();
   private avatarTex: Texture | null = null;
+  private commanderArt = new Sprite();
+  private commanderArtMask = new Graphics();
+  private commanderArtDim = new ColorMatrixFilter();
+  private commanderArtCardId: string | null = null;
   private avatarPhoto = new Sprite();
   private avatarMask = new Graphics();
   private avatarFx = new Graphics();
@@ -182,6 +188,7 @@ export class PlayerHudCapsule {
   private height = 0;
   private column = false;
   private compact = false;
+  private squareAvatar = false;
   private boundsDebug = false;
   private avatarUrl: string | null = null;
   private renderedLife: number | null = null;
@@ -271,6 +278,11 @@ export class PlayerHudCapsule {
     this.life = new Text({ text: String(spec.life), style: this.textStyle(15) });
     this.life.anchor.set(0, 0.5);
     this.lifeFloat = new Text({ text: "", style: this.textStyle(16) });
+    this.commanderArt.anchor.set(0.5);
+    this.commanderArt.eventMode = "none";
+    this.commanderArt.mask = this.commanderArtMask;
+    this.commanderArtDim.brightness(COMMANDER_ART_BRIGHTNESS, false);
+    this.commanderArt.filters = [this.commanderArtDim];
     this.lifeFloat.anchor.set(0.5);
     this.lifeFloat.visible = false;
     this.handCount = new Text({ text: "", style: this.textStyle(13) });
@@ -313,6 +325,8 @@ export class PlayerHudCapsule {
       .catch((error) => console.warn("[hud] hand card back load failed", error));
 
     this.container.addChild(
+      this.commanderArtMask,
+      this.commanderArt,
       this.bg,
       this.boundsOutline,
       this.manaTray,
@@ -407,6 +421,7 @@ export class PlayerHudCapsule {
     const sig = PlayerHudCapsule.signature(spec);
     this.spec = spec;
     this.updateAvatarTexture(spec.avatarUrl);
+    this.updateCommanderArt(spec.commander);
     if (sig === this.lastSig) return;
     this.lastSig = sig;
     this.render();
@@ -431,7 +446,15 @@ export class PlayerHudCapsule {
       s.isBot,
       s.manaPool,
       s.badges,
+      s.commander?.id,
     ]);
+  }
+
+  setSquareAvatar(square: boolean): void {
+    if (this.squareAvatar === square) return;
+    this.squareAvatar = square;
+    this.lastSig = "";
+    this.render();
   }
 
   setCompact(compact: boolean): void {
@@ -499,6 +522,38 @@ export class PlayerHudCapsule {
     return cachedTextStyle(size, weight, hexToNum(fill));
   }
 
+  private updateCommanderArt(card: CardDto | undefined): void {
+    const id = card?.id ?? null;
+    if (id === this.commanderArtCardId) return;
+    this.commanderArtCardId = id;
+    this.commanderArt.texture = Texture.EMPTY;
+    if (!card) return;
+    const deckCard = asGameDeckCard(useGameStore.getState().gameDecks, card);
+    void useScryfallStore
+      .getState()
+      .getCardTexture(deckCard, "art", gameCardFaceIndex(card))
+      .then((texture) => {
+        if (this.container.destroyed || this.commanderArtCardId !== id) return;
+        this.commanderArt.texture = texture;
+        this.render();
+      })
+      .catch((error: unknown) =>
+        console.warn("[hud] commander art load failed", card.identity.name, error),
+      );
+  }
+
+  private layoutCommanderArt(w: number, h: number): void {
+    const texture = this.commanderArt.texture;
+    if (texture === Texture.EMPTY) return;
+    this.commanderArt.visible = true;
+    this.commanderArt.scale.set(Math.max(w / texture.width, h / texture.height));
+    this.commanderArt.position.set(w / 2, h / 2);
+    this.commanderArtMask
+      .clear()
+      .rect(0, 0, w, h)
+      .fill({ color: hexToNum(this.theme.gameTheme.canvas.background) });
+  }
+
   private updateAvatarTexture(url: string | undefined): void {
     if (!url) {
       this.avatarUrl = null;
@@ -542,17 +597,34 @@ export class PlayerHudCapsule {
     return null;
   }
 
+  private get rowPlate(): boolean {
+    return !this.column && !this.compact;
+  }
+
+  private traceAvatar(g: Graphics, grow = 0): Graphics {
+    const cx = this.avatarCx;
+    const cy = this.avatarCy;
+    const r = this.avatarDia / 2 + grow;
+    if (!this.rowPlate || !this.squareAvatar) return g.circle(cx, cy, r);
+    return g.roundRect(cx - r, cy - r, r * 2, r * 2, SQUARE_AVATAR_CORNER);
+  }
+
   private drawAvatar(cx: number, cy: number, diameter: number, visible: boolean): void {
     const gt = this.theme.gameTheme;
     const r = diameter / 2;
     const hasImage = !!this.avatarTex;
+    const row = this.rowPlate;
     if (visible) {
-      this.bg.circle(cx, cy, r);
-      this.bg.fill({ color: hexToNum(gt.canvas.shadow), alpha: 0.65 });
+      this.traceAvatar(this.bg).fill(
+        row
+          ? { color: hexToNum(gt.phaseStrip.background) }
+          : { color: hexToNum(gt.canvas.shadow), alpha: 0.65 },
+      );
     }
     this.avatarFx.clear();
     this.avatarFx.visible = visible;
     this.avatarPhoto.visible = hasImage && visible;
+    this.avatarMask.visible = this.avatarPhoto.visible;
     if (hasImage) {
       const tex = this.avatarTex!;
       const cover = diameter / Math.min(tex.width, tex.height);
@@ -560,13 +632,13 @@ export class PlayerHudCapsule {
       this.avatarPhoto.width = tex.width * cover;
       this.avatarPhoto.height = tex.height * cover;
       this.avatarPhoto.position.set(cx, cy);
-      this.avatarMask
-        .clear()
-        .circle(cx, cy, r)
-        .fill({ color: hexToNum(gt.textOnTinted) });
+      this.traceAvatar(this.avatarMask.clear()).fill({ color: hexToNum(gt.textOnTinted) });
     }
-    this.avatarFx.circle(cx, cy, r - 1);
-    this.avatarFx.stroke({ color: hexToNum(this.spec.color), width: 2, alpha: 0.95 });
+    this.traceAvatar(this.avatarFx, -1).stroke({
+      color: hexToNum(this.spec.color),
+      width: 2,
+      alpha: row ? 1 : 0.95,
+    });
     this.bot.visible = visible && !hasImage && this.spec.isBot;
     if (this.bot.visible) {
       const tex = this.iconTexture(BOT_ICON_NAME);
@@ -671,6 +743,7 @@ export class PlayerHudCapsule {
 
     this.bg.clear();
     this.handFan.visible = false;
+    this.commanderArt.visible = false;
     this.manaTray.clear();
     this.stateTray.clear();
     this.detailsIcon.visible = false;
@@ -805,6 +878,7 @@ export class PlayerHudCapsule {
     this.panelHeight = Math.min(h, 352);
     this.identityHeight = short ? 62 : 130;
     this.identityWidth = w;
+    this.layoutCommanderArt(w, h);
     this.drawPlate(w, this.panelHeight);
     this.avatarCx = w / 2;
     this.avatarCy = 34;
@@ -854,7 +928,7 @@ export class PlayerHudCapsule {
     hand.place(handX, 34);
     const dividerX = handX + hand.w + 8;
     const stateLeft = dividerX + 10;
-    const badgeRight = Math.max(stateLeft, w - (this.spec.isSelf ? 44 : PANEL_PADDING));
+    const badgeRight = Math.max(stateLeft, w - PANEL_PADDING);
     const visibleStates = this.layoutCompactStateIcons(stateLeft, 34, badgeRight - stateLeft);
     if (visibleStates > 0) {
       this.stateTray
@@ -1571,10 +1645,7 @@ export class PlayerHudCapsule {
 
   private washDamage(): void {
     const gt = this.theme.gameTheme;
-    const r = this.avatarDia / 2;
-    this.damageWash.clear();
-    this.damageWash.circle(this.avatarCx, this.avatarCy, r);
-    this.damageWash.fill({ color: hexToNum(gt.pt.lethal), alpha: 0.55 });
+    this.traceAvatar(this.damageWash.clear()).fill({ color: hexToNum(gt.pt.lethal), alpha: 0.55 });
     this.damageWash.visible = true;
     gsap.killTweensOf(this.damageWash);
     gsap.fromTo(
@@ -1647,15 +1718,13 @@ export class PlayerHudCapsule {
             : game.cardSelection;
     this.targetRing.clear();
     if (actionableZone) {
-      this.targetRing.circle(this.avatarCx, this.avatarCy, this.avatarDia / 2 + 4);
-      this.targetRing.stroke({
+      this.traceAvatar(this.targetRing, 4).stroke({
         color: hexToNum(color),
         width: 6,
         alpha: 0.2,
       });
     }
-    this.targetRing.circle(this.avatarCx, this.avatarCy, this.avatarDia / 2 + 1);
-    this.targetRing.stroke({
+    this.traceAvatar(this.targetRing, 1).stroke({
       color: hexToNum(color),
       width: 2,
       alpha: 1,
@@ -1669,17 +1738,22 @@ export class PlayerHudCapsule {
       this.flashRing.visible = flashing;
       this.flashRing.alpha = 1;
       if (flashing) {
-        this.flashRing.circle(this.avatarCx, this.avatarCy, this.avatarDia / 2 + 4);
-        this.flashRing.stroke({ color: hexToNum(this.spec.color), width: 2, alpha: 0.8 });
+        this.traceAvatar(this.flashRing, 4).stroke({
+          color: hexToNum(this.spec.color),
+          width: 2,
+          alpha: 0.8,
+        });
       }
       this.prevFlashing = flashing;
       return;
     }
     if (flashing && !this.prevFlashing && this.motionEnabled) {
-      const r = this.avatarDia / 2;
       this.flashRing.clear();
-      this.flashRing.circle(this.avatarCx, this.avatarCy, r);
-      this.flashRing.stroke({ color: hexToNum(this.spec.color), width: 3, alpha: 1 });
+      this.traceAvatar(this.flashRing).stroke({
+        color: hexToNum(this.spec.color),
+        width: 3,
+        alpha: 1,
+      });
       this.flashRing.visible = true;
       this.flashTween?.kill();
       this.flashTween = gsap.fromTo(
@@ -1799,6 +1873,7 @@ export class PlayerHudCapsule {
     this.unsubscribeLocale?.();
     for (const request of this.handFaceRequests) request?.abort();
     for (const sprite of this.handBacks) sprite.texture = Texture.EMPTY;
+    this.commanderArt.texture = Texture.EMPTY;
     for (const texture of this.handFaceTextures) texture?.destroy(true);
     this.combatPulse?.kill();
     this.targetTween?.kill();

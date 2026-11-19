@@ -13,8 +13,9 @@ import {
   connectLocal,
   createRoom,
   pickPreset,
-  controls,
   deckButton,
+  modalDialog,
+  livePromptType,
 } from "./lib.mjs";
 
 const SHOT = process.env.SHOT || null;
@@ -38,15 +39,16 @@ await createRoom(page, { name: engine + "Smoke", engine, format: FORMAT });
 await pickPreset(page, () => deckButton(page).click(), DECK);
 await page.getByRole("button", { name: /Add (a )?bot/i }).click();
 await page.waitForTimeout(900);
-if (await page.locator("[role=dialog]").count()) await pickPreset(page, async () => {}, DECK);
+if (await modalDialog(page).count()) await pickPreset(page, async () => {}, DECK);
 await page.getByRole("button", { name: /Start (Game|Table)/i }).click();
 await page.waitForTimeout(10000);
 
 const url = page.url();
 const canvas = await page.locator("canvas").count();
-const prompt = (await controls(page)).filter((c) => /Keep|Mulligan|Pass|Play/i.test(c)).length;
+const live = await livePromptType(page);
+const prompt = live.checked ? (live.type ?? "none") : "not checked: no dev game store";
 if (SHOT) await page.screenshot({ path: `${SHOT}/engine-${engine}.png`, fullPage: true });
-const onBoard = /\/play|\/game/.test(url) && canvas > 0 && prompt > 0;
+const onBoard = /\/play|\/game/.test(url) && canvas > 0 && (!live.checked || Boolean(live.type));
 console.log(
   `ENGINE=${engine} deck=${DECK} url=${url} canvas=${canvas} prompt=${prompt} -> ${onBoard ? "PLAYS ✓" : "FAILED ✗"}`,
 );

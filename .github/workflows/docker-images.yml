@@ -65,10 +65,16 @@ jobs:
             dockerfile: manabrew-rs/crates/self-hosted-node/Dockerfile
           - image: manabrew-hub
             dockerfile: manabrew-rs/crates/manabrew-hub/Dockerfile
+          - image: manabrew-faro
+            dockerfile: ops/observability/collector/Dockerfile
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+
+      - name: Resolve checked-out source commit
+        id: source
+        run: echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -133,6 +139,7 @@ jobs:
           ls -la packages/forge-wasm/forgeharness*
 
       - name: Build & push
+        if: matrix.image != 'manabrew-web'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -154,3 +161,28 @@ jobs:
           # owns the main-scoped layers. Dispatch runs (from main) still save.
           # ignore-error: a cache export hiccup must never fail a release build.
           cache-to: ${{ github.ref_type != 'tag' && format('type=registry,ref=ghcr.io/{0}/{1}:buildcache,mode=max,image-manifest=true,oci-mediatypes=true,ignore-error=true', github.repository_owner, matrix.image) || '' }}
+
+      - name: Build exact web image and private maps
+        if: matrix.image == 'manabrew-web'
+        env:
+          APP_BUILD_TARGET: web
+          DOCKER_METADATA: ${{ steps.meta.outputs.json }}
+          WEB_BUILD_ARGS: ${{ matrix.build-args }}
+          WEB_CACHE_FROM: ghcr.io/${{ github.repository_owner }}/manabrew-web:buildcache
+          WEB_CACHE_TO: ${{ github.ref_type != 'tag' && format('ghcr.io/{0}/manabrew-web:buildcache-runtime', github.repository_owner) || '' }}
+        run: node scripts/build-faro-web.mjs
+
+      - name: Encrypt web source maps
+        if: matrix.image == 'manabrew-web'
+        env:
+          FARO_MAPS_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: node scripts/faro-sourcemaps.mjs seal target/faro-artifacts/maps.enc
+
+      - name: Upload encrypted web maps
+        if: matrix.image == 'manabrew-web'
+        uses: actions/upload-artifact@v4
+        with:
+          name: faro-maps-web-${{ steps.source.outputs.commit }}
+          path: target/faro-artifacts/maps.enc
+          if-no-files-found: error
+          retention-days: 7

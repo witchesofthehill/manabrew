@@ -71,6 +71,15 @@ export async function startTauriForgeAiGame(
     throw new Error("Forge play vs AI requires a multiplayer server.");
   }
 
+  useServerStore.setState({ switchingRelay: true });
+  try {
+    return await launchOnLocalRelay(request);
+  } finally {
+    useServerStore.setState({ switchingRelay: false });
+  }
+}
+
+async function launchOnLocalRelay(request: HostedAiGameRequest): Promise<HostedAiGameLaunch> {
   const serverState = useServerStore.getState();
   if (serverState.currentRoom) await serverState.leaveRoom(true);
   if (serverState.connected || serverState.connecting) await serverState.disconnect();
@@ -341,6 +350,8 @@ function serverFormatFromId(formatId: string): GameFormat {
       return "Premodern";
     case "commander":
       return "Commander";
+    case "duelcommander":
+      return "DuelCommander";
     case "paupercommander":
       return "PauperCommander";
     case "brawl":

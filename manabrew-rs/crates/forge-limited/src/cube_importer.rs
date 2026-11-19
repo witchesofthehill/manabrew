@@ -1,4 +1,5 @@
 use forge_foundation::sealed_product::SealedTemplate;
+use serde::Deserialize;
 
 use crate::custom_limited::{CubeCardEntry, CustomLimited};
 
@@ -45,7 +46,7 @@ impl CubeImporter {
     pub fn cubecobra_download_url(&self) -> Result<String, String> {
         match self.platform {
             CubeHostingPlatform::CubeCobra => Ok(format!(
-                "https://cubecobra.com/cube/download/forge/{}",
+                "https://cubecobra.com/cube/api/cubeJSON/{}",
                 self.cube_id
             )),
             CubeHostingPlatform::CubeArtisan => Err("cubeartisan import isn't wired up yet".into()),
@@ -53,9 +54,10 @@ impl CubeImporter {
     }
 
     pub fn parse(&self, body: &str) -> Result<CustomLimited, String> {
-        let parsed = ForgeDeckBody::parse(body)?;
-        if parsed.main.is_empty() {
-            return Err("imported deck has no main cards".into());
+        let parsed: CubeCobraBody = serde_json::from_str(body)
+            .map_err(|error| format!("invalid CubeCobra JSON: {error}"))?;
+        if parsed.cards.mainboard.is_empty() {
+            return Err("imported cube has no main cards".into());
         }
         let template = SealedTemplate::generic_no_slot_booster();
         let timestamp = current_yyyymmdd_hhmm();
@@ -70,7 +72,17 @@ impl CubeImporter {
             singleton: true,
             land_set_code: None,
             template,
-            cards: parsed.main,
+            cards: parsed
+                .cards
+                .mainboard
+                .into_iter()
+                .map(|card| CubeCardEntry {
+                    name: card.details.name,
+                    set_code: Some(card.details.set),
+                    collector_number: Some(card.details.collector_number),
+                    count: 1,
+                })
+                .collect(),
         })
     }
 }
@@ -115,58 +127,27 @@ fn current_yyyymmdd_hhmm() -> String {
     }
 }
 
-struct ForgeDeckBody {
+#[derive(Deserialize)]
+struct CubeCobraBody {
     name: String,
-    main: Vec<CubeCardEntry>,
+    cards: CubeCobraCards,
 }
 
-impl ForgeDeckBody {
-    fn parse(body: &str) -> Result<Self, String> {
-        let mut name = String::new();
-        let mut main: Vec<CubeCardEntry> = Vec::new();
-        let mut current_section: Option<String> = None;
-
-        for raw in body.lines() {
-            let line = raw.trim();
-            if line.is_empty() || line.starts_with('#') {
-                continue;
-            }
-            if line.starts_with('[') && line.ends_with(']') {
-                current_section = Some(line[1..line.len() - 1].to_lowercase());
-                continue;
-            }
-            if let Some((key, value)) = line.split_once('=') {
-                if key.trim().eq_ignore_ascii_case("name") {
-                    name = value.trim().to_string();
-                    continue;
-                }
-            }
-            if matches!(current_section.as_deref(), Some("main")) {
-                if let Some(entry) = parse_card_line(line) {
-                    main.push(entry);
-                }
-            }
-        }
-        Ok(Self { name, main })
-    }
+#[derive(Deserialize)]
+struct CubeCobraCards {
+    mainboard: Vec<CubeCobraCard>,
 }
 
-fn parse_card_line(line: &str) -> Option<CubeCardEntry> {
-    let mut parts = line.splitn(2, ' ');
-    let count_str = parts.next()?.trim();
-    let count: u32 = count_str.parse().ok()?;
-    let rest = parts.next()?.trim();
-    let mut segments = rest.split('|');
-    let name = segments.next()?.trim().to_string();
-    let set_code = segments
-        .next()
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty());
-    Some(CubeCardEntry {
-        name,
-        set_code,
-        count,
-    })
+#[derive(Deserialize)]
+struct CubeCobraCard {
+    details: CubeCobraCardDetails,
+}
+
+#[derive(Deserialize)]
+struct CubeCobraCardDetails {
+    name: String,
+    set: String,
+    collector_number: String,
 }
 
 #[cfg(test)]
@@ -194,14 +175,20 @@ mod tests {
     }
 
     #[test]
-    fn parses_forge_deck_body() {
-        let body = "\
-            [metadata]\n\
-            Name=Tiny Cube\n\
-            [Main]\n\
-            4 Lightning Bolt|M11\n\
-            2 Shock|M21\n\
-            1 Counterspell\n";
+    fn parses_cubecobra_json() {
+        let body = r#"{
+            "name": "Tiny Cube",
+            "cards": {
+                "mainboard": [
+                    {"details": {"name": "Lightning Bolt", "set": "m11", "collector_number": "146"}},
+                    {"details": {"name": "Lightning Bolt", "set": "m11", "collector_number": "146"}},
+                    {"details": {"name": "Shock", "set": "m21", "collector_number": "159"}}
+                ],
+                "maybeboard": [
+                    {"details": {"name": "Counterspell", "set": "a25", "collector_number": "50"}}
+                ]
+            }
+        }"#;
         let imp = CubeImporter::new("abc").unwrap();
         let cube = imp.parse(body).unwrap();
         assert!(cube.name.starts_with("Tiny Cube_"));
@@ -209,15 +196,13 @@ mod tests {
         assert_eq!(cube.num_packs, 3);
         assert_eq!(cube.cards.len(), 3);
         assert_eq!(cube.cards[0].name, "Lightning Bolt");
-        assert_eq!(cube.cards[0].set_code.as_deref(), Some("M11"));
-        assert_eq!(cube.cards[0].count, 4);
-        assert!(cube.cards[2].set_code.is_none());
-    }
-
-    #[test]
-    fn cubecobra_download_url() {
-        let imp = CubeImporter::new("xyz").unwrap();
-        let url = imp.cubecobra_download_url().unwrap();
-        assert_eq!(url, "https://cubecobra.com/cube/download/forge/xyz");
+        assert_eq!(cube.cards[0].set_code.as_deref(), Some("m11"));
+        assert_eq!(cube.cards[0].collector_number.as_deref(), Some("146"));
+        assert_eq!(cube.cards[0].count, 1);
+        assert_eq!(cube.cards[1].name, "Lightning Bolt");
+        assert_eq!(cube.cards[1].collector_number.as_deref(), Some("146"));
+        assert_eq!(cube.cards[2].name, "Shock");
+        assert_eq!(cube.cards[2].set_code.as_deref(), Some("m21"));
+        assert_eq!(cube.cards[2].collector_number.as_deref(), Some("159"));
     }
 }

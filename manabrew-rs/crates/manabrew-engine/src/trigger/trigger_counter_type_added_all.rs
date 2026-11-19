@@ -50,11 +50,7 @@ impl TriggerBehavior for TriggerCounterTypeAddedAll {
             }
         }
 
-        if self.first_time_only && params.first_time != Some(true) {
-            return false;
-        }
-
-        true
+        !self.first_time_only || params.first_time == Some(true)
     }
 
     fn set_triggering_objects(

@@ -6,6 +6,10 @@
  */
 
 import { deckHasCardCosmetics, normalizeCardCosmetics } from "@/lib/cardCosmetics";
+import type { WasmBot } from "@/wasm/wasm";
+import type * as WasmModule from "@/wasm/wasm";
+import { reportClientError } from "@/lib/errorReporting";
+import { workerError } from "@/lib/workerError";
 import type { EngineGameStats } from "@/lib/engineTelemetry";
 import {
   noteEngineThinkTime,
@@ -39,16 +43,19 @@ import type {
 } from "./types";
 import {
   DUPLICATE_USERNAME_ERROR_FRAGMENT,
+  RELAY_FEATURE,
   SERVER_ERROR_CODE,
   TOKEN_EXPIRED_ERROR_FRAGMENT,
   type GameOutcomeReport,
   type LocalGameKind,
+  type RematchIntent,
 } from "@/types/server";
 import type { RoomInfo, RoomRelayEnvelope, StateEnvelope } from "@/types/server";
 import { PROTOCOL_VERSION } from "@/protocol";
 import type {
   ClientToServerMessage,
   DirectiveInput,
+  EngineDirective,
   Prompt,
   PromptOutput,
   StateUpdate,
@@ -56,7 +63,7 @@ import type {
 import { APP_VERSION } from "@/lib/constants";
 import { logComms } from "@/lib/commsLog";
 import { resolveRelayIdentity, type RelayIdentity } from "@/lib/relayIdentity";
-import { getClientPlatform } from "./clientPlatform";
+import { getAcquisitionSource, getClientPlatform } from "./clientPlatform";
 import {
   rememberSpawnedBot,
   forgetSpawnedBot,
@@ -139,8 +146,17 @@ function readSeat<T>(
       noteSeatMessage(seat, message);
       onMessage(message, json, arrivedAt);
     } catch (error) {
+      reportClientError(error, "engine-worker", { operation: "seat-reader" });
       onError(error, json);
     }
+  };
+  worker.onerror = (event) => {
+    event.preventDefault();
+    if (seat.cancelled) return;
+    console.error("[SeatReader] Worker error:", event);
+    const error = workerError(event);
+    reportClientError(error, "engine-worker", { operation: "seat-reader" });
+    onError(error, "");
   };
   worker.postMessage({ buffer: seat.buffer });
   return worker;
@@ -197,6 +213,8 @@ interface WorkerResponse {
   requestId: string;
   payload?: unknown;
   error?: string;
+  errorName?: string;
+  errorStack?: string;
 }
 
 interface WorkerEvent {
@@ -211,8 +229,8 @@ type WorkerMessage = WorkerResponse | WorkerEvent;
 type EngineMessage = {
   kind?: string;
   state?: unknown;
-  event?: unknown;
   prompt?: unknown;
+  directive?: unknown;
   error?: unknown;
 };
 
@@ -242,7 +260,12 @@ class WorkerBridge {
   private worker: Worker | null = null;
   private pendingRequests = new Map<
     string,
-    { resolve: (value: unknown) => void; reject: (error: Error) => void; worker: Worker }
+    {
+      resolve: (value: unknown) => void;
+      reject: (error: Error) => void;
+      worker: Worker;
+      command: string;
+    }
   >();
   private eventBus: WebEventBus;
   private initPromise: Promise<void> | null = null;
@@ -297,6 +320,23 @@ class WorkerBridge {
         const worker = new Worker(new URL("../workers/manabot.worker.ts", import.meta.url), {
           type: "module",
         });
+        worker.onmessage = (
+          event: MessageEvent<{ type: string; message?: string; name?: string; stack?: string }>,
+        ) => {
+          if (event.data.type !== "error") return;
+          const error = new Error(event.data.message ?? "Bot worker failed");
+          error.name = event.data.name ?? "Error";
+          error.stack = event.data.stack ?? "";
+          reportClientError(error, "bot-worker");
+        };
+        worker.onerror = (event) => {
+          event.preventDefault();
+          console.error("[Manabot] Worker error:", event);
+          const error = workerError(event);
+          reportClientError(error, "bot-worker");
+        };
+        worker.onmessageerror = () =>
+          reportClientError(new Error("Bot worker message could not be decoded"), "bot-worker");
         worker.postMessage({ buffer: payload.buffer, playerSlot });
         this.localBotWorkers.set(playerSlot, worker);
         return;
@@ -346,6 +386,38 @@ class WorkerBridge {
       }
     });
 
+    eventBus.on<{ reason?: string; message?: string; name?: string; stack?: string }>(
+      "game:forced_end",
+      (payload) => {
+        if (payload?.reason !== "worker_error") return;
+        const error = new Error(payload.message ?? "Engine worker failed");
+        error.name = payload.name ?? "Error";
+        error.stack = payload.stack ?? "";
+        reportClientError(error, "engine-worker");
+      },
+    );
+
+    eventBus.on<{ level?: string; text?: string }>("forge:log", (payload) => {
+      if (payload?.level !== "error" || !payload.text?.startsWith("Rewind failed:")) return;
+      const error = new Error("Engine rewind failed");
+      error.stack = "";
+      reportClientError(error, "engine-operation", { operation: "rewind" });
+    });
+
+    eventBus.on<{ seat: number; directive: unknown }>(
+      "game:seat_directive",
+      ({ seat, directive }) => {
+        if (!this.directiveLanes) return;
+        if (seat === this.directiveLanes.localSeat) {
+          this.applyEngineMessage({ kind: "engineDirective", directive });
+        } else {
+          this.eventBus.emit("game:relay_message", {
+            forPlayer: `player-${seat}`,
+            msg: { kind: "engineDirective", directive },
+          });
+        }
+      },
+    );
     // The engine has nothing more to say once the game is over, so the bots
     // parked on their seats can go.
     for (const event of ["game:over", "game:forced_end"]) {
@@ -364,7 +436,7 @@ class WorkerBridge {
     // `arrivedAt` is stamped in the seat reader before the parse, so parsing a
     // state frame counts as this machine's work, the same cut the relay socket
     // makes.
-    if (msg?.kind === "state" || msg?.kind === "prompt" || msg?.kind === "display") {
+    if (msg?.kind === "state" || msg?.kind === "prompt") {
       noteReplyFrameArrived(arrivedAt);
     }
     try {
@@ -388,8 +460,8 @@ class WorkerBridge {
       case "state":
         this.eventBus.emit("game:state", msg.state);
         break;
-      case "display":
-        this.eventBus.emit("game:display", msg.event);
+      case "engineDirective":
+        this.eventBus.emit("game:directive", msg.directive);
         break;
       case "error":
         this.eventBus.emit("game:error", msg.error);
@@ -611,27 +683,41 @@ class WorkerBridge {
 
         this.worker.onmessage = this.handleMessage.bind(this);
         this.worker.onerror = (e) => {
+          e.preventDefault();
           console.error("[WorkerBridge] Worker error:", e);
-          const error = new Error(`Worker error: ${e.message}`);
+          const error = workerError(e);
+          reportClientError(error, "engine-worker");
           reject(error);
           for (const pending of this.pendingRequests.values()) pending.reject(error);
           this.pendingRequests.clear();
         };
+        this.worker.onmessageerror = () =>
+          reportClientError(
+            new Error("Engine worker message could not be decoded"),
+            "engine-worker",
+          );
 
-        const unsubscribe = this.eventBus.on<{ stage?: string; message?: string }>(
-          "worker:init",
-          (payload) => {
-            if (payload?.stage === "ready") {
-              unsubscribe();
-              if (DEBUG_TRANSPORT) console.log("[WorkerBridge] Worker reported ready");
-              resolve();
-            } else if (payload?.stage === "error") {
-              unsubscribe();
-              reject(new Error(payload.message ?? "Worker init failed"));
-            }
-          },
-        );
+        const unsubscribe = this.eventBus.on<{
+          stage?: string;
+          message?: string;
+          name?: string;
+          stack?: string;
+        }>("worker:init", (payload) => {
+          if (payload?.stage === "ready") {
+            unsubscribe();
+            if (DEBUG_TRANSPORT) console.log("[WorkerBridge] Worker reported ready");
+            resolve();
+          } else if (payload?.stage === "error") {
+            unsubscribe();
+            const error = new Error(payload.message ?? "Worker init failed");
+            error.name = payload.name ?? "Error";
+            error.stack = payload.stack ?? "";
+            reportClientError(error, "engine-worker", { operation: "initialize" });
+            reject(error);
+          }
+        });
       } catch (error) {
+        reportClientError(error, "engine-worker", { operation: "initialize" });
         reject(error);
       }
     });
@@ -645,7 +731,16 @@ class WorkerBridge {
       if (pending) {
         this.pendingRequests.delete(message.requestId);
         if (message.error) {
-          pending.reject(new Error(message.error));
+          const error = new Error(message.error);
+          error.name = message.errorName ?? "Error";
+          error.stack = message.errorStack ?? "";
+          if (
+            error.name !== "AbortError" &&
+            (pending.command === "start_game" || pending.command === "start_multiplayer_game")
+          ) {
+            reportClientError(error, "engine-operation", { operation: "start-game" });
+          }
+          pending.reject(error);
         } else {
           pending.resolve(message.payload);
         }
@@ -662,6 +757,7 @@ class WorkerBridge {
     });
     const fail = (error: Error) => {
       if (this.fallbackWorker !== worker) return;
+      reportClientError(error, "engine-worker", { operation: "query-worker" });
       this.fallbackWorker = null;
       worker.onmessage = null;
       worker.onerror = null;
@@ -677,11 +773,25 @@ class WorkerBridge {
       if (message.type === "response") {
         this.handleMessage(e);
       } else if (message.type === "event" && message.event === "worker:init") {
-        const payload = message.payload as { stage?: string; message?: string };
-        if (payload?.stage === "error") fail(new Error(payload.message ?? "Worker init failed"));
+        const payload = message.payload as {
+          stage?: string;
+          message?: string;
+          name?: string;
+          stack?: string;
+        };
+        if (payload?.stage === "error") {
+          const error = new Error(payload.message ?? "Worker init failed");
+          error.name = payload.name ?? "Error";
+          error.stack = payload.stack ?? "";
+          fail(error);
+        }
       }
     };
-    worker.onerror = (event) => fail(new Error(`Worker error: ${event.message}`));
+    worker.onerror = (event) => {
+      event.preventDefault();
+      console.error("[WorkerBridge] Query worker error:", event);
+      fail(workerError(event));
+    };
     this.fallbackWorker = worker;
     return worker;
   }
@@ -719,6 +829,7 @@ class WorkerBridge {
 
     return new Promise((resolve, reject) => {
       this.pendingRequests.set(requestId, {
+        command,
         resolve: resolve as (value: unknown) => void,
         reject,
         worker: target,
@@ -986,6 +1097,10 @@ class WebEventBus implements IEventBus {
 
 interface BotEntry {
   roomId: string;
+  params: SpawnAiBotParams;
+  bot: WasmBot | null;
+  status: RoomInfo["status"] | null;
+  deckSelectionPending: boolean;
   ws: WebSocket | null;
   stopped: boolean;
   attempt: number;
@@ -1025,8 +1140,8 @@ class WebServerApi implements IServerApi {
   >();
   private relayStateSequence = 0;
   private deltaBases = new Map<string, { state: StateUpdate; fingerprint: string }>();
-  private lastRelayDisplay: string | null = null;
   private pendingRelayPrompts = new Map<string, Record<string, unknown>>();
+  private pendingRelayDirectives = new Map<string, Record<string, unknown>>();
   private enginePlayerNames: string[] = [];
   private webrtc: WebRtcPlane | null = null;
   private peerSignalling = false;
@@ -1034,7 +1149,8 @@ class WebServerApi implements IServerApi {
   private announcedRoom: string | null = null;
   private relayRttMs: number | null = null;
   private planeQualityReporting = false;
-  private cardCosmeticsVersion: 0 | 1 | 2 = 0;
+  private cardCosmeticsVersion: 0 | 1 | 2 | 3 = 0;
+  private roomSeats = false;
   private pingSentAt: number | null = null;
   private directTransportOptIn = usePreferencesStore.getState().directTransport;
   private roomTransport = false;
@@ -1049,7 +1165,6 @@ class WebServerApi implements IServerApi {
       this.onDirectTransportPreference();
     });
 
-    // Relay engine messages (state/display/prompt) to remote players via WebSocket.
     eventBus.on<RelayMessage>("game:relay_message", ({ forPlayer, msg }) => {
       if (msg.kind === "state") {
         const state = msg.state as StateUpdate;
@@ -1071,14 +1186,15 @@ class WebServerApi implements IServerApi {
             : { kind: "state", forPlayer, state, fingerprint },
           targetPlayer,
         );
-      } else if (msg.kind === "display") {
-        const json = JSON.stringify(msg.event);
-        if (json === this.lastRelayDisplay) return;
-        this.lastRelayDisplay = json;
-        this.broadcastState({ kind: "display", event: msg.event });
       } else if (msg.kind === "prompt") {
         const envelope = { kind: "prompt", forPlayer, prompt: msg.prompt };
         this.pendingRelayPrompts.set(forPlayer, envelope);
+        const targetPlayer = this.enginePlayerName(forPlayer);
+        if (targetPlayer) void this.broadcastState(envelope, targetPlayer);
+      } else if (msg.kind === "engineDirective") {
+        const directive = msg.directive as EngineDirective;
+        const envelope = { kind: "engineDirective", forPlayer, directive };
+        this.pendingRelayDirectives.set(`${forPlayer}:${directive.type}`, envelope);
         const targetPlayer = this.enginePlayerName(forPlayer);
         if (targetPlayer) void this.broadcastState(envelope, targetPlayer);
       } else if (msg.kind === "error") {
@@ -1118,6 +1234,7 @@ class WebServerApi implements IServerApi {
 
   private async openSocket(params: ServerConnectParams): Promise<void> {
     this.cardCosmeticsVersion = 0;
+    this.roomSeats = false;
     const forceRemint = this.sessionTokenRejected;
     this.sessionTokenRejected = false;
     const identity = await resolveRelayIdentity(this.sessionIdentity, params.username, forceRemint);
@@ -1143,6 +1260,7 @@ class WebServerApi implements IServerApi {
           client_platform: getClientPlatform(),
           client_version: APP_VERSION,
           engine_gate: forgeWasmGate(),
+          acquisition_source: getAcquisitionSource(),
         });
         this.startKeepalive();
         resolve();
@@ -1194,6 +1312,7 @@ class WebServerApi implements IServerApi {
     this.ws = null;
     this.connectedAt = null;
     this.cardCosmeticsVersion = 0;
+    this.roomSeats = false;
 
     if (this.manualDisconnect) {
       this.eventBus.emit("server:disconnected", { terminal: true });
@@ -1306,6 +1425,7 @@ class WebServerApi implements IServerApi {
     this.sessionIdentity = null;
     this.sessionTokenRejected = false;
     this.cardCosmeticsVersion = 0;
+    this.roomSeats = false;
     this.stopKeepalive();
     this.stopAllBots();
     const ws = this.ws;
@@ -1412,6 +1532,18 @@ class WebServerApi implements IServerApi {
   }
 
   async setDeckSelection(params: SetDeckSelectionParams): Promise<void> {
+    this.validateDeckSelection(params);
+    this.send({
+      type: "SetDeckSelection",
+      deck_name: params.deckName,
+      deck: params.deck,
+      published_deck_id: params.publishedDeckId ?? null,
+      commander_name: params.commanderName,
+      avatar_url: params.avatarUrl ?? null,
+    });
+  }
+
+  private validateDeckSelection(params: SetDeckSelectionParams): void {
     if (this.cardCosmeticsVersion === 0 && deckHasCardCosmetics(params.deck)) {
       throw new Error(
         "This server does not support customized cards. Update the server before selecting this deck.",
@@ -1429,14 +1561,19 @@ class WebServerApi implements IServerApi {
         "This server does not support this deck's print-dot artwork settings or Heat deformation. Update the server before selecting this deck.",
       );
     }
-    this.send({
-      type: "SetDeckSelection",
-      deck_name: params.deckName,
-      deck: params.deck,
-      published_deck_id: params.publishedDeckId ?? null,
-      commander_name: params.commanderName,
-      avatar_url: params.avatarUrl ?? null,
-    });
+    if (
+      this.cardCosmeticsVersion < 3 &&
+      deckHasCardCosmetics(
+        params.deck,
+        (cosmetics) =>
+          cosmetics.printing?.overrides?.calibration !== undefined ||
+          !!cosmetics.printing?.faces?.some((face) => face.overrides?.calibration !== undefined),
+      )
+    ) {
+      throw new Error(
+        "This server does not support this deck's printing calibration. Update the server before selecting this deck.",
+      );
+    }
   }
 
   async setFormat(params: SetFormatParams): Promise<void> {
@@ -1454,6 +1591,18 @@ class WebServerApi implements IServerApi {
   async endGame(gameId: string): Promise<void> {
     this.stopRoomBots(this.currentRoomId);
     this.send({ type: "EndGame", game_id: gameId });
+  }
+
+  async finishGame(gameId: string): Promise<void> {
+    this.send({ type: "FinishGame", game_id: gameId });
+  }
+
+  async setRematchIntent(gameId: string, intent: RematchIntent): Promise<void> {
+    this.send({ type: "SetRematchIntent", game_id: gameId, intent });
+  }
+
+  async returnToLobby(gameId: string): Promise<void> {
+    this.send({ type: "ReturnToLobby", game_id: gameId });
   }
 
   async reportEngineStats(stats: EngineGameStats, gameId?: string | null): Promise<void> {
@@ -1488,22 +1637,29 @@ class WebServerApi implements IServerApi {
     if (!this.relayUrl || this.serverPassword == null) {
       throw new Error("Cannot spawn bot: not connected to relay.");
     }
+    if (params.seatIndex !== undefined && !this.roomSeats) {
+      throw new Error("Update the relay before adding a bot to a selected seat.");
+    }
     if (this.bots.has(params.username)) {
       throw new Error(`Bot '${params.username}' is already running.`);
     }
-    const wasm = await loadWasm();
-    const config = JSON.stringify({
-      username: params.username,
-      password: this.serverPassword,
-      roomId: params.roomId,
-      roomPassword: params.roomPassword ?? null,
-      deckName: params.deckName,
-      deck: params.deck,
-      commanderName: params.commanderName,
-      agent: params.agent ?? "simple",
-    });
+    if ((params.deck === undefined) !== (params.deckName === undefined)) {
+      throw new Error("A bot deck and deck name must be assigned together.");
+    }
+    if (params.deck && params.deckName !== undefined) {
+      this.validateDeckSelection({
+        ...params,
+        deck: params.deck,
+        deckName: params.deckName,
+        commanderName: params.commanderName ?? null,
+      });
+    }
     const entry: BotEntry = {
       roomId: params.roomId,
+      params: { ...params },
+      bot: null,
+      status: null,
+      deckSelectionPending: false,
       ws: null,
       stopped: false,
       attempt: 0,
@@ -1511,14 +1667,34 @@ class WebServerApi implements IServerApi {
     };
     this.bots.set(params.username, entry);
     rememberSpawnedBot(params);
+    let wasm: typeof WasmModule;
+    try {
+      wasm = await loadWasm();
+    } catch (error) {
+      if (this.bots.get(params.username) === entry) {
+        this.bots.delete(params.username);
+        forgetSpawnedBot(params.username);
+      }
+      throw error;
+    }
     const connect = () => {
       entry.reconnectTimer = null;
       if (entry.stopped || !this.relayUrl) {
-        this.bots.delete(params.username);
+        if (this.bots.get(params.username) === entry) this.bots.delete(params.username);
         return;
       }
       dlog(`[bot-life ${params.username}] connecting (attempt ${entry.attempt})`);
-      const bot = new wasm.WasmBot(config);
+      const bot = new wasm.WasmBot(
+        JSON.stringify({
+          ...entry.params,
+          password: this.serverPassword,
+          agent: entry.params.agent ?? "simple",
+        }),
+      );
+      entry.bot = bot;
+      if (entry.deckSelectionPending) {
+        bot.set_deck_selection(JSON.stringify(entry.params));
+      }
       const ws = new WebSocket(this.relayUrl);
       entry.ws = ws;
       ws.onopen = () => {
@@ -1562,9 +1738,10 @@ class WebServerApi implements IServerApi {
       ws.onerror = () => console.error(`[bot ${params.username}] WebSocket error`);
       ws.onclose = () => {
         bot.free();
+        entry.bot = null;
         entry.ws = null;
         if (entry.stopped) {
-          this.bots.delete(params.username);
+          if (this.bots.get(params.username) === entry) this.bots.delete(params.username);
           return;
         }
         const delay =
@@ -1575,6 +1752,53 @@ class WebServerApi implements IServerApi {
       };
     };
     connect();
+  }
+
+  async restoreAiBots(roomId: string): Promise<string[]> {
+    await Promise.all(
+      peekSpawnedBots(roomId).map(async (params) => {
+        if (this.bots.has(params.username)) return;
+        await this.spawnAiBot(params);
+        if (params.deckSelectionPending && params.deck && params.deckName !== undefined) {
+          await this.setAiBotDeck(params.username, {
+            ...params,
+            deck: params.deck,
+            deckName: params.deckName,
+            commanderName: params.commanderName ?? null,
+          });
+        }
+      }),
+    );
+    return [...this.bots]
+      .filter(([, bot]) => bot.roomId === roomId && !bot.stopped)
+      .map(([username]) => username);
+  }
+
+  async setAiBotDeck(username: string, params: SetDeckSelectionParams): Promise<void> {
+    const entry = this.bots.get(username);
+    if (!entry || entry.stopped || entry.roomId !== this.currentRoomId) {
+      throw new Error(`Bot '${username}' is not owned in the current room.`);
+    }
+    if (entry.status !== null && entry.status !== "Lobby") {
+      throw new Error("Bot decks can only be changed in the lobby.");
+    }
+    this.validateDeckSelection(params);
+    const replies = entry.bot?.set_deck_selection(JSON.stringify(params)) ?? [];
+    for (const message of replies) {
+      if (entry.ws?.readyState !== WebSocket.OPEN) {
+        throw new Error("Bot connection closed while assigning its deck.");
+      }
+      logComms("bot-send", `[${username}] ${message}`);
+      entry.ws.send(message);
+    }
+    entry.params = {
+      ...entry.params,
+      ...params,
+      publishedDeckId: params.publishedDeckId,
+      avatarUrl: params.avatarUrl,
+    };
+    entry.deckSelectionPending = true;
+    rememberSpawnedBot(entry.params, true);
   }
 
   async removeAiBot(username: string): Promise<void> {
@@ -1809,13 +2033,19 @@ class WebServerApi implements IServerApi {
     }
     logComms("recv", raw ?? msg);
     if (type === "AuthResult") {
+      this.roomSeats =
+        msg.success === true &&
+        Array.isArray(msg.features) &&
+        msg.features.includes(RELAY_FEATURE.RoomSeats);
       this.cardCosmeticsVersion =
         msg.success && Array.isArray(msg.features)
-          ? msg.features.includes("card_cosmetics_v2")
-            ? 2
-            : msg.features.includes("card_cosmetics")
-              ? 1
-              : 0
+          ? msg.features.includes("card_cosmetics_v3")
+            ? 3
+            : msg.features.includes("card_cosmetics_v2")
+              ? 2
+              : msg.features.includes("card_cosmetics")
+                ? 1
+                : 0
           : 0;
     }
     if (type === "AuthResult" && msg.success) {
@@ -1886,10 +2116,7 @@ class WebServerApi implements IServerApi {
       const forPlayer = (envelope as { forPlayer?: string }).forPlayer;
       if (
         frameAt !== undefined &&
-        (envelope.kind === "state" ||
-          envelope.kind === "stateDelta" ||
-          envelope.kind === "prompt" ||
-          envelope.kind === "display")
+        (envelope.kind === "state" || envelope.kind === "stateDelta" || envelope.kind === "prompt")
       ) {
         noteReplyFrameArrived(frameAt);
       }
@@ -1960,11 +2187,11 @@ class WebServerApi implements IServerApi {
           });
           return;
         }
-        case "display":
-          this.eventBus.emit("game:remote_display", envelope);
-          return;
         case "prompt":
           this.eventBus.emit("game:remote_prompt", envelope);
+          return;
+        case "engineDirective":
+          this.eventBus.emit("game:remote_directive", envelope);
           return;
         case "error":
           this.eventBus.emit("game:remote_error", envelope);
@@ -2006,8 +2233,30 @@ class WebServerApi implements IServerApi {
     }
 
     if (type === "RoomUpdate" || type === "RoomResumed") {
-      const room = msg.room as { room_id?: string } | undefined;
+      const room = msg.room as RoomInfo | undefined;
       const roomId = String(room?.room_id ?? "");
+      if (room) {
+        for (const bot of this.bots.values()) {
+          if (bot.roomId !== roomId) continue;
+          bot.status = room.status;
+          const player = room.players.find((player) => player.username === bot.params.username);
+          if (!player) continue;
+          let changed = false;
+          if (
+            bot.params.seatIndex !== undefined &&
+            player.seat_index !== undefined &&
+            bot.params.seatIndex !== player.seat_index
+          ) {
+            bot.params.seatIndex = player.seat_index;
+            changed = true;
+          }
+          if (bot.deckSelectionPending && player.selected_deck_name === bot.params.deckName) {
+            bot.deckSelectionPending = false;
+            changed = true;
+          }
+          if (changed) rememberSpawnedBot(bot.params, bot.deckSelectionPending);
+        }
+      }
       const limited = useMultiplayerLimitedStore.getState();
       const activeRoomId = this.currentRoomId ?? limited.matchReturn?.roomId;
       const inactiveLimitedRoom = limited.originalRoom && activeRoomId && activeRoomId !== roomId;
@@ -2018,9 +2267,12 @@ class WebServerApi implements IServerApi {
     }
 
     if (type === "GameStarted") {
+      for (const bot of this.bots.values()) {
+        if (bot.roomId === msg.room_id) bot.status = "InGame";
+      }
       this.lastRelayStates.clear();
-      this.lastRelayDisplay = null;
       this.pendingRelayPrompts.clear();
+      this.pendingRelayDirectives.clear();
       this.deltaBases.clear();
     }
 
@@ -2036,6 +2288,10 @@ class WebServerApi implements IServerApi {
       }
       for (const [playerSlot, envelope] of this.pendingRelayPrompts) {
         const targetPlayer = this.enginePlayerName(playerSlot);
+        if (targetPlayer) void this.broadcastState(envelope, targetPlayer);
+      }
+      for (const envelope of this.pendingRelayDirectives.values()) {
+        const targetPlayer = this.enginePlayerName(envelope.forPlayer as string);
         if (targetPlayer) void this.broadcastState(envelope, targetPlayer);
       }
       this.eventBus.emit("server:room_update", { room: msg.room });

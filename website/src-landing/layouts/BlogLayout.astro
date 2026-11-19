@@ -160,8 +160,8 @@ const jsonLd = article
     align-items: center;
     justify-content: space-between;
     flex-wrap: wrap;
-    gap: 0.5rem 1rem;
-    padding: 1.1rem clamp(1rem, 4vw, 3rem);
+    gap: 0.5rem 1.5rem;
+    padding: 0.75rem clamp(1rem, 4vw, 3rem);
     border-bottom: 1px solid var(--border);
     background: var(--card);
   }
@@ -175,31 +175,27 @@ const jsonLd = article
 
   .wordmark :global(.mb-logo) {
     display: block;
-    width: 16.5rem;
+    width: auto;
     max-width: 100%;
-    height: auto;
+    height: 3.25rem;
   }
 
   .nav nav {
     display: flex;
-    gap: clamp(0.9rem, 3vw, 1.8rem);
+    gap: clamp(0.9rem, 2.5vw, 1.75rem);
     flex-wrap: wrap;
   }
 
   .nav nav a {
-    color: var(--foreground);
+    color: var(--muted-foreground);
     text-decoration: none;
     font-weight: 500;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    font-size: 0.8rem;
+    font-size: 0.95rem;
+    transition: color 120ms ease;
   }
 
   .nav nav a:hover {
     color: var(--foreground);
-    text-decoration: underline;
-    text-decoration-color: var(--primary);
-    text-underline-offset: 0.2em;
   }
 
   footer {
@@ -220,7 +216,13 @@ const jsonLd = article
     color: var(--foreground);
   }
 
-  @media (max-width: 32rem) {
+  @media (max-width: 26rem) {
+    .wordmark :global(.mb-logo) {
+      height: 2.75rem;
+    }
+  }
+
+  @media (max-width: 22rem) {
     .nav nav {
       width: 100%;
       justify-content: space-between;

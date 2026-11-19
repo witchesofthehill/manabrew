@@ -85,6 +85,7 @@ async fn discover_rooms(relay: &str, key: &str, want: usize) -> Result<Vec<Strin
             client_platform: manabrew_relay_protocol::ClientPlatform::Unknown,
             client_version: None,
             engine_gate: manabrew_relay_protocol::EngineGate::Unknown,
+            acquisition_source: None,
         },
     )
     .await?;
@@ -134,6 +135,7 @@ async fn play_game(
                 client_platform: manabrew_relay_protocol::ClientPlatform::Unknown,
                 client_version: None,
                 engine_gate: manabrew_relay_protocol::EngineGate::Unknown,
+                acquisition_source: None,
             },
         )
         .await?;
@@ -143,6 +145,7 @@ async fn play_game(
             &mut write,
             &ClientMessage::JoinRoom {
                 room_id: room_id.to_string(),
+                seat_index: None,
                 observe: false,
                 as_bot: false,
                 password: None,

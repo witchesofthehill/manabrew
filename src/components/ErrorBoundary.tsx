@@ -1,5 +1,6 @@
 import { Component, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
+import { reportClientError } from "@/lib/errorReporting";
 
 interface Props {
   children: ReactNode;
@@ -20,6 +21,7 @@ class ErrorBoundaryInner extends Component<Props & { onReset: () => void }, Stat
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     console.error("[ErrorBoundary]", error, info.componentStack);
+    reportClientError(error, "react", { componentStack: info.componentStack ?? undefined });
   }
 
   render() {

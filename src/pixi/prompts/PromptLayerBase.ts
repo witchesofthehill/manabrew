@@ -33,6 +33,7 @@ import {
 import { computePreviewCardDimensions } from "@/components/game/cardPreviewLayout";
 import { getSafeAreaInsets } from "@/lib/safeArea";
 import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
+import { useGameStore } from "@/stores/useGameStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { type PromptActionViewKey } from "@/stores/useGameDevStore";
 import { resolveCombo, useKeybindingsStore } from "@/stores/useKeybindingsStore";
@@ -312,7 +313,10 @@ export function promptTypeForView(
   return override;
 }
 
-export function actionTitle(promptType: PromptOverlaySpec["action"]["promptType"]): string {
+export function actionTitle(
+  promptType: PromptOverlaySpec["action"]["promptType"],
+  presentationTitle?: string,
+): string {
   switch (promptType) {
     case "chooseAction":
       return "Priority";
@@ -330,18 +334,22 @@ export function actionTitle(promptType: PromptOverlaySpec["action"]["promptType"
     case "mulliganPutBack":
       return "Mulligan";
     default:
-      return "Action Required";
+      return presentationTitle || "Action Required";
   }
 }
 export function isAutopassWindow(spec: PromptOverlaySpec | null): boolean {
   const input = spec?.currentPrompt?.input;
+  const ignored = useGameStore.getState().ignoredCardIds;
   return (
     spec != null &&
     input?.type === "chooseAction" &&
     spec.action.promptActionOverride == null &&
     !spec.action.isWaitingForResponse &&
     !usePromptPreferencesStore.getState().fullControl &&
-    input.actions.every((action) => action.type === "activateAbility" && action.isManaAbility)
+    input.actions.every(
+      (action) =>
+        (action.type === "activateAbility" && action.isManaAbility) || ignored.has(action.cardId),
+    )
   );
 }
 
@@ -460,7 +468,13 @@ export function sameGameOverPresentation(
     left.me === right.me &&
     sameArray(left.opponents, right.opponents) &&
     left.turn === right.turn &&
-    left.engineCrash === right.engineCrash
+    left.engineCrash === right.engineCrash &&
+    left.statusMessage === right.statusMessage &&
+    left.playerStatuses === right.playerStatuses &&
+    left.ready === right.ready &&
+    left.busy === right.busy &&
+    !!left.onPlayAgain === !!right.onPlayAgain &&
+    !!left.onChangeDeck === !!right.onChangeDeck
   );
 }
 
@@ -473,6 +487,7 @@ export function samePromptPresentation(
   if (
     left.currentPrompt !== right.currentPrompt ||
     left.gameView !== right.gameView ||
+    left.turnColor !== right.turnColor ||
     left.sourceDeckCard !== right.sourceDeckCard ||
     left.modalHidden !== right.modalHidden ||
     !sameActionPresentation(left.action, right.action)
@@ -575,8 +590,7 @@ export abstract class PromptLayerBase {
   protected endTurnModifiersHeld = false;
   protected actionContextOpen = false;
   protected actionGlow: PromptGlow | null = null;
-  protected actionFeedback = { glow: 0, press: 0 };
-  protected actionGlowTween: gsap.core.Timeline | null = null;
+  protected actionFeedback = { press: 0 };
   protected actionFeedbackEndTurn = false;
   protected priorityButtons: { pass: PromptButton; end: PromptButton | null } | null = null;
   protected actionPulseNodes: Array<{ node: Container; maxAlpha: number }> = [];

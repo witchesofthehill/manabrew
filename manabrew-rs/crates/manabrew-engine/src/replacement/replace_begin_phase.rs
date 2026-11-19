@@ -31,10 +31,7 @@ pub fn can_replace(
             return false;
         }
     }
-    if !effect.matches_phase(phase) {
-        return false;
-    }
-    true
+    effect.matches_phase(phase)
 }
 
 /// Mirrors Java `ReplacementHandler.executeReplacement()` for BeginPhase.

@@ -1,5 +1,324 @@
 # Changelog
 
+## [3.85.0](https://github.com/witchesofthehill/manabrew/compare/v3.84.8...v3.85.0) (2026-11-19)
+
+### Features
+
+* **game:** add post-game rematches and retained tables ([#1221](https://github.com/witchesofthehill/manabrew/issues/1221)) ([9572857](https://github.com/witchesofthehill/manabrew/commit/95728576d02d10a8acab9742046a96c8d092217e))
+
+## [3.84.8](https://github.com/witchesofthehill/manabrew/compare/v3.84.7...v3.84.8) (2026-11-19)
+
+### Fixes
+
+* **ui:** avoid duplicate turn banners during queued updates ([#1250](https://github.com/witchesofthehill/manabrew/issues/1250)) ([e3ac71c](https://github.com/witchesofthehill/manabrew/commit/e3ac71cc5f836cf2ca94ac29253876e6ac58f5b5))
+
+## [3.84.7](https://github.com/witchesofthehill/manabrew/compare/v3.84.6...v3.84.7) (2026-11-19)
+
+### Fixes
+
+* **ironsmith:** update ironsmith-wasm to 0.9.2 and send both parts of two-part cards ([#1247](https://github.com/witchesofthehill/manabrew/issues/1247)) ([f713e2d](https://github.com/witchesofthehill/manabrew/commit/f713e2d18e34d7e24955418fcabf8f8fe673dc66))
+
+## [3.84.6](https://github.com/witchesofthehill/manabrew/compare/v3.84.5...v3.84.6) (2026-11-18)
+
+### Fixes
+
+* **ironsmith:** run engine and bots in a web worker ([#1249](https://github.com/witchesofthehill/manabrew/issues/1249)) ([aae20cc](https://github.com/witchesofthehill/manabrew/commit/aae20cc7caa05be30613a975ba0e1ecf3bc5aa67))
+
+## [3.84.5](https://github.com/witchesofthehill/manabrew/compare/v3.84.4...v3.84.5) (2026-11-18)
+
+### Fixes
+
+* disable perf mode ([#1248](https://github.com/witchesofthehill/manabrew/issues/1248)) ([801aeb8](https://github.com/witchesofthehill/manabrew/commit/801aeb8bf76d5a624a35c1a778726440902ef267))
+
+## [3.84.4](https://github.com/witchesofthehill/manabrew/compare/v3.84.3...v3.84.4) (2026-11-18)
+
+### Fixes
+
+* **ironsmith:** connect manabot and keep hosting on humans ([#1240](https://github.com/witchesofthehill/manabrew/issues/1240)) ([691a794](https://github.com/witchesofthehill/manabrew/commit/691a794ca297a5bfe601878014f54fb574730cc6))
+
+## [3.84.3](https://github.com/witchesofthehill/manabrew/compare/v3.84.2...v3.84.3) (2026-11-18)
+
+### Fixes
+
+* blight and optional cost ([#1245](https://github.com/witchesofthehill/manabrew/issues/1245)) ([c8ae2ca](https://github.com/witchesofthehill/manabrew/commit/c8ae2cad6b79ccb55b5ae81673e2fa89cf22a39b))
+
+## [3.84.2](https://github.com/witchesofthehill/manabrew/compare/v3.84.1...v3.84.2) (2026-11-18)
+
+### Fixes
+
+* remove CL ([#1244](https://github.com/witchesofthehill/manabrew/issues/1244)) ([36d826a](https://github.com/witchesofthehill/manabrew/commit/36d826a02027d428cc3e10912a27e8e2896d3b13))
+
+## [3.84.1](https://github.com/witchesofthehill/manabrew/compare/v3.84.0...v3.84.1) (2026-11-17)
+
+### Fixes
+
+* **combat:** preselect attacks that satisfy engine requirements ([#1232](https://github.com/witchesofthehill/manabrew/issues/1232)) ([2f035f3](https://github.com/witchesofthehill/manabrew/commit/2f035f3d200059a3649cd0acbab9385fb8a63cd7))
+* river pull and sink into stupor ([#1239](https://github.com/witchesofthehill/manabrew/issues/1239)) ([f8102be](https://github.com/witchesofthehill/manabrew/commit/f8102beb65bb0f3f3decd50b1645f9b50aa454cd))
+
+## [3.84.0](https://github.com/witchesofthehill/manabrew/compare/v3.83.0...v3.84.0) (2026-11-17)
+
+### Features
+
+* **ironsmith:** keep a game running when its host leaves ([#1237](https://github.com/witchesofthehill/manabrew/issues/1237)) ([3040806](https://github.com/witchesofthehill/manabrew/commit/30408066510b9ef1b8154e7bf179ac6d9d6390ed))
+
+## [3.83.0](https://github.com/witchesofthehill/manabrew/compare/v3.82.1...v3.83.0) (2026-11-17)
+
+### Features
+
+* **ironsmith:** update ironsmith-wasm to 0.9.1 ([#1234](https://github.com/witchesofthehill/manabrew/issues/1234)) ([845658e](https://github.com/witchesofthehill/manabrew/commit/845658e66022ba0a759b90bb959d33310ac12962))
+
+## [3.82.1](https://github.com/witchesofthehill/manabrew/compare/v3.82.0...v3.82.1) (2026-11-17)
+
+### Fixes
+
+* **lobby:** reconcile room membership after leaving games ([#1231](https://github.com/witchesofthehill/manabrew/issues/1231)) ([bc25e0c](https://github.com/witchesofthehill/manabrew/commit/bc25e0ce5cc62809c7941ff23d81fb8c6c1d8194))
+
+## [3.82.0](https://github.com/witchesofthehill/manabrew/compare/v3.81.0...v3.82.0) (2026-11-17)
+
+### Features
+
+* **ui:** enable chat during multiplayer games ([#1230](https://github.com/witchesofthehill/manabrew/issues/1230)) ([b1eecd6](https://github.com/witchesofthehill/manabrew/commit/b1eecd61849065f35ebe244301a661bc09a123c5))
+
+## [3.81.0](https://github.com/witchesofthehill/manabrew/compare/v3.80.3...v3.81.0) (2026-11-15)
+
+### Features
+
+* remove cards from Audotpass ([#1229](https://github.com/witchesofthehill/manabrew/issues/1229)) ([66b7b41](https://github.com/witchesofthehill/manabrew/commit/66b7b41c73dd43d2fabfb71825e9e0a9529d6a95))
+
+### Fixes
+
+* **assets:** encode WebP in wasm when the canvas cannot (Safari, iOS) ([#1227](https://github.com/witchesofthehill/manabrew/issues/1227)) ([afcc2ed](https://github.com/witchesofthehill/manabrew/commit/afcc2ed8e45497025849624c729fd9f59848d443))
+* **forge-wasm:** pass the solo trial on the first prompt, not on start ([#1228](https://github.com/witchesofthehill/manabrew/issues/1228)) ([25e13cc](https://github.com/witchesofthehill/manabrew/commit/25e13cce4c8f25b56ecaf29db4063819c7894aad))
+
+## [3.80.3](https://github.com/witchesofthehill/manabrew/compare/v3.80.2...v3.80.3) (2026-11-14)
+
+## [3.80.2](https://github.com/witchesofthehill/manabrew/compare/v3.80.1...v3.80.2) (2026-11-14)
+
+### Fixes
+
+* rulebreakers ([#1219](https://github.com/witchesofthehill/manabrew/issues/1219)) ([33b3ff7](https://github.com/witchesofthehill/manabrew/commit/33b3ff72778c9d2c308aab8181b647af7a0d0aad))
+
+## [3.80.1](https://github.com/witchesofthehill/manabrew/compare/v3.80.0...v3.80.1) (2026-11-14)
+
+### Fixes
+
+* **tauri:** keep lobby auto-connect off the shared relay during local ai handoff ([#1223](https://github.com/witchesofthehill/manabrew/issues/1223)) ([dff3f98](https://github.com/witchesofthehill/manabrew/commit/dff3f9853f21ee9ac925b50d1339edb7a310f215))
+
+## [3.80.0](https://github.com/witchesofthehill/manabrew/compare/v3.79.7...v3.80.0) (2026-11-13)
+
+### Features
+
+* support duel commander ([#1213](https://github.com/witchesofthehill/manabrew/issues/1213)) ([9635050](https://github.com/witchesofthehill/manabrew/commit/9635050868810bf79bf549acb5fcfc5aba4c0a6c))
+
+## [3.79.7](https://github.com/witchesofthehill/manabrew/compare/v3.79.6...v3.79.7) (2026-11-13)
+
+## [3.79.6](https://github.com/witchesofthehill/manabrew/compare/v3.79.5...v3.79.6) (2026-11-11)
+
+### Fixes
+
+* no max sizew ([#1211](https://github.com/witchesofthehill/manabrew/issues/1211)) ([01c0b2e](https://github.com/witchesofthehill/manabrew/commit/01c0b2ef20ed60bb60f979d70127db5680bbb06c))
+
+## [3.79.5](https://github.com/witchesofthehill/manabrew/compare/v3.79.4...v3.79.5) (2026-11-10)
+
+### Fixes
+
+* brewy showing for all ([#1207](https://github.com/witchesofthehill/manabrew/issues/1207)) ([bcd02cb](https://github.com/witchesofthehill/manabrew/commit/bcd02cb06056b1e26c310e8f0eee1405bfcbb355))
+
+## [3.79.4](https://github.com/witchesofthehill/manabrew/compare/v3.79.3...v3.79.4) (2026-11-10)
+
+## [3.79.3](https://github.com/witchesofthehill/manabrew/compare/v3.79.2...v3.79.3) (2026-11-10)
+
+### Fixes
+
+* **ui:** dedupe pixi onrender registrations and drop card-glint layout noise ([#1205](https://github.com/witchesofthehill/manabrew/issues/1205)) ([57a89c3](https://github.com/witchesofthehill/manabrew/commit/57a89c35aaeca32b00fcf2a45e2a8e5c1ab8b3ba))
+
+## [3.79.2](https://github.com/witchesofthehill/manabrew/compare/v3.79.1...v3.79.2) (2026-11-10)
+
+## [3.79.1](https://github.com/witchesofthehill/manabrew/compare/v3.79.0...v3.79.1) (2026-11-10)
+
+### Fixes
+
+* **tauri:** desktop engine telemetry and local AI tables - give desktop some love ([#1201](https://github.com/witchesofthehill/manabrew/issues/1201)) ([f866545](https://github.com/witchesofthehill/manabrew/commit/f866545d36dea8e3e47eb0dd26f136d3e1bc5695))
+
+## [3.79.0](https://github.com/witchesofthehill/manabrew/compare/v3.78.2...v3.79.0) (2026-11-09)
+
+### Features
+
+* brewy bot ([#1191](https://github.com/witchesofthehill/manabrew/issues/1191)) ([75e6b07](https://github.com/witchesofthehill/manabrew/commit/75e6b074768cf393f91674af9bff72e580df11a8))
+
+## [3.78.2](https://github.com/witchesofthehill/manabrew/compare/v3.78.1...v3.78.2) (2026-11-09)
+
+### Fixes
+
+* singleplayer button ([#1198](https://github.com/witchesofthehill/manabrew/issues/1198)) ([d281212](https://github.com/witchesofthehill/manabrew/commit/d28121203b1d01acd2ff5ad3251c2690b736d3f6))
+
+## [3.78.1](https://github.com/witchesofthehill/manabrew/compare/v3.78.0...v3.78.1) (2026-11-09)
+
+### Fixes
+
+* bad bug on singleplayer ([#1196](https://github.com/witchesofthehill/manabrew/issues/1196)) ([0590e6d](https://github.com/witchesofthehill/manabrew/commit/0590e6da6cae56a6d1ca30e6115510a4323c6f04))
+
+## [3.78.0](https://github.com/witchesofthehill/manabrew/compare/v3.77.0...v3.78.0) (2026-11-09)
+
+### Features
+
+* **observability:** record acquisition source and cap repeating client errors ([#1194](https://github.com/witchesofthehill/manabrew/issues/1194)) ([366304e](https://github.com/witchesofthehill/manabrew/commit/366304e74cc2a52927b90181d6d262f0bf6a062b))
+
+## [3.77.0](https://github.com/witchesofthehill/manabrew/compare/v3.76.0...v3.77.0) (2026-11-09)
+
+### Features
+
+* **ui:** arrange related battlefield cards together ([#1153](https://github.com/witchesofthehill/manabrew/issues/1153)) ([68d4bbc](https://github.com/witchesofthehill/manabrew/commit/68d4bbc4fbee4fb65f960e1d26eea10ca44defe9))
+
+## [3.76.0](https://github.com/witchesofthehill/manabrew/compare/v3.75.0...v3.76.0) (2026-11-09)
+
+### Features
+
+* **hub:** drop deck version history ([#1186](https://github.com/witchesofthehill/manabrew/issues/1186)) ([b41c53b](https://github.com/witchesofthehill/manabrew/commit/b41c53bde87081975a93b26842fff7a1df2082a5))
+
+## [3.75.0](https://github.com/witchesofthehill/manabrew/compare/v3.74.0...v3.75.0) (2026-11-09)
+
+### Features
+
+* **ui:** assign commander bot decks by seat ([#1187](https://github.com/witchesofthehill/manabrew/issues/1187)) ([90d9f22](https://github.com/witchesofthehill/manabrew/commit/90d9f223a23f6f7d03fd75f6a53fec1a86d0fd77))
+
+## [3.74.0](https://github.com/witchesofthehill/manabrew/compare/v3.73.0...v3.74.0) (2026-11-07)
+
+### Features
+
+* **ui:** move phasebar to the side ([#1176](https://github.com/witchesofthehill/manabrew/issues/1176)) ([7a1509c](https://github.com/witchesofthehill/manabrew/commit/7a1509ce86e1b37d21afded18b490737d1014733))
+
+## [3.73.0](https://github.com/witchesofthehill/manabrew/compare/v3.72.0...v3.73.0) (2026-11-07)
+
+### Features
+
+* **observability:** retain diagnostic stacks and runtime context ([#1184](https://github.com/witchesofthehill/manabrew/issues/1184)) ([c3bb8fd](https://github.com/witchesofthehill/manabrew/commit/c3bb8fdd0894b623e341eb83231f6f4ef74c92bb))
+
+## [3.72.0](https://github.com/witchesofthehill/manabrew/compare/v3.71.2...v3.72.0) (2026-11-07)
+
+### Features
+
+* **observability:** add self-hosted frontend error reporting ([#1134](https://github.com/witchesofthehill/manabrew/issues/1134)) ([aea7a1c](https://github.com/witchesofthehill/manabrew/commit/aea7a1c84205182b5a89cb3ec1b2487ba30f66fc))
+
+## [3.71.2](https://github.com/witchesofthehill/manabrew/compare/v3.71.1...v3.71.2) (2026-11-06)
+
+### Fixes
+
+* **limited:** preserve card names in cubecobra draft pools ([#1180](https://github.com/witchesofthehill/manabrew/issues/1180)) ([2c8b8ca](https://github.com/witchesofthehill/manabrew/commit/2c8b8ca974f1ea33ef76ed65688598bf158e1894))
+
+## [3.71.1](https://github.com/witchesofthehill/manabrew/compare/v3.71.0...v3.71.1) (2026-11-04)
+
+### Fixes
+
+* visibility issue ([#1179](https://github.com/witchesofthehill/manabrew/issues/1179)) ([f2c0489](https://github.com/witchesofthehill/manabrew/commit/f2c0489247281504ef4d8c5c3efad1fbc1b9fe67))
+
+## [3.71.0](https://github.com/witchesofthehill/manabrew/compare/v3.70.2...v3.71.0) (2026-11-03)
+
+### Features
+
+* **ui:** accept Space for no blocks ([#1168](https://github.com/witchesofthehill/manabrew/issues/1168)) ([e315a27](https://github.com/witchesofthehill/manabrew/commit/e315a275d0e2e9872135702aa3b85ce4a68246db))
+
+### Fixes
+
+* **ui:** keep aftermath card previews portrait ([#1166](https://github.com/witchesofthehill/manabrew/issues/1166)) ([468c5fc](https://github.com/witchesofthehill/manabrew/commit/468c5fcc07f04296137d128e397f30e2e305d01c))
+
+## [3.70.2](https://github.com/witchesofthehill/manabrew/compare/v3.70.1...v3.70.2) (2026-11-03)
+
+### Fixes
+
+* **editor:** use edhrec community votes for combo brackets ([#1171](https://github.com/witchesofthehill/manabrew/issues/1171)) ([a92645a](https://github.com/witchesofthehill/manabrew/commit/a92645aa8442a2fafed740b898191a7db2193b07))
+
+## [3.70.1](https://github.com/witchesofthehill/manabrew/compare/v3.70.0...v3.70.1) (2026-11-03)
+
+### Fixes
+
+* **ui:** prevent printed-card flash in deck editor ([#1172](https://github.com/witchesofthehill/manabrew/issues/1172)) ([fc1751e](https://github.com/witchesofthehill/manabrew/commit/fc1751eaa543a3f239b0fc75e2ca610508b101e7))
+
+## [3.70.0](https://github.com/witchesofthehill/manabrew/compare/v3.69.2...v3.70.0) (2026-11-02)
+
+### Features
+
+* **ui:** upgrade card glint and specialize finish shaders ([#1114](https://github.com/witchesofthehill/manabrew/issues/1114)) ([289f97b](https://github.com/witchesofthehill/manabrew/commit/289f97b0d6f52a2912590406f2578fbbbd9c4124))
+
+## Unreleased
+
+### Features
+
+- Add saved Card Glint calibration policies and named M21/Eighth profiles to Customize, with per-face inheritance, SDK coverage reports, and compatibility checks.
+- Advertise `card_cosmetics_v3` and reject calibration-bearing deck selections on older relays without changing saved decks.
+
+### Fixes
+
+- Preserve distinct card names in CubeCobra draft pools when imported cards have no collector numbers, instead of collapsing each set to its first card.
+- Preserve CubeCobra set and collector-number identifiers so imported printed and flavor names resolve through existing Scryfall batches, without per-card search fallbacks.
+- Specialize host Card Glint shaders before compilation with `GLINT_FINISH_KIND`, excluding unrelated finish code.
+- Await SDK printing/coating shader readiness before GPU preparation, flush host shader links before polling, and reuse completed Pixi programs without relinking; keep Heat source content visible while GPU resources are pending.
+- Render DOM foil overlays in bounded atlas pages before copying their output crops.
+- Upgrade Card Glint to 0.7.13 for native shader compilation fixes and updated frame calibration, with matching offline and finish-cache revisions.
+- Restore in-game and DOM card foiling by enabling the shared Card Glint feature flag.
+- **ui:** allow Space to declare no blockers ([#1050](https://github.com/witchesofthehill/manabrew/issues/1050)).
+
+## [3.69.2](https://github.com/witchesofthehill/manabrew/compare/v3.69.1...v3.69.2) (2026-11-02)
+
+### Fixes
+
+* **ui:** restore hybrid desktop density and compact home layout ([#1140](https://github.com/witchesofthehill/manabrew/issues/1140)) ([e022b84](https://github.com/witchesofthehill/manabrew/commit/e022b84f5e7dfb10fee80a02b1fb9d39ff1db66e))
+
+## [3.69.1](https://github.com/witchesofthehill/manabrew/compare/v3.69.0...v3.69.1) (2026-11-02)
+
+### Fixes
+
+* update landing ([#1165](https://github.com/witchesofthehill/manabrew/issues/1165)) ([fa9ab5a](https://github.com/witchesofthehill/manabrew/commit/fa9ab5a08ea9b14a30c04c8dd4772bbc1ef037fa))
+* more harness bugs ([#1159](https://github.com/witchesofthehill/manabrew/issues/1159)) ([f081bc3](https://github.com/witchesofthehill/manabrew/commit/f081bc3cd8835dc670f19fb665c8aec838c7d86d))
+
+## [3.69.0](https://github.com/witchesofthehill/manabrew/compare/v3.68.3...v3.69.0) (2026-10-31)
+
+### Features
+
+* sounds!!!!!!! ([#893](https://github.com/witchesofthehill/manabrew/issues/893)) ([a14be1e](https://github.com/witchesofthehill/manabrew/commit/a14be1eec3434610b1a7c3adabea1abf6619e62c))
+
+## [3.68.3](https://github.com/witchesofthehill/manabrew/compare/v3.68.2...v3.68.3) (2026-10-31)
+
+### Fixes
+
+* remove webkit check ([#1160](https://github.com/witchesofthehill/manabrew/issues/1160)) ([25cf85f](https://github.com/witchesofthehill/manabrew/commit/25cf85f7acf7f0530ac9ba51463729f080f66f1c))
+
+## [3.68.2](https://github.com/witchesofthehill/manabrew/compare/v3.68.1...v3.68.2) (2026-10-31)
+
+### Fixes
+
+* misc controller issues ([#1158](https://github.com/witchesofthehill/manabrew/issues/1158)) ([cbcccdb](https://github.com/witchesofthehill/manabrew/commit/cbcccdb662b769be8f4eddf53e21da84fdb46143))
+
+## [3.68.1](https://github.com/witchesofthehill/manabrew/compare/v3.68.0...v3.68.1) (2026-10-29)
+
+### Fixes
+
+* **ui:** prevent browser context menu on card previews ([#1126](https://github.com/witchesofthehill/manabrew/issues/1126)) ([787f938](https://github.com/witchesofthehill/manabrew/commit/787f938e9ffb8b814f222748875e7e776e2fcd5d))
+
+## [3.68.0](https://github.com/witchesofthehill/manabrew/compare/v3.67.2...v3.68.0) (2026-10-29)
+
+### Features
+
+* record + repeat ([#1061](https://github.com/witchesofthehill/manabrew/issues/1061)) ([8b33025](https://github.com/witchesofthehill/manabrew/commit/8b33025765914991e7a8b58254b8cfc64d64318a))
+
+## [3.67.2](https://github.com/witchesofthehill/manabrew/compare/v3.67.1...v3.67.2) (2026-10-28)
+
+### Fixes
+
+* many audit fixes ([#1145](https://github.com/witchesofthehill/manabrew/issues/1145)) ([5ec73a7](https://github.com/witchesofthehill/manabrew/commit/5ec73a78c703ff867640ff6144260399f15b14b6))
+
+## [3.67.1](https://github.com/witchesofthehill/manabrew/compare/v3.67.0...v3.67.1) (2026-10-28)
+
+### Fixes
+
+* **ui:** inspect authorized face-down cards in forge games ([#1144](https://github.com/witchesofthehill/manabrew/issues/1144)) ([0b1904e](https://github.com/witchesofthehill/manabrew/commit/0b1904e0d457a259ac85751b2db7878ad6e40b96))
+
+## [3.67.0](https://github.com/witchesofthehill/manabrew/compare/v3.66.1...v3.67.0) (2026-10-28)
+
+### Features
+
+* brewies ([#1143](https://github.com/witchesofthehill/manabrew/issues/1143)) ([101d3c4](https://github.com/witchesofthehill/manabrew/commit/101d3c47cf03b392dfbe98491cea55e633808f8b))
+
 ## [3.66.1](https://github.com/witchesofthehill/manabrew/compare/v3.66.0...v3.66.1) (2026-10-28)
 
 ### Fixes
@@ -148,6 +467,8 @@
 * Preserve translated leveler abilities and reminders in native card rendering.
 * Match Realistic print-dot previews to production without changing scan finish geometry.
 * Check relay support for new card materials before submitting a customized deck.
+* Upgrade Card Glint to 0.6.12, adopting its printing defaults and Oracle flavor selection while preserving explicit cosmetic overrides.
+* Prepare print dots and cardstock on each renderer's GPU, preserving bounded batching caches and restoring cached printing correctly after context loss.
 
 ## [3.62.2](https://github.com/witchesofthehill/manabrew/compare/v3.62.1...v3.62.2) (2026-10-21)
 

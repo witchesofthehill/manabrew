@@ -304,7 +304,7 @@ export class LimitedRenderer {
       }
     }
     this.dragGroups.set(lead, followers);
-    this.motionLayer.setChildIndex(lead, this.motionLayer.children.length - 1);
+    this.motionLayer.addChild(lead);
   }
   updateSelection(lead: Container, deltaMs: number): void {
     const followers = this.dragGroups.get(lead);
@@ -361,6 +361,8 @@ export class LimitedRenderer {
     if (!lifted || lifted.pane !== pane) return;
     this.liftedCards.delete(root);
     if (!root.destroyed) {
+      gsap.killTweensOf(root);
+      gsap.killTweensOf(root.scale);
       if (!pane.root.destroyed) {
         const transform = root.getGlobalTransform();
         transform.prepend(pane.root.getGlobalTransform().invert());

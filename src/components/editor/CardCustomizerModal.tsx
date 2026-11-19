@@ -8,6 +8,7 @@ import { isFeatureEnabled } from "@/featureFlags";
 import { CardPrintingPicker } from "@/components/editor/CardPrintingPicker";
 import { useCardCustomizerDraft } from "@/components/editor/useCardCustomizerDraft";
 import { useCardCustomizerEligibility } from "@/components/editor/useCardCustomizerEligibility";
+import { useCardCustomizerCalibration } from "@/components/editor/useCardCustomizerCalibration";
 import { customizationSourceChanged } from "@/components/editor/cardCustomizerDraft";
 import { executeDeckEdit } from "@/components/editor/deckEditor.history";
 import { deriveTokens } from "@/lib/decks";
@@ -38,6 +39,7 @@ export function CardCustomizerModal({
   const [opening] = useState({ sessionId: editorSessionId, cardId: card.identity.id, token });
   const editor = useCardCustomizerDraft(currentDeck, card, token);
   const retroCompatible = useCardCustomizerEligibility(editor.preview);
+  const calibration = useCardCustomizerCalibration(editor.preview);
   const sessionValid =
     opening.sessionId === editorSessionId &&
     opening.cardId === card.identity.id &&
@@ -46,7 +48,11 @@ export function CardCustomizerModal({
   const tokenSupported = !token || !!resolveTokenCustomizationScript(editor.active ?? card);
   const frameSupported = editor.draft?.cosmetics?.frame !== "retro" || retroCompatible === true;
   const canSave =
-    canEdit && editor.pending && frameSupported && (tokenSupported || !editor.draft?.cosmetics);
+    canEdit &&
+    editor.pending &&
+    frameSupported &&
+    calibration.valid &&
+    (tokenSupported || !editor.draft?.cosmetics);
   const save = () => {
     const draft = editor.draft;
     if (!canSave || !draft) return;
@@ -85,26 +91,23 @@ export function CardCustomizerModal({
   return (
     <Modal onClose={onClose} maxWidth="max-w-7xl" ariaLabel={`Customize ${card.identity.name}`}>
       <Modal.Header>
-        <div>
-          <h2 className="text-ui-body font-semibold">Customize card</h2>
-          <p className="text-ui-label text-muted-foreground">{card.identity.name}</p>
-        </div>
+        <h2 className="min-w-0 truncate text-ui-body font-semibold">
+          Customize card - {card.identity.name}
+          <span className="font-normal text-muted-foreground">
+            {" - "}
+            {editor.preview.identity.setCode.toUpperCase()} #{editor.preview.identity.cardNumber}
+            {editor.preview.identity.foil ? " · Foil" : " · Nonfoil"}
+          </span>
+        </h2>
       </Modal.Header>
       <Modal.Body className="overflow-y-auto">
-        <div className="grid items-start gap-5 md:grid-cols-[minmax(0,18rem)_minmax(0,1fr)]">
+        <div className="grid gap-5 md:grid-cols-[minmax(0,24rem)_minmax(0,1fr)]">
           <div className="min-w-0">
             {isFeatureEnabled("cardFoil") ? (
-              <CardGlintInspect
-                card={editor.preview}
-                className="min-h-64 rounded-lg border bg-muted/20 sm:min-h-96"
-              />
+              <CardGlintInspect card={editor.preview} className="p-0" />
             ) : (
               <GeneratedCardImage deckCard={editor.preview} className="w-full rounded-lg" />
             )}
-            <p className="mt-2 text-ui-meta text-muted-foreground">
-              {editor.preview.identity.setCode.toUpperCase()} #{editor.preview.identity.cardNumber}
-              {editor.preview.identity.foil ? " · Foil" : " · Nonfoil"}
-            </p>
           </div>
           <CardCustomizerSettings
             editor={editor}
@@ -114,27 +117,23 @@ export function CardCustomizerModal({
             tokenSupported={tokenSupported}
             retroCompatible={retroCompatible}
             frameSupported={frameSupported}
-          />
+            calibration={calibration}
+          >
+            <section aria-label="Printings" className="mt-auto min-w-0 space-y-1.5">
+              <h3 className="touch:min-h-11 text-ui-label font-medium">Printings</h3>
+              <CardPrintingPicker
+                cardName={card.identity.name}
+                token={token ? (editor.active ?? card) : undefined}
+                printing={editor.preview.identity}
+                layout="row"
+                disabled={!canEdit}
+                onSelect={(printing) => {
+                  if (canEdit) editor.editPrinting(printing);
+                }}
+              />
+            </section>
+          </CardCustomizerSettings>
         </div>
-        <section aria-label="Printings" className="mt-5 min-w-0 space-y-3 border-t pt-4">
-          <h3 className="text-ui-label font-semibold">Printings</h3>
-          <p className="text-ui-body text-muted-foreground" aria-live="polite">
-            {token
-              ? "Choose a printing for this deck's token type."
-              : "Choose a printing for this card."}
-            {" Changes apply only when you save."}
-          </p>
-          <CardPrintingPicker
-            cardName={card.identity.name}
-            token={token ? (editor.active ?? card) : undefined}
-            printing={editor.preview.identity}
-            layout="row"
-            disabled={!canEdit}
-            onSelect={(printing) => {
-              if (canEdit) editor.editPrinting(printing);
-            }}
-          />
-        </section>
       </Modal.Body>
       <Modal.Footer className="flex-wrap gap-2">
         <Button variant="outline" disabled={!canEdit} onClick={editor.reset}>

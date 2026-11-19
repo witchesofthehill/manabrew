@@ -42,6 +42,7 @@
     "CardFutureTreatment",
     "CardPrintDots",
     "CardPrintingBorder",
+    "CardPrintingCalibration",
     "CardPrintingColor",
     "CardPrintingElementOverride",
     "CardPrintingElements",
@@ -127,8 +128,8 @@
       "refs": ["LevelUpKind", "Mana"]
     },
     "AlternativeCostKind": {
-      "ts": "type AlternativeCostKind =\n  | \"flashback\"\n  | \"spectacle\"\n  | \"evoke\"\n  | \"dash\"\n  | \"blitz\"\n  | \"escape\"\n  | \"overload\"\n  | \"madness\"\n  | \"foretell\"\n  | \"emerge\"\n  | \"suspend\"\n  | \"morph\"\n  | \"megamorph\"\n  | \"bestow\"\n  | \"warp\"\n  | \"sacrificeAlt\"\n  | \"plot\"\n  | \"awaken\"\n  | \"disturb\"\n  | \"harmonize\"\n  | \"freerunning\"\n  | \"impending\"\n  | \"mayhem\"\n  | \"moreThanMeetsTheEye\"\n  | \"mutate\"\n  | \"prowl\"\n  | \"sneak\"\n  | \"surge\"\n  | \"webSlinging\"\n  | \"plotted\"\n  | \"prototype\";",
-      "rust": "/// Mirrors the engine's `AlternativeCost` (itself a mirror of Java's).\n#[serde(rename_all = \"camelCase\")]\npub enum AlternativeCostKind {\n    Flashback,\n    Spectacle,\n    Evoke,\n    Dash,\n    Blitz,\n    Escape,\n    Overload,\n    Madness,\n    Foretell,\n    Emerge,\n    Suspend,\n    Morph,\n    Megamorph,\n    Bestow,\n    Warp,\n    SacrificeAlt,\n    Plot,\n    Awaken,\n    Disturb,\n    Harmonize,\n    Freerunning,\n    Impending,\n    Mayhem,\n    #[serde(rename = \"moreThanMeetsTheEye\")]\n    MTMtE,\n    Mutate,\n    Prowl,\n    Sneak,\n    Surge,\n    WebSlinging,\n    Plotted,\n    Prototype,\n}",
+      "ts": "type AlternativeCostKind =\n  | \"flashback\"\n  | \"beamMeUp\"\n  | \"spectacle\"\n  | \"evoke\"\n  | \"dash\"\n  | \"blitz\"\n  | \"escape\"\n  | \"overload\"\n  | \"madness\"\n  | \"foretell\"\n  | \"emerge\"\n  | \"suspend\"\n  | \"morph\"\n  | \"megamorph\"\n  | \"bestow\"\n  | \"warp\"\n  | \"sacrificeAlt\"\n  | \"plot\"\n  | \"awaken\"\n  | \"disturb\"\n  | \"harmonize\"\n  | \"freerunning\"\n  | \"impending\"\n  | \"mayhem\"\n  | \"moreThanMeetsTheEye\"\n  | \"mutate\"\n  | \"prowl\"\n  | \"sneak\"\n  | \"surge\"\n  | \"webSlinging\"\n  | \"plotted\"\n  | \"prototype\";",
+      "rust": "/// Mirrors the engine's `AlternativeCost` (itself a mirror of Java's).\n#[serde(rename_all = \"camelCase\")]\npub enum AlternativeCostKind {\n    Flashback,\n    BeamMeUp,\n    Spectacle,\n    Evoke,\n    Dash,\n    Blitz,\n    Escape,\n    Overload,\n    Madness,\n    Foretell,\n    Emerge,\n    Suspend,\n    Morph,\n    Megamorph,\n    Bestow,\n    Warp,\n    SacrificeAlt,\n    Plot,\n    Awaken,\n    Disturb,\n    Harmonize,\n    Freerunning,\n    Impending,\n    Mayhem,\n    #[serde(rename = \"moreThanMeetsTheEye\")]\n    MTMtE,\n    Mutate,\n    Prowl,\n    Sneak,\n    Surge,\n    WebSlinging,\n    Plotted,\n    Prototype,\n}",
       "refs": []
     },
     "AttackTargetDto": {
@@ -142,8 +143,8 @@
       "refs": []
     },
     "AttackerOptionDto": {
-      "ts": "interface AttackerOptionDto {\n  attackerId: string;\n  validTargetIds: Array<string>;\n  mustAttack: boolean;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct AttackerOptionDto {\n    pub attacker_id: String,\n    pub valid_target_ids: Vec<String>,\n    pub must_attack: bool,\n}",
+      "ts": "interface AttackerOptionDto {\n  attackerId: string;\n  validTargetIds: Array<string>;\n  mustAttack: boolean;\n  suggestedTargetId?: string;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct AttackerOptionDto {\n    pub attacker_id: String,\n    pub valid_target_ids: Vec<String>,\n    pub must_attack: bool,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub suggested_target_id: Option<String>,\n}",
       "refs": []
     },
     "AvailableAction": {
@@ -274,6 +275,11 @@
       "rust": "pub enum CardPrintingBorder {\n    #[serde(rename = \"black\")]\n    Black,\n    #[serde(rename = \"white\")]\n    White,\n    #[serde(rename = \"silver\")]\n    Silver,\n}",
       "refs": []
     },
+    "CardPrintingCalibration": {
+      "ts": "type CardPrintingCalibration =\n  | \"auto\"\n  | \"printing\"\n  | \"source\"\n  | \"m21-modern\"\n  | \"8ed-eighth\";",
+      "rust": "pub enum CardPrintingCalibration {\n    #[serde(rename = \"auto\")]\n    Auto,\n    #[serde(rename = \"printing\")]\n    Printing,\n    #[serde(rename = \"source\")]\n    Source,\n    #[serde(rename = \"m21-modern\")]\n    M21Modern,\n    #[serde(rename = \"8ed-eighth\")]\n    Eighth,\n}",
+      "refs": []
+    },
     "CardPrintingColor": {
       "ts": "type CardPrintingColor = \"W\" | \"U\" | \"B\" | \"R\" | \"G\";",
       "rust": "pub enum CardPrintingColor {\n    #[serde(rename = \"W\")]\n    W,\n    #[serde(rename = \"U\")]\n    U,\n    #[serde(rename = \"B\")]\n    B,\n    #[serde(rename = \"R\")]\n    R,\n    #[serde(rename = \"G\")]\n    G,\n}",
@@ -299,12 +305,13 @@
       ]
     },
     "CardPrintingOverrides": {
-      "ts": "interface CardPrintingOverrides {\n  artist?: string;\n  legalText?: string;\n  collectorNumber?: string;\n  collectorTotal?: number;\n  collectorFormat?: CardCollectorFormat;\n  collectorLanguage?: string;\n  collectorSetCode?: string;\n  styleSetCode?: string;\n  frameColors?: Array<CardPrintingColor>;\n  futureTreatment?: CardFutureTreatment;\n  setSymbolCode?: string;\n  setSymbolMask?: CardSetSymbolMask;\n  symbolStyle?: CardSymbolStyle;\n  borderColor?: CardPrintingBorder;\n  securityStamp?: CardSecurityStamp;\n  elements?: CardPrintingElements;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\", deny_unknown_fields)]\npub struct CardPrintingOverrides {\n    #[serde(\n        default,\n        skip_serializing_if = \"Option::is_none\",\n        deserialize_with = \"text\"\n    )]\n    pub artist: Option<String>,\n    #[serde(\n        default,\n        skip_serializing_if = \"Option::is_none\",\n        deserialize_with = \"text\"\n    )]\n    pub legal_text: Option<String>,\n    #[serde(\n        default,\n        skip_serializing_if = \"Option::is_none\",\n        deserialize_with = \"text\"\n    )]\n    pub collector_number: Option<String>,\n    #[serde(\n        default,\n        skip_serializing_if = \"Option::is_none\",\n        deserialize_with = \"collector_total\"\n    )]\n    pub collector_total: Option<u32>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub collector_format: Option<CardCollectorFormat>,\n    #[serde(\n        default,\n        skip_serializing_if = \"Option::is_none\",\n        deserialize_with = \"language\"\n    )]\n    pub collector_language: Option<String>,\n    #[serde(\n        default,\n        skip_serializing_if = \"Option::is_none\",\n        deserialize_with = \"set_code\"\n    )]\n    pub collector_set_code: Option<String>,\n    #[serde(\n        default,\n        skip_serializing_if = \"Option::is_none\",\n        deserialize_with = \"set_code\"\n    )]\n    pub style_set_code: Option<String>,\n    #[serde(\n        default,\n        skip_serializing_if = \"Option::is_none\",\n        deserialize_with = \"frame_colors\"\n    )]\n    pub frame_colors: Option<Vec<CardPrintingColor>>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub future_treatment: Option<CardFutureTreatment>,\n    #[serde(\n        default,\n        skip_serializing_if = \"Option::is_none\",\n        deserialize_with = \"set_code\"\n    )]\n    pub set_symbol_code: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub set_symbol_mask: Option<CardSetSymbolMask>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub symbol_style: Option<CardSymbolStyle>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub border_color: Option<CardPrintingBorder>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub security_stamp: Option<CardSecurityStamp>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub elements: Option<CardPrintingElements>,\n}",
+      "ts": "interface CardPrintingOverrides {\n  calibration?: CardPrintingCalibration;\n  artist?: string;\n  legalText?: string;\n  collectorNumber?: string;\n  collectorTotal?: number;\n  collectorFormat?: CardCollectorFormat;\n  collectorLanguage?: string;\n  collectorSetCode?: string;\n  styleSetCode?: string;\n  frameColors?: Array<CardPrintingColor>;\n  futureTreatment?: CardFutureTreatment;\n  setSymbolCode?: string;\n  setSymbolMask?: CardSetSymbolMask;\n  symbolStyle?: CardSymbolStyle;\n  borderColor?: CardPrintingBorder;\n  securityStamp?: CardSecurityStamp;\n  elements?: CardPrintingElements;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\", deny_unknown_fields)]\npub struct CardPrintingOverrides {\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub calibration: Option<CardPrintingCalibration>,\n    #[serde(\n        default,\n        skip_serializing_if = \"Option::is_none\",\n        deserialize_with = \"text\"\n    )]\n    pub artist: Option<String>,\n    #[serde(\n        default,\n        skip_serializing_if = \"Option::is_none\",\n        deserialize_with = \"text\"\n    )]\n    pub legal_text: Option<String>,\n    #[serde(\n        default,\n        skip_serializing_if = \"Option::is_none\",\n        deserialize_with = \"text\"\n    )]\n    pub collector_number: Option<String>,\n    #[serde(\n        default,\n        skip_serializing_if = \"Option::is_none\",\n        deserialize_with = \"collector_total\"\n    )]\n    pub collector_total: Option<u32>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub collector_format: Option<CardCollectorFormat>,\n    #[serde(\n        default,\n        skip_serializing_if = \"Option::is_none\",\n        deserialize_with = \"language\"\n    )]\n    pub collector_language: Option<String>,\n    #[serde(\n        default,\n        skip_serializing_if = \"Option::is_none\",\n        deserialize_with = \"set_code\"\n    )]\n    pub collector_set_code: Option<String>,\n    #[serde(\n        default,\n        skip_serializing_if = \"Option::is_none\",\n        deserialize_with = \"set_code\"\n    )]\n    pub style_set_code: Option<String>,\n    #[serde(\n        default,\n        skip_serializing_if = \"Option::is_none\",\n        deserialize_with = \"frame_colors\"\n    )]\n    pub frame_colors: Option<Vec<CardPrintingColor>>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub future_treatment: Option<CardFutureTreatment>,\n    #[serde(\n        default,\n        skip_serializing_if = \"Option::is_none\",\n        deserialize_with = \"set_code\"\n    )]\n    pub set_symbol_code: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub set_symbol_mask: Option<CardSetSymbolMask>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub symbol_style: Option<CardSymbolStyle>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub border_color: Option<CardPrintingBorder>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub security_stamp: Option<CardSecurityStamp>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub elements: Option<CardPrintingElements>,\n}",
       "refs": [
         "CardCollectorFormat",
         "CardFutureTreatment",
         "CardPrintingBorder",
+        "CardPrintingCalibration",
         "CardPrintingColor",
         "CardPrintingElements",
         "CardSecurityStamp",
@@ -557,8 +564,13 @@
       "refs": ["DiceRollEntry", "PromptPresentation"]
     },
     "DirectiveInput": {
-      "ts": "type DirectiveInput =\n  | { type: \"concede\" }\n  | { type: \"requestRestore\"; checkpointId: number }\n  | { type: \"restoreVote\"; voteId: number; accept: boolean }\n  | { type: \"setSnapshotRecording\"; enabled: boolean };",
-      "rust": "#[serde(\n    tag = \"type\",\n    rename_all = \"camelCase\",\n    rename_all_fields = \"camelCase\"\n)]\npub enum DirectiveInput {\n    Concede,\n    RequestRestore { checkpoint_id: u32 },\n    RestoreVote { vote_id: u32, accept: bool },\n    SetSnapshotRecording { enabled: bool },\n}",
+      "ts": "type DirectiveInput =\n  | { type: \"concede\" }\n  | { type: \"requestRestore\"; checkpointId: number }\n  | { type: \"restoreVote\"; voteId: number; accept: boolean }\n  | { type: \"setSnapshotRecording\"; enabled: boolean }\n  | { type: \"startRecording\" }\n  | { type: \"stopRecording\" }\n  | { type: \"requestRepeat\"; iterations: number }\n  | { type: \"repeatVote\"; voteId: number; accept: boolean };",
+      "rust": "#[serde(\n    tag = \"type\",\n    rename_all = \"camelCase\",\n    rename_all_fields = \"camelCase\"\n)]\npub enum DirectiveInput {\n    Concede,\n    RequestRestore { checkpoint_id: u32 },\n    RestoreVote { vote_id: u32, accept: bool },\n    SetSnapshotRecording { enabled: bool },\n    StartRecording,\n    StopRecording,\n    RequestRepeat { iterations: u32 },\n    RepeatVote { vote_id: u32, accept: bool },\n}",
+      "refs": []
+    },
+    "DisplayEvent": {
+      "ts": "type DisplayEvent =\n  | {\n      kind: \"cardPlayed\";\n      cardId: string;\n      cardName: string;\n      setCode: string;\n      playerId: string;\n    }\n  | {\n      kind: \"turnChanged\";\n      activePlayerId: string;\n      activePlayerName: string;\n      turnNumber: number;\n    };",
+      "rust": "#[serde(\n    tag = \"kind\",\n    rename_all = \"camelCase\",\n    rename_all_fields = \"camelCase\"\n)]\npub enum DisplayEvent {\n    CardPlayed {\n        card_id: String,\n        card_name: String,\n        set_code: String,\n        player_id: String,\n    },\n    TurnChanged {\n        active_player_id: String,\n        active_player_name: String,\n        turn_number: u32,\n    },\n}",
       "refs": []
     },
     "DungeonStateDto": {
@@ -572,8 +584,8 @@
       "refs": []
     },
     "GameFormat": {
-      "ts": "type GameFormat =\n  | \"Any\"\n  | \"Standard\"\n  | \"Pioneer\"\n  | \"Modern\"\n  | \"Legacy\"\n  | \"Vintage\"\n  | \"Pauper\"\n  | \"Premodern\"\n  | \"Commander\"\n  | \"PauperCommander\"\n  | \"Brawl\"\n  | \"Oathbreaker\"\n  | \"Draft\"\n  | \"Sealed\";",
-      "rust": "pub enum GameFormat {\n    Any,\n    Standard,\n    Pioneer,\n    Modern,\n    Legacy,\n    Vintage,\n    Pauper,\n    Premodern,\n    Commander,\n    PauperCommander,\n    Brawl,\n    Oathbreaker,\n    Draft,\n    Sealed,\n}",
+      "ts": "type GameFormat =\n  | \"Any\"\n  | \"Standard\"\n  | \"Pioneer\"\n  | \"Modern\"\n  | \"Legacy\"\n  | \"Vintage\"\n  | \"Pauper\"\n  | \"Premodern\"\n  | \"Commander\"\n  | \"DuelCommander\"\n  | \"PauperCommander\"\n  | \"Brawl\"\n  | \"Oathbreaker\"\n  | \"Draft\"\n  | \"Sealed\";",
+      "rust": "pub enum GameFormat {\n    Any,\n    Standard,\n    Pioneer,\n    Modern,\n    Legacy,\n    Vintage,\n    Pauper,\n    Premodern,\n    Commander,\n    DuelCommander,\n    PauperCommander,\n    Brawl,\n    Oathbreaker,\n    Draft,\n    Sealed,\n}",
       "refs": []
     },
     "GameOverInput": {

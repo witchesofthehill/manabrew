@@ -1,5 +1,5 @@
 #![allow(clippy::too_many_arguments)]
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc as std_mpsc, Arc, Mutex};
 use std::thread;
@@ -11,7 +11,7 @@ use crate::shell_bridge::{ShellBridge, ShellCommand};
 use crate::updater::{run_stale_monitor, StaleConfig};
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
-use manabot::{run_bot, BotConfig, BotResponder};
+use manabot::{run_bot, BotConfig, BotDeckSelection, BotResponder};
 use manabrew_agent_interface::agent_impl::Responder;
 use manabrew_agent_interface::ids_codec::{parse_player_slot, player_slot};
 use manabrew_agent_interface::prompt::{AgentMessage, ClientToServerMessage, PromptOutput};
@@ -22,7 +22,8 @@ use manabrew_agent_interface::protocol::{
 };
 use manabrew_protocol::deck_dto::Deck;
 use manabrew_protocol::game::{GameViewDto, PlayerStatus};
-use manabrew_protocol::transport::{DirectiveInput, StateUpdate};
+use manabrew_protocol::transport::{DirectiveInput, EngineDirective, StateUpdate};
+use rand::Rng;
 use serde::Deserialize;
 use serde_json::{json, Value};
 use tokio::net::TcpStream;
@@ -45,6 +46,8 @@ const PRIVATE_MESSAGE_MISSING_PLAYER: &str =
 struct RelayClient {
     username: String,
     outbound: tokio_mpsc::UnboundedSender<Message>,
+    supports_game_rematch: bool,
+    pending_messages: VecDeque<ServerMessage>,
     read: WsRead,
     writer: JoinHandle<()>,
 }
@@ -182,7 +185,11 @@ struct HostSnapshot {
     last_state: Option<Value>,
     last_state_by_slot: HashMap<String, Value>,
     pending_prompts: HashMap<String, Value>,
-    pending_end_game: Option<String>,
+    pending_directives: HashMap<(String, &'static str), Value>,
+    pending_completion: Option<ClientMessage>,
+    pending_outcome: Option<GameOutcomeReport>,
+    terminal_envelope: Option<Value>,
+    supports_game_rematch: bool,
 }
 
 type SharedHostSnapshot = Arc<Mutex<HostSnapshot>>;
@@ -507,7 +514,6 @@ async fn host_one_room(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     if let Some(label) = &label {
         config.username = format!("{}-{label}", config.username);
-        config.bot_username = format!("{}-{label}", config.bot_username);
         config.room_name = format!("{} ({label})", config.room_name);
     }
 
@@ -620,7 +626,15 @@ async fn host_one_room(
                         continue;
                     }
                 };
-            match reestablish_room(&mut client, &config, &engine_session, &snapshot).await {
+            match reestablish_room(
+                &mut client,
+                &config,
+                &engine_session,
+                &snapshot,
+                &mut outbound_rx,
+            )
+            .await
+            {
                 Ok(new_room_id) => {
                     if new_room_id != room_id {
                         stop_bots(&bot_state);
@@ -664,10 +678,16 @@ fn reprime_relay_cache(
     };
     let state = snap.last_state_by_slot.get(&slot).cloned();
     let prompt = snap.pending_prompts.get(&slot).cloned();
+    let directives: Vec<Value> = snap
+        .pending_directives
+        .iter()
+        .filter(|((directive_slot, _), _)| *directive_slot == slot)
+        .map(|(_, directive)| directive.clone())
+        .collect();
     drop(snap);
 
     // Stored before `patch_against_last` runs, so these are full states.
-    for state in [state, prompt].into_iter().flatten() {
+    for state in [state, prompt].into_iter().flatten().chain(directives) {
         let _ = outbound_tx.send(ClientMessage::BroadcastState {
             state,
             target_player: Some(username.to_string()),
@@ -697,10 +717,14 @@ async fn establish_room(
     config: &Config,
     snapshot: &SharedHostSnapshot,
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+    if let Ok(mut snap) = snapshot.lock() {
+        snap.supports_game_rematch = client.supports_game_rematch;
+    }
     let room_id = if let Some(room_id) = &config.room_id {
         client
             .send(&ClientMessage::JoinRoom {
                 room_id: room_id.clone(),
+                seat_index: None,
                 observe: !config.host_plays,
                 as_bot: false,
                 password: config.room_password.clone(),
@@ -745,7 +769,11 @@ async fn reestablish_room(
     config: &Config,
     engine_session: &SharedEngineSession,
     snapshot: &SharedHostSnapshot,
+    outbound_rx: &mut tokio_mpsc::UnboundedReceiver<ClientMessage>,
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+    if let Ok(mut snap) = snapshot.lock() {
+        snap.supports_game_rematch = client.supports_game_rematch;
+    }
     let resume = {
         let snap = snapshot.lock().map_err(|error| error.to_string())?;
         match (&snap.resume_token, &snap.game, &snap.room_info) {
@@ -755,30 +783,47 @@ async fn reestablish_room(
             _ => None,
         }
     };
-    let game_active = engine_session
-        .lock()
-        .map(|guard| guard.is_some())
-        .unwrap_or(false);
 
-    if let (Some(request), true) = (resume, game_active) {
+    if let Some(request) = resume {
         let room_id = request.room_id.clone();
         client.send(&ClientMessage::ResumeRoom(request)).await?;
         match wait_for_room_resumed(client, engine_session, snapshot).await? {
             Some(room) => {
-                let (last_state, seat_states, prompts, player_order, pending_end_game) = {
+                let already_finished = room.status == RoomStatus::Finished;
+                let (
+                    last_state,
+                    seat_states,
+                    prompts,
+                    directives,
+                    player_order,
+                    terminal,
+                    mut outcome,
+                    completion,
+                    game_id,
+                ) = {
+                    let _session = engine_session.lock().map_err(|error| error.to_string())?;
+                    while outbound_rx.try_recv().is_ok() {}
                     let mut snap = snapshot.lock().map_err(|error| error.to_string())?;
                     snap.room_info = Some(room);
                     (
                         snap.last_state.clone(),
                         snap.last_state_by_slot.clone(),
                         snap.pending_prompts.clone(),
+                        snap.pending_directives.clone(),
                         snap.game
                             .as_ref()
                             .map(|game| game.player_order.clone())
                             .unwrap_or_default(),
-                        snap.pending_end_game.clone(),
+                        snap.terminal_envelope.clone(),
+                        snap.pending_outcome.clone(),
+                        snap.pending_completion.clone(),
+                        snap.game.as_ref().map(|game| game.game_id.clone()),
                     )
                 };
+                if already_finished {
+                    info!(room_id, "finished room resumed");
+                    return Ok(room_id);
+                }
                 if let Some(state) = last_state {
                     client
                         .send(&ClientMessage::BroadcastState {
@@ -815,8 +860,51 @@ async fn reestablish_room(
                         })
                         .await?;
                 }
-                if let Some(game_id) = pending_end_game {
-                    client.send(&ClientMessage::EndGame { game_id }).await?;
+                for ((slot, _), directive) in directives {
+                    let Some(target_player) =
+                        parse_player_slot(&slot).and_then(|index| player_order.get(index).cloned())
+                    else {
+                        warn!(slot, "cannot replay directive without a mapped player");
+                        continue;
+                    };
+                    client
+                        .send(&ClientMessage::BroadcastState {
+                            state: directive,
+                            target_player: Some(target_player),
+                        })
+                        .await?;
+                }
+                if outcome
+                    .as_ref()
+                    .is_some_and(|outcome| outcome.fatal_message.is_some())
+                {
+                    if let (Some(outcome), Some(game_id)) = (outcome.take(), game_id.clone()) {
+                        client
+                            .send(&ClientMessage::ReportGameOutcome { game_id, outcome })
+                            .await?;
+                    }
+                }
+                if let Some(state) = terminal {
+                    client
+                        .send(&ClientMessage::BroadcastState {
+                            state,
+                            target_player: None,
+                        })
+                        .await?;
+                }
+                if let (Some(outcome), Some(game_id)) = (outcome, game_id) {
+                    client
+                        .send(&ClientMessage::ReportGameOutcome { game_id, outcome })
+                        .await?;
+                }
+                if let Some(completion) = completion {
+                    let completion = match completion {
+                        ClientMessage::FinishGame { game_id } if !client.supports_game_rematch => {
+                            ClientMessage::EndGame { game_id }
+                        }
+                        completion => completion,
+                    };
+                    client.send(&completion).await?;
                 }
                 info!(room_id, "room resumed; snapshot re-broadcast");
                 return Ok(room_id);
@@ -824,9 +912,11 @@ async fn reestablish_room(
             None => {
                 warn!(room_id, "room resume rejected; abandoning hosted game");
                 abort_engine_session(engine_session);
+                while outbound_rx.try_recv().is_ok() {}
             }
         }
     }
+    while outbound_rx.try_recv().is_ok() {}
 
     establish_room(client, config, snapshot).await
 }
@@ -860,6 +950,17 @@ fn resume_room_request(
         draft_config: room_info.draft_config.clone(),
         sealed_config: room_info.sealed_config.clone(),
         player_order: game.player_order.clone(),
+        seat_indices: game
+            .player_order
+            .iter()
+            .map(|username| {
+                room_info
+                    .players
+                    .iter()
+                    .find(|seat| &seat.username == username)
+                    .and_then(|seat| seat.seat_index)
+            })
+            .collect(),
         player_decks: game.player_decks.clone(),
         starting_life: game.starting_life,
         bot_players: room_info
@@ -877,7 +978,30 @@ async fn wait_for_room_resumed(
     engine_session: &SharedEngineSession,
     snapshot: &SharedHostSnapshot,
 ) -> Result<Option<RoomInfo>, Box<dyn std::error::Error + Send + Sync>> {
+    let mut resumed_room: Option<RoomInfo> = None;
+    let mut game_started = None;
     loop {
+        if resumed_room
+            .as_ref()
+            .is_some_and(|room| room.status != RoomStatus::InGame || game_started.is_some())
+        {
+            if let Some((game_id, message)) = game_started {
+                let same_game = snapshot.lock().ok().is_some_and(|snap| {
+                    snap.game
+                        .as_ref()
+                        .is_some_and(|game| game.game_id == game_id)
+                });
+                if !same_game {
+                    abort_stale_engine_session(
+                        engine_session,
+                        snapshot,
+                        "relay resumed a different game",
+                    );
+                    client.pending_messages.push_back(message);
+                }
+            }
+            return Ok(resumed_room);
+        }
         match client.recv().await? {
             Some(ServerMessage::RoomResumed { room }) => {
                 if room.status == RoomStatus::Lobby {
@@ -886,10 +1010,15 @@ async fn wait_for_room_resumed(
                         snapshot,
                         "resumed room is no longer in game",
                     );
+                } else if room.status == RoomStatus::Finished {
+                    release_finished_engine(engine_session, snapshot, &room);
                 } else {
                     concede_missing_active_seats(engine_session, snapshot, &room);
                 }
-                return Ok(Some(room));
+                if room.status == RoomStatus::InGame && game_started.is_none() {
+                    client.send(&ClientMessage::RequestResync).await?;
+                }
+                resumed_room = Some(room);
             }
             Some(ServerMessage::RoomUpdate { room }) => {
                 if room.status == RoomStatus::Lobby {
@@ -898,11 +1027,18 @@ async fn wait_for_room_resumed(
                         snapshot,
                         "room reset while reconnecting",
                     );
+                } else if room.status == RoomStatus::Finished {
+                    release_finished_engine(engine_session, snapshot, &room);
                 } else {
                     concede_missing_active_seats(engine_session, snapshot, &room);
                 }
                 if let Ok(mut snap) = snapshot.lock() {
                     snap.room_info = Some(room);
+                }
+            }
+            Some(message @ ServerMessage::GameStarted { .. }) => {
+                if let ServerMessage::GameStarted { game_id, .. } = &message {
+                    game_started = Some((game_id.clone(), message));
                 }
             }
             Some(ServerMessage::StateUpdate { from_player, state }) => {
@@ -959,13 +1095,50 @@ fn abort_stale_engine_session(
     let stale_game_id = engine_session
         .lock()
         .ok()
-        .and_then(|guard| guard.as_ref().map(|s| s.game_id().to_string()));
+        .and_then(|guard| guard.as_ref().map(|s| s.game_id().to_string()))
+        .or_else(|| {
+            snapshot
+                .lock()
+                .ok()
+                .and_then(|snap| snap.game.as_ref().map(|game| game.game_id.clone()))
+        });
     let Some(stale_game_id) = stale_game_id else {
         return;
     };
     warn!(game_id = %stale_game_id, reason, "aborting stale engine session");
     abort_engine_session(engine_session);
     clear_game_snapshot(snapshot, &stale_game_id);
+}
+
+fn release_finished_engine(
+    engine_session: &SharedEngineSession,
+    snapshot: &SharedHostSnapshot,
+    room: &RoomInfo,
+) {
+    let Some(rematch) = room.rematch.as_ref() else {
+        return;
+    };
+    if let Ok(mut session) = engine_session.lock() {
+        if session
+            .as_ref()
+            .is_some_and(|session| session.game_id() == rematch.game_id)
+        {
+            if let Some(EngineSession::Forge { cancel, .. }) = session.as_ref() {
+                cancel.store(true, Ordering::Relaxed);
+            }
+            *session = None;
+        }
+    }
+    if let Ok(mut snap) = snapshot.lock() {
+        if snap
+            .game
+            .as_ref()
+            .is_some_and(|game| game.game_id == rematch.game_id)
+        {
+            snap.pending_prompts.clear();
+            snap.pending_directives.clear();
+        }
+    }
 }
 
 fn clear_game_snapshot(snapshot: &SharedHostSnapshot, game_id: &str) {
@@ -979,7 +1152,10 @@ fn clear_game_snapshot(snapshot: &SharedHostSnapshot, game_id: &str) {
             snap.last_state = None;
             snap.last_state_by_slot.clear();
             snap.pending_prompts.clear();
-            snap.pending_end_game = None;
+            snap.pending_directives.clear();
+            snap.pending_completion = None;
+            snap.pending_outcome = None;
+            snap.terminal_envelope = None;
         }
     }
 }
@@ -1022,20 +1198,22 @@ fn spawn_bots(config: &Config, decks: &[DeckSelection], room_id: &str, bot_state
     };
     let open_seats = config.max_players.saturating_sub(1) as usize;
     for (index, deck) in decks.iter().take(open_seats).enumerate() {
-        let username = if index == 0 {
-            config.bot_username.clone()
-        } else {
-            format!("{} {}", config.bot_username, index + 1)
-        };
+        let tag = rand::thread_rng().gen_range(1000..10000);
+        let username = format!("{}{}@{tag}", config.bot_username, index + 1);
         let relay_url = config.relay_url.clone();
         let bot_config = BotConfig {
             username,
             password: config.password.clone(),
             room_id: room_id.to_string(),
+            seat_index: None,
             room_password: config.room_password.clone(),
-            deck_name: deck.name.clone(),
-            deck: deck.deck.clone(),
-            commander_name: deck.commander_name.clone(),
+            selection: Some(BotDeckSelection {
+                deck_name: deck.name.clone(),
+                deck: deck.deck.clone(),
+                published_deck_id: None,
+                commander_name: deck.commander_name.clone(),
+                avatar_url: None,
+            }),
             agent: config.bot_agent,
             answer_delay_ms: None,
         };
@@ -1147,7 +1325,19 @@ async fn run_client_loop(
     heartbeat.set_missed_tick_behavior(time::MissedTickBehavior::Delay);
     let mut drain_tick = time::interval(Duration::from_secs(5));
     drain_tick.set_missed_tick_behavior(time::MissedTickBehavior::Delay);
-    let mut bot_usernames: HashSet<String> = HashSet::new();
+    let mut bot_usernames: HashSet<String> = snapshot
+        .lock()
+        .ok()
+        .and_then(|snap| {
+            snap.room_info.as_ref().map(|room| {
+                room.players
+                    .iter()
+                    .filter(|player| player.is_bot)
+                    .map(|player| player.username.clone())
+                    .collect()
+            })
+        })
+        .unwrap_or_default();
     let mut forge_ai = config.forge_ai;
 
     loop {
@@ -1275,6 +1465,8 @@ async fn handle_server_message(
             log_room_update(&client.username, &room);
             if room.status == RoomStatus::Lobby {
                 abort_stale_engine_session(engine_session, snapshot, "room reset to lobby");
+            } else if room.status == RoomStatus::Finished {
+                release_finished_engine(engine_session, snapshot, &room);
             } else {
                 end_game_without_humans(engine_session, snapshot, outbound_tx, &room);
             }
@@ -1329,6 +1521,13 @@ async fn handle_server_message(
             starting_life,
         } => {
             info!(room_id, game_id, ?player_order, observer = %client.username, "game started");
+            if snapshot.lock().ok().is_some_and(|snap| {
+                snap.game
+                    .as_ref()
+                    .is_some_and(|game| game.game_id == game_id)
+            }) {
+                return Ok(());
+            }
             abort_stale_engine_session(engine_session, snapshot, "relay started a new game");
             if let Ok(mut snap) = snapshot.lock() {
                 snap.game = Some(GameStart {
@@ -1340,7 +1539,10 @@ async fn handle_server_message(
                 snap.last_state = None;
                 snap.last_state_by_slot.clear();
                 snap.pending_prompts.clear();
-                snap.pending_end_game = None;
+                snap.pending_directives.clear();
+                snap.pending_completion = None;
+                snap.pending_outcome = None;
+                snap.terminal_envelope = None;
             }
             let mut left_the_relay = Vec::new();
             if let Some(shell) = bridge {
@@ -1557,6 +1759,7 @@ fn is_commander_variant(format: GameFormat) -> bool {
     match format {
         GameFormat::Any
         | GameFormat::Commander
+        | GameFormat::DuelCommander
         | GameFormat::PauperCommander
         | GameFormat::Brawl
         | GameFormat::Oathbreaker => true,
@@ -1577,7 +1780,7 @@ fn is_commander_variant(format: GameFormat) -> bool {
 fn java_game_variant(format: GameFormat) -> &'static str {
     match format {
         GameFormat::Any => "",
-        GameFormat::Commander => "Commander",
+        GameFormat::Commander | GameFormat::DuelCommander => "Commander",
         GameFormat::PauperCommander => "PauperCommander",
         GameFormat::Brawl => "Brawl",
         GameFormat::Oathbreaker => "Oathbreaker",
@@ -1724,7 +1927,7 @@ fn maybe_start_hosted_engine(
             });
             drop(guard);
 
-            spawn_remote_prompt_forwarder(
+            let prompt_forwarder = spawn_remote_prompt_forwarder(
                 outbound_tx.clone(),
                 snapshot.clone(),
                 engine_session.clone(),
@@ -1743,6 +1946,7 @@ fn maybe_start_hosted_engine(
                 snapshot.clone(),
                 game_id.clone(),
                 Some(player_names.clone()),
+                prompt_forwarder,
             );
             let outbound_tx = outbound_tx.clone();
             let snapshot = snapshot.clone();
@@ -1803,7 +2007,7 @@ fn maybe_start_hosted_engine(
             });
             drop(guard);
 
-            spawn_remote_prompt_forwarder(
+            let prompt_forwarder = spawn_remote_prompt_forwarder(
                 outbound_tx.clone(),
                 snapshot.clone(),
                 engine_session.clone(),
@@ -1822,6 +2026,7 @@ fn maybe_start_hosted_engine(
                 snapshot.clone(),
                 game_id.clone(),
                 Some(player_names.clone()),
+                prompt_forwarder,
             );
             let outbound_tx = outbound_tx.clone();
             let snapshot = snapshot.clone();
@@ -2012,29 +2217,37 @@ fn finish_hosted_engine(
         }
     };
     crate::metrics::record_engine_session_finished(players, started, fatal.as_deref());
-    let still_owner = session_handle
-        .lock()
-        .map(|guard| guard.as_ref().is_some_and(|s| s.game_id() == game_id))
-        .unwrap_or(false);
+    let session = session_handle.lock();
+    let still_owner = session
+        .as_ref()
+        .is_ok_and(|guard| guard.as_ref().is_some_and(|s| s.game_id() == game_id));
     if let Some(message) = fatal {
         if still_owner {
+            let outcome = GameOutcomeReport {
+                fatal_message: Some(message.clone()),
+                ..GameOutcomeReport::default()
+            };
+            let terminal = serde_json::to_value(StateEnvelope::Fatal { message }).ok();
             if let Ok(mut snap) = snapshot.lock() {
                 if snap
                     .game
                     .as_ref()
                     .is_some_and(|game| game.game_id == game_id)
                 {
-                    snap.pending_end_game = Some(game_id.to_string());
+                    snap.pending_completion = Some(ClientMessage::EndGame {
+                        game_id: game_id.to_string(),
+                    });
+                    snap.pending_outcome = Some(outcome.clone());
+                    snap.terminal_envelope = terminal.clone();
+                    snap.pending_prompts.clear();
+                    snap.pending_directives.clear();
                 }
             }
             let _ = outbound_tx.send(ClientMessage::ReportGameOutcome {
                 game_id: game_id.to_string(),
-                outcome: GameOutcomeReport {
-                    fatal_message: Some(message.clone()),
-                    ..GameOutcomeReport::default()
-                },
+                outcome,
             });
-            if let Ok(state) = serde_json::to_value(StateEnvelope::Fatal { message }) {
+            if let Some(state) = terminal {
                 let _ = outbound_tx.send(ClientMessage::BroadcastState {
                     state,
                     target_player: None,
@@ -2185,13 +2398,16 @@ fn route_remote_directive(
     info!(claimed_slot, player_index, ?directive, "routing directive");
     match directive {
         DirectiveInput::Concede => concede_seat(engine_session, player_index),
-        DirectiveInput::RequestRestore { .. } | DirectiveInput::RestoreVote { .. } => {
-            send_seat_message(
-                engine_session,
-                player_index,
-                ClientToServerMessage::Directive { directive },
-            )
-        }
+        DirectiveInput::RequestRestore { .. }
+        | DirectiveInput::RestoreVote { .. }
+        | DirectiveInput::StartRecording
+        | DirectiveInput::StopRecording
+        | DirectiveInput::RequestRepeat { .. }
+        | DirectiveInput::RepeatVote { .. } => send_seat_message(
+            engine_session,
+            player_index,
+            ClientToServerMessage::Directive { directive },
+        ),
         DirectiveInput::SetSnapshotRecording { .. } => {
             warn!(claimed_slot, "only the engine host sets snapshot recording");
         }
@@ -2402,12 +2618,11 @@ fn spawn_remote_prompt_forwarder(
     state_delta: bool,
     engine_clock: EngineClock,
     mut local_bots: HashMap<usize, BotResponder>,
-) {
+) -> thread::JoinHandle<()> {
     thread::spawn(move || {
         let mut last_state_by_seat: HashMap<usize, Value> = HashMap::new();
         let mut delta_bases: HashMap<usize, (Value, String)> = HashMap::new();
         let mut last_state: Option<Value> = None;
-        let mut last_display: Option<Value> = None;
         while let Ok((player_index, message)) = remote_prompt_rx.recv() {
             let Ok(session) = engine_session.lock() else {
                 break;
@@ -2451,9 +2666,7 @@ fn spawn_remote_prompt_forwarder(
                 }
                 AgentMessage::State(_) if last_state.as_ref() == Some(&state) => continue,
                 AgentMessage::State(_) => last_state = Some(state.clone()),
-                AgentMessage::Display(_) if last_display.as_ref() == Some(&state) => continue,
-                AgentMessage::Display(_) => last_display = Some(state.clone()),
-                AgentMessage::Prompt(_) | AgentMessage::Error(_) => {}
+                AgentMessage::Prompt(_) | AgentMessage::Directive(_) | AgentMessage::Error(_) => {}
             }
             if let Ok(mut snap) = snapshot.lock() {
                 match &message {
@@ -2464,7 +2677,15 @@ fn spawn_remote_prompt_forwarder(
                     AgentMessage::Prompt(_) => {
                         snap.pending_prompts.insert(slot.clone(), state.clone());
                     }
-                    AgentMessage::Display(_) | AgentMessage::Error(_) => {}
+                    AgentMessage::Directive(directive) => {
+                        let kind = match directive {
+                            EngineDirective::Recording { .. } => "recording",
+                            EngineDirective::RepeatVote { .. } => "repeatVote",
+                        };
+                        snap.pending_directives
+                            .insert((slot.clone(), kind), state.clone());
+                    }
+                    AgentMessage::Error(_) => {}
                 }
             }
             if let Some(bot) = local_bots.get_mut(&player_index) {
@@ -2482,11 +2703,7 @@ fn spawn_remote_prompt_forwarder(
                 .unwrap_or(state),
                 _ => state,
             };
-            let target_player = if per_seat
-                && matches!(
-                    message,
-                    AgentMessage::State(_) | AgentMessage::Prompt(_) | AgentMessage::Error(_)
-                ) {
+            let target_player = if per_seat {
                 let Some(target_player) = seat_usernames
                     .as_ref()
                     .and_then(|names| names.get(player_index).cloned())
@@ -2508,7 +2725,7 @@ fn spawn_remote_prompt_forwarder(
                 break;
             }
         }
-    });
+    })
 }
 
 fn outcome_report(view: &GameViewDto) -> GameOutcomeReport {
@@ -2538,9 +2755,14 @@ fn spawn_game_over_forwarder(
     snapshot: SharedHostSnapshot,
     game_id: String,
     seat_usernames: Option<Vec<String>>,
+    prompt_forwarder: thread::JoinHandle<()>,
 ) {
     thread::spawn(move || {
+        let mut prompt_forwarder = Some(prompt_forwarder);
         while let Ok(game_over) = game_over_rx.recv() {
+            if let Some(forwarder) = prompt_forwarder.take() {
+                let _ = forwarder.join();
+            }
             let Ok(session) = session_handle.lock() else {
                 return;
             };
@@ -2553,15 +2775,6 @@ fn spawn_game_over_forwarder(
                     "stale engine session reached game over; not ending the relay game"
                 );
                 continue;
-            }
-            if let Ok(mut snap) = snapshot.lock() {
-                if snap
-                    .game
-                    .as_ref()
-                    .is_some_and(|game| game.game_id == game_id)
-                {
-                    snap.pending_end_game = Some(game_id.clone());
-                }
             }
             let outcome = game_over
                 .messages
@@ -2605,14 +2818,11 @@ fn spawn_game_over_forwarder(
                     }
                     AgentMessage::State(_) if last_state.as_ref() == Some(&state) => continue,
                     AgentMessage::State(_) => last_state = Some(state.clone()),
-                    AgentMessage::Display(_) | AgentMessage::Prompt(_) | AgentMessage::Error(_) => {
-                    }
+                    AgentMessage::Prompt(_)
+                    | AgentMessage::Directive(_)
+                    | AgentMessage::Error(_) => {}
                 }
-                let target_player = if per_seat
-                    && matches!(
-                        message,
-                        AgentMessage::State(_) | AgentMessage::Prompt(_) | AgentMessage::Error(_)
-                    ) {
+                let target_player = if per_seat {
                     let Some(target_player) = seat_usernames
                         .as_ref()
                         .and_then(|names| names.get(player_index).cloned())
@@ -2624,6 +2834,16 @@ fn spawn_game_over_forwarder(
                 } else {
                     None
                 };
+                if matches!(message, AgentMessage::State(_)) {
+                    if let Ok(mut snap) = snapshot.lock() {
+                        if per_seat {
+                            snap.last_state_by_slot
+                                .insert(player_slot(player_index), state.clone());
+                        } else {
+                            snap.last_state = Some(state.clone());
+                        }
+                    }
+                }
                 if outbound_tx
                     .send(ClientMessage::BroadcastState {
                         state,
@@ -2645,6 +2865,37 @@ fn spawn_game_over_forwarder(
             }) else {
                 continue;
             };
+            let completion = {
+                let Ok(mut snap) = snapshot.lock() else {
+                    return;
+                };
+                let rematch_supported = snap.supports_game_rematch
+                    && outcome.as_ref().is_some_and(|outcome| {
+                        outcome.game_over && outcome.fatal_message.is_none()
+                    })
+                    && snap.room_info.as_ref().is_some_and(|room| {
+                        !matches!(
+                            room.format,
+                            GameFormat::Any | GameFormat::Draft | GameFormat::Sealed
+                        ) && room.draft_config.is_none()
+                            && room.sealed_config.is_none()
+                    });
+                let completion = if rematch_supported {
+                    ClientMessage::FinishGame {
+                        game_id: game_id.clone(),
+                    }
+                } else {
+                    ClientMessage::EndGame {
+                        game_id: game_id.clone(),
+                    }
+                };
+                snap.pending_completion = Some(completion.clone());
+                snap.pending_outcome = outcome.clone();
+                snap.terminal_envelope = Some(state.clone());
+                snap.pending_prompts.clear();
+                snap.pending_directives.clear();
+                completion
+            };
             if outbound_tx
                 .send(ClientMessage::BroadcastState {
                     state,
@@ -2660,12 +2911,7 @@ fn spawn_game_over_forwarder(
                     outcome,
                 });
             }
-            if outbound_tx
-                .send(ClientMessage::EndGame {
-                    game_id: game_id.clone(),
-                })
-                .is_err()
-            {
+            if outbound_tx.send(completion).is_err() {
                 return;
             }
         }
@@ -2710,6 +2956,8 @@ impl RelayClient {
         let mut client = Self {
             username: username.to_string(),
             outbound,
+            supports_game_rematch: false,
+            pending_messages: VecDeque::new(),
             read,
             writer,
         };
@@ -2725,6 +2973,7 @@ impl RelayClient {
                 client_platform: ClientPlatform::Unknown,
                 client_version: None,
                 engine_gate: EngineGate::Unknown,
+                acquisition_source: None,
             })
             .await?;
         client.wait_for_auth().await?;
@@ -2734,8 +2983,16 @@ impl RelayClient {
     async fn wait_for_auth(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         loop {
             match self.recv().await? {
-                Some(ServerMessage::AuthResult { success, error, .. }) => {
+                Some(ServerMessage::AuthResult {
+                    success,
+                    error,
+                    features,
+                    ..
+                }) => {
                     if success {
+                        self.supports_game_rematch = features.iter().any(|feature| {
+                            feature == manabrew_relay_protocol::FEATURE_GAME_REMATCH
+                        });
                         info!(username = %self.username, "authenticated");
                         return Ok(());
                     }
@@ -2765,6 +3022,9 @@ impl RelayClient {
     async fn recv(
         &mut self,
     ) -> Result<Option<ServerMessage>, Box<dyn std::error::Error + Send + Sync>> {
+        if let Some(message) = self.pending_messages.pop_front() {
+            return Ok(Some(message));
+        }
         loop {
             let Some(message) = self.read.next().await else {
                 return Ok(None);
@@ -2917,7 +3177,7 @@ mod local_bot_tests {
             }),
             ..HostSnapshot::default()
         }));
-        spawn_remote_prompt_forwarder(
+        let _ = spawn_remote_prompt_forwarder(
             outbound_tx,
             snapshot.clone(),
             engine_session.clone(),

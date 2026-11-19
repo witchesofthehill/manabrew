@@ -50,4 +50,5 @@ export interface PlayerHudSpec {
   manaPool: Record<string, number>;
   badges: PlayerHudBadge[];
   ruleFacts: PlayerHudFact[];
+  commander?: CardDto;
 }

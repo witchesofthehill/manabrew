@@ -190,6 +190,7 @@ def open_db(path: Path) -> sqlite3.Connection:
     db.executescript(SCHEMA)
     ensure_column(db, "game_players", "published_deck_id", "TEXT")
     ensure_column(db, "game_players", "deck_fingerprint", "TEXT")
+    ensure_column(db, "client_connections", "acquisition_source", "TEXT")
     # Anything predating the `source` column is by definition a relay game.
     # An events.db created before the split still has the old engine_stats.
     for column in (
@@ -465,13 +466,15 @@ def ingest_engine_stats(db, ev):
 
 def ingest_client_connected(db, ev):
     db.execute(
-        """INSERT INTO client_connections (ts, username, platform, reconnected)
-           VALUES (?, ?, ?, ?)""",
+        """INSERT INTO client_connections
+             (ts, username, platform, reconnected, acquisition_source)
+           VALUES (?, ?, ?, ?, ?)""",
         (
             ev.get("ts"),
             ev.get("username"),
             ev.get("platform") or "unknown",
             int(bool(ev.get("reconnected"))),
+            ev.get("acquisition_source"),
         ),
     )
 

@@ -64,6 +64,8 @@ pub enum AnalyticsEvent {
         version: Option<String>,
         reconnected: bool,
         engine_gate: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        acquisition_source: Option<&'static str>,
     },
     GameStarted {
         ts: String,

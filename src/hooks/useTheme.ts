@@ -1,6 +1,6 @@
 import { useLayoutEffect, useSyncExternalStore } from "react";
 import { useTheme as useNextTheme } from "next-themes";
-import { useHasTouchPointer } from "@/hooks/useBreakpoints";
+import { useHasTouchPointer, useIsTouch } from "@/hooks/useBreakpoints";
 import { refreshUiTypography } from "@/themes/typography";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { MANABREW_THEME } from "@/themes";
@@ -146,6 +146,7 @@ function refreshTypography(): void {
 export function useApplyTheme(): void {
   const { resolvedTheme } = useNextTheme();
   const hasTouchPointer = useHasTouchPointer();
+  const isTouch = useIsTouch();
   const theme = useTheme();
   useLayoutEffect(() => {
     const mode = resolvedTheme === "light" ? "light" : "dark";
@@ -161,7 +162,7 @@ export function useApplyTheme(): void {
     document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')!.content =
       theme.appTheme.background;
   }, [theme]);
-  useLayoutEffect(refreshTypography, [hasTouchPointer]);
+  useLayoutEffect(refreshTypography, [hasTouchPointer, isTouch]);
   useLayoutEffect(() => {
     window.addEventListener("resize", refreshTypography);
     return () => window.removeEventListener("resize", refreshTypography);

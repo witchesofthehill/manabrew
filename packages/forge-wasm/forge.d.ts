@@ -1,6 +1,6 @@
 import type {
   DirectiveInput,
-  DisplayEvent,
+  EngineDirective,
   Prompt,
   PromptOutput,
   ProtocolError,
@@ -101,12 +101,13 @@ export interface ForgeStartMultiplayerGameOptions {
 /**
  * The four message families the engine emits, and the whole of them. `state`
  * carries the game view, `prompt` a call to action that carries no view,
- * `display` an animation hint, and `error` a rejection of the last response.
+ * `engineDirective` an out-of-band table notice that never touches the open
+ * prompt, and `error` a rejection of the last response.
  */
 export type ForgeEngineMessage =
   | { kind: "state"; state: StateUpdate }
   | { kind: "prompt"; prompt: Prompt }
-  | { kind: "display"; event: DisplayEvent }
+  | { kind: "engineDirective"; directive: EngineDirective }
   | { kind: "error"; error: ProtocolError };
 
 export interface ForgeEngineOptions {
@@ -116,7 +117,7 @@ export interface ForgeEngineOptions {
   onMessage?: (message: ForgeEngineMessage, playerSlot?: string) => void;
   onState?: (state: StateUpdate, playerSlot?: string) => void;
   onPrompt?: (prompt: Prompt, playerSlot?: string) => void;
-  onDisplay?: (event: DisplayEvent, playerSlot?: string) => void;
+  onDirective?: (directive: EngineDirective, playerSlot?: string) => void;
   /** The engine rejecting a response, or a failure reading the seat. */
   onError?: (error: ProtocolError | Error, playerSlot?: string) => void;
   onEvent?: (event: string, payload: unknown) => void;

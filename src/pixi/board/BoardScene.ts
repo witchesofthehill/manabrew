@@ -12,15 +12,10 @@ import {
 import type { BattlefieldCardStyle, InlineCardStyle } from "@/stores/usePreferencesStore";
 import type { HandCardControlsSpec } from "../HandCardControls";
 import type { HandActionOption } from "@/stores/useGameUIStore";
-import { hexToNum } from "../colorUtils";
+import { hexToNum, mixNum } from "../colorUtils";
 import type { Theme } from "@/hooks/useTheme";
 import { getTheme } from "@/hooks/useTheme";
 import type { ArrowDef } from "../ArrowLayer";
-import {
-  PhaseStripLayer,
-  type PhaseStripCallbacks,
-  type PhaseStripState,
-} from "../PhaseStripLayer";
 import { DragHandler } from "../DragHandler";
 import { dropCellFromPoint, type GridCell } from "../GridLayout";
 import { prewarmManaSymbols } from "../manaSymbolCache";
@@ -58,19 +53,18 @@ import type {
 import type { StackAnchorProvider } from "../stack/stack.types";
 import { BoardRegion } from "./BoardRegion";
 import type { ZoneTileSpec } from "./BoardZoneTiles";
-import { PlayerHudLayer, PLAYER_HUD_HAND_GAP_PX } from "@/pixi/hud/PlayerHudLayer";
+import {
+  PlayerHudLayer,
+  PLAYER_HUD_HAND_GAP_PX,
+  PLAYER_PANEL_EDGE_GAP,
+} from "@/pixi/hud/PlayerHudLayer";
 import type { PlayerHudSpec as PlayerBarSpec } from "@/pixi/hud/playerHud.types";
 import { isAttackerTap } from "./combatRouting";
 import { BattlefieldOverlay } from "./BattlefieldOverlay";
 import { HandController } from "./HandController";
 import { OpponentHandFan } from "./OpponentHandFan";
 import { SelectionController } from "./SelectionController";
-import {
-  collapsedOpponentWidth,
-  STRIP_BAND_PX,
-  type BoardLayout,
-  type RegionOrientation,
-} from "./boardLayout";
+import { collapsedOpponentWidth, type BoardLayout, type RegionOrientation } from "./boardLayout";
 import type {
   BlockingRect,
   HandHost,
@@ -91,11 +85,14 @@ export interface BoardPlayerSpec {
   color?: string;
 }
 
+const PLATE_GRID_CLEARANCE = 2;
 const RECT_SCRATCH_A = new Point();
 const RECT_SCRATCH_B = new Point();
 const BOARD_ZOOM_MAX = 2.25;
 const BOARD_ZOOM_SNAP_BACK = 1.05;
 const ATTACK_ARROW_LANE_PX = 18;
+const COLUMN_FLOOR_PX = 2;
+const COLUMN_FLOOR_MIX = 0.45;
 /** Extra px around a planeswalker/battle card that still counts as targeting it
  *  while dragging an attacker — makes small opponent permanents easy to hit. */
 const ATTACK_TARGET_HIT_PAD = 44;
@@ -169,7 +166,6 @@ export class BoardScene {
     world: { x: number; y: number };
   } | null = null;
   private pinchDownListener: (e: PointerEvent) => void;
-  private stripOutsideListener: (e: PointerEvent) => void;
   private gestureCancelListener: (e: PointerEvent) => void;
   private pinchMoveListener: (e: PointerEvent) => void;
   private pinchUpListener: (e: PointerEvent) => void;
@@ -178,8 +174,6 @@ export class BoardScene {
   // Dragging one of our own already-declared attackers (staged as a guest in an
   // opponent's band) back toward our field to un-declare it.
   private unassignDrag: { cardId: string; region: BoardRegion; overOwn: boolean } | null = null;
-  private phaseStripAlphaTarget = 1;
-  private stripBandPx = STRIP_BAND_PX;
   private readonly presentation: BoardScenePresentation;
   private tapSuppressedPointers = new Set<number>();
 
@@ -188,7 +182,6 @@ export class BoardScene {
   private selection: SelectionController | null = null;
   private overlay: BattlefieldOverlay | null = null;
   private dragHandler: DragHandler;
-  private phaseStrip: PhaseStripLayer;
   private overview = false;
   private focusLocked = false;
 
@@ -286,7 +279,7 @@ export class BoardScene {
     this.root.addChild(this.collapseVeil);
 
     this.dividers = new BattlefieldDividers(this.theme, () => this.overlayInvalidation?.());
-    this.dividers.root.zIndex = 5560;
+    this.dividers.root.zIndex = 5610;
     this.root.addChild(this.dividers.root);
 
     this.playerBars = new PlayerHudLayer(
@@ -298,12 +291,6 @@ export class BoardScene {
     this.playerBars.container.zIndex = 5600;
     this.playerBars.container.visible = false;
     this.root.addChild(this.playerBars.container);
-
-    this.phaseStrip = new PhaseStripLayer(this.theme);
-    this.phaseStrip.container.zIndex = 7000;
-    this.phaseStrip.onExpandedChange = () => this.refreshPhaseStripDim();
-    this.presentation.configurePhaseStrip(this.phaseStrip);
-    this.root.addChild(this.phaseStrip.container);
 
     this.combatGuestLayer = new Container();
     this.combatGuestLayer.sortableChildren = true;
@@ -381,15 +368,6 @@ export class BoardScene {
       if (this.activeGesturePointerId === e.pointerId) this.abortActiveGesture();
     };
     window.addEventListener("pointercancel", this.gestureCancelListener);
-    this.stripOutsideListener = (e: PointerEvent) => {
-      if (!this.phaseStrip.isCompactExpanded()) return;
-      const rect = this.canvasRect();
-      const p = this.phaseStrip.container.toLocal(
-        new Point(e.clientX - rect.left, e.clientY - rect.top),
-      );
-      this.phaseStrip.handleOutsidePointerDown(p.x, p.y);
-    };
-    this.app.canvas.addEventListener("pointerdown", this.stripOutsideListener);
     this.app.canvas.addEventListener("pointerdown", this.pinchDownListener);
     window.addEventListener("pointermove", this.pinchMoveListener);
     window.addEventListener("pointerup", this.pinchUpListener, { capture: true });
@@ -411,15 +389,15 @@ export class BoardScene {
     players: BoardPlayerSpec[],
     layout: BoardLayout,
     scales: { self: number; opponent: number },
-    combatRowReserved = true,
   ): void {
     if (this.destroyed) return;
     this.cardScale = scales.self;
     this.overview = layout.opponentLayout === "overview";
     const seen = new Set<string>();
     let oppIndex = 0;
+    const localFirst = [...players].sort((a, b) => Number(b.isLocal) - Number(a.isLocal));
 
-    for (const spec of players) {
+    for (const spec of localFirst) {
       const opp = spec.isLocal ? null : layout.opponents[oppIndex++];
       const zone = opp?.rect ?? layout.self;
       const orientation: RegionOrientation = spec.isLocal ? "bottom" : (opp?.orientation ?? "top");
@@ -432,7 +410,6 @@ export class BoardScene {
         existing.zone = zone;
         existing.region.container.zIndex = zIndex;
         existing.region.setOverviewMode(this.overview && !spec.isLocal);
-        existing.region.setCombatRowReserved(combatRowReserved);
         existing.region.setZone(zone, orientation);
         existing.region.setCardScale(regionScale);
         existing.region.setPlaymatSettings(spec.playmatSettings);
@@ -444,7 +421,7 @@ export class BoardScene {
         this.root,
         zone,
         regionScale,
-        { orientation, combatRowReserved, presentation: this.presentation.region },
+        { orientation, presentation: this.presentation.region },
       );
       region.setPlaymatSettings(spec.playmatSettings);
       region.setOverviewMode(this.overview && !spec.isLocal);
@@ -462,7 +439,7 @@ export class BoardScene {
     }
 
     this.boardWidth = layout.self.width;
-    this.topHeight = layout.dividerY - layout.stripBandPx / 2;
+    this.topHeight = layout.dividerY;
     const oppIds = players.filter((p) => !p.isLocal).map((p) => p.playerId);
     const sameOpponents =
       oppIds.length === this.opponentIds.length &&
@@ -486,7 +463,6 @@ export class BoardScene {
       if (this.localPlayerId === id) this.localPlayerId = null;
     }
 
-    this.positionPhaseStrip(layout);
     this.dragHandler.setCardScale(scales.self);
     this.dragHandler.setContainerSize(this.app.renderer.width, this.app.renderer.height);
     this.syncHandPresentation();
@@ -644,6 +620,7 @@ export class BoardScene {
     const collapsedWidth = collapsedOpponentWidth(W, n);
     const veilStart = collapsedWidth * 2;
     const veilColor = hexToNum(this.theme.gameTheme.canvas.background);
+    const floorColor = mixNum(veilColor, hexToNum(this.theme.gameTheme.cardRing), COLUMN_FLOOR_MIX);
     for (let i = 0; i < n; i++) {
       const rec = this.regions.get(this.opponentIds[i]!);
       if (!rec) continue;
@@ -659,8 +636,10 @@ export class BoardScene {
         // to its collapsed width — fully in sync with the ease, no separate tween.
         const frac = Math.max(0, Math.min(1, (veilStart - bandW) / (veilStart - collapsedWidth)));
         if (frac > 0.001) {
-          this.collapseVeil.rect(left, 0, bandW, this.topHeight + this.stripBandPx / 2);
+          this.collapseVeil.rect(left, 0, bandW, this.topHeight);
           this.collapseVeil.fill({ color: veilColor, alpha: frac });
+          this.collapseVeil.rect(left, this.topHeight - COLUMN_FLOOR_PX, bandW, COLUMN_FLOOR_PX);
+          this.collapseVeil.fill({ color: floorColor, alpha: frac });
         }
         const field = rec.region.getPlaymatRect();
         const column = this.presentation.hudUsesColumn(field.width);
@@ -669,7 +648,10 @@ export class BoardScene {
         const maxWidth = this.presentation.hudMaxWidth;
         const barW = column ? availableWidth : Math.min(maxWidth, availableWidth);
         const barH = column ? availableHeight : Math.min(playerHudHeight, availableHeight);
-        this.playerBars.setRect(this.opponentIds[i]!, field.x, field.y, barW, barH, column);
+        const edgeAnchored = this.presentation.edgeAnchoredPlayerBars && !column;
+        const barX = edgeAnchored ? left + PLAYER_PANEL_EDGE_GAP : field.x;
+        const barY = edgeAnchored ? rec.zone.y : field.y;
+        this.playerBars.setRect(this.opponentIds[i]!, barX, barY, barW, barH, column);
       }
     }
     this.drawDelimiterFog();
@@ -690,12 +672,13 @@ export class BoardScene {
     const field = record.region.getPlaymatRect();
     const hand = this.presentation.selfHudHandBlocker(this.hand);
     const preferredHeight = this.preferredPlayerHudHeight();
-    const x = field.x;
     const availableWidth = Math.max(1, field.width);
     const maxWidth = this.presentation.hudMaxWidth;
     const desiredWidth = Math.min(availableWidth, maxWidth);
     let width = desiredWidth;
-    const bottom = field.y + field.height;
+    const anchored = this.presentation.edgeAnchoredPlayerBars;
+    const x = anchored ? record.zone.x + PLAYER_PANEL_EDGE_GAP : field.x;
+    const bottom = anchored ? record.zone.y + record.zone.height : field.y + field.height;
     const overlapsHand =
       hand &&
       hand.x < x + width &&
@@ -745,7 +728,7 @@ export class BoardScene {
   private drawDelimiterFog(): void {
     this.dividers.draw(
       this.boardWidth,
-      this.topHeight + this.stripBandPx / 2,
+      this.topHeight,
       this.delimCurrent,
       this.focusedOpponentIds().map((id) => this.opponentIds.indexOf(id)),
       collapsedOpponentWidth(this.boardWidth, this.opponentIds.length),
@@ -918,13 +901,6 @@ export class BoardScene {
     this.activeGesturePointerId = e.pointerId;
   }
 
-  private positionPhaseStrip(layout: BoardLayout): void {
-    this.stripBandPx = layout.stripBandPx;
-    this.phaseStrip.container.x = layout.self.x;
-    this.phaseStrip.container.y = layout.dividerY - this.stripBandPx / 2;
-    this.phaseStrip.resize(layout.self.width, this.stripBandPx);
-  }
-
   private localRegion(): BoardRegion | null {
     return this.localPlayerId ? (this.regions.get(this.localPlayerId)?.region ?? null) : null;
   }
@@ -970,7 +946,7 @@ export class BoardScene {
     if (region && region === this.hoveredRegionRef && this.hoveredCardId) {
       this.syncHoveredCombatTarget(region, this.hoveredCardId);
     }
-    this.refreshPhaseStripDim();
+    this.refreshCombatDim();
   }
 
   pruneCardPositions(liveIds: ReadonlySet<string>): void {
@@ -979,7 +955,7 @@ export class BoardScene {
     }
   }
 
-  private refreshPhaseStripDim(): void {
+  private refreshCombatDim(): void {
     let active = false;
     for (const rec of this.regions.values()) {
       if (rec.region.getLastState()?.cards.some((c) => c.isAttacking)) {
@@ -987,7 +963,6 @@ export class BoardScene {
         break;
       }
     }
-    this.phaseStripAlphaTarget = 1;
     for (const rec of this.regions.values()) rec.region.setCombatDim(active);
   }
 
@@ -1129,7 +1104,7 @@ export class BoardScene {
       );
       rec.region.container.zIndex = staged ? Z_STAGED_REGION : rec.isLocal ? 100 : 50;
     }
-    this.refreshPhaseStripDim();
+    this.refreshCombatDim();
   }
 
   setArrowSpecs(specs: ArrowSpec[]): void {
@@ -1219,17 +1194,6 @@ export class BoardScene {
       return oppId;
     }
     return null;
-  }
-
-  setPhaseStripState(state: PhaseStripState): void {
-    this.phaseStrip.update(state);
-  }
-
-  setPhaseStripCallbacks(cb: PhaseStripCallbacks): void {
-    this.phaseStrip.setCallbacks(cb);
-  }
-  setPhaseDividerVisible(visible: boolean): void {
-    this.phaseStrip.setDividerVisible(visible);
   }
 
   protected setMobileHandOpen(open: boolean): void {
@@ -1323,6 +1287,10 @@ export class BoardScene {
     for (const rec of this.regions.values()) rec.region.redrawHoverDebug();
     this.hand?.setHoverDebug(on);
   }
+  setSquareAvatars(square: boolean): void {
+    this.playerBars.setSquareAvatars(square);
+  }
+
   setPlayerPanelBoundsDebug(on: boolean): void {
     if (this.destroyed) return;
     this.playerBars.setBoundsDebug(on);
@@ -1346,7 +1314,6 @@ export class BoardScene {
     this.dividers.setTheme(theme);
     setCardSpriteTheme(theme);
     this.hand?.restyle();
-    this.phaseStrip.setTheme(theme);
     this.playerBars.setTheme(theme);
     for (const rec of this.regions.values()) rec.region.redrawTheme();
     this.applyDelimiters(); // repaint the collapse veil in the new theme colour
@@ -1422,6 +1389,7 @@ export class BoardScene {
       screenXToLocalX: (screenX) => screenX - this.canvasRect().left,
       getHandReserveBottom: () =>
         !isLocal ? 0 : this.presentation.localHandReserve(this.handReserveBottom()),
+      getGridColumns: () => (isLocal ? null : (this.localRegion()?.getGridColumns() ?? null)),
       spawnFloatingText: (x, y, content, color) => this.spawnFloatingText(x, y, content, color),
       previewCard: (card, bounds) => {
         if (!card) {
@@ -1514,8 +1482,13 @@ export class BoardScene {
     const right = this.boardWidth - (this.opponentIds.length - index - 1) * collapsedWidth;
     const x = record.zone.x;
     const maxWidth = this.presentation.hudMaxWidth;
-    const width = Math.min(maxWidth, Math.max(1, right - x));
-    const preferredHeight = this.presentation.opponentHudHeight;
+    const anchored = this.presentation.edgeAnchoredPlayerBars;
+    const width = Math.min(
+      maxWidth + (anchored ? PLAYER_PANEL_EDGE_GAP : 0),
+      Math.max(1, right - x),
+    );
+    const preferredHeight =
+      this.presentation.opponentHudHeight + (anchored ? PLATE_GRID_CLEARANCE : 0);
     const height = Math.min(preferredHeight, Math.max(1, record.zone.height));
     const tl = this.root.toGlobal(RECT_SCRATCH_A.set(x, record.zone.y), RECT_SCRATCH_A);
     const br = this.root.toGlobal(
@@ -2127,10 +2100,6 @@ export class BoardScene {
     this.hand?.animate();
     for (const fan of this.opponentHands.values()) fan.animate();
     this.playerBars.tick();
-    this.phaseStrip.tick();
-    this.phaseStrip.setDimAlpha(
-      lerp(this.phaseStrip.getDimAlpha(), this.phaseStripAlphaTarget, 0.2, 0.01),
-    );
     this.animateFloaters(frameRatio);
     this.domRectTick++;
     this.captureStackSeeds();
@@ -2431,7 +2400,6 @@ export class BoardScene {
     this.cancelHoverClear();
     window.removeEventListener("pointermove", this.cursorListener);
     window.removeEventListener("pointercancel", this.gestureCancelListener);
-    this.app.canvas.removeEventListener("pointerdown", this.stripOutsideListener);
     this.app.canvas.removeEventListener("pointerdown", this.pinchDownListener);
     window.removeEventListener("pointermove", this.pinchMoveListener);
     window.removeEventListener("pointerup", this.pinchUpListener, { capture: true });
@@ -2447,7 +2415,6 @@ export class BoardScene {
     this.app.stage.off("pointertapcapture", this.onStageTapCapture);
     try {
       this.dragHandler.destroy();
-      this.phaseStrip.destroy();
       this.playerBars.destroy();
       this.hand?.destroy();
       for (const fan of this.opponentHands.values()) fan.destroy();

@@ -57,7 +57,7 @@ export const DEV_DIALOG_PREVIEW_GROUPS: DevDialogPreviewGroup[] = [
       {
         id: "scry-landscape",
         label: "Scry: landscape cards",
-        description: "Plane, split, aftermath, and Room layouts",
+        description: "Plane, split, and Room layouts",
         scryLayout: "landscape",
       },
       {

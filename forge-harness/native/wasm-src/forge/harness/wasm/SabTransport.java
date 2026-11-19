@@ -403,6 +403,13 @@ public final class SabTransport implements InteractiveBridge {
     }
 
     @Override
+    public void publishDirective(final int playerIndex, final String directiveJson) {
+        if (!botSeats.contains(playerIndex)) {
+            post("game:seat_directive", "{\"seat\":" + playerIndex + ",\"directive\":" + directiveJson + "}");
+        }
+    }
+
+    @Override
     public void requestRewind(final String snapshot) {
         waitForRewind(snapshot);
     }

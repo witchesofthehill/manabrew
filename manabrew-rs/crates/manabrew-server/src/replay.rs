@@ -27,11 +27,13 @@ pub struct GameReplayCache {
     pub game_id: String,
     pub started_at: Instant,
     pub player_order: Vec<String>,
+    pub human_player_order: Vec<String>,
     pub player_decks: Vec<PlayerDeckInfo>,
     pub starting_life: i32,
     pub last_state: Option<Value>,
     pub last_state_by_slot: HashMap<String, Value>,
     pub pending_prompts: HashMap<String, Value>,
+    pub pending_directives: HashMap<(String, String), Value>,
     pub queued_inputs: HashMap<String, Vec<QueuedEngineInput>>,
     pub outcome: ReportedOutcome,
 }
@@ -41,17 +43,20 @@ impl GameReplayCache {
         game_id: String,
         player_order: Vec<String>,
         player_decks: Vec<PlayerDeckInfo>,
+        human_player_order: Vec<String>,
         starting_life: i32,
     ) -> Self {
         GameReplayCache {
             game_id,
             started_at: Instant::now(),
             player_order,
+            human_player_order,
             player_decks,
             starting_life,
             last_state: None,
             last_state_by_slot: HashMap::new(),
             pending_prompts: HashMap::new(),
+            pending_directives: HashMap::new(),
             queued_inputs: HashMap::new(),
             outcome: ReportedOutcome::default(),
         }
@@ -97,6 +102,14 @@ impl GameReplayCache {
                 if let Some(slot) = envelope.get("forPlayer").and_then(Value::as_str) {
                     self.pending_prompts
                         .insert(slot.to_string(), envelope.clone());
+                }
+            }
+            Some("engineDirective") => {
+                let slot = envelope.get("forPlayer").and_then(Value::as_str);
+                let kind = envelope.pointer("/directive/type").and_then(Value::as_str);
+                if let (Some(slot), Some(kind)) = (slot, kind) {
+                    self.pending_directives
+                        .insert((slot.to_string(), kind.to_string()), envelope.clone());
                 }
             }
             Some("response") => {
@@ -183,7 +196,13 @@ mod tests {
     use serde_json::json;
 
     fn cache() -> GameReplayCache {
-        GameReplayCache::new("game-1".into(), vec!["alice".into()], Vec::new(), 40)
+        GameReplayCache::new(
+            "game-1".into(),
+            vec!["alice".into()],
+            Vec::new(),
+            vec!["alice".into()],
+            40,
+        )
     }
 
     fn full(slot: &str, state: Value) -> Value {

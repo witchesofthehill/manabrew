@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
 import { TableSeatChip } from "@/components/lobby/TableSeatChip";
+import { botAvatarUrls } from "@/lib/botAvatars";
 import { stripUsernameTag } from "@/lib/username";
 import type { RoomPlayerInfo } from "@/types/server";
 import { cn } from "@/lib/utils";
@@ -25,6 +26,10 @@ interface OpenTableSeatsProps {
   youUsername?: string | null;
   removableBots?: readonly string[];
   onRemoveBot?: (username: string) => void;
+  selectedUsername?: string | null;
+  onSelectSeat?: (username: string) => void;
+  onAddBot?: (seatIndex: number) => void;
+  onInvitePlayer?: () => void;
   size?: "card" | "room";
   ornamental?: boolean;
   className?: string;
@@ -41,12 +46,17 @@ export function OpenTableSeats({
   youUsername,
   removableBots = [],
   onRemoveBot,
+  selectedUsername,
+  onSelectSeat,
+  onAddBot,
+  onInvitePlayer,
   size = "card",
   ornamental = false,
   className,
   backgroundUrl,
 }: OpenTableSeatsProps) {
   const controllerName = players.find((player) => !player.is_bot)?.username ?? players[0]?.username;
+  const botAvatars = botAvatarUrls(players);
   return (
     <div
       role="group"
@@ -83,28 +93,39 @@ export function OpenTableSeats({
         </div>
       )}
       {Array.from({ length: maxPlayers }, (_, seatIndex) => {
-        const player = players[seatIndex];
+        const player = players.find(
+          (candidate, index) => (candidate.seat_index ?? index) === seatIndex,
+        );
         const isControllerSeat = player?.username === controllerName;
         const statusLabel =
           showSeatLabels && player
-            ? isControllerSeat
-              ? `Host`
-              : openFormat
-                ? player.ready
-                  ? `Ready`
-                  : `Waiting`
+            ? openFormat
+              ? isControllerSeat
+                ? `Host`
                 : player.ready
                   ? `Ready`
-                  : (player.selected_deck_name ?? `No deck`)
+                  : `Waiting`
+              : (player.selected_deck_name ?? `Choose deck`)
             : undefined;
         return (
           <TableSeatChip
             key={seatIndex}
             seatIndex={seatIndex}
             player={player}
+            botAvatarUrl={player ? botAvatars.get(player.username) : undefined}
             isHost={isControllerSeat}
             joinable={joinable}
             onTakeSeat={onTakeSeat}
+            onAddBot={onAddBot ? () => onAddBot(seatIndex) : undefined}
+            onInvitePlayer={onInvitePlayer}
+            selected={player?.username === selectedUsername}
+            onSelect={
+              onSelectSeat &&
+              player &&
+              (player.username === youUsername || removableBots.includes(player.username))
+                ? () => onSelectSeat(player.username)
+                : undefined
+            }
             ready={player ? player.ready || isControllerSeat : false}
             isYou={!!youUsername && player?.username === youUsername}
             onRemove={

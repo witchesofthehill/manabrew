@@ -6,7 +6,7 @@ import { releaseCardRaster, selectCardRenderTier } from "@/lib/cardRenderTypes";
 import type { CardRenderPriority } from "@/lib/cardRenderQueue";
 import { GAME_CARD_SIZES } from "@/components/game/game.constants";
 import { overlayResolution } from "@/pixi/overlay/overlayRuntime";
-import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { cardSizeScale, usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 
 const IDLE_FALLBACK_MS = 800;
@@ -22,12 +22,12 @@ const identityKey = (identity: { name: string; setCode: string; cardNumber: stri
   `${identity.name}|${identity.setCode.toLowerCase()}|${identity.cardNumber}`;
 
 function rulesTiers() {
-  const preferences = usePreferencesStore.getState();
+  const cardSize = cardSizeScale(usePreferencesStore.getState().cardSizeMultiplier);
   const resolution = overlayResolution(window.innerWidth, window.innerHeight);
   return {
     hand: selectCardRenderTier(
-      GAME_CARD_SIZES.hand.width * preferences.cardSizeMultiplier,
-      GAME_CARD_SIZES.hand.height * preferences.cardSizeMultiplier,
+      GAME_CARD_SIZES.hand.width * cardSize,
+      GAME_CARD_SIZES.hand.height * cardSize,
       resolution,
     ),
     prompt: selectCardRenderTier(

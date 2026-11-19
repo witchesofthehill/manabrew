@@ -2,6 +2,7 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { STORAGE_KEYS } from "./constants";
+import { VERDICT_VERSION } from "./forgeWasm";
 
 async function load() {
   vi.resetModules();
@@ -9,7 +10,10 @@ async function load() {
 }
 
 function storeVerdict(verdict: Record<string, unknown>) {
-  localStorage.setItem(STORAGE_KEYS.FORGE_WASM_VALIDATION, JSON.stringify(verdict));
+  localStorage.setItem(
+    STORAGE_KEYS.FORGE_WASM_VALIDATION,
+    JSON.stringify({ v: VERDICT_VERSION, ...verdict }),
+  );
 }
 
 describe("forge wasm trial verdict", () => {

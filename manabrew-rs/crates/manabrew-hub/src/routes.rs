@@ -130,11 +130,6 @@ pub fn build_router(state: Arc<AppState>) -> Router {
                 .patch(save_account_deck_handler)
                 .delete(delete_account_deck_handler),
         )
-        .route("/api/decks/:id/versions", get(deck_versions_handler))
-        .route(
-            "/api/decks/:id/versions/:version_no",
-            get(deck_version_handler),
-        )
         .nest("/api/assets", asset_routes)
         .route("/api/presets/:preset_key/fork", post(fork_preset_handler))
         .route(
@@ -613,40 +608,6 @@ async fn delete_account_deck_handler(
         Ok(DeleteOutcome::Deleted) => StatusCode::NO_CONTENT.into_response(),
         Ok(DeleteOutcome::Forbidden) => StatusCode::FORBIDDEN.into_response(),
         Ok(DeleteOutcome::NotFound) => StatusCode::NOT_FOUND.into_response(),
-        Err(error) => internal_error(error),
-    }
-}
-
-async fn deck_versions_handler(
-    State(state): State<Arc<AppState>>,
-    Path(id): Path<String>,
-    auth::SessionAccount(account): auth::SessionAccount,
-) -> Response {
-    match state
-        .storage
-        .lock()
-        .unwrap()
-        .list_deck_versions(&account.id, &id)
-    {
-        Ok(Some(versions)) => Json(versions).into_response(),
-        Ok(None) => StatusCode::NOT_FOUND.into_response(),
-        Err(error) => internal_error(error),
-    }
-}
-
-async fn deck_version_handler(
-    State(state): State<Arc<AppState>>,
-    Path((id, version_no)): Path<(String, u32)>,
-    auth::SessionAccount(account): auth::SessionAccount,
-) -> Response {
-    match state
-        .storage
-        .lock()
-        .unwrap()
-        .get_deck_version(&account.id, &id, version_no)
-    {
-        Ok(Some(version)) => Json(version).into_response(),
-        Ok(None) => StatusCode::NOT_FOUND.into_response(),
         Err(error) => internal_error(error),
     }
 }

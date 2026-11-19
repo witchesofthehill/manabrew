@@ -1273,6 +1273,11 @@ impl Storage {
         self.get_account_deck(account_id, &deck_id)
     }
 
+    pub fn prune_deck_history(&self, limit: u32) -> SqlResult<usize> {
+        self.conn
+            .execute(&format!("{PRUNE_DECK_HISTORY} LIMIT ?1)"), params![limit])
+    }
+
     pub fn list_owned_decks(&self, account_id: &str) -> SqlResult<Vec<AccountDeckSummary>> {
         let mut stmt = self.conn.prepare(
             "SELECT d.id, d.name, d.format, d.description, d.visibility,
@@ -1423,6 +1428,10 @@ impl Storage {
         )?;
         insert_deck_cards(&tx, &version_id, deck)?;
         tx.execute(
+            &format!("{PRUNE_DECK_HISTORY} AND v.deck_id = ?1)"),
+            params![deck_id],
+        )?;
+        tx.execute(
             "UPDATE decks
              SET name = ?2, format = ?3, description = ?4, updated_at = ?5
              WHERE id = ?1",
@@ -1467,85 +1476,6 @@ impl Storage {
                 Ok(DeleteOutcome::Deleted)
             }
         }
-    }
-
-    pub fn list_deck_versions(
-        &self,
-        account_id: &str,
-        deck_id: &str,
-    ) -> SqlResult<Option<Vec<DeckVersionSummary>>> {
-        if !self.owns_deck(account_id, deck_id)? {
-            return Ok(None);
-        }
-        let mut stmt = self.conn.prepare(
-            "SELECT v.id, v.version_no, v.notes,
-                    EXISTS(SELECT 1 FROM deckhub_entries e
-                           WHERE e.published_version_id = v.id AND e.status != 'archived'),
-                    v.created_at
-             FROM deck_versions v
-             WHERE v.deck_id = ?1
-             ORDER BY v.version_no DESC",
-        )?;
-        let versions = stmt
-            .query_map(params![deck_id], |row| {
-                Ok(DeckVersionSummary {
-                    id: row.get(0)?,
-                    version_no: row.get(1)?,
-                    notes: row.get(2)?,
-                    published: row.get(3)?,
-                    created_at: row.get(4)?,
-                })
-            })?
-            .collect::<SqlResult<Vec<_>>>()?;
-        Ok(Some(versions))
-    }
-
-    pub fn get_deck_version(
-        &self,
-        account_id: &str,
-        deck_id: &str,
-        version_no: u32,
-    ) -> SqlResult<Option<DeckVersionDetail>> {
-        self.conn
-            .query_row(
-                "SELECT v.id, v.version_no, v.notes,
-                        EXISTS(SELECT 1 FROM deckhub_entries e
-                               WHERE e.published_version_id = v.id AND e.status != 'archived'),
-                        v.created_at, v.snapshot_json
-                 FROM deck_versions v
-                 JOIN decks d ON d.id = v.deck_id
-                 WHERE v.deck_id = ?1 AND v.version_no = ?2 AND d.account_id = ?3",
-                params![deck_id, version_no, account_id],
-                |row| {
-                    let summary = DeckVersionSummary {
-                        id: row.get(0)?,
-                        version_no: row.get(1)?,
-                        notes: row.get(2)?,
-                        published: row.get(3)?,
-                        created_at: row.get(4)?,
-                    };
-                    let snapshot_json: String = row.get(5)?;
-                    let deck = serde_json::from_str(&snapshot_json).map_err(|error| {
-                        rusqlite::Error::FromSqlConversionFailure(
-                            5,
-                            rusqlite::types::Type::Text,
-                            Box::new(error),
-                        )
-                    })?;
-                    Ok(DeckVersionDetail { summary, deck })
-                },
-            )
-            .optional()
-    }
-
-    fn owns_deck(&self, account_id: &str, deck_id: &str) -> SqlResult<bool> {
-        self.conn.query_row(
-            "SELECT EXISTS(SELECT 1 FROM decks
-                           WHERE id = ?1 AND kind = 'user'
-                             AND account_id = ?2 AND deleted_at IS NULL)",
-            params![deck_id, account_id],
-            |row| row.get(0),
-        )
     }
 
     pub fn list_deckhub_entries(
@@ -3043,6 +2973,16 @@ struct AnalyticsDeckPlay {
     winner: Option<String>,
 }
 
+const PRUNE_DECK_HISTORY: &str = "DELETE FROM deck_versions WHERE id IN (
+    SELECT v.id FROM deck_versions v
+    WHERE EXISTS (
+            SELECT 1 FROM deck_versions newer
+            WHERE newer.deck_id = v.deck_id AND newer.version_no > v.version_no
+        )
+      AND NOT EXISTS (
+            SELECT 1 FROM deckhub_entries e WHERE e.published_version_id = v.id
+        )";
+
 fn published_deck_matches(conn: &Connection, id: &str, fingerprint: &str) -> SqlResult<bool> {
     let snapshot_json = conn
         .query_row(
@@ -4342,5 +4282,93 @@ mod tests {
         assert_eq!(detail.entry.card_count, 1);
         assert_eq!(detail.entry.colors, "C");
         assert_eq!(detail.deck.cards[0].identity.name, "Lightning Bolt");
+    }
+
+    fn version_numbers(storage: &Storage, deck_id: &str) -> Vec<u32> {
+        let mut stmt = storage
+            .conn
+            .prepare("SELECT version_no FROM deck_versions WHERE deck_id = ?1 ORDER BY version_no")
+            .unwrap();
+        stmt.query_map(params![deck_id], |row| row.get(0))
+            .unwrap()
+            .collect::<SqlResult<Vec<u32>>>()
+            .unwrap()
+    }
+
+    #[test]
+    fn saving_keeps_the_current_and_published_versions_only() {
+        let storage = accounts();
+        let named = |name: &str| Deck {
+            name: name.into(),
+            ..Deck::default()
+        };
+        let CreateDeckOutcome::Created(created) = storage
+            .create_account_deck("acct-1", named("v1"), None, NOW)
+            .unwrap()
+        else {
+            panic!("deck was not created");
+        };
+        let deck_id = created.summary.id.clone();
+        let save = |expected: u32, name: &str| {
+            assert!(matches!(
+                storage
+                    .save_account_deck("acct-1", &deck_id, expected, named(name), None, NOW)
+                    .unwrap(),
+                SaveVersionOutcome::Saved(_)
+            ));
+        };
+
+        save(1, "v2");
+        assert_eq!(version_numbers(&storage, &deck_id), vec![2]);
+
+        let published_version_id: String = storage
+            .conn
+            .query_row(
+                "SELECT id FROM deck_versions WHERE deck_id = ?1",
+                params![deck_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        storage
+            .create_deckhub_entry(
+                "acct-1",
+                &NewDeckHubEntry {
+                    deck_id: deck_id.clone(),
+                    published_version_id,
+                    title: "Pinned".into(),
+                    summary: None,
+                    tags: Vec::new(),
+                    cover_card_id: None,
+                    cover_card_name: None,
+                    publish_ip: "127.0.0.1".into(),
+                    created_at: NOW.into(),
+                },
+            )
+            .unwrap()
+            .unwrap();
+        save(2, "v3");
+        save(3, "v4");
+        assert_eq!(version_numbers(&storage, &deck_id), vec![2, 4]);
+        assert_eq!(
+            storage
+                .get_account_deck("acct-1", &deck_id)
+                .unwrap()
+                .unwrap()
+                .deck
+                .name,
+            "v4"
+        );
+
+        storage
+            .conn
+            .execute(
+                "INSERT INTO deck_versions (id, deck_id, version_no, snapshot_json, content_hash, created_at)
+                 VALUES ('legacy', ?1, 3, '{}', 'legacy', ?2)",
+                params![deck_id, NOW],
+            )
+            .unwrap();
+        assert_eq!(storage.prune_deck_history(50).unwrap(), 1);
+        assert_eq!(storage.prune_deck_history(50).unwrap(), 0);
+        assert_eq!(version_numbers(&storage, &deck_id), vec![2, 4]);
     }
 }

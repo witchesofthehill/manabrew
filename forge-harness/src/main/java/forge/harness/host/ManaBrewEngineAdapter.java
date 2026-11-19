@@ -10,7 +10,6 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import forge.ai.LobbyPlayerAi;
 import forge.StaticData;
 import forge.card.CardDb;
 import forge.card.CardEdition;
@@ -72,9 +71,6 @@ public final class ManaBrewEngineAdapter {
         FModel.initialize(null, prefs -> {
             prefs.setPref(ForgePreferences.FPref.LOAD_CARD_SCRIPTS_LAZILY, true);
             prefs.setPref(ForgePreferences.FPref.DECKGEN_CARDBASED, false);
-            // Skips the tap/untap/mana replacement scan of zones other than
-            // battlefield and command (Card-Forge/forge#11160).
-            prefs.setPref(ForgePreferences.FPref.PERFORMANCE_MODE, true);
             return null;
         });
         // The patch 24 runaway caps default to 25k per turn, sized for the heap. A
@@ -155,7 +151,7 @@ public final class ManaBrewEngineAdapter {
                 registeredPlayer.setStartingLife(request.getStartingLife());
             }
             if (playerConfig.isAi()) {
-                registeredPlayer.setPlayer(new LobbyPlayerAi(playerConfig.getName(), null));
+                registeredPlayer.setPlayer(new ManaBrewAiLobbyPlayer(playerConfig.getName(), session));
             } else {
                 registeredPlayer.setPlayer(new ManaBrewInteractiveLobbyPlayer(
                         playerConfig.getName(), session));
@@ -236,6 +232,10 @@ public final class ManaBrewEngineAdapter {
 
     public String drainCheckpointMetrics(final String sessionId) {
         return getSession(sessionId).drainCheckpointMetrics();
+    }
+
+    public String drainDirectives(final String sessionId) {
+        return getSession(sessionId).drainDirectives();
     }
 
     public String getStateRevision(final String sessionId) {
@@ -327,7 +327,7 @@ public final class ManaBrewEngineAdapter {
         return session;
     }
 
-    private static Deck buildDeck(final PlayerConfig playerConfig,
+    static Deck buildDeck(final PlayerConfig playerConfig,
             final List<CardCosmeticBindings.DeckEntry> entries) {
         Deck deck = new Deck(playerConfig.getName());
         CardPool main = deck.getOrCreate(DeckSection.Main);

@@ -1,3 +1,5 @@
+import { classifyAcquisition, type AcquisitionSource } from "@/lib/acquisitionSource";
+
 export function getClientPlatform(): "web" | "pwa" | "desktop" | "mobile" {
   if (typeof window === "undefined" || typeof navigator === "undefined") return "web";
   const tauri =
@@ -11,4 +13,13 @@ export function getClientPlatform(): "web" | "pwa" | "desktop" | "mobile" {
       window.matchMedia("(display-mode: standalone)").matches) ||
     (navigator as Navigator & { standalone?: boolean }).standalone === true;
   return standalone ? "pwa" : "web";
+}
+
+const initialAcquisitionSource: AcquisitionSource =
+  typeof window === "undefined" || typeof document === "undefined"
+    ? "direct"
+    : classifyAcquisition(window.location.href, document.referrer);
+
+export function getAcquisitionSource(): AcquisitionSource {
+  return initialAcquisitionSource;
 }

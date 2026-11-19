@@ -79,7 +79,7 @@ export function DeckPlayActions({ savedDeckId }: DeckPlayActionsProps) {
                     state={{ preSelectedDeckId: savedDeck.id }}
                   >
                     <Bot className="h-5 w-5" />
-                    Play Offline
+                    Singleplayer
                   </Link>
                 </Button>
                 <Button size="lg" variant="secondary" asChild className="w-full justify-start">

@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { usePhaseStopStore, getNextStop, getEndTurnStop } from "@/stores/usePhaseStopStore";
+import { usePhaseStopStore, getEndTurnStop, getPassStop } from "@/stores/usePhaseStopStore";
 import type { Prompt, PromptOutput, PassUntil } from "@/protocol";
 import { passOutput } from "@/components/prompts/internal/playerActions";
 import type { GameViewDto } from "@/protocol/game";
@@ -29,21 +29,12 @@ export function usePromptEffects({
   const unifiedPass = useCallback(() => {
     if (!currentPrompt || !gameView || isWaitingForResponse) return;
 
-    const gv = gameView;
-    if ((gv.stack?.length ?? 0) > 0) {
+    if ((gameView.stack?.length ?? 0) > 0) {
       pass(null);
       return;
     }
 
-    const store = usePhaseStopStore.getState();
-    const nextStop = getNextStop(
-      gv.players.filter((p) => p.status === "playing").map((p) => p.id),
-      gv.activePlayerId,
-      gv.step,
-      myPlayerId,
-      store.selfStops,
-      store.getOpponentStops,
-    );
+    const nextStop = getPassStop(gameView, myPlayerId);
 
     pass(nextStop ? { ...nextStop, throughCombat: false } : null);
   }, [currentPrompt, gameView, isWaitingForResponse, pass, myPlayerId]);

@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 const HIDDEN_ROOM_NAMES = new Set(["free room", "free pod"]);
+import type { TableRoomDeckSelection } from "./tableRoom.types";
 interface TablesListProps {
   rooms: RoomInfo[];
   currentRoom: RoomInfo | null;
@@ -31,16 +32,14 @@ interface TablesListProps {
   onSetReady: (ready: boolean) => void;
   onSetFormat?: (format: GameFormat) => void;
   onSetMaxPlayers?: (maxPlayers: number) => void;
-  onOpenDeckDialog: () => void;
+  deckSelection?: TableRoomDeckSelection;
   onStartGame: () => void;
   onStartDraft?: () => void;
   onStartSealed?: () => void;
   startingLimited?: boolean;
   startingGame?: boolean;
-  onAddBot?: () => void;
+  onAddBot?: (seatIndex: number) => void;
   onRemoveBot?: (username: string) => void;
-  /** Bots this host process spawned — used to show the remove button. The
-   *  relay has no isBot field; tracking lives client-local. */
   mySpawnedBots?: string[];
 }
 export function TablesList({
@@ -58,7 +57,7 @@ export function TablesList({
   onSetReady,
   onSetFormat,
   onSetMaxPlayers,
-  onOpenDeckDialog,
+  deckSelection,
   onStartGame,
   onStartDraft,
   onStartSealed,
@@ -130,7 +129,7 @@ export function TablesList({
           onSetReady={onSetReady}
           onSetFormat={onSetFormat}
           onSetMaxPlayers={onSetMaxPlayers}
-          onOpenDeckDialog={onOpenDeckDialog}
+          deckSelection={deckSelection}
           onStartGame={onStartGame}
           onStartDraft={onStartDraft}
           onStartSealed={onStartSealed}

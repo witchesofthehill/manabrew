@@ -14,8 +14,6 @@ import type {
   DeckHubFacets,
   DeckHubTag,
   DeckPlayReportRequest,
-  DeckVersionDetail,
-  DeckVersionSummary,
   FavoriteResponse,
   HubCapabilities,
   PublishDeckHubEntryRequest,
@@ -206,14 +204,6 @@ export function saveAccountDeck(
 
 export async function deleteAccountDeck(id: string): Promise<void> {
   await hubRequest(`/api/decks/${encodeURIComponent(id)}`, { method: "DELETE" });
-}
-
-export function fetchDeckVersions(id: string): Promise<DeckVersionSummary[]> {
-  return hubJson<DeckVersionSummary[]>(`/api/decks/${encodeURIComponent(id)}/versions`);
-}
-
-export function fetchDeckVersion(id: string, versionNo: number): Promise<DeckVersionDetail> {
-  return hubJson<DeckVersionDetail>(`/api/decks/${encodeURIComponent(id)}/versions/${versionNo}`);
 }
 
 export function fetchDeckHubEntries(params: DeckHubEntryListParams): Promise<DeckHubEntryList> {

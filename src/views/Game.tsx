@@ -38,6 +38,9 @@ import {
   RestoreVoteModal,
   EliminatedModal,
   GameSettingsModal,
+  type GameSettingsFocusTarget,
+  PassWithManaModal,
+  type PendingPassKind,
   PhaseStopsHelpModal,
   LeaveGameModal,
   SoundSettingsModal,
@@ -54,7 +57,7 @@ import type {
 } from "@/pixi/BoardOverlayCanvas";
 import { CardPreviewOverlayCanvas } from "@/pixi/CardPreviewOverlayCanvas";
 import { buildArrowSpecs } from "@/components/game/arrowSpecs";
-import { getDisplayedManaAbilities } from "@/components/game/manaUtils";
+import { getDisplayedManaAbilities, hasUnspentMana } from "@/components/game/manaUtils";
 import { PlayModePicker } from "@/components/game/PlayModePicker";
 import { HAND_CARD_BASE } from "@/components/game/game.styles";
 import { ACTION_DRAWER_BUMP_EVENT, ZONE_TILE_KEY } from "@/components/game/game.constants";
@@ -362,6 +365,9 @@ export default function Game({ exitTo }: GameProps = {}) {
   const [handCardLifted, setHandCardLifted] = useState(false);
   const [boardMenuOpen, setBoardMenuOpen] = useState(false);
   const [gameSettingsOpen, setGameSettingsOpen] = useState(false);
+  const [gameSettingsFocus, setGameSettingsFocus] = useState<GameSettingsFocusTarget | undefined>(
+    undefined,
+  );
   const [soundSettingsOpen, setSoundSettingsOpen] = useState(false);
   const [phaseStopsHelpOpen, setPhaseStopsHelpOpen] = useState(false);
   const [eliminatedModalOpen, setEliminatedModalOpen] = useState(false);
@@ -1029,14 +1035,56 @@ export default function Game({ exitTo }: GameProps = {}) {
     myPlayerId: _earlyMyPlayerId,
   });
 
-  const passPriority = useCallback(() => {
+  const confirmPassWithMana = usePromptPreferencesStore((s) => s.confirmPassWithMana);
+  const [pendingPassWithMana, setPendingPassWithMana] = useState<PendingPassKind | null>(null);
+  const localPlayerForPass =
+    gameView?.players?.find((p) => p.id === myPlayerSlot) ??
+    gameView?.players?.find((p) => p.isHuman) ??
+    gameView?.players?.[0];
+  const shouldConfirmPassWithMana =
+    confirmPassWithMana &&
+    promptType === "chooseAction" &&
+    !isWaitingForResponse &&
+    (gameView?.stack?.length ?? 0) === 0 &&
+    hasUnspentMana(localPlayerForPass?.manaPool);
+
+  useEffect(() => {
+    setPendingPassWithMana(null);
+  }, [activePrompt]);
+
+  useEffect(() => {
+    if (!shouldConfirmPassWithMana) setPendingPassWithMana(null);
+  }, [shouldConfirmPassWithMana]);
+
+  const executePassPriority = useCallback(() => {
     window.dispatchEvent(new CustomEvent(ACTION_DRAWER_BUMP_EVENT, { detail: false }));
     unifiedPass();
   }, [unifiedPass]);
-  const passEndTurn = useCallback(() => {
+  const executePassEndTurn = useCallback(() => {
     window.dispatchEvent(new CustomEvent(ACTION_DRAWER_BUMP_EVENT, { detail: true }));
     unifiedPassEndTurn();
   }, [unifiedPassEndTurn]);
+
+  const passPriority = useCallback(() => {
+    if (shouldConfirmPassWithMana) {
+      setPendingPassWithMana("priority");
+      return;
+    }
+    executePassPriority();
+  }, [shouldConfirmPassWithMana, executePassPriority]);
+  const passEndTurn = useCallback(() => {
+    if (shouldConfirmPassWithMana) {
+      setPendingPassWithMana("endTurn");
+      return;
+    }
+    executePassEndTurn();
+  }, [shouldConfirmPassWithMana, executePassEndTurn]);
+  const handleConfirmPassWithMana = useCallback(() => {
+    const kind = pendingPassWithMana;
+    setPendingPassWithMana(null);
+    if (kind === "endTurn") executePassEndTurn();
+    else if (kind === "priority") executePassPriority();
+  }, [pendingPassWithMana, executePassEndTurn, executePassPriority]);
   const unifiedPassRef = useRef(passPriority);
   unifiedPassRef.current = passPriority;
   const passEndTurnRef = useRef(passEndTurn);
@@ -1340,6 +1388,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       setConcedeModalOpen(false);
       setLeaveGameModalOpen(false);
       setGameSettingsOpen(false);
+      setGameSettingsFocus(undefined);
       setSoundSettingsOpen(false);
       setCombatDetailsOpen(false);
       closeZoneViewer();
@@ -2831,7 +2880,15 @@ export default function Game({ exitTo }: GameProps = {}) {
           onStart={postGame.onDeckSelected}
         />
       )}
-      {gameSettingsOpen && <GameSettingsModal onClose={() => setGameSettingsOpen(false)} />}
+      {gameSettingsOpen && (
+        <GameSettingsModal
+          focusSetting={gameSettingsFocus}
+          onClose={() => {
+            setGameSettingsOpen(false);
+            setGameSettingsFocus(undefined);
+          }}
+        />
+      )}
       {soundSettingsOpen && <SoundSettingsModal onClose={() => setSoundSettingsOpen(false)} />}
       {phaseStopsHelpOpen && (
         <PhaseStopsHelpModal
@@ -2915,6 +2972,19 @@ export default function Game({ exitTo }: GameProps = {}) {
           hosting={ownsEngine && gameContinuesWithoutMe}
           onConfirm={handleConcedeConfirm}
           onCancel={() => setConcedeModalOpen(false)}
+        />
+      )}
+      {pendingPassWithMana && shouldConfirmPassWithMana && (
+        <PassWithManaModal
+          kind={pendingPassWithMana}
+          manaPool={me.manaPool}
+          onConfirm={handleConfirmPassWithMana}
+          onCancel={() => setPendingPassWithMana(null)}
+          onOpenSetting={() => {
+            setPendingPassWithMana(null);
+            setGameSettingsFocus("confirmPassWithMana");
+            setGameSettingsOpen(true);
+          }}
         />
       )}
 

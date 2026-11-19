@@ -74,6 +74,8 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
   const prefs = usePreferencesStore();
   const fullControl = usePromptPreferencesStore((s) => s.fullControl);
   const setFullControl = usePromptPreferencesStore((s) => s.setFullControl);
+  const confirmPassWithMana = usePromptPreferencesStore((s) => s.confirmPassWithMana);
+  const setConfirmPassWithMana = usePromptPreferencesStore((s) => s.setConfirmPassWithMana);
   const id = useId();
   const roomTableStyle = useServerStore((s) => s.currentRoom?.table_style);
   const tableBackgroundLocked = roomTableStyle != null;
@@ -131,6 +133,13 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
             ]}
             onChange={setFullControl}
             hint="Full control stops at every window. Autopass skips windows with only mana abilities after a short delay."
+          />
+          <Choice
+            label="Confirm passing with unspent mana"
+            value={confirmPassWithMana}
+            options={ON_OFF}
+            onChange={setConfirmPassWithMana}
+            hint="Ask before passing with an empty stack while mana is in your pool. Pauses autopass while mana is floating."
           />
           <Choice
             label="Choose simultaneous trigger order"

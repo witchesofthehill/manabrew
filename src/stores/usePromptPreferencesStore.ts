@@ -5,10 +5,12 @@ import type { PromptType } from "@/protocol";
 export interface PromptPreferencesState {
   show: Partial<Record<PromptType, boolean>>;
   fullControl: boolean;
+  confirmPassWithMana: boolean;
 
   setShow: (promptType: PromptType, show: boolean) => void;
   clearShow: (promptType: PromptType) => void;
   setFullControl: (fullControl: boolean) => void;
+  setConfirmPassWithMana: (confirmPassWithMana: boolean) => void;
 }
 
 export const usePromptPreferencesStore = create<PromptPreferencesState>()(
@@ -16,6 +18,7 @@ export const usePromptPreferencesStore = create<PromptPreferencesState>()(
     (set) => ({
       show: {},
       fullControl: false,
+      confirmPassWithMana: false,
       setShow: (promptType, show) => set((s) => ({ show: { ...s.show, [promptType]: show } })),
       clearShow: (promptType) =>
         set((s) => {
@@ -24,10 +27,15 @@ export const usePromptPreferencesStore = create<PromptPreferencesState>()(
           return { show: next };
         }),
       setFullControl: (fullControl) => set({ fullControl }),
+      setConfirmPassWithMana: (confirmPassWithMana) => set({ confirmPassWithMana }),
     }),
     {
       name: "manabrew.promptPreferences",
-      partialize: (s) => ({ show: s.show, fullControl: s.fullControl }),
+      partialize: (s) => ({
+        show: s.show,
+        fullControl: s.fullControl,
+        confirmPassWithMana: s.confirmPassWithMana,
+      }),
     },
   ),
 );

@@ -145,6 +145,7 @@ async fn play_game(
             &mut write,
             &ClientMessage::JoinRoom {
                 room_id: room_id.to_string(),
+                seat_index: None,
                 observe: false,
                 as_bot: false,
                 password: None,

@@ -156,7 +156,12 @@ export class PromptLayer extends PromptModalLayer {
     document.addEventListener("visibilitychange", this.onModifierReset);
     window.addEventListener(ACTION_DRAWER_BUMP_EVENT, this.onActionBump);
     this.unsubscribePromptPreferences = usePromptPreferencesStore.subscribe((state, previous) => {
-      if (state.fullControl === previous.fullControl) return;
+      if (
+        state.fullControl === previous.fullControl &&
+        state.confirmPassWithMana === previous.confirmPassWithMana
+      ) {
+        return;
+      }
       this.resetAutopassState();
       this.rebuild();
     });
@@ -311,6 +316,7 @@ export class PromptLayer extends PromptModalLayer {
       !sameGameOverPresentation(previousSpec?.gameOver, spec?.gameOver);
     const overrideChanged =
       previousSpec?.action.promptActionOverride !== spec?.action.promptActionOverride;
+    const autopassChanged = isAutopassWindow(previousSpec) !== isAutopassWindow(spec);
     const presentationChanged = promptChanged || !samePromptPresentation(previousSpec, spec);
     if (promptChanged) {
       this.resetLocalState(spec);
@@ -322,7 +328,7 @@ export class PromptLayer extends PromptModalLayer {
     const handoff = spec?.turnHandoff;
     if (handoff && handoff.turn !== previousSpec?.turnHandoff?.turn) this.startTurnHandoff(handoff);
     this.releaseHeldTurn();
-    if (!promptChanged && overrideChanged) this.resetAutopassState();
+    if (!promptChanged && (overrideChanged || autopassChanged)) this.resetAutopassState();
     const modalUnavailable = !!spec?.modalHidden || !!spec?.action.isWaitingForResponse;
     if (modalUnavailable) this.selectionFilterFocused = false;
     if (this.drag && !promptChanged && !modalUnavailable) return;
@@ -2684,8 +2690,13 @@ export class PromptLayer extends PromptModalLayer {
     )
       return;
     if (this.spec.gameOver && primaryActionKey && !event.repeat) {
+      if (
+        event.target instanceof HTMLElement &&
+        event.target.closest("button, input, textarea, select, a, [contenteditable='true']")
+      )
+        return;
       event.preventDefault();
-      this.spec.gameOver.onEndGame();
+      if (!this.spec.gameOver.busy) this.spec.gameOver.onPlayAgain?.();
       return true;
     }
     const input = this.spec.currentPrompt?.input;

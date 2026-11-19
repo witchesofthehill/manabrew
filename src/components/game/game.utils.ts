@@ -11,7 +11,6 @@ import type { ClientCardDto } from "@/stores/gameStore.types";
 import type { ManaAbilityActionInfo } from "@/components/game/manaUtils";
 import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
 import {
-  BREWY_BOT_AVATARS,
   CARD_H,
   CARD_W,
   GAME_CARD_SIZES,
@@ -112,10 +111,6 @@ export function isBotSeat(
   if (player.isHuman) return false;
   const seat = roomPlayers?.find((roomPlayer) => roomPlayer.username === player.name);
   return seat ? seat.is_bot === true : true;
-}
-
-export function botAvatarUrl(playerId: string, bots: readonly { id: string }[]): string {
-  return BREWY_BOT_AVATARS[bots.findIndex((bot) => bot.id === playerId) % BREWY_BOT_AVATARS.length];
 }
 
 export function getInitials(name: string): string {

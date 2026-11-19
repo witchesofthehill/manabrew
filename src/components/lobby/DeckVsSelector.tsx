@@ -17,7 +17,6 @@ import { reportPublishedDeckPlay } from "@/lib/deckPlayEvidence";
 import { GAME_FORMATS, getFormat, validateDeckSections } from "@/lib/formats";
 import { resolveOfflineEngine } from "@/lib/offlineEngine";
 import { hubEntryEngines, supportsEngine } from "@/lib/engines";
-import { savePresetToAccountOnUse } from "@/lib/presetDeckAccount";
 import { useAccountDecks } from "@/hooks/useAccountDecks";
 import { useOwnedDecks } from "@/hooks/useOwnedDecks";
 import { useDeckStore } from "@/stores/useDeckStore";
@@ -30,6 +29,7 @@ import { useHubStore } from "@/stores/useHubStore";
 import { useCardPool } from "@/hooks/useCardPool";
 import type { DeckHubEntrySummary } from "@/api/hubTypes";
 import type { DeckAssignment, SelectedDeck } from "./deckSelection.types";
+import type { SinglePlayerSetup } from "@/game/singlePlayerSetup";
 import { OfflineRoster } from "./OfflineRoster";
 import {
   createOfflineRoster,
@@ -46,12 +46,14 @@ interface DeckVsSelectorProps {
   preSelectedDeckId?: string;
   preSelectedHubDeckId?: string;
   preSelectedDeck?: SelectedDeck;
+  singlePlayerSetup?: SinglePlayerSetup;
   leadingControl?: ReactNode;
   onStart: (
     playerDeck: Deck,
     opponentDecks: Deck[],
     formatId?: string,
     commanderName?: string,
+    setup?: SinglePlayerSetup,
   ) => Promise<boolean>;
 }
 type PlayFormatId = string;
@@ -59,6 +61,7 @@ export function DeckVsSelector({
   preSelectedDeckId,
   preSelectedHubDeckId,
   preSelectedDeck,
+  singlePlayerSetup,
   leadingControl,
   onStart,
 }: DeckVsSelectorProps) {
@@ -94,7 +97,7 @@ export function DeckVsSelector({
       : null;
   const [roster, dispatchRoster] = useReducer(
     offlineRosterReducer,
-    preSelectedDeckEntry,
+    singlePlayerSetup ?? preSelectedDeckEntry,
     createOfflineRoster,
   );
   const theme = useTheme().gameTheme;
@@ -114,7 +117,7 @@ export function DeckVsSelector({
   const assignmentsForDeck = (id: string) =>
     assignments.filter((_, index) => roster.seats[index].deck?.id === id);
   const [selectedFormat, setSelectedFormat] = useState<PlayFormatId | null>(
-    preSelectedDeckEntry?.formatId ?? rememberedFormatId,
+    singlePlayerSetup?.formatId ?? preSelectedDeckEntry?.formatId ?? rememberedFormatId,
   );
   const deckFormat =
     selectedFormat === null ? null : (getFormat(selectedFormat)?.deckFormat ?? selectedFormat);
@@ -125,7 +128,7 @@ export function DeckVsSelector({
   const [loadingSeatId, setLoadingSeatId] = useState<string | null>(null);
   const selectedFormatRef = useRef(selectedFormat);
   selectedFormatRef.current = selectedFormat;
-  const offlineEngine = resolveOfflineEngine();
+  const offlineEngine = singlePlayerSetup?.engine ?? resolveOfflineEngine();
   const { details: accountDeckDetails } = useAccountDecks();
   const forkedPresetKeys = new Set(
     Object.values(accountDeckDetails)
@@ -425,6 +428,13 @@ export function DeckVsSelector({
       launch.opponentDecks,
       selectedFormat ?? undefined,
       launch.playerDeck.commanderName,
+      {
+        seats: roster.seats.map((seat) => ({ id: seat.id, deck: seat.deck! })),
+        formatId: selectedFormat!,
+        engine: offlineEngine,
+        aiController:
+          singlePlayerSetup?.aiController ?? usePreferencesStore.getState().aiController,
+      },
     );
     if (!started) {
       setStarting(false);
@@ -432,9 +442,6 @@ export function DeckVsSelector({
     }
     if (launch.playerDeck.source === "hub" || launch.playerDeck.source === "preset") {
       void reportPublishedDeckPlay(launch.playerDeck.sourceId, launch.playerDeck.sourceDeck);
-    }
-    if (launch.playerDeck.source === "preset") {
-      savePresetToAccountOnUse(launch.playerDeck.sourceId);
     }
     const prefs = usePreferencesStore.getState();
     if (selectedFormat) prefs.setLastOfflineFormatId(selectedFormat);

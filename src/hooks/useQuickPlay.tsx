@@ -3,13 +3,15 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import type { SelectedDeck } from "@/components/lobby/deckSelection.types";
 import { isOfflinePodFormat } from "@/components/lobby/offlineRoster.utils";
+import { singlePlayerDeck } from "@/game/singlePlayerSetup";
+import type { SinglePlayerSetup } from "@/game/singlePlayerSetup";
 import { resolveAiOpponent } from "@/lib/aiOpponent";
+import type { ResolvedAiOpponent } from "@/lib/aiOpponent";
 import { ROUTES } from "@/lib/constants";
 import { reportPublishedDeckPlay } from "@/lib/deckPlayEvidence";
 import { getFormat } from "@/lib/formats";
 import { resolveOfflineEngine } from "@/lib/offlineEngine";
 import { presetSupportsEngine, type PresetDeck } from "@/lib/presetDecks";
-import { savePresetToAccountOnUse } from "@/lib/presetDeckAccount";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { useGameStore } from "@/stores/useGameStore";
 import { useHubStore } from "@/stores/useHubStore";
@@ -28,7 +30,7 @@ async function resolveOpponents(
   formatId: string,
 ): Promise<{
   decks: Deck[];
-  remember: ReturnType<typeof resolveAiOpponent>;
+  remember: ResolvedAiOpponent | null;
 }> {
   const presets = await ensurePresets(engine);
   const opponent = resolveAiOpponent({
@@ -38,6 +40,31 @@ async function resolveOpponents(
     last: usePreferencesStore.getState().lastAiOpponent,
   });
   return { decks: opponent ? [opponent.deck] : [], remember: opponent };
+}
+function quickPlaySetup(
+  deck: SelectedDeck,
+  engine: EngineKind,
+  opponent: ResolvedAiOpponent | null,
+): SinglePlayerSetup {
+  return {
+    engine,
+    formatId: deck.formatId ?? "standard",
+    seats: [
+      { id: "player", deck },
+      ...(opponent
+        ? [
+            {
+              id: "bot-1",
+              deck: singlePlayerDeck(
+                opponent.deck,
+                opponent.source === "preset" ? "preset" : "local",
+                opponent.id,
+              ),
+            },
+          ]
+        : []),
+    ],
+  };
 }
 export function useQuickPlay() {
   const navigate = useNavigate();
@@ -80,7 +107,19 @@ export function useQuickPlay() {
         }
         const started = await useGameStore
           .getState()
-          .startGame(deck, formatId, deck.commanders?.[0]?.identity.name, opponents.decks, engine);
+          .startGame(
+            deck,
+            formatId,
+            deck.commanders?.[0]?.identity.name,
+            opponents.decks,
+            engine,
+            undefined,
+            quickPlaySetup(
+              singlePlayerDeck(deck, "local", savedDeckId),
+              engine,
+              opponents.remember,
+            ),
+          );
         if (!started) return;
         const prefs = usePreferencesStore.getState();
         prefs.setLastOfflineFormatId(formatId);
@@ -121,10 +160,11 @@ export function useQuickPlay() {
           preset.commanders?.[0]?.identity.name,
           opponents.decks,
           engine,
+          undefined,
+          quickPlaySetup(singlePlayerDeck(preset, "preset", presetId), engine, opponents.remember),
         );
       if (!started) return;
       void reportPublishedDeckPlay(presetId, preset);
-      savePresetToAccountOnUse(preset.id);
       const prefs = usePreferencesStore.getState();
       prefs.setLastOfflineFormatId(formatId);
       if (opponents.remember) {
@@ -154,7 +194,15 @@ export function useQuickPlay() {
       }
       const started = await useGameStore
         .getState()
-        .startGame(deck, formatId, deck.commanders?.[0]?.identity.name, opponents.decks, engine);
+        .startGame(
+          deck,
+          formatId,
+          deck.commanders?.[0]?.identity.name,
+          opponents.decks,
+          engine,
+          undefined,
+          quickPlaySetup(singlePlayerDeck(deck, "hub", entryId), engine, opponents.remember),
+        );
       if (!started) return;
       void reportPublishedDeckPlay(entryId, deck);
       const prefs = usePreferencesStore.getState();

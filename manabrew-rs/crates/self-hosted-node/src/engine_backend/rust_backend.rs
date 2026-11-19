@@ -89,8 +89,6 @@ pub fn run_hosted_engine_game(
     );
     let _ = game_over_tx.send(HostedGameOver {
         game_id,
-        // Assuming that Rust currently has no final messages that must precede EndGame.
-        // If that changes, bundle them here so the game-over forwarder preserves ordering.
         messages: Vec::new(),
     });
     Ok(())

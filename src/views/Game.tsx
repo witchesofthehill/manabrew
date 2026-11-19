@@ -22,6 +22,8 @@ import type { ClientCardDto, ClientPlayerDto } from "@/stores/gameStore.types";
 import { GameModals } from "@/components/game/GameModals";
 import { LandscapeGate } from "@/components/LandscapeGate";
 import { GameLoadingScreen } from "@/components/game/GameLoadingScreen";
+import { CreateGameDialog } from "@/components/lobby/CreateGameDialog";
+import { usePostGame } from "@/hooks/usePostGame";
 import { GameFailedScreen } from "@/components/game/GameFailedScreen";
 import { WaitingForPlayerScreen } from "@/components/game/WaitingForPlayerScreen";
 import { DevViewportFrame } from "@/components/dev/DevViewportFrame";
@@ -101,14 +103,13 @@ import {
   stackObjectAbilityText,
   stackObjectToCard,
   relayAvatarUrl,
-  botAvatarUrl,
-  isBotSeat,
   gameRound,
   opponentsInTurnOrder,
 } from "@/components/game/game.utils";
 import { createPortal } from "react-dom";
 import { Card } from "@/components/game/Card";
 import { cn } from "@/lib/utils";
+import { gameBotAvatarUrls } from "@/lib/botAvatars";
 import { applyManualTabletopAction, getSelectedGameRuntime } from "@/game";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { deriveCardRailState, parsePrintedCardRailMetadata } from "@/components/game/cardRailState";
@@ -265,6 +266,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   const currentPrompt = useGameStore((s) => s.currentPrompt);
   const protocolError = useGameStore((s) => s.protocolError);
   const isGameActive = useGameStore((s) => s.isGameActive);
+  const isRestartingGame = useGameStore((s) => s.isRestartingGame);
   const activeEngine = useGameStore((s) => s.activeEngine);
   const isPrefetchingCards = useGameStore((s) => s.isPrefetchingCards);
   const isWaitingForResponse = useGameStore((s) => s.isWaitingForResponse);
@@ -1266,9 +1268,9 @@ export default function Game({ exitTo }: GameProps = {}) {
     [gameView?.players, me?.id],
   );
   const roomPlayers = useServerStore((s) => s.currentRoom?.players);
-  const botOpponents = useMemo(
-    () => opponents.filter((op) => isBotSeat(op, roomPlayers)),
-    [opponents, roomPlayers],
+  const botAvatars = useMemo(
+    () => gameBotAvatarUrls(gameView?.players ?? [], roomPlayers),
+    [gameView?.players, roomPlayers],
   );
   const iAmEliminated = selfConceded || (me != null && me.status !== "playing");
   const ownsEngine = isHost || hostingForgeRoom;
@@ -2188,12 +2190,9 @@ export default function Game({ exitTo }: GameProps = {}) {
     zoneCardPreview && externalPreviewActive ? { "toggle-card-view": togglePreviewView } : {},
     zonePreviewScope,
   );
-  useEffect(() => {
-    if (!gameView?.gameOver && activePrompt?.input.type !== "gameOver") return;
-    if (peekGauntletMatch(gauntletId) || peekLimitedMatchReturn()) return;
-    const timer = setTimeout(() => endGame(), 3000);
-    return () => clearTimeout(timer);
-  }, [gameView?.gameOver, activePrompt?.input.type, gauntletId, endGame]);
+  const completed = (gameView?.gameOver ?? false) || activePrompt?.input.type === "gameOver";
+  const managedReturn = !!peekGauntletMatch(gauntletId) || !!peekLimitedMatchReturn();
+  const postGame = usePostGame(completed, managedReturn);
   const limitedReturn = useLimitedGameReturn({
     gauntletId,
     gameOver: (gameView?.gameOver ?? false) || activePrompt?.input.type === "gameOver",
@@ -2201,6 +2200,11 @@ export default function Game({ exitTo }: GameProps = {}) {
     playerSlot: myPlayerSlot,
     endGame,
   });
+  if (!isGameActive && (isRestartingGame || postGame.busy)) {
+    return (
+      <GameLoadingScreen debugInfo="Preparing the next game" onComplete={handleLoadingComplete} />
+    );
+  }
   if (!isGameActive)
     return <Navigate to={limitedReturn.destination ?? exitTo ?? "/lobby"} replace />;
   if (limitedReturn.error) {
@@ -2408,14 +2412,12 @@ export default function Game({ exitTo }: GameProps = {}) {
             avatarUrl:
               activeFlash.playerId === me.id
                 ? (useAuthStore.getState().account?.avatarUrl ?? null)
-                : (relayAvatarUrl(
+                : (botAvatars.get(turnHandoffPlayer.name) ??
+                  relayAvatarUrl(
                     turnHandoffPlayer.name,
                     useServerStore.getState().players,
                     useServerStore.getState().playerDecks,
-                  ) ??
-                  (isBotSeat(turnHandoffPlayer, roomPlayers)
-                    ? botAvatarUrl(turnHandoffPlayer.id, botOpponents)
-                    : null)),
+                  )),
           }
         : null,
     sourceDeckCard: promptSourceDeckCard,
@@ -2532,7 +2534,13 @@ export default function Game({ exitTo }: GameProps = {}) {
             opponents,
             turn: gameRound(gameView.turn, gameView.players.length),
             engineCrash,
-            onEndGame: () => void endGame(),
+            statusMessage: postGame.statusMessage,
+            playerStatuses: postGame.playerStatuses,
+            ready: postGame.ready,
+            busy: postGame.busy,
+            onPlayAgain: postGame.onPlayAgain,
+            onChangeDeck: postGame.onChangeDeck,
+            onHome: postGame.onHome,
           }
         : null,
     modalHidden: promptModalHidden,
@@ -2811,6 +2819,18 @@ export default function Game({ exitTo }: GameProps = {}) {
           boardSurfaceEl,
         )}
 
+      {postGame.deckPickerOpen && (
+        <CreateGameDialog
+          open
+          onOpenChange={postGame.onPickerOpenChange}
+          mode="lobby"
+          rematch
+          engineKind={postGame.room?.engine}
+          forcedFormatId={postGame.room?.format.toLowerCase()}
+          preSelectedDeck={postGame.previousDeck}
+          onStart={postGame.onDeckSelected}
+        />
+      )}
       {gameSettingsOpen && <GameSettingsModal onClose={() => setGameSettingsOpen(false)} />}
       {soundSettingsOpen && <SoundSettingsModal onClose={() => setSoundSettingsOpen(false)} />}
       {phaseStopsHelpOpen && (

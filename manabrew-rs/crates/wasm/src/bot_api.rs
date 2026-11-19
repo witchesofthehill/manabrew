@@ -145,6 +145,20 @@ impl WasmBot {
             .collect()
     }
 
+    pub fn set_deck_selection(&mut self, selection_json: &str) -> Result<Vec<String>, JsValue> {
+        let selection = serde_json::from_str(selection_json)
+            .map_err(|error| JsValue::from_str(&format!("invalid bot deck selection: {error}")))?;
+        self.state
+            .set_deck_selection(selection)
+            .map_err(|error| JsValue::from_str(&error))?
+            .into_iter()
+            .map(|message| {
+                serde_json::to_string(&message)
+                    .map_err(|error| JsValue::from_str(&format!("invalid bot message: {error}")))
+            })
+            .collect()
+    }
+
     pub fn failure(&self) -> Option<String> {
         self.state.failure().map(str::to_string)
     }

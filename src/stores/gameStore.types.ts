@@ -10,6 +10,7 @@ import type { Deck } from "@/protocol/deck";
 import type { EngineKind, GameFormat } from "@/types/server";
 import type { IronsmithDeckIssue } from "@/game";
 import type { GameViewTransition } from "@/lib/gameViewTransitions";
+import type { SinglePlayerSetup } from "@/game/singlePlayerSetup";
 
 /** The engine sends `zones: ZoneDto[]` with per-recipient `CardView` visibility.
  *  The board reads the classic flat shape (a battlefield array, per-player zone
@@ -91,6 +92,9 @@ export interface GameState {
   repeatVote: RepeatVoteDto | null;
   gameConfig: GameConfig | null;
   gauntletId: string | null;
+  singlePlayerSetup: SinglePlayerSetup | null;
+  isRestartingGame: boolean;
+  gameInstanceId: string | null;
   /** Set at concede click, before the engine confirms via `status: "conceded"`. */
   selfConceded: boolean;
   isMultiplayer: boolean;
@@ -115,7 +119,9 @@ export interface GameState {
     opponentDecks?: Deck[],
     engine?: EngineKind,
     gauntletId?: string,
+    setup?: SinglePlayerSetup,
   ) => Promise<boolean>;
+  restartGame: () => Promise<boolean>;
   startManualTabletopGame: (deck: Deck, formatId?: string, commanderName?: string) => Promise<void>;
   startManualRoomHost: (localPlayerSlot: string) => Promise<void>;
   startManualRoomClient: (
@@ -137,7 +143,7 @@ export interface GameState {
   ) => Promise<boolean>;
   respond: (output: PromptOutput["output"]) => Promise<void>;
   concede: () => Promise<void>;
-  endGame: () => Promise<void>;
+  endGame: (options?: { preserveRoom?: boolean }) => Promise<void>;
   setMultiplayerState: (
     isMultiplayer: boolean,
     isHost: boolean,

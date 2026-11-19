@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import {
   BroadcastRoomHost,
   getSelectedGameRuntime,
+  getSelectedGameRuntimeKind,
   resetSelectedGameRuntime,
   selectGameRuntime,
   startManualRoomSync,
@@ -58,14 +59,17 @@ import { usePreferencesStore } from "./usePreferencesStore";
 import type { ClientCardDto, ClientGameView, GameState } from "./gameStore.types";
 import type { DirectiveInput, Prompt, PromptOutput } from "@/protocol";
 import type { Deck, DeckCard } from "@/protocol/deck";
-import type { EngineKind } from "@/types/server";
+import type { AiController, EngineKind } from "@/types/server";
 import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
 import { normalizeCardCosmetics } from "@/lib/cardCosmetics";
 import type { GameRuntime, ManualTabletopApi } from "@/game";
 import { withResolvedDeckName } from "@/lib/deckName";
+import { createSinglePlayerSetup } from "@/game/singlePlayerSetup";
 export type { GameConfig, GameState, DeferredSnapshot } from "./gameStore.types";
 let gameLaunchGeneration = 0;
 let gameLaunchInFlight: number | null = null;
+let gameTeardownInFlight: Promise<void> | null = null;
+const pendingGameCleanup = new Set<Promise<unknown>>();
 export function cancelPendingGameLaunch(): void {
   if (gameLaunchInFlight !== null) void useGameStore.getState().endGame();
 }
@@ -144,6 +148,7 @@ async function initializeGame({
   get,
   commanderName,
   engine,
+  aiController,
   isLaunchCurrent,
 }: {
   deck: Deck;
@@ -152,6 +157,7 @@ async function initializeGame({
   commanderName?: string;
   engine?: EngineKind;
   set: (partial: Partial<GameState>) => void;
+  aiController: AiController;
   get: () => GameState;
   isLaunchCurrent: () => boolean;
 }): Promise<void> {
@@ -195,7 +201,7 @@ async function initializeGame({
         opponentDecks,
         formatId: selectedFormatId,
         commanderName: commanderName ?? null,
-        aiController: usePreferencesStore.getState().aiController,
+        aiController,
       });
       hosted = hostedLaunch;
       if (!isLaunchCurrent()) {
@@ -316,7 +322,7 @@ async function initializeGame({
       commanderName: commanderName ?? null,
       opponentDecks: opponentDecks ?? null,
       engine,
-      aiController: usePreferencesStore.getState().aiController,
+      aiController,
     });
     const result = await (firstPrompt
       ? withForgeStartTimeout(start.then((started) => firstPrompt.signal.then(() => started)))
@@ -353,6 +359,7 @@ async function initializeGame({
         get,
         commanderName,
         engine,
+        aiController,
         isLaunchCurrent,
       });
     }
@@ -390,6 +397,9 @@ export const useGameStore = create<GameState>()(
       repeatVote: null,
       gameConfig: null,
       gauntletId: null,
+      singlePlayerSetup: null,
+      isRestartingGame: false,
+      gameInstanceId: null,
       selfConceded: false,
       isMultiplayer: false,
       isHost: false,
@@ -414,22 +424,61 @@ export const useGameStore = create<GameState>()(
       updateGameView: (view) => set({ gameView: view }),
       setGameConfig: (config) => set({ gameConfig: config }),
       dismissIronsmithDeckError: () => set({ ironsmithDeckError: null }),
-      startGame: async (deck, formatId, commanderName, opponentDecks, engine, gauntletId) => {
+      startGame: async (
+        deck,
+        formatId,
+        commanderName,
+        opponentDecks,
+        engine,
+        gauntletId,
+        setup,
+      ) => {
+        if (gameTeardownInFlight) await gameTeardownInFlight;
         if (get().isGameActive) return false;
-        if (gameLaunchInFlight !== null) {
+        if (gameLaunchInFlight !== null || pendingGameCleanup.size > 0) {
           toast.info(`The previous game is still closing. Try again in a moment.`);
           return false;
         }
         const launchGeneration = ++gameLaunchGeneration;
         gameLaunchInFlight = launchGeneration;
-        set({ gauntletId: gauntletId ?? null });
+        const runtimeKind =
+          setup?.runtimeKind ??
+          (engine === "Ironsmith" ? "ironsmith" : getSelectedGameRuntimeKind());
+        const launchEngine =
+          setup?.engine ?? engine ?? (runtimeKind === "ironsmith" ? "Ironsmith" : "Manabrew");
+        const launchOpponents =
+          opponentDecks?.length || runtimeKind === "manual-tabletop"
+            ? (opponentDecks ?? [])
+            : [deck];
+        const singlePlayerSetup = structuredClone(
+          setup ??
+            createSinglePlayerSetup({
+              deck,
+              opponentDecks: launchOpponents,
+              formatId: formatId ?? deck.format ?? "standard",
+              commanderName,
+              engine: launchEngine,
+              runtimeKind,
+              aiController: usePreferencesStore.getState().aiController,
+            }),
+        );
+        singlePlayerSetup.runtimeKind = runtimeKind;
+        singlePlayerSetup.aiController ??= usePreferencesStore.getState().aiController;
+        set({
+          gauntletId: gauntletId ?? null,
+          singlePlayerSetup,
+          isRestartingGame: false,
+          gameInstanceId: crypto.randomUUID(),
+        });
         try {
+          selectGameRuntime(runtimeKind);
           await initializeGame({
             deck,
-            opponentDecks,
+            opponentDecks: launchOpponents,
             formatId,
             commanderName,
-            engine,
+            engine: launchEngine,
+            aiController: singlePlayerSetup.aiController,
             set,
             get,
             isLaunchCurrent: () => launchGeneration === gameLaunchGeneration,
@@ -454,6 +503,31 @@ export const useGameStore = create<GameState>()(
           return false;
         } finally {
           if (gameLaunchInFlight === launchGeneration) gameLaunchInFlight = null;
+        }
+      },
+      restartGame: async () => {
+        const { singlePlayerSetup, isRestartingGame } = get();
+        if (!singlePlayerSetup || isRestartingGame || gameLaunchInFlight !== null) return false;
+        set({ isRestartingGame: true });
+        try {
+          await get().endGame();
+          const player = singlePlayerSetup.seats[0]?.deck;
+          if (!player) return false;
+          selectGameRuntime(
+            singlePlayerSetup.runtimeKind ??
+              (singlePlayerSetup.engine === "Ironsmith" ? "ironsmith" : "manabrew"),
+          );
+          return await get().startGame(
+            player.sourceDeck,
+            singlePlayerSetup.formatId,
+            player.commanderName,
+            singlePlayerSetup.seats.slice(1).map((seat) => seat.deck.sourceDeck),
+            singlePlayerSetup.engine,
+            undefined,
+            singlePlayerSetup,
+          );
+        } finally {
+          set({ isRestartingGame: false });
         }
       },
       startManualTabletopGame: async (deck, formatId, commanderName) => {
@@ -500,6 +574,7 @@ export const useGameStore = create<GameState>()(
         }
         set({
           isMultiplayer: true,
+          singlePlayerSetup: null,
           activeEngine: null,
           isHost: true,
           myPlayerSlot: localPlayerSlot,
@@ -538,6 +613,7 @@ export const useGameStore = create<GameState>()(
           isGameActive: true,
           activeEngine: null,
           isMultiplayer: true,
+          singlePlayerSetup: null,
           isHost: false,
           myPlayerSlot: localPlayerSlot,
           debugInfo: "Manual room client connected. Waiting for table state...",
@@ -558,13 +634,14 @@ export const useGameStore = create<GameState>()(
         hostPlayerSlot,
         botPlayerSlots,
       ) => {
+        if (gameTeardownInFlight) await gameTeardownInFlight;
         // Guard against re-entry — a second start while one is already in
         // flight would tear down the first session's response channels in
         // the engine (game_manager.rs sees a takeover and drops the txs),
         // causing every recv_action in game 1 to return Concede and any
         // user clicks made between the two starts to queue in game 2's
         // channel where they'll be misrouted by `await_display_ack`.
-        if (get().isGameActive || gameLaunchInFlight !== null) {
+        if (get().isGameActive || gameLaunchInFlight !== null || pendingGameCleanup.size > 0) {
           console.warn(
             "[store] startMultiplayerGame called while a game is already active — ignoring duplicate.",
           );
@@ -578,6 +655,7 @@ export const useGameStore = create<GameState>()(
         });
         const server = useServerStore.getState();
         const session = peekActiveGameSession();
+        if (server.currentRoom?.status === "Finished") localIsHost = false;
         const gauntletId =
           session?.roomId === server.currentRoom?.room_id && session?.gameId === server.gameId
             ? (session?.gauntletId ?? null)
@@ -597,6 +675,9 @@ export const useGameStore = create<GameState>()(
             isGameActive: true,
             activeEngine: engine ?? server.currentRoom?.engine ?? null,
             isMultiplayer: true,
+            singlePlayerSetup: null,
+            isRestartingGame: false,
+            gameInstanceId: server.gameId || crypto.randomUUID(),
             isHost: localIsHost,
             myPlayerSlot: `player-${enginePlayerIndex}`,
             ironsmithDeckError: null,
@@ -747,92 +828,115 @@ export const useGameStore = create<GameState>()(
           throw e;
         }
       },
-      endGame: async () => {
-        gameLaunchGeneration += 1;
-        const activeSession = peekActiveGameSession();
-        clearActiveGameSession();
-        const runtime = getSelectedGameRuntime();
-        const wasMultiplayer = get().isMultiplayer;
-        if (peekGauntletMatch() && !get().gameView?.gameOver) await clearGauntletMatch();
-        // Before the state is cleared: how the engine performed. A game the
-        // relay knows about is reported to it; anything else goes to the hub.
-        // Never throws, never blocks the teardown.
-        reportEngineStats({
-          multiplayer: wasMultiplayer,
-          seats: Object.keys(get().gameDecks).length || 2,
-          format: get().gameConfig?.formatId ?? null,
-          endReason: get().engineCrash ? "error" : get().gameView?.gameOver ? "gameOver" : "left",
-          gameId: engineReportGameId(
-            wasMultiplayer && !activeSession?.relayHost,
-            useServerStore.getState().gameId,
-            currentOfflineGameId(),
-          ),
-          send: wasMultiplayer
-            ? async (stats, gameId) => {
-                await getPlatform().server?.reportEngineStats(stats, gameId);
-              }
-            : undefined,
-        });
-        setErrorReportingEngine(null);
-        set({
-          isGameActive: false,
-          activeEngine: null,
-          gauntletId: null,
-          gameView: null,
-          currentPrompt: null,
-          protocolError: null,
-          deferredQueue: [],
-          isFlashing: false,
-          isWaitingForResponse: false,
-          seatAddressedStates: false,
-          relinquishedPriority: false,
-          recording: { type: "off" },
-          repeatVote: null,
-          selfConceded: false,
-          engineCrash: null,
-          isMultiplayer: false,
-          isHost: false,
-          myPlayerSlot: null,
-          gameDecks: {},
-          hiddenPlaymats: new Set<string>(),
-          ignoredCardIds: new Set<string>(),
-        });
-        stopActiveManualRoomSync();
-        resetSelectedGameRuntime();
-        const withTimeout = <T>(promise: Promise<T>, label: string): Promise<T | void> => {
-          let clearTimer: () => void = () => undefined;
-          const timeout = new Promise<void>((resolve) => {
-            const timer = setTimeout(() => {
-              console.warn(`${label} timed out after 2s`);
-              resolve();
-            }, 2000);
-            clearTimer = () => clearTimeout(timer);
+      endGame: (options) => {
+        if (gameTeardownInFlight) return gameTeardownInFlight;
+        const teardown = (async () => {
+          gameLaunchGeneration += 1;
+          const activeSession = peekActiveGameSession();
+          if (!options?.preserveRoom) clearActiveGameSession();
+          const runtime = getSelectedGameRuntime();
+          const wasMultiplayer = get().isMultiplayer || (get().isRestartingGame && !!activeSession);
+          if (peekGauntletMatch() && !get().gameView?.gameOver) await clearGauntletMatch();
+          // Before the state is cleared: how the engine performed. A game the
+          // relay knows about is reported to it; anything else goes to the hub.
+          // Never throws, never blocks the teardown.
+          reportEngineStats({
+            multiplayer: wasMultiplayer,
+            seats: Object.keys(get().gameDecks).length || 2,
+            format: get().gameConfig?.formatId ?? null,
+            endReason: get().engineCrash ? "error" : get().gameView?.gameOver ? "gameOver" : "left",
+            gameId: engineReportGameId(
+              wasMultiplayer && !activeSession?.relayHost,
+              useServerStore.getState().gameId,
+              currentOfflineGameId(),
+            ),
+            send: wasMultiplayer
+              ? async (stats, gameId) => {
+                  await getPlatform().server?.reportEngineStats(stats, gameId);
+                }
+              : undefined,
           });
-          return Promise.race([promise, timeout]).finally(clearTimer);
+          setErrorReportingEngine(null);
+          set({
+            isGameActive: false,
+            singlePlayerSetup: options?.preserveRoom ? get().singlePlayerSetup : null,
+            isRestartingGame:
+              options?.preserveRoom || (get().isRestartingGame && get().isGameActive),
+            activeEngine: null,
+            gauntletId: null,
+            gameView: null,
+            currentPrompt: null,
+            protocolError: null,
+            deferredQueue: [],
+            isFlashing: false,
+            isWaitingForResponse: false,
+            seatAddressedStates: false,
+            relinquishedPriority: false,
+            recording: { type: "off" },
+            repeatVote: null,
+            selfConceded: false,
+            engineCrash: null,
+            isMultiplayer: false,
+            isHost: false,
+            myPlayerSlot: null,
+            gameDecks: {},
+            hiddenPlaymats: new Set<string>(),
+            ignoredCardIds: new Set<string>(),
+          });
+          stopActiveManualRoomSync();
+          resetSelectedGameRuntime();
+          const withTimeout = <T>(promise: Promise<T>, label: string): Promise<T | void> => {
+            pendingGameCleanup.add(promise);
+            const clearPending = () => {
+              pendingGameCleanup.delete(promise);
+            };
+            void promise.then(clearPending, clearPending);
+            if (get().isRestartingGame) return promise;
+            let clearTimer: () => void = () => undefined;
+            const timeout = new Promise<void>((resolve) => {
+              const timer = setTimeout(() => {
+                console.warn(`${label} timed out after 2s`);
+                resolve();
+              }, 2000);
+              clearTimer = () => clearTimeout(timer);
+            });
+            return Promise.race([promise, timeout]).finally(clearTimer);
+          };
+          if (
+            wasMultiplayer &&
+            !options?.preserveRoom &&
+            !useMultiplayerLimitedStore.getState().matchReturn
+          ) {
+            try {
+              await withTimeout(useServerStore.getState().leaveRoom(), "leaveRoom()");
+            } catch (e) {
+              console.warn("Failed to leave multiplayer room after game end:", e);
+            }
+          }
+          try {
+            await withTimeout(runtime.api.endGame(), "runtime.endGame()");
+          } catch (e) {
+            console.warn("runtime.endGame() failed:", e);
+          }
+          if (activeSession?.relayHost && !options?.preserveRoom) {
+            try {
+              await stopLocalHostedAiRelay();
+            } catch (e) {
+              console.warn("stopLocalHostedAiRelay() failed:", e);
+            }
+          }
+        })();
+        gameTeardownInFlight = teardown;
+        const clearTeardown = () => {
+          if (gameTeardownInFlight === teardown) gameTeardownInFlight = null;
         };
-        if (wasMultiplayer && !useMultiplayerLimitedStore.getState().matchReturn) {
-          try {
-            await withTimeout(useServerStore.getState().leaveRoom(), "leaveRoom()");
-          } catch (e) {
-            console.warn("Failed to leave multiplayer room after game end:", e);
-          }
-        }
-        try {
-          await withTimeout(runtime.api.endGame(), "runtime.endGame()");
-        } catch (e) {
-          console.warn("runtime.endGame() failed:", e);
-        }
-        if (activeSession?.relayHost) {
-          try {
-            await stopLocalHostedAiRelay();
-          } catch (e) {
-            console.warn("stopLocalHostedAiRelay() failed:", e);
-          }
-        }
+        void teardown.then(clearTeardown, clearTeardown);
+        return teardown;
       },
       setMultiplayerState: (isMultiplayer, isHost, myPlayerSlot) => {
         set({
           isMultiplayer,
+          ...(isMultiplayer && gameLaunchInFlight === null ? { singlePlayerSetup: null } : {}),
           isHost,
           myPlayerSlot,
           activeEngine: isMultiplayer

@@ -880,14 +880,22 @@ async function saveLocalLimitedState(
       parentGame?.game_id ?? previous?.connection?.resume.game_id,
     );
     const game = parentGame ?? previous?.connection?.resume;
-    if (game)
+    if (game) {
+      const seatIndices = game.player_order.map(
+        (username) =>
+          local.originalRoom!.players.find((player) => player.username === username)?.seat_index,
+      );
       connection.resume = {
         ...connection.resume,
         game_id: game.game_id,
         player_order: game.player_order,
+        seat_indices: seatIndices.every((seat): seat is number => seat !== undefined)
+          ? seatIndices
+          : undefined,
         player_decks: game.player_decks,
         starting_life: game.starting_life,
       };
+    }
     return {
       schemaVersion: 1,
       title: local.kind === "draft" ? "Booster Draft" : "Sealed",

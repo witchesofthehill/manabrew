@@ -128,6 +128,7 @@ export function DeckSelectionCard({
       className={cn(
         dense && "min-h-40 aspect-auto",
         !dense && "sm:min-h-[172px]",
+        disabled && "opacity-100",
         !hasAssignments &&
           isSelected &&
           "border-selection-border bg-selection ring-1 ring-selection-border",

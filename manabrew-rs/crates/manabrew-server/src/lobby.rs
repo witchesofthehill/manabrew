@@ -686,7 +686,8 @@ pub fn start_game_sync(
             .get_mut(&room_id)
             .ok_or_else(|| ServerError::RoomNotFound(room_id.clone()))?;
 
-        if !room.is_controller(player_id) {
+        let matchmade_host = room.matchmade_bracket.is_some() && room.is_host(player_id);
+        if !room.is_controller(player_id) && !matchmade_host {
             return Err(ServerError::NotHost);
         }
 

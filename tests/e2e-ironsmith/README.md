@@ -39,6 +39,10 @@ create room, pick deck) are engine-generic and reusable for any multiplayer flow
 ## Run
 
 ```bash
+# Turn presentation under burst updates: one banner per turn and ordered phase commits.
+# Requires the dev server only; no relay or engine game is started.
+yarn test:e2e:ironsmith:transitions
+
 # Real Manabot gameplay: solo and multiple bot seats play lands, creatures, and attack.
 # Also exercises agent release, transcript replay, and human-host takeover in the adapter.
 # Requires the dev server and the Manabrew WASM bundle (`yarn build:wasm`). No relay needed.

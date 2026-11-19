@@ -7,7 +7,15 @@ import { flashItemOf } from "@/lib/gameViewTransitions";
 import { playSound } from "@/lib/soundRuntime";
 
 function applyQueuedSnapshot(snapshot: DeferredSnapshot) {
-  applySnapshot(snapshot, useGameStore.setState, useGameStore.getState);
+  applySnapshot(
+    snapshot,
+    (updates) =>
+      useGameStore.setState((state) => ({
+        ...updates,
+        deferredQueue: state.deferredQueue.slice(1),
+      })),
+    useGameStore.getState,
+  );
 }
 
 export function useFlashQueue(flashDurationMs: number) {
@@ -40,9 +48,8 @@ export function useFlashQueue(flashDurationMs: number) {
       return;
     }
 
+    isFlashingRef.current = true;
     const [snapshot, ...rest] = queue;
-    useGameStore.setState({ deferredQueue: rest });
-
     const flashes = snapshot.transitions.flatMap((transition) => flashItemOf(transition) ?? []);
     if (flashes.length === 0) {
       applyQueuedSnapshot(snapshot);

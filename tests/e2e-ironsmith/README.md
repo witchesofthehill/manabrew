@@ -94,7 +94,8 @@ rules and the mixed default catalog contains no Commander decks.
 Each game prints JSON. `OUT` selects the artifact directory (default
 `tmp/ironsmith-stress-<timestamp>`), containing the engine version/WASM hashes,
 limits, summary, and exact config/transcript/latest view for every unsuccessful
-game. Completed games with recovered payment rejections remain completed and
+game. Stalled games also retain the pending seat prompts, including the source
+card and available choices. Completed games with recovered payment rejections remain completed and
 report `rejectedActions`; a stalled prompt, timeout, or decision cap exits
 non-zero. Timeouts and caps are distinct from crashes. Increase the time budget
 when a four-player game is still making progress.

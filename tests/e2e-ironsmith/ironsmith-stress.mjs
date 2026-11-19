@@ -112,6 +112,7 @@ try {
           }),
         ];
         let artifact;
+        let pendingPrompts;
         try {
           const play = async () => {
             const decks = await Promise.all(
@@ -138,11 +139,24 @@ try {
               if (fatal || errors.some((error) => typeof error === "string"))
                 throw new Error(JSON.stringify(errors));
               const { gameView, prompt } = await api.readManabrewView(0);
-              if (!prompt)
-                throw new Error(`Missing local prompt at turn ${gameView.turn}, ${gameView.step}`);
+              if (!prompt) {
+                pendingPrompts = [];
+                for (let seat = 0; seat < players; seat++) {
+                  const pending = await api.readManabrewView(seat);
+                  if (pending.prompt) pendingPrompts.push(pending.prompt);
+                }
+                const pending = pendingPrompts[0];
+                throw new Error(
+                  pending
+                    ? `${pending.decidingPlayerId} stalled at ${pending.input.type} prompt ${pending.promptId}`
+                    : `Missing local prompt at turn ${gameView.turn}, ${gameView.step}`,
+                );
+              }
               const recovered = recoverBotAnswer(prompt, recovery);
-              if (recovered === "stalled")
+              if (recovered === "stalled") {
+                pendingPrompts = [prompt];
                 throw new Error(`Local bot stalled at prompt ${prompt.promptId}`);
+              }
               const action =
                 recovered ?? (await api.callEngine("botAction", "player-0", gameView, prompt));
               await api.respond({
@@ -180,7 +194,13 @@ try {
           decisions = api.entries.length;
           rejectedActions = api.entries.filter((entry) => entry.rejected).length;
           if (status !== "completed")
-            artifact = { config: api.config, entries: [...api.entries], view, errors };
+            artifact = {
+              config: api.config,
+              entries: [...api.entries],
+              view,
+              errors,
+              pendingPrompts,
+            };
           await api.endGame();
           stop.forEach((unsubscribe) => unsubscribe());
           crypto.getRandomValues = randomValues;

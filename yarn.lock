@@ -3276,10 +3276,10 @@ ini@6.0.0:
   resolved "https://registry.yarnpkg.com/ini/-/ini-6.0.0.tgz#efc7642b276f6a37d22fdf56ef50889d7146bf30"
   integrity sha512-IBTdIkzZNOpqm7q3dRqJvMaldXjDHWkEDfrwGEQTs5eaQMWV+djAhR+wahyNNMAa+qpbDUhBMVt4ZKNwpPm7xQ==
 
-ironsmith-wasm@^0.9.1:
-  version "0.9.1"
-  resolved "https://registry.yarnpkg.com/ironsmith-wasm/-/ironsmith-wasm-0.9.1.tgz#97c5c011efa78467829e147fa437e89197072c49"
-  integrity sha512-c1PoucnEvehhd3ilqS8WgwMcuYroCNAszXAJgwTMjF5kh0KRQ1f41CLpy1O8yFZhuClt2HoyczxVbfcmdXpMNw==
+ironsmith-wasm@^0.9.2:
+  version "0.9.2"
+  resolved "https://registry.yarnpkg.com/ironsmith-wasm/-/ironsmith-wasm-0.9.2.tgz#64ca5df9345dfd2d416234ea487df9da578fe31a"
+  integrity sha512-sCAfcr0Xx7lftwmLx/ORbwss5yobrSvXwB3mXhtc4gnhp+M6YtfL4RXxrTPn+moArRysybUpCSV3YXC0tVxf/w==
 
 is-arrayish@^0.2.1:
   version "0.2.1"

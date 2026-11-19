@@ -7,6 +7,8 @@ import type {
 } from "./ironsmithEngine.types";
 import { reportClientError } from "@/lib/errorReporting";
 import { getPlatform } from "@/platform";
+import { type BotRecovery, newBotRecovery, recoverBotAnswer } from "./ironsmithBotRecovery";
+import { withBothCardParts } from "./ironsmithDeckFaces";
 import { createRoomRelayEnvelope, isRoomRelayProtocol } from "./roomRelay";
 import type {
   IGameApi,
@@ -16,7 +18,7 @@ import type {
   StartMultiplayerGameParams,
 } from "@/platform";
 import { useScryfallStore } from "@/stores/useScryfallStore";
-import type { Deck, DeckCard } from "@/protocol/deck";
+import type { Deck } from "@/protocol/deck";
 import type { DirectiveInput, GameFormat, Prompt, PromptOutput, ProtocolError } from "@/protocol";
 
 import type { GameViewDto } from "@/protocol/game";
@@ -42,38 +44,16 @@ export class IronsmithUnsupportedDeckError extends Error {
   }
 }
 
-// Manabrew stores only a card's front face; Ironsmith builds a linked two-face
-// definition only when a deck entry carries both faces, so transform/MDFC cards
-// otherwise load silently as front-only. Enrich double-faced cards with both
-// Scryfall `card_faces` before validating. getCard self-populates on a cold
-// miss and isDoubleFaced is set only for real two-image faces (split/adventure/
-// flip/room are excluded); a lookup failure falls back to front-only.
-async function withDoubleFacedFaces(cards: DeckCard[]): Promise<DeckCard[]> {
+function enrichDeckFaces(deck: Deck): Promise<Deck> {
   const store = useScryfallStore.getState();
-  return Promise.all(
-    cards.map(async (card) => {
-      if (!card.isDoubleFaced) return card;
-      try {
-        const { info } = await store.getCard({
-          name: card.identity.name,
-          setCode: card.identity.setCode,
-          collectorNumber: card.identity.cardNumber,
-        });
-        const faces = info.card_faces;
-        return faces && faces.length >= 2 ? { ...card, cardFaces: faces } : card;
-      } catch {
-        return card;
-      }
-    }),
-  );
-}
-
-async function enrichDeckFaces(deck: Deck): Promise<Deck> {
-  const cards = await withDoubleFacedFaces(deck.cards);
-  const commanders = deck.commanders
-    ? await withDoubleFacedFaces(deck.commanders)
-    : deck.commanders;
-  return { ...deck, cards, commanders };
+  return withBothCardParts(deck, async (card) => {
+    const { info } = await store.getCard({
+      name: card.identity.name,
+      setCode: card.identity.setCode,
+      collectorNumber: card.identity.cardNumber,
+    });
+    return info.card_faces;
+  });
 }
 
 function matchConfig(params: {
@@ -157,6 +137,7 @@ export class IronsmithTrustedGameApi implements IGameApi {
   private playerNames: string[] = [];
   private playerSlots: string[] = [];
   private botPlayerSlots = new Set<string>();
+  private botRecovery = new Map<string, BotRecovery>();
   private prompts = new Map<string, Prompt>();
   private roomRelayUnsubscribe: (() => void) | null = null;
   private keyPairPromise: Promise<CryptoKeyPair | null> | null = null;
@@ -268,6 +249,7 @@ export class IronsmithTrustedGameApi implements IGameApi {
     this.work = Promise.resolve();
     this.game?.dispose();
     this.game = null;
+    this.botRecovery.clear();
     this.config = null;
     this.entries = [];
     this.prompts.clear();
@@ -430,6 +412,9 @@ export class IronsmithTrustedGameApi implements IGameApi {
       rejected: error !== null,
     };
     this.entries.push(entry);
+    if (error && input.kind === "response" && this.botPlayerSlots.has(input.slot)) {
+      this.recoveryFor(input.slot).refusedPromptId = input.promptId;
+    }
     if (error && input.slot === this.localPlayerSlot) {
       getPlatform().events.emit("game:error", error);
     }
@@ -477,7 +462,12 @@ export class IronsmithTrustedGameApi implements IGameApi {
       const index = Number(slot.replace("player-", ""));
       const { prompt, gameView } = await this.readManabrewView(index);
       if (!prompt || prompt.decidingPlayerId !== slot) continue;
-      const action = await this.callEngine("botAction", slot, gameView, prompt);
+      const recovered = recoverBotAnswer(prompt, this.recoveryFor(slot));
+      if (recovered === "stalled") {
+        console.warn(`[Ironsmith] the engine refused ${slot}'s answer to ${prompt.input.type}`);
+        return;
+      }
+      const action = recovered ?? (await this.callEngine("botAction", slot, gameView, prompt));
       await this.hostApply({
         kind: "response",
         slot,
@@ -486,6 +476,15 @@ export class IronsmithTrustedGameApi implements IGameApi {
       });
       return;
     }
+  }
+
+  private recoveryFor(slot: string): BotRecovery {
+    let recovery = this.botRecovery.get(slot);
+    if (!recovery) {
+      recovery = newBotRecovery();
+      this.botRecovery.set(slot, recovery);
+    }
+    return recovery;
   }
 
   private async emitLocalView(stateOnly = false): Promise<void> {
@@ -562,6 +561,7 @@ export class IronsmithTrustedGameApi implements IGameApi {
   ): Promise<void> {
     const generation = this.generation;
     if (payload.config) {
+      this.botRecovery.clear();
       this.game?.dispose();
       this.createEngine();
       await this.callEngine("start", payload.config, false);
@@ -668,6 +668,7 @@ export class IronsmithTrustedGameApi implements IGameApi {
       // or restart from it if this seat got ahead of it.
       this.isHost = false;
       if (this.game) await this.callEngine("clearBots");
+      this.botRecovery.clear();
       this.requestSync(false);
       return;
     }

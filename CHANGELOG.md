@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.86.0](https://github.com/witchesofthehill/manabrew/compare/v3.85.0...v3.86.0) (2026-11-19)
+
+### Features
+
+* **ui:** confirm passing priority with unspent mana ([#1253](https://github.com/witchesofthehill/manabrew/issues/1253)) ([b8389b7](https://github.com/witchesofthehill/manabrew/commit/b8389b765feb6c99f8921acb9b6037a3deb40fc7))
+
 ## [3.85.0](https://github.com/witchesofthehill/manabrew/compare/v3.84.8...v3.85.0) (2026-11-19)
 
 ### Features

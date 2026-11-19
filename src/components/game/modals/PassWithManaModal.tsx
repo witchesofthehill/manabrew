@@ -48,25 +48,26 @@ export function PassWithManaModal({
             </div>
           ))}
         </dl>
-        <div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="-ml-3 text-ui-meta text-muted-foreground hover:text-foreground"
-            onClick={onOpenSetting}
-          >
-            <Settings className="h-3.5 w-3.5" />
-            Turn off in board settings
-          </Button>
-        </div>
       </Modal.Body>
       <Modal.Footer className="justify-between">
-        <Modal.Close data-autofocus variant="ghost" onClose={onCancel}>
-          Cancel
-        </Modal.Close>
-        <Button variant="primary" onClick={onConfirm}>
-          {endingTurn ? "End turn anyway" : "Pass anyway"}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-muted-foreground hover:text-foreground"
+          onClick={onOpenSetting}
+          title="Open board settings to turn off this prompt"
+        >
+          <Settings className="h-4 w-4" />
+          Turn off
         </Button>
+        <div className="flex items-center gap-2">
+          <Modal.Close data-autofocus variant="ghost" onClose={onCancel}>
+            Cancel
+          </Modal.Close>
+          <Button variant="primary" onClick={onConfirm}>
+            {endingTurn ? "End turn anyway" : "Pass anyway"}
+          </Button>
+        </div>
       </Modal.Footer>
     </Modal>
   );

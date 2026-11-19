@@ -78,8 +78,6 @@ const CARD_PROMPT_MIN_WIDTH = 360;
 const CHOICE_SEARCH_HEIGHT = 52;
 const CHOICE_SEARCH_COUNT_MIN_WIDTH = 240;
 const CARD_SECTION_HEADER_HEIGHT = 46;
-const CARD_TAP_STATE_FONT_SIZE = 12;
-const CARD_TAP_STATE_GAP = 4;
 const SCRY_POOL_DRAG_SCALE = 0.5;
 const MODAL_SCROLL_HALF_LIFE_MS = 28;
 const MODAL_SCROLL_SNAP_PIXELS = 0.5;
@@ -1184,12 +1182,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     );
     const cardWidth = Math.max(0, ...cardSizes.map((size) => size.width));
     const cardHeight = Math.max(0, ...cardSizes.map((size) => size.height));
-    const showTapState = !reveal && cards.some((card) => card.zone === "battlefield");
-    const tapStateFontSize = Math.max(CARD_TAP_STATE_FONT_SIZE, getUiFontFloor("meta"));
-    const tapStateHeight = showTapState
-      ? Math.ceil(tapStateFontSize * 1.35) + CARD_TAP_STATE_GAP
-      : 0;
-    const rowHeight = cardHeight + tapStateHeight + PROMPT_CARD_ROW_GAP;
+    const rowHeight = cardHeight + PROMPT_CARD_ROW_GAP;
     const columns = horizontalScroll
       ? Math.max(1, visibleCount)
       : Math.max(
@@ -1331,26 +1324,18 @@ export abstract class PromptModalLayer extends PromptLayerBase {
         const row = horizontalScroll ? 0 : Math.floor(sectionPosition / columns);
         const column = horizontalScroll ? position : sectionPosition % columns;
         const cardsInRow = Math.min(columns, section.indices.length - row * columns);
-        const rowTop = cardsTop + row * rowHeight;
         tile.position.set(
           rowX(cardsInRow) +
             column * (horizontalScroll ? compactCardSpacing : cardWidth + PROMPT_CARD_GAP) +
             (cardWidth - cardSize.width) / 2,
-          rowTop + tapStateHeight + (cardHeight - cardSize.height) / 2,
+          cardsTop + row * rowHeight + (cardHeight - cardSize.height) / 2,
         );
-        (cardRow ?? body).addChild(tile);
-        if (showTapState && card.zone === "battlefield") {
-          const state = card.tapped ? "Tapped" : "Untapped";
-          tile.accessibleTitle += `, ${state.toLowerCase()}`;
+        if (!reveal && card.zone === "battlefield") {
+          tile.accessibleTitle += card.tapped ? ", tapped" : ", untapped";
           tile.accessibleHint = `${tile.accessibleTitle}. ${tile.accessibleHint}`;
-          const label = promptText(state, tapStateFontSize, this.theme.appTheme.foreground, {
-            weight: "600",
-          });
-          label.anchor.set(0.5, 0);
-          label.position.set(tile.x + cardSize.width / 2, rowTop);
-          label.eventMode = "none";
-          (cardRow ?? body).addChild(label);
+          if (card.tapped) tile.addChild(this.createTappedBadge(cardSize.width, cardSize.height));
         }
+        (cardRow ?? body).addChild(tile);
         position++;
       });
       if (!horizontalScroll) sectionTop += Math.ceil(section.indices.length / columns) * rowHeight;
@@ -1475,6 +1460,33 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       grid.position.set(confirm.x - grid.buttonWidth - 8, 0);
       footer.addChild(grid);
     }
+  }
+
+  private createTappedBadge(cardWidth: number, cardHeight: number): Container {
+    const badge = new Container();
+    badge.eventMode = "none";
+    const { card, foreground } = this.theme.appTheme;
+    const ink = ensureTextContrast(foreground, card, foreground, 4.5);
+    const label = promptText("Tapped", 12, ink, { weight: "700" });
+    const iconSize = Math.min(32, cardWidth * 0.22);
+    const width = Math.max(iconSize, label.width) + 16;
+    const height = iconSize + label.height + 12;
+    const inset = 8;
+    const controlsBottom = cardHeight * 0.12 + Math.max(20, getUiControlFloor());
+    badge.position.set(
+      cardWidth - width - inset,
+      Math.min(controlsBottom + inset, cardHeight - height - inset),
+    );
+    const background = new Graphics()
+      .roundRect(0, 0, width, height, 8)
+      .fill({ color: hexToNum(card) })
+      .stroke({ color: hexToNum(ink), width: 1, alpha: 0.55 });
+    const icon = this.makeIcon("lucide-rotate-cw-bold", iconSize, ink);
+    icon.position.set(width / 2, 6 + iconSize / 2);
+    label.anchor.set(0.5, 0);
+    label.position.set(width / 2, 6 + iconSize);
+    badge.addChild(background, icon, label);
+    return badge;
   }
 
   protected createCardTile(

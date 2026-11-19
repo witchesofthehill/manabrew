@@ -179,6 +179,7 @@ pub(super) fn pay_mana_cost<T: Responder>(
                 card_name: card_name.to_string(),
                 mana_cost: mana_cost_display.to_string(),
                 can_confirm_from_pool,
+                can_cancel: true,
                 actions,
             },
         ),

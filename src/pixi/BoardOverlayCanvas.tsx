@@ -1,5 +1,6 @@
 // @refresh reset
 import { topModal } from "@/lib/modalStack";
+import { registerEscapeHandler } from "@/lib/escapeKey";
 import type { PreviewFlipOptions } from "@/lib/cardPreview";
 import { CARD_PREVIEW_EVENT_HANDLERS, isCardPreviewTarget } from "@/lib/cardPreviewEvents";
 import { hasActiveVirtualTextInput } from "@/lib/keybindings";
@@ -1037,6 +1038,18 @@ export function BoardOverlayCanvasSurface({
   const hoveredStackCard = stackSpec?.cards.find((card) => card.id === hoveredStackObjectId);
   const rulesPreviewOpen = previewSpec?.phase === "open" && !previewSpec.suppressed;
   const commandPreviewOpen = commandPreviewSpec?.phase === "open" && !commandPreviewSpec.suppressed;
+  useEffect(() => {
+    if (!rulesPreviewOpen && !commandPreviewOpen) return;
+    return registerEscapeHandler({
+      priority: "preview",
+      scope: () => canvasRef.current,
+      handle: () => {
+        if (promptRef.current?.blocksBoard || !cbRef.current.onDismissPreview) return false;
+        cbRef.current.onDismissPreview();
+        return true;
+      },
+    });
+  }, [rulesPreviewOpen, commandPreviewOpen]);
   const rulesKeyboardTarget = useCallback(() => {
     if (promptRef.current?.blocksBoard) return null;
     const currentPreview = previewSpecRef.current;

@@ -12,6 +12,7 @@ pub struct PayManaCostInput {
     pub card_name: String,
     pub mana_cost: String,
     pub can_confirm_from_pool: bool,
+    pub can_cancel: bool,
     pub actions: Vec<PaymentAction>,
 }
 

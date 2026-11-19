@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.84.7](https://github.com/witchesofthehill/manabrew/compare/v3.84.6...v3.84.7) (2026-11-19)
+
+### Fixes
+
+* **ironsmith:** update ironsmith-wasm to 0.9.2 and send both parts of two-part cards ([#1247](https://github.com/witchesofthehill/manabrew/issues/1247)) ([f713e2d](https://github.com/witchesofthehill/manabrew/commit/f713e2d18e34d7e24955418fcabf8f8fe673dc66))
+
 ## [3.84.6](https://github.com/witchesofthehill/manabrew/compare/v3.84.5...v3.84.6) (2026-11-18)
 
 ### Fixes

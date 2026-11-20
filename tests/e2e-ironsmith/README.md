@@ -100,6 +100,8 @@ report `rejectedActions`; a stalled prompt, timeout, or decision cap exits
 non-zero. Timeouts and caps are distinct from crashes. Increase the time budget
 when a four-player game is still making progress.
 
+Stress summaries include call counts, total time, and maximum latency for each engine worker method. Failure artifacts also capture the active call and the 20 slowest calls over 100 ms, including their transcript positions. These are browser-observed request durations and include worker queue time.
+
 ## How an Ironsmith game is shared
 
 The human host runs one Manabot agent per bot seat, using that seat’s private
@@ -122,8 +124,6 @@ resume flow reseats it, it announces a new relay key (the relay has already
 authenticated it as that seat), and the host sends it the match setup and the
 transcript to rebuild from. A host that reloads has been replaced by then, so it
 comes back as a guest.
-
-Stress summaries include call counts, total time, and maximum latency for each engine worker method. Failure artifacts also capture the active call and the 20 slowest calls over 100 ms, including their transcript positions. These are browser-observed request durations and include worker queue time.
 
 ### Env knobs
 

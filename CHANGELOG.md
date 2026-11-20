@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.87.0](https://github.com/witchesofthehill/manabrew/compare/v3.86.1...v3.87.0) (2026-11-20)
+
+### Features
+
+* **editor:** edit deck as text with a reviewed diff ([#1258](https://github.com/witchesofthehill/manabrew/issues/1258)) ([725cad4](https://github.com/witchesofthehill/manabrew/commit/725cad44428e03ba137b88a8023a95c0904e9072))
+
 ## [3.86.1](https://github.com/witchesofthehill/manabrew/compare/v3.86.0...v3.86.1) (2026-11-19)
 
 ### Fixes

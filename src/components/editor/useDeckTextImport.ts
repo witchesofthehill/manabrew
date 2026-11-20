@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { toast } from "sonner";
 import { scryfallCardKey } from "@/api/scryfall";
 import { DEFAULT_IMPORT_NAME } from "@/lib/constants";
-import { inferImportedFormat, type ParsedDeckEntry } from "@/lib/deckImport";
+import { deckImportEntryZone, inferImportedFormat, type ParsedDeckEntry } from "@/lib/deckImport";
 import { resolveDeckName } from "@/lib/deckName";
 import { getFormat, isCommanderEligible } from "@/lib/formats";
 import { useScryfallStore } from "@/stores/useScryfallStore";
@@ -10,6 +10,7 @@ import { scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { normalizeDeck, useDeckStore } from "@/stores/useDeckStore";
 import { showAccountSaveNudge } from "@/components/auth/accountSaveNudge";
 import type { DeckCard, DeckFormat } from "@/protocol/deck";
+import type { EditorDeck } from "@/types/manabrew";
 import { executeDeckEdit } from "./deckEditor.history";
 export interface ResolvedDeckTextImport {
   cards: DeckCard[];
@@ -210,6 +211,97 @@ export function useDeckTextImportIntoCurrent() {
         );
       } else {
         toast.success(`Added ${count} cards to this deck`);
+      }
+      return true;
+    },
+    [],
+  );
+}
+function deckCardPrintingKey(name: string, setCode: string, cardNumber: string, foil?: boolean) {
+  return `${name.toLowerCase()}::${setCode.toLowerCase()}::${cardNumber}::${foil === true}`;
+}
+function reuseCurrentDeckCards(deck: EditorDeck, entries: ParsedDeckEntry[]) {
+  const pool = new Map<string, DeckCard[]>();
+  for (const card of [
+    ...(deck.commanders ?? []),
+    ...deck.cards,
+    ...deck.sideboard,
+    ...(deck.maybeboard ?? []),
+  ]) {
+    const { name, setCode, cardNumber, foil } = card.identity;
+    const key = deckCardPrintingKey(name, setCode, cardNumber, foil);
+    pool.set(key, [...(pool.get(key) ?? []), card]);
+  }
+  const sections: Omit<ResolvedDeckTextImport, "notFound" | "substitutedPrintings"> = {
+    cards: [],
+    sideboard: [],
+    maybeboard: [],
+    commanders: [],
+  };
+  const unresolved: ParsedDeckEntry[] = [];
+  for (const entry of entries) {
+    const matches =
+      entry.setCode && entry.collectorNumber
+        ? (pool.get(
+            deckCardPrintingKey(entry.name, entry.setCode, entry.collectorNumber, entry.foil),
+          ) ?? [])
+        : [];
+    const reused = matches.splice(0, entry.count);
+    const zone = deckImportEntryZone(entry);
+    const target =
+      zone === "commander" && (entry.commander || reused.every((card) => isCommanderEligible(card)))
+        ? sections.commanders
+        : zone === "side"
+          ? sections.sideboard
+          : zone === "maybe"
+            ? sections.maybeboard
+            : sections.cards;
+    target.push(...reused);
+    if (reused.length < entry.count) {
+      unresolved.push({ ...entry, count: entry.count - reused.length });
+    }
+  }
+  return { sections, unresolved };
+}
+export function useDeckTextReplaceCurrent() {
+  return useCallback(
+    async (
+      entries: ParsedDeckEntry[],
+      _name: string,
+      _formatId: DeckFormat | undefined,
+      onProgress: (fraction: number) => void,
+    ): Promise<boolean> => {
+      const { currentDeck, editorSessionId: startingSessionId } = useDeckStore.getState();
+      const { sections, unresolved } = reuseCurrentDeckCards(currentDeck, entries);
+      const resolved =
+        unresolved.length > 0 ? await resolveDeckTextImport(unresolved, onProgress) : null;
+      if (useDeckStore.getState().editorSessionId !== startingSessionId) {
+        return false;
+      }
+      if (resolved) {
+        sections.cards.push(...resolved.cards);
+        sections.sideboard.push(...resolved.sideboard);
+        sections.maybeboard.push(...resolved.maybeboard);
+        sections.commanders.push(...resolved.commanders);
+      }
+      executeDeckEdit(`Edit deck list`, () =>
+        useDeckStore.getState().replaceCurrentDeckSections(sections),
+      );
+      onProgress(1);
+      const notFound = resolved?.notFound ?? [];
+      const substitutedPrintings = resolved?.substitutedPrintings ?? [];
+      if (notFound.length > 0) {
+        const shown = notFound.slice(0, 3).join(", ");
+        const extra = notFound.length > 3 ? ` +${notFound.length - 3} more` : "";
+        toast.warning(`Deck updated — couldn't find: ${shown}${extra}`);
+      } else if (substitutedPrintings.length > 0) {
+        toast.warning(
+          substitutedPrintings.length === 1
+            ? `Deck updated with one default printing substitution`
+            : `Deck updated with ${substitutedPrintings.length} default printing substitutions`,
+        );
+      } else {
+        toast.success(`Deck updated`);
       }
       return true;
     },

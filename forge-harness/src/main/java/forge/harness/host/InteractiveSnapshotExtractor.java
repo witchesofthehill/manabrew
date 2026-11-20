@@ -793,8 +793,10 @@ public final class InteractiveSnapshotExtractor {
         dto.subtypes = subtypes(card.getType());
         dto.supertypes = supertypes(card.getType());
         if (card.isCreature()) {
-            dto.power = String.valueOf(card.getNetPower());
-            dto.toughness = String.valueOf(card.getNetToughness());
+            final int ptDelta = pendingCounterRemoval(game, card, CounterEnumType.M1M1)
+                    - pendingCounterRemoval(game, card, CounterEnumType.P1P1);
+            dto.power = String.valueOf(card.getNetPower() + ptDelta);
+            dto.toughness = String.valueOf(card.getNetToughness() + ptDelta);
             dto.basePower = card.getBasePower();
             dto.baseToughness = card.getBaseToughness();
         }
@@ -820,7 +822,7 @@ public final class InteractiveSnapshotExtractor {
         dto.tapped = card.isTapped();
         final List<KeywordInterface> keywords = card.getKeywords();
         keywords(keywords, dto);
-        dto.counters = counterMap(card);
+        dto.counters = counterMap(game, card);
         dto.mergedCardIds = mergedCardIds(card);
         dto.damage = card.getDamage();
         dto.summoningSick = card.hasSickness();
@@ -1193,11 +1195,25 @@ public final class InteractiveSnapshotExtractor {
         }
     }
 
-    private static Map<String, Integer> counterMap(final Card card) {
+    private static int pendingCounterRemoval(final Game game, final Card card, final CounterType type) {
+        if (game == null || card == null || type == null) {
+            return 0;
+        }
+        int total = 0;
+        for (final Player player : game.getRegisteredPlayers()) {
+            if (player.getController() instanceof ManaBrewInteractiveController controller) {
+                total += controller.pendingCounterRemoval(card, type);
+            }
+        }
+        return total;
+    }
+
+    private static Map<String, Integer> counterMap(final Game game, final Card card) {
         final Map<String, Integer> counters = new TreeMap<>();
         for (final com.google.common.collect.Multiset.Entry<CounterType> entry : card.getCounters().entrySet()) {
-            if (entry.getCount() > 0) {
-                counters.put(uiCounterName(entry.getElement()), entry.getCount());
+            final int remaining = entry.getCount() - pendingCounterRemoval(game, card, entry.getElement());
+            if (remaining > 0) {
+                counters.put(uiCounterName(entry.getElement()), remaining);
             }
         }
         return counters;

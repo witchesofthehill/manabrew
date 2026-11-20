@@ -516,11 +516,14 @@ impl GameLoop {
                         break;
                     }
                     for _ in 0..required {
-                        let Some(chosen) = agents[player.index()].choose_sacrifice(
+                        agents[player.index()].set_targeting_cancellable(!mandatory);
+                        let chosen = agents[player.index()].choose_sacrifice(
                             player,
                             &valid,
                             sa.as_deref().and_then(|s| s.source),
-                        ) else {
+                        );
+                        agents[player.index()].set_targeting_cancellable(false);
+                        let Some(chosen) = chosen else {
                             payment_ok = false;
                             break;
                         };
@@ -2102,11 +2105,14 @@ impl GameLoop {
                         }
                     }
                     for _ in 0..amount_n {
+                        agents[player.index()].set_targeting_cancellable(true);
                         let chosen = agents[player.index()].choose_sacrifice(
                             player,
                             &valid,
                             sa.and_then(|s| s.source),
-                        )?;
+                        );
+                        agents[player.index()].set_targeting_cancellable(false);
+                        let chosen = chosen?;
                         picked.push(chosen);
                         valid.retain(|&cid| cid != chosen);
                     }

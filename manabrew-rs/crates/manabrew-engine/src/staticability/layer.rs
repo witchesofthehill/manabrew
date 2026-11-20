@@ -173,6 +173,22 @@ fn type_line_has_token(type_line: &CardTypeLine, token: &str) -> bool {
 /// - Any triggered ability fires.
 /// - Before querying `can_attack()` / `can_block()` for combat legality.
 pub fn apply_continuous_effects(game: &mut GameState) {
+    let expired_effects: Vec<CardId> = game
+        .cards
+        .iter()
+        .filter(|card| {
+            card.zone == ZoneType::Command
+                && card
+                    .temp_effect_phase_out_host
+                    .is_some_and(|host| game.card(host).phased_out)
+        })
+        .map(|card| card.id)
+        .collect();
+    for effect_id in expired_effects {
+        let controller = game.card(effect_id).controller;
+        game.remove_card_from_zone(ZoneType::Command, controller, effect_id);
+        game.card_mut(effect_id).set_zone(ZoneType::None);
+    }
     let _perf_timer = crate::perf::ScopeTimer::start(
         crate::perf::Metric::ContinuousEffectsCalls,
         crate::perf::Metric::ContinuousEffectsNs,
@@ -531,7 +547,6 @@ pub fn apply_continuous_effects(game: &mut GameState) {
                     }
                 }
             } else {
-                let filter = CardFilter::parse(affected_str);
                 // AffectedZone$ overrides the default Battlefield filter (e.g.
                 // Ashling, the Limitless grants Evoke:4 to Elementals in Hand).
                 let affected_zones = if sa.ir.affected_zones.is_empty() {
@@ -544,7 +559,14 @@ pub fn apply_continuous_effects(game: &mut GameState) {
                         Some(zones) => zones.contains(&card.zone),
                         None => card.zone == ZoneType::Battlefield,
                     };
-                    if zone_matches && filter.matches_with_game(card, &source_card, game) {
+                    if zone_matches
+                        && crate::card::valid_filter::matches_valid_card_selector_opt_in_game(
+                            sa.ir.affected.as_ref(),
+                            card,
+                            &source_card,
+                            game,
+                        )
+                    {
                         apply_to_target(card.id);
                     }
                 }

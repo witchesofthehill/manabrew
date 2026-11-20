@@ -155,7 +155,11 @@ export function modalDialog(page) {
 
 /** The room's deck picker button, whatever it is labelled at the time. */
 export function deckButton(page) {
-  return page.getByRole("button", { name: /^(Choose a deck|Change deck|Select Deck)$/i }).first();
+  return page
+    .getByRole("button", {
+      name: /^(Your deck.*|Choose (a |your )?deck|Change deck|Select Deck)$/i,
+    })
+    .first();
 }
 
 /** Open the deck dialog opened by `opener` and pick a preset by (partial) name. */
@@ -301,17 +305,18 @@ export async function startTwoHumanGame(host, guest, { room, deck, format, holde
   // Both seats build the game: the guest from the host's transcript.
   await waitForGame(host, "host game", (s) => s.turn != null, 60000);
   await waitForGame(guest, "guest game", (s) => s.turn != null, 90000);
-  for (let round = 0; round < 6; round++) {
+  const kept = new Set();
+  for (let round = 0; round < 120 && kept.size < 2; round++) {
     for (const page of [host, guest]) {
       const state = await readGame(page);
       if (state?.prompt?.type === "mulligan" && state.prompt.who === state.me) {
         await answerPrompt(page);
+        kept.add(page);
       }
     }
-    await host.waitForTimeout(700);
-    const [h, g] = [await readGame(host), await readGame(guest)];
-    if (h?.prompt?.type !== "mulligan" && g?.prompt?.type !== "mulligan") break;
+    await host.waitForTimeout(500);
   }
+  if (kept.size !== 2) throw new Error("Both human seats did not receive a mulligan prompt");
   const seats = { host, guest };
   const other = holder === "guest" ? host : guest;
   for (let round = 0; round < 12; round++) {

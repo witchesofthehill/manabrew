@@ -15,6 +15,7 @@ import { DEFAULT_IMPORT_NAME } from "@/lib/constants";
 import { GAME_FORMATS } from "@/lib/formats";
 import { cn } from "@/lib/utils";
 import {
+  deckImportEntryZone,
   isDetectedCommander,
   parseDeckListText,
   suggestedDeckName,
@@ -24,13 +25,30 @@ import type { DeckFormat } from "@/protocol/deck";
 interface ImportDeckTextDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  mode?: "create" | "add";
+  mode?: "create" | "add" | "edit";
+  initialText?: string;
   onImport: (
     entries: ParsedDeckEntry[],
     name: string,
     formatId: DeckFormat | undefined,
     onProgress: (fraction: number) => void,
   ) => Promise<boolean | void>;
+}
+interface DeckListRow {
+  entry: ParsedDeckEntry;
+  delta: number;
+}
+function deckListChanges(before: ParsedDeckEntry[], after: ParsedDeckEntry[]): DeckListRow[] {
+  const rows = new Map<string, DeckListRow>();
+  const tally = (entry: ParsedDeckEntry, delta: number) => {
+    const key = `${deckImportEntryZone(entry)}::${entry.name.toLowerCase()}::${entry.setCode ?? ""}::${entry.collectorNumber ?? ""}::${entry.foil === true}`;
+    const row = rows.get(key);
+    if (row) row.delta += delta;
+    else rows.set(key, { entry, delta });
+  };
+  for (const entry of before) tally(entry, -entry.count);
+  for (const entry of after) tally(entry, entry.count);
+  return [...rows.values()].filter((row) => row.delta !== 0);
 }
 const GUIDE_STEPS = [
   `Open your deck on Moxfield.`,
@@ -45,8 +63,9 @@ export function ImportDeckTextDialog({
   onOpenChange,
   onImport,
   mode = "create",
+  initialText = "",
 }: ImportDeckTextDialogProps) {
-  const [text, setText] = useState("");
+  const [text, setText] = useState(initialText);
   const [customName, setCustomName] = useState<string | null>(null);
   const [formatId, setFormatId] = useState<DeckFormat | "">("");
   const [importing, setImporting] = useState(false);
@@ -78,6 +97,16 @@ export function ImportDeckTextDialog({
   const commanderCount = entries.reduce((s, e) => (isDetectedCommander(e) ? s + e.count : s), 0);
   const valid = entries.length > 0;
   const dirty = text.trim().length > 0;
+  const initialEntries = useMemo(() => parseDeckListText(initialText), [initialText]);
+  const reviewRows = useMemo(
+    () =>
+      mode === "edit"
+        ? deckListChanges(initialEntries, entries)
+        : entries.map((entry) => ({ entry, delta: entry.count })),
+    [mode, initialEntries, entries],
+  );
+  const addedCount = reviewRows.reduce((s, row) => (row.delta > 0 ? s + row.delta : s), 0);
+  const removedCount = reviewRows.reduce((s, row) => (row.delta < 0 ? s - row.delta : s), 0);
   const unrecognizedLines = useMemo(() => {
     const parsedNames = new Set(entries.map((entry) => entry.name.toLowerCase()));
     return text
@@ -95,7 +124,7 @@ export function ImportDeckTextDialog({
     }
   }, []);
   const handleImportClick = useCallback(async () => {
-    if (!valid || importing) return;
+    if (!valid || importing || (mode === "edit" && reviewRows.length === 0)) return;
     setImporting(true);
     setProgress(0);
     try {
@@ -106,7 +135,30 @@ export function ImportDeckTextDialog({
       toast.error(e instanceof Error ? e.message : `Import failed`);
       setImporting(false);
     }
-  }, [valid, importing, entries, name, formatId, onImport, close]);
+  }, [valid, importing, mode, reviewRows.length, entries, name, formatId, onImport, close]);
+  const copy = {
+    create: {
+      title: `Import a deck`,
+      busy: `Building "${name.trim() || DEFAULT_IMPORT_NAME}"…`,
+      hint: `Copy your deck as text from Moxfield, then paste it below.`,
+      review: `Review import`,
+      confirm: `Confirm import`,
+    },
+    add: {
+      title: `Add cards from a list`,
+      busy: `Adding cards to this deck\u2026`,
+      hint: `Paste a deck list to merge its cards into this deck.`,
+      review: `Review addition`,
+      confirm: `Confirm addition`,
+    },
+    edit: {
+      title: `Edit deck as text`,
+      busy: `Updating this deck\u2026`,
+      hint: `Edit the list below. Applying it replaces the command zone, main deck, sideboard, and maybeboard.`,
+      review: `Review changes`,
+      confirm: `Apply changes`,
+    },
+  }[mode];
   return (
     <Dialog
       open={open}
@@ -121,16 +173,8 @@ export function ImportDeckTextDialog({
     >
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>{mode === "add" ? `Add cards from a list` : `Import a deck`}</DialogTitle>
-          <DialogDescription>
-            {importing
-              ? mode === "add"
-                ? `Adding cards to this deck\u2026`
-                : `Building "${name.trim() || DEFAULT_IMPORT_NAME}"…`
-              : mode === "add"
-                ? `Paste a deck list to merge its cards into this deck.`
-                : `Copy your deck as text from Moxfield, then paste it below.`}
-          </DialogDescription>
+          <DialogTitle>{copy.title}</DialogTitle>
+          <DialogDescription>{importing ? copy.busy : copy.hint}</DialogDescription>
         </DialogHeader>
 
         {importing ? (
@@ -158,48 +202,69 @@ export function ImportDeckTextDialog({
                   <ArrowLeft className="h-3.5 w-3.5" /> Edit list
                 </Button>
                 <span className="text-ui-meta text-muted-foreground">
-                  {mainCount + sideCount + maybeCount + commanderCount} cards · {entries.length}{" "}
-                  entries
+                  {mode === "edit"
+                    ? `${addedCount} added · ${removedCount} removed`
+                    : `${mainCount + sideCount + maybeCount + commanderCount} cards · ${entries.length} entries`}
                 </span>
               </div>
-              <div className="max-h-[45dvh] overflow-auto rounded-lg border">
-                <table className="w-full text-ui-label">
-                  <thead className="sticky top-0 bg-background text-left text-muted-foreground">
-                    <tr>
-                      <th className="px-3 py-2 font-medium">Qty</th>
-                      <th className="px-3 py-2 font-medium">Card</th>
-                      <th className="px-3 py-2 font-medium">Destination</th>
-                      <th className="px-3 py-2 font-medium">Printing</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {entries.map((entry, index) => (
-                      <tr
-                        key={`${entry.name}-${entry.setCode ?? ""}-${entry.collectorNumber ?? ""}-${index}`}
-                      >
-                        <td className="px-3 py-2 font-mono">{entry.count}</td>
-                        <td className="px-3 py-2 font-medium">{entry.name}</td>
-                        <td className="px-3 py-2 text-muted-foreground">
-                          {isDetectedCommander(entry)
-                            ? `Command zone`
-                            : entry.side
-                              ? `Sideboard`
-                              : entry.maybe
-                                ? `Maybeboard`
-                                : `Main deck`}
-                        </td>
-                        <td className="px-3 py-2 text-muted-foreground">
-                          {entry.setCode
-                            ? `${entry.setCode.toUpperCase()}${entry.collectorNumber ? ` #${entry.collectorNumber}` : ""}${entry.foil ? ` · foil` : ""}`
-                            : entry.foil
-                              ? `Foil · default printing`
-                              : `Default printing`}
-                        </td>
+              {reviewRows.length === 0 ? (
+                <p className="rounded-lg border px-3 py-6 text-center text-ui-body text-muted-foreground">
+                  The list matches the current deck.
+                </p>
+              ) : (
+                <div className="max-h-[45dvh] overflow-auto rounded-lg border">
+                  <table className="w-full text-ui-label">
+                    <thead className="sticky top-0 bg-background text-left text-muted-foreground">
+                      <tr>
+                        <th className="px-3 py-2 font-medium">
+                          {mode === "edit" ? `Change` : `Qty`}
+                        </th>
+                        <th className="px-3 py-2 font-medium">Card</th>
+                        <th className="px-3 py-2 font-medium">Destination</th>
+                        <th className="px-3 py-2 font-medium">Printing</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody className="divide-y">
+                      {reviewRows.map(({ entry, delta }, index) => (
+                        <tr
+                          key={`${entry.name}-${entry.setCode ?? ""}-${entry.collectorNumber ?? ""}-${index}`}
+                        >
+                          <td
+                            className={cn(
+                              "px-3 py-2 font-mono",
+                              mode === "edit" &&
+                                (delta > 0 ? "text-legality-legal" : "text-destructive"),
+                            )}
+                          >
+                            {mode === "edit"
+                              ? delta > 0
+                                ? `+${delta}`
+                                : `\u2212${-delta}`
+                              : delta}
+                          </td>
+                          <td className="px-3 py-2 font-medium">{entry.name}</td>
+                          <td className="px-3 py-2 text-muted-foreground">
+                            {isDetectedCommander(entry)
+                              ? `Command zone`
+                              : entry.side
+                                ? `Sideboard`
+                                : entry.maybe
+                                  ? `Maybeboard`
+                                  : `Main deck`}
+                          </td>
+                          <td className="px-3 py-2 text-muted-foreground">
+                            {entry.setCode
+                              ? `${entry.setCode.toUpperCase()}${entry.collectorNumber ? ` #${entry.collectorNumber}` : ""}${entry.foil ? ` · foil` : ""}`
+                              : entry.foil
+                                ? `Foil · default printing`
+                                : `Default printing`}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
               {unrecognizedLines.length > 0 && (
                 <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-ui-meta text-warning">
                   {unrecognizedLines.length === 1
@@ -221,9 +286,10 @@ export function ImportDeckTextDialog({
                 size="sm"
                 className="touch:min-w-11 touch:min-h-11 gap-1"
                 onClick={() => void handleImportClick()}
+                disabled={reviewRows.length === 0}
               >
                 <Download className="h-3.5 w-3.5" />
-                {mode === "add" ? `Confirm addition` : `Confirm import`}
+                {copy.confirm}
               </Button>
             </div>
           </>
@@ -307,6 +373,7 @@ export function ImportDeckTextDialog({
                   placeholder={"4 Lightning Bolt\n2 Counterspell\n…"}
                   className={cn(
                     "touch:min-h-11 flex min-h-[176px] w-full resize-none rounded-md border bg-transparent px-3 py-2 font-mono text-ui-input shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                    mode === "edit" && "min-h-[40dvh]",
                     valid ? "border-legality-legal/60" : "border-input",
                   )}
                 />
@@ -352,8 +419,10 @@ export function ImportDeckTextDialog({
                 )}
               >
                 <Download className="h-3.5 w-3.5" />
-                {mode === "add" ? `Review addition` : `Review import`}
-                {valid ? ` ${mainCount + sideCount + maybeCount + commanderCount} cards` : ""}
+                {copy.review}
+                {valid && mode !== "edit"
+                  ? ` ${mainCount + sideCount + maybeCount + commanderCount} cards`
+                  : ""}
               </Button>
             </div>
           </>

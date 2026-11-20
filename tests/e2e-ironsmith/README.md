@@ -43,6 +43,10 @@ create room, pick deck) are engine-generic and reusable for any multiplayer flow
 # Requires the dev server only; no relay or engine game is started.
 yarn test:e2e:ironsmith:transitions
 
+# Complete seeded games across two, three, and four seats; no relay needed.
+# Use a dev server and Manabrew WASM bundle from this checkout.
+GAMES=30 yarn test:e2e:ironsmith:stress
+
 # Real Manabot gameplay: solo and multiple bot seats play lands, creatures, and attack.
 # Also exercises agent release, transcript replay, and human-host takeover in the adapter.
 # Requires the dev server and the Manabrew WASM bundle (`yarn build:wasm`). No relay needed.
@@ -73,7 +77,34 @@ node tests/e2e-ironsmith/ironsmith-host-migration.mjs
 node tests/e2e-ironsmith/ironsmith-reload-rejoin.mjs
 ```
 
-Each prints `PASS: …` and exits 0 on success, or `FAIL: …` and exits non-zero.
+Smoke tests print `PASS: …` and exit 0 on success, or `FAIL: …` and exit non-zero.
+
+### Full-game stress runs
+
+The stress runner reuses one browser page, creating and terminating an engine
+worker for each game. Manabot drives the local seat with the same payment-error
+recovery used by hosted bot seats; opponents run through the runtime's own bot
+loop. It checks terminal outcomes, phase names, monotonically advancing turns,
+decision/time limits, and worker termination. It does not render the board or
+exercise relay transport, so it cannot establish phase-strip readability or
+network resilience.
+
+`GAMES` defaults to 30, `SEED` to 1, `GAME_TIMEOUT_MS` to 120000, and
+`MAX_DECISIONS` to 10000. Seat count and the six-deck rotation derive from the seed,
+so `SEED=5 GAMES=1 yarn test:e2e:ironsmith:stress` repeats the fifth case.
+`DECKS` overrides the comma-separated preset IDs. Games use Vintage construction
+rules and the mixed default catalog contains no Commander decks.
+
+Each game prints JSON. `OUT` selects the artifact directory (default
+`tmp/ironsmith-stress-<timestamp>`), containing the engine version/WASM hashes,
+limits, summary, and exact config/transcript/latest view for every unsuccessful
+game. Stalled games also retain the pending seat prompts, including the source
+card and available choices. Completed games with recovered payment rejections remain completed and
+report `rejectedActions`; a stalled prompt, timeout, or decision cap exits
+non-zero. Timeouts and caps are distinct from crashes. Increase the time budget
+when a four-player game is still making progress.
+
+Stress summaries include call counts, total time, and maximum latency for each engine worker method. Failure artifacts also capture the active call and the 20 slowest calls over 100 ms, including their transcript positions. These are browser-observed request durations and include worker queue time.
 
 ## How an Ironsmith game is shared
 

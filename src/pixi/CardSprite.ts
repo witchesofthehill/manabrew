@@ -17,8 +17,7 @@ import type { HandActionOption } from "@/stores/useGameUIStore";
 import { deriveCardRailState, type CardRailState } from "@/components/game/cardRailState";
 import {
   cardTypeLine,
-  counterColorKey,
-  counterIconName,
+  counterBadgePresentation,
   ROOM_DOOR_BOUNDS,
   roomDoorState,
 } from "@/components/game/cardPresentation";
@@ -389,9 +388,6 @@ function badgeRule(card: CardDto): BadgeRule | undefined {
 
 function badgeColor(key: CardStatusKey): number {
   return hexToNum(activeTheme.gameTheme.cardStatus[key]);
-}
-function getCounterColor(type: string): number {
-  return hexToNum(activeTheme.gameTheme.counter[counterColorKey(type)]);
 }
 const parseStat = (value: string | null | undefined): number => {
   if (!value) return 0;
@@ -2204,10 +2200,8 @@ export class CardSprite extends Container {
     const counters = this.card.counters;
     if (!counters) return;
     const suppressLore = this.railState?.kind === "saga";
-    // P1P1 / M1M1 are deliberately excluded — the net buff/debuff is conveyed by
-    // the green/red P/T color instead.
     const present = Object.entries(counters).filter(
-      ([t, n]) => n > 0 && t !== "P1P1" && t !== "M1M1" && !(suppressLore && t === "Lore"),
+      ([t, n]) => n > 0 && !(suppressLore && t === "Lore"),
     );
     if (present.length === 0) return;
     const entries = present.slice(0, MAX_VISIBLE_COUNTERS);
@@ -2221,22 +2215,21 @@ export class CardSprite extends Container {
       (this.frameCounterReserve > 0 ? this.frameCounterReserve + 1 : 0);
     let offsetX = 3;
     for (const [type, count] of entries) {
-      const color = getCounterColor(type);
-      const iconName = counterIconName(type);
-      const textLabel = type.slice(0, 3);
+      const cfg = counterBadgePresentation(type, count);
+      const color = hexToNum(activeTheme.gameTheme.counter[cfg.colorKey]);
       const badge = new Container();
       const bg = new Graphics();
       let contentWidth = 0;
       let glyph: Sprite | Text;
-      if (iconName) {
+      if (cfg.iconName) {
         const sprite = new Sprite(Texture.EMPTY);
-        applyIcon(sprite, iconName, fgHex, 64, iconSize, iconSize);
+        applyIcon(sprite, cfg.iconName, fgHex, 64, iconSize, iconSize);
         sprite.x = 4;
         sprite.y = (COUNTER_HEIGHT - iconSize) / 2;
         glyph = sprite;
         contentWidth = iconSize;
       } else {
-        glyph = new Text({ text: textLabel, style: COUNTER_STYLE });
+        glyph = new Text({ text: cfg.label, style: COUNTER_STYLE });
         glyph.resolution = TEXT_RASTER_RESOLUTION;
         glyph.anchor.set(0, 0.5);
         glyph.x = 4;
@@ -2245,8 +2238,8 @@ export class CardSprite extends Container {
       }
       let countText: Text | null = null;
       let countWidth = 0;
-      if (count > 1) {
-        countText = new Text({ text: ` ${count}`, style: COUNTER_STYLE });
+      if (cfg.displayCount != null) {
+        countText = new Text({ text: ` ${cfg.displayCount}`, style: COUNTER_STYLE });
         countText.resolution = TEXT_RASTER_RESOLUTION;
         countText.anchor.set(0, 0.5);
         countText.x = 4 + contentWidth;

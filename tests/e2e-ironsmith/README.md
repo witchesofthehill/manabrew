@@ -123,6 +123,8 @@ authenticated it as that seat), and the host sends it the match setup and the
 transcript to rebuild from. A host that reloads has been replaced by then, so it
 comes back as a guest.
 
+Stress summaries include call counts, total time, and maximum latency for each engine worker method. Failure artifacts also capture the active call and the 20 slowest calls over 100 ms, including their transcript positions. These are browser-observed request durations and include worker queue time.
+
 ### Env knobs
 
 | Var          | Default                 | Meaning                                     |

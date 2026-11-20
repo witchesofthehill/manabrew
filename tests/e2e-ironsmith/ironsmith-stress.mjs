@@ -73,6 +73,30 @@ try {
         const recovery = newBotRecovery();
         const { PHASES } = await import("/src/components/game/game.constants.ts");
         const api = new IronsmithTrustedGameApi();
+        const engineTimings = {};
+        const slowCalls = [];
+        let activeCall;
+        const invoke = api.callEngine.bind(api);
+        api.callEngine = async (method, ...args) => {
+          const started = performance.now();
+          const call = { method, entry: api.entries.length + 1 };
+          activeCall = call;
+          try {
+            return await invoke(method, ...args);
+          } finally {
+            const ms = performance.now() - started;
+            const total = (engineTimings[method] ??= { calls: 0, totalMs: 0, maxMs: 0 });
+            total.calls++;
+            total.totalMs += ms;
+            total.maxMs = Math.max(total.maxMs, ms);
+            if (ms > 100) {
+              slowCalls.push({ ...call, ms });
+              slowCalls.sort((a, b) => b.ms - a.ms);
+              slowCalls.length = Math.min(slowCalls.length, 20);
+            }
+            if (activeCall === call) activeCall = null;
+          }
+        };
         const errors = [];
         const phases = new Set();
         let view;
@@ -200,6 +224,8 @@ try {
               view,
               errors,
               pendingPrompts,
+              activeCall,
+              slowCalls,
             };
           await api.endGame();
           stop.forEach((unsubscribe) => unsubscribe());
@@ -217,6 +243,7 @@ try {
           winner: view?.winnerId,
           phases: [...phases],
           elapsedMs: Math.round(performance.now() - started),
+          engineTimings,
           artifact,
         };
       },

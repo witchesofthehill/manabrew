@@ -684,7 +684,22 @@ fn send_chat(
         sent_at_ms,
         seal,
     };
-    match room_id {
+    publish_chat(state, message.clone())?;
+    if let Some(bridge) = state.discord_chat.get() {
+        let room_name = room_id
+            .as_ref()
+            .and_then(|id| state.rooms.get(id).map(|room| room.room_name.clone()))
+            .unwrap_or_else(|| "General".into());
+        bridge.forward(&message, &room_name);
+    }
+    Ok(())
+}
+
+pub(crate) fn publish_chat(
+    state: &Arc<ServerState>,
+    message: ChatMessage,
+) -> Result<(), ServerError> {
+    match message.room_id.clone() {
         Some(room_id) => {
             let Some(mut room) = state.rooms.get_mut(&room_id) else {
                 return Err(ServerError::RoomNotFound(room_id));

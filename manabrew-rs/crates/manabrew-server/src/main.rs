@@ -163,5 +163,6 @@ async fn main() {
         tracing::info!("[auth] no hub jwks url -- account identity disabled, device proofs only");
     }
 
+    manabrew_server::discord_chat::start(state.clone());
     server::run_server(state, addr, health_addr, metrics_handle).await;
 }

@@ -76,6 +76,11 @@ services:
       DECK_HUB: "${DECK_HUB:-1}"
       MANABREW_HUB_DECK_PLAYS_URL: "http://manabrew-hub:9500"
       MANABREW_HUB_JWKS_URL: "http://manabrew-hub:9500/api/auth/jwks"
+      DISCORD_BOT_TOKEN: "${DISCORD_BOT_TOKEN:-}"
+      DISCORD_CHAT_GUILD_ID: "${DISCORD_CHAT_GUILD_ID:-}"
+      DISCORD_CHAT_CHANNEL_ID: "${DISCORD_CHAT_CHANNEL_ID:-}"
+      DISCORD_CHAT_ADMIN_ROLE_IDS: "${DISCORD_CHAT_ADMIN_ROLE_IDS:-}"
+      DISCORD_CHAT_STATE_PATH: "/var/manabrew/discord/chat.json"
       MANABREW_HUB_DECK_PLAYS_TOKEN: "${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}"
       SECRET_MANABREW_KEY: "${SECRET_MANABREW_KEY:-}"
       RUST_LOG: "manabrew_server=info"
@@ -89,6 +94,7 @@ services:
     volumes:
       - ./ops/observability/data/events:/var/manabrew/events
       - ./ops/observability/data/captures:/var/manabrew/captures
+      - ./ops/discord-data:/var/manabrew/discord
     expose:
       - "9443"
       - "9444"

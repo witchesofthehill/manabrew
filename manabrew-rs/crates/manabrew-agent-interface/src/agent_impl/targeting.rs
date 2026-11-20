@@ -281,7 +281,7 @@ pub(super) fn choose_sacrifice<T: Responder>(
             true,
             TargetingIntent::Sacrifice,
             TargetingIntent::Sacrifice.to_string(),
-            false,
+            agent.targeting_cancellable,
         ),
         source,
     );

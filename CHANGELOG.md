@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.87.1](https://github.com/witchesofthehill/manabrew/compare/v3.87.0...v3.87.1) (2026-11-20)
+
+### Fixes
+
+* **ironsmith:** prevent delayed sync from repeating mulligans ([#1256](https://github.com/witchesofthehill/manabrew/issues/1256)) ([50f9819](https://github.com/witchesofthehill/manabrew/commit/50f9819632acf4f6b425328b0e1a499806c11ded))
+
 ## [3.87.0](https://github.com/witchesofthehill/manabrew/compare/v3.86.1...v3.87.0) (2026-11-20)
 
 ### Features

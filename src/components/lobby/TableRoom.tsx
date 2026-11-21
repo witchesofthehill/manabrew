@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { boardBackgroundUrl } from "@/pixi/board/boardBackgrounds";
-import { LogOut, Swords } from "lucide-react";
+import { LibraryBig, LogOut, Swords } from "lucide-react";
 import { OpenTableSeats } from "@/components/lobby/OpenTableSeats";
 import { TableRoomHeader } from "@/components/lobby/TableRoomHeader";
 import { InvitePlayersDialog } from "@/components/lobby/InvitePlayersDialog";
@@ -131,9 +131,19 @@ export function TableRoom({
     }
     if (!isController && myPlayer?.ready) {
       return (
-        <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5 text-center sm:text-right">
-          <p className="text-ui-label font-medium text-primary">You're ready</p>
-          <p className="text-ui-meta text-muted-foreground">Waiting for the host to start.</p>
+        <div className="flex items-center justify-between gap-4 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5">
+          <div>
+            <p className="text-ui-label font-medium text-primary">You're ready</p>
+            <p className="text-ui-meta text-muted-foreground">Waiting for the host to start.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => onSetReady(false)}
+            disabled={deckSelection?.busy}
+            className="rounded-sm text-ui-meta text-muted-foreground underline underline-offset-4 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default disabled:no-underline"
+          >
+            Unready
+          </button>
         </div>
       );
     }
@@ -234,28 +244,34 @@ export function TableRoom({
               }
             />
           </div>
-          {canChooseDeck && (
+          {canChooseDeck && isController && (
             <p className="px-3 pb-3 text-center text-ui-meta text-muted-foreground">
-              {isController
-                ? "Select your seat or a bot to choose its deck. Hover or tap + for seat actions."
-                : "Select your seat to choose your deck."}
+              Select a bot to choose its deck. Hover or tap + for seat actions.
             </p>
           )}
         </div>
         <footer className="flex shrink-0 flex-col gap-4 border-t px-4 py-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-6">
-          <button
-            type="button"
-            onClick={() => username && deckSelection?.onSelectSeat(username)}
-            disabled={!canChooseDeck || deckSelection?.busy}
-            className="min-w-0 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default sm:flex-1"
-          >
-            <span className="block text-ui-meta text-muted-foreground">Your deck</span>
-            <span className="block truncate text-ui-label font-medium">
-              {isOpenFormat
-                ? "Ready when you are"
-                : (myPlayer?.selected_deck_name ?? "Choose your deck")}
-            </span>
-          </button>
+          {canChooseDeck ? (
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => username && deckSelection?.onSelectSeat(username)}
+              disabled={deckSelection?.busy}
+              className="w-full min-w-0 sm:w-auto sm:max-w-sm"
+            >
+              <LibraryBig />
+              <span className="truncate">{myPlayer?.selected_deck_name ?? "Choose deck"}</span>
+            </Button>
+          ) : (
+            <div className="min-w-0 sm:flex-1">
+              <span className="block text-ui-meta text-muted-foreground">Your deck</span>
+              <span className="block truncate text-ui-label font-medium">
+                {isOpenFormat
+                  ? "Ready when you are"
+                  : (myPlayer?.selected_deck_name ?? "Choose your deck")}
+              </span>
+            </div>
+          )}
           <div className="flex flex-wrap items-center justify-end gap-2">
             <Button
               variant="ghost"
@@ -265,15 +281,6 @@ export function TableRoom({
             >
               <LogOut /> Leave table
             </Button>
-            {room.status === "Lobby" && !isController && myPlayer?.ready && (
-              <Button
-                variant="outline"
-                onClick={() => onSetReady(false)}
-                disabled={deckSelection?.busy}
-              >
-                Change readiness
-              </Button>
-            )}
             {renderPrimaryAction()}
           </div>
         </footer>

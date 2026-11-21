@@ -2441,6 +2441,19 @@ export default function Game({ exitTo }: GameProps = {}) {
     activeFlash?.kind === "turn"
       ? gameView.players.find((player) => player.id === activeFlash.playerId)
       : undefined;
+  const seatAvatarUrl = (player: ClientPlayerDto) =>
+    player.id === me.id
+      ? (useAuthStore.getState().account?.avatarUrl ?? null)
+      : (botAvatars.get(player.name) ??
+        relayAvatarUrl(
+          player.name,
+          useServerStore.getState().players,
+          useServerStore.getState().playerDecks,
+        ));
+  const decidingPlayer =
+    gameView.decidingPlayerId !== me.id
+      ? gameView.players.find((player) => player.id === gameView.decidingPlayerId)
+      : undefined;
   const promptOverlaySpec: PromptOverlaySpec = {
     currentPrompt: activePrompt,
     localPlayerId: me.id,
@@ -2458,15 +2471,7 @@ export default function Game({ exitTo }: GameProps = {}) {
               activeFlash.playerId === me.id
                 ? "Your turn"
                 : `${stripUsernameTag(turnHandoffPlayer.name)}'s turn`,
-            avatarUrl:
-              activeFlash.playerId === me.id
-                ? (useAuthStore.getState().account?.avatarUrl ?? null)
-                : (botAvatars.get(turnHandoffPlayer.name) ??
-                  relayAvatarUrl(
-                    turnHandoffPlayer.name,
-                    useServerStore.getState().players,
-                    useServerStore.getState().playerDecks,
-                  )),
+            avatarUrl: seatAvatarUrl(turnHandoffPlayer),
           }
         : null,
     sourceDeckCard: promptSourceDeckCard,
@@ -2476,6 +2481,13 @@ export default function Game({ exitTo }: GameProps = {}) {
       isWaitingForResponse,
       isWaitingForOthers:
         relinquishedPriority || (isWaitingForResponse && gameView.priorityPlayerId !== me.id),
+      waitingFor: decidingPlayer
+        ? {
+            name: stripUsernameTag(decidingPlayer.name),
+            color: playerColorMap.get(decidingPlayer.id) ?? themeColors.playerColors.self,
+            avatarUrl: seatAvatarUrl(decidingPlayer),
+          }
+        : null,
       availableAttackerIds:
         chooseAttackersInput?.attackers.map((attacker) => attacker.attackerId) ?? [],
       pendingAttackers,

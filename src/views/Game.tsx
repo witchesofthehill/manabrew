@@ -1026,7 +1026,10 @@ export default function Game({ exitTo }: GameProps = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activePrompt, isWaitingForResponse, promptType, tappableLandIds, untappableLandIds]);
   const _earlyMyPlayerId =
-    gameView?.players?.find((p) => p.isHuman)?.id ?? gameView?.players?.[0]?.id ?? "";
+    myPlayerSlot ??
+    gameView?.players?.find((p) => p.isHuman)?.id ??
+    gameView?.players?.[0]?.id ??
+    "";
   const { unifiedPass, unifiedPassEndTurn } = usePromptEffects({
     currentPrompt: activePrompt,
     gameView,
@@ -2475,7 +2478,9 @@ export default function Game({ exitTo }: GameProps = {}) {
       promptActionOverride,
       isWaitingForResponse,
       isWaitingForOthers:
-        relinquishedPriority || (isWaitingForResponse && gameView.priorityPlayerId !== me.id),
+        relinquishedPriority ||
+        (isWaitingForResponse &&
+          (gameView.priorityPlayerId !== me.id || promptType === "mulligan")),
       availableAttackerIds:
         chooseAttackersInput?.attackers.map((attacker) => attacker.attackerId) ?? [],
       pendingAttackers,
@@ -2530,7 +2535,7 @@ export default function Game({ exitTo }: GameProps = {}) {
             sourceCard: promptSourceDeckCard,
             manaCost: payManaCostInput.manaCost,
             description: payManaCostInput.presentation.text,
-            manaPool: gameView.players.find((player) => player.isHuman)?.manaPool ?? {},
+            manaPool: me?.manaPool ?? {},
             canConfirmFromPool: payManaCostInput.canConfirmFromPool,
             delveCount: delvedCardIds.length,
             delveAvailable: delveSourceIds.length > 0,

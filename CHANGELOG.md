@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.87.2](https://github.com/witchesofthehill/manabrew/compare/v3.87.1...v3.87.2) (2026-11-21)
+
+### Fixes
+
+* topdeck bug 1255 ([#1262](https://github.com/witchesofthehill/manabrew/issues/1262)) ([52605b4](https://github.com/witchesofthehill/manabrew/commit/52605b49aa7a0ac74f3b372ceae0567d32f1e7fa))
+
 ## [3.87.1](https://github.com/witchesofthehill/manabrew/compare/v3.87.0...v3.87.1) (2026-11-20)
 
 ### Fixes

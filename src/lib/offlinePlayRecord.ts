@@ -54,6 +54,7 @@ export interface OfflinePlayGame {
   clientVersion: string;
   platform: string;
   players: OfflinePlaySeat[];
+  rematchOf?: string;
 }
 
 interface PendingRecord {
@@ -74,9 +75,12 @@ interface OpenGame {
   format: string | null;
   startingLife: number;
   decks: Map<string, Omit<OfflinePlaySeat, "username" | "isBot">>;
+  rematchOf: string | null;
 }
 
 let open: OpenGame | null = null;
+let lastReportedId: string | null = null;
+let nextRematchOf: string | null = null;
 
 /**
  * Keep in sync with `analytics::aggregate_deck_cards` on the relay, or the two
@@ -111,7 +115,9 @@ export async function beginOfflineGame(meta: {
     format: meta.format,
     startingLife: meta.startingLife,
     decks,
+    rematchOf: nextRematchOf,
   };
+  nextRematchOf = null;
   for (const [seatId, deck] of Object.entries(meta.decks)) {
     let deckFingerprint: string | undefined;
     try {
@@ -130,6 +136,10 @@ export async function beginOfflineGame(meta: {
       cards: cards.length <= MAX_CARDS_PER_SEAT ? cards : [],
     });
   }
+}
+
+export function chainNextOfflineGame(chained: boolean): void {
+  nextRematchOf = chained ? lastReportedId : null;
 }
 
 /** Forget the open game without reporting it. */
@@ -226,6 +236,7 @@ export function reportOfflineGame(meta: {
   if (!game) return;
   open = null;
   if (meta.seats.length === 0) return;
+  lastReportedId = game.reportId;
   try {
     const endedAtMs = Date.now();
     const record: OfflinePlayGame = {
@@ -243,6 +254,7 @@ export function reportOfflineGame(meta: {
       conceded: meta.seats.filter((seat) => seat.conceded).map((seat) => seat.username),
       clientVersion: APP_VERSION,
       platform: getPlatform().type,
+      rematchOf: game.rematchOf ?? undefined,
       players: meta.seats.map((seat) => ({
         username: seat.username,
         isBot: seat.isBot,

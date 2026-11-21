@@ -10,6 +10,7 @@ import {
 import {
   abandonOfflineGame,
   beginOfflineGame,
+  chainNextOfflineGame,
   currentOfflineGameId,
 } from "@/lib/offlinePlayRecord";
 import { announceLocalGame, clearLocalGame } from "@/lib/localGamePresence";
@@ -509,6 +510,7 @@ export const useGameStore = create<GameState>()(
         const { singlePlayerSetup, isRestartingGame } = get();
         if (!singlePlayerSetup || isRestartingGame || gameLaunchInFlight !== null) return false;
         set({ isRestartingGame: true });
+        chainNextOfflineGame(true);
         try {
           await get().endGame();
           const player = singlePlayerSetup.seats[0]?.deck;
@@ -527,6 +529,7 @@ export const useGameStore = create<GameState>()(
             singlePlayerSetup,
           );
         } finally {
+          chainNextOfflineGame(false);
           set({ isRestartingGame: false });
         }
       },

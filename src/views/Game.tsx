@@ -564,7 +564,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     }
     return map;
   }, [promptActions]);
-  const tappableLandIdSet = useMemo(() => new Set(tappableLandIds), [tappableLandIds]);
   const applyManualAction = useCallback(
     async (action: Parameters<typeof applyManualTabletopAction>[1]) => {
       if (!manualApi) return;
@@ -618,13 +617,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     (card: CardDto): HandActionOption[] => castOptionsByCardId.get(card.id) ?? [],
     [castOptionsByCardId],
   );
-  const getHandActionOptions = useCallback(
-    (card: CardDto): HandActionOption[] =>
-      manualApi
-        ? getManualCardActions(card)
-        : [...castOptions(card), ...(abilitiesByCardId.get(card.id) ?? [])],
-    [manualApi, getManualCardActions, castOptions, abilitiesByCardId],
-  );
   const getBattlefieldAbilityOptions = useCallback(
     (card: CardDto): HandActionOption[] => [
       ...castOptions(card).filter((action) => action.mode?.type === "unlockDoor"),
@@ -649,13 +641,11 @@ export default function Game({ exitTo }: GameProps = {}) {
         return options;
       }
       if (promptType !== "chooseAction") return [];
-      const abilities = [...(abilitiesByCardId.get(card.id) ?? [])];
-      const manaAbilities = manaAbilitiesByCardId.get(card.id) ?? [];
-      const isManaSource = tappableLandIdSet.has(card.id);
-      if (isManaSource && manaAbilities.length > 0) {
-        abilities.unshift(...manaAbilities);
-      }
-      return [...castOptions(card), ...abilities];
+      return [
+        ...castOptions(card),
+        ...(manaAbilitiesByCardId.get(card.id) ?? []),
+        ...(abilitiesByCardId.get(card.id) ?? []),
+      ];
     },
     [
       manualApi,
@@ -665,7 +655,6 @@ export default function Game({ exitTo }: GameProps = {}) {
       abilitiesByCardId,
       manaAbilitiesByCardId,
       waterbendActionIdByCardId,
-      tappableLandIdSet,
     ],
   );
   const respondHandAction = (option: HandActionOption): boolean => {
@@ -718,7 +707,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       preview.showSticky(card, e?.clientX, e?.clientY);
       return null;
     }
-    const actions = getHandActionOptions(card);
+    const actions = getCardActions(card);
     if (actions.length === 0) {
       if (playableIds.has(card.id)) handleCastSpell(card.id);
       return null;
@@ -750,7 +739,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     handleHandCardInspect(card, e);
   };
   const handleHandCardDragStart = (card: CardDto, e: HandDragStart) => {
-    const actions = getHandActionOptions(card);
+    const actions = getCardActions(card);
     const canCast =
       !manualApi &&
       playableIds.has(card.id) &&
@@ -1501,13 +1490,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       : viewingZone?.mode === "cost"
         ? delveSourceIds
         : viewingZone?.mode === "cast" || viewingZone?.mode === "browse"
-          ? [
-              ...castOptionsByCardId.keys(),
-              ...abilitiesByCardId.keys(),
-              ...liveZoneCards
-                .filter((card) => manaAbilitiesByCardId.has(card.id))
-                .map((card) => card.id),
-            ]
+          ? liveZoneCards.filter((card) => getCardActions(card).length > 0).map((card) => card.id)
           : viewingZone?.mode === "manual"
             ? liveZoneCards.map((card) => card.id)
             : [];
@@ -1536,13 +1519,7 @@ export default function Game({ exitTo }: GameProps = {}) {
                   return;
                 const card = liveZoneCards.find((candidate) => candidate.id === cardId);
                 if (!card) return;
-                if (
-                  (viewingZone.mode === "cast" || viewingZone.mode === "browse") &&
-                  getHandActionOptions(card).length === 0 &&
-                  manaAbilitiesByCardId.has(cardId)
-                ) {
-                  handleTapLand(card);
-                } else if (viewingZone.mode === "cast" || viewingZone.mode === "browse") {
+                if (viewingZone.mode === "cast" || viewingZone.mode === "browse") {
                   if (viewingZone.mode === "browse")
                     openZoneViewer({ ...viewingZone, mode: "cast" });
                   const actionKind = handleHandCardAction(card);
@@ -2747,7 +2724,7 @@ export default function Game({ exitTo }: GameProps = {}) {
             });
           }}
           onHandHoverChange={setHandCardLifted}
-          getHandActions={getHandActionOptions}
+          getHandActions={getCardActions}
           onSelectHandAction={handlePreviewAction}
           onFlipCard={handleFlipPreview}
           onBattlefieldClick={(card) => {

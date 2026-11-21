@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.87.3](https://github.com/witchesofthehill/manabrew/compare/v3.87.2...v3.87.3) (2026-11-21)
+
+### Fixes
+
+* **ironsmith:** find the local seat by slot, not isHuman ([#1261](https://github.com/witchesofthehill/manabrew/issues/1261)) ([764e39d](https://github.com/witchesofthehill/manabrew/commit/764e39d31bdb5618a7d875b45280bb7b4c062da9))
+
 ## [3.87.2](https://github.com/witchesofthehill/manabrew/compare/v3.87.1...v3.87.2) (2026-11-21)
 
 ### Fixes

@@ -419,7 +419,11 @@ export function GameBoard({
   const graveyardTargetIds = targetZoneCardIds("Graveyard", graveyard);
   const exileTargetIds = targetZoneCardIds("Exile", exile);
   const commandPlayableIds = myCommandZone
-    ?.filter((card) => playableIds.has(card.id))
+    ?.filter(
+      (card) =>
+        playableIds.has(card.id) ||
+        !!manaAbilityOptions?.some((option) => option.cardId === card.id),
+    )
     .map((card) => card.id);
   const graveyardPlayableIds = graveyard
     .filter((card) => playableIds.has(card.id))
@@ -1270,7 +1274,7 @@ export function GameBoard({
       );
       return;
     }
-    if (promptType === "chooseAction") {
+    if (promptType === "chooseAction" || (commandPlayableIds?.length ?? 0) > 0) {
       onOpenZoneAndCast("Your Command Zone", myCommandZone, closePlayerSheet, commandPlayableIds);
     } else {
       onOpenZone("Your Command Zone", myCommandZone);

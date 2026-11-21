@@ -412,6 +412,9 @@ function sameActionPresentation(
       left.promptActionOverride === right.promptActionOverride &&
       left.isWaitingForResponse === right.isWaitingForResponse &&
       left.isWaitingForOthers === right.isWaitingForOthers &&
+      left.waitingFor?.name === right.waitingFor?.name &&
+      left.waitingFor?.color === right.waitingFor?.color &&
+      left.waitingFor?.avatarUrl === right.waitingFor?.avatarUrl &&
       sameArray(left.availableAttackerIds, right.availableAttackerIds) &&
       sameArray(left.pendingAttackers, right.pendingAttackers) &&
       left.selectedAttackDefenderId === right.selectedAttackDefenderId &&

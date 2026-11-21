@@ -1501,7 +1501,13 @@ export default function Game({ exitTo }: GameProps = {}) {
       : viewingZone?.mode === "cost"
         ? delveSourceIds
         : viewingZone?.mode === "cast" || viewingZone?.mode === "browse"
-          ? [...castOptionsByCardId.keys(), ...abilitiesByCardId.keys()]
+          ? [
+              ...castOptionsByCardId.keys(),
+              ...abilitiesByCardId.keys(),
+              ...liveZoneCards
+                .filter((card) => manaAbilitiesByCardId.has(card.id))
+                .map((card) => card.id),
+            ]
           : viewingZone?.mode === "manual"
             ? liveZoneCards.map((card) => card.id)
             : [];
@@ -1530,7 +1536,13 @@ export default function Game({ exitTo }: GameProps = {}) {
                   return;
                 const card = liveZoneCards.find((candidate) => candidate.id === cardId);
                 if (!card) return;
-                if (viewingZone.mode === "cast" || viewingZone.mode === "browse") {
+                if (
+                  (viewingZone.mode === "cast" || viewingZone.mode === "browse") &&
+                  getHandActionOptions(card).length === 0 &&
+                  manaAbilitiesByCardId.has(cardId)
+                ) {
+                  handleTapLand(card);
+                } else if (viewingZone.mode === "cast" || viewingZone.mode === "browse") {
                   if (viewingZone.mode === "browse")
                     openZoneViewer({ ...viewingZone, mode: "cast" });
                   const actionKind = handleHandCardAction(card);

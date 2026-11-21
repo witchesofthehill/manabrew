@@ -106,6 +106,7 @@ function normalizeGameView(
       : (current?.checkpoints ?? []),
     snapshotRecording: incoming.snapshotRecording ?? current?.snapshotRecording ?? false,
     decisionHistory: incoming.decisionHistory ?? current?.decisionHistory,
+    decidingPlayerId: incoming.decidingPlayerId,
     restoreVote: Array.isArray(incoming.checkpoints)
       ? (incoming.restoreVote ?? null)
       : (current?.restoreVote ?? null),

@@ -143,8 +143,8 @@
       "refs": []
     },
     "AttackerOptionDto": {
-      "ts": "interface AttackerOptionDto {\n  attackerId: string;\n  validTargetIds: Array<string>;\n  mustAttack: boolean;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct AttackerOptionDto {\n    pub attacker_id: String,\n    pub valid_target_ids: Vec<String>,\n    pub must_attack: bool,\n}",
+      "ts": "interface AttackerOptionDto {\n  attackerId: string;\n  validTargetIds: Array<string>;\n  mustAttack: boolean;\n  suggestedTargetId?: string;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct AttackerOptionDto {\n    pub attacker_id: String,\n    pub valid_target_ids: Vec<String>,\n    pub must_attack: bool,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub suggested_target_id: Option<String>,\n}",
       "refs": []
     },
     "AvailableAction": {
@@ -594,8 +594,8 @@
       "refs": []
     },
     "GameViewDto": {
-      "ts": "interface GameViewDto {\n  gameId: string;\n  turn: number;\n  step: StepKind;\n  combatAssignments: Array<CombatAssignmentDto>;\n  activePlayerId: string;\n  priorityPlayerId: string;\n  players: Array<PlayerDto>;\n  zones: Array<ZoneDto>;\n  stack: Array<StackObjectDto>;\n  gameOver: boolean;\n  winnerId: string | null;\n  monarchId: string | null;\n  initiativeHolderId: string | null;\n  dayTime: DayTime;\n  activePlaneNames?: Array<string>;\n  checkpoints: Array<CheckpointDto>;\n  restoreVote: RestoreVoteDto | null;\n  snapshotRecording: boolean;\n  decisionHistory?: DecisionHistoryDto;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct GameViewDto {\n    pub game_id: String,\n    pub turn: u32,\n    pub step: StepKind,\n    pub combat_assignments: Vec<CombatAssignmentDto>,\n    pub active_player_id: String,\n    pub priority_player_id: String,\n    pub players: Vec<PlayerDto>,\n    pub zones: Vec<ZoneDto>,\n    pub stack: Vec<StackObjectDto>,\n    pub game_over: bool,\n    pub winner_id: Option<String>,\n    pub monarch_id: Option<String>,\n    pub initiative_holder_id: Option<String>,\n    pub day_time: DayTime,\n    pub active_plane_names: Option<Vec<String>>,\n    #[serde(default)]\n    pub checkpoints: Vec<CheckpointDto>,\n    #[serde(default)]\n    pub restore_vote: Option<RestoreVoteDto>,\n    #[serde(default)]\n    pub snapshot_recording: bool,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub decision_history: Option<DecisionHistoryDto>,\n}",
+      "ts": "interface GameViewDto {\n  gameId: string;\n  turn: number;\n  step: StepKind;\n  combatAssignments: Array<CombatAssignmentDto>;\n  activePlayerId: string;\n  priorityPlayerId: string;\n  players: Array<PlayerDto>;\n  zones: Array<ZoneDto>;\n  stack: Array<StackObjectDto>;\n  gameOver: boolean;\n  winnerId: string | null;\n  monarchId: string | null;\n  initiativeHolderId: string | null;\n  dayTime: DayTime;\n  activePlaneNames?: Array<string>;\n  checkpoints: Array<CheckpointDto>;\n  restoreVote: RestoreVoteDto | null;\n  snapshotRecording: boolean;\n  decisionHistory?: DecisionHistoryDto;\n  decidingPlayerId?: string;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct GameViewDto {\n    pub game_id: String,\n    pub turn: u32,\n    pub step: StepKind,\n    pub combat_assignments: Vec<CombatAssignmentDto>,\n    pub active_player_id: String,\n    pub priority_player_id: String,\n    pub players: Vec<PlayerDto>,\n    pub zones: Vec<ZoneDto>,\n    pub stack: Vec<StackObjectDto>,\n    pub game_over: bool,\n    pub winner_id: Option<String>,\n    pub monarch_id: Option<String>,\n    pub initiative_holder_id: Option<String>,\n    pub day_time: DayTime,\n    pub active_plane_names: Option<Vec<String>>,\n    #[serde(default)]\n    pub checkpoints: Vec<CheckpointDto>,\n    #[serde(default)]\n    pub restore_vote: Option<RestoreVoteDto>,\n    #[serde(default)]\n    pub snapshot_recording: bool,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub decision_history: Option<DecisionHistoryDto>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub deciding_player_id: Option<String>,\n}",
       "refs": [
         "CheckpointDto",
         "CombatAssignmentDto",

@@ -169,7 +169,7 @@ public final class InteractiveSnapshotExtractor {
                     secretChoiceVisibility));
             final List<Card> commandZone = new ArrayList<>();
             for (final Card card : player.getCardsIn(ZoneType.Command)) {
-                if (!card.isImmutable()) {
+                if (!card.isImmutable() || !card.getSpellAbilities().isEmpty()) {
                     commandZone.add(card);
                 }
             }
@@ -777,15 +777,16 @@ public final class InteractiveSnapshotExtractor {
         final CardDto dto = new CardDto();
         dto.id = SnapshotExtractor.javaCardId(card);
         dto.zone = card.getZone() == null ? null : cardZoneKind(card.getZone().getZoneType());
-        final IPaperCard paper = card.getPaperCard();
-        final String name = paper != null && (card.isFaceDown() || card.getName().isEmpty())
-                ? paper.getName() : card.getName();
+        final Card face = card.isImmutable() && card.getEffectSource() != null ? card.getEffectSource() : card;
+        final IPaperCard paper = face.getPaperCard();
+        final String name = paper != null && (face.isFaceDown() || face.getName().isEmpty())
+                ? paper.getName() : face.getName();
         dto.identity = new CardIdentity(
                 normalizeCardName(name),
-                paper != null ? paper.getEdition() : card.getSetCode(),
+                paper != null ? paper.getEdition() : face.getSetCode(),
                 paper != null ? paper.getCollectorNumber() : "",
-                card.isToken(),
-                tokenScript(card, paper));
+                face.isToken(),
+                tokenScript(face, paper));
         dto.color = colorString(card.getColor());
         dto.manaCost = card.getManaCost() == null ? "" : card.getManaCost().toString();
         dto.cmc = card.getCMC();

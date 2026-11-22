@@ -2,7 +2,9 @@ import { useCallback } from "react";
 import { toast } from "sonner";
 import { scryfallCardKey } from "@/api/scryfall";
 import { DEFAULT_IMPORT_NAME } from "@/lib/constants";
-import { inferImportedFormat, type ParsedDeckEntry } from "@/lib/deckImport";
+import { trackClientEvent } from "@/lib/clientAnalytics";
+import { analyticsDuration } from "@/lib/clientAnalyticsPrivacy";
+import { deckImportEntryZone, inferImportedFormat, type ParsedDeckEntry } from "@/lib/deckImport";
 import { resolveDeckName } from "@/lib/deckName";
 import { getFormat, isCommanderEligible } from "@/lib/formats";
 import { useScryfallStore } from "@/stores/useScryfallStore";
@@ -10,6 +12,7 @@ import { scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { normalizeDeck, useDeckStore } from "@/stores/useDeckStore";
 import { showAccountSaveNudge } from "@/components/auth/accountSaveNudge";
 import type { DeckCard, DeckFormat } from "@/protocol/deck";
+import type { EditorDeck } from "@/types/manabrew";
 import { executeDeckEdit } from "./deckEditor.history";
 export interface ResolvedDeckTextImport {
   cards: DeckCard[];
@@ -125,53 +128,72 @@ export function useDeckTextImport() {
       name: string,
       formatId: DeckFormat | undefined,
       onProgress: (fraction: number) => void,
+      source: "text" | "clipboard" = "text",
     ): Promise<string> => {
-      const customName = name.trim();
-      const { cards, sideboard, maybeboard, commanders, notFound, substitutedPrintings } =
-        await resolveDeckTextImport(entries, onProgress);
-      const deckName = resolveDeckName(customName || DEFAULT_IMPORT_NAME, commanders);
-      const importedFormat =
-        formatId ??
-        (commanders.length > 0
-          ? "commander"
-          : inferImportedFormat(cards.map((c) => c.identity.name)));
-      const format = getFormat(importedFormat);
-      const keepsCommanders = format?.deckRules.requiresCommander ?? false;
-      const importedCards = keepsCommanders ? cards : [...cards, ...commanders];
-      const importedCommanders = keepsCommanders ? commanders : [];
-      const deck = normalizeDeck({
-        name: deckName,
-        format: importedFormat,
-        cards: importedCards,
-        sideboard,
-        maybeboard,
-        commanders: importedCommanders,
-        attractions: [],
-        contraptions: [],
-        schemes: [],
-        planes: [],
-      });
-      const id = useDeckStore.getState().addSavedDeck({
-        ...deck,
-        draft:
-          deck.cards.length + (deck.commanders?.length ?? 0) < (format?.deckRules.minDeckSize ?? 0),
-      });
-      showAccountSaveNudge();
-      onProgress(1);
-      if (notFound.length > 0) {
-        const shown = notFound.slice(0, 3).join(", ");
-        const extra = notFound.length > 3 ? ` +${notFound.length - 3} more` : "";
-        toast.warning(`Imported "${deckName}" — couldn't find: ${shown}${extra}`);
-      } else if (substitutedPrintings.length > 0) {
-        toast.warning(
-          substitutedPrintings.length === 1
-            ? `Imported "${deckName}" with one default printing substitution`
-            : `Imported "${deckName}" with ${substitutedPrintings.length} default printing substitutions`,
-        );
-      } else {
-        toast.success(`Imported "${deckName}"`);
+      const startedAt = performance.now();
+      try {
+        const customName = name.trim();
+        const { cards, sideboard, maybeboard, commanders, notFound, substitutedPrintings } =
+          await resolveDeckTextImport(entries, onProgress);
+        const deckName = resolveDeckName(customName || DEFAULT_IMPORT_NAME, commanders);
+        const importedFormat =
+          formatId ??
+          (commanders.length > 0
+            ? "commander"
+            : inferImportedFormat(cards.map((c) => c.identity.name)));
+        const format = getFormat(importedFormat);
+        const keepsCommanders = format?.deckRules.requiresCommander ?? false;
+        const importedCards = keepsCommanders ? cards : [...cards, ...commanders];
+        const importedCommanders = keepsCommanders ? commanders : [];
+        const deck = normalizeDeck({
+          name: deckName,
+          format: importedFormat,
+          cards: importedCards,
+          sideboard,
+          maybeboard,
+          commanders: importedCommanders,
+          attractions: [],
+          contraptions: [],
+          schemes: [],
+          planes: [],
+        });
+        const id = useDeckStore.getState().addSavedDeck({
+          ...deck,
+          draft:
+            deck.cards.length + (deck.commanders?.length ?? 0) <
+            (format?.deckRules.minDeckSize ?? 0),
+        });
+        showAccountSaveNudge();
+        onProgress(1);
+        if (notFound.length > 0) {
+          const shown = notFound.slice(0, 3).join(", ");
+          const extra = notFound.length > 3 ? ` +${notFound.length - 3} more` : "";
+          toast.warning(`Imported "${deckName}" — couldn't find: ${shown}${extra}`);
+        } else if (substitutedPrintings.length > 0) {
+          toast.warning(
+            substitutedPrintings.length === 1
+              ? `Imported "${deckName}" with one default printing substitution`
+              : `Imported "${deckName}" with ${substitutedPrintings.length} default printing substitutions`,
+          );
+        } else {
+          toast.success(`Imported "${deckName}"`);
+        }
+        trackClientEvent("deck_import", {
+          source,
+          mode: "create",
+          outcome: notFound.length > 0 ? "partial" : "success",
+          duration: analyticsDuration(performance.now() - startedAt),
+        });
+        return id;
+      } catch (error) {
+        trackClientEvent("deck_import", {
+          source,
+          mode: "create",
+          outcome: "failure",
+          duration: analyticsDuration(performance.now() - startedAt),
+        });
+        throw error;
       }
-      return id;
     },
     [],
   );
@@ -183,33 +205,142 @@ export function useDeckTextImportIntoCurrent() {
       _name: string,
       _formatId: DeckFormat | undefined,
       onProgress: (fraction: number) => void,
+      source: "text" | "clipboard" = "text",
     ): Promise<boolean> => {
-      const startingSessionId = useDeckStore.getState().editorSessionId;
-      const result = await resolveDeckTextImport(entries, onProgress);
+      const startedAt = performance.now();
+      try {
+        const startingSessionId = useDeckStore.getState().editorSessionId;
+        const result = await resolveDeckTextImport(entries, onProgress);
+        if (useDeckStore.getState().editorSessionId !== startingSessionId) {
+          return false;
+        }
+        executeDeckEdit(`Import card list`, () =>
+          useDeckStore.getState().mergeIntoCurrentDeck(result),
+        );
+        onProgress(1);
+        const count =
+          result.cards.length +
+          result.sideboard.length +
+          result.maybeboard.length +
+          result.commanders.length;
+        if (result.notFound.length > 0) {
+          const shown = result.notFound.slice(0, 3).join(", ");
+          const extra = result.notFound.length > 3 ? ` +${result.notFound.length - 3} more` : "";
+          toast.warning(`Added ${count} cards — couldn't find: ${shown}${extra}`);
+        } else if (result.substitutedPrintings.length > 0) {
+          toast.warning(
+            result.substitutedPrintings.length === 1
+              ? `Added ${count} cards with one default printing substitution`
+              : `Added ${count} cards with ${result.substitutedPrintings.length} default printing substitutions`,
+          );
+        } else {
+          toast.success(`Added ${count} cards to this deck`);
+        }
+        trackClientEvent("deck_import", {
+          source,
+          mode: "add",
+          outcome: result.notFound.length > 0 ? "partial" : "success",
+          duration: analyticsDuration(performance.now() - startedAt),
+        });
+        return true;
+      } catch (error) {
+        trackClientEvent("deck_import", {
+          source,
+          mode: "add",
+          outcome: "failure",
+          duration: analyticsDuration(performance.now() - startedAt),
+        });
+        throw error;
+      }
+    },
+    [],
+  );
+}
+function deckCardPrintingKey(name: string, setCode: string, cardNumber: string, foil?: boolean) {
+  return `${name.toLowerCase()}::${setCode.toLowerCase()}::${cardNumber}::${foil === true}`;
+}
+function reuseCurrentDeckCards(deck: EditorDeck, entries: ParsedDeckEntry[]) {
+  const pool = new Map<string, DeckCard[]>();
+  for (const card of [
+    ...(deck.commanders ?? []),
+    ...deck.cards,
+    ...deck.sideboard,
+    ...(deck.maybeboard ?? []),
+  ]) {
+    const { name, setCode, cardNumber, foil } = card.identity;
+    const key = deckCardPrintingKey(name, setCode, cardNumber, foil);
+    pool.set(key, [...(pool.get(key) ?? []), card]);
+  }
+  const sections: Omit<ResolvedDeckTextImport, "notFound" | "substitutedPrintings"> = {
+    cards: [],
+    sideboard: [],
+    maybeboard: [],
+    commanders: [],
+  };
+  const unresolved: ParsedDeckEntry[] = [];
+  for (const entry of entries) {
+    const matches =
+      entry.setCode && entry.collectorNumber
+        ? (pool.get(
+            deckCardPrintingKey(entry.name, entry.setCode, entry.collectorNumber, entry.foil),
+          ) ?? [])
+        : [];
+    const reused = matches.splice(0, entry.count);
+    const zone = deckImportEntryZone(entry);
+    const target =
+      zone === "commander" && (entry.commander || reused.every((card) => isCommanderEligible(card)))
+        ? sections.commanders
+        : zone === "side"
+          ? sections.sideboard
+          : zone === "maybe"
+            ? sections.maybeboard
+            : sections.cards;
+    target.push(...reused);
+    if (reused.length < entry.count) {
+      unresolved.push({ ...entry, count: entry.count - reused.length });
+    }
+  }
+  return { sections, unresolved };
+}
+export function useDeckTextReplaceCurrent() {
+  return useCallback(
+    async (
+      entries: ParsedDeckEntry[],
+      _name: string,
+      _formatId: DeckFormat | undefined,
+      onProgress: (fraction: number) => void,
+    ): Promise<boolean> => {
+      const { currentDeck, editorSessionId: startingSessionId } = useDeckStore.getState();
+      const { sections, unresolved } = reuseCurrentDeckCards(currentDeck, entries);
+      const resolved =
+        unresolved.length > 0 ? await resolveDeckTextImport(unresolved, onProgress) : null;
       if (useDeckStore.getState().editorSessionId !== startingSessionId) {
         return false;
       }
-      executeDeckEdit(`Import card list`, () =>
-        useDeckStore.getState().mergeIntoCurrentDeck(result),
+      if (resolved) {
+        sections.cards.push(...resolved.cards);
+        sections.sideboard.push(...resolved.sideboard);
+        sections.maybeboard.push(...resolved.maybeboard);
+        sections.commanders.push(...resolved.commanders);
+      }
+      executeDeckEdit(`Edit deck list`, () =>
+        useDeckStore.getState().replaceCurrentDeckSections(sections),
       );
       onProgress(1);
-      const count =
-        result.cards.length +
-        result.sideboard.length +
-        result.maybeboard.length +
-        result.commanders.length;
-      if (result.notFound.length > 0) {
-        const shown = result.notFound.slice(0, 3).join(", ");
-        const extra = result.notFound.length > 3 ? ` +${result.notFound.length - 3} more` : "";
-        toast.warning(`Added ${count} cards — couldn't find: ${shown}${extra}`);
-      } else if (result.substitutedPrintings.length > 0) {
+      const notFound = resolved?.notFound ?? [];
+      const substitutedPrintings = resolved?.substitutedPrintings ?? [];
+      if (notFound.length > 0) {
+        const shown = notFound.slice(0, 3).join(", ");
+        const extra = notFound.length > 3 ? ` +${notFound.length - 3} more` : "";
+        toast.warning(`Deck updated — couldn't find: ${shown}${extra}`);
+      } else if (substitutedPrintings.length > 0) {
         toast.warning(
-          result.substitutedPrintings.length === 1
-            ? `Added ${count} cards with one default printing substitution`
-            : `Added ${count} cards with ${result.substitutedPrintings.length} default printing substitutions`,
+          substitutedPrintings.length === 1
+            ? `Deck updated with one default printing substitution`
+            : `Deck updated with ${substitutedPrintings.length} default printing substitutions`,
         );
       } else {
-        toast.success(`Added ${count} cards to this deck`);
+        toast.success(`Deck updated`);
       }
       return true;
     },

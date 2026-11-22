@@ -807,6 +807,7 @@ public final class HarnessCostPlumbing {
                     list,
                     ability,
                     "Choose permanent to put counter on",
+                    !isMandatory(),
                     null);
             return chosen == null ? null : PaymentDecision.card(chosen);
         }

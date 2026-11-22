@@ -10,6 +10,7 @@ import type { Deck } from "@/protocol/deck";
 import type { EngineKind, GameFormat } from "@/types/server";
 import type { IronsmithDeckIssue } from "@/game";
 import type { GameViewTransition } from "@/lib/gameViewTransitions";
+import type { SinglePlayerSetup } from "@/game/singlePlayerSetup";
 
 /** The engine sends `zones: ZoneDto[]` with per-recipient `CardView` visibility.
  *  The board reads the classic flat shape (a battlefield array, per-player zone
@@ -56,11 +57,16 @@ export interface DeferredSnapshot {
   prompt: Prompt | null;
 }
 
+export type GamePurpose = "match" | "playtest" | "manual";
+
 export interface GameState {
   gameView: ClientGameView | null;
   currentPrompt: Prompt | null;
   protocolError: ProtocolError | null;
   isGameActive: boolean;
+  gamePurpose: GamePurpose | null;
+  gameLaunchReady: boolean;
+  gameLaunchHandle: string | null;
   activeEngine: EngineKind | null;
   debugInfo: string;
   /** Set when the host engine fails fatally (crash / invalid deck / can't
@@ -91,6 +97,9 @@ export interface GameState {
   repeatVote: RepeatVoteDto | null;
   gameConfig: GameConfig | null;
   gauntletId: string | null;
+  singlePlayerSetup: SinglePlayerSetup | null;
+  isRestartingGame: boolean;
+  gameInstanceId: string | null;
   /** Set at concede click, before the engine confirms via `status: "conceded"`. */
   selfConceded: boolean;
   isMultiplayer: boolean;
@@ -110,13 +119,16 @@ export interface GameState {
   updateGameView: (view: ClientGameView) => void;
   setGameConfig: (config: GameConfig) => void;
   startGame: (
+    purpose: GamePurpose,
     deck: Deck,
     formatId?: string,
     commanderName?: string,
     opponentDecks?: Deck[],
     engine?: EngineKind,
     gauntletId?: string,
+    setup?: SinglePlayerSetup,
   ) => Promise<boolean>;
+  restartGame: () => Promise<boolean>;
   startManualTabletopGame: (deck: Deck, formatId?: string, commanderName?: string) => Promise<void>;
   startManualRoomHost: (localPlayerSlot: string) => Promise<void>;
   startManualRoomClient: (
@@ -138,7 +150,7 @@ export interface GameState {
   ) => Promise<boolean>;
   respond: (output: PromptOutput["output"]) => Promise<void>;
   concede: () => Promise<void>;
-  endGame: () => Promise<void>;
+  endGame: (options?: { preserveRoom?: boolean }) => Promise<void>;
   setMultiplayerState: (
     isMultiplayer: boolean,
     isHost: boolean,

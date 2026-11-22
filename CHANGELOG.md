@@ -1,5 +1,147 @@
 # Changelog
 
+## [3.88.0](https://github.com/witchesofthehill/manabrew/compare/v3.87.7...v3.88.0) (2026-11-22)
+
+### Features
+
+* **analytics:** add client events and first-game funnels ([#1210](https://github.com/witchesofthehill/manabrew/issues/1210)) ([7faceea](https://github.com/witchesofthehill/manabrew/commit/7faceea08a9deca6304d2dcb8fa5a4bf8c507518))
+
+## [3.87.7](https://github.com/witchesofthehill/manabrew/compare/v3.87.6...v3.87.7) (2026-11-22)
+
+### Fixes
+
+* **ironsmith:** update ironsmith-wasm to 0.9.6 ([#1271](https://github.com/witchesofthehill/manabrew/issues/1271)) ([fdd69ad](https://github.com/witchesofthehill/manabrew/commit/fdd69ad58e6ac94f05c8a3cbae4a0c94d1f10cd0))
+
+## [3.87.6](https://github.com/witchesofthehill/manabrew/compare/v3.87.5...v3.87.6) (2026-11-22)
+
+### Fixes
+
+* **ironsmith:** update ironsmith-wasm to 0.9.5 ([#1270](https://github.com/witchesofthehill/manabrew/issues/1270)) ([1fae74f](https://github.com/witchesofthehill/manabrew/commit/1fae74fcab5fb8970b76d3bbbfadf5e32e304673))
+
+## [3.87.5](https://github.com/witchesofthehill/manabrew/compare/v3.87.4...v3.87.5) (2026-11-22)
+
+### Fixes
+
+* fix end screen ([#1269](https://github.com/witchesofthehill/manabrew/issues/1269)) ([7326d5e](https://github.com/witchesofthehill/manabrew/commit/7326d5e31c903ca8ff2475cba0bc532928c737fa))
+
+## [3.87.4](https://github.com/witchesofthehill/manabrew/compare/v3.87.3...v3.87.4) (2026-11-22)
+
+### Fixes
+
+* **telemetry:** record solo games started with play again ([#1266](https://github.com/witchesofthehill/manabrew/issues/1266)) ([60d3408](https://github.com/witchesofthehill/manabrew/commit/60d3408215ca4ded97abb4423afb56223830cd5b))
+
+## [3.87.3](https://github.com/witchesofthehill/manabrew/compare/v3.87.2...v3.87.3) (2026-11-21)
+
+### Fixes
+
+* **ironsmith:** find the local seat by slot, not isHuman ([#1261](https://github.com/witchesofthehill/manabrew/issues/1261)) ([764e39d](https://github.com/witchesofthehill/manabrew/commit/764e39d31bdb5618a7d875b45280bb7b4c062da9))
+
+## [3.87.2](https://github.com/witchesofthehill/manabrew/compare/v3.87.1...v3.87.2) (2026-11-21)
+
+### Fixes
+
+* topdeck bug 1255 ([#1262](https://github.com/witchesofthehill/manabrew/issues/1262)) ([52605b4](https://github.com/witchesofthehill/manabrew/commit/52605b49aa7a0ac74f3b372ceae0567d32f1e7fa))
+* autoanswer on cancellable targets ([#1263](https://github.com/witchesofthehill/manabrew/issues/1263)) ([332525a](https://github.com/witchesofthehill/manabrew/commit/332525a95c101c69bccb82ce456087091bdcc455))
+* 1110, 1220, 1190 ([#1264](https://github.com/witchesofthehill/manabrew/issues/1264)) ([db3f401](https://github.com/witchesofthehill/manabrew/commit/db3f4015fcdb2b2676d5e5d24dba9c439821a0d8))
+* waiting for ([#1265](https://github.com/witchesofthehill/manabrew/issues/1265)) ([94bb328](https://github.com/witchesofthehill/manabrew/commit/94bb3281685569f17d9cec895c8f51037b848e76))
+
+## [3.87.1](https://github.com/witchesofthehill/manabrew/compare/v3.87.0...v3.87.1) (2026-11-20)
+
+### Fixes
+
+* **ironsmith:** prevent delayed sync from repeating mulligans ([#1256](https://github.com/witchesofthehill/manabrew/issues/1256)) ([50f9819](https://github.com/witchesofthehill/manabrew/commit/50f9819632acf4f6b425328b0e1a499806c11ded))
+
+## [3.87.0](https://github.com/witchesofthehill/manabrew/compare/v3.86.1...v3.87.0) (2026-11-20)
+
+### Features
+
+* **editor:** edit deck as text with a reviewed diff ([#1258](https://github.com/witchesofthehill/manabrew/issues/1258)) ([725cad4](https://github.com/witchesofthehill/manabrew/commit/725cad44428e03ba137b88a8023a95c0904e9072))
+
+## [3.86.1](https://github.com/witchesofthehill/manabrew/compare/v3.86.0...v3.86.1) (2026-11-19)
+
+### Fixes
+
+* **ui:** show tap state in battlefield card choices ([#1252](https://github.com/witchesofthehill/manabrew/issues/1252)) ([e9c45ab](https://github.com/witchesofthehill/manabrew/commit/e9c45ab2d6a4b47ed1b6fa45257dc50e811d12b5))
+
+## [3.86.0](https://github.com/witchesofthehill/manabrew/compare/v3.85.0...v3.86.0) (2026-11-19)
+
+### Features
+
+* **ui:** confirm passing priority with unspent mana ([#1253](https://github.com/witchesofthehill/manabrew/issues/1253)) ([b8389b7](https://github.com/witchesofthehill/manabrew/commit/b8389b765feb6c99f8921acb9b6037a3deb40fc7))
+
+## [3.85.0](https://github.com/witchesofthehill/manabrew/compare/v3.84.8...v3.85.0) (2026-11-19)
+
+### Features
+
+* **game:** add post-game rematches and retained tables ([#1221](https://github.com/witchesofthehill/manabrew/issues/1221)) ([9572857](https://github.com/witchesofthehill/manabrew/commit/95728576d02d10a8acab9742046a96c8d092217e))
+
+## [3.84.8](https://github.com/witchesofthehill/manabrew/compare/v3.84.7...v3.84.8) (2026-11-19)
+
+### Fixes
+
+* **ui:** avoid duplicate turn banners during queued updates ([#1250](https://github.com/witchesofthehill/manabrew/issues/1250)) ([e3ac71c](https://github.com/witchesofthehill/manabrew/commit/e3ac71cc5f836cf2ca94ac29253876e6ac58f5b5))
+
+## [3.84.7](https://github.com/witchesofthehill/manabrew/compare/v3.84.6...v3.84.7) (2026-11-19)
+
+### Fixes
+
+* **ironsmith:** update ironsmith-wasm to 0.9.2 and send both parts of two-part cards ([#1247](https://github.com/witchesofthehill/manabrew/issues/1247)) ([f713e2d](https://github.com/witchesofthehill/manabrew/commit/f713e2d18e34d7e24955418fcabf8f8fe673dc66))
+
+## [3.84.6](https://github.com/witchesofthehill/manabrew/compare/v3.84.5...v3.84.6) (2026-11-18)
+
+### Fixes
+
+* **ironsmith:** run engine and bots in a web worker ([#1249](https://github.com/witchesofthehill/manabrew/issues/1249)) ([aae20cc](https://github.com/witchesofthehill/manabrew/commit/aae20cc7caa05be30613a975ba0e1ecf3bc5aa67))
+
+## [3.84.5](https://github.com/witchesofthehill/manabrew/compare/v3.84.4...v3.84.5) (2026-11-18)
+
+### Fixes
+
+* disable perf mode ([#1248](https://github.com/witchesofthehill/manabrew/issues/1248)) ([801aeb8](https://github.com/witchesofthehill/manabrew/commit/801aeb8bf76d5a624a35c1a778726440902ef267))
+
+## [3.84.4](https://github.com/witchesofthehill/manabrew/compare/v3.84.3...v3.84.4) (2026-11-18)
+
+### Fixes
+
+* **ironsmith:** connect manabot and keep hosting on humans ([#1240](https://github.com/witchesofthehill/manabrew/issues/1240)) ([691a794](https://github.com/witchesofthehill/manabrew/commit/691a794ca297a5bfe601878014f54fb574730cc6))
+
+## [3.84.3](https://github.com/witchesofthehill/manabrew/compare/v3.84.2...v3.84.3) (2026-11-18)
+
+### Fixes
+
+* blight and optional cost ([#1245](https://github.com/witchesofthehill/manabrew/issues/1245)) ([c8ae2ca](https://github.com/witchesofthehill/manabrew/commit/c8ae2cad6b79ccb55b5ae81673e2fa89cf22a39b))
+
+## [3.84.2](https://github.com/witchesofthehill/manabrew/compare/v3.84.1...v3.84.2) (2026-11-18)
+
+### Fixes
+
+* remove CL ([#1244](https://github.com/witchesofthehill/manabrew/issues/1244)) ([36d826a](https://github.com/witchesofthehill/manabrew/commit/36d826a02027d428cc3e10912a27e8e2896d3b13))
+
+## [3.84.1](https://github.com/witchesofthehill/manabrew/compare/v3.84.0...v3.84.1) (2026-11-17)
+
+### Fixes
+
+* **combat:** preselect attacks that satisfy engine requirements ([#1232](https://github.com/witchesofthehill/manabrew/issues/1232)) ([2f035f3](https://github.com/witchesofthehill/manabrew/commit/2f035f3d200059a3649cd0acbab9385fb8a63cd7))
+* river pull and sink into stupor ([#1239](https://github.com/witchesofthehill/manabrew/issues/1239)) ([f8102be](https://github.com/witchesofthehill/manabrew/commit/f8102beb65bb0f3f3decd50b1645f9b50aa454cd))
+
+## [3.84.0](https://github.com/witchesofthehill/manabrew/compare/v3.83.0...v3.84.0) (2026-11-17)
+
+### Features
+
+* **ironsmith:** keep a game running when its host leaves ([#1237](https://github.com/witchesofthehill/manabrew/issues/1237)) ([3040806](https://github.com/witchesofthehill/manabrew/commit/30408066510b9ef1b8154e7bf179ac6d9d6390ed))
+
+## [3.83.0](https://github.com/witchesofthehill/manabrew/compare/v3.82.1...v3.83.0) (2026-11-17)
+
+### Features
+
+* **ironsmith:** update ironsmith-wasm to 0.9.1 ([#1234](https://github.com/witchesofthehill/manabrew/issues/1234)) ([845658e](https://github.com/witchesofthehill/manabrew/commit/845658e66022ba0a759b90bb959d33310ac12962))
+
+## [3.82.1](https://github.com/witchesofthehill/manabrew/compare/v3.82.0...v3.82.1) (2026-11-17)
+
+### Fixes
+
+* **lobby:** reconcile room membership after leaving games ([#1231](https://github.com/witchesofthehill/manabrew/issues/1231)) ([bc25e0c](https://github.com/witchesofthehill/manabrew/commit/bc25e0ce5cc62809c7941ff23d81fb8c6c1d8194))
+
 ## [3.82.0](https://github.com/witchesofthehill/manabrew/compare/v3.81.0...v3.82.0) (2026-11-17)
 
 ### Features

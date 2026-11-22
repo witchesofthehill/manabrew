@@ -12,6 +12,26 @@ The relay is the multiplayer trust boundary. Only the room's engine host may emi
 
 Per-seat `State`, `Prompt`, and `Error` envelopes can contain hidden information. A hosted node must set `BroadcastState.target_player` for all three; this transport target is the authenticated relay username, not an engine slot. `fromPlayer` and encrypted `private.to` remain engine slots. `forPlayer` inside the envelope is for client dispatch and replay indexing, not transport privacy.
 
+## Physical lobby seats
+
+`room_seats` advertises `JoinRoom.seat_index` and `RoomPlayerInfo.seat_index`. Explicit positions must be free and below `max_players`; invalid requests return `invalid_seat` before mutation. Unspecified joins take the lowest free position. Existing disconnected seats are reclaimed by username without moving them.
+
+`RoomSlot.seat_index` controls lobby placement only. Preserve `Room.players` join order for engine slots, controller selection, and `player_order`; never sort it by physical position. Departures leave other positions unchanged. Capacity reductions relocate only out-of-range occupants. Limited child rooms have their own positions and leave parent positions intact.
+
+`ResumeRoom.seat_indices` aligns with `player_order`; indices must be unique and in range. Retained positions take precedence, while missing positions use free slots. Browser bot recovery parameters follow authoritative room positions after resizing; a lobby bot disconnect is a departure, so its next join must request the updated position.
+
+## Completed games and rematches
+
+`game_rematch` gates `FinishGame`, `SetRematchIntent` and `ReturnToLobby`. After final state and `ReportGameOutcome`, the engine host sends `FinishGame` for a successful ordinary game. The relay enters `Finished`, retains seats, deck snapshots, settings and final replay, and records completion once. Crashes, aborts, Limited parents and child matches keep their existing teardown paths.
+
+A `Finished` room still forwards the engine host's envelopes and drops player responses. A browser host sends `FinishGame` when its own seat sees the end; other seats' final `gameOver` prompts leave through separate async seat readers and can reach the relay after it. Dropping them leaves those seats without an end screen until the room is torn down.
+
+`RoomInfo.rematch` fixes the required human roster at the completed game's launch, including humans who left or lost earlier. Each remaining human chooses `Deciding`, `ChoosingDeck` or `Ready`; changing a deck clears only that human's consent. The relay launches one fresh game ID when every required human is connected and ready, every retained seat has a deck and connection, and the engine host is connected. Bots do not vote.
+
+A temporary disconnect clears that human's consent during reconnect grace. Explicit departure or grace expiry cancels the agreement and clears consent. A surviving participant may then send `ReturnToLobby`, preserving the remaining seats, decks and settings for explicit reconfiguration. Engine-host loss never migrates ownership.
+
+Finished-room `RequestResync` still returns the completed `GameStarted` and final state. Clients distinguish that replay from a fresh launch by room status and game ID; replay must not restart the finished engine.
+
 ## Spectators
 
 `FEATURE_SPECTATORS` advertises `SetAllowSpectators` and live observation. Public tables allow spectators by default; password-protected tables default off. The controller changes the setting only in Lobby, and `ResumeRoom.allow_spectators` preserves it across relay restarts (older hosts restore privately). `RoomInfo.can_spectate` requires a running Forge game with a cached public snapshot and excludes Draft/Sealed sessions and their child matches. Local games never acquire a broadcast feed from presence alone.
@@ -49,6 +69,8 @@ In-game state is cached per room (`replay.rs`) so reconnecting clients can pull 
 Rooms survive relay restarts: `RoomCreated` returns a random `resume_token` (guards live rooms; a forgotten room is resurrected on first `ResumeRoom` claim after a restart), the host re-registers and re-primes the replay cache, and guests — humans and bots alike — retake their in-game seat by username through `JoinRoom` (resurrected bot seats start disconnected until the bot rejoins). Every game gets a relay-generated `game_id` (broadcast in `GameStarted`, preserved across restarts via `ResumeRoom`) — the identity hosted nodes reconcile their engine sessions against.
 
 ## Reconnect window and cleanup
+
+Host reassignment selects human seats only, both on disconnect migration and explicit departure. If only bots remain, retain the departed human host identity until room cleanup; never elect a bot as a fallback.
 
 The relay is the single owner of the reconnect window: a disconnected in-game seat is forfeited (removed + broadcast like a leave) once its grace expires (`schedule_seat_forfeit`), so hosts never time disconnects themselves. A non-playing host disconnect gets the same reconnect grace as players instead of killing the room. The cleanup sweep resets any in-game room that has had no connected human participant (bot seats and the hosted node's observer don't count) for `reconnect_timeout_s` + margin back to Lobby — otherwise abandoned hosted games would sit `InGame` forever and skew the live-ops gauges. Room teardown funnels through exactly two primitives — `reset_room_to_lobby` (room survives) and `remove_room_and_clear_sessions` (room dies) — sharing one session rule: disconnected sessions are removed with the room, connected ones return to the lobby; never inline a third copy.
 

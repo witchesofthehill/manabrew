@@ -20,6 +20,7 @@ import forge.game.mana.ManaCostBeingPaid;
 import forge.game.player.Player;
 import forge.game.spellability.AbilityManaPart;
 import forge.game.spellability.AlternativeCost;
+import forge.game.spellability.OptionalCostValue;
 import forge.game.spellability.SpellAbility;
 import forge.game.spellability.SpellAbilityStackInstance;
 import forge.game.spellability.TargetRestrictions;
@@ -157,17 +158,15 @@ public final class ActionSpace {
             applyStackStatics(game, spellHosts.values());
         }
         for (final SpellAbility sa : possible) {
-            final Cost payCosts = sa.getPayCosts();
-            if (payCosts != null && payCosts.hasManaCost()) {
-                final Card probeHost = stackStatics ? spellHosts.get(sa.getHostCard()) : null;
-                if (!canPayMana(sa, player, lifePaymentFallback, probeHost, maybePay)) {
-                    continue;
-                }
+            final Card probeHost = stackStatics ? spellHosts.get(sa.getHostCard()) : null;
+            if (!canPayAnyCostVariant(sa, player, lifePaymentFallback, probeHost, maybePay)) {
+                continue;
             }
             if (!includeManaAbilities && sa.isManaAbility()) {
                 continue;
             }
-            if (!targetsDependOnAnnouncedX(sa) && !hasValidTargets(sa)) {
+            if (!targetsDependOnAnnouncedX(sa) && !hasValidTargets(sa)
+                    && !hasValidTargetsWithOptionalCost(sa, spellHost(sa, game, spellHosts))) {
                 continue;
             }
             if (!sa.checkRestrictions(spellHost(sa, game, spellHosts), player)) {
@@ -184,6 +183,26 @@ public final class ActionSpace {
             }
         }
         return actions;
+    }
+
+    private static boolean canPayAnyCostVariant(
+            final SpellAbility sa,
+            final Player player,
+            final boolean lifePaymentFallback,
+            final Card probeHost,
+            final MaybePay maybePay
+    ) {
+        final List<SpellAbility> variants = sa.isActivatedAbility() && sa.hasParam("AlternateCost")
+                ? GameActionUtil.getAdditionalCostSpell(sa)
+                : List.of(sa);
+        for (final SpellAbility variant : variants) {
+            final Cost payCosts = variant.getPayCosts();
+            if (payCosts == null || !payCosts.hasManaCost()
+                    || canPayMana(variant, player, lifePaymentFallback, probeHost, maybePay)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean canPayMana(
@@ -973,5 +992,22 @@ public final class ActionSpace {
             current = current.getSubAbility();
         }
         return true;
+    }
+
+    private static boolean hasValidTargetsWithOptionalCost(final SpellAbility sa, final Card spellHost) {
+        final SpellAbility castSA = spellHost.getCastSA();
+        try {
+            for (final OptionalCostValue value : GameActionUtil.getOptionalCostValues(sa)) {
+                final SpellAbility variant = GameActionUtil.addOptionalCosts(sa, List.of(value));
+                variant.setHostCard(spellHost);
+                spellHost.setCastSA(variant);
+                if (hasValidTargets(variant)) {
+                    return true;
+                }
+            }
+            return false;
+        } finally {
+            spellHost.setCastSA(castSA);
+        }
     }
 }

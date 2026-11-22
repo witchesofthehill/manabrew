@@ -418,6 +418,7 @@ impl Client {
             &mut self.write,
             &ClientMessage::JoinRoom {
                 room_id: room_id.to_string(),
+                seat_index: None,
                 observe: false,
                 as_bot,
                 password: None,
@@ -962,11 +963,16 @@ pub fn spawn_guest_bot(
             username,
             password: "forge".to_string(),
             room_id,
+            seat_index: None,
             room_password: None,
-            deck_name: "Reg AI".to_string(),
-            deck: serde_json::from_value(basic_deck("Reg AI", "Forest", "Centaur Courser"))
-                .expect("bot deck"),
-            commander_name: None,
+            selection: Some(manabot::BotDeckSelection {
+                deck_name: "Reg AI".to_string(),
+                deck: serde_json::from_value(basic_deck("Reg AI", "Forest", "Centaur Courser"))
+                    .expect("bot deck"),
+                published_deck_id: None,
+                commander_name: None,
+                avatar_url: None,
+            }),
             agent: manabot::AgentKind::Simple,
             answer_delay_ms: Some(delay.as_millis() as u64),
         };

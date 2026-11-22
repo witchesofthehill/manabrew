@@ -44,6 +44,7 @@ pub(super) fn choose_attackers<T: Responder>(
             attacker_id,
             valid_target_ids: all_target_ids.clone(),
             must_attack: false,
+            suggested_target_id: None,
         })
         .collect();
     agent.send_prompt(

@@ -1157,6 +1157,7 @@ impl GameViewDtoExt for GameViewDto {
             restore_vote: None,
             snapshot_recording: false,
             decision_history: None,
+            deciding_player_id: None,
         }
     }
 

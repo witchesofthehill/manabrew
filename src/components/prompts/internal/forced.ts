@@ -21,7 +21,7 @@ function canFinishTargeting(input: {
 
 export const singleLegalBoardTarget: PromptResolver<"chooseBoardTargets"> = (prompt) => {
   const input = prompt.input;
-  if (canFinishTargeting(input)) return { kind: "force-show" };
+  if (input.cancellable || canFinishTargeting(input)) return { kind: "force-show" };
 
   if (input.candidates.length !== 1) return { kind: "force-show" };
   const only = input.candidates[0];

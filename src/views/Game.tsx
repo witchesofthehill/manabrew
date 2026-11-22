@@ -22,6 +22,8 @@ import type { ClientCardDto, ClientPlayerDto } from "@/stores/gameStore.types";
 import { GameModals } from "@/components/game/GameModals";
 import { LandscapeGate } from "@/components/LandscapeGate";
 import { GameLoadingScreen } from "@/components/game/GameLoadingScreen";
+import { CreateGameDialog } from "@/components/lobby/CreateGameDialog";
+import { usePostGame } from "@/hooks/usePostGame";
 import { GameFailedScreen } from "@/components/game/GameFailedScreen";
 import { WaitingForPlayerScreen } from "@/components/game/WaitingForPlayerScreen";
 import { DevViewportFrame } from "@/components/dev/DevViewportFrame";
@@ -36,6 +38,9 @@ import {
   RestoreVoteModal,
   EliminatedModal,
   GameSettingsModal,
+  type GameSettingsFocusTarget,
+  PassWithManaModal,
+  type PendingPassKind,
   PhaseStopsHelpModal,
   LeaveGameModal,
   SoundSettingsModal,
@@ -52,7 +57,7 @@ import type {
 } from "@/pixi/BoardOverlayCanvas";
 import { CardPreviewOverlayCanvas } from "@/pixi/CardPreviewOverlayCanvas";
 import { buildArrowSpecs } from "@/components/game/arrowSpecs";
-import { getDisplayedManaAbilities } from "@/components/game/manaUtils";
+import { getDisplayedManaAbilities, hasUnspentMana } from "@/components/game/manaUtils";
 import { PlayModePicker } from "@/components/game/PlayModePicker";
 import { HAND_CARD_BASE } from "@/components/game/game.styles";
 import { ACTION_DRAWER_BUMP_EVENT, ZONE_TILE_KEY } from "@/components/game/game.constants";
@@ -101,14 +106,13 @@ import {
   stackObjectAbilityText,
   stackObjectToCard,
   relayAvatarUrl,
-  botAvatarUrl,
-  isBotSeat,
   gameRound,
   opponentsInTurnOrder,
 } from "@/components/game/game.utils";
 import { createPortal } from "react-dom";
 import { Card } from "@/components/game/Card";
 import { cn } from "@/lib/utils";
+import { gameBotAvatarUrls } from "@/lib/botAvatars";
 import { applyManualTabletopAction, getSelectedGameRuntime } from "@/game";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { deriveCardRailState, parsePrintedCardRailMetadata } from "@/components/game/cardRailState";
@@ -266,6 +270,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   const currentPrompt = useGameStore((s) => s.currentPrompt);
   const protocolError = useGameStore((s) => s.protocolError);
   const isGameActive = useGameStore((s) => s.isGameActive);
+  const isRestartingGame = useGameStore((s) => s.isRestartingGame);
   const activeEngine = useGameStore((s) => s.activeEngine);
   const isPrefetchingCards = useGameStore((s) => s.isPrefetchingCards);
   const isWaitingForResponse = useGameStore((s) => s.isWaitingForResponse);
@@ -361,6 +366,9 @@ export default function Game({ exitTo }: GameProps = {}) {
   const [handCardLifted, setHandCardLifted] = useState(false);
   const [boardMenuOpen, setBoardMenuOpen] = useState(false);
   const [gameSettingsOpen, setGameSettingsOpen] = useState(false);
+  const [gameSettingsFocus, setGameSettingsFocus] = useState<GameSettingsFocusTarget | undefined>(
+    undefined,
+  );
   const [soundSettingsOpen, setSoundSettingsOpen] = useState(false);
   const [phaseStopsHelpOpen, setPhaseStopsHelpOpen] = useState(false);
   const [eliminatedModalOpen, setEliminatedModalOpen] = useState(false);
@@ -557,7 +565,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     }
     return map;
   }, [promptActions]);
-  const tappableLandIdSet = useMemo(() => new Set(tappableLandIds), [tappableLandIds]);
   const applyManualAction = useCallback(
     async (action: Parameters<typeof applyManualTabletopAction>[1]) => {
       if (!manualApi) return;
@@ -611,13 +618,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     (card: CardDto): HandActionOption[] => castOptionsByCardId.get(card.id) ?? [],
     [castOptionsByCardId],
   );
-  const getHandActionOptions = useCallback(
-    (card: CardDto): HandActionOption[] =>
-      manualApi
-        ? getManualCardActions(card)
-        : [...castOptions(card), ...(abilitiesByCardId.get(card.id) ?? [])],
-    [manualApi, getManualCardActions, castOptions, abilitiesByCardId],
-  );
   const getBattlefieldAbilityOptions = useCallback(
     (card: CardDto): HandActionOption[] => [
       ...castOptions(card).filter((action) => action.mode?.type === "unlockDoor"),
@@ -642,13 +642,11 @@ export default function Game({ exitTo }: GameProps = {}) {
         return options;
       }
       if (promptType !== "chooseAction") return [];
-      const abilities = [...(abilitiesByCardId.get(card.id) ?? [])];
-      const manaAbilities = manaAbilitiesByCardId.get(card.id) ?? [];
-      const isManaSource = tappableLandIdSet.has(card.id);
-      if (isManaSource && manaAbilities.length > 0) {
-        abilities.unshift(...manaAbilities);
-      }
-      return [...castOptions(card), ...abilities];
+      return [
+        ...castOptions(card),
+        ...(manaAbilitiesByCardId.get(card.id) ?? []),
+        ...(abilitiesByCardId.get(card.id) ?? []),
+      ];
     },
     [
       manualApi,
@@ -658,7 +656,6 @@ export default function Game({ exitTo }: GameProps = {}) {
       abilitiesByCardId,
       manaAbilitiesByCardId,
       waterbendActionIdByCardId,
-      tappableLandIdSet,
     ],
   );
   const respondHandAction = (option: HandActionOption): boolean => {
@@ -711,7 +708,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       preview.showSticky(card, e?.clientX, e?.clientY);
       return null;
     }
-    const actions = getHandActionOptions(card);
+    const actions = getCardActions(card);
     if (actions.length === 0) {
       if (playableIds.has(card.id)) handleCastSpell(card.id);
       return null;
@@ -743,7 +740,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     handleHandCardInspect(card, e);
   };
   const handleHandCardDragStart = (card: CardDto, e: HandDragStart) => {
-    const actions = getHandActionOptions(card);
+    const actions = getCardActions(card);
     const canCast =
       !manualApi &&
       playableIds.has(card.id) &&
@@ -808,7 +805,14 @@ export default function Game({ exitTo }: GameProps = {}) {
     if (must.length === 0) return null;
     const nameOf = (id: string) =>
       gameView?.battlefield.find((c) => c.id === id)?.identity.name ?? `A creature`;
-    return `Must attack if able — ${must.map((a) => nameOf(a.attackerId)).join(", ")}`;
+    return `Must attack if able — ${must
+      .map((a) => {
+        const target = chooseAttackersInput?.attackTargets.find(
+          (t) => t.id === a.suggestedTargetId,
+        );
+        return target ? `${nameOf(a.attackerId)} → ${target.label}` : nameOf(a.attackerId);
+      })
+      .join(", ")}`;
   }, [chooseAttackersInput, gameView?.battlefield]);
   const blockRestrictionHint = useMemo<string | null>(() => {
     const attackers = chooseBlockersInput?.attackers ?? [];
@@ -1012,7 +1016,10 @@ export default function Game({ exitTo }: GameProps = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activePrompt, isWaitingForResponse, promptType, tappableLandIds, untappableLandIds]);
   const _earlyMyPlayerId =
-    gameView?.players?.find((p) => p.isHuman)?.id ?? gameView?.players?.[0]?.id ?? "";
+    myPlayerSlot ??
+    gameView?.players?.find((p) => p.isHuman)?.id ??
+    gameView?.players?.[0]?.id ??
+    "";
   const { unifiedPass, unifiedPassEndTurn } = usePromptEffects({
     currentPrompt: activePrompt,
     gameView,
@@ -1021,14 +1028,56 @@ export default function Game({ exitTo }: GameProps = {}) {
     myPlayerId: _earlyMyPlayerId,
   });
 
-  const passPriority = useCallback(() => {
+  const confirmPassWithMana = usePromptPreferencesStore((s) => s.confirmPassWithMana);
+  const [pendingPassWithMana, setPendingPassWithMana] = useState<PendingPassKind | null>(null);
+  const localPlayerForPass =
+    gameView?.players?.find((p) => p.id === myPlayerSlot) ??
+    gameView?.players?.find((p) => p.isHuman) ??
+    gameView?.players?.[0];
+  const shouldConfirmPassWithMana =
+    confirmPassWithMana &&
+    promptType === "chooseAction" &&
+    !isWaitingForResponse &&
+    (gameView?.stack?.length ?? 0) === 0 &&
+    hasUnspentMana(localPlayerForPass?.manaPool);
+
+  useEffect(() => {
+    setPendingPassWithMana(null);
+  }, [activePrompt]);
+
+  useEffect(() => {
+    if (!shouldConfirmPassWithMana) setPendingPassWithMana(null);
+  }, [shouldConfirmPassWithMana]);
+
+  const executePassPriority = useCallback(() => {
     window.dispatchEvent(new CustomEvent(ACTION_DRAWER_BUMP_EVENT, { detail: false }));
     unifiedPass();
   }, [unifiedPass]);
-  const passEndTurn = useCallback(() => {
+  const executePassEndTurn = useCallback(() => {
     window.dispatchEvent(new CustomEvent(ACTION_DRAWER_BUMP_EVENT, { detail: true }));
     unifiedPassEndTurn();
   }, [unifiedPassEndTurn]);
+
+  const passPriority = useCallback(() => {
+    if (shouldConfirmPassWithMana) {
+      setPendingPassWithMana("priority");
+      return;
+    }
+    executePassPriority();
+  }, [shouldConfirmPassWithMana, executePassPriority]);
+  const passEndTurn = useCallback(() => {
+    if (shouldConfirmPassWithMana) {
+      setPendingPassWithMana("endTurn");
+      return;
+    }
+    executePassEndTurn();
+  }, [shouldConfirmPassWithMana, executePassEndTurn]);
+  const handleConfirmPassWithMana = useCallback(() => {
+    const kind = pendingPassWithMana;
+    setPendingPassWithMana(null);
+    if (kind === "endTurn") executePassEndTurn();
+    else if (kind === "priority") executePassPriority();
+  }, [pendingPassWithMana, executePassEndTurn, executePassPriority]);
   const unifiedPassRef = useRef(passPriority);
   unifiedPassRef.current = passPriority;
   const passEndTurnRef = useRef(passEndTurn);
@@ -1260,9 +1309,9 @@ export default function Game({ exitTo }: GameProps = {}) {
     [gameView?.players, me?.id],
   );
   const roomPlayers = useServerStore((s) => s.currentRoom?.players);
-  const botOpponents = useMemo(
-    () => opponents.filter((op) => isBotSeat(op, roomPlayers)),
-    [opponents, roomPlayers],
+  const botAvatars = useMemo(
+    () => gameBotAvatarUrls(gameView?.players ?? [], roomPlayers),
+    [gameView?.players, roomPlayers],
   );
   const iAmEliminated = isSpectator || selfConceded || (me != null && me.status !== "playing");
   const ownsEngine = isHost || hostingForgeRoom;
@@ -1338,6 +1387,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       setConcedeModalOpen(false);
       setLeaveGameModalOpen(false);
       setGameSettingsOpen(false);
+      setGameSettingsFocus(undefined);
       setSoundSettingsOpen(false);
       setCombatDetailsOpen(false);
       closeZoneViewer();
@@ -1451,7 +1501,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       : viewingZone?.mode === "cost"
         ? delveSourceIds
         : viewingZone?.mode === "cast" || viewingZone?.mode === "browse"
-          ? [...castOptionsByCardId.keys(), ...abilitiesByCardId.keys()]
+          ? liveZoneCards.filter((card) => getCardActions(card).length > 0).map((card) => card.id)
           : viewingZone?.mode === "manual"
             ? liveZoneCards.map((card) => card.id)
             : [];
@@ -2189,12 +2239,9 @@ export default function Game({ exitTo }: GameProps = {}) {
     zoneCardPreview && externalPreviewActive ? { "toggle-card-view": togglePreviewView } : {},
     zonePreviewScope,
   );
-  useEffect(() => {
-    if (!gameView?.gameOver && activePrompt?.input.type !== "gameOver") return;
-    if (peekGauntletMatch(gauntletId) || peekLimitedMatchReturn()) return;
-    const timer = setTimeout(() => endGame(), 3000);
-    return () => clearTimeout(timer);
-  }, [gameView?.gameOver, activePrompt?.input.type, gauntletId, endGame]);
+  const completed = (gameView?.gameOver ?? false) || activePrompt?.input.type === "gameOver";
+  const managedReturn = !!peekGauntletMatch(gauntletId) || !!peekLimitedMatchReturn();
+  const postGame = usePostGame(completed, managedReturn);
   const limitedReturn = useLimitedGameReturn({
     gauntletId,
     gameOver: (gameView?.gameOver ?? false) || activePrompt?.input.type === "gameOver",
@@ -2202,6 +2249,11 @@ export default function Game({ exitTo }: GameProps = {}) {
     playerSlot: myPlayerSlot,
     endGame,
   });
+  if (!isGameActive && (isRestartingGame || postGame.busy)) {
+    return (
+      <GameLoadingScreen debugInfo="Preparing the next game" onComplete={handleLoadingComplete} />
+    );
+  }
   if (!isGameActive)
     return <Navigate to={limitedReturn.destination ?? exitTo ?? "/lobby"} replace />;
   if (limitedReturn.error) {
@@ -2389,6 +2441,19 @@ export default function Game({ exitTo }: GameProps = {}) {
     activeFlash?.kind === "turn"
       ? gameView.players.find((player) => player.id === activeFlash.playerId)
       : undefined;
+  const seatAvatarUrl = (player: ClientPlayerDto) =>
+    player.id === me.id && !isSpectator
+      ? (useAuthStore.getState().account?.avatarUrl ?? null)
+      : (botAvatars.get(player.name) ??
+        relayAvatarUrl(
+          player.name,
+          useServerStore.getState().players,
+          useServerStore.getState().playerDecks,
+        ));
+  const decidingPlayer =
+    gameView.decidingPlayerId !== me.id
+      ? gameView.players.find((player) => player.id === gameView.decidingPlayerId)
+      : undefined;
   const promptOverlaySpec: PromptOverlaySpec = {
     currentPrompt: activePrompt,
     localPlayerId: me.id,
@@ -2406,17 +2471,7 @@ export default function Game({ exitTo }: GameProps = {}) {
               activeFlash.playerId === me.id && !isSpectator
                 ? "Your turn"
                 : `${stripUsernameTag(turnHandoffPlayer.name)}'s turn`,
-            avatarUrl:
-              activeFlash.playerId === me.id && !isSpectator
-                ? (useAuthStore.getState().account?.avatarUrl ?? null)
-                : (relayAvatarUrl(
-                    turnHandoffPlayer.name,
-                    useServerStore.getState().players,
-                    useServerStore.getState().playerDecks,
-                  ) ??
-                  (isBotSeat(turnHandoffPlayer, roomPlayers)
-                    ? botAvatarUrl(turnHandoffPlayer.id, botOpponents)
-                    : null)),
+            avatarUrl: seatAvatarUrl(turnHandoffPlayer),
           }
         : null,
     sourceDeckCard: promptSourceDeckCard,
@@ -2425,7 +2480,16 @@ export default function Game({ exitTo }: GameProps = {}) {
       promptActionOverride,
       isWaitingForResponse,
       isWaitingForOthers:
-        relinquishedPriority || (isWaitingForResponse && gameView.priorityPlayerId !== me.id),
+        relinquishedPriority ||
+        (isWaitingForResponse &&
+          (gameView.priorityPlayerId !== me.id || promptType === "mulligan")),
+      waitingFor: decidingPlayer
+        ? {
+            name: stripUsernameTag(decidingPlayer.name),
+            color: playerColorMap.get(decidingPlayer.id) ?? themeColors.playerColors.self,
+            avatarUrl: seatAvatarUrl(decidingPlayer),
+          }
+        : null,
       availableAttackerIds:
         chooseAttackersInput?.attackers.map((attacker) => attacker.attackerId) ?? [],
       pendingAttackers,
@@ -2480,7 +2544,7 @@ export default function Game({ exitTo }: GameProps = {}) {
             sourceCard: promptSourceDeckCard,
             manaCost: payManaCostInput.manaCost,
             description: payManaCostInput.presentation.text,
-            manaPool: gameView.players.find((player) => player.isHuman)?.manaPool ?? {},
+            manaPool: me?.manaPool ?? {},
             canConfirmFromPool: payManaCostInput.canConfirmFromPool,
             delveCount: delvedCardIds.length,
             delveAvailable: delveSourceIds.length > 0,
@@ -2534,7 +2598,14 @@ export default function Game({ exitTo }: GameProps = {}) {
             opponents,
             turn: gameRound(gameView.turn, gameView.players.length),
             engineCrash,
-            onEndGame: () => void endGame(),
+            statusMessage: postGame.statusMessage,
+            playerStatuses: postGame.playerStatuses,
+            rematchRequests: postGame.rematchRequests,
+            ready: postGame.ready,
+            busy: postGame.busy,
+            onPlayAgain: postGame.onPlayAgain,
+            onChangeDeck: postGame.onChangeDeck,
+            onHome: postGame.onHome,
           }
         : null,
     modalHidden: promptModalHidden,
@@ -2680,7 +2751,7 @@ export default function Game({ exitTo }: GameProps = {}) {
             });
           }}
           onHandHoverChange={setHandCardLifted}
-          getHandActions={getHandActionOptions}
+          getHandActions={getCardActions}
           onSelectHandAction={handlePreviewAction}
           onFlipCard={handleFlipPreview}
           onBattlefieldClick={(card) => {
@@ -2821,7 +2892,27 @@ export default function Game({ exitTo }: GameProps = {}) {
           boardSurfaceEl,
         )}
 
-      {gameSettingsOpen && <GameSettingsModal onClose={() => setGameSettingsOpen(false)} />}
+      {postGame.deckPickerOpen && (
+        <CreateGameDialog
+          open
+          onOpenChange={postGame.onPickerOpenChange}
+          mode="lobby"
+          rematch
+          engineKind={postGame.room?.engine}
+          forcedFormatId={postGame.room?.format.toLowerCase()}
+          preSelectedDeck={postGame.previousDeck}
+          onStart={postGame.onDeckSelected}
+        />
+      )}
+      {gameSettingsOpen && (
+        <GameSettingsModal
+          focusSetting={gameSettingsFocus}
+          onClose={() => {
+            setGameSettingsOpen(false);
+            setGameSettingsFocus(undefined);
+          }}
+        />
+      )}
       {soundSettingsOpen && <SoundSettingsModal onClose={() => setSoundSettingsOpen(false)} />}
       {phaseStopsHelpOpen && (
         <PhaseStopsHelpModal
@@ -2905,6 +2996,19 @@ export default function Game({ exitTo }: GameProps = {}) {
           hosting={ownsEngine && gameContinuesWithoutMe}
           onConfirm={handleConcedeConfirm}
           onCancel={() => setConcedeModalOpen(false)}
+        />
+      )}
+      {pendingPassWithMana && shouldConfirmPassWithMana && (
+        <PassWithManaModal
+          kind={pendingPassWithMana}
+          manaPool={me.manaPool}
+          onConfirm={handleConfirmPassWithMana}
+          onCancel={() => setPendingPassWithMana(null)}
+          onOpenSetting={() => {
+            setPendingPassWithMana(null);
+            setGameSettingsFocus("confirmPassWithMana");
+            setGameSettingsOpen(true);
+          }}
         />
       )}
 

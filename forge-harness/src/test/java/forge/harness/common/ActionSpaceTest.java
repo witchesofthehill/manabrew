@@ -9,6 +9,7 @@ import forge.game.GameStage;
 import forge.game.GameType;
 import forge.game.Match;
 import forge.game.card.Card;
+import forge.game.card.CounterEnumType;
 import forge.game.phase.PhaseType;
 import forge.game.player.Player;
 import forge.game.player.RegisteredPlayer;
@@ -42,7 +43,63 @@ public final class ActionSpaceTest {
         relativeTargetDiscountNeedsTheDiscountTarget();
         targetsDependingOnAnnouncedXAreOffered();
         announcedXWithoutTargetsIsNotOffered();
+        equipAlternateCostIsOffered();
+        equipAlternateCostNeedsTheCounter();
+        reconfigureAlternateCostIsOffered();
+        reconfigureAlternateCostNeedsTheEnergy();
         System.exit(0);
+    }
+
+    private static void equipAlternateCostIsOffered() {
+        final Game game = newGame();
+        final Player p = game.getPlayers().get(1);
+        add("Grizzly Bears", p, ZoneType.Battlefield);
+        add("Gavel of the Righteous", p, ZoneType.Battlefield).setCounters(CounterEnumType.CHARGE, 1);
+        game.getAction().checkStaticAbilities();
+
+        if (!offered(p, true).contains("Gavel of the Righteous")) {
+            throw new AssertionError(
+                    "Gavel of the Righteous equip by removing its charge counter was not offered without mana");
+        }
+    }
+
+    private static void equipAlternateCostNeedsTheCounter() {
+        final Game game = newGame();
+        final Player p = game.getPlayers().get(1);
+        add("Grizzly Bears", p, ZoneType.Battlefield);
+        add("Gavel of the Righteous", p, ZoneType.Battlefield);
+        game.getAction().checkStaticAbilities();
+
+        if (offered(p, true).contains("Gavel of the Righteous")) {
+            throw new AssertionError("Gavel of the Righteous equip offered with no mana and no counter");
+        }
+    }
+
+    private static void reconfigureAlternateCostIsOffered() {
+        final Game game = newGame();
+        final Player p = game.getPlayers().get(1);
+        add("Grizzly Bears", p, ZoneType.Battlefield);
+        add("Razorfield Ripper", p, ZoneType.Battlefield);
+        p.setCounters(CounterEnumType.ENERGY, 3, null, false);
+        game.getAction().checkStaticAbilities();
+
+        if (!offered(p, true).contains("Razorfield Ripper")) {
+            throw new AssertionError(
+                    "Razorfield Ripper reconfigure by paying three energy was not offered without mana");
+        }
+    }
+
+    private static void reconfigureAlternateCostNeedsTheEnergy() {
+        final Game game = newGame();
+        final Player p = game.getPlayers().get(1);
+        add("Grizzly Bears", p, ZoneType.Battlefield);
+        add("Razorfield Ripper", p, ZoneType.Battlefield);
+        p.setCounters(CounterEnumType.ENERGY, 2, null, false);
+        game.getAction().checkStaticAbilities();
+
+        if (offered(p, true).contains("Razorfield Ripper")) {
+            throw new AssertionError("Razorfield Ripper reconfigure offered with no mana and two energy");
+        }
     }
 
     private static void targetsDependingOnAnnouncedXAreOffered() {

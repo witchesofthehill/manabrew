@@ -2292,10 +2292,16 @@ fn handle_client_message(
                         room = reopened;
                     }
                 }
-                if source != GameMessageSource::RoomRelay && room.status != RoomStatus::InGame {
+                let accepted = match room.status {
+                    RoomStatus::InGame => true,
+                    RoomStatus::Finished => source == GameMessageSource::Engine,
+                    RoomStatus::Lobby => false,
+                };
+                if source != GameMessageSource::RoomRelay && !accepted {
                     return;
                 }
                 if room.status == RoomStatus::Finished
+                    && source == GameMessageSource::RoomRelay
                     && (game_state
                         .get("protocol")
                         .and_then(serde_json::Value::as_str)

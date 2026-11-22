@@ -1,9 +1,10 @@
 export { AbilityPickerModal } from "./AbilityPickerModal";
 export { ConcedeGameModal } from "./ConcedeGameModal";
 export { EliminatedModal } from "./EliminatedModal";
-export { GameSettingsModal } from "./GameSettingsModal";
+export { GameSettingsModal, type GameSettingsFocusTarget } from "./GameSettingsModal";
 export { LeaveGameModal } from "./LeaveGameModal";
 export { Modal } from "./Modal";
+export { PassWithManaModal, type PendingPassKind } from "./PassWithManaModal";
 export { PhaseStopsHelpModal } from "./PhaseStopsHelpModal";
 export { RepeatRequestModal } from "./RepeatRequestModal";
 export { RepeatVoteModal } from "./RepeatVoteModal";

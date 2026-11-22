@@ -6,6 +6,8 @@
  */
 
 import { deckHasCardCosmetics, normalizeCardCosmetics } from "@/lib/cardCosmetics";
+import type { WasmBot } from "@/wasm/wasm";
+import type * as WasmModule from "@/wasm/wasm";
 import { reportClientError } from "@/lib/errorReporting";
 import { workerError } from "@/lib/workerError";
 import type { EngineGameStats } from "@/lib/engineTelemetry";
@@ -41,10 +43,12 @@ import type {
 } from "./types";
 import {
   DUPLICATE_USERNAME_ERROR_FRAGMENT,
+  RELAY_FEATURE,
   SERVER_ERROR_CODE,
   TOKEN_EXPIRED_ERROR_FRAGMENT,
   type GameOutcomeReport,
   type LocalGameKind,
+  type RematchIntent,
 } from "@/types/server";
 import type { RoomInfo, RoomRelayEnvelope, StateEnvelope } from "@/types/server";
 import { PROTOCOL_VERSION } from "@/protocol";
@@ -1093,6 +1097,10 @@ class WebEventBus implements IEventBus {
 
 interface BotEntry {
   roomId: string;
+  params: SpawnAiBotParams;
+  bot: WasmBot | null;
+  status: RoomInfo["status"] | null;
+  deckSelectionPending: boolean;
   ws: WebSocket | null;
   stopped: boolean;
   attempt: number;
@@ -1142,6 +1150,7 @@ class WebServerApi implements IServerApi {
   private relayRttMs: number | null = null;
   private planeQualityReporting = false;
   private cardCosmeticsVersion: 0 | 1 | 2 | 3 = 0;
+  private roomSeats = false;
   private pingSentAt: number | null = null;
   private directTransportOptIn = usePreferencesStore.getState().directTransport;
   private roomTransport = false;
@@ -1225,6 +1234,7 @@ class WebServerApi implements IServerApi {
 
   private async openSocket(params: ServerConnectParams): Promise<void> {
     this.cardCosmeticsVersion = 0;
+    this.roomSeats = false;
     const forceRemint = this.sessionTokenRejected;
     this.sessionTokenRejected = false;
     const identity = await resolveRelayIdentity(this.sessionIdentity, params.username, forceRemint);
@@ -1302,6 +1312,7 @@ class WebServerApi implements IServerApi {
     this.ws = null;
     this.connectedAt = null;
     this.cardCosmeticsVersion = 0;
+    this.roomSeats = false;
 
     if (this.manualDisconnect) {
       this.eventBus.emit("server:disconnected", { terminal: true });
@@ -1414,6 +1425,7 @@ class WebServerApi implements IServerApi {
     this.sessionIdentity = null;
     this.sessionTokenRejected = false;
     this.cardCosmeticsVersion = 0;
+    this.roomSeats = false;
     this.stopKeepalive();
     this.stopAllBots();
     const ws = this.ws;
@@ -1520,6 +1532,18 @@ class WebServerApi implements IServerApi {
   }
 
   async setDeckSelection(params: SetDeckSelectionParams): Promise<void> {
+    this.validateDeckSelection(params);
+    this.send({
+      type: "SetDeckSelection",
+      deck_name: params.deckName,
+      deck: params.deck,
+      published_deck_id: params.publishedDeckId ?? null,
+      commander_name: params.commanderName,
+      avatar_url: params.avatarUrl ?? null,
+    });
+  }
+
+  private validateDeckSelection(params: SetDeckSelectionParams): void {
     if (this.cardCosmeticsVersion === 0 && deckHasCardCosmetics(params.deck)) {
       throw new Error(
         "This server does not support customized cards. Update the server before selecting this deck.",
@@ -1550,14 +1574,6 @@ class WebServerApi implements IServerApi {
         "This server does not support this deck's printing calibration. Update the server before selecting this deck.",
       );
     }
-    this.send({
-      type: "SetDeckSelection",
-      deck_name: params.deckName,
-      deck: params.deck,
-      published_deck_id: params.publishedDeckId ?? null,
-      commander_name: params.commanderName,
-      avatar_url: params.avatarUrl ?? null,
-    });
   }
 
   async setFormat(params: SetFormatParams): Promise<void> {
@@ -1575,6 +1591,18 @@ class WebServerApi implements IServerApi {
   async endGame(gameId: string): Promise<void> {
     this.stopRoomBots(this.currentRoomId);
     this.send({ type: "EndGame", game_id: gameId });
+  }
+
+  async finishGame(gameId: string): Promise<void> {
+    this.send({ type: "FinishGame", game_id: gameId });
+  }
+
+  async setRematchIntent(gameId: string, intent: RematchIntent): Promise<void> {
+    this.send({ type: "SetRematchIntent", game_id: gameId, intent });
+  }
+
+  async returnToLobby(gameId: string): Promise<void> {
+    this.send({ type: "ReturnToLobby", game_id: gameId });
   }
 
   async reportEngineStats(stats: EngineGameStats, gameId?: string | null): Promise<void> {
@@ -1609,22 +1637,29 @@ class WebServerApi implements IServerApi {
     if (!this.relayUrl || this.serverPassword == null) {
       throw new Error("Cannot spawn bot: not connected to relay.");
     }
+    if (params.seatIndex !== undefined && !this.roomSeats) {
+      throw new Error("Update the relay before adding a bot to a selected seat.");
+    }
     if (this.bots.has(params.username)) {
       throw new Error(`Bot '${params.username}' is already running.`);
     }
-    const wasm = await loadWasm();
-    const config = JSON.stringify({
-      username: params.username,
-      password: this.serverPassword,
-      roomId: params.roomId,
-      roomPassword: params.roomPassword ?? null,
-      deckName: params.deckName,
-      deck: params.deck,
-      commanderName: params.commanderName,
-      agent: params.agent ?? "simple",
-    });
+    if ((params.deck === undefined) !== (params.deckName === undefined)) {
+      throw new Error("A bot deck and deck name must be assigned together.");
+    }
+    if (params.deck && params.deckName !== undefined) {
+      this.validateDeckSelection({
+        ...params,
+        deck: params.deck,
+        deckName: params.deckName,
+        commanderName: params.commanderName ?? null,
+      });
+    }
     const entry: BotEntry = {
       roomId: params.roomId,
+      params: { ...params },
+      bot: null,
+      status: null,
+      deckSelectionPending: false,
       ws: null,
       stopped: false,
       attempt: 0,
@@ -1632,14 +1667,34 @@ class WebServerApi implements IServerApi {
     };
     this.bots.set(params.username, entry);
     rememberSpawnedBot(params);
+    let wasm: typeof WasmModule;
+    try {
+      wasm = await loadWasm();
+    } catch (error) {
+      if (this.bots.get(params.username) === entry) {
+        this.bots.delete(params.username);
+        forgetSpawnedBot(params.username);
+      }
+      throw error;
+    }
     const connect = () => {
       entry.reconnectTimer = null;
       if (entry.stopped || !this.relayUrl) {
-        this.bots.delete(params.username);
+        if (this.bots.get(params.username) === entry) this.bots.delete(params.username);
         return;
       }
       dlog(`[bot-life ${params.username}] connecting (attempt ${entry.attempt})`);
-      const bot = new wasm.WasmBot(config);
+      const bot = new wasm.WasmBot(
+        JSON.stringify({
+          ...entry.params,
+          password: this.serverPassword,
+          agent: entry.params.agent ?? "simple",
+        }),
+      );
+      entry.bot = bot;
+      if (entry.deckSelectionPending) {
+        bot.set_deck_selection(JSON.stringify(entry.params));
+      }
       const ws = new WebSocket(this.relayUrl);
       entry.ws = ws;
       ws.onopen = () => {
@@ -1683,9 +1738,10 @@ class WebServerApi implements IServerApi {
       ws.onerror = () => console.error(`[bot ${params.username}] WebSocket error`);
       ws.onclose = () => {
         bot.free();
+        entry.bot = null;
         entry.ws = null;
         if (entry.stopped) {
-          this.bots.delete(params.username);
+          if (this.bots.get(params.username) === entry) this.bots.delete(params.username);
           return;
         }
         const delay =
@@ -1696,6 +1752,53 @@ class WebServerApi implements IServerApi {
       };
     };
     connect();
+  }
+
+  async restoreAiBots(roomId: string): Promise<string[]> {
+    await Promise.all(
+      peekSpawnedBots(roomId).map(async (params) => {
+        if (this.bots.has(params.username)) return;
+        await this.spawnAiBot(params);
+        if (params.deckSelectionPending && params.deck && params.deckName !== undefined) {
+          await this.setAiBotDeck(params.username, {
+            ...params,
+            deck: params.deck,
+            deckName: params.deckName,
+            commanderName: params.commanderName ?? null,
+          });
+        }
+      }),
+    );
+    return [...this.bots]
+      .filter(([, bot]) => bot.roomId === roomId && !bot.stopped)
+      .map(([username]) => username);
+  }
+
+  async setAiBotDeck(username: string, params: SetDeckSelectionParams): Promise<void> {
+    const entry = this.bots.get(username);
+    if (!entry || entry.stopped || entry.roomId !== this.currentRoomId) {
+      throw new Error(`Bot '${username}' is not owned in the current room.`);
+    }
+    if (entry.status !== null && entry.status !== "Lobby") {
+      throw new Error("Bot decks can only be changed in the lobby.");
+    }
+    this.validateDeckSelection(params);
+    const replies = entry.bot?.set_deck_selection(JSON.stringify(params)) ?? [];
+    for (const message of replies) {
+      if (entry.ws?.readyState !== WebSocket.OPEN) {
+        throw new Error("Bot connection closed while assigning its deck.");
+      }
+      logComms("bot-send", `[${username}] ${message}`);
+      entry.ws.send(message);
+    }
+    entry.params = {
+      ...entry.params,
+      ...params,
+      publishedDeckId: params.publishedDeckId,
+      avatarUrl: params.avatarUrl,
+    };
+    entry.deckSelectionPending = true;
+    rememberSpawnedBot(entry.params, true);
   }
 
   async removeAiBot(username: string): Promise<void> {
@@ -1930,6 +2033,10 @@ class WebServerApi implements IServerApi {
     }
     logComms("recv", raw ?? msg);
     if (type === "AuthResult") {
+      this.roomSeats =
+        msg.success === true &&
+        Array.isArray(msg.features) &&
+        msg.features.includes(RELAY_FEATURE.RoomSeats);
       this.cardCosmeticsVersion =
         msg.success && Array.isArray(msg.features)
           ? msg.features.includes("card_cosmetics_v3")
@@ -2126,8 +2233,30 @@ class WebServerApi implements IServerApi {
     }
 
     if (type === "RoomUpdate" || type === "RoomResumed") {
-      const room = msg.room as { room_id?: string } | undefined;
+      const room = msg.room as RoomInfo | undefined;
       const roomId = String(room?.room_id ?? "");
+      if (room) {
+        for (const bot of this.bots.values()) {
+          if (bot.roomId !== roomId) continue;
+          bot.status = room.status;
+          const player = room.players.find((player) => player.username === bot.params.username);
+          if (!player) continue;
+          let changed = false;
+          if (
+            bot.params.seatIndex !== undefined &&
+            player.seat_index !== undefined &&
+            bot.params.seatIndex !== player.seat_index
+          ) {
+            bot.params.seatIndex = player.seat_index;
+            changed = true;
+          }
+          if (bot.deckSelectionPending && player.selected_deck_name === bot.params.deckName) {
+            bot.deckSelectionPending = false;
+            changed = true;
+          }
+          if (changed) rememberSpawnedBot(bot.params, bot.deckSelectionPending);
+        }
+      }
       const limited = useMultiplayerLimitedStore.getState();
       const activeRoomId = this.currentRoomId ?? limited.matchReturn?.roomId;
       const inactiveLimitedRoom = limited.originalRoom && activeRoomId && activeRoomId !== roomId;
@@ -2138,6 +2267,9 @@ class WebServerApi implements IServerApi {
     }
 
     if (type === "GameStarted") {
+      for (const bot of this.bots.values()) {
+        if (bot.roomId === msg.room_id) bot.status = "InGame";
+      }
       this.lastRelayStates.clear();
       this.pendingRelayPrompts.clear();
       this.pendingRelayDirectives.clear();

@@ -61,7 +61,7 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
 
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.100.0
 
       - name: Install git-cliff
         uses: taiki-e/install-action@v2

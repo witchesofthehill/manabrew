@@ -1,4 +1,5 @@
 import type { SelectedDeck } from "./deckSelection.types";
+import type { SinglePlayerSetup } from "@/game/singlePlayerSetup";
 
 export const PLAYER_SEAT_ID = "player";
 export const FIRST_BOT_SEAT_ID = "bot-1";
@@ -29,7 +30,19 @@ function emptySeat(id: string): OfflineSeat {
   return { id, deck: null, touched: false };
 }
 
-export function createOfflineRoster(playerDeck: SelectedDeck | null): OfflineRosterState {
+export function createOfflineRoster(
+  initial: SelectedDeck | SinglePlayerSetup | null,
+): OfflineRosterState {
+  if (initial && "seats" in initial) {
+    return {
+      seats: initial.seats.map((seat) => ({ ...seat, touched: true })),
+      activeSeatId: initial.seats[0]?.id ?? PLAYER_SEAT_ID,
+      nextBotId:
+        Math.max(0, ...initial.seats.slice(1).map((seat) => Number(seat.id.replace("bot-", "")))) +
+        1,
+    };
+  }
+  const playerDeck = initial;
   return {
     seats: [{ ...emptySeat(PLAYER_SEAT_ID), deck: playerDeck }, emptySeat(FIRST_BOT_SEAT_ID)],
     activeSeatId: playerDeck ? FIRST_BOT_SEAT_ID : PLAYER_SEAT_ID,

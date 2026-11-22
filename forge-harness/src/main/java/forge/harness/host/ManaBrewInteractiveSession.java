@@ -68,6 +68,7 @@ public final class ManaBrewInteractiveSession {
     private final String sessionId;
     private Match match;
     private Game game;
+    private Random gameRandom;
     private HandKnowledge handKnowledge;
     private final BlockingQueue<QueuedAction> actions = new LinkedBlockingQueue<>();
     private record QueuedAction(JsonObject decoded, JsonObject canonical,
@@ -90,6 +91,7 @@ public final class ManaBrewInteractiveSession {
     private volatile List<String> publishedSnapshots = List.of();
     private volatile boolean executionFinished;
     private volatile int promptedPlayerIndex = -1;
+    private volatile int decidingPlayerIndex = -1;
     private long promptSeq;
     private volatile boolean closed;
     private volatile Thread gameThread;
@@ -203,7 +205,7 @@ public final class ManaBrewInteractiveSession {
 
     public void start(final Random rng) {
         requireAttached();
-        Objects.requireNonNull(rng, "rng");
+        gameRandom = Objects.requireNonNull(rng, "rng");
         if (bridge != null) {
             forge.util.MyRandom.setRandom(rng);
             try {
@@ -306,12 +308,18 @@ public final class ManaBrewInteractiveSession {
         final String snapshot = InteractiveSnapshotExtractor.snapshotJson(
                 game, castingAbility, sessionId, viewer, secretChoiceVisibility, handKnowledge,
                 checkpointViews, restoreVoteView, snapshotRecording);
-        if (decisionHistory == null) return snapshot;
+        final int deciding = decidingPlayerIndex;
+        if (decisionHistory == null && deciding < 0) return snapshot;
         final JsonObject view = JsonParser.parseString(snapshot).getAsJsonObject();
-        final JsonObject history = new JsonObject();
-        history.addProperty("rewinding", rewindPending);
-        history.addProperty("unavailableReason", decisionHistory.unavailableReason());
-        view.add("decisionHistory", history);
+        if (deciding >= 0) {
+            view.addProperty("decidingPlayerId", "player-" + deciding);
+        }
+        if (decisionHistory != null) {
+            final JsonObject history = new JsonObject();
+            history.addProperty("rewinding", rewindPending);
+            history.addProperty("unavailableReason", decisionHistory.unavailableReason());
+            view.add("decisionHistory", history);
+        }
         return view.toString();
     }
 
@@ -431,7 +439,7 @@ public final class ManaBrewInteractiveSession {
     }
 
     JsonObject replayVerification() {
-        return GameCheckpoint.verification(this, (ReplayRandom) forge.util.MyRandom.getRandom());
+        return GameCheckpoint.verification(this, (ReplayRandom) gameRandom);
     }
 
     public String readDecisionJournal() {
@@ -595,6 +603,9 @@ public final class ManaBrewInteractiveSession {
                         && !until.get("throughCombat").isJsonNull() && until.get("throughCombat").getAsBoolean();
                 final boolean exhaustStack = action.has("exhaustStack")
                         && !action.get("exhaustStack").isJsonNull() && action.get("exhaustStack").getAsBoolean();
+                if ("cleanup".equals(untilPhase)) {
+                    return new PriorityChoice(PriorityActionKind.PASS, null, null, null, false, exhaustStack, null, null);
+                }
                 return new PriorityChoice(PriorityActionKind.PASS, null, untilPlayer, untilPhase, throughCombat, exhaustStack, null, null);
             }
             if ("untap_land".equals(kind)) {
@@ -2151,6 +2162,14 @@ public final class ManaBrewInteractiveSession {
     }
 
     private JsonObject takeAction() throws InterruptedException {
+        try {
+            return awaitAction();
+        } finally {
+            decidingPlayerIndex = -1;
+        }
+    }
+
+    private JsonObject awaitAction() throws InterruptedException {
         while (true) {
             if (actionRepeat.replaying()) {
                 final JsonObject replayed = actionRepeat.replayAnswer();
@@ -2457,7 +2476,7 @@ public final class ManaBrewInteractiveSession {
     }
 
     private void publishCheckpointViews() {
-        absorbGameLog();
+        if (!replaying) absorbGameLog();
         final List<Map<String, Object>> views = new ArrayList<>();
         for (final Checkpoint checkpoint : checkpoints) {
             views.add(checkpointView(checkpoint));
@@ -2697,6 +2716,7 @@ public final class ManaBrewInteractiveSession {
     private static AlternativeCostKind alternativeCostKind(final AlternativeCost alt) {
         switch (alt) {
             case Awaken: return AlternativeCostKind.AWAKEN;
+            case BeamMeUp: return AlternativeCostKind.BEAM_ME_UP;
             case Bestow: return AlternativeCostKind.BESTOW;
             case Blitz: return AlternativeCostKind.BLITZ;
             case Dash: return AlternativeCostKind.DASH;
@@ -2995,6 +3015,7 @@ public final class ManaBrewInteractiveSession {
             final Combat combat,
             final List<Card> availableAttackers
     ) {
+        final Map<Card, GameEntity> suggested = combat.getAttackConstraints().getLegalAttackers().getLeft();
         final List<AttackerOptionDto> attackers = new java.util.ArrayList<>();
         for (final Card a : availableAttackers) {
             final List<String> validTargetIds = new java.util.ArrayList<>();
@@ -3004,7 +3025,8 @@ public final class ManaBrewInteractiveSession {
             final boolean mustAttack =
                     a.isGoaded() || !StaticAbilityMustAttack.entitiesMustAttack(a).isEmpty();
             attackers.add(new AttackerOptionDto(
-                    SnapshotExtractor.javaCardId(a), validTargetIds, mustAttack));
+                    SnapshotExtractor.javaCardId(a), validTargetIds, mustAttack,
+                    suggested.containsKey(a) ? defenderId(suggested.get(a)) : null));
         }
         final List<AttackTargetDto> attackTargets = new java.util.ArrayList<>();
         for (final GameEntity defender : combat.getDefenders()) {
@@ -3114,6 +3136,11 @@ public final class ManaBrewInteractiveSession {
             for (final Pair<GameEntity, forge.game.GameObject> candidate : candidates) {
                 if ("card".equals(targetKind(candidate))) {
                     candidateRefs.add(targetRef("card", targetId(candidate)));
+                }
+            }
+            for (final Pair<GameEntity, forge.game.GameObject> candidate : candidates) {
+                if ("spell".equals(targetKind(candidate))) {
+                    candidateRefs.add(targetRef("spell", targetId(candidate)));
                 }
             }
         } else {
@@ -3336,6 +3363,7 @@ public final class ManaBrewInteractiveSession {
 
     private void publishAgentPrompt(final String decidingPlayerId, final String sourceCardId, final JsonObject input) {
         promptedPlayerIndex = parsePlayerSlot(decidingPlayerId);
+        decidingPlayerIndex = promptedPlayerIndex;
         openPromptJson = ManabrewProtocolAdapter.agentPrompt(
                 ++promptSeq,
                 decidingPlayerId,
@@ -3462,6 +3490,9 @@ public final class ManaBrewInteractiveSession {
             altCost = CaseFormat.UPPER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, alternative.cost.name());
         } else if (altCost == null && mode instanceof PlayCardMode_staticAlternative) {
             altCost = "Alternative cost";
+        }
+        if ("BeamMeUp".equals(altCost)) {
+            altCost = "Beam me up";
         }
         final int bar = cardName.indexOf('|');
         final String displayName = bar < 0 ? cardName : cardName.substring(bar + 1);

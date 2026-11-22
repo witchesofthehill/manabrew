@@ -31,12 +31,14 @@ fn main() {
                 println!("cargo:rerun-if-changed={lib_dir}/forgeharness.dll");
                 let dll = PathBuf::from(&lib_dir).join("forgeharness.dll");
                 if dll.exists() {
-                    if let Some(profile_dir) = PathBuf::from(std::env::var("OUT_DIR").unwrap())
+                    let out_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap());
+                    let profile_dir = out_dir
                         .ancestors()
-                        .nth(3)
-                    {
-                        let _ = std::fs::copy(&dll, profile_dir.join("forgeharness.dll"));
-                    }
+                        .find(|dir| dir.file_name().is_some_and(|name| name == "build"))
+                        .and_then(|build_dir| build_dir.parent())
+                        .expect("OUT_DIR inside <profile>/build");
+                    std::fs::copy(&dll, profile_dir.join("forgeharness.dll"))
+                        .expect("copy forgeharness.dll next to the executable");
                 }
             }
             Ok("macos") => {

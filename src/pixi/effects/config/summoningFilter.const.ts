@@ -9,3 +9,8 @@ export const SUMMONING_FILTER = {
   sickBrightness: 0.78,
   phasedSaturate: -1,
 } as const;
+
+export const IGNORED_CARD = {
+  saturate: -0.9,
+  brightness: 0.6,
+} as const;

@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import type { CardDto } from "@/protocol/game";
 import type { HandActionOption } from "@/stores/useGameUIStore";
-import { PHASES, ZONE_BADGES, ZONE_TILE_KEY } from "@/components/game/game.constants";
+import { PHASES, STOP_PHASES, ZONE_BADGES, ZONE_TILE_KEY } from "@/components/game/game.constants";
 import type { ZoneTileSpec } from "@/pixi/board/BoardZoneTiles";
 import type { StackSpec } from "@/pixi/stack/stack.types";
 import { DEFAULT_OPPONENT_STOPS } from "@/stores/usePhaseStopStore";
@@ -50,7 +50,6 @@ interface GameBoardAccessibilityProps {
   onToggleSelfPhase: (phaseId: string) => void;
   onToggleOpponentPhase: (playerId: string, phaseId: string) => void;
 }
-const UNCONFIGURABLE_PHASE_ID = "untap";
 
 const cardLabel = (card: CardDto, owner: string, attackTarget?: string): string => {
   const name = card.isFaceDown ? "Face-down card" : card.identity.name;
@@ -343,7 +342,7 @@ export function GameBoardAccessibility({
           {PHASES.find((phase) => phase.id === currentStep)?.label ?? currentStep}
         </summary>
         <div className="mt-1.5 space-y-1.5">
-          {PHASES.filter((phase) => phase.id !== UNCONFIGURABLE_PHASE_ID).map((phase) => (
+          {STOP_PHASES.map((phase) => (
             <button
               key={`self:${phase.id}`}
               type="button"
@@ -357,7 +356,7 @@ export function GameBoardAccessibility({
           {players
             .filter((player) => !player.isSelf)
             .flatMap((player) =>
-              PHASES.filter((phase) => phase.id !== UNCONFIGURABLE_PHASE_ID).map((phase) => {
+              STOP_PHASES.map((phase) => {
                 const enabled = (opponentStops.get(player.id) ?? DEFAULT_OPPONENT_STOPS).has(
                   phase.id,
                 );

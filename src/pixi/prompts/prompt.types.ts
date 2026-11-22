@@ -22,7 +22,14 @@ export interface GameOverPromptSpec {
   opponents: PlayerDto[];
   turn: number;
   engineCrash: string | null;
-  onEndGame: () => void;
+  statusMessage: string | null;
+  playerStatuses: Readonly<Record<string, string>>;
+  rematchRequests: readonly string[];
+  ready: boolean;
+  busy: boolean;
+  onPlayAgain: (() => void) | null;
+  onChangeDeck: (() => void) | null;
+  onHome: () => void;
 }
 
 export interface PromptLayerCallbacks {

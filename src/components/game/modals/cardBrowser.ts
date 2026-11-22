@@ -12,6 +12,7 @@ export interface CardBrowserItem {
   legal?: boolean;
   selected?: boolean;
   highlightColor?: string;
+  ignored?: boolean;
 }
 export interface CardBrowserState {
   query: string;

@@ -354,6 +354,7 @@ async fn play(
             &mut write,
             &ClientMessage::JoinRoom {
                 room_id: room.room_id.clone(),
+                seat_index: None,
                 observe: false,
                 as_bot: std::env::var("AS_BOT").map(|v| v != "0").unwrap_or(true),
                 password: None,

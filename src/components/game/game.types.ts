@@ -35,6 +35,7 @@ export const OPPONENT_SEATS: readonly Exclude<PlayerSeat, "self">[] = [
 ] as const;
 
 export interface RightActionPanelProps {
+  showChat?: boolean;
   collapsed: boolean;
   onToggleCollapse: () => void;
   onLeftEdgeChange?: (left: number | undefined) => void;
@@ -46,11 +47,18 @@ export interface RightActionPanelProps {
   onRequestRestore: (checkpoint: CheckpointDto) => void;
 }
 
+export interface WaitingForPlayer {
+  name: string;
+  color: string;
+  avatarUrl: string | null;
+}
+
 export interface PromptActionSpec {
   promptType?: PromptActionType;
   promptActionOverride?: DevPromptActionOverride | null;
   isWaitingForResponse: boolean;
   isWaitingForOthers: boolean;
+  waitingFor?: WaitingForPlayer | null;
   availableAttackerIds: string[];
   pendingAttackers: string[];
   onPassPriority: () => void;

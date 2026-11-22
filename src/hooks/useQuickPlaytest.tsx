@@ -2,11 +2,12 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import type { SelectedDeck } from "@/components/lobby/deckSelection.types";
 import { isOfflinePodFormat } from "@/components/lobby/offlineRoster.utils";
+import { singlePlayerDeck } from "@/game/singlePlayerSetup";
+import type { SinglePlayerSetup } from "@/game/singlePlayerSetup";
 import { ROUTES } from "@/lib/constants";
 import { trackClientEvent } from "@/lib/clientAnalytics";
 import { resolveOfflineEngine } from "@/lib/offlineEngine";
 import { pickRandomDistinct } from "@/lib/utils";
-import { savePresetToAccountOnUse } from "@/lib/presetDeckAccount";
 import { useGameStore } from "@/stores/useGameStore";
 import { usePresetDecks, usePresetDecksStore } from "@/stores/usePresetDecksStore";
 import type { Deck } from "@/protocol/deck";
@@ -17,12 +18,38 @@ export function useQuickPlaytest(): {
   const startGame = useGameStore((s) => s.startGame);
   const aiEngine = resolveOfflineEngine();
   const presetDecks = usePresetDecks(aiEngine);
-  function start(deck: Deck) {
+  function start(deck: Deck, savedDeckId?: string) {
     const formatId = deck.format ?? "standard";
     const opponents = pickRandomDistinct(
       presetDecks.filter((preset) => (preset.format ?? "standard") === formatId),
       1,
     );
+    const preset = savedDeckId
+      ? undefined
+      : usePresetDecksStore
+          .getState()
+          .decks.find(
+            (candidate) =>
+              candidate === deck || (deck.id !== undefined && candidate.id === deck.id),
+          );
+    const playerDeck = singlePlayerDeck(
+      deck,
+      preset ? "preset" : "local",
+      savedDeckId ?? (preset ? (preset.id ?? preset.name) : "current"),
+    );
+    const setup: SinglePlayerSetup = {
+      engine: aiEngine,
+      formatId,
+      seats: [
+        { id: "player", deck: playerDeck },
+        {
+          id: "bot-1",
+          deck: opponents[0]
+            ? singlePlayerDeck(opponents[0], "preset", opponents[0].id ?? opponents[0].name)
+            : playerDeck,
+        },
+      ],
+    };
     void startGame(
       "playtest",
       deck,
@@ -30,11 +57,9 @@ export function useQuickPlaytest(): {
       deck.commanders?.[0]?.identity.name,
       opponents.length > 0 ? opponents : [deck],
       aiEngine,
-    ).then((started) => {
-      if (started && presetDecks.some((preset) => preset.id === deck.id)) {
-        savePresetToAccountOnUse(deck.id);
-      }
-    });
+      undefined,
+      setup,
+    );
     navigate("/play");
   }
   function quickPlaytest(deck: Deck, savedDeckId?: string) {
@@ -72,7 +97,7 @@ export function useQuickPlaytest(): {
       });
       return;
     }
-    start(deck);
+    start(deck, savedDeckId);
   }
   return { quickPlaytest };
 }

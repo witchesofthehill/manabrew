@@ -5,6 +5,12 @@ The Journal tab shows redacted consumed decisions from `gameView.checkpoints`;
 Forge AI games retain legacy snapshots. Internal Forge AI is not deterministic
 under replay and is rejected by journal mode.
 
+Legacy `GameSnapshot` rewind has a control-restoration limitation. After an
+assimilated permanent returns to its owner through Saga chapter III, restoring
+an earlier snapshot can place it in the saved controller's battlefield without
+restoring `Card.controller`. This affects the Forge AI snapshot path; verify
+Assimilate rewind through isolated journal reconstruction, not legacy copying.
+
 ## Reconstruction and promotion
 
 An approved restore vote freezes the authoritative engine. A fresh worker/process
@@ -37,6 +43,9 @@ stops recording but preserves rewind within the retained prefix. Successful rewi
 discards the abandoned suffix. Votes and rewind requests are orchestration, not
 recorded gameplay inputs. Full journals and witnesses contain hidden information
 and must remain private to the engine host.
+
+Interactive rewind exposes the latest 200 checkpoints, independently of the
+retained journal prefix. Select a checkpoint that is still published.
 
 Verification covers canonical prompts, every seat's view, spectator state, ordered
 card identities in all zones (including libraries), and the primitive RNG stream.

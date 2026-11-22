@@ -166,6 +166,20 @@ function reportHostOutcome(state: GameState): void {
       fatal_message: state.fatalError ?? undefined,
       turns: view?.turn,
     })
+    .then(() => {
+      if (
+        over &&
+        !state.fatalError &&
+        !state.engineCrash &&
+        server.hasRelayFeature(RELAY_FEATURE.GameRematch) &&
+        !server.currentRoom?.draft_config &&
+        !server.currentRoom?.sealed_config &&
+        server.currentRoom?.format !== "Draft" &&
+        server.currentRoom?.format !== "Sealed"
+      ) {
+        return getPlatform().server?.finishGame(gameId);
+      }
+    })
     .catch(() => undefined);
 }
 /** Close the book on the current game. Safe to call more than once. */
@@ -242,18 +256,16 @@ function noticeRepeatVote(vote: RepeatVoteDto, state: GameState) {
 
 export function useGameEventListeners() {
   useEffect(() => {
+    const gameInstanceId = useGameStore.getState().gameInstanceId;
     window.addEventListener("pagehide", reportEngineGame);
-    // A finished game is reported the moment it finishes, not at teardown:
-    // teardown is three seconds later, and by then the tab may be gone, the
-    // socket closed or a pooled hosted room recycled out from under the seat.
-    // Reporting twice is free — the summary is drained by the first caller.
     const unsubscribe = useGameStore.subscribe((state, previous) => {
       if (isOver(state) && !isOver(previous)) reportEngineGame();
     });
     return () => {
       window.removeEventListener("pagehide", reportEngineGame);
       unsubscribe();
-      reportEngineGame();
+      // A restart opens the next game's record before this board unmounts.
+      if (useGameStore.getState().gameInstanceId === gameInstanceId) reportEngineGame();
     };
   }, []);
   useEffect(() => {
@@ -479,6 +491,8 @@ export function useGameEventListeners() {
           reason: string;
           message: string;
         }>("game:forced_end", (payload) => {
+          const state = getState();
+          if (!state.isGameActive || state.isRestartingGame || isOver(state)) return;
           const message = payload?.message ?? `Forced game exit`;
           const { isMultiplayer, isHost } = getState();
           const activeSession = peekActiveGameSession();

@@ -1,8 +1,11 @@
 // Mirrors Forge's DeckFormat (structural rules) + GameFormat (card legality).
 // For our limited card pool, we combine both into a single GameFormat interface.
+import { commanderRulebreakers } from "@/lib/rulebreakers";
+import type { DeckLegality } from "@/lib/rulebreakers/rulebreaker";
 import type { Deck, DeckCard, DeckFormat } from "@/protocol/deck";
 export interface GameFormat {
-  id: DeckFormat;
+  id: DeckFormat | "duelcommander";
+  deckFormat?: DeckFormat;
   name: string;
   shortName: string;
   description: string;
@@ -239,6 +242,23 @@ export const GAME_FORMATS: GameFormat[] = [
     bannedCards: [],
   },
   {
+    id: "duelcommander",
+    deckFormat: "commander",
+    name: "Duel Commander",
+    shortName: "DC",
+    description: `Commander decks, 1v1, 20 life`,
+    badgeColor: "purple",
+    deckRules: {
+      minDeckSize: 100,
+      maxDeckSize: 100,
+      maxCopies: 1,
+      sideboardMax: 10,
+      startingLife: 20,
+      requiresCommander: true,
+    },
+    bannedCards: [],
+  },
+  {
     id: "paupercommander",
     name: "Pauper Commander",
     shortName: "PDH",
@@ -346,9 +366,10 @@ export function validateDeck(
   cardNames: string[],
   format: GameFormat,
   copyLimits?: ReadonlyMap<string, number>,
+  maxDeckSize = format.deckRules.maxDeckSize,
 ): DeckValidation {
   const errors: string[] = [];
-  const { minDeckSize, maxDeckSize, maxCopies } = format.deckRules;
+  const { minDeckSize, maxCopies } = format.deckRules;
   if (cardNames.length < minDeckSize) {
     errors.push(`Deck must have at least ${minDeckSize} cards (has ${cardNames.length})`);
   }
@@ -375,7 +396,7 @@ export function validateDeck(
   }
   return { legal: errors.length === 0, errors };
 }
-function getCardIdentity(card?: DeckCard): string[] {
+export function getCardIdentity(card?: DeckCard): string[] {
   if (!card) return [];
   if (card.colorIdentity && card.colorIdentity.length > 0) {
     return [...new Set(card.colorIdentity)];
@@ -622,10 +643,27 @@ export function validateDeckSections(
     const limit = copyLimitFromText(c.text);
     if (limit !== null) copyLimits.set(c.identity.name, limit);
   }
+  const identitySource =
+    format.id === "oathbreaker" ? commanders.filter((c) => canBeOathbreaker(c)) : commanders;
+  const commanderIdentity = new Set(identitySource.flatMap((cmd) => getCardIdentity(cmd)));
+  const legality = commanderRulebreakers(commanders).reduce<DeckLegality>(
+    (current, rulebreaker) => rulebreaker.apply(current),
+    {
+      commanderIdentity,
+      offIdentityCards:
+        format.deckRules.requiresCommander && identitySource.length > 0
+          ? [...mainDeck, ...commanders].filter((card) =>
+              getCardIdentity(card).some((color) => !commanderIdentity.has(color)),
+            )
+          : [],
+      maxDeckSize: format.deckRules.maxDeckSize,
+    },
+  );
   const baseValidation = validateDeck(
     [...mainDeck, ...commanders].map((c) => c.identity.name),
     format,
     copyLimits,
+    legality.maxDeckSize,
   );
   errors.push(...baseValidation.errors);
   if (sideboard.length > format.deckRules.sideboardMax) {
@@ -652,14 +690,13 @@ export function validateDeckSections(
   }
   if (format.deckRules.requiresCommander) {
     const expectedMainSize = format.deckRules.minDeckSize - commanders.length;
-    if (mainDeck.length !== expectedMainSize) {
+    if (legality.maxDeckSize !== null && mainDeck.length !== expectedMainSize) {
       errors.push(
         `${format.name} deck must have exactly ${expectedMainSize} non-commander cards (has ${mainDeck.length})`,
       );
     }
-    let identitySource = commanders;
     if (format.id === "oathbreaker") {
-      const oathbreakers = commanders.filter((c) => canBeOathbreaker(c));
+      const oathbreakers = identitySource;
       const spells = commanders.filter((c) => canBeSignatureSpell(c));
       for (const cmd of commanders) {
         if (!canBeOathbreaker(cmd) && !canBeSignatureSpell(cmd)) {
@@ -680,7 +717,6 @@ export function validateDeckSections(
           `Deck can have one signature spell per oathbreaker (has ${spells.length} for ${oathbreakers.length})`,
         );
       }
-      identitySource = oathbreakers;
     } else {
       if (commanders.length === 0) {
         errors.push(`Deck must have at least 1 commander`);
@@ -698,16 +734,9 @@ export function validateDeckSections(
         );
       }
     }
-    const commanderIdentity = new Set(identitySource.flatMap((cmd) => getCardIdentity(cmd)));
-    if (commanderIdentity.size > 0) {
-      const invalid = [...mainDeck, ...commanders].find((card) =>
-        getCardIdentity(card).some((color) => !commanderIdentity.has(color)),
-      );
-      if (invalid) {
-        errors.push(
-          `Deck contains cards outside commander color identity: ${invalid.identity.name}`,
-        );
-      }
+    const invalid = legality.offIdentityCards[0];
+    if (invalid) {
+      errors.push(`Deck contains cards outside commander color identity: ${invalid.identity.name}`);
     }
   }
   if (format.cardPool) {

@@ -31,8 +31,10 @@ import {
   promptCardDisplayDimensions as getPromptCardDisplayDimensions,
 } from "@/components/game/game.utils";
 import { computePreviewCardDimensions } from "@/components/game/cardPreviewLayout";
+import { hasUnspentMana } from "@/components/game/manaUtils";
 import { getSafeAreaInsets } from "@/lib/safeArea";
 import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
+import { useGameStore } from "@/stores/useGameStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { type PromptActionViewKey } from "@/stores/useGameDevStore";
 import { resolveCombo, useKeybindingsStore } from "@/stores/useKeybindingsStore";
@@ -338,13 +340,24 @@ export function actionTitle(
 }
 export function isAutopassWindow(spec: PromptOverlaySpec | null): boolean {
   const input = spec?.currentPrompt?.input;
+  const ignored = useGameStore.getState().ignoredCardIds;
+  const { fullControl, confirmPassWithMana } = usePromptPreferencesStore.getState();
+  const localPlayer = spec?.gameView.players.find((player) => player.id === spec.localPlayerId);
+  const holdForFloatingMana =
+    confirmPassWithMana &&
+    (spec?.gameView.stack?.length ?? 0) === 0 &&
+    hasUnspentMana(localPlayer?.manaPool);
   return (
     spec != null &&
     input?.type === "chooseAction" &&
     spec.action.promptActionOverride == null &&
     !spec.action.isWaitingForResponse &&
-    !usePromptPreferencesStore.getState().fullControl &&
-    input.actions.every((action) => action.type === "activateAbility" && action.isManaAbility)
+    !fullControl &&
+    !holdForFloatingMana &&
+    input.actions.every(
+      (action) =>
+        (action.type === "activateAbility" && action.isManaAbility) || ignored.has(action.cardId),
+    )
   );
 }
 
@@ -399,6 +412,9 @@ function sameActionPresentation(
       left.promptActionOverride === right.promptActionOverride &&
       left.isWaitingForResponse === right.isWaitingForResponse &&
       left.isWaitingForOthers === right.isWaitingForOthers &&
+      left.waitingFor?.name === right.waitingFor?.name &&
+      left.waitingFor?.color === right.waitingFor?.color &&
+      left.waitingFor?.avatarUrl === right.waitingFor?.avatarUrl &&
       sameArray(left.availableAttackerIds, right.availableAttackerIds) &&
       sameArray(left.pendingAttackers, right.pendingAttackers) &&
       left.selectedAttackDefenderId === right.selectedAttackDefenderId &&
@@ -462,7 +478,14 @@ export function sameGameOverPresentation(
     left.me === right.me &&
     sameArray(left.opponents, right.opponents) &&
     left.turn === right.turn &&
-    left.engineCrash === right.engineCrash
+    left.engineCrash === right.engineCrash &&
+    left.statusMessage === right.statusMessage &&
+    left.playerStatuses === right.playerStatuses &&
+    sameArray(left.rematchRequests, right.rematchRequests) &&
+    left.ready === right.ready &&
+    left.busy === right.busy &&
+    !!left.onPlayAgain === !!right.onPlayAgain &&
+    !!left.onChangeDeck === !!right.onChangeDeck
   );
 }
 

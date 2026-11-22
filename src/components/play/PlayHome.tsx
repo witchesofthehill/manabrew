@@ -46,6 +46,7 @@ export function PlayHome() {
   const connected = useServerStore((state) => state.connected);
   const connecting = useServerStore((state) => state.connecting);
   const connectionError = useServerStore((state) => state.error);
+  const switchingRelay = useServerStore((state) => state.switchingRelay);
   const rooms = useServerStore((state) => state.rooms);
   const players = useServerStore((state) => state.players);
   const connectPreferred = useServerStore((state) => state.connectPreferred);
@@ -63,7 +64,14 @@ export function PlayHome() {
   const communityEnabled = isFeatureEnabled("deckHub");
   useEffect(() => {
     const name = relayUsername();
-    if (!resumePending && !connected && !connecting && !connectionError && name) {
+    if (
+      !resumePending &&
+      !connected &&
+      !connecting &&
+      !connectionError &&
+      !switchingRelay &&
+      name
+    ) {
       void connectPreferred(name);
     }
   }, [
@@ -71,6 +79,7 @@ export function PlayHome() {
     connected,
     connecting,
     connectionError,
+    switchingRelay,
     resumePending,
     serverUsername,
     accountHandle,

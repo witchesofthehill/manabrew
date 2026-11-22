@@ -107,6 +107,7 @@ public final class HarnessPlayPlumbing {
         }
 
         final Card source = sa.getHostCard();
+        final int waitingMark = game.getTriggerHandler().getWaitingTriggerCount();
         final Zone fromZone = game.getZoneOf(source);
         final int zonePosition = fromZone != null ? fromZone.getCards().indexOf(source) : 0;
         final CardPlayOption option = source.mayPlay(sa.getMayPlay());
@@ -128,17 +129,25 @@ public final class HarnessPlayPlumbing {
             game.getStack().add(sa);
             return true;
         }
-        GameActionUtil.rollbackAbility(sa, sa.isSpell() ? fromZone : null, zonePosition, pay, source);
+        GameActionUtil.rollbackAbility(sa, sa.isSpell() ? fromZone : null, zonePosition, pay, source, waitingMark);
         return false;
     }
 
     public boolean handlePlayingSpellAbility(final Player ai, SpellAbility sa, final Game game) {
+        if (sa.isLandAbility()) {
+            if (sa.canPlay()) {
+                sa.resolve();
+            }
+            return true;
+        }
+
         sa = chooseOptionalAdditionalCosts(ai, sa);
         if (sa == null) {
             return false;
         }
 
         final Card source = sa.getHostCard();
+        final int waitingMark = game.getTriggerHandler().getWaitingTriggerCount();
         final Card host = sa.getHostCard();
         final Zone hz = host.isCopiedSpell() ? null : host.getZone();
         final int zonePosition = hz != null ? hz.getCards().indexOf(host) : 0;
@@ -197,7 +206,7 @@ public final class HarnessPlayPlumbing {
         if (!announceType(sa) || !announceValuesLikeX(sa) || !sa.checkRestrictions(ai)
                 || !sa.setupTargets() || !sa.isLegalAfterStack()) {
             if (sa.isSpell() && !source.isCopiedSpell() && hz != null) {
-                GameActionUtil.rollbackAbility(sa, hz, zonePosition, pay, host);
+                GameActionUtil.rollbackAbility(sa, hz, zonePosition, pay, host, waitingMark);
             } else if (sa.isActivatedAbility()) {
                 sa.setXManaCostPaid(null);
             }
@@ -240,7 +249,7 @@ public final class HarnessPlayPlumbing {
         System.out.println("[" + sa.getActivatingPlayer() + "] AI failed to play "
                 + sa.getHostCard() + " [" + sa.getHostCard().getZone() + "]");
         sa.setSkip(true);
-        GameActionUtil.rollbackAbility(sa, sa.isSpell() ? hz : null, zonePosition, pay, host);
+        GameActionUtil.rollbackAbility(sa, sa.isSpell() ? hz : null, zonePosition, pay, host, waitingMark);
         if (host != null && hz != null) {
             final Card rolledBackHost = sa.getHostCard();
             if (rolledBackHost != null) {

@@ -2591,6 +2591,7 @@ export default function Game({ exitTo }: GameProps = {}) {
             engineCrash,
             statusMessage: postGame.statusMessage,
             playerStatuses: postGame.playerStatuses,
+            rematchRequests: postGame.rematchRequests,
             ready: postGame.ready,
             busy: postGame.busy,
             onPlayAgain: postGame.onPlayAgain,

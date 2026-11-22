@@ -24,6 +24,7 @@ export interface GameOverPromptSpec {
   engineCrash: string | null;
   statusMessage: string | null;
   playerStatuses: Readonly<Record<string, string>>;
+  rematchRequests: readonly string[];
   ready: boolean;
   busy: boolean;
   onPlayAgain: (() => void) | null;

@@ -91,6 +91,7 @@ public final class ManaBrewInteractiveSession {
     private volatile List<String> publishedSnapshots = List.of();
     private volatile boolean executionFinished;
     private volatile int promptedPlayerIndex = -1;
+    private volatile int decidingPlayerIndex = -1;
     private long promptSeq;
     private volatile boolean closed;
     private volatile Thread gameThread;
@@ -307,12 +308,18 @@ public final class ManaBrewInteractiveSession {
         final String snapshot = InteractiveSnapshotExtractor.snapshotJson(
                 game, castingAbility, sessionId, viewer, secretChoiceVisibility, handKnowledge,
                 checkpointViews, restoreVoteView, snapshotRecording);
-        if (decisionHistory == null) return snapshot;
+        final int deciding = decidingPlayerIndex;
+        if (decisionHistory == null && deciding < 0) return snapshot;
         final JsonObject view = JsonParser.parseString(snapshot).getAsJsonObject();
-        final JsonObject history = new JsonObject();
-        history.addProperty("rewinding", rewindPending);
-        history.addProperty("unavailableReason", decisionHistory.unavailableReason());
-        view.add("decisionHistory", history);
+        if (deciding >= 0) {
+            view.addProperty("decidingPlayerId", "player-" + deciding);
+        }
+        if (decisionHistory != null) {
+            final JsonObject history = new JsonObject();
+            history.addProperty("rewinding", rewindPending);
+            history.addProperty("unavailableReason", decisionHistory.unavailableReason());
+            view.add("decisionHistory", history);
+        }
         return view.toString();
     }
 
@@ -2155,6 +2162,14 @@ public final class ManaBrewInteractiveSession {
     }
 
     private JsonObject takeAction() throws InterruptedException {
+        try {
+            return awaitAction();
+        } finally {
+            decidingPlayerIndex = -1;
+        }
+    }
+
+    private JsonObject awaitAction() throws InterruptedException {
         while (true) {
             if (actionRepeat.replaying()) {
                 final JsonObject replayed = actionRepeat.replayAnswer();
@@ -3348,6 +3363,7 @@ public final class ManaBrewInteractiveSession {
 
     private void publishAgentPrompt(final String decidingPlayerId, final String sourceCardId, final JsonObject input) {
         promptedPlayerIndex = parsePlayerSlot(decidingPlayerId);
+        decidingPlayerIndex = promptedPlayerIndex;
         openPromptJson = ManabrewProtocolAdapter.agentPrompt(
                 ++promptSeq,
                 decidingPlayerId,

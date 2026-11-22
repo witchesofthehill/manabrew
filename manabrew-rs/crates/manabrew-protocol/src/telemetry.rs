@@ -231,6 +231,9 @@ pub struct OfflinePlayGame {
     pub client_version: String,
     pub platform: String,
     pub players: Vec<OfflinePlaySeat>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub rematch_of: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -287,6 +290,7 @@ impl OfflinePlayGame {
             && self.conceded.iter().all(|name| text(name, 80))
             && (1..=8).contains(&self.players.len())
             && self.players.iter().all(OfflinePlaySeat::is_plausible)
+            && self.rematch_of.as_deref().is_none_or(uuid_shaped)
     }
 }
 

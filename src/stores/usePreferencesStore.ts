@@ -110,6 +110,8 @@ export interface PreferencesState {
   // accidentally reposition them; tap-to-open keeps working.
   lockZoneTiles: boolean;
   setLockZoneTiles: (value: boolean) => void;
+  usageAnalytics: boolean;
+  setUsageAnalytics: (value: boolean) => void;
 
   // Only the Pixi battlefield reads this; hand, stack, and modals always use
   // the image.
@@ -213,6 +215,7 @@ const PERSISTED_PREFERENCE_KEYS = [
   "turnBanner",
   "cardSizeMultiplier",
   "lockZoneTiles",
+  "usageAnalytics",
   "battlefieldCardStyle",
   "boardBackgroundId",
   "inGameAnimations",
@@ -374,6 +377,9 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           lockZoneTiles: false,
           setLockZoneTiles: (lockZoneTiles) => set({ lockZoneTiles }),
+
+          usageAnalytics: true,
+          setUsageAnalytics: (usageAnalytics) => set({ usageAnalytics }),
 
           setBattlefieldCardStyle: (battlefieldCardStyle) => set({ battlefieldCardStyle }),
 

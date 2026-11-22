@@ -215,6 +215,35 @@ export function mergeDeckImportIntoDeck(
   };
 }
 
+export function replaceDeckSectionsWithImport(
+  deck: EditorDeck,
+  sections: ResolvedDeckImportSections,
+): EditorDeck {
+  const importsCommanders = sections.commanders.length > 0;
+  const format =
+    importsCommanders && !formatRequiresCommander(deck.format) ? "commander" : deck.format;
+  const keepsCommanders = formatRequiresCommander(format);
+  const commanders = keepsCommanders ? sections.commanders : [];
+  return {
+    ...deck,
+    name: resolveDeckName(deck.name, commanders),
+    format,
+    cards: keepsCommanders ? sections.cards : [...sections.cards, ...sections.commanders],
+    sideboard: sections.sideboard,
+    maybeboard: sections.maybeboard,
+    commanders,
+  };
+}
+
+export function deckImportEntryZone(
+  entry: ParsedDeckEntry,
+): "commander" | "side" | "maybe" | "main" {
+  if (isDetectedCommander(entry)) return "commander";
+  if (entry.side) return "side";
+  if (entry.maybe) return "maybe";
+  return "main";
+}
+
 export async function fetchDeckBySource(
   source: DeckSource,
   id: string,

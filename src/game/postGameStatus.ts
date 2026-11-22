@@ -14,10 +14,20 @@ export function postGameStatus(
   connected: boolean,
 ) {
   const playerStatuses: Record<string, string> = {};
+  const rematchRequests: string[] = [];
   const rematch = room?.rematch;
   for (const [index, name] of playerOrder.entries()) {
     const seat = room?.players.find((player) => player.username === name);
     const choice = rematch?.players.find((player) => player.username === name);
+    if (
+      room?.status === "Finished" &&
+      !rematch?.cancelled &&
+      seat?.connected &&
+      name !== username &&
+      choice?.intent === "Ready"
+    ) {
+      rematchRequests.push(`player-${index}`);
+    }
     playerStatuses[`player-${index}`] = !seat
       ? "Left"
       : !seat.connected
@@ -29,11 +39,17 @@ export function postGameStatus(
             : "Deciding";
   }
   if (!connected) {
-    return { playerStatuses, statusMessage: "Reconnecting to the table…", ready: false };
+    return {
+      playerStatuses,
+      rematchRequests: [],
+      statusMessage: "Reconnecting to the table…",
+      ready: false,
+    };
   }
   if (!room) {
     return {
       playerStatuses,
+      rematchRequests,
       statusMessage: "The table closed. Return Home to start a new game.",
       ready: false,
     };
@@ -47,6 +63,7 @@ export function postGameStatus(
       .map((player) => stripUsernameTag(player.username));
     return {
       playerStatuses,
+      rematchRequests,
       statusMessage: `${left.length ? `${new Intl.ListFormat("en").format(left)} left the table. ` : "The roster changed. "}Choose another deck to return to table setup and agree on the next game.`,
       ready: false,
     };
@@ -54,6 +71,7 @@ export function postGameStatus(
   if (room.status !== "Finished" || !rematch) {
     return {
       playerStatuses,
+      rematchRequests,
       statusMessage:
         room.status === "InGame"
           ? "Waiting for the host to finish the game…"
@@ -74,6 +92,7 @@ export function postGameStatus(
   const waitingNames = new Intl.ListFormat("en").format(waiting.map(stripUsernameTag));
   return {
     playerStatuses,
+    rematchRequests,
     statusMessage: waitingNames
       ? `Waiting on ${waitingNames}`
       : ready

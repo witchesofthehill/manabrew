@@ -45,6 +45,7 @@ import {
   ArrowUp,
   Sparkles,
   BookOpen,
+  FilePenLine,
 } from "lucide-react";
 import { useState, useRef, useEffect, useCallback, useMemo, useDeferredValue } from "react";
 import { toast } from "sonner";
@@ -69,6 +70,7 @@ import {
 } from "@/lib/scryfall.utils";
 import { DROP_ZONE, DEFAULT_DECK_NAME, ROUTES, STORAGE_KEYS } from "@/lib/constants";
 import { parseDeckListText } from "@/lib/deckImport";
+import { trackClientEvent } from "@/lib/clientAnalytics";
 import { useDroppable } from "@dnd-kit/core";
 import { cn } from "@/lib/utils";
 import {
@@ -124,7 +126,7 @@ import { useUnsupportedCards } from "@/hooks/useUnsupportedCards";
 import { useCardPool } from "@/hooks/useCardPool";
 import { CommanderSlots } from "./CommanderSlots";
 import { ImportDeckTextDialog } from "./ImportDeckTextDialog";
-import { useDeckTextImportIntoCurrent } from "./useDeckTextImport";
+import { useDeckTextImportIntoCurrent, useDeckTextReplaceCurrent } from "./useDeckTextImport";
 import {
   executeDeckEdit,
   redoDeckEdit,
@@ -229,6 +231,7 @@ export function DeckBuilder({
   }>(() => ({ key: "", details: new Map() }));
   const [labelsOpen, setLabelsOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [editListText, setEditListText] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [syncState, setSyncState] = useState<DeckSyncState>("saved");
   const [saveConflict, setSaveConflict] = useState<Awaited<
@@ -280,6 +283,7 @@ export function DeckBuilder({
   }
   const allowIllegalDecks = useGameDevStore((s) => s.allowIllegalDecks);
   const importIntoCurrentDeck = useDeckTextImportIntoCurrent();
+  const replaceCurrentDeckList = useDeckTextReplaceCurrent();
   const { selectedCards, toggleCard, rangeSelect, clearSelection, selectCards } =
     useDeckSelection();
   useEffect(() => {
@@ -712,7 +716,7 @@ export function DeckBuilder({
         toast.error(`Clipboard does not contain a recognized card list`);
         return;
       }
-      await importIntoCurrentDeck(entries, "", undefined, () => undefined);
+      await importIntoCurrentDeck(entries, "", undefined, () => undefined, "clipboard");
     } catch {
       toast.error(`Could not read cards from the clipboard`);
     }
@@ -1102,13 +1106,29 @@ export function DeckBuilder({
   }
   function handleExport() {
     const text = exportToArena(currentDeck);
-    navigator.clipboard.writeText(text).then(() => toast.success(`Deck copied to clipboard`));
+    navigator.clipboard.writeText(text).then(() => {
+      trackClientEvent("feature_used", { feature: "deck_export" });
+      toast.success(`Deck copied to clipboard`);
+    });
   }
   function handleExactExport() {
     navigator.clipboard
       .writeText(exportWithPrintings(currentDeck))
-      .then(() => toast.success(`Exact printings copied to clipboard`))
+      .then(() => {
+        trackClientEvent("feature_used", { feature: "deck_export" });
+        toast.success(`Exact printings copied to clipboard`);
+      })
       .catch(() => toast.error(`Could not write to the clipboard`));
+  }
+  function openEditList() {
+    setEditListText(
+      exportWithPrintings({
+        commanders: currentDeck.commanders,
+        cards: currentDeck.cards,
+        sideboard: currentDeck.sideboard,
+        maybeboard: currentDeck.maybeboard,
+      }),
+    );
   }
   async function handleSave(deckOverride?: EditorDeck, quiet = false) {
     if (saveInFlightRef.current) return;
@@ -1359,6 +1379,14 @@ export function DeckBuilder({
       disabled: isReadOnly,
       disabledReason: isReadOnly ? "Read only" : undefined,
       run: () => setImportOpen(true),
+    },
+    {
+      id: "edit-list",
+      label: `Edit deck as text`,
+      keywords: ["list", "text", "replace", "bulk"],
+      disabled: isReadOnly,
+      disabledReason: isReadOnly ? "Read only" : undefined,
+      run: openEditList,
     },
     {
       id: "undo",
@@ -2050,6 +2078,9 @@ export function DeckBuilder({
                   <DropdownMenuItem onSelect={() => setImportOpen(true)}>
                     <ListPlus className="mr-2 h-3.5 w-3.5" /> Import list
                   </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={openEditList}>
+                    <FilePenLine className="mr-2 h-3.5 w-3.5" /> Edit as text
+                  </DropdownMenuItem>
                   <DropdownMenuItem
                     onSelect={handleExport}
                     disabled={currentDeck.cards.length === 0 && !currentDeck.commanders?.length}
@@ -2572,6 +2603,17 @@ export function DeckBuilder({
           mode="add"
           onImport={importIntoCurrentDeck}
         />
+        {editListText !== null && (
+          <ImportDeckTextDialog
+            open
+            onOpenChange={(open) => {
+              if (!open) setEditListText(null);
+            }}
+            mode="edit"
+            initialText={editListText}
+            onImport={replaceCurrentDeckList}
+          />
+        )}
         <DeckCommandPalette
           open={commandPaletteOpen}
           onOpenChange={setCommandPaletteOpen}

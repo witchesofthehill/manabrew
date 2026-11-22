@@ -9,6 +9,7 @@ import { useServerStore } from "@/stores/useServerStore";
 import { RELAY_FEATURE, type PlayerDeckInfo } from "@/types/server";
 
 const EMPTY_PLAYER_STATUSES: Readonly<Record<string, string>> = {};
+const EMPTY_REMATCH_REQUESTS: readonly string[] = [];
 
 export function usePostGame(completed: boolean, managedReturn: boolean) {
   const navigate = useNavigate();
@@ -133,6 +134,7 @@ export function usePostGame(completed: boolean, managedReturn: boolean) {
     busy,
     ready: multiplayer && status.ready,
     playerStatuses: multiplayer ? status.playerStatuses : EMPTY_PLAYER_STATUSES,
+    rematchRequests: multiplayer ? status.rematchRequests : EMPTY_REMATCH_REQUESTS,
     statusMessage:
       error ??
       (managedReturn ? "Returning to your session…" : multiplayer ? status.statusMessage : null),

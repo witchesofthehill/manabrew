@@ -5,6 +5,7 @@ import { useServerStore } from "@/stores/useServerStore";
 import { useChatStore } from "@/stores/useChatStore";
 import { useRoomInvites } from "@/hooks/useRoomInvites";
 import { useGameStore } from "@/stores/useGameStore";
+import { useClientAnalytics } from "@/hooks/useClientAnalytics";
 import { cn } from "@/lib/utils";
 import { useGameSessionResume } from "@/hooks/useGameSessionResume";
 import { useLimitedSessionRecovery } from "@/hooks/useLimitedSessionRecovery";
@@ -85,6 +86,7 @@ export function AppShell() {
 
   useEffect(() => useChatStore.getState().setupListeners(), []);
   useRoomInvites();
+  useClientAnalytics();
 
   useEffect(() => {
     if (accountsEnabled) void useAuthStore.getState().hydrate();

@@ -6,7 +6,8 @@ description: What Manabrew stores, what it sends, and what it never collects.
 The short version: **no ads, no third-party tracking, and accounts are
 optional.** Games played on the public relay are recorded, offline use of an
 exact Community publication is reported for aggregate rankings, and you can
-explicitly save or publish decks. These are described below.
+explicitly save or publish decks. The app also sends limited usage events and
+first-game funnel checkpoints unless you turn them off.
 
 ## What stays on your machine
 
@@ -173,6 +174,50 @@ can reach the existing operations notification channel, without exception
 text, game IDs, or session IDs. These reports cover frontend exceptions and
 failures forwarded to the frontend, not native process crash dumps.
 
+## Client usage
+
+The managed app and official builds send a small set of usage events to our
+self-hosted collector. They do not go to Grafana Cloud or an advertising
+service. You can turn them off in Settings under **Usage Analytics**. If your
+browser sends Global Privacy Control, the app sends none.
+
+Events say which screens you open, whether a deck import worked, how long you
+waited in a room, deck exports, and playtest starts. Durations use broad
+buckets. Events also carry the app version, environment, and platform (web,
+PWA, desktop, or mobile). Page addresses are reduced to the route, so
+`/draft/abc123` is stored as `/draft/:id`. We strip query strings and
+fragments, and we skip sign-in and developer pages. Each event also carries a
+random visit token, made fresh on every page load and not kept on your device,
+so that events from one visit can be grouped.
+
+The app sends your relay username with each event so that events from one
+player can be grouped. The collector does not store the username. It stores a
+short keyed hash of it instead, the Activity ID. The same username gives a
+different ID on staging and on production. Maintainers who know a username
+can compute its ID, so this data is pseudonymous, not anonymous. To measure
+whether new players come back, we match IDs to relay game counts in memory
+and keep only the totals. Changing your name or signing in starts a new ID.
+
+The first-game funnel counts primary clicks and taps on menus and setup
+screens until your first real match against AI or other players. It does not
+count keyboard input, scrolling, or clicks during a game, and it never sends
+what you clicked, where, or any text. When you start a match it records how you
+started it, as one of a fixed list (for example "starter deck", "Community
+deck", or "joined a table"). It also records how you reached the app, as one
+of a fixed list of sources taken from a `utm_source` tag or the site that
+linked you (for example "Reddit", "search", or "direct"). After your first
+match the app stores your username on this device and stops sending funnel
+data.
+
+Raw usage events are visible only to maintainers and expire after 30 days.
+The funnel summary for an Activity ID (click total, three timestamps, and the
+two sources above) is deleted 90 days after its last update. Contact us to
+have it removed sooner. We keep daily totals per source with no IDs in them
+indefinitely.
+
+The collector sees your IP address to answer the request. It does not store
+it in usage records and keeps no access logs.
+
 ## Who is responsible, and how to reach us
 
 Manabrew is run by the maintainers of the
@@ -185,16 +230,17 @@ in public, say so and we will arrange somewhere private.
 
 ## Why we are allowed to process this
 
-| What                                                                          | Why we may do it                                                         |
-| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| Running your account, syncing your decks, serving your publications           | Performing the service you asked us for                                  |
-| Sending a sign-in code by email                                               | Performing the service you asked us for                                  |
-| Recording relay games, keeping message captures, operational logs and metrics | Our legitimate interest in keeping the service working and debuggable    |
-| Aggregate Top Deck rankings                                                   | Our legitimate interest in making the app useful                         |
-| Offline play reports from published decks                                     | Our legitimate interest in ranking decks; the report carries no username |
+| What                                                                          | Why we may do it                                                          |
+| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Running your account, syncing your decks, serving your publications           | Performing the service you asked us for                                   |
+| Sending a sign-in code by email                                               | Performing the service you asked us for                                   |
+| Recording relay games, keeping message captures, operational logs and metrics | Our legitimate interest in keeping the service working and debuggable     |
+| Aggregate Top Deck rankings                                                   | Our legitimate interest in making the app useful                          |
+| Offline play reports from published decks                                     | Our legitimate interest in ranking decks; the report carries no username  |
+| Frontend diagnostics, client usage, and first-game funnels                    | Our legitimate interest in finding failures and understanding feature use |
 
 You can object to anything resting on legitimate interests - see below. We do
-not sell data, we do not advertise, and we do not profile you.
+not sell data or advertise.
 
 ## How long we keep things
 
@@ -211,6 +257,9 @@ current behaviour rather than promises we have automated.
 | Per-game message captures                         | A rolling 20 GB budget on the server; the oldest are dropped first, so how long a capture survives depends on how busy the relay has been |
 | Server logs and metrics                           | No automatic expiry yet                                                                                                                   |
 | Frontend error diagnostics                        | 30 days                                                                                                                                   |
+| Raw client usage events                           | 30 days                                                                                                                                   |
+| First-game summaries and pending visit counts     | 90 days after the last update; pending visit details are deleted when the first observed match starts                                     |
+| Daily first-game totals (no IDs)                  | Indefinitely                                                                                                                              |
 
 Where a row says "no automatic expiry yet", that is a gap we intend to close;
 ask us and we will remove your records by hand in the meantime.

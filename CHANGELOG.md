@@ -1,5 +1,74 @@
 # Changelog
 
+## [3.88.0](https://github.com/witchesofthehill/manabrew/compare/v3.87.7...v3.88.0) (2026-11-22)
+
+### Features
+
+* **analytics:** add client events and first-game funnels ([#1210](https://github.com/witchesofthehill/manabrew/issues/1210)) ([7faceea](https://github.com/witchesofthehill/manabrew/commit/7faceea08a9deca6304d2dcb8fa5a4bf8c507518))
+
+## [3.87.7](https://github.com/witchesofthehill/manabrew/compare/v3.87.6...v3.87.7) (2026-11-22)
+
+### Fixes
+
+* **ironsmith:** update ironsmith-wasm to 0.9.6 ([#1271](https://github.com/witchesofthehill/manabrew/issues/1271)) ([fdd69ad](https://github.com/witchesofthehill/manabrew/commit/fdd69ad58e6ac94f05c8a3cbae4a0c94d1f10cd0))
+
+## [3.87.6](https://github.com/witchesofthehill/manabrew/compare/v3.87.5...v3.87.6) (2026-11-22)
+
+### Fixes
+
+* **ironsmith:** update ironsmith-wasm to 0.9.5 ([#1270](https://github.com/witchesofthehill/manabrew/issues/1270)) ([1fae74f](https://github.com/witchesofthehill/manabrew/commit/1fae74fcab5fb8970b76d3bbbfadf5e32e304673))
+
+## [3.87.5](https://github.com/witchesofthehill/manabrew/compare/v3.87.4...v3.87.5) (2026-11-22)
+
+### Fixes
+
+* fix end screen ([#1269](https://github.com/witchesofthehill/manabrew/issues/1269)) ([7326d5e](https://github.com/witchesofthehill/manabrew/commit/7326d5e31c903ca8ff2475cba0bc532928c737fa))
+
+## [3.87.4](https://github.com/witchesofthehill/manabrew/compare/v3.87.3...v3.87.4) (2026-11-22)
+
+### Fixes
+
+* **telemetry:** record solo games started with play again ([#1266](https://github.com/witchesofthehill/manabrew/issues/1266)) ([60d3408](https://github.com/witchesofthehill/manabrew/commit/60d3408215ca4ded97abb4423afb56223830cd5b))
+
+## [3.87.3](https://github.com/witchesofthehill/manabrew/compare/v3.87.2...v3.87.3) (2026-11-21)
+
+### Fixes
+
+* **ironsmith:** find the local seat by slot, not isHuman ([#1261](https://github.com/witchesofthehill/manabrew/issues/1261)) ([764e39d](https://github.com/witchesofthehill/manabrew/commit/764e39d31bdb5618a7d875b45280bb7b4c062da9))
+
+## [3.87.2](https://github.com/witchesofthehill/manabrew/compare/v3.87.1...v3.87.2) (2026-11-21)
+
+### Fixes
+
+* topdeck bug 1255 ([#1262](https://github.com/witchesofthehill/manabrew/issues/1262)) ([52605b4](https://github.com/witchesofthehill/manabrew/commit/52605b49aa7a0ac74f3b372ceae0567d32f1e7fa))
+* autoanswer on cancellable targets ([#1263](https://github.com/witchesofthehill/manabrew/issues/1263)) ([332525a](https://github.com/witchesofthehill/manabrew/commit/332525a95c101c69bccb82ce456087091bdcc455))
+* 1110, 1220, 1190 ([#1264](https://github.com/witchesofthehill/manabrew/issues/1264)) ([db3f401](https://github.com/witchesofthehill/manabrew/commit/db3f4015fcdb2b2676d5e5d24dba9c439821a0d8))
+* waiting for ([#1265](https://github.com/witchesofthehill/manabrew/issues/1265)) ([94bb328](https://github.com/witchesofthehill/manabrew/commit/94bb3281685569f17d9cec895c8f51037b848e76))
+
+## [3.87.1](https://github.com/witchesofthehill/manabrew/compare/v3.87.0...v3.87.1) (2026-11-20)
+
+### Fixes
+
+* **ironsmith:** prevent delayed sync from repeating mulligans ([#1256](https://github.com/witchesofthehill/manabrew/issues/1256)) ([50f9819](https://github.com/witchesofthehill/manabrew/commit/50f9819632acf4f6b425328b0e1a499806c11ded))
+
+## [3.87.0](https://github.com/witchesofthehill/manabrew/compare/v3.86.1...v3.87.0) (2026-11-20)
+
+### Features
+
+* **editor:** edit deck as text with a reviewed diff ([#1258](https://github.com/witchesofthehill/manabrew/issues/1258)) ([725cad4](https://github.com/witchesofthehill/manabrew/commit/725cad44428e03ba137b88a8023a95c0904e9072))
+
+## [3.86.1](https://github.com/witchesofthehill/manabrew/compare/v3.86.0...v3.86.1) (2026-11-19)
+
+### Fixes
+
+* **ui:** show tap state in battlefield card choices ([#1252](https://github.com/witchesofthehill/manabrew/issues/1252)) ([e9c45ab](https://github.com/witchesofthehill/manabrew/commit/e9c45ab2d6a4b47ed1b6fa45257dc50e811d12b5))
+
+## [3.86.0](https://github.com/witchesofthehill/manabrew/compare/v3.85.0...v3.86.0) (2026-11-19)
+
+### Features
+
+* **ui:** confirm passing priority with unspent mana ([#1253](https://github.com/witchesofthehill/manabrew/issues/1253)) ([b8389b7](https://github.com/witchesofthehill/manabrew/commit/b8389b765feb6c99f8921acb9b6037a3deb40fc7))
+
 ## [3.85.0](https://github.com/witchesofthehill/manabrew/compare/v3.84.8...v3.85.0) (2026-11-19)
 
 ### Features

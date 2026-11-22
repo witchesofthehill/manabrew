@@ -464,6 +464,7 @@ function sameActionPresentation(
       !!left.onMulliganPutBackConfirm === !!right.onMulliganPutBackConfirm &&
       left.selfClusterMaxHeight === right.selfClusterMaxHeight &&
       left.dividerY === right.dividerY &&
+      left.spectator === right.spectator &&
       left.dimmed === right.dimmed)
   );
 }

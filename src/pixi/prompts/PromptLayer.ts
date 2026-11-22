@@ -605,8 +605,10 @@ export class PromptLayer extends PromptModalLayer {
       : view.width;
     const contentWidth = fixedWidth == null ? rowWidth : fixedContentWidth;
     const width = fixedWidth ?? Math.min(this.viewportWidth - 12, Math.max(40, contentWidth + 12));
-    const modeButton = !minimal && showPriorityMode ? this.makePriorityModePill(preview) : null;
-    const menuButton = !minimal ? this.makeActionMenuButton(false) : null;
+    const spectator = !!action.spectator;
+    const modeButton =
+      !minimal && !spectator && showPriorityMode ? this.makePriorityModePill(preview) : null;
+    const menuButton = !minimal && !spectator ? this.makeActionMenuButton(false) : null;
     const contextButton = !minimal && showActionContext ? this.makeActionContextButton() : null;
     const held = this.heldTurn;
     const phaseSpec = held
@@ -641,7 +643,9 @@ export class PromptLayer extends PromptModalLayer {
           effectivePromptType,
           input && "presentation" in input ? input.presentation.title : undefined,
         )
-      : "Waiting";
+      : spectator
+        ? "Watching"
+        : "Waiting";
     const sectionPaddingX = minimal ? 6 : PANEL_PAD_X;
     const sectionPaddingTop = minimal ? 4 : 0;
     const sectionPaddingBottom = minimal ? 4 : PANEL_PAD_X;
@@ -731,7 +735,9 @@ export class PromptLayer extends PromptModalLayer {
           backgroundColor: turnColor,
           foreground: tabInk,
           pressOffsetY: 0,
-          onPress: () => this.togglePhaseControls(),
+          onPress: () => {
+            if (!spectator) this.togglePhaseControls();
+          },
         });
     if (phaseTab) phaseTab.position.set(phaseTabX, -phaseTabRise);
     const panelShape = {
@@ -864,15 +870,18 @@ export class PromptLayer extends PromptModalLayer {
 
     if (!minimal) {
       const rowCenter = phaseHeight + titleRowHeight / 2;
-      let right = width - PANEL_PAD_X + (menuButton!.width - ACTION_MENU_ICON_SIZE) / 2;
-      menuButton!.container.position.set(
-        right - menuButton!.width,
-        rowCenter - menuButton!.height / 2,
-      );
-      panel.addChild(menuButton!.container);
-      right -= menuButton!.width + 5;
-      if (showPriorityMode) {
-        const mode = modeButton!;
+      let right = width - PANEL_PAD_X;
+      if (menuButton) {
+        right += (menuButton.width - ACTION_MENU_ICON_SIZE) / 2;
+        menuButton.container.position.set(
+          right - menuButton.width,
+          rowCenter - menuButton.height / 2,
+        );
+        panel.addChild(menuButton.container);
+        right -= menuButton.width + 5;
+      }
+      if (modeButton) {
+        const mode = modeButton;
         mode.position.set(right - mode.buttonWidth, rowCenter - mode.buttonHeight / 2);
         panel.addChild(mode);
         right -= mode.buttonWidth + 6;
@@ -1655,7 +1664,15 @@ export class PromptLayer extends PromptModalLayer {
       const waitingFor = this.spec?.action.waitingFor;
       const avatar = waitingFor ? this.makeWaitingAvatar(waitingFor) : null;
       const avatarWidth = avatar ? WAITING_AVATAR_DIAMETER + labelGap : 0;
-      const label = promptText(waitingFor ? "WAITING FOR" : "WAITING FOR OTHERS", 11, color, {
+      const spectator = !!this.spec?.action.spectator;
+      const text = spectator
+        ? waitingFor
+          ? "NOW DECIDING"
+          : "WATCHING"
+        : waitingFor
+          ? "WAITING FOR"
+          : "WAITING FOR OTHERS";
+      const label = promptText(text, 11, color, {
         weight: "600",
         letterSpacing: 1.54,
         width: Math.max(1, width - hourglassWidth - labelGap - avatarWidth),
@@ -2169,24 +2186,29 @@ export class PromptLayer extends PromptModalLayer {
     disabled: boolean,
   ): ActionViewLayout {
     const phase = includePhase ? this.makeCompactPhaseButton() : null;
-    const menu = this.makeActionMenuButton(true);
-    const priorityMode = showPriorityMode ? this.makePriorityModePill(disabled, true) : null;
+    const spectator = !!this.spec?.action.spectator;
+    const menu = spectator ? null : this.makeActionMenuButton(true);
+    const priorityMode =
+      showPriorityMode && !spectator ? this.makePriorityModePill(disabled, true) : null;
     const utility = new Container();
-    if (priorityMode) {
-      utility.addChild(priorityMode);
-      menu.container.position.set(priorityMode.buttonWidth, 0);
+    if (priorityMode) utility.addChild(priorityMode);
+    if (menu) {
+      menu.container.position.set(priorityMode?.buttonWidth ?? 0, 0);
+      utility.addChild(menu.container);
     }
-    utility.addChild(menu.container);
-    const utilities: ActionViewLayout = {
-      container: utility,
-      width: menu.width + (priorityMode?.buttonWidth ?? 0),
-      height: Math.max(menu.height, priorityMode?.buttonHeight ?? 0),
-    };
-    const controlViews = phase
-      ? this.leftHanded
-        ? [phase, utilities]
-        : [utilities, phase]
-      : [utilities];
+    const utilities: ActionViewLayout | null =
+      menu || priorityMode
+        ? {
+            container: utility,
+            width: (menu?.width ?? 0) + (priorityMode?.buttonWidth ?? 0),
+            height: Math.max(menu?.height ?? 0, priorityMode?.buttonHeight ?? 0),
+          }
+        : null;
+    const controlViews = [
+      ...(phase && this.leftHanded ? [phase] : []),
+      ...(utilities ? [utilities] : []),
+      ...(phase && !this.leftHanded ? [phase] : []),
+    ];
     const height = controlViews.reduce(
       (controlHeight, control) => Math.max(controlHeight, control.height),
       0,

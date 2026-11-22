@@ -2451,7 +2451,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           useServerStore.getState().playerDecks,
         ));
   const decidingPlayer =
-    gameView.decidingPlayerId !== me.id
+    isSpectator || gameView.decidingPlayerId !== me.id
       ? gameView.players.find((player) => player.id === gameView.decidingPlayerId)
       : undefined;
   const promptOverlaySpec: PromptOverlaySpec = {
@@ -2476,6 +2476,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         : null,
     sourceDeckCard: promptSourceDeckCard,
     action: {
+      spectator: isSpectator,
       promptType,
       promptActionOverride,
       isWaitingForResponse,

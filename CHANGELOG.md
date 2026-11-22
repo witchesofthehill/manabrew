@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.87.4](https://github.com/witchesofthehill/manabrew/compare/v3.87.3...v3.87.4) (2026-11-22)
+
+### Fixes
+
+* **telemetry:** record solo games started with play again ([#1266](https://github.com/witchesofthehill/manabrew/issues/1266)) ([60d3408](https://github.com/witchesofthehill/manabrew/commit/60d3408215ca4ded97abb4423afb56223830cd5b))
+
 ## [3.87.3](https://github.com/witchesofthehill/manabrew/compare/v3.87.2...v3.87.3) (2026-11-21)
 
 ### Fixes
